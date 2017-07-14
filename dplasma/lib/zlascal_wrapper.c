@@ -16,8 +16,8 @@
 #include "map.h"
 
 static int
-dplasma_zlascal_operator( parsec_execution_unit_t *eu,
-                         const tiled_matrix_desc_t *descA,
+dplasma_zlascal_operator( parsec_execution_stream_t *es,
+                         const parsec_tiled_matrix_dc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
                          void *args )
@@ -26,7 +26,7 @@ dplasma_zlascal_operator( parsec_execution_unit_t *eu,
     parsec_complex64_t  alpha = *((parsec_complex64_t*)args);
     int i;
     int tempmm, tempnn, ldam;
-    (void)eu;
+    (void)es;
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
@@ -64,7 +64,7 @@ dplasma_zlascal_operator( parsec_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zlascal_New - Generates the handle that scales a matrix by a given scalar.
+ * dplasma_zlascal_New - Generates the taskpool that scales a matrix by a given scalar.
  *
  * See dplasma_map_New() for further information.
  *
@@ -95,7 +95,7 @@ dplasma_zlascal_operator( parsec_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlascal_Destruct();
  *
@@ -108,10 +108,10 @@ dplasma_zlascal_operator( parsec_execution_unit_t *eu,
  * @sa dplasma_slascal_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zlascal_New( PLASMA_enum uplo,
                      parsec_complex64_t alpha,
-                     tiled_matrix_desc_t *A )
+                     parsec_tiled_matrix_dc_t *A )
 {
     parsec_complex64_t *a = (parsec_complex64_t*)malloc(sizeof(parsec_complex64_t));
     *a = alpha;
@@ -124,14 +124,14 @@ dplasma_zlascal_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlascal_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlascal_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlascal_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -140,9 +140,9 @@ dplasma_zlascal_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlascal_Destruct( parsec_handle_t *handle )
+dplasma_zlascal_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(handle);
+    dplasma_map_Destruct(tp);
 }
 
 /**
@@ -198,9 +198,9 @@ int
 dplasma_zlascal( parsec_context_t     *parsec,
                  PLASMA_enum          uplo,
                  parsec_complex64_t    alpha,
-                 tiled_matrix_desc_t *A )
+                 parsec_tiled_matrix_dc_t *A )
 {
-    parsec_handle_t *parsec_zlascal = NULL;
+    parsec_taskpool_t *parsec_zlascal = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -214,7 +214,7 @@ dplasma_zlascal( parsec_context_t     *parsec,
     parsec_zlascal = dplasma_zlascal_New(uplo, alpha, A);
 
     if ( parsec_zlascal != NULL ) {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zlascal);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zlascal);
         dplasma_wait_until_completion(parsec);
         dplasma_zlascal_Destruct( parsec_zlascal );
     }

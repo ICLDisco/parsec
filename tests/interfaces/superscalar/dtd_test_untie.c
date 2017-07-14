@@ -33,18 +33,16 @@ enum regions {
              };
 
 int
-test_task( parsec_execution_unit_t    *context,
-           parsec_execution_context_t *this_task )
+test_task( parsec_execution_stream_t *es,
+           parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     int *amount_of_work;
     parsec_dtd_unpack_args( this_task,
-                           UNPACK_VALUE,  &amount_of_work
-                          );
+                           UNPACK_VALUE,  &amount_of_work);
     int i, j, bla;
     for( i = 0; i < *amount_of_work; i++ ) {
-        //for( j = 0; j < *amount_of_work; j++ ) {
         for( j = 0; j < 2; j++ ) {
             bla = j*2;
             bla = j + 20;
@@ -57,13 +55,13 @@ test_task( parsec_execution_unit_t    *context,
 }
 
 int
-test_task_generator( parsec_execution_unit_t    *context,
-                     parsec_execution_context_t *this_task )
+test_task_generator( parsec_execution_stream_t    *es,
+                     parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
-    tiled_matrix_desc_t *ddescA;
-    parsec_handle_t *parsec_dtd_handle = this_task->parsec_handle;
+    parsec_tiled_matrix_dc_t *dcA;
+    parsec_taskpool_t *dtd_tp = this_task->taskpool;
     int *total, *step, *iteration, *n;
     int *amount_of_work;
     int i;
@@ -74,21 +72,20 @@ test_task_generator( parsec_execution_unit_t    *context,
                            UNPACK_VALUE,  &total,
                            UNPACK_VALUE,  &step,
                            UNPACK_VALUE,  &iteration,
-                           UNPACK_SCRATCH, &ddescA
-                          );
+                           UNPACK_SCRATCH, &dcA);
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
     for( i = 0; *iteration < *total; *iteration += 1, i++ ) {
         if( i > *step ) {
             return PARSEC_HOOK_RETURN_AGAIN;
         } else {
-            parsec_insert_task( parsec_dtd_handle, test_task,    0,  "Test_Task",
+            parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                 sizeof(int),      amount_of_work,    VALUE,
                                 PASSED_BY_REF,    TILE_OF_KEY(A, *n), INOUT  ,
                                 0 );
         }
     }
-    parsec_dtd_data_flush(parsec_dtd_handle, TILE_OF_KEY(A, *n));
+    parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, *n));
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -119,26 +116,26 @@ int main(int argc, char ** argv)
     int m, n;
     int no_of_chain;
     int nb, nt;
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
     int amount_of_work[3] = {1000, 10000, 100000};
-    parsec_handle_t *parsec_dtd_handle;
+    parsec_taskpool_t *dtd_tp;
 
     no_of_chain = cores;
     int tasks_in_each_chain[3] = {1000, 10000, 100000};
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    parsec_dtd_handle = parsec_dtd_handle_new(  );
+    dtd_tp = parsec_dtd_taskpool_new(  );
 
-    /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    /* Registering the dtd_taskpool with PARSEC context */
+    parsec_enqueue( parsec, dtd_tp );
     parsec_context_start( parsec );
 
     nb = 1; /* size of each tile */
     nt = no_of_chain; /* total tiles */
 
-    ddescA = create_and_distribute_data(rank, world, nb, nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, nb, nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
@@ -146,8 +143,8 @@ int main(int argc, char ** argv)
                           MPI_INT);
 #endif
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-    parsec_dtd_ddesc_init(A);
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+    parsec_dtd_data_collection_init(A);
     int i;
     int work_index = 0;
 
@@ -156,15 +153,15 @@ int main(int argc, char ** argv)
         SYNC_TIME_START();
         for( n = 0; n < no_of_chain; n++ ) {
             for( m = 0; m < tasks_in_each_chain[i]; m++ ) {
-                parsec_insert_task( parsec_dtd_handle, test_task,    0,  "Test_Task",
+                parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                     sizeof(int),      &amount_of_work[work_index],    VALUE,
                                     PASSED_BY_REF,    TILE_OF_KEY(A, n), INOUT  ,
                                     0 );
             }
-            parsec_dtd_data_flush(parsec_dtd_handle, TILE_OF_KEY(A, n));
+            parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, n));
         }
-        /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+        /* finishing all the tasks inserted, but not finishing the taskpool */
+        parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
         SYNC_TIME_PRINT(rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));
     }
@@ -174,22 +171,22 @@ int main(int argc, char ** argv)
     for( i = 0; i < 3; i++ ) {
 
         SYNC_TIME_START();
-        int step = dtd_window_size, iteration = 0;
+        int step = parsec_dtd_window_size, iteration = 0;
 
         for( n = 0; n < no_of_chain; n++ ) {
-            parsec_insert_task( parsec_dtd_handle, test_task_generator,    0,  "Test_Task_Generator",
+            parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_Generator",
                                 sizeof(int),      &n,                     VALUE,
                                 sizeof(int),      &amount_of_work[work_index],     VALUE,
                                 sizeof(int),      &tasks_in_each_chain[i],   VALUE,
                                 sizeof(int),      &step,                  VALUE,
                                 sizeof(int),      &iteration,             VALUE,
-                                sizeof(tiled_matrix_desc_t*),    ddescA,  SCRATCH,
+                                sizeof(parsec_tiled_matrix_dc_t*),    dcA,  SCRATCH,
                                 0 );
 
         }
 
-        /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+        /* finishing all the tasks inserted, but not finishing the taskpool */
+        parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
         SYNC_TIME_PRINT(rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));
     }
@@ -197,10 +194,10 @@ int main(int argc, char ** argv)
     parsec_context_wait(parsec);
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);
-    parsec_dtd_ddesc_fini( A );
-    free_data(ddescA);
+    parsec_dtd_data_collection_fini( A );
+    free_data(dcA);
 
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     parsec_fini(&parsec);
 

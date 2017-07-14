@@ -24,7 +24,7 @@ typedef void * CORE_sgetrf_data_t;
 #   include <stdlib.h>
 #   include <stdio.h>
 #   define printlog(str, ...) fprintf(stderr, "thread %d VP %d " str "\n", \
-                                      context->th_id, context->virtual_process->vp_id, __VA_ARGS__)
+                                      es->th_id, es->virtual_process->vp_id, __VA_ARGS__)
 #   define printlogcuda(str, ...) fprintf(stderr, "cuda %d " str "\n", \
                                           gpu_device->cuda_index, __VA_ARGS__)
 #   define OUTPUT(ARG)  printf ARG

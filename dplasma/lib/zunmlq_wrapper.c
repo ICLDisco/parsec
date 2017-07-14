@@ -25,7 +25,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zunmlq_New - Generates the parsec handle that overwrites the general
+ *  dplasma_zunmlq_New - Generates the parsec taskpool that overwrites the general
  *  M-by-N matrix C with
  *
  *                  SIDE = 'L'     SIDE = 'R'
@@ -75,7 +75,7 @@
  *******************************************************************************
  *
  * @return
- *          \retval The parsec handle which describes the operation to perform
+ *          \retval The parsec taskpool which describes the operation to perform
  *                  NULL if one of the parameter is incorrect
  *
  *******************************************************************************
@@ -88,13 +88,13 @@
  * @sa dplasma_zgelqf_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zunmlq_New( PLASMA_enum side, PLASMA_enum trans,
-                    tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *T,
-                    tiled_matrix_desc_t *C )
+                    parsec_tiled_matrix_dc_t *A,
+                    parsec_tiled_matrix_dc_t *T,
+                    parsec_tiled_matrix_dc_t *C )
 {
-    parsec_handle_t* handle;
+    parsec_taskpool_t* tp;
     int An, ib = T->mb;
 
     /* if ( !dplasma_check_desc(A) ) { */
@@ -129,13 +129,13 @@ dplasma_zunmlq_New( PLASMA_enum side, PLASMA_enum trans,
 
     if ( side == PlasmaLeft ) {
         if ( trans == PlasmaNoTrans ) {
-            handle = (parsec_handle_t*)parsec_zunmlq_LN_new( side, trans,
+            tp = (parsec_taskpool_t*)parsec_zunmlq_LN_new( side, trans,
                                                            A,
                                                            C,
                                                            T,
                                                            NULL);
         } else {
-            handle = (parsec_handle_t*)parsec_zunmlq_LC_new( side, trans,
+            tp = (parsec_taskpool_t*)parsec_zunmlq_LC_new( side, trans,
                                                            A,
                                                            C,
                                                            T,
@@ -143,13 +143,13 @@ dplasma_zunmlq_New( PLASMA_enum side, PLASMA_enum trans,
         }
     } else {
         if ( trans == PlasmaNoTrans ) {
-            handle = (parsec_handle_t*)parsec_zunmlq_RN_new( side, trans,
+            tp = (parsec_taskpool_t*)parsec_zunmlq_RN_new( side, trans,
                                                            A,
                                                            C,
                                                            T,
                                                            NULL);
         } else {
-            handle = (parsec_handle_t*)parsec_zunmlq_RC_new( side, trans,
+            tp = (parsec_taskpool_t*)parsec_zunmlq_RC_new( side, trans,
                                                            A,
                                                            C,
                                                            T,
@@ -157,28 +157,28 @@ dplasma_zunmlq_New( PLASMA_enum side, PLASMA_enum trans,
         }
     }
 
-    ((parsec_zunmlq_LC_handle_t*)handle)->_g_pool_0 = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
-    parsec_private_memory_init( ((parsec_zunmlq_LC_handle_t*)handle)->_g_pool_0, ib * T->nb * sizeof(parsec_complex64_t) );
+    ((parsec_zunmlq_LC_taskpool_t*)tp)->_g_pool_0 = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( ((parsec_zunmlq_LC_taskpool_t*)tp)->_g_pool_0, ib * T->nb * sizeof(parsec_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( ((parsec_zunmlq_LC_handle_t*)handle)->arenas[PARSEC_zunmlq_LC_DEFAULT_ARENA],
+    dplasma_add2arena_tile( ((parsec_zunmlq_LC_taskpool_t*)tp)->arenas[PARSEC_zunmlq_LC_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(parsec_complex64_t),
                             PARSEC_ARENA_ALIGNMENT_SSE,
                             parsec_datatype_double_complex_t, A->mb );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_upper( ((parsec_zunmlq_LC_handle_t*)handle)->arenas[PARSEC_zunmlq_LC_UPPER_TILE_ARENA],
+    dplasma_add2arena_upper( ((parsec_zunmlq_LC_taskpool_t*)tp)->arenas[PARSEC_zunmlq_LC_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(parsec_complex64_t),
                              PARSEC_ARENA_ALIGNMENT_SSE,
                              parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( ((parsec_zunmlq_LC_handle_t*)handle)->arenas[PARSEC_zunmlq_LC_LITTLE_T_ARENA],
+    dplasma_add2arena_rectangle( ((parsec_zunmlq_LC_taskpool_t*)tp)->arenas[PARSEC_zunmlq_LC_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(parsec_complex64_t),
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_complex_t, T->mb, T->nb, -1);
 
-    return handle;
+    return tp;
 }
 
 /**
@@ -186,14 +186,14 @@ dplasma_zunmlq_New( PLASMA_enum side, PLASMA_enum trans,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zunmlq_Destruct - Free the data structure associated to an handle
+ *  dplasma_zunmlq_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zunmlq_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -202,9 +202,9 @@ dplasma_zunmlq_New( PLASMA_enum side, PLASMA_enum trans,
  *
  ******************************************************************************/
 void
-dplasma_zunmlq_Destruct( parsec_handle_t *handle )
+dplasma_zunmlq_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zunmlq_LC_handle_t *parsec_zunmlq = (parsec_zunmlq_LC_handle_t *)handle;
+    parsec_zunmlq_LC_taskpool_t *parsec_zunmlq = (parsec_zunmlq_LC_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zunmlq->arenas[PARSEC_zunmlq_LC_DEFAULT_ARENA   ] );
     parsec_matrix_del2arena( parsec_zunmlq->arenas[PARSEC_zunmlq_LC_UPPER_TILE_ARENA] );
@@ -213,7 +213,7 @@ dplasma_zunmlq_Destruct( parsec_handle_t *handle )
     parsec_private_memory_fini( parsec_zunmlq->_g_pool_0 );
     free( parsec_zunmlq->_g_pool_0 );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -287,11 +287,11 @@ dplasma_zunmlq_Destruct( parsec_handle_t *handle )
 int
 dplasma_zunmlq( parsec_context_t *parsec,
                 PLASMA_enum side, PLASMA_enum trans,
-                tiled_matrix_desc_t *A,
-                tiled_matrix_desc_t *T,
-                tiled_matrix_desc_t *C )
+                parsec_tiled_matrix_dc_t *A,
+                parsec_tiled_matrix_dc_t *T,
+                parsec_tiled_matrix_dc_t *C )
 {
-    parsec_handle_t *parsec_zunmlq = NULL;
+    parsec_taskpool_t *parsec_zunmlq = NULL;
     int An;
 
     if (parsec == NULL) {
@@ -334,7 +334,7 @@ dplasma_zunmlq( parsec_context_t *parsec,
     parsec_zunmlq = dplasma_zunmlq_New(side, trans, A, T, C);
 
     if ( parsec_zunmlq != NULL ){
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zunmlq);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zunmlq);
         dplasma_wait_until_completion(parsec);
         dplasma_zunmlq_Destruct( parsec_zunmlq );
     }

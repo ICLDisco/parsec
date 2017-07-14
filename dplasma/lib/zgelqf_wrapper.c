@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgelqf_New - Generates the handle that computes the LQ factorization
+ * dplasma_zgelqf_New - Generates the taskpool that computes the LQ factorization
  * a complex M-by-N matrix A: A = L * Q.
  *
  * The method used in this algorithm is a tile LQ algorithm with a flat
@@ -67,7 +67,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgelqf_Destruct();
  *
@@ -80,48 +80,48 @@
  * @sa dplasma_sgelqf_New
  *
  ******************************************************************************/
-parsec_handle_t*
-dplasma_zgelqf_New( tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *T )
+parsec_taskpool_t*
+dplasma_zgelqf_New( parsec_tiled_matrix_dc_t *A,
+                    parsec_tiled_matrix_dc_t *T )
 {
-    parsec_zgelqf_handle_t* handle;
+    parsec_zgelqf_taskpool_t* tp;
     int ib = T->mb;
 
-    handle = parsec_zgelqf_new( A,
-                               T,
-                               ib, NULL, NULL );
+    tp = parsec_zgelqf_new( A,
+                            T,
+                            ib, NULL, NULL );
 
-    handle->_g_p_tau = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
-    parsec_private_memory_init( handle->_g_p_tau, T->nb * sizeof(parsec_complex64_t) );
+    tp->_g_p_tau = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( tp->_g_p_tau, T->nb * sizeof(parsec_complex64_t) );
 
-    handle->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
-    parsec_private_memory_init( handle->_g_p_work, ib * T->nb * sizeof(parsec_complex64_t) );
+    tp->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( tp->_g_p_work, ib * T->nb * sizeof(parsec_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( handle->arenas[PARSEC_zgelqf_DEFAULT_ARENA],
+    dplasma_add2arena_tile( tp->arenas[PARSEC_zgelqf_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(parsec_complex64_t),
                             PARSEC_ARENA_ALIGNMENT_SSE,
                             parsec_datatype_double_complex_t, A->mb );
 
     /* Lower triangular part of tile with diagonal */
-    dplasma_add2arena_lower( handle->arenas[PARSEC_zgelqf_LOWER_TILE_ARENA],
+    dplasma_add2arena_lower( tp->arenas[PARSEC_zgelqf_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(parsec_complex64_t),
                              PARSEC_ARENA_ALIGNMENT_SSE,
                              parsec_datatype_double_complex_t, A->mb, 1 );
 
     /* Upper triangular part of tile without diagonal */
-    dplasma_add2arena_upper( handle->arenas[PARSEC_zgelqf_UPPER_TILE_ARENA],
+    dplasma_add2arena_upper( tp->arenas[PARSEC_zgelqf_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(parsec_complex64_t),
                              PARSEC_ARENA_ALIGNMENT_SSE,
                              parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgelqf_LITTLE_T_ARENA],
+    dplasma_add2arena_rectangle( tp->arenas[PARSEC_zgelqf_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(parsec_complex64_t),
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_complex_t, T->mb, T->nb, -1);
 
-    return (parsec_handle_t*)handle;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
@@ -129,14 +129,14 @@ dplasma_zgelqf_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgelqf_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgelqf_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgelqf_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -145,9 +145,9 @@ dplasma_zgelqf_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgelqf_Destruct( parsec_handle_t *handle )
+dplasma_zgelqf_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zgelqf_handle_t *parsec_zgelqf = (parsec_zgelqf_handle_t *)handle;
+    parsec_zgelqf_taskpool_t *parsec_zgelqf = (parsec_zgelqf_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zgelqf->arenas[PARSEC_zgelqf_DEFAULT_ARENA   ] );
     parsec_matrix_del2arena( parsec_zgelqf->arenas[PARSEC_zgelqf_LOWER_TILE_ARENA] );
@@ -159,7 +159,7 @@ dplasma_zgelqf_Destruct( parsec_handle_t *handle )
     free( parsec_zgelqf->_g_p_work );
     free( parsec_zgelqf->_g_p_tau  );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 
@@ -226,10 +226,10 @@ dplasma_zgelqf_Destruct( parsec_handle_t *handle )
  ******************************************************************************/
 int
 dplasma_zgelqf( parsec_context_t *parsec,
-                tiled_matrix_desc_t *A,
-                tiled_matrix_desc_t *T )
+                parsec_tiled_matrix_dc_t *A,
+                parsec_tiled_matrix_dc_t *T )
 {
-    parsec_handle_t *parsec_zgelqf = NULL;
+    parsec_taskpool_t *parsec_zgelqf = NULL;
 
     if ( (A->mt != T->mt) || (A->nt != T->nt) ) {
         dplasma_error("dplasma_zgelqf", "T doesn't have the same number of tiles as A");
@@ -239,7 +239,7 @@ dplasma_zgelqf( parsec_context_t *parsec,
     parsec_zgelqf = dplasma_zgelqf_New(A, T);
 
     if ( parsec_zgelqf != NULL ) {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgelqf);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zgelqf);
         dplasma_wait_until_completion(parsec);
         dplasma_zgelqf_Destruct( parsec_zgelqf );
     }

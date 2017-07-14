@@ -75,17 +75,17 @@
  ******************************************************************************/
 int
 dplasma_zgesv_incpiv( parsec_context_t *parsec,
-                      tiled_matrix_desc_t *A,
-                      tiled_matrix_desc_t *L,
-                      tiled_matrix_desc_t *IPIV,
-                      tiled_matrix_desc_t *B )
+                      parsec_tiled_matrix_dc_t *A,
+                      parsec_tiled_matrix_dc_t *L,
+                      parsec_tiled_matrix_dc_t *IPIV,
+                      parsec_tiled_matrix_dc_t *B )
 {
     int info;
 
 #ifdef PARSEC_COMPOSITION
-    parsec_handle_t *parsec_zgetrf  = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
-    parsec_handle_t *parsec_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
-    parsec_handle_t *parsec_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+    parsec_taskpool_t *parsec_zgetrf  = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
+    parsec_taskpool_t *parsec_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
+    parsec_taskpool_t *parsec_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
     parsec_enqueue( parsec, parsec_zgetrf  );
     parsec_enqueue( parsec, parsec_ztrsmpl );

@@ -23,12 +23,12 @@ BEGIN_C_DECLS
 #include "parsec/data_distribution.h"
 #include "parsec/interfaces/superscalar/insert_function.h"
 
-typedef struct parsec_dtd_task_param_s parsec_dtd_task_param_t;
-typedef struct parsec_dtd_function_s   parsec_dtd_function_t;
+typedef struct parsec_dtd_task_param_s  parsec_dtd_task_param_t;
+typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;
 
-extern int dtd_init; /* flag to indicate whether dtd_init() is called or not */
-extern int dump_traversal_info; /* For printing traversal info */
-extern int dump_function_info; /* For printing function_structure info */
+extern int __parsec_dtd_is_initialized; /* flag to indicate whether dtd_init() is called or not */
+extern int parsec_dtd_dump_traversal_info; /* For printing traversal info */
+extern int parsec_dtd_dump_function_info; /* For printing function_structure info */
 extern int hashtable_trace_keyin;
 extern int hashtable_trace_keyout;
 
@@ -36,7 +36,7 @@ extern int hashtable_trace_keyout;
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
 
 /* Macros to figure out offset of paramters attached to a task */
-#define GET_HEAD_OF_PARAM_LIST(TASK) (parsec_dtd_task_param_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (TASK->super.function->nb_flows * sizeof(parsec_dtd_parent_info_t)) + (TASK->super.function->nb_flows * sizeof(parsec_dtd_descendant_info_t))  + (TASK->super.function->nb_flows * sizeof(parsec_dtd_flow_info_t)) )
+#define GET_HEAD_OF_PARAM_LIST(TASK) (parsec_dtd_task_param_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (TASK->super.task_class->nb_flows * sizeof(parsec_dtd_parent_info_t)) + (TASK->super.task_class->nb_flows * sizeof(parsec_dtd_descendant_info_t))  + (TASK->super.task_class->nb_flows * sizeof(parsec_dtd_flow_info_t)) )
 
 #define GET_VALUE_BLOCK(HEAD, PARAM_COUNT) ((char *)HEAD) + PARAM_COUNT * sizeof(parsec_dtd_task_param_t)
 
@@ -58,7 +58,7 @@ extern int hashtable_trace_keyout;
                                  TO.alive      = FROM.alive;                            \
 
 
-#define LOCAL_DATA 200 /* function_id is uint8_t */
+#define LOCAL_DATA 200 /* task_class_id is uint8_t */
 
 #define TASK_IS_ALIVE       (uint8_t)1
 #define TASK_IS_NOT_ALIVE   (uint8_t)0
@@ -79,7 +79,7 @@ struct parsec_dtd_task_param_s {
     parsec_dtd_task_param_t *next;
 };
 
-typedef void (parsec_handle_wait_t)( parsec_context_t *context, parsec_handle_t *parsec_handle );
+typedef void (parsec_taskpool_wait_t)( parsec_context_t *context, parsec_taskpool_t *tp );
 
 #define SUCCESSOR_ITERATED (1<<0)
 #define TASK_INSERTED (1<<1)
@@ -152,27 +152,27 @@ typedef struct parsec_dtd_parent_info_s {
 
 #define PARENT_OF(TASK, INDEX) (parsec_dtd_parent_info_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (INDEX*sizeof(parsec_dtd_parent_info_t)) )
 
-#define DESC_OF(TASK, INDEX) (parsec_dtd_descendant_info_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (TASK->super.function->nb_flows*sizeof(parsec_dtd_parent_info_t)) + (INDEX*sizeof(parsec_dtd_descendant_info_t)) )
+#define DESC_OF(TASK, INDEX) (parsec_dtd_descendant_info_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (TASK->super.task_class->nb_flows*sizeof(parsec_dtd_parent_info_t)) + (INDEX*sizeof(parsec_dtd_descendant_info_t)) )
 
-#define FLOW_OF(TASK, INDEX) (((TASK->super.parsec_handle->context->my_rank) == (TASK->rank)) ? (parsec_dtd_flow_info_t *) ( ((char *)TASK) + \
+#define FLOW_OF(TASK, INDEX) (((TASK->super.taskpool->context->my_rank) == (TASK->rank)) ? (parsec_dtd_flow_info_t *) ( ((char *)TASK) + \
                                                         sizeof(parsec_dtd_task_t) + \
-                                                       (TASK->super.function->nb_flows*sizeof(parsec_dtd_parent_info_t)) + \
-                                                       (TASK->super.function->nb_flows*sizeof(parsec_dtd_descendant_info_t)) + \
+                                                       (TASK->super.task_class->nb_flows*sizeof(parsec_dtd_parent_info_t)) + \
+                                                       (TASK->super.task_class->nb_flows*sizeof(parsec_dtd_descendant_info_t)) + \
                                                        (INDEX*sizeof(parsec_dtd_flow_info_t)) ) : \
                                                        (parsec_dtd_flow_info_t *) ( ((char *)TASK) + \
                                                         sizeof(parsec_dtd_task_t) + \
-                                                       (TASK->super.function->nb_flows*sizeof(parsec_dtd_parent_info_t)) + \
-                                                       (TASK->super.function->nb_flows*sizeof(parsec_dtd_descendant_info_t)) + \
+                                                       (TASK->super.task_class->nb_flows*sizeof(parsec_dtd_parent_info_t)) + \
+                                                       (TASK->super.task_class->nb_flows*sizeof(parsec_dtd_descendant_info_t)) + \
                                                        (INDEX*sizeof(parsec_dtd_min_flow_info_t)) ))
 
 struct parsec_dtd_task_s {
-    parsec_execution_context_t   super;
+    parsec_task_t   super;
     hash_table_item_t            ht_item;
     parsec_thread_mempool_t     *mempool_owner;
     int32_t                      rank;
     int32_t                      flow_count;
     /* for testing PTG inserting task in DTD */
-    parsec_execution_context_t  *orig_task;
+    parsec_task_t  *orig_task;
 };
 
 /* For creating objects of class parsec_dtd_task_t */
@@ -196,7 +196,7 @@ struct parsec_dtd_tile_s {
     int32_t                  rank;
     uint64_t                 key;
     parsec_data_copy_t      *data_copy;
-    parsec_ddesc_t          *ddesc;
+    parsec_data_collection_t          *dc;
     parsec_dtd_tile_user_t   last_user;
     parsec_dtd_tile_user_t   last_writer;
 };
@@ -218,70 +218,70 @@ typedef struct parsec_dtd_two_hash_table_s {
 } parsec_dtd_two_hash_table_t;
 
 /**
- * internal_parsec_handle
+ * Internal DTD taskpool
  */
-struct parsec_dtd_handle_s {
-    parsec_handle_t         super;
-    parsec_thread_mempool_t *mempool_owner;
-    int                     enqueue_flag;
-    int                     task_id;
-    int                     task_window_size;
-    int32_t                 task_threshold_size;
-    int                     total_tasks_to_be_exec;
-    uint32_t                local_task_inserted;
-    uint8_t                 function_counter;
-    uint8_t                 flow_set_flag[PARSEC_DTD_NB_FUNCTIONS];
-    parsec_handle_wait_t    *wait_func;
-    parsec_mempool_t        *hash_table_bucket_mempool;
+struct parsec_dtd_taskpool_s {
+    parsec_taskpool_t            super;
+    parsec_thread_mempool_t     *mempool_owner;
+    int                          enqueue_flag;
+    int                          task_id;
+    int                          task_window_size;
+    int32_t                      task_threshold_size;
+    int                          total_tasks_to_be_exec;
+    uint32_t                     local_task_inserted;
+    uint8_t                      function_counter;
+    uint8_t                      flow_set_flag[PARSEC_DTD_NB_TASK_CLASSES];
+    parsec_taskpool_wait_t      *wait_func;
+    parsec_mempool_t            *hash_table_bucket_mempool;
     parsec_dtd_two_hash_table_t *two_hash_table;
-    hash_table_t            *function_h_table;
+    hash_table_t                *function_h_table;
     /* ring of initial ready tasks */
-    parsec_execution_context_t **startup_list;
+    parsec_task_t              **startup_list;
     /* from here to end is for the testing interface */
-    struct hook_info actual_hook[PARSEC_DTD_NB_FUNCTIONS];
+    struct hook_info             actual_hook[PARSEC_DTD_NB_TASK_CLASSES];
 };
 
 /*
- * Extension of parsec_function_t class
+ * Extension of parsec_task_class_t class
  */
-struct parsec_dtd_function_s {
-    parsec_function_t     super;
+struct parsec_dtd_task_class_s {
+    parsec_task_class_t      super;
     hash_table_item_t        ht_item;
     parsec_thread_mempool_t *mempool_owner;
-    parsec_dtd_funcptr_t *fpointer;
-    parsec_mempool_t      context_mempool;
-    parsec_mempool_t      remote_task_mempool;
-    int                   index_of_rank_info;
-    int8_t                dep_datatype_index;
-    int8_t                dep_out_index;
-    int8_t                dep_in_index;
-    int8_t                count_of_params;
-    int                   ref_count;
-    long unsigned int     size_of_param;
+    parsec_dtd_funcptr_t    *fpointer;
+    parsec_mempool_t         context_mempool;
+    parsec_mempool_t         remote_task_mempool;
+    int                      index_of_rank_info;
+    int8_t                   dep_datatype_index;
+    int8_t                   dep_out_index;
+    int8_t                   dep_in_index;
+    int8_t                   count_of_params;
+    int                      ref_count;
+    long unsigned int        size_of_param;
 };
 
 /* Function prototypes */
 void
-parsec_detach_all_dtd_handles_from_context( parsec_context_t *context );
+parsec_detach_all_dtd_taskpool_from_context( parsec_context_t *context );
 
 void
-parsec_dtd_template_release( const parsec_function_t *function );
+parsec_dtd_template_release( const parsec_task_class_t *tc );
 
 void
-parsec_dtd_handle_release( parsec_handle_t *parsec_handle );
+parsec_dtd_taskpool_release( parsec_taskpool_t *tp );
 
 void
-parsec_dtd_handle_retain( parsec_handle_t *parsec_handle );
+parsec_dtd_taskpool_retain( parsec_taskpool_t *tp );
 
 void
-parsec_dtd_handle_destruct( parsec_handle_t *parsec_handle );
+parsec_dtd_taskpool_destruct( parsec_taskpool_t *tp );
 
 int
-parsec_dtd_enqueue( parsec_handle_t *handle, void * );
+parsec_dtd_enqueue( parsec_taskpool_t *tp, void * );
 
 parsec_dtd_task_t *
-parsec_dtd_create_and_initialize_task( parsec_dtd_handle_t *parsec_dtd_handle,
-                                       parsec_function_t   *function,
+parsec_dtd_create_and_initialize_task( parsec_dtd_taskpool_t *dtd_tp,
+                                       parsec_task_class_t *tc,
                                        int rank );
 
 void
@@ -294,32 +294,32 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task );
 
 void
 parsec_dtd_startup( parsec_context_t *context,
-                    parsec_handle_t *parsec_handle,
-                    parsec_execution_context_t **pready_list );
+                    parsec_taskpool_t *tp,
+                    parsec_task_t **pready_list );
 
 int
-data_lookup_of_dtd_task( parsec_execution_unit_t *,
-                         parsec_execution_context_t * );
+data_lookup_of_dtd_task( parsec_execution_stream_t *,
+                         parsec_task_t * );
 
 void
-parsec_dtd_ordering_correctly( parsec_execution_unit_t * eu,
-                               const parsec_execution_context_t * this_task,
+parsec_dtd_ordering_correctly( parsec_execution_stream_t * es,
+                               const parsec_task_t * this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t * ontask,
                                void *ontask_arg );
 
 void
-parsec_dtd_schedule_tasks( parsec_dtd_handle_t *__parsec_handle );
+parsec_dtd_schedule_tasks( parsec_dtd_taskpool_t *__tp );
 
 /* Function to remove tile from hash_table
  */
 void
-parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint64_t key );
+parsec_dtd_tile_remove( parsec_data_collection_t *dc, uint64_t key );
 
 /* Function to find tile in hash_table
  */
 parsec_dtd_tile_t *
-parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint64_t key );
+parsec_dtd_tile_find( parsec_data_collection_t *dc, uint64_t key );
 
 void
 parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
@@ -327,56 +327,66 @@ parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
 void
 parsec_dtd_tile_insert( uint64_t key,
                         parsec_dtd_tile_t   *tile,
-                        parsec_ddesc_t      *ddesc );
+                        parsec_data_collection_t      *dc );
 
-parsec_dtd_function_t *
-parsec_dtd_function_find( parsec_dtd_handle_t  *parsec_handle,
-                          uint64_t key );
+parsec_dtd_task_class_t *
+parsec_dtd_find_task_class( parsec_dtd_taskpool_t  *tp,
+                            uint64_t key );
 
-parsec_function_t*
-parsec_dtd_create_function( parsec_dtd_handle_t *__parsec_handle, parsec_dtd_funcptr_t* fpointer,
-                            char* name, int count_of_params, long unsigned int size_of_param,
-                            int flow_count );
-
-void
-parsec_dtd_add_profiling_info( parsec_handle_t *parsec_handle,
-                               int function_id, char *name );
+parsec_task_class_t*
+parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t* fpointer,
+                              char* name, int count_of_params, long unsigned int size_of_param,
+                              int flow_count );
 
 void
-parsec_dtd_add_profiling_info_generic( parsec_handle_t *parsec_handle,
+parsec_dtd_add_profiling_info( parsec_taskpool_t *tp,
+                               int task_class_id, char *name );
+
+void
+parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
                             char* name,
                             int *keyin, int *keyout);
 
 void
-parsec_dtd_task_release( parsec_dtd_handle_t  *parsec_handle,
+parsec_dtd_task_release( parsec_dtd_taskpool_t  *tp,
                          uint32_t             key );
 
 void
 parsec_execute_and_come_back( parsec_context_t *context,
-                              parsec_handle_t  *parsec_handle,
+                              parsec_taskpool_t  *tp,
                               int task_threshold_count );
 
 dep_t *
-parsec_dtd_find_and_return_dep( parsec_dtd_task_t *parent_task, parsec_dtd_task_t *desc_task,
-                                int parent_flow_index, int desc_flow_index );
+parsec_dtd_find_and_return_dep( parsec_dtd_task_t *parent_task,
+                                parsec_dtd_task_t *desc_task,
+                                int parent_flow_index,
+                                int desc_flow_index );
 
 void
-parsec_dtd_insert_task( parsec_dtd_handle_t *parsec_handle,
-                        uint64_t            key,
-                        void                *value );
+parsec_dtd_track_task( parsec_dtd_taskpool_t *tp,
+                       uint64_t               key,
+                       void                  *value );
 
 void *
-parsec_dtd_find_task( parsec_dtd_handle_t *parsec_handle,
-                      uint64_t            key );
+parsec_dtd_find_task( parsec_dtd_taskpool_t *tp,
+                      uint64_t               key );
 
 void *
-parsec_dtd_find_and_remove_task( parsec_dtd_handle_t *parsec_handle,
-                                 uint64_t            key );
+parsec_dtd_untrack_task( parsec_dtd_taskpool_t *tp,
+                         uint64_t               key );
 
 void
-parsec_dtd_insert_remote_dep( parsec_dtd_handle_t *parsec_handle,
-                              uint64_t            key,
-                              void                *value );
+parsec_dtd_track_remote_dep( parsec_dtd_taskpool_t *tp,
+                             uint64_t               key,
+                             void                  *value );
+
+void *
+parsec_dtd_find_remote_dep( parsec_dtd_taskpool_t *tp,
+                            uint64_t               key );
+
+void *
+parsec_dtd_untrack_remote_dep( parsec_dtd_taskpool_t *tp,
+                               uint64_t               key );
 
 int
 parsec_dtd_task_is_local( parsec_dtd_task_t *task );
@@ -391,12 +401,12 @@ parsec_hook_return_t
 parsec_dtd_release_local_task( parsec_dtd_task_t *this_task );
 
 int
-parsec_dtd_copy_data_to_matrix( parsec_execution_unit_t    *eu,
-                                parsec_execution_context_t *this_task );
+parsec_dtd_copy_data_to_matrix( parsec_execution_stream_t *es,
+                                parsec_task_t *this_task );
 
 void
-parsec_dtd_function_release( parsec_dtd_handle_t  *parsec_handle,
-                             uint64_t key );
+parsec_dtd_release_task_class( parsec_dtd_taskpool_t  *tp,
+                               uint64_t key );
 
 void
 parsec_dtd_tile_retain( parsec_dtd_tile_t *tile );

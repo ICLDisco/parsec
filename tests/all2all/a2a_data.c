@@ -14,7 +14,7 @@
 
 #include <assert.h>
 
-tiled_matrix_desc_t *create_and_distribute_data(int rank, int world, int size)
+parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int size)
 {
     two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
     
@@ -22,11 +22,11 @@ tiled_matrix_desc_t *create_and_distribute_data(int rank, int world, int size)
                               world, rank,
                               size, 1, size, 1, rank, 1, world*size, 1,
                               1, 1, world);
-    return (tiled_matrix_desc_t*)m;
+    return (parsec_tiled_matrix_dc_t*)m;
 }
 
-void free_data(tiled_matrix_desc_t *d)
+void free_data(parsec_tiled_matrix_dc_t *d)
 {
-    parsec_ddesc_destroy(&d->super);
+    parsec_data_collection_destroy(&d->super);
     free(d);
 }

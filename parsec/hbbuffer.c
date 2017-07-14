@@ -89,11 +89,11 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
                                      int32_t distance)
 {
     int i = 0;
-    parsec_execution_context_t *candidate, *best_context;
+    parsec_task_t *candidate, *best_context;
     parsec_list_item_t *topush;
     int best_index;
     parsec_list_item_t *ejected = NULL;
-#define CTX(to) ((parsec_execution_context_t*)(to))
+#define CTX(to) ((parsec_task_t*)(to))
 
     if( (0 != distance) && (NULL != b->parent_push_fct) ) {
         ejected = list;
@@ -145,7 +145,7 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
                 char tmp[MAX_TASK_STRLEN];
 #endif
                 PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tPushed task %s in buffer %p.",
-                        parsec_snprintf_execution_context( tmp,  MAX_TASK_STRLEN, CTX(topush) ), b);
+                        parsec_task_snprintf( tmp,  MAX_TASK_STRLEN, CTX(topush) ), b);
 
                 if( NULL != best_context ) {
                     /* best_context is the lowest priority element, and it was removed from the
@@ -156,7 +156,7 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
                      */
 
                     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tEjected task %s from buffer %p.",
-                            parsec_snprintf_execution_context( tmp, 128, best_context ), b);
+                            parsec_task_snprintf( tmp, 128, best_context ), b);
 
                     /* "Push" ejected after best_context, then consider ejected as best_context, to preserve the
                      * ordering of priorities in ejected.
@@ -207,7 +207,7 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
         it = ejected;
         do {
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tPush Parent %s",
-                    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, CTX(it)));
+                    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, CTX(it)));
             it = PARSEC_LIST_ITEM_NEXT(it);
         } while(it != ejected);
 #endif
@@ -250,11 +250,11 @@ parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b, off_t priority_offset)
         char tmp[MAX_TASK_STRLEN];
         if (priority_offset == offsetof(parsec_heap_t, priority)) {
                 PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tFound best element %s in heap %p in local queue %p at position %d",
-                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (parsec_execution_context_t*)((parsec_heap_t*)best_elt)->top), best_elt,
+                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t*)((parsec_heap_t*)best_elt)->top), best_elt,
                         b, best_idx);
         } else {
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tFound best element %s in local queue %p at position %d",
-                    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (parsec_execution_context_t*)best_elt),
+                    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t*)best_elt),
                     b, best_idx);
         }
     }

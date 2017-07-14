@@ -41,7 +41,7 @@ data_repo_lookup_entry(data_repo_t *repo, uint64_t key)
 }
 
 data_repo_entry_t*
-__data_repo_lookup_entry_and_create(parsec_execution_unit_t *eu, data_repo_t *repo, uint64_t key
+__data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *repo, uint64_t key
 #if defined(PARSEC_DEBUG_NOISIER)
                                     , const char *tablename, const char *file, int line
 #endif
@@ -62,11 +62,11 @@ __data_repo_lookup_entry_and_create(parsec_execution_unit_t *eu, data_repo_t *re
     }
     parsec_atomic_unlock(&repo->heads[h].lock);
 
-    e = (data_repo_entry_t*)parsec_thread_mempool_allocate( eu->datarepo_mempools[repo->nbdata] );
+    e = (data_repo_entry_t*)parsec_thread_mempool_allocate( es->datarepo_mempools[repo->nbdata] );
 #if defined(PARSEC_DEBUG_PARANOID)
     { uint32_t i; for(i = 0; i < repo->nbdata; e->data[i] = NULL, i++);}
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
-    e->data_repo_mempool_owner = eu->datarepo_mempools[repo->nbdata];
+    e->data_repo_mempool_owner = es->datarepo_mempools[repo->nbdata];
     e->key = key;
 #if defined(PARSEC_SIM)
     e->sim_exec_date = 0;
@@ -87,7 +87,7 @@ __data_repo_lookup_entry_and_create(parsec_execution_unit_t *eu, data_repo_t *re
 }
 
 void
-__data_repo_entry_used_once(parsec_execution_unit_t *eu, data_repo_t *repo, uint64_t key
+__data_repo_entry_used_once(parsec_execution_stream_t *es, data_repo_t *repo, uint64_t key
 #if defined(PARSEC_DEBUG_NOISIER)
                             , const char *tablename, const char *file, int line
 #endif
@@ -131,7 +131,7 @@ __data_repo_entry_used_once(parsec_execution_unit_t *eu, data_repo_t *repo, uint
                              e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line);
         parsec_atomic_unlock(&repo->heads[h].lock);
     }
-    (void)eu;
+    (void)es;
 }
 
 void

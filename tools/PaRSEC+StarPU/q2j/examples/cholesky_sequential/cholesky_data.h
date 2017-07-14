@@ -10,7 +10,7 @@ extern int matrix_rank;
 extern int BLOCKSIZE;
 extern int NMAX_BLOCKS;
 
-parsec_ddesc_t *create_and_distribute_data(int rank, int world, int cores,int mat_r, int bs);
+parsec_data_collection_t *create_and_distribute_data(int rank, int world, int cores,int mat_r, int bs);
 
 
 #ifdef __cplusplus
@@ -21,7 +21,7 @@ void *get_data_handle_of(void *h);
 }
 #endif
 
-void free_data(parsec_ddesc_t *d);
+void free_data(parsec_data_collection_t *d);
 
 
 

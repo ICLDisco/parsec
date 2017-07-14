@@ -356,7 +356,7 @@ static int systolic_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
  ******************************************************************************/
 int
 dplasma_systolic_init( dplasma_qrtree_t *qrtree,
-                       PLASMA_enum trans, tiled_matrix_desc_t *A,
+                       PLASMA_enum trans, parsec_tiled_matrix_dc_t *A,
                        int p, int q )
 {
     if (qrtree == NULL) {

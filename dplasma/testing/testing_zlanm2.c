@@ -100,8 +100,8 @@ int main(int argc, char ** argv)
     LDA = max( LDA, M );
 
     /* initializing matrix structure */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
-        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA0, 1,
+        two_dim_block_cyclic, (&dcA0, matrix_ComplexDouble, matrix_Lapack,
                                1, rank, MB, NB, LDA, An, 0, 0,
                                M, An, SMB, SNB, 1));
 
@@ -109,15 +109,15 @@ int main(int argc, char ** argv)
      * General cases LANGE
      */
     {
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+            two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDA, N, 0, 0,
                                    M, N, SMB, SNB, P));
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA0, 3872);
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA,  3872);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA0, 3872);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA,  3872);
         if(loud > 2) printf("Done\n");
 
         if ( rank == 0 ) {
@@ -125,11 +125,11 @@ int main(int argc, char ** argv)
         }
         if(loud > 2) printf("+++ Computing 2-norm ... \n");
         normdag = dplasma_zlanm2(parsec,
-                                 (tiled_matrix_desc_t *)&ddescA,
+                                 (parsec_tiled_matrix_dc_t *)&dcA,
                                  &infodag);
 
         if ( rank == 0 ) {
-            normlap = check_zlanm2(M, N, (parsec_complex64_t*)(ddescA0.mat), ddescA0.super.lm, &infolap );
+            normlap = check_zlanm2(M, N, (parsec_complex64_t*)(dcA0.mat), dcA0.super.lm, &infolap );
         }
         if(loud > 2) printf("Done.\n");
 
@@ -157,15 +157,15 @@ int main(int argc, char ** argv)
             }
         }
 
-        parsec_data_free(ddescA.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
+        parsec_data_free(dcA.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
     }
 
     if ( rank == 0 ) {
         printf("***************************************************\n");
     }
-    parsec_data_free(ddescA0.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0);
+    parsec_data_free(dcA0.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA0);
 
     cleanup_parsec(parsec, iparam);
 

@@ -28,10 +28,10 @@ transB [type = int]
 alpha  [type = parsec_complex64_t]
 beta   [type = parsec_complex64_t]
 
-descA  [type = "const tiled_matrix_desc_t*"]
-descB  [type = "const tiled_matrix_desc_t*"]
-descC  [type = "tiled_matrix_desc_t*"]
-Cdist  [type = "parsec_ddesc_t *"]
+descA  [type = "const parsec_tiled_matrix_dc_t*"]
+descB  [type = "const parsec_tiled_matrix_dc_t*"]
+descC  [type = "parsec_tiled_matrix_dc_t*"]
+Cdist  [type = "parsec_data_collection_t *"]
 
 P      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)descC)->grid.rows"]
 Q      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)descC)->grid.cols"]
@@ -54,7 +54,7 @@ READ A <- descA(m, k)
        -> A RING_A(m, k, k%Q)
 BODY
 {
-    printlog("rank %u <- A(%d,%d)\n", ((parsec_ddesc_t*)descA)->myrank, m, k);
+    printlog("rank %u <- A(%d,%d)\n", ((parsec_data_collection_t*)descA)->myrank, m, k);
 }
 END
 
@@ -76,7 +76,7 @@ CTL ctla <- (k >= lookQ) ? ctla GEMM(m, q .. descC->nt-1 .. Q, k-lookQ)
 
 BODY
 {
-    printlog("rank %u <- A(%d,%d)\n", ((parsec_ddesc_t*)descA)->myrank, m, k);
+    printlog("rank %u <- A(%d,%d)\n", ((parsec_data_collection_t*)descA)->myrank, m, k);
 }
 END
 
@@ -94,7 +94,7 @@ READ B <- descB(k, n)
        -> B RING_B(k, n, k%P)
 BODY
 {
-     printlog("rank %u <- B(%d,%d)\n", ((parsec_ddesc_t*)descB)->myrank, k, n);
+     printlog("rank %u <- B(%d,%d)\n", ((parsec_data_collection_t*)descB)->myrank, k, n);
 }
 END
 
@@ -116,7 +116,7 @@ CTL ctlb <- (k >= lookP) ? ctlb GEMM(p .. descC->mt-1 .. P, n, k-lookP)
 
 BODY
 {
-    printlog("rank %u <- B(%d,%d)\n", ((parsec_ddesc_t*)descB)->myrank, k, n);
+    printlog("rank %u <- B(%d,%d)\n", ((parsec_data_collection_t*)descB)->myrank, k, n);
 }
 END
 

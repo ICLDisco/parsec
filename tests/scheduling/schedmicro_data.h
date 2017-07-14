@@ -10,7 +10,7 @@
 #include "parsec.h"
 #include "parsec/data.h"
 
-parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size, int seg);
-void free_data(parsec_ddesc_t *d);
+parsec_data_collection_t *create_and_distribute_data(int rank, int world, int size, int seg);
+void free_data(parsec_data_collection_t *d);
 
 #endif

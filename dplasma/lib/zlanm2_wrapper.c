@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlanm2_New - Generates the handle that computes an estimate of the
+ *  dplasma_zlanm2_New - Generates the taskpool that computes an estimate of the
  *  matrix 2-norm:
  *  @code{.tex}
  *     ||A||_2 = sqrt( \lambda_{max} A* A ) = \sigma_{max}(A)
@@ -45,7 +45,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlanm2_Destruct();
  *
@@ -58,13 +58,13 @@
  * @sa dplasma_slanm2_New
  *
  ******************************************************************************/
-parsec_handle_t*
-dplasma_zlanm2_New( const tiled_matrix_desc_t *A,
+parsec_taskpool_t*
+dplasma_zlanm2_New( const parsec_tiled_matrix_dc_t *A,
                     double *result, int *info )
 {
     int P, Q, m, n, mb, nb, elt;
     two_dim_block_cyclic_t *Tdist;
-    parsec_handle_t *parsec_zlanm2 = NULL;
+    parsec_taskpool_t *parsec_zlanm2 = NULL;
 
     if ( !(A->dtype & two_dim_block_cyclic_type) ) {
         dplasma_error("dplasma_zlanm2", "illegal type of descriptor for A");
@@ -102,28 +102,28 @@ dplasma_zlanm2_New( const tiled_matrix_desc_t *A,
     if (NULL != info) {
         *info = -1;
     }
-    parsec_zlanm2 = (parsec_handle_t*)parsec_zlanm2_new(
-        P, Q, (parsec_ddesc_t*)Tdist, A, result, info);
+    parsec_zlanm2 = (parsec_taskpool_t*)parsec_zlanm2_new(
+        P, Q, (parsec_data_collection_t*)Tdist, A, result, info);
 
     /* Set the datatypes */
-    dplasma_add2arena_tile(((parsec_zlanm2_handle_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_zlanm2_taskpool_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
-    dplasma_add2arena_rectangle(((parsec_zlanm2_handle_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_ZCOL_ARENA],
+    dplasma_add2arena_rectangle(((parsec_zlanm2_taskpool_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_ZCOL_ARENA],
                                 mb * sizeof(parsec_complex64_t), PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, mb, 1, -1);
-    dplasma_add2arena_rectangle(((parsec_zlanm2_handle_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_ZROW_ARENA],
+    dplasma_add2arena_rectangle(((parsec_zlanm2_taskpool_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_ZROW_ARENA],
                                 nb * sizeof(parsec_complex64_t), PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, 1, nb, -1);
-    dplasma_add2arena_rectangle(((parsec_zlanm2_handle_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_DROW_ARENA],
+    dplasma_add2arena_rectangle(((parsec_zlanm2_taskpool_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_DROW_ARENA],
                                 nb * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_t, 1, nb, -1);
-    dplasma_add2arena_rectangle(((parsec_zlanm2_handle_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_ELT_ARENA],
+    dplasma_add2arena_rectangle(((parsec_zlanm2_taskpool_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_ELT_ARENA],
                                 elt * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_t, elt, 1, -1);
 
-    return (parsec_handle_t*)parsec_zlanm2;
+    return (parsec_taskpool_t*)parsec_zlanm2;
 }
 
 /**
@@ -131,14 +131,14 @@ dplasma_zlanm2_New( const tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlanm2_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlanm2_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlanm2_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -147,11 +147,11 @@ dplasma_zlanm2_New( const tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zlanm2_Destruct( parsec_handle_t *handle )
+dplasma_zlanm2_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zlanm2_handle_t *parsec_zlanm2 = (parsec_zlanm2_handle_t *)handle;
+    parsec_zlanm2_taskpool_t *parsec_zlanm2 = (parsec_zlanm2_taskpool_t *)tp;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlanm2->_g_Tdist) );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(parsec_zlanm2->_g_Tdist) );
     free( parsec_zlanm2->_g_Tdist );
 
     parsec_matrix_del2arena( parsec_zlanm2->arenas[PARSEC_zlanm2_DEFAULT_ARENA] );
@@ -160,7 +160,7 @@ dplasma_zlanm2_Destruct( parsec_handle_t *handle )
     parsec_matrix_del2arena( parsec_zlanm2->arenas[PARSEC_zlanm2_DROW_ARENA] );
     parsec_matrix_del2arena( parsec_zlanm2->arenas[PARSEC_zlanm2_ELT_ARENA] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -203,11 +203,11 @@ dplasma_zlanm2_Destruct( parsec_handle_t *handle )
  ******************************************************************************/
 double
 dplasma_zlanm2( parsec_context_t *parsec,
-                const tiled_matrix_desc_t *A,
+                const parsec_tiled_matrix_dc_t *A,
                 int *info )
 {
     double result = 0.;
-    parsec_handle_t *parsec_zlanm2 = NULL;
+    parsec_taskpool_t *parsec_zlanm2 = NULL;
 
     if ( !(A->dtype & two_dim_block_cyclic_type) ) {
         dplasma_error("dplasma_zlanm2", "illegal type of descriptor for A");
@@ -218,7 +218,7 @@ dplasma_zlanm2( parsec_context_t *parsec,
 
     if ( parsec_zlanm2 != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlanm2);
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zlanm2);
         dplasma_wait_until_completion(parsec);
         dplasma_zlanm2_Destruct( parsec_zlanm2 );
     }

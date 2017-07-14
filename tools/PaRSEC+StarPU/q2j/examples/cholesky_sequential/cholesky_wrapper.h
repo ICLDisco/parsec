@@ -5,8 +5,8 @@
 #include <starpu.h>
 #include <plasma.h>
 
-parsec_handle_t *cholesky_new(parsec_ddesc_t *A, int nb, int size, PLASMA_enum uplo, int *info);
+parsec_taskpool_t *cholesky_new(parsec_data_collection_t *A, int nb, int size, PLASMA_enum uplo, int *info);
 
-void cholesky_destroy(parsec_handle_t *o);
+void cholesky_destroy(parsec_taskpool_t *o);
 
 #endif

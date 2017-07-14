@@ -29,8 +29,8 @@ int64_t always_one(void)
 
 %}
 
-descA      [type = "struct tiled_matrix_desc_t*"]
-descB      [type = "struct tiled_matrix_desc_t*"]
+descA      [type = "struct parsec_tiled_matrix_dc_t*"]
+descB      [type = "struct parsec_tiled_matrix_dc_t*"]
 NR
 NT
 
@@ -106,12 +106,12 @@ extern "C" %{
  * @param [IN] size size of each local data element
  * @param [IN] nb   number of iterations
  *
- * @return the parsec handle to schedule.
+ * @return the parsec taskpool to schedule.
  */
-parsec_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size, int repeat)
+parsec_taskpool_t *a2a_new(parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t *B, int size, int repeat)
 {
     int worldsize;
-    parsec_a2a_handle_t *o = NULL;
+    parsec_a2a_taskpool_t *tp = NULL;
     (void)size;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -122,10 +122,10 @@ parsec_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int siz
 
     if( repeat <= 0 ) {
         fprintf(stderr, "To work, A2A must do at least one exchange of at least one byte\n");
-        return (parsec_handle_t*)o;
+        return (parsec_taskpool_t*)tp;
     }
 
-    o = parsec_a2a_new(A, B, repeat, worldsize);
+    tp = parsec_a2a_new(A, B, repeat, worldsize);
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -138,25 +138,25 @@ parsec_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int siz
 #else
         MPI_Type_extent(block, &extent);
 #endif  /* defined(PARSEC_HAVE_MPI_20) */
-        parsec_arena_construct(o->arenas[PARSEC_a2a_DEFAULT_ARENA],
-                              extent, PARSEC_ARENA_ALIGNMENT_SSE,
-                              block);
+        parsec_arena_construct(tp->arenas[PARSEC_a2a_DEFAULT_ARENA],
+                               extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                               block);
     }
 #endif
 
-    return (parsec_handle_t*)o;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
- * @param [INOUT] o the parsec handle to destroy
+ * @param [INOUT] o the parsec taskpool to destroy
  */
-void a2a_destroy(parsec_handle_t *o)
+void a2a_destroy(parsec_taskpool_t *tp)
 {
 #if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(tp);
 }
 
 %}

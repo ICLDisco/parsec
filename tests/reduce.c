@@ -6,7 +6,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/arena.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/datatype.h"
@@ -14,7 +14,7 @@
 #include "data_dist/matrix/reduce.h"
 
 #if 0
-static int parsec_operator_print_id( struct parsec_execution_unit *eu, void* data, void* op_data, ... )
+static int parsec_operator_print_id( struct parsec_execution_stream *es, void* data, void* op_data, ... )
 {
     va_list ap;
     int k, n;
@@ -24,7 +24,7 @@ static int parsec_operator_print_id( struct parsec_execution_unit *eu, void* dat
     n = va_arg(ap, int);
     va_end(ap);
     printf( "tile %s(%d, %d) -> %p:%p thread %d VP %d\n",
-            (char*)op_data, k, n, data, op_data, eu->th_id, eu->virtual_process->vp_id );
+            (char*)op_data, k, n, data, op_data, es->th_id, es->virtual_process->vp_id );
     return 0;
 }
 #endif
@@ -33,8 +33,8 @@ int main( int argc, char* argv[] )
 {
     parsec_context_t* parsec;
     int rc;
-    parsec_handle_t* object;
-    two_dim_block_cyclic_t ddescA;
+    parsec_taskpool_t* tp;
+    two_dim_block_cyclic_t dcA;
     int cores = 2, world = 1, rank = 0;
     int nb = 100, ln = 900;
     int rows = 1;
@@ -51,25 +51,25 @@ int main( int argc, char* argv[] )
 
     parsec = parsec_init(cores, &argc, &argv);
 
-    two_dim_block_cyclic_init( &ddescA, matrix_RealFloat, matrix_Tile,
+    two_dim_block_cyclic_init( &dcA, matrix_RealFloat, matrix_Tile,
                                world, rank, nb, 1, ln, 1, 0, 0, ln, 1, 1, 1, rows );
-    ddescA.mat = parsec_data_allocate((size_t)ddescA.super.nb_local_tiles *
-                                     (size_t)ddescA.super.bsiz *
-                                     (size_t)parsec_datadist_getsizeoftype(ddescA.super.mtype));
+    dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
+                                     (size_t)dcA.super.bsiz *
+                                     (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
 
-    parsec_ddesc_set_key(&ddescA.super.super, "A");
+    parsec_data_collection_set_key(&dcA.super.super, "A");
 
-    object = (parsec_handle_t*)parsec_reduce_new((tiled_matrix_desc_t*)&ddescA,
-                                               (tiled_matrix_desc_t*)&ddescA,
+    tp = (parsec_taskpool_t*)parsec_reduce_new((parsec_tiled_matrix_dc_t*)&dcA,
+                                               (parsec_tiled_matrix_dc_t*)&dcA,
                                                NULL);
     /* Prepare the arena for the reduction */
     parsec_type_create_contiguous(nb, parsec_datatype_float_t, &newtype);
-    parsec_arena_construct(((parsec_reduce_handle_t*)object)->arenas[PARSEC_reduce_DEFAULT_ARENA],
+    parsec_arena_construct(((parsec_reduce_taskpool_t*)tp)->arenas[PARSEC_reduce_DEFAULT_ARENA],
                           nb*sizeof(float),
                           PARSEC_ARENA_ALIGNMENT_SSE,
                           newtype);
 
-    rc = parsec_enqueue(parsec, (parsec_handle_t*)object);
+    rc = parsec_enqueue(parsec, tp);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
     rc = parsec_context_start(parsec);
@@ -78,7 +78,7 @@ int main( int argc, char* argv[] )
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_map_operator_Destruct( object );
+    parsec_map_operator_Destruct( tp );
 
     parsec_fini(&parsec);
 

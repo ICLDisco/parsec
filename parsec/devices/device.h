@@ -26,22 +26,22 @@ typedef struct parsec_device_s parsec_device_t;
 
 typedef int   (*parsec_device_init_f)(parsec_device_t*);
 typedef int   (*parsec_device_fini_f)(parsec_device_t*);
-typedef int   (*parsec_device_handle_register_f)(parsec_device_t*, parsec_handle_t*);
-typedef int   (*parsec_device_handle_unregister_f)(parsec_device_t*, parsec_handle_t*);
-typedef int   (*parsec_device_memory_register_f)(parsec_device_t*, parsec_ddesc_t*, void*, size_t);
-typedef int   (*parsec_device_memory_unregister_f)(parsec_device_t*, parsec_ddesc_t*, void*);
+typedef int   (*parsec_device_taskpool_register_f)(parsec_device_t*, parsec_taskpool_t*);
+typedef int   (*parsec_device_taskpool_unregister_f)(parsec_device_t*, parsec_taskpool_t*);
+typedef int   (*parsec_device_memory_register_f)(parsec_device_t*, parsec_data_collection_t*, void*, size_t);
+typedef int   (*parsec_device_memory_unregister_f)(parsec_device_t*, parsec_data_collection_t*, void*);
 typedef void* (*parsec_device_find_function_f)(parsec_device_t*, char*);
 
 struct parsec_device_s {
     parsec_list_item_t item;
 
     /* Device Management Functions */
-    parsec_device_fini_f              device_fini;
-    parsec_device_handle_register_f   device_handle_register;
-    parsec_device_handle_unregister_f device_handle_unregister;
-    parsec_device_memory_register_f   device_memory_register;
-    parsec_device_memory_unregister_f device_memory_unregister;
-    parsec_device_find_function_f     device_find_function;
+    parsec_device_fini_f                device_fini;
+    parsec_device_taskpool_register_f   device_taskpool_register;
+    parsec_device_taskpool_unregister_f device_taskpool_unregister;
+    parsec_device_memory_register_f     device_memory_register;
+    parsec_device_memory_unregister_f   device_memory_unregister;
+    parsec_device_find_function_f       device_find_function;
 
     struct parsec_context_s* context;  /**< The PaRSEC context this device belongs too */
     char* name;  /**< Simple identified for the device */
@@ -127,9 +127,9 @@ static inline int parsec_devices_enabled(void)
 }
 
 /**
- * Restrict the device type that can be used to execute the handle.
+ * Restrict the device type that can be used to execute the taskpool
  */
-PARSEC_DECLSPEC void parsec_devices_handle_restrict( parsec_handle_t *handle,
-                                                   uint8_t         devices_type );
+PARSEC_DECLSPEC void parsec_devices_taskpool_restrict( parsec_taskpool_t *tp,
+                                                       uint8_t            devices_type );
 
 #endif  /* PARSEC_DEVICE_H_HAS_BEEN_INCLUDED */

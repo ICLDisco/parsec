@@ -38,7 +38,7 @@ extern "C" %{
 /* Globals
  */
 uplo       [type = PLASMA_enum]
-descA      [type = "tiled_matrix_desc_t*"]
+descA      [type = "parsec_tiled_matrix_dc_t*"]
 INFO       [type = "int*"]
 
 PRI_CHANGE [type = "int" hidden = on default = 0 ]
@@ -71,15 +71,15 @@ BODY [type=RECURSIVE]
     if (tempkn > smallnb)
     {
         subtile_desc_t *small_descT;
-        parsec_handle_t *parsec_zpotrf;
+        parsec_taskpool_t *parsec_zpotrf;
 
         small_descT = subtile_desc_create( descA, k, k,
                                            smallnb, smallnb, 0, 0, tempkn, tempkn );
         small_descT->mat = T;
 
-        parsec_zpotrf = dplasma_zpotrf_New(uplo, (tiled_matrix_desc_t *)small_descT, &iinfo );
+        parsec_zpotrf = dplasma_zpotrf_New(uplo, (parsec_tiled_matrix_dc_t *)small_descT, &iinfo );
 
-        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+        parsec_recursivecall(es, (parsec_task_t*)this_task,
                              parsec_zpotrf, dplasma_zpotrf_Destruct,
                              1, small_descT);
 
@@ -141,7 +141,7 @@ BODY [type=RECURSIVE]
     {
         subtile_desc_t *small_descT;
         subtile_desc_t *small_descC;
-        parsec_handle_t* parsec_ztrsm;
+        parsec_taskpool_t* parsec_ztrsm;
 
 
         small_descT = subtile_desc_create( descA, k, k,
@@ -155,10 +155,10 @@ BODY [type=RECURSIVE]
         parsec_ztrsm = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper,
                                         PlasmaConjTrans, PlasmaNonUnit,
                                         (parsec_complex64_t)1.0,
-                                        (tiled_matrix_desc_t *)small_descT,
-                                        (tiled_matrix_desc_t *)small_descC );
+                                        (parsec_tiled_matrix_dc_t *)small_descT,
+                                        (parsec_tiled_matrix_dc_t *)small_descC );
 
-        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+        parsec_recursivecall(es, (parsec_task_t*)this_task,
                              parsec_ztrsm, dplasma_ztrsm_Destruct,
                              2, small_descT, small_descC );
 
@@ -221,7 +221,7 @@ BODY [type=RECURSIVE]
     {
         subtile_desc_t *small_descT;
         subtile_desc_t *small_descA;
-        parsec_handle_t* parsec_zherk;
+        parsec_taskpool_t* parsec_zherk;
 
         small_descT = subtile_desc_create( descA, n, n,
                                            smallnb, smallnb, 0, 0, tempnn, tempnn );
@@ -232,10 +232,10 @@ BODY [type=RECURSIVE]
         small_descA->mat = A;
 
         parsec_zherk = dplasma_zherk_New( PlasmaUpper, PlasmaConjTrans,
-                                         (double)-1.0, (tiled_matrix_desc_t*) small_descA,
-                                         (double)1.0,  (tiled_matrix_desc_t*) small_descT);
+                                         (double)-1.0, (parsec_tiled_matrix_dc_t*) small_descA,
+                                         (double)1.0,  (parsec_tiled_matrix_dc_t*) small_descT);
 
-        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+        parsec_recursivecall(es, (parsec_task_t*)this_task,
                              parsec_zherk, dplasma_zherk_Destruct,
                              2, small_descA, small_descT);
         return PARSEC_HOOK_RETURN_ASYNC;
@@ -339,7 +339,7 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descA;
         subtile_desc_t *small_descB;
         subtile_desc_t *small_descC;
-        parsec_handle_t *parsec_zgemm;
+        parsec_taskpool_t *parsec_zgemm;
 
         small_descA = subtile_desc_create( descA, k, m,
                                            smallnb, smallnb, 0, 0, descA->mb, descA->nb );
@@ -355,12 +355,12 @@ BODY [type=RECURSIVE]
 
         parsec_zgemm = dplasma_zgemm_New(PlasmaConjTrans, PlasmaNoTrans,
                                         (parsec_complex64_t)-1.0,
-                                        (tiled_matrix_desc_t *)small_descA,
-                                        (tiled_matrix_desc_t *)small_descB,
+                                        (parsec_tiled_matrix_dc_t *)small_descA,
+                                        (parsec_tiled_matrix_dc_t *)small_descB,
                                         (parsec_complex64_t) 1.0,
-                                        (tiled_matrix_desc_t *)small_descC);
+                                        (parsec_tiled_matrix_dc_t *)small_descC);
 
-        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+        parsec_recursivecall(es, (parsec_task_t*)this_task,
                              parsec_zgemm, dplasma_zgemm_Destruct,
                              3, small_descA, small_descB, small_descC );
 

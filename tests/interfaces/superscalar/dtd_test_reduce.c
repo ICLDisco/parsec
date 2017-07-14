@@ -28,36 +28,34 @@ enum regions {
              };
 
 int
-task_rank_0( parsec_execution_unit_t    *context,
-             parsec_execution_context_t *this_task )
+task_rank_0( parsec_execution_stream_t    *es,
+             parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
 
     parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data
-                          );
+                          UNPACK_DATA,  &data);
 
-    if(this_task->parsec_handle->context->my_rank == 5)sleep(1);
+    if(this_task->taskpool->context->my_rank == 5)sleep(1);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-task_rank_1( parsec_execution_unit_t    *context,
-             parsec_execution_context_t *this_task )
+task_rank_1( parsec_execution_stream_t    *es,
+             parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
     int *second_data;
 
     parsec_dtd_unpack_args(this_task,
                           UNPACK_DATA,  &data,
-                          UNPACK_DATA,  &second_data
-                          );
+                          UNPACK_DATA,  &second_data);
 
     *second_data += *data;
-    printf( "My rank: %d, diff: %d\n", this_task->parsec_handle->context->my_rank, *data );
+    printf( "My rank: %d, diff: %d\n", this_task->taskpool->context->my_rank, *data );
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -67,7 +65,7 @@ int main(int argc, char **argv)
     parsec_context_t* parsec;
     int rank, world, cores;
     int nb, nt;
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -91,7 +89,7 @@ int main(int argc, char **argv)
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[0],
@@ -100,11 +98,11 @@ int main(int argc, char **argv)
 #endif
 
     /* Correctness checking */
-    ddescA = create_and_distribute_data(rank, world, nb, nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, nb, nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-    parsec_dtd_ddesc_init(A);
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+    parsec_dtd_data_collection_init(A);
 
     parsec_data_copy_t *gdata;
     parsec_data_t *data;
@@ -112,7 +110,7 @@ int main(int argc, char **argv)
     int root = 0, i;
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    parsec_enqueue( parsec, dtd_tp );
 
     parsec_context_start(parsec);
 
@@ -129,27 +127,27 @@ int main(int argc, char **argv)
 
     for( i = 0; i < world; i ++ ) {
         if( root != i ) {
-            parsec_insert_task( parsec_dtd_handle, task_rank_0,    0,  "task_rank_0",
+            parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_0,    0,  "task_rank_0",
                                 PASSED_BY_REF,    TILE_OF_KEY(A, i), INOUT | TILE_FULL | AFFINITY,
                                 0 );
 
-            parsec_insert_task( parsec_dtd_handle, task_rank_1,    0,  "task_rank_0",
+            parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_1,    0,  "task_rank_0",
                                 PASSED_BY_REF,    TILE_OF_KEY(A, i),    INOUT | TILE_FULL,
                                 PASSED_BY_REF,    TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
                                 0 );
         }
     }
 //******************
-    parsec_dtd_data_flush_all( parsec_dtd_handle, A );
+    parsec_dtd_data_flush_all( dtd_tp, A );
 
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
     parsec_context_wait(parsec);
 
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);
-    parsec_dtd_ddesc_fini( A );
-    free_data(ddescA);
+    parsec_dtd_data_collection_fini( A );
+    free_data(dcA);
 
     parsec_fini(&parsec);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,7 +8,7 @@
 #include "parsec/parsec_internal.h"
 #include "parsec/remote_dep.h"
 #include "parsec/scheduling.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/data_internal.h"
 #include "parsec/arena.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
@@ -35,17 +35,17 @@ static int remote_dep_bind_thread(parsec_context_t* context);
 
 /* Clear the already forwarded remote dependency matrix */
 static inline void
-remote_dep_reset_forwarded(parsec_execution_unit_t* eu_context,
+remote_dep_reset_forwarded(parsec_execution_stream_t* es,
                            parsec_remote_deps_t* rdeps)
 {
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "fw reset\tcontext %p deps %p", (void*)eu_context, rdeps);
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "fw reset\tcontext %p deps %p", (void*)es, rdeps);
     memset(rdeps->remote_dep_fw_mask, 0,
-           eu_context->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
+           es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
 }
 
 /* Mark a rank as already forwarded the termination of the current task */
 static inline void
-remote_dep_mark_forwarded(parsec_execution_unit_t* eu_context,
+remote_dep_mark_forwarded(parsec_execution_stream_t* es,
                           parsec_remote_deps_t* rdeps,
                           int rank)
 {
@@ -53,14 +53,14 @@ remote_dep_mark_forwarded(parsec_execution_unit_t* eu_context,
 
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "fw mark\tREMOTE rank %d", rank);
     boffset = rank / (8 * sizeof(uint32_t));
-    assert(boffset <= eu_context->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
-    (void)eu_context;
+    assert(boffset <= es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
+    (void)es;
     rdeps->remote_dep_fw_mask[boffset] |= ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
 }
 
 /* Check if rank has already been forwarded the termination of the current task */
 static inline int
-remote_dep_is_forwarded(parsec_execution_unit_t* eu_context,
+remote_dep_is_forwarded(parsec_execution_stream_t* es,
                         parsec_remote_deps_t* rdeps,
                         int rank)
 {
@@ -68,16 +68,16 @@ remote_dep_is_forwarded(parsec_execution_unit_t* eu_context,
 
     boffset = rank / (8 * sizeof(uint32_t));
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
-    assert(boffset <= eu_context->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
+    assert(boffset <= es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "fw test\tREMOTE rank %d (value=%x)", rank, (int) (rdeps->remote_dep_fw_mask[boffset] & mask));
-    (void)eu_context;
+    (void)es;
     return (int) ((rdeps->remote_dep_fw_mask[boffset] & mask) != 0);
 }
 
 
 /* make sure we don't leave before serving all data deps */
 static inline void
-remote_dep_inc_flying_messages(parsec_handle_t* handle)
+remote_dep_inc_flying_messages(parsec_taskpool_t* handle)
 {
     assert( handle->nb_pending_actions > 0 );
     (void)parsec_atomic_inc_32b( &(handle->nb_pending_actions) );
@@ -85,9 +85,9 @@ remote_dep_inc_flying_messages(parsec_handle_t* handle)
 
 /* allow for termination when all deps have been served */
 static inline void
-remote_dep_dec_flying_messages(parsec_handle_t *handle)
+remote_dep_dec_flying_messages(parsec_taskpool_t *handle)
 {
-    (void)parsec_handle_update_runtime_nbtask(handle, -1);
+    (void)parsec_taskpool_update_runtime_nbtask(handle, -1);
 }
 
 /* Mark that ncompleted of the remote deps are finished, and return the remote dep to
@@ -114,7 +114,7 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
             }
         (*deps)->outgoing_mask = 0;
         if(ncompleted)
-            remote_dep_dec_flying_messages((*deps)->parsec_handle);
+            remote_dep_dec_flying_messages((*deps)->taskpool);
         remote_deps_free(*deps);
         *deps = NULL;
         return 1;
@@ -178,9 +178,9 @@ int parsec_remote_dep_set_ctx( parsec_context_t* context, void* opaque_comm_ctx 
     return parsec_remote_dep_init( context );
 }
 
-int parsec_remote_dep_progress(parsec_execution_unit_t* eu_context)
+int parsec_remote_dep_progress(parsec_execution_stream_t* es)
 {
-    return remote_dep_progress(eu_context->virtual_process[0].parsec_context, 1);
+    return remote_dep_progress(es->virtual_process[0].parsec_context, 1);
 }
 
 static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
@@ -235,8 +235,8 @@ static inline int remote_dep_bcast_star_child(int me, int him)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
 #endif
 
-int parsec_remote_dep_new_object(parsec_handle_t* obj) {
-    return remote_dep_new_object(obj);
+int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp) {
+    return remote_dep_new_taskpool(tp);
 }
 
 #ifdef PARSEC_DIST_COLLECTIVES
@@ -249,20 +249,20 @@ int parsec_remote_dep_new_object(parsec_handle_t* obj) {
  * available locally and can be propagated to our predecessors.
  */
 parsec_ontask_iterate_t
-parsec_gather_collective_pattern(parsec_execution_unit_t *eu,
-                                const parsec_execution_context_t *newcontext,
-                                const parsec_execution_context_t *oldcontext,
-                                const dep_t* dep,
-                                parsec_dep_data_description_t* data,
-                                int src_rank, int dst_rank, int dst_vpid,
-                                void *param)
+parsec_gather_collective_pattern(parsec_execution_stream_t *es,
+                                 const parsec_task_t *newcontext,
+                                 const parsec_task_t *oldcontext,
+                                 const dep_t* dep,
+                                 parsec_dep_data_description_t* data,
+                                 int src_rank, int dst_rank, int dst_vpid,
+                                 void *param)
 {
     parsec_remote_deps_t* deps = (parsec_remote_deps_t*)param;
     struct remote_dep_output_param_s* output = &deps->output[dep->dep_datatype_index];
     const int _array_pos  = dst_rank / (8 * sizeof(uint32_t));
     const int _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
 
-    if( dst_rank == eu->virtual_process->parsec_context->my_rank )
+    if( dst_rank == es->virtual_process->parsec_context->my_rank )
         deps->outgoing_mask |= (1 << dep->dep_datatype_index);
 
     if( !(output->rank_bits[_array_pos] & _array_mask) ) {  /* new participant */
@@ -275,7 +275,7 @@ parsec_gather_collective_pattern(parsec_execution_unit_t *eu,
         if(newcontext->priority > deps->max_priority)
             deps->max_priority = newcontext->priority;
     }
-    (void)eu; (void)oldcontext; (void)dst_vpid; (void)data; (void)src_rank;
+    (void)oldcontext; (void)dst_vpid; (void)data; (void)src_rank;
     return PARSEC_ITERATE_CONTINUE;
 }
 
@@ -286,14 +286,14 @@ parsec_gather_collective_pattern(parsec_execution_unit_t *eu,
  * the collective tree). Thus, once all the data become available locally, this
  * function is called to start propagating the activation order and the data.
  */
-int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
-                               const parsec_execution_context_t* task,
-                               parsec_remote_deps_t* deps)
+int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
+                                const parsec_task_t* task,
+                                parsec_remote_deps_t* deps)
 {
-    const parsec_function_t* function = task->function;
+    const parsec_task_class_t* tc = task->task_class;
     uint32_t dep_mask = 0;
 
-    assert(deps->root != eu_context->virtual_process->parsec_context->my_rank );
+    assert(deps->root != es->virtual_process->parsec_context->my_rank );
     /* If I am not the root of the collective I must rebuild the same
      * information as the root, i.e. the exact same propagation tree as the
      * initiator.
@@ -301,49 +301,49 @@ int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
     assert(0 == deps->outgoing_mask);
 
     /* We need to convert from a dep_datatype_index mask into a dep_index mask */
-    for(int i = 0; NULL != function->out[i]; i++ )
-        for(int j = 0; NULL != function->out[i]->dep_out[j]; j++ )
-            if(deps->msg.output_mask & (1U << function->out[i]->dep_out[j]->dep_datatype_index))
-                dep_mask |= (1U << function->out[i]->dep_out[j]->dep_index);
+    for(int i = 0; NULL != tc->out[i]; i++ )
+        for(int j = 0; NULL != tc->out[i]->dep_out[j]; j++ )
+            if(deps->msg.output_mask & (1U << tc->out[i]->dep_out[j]->dep_datatype_index))
+                dep_mask |= (1U << tc->out[i]->dep_out[j]->dep_index);
 
-    function->iterate_successors(eu_context, task,
-                                 dep_mask | PARSEC_ACTION_RELEASE_REMOTE_DEPS,
-                                 parsec_gather_collective_pattern,
-                                 deps);
+    tc->iterate_successors(es, task,
+                           dep_mask | PARSEC_ACTION_RELEASE_REMOTE_DEPS,
+                           parsec_gather_collective_pattern,
+                           deps);
 
-    return parsec_remote_dep_activate(eu_context, task, deps, deps->msg.output_mask);
+    return parsec_remote_dep_activate(es, task, deps, deps->msg.output_mask);
 }
 #endif
 
 /**
  *
  */
-int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
-                              const parsec_execution_context_t* exec_context,
-                              parsec_remote_deps_t* remote_deps,
-                              uint32_t propagation_mask)
+int parsec_remote_dep_activate(parsec_execution_stream_t* es,
+                               const parsec_task_t* task,
+                               parsec_remote_deps_t* remote_deps,
+                               uint32_t propagation_mask)
 {
-    const parsec_function_t* function = exec_context->function;
+    const parsec_task_class_t* tc = task->task_class;
     int i, my_idx, idx, current_mask, keeper = 0;
     unsigned int array_index, count, bit_index;
     struct remote_dep_output_param_s* output;
 
-    assert(eu_context->virtual_process->parsec_context->nb_nodes > 1);
+    assert(es->virtual_process->parsec_context->nb_nodes > 1);
 
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
-    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
+    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
 
-    remote_dep_reset_forwarded(eu_context, remote_deps);
-    remote_deps->parsec_handle    = exec_context->parsec_handle;
+    remote_dep_reset_forwarded(es, remote_deps);
+    remote_deps->taskpool    = task->taskpool;
     /* Safe-keep the propagation mask (it must be packed in the message) */
     remote_deps->msg.output_mask = propagation_mask;
     remote_deps->msg.deps        = (uintptr_t)remote_deps;
-    remote_deps->msg.handle_id   = exec_context->parsec_handle->handle_id;
-    remote_deps->msg.function_id = function->function_id;
-    for(i = 0; i < function->nb_locals; i++) {
-        remote_deps->msg.locals[i] = exec_context->locals[i];
+    remote_deps->msg.taskpool_id   = task->taskpool->taskpool_id;
+    remote_deps->msg.task_class_id = tc->task_class_id;
+    for(i = 0; i < tc->nb_locals; i++) {
+        remote_deps->msg.locals[i] = task->locals[i];
     }
 #if defined(PARSEC_DEBUG_PARANOID)
     /* make valgrind happy */
@@ -351,7 +351,7 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
 #endif
 
     /* Mark the root of the collective as rank 0 */
-    remote_dep_mark_forwarded(eu_context, remote_deps, remote_deps->root);
+    remote_dep_mark_forwarded(es, remote_deps, remote_deps->root);
     assert((propagation_mask & remote_deps->outgoing_mask) == remote_deps->outgoing_mask);
 
     for( i = 0; propagation_mask >> i; i++ ) {
@@ -359,7 +359,7 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
         output = &remote_deps->output[i];
         assert( 0 != output->count_bits );
 
-        my_idx = (remote_deps->root == eu_context->virtual_process->parsec_context->my_rank) ? 0 : -1;
+        my_idx = (remote_deps->root == es->virtual_process->parsec_context->my_rank) ? 0 : -1;
         idx = 0;
         /**
          * Increase the refcount of each local output data once, to ensure the
@@ -381,12 +381,12 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                 if( !(current_mask & (1 << bit_index)) ) continue;
 
                 int rank = (array_index * sizeof(uint32_t) * 8) + bit_index;
-                assert((rank >= 0) && (rank < eu_context->virtual_process->parsec_context->nb_nodes));
+                assert((rank >= 0) && (rank < es->virtual_process->parsec_context->nb_nodes));
 
                 current_mask ^= (1 << bit_index);
                 count++;
 
-                if(remote_dep_is_forwarded(eu_context, remote_deps, rank)) {  /* already in the counting */
+                if(remote_dep_is_forwarded(es, remote_deps, rank)) {  /* already in the counting */
                     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (already done)",
                             remote_deps->root, i, tmp, my_idx, idx, rank);
                     continue;
@@ -395,17 +395,17 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                 if(my_idx == -1) {
                     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip",
                             remote_deps->root, i, tmp, my_idx, idx, rank);
-                    if(rank == eu_context->virtual_process->parsec_context->my_rank) {
+                    if(rank == es->virtual_process->parsec_context->my_rank) {
                         my_idx = idx;
                     }
-                    remote_dep_mark_forwarded(eu_context, remote_deps, rank);
+                    remote_dep_mark_forwarded(es, remote_deps, rank);
                     continue;
                 }
                 PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, " TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)",
-                        tmp, remote_deps->root, eu_context->virtual_process->parsec_context->my_rank, my_idx, rank);
+                        tmp, remote_deps->root, es->virtual_process->parsec_context->my_rank, my_idx, rank);
 
                 int remote_dep_bcast_child_permits = 0;
-                if( 1 == exec_context->parsec_handle->handle_type ) {
+                if( 1 == task->taskpool->taskpool_type ) {
                     remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
                 } else {
                     remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
@@ -416,21 +416,21 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                             remote_deps->root, i, tmp, my_idx, idx, rank, remote_deps->outgoing_mask);
                     assert(remote_deps->outgoing_mask & (1U<<i));
 #if defined(PARSEC_DEBUG_NOISIER)
-                    for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
-                        if( exec_context->function->out[flow_index]->flow_datatype_mask & (1<<i) ) {
-                            assert( NULL != exec_context->function->out[flow_index] );
+                    for(int flow_index = 0; NULL != task->task_class->out[flow_index]; flow_index++) {
+                        if( task->task_class->out[flow_index]->flow_datatype_mask & (1<<i) ) {
+                            assert( NULL != task->task_class->out[flow_index] );
                             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, " TOPO\t%s flow %s root=%d\t%d (d%d) -> %d (d%d)",
-                                    tmp, exec_context->function->out[flow_index]->name, remote_deps->root,
-                                    eu_context->virtual_process->parsec_context->my_rank, my_idx, rank, idx);
+                                    tmp, task->task_class->out[flow_index]->name, remote_deps->root,
+                                    es->virtual_process->parsec_context->my_rank, my_idx, rank, idx);
                             break;
                         }
                     }
 #endif  /* PARSEC_DEBUG_NOISIER */
-                    assert(output->parent->parsec_handle == exec_context->parsec_handle);
+                    assert(output->parent->taskpool == task->taskpool);
                     if( 1 == parsec_atomic_add_32b(&remote_deps->pending_ack, 1) ) {
                         keeper = 1;
                         /* Let the engine know we're working to activate the dependencies remotely */
-                        remote_dep_inc_flying_messages(exec_context->parsec_handle);
+                        remote_dep_inc_flying_messages(task->taskpool);
                         /* We need to increase the pending_ack to make the deps persistant until the
                          * end of this function.
                          */
@@ -441,8 +441,8 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)",
                             remote_deps->root, i, tmp, my_idx, idx, rank);
                 }
-                assert(!remote_dep_is_forwarded(eu_context, remote_deps, rank));
-                remote_dep_mark_forwarded(eu_context, remote_deps, rank);
+                assert(!remote_dep_is_forwarded(es, remote_deps, rank));
+                remote_dep_mark_forwarded(es, remote_deps, rank);
             }
         }
     }

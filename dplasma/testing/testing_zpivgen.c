@@ -29,7 +29,7 @@ int main(int argc, char ** argv)
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     if (check) {
-        tiled_matrix_desc_t *B;
+        parsec_tiled_matrix_dc_t *B;
         int alltreel[] = { 0, 1, 2, 3, 4 };
         int alltreeh[] = { 0, 1, 2, 3, 4 };
         int allP[]     = { 3, 5, 7, 8 };
@@ -54,8 +54,8 @@ int main(int argc, char ** argv)
 
         LDA = max(allM[ nbM-1 ], LDA);
         /* initializing matrix structure */
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+            two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDA, allN[ nbN-1 ], 0, 0,
                                    allM[ nbM-1 ], allN[ nbN-1 ], SMB, SNB, P));
 
@@ -74,7 +74,7 @@ int main(int argc, char ** argv)
                             if (r==1 && a==1)
                                 continue;
 
-                            B = tiled_matrix_submatrix((tiled_matrix_desc_t*)&ddescA, 0, 0, allM[m], allN[n] );
+                            B = tiled_matrix_submatrix((parsec_tiled_matrix_dc_t*)&dcA, 0, 0, allM[m], allN[n] );
                             dplasma_hqr_init( &qrtree, PlasmaNoTrans, B, alltreel[l], 0, allA[a], -1, 0, r );
 
                             rc = dplasma_qrtree_check( B, &qrtree );
@@ -105,7 +105,7 @@ int main(int argc, char ** argv)
                                         if (r==1 && a==1)
                                             continue;
 
-                                        B = tiled_matrix_submatrix((tiled_matrix_desc_t*)&ddescA, 0, 0, allM[m], allN[n] );
+                                        B = tiled_matrix_submatrix((parsec_tiled_matrix_dc_t*)&dcA, 0, 0, allM[m], allN[n] );
                                         dplasma_hqr_init( &qrtree, PlasmaNoTrans, B, alltreel[l], alltreeh[h], allA[a], allP[p], d, r);
 
                                         rc = dplasma_qrtree_check( B, &qrtree );
@@ -139,7 +139,7 @@ int main(int argc, char ** argv)
             for( a=0; a<nbA; a++) {
                 for( m=0; m<nbM; m++) {
                     for( n=0; n<nbN; n++) {
-                        B = tiled_matrix_submatrix((tiled_matrix_desc_t*)&ddescA, 0, 0, allM[m], allN[n] );
+                        B = tiled_matrix_submatrix((parsec_tiled_matrix_dc_t*)&dcA, 0, 0, allM[m], allN[n] );
                         dplasma_systolic_init( &qrtree, PlasmaNoTrans, B, allA[a], allP[p]);
 
                         rc = dplasma_qrtree_check( B, &qrtree );
@@ -159,26 +159,26 @@ int main(int argc, char ** argv)
             }
         }
 
-        parsec_data_free(ddescA.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
+        parsec_data_free(dcA.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
 
     } else {
 
         LDA = max(M, LDA);
         /* initializing matrix structure */
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+            two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDA, N, 0, 0,
                                    M, N, SMB, SNB, P));
 
 #if defined(SYSTOLIC)
         dplasma_systolic_init( &qrtree,
-                               PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
+                               PlasmaNoTrans, (parsec_tiled_matrix_dc_t *)&dcA,
                                iparam[IPARAM_QR_HLVL_SZE],
                                iparam[IPARAM_QR_TS_SZE] );
 #else
         dplasma_hqr_init( &qrtree,
-                          PlasmaNoTrans, (tiled_matrix_desc_t*)&ddescA,
+                          PlasmaNoTrans, (parsec_tiled_matrix_dc_t*)&dcA,
                           iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
                           iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
                           iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR] );
@@ -192,14 +192,14 @@ int main(int argc, char ** argv)
                  iparam[IPARAM_HIGHLVL_TREE],
                  iparam[IPARAM_QR_DOMINO]);
 
-        /*dplasma_qrtree_print_dag( (tiled_matrix_desc_t*)&ddescA, &qrtree, dot_filename );*/
-        ret = dplasma_qrtree_check( (tiled_matrix_desc_t*)&ddescA, &qrtree );
+        /*dplasma_qrtree_print_dag( (parsec_tiled_matrix_dc_t*)&dcA, &qrtree, dot_filename );*/
+        ret = dplasma_qrtree_check( (parsec_tiled_matrix_dc_t*)&dcA, &qrtree );
 
-        /* dplasma_qrtree_print_pivot(   (tiled_matrix_desc_t*)&ddescA, &qrtree); */
-        /* dplasma_qrtree_print_next_k(  (tiled_matrix_desc_t*)&ddescA, &qrtree, 0); */
-        /* dplasma_qrtree_print_prev_k(  (tiled_matrix_desc_t*)&ddescA, &qrtree, 0); */
-        /* dplasma_qrtree_print_nbgeqrt( (tiled_matrix_desc_t*)&ddescA, &qrtree ); */
-        /* dplasma_qrtree_print_type   ( (tiled_matrix_desc_t*)&ddescA, &qrtree ); */
+        /* dplasma_qrtree_print_pivot(   (parsec_tiled_matrix_dc_t*)&dcA, &qrtree); */
+        /* dplasma_qrtree_print_next_k(  (parsec_tiled_matrix_dc_t*)&dcA, &qrtree, 0); */
+        /* dplasma_qrtree_print_prev_k(  (parsec_tiled_matrix_dc_t*)&dcA, &qrtree, 0); */
+        /* dplasma_qrtree_print_nbgeqrt( (parsec_tiled_matrix_dc_t*)&dcA, &qrtree ); */
+        /* dplasma_qrtree_print_type   ( (parsec_tiled_matrix_dc_t*)&dcA, &qrtree ); */
 
 #if defined(SYSTOLIC)
         dplasma_systolic_finalize( &qrtree );
@@ -209,8 +209,8 @@ int main(int argc, char ** argv)
 
         free(dot_filename);
 
-        parsec_data_free(ddescA.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
+        parsec_data_free(dcA.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
     }
 
     cleanup_parsec(parsec, iparam);

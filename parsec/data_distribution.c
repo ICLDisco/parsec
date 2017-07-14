@@ -19,10 +19,10 @@
 #include <stdio.h>
 
 void
-parsec_ddesc_init(parsec_ddesc_t *d,
-                  int nodes, int myrank )
+parsec_data_collection_init(parsec_data_collection_t *d,
+                            int nodes, int myrank )
 {
-    memset( d, 0, sizeof(parsec_ddesc_t) );
+    memset( d, 0, sizeof(parsec_data_collection_t) );
 
     d->nodes  = nodes;
     d->myrank = myrank;
@@ -31,7 +31,7 @@ parsec_ddesc_init(parsec_ddesc_t *d,
 }
 
 void
-parsec_ddesc_destroy(parsec_ddesc_t *d)
+parsec_data_collection_destroy(parsec_data_collection_t *d)
 {
 #if defined(PARSEC_PROF_TRACE)
     if( NULL != d->key_dim ) free(d->key_dim);
@@ -44,7 +44,7 @@ parsec_ddesc_destroy(parsec_ddesc_t *d)
 #if defined(PARSEC_PROF_TRACE)
 #include "parsec/profiling.h"
 
-void parsec_ddesc_set_key( parsec_ddesc_t* d, char* name)
+void parsec_data_collection_set_key( parsec_data_collection_t* d, char* name)
 {
     char dim[strlen(name) + strlen( (d)->key_dim ) + 4];
     (d)->key_base = strdup(name);

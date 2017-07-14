@@ -794,7 +794,7 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/debug.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/hbbuffer.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_description_structures.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/execution_unit.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/execution_stream.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/os-spec-timing.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/maxheap.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mempool.h

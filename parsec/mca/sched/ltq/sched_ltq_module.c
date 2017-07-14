@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2016 The University of Tennessee and The University
+ * Copyright (c) 2013-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -30,12 +30,12 @@ static int SYSTEM_NEIGHBOR = 0;
  * Module functions
  */
 static int sched_ltq_install(parsec_context_t* master);
-static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
-                              parsec_execution_context_t* new_context,
+static int sched_ltq_schedule(parsec_execution_stream_t* es,
+                              parsec_task_t* new_context,
                               int32_t distance);
-static parsec_execution_context_t *sched_ltq_select(parsec_execution_unit_t *eu_context,
-                                                    int32_t* distance);
-static int flow_ltq_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
+static parsec_task_t *sched_ltq_select(parsec_execution_stream_t *es,
+                                       int32_t* distance);
+static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier);
 static void sched_ltq_remove(parsec_context_t* master);
 
 const parsec_sched_module_t parsec_sched_ltq_module = {
@@ -56,17 +56,17 @@ static int sched_ltq_install( parsec_context_t *master )
     return 0;
 }
 
-static int flow_ltq_init(parsec_execution_unit_t * eu, struct parsec_barrier_t* barrier)
+static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
 {
     local_queues_scheduler_object_t *sched_obj = NULL;
     int nq = 1, hwloc_levels;
     uint32_t queue_size;
-    parsec_vp_t * vp = eu->virtual_process;
+    parsec_vp_t * vp = es->virtual_process;
 
     sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
-    eu->scheduler_object = sched_obj;
+    es->scheduler_object = sched_obj;
 
-    if( eu->th_id == 0 ) {
+    if( es->th_id == 0 ) {
         sched_obj->system_queue = (parsec_dequeue_t*)malloc(sizeof(parsec_dequeue_t));
         sched_obj->system_queue = OBJ_NEW(parsec_dequeue_t);
     }
@@ -80,7 +80,7 @@ static int flow_ltq_init(parsec_execution_unit_t * eu, struct parsec_barrier_t* 
     parsec_barrier_wait(barrier);
 
     /* Get the flow 0 system queue and store it locally */
-    sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_units[0])->system_queue;
+    sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_streams[0])->system_queue;
 
     /* Each thread creates its own "local" queue, connected to the shared dequeue */
     sched_obj->task_queue = parsec_hbbuffer_new( queue_size, 1, push_in_queue_wrapper,
@@ -105,22 +105,22 @@ static int flow_ltq_init(parsec_execution_unit_t * eu, struct parsec_barrier_t* 
     if( hwloc_levels == -1 ) {
         for( ; nq < sched_obj->nb_hierarch_queues; nq++ ) {
             sched_obj->hierarch_queues[nq] =
-                LOCAL_QUEUES_OBJECT(vp->execution_units[(eu->th_id + nq) % vp->nb_cores])->task_queue;
+                LOCAL_QUEUES_OBJECT(vp->execution_streams[(es->th_id + nq) % vp->nb_cores])->task_queue;
         }
 #if defined(PARSEC_HAVE_HWLOC)
     }
     else {
         /* Then, they know about all other queues, from the closest to the farthest */
         for(int level = 0; level <= hwloc_levels; level++) {
-            for(int id = (eu->th_id + 1) % vp->nb_cores;
-                id != eu->th_id;
+            for(int id = (es->th_id + 1) % vp->nb_cores;
+                id != es->th_id;
                 id = (id + 1) %  vp->nb_cores) {
                 int d;
-                d = parsec_hwloc_distance(eu->th_id, id);
+                d = parsec_hwloc_distance(es->th_id, id);
                 if( d == 2*level || d == 2*level + 1 ) {
-                    sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
+                    sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_streams[id])->task_queue;
                     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "%d of %d: my %d preferred queue is the task queue of %d (%p)",
-                           eu->th_id, eu->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]);
+                           es->th_id, es->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]);
                     nq++;
                     if( nq == sched_obj->nb_hierarch_queues )
                         break;
@@ -135,13 +135,13 @@ static int flow_ltq_init(parsec_execution_unit_t * eu, struct parsec_barrier_t* 
     return 0;
 }
 
-static parsec_execution_context_t*
-sched_ltq_select(parsec_execution_unit_t *eu_context,
+static parsec_task_t*
+sched_ltq_select(parsec_execution_stream_t *es,
                  int32_t* distance)
 {
     parsec_heap_t* heap = NULL;
     parsec_heap_t* new_heap = NULL;
-    parsec_execution_context_t * exec_context = NULL;
+    parsec_task_t * task = NULL;
     int i = 0;
     /*
      possible future improvement over using existing pop_best function:
@@ -149,25 +149,25 @@ sched_ltq_select(parsec_execution_unit_t *eu_context,
      and choose a tree that has the highest value
      then take that task from that tree.
      */
-    heap = (parsec_heap_t*)parsec_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
+    heap = (parsec_heap_t*)parsec_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(es)->task_queue,
                                                     parsec_heap_priority_comparator);
-    exec_context = heap_remove(&heap);
+    task = heap_remove(&heap);
     if( NULL != heap ) {
-        parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
+        parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(es)->task_queue,
                                  (parsec_list_item_t*)heap, 0);
     }
-    if (exec_context != NULL) {
+    if (task != NULL) {
 #if defined(PINS_ENABLE)
-        exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
+        task->victim_core = LOCAL_QUEUES_OBJECT(es)->task_queue->assoc_core_num;
 #endif
         *distance = 1;
-        return exec_context;
+        return task;
     }
 
     // if we failed to find one in our queue
-    for(i = 1; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
-        heap = (parsec_heap_t*)parsec_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i], parsec_heap_priority_comparator);
-        exec_context = heap_split_and_steal(&heap, &new_heap);
+    for(i = 1; i <  LOCAL_QUEUES_OBJECT(es)->nb_hierarch_queues; i++ ) {
+        heap = (parsec_heap_t*)parsec_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(es)->hierarch_queues[i], parsec_heap_priority_comparator);
+        task = heap_split_and_steal(&heap, &new_heap);
         if( NULL != heap ) {
             if (NULL != new_heap) {
                 /* turn two-element doubly-linked list
@@ -180,42 +180,42 @@ sched_ltq_select(parsec_execution_unit_t *eu_context,
                 new_heap->list_item.list_prev = (parsec_list_item_t*)new_heap;
 
                 // put new heap back in neighboring queue
-                parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
+                parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(es)->hierarch_queues[i],
                                          (parsec_list_item_t*)new_heap, 0);
             }
             // put old heap in our queue -- it's a singleton either way by this point
-            parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
+            parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(es)->task_queue,
                                      (parsec_list_item_t*)heap, 0);
         }
-        if (exec_context != NULL) {
+        if (task != NULL) {
 #if defined(PINS_ENABLE)
-            exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
+            task->victim_core = LOCAL_QUEUES_OBJECT(es)->hierarch_queues[i]->assoc_core_num;
 #endif
             *distance = i;
-            return exec_context;
+            return task;
         }
     }
 
     // if nothing yet, then go to system queue
-    heap = (parsec_heap_t *)parsec_dequeue_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
-    exec_context = heap_split_and_steal(&heap, &new_heap);
+    heap = (parsec_heap_t *)parsec_dequeue_pop_front(LOCAL_QUEUES_OBJECT(es)->system_queue);
+    task = heap_split_and_steal(&heap, &new_heap);
     if (heap != NULL)
-        parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
+        parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(es)->task_queue,
                                  (parsec_list_item_t*)heap, 0);
 #if defined(PINS_ENABLE)
-    if (exec_context != NULL)
-        exec_context->victim_core = SYSTEM_NEIGHBOR;
+    if (task != NULL)
+        task->victim_core = SYSTEM_NEIGHBOR;
 #endif
-    *distance = LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues + 1;
-    return exec_context;
+    *distance = LOCAL_QUEUES_OBJECT(es)->nb_hierarch_queues + 1;
+    return task;
 }
 
-static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
-                              parsec_execution_context_t* new_context,
+static int sched_ltq_schedule(parsec_execution_stream_t* es,
+                              parsec_task_t* new_context,
                               int32_t distance)
 {
-    parsec_execution_context_t * cur = new_context;
-    parsec_execution_context_t * next;
+    parsec_task_t * cur = new_context;
+    parsec_task_t * next;
     parsec_heap_t* heap = heap_create();
     parsec_heap_t* first_h = heap;
     int matches = 0;
@@ -225,11 +225,11 @@ static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
      * Force a call to prepare the input of the task. The internals should
      * be protected such that the inputs are only acquired once.
      */
-    cur->function->prepare_input(eu_context, cur);
+    cur->task_class->prepare_input(es, cur);
 
     while (1) {
         // check next element before insertion, which destroys next and prev
-        next = (parsec_execution_context_t*)cur->super.list_next;
+        next = (parsec_task_t*)cur->super.list_next;
         assert(next != NULL);
 
         heap_insert(heap, cur);
@@ -239,7 +239,7 @@ static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
         }
 
         /* Prepare the inputs */
-        next->function->prepare_input(eu_context, next);
+        next->task_class->prepare_input(es, next);
         /**
          * Count how many common inputs are shared by 2 consecutive tasks. If we found
          * at least one identical input we group the 2 tasks in the same heap. Otherwise
@@ -267,7 +267,7 @@ static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
     }
 
     /* Insert the prepared heap elements starting from the correct distance */
-    parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
+    parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(es)->task_queue,
                              (parsec_list_item_t*)first_h, distance);
 
     return 0;
@@ -276,17 +276,17 @@ static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
 static void sched_ltq_remove( parsec_context_t *master )
 {
     int t, p;
-    parsec_execution_unit_t *eu;
+    parsec_execution_stream_t *es;
     parsec_vp_t *vp;
     local_queues_scheduler_object_t *sched_obj;
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
         for(t = 0; t < vp->nb_cores; t++) {
-            eu = vp->execution_units[t];
-            sched_obj = LOCAL_QUEUES_OBJECT(eu);
+            es = vp->execution_streams[t];
+            sched_obj = LOCAL_QUEUES_OBJECT(es);
 
-            if( eu->th_id == 0 ) {
+            if( es->th_id == 0 ) {
                 OBJ_DESTRUCT(sched_obj->system_queue);
                 free( sched_obj->system_queue );
             }
@@ -298,8 +298,8 @@ static void sched_ltq_remove( parsec_context_t *master )
             free(sched_obj->hierarch_queues);
             sched_obj->hierarch_queues = NULL;
 
-            free(eu->scheduler_object);
-            eu->scheduler_object = NULL;
+            free(es->scheduler_object);
+            es->scheduler_object = NULL;
         }
     }
 }

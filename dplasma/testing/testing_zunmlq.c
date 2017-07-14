@@ -41,36 +41,36 @@ int main(int argc, char ** argv)
     LDA = max(N, LDA);
 
     /* initializing matrix structure */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+        two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDA, N, 0, 0,
                                K, N, SMB, SNB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
-        two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcT, 1,
+        two_dim_block_cyclic, (&dcT, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                KT*IB, N, SMB, SNB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescQ, 1,
-        two_dim_block_cyclic, (&ddescQ, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcQ, 1,
+        two_dim_block_cyclic, (&dcQ, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDA, N, 0, 0,
                                N, N, SMB, SNB, P));
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
-    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
-    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
+    dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA, 3872);
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., (parsec_tiled_matrix_dc_t *)&dcT);
     if(loud > 3) printf("Done\n");
 
     if(loud > 3) printf("+++ Factorize A ... ");
     dplasma_zgelqf(parsec,
-                   (tiled_matrix_desc_t*)&ddescA,
-                   (tiled_matrix_desc_t*)&ddescT);
+                   (parsec_tiled_matrix_dc_t*)&dcA,
+                   (parsec_tiled_matrix_dc_t*)&dcT);
     if(loud > 3) printf("Done\n");
 
     if(loud > 3) printf("+++ Generate Q ... ");
     dplasma_zunglq( parsec,
-                    (tiled_matrix_desc_t *)&ddescA,
-                    (tiled_matrix_desc_t *)&ddescT,
-                    (tiled_matrix_desc_t *)&ddescQ);
+                    (parsec_tiled_matrix_dc_t *)&dcA,
+                    (parsec_tiled_matrix_dc_t *)&dcT,
+                    (parsec_tiled_matrix_dc_t *)&dcQ);
     if(loud > 3) printf("Done\n");
 
     for (s=0; s<2; s++) {
@@ -79,17 +79,17 @@ int main(int argc, char ** argv)
         int Cn = (side[s] == PlasmaLeft) ? M : N;
         LDC = max(LDC, Cm);
 
-        PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
-            two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcC, 1,
+            two_dim_block_cyclic, (&dcC, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDC, Cn, 0, 0,
                                    Cm, Cn, SMB, SNB, P));
-        PASTE_CODE_ALLOCATE_MATRIX(ddescC0, 1,
-            two_dim_block_cyclic, (&ddescC0, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcC0, 1,
+            two_dim_block_cyclic, (&dcC0, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDC, Cn, 0, 0,
                                    Cm, Cn, SMB, SNB, P));
 
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC0, 2354);
-        Cnorm = dplasma_zlange(parsec, PlasmaOneNorm, (tiled_matrix_desc_t *)&ddescC0);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcC0, 2354);
+        Cnorm = dplasma_zlange(parsec, PlasmaOneNorm, (parsec_tiled_matrix_dc_t *)&dcC0);
 
         if (Cnorm == 0.)
             Cnorm = 1.;
@@ -100,27 +100,27 @@ int main(int argc, char ** argv)
 #endif
 
             dplasma_zlacpy( parsec, PlasmaUpperLower,
-                            (tiled_matrix_desc_t *)&ddescC0,
-                            (tiled_matrix_desc_t *)&ddescC);
+                            (parsec_tiled_matrix_dc_t *)&dcC0,
+                            (parsec_tiled_matrix_dc_t *)&dcC);
 
             dplasma_zunmlq( parsec, side[s], trans[t],
-                            (tiled_matrix_desc_t *)&ddescA,
-                            (tiled_matrix_desc_t *)&ddescT,
-                            (tiled_matrix_desc_t *)&ddescC);
+                            (parsec_tiled_matrix_dc_t *)&dcA,
+                            (parsec_tiled_matrix_dc_t *)&dcT,
+                            (parsec_tiled_matrix_dc_t *)&dcC);
 
             if (side[s] == PlasmaLeft ) {
                 dplasma_zgemm( parsec, trans[t], PlasmaNoTrans,
-                               -1., (tiled_matrix_desc_t *)&ddescQ,
-                                    (tiled_matrix_desc_t *)&ddescC0,
-                               1.,  (tiled_matrix_desc_t *)&ddescC);
+                               -1., (parsec_tiled_matrix_dc_t *)&dcQ,
+                                    (parsec_tiled_matrix_dc_t *)&dcC0,
+                               1.,  (parsec_tiled_matrix_dc_t *)&dcC);
             } else {
                 dplasma_zgemm( parsec, PlasmaNoTrans, trans[t],
-                               -1., (tiled_matrix_desc_t *)&ddescC0,
-                                    (tiled_matrix_desc_t *)&ddescQ,
-                               1.,  (tiled_matrix_desc_t *)&ddescC);
+                               -1., (parsec_tiled_matrix_dc_t *)&dcC0,
+                                    (parsec_tiled_matrix_dc_t *)&dcQ,
+                               1.,  (parsec_tiled_matrix_dc_t *)&dcC);
             }
 
-            Rnorm = dplasma_zlange(parsec, PlasmaOneNorm, (tiled_matrix_desc_t *)&ddescC);
+            Rnorm = dplasma_zlange(parsec, PlasmaOneNorm, (parsec_tiled_matrix_dc_t *)&dcC);
             result = Rnorm / ((double)N * Cnorm * eps);
 
             if (loud && rank == 0) {
@@ -143,18 +143,18 @@ int main(int argc, char ** argv)
             }
         }
 
-        parsec_data_free(ddescC0.mat);
-        tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescC0);
-        parsec_data_free(ddescC.mat);
-        tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescC);
+        parsec_data_free(dcC0.mat);
+        parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcC0);
+        parsec_data_free(dcC.mat);
+        parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcC);
     }
 
-    parsec_data_free(ddescA.mat);
-    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescA);
-    parsec_data_free(ddescT.mat);
-    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescT);
-    parsec_data_free(ddescQ.mat);
-    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescQ);
+    parsec_data_free(dcA.mat);
+    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_data_free(dcT.mat);
+    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcT);
+    parsec_data_free(dcQ.mat);
+    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcQ);
 
     cleanup_parsec(parsec, iparam);
 

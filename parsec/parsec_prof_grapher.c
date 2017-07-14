@@ -1,17 +1,27 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "parsec/parsec_config.h"
+#include "data.h"
 #include "parsec_prof_grapher.h"
 #include "parsec_internal.h"
 #if defined(PARSEC_PROF_TRACE)
 #include "parsec/parsec_binary_profile.h"
 #endif
 #include "parsec/utils/colors.h"
+#include "parsec/parsec_internal.h"
+#include "parsec/parsec_description_structures.h"
+
+#if defined(PARSEC_HAVE_MPI)
+#include <mpi.h>
+#endif  /* defined(PARSEC_HAVE_MPI) */
+
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
 
 #if defined(PARSEC_PROF_GRAPHER)
 
@@ -61,27 +71,27 @@ void parsec_prof_grapher_init(const char *base_filename, int nbthreads)
         colors[t] = unique_color(rank * nbfuncs + t, size * nbfuncs);
 }
 
-char *parsec_prof_grapher_taskid(const parsec_execution_context_t *exec_context, char *tmp, int length)
+char *parsec_prof_grapher_taskid(const parsec_task_t *task, char *tmp, int length)
 {
-    const parsec_function_t* function = exec_context->function;
+    const parsec_task_class_t* tc = task->task_class;
     unsigned int i, index = 0;
 
-    assert( NULL!= exec_context->parsec_handle );
-    index += snprintf( tmp + index, length - index, "%s_%u", function->name, exec_context->parsec_handle->handle_id );
-    for( i = 0; i < function->nb_parameters; i++ ) {
+    assert( NULL!= task->taskpool );
+    index += snprintf( tmp + index, length - index, "%s_%u", tc->name, task->taskpool->taskpool_id );
+    for( i = 0; i < tc->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "_%d",
-                           exec_context->locals[function->params[i]->context_index].value );
+                           task->locals[tc->params[i]->context_index].value );
     }
 
     return tmp;
 }
 
-void parsec_prof_grapher_task(const parsec_execution_context_t *context,
+void parsec_prof_grapher_task(const parsec_task_t *context,
                              int thread_id, int vp_id, int task_hash)
 {
     if( NULL != grapher_file ) {
         char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
-        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context);
+        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context);
         parsec_prof_grapher_taskid(context, nmp, MAX_TASK_STRLEN);
 #if defined(PARSEC_SIM)
 #  if defined(PARSEC_PROF_TRACE)
@@ -89,23 +99,23 @@ void parsec_prof_grapher_task(const parsec_execution_context_t *context,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\","
                 "tooltip=\"hid=%u:did=%d:tname=%s:tid=%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs],
+                nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp, context->sim_exec_date,
-                context->parsec_handle->handle_id,
-                context->parsec_handle->profiling_array != NULL 
-                    ? BASE_KEY(context->parsec_handle->profiling_array[2*context->function->function_id])
+                context->taskpool->taskpool_id,
+                context->taskpool->profiling_array != NULL 
+                    ? BASE_KEY(context->taskpool->profiling_array[2*context->task_class->task_class_id])
                     : -1,
-                context->function->name,
+                context->task_class->name,
                 task_hash);
 #  else
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\","
                 "tooltip=\"hid=%u:tname=%s:tid=%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs],
+                nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp, context->sim_exec_date,
-                context->parsec_handle->handle_id,
-                context->function->name,
+                context->taskpool->taskpool_id,
+                context->task_class->name,
                 task_hash);
 #  endif
 #else
@@ -114,23 +124,23 @@ void parsec_prof_grapher_task(const parsec_execution_context_t *context,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s\","
                 "tooltip=\"hid=%u:did=%d:tname=%s:tid=%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs],
+                nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp,
-                context->parsec_handle->handle_id,
-                context->parsec_handle->profiling_array != NULL 
-                    ? BASE_KEY(context->parsec_handle->profiling_array[2*context->function->function_id])
+                context->taskpool->taskpool_id,
+                context->taskpool->profiling_array != NULL 
+                    ? BASE_KEY(context->taskpool->profiling_array[2*context->task_class->task_class_id])
                     : -1,
-                context->function->name,
+                context->task_class->name,
                 task_hash);
 #  else
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s\","
                 "tooltip=\"hid=%u:tname=%s:tid=%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs],
+                nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp,
-                context->parsec_handle->handle_id,
-                context->function->name,
+                context->taskpool->taskpool_id,
+                context->task_class->name,
                 task_hash);
 #  endif
 #endif
@@ -138,7 +148,7 @@ void parsec_prof_grapher_task(const parsec_execution_context_t *context,
     }
 }
 
-void parsec_prof_grapher_dep(const parsec_execution_context_t* from, const parsec_execution_context_t* to,
+void parsec_prof_grapher_dep(const parsec_task_t* from, const parsec_task_t* to,
                             int dependency_activates_task,
                             const parsec_flow_t* origin_flow, const parsec_flow_t* dest_flow)
 {

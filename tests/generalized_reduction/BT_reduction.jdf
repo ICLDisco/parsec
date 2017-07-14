@@ -88,7 +88,7 @@ int global_to_local_index(int N, int idx){
 
 %}
 
-dataA      [type = "struct tiled_matrix_desc_t *"]
+dataA      [type = "struct parsec_tiled_matrix_dc_t *"]
 NB         [type = int]
 NT         [type = int]
 
@@ -180,7 +180,7 @@ BODY
       }
   }
 
-  if( 1==i && 0==((__parsec_handle->super.super.context)->my_rank) ) printf("%d\n", *TYPE(C)); 
+  if( 1==i && 0==((__parsec_tp->super.super.context)->my_rank) ) printf("%d\n", *TYPE(C)); 
 
 END
 

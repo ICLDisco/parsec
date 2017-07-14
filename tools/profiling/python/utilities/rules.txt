@@ -2,5 +2,5 @@
 <1.2:PINS_SELECT='kernel_type{int32_t}:kernel_name{char[KERNEL_NAME_SIZE]):vp_id{int32_t}:th_id{int32_t}:values_len{int32_t}:values{int64_t[NUM_EXEC_EVENTS]'
 <1.2:PINS_ADD='kernel_type{int32_t}:PAPI_L1{int64_t}:PAPI_L2{int64_t}:PAPI_L3{int64_t}'
 <1.2:PINS_L12_EXEC='kernel_type{int32_t}:PAPI_L1{int64_t}:PAPI_L2{int64_t}:PAPI_L3{int64_t}'
-<1.2:PINS_L12_SELECT='kernel_type{int32_t}:victim_vp_id{int32_t):victim_th_id{int32_t}:selection_time{int64_t}:exec_context{int64_t}:PAPI_L1{int64_t:PAPI_L2{int64_t}'
+<1.2:PINS_L12_SELECT='kernel_type{int32_t}:victim_vp_id{int32_t):victim_th_id{int32_t}:selection_time{int64_t}:task{int64_t}:PAPI_L1{int64_t:PAPI_L2{int64_t}'
 <1.2:PINS_L123='PAPI_L1{int64_t}:PAPI_L2{int64_t}:PAPI_L3{int64_t}'

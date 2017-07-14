@@ -36,7 +36,7 @@ struct parsec_data_s {
 
     parsec_data_key_t          key;
     int8_t                    owner_device;
-    struct parsec_ddesc_s*     ddesc;
+    struct parsec_data_collection_s*     dc;
     uint32_t                  nb_elts;          /* number of elements of the memory layout */
     struct parsec_data_copy_s *device_copies[1]; /* this array allocated according to the number of devices
                                                  * (parsec_supported_number_of_devices). It points to the most recent
@@ -70,7 +70,7 @@ struct parsec_data_copy_s {
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
     parsec_data_status_t      data_transfer_status;   /** three status */
-    struct parsec_execution_context_s *push_task;     /** the task who actually do the PUSH */
+    struct parsec_task_s     *push_task;     /** the task who actually do the PUSH */
 };
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_data_copy_t);
 

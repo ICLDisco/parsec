@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#ifndef PARSEC_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
-#define PARSEC_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
+#ifndef PARSEC_EXECUTION_STREAM_H_HAS_BEEN_INCLUDED
+#define PARSEC_EXECUTION_STREAM_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_config.h"
 #ifdef PARSEC_HAVE_HWLOC
@@ -33,7 +33,7 @@ BEGIN_C_DECLS
 /**
  *  Computational Thread-specific structure
  */
-struct parsec_execution_unit_s {
+struct parsec_execution_stream_s {
     int32_t   th_id;        /**< Internal thread identifier. A thread belongs to a vp */
     int core_id;            /**< Core on which the thread is bound (hwloc in order numbering) */
     int socket_id;          /**< Socket on which the thread is bound (hwloc in order numerotation) */
@@ -41,7 +41,7 @@ struct parsec_execution_unit_s {
     pthread_t pthread_id;     /**< POSIX thread identifier. */
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_thread_profiling_t *eu_profile;
+    parsec_thread_profiling_t *es_profile;
 #endif /* PARSEC_PROF_TRACE */
 
     void *scheduler_object;
@@ -60,7 +60,7 @@ struct parsec_execution_unit_s {
 
 #if defined(PARSEC_PROF_RUSAGE_EU)
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)
-    struct rusage _eu_rusage;
+    struct rusage _es_rusage;
 #endif /* PARSEC_HAVE_GETRUSAGE */
 #endif
 
@@ -80,7 +80,7 @@ struct parsec_vp_s {
     int32_t vp_id;                  /**< virtual process identifier of this vp */
     int32_t nb_cores;               /**< number of cores for this vp */
 
-    /* Mempools are allocated per VP, and used per execution_unit
+    /* Mempools are allocated per VP, and used per execution_stream
      * The last eu of this VP will create the mempools for all eus of this VP
      * and each eu will point into the corresponding element
      */
@@ -95,7 +95,7 @@ struct parsec_vp_s {
      * we will allocate more (as many as we need), so everything after this
      * field might be overwritten.
      */
-    parsec_execution_unit_t* execution_units[1];
+    parsec_execution_stream_t* execution_streams[1];
 };
 
 /* The communication layer is up and running, or at least active */
@@ -130,9 +130,9 @@ struct parsec_context_s {
 
     int32_t nb_vp; /**< number of virtual processes in this physical process */
 
-    int32_t object_array_size; /**< size of array to save reference of dtd handles */
-    int32_t object_array_occupied; /**< count of dtd handles registered */
-    parsec_handle_t **object_array; /**< array of dtd handles registered with this context */
+    int32_t taskpool_array_size; /**< size of array to save reference of dtd taskpools */
+    int32_t taskpool_array_occupied; /**< count of dtd taskpools registered */
+    parsec_taskpool_t **taskpool_array; /**< array of dtd taskpools registered with this context */
 
 #if defined(PARSEC_SIM)
     int largest_simulation_date;

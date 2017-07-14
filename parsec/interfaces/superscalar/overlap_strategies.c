@@ -19,7 +19,7 @@
 #include "parsec/remote_dep.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 
-extern int dump_traversal_info; /**< For printing traversal info */
+extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 
 /***************************************************************************//**
  *
@@ -128,7 +128,7 @@ release_ownership_of_data(parsec_dtd_task_t *current_task, int flow_index)
  * INPUT tasks are activated if they are found in successions,
  * and they are treated the same way.
  *
- * @param[in]   eu
+ * @param[in]   es
  *                  Execution unit
  * @param[in]   this_task
  *                  We will iterate thorugh the successors of this task
@@ -138,8 +138,8 @@ release_ownership_of_data(parsec_dtd_task_t *current_task, int flow_index)
  *
  ******************************************************************************/
 void
-parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
-                               const parsec_execution_context_t *this_task,
+parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
+                               const parsec_task_t *this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t *ontask,
                                void *ontask_arg )
@@ -161,13 +161,13 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
     if( (PARSEC_ACTION_COMPLETE_LOCAL_TASK & action_mask) ) {
         flow_mask = action_mask;
     } else {
-        for(current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++) {
+        for(current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++) {
             int j = 0;
-            if( current_task->super.function->out[current_dep] != NULL ) {
-                while ( current_task->super.function->out[current_dep]->dep_out[j] != NULL ) {
-                    if ( ((1<<current_task->super.function->out[current_dep]->dep_out[j]->dep_index) & action_mask) ) {
-                       flow_mask |= (1U << current_task->super.function->out[current_dep]->dep_out[j]->belongs_to->flow_index);
-                       dep_mask |= (1U << current_task->super.function->out[current_dep]->dep_out[j]->dep_datatype_index);
+            if( current_task->super.task_class->out[current_dep] != NULL ) {
+                while ( current_task->super.task_class->out[current_dep]->dep_out[j] != NULL ) {
+                    if ( ((1<<current_task->super.task_class->out[current_dep]->dep_out[j]->dep_index) & action_mask) ) {
+                       flow_mask |= (1U << current_task->super.task_class->out[current_dep]->dep_out[j]->belongs_to->flow_index);
+                       dep_mask |= (1U << current_task->super.task_class->out[current_dep]->dep_out[j]->dep_datatype_index);
                     }
                     j++;
                 }
@@ -176,7 +176,7 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
     }
 
     rank_src = current_task->rank;
-    for( current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++ ) {
+    for( current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++ ) {
         if( (flow_mask & (1<<current_dep)) ) {
             current_desc = (DESC_OF(current_task, current_dep))->task;
             op_type_on_current_flow = (FLOW_OF(current_task, current_dep)->op_type & GET_OP_TYPE);
@@ -312,12 +312,12 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
                     }
                 }
 
-                if(dump_traversal_info) {
+                if(parsec_dtd_dump_traversal_info) {
                     parsec_output(parsec_debug_output,
                                   "------\nsuccessor of: %s \t %lld rank %d --> %s \t %lld rank: %d\nTotal flow: %d  flow_count:"
-                                  "%d\n----- for pred flow: %d and desc flow: %d\n", current_task->super.function->name,
-                                  current_task->ht_item.key, current_task->rank, current_desc->super.function->name,
-                                  current_desc->ht_item.key, current_desc->rank, current_desc->super.function->nb_flows,
+                                  "%d\n----- for pred flow: %d and desc flow: %d\n", current_task->super.task_class->name,
+                                  current_task->ht_item.key, current_task->rank, current_desc->super.task_class->name,
+                                  current_desc->ht_item.key, current_desc->rank, current_desc->super.task_class->nb_flows,
                                   current_desc->flow_count, current_dep, tmp_desc_flow_index);
                 }
 
@@ -327,9 +327,9 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
 
                 rank_dst = current_desc->rank;
 
-                ontask( eu, (parsec_execution_context_t *)current_desc, (parsec_execution_context_t *)current_task,
+                ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
                         deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
-                vpid_dst = (vpid_dst+1) % current_task->super.parsec_handle->context->nb_vp;
+                vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
 
                 /* releasing remote tasks that is a descendant of a local task */
                 if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
@@ -337,7 +337,7 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
                         parsec_dtd_remote_task_release( current_desc );
                     }
                     if( parsec_dtd_task_is_remote(current_desc) ) {
-                        if( ((parsec_dtd_function_t *)current_desc->super.function)->fpointer == parsec_dtd_copy_data_to_matrix ) {
+                        if( ((parsec_dtd_task_class_t *)current_desc->super.task_class)->fpointer == parsec_dtd_copy_data_to_matrix ) {
                             parsec_dtd_remote_task_release( current_desc );
                         }
                     }
@@ -351,7 +351,7 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
 
 #if defined(DISTRIBUTED)
             if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) && (NULL != arg->remote_deps) ) {
-                parsec_remote_dep_activate(eu, (parsec_execution_context_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
+                parsec_remote_dep_activate(es, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
                 arg->remote_deps = NULL;
             }
 #endif

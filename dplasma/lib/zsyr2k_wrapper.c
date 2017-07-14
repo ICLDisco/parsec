@@ -23,7 +23,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zsyr2k_New - Generates the parsec handle to performs one of the
+ *  dplasma_zsyr2k_New - Generates the parsec taskpool to performs one of the
  *  syrmitian rank 2k operations
  *
  *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f],
@@ -72,7 +72,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zsyr2k_Destruct();
  *
@@ -83,16 +83,16 @@
  * @sa dplasma_csyr2k_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zsyr2k_New( PLASMA_enum uplo,
                     PLASMA_enum trans,
                     parsec_complex64_t alpha,
-                    const tiled_matrix_desc_t* A,
-                    const tiled_matrix_desc_t* B,
+                    const parsec_tiled_matrix_dc_t* A,
+                    const parsec_tiled_matrix_dc_t* B,
                     parsec_complex64_t beta,
-                    tiled_matrix_desc_t* C)
+                    parsec_tiled_matrix_dc_t* C)
 {
-    parsec_handle_t* handle;
+    parsec_taskpool_t* tp;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
@@ -120,14 +120,14 @@ dplasma_zsyr2k_New( PLASMA_enum uplo,
 
     if ( uplo == PlasmaLower ) {
         if ( trans == PlasmaNoTrans ) {
-            handle = (parsec_handle_t*)
+            tp = (parsec_taskpool_t*)
                 parsec_zsyr2k_LN_new(uplo, trans,
                                     alpha, A,
                                            B,
                                     beta,  C);
         }
         else {
-            handle = (parsec_handle_t*)
+            tp = (parsec_taskpool_t*)
                 parsec_zsyr2k_LT_new(uplo, trans,
                                     alpha, A,
                                            B,
@@ -136,14 +136,14 @@ dplasma_zsyr2k_New( PLASMA_enum uplo,
     }
     else {
         if ( trans == PlasmaNoTrans ) {
-            handle = (parsec_handle_t*)
+            tp = (parsec_taskpool_t*)
                 parsec_zsyr2k_UN_new(uplo, trans,
                                     alpha, A,
                                            B,
                                     beta,  C);
         }
         else {
-            handle = (parsec_handle_t*)
+            tp = (parsec_taskpool_t*)
                 parsec_zsyr2k_UT_new(uplo, trans,
                                     alpha, A,
                                            B,
@@ -151,25 +151,25 @@ dplasma_zsyr2k_New( PLASMA_enum uplo,
         }
     }
 
-    dplasma_add2arena_tile(((parsec_zsyr2k_LN_handle_t*)handle)->arenas[PARSEC_zsyr2k_LN_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_zsyr2k_LN_taskpool_t*)tp)->arenas[PARSEC_zsyr2k_LN_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, C->mb);
 
-    return handle;
+    return tp;
 }
 
 /***************************************************************************//**
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zsyr2k_Destruct - Free the data structure associated to an handle
+ *  dplasma_zsyr2k_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zsyr2k_New().
  *
  *******************************************************************************
  *
- * @param[in] handle
- *          handle to destroy.
+ * @param[in] tp
+ *          taskpool to destroy.
  *
  *******************************************************************************
  *
@@ -178,11 +178,11 @@ dplasma_zsyr2k_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zsyr2k_Destruct( parsec_handle_t *handle )
+dplasma_zsyr2k_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zsyr2k_LN_handle_t *zsyr2k_handle = (parsec_zsyr2k_LN_handle_t*)handle;
-    parsec_matrix_del2arena( zsyr2k_handle->arenas[PARSEC_zsyr2k_LN_DEFAULT_ARENA] );
-    parsec_handle_free(handle);
+    parsec_zsyr2k_LN_taskpool_t *zsyr2k_tp = (parsec_zsyr2k_LN_taskpool_t*)tp;
+    parsec_matrix_del2arena( zsyr2k_tp->arenas[PARSEC_zsyr2k_LN_DEFAULT_ARENA] );
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -253,12 +253,12 @@ dplasma_zsyr2k( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 PLASMA_enum trans,
                 parsec_complex64_t alpha,
-                const tiled_matrix_desc_t *A,
-                const tiled_matrix_desc_t *B,
+                const parsec_tiled_matrix_dc_t *A,
+                const parsec_tiled_matrix_dc_t *B,
                 parsec_complex64_t beta,
-                tiled_matrix_desc_t *C)
+                parsec_tiled_matrix_dc_t *C)
 {
-    parsec_handle_t *parsec_zsyr2k = NULL;
+    parsec_taskpool_t *parsec_zsyr2k = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {

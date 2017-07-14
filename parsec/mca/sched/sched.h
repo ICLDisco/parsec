@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -174,7 +174,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 
 struct parsec_barrier_t;
 
@@ -229,8 +229,8 @@ typedef int  (*parsec_sched_base_module_install_fn_t)(parsec_context_t* master);
  *               parsec_context_t
  * @return 0 if the scheduler can be used; an error code otherwise
  */
-typedef int  (*parsec_sched_base_module_flow_init_fn_t)(parsec_execution_unit_t* eu_context,
-                                                       struct parsec_barrier_t* barrier);
+typedef int  (*parsec_sched_base_module_flow_init_fn_t)(parsec_execution_stream_t* es,
+                                                       struct parsec_barrier_t*);
 /**
  * @brief Scheduling function
  *
@@ -263,8 +263,8 @@ typedef int  (*parsec_sched_base_module_flow_init_fn_t)(parsec_execution_unit_t*
  * @return 0 on success; an error code in case of error (which is fatal).
  */
 typedef int  (*parsec_sched_base_module_schedule_fn_t)
-                 (parsec_execution_unit_t* eu_context,
-                  parsec_execution_context_t* new_context,
+                 (parsec_execution_stream_t* es,
+                  parsec_task_t* new_context,
                   int32_t distance);
 /**
  * @brief Selecting Function
@@ -282,8 +282,8 @@ typedef int  (*parsec_sched_base_module_schedule_fn_t)
  *                         is returned
  * @return The selected task, or NULL if none is selectable
  */
-typedef parsec_execution_context_t *(*parsec_sched_base_module_select_fn_t)
-                 (parsec_execution_unit_t *eu_context,
+typedef parsec_task_t *(*parsec_sched_base_module_select_fn_t)
+                 (parsec_execution_stream_t *es,
                   int32_t* distance);
 
 /**
@@ -296,7 +296,7 @@ typedef parsec_execution_context_t *(*parsec_sched_base_module_select_fn_t)
  *
  *  @param[in] eu_context the calling execution stream
  */
-typedef void (*parsec_sched_base_module_stats_fn_t)(parsec_execution_unit_t* eu_context);
+typedef void (*parsec_sched_base_module_stats_fn_t)(parsec_execution_stream_t* es);
 
 /**
  * @brief Finalization.

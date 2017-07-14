@@ -64,8 +64,8 @@
 int
 dplasma_zposv( parsec_context_t *parsec,
                PLASMA_enum uplo,
-               tiled_matrix_desc_t *A,
-               tiled_matrix_desc_t *B )
+               parsec_tiled_matrix_dc_t *A,
+               parsec_tiled_matrix_dc_t *B )
 {
     int info;
 
@@ -76,9 +76,9 @@ dplasma_zposv( parsec_context_t *parsec,
     }
 
 #ifdef PARSEC_COMPOSITION
-    parsec_handle_t *parsec_ztrsm1 = NULL;
-    parsec_handle_t *parsec_ztrsm2 = NULL;
-    parsec_handle_t *parsec_zpotrf = NULL;
+    parsec_taskpool_t *parsec_ztrsm1 = NULL;
+    parsec_taskpool_t *parsec_ztrsm2 = NULL;
+    parsec_taskpool_t *parsec_zpotrf = NULL;
 
     parsec_zpotrf = dplasma_zpotrf_New(uplo, A, &info);
     if ( uplo == PlasmaUpper ) {

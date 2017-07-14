@@ -53,7 +53,7 @@ static two_dim_block_cyclic_t descA;
 int main(int argc, char* argv[] )
 {
     parsec_context_t *parsec;
-    parsec_strange_handle_t* handle;
+    parsec_strange_taskpool_t* tp;
     int i = 0, n = 1, val = 0;
 
     while( NULL != argv[i] ) {
@@ -86,15 +86,15 @@ int main(int argc, char* argv[] )
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
 
-    handle = parsec_strange_new( (parsec_ddesc_t*)&descA, n, &val, 2.5 );
-    assert( NULL != handle );
+    tp = parsec_strange_new( (parsec_data_collection_t*)&descA, n, &val, 2.5 );
+    assert( NULL != tp );
 
-    parsec_arena_construct( handle->arenas[PARSEC_strange_DEFAULT_ARENA],
+    parsec_arena_construct( tp->arenas[PARSEC_strange_DEFAULT_ARENA],
                            descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
-    parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
     parsec_context_start(parsec);
     parsec_context_wait(parsec);
 

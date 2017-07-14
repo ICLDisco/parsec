@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zunglq_New - Generates the parsec handle that computes the generation
+ *  dplasma_zunglq_New - Generates the parsec taskpool that computes the generation
  *  of an M-by-N matrix Q with orthonormal rows, which is defined as the
  *  first M rows of a product of K elementary reflectors of order N
  *
@@ -57,7 +57,7 @@
  *******************************************************************************
  *
  * @return
- *          \retval The parsec handle which describes the operation to perform
+ *          \retval The parsec taskpool which describes the operation to perform
  *                  NULL if one of the parameter is incorrect
  *
  *******************************************************************************
@@ -70,12 +70,12 @@
  * @sa dplasma_zgelqf_New
  *
  ******************************************************************************/
-parsec_handle_t*
-dplasma_zunglq_New( tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *T,
-                    tiled_matrix_desc_t *Q )
+parsec_taskpool_t*
+dplasma_zunglq_New( parsec_tiled_matrix_dc_t *A,
+                    parsec_tiled_matrix_dc_t *T,
+                    parsec_tiled_matrix_dc_t *Q )
 {
-    parsec_zunglq_handle_t* handle;
+    parsec_zunglq_taskpool_t* tp;
     int ib = T->mb;
 
     if ( Q->m > Q->n ) {
@@ -91,31 +91,31 @@ dplasma_zunglq_New( tiled_matrix_desc_t *A,
         return NULL;
     }
 
-    handle = parsec_zunglq_new( A, T, Q,
-                               NULL );
+    tp = parsec_zunglq_new( A, T, Q,
+                            NULL );
 
-    handle->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
-    parsec_private_memory_init( handle->_g_p_work, ib * T->nb * sizeof(parsec_complex64_t) );
+    tp->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( tp->_g_p_work, ib * T->nb * sizeof(parsec_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( handle->arenas[PARSEC_zunglq_DEFAULT_ARENA],
+    dplasma_add2arena_tile( tp->arenas[PARSEC_zunglq_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(parsec_complex64_t),
                             PARSEC_ARENA_ALIGNMENT_SSE,
                             parsec_datatype_double_complex_t, A->mb );
 
     /* Upper triangular part of tile without diagonal */
-    dplasma_add2arena_upper( handle->arenas[PARSEC_zunglq_UPPER_TILE_ARENA],
+    dplasma_add2arena_upper( tp->arenas[PARSEC_zunglq_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(parsec_complex64_t),
                              PARSEC_ARENA_ALIGNMENT_SSE,
                              parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zunglq_LITTLE_T_ARENA],
+    dplasma_add2arena_rectangle( tp->arenas[PARSEC_zunglq_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(parsec_complex64_t),
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_complex_t, T->mb, T->nb, -1);
 
-    return (parsec_handle_t*)handle;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
@@ -123,14 +123,14 @@ dplasma_zunglq_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zunglq_Destruct - Free the data structure associated to an handle
+ *  dplasma_zunglq_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zunglq_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -139,9 +139,9 @@ dplasma_zunglq_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zunglq_Destruct( parsec_handle_t *handle )
+dplasma_zunglq_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zunglq_handle_t *parsec_zunglq = (parsec_zunglq_handle_t *)handle;
+    parsec_zunglq_taskpool_t *parsec_zunglq = (parsec_zunglq_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zunglq->arenas[PARSEC_zunglq_DEFAULT_ARENA   ] );
     parsec_matrix_del2arena( parsec_zunglq->arenas[PARSEC_zunglq_UPPER_TILE_ARENA] );
@@ -150,7 +150,7 @@ dplasma_zunglq_Destruct( parsec_handle_t *handle )
     parsec_private_memory_fini( parsec_zunglq->_g_p_work );
     free( parsec_zunglq->_g_p_work );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -209,11 +209,11 @@ dplasma_zunglq_Destruct( parsec_handle_t *handle )
  ******************************************************************************/
 int
 dplasma_zunglq( parsec_context_t *parsec,
-                tiled_matrix_desc_t *A,
-                tiled_matrix_desc_t *T,
-                tiled_matrix_desc_t *Q )
+                parsec_tiled_matrix_dc_t *A,
+                parsec_tiled_matrix_dc_t *T,
+                parsec_tiled_matrix_dc_t *Q )
 {
-    parsec_handle_t *parsec_zunglq;
+    parsec_taskpool_t *parsec_zunglq;
 
     if (parsec == NULL) {
         dplasma_error("dplasma_zunglq", "dplasma not initialized");

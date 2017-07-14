@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_ztrsmpl_New - Generates the handle that solves U*x = b, when U has
+ * dplasma_ztrsmpl_New - Generates the taskpool that solves U*x = b, when U has
  * been generated through LU factorization with incremental pivoting strategy
  * See dplasma_zgetrf_incpiv_New().
  *
@@ -67,7 +67,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrsmpl_Destruct();
  *
@@ -80,13 +80,13 @@
  * @sa dplasma_strsmpl_New
  *
  ******************************************************************************/
-parsec_handle_t *
-dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
-                    const tiled_matrix_desc_t *L,
-                    const tiled_matrix_desc_t *IPIV,
-                    tiled_matrix_desc_t *B)
+parsec_taskpool_t *
+dplasma_ztrsmpl_New(const parsec_tiled_matrix_dc_t *A,
+                    const parsec_tiled_matrix_dc_t *L,
+                    const parsec_tiled_matrix_dc_t *IPIV,
+                    parsec_tiled_matrix_dc_t *B)
 {
-    parsec_ztrsmpl_handle_t *parsec_trsmpl = NULL; 
+    parsec_ztrsmpl_taskpool_t *parsec_trsmpl = NULL; 
 
     if ( (A->mt != L->mt) || (A->nt != L->nt) ) {
         dplasma_error("dplasma_ztrsmpl_New", "L doesn't have the same number of tiles as A");
@@ -104,7 +104,7 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
                                          B );
     }
     else {
-        parsec_trsmpl = (parsec_ztrsmpl_handle_t*)
+        parsec_trsmpl = (parsec_ztrsmpl_taskpool_t*)
             parsec_ztrsmpl_sd_new( A,
                                   L,
                                   NULL,
@@ -129,7 +129,7 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_complex_t, L->mb, L->nb, -1);
 
-    return (parsec_handle_t*)parsec_trsmpl;
+    return (parsec_taskpool_t*)parsec_trsmpl;
 }
 
 /**
@@ -137,14 +137,14 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrsmpl_Destruct - Free the data structure associated to an handle
+ *  dplasma_ztrsmpl_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_ztrsmpl_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -153,15 +153,15 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_ztrsmpl_Destruct( parsec_handle_t *handle )
+dplasma_ztrsmpl_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_ztrsmpl_handle_t *parsec_trsmpl = (parsec_ztrsmpl_handle_t *)handle;
+    parsec_ztrsmpl_taskpool_t *parsec_trsmpl = (parsec_ztrsmpl_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_trsmpl->arenas[PARSEC_ztrsmpl_DEFAULT_ARENA] );
     parsec_matrix_del2arena( parsec_trsmpl->arenas[PARSEC_ztrsmpl_PIVOT_ARENA  ] );
     parsec_matrix_del2arena( parsec_trsmpl->arenas[PARSEC_ztrsmpl_SMALL_L_ARENA] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -229,12 +229,12 @@ dplasma_ztrsmpl_Destruct( parsec_handle_t *handle )
  ******************************************************************************/
 int
 dplasma_ztrsmpl( parsec_context_t *parsec,
-                 const tiled_matrix_desc_t *A,
-                 const tiled_matrix_desc_t *L,
-                 const tiled_matrix_desc_t *IPIV,
-                       tiled_matrix_desc_t *B )
+                 const parsec_tiled_matrix_dc_t *A,
+                 const parsec_tiled_matrix_dc_t *L,
+                 const parsec_tiled_matrix_dc_t *IPIV,
+                       parsec_tiled_matrix_dc_t *B )
 {
-    parsec_handle_t *parsec_ztrsmpl = NULL;
+    parsec_taskpool_t *parsec_ztrsmpl = NULL;
 
     if ( (A->mt != L->mt) || (A->nt != L->nt) ) {
         dplasma_error("dplasma_ztrsmpl", "L doesn't have the same number of tiles as A");

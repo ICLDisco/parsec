@@ -18,7 +18,7 @@ extern "C" %{
 /**
  * The JDF file can contains globals that will be variables global to all tasks.
  * These are not global variables to the whole code, but only to the scope of
- * the instantiated handle, so multiple instances of the same algorithm will
+ * the instantiated taskpool, so multiple instances of the same algorithm will
  * have different values.
  */
 NB   [ type="int" ]
@@ -53,21 +53,21 @@ END
 extern "C" %{
 
 static uint32_t
-rank_of(parsec_ddesc_t *desc, ...)
+rank_of(parsec_data_collection_t *desc, ...)
 {
     (void)desc;
     return 0;
 }
 
 static int32_t
-vpid_of(parsec_ddesc_t *desc, ...)
+vpid_of(parsec_data_collection_t *desc, ...)
 {
     (void)desc;
     return 0;
 }
 
 static uint64_t
-data_key(parsec_ddesc_t *desc, ...)
+data_key(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -83,8 +83,8 @@ int main(int argc, char *argv[])
     parsec_context_t* parsec;
     int rc;
     int rank, world;
-    parsec_ddesc_t taskdist;
-    parsec_Ex02_Chain_handle_t *handle;
+    parsec_data_collection_t taskdist;
+    parsec_Ex02_Chain_taskpool_t *tp;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -100,23 +100,23 @@ int main(int argc, char *argv[])
 
     parsec = parsec_init(-1, &argc, &argv);
 
-    parsec_ddesc_init(&taskdist, world, rank);
+    parsec_data_collection_init(&taskdist, world, rank);
     taskdist.rank_of = rank_of;
     taskdist.vpid_of = vpid_of;
     taskdist.data_key = data_key;
 
-    handle = parsec_Ex02_Chain_new(&taskdist, 10);
+    tp = parsec_Ex02_Chain_new(&taskdist, 10);
 
     /**
      * Since we create a data on the fly, we need to tell the runtime the
      * datatype of the DEFAULT type, so it can allocate the required memory
      * space.
      */
-    parsec_arena_construct(handle->arenas[PARSEC_Ex02_Chain_DEFAULT_ARENA],
-                          sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          parsec_datatype_int_t );
+    parsec_arena_construct(tp->arenas[PARSEC_Ex02_Chain_DEFAULT_ARENA],
+                           sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_int_t );
 
-    rc = parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
@@ -124,8 +124,8 @@ int main(int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
 
-    parsec_handle_free((parsec_handle_t*)handle);
-    parsec_ddesc_destroy(&taskdist);
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
+    parsec_data_collection_destroy(&taskdist);
 
     parsec_fini(&parsec);
 #if defined(PARSEC_HAVE_MPI)

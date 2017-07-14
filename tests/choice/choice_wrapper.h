@@ -17,11 +17,11 @@
  *
  * @return the parsec object to schedule.
  */
-parsec_handle_t *choice_new(parsec_ddesc_t *A, int size, int *decision, int nb, int world);
+parsec_taskpool_t *choice_new(parsec_data_collection_t *A, int size, int *decision, int nb, int world);
 
 /**
  * @param [INOUT] o the parsec object to destroy
  */
-void choice_destroy(parsec_handle_t *o);
+void choice_destroy(parsec_taskpool_t *o);
 
 #endif 

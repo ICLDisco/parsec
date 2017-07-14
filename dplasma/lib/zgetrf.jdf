@@ -18,8 +18,8 @@ extern "C" %{
 %}
 
 /** Globals */
-descA     [type = "tiled_matrix_desc_t*"]
-dataIP    [type = "parsec_ddesc_t *"]
+descA     [type = "parsec_tiled_matrix_dc_t*"]
+dataIP    [type = "parsec_data_collection_t *"]
 INFO      [type = "int*"]
 
 nbmaxthrd [type = "int" hidden=on default="( dplasma_imax( 1, dplasma_imin( vpmap_get_nb_threads_in_vp(0) - 1, 48 ) ) )" ] /* 48 is the actual limit of the kernel */

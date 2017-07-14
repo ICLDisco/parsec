@@ -21,7 +21,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlantr_New - Generates the handle that computes the value
+ *  dplasma_zlantr_New - Generates the taskpool that computes the value
  *
  *     zlantr = ( max(abs(A(i,j))), NORM = PlasmaMaxNorm
  *              (
@@ -66,7 +66,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlantr_Destruct();
  *
@@ -79,14 +79,14 @@
  * @sa dplasma_slantr_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
-                    const tiled_matrix_desc_t *A,
+                    const parsec_tiled_matrix_dc_t *A,
                     double *result )
 {
     int P, Q, m, n, mb, nb, elt;
     two_dim_block_cyclic_t *Tdist;
-    parsec_handle_t *parsec_zlantr = NULL;
+    parsec_taskpool_t *parsec_zlantr = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -153,31 +153,31 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
     /* Create the DAG */
     switch( norm ) {
     case PlasmaOneNorm:
-        parsec_zlantr = (parsec_handle_t*)parsec_zlange_one_cyclic_new(
-            P, Q, norm, uplo, diag, A, (parsec_ddesc_t*)Tdist, result);
+        parsec_zlantr = (parsec_taskpool_t*)parsec_zlange_one_cyclic_new(
+            P, Q, norm, uplo, diag, A, (parsec_data_collection_t*)Tdist, result);
         break;
 
     case PlasmaMaxNorm:
     case PlasmaInfNorm:
     case PlasmaFrobeniusNorm:
     default:
-        parsec_zlantr = (parsec_handle_t*)parsec_zlange_frb_cyclic_new(
-            P, Q, norm, uplo, diag, A, (parsec_ddesc_t*)Tdist, result);
+        parsec_zlantr = (parsec_taskpool_t*)parsec_zlange_frb_cyclic_new(
+            P, Q, norm, uplo, diag, A, (parsec_data_collection_t*)Tdist, result);
     }
 
     /* Set the datatypes */
-    dplasma_add2arena_tile(((parsec_zlange_frb_cyclic_handle_t*)parsec_zlantr)->arenas[PARSEC_zlange_frb_cyclic_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_zlange_frb_cyclic_taskpool_t*)parsec_zlantr)->arenas[PARSEC_zlange_frb_cyclic_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
-    dplasma_add2arena_rectangle(((parsec_zlange_frb_cyclic_handle_t*)parsec_zlantr)->arenas[PARSEC_zlange_frb_cyclic_COL_ARENA],
+    dplasma_add2arena_rectangle(((parsec_zlange_frb_cyclic_taskpool_t*)parsec_zlantr)->arenas[PARSEC_zlange_frb_cyclic_COL_ARENA],
                                 mb * nb * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_t, mb, nb, -1);
-    dplasma_add2arena_rectangle(((parsec_zlange_frb_cyclic_handle_t*)parsec_zlantr)->arenas[PARSEC_zlange_frb_cyclic_ELT_ARENA],
+    dplasma_add2arena_rectangle(((parsec_zlange_frb_cyclic_taskpool_t*)parsec_zlantr)->arenas[PARSEC_zlange_frb_cyclic_ELT_ARENA],
                                 elt * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_t, elt, 1, -1);
 
-    return (parsec_handle_t*)parsec_zlantr;
+    return (parsec_taskpool_t*)parsec_zlantr;
 }
 
 /**
@@ -185,14 +185,14 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlantr_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlantr_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlantr_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -201,18 +201,18 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
  *
  ******************************************************************************/
 void
-dplasma_zlantr_Destruct( parsec_handle_t *handle )
+dplasma_zlantr_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zlange_frb_cyclic_handle_t *parsec_zlantr = (parsec_zlange_frb_cyclic_handle_t *)handle;
+    parsec_zlange_frb_cyclic_taskpool_t *parsec_zlantr = (parsec_zlange_frb_cyclic_taskpool_t *)tp;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlantr->_g_Tdist) );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(parsec_zlantr->_g_Tdist) );
     free( parsec_zlantr->_g_Tdist );
 
     parsec_matrix_del2arena( parsec_zlantr->arenas[PARSEC_zlange_frb_cyclic_DEFAULT_ARENA] );
     parsec_matrix_del2arena( parsec_zlantr->arenas[PARSEC_zlange_frb_cyclic_COL_ARENA] );
     parsec_matrix_del2arena( parsec_zlantr->arenas[PARSEC_zlange_frb_cyclic_ELT_ARENA] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -276,10 +276,10 @@ dplasma_zlantr_Destruct( parsec_handle_t *handle )
 double
 dplasma_zlantr( parsec_context_t *parsec,
                 PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
-                const tiled_matrix_desc_t *A)
+                const parsec_tiled_matrix_dc_t *A)
 {
     double result = 0.;
-    parsec_handle_t *parsec_zlantr = NULL;
+    parsec_taskpool_t *parsec_zlantr = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -295,7 +295,7 @@ dplasma_zlantr( parsec_context_t *parsec,
 
     if ( parsec_zlantr != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlantr);
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zlantr);
         dplasma_wait_until_completion(parsec);
         dplasma_zlantr_Destruct( parsec_zlantr );
     }

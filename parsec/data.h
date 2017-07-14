@@ -23,7 +23,8 @@ BEGIN_C_DECLS
 typedef struct parsec_data_s parsec_data_t;
 typedef struct parsec_data_copy_s parsec_data_copy_t;
 typedef uint32_t parsec_data_key_t;
-typedef struct parsec_ddesc_s parsec_ddesc_t;
+typedef struct parsec_data_collection_s parsec_data_collection_t;
+typedef parsec_data_collection_t parsec_dc_t;
 struct parsec_context_s;
 
 typedef uint8_t parsec_data_coherency_t;
@@ -102,7 +103,7 @@ PARSEC_DECLSPEC void parsec_dump_data(parsec_data_t* copy);
 
 PARSEC_DECLSPEC parsec_data_t *
 parsec_data_create( parsec_data_t **holder,
-                   parsec_ddesc_t *desc,
+                   parsec_data_collection_t *desc,
                    parsec_data_key_t key, void *ptr, size_t size );
 
 /**

@@ -8,9 +8,9 @@ module parsec_profile_f08_interfaces
 
   use, intrinsic :: ISO_C_BINDING
 
-  type, BIND(C) :: parsec_profile_handle_t
-     TYPE(C_PTR) :: HANDLE
-  end type parsec_profile_handle_t
+  type, BIND(C) :: parsec_profile_taskpool_t
+     TYPE(C_PTR) :: TASKPOOL
+  end type parsec_profile_taskpool_t
 
   INTERFACE parsec_profile_init_f08
      FUNCTION parsec_profile_init_f08() &
@@ -52,12 +52,12 @@ module parsec_profile_f08_interfaces
      FUNCTION parsec_profile_thread_init_f08(length, id_name, ierr) &
           BIND(C, name="parsec_profile_thread_init_f08")
        USE, intrinsic :: ISO_C_BINDING, only : C_CHAR, C_SIZE_T, C_PTR, C_INT
-       IMPORT parsec_profile_handle_t
+       IMPORT parsec_profile_taskpool_t
        IMPLICIT NONE
        INTEGER(KIND=C_SIZE_T), INTENT(IN),VALUE     :: length
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: id_name(*)
        INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
-       TYPE(parsec_profile_handle_t)                 :: parsec_profile_thread_init_f08
+       TYPE(parsec_profile_taskpool_t)              :: parsec_profile_thread_init_f08
      END FUNCTION parsec_profile_thread_init_f08
   END INTERFACE parsec_profile_thread_init_f08
 
@@ -82,9 +82,9 @@ module parsec_profile_f08_interfaces
           event_id, object_id, info, flags) &
           BIND(C, name="parsec_profiling_trace_flags")
        USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_INT16_T, C_PTR, C_INT64_T
-       IMPORT parsec_profile_handle_t
+       IMPORT parsec_profile_taskpool_t
        IMPLICIT NONE
-       TYPE(parsec_profile_handle_t), VALUE          :: ctx
+       TYPE(parsec_profile_taskpool_t), VALUE        :: ctx
        INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: key
        INTEGER(KIND=C_INT64_T), INTENT(IN), VALUE   :: event_id
        INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: object_id
@@ -169,7 +169,7 @@ CONTAINS
     INTEGER*8, INTENT(IN)                     :: length
     CHARACTER(*), INTENT(IN)                  :: id_name
     INTEGER, OPTIONAL, INTENT(OUT)            :: ierr
-    TYPE(parsec_profile_handle_t)              :: parsec_profile_thread_init
+    TYPE(parsec_profile_taskpool_t)           :: parsec_profile_thread_init
 
     INTEGER(KIND=C_SIZE_T)                    :: c_length
     CHARACTER(KIND=C_CHAR), POINTER           :: c_id_name(:)
@@ -224,7 +224,7 @@ CONTAINS
        event_id, object_id, info, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT16_T, C_INT, C_INT64_T
     IMPLICIT NONE
-    TYPE(parsec_profile_handle_t)               :: ctx
+    TYPE(parsec_profile_taskpool_t)            :: ctx
     INTEGER, INTENT(IN)                        :: key
     INTEGER*8, INTENT(IN)                      :: event_id
     INTEGER, INTENT(IN)                        :: object_id

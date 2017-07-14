@@ -18,35 +18,35 @@
  * not necessary, while the second one contains the task counting.
  */
 parsec_hook_return_t
-parsec_release_task_to_mempool(parsec_execution_unit_t *eu,
-                              parsec_execution_context_t *this_task)
+parsec_release_task_to_mempool(parsec_execution_stream_t *es,
+                              parsec_task_t *this_task)
 {
-    (void)eu;
+    (void)es;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 parsec_hook_return_t
-parsec_release_task_to_mempool_update_nbtasks(parsec_execution_unit_t *eu,
-                                             parsec_execution_context_t *this_task)
+parsec_release_task_to_mempool_update_nbtasks(parsec_execution_stream_t *es,
+                                             parsec_task_t *this_task)
 {
-    parsec_handle_t *handle;
-    (void)eu;
-    handle = this_task->parsec_handle;
+    parsec_taskpool_t *handle;
+    (void)es;
+    handle = this_task->taskpool;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
     (void)parsec_atomic_dec_32b( (uint32_t*)&handle->nb_tasks );
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 parsec_hook_return_t
-parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_unit_t *eu,
-                                                         parsec_execution_context_t *this_task)
+parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_stream_t *es,
+                                                         parsec_task_t *this_task)
 {
-    parsec_handle_t *handle;
-    (void)eu;
-    handle = this_task->parsec_handle;
+    parsec_taskpool_t *handle;
+    (void)es;
+    handle = this_task->taskpool;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
-    parsec_handle_update_runtime_nbtask(handle, -1);
+    parsec_taskpool_update_runtime_nbtask(handle, -1);
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -64,10 +64,10 @@ parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_unit_
  */
 
 static inline int
-priority_of_generic_startup_as_expr_fct(const parsec_handle_t * __parsec_handle,
+priority_of_generic_startup_as_expr_fct(const parsec_taskpool_t * __tp,
                                         const assignment_t * locals)
 {
-    (void)__parsec_handle;
+    (void)__tp;
     (void)locals;
     return INT_MIN;
 }
@@ -78,10 +78,10 @@ static const expr_t priority_of_generic_startup_as_expr = {
 };
 
 static inline uint64_t
-__parsec_generic_startup_hash(const parsec_handle_t * __parsec_handle,
+__parsec_generic_startup_hash(const parsec_taskpool_t * __tp,
                              const assignment_t * assignments)
 {
-    (void)__parsec_handle;
+    (void)__tp;
     (void)assignments;
     return 0ULL;
 }
@@ -91,13 +91,14 @@ __parsec_generic_startup_hash(const parsec_handle_t * __parsec_handle,
  * to make sure the user of these objects are setting them up correcty.
  * The default action here is to assert.
  */
-static int parsec_empty_function_without_arguments(parsec_execution_unit_t *eu,
-                                                  parsec_execution_context_t *this_task)
+static int
+parsec_empty_function_without_arguments(parsec_execution_stream_t *es,
+                                        parsec_task_t *this_task)
 {
     char tmp[128];
     parsec_fatal("Task %s is incorrectly initialized\n",
-                parsec_snprintf_execution_context(tmp, 128, this_task));
-    (void)eu;
+                parsec_task_snprintf(tmp, 128, this_task));
+    (void)es;
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -110,9 +111,9 @@ static const __parsec_chore_t __parsec_generic_startup_chores[] = {
      .hook = (parsec_hook_t *) NULL},	/* End marker */
 };
 
-const parsec_function_t __parsec_generic_startup = {
+const parsec_task_class_t __parsec_generic_startup = {
     .name = "Generic Startup",
-    .function_id = -1,  /* To be replaced in all copies */
+    .task_class_id = -1,  /* To be replaced in all copies */
     .nb_flows = 0,
     .nb_parameters = 0,
     .nb_locals = 0,

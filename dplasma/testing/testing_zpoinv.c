@@ -38,26 +38,26 @@ int main(int argc, char ** argv)
     SMB = 1;
     SNB = 1;
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+        sym_two_dim_block_cyclic, (&dcA, matrix_ComplexDouble,
                                    nodes, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplghe( parsec, (double)(N), uplo,
-                    (tiled_matrix_desc_t *)&ddescA, random_seed);
+                    (parsec_tiled_matrix_dc_t *)&dcA, random_seed);
     if(loud > 3) printf("Done\n");
 
     if (async) {
         PASTE_CODE_ENQUEUE_KERNEL(parsec, zpoinv,
-                                  (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
+                                  (uplo, (parsec_tiled_matrix_dc_t*)&dcA, &info));
         PASTE_CODE_PROGRESS_KERNEL(parsec, zpoinv);
         dplasma_zpoinv_Destruct( PARSEC_zpoinv );
     }
     else {
         SYNC_TIME_START();
-        info = dplasma_zpoinv_sync( parsec, uplo, (tiled_matrix_desc_t*)&ddescA );
+        info = dplasma_zpoinv_sync( parsec, uplo, (parsec_tiled_matrix_dc_t*)&dcA );
         SYNC_TIME_PRINT(rank, ("zpoinv\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                                P, Q, NB, N,
                                gflops=(flops/1e9)/sync_time_elapsed));
@@ -69,15 +69,15 @@ int main(int argc, char ** argv)
     }
     if( !info && check ) {
         /* Check the factorization */
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile, nodes, rank,
+        PASTE_CODE_ALLOCATE_MATRIX(dcA0, check,
+            two_dim_block_cyclic, (&dcA0, matrix_ComplexDouble, matrix_Tile, nodes, rank,
                                    MB, NB, LDA, N, 0, 0, N, N, 1, 1, P));
         dplasma_zplghe( parsec, (double)(N), PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&ddescA0, random_seed);
+                        (parsec_tiled_matrix_dc_t *)&dcA0, random_seed);
 
         ret |= check_zpoinv( parsec, (rank == 0) ? loud : 0, uplo,
-                             (tiled_matrix_desc_t *)&ddescA0,
-                             (tiled_matrix_desc_t *)&ddescA );
+                             (parsec_tiled_matrix_dc_t *)&dcA0,
+                             (parsec_tiled_matrix_dc_t *)&dcA );
 
         if (ret) {
             printf("-- Innversion is suspicious ! \n");
@@ -88,12 +88,12 @@ int main(int argc, char ** argv)
         }
 
         /* Cleanup */
-        parsec_data_free(ddescA0.mat); ddescA0.mat = NULL;
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0 );
+        parsec_data_free(dcA0.mat); dcA0.mat = NULL;
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA0 );
     }
 
-    parsec_data_free(ddescA.mat); ddescA.mat = NULL;
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
+    parsec_data_free(dcA.mat); dcA.mat = NULL;
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
 
     cleanup_parsec(parsec, iparam);
     return ret;

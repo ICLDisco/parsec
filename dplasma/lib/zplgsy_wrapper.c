@@ -21,8 +21,8 @@ struct zplgsy_args_s {
 typedef struct zplgsy_args_s zplgsy_args_t;
 
 static int
-dplasma_zplgsy_operator( parsec_execution_unit_t *eu,
-                         const tiled_matrix_desc_t *descA,
+dplasma_zplgsy_operator( parsec_execution_stream_t *es,
+                         const parsec_tiled_matrix_dc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
                          void *op_data )
@@ -30,7 +30,7 @@ dplasma_zplgsy_operator( parsec_execution_unit_t *eu,
     int tempmm, tempnn, ldam;
     zplgsy_args_t     *args = (zplgsy_args_t*)op_data;
     parsec_complex64_t *A    = (parsec_complex64_t*)_A;
-    (void)eu;
+    (void)es;
     (void)uplo;
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
@@ -49,7 +49,7 @@ dplasma_zplgsy_operator( parsec_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zplgsy_New - Generates the handle that generates a random symmetric
+ * dplasma_zplgsy_New - Generates the taskpool that generates a random symmetric
  * matrix by tiles.
  *
  * See dplasma_map_New() for further information.
@@ -80,7 +80,7 @@ dplasma_zplgsy_operator( parsec_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zplgsy_Destruct();
  *
@@ -93,9 +93,9 @@ dplasma_zplgsy_operator( parsec_execution_unit_t *eu,
  * @sa dplasma_splgsy_New
 *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zplgsy_New( parsec_complex64_t bump, PLASMA_enum uplo,
-                    tiled_matrix_desc_t *A,
+                    parsec_tiled_matrix_dc_t *A,
                     unsigned long long int seed)
 {
     zplgsy_args_t *params = (zplgsy_args_t*)malloc(sizeof(zplgsy_args_t));
@@ -111,14 +111,14 @@ dplasma_zplgsy_New( parsec_complex64_t bump, PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zplgsy_Destruct - Free the data structure associated to an handle
+ *  dplasma_zplgsy_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zplgsy_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -127,9 +127,9 @@ dplasma_zplgsy_New( parsec_complex64_t bump, PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zplgsy_Destruct( parsec_handle_t *handle )
+dplasma_zplgsy_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(handle);
+    dplasma_map_Destruct(tp);
 }
 
 /**
@@ -182,10 +182,10 @@ dplasma_zplgsy_Destruct( parsec_handle_t *handle )
 int
 dplasma_zplgsy( parsec_context_t *parsec,
                 parsec_complex64_t bump, PLASMA_enum uplo,
-                tiled_matrix_desc_t *A,
+                parsec_tiled_matrix_dc_t *A,
                 unsigned long long int seed)
 {
-    parsec_handle_t *parsec_zplgsy = NULL;
+    parsec_taskpool_t *parsec_zplgsy = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -199,7 +199,7 @@ dplasma_zplgsy( parsec_context_t *parsec,
     parsec_zplgsy = dplasma_zplgsy_New( bump, uplo, A, seed );
 
     if ( parsec_zplgsy != NULL ) {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zplgsy);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zplgsy);
         dplasma_wait_until_completion(parsec);
         dplasma_zplgsy_Destruct( parsec_zplgsy );
     }

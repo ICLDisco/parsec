@@ -25,38 +25,38 @@ static MPI_Datatype block;
  *
  * @return the parsec object to schedule.
  */
-parsec_handle_t *branching_new(parsec_ddesc_t *A, int size, int nb)
+parsec_taskpool_t *branching_new(parsec_data_collection_t *A, int size, int nb)
 {
-    parsec_branching_handle_t *o = NULL;
+    parsec_branching_taskpool_t *tp = NULL;
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, BRANCHING nb and size must be > 0\n");
-        return (parsec_handle_t*)o;
+        return (parsec_taskpool_t*)tp;
     }
 
-    o = parsec_branching_new(A, nb);
+    tp = parsec_branching_new(A, nb);
 
 #if defined(PARSEC_HAVE_MPI)
     {
         MPI_Type_vector(1, size, size, MPI_BYTE, &block);
         MPI_Type_commit(&block);
-        parsec_arena_construct(o->arenas[PARSEC_branching_DEFAULT_ARENA],
-                              size * sizeof(char), size * sizeof(char), 
-                              block);
+        parsec_arena_construct(tp->arenas[PARSEC_branching_DEFAULT_ARENA],
+                               size * sizeof(char), size * sizeof(char), 
+                               block);
     }
 #endif
 
-    return (parsec_handle_t*)o;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
  * @param [INOUT] o the parsec object to destroy
  */
-void branching_destroy(parsec_handle_t *o)
+void branching_destroy(parsec_taskpool_t *o)
 {
 #if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
 }

@@ -15,7 +15,7 @@ static int check_solution( parsec_context_t *parsec, int loud,
                            parsec_complex64_t alpha, int Am, int An, int Aseed,
                                                     int Bm, int Bn, int Bseed,
                            parsec_complex64_t beta,  int M,  int N,  int Cseed,
-                           two_dim_block_cyclic_t *ddescCfinal );
+                           two_dim_block_cyclic_t *dcCfinal );
 
 int main(int argc, char ** argv)
 {
@@ -51,56 +51,56 @@ int main(int argc, char ** argv)
     LDB = max(LDB, max(K, N));
     LDC = max(LDC, M);
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
-        two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcC, 1,
+        two_dim_block_cyclic, (&dcC, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDC, N, 0, 0,
                                M, N, SMB, SNB, P));
 
     /* initializing matrix structure */
     if(!check)
     {
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+            two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDA, K, 0, 0,
                                    M, K, SMB, SNB, P));
-        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
-            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcB, 1,
+            two_dim_block_cyclic, (&dcB, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDB, N, 0, 0,
                                    K, N, SMB, SNB, P));
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC, Cseed);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA, Aseed);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcB, Bseed);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcC, Cseed);
         if(loud > 2) printf("Done\n");
 
         /* Create PaRSEC */
         PASTE_CODE_ENQUEUE_KERNEL(parsec, zgemm,
                                   (tA, tB, alpha,
-                                   (tiled_matrix_desc_t *)&ddescA,
-                                   (tiled_matrix_desc_t *)&ddescB,
+                                   (parsec_tiled_matrix_dc_t *)&dcA,
+                                   (parsec_tiled_matrix_dc_t *)&dcB,
                                    beta,
-                                   (tiled_matrix_desc_t *)&ddescC));
+                                   (parsec_tiled_matrix_dc_t *)&dcC));
 
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(parsec, zgemm);
 
         dplasma_zgemm_Destruct( PARSEC_zgemm );
 
-        parsec_data_free(ddescA.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-        parsec_data_free(ddescB.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
+        parsec_data_free(dcA.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
+        parsec_data_free(dcB.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcB);
     }
     else {
         int Am, An, Bm, Bn;
-        PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check,
-            two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcC2, check,
+            two_dim_block_cyclic, (&dcC2, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDC, N, 0, 0,
                                    M, N, SMB, SNB, P));
 
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcC2, Cseed);
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
         for(tA=0; tA<3; tA++) {
@@ -119,17 +119,17 @@ int main(int argc, char ** argv)
                 } else {
                     Bm = N; Bn = K;
                 }
-                PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-                    two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+                    two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                            nodes, rank, MB, NB, LDA, LDA, 0, 0,
                                            Am, An, SMB, SNB, P));
-                PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
-                    two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                PASTE_CODE_ALLOCATE_MATRIX(dcB, 1,
+                    two_dim_block_cyclic, (&dcB, matrix_ComplexDouble, matrix_Tile,
                                            nodes, rank, MB, NB, LDB, LDB, 0, 0,
                                            Bm, Bn, SMB, SNB, P));
 
-                dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
-                dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
+                dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA, Aseed);
+                dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcB, Bseed);
 
                 if ( rank == 0 ) {
                     printf("***************************************************\n");
@@ -140,23 +140,23 @@ int main(int argc, char ** argv)
                 /* matrix generation */
                 if(loud) printf("Generate matrices ... ");
                 dplasma_zlacpy( parsec, PlasmaUpperLower,
-                                (tiled_matrix_desc_t *)&ddescC2, (tiled_matrix_desc_t *)&ddescC );
+                                (parsec_tiled_matrix_dc_t *)&dcC2, (parsec_tiled_matrix_dc_t *)&dcC );
                 if(loud) printf("Done\n");
 
                 /* Create GEMM PaRSEC */
                 if(loud) printf("Compute ... ... ");
                 dplasma_zgemm(parsec, trans[tA], trans[tB],
                               (parsec_complex64_t)alpha,
-                              (tiled_matrix_desc_t *)&ddescA,
-                              (tiled_matrix_desc_t *)&ddescB,
+                              (parsec_tiled_matrix_dc_t *)&dcA,
+                              (parsec_tiled_matrix_dc_t *)&dcB,
                               (parsec_complex64_t)beta,
-                              (tiled_matrix_desc_t *)&ddescC);
+                              (parsec_tiled_matrix_dc_t *)&dcC);
                 if(loud) printf("Done\n");
 
-                parsec_data_free(ddescA.mat);
-                tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-                parsec_data_free(ddescB.mat);
-                tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
+                parsec_data_free(dcA.mat);
+                parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
+                parsec_data_free(dcB.mat);
+                parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcB);
 
                 /* Check the solution */
                 info_solution = check_solution( parsec, (rank == 0) ? loud : 0,
@@ -164,7 +164,7 @@ int main(int argc, char ** argv)
                                                 alpha, Am, An, Aseed,
                                                        Bm, Bn, Bseed,
                                                 beta,  M,  N,  Cseed,
-                                                &ddescC);
+                                                &dcC);
                 if ( rank == 0 ) {
                     if (info_solution == 0) {
                         printf(" ---- TESTING ZGEMM (%s, %s) ...... PASSED !\n",
@@ -182,12 +182,12 @@ int main(int argc, char ** argv)
             }
         }
 #endif
-        parsec_data_free(ddescC2.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC2);
+        parsec_data_free(dcC2.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcC2);
     }
 
-    parsec_data_free(ddescC.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
+    parsec_data_free(dcC.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcC);
 
     cleanup_parsec(parsec, iparam);
 
@@ -206,58 +206,58 @@ static int check_solution( parsec_context_t *parsec, int loud,
                            parsec_complex64_t alpha, int Am, int An, int Aseed,
                                                     int Bm, int Bn, int Bseed,
                            parsec_complex64_t beta,  int M,  int N,  int Cseed,
-                           two_dim_block_cyclic_t *ddescCfinal )
+                           two_dim_block_cyclic_t *dcCfinal )
 {
     int info_solution = 1;
     double Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm, Rnorm;
     double eps, result;
     int K  = ( transA == PlasmaNoTrans ) ? An : Am ;
-    int MB = ddescCfinal->super.mb;
-    int NB = ddescCfinal->super.nb;
+    int MB = dcCfinal->super.mb;
+    int NB = dcCfinal->super.nb;
     int LDA = Am;
     int LDB = Bm;
     int LDC = M;
-    int rank  = ddescCfinal->super.super.myrank;
+    int rank  = dcCfinal->super.super.myrank;
 
     eps = LAPACKE_dlamch_work('e');
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+        two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Lapack,
                                1, rank, MB, NB, LDA, An, 0, 0,
                                Am, An, 1, 1, 1));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
-        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Lapack,
+    PASTE_CODE_ALLOCATE_MATRIX(dcB, 1,
+        two_dim_block_cyclic, (&dcB, matrix_ComplexDouble, matrix_Lapack,
                                1, rank, MB, NB, LDB, Bn, 0, 0,
                                Bm, Bn, 1, 1, 1));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
-        two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Lapack,
+    PASTE_CODE_ALLOCATE_MATRIX(dcC, 1,
+        two_dim_block_cyclic, (&dcC, matrix_ComplexDouble, matrix_Lapack,
                                1, rank, MB, NB, LDC, N, 0, 0,
                                M, N, 1, 1, 1));
 
-    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, Aseed );
-    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, Bseed );
-    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC, Cseed );
+    dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA, Aseed );
+    dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcB, Bseed );
+    dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcC, Cseed );
 
-    Anorm        = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
-    Bnorm        = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescB );
-    Cinitnorm    = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
-    Cdplasmanorm = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)ddescCfinal );
+    Anorm        = dplasma_zlange( parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)&dcA );
+    Bnorm        = dplasma_zlange( parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)&dcB );
+    Cinitnorm    = dplasma_zlange( parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)&dcC );
+    Cdplasmanorm = dplasma_zlange( parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)dcCfinal );
 
     if ( rank == 0 ) {
         cblas_zgemm(CblasColMajor,
                     (CBLAS_TRANSPOSE)transA, (CBLAS_TRANSPOSE)transB,
                     M, N, K,
-                    CBLAS_SADDR(alpha), ddescA.mat, LDA,
-                                        ddescB.mat, LDB,
-                    CBLAS_SADDR(beta),  ddescC.mat, LDC );
+                    CBLAS_SADDR(alpha), dcA.mat, LDA,
+                                        dcB.mat, LDB,
+                    CBLAS_SADDR(beta),  dcC.mat, LDC );
     }
 
-    Clapacknorm = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
+    Clapacknorm = dplasma_zlange( parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)&dcC );
 
-    dplasma_zgeadd( parsec, PlasmaNoTrans, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
-                                           1.0, (tiled_matrix_desc_t*)&ddescC );
+    dplasma_zgeadd( parsec, PlasmaNoTrans, -1.0, (parsec_tiled_matrix_dc_t*)dcCfinal,
+                                           1.0, (parsec_tiled_matrix_dc_t*)&dcC );
 
-    Rnorm = dplasma_zlange( parsec, PlasmaMaxNorm, (tiled_matrix_desc_t*)&ddescC);
+    Rnorm = dplasma_zlange( parsec, PlasmaMaxNorm, (parsec_tiled_matrix_dc_t*)&dcC);
 
     if ( rank == 0 ) {
         if ( loud > 2 ) {
@@ -280,12 +280,12 @@ static int check_solution( parsec_context_t *parsec, int loud,
     MPI_Bcast(&info_solution, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
 
-    parsec_data_free(ddescA.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-    parsec_data_free(ddescB.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
-    parsec_data_free(ddescC.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
+    parsec_data_free(dcA.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_data_free(dcB.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcB);
+    parsec_data_free(dcC.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcC);
 
     return info_solution;
 }

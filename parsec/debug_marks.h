@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The University of Tennessee and The University
+ * Copyright (c) 2013-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,8 +15,8 @@
 
 #ifdef PARSEC_DEBUG_HISTORY
 
-struct parsec_execution_context_s;
-void debug_mark_exe(int th, int vp, const struct parsec_execution_context_s *ctx);
+struct parsec_task_s;
+void debug_mark_exe(int th, int vp, const struct parsec_task_s* ctx);
 #define DEBUG_MARK_EXE(th, vp, ctx) debug_mark_exe(th, vp, ctx)
 
 struct remote_dep_wire_activate_s;

@@ -18,7 +18,7 @@
  *
  * @ingroup dplasma
  *
- * dplasma_map_New - Generates an handle that performs a map operation with
+ * dplasma_map_New - Generates an taskpool that performs a map operation with
  * two similar matrices, applying the operator on each tile of A:
  *
  *    operator( A )
@@ -56,7 +56,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_map_Destruct();
  *
@@ -66,13 +66,13 @@
  * @sa dplasma_map_Destruct
  *
  ******************************************************************************/
-parsec_handle_t *
+parsec_taskpool_t *
 dplasma_map_New( PLASMA_enum uplo,
-                 tiled_matrix_desc_t *A,
+                 parsec_tiled_matrix_dc_t *A,
                  tiled_matrix_unary_op_t operator,
                  void *op_args )
 {
-    parsec_map_handle_t *parsec_map = NULL;
+    parsec_map_taskpool_t *parsec_map = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&
@@ -118,7 +118,7 @@ dplasma_map_New( PLASMA_enum uplo,
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_int_t, A->mb);
     }
-    return (parsec_handle_t*)parsec_map;
+    return (parsec_taskpool_t*)parsec_map;
 }
 
 /**
@@ -126,14 +126,14 @@ dplasma_map_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma
  *
- *  dplasma_map_Destruct - Free the data structure associated to an handle
+ *  dplasma_map_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_map_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -142,9 +142,9 @@ dplasma_map_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_map_Destruct( parsec_handle_t *handle )
+dplasma_map_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_map_handle_t *omap = (parsec_map_handle_t *)handle;
+    parsec_map_taskpool_t *omap = (parsec_map_taskpool_t *)tp;
 
     if ( omap->_g_op_args ) {
         free( omap->_g_op_args );
@@ -152,7 +152,7 @@ dplasma_map_Destruct( parsec_handle_t *handle )
 
     parsec_matrix_del2arena( omap->arenas[PARSEC_map_DEFAULT_ARENA] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -210,11 +210,11 @@ dplasma_map_Destruct( parsec_handle_t *handle )
 int
 dplasma_map( parsec_context_t *parsec,
              PLASMA_enum uplo,
-             tiled_matrix_desc_t *A,
+             parsec_tiled_matrix_dc_t *A,
              tiled_matrix_unary_op_t operator,
              void *op_args )
 {
-    parsec_handle_t *parsec_map = NULL;
+    parsec_taskpool_t *parsec_map = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&

@@ -301,7 +301,7 @@ if __name__ == '__main__':
                     begin_date = container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)]
                 else:
                     begin_date = ev['begin']
-                key = "hid=%d:did=%d:tid=%d"%(ev.handle_id,ev.type,ev.id)
+                key = "hid=%d:did=%d:tid=%d"%(ev.taskpoolid,ev.type,ev.id)
                 if args.DAG:
                     dag_info[key] = { 'container': paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                       'start': float(ev.begin), 'end': float(ev.end), 'rank': ev.node_id }

@@ -21,18 +21,18 @@ int nblocks;
 #define NMAX_BLOCKS 128
 
 typedef struct {
-    parsec_ddesc_t super;
+    parsec_data_collection_t super;
     float *matrix[NMAX_BLOCKS][NMAX_BLOCKS];
     starpu_data_handle_t matrix_handle[NMAX_BLOCKS][NMAX_BLOCKS];
 } my_datatype_t;
 
-static uint32_t rank_of(parsec_ddesc_t *desc, ...)
+static uint32_t rank_of(parsec_data_collection_t *desc, ...)
 {
     (void) desc;
     return 0;
 }
 
-static void *data_of(parsec_ddesc_t *desc, ...)
+static void *data_of(parsec_data_collection_t *desc, ...)
 {
     int i, j;
     my_datatype_t *dat = (my_datatype_t*) desc;        
@@ -53,11 +53,11 @@ get_data_handle_of(void *h)
 }
 
    
-parsec_ddesc_t *create_and_distribute_data(int rank, int world, int cores, int mat_r, int bs)
+parsec_data_collection_t *create_and_distribute_data(int rank, int world, int cores, int mat_r, int bs)
 {
 
     my_datatype_t *m = (my_datatype_t*) calloc(1, sizeof(my_datatype_t));
-    parsec_ddesc_t *d = &(m->super);
+    parsec_data_collection_t *d = &(m->super);
     int i, j;
     matrix_rank = mat_r;
     BLOCKSIZE = bs;
@@ -88,7 +88,7 @@ parsec_ddesc_t *create_and_distribute_data(int rank, int world, int cores, int m
 
 
 
-void free_data(parsec_ddesc_t *d)
+void free_data(parsec_data_collection_t *d)
 {
     int i, j;
     my_datatype_t *m = (my_datatype_t*)d;
@@ -101,7 +101,7 @@ void free_data(parsec_ddesc_t *d)
 	    starpu_free(m->matrix[i][j]);
 	}
     
-    parsec_ddesc_destroy(d);
+    parsec_data_collection_destroy(d);
     free(d);
 }
 

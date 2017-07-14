@@ -38,12 +38,12 @@
 
 /* Task that prints "Hello World" */
 int
-task_hello_world( parsec_execution_unit_t    *context,
-                  parsec_execution_context_t *this_task )
+task_hello_world( parsec_execution_stream_t *es,
+                  parsec_task_t *this_task )
 {
-    (void)context; (void)this_task;
+    (void)es; (void)this_task;
 
-    printf("Hello World my rank is: %d\n", this_task->parsec_handle->context->my_rank);
+    printf("Hello World my rank is: %d\n", this_task->taskpool->context->my_rank);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -70,27 +70,27 @@ int main(int argc, char ** argv)
     parsec = parsec_init( cores, &argc, &argv );
 
     /* Initializing parsec handle(collection of tasks) */
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    parsec_enqueue( parsec, dtd_tp );
     /* Starting the parsec_context */
     parsec_context_start( parsec );
 
     /* Inserting task to print Hello World
      * and the rank of the process
      */
-    parsec_insert_task( parsec_dtd_handle, task_hello_world,    0,   "Hello_World_task",
+    parsec_dtd_taskpool_insert_task( dtd_tp, task_hello_world,    0,   "Hello_World_task",
                         0 );
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
     /* Waiting on the context */
     parsec_context_wait(parsec);
 
     /* Cleaning the parsec handle */
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     /* Cleaning up parsec context */
     parsec_fini(&parsec);

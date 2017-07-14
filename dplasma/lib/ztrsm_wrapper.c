@@ -27,7 +27,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrsm_New - Generates parsec handle to compute triangular solve
+ *  dplasma_ztrsm_New - Generates parsec taskpool to compute triangular solve
  *     op( A ) * X = B or X * op( A ) = B
  *  WARNING: The computations are not done by this call.
  *
@@ -78,7 +78,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrsm_Destruct();
  *
@@ -91,36 +91,36 @@
  * @sa dplasma_strsm_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
                    PLASMA_enum trans, PLASMA_enum diag,
                    parsec_complex64_t alpha,
-                   const tiled_matrix_desc_t *A,
-                   tiled_matrix_desc_t *B )
+                   const parsec_tiled_matrix_dc_t *A,
+                   parsec_tiled_matrix_dc_t *B )
 {
-    parsec_handle_t *parsec_trsm = NULL;
+    parsec_taskpool_t *parsec_trsm = NULL;
 
     if ( side == PlasmaLeft ) {
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {
-                parsec_trsm = (parsec_handle_t*)parsec_ztrsm_LLN_new(
+                parsec_trsm = (parsec_taskpool_t*)parsec_ztrsm_LLN_new(
                     side, uplo, trans, diag, alpha,
                     A,
                     B);
             } else { /* trans =! PlasmaNoTrans */
-                parsec_trsm = (parsec_handle_t*)parsec_ztrsm_LLT_new(
+                parsec_trsm = (parsec_taskpool_t*)parsec_ztrsm_LLT_new(
                     side, uplo, trans, diag, alpha,
                     A,
                     B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
-                parsec_trsm = (parsec_handle_t*)parsec_ztrsm_LUN_new(
+                parsec_trsm = (parsec_taskpool_t*)parsec_ztrsm_LUN_new(
                     side, uplo, trans, diag, alpha,
                     A,
                     B);
             } else { /* trans =! PlasmaNoTrans */
-                parsec_trsm = (parsec_handle_t*)parsec_ztrsm_LUT_new(
+                parsec_trsm = (parsec_taskpool_t*)parsec_ztrsm_LUT_new(
                     side, uplo, trans, diag, alpha,
                     A,
                     B);
@@ -129,24 +129,24 @@ dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
     } else { /* side == PlasmaRight */
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {
-                parsec_trsm = (parsec_handle_t*)parsec_ztrsm_RLN_new(
+                parsec_trsm = (parsec_taskpool_t*)parsec_ztrsm_RLN_new(
                     side, uplo, trans, diag, alpha,
                     A,
                     B);
             } else { /* trans =! PlasmaNoTrans */
-                parsec_trsm = (parsec_handle_t*)parsec_ztrsm_RLT_new(
+                parsec_trsm = (parsec_taskpool_t*)parsec_ztrsm_RLT_new(
                     side, uplo, trans, diag, alpha,
                     A,
                     B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
-                parsec_trsm = (parsec_handle_t*)parsec_ztrsm_RUN_new(
+                parsec_trsm = (parsec_taskpool_t*)parsec_ztrsm_RUN_new(
                     side, uplo, trans, diag, alpha,
                     A,
                     B);
             } else { /* trans =! PlasmaNoTrans */
-                parsec_trsm = (parsec_handle_t*)parsec_ztrsm_RUT_new(
+                parsec_trsm = (parsec_taskpool_t*)parsec_ztrsm_RUT_new(
                     side, uplo, trans, diag, alpha,
                     A,
                     B);
@@ -154,7 +154,7 @@ dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
         }
     }
 
-    dplasma_add2arena_tile(((parsec_ztrsm_LLN_handle_t*)parsec_trsm)->arenas[PARSEC_ztrsm_LLN_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_ztrsm_LLN_taskpool_t*)parsec_trsm)->arenas[PARSEC_ztrsm_LLN_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
@@ -167,14 +167,14 @@ dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrsm_Destruct - Free the data structure associated to an handle
+ *  dplasma_ztrsm_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_ztrsm_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -183,12 +183,12 @@ dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_ztrsm_Destruct( parsec_handle_t *handle )
+dplasma_ztrsm_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_ztrsm_LLN_handle_t *otrsm = (parsec_ztrsm_LLN_handle_t *)handle;
+    parsec_ztrsm_LLN_taskpool_t *otrsm = (parsec_ztrsm_LLN_taskpool_t *)tp;
 
     parsec_matrix_del2arena( otrsm->arenas[PARSEC_ztrsm_LLN_DEFAULT_ARENA] );
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -265,10 +265,10 @@ dplasma_ztrsm( parsec_context_t *parsec,
                PLASMA_enum side,  PLASMA_enum uplo,
                PLASMA_enum trans, PLASMA_enum diag,
                parsec_complex64_t alpha,
-               const tiled_matrix_desc_t *A,
-               tiled_matrix_desc_t *B)
+               const parsec_tiled_matrix_dc_t *A,
+               parsec_tiled_matrix_dc_t *B)
 {
-    parsec_handle_t *parsec_ztrsm = NULL;
+    parsec_taskpool_t *parsec_ztrsm = NULL;
 
     /* Check input arguments */
     if (side != PlasmaLeft && side != PlasmaRight) {

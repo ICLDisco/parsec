@@ -26,12 +26,12 @@ double time_elapsed;
 double sync_time_elapsed;
 
 int
-call_to_kernel_type( parsec_execution_unit_t    *context,
-                     parsec_execution_context_t *this_task )
+call_to_kernel_type( parsec_execution_stream_t *es,
+                     parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
-    parsec_output( 0, "Executing task with null as tile in rank: %d\n", this_task->parsec_handle->context->my_rank );
+    parsec_output( 0, "Executing task with null as tile in rank: %d\n", this_task->taskpool->context->my_rank );
 
     //this_task->data[0].data_out = (parsec_data_copy_t *)context;
 
@@ -64,29 +64,29 @@ int main(int argc, char ** argv)
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    parsec_enqueue( parsec, dtd_tp );
 
     parsec_context_start( parsec );
 
     SYNC_TIME_START();
 
     for( m = 0; m < no_of_tasks; m++ ) {
-        parsec_insert_task( parsec_dtd_handle, call_to_kernel_type,    0,  "Test_Task",
+        parsec_dtd_taskpool_insert_task( dtd_tp, call_to_kernel_type,    0,  "Test_Task",
                             PASSED_BY_REF,    NULL,                 INOUT,
                             0 );
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
     SYNC_TIME_PRINT(rank, ("\n"));
 
     parsec_context_wait(parsec);
 
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     parsec_fini(&parsec);
 

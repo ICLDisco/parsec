@@ -118,7 +118,7 @@ static int tree_lookup_or_allocate_node(tree_dist_t *tree, int n, int l)
  * parsec data distribution interface
  ***********************************************************************************************/
 
-static parsec_data_key_t tree_dist_data_key(parsec_ddesc_t *desc, ...)
+static parsec_data_key_t tree_dist_data_key(parsec_data_collection_t *desc, ...)
 {
     va_list ap;
     int n, l;
@@ -131,7 +131,7 @@ static parsec_data_key_t tree_dist_data_key(parsec_ddesc_t *desc, ...)
     return nid;
 }
 
-static uint32_t tree_dist_rank_of_key(parsec_ddesc_t *desc, parsec_data_key_t k)
+static uint32_t tree_dist_rank_of_key(parsec_data_collection_t *desc, parsec_data_key_t k)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     assert(k < tree->allocated_nodes);
@@ -139,7 +139,7 @@ static uint32_t tree_dist_rank_of_key(parsec_ddesc_t *desc, parsec_data_key_t k)
     return tree->nodes[k]->n % tree->super.nodes;
 }
 
-static uint32_t tree_dist_rank_of(parsec_ddesc_t *desc, ...)
+static uint32_t tree_dist_rank_of(parsec_data_collection_t *desc, ...)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     va_list ap;
@@ -152,7 +152,7 @@ static uint32_t tree_dist_rank_of(parsec_ddesc_t *desc, ...)
     return n % tree->super.nodes;
 }
 
-static parsec_data_t* tree_dist_data_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static parsec_data_t* tree_dist_data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     void *pos;
@@ -180,7 +180,7 @@ static parsec_data_t* tree_dist_data_of_key(parsec_ddesc_t *desc, parsec_data_ke
     return tree->nodes[key]->data;
 }
 
-static parsec_data_t* tree_dist_data_of(parsec_ddesc_t *desc, ...)
+static parsec_data_t* tree_dist_data_of(parsec_data_collection_t *desc, ...)
 {
     va_list ap;
     int n, l;
@@ -193,7 +193,7 @@ static parsec_data_t* tree_dist_data_of(parsec_ddesc_t *desc, ...)
     return tree_dist_data_of_key(desc, nid);
 }
 
-static int32_t tree_dist_vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static int32_t tree_dist_vpid_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     assert(key < tree->allocated_nodes);
@@ -201,7 +201,7 @@ static int32_t tree_dist_vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key
     return tree->nodes[key]->n % vpmap_get_nb_vp();
 }
 
-static int32_t tree_dist_vpid_of(parsec_ddesc_t *desc, ...)
+static int32_t tree_dist_vpid_of(parsec_data_collection_t *desc, ...)
 {
     va_list ap;
     int n, l;
@@ -213,7 +213,7 @@ static int32_t tree_dist_vpid_of(parsec_ddesc_t *desc, ...)
     return n % vpmap_get_nb_vp();
 }
 
-static int tree_dist_register_memory(parsec_ddesc_t* desc, struct parsec_device_s* device)
+static int tree_dist_register_memory(parsec_data_collection_t* desc, struct parsec_device_s* device)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     return device->device_memory_register(device, desc,
@@ -221,19 +221,21 @@ static int tree_dist_register_memory(parsec_ddesc_t* desc, struct parsec_device_
                                           tree->buffers->buffer_use);
 }
 
-static int tree_dist_unregister_memory(parsec_ddesc_t* desc, struct parsec_device_s* device)
+static int tree_dist_unregister_memory(parsec_data_collection_t* desc, struct parsec_device_s* device)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     return device->device_memory_unregister(device, desc, tree->buffers->buffer);
 }
 
 #ifdef PARSEC_PROF_TRACE
-static int tree_dist_key_to_string(parsec_ddesc_t *desc, parsec_data_key_t key, char * buffer, uint32_t buffer_size)
+static int tree_dist_key_to_string(parsec_data_collection_t *desc, parsec_data_key_t key, char * buffer, uint32_t buffer_size)
 {
     (void)desc;
     (void)key;
     if( buffer_size > 0 )
         buffer[0] = '\0';
+    (void)desc;
+    (void)key;
     return PARSEC_SUCCESS;
 }
 #endif
@@ -364,7 +366,7 @@ tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
     res = (tree_dist_t*)malloc(sizeof(tree_dist_t));
 
     /** Let's take care of the PARSEC data distribution interface first */
-    parsec_ddesc_init(&res->super, nodes, myrank);
+    parsec_data_collection_init(&res->super, nodes, myrank);
     res->super.data_key = tree_dist_data_key;
     res->super.rank_of  = tree_dist_rank_of;
     res->super.rank_of_key = tree_dist_rank_of_key;

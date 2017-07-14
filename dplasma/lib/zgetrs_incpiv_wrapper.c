@@ -84,10 +84,10 @@
 int
 dplasma_zgetrs_incpiv(parsec_context_t *parsec,
                       PLASMA_enum trans,
-                      tiled_matrix_desc_t *A,
-                      tiled_matrix_desc_t *L,
-                      tiled_matrix_desc_t *IPIV,
-                      tiled_matrix_desc_t *B)
+                      parsec_tiled_matrix_dc_t *A,
+                      parsec_tiled_matrix_dc_t *L,
+                      parsec_tiled_matrix_dc_t *IPIV,
+                      parsec_tiled_matrix_dc_t *B)
 {
     /* Check input arguments */
     if (trans != PlasmaNoTrans) {
@@ -96,8 +96,8 @@ dplasma_zgetrs_incpiv(parsec_context_t *parsec,
     }
 
 #ifdef PARSEC_COMPOSITION
-    parsec_handle_t *parsec_ztrsmpl = NULL;
-    parsec_handle_t *parsec_ztrsm   = NULL;
+    parsec_taskpool_t *parsec_ztrsmpl = NULL;
+    parsec_taskpool_t *parsec_ztrsm   = NULL;
 
     parsec_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
     parsec_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);

@@ -29,7 +29,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgemm_New - Generates the handle that performs one of the following
+ *  dplasma_zgemm_New - Generates the taskpool that performs one of the following
  *  matrix-matrix operations. WARNING: The computations are not done by this call.
  *
  *    \f[ C = \alpha [op( A )\times op( B )] + \beta C \f],
@@ -76,7 +76,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgemm_Destruct();
  *
@@ -89,12 +89,12 @@
  * @sa dplasma_sgemm_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
-                   parsec_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                   parsec_complex64_t beta,  tiled_matrix_desc_t* C)
+                   parsec_complex64_t alpha, const parsec_tiled_matrix_dc_t* A, const parsec_tiled_matrix_dc_t* B,
+                   parsec_complex64_t beta,  parsec_tiled_matrix_dc_t* C)
 {
-    parsec_handle_t* zgemm_handle;
+    parsec_taskpool_t* zgemm_tp;
     parsec_arena_t* arena;
     two_dim_block_cyclic_t *Cdist;
     int P, Q, m, n;
@@ -135,36 +135,36 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
 
         if( PlasmaNoTrans == transA ) {
             if( PlasmaNoTrans == transB ) {
-                parsec_zgemm_NN_summa_handle_t* handle;
-                handle = parsec_zgemm_NN_summa_new(transA, transB, alpha, beta,
-                                                   A, B, C,
-                                                   (parsec_ddesc_t*)Cdist);
-                arena = handle->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA];
-                zgemm_handle = (parsec_handle_t*)handle;
+                parsec_zgemm_NN_summa_taskpool_t* tp;
+                tp = parsec_zgemm_NN_summa_new(transA, transB, alpha, beta,
+                                               A, B, C,
+                                               (parsec_data_collection_t*)Cdist);
+                arena = tp->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA];
+                zgemm_tp = (parsec_taskpool_t*)tp;
             } else {
-                parsec_zgemm_NT_summa_handle_t* handle;
-                handle = parsec_zgemm_NT_summa_new(transA, transB, alpha, beta,
-                                                   A, B, C,
-                                                   (parsec_ddesc_t*)Cdist);
-                arena = handle->arenas[PARSEC_zgemm_NT_DEFAULT_ARENA];
-                zgemm_handle = (parsec_handle_t*)handle;
+                parsec_zgemm_NT_summa_taskpool_t* tp;
+                tp = parsec_zgemm_NT_summa_new(transA, transB, alpha, beta,
+                                               A, B, C,
+                                               (parsec_data_collection_t*)Cdist);
+                arena = tp->arenas[PARSEC_zgemm_NT_DEFAULT_ARENA];
+                zgemm_tp = (parsec_taskpool_t*)tp;
             }
         } else {
             if( PlasmaNoTrans == transB ) {
-                parsec_zgemm_TN_summa_handle_t* handle;
-                handle = parsec_zgemm_TN_summa_new(transA, transB, alpha, beta,
-                                                   A, B, C,
-                                                   (parsec_ddesc_t*)Cdist);
-                arena = handle->arenas[PARSEC_zgemm_TN_DEFAULT_ARENA];
-                zgemm_handle = (parsec_handle_t*)handle;
+                parsec_zgemm_TN_summa_taskpool_t* tp;
+                tp = parsec_zgemm_TN_summa_new(transA, transB, alpha, beta,
+                                               A, B, C,
+                                               (parsec_data_collection_t*)Cdist);
+                arena = tp->arenas[PARSEC_zgemm_TN_DEFAULT_ARENA];
+                zgemm_tp = (parsec_taskpool_t*)tp;
             }
             else {
-                parsec_zgemm_TT_summa_handle_t* handle;
-                handle = parsec_zgemm_TT_summa_new(transA, transB, alpha, beta,
-                                                   A, B, C,
-                                                   (parsec_ddesc_t*)Cdist);
-                arena = handle->arenas[PARSEC_zgemm_TT_DEFAULT_ARENA];
-                zgemm_handle = (parsec_handle_t*)handle;
+                parsec_zgemm_TT_summa_taskpool_t* tp;
+                tp = parsec_zgemm_TT_summa_new(transA, transB, alpha, beta,
+                                               A, B, C,
+                                               (parsec_data_collection_t*)Cdist);
+                arena = tp->arenas[PARSEC_zgemm_TT_DEFAULT_ARENA];
+                zgemm_tp = (parsec_taskpool_t*)tp;
             }
         }
     }
@@ -172,32 +172,32 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
     else {
         if( PlasmaNoTrans == transA ) {
             if( PlasmaNoTrans == transB ) {
-                parsec_zgemm_NN_handle_t* handle;
-                handle = parsec_zgemm_NN_new(transA, transB, alpha, beta,
-                                             A, B, C);
-                arena = handle->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA];
-                zgemm_handle = (parsec_handle_t*)handle;
+                parsec_zgemm_NN_taskpool_t* tp;
+                tp = parsec_zgemm_NN_new(transA, transB, alpha, beta,
+                                         A, B, C);
+                arena = tp->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA];
+                zgemm_tp = (parsec_taskpool_t*)tp;
             } else {
-                parsec_zgemm_NT_handle_t* handle;
-                handle = parsec_zgemm_NT_new(transA, transB, alpha, beta,
-                                             A, B, C);
-                arena = handle->arenas[PARSEC_zgemm_NT_DEFAULT_ARENA];
-                zgemm_handle = (parsec_handle_t*)handle;
+                parsec_zgemm_NT_taskpool_t* tp;
+                tp = parsec_zgemm_NT_new(transA, transB, alpha, beta,
+                                         A, B, C);
+                arena = tp->arenas[PARSEC_zgemm_NT_DEFAULT_ARENA];
+                zgemm_tp = (parsec_taskpool_t*)tp;
             }
         } else {
             if( PlasmaNoTrans == transB ) {
-                parsec_zgemm_TN_handle_t* handle;
-                handle = parsec_zgemm_TN_new(transA, transB, alpha, beta,
-                                             A, B, C);
-                arena = handle->arenas[PARSEC_zgemm_TN_DEFAULT_ARENA];
-                zgemm_handle = (parsec_handle_t*)handle;
+                parsec_zgemm_TN_taskpool_t* tp;
+                tp = parsec_zgemm_TN_new(transA, transB, alpha, beta,
+                                         A, B, C);
+                arena = tp->arenas[PARSEC_zgemm_TN_DEFAULT_ARENA];
+                zgemm_tp = (parsec_taskpool_t*)tp;
             }
             else {
-                parsec_zgemm_TT_handle_t* handle;
-                handle = parsec_zgemm_TT_new(transA, transB, alpha, beta,
-                                             A, B, C);
-                arena = handle->arenas[PARSEC_zgemm_TT_DEFAULT_ARENA];
-                zgemm_handle = (parsec_handle_t*)handle;
+                parsec_zgemm_TT_taskpool_t* tp;
+                tp = parsec_zgemm_TT_new(transA, transB, alpha, beta,
+                                         A, B, C);
+                arena = tp->arenas[PARSEC_zgemm_TT_DEFAULT_ARENA];
+                zgemm_tp = (parsec_taskpool_t*)tp;
             }
         }
     }
@@ -206,7 +206,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
-    return zgemm_handle;
+    return zgemm_tp;
 }
 
 /**
@@ -214,14 +214,14 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgemm_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgemm_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgemm_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -230,17 +230,17 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
  *
  ******************************************************************************/
 void
-dplasma_zgemm_Destruct( parsec_handle_t *handle )
+dplasma_zgemm_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zgemm_NN_handle_t *zgemm_handle = (parsec_zgemm_NN_handle_t *)handle;
+    parsec_zgemm_NN_taskpool_t *zgemm_tp = (parsec_zgemm_NN_taskpool_t *)tp;
 
-    if ( zgemm_handle->_g_Cdist != NULL ) {
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(zgemm_handle->_g_Cdist) );
-        free( zgemm_handle->_g_Cdist );
+    if ( zgemm_tp->_g_Cdist != NULL ) {
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(zgemm_tp->_g_Cdist) );
+        free( zgemm_tp->_g_Cdist );
     }
 
-    parsec_matrix_del2arena( ((parsec_zgemm_NN_handle_t *)handle)->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA] );
-    parsec_handle_free(handle);
+    parsec_matrix_del2arena( ((parsec_zgemm_NN_taskpool_t *)tp)->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA] );
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -311,11 +311,11 @@ dplasma_zgemm_Destruct( parsec_handle_t *handle )
 int
 dplasma_zgemm( parsec_context_t *parsec,
                PLASMA_enum transA, PLASMA_enum transB,
-               parsec_complex64_t alpha, const tiled_matrix_desc_t *A,
-                                        const tiled_matrix_desc_t *B,
-               parsec_complex64_t beta,        tiled_matrix_desc_t *C)
+               parsec_complex64_t alpha, const parsec_tiled_matrix_dc_t *A,
+                                        const parsec_tiled_matrix_dc_t *B,
+               parsec_complex64_t beta,        parsec_tiled_matrix_dc_t *C)
 {
-    parsec_handle_t *parsec_zgemm = NULL;
+    parsec_taskpool_t *parsec_zgemm = NULL;
     int M, N, K;
     int Am, An, Ai, Aj, Amb, Anb;
     int Bm, Bn, Bi, Bj, Bmb, Bnb;
@@ -390,7 +390,7 @@ dplasma_zgemm( parsec_context_t *parsec,
 
     if ( parsec_zgemm != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zgemm);
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zgemm);
         dplasma_wait_until_completion(parsec);
         dplasma_zgemm_Destruct( parsec_zgemm );
         return 0;

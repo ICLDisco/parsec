@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zsymm_New - Generates the parsec handle to compute the following
+ *  dplasma_zsymm_New - Generates the parsec taskpool to compute the following
  *  operation.  WARNING: The computations are not done by this call.
  *
  *     \f[ C = \alpha \times A \times B + \beta \times C \f]
@@ -71,7 +71,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zsymm_Destruct();
  *
@@ -84,28 +84,28 @@
  * @sa dplasma_ssymm_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zsymm_New( PLASMA_enum side,
                    PLASMA_enum uplo,
                    parsec_complex64_t alpha,
-                   const tiled_matrix_desc_t* A,
-                   const tiled_matrix_desc_t* B,
+                   const parsec_tiled_matrix_dc_t* A,
+                   const parsec_tiled_matrix_dc_t* B,
                    parsec_complex64_t beta,
-                   tiled_matrix_desc_t* C)
+                   parsec_tiled_matrix_dc_t* C)
 {
-    parsec_zsymm_handle_t* handle;
+    parsec_zsymm_taskpool_t* tp;
 
-    handle = parsec_zsymm_new(side, uplo, alpha, beta,
-                             A,
-                             B,
-                             C);
+    tp = parsec_zsymm_new(side, uplo, alpha, beta,
+                          A,
+                          B,
+                          C);
 
-    dplasma_add2arena_tile(handle->arenas[PARSEC_zsymm_DEFAULT_ARENA],
+    dplasma_add2arena_tile(tp->arenas[PARSEC_zsymm_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, C->mb);
 
-    return (parsec_handle_t*)handle;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
@@ -113,14 +113,14 @@ dplasma_zsymm_New( PLASMA_enum side,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zsymm_Destruct - Free the data structure associated to an handle
+ *  dplasma_zsymm_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zsymm_New().
  *
  *******************************************************************************
  *
- * @param[in] handle
- *          On entry, the handle to destroy
- *          On exit, the handle cannot be used anymore.
+ * @param[in] tp
+ *          On entry, the taskpool to destroy
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -129,11 +129,11 @@ dplasma_zsymm_New( PLASMA_enum side,
  *
  ******************************************************************************/
 void
-dplasma_zsymm_Destruct( parsec_handle_t *handle )
+dplasma_zsymm_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zsymm_handle_t *zsymm_handle = (parsec_zsymm_handle_t*)handle;
-    parsec_matrix_del2arena( zsymm_handle->arenas[PARSEC_zsymm_DEFAULT_ARENA] );
-    parsec_handle_free(handle);
+    parsec_zsymm_taskpool_t *zsymm_tp = (parsec_zsymm_taskpool_t*)tp;
+    parsec_matrix_del2arena( zsymm_tp->arenas[PARSEC_zsymm_DEFAULT_ARENA] );
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -210,12 +210,12 @@ dplasma_zsymm( parsec_context_t *parsec,
                PLASMA_enum side,
                PLASMA_enum uplo,
                parsec_complex64_t alpha,
-               const tiled_matrix_desc_t *A,
-               const tiled_matrix_desc_t *B,
+               const parsec_tiled_matrix_dc_t *A,
+               const parsec_tiled_matrix_dc_t *B,
                parsec_complex64_t beta,
-               tiled_matrix_desc_t *C)
+               parsec_tiled_matrix_dc_t *C)
 {
-    parsec_handle_t *parsec_zsymm = NULL;
+    parsec_taskpool_t *parsec_zsymm = NULL;
 
     /* Check input arguments */
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
@@ -246,7 +246,7 @@ dplasma_zsymm( parsec_context_t *parsec,
 
     if ( parsec_zsymm != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zsymm);
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zsymm);
         dplasma_wait_until_completion(parsec);
         dplasma_zsymm_Destruct( parsec_zsymm );
     }

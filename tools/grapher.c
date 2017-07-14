@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,7 +13,7 @@
 #include "parsec.h"
 #include "parsec/data_distribution.h"
 
-static uint32_t pseudo_rank_of(struct parsec_ddesc *mat, ...)
+static uint32_t pseudo_rank_of(struct parsec_dc *mat, ...)
 {
     va_list ap;
     va_start(ap, mat);
@@ -21,7 +21,7 @@ static uint32_t pseudo_rank_of(struct parsec_ddesc *mat, ...)
     return 0;
 }
 
-static void *pseudo_data_of(struct parsec_ddesc *mat, ...)
+static void *pseudo_data_of(struct parsec_dc *mat, ...)
 {
     va_list ap;
     va_start(ap, mat);
@@ -29,7 +29,7 @@ static void *pseudo_data_of(struct parsec_ddesc *mat, ...)
     return NULL;
 }
 
-static parsec_ddesc_t pseudo_desc = {
+static parsec_data_collection_t pseudo_desc = {
     .myrank = 0,
     .cores = 1,
     .nodes = 1,
@@ -39,7 +39,7 @@ static parsec_ddesc_t pseudo_desc = {
 
 typedef struct {
     const char *command_name;
-    parsec_handle_t *(*create_function)(int argc, char **argv);
+    parsec_taskpool_t *(*create_function)(int argc, char **argv);
 } create_function_t;
 
 #define TEST_SET(fname, vname) do {                                     \
@@ -81,7 +81,7 @@ static edge_list_t *edges = NULL;
 static vertex_list_t *lookup_create_vertex(const char *name)
 {
     vertex_list_t *v, *p;
-    
+
     p = NULL;
     for(v = vertices; NULL != v; v = v->next) {
         if( !strcmp(v->value, name) )
@@ -119,10 +119,10 @@ static edge_list_t *lookup_create_edge(const vertex_list_t *from, const vertex_l
     return e;
 }
 
-static parsec_ontask_iterate_t ontask_function(struct parsec_execution_unit *eu, 
-                                              parsec_execution_context_t *newcontext, 
-                                              parsec_execution_context_t *oldcontext, 
-                                              int flow_index, int outdep_index, 
+static parsec_ontask_iterate_t ontask_function(struct parsec_execution_stream_s *es,
+                                              parsec_task_t *newcontext,
+                                              parsec_task_t *oldcontext,
+                                              int flow_index, int outdep_index,
                                               int rank_src, int rank_dst,
                                               void *param)
 {
@@ -138,14 +138,14 @@ static parsec_ontask_iterate_t ontask_function(struct parsec_execution_unit *eu,
     (void)rank_dst;
     (void)param;
 
-    parsec_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, oldcontext);
-    parsec_snprintf_execution_context(tostr, MAX_TASK_STRLEN, newcontext);
-    
+    parsec_task_snprintf(fromstr, MAX_TASK_STRLEN, oldcontext);
+    parsec_task_snprintf(tostr, MAX_TASK_STRLEN, newcontext);
+
     from = lookup_create_vertex(fromstr);
     to = lookup_create_vertex(tostr);
     lookup_create_edge(from, to);
 
-    newcontext->function->iterate_successors(eu, newcontext, ontask_function, NULL);
+    newcontext->function->iterate_successors(es, newcontext, ontask_function, NULL);
 
     return PARSEC_ITERATE_CONTINUE;
 }
@@ -155,7 +155,7 @@ static int dump_graph(const char *filename)
     FILE *f;
     vertex_list_t *v;
     edge_list_t *e;
-    
+
     f = fopen(filename, "w");
     if( NULL == f ) {
         fprintf(stderr, "unable to create %s: %s\n", filename, strerror(errno));
@@ -179,8 +179,8 @@ static int dump_graph(const char *filename)
 int main(int argc, char *argv[])
 {
     int i;
-    parsec_handle_t *o;
-    parsec_execution_context_t *startup;
+    parsec_taskpool_t *o;
+    parsec_task_t *startup;
     parsec_list_item_t *s;
     parsec_context_t *parsec;
 
@@ -204,18 +204,18 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    o->startup_hook( parsec->execution_units[0], o, &startup );
+    o->startup_hook( parsec->execution_streams[0], o, &startup );
     s = (parsec_list_item_t*)startup;
     do {
         char fromstr[MAX_TASK_STRLEN];
-        parsec_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, (parsec_execution_context_t*)s);
+        parsec_task_snprintf(fromstr, MAX_TASK_STRLEN, (parsec_task_t*)s);
         lookup_create_vertex(fromstr);
         s = (parsec_list_item_t*)s->list_next;
     } while( s != (parsec_list_item_t*)startup );
 
     s = (parsec_list_item_t*)startup;
     do {
-        ((parsec_execution_context_t*)s)->function->iterate_successors(parsec->execution_units[0], (parsec_execution_context_t*)s, ontask_function, NULL);
+        ((parsec_task_t*)s)->function->iterate_successors(parsec->execution_streams[0], (parsec_task_t*)s, ontask_function, NULL);
         s = (parsec_list_item_t*)s->list_next;
     } while( s!= (parsec_list_item_t*)startup );
 

@@ -21,7 +21,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlansy_New - Generates the handle that computes the value
+ *  dplasma_zlansy_New - Generates the taskpool that computes the value
  *
  *     zlansy = ( max(abs(A(i,j))), NORM = PlasmaMaxNorm
  *              (
@@ -63,7 +63,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlansy_Destruct();
  *
@@ -76,15 +76,15 @@
  * @sa dplasma_slansy_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zlansy_New( PLASMA_enum norm,
                     PLASMA_enum uplo,
-                    const tiled_matrix_desc_t *A,
+                    const parsec_tiled_matrix_dc_t *A,
                     double *result )
 {
     int P, Q, mb, nb, elt, m;
     two_dim_block_cyclic_t *Tdist;
-    parsec_handle_t *parsec_zlansy = NULL;
+    parsec_taskpool_t *parsec_zlansy = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -142,25 +142,25 @@ dplasma_zlansy_New( PLASMA_enum norm,
     Tdist->super.super.data_of_key = NULL;
 
     /* Create the DAG */
-    parsec_zlansy = (parsec_handle_t*)parsec_zlansy_new(
+    parsec_zlansy = (parsec_taskpool_t*)parsec_zlansy_new(
         P, Q, norm, uplo, PlasmaTrans,
         A,
-        (parsec_ddesc_t*)Tdist,
+        (parsec_data_collection_t*)Tdist,
         result);
 
     /* Set the datatypes */
-    dplasma_add2arena_tile(((parsec_zlansy_handle_t*)parsec_zlansy)->arenas[PARSEC_zlansy_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_zlansy_taskpool_t*)parsec_zlansy)->arenas[PARSEC_zlansy_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
-    dplasma_add2arena_rectangle(((parsec_zlansy_handle_t*)parsec_zlansy)->arenas[PARSEC_zlansy_COL_ARENA],
+    dplasma_add2arena_rectangle(((parsec_zlansy_taskpool_t*)parsec_zlansy)->arenas[PARSEC_zlansy_COL_ARENA],
                                 mb * nb * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_t, mb, nb, -1);
-    dplasma_add2arena_rectangle(((parsec_zlansy_handle_t*)parsec_zlansy)->arenas[PARSEC_zlansy_ELT_ARENA],
+    dplasma_add2arena_rectangle(((parsec_zlansy_taskpool_t*)parsec_zlansy)->arenas[PARSEC_zlansy_ELT_ARENA],
                                 elt * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_t, elt, 1, -1);
 
-    return (parsec_handle_t*)parsec_zlansy;
+    return (parsec_taskpool_t*)parsec_zlansy;
 }
 
 /**
@@ -168,14 +168,14 @@ dplasma_zlansy_New( PLASMA_enum norm,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlansy_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlansy_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlansy_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -184,18 +184,18 @@ dplasma_zlansy_New( PLASMA_enum norm,
  *
  ******************************************************************************/
 void
-dplasma_zlansy_Destruct( parsec_handle_t *handle )
+dplasma_zlansy_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zlansy_handle_t *parsec_zlansy = (parsec_zlansy_handle_t *)handle;
+    parsec_zlansy_taskpool_t *parsec_zlansy = (parsec_zlansy_taskpool_t *)tp;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlansy->_g_Tdist) );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(parsec_zlansy->_g_Tdist) );
     free( parsec_zlansy->_g_Tdist );
 
     parsec_matrix_del2arena( parsec_zlansy->arenas[PARSEC_zlansy_DEFAULT_ARENA] );
     parsec_matrix_del2arena( parsec_zlansy->arenas[PARSEC_zlansy_COL_ARENA] );
     parsec_matrix_del2arena( parsec_zlansy->arenas[PARSEC_zlansy_ELT_ARENA] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -257,10 +257,10 @@ double
 dplasma_zlansy( parsec_context_t *parsec,
                 PLASMA_enum norm,
                 PLASMA_enum uplo,
-                const tiled_matrix_desc_t *A)
+                const parsec_tiled_matrix_dc_t *A)
 {
     double result = 0.;
-    parsec_handle_t *parsec_zlansy = NULL;
+    parsec_taskpool_t *parsec_zlansy = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -284,7 +284,7 @@ dplasma_zlansy( parsec_context_t *parsec,
 
     if ( parsec_zlansy != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlansy);
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zlansy);
         dplasma_wait_until_completion(parsec);
         dplasma_zlansy_Destruct( parsec_zlansy );
     }

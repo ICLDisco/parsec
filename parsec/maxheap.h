@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -18,11 +18,11 @@ BEGIN_C_DECLS
  */
 
 /* main struct holding size info and ID */
-typedef struct parsec_heap {
+typedef struct parsec_heap_s {
     parsec_list_item_t list_item; /* to be compatible with the lists */
     unsigned int size;
     unsigned int priority;
-    parsec_execution_context_t* top;
+    parsec_task_t * top;
 } parsec_heap_t;
 
 /*
@@ -33,12 +33,11 @@ parsec_heap_t* heap_create(void);
 
 void heap_destroy(parsec_heap_t** heap);
 
-void heap_insert(parsec_heap_t * heap, parsec_execution_context_t * elem);
-
-parsec_execution_context_t*
+void heap_insert(parsec_heap_t * heap, parsec_task_t * elem);
+parsec_task_t*
 heap_split_and_steal(parsec_heap_t ** heap_ptr,
                      parsec_heap_t ** new_heap_ptr);
-parsec_execution_context_t * heap_remove(parsec_heap_t ** heap_ptr);
+parsec_task_t * heap_remove(parsec_heap_t ** heap_ptr);
 
 END_C_DECLS
 

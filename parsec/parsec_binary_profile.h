@@ -27,7 +27,7 @@ BEGIN_C_DECLS
 typedef struct parsec_profiling_output_base_event_s {
     uint16_t  key;
     uint16_t  flags;
-    uint32_t  handle_id;
+    uint32_t  taskpool_id;
     uint64_t  event_id;
     uint64_t  timestamp;
 } parsec_profiling_output_base_event_t;

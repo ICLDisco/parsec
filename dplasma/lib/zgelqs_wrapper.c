@@ -60,12 +60,12 @@
  ******************************************************************************/
 int
 dplasma_zgelqs( parsec_context_t *parsec,
-                tiled_matrix_desc_t* A,
-                tiled_matrix_desc_t* T,
-                tiled_matrix_desc_t* B )
+                parsec_tiled_matrix_dc_t* A,
+                parsec_tiled_matrix_dc_t* T,
+                parsec_tiled_matrix_dc_t* B )
 {
-    tiled_matrix_desc_t *subA;
-    tiled_matrix_desc_t *subB;
+    parsec_tiled_matrix_dc_t *subA;
+    parsec_tiled_matrix_dc_t *subB;
 
     /* Check input arguments */
     if ( A->m > A->n ) {
@@ -86,8 +86,8 @@ dplasma_zgelqs( parsec_context_t *parsec,
 
 #ifdef PARSEC_COMPOSITION
 
-    parsec_handle_t *parsec_zunmlq = NULL;
-    parsec_handle_t *parsec_ztrsm  = NULL;
+    parsec_taskpool_t *parsec_zunmlq = NULL;
+    parsec_taskpool_t *parsec_ztrsm  = NULL;
 
     parsec_ztrsm  = dplasma_ztrsm_New(  PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
     parsec_zunmlq = dplasma_zunmlq_New( PlasmaLeft, PlasmaConjTrans, A, T, B );

@@ -27,8 +27,8 @@ void dump_double_array(char* msg, double* mat, int i, int j, int nb, int mb, int
 /**
  * Globals
  */
-dataA      [type = "parsec_ddesc_t *"]
-descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+dataA      [type = "parsec_data_collection_t *"]
+descA      [type = "parsec_tiled_matrix_dc_t" hidden = on default = "*((parsec_tiled_matrix_dc_t*)dataA)"]
 procpid    [type = "int" hidden = on default = 0]
 
 PING(k)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The University of Tennessee and The University
+ * Copyright (c) 2012-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,11 +10,11 @@
 #include <papi.h>
 #endif
 #include "parsec/debug.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 
 static void pins_init_print_steals(parsec_context_t* master_context);
-static void pins_thread_init_print_steals(parsec_execution_unit_t* exec_unit);
-static void pins_thread_fini_print_steals(parsec_execution_unit_t* exec_unit);
+static void pins_thread_init_print_steals(parsec_execution_stream_t* es);
+static void pins_thread_fini_print_steals(parsec_execution_stream_t* es);
 
 const parsec_pins_module_t parsec_pins_print_steals_module = {
     &parsec_pins_print_steals_component,
@@ -33,8 +33,8 @@ typedef struct parsec_pins_print_steals_data_s {
     long steal_counters[1];
 } parsec_pins_print_steals_data_t;
 
-static void stop_print_steals_count(parsec_execution_unit_t* exec_unit,
-                                    parsec_execution_context_t* exec_context,
+static void stop_print_steals_count(parsec_execution_stream_t* es,
+                                    parsec_task_t* task,
                                     parsec_pins_next_callback_t* data);
 
 #define THREAD_NUM(exec_unit) (exec_unit->virtual_process->vp_id *      \
@@ -48,19 +48,19 @@ static void pins_init_print_steals(parsec_context_t* master)
     total_cores = master->nb_vp * master->virtual_processes[0]->nb_cores;
 }
 
-static void pins_thread_init_print_steals(parsec_execution_unit_t* exec_unit)
+static void pins_thread_init_print_steals(parsec_execution_stream_t* es)
 {
     parsec_pins_print_steals_data_t* event_cb =
         (parsec_pins_print_steals_data_t*)calloc(1, sizeof(parsec_pins_print_steals_data_t) +
                                                  (total_cores + 2) * sizeof(long));
-    PINS_REGISTER(exec_unit, SELECT_END, stop_print_steals_count,
+    PINS_REGISTER(es, SELECT_END, stop_print_steals_count,
                   (parsec_pins_next_callback_t*)event_cb);
 }
 
-static void pins_thread_fini_print_steals(parsec_execution_unit_t* exec_unit)
+static void pins_thread_fini_print_steals(parsec_execution_stream_t* es)
 {
     parsec_pins_print_steals_data_t* event_cb;
-    PINS_UNREGISTER(exec_unit, SELECT_END, stop_print_steals_count,
+    PINS_UNREGISTER(es, SELECT_END, stop_print_steals_count,
                   (parsec_pins_next_callback_t**)&event_cb);
 
     for (int k = 0; k < total_cores + 2; k++)
@@ -69,8 +69,8 @@ static void pins_thread_fini_print_steals(parsec_execution_unit_t* exec_unit)
     free(event_cb);
 }
 
-static void stop_print_steals_count(parsec_execution_unit_t* exec_unit,
-                                    parsec_execution_context_t* exec_context,
+static void stop_print_steals_count(parsec_execution_stream_t* es,
+                                    parsec_task_t* task,
                                     parsec_pins_next_callback_t* data)
 {
     parsec_pins_print_steals_data_t* event_cb = (parsec_pins_print_steals_data_t*)data;
@@ -79,9 +79,10 @@ static void stop_print_steals_count(parsec_execution_unit_t* exec_unit,
      */
     unsigned long long victim_core_num = 0;
 
-    if (exec_context != NULL)
+    if (task != NULL)
         event_cb->steal_counters[victim_core_num] += 1;
     else
         event_cb->steal_counters[victim_core_num + 1] += 1;
-    (void)exec_unit;
+    (void)es;
 }
+

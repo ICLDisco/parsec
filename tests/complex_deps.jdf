@@ -109,7 +109,7 @@ extern "C" %{
 
 int main( int argc, char** argv )
 {
-    parsec_complex_deps_handle_t* handle;
+    parsec_complex_deps_taskpool_t* tp;
     two_dim_block_cyclic_t descA;
     parsec_arena_t arena;
     parsec_context_t *parsec;
@@ -170,18 +170,18 @@ int main( int argc, char** argv )
                            PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
     /* Heat up the engine: small tasks */
-    handle = parsec_complex_deps_new( &descA, ni, nk );
-    assert( NULL != handle );
-    handle->arenas[PARSEC_complex_deps_DEFAULT_ARENA] = &arena;
-    parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    tp = parsec_complex_deps_new( &descA, ni, nk );
+    assert( NULL != tp );
+    tp->arenas[PARSEC_complex_deps_DEFAULT_ARENA] = &arena;
+    parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
     parsec_context_wait(parsec);
 
     /* No priority */
-    handle = parsec_complex_deps_new( &descA, ni, nk );
-    assert( NULL != handle );
+    tp = parsec_complex_deps_new( &descA, ni, nk );
+    assert( NULL != tp );
     TIMER_START(time_elapsed);
-    handle->arenas[PARSEC_complex_deps_DEFAULT_ARENA] = &arena;
-    parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    tp->arenas[PARSEC_complex_deps_DEFAULT_ARENA] = &arena;
+    parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
     TIMER_STOP(time_elapsed);
     printf("DAG construction in %ld micro-sec\n", time_elapsed);
     if( verbose >= 5 ) {

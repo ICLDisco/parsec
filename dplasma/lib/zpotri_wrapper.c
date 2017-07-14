@@ -55,7 +55,7 @@
 int
 dplasma_zpotri( parsec_context_t *parsec,
                 PLASMA_enum uplo,
-                tiled_matrix_desc_t* A )
+                parsec_tiled_matrix_dc_t* A )
 {
     int info = 0;
     /* Check input arguments */
@@ -65,8 +65,8 @@ dplasma_zpotri( parsec_context_t *parsec,
     }
 
 #ifdef PARSEC_COMPOSITION
-    parsec_handle_t *parsec_ztrtri = NULL;
-    parsec_handle_t *parsec_zlauum = NULL;
+    parsec_taskpool_t *parsec_ztrtri = NULL;
+    parsec_taskpool_t *parsec_zlauum = NULL;
 
     parsec_ztrtri = dplasma_ztrtri_New(uplo, PlasmaNonUnit, A, &info );
     parsec_zlauum = dplasma_zlauum_New(uplo, A );

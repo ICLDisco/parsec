@@ -16,9 +16,9 @@
 #include "map2.h"
 
 static int
-dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
-                         const tiled_matrix_desc_t *descA,
-                         const tiled_matrix_desc_t *descB,
+dplasma_zlacpy_operator( parsec_execution_stream_t *es,
+                         const parsec_tiled_matrix_dc_t *descA,
+                         const parsec_tiled_matrix_dc_t *descB,
                          const void *_A, void *_B,
                          PLASMA_enum uplo, int m, int n,
                          void *args )
@@ -26,7 +26,7 @@ dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
     int tempmm, tempnn, ldam, ldbm;
     const parsec_complex64_t *A = (const parsec_complex64_t*)_A;
     parsec_complex64_t       *B = (parsec_complex64_t*)_B;
-    (void)eu;
+    (void)es;
     (void)args;
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
@@ -45,7 +45,7 @@ dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zlacpy_New - Generates an handle that performs a copy of the matrix A
+ * dplasma_zlacpy_New - Generates an taskpool that performs a copy of the matrix A
  * into the matrix B.
  *
  * See dplasma_map2_New() for further information.
@@ -73,7 +73,7 @@ dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlacpy_Destruct();
  *
@@ -86,17 +86,17 @@ dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
  * @sa dplasma_slacpy_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zlacpy_New( PLASMA_enum uplo,
-                    const tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *B)
+                    const parsec_tiled_matrix_dc_t *A,
+                    parsec_tiled_matrix_dc_t *B)
 {
-    parsec_handle_t* handle;
+    parsec_taskpool_t* tp;
 
-    handle = dplasma_map2_New(uplo, PlasmaNoTrans, A, B,
-                              dplasma_zlacpy_operator, NULL );
+    tp = dplasma_map2_New(uplo, PlasmaNoTrans, A, B,
+                          dplasma_zlacpy_operator, NULL );
 
-    return handle;
+    return tp;
 }
 
 /**
@@ -104,14 +104,14 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlacpy_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlacpy_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlacpy_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -120,9 +120,9 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlacpy_Destruct( parsec_handle_t *handle )
+dplasma_zlacpy_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map2_Destruct(handle);
+    dplasma_map2_Destruct(tp);
 }
 
 
@@ -131,7 +131,7 @@ dplasma_zlacpy_Destruct( parsec_handle_t *handle )
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zlacpy - Generates an handle that performs a copy of the matrix A
+ * dplasma_zlacpy - Generates an taskpool that performs a copy of the matrix A
  * into the matrix B.
  *
  * See dplasma_map2() for further information.
@@ -174,10 +174,10 @@ dplasma_zlacpy_Destruct( parsec_handle_t *handle )
 int
 dplasma_zlacpy( parsec_context_t *parsec,
                 PLASMA_enum uplo,
-                const tiled_matrix_desc_t *A,
-                tiled_matrix_desc_t *B)
+                const parsec_tiled_matrix_dc_t *A,
+                parsec_tiled_matrix_dc_t *B)
 {
-    parsec_handle_t *parsec_zlacpy = NULL;
+    parsec_taskpool_t *parsec_zlacpy = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&
@@ -196,7 +196,7 @@ dplasma_zlacpy( parsec_context_t *parsec,
 
     if ( parsec_zlacpy != NULL )
     {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zlacpy);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zlacpy);
         dplasma_wait_until_completion(parsec);
         dplasma_zlacpy_Destruct( parsec_zlacpy );
     }

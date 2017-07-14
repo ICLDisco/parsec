@@ -2,10 +2,10 @@ extern "C" %{
 #define idecision(k)  (*((int32_t*)decision(k)))
 %}
 
-A        [ type = "parsec_ddesc_t *" ]
+A        [ type = "parsec_data_collection_t *" ]
 NT       [ type = "int" ]
 P        [ type = "int" ]
-decision [ type = "parsec_ddesc_t *" ]
+decision [ type = "parsec_data_collection_t *" ]
 
 GenChoice(k)
 

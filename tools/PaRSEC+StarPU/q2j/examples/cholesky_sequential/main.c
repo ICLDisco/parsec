@@ -30,9 +30,9 @@ main (int argc, char *argv[])
     int info;
     int rc;
     PLASMA_enum uplo = PlasmaLower;
-    parsec_ddesc_t *ddescA;
-    parsec_handle_t *cholesky;
-    parsec_execution_context_t *startup_list = NULL;
+    parsec_data_collection_t *dcA;
+    parsec_taskpool_t *cholesky;
+    parsec_task_t* startup_list = NULL;
     struct timeval start;
     struct timeval end;
 
@@ -85,13 +85,13 @@ main (int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_set_scheduler");
 
 
-    ddescA = create_and_distribute_data(rank, world, cores, atoi(argv[1]), atoi(argv[2]));
+    dcA = create_and_distribute_data(rank, world, cores, atoi(argv[1]), atoi(argv[2]));
 //    fprintf(stderr, "create & distribute done\n");
 
 
-    parsec_ddesc_set_key(ddesc, "A");
+    parsec_data_collection_set_key(dc, "A");
 
-    cholesky = cholesky_new(ddescA, BLOCKSIZE, matrix_rank/BLOCKSIZE, uplo, &info);
+    cholesky = cholesky_new(dcA, BLOCKSIZE, matrix_rank/BLOCKSIZE, uplo, &info);
 
 
     rc = parsec_context_start(parsec);
@@ -111,9 +111,9 @@ main (int argc, char *argv[])
 //	    fprintf(stderr, "name : %s\n", startup_list->function->name);
             if( NULL != startup_list ) {
 		/* We should add these tasks on the system queue */
-		// old :               __parsec_schedule( parsec->execution_units[0], startup_list );
+		// old :               __parsec_schedule( parsec->execution_streams[0], startup_list );
 		gettimeofday(&start, NULL);
-		generic_scheduling_func(parsec->execution_units[0],(parsec_list_item_t*) startup_list);
+		generic_scheduling_func(parsec->execution_streams[0],(parsec_list_item_t*) startup_list);
 
             }
         }
@@ -153,7 +153,7 @@ main (int argc, char *argv[])
 */
 
 
-    free_data(ddescA);
+    free_data(dcA);
 
 //    starpu_helper_cublas_shutdown();
     starpu_shutdown();

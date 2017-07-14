@@ -13,7 +13,7 @@ extern "C" %{
  * Data descriptor used in the jdf can be declared manually as global to fix the
  * parameters order of the _New function
  */
-taskdist  [ type="parsec_ddesc_t*" ]
+taskdist  [ type="parsec_data_collection_t*" ]
 NB        [ type="int" ]
 
 Task(k)
@@ -34,7 +34,7 @@ END
 extern "C" %{
 
 static uint32_t
-rank_of(parsec_ddesc_t *desc, ...)
+rank_of(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -47,13 +47,13 @@ rank_of(parsec_ddesc_t *desc, ...)
 }
 
 static int32_t
-vpid_of(parsec_ddesc_t *desc, ...)
+vpid_of(parsec_data_collection_t *desc, ...)
 {
     (void)desc;
     return 0;
 }
 
-static parsec_data_key_t data_key(parsec_ddesc_t *desc, ...)
+static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -69,8 +69,8 @@ int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
     int rank, world;
-    parsec_ddesc_t taskdist;
-    parsec_forward_READ_NULL_handle_t *handle;
+    parsec_data_collection_t taskdist;
+    parsec_forward_READ_NULL_taskpool_t *tp;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -92,31 +92,31 @@ int main(int argc, char *argv[])
      * functions always return 0. A unique naming of data must also be provided
      * for profiling, we just return the index of the data as the key.
      */
-    parsec_ddesc_init(&taskdist, world, rank);
+    parsec_data_collection_init(&taskdist, world, rank);
     taskdist.rank_of  = rank_of;
     taskdist.vpid_of  = vpid_of;
     taskdist.data_key = data_key;
 
-    handle = parsec_forward_READ_NULL_new(&taskdist, 20);
+    tp = parsec_forward_READ_NULL_new(&taskdist, 20);
 
     /**
      * The arena is now also used to describe the layout to the communication
      * engine (MPI)
      */
-    parsec_arena_construct(handle->arenas[PARSEC_forward_READ_NULL_DEFAULT_ARENA],
+    parsec_arena_construct(tp->arenas[PARSEC_forward_READ_NULL_DEFAULT_ARENA],
                           sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                           parsec_datatype_int_t );
 
-    parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
     parsec_context_start(parsec);
     parsec_context_wait(parsec);
 
-    parsec_handle_free((parsec_handle_t*)handle);
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
 
     /**
      * Cleanup the descriptor
      */
-    parsec_ddesc_destroy(&taskdist);
+    parsec_data_collection_destroy(&taskdist);
 
     parsec_fini(&parsec);
 #if defined(PARSEC_HAVE_MPI)

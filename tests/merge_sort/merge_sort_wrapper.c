@@ -25,33 +25,33 @@ static MPI_Datatype block;
  *
  * @return the parsec object to schedule.
  */
-parsec_handle_t *merge_sort_new(tiled_matrix_desc_t *A, int nb, int nt)
+parsec_taskpool_t *merge_sort_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
 {
-    parsec_merge_sort_handle_t *o = NULL;
+    parsec_merge_sort_taskpool_t *tp = NULL;
 
-    o = parsec_merge_sort_new(A, nb, nt);
+    tp = parsec_merge_sort_new(A, nb, nt);
 
 #if defined(PARSEC_HAVE_MPI)
-    parsec_arena_construct(o->arenas[PARSEC_merge_sort_DEFAULT_ARENA],
-                          nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          MPI_INT);
+    parsec_arena_construct(tp->arenas[PARSEC_merge_sort_DEFAULT_ARENA],
+                           nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                           MPI_INT);
 #else
-    parsec_arena_construct(o->arenas[PARSEC_merge_sort_DEFAULT_ARENA],
-                          nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          PARSEC_DATATYPE_NULL);
+    parsec_arena_construct(tp->arenas[PARSEC_merge_sort_DEFAULT_ARENA],
+                           nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                           PARSEC_DATATYPE_NULL);
 #endif
 
-    return (parsec_handle_t*)o;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
  * @param [INOUT] o the parsec object to destroy
  */
-void merge_sort_destroy(parsec_handle_t *o)
+void merge_sort_destroy(parsec_taskpool_t *tp)
 {
 #if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(tp);
 }

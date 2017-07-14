@@ -8,20 +8,20 @@ module parsec_f08_interfaces
 
     use, intrinsic :: ISO_C_BINDING
 
-    type, BIND(C) :: parsec_handle_t
+    type, BIND(C) :: parsec_taskpool_t
       TYPE(C_PTR) :: PTR
-    end type parsec_handle_t
+    end type parsec_taskpool_t
 
     type, BIND(C) :: parsec_context_t
       TYPE(C_PTR) :: PTR
     end type parsec_context_t
 
 ABSTRACT INTERFACE
-SUBROUTINE parsec_event_cb(handle, cbdata) BIND(C)
+SUBROUTINE parsec_event_cb(tp, cbdata) BIND(C)
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR
-    IMPORT parsec_handle_t
+    IMPORT parsec_taskpool_t
     IMPLICIT NONE
-    TYPE(parsec_handle_t), INTENT(IN) :: handle
+    TYPE(parsec_taskpool_t), INTENT(IN) :: tp
     TYPE(C_PTR), INTENT(IN)          :: cbdata
 END SUBROUTINE
 END INTERFACE
@@ -52,32 +52,32 @@ END INTERFACE parsec_fini_f08
 INTERFACE parsec_compose_f08
 FUNCTION parsec_compose_f08(start, next) &
          BIND(C, name="parsec_compose")
-    IMPORT parsec_handle_t
+    IMPORT parsec_taskpool_t
     IMPLICIT NONE
-    TYPE(parsec_handle_t), VALUE, INTENT(IN) :: start
-    TYPE(parsec_handle_t), VALUE, INTENT(IN) :: next
-    TYPE(parsec_handle_t)                    :: parsec_compose_f08
+    TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: start
+    TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: next
+    TYPE(parsec_taskpool_t)                    :: parsec_compose_f08
 END FUNCTION parsec_compose_f08
 END INTERFACE parsec_compose_f08
 
-INTERFACE parsec_handle_free_f08
-SUBROUTINE parsec_handle_free_f08(ctx) &
-         BIND(C, name="parsec_handle_free")
-    IMPORT parsec_handle_t
+INTERFACE parsec_taskpool_free_f08
+SUBROUTINE parsec_taskpool_free_f08(ctx) &
+         BIND(C, name="parsec_taskpool_free")
+    IMPORT parsec_taskpool_t
     IMPLICIT NONE
-    TYPE(parsec_handle_t), VALUE, INTENT(IN) :: ctx
-END SUBROUTINE parsec_handle_free_f08
-END INTERFACE parsec_handle_free_f08
+    TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: ctx
+END SUBROUTINE parsec_taskpool_free_f08
+END INTERFACE parsec_taskpool_free_f08
 
 INTERFACE parsec_enqueue_f08
-FUNCTION parsec_enqueue_f08(context, handle) &
+FUNCTION parsec_enqueue_f08(context, tp) &
            BIND(C, name="parsec_enqueue")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
-    IMPORT parsec_handle_t, parsec_context_t
+    IMPORT parsec_taskpool_t, parsec_context_t
     IMPLICIT NONE
     TYPE(parsec_context_t), VALUE, INTENT(IN)  :: context
-    TYPE(parsec_handle_t), VALUE, INTENT(IN)   :: handle
-    INTEGER(KIND=c_int)                       :: parsec_enqueue_f08
+    TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: tp
+    INTEGER(KIND=c_int)                        :: parsec_enqueue_f08
 END FUNCTION parsec_enqueue_f08
 END INTERFACE parsec_enqueue_f08
 
@@ -114,73 +114,73 @@ FUNCTION parsec_context_test_f08(context) &
 END FUNCTION parsec_context_test_f08
 END INTERFACE parsec_context_test_f08
 
-INTERFACE  parsec_set_complete_callback_f08
-SUBROUTINE parsec_set_complete_callback_f08(handle, complete_cb, &
-                                           complete_data, ierr) &
-           BIND( C, name="parsec_set_complete_callback_f08")
+INTERFACE  parsec_taskpool_set_complete_callback_f08
+SUBROUTINE parsec_taskpool_set_complete_callback_f08(tp, complete_cb, &
+                                                     complete_data, ierr) &
+           BIND( C, name="parsec_taskpool_set_complete_callback_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
-    IMPORT parsec_handle_t
+    IMPORT parsec_taskpool_t
     IMPLICIT NONE
-    TYPE(parsec_handle_t), VALUE, INTENT(IN) :: handle
+    TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: tp
     TYPE(C_FUNPTR), INTENT(IN)              :: complete_cb
     TYPE(C_PTR), INTENT(IN)                 :: complete_data
     INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
-END SUBROUTINE parsec_set_complete_callback_f08
-END INTERFACE  parsec_set_complete_callback_f08
+END SUBROUTINE parsec_taskpool_set_complete_callback_f08
+END INTERFACE  parsec_taskpool_set_complete_callback_f08
 
-INTERFACE  parsec_get_complete_callback_f08
-SUBROUTINE parsec_get_complete_callback_f08(handle, complete_cb, &
-                                           complete_data, ierr) &
-           BIND(C, name="parsec_get_complete_callback_f08")
+INTERFACE  parsec_taskpool_get_complete_callback_f08
+SUBROUTINE parsec_taskpool_get_complete_callback_f08(tp, complete_cb, &
+                                                     complete_data, ierr) &
+           BIND(C, name="parsec_taskpool_get_complete_callback_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
-    IMPORT parsec_handle_t
+    IMPORT parsec_taskpool_t
     IMPLICIT NONE
-    TYPE(parsec_handle_t), VALUE, INTENT(IN) :: handle
+    TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: tp
     TYPE(C_FUNPTR), INTENT(OUT)             :: complete_cb
     TYPE(C_PTR), INTENT(OUT)                :: complete_data
     INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
-END SUBROUTINE parsec_get_complete_callback_f08
-END INTERFACE  parsec_get_complete_callback_f08
+END SUBROUTINE parsec_taskpool_get_complete_callback_f08
+END INTERFACE  parsec_taskpool_get_complete_callback_f08
 
-INTERFACE  parsec_set_enqueue_callback_f08
-SUBROUTINE parsec_set_enqueue_callback_f08(handle, enqueue_cb, &
-                                          enqueue_data, ierr) &
-           BIND( C, name="parsec_set_enqueue_callback_f08")
+INTERFACE  parsec_taskpool_set_enqueue_callback_f08
+SUBROUTINE parsec_taskpool_set_enqueue_callback_f08(tp, enqueue_cb, &
+                                                    enqueue_data, ierr) &
+           BIND( C, name="parsec_taskpool_set_enqueue_callback_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
-    IMPORT parsec_handle_t
+    IMPORT parsec_taskpool_t
     IMPLICIT NONE
-    TYPE(parsec_handle_t), VALUE, INTENT(IN) :: handle
+    TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: tp
     TYPE(C_FUNPTR), INTENT(IN)              :: enqueue_cb
     TYPE(C_PTR), INTENT(IN)                 :: enqueue_data
     INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
-END SUBROUTINE parsec_set_enqueue_callback_f08
-END INTERFACE  parsec_set_enqueue_callback_f08
+END SUBROUTINE parsec_taskpool_set_enqueue_callback_f08
+END INTERFACE  parsec_taskpool_set_enqueue_callback_f08
 
-INTERFACE  parsec_get_enqueue_callback_f08
-SUBROUTINE parsec_get_enqueue_callback_f08(handle, enqueue_cb, &
-                                          enqueue_data, ierr) &
-           BIND(C, name="parsec_get_enqueue_callback_f08")
+INTERFACE  parsec_taskpool_get_enqueue_callback_f08
+SUBROUTINE parsec_taskpool_get_enqueue_callback_f08(tp, enqueue_cb, &
+                                                    enqueue_data, ierr) &
+           BIND(C, name="parsec_taskpool_get_enqueue_callback_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
-    IMPORT parsec_handle_t
+    IMPORT parsec_taskpool_t
     IMPLICIT NONE
-    TYPE(parsec_handle_t), VALUE, INTENT(IN) :: handle
+    TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: tp
     TYPE(C_FUNPTR), INTENT(OUT)             :: enqueue_cb
     TYPE(C_PTR), INTENT(OUT)                :: enqueue_data
     INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
-END SUBROUTINE parsec_get_enqueue_callback_f08
-END INTERFACE  parsec_get_enqueue_callback_f08
+END SUBROUTINE parsec_taskpool_get_enqueue_callback_f08
+END INTERFACE  parsec_taskpool_get_enqueue_callback_f08
 
-INTERFACE  parsec_set_priority_f08
-SUBROUTINE parsec_set_priority_f08(handle, priority, &
-           ierr) BIND( C, name="parsec_set_priority_f08")
+INTERFACE  parsec_taskpool_set_priority_f08
+SUBROUTINE parsec_taskpool_set_priority_f08(tp, priority, &
+           ierr) BIND( C, name="parsec_taskpool_set_priority_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
-    IMPORT parsec_handle_t
+    IMPORT parsec_taskpool_t
     IMPLICIT NONE
-    TYPE(parsec_handle_t), VALUE, INTENT(IN) :: handle
+    TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: tp
     INTEGER(KIND=C_INT), VALUE, INTENT(IN)  :: priority
     INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
-END SUBROUTINE parsec_set_priority_f08
-END INTERFACE  parsec_set_priority_f08
+END SUBROUTINE parsec_taskpool_set_priority_f08
+END INTERFACE  parsec_taskpool_set_priority_f08
 
 CONTAINS
 
@@ -207,25 +207,25 @@ SUBROUTINE parsec_fini(context, ierr)
     if(present(ierr)) ierr = c_err
 END SUBROUTINE parsec_fini
 
-SUBROUTINE parsec_handle_free(ctx, ierr)
+SUBROUTINE parsec_taskpool_free(ctx, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPLICIT NONE
-    TYPE(parsec_handle_t), INTENT(IN) :: ctx
+    TYPE(parsec_taskpool_t), INTENT(IN) :: ctx
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
 
-    call parsec_handle_free_f08(ctx)
+    call parsec_taskpool_free_f08(ctx)
     if(present(ierr)) ierr = 0
-END SUBROUTINE parsec_handle_free
+END SUBROUTINE parsec_taskpool_free
 
-SUBROUTINE parsec_enqueue(context, handle, ierr)
+SUBROUTINE parsec_enqueue(context, tp, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPLICIT NONE
     TYPE(parsec_context_t), INTENT(IN)          :: context
-    TYPE(parsec_handle_t), INTENT(IN)           :: handle
-    INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
-    INTEGER(KIND=C_INT)                        :: c_err
+    TYPE(parsec_taskpool_t), INTENT(IN)         :: tp
+    INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
+    INTEGER(KIND=C_INT)                         :: c_err
 
-    c_err = parsec_enqueue_f08(context, handle)
+    c_err = parsec_enqueue_f08(context, tp)
     if(present(ierr)) ierr = c_err
 END SUBROUTINE parsec_enqueue
 
@@ -260,85 +260,85 @@ SUBROUTINE parsec_context_test(context, ierr)
     ierr = parsec_context_test_f08(context)
 END SUBROUTINE parsec_context_test
 
-SUBROUTINE parsec_set_complete_callback(handle, complete_cb, &
-                                       complete_data, ierr)
+SUBROUTINE parsec_taskpool_set_complete_callback(tp, complete_cb, &
+                                                 complete_data, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
     IMPLICIT NONE
-    TYPE(parsec_handle_t)                       :: handle
-    PROCEDURE(parsec_event_cb), BIND(C)         :: complete_cb
+    TYPE(parsec_taskpool_t)                    :: tp
+    PROCEDURE(parsec_event_cb), BIND(C)        :: complete_cb
     TYPE(C_PTR), INTENT(IN)                    :: complete_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     TYPE(C_FUNPTR)                             :: c_fct
     INTEGER(KIND=C_INT)                        :: c_err
 
     c_fct = C_FUNLOC(complete_cb)
-    call parsec_set_complete_callback_f08(handle, c_fct, &
-                                         complete_data, c_err)
+    call parsec_taskpool_set_complete_callback_f08(tp, c_fct, &
+                                                   complete_data, c_err)
     if(present(ierr)) ierr = c_err
-END SUBROUTINE parsec_set_complete_callback
+END SUBROUTINE parsec_taskpool_set_complete_callback
 
-SUBROUTINE parsec_get_complete_callback(handle, complete_cb, &
-                                       complete_data, ierr)
+SUBROUTINE parsec_taskpool_get_complete_callback(tp, complete_cb, &
+                                                 complete_data, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPLICIT NONE
-    TYPE(parsec_handle_t)                        :: handle
+    TYPE(parsec_taskpool_t)                     :: tp
     PROCEDURE(parsec_event_cb), POINTER, INTENT(OUT) :: complete_cb
     TYPE(C_PTR), INTENT(OUT)                    :: complete_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
     TYPE(C_FUNPTR)                              :: c_fun
     INTEGER(KIND=C_INT)                         :: c_err
 
-    call parsec_get_complete_callback_f08(handle, c_fun, &
-                                         complete_data, c_err)
+    call parsec_taskpool_get_complete_callback_f08(tp, c_fun, &
+                                                   complete_data, c_err)
     call C_F_PROCPOINTER(c_fun, complete_cb)
     if(present(ierr)) ierr = c_err
-END SUBROUTINE parsec_get_complete_callback
+END SUBROUTINE parsec_taskpool_get_complete_callback
 
-SUBROUTINE parsec_set_enqueue_callback(handle, enqueue_cb, &
-                                      enqueue_data, ierr)
+SUBROUTINE parsec_taskpool_set_enqueue_callback(tp, enqueue_cb, &
+                                                enqueue_data, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
     IMPLICIT NONE
-    TYPE(parsec_handle_t)                       :: handle
-    PROCEDURE(parsec_event_cb), BIND(C)         :: enqueue_cb
+    TYPE(parsec_taskpool_t)                    :: tp
+    PROCEDURE(parsec_event_cb), BIND(C)        :: enqueue_cb
     TYPE(C_PTR), INTENT(IN)                    :: enqueue_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     TYPE(C_FUNPTR)                             :: c_fct
     INTEGER(KIND=C_INT)                        :: c_err
 
     c_fct = C_FUNLOC(enqueue_cb)
-    call parsec_set_enqueue_callback_f08(handle, c_fct, &
-                                        enqueue_data, c_err)
+    call parsec_taskpool_set_enqueue_callback_f08(tp, c_fct, &
+                                                  enqueue_data, c_err)
     if(present(ierr)) ierr = c_err
-END SUBROUTINE parsec_set_enqueue_callback
+END SUBROUTINE parsec_taskpool_set_enqueue_callback
 
-SUBROUTINE parsec_get_enqueue_callback(handle, enqueue_cb, &
-                                      enqueue_data, ierr)
+SUBROUTINE parsec_taskpool_get_enqueue_callback(tp, enqueue_cb, &
+                                                enqueue_data, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPLICIT NONE
-    TYPE(parsec_handle_t)                        :: handle
+    TYPE(parsec_taskpool_t)                     :: tp
     PROCEDURE(parsec_event_cb), POINTER, INTENT(OUT) :: enqueue_cb
     TYPE(C_PTR), INTENT(OUT)                    :: enqueue_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
     TYPE(C_FUNPTR)                              :: c_fun
     INTEGER(KIND=C_INT)                         :: c_err
 
-    call parsec_get_enqueue_callback_f08(handle, c_fun, &
-                                        enqueue_data, c_err)
+    call parsec_taskpool_get_enqueue_callback_f08(tp, c_fun, &
+                                                  enqueue_data, c_err)
     call C_F_PROCPOINTER(c_fun, enqueue_cb)
     if(present(ierr)) ierr = c_err
-END SUBROUTINE parsec_get_enqueue_callback
+END SUBROUTINE parsec_taskpool_get_enqueue_callback
 
-SUBROUTINE parsec_set_priority(handle, priority, ierr)
+SUBROUTINE parsec_taskpool_set_priority(tp, priority, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPLICIT NONE
-    TYPE(parsec_handle_t)                       :: handle
+    TYPE(parsec_taskpool_t)                    :: tp
     INTEGER(KIND=C_INT), VALUE, INTENT(IN)     :: priority
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     INTEGER(KIND=C_INT)                        :: c_err
 
-    call parsec_set_priority_f08(handle, priority, c_err)
+    call parsec_taskpool_set_priority_f08(tp, priority, c_err)
     if(present(ierr)) ierr = c_err
-END SUBROUTINE parsec_set_priority
+END SUBROUTINE parsec_taskpool_set_priority
 
 end module parsec_f08_interfaces
 

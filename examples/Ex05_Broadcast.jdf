@@ -14,7 +14,7 @@ extern "C" %{
 
 %}
 
-mydata  [ type="parsec_ddesc_t*" ]
+mydata  [ type="parsec_data_collection_t*" ]
 nodes   [ type="int" ]
 rank    [ type="int" ]
 NB      [ type="int" hidden=on default="(6)" ]
@@ -59,7 +59,7 @@ END
 extern "C" %{
 
 static uint32_t
-rank_of(parsec_ddesc_t *desc, ...)
+rank_of(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -72,14 +72,14 @@ rank_of(parsec_ddesc_t *desc, ...)
 }
 
 static int32_t
-vpid_of(parsec_ddesc_t *desc, ...)
+vpid_of(parsec_data_collection_t *desc, ...)
 {
     (void)desc;
     return 0;
 }
 
 static uint64_t
-data_key(parsec_ddesc_t *desc, ...)
+data_key(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -93,7 +93,7 @@ data_key(parsec_ddesc_t *desc, ...)
 static parsec_data_t *ddata_mycounter = NULL;
 
 static parsec_data_t *
-data_of(parsec_ddesc_t *desc, ...)
+data_of(parsec_data_collection_t *desc, ...)
 {
     (void)desc;
     return ddata_mycounter;
@@ -104,8 +104,8 @@ int main(int argc, char *argv[])
     parsec_context_t* parsec;
     int rc;
     int rank, world;
-    parsec_ddesc_t mydata;
-    parsec_Ex05_Broadcast_handle_t *handle;
+    parsec_data_collection_t mydata;
+    parsec_Ex05_Broadcast_taskpool_t *tp;
     int mycounter;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
         &ddata_mycounter, &mydata, 0,
         &mycounter, sizeof(int));
 
-    parsec_ddesc_init(&mydata, world, rank);
+    parsec_data_collection_init(&mydata, world, rank);
     mydata.rank_of = rank_of;
     mydata.vpid_of = vpid_of;
     mydata.data_key = data_key;
@@ -136,23 +136,23 @@ int main(int argc, char *argv[])
     /**
      * We now remove the NB parameter as it is an hidden global
      */
-    handle = parsec_Ex05_Broadcast_new(&mydata, world, rank);
+    tp = parsec_Ex05_Broadcast_new(&mydata, world, rank);
 
-    parsec_arena_construct(handle->arenas[PARSEC_Ex05_Broadcast_DEFAULT_ARENA],
-                          sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          parsec_datatype_int_t );
+    parsec_arena_construct(tp->arenas[PARSEC_Ex05_Broadcast_DEFAULT_ARENA],
+                           sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_int_t );
 
-    rc = parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_handle_free((parsec_handle_t*)handle);
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
 
     parsec_data_destroy( ddata_mycounter );
-    parsec_ddesc_destroy( &mydata );
+    parsec_data_collection_destroy( &mydata );
 
     parsec_fini(&parsec);
 #if defined(PARSEC_HAVE_MPI)

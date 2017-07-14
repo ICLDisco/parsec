@@ -21,8 +21,8 @@ int main(int argc, char *argv[])
     parsec_context_t* parsec;
     int rank, world, cores;
     int nt, nb;
-    tiled_matrix_desc_t *ddescA;
-    parsec_handle_t *msort;
+    parsec_tiled_matrix_dc_t *dcA;
+    parsec_taskpool_t *msort;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -44,17 +44,17 @@ int main(int argc, char *argv[])
         nt = (int)strtol(argv[1], NULL, 0);
     }
 
-    ddescA = create_and_distribute_data(rank, world, nb, nt, sizeof(int));
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, nb, nt, sizeof(int));
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    msort = merge_sort_new(ddescA, nb, nt);
+    msort = merge_sort_new(dcA, nb, nt);
     parsec_enqueue(parsec, msort);
 
     parsec_context_start(parsec);
     parsec_context_wait(parsec);
 
-    parsec_handle_free((parsec_handle_t*)msort);
-    free_data(ddescA);
+    parsec_taskpool_free((parsec_taskpool_t*)msort);
+    free_data(dcA);
 
     parsec_fini(&parsec);
 

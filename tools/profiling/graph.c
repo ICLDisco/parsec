@@ -84,12 +84,12 @@ unsigned int find_node_by_task_name_and_parameters(const char *name, const char 
     return NID;
 }
 
-unsigned int find_node_by_task_name_and_handle_id(const char *name, unsigned long long oid)
+unsigned int find_node_by_task_name_and_taskpool_id(const char *name, unsigned long long oid)
 {
     unsigned int i;
     for(i = 0; i < nb_nodes; i++) {
         if( !strcmp(name, nodes[i]->info.task_name) &&
-            (oid == nodes[i]->info.handle_id) )
+            (oid == nodes[i]->info.taskpool_id) )
             return i;
     }
     return NID;
@@ -148,7 +148,7 @@ void add_key_nodes(void)
     ni.node = strdup("");
     ni.vp = strdup("");
     ni.thread = strdup("");
-    ni.handle_id = 0;
+    ni.taskpool_id = 0;
     ni.priority = 0;
     nid = add_node(&ni);
 
@@ -158,7 +158,7 @@ void add_key_nodes(void)
     ni.node = strdup("");
     ni.vp = strdup("");
     ni.thread = strdup("");
-    ni.handle_id = 0;
+    ni.taskpool_id = 0;
     ni.priority = 0;
     nid = add_node(&ni);
     set_node_status(nid, STATUS_RUNNING);
@@ -169,7 +169,7 @@ void add_key_nodes(void)
     ni.node = strdup("");
     ni.vp = strdup("");
     ni.thread = strdup("");
-    ni.handle_id = 0;
+    ni.taskpool_id = 0;
     ni.priority = 0;
     nid = add_node(&ni);
     set_node_status(nid, STATUS_READY);
@@ -180,7 +180,7 @@ void add_key_nodes(void)
     ni.node = strdup("");
     ni.vp = strdup("");
     ni.thread = strdup("");
-    ni.handle_id = 0;
+    ni.taskpool_id = 0;
     ni.priority = 0;
     nid = add_node(&ni);
     set_node_status(nid, STATUS_ENABLED);
@@ -191,7 +191,7 @@ void add_key_nodes(void)
     ni.node = strdup("");
     ni.vp = strdup("");
     ni.thread = strdup("");
-    ni.handle_id = 0;
+    ni.taskpool_id = 0;
     ni.priority = 0;
     nid = add_node(&ni);
     set_node_status(nid, STATUS_DONE);
@@ -258,7 +258,7 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
             rc = asprintf(&ni.node, "%d", fileidx);  assert(rc!=-1);
             rc = asprintf(&ni.vp, "%d", vp);         assert(rc!=-1);
             rc = asprintf(&ni.thread, "%d", thread); assert(rc!=-1);
-            ni.handle_id = oid;
+            ni.taskpool_id = oid;
             ni.priority = priority;
             (void)object;
 

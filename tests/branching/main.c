@@ -21,8 +21,8 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world, cores;
     int size, nb;
-    parsec_ddesc_t *ddescA;
-    parsec_handle_t *branching;
+    parsec_data_collection_t *dcA;
+    parsec_taskpool_t *branching;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -45,10 +45,10 @@ int main(int argc, char *argv[])
         nb = atoi(argv[1]);
     }
 
-    ddescA = create_and_distribute_data(rank, world, size);
-    parsec_ddesc_set_key(ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, size);
+    parsec_data_collection_set_key(dcA, "A");
 
-    branching = branching_new(ddescA, size, nb);
+    branching = branching_new(dcA, size, nb);
     if( NULL != branching ) {
         rc = parsec_enqueue(parsec, branching);
         PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     }
 
-    free_data(ddescA);
+    free_data(dcA);
 
     parsec_fini(&parsec);
 

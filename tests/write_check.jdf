@@ -8,7 +8,7 @@ extern "C" %{
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 %}
 
-A          [type = "parsec_ddesc_t*"]
+A          [type = "parsec_data_collection_t*"]
 NT         [type = int]
 BLOCK      [type = int]
 
@@ -69,7 +69,7 @@ static two_dim_block_cyclic_t descA;
 
 int main(int argc, char* argv[])
 {
-    parsec_write_check_handle_t* handle;
+    parsec_write_check_taskpool_t* tp;
     parsec_context_t *parsec;
     int i = 0, block = 10, n = 1000;
 
@@ -114,15 +114,15 @@ int main(int argc, char* argv[])
      * The original data is consistently initialized to 1. Upon completion it should
      * start with 2 and increase monotonically.
      */
-    handle = parsec_write_check_new( (parsec_ddesc_t*)&descA, (n / block) - 1, block );
-    assert( NULL != handle );
+    tp = parsec_write_check_new( (parsec_data_collection_t*)&descA, (n / block) - 1, block );
+    assert( NULL != tp );
 
-    parsec_arena_construct( handle->arenas[PARSEC_write_check_DEFAULT_ARENA],
-                           descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                           PARSEC_ARENA_ALIGNMENT_SSE,
-                           PARSEC_DATATYPE_NULL);  /* change for distributed cases */
+    parsec_arena_construct( tp->arenas[PARSEC_write_check_DEFAULT_ARENA],
+                            descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
-    parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    parsec_enqueue( parsec, (parsec_taskpool_t*)tp);
     parsec_context_wait(parsec);
 
     for( int i = 0; i < n; i++ ) {

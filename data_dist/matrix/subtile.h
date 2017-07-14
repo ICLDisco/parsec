@@ -12,10 +12,10 @@ BEGIN_C_DECLS
 
 /**
  * Exploit the tiled_matrix_desc to recursively split a single tile part of a
- * tiled_matrix_desc_t
+ * parsec_tiled_matrix_dc_t
  */
 typedef struct subtile_desc_s {
-    tiled_matrix_desc_t super;
+    parsec_tiled_matrix_dc_t super;
     void *mat;      /**< pointer to the beginning of the matrix */
     int vpid;
 } subtile_desc_t;
@@ -59,7 +59,7 @@ typedef struct subtile_desc_s {
  *       nb.
  *
  */
-subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,
+subtile_desc_t *subtile_desc_create( const parsec_tiled_matrix_dc_t *tdesc,
                                      int mt, int nt,
                                      int mb, int nb,
                                      int i,  int j,

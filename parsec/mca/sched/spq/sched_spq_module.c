@@ -22,13 +22,13 @@
  * Module functions
  */
 static int sched_spq_install(parsec_context_t* master);
-static int sched_spq_schedule(parsec_execution_unit_t* eu_context,
-                             parsec_execution_context_t* new_context,
+static int sched_spq_schedule(parsec_execution_stream_t* es,
+                             parsec_task_t* new_context,
                              int32_t distance);
-static parsec_execution_context_t*
-sched_spq_select(parsec_execution_unit_t *eu_context,
+static parsec_task_t*
+sched_spq_select(parsec_execution_stream_t *es,
                 int32_t* distance);
-static int flow_spq_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
+static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier);
 static void sched_spq_remove(parsec_context_t* master);
 
 typedef struct parsec_spq_priority_list_s {
@@ -60,34 +60,34 @@ static int sched_spq_install( parsec_context_t *master )
     return 0;
 }
 
-static int flow_spq_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier)
+static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
 {
-    parsec_vp_t *vp = eu_context->virtual_process;
+    parsec_vp_t *vp = es->virtual_process;
 
-    if (eu_context == vp->execution_units[0])
-        vp->execution_units[0]->scheduler_object = OBJ_NEW(parsec_list_t);
+    if (es == vp->execution_streams[0])
+        vp->execution_streams[0]->scheduler_object = OBJ_NEW(parsec_list_t);
 
     parsec_barrier_wait(barrier);
 
-    eu_context->scheduler_object = (void*)vp->execution_units[0]->scheduler_object;
+    es->scheduler_object = (void*)vp->execution_streams[0]->scheduler_object;
 
     return 0;
 }
 
-static parsec_execution_context_t* sched_spq_select(parsec_execution_unit_t *eu_context,
-                                                    int32_t* distance)
+static parsec_task_t* sched_spq_select(parsec_execution_stream_t *es,
+                                       int32_t* distance)
 {
-    parsec_execution_context_t *context;
+    parsec_task_t* context;
     parsec_list_item_t *li;
     parsec_spq_priority_list_t *plist;
-    parsec_list_t *task_list = (parsec_list_t*)eu_context->scheduler_object;
+    parsec_list_t *task_list = (parsec_list_t*)es->scheduler_object;
 
     parsec_list_lock(task_list);
     for( li = PARSEC_LIST_ITERATOR_FIRST(task_list);
          li != PARSEC_LIST_ITERATOR_END(task_list);
          li = PARSEC_LIST_ITERATOR_NEXT(li) ) {
         plist = (parsec_spq_priority_list_t*)li;
-        if( (context = (parsec_execution_context_t*)parsec_list_pop_front(&plist->tasks)) != NULL ) {
+        if( (context = (parsec_task_t*)parsec_list_pop_front(&plist->tasks)) != NULL ) {
             *distance = plist->prio;
             break;
         }
@@ -96,14 +96,14 @@ static parsec_execution_context_t* sched_spq_select(parsec_execution_unit_t *eu_
     return context;
 }
 
-static int sched_spq_schedule(parsec_execution_unit_t* eu_context,
-                             parsec_execution_context_t* new_context,
+static int sched_spq_schedule(parsec_execution_stream_t* es,
+                             parsec_task_t* new_context,
                              int32_t distance)
 {
     parsec_list_item_t *li;
     int new_prio;
     parsec_spq_priority_list_t *plist;
-    parsec_list_t *task_list = (parsec_list_t*)eu_context->scheduler_object;
+    parsec_list_t *task_list = (parsec_list_t*)es->scheduler_object;
 
     new_prio = 1;
     parsec_list_lock(task_list);
@@ -123,7 +123,7 @@ static int sched_spq_schedule(parsec_execution_unit_t* eu_context,
         plist = OBJ_NEW(parsec_spq_priority_list_t);
         plist->prio = distance;
         parsec_list_nolock_add_before(task_list, li, &plist->super);
-    }                                          
+    }
     parsec_list_chain_sorted(&plist->tasks,
                              (parsec_list_item_t*)new_context,
                              parsec_execution_context_priority_comparator);
@@ -135,12 +135,12 @@ static void sched_spq_remove( parsec_context_t *master )
 {
     int p, t;
     parsec_vp_t *vp;
-    parsec_execution_unit_t *eu;
+    parsec_execution_stream_t *eu;
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
         for(t = 0; t < vp->nb_cores; t++) {
-            eu = vp->execution_units[t];
+            eu = vp->execution_streams[t];
             if( eu->th_id == 0 ) {
                 OBJ_DESTRUCT( eu->scheduler_object );
                 free(eu->scheduler_object);

@@ -192,7 +192,7 @@ typedef struct jdf_function_entry {
     struct jdf_name_list      *parameters;
     jdf_flags_t                flags;
     jdf_flags_t                user_defines;
-    int32_t                    function_id;
+    int32_t                    task_class_id;
     struct jdf_def_list       *locals;
     struct jdf_call           *predicate;
     struct jdf_dataflow       *dataflow;

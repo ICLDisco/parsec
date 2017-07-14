@@ -118,16 +118,16 @@ struct dplasma_qrtree_s {
 };
 
 int  dplasma_systolic_init( dplasma_qrtree_t *qrtree,
-                            PLASMA_enum trans, tiled_matrix_desc_t *A,
+                            PLASMA_enum trans, parsec_tiled_matrix_dc_t *A,
                             int p, int q );
 void dplasma_systolic_finalize( dplasma_qrtree_t *qrtree );
 
 int  dplasma_svd_init( dplasma_qrtree_t *qrtree,
-                       PLASMA_enum trans, tiled_matrix_desc_t *A,
+                       PLASMA_enum trans, parsec_tiled_matrix_dc_t *A,
                        int type_hlvl, int p, int nbcores_per_node, int ratio );
 
 int  dplasma_hqr_init( dplasma_qrtree_t *qrtree,
-                       PLASMA_enum trans, tiled_matrix_desc_t *A,
+                       PLASMA_enum trans, parsec_tiled_matrix_dc_t *A,
                        int type_llvl, int type_hlvl,
                        int a, int p, int domino, int tsrr );
 void dplasma_hqr_finalize( dplasma_qrtree_t *qrtree );
@@ -135,15 +135,15 @@ void dplasma_hqr_finalize( dplasma_qrtree_t *qrtree );
 /*
  * Debugging functions
  */
-int  dplasma_qrtree_check        ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree );
-void dplasma_qrtree_print_dag    ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, char *filename );
-void dplasma_qrtree_print_type   ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree );
-void dplasma_qrtree_print_pivot  ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree );
-void dplasma_qrtree_print_nbgeqrt( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree );
-void dplasma_qrtree_print_perm   ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int *perm );
-void dplasma_qrtree_print_next_k ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k );
-void dplasma_qrtree_print_prev_k ( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k );
-void dplasma_qrtree_print_geqrt_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k );
+int  dplasma_qrtree_check        ( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree );
+void dplasma_qrtree_print_dag    ( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree, char *filename );
+void dplasma_qrtree_print_type   ( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree );
+void dplasma_qrtree_print_pivot  ( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree );
+void dplasma_qrtree_print_nbgeqrt( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree );
+void dplasma_qrtree_print_perm   ( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree, int *perm );
+void dplasma_qrtree_print_next_k ( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree, int k );
+void dplasma_qrtree_print_prev_k ( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree, int k );
+void dplasma_qrtree_print_geqrt_k( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree, int k );
 
 END_C_DECLS
 

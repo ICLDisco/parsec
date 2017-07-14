@@ -19,7 +19,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrdsm_New - Generates parsec handle to compute triangular solve
+ *  dplasma_ztrdsm_New - Generates parsec taskpool to compute triangular solve
  *     op( A ) * X = B or X * op( A ) = B
  *  WARNING: The computations are not done by this call.
  *
@@ -33,7 +33,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrdsm_Destruct();
  *
@@ -46,14 +46,14 @@
  * @sa dplasma_strdsm_New
  *
  ******************************************************************************/
-parsec_handle_t*
-dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
+parsec_taskpool_t*
+dplasma_ztrdsm_New(const parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t *B )
 {
-    parsec_handle_t *parsec_trdsm = NULL; 
+    parsec_taskpool_t *parsec_trdsm = NULL;
 
-    parsec_trdsm = (parsec_handle_t*)parsec_ztrdsm_new( A, B );
+    parsec_trdsm = (parsec_taskpool_t*)parsec_ztrdsm_new( A, B );
 
-    dplasma_add2arena_tile(((parsec_ztrdsm_handle_t*)parsec_trdsm)->arenas[PARSEC_ztrdsm_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_ztrdsm_taskpool_t*)parsec_trdsm)->arenas[PARSEC_ztrdsm_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
@@ -66,14 +66,14 @@ dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrdsm_Destruct - Free the data structure associated to an handle
+ *  dplasma_ztrdsm_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_ztrdsm_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -82,11 +82,11 @@ dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
  *
  ******************************************************************************/
 void
-dplasma_ztrdsm_Destruct( parsec_handle_t *handle )
+dplasma_ztrdsm_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_ztrdsm_handle_t *otrdsm = (parsec_ztrdsm_handle_t *)handle;
+    parsec_ztrdsm_taskpool_t *otrdsm = (parsec_ztrdsm_taskpool_t *)tp;
     parsec_matrix_del2arena( otrdsm->arenas[PARSEC_ztrdsm_DEFAULT_ARENA] );
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -122,10 +122,10 @@ dplasma_ztrdsm_Destruct( parsec_handle_t *handle )
  ******************************************************************************/
 int
 dplasma_ztrdsm( parsec_context_t *parsec,
-                const tiled_matrix_desc_t *A,
-                tiled_matrix_desc_t *B)
+                const parsec_tiled_matrix_dc_t *A,
+                parsec_tiled_matrix_dc_t *B)
 {
-    parsec_handle_t *parsec_ztrdsm = NULL;
+    parsec_taskpool_t *parsec_ztrdsm = NULL;
 
     parsec_ztrdsm = dplasma_ztrdsm_New(A, B);
 

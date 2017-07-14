@@ -34,14 +34,14 @@ typedef struct two_dim_td_table_s {
 /* structure equivalent to PLASMA_desc, but for distributed matrix data
  */
 typedef struct two_dim_tabular_s {
-    tiled_matrix_desc_t super;
+    parsec_tiled_matrix_dc_t super;
     int user_table;
     two_dim_td_table_t *tiles_table;
 } two_dim_tabular_t;
 
 /**
  * Initialize the description of a tabular abribtrary distribution
- * @param Ddesc matrix description structure, already allocated, that will be initialize
+ * @param dc matrix description structure, already allocated, that will be initialize
  * @param nodes number of nodes
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of row in a tile
@@ -57,7 +57,7 @@ typedef struct two_dim_tabular_s {
  *        using that descriptor.
  */
 
-void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
+void two_dim_tabular_init(two_dim_tabular_t * dc,
                           enum matrix_type mtype,
                           unsigned int nodes, unsigned int myrank,
                           unsigned int mb, unsigned int nb,
@@ -66,10 +66,10 @@ void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
                           unsigned int m, unsigned int n,
                           two_dim_td_table_t *table );
 
-void two_dim_tabular_destroy(two_dim_tabular_t *tddesc);
-void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *table);
-void two_dim_tabular_set_user_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *table);
-void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc, unsigned int seed);
+void two_dim_tabular_destroy(two_dim_tabular_t *tdc);
+void two_dim_tabular_set_table(two_dim_tabular_t *dc, two_dim_td_table_t *table);
+void two_dim_tabular_set_user_table(two_dim_tabular_t *dc, two_dim_td_table_t *table);
+void two_dim_tabular_set_random_table(two_dim_tabular_t *dc, unsigned int seed);
 void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabular_t *Dst);
 
 END_C_DECLS

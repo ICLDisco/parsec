@@ -7,7 +7,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec/mca/mca_repository.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/profiling.h"
 #include "parsec/utils/mca_param.h"
 
@@ -120,62 +120,62 @@ void pins_fini(parsec_context_t* master_context)
  * interfacing of PINS measurements with working PaRSEC subsystems.
  * It MUST NOT be called BEFORE pins_init().
  */
-void pins_thread_init(parsec_execution_unit_t* exec_unit)
+void pins_thread_init(parsec_execution_stream_t* es)
 {
     int i;
 
     for( i = 0; i < PINS_FLAG_COUNT; i++ ) {
-        exec_unit->pins_events_cb[i].cb_func = NULL;
-        exec_unit->pins_events_cb[i].cb_data = NULL;
+        es->pins_events_cb[i].cb_func = NULL;
+        es->pins_events_cb[i].cb_data = NULL;
     }
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
             if ( NULL != modules_activated[i]->module.thread_init)
-                modules_activated[i]->module.thread_init(exec_unit);
+                modules_activated[i]->module.thread_init(es);
         }
     }
 
-    PINS(exec_unit, THREAD_INIT, NULL);
+    PINS(es, THREAD_INIT, NULL);
 }
 
 /**
  * called in scheduling.c, which is not ideal
  */
-void pins_thread_fini(parsec_execution_unit_t* exec_unit)
+void pins_thread_fini(parsec_execution_stream_t* es)
 {
     int i = 0;
 
-    PINS(exec_unit, THREAD_FINI, NULL);
+    PINS(es, THREAD_FINI, NULL);
 
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
             if ( NULL != modules_activated[i]->module.thread_fini)
-                modules_activated[i]->module.thread_fini(exec_unit);
+                modules_activated[i]->module.thread_fini(es);
         }
     }
 
     for( i = 0; i < PINS_FLAG_COUNT; i++ ) {
-        assert(NULL == exec_unit->pins_events_cb[i].cb_func);
-        assert(NULL == exec_unit->pins_events_cb[i].cb_data);
+        assert(NULL == es->pins_events_cb[i].cb_func);
+        assert(NULL == es->pins_events_cb[i].cb_data);
     }
 }
 
 /**
- * pins_handle_init() should be called once per PaRSEC handle instantiation.
- * It should be called near the beginning of the handle's lifetime, preferably
- * once most other handle components have been initialized, so as to allow the
+ * pins_taskpool_init() should be called once per PaRSEC taskpool instantiation.
+ * It should be called near the beginning of the taskpool's lifetime, preferably
+ * once most other taskpool components have been initialized, so as to allow the
  * interfacing of PINS measurements with working PaRSEC subsystems.
  *
  * It MUST NOT be called BEFORE pins_init().
  */
-void pins_handle_init(parsec_handle_t* handle)
+void pins_taskpool_init(parsec_taskpool_t* tp)
 {
     int i = 0;
 
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
-            if ( NULL != modules_activated[i]->module.handle_init)
-                modules_activated[i]->module.handle_init(handle);
+            if ( NULL != modules_activated[i]->module.taskpool_init)
+                modules_activated[i]->module.taskpool_init(tp);
         }
     }
 }
@@ -183,14 +183,14 @@ void pins_handle_init(parsec_handle_t* handle)
 /**
  * Currently uncalled in the PaRSEC DPLAMSA testing executables
  */
-void pins_handle_fini(parsec_handle_t * handle)
+void pins_taskpool_fini(parsec_taskpool_t * tp)
 {
     int i = 0;
 
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
-            if ( NULL != modules_activated[i]->module.handle_fini)
-                modules_activated[i]->module.handle_fini(handle);
+            if ( NULL != modules_activated[i]->module.taskpool_fini)
+                modules_activated[i]->module.taskpool_fini(tp);
         }
     }
 }

@@ -22,7 +22,7 @@ BEGIN_C_DECLS
 /* structure equivalent to PLASMA_desc, but for distributed matrix data
  */
 typedef struct two_dim_block_cyclic {
-    tiled_matrix_desc_t super;
+    parsec_tiled_matrix_dc_t super;
     grid_2Dcyclic_t     grid;
     void *mat;      /**< pointer to the beginning of the matrix */
     int nb_elem_r;  /**< number of row of tiles  handled by this process - derived parameter */
@@ -42,7 +42,7 @@ typedef struct two_dim_block_cyclic {
 
 /**
  * Initialize the description of a  2-D block cyclic distributed matrix.
- * @param Ddesc matrix description structure, already allocated, that will be initialize
+ * @param dc matrix description structure, already allocated, that will be initialize
  * @param mtype type of data used for this matrix
  * @param storage type of storage of data
  * @param nodes number of nodes
@@ -75,8 +75,8 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
                                            two_dim_block_cyclic_t* origin,
                                            int rst, int cst );
 
-void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *Ddesc, int position, int *m, int *n);
-int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *Ddesc, int m, int n);
+void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *dc, int position, int *m, int *n);
+int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *dc, int m, int n);
 
 END_C_DECLS
 

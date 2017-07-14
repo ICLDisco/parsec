@@ -18,7 +18,7 @@
 BEGIN_C_DECLS
 
 typedef struct scalapack_info_t {
-    tiled_matrix_desc_t * Ddesc;
+    parsec_tiled_matrix_dc_t * dc;
     int * sca_desc;
     void * sca_mat;
     int process_grid_rows;
@@ -36,20 +36,20 @@ typedef struct scalapack_info_t {
 } scalapack_info_t;
 
 /* allocate buffer size to handle a matrix in scalapack format in 2D block cyclic, given a parsec matrix specification and a process grid
- * @param Ddesc: parsec format description of the matrix to convert (distributed in any fashion)
+ * @param dc: parsec format description of the matrix to convert (distributed in any fashion)
  * @param process_grid_rows: number of rows in the process grid for 2D block cyclic (number of column computed internally)
  * @return buffer allocated to contain scalapack conversion
  */
-void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc, int process_grid_rows);
+void * allocate_scalapack_matrix(parsec_tiled_matrix_dc_t * dc, int * sca_desc, int process_grid_rows);
 
-int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * Ddesc, int * sca_desc, void * sca_mat, int process_grid_rows);
+int tiles_to_scalapack_info_init(scalapack_info_t * info, parsec_tiled_matrix_dc_t * dc, int * sca_desc, void * sca_mat, int process_grid_rows);
 
 void tiles_to_scalapack_info_destroy(scalapack_info_t * info);
     
 void tile_to_block_double(scalapack_info_t * info, int row, int col);
 
 /* Convert the local view of a matrix from parsec format to scalapack format.
- * @param Ddesc: parsec format description of the matrix to convert (distributed in any fashion)
+ * @param dc: parsec format description of the matrix to convert (distributed in any fashion)
  * @param desc:  scalapack format description, should be already allocated with size = 9;
  * @param sca_mat: pointer to the converted matrix location
  */
@@ -58,7 +58,7 @@ int tiles_to_scalapack(scalapack_info_t * info);
 
 
 /* Convert the local view of a matrix from scalapack to dplasma format.
- * @param Ddesc: parsec format description 
+ * @param dc: parsec format description 
  * @param Sdesc: scalapack format description
  * @param sca_mat: pointer to the scalapack matrix location
  */

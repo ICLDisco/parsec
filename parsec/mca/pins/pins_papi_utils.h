@@ -8,7 +8,7 @@
 #define PINS_PAPI_UTILS_H
 
 #include "parsec.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/include/parsec/os-spec-timing.h"
 
 typedef struct parsec_pins_papi_values_s {
@@ -62,8 +62,8 @@ typedef struct parsec_pins_papi_callback_s {
 
 int pins_papi_init(parsec_context_t * master_context);
 int pins_papi_fini(parsec_context_t * master_context);
-int pins_papi_thread_init(parsec_execution_unit_t * exec_unit);
-int pins_papi_thread_fini(parsec_execution_unit_t * exec_unit);
+int pins_papi_thread_init(parsec_execution_stream_t* es);
+int pins_papi_thread_fini(parsec_execution_stream_t* es);
 
 /**
  * Parse a string into PAPI events and returns the event array initialized with the

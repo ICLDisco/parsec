@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgetrf_incpiv_New - Generates the handle that computes the LU
+ * dplasma_zgetrf_incpiv_New - Generates the taskpool that computes the LU
  * factorization of a M-by-N matrix A using tile algorithm.
  *
  * This algorithm exploits the multi-threaded recursive kernels of the PLASMA
@@ -81,7 +81,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgetrf_incpiv_Destruct();
  *
@@ -94,13 +94,13 @@
  * @sa dplasma_sgetrf_incpiv_New
  *
  ******************************************************************************/
-parsec_handle_t*
-dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
-                           tiled_matrix_desc_t *L,
-                           tiled_matrix_desc_t *IPIV,
+parsec_taskpool_t*
+dplasma_zgetrf_incpiv_New( parsec_tiled_matrix_dc_t *A,
+                           parsec_tiled_matrix_dc_t *L,
+                           parsec_tiled_matrix_dc_t *IPIV,
                            int *INFO )
 {
-    parsec_zgetrf_incpiv_handle_t *parsec_getrf_incpiv;
+    parsec_zgetrf_incpiv_taskpool_t *parsec_getrf_incpiv;
     int ib;
 
     if ( (A->mt != L->mt) || (A->nt != L->nt) ) {
@@ -116,11 +116,11 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
         ib = L->mb;
         parsec_getrf_incpiv = parsec_zgetrf_incpiv_new( A,
                                                       L,
-                                                      (parsec_ddesc_t*)IPIV,
+                                                      (parsec_data_collection_t*)IPIV,
                                                       INFO, NULL);
     } else {
         ib = L->mb - 1;
-        parsec_getrf_incpiv = (parsec_zgetrf_incpiv_handle_t*)
+        parsec_getrf_incpiv = (parsec_zgetrf_incpiv_taskpool_t*)
             parsec_zgetrf_incpiv_sd_new( A,
                                         L,
                                         NULL, INFO, NULL);
@@ -159,7 +159,7 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_complex_t, L->mb, L->nb, -1);
 
-    return (parsec_handle_t*)parsec_getrf_incpiv;
+    return (parsec_taskpool_t*)parsec_getrf_incpiv;
 }
 
 /**
@@ -167,14 +167,14 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgetrf_incpiv_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgetrf_incpiv_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgetrf_incpiv_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -183,9 +183,9 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_incpiv_Destruct( parsec_handle_t *handle )
+dplasma_zgetrf_incpiv_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zgetrf_incpiv_handle_t *parsec_zgetrf_incpiv = (parsec_zgetrf_incpiv_handle_t *)handle;
+    parsec_zgetrf_incpiv_taskpool_t *parsec_zgetrf_incpiv = (parsec_zgetrf_incpiv_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zgetrf_incpiv->arenas[PARSEC_zgetrf_incpiv_DEFAULT_ARENA   ] );
     parsec_matrix_del2arena( parsec_zgetrf_incpiv->arenas[PARSEC_zgetrf_incpiv_UPPER_TILE_ARENA] );
@@ -196,7 +196,7 @@ dplasma_zgetrf_incpiv_Destruct( parsec_handle_t *handle )
     parsec_private_memory_fini( parsec_zgetrf_incpiv->_g_work_pool );
     free( parsec_zgetrf_incpiv->_g_work_pool );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -274,11 +274,11 @@ dplasma_zgetrf_incpiv_Destruct( parsec_handle_t *handle )
  ******************************************************************************/
 int
 dplasma_zgetrf_incpiv( parsec_context_t *parsec,
-                       tiled_matrix_desc_t *A,
-                       tiled_matrix_desc_t *L,
-                       tiled_matrix_desc_t *IPIV )
+                       parsec_tiled_matrix_dc_t *A,
+                       parsec_tiled_matrix_dc_t *L,
+                       parsec_tiled_matrix_dc_t *IPIV )
 {
-    parsec_handle_t *parsec_zgetrf_incpiv = NULL;
+    parsec_taskpool_t *parsec_zgetrf_incpiv = NULL;
     int info = 0;
 
     if ( (A->mt != L->mt) || (A->nt != L->nt) ) {

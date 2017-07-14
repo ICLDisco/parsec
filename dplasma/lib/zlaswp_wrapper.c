@@ -19,7 +19,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlaswp_New - Generates the handle that performs a series of row
+ *  dplasma_zlaswp_New - Generates the taskpool that performs a series of row
  *  interchanges on the matrix A.  One row interchange is initiated for each
  *  rows in IPIV descriptor.
  *
@@ -43,7 +43,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlaswp_Destruct();
  *
@@ -56,12 +56,12 @@
  * @sa dplasma_slaswp_New
  *
  ******************************************************************************/
-parsec_handle_t *
-dplasma_zlaswp_New(tiled_matrix_desc_t *A,
-                   const tiled_matrix_desc_t *IPIV,
+parsec_taskpool_t *
+dplasma_zlaswp_New(parsec_tiled_matrix_dc_t *A,
+                   const parsec_tiled_matrix_dc_t *IPIV,
                    int inc)
 {
-    parsec_zlaswp_handle_t *parsec_laswp;
+    parsec_zlaswp_taskpool_t *parsec_laswp;
 
     parsec_laswp = parsec_zlaswp_new( A,
                                     IPIV,
@@ -79,7 +79,7 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_int_t, 1, A->mb, -1 );
 
-    return (parsec_handle_t*)parsec_laswp;
+    return (parsec_taskpool_t*)parsec_laswp;
 }
 
 /**
@@ -87,14 +87,14 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlaswp_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlaswp_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlaswp_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -103,14 +103,14 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zlaswp_Destruct( parsec_handle_t *handle )
+dplasma_zlaswp_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zlaswp_handle_t *parsec_zlaswp = (parsec_zlaswp_handle_t *)handle;
+    parsec_zlaswp_taskpool_t *parsec_zlaswp = (parsec_zlaswp_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zlaswp->arenas[PARSEC_zlaswp_DEFAULT_ARENA] );
     parsec_matrix_del2arena( parsec_zlaswp->arenas[PARSEC_zlaswp_PIVOT_ARENA  ] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -155,15 +155,15 @@ dplasma_zlaswp_Destruct( parsec_handle_t *handle )
  ******************************************************************************/
 int
 dplasma_zlaswp( parsec_context_t *parsec,
-                tiled_matrix_desc_t *A,
-                const tiled_matrix_desc_t *IPIV,
+                parsec_tiled_matrix_dc_t *A,
+                const parsec_tiled_matrix_dc_t *IPIV,
                 int inc)
 {
-    parsec_handle_t *parsec_zlaswp = NULL;
+    parsec_taskpool_t *parsec_zlaswp = NULL;
 
     parsec_zlaswp = dplasma_zlaswp_New(A, IPIV, inc);
 
-    parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlaswp);
+    parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zlaswp);
     dplasma_wait_until_completion(parsec);
 
     dplasma_zlaswp_Destruct( parsec_zlaswp );

@@ -8,7 +8,7 @@ extern "C" %{
 #endif
 %}
 
-A          [type = "parsec_ddesc_t*"]
+A          [type = "parsec_data_collection_t*"]
 NT
 WS
 

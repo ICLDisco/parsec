@@ -15,7 +15,7 @@
 #include "dplasma/lib/butterfly_map.h"
 #include "parsec/data_internal.h"
 
-seg_info_t parsec_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, int ib, int jb){
+seg_info_t parsec_rbt_calculate_constants(const parsec_tiled_matrix_dc_t *A, int L, int ib, int jb){
     int am, an, bm, bn, cm, cn, dm, dn, em, en, fm, fn;
     int mb, width, height, block_count;
     int cstartn, cendn, cstartm, cendm;
@@ -183,15 +183,15 @@ seg_info_t parsec_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, i
     return seg;
 }
 
-void segment_to_tile(const parsec_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset){
+void segment_to_tile(const parsec_seg_dc_t *seg_dc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset){
     seg_info_t seg;
     int mb, nb;
     int abs_m=0, abs_n=0;
     int right=0, bottom=0;
 
-    seg = seg_ddesc->seg_info;
-    mb = seg_ddesc->A_org->mb;
-    nb = seg_ddesc->A_org->nb;
+    seg = seg_dc->seg_info;
+    mb = seg_dc->A_org->mb;
+    nb = seg_dc->A_org->nb;
 
     if( n >= seg.tot_seg_cnt_n || m >= seg.tot_seg_cnt_m ){
         fprintf(stderr,"invalid segment coordinates\n");
@@ -364,11 +364,11 @@ int type_index_to_sizes(const seg_info_t *seg, int type_index, unsigned *m_sz, u
     return success;
 }
 
-int segment_to_arena_index(const parsec_seg_ddesc_t* but_ddesc, int m, int n){
+int segment_to_arena_index(const parsec_seg_dc_t* but_dc, int m, int n){
     /* if using named types in the JDF or the default type, then you need to
      * offset the following value by the number of named+default types used
      */
-    return segment_to_type_index(&but_ddesc->seg_info, m, n);
+    return segment_to_type_index(&but_dc->seg_info, m, n);
 }
 
 int segment_to_type_index(const seg_info_t *seg, int m, int n){

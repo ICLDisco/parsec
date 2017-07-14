@@ -70,7 +70,7 @@ typedef int (*advance_task_function_t)(gpu_device_t            *gpu_device,
 
 struct __parsec_gpu_context {
     parsec_list_item_t          list_item;
-    parsec_execution_context_t *ec;
+    parsec_task_t *ec;
     advance_task_function_t    submit;
     int                        task_type;
     int                        pushout[MAX_PARAM_COUNT];
@@ -149,12 +149,12 @@ int parsec_gpu_push_workspace(gpu_device_t* gpu_device, parsec_gpu_exec_stream_t
 void* parsec_gpu_pop_workspace(gpu_device_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream, size_t size);
 int parsec_gpu_free_workspace(gpu_device_t * gpu_device);
 
-int parsec_gpu_get_best_device( parsec_execution_context_t* this_task, double ratio );
+int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio );
 
 /* sort pending task list by number of spaces needed */
 int parsec_gpu_sort_pending_list(gpu_device_t *gpu_device);
-parsec_gpu_context_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parsec_execution_unit_t *eu_context);
-int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device, parsec_gpu_context_t *w2r_task, parsec_execution_unit_t *eu_context);
+parsec_gpu_context_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parsec_execution_stream_t *es);
+int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device, parsec_gpu_context_t *w2r_task, parsec_execution_stream_t *es);
 
 /**
  * Progress
@@ -168,9 +168,9 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device, parsec_gpu_context_t *w2r
  * where tasks ready to jump to the respective step are waiting.
  */
 parsec_hook_return_t
-parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
-                            parsec_gpu_context_t    *gpu_task,
-                            int which_gpu );
+parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
+                             parsec_gpu_context_t    *gpu_task,
+                             int which_gpu );
 
 /**
  * Predefined generic progress functions

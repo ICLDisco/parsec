@@ -178,11 +178,11 @@ int pins_papi_fini(parsec_context_t * master_context)
  * This function should be called by each thread in order to allow PAPI
  * to know about each of the potential users.
  */
-int pins_papi_thread_init(parsec_execution_unit_t * exec_unit)
+int pins_papi_thread_init(parsec_execution_stream_t* es)
 {
     if( 0 == init_done ) return -1;
 
-    (void)exec_unit;
+    (void)es;
     int err = PAPI_register_thread();
     if( err != PAPI_OK ) {
         parsec_warning("PAPI_register_thread failed (%s). All components depending on PAPI will be disabled.", PAPI_strerror(err));
@@ -195,11 +195,11 @@ int pins_papi_thread_init(parsec_execution_unit_t * exec_unit)
  * Function to be called once per thread, similar to pins_papi_thread_init.
  */
 
-int pins_papi_thread_fini(parsec_execution_unit_t * exec_unit)
+int pins_papi_thread_fini(parsec_execution_stream_t* es)
 {
     if( 0 == init_done ) return -1;
 
-    (void)exec_unit;
+    (void)es;
     int err = PAPI_unregister_thread();
     if ( err != PAPI_OK )
         parsec_debug_verbose(3, parsec_debug_output, "PAPI_unregister_thread failed (%s).\n", PAPI_strerror(err));

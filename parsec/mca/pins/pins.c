@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,19 +10,19 @@
 #include <assert.h>
 #include "parsec/mca/pins/pins.h"
 #include "parsec/debug.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 
 static int registration_disabled;
 
-void parsec_pins_instrument(struct parsec_execution_unit_s* exec_unit,
+void parsec_pins_instrument(struct parsec_execution_stream_s* es,
                             PINS_FLAG method_flag,
-                            struct parsec_execution_context_s* task)
+                            parsec_task_t* task)
 {
     assert( method_flag < PINS_FLAG_COUNT );
 
-    parsec_pins_next_callback_t* cb_event = &exec_unit->pins_events_cb[method_flag];
+    parsec_pins_next_callback_t* cb_event = &es->pins_events_cb[method_flag];
     while( NULL != cb_event->cb_func ) {
-        cb_event->cb_func(exec_unit, task, cb_event->cb_data);
+        cb_event->cb_func(es, task, cb_event->cb_data);
         cb_event = cb_event->cb_data;
     }
 }
@@ -40,7 +40,7 @@ void parsec_pins_disable_registration(int disable)
  * must not be NULL, as it is used to chain the callback with all the previous
  * ones.
  */
-int parsec_pins_register_callback(struct parsec_execution_unit_s* exec_unit,
+int parsec_pins_register_callback(struct parsec_execution_stream_s* es,
                                   PINS_FLAG method_flag,
                                   parsec_pins_callback cb_func,
                                   struct parsec_pins_next_callback_s* cb_data)
@@ -58,7 +58,7 @@ int parsec_pins_register_callback(struct parsec_execution_unit_s* exec_unit,
         return 0;
     }
 
-    parsec_pins_next_callback_t* cb_event = &exec_unit->pins_events_cb[method_flag];
+    parsec_pins_next_callback_t* cb_event = &es->pins_events_cb[method_flag];
 
     *cb_data = *cb_event;
 
@@ -68,7 +68,7 @@ int parsec_pins_register_callback(struct parsec_execution_unit_s* exec_unit,
     return 0;
 }
 
-int parsec_pins_unregister_callback(struct parsec_execution_unit_s* exec_unit,
+int parsec_pins_unregister_callback(struct parsec_execution_stream_s* es,
                                     PINS_FLAG method_flag,
                                     parsec_pins_callback cb,
                                     struct parsec_pins_next_callback_s** cb_data)
@@ -83,7 +83,7 @@ int parsec_pins_unregister_callback(struct parsec_execution_unit_s* exec_unit,
         return 0;
     }
 
-    parsec_pins_next_callback_t* cb_event = &exec_unit->pins_events_cb[method_flag];
+    parsec_pins_next_callback_t* cb_event = &es->pins_events_cb[method_flag];
     while( (NULL != cb_event->cb_data) && (cb != cb_event->cb_func) ) {
         cb_event = cb_event->cb_data;
     }

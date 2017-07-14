@@ -3450,7 +3450,7 @@ void quark_print_types_of_formal_parameters(node_t *root){
         for(sym=scope->symbols; NULL!=sym; sym=sym->next){
             if( !strcmp(sym->var_type, "PLASMA_desc") ){
                 printf("desc_%s [type = \"PLASMA_desc\"]\n",sym->var_name);
-                printf("data_%s [type = \"parsec_ddesc_t *\"]\n",sym->var_name);
+                printf("data_%s [type = \"parsec_data_collection_t *\"]\n",sym->var_name);
             }else{
                 printf("%s [type = \"%s\"]\n",sym->var_name, sym->var_type);
             }

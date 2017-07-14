@@ -17,8 +17,10 @@ typedef struct expr_s expr_t;
 typedef struct parsec_flow_s parsec_flow_t;
 typedef struct dep_s dep_t;
 typedef struct symbol_s symbol_t;
+typedef struct parsec_data_s parsec_data_t;
 
-struct parsec_handle_s;
+struct parsec_taskpool_s;
+#include "parsec/datatype.h"
 
 /**
  * Assignments
@@ -34,10 +36,10 @@ struct assignment_s {
 #define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
-typedef parsec_datatype_t (*expr_op_datatype_inline_func_t)(const struct parsec_handle_s *__parsec_handle_parent, const assignment_t *assignments);
-typedef int32_t (*expr_op_int32_inline_func_t)(const struct parsec_handle_s *__parsec_handle_parent, const assignment_t *assignments);
-typedef int64_t (*expr_op_int64_inline_func_t)(const struct parsec_handle_s *__parsec_handle_parent, const assignment_t *assignments);
-typedef parsec_data_t *(*direct_data_lookup_func_t)(const struct parsec_handle_s *__parsec_handle_parent, const assignment_t *assignments);
+typedef parsec_datatype_t (*expr_op_datatype_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef int32_t (*expr_op_int32_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef int64_t (*expr_op_int64_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef parsec_data_t *(*direct_data_lookup_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
 
 struct expr_s {
     union {
@@ -118,7 +120,7 @@ struct parsec_comm_desc_s {
 struct dep_s {
     expr_t const               *cond;           /**< The runtime-evaluable condition on this dependency */
     expr_t const               *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
-    uint8_t                    function_id;     /**< Index of the target parsec function in the object function array */
+    uint8_t                    task_class_id;   /**< Index of the target parsec function in the object function array */
     uint8_t                    dep_index;      /**< Output index of the dependency. This is used to store the flow
                                                 *   before tranfering it to the successors. */
     uint8_t                    dep_datatype_index;  /**< Index of the output datatype. */
@@ -128,7 +130,7 @@ struct dep_s {
                                                 *   this dep is a direct memory access */
 };
 
-void dep_dump(const dep_t *d, const struct parsec_handle_s *parsec_handle, const char *prefix);
+void dep_dump(const dep_t *d, const struct parsec_taskpool_s *tp, const char *prefix);
 
 /**
  * Parameters

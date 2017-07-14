@@ -28,7 +28,7 @@ BEGIN_C_DECLS
  **/
 
 /*
- * The following is a definition of the flags, for usage please check usage of parsec_insert_task() below.
+ * The following is a definition of the flags, for usage please check usage of parsec_dtd_taskpool_insert_task() below.
  *
  *   **  Details of Flags **
  *
@@ -56,7 +56,7 @@ typedef enum { INPUT=0x100000,
              } parsec_dtd_op_type;
 
 /*
- * The following is a definition of the flags, for usage please check usage of parsec_insert_task() below.
+ * The following is a definition of the flags, for usage please check usage of parsec_dtd_taskpool_insert_task() below.
  *
  *   **  Details of Flags **
  *
@@ -90,34 +90,34 @@ extern parsec_arena_t **parsec_dtd_arenas;
  * Users can use this two variables to control the sliding window of task insertion.
  * This is set using a default number or the number set by the mca_param.
  * The command line to set the value of window size and threshold size are:
- * "-- --mca dtd_window_size 4000 --mca dtd_threshold_size 2000"
+ * "-- --mca parsec_dtd_window_size 4000 --mca parsec_dtd_threshold_size 2000"
  * This will set the window size to be 4000 tasks. This means the main thread
  * will insert 4000 tasks and then retire from it and join the workers.
- * The dtd_threshold_size indicates the number of tasks, reaching which
+ * The parsec_dtd_threshold_size indicates the number of tasks, reaching which
  * the main thread will resume inserting tasks again.
  * The threshold should always be smaller than the window size.
  */
-extern int dtd_window_size;
-extern int dtd_threshold_size;
+extern int parsec_dtd_window_size;
+extern int parsec_dtd_threshold_size;
 
-#define PASSED_BY_REF            1
-#define UNPACK_VALUE             1
-#define UNPACK_DATA              2
-#define UNPACK_SCRATCH           3
-#define MAX_FLOW                 25 /* Max number of flows allowed per task */
-#define PARSEC_DTD_NB_FUNCTIONS  25 /* Max number of task classes allowed */
+#define PASSED_BY_REF                1
+#define UNPACK_VALUE                 1
+#define UNPACK_DATA                  2
+#define UNPACK_SCRATCH               3
+#define MAX_FLOW                    25 /* Max number of flows allowed per task */
+#define PARSEC_DTD_NB_TASK_CLASSES  25 /* Max number of task classes allowed */
 
-typedef struct parsec_dtd_tile_s       parsec_dtd_tile_t;
-typedef struct parsec_dtd_task_s       parsec_dtd_task_t;
-typedef struct parsec_dtd_handle_s     parsec_dtd_handle_t;
+typedef struct parsec_dtd_tile_s         parsec_dtd_tile_t;
+typedef struct parsec_dtd_task_s         parsec_dtd_task_t;
+typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
 
 /*
  * Function pointer typeof  kernel pointer pased as parameter to insert_function().
  * This is the prototype of the function in which the actual operations of each task
  * is implemented by the User. The actual computation will be performed in functions
  * having this prototype.
- * 1. parsec_execution_unit_t *
- * 2. parsec_execution_context_t * -> this gives access to the actual task the User inserted
+ * 1. parsec_execution_stream_t *
+ * 2. parsec_task_t * -> this gives access to the actual task the User inserted
  *                                    using this interface.
  * This function should return one of the following:
  *  PARSEC_HOOK_RETURN_DONE    : This execution succeeded
@@ -129,12 +129,12 @@ typedef struct parsec_dtd_handle_s     parsec_dtd_handle_t;
  *  PARSEC_HOOK_RETURN_ERROR   : Some other major error happened
  *
  */
-typedef int (parsec_dtd_funcptr_t)(parsec_execution_unit_t *, parsec_execution_context_t *);
+typedef int (parsec_dtd_funcptr_t)(parsec_execution_stream_t *, parsec_task_t *);
 
 /*
  * This function is used to retrieve the parameters passed during insertion of a task.
  * This function takes variadic parameters.
- * 1. parsec_execution_context_t * -> The parameter list is attached with this structure.
+ * 1. parsec_task_t * -> The parameter list is attached with this structure.
  *                                     The User needs to pass a FLAG to specify what sort of value needs to be
  *                                     unpacked. Three types of FLAGS are supported:
  *                                     - UNPACK_VALUE
@@ -151,32 +151,32 @@ typedef int (parsec_dtd_funcptr_t)(parsec_execution_unit_t *, parsec_execution_c
  *                              STRICTLY FOLLOWED WHILE UNPACKING
  */
 void
-parsec_dtd_unpack_args( parsec_execution_context_t *this_task, ... );
+parsec_dtd_unpack_args( parsec_task_t *this_task, ... );
 
 /*
  * The following macro is very specific to two dimensional matrix.
  * The parameters to pass to get pointer to data
- * 1. parsec_ddesc_t *
+ * 1. parsec_data_collection_t *
  * 2. m (coordinates of the data in the matrix)
  * 3. n (coordinates of the data in the matrix)
  */
-#define TILE_OF(DDESC, I, J) \
-    parsec_dtd_tile_of(&(__ddesc##DDESC->super.super), (&(__ddesc##DDESC->super.super))->data_key(&(__ddesc##DDESC->super.super), I, J))
+#define TILE_OF(DC, I, J) \
+    parsec_dtd_tile_of(&(__dc##DC->super.super), (&(__dc##DC->super.super))->data_key(&(__dc##DC->super.super), I, J))
 
 /*
  * This macro is for any type of data. The user needs to provide the
- * data-descriptor and the key. The ddesc and the key will allow us
+ * data-descriptor and the key. The dc and the key will allow us
  * to uniquely identify the data a task is supposed to use.
  */
-#define TILE_OF_KEY(DDESC, KEY) \
-    parsec_dtd_tile_of(DDESC, KEY)
+#define TILE_OF_KEY(DC, KEY) \
+    parsec_dtd_tile_of(DC, KEY)
 
 parsec_dtd_tile_t *
-parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key );
+parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
 
 /*
  * Using this function users can insert task in PaRSEC
- * 1. The parsec handle (parsec_dtd_handle_t *)
+ * 1. The parsec taskpool (parsec_dtd_taskpool_t *)
  * 2. The function pointer which will be executed as the "real computation task" being inserted.
  *    This function should include the actual computation the user wants to perform on the data.
  * 3. The priority of the task, if not sure user should provide 0.
@@ -207,9 +207,9 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key );
  *                               copied),
  *
  *
- *    3.    PASSED_BY_REF,         TILE_OF(ddesc, i, j),               INOUT/INPUT/OUTPUT,
+ *    3.    PASSED_BY_REF,         TILE_OF(dc, i, j),               INOUT/INPUT/OUTPUT,
  *                                         /                                    /
- *                                 TILE_OF_KEY(ddesc, key),            INOUT | REGION_INFO,
+ *                                 TILE_OF_KEY(dc, key),            INOUT | REGION_INFO,
  *                                                                              /
  *                                                                     INOUT | AFFINITY/DONT_TRACK,
  *                                                                              /
@@ -235,7 +235,7 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key );
  *
  */
 void
-parsec_insert_task( parsec_handle_t  *parsec_handle,
+parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
                     parsec_dtd_funcptr_t *fpointer, int priority,
                     char *name_of_kernel, ... );
 
@@ -243,38 +243,38 @@ parsec_insert_task( parsec_handle_t  *parsec_handle,
  * This macros should be called anytime users
  * are using data in their parsec-dtd runs.
  * This functions intializes/cleans necessary
- * structures in a data-descriptor(ddesc). The
- * init should be called after a valid ddesc
+ * structures in a data-descriptor(dc). The
+ * init should be called after a valid dc
  * has been acquired, and the fini before
- * the ddesc is cleaned.
+ * the dc is cleaned.
  */
-#define DTD_DDESC_INIT(DDESC) \
-    parsec_dtd_ddesc_init(&(__ddesc##DDESC->super.super))
+#define DTD_DC_INIT(DC) \
+    parsec_dtd_data_collection_init(&(__dc##DC->super.super))
 void
-parsec_dtd_ddesc_init( parsec_ddesc_t *ddesc );
+parsec_dtd_data_collection_init( parsec_data_collection_t *dc );
 
-#define DTD_DDESC_FINI(DDESC) \
-    parsec_dtd_ddesc_fini(&(__ddesc##DDESC->super.super))
+#define DTD_DC_FINI(DC) \
+    parsec_dtd_data_collection_fini(&(__dc##DC->super.super))
 void
-parsec_dtd_ddesc_fini( parsec_ddesc_t *ddesc );
+parsec_dtd_data_collection_fini( parsec_data_collection_t *dc );
 
 /*
- * This function will create and returns a parsec handle
+ * This function will create and returns a parsec taskpool
  * of dtd-type.
  */
-parsec_handle_t*
-parsec_dtd_handle_new();
+parsec_taskpool_t*
+parsec_dtd_taskpool_new();
 
 /*
  * This function will block until all the tasks inserted
  * so far is completed.
  * User can call this function multiple times
- * between a parsec_dtd_handle_new() and parsec_handle_free()
- * Takes a parsec context and a parsec handle as input.
+ * between a parsec_dtd_taskpool_new() and parsec_taskpool_free()
+ * Takes a parsec context and a parsec taskpool as input.
  */
 int
-parsec_dtd_handle_wait( parsec_context_t *parsec,
-                        parsec_handle_t  *parsec_handle );
+parsec_dtd_taskpool_wait( parsec_context_t *parsec,
+                        parsec_taskpool_t  *tp );
 
 /*
  * This function flushes a specific data,
@@ -290,17 +290,17 @@ parsec_dtd_handle_wait( parsec_context_t *parsec,
  * TILE_OF or TILE_OF_KEY macro.
  */
 void
-parsec_dtd_data_flush( parsec_handle_t   *parsec_handle,
+parsec_dtd_data_flush( parsec_taskpool_t   *tp,
                        parsec_dtd_tile_t *tile );
 
 /*
- * This function flushes all the data of a ddesc(data descriptor).
- * This function must be called for all ddesc(s) before
+ * This function flushes all the data of a dc(data descriptor).
+ * This function must be called for all dc(s) before
  * parsec_context_wait() is called.
  */
 void
-parsec_dtd_data_flush_all( parsec_handle_t *parsec_handle,
-                           parsec_ddesc_t  *ddesc );
+parsec_dtd_data_flush_all( parsec_taskpool_t *tp,
+                           parsec_data_collection_t  *dc );
 
 END_C_DECLS
 

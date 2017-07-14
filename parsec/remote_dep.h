@@ -32,8 +32,8 @@ typedef struct remote_dep_wire_activate_s
     remote_dep_datakey_t deps;         /**< a pointer to the dep structure on the source */
     remote_dep_datakey_t output_mask;  /**< the mask of the output dependencies satisfied by this activation message */
     remote_dep_datakey_t tag;
-    uint32_t             handle_id;
-    uint32_t             function_id;
+    uint32_t             taskpool_id;
+    uint32_t             task_class_id;
     uint32_t             length;
     assignment_t         locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
@@ -79,9 +79,9 @@ struct remote_dep_output_param_s {
 };
 
 struct parsec_remote_deps_s {
-    parsec_list_item_t                super;
-    parsec_lifo_t                    *origin;  /**< The memory arena where the data pointer is comming from */
-    struct parsec_handle_s           *parsec_handle;  /**< parsec object generating this data transfer */
+    parsec_list_item_t               super;
+    parsec_lifo_t                   *origin;    /**< The memory arena where the data pointer is comming from */
+    struct parsec_taskpool_s        *taskpool;  /**< parsec object generating this data transfer */
     int32_t                          pending_ack;  /**< Number of releases before completion */
     int32_t                          from;    /**< From whom we received the control */
     int32_t                          root;    /**< The root of the control message */
@@ -130,7 +130,7 @@ static inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
         char *ptr;
         PARSEC_LIFO_ITEM_ALLOC( lifo, remote_deps, parsec_remote_dep_context.elem_size );
         remote_deps->origin = lifo;
-        remote_deps->parsec_handle = NULL;
+        remote_deps->taskpool = NULL;
         ptr = (char*)(&(remote_deps->output[parsec_remote_dep_context.max_dep_count]));
         rank_bit_size = sizeof(uint32_t) * ((parsec_remote_dep_context.max_nodes_number + 31) / 32);
         memset(ptr, 0, rank_bit_size * parsec_remote_dep_context.max_dep_count);
@@ -148,7 +148,7 @@ static inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
         assert( (int)(ptr - (char*)remote_deps) ==
                 (int)(parsec_remote_dep_context.elem_size - rank_bit_size));
     }
-    assert(NULL == remote_deps->parsec_handle);
+    assert(NULL == remote_deps->taskpool);
     remote_deps->max_priority    = 0xffffffff;
     remote_deps->root            = -1;
     remote_deps->pending_ack     = 0;
@@ -158,7 +158,7 @@ static inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
     return remote_deps;
 }
 
-#define PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
+#define PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, TASK, COUNT) \
     if( NULL == (REMOTE_DEPS) ) { /* only once per function */                 \
         (REMOTE_DEPS) = (parsec_remote_deps_t*)remote_deps_allocate(&parsec_remote_dep_context.freelist); \
     }
@@ -187,7 +187,7 @@ static inline void remote_deps_free(parsec_remote_deps_t* deps)
 #if defined(PARSEC_DEBUG_PARANOID)
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
-    deps->parsec_handle      = NULL;
+    deps->taskpool      = NULL;
     parsec_lifo_push(deps->origin, (parsec_list_item_t*)deps);
 }
 
@@ -197,19 +197,19 @@ int parsec_remote_dep_on(parsec_context_t* context);
 int parsec_remote_dep_off(parsec_context_t* context);
 
 /* Poll for remote completion of tasks that would enable some work locally */
-int parsec_remote_dep_progress(parsec_execution_unit_t* eu_context);
+int parsec_remote_dep_progress(parsec_execution_stream_t* es);
 
 /* Inform the communication engine from the creation of new objects */
-int parsec_remote_dep_new_object(parsec_handle_t* handle);
+int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp);
 
 /* Send remote dependencies to target processes */
-int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
-                              const parsec_execution_context_t* origin,
-                              parsec_remote_deps_t* remote_deps,
-                              uint32_t propagation_mask);
+int parsec_remote_dep_activate(parsec_execution_stream_t* es,
+                               const parsec_task_t* origin,
+                               parsec_remote_deps_t* remote_deps,
+                               uint32_t propagation_mask);
 
 /* Memcopy a particular data using datatype specification */
-void parsec_remote_dep_memcpy(parsec_handle_t* parsec_handle,
+void parsec_remote_dep_memcpy(parsec_taskpool_t* tp,
                              parsec_data_copy_t *dst,
                              parsec_data_copy_t *src,
                              parsec_dep_data_description_t* data);
@@ -222,24 +222,24 @@ remote_dep_dequeue_delayed_dep_release(parsec_remote_deps_t *deps);
 
 /* This function creates a fake eu for comm thread for profiling DTD runs */
 void
-remote_dep_mpi_initialize_execution_unit(parsec_context_t *context);
+remote_dep_mpi_initialize_execution_stream(parsec_context_t *context);
 
 #ifdef PARSEC_DIST_COLLECTIVES
 /* Propagate an activation order from the current node down the original tree */
-int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
-                               const parsec_execution_context_t* task,
+int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
+                               const parsec_task_t* task,
                                parsec_remote_deps_t* deps);
 #endif
 
 #else
-#define parsec_remote_dep_init(ctx)           1
-#define parsec_remote_dep_fini(ctx)           0
-#define parsec_remote_dep_on(ctx)             0
-#define parsec_remote_dep_off(ctx)            0
-#define parsec_remote_dep_progress(ctx)       0
+#define parsec_remote_dep_init(ctx)            1
+#define parsec_remote_dep_fini(ctx)            0
+#define parsec_remote_dep_on(ctx)              0
+#define parsec_remote_dep_off(ctx)             0
+#define parsec_remote_dep_progress(ctx)        0
 #define parsec_remote_dep_activate(ctx, o, r) -1
-#define parsec_remote_dep_new_object(ctx)     0
-#define remote_dep_mpi_initialize_execution_unit(ctx) 0
+#define parsec_remote_dep_new_taskpool(ctx)    0
+#define remote_dep_mpi_initialize_execution_stream(ctx) 0
 #endif /* DISTRIBUTED */
 
 /** @} */

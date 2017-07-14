@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The University of Tennessee and The University
+ * Copyright (c) 2011-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,60 +20,60 @@
 #if defined(PARSEC_PROF_TRACE)
 int parsec_map_operator_profiling_array[2] = {-1};
 #define TAKE_TIME(context, key, eid, refdesc, refid) do {   \
-   parsec_profile_ddesc_info_t info;                         \
-   info.desc = (parsec_ddesc_t*)refdesc;                     \
+   parsec_profile_data_collection_info_t info;                         \
+   info.desc = (parsec_data_collection_t*)refdesc;                     \
    info.id = refid;                                         \
-   PARSEC_PROFILING_TRACE(context->eu_profile,               \
-                         __parsec_handle->super.super.profiling_array[(key)],\
-                         eid, __parsec_handle->super.super.handle_id, (void*)&info);  \
+   PARSEC_PROFILING_TRACE(context->es_profile,               \
+                         __tp->super.super.profiling_array[(key)],\
+                         eid, __tp->super.super.taskpool_id, (void*)&info);  \
   } while(0);
 #else
 #define TAKE_TIME(context, key, id, refdesc, refid)
 #endif
 
-typedef struct parsec_map_operator_handle {
-    parsec_handle_t             super;
-    const tiled_matrix_desc_t* src;
-          tiled_matrix_desc_t* dest;
+typedef struct parsec_map_operator_taskpool {
+    parsec_taskpool_t          super;
+    const parsec_tiled_matrix_dc_t* src;
+          parsec_tiled_matrix_dc_t* dest;
     volatile uint32_t          next_k;
     parsec_operator_t           op;
     void*                      op_data;
-} parsec_map_operator_handle_t;
+} parsec_map_operator_taskpool_t;
 
-typedef struct __parsec_map_operator_handle {
-    parsec_map_operator_handle_t super;
-} __parsec_map_operator_handle_t;
+typedef struct __parsec_map_operator_taskpool {
+    parsec_map_operator_taskpool_t super;
+} __parsec_map_operator_taskpool_t;
 
 static const parsec_flow_t flow_of_map_operator;
-static const parsec_function_t parsec_map_operator;
+static const parsec_task_class_t parsec_map_operator;
 
-#define src(k,n)  (((parsec_ddesc_t*)__parsec_handle->super.src)->data_of((parsec_ddesc_t*)__parsec_handle->super.src, (k), (n)))
-#define dest(k,n)  (((parsec_ddesc_t*)__parsec_handle->super.dest)->data_of((parsec_ddesc_t*)__parsec_handle->super.dest, (k), (n)))
+#define src(k,n)  (((parsec_data_collection_t*)__tp->super.src)->data_of((parsec_data_collection_t*)__tp->super.src, (k), (n)))
+#define dest(k,n)  (((parsec_data_collection_t*)__tp->super.dest)->data_of((parsec_data_collection_t*)__tp->super.dest, (k), (n)))
 
 #if defined(PARSEC_PROF_TRACE)
-static inline uint32_t map_operator_op_hash(const __parsec_map_operator_handle_t *o, int k, int n )
+static inline uint32_t map_operator_op_hash(const __parsec_map_operator_taskpool_t *tp, int k, int n )
 {
-    return o->super.src->mt * k + n;
+    return tp->super.src->mt * k + n;
 }
 #endif  /* defined(PARSEC_PROF_TRACE) */
 
-static inline int minexpr_of_row_fct(const parsec_handle_t *__parsec_handle_parent, const assignment_t *assignments)
+static inline int minexpr_of_row_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)
 {
-    const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t*)__parsec_handle_parent;
+    const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)tp;
     (void)assignments;
-    return __parsec_handle->super.src->i;
+    return __tp->super.src->i;
 }
 static const expr_t minexpr_of_row = {
     .op = EXPR_OP_INLINE,
     .u_expr = { .inline_func_int32 = minexpr_of_row_fct }
 };
-static inline int maxexpr_of_row_fct(const parsec_handle_t *__parsec_handle_parent, const assignment_t *assignments)
+static inline int maxexpr_of_row_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)
 {
-    const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t*)__parsec_handle_parent;
+    const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)tp;
 
-    (void)__parsec_handle;
+    (void)__tp;
     (void)assignments;
-    return __parsec_handle->super.src->mt;
+    return __tp->super.src->mt;
 }
 static const expr_t maxexpr_of_row = {
     .op = EXPR_OP_INLINE,
@@ -85,11 +85,11 @@ static const symbol_t symb_row = {
     .flags = PARSEC_SYMBOL_IS_STANDALONE
 };
 
-static inline int minexpr_of_column_fct(const parsec_handle_t *__parsec_handle_parent, const assignment_t *assignments)
+static inline int minexpr_of_column_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)
 {
-    const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t*)__parsec_handle_parent;
+    const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)tp;
     (void)assignments;
-    return __parsec_handle->super.src->j;
+    return __tp->super.src->j;
 }
 
 static const expr_t minexpr_of_column = {
@@ -97,13 +97,13 @@ static const expr_t minexpr_of_column = {
     .u_expr = { .inline_func_int32 = minexpr_of_column_fct }
 };
 
-static inline int maxexpr_of_column_fct(const parsec_handle_t *__parsec_handle_parent, const assignment_t *assignments)
+static inline int maxexpr_of_column_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)
 {
-    const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t*)__parsec_handle_parent;
+    const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)tp;
 
-    (void)__parsec_handle;
+    (void)__tp;
     (void)assignments;
-    return __parsec_handle->super.src->nt;
+    return __tp->super.src->nt;
 }
 static const expr_t maxexpr_of_column = {
     .op = EXPR_OP_INLINE,
@@ -115,45 +115,45 @@ static const symbol_t symb_column = {
     .flags = PARSEC_SYMBOL_IS_STANDALONE
 };
 
-static inline int affinity_of_map_operator(parsec_execution_context_t *this_task,
+static inline int affinity_of_map_operator(parsec_task_t *this_task,
                                            parsec_data_ref_t *ref)
 {
-    const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t*)this_task->parsec_handle;
+    const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
-    ref->ddesc = (parsec_ddesc_t*)__parsec_handle->super.src;
-    ref->key = ref->ddesc->data_key(ref->ddesc, k, n);
+    ref->dc = (parsec_data_collection_t*)__tp->super.src;
+    ref->key = ref->dc->data_key(ref->dc, k, n);
     return 1;
 }
 
-static inline int initial_data_of_map_operator(parsec_execution_context_t *this_task,
+static inline int initial_data_of_map_operator(parsec_task_t *this_task,
                                                parsec_data_ref_t *refs)
 {
     int __flow_nb = 0;
-    parsec_ddesc_t *__d;
-    const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t*)this_task->parsec_handle;
+    parsec_data_collection_t *__d;
+    const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
 
-    __d = (parsec_ddesc_t*)__parsec_handle->super.src;
-    refs[__flow_nb].ddesc = __d;
+    __d = (parsec_data_collection_t*)__tp->super.src;
+    refs[__flow_nb].dc = __d;
     refs[__flow_nb].key = __d->data_key(__d, k, n);
     __flow_nb++;
 
     return __flow_nb;
 }
 
-static inline int final_data_of_map_operator(parsec_execution_context_t *this_task,
+static inline int final_data_of_map_operator(parsec_task_t *this_task,
                                              parsec_data_ref_t *data_refs)
 {
     int __flow_nb = 0;
-    parsec_ddesc_t *__d;
-    const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t*)this_task->parsec_handle;
+    parsec_data_collection_t *__d;
+    const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
 
-    __d = (parsec_ddesc_t*)__parsec_handle->super.dest;
-    data_refs[__flow_nb].ddesc = __d;
+    __d = (parsec_data_collection_t*)__tp->super.dest;
+    data_refs[__flow_nb].dc = __d;
     data_refs[__flow_nb].key = __d->data_key(__d, k, n);
     __flow_nb++;
 
@@ -162,13 +162,13 @@ static inline int final_data_of_map_operator(parsec_execution_context_t *this_ta
 
 static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
-    .function_id = 0,  /* parsec_map_operator.function_id */
+    .task_class_id = 0,  /* parsec_map_operator.task_class_id */
     .flow = &flow_of_map_operator,
 };
 
 static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
-    .function_id = 0,  /* parsec_map_operator.function_id */
+    .task_class_id = 0,  /* parsec_map_operator.task_class_id */
     .dep_index = 1,
     .flow = &flow_of_map_operator,
 };
@@ -183,21 +183,21 @@ static const parsec_flow_t flow_of_map_operator = {
 };
 
 static parsec_ontask_iterate_t
-add_task_to_list(parsec_execution_unit_t *eu_context,
-                 const parsec_execution_context_t *newcontext,
-                 const parsec_execution_context_t *oldcontext,
+add_task_to_list(parsec_execution_stream_t *es,
+                 const parsec_task_t *newcontext,
+                 const parsec_task_t *oldcontext,
                  const dep_t* dep,
                  parsec_dep_data_description_t* data,
                  int rank_src, int rank_dst,
                  int vpid_dst,
                  void *_ready_lists)
 {
-    parsec_execution_context_t** pready_list = (parsec_execution_context_t**)_ready_lists;
-    parsec_execution_context_t* new_context = (parsec_execution_context_t*)parsec_thread_mempool_allocate( eu_context->context_mempool );
+    parsec_task_t** pready_list = (parsec_task_t**)_ready_lists;
+    parsec_task_t* new_context = (parsec_task_t*)parsec_thread_mempool_allocate( es->context_mempool );
 
     new_context->status = PARSEC_TASK_STATUS_NONE;
     PARSEC_COPY_EXECUTION_CONTEXT(new_context, newcontext);
-    pready_list[vpid_dst] = (parsec_execution_context_t*)parsec_list_item_ring_push_sorted( (parsec_list_item_t*)(pready_list[vpid_dst]),
+    pready_list[vpid_dst] = (parsec_task_t*)parsec_list_item_ring_push_sorted( (parsec_list_item_t*)(pready_list[vpid_dst]),
                                                                                           (parsec_list_item_t*)new_context,
                                                                                           parsec_execution_context_priority_comparator );
 
@@ -205,71 +205,71 @@ add_task_to_list(parsec_execution_unit_t *eu_context,
     return PARSEC_ITERATE_STOP;
 }
 
-static void iterate_successors(parsec_execution_unit_t *eu,
-                               const parsec_execution_context_t *this_task,
+static void iterate_successors(parsec_execution_stream_t *es,
+                               const parsec_task_t *this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t *ontask,
                                void *ontask_arg)
 {
-    __parsec_map_operator_handle_t *__parsec_handle = (__parsec_map_operator_handle_t*)this_task->parsec_handle;
+    __parsec_map_operator_taskpool_t *__tp = (__parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value+1;
-    parsec_execution_context_t nc;
+    parsec_task_t nt;
 
-    nc.priority = 0;
-    nc.chore_id = 0;
-    nc.data[0].data_repo = NULL;
-    nc.data[1].data_repo = NULL;
+    nt.priority = 0;
+    nt.chore_id = 0;
+    nt.data[0].data_repo = NULL;
+    nt.data[1].data_repo = NULL;
     /* If this is the last n, try to move to the next k */
-    for( ; k < (int)__parsec_handle->super.src->nt; n = 0) {
-        for( ; n < (int)__parsec_handle->super.src->mt; n++ ) {
-            if( __parsec_handle->super.src->super.myrank !=
-                ((parsec_ddesc_t*)__parsec_handle->super.src)->rank_of((parsec_ddesc_t*)__parsec_handle->super.src,
+    for( ; k < (int)__tp->super.src->nt; n = 0) {
+        for( ; n < (int)__tp->super.src->mt; n++ ) {
+            if( __tp->super.src->super.myrank !=
+                ((parsec_data_collection_t*)__tp->super.src)->rank_of((parsec_data_collection_t*)__tp->super.src,
                                                                      k, n) )
                 continue;
-            int vpid =  ((parsec_ddesc_t*)__parsec_handle->super.src)->vpid_of((parsec_ddesc_t*)__parsec_handle->super.src,
+            int vpid =  ((parsec_data_collection_t*)__tp->super.src)->vpid_of((parsec_data_collection_t*)__tp->super.src,
                                                                              k, n);
             /* Here we go, one ready local task */
-            nc.locals[0].value = k;
-            nc.locals[1].value = n;
-            nc.function = &parsec_map_operator /*this*/;
-            nc.parsec_handle = this_task->parsec_handle;
-            nc.data[0].data_in = this_task->data[0].data_out;
-            nc.data[1].data_in = this_task->data[1].data_out;
+            nt.locals[0].value = k;
+            nt.locals[1].value = n;
+            nt.task_class = &parsec_map_operator /*this*/;
+            nt.taskpool = this_task->taskpool;
+            nt.data[0].data_in = this_task->data[0].data_out;
+            nt.data[1].data_in = this_task->data[1].data_out;
 
-            ontask(eu, &nc, this_task, &flow_of_map_operator_dep_out, NULL,
-                   __parsec_handle->super.src->super.myrank,
-                   __parsec_handle->super.src->super.myrank,
+            ontask(es, &nt, this_task, &flow_of_map_operator_dep_out, NULL,
+                   __tp->super.src->super.myrank,
+                   __tp->super.src->super.myrank,
                    vpid,
                    ontask_arg);
             return;
         }
         /* Go to the next row ... atomically */
-        k = parsec_atomic_inc_32b( &__parsec_handle->super.next_k );
+        k = parsec_atomic_inc_32b( &__tp->super.next_k );
     }
     (void)action_mask;
 }
 
-static int release_deps(parsec_execution_unit_t *eu,
-                        parsec_execution_context_t *this_task,
+static int release_deps(parsec_execution_stream_t *es,
+                        parsec_task_t *this_task,
                         uint32_t action_mask,
                         parsec_remote_deps_t *deps)
 {
-    parsec_execution_context_t** ready_list;
+    parsec_task_t** ready_list;
     int i;
 
-    ready_list = (parsec_execution_context_t **)calloc(sizeof(parsec_execution_context_t *),
+    ready_list = (parsec_task_t **)calloc(sizeof(parsec_task_t *),
                                                       vpmap_get_nb_vp());
 
-    iterate_successors(eu, this_task, action_mask, add_task_to_list, ready_list);
+    iterate_successors(es, this_task, action_mask, add_task_to_list, ready_list);
 
     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
         for(i = 0; i < vpmap_get_nb_vp(); i++) {
             if( NULL != ready_list[i] ) {
-                if( i == eu->virtual_process->vp_id )
-                    __parsec_schedule(eu, ready_list[i], 0);
+                if( i == es->virtual_process->vp_id )
+                    __parsec_schedule(es, ready_list[i], 0);
                 else
-                    __parsec_schedule(eu->virtual_process->parsec_context->virtual_processes[i]->execution_units[0],
+                    __parsec_schedule(es->virtual_process->parsec_context->virtual_processes[i]->execution_streams[0],
                                      ready_list[i], 0);
             }
         }
@@ -291,21 +291,21 @@ static int release_deps(parsec_execution_unit_t *eu,
     return 1;
 }
 
-static int data_lookup(parsec_execution_unit_t *context,
-                       parsec_execution_context_t *this_task)
+static int data_lookup(parsec_execution_stream_t *es,
+                       parsec_task_t *this_task)
 {
-    const __parsec_map_operator_handle_t *__parsec_handle = (__parsec_map_operator_handle_t*)this_task->parsec_handle;
+    const __parsec_map_operator_taskpool_t *__tp = (__parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
 
-    (void)context;
+    (void)es;
 
-    if( NULL != __parsec_handle->super.src ) {
+    if( NULL != __tp->super.src ) {
         this_task->data[0].data_in   = parsec_data_get_copy(src(k,n), 0);
         this_task->data[0].data_repo = NULL;
         this_task->data[0].data_out  = NULL;
     }
-    if( NULL != __parsec_handle->super.dest ) {
+    if( NULL != __tp->super.dest ) {
         this_task->data[1].data_in   = parsec_data_get_copy(dest(k,n), 0);
         this_task->data[1].data_repo = NULL;
         this_task->data[1].data_out  = this_task->data[1].data_in;
@@ -313,47 +313,47 @@ static int data_lookup(parsec_execution_unit_t *context,
     return 0;
 }
 
-static int hook_of(parsec_execution_unit_t *context,
-                   parsec_execution_context_t *this_task)
+static int hook_of(parsec_execution_stream_t *es,
+                   parsec_task_t *this_task)
 {
-    const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t*)this_task->parsec_handle;
+    const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
     const void* src_data = NULL;
     void* dest_data = NULL;
 
-    if( NULL != __parsec_handle->super.src ) {
+    if( NULL != __tp->super.src ) {
         src_data = PARSEC_DATA_COPY_GET_PTR(this_task->data[0].data_in);
     }
-    if( NULL != __parsec_handle->super.dest ) {
+    if( NULL != __tp->super.dest ) {
         dest_data = PARSEC_DATA_COPY_GET_PTR(this_task->data[1].data_in);
     }
 
 #if !defined(PARSEC_PROF_DRY_BODY)
-    TAKE_TIME(context, 2*this_task->function->function_id,
-              map_operator_op_hash( __parsec_handle, k, n ), __parsec_handle->super.src,
-              ((parsec_ddesc_t*)(__parsec_handle->super.src))->data_key((parsec_ddesc_t*)__parsec_handle->super.src, k, n) );
-    __parsec_handle->super.op( context, src_data, dest_data, __parsec_handle->super.op_data, k, n );
+    TAKE_TIME(es, 2*this_task->task_class->task_class_id,
+              map_operator_op_hash( __tp, k, n ), __tp->super.src,
+              ((parsec_data_collection_t*)(__tp->super.src))->data_key((parsec_data_collection_t*)__tp->super.src, k, n) );
+    __tp->super.op( es, src_data, dest_data, __tp->super.op_data, k, n );
 #endif
-    (void)context;
+    (void)es;
     return 0;
 }
 
-static int complete_hook(parsec_execution_unit_t *context,
-                         parsec_execution_context_t *this_task)
+static int complete_hook(parsec_execution_stream_t *es,
+                         parsec_task_t *this_task)
 {
-    const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t *)this_task->parsec_handle;
+    const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t *)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
-    (void)k; (void)n; (void)__parsec_handle;
+    (void)k; (void)n; (void)__tp;
 
-    TAKE_TIME(context, 2*this_task->function->function_id+1, map_operator_op_hash( __parsec_handle, k, n ), NULL, 0);
+    TAKE_TIME(es, 2*this_task->task_class->task_class_id+1, map_operator_op_hash( __tp, k, n ), NULL, 0);
 
 #if defined(PARSEC_PROF_GRAPHER)
-    parsec_prof_grapher_task(this_task, context->th_id, context->virtual_process->vp_id, k+n);
+    parsec_prof_grapher_task(this_task, es->th_id, es->virtual_process->vp_id, k+n);
 #endif  /* defined(PARSEC_PROF_GRAPHER) */
 
-    release_deps(context, this_task,
+    release_deps(es, this_task,
                  (PARSEC_ACTION_RELEASE_REMOTE_DEPS |
                   PARSEC_ACTION_RELEASE_LOCAL_DEPS |
                   PARSEC_ACTION_RELEASE_LOCAL_REFS |
@@ -372,10 +372,10 @@ static __parsec_chore_t __parsec_map_chores[] = {
       .hook     = NULL },
 };
 
-static const parsec_function_t parsec_map_operator = {
+static const parsec_task_class_t parsec_map_operator = {
     .name = "map_operator",
     .flags = 0x0,
-    .function_id = 0,
+    .task_class_id = 0,
     .nb_parameters = 2,
     .nb_locals = 2,
     .dependencies_goal = 0x1,
@@ -398,18 +398,18 @@ static const parsec_function_t parsec_map_operator = {
 };
 
 static void parsec_map_operator_startup_fn(parsec_context_t *context,
-                                          parsec_handle_t *parsec_handle,
-                                          parsec_execution_context_t** startup_list)
+                                           parsec_taskpool_t *tp,
+                                           parsec_task_t** startup_list)
 {
-    __parsec_map_operator_handle_t *__parsec_handle = (__parsec_map_operator_handle_t*)parsec_handle;
-    parsec_execution_context_t fake_context;
-    parsec_execution_context_t *ready_list;
+    __parsec_map_operator_taskpool_t *__tp = (__parsec_map_operator_taskpool_t*)tp;
+    parsec_task_t fake_context;
+    parsec_task_t *ready_list;
     int k = 0, n = 0, count = 0, vpid = 0;
-    parsec_execution_unit_t* eu;
+    parsec_execution_stream_t* es;
 
     *startup_list = NULL;
-    fake_context.function = &parsec_map_operator;
-    fake_context.parsec_handle = parsec_handle;
+    fake_context.task_class = &parsec_map_operator;
+    fake_context.taskpool = tp;
     fake_context.priority = 0;
     fake_context.data[0].data_repo = NULL;
     fake_context.data[0].data_in   = NULL;
@@ -418,36 +418,35 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     for( vpid = 0; vpid < vpmap_get_nb_vp(); vpid++ ) {
         /* If this is the last n, try to move to the next k */
         count = 0;
-        for( ; k < (int)__parsec_handle->super.src->nt; n = 0) {
-            for( ; n < (int)__parsec_handle->super.src->mt; n++ ) {
-                if (__parsec_handle->super.src->super.myrank !=
-                    ((parsec_ddesc_t*)__parsec_handle->super.src)->rank_of((parsec_ddesc_t*)__parsec_handle->super.src,
+        for( ; k < (int)__tp->super.src->nt; n = 0) {
+            for( ; n < (int)__tp->super.src->mt; n++ ) {
+                if (__tp->super.src->super.myrank !=
+                    ((parsec_data_collection_t*)__tp->super.src)->rank_of((parsec_data_collection_t*)__tp->super.src,
                                                                          k, n) )
                     continue;
 
-                if( vpid != ((parsec_ddesc_t*)__parsec_handle->super.src)->vpid_of((parsec_ddesc_t*)__parsec_handle->super.src,
+                if( vpid != ((parsec_data_collection_t*)__tp->super.src)->vpid_of((parsec_data_collection_t*)__tp->super.src,
                                                                                  k, n) )
                     continue;
                 /* Here we go, one ready local task */
                 ready_list = NULL;
-                eu = context->virtual_processes[vpid]->execution_units[count];
+                es = context->virtual_processes[vpid]->execution_streams[count];
                 fake_context.locals[0].value = k;
                 fake_context.locals[1].value = n;
-                add_task_to_list(eu, &fake_context, NULL, &flow_of_map_operator_dep_out, NULL,
-                                 __parsec_handle->super.src->super.myrank, -1,
+                add_task_to_list(es, &fake_context, NULL, &flow_of_map_operator_dep_out, NULL,
+                                 __tp->super.src->super.myrank, -1,
                                  0, (void*)&ready_list);
-                __parsec_schedule( eu, ready_list, 0 );
+                __parsec_schedule( es, ready_list, 0 );
                 count++;
                 if( count == context->virtual_processes[vpid]->nb_cores )
                     goto done;
                 break;
             }
             /* Go to the next row ... atomically */
-            k = parsec_atomic_inc_32b( &__parsec_handle->super.next_k );
+            k = parsec_atomic_inc_32b( &__tp->super.next_k );
         }
     done:  continue;
     }
-    return;
 }
 
 /**
@@ -456,19 +455,19 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
  * can be NULL, and then the data is reported as NULL in the corresponding op
  * floweter.
  */
-parsec_handle_t*
-parsec_map_operator_New(const tiled_matrix_desc_t* src,
-                       tiled_matrix_desc_t* dest,
+parsec_taskpool_t*
+parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
+                       parsec_tiled_matrix_dc_t* dest,
                        parsec_operator_t op,
                        void* op_data)
 {
-    __parsec_map_operator_handle_t *res;
+    __parsec_map_operator_taskpool_t *res;
 
     if( (NULL == src) && (NULL == dest) )
         return NULL;
     /* src and dest should have similar distributions */
     /* TODO */
-    res =  (__parsec_map_operator_handle_t*)calloc(1, sizeof(__parsec_map_operator_handle_t));
+    res =  (__parsec_map_operator_taskpool_t*)calloc(1, sizeof(__parsec_map_operator_taskpool_t));
     res->super.src     = src;
     res->super.dest    = dest;
     res->super.op      = op;
@@ -478,21 +477,21 @@ parsec_map_operator_New(const tiled_matrix_desc_t* src,
     res->super.super.profiling_array = parsec_map_operator_profiling_array;
     if( -1 == parsec_map_operator_profiling_array[0] ) {
         parsec_profiling_add_dictionary_keyword("operator", "fill:CC2828",
-                                               sizeof(parsec_profile_ddesc_info_t), PARSEC_PROFILE_DDESC_INFO_CONVERTOR,
-                                               (int*)&res->super.super.profiling_array[0 + 2 * parsec_map_operator.function_id],
-                                               (int*)&res->super.super.profiling_array[1 + 2 * parsec_map_operator.function_id]);
+                                               sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                               (int*)&res->super.super.profiling_array[0 + 2 * parsec_map_operator.task_class_id],
+                                               (int*)&res->super.super.profiling_array[1 + 2 * parsec_map_operator.task_class_id]);
     }
 #  endif /* defined(PARSEC_PROF_TRACE) */
 
-    res->super.super.handle_id = 1111;
+    res->super.super.taskpool_id = 1111;
     res->super.super.nb_tasks = src->nb_local_tiles;
     res->super.super.nb_pending_actions = 1;  /* for all local tasks */
     res->super.super.startup_hook = parsec_map_operator_startup_fn;
-    (void)parsec_handle_reserve_id((parsec_handle_t *)res);
-    return (parsec_handle_t*)res;
+    (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)res);
+    return (parsec_taskpool_t*)res;
 }
 
-void parsec_map_operator_Destruct( parsec_handle_t* o )
+void parsec_map_operator_Destruct( parsec_taskpool_t* o )
 {
     free(o);
 }

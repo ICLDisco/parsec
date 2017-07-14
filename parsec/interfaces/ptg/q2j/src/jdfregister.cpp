@@ -170,7 +170,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
 
                 e->next       = e2;
                 e->name       = strdup(string_arena_get_string(sa));
-                e->properties = jdf_create_properties_list( "type", JDF_STRING, "parsec_ddesc_t *", e->properties);
+                e->properties = jdf_create_properties_list( "type", JDF_STRING, "parsec_data_collection_t *", e->properties);
                 e->expression = NULL;
                 JDF_OBJECT_SET(e, NULL, 0, NULL);
 
@@ -184,7 +184,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                 JDF_OBJECT_SET(e2, NULL, 0, NULL);
 
                 string_arena_init(sa);
-                string_arena_add_string(sa, "*((tiled_matrix_desc_t*)%s%s)",
+                string_arena_add_string(sa, "*((parsec_tiled_matrix_dc_t*)%s%s)",
                                         _q2j_data_prefix, sym->var_name);
 
                 // Inverse order
@@ -192,7 +192,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
                                                              string_arena_get_string(sa),
                                                              e2->properties);
                 e2->properties = jdf_create_properties_list( "hidden", JDF_VAR,    "on",                  e2->properties);
-                e2->properties = jdf_create_properties_list( "type",   JDF_STRING, "tiled_matrix_desc_t", e2->properties);
+                e2->properties = jdf_create_properties_list( "type",   JDF_STRING, "parsec_tiled_matrix_dc_t", e2->properties);
 
             } else {
 

@@ -4,8 +4,8 @@
 #include "parsec.h"
 #include "data_dist/matrix/matrix.h"
 
-tiled_matrix_desc_t *create_and_distribute_data(int rank, int world, int nb, int nt);
-tiled_matrix_desc_t *create_and_distribute_empty_data(int rank, int world, int nb, int nt);
-void free_data(tiled_matrix_desc_t *d);
+parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int nb, int nt);
+parsec_tiled_matrix_dc_t *create_and_distribute_empty_data(int rank, int world, int nb, int nt);
+void free_data(parsec_tiled_matrix_dc_t *d);
 
 #endif

@@ -1,6 +1,6 @@
 %{
 /**
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -115,7 +115,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
             data->global = global;
 
             if( jdf_find_property( global->properties, "type", NULL ) == NULL ) {
-                global->properties = jdf_create_properties_list( "type", 0, "parsec_ddesc_t*", global->properties);
+                global->properties = jdf_create_properties_list( "type", 0, "parsec_data_collection_t*", global->properties);
             }
 
             return data;
@@ -125,7 +125,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     assert(NULL == global);
     global                    = new(jdf_global_entry_t);
     global->name              = strdup(data->dname);
-    global->properties        = jdf_create_properties_list( "type", 0, "parsec_ddesc_t*", NULL );
+    global->properties        = jdf_create_properties_list( "type", 0, "parsec_data_collection_t*", NULL );
     global->data              = data;
     global->expression        = NULL;
     JDF_OBJECT_LINENO(global) = current_lineno;
@@ -261,9 +261,9 @@ jdf:            jdf function
                     jdf_expr_t *el;
 
                     if( NULL == current_jdf.functions ) {
-                        $2->function_id = 0;
+                        $2->task_class_id = 0;
                     } else {
-                        $2->function_id = current_jdf.functions->function_id + 1;
+                        $2->task_class_id = current_jdf.functions->task_class_id + 1;
                     }
                     $2->next = current_jdf.functions;
                     current_jdf.functions = $2;

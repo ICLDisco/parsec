@@ -24,7 +24,7 @@
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
 /* This testing shows graph pruning as well as hierarchical execution.
- * The only restriction is the parsec_handle_wait() before parsec_context_wait()
+ * The only restriction is the parsec_taskpool_wait() before parsec_context_wait()
  */
 
 double time_elapsed = 0.0;
@@ -37,10 +37,10 @@ enum regions {
              };
 
 int
-test_task( parsec_execution_unit_t    *context,
-           parsec_execution_context_t *this_task )
+test_task( parsec_execution_stream_t *es,
+           parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     int *amount_of_work;
     parsec_dtd_unpack_args( this_task,
@@ -61,47 +61,46 @@ test_task( parsec_execution_unit_t    *context,
 }
 
 int
-test_task_generator( parsec_execution_unit_t    *context,
-                     parsec_execution_context_t *this_task )
+test_task_generator( parsec_execution_stream_t *es,
+                     parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
-    tiled_matrix_desc_t *ddescB;
+    parsec_tiled_matrix_dc_t *dcB;
     int amount = 0, *nb, *nt;
-    int rank = context->virtual_process->parsec_context->my_rank;
-    int world = context->virtual_process->parsec_context->nb_nodes, i;
+    int rank = es->virtual_process->parsec_context->my_rank;
+    int world = es->virtual_process->parsec_context->nb_nodes, i;
 
     parsec_dtd_unpack_args( this_task,
                             UNPACK_VALUE, &nb,
                             UNPACK_VALUE, &nt,
-                            0
-                          );
+                            0);
 
-    ddescB = create_and_distribute_empty_data(rank, world, *nb, *nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescB, "B");
-    parsec_ddesc_t *B = (parsec_ddesc_t *)ddescB;
-    parsec_dtd_ddesc_init(B);
+    dcB = create_and_distribute_empty_data(rank, world, *nb, *nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcB, "B");
+    parsec_data_collection_t *B = (parsec_data_collection_t *)dcB;
+    parsec_dtd_data_collection_init(B);
 
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new();
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( context->virtual_process->parsec_context, parsec_dtd_handle );
+    parsec_enqueue( es->virtual_process->parsec_context, dtd_tp );
 
     for( i = 0; i < 100; i++ ) {
-        parsec_insert_task( parsec_dtd_handle, test_task,    0,  "Test_Task",
+        parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                             sizeof(int),       &amount,    VALUE,
                             PASSED_BY_REF,     TILE_OF_KEY(B, rank),      INOUT | AFFINITY,
                             0 );
     }
 
-    parsec_dtd_data_flush(parsec_dtd_handle, TILE_OF_KEY(B, rank));
+    parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(B, rank));
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_handle_wait( context->virtual_process->parsec_context, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( es->virtual_process->parsec_context, dtd_tp );
 
-    parsec_dtd_ddesc_fini(B);
-    free_data(ddescB);
+    parsec_dtd_data_collection_fini(B);
+    free_data(dcB);
 
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     count++;
 
@@ -127,22 +126,22 @@ int main(int argc, char ** argv)
 
     int m;
     int nb, nt;
-    tiled_matrix_desc_t *ddescA;
-    parsec_handle_t *parsec_dtd_handle;
+    parsec_tiled_matrix_dc_t *dcA;
+    parsec_taskpool_t *dtd_tp;
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    parsec_dtd_handle = parsec_dtd_handle_new();
+    dtd_tp = parsec_dtd_taskpool_new();
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    parsec_enqueue( parsec, dtd_tp );
     parsec_context_start( parsec );
 
     nb = 1; /* size of each tile */
     nt = world; /* total tiles */
 
-    ddescA = create_and_distribute_empty_data(rank, world, nb, nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_empty_data(rank, world, nb, nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
@@ -150,23 +149,23 @@ int main(int argc, char ** argv)
                           MPI_INT);
 #endif
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-    parsec_dtd_ddesc_init(A);
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+    parsec_dtd_data_collection_init(A);
 
     SYNC_TIME_START();
 
     for( m = 0; m < nt; m++ ) {
-        parsec_insert_task( parsec_dtd_handle, test_task_generator,    0,  "Test_Task_generator",
+        parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_generator",
                             sizeof(int),       &nb,                 VALUE,
                             sizeof(int),       &nt,                 VALUE,
                             PASSED_BY_REF,     TILE_OF_KEY(A, m),   INOUT | AFFINITY,
                             0 );
 
-        parsec_dtd_data_flush(parsec_dtd_handle, TILE_OF_KEY(A, m));
+        parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, m));
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
     parsec_output( 0, "Successfully executed %d tasks in rank %d\n", count, parsec->my_rank );
 
@@ -175,10 +174,10 @@ int main(int argc, char ** argv)
     parsec_context_wait(parsec);
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);
-    parsec_dtd_ddesc_fini( A );
-    free_data(ddescA);
+    parsec_dtd_data_collection_fini( A );
+    free_data(dcA);
 
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     parsec_fini(&parsec);
 

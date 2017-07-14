@@ -12,30 +12,30 @@
 #include "parsec/devices/device.h"
 #include "parsec/vpmap.h"
 
-static uint32_t twoDBC_rank_of(parsec_ddesc_t* ddesc, ...);
-static int32_t twoDBC_vpid_of(parsec_ddesc_t* ddesc, ...);
-static parsec_data_t* twoDBC_data_of(parsec_ddesc_t* ddesc, ...);
-static uint32_t twoDBC_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
-static int32_t twoDBC_vpid_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
-static parsec_data_t* twoDBC_data_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
+static uint32_t twoDBC_rank_of(parsec_data_collection_t* dc, ...);
+static int32_t twoDBC_vpid_of(parsec_data_collection_t* dc, ...);
+static parsec_data_t* twoDBC_data_of(parsec_data_collection_t* dc, ...);
+static uint32_t twoDBC_rank_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
+static int32_t twoDBC_vpid_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
+static parsec_data_t* twoDBC_data_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 
-static uint32_t twoDBC_stview_rank_of(parsec_ddesc_t* ddesc, ...);
-static int32_t twoDBC_stview_vpid_of(parsec_ddesc_t* ddesc, ...);
-static parsec_data_t* twoDBC_stview_data_of(parsec_ddesc_t* ddesc, ...);
-static uint32_t twoDBC_stview_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
-static int32_t twoDBC_stview_vpid_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
-static parsec_data_t* twoDBC_stview_data_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
+static uint32_t twoDBC_stview_rank_of(parsec_data_collection_t* dc, ...);
+static int32_t twoDBC_stview_vpid_of(parsec_data_collection_t* dc, ...);
+static parsec_data_t* twoDBC_stview_data_of(parsec_data_collection_t* dc, ...);
+static uint32_t twoDBC_stview_rank_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
+static int32_t twoDBC_stview_vpid_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
+static parsec_data_t* twoDBC_stview_data_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 
 #if defined(PARSEC_HARD_SUPERTILE)
-static uint32_t twoDBC_st_rank_of(parsec_ddesc_t* ddesc, ...);
-static int32_t twoDBC_st_vpid_of(parsec_ddesc_t* ddesc, ...);
-static parsec_data_t* twoDBC_st_data_of(parsec_ddesc_t* ddesc, ...);
-static uint32_t twoDBC_st_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
-static int32_t twoDBC_st_vpid_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
-static parsec_data_t* twoDBC_st_data_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
+static uint32_t twoDBC_st_rank_of(parsec_data_collection_t* dc, ...);
+static int32_t twoDBC_st_vpid_of(parsec_data_collection_t* dc, ...);
+static parsec_data_t* twoDBC_st_data_of(parsec_data_collection_t* dc, ...);
+static uint32_t twoDBC_st_rank_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
+static int32_t twoDBC_st_vpid_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
+static parsec_data_t* twoDBC_st_data_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 #endif
 
-static int twoDBC_memory_register(parsec_ddesc_t* desc, struct parsec_device_s* device)
+static int twoDBC_memory_register(parsec_data_collection_t* desc, struct parsec_device_s* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
     if( NULL == twodbc->mat ) {
@@ -47,7 +47,7 @@ static int twoDBC_memory_register(parsec_ddesc_t* desc, struct parsec_device_s* 
                                            (size_t)parsec_datadist_getsizeoftype(twodbc->super.mtype)));
 }
 
-static int twoDBC_memory_unregister(parsec_ddesc_t* desc, struct parsec_device_s* device)
+static int twoDBC_memory_unregister(parsec_data_collection_t* desc, struct parsec_device_s* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
     if( NULL == twodbc->mat ) {
@@ -56,7 +56,7 @@ static int twoDBC_memory_unregister(parsec_ddesc_t* desc, struct parsec_device_s
     return device->device_memory_unregister(device, desc, twodbc->mat);
 }
 
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
+void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
                                enum matrix_type mtype,
                                enum matrix_storage storage,
                                int nodes, int myrank,
@@ -68,14 +68,14 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                int P )
 {
     int temp, Q;
-    parsec_ddesc_t       *o     = &(Ddesc->super.super);
-    tiled_matrix_desc_t *tdesc = &(Ddesc->super);
+    parsec_data_collection_t       *o     = &(dc->super.super);
+    parsec_tiled_matrix_dc_t *tdesc = &(dc->super);
 
     /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( tdesc, mtype, storage, two_dim_block_cyclic_type,
+    parsec_tiled_matrix_dc_init( tdesc, mtype, storage, two_dim_block_cyclic_type,
                             nodes, myrank,
                             mb, nb, lm, ln, i, j, m, n );
-    Ddesc->mat = NULL;  /* No data associated with the matrix yet */
+    dc->mat = NULL;  /* No data associated with the matrix yet */
 
     /* WARNING: This has to be removed when padding will be removed */
     if ( (storage == matrix_Lapack) && (nodes > 1) ) {
@@ -100,45 +100,45 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     }
 
 #if defined(PARSEC_HARD_SUPERTILE)
-    grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, nrst, ncst);
+    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, nrst, ncst);
 #else
-    grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, 1, 1);
+    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1);
 #endif /* PARSEC_HARD_SUPERTILE */
 
     /* Compute the number of rows handled by the local process */
-    Ddesc->nb_elem_r = 0;
-    temp = Ddesc->grid.rrank * Ddesc->grid.strows; /* row coordinate of the first tile to handle */
+    dc->nb_elem_r = 0;
+    temp = dc->grid.rrank * dc->grid.strows; /* row coordinate of the first tile to handle */
     while( temp < tdesc->lmt ) {
-        if( (temp + (Ddesc->grid.strows)) < tdesc->lmt ) {
-            Ddesc->nb_elem_r += (Ddesc->grid.strows);
-            temp += ((Ddesc->grid.rows) * (Ddesc->grid.strows));
+        if( (temp + (dc->grid.strows)) < tdesc->lmt ) {
+            dc->nb_elem_r += (dc->grid.strows);
+            temp += ((dc->grid.rows) * (dc->grid.strows));
             continue;
         }
-        Ddesc->nb_elem_r += ((tdesc->lmt) - temp);
+        dc->nb_elem_r += ((tdesc->lmt) - temp);
         break;
     }
 
     /* Compute the number of columns handled by the local process */
-    Ddesc->nb_elem_c = 0;
-    temp = Ddesc->grid.crank * Ddesc->grid.stcols;
+    dc->nb_elem_c = 0;
+    temp = dc->grid.crank * dc->grid.stcols;
     while( temp < tdesc->lnt ) {
-        if( (temp + (Ddesc->grid.stcols)) < tdesc->lnt ) {
-            Ddesc->nb_elem_c += (Ddesc->grid.stcols);
-            temp += (Ddesc->grid.cols) * (Ddesc->grid.stcols);
+        if( (temp + (dc->grid.stcols)) < tdesc->lnt ) {
+            dc->nb_elem_c += (dc->grid.stcols);
+            temp += (dc->grid.cols) * (dc->grid.stcols);
             continue;
         }
-        Ddesc->nb_elem_c += ((tdesc->lnt) - temp);
+        dc->nb_elem_c += ((tdesc->lnt) - temp);
         break;
     }
 
     /* Total number of tiles stored locally */
-    tdesc->nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
+    tdesc->nb_local_tiles = dc->nb_elem_r * dc->nb_elem_c;
     tdesc->data_map = (parsec_data_t**)calloc(tdesc->nb_local_tiles, sizeof(parsec_data_t*));
 
     /* Update llm and lln */
     if ( !((storage == matrix_Lapack) && (nodes == 1)) ) {
-        tdesc->llm = Ddesc->nb_elem_r * mb;
-        tdesc->lln = Ddesc->nb_elem_c * nb;
+        tdesc->llm = dc->nb_elem_r * mb;
+        tdesc->lln = dc->nb_elem_c * nb;
     }
 
     /* set the methods */
@@ -158,37 +158,37 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
         o->vpid_of_key  = twoDBC_st_vpid_of_key;
         o->data_of_key  = twoDBC_st_data_of_key;
 #else
-        two_dim_block_cyclic_supertiled_view(Ddesc, Ddesc, nrst, ncst);
+        two_dim_block_cyclic_supertiled_view(dc, dc, nrst, ncst);
 #endif /* PARSEC_HARD_SUPERTILE */
     }
     o->register_memory   = twoDBC_memory_register;
     o->unregister_memory = twoDBC_memory_unregister;
 
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "two_dim_block_cyclic_init: \n"
-           "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
+           "      dc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
            "      nrst = %d, ncst = %d, P = %d, Q = %d",
-           Ddesc, tdesc->mtype, tdesc->super.nodes,
+           dc, tdesc->mtype, tdesc->super.nodes,
            tdesc->super.myrank,
            tdesc->mb, tdesc->nb,
            tdesc->lm, tdesc->ln,
            tdesc->i,  tdesc->j,
            tdesc->m,  tdesc->n,
-           Ddesc->grid.strows, Ddesc->grid.stcols,
+           dc->grid.strows, dc->grid.stcols,
            P, Q);
 }
 
-static void twoDBC_key_to_coordinates(parsec_ddesc_t *desc, parsec_data_key_t key, int *m, int *n)
+static void twoDBC_key_to_coordinates(parsec_data_collection_t *desc, parsec_data_key_t key, int *m, int *n)
 {
     int _m, _n;
-    tiled_matrix_desc_t * Ddesc;
+    parsec_tiled_matrix_dc_t * dc;
 
-    Ddesc = (tiled_matrix_desc_t *)desc;
+    dc = (parsec_tiled_matrix_dc_t *)desc;
 
-    _m = key % Ddesc->lmt;
-    _n = key / Ddesc->lmt;
-    *m = _m - Ddesc->i / Ddesc->mb;
-    *n = _n - Ddesc->j / Ddesc->nb;
+    _m = key % dc->lmt;
+    _n = key / dc->lmt;
+    *m = _m - dc->i / dc->mb;
+    *n = _n - dc->j / dc->nb;
 }
 
 /*
@@ -196,13 +196,13 @@ static void twoDBC_key_to_coordinates(parsec_ddesc_t *desc, parsec_data_key_t ke
  * Set of functions with no super-tiles
  *
  */
-static uint32_t twoDBC_rank_of(parsec_ddesc_t * desc, ...)
+static uint32_t twoDBC_rank_of(parsec_data_collection_t * desc, ...)
 {
     int cr, m, n;
     int rr;
     int res;
     va_list ap;
-    two_dim_block_cyclic_t * Ddesc = (two_dim_block_cyclic_t *)desc;
+    two_dim_block_cyclic_t * dc = (two_dim_block_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -211,43 +211,43 @@ static uint32_t twoDBC_rank_of(parsec_ddesc_t * desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
 
-    assert( m < Ddesc->super.mt );
-    assert( n < Ddesc->super.nt );
+    assert( m < dc->super.mt );
+    assert( n < dc->super.nt );
 
     /* P(rr, cr) has the tile, compute the mpi rank*/
-    rr = m % Ddesc->grid.rows;
-    cr = n % Ddesc->grid.cols;
-    res = rr * Ddesc->grid.cols + cr;
+    rr = m % dc->grid.rows;
+    cr = n % dc->grid.cols;
+    res = rr * dc->grid.cols + cr;
 
     return res;
 }
 
-static uint32_t twoDBC_rank_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static uint32_t twoDBC_rank_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
     twoDBC_key_to_coordinates(desc, key, &m, &n);
     return twoDBC_rank_of(desc, m, n);
 }
 
-static int32_t twoDBC_vpid_of(parsec_ddesc_t *desc, ...)
+static int32_t twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
 {
     int m, n, p, q, pq;
     int local_m, local_n;
-    two_dim_block_cyclic_t * Ddesc;
+    two_dim_block_cyclic_t * dc;
     va_list ap;
     int32_t vpid;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
+    dc = (two_dim_block_cyclic_t *)desc;
 
     /* If 1 VP, always return 0 */
     pq = vpmap_get_nb_vp();
     if ( pq == 1 )
         return 0;
 
-    q = Ddesc->grid.vp_q;
-    p = Ddesc->grid.vp_p;
+    q = dc->grid.vp_q;
+    p = dc->grid.vp_p;
     assert(p*q == pq);
 
     /* Get coordinates */
@@ -257,30 +257,30 @@ static int32_t twoDBC_vpid_of(parsec_ddesc_t *desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
 
-    assert( m < Ddesc->super.mt );
-    assert( n < Ddesc->super.nt );
+    assert( m < dc->super.mt );
+    assert( n < dc->super.nt );
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_rank_of(desc, m, n));
 #endif
 
     /* Compute the local tile row */
-    local_m = m / Ddesc->grid.rows;
-    assert( (m % Ddesc->grid.rows) == Ddesc->grid.rrank );
+    local_m = m / dc->grid.rows;
+    assert( (m % dc->grid.rows) == dc->grid.rrank );
 
     /* Compute the local column */
-    local_n = n / Ddesc->grid.cols;
-    assert( (n % Ddesc->grid.cols) == Ddesc->grid.crank );
+    local_n = n / dc->grid.cols;
+    assert( (n % dc->grid.cols) == dc->grid.crank );
 
     vpid = (local_n % q) * p + (local_m % p);
     assert( vpid < vpmap_get_nb_vp() );
     return vpid;
 }
 
-static int32_t twoDBC_vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static int32_t twoDBC_vpid_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
     twoDBC_key_to_coordinates(desc, key, &m, &n);
@@ -292,19 +292,19 @@ static int32_t twoDBC_vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
  * twoDBC_position_to_coordinates()
  * Other files (zhebut) depend on the inverse function.
  */
-inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *Ddesc, int m, int n){
+inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *dc, int m, int n){
     int position, local_m, local_n;
 
     /* Compute the local tile row */
-    local_m = m / Ddesc->grid.rows;
-    assert( (m % Ddesc->grid.rows) == Ddesc->grid.rrank );
+    local_m = m / dc->grid.rows;
+    assert( (m % dc->grid.rows) == dc->grid.rrank );
 
     /* Compute the local column */
-    local_n = n / Ddesc->grid.cols;
-    assert( (n % Ddesc->grid.cols) == Ddesc->grid.crank );
+    local_n = n / dc->grid.cols;
+    assert( (n % dc->grid.cols) == dc->grid.crank );
 
-    assert(Ddesc->nb_elem_r <= Ddesc->super.lmt);
-    position = Ddesc->nb_elem_r * local_n + local_m;
+    assert(dc->nb_elem_r <= dc->super.lmt);
+    position = dc->nb_elem_r * local_n + local_m;
 
     return position;
 }
@@ -313,29 +313,29 @@ inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *Ddesc, int m, 
  * This is the inverse function of: twoDBC_coordinates_to_position()
  * Please keep them in sync, other files (zhebut) depend on this function.
  */
-inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *Ddesc, int position, int *m, int *n)
+inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *dc, int position, int *m, int *n)
 {
     int local_m, local_n;
 
-    local_m = position%(Ddesc->nb_elem_r);
-    local_n = position/(Ddesc->nb_elem_r);
+    local_m = position%(dc->nb_elem_r);
+    local_n = position/(dc->nb_elem_r);
 
-    *m = local_m*(Ddesc->grid.rows) + Ddesc->grid.rrank;
-    *n = local_n*(Ddesc->grid.cols) + Ddesc->grid.crank;
+    *m = local_m*(dc->grid.rows) + dc->grid.rrank;
+    *n = local_n*(dc->grid.cols) + dc->grid.crank;
 #if defined(PARSEC_DEBUG_PARANOID)
-    assert(position == twoDBC_coordinates_to_position(Ddesc, *m, *n));
+    assert(position == twoDBC_coordinates_to_position(dc, *m, *n));
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
     return;
 }
 
-static parsec_data_t* twoDBC_data_of(parsec_ddesc_t *desc, ...)
+static parsec_data_t* twoDBC_data_of(parsec_data_collection_t *desc, ...)
 {
     int m, n, position;
     size_t pos;
     va_list ap;
-    two_dim_block_cyclic_t * Ddesc;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
+    two_dim_block_cyclic_t * dc;
+    dc = (two_dim_block_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -344,34 +344,34 @@ static parsec_data_t* twoDBC_data_of(parsec_ddesc_t *desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
 
-    assert( m < Ddesc->super.mt );
-    assert( n < Ddesc->super.nt );
+    assert( m < dc->super.mt );
+    assert( n < dc->super.nt );
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_rank_of(desc, m, n));
 #endif
 
-    position = twoDBC_coordinates_to_position(Ddesc, m, n);
+    position = twoDBC_coordinates_to_position(dc, m, n);
 
-    if( Ddesc->super.storage == matrix_Tile ) {
+    if( dc->super.storage == matrix_Tile ) {
         pos = position;
-        pos *= (size_t)Ddesc->super.bsiz;
+        pos *= (size_t)dc->super.bsiz;
     } else {
-        int local_m = m / Ddesc->grid.rows;
-        int local_n = n / Ddesc->grid.cols;
-        pos = (local_n * Ddesc->super.nb) * Ddesc->super.llm
-            +  local_m * Ddesc->super.mb;
+        int local_m = m / dc->grid.rows;
+        int local_n = n / dc->grid.cols;
+        pos = (local_n * dc->super.nb) * dc->super.llm
+            +  local_m * dc->super.mb;
     }
 
-    return parsec_matrix_create_data( &Ddesc->super,
-                                     (char*)Ddesc->mat + pos * parsec_datadist_getsizeoftype(Ddesc->super.mtype),
-                                     position, (n * Ddesc->super.lmt) + m );
+    return parsec_matrix_create_data( &dc->super,
+                                     (char*)dc->mat + pos * parsec_datadist_getsizeoftype(dc->super.mtype),
+                                     position, (n * dc->super.lmt) + m );
 }
 
-static parsec_data_t* twoDBC_data_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static parsec_data_t* twoDBC_data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
     twoDBC_key_to_coordinates(desc, key, &m, &n);
@@ -422,63 +422,63 @@ static inline unsigned int st_compute_n(two_dim_block_cyclic_t* desc, unsigned i
     return n;
 }
 
-static uint32_t twoDBC_stview_rank_of(parsec_ddesc_t* ddesc, ...)
+static uint32_t twoDBC_stview_rank_of(parsec_data_collection_t* dc, ...)
 {
     unsigned int m, n, sm, sn;
-    two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)ddesc;
+    two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)dc;
     va_list ap;
-    va_start(ap, ddesc);
+    va_start(ap, dc);
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
     va_end(ap);
     sm = st_compute_m(desc, m);
     sn = st_compute_n(desc, n);
-    return twoDBC_rank_of(ddesc, sm, sn);
+    return twoDBC_rank_of(dc, sm, sn);
 }
 
-static uint32_t twoDBC_stview_rank_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static uint32_t twoDBC_stview_rank_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
     twoDBC_key_to_coordinates(desc, key, &m, &n);
     return twoDBC_stview_rank_of(desc, m, n);
 }
 
-static int32_t twoDBC_stview_vpid_of(parsec_ddesc_t* ddesc, ...)
+static int32_t twoDBC_stview_vpid_of(parsec_data_collection_t* dc, ...)
 {
     unsigned int m, n;
-    two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)ddesc;
+    two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)dc;
     va_list ap;
-    va_start(ap, ddesc);
+    va_start(ap, dc);
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
     va_end(ap);
     m = st_compute_m(desc, m);
     n = st_compute_n(desc, n);
-    return twoDBC_vpid_of(ddesc, m, n);
+    return twoDBC_vpid_of(dc, m, n);
 }
 
-static int32_t twoDBC_stview_vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static int32_t twoDBC_stview_vpid_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
     twoDBC_key_to_coordinates(desc, key, &m, &n);
     return twoDBC_stview_vpid_of(desc, m, n);
 }
 
-static parsec_data_t* twoDBC_stview_data_of(parsec_ddesc_t* ddesc, ...)
+static parsec_data_t* twoDBC_stview_data_of(parsec_data_collection_t* dc, ...)
 {
     unsigned int m, n;
-    two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)ddesc;
+    two_dim_block_cyclic_t* desc = (two_dim_block_cyclic_t*)dc;
     va_list ap;
-    va_start(ap, ddesc);
+    va_start(ap, dc);
     m = va_arg(ap, unsigned int);
     n = va_arg(ap, unsigned int);
     va_end(ap);
     m = st_compute_m(desc, m);
     n = st_compute_n(desc, n);
-    return twoDBC_data_of(ddesc, m, n);
+    return twoDBC_data_of(dc, m, n);
 }
 
-static parsec_data_t* twoDBC_stview_data_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static parsec_data_t* twoDBC_stview_data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
     twoDBC_key_to_coordinates(desc, key, &m, &n);
@@ -491,14 +491,14 @@ static parsec_data_t* twoDBC_stview_data_of_key(parsec_ddesc_t *desc, parsec_dat
  * Set of functions with super-tiles
  *
  */
-static uint32_t twoDBC_st_rank_of(parsec_ddesc_t * desc, ...)
+static uint32_t twoDBC_st_rank_of(parsec_data_collection_t * desc, ...)
 {
     unsigned int stc, cr, m, n;
     unsigned int str, rr;
     unsigned int res;
     va_list ap;
-    two_dim_block_cyclic_t * Ddesc;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
+    two_dim_block_cyclic_t * dc;
+    dc = (two_dim_block_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -507,48 +507,48 @@ static uint32_t twoDBC_st_rank_of(parsec_ddesc_t * desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
 
     /* for tile (m,n), first find coordinate of process in
        process grid which possess the tile in block cyclic dist */
     /* (m,n) is in super-tile (str, stc)*/
-    str = m / Ddesc->grid.strows;
-    stc = n / Ddesc->grid.stcols;
+    str = m / dc->grid.strows;
+    stc = n / dc->grid.stcols;
 
     /* P(rr, cr) has the tile, compute the mpi rank*/
-    rr = str % Ddesc->grid.rows;
-    cr = stc % Ddesc->grid.cols;
-    res = rr * Ddesc->grid.cols + cr;
+    rr = str % dc->grid.rows;
+    cr = stc % dc->grid.cols;
+    res = rr * dc->grid.cols + cr;
 
     /* printf("tile (%d, %d) belongs to process %d [%d,%d] in a grid of %dx%d\n", */
-    /*            m, n, res, rr, cr, Ddesc->grid.rows, Ddesc->grid.cols); */
+    /*            m, n, res, rr, cr, dc->grid.rows, dc->grid.cols); */
     return res;
 }
 
-static uint32_t twoDBC_st_rank_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static uint32_t twoDBC_st_rank_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
     twoDBC_key_to_coordinates(desc, key, &m, &n);
     return twoDBC_st_rank_of(desc, m, n);
 }
 
-static int32_t twoDBC_st_vpid_of(parsec_ddesc_t *desc, ...)
+static int32_t twoDBC_st_vpid_of(parsec_data_collection_t *desc, ...)
 {
     int m, n, p, q, pq;
     int local_m, local_n;
-    two_dim_block_cyclic_t * Ddesc;
+    two_dim_block_cyclic_t * dc;
     va_list ap;
     int32_t vpid;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
+    dc = (two_dim_block_cyclic_t *)desc;
 
     /* If no vp, always return 0 */
     pq = vpmap_get_nb_vp();
     if ( pq == 1 )
         return 0;
 
-    q = Ddesc->grid.vp_q;
-    p = Ddesc->grid.vp_p;
+    q = dc->grid.vp_q;
+    p = dc->grid.vp_p;
     assert(p*q == pq);
 
     /* Get coordinates */
@@ -558,44 +558,44 @@ static int32_t twoDBC_st_vpid_of(parsec_ddesc_t *desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_st_rank_of(desc, m, n));
 #endif
 
     /* Compute the local tile row */
-    local_m = ( m / (Ddesc->grid.strows * Ddesc->grid.rows) ) * Ddesc->grid.strows;
-    m = m % (Ddesc->grid.strows * Ddesc->grid.rows);
-    assert( m / Ddesc->grid.strows == Ddesc->grid.rrank);
-    local_m += m % Ddesc->grid.strows;
+    local_m = ( m / (dc->grid.strows * dc->grid.rows) ) * dc->grid.strows;
+    m = m % (dc->grid.strows * dc->grid.rows);
+    assert( m / dc->grid.strows == dc->grid.rrank);
+    local_m += m % dc->grid.strows;
 
     /* Compute the local column */
-    local_n = ( n / (Ddesc->grid.stcols * Ddesc->grid.cols) ) * Ddesc->grid.stcols;
-    n = n % (Ddesc->grid.stcols * Ddesc->grid.cols);
-    assert( n / Ddesc->grid.stcols == Ddesc->grid.crank);
-    local_n += n % Ddesc->grid.stcols;
+    local_n = ( n / (dc->grid.stcols * dc->grid.cols) ) * dc->grid.stcols;
+    n = n % (dc->grid.stcols * dc->grid.cols);
+    assert( n / dc->grid.stcols == dc->grid.crank);
+    local_n += n % dc->grid.stcols;
 
     vpid = (local_n % q) * p + (local_m % p);
     assert( vpid < vpmap_get_nb_vp() );
     return vpid;
 }
 
-static int32_t twoDBC_st_vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static int32_t twoDBC_st_vpid_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
     twoDBC_key_to_coordinates(desc, key, &m, &n);
     return twoDBC_st_vpid_of(desc, m, n);
 }
 
-static parsec_data_t* twoDBC_st_data_of(parsec_ddesc_t *desc, ...)
+static parsec_data_t* twoDBC_st_data_of(parsec_data_collection_t *desc, ...)
 {
     size_t pos;
     int m, n, local_m, local_n, position;
     va_list ap;
-    two_dim_block_cyclic_t * Ddesc;
-    Ddesc = (two_dim_block_cyclic_t *)desc;
+    two_dim_block_cyclic_t * dc;
+    dc = (two_dim_block_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -604,40 +604,40 @@ static parsec_data_t* twoDBC_st_data_of(parsec_ddesc_t *desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
-    n += Ddesc->super.j / Ddesc->super.nb;
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_st_rank_of(desc, m, n));
 #endif
 
     /* Compute the local tile row */
-    local_m = ( m / (Ddesc->grid.strows * Ddesc->grid.rows) ) * Ddesc->grid.strows;
-    m = m % (Ddesc->grid.strows * Ddesc->grid.rows);
-    assert( m / Ddesc->grid.strows == Ddesc->grid.rrank);
-    local_m += m % Ddesc->grid.strows;
+    local_m = ( m / (dc->grid.strows * dc->grid.rows) ) * dc->grid.strows;
+    m = m % (dc->grid.strows * dc->grid.rows);
+    assert( m / dc->grid.strows == dc->grid.rrank);
+    local_m += m % dc->grid.strows;
 
     /* Compute the local column */
-    local_n = ( n / (Ddesc->grid.stcols * Ddesc->grid.cols) ) * Ddesc->grid.stcols;
-    n = n % (Ddesc->grid.stcols * Ddesc->grid.cols);
-    assert( n / Ddesc->grid.stcols == Ddesc->grid.crank);
-    local_n += n % Ddesc->grid.stcols;
+    local_n = ( n / (dc->grid.stcols * dc->grid.cols) ) * dc->grid.stcols;
+    n = n % (dc->grid.stcols * dc->grid.cols);
+    assert( n / dc->grid.stcols == dc->grid.crank);
+    local_n += n % dc->grid.stcols;
 
-    position = Ddesc->nb_elem_r * local_n + local_m;;
-    if( Ddesc->super.storage == matrix_Tile ) {
+    position = dc->nb_elem_r * local_n + local_m;;
+    if( dc->super.storage == matrix_Tile ) {
         pos = position;
-        pos *= (size_t)Ddesc->super.bsiz;
+        pos *= (size_t)dc->super.bsiz;
     } else {
-        pos = (local_n * Ddesc->super.nb) * Ddesc->super.llm
-            +  local_m * Ddesc->super.mb;
+        pos = (local_n * dc->super.nb) * dc->super.llm
+            +  local_m * dc->super.mb;
     }
 
-    return parsec_matrix_create_data( &Ddesc->super,
-                                     (char*)Ddesc->mat + pos * parsec_datadist_getsizeoftype(Ddesc->super.mtype),
-                                     position, (n * Ddesc->super.lmt) + m );
+    return parsec_matrix_create_data( &dc->super,
+                                     (char*)dc->mat + pos * parsec_datadist_getsizeoftype(dc->super.mtype),
+                                     position, (n * dc->super.lmt) + m );
 }
 
-static parsec_data_t* twoDBC_st_data_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static parsec_data_t* twoDBC_st_data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
     twoDBC_key_to_coordinates(desc, key, &m, &n);

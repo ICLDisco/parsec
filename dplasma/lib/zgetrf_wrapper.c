@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgetrf_New - Generates the handle that computes the LU factorization
+ * dplasma_zgetrf_New - Generates the taskpool that computes the LU factorization
  * of a M-by-N matrix A: A = P * L * U by partial pivoting algorithm.
  *
  * This algorithm exploits the multi-threaded recursive kernels of the PLASMA
@@ -63,7 +63,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgetrf_Destruct();
  *
@@ -76,12 +76,12 @@
  * @sa dplasma_sgetrf_New
  *
  ******************************************************************************/
-parsec_handle_t*
-dplasma_zgetrf_New( tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *IPIV,
+parsec_taskpool_t*
+dplasma_zgetrf_New( parsec_tiled_matrix_dc_t *A,
+                    parsec_tiled_matrix_dc_t *IPIV,
                     int *INFO )
 {
-    parsec_zgetrf_handle_t *parsec_getrf;
+    parsec_zgetrf_taskpool_t *parsec_getrf;
     int nbthreads = dplasma_imax( 1, vpmap_get_nb_threads_in_vp(0) - 1 );
 
     if ( (IPIV->mt != 1) || (dplasma_imin(A->nt, A->mt) > IPIV->nt)) {
@@ -90,7 +90,7 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
     }
 
     parsec_getrf = parsec_zgetrf_new( A,
-                                    (parsec_ddesc_t*)IPIV,
+                                    (parsec_data_collection_t*)IPIV,
                                     INFO );
 
 #if defined(CORE_GETRF_270)
@@ -125,7 +125,7 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_int_t, 1, A->mb, -1 );
 
-    return (parsec_handle_t*)parsec_getrf;
+    return (parsec_taskpool_t*)parsec_getrf;
 }
 
 /**
@@ -133,14 +133,14 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgetrf_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgetrf_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgetrf_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the tasdkpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -149,9 +149,9 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_Destruct( parsec_handle_t *handle )
+dplasma_zgetrf_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zgetrf_handle_t *parsec_zgetrf = (parsec_zgetrf_handle_t *)handle;
+    parsec_zgetrf_taskpool_t *parsec_zgetrf = (parsec_zgetrf_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zgetrf->arenas[PARSEC_zgetrf_DEFAULT_ARENA] );
     parsec_matrix_del2arena( parsec_zgetrf->arenas[PARSEC_zgetrf_PIVOT_ARENA  ] );
@@ -159,7 +159,7 @@ dplasma_zgetrf_Destruct( parsec_handle_t *handle )
     if ( parsec_zgetrf->_g_getrfdata != NULL )
         free( parsec_zgetrf->_g_getrfdata );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -219,10 +219,10 @@ dplasma_zgetrf_Destruct( parsec_handle_t *handle )
  ******************************************************************************/
 int
 dplasma_zgetrf( parsec_context_t *parsec,
-                tiled_matrix_desc_t *A,
-                tiled_matrix_desc_t *IPIV )
+                parsec_tiled_matrix_dc_t *A,
+                parsec_tiled_matrix_dc_t *IPIV )
 {
-    parsec_handle_t *parsec_zgetrf = NULL;
+    parsec_taskpool_t *parsec_zgetrf = NULL;
 
     int info = 0;
 

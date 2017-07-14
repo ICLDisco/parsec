@@ -494,7 +494,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
     while event_s != NULL and not skeleton_only:
         event_type = dbp_event_get_key(event_s) / 2 # to match dictionary
         if not event_type in builder.event_names:
-           error = {'node_id': node_id, 'stream_id': stream_id, 'handle_id': dbp_event_get_handle_id(event_s),
+           error = {'node_id': node_id, 'stream_id': stream_id, 'taskpool_id': dbp_event_get_taskpool_id(event_s),
                     'type': 'NA', 'begin': begin, 'end': 'unknown', 'flags': dbp_event_get_flags(event_s),
                     'id': dbp_event_get_event_id(event_s), 'error_msg': ' event type not in event names'}
            builder.errors.append(error)
@@ -503,10 +503,10 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
             begin = dbp_event_get_timestamp(event_s)
             if begin < prev_begin:
                #print('current_event start at ' + str(begin) + ' previous event started at ' + str(prev_begin))
-               handle_id = dbp_event_get_handle_id(event_s)
+               taskpool_id = dbp_event_get_taskpool_id(event_s)
                event_id = dbp_event_get_event_id(event_s)
                event_flags = dbp_event_get_flags(event_s)
-               error = {'node_id':node_id, 'stream_id':stream_id, 'handle_id':handle_id,
+               error = {'node_id':node_id, 'stream_id':stream_id, 'taskpool_id':taskpool_id,
                         'type':event_type, 'begin':begin, 'end':0,
                         'flags':event_flags, 'id':event_id, 'error_msg':'event happened before its predecessor'}
                builder.errors.append(error)
@@ -514,7 +514,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
             else:
               prev_begin = begin
               event_flags = dbp_event_get_flags(event_s)
-              handle_id = dbp_event_get_handle_id(event_s)
+              taskpool_id = dbp_event_get_taskpool_id(event_s)
               event_id = dbp_event_get_event_id(event_s)
               if begin < th_begin:
                 th_begin = begin
@@ -539,7 +539,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                                        event[event_info.keys()[keyNum] + '_start'] = event_info.values()[keyNum]
                                 event.update(event_info)
                         except:
-                            print('Failed to extract info from the start event (handle_id {0} event_id {1})'.format(handle_id, event_id))
+                            print('Failed to extract info from the start event (taskpool_id {0} event_id {1})'.format(taskpool_id, event_id))
 
                 it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
                 if it_e != NULL:
@@ -549,14 +549,14 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                     if event_e != NULL:
                         end = dbp_event_get_timestamp(event_e)
 
-                        event['node_id']   = node_id
-                        event['stream_id'] = stream_id
-                        event['handle_id'] = handle_id
-                        event['type']      = event_type
-                        event['begin']     = begin
-                        event['end']       = end
-                        event['flags']     = event_flags
-                        event['id']        = event_id
+                        event['node_id']     = node_id
+                        event['stream_id']   = stream_id
+                        event['taskpool_id'] = taskpool_id
+                        event['type']        = event_type
+                        event['begin']       = begin
+                        event['end']         = end
+                        event['flags']       = event_flags
+                        event['id']          = event_id
 
                         cinfo = dbp_event_get_info(event_e)
                         if cinfo != NULL:
@@ -568,7 +568,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                                         #event[builder.event_names[event_type] + '_stop'] = event_info
                                         event.update(event_info)
                                 except:
-                                    print('Failed to extract info from the stop event (handle_id {0} event_id {1})'.format(handle_id, event_id))
+                                    print('Failed to extract info from the stop event (taskpoolid {0} event_id {1})'.format(taskpool_id, event_id))
 
                         # 'end' and 'begin' are unsigned, so subtraction is invalid if they are
                         if end >= begin and (end - begin) <= th_duration:
@@ -588,7 +588,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
 
                 else: # the event is not complete
                     # this will change once singleton events are enabled.
-                    error = {'node_id':node_id, 'stream_id':stream_id, 'handle_id':handle_id,
+                    error = {'node_id':node_id, 'stream_id':stream_id, 'taskpool_id':taskpool_id,
                              'type':event_type, 'begin':begin, 'end':0,
                              'flags':event_flags, 'id':event_id, 'error_msg':'event lack completion match.'}
                     builder.errors.append(error)

@@ -16,8 +16,8 @@
 #include "map.h"
 
 static int
-dplasma_zlaset_operator( parsec_execution_unit_t *eu,
-                         const tiled_matrix_desc_t *descA,
+dplasma_zlaset_operator( parsec_execution_stream_t *es,
+                         const parsec_tiled_matrix_dc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
                          void *args )
@@ -25,7 +25,7 @@ dplasma_zlaset_operator( parsec_execution_unit_t *eu,
     int tempmm, tempnn, ldam;
     parsec_complex64_t *alpha = (parsec_complex64_t*)args;
     parsec_complex64_t *A = (parsec_complex64_t*)_A;
-    (void)eu;
+    (void)es;
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
@@ -48,7 +48,7 @@ dplasma_zlaset_operator( parsec_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zlaset_New - Generates the handle that set the elements of the matrix
+ * dplasma_zlaset_New - Generates the taskpool that set the elements of the matrix
  * A on the diagonal to beta and the off-diagonals eklements to alpha.
  *
  * See dplasma_map_New() for further information.
@@ -77,7 +77,7 @@ dplasma_zlaset_operator( parsec_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlaset_Destruct();
  *
@@ -90,11 +90,11 @@ dplasma_zlaset_operator( parsec_execution_unit_t *eu,
  * @sa dplasma_slaset_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zlaset_New( PLASMA_enum uplo,
                     parsec_complex64_t alpha,
                     parsec_complex64_t beta,
-                    tiled_matrix_desc_t *A )
+                    parsec_tiled_matrix_dc_t *A )
 {
     parsec_complex64_t *params = (parsec_complex64_t*)malloc(2 * sizeof(parsec_complex64_t));
 
@@ -109,14 +109,14 @@ dplasma_zlaset_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlaset_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlaset_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlaset_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -125,9 +125,9 @@ dplasma_zlaset_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlaset_Destruct( parsec_handle_t *handle )
+dplasma_zlaset_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(handle);
+    dplasma_map_Destruct(tp);
 }
 
 /**
@@ -182,9 +182,9 @@ dplasma_zlaset( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 parsec_complex64_t alpha,
                 parsec_complex64_t beta,
-                tiled_matrix_desc_t *A )
+                parsec_tiled_matrix_dc_t *A )
 {
-    parsec_handle_t *parsec_zlaset = NULL;
+    parsec_taskpool_t *parsec_zlaset = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -198,7 +198,7 @@ dplasma_zlaset( parsec_context_t *parsec,
     parsec_zlaset = dplasma_zlaset_New(uplo, alpha, beta, A);
 
     if ( parsec_zlaset != NULL ) {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zlaset);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zlaset);
         dplasma_wait_until_completion(parsec);
         dplasma_zlaset_Destruct( parsec_zlaset );
     }

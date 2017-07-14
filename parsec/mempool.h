@@ -55,9 +55,9 @@ struct parsec_thread_mempool_s {
  *
  * @details
  *    One can use either of the interfaces.
- *    PARSEC_MEMPOOL_CONSTRUCT( &mempool, parsec_execution_context_t, mempool, nbcores );
+ *    PARSEC_MEMPOOL_CONSTRUCT( &mempool, parsec_task_t, mempool, nbcores );
  *  has the same effect as
- *    parsec_mempool_construct( &mempool, sizeof(parsec_execution_context_t),
+ *    parsec_mempool_construct( &mempool, sizeof(parsec_task_t),
  *                             (char*)&context.mempool - (char*)&context, nbcores );
  *  The macro is provided as a simplification to compute the offset of the mempool field in
  *  the type of elements that is allocated by this memory pool.

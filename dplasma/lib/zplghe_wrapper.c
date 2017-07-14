@@ -21,8 +21,8 @@ struct zplghe_args_s {
 typedef struct zplghe_args_s zplghe_args_t;
 
 static int
-dplasma_zplghe_operator( parsec_execution_unit_t *eu,
-                         const tiled_matrix_desc_t *descA,
+dplasma_zplghe_operator( parsec_execution_stream_t *es,
+                         const parsec_tiled_matrix_dc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
                          void *op_data )
@@ -30,7 +30,7 @@ dplasma_zplghe_operator( parsec_execution_unit_t *eu,
     int tempmm, tempnn, ldam;
     zplghe_args_t     *args = (zplghe_args_t*)op_data;
     parsec_complex64_t *A    = (parsec_complex64_t*)_A;
-    (void)eu;
+    (void)es;
     (void)uplo;
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
@@ -49,7 +49,7 @@ dplasma_zplghe_operator( parsec_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zplghe_New - Generates the handle that generates a random hermitian
+ * dplasma_zplghe_New - Generates the taskpool that generates a random hermitian
  * matrix by tiles.
  *
  * See dplasma_map_New() for further information.
@@ -80,7 +80,7 @@ dplasma_zplghe_operator( parsec_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zplghe_Destruct();
  *
@@ -91,9 +91,9 @@ dplasma_zplghe_operator( parsec_execution_unit_t *eu,
  * @sa dplasma_cplghe_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zplghe_New( double bump, PLASMA_enum uplo,
-                    tiled_matrix_desc_t *A,
+                    parsec_tiled_matrix_dc_t *A,
                     unsigned long long int seed)
 {
     zplghe_args_t *params = (zplghe_args_t*)malloc(sizeof(zplghe_args_t));
@@ -109,14 +109,14 @@ dplasma_zplghe_New( double bump, PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zplghe_Destruct - Free the data structure associated to an handle
+ *  dplasma_zplghe_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zplghe_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -125,9 +125,9 @@ dplasma_zplghe_New( double bump, PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zplghe_Destruct( parsec_handle_t *handle )
+dplasma_zplghe_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(handle);
+    dplasma_map_Destruct(tp);
 }
 
 /**
@@ -178,10 +178,10 @@ dplasma_zplghe_Destruct( parsec_handle_t *handle )
 int
 dplasma_zplghe( parsec_context_t *parsec,
                 double bump, PLASMA_enum uplo,
-                tiled_matrix_desc_t *A,
+                parsec_tiled_matrix_dc_t *A,
                 unsigned long long int seed)
 {
-    parsec_handle_t *parsec_zplghe = NULL;
+    parsec_taskpool_t *parsec_zplghe = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -195,7 +195,7 @@ dplasma_zplghe( parsec_context_t *parsec,
     parsec_zplghe = dplasma_zplghe_New( bump, uplo, A, seed );
 
     if ( parsec_zplghe != NULL ) {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zplghe);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zplghe);
         dplasma_wait_until_completion(parsec);
         dplasma_zplghe_Destruct( parsec_zplghe );
     }

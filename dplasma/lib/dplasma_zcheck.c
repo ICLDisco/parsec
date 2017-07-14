@@ -64,8 +64,8 @@
  ******************************************************************************/
 int check_zpotrf( parsec_context_t *parsec, int loud,
                   PLASMA_enum uplo,
-                  tiled_matrix_desc_t *A,
-                  tiled_matrix_desc_t *A0 )
+                  parsec_tiled_matrix_dc_t *A,
+                  parsec_tiled_matrix_dc_t *A0 )
 {
     two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A0;
     two_dim_block_cyclic_t LLt;
@@ -87,21 +87,21 @@ int check_zpotrf( parsec_context_t *parsec, int loud,
                                   (size_t)LLt.super.bsiz *
                                   (size_t)parsec_datadist_getsizeoftype(LLt.super.mtype));
 
-    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0.,(tiled_matrix_desc_t *)&LLt );
-    dplasma_zlacpy( parsec, uplo, A, (tiled_matrix_desc_t *)&LLt );
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0.,(parsec_tiled_matrix_dc_t *)&LLt );
+    dplasma_zlacpy( parsec, uplo, A, (parsec_tiled_matrix_dc_t *)&LLt );
 
     /* Compute LL' or U'U  */
     side = (uplo == PlasmaUpper ) ? PlasmaLeft : PlasmaRight;
     dplasma_ztrmm( parsec, side, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0,
-                   A, (tiled_matrix_desc_t*)&LLt);
+                   A, (parsec_tiled_matrix_dc_t*)&LLt);
 
     /* compute LL' - A or U'U - A */
     dplasma_ztradd( parsec, uplo, PlasmaNoTrans,
-                    -1.0, A0, 1., (tiled_matrix_desc_t*)&LLt);
+                    -1.0, A0, 1., (parsec_tiled_matrix_dc_t*)&LLt);
 
     Anorm = dplasma_zlanhe(parsec, PlasmaInfNorm, uplo, A0);
     Rnorm = dplasma_zlanhe(parsec, PlasmaInfNorm, uplo,
-                           (tiled_matrix_desc_t*)&LLt);
+                           (parsec_tiled_matrix_dc_t*)&LLt);
 
     result = Rnorm / ( Anorm * N * eps ) ;
 
@@ -129,7 +129,7 @@ int check_zpotrf( parsec_context_t *parsec, int loud,
     }
 
     parsec_data_free(LLt.mat); LLt.mat = NULL;
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&LLt);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&LLt);
 
     return info_factorization;
 }
@@ -180,9 +180,9 @@ int check_zpotrf( parsec_context_t *parsec, int loud,
  ******************************************************************************/
 int check_zaxmb( parsec_context_t *parsec, int loud,
                  PLASMA_enum uplo,
-                 tiled_matrix_desc_t *A,
-                 tiled_matrix_desc_t *b,
-                 tiled_matrix_desc_t *x )
+                 parsec_tiled_matrix_dc_t *A,
+                 parsec_tiled_matrix_dc_t *b,
+                 parsec_tiled_matrix_dc_t *x )
 {
     int info_solution;
     double Rnorm = 0.0;
@@ -265,8 +265,8 @@ int check_zaxmb( parsec_context_t *parsec, int loud,
  ******************************************************************************/
 int check_zpoinv( parsec_context_t *parsec, int loud,
                   PLASMA_enum uplo,
-                  tiled_matrix_desc_t *A,
-                  tiled_matrix_desc_t *Ainv )
+                  parsec_tiled_matrix_dc_t *A,
+                  parsec_tiled_matrix_dc_t *Ainv )
 {
     two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
     two_dim_block_cyclic_t Id;
@@ -285,16 +285,16 @@ int check_zpoinv( parsec_context_t *parsec, int loud,
                                   (size_t)Id.super.bsiz *
                                   (size_t)parsec_datadist_getsizeoftype(Id.super.mtype));
 
-    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&Id);
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1., (parsec_tiled_matrix_dc_t *)&Id);
 
     /* Id - A^-1 * A */
     dplasma_zhemm(parsec, PlasmaLeft, uplo,
                   -1., Ainv, A,
-                  1., (tiled_matrix_desc_t *)&Id );
+                  1., (parsec_tiled_matrix_dc_t *)&Id );
 
     Anorm    = dplasma_zlanhe( parsec, PlasmaOneNorm, uplo, A );
     Ainvnorm = dplasma_zlanhe( parsec, PlasmaOneNorm, uplo, Ainv );
-    Rnorm    = dplasma_zlange( parsec, PlasmaOneNorm, (tiled_matrix_desc_t*)&Id );
+    Rnorm    = dplasma_zlange( parsec, PlasmaOneNorm, (parsec_tiled_matrix_dc_t*)&Id );
 
     result = Rnorm / ( (Anorm*Ainvnorm)*A->n*eps );
     if ( loud > 2 ) {
@@ -310,7 +310,7 @@ int check_zpoinv( parsec_context_t *parsec, int loud,
     }
 
     parsec_data_free(Id.mat);
-    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&Id);
+    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&Id);
 
     return info_solution;
 }

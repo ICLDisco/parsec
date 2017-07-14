@@ -25,10 +25,10 @@ extern "C" %{
 
 uplo   [type = "PLASMA_enum"]
 ib     [type = "int"]
-descA-> [type = "tiled_matrix_desc_t"]
-A      [type = "parsec_ddesc_t *"]
-descT-> [type = "tiled_matrix_desc_t"]
-T      [type = "parsec_ddesc_t *" aligned=A]
+descA-> [type = "parsec_tiled_matrix_dc_t"]
+A      [type = "parsec_data_collection_t *"]
+descT-> [type = "parsec_tiled_matrix_dc_t"]
+T      [type = "parsec_data_collection_t *" aligned=A]
 
 pool_3 [type = "parsec_memory_pool_t *" size = "(sizeof(parsec_complex64_t)*descT->nb*4 *descT->nb)"]
 pool_2 [type = "parsec_memory_pool_t *" size = "(sizeof(parsec_complex64_t)*descT->nb*2 *descT->nb)"]
