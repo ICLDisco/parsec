@@ -100,7 +100,7 @@ static int parsec_runtime_max_number_of_cores = -1;
 static int parsec_runtime_bind_main_thread = 1;
 
 /*
- * Object based task definition (no specialized constructor and destructor) */
+ * Taskpool based task definition (no specialized constructor and destructor) */
 OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
                    NULL, NULL);
 
@@ -504,7 +504,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     context->__parsec_internal_finalization_in_progress = 0;
     context->__parsec_internal_finalization_counter = 0;
-    context->active_objects      = 0;
+    context->active_taskpools      = 0;
     context->flags               = 0;
     context->nb_nodes            = 1;
     context->comm_ctx            = NULL;
@@ -877,7 +877,7 @@ int parsec_fini( parsec_context_t** pcontext )
     /**
      * We need to force the main thread to drain all possible pending messages
      * on the communication layer. This is not an issue in a distributed run,
-     * but on a single node run with MPI support, objects can be created (and
+     * but on a single node run with MPI support, taskpools can be created (and
      * thus context_id additions might be pending on the communication layer).
      */
 #if defined(DISTRIBUTED)
@@ -1675,7 +1675,7 @@ parsec_taskpool_set_priority( parsec_taskpool_t* tp, int32_t new_priority )
 static parsec_atomic_lock_t taskpool_array_lock = { PARSEC_ATOMIC_UNLOCKED };
 static parsec_taskpool_t** taskpool_array = NULL;
 static uint32_t taskpool_array_size = 1, taskpool_array_pos = 0;
-#define NOOBJECT ((void*)-1)
+#define NOTASKPOOL ((void*)-1)
 
 static void parsec_taskpool_release_resources(void)
 {
@@ -1687,20 +1687,20 @@ static void parsec_taskpool_release_resources(void)
     parsec_atomic_unlock( &taskpool_array_lock );
 }
 
-/* Retrieve the local object attached to a unique object id */
+/* Retrieve the local taskpool attached to a unique taskpool id */
 parsec_taskpool_t* parsec_taskpool_lookup( uint32_t taskpool_id )
 {
-    parsec_taskpool_t *r = NOOBJECT;
+    parsec_taskpool_t *r = NOTASKPOOL;
     parsec_atomic_lock( &taskpool_array_lock );
     if( taskpool_id <= taskpool_array_pos ) {
         r = taskpool_array[taskpool_id];
     }
     parsec_atomic_unlock( &taskpool_array_lock );
-    return (NOOBJECT == r ? NULL : r);
+    return (NOTASKPOOL == r ? NULL : r);
 }
 
-/* Reverse an unique ID for the taskpool but without adding the object to the management array.
- *   Beware that on a distributed environment the connected objects must have the same ID.
+/* Reverse an unique ID for the taskpool but without adding the taskpool to the management array.
+ *   Beware that on a distributed environment the connected taskpools must have the same ID.
  */
 int parsec_taskpool_reserve_id( parsec_taskpool_t* tp )
 {
@@ -1714,15 +1714,15 @@ int parsec_taskpool_reserve_id( parsec_taskpool_t* tp )
         taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, taskpool_array_size * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
         for( uint32_t i = (taskpool_array_size>>1); i < taskpool_array_size;
-             taskpool_array[i++] = NOOBJECT );
+             taskpool_array[i++] = NOTASKPOOL );
     }
     tp->taskpool_id = idx;
-    assert( NOOBJECT == taskpool_array[idx] );
+    assert( NOTASKPOOL == taskpool_array[idx] );
     parsec_atomic_unlock( &taskpool_array_lock );
     return idx;
 }
 
-/* Register a taskpool object with the engine. Once enrolled the object can be target
+/* Register a taskpool taskpool with the engine. Once enrolled the taskpool can be target
  * for other components of the runtime, such as communications.
  */
 int parsec_taskpool_register( parsec_taskpool_t* tp )
@@ -1735,14 +1735,14 @@ int parsec_taskpool_register( parsec_taskpool_t* tp )
         taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, taskpool_array_size * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
         for( uint32_t i = (taskpool_array_size>>1); i < taskpool_array_size;
-             taskpool_array[i++] = NOOBJECT );
+             taskpool_array[i++] = NOTASKPOOL );
     }
     taskpool_array[idx] = tp;
     parsec_atomic_unlock( &taskpool_array_lock );
     return idx;
 }
 
-/* globally synchronize object id's so that next register generates the same
+/* globally synchronize taskpool id's so that next register generates the same
  * id at all ranks. */
 void parsec_taskpool_sync_ids( void )
 {
@@ -1761,14 +1761,14 @@ void parsec_taskpool_sync_ids( void )
         taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, taskpool_array_size * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
         for( uint32_t i = (taskpool_array_size>>1); i < taskpool_array_size;
-             taskpool_array[i++] = NOOBJECT );
+             taskpool_array[i++] = NOTASKPOOL );
     }
     taskpool_array_pos = idx;
     parsec_atomic_unlock( &taskpool_array_lock );
 }
 
-/* Unregister the object with the engine. This make the taskpool_id available for
- * future taskpools. Beware that in a distributed environment the connected objects
+/* Unregister the taskpool with the engine. This make the taskpool_id available for
+ * future taskpools. Beware that in a distributed environment the connected taskpools
  * must have the same ID.
  */
 void parsec_taskpool_unregister( parsec_taskpool_t* tp )
@@ -1778,7 +1778,7 @@ void parsec_taskpool_unregister( parsec_taskpool_t* tp )
     assert( taskpool_array[tp->taskpool_id] == tp );
     assert( PARSEC_RUNTIME_RESERVED_NB_TASKS == tp->nb_tasks );
     assert( 0 == tp->nb_pending_actions );
-    taskpool_array[tp->taskpool_id] = NOOBJECT;
+    taskpool_array[tp->taskpool_id] = NOTASKPOOL;
     parsec_atomic_unlock( &taskpool_array_lock );
 }
 
@@ -2368,7 +2368,7 @@ void parsec_debug_all_taskpools_local_tasks( int show_remote, int show_startup, 
     parsec_atomic_lock( &taskpool_array_lock );
     for( oi = 1; oi <= taskpool_array_pos; oi++) {
         tp = taskpool_array[ oi ];
-        if( tp == NOOBJECT )
+        if( tp == NOTASKPOOL )
             continue;
         if( tp == NULL )
             continue;
