@@ -2,6 +2,7 @@
 #define PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
 
 /* Compiler dependent capabilities */
+#cmakedefine PARSEC_HAVE_UINT128
 #cmakedefine PARSEC_ATOMIC_USE_C11_ATOMICS
 #cmakedefine PARSEC_ATOMIC_USE_GCC_32_BUILTINS
 #cmakedefine PARSEC_ATOMIC_USE_GCC_64_BUILTINS
@@ -22,7 +23,6 @@
 #cmakedefine PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE
 #cmakedefine PARSEC_HAVE_ATTRIBUTE_FORMAT_PRINTF
 
-#define PARSEC_HAVE_UINT128  @HAVE_UINT128b@
 
 /* Optional packages */
 #cmakedefine PARSEC_HAVE_HWLOC_BITMAP

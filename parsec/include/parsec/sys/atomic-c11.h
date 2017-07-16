@@ -63,7 +63,7 @@ int32_t parsec_atomic_cas_64b(volatile uint64_t* location,
     return 0;
 }
 
-#if defined(HAVE_UINT128b)
+#if defined(PARSEC_HAVE_UINT128)
 ATOMIC_STATIC_INLINE
 int32_t parsec_atomic_cas_128b(volatile __uint128_t* location,
                                __uint128_t old_value,
@@ -72,7 +72,7 @@ int32_t parsec_atomic_cas_128b(volatile __uint128_t* location,
     return atomic_compare_exchange_strong( (_Atomic __uint128_t*)location, &old_value, new_value );
 }
 #define PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B 1
-#endif  /* defined(HAVE_UINT128b) */
+#endif  /* defined(PARSEC_HAVE_UINT128b) */
 
 #if PARSEC_SIZEOF_VOID_P == 4
 ATOMIC_STATIC_INLINE
@@ -87,15 +87,15 @@ int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
     return parsec_atomic_cas_64b((volatile uint64_t*)l, (uint64_t)o, (uint64_t)n);
 }
 #else
-#if defined(HAVE_UINT128b)
+#if defined(PARSEC_HAVE_UINT128)
 ATOMIC_STATIC_INLINE
 int parsec_atomic_cas_ptr(volatile void* l, __uint128_t o, __uint128_t n)
 {
     return parsec_atomic_cas_128b((volatile __uint128_t*)l, o, n);
 }
-#else  /* defined(HAVE_UINT128b) */
-#warning Pointers are 128 bits long but no atomic ioperation on 128 bits are available
-#endif  /* defined(HAVE_UINT128b) */
+#else  /* defined(PARSEC_HAVE_UINT128b) */
+#error Pointers are 128 bits long but no atomic operation on 128 bits are available
+#endif  /* defined(PARSEC_HAVE_UINT128) */
 #endif
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
