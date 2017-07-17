@@ -482,6 +482,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
     }
 
+    parsec_hash_tables_init();
+
     if( parsec_cmd_line_is_taken(cmd_line, "dot") ) {
         char* optarg = NULL;
         GET_STR_ARGV(cmd_line, "dot", optarg);
@@ -1184,25 +1186,25 @@ parsec_hash_find_deps(const parsec_taskpool_t *tp,
                       const parsec_task_t* restrict task)
 {
     parsec_hashable_dependency_t *hd;
-    hash_table_t *ht = (hash_table_t*)tp->dependencies_array[task->task_class->task_class_id];
+    parsec_hash_table_t *ht = (parsec_hash_table_t*)tp->dependencies_array[task->task_class->task_class_id];
     uint64_t key = task->task_class->key(tp, task->locals);
     assert(NULL != ht);
-    hash_table_lock_bucket(ht, key);
-    hd = hash_table_nolock_find(ht, key);
+    parsec_hash_table_lock_bucket(ht, key);
+    hd = parsec_hash_table_nolock_find(ht, key);
     if( NULL == hd ) {
         if( NULL == es ) { 
             /* This is a call for debugging purpose, but we cannot tell anything about this task,
              * and we certainly don't want to have a side effect on the hash table */
-            hash_table_unlock_bucket(ht, key);
+            parsec_hash_table_unlock_bucket(ht, key);
             return NULL;
         }
         hd = (parsec_hashable_dependency_t *) parsec_thread_mempool_allocate(es->dependencies_mempool);
         hd->dependency = (parsec_dependency_t)0;
         hd->mempool_owner = es->dependencies_mempool;
         hd->ht_item.key = key;
-        hash_table_nolock_insert(ht, &hd->ht_item);
+        parsec_hash_table_nolock_insert(ht, &hd->ht_item);
     }
-    hash_table_unlock_bucket(ht, key);
+    parsec_hash_table_unlock_bucket(ht, key);
     return &hd->dependency;
 }
 

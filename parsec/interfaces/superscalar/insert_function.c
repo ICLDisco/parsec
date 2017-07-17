@@ -95,7 +95,7 @@ static parsec_hook_return_t
 complete_hook_of_dtd(parsec_execution_stream_t *,
                      parsec_task_t *);
 
-static uint32_t hash_key (uintptr_t key, void *data);
+static uint32_t hash_key (uintptr_t key, uint32_t hash_size, void *data);
 
 inline int parsec_dtd_task_is_local(parsec_dtd_task_t *task) { return task->rank == task->super.taskpool->context->my_rank;}
 inline int parsec_dtd_task_is_remote(parsec_dtd_task_t *task) { return !parsec_dtd_task_is_local(task);}
@@ -200,18 +200,18 @@ void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
     tp->two_hash_table = (parsec_dtd_two_hash_table_t *) malloc(sizeof(parsec_dtd_two_hash_table_t));
     parsec_atomic_unlock(&tp->two_hash_table->atomic_lock);
 
-    tp->two_hash_table->task_and_rem_dep_h_table = OBJ_NEW(hash_table_t);
-    hash_table_init(tp->two_hash_table->task_and_rem_dep_h_table,
-                    offsetof(dtd_hash_table_pointer_item_t, ht_item),
-                    parsec_dtd_task_hash_table_size,
-                    &hash_key,
-                    tp->two_hash_table->task_and_rem_dep_h_table);
-    tp->function_h_table = OBJ_NEW(hash_table_t);
-    hash_table_init(tp->function_h_table,
-                    offsetof(dtd_hash_table_pointer_item_t, ht_item),
-                    PARSEC_DTD_NB_TASK_CLASSES,
-                    &hash_key,
-                    tp->function_h_table);
+    tp->two_hash_table->task_and_rem_dep_h_table = OBJ_NEW(parsec_hash_table_t);
+    parsec_hash_table_init(tp->two_hash_table->task_and_rem_dep_h_table,
+                           offsetof(dtd_hash_table_pointer_item_t, ht_item),
+                           parsec_dtd_task_hash_table_size,
+                           &hash_key,
+                           tp->two_hash_table->task_and_rem_dep_h_table);
+    tp->function_h_table = OBJ_NEW(parsec_hash_table_t);
+    parsec_hash_table_init(tp->function_h_table,
+                           offsetof(dtd_hash_table_pointer_item_t, ht_item),
+                           PARSEC_DTD_NB_TASK_CLASSES,
+                           &hash_key,
+                           tp->function_h_table);
 
     tp->super.startup_hook    = parsec_dtd_startup;
     tp->super.destructor      = (parsec_destruct_fn_t)parsec_dtd_taskpool_destruct;
@@ -282,10 +282,10 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     free(tp->hash_table_bucket_mempool);
     free(tp->startup_list);
 
-    hash_table_fini(tp->two_hash_table->task_and_rem_dep_h_table);
+    parsec_hash_table_fini(tp->two_hash_table->task_and_rem_dep_h_table);
     free(tp->two_hash_table);
-
-    hash_table_fini(tp->function_h_table);
+    
+    parsec_hash_table_fini(tp->function_h_table);
 }
 
 /* To create object of class parsec_dtd_taskpool_t that inherits parsec_taskpool_t
@@ -458,11 +458,11 @@ void
 parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-    hash_table_t *hash_table   = (hash_table_t *)dc->tile_h_table;
+    parsec_hash_table_t *hash_table   = (parsec_hash_table_t *)dc->tile_h_table;
 
     PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_BEGIN, NULL);
 
-    hash_table_for_all( hash_table, (hash_elem_fct_t)parsec_dtd_data_flush, tp);
+    parsec_hash_table_for_all( hash_table, (hash_elem_fct_t)parsec_dtd_data_flush, tp);
 
     PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_END, NULL);
 }
@@ -768,13 +768,15 @@ parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
 /* **************************************************************************** */
 
 /**
- * This function produces a hash from a key and a hash_table_t
+ * This function produces a hash from a key and a parsec_hash_table_t
  *
  * This function returns a hash for a key. The hash is produced
  * by the following operation key % size
  *
  * @param[in]   key
  *                  The key to be hashed
+ * @param[in]   size
+ *                  Size of the hash table
  * @param[in]   data
  *                  A pointer to the hash table
  * @return
@@ -782,10 +784,10 @@ parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
  *
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
-static uint32_t hash_key (uintptr_t key, void *data)
+static uint32_t hash_key (uintptr_t key, uint32_t size, void *data)
 {
-    int size = ((hash_table_t*)data)->size;
     uint32_t hash_val = ((uint64_t)key) % size;
+    (void)data;
     return hash_val;
 }
 
@@ -796,22 +798,22 @@ parsec_dtd_track_task( parsec_dtd_taskpool_t *tp,
 {
     dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_thread_mempool_allocate(tp->hash_table_bucket_mempool->thread_mempools);
 
-    hash_table_t *hash_table = tp->two_hash_table->task_and_rem_dep_h_table;
+    parsec_hash_table_t *hash_table = tp->two_hash_table->task_and_rem_dep_h_table;
 
     item->ht_item.key   = key;
     item->mempool_owner = tp->hash_table_bucket_mempool->thread_mempools;
     item->value         = (void *)value;
 
-    hash_table_nolock_insert( hash_table, &item->ht_item );
+    parsec_hash_table_nolock_insert( hash_table, &item->ht_item );
 }
 
 void*
 parsec_dtd_find_task( parsec_dtd_taskpool_t *tp,
                       uint64_t               key )
 {
-    hash_table_t *hash_table = tp->two_hash_table->task_and_rem_dep_h_table;
+    parsec_hash_table_t *hash_table = tp->two_hash_table->task_and_rem_dep_h_table;
 
-    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)hash_table_nolock_find( hash_table, key );
+    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, key );
     return (NULL == item) ? NULL : item->value;
 }
 
@@ -819,13 +821,13 @@ void*
 parsec_dtd_untrack_task( parsec_dtd_taskpool_t *tp,
                          uint64_t               key )
 {
-    hash_table_t *hash_table = tp->two_hash_table->task_and_rem_dep_h_table;
+    parsec_hash_table_t *hash_table = tp->two_hash_table->task_and_rem_dep_h_table;
     void *value;
 
-    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)hash_table_nolock_find( hash_table, key );
+    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, key );
     if( NULL == item ) return NULL;
 
-    hash_table_nolock_remove( hash_table, key );
+    parsec_hash_table_nolock_remove( hash_table, key );
     value = item->value;
     parsec_thread_mempool_free( tp->hash_table_bucket_mempool->thread_mempools, item );
     return value;
@@ -875,13 +877,13 @@ parsec_dtd_insert_task_class( parsec_dtd_taskpool_t   *tp,
 {
     dtd_hash_table_pointer_item_t *item  =  (dtd_hash_table_pointer_item_t *)parsec_thread_mempool_allocate(tp->hash_table_bucket_mempool->thread_mempools);
 
-    hash_table_t *hash_table          =  tp->function_h_table;
+    parsec_hash_table_t *hash_table          =  tp->function_h_table;
 
     item->ht_item.key   = (uint64_t)key;
     item->mempool_owner = tp->hash_table_bucket_mempool->thread_mempools;
     item->value         = (void *)value;
 
-    hash_table_insert ( hash_table, &item->ht_item );
+    parsec_hash_table_insert ( hash_table, &item->ht_item );
 }
 
 /* **************************************************************************** */
@@ -901,9 +903,9 @@ void
 parsec_dtd_remove_task_class( parsec_dtd_taskpool_t  *tp,
                               uint64_t key )
 {
-    hash_table_t *hash_table    =  tp->function_h_table;
+    parsec_hash_table_t *hash_table    =  tp->function_h_table;
 
-    hash_table_remove( hash_table, (uint64_t)key );
+    parsec_hash_table_remove( hash_table, (uint64_t)key );
 }
 
 /* **************************************************************************** */
@@ -926,9 +928,9 @@ void *
 parsec_dtd_find_task_class_internal( parsec_dtd_taskpool_t  *tp,
                                      uint64_t key )
 {
-    hash_table_t *hash_table      =  tp->function_h_table;
+    parsec_hash_table_t *hash_table      =  tp->function_h_table;
 
-    return hash_table_nolock_find ( hash_table, key );
+    return parsec_hash_table_nolock_find ( hash_table, key );
 }
 
 /* **************************************************************************** */
@@ -987,11 +989,11 @@ parsec_dtd_tile_insert( uint64_t key,
                         parsec_dtd_tile_t *tile,
                         parsec_data_collection_t    *dc )
 {
-    hash_table_t *hash_table = (hash_table_t *)dc->tile_h_table;
+    parsec_hash_table_t *hash_table = (parsec_hash_table_t *)dc->tile_h_table;
 
     tile->ht_item.key = (uint64_t)key;
 
-    hash_table_insert( hash_table, &tile->ht_item );
+    parsec_hash_table_insert( hash_table, &tile->ht_item );
 }
 
 /* **************************************************************************** */
@@ -1011,9 +1013,9 @@ parsec_dtd_tile_insert( uint64_t key,
 void
 parsec_dtd_tile_remove( parsec_data_collection_t *dc, uint64_t key )
 {
-    hash_table_t *hash_table = (hash_table_t *)dc->tile_h_table;
+    parsec_hash_table_t *hash_table = (parsec_hash_table_t *)dc->tile_h_table;
 
-    hash_table_remove( hash_table, (uint64_t)key );
+    parsec_hash_table_remove( hash_table, (uint64_t)key );
 }
 
 /* **************************************************************************** */
@@ -1033,9 +1035,9 @@ parsec_dtd_tile_remove( parsec_data_collection_t *dc, uint64_t key )
 parsec_dtd_tile_t *
 parsec_dtd_tile_find( parsec_data_collection_t *dc, uint64_t key )
 {
-    hash_table_t *hash_table   = (hash_table_t *)dc->tile_h_table;
+    parsec_hash_table_t *hash_table   = (parsec_hash_table_t *)dc->tile_h_table;
     assert(hash_table != NULL);
-    parsec_dtd_tile_t *tile  = (parsec_dtd_tile_t *)hash_table_nolock_find( hash_table, (uint64_t)key );
+    parsec_dtd_tile_t *tile  = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find( hash_table, (uint64_t)key );
 
     return tile;
 }
@@ -1101,18 +1103,18 @@ parsec_dtd_release_task_class( parsec_dtd_taskpool_t *tp,
 void
 parsec_dtd_data_collection_init( parsec_data_collection_t *dc )
 {
-    dc->tile_h_table = OBJ_NEW(hash_table_t);
-    hash_table_init( dc->tile_h_table,
-                     offsetof(parsec_dtd_tile_t, ht_item),
-                     parsec_dtd_tile_hash_table_size,
-                     &hash_key,
-                     dc->tile_h_table);
+    dc->tile_h_table = OBJ_NEW(parsec_hash_table_t);
+    parsec_hash_table_init( dc->tile_h_table,
+                            offsetof(parsec_dtd_tile_t, ht_item),
+                            parsec_dtd_tile_hash_table_size,
+                            &hash_key,
+                            dc->tile_h_table);
 }
 
 void
 parsec_dtd_data_collection_fini( parsec_data_collection_t *dc )
 {
-    hash_table_fini( dc->tile_h_table );
+    parsec_hash_table_fini( dc->tile_h_table );
 }
 
 /* **************************************************************************** */

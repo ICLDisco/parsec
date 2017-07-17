@@ -8,7 +8,8 @@ set(BASE_SOURCES
   class/parsec_list.c
   class/parsec_object.c
   class/parsec_value_array.c
-  class/hash_table.c
+  class/parsec_hash_table.c
+  class/parsec_rwlock.c
   utils/argv.c
   utils/cmd_line.c
   utils/colors.c

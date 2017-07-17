@@ -42,6 +42,16 @@ uint32_t parsec_atomic_bor_32b( volatile uint32_t* location,
     return (or_value | atomic_fetch_or(location, or_value));
 }
 
+#define parsec_atomic_band(LOCATION, AND_VALUE)  \
+    (((__typeof__(*(LOCATION)))atomic_fetch_and((_Atomic __typeof__(*(LOCATION))(*))(LOCATION), (AND_VALUE))) | (AND_VALUE))
+
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_band_32b( volatile uint32_t* location,
+                                uint32_t and_value)
+{
+    return (and_value & atomic_fetch_and(location, and_value));
+}
+
 ATOMIC_STATIC_INLINE
 int32_t parsec_atomic_cas_32b(volatile uint32_t* location,
                               uint32_t old_value,

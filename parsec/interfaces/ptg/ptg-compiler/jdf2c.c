@@ -1123,7 +1123,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#include \"parsec/ayudame.h\"\n"
             "#include \"parsec/devices/device.h\"\n"
             "#include \"parsec/interfaces/interface.h\"\n"
-            "#include \"parsec/class/hash_table.h\"\n"
+            "#include \"parsec/class/parsec_hash_table.h\"\n"
             "#include <assert.h>\n\n");
     houtput("BEGIN_C_DECLS\n\n");
 
@@ -1335,16 +1335,18 @@ static void jdf_generate_structure(const jdf_t *jdf)
                 "  (DEPS)->max = _vmax;                                                        \\\n"
                 "} while (0)\n\n");
     } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
-        coutput("static uint32_t hash_fn_mod(uintptr_t key, void *param) {\n"
+        coutput("static uint32_t hash_fn_mod(uintptr_t key, uint32_t size, void *param) {\n"
+                "  /** Use all the bits of the 64 bits key, project on the lowest base bits (0 <= hash < 1024) */\n"
                 "  (void)param;\n"
-                "  /** Use all the bits of the 64 bits key, project on the lowest 10 bits (0 <= hash < 1024) */\n"
-                "  return (uint32_t)( (key ^ \n"
-                "                      (key >> 10) ^\n"
-                "                      (key >> 20) ^\n"
-                "                      (key >> 30) ^\n"
-                "                      (key >> 40) ^\n"
-                "                      (key >> 50) ^\n"
-                "                      (key >> 60) ) & 0x3FFULL);\n"
+                "  int b = 0, base = 10; /* We start at 10, as size is 1024 at least */\n"
+                "  uint32_t mask = 0x3FFULL; /* same thing: assume size is 1024 at least */\n"
+                "  uint32_t h = key;\n"
+                "  while( size != (1u<<base) ) { assert(base < 32); base++; mask = (mask<<1)|1; }\n"
+                "  while( b < 64 ) {\n"
+                "    b += base;\n"
+                "    h ^= key >> b;\n"
+                "  }\n"
+                "  return (uint32_t)( key & mask);\n"
                 "}\n");
     }
     coutput("static inline int parsec_imin(int a, int b) { return (a <= b) ? a : b; };\n\n"
@@ -2730,8 +2732,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             coutput("  __parsec_tp->super.super.dependencies_array[%d] = dep;\n",
                     f->task_class_id);
         } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
-            coutput("  __parsec_tp->super.super.dependencies_array[%d] = OBJ_NEW(hash_table_t);\n"
-                    "  hash_table_init(__parsec_tp->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), 1<<10, hash_fn_mod, NULL);\n",
+            coutput("  __parsec_tp->super.super.dependencies_array[%d] = OBJ_NEW(parsec_hash_table_t);\n"
+                    "  parsec_hash_table_init(__parsec_tp->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), 1<<10, hash_fn_mod, NULL);\n",
                    f->task_class_id, f->task_class_id);
         }
     }
@@ -2874,9 +2876,9 @@ static void jdf_generate_release_task_fct(const jdf_t *jdf, jdf_function_entry_t
             jdf_basename,
             jdf_basename);
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
-        coutput("    hash_table_t *ht = (hash_table_t*)__parsec_tp->super.super.dependencies_array[%d];\n"
+        coutput("    parsec_hash_table_t *ht = (parsec_hash_table_t*)__parsec_tp->super.super.dependencies_array[%d];\n"
                 "    uint64_t key = this_task->task_class->key(&__parsec_tp->super.super, this_task->locals);\n"
-                "    parsec_hashable_dependency_t *hash_dep = (parsec_hashable_dependency_t *)hash_table_remove(ht, key);\n"
+                "    parsec_hashable_dependency_t *hash_dep = (parsec_hashable_dependency_t *)parsec_hash_table_remove(ht, key);\n"
                 "    parsec_thread_mempool_free(hash_dep->mempool_owner, hash_dep);\n",
                 f->task_class_id);
     }
@@ -3348,7 +3350,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
                         "    dependencies_size += parsec_destruct_dependencies( __parsec_tp->super.super.dependencies_array[%d] );\n",
                         f->task_class_id, f->task_class_id);
             } else if (JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
-                coutput("  hash_table_fini( (hash_table_t*)__parsec_tp->super.super.dependencies_array[%d] );\n",
+                coutput("  parsec_hash_table_fini( (parsec_hash_table_t*)__parsec_tp->super.super.dependencies_array[%d] );\n",
                         f->task_class_id);
             } 
         } else {

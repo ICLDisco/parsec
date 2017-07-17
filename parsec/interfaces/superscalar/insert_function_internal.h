@@ -131,7 +131,7 @@ typedef struct parsec_dtd_flow_info_s {
  * @brief Simple pointer + key item fitted for a mempool allocation
  */
 typedef struct dtd_hash_table_pointer_item_s {
-    hash_table_item_t        ht_item;
+    parsec_hash_table_item_t ht_item;
     parsec_thread_mempool_t *mempool_owner;
     void                    *value;
 } dtd_hash_table_pointer_item_t;
@@ -166,8 +166,8 @@ typedef struct parsec_dtd_parent_info_s {
                                                        (INDEX*sizeof(parsec_dtd_min_flow_info_t)) ))
 
 struct parsec_dtd_task_s {
-    parsec_task_t   super;
-    hash_table_item_t            ht_item;
+    parsec_task_t                super;
+    parsec_hash_table_item_t     ht_item;
     parsec_thread_mempool_t     *mempool_owner;
     int32_t                      rank;
     int32_t                      flow_count;
@@ -189,7 +189,7 @@ typedef struct parsec_dtd_tile_user_s {
 
 struct parsec_dtd_tile_s {
     parsec_list_item_t       super;
-    hash_table_item_t        ht_item;
+    parsec_hash_table_item_t ht_item;
     parsec_thread_mempool_t *mempool_owner;
     int16_t                  arena_index;
     int16_t                  flushed;
@@ -213,7 +213,7 @@ struct hook_info{
  * and remote_deps related to remote tasks.
  */
 typedef struct parsec_dtd_two_hash_table_s {
-    hash_table_t        *task_and_rem_dep_h_table;
+    parsec_hash_table_t *task_and_rem_dep_h_table;
     parsec_atomic_lock_t atomic_lock;
 } parsec_dtd_two_hash_table_t;
 
@@ -234,7 +234,7 @@ struct parsec_dtd_taskpool_s {
     parsec_taskpool_wait_t      *wait_func;
     parsec_mempool_t            *hash_table_bucket_mempool;
     parsec_dtd_two_hash_table_t *two_hash_table;
-    hash_table_t                *function_h_table;
+    parsec_hash_table_t         *function_h_table;
     /* ring of initial ready tasks */
     parsec_task_t              **startup_list;
     /* from here to end is for the testing interface */
@@ -246,7 +246,7 @@ struct parsec_dtd_taskpool_s {
  */
 struct parsec_dtd_task_class_s {
     parsec_task_class_t      super;
-    hash_table_item_t        ht_item;
+    parsec_hash_table_item_t ht_item;
     parsec_thread_mempool_t *mempool_owner;
     parsec_dtd_funcptr_t    *fpointer;
     parsec_mempool_t         context_mempool;
