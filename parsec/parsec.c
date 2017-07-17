@@ -482,6 +482,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
     }
 
+    parsec_hash_tables_init();
+
     if( parsec_cmd_line_is_taken(cmd_line, "dot") ) {
         char* optarg = NULL;
         GET_STR_ARGV(cmd_line, "dot", optarg);
