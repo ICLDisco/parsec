@@ -26,12 +26,12 @@ parsec_atomic_cas_64b(volatile uint64_t* location,
                       uint64_t old_value,
                       uint64_t new_value);
 
-#if defined(HAVE_UINT128b)
+#if defined(PARSEC_HAVE_UINT128)
 PARSEC_DECLSPEC int32_t
 parsec_atomic_cas_128b(volatile __uint128_t* location,
                        __uint128_t old_value,
                        __uint128_t new_value);
-#endif  /* defined(HAVE_UINT128b) */
+#endif  /* defined(PARSEC_HAVE_UINT128) */
 
 PARSEC_DECLSPEC int32_t
 parsec_atomic_cas_ptr(volatile void* location,
@@ -50,12 +50,12 @@ PARSEC_DECLSPEC uint64_t parsec_atomic_sub_64b( volatile uint64_t *location, int
 PARSEC_DECLSPEC uint64_t parsec_atomic_inc_64b( volatile uint64_t *location );
 PARSEC_DECLSPEC uint64_t parsec_atomic_dec_64b( volatile uint64_t *location );
 
-#if defined(HAVE_UINT128b)
+#if defined(PARSEC_HAVE_UINT128)
 PARSEC_DECLSPEC __uint128_t parsec_atomic_add_128b( volatile __uint128_t *location, __uint128_t );
 PARSEC_DECLSPEC __uint128_t parsec_atomic_sub_128b( volatile __uint128_t *location, __uint128_t );
 PARSEC_DECLSPEC __uint128_t parsec_atomic_inc_128b( volatile __uint128_t *location );
 PARSEC_DECLSPEC __uint128_t parsec_atomic_dec_128b( volatile __uint128_t *location );
-#endif  /* defined(HAVE_UINT128b) */
+#endif  /* defined(PARSEC_HAVE_UINT128) */
 
 typedef int parsec_atomic_lock_t;
 PARSEC_DECLSPEC void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock );

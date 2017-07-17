@@ -1,8 +1,11 @@
 #
-# Check if there is support for 128b types
+# Check if there is support for 128 types
 #
 include(CheckTypeSize)
-CHECK_TYPE_SIZE( __uint128_t UINT128b )
+CHECK_TYPE_SIZE( __uint128_t UINT128 )
+if(HAVE_UINT128)
+  set(PARSEC_HAVE_UINT128 1)
+endif()
 
 #
 # C11 include support for atomic operations via stdatomic.h but only when
@@ -55,7 +58,7 @@ if(PARSEC_ATOMIC_USE_C11_32)
   #
   # Do we need special flags to support 128 bits atomics ?
   #
-  if( HAVE_UINT128b )
+  if( HAVE_UINT128 )
     CHECK_C_SOURCE_COMPILES("
        #include <stdatomic.h>
        int main(void) {
@@ -104,7 +107,7 @@ if(PARSEC_ATOMIC_USE_C11_32)
         list(APPEND CMAKE_C_STANDARD_LIBRARIES "-latomic")
       endif( PARSEC_ATOMIC_USE_C11_128 )
     endif( NOT PARSEC_ATOMIC_USE_C11_128 )
-  endif(HAVE_UINT128b)
+  endif(HAVE_UINT128)
 endif(PARSEC_ATOMIC_USE_C11_32)
 endif( PARSEC_ATOMIC_USE_C11_ATOMICS )
 
@@ -148,7 +151,7 @@ if( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
             return 0;
         }
         " PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
-  if(HAVE_UINT128b)
+  if(HAVE_UINT128)
     if( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS ) # try again with -mcx16
       include(CMakePushCheckState)
       CMAKE_PUSH_CHECK_STATE()
@@ -168,7 +171,7 @@ if( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
         SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcx16" CACHE STRING "" FORCE)
       endif( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
     endif( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
-  endif(HAVE_UINT128b)
+  endif(HAVE_UINT128)
 endif( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
   
 # Xlc style atomics?
