@@ -117,11 +117,14 @@ void parsec_atomic_rwlock_init(parsec_atomic_rwlock_t *L)
 void parsec_atomic_rwlock_rdlock(parsec_atomic_rwlock_t *L)
 {
     uint32_t w;
+    int count = 0;
+    struct timespec ts = { .tv_sec = 0, .tv_nsec = 100 };
     w = (parsec_atomic_add_32b((volatile int32_t*)&L->rin, RINC)-RINC) & WBITS;
     if( w == 0 )
         return;
     while( w == (L->rin & WBITS) )
-        /* nothing */;
+        if( count++ > 1000 )
+            nanosleep( &ts, NULL );
 }
 
 void parsec_atomic_rwlock_rdunlock(parsec_atomic_rwlock_t *L)
@@ -132,13 +135,18 @@ void parsec_atomic_rwlock_rdunlock(parsec_atomic_rwlock_t *L)
 void parsec_atomic_rwlock_wrlock(parsec_atomic_rwlock_t *L)
 {
     uint32_t ticket, w;
+    int count = 0;
+    struct timespec ts = { .tv_sec = 0, .tv_nsec = 100 };
     ticket = (parsec_atomic_add_32b((volatile int32_t*)&L->win, 1)-1);
     while( L->wout != ticket )
-        /* nothing */;
+        if( count++ > 1000 )
+            nanosleep( &ts, NULL );
     w = PRES | (ticket & PHID);
     ticket = (parsec_atomic_add_32b((volatile int32_t*)&L->rin, w)-w);
+    count = 0;
     while( L->rout != ticket )
-        /* nothing */;
+        if( count++ > 1000 )
+            nanosleep( &ts, NULL );
 }
 
 void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L)
@@ -269,22 +277,10 @@ void parsec_atomic_rwlock_rdlock(parsec_atomic_rwlock_t *L)
         /* Atomically update the RWL state, and try again if something changed */
     } while(! parsec_atomic_cas_64b(&L->atomic_word, old.atomic_word, new.atomic_word) );
 
-    /* Wait that this is our turn */
-    /*    do {
-        old = *L;
-        new = old;
-        old.fields.current_ticket = my_ticket;
-        new.fields.current_ticket = my_ticket;
-        } while( !parsec_atomic_cas_64b(&L->atomic_word, old.atomic_word, new.atomic_word) );*/
-
     do {
+        nanosleep( &ts, NULL );
         old = *L;
     }  while( old.fields.current_ticket != my_ticket );
-    /*
-    while( L->fields.current_ticket != my_ticket ) {
-        parsec_mfence();
-        nanosleep( &ts, NULL );
-        }*/
 
 }
 
@@ -311,7 +307,7 @@ void parsec_atomic_rwlock_wrlock(parsec_atomic_rwlock_t *L)
 {
     parsec_atomic_rwlock_t old, new;
     uint16_t my_ticket;
-    //struct timespec ts = { .tv_sec = 0, .tv_nsec = 100 };
+    struct timespec ts = { .tv_sec = 0, .tv_nsec = 100 };
     
     do {
         old = *L;
@@ -325,20 +321,10 @@ void parsec_atomic_rwlock_wrlock(parsec_atomic_rwlock_t *L)
         /* Try to atomically update the RWL state until we succeed */
     } while( !parsec_atomic_cas_64b(&L->atomic_word, old.atomic_word, new.atomic_word) );
 
-    /* Now, we loop waiting for our ticket */
-    /*do {
-        old = *L;
-        new = old;
-        old.fields.current_ticket = my_ticket;
-        new.fields.current_ticket = my_ticket;
-        } while( !parsec_atomic_cas_64b(&L->atomic_word, old.atomic_word, new.atomic_word) );*/
     do {
+        nanosleep( &ts, NULL );
         old = *L;
     }  while( old.fields.current_ticket != my_ticket );
-    /*    while( L->fields.current_ticket != my_ticket ) {
-        parsec_mfence();
-        nanosleep( &ts, NULL );
-        }*/
 }
 
 void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L)
