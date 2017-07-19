@@ -63,7 +63,7 @@ vpid_of(parsec_data_collection_t *desc, ...)
     return 0;
 }
 
-static uint64_t
+static parsec_data_key_t
 data_key(parsec_data_collection_t *desc, ...)
 {
     int k;

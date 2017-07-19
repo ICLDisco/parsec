@@ -85,7 +85,7 @@ vpid_of(parsec_data_collection_t *desc, ...)
  * This is needed for tracing and debugging purpose, but it's always good practice to
  * define it.
  */
-static uint64_t
+static parsec_data_key_t
 data_key(parsec_data_collection_t *desc, ...)
 {
     int k;
