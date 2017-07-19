@@ -31,6 +31,8 @@ end interface
 
   tp = touch_initialize_f08(BLOCK, N)
 
+  call parsec_context_start(context)
+
   call parsec_enqueue( context, tp )
 
   call parsec_context_wait(context)
