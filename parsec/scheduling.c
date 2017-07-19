@@ -798,8 +798,6 @@ __parsec_context_cas_or_flag(parsec_context_t* context,
  */
 int parsec_context_start( parsec_context_t* context )
 {
-    /* No active work */
-    if(all_tasks_done(context)) return -2;
     /* Context already active */
     if( PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags )
         return -1;
