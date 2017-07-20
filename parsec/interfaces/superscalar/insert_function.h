@@ -143,7 +143,7 @@ typedef int (parsec_dtd_funcptr_t)(parsec_execution_stream_t *, parsec_task_t *)
  *                                     Following each FLAG the pointer to the memory location where the paramter
  *                                     will be copied needs to be given.
  *
- * There is no way to unpack individual paramters. e.g. If user wants to unpack the 3rd parameter only, they have to
+ * There is no way to unpack individual parameters. e.g. If user wants to unpack the 3rd parameter only, they have to
  * unpack at least the first three to maintain the order in which whey were inserted. However user can unpack
  * a partial amount of parameters. To do that correctly user needs to pass 0 as the last parameter.
  *
