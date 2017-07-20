@@ -52,10 +52,10 @@ void parsec_atomic_rwlock_rdlock( parsec_atomic_rwlock_t* atomic_rwlock )
 void parsec_atomic_rwlock_rdunlock( parsec_atomic_rwlock_t* atomic_rwlock )
 {
     parsec_atomic_rwlock_t old_state, new_state;
-    do {            
+    do {
         old_state = *atomic_rwlock;
 #if defined(PARSEC_DEBUG_PARANOID)
-        assert((old_state & PARSEC_ATOMIC_RWLOCK_READER_BITS) != 0); 
+        assert((old_state & PARSEC_ATOMIC_RWLOCK_READER_BITS) != 0);
         assert((old_state & PARSEC_ATOMIC_RWLOCK_WRITER_BIT) == 0);
 #endif
         new_state =
@@ -104,7 +104,9 @@ void parsec_atomic_rwlock_wrunlock( parsec_atomic_rwlock_t* atomic_rwlock )
 
 #include <string.h>
 
+#include <time.h>
 #define RINC 0x100u
+
 #define WBITS  0x3u
 #define PRES   0x2u
 #define PHID   0x1u
@@ -166,7 +168,7 @@ void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L)
 
 #elif RWLOCK_IMPL == RWLOCK_IMPL_2LOCKS
 
-/* Traditional (e.g. http://www.springer.com/us/book/9783642320262) 
+/* Traditional (e.g. http://www.springer.com/us/book/9783642320262)
  * implementation based on two atomic locks. This is write-preferring. */
 
 #include <string.h>
@@ -287,7 +289,7 @@ void parsec_atomic_rwlock_rdlock(parsec_atomic_rwlock_t *L)
 void parsec_atomic_rwlock_rdunlock(parsec_atomic_rwlock_t *L)
 {
     parsec_atomic_rwlock_t old, new;
-    
+
     do {
         old = *L;
         /* The new state will not be that different from the old one */
@@ -308,7 +310,7 @@ void parsec_atomic_rwlock_wrlock(parsec_atomic_rwlock_t *L)
     parsec_atomic_rwlock_t old, new;
     uint16_t my_ticket;
     struct timespec ts = { .tv_sec = 0, .tv_nsec = 100 };
-    
+
     do {
         old = *L;
         /* The new state will not be that different from the old one */
@@ -330,7 +332,7 @@ void parsec_atomic_rwlock_wrlock(parsec_atomic_rwlock_t *L)
 void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L)
 {
     parsec_atomic_rwlock_t old, new;
-    
+
     do {
         old = *L;
         /* The new state will not be that different from the old one */
