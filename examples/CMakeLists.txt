@@ -8,7 +8,7 @@ macro(parsec_addexample lang target input)
   set(${target}_LIBS    parsec parsec_distribution_matrix ${EXTRA_LIBS} ${${target}_LIBS})
 
   add_executable(${target} ${input})
-  message(STATUS "${target} -> ${input}")
+  #  message(STATUS "${target} -> ${input}")
   set_target_properties(${target} PROPERTIES
     LINKER_LANGUAGE ${lang}
     COMPILE_FLAGS "${${target}_${lang}FLAGS} ${LOCAL_${lang}_LINK_FLAGS}"
