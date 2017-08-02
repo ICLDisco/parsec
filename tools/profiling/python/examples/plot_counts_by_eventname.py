@@ -240,7 +240,7 @@ def scatter_papi(filenames, units, unit_modify, args):
                 streams = event_data[j].stream_id.tolist()
                 counts = []
 
-                 for k in range(0, len(event_data[j])):
+                for k in range(0, len(event_data[j])):
                     temp_data = counter_data[i][:][(counter_data[i].begin < ends[k])
                                                    & (counter_data[i].end > begins[k])
                                                    & (counter_data[i].stream_id == streams[k])].loc[:,[column_names[i],'begin','end']].values.tolist()
