@@ -44,36 +44,36 @@ if( PARSEC_ATOMIC_USE_C11_ATOMICS )
         return 0;
     }
     " PARSEC_ATOMIC_USE_C11_32)
-if(PARSEC_ATOMIC_USE_C11_32)
-  CHECK_C_SOURCE_COMPILES("
-    #include <stdint.h>
-    #include <stdatomic.h>
-    int main(void) {
-        int64_t where = 0, expected = 0;
-        if( !atomic_compare_exchange_strong( (_Atomic int64_t*)&where, &expected, 1 ) )
-            return -1;
-        return 0;
-    }
-    " PARSEC_ATOMIC_USE_C11_64)
-  #
-  # Do we need special flags to support 128 bits atomics ?
-  #
-  if( HAVE_UINT128 )
+  if(PARSEC_ATOMIC_USE_C11_32)
     CHECK_C_SOURCE_COMPILES("
-       #include <stdatomic.h>
-       int main(void) {
-            __int128_t where = 0, expected = 0;
-            if( !atomic_compare_exchange_strong( (_Atomic __uint128_t*)&where, &expected, 1 ) )
+        #include <stdint.h>
+        #include <stdatomic.h>
+        int main(void) {
+            int64_t where = 0, expected = 0;
+            if( !atomic_compare_exchange_strong( (_Atomic int64_t*)&where, &expected, 1 ) )
                 return -1;
             return 0;
         }
-        " PARSEC_ATOMIC_USE_C11_128)
-    if( NOT PARSEC_ATOMIC_USE_C11_128 ) # try again with -mcx16
-      include(CMakePushCheckState)
-      CMAKE_PUSH_CHECK_STATE()
-      SET( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
-      UNSET( PARSEC_ATOMIC_USE_C11_128 CACHE )
+        " PARSEC_ATOMIC_USE_C11_64)
+    #
+    # Do we need special flags to support 128 bits atomics ?
+    #
+    if( HAVE_UINT128 )
       CHECK_C_SOURCE_COMPILES("
+          #include <stdatomic.h>
+          int main(void) {
+               __int128_t where = 0, expected = 0;
+               if( !atomic_compare_exchange_strong( (_Atomic __uint128_t*)&where, &expected, 1 ) )
+                   return -1;
+               return 0;
+           }
+           " PARSEC_ATOMIC_USE_C11_128)
+      if( NOT PARSEC_ATOMIC_USE_C11_128 ) # try again with -mcx16
+        include(CMakePushCheckState)
+        CMAKE_PUSH_CHECK_STATE()
+        SET( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
+        UNSET( PARSEC_ATOMIC_USE_C11_128 CACHE )
+        CHECK_C_SOURCE_COMPILES("
             #include <stdatomic.h>
             int main(void) {
                 __int128_t where = 0, expected;
@@ -82,17 +82,17 @@ if(PARSEC_ATOMIC_USE_C11_32)
                 return 0;
             }
             " PARSEC_ATOMIC_USE_C11_128)
-      CMAKE_POP_CHECK_STATE()
-      if( PARSEC_ATOMIC_USE_C11_128 )
-        SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcx16" CACHE STRING "" FORCE)
-      endif( PARSEC_ATOMIC_USE_C11_128 )
-    endif( NOT PARSEC_ATOMIC_USE_C11_128 )
-    if( NOT PARSEC_ATOMIC_USE_C11_128 ) # try again with -latomic
-      include(CMakePushCheckState)
-      CMAKE_PUSH_CHECK_STATE()
-      list(APPEND CMAKE_REQUIRED_LIBRARIES atomic)
-      UNSET( PARSEC_ATOMIC_USE_C11_128 CACHE )
-      CHECK_C_SOURCE_COMPILES("
+        CMAKE_POP_CHECK_STATE()
+        if( PARSEC_ATOMIC_USE_C11_128 )
+          SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcx16" CACHE STRING "" FORCE)
+        endif( PARSEC_ATOMIC_USE_C11_128 )
+      endif( NOT PARSEC_ATOMIC_USE_C11_128 )
+      if( NOT PARSEC_ATOMIC_USE_C11_128 ) # try again with -latomic
+        include(CMakePushCheckState)
+        CMAKE_PUSH_CHECK_STATE()
+        list(APPEND CMAKE_REQUIRED_LIBRARIES atomic)
+        UNSET( PARSEC_ATOMIC_USE_C11_128 CACHE )
+        CHECK_C_SOURCE_COMPILES("
             #include <stdatomic.h>
             int main(void) {
                 __int128_t where = 0, expected = 0;
@@ -101,15 +101,15 @@ if(PARSEC_ATOMIC_USE_C11_32)
                 return 0;
             }
             " PARSEC_ATOMIC_USE_C11_128)
-      CMAKE_POP_CHECK_STATE()
-      if( PARSEC_ATOMIC_USE_C11_128 )
-        set(PARSEC_ATOMIC_C11_128_EXTRA_LIBS "-latomic" CACHE STRING "" FORCE)
-      endif( PARSEC_ATOMIC_USE_C11_128 )
-    endif( NOT PARSEC_ATOMIC_USE_C11_128 )
-    list(APPEND EXTRA_LIBS ${PARSEC_ATOMIC_C11_128_EXTRA_LIBS})
-    list(APPEND CMAKE_C_STANDARD_LIBRARIES ${PARSEC_ATOMIC_C11_128_EXTRA_LIBS})
-  endif(HAVE_UINT128)
-endif(PARSEC_ATOMIC_USE_C11_32)
+        CMAKE_POP_CHECK_STATE()
+        if( PARSEC_ATOMIC_USE_C11_128 )
+          set(PARSEC_ATOMIC_C11_128_EXTRA_LIBS "-latomic" CACHE STRING "" FORCE)
+        endif( PARSEC_ATOMIC_USE_C11_128 )
+      endif( NOT PARSEC_ATOMIC_USE_C11_128 )
+      list(APPEND EXTRA_LIBS ${PARSEC_ATOMIC_C11_128_EXTRA_LIBS})
+      list(APPEND CMAKE_C_STANDARD_LIBRARIES ${PARSEC_ATOMIC_C11_128_EXTRA_LIBS})
+    endif(HAVE_UINT128)
+  endif(PARSEC_ATOMIC_USE_C11_32)
 endif( PARSEC_ATOMIC_USE_C11_ATOMICS )
 
 #
