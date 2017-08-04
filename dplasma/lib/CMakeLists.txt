@@ -209,10 +209,11 @@ add_dependencies(dplasma
 set_target_properties(dplasma PROPERTIES POSITION_INDEPENDENT_CODE True)
 target_link_libraries(dplasma
   dplasma_cores
-  ${COREBLAS_LIBRARIES} ${COREBLAS_LDFLAGS}
+  ${COREBLAS_LIBRARIES}
   parsec parsec-base parsec_distribution_matrix
   ${EXTRA_LIBS}
 )
+set_target_properties(dplasma PROPERTIES LINK_FLAGS ${COREBLAS_LDFLAGS})
 
 if (MPI_C_FOUND)
   set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
