@@ -7,6 +7,11 @@ include(CMakePushCheckState)
 # The current version number
 set (PARSEC_VERSION_MAJOR 2)
 set (PARSEC_VERSION_MINOR 0)
+#
+# Using @rpath allows rellocatable libraries:
+# https://blog.kitware.com/upcoming-in-cmake-2-8-12-osx-rpath-support/
+#
+set(CMAKE_MACOSX_RPATH 1)
 
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)
@@ -373,9 +378,11 @@ if( NOT PARSEC_HAVE_TIMESPEC_TV_NSEC )
     set(PARSEC_HAVE_TIMESPEC_TV_NSEC true)
   endif( PARSEC_HAVE_TIMESPEC_TV_NSEC_GNU )
 endif( NOT PARSEC_HAVE_TIMESPEC_TV_NSEC )
-check_function_exists(clock_gettime PARSEC_HAVE_CLOCK_GETTIME)
+# clock_gettime was located in librt until glibc 2.17 when it moved
+# to the libc.
+check_library_exists(c clock_gettime "time.h" PARSEC_HAVE_CLOCK_GETTIME)
 if( NOT PARSEC_HAVE_CLOCK_GETTIME )
-  check_library_exists(rt clock_gettime "" PARSEC_HAVE_CLOCK_GETTIMERT)
+  check_library_exists(rt clock_gettime "time.h" PARSEC_HAVE_CLOCK_GETTIMERT)
   if(PARSEC_HAVE_CLOCK_GETTIMERT)
     list(APPEND EXTRA_LIBS -lrt)
     set(PARSEC_HAVE_CLOCK_GETTIME true)
