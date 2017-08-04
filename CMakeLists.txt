@@ -497,6 +497,7 @@ IF( BUILD_PARSEC )
   check_function_exists(dlsym PARSEC_HAVE_DL)
   if( NOT PARSEC_HAVE_DL )
     find_library(DL_LIBRARY dl)
+    MARK_AS_ADVANCED(DL_LIBRARY)
     if(DL_LIBRARY)
       CMAKE_PUSH_CHECK_STATE()
       list(APPEND CMAKE_REQUIRED_LIBRARIES ${DL_LIBRARY})
@@ -742,6 +743,7 @@ ENDIF( BUILD_PARSEC )
 # Now continue with compiling the tests.
 #
 find_program(HOSTNAME_EXE hostname)
+MARK_AS_ADVANCED(HOSTNAME_EXE)
 # Test that the launchers work
 add_test(launcher_shm   ${SHM_TEST_CMD_LIST} ${HOSTNAME_EXE})
 add_test(launcher_mpi   ${MPI_TEST_CMD_LIST} 4 ${HOSTNAME_EXE})

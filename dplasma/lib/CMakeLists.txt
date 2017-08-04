@@ -213,7 +213,7 @@ target_link_libraries(dplasma
   parsec parsec-base parsec_distribution_matrix
   ${EXTRA_LIBS}
 )
-set_target_properties(dplasma PROPERTIES LINK_FLAGS ${COREBLAS_LDFLAGS})
+set_target_properties(dplasma PROPERTIES LINK_FLAGS "${COREBLAS_LDFLAGS}")
 
 if (MPI_C_FOUND)
   set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
