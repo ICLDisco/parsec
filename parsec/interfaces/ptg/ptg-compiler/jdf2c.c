@@ -5971,9 +5971,10 @@ jdf_generate_code_find_deps(const jdf_t *jdf,
             "   const parsec_task_t* restrict __task)\n"
             "{\n"
             "  parsec_dependencies_t *deps;\n"
+            "  (void)es;\n"
             "  const parsec_%s_taskpool_t *__parsec_tp = (parsec_%s_taskpool_t*)__tp;\n"
             "  const __parsec_%s_%s_task_t* task = (__parsec_%s_%s_task_t*)__task;\n"
-            "  deps = %sdependencies_array[task->function->task_class_id];\n",
+            "  deps = %sdependencies_array[task->task_class->task_class_id];\n",
             name,
             jdf_basename, jdf_basename,
             jdf_basename, f->fname, jdf_basename, f->fname,
