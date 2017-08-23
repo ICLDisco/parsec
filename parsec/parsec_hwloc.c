@@ -426,12 +426,12 @@ int parsec_hwloc_allow_ht(int htnb)
 {
     assert( htnb > 0 );
 
+#if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
     /* If we were not initialized first, let's initialize */
     if( first_init == 1 ) {
         parsec_hwloc_init();
     }
 
-#if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
     /* Check the validity of the parameter. Correct otherwise  */
     if (htnb > 1) {
         int pu_per_core = (hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU) /
