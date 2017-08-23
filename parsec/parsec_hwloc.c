@@ -334,7 +334,7 @@ int parsec_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
     if( first_init == 1 ) {
         parsec_hwloc_init();
     }
-    
+
     /* Get the core of index cpu_index */
     obj = core = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
     if (!core) {
@@ -359,7 +359,9 @@ int parsec_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 
     /* And try to bind ourself there.  */
     if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
+#if !defined(PARSEC_OSX)
         parsec_hwloc_print_cpuset(1, "parsec_hwloc: couldn't bind to cpuset", obj->cpuset );
+#endif  /* !defined(PARSEC_OSX) */
         cpu_index = -1;
         goto free_and_return;
     }

@@ -48,7 +48,9 @@ int parsec_bindthread(int cpu, int ht)
     {
         cpu = parsec_hwloc_bind_on_core_index(cpu, ht);
         if(cpu == -1 ) {
+#if !defined(PARSEC_OSX)
             parsec_warning("Core binding on node %i failed", cpu);
+#endif  /* !defined(PARSEC_OSX) */
             return -1;
         }
     }
