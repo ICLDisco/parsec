@@ -72,7 +72,7 @@ CHAR        [A-Za-z0-9_\-\.]
 {CHAR}+             { return PARSEC_UTIL_KEYVAL_PARSE_SINGLE_WORD; }
 
 <VALUE>{WHITE}*\n   { BEGIN(INITIAL); return PARSEC_UTIL_KEYVAL_PARSE_NEWLINE; }
-<VALUE>[^\n]*[^\t \n]/[\t ]*      { return PARSEC_UTIL_KEYVAL_PARSE_VALUE; }
+<VALUE>[^\n#]*[^\t \n#]/[\t ]*      { return PARSEC_UTIL_KEYVAL_PARSE_VALUE; }
 
 .	            { return PARSEC_UTIL_KEYVAL_PARSE_ERROR; }
 
