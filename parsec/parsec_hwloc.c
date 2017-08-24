@@ -392,7 +392,7 @@ int parsec_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     }
 
     binding_mask = hwloc_bitmap_alloc();
-    
+
     /* For each index in the mask, get the associated cpu object and use its cpuset to add it to the binding mask */
     hwloc_bitmap_foreach_begin(cpu_index, cpuset) {
         /* Get the core of index cpu */
@@ -405,7 +405,9 @@ int parsec_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     } hwloc_bitmap_foreach_end();
 
     if (hwloc_set_cpubind(topology, binding_mask, HWLOC_CPUBIND_THREAD)) {
+#if !defined(PARSEC_OSX)
         parsec_hwloc_print_cpuset(1, "Couldn't bind to cpuset ", binding_mask);
+#endif  /* !defined(PARSEC_OSX) */
         return -1;
     }
 

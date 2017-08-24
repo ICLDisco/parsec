@@ -518,8 +518,10 @@ static int remote_dep_bind_thread(parsec_context_t* context)
                 parsec_debug_verbose(4, parsec_debug_output, "Communication thread is bound to core %d which is also hosting a compute execution unit", context->comm_th_core);
             }
         } else {
+#if !defined(PARSEC_OSX)
             /* There is no guarantee the thread doesn't share the core. Let comm_yield as user-set. */
             parsec_warning("Request to bind the communication thread on core %d failed.", context->comm_th_core);
+#endif  /* !defined(PARSEC_OSX) */
         }
     } else {
         /* bind the communication thread to any available core (which means described by the
@@ -527,13 +529,13 @@ static int remote_dep_bind_thread(parsec_context_t* context)
          * as a floating thread on all computational cores.
          */
         if( !hwloc_bitmap_iszero(context->cpuset_free_mask) ) {
-            if( parsec_bindthread_mask(context->cpuset_free_mask) > -1 ){
+            if( parsec_bindthread_mask(context->cpuset_free_mask) > -1 ) {
                 hwloc_bitmap_asprintf(&str, context->cpuset_free_mask);
                 /* The thread enjoys an exclusive core. Force disable comm_yield. */
                 comm_yield = 0;
             }
         } else {
-            if( parsec_bindthread_mask(context->cpuset_allowed_mask) > -1 ){
+            if( parsec_bindthread_mask(context->cpuset_allowed_mask) > -1 ) {
                 hwloc_bitmap_asprintf(&str, context->cpuset_allowed_mask);
                 /* There is no guarantee the thread doesn't share the core. Let comm_yield as user-set. */
             }
