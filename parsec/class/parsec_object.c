@@ -35,7 +35,7 @@
  * and no constructor or destructor.
  */
 parsec_class_t parsec_object_t_class = {
-    "parsec_object_t",      /* name */
+    "parsec_object_t",    /* name */
     NULL,                 /* parent class */
     NULL,                 /* constructor */
     NULL,                 /* destructor */

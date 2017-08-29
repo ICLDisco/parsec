@@ -388,7 +388,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_object_t);
  *
  * @param class    Pointer to class descriptor
  */
-PARSEC_DECLSPEC void parsec_class_initialize(parsec_class_t *class);
+PARSEC_DECLSPEC void parsec_class_initialize(parsec_class_t *cls);
 
 /**
  * Shut down the class system and release all memory
