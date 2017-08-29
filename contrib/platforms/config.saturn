@@ -35,7 +35,10 @@ echo "### Defaults for Dancer machine (intel-NV Linux cluster)"
 # CUDA (detected via nvcc), PAPI (detected via papi_avail), HWLOC (detected
 # via hwloc-ls) nor the PYTHON_EXECUTABLE
 # if you want the default detection to work.
-INSTALL_PREFIX=${INSTALL_PREFIX:="$PWD"}
+
+# Don't set a default installation to the build location, bad things will
+# happend, and will only confuse people.
+#INSTALL_PREFIX=${INSTALL_PREFIX:="$PWD"}
 HWLOC_DIR=${HWLOC_DIR:="/sw/hwloc/1.11.5"}
 GTG_DIR=${GTG_DIR:="/sw/gtg/0.2-2"}
 OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
