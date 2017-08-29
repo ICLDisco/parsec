@@ -79,7 +79,6 @@ struct data_repo_entry_s {
     volatile uint32_t          usagecnt;
     volatile uint32_t          usagelmt;
     volatile uint32_t          retained;
-    parsec_task_t             *ttg_task;
 #if defined(PARSEC_SIM)
     int                        sim_exec_date;
 #endif

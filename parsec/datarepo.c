@@ -49,7 +49,8 @@ __data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *
 {
     const int h = key % repo->nbentries;
     data_repo_entry_t *e;
-
+    int i;
+    
     parsec_atomic_lock(&repo->heads[h].lock);
     for(e = repo->heads[h].first_entry;
         e != NULL;
@@ -62,8 +63,8 @@ __data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *
     }
     parsec_atomic_unlock(&repo->heads[h].lock);
     e = (data_repo_entry_t*)parsec_thread_mempool_allocate( es->datarepo_mempools[repo->nbdata] );
-    { uint32_t i; for(i = 0; i < repo->nbdata; e->data[i] = NULL, i++);}
-    e->ttg_task = NULL;
+    for(i = 0; i < repo->nbdata; e->data[i] = NULL, i++);
+    e->generator = NULL;
     e->data_repo_mempool_owner = es->datarepo_mempools[repo->nbdata];
     e->key = key;
 #if defined(PARSEC_SIM)
