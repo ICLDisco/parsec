@@ -236,7 +236,7 @@ if __name__ == '__main__':
                     paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dV%d" % (t.node_id,t.vp_id), Type=paje_ct,
                                                                                                         Container=paje_container_aliases["M%d"%(t.node_id)])
         if "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
-                if hasattr(t, 'vp_id'):
+                if hasattr(t, 'vp_id') and isinstance(t.vp_id, int):
                         paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id), Type=paje_ct,
                                                                                                                 Container=paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)])
                 else:
