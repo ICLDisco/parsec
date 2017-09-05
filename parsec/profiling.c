@@ -36,6 +36,7 @@
 #include "parsec/class/fifo.h"
 #include "parsec/parsec_hwloc.h"
 #include "parsec/os-spec-timing.h"
+#include "parsec/sys/atomic.h"
 #include "parsec/utils/mca_param.h"
 
 #define min(a, b) ((a)<(b)?(a):(b))
@@ -59,7 +60,32 @@
 int parsec_profile_enabled = 0;
 static int __profile_initialized = 0;  /* not initialized */
 
-static parsec_profiling_buffer_t *allocate_empty_buffer(off_t *offset, char type);
+/**
+ * A freelist of buffers links buffers one after the other.
+ *
+ * Only the field next is used in the freelist;
+ * However, buffers are larger than a single pointer: they
+ * are of size event_buffer_size. Fields in the header may
+ * be set at allocation / free time, so we set the field
+ * next inside the data part (which is never used as long
+ * as the buffer stays in the free list)
+ */
+typedef struct tl_freelist_buffer_s {
+    parsec_profiling_buffer_t    buffer; /**< buffer head */
+    struct tl_freelist_buffer_s *next;   /**< Next buffer */
+} tl_freelist_buffer_t;
+
+typedef struct tl_freelist_s {
+    tl_freelist_buffer_t *first;
+    pthread_mutex_t       lock;
+    int                   nb_allocated;
+} tl_freelist_t;
+static int parsec_profiling_per_thread_buffer_freelist_min = 2;
+
+static tl_freelist_t *default_freelist = NULL;
+#define TLS_STORAGE(t)  ( (tl_freelist_t*)((t)->tls_storage) )
+
+static parsec_profiling_buffer_t *allocate_empty_buffer(tl_freelist_t *fl, off_t *offset, char type);
 
 /* Process-global dictionary */
 static unsigned int parsec_prof_keys_count, parsec_prof_keys_number;
@@ -79,17 +105,319 @@ static int   parsec_profiling_raise_error = 0;
 
 /* File backend globals. */
 static pthread_mutex_t file_backend_lock = PTHREAD_MUTEX_INITIALIZER;
-static off_t file_backend_next_offset = 0;
-static int   file_backend_fd = -1;
+static off_t  file_backend_next_offset = 0;
+static size_t file_backend_size = 0;
+static int    file_backend_fd = -1;
 
 /* File backend constants, computed at init time */
 static size_t event_buffer_size = 0;
+static int    parsec_profiling_file_multiplier = 1;
 static size_t event_avail_space = 0;
 static int file_backend_extendable;
 
 static parsec_profiling_binary_file_header_t *profile_head = NULL;
 static char *bpf_filename = NULL;
 static pthread_key_t thread_specific_profiling_key;
+
+static int parsec_profiling_show_profiling_performance = 0;
+static parsec_profiling_perf_t parsec_profiling_global_perf[PERF_MAX];
+
+#define do_and_measure_perf( perf_counter, code ) do {                  \
+        parsec_time_t start, end;                                       \
+        parsec_profiling_perf_t *pa;                                    \
+        parsec_thread_profiling_t* tp;                                  \
+        tp = pthread_getspecific(thread_specific_profiling_key);        \
+        if( NULL == tp )                                                \
+            pa = &parsec_profiling_global_perf[perf_counter];           \
+        else                                                            \
+            pa = &tp->thread_perf[perf_counter];                        \
+        start = take_time();                                            \
+        code;                                                           \
+        end = take_time();                                              \
+        pa->perf_time_spent += diff_time(start, end);                   \
+        pa->perf_number_calls++;                                        \
+    } while(0)
+
+static off_t find_free_segment(void)
+{
+    off_t my_offset;
+    do_and_measure_perf(PERF_WAITING,
+      pthread_mutex_lock( &file_backend_lock ));
+    if( file_backend_next_offset + event_buffer_size > file_backend_size ) {
+        file_backend_size += parsec_profiling_file_multiplier * event_buffer_size;
+        do_and_measure_perf(PERF_RESIZE,
+          if( ftruncate(file_backend_fd, file_backend_size) == -1 ) {
+              fprintf(stderr, "### Profiling: unable to resize backend file to %lu bytes: %s\n",
+                      (uint64_t)file_backend_size, strerror(errno));
+              file_backend_extendable = 0;
+              pthread_mutex_unlock(&file_backend_lock);
+              assert(0);
+              return (off_t)-1;
+          });
+    }
+    my_offset = file_backend_next_offset;
+    file_backend_next_offset += event_buffer_size;
+    pthread_mutex_unlock(&file_backend_lock);
+    return my_offset;
+}
+
+static parsec_profiling_buffer_t *do_allocate_new_buffer(void)
+{
+    parsec_profiling_buffer_t *res = NULL;
+    off_t my_offset;
+
+    my_offset = find_free_segment();
+    if( -1 == my_offset ) {
+        close(file_backend_fd);
+        file_backend_fd = -1;
+        fprintf(stderr, "### Profiling: Unable to find a free segment in backend file\n");
+        file_backend_extendable = 0;
+        return NULL;
+    }
+
+#if defined(PARSEC_PROFILING_USE_MMAP)
+    do_and_measure_perf(PERF_MMAP,
+      res = mmap(NULL, event_buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_backend_fd, my_offset));
+    res = (res == MAP_FAILED) ? NULL : res;
+#else
+    do_and_measure_perf(PERF_MALLOC,
+      res = (parsec_profiling_buffer_t*)malloc(event_buffer_size));
+#endif
+
+    if( NULL == res ) {
+        file_backend_extendable = 0;
+        close(file_backend_fd);
+        file_backend_fd = -1;
+        fprintf(stderr, "### Profiling: Unable to allocate / map segment in backend file (%s)n", strerror(errno));
+        return NULL;
+    }
+
+#if 0 && !defined(NDEBUG)
+    do_and_measure_perf(PERF_MEMSET,
+      memset(res, 0, event_buffer_size));
+#endif
+
+    res->this_buffer_file_offset = my_offset;
+    res->next_buffer_file_offset = (off_t)-1;
+
+    return res;
+}
+
+#if !defined(PARSEC_PROFILING_USE_MMAP)
+static void do_assign_buffer_to_free_segment(parsec_profiling_buffer_t *res)
+{
+    off_t my_offset = find_free_segment();
+#if 0 && !defined(NDEBUG)
+    do_and_measure_perf(PERF_MEMSET,
+      memset(res, 0, event_buffer_size));
+#endif
+    res->this_buffer_file_offset = my_offset;
+    res->next_buffer_file_offset = (off_t)-1;
+}
+#endif
+
+static parsec_profiling_buffer_t *allocate_from_freelist(tl_freelist_t *fl)
+{
+    tl_freelist_buffer_t *head;
+    parsec_profiling_buffer_t *res = NULL;
+
+    if( !file_backend_extendable ) {
+        return NULL;
+    }
+
+    pthread_mutex_lock(&fl->lock);
+    head = fl->first;
+    if(NULL != head) {
+        fl->first = head->next;
+        pthread_mutex_unlock(&fl->lock);
+        res = (parsec_profiling_buffer_t*)head;
+    } else {
+        fl->nb_allocated++;
+        pthread_mutex_unlock(&fl->lock);
+        res = do_allocate_new_buffer();
+    }
+    return res;
+}
+
+static void free_to_freelist(tl_freelist_t *fl, parsec_profiling_buffer_t *b)
+{
+#if !defined(PARSEC_PROFILING_USE_MMAP)
+    int ret;
+#endif
+    if( NULL == b )
+        return;
+
+#if defined(PARSEC_PROFILING_USE_MMAP)
+    do_and_measure_perf(PERF_MUNMAP,
+      if( munmap(b, event_buffer_size) == -1 ) {
+          fprintf(stderr, "Warning profiling system: unmap of the events backend file at %p failed: %s\n",
+                  b, strerror(errno));
+      });
+    b = do_allocate_new_buffer();
+    if( NULL == b )
+        return;
+#else
+    do_and_measure_perf(PERF_WAITING,
+      pthread_mutex_lock( &file_backend_lock ));
+    do_and_measure_perf(PERF_LSEEK,
+      ret = lseek(file_backend_fd, b->this_buffer_file_offset, SEEK_SET));
+    if(ret == (off_t)-1 ) {
+        fprintf(stderr, "Warning profiling system: seek in the events backend file at %ld failed: %s. Events trace will be truncated.\n",
+                (long)b->this_buffer_file_offset, strerror(errno));
+    } else {
+        do_and_measure_perf(PERF_WRITE,
+           ret = write(file_backend_fd, b, event_buffer_size));
+        if( (size_t)(ret) != event_buffer_size ) {
+            fprintf(stderr, "Warning profiling system: write in the events backend file at %ld failed: %s. Events trace will be truncated.\n",
+                     (long)b->this_buffer_file_offset, strerror(errno));
+        }
+    }
+    pthread_mutex_unlock( &file_backend_lock );
+    do_assign_buffer_to_free_segment(b);
+#endif
+
+    pthread_mutex_lock(&fl->lock);
+    ((tl_freelist_buffer_t *)b)->next = fl->first;
+    fl->first = (tl_freelist_buffer_t*)b;
+    pthread_mutex_unlock(&fl->lock);
+}
+
+
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+/**
+ * Profiling I/O command structure
+ *
+ * Command is coded in the buffer address:
+ *   if buffer == IO_CMD_STOP, the helper thread is requested to leave.
+ *       No command is supposed to be enqueued after this command.
+ *   if buffer == IO_CMD_FLUSH, the helper thread will increment
+ *       the io_cmd_flush_counter, and signal this on the
+ *       io_cmd_flush_cond. This means that all I/O operations
+ *       enqueued prior to that command have been exectued.
+ *   For all other values of buffer:
+ *       buffer should be unmapped
+ *       a new buffer should be mapped into the backend file
+ *       that new buffer should be added to the buffers freelist of fl
+ */
+typedef struct io_cmd_s {
+    struct io_cmd_s           *next;
+    parsec_profiling_buffer_t *buffer;
+    tl_freelist_t             *fl;
+} io_cmd_t;
+#define IO_CMD_STOP   ((void*)-1)
+#define IO_CMD_FLUSH  ((void*) 0)
+
+typedef struct io_cmd_queue_s {
+    io_cmd_t *next;
+    io_cmd_t *last;
+    pthread_mutex_t lock;
+    pthread_cond_t  cond;
+} io_cmd_queue_t;
+static io_cmd_queue_t cmd_queue;
+static io_cmd_queue_t free_cmd_queue;
+static pthread_t io_helper_thread_id;
+
+static int             io_cmd_flush_counter;
+static pthread_mutex_t io_cmd_flush_mutex;
+static pthread_cond_t  io_cmd_flush_cond;
+
+static io_cmd_t *io_cmd_allocate(void)
+{
+    io_cmd_t *cmd;
+    pthread_mutex_lock(&free_cmd_queue.lock);
+    if( free_cmd_queue.next == NULL ) {
+        pthread_mutex_unlock(&free_cmd_queue.lock);
+        cmd = (io_cmd_t*)malloc(sizeof(io_cmd_t));
+        return cmd;
+    } else {
+        cmd = free_cmd_queue.next;
+        free_cmd_queue.next = cmd->next;
+        pthread_mutex_unlock(&free_cmd_queue.lock);
+        return cmd;
+    }
+}
+
+static void io_cmd_free(io_cmd_t *cmd)
+{
+    pthread_mutex_lock(&free_cmd_queue.lock);
+    cmd->next = free_cmd_queue.next;
+    free_cmd_queue.next = cmd;
+    pthread_mutex_unlock(&free_cmd_queue.lock);
+}
+
+static void io_cmd_queue_init(io_cmd_queue_t *queue)
+{
+    queue->next = NULL;
+    queue->last = NULL;
+    pthread_mutex_init(&queue->lock, NULL);
+    pthread_cond_init(&queue->cond, NULL);
+
+}
+
+static void io_cmd_queue_destroy(io_cmd_queue_t *queue)
+{
+    io_cmd_t *cmd;
+    pthread_mutex_lock(&queue->lock);
+    while( NULL != queue->next ) {
+        cmd = queue->next;
+        queue->next = cmd->next;
+        free(cmd);
+    }
+    queue->last = NULL;
+    pthread_mutex_unlock(&queue->lock);
+    pthread_mutex_destroy(&queue->lock);
+    pthread_cond_destroy(&queue->cond);
+}
+
+static void *io_helper_thread_fct(void *_)
+{
+    int stop = 0;
+    io_cmd_t *cmd;
+    (void)_;
+
+    while( stop == 0 ) {
+        pthread_mutex_lock(&cmd_queue.lock);
+        while( NULL == cmd_queue.next ) {
+            pthread_cond_wait(&cmd_queue.cond, &cmd_queue.lock);
+        }
+        cmd = cmd_queue.next;
+        if( cmd_queue.next == cmd_queue.last )
+            cmd_queue.last = NULL;
+        cmd_queue.next = cmd->next;
+        pthread_mutex_unlock(&cmd_queue.lock);
+
+        if( IO_CMD_FLUSH == cmd->buffer ) {
+            pthread_mutex_lock(&io_cmd_flush_mutex);
+            io_cmd_flush_counter++;
+            pthread_cond_signal(&io_cmd_flush_cond);
+            pthread_mutex_unlock(&io_cmd_flush_mutex);
+        } else if( IO_CMD_STOP == cmd->buffer ) {
+            stop = 1;
+        } else {
+            free_to_freelist(cmd->fl, cmd->buffer);
+        }
+
+        io_cmd_free(cmd);
+    }
+
+    io_cmd_queue_destroy(&cmd_queue);
+    io_cmd_queue_destroy(&free_cmd_queue);
+
+    return NULL;
+}
+
+static void io_helper_thread_init(void)
+{
+    io_cmd_queue_init(&cmd_queue);
+    io_cmd_queue_init(&free_cmd_queue);
+    io_cmd_flush_counter = 0;
+    pthread_mutex_init(&io_cmd_flush_mutex, NULL);
+    pthread_cond_init(&io_cmd_flush_cond, NULL);
+
+    pthread_create(&io_helper_thread_id, NULL, io_helper_thread_fct, NULL);
+}
+#endif /* PARSEC_PROFILING_USE_HELPER_THREAD */
+
 
 static void set_last_error(const char *format, ...)
 {
@@ -150,12 +478,21 @@ int parsec_profiling_init( void )
     file_backend_extendable = 1;
     ps = sysconf(_SC_PAGESIZE);
 
-    parsec_profiling_minimal_ebs = 10;
+    parsec_profiling_minimal_ebs = 1;
     parsec_mca_param_reg_int_name("profile", "buffer_pages", "Number of pages per profiling buffer"
-                                 "(default is 10, must be at least large enough to hold the binary file header)",
+                                 "(default is 1, must be at least large enough to hold the binary file header)",
                                  false, false, parsec_profiling_minimal_ebs, &parsec_profiling_minimal_ebs);
+    parsec_mca_param_reg_int_name("profile", "file_resize", "Number of buffers per file resize"
+                                 "(default is 1)",
+                                 false, false, parsec_profiling_file_multiplier, &parsec_profiling_file_multiplier);
+    parsec_mca_param_reg_int_name("profile", "show_profiling_performance", "Print profiling performance at the end of the execution"
+                                      "(default is no/0)",
+                                      false, false, parsec_profiling_show_profiling_performance, &parsec_profiling_show_profiling_performance);
     if( parsec_profiling_minimal_ebs <= 0 )
         parsec_profiling_minimal_ebs = 10;
+    if( parsec_profiling_file_multiplier <= 0 )
+        parsec_profiling_file_multiplier = 1;
+
     event_buffer_size = parsec_profiling_minimal_ebs*ps;
     while( event_buffer_size < sizeof(parsec_profiling_binary_file_header_t) ){
         parsec_profiling_minimal_ebs++;
@@ -206,6 +543,10 @@ int parsec_profiling_init( void )
     } else
         parsec_profiling_add_information("cwd", "");
 
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+    io_helper_thread_init();
+#endif
+
     __profile_initialized = 1; //* confirmed */
     return 0;
 }
@@ -249,6 +590,27 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
     }
     pthread_setspecific(thread_specific_profiling_key, res);
 
+    res->tls_storage = malloc(sizeof(tl_freelist_t));
+    tl_freelist_t *t_fl = (tl_freelist_t*)res->tls_storage;
+    tl_freelist_buffer_t *e;
+    pthread_mutex_init(&t_fl->lock, NULL);
+    e = (tl_freelist_buffer_t*)do_allocate_new_buffer();
+    if( NULL == e ) {
+        free(res->tls_storage);
+        free(res);
+        return NULL;
+    }
+    e->next = NULL;
+    t_fl->first = e;
+    t_fl->nb_allocated = 1;
+    for(rc = 1; rc < parsec_profiling_per_thread_buffer_freelist_min; rc++) {
+        e->next = (tl_freelist_buffer_t*)do_allocate_new_buffer();
+        assert(NULL != e->next);
+        e = e->next;
+        e->next = NULL;
+        t_fl->nb_allocated++;
+    }
+
     OBJ_CONSTRUCT(res, parsec_list_item_t);
     va_start(ap, format);
     rc = vasprintf(&res->hr_id, format, ap); assert(rc!=-1); (void)rc;
@@ -269,13 +631,16 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
     /* Allocate the first page to save time on the first event tracing */
     switch_event_buffer(res);
 
+    memset(res->thread_perf, 0, sizeof(parsec_profiling_perf_t)*PERF_MAX);
+
     return res;
 }
 
 int parsec_profiling_fini( void )
 {
     parsec_thread_profiling_t *t;
-
+    int i;
+        
     if( !__profile_initialized ) return -1;
 
     if( bpf_filename ) {
@@ -285,11 +650,108 @@ int parsec_profiling_fini( void )
     }
 
     while( (t = (parsec_thread_profiling_t*)parsec_list_nolock_fifo_pop(&threads)) ) {
+        tl_freelist_t *fl = TLS_STORAGE(t);
+        tl_freelist_buffer_t *b;
+        while(fl->first != NULL) {
+            b = fl->first;
+            fl->first = b->next;
+            free(b);
+        }
+        if( parsec_profiling_show_profiling_performance ) {
+            for(i = 0; i < PERF_MAX; i++) {
+                parsec_profiling_global_perf[i].perf_time_spent += t->thread_perf[i].perf_time_spent;
+                parsec_profiling_global_perf[i].perf_number_calls += t->thread_perf[i].perf_number_calls;
+            }
+        }
+
+        pthread_mutex_destroy(&fl->lock);
+        free(fl);
         free(t->hr_id);
         free(t);
     }
     free(hr_id);
     OBJ_DESTRUCT(&threads);
+
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+    io_cmd_t *cmd = io_cmd_allocate();
+    cmd->buffer = IO_CMD_STOP;
+    cmd->fl = NULL;
+    cmd->next = NULL;
+    pthread_mutex_lock(&cmd_queue.lock);
+    if( NULL == cmd_queue.last ) {
+        cmd_queue.last = cmd_queue.next = cmd;
+    } else {
+        cmd_queue.last->next = cmd;
+        cmd_queue.last = cmd;
+    }
+    pthread_cond_signal(&cmd_queue.cond);
+    pthread_mutex_unlock(&cmd_queue.lock);
+    pthread_join(io_helper_thread_id, NULL);
+#endif
+    
+    if( parsec_profiling_show_profiling_performance ) {
+        int rank = 0;
+#if defined(PARSEC_HAVE_MPI)
+        int MPI_ready;
+        (void)MPI_Initialized(&MPI_ready);
+        if(MPI_ready) {
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        }
+#endif
+        parsec_profiling_perf_t *pa = parsec_profiling_global_perf;
+        char *ti;
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+        ti = "Helper Thread:";
+#else
+        ti = "";
+#endif
+        fprintf(stderr,
+                "### Profiling Performance on rank %d\n"
+                "#   Buffer Size: %lu bytes\n"
+                "#   File Resize Size: %lu bytes (%d buffers)\n"
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+                "#   User Thread: Time spent waiting to append command to a queue: %lu %s. Number of calls: %u\n"
+#endif
+                "#   %sTime Spent Resizing the backend file: %lu %s. Number of resize: %u\n"
+#if defined(PARSEC_PROFILING_USE_MMAP)
+                "#   %sTime Spent Mapping the backend file: %lu %s. Number of mmap: %u\n"
+                "#   %sTime Spent Unmapping mapped buffers: %lu %s. Number of munmap: %u\n"
+#else
+                "#   %sTime Spent Allocating Buffers: %lu %s. Number of malloc: %u\n"
+                "#   %sTime Spent Freeing Buffers: %lu %s. Number of free: %u\n"
+                "#   %sTime Spent Seeking in file: %lu %s. Number of lseeks: %u\n"
+                "#   %sTime Spent Writing (synchronously) Buffers: %lu %s. Number of writes: %u\n"
+#endif
+                "#   %sTime Spent Resetting Buffers to 0: %lu %s. Number of memset: %u\n"
+                "#   %sTime spent waiting for Exclusive Access to Buffer Management: %lu %s. Number of calls: %u\n",
+                rank,
+                event_buffer_size,
+                event_buffer_size * parsec_profiling_file_multiplier, parsec_profiling_file_multiplier,
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+                pa[PERF_USER_WAITING].perf_time_spent, TIMER_UNIT, pa[PERF_USER_WAITING].perf_number_calls,
+#endif
+                ti, pa[PERF_RESIZE].perf_time_spent, TIMER_UNIT, pa[PERF_RESIZE].perf_number_calls,
+#if defined(PARSEC_PROFILING_USE_MMAP)
+                ti, pa[PERF_MMAP].perf_time_spent, TIMER_UNIT, pa[PERF_MMAP].perf_number_calls,
+                ti, pa[PERF_MUNMAP].perf_time_spent, TIMER_UNIT, pa[PERF_MUNMAP].perf_number_calls,
+#else
+                ti, pa[PERF_MALLOC].perf_time_spent, TIMER_UNIT, pa[PERF_MALLOC].perf_number_calls,
+                ti, pa[PERF_FREE].perf_time_spent, TIMER_UNIT, pa[PERF_FREE].perf_number_calls,
+                ti, pa[PERF_LSEEK].perf_time_spent, TIMER_UNIT, pa[PERF_LSEEK].perf_number_calls,
+                ti, pa[PERF_WRITE].perf_time_spent, TIMER_UNIT, pa[PERF_WRITE].perf_number_calls,
+#endif
+                ti, pa[PERF_MEMSET].perf_time_spent, TIMER_UNIT, pa[PERF_MEMSET].perf_number_calls,
+                ti, pa[PERF_WAITING].perf_time_spent, TIMER_UNIT, pa[PERF_WAITING].perf_number_calls);
+    }
+    memset(parsec_profiling_global_perf, 0, sizeof(parsec_profiling_perf_t)*PERF_MAX);
+
+    while(default_freelist->first != NULL) {
+        tl_freelist_buffer_t *b = default_freelist->first;
+        default_freelist->first = b->next;
+        free(b);
+    }
+    pthread_mutex_destroy(&default_freelist->lock);
+    free(default_freelist);
 
     parsec_profiling_dictionary_flush();
     free(parsec_prof_keys);
@@ -297,6 +759,7 @@ int parsec_profiling_fini( void )
     start_called = 0;  /* Allow the profiling to be reinitialized */
     parsec_profile_enabled = 0;  /* turn off the profiling */
     __profile_initialized = 0;  /* not initialized */
+
     return 0;
 }
 
@@ -376,45 +839,18 @@ int parsec_profiling_dictionary_flush( void )
     return 0;
 }
 
-static parsec_profiling_buffer_t *allocate_empty_buffer(off_t *offset, char type)
+static parsec_profiling_buffer_t *allocate_empty_buffer(tl_freelist_t *fl, off_t *offset, char type)
 {
     parsec_profiling_buffer_t *res;
 
-    if( !file_backend_extendable ) {
-        *offset = -1;
-        return NULL;
-    }
-
-    if( ftruncate(file_backend_fd, file_backend_next_offset+event_buffer_size) == -1 ) {
-        file_backend_extendable = 0;
-        *offset = -1;
-        return NULL;
-    }
-
-#if defined(PARSEC_PROFILING_USE_MMAP)
-    res = mmap(NULL, event_buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_backend_fd, file_backend_next_offset);
-
-    if( MAP_FAILED == res ) {
-        file_backend_extendable = 0;
-        *offset = -1;
-        return NULL;
-    }
-#else
-    res = (parsec_profiling_buffer_t*)malloc(event_buffer_size);
-#if !defined(NDEBUG)
-    memset(res, 0, event_buffer_size);
-#endif
+    res = allocate_from_freelist(fl);
     if( NULL == res ) {
         file_backend_extendable = 0;
         *offset = -1;
         return NULL;
     }
-#endif
 
-    res->this_buffer_file_offset = file_backend_next_offset;
-
-    *offset = file_backend_next_offset;
-    file_backend_next_offset += event_buffer_size;
+    *offset = res->this_buffer_file_offset;
 
     if(PROFILING_BUFFER_TYPE_HEADER != type ) {
         res->next_buffer_file_offset = (off_t)-1;
@@ -441,30 +877,34 @@ static parsec_profiling_buffer_t *allocate_empty_buffer(off_t *offset, char type
     return res;
 }
 
-static void write_down_existing_buffer(parsec_profiling_buffer_t *buffer,
+static void write_down_existing_buffer(tl_freelist_t *fl,
+                                       parsec_profiling_buffer_t *buffer,
                                        size_t count)
 {
-    (void)count;
     if( NULL == buffer )
         return;
     assert( count > 0 );
-    memset( &(buffer->buffer[count]), 0, event_avail_space - count );
-#if defined(PARSEC_PROFILING_USE_MMAP)
-    if( munmap(buffer, event_buffer_size) == -1 ) {
-        fprintf(stderr, "Warning profiling system: unmap of the events backend file at %p failed: %s\n",
-                buffer, strerror(errno));
-    }
-#else
-    if( lseek(file_backend_fd, buffer->this_buffer_file_offset, SEEK_SET) == (off_t)-1 ) {
-        fprintf(stderr, "Warning profiling system: seek in the events backend file at %ld failed: %s. Events trace will be truncated.\n",
-                (long)buffer->this_buffer_file_offset, strerror(errno));
+
+    do_and_measure_perf(PERF_MEMSET,
+      memset( &(buffer->buffer[count]), 0, event_avail_space - count ));
+
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+    io_cmd_t *cmd = io_cmd_allocate();
+    cmd->buffer = buffer;
+    cmd->fl = fl;
+    cmd->next = NULL;
+    do_and_measure_perf(PERF_USER_WAITING,
+       pthread_mutex_lock(&cmd_queue.lock));
+    if( NULL == cmd_queue.last ) {
+        cmd_queue.last = cmd_queue.next = cmd;
     } else {
-        if( (size_t)(write(file_backend_fd, buffer, event_buffer_size)) != event_buffer_size ) {
-            fprintf(stderr, "Warning profiling system: write in the events backend file at %ld failed: %s. Events trace will be truncated.\n",
-                     (long)buffer->this_buffer_file_offset, strerror(errno));
-        }
+        cmd_queue.last->next = cmd;
+        cmd_queue.last = cmd;
     }
-    free(buffer);
+    pthread_cond_signal(&cmd_queue.cond);
+    pthread_mutex_unlock(&cmd_queue.lock);
+#else
+    free_to_freelist(fl, buffer);
 #endif
 }
 
@@ -474,14 +914,7 @@ static int switch_event_buffer( parsec_thread_profiling_t *context )
     parsec_profiling_buffer_t *old_buffer;
     off_t off;
 
-    pthread_mutex_lock( &file_backend_lock );
-
-    new_buffer = allocate_empty_buffer(&off, PROFILING_BUFFER_TYPE_EVENTS);
-
-    if( NULL == new_buffer ) {
-        pthread_mutex_unlock( &file_backend_lock );
-        return -1;
-    }
+    new_buffer = allocate_empty_buffer((tl_freelist_t*)context->tls_storage, &off, PROFILING_BUFFER_TYPE_EVENTS);
 
     old_buffer = context->current_events_buffer;
     if( NULL == old_buffer ) {
@@ -489,13 +922,11 @@ static int switch_event_buffer( parsec_thread_profiling_t *context )
     } else {
         old_buffer->next_buffer_file_offset = off;
     }
-    write_down_existing_buffer( old_buffer, context->next_event_position );
+    write_down_existing_buffer((tl_freelist_t*)context->tls_storage, old_buffer, context->next_event_position );
 
     context->current_events_buffer = new_buffer;
     context->current_events_buffer_offset = off;
     context->next_event_position = 0;
-
-    pthread_mutex_unlock( &file_backend_lock );
 
     return 0;
 }
@@ -558,7 +989,7 @@ static int64_t dump_global_infos(int *nbinfos)
         return -1;
     }
 
-    b = allocate_empty_buffer(&first_off, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
+    b = allocate_empty_buffer(default_freelist, &first_off, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
     if( NULL == b ) {
         set_last_error("Profiling system: error: Unable to dump the global infos -- buffer allocation error\n");
         *nbinfos = 0;
@@ -574,8 +1005,8 @@ static int64_t dump_global_infos(int *nbinfos)
 
         if( pos + sizeof(parsec_profiling_info_buffer_t) + is - 1 >= event_avail_space ) {
             b->this_buffer.nb_infos = nbthis;
-            n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
-            write_down_existing_buffer(b, pos);
+            n = allocate_empty_buffer(default_freelist, &b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
+            write_down_existing_buffer(default_freelist, b, pos);
 
             if( NULL == n ) {
                 set_last_error("Profiling System: error: Global Infos will be truncated to %d infos only -- buffer allocation error\n", nb);
@@ -614,8 +1045,8 @@ static int64_t dump_global_infos(int *nbinfos)
             pos += tc;
             if( pos == (int)event_avail_space ) {
                 b->this_buffer.nb_infos = nbthis;
-                n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
-                write_down_existing_buffer(b, pos);
+                n = allocate_empty_buffer(default_freelist, &b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
+                write_down_existing_buffer(default_freelist, b, pos);
 
                 if( NULL == n ) {
                     set_last_error("Profiling System: error: Global Infos will be truncated to %d infos only -- buffer allocation error\n", nb);
@@ -633,7 +1064,7 @@ static int64_t dump_global_infos(int *nbinfos)
     }
 
     b->this_buffer.nb_infos = nbthis;
-    write_down_existing_buffer(b, pos);
+    write_down_existing_buffer(default_freelist, b, pos);
 
     *nbinfos = nb;
     return first_off;
@@ -653,7 +1084,7 @@ static int64_t dump_dictionary(int *nbdico)
         return -1;
     }
 
-    b = allocate_empty_buffer(&first_off, PROFILING_BUFFER_TYPE_DICTIONARY);
+    b = allocate_empty_buffer(default_freelist, &first_off, PROFILING_BUFFER_TYPE_DICTIONARY);
     if( NULL == b ) {
         set_last_error("Profiling System: error: Unable to dump the dictionary -- buffer allocation error\n");
         *nbdico = 0;
@@ -672,9 +1103,9 @@ static int64_t dump_dictionary(int *nbdico)
 
         if( pos + sizeof(parsec_profiling_key_buffer_t) + cs - 1 >= event_avail_space ) {
             b->this_buffer.nb_dictionary_entries = nbthis;
-            n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_DICTIONARY);
+            n = allocate_empty_buffer(default_freelist, &b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_DICTIONARY);
 
-            write_down_existing_buffer(b, pos);
+            write_down_existing_buffer(default_freelist, b, pos);
 
             b = n;
             pos = 0;
@@ -700,7 +1131,7 @@ static int64_t dump_dictionary(int *nbdico)
     }
 
     b->this_buffer.nb_dictionary_entries = nbthis;
-    write_down_existing_buffer(b, pos);
+    write_down_existing_buffer(default_freelist, b, pos);
 
     *nbdico = nb;
     return first_off;
@@ -743,7 +1174,7 @@ static int64_t dump_thread(int *nbth)
         return -1;
     }
 
-    b = allocate_empty_buffer(&off, PROFILING_BUFFER_TYPE_THREAD);
+    b = allocate_empty_buffer(default_freelist, &off, PROFILING_BUFFER_TYPE_THREAD);
     if( NULL == b ) {
         set_last_error("Profiling system: error: Unable to dump some thread profiles -- buffer allocation error\n");
         *nbth = 0;
@@ -766,8 +1197,8 @@ static int64_t dump_thread(int *nbth)
 
         if( pos + th_size >= event_avail_space ) {
             b->this_buffer.nb_threads = nbthis;
-            n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_THREAD);
-            write_down_existing_buffer(b, pos);
+            n = allocate_empty_buffer((tl_freelist_t*)thread->tls_storage, &b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_THREAD);
+            write_down_existing_buffer((tl_freelist_t*)thread->tls_storage, b, pos);
 
             if( NULL == n ) {
                 set_last_error("Profiling system: error: Threads will be truncated to %d threads only -- buffer allocation error\n", nb);
@@ -810,7 +1241,7 @@ static int64_t dump_thread(int *nbth)
     }
 
     b->this_buffer.nb_threads = nbthis;
-    write_down_existing_buffer(b, pos);
+    write_down_existing_buffer(default_freelist, b, pos);
 
     *nbth = nb;
     return off;
@@ -840,7 +1271,7 @@ int parsec_profiling_dbp_dump( void )
         it = PARSEC_LIST_ITERATOR_NEXT( it ) ) {
         t = (parsec_thread_profiling_t*)it;
         if( NULL != t->current_events_buffer && t->next_event_position != 0 ) {
-            write_down_existing_buffer(t->current_events_buffer, t->next_event_position);
+            write_down_existing_buffer((tl_freelist_t*)t->tls_storage, t->current_events_buffer, t->next_event_position);
             t->current_events_buffer = NULL;
         }
     }
@@ -855,8 +1286,60 @@ int parsec_profiling_dbp_dump( void )
     profile_head->nb_threads = nb_threads;
 
     /* The head is now complete. Last flush. */
-    write_down_existing_buffer((parsec_profiling_buffer_t *)profile_head,
+    write_down_existing_buffer(default_freelist,
+                               (parsec_profiling_buffer_t *)profile_head,
                                sizeof(parsec_profiling_binary_file_header_t));
+
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+    int my_flush_ticket;
+    pthread_mutex_lock(&io_cmd_flush_mutex);
+    my_flush_ticket = io_cmd_flush_counter + 1;
+    pthread_mutex_unlock(&io_cmd_flush_mutex);
+
+    io_cmd_t *cmd = io_cmd_allocate();
+    cmd->buffer = IO_CMD_FLUSH;
+    cmd->fl = NULL;
+    cmd->next = NULL;
+    do_and_measure_perf(PERF_USER_WAITING,
+       pthread_mutex_lock(&cmd_queue.lock));
+    if( NULL == cmd_queue.last ) {
+        cmd_queue.last = cmd_queue.next = cmd;
+    } else {
+        cmd_queue.last->next = cmd;
+        cmd_queue.last = cmd;
+    }
+    pthread_cond_signal(&cmd_queue.cond);
+    pthread_mutex_unlock(&cmd_queue.lock);
+
+    pthread_mutex_lock(&io_cmd_flush_mutex);
+    while( io_cmd_flush_counter != my_flush_ticket ) {
+        pthread_cond_wait(&io_cmd_flush_cond, &io_cmd_flush_mutex);
+    }
+    pthread_mutex_unlock(&io_cmd_flush_mutex);
+#endif
+
+#if defined(PARSEC_PROFILING_USE_MMAP)
+    tl_freelist_buffer_t *b;
+    /* Buffers that were unecessarily pre-maped need to be released */
+    for(it = PARSEC_LIST_ITERATOR_FIRST( &threads );
+        it != PARSEC_LIST_ITERATOR_END( &threads );
+        it = PARSEC_LIST_ITERATOR_NEXT( it ) ) {
+        t = (parsec_thread_profiling_t*)it;
+        tl_freelist_t *fl = TLS_STORAGE(t);
+        while(fl->first != NULL) {
+            b = fl->first;
+            fl->first = b->next;
+            fl->nb_allocated--;
+            munmap(b, event_buffer_size);
+        }
+    }
+    while(default_freelist->first != NULL) {
+        b = default_freelist->first;
+        default_freelist->first = b->next;
+        default_freelist->nb_allocated--;
+        munmap(b, event_buffer_size);
+    }
+#endif
 
     /* Close the backend file */
     pthread_mutex_lock(&file_backend_lock);
@@ -920,7 +1403,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
         MPI_Bcast(unique_str, 7, MPI_CHAR, 0, MPI_COMM_WORLD);
         if( 0 != rank ) {
             if( *unique_str != '\0') {
-                file_backend_fd = open(bpf_filename, O_WRONLY | O_CREAT | O_TRUNC, 00600);
+                file_backend_fd = open(bpf_filename, O_RDWR | O_CREAT | O_TRUNC, 00600);
             }  /* else we are in the error propagation from the rank 0 */
         }
         MPI_Allreduce(&file_backend_fd, &min_fd, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
@@ -939,8 +1422,28 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
         return -1;
     }
 
+    default_freelist = malloc(sizeof(tl_freelist_t));
+    tl_freelist_buffer_t *e;
+    pthread_mutex_init(&default_freelist->lock, NULL);
+    e = (tl_freelist_buffer_t*)do_allocate_new_buffer();
+    if( NULL == e ) {
+        return -1;
+    }
+    e->next = NULL;
+    default_freelist->first = e;
+    default_freelist->nb_allocated = 1;
+    for(rc = 1; rc < parsec_profiling_per_thread_buffer_freelist_min; rc++) {
+        e->next = (tl_freelist_buffer_t*)do_allocate_new_buffer();
+        if( NULL == e->next ) {
+            return -1;
+        }
+        e = e->next;
+        e->next = NULL;
+        default_freelist->nb_allocated++;
+    }
+
     /* Create the header of the profiling file */
-    profile_head = (parsec_profiling_binary_file_header_t*)allocate_empty_buffer(&zero, PROFILING_BUFFER_TYPE_HEADER);
+    profile_head = (parsec_profiling_binary_file_header_t*)allocate_empty_buffer(default_freelist, &zero, PROFILING_BUFFER_TYPE_HEADER);
     if( NULL == profile_head )
         return -1;
 
