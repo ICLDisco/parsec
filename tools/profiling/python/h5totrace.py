@@ -230,13 +230,18 @@ if __name__ == '__main__':
             continue
         if "M%d"%(t.node_id) not in paje_container_aliases:
             paje_container_aliases["M%d"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%d" % (t.node_id), Type=paje_ct, Container=paje_c_appli)
-        if not math.isnan(t.vp_id):
-            if "M%dV%d"%(t.node_id, t.vp_id) not in paje_container_aliases:
-                paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dV%d" % (t.node_id,t.vp_id), Type=paje_ct,
-                                                                                                     Container=paje_container_aliases["M%d"%(t.node_id)])
-            if "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
-                paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id), Type=paje_ct,
-                                                                                                         Container=paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)])
+        if hasattr(t, 'vp_id'):
+            if not math.isnan(t.vp_id):
+                if "M%dV%d"%(t.node_id, t.vp_id) not in paje_container_aliases:
+                    paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dV%d" % (t.node_id,t.vp_id), Type=paje_ct,
+                                                                                                        Container=paje_container_aliases["M%d"%(t.node_id)])
+        if "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
+                if hasattr(t, 'vp_id') and isinstance(t.vp_id, int):
+                        paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id), Type=paje_ct,
+                                                                                                                Container=paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)])
+                else:
+                        paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id), Type=paje_ct,
+                                                                                                                Container=paje_container_aliases["M%d"%(t.node_id)])
                 container_endstate["M%dT%d"%(t.node_id,t.stream_id)] = 0.0
         else:
             match = re.search(r'GPU\ ([0-9]+)\-([0-9]+)', t.description)
@@ -301,7 +306,7 @@ if __name__ == '__main__':
                     begin_date = container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)]
                 else:
                     begin_date = ev['begin']
-                key = "hid=%d:did=%d:tid=%d"%(ev.taskpoolid,ev.type,ev.id)
+                key = "hid=%d:did=%d:tid=%d"%(ev.taskpool_id,ev.type,ev.id)
                 if args.DAG:
                     dag_info[key] = { 'container': paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                       'start': float(ev.begin), 'end': float(ev.end), 'rank': ev.node_id }

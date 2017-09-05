@@ -105,11 +105,37 @@ typedef struct parsec_profiling_info_s {
     char                          *value;
 } parsec_profiling_info_t;
 
+/**
+ * Profiling performance measures 
+ */
+#define PERF_RESIZE   0
+#define PERF_MEMSET   1
+#define PERF_WAITING  2
+#if defined(PARSEC_PROFILING_USE_MMAP)
+#define PERF_MMAP     3
+#define PERF_MUNMAP   4
+#else
+#define PERF_MALLOC   3
+#define PERF_FREE     4
+#define PERF_LSEEK    5
+#define PERF_WRITE    6
+#endif
+#if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
+#define PERF_USER_WAITING 7
+#endif
+#define PERF_MAX      8
+typedef struct parsec_profiling_perf_s {
+    uint64_t perf_time_spent;
+    uint32_t perf_number_calls;
+} parsec_profiling_perf_t;
+
 struct parsec_thread_profiling_s {
     parsec_list_item_t        list;
     int64_t                  next_event_position; /* When in write mode, points to the next available storage byte
                                                    *   in current_events_buffer */
     char                    *hr_id;
+    parsec_profiling_perf_t  thread_perf[PERF_MAX];
+    void                    *tls_storage;
     uint64_t                 nb_events;
     parsec_profiling_info_t  *infos;
     off_t                    first_events_buffer_offset; /* Offset (in the file) of the first events buffer */

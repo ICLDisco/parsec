@@ -164,6 +164,12 @@ option(PARSEC_PROF_DRY_BODY
   "Disable calls to the actual bodies; no computation is performed" OFF)
 option(PARSEC_PROF_DRY_DEP
   "Disable calls to the actual data transport; remote dependencies are notified, but no data movement takes place" OFF)
+option(PARSEC_PROFILING_USE_MMAP
+  "Use MMAP to create the profile files" ON)
+mark_as_advanced(PARSEC_PROFILING_USE_MMAP)
+option(PARSEC_PROFILING_USE_HELPER_THREAD
+  "Use a Helper Thread to create the profile files" ON)
+mark_as_advanced(PARSEC_PROFILING_USE_HELPER_THREAD)
 
 ### Instrumentation Options
 option(PINS_ENABLE
