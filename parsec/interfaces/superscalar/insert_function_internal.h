@@ -427,6 +427,7 @@ parsec_dtd_fini();
 static inline void
 parsec_dtd_retain_data_copy( parsec_data_copy_t *data )
 {
+    assert( data->super.super.obj_reference_count >= 1 );
     OBJ_RETAIN(data);
 }
 

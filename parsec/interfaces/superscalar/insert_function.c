@@ -2828,10 +2828,10 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
             /* Are we using the same data multiple times for the same task? */
             if(last_user.task == this_task) {
                 satisfied_flow += 1;
-                this_task->super.data[flow_index].data_in = tile->data_copy;
+                this_task->super.data[flow_index].data_in = this_task->super.data[last_user.flow_index].data_in;
                 /* We retain data for each flow of a task */
-                if( tile->data_copy != NULL ) {
-                    parsec_dtd_retain_data_copy(tile->data_copy);
+                if( this_task->super.data[last_user.flow_index].data_in != NULL ) {
+                    parsec_dtd_retain_data_copy(this_task->super.data[last_user.flow_index].data_in);
                 }
 
                 /* What if we have the same task using the same data in different flows
@@ -2859,12 +2859,14 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                         /* clearing bit set to track special release of ownership */
                         FLOW_OF(last_user.task, last_user.flow_index)->flags &= ~RELEASE_OWNERSHIP_SPECIAL;
 
-                        (void)parsec_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , -1 );
-
+                        if( this_task->super.data[flow_index].data_in != NULL ) {
+                            (void)parsec_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , -1 );
+                        }
                     }
                 }
 
-                if( ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT) ) {
+                /* This will fail if a task has W -> R -> W on the same data */
+                if( ((last_user.op_type & GET_OP_TYPE) == OUTPUT || (last_user.op_type & GET_OP_TYPE) == INOUT) ) {
                     if( parsec_dtd_task_is_local(this_task) ) {
                         parsec_dtd_release_local_task( this_task );
                     }
@@ -2912,7 +2914,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 
                         if( parsec_dtd_task_is_local(parent_task) && parsec_dtd_task_is_remote(this_task) ) {
                             /* To make sure we do not release any remote data held by this task */
-                            OBJ_RETAIN(parent_task);
+                            parsec_dtd_remote_task_retain(parent_task);
                         }
                         release_deps_of_dtd(es, (parsec_task_t *)(PARENT_OF(this_task, flow_index))->task,
                                             action_mask |
@@ -3070,12 +3072,15 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
         tile_op_type = va_arg(args_for_rank, int);
 
         if( !((tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH) ) {
+            /* We create a new task class if the kernel is different and
+             * if the same kernel uses different number of data
+             */
+            flow_count_of_template++;
             if( NULL != tile ) {
                 if( (tile_op_type & AFFINITY) ) {
                     this_task_rank = ((parsec_dtd_tile_t *)tile)->rank;
                 }
                 if( !((tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH) ) {
-                    flow_count_of_template++;
                     if( INOUT == (tile_op_type & GET_OP_TYPE) || OUTPUT == (tile_op_type & GET_OP_TYPE) ) {
                         if( !(tile_op_type & DONT_TRACK) ) {
                             write_flow_count++;

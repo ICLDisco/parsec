@@ -205,6 +205,11 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
              * to ourself.
              */
             if(current_task == current_desc) {
+                if(parsec_dtd_task_is_local(current_desc)) {
+                    current_desc->super.data[(DESC_OF(current_task, current_dep))->flow_index].data_in = current_task->super.data[current_dep].data_out;
+                    current_desc->super.data[(DESC_OF(current_task, current_dep))->flow_index].data_out = current_task->super.data[current_dep].data_out;
+                    parsec_dtd_retain_data_copy(current_task->super.data[current_dep].data_out);
+                }
                 continue;
             }
 
