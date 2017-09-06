@@ -247,8 +247,8 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
                                                       PARSEC_PROFILE_THREAD_STR,
                                                       es->th_id,
                                                       es->virtual_process->vp_id,
-                                                      binding);
-        free(binding);
+                                                      NULL == binding ? "(No Binding Information)" : binding);
+        if(NULL != binding) free(binding);
     }
     if( NULL != es->es_profile ) {
         PROFILING_THREAD_SAVE_iINFO(es->es_profile, "boundto", startup->bindto);

@@ -317,7 +317,7 @@ char *parsec_hwloc_get_binding(void)
     HWLOC_FREE(cpuset);
     return binding;
 #else
-    return strdup("No_Binding_Information");
+    return NULL;
 #endif
 }
 
