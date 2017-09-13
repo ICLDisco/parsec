@@ -220,7 +220,7 @@ static parsec_execution_stream_t parsec_comm_es = {
 #endif  /* defined(PINS_ENABLE) */
 #if defined(PARSEC_PROF_RUSAGE_EU)
 #if defined(PARSEC_HAVE_GETRUSAGE) || !defined(__bgp__)
-    ._es_rusage = {0},
+    ._es_rusage = {{0}},
 #endif /* PARSEC_HAVE_GETRUSAGE */
 #endif
     .virtual_process = NULL,
