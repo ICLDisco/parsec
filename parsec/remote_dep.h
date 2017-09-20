@@ -81,7 +81,7 @@ struct remote_dep_output_param_s {
 struct parsec_remote_deps_s {
     parsec_list_item_t               super;
     parsec_lifo_t                   *origin;    /**< The memory arena where the data pointer is comming from */
-    struct parsec_taskpool_s        *taskpool;  /**< parsec object generating this data transfer */
+    struct parsec_taskpool_s        *taskpool;  /**< parsec taskpool generating this data transfer */
     int32_t                          pending_ack;  /**< Number of releases before completion */
     int32_t                          from;    /**< From whom we received the control */
     int32_t                          root;    /**< The root of the control message */
@@ -199,7 +199,7 @@ int parsec_remote_dep_off(parsec_context_t* context);
 /* Poll for remote completion of tasks that would enable some work locally */
 int parsec_remote_dep_progress(parsec_execution_stream_t* es);
 
-/* Inform the communication engine from the creation of new objects */
+/* Inform the communication engine from the creation of new taskpools */
 int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp);
 
 /* Send remote dependencies to target processes */

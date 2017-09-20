@@ -273,7 +273,7 @@ void* cuda_find_incarnation(gpu_device_t* gpu_device,
         dlclose(dlh);
         if( NULL != fn ) {
             parsec_debug_verbose(4, parsec_cuda_output_stream,
-                                "Function %s found in shared object %s",
+                                "Function %s found in shared library %s",
                                 function_name, library_name);
             break;  /* we got one, stop here */
         }
@@ -288,7 +288,7 @@ void* cuda_find_incarnation(gpu_device_t* gpu_device,
             fn = dlsym(dlh, function_name);
             if(NULL != fn) {
                 parsec_debug_verbose(4, parsec_cuda_output_stream,
-                                    "Function %s found in the application object",
+                                    "Function %s found in the application symbols",
                                     function_name);
             }
             dlclose(dlh);

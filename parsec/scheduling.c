@@ -221,19 +221,19 @@ int parsec_taskpool_update_runtime_nbtask(parsec_taskpool_t *tp, int32_t nb_task
 
 static inline int all_tasks_done(parsec_context_t* context)
 {
-    return (context->active_objects == 0);
+    return (context->active_taskpools == 0);
 }
 
 int parsec_check_complete_cb(parsec_taskpool_t *tp, parsec_context_t *context, int remaining)
 {
    if( 0 == remaining ) {
-        /* A parsec object has been completed. Call the attached callback if
+        /* A parsec taskpool has been completed. Call the attached callback if
          * necessary, then update the main engine.
          */
         if( NULL != tp->on_complete ) {
             (void)tp->on_complete( tp, tp->on_complete_data );
         }
-        (void)parsec_atomic_dec_32b( &(context->active_objects) );
+        (void)parsec_atomic_dec_32b( &(context->active_taskpools) );
         PINS_TASKPOOL_FINI(tp);
         return 1;
     }
@@ -647,46 +647,46 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     return nbiterations;
 }
 
-/*  *********** COMPOSITION OF PARSEC_OBJECTS ***************  */
+/*  *********** COMPOSITION OF PARSEC_TASKPOOLS ***************  */
 typedef struct parsec_compound_state_t {
     parsec_context_t* ctx;
-    int nb_objects;
-    int completed_objects;
-    parsec_taskpool_t* objects_array[1];
+    int nb_taskpools;
+    int completed_taskpools;
+    parsec_taskpool_t* taskpools_array[1];
 } parsec_compound_state_t;
 
 static int parsec_composed_cb( parsec_taskpool_t* o, void* cbdata )
 {
     parsec_taskpool_t* compound = (parsec_taskpool_t*)cbdata;
     parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound->task_classes_array;
-    int completed_objects = compound_state->completed_objects++;
-    assert( o == compound_state->objects_array[completed_objects] ); (void)o;
+    int completed_taskpools = compound_state->completed_taskpools++;
+    assert( o == compound_state->taskpools_array[completed_taskpools] ); (void)o;
     if( compound->nb_pending_actions-- ) {
-        assert( NULL != compound_state->objects_array[completed_objects+1] );
+        assert( NULL != compound_state->taskpools_array[completed_taskpools+1] );
         parsec_enqueue(compound_state->ctx,
-                      compound_state->objects_array[completed_objects+1]);
+                      compound_state->taskpools_array[completed_taskpools+1]);
     }
     return 0;
 }
 
 static void parsec_compound_startup( parsec_context_t *context,
-                                    parsec_taskpool_t *compound_object,
+                                    parsec_taskpool_t *compound_tp,
                                     parsec_task_t** startup_list)
 {
-    parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound_object->task_classes_array;
-    parsec_taskpool_t* first = compound_state->objects_array[0];
+    parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound_tp->task_classes_array;
+    parsec_taskpool_t* first = compound_state->taskpools_array[0];
     int i;
 
-    assert( 0 == compound_object->nb_task_classes );
+    assert( 0 == compound_tp->nb_task_classes );
     assert( NULL != first );
     first->startup_hook(context, first, startup_list);
     compound_state->ctx = context;
-    compound_object->nb_pending_actions = compound_state->nb_objects;
-    for( i = 0; i < compound_state->nb_objects; i++ ) {
-        parsec_taskpool_t* o = compound_state->objects_array[i];
+    compound_tp->nb_pending_actions = compound_state->nb_taskpools;
+    for( i = 0; i < compound_state->nb_taskpools; i++ ) {
+        parsec_taskpool_t* o = compound_state->taskpools_array[i];
         assert( NULL != o );
         o->on_complete      = parsec_composed_cb;
-        o->on_complete_data = compound_object;
+        o->on_complete_data = compound_tp;
     }
 }
 
@@ -696,26 +696,26 @@ parsec_taskpool_t* parsec_compose( parsec_taskpool_t* start,
     parsec_taskpool_t* compound = NULL;
     parsec_compound_state_t* compound_state = NULL;
 
-    if( 0 == start->nb_task_classes ) {  /* start is already a compound object */
+    if( 0 == start->nb_task_classes ) {  /* start is already a compound taskpool */
         compound = start;
         compound_state = (parsec_compound_state_t*)compound->task_classes_array;
-        compound_state->objects_array[compound_state->nb_objects++] = next;
+        compound_state->taskpools_array[compound_state->nb_taskpools++] = next;
         /* make room for NULL terminating, if necessary */
-        if( 0 == (compound_state->nb_objects % 16) ) {
+        if( 0 == (compound_state->nb_taskpools % 16) ) {
             compound_state = realloc(compound_state, sizeof(parsec_compound_state_t) +
-                            (1 + compound_state->nb_objects / 16) * 16 * sizeof(void*));
+                            (1 + compound_state->nb_taskpools / 16) * 16 * sizeof(void*));
             compound->task_classes_array = (void*)compound_state;
         }
-        compound_state->objects_array[compound_state->nb_objects] = NULL;
+        compound_state->taskpools_array[compound_state->nb_taskpools] = NULL;
     } else {
         compound = calloc(1, sizeof(parsec_taskpool_t));
         compound->task_classes_array = malloc(sizeof(parsec_compound_state_t) + 16 * sizeof(void*));
         compound_state = (parsec_compound_state_t*)compound->task_classes_array;
-        compound_state->objects_array[0] = start;
-        compound_state->objects_array[1] = next;
-        compound_state->objects_array[2] = NULL;
-        compound_state->completed_objects = 0;
-        compound_state->nb_objects = 2;
+        compound_state->taskpools_array[0] = start;
+        compound_state->taskpools_array[1] = next;
+        compound_state->taskpools_array[2] = NULL;
+        compound_state->completed_taskpools = 0;
+        compound_state->nb_taskpools = 2;
         compound->startup_hook = parsec_compound_startup;
     }
     return compound;
@@ -732,8 +732,8 @@ int parsec_enqueue( parsec_context_t* context, parsec_taskpool_t* tp )
 
     PINS_TASKPOOL_INIT(tp);  /* PINS taskpool initialization */
 
-    /* Update the number of pending objects */
-    (void)parsec_atomic_inc_32b( &(context->active_objects) );
+    /* Update the number of pending taskpools */
+    (void)parsec_atomic_inc_32b( &(context->active_taskpools) );
 
     /* If necessary trigger the on_enqueue callback */
     if( NULL != tp->on_enqueue ) {
@@ -811,7 +811,7 @@ int parsec_context_start( parsec_context_t* context )
         /* we keep one extra reference on the context to make sure we only match this with an
          * explicit call to parsec_context_wait.
          */
-        (void)parsec_atomic_inc_32b( (uint32_t*)&(context->active_objects) );
+        (void)parsec_atomic_inc_32b( (uint32_t*)&(context->active_taskpools) );
         return 0;
     }
     return -1;  /* Someone else start it up */
@@ -835,14 +835,14 @@ int parsec_context_wait( parsec_context_t* context )
                                     PARSEC_CONTEXT_FLAG_COMM_ACTIVE) ) {
         (void)parsec_remote_dep_on(context);
     }
-    /* Remove the additional active_object to signal the runtime that we
+    /* Remove the additional active_taskpool to signal the runtime that we
      * are ready to complete a scheduling epoch.
      */
-    int active = parsec_atomic_dec_32b( &(context->active_objects) );
+    int active = parsec_atomic_dec_32b( &(context->active_taskpools) );
     if( active < 0 ) {
         parsec_warning("parsec_context_wait detected on a non-started context\n");
         /* put the context back on it's original state */
-        (void)parsec_atomic_inc_32b( &(context->active_objects) );
+        (void)parsec_atomic_inc_32b( &(context->active_taskpools) );
         return -1;
     }
 

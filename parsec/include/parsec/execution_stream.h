@@ -110,7 +110,7 @@ struct parsec_vp_s {
 struct parsec_context_s {
     volatile int32_t __parsec_internal_finalization_in_progress;
     volatile int32_t __parsec_internal_finalization_counter;
-    volatile uint32_t active_objects;
+    volatile uint32_t active_taskpools;
     volatile uint32_t flags;
 
     void*   comm_ctx;    /**< opaque communication context */
