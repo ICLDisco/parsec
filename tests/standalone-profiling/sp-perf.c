@@ -1,5 +1,9 @@
 #include <stdlib.h>
 #include <pthread.h>
+#ifdef PARSEC_HAVE_PTHREAD_BARRIER_H
+/* Mac OS X pthread.h does not provide the pthread_barrier by default */
+#include <pthread-barrier.h>
+#endif PARSEC_HAVE_PTHREAD_BARRIER_H
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/time.h>
