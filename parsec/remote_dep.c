@@ -191,7 +191,8 @@ static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
     return 0;
 }
 
-static inline int remote_dep_bcast_binonial_child(int me, int him)
+#if defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL)
+static inline int remote_dep_bcast_binomial_child(int me, int him)
 {
     int k, mask;
 
@@ -213,6 +214,7 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
     /* is the remainder suffix "me" ? */
     return him == me;
 }
+#endif  /* defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL) */
 
 static inline int remote_dep_bcast_star_child(int me, int him)
 {
@@ -227,7 +229,7 @@ static inline int remote_dep_bcast_star_child(int me, int him)
 # ifdef PARSEC_DIST_COLLECTIVES_TYPE_CHAINPIPELINE
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
 # elif defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL)
-#  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
+#  define remote_dep_bcast_child(me, him) remote_dep_bcast_binomial_child(me, him)
 # else
 #  error "INVALID COLLECTIVE TYPE. YOU MUST DEFINE ONE COLLECTIVE TYPE WHEN ENABLING COLLECTIVES"
 # endif

@@ -35,11 +35,11 @@ static void *do_test(void *param)
     int i, j, v, l;
     parsec_time_t t0, t1;
     uint64_t duration;
-    
+
     parsec_bindthread(id, 0);
     parsec_barrier_wait(&barrier);
     t0 = take_time();
-    
+
     for(l = 0; l < NB_LOOPS; l++) {
         for(i = 0; i < before; i++) {
             parsec_atomic_rwlock_rdlock(&rwlock);
@@ -81,9 +81,8 @@ static void *do_test(void *param)
 int main(int argc, char *argv[])
 {
     pthread_t *threads;
-    int ch;
+    int ch, e, minthreads = 0, maxthreads = 0, nbthreads;
     char *m;
-    uintptr_t e, minthreads = 0, maxthreads = 0, nbthreads;
     uint64_t maxtime;
     void *retval;
 
@@ -129,20 +128,20 @@ int main(int argc, char *argv[])
     parsec_atomic_rwlock_init(&rwlock);
 
     threads = (pthread_t*)calloc(sizeof(pthread_t), maxthreads);
-    
+
     for( nbthreads = minthreads; nbthreads < maxthreads; nbthreads++) {
         parsec_barrier_init(&barrier, NULL, nbthreads+1);
-    
+
         for(e = 0; e < nbthreads; e++) {
-            pthread_create(&threads[e], NULL, do_test, (void*)e);
+            pthread_create(&threads[e], NULL, do_test, (void*)(intptr_t)e);
         }
-        maxtime = (uint64_t)do_test((void*)(nbthreads+1));
+        maxtime = (uint64_t)do_test((void*)(intptr_t)(nbthreads+1));
         for(e = 0; e < nbthreads; e++) {
             pthread_join(threads[e], &retval);
             if( (uint64_t)retval > maxtime )
                 maxtime = (uint64_t)retval;
         }
-        printf("%lu threads %lu "TIMER_UNIT"\n", nbthreads+1, maxtime);
+        printf("%d threads %"PRIu64" "TIMER_UNIT"\n", nbthreads+1, maxtime);
         fflush(stdout);
     }
 }

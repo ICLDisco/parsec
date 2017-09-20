@@ -147,7 +147,7 @@ static off_t find_free_segment(void)
         file_backend_size += parsec_profiling_file_multiplier * event_buffer_size;
         do_and_measure_perf(PERF_RESIZE,
           if( ftruncate(file_backend_fd, file_backend_size) == -1 ) {
-              fprintf(stderr, "### Profiling: unable to resize backend file to %lu bytes: %s\n",
+              fprintf(stderr, "### Profiling: unable to resize backend file to %"PRIu64" bytes: %s\n",
                       (uint64_t)file_backend_size, strerror(errno));
               file_backend_extendable = 0;
               pthread_mutex_unlock(&file_backend_lock);
@@ -710,20 +710,20 @@ int parsec_profiling_fini( void )
                 "#   Buffer Size: %lu bytes\n"
                 "#   File Resize Size: %lu bytes (%d buffers)\n"
 #if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
-                "#   User Thread: Time spent waiting to append command to a queue: %lu %s. Number of calls: %u\n"
+                "#   User Thread: Time spent waiting to append command to a queue: %"PRIu64" %s. Number of calls: %u\n"
 #endif
-                "#   %sTime Spent Resizing the backend file: %lu %s. Number of resize: %u\n"
+                "#   %sTime Spent Resizing the backend file: %"PRIu64" %s. Number of resize: %u\n"
 #if defined(PARSEC_PROFILING_USE_MMAP)
-                "#   %sTime Spent Mapping the backend file: %lu %s. Number of mmap: %u\n"
-                "#   %sTime Spent Unmapping mapped buffers: %lu %s. Number of munmap: %u\n"
+                "#   %sTime Spent Mapping the backend file: %"PRIu64" %s. Number of mmap: %u\n"
+                "#   %sTime Spent Unmapping mapped buffers: %"PRIu64" %s. Number of munmap: %u\n"
 #else
-                "#   %sTime Spent Allocating Buffers: %lu %s. Number of malloc: %u\n"
-                "#   %sTime Spent Freeing Buffers: %lu %s. Number of free: %u\n"
-                "#   %sTime Spent Seeking in file: %lu %s. Number of lseeks: %u\n"
-                "#   %sTime Spent Writing (synchronously) Buffers: %lu %s. Number of writes: %u\n"
+                "#   %sTime Spent Allocating Buffers: %"PRIu64" %s. Number of malloc: %u\n"
+                "#   %sTime Spent Freeing Buffers: %"PRIu64" %s. Number of free: %u\n"
+                "#   %sTime Spent Seeking in file: %"PRIu64" %s. Number of lseeks: %u\n"
+                "#   %sTime Spent Writing (synchronously) Buffers: %"PRIu64" %s. Number of writes: %u\n"
 #endif
-                "#   %sTime Spent Resetting Buffers to 0: %lu %s. Number of memset: %u\n"
-                "#   %sTime spent waiting for Exclusive Access to Buffer Management: %lu %s. Number of calls: %u\n",
+                "#   %sTime Spent Resetting Buffers to 0: %"PRIu64" %s. Number of memset: %u\n"
+                "#   %sTime spent waiting for Exclusive Access to Buffer Management: %"PRIu64" %s. Number of calls: %u\n",
                 rank,
                 event_buffer_size,
                 event_buffer_size * parsec_profiling_file_multiplier, parsec_profiling_file_multiplier,
