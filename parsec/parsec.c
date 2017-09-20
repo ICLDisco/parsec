@@ -99,6 +99,8 @@ static char *parsec_app_name = NULL;
 static int parsec_runtime_max_number_of_cores = -1;
 static int parsec_runtime_bind_main_thread = 1;
 
+static _Thread_local parsec_execution_stream_t *parsec_tls_execution_stream = NULL;
+
 /*
  * Taskpool based task definition (no specialized constructor and destructor) */
 OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
@@ -187,6 +189,9 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     if( NULL == es ) {
         return NULL;
     }
+
+    parsec_tls_execution_stream = es;
+
     es->th_id            = startup->th_id;
     es->virtual_process  = startup->virtual_process;
     es->scheduler_object = NULL;
@@ -2418,3 +2423,7 @@ parsec_ptg_update_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks )
     return parsec_atomic_add_32b((int32_t*)&(tp->nb_pending_actions), nb_tasks );
 }
 
+parsec_execution_stream_t *parsec_my_execution_stream(void)
+{
+    return parsec_tls_execution_stream;
+}
