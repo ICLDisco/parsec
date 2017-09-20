@@ -551,6 +551,14 @@ IF( BUILD_PARSEC )
     set (PARSEC_PKG_REQUIRE "hwloc")
    endif (HWLOC_FOUND)
 
+  find_package(PAPI)
+  set(PARSEC_HAVE_PAPI ${PAPI_FOUND})
+  if( PAPI_FOUND )
+    list(APPEND EXTRA_LIBS ${PAPI_LIBRARIES})
+    include_directories(${PAPI_INCLUDE_DIRS})
+    set(PARSEC_PKG_REQUIRE "papi")
+  endif( PAPI_FOUND )
+
   if (PARSEC_DIST_WITH_MPI)
     # Force the detection of the C library
     find_package(MPI)

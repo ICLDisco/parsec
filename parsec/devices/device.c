@@ -34,8 +34,10 @@ static parsec_device_t* parsec_device_recursive = NULL;
  * should take this spot.
  */
 float *parsec_device_load = NULL;
+float *parsec_device_hweight = NULL;
 float *parsec_device_sweight = NULL;
 float *parsec_device_dweight = NULL;
+float *parsec_device_tweight = NULL;
 
 int parsec_devices_init(parsec_context_t* parsec_context)
 {
@@ -189,10 +191,14 @@ int parsec_devices_fini(parsec_context_t* parsec_context)
     /* Free the local memory */
     if(NULL != parsec_device_load) free(parsec_device_load);
     parsec_device_load = NULL;
+    if(NULL != parsec_device_hweight) free(parsec_device_hweight);
+    parsec_device_hweight = NULL;
     if(NULL != parsec_device_sweight) free(parsec_device_sweight);
     parsec_device_sweight = NULL;
     if(NULL != parsec_device_dweight) free(parsec_device_dweight);
     parsec_device_dweight = NULL;
+    if(NULL != parsec_device_tweight) free(parsec_device_tweight);
+    parsec_device_tweight = NULL;
 
 #if defined(PARSEC_HAVE_CUDA)
     (void)parsec_gpu_fini();
@@ -217,7 +223,7 @@ int parsec_devices_fini(parsec_context_t* parsec_context)
 
 int parsec_devices_freeze(parsec_context_t* context)
 {
-    float total_sperf = 0.0, total_dperf = 0.0;
+    float total_hperf = 0.0, total_sperf = 0.0, total_dperf = 0.0, total_tperf = 0.0;
     (void)context;
 
     if(parsec_devices_are_freezed)
@@ -225,30 +231,41 @@ int parsec_devices_freeze(parsec_context_t* context)
 
     if(NULL != parsec_device_load) free(parsec_device_load);
     parsec_device_load = (float*)calloc(parsec_nb_devices, sizeof(float));
+    if(NULL != parsec_device_hweight) free(parsec_device_hweight);
+    parsec_device_hweight = (float*)calloc(parsec_nb_devices, sizeof(float));
     if(NULL != parsec_device_sweight) free(parsec_device_sweight);
     parsec_device_sweight = (float*)calloc(parsec_nb_devices, sizeof(float));
     if(NULL != parsec_device_dweight) free(parsec_device_dweight);
     parsec_device_dweight = (float*)calloc(parsec_nb_devices, sizeof(float));
+    if(NULL != parsec_device_tweight) free(parsec_device_tweight);
+    parsec_device_tweight = (float*)calloc(parsec_nb_devices, sizeof(float));
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_device_t* device = parsec_devices[i];
         if( NULL == device ) continue;
+        parsec_device_hweight[i] = device->device_hweight;
         parsec_device_sweight[i] = device->device_sweight;
-        total_sperf += device->device_sweight;
         parsec_device_dweight[i] = device->device_dweight;
+        parsec_device_tweight[i] = device->device_tweight;
+        if( PARSEC_DEV_RECURSIVE == device->type ) continue;
+        total_hperf += device->device_hweight;
+        total_tperf += device->device_tweight;
+        total_sperf += device->device_sweight;
         total_dperf += device->device_dweight;
     }
 
     /* Compute the weight of each device including the cores */
-    parsec_debug_verbose(4, parsec_debug_output, "Global Theoretical performance: single %2.4f double %2.4f", total_sperf, total_dperf);
+    parsec_debug_verbose(4, parsec_debug_output, "Global Theoretical performance: double %2.4f single %2.4f tensor %2.4f half %2.4f", total_dperf, total_sperf, total_tperf, total_hperf);
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
-        parsec_debug_verbose(4, parsec_debug_output, "  Dev[%d]             ->ratio single %2.4e double %2.4e",
-                             i, parsec_device_sweight[i], parsec_device_dweight[i]);
+        parsec_debug_verbose(4, parsec_debug_output, "  Dev[%d]             ->flops double %2.4f single %2.4f tensor %2.4f half %2.4f",
+                             i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
 
+        parsec_device_hweight[i] = (total_hperf / parsec_device_hweight[i]);
+        parsec_device_tweight[i] = (total_tperf / parsec_device_tweight[i]);
         parsec_device_sweight[i] = (total_sperf / parsec_device_sweight[i]);
         parsec_device_dweight[i] = (total_dperf / parsec_device_dweight[i]);
         /* after the weighting */
-        parsec_debug_verbose(4, parsec_debug_output, "  Dev[%d]             ->ratio single %2.4e double %2.4e",
-                             i, parsec_device_sweight[i], parsec_device_dweight[i]);
+        parsec_debug_verbose(4, parsec_debug_output, "  Dev[%d]             ->ratio double %2.4e single %2.4e tensor %2.4e half %2.4e",
+                             i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
     }
 
     parsec_devices_are_freezed = 1;
@@ -259,6 +276,95 @@ int parsec_devices_freezed(parsec_context_t* context)
 {
     (void)context;
     return parsec_devices_are_freezed;
+}
+
+#if defined(PARSEC_HAVE_PAPI)
+#include <papi.h>
+#endif
+
+static int cpu_weights(parsec_device_t* device, int nstreams) {
+    /* This is default value when it cannot be computed */
+    /* Crude estimate that holds for Nehalem era Xeon processors */
+    float freq = 2.5f;
+    float fp_ipc = 8.f;
+    float dp_ipc = 4.f;
+
+#if defined(PARSEC_HAVE_PAPI)
+    const PAPI_hw_info_t *hwinfo = NULL;
+    if(PAPI_NOT_INITED == PAPI_is_initialized()) {
+        if(PAPI_VER_CURRENT != PAPI_library_init(PAPI_VER_CURRENT)) {
+           parsec_fatal("You are using a different runtime library for PAPI than the one you compiled agains. This is known to be unstable");
+        }
+    }
+    hwinfo = PAPI_get_hardware_info();
+    if(NULL == hwinfo) {
+        parsec_warning("Could not detect CPU features with PAPI, using generic values (i.e. Nehalem) for frequency and floating poing IPC");
+        goto notfound;
+    }
+    freq = hwinfo->cpu_max_mhz * 1e-3f; /* convert to ghz */
+    switch(hwinfo->vendor) {
+    case PAPI_VENDOR_INTEL: /* fallthru */
+    case PAPI_VENDOR_AMD:
+        __builtin_cpu_init();
+        if(__builtin_cpu_supports("avx512f")) {
+            fp_ipc = 64;
+            dp_ipc = 32;
+        } else if(__builtin_cpu_supports("avx2")) {
+            fp_ipc = 32;
+            dp_ipc = 16;
+        }
+        else if(__builtin_cpu_supports("avx")) {
+            fp_ipc = 16;
+            dp_ipc = 8;
+        }
+        else {
+            fp_ipc = 8;
+            dp_ipc = 4;
+        }
+        break;
+    case PAPI_VENDOR_IBM: /* fallthru */
+    case PAPI_VENDOR_CRAY: /* fallthru */
+    case PAPI_VENDOR_SUN: /* fallthru */
+    case PAPI_VENDOR_ARM: /* fallthru */
+    case PAPI_VENDOR_FREESCALE: /* fallthru */
+    case PAPI_VENDOR_MIPS: /* fallthru */
+    case PAPI_VENDOR_UNKNOWN: /* fallthru */
+    default:
+        parsec_warning("Could not detect CPU features with PAPI, using generic values (i.e. Nehalem) for frequency and floating poing IPC");
+        goto notfound;
+    }
+
+    {
+      int show_caps = 0;
+      int show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities");
+      if(0 < show_caps_index) {
+          parsec_mca_param_lookup_int(show_caps_index, &show_caps);
+      }
+      if( show_caps ) {
+          parsec_inform("CPU Device (model.stepping %d.%d): %s\n"
+                        "\tParsec Streams     : %d\n"
+                        "\tSockets            : %d\n"
+                        "\tCores              : %d\n"
+                        "\tHyperthreads       : %d\n"
+                        "\tclockRate (GHz)    : %3.2f\n"
+                        "\tpeak Gflops        : double %2.4f, single %2.4f",
+                        hwinfo->cpuid_model, hwinfo->cpuid_stepping, hwinfo->model_string,
+                        nstreams,
+                        hwinfo->sockets, hwinfo->cores, hwinfo->threads,
+                        freq, nstreams*freq*dp_ipc, nstreams*freq*fp_ipc);
+       }
+    }
+#else
+    parsec_debug_verbose(3, parsec_debug_output, "CPU features cannot be detected without PAPI. Using generic (Nehalem) features to estimate Rpeak.");
+#endif
+ notfound:
+
+    device->device_hweight = nstreams * fp_ipc * freq; /* No processor have half precision for now */
+    device->device_tweight = nstreams * fp_ipc * freq; /* No processor support tensor operations for now */
+    device->device_sweight = nstreams * fp_ipc * freq;
+    device->device_dweight = nstreams * dp_ipc * freq;
+
+    return PARSEC_SUCCESS;
 }
 
 int parsec_devices_select(parsec_context_t* context)
@@ -274,21 +380,20 @@ int parsec_devices_select(parsec_context_t* context)
         parsec_device_cpus = (parsec_device_t*)calloc(1, sizeof(parsec_device_t));
         parsec_device_cpus->name = "default";
         parsec_device_cpus->type = PARSEC_DEV_CPU;
+        cpu_weights(parsec_device_cpus, nb_total_comp_threads);
         parsec_devices_add(context, parsec_device_cpus);
-        /* TODO: This is plain WRONG, but should work by now */
-        parsec_device_cpus->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
-        parsec_device_cpus->device_dweight = nb_total_comp_threads * 4 * 2.27;
-    }
+   }
 
     /* By now let's add one device for the recursive kernels */
     {
         parsec_device_recursive = (parsec_device_t*)calloc(1, sizeof(parsec_device_t));
         parsec_device_recursive->name = "recursive";
         parsec_device_recursive->type = PARSEC_DEV_RECURSIVE;
+        parsec_device_recursive->device_hweight = parsec_device_cpus->device_hweight;
+        parsec_device_recursive->device_tweight = parsec_device_cpus->device_tweight;
+        parsec_device_recursive->device_sweight = parsec_device_cpus->device_sweight;
+        parsec_device_recursive->device_dweight = parsec_device_cpus->device_dweight;
         parsec_devices_add(context, parsec_device_recursive);
-        /* TODO: This is plain WRONG, but should work by now */
-        parsec_device_recursive->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
-        parsec_device_recursive->device_dweight = nb_total_comp_threads * 4 * 2.27;
     }
 #if defined(PARSEC_HAVE_CUDA)
     return parsec_gpu_init(context);
