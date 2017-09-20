@@ -53,7 +53,7 @@ parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
 static int
 parsec_cuda_memory_release( gpu_device_t* gpu_device );
 
-static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 32, 35, 37, 50, 52, 53, 60, 61, 62};
+static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 32, 35, 37, 50, 52, 53, 60, 61, 62, 70};
 
 /* look up how many FMA per cycle in single/double, per cuda MP
  * precision.
@@ -90,6 +90,9 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
                (major == 6 && minor == 2)) {
         *srate = 128;
         *drate = 4;
+    } else if ((major == 7 && minor == 0)) {
+        *srate = 64;
+        *drate = 32;
     } else {
         parsec_debug_verbose(3, parsec_debug_output, "Unsupported GPU %d, %d, skipping.", major, minor);
         return PARSEC_ERROR;
