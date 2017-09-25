@@ -360,15 +360,19 @@ find_package(Threads)
 if(Threads_FOUND)
   set(PARSEC_HAVE_PTHREAD true)
   list(APPEND EXTRA_LIBS ${CMAKE_THREAD_LIBS_INIT})
+  CMAKE_PUSH_CHECK_STATE()
+  list(APPEND CMAKE_REQUIRED_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
+  check_function_exists(pthread_getspecific PARSEC_HAVE_PTHREAD_GETSPECIFIC)
+  check_function_exists(pthread_barrier_init PARSEC_HAVE_PTHREAD_BARRIER)
+  if(NOT PARSEC_HAVE_PTHREAD_BARRIER)
+    check_symbol_exists(pthread_barrier_init "pthread-barrier.h" PARSEC_HAVE_PTHREAD_BARRIER_H)
+    if(PARSEC_HAVE_PTHREAD_BARRIER_H)
+      SET(CMAKE_REQUIRED_LIBRARIES "libuv.a")
+      check_function_exists(pthread_barrier_init PARSEC_HAVE_PTHREAD_BARRIER)
+    endif(PARSEC_HAVE_PTHREAD_BARRIER_H)
+  endif(NOT PARSEC_HAVE_PTHREAD_BARRIER)
+  CMAKE_POP_CHECK_STATE()
 endif(Threads_FOUND)
-check_function_exists(pthread_barrier_init PARSEC_HAVE_PTHREAD_BARRIER)
-if(NOT PARSEC_HAVE_PTHREAD_BARRIER)
-  check_symbol_exists(pthread_barrier_init "pthread-barrier.h" PARSEC_HAVE_PTHREAD_BARRIER_H)
-  if(PARSEC_HAVE_PTHREAD_BARRIER_H)
-    SET(CMAKE_REQUIRED_LIBRARIES "libuv.a")
-    check_function_exists(pthread_barrier_init PARSEC_HAVE_PTHREAD_BARRIER)
-  endif(PARSEC_HAVE_PTHREAD_BARRIER_H)
-endif(NOT PARSEC_HAVE_PTHREAD_BARRIER)
 
 check_function_exists(sched_setaffinity PARSEC_HAVE_SCHED_SETAFFINITY)
 if(NOT PARSEC_HAVE_SCHED_SETAFFINITY)
@@ -445,6 +449,15 @@ int main() {
 }" PARSEC_HAVE_ATTRIBUTE_FORMAT_PRINTF)
     
 endif (PARSEC_HAVE_STDARG_H)
+
+check_c_source_compiles("
+static _Thread_local int tls = 0;
+
+int main(int argc, char *argv[]) {
+  tls = 1;
+  return 0;
+}" PARSEC_HAVE_THREAD_LOCAL)
+  
 check_function_exists(asprintf PARSEC_HAVE_ASPRINTF)
 check_function_exists(vasprintf PARSEC_HAVE_VASPRINTF)
 check_include_files(getopt.h PARSEC_HAVE_GETOPT_H)

@@ -8,6 +8,9 @@
 #define PARSEC_INTERFACE_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_internal.h"
+
+BEGIN_C_DECLS
+
 /**
  * Generic startup function for DSLs. For more info read comment in
  * parsec/interface/interface.c
@@ -28,4 +31,7 @@ parsec_release_task_to_mempool_update_nbtasks(parsec_execution_stream_t *es,
 parsec_hook_return_t
 parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_stream_t *es,
                                                           parsec_task_t *this_task);
+
+END_C_DECLS
+
 #endif  /* PARSEC_INTERFACE_H_HAS_BEEN_INCLUDED */

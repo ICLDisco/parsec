@@ -390,6 +390,19 @@ void parsec_taskpool_unregister(parsec_taskpool_t* tp);
 void parsec_taskpool_sync_ids(void);
 
 /**
+ * @brief Returns the execution stream that corresponds to the calling thread
+ *
+ * @details
+ *  Threads created by parsec during parsec_init register their execution
+ *  streams in a Thread Local Storage variable. These threads can lookup
+ *  the execution stream using this function. The behavior is undefined
+ *  if calling before parsec_init, after parsec_fini, or at any time if
+ *  calling from a thread that was not created by parsec or did not call
+ *  parsec_init
+ */
+parsec_execution_stream_t *parsec_my_execution_stream(void);
+
+/**
  * @cond FALSE
  * Sequentially compose two taskpools, triggering the start of next upon
  * completion of start. If start is already a composed taskpool, then next will be
