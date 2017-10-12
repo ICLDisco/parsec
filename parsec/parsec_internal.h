@@ -240,10 +240,10 @@ typedef void (parsec_traverse_function_t)(struct parsec_execution_stream_s *,
                                          void *);
 
 /**
- *
+ * Returns the key associated with the task
  */
-typedef uint64_t (parsec_functionkey_fn_t)(const parsec_taskpool_t *tp,
-                                          const assignment_t *assignments);
+typedef parsec_key_t (parsec_functionkey_fn_t)(const parsec_taskpool_t *tp,
+                                               const assignment_t *assignments);
 /**
  *
  */
@@ -341,7 +341,9 @@ struct parsec_task_class_s {
     parsec_data_ref_fn_t        *initial_data;   /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
     parsec_data_ref_fn_t        *final_data;     /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
     parsec_data_ref_fn_t        *data_affinity;  /**< Populates an array of data references, of size 1 */
-    parsec_functionkey_fn_t     *key;
+    parsec_functionkey_fn_t     *key_generator;
+    parsec_key_fn_t             *key_functions;
+    parsec_key_t               (*make_key)(const parsec_taskpool_t *, const assignment_t *);
 #if defined(PARSEC_SIM)
     parsec_sim_cost_fct_t       *sim_cost_fct;
 #endif
@@ -466,11 +468,13 @@ extern int device_delegate_begin, device_delegate_end;
 #define PARSEC_PROF_FUNC_KEY_END(tp, tc_index) \
     (tp)->profiling_array[1 + 2 * (tc_index)]
 
-#define PARSEC_TASK_PROF_TRACE(PROFILE, KEY, TASK)                       \
-    PARSEC_PROFILING_TRACE((PROFILE),                                    \
-                          (KEY),                                        \
-                          (TASK)->task_class->key((TASK)->taskpool, (assignment_t *)&(TASK)->locals), \
-                          (TASK)->taskpool->taskpool_id, (void*)&(TASK)->prof_info)
+#define PARSEC_TASK_PROF_TRACE(PROFILE, KEY, TASK)                      \
+    PARSEC_PROFILING_TRACE((PROFILE),                                   \
+                           (KEY),                                       \
+                           (TASK)->task_class->key_functions->          \
+                           key_hash((TASK)->task_class->make_key( (TASK)->taskpool, (TASK)->locals ), \
+                                    64, NULL),                          \
+                           (TASK)->taskpool->taskpool_id, (void*)&(TASK)->prof_info)
 
 #define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \
     if(!!(COND)) {                                           \

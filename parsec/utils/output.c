@@ -38,6 +38,12 @@
 #include "parsec/utils/output.h"
 #include "parsec/constants.h"
 
+int parsec_debug_rank            = -1;
+int parsec_debug_output          = 0;
+int parsec_debug_verbose         = 1;
+int parsec_debug_history_verbose = 4;
+int parsec_debug_colorize        = 10; /* 10 is the size of the format string for colors */
+
 /*
  * Private data
  */

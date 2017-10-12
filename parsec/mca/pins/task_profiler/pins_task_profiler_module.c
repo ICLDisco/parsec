@@ -153,7 +153,7 @@ task_profiler_release_deps_begin(struct parsec_execution_stream_s*   es,
 
     PARSEC_PROFILING_TRACE(es->es_profile,
                            release_deps_trace_keyin,
-                           (*task->task_class->key)(task->taskpool, task->locals),
+                           task->task_class->key_functions->key_hash(task->task_class->make_key(task->taskpool, task->locals), 64, NULL),
                            task->taskpool->taskpool_id,
                            (void *)&rd_fid);
 
@@ -169,7 +169,7 @@ task_profiler_release_deps_end(struct parsec_execution_stream_s*   es,
 
     PARSEC_PROFILING_TRACE(es->es_profile,
                            release_deps_trace_keyout,
-                           (*task->task_class->key)(task->taskpool, task->locals),
+                           task->task_class->key_functions->key_hash(task->task_class->make_key(task->taskpool, task->locals), 64, NULL),
                            task->taskpool->taskpool_id,
                            (void*)&rd_fid);
     (void)cb_data;
@@ -236,10 +236,10 @@ task_profiler_exec_count_begin(struct parsec_execution_stream_s*   es,
 {
     if (NULL != task->taskpool->profiling_array)
         PARSEC_PROFILING_TRACE(es->es_profile,
-                              task->taskpool->profiling_array[2 * task->task_class->task_class_id],
-                              (*task->task_class->key)(task->taskpool, task->locals),
-                              task->taskpool->taskpool_id,
-                              (void *)NULL);
+                               task->taskpool->profiling_array[2 * task->task_class->task_class_id],
+                               task->task_class->key_functions->key_hash(task->task_class->make_key(task->taskpool, task->locals), 64, NULL),
+                               task->taskpool->taskpool_id,
+                               (void *)NULL);
     (void)cb_data;
 }
 
@@ -250,10 +250,10 @@ task_profiler_exec_count_end(struct parsec_execution_stream_s*   es,
 {
     if (NULL != task->taskpool->profiling_array)
         PARSEC_PROFILING_TRACE(es->es_profile,
-                              task->taskpool->profiling_array[1 + 2 * task->task_class->task_class_id],
-                              (*task->task_class->key)(task->taskpool, task->locals),
-                              task->taskpool->taskpool_id,
-                              (void *)NULL);
+                               task->taskpool->profiling_array[1 + 2 * task->task_class->task_class_id],
+                               task->task_class->key_functions->key_hash(task->task_class->make_key(task->taskpool, task->locals), 64, NULL),
+                               task->taskpool->taskpool_id,
+                               (void *)NULL);
     (void)cb_data;
 }
 

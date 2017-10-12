@@ -77,13 +77,41 @@ static const expr_t priority_of_generic_startup_as_expr = {
     .u_expr = {.inline_func_int32 = (expr_op_int32_inline_func_t)priority_of_generic_startup_as_expr_fct}
 };
 
-static inline uint64_t
-__parsec_generic_startup_hash(const parsec_taskpool_t * __tp,
-                             const assignment_t * assignments)
+static inline parsec_key_t
+__parsec_generic_startup_make_key(const parsec_taskpool_t *tp, const assignment_t *as)
 {
-    (void)__tp;
-    (void)assignments;
-    return 0ULL;
+    (void)as;
+    (void)tp;
+    return NULL;
+}
+
+static int __parsec_generic_key_always_equal(parsec_key_t a, parsec_key_t b, void *user_data)
+{
+    (void)a;
+    (void)b;
+    (void)user_data;
+    assert(NULL == a);
+    assert(NULL == b);
+    return 1;
+}
+
+static char *__parsec_generic_key_print_empty_string(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)
+{
+    (void)k;
+    (void)buffer_size;
+    (void)user_data;
+    assert(buffer_size >= 1);
+    buffer[0] = '\0';
+    return buffer;
+}
+
+static uint64_t __parsec_generic_key_trivial_hash(parsec_key_t k, int nb_bits, void *user_data)
+{
+    (void)nb_bits;
+    (void)user_data;
+    (void)k;
+    assert(NULL == k);
+    return 0;
 }
 
 /**
@@ -111,6 +139,12 @@ static const __parsec_chore_t __parsec_generic_startup_chores[] = {
      .hook = (parsec_hook_t *) NULL},	/* End marker */
 };
 
+static parsec_key_fn_t __parsec_generic_key_functions = {
+    .key_equal = __parsec_generic_key_always_equal,
+    .key_print = __parsec_generic_key_print_empty_string,
+    .key_hash  = __parsec_generic_key_trivial_hash
+};
+
 const parsec_task_class_t __parsec_generic_startup = {
     .name = "Generic Startup",
     .task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID,  /* To be replaced in all copies */
@@ -127,7 +161,8 @@ const parsec_task_class_t __parsec_generic_startup = {
     .out = {NULL},
     .flags = PARSEC_USE_DEPS_MASK,
     .dependencies_goal = 0x0,
-    .key = (parsec_functionkey_fn_t *) __parsec_generic_startup_hash,
+    .make_key = __parsec_generic_startup_make_key,
+    .key_functions = &__parsec_generic_key_functions,
     .fini = (parsec_hook_t *) NULL,
     .incarnations = __parsec_generic_startup_chores,
     .iterate_successors = (parsec_traverse_function_t *) NULL,

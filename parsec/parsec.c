@@ -217,25 +217,22 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
      */
     if( startup->th_id == (startup->nb_cores - 1) ) {
         parsec_vp_t *vp = startup->virtual_process;
-        parsec_task_t fake_task;
-        data_repo_entry_t fake_entry;
-        parsec_hashable_dependency_t fake_hashable_dependency;
 
         parsec_mempool_construct( &vp->context_mempool,
                                   OBJ_CLASS(parsec_task_t), sizeof(parsec_task_t),
-                                  ((char*)&fake_task.mempool_owner) - ((char*)&fake_task),
+                                  offsetof(parsec_task_t, mempool_owner),
                                   vp->nb_cores );
 
-        for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
+        for(pi = 0; pi <= MAX_PARAM_COUNT; pi++) {
             parsec_mempool_construct( &vp->datarepo_mempools[pi],
-                                     NULL, sizeof(data_repo_entry_t)+(pi-1)*sizeof(parsec_arena_chunk_t*),
-                                     ((char*)&fake_entry.data_repo_mempool_owner) - ((char*)&fake_entry),
-                                     vp->nb_cores);
+                                      NULL, sizeof(data_repo_entry_t)+(pi-1)*sizeof(parsec_arena_chunk_t*),
+                                      offsetof(data_repo_entry_t, data_repo_mempool_owner),
+                                      vp->nb_cores);
+        }
         parsec_mempool_construct( &vp->dependencies_mempool,
                                   NULL, sizeof(parsec_hashable_dependency_t),
-                                  ((char*)&fake_hashable_dependency.mempool_owner) - ((char*)&fake_hashable_dependency),
+                                  offsetof(parsec_hashable_dependency_t, mempool_owner),
                                   vp->nb_cores);
-
     }
     /* Synchronize with the other threads */
     parsec_barrier_wait(startup->barrier);
@@ -244,9 +241,9 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
         current_scheduler->module.flow_init(es, startup->barrier);
 
     es->context_mempool = &(es->virtual_process->context_mempool.thread_mempools[es->th_id]);
-    for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
+    for(pi = 0; pi <= MAX_PARAM_COUNT; pi++) {
         es->datarepo_mempools[pi] = &(es->virtual_process->datarepo_mempools[pi].thread_mempools[es->th_id]);
-
+    }
     es->dependencies_mempool = &(es->virtual_process->dependencies_mempool.thread_mempools[es->th_id]);
 
 #ifdef PARSEC_PROF_TRACE
@@ -869,11 +866,10 @@ static void parsec_vp_fini( parsec_vp_t *vp )
     int i;
 
     parsec_mempool_destruct( &vp->context_mempool );
-
+    parsec_mempool_destruct( &vp->dependencies_mempool );
     for(i = 0; i <= MAX_PARAM_COUNT; i++) {
         parsec_mempool_destruct( &vp->datarepo_mempools[i]);
     }
-    parsec_mempool_destruct( &vp->dependencies_mempool );
 
     for(i = 0; i < vp->nb_cores; i++) {
         free(vp->execution_streams[i]);
@@ -1216,8 +1212,7 @@ parsec_hash_find_deps(const parsec_taskpool_t *tp,
          * and we certainly don't want to have a side effect on the hash table */
         return NULL;
     }
-
-    uint64_t key = task->task_class->key(tp, task->locals);
+    parsec_key_t key = task->task_class->make_key(tp, task->locals);
     assert(NULL != ht);
     parsec_hash_table_lock_bucket(ht, key);
     hd = parsec_hash_table_nolock_find(ht, key);
@@ -1225,7 +1220,7 @@ parsec_hash_find_deps(const parsec_taskpool_t *tp,
         hd = (parsec_hashable_dependency_t *) parsec_thread_mempool_allocate(es->dependencies_mempool);
         hd->dependency = (parsec_dependency_t)0;
         hd->mempool_owner = es->dependencies_mempool;
-        hd->ht_item.key = key;
+        hd->ht_item.key = task->task_class->make_key(tp, task->locals);
         parsec_hash_table_nolock_insert(ht, &hd->ht_item);
     }
     parsec_hash_table_unlock_bucket(ht, key);

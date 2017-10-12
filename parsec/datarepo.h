@@ -10,6 +10,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/execution_stream.h"
+#include "parsec/class/parsec_hash_table.h"
 
 /** @defgroup parsec_internal_datarepo Data Repositories
  *  @ingroup parsec_internal
@@ -75,7 +76,7 @@ struct data_repo_entry_s {
     parsec_list_item_t         data_repo_next_item;
     parsec_thread_mempool_t   *data_repo_mempool_owner;
     void*                      generator;
-    uint64_t                   key;
+    parsec_hash_table_item_t   ht_item;
     volatile uint32_t          usagecnt;
     volatile uint32_t          usagelmt;
     volatile uint32_t          retained;
@@ -85,25 +86,18 @@ struct data_repo_entry_s {
     struct parsec_data_copy_s *data[1];
 };
 
-struct data_repo_head_s {
-    parsec_atomic_lock_t  lock;
-    uint32_t              size;
-    data_repo_entry_t    *first_entry;
-};
-
 typedef struct data_repo_s {
-    unsigned int      nbentries;
-    unsigned int      nbdata;
-    data_repo_head_t  heads[1];
+    parsec_hash_table_t table;
+    unsigned int       nbdata;
 } data_repo_t;
 
 BEGIN_C_DECLS
 
 data_repo_t*
-data_repo_create_nothreadsafe(unsigned int hashsize_hint, unsigned int nbdata);
+data_repo_create_nothreadsafe(unsigned int hashsize_hint, parsec_key_fn_t key_functions, void *key_hash_data, unsigned int nbdata);
 
 data_repo_entry_t*
-data_repo_lookup_entry(data_repo_t *repo, uint64_t key);
+data_repo_lookup_entry(data_repo_t *repo, parsec_key_t key);
 
 /* If using lookup_and_create, don't forget to call add_to_usage_limit on the same entry when
  * you're done counting the number of references, otherwise the entry is non erasable.
@@ -114,19 +108,19 @@ data_repo_lookup_entry(data_repo_t *repo, uint64_t key);
 # define data_repo_lookup_entry_and_create(eu, repo, key)               \
     __data_repo_lookup_entry_and_create(eu, repo, key, #repo, __FILE__, __LINE__)
 data_repo_entry_t*
-__data_repo_lookup_entry_and_create(parsec_execution_stream_t *eu, data_repo_t *repo, uint64_t key,
+__data_repo_lookup_entry_and_create(parsec_execution_stream_t *eu, data_repo_t *repo, parsec_key_t key,
                                     const char *tablename, const char *file, int line);
 
 # define data_repo_entry_used_once(eu, repo, key)                       \
     __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
 void
-__data_repo_entry_used_once(parsec_execution_stream_t *eu, data_repo_t *repo, uint64_t key,
+__data_repo_entry_used_once(parsec_execution_stream_t *eu, data_repo_t *repo, parsec_key_t key,
                             const char *tablename, const char *file, int line);
 
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt)         \
     __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
 void
-__data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt,
+__data_repo_entry_addto_usage_limit(data_repo_t *repo, parsec_key_t key, uint32_t usagelmt,
                                     const char *tablename, const char *file, int line);
 
 #else
@@ -134,16 +128,16 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t us
 # define data_repo_lookup_entry_and_create(eu, repo, key)   \
     __data_repo_lookup_entry_and_create(eu, repo, key)
 data_repo_entry_t*
-__data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *repo, uint64_t key);
+__data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *repo, parsec_key_t key);
 
 # define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key)
 void
-__data_repo_entry_used_once(parsec_execution_stream_t *es, data_repo_t *repo, uint64_t key);
+__data_repo_entry_used_once(parsec_execution_stream_t *es, data_repo_t *repo, parsec_key_t key);
 
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) \
     __data_repo_entry_addto_usage_limit(repo, key, usagelmt)
 void
-__data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t usagelmt);
+__data_repo_entry_addto_usage_limit(data_repo_t *repo, parsec_key_t key, uint32_t usagelmt);
 
 #endif
 

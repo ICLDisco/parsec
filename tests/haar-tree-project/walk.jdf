@@ -2,22 +2,48 @@ extern "C" %{
 #include "tree_dist.h"
 #include "parsec/sys/atomic.h"
 
+static int my_simple_hash_equal(parsec_key_t a, parsec_key_t b, void *taskpool)
+{
+    (void)taskpool;
+    return a == b;
+}
+
+static char *my_simple_hash_print(char *buffer, size_t bs, parsec_key_t k, void *taskpool)
+{
+    (void)taskpool;
+    snprintf(buffer, bs, "%16lx", (uint64_t)k);
+    return buffer;
+}
+
+static uint64_t my_simple_hash_hash(parsec_key_t key, int nb_bits, void *taskpool)
+{
+    (void)taskpool;
+    uint64_t k = (uint64_t)(uintptr_t)key;
+    uint32_t i;
+    for(i = nb_bits; i < sizeof(uint64_t)*8; i+=nb_bits)
+        k = k ^ (k >> i);
+    return k & (~0ULL >> (sizeof(uint64_t)*8-nb_bits));
+}
+
+static parsec_key_fn_t my_simple_hash_fns = {
+    .key_equal = my_simple_hash_equal,
+    .key_print = my_simple_hash_print,
+    .key_hash  = my_simple_hash_hash
+};
+    
 struct __parsec_walk_internal_taskpool_s;
 struct __parsec_walk_UP_assignment_s;
 struct __parsec_walk_DOWN_assignment_s;
 struct __parsec_walk_DO_DOWN_assignment_s;
 struct __parsec_walk_DOWN_task_s;
 
-static uint64_t up_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
-                        struct __parsec_walk_UP_assignment_s * assignments);
-static uint64_t down_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
-                          struct __parsec_walk_DOWN_assignment_s * assignments);
-static uint64_t do_down_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
-                             struct __parsec_walk_DO_DOWN_assignment_s * assignments);
+static parsec_key_t up_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
+static parsec_key_t down_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
+static parsec_key_t do_down_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
 static uint32_t undetermined_nb_tasks(struct __parsec_walk_internal_taskpool_s *__tp);
 
-static void               *my_alloc_deps(struct __parsec_walk_internal_taskpool_s *__tp);
-static void                my_free_deps(struct __parsec_walk_internal_taskpool_s *__tp, void *deps);
+static void                *my_alloc_deps(struct __parsec_walk_internal_taskpool_s *__tp);
+static void                 my_free_deps(struct __parsec_walk_internal_taskpool_s *__tp, void *deps);
 static parsec_dependency_t *my_find_deps(const parsec_taskpool_t *tp,
                                          parsec_execution_stream_t *es,
                                          const parsec_task_t* restrict task);
@@ -63,7 +89,8 @@ END
 // 4- Once the root node receives both its children controls, the tree
 //    is built and all the remaining tasks are killed
 
-UP (n, l) [hash_fn = up_hash
+UP (n, l) [hash_struct = my_simple_hash_fns
+           make_key_fn = up_make_key
            find_deps_fn  = my_find_deps
            alloc_deps_fn = my_alloc_deps
            free_deps_fn  = my_free_deps ]
@@ -128,7 +155,8 @@ END
 //    c- Otherwise, it creates its children and send the node pointer
 //       (just like the root)
 
-DOWN (n, l) [hash_fn = down_hash
+DOWN (n, l) [hash_struct = my_simple_hash_fns
+             make_key_fn = down_make_key
              nb_local_tasks_fn = undetermined_nb_tasks
              find_deps_fn  = my_find_deps
              alloc_deps_fn = my_alloc_deps
@@ -166,7 +194,8 @@ BODY
 }
 END
 
-DO_DOWN (n, l) [hash_fn = do_down_hash
+DO_DOWN (n, l) [hash_struct = my_simple_hash_fns
+                make_key_fn = do_down_make_key
                 nb_local_tasks_fn = undetermined_nb_tasks
                 find_deps_fn = my_find_deps
                 alloc_deps_fn = my_alloc_deps
@@ -200,25 +229,25 @@ static uint64_t my_simple_tree_hash(int n, int l)
     return (((uint64_t)n) << 32) | ((uint64_t)l);
 }
 
-static uint64_t up_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
-                        struct __parsec_walk_UP_assignment_s * assignments)
+static parsec_key_t up_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
 {
+    const struct __parsec_walk_UP_assignment_s * assignments = (const struct __parsec_walk_UP_assignment_s *)_as;
     (void)__tp;
-    return my_simple_tree_hash(assignments->n.value, assignments->l.value);
+    return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static uint64_t down_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
-                          struct __parsec_walk_DOWN_assignment_s * assignments)
+static parsec_key_t down_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
 {
+    const struct __parsec_walk_DOWN_assignment_s * assignments = (const struct __parsec_walk_DOWN_assignment_s *)_as;
     (void)__tp;
-    return my_simple_tree_hash(assignments->n.value, assignments->l.value);
+    return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static uint64_t do_down_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
-                             struct __parsec_walk_DO_DOWN_assignment_s * assignments)
+static parsec_key_t do_down_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
 {
+    const struct __parsec_walk_DO_DOWN_assignment_s * assignments = (struct __parsec_walk_DO_DOWN_assignment_s *)_as;
     (void)__tp;
-    return my_simple_tree_hash(assignments->n.value, assignments->l.value);
+    return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
  

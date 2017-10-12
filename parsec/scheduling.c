@@ -70,26 +70,26 @@ static void parsec_rusage_per_es(parsec_execution_stream_t* es, bool print)
                (current.ru_stime.tv_usec - es->_es_rusage.ru_stime.tv_usec) / 1000000.0);
 
         parsec_inform(
-                "Resource Usage Exec. Unit VP: %i Thread: %i (Core %i, socket %i)\n"
-                "-------------------------------------------------------------\n"
-                "User Time   (secs)          : %10.3f\n"
-                "System Time (secs)          : %10.3f\n"
-                "Total Time  (secs)          : %10.3f\n"
-                "Minor Page Faults           : %10ld\n"
-                "Major Page Faults           : %10ld\n"
-                "Swap Count                  : %10ld\n"
-                "Voluntary Context Switches  : %10ld\n"
-                "Involuntary Context Switches: %10ld\n"
-                "Block Input Operations      : %10ld\n"
-                "Block Output Operations     : %10ld\n"
-                "Maximum Resident Memory     : %10ld\n"
-                "=============================================================\n"
-                , es->virtual_process->vp_id, es->th_id, es->core_id, es->socket_id,
-                usr, sys, usr + sys,
-                (current.ru_minflt  - es->_es_rusage.ru_minflt), (current.ru_majflt  - es->_es_rusage.ru_majflt),
-                (current.ru_nswap   - es->_es_rusage.ru_nswap) , (current.ru_nvcsw   - es->_es_rusage.ru_nvcsw),
-                (current.ru_inblock - es->_es_rusage.ru_inblock), (current.ru_oublock - es->_es_rusage.ru_oublock),
-                current.ru_maxrss);
+                      "Resource Usage Exec. Unit VP: %i Thread: %i (Core %i, socket %i)\n"
+                      "-------------------------------------------------------------\n"
+                      "User Time   (secs)          : %10.3f\n"
+                      "System Time (secs)          : %10.3f\n"
+                      "Total Time  (secs)          : %10.3f\n"
+                      "Minor Page Faults           : %10ld\n"
+                      "Major Page Faults           : %10ld\n"
+                      "Swap Count                  : %10ld\n"
+                      "Voluntary Context Switches  : %10ld\n"
+                      "Involuntary Context Switches: %10ld\n"
+                      "Block Input Operations      : %10ld\n"
+                      "Block Output Operations     : %10ld\n"
+                      "Maximum Resident Memory     : %10ld\n"
+                      "=============================================================\n"
+                      , es->virtual_process->vp_id, es->th_id, es->core_id, es->socket_id,
+                      usr, sys, usr + sys,
+                      (current.ru_minflt  - es->_es_rusage.ru_minflt), (current.ru_majflt  - es->_es_rusage.ru_majflt),
+                      (current.ru_nswap   - es->_es_rusage.ru_nswap) , (current.ru_nvcsw   - es->_es_rusage.ru_nvcsw),
+                      (current.ru_inblock - es->_es_rusage.ru_inblock), (current.ru_oublock - es->_es_rusage.ru_oublock),
+                      current.ru_maxrss);
 
     }
     es->_es_rusage = current;
@@ -105,32 +105,32 @@ static void parsec_rusage_per_es(parsec_execution_stream_t* es, bool print)
  * Disabled by now.
  */
 int __parsec_context_wait_task( parsec_execution_stream_t* es,
-                           parsec_task_t* task )
+                                parsec_task_t* task )
 {
     (void)es;
     switch(task->status) {
-        case PARSEC_TASK_STATUS_NONE:
+    case PARSEC_TASK_STATUS_NONE:
 #if defined(PARSEC_DEBUG)
-            char tmp[MAX_TASK_STRLEN];
-            parsec_degug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
-                   parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task));
+        char tmp[MAX_TASK_STRLEN];
+        parsec_degug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
+                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task));
 #endif
         return -1;
 
-        case PARSEC_TASK_STATUS_PREPARE_INPUT:
-            task->status = PARSEC_TASK_STATUS_EVAL;
-            break;
-        case PARSEC_TASK_STATUS_EVAL:
-            task->status = PARSEC_TASK_STATUS_HOOK;
-            break;
-        case PARSEC_TASK_STATUS_HOOK:
-            task->status = PARSEC_TASK_STATUS_PREPARE_OUTPUT;
-            break;
-        case PARSEC_TASK_STATUS_PREPARE_OUTPUT:
-            task->status = PARSEC_TASK_STATUS_COMPLETE;
-            break;
-        case PARSEC_TASK_STATUS_COMPLETE:
-            break;
+    case PARSEC_TASK_STATUS_PREPARE_INPUT:
+        task->status = PARSEC_TASK_STATUS_EVAL;
+        break;
+    case PARSEC_TASK_STATUS_EVAL:
+        task->status = PARSEC_TASK_STATUS_HOOK;
+        break;
+    case PARSEC_TASK_STATUS_HOOK:
+        task->status = PARSEC_TASK_STATUS_PREPARE_OUTPUT;
+        break;
+    case PARSEC_TASK_STATUS_PREPARE_OUTPUT:
+        task->status = PARSEC_TASK_STATUS_COMPLETE;
+        break;
+    case PARSEC_TASK_STATUS_COMPLETE:
+        break;
     }
     return -1;
 }
@@ -194,7 +194,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
             }
             return rc;
         }
-      next_chore:
+    next_chore:
         task->chore_id++;
 
     } while(NULL != tc->incarnations[task->chore_id].hook);
@@ -226,7 +226,7 @@ static inline int all_tasks_done(parsec_context_t* context)
 
 int parsec_check_complete_cb(parsec_taskpool_t *tp, parsec_context_t *context, int remaining)
 {
-   if( 0 == remaining ) {
+    if( 0 == remaining ) {
         /* A parsec taskpool has been completed. Call the attached callback if
          * necessary, then update the main engine.
          */
@@ -306,18 +306,18 @@ int __parsec_schedule(parsec_execution_stream_t* es,
                     set_parameters++;
                     if( NULL == context->data[flow->flow_index].data_in ) {
                         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)",
-                                parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context),
-                                flow->name, __FILE__, __LINE__);
+                                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context),
+                                             flow->name, __FILE__, __LINE__);
                     }
                 }
             }
             /*if( set_parameters > 1 ) {
-                parsec_fatal( "Task %s has more than one input flow set (impossible)!! (%s:%d)",
-                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
-            }*/ /* Change it as soon as dtd has a running version */
+              parsec_fatal( "Task %s has more than one input flow set (impossible)!! (%s:%d)",
+              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
+              }*/ /* Change it as soon as dtd has a running version */
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "thread %d of VP %d Schedules %s (distance %d)",
-                    es->th_id, es->virtual_process->vp_id,
-                    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context), distance );
+                                 es->th_id, es->virtual_process->vp_id,
+                                 parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context), distance );
             context = (parsec_task_t*)context->super.list_next;
         } while ( context != new_context );
     }
@@ -513,7 +513,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     parsec_context_t* parsec_context = es->virtual_process->parsec_context;
     int32_t my_barrier_counter = parsec_context->__parsec_internal_finalization_counter;
     parsec_task_t* task;
-    int rc, nbiterations = 0, distance;
+    int nbiterations = 0, distance;
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
@@ -583,6 +583,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
 
             rc = __parsec_task_progress(es, task, distance);
             (void)rc;  /* for now ignore the return value */
+
             nbiterations++;
         }
     }

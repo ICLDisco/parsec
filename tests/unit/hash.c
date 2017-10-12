@@ -34,21 +34,37 @@ typedef struct {
     int               nbthreads; /* How many threads there were when this item was inserted */
 } empty_hash_item_t;
 
-static uint32_t hash_fn_mod(uintptr_t key, uint32_t size, void *param)
+static uint64_t hash_fn_mod(parsec_key_t key, int nb_bits, void *param)
 {
     /** Use all the bits of the 64 bits key, project on the lowest base bits (0 <= hash < size) */
+    uint32_t b;
+    uint64_t h = (uint64_t)(uintptr_t)key;
     (void)param;
-    int b = 0, base = START_BASE; /* We start at START_BASE, as size is 1<<START_BASE at least */
-    uint32_t mask = START_MASK;   /* same thing: assume size is START_BASE at least */
-    uint32_t h = key;
-    while( size != (1u<<base) ) { assert(base < 32); base++; mask = (mask<<1)|1; }
-    while( b < 64 ) {
-        b += base;
-        h ^= key >> b;
+    for(b = nb_bits; b < 8*sizeof(uint64_t); b += nb_bits) {
+        h ^= (uint64_t)key >> b;
     }
-    assert( (uint32_t)(key & mask) < size );
-    return (uint32_t)( key & mask);
+    return (uint64_t)( h & ( ~0ULL >> (sizeof(uint64_t)*8 - nb_bits )));
 }
+
+static int key_equal(parsec_key_t a, parsec_key_t b, void *user_data)
+{
+    uint64_t _a = (uint64_t)a, _b = (uint64_t)b;
+    (void)user_data;
+    return _a == _b;
+}
+
+static char *key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)
+{
+    (void)user_data;
+    snprintf(buffer, buffer_size, "%lu", (uint64_t)k);
+    return buffer;
+}
+
+static parsec_key_fn_t key_functions = {
+    .key_equal = key_equal,
+    .key_print = key_print,
+    .key_hash  = hash_fn_mod
+};
 
 static void *do_test(void *_param)
 {
@@ -66,12 +82,12 @@ static void *do_test(void *_param)
     parsec_bindthread(id, 0);
 
     if( id == 0 ) {
-        parsec_hash_table_init(&hash_table, offsetof(empty_hash_item_t, ht_item), 1 << START_BASE, hash_fn_mod, NULL);
+        parsec_hash_table_init(&hash_table, offsetof(empty_hash_item_t, ht_item), 3, key_functions, NULL);
     }
 
     item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
     for(t = 0; t < nbtests; t++) {
-        item_array[t].ht_item.key = (nbthreads+1) * t + id;
+        item_array[t].ht_item.key = (parsec_key_t)((uint64_t)((nbthreads+1) * t + id));
         item_array[t].ht_item.next_item = NULL;
         item_array[t].thread_id = id;
         item_array[t].nbthreads = nbthreads;
@@ -88,7 +104,7 @@ static void *do_test(void *_param)
                 fprintf(stderr,
                         "Error in implementation of the hash table: item with key %"PRIu64" has not been inserted yet, but it is found in the hash table\n"
                         "Thread %d is supposed to have inserted it when running with %d threads, and I am thread %d, running with %d threads\n",
-                        item_array[t].ht_item.key,
+                        (uint64_t)item_array[t].ht_item.key,
                         ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads,
                         id, nbthreads);
                 raise(SIGABRT);
@@ -102,10 +118,10 @@ static void *do_test(void *_param)
             if( rc != &item_array[t] ) {
                 if( NULL == rc ) {
                     fprintf(stderr, "Error in implementation of the hash table: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
-                            item_array[t].ht_item.key);
+                            (uint64_t)item_array[t].ht_item.key);
                 } else {
                     fprintf(stderr, "Error in implementation of the hash table: Should have found item with key %"PRIu64" as inserted by thread %d/%d, but found it as inserted from thread %d/%d\n",
-                            item_array[t].ht_item.key,
+                            (uint64_t)item_array[t].ht_item.key,
                             id, nbthreads,
                             ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads);
                 }
@@ -117,10 +133,10 @@ static void *do_test(void *_param)
             if( rc != &item_array[t] ) {
                 if( NULL == rc ) {
                     fprintf(stderr, "Error in implementation of the hash table: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
-                            item_array[t].ht_item.key);
+                            (uint64_t)item_array[t].ht_item.key);
                 } else {
                     fprintf(stderr, "Error in implementation of the hash table: Should have found item with key %"PRIu64" as inserted by thread %d/%d, but found it as inserted from thread %d/%d\n",
-                            item_array[t].ht_item.key,
+                            (uint64_t)item_array[t].ht_item.key,
                             id, nbthreads,
                             ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads);
                 }
@@ -135,7 +151,7 @@ static void *do_test(void *_param)
                 fprintf(stderr,
                         "Error in implementation of the hash table: item with key %"PRIu64" has not been inserted yet, but it is found in the hash table\n"
                         "Thread %d is supposed to have inserted it when running with %d threads, and I am thread %d, running with %d threads\n",
-                        item_array[t].ht_item.key,
+                        (uint64_t)item_array[t].ht_item.key,
                         ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads,
                         id, nbthreads);
                 raise(SIGABRT);
@@ -149,10 +165,10 @@ static void *do_test(void *_param)
             if( rc != &item_array[t] ) {
                 if( NULL == rc ) {
                     fprintf(stderr, "Error in implementation of the hash table: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
-                            item_array[t].ht_item.key);
+                            (uint64_t)item_array[t].ht_item.key);
                 } else {
                     fprintf(stderr, "Error in implementation of the hash table: Should have found item with key %"PRIu64" as inserted by thread %d/%d, but found it as inserted from thread %d/%d\n",
-                            item_array[t].ht_item.key,
+                            (uint64_t)item_array[t].ht_item.key,
                             id, nbthreads,
                             ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads);
                 }
@@ -164,10 +180,10 @@ static void *do_test(void *_param)
             if( rc != &item_array[t] ) {
                 if( NULL == rc ) {
                     fprintf(stderr, "Error in implementation of the hash table: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
-                            item_array[t].ht_item.key);
+                            (uint64_t)item_array[t].ht_item.key);
                 } else {
                     fprintf(stderr, "Error in implementation of the hash table: Should have found item with key %"PRIu64" as inserted by thread %d/%d, but found it as inserted from thread %d/%d\n",
-                            item_array[t].ht_item.key,
+                            (uint64_t)item_array[t].ht_item.key,
                             id, nbthreads,
                             ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads);
                 }

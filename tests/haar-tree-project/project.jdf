@@ -15,18 +15,44 @@ static double func(double x) {
   return exp(-x*x);
 }
 
-struct __parsec_project_internal_taskpool;
+ static int my_simple_hash_equal(parsec_key_t a, parsec_key_t b, void *taskpool)
+{
+    (void)taskpool;
+    return a == b;
+}
+
+static char *my_simple_hash_print(char *buffer, size_t bs, parsec_key_t k, void *taskpool)
+{
+    (void)taskpool;
+    snprintf(buffer, bs, "%16lx", (uint64_t)k);
+    return buffer;
+}
+
+static uint64_t my_simple_hash_hash(parsec_key_t key, int nb_bits, void *taskpool)
+{
+    (void)taskpool;
+    uint64_t k = (uint64_t)(uintptr_t)key;
+    uint32_t i;
+    for(i = nb_bits; i < sizeof(uint64_t)*8; i+=nb_bits)
+        k = k ^ (k >> i);
+    return k & (~0ULL >> (sizeof(uint64_t)*8-nb_bits));
+}
+ 
+static parsec_key_fn_t my_simple_hash_fns = {
+    .key_equal = my_simple_hash_equal,
+    .key_print = my_simple_hash_print,
+    .key_hash  = my_simple_hash_hash
+};
+
+struct __parsec_project_internal_taskpool_s;
 struct __parsec_project_END_PROPAGATE_assignment_s;
 struct __parsec_project_PROJECT_assignment_s;
 struct __parsec_project_CREATE_NODE_assignment_s;
 struct __parsec_project_PROJECT_task_s;
 
-static uint64_t end_propagate_hash(const struct __parsec_project_internal_taskpool_s * __tp,
-                                   struct __parsec_project_END_PROPAGATE_assignment_s * assignments);
-static uint64_t project_hash(const struct __parsec_project_internal_taskpool_s * __tp,
-                             struct __parsec_project_PROJECT_assignment_s * assignments);
-static uint64_t create_node_hash(const struct __parsec_project_internal_taskpool_s * __tp,
-                                 struct __parsec_project_CREATE_NODE_assignment_s * assignments);
+static parsec_key_t end_propagate_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
+static parsec_key_t project_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
+static parsec_key_t create_node_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
 
 static uint32_t undetermined_nb_tasks(struct __parsec_project_internal_taskpool_s *__tp);
 
@@ -73,7 +99,8 @@ END
 // 4- Once the root node receives both its children controls, the tree
 //    is built and all the remaining tasks are killed
 
-END_PROPAGATE (n, l) [hash_fn = end_propagate_hash
+END_PROPAGATE (n, l) [hash_struct = my_simple_hash_fns
+                      make_key_fn = end_propagate_make_key
                       find_deps_fn  = my_find_deps
                       alloc_deps_fn = my_alloc_deps
                       free_deps_fn  = my_free_deps ]
@@ -117,7 +144,8 @@ BODY
 }
 END
 
-CREATE_NODE (n, l) [hash_fn = create_node_hash
+CREATE_NODE (n, l) [hash_struct = my_simple_hash_fns
+                    make_key_fn = create_node_make_key
                     find_deps_fn  = my_find_deps
                     alloc_deps_fn = my_alloc_deps
                     free_deps_fn  = my_free_deps ]
@@ -153,7 +181,8 @@ BODY
 }
 END
 
-PROJECT (n, l) [hash_fn = project_hash
+PROJECT (n, l) [hash_struct = my_simple_hash_fns
+                make_key_fn = project_make_key
                 find_deps_fn  = my_find_deps
                 alloc_deps_fn = my_alloc_deps
                 free_deps_fn  = my_free_deps
@@ -202,25 +231,25 @@ static uint64_t my_simple_tree_hash(int n, int l)
     return (((uint64_t)n) << 32) | ((uint64_t)l);
 }
 
-static uint64_t end_propagate_hash(const struct __parsec_project_internal_taskpool_s * __tp,
-                                   struct __parsec_project_END_PROPAGATE_assignment_s * assignments)
+static parsec_key_t end_propagate_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
 {
     (void)__tp;
-    return my_simple_tree_hash(assignments->n.value, assignments->l.value);
+    const struct __parsec_project_END_PROPAGATE_assignment_s * assignments = (const struct __parsec_project_END_PROPAGATE_assignment_s *)_as;
+    return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static uint64_t create_node_hash(const struct __parsec_project_internal_taskpool_s * __tp,
-                                 struct __parsec_project_CREATE_NODE_assignment_s * assignments)
+static parsec_key_t create_node_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
 {
     (void)__tp;
-    return my_simple_tree_hash(assignments->n.value, assignments->l.value);
+    const struct __parsec_project_CREATE_NODE_assignment_s * assignments = (const struct __parsec_project_CREATE_NODE_assignment_s *)_as;
+    return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static uint64_t project_hash(const struct __parsec_project_internal_taskpool_s * __tp,
-                                   struct __parsec_project_PROJECT_assignment_s * assignments)
+static parsec_key_t project_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
 {
     (void)__tp;
-    return my_simple_tree_hash(assignments->n.value, assignments->l.value);
+    const struct __parsec_project_PROJECT_assignment_s * assignments = (const struct __parsec_project_PROJECT_assignment_s *)_as;
+    return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
 static uint32_t undetermined_nb_tasks(struct __parsec_project_internal_taskpool_s *__tp)
@@ -241,7 +270,7 @@ typedef struct {
     simple_hash_entry_t **buckets;
 } simple_hash_t;
 
-static void               *my_alloc_deps(struct __parsec_project_internal_taskpool_s *__tp)
+static void *my_alloc_deps(struct __parsec_project_internal_taskpool_s *__tp)
 {
     simple_hash_t *sh;
     (void)__tp;
@@ -252,7 +281,7 @@ static void               *my_alloc_deps(struct __parsec_project_internal_taskpo
     return (void*)sh;
 }
 
-static void                my_free_deps(struct __parsec_project_internal_taskpool_s *__tp, void *deps)
+static void my_free_deps(struct __parsec_project_internal_taskpool_s *__tp, void *deps)
 {
     simple_hash_t *sh;
     int i;
