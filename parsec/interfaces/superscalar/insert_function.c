@@ -48,11 +48,13 @@
 #include "parsec/mca/pins/pins.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/utils/output.h"
+#include "parsec/data_distribution.h"
 
 /* This allows DTD to have a separate stream for debug verbose output */
 int parsec_dtd_debug_output;
 static int parsec_dtd_debug_verbose = -1;
 
+static parsec_dc_key_t parsec_dtd_dc_id = 0;
 uint32_t __parsec_dtd_is_initialized   = 0; /**< Indicates init of dtd environment is completed */
 
 int parsec_dtd_window_size             = 8000;   /**< Default window size */
@@ -1002,6 +1004,7 @@ parsec_dtd_data_collection_init( parsec_data_collection_t *dc )
                             nb,
                             DTD_key_fns,
                             dc->tile_h_table);
+    parsec_dc_register_id(dc, parsec_dtd_dc_id++);
 }
 
 void
@@ -1009,6 +1012,7 @@ parsec_dtd_data_collection_fini( parsec_data_collection_t *dc )
 {
     parsec_hash_table_fini(dc->tile_h_table);
     OBJ_RELEASE(dc->tile_h_table);
+    parsec_dc_unregister_id(dc->dc_id);
 }
 
 /* **************************************************************************** */

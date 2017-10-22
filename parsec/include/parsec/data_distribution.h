@@ -20,7 +20,12 @@ typedef uint8_t memory_registration_status_t;
 #define    MEMORY_STATUS_UNREGISTERED      ((memory_registration_status_t)0x0)
 #define    MEMORY_STATUS_REGISTERED        ((memory_registration_status_t)0x1)
 
+typedef uint64_t parsec_dc_key_t;
+
 struct parsec_data_collection_s {
+    parsec_dc_key_t     dc_id;     /**< DC are uniquely globally consistently named */
+    parsec_hash_table_item_t ht_item; /**< to be pushable in a hash table */
+
     uint32_t            myrank;    /**< process rank */
     uint32_t            nodes;     /**< number of nodes involved in the computation */
 
@@ -67,6 +72,21 @@ parsec_data_collection_init(parsec_data_collection_t *d,
                             int nodes, int myrank );
 void
 parsec_data_collection_destroy(parsec_data_collection_t *d);
+
+PARSEC_DECLSPEC int
+parsec_data_dist_init(void);
+
+PARSEC_DECLSPEC int
+parsec_data_dist_fini(void);
+
+int
+parsec_dc_register_id(parsec_dc_t* dc, parsec_dc_key_t key);
+
+int
+parsec_dc_unregister_id(parsec_dc_key_t key);
+
+parsec_dc_t *
+parsec_dc_lookup(parsec_dc_key_t key);
 
 #if defined(PARSEC_PROF_TRACE)
 void parsec_data_collection_set_key( parsec_data_collection_t* d, char* name);
