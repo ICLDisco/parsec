@@ -117,11 +117,12 @@ endif( PARSEC_ATOMIC_USE_C11_ATOMICS )
 # Check if the compiler supports __sync_bool_compare_and_swap.
 #
 if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_ATOMIC_USE_C11_128)
-
+  # Dont rely on the compiler support for C11 atomics
+  UNSET(PARSEC_ATOMIC_USE_C11_ATOMICS CACHE)
   include(CheckCSourceRuns)
 
-# Gcc style atomics?
-CHECK_C_SOURCE_COMPILES("
+  # Gcc style atomics?
+  CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
       int main(void) {
          int32_t where = 0;
@@ -132,7 +133,7 @@ CHECK_C_SOURCE_COMPILES("
       " PARSEC_ATOMIC_USE_GCC_32_BUILTINS)
   # As far as I know, compilers that do not support C11 do not support the
   # libatomic extension either, so we do not recheck with -latomic as above
-if( PARSEC_ATOMIC_USE_GCC_32_BUILTINS )
+  if( PARSEC_ATOMIC_USE_GCC_32_BUILTINS )
     CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
         int main(void) {
@@ -142,9 +143,9 @@ if( PARSEC_ATOMIC_USE_GCC_32_BUILTINS )
            return 0;
         }
         " PARSEC_ATOMIC_USE_GCC_64_BUILTINS)
-endif( PARSEC_ATOMIC_USE_GCC_32_BUILTINS )
-if( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
-  CHECK_C_SOURCE_COMPILES("
+  endif( PARSEC_ATOMIC_USE_GCC_32_BUILTINS )
+  if( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
+    CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
         int main(void) {
             __int128_t where = 0;
@@ -153,13 +154,13 @@ if( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
             return 0;
         }
         " PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
-  if(HAVE_UINT128)
-    if( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS ) # try again with -mcx16
-      include(CMakePushCheckState)
-      CMAKE_PUSH_CHECK_STATE()
-      SET( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
-      UNSET( PARSEC_ATOMIC_USE_GCC_128_BUILTINS CACHE )
-      CHECK_C_SOURCE_COMPILES("
+    if(HAVE_UINT128)
+      if( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS ) # try again with -mcx16
+        include(CMakePushCheckState)
+        CMAKE_PUSH_CHECK_STATE()
+        SET( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
+        UNSET( PARSEC_ATOMIC_USE_GCC_128_BUILTINS CACHE )
+        CHECK_C_SOURCE_COMPILES("
             #include <stdint.h>
             int main(void) {
                 __int128_t where = 0;
@@ -168,16 +169,16 @@ if( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
                 return 0;
             }
             " PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
-      CMAKE_POP_CHECK_STATE()
-      if( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
-        SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcx16" CACHE STRING "" FORCE)
-      endif( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
-    endif( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
-  endif(HAVE_UINT128)
-endif( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
+        CMAKE_POP_CHECK_STATE()
+        if( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
+          SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcx16" CACHE STRING "" FORCE)
+        endif( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
+      endif( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
+    endif(HAVE_UINT128)
+  endif( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
   
-# Xlc style atomics?
-CHECK_C_SOURCE_COMPILES("
+  # Xlc style atomics?
+  CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main(void)
@@ -190,8 +191,8 @@ CHECK_C_SOURCE_COMPILES("
          return 0;
       }
       " PARSEC_ATOMIC_USE_XLC_32_BUILTINS)
-if( PARSEC_ATOMIC_USE_XLC_32_BUILTINS )
-  CHECK_C_SOURCE_COMPILES("
+  if( PARSEC_ATOMIC_USE_XLC_32_BUILTINS )
+    CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
 
         int main(void)
@@ -204,10 +205,10 @@ if( PARSEC_ATOMIC_USE_XLC_32_BUILTINS )
            return 0;
         }
         " PARSEC_ATOMIC_USE_XLC_64_BUILTINS)
-endif( PARSEC_ATOMIC_USE_XLC_32_BUILTINS )
+  endif( PARSEC_ATOMIC_USE_XLC_32_BUILTINS )
 
-# MIPS style atomics?
-CHECK_C_SOURCE_COMPILES("
+  # MIPS style atomics?
+  CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main(void)
@@ -219,8 +220,8 @@ CHECK_C_SOURCE_COMPILES("
          return 0;
       }
       " PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS)
-if( PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
-  CHECK_C_SOURCE_COMPILES("
+  if( PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
+    CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
 
         int main(void)
@@ -232,10 +233,10 @@ if( PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
            return 0;
         }
         " PARSEC_ATOMIC_USE_MIPOSPRO_64_BUILTINS)
-endif( PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
+  endif( PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
 
-# SUN OS style atomics?
-CHECK_C_SOURCE_COMPILES("
+  # SUN OS style atomics?
+  CHECK_C_SOURCE_COMPILES("
       #include <atomic.h>
       #include <stdint.h>
 
@@ -248,7 +249,7 @@ CHECK_C_SOURCE_COMPILES("
          return 0;
       }
       " PARSEC_ATOMIC_USE_SUN_32)
-if( PARSEC_ATOMIC_USE_SUN_32 )
+  if( PARSEC_ATOMIC_USE_SUN_32 )
     CHECK_C_SOURCE_COMPILES("
         #include <atomic.h>
         #include <stdint.h>
@@ -262,13 +263,13 @@ if( PARSEC_ATOMIC_USE_SUN_32 )
            return 0;
         }
         " PARSEC_ATOMIC_USE_SUN_64)
-endif( PARSEC_ATOMIC_USE_SUN_32 )
+  endif( PARSEC_ATOMIC_USE_SUN_32 )
 
-# Apple style atomics?
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap32 PARSEC_HAVE_COMPARE_AND_SWAP_32)
-  CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap64 PARSEC_HAVE_COMPARE_AND_SWAP_64)
-endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  # Apple style atomics?
+  if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+    CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap32 PARSEC_HAVE_COMPARE_AND_SWAP_32)
+    CHECK_FUNCTION_EXISTS(OSAtomicCompareAndSwap64 PARSEC_HAVE_COMPARE_AND_SWAP_64)
+  endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
 endif(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_ATOMIC_USE_C11_128)
 
