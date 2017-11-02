@@ -142,6 +142,7 @@ bool parsec_output_init(void)
         }
     }
     str = getenv("PARSEC_OUTPUT_SYSLOG_PRI");
+#if defined(PARSEC_HAVE_SYSLOG_H)
     if (NULL != str) {
         if (0 == strcasecmp(str, "info")) {
             parsec_output_redirected_syslog_pri = LOG_INFO;
@@ -155,6 +156,7 @@ bool parsec_output_init(void)
     } else {
         parsec_output_redirected_syslog_pri = LOG_ERR;
     }
+#endif  /* defined(PARSEC_HAVE_SYSLOG_H) */
 
     str = getenv("PARSEC_OUTPUT_SYSLOG_IDENT");
     if (NULL != str) {
