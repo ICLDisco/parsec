@@ -649,6 +649,11 @@ typedef struct profiling_init_info {
     int maxidx;
 } profiling_init_info_t;
 
+static int profile_enabled(jdf_def_list_t *dl)
+{
+    return jdf_property_get_int(dl, "profile", 1);
+}
+
 /**
  * dump_profiling_init:
  *  Takes the pointer to the name of a function, an index in
@@ -665,7 +670,7 @@ static char *dump_profiling_init(void **elem, void *arg)
     int nb_locals;
     string_arena_t *profiling_convertor_params;
 
-    if( !jdf_property_get_int(f->properties, "profile", 1) ) {
+    if( !profile_enabled(f->properties) ) {
         return NULL;
     }
 
@@ -903,8 +908,17 @@ static int jdf_expr_depends_on_symbol(const char *name, const jdf_expr_t *e)
 jdf_expr_t* jdf_find_property( const jdf_def_list_t* properties, const char* property_name, jdf_def_list_t** property )
 {
     const jdf_def_list_t* current = properties;
+    const jdf_name_list_t *nl;
 
     if( NULL != property ) *property = NULL;
+    for(nl = JDF_COMPILER_GLOBAL_ARGS.ignore_properties;
+        nl != NULL;
+        nl = nl->next) {
+        if( !strcmp(nl->name, property_name) ) {
+            *property = NULL;
+            return NULL;
+        }
+    }
     while( NULL != current ) {
         if( !strcmp(current->name, property_name) ) {
             if( NULL != property ) *property = (jdf_def_list_t*)current;
@@ -1281,9 +1295,9 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
     coutput("};\n\n");
 
-    for( f = jdf->functions; NULL != f; f = f->next ) {
+    for( f = jdf->functions; need_profile == 0 && NULL != f; f = f->next ) {
         /* If the profile property is ON then enable the profiling array */
-        need_profile += jdf_property_get_int(f->properties, "profile", 1);
+        need_profile = profile_enabled(f->properties);
     }
     if( need_profile )
         coutput("#if defined(PARSEC_PROF_TRACE)\n"
@@ -4681,7 +4695,7 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
     }
 
     /* If the function has the property profile turned off do not generate the profiling code */
-    if( jdf_property_get_int(f->properties, "profile", 1) ) {
+    if( profile_enabled(f->properties) ) {
         string_arena_t *sa3 = string_arena_new(64);
         expr_info_t linfo;
 
@@ -4735,8 +4749,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     int profile_on;
     char* output;
 
-    profile_on = jdf_property_get_int(f->properties, "profile", 1);
-    profile_on = jdf_property_get_int(body->properties, "profile", profile_on);
+    profile_on = profile_enabled(f->properties) && profile_enabled(body->properties);
 
     jdf_find_property(body->properties, "type", &type_property);
 
@@ -5011,8 +5024,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     int profile_on;
     char* output;
 
-    profile_on = jdf_property_get_int(f->properties, "profile", 1);
-    profile_on = jdf_property_get_int(body->properties, "profile", profile_on);
+    profile_on = profile_enabled(f->properties) && profile_enabled(body->properties);
 
     jdf_find_property(body->properties, "type", &type_property);
     if(NULL != type_property) {
@@ -5163,7 +5175,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
     jdf_dataflow_t *fl;
     assignment_info_t ai;
 
-    profile_on = jdf_property_get_int(f->properties, "profile", 1);
+    profile_on = profile_enabled(f->properties);
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
