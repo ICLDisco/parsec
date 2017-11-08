@@ -52,10 +52,6 @@ static inline void parsec_spq_priority_list_construct( parsec_spq_priority_list_
 
 static inline void parsec_spq_priority_list_destruct( parsec_spq_priority_list_t*plist )
 {
-    parsec_list_item_t *li;
-    while( (li = parsec_list_try_pop_front(&plist->tasks)) != NULL ) {
-        OBJ_RELEASE(li);
-    }
     OBJ_DESTRUCT(&plist->tasks);
 }
 
