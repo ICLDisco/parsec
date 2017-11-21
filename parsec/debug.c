@@ -21,7 +21,7 @@ char parsec_debug_hostname[32]   = "unknownhost";
 int parsec_debug_rank            = -1;
 int parsec_debug_output          = 0;
 int parsec_debug_verbose         = 1;
-int parsec_debug_history_verbose = 4;
+int parsec_debug_history_verbose = 5;
 int parsec_debug_colorize        = 10; /* 10 is the size of the format string for colors */
 int parsec_debug_coredump_on_fatal = 0;
 int parsec_debug_history_on_fatal = 0;
@@ -192,7 +192,7 @@ void parsec_debug_backtrace_dump(void) {
 
 #if defined(PARSEC_DEBUG_HISTORY)
 
-#define MAX_MARKS 96
+#define MAX_MARKS 65536
 
 typedef struct {
     volatile uint32_t nextmark;

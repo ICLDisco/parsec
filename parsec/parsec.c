@@ -1281,7 +1281,7 @@ parsec_update_deps_with_mask(const parsec_taskpool_t *tp,
     parsec_task_snprintf(tmpt, MAX_TASK_STRLEN, task);
 #endif
 
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Activate mask dep for %s:%s (current 0x%x now 0x%x goal 0x%x) from %s:%s",
+    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Activate mask dep for %s:%s (current 0x%x now 0x%x goal 0x%x) from %s:%s",
                          dest_flow->name, tmpt, *deps, (1 << dest_flow->flow_index), tc->dependencies_goal,
                          origin_flow->name, tmpo);
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -1303,7 +1303,7 @@ parsec_update_deps_with_mask(const parsec_taskpool_t *tp,
         dep_new_value |= parsec_check_IN_dependencies_with_mask(tp, task);
 #if defined(PARSEC_DEBUG_NOISIER)
         if( dep_new_value != 0 ) {
-            PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Activate IN dependencies with mask 0x%x", dep_new_value);
+            PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Activate IN dependencies with mask 0x%x", dep_new_value);
         }
 #endif
     }
@@ -1324,7 +1324,7 @@ parsec_update_deps_with_mask(const parsec_taskpool_t *tp,
     }
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Task %s has a current dependencies of 0x%x and a goal of 0x%x. %s to go!",
+    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Task %s has a current dependencies of 0x%x and a goal of 0x%x. %s to go!",
                          tmpt, dep_cur_value, tc->dependencies_goal,
                          ((dep_cur_value & tc->dependencies_goal) == tc->dependencies_goal) ?
                          "Ready" : "Not ready");

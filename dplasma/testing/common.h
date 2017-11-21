@@ -163,6 +163,7 @@ void print_usage(void);
 
 parsec_context_t *setup_parsec(int argc, char* argv[], int *iparam);
 void cleanup_parsec(parsec_context_t* parsec, int *iparam);
+void warmup_blas(parsec_context_t *parsec);
 
 /**
  * No macro with the name max or min is acceptable as there is

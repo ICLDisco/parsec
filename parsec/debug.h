@@ -109,6 +109,13 @@ void parsec_debug_backtrace_dump(void);
         parsec_debug_colorize, "\033[0m", ##__VA_ARGS__);            \
 } while(0)
 
+#if defined(PARSEC_DEBUG_HISTORY)
+#define parsec_debug_verbose(LVL, OUT, FMT, ...) do {                \
+    _PARSEC_DEBUG_HISTORY(LVL,                                       \
+        "D@%05d " FMT " @%.20s:%-5d", parsec_debug_rank,             \
+        ##__VA_ARGS__, __func__, __LINE__);                          \
+} while(0)
+#else
 /* Light debugging output, compiled in for all levels of
  * so not to use in performance critical routines. */
 #define parsec_debug_verbose(LVL, OUT, FMT, ...) do {                \
@@ -118,15 +125,20 @@ void parsec_debug_backtrace_dump(void);
         parsec_debug_colorize, "\033[0m", ##__VA_ARGS__,             \
         parsec_debug_colorize, "\x1B[36m", __func__, __LINE__,       \
         parsec_debug_colorize, "\033[0m");                           \
-    _PARSEC_DEBUG_HISTORY(LVL,                                       \
-        "D@%05d " FMT " @%.20s:%-5d", parsec_debug_rank,             \
-        ##__VA_ARGS__, __func__, __LINE__);                          \
 } while(0)
+#endif
 
 #if defined(PARSEC_DEBUG_NOISIER)
 /* Increasingly heavy debugging output. Compiled out when
  * PARSEC_DEBUG_VERBOSE is not enabled.
  */
+#if defined(PARSEC_DEBUG_HISTORY)
+#define PARSEC_DEBUG_VERBOSE(LVL, OUT, FMT, ...) do {                \
+    _PARSEC_DEBUG_HISTORY(LVL,                                       \
+        "d@%05d " FMT " @%.20s:%-5d", parsec_debug_rank,             \
+        ##__VA_ARGS__, __func__, __LINE__);                          \
+} while(0)
+#else
 #define PARSEC_DEBUG_VERBOSE(LVL, OUT, FMT, ...) do {                \
     parsec_output_verbose(LVL, OUT,                                  \
         "%.*sd@%05d%.*s " FMT " %.*s@%.30s:%-5d%.*s",                \
@@ -134,10 +146,8 @@ void parsec_debug_backtrace_dump(void);
         parsec_debug_colorize, "\033[0m", ##__VA_ARGS__,             \
         parsec_debug_colorize, "\x1B[36m", __func__, __LINE__,       \
         parsec_debug_colorize, "\033[0m");                           \
-    _PARSEC_DEBUG_HISTORY(LVL,                                       \
-        "d@%05d " FMT " @%.20s:%-5d", parsec_debug_rank,             \
-        ##__VA_ARGS__, __func__, __LINE__);                          \
 } while(0)
+#endif
 #else
 #define PARSEC_DEBUG_VERBOSE(...) do{} while(0)
 #endif /* defined(PARSEC_DEBUG_VERBOSE) */

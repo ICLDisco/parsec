@@ -12,6 +12,8 @@
 #include "common.h"
 #include "common_timing.h"
 
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #ifdef PARSEC_HAVE_UNISTD_H
@@ -669,7 +671,67 @@ parsec_context_t* setup_parsec(int argc, char **argv, int *iparam)
     print_arguments(iparam);
 
     if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("PaRSEC initialized\n"));
+
+    //warmup_blas(ctx);
+    
     return ctx;
+}
+
+extern void CORE_dgemm(PLASMA_enum transA, PLASMA_enum transB,
+                       int M, int N, int K,
+                       double alpha, const double *A, int LDA,
+                       const double *B, int LDB,
+                       double beta, double *C, int LDC);
+
+static int warmup_blas_operator( parsec_execution_stream_t *es,
+                                 const parsec_tiled_matrix_dc_t *descA,
+                                 void *_A,
+                                 PLASMA_enum uplo, int m, int n,
+                                 void *op_data )
+{
+    double A[6400];
+    double B[6400];
+    double C[6400];
+    parsec_barrier_t *barrier = (parsec_barrier_t*)op_data;
+    int i;
+    for(i = 0; i < 6400; i++) {
+        A[i] = i;
+        B[i] = i*3.0;
+        C[i] = i/3.0;
+    }
+    parsec_barrier_wait(barrier);
+    CORE_dgemm(PlasmaNoTrans, PlasmaNoTrans,
+               80, 80, 80,
+               1.0,
+               A, 80,
+               B, 80,
+               1.0, C, 80);
+
+    return 0;
+}
+
+void warmup_blas(parsec_context_t *parsec)
+{
+    parsec_taskpool_t *parsec_warmup = NULL;
+    parsec_barrier_t *barrier;
+    
+    two_dim_block_cyclic_t A;
+    two_dim_block_cyclic_init(&A, matrix_RealDouble, matrix_Tile,
+                              1, 0, 1, 1, 1, 20, 0, 0,
+                              1, 20, 1, 1, 1);
+    parsec_data_collection_set_key((parsec_data_collection_t*)&A, "A");
+    A.mat = NULL;
+
+    barrier = (parsec_barrier_t*)malloc(sizeof(parsec_barrier_t));
+    parsec_barrier_init(barrier, NULL, 20);
+    parsec_warmup = dplasma_map_New( PlasmaUpperLower, &A, warmup_blas_operator, (void*)barrier );
+
+    parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_warmup);
+    parsec_context_start(parsec);
+    parsec_context_wait(parsec);
+
+    dplasma_map_Destruct( parsec_warmup );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&A);
 }
 
 void cleanup_parsec(parsec_context_t* parsec, int *iparam)
