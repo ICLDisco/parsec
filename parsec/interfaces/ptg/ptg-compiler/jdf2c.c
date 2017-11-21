@@ -1346,7 +1346,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
                 "    b += base;\n"
                 "    h ^= key >> b;\n"
                 "  }\n"
-                "  return (uint32_t)( key & mask);\n"
+                "  return (uint32_t)( h & mask);\n"
                 "}\n");
     }
     coutput("static inline int parsec_imin(int a, int b) { return (a <= b) ? a : b; };\n\n"
@@ -2551,14 +2551,12 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
             dl = l2p_item->dl; assert(NULL != dl);
 
-            if(dl->expr->op == JDF_RANGE) {
-                coutput("  int32_t %s%s_start, %s%s_end, %s%s_inc;\n", JDF2C_NAMESPACE, dl->name,
-                        JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name );
-                /* Quiet the compiler by using the variables */
-                string_arena_add_string(sa_end, "  (void)%s%s_start; (void)%s%s_end; (void)%s%s_inc;",
-                                        JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE,
-                                        dl->name, JDF2C_NAMESPACE, dl->name);
-            }
+            coutput("  int32_t %s%s_start, %s%s_end, %s%s_inc;\n", JDF2C_NAMESPACE, dl->name,
+                    JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name );
+            /* Quiet the compiler by using the variables */
+            string_arena_add_string(sa_end, "  (void)%s%s_start; (void)%s%s_end; (void)%s%s_inc;",
+                                    JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE,
+                                    dl->name, JDF2C_NAMESPACE, dl->name);
         }
     }
 
@@ -2632,6 +2630,24 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             } else {
                 coutput("%s    %s = %s;\n",
                         indent(nesting), dl->name, dump_expr((void**)dl->expr, &info));
+                if( NULL != pl ) {
+                    coutput("%s    %s%s_start = %s;\n",
+                            indent(nesting), JDF2C_NAMESPACE, dl->name, dl->name);
+                    coutput("%s    %s%s_end = %s;\n",
+                            indent(nesting), JDF2C_NAMESPACE, dl->name, dl->name);
+                    coutput("%s    %s%s_inc = 1;\n",
+                            indent(nesting), JDF2C_NAMESPACE, dl->name);
+
+                    coutput("%s    __%s_min = %s;\n",
+                            indent(nesting), dl->name, dl->name);
+                    coutput("%s    __%s_max = %s;\n",
+                            indent(nesting), dl->name, dl->name);
+                    coutput("%s    __jdf2c_%s_min = %s;\n",
+                            indent(nesting), dl->name, dl->name);
+                    coutput("%s    __jdf2c_%s_max = %s;\n",
+                            indent(nesting), dl->name, dl->name);
+                    nesting++;
+                }
             }
             coutput("%s    assignments.%s.value = %s;\n",
                     indent(nesting), dl->name, dl->name);
