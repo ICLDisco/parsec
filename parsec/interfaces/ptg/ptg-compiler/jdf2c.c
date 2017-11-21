@@ -2646,12 +2646,16 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                             indent(nesting), dl->name, dl->name);
                     coutput("%s    __jdf2c_%s_max = %s;\n",
                             indent(nesting), dl->name, dl->name);
+                    /* We need to start a new code block to have a similar layout as the cases above.
+                     * Otherwise the } few lines below will match the wrong loop.
+                     */
+                    coutput("%s{  /* block for the non-range variable %s */\n",
+                            indent(nesting), dl->name);
                     nesting++;
                 }
             }
             coutput("%s    assignments.%s.value = %s;\n",
                     indent(nesting), dl->name, dl->name);
-
         }
         string_arena_init(sa1);
         string_arena_init(sa2);
@@ -2663,6 +2667,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             coutput("%s  nb_tasks++;\n",
                     indent(nesting));
         }
+        /* We close the inner loop as it will not generate any dependency tracking */
         coutput("%s}\n", indent(nesting--));
         /* If no tasks have been generated during the last loop, there is no need
          * to have any dependencies.
