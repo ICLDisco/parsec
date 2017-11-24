@@ -113,7 +113,7 @@ static const __parsec_chore_t __parsec_generic_startup_chores[] = {
 
 const parsec_task_class_t __parsec_generic_startup = {
     .name = "Generic Startup",
-    .task_class_id = -1,  /* To be replaced in all copies */
+    .task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID,  /* To be replaced in all copies */
     .nb_flows = 0,
     .nb_parameters = 0,
     .nb_locals = 0,

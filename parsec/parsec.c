@@ -41,6 +41,7 @@
 #include "parsec/utils/cmd_line.h"
 #include "parsec/utils/mca_param_cmd_line.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/interface.h"
 
 #include "parsec/mca/mca_repository.h"
 
@@ -1084,7 +1085,7 @@ parsec_check_IN_dependencies_with_mask(const parsec_taskpool_t *tp,
                             continue;  /* doesn't match */
                         /* the condition triggered let's check if it's for a data */
                     }  /* otherwise we have an input flow without a condition, it MUST be final */
-                    if( 0xFF == dep->task_class_id )
+                    if( PARSEC_LOCAL_DATA_TASK_CLASS_ID == dep->task_class_id )
                         active = (1 << flow->flow_index);
                     break;
                 }
@@ -1168,7 +1169,7 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
                 } else {
                     /* we have an input flow without a condition, it MUST be final */
                 }
-                if( 0xFF != dep->task_class_id )  /* if not a data we must wait for the flow activation */
+                if( PARSEC_LOCAL_DATA_TASK_CLASS_ID != dep->task_class_id )  /* if not a data we must wait for the flow activation */
                     active++;
                 break;
             }
@@ -2414,7 +2415,7 @@ int parsec_task_deps_with_final_output(const parsec_task_t *task,
             continue;
         for(di = 0; di < MAX_DEP_OUT_COUNT && flow->dep_out[di] != NULL; di++) {
             dep = flow->dep_out[di];
-            if( dep->task_class_id != (uint8_t)-1 )
+            if( dep->task_class_id != PARSEC_LOCAL_DATA_TASK_CLASS_ID )
                 continue;
             if( NULL != dep->cond ) {
                 assert( EXPR_OP_INLINE == dep->cond->op );

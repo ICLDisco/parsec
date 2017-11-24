@@ -1955,11 +1955,17 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
                    jdf_basename, call->super.lineno, call->var, call->func_or_mem);
             exit(-1);
         }
+        if( NULL != pf ) {
+            string_arena_add_string(sa,
+                                    "  .task_class_id = %d, /* %s_%s */\n",
+                                    pf->task_class_id, jdf_basename, call->func_or_mem);
+        } else {
+            string_arena_add_string(sa,
+                                    "  .task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID, /* %s_%s */\n",
+                                    jdf_basename, call->func_or_mem);
+        }
         string_arena_add_string(sa,
-                                "  .task_class_id = %d, /* %s_%s */\n"
-                                "  .direct_data = (direct_data_lookup_func_t)NULL,\n",
-                                (NULL != pf ? pf->task_class_id : -1), jdf_basename, call->func_or_mem);
-        string_arena_add_string(sa,
+                                "  .direct_data = (direct_data_lookup_func_t)NULL,\n"
                                 "  .flow = &flow_of_%s_%s_for_%s,\n",
                                 jdf_basename, call->func_or_mem, call->var);
     } else {
@@ -1969,17 +1975,17 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
             jdf_generate_direct_data_function(jdf, call->func_or_mem, call->parameters, f,
                                               string_arena_get_string(tmp_fct_name));
             string_arena_add_string(sa,
-                                    "  .task_class_id = %d, /* %s_%s */\n"
+                                    "  .task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID, /* %s_%s */\n"
                                     "  .direct_data = (direct_data_lookup_func_t)&%s,\n",
-                                    -1, jdf_basename, call->func_or_mem,
+                                    jdf_basename, call->func_or_mem,
                                     string_arena_get_string(tmp_fct_name));
             string_arena_free(tmp_fct_name);
         }
         else {
             string_arena_add_string(sa,
-                                    "  .task_class_id = %d, /* %s_%s */\n"
+                                    "  .task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID, /* %s_%s */\n"
                                     "  .direct_data = (direct_data_lookup_func_t)NULL,\n",
-                                    -1, jdf_basename, call->func_or_mem);
+                                    jdf_basename, call->func_or_mem);
         }
     }
     string_arena_add_string(sa,
@@ -1996,7 +2002,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     string_arena_free(sa);
     string_arena_free(sa2);
     string_arena_free(sa3);
-    
+
     return ret;
 }
 

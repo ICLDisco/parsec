@@ -58,8 +58,6 @@ extern int hashtable_trace_keyout;
                                  TO.alive      = FROM.alive;                            \
 
 
-#define LOCAL_DATA 200 /* task_class_id is uint8_t */
-
 #define TASK_IS_ALIVE       (uint8_t)1
 #define TASK_IS_NOT_ALIVE   (uint8_t)0
 

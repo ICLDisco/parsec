@@ -2020,7 +2020,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
             parsec_flow_t *tmp_d_flow = (parsec_flow_t *)parent_tc->out[out_index];
             for ( i = 0; i < MAX_DEP_IN_COUNT; i++ ) {
                 if (NULL != tmp_d_flow->dep_out[i]) {
-                    if (LOCAL_DATA == tmp_d_flow->dep_out[i]->task_class_id) {
+                    if (PARSEC_LOCAL_DATA_TASK_CLASS_ID == tmp_d_flow->dep_out[i]->task_class_id) {
                         dep_exists = 1;
                         break;
                     }
@@ -2035,7 +2035,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
 
             desc_dep->cond          = NULL;
             desc_dep->ctl_gather_nb = NULL;
-            desc_dep->task_class_id = LOCAL_DATA; /* 100 is used to indicate data is coming from memory */
+            desc_dep->task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID; /* used to indicate data is coming from memory */
             desc_dep->dep_index     = ((parsec_dtd_task_class_t*)parent_tc)->dep_out_index++;
             desc_dep->belongs_to    = parent_tc->out[out_index];
             desc_dep->flow          = NULL;
@@ -2068,7 +2068,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
             parsec_flow_t *tmp_d_flow = (parsec_flow_t *)desc_tc->in[in_index];
             for (i = 0; i < MAX_DEP_IN_COUNT; i++) {
                 if (NULL != tmp_d_flow->dep_in[i]) {
-                    if (tmp_d_flow->dep_in[i]->task_class_id == LOCAL_DATA ) {
+                    if (tmp_d_flow->dep_in[i]->task_class_id == PARSEC_LOCAL_DATA_TASK_CLASS_ID ) {
                         dep_exists = 1;
                         break;
                     }
@@ -2082,7 +2082,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
             }
             desc_dep->cond          = NULL;
             desc_dep->ctl_gather_nb = NULL;
-            desc_dep->task_class_id = LOCAL_DATA;
+            desc_dep->task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID;
             desc_dep->dep_index     = ((parsec_dtd_task_class_t*)desc_tc)->dep_in_index++;
             desc_dep->belongs_to    = desc_tc->in[in_index];
             desc_dep->flow          = NULL;
@@ -2120,7 +2120,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
                     tmp_dep = (dep_t *) tmp_flow->dep_in[i];
                 }
             }
-            if(LOCAL_DATA == tmp_dep->task_class_id) {
+            if(PARSEC_LOCAL_DATA_TASK_CLASS_ID == tmp_dep->task_class_id) {
                 set_dependencies_for_function(tp,
                                               NULL, desc_tc, 0,
                                               desc_flow_index);
