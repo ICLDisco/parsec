@@ -74,7 +74,7 @@ int32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
     return OSAtomicAdd32( -i, location );
 }
 
-if defined(PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
+#if defined(PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
 #define PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B
 ATOMIC_STATIC_INLINE
 int parsec_atomic_cas_128b( volatile __uint128_t* location,

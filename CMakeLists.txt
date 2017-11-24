@@ -37,7 +37,7 @@ set(CTEST_GPU_LAUNCHER_OPTIONS
 # ccmake tunable parameters
 #####
 
-## Check for the support of additional languages
+## Check for the support of additional languages and capabilities
 option(SUPPORT_FORTRAN
        "Enable support for Fortran bindings (default ON)" ON)
 if( SUPPORT_FORTRAN )
@@ -48,6 +48,8 @@ option(SUPPORT_CXX
 if( SUPPORT_CXX )
   enable_language(CXX OPTIONAL)
 endif( SUPPORT_CXX )
+option(SUPPORT_C11
+       "Enable support for C11 capabilities. Might not work with OpenMP support due to an OpenMP ciompilers restriction (default ON)." ON)
 
 ## Selectively compile only parts of the framework
 option(BUILD_TOOLS
@@ -263,22 +265,30 @@ endif( C_M32or64 )
 # Check compiler flags and capabilities
 #
 IF( NOT _match_xlc )
-  if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "sparc64fx" )
+  IF( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "sparc64fx" )
     SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} " )
-  else()
-    CHECK_C_COMPILER_FLAG( "-std=c1x" PARSEC_HAVE_STD_C1x)
-    if( NOT PARSEC_HAVE_STD_C1x )
+  ELSE()
+    IF(SUPPORT_C11)
+      CHECK_C_COMPILER_FLAG( "-std=c1x" PARSEC_HAVE_STD_C1x)
+    ELSE(SUPPORT_C11)
+      MESSAGE(STATUS "Performing Test PARSEC_HAVE_STD_C1x - C1x support disabled")
+    ENDIF(SUPPORT_C11)
+    IF( NOT PARSEC_HAVE_STD_C1x )
       CHECK_C_COMPILER_FLAG( "-std=c99" PARSEC_HAVE_STD_C99)
       IF( PARSEC_HAVE_STD_C99 )
         SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
       ENDIF( PARSEC_HAVE_STD_C99 )
-    else( NOT PARSEC_HAVE_STD_C1x )
+    ELSE( NOT PARSEC_HAVE_STD_C1x )
       SET( PARSEC_HAVE_STD_C99 1 )
       SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c1x" )
-    endif( NOT PARSEC_HAVE_STD_C1x )
-  endif()
+    ENDIF( NOT PARSEC_HAVE_STD_C1x )
+  ENDIF()
 ELSE( NOT _match_xlc )
-  CHECK_C_COMPILER_FLAG( "-qlanglvl=extc1x" PARSEC_HAVE_STD_C1x)
+  IF(SUPPORT_C11)
+    CHECK_C_COMPILER_FLAG( "-qlanglvl=extc1x" PARSEC_HAVE_STD_C1x)
+  ELSE(SUPPORT_C11)
+    MESSAGE(STATUS "Performing Test PARSEC_HAVE_STD_C1x - C1x support disabled")
+  ENDIF(SUPPORT_C11)
   IF( PARSEC_HAVE_STD_C1x )
     CHECK_C_COMPILER_FLAG( "-qlanglvl=extc99" PARSEC_HAVE_STD_C99)
     IF( PARSEC_HAVE_STD_C99 )

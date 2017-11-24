@@ -10,7 +10,7 @@ endif()
 #
 # C11 include support for atomic operations via stdatomic.h but only when
 # __STDC_NO_ATOMICS__ is not defined.
-if( PARSEC_HAVE_STD_C1x )
+if( SUPPORT_C11 AND PARSEC_HAVE_STD_C1x )
   CHECK_C_SOURCE_COMPILES("
       #if __STDC_VERSION__ >= 201112L
       int main(void) { return 0; }
@@ -32,8 +32,8 @@ if( PARSEC_HAVE_STD_C1x )
           check_include_files(stdatomic.h PARSEC_ATOMIC_USE_C11_ATOMICS)
         endif( PARSEC_STDC_HAVE_C11_ATOMICS )
   endif( PARSEC_COMPILER_C11_COMPLIANT )
-endif( PARSEC_HAVE_STD_C1x )
-if( PARSEC_ATOMIC_USE_C11_ATOMICS )
+endif( SUPPORT_C11 AND PARSEC_HAVE_STD_C1x )
+if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
   CHECK_C_SOURCE_COMPILES("
     #include <stdint.h>
     #include <stdatomic.h>
@@ -111,7 +111,7 @@ if( PARSEC_ATOMIC_USE_C11_ATOMICS )
       list(APPEND CMAKE_C_STANDARD_LIBRARIES ${PARSEC_ATOMIC_C11_128_EXTRA_LIBS})
     endif(HAVE_UINT128)
   endif(PARSEC_ATOMIC_USE_C11_32)
-endif( PARSEC_ATOMIC_USE_C11_ATOMICS )
+endif( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
 
 #
 # Check if the compiler supports __sync_bool_compare_and_swap.
