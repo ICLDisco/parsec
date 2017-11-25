@@ -49,7 +49,7 @@ if( SUPPORT_CXX )
   enable_language(CXX OPTIONAL)
 endif( SUPPORT_CXX )
 option(SUPPORT_C11
-       "Enable support for C11 capabilities. Might not work with OpenMP support due to an OpenMP ciompilers restriction (default ON)." ON)
+       "Enable support for C11 capabilities. Might not work with OpenMP support due to an OpenMP compilers restriction (default ON)." ON)
 
 ## Selectively compile only parts of the framework
 option(BUILD_TOOLS
