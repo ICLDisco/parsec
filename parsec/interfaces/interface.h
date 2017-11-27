@@ -12,6 +12,13 @@
 BEGIN_C_DECLS
 
 /**
+ * Task class ID for dependencies targeting local data (used as input).
+ * Use this as the task_class_id of the dep_t to pinpoint to a local
+ * data instead of a task.
+ */
+#define PARSEC_LOCAL_DATA_TASK_CLASS_ID ((uint8_t)0xFF) /* task_class_id is uint8_t */
+
+/**
  * Generic startup function for DSLs. For more info read comment in
  * parsec/interface/interface.c
  */
