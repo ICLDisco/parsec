@@ -278,60 +278,44 @@ int parsec_devices_freezed(parsec_context_t* context)
     return parsec_devices_are_freezed;
 }
 
-#if defined(PARSEC_HAVE_PAPI)
-#include <papi.h>
-#endif
-
 static int cpu_weights(parsec_device_t* device, int nstreams) {
     /* This is default value when it cannot be computed */
     /* Crude estimate that holds for Nehalem era Xeon processors */
     float freq = 2.5f;
     float fp_ipc = 8.f;
     float dp_ipc = 4.f;
+    char cpu_model[256]="Unkown";
+    char str[256];
 
-#if defined(PARSEC_HAVE_PAPI)
-    const PAPI_hw_info_t *hwinfo = NULL;
-    if(PAPI_NOT_INITED == PAPI_is_initialized()) {
-        if(PAPI_VER_CURRENT != PAPI_library_init(PAPI_VER_CURRENT)) {
-           parsec_fatal("You are using a different runtime library for PAPI than the one you compiled agains. This is known to be unstable");
-        }
-    }
-    hwinfo = PAPI_get_hardware_info();
-    if(NULL == hwinfo) {
-        parsec_warning("Could not detect CPU features with PAPI, using generic values (i.e. Nehalem) for frequency and floating poing IPC");
+    FILE* procinfo = fopen("/proc/cpuinfo", "r");
+    if( NULL == procinfo ) {
+        parsec_warning("CPU Features cannot be autodetected on this machine");
         goto notfound;
     }
-    freq = hwinfo->cpu_max_mhz * 1e-3f; /* convert to ghz */
-    switch(hwinfo->vendor) {
-    case PAPI_VENDOR_INTEL: /* fallthru */
-    case PAPI_VENDOR_AMD:
-        __builtin_cpu_init();
-        if(__builtin_cpu_supports("avx512f")) {
-            fp_ipc = 64;
-            dp_ipc = 32;
-        } else if(__builtin_cpu_supports("avx2")) {
-            fp_ipc = 32;
-            dp_ipc = 16;
-        }
-        else if(__builtin_cpu_supports("avx")) {
-            fp_ipc = 16;
-            dp_ipc = 8;
-        }
-        else {
-            fp_ipc = 8;
-            dp_ipc = 4;
-        }
-        break;
-    case PAPI_VENDOR_IBM: /* fallthru */
-    case PAPI_VENDOR_CRAY: /* fallthru */
-    case PAPI_VENDOR_SUN: /* fallthru */
-    case PAPI_VENDOR_ARM: /* fallthru */
-    case PAPI_VENDOR_FREESCALE: /* fallthru */
-    case PAPI_VENDOR_MIPS: /* fallthru */
-    case PAPI_VENDOR_UNKNOWN: /* fallthru */
-    default:
-        parsec_warning("Could not detect CPU features with PAPI, using generic values (i.e. Nehalem) for frequency and floating poing IPC");
+    while( NULL != fgets(str, 256, procinfo) ) {
+        if(sscanf(str, "model name : %256c", cpu_model))
+            break;
+    }
+    fclose(procinfo);
+    if( 0 == sscanf(cpu_model, "%*[^@] @ %fGHz", &freq) ) {
+        parsec_warning("CPU Frequency cannot be autodetected on this machine");
         goto notfound;
+    }
+    __builtin_cpu_init();
+    if(__builtin_cpu_supports("avx512f")) {
+        fp_ipc = 64;
+        dp_ipc = 32;
+    } else if(__builtin_cpu_supports("avx2")) {
+        fp_ipc = 32;
+        dp_ipc = 16;
+    }
+    else if(__builtin_cpu_supports("avx")) {
+        fp_ipc = 16;
+        dp_ipc = 8;
+    }
+    else {
+        fp_ipc = 8;
+        dp_ipc = 4;
     }
 
     {
@@ -341,22 +325,15 @@ static int cpu_weights(parsec_device_t* device, int nstreams) {
           parsec_mca_param_lookup_int(show_caps_index, &show_caps);
       }
       if( show_caps ) {
-          parsec_inform("CPU Device (model.stepping %d.%d): %s\n"
+          parsec_inform("CPU Device: %s\n"
                         "\tParsec Streams     : %d\n"
-                        "\tSockets            : %d\n"
-                        "\tCores              : %d\n"
-                        "\tHyperthreads       : %d\n"
                         "\tclockRate (GHz)    : %3.2f\n"
                         "\tpeak Gflops        : double %2.4f, single %2.4f",
-                        hwinfo->cpuid_model, hwinfo->cpuid_stepping, hwinfo->model_string,
+                        cpu_model,
                         nstreams,
-                        hwinfo->sockets, hwinfo->cores, hwinfo->threads,
                         freq, nstreams*freq*dp_ipc, nstreams*freq*fp_ipc);
        }
     }
-#else
-    parsec_debug_verbose(3, parsec_debug_output, "CPU features cannot be detected without PAPI. Using generic (Nehalem) features to estimate Rpeak.");
-#endif
  notfound:
 
     device->device_hweight = nstreams * fp_ipc * freq; /* No processor have half precision for now */
