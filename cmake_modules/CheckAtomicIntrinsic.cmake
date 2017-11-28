@@ -7,6 +7,12 @@ if(HAVE_UINT128)
   set(PARSEC_HAVE_UINT128 1)
 endif()
 
+# Detecting atomic support is an utterly annoying process, as it is extremely sensitive to
+# any software environment change (including other variables). Thus, prevent CMake from
+# caching any temporary in order to force the full detection every time.
+unset(PARSEC_HAVE_STD_C1x CACHE)
+unset(PARSEC_ATOMIC_USE_C11_ATOMICS CACHE)
+
 #
 # C11 include support for atomic operations via stdatomic.h but only when
 # __STDC_NO_ATOMICS__ is not defined.
@@ -311,8 +317,3 @@ if( CMAKE_SIZEOF_VOID_P MATCHES "8" )
   endif( NOT PARSEC_HAVE_COMPARE_AND_SWAP_128 )
 endif( CMAKE_SIZEOF_VOID_P MATCHES "8" )
 
-# Detecting atomic support is an utterly annoying process, as it is extremely sensitive to
-# any software environment change (including other variables). Thus, prevent CMake from
-# caching any temporary in order to force the full detection every time.
-unset(PARSEC_HAVE_STD_C1x CACHE)
-unset(PARSEC_ATOMIC_USE_C11_ATOMICS CACHE)
