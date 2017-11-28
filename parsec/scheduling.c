@@ -57,7 +57,7 @@ static uint32_t sched_priority_trace_counter;
 #include <sys/time.h>
 #include <sys/resource.h>
 
-static void parsec_rusage_per_eu(parsec_execution_stream_t* es, bool print)
+static void parsec_rusage_per_es(parsec_execution_stream_t* es, bool print)
 {
     struct rusage current;
     getrusage(RUSAGE_THREAD, &current);
@@ -86,18 +86,18 @@ static void parsec_rusage_per_eu(parsec_execution_stream_t* es, bool print)
                 "=============================================================\n"
                 , es->virtual_process->vp_id, es->th_id, es->core_id, es->socket_id,
                 usr, sys, usr + sys,
-                (current.ru_minflt  - eu->_es_rusage.ru_minflt), (current.ru_majflt  - es->_es_rusage.ru_majflt),
-                (current.ru_nswap   - eu->_es_rusage.ru_nswap) , (current.ru_nvcsw   - es->_es_rusage.ru_nvcsw),
-                (current.ru_inblock - eu->_es_rusage.ru_inblock), (current.ru_oublock - es->_es_rusage.ru_oublock),
+                (current.ru_minflt  - es->_es_rusage.ru_minflt), (current.ru_majflt  - es->_es_rusage.ru_majflt),
+                (current.ru_nswap   - es->_es_rusage.ru_nswap) , (current.ru_nvcsw   - es->_es_rusage.ru_nvcsw),
+                (current.ru_inblock - es->_es_rusage.ru_inblock), (current.ru_oublock - es->_es_rusage.ru_oublock),
                 current.ru_maxrss);
 
     }
     es->_es_rusage = current;
     return;
 }
-#define parsec_rusage_per_eu(eu, b) do { if(parsec_want_rusage > 1) parsec_rusage_per_eu(eu, b); } while(0)
+#define parsec_rusage_per_es(eu, b) do { if(parsec_want_rusage > 1) parsec_rusage_per_es(eu, b); } while(0)
 #else
-#define parsec_rusage_per_eu(eu, b) do {} while(0)
+#define parsec_rusage_per_es(eu, b) do {} while(0)
 #endif /* defined(PARSEC_HAVE_GETRUSAGE) defined(PARSEC_PROF_RUSAGE_EU) */
 
 #if 0
@@ -457,7 +457,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         parsec_context->flags |= PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE;
     }
 
-    parsec_rusage_per_eu(es, false);
+    parsec_rusage_per_es(es, false);
 
     /* first select begin, right before the wait_for_the... goto label */
     PINS(es, SELECT_BEGIN, NULL);
@@ -579,7 +579,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         }
     }
 
-    parsec_rusage_per_eu(es, true);
+    parsec_rusage_per_es(es, true);
 
     /* We're all done ? */
     parsec_barrier_wait( &(parsec_context->barrier) );
