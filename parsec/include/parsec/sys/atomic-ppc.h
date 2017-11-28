@@ -9,7 +9,7 @@
  * Based on shared Internet knowledge and the Power7 optimization book.
  * http://www.redbooks.ibm.com/redbooks/pdfs/sg248079.pdf
  */
-#ifndef __PPC
+#ifndef _ARCH_PPC
 #warning This file is only for PowerPC
 #endif  /* __ PPC */
 
@@ -31,7 +31,7 @@ void parsec_mfence( void )
 ATOMIC_STATIC_INLINE
 void parsec_atomic_rmb(void)
 {
-    __asm__ __volatile__ ("lwsync" : : : "memory")
+  __asm__ __volatile__ ("lwsync" : : : "memory");
 }
 
 
@@ -39,7 +39,7 @@ void parsec_atomic_rmb(void)
 ATOMIC_STATIC_INLINE
 void parsec_atomic_wmb(void)
 {
-    __asm__ __volatile__ ("lwsync" : : : "memory")
+  __asm__ __volatile__ ("lwsync" : : : "memory");
 }
 
 ATOMIC_STATIC_INLINE
@@ -274,7 +274,7 @@ uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
                         "     stwcx.  %0,0,%3      \n\t"
                         "     bne-    1b           \n\t"
                         : "=&r" (t), "=m" (*location)
-                        : "r" (i), "r" PARSEC_ASM_ADDR(location),
+                        : "r" (i), "r" PARSEC_ASM_ADDR(location)
                         : "cc");
 
    return t;
@@ -283,3 +283,32 @@ uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
 #endif  /* !defined(__IBMC__) */
 }
 
+typedef volatile uint32_t parsec_atomic_lock_t;
+
+/**
+ * Enumeration of lock states
+ */
+enum {
+    PARSEC_ATOMIC_UNLOCKED = 0,
+    PARSEC_ATOMIC_LOCKED   = 1
+};
+
+ATOMIC_STATIC_INLINE
+void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )
+{
+    while( !parsec_atomic_cas_32b( atomic_lock, 0, 1) )
+        /* nothing */;
+}
+
+ATOMIC_STATIC_INLINE
+void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock )
+{
+    parsec_mfence();
+    *atomic_lock = 0;
+}
+
+ATOMIC_STATIC_INLINE
+long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
+{
+    return parsec_atomic_cas_32b( atomic_lock, 0, 1 );
+}
