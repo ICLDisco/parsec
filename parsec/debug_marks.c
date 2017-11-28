@@ -20,8 +20,9 @@ void debug_mark_exe(int th, int vp, const struct parsec_task_s *ctx)
     for(j = 0; j < ctx->task_class->nb_parameters; j++) {
         pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
                         j, ctx->task_class->locals[j]->name, ctx->locals[j].value,
-                        (j == ctx->task_class->nb_parameters-1) ? ")\n" : ", ");
+                        (j == ctx->task_class->nb_parameters-1) ? "" : ", ");
     }
+    pos += snprintf(msg+pos, len-pos, ")\n");
 
     parsec_debug_history_add("Mark: thread %2d VP %d executes:\t%s",
                             th, vp, msg);
