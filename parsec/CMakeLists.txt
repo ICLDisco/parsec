@@ -100,8 +100,7 @@ if( BUILD_PARSEC )
   #  target_link_libraries(parsec-base ${EXTRA_LIBS})
 
   install(TARGETS parsec-base
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib)
+          DESTINATION lib)
 
   add_library(parsec ${SOURCES})
   set_target_properties(parsec PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
@@ -111,8 +110,7 @@ if( BUILD_PARSEC )
   target_link_libraries(parsec parsec-base ${EXTRA_LIBS})
 
   install(TARGETS parsec
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib)
+          DESTINATION lib)
 
   install(FILES utils/help-mca-param.txt DESTINATION share/parsec)
 ENDIF( BUILD_PARSEC )
