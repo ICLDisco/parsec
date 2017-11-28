@@ -227,8 +227,9 @@ int parsec_context_test( parsec_context_t* context );
  *
  * @param[inout] context The parsec context where the execution is taking place.
  *
- * @return 0 If the execution is completed.
- * @return * Any other error raised by the tasks themselves.
+ * @return * A negative number to signal an error raised by one of the enqueued
+ *           taskpools. Any other value, aka. a positive number (including 0),
+ *           to signal succesful completion of all work associated with the context.
  */
 int parsec_context_wait(parsec_context_t* context);
 

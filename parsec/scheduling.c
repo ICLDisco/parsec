@@ -819,7 +819,7 @@ int parsec_context_start( parsec_context_t* context )
 
 int parsec_context_test( parsec_context_t* context )
 {
-    return !all_tasks_done(context);
+    return all_tasks_done(context);
 }
 
 int parsec_context_wait( parsec_context_t* context )
