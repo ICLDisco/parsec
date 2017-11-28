@@ -62,6 +62,8 @@ void parsec_debug_backtrace_dump(void);
     void parsec_debug_history_add(const char *format, ...);
     void parsec_debug_history_dump(void);
     void parsec_debug_history_purge(void);
+    void parsec_debug_history_init(void);
+    void parsec_debug_history_fini(void);
 #   define _PARSEC_DEBUG_HISTORY(VERB, ...) do {                     \
         if( VERB <= parsec_debug_history_verbose ) {                 \
             parsec_debug_history_add(__VA_ARGS__);                   \
@@ -71,6 +73,8 @@ void parsec_debug_backtrace_dump(void);
 #   define parsec_debug_history_add(...)
 #   define parsec_debug_history_dump()
 #   define parsec_debug_history_purge()
+#   define parsec_debug_history_init()
+#   define parsec_debug_history_fini()
 #   define _PARSEC_DEBUG_HISTORY(...)
 #endif /* defined(PARSEC_DEBUG_HISTORY) */
 
