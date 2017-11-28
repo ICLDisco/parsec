@@ -7,11 +7,6 @@ include(CMakePushCheckState)
 # The current version number
 set (PARSEC_VERSION_MAJOR 2)
 set (PARSEC_VERSION_MINOR 0)
-#
-# Using @rpath allows rellocatable libraries:
-# https://blog.kitware.com/upcoming-in-cmake-2-8-12-osx-rpath-support/
-#
-set(CMAKE_MACOSX_RPATH 1)
 
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)
@@ -703,6 +698,32 @@ ENDIF (CMAKE_Fortran_COMPILER_WORKS)
 ###
 ##
 #
+
+#
+# Using @rpath allows rellocatable libraries:
+# https://blog.kitware.com/upcoming-in-cmake-2-8-12-osx-rpath-support/
+#
+set(CMAKE_MACOSX_RPATH 1)
+# use, i.e. don't skip the full RPATH for the build tree
+SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+
+# when building, don't use the install RPATH already
+# (but later on when installing)
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# the RPATH to be used when installing, but only if it's not a system directory
+LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+MESSAGE(STATUS "LINK_DIRECTORIES = ${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
+MESSAGE(STATUS "INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}/lib")
+IF("${isSystemDir}" STREQUAL "-1")
+  SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+ENDIF("${isSystemDir}" STREQUAL "-1")
+
+
 set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/parsec/include")
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
