@@ -14,7 +14,7 @@ parsec_addtest(C dtd_test_allreduce "dtd_test_allreduce.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_template_counter "dtd_test_template_counter.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_untie "dtd_test_untie.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_hierarchy "dtd_test_hierarchy.c;${COMMON_DATA}")
-
+parsec_addtest(C dtd_test_task_placement "dtd_test_task_placement.c;${COMMON_DATA}")
 
 #
 # Shared Memory Testings

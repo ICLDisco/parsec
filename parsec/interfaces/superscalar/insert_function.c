@@ -2983,6 +2983,12 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
      * number of expected flows done during the task creation.  */
     satisfied_flow++;
 
+#if defined(PARSEC_PROF_TRACE)
+    /* try using PARSEC_PROFILING_TRACE */
+    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile,
+                           insert_task_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
+#endif
+
     if( parsec_dtd_task_is_local(this_task) ) {
         /* Building list of initial ready task */
         if ( 0 == parsec_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
@@ -3071,20 +3077,35 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
         tile         = va_arg(args_for_rank, void *);
         tile_op_type = va_arg(args_for_rank, int);
 
-        if( !((tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH) ) {
+        if( NULL != tile ) {
+            if( (tile_op_type & AFFINITY) ) {
+                if(this_task_rank == -1) {
+                    if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
+                        this_task_rank = ((parsec_dtd_tile_t *)tile)->rank;
+                    } else if((tile_op_type & GET_OP_TYPE) == VALUE) {
+                        this_task_rank = *(int *)tile;
+                        /* Warn user if rank passed is negative or
+                         * more than total no of mpi process.
+                         */
+                        if(this_task_rank < 0 || this_task_rank >= dtd_tp->super.context->nb_nodes) {
+                            parsec_warning("/!\\ Rank information passed to task is invalid, placing task in rank 0 /!\\.\n");
+                        }
+                    }
+                } else {
+                    parsec_warning("/!\\ Task is already placed, only the first use of AFFINITY flag is effective, others are ignored /!\\.\n");
+                }
+            }
+        }
+
+        if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
             /* We create a new task class if the kernel is different and
              * if the same kernel uses different number of data
              */
             flow_count_of_template++;
             if( NULL != tile ) {
-                if( (tile_op_type & AFFINITY) ) {
-                    this_task_rank = ((parsec_dtd_tile_t *)tile)->rank;
-                }
-                if( !((tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH) ) {
+                if( !(tile_op_type & DONT_TRACK) ) {
                     if( INOUT == (tile_op_type & GET_OP_TYPE) || OUTPUT == (tile_op_type & GET_OP_TYPE) ) {
-                        if( !(tile_op_type & DONT_TRACK) ) {
-                            write_flow_count++;
-                        }
+                        write_flow_count++;
                     }
                 }
             }
@@ -3112,7 +3133,7 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
 
             if( (tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH ) {
                 size_of_params += next_arg;
-            } else {
+            } else if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
                 flow_count_of_template++;
             }
         }
@@ -3199,11 +3220,4 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
 #endif
 
     parsec_insert_dtd_task( this_task );
-
-#if defined(PARSEC_PROF_TRACE)
-    /* try using PARSEC_PROFILING_TRACE */
-    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile,
-                           insert_task_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
-#endif
-
 }
