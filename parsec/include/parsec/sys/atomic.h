@@ -160,6 +160,7 @@ void parsec_atomic_rmb(void)
 {
     parsec_mfence();
 }
+#endif  /* !defined(PARSEC_ATOMIC_HAS_RMB) */
 
 typedef volatile uint32_t parsec_atomic_lock_t;
 
@@ -193,8 +194,6 @@ long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 #endif  /* (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_ATOMICS__) */
 
 #endif  /* !defined(BUILD_PARSEC) */
-
-#endif  /* !defined(PARSEC_ATOMIC_HAS_RMB) */
 
 END_C_DECLS
 

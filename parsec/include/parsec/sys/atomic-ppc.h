@@ -282,33 +282,3 @@ uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
    return __fetch_and_add( (volatile int*)location, i) - i;
 #endif  /* !defined(__IBMC__) */
 }
-
-typedef volatile uint32_t parsec_atomic_lock_t;
-
-/**
- * Enumeration of lock states
- */
-enum {
-    PARSEC_ATOMIC_UNLOCKED = 0,
-    PARSEC_ATOMIC_LOCKED   = 1
-};
-
-ATOMIC_STATIC_INLINE
-void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )
-{
-    while( !parsec_atomic_cas_32b( atomic_lock, 0, 1) )
-        /* nothing */;
-}
-
-ATOMIC_STATIC_INLINE
-void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock )
-{
-    parsec_mfence();
-    *atomic_lock = 0;
-}
-
-ATOMIC_STATIC_INLINE
-long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
-{
-    return parsec_atomic_cas_32b( atomic_lock, 0, 1 );
-}
