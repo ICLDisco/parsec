@@ -153,7 +153,7 @@ void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock )
 }
 
 ATOMIC_STATIC_INLINE
-long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
+int parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 {
     return !atomic_flag_test_and_set(atomic_lock);
 }

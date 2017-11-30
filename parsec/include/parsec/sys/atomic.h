@@ -186,7 +186,7 @@ void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock )
 }
 
 ATOMIC_STATIC_INLINE
-long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
+int parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 {
     return parsec_atomic_cas_32b( atomic_lock, 0, 1 );
 }

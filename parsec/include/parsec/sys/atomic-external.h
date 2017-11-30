@@ -57,10 +57,10 @@ PARSEC_DECLSPEC __uint128_t parsec_atomic_inc_128b( volatile __uint128_t *locati
 PARSEC_DECLSPEC __uint128_t parsec_atomic_dec_128b( volatile __uint128_t *location );
 #endif  /* defined(PARSEC_HAVE_UINT128) */
 
-typedef int parsec_atomic_lock_t;
+typedef volatile int parsec_atomic_lock_t;
 PARSEC_DECLSPEC void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock );
 PARSEC_DECLSPEC void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock );
-PARSEC_DECLSPEC long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock );
+PARSEC_DECLSPEC int parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock );
 
 END_C_DECLS
 
