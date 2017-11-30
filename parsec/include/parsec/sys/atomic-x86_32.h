@@ -99,7 +99,7 @@ uint32_t parsec_atomic_dec_32b(volatile uint32_t *location)
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
 ATOMIC_STATIC_INLINE
-int32_t parsec_atomic_add_32(volatile int32_t* v, int32_t i)
+int32_t parsec_atomic_add_32b(volatile int32_t* v, int32_t i)
 {
     int ret = i;
    __asm__ __volatile__(
@@ -112,7 +112,7 @@ int32_t parsec_atomic_add_32(volatile int32_t* v, int32_t i)
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
 ATOMIC_STATIC_INLINE
-int32_t parsec_atomic_sub_32(volatile int32_t* v, int32_t i)
+int32_t parsec_atomic_sub_32b(volatile int32_t* v, int32_t i)
 {
     int ret = -i;
    __asm__ __volatile__(
