@@ -9,7 +9,7 @@
  * Based on shared Internet knowledge and the Power7 optimization book.
  * http://www.redbooks.ibm.com/redbooks/pdfs/sg248079.pdf
  */
-#ifndef __PPC
+#ifndef _ARCH_PPC
 #warning This file is only for PowerPC
 #endif  /* __ PPC */
 
@@ -31,7 +31,7 @@ void parsec_mfence( void )
 ATOMIC_STATIC_INLINE
 void parsec_atomic_rmb(void)
 {
-    __asm__ __volatile__ ("lwsync" : : : "memory")
+    __asm__ __volatile__ ("lwsync" : : : "memory");
 }
 
 
@@ -39,7 +39,7 @@ void parsec_atomic_rmb(void)
 ATOMIC_STATIC_INLINE
 void parsec_atomic_wmb(void)
 {
-    __asm__ __volatile__ ("lwsync" : : : "memory")
+    __asm__ __volatile__ ("lwsync" : : : "memory");
 }
 
 ATOMIC_STATIC_INLINE
@@ -274,7 +274,7 @@ uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
                         "     stwcx.  %0,0,%3      \n\t"
                         "     bne-    1b           \n\t"
                         : "=&r" (t), "=m" (*location)
-                        : "r" (i), "r" PARSEC_ASM_ADDR(location),
+                        : "r" (i), "r" PARSEC_ASM_ADDR(location)
                         : "cc");
 
    return t;
@@ -282,4 +282,3 @@ uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
    return __fetch_and_add( (volatile int*)location, i) - i;
 #endif  /* !defined(__IBMC__) */
 }
-
