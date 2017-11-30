@@ -33,7 +33,8 @@ void parsec_atomic_rmb(void)
  * tip (http://stackoverflow.com/questions/22851465/typeof-uses-in-c-besides-macros).
  */
 #define parsec_atomic_bor(LOCATION, OR_VALUE)  \
-    (((__typeof__(*(LOCATION)))atomic_fetch_or((_Atomic __typeof__(*(LOCATION))(*))(LOCATION), (OR_VALUE))) | (OR_VALUE))
+    (((__typeof__(*(LOCATION)))atomic_fetch_or((_Atomic __typeof__(*(LOCATION))(*))(LOCATION), \
+                                               (OR_VALUE))) | ((__typeof__(*(LOCATION)))(OR_VALUE)))
 
 ATOMIC_STATIC_INLINE
 uint32_t parsec_atomic_bor_32b( volatile uint32_t* location,
@@ -43,7 +44,8 @@ uint32_t parsec_atomic_bor_32b( volatile uint32_t* location,
 }
 
 #define parsec_atomic_band(LOCATION, AND_VALUE)  \
-    (((__typeof__(*(LOCATION)))atomic_fetch_and((_Atomic __typeof__(*(LOCATION))(*))(LOCATION), (AND_VALUE))) | (AND_VALUE))
+    (((__typeof__(*(LOCATION)))atomic_fetch_and((_Atomic __typeof__(*(LOCATION))(*))(LOCATION), \
+                                                (AND_VALUE))) & ((__typeof__(*(LOCATION)))(AND_VALUE)))
 
 ATOMIC_STATIC_INLINE
 uint32_t parsec_atomic_band_32b( volatile uint32_t* location,
