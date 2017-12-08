@@ -23,17 +23,6 @@ static inline int hiBit(unsigned int n)
     return n - (n >> 1);
 }
 
-/**
- * An inefficient recursive count, just for debugging
- */
-static inline int get_size(parsec_task_t * node)
-{
-    if (node == NULL)
-        return 0;
-    else
-        return 1 + get_size((parsec_task_t *)node->super.list_next)
-            + get_size((parsec_task_t *)node->super.list_prev);
-}
 parsec_heap_t* heap_create(void)
 {
     parsec_heap_t* heap = calloc(sizeof(parsec_heap_t), 1);

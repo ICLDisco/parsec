@@ -47,10 +47,10 @@ __data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *
 #endif
                                     )
 {
-    const int h = key % repo->nbentries;
     data_repo_entry_t *e;
-    int i;
-    
+    const int h = key % repo->nbentries;
+    uint32_t i;
+
     parsec_atomic_lock(&repo->heads[h].lock);
     for(e = repo->heads[h].first_entry;
         e != NULL;

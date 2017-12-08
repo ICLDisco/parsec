@@ -111,11 +111,6 @@ static pthread_key_t parsec_tls_execution_stream_key;
 OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
                    NULL, NULL);
 
-static inline void parsec_hashable_dependency_construct( parsec_hashable_dependency_t* dep )
-{
-    dep->dependency = 0;
-}
-
 static void parsec_rusage(bool print)
 {
     struct rusage current;
