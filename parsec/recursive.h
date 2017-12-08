@@ -68,8 +68,8 @@ parsec_recursivecall( parsec_execution_stream_t    *es,
     }
     va_end(ap);
 
-    parsec_set_complete_callback( tp, parsec_recursivecall_callback,
-                                 (void *)cbdata );
+    parsec_taskpool_set_complete_callback( tp, &parsec_recursivecall_callback,
+                                           (void *)cbdata );
 
     parsec_enqueue( es->virtual_process->parsec_context, tp);
 
