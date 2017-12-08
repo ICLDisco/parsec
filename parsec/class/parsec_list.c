@@ -15,7 +15,9 @@ parsec_list_item_construct( parsec_list_item_t* item )
 {
     item->list_prev = item;
     item->list_next = item;
+#if !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B)
     item->aba_key = 0;
+#endif  /* !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B) */
 #if defined(PARSEC_DEBUG_PARANOID)
     item->refcount = 0;
     item->belong_to = (void*)0xdeadbeef;
