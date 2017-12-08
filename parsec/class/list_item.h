@@ -37,12 +37,13 @@ BEGIN_C_DECLS
 typedef struct parsec_list_item_s {
     parsec_object_t  super;                         /**< A list item is a @ref parsec_internal_classes_object */
     volatile struct parsec_list_item_s* list_next;  /**< Pointer to the next item */
-    uint64_t aba_key;                               /**< This field is __very__ special and should be handled with extreme
+    volatile struct parsec_list_item_s* list_prev;  /**< Pointer to the previous item */
+#if !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B)
+    uint32_t aba_key;                               /**< This field is __very__ special and should be handled with extreme
                                                      *   care. It is used to avoid the ABA problem when atomic operations
                                                      *   are in use and we do not have support for 128 bits atomics.
-                                                     *   Technically we only need an int32_t (but we need to be cache aligned).
                                                      */
-    volatile struct parsec_list_item_s* list_prev;  /**< Pointer to the previous item */
+#endif  /* !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B) */
 #if defined(PARSEC_DEBUG_PARANOID)
     volatile int32_t refcount;                      /**< Number of higher data structures (e.g. lists) that are still pointing to this item */
     volatile void* belong_to;                       /**< Higher data structure into which this item belongs */

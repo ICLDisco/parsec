@@ -266,9 +266,9 @@ static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
 static inline parsec_list_item_t* parsec_lifo_pop( parsec_lifo_t* lifo )
 {
     parsec_list_item_t *item;
+    parsec_counted_pointer_t old_head;
 
     do {
-        parsec_counted_pointer_t old_head;
 
         old_head.data.counter = lifo->lifo_head.data.counter;
         parsec_atomic_rmb ();
@@ -278,8 +278,8 @@ static inline parsec_list_item_t* parsec_lifo_pop( parsec_lifo_t* lifo )
             return NULL;
         }
 
-        if (parsec_update_counted_pointer (&lifo->lifo_head, old_head,
-                                         (parsec_list_item_t *) item->list_next)) {
+        if (parsec_update_counted_pointer(&lifo->lifo_head, old_head,
+                                          (parsec_list_item_t *)item->list_next)) {
             parsec_atomic_wmb ();
             item->list_next = NULL;
             PARSEC_ITEM_DETACH(item);
@@ -438,7 +438,7 @@ static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
     parsec_list_item_t *item;
     while ((item = lifo->lifo_head.data.item) != lifo->lifo_ghost) {
         /* ensure it is safe to pop the head */
-        if (parsec_atomic_cas_64b(&item->aba_key, 0UL, 1UL)) {
+        if (parsec_atomic_cas_32b(&item->aba_key, 0UL, 1UL)) {
             continue;
         }
 
@@ -472,7 +472,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     parsec_list_item_t *item;
     if( (item = lifo->lifo_head.data.item) != lifo->lifo_ghost ) {
         /* ensure it is safe to pop the head */
-        if (parsec_atomic_cas_64b(&item->aba_key, 0UL, 1UL)) {
+        if (parsec_atomic_cas_32b(&item->aba_key, 0UL, 1UL)) {
             return NULL;
         }
 
