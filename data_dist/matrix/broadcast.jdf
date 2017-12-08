@@ -1,0 +1,216 @@
+extern "C" %{
+/*
+ * Copyright (c) 2011-2016 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "parsec/data_internal.h"
+#include "parsec/data_dist/matrix/matrix.h"
+
+typedef struct {
+    parsec_data_collection_t super;
+    parsec_data_t** data;
+    const int32_t *ranks;
+    int32_t root;
+    int NT;
+} rank_array_dc_t;
+
+static uint32_t rank_of(parsec_data_collection_t *desc, ...)
+{
+    rank_array_dc_t *dat = (rank_array_dc_t*)desc;
+    va_list ap;
+    int k;
+
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+
+    if (k == 0) return dat->root;
+    
+    return dat->ranks[k-1];
+}
+
+static int32_t vpid_of(parsec_data_collection_t *desc, ...)
+{
+    (void)desc;
+
+    return 0;
+}
+
+static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
+{
+    rank_array_dc_t *dat = (rank_array_dc_t*)desc;
+    va_list ap;
+    int k;
+
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+
+    (void)k;
+
+    if (k != dat->root) {
+        if(NULL == *dat->data) {
+            parsec_data_t *data;
+
+            data = OBJ_NEW(parsec_data_t);
+            data->owner_device = 0;
+            data->key = k;
+            data->dc = (parsec_data_collection_t*)desc;
+            data->nb_elts = 1;
+            parsec_data_copy_t* data_copy = (parsec_data_copy_t*)OBJ_NEW(parsec_data_copy_t);
+            parsec_data_copy_attach(data, data_copy, 0);
+            data_copy->device_private = NULL;
+            *dat->data = data;
+        }
+    }
+        
+    return (void*)(*dat->data);
+}
+
+#if defined(PARSEC_PROF_TRACE)
+static uint32_t data_key(parsec_data_collection_t *desc, ...)
+{
+    int k;
+    va_list ap;
+
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+
+    return (uint32_t)k;
+}
+#endif
+
+static rank_array_dc_t*
+    create_rank_array(int me, int world, int root, const int32_t* ranks, int NT)
+{
+    rank_array_dc_t *m = (rank_array_dc_t*)calloc(1, sizeof(rank_array_dc_t));
+    parsec_data_collection_t *d = &(m->super);
+
+    d->myrank  = me;
+    d->nodes   = world;
+
+    d->rank_of = rank_of;
+    d->data_of = data_of;
+    d->vpid_of = vpid_of;
+#if defined(PARSEC_PROF_TRACE)
+    asprintf(&d->key_dim, "(%d)", (total_size+block_size-1)%total_size);
+    d->key_base = NULL;
+    d->data_key = data_key;
+#endif
+
+    m->root = root;
+    m->ranks = ranks;
+    m->NT = NT;
+    m->data = NULL;
+    return m;
+}
+
+static void release_rank_array(parsec_data_collection_t *d)
+{
+    parsec_data_collection_destroy(d);
+    free(d);
+}
+   
+%}
+
+
+descA                [type = "rank_array_dc_t*"]
+NT                   [type = int
+                      hidden = on
+                      default="descA->NT"]
+
+send(k)
+k = 0 .. 0
+
+: descA(k)
+
+  READ A  <- descA(k)
+          -> A recv(0 .. NT) [type = STYPE]
+BODY
+    printf( "bcast_send(k = %d\n", k);
+END
+
+
+recv(k)
+    k = 1 .. NT
+: descA(k)
+    
+  RW A <- A send(0) [type = RTYPE]
+          -> descA(k)
+BODY
+    printf( "bcast_recv(k = %d)\n", k);
+END
+
+    
+extern "C" %{
+
+    static inline int master_tp_complete_callback(parsec_taskpool_t* tp, void* cb_data)
+    {
+        parsec_taskpool_t *master_tp = (parsec_taskpool_t *)cb_data;
+        
+        parsec_ptg_update_runtime_task(master_tp, -1);
+
+        (void)tp;
+        return PARSEC_HOOK_RETURN_DONE;
+    }
+
+    parsec_taskpool_t*
+        parsec_broadcast_New(parsec_data_t **data, int32_t myrank, int32_t world,
+                             int root,
+                             const int32_t *ranks, int sz,
+                             parsec_taskpool_t *master_tp,
+                             parsec_datatype_t stype,
+                             parsec_datatype_t rtype)
+    {
+        ptrdiff_t lb, extent;
+
+        if (NULL != master_tp)
+            parsec_ptg_update_runtime_task( master_tp, 1);
+
+        rank_array_dc_t *dc = create_rank_array(myrank, world, root, ranks, sz);
+
+        dc->data = data;
+        parsec_broadcast_taskpool_t *tp = parsec_broadcast_new( dc );
+
+        parsec_type_extent(stype, &lb, &extent);
+        parsec_arena_construct(tp->arenas[PARSEC_broadcast_STYPE_ARENA],
+                           extent,
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           stype);
+
+        parsec_type_extent(rtype, &lb, &extent);
+        parsec_arena_construct(tp->arenas[PARSEC_broadcast_RTYPE_ARENA],
+                           extent,
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           rtype);
+
+        if (NULL != master_tp)
+            parsec_taskpool_set_complete_callback( (parsec_taskpool_t*)tp,
+                                                   master_tp_complete_callback,
+                                                   (void *)master_tp );
+        
+        return (parsec_taskpool_t*)tp;
+    }
+
+void parsec_broadcast_Destruct( parsec_taskpool_t *o )
+{
+    parsec_broadcast_taskpool_t *tp = (parsec_broadcast_taskpool_t *)o;
+    parsec_data_collection_t *dc = (parsec_data_collection_t*)tp->_g_descA;
+
+    int i;
+    for (i = 0; i < tp->_g_NT; ++i) {
+        if (dc->rank_of(dc, i) == dc->myrank) {
+            *(tp->_g_descA->data) = dc->data_of(dc, i);
+            break;
+        }
+    }
+
+    release_rank_array(dc);
+
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
+}
+   
+%}
