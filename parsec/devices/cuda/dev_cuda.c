@@ -371,26 +371,26 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
     cudaError_t cudastatus;
 
     use_cuda_index = parsec_mca_param_reg_int_name("device_cuda", "enabled",
-                                                  "The number of CUDA device to enable for the next PaRSEC context",
-                                                  false, false, 0, &use_cuda);
-    (void)parsec_mca_param_reg_int_name("device_cuda", "mask",
-                                       "The bitwise mask of CUDA devices to be enabled (default all)",
-                                       false, false, 0xffffffff, &cuda_mask);
+                                                   "The number of CUDA device to enable for the next PaRSEC context",
+                                                   false, false, -1, &use_cuda);
+    parsec_mca_param_reg_int_name("device_cuda", "mask",
+                                  "The bitwise mask of CUDA devices to be enabled (default all)",
+                                  false, false, 0xffffffff, &cuda_mask);
     (void)parsec_mca_param_reg_int_name("device_cuda", "verbose",
-                                       "Set the verbosity level of the CUDA device (negative value: use debug verbosity), higher is less verbose)\n",
-                                       false, false, -1, &cuda_verbosity);
+                                        "Set the verbosity level of the CUDA device (negative value: use debug verbosity), higher is less verbose)\n",
+                                        false, false, -1, &cuda_verbosity);
     (void)parsec_mca_param_reg_string_name("device_cuda", "path",
-                                          "Path to the shared library files containing the CUDA version of the hooks. It is a ;-separated list of either directories or .so files.\n",
-                                          false, false, PARSEC_LIB_CUDA_PREFIX, &cuda_lib_path);
+                                           "Path to the shared library files containing the CUDA version of the hooks. It is a ;-separated list of either directories or .so files.\n",
+                                           false, false, PARSEC_LIB_CUDA_PREFIX, &cuda_lib_path);
     (void)parsec_mca_param_reg_int_name("device_cuda", "memory_block_size",
-                                       "The CUDA memory page for PaRSEC internal management.",
-                                       false, false, 32*1024, &cuda_memory_block_size);
+                                        "The CUDA memory page for PaRSEC internal management.",
+                                        false, false, 32*1024, &cuda_memory_block_size);
     (void)parsec_mca_param_reg_int_name("device_cuda", "memory_use",
-                                       "The percentage of the total GPU memory to be used by this PaRSEC context",
-                                       false, false, 95, &cuda_memory_percentage);
+                                        "The percentage of the total GPU memory to be used by this PaRSEC context",
+                                        false, false, 95, &cuda_memory_percentage);
     (void)parsec_mca_param_reg_int_name("device_cuda", "memory_number_of_blocks",
-                                       "Alternative to device_cuda_memory_use: sets exactly the number of blocks to allocate (-1 means to use a percentage of the available memory)",
-                                       false, false, -1, &cuda_memory_number_of_blocks);
+                                        "Alternative to device_cuda_memory_use: sets exactly the number of blocks to allocate (-1 means to use a percentage of the available memory)",
+                                        false, false, -1, &cuda_memory_number_of_blocks);
     if( 0 == use_cuda ) {
         return -1;  /* Nothing to do around here */
     }
@@ -404,21 +404,27 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
 
     cudastatus = cudaGetDeviceCount( &ndevices );
     PARSEC_CUDA_CHECK_ERROR( "cudaGetDeviceCount ", cudastatus,
-                            {
-                                if( 0 < use_cuda_index )
-                                    parsec_mca_param_set_int(use_cuda_index, 0);
-                                return -1;
-                            } );
+                             {
+                                 if( 0 < use_cuda_index )
+                                     parsec_mca_param_set_int(use_cuda_index, 0);
+                                 return -1;
+                             } );
 
-
-    if( ndevices > use_cuda ) {
-        if( 0 < use_cuda_index ) {
-            ndevices = use_cuda;
-        }
-    } else if (ndevices < use_cuda ) {
-        if( 0 < use_cuda_index ) {
-            parsec_warning("User requested %d GPUs, but only %d are available in this machine. PaRSEC will enable all of them.", use_cuda, ndevices);
-            parsec_mca_param_set_int(use_cuda_index, ndevices);
+    if( -1 == use_cuda ) {  /* use all CUDA devices */
+        parsec_mca_param_set_int(use_cuda_index, ndevices);
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output,
+                             "device_cuda_enabled updated to the total number of devices (%d)\n", ndevices);
+    } else {
+        if( ndevices > use_cuda ) {
+            if( 0 < use_cuda_index ) {
+                ndevices = use_cuda;
+            }
+        } else if (ndevices < use_cuda ) {
+            if( 0 < use_cuda_index ) {
+                parsec_warning("User requested %d GPUs, but only %d are available in this machine. PaRSEC will enable all of them.",
+                               use_cuda, ndevices);
+                parsec_mca_param_set_int(use_cuda_index, ndevices);
+            }
         }
     }
 
@@ -434,14 +440,14 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
     }
 #if defined(PARSEC_PROF_TRACE)
     parsec_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
-                                            sizeof(intptr_t), "pointer{int64_t}",
-                                            &parsec_cuda_movein_key_start, &parsec_cuda_movein_key_end);
+                                             sizeof(intptr_t), "pointer{int64_t}",
+                                             &parsec_cuda_movein_key_start, &parsec_cuda_movein_key_end);
     parsec_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
-                                            sizeof(intptr_t), "pointer{int64_t}",
-                                            &parsec_cuda_moveout_key_start, &parsec_cuda_moveout_key_end);
+                                             sizeof(intptr_t), "pointer{int64_t}",
+                                             &parsec_cuda_moveout_key_start, &parsec_cuda_moveout_key_end);
     parsec_profiling_add_dictionary_keyword( "cuda", "fill:#66ff66",
-                                            0, NULL,
-                                            &parsec_cuda_own_GPU_key_start, &parsec_cuda_own_GPU_key_end);
+                                             0, NULL,
+                                             &parsec_cuda_own_GPU_key_start, &parsec_cuda_own_GPU_key_end);
 #endif  /* defined(PROFILING) */
 
     for( i = 0; i < ndevices; i++ ) {
@@ -477,14 +483,14 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
         gpu_device->max_exec_streams = PARSEC_MAX_STREAMS;
         gpu_device->exec_stream =
             (parsec_gpu_exec_stream_t*)malloc(gpu_device->max_exec_streams
-                                             * sizeof(parsec_gpu_exec_stream_t));
+                                              * sizeof(parsec_gpu_exec_stream_t));
         for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
             parsec_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
 
             /* Allocate the stream */
             cudastatus = cudaStreamCreate( &(exec_stream->cuda_stream) );
             PARSEC_CUDA_CHECK_ERROR( "cudaStreamCreate ", cudastatus,
-                                    {break;} );
+                                     {break;} );
             exec_stream->workspace    = NULL;
             exec_stream->max_events   = PARSEC_MAX_EVENTS_PER_STREAM;
             exec_stream->executed     = 0;
@@ -493,7 +499,7 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
             exec_stream->fifo_pending = (parsec_list_t*)OBJ_NEW(parsec_list_t);
             OBJ_CONSTRUCT(exec_stream->fifo_pending, parsec_list_t);
             exec_stream->tasks  = (parsec_gpu_context_t**)malloc(exec_stream->max_events
-                                                                * sizeof(parsec_gpu_context_t*));
+                                                                 * sizeof(parsec_gpu_context_t*));
             exec_stream->events = (cudaEvent_t*)malloc(exec_stream->max_events * sizeof(cudaEvent_t));
             /* and the corresponding events */
             for( k = 0; k < exec_stream->max_events; k++ ) {
@@ -501,7 +507,7 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
                 exec_stream->tasks[k]  = NULL;
                 cudastatus = cudaEventCreate(&(exec_stream->events[k]));
                 PARSEC_CUDA_CHECK_ERROR( "(INIT) cudaEventCreate ", (cudaError_t)cudastatus,
-                                        {break;} );
+                                         {break;} );
             }
 #if defined(PARSEC_PROF_TRACE)
             exec_stream->profiling = parsec_profiling_thread_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, i, j );
@@ -542,23 +548,23 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
 
         if( show_caps ) {
             parsec_inform("GPU Device %d (capability %d.%d): %s\n"
-                         "\tSM                 : %d\n"
-                         "\tclockRate (MHz)    : %2.4f\n"
-                         "\tconcurrency        : %s\n"
-                         "\tcomputeMode        : %d\n"
-                         "\tpeak Gflops        : single %2.4f, double %2.4f",
-                         i, major, minor,szName,
-                         streaming_multiprocessor,
-                         clockRate,
-                         (concurrency == 1)? "yes": "no",
-                         computemode,
-                         gpu_device->super.device_sweight, gpu_device->super.device_dweight);
+                          "\tSM                 : %d\n"
+                          "\tclockRate (MHz)    : %2.4f\n"
+                          "\tconcurrency        : %s\n"
+                          "\tcomputeMode        : %d\n"
+                          "\tpeak Gflops        : single %2.4f, double %2.4f",
+                          i, major, minor,szName,
+                          streaming_multiprocessor,
+                          clockRate,
+                          (concurrency == 1)? "yes": "no",
+                          computemode,
+                          gpu_device->super.device_sweight, gpu_device->super.device_dweight);
         }
 
         if( PARSEC_SUCCESS != parsec_cuda_memory_reserve(gpu_device,
-                                                       cuda_memory_percentage,
-                                                       cuda_memory_number_of_blocks,
-                                                       cuda_memory_block_size) ) {
+                                                         cuda_memory_percentage,
+                                                         cuda_memory_number_of_blocks,
+                                                         cuda_memory_block_size) ) {
             free(gpu_device);
             continue;
         }
@@ -591,11 +597,11 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
             /* Communication mask */
             cudastatus = cudaDeviceCanAccessPeer( &canAccessPeer, source_gpu->cuda_index, target_gpu->cuda_index );
             PARSEC_CUDA_CHECK_ERROR( "(parsec_gpu_init) cudaDeviceCanAccessPeer ", cudastatus,
-                                    {continue;} );
+                                     {continue;} );
             if( 1 == canAccessPeer ) {
                 cudastatus = cudaDeviceEnablePeerAccess( target_gpu->cuda_index, 0 );
                 PARSEC_CUDA_CHECK_ERROR( "(parsec_gpu_init) cuCtxEnablePeerAccess ", cudastatus,
-                                        {continue;} );
+                                         {continue;} );
                 source_gpu->peer_access_mask = (int16_t)(source_gpu->peer_access_mask | (int16_t)(1 << target_gpu->cuda_index));
             }
         }
