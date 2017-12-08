@@ -92,9 +92,6 @@
 #include "parsec/parsec_config.h"
 
 #include <stdarg.h>
-#ifdef PARSEC_HAVE_STDBOOL_H
-#include <stdbool.h>
-#endif
 
 BEGIN_C_DECLS
 
@@ -132,7 +129,7 @@ PARSEC_DECLSPEC int parsec_show_help_finalize(void);
  * true, a header and footer of asterisks are also displayed.
  */
 typedef int (*parsec_show_help_fn_t)(const char *filename, const char *topic, 
-                                   bool want_error_header, ...);
+                                     int want_error_header, ...);
 PARSEC_DECLSPEC extern parsec_show_help_fn_t parsec_show_help;
 
 /**
@@ -140,7 +137,7 @@ PARSEC_DECLSPEC extern parsec_show_help_fn_t parsec_show_help;
  * a va_list form of varargs.
  */
 typedef int (*parsec_show_vhelp_fn_t)(const char *filename, const char *topic, 
-                                    bool want_error_header, va_list ap);
+                                      int want_error_header, va_list ap);
 PARSEC_DECLSPEC extern parsec_show_vhelp_fn_t parsec_show_vhelp;
 
 /**
@@ -149,7 +146,7 @@ PARSEC_DECLSPEC extern parsec_show_vhelp_fn_t parsec_show_vhelp;
  */
 PARSEC_DECLSPEC char* parsec_show_help_string(const char *filename, 
                                           const char *topic, 
-                                          bool want_error_header, ...);
+                                          int want_error_header, ...);
 
 /**
  * This function does the same thing as parsec_show_help_string(), but
@@ -157,7 +154,7 @@ PARSEC_DECLSPEC char* parsec_show_help_string(const char *filename,
  */
 PARSEC_DECLSPEC char* parsec_show_help_vstring(const char *filename, 
                                           const char *topic, 
-                                          bool want_error_header, va_list ap);
+                                          int want_error_header, va_list ap);
 
 /**
  * This function adds another search location for the files that

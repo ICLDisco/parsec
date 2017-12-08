@@ -44,14 +44,11 @@
 #include "parsec/parsec_config.h"
 #include <stdio.h>
 #include <stdarg.h>
-#if defined(PARSEC_HAVE_STDBOOL_H)
-#include <stdbool.h>
-#endif  /* defined(PARSEC_HAVE_STDBOOL_H) */
 
 BEGIN_C_DECLS
 
 /** 
- * @param relative A boolean that specifies if the path name is to be constructed
+ * @param relative An integer that specifies if the path name is to be constructed
  * relative to the current directory or as an absolute path. If no path
  * elements are included in the function call, then the function returns
  * "." for a relative path name and "<path separator char>" - 
@@ -65,7 +62,7 @@ BEGIN_C_DECLS
  * appropriate to the local operating system. The path_name string has been malloc'd
  * and therefore the user is responsible for free'ing the field.
 */
-PARSEC_DECLSPEC char *parsec_os_path(bool relative, ...);
+PARSEC_DECLSPEC char *parsec_os_path(int relative, ...);
 
 /**
  * Convert the path to be OS friendly. On UNIX this function will

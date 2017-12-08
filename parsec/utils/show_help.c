@@ -44,9 +44,9 @@ static char **search_dirs = NULL;
  * Local functions
  */
 static int parsec_show_vhelp_internal(const char *filename, const char *topic,
-                                    bool want_error_header, va_list arglist);
+                                      int want_error_header, va_list arglist);
 static int parsec_show_help_internal(const char *filename, const char *topic,
-                                   bool want_error_header, ...);
+                                     int want_error_header, ...);
 
 parsec_show_help_fn_t parsec_show_help = parsec_show_help_internal;
 parsec_show_vhelp_fn_t parsec_show_vhelp = parsec_show_vhelp_internal;
@@ -290,7 +290,7 @@ static int load_array(char ***array, const char *filename, const char *topic)
 }
 
 char *parsec_show_help_vstring(const char *filename, const char *topic,
-                             bool want_error_header, va_list arglist)
+                               int want_error_header, va_list arglist)
 {
     int rc;
     char *single_string, *output, **array = NULL;
@@ -318,27 +318,27 @@ char *parsec_show_help_vstring(const char *filename, const char *topic,
 }
 
 char *parsec_show_help_string(const char *filename, const char *topic,
-                            bool want_error_handler, ...)
+                              int want_error_handler, ...)
 {
     char *output;
     va_list arglist;
 
     va_start(arglist, want_error_handler);
     output = parsec_show_help_vstring(filename, topic, want_error_handler,
-                                    arglist);
+                                      arglist);
     va_end(arglist);
 
     return output;
 }
 
 static int parsec_show_vhelp_internal(const char *filename, const char *topic,
-                                    bool want_error_header, va_list arglist)
+                                      int want_error_header, va_list arglist)
 {
     char *output;
 
     /* Convert it to a single string */
     output = parsec_show_help_vstring(filename, topic, want_error_header,
-                                    arglist);
+                                      arglist);
 
     /* If we got a single string, output it with formatting */
     if (NULL != output) {
@@ -350,7 +350,7 @@ static int parsec_show_vhelp_internal(const char *filename, const char *topic,
 }
 
 static int parsec_show_help_internal(const char *filename, const char *topic,
-                                   bool want_error_header, ...)
+                                     int want_error_header, ...)
 {
     va_list arglist;
     int rc;
