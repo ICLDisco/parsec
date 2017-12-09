@@ -236,8 +236,8 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
  */
 void
 parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
-                    parsec_dtd_funcptr_t *fpointer, int priority,
-                    char *name_of_kernel, ... );
+                                 parsec_dtd_funcptr_t *fpointer, int priority,
+                                 const char *name_of_kernel, ... );
 
 /*
  * This macros should be called anytime users

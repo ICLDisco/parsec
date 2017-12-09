@@ -3468,7 +3468,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "  __parsec_tp->super.super.task_classes_array = (const parsec_task_class_t**)\n"
             "              malloc(2 * __parsec_tp->super.super.nb_task_classes * sizeof(parsec_task_class_t*));\n"
             "  __parsec_tp->super.super.nb_tasks = 1;\n"
-            "  __parsec_tp->super.super.taskpool_type = 0;\n"
+            "  __parsec_tp->super.super.taskpool_type = PARSEC_TASKPOOL_TYPE_PTG;\n"
             "  __parsec_tp->super.super.nb_pending_actions = 1 + __parsec_tp->super.super.nb_task_classes;  /* for the startup tasks */\n"
             "  __parsec_tp->sync_point = __parsec_tp->super.super.nb_task_classes;\n"
             "  __parsec_tp->startup_queue = NULL;\n"

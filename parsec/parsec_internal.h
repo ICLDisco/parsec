@@ -84,12 +84,20 @@ typedef void (*parsec_startup_fn_t)(parsec_context_t *context,
 typedef void (*parsec_destruct_fn_t)(parsec_taskpool_t* tp);
 
 /**
+ * Types of known taskpools. This should be extended as new types of taskpools are
+ * to PaRSEC.
+ */
+#define PARSEC_TASKPOOL_TYPE_PTG       1
+#define PARSEC_TASKPOOL_TYPE_COMPOUND  2
+#define PARSEC_TASKPOOL_TYPE_DTD       3
+
+/**
  * @brief a PaRSEC taskpool represents an a collection of tasks (with or without their dependencies).
  *        as provided by the Domain Specific Language.
  */
 struct parsec_taskpool_s {
     parsec_list_item_t         super;     /**< A PaRSEC taskpool is also a list_item, so it can be chained into different lists */
-    uint32_t                   taskpool_id; /**< Taskpool are uniquely globally consisntently named */
+    uint32_t                   taskpool_id; /**< Taskpool are uniquely globally consistently named */
     volatile int32_t           nb_tasks;  /**< A placeholder for the upper level to count (if necessary) the tasks
                                            *   in the taskpool. This value is checked upon each task completion by
                                            *   the runtime, to see if the taskpool is completed (a nb_tasks equal
@@ -99,19 +107,19 @@ struct parsec_taskpool_s {
                                            *   internal purposes (in which case it is atomically set to
                                            *   PARSEC_RUNTIME_RESERVED_NB_TASKS).
                                            */
-    uint16_t                   nb_task_classes; /**< The number of task classes defined in this taskpool */
+    int16_t                    taskpool_type;
     uint16_t                   devices_mask; /**< A bitmask on what devices this taskpool may use */
     int32_t                    initial_number_tasks; /**< Counts the number of task classes initially ready */
     int32_t                    priority;             /**< A constant used to bump the priority of tasks related to this taskpool */
-    int32_t                    taskpool_type;
     volatile uint32_t          nb_pending_actions;  /**< Internal counter of pending actions tracking all runtime
                                                      *   activities (such as communications, data movement, and
                                                      *   so on). Also, its value is increase by one for all the tasks
                                                      *   in the taskpool. This extra reference will be removed upon
                                                      *   completion of all tasks.
                                                      */
-    parsec_context_t           *context;   /**< The PaRSEC context on which this taskpool was generated */
+    parsec_context_t           *context;   /**< The PaRSEC context on which this taskpool was enqueued */
     parsec_startup_fn_t         startup_hook; /**< Function pointer to a function that generates initial tasks */
+    uint16_t                   nb_task_classes; /**< The number of task classes defined in this taskpool */
     const parsec_task_class_t** task_classes_array; /**< Array of task classes that build this DAG */
 #if defined(PARSEC_PROF_TRACE)
     const int*                   profiling_array; /**< Array of profiling keys to start/stop each of the task classes

@@ -571,20 +571,20 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
     origin->taskpool = parsec_taskpool_lookup(origin->msg.taskpool_id);
     if( NULL == origin->taskpool )
         return -1; /* the parsec taskpool doesn't exist yet */
-    task.taskpool = origin->taskpool;
-    task.task_class    = task.taskpool->task_classes_array[origin->msg.task_class_id];
 
-    if( 1 == origin->taskpool->taskpool_type ) {
-        dtd_tp = (parsec_dtd_taskpool_t *)origin->taskpool;
-        parsec_dtd_two_hash_table_lock(dtd_tp->two_hash_table);
-
-        if( NULL == task.task_class ) {
-            assert(origin->incoming_mask == 0);
-            return -2; /* indicates problem with dtd progress in this node, so defer activation */
-        }
+    task.taskpool   = origin->taskpool;
+    task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
+    if( NULL == task.task_class ) {  /* This can only happen for DTD */
+        assert(origin->incoming_mask == 0);
+        return -2; /* taskclass not yet discovered locally. Defer the task activation */
     }
 
-    task.priority     = 0;  /* unknown yet */
+    if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
+        dtd_tp = (parsec_dtd_taskpool_t *)origin->taskpool;
+        parsec_dtd_two_hash_table_lock(dtd_tp->two_hash_table);
+    }
+
+    task.priority = 0;  /* unknown yet */
     for(i = 0; i < task.task_class->nb_locals; i++)
         task.locals[i] = origin->msg.locals[i];
 
@@ -597,10 +597,9 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
     for(k = 0; origin->msg.output_mask>>k; k++) {
         if(!(origin->msg.output_mask & (1U<<k))) continue;
 
-        if( 1 == origin->taskpool->taskpool_type ) {
+        if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
             uint64_t key = (uint64_t)origin->msg.locals[0].value<<32 | (1U<<k);
             dtd_task = parsec_dtd_find_task( dtd_tp, key );
-
             if( NULL == dtd_task ) { return_defer = 1; continue; }
         }
 
@@ -612,15 +611,12 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
         }
 
-        if( 1 == origin->taskpool->taskpool_type ) {
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
+        if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
             if( local_mask == 0 ) {
                 assert(0);
-                return -2;
+                return -2;  /* We need a better fix for this */
             }
-        }
-
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
-        if( 1 == origin->taskpool->taskpool_type ) {
             task.task_class->iterate_successors(es, (parsec_task_t *)dtd_task,
                                                local_mask,
                                                remote_dep_mpi_retrieve_datatype,
@@ -633,7 +629,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
         }
     }
 
-    if( 1 == origin->taskpool->taskpool_type ) {
+    if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
         if( return_defer ) return -2;
         else {
             assert(origin->incoming_mask == origin->msg.output_mask );
@@ -697,7 +693,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
 
 #ifdef PARSEC_DIST_COLLECTIVES
     /* Corresponding comment below on the propagation part */
-    if(0 == origin->incoming_mask && 0 == origin->taskpool->taskpool_type) {
+    if(0 == origin->incoming_mask && PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
         remote_dep_inc_flying_messages(task.taskpool);
         (void)parsec_atomic_add_32b(&origin->pending_ack, 1);
     }
@@ -732,7 +728,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     origin->outgoing_mask = 0;
 
 #if defined(PARSEC_DIST_COLLECTIVES)
-    if( 0 == origin->taskpool->taskpool_type ) /* indicates it is a PTG taskpool */
+    if( PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type ) /* indicates it is a PTG taskpool */
         parsec_remote_dep_propagate(es, &task, origin);
 #endif  /* PARSEC_DIST_COLLECTIVES */
     /**
@@ -746,7 +742,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
             PARSEC_DATA_COPY_RELEASE(origin->output[i].data.data);
     }
 #if defined(PARSEC_DIST_COLLECTIVES)
-    if(0 == origin->taskpool->taskpool_type) {
+    if(PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
         remote_dep_complete_and_cleanup(&origin, 1);
     } else {
         remote_deps_free(origin);
