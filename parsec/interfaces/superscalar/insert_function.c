@@ -254,10 +254,9 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 #endif /* defined(PARSEC_PROF_TRACE) */
 
     free(tp->super.task_classes_array);
-    tp->super.nb_task_classes = 0;
 
     /* Destroy the data repositories for this object */
-    for (i = 0; i <PARSEC_DTD_NB_TASK_CLASSES; i++) {
+    for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
         parsec_destruct_dependencies(tp->super.dependencies_array[i]);
         tp->super.dependencies_array[i] = NULL;
     }
@@ -1309,7 +1308,6 @@ parsec_dtd_taskpool_new(void)
     __tp->super.nb_tasks           = PARSEC_RUNTIME_RESERVED_NB_TASKS;
     __tp->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_DTD;  /* Indicating this is a taskpool for dtd tasks */
     __tp->super.nb_pending_actions = 0;  /* For the future tasks that will be inserted */
-    __tp->super.nb_task_classes    = 0;
     __tp->super.update_nb_runtime_task = parsec_dtd_update_runtime_task;
 
     for(i = 0; i < vpmap_get_nb_vp(); i++) {
@@ -1317,9 +1315,8 @@ parsec_dtd_taskpool_new(void)
     }
 
     /* Keeping track of total tasks to be executed per taskpool for the window */
-    for (i=0; i<PARSEC_DTD_NB_TASK_CLASSES; i++) {
+    for(i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
         __tp->flow_set_flag[i]  = 0;
-        /* Added new */
         __tp->super.task_classes_array[i] = NULL;
     }
 
@@ -1375,9 +1372,8 @@ parsec_dtd_taskpool_release( parsec_taskpool_t *tp )
         int i;
 
         for(i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
-            const parsec_task_class_t *tc= dtd_tp->super.task_classes_array[i];
+            const parsec_task_class_t *tc = dtd_tp->super.task_classes_array[i];
             parsec_dtd_task_class_t   *dtd_tc = (parsec_dtd_task_class_t *)tc;
-
 
             /* Have we reached the end of known functions for this taskpool? */
             if( NULL == tc ) {
@@ -2312,8 +2308,10 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     /* Inserting Function structure in the hash table to keep track for each class of task */
     uint64_t fkey = (uint64_t)(uintptr_t)fpointer + tc->nb_flows;
     parsec_dtd_insert_task_class( __tp, fkey, dtd_tc );
-    __tp->super.task_classes_array[tc->task_class_id] = (parsec_task_class_t *)tc;
-    __tp->super.nb_task_classes++;
+    assert( NULL == __tp->super.task_classes_array[tc->task_class_id] );
+    __tp->super.task_classes_array[tc->task_class_id]     = (parsec_task_class_t *)tc;
+    __tp->super.task_classes_array[tc->task_class_id + 1] = NULL;
+
     return tc;
 }
 
