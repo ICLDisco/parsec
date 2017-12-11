@@ -3727,7 +3727,7 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   infosrc.sa = sa2;
   infosrc.prefix = "";
   infosrc.suffix = "";
-  infosrc.assignments = "assignments";
+  infosrc.assignments = (char*)name;
 
   for(dl = f->locals; dl != NULL; dl = dl->next) {
       /* Is this definition a parameter or a value? */
