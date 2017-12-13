@@ -144,24 +144,18 @@ static void pins_thread_fini_task_profiler(struct parsec_execution_stream_s * es
  PINS CALLBACKS
  */
 
-static void task_profiler_release_deps_begin(struct parsec_execution_stream_s*     es,
-                                             struct parsec_task_s*               task,
-                                             struct parsec_pins_next_callback_s* cb_data)
+static void
+task_profiler_release_deps_begin(struct parsec_execution_stream_s*   es,
+                                 struct parsec_task_s*               task,
+                                 struct parsec_pins_next_callback_s* cb_data)
 {
-    uint64_t key;
     int32_t rd_fid = task->task_class->task_class_id;
 
-    if( 0 == task->taskpool->taskpool_type ) { /* PTG */
-        key = (*task->task_class->key)(task->taskpool, task->locals);
-    } else { /* DTD */
-        key = task->locals[0].value;
-    }
-
     PARSEC_PROFILING_TRACE(es->es_profile,
-                          release_deps_trace_keyin,
-                          key,
-                          task->taskpool->taskpool_id,
-                          (void *)&rd_fid);
+                           release_deps_trace_keyin,
+                           (*task->task_class->key)(task->taskpool, task->locals)
+                           task->taskpool->taskpool_id,
+                           (void *)&rd_fid);
 
     (void)cb_data;
 }
@@ -171,18 +165,11 @@ task_profiler_release_deps_end(struct parsec_execution_stream_s*   es,
                                struct parsec_task_s*               task,
                                struct parsec_pins_next_callback_s* cb_data)
 {
-    uint64_t key;
     int32_t rd_fid = task->task_class->task_class_id;
-
-    if( 0 == task->taskpool->taskpool_type ) { /* PTG */
-        key = (*task->task_class->key)(task->taskpool, task->locals);
-    } else { /* DTD */
-        key = task->locals[0].value;
-    }
 
     PARSEC_PROFILING_TRACE(es->es_profile,
                            release_deps_trace_keyout,
-                           key,
+                           (*task->task_class->key)(task->taskpool, task->locals),
                            task->taskpool->taskpool_id,
                            (void*)&rd_fid);
     (void)cb_data;

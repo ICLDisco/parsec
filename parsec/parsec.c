@@ -2343,7 +2343,7 @@ void parsec_debug_taskpool_local_tasks( parsec_taskpool_t *tp,
     if( tp->dependencies_array == NULL )
         return;
 
-    for(fi = 0; fi < tp->nb_task_classes; fi++) {
+    for(fi = 0; NULL != tp->task_classes_array[fi]; fi++) {
         parsec_debug_verbose(0, parsec_debug_output, " Tasks of Class %u (%s):\n", fi, tp->task_classes_array[fi]->name);
         parsec_debug_taskpool_count_local_tasks( tp, tp->task_classes_array[fi],
                                                  show_remote, show_startup, show_complete,

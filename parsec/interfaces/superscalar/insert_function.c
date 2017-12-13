@@ -95,7 +95,7 @@ static parsec_hook_return_t
 complete_hook_of_dtd(parsec_execution_stream_t *,
                      parsec_task_t *);
 
-static uint32_t hash_key (uintptr_t key, uint32_t hash_size, void *data);
+static uint32_t hash_key(uintptr_t key, uint32_t hash_size, void *data);
 
 inline int parsec_dtd_task_is_local(parsec_dtd_task_t *task) { return task->rank == task->super.taskpool->context->my_rank;}
 inline int parsec_dtd_task_is_remote(parsec_dtd_task_t *task) { return !parsec_dtd_task_is_local(task);}
@@ -254,10 +254,9 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 #endif /* defined(PARSEC_PROF_TRACE) */
 
     free(tp->super.task_classes_array);
-    tp->super.nb_task_classes = 0;
 
     /* Destroy the data repositories for this object */
-    for (i = 0; i <PARSEC_DTD_NB_TASK_CLASSES; i++) {
+    for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
         parsec_destruct_dependencies(tp->super.dependencies_array[i]);
         tp->super.dependencies_array[i] = NULL;
     }
@@ -447,8 +446,8 @@ parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
     assert(tile->flushed == NOT_FLUSHED);
     parsec_dtd_tile_retain(tile);
     parsec_dtd_taskpool_insert_task( tp, parsec_dtd_copy_data_to_matrix, 0, "Copy_data_in_dist",
-                        PASSED_BY_REF,    tile, INOUT | AFFINITY,
-                        0 );
+                                     PASSED_BY_REF, tile, INOUT | AFFINITY,
+                                     0 );
     tile->flushed = FLUSHED;
     parsec_dtd_tile_remove( tile->dc, tile->key );
     parsec_dtd_tile_release( tile );
@@ -729,37 +728,31 @@ fill_color(int index, int colorspace)
  */
 void
 parsec_dtd_add_profiling_info( parsec_taskpool_t *tp,
-                    int task_class_id, char* name )
+                               int task_class_id, char* name )
 {
     char *str = fill_color(task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
     parsec_profiling_add_dictionary_keyword(name, str,
-                                           sizeof(parsec_profile_data_collection_info_t),
-                                           PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                           (int *) &tp->profiling_array[0 +
-                                                                                  2 *
-                                                                                  task_class_id
-                                                                                  /* start key */
-                                                                                  ],
-                                           (int *) &tp->profiling_array[1 +
-                                                                                  2 *
-                                                                                  task_class_id
-                                                                                  /*  end key */
-                                                                                  ]);
+                                            sizeof(parsec_profile_data_collection_info_t),
+                                            PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                            (int *) &tp->profiling_array[0 +
+                                                                         2 * task_class_id]  /* start key */,
+                                            (int *) &tp->profiling_array[1 +
+                                                                         2 * task_class_id]  /*  end key */ );
     free(str);
 }
 
 void
 parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
-                            char* name,
-                            int *keyin, int *keyout)
+                                       char* name,
+                                       int *keyin, int *keyout)
 {
     (void)tp;
     char *str = fill_color(*keyin, PARSEC_DTD_NB_TASK_CLASSES);
     parsec_profiling_add_dictionary_keyword(name, str,
-                                           sizeof(parsec_profile_data_collection_info_t),
-                                           PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                           keyin,
-                                           keyout);
+                                            sizeof(parsec_profile_data_collection_info_t),
+                                            PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                            keyin,
+                                            keyout);
     free(str);
 }
 
@@ -1231,11 +1224,12 @@ static symbol_t symb_dtd_taskid = {
 };
 
 /**
- * To make it consistent with PaRSEC we need to intialize and have this function
- * we do not use this at this point
+ * The task class key generator function. For DTD the key is stored in the
+ * first assignment value of the task.
  */
-static inline uint64_t DTD_identity_hash(const parsec_dtd_taskpool_t * __tp,
-                                         const assignment_t * assignments)
+static inline uint64_t
+DTD_taskclass_task_key(const parsec_dtd_taskpool_t * __tp,
+                       const assignment_t * assignments)
 {
     (void)__tp;
     return (uint64_t)assignments[0].value;
@@ -1305,16 +1299,15 @@ parsec_dtd_taskpool_new(void)
 
     parsec_dtd_taskpool_retain((parsec_taskpool_t *)__tp);
 
-    __tp->super.context          = NULL;
-    __tp->super.on_enqueue       = parsec_dtd_enqueue_taskpool;
-    __tp->super.on_enqueue_data  = NULL;
-    __tp->super.on_complete      = NULL;
-    __tp->super.on_complete_data = NULL;
-    __tp->super.devices_mask     = PARSEC_DEVICES_ALL;
-    __tp->super.nb_tasks         = PARSEC_RUNTIME_RESERVED_NB_TASKS;
-    __tp->super.taskpool_type       = 1;  /* Indicating this is a taskpool for dtd tasks */
-    __tp->super.nb_pending_actions  = 0;  /* For the future tasks that will be inserted */
-    __tp->super.nb_task_classes     = 0;
+    __tp->super.context            = NULL;
+    __tp->super.on_enqueue         = parsec_dtd_enqueue_taskpool;
+    __tp->super.on_enqueue_data    = NULL;
+    __tp->super.on_complete        = NULL;
+    __tp->super.on_complete_data   = NULL;
+    __tp->super.devices_mask       = PARSEC_DEVICES_ALL;
+    __tp->super.nb_tasks           = PARSEC_RUNTIME_RESERVED_NB_TASKS;
+    __tp->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_DTD;  /* Indicating this is a taskpool for dtd tasks */
+    __tp->super.nb_pending_actions = 0;  /* For the future tasks that will be inserted */
     __tp->super.update_nb_runtime_task = parsec_dtd_update_runtime_task;
 
     for(i = 0; i < vpmap_get_nb_vp(); i++) {
@@ -1322,9 +1315,8 @@ parsec_dtd_taskpool_new(void)
     }
 
     /* Keeping track of total tasks to be executed per taskpool for the window */
-    for (i=0; i<PARSEC_DTD_NB_TASK_CLASSES; i++) {
+    for(i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
         __tp->flow_set_flag[i]  = 0;
-        /* Added new */
         __tp->super.task_classes_array[i] = NULL;
     }
 
@@ -1380,9 +1372,8 @@ parsec_dtd_taskpool_release( parsec_taskpool_t *tp )
         int i;
 
         for(i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
-            const parsec_task_class_t *tc= dtd_tp->super.task_classes_array[i];
+            const parsec_task_class_t *tc = dtd_tp->super.task_classes_array[i];
             parsec_dtd_task_class_t   *dtd_tc = (parsec_dtd_task_class_t *)tc;
-
 
             /* Have we reached the end of known functions for this taskpool? */
             if( NULL == tc ) {
@@ -2240,7 +2231,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
  */
 parsec_task_class_t*
 parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t* fpointer,
-                              char* name, int count_of_params, long unsigned int size_of_param,
+                              const char* name, int count_of_params, long unsigned int size_of_param,
                               int flow_count )
 {
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t *) calloc(1, sizeof(parsec_dtd_task_class_t));
@@ -2281,7 +2272,7 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
      To bypass const in function structure.
      Getting address of the const members in local mutable pointers.
      */
-    char **name_not_const = (char **)&(tc->name);
+    const char **name_not_const = (const char **)&(tc->name);
     symbol_t **params     = (symbol_t **) &tc->params;
     symbol_t **locals     = (symbol_t **) &tc->locals;
     expr_t **priority     = (expr_t **)&tc->priority;
@@ -2301,7 +2292,7 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     *priority                 = NULL;
     tc->flags                 = 0x0 | PARSEC_HAS_IN_IN_DEPENDENCIES | PARSEC_USE_DEPS_MASK;
     tc->dependencies_goal     = 0;
-    tc->key                   = (parsec_functionkey_fn_t *)DTD_identity_hash;
+    tc->key                   = (parsec_functionkey_fn_t *)DTD_taskclass_task_key;
     tc->fini                  = NULL;
     *incarnations             = (__parsec_chore_t *)dtd_chore;
     tc->find_deps             = NULL;
@@ -2317,8 +2308,10 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     /* Inserting Function structure in the hash table to keep track for each class of task */
     uint64_t fkey = (uint64_t)(uintptr_t)fpointer + tc->nb_flows;
     parsec_dtd_insert_task_class( __tp, fkey, dtd_tc );
-    __tp->super.task_classes_array[tc->task_class_id] = (parsec_task_class_t *)tc;
-    __tp->super.nb_task_classes++;
+    assert( NULL == __tp->super.task_classes_array[tc->task_class_id] );
+    __tp->super.task_classes_array[tc->task_class_id]     = (parsec_task_class_t *)tc;
+    __tp->super.task_classes_array[tc->task_class_id + 1] = NULL;
+
     return tc;
 }
 
@@ -2747,9 +2740,9 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
             /* parentless */
             /* Create Fake output_task */
             parsec_dtd_taskpool_insert_task( this_task->super.taskpool,
-                                &fake_first_out_body,   0, "Fake_FIRST_OUT",
-                                PASSED_BY_REF,         tile,       INOUT | AFFINITY,
-                                0 );
+                                             &fake_first_out_body, 0, "Fake_FIRST_OUT",
+                                             PASSED_BY_REF, tile, INOUT | AFFINITY,
+                                             0 );
 
             parsec_dtd_last_user_lock( &(tile->last_user) );
 
@@ -3042,8 +3035,8 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
  */
 void
 parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
-                    parsec_dtd_funcptr_t *fpointer, int priority,
-                    char *name_of_kernel, ... )
+                                 parsec_dtd_funcptr_t *fpointer, int priority,
+                                 const char *name_of_kernel, ... )
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
 
@@ -3066,7 +3059,8 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
     va_start(args, name_of_kernel);
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile, insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL );
+    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile,
+                           insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL );
 #endif
 
     /* extracting the rank of the task */
@@ -3115,8 +3109,8 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
     uint64_t fkey = (uint64_t)(uintptr_t)fpointer + flow_count_of_template;
     /* Creating master function structures */
     /* Hash table lookup to check if the function structure exists or not */
-    parsec_task_class_t *tc = (parsec_task_class_t *)parsec_dtd_find_task_class
-                                                       (dtd_tp, fkey);
+    parsec_task_class_t *tc = (parsec_task_class_t *)
+                                  parsec_dtd_find_task_class(dtd_tp, fkey);
 
     if( NULL == tc ) {
         /* calculating the size of parameters for each task class*/

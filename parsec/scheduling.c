@@ -677,7 +677,6 @@ static void parsec_compound_startup( parsec_context_t *context,
     parsec_taskpool_t* first = compound_state->taskpools_array[0];
     int i;
 
-    assert( 0 == compound_tp->nb_task_classes );
     assert( NULL != first );
     first->startup_hook(context, first, startup_list);
     compound_state->ctx = context;
@@ -691,15 +690,17 @@ static void parsec_compound_startup( parsec_context_t *context,
 }
 
 parsec_taskpool_t* parsec_compose( parsec_taskpool_t* start,
-                               parsec_taskpool_t* next )
+                                   parsec_taskpool_t* next )
 {
     parsec_taskpool_t* compound = NULL;
     parsec_compound_state_t* compound_state = NULL;
 
-    if( 0 == start->nb_task_classes ) {  /* start is already a compound taskpool */
+    if( PARSEC_TASKPOOL_TYPE_COMPOUND == start->taskpool_type ) {  /* start is already a compound taskpool */
         compound = start;
         compound_state = (parsec_compound_state_t*)compound->task_classes_array;
         compound_state->taskpools_array[compound_state->nb_taskpools++] = next;
+        /* must always be NULL terminated */
+        compound_state->taskpools_array[compound_state->nb_taskpools]   = NULL;
         /* make room for NULL terminating, if necessary */
         if( 0 == (compound_state->nb_taskpools % 16) ) {
             compound_state = realloc(compound_state, sizeof(parsec_compound_state_t) +
@@ -709,13 +710,14 @@ parsec_taskpool_t* parsec_compose( parsec_taskpool_t* start,
         compound_state->taskpools_array[compound_state->nb_taskpools] = NULL;
     } else {
         compound = calloc(1, sizeof(parsec_taskpool_t));
+        compound->taskpool_type      = PARSEC_TASKPOOL_TYPE_COMPOUND;
         compound->task_classes_array = malloc(sizeof(parsec_compound_state_t) + 16 * sizeof(void*));
+
         compound_state = (parsec_compound_state_t*)compound->task_classes_array;
         compound_state->taskpools_array[0] = start;
         compound_state->taskpools_array[1] = next;
         compound_state->taskpools_array[2] = NULL;
         compound_state->completed_taskpools = 0;
-        compound_state->nb_taskpools = 2;
         compound->startup_hook = parsec_compound_startup;
     }
     return compound;

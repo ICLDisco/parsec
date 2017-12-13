@@ -186,23 +186,23 @@ typedef struct parsec_dtd_tile_user_s {
 }parsec_dtd_tile_user_t;
 
 struct parsec_dtd_tile_s {
-    parsec_list_item_t       super;
-    parsec_hash_table_item_t ht_item;
-    parsec_thread_mempool_t *mempool_owner;
-    int16_t                  arena_index;
-    int16_t                  flushed;
-    int32_t                  rank;
-    uint64_t                 key;
-    parsec_data_copy_t      *data_copy;
-    parsec_data_collection_t          *dc;
-    parsec_dtd_tile_user_t   last_user;
-    parsec_dtd_tile_user_t   last_writer;
+    parsec_list_item_t        super;
+    parsec_hash_table_item_t  ht_item;
+    parsec_thread_mempool_t  *mempool_owner;
+    int16_t                   arena_index;
+    int16_t                   flushed;
+    int32_t                   rank;
+    uint64_t                  key;
+    parsec_data_copy_t       *data_copy;
+    parsec_data_collection_t *dc;
+    parsec_dtd_tile_user_t    last_user;
+    parsec_dtd_tile_user_t    last_writer;
 };
 /* For creating objects of class parsec_dtd_tile_t */
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_dtd_tile_t);
 
 /* for testing abstraction for PaRsec */
-struct hook_info{
+struct hook_info {
     parsec_hook_t *hook;
 };
 
@@ -333,7 +333,7 @@ parsec_dtd_find_task_class( parsec_dtd_taskpool_t  *tp,
 
 parsec_task_class_t*
 parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t* fpointer,
-                              char* name, int count_of_params, long unsigned int size_of_param,
+                              const char* name, int count_of_params, long unsigned int size_of_param,
                               int flow_count );
 
 void

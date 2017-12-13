@@ -324,7 +324,7 @@ parsec_cuda_taskpool_register(parsec_device_t* device, parsec_taskpool_t* tp)
      * user to write the code to assess this.
      */
     assert(PARSEC_DEV_CUDA == device->type);
-    for( i = 0; i < tp->nb_task_classes; i++ ) {
+    for( i = 0; NULL != tp->task_classes_array[i]; i++ ) {
         const parsec_task_class_t* tc = tp->task_classes_array[i];
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( dev_mask = j = 0; NULL != chores[j].hook; j++ ) {
