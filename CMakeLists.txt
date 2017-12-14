@@ -847,21 +847,17 @@ try_run(RUNTIME_CMAKE_TESTS_RUN_RESULT
         COMPILE_OUTPUT_VARIABLE RUNTIME_CMAKE_COMPILE_OUTPUT
         RUN_OUTPUT_VARIABLE RUNTIME_CMAKE_TESTS_VAL_OUTPUT)
 
-IF("${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}" AND "${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}")
-  SET(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B TRUE)
-  configure_file (
-     "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
-     "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
+IF(NOT "${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}")
+  MESSAGE(STATUS "Compilation of cmake_modules/runtime_cmake_tests.c returned: '${RUNTIME_CMAKE_COMPILE_OUTPUT}'")
 ELSE()
-  MESSAGE(STATUS "Compilation of runtime_cmake_tests returned: '${RUNTIME_CMAKE_COMPILE_OUTPUT}'")
-  IF("${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}")
-    IF(NOT "${RUNTIME_CMAKE_TESTS_RUN_RESULT}")
-      MESSAGE(STATUS "Execution of runtime_cmake_tests returned: '${RUNTIME_CMAKE_TESTS_VAL_OUTPUT}'")
-      MESSAGE(STATUS "Return code of runtime_cmake_tests was ${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}")
-      MESSAGE(FATAL_ERROR "Execution of runtime_cmake_tests failed")
-    ENDIF()
+  IF( "${RUNTIME_CMAKE_TESTS_RUN_RESULT}" EQUAL "0" )
+    SET(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B TRUE)
+    MESSAGE(STATUS "cmake_modules/runtime_cmake_tests.c signals that CAS 128B are active. Reconfiguring parsec_options.h")
+    configure_file (
+       "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
+       "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
   ELSE()
-    MESSAGE(FATAL_ERROR "Compilation of runtime_cmake_tests failed")
+    MESSAGE(STATUS "cmake_modules/runtime_cmake_tests.c desactivated CAS 128B. Keeping parsec_options.h unchanged")
   ENDIF()
 ENDIF()
 
