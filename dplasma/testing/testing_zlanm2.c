@@ -8,8 +8,8 @@
  */
 
 #include "common.h"
-#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 double check_zlanm2(int M, int N, parsec_complex64_t *A, int LDA, int *info )
 {

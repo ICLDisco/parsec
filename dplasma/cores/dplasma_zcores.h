@@ -11,7 +11,7 @@
 
 #include "parsec.h"
 #include "dplasma_complex.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 #include <core_blas.h>
 
 int blgchase_ztrdv2(int NT, int N, int NB,

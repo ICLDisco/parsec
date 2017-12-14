@@ -9,7 +9,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec/data_distribution.h"
-#include "matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 #ifdef PARSEC_HAVE_MPI
 #include <mpi.h>

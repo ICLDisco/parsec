@@ -13,8 +13,8 @@ extern "C" %{
 #include <math.h>
 #include <lapacke.h>
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/private_mempool.h"
 #include "dplasma/cores/dplasma_zcores.h"
 #include "parsec/vpmap.h"

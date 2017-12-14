@@ -6,8 +6,8 @@
 #ifndef __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
 #define __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
 
-#include "data_dist/matrix/matrix.h"
-#include "data_dist/matrix/grid_2Dcyclic.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/grid_2Dcyclic.h"
 
 BEGIN_C_DECLS
 

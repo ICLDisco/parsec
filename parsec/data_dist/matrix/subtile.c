@@ -5,8 +5,8 @@
  */
 
 #include "parsec/parsec_config.h"
-#include "data_dist/matrix/matrix.h"
-#include "data_dist/matrix/subtile.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/subtile.h"
 
 static uint32_t      subtile_rank_of(parsec_data_collection_t* dc, ...);
 static int32_t       subtile_vpid_of(parsec_data_collection_t* dc, ...);

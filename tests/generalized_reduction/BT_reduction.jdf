@@ -5,7 +5,7 @@ extern "C" %{
  *                         reserved.
  */
 #include "parsec/data_distribution.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/arena.h"

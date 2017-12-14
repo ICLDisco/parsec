@@ -14,7 +14,7 @@ extern "C" %{
  *     - When L <-> R, n becomes m, and respectively m becomes n
  */
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 %}
 

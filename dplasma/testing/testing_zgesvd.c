@@ -10,7 +10,7 @@
  */
 
 #include "common.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 static int check_solution(int N, const double *E1, const double *E2);
 

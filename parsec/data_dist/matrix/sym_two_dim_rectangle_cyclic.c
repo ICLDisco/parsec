@@ -28,8 +28,8 @@
 #include <math.h>
 
 #include <assert.h>
-#include "data_dist/matrix/matrix.h"
-#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "parsec/devices/device.h"
 #include "parsec/vpmap.h"
 #include "parsec/data.h"

@@ -12,7 +12,7 @@
 #include "dplasma.h"
 #include <math.h>
 #include <lapacke.h>
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 /**
  *******************************************************************************

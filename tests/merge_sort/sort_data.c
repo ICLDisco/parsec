@@ -10,7 +10,7 @@
 #include "parsec/parsec_config.h"
 #include "sort_data.h"
 #include "stdarg.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include <assert.h>
 #include <stdlib.h>

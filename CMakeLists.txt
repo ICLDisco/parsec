@@ -795,7 +795,6 @@ include(AddDocumentedFiles)
 add_documented_files(${CMAKE_SOURCE_DIR})
 
 add_subdirectory(parsec)
-add_subdirectory(data_dist)
 
 #
 # Setup targets

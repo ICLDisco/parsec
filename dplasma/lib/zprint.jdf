@@ -9,7 +9,7 @@ extern "C" %{
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 static inline void
 dplasma_zprint_tile( int m, int n,

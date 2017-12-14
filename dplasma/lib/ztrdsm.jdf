@@ -10,7 +10,7 @@ extern "C" %{
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 /*
  * Copied from core_blas/core_ztrdsm.c in Du's branch

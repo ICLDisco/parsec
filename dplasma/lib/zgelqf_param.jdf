@@ -11,7 +11,7 @@ extern "C" %{
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 #define GETPRIO_PANEL( __m, __n )      0
 #define GETPRIO_UPDTE( __m, __n, __k ) 0

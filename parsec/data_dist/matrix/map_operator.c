@@ -8,7 +8,7 @@
 #include "parsec.h"
 #include "parsec/debug.h"
 #include "parsec/remote_dep.h"
-#include "matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/parsec_prof_grapher.h"
 #include "parsec/scheduling.h"
 #include "parsec/datarepo.h"

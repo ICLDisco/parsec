@@ -7,7 +7,7 @@
 #include "parsec.h"
 #include "parsec/constants.h"
 #include "parsec/arena.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 #if defined(PARSEC_HAVE_MPI)
 /* just for the type names */

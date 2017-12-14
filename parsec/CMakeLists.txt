@@ -115,3 +115,4 @@ if( BUILD_PARSEC )
   install(FILES utils/help-mca-param.txt DESTINATION share/parsec)
 ENDIF( BUILD_PARSEC )
 
+add_subdirectory(data_dist)

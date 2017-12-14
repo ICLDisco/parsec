@@ -24,7 +24,7 @@ extern "C" %{
  */
 #include <math.h>
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 #define my_rank_of(m, n) (((parsec_data_collection_t*)(descA))->rank_of((parsec_data_collection_t*)descA, m, n))
 %}

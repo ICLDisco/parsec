@@ -8,10 +8,10 @@
 #include "parsec.h"
 #include "parsec/execution_stream.h"
 #include "parsec/arena.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/datatype.h"
 #include <math.h>
-#include "data_dist/matrix/reduce.h"
+#include "parsec/data_dist/matrix/reduce.h"
 
 #if 0
 static int parsec_operator_print_id( struct parsec_execution_stream *es, void* data, void* op_data, ... )

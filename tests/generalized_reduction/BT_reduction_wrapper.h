@@ -9,7 +9,7 @@
 
 #include "parsec.h"
 #include "parsec/data_distribution.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_dc_t *A, int size, int nt);
 

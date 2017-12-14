@@ -16,7 +16,7 @@
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "parsec/private_mempool.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "zgetrf_qrf.h"
 

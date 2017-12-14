@@ -9,7 +9,7 @@
 #ifndef _RBT_MAPPING_H_
 #define _RBT_MAPPING_H_
 #include "parsec/data_distribution.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 typedef struct{
   int m;

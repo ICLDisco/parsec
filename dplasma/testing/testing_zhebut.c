@@ -9,8 +9,8 @@
 
 #include "common.h"
 #include "flops.h"
-#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #if defined(CHECK_B)
 static int check_solution( parsec_context_t *parsec, int loud, PLASMA_enum uplo,

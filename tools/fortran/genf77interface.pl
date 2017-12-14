@@ -25,7 +25,7 @@ sub printHeader {
     print OUTFILE "#include <plasma.h>\n";
     print OUTFILE "#include \"dplasma.h\"\n";
     print OUTFILE "#include \"dplasmaf77.h\"\n";
-    print OUTFILE "#include \"data_dist/matrix/matrix.h\"\n";
+    print OUTFILE "#include \"parsec/data_dist/matrix/matrix.h\"\n";
     print OUTFILE "\n\n";
 
 }

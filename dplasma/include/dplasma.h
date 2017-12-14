@@ -20,7 +20,7 @@ BEGIN_C_DECLS
 #endif /* defined(DPLASMA_DEBUG) */
 
 
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 /*
  * Enum criteria for LU/QR algorithm

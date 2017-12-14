@@ -7,8 +7,8 @@
 #include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/debug.h"
-#include "data_dist/matrix/matrix.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/devices/device.h"
 #include "parsec/vpmap.h"
 

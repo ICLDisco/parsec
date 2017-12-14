@@ -8,9 +8,9 @@
  */
 #include "common.h"
 #include "flops.h"
-#include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/diag_band_to_rect.h"
+#include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/diag_band_to_rect.h"
 #include "dplasma/lib/dplasmatypes.h"
 
 /* Including the bulge chassing */

@@ -1,8 +1,8 @@
 #ifndef _a2a_wrapper_h
 #define _a2a_wrapper_h
 
-#include <parsec.h>
-#include <data_dist/matrix/matrix.h>
+#include "parsec.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 /**
  * @param [IN] A    the data, already distributed and allocated
