@@ -835,6 +835,32 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
   "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
 
+try_run(RUNTIME_CMAKE_TESTS_RUN_RESULT
+        RUNTIME_CMAKE_TESTS_COMPILE_RESULT
+        ${CMAKE_CURRENT_BINARY_DIR}/runtime_cmake_tests
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/runtime_cmake_tests.c"
+        CMAKE_FLAGS 
+            "-DINCLUDE_DIRECTORIES:STRING=${CMAKE_CURRENT_BINARY_DIR}/parsec/include;${CMAKE_CURRENT_SOURCE_DIR}/parsec/include"
+            "-DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}"
+        LINK_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES}"
+        COMPILE_DEFINITIONS "-DBUILD_PARSEC"
+        COMPILE_OUTPUT_VARIABLE RUNTIME_CMAKE_COMPILE_OUTPUT
+        RUN_OUTPUT_VARIABLE RUNTIME_CMAKE_TESTS_VAL_OUTPUT)
+
+IF(NOT "${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}")
+  MESSAGE(STATUS "Compilation of cmake_modules/runtime_cmake_tests.c returned: '${RUNTIME_CMAKE_COMPILE_OUTPUT}'")
+ELSE()
+  IF( "${RUNTIME_CMAKE_TESTS_RUN_RESULT}" EQUAL "0" )
+    SET(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B TRUE)
+    MESSAGE(STATUS "cmake_modules/runtime_cmake_tests.c signals that CAS 128B are active. Reconfiguring parsec_options.h")
+    configure_file (
+       "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
+       "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
+  ELSE()
+    MESSAGE(STATUS "cmake_modules/runtime_cmake_tests.c desactivated CAS 128B. Keeping parsec_options.h unchanged")
+  ENDIF()
+ENDIF()
+
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.h
   DESTINATION include)
