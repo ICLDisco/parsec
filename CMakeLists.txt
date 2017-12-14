@@ -835,6 +835,36 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
   "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
 
+try_run(RUNTIME_CMAKE_TESTS_RUN_RESULT
+        RUNTIME_CMAKE_TESTS_COMPILE_RESULT
+        ${CMAKE_CURRENT_BINARY_DIR}/runtime_cmake_tests
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/runtime_cmake_tests.c"
+        CMAKE_FLAGS 
+            "-DINCLUDE_DIRECTORIES:STRING=${CMAKE_CURRENT_BINARY_DIR}/parsec/include;${CMAKE_CURRENT_SOURCE_DIR}/parsec/include"
+            "-DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}"
+        LINK_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES}"
+        COMPILE_DEFINITIONS "-DBUILD_PARSEC"
+        COMPILE_OUTPUT_VARIABLE RUNTIME_CMAKE_COMPILE_OUTPUT
+        RUN_OUTPUT_VARIABLE RUNTIME_CMAKE_TESTS_VAL_OUTPUT)
+
+IF("${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}" AND "${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}")
+  SET(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B TRUE)
+  configure_file (
+     "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
+     "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
+ELSE()
+  MESSAGE(STATUS "Compilation of runtime_cmake_tests returned: '${RUNTIME_CMAKE_COMPILE_OUTPUT}'")
+  IF("${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}")
+    IF(NOT "${RUNTIME_CMAKE_TESTS_RUN_RESULT}")
+      MESSAGE(STATUS "Execution of runtime_cmake_tests returned: '${RUNTIME_CMAKE_TESTS_VAL_OUTPUT}'")
+      MESSAGE(STATUS "Return code of runtime_cmake_tests was ${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}")
+      MESSAGE(FATAL_ERROR "Execution of runtime_cmake_tests failed")
+    ENDIF()
+  ELSE()
+    MESSAGE(FATAL_ERROR "Compilation of runtime_cmake_tests failed")
+  ENDIF()
+ENDIF()
+
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.h
   DESTINATION include)

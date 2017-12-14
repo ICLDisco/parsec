@@ -2,7 +2,6 @@
 #define PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
 
 /* Compiler dependent capabilities */
-#cmakedefine PARSEC_HAVE_UINT128
 #cmakedefine PARSEC_ATOMIC_USE_C11_ATOMICS
 #cmakedefine PARSEC_ATOMIC_USE_GCC_32_BUILTINS
 #cmakedefine PARSEC_ATOMIC_USE_GCC_64_BUILTINS
