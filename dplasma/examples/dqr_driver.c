@@ -9,7 +9,7 @@
  */
 #include "parsec/parsec_config.h"
 #include "dplasma.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <getopt.h>
 #include <math.h>
 #include <sys/time.h>

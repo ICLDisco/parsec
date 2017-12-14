@@ -10,10 +10,10 @@ extern "C" %{
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 #if defined(PARSEC_HAVE_RECURSIVE)
-#include "data_dist/matrix/subtile.h"
+#include "parsec/data_dist/matrix/subtile.h"
 #include "parsec/recursive.h"
 #endif
 

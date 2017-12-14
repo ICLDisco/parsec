@@ -16,8 +16,8 @@ extern "C" %{
 
 #include "parsec.h"
 #include "parsec/data_distribution.h"
-#include "data_dist/matrix/precision.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/precision.h"
+#include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/private_mempool.h"
 #include "dplasma/lib/dplasmajdf.h"
 

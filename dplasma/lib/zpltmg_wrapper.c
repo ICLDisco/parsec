@@ -11,8 +11,8 @@
 #include "parsec/parsec_config.h"
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/vector_two_dim_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/vector_two_dim_cyclic.h"
 
 #include "map.h"
 #include "zpltmg_chebvand.h"

@@ -9,7 +9,7 @@ extern "C" %{
  */
 
 #include "parsec/data_distribution.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>

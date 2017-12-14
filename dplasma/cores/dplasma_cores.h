@@ -14,7 +14,7 @@
 #include <lapacke.h>
 #include "parsec.h"
 #include "dplasma_complex.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 #include <core_blas.h>
 
 #define PLASMA_BLKADDR(A, type, m, n)  (type *)plasma_getaddr(A, m, n)

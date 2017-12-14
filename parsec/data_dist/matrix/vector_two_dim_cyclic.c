@@ -7,8 +7,8 @@
 #include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/debug.h"
-#include "data_dist/matrix/matrix.h"
-#include "data_dist/matrix/vector_two_dim_cyclic.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/vector_two_dim_cyclic.h"
 #include "parsec/vpmap.h"
 
 static uint32_t vector_twoDBC_rank_of(parsec_data_collection_t* dc, ...);

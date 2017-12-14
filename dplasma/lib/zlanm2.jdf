@@ -23,7 +23,7 @@ extern "C" %{
  */
 #include <math.h>
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 %}
 

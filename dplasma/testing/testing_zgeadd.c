@@ -9,7 +9,7 @@
 
 #include "common.h"
 #include "flops.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
 static int check_tr_solution( parsec_context_t *parsec, int loud,

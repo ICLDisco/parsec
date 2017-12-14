@@ -6,7 +6,7 @@
 #ifndef __SUBTILE_H__
 #define __SUBTILE_H__
 
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 BEGIN_C_DECLS
 

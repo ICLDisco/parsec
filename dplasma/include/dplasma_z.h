@@ -8,7 +8,7 @@
 #ifndef _DPLASMA_Z_H_
 #define _DPLASMA_Z_H_
 
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 /***********************************************************
  *               Blocking interface

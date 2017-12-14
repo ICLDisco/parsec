@@ -8,8 +8,8 @@
  */
 
 #include "common.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/two_dim_tabular.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_tabular.h"
 
 static int check_orthogonality(parsec_context_t *parsec, int loud,
                                parsec_tiled_matrix_dc_t *Q);

@@ -10,7 +10,7 @@ extern "C" %{
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/vpmap.h"
 
 #define nbthreads( __k ) (dplasma_imin( ((descA->mt - (__k)) + 3 )/  4, nbmaxthrd) - 1)

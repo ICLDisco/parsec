@@ -11,7 +11,7 @@
 #include "parsec/execution_stream.h"
 #include "parsec/scheduling.h"
 #include "parsec/devices/device.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 typedef struct cb_data_s {
     parsec_execution_stream_t    *es;

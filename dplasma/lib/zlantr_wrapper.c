@@ -11,7 +11,7 @@
 #include "parsec/parsec_config.h"
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "zlange_frb_cyclic.h"
 #include "zlange_one_cyclic.h"

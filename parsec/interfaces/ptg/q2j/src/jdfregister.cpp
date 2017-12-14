@@ -139,7 +139,7 @@ void jdf_register_prologue(jdf_t *jdf)
             " *\n"
             " */\n"
             "#include \"dplasmajdf.h\"\n"
-            "#include \"data_dist/matrix/matrix.h\"\n");
+            "#include \"parsec/data_dist/matrix/matrix.h\"\n");
         JDF_OBJECT_SET(jdf->prologue, NULL, 0, NULL);
     }
 }

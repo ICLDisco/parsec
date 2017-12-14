@@ -11,8 +11,8 @@ extern "C" %{
  */
 #include <pthread.h>
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 %}
 

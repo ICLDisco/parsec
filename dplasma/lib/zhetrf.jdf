@@ -10,7 +10,7 @@ extern "C" %{
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/private_mempool.h"
 
 extern int CORE_zgemdm(int transA, int transB,

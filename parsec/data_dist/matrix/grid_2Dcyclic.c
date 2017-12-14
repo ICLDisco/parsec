@@ -7,7 +7,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec.h"
-#include "grid_2Dcyclic.h"
+#include "parsec/data_dist/matrix/grid_2Dcyclic.h"
 #include "parsec/vpmap.h"
 #include "parsec/debug.h"
 

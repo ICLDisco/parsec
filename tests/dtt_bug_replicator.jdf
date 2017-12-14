@@ -5,7 +5,7 @@ extern "C" %{
  *                         reserved.
  */
 #include <unistd.h>
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 void dump_double_array(char* msg, double* mat, int i, int j, int nb, int mb, int lda)
 {

@@ -8,7 +8,7 @@
 #include "parsec/parsec_internal.h"
 #include "scalapack_convert.h"
 #include "parsec/data_distribution.h"
-#include "matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/debug.h"
 
 #ifdef PARSEC_HAVE_STRING_H

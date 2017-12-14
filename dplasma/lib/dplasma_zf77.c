@@ -17,7 +17,7 @@
 #include <core_blas.h>
 #include "dplasma.h"
 #include "dplasmaf77.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 #define dplasmaf77_zgemm      DPLASMA_ZF77NAME( gemm,      GEMM      )
 #define dplasmaf77_zhemm      DPLASMA_ZF77NAME( hemm,      HEMM      )

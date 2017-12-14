@@ -10,8 +10,8 @@ extern "C" %{
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/dplasmaaux.h"
-#include "data_dist/matrix/matrix.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <math.h>
 
 #if defined(PARSEC_HAVE_CUDA)

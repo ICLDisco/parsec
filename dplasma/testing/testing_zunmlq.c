@@ -8,7 +8,7 @@
  */
 
 #include "common.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 int main(int argc, char ** argv)
 {
