@@ -5,6 +5,7 @@
  */
 
 #include "parsec/parsec_config.h"
+#include "parsec/thread/thread.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/remote_dep.h"
 #include "parsec/scheduling.h"

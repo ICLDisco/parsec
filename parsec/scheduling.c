@@ -572,7 +572,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
 
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
-            nanosleep(&rqtp, NULL);
+            PARSEC_THREAD_PAUSE( rqtp );
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
 
@@ -591,7 +591,8 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     parsec_rusage_per_es(es, true);
 
     /* We're all done ? */
-    parsec_barrier_wait( &(parsec_context->barrier) );
+    //TODO: remove this barrier and see
+    /* parsec_barrier_wait( &(parsec_context->barrier) ); */
 
 #if defined(PARSEC_SIM)
     if( PARSEC_THREAD_IS_MASTER(es) ) {

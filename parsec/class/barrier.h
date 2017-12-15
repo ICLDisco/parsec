@@ -10,7 +10,7 @@
 #include "parsec/parsec_config.h"
 
 #include <unistd.h>
-#include <pthread.h>
+#include "parsec/thread/thread.h"
 
 /**
  * @defgroup parsec_internal_classes_barrier Barrier
@@ -52,13 +52,13 @@ typedef pthread_barrier_t parsec_barrier_t;
  *          providing a simple barrier mechanism.
  */
 typedef struct parsec_barrier_t {
-    int                 count;       /**< Number of threads expected to enter the barrier */
-    volatile int        curcount;    /**< Number of threads currently inside the barrier */
-    volatile int        generation;  /**< Unique number used to count how many times this
-                                      *   barrier was used, and enable debugging unmatching barriers */
-    pthread_mutex_t     mutex;       /**< Lock on the barrier, to make threads wait passively */
-    pthread_cond_t      cond;        /**< Condition on the barrier, to allow waking up threads that wait
-                                      *   passively once all threads have joined the barrier */
+    int                   count;       /**< Number of threads expected to enter the barrier */
+    volatile int          curcount;    /**< Number of threads currently inside the barrier */
+    volatile int          generation;  /**< Unique number used to count how many times this
+                                        *   barrier was used, and enable debugging unmatching barriers */
+    parsec_thread_mutex_t mutex;       /**< Lock on the barrier, to make threads wait passively */
+    parsec_thread_cond_t  cond;        /**< Condition on the barrier, to allow waking up threads that wait
+                                        *   passively once all threads have joined the barrier */
 } parsec_barrier_t;
 
 /**
@@ -104,6 +104,7 @@ int parsec_barrier_wait(parsec_barrier_t* barrier);
  * @return 0 if success another code otherwise.
  */
 int parsec_barrier_destroy(parsec_barrier_t* barrier);
+
 #define PARSEC_IMPLEMENT_BARRIERS 1
 
 #endif

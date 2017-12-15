@@ -18,7 +18,7 @@
 
 #include "parsec/parsec_config.h"
 #include <inttypes.h>
-#include <pthread.h>
+#include "parsec/thread/thread.h"
 
 #include "parsec/class/list.h"
 
@@ -139,7 +139,7 @@ struct parsec_thread_profiling_s {
     uint64_t                 nb_events;
     parsec_profiling_info_t  *infos;
     off_t                    first_events_buffer_offset; /* Offset (in the file) of the first events buffer */
-    pthread_t                thread_owner;
+    int                      thread_owner;
     off_t                     current_events_buffer_offset;
     parsec_profiling_buffer_t *current_events_buffer;     /* points to the events buffer in which we are writing. */
 };

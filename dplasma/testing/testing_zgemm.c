@@ -41,7 +41,11 @@ int main(int argc, char ** argv)
 #if defined(PARSEC_HAVE_CUDA) && 1
     iparam[IPARAM_NGPUS] = 0;
 #endif
-    /* Initialize PaRSEC */
+    int i=1;
+    fprintf(stdout, "pid: %d\n", getpid());
+    while(i) { sleep(1); }
+
+/* Initialize PaRSEC */
     parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 

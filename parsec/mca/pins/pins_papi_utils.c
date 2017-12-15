@@ -5,10 +5,14 @@
  */
 
 #include "parsec/parsec_config.h"
+
+#include "parsec_config.h"
+#include <parsec/constants.h>
 #include <papi.h>
 #include "pins_papi_utils.h"
 #include "parsec/utils/output.h"
 #include "parsec/include/parsec/os-spec-timing.h"
+
 
 static int init_done = 0;
 static int init_status = 0;
@@ -38,7 +42,7 @@ static inline const struct pins_papi_units_s* find_unit_by_name(char* name)
 {
     int i, j;
 
-    for( i = 0; i < (sizeof(pins_papi_accepted_units) / sizeof(struct pins_papi_units_s)); j = 0, i++ ) {
+    for( i = 0; i < (int)(sizeof(pins_papi_accepted_units) / sizeof(struct pins_papi_units_s)); j = 0, i++ ) {
         for( j = 0; NULL != pins_papi_accepted_units[i].unit_name[j]; j++ ) {
             if( 0 == strncmp(name, pins_papi_accepted_units[i].unit_name[j],
                              strlen(pins_papi_accepted_units[i].unit_name[j])) ) {

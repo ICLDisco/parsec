@@ -19,3 +19,10 @@ IF( NOT CMAKE_CROSSCOMPILING )
     )
 ENDIF( NOT CMAKE_CROSSCOMPILING )
 
+#
+# If building the argobots steering server
+#
+if (LIBARGOBOTS_FOUND AND BUILD_ARGO_DEMO2)
+  set (SERVER_SRCS steering_server/demo_server.c)
+  add_executable (demo_server ${SERVER_SRCS})
+endif (LIBARGOBOTS_FOUND AND BUILD_ARGO_DEMO2)

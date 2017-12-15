@@ -11,7 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <pthread.h>
+#include "parsec/thread/thread.h"
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
@@ -110,6 +110,8 @@ static void parsec_mpi_exit(int status) {
 }
 #endif
 
+extern parsec_thread_t dep_thread;
+
 /*
  * Taskpool based task definition (no specialized constructor and destructor) */
 OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
@@ -168,13 +170,40 @@ typedef struct __parsec_temporary_thread_initialization_t {
                                        *   local VP data construction. */
 } __parsec_temporary_thread_initialization_t;
 
+typedef struct {
+    __parsec_temporary_thread_initialization_t * startup;
+    int               nb_total_comp_threads;
+} thread_args;
+
 static int parsec_parse_binding_parameter(const char* option, parsec_context_t* context,
                                          __parsec_temporary_thread_initialization_t* startup);
 static int parsec_parse_comm_binding_parameter(const char* option, parsec_context_t* context);
 
-static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* startup )
+/* Release the temporary array used for starting up the threads */
+void release_barriers_array(void* arguments)
 {
-    parsec_execution_stream_t* es;
+    int t;
+    thread_args *args = (thread_args*) arguments;
+    __parsec_temporary_thread_initialization_t * startup = args->startup;;
+    int nb_total_comp_threads = args->nb_total_comp_threads;
+    parsec_barrier_t* barrier = startup[0].barrier;
+    parsec_barrier_destroy(barrier);
+    free(barrier);
+    for(t = 0; t < nb_total_comp_threads; t++) {
+        if(barrier != startup[t].barrier) {
+            barrier = startup[t].barrier;
+            parsec_barrier_destroy(barrier);
+            free(barrier);
+        }
+    }
+    free(startup);
+}
+
+static void* __parsec_thread_init( void * arguments )
+{
+    __parsec_temporary_thread_initialization_t* startup =
+        (__parsec_temporary_thread_initialization_t*) arguments;
+    parsec_execution_unit_t* eu;
     int pi;
 
     /* don't use PARSEC_THREAD_IS_MASTER, it is too early and we cannot yet allocate the es struct */
@@ -339,6 +368,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char **env_variable, *env_name, *env_value;
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_warning = 0;
+
+    PARSEC_THREAD_LIBRARY_INIT(pargc, pargv);
 
     parsec_installdirs_open();
     parsec_mca_param_init();
@@ -659,14 +690,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                                                 0, NULL,
                                                 &queue_remove_begin, &queue_remove_end);
 #  endif /* PARSEC_PROF_TRACE_SCHEDULING_EVENTS */
-#if defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET)
+#  if defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET)
         parsec_profiling_add_dictionary_keyword( "ARENA_MEMORY", "fill:#B9B243",
                                                 sizeof(size_t), "size{int64_t}",
                                                 &arena_memory_alloc_key, &arena_memory_free_key);
         parsec_profiling_add_dictionary_keyword( "ARENA_ACTIVE_SET", "fill:#B9B243",
                                                 sizeof(size_t), "size{int64_t}",
                                                 &arena_memory_used_key, &arena_memory_unused_key);
-#endif  /* defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET) */
+#  endif  /* defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET) */
         parsec_profiling_add_dictionary_keyword( "TASK_MEMORY", "fill:#B9B243",
                                                 sizeof(size_t), "size{int64_t}",
                                                 &task_memory_alloc_key, &task_memory_free_key);
@@ -686,7 +717,20 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_parse_binding_parameter(binding_parameter, context, startup);
 
     /* Introduce communication engine */
-    (void)parsec_remote_dep_init(context);
+    /* PARSEC_THREAD_CREATE_JOIN( parsec_remote_dep_init, (void*)context ); */
+    parsec_remote_dep_init(context);
+    
+    // TODO: Move that section into the argobots interface
+    /* Monitoring thread & Demo thread */
+#if defined( ARGO_DEMO1 )
+    PARSEC_THREAD_STREAM_INIT( *context->monitoring_steering_threads, comm_sched_init );
+    PARSEC_THREAD_PUSH_LISTENER( context, *context->monitoring_steering_threads );
+    PARSEC_THREAD_PUSH_MONITORING( context, *context->monitoring_steering_threads );
+#endif
+#if defined( ARGO_DEMO2 )
+    // TODO: the special comm is the counterpart that listen to events
+    PARSEC_THREAD_PUSH_PUBLISHER( context, *context->monitoring_steering_threads );
+#endif /* DEMO_SC */
 
     /* Initialize Performance Instrumentation (PINS) */
     PINS_INIT(context);
@@ -730,34 +774,30 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     PARSEC_TLS_KEY_CREATE(parsec_tls_execution_stream);
     
-    if( nb_total_comp_threads > 1 ) {
-        pthread_attr_t thread_attr;
-
-        pthread_attr_init(&thread_attr);
-        pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
 #ifdef __linux
-        pthread_setconcurrency(nb_total_comp_threads);
+    if( nb_total_comp_threads > 1 ) {
+        PARSEC_THREAD_SET_CONCURRENCY( nb_total_comp_threads );
+    }
 #endif  /* __linux */
 
-        context->pthreads = (pthread_t*)malloc(nb_total_comp_threads * sizeof(pthread_t));
+    PARSEC_THREAD_CONTEXT_MALLOC2( context, nb_total_comp_threads );
 
-        /* The first execution unit is for the master thread */
-        for( t = 1; t < nb_total_comp_threads; t++ ) {
-            pthread_create( &((context)->pthreads[t]),
-                            &thread_attr,
-                            (void* (*)(void*))__parsec_thread_init,
-                            (void*)&(startup[t]));
-        }
-    } else {
-        context->pthreads = NULL;
+    extern void comm_sched_init(parsec_context_t*, parsec_thread_t*);
+    /* Initialize the streams for the ULT */
+    for( t = 0; t < nb_total_comp_threads; t++ ) {
+        /* Calling with rank 0 will just register existing objects */
+        PARSEC_THREAD_STREAM_INIT( context->parsec_threads[t], comm_sched_init );
     }
-
-    __parsec_thread_init( &startup[0] );
-
-    remote_dep_mpi_initialize_execution_stream(context);
+    /* The first execution unit is for the master thread */
+    for( t = 1; t < nb_total_comp_threads; t++ )
+        PARSEC_THREAD_PUSH_THREAD( context->parsec_threads[t], __parsec_thread_init, (void*)&startup[t]);
+    __parsec_thread_init(startup);
+    //PARSEC_THREAD_PUSH_THREAD_AND_WAIT( context->parsec_threads[0], __parsec_thread_init, (void*)&startup[0]);
+    
+    remote_dep_mpi_initialize_execution_unit(context);
 
     /* Wait until all threads are done binding themselves */
-    parsec_barrier_wait( &(context->barrier) );
+    parsec_barrier_wait(&context->barrier);
     context->__parsec_internal_finalization_counter++;
 
     /* Release the temporary array used for starting up the threads */
@@ -880,7 +920,7 @@ static void parsec_vp_fini( parsec_vp_t *vp )
 int parsec_fini( parsec_context_t** pcontext )
 {
     parsec_context_t* context = *pcontext;
-    int nb_total_comp_threads, p;
+    int nb_total_comp_threads, p, t;
 
     /* if dtd environment is set-up, we clean */
     if( __parsec_dtd_is_initialized ) {
@@ -919,13 +959,22 @@ int parsec_fini( parsec_context_t** pcontext )
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
     }
 
+#if defined(ARGO_DEMO2)
+    /*WAKEUP*/
+    extern void wake_up_everybody(parsec_context_t*);
+    wake_up_everybody(context);
+#endif
+
+    //TODO: This barrier is weirdly placed, I believe it could be the final deadlock
+    //parsec_barrier_wait( &(context->barrier) );
+
     /* The first execution unit is for the master thread */
     if( nb_total_comp_threads > 1 ) {
-        for(p = 1; p < nb_total_comp_threads; p++) {
-            pthread_join( context->pthreads[p], NULL );
+        for(t = 1; t < nb_total_comp_threads; t++) {
+            PARSEC_THREAD_THREAD_JOIN( context->parsec_threads[t], NULL );
+            PARSEC_THREAD_STREAM_JOIN( context->parsec_threads[t] );
         }
-        free(context->pthreads);
-        context->pthreads = NULL;
+        PARSEC_THREAD_DELETE( context, nb_total_comp_threads );
     }
     /* From now on all the thrteads have been shut-off, and they are supposed to
      * have cleaned all their provate memory. Unleash the global cleaning process.
@@ -1013,6 +1062,9 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_class_finalize();
     parsec_debug_fini();  /* Always last */
+
+    PARSEC_THREAD_LIBRARY_FINI();
+
     return 0;
 }
 

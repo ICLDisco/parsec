@@ -12,8 +12,8 @@
 #include <hwloc.h>
 #endif
 
-#include <pthread.h>
 #include <stdint.h>
+#include "parsec/thread/thread.h"
 #include "parsec/hbbuffer.h"
 #include "parsec/mempool.h"
 #include "parsec/profiling.h"
@@ -38,7 +38,12 @@ struct parsec_execution_stream_s {
     int core_id;            /**< Core on which the thread is bound (hwloc in order numbering) */
     int socket_id;          /**< Socket on which the thread is bound (hwloc in order numerotation) */
 
-    pthread_t pthread_id;     /**< POSIX thread identifier. */
+	//TODO: Assess a best way and the real need to do it this way.
+#ifdef ARGOBOTS
+    int ABT_thread_id;      /**< ABT UL thread identifier. */
+#else
+    pthread_t pthread_id;
+#endif /*ARGOBOTS*/
 
 #if defined(PARSEC_PROF_TRACE)
     parsec_thread_profiling_t *es_profile;
@@ -121,12 +126,14 @@ struct parsec_context_s {
 
     size_t remote_dep_fw_mask_sizeof; /* Size of the remote dep fw mask */
 
-    pthread_t *pthreads; /**< all POSIX threads used for computation are stored here in order
-                          *   threads[0] is uninitialized, this is the user's thread
-                          *   threads[1] = thread for vp=0, th=1, if vp[0]->nbcores > 1
-                          *   threads[n] = thread(vp=1, th=0) if vp[0]->nb_cores = n
-                          *   etc...
-                          */
+    parsec_thread_t *monitoring_steering_threads;
+
+    parsec_thread_t *parsec_threads; /**< all the threads used for computation are stored here in order
+                                    *   threads[0] is user's calling thread
+                                    *   threads[1] = thread for vp=0, th=1 if vp[0]->nbcores > 1
+                                    *   threads[n] = thread(vp=1, th=0) if vp[0]->nbcores = n
+                                    *   etc...
+                                    */
 
     int32_t nb_vp; /**< number of virtual processes in this physical process */
 

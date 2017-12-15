@@ -181,7 +181,7 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     return parsec_task_snprintf(str, len, &task);
 }
 
-static pthread_t dep_thread_id;
+parsec_thread_t  dep_thread;
 parsec_dequeue_t dep_cmd_queue;
 parsec_list_t    dep_cmd_fifo;             /* ordered non threaded fifo */
 parsec_list_t    dep_activates_fifo;       /* ordered non threaded fifo */
@@ -197,8 +197,8 @@ static int parsec_mpi_same_pos_items_size;
 static void *remote_dep_dequeue_main(parsec_context_t* context);
 static int mpi_initialized = 0;
 #if defined(PARSEC_REMOTE_DEP_USE_THREADS)
-static pthread_mutex_t mpi_thread_mutex;
-static pthread_cond_t mpi_thread_condition;
+static parsec_thread_mutex_t mpi_thread_mutex;
+static parsec_thread_cond_t mpi_thread_condition;
 #endif
 
 static parsec_execution_stream_t parsec_comm_es = {
@@ -230,7 +230,6 @@ static parsec_execution_stream_t parsec_comm_es = {
 
 static int remote_dep_dequeue_init(parsec_context_t* context)
 {
-    pthread_attr_t thread_attr;
     int is_mpi_up = 0;
     int thread_level_support;
 
@@ -286,11 +285,8 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
     }
 
     /* Build the condition used to drive the MPI thread */
-    pthread_mutex_init( &mpi_thread_mutex, NULL );
-    pthread_cond_init( &mpi_thread_condition, NULL );
-
-    pthread_attr_init(&thread_attr);
-    pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
+    PARSEC_THREAD_MUTEX_CREATE(&mpi_thread_mutex, NULL);
+    PARSEC_THREAD_COND_CREATE(&mpi_thread_condition, NULL);
 
    /**
     * We need to synchronize with the newly spawned thread. We will use the
@@ -299,16 +295,22 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
     * then call condition signal. This insure proper synchronization. Similar
     * mechanism will be used to turn on and off the MPI thread.
     */
-    pthread_mutex_lock(&mpi_thread_mutex);
+    int nb_cores;
+    PARSEC_THREAD_GET_NUMBER( context, &nb_cores );
+    dep_thread.rank = nb_cores+1;
+    PARSEC_THREAD_STREAM_INIT( dep_thread, comm_sched_init );
 
-    pthread_create(&dep_thread_id,
-                   &thread_attr,
-                   (void* (*)(void*))remote_dep_dequeue_main,
-                   (void*)context);
+    PARSEC_THREAD_MUTEX_LOCK( &mpi_thread_mutex );
+
+    /*Communication thread is always in stream 0. Question is, is he alone in stream 0?*/
+    PARSEC_THREAD_PUSH_THREAD( dep_thread,
+                         (void (*)(void*))remote_dep_dequeue_main,
+                         (void*)context );
 
     /* Wait until the MPI thread signals it's awakening */
-    pthread_cond_wait( &mpi_thread_condition, &mpi_thread_mutex );
-  up_and_running:
+    PARSEC_THREAD_COND_WAIT( &mpi_thread_condition, &mpi_thread_mutex );
+
+ up_and_running:
     mpi_initialized = 1;  /* up and running */
 
     return context->nb_nodes;
@@ -337,10 +339,12 @@ static int remote_dep_dequeue_fini(parsec_context_t* context)
         parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
 
         /* I am supposed to own the lock. Wake the MPI thread */
-        pthread_cond_signal(&mpi_thread_condition);
-        pthread_mutex_unlock(&mpi_thread_mutex);
-        pthread_join(dep_thread_id, &ret);
+        PARSEC_THREAD_COND_SIGNAL( &mpi_thread_condition );
+        PARSEC_THREAD_MUTEX_UNLOCK( &mpi_thread_mutex );
+        PARSEC_THREAD_THREAD_JOIN( dep_thread, &ret );
+#if !defined(ARGOBOTS)
         assert((parsec_context_t*)ret == context);
+#endif
     }
     else if ( parsec_communication_engine_up == 1 ) {
         remote_dep_mpi_fini(context);
@@ -368,12 +372,13 @@ static int remote_dep_dequeue_on(parsec_context_t* context)
      * local data copies, which requires MPI.
      */
     if( 0 >= parsec_communication_engine_up ) return -1;
+    assert( 2 != parsec_communication_engine_up );
     if( context->nb_nodes == 1 ) return 1;
 
     /* At this point I am supposed to own the mutex */
     parsec_communication_engine_up = 2;
-    pthread_cond_signal(&mpi_thread_condition);
-    pthread_mutex_unlock(&mpi_thread_mutex);
+    PARSEC_THREAD_COND_SIGNAL(&mpi_thread_condition);
+    PARSEC_THREAD_MUTEX_UNLOCK(&mpi_thread_mutex);
     (void)context;
     return 1;
 }
@@ -387,10 +392,10 @@ static int remote_dep_dequeue_off(parsec_context_t* context)
     item->action = DEP_CTL;
     item->cmd.ctl.enable = 0;  /* turn OFF the MPI thread */
     item->priority = 0;
-    while( 3 != parsec_communication_engine_up ) sched_yield();
+    while( 3 != parsec_communication_engine_up ) PARSEC_THREAD_YIELD();
     parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
 
-    pthread_mutex_lock(&mpi_thread_mutex);
+    PARSEC_THREAD_MUTEX_LOCK(&mpi_thread_mutex);
     (void)context;  /* silence warning */
     return 0;
 }
@@ -405,15 +410,15 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
 
     remote_dep_mpi_init(context);
     /* Now synchronize with the main thread */
-    pthread_mutex_lock(&mpi_thread_mutex);
-    pthread_cond_signal(&mpi_thread_condition);
+    PARSEC_THREAD_MUTEX_LOCK(&mpi_thread_mutex);
+    PARSEC_THREAD_COND_SIGNAL(&mpi_thread_condition);
 
     /* This is the main loop. Wait until being woken up by the main thread, do
      * the MPI stuff until we get the OFF or FINI commands. Then react the them.
      */
     do {
         /* Now let's block */
-        pthread_cond_wait(&mpi_thread_condition, &mpi_thread_mutex);
+	PARSEC_THREAD_COND_WAIT(&mpi_thread_condition, &mpi_thread_mutex);
         /* acknoledge the activation */
         parsec_communication_engine_up = 3;
         /* The MPI thread is owning the lock */
@@ -786,7 +791,7 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
     if( cycles >= 0 )
         if( 0 == cycles--) return executed_tasks;  /* report how many events were progressed */
 
-    /* Move a number of tranfers from the shared dequeue into our ordered lifo. */
+    /* Move a number of transfers from the shared dequeue into our ordered lifo. */
     how_many = 0;
     while( NULL != (item = (dep_cmd_item_t*) parsec_dequeue_try_pop_front(&dep_cmd_queue)) ) {
         if( DEP_CTL == item->action ) {
@@ -843,14 +848,17 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
             ret = remote_dep_mpi_progress(es);
         } while(ret);
 
-        if( !ret 
+        PARSEC_THREAD_YIELD();
+
+        if( !ret
          && ((comm_yield == 2)
           || (comm_yield == 1
            && !parsec_list_nolock_is_empty(&dep_activates_fifo)
            && !parsec_list_nolock_is_empty(&dep_put_fifo))) ) {
             struct timespec ts;
+            (void) ts;
             ts.tv_sec = 0; ts.tv_nsec = comm_yield_ns;
-            nanosleep(&ts, NULL);
+            PARSEC_THREAD_PAUSE(ts);
         }
         goto check_pending_queues;
     }
@@ -861,6 +869,7 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
     switch(item->action) {
     case DEP_CTL:
         ret = item->cmd.ctl.enable;
+        assert(0 ==ret || -1 == ret);
         OBJ_DESTRUCT(&temp_list);
         free(item);
         return ret;  /* FINI or OFF */

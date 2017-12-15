@@ -72,6 +72,24 @@ set(SOURCES
   ${MCA_EXTRA_SOURCES}
 )
 
+if (LIBARGOBOTS_FOUND)
+  set (SOURCES ${SOURCES} thread/argobots/comm_scheduler.c)
+
+  # Argobots demonstrations codes are not necessarily exclusive
+  option(BUILD_ARGO_DEMO1 "Build the demonstration using the backbone" OFF)
+  if (BUILD_ARGO_DEMO1)
+    set (SOURCES ${SOURCES} thread/argobots/publisher_ult.c)
+    add_definitions (-DARGO_DEMO1)
+  endif (BUILD_ARGO_DEMO1)
+
+  option(BUILD_ARGO_DEMO2 "Build the demonstration handling the communicating threads" OFF)
+  if (BUILD_ARGO_DEMO2)
+    # both features should be available in pthread implementation
+    set (SOURCES ${SOURCES} thread/argobots/listener_ult.c thread/argobots/monitoring_ult.c)
+    add_definitions (-DARGO_DEMO2)
+  endif (BUILD_ARGO_DEMO2)
+endif (LIBARGOBOTS_FOUND)
+
 if( NOT MPI_C_FOUND )
   list(APPEND SOURCES datatype/datatype.c)
 else( NOT MPI_C_FOUND )
@@ -92,6 +110,7 @@ endif( PARSEC_PROF_GRAPHER )
 #
 if( BUILD_PARSEC )
   add_library(parsec-base ${BASE_SOURCES})
+  target_link_libraries(parsec-base ${EXTRA_LIBS})
   set_target_properties(parsec-base PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
   set_target_properties(parsec-base PROPERTIES POSITION_INDEPENDENT_CODE ON)
   #  if (MPI_C_FOUND)

@@ -5,39 +5,43 @@
  * Copyright (c) 2004-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
+ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  */
 
 #include "parsec/parsec_config.h"
 
+#include "parsec/execution_unit.h"
 #include "parsec/constants.h"
 #include "parsec/utils/keyval_parse.h"
 #include "parsec/utils/keyval_lex.h"
 #include "parsec/utils/output.h"
+#include "parsec/thread/thread.h"
 #ifdef PARSEC_HAVE_STRING_H
 #include <string.h>
 #endif  /* PARSEC_HAVE_STRING_H */
-#include <pthread.h>
 
 static const char *keyval_filename;
 static parsec_keyval_parse_fn_t keyval_callback;
 static char *key_buffer = NULL;
 static size_t key_buffer_len = 0;
-static pthread_mutex_t keyval_mutex = PTHREAD_MUTEX_INITIALIZER;
+static parsec_thread_mutex_t keyval_mutex = PARSEC_THREAD_MUTEX_INITIALIZER;
 
 static int parse_line(void);
 static void parse_error(int num);
 
 int parsec_util_keyval_parse_init(void)
 {
+#if defined(ARGOBOTS)
+    PARSEC_THREAD_MUTEX_CREATE(&keyval_mutex, NULL);
+#endif
     return PARSEC_SUCCESS;
 }
 
@@ -46,6 +50,10 @@ int
 parsec_util_keyval_parse_finalize(void)
 {
     if (NULL != key_buffer) free(key_buffer);
+
+#if defined(ARGOBOTS)
+    PARSEC_THREAD_MUTEX_DESTROY(&keyval_mutex);
+#endif
 
     return PARSEC_SUCCESS;
 }
@@ -56,9 +64,9 @@ parsec_util_keyval_parse(const char *filename,
                         parsec_keyval_parse_fn_t callback)
 {
     int val;
-    int ret = PARSEC_SUCCESS;;
+    int ret = PARSEC_SUCCESS;
 
-    pthread_mutex_lock(&keyval_mutex);
+    PARSEC_THREAD_MUTEX_LOCK(&keyval_mutex);
 
     keyval_filename = filename;
     keyval_callback = callback;
@@ -98,7 +106,7 @@ parsec_util_keyval_parse(const char *filename,
     parsec_util_keyval_yylex_destroy ();
 
 cleanup:
-    pthread_mutex_unlock(&keyval_mutex);
+    PARSEC_THREAD_MUTEX_UNLOCK(&keyval_mutex);
     return ret;
 }
 
