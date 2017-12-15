@@ -48,7 +48,7 @@
 #include "parsec/mca/pins/pins.h"
 #include "parsec/data_dist/matrix/matrix.h"
 
-int __parsec_dtd_is_initialized        = 0;      /**< Indicates init of dtd environment */
+uint32_t __parsec_dtd_is_initialized   = 0;      /**< Indicates init of dtd environment */
 int parsec_dtd_window_size             = 4000;   /**< Default window size */
 int parsec_dtd_threshold_size          = 2000;   /**< Default threshold size of tasks for master thread to wait on */
 static int parsec_dtd_task_hash_table_size = 104729; /**< Default task hash table size */
@@ -296,7 +296,10 @@ OBJ_CLASS_INSTANCE(parsec_dtd_taskpool_t, parsec_taskpool_t,
 
 /* **************************************************************************** */
 /**
- * Init function of Dynamic Task Discovery Interface.
+ * Init function of Dynamic Task Discovery Interface. This function should never
+ * be called directly, it will be automatically called upon creation of the
+ * first taskpool. The corresponding finalization function (parsec_dtd_fini)
+ * will then be called once all references to the DTD will dissapear.
  *
  * Here a global(per node/process) taskpool mempool for PaRSEC's DTD taskpool
  * is constructed. The mca_params passed to the runtime are also scanned
@@ -321,19 +324,19 @@ OBJ_CLASS_INSTANCE(parsec_dtd_taskpool_t, parsec_taskpool_t,
  *                                          engine.
  * @ingroup DTD_INTERFACE
  */
-void
-parsec_dtd_init(void)
+static void
+parsec_dtd_lazy_init(void)
 {
     parsec_dtd_taskpool_t  *tp;
 
     /* Registering mca param for printing out traversal info */
     (void)parsec_mca_param_reg_int_name("dtd", "traversal_info",
-                                       "Show graph traversal info",
+                                       "Show graph traversal info when value >= than debug verbose",
                                        false, false, 0, &parsec_dtd_dump_traversal_info);
 
     /* Registering mca param for printing out function_structure info */
     (void)parsec_mca_param_reg_int_name("dtd", "function_info",
-                                       "Show master structure info",
+                                       "Show master structure info when value >= than debug verbose",
                                        false, false, 0, &parsec_dtd_dump_function_info);
 
     /* Registering mca param for tile hash table size */
@@ -466,6 +469,10 @@ parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
     PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_END, NULL);
 }
 
+extern int __parsec_task_progress( parsec_execution_stream_t* es,
+                                   parsec_task_t* task,
+                                   int distance);
+
 /* **************************************************************************** */
 /**
  * Master thread calls this to join worker threads in executing tasks.
@@ -519,85 +526,16 @@ parsec_execute_and_come_back( parsec_context_t *context,
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
             nanosleep(&rqtp, NULL);
         }
+        misses_in_a_row++;  /* assume we fail to extract a task */
 
         task = current_scheduler->module.select(es, &distance);
 
         if( task != NULL ) {
-            PINS(es, SELECT_END, task);
-            misses_in_a_row = 0;
+            misses_in_a_row = 0;  /* reset the misses counter */
 
-#if defined(PARSEC_SCHED_REPORT_STATISTICS)
-            {
-                uint32_t my_idx = parsec_atomic_inc_32b(&sched_priority_trace_counter);
-                if(my_idx < PARSEC_SCHED_MAX_PRIORITY_TRACE_COUNTER ) {
-                    sched_priority_trace[my_idx].step = es->sched_nb_tasks_done++;
-                    sched_priority_trace[my_idx].thread_id = es->th_id;
-                    sched_priority_trace[my_idx].vp_id     = es->virtual_process->vp_id;
-                    sched_priority_trace[my_idx].priority  = task->priority;
-                }
-            }
-#endif
-
-            rc = PARSEC_HOOK_RETURN_DONE;
-            if(task->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
-                PINS(es, PREPARE_INPUT_BEGIN, task);
-                rc = task->task_class->prepare_input(es, task);
-                PINS(es, PREPARE_INPUT_END, task);
-            }
-            switch(rc) {
-            case PARSEC_HOOK_RETURN_DONE: {
-                if(task->status <= PARSEC_TASK_STATUS_HOOK) {
-                    rc = __parsec_execute( es, task );
-                }
-                /* We're good to go ... */
-                switch(rc) {
-                case PARSEC_HOOK_RETURN_DONE:    /* This execution succeeded */
-                    task->status = PARSEC_TASK_STATUS_COMPLETE;
-                    __parsec_complete_execution( es, task );
-                    break;
-                case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
-                    task->status = PARSEC_TASK_STATUS_HOOK;
-                    if(0 == task->priority) {
-                        SET_LOWEST_PRIORITY(task, parsec_execution_context_priority_comparator);
-                    } else
-                        task->priority /= 10;  /* demote the task */
-                    PARSEC_LIST_ITEM_SINGLETON(task);
-                    __parsec_schedule(es, task, distance + 1);
-                    task = NULL;
-                    break;
-                case PARSEC_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
-                                                 * even try to change it's state, the completion
-                                                 * will be triggered asynchronously. */
-                    break;
-                case PARSEC_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
-                case PARSEC_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
-                case PARSEC_HOOK_RETURN_ERROR:   /* Some other major error happened */
-                    assert( 0 ); /* Internal error: invalid return value */
-                }
-                nbiterations++;
-                break;
-            }
-            case PARSEC_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
-                                             * even try to change it's state, the completion
-                                             * will be triggered asynchronously. */
-                break;
-            case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
-                if(0 == task->priority) {
-                    SET_LOWEST_PRIORITY(task, parsec_execution_context_priority_comparator);
-                } else
-                    task->priority /= 10;  /* demote the task */
-                PARSEC_LIST_ITEM_SINGLETON(task);
-                __parsec_schedule(es, task, distance + 1);
-                task = NULL;
-                break;
-            default:
-                assert( 0 ); /* Internal error: invalid return value for data_lookup function */
-            }
-
-            // subsequent select begins
-            PINS(es, SELECT_BEGIN, NULL);
-        } else {
-            misses_in_a_row++;
+            rc = __parsec_task_progress(es, task, distance);
+            (void)rc;
+            nbiterations++;
         }
     }
 }
@@ -1280,13 +1218,8 @@ parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
 parsec_taskpool_t*
 parsec_dtd_taskpool_new(void)
 {
-    if( !__parsec_dtd_is_initialized ) {
-        parsec_dtd_init();
-        __parsec_dtd_is_initialized = 1;
-    }
-
-    if (parsec_dtd_dump_traversal_info) {
-        parsec_output(parsec_debug_output, "\n\n------ New Taskpool -----\n\n\n");
+    if( 0 == parsec_atomic_inc_32b(&__parsec_dtd_is_initialized) ) {
+        parsec_dtd_lazy_init();
     }
 
     parsec_dtd_taskpool_t *__tp;
@@ -1296,6 +1229,9 @@ parsec_dtd_taskpool_new(void)
     assert( parsec_dtd_taskpool_mempool != NULL );
 #endif
     __tp = (parsec_dtd_taskpool_t *)parsec_thread_mempool_allocate(parsec_dtd_taskpool_mempool->thread_mempools);
+
+    PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+                         "\n\n------ New Taskpool (%p)-----\n\n\n", __tp);
 
     parsec_dtd_taskpool_retain((parsec_taskpool_t *)__tp);
 
@@ -1555,11 +1491,10 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
 #endif
         if(!not_ready) {
             assert(parsec_dtd_task_is_local(current_task));
-            if(parsec_dtd_dump_traversal_info) {
-                parsec_output(parsec_debug_output, "------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
-                              "%d\n-----\n", current_task->super.task_class->name, current_task->ht_item.key,
-                              current_task->super.task_class->nb_flows, current_task->flow_count);
-            }
+            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+                                 "------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
+                                 "%d\n-----\n", current_task->super.task_class->name, current_task->ht_item.key,
+                                 current_task->super.task_class->nb_flows, current_task->flow_count);
 
             arg->ready_lists[dst_vpid] = (parsec_task_t*)
                 parsec_list_item_ring_push_sorted( (parsec_list_item_t*)arg->ready_lists[dst_vpid],
@@ -1758,19 +1693,18 @@ complete_hook_of_dtd( parsec_execution_stream_t *es,
 {
     /* Assuming we only call this function for local tasks */
     parsec_dtd_task_t *this_dtd_task = (parsec_dtd_task_t *) this_task;
-
     int action_mask = 0;
+#if defined(PARSEC_DEBUG_NOISIER)
+    static uint32_t atomic_internal_counter = 0;
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
-    if (parsec_dtd_dump_traversal_info) {
-        static int counter= 0;
-        (void)parsec_atomic_add_32b(&counter,1);
-        parsec_output(parsec_debug_output, "------------------------------------------------\n"
-                      "execution done of task: %s \t %" PRIu64 "\n"
-                      "task done %d rank --> %d\n",
-                      this_task->task_class->name,
-                      this_dtd_task->ht_item.key,
-                      counter, this_task->taskpool->context->my_rank);
-    }
+    PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+                         "------------------------------------------------\n"
+                         "execution done of task: %s \t %" PRIu64 "\n"
+                         "task done %u rank --> %d\n",
+                         this_task->task_class->name,
+                         this_dtd_task->ht_item.key,
+                         parsec_atomic_inc_32b(&atomic_internal_counter), this_task->taskpool->context->my_rank);
 
 #if defined(PARSEC_PROF_GRAPHER)
     parsec_prof_grapher_task(this_task, es->th_id, es->virtual_process->vp_id,
@@ -2020,9 +1954,8 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
         }
         if (!dep_exists) {
             dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
-            if (parsec_dtd_dump_function_info) {
-                parsec_output(parsec_debug_output, "%s -> LOCAL\n", parent_tc->name);
-            }
+            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_debug_output,
+                                 "%s -> LOCAL\n", parent_tc->name);
 
             desc_dep->cond          = NULL;
             desc_dep->ctl_gather_nb = NULL;
@@ -2068,9 +2001,8 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
         }
         if (!dep_exists) {
             dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
-            if (parsec_dtd_dump_function_info) {
-                parsec_output(parsec_debug_output, "LOCAL -> %s\n", desc_tc->name);
-            }
+            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_debug_output,
+                                 "LOCAL -> %s\n", desc_tc->name);
             desc_dep->cond          = NULL;
             desc_dep->ctl_gather_nb = NULL;
             desc_dep->task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID;
@@ -2137,8 +2069,8 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
         }
 
         int desc_in_index = desc_flow_index;
-        for (i=0; i<MAX_DEP_OUT_COUNT; i++) {
-            if (NULL != tmp_flow->dep_out[i]) {
+        for( i = 0; i < MAX_DEP_OUT_COUNT; i++) {
+            if( NULL != tmp_flow->dep_out[i] ) {
                 if( tmp_flow->dep_out[i]->task_class_id == desc_tc->task_class_id &&
                     tmp_flow->dep_out[i]->flow == desc_tc->in[desc_in_index] ) {
                     dep_exists = 1;
@@ -2151,9 +2083,8 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
             dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
             dep_t *parent_dep = (dep_t *) malloc(sizeof(dep_t));
 
-            if (parsec_dtd_dump_function_info) {
-                parsec_output(parsec_debug_output, "%s -> %s\n", parent_tc->name, desc_tc->name);
-            }
+            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_debug_output,
+                                 "%s -> %s\n", parent_tc->name, desc_tc->name);
 
             /* setting out-dependency for parent */
             parent_dep->cond            = NULL;
@@ -2165,8 +2096,8 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
             parent_dep->direct_data     = NULL;
             parent_dep->dep_datatype_index = parent_tc->out[out_index]->flow_index;
 
-            for(i=0; i<MAX_DEP_OUT_COUNT; i++) {
-                if(NULL == parent_tc->out[out_index]->dep_out[i]) {
+            for( i = 0; i < MAX_DEP_OUT_COUNT; i++ ) {
+                if( NULL == parent_tc->out[out_index]->dep_out[i] ) {
                     /* to bypass constness in function structure */
                     parsec_flow_t **parent_out = (parsec_flow_t **)&(parent_tc->out[out_index]);
                     (*parent_out)->dep_out[i] = (dep_t *)parent_dep;
@@ -2962,9 +2893,8 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
     if( parsec_dtd_task_is_local(this_task) ) {/* Task is local */
         (void)parsec_atomic_add_32b((int *)&(dtd_tp->super.nb_tasks), 1);
         dtd_tp->local_task_inserted++;
-        if(parsec_dtd_dump_traversal_info) {
-            parsec_output(parsec_debug_output, "Task generated -> %s %d rank %d\n", this_task->super.task_class->name, this_task->ht_item.key, this_task->rank);
-        }
+        PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+                             "Task generated -> %s %d rank %d\n", this_task->super.task_class->name, this_task->ht_item.key, this_task->rank);
     }
 
     /* Releasing every remote_task */
@@ -2985,11 +2915,10 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
     if( parsec_dtd_task_is_local(this_task) ) {
         /* Building list of initial ready task */
         if ( 0 == parsec_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
-            if(parsec_dtd_dump_traversal_info) {
-                parsec_output(parsec_debug_output, "------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
-                              "%d\n-----\n", this_task->super.task_class->name, this_task->ht_item.key,
-                              this_task->super.task_class->nb_flows, this_task->flow_count);
-            }
+            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+                                 "------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
+                                 "%d\n-----\n", this_task->super.task_class->name, this_task->ht_item.key,
+                                 this_task->super.task_class->nb_flows, this_task->flow_count);
 
             PARSEC_LIST_ITEM_SINGLETON(this_task);
             __parsec_schedule( dtd_tp->super.context->virtual_processes[vpid]->execution_streams[0],

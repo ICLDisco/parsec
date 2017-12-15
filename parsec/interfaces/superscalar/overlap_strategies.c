@@ -317,14 +317,12 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                     }
                 }
 
-                if(parsec_dtd_dump_traversal_info) {
-                    parsec_output(parsec_debug_output,
-                                  "------\nsuccessor of: %s \t %lld rank %d --> %s \t %lld rank: %d\nTotal flow: %d  flow_count:"
-                                  "%d\n----- for pred flow: %d and desc flow: %d\n", current_task->super.task_class->name,
-                                  current_task->ht_item.key, current_task->rank, current_desc->super.task_class->name,
-                                  current_desc->ht_item.key, current_desc->rank, current_desc->super.task_class->nb_flows,
-                                  current_desc->flow_count, current_dep, tmp_desc_flow_index);
-                }
+                PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+                                     "------\nsuccessor of: %s \t %lld rank %d --> %s \t %lld rank: %d\nTotal flow: %d  flow_count:"
+                                     "%d\n----- for pred flow: %d and desc flow: %d\n", current_task->super.task_class->name,
+                                     current_task->ht_item.key, current_task->rank, current_desc->super.task_class->name,
+                                     current_desc->ht_item.key, current_desc->rank, current_desc->super.task_class->nb_flows,
+                                     current_desc->flow_count, current_dep, tmp_desc_flow_index);
 
                 deps = parsec_dtd_find_and_return_dep( current_task, current_desc,
                                                        current_dep, tmp_desc_flow_index );

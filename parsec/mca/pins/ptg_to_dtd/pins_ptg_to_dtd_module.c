@@ -293,11 +293,6 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
         /* calculating the size of parameters for each task class*/
         long unsigned int size_of_params = 0;
 
-        if (parsec_dtd_dump_function_info) {
-            parsec_output(parsec_debug_output, "Function Created for task Class: %s\n Has %d parameters\n"
-                   "Total Size: %lu\n", name_of_kernel, count_of_params, size_of_params);
-        }
-
         tc = parsec_dtd_create_task_class( dtd_tp, fpointer, name_of_kernel, count_of_params,
                                            size_of_params, count_of_params );
 
