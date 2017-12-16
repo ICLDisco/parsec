@@ -26,9 +26,7 @@ BEGIN_C_DECLS
 typedef struct parsec_dtd_task_param_s  parsec_dtd_task_param_t;
 typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;
 
-extern int __parsec_dtd_is_initialized; /* flag to indicate whether dtd_init() is called or not */
-extern int parsec_dtd_dump_traversal_info; /* For printing traversal info */
-extern int parsec_dtd_dump_function_info; /* For printing function_structure info */
+extern uint32_t __parsec_dtd_is_initialized; /* flag to indicate whether dtd_init() is called or not */
 extern int hashtable_trace_keyin;
 extern int hashtable_trace_keyout;
 
@@ -411,13 +409,6 @@ parsec_dtd_tile_retain( parsec_dtd_tile_t *tile );
 
 void
 parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
-
-/* Initiate and Finish dtd environment
- * parsec_dtd_init() should be called right after parsec_init()
- * parsec_dtd_fini() right before parsec_fini()
- */
-void
-parsec_dtd_init();
 
 void
 parsec_dtd_fini();

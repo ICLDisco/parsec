@@ -430,6 +430,83 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
     return rc;
 }
 
+int __parsec_task_progress( parsec_execution_stream_t* es,
+                            parsec_task_t* task,
+                            int distance)
+{
+    int rc = PARSEC_HOOK_RETURN_DONE;
+
+    PINS(es, SELECT_END, task);
+
+#if defined(PARSEC_SCHED_REPORT_STATISTICS)
+    {
+        uint32_t my_idx = parsec_atomic_inc_32b(&sched_priority_trace_counter);
+        if(my_idx < PARSEC_SCHED_MAX_PRIORITY_TRACE_COUNTER ) {
+            sched_priority_trace[my_idx].step      = es->sched_nb_tasks_done++;
+            sched_priority_trace[my_idx].thread_id = es->th_id;
+            sched_priority_trace[my_idx].vp_id     = es->virtual_process->vp_id;
+            sched_priority_trace[my_idx].priority  = task->priority;
+        }
+    }
+#endif
+
+    if(task->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
+        PINS(es, PREPARE_INPUT_BEGIN, task);
+        rc = task->task_class->prepare_input(es, task);
+        PINS(es, PREPARE_INPUT_END, task);
+    }
+    switch(rc) {
+    case PARSEC_HOOK_RETURN_DONE: {
+        if(task->status <= PARSEC_TASK_STATUS_HOOK) {
+            rc = __parsec_execute( es, task );
+        }
+        /* We're good to go ... */
+        switch(rc) {
+        case PARSEC_HOOK_RETURN_DONE:    /* This execution succeeded */
+            task->status = PARSEC_TASK_STATUS_COMPLETE;
+            __parsec_complete_execution( es, task );
+            break;
+        case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
+            task->status = PARSEC_TASK_STATUS_HOOK;
+            if(0 == task->priority) {
+                SET_LOWEST_PRIORITY(task, parsec_execution_context_priority_comparator);
+            } else
+                task->priority /= 10;  /* demote the task */
+            PARSEC_LIST_ITEM_SINGLETON(task);
+            __parsec_schedule(es, task, distance + 1);
+            break;
+        case PARSEC_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
+                                          * even try to change it's state, the completion
+                                          * will be triggered asynchronously. */
+            break;
+        case PARSEC_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
+        case PARSEC_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
+        case PARSEC_HOOK_RETURN_ERROR:   /* Some other major error happened */
+            assert( 0 ); /* Internal error: invalid return value */
+        }
+        break;
+    }
+    case PARSEC_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
+                                      * even try to change it's state, the completion
+                                      * will be triggered asynchronously. */
+        break;
+    case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
+        if(0 == task->priority) {
+            SET_LOWEST_PRIORITY(task, parsec_execution_context_priority_comparator);
+        } else
+            task->priority /= 10;  /* demote the task */
+        PARSEC_LIST_ITEM_SINGLETON(task);
+        __parsec_schedule(es, task, distance + 1);
+        break;
+    default:
+        assert( 0 ); /* Internal error: invalid return value for data_lookup function */
+    }
+
+    // subsequent select begins
+    PINS(es, SELECT_BEGIN, NULL);
+    return rc;
+}
+
 int __parsec_context_wait( parsec_execution_stream_t* es )
 {
     uint64_t misses_in_a_row;
@@ -497,85 +574,16 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
             nanosleep(&rqtp, NULL);
         }
+        misses_in_a_row++;  /* assume we fail to extract a task */
 
         task = current_scheduler->module.select(es, &distance);
 
         if( task != NULL ) {
-            PINS(es, SELECT_END, task);
-            misses_in_a_row = 0;
+            misses_in_a_row = 0;  /* reset the misses counter */
 
-#if defined(PARSEC_SCHED_REPORT_STATISTICS)
-            {
-                uint32_t my_idx = parsec_atomic_inc_32b(&sched_priority_trace_counter);
-                if(my_idx < PARSEC_SCHED_MAX_PRIORITY_TRACE_COUNTER ) {
-                    sched_priority_trace[my_idx].step = es->sched_nb_tasks_done++;
-                    sched_priority_trace[my_idx].thread_id = es->th_id;
-                    sched_priority_trace[my_idx].vp_id     = es->virtual_process->vp_id;
-                    sched_priority_trace[my_idx].priority  = task->priority;
-                }
-            }
-#endif
+            rc = __parsec_task_progress(es, task, distance);
 
-            rc = PARSEC_HOOK_RETURN_DONE;
-            if(task->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
-                PINS(es, PREPARE_INPUT_BEGIN, task);
-                rc = task->task_class->prepare_input(es, task);
-                PINS(es, PREPARE_INPUT_END, task);
-            }
-            switch(rc) {
-            case PARSEC_HOOK_RETURN_DONE: {
-                if(task->status <= PARSEC_TASK_STATUS_HOOK) {
-                    rc = __parsec_execute( es, task );
-                }
-                /* We're good to go ... */
-                switch(rc) {
-                case PARSEC_HOOK_RETURN_DONE:    /* This execution succeeded */
-                    task->status = PARSEC_TASK_STATUS_COMPLETE;
-                    __parsec_complete_execution( es, task );
-                    break;
-                case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
-                    task->status = PARSEC_TASK_STATUS_HOOK;
-                    if(0 == task->priority) {
-                        SET_LOWEST_PRIORITY(task, parsec_execution_context_priority_comparator);
-                    } else
-                        task->priority /= 10;  /* demote the task */
-                    PARSEC_LIST_ITEM_SINGLETON(task);
-                    __parsec_schedule(es, task, distance + 1);
-                    task = NULL;
-                    break;
-                case PARSEC_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
-                                                 * even try to change it's state, the completion
-                                                 * will be triggered asynchronously. */
-                    break;
-                case PARSEC_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
-                case PARSEC_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
-                case PARSEC_HOOK_RETURN_ERROR:   /* Some other major error happened */
-                    assert( 0 ); /* Internal error: invalid return value */
-                }
-                nbiterations++;
-                break;
-            }
-            case PARSEC_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
-                                             * even try to change it's state, the completion
-                                             * will be triggered asynchronously. */
-                break;
-            case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
-                if(0 == task->priority) {
-                    SET_LOWEST_PRIORITY(task, parsec_execution_context_priority_comparator);
-                } else
-                    task->priority /= 10;  /* demote the task */
-                PARSEC_LIST_ITEM_SINGLETON(task);
-                __parsec_schedule(es, task, distance + 1);
-                task = NULL;
-                break;
-            default:
-                assert( 0 ); /* Internal error: invalid return value for data_lookup function */
-            }
-
-            // subsequent select begins
-            PINS(es, SELECT_BEGIN, NULL);
-        } else {
-            misses_in_a_row++;
+            nbiterations++;
         }
     }
 
