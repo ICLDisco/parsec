@@ -38,6 +38,7 @@
 #include "parsec/os-spec-timing.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/utils/mca_param.h"
+#include "parsec/sys/tls.h"
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
@@ -117,7 +118,7 @@ static int file_backend_extendable;
 
 static parsec_profiling_binary_file_header_t *profile_head = NULL;
 static char *bpf_filename = NULL;
-static pthread_key_t thread_specific_profiling_key;
+PARSEC_TLS_DECLARE(tls_profiling);
 
 static int parsec_profiling_show_profiling_performance = 0;
 static parsec_profiling_perf_t parsec_profiling_global_perf[PERF_MAX];
@@ -126,7 +127,7 @@ static parsec_profiling_perf_t parsec_profiling_global_perf[PERF_MAX];
         parsec_time_t start, end;                                       \
         parsec_profiling_perf_t *pa;                                    \
         parsec_thread_profiling_t* tp;                                  \
-        tp = pthread_getspecific(thread_specific_profiling_key);        \
+        tp = PARSEC_TLS_GET_SPECIFIC(tls_profiling);                    \
         if( NULL == tp )                                                \
             pa = &parsec_profiling_global_perf[perf_counter];           \
         else                                                            \
@@ -467,7 +468,7 @@ int parsec_profiling_init( void )
 
     if( __profile_initialized ) return -1;
 
-    pthread_key_create(&thread_specific_profiling_key, NULL);
+    PARSEC_TLS_KEY_CREATE(tls_profiling);
 
     OBJ_CONSTRUCT( &threads, parsec_list_t );
 
@@ -588,7 +589,7 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
         fprintf(stderr, "*** %s\n", parsec_profiling_strerror());
         return NULL;
     }
-    pthread_setspecific(thread_specific_profiling_key, res);
+    PARSEC_TLS_SET_SPECIFIC(tls_profiling, res);
 
     res->tls_storage = malloc(sizeof(tl_freelist_t));
     tl_freelist_t *t_fl = (tl_freelist_t*)res->tls_storage;

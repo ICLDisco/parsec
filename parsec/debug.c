@@ -10,6 +10,7 @@
 #include "parsec/sys/atomic.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/os-spec-timing.h"
+#include "parsec/sys/tls.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -240,7 +241,7 @@ typedef struct mark_double_buffer_s {
 /**
  * Thread Local Storage key / variable so each thread finds its own buffers
  */
-static pthread_key_t thread_specific_debug_key;
+PARSEC_TLS_DECLARE(tls_debug);
 
 /**
  * This global stores a linked list of all mark buffers (one per thread that
@@ -282,7 +283,7 @@ static void parsec_debug_history_init_thread(void)
         my_buffers->buffers[0].buffer = (unsigned char*)calloc(1, parsec_debug_max_history_length_per_thread);
         my_buffers->buffers[1].buffer = (unsigned char*)calloc(1, parsec_debug_max_history_length_per_thread);
         my_buffers->thread_id  = pthread_self();
-        pthread_setspecific(thread_specific_debug_key, my_buffers);
+        PARSEC_TLS_SET_SPECIFIC(tls_debug, my_buffers);
         /* Just need to chain this thread buffers to the global list for dumping and cleaning */
         do {
             my_buffers->next = (mark_double_buffer_t*)mark_buffers;
@@ -316,10 +317,10 @@ static inline mark_t *get_my_mark(int actual_size, int *actual_space)
     int bytes_left;
     uint32_t actual_slots;
 
-    my_double_buffers = (mark_double_buffer_t*)pthread_getspecific(thread_specific_debug_key);
+    my_double_buffers = (mark_double_buffer_t*)PARSEC_TLS_GET_SPECIFIC(tls_debug);
     if( NULL == my_double_buffers ) {
         parsec_debug_history_init_thread();
-        my_double_buffers = (mark_double_buffer_t*)pthread_getspecific(thread_specific_debug_key);
+        my_double_buffers = (mark_double_buffer_t*)PARSEC_TLS_GET_SPECIFIC(tls_debug);
         assert(NULL != my_double_buffers);
     }
     my_buffer = &my_double_buffers->buffers[writing_buffer];
@@ -539,8 +540,8 @@ void parsec_debug_history_purge(void) {
 void parsec_debug_history_init(void) {
     int default_history_length = parsec_debug_max_history_length_per_thread;
     int chosen_history_length;
-    
-    pthread_key_create(&thread_specific_debug_key, NULL);
+
+    PARSEC_TLS_KEY_CREATE(tls_debug);
 
     parsec_mca_param_reg_int_name("debug", "history_verbose",
                                   "Set the output level for debug history ring buffer; same values as debug_verbose",
