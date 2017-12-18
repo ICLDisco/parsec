@@ -42,6 +42,7 @@
 #include "parsec/utils/mca_param_cmd_line.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/interfaces/interface.h"
+#include "parsec/sys/tls.h"
 
 #include "parsec/mca/mca_repository.h"
 
@@ -100,11 +101,7 @@ static char *parsec_app_name = NULL;
 static int parsec_runtime_max_number_of_cores = -1;
 static int parsec_runtime_bind_main_thread = 1;
 
-#if defined(PARSEC_HAVE_THREAD_LOCAL)
-static _Thread_local parsec_execution_stream_t *parsec_tls_execution_stream = NULL;
-#elif defined(PARSEC_HAVE_PTHREAD_GETSPECIFIC)
-static pthread_key_t parsec_tls_execution_stream_key;
-#endif
+PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
 
 /*
  * Taskpool based task definition (no specialized constructor and destructor) */
@@ -190,11 +187,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
         return NULL;
     }
 
-#if defined(PARSEC_HAVE_THREAD_LOCAL)
-    parsec_tls_execution_stream = es;
-#elif defined(PARSEC_HAVE_PTHREAD_GETSPECIFIC)
-    pthread_setspecific(parsec_tls_execution_stream_key, es);
-#endif
+    PARSEC_TLS_SET_SPECIFIC(parsec_tls_execution_stream, es);
 
     es->th_id            = startup->th_id;
     es->virtual_process  = startup->virtual_process;
@@ -722,9 +715,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         return NULL;
     }
 
-#if !defined(PARSEC_HAVE_THREAD_LOCAL) && defined(PARSEC_HAVE_PTHREAD_GETSPECIFIC)
-    pthread_key_create(&parsec_tls_execution_stream_key, NULL);
-#endif
+    PARSEC_TLS_KEY_CREATE(parsec_tls_execution_stream);
     
     if( nb_total_comp_threads > 1 ) {
         pthread_attr_t thread_attr;
@@ -2434,11 +2425,5 @@ parsec_ptg_update_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks )
 
 parsec_execution_stream_t *parsec_my_execution_stream(void)
 {
-#if defined(PARSEC_HAVE_THREAD_LOCAL)
-    return parsec_tls_execution_stream;
-#elif defined(PARSEC_HAVE_PTHREAD_GETSPECIFIC)
-    return pthread_getspecific(parsec_tls_execution_stream_key);
-#else
-    return NULL;
-#endif
+    return (parsec_execution_stream_t*)PARSEC_TLS_GET_SPECIFIC(parsec_tls_execution_stream);
 }
