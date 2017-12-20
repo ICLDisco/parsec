@@ -1,7 +1,7 @@
 prefix=@CMAKE_INSTALL_PREFIX@
 exec_prefix=${prefix}/bin
-libdir=${prefix}/lib
-includedir=${prefix}/include
+libdir=${prefix}/dplasma/lib
+includedir=${prefix}/dplasma/include
 
 Name: DPLASMA
 Description: Distributed PLASMA over PaRSEC runtime
