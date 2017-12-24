@@ -6,13 +6,15 @@ ENDIF (CMAKE_VERSION VERSION_GREATER "3.1")
 #
 # A more compact representation of the DPLASMA tests. We ca compose any number
 # of tests, by providing the epilogue in ALL_TESTS and have the corresponding
-# OPTION_** defied to the extra options necessary to run that particular flavor
+# OPTION_** defined to the extra options necessary to run that particular flavor
 # of the test.
 #
 set(OPTIONS_PTG_to_DTD "--;--mca;mca_pins;ptg_to_dtd")
 set(DEFAULT_OPTIONS "-x;-v=5")
 #set(OPTIONS "")
 
+# The space in the ALL_TESTS list is there to provide room for an empty
+# element in the list.
 set(ALL_TESTS " ;_PTG_to_DTD")
 
 set(PTG2DTD "ptg2dtd")
