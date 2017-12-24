@@ -18,9 +18,8 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rc;
     int rank, world, cores;
-    int size, nb;
+    int size, nb, rc;
     parsec_data_collection_t *dcA;
     parsec_taskpool_t *branching;
 

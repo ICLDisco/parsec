@@ -7,9 +7,6 @@
 /* parsec things */
 #include "parsec.h"
 #include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "common_timing.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
@@ -84,7 +81,7 @@ test_task_generator( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = 20;
+    int rank, world, cores = 20, rc;
 
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
@@ -112,13 +109,15 @@ int main(int argc, char ** argv)
     dtd_tp = parsec_dtd_taskpool_new(  );
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, dtd_tp );
-    parsec_context_start( parsec );
+    rc = parsec_enqueue( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start( parsec );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     if( rank == 0 ) {
         parsec_output( 0, "In all the tests we insert tasks "
-                         "that does varying amount of work. The operation is constant, we vary "
-                         "the number of times we do the operation\n\n" );
+                       "that does varying amount of work. The operation is constant, we vary "
+                       "the number of times we do the operation\n\n" );
     }
 
     int tmp_window_size, tmp_threshold_size;
@@ -129,11 +128,11 @@ int main(int argc, char ** argv)
     parsec_dtd_threshold_size = no_of_tasks;
 
 
-/****** Inserting tasks using main thread while others execute ******/
+    /****** Inserting tasks using main thread while others execute ******/
     if( rank == 0 ) {
         parsec_output( 0, "\nWe now insert %d tasks using the main thread while the others %d cores "
-                         "executes them simultaneously, main thread joins after all tasks are inserted "
-                         "\n\n", no_of_tasks, cores-1 );
+                       "executes them simultaneously, main thread joins after all tasks are inserted "
+                       "\n\n", no_of_tasks, cores-1 );
     }
 
     for( n = 0; n < 3; n++ ) {
@@ -143,26 +142,27 @@ int main(int argc, char ** argv)
 
         for( m = 0; m < no_of_tasks; m++ ) {
             parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
-                               sizeof(int),      &amount_of_work[n], VALUE,
-                               0 );
+                                             sizeof(int),      &amount_of_work[n], VALUE,
+                                             0 );
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
     }
-/****** END ******/
+    /****** END ******/
 
     count = 0;
     parsec_dtd_window_size    = tmp_window_size;
     parsec_dtd_threshold_size = tmp_threshold_size;
 
-/****** Inserting tasks using main thread while others execute ******/
+    /****** Inserting tasks using main thread while others execute ******/
     if( rank == 0 ) {
         parsec_output( 0, "\nWe now insert %d tasks using the main thread while the other %d cores "
-                         "executes them simultaneously, the main thread also joins the others to "
-                         "execute following a sliding window\n\n", no_of_tasks, cores-1 );
+                       "executes them simultaneously, the main thread also joins the others to "
+                       "execute following a sliding window\n\n", no_of_tasks, cores-1 );
     }
 
     for( n = 0; n < 3; n++ ) {
@@ -172,22 +172,22 @@ int main(int argc, char ** argv)
 
         for( m = 0; m < no_of_tasks; m++ ) {
             parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
-                               sizeof(int),      &amount_of_work[n], VALUE,
-                               0 );
+                                             sizeof(int),      &amount_of_work[n], VALUE,
+                                             0 );
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_taskpool_wait( parsec, dtd_tp );
-
+        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
     }
-/****** END ******/
+    /****** END ******/
 
 
-/****** All threads insert and all threads execute ******/
+    /****** All threads insert and all threads execute ******/
     if( rank == 0 ) {
         parsec_output( 0, "\nWe now insert %d tasks using all threads and is also executed "
-                         "by the all of them\n\n", no_of_tasks, cores-1 );
+                       "by the all of them\n\n", no_of_tasks, cores-1 );
     }
 
     for( n = 0; n < 3; n++ ) {
@@ -197,22 +197,24 @@ int main(int argc, char ** argv)
 
         int step = parsec_dtd_window_size, iteration = 0;
         parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task",
-                           sizeof(int),      &amount_of_work[n],     VALUE,
-                           sizeof(int),      &no_of_tasks,           VALUE,
-                           sizeof(int),      &step,                  VALUE,
-                           sizeof(int),      &iteration,             VALUE,
-                           0 );
+                                         sizeof(int),      &amount_of_work[n],     VALUE,
+                                         sizeof(int),      &no_of_tasks,           VALUE,
+                                         sizeof(int),      &step,                  VALUE,
+                                         sizeof(int),      &iteration,             VALUE,
+                                         0 );
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
 
     }
-/****** END ******/
+    /****** END ******/
 
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free( dtd_tp );
 

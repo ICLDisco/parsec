@@ -19,9 +19,8 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rc;
     int rank, world, cores;
-    int nt, nb;
+    int nt, nb, rc;
     parsec_tiled_matrix_dc_t *dcA;
     parsec_taskpool_t *BT_reduction;
 

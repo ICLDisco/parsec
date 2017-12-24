@@ -7,9 +7,6 @@
 /* parsec things */
 #include "parsec.h"
 #include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "common_timing.h"
 #include "common_data.h"
@@ -87,9 +84,9 @@ test_task_generator( parsec_execution_stream_t *es,
 
     for( i = 0; i < 100; i++ ) {
         parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
-                            sizeof(int),       &amount,    VALUE,
-                            PASSED_BY_REF,     TILE_OF_KEY(B, rank),      INOUT | AFFINITY,
-                            0 );
+                                         sizeof(int),       &amount,    VALUE,
+                                         PASSED_BY_REF,     TILE_OF_KEY(B, rank),      INOUT | AFFINITY,
+                                         0 );
     }
 
     parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(B, rank));
@@ -110,7 +107,7 @@ test_task_generator( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = 8;
+    int rank, world, cores = 8, rc;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -134,8 +131,10 @@ int main(int argc, char ** argv)
     dtd_tp = parsec_dtd_taskpool_new();
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, dtd_tp );
-    parsec_context_start( parsec );
+    rc = parsec_enqueue( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start( parsec );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     nb = 1; /* size of each tile */
     nt = world; /* total tiles */
@@ -145,8 +144,8 @@ int main(int argc, char ** argv)
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
-                          nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          MPI_INT);
+                           nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                           MPI_INT);
 #endif
 
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
@@ -156,22 +155,24 @@ int main(int argc, char ** argv)
 
     for( m = 0; m < nt; m++ ) {
         parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_generator",
-                            sizeof(int),       &nb,                 VALUE,
-                            sizeof(int),       &nt,                 VALUE,
-                            PASSED_BY_REF,     TILE_OF_KEY(A, m),   INOUT | AFFINITY,
-                            0 );
+                                         sizeof(int),       &nb,                 VALUE,
+                                         sizeof(int),       &nt,                 VALUE,
+                                         PASSED_BY_REF,     TILE_OF_KEY(A, m),   INOUT | AFFINITY,
+                                         0 );
 
         parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, m));
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
     parsec_output( 0, "Successfully executed %d tasks in rank %d\n", count, parsec->my_rank );
 
     SYNC_TIME_PRINT(rank, ("\n") );
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);
     parsec_dtd_data_collection_fini( A );

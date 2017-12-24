@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
     int rank, world, cores;
-    int nt, nb;
+    int nt, nb, rc;
     parsec_tiled_matrix_dc_t *dcA;
     parsec_taskpool_t *msort;
 
@@ -48,10 +48,13 @@ int main(int argc, char *argv[])
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
     msort = merge_sort_new(dcA, nb, nt);
-    parsec_enqueue(parsec, msort);
 
-    parsec_context_start(parsec);
-    parsec_context_wait(parsec);
+    rc = parsec_enqueue(parsec, msort);
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free((parsec_taskpool_t*)msort);
     free_data(dcA);

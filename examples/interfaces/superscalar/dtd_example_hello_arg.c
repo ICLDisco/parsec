@@ -21,9 +21,6 @@
 /* parsec headers */
 #include "parsec.h"
 #include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 

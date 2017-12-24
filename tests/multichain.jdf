@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
     two_dim_block_cyclic_t descA, descB;
     parsec_arena_t arena;
     parsec_context_t *parsec;
-    int ni = NN, nj = NN, loops = 5, i = 1;
+    int ni = NN, nj = NN, loops = 5, i = 1, rc;
     int rank = 0, size = 1, mat_size;
     long time_elapsed;
 
@@ -159,15 +159,22 @@ int main(int argc, char* argv[])
         printf("\n\n\n%d iterations remaining\n\n\n", loops);
         tp = parsec_multichain_new( &descA, &descB, ni, nj );
         assert( NULL != tp );
-        TIMER_START(time_elapsed);
         tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
-        parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+
+        rc = parsec_context_start(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+        
+        TIMER_START(time_elapsed);
+        rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
         TIMER_STOP(time_elapsed);
         printf("DAG construction in %ld micro-sec\n", time_elapsed);
 
         TIMER_START(time_elapsed);
-        parsec_context_wait(parsec);
+        rc = parsec_context_wait(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
         TIMER_STOP(time_elapsed);
+
         printf("DAG execution in %ld micro-sec\n", time_elapsed);
         if( verbose >= 5 ) {
             printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
@@ -184,18 +191,24 @@ int main(int argc, char* argv[])
         tp = parsec_multichain_new( &descA, &descB, ni, nj );
         assert( NULL != tp );
 
-        TIMER_START(time_elapsed);
         tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
-        parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+
+        TIMER_START(time_elapsed);
+        rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
         TIMER_STOP(time_elapsed);
 
-        parsec_context_start(parsec);
+        rc = parsec_context_start(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
         sleep(5);
         printf("Main thread going for the wait (remaining tasks %d)\n", tp->super.nb_tasks);
         /* By now most of the tasks should be completed */
         TIMER_START(time_elapsed);
-        parsec_context_wait(parsec);
+        rc = parsec_context_wait(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
         TIMER_STOP(time_elapsed);
+
         printf("DAG execution in %ld micro-sec\n", time_elapsed);
     }
     free(descA.mat);

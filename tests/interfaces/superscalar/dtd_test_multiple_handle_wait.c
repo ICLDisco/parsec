@@ -7,9 +7,6 @@
 /* parsec things */
 #include "parsec.h"
 #include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "common_data.h"
 #include "common_timing.h"
@@ -38,7 +35,7 @@ task_to_check_generation(parsec_execution_stream_t *es, parsec_task_t *this_task
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores;
+    int rank, world, cores, rc;
     int parsec_argc;
     char** parsec_argv;
 
@@ -76,29 +73,32 @@ int main(int argc, char ** argv)
 
     if( 0 == rank ) {
         parsec_output( 0, "\nChecking task generation using dtd interface. "
-                      "We insert 10000 tasks and atomically increase a global counter to see if %d task executed\n\n", total_tasks );
+                       "We insert 10000 tasks and atomically increase a global counter to see if %d task executed\n\n", total_tasks );
     }
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, dtd_tp );
-
-    parsec_context_start(parsec);
+    rc = parsec_enqueue( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     for( i = 0; i < 6; i++ ) {
         SYNC_TIME_START();
         for( j = 0; j < total_tasks; j++ ) {
             /* This task does not have any data associated with it, so it will be inserted in all mpi processes */
             parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_generation,    0,  "sample_task",
-                                0 );
+                                             0 );
         }
 
-        parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
         SYNC_TIME_PRINT(rank, ("\n"));
     }
 
     parsec_taskpool_free( dtd_tp );
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_fini(&parsec);
 

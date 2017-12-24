@@ -7,9 +7,6 @@
 /* parsec things */
 #include "parsec.h"
 #include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "common_timing.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
@@ -41,7 +38,7 @@ call_to_kernel_type( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = 1;
+    int rank, world, cores = 1, rc;
 
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
@@ -67,24 +64,27 @@ int main(int argc, char ** argv)
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, dtd_tp );
-
-    parsec_context_start( parsec );
+    rc = parsec_enqueue( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start( parsec );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     SYNC_TIME_START();
 
     for( m = 0; m < no_of_tasks; m++ ) {
         parsec_dtd_taskpool_insert_task( dtd_tp, call_to_kernel_type,    0,  "Test_Task",
-                            PASSED_BY_REF,    NULL,                 INOUT,
-                            0 );
+                                         PASSED_BY_REF,    NULL,                 INOUT,
+                                         0 );
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
     SYNC_TIME_PRINT(rank, ("\n"));
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free( dtd_tp );
 

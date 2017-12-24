@@ -21,9 +21,8 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rc;
     int rank, world, cores;
-    int size, nb, i, j, c;
+    int size, nb, i, j, c, rc;
     parsec_data_collection_t *dcA;
     int *decision;
     parsec_taskpool_t *choice;

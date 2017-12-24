@@ -31,11 +31,10 @@ extern void dump_double_array(char* msg, double* mat, int i, int j, int nb, int 
 int main( int argc, char** argv )
 {
     parsec_context_t* parsec;
-    int rc;
     parsec_taskpool_t* tp;
     parsec_datatype_t tile_dtt, vdtt1, vdtt2, vdtt;
     parsec_dtt_bug_replicator_taskpool_t *dtt_tp;
-    int nodes, rank, i, j;
+    int nodes, rank, i, j, rc;
     (void)argc; (void)argv;
 
 #if defined(PARSEC_HAVE_MPI)

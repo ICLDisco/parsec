@@ -113,7 +113,7 @@ int main( int argc, char** argv )
     two_dim_block_cyclic_t descA;
     parsec_arena_t arena;
     parsec_context_t *parsec;
-    int ni = NN, nk = NN, verbose = 0, i = 1;
+    int ni = NN, nk = NN, verbose = 0, i = 1, rc;
     int rank = 0, size = 1, mat_size, cores = 1;
     long time_elapsed;
 
@@ -173,15 +173,22 @@ int main( int argc, char** argv )
     tp = parsec_complex_deps_new( &descA, ni, nk );
     assert( NULL != tp );
     tp->arenas[PARSEC_complex_deps_DEFAULT_ARENA] = &arena;
-    parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
-    parsec_context_wait(parsec);
+    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     /* No priority */
     tp = parsec_complex_deps_new( &descA, ni, nk );
     assert( NULL != tp );
     TIMER_START(time_elapsed);
     tp->arenas[PARSEC_complex_deps_DEFAULT_ARENA] = &arena;
-    parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
     TIMER_STOP(time_elapsed);
     printf("DAG construction in %ld micro-sec\n", time_elapsed);
     if( verbose >= 5 ) {
@@ -191,8 +198,12 @@ int main( int argc, char** argv )
                "</DartMeasurement>\n",
                (double)time_elapsed);
     }
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
     TIMER_START(time_elapsed);
-    parsec_context_wait(parsec);
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     TIMER_STOP(time_elapsed);
     printf("DAG execution in %ld micro-sec\n", time_elapsed);
 
