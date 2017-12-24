@@ -53,13 +53,22 @@ static int flow_gd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
 {
     parsec_vp_t *vp = es->virtual_process;
 
+    /**
+     * This function is called for each execution stream. However, as there is
+     * a single global dequeue per context, it will be associated with the
+     * first execution stream of the first virtual process. Every other
+     * execution stream will make reference to the same dequeue (once we
+     * succesfully synchronized all execution streams).
+     */
     if (es == vp->execution_streams[0])
         vp->execution_streams[0]->scheduler_object = OBJ_NEW(parsec_dequeue_t);
 
     parsec_barrier_wait(barrier);
 
-    es->scheduler_object = (void*)vp->execution_streams[0]->scheduler_object;
-
+    if (es != vp->execution_streams[0]) {
+        es->scheduler_object = (void*)vp->execution_streams[0]->scheduler_object;
+        OBJ_RETAIN(es->scheduler_object);
+    }
     return 0;
 }
 
@@ -91,18 +100,15 @@ static int sched_gd_schedule(parsec_execution_stream_t* es,
 
 static void sched_gd_remove( parsec_context_t *master )
 {
-    int p, t;
-    parsec_vp_t *vp;
     parsec_execution_stream_t *es;
+    parsec_vp_t *vp;
+    int p, t;
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
         for(t = 0; t < vp->nb_cores; t++) {
             es = vp->execution_streams[t];
-            if( es->th_id == 0 ) {
-                OBJ_DESTRUCT( es->scheduler_object );
-                free(es->scheduler_object);
-            }
+            OBJ_RELEASE( es->scheduler_object );
             es->scheduler_object = NULL;
         }
     }
