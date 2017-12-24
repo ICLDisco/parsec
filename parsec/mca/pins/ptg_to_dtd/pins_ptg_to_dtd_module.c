@@ -132,7 +132,11 @@ static int pins_taskpool_complete_callback(parsec_taskpool_t* ptg_tp, void* void
  */
 static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
 {
-    if(ptg_tp->destructor == (parsec_destruct_fn_t)parsec_dtd_taskpool_destruct) {
+    /* We only convert PTG taskpools */
+    if( PARSEC_TASKPOOL_TYPE_PTG != ptg_tp->taskpool_type )
+        return;
+
+    if( ptg_tp->destructor == (parsec_destruct_fn_t)parsec_dtd_taskpool_destruct ) {
         return;
     }
     if( __dtd_taskpool != NULL ) {
