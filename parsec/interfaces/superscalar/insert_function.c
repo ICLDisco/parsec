@@ -579,9 +579,9 @@ parsec_dtd_taskpool_wait_func( parsec_context_t *parsec,
 /**
  * This function unpacks the parameters of a task
  *
- * Unpacks all the parameters of a task, the variables(in which the
- * actual values will be copied) are passed from the body(function that does
- * what this_task is supposed to compute) of this task and the parameters of each
+ * Unpacks all parameters of a task, the variables (in which the actual
+ * values will be copied) are passed from the body (function that does what
+ * this_task is supposed to compute) of this task and the parameters of each
  * task is copied back on the passed variables
  *
  * @param[in]   this_task
@@ -596,10 +596,10 @@ parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
 {
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
     parsec_dtd_task_param_t *current_param = GET_HEAD_OF_PARAM_LIST(current_task);
-    int next_arg;
-    int i = 0;
+    int next_arg, i = 0;
     void **tmp;
     va_list arguments;
+    
     va_start(arguments, this_task);
     next_arg = va_arg(arguments, int);
 
@@ -607,11 +607,11 @@ parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
         tmp = va_arg(arguments, void**);
         if(UNPACK_VALUE == next_arg) {
             *tmp = current_param->pointer_to_tile;
-        }else if (UNPACK_DATA == next_arg) {
+        } else if (UNPACK_DATA == next_arg) {
             /* Let's return directly the usable pointer to the user */
             *tmp = PARSEC_DATA_COPY_GET_PTR(this_task->data[i].data_in);
             i++;
-        }else if (UNPACK_SCRATCH == next_arg) {
+        } else if (UNPACK_SCRATCH == next_arg) {
             *tmp = current_param->pointer_to_tile;
         }
         next_arg = va_arg(arguments, int);

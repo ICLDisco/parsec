@@ -4,7 +4,7 @@ IF (CMAKE_VERSION VERSION_GREATER "3.1")
 ENDIF (CMAKE_VERSION VERSION_GREATER "3.1")
 
 #
-# A more compact representation of the DPLASMA tests. We ca compose any number
+# A more compact representation of the DPLASMA tests. We can compose any number
 # of tests, by providing the epilogue in ALL_TESTS and have the corresponding
 # OPTION_** defined to the extra options necessary to run that particular flavor
 # of the test.

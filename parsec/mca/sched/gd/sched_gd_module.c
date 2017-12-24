@@ -53,7 +53,7 @@ static int flow_gd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
 {
     parsec_vp_t *vp = es->virtual_process;
 
-    /**
+    /*
      * This function is called for each execution stream. However, as there is
      * a single global dequeue per context, it will be associated with the
      * first execution stream of the first virtual process. Every other
