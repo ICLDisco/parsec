@@ -37,74 +37,77 @@ task_to_check_generation(parsec_execution_stream_t *es, parsec_task_t *this_task
 }
 
 int
-task_to_check_overhead(parsec_execution_stream_t *es, parsec_task_t *this_task)
+task_to_check_overhead_1(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es;
-    int *flows;
+    int flows;
     int *data;
 
-    parsec_dtd_unpack_args( this_task,
-                            UNPACK_VALUE,  &flows,
-                            0);
-    if( *flows == 1 ) {
-         parsec_dtd_unpack_args(this_task,
-                               UNPACK_VALUE,  &flows,
-                               UNPACK_DATA,   &data);
-    } else if( *flows == 2 ) {
-         parsec_dtd_unpack_args(this_task,
-                               UNPACK_VALUE,  &flows,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data);
-    } else if( *flows == 3 ) {
-         parsec_dtd_unpack_args(this_task,
-                               UNPACK_VALUE,  &flows,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data);
-    } else if( *flows == 5 ) {
-         parsec_dtd_unpack_args(this_task,
-                               UNPACK_VALUE,  &flows,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data);
-    } else if( *flows == 10 ) {
-         parsec_dtd_unpack_args(this_task,
-                               UNPACK_VALUE,  &flows,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data);
-    } else if( *flows == 15 ) {
-         parsec_dtd_unpack_args(this_task,
-                               UNPACK_VALUE,  &flows,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data);
-    } else {
-        parsec_dtd_unpack_args(this_task,
-                               UNPACK_VALUE,  &flows,
-                               UNPACK_DATA,   &data);
-    }
+    parsec_dtd_unpack_args(this_task, &flows, &data);
+
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+int
+task_to_check_overhead_2(parsec_execution_stream_t *es, parsec_task_t *this_task)
+{
+    (void)es;
+    int flows;
+    int *data;
+
+    parsec_dtd_unpack_args(this_task, &flows, &data, &data);
+
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+int
+task_to_check_overhead_3(parsec_execution_stream_t *es, parsec_task_t *this_task)
+{
+    (void)es;
+    int flows;
+    int *data;
+
+    parsec_dtd_unpack_args(this_task, &flows, &data, &data, &data);
+
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+int
+task_to_check_overhead_5(parsec_execution_stream_t *es, parsec_task_t *this_task)
+{
+    (void)es;
+    int flows;
+    int *data;
+
+    parsec_dtd_unpack_args(this_task, &flows, &data, &data, &data, &data,
+                           &data);
+
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+int
+task_to_check_overhead_10(parsec_execution_stream_t *es, parsec_task_t *this_task)
+{
+    (void)es;
+    int flows;
+    int *data;
+
+    parsec_dtd_unpack_args(this_task, &flows, &data, &data, &data, &data,
+                           &data, &data, &data, &data, &data, &data);
+
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+int
+task_to_check_overhead_15(parsec_execution_stream_t *es, parsec_task_t *this_task)
+{
+    (void)es;
+    int flows;
+    int *data;
+
+    parsec_dtd_unpack_args(this_task, &flows, &data, &data, &data, &data,
+                           &data, &data, &data, &data, &data, &data, &data,
+                           &data, &data, &data, &data);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -142,7 +145,7 @@ int main(int argc, char ** argv)
     parsec = parsec_init( cores, &argc, &argv );
 
     /****** Checking task generation ******/
-    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
     global_counter = 0; /* this counter should, at the end, be equal to total_tasks below */
     int i, j, total_tasks = 10000;
@@ -169,8 +172,8 @@ int main(int argc, char ** argv)
 
     for( i = 0; i < total_tasks; i++ ) {
         /* This task does not have any data associated with it, so it will be inserted in all mpi processes */
-        parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_generation,    0,  "sample_task",
-                                         0 );
+        parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_generation,    0,  "sample_task",
+                                        PARSEC_DTD_ARG_END);
     }
 
     rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
@@ -199,7 +202,7 @@ int main(int argc, char ** argv)
                        "and measure the time for different number flows for each task (using 1 thread).\n\n", total_tasks );
     }
 
-    for( i = 0; i < 6; i++ ) {
+    for( i = 0; i < 5; i++ ) {
         nb = 1; /* size of each tile */
         nt = total_flows[i]*total_tasks; /* total tiles */
         //nt = total_tasks; /* total tiles */
@@ -217,158 +220,79 @@ int main(int argc, char ** argv)
 
         SYNC_TIME_START();
 
-#if 0
-        if( 1 == total_flows[i] ) {
-            for( j = 0; j < total_tasks; j ++ ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 0 );
-            }
-        } else if( 2 == total_flows[i] ) {
-            for( j = 0; j < total_tasks; j ++ ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 0 );
-            }
-        } else if( 3 == total_flows[i] ) {
-            for( j = 0; j < total_tasks; j ++ ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 0 );
-            }
-        } else if( 5 == total_flows[i] ) {
-            for( j = 0; j < total_tasks; j ++ ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 0 );
-            }
-        } else if( 10 == total_flows[i] ) {
-            for( j = 0; j < total_tasks; j ++ ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 0 );
-            }
-        } else if( 15 == total_flows[i] ) {
-            for( j = 0; j < total_tasks; j ++ ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 0 );
-            }
-        }
-#endif
-
-        //if 0
         if( 1 == total_flows[i] ) {
             for( j = 0; j < total_flows[i] * total_tasks; j += total_flows[i] ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 0 );
-            }
+                parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_1,  0,  "task_for_timing_overhead",
+                                                sizeof(int),      &total_flows[i],      VALUE,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j),    INOUT,
+                                                PARSEC_DTD_ARG_END);
+                }
         } else if( 2 == total_flows[i] ) {
             for( j = 0; j < total_flows[i] * total_tasks; j += total_flows[i] ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+1), INOUT  ,
-                                                 0 );
+                parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_2,  0,  "task_for_timing_overhead",
+                                                sizeof(int),      &total_flows[i],      VALUE,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j),    INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+1),  INOUT,
+                                                PARSEC_DTD_ARG_END);
             }
         } else if( 3 == total_flows[i] ) {
             for( j = 0; j < total_flows[i] * total_tasks; j += total_flows[i] ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+1), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+2), INOUT  ,
-                                                 0 );
+                parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_3,  0,  "task_for_timing_overhead",
+                                                sizeof(int),      &total_flows[i],      VALUE,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j),    INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+1),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+2),  INOUT,
+                                                PARSEC_DTD_ARG_END);
             }
         } else if( 5 == total_flows[i] ) {
             for( j = 0; j < total_flows[i] * total_tasks; j += total_flows[i] ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+1), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+2), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+3), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+4), INOUT  ,
-                                                 0 );
+                parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_5,  0,  "task_for_timing_overhead",
+                                                sizeof(int),      &total_flows[i],      VALUE,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j),    INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+1),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+2),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+3),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+4),  INOUT,
+                                                PARSEC_DTD_ARG_END);
             }
         } else if( 10 == total_flows[i] ) {
             for( j = 0; j < total_flows[i] * total_tasks; j += total_flows[i] ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+1), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+2), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+3), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+4), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+5), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+6), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+7), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+8), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+9), INOUT  ,
-                                                 0 );
+                parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_10,  0,  "task_for_timing_overhead",
+                                                sizeof(int),      &total_flows[i],      VALUE,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j),    INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+1),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+2),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+3),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+4),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+5),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+6),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+7),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+8),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+9),  INOUT,
+                                                PARSEC_DTD_ARG_END);
             }
         } else if( 15 == total_flows[i] ) {
             for( j = 0; j < total_flows[i] * total_tasks; j += total_flows[i] ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_overhead,  0,  "task_for_timing_overhead",
-                                                 sizeof(int),      &total_flows[i],               VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+1), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+2), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+3), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+4), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+5), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+6), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+7), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+8), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+9), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+10), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+11), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+12), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+13), INOUT  ,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, j+14), INOUT  ,
-                                                 0 );
+                parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_15,  0,  "task_for_timing_overhead",
+                                                sizeof(int),      &total_flows[i],      VALUE,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j),    INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+1),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+2),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+3),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+4),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+5),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+6),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+7),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+8),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+9),  INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+10), INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+11), INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+12), INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+13), INOUT,
+                                                PASSED_BY_REF,    TILE_OF_KEY(A, j+14), INOUT,
+                                                PARSEC_DTD_ARG_END);
             }
         }
-
-        //#endif
         parsec_dtd_data_flush_all( dtd_tp, A );
 
         /* finishing all the tasks inserted, but not finishing the handle */
@@ -382,7 +306,7 @@ int main(int argc, char ** argv)
         free_data(dcA);
     }
 
-    /***** Start of timing overhead of task generation ******/
+    /***** End of timing overhead of task generation ******/
 
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");

@@ -52,9 +52,7 @@ task_rank_0( parsec_execution_stream_t  *es,
     (void)es;
     int *data;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data
-                          );
+    parsec_dtd_unpack_args(this_task, &data);
     *data *= 2;
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -68,10 +66,7 @@ task_rank_1( parsec_execution_stream_t  *es,
     int *data;
     int *second_data;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data,
-                          UNPACK_DATA,  &second_data
-                          );
+    parsec_dtd_unpack_args(this_task, &data, &second_data);
     *data += 1;
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -151,13 +146,13 @@ int main(int argc, char **argv)
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
-    parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_0,    0,  "task_rank_0",
-                                     PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
-                                     0 );
-    parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_1,    0,  "task_rank_1",
-                                     PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
-                                     PASSED_BY_REF,    TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
-                                     0 );
+    parsec_dtd_taskpool_insert_task(dtd_tp, task_rank_0,    0,  "task_rank_0",
+                                    PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
+                                    PARSEC_DTD_ARG_END);
+    parsec_dtd_taskpool_insert_task(dtd_tp, task_rank_1,    0,  "task_rank_1",
+                                    PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
+                                    PASSED_BY_REF,    TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
+                                    PARSEC_DTD_ARG_END);
 
     parsec_dtd_data_flush_all( dtd_tp, A );
 
@@ -226,15 +221,14 @@ int main(int argc, char **argv)
         SYNC_TIME_START();
 
         for( j = 0; j < repeat_pingpong; j++ ) {
-            parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_0,    0,  "task_for_timing_0",
-                                             PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
-                                             0 );
-            parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_1,    0,  "task_for_timing_1",
-                                             PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
-                                             PASSED_BY_REF,    TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
-                                             0 );
+            parsec_dtd_taskpool_insert_task(dtd_tp, task_rank_0,    0,  "task_for_timing_0",
+                                            PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
+                                            PARSEC_DTD_ARG_END);
+            parsec_dtd_taskpool_insert_task(dtd_tp, task_rank_1,    0,  "task_for_timing_1",
+                                            PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
+                                            PASSED_BY_REF,    TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
+                                            PARSEC_DTD_ARG_END);
         }
-
         parsec_dtd_data_flush_all( dtd_tp, A );
         /* finishing all the tasks inserted, but not finishing the handle */
         rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );

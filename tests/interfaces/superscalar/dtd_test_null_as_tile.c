@@ -72,9 +72,9 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
 
     for( m = 0; m < no_of_tasks; m++ ) {
-        parsec_dtd_taskpool_insert_task( dtd_tp, call_to_kernel_type,    0,  "Test_Task",
-                                         PASSED_BY_REF,    NULL,                 INOUT,
-                                         0 );
+        parsec_dtd_taskpool_insert_task(dtd_tp, call_to_kernel_type,    0,  "Test_Task",
+                                        PASSED_BY_REF,    NULL,                 INOUT,
+                                        PARSEC_DTD_ARG_END);
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */

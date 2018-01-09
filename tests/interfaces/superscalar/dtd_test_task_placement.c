@@ -29,17 +29,16 @@ task_task_placement(parsec_execution_stream_t *es,
                     parsec_task_t *this_task)
 {
     (void)es;
-    int *intended_rank;
+    int intended_rank;
 
-    parsec_dtd_unpack_args(this_task,
-                           UNPACK_VALUE,  &intended_rank);
+    parsec_dtd_unpack_args(this_task, &intended_rank);
 
-    if(this_task->taskpool->context->nb_nodes <= *intended_rank) {
+    if(this_task->taskpool->context->nb_nodes <= intended_rank) {
         assert(this_task->taskpool->context->my_rank == 0);
-        printf("Task placed in: %d and it is being executed in: %d\n", *intended_rank, this_task->taskpool->context->my_rank);
+        printf("Task placed in: %d and it is being executed in: %d\n", intended_rank, this_task->taskpool->context->my_rank);
     } else {
-        assert(this_task->taskpool->context->my_rank == *intended_rank);
-        printf("Task placed in: %d and it is being executed in: %d\n", *intended_rank, this_task->taskpool->context->my_rank);
+        assert(this_task->taskpool->context->my_rank == intended_rank);
+        printf("Task placed in: %d and it is being executed in: %d\n", intended_rank, this_task->taskpool->context->my_rank);
     }
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -50,17 +49,14 @@ task_precedence(parsec_execution_stream_t *es,
                parsec_task_t *this_task)
 {
     (void)es;
-    int *intended_rank_1, *intended_rank_2;
+    int intended_rank_1, intended_rank_2;
     int *data;
 
-    parsec_dtd_unpack_args(this_task,
-                           UNPACK_VALUE, &intended_rank_1,
-                           UNPACK_DATA,  &data,
-                           UNPACK_VALUE, &intended_rank_2);
+    parsec_dtd_unpack_args(this_task, &intended_rank_1, &data, &intended_rank_2);
 
     assert(this_task->taskpool->context->my_rank == 1);
-    assert(*intended_rank_1 == 1);
-    printf("Intended rank was: %d and executed in: %d\n", *intended_rank_1, this_task->taskpool->context->my_rank);
+    assert(intended_rank_1 == 1);
+    printf("Intended rank was: %d and executed in: %d\n", intended_rank_1, this_task->taskpool->context->my_rank);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -70,16 +66,14 @@ task_moving_data(parsec_execution_stream_t *es,
                  parsec_task_t *this_task)
 {
     (void)es;
-    int *intended_rank;
+    int intended_rank;
     int *data;
 
-    parsec_dtd_unpack_args(this_task,
-                           UNPACK_VALUE, &intended_rank,
-                           UNPACK_DATA,  &data);
+    parsec_dtd_unpack_args(this_task, &intended_rank, &data);
 
-    assert(this_task->taskpool->context->my_rank == *intended_rank);
+    assert(this_task->taskpool->context->my_rank == intended_rank);
     assert(*data == 20);
-    printf("Task getting executed: %d data is: %d\n", *intended_rank, *data);
+    printf("Task getting executed: %d data is: %d\n", intended_rank, *data);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -154,12 +148,12 @@ int main(int argc, char **argv)
         intended_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_task_placement,    0,  "task_task_placement",
                                         sizeof(int),      &intended_rank,              VALUE | AFFINITY,
-                                        0);
+                                        PARSEC_DTD_ARG_END);
 
         intended_rank = 2;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_task_placement,    0,  "task_task_placement",
                                         sizeof(int),      &intended_rank,              VALUE | AFFINITY,
-                                        0);
+                                        PARSEC_DTD_ARG_END);
 
 
         intended_rank = 1;
@@ -168,7 +162,7 @@ int main(int argc, char **argv)
                                         sizeof(int),      &intended_rank,              VALUE | AFFINITY,
                                         PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
                                         sizeof(int),      &intended_rank,              VALUE | AFFINITY,
-                                        0);
+                                        PARSEC_DTD_ARG_END);
 
         /* Data reside in rank 0 and we set the data to 20,
          * and ask the task to be executed in rank 1. Correct
@@ -178,7 +172,7 @@ int main(int argc, char **argv)
         parsec_dtd_taskpool_insert_task(dtd_tp, task_moving_data,    0,  "task_moving",
                                         sizeof(int),      &intended_rank,    VALUE | AFFINITY,
                                         PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
-                                        0);
+                                        PARSEC_DTD_ARG_END);
     }
 
     parsec_dtd_data_flush_all( dtd_tp, A );

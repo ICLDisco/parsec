@@ -39,12 +39,10 @@ test_task( parsec_execution_stream_t *es,
 {
     (void)es;
 
-    int *amount_of_work;
-    parsec_dtd_unpack_args( this_task,
-                           UNPACK_VALUE,  &amount_of_work
-                          );
+    int amount_of_work;
+    parsec_dtd_unpack_args( this_task, &amount_of_work);
     int i, j, bla;
-    for( i = 0; i < *amount_of_work; i++ ) {
+    for( i = 0; i < amount_of_work; i++ ) {
         //for( j = 0; j < *amount_of_work; j++ ) {
         for( j = 0; j < 2; j++ ) {
             bla = j*2;
@@ -63,17 +61,14 @@ test_task_generator( parsec_execution_stream_t *es,
 {
     (void)es;
 
-    parsec_tiled_matrix_dc_t *dcB;
-    int amount = 0, *nb, *nt;
+    parsec_tiled_matrix_dc_t *dcB, *tmp;
+    int amount = 0, nb, nt;
     int rank = es->virtual_process->parsec_context->my_rank;
     int world = es->virtual_process->parsec_context->nb_nodes, i;
 
-    parsec_dtd_unpack_args( this_task,
-                            UNPACK_VALUE, &nb,
-                            UNPACK_VALUE, &nt,
-                            0);
+    parsec_dtd_unpack_args( this_task, &nb, &nt, &tmp);
 
-    dcB = create_and_distribute_empty_data(rank, world, *nb, *nt);
+    dcB = create_and_distribute_empty_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcB, "B");
     parsec_data_collection_t *B = (parsec_data_collection_t *)dcB;
     parsec_dtd_data_collection_init(B);
@@ -83,10 +78,10 @@ test_task_generator( parsec_execution_stream_t *es,
     parsec_enqueue( es->virtual_process->parsec_context, dtd_tp );
 
     for( i = 0; i < 100; i++ ) {
-        parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
-                                         sizeof(int),       &amount,    VALUE,
-                                         PASSED_BY_REF,     TILE_OF_KEY(B, rank),      INOUT | AFFINITY,
-                                         0 );
+        parsec_dtd_taskpool_insert_task(dtd_tp, test_task,    0,  "Test_Task",
+                                        sizeof(int),       &amount,    VALUE,
+                                        PASSED_BY_REF,     TILE_OF_KEY(B, rank),      INOUT | AFFINITY,
+                                        PARSEC_DTD_ARG_END);
     }
 
     parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(B, rank));
@@ -154,11 +149,11 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
 
     for( m = 0; m < nt; m++ ) {
-        parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_generator",
-                                         sizeof(int),       &nb,                 VALUE,
-                                         sizeof(int),       &nt,                 VALUE,
-                                         PASSED_BY_REF,     TILE_OF_KEY(A, m),   INOUT | AFFINITY,
-                                         0 );
+        parsec_dtd_taskpool_insert_task(dtd_tp, test_task_generator,    0,  "Test_Task_generator",
+                                        sizeof(int),       &nb,                 VALUE,
+                                        sizeof(int),       &nt,                 VALUE,
+                                        PASSED_BY_REF,     TILE_OF_KEY(A, m),   INOUT | AFFINITY,
+                                        PARSEC_DTD_ARG_END);
 
         parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, m));
     }

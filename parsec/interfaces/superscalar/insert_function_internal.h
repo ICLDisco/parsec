@@ -71,6 +71,8 @@ extern int hashtable_trace_keyout;
 
 /* Structure used to pack arguments of insert_task() */
 struct parsec_dtd_task_param_s {
+    int                      arg_size;
+    parsec_dtd_op_type       op_type;
     void                    *pointer_to_tile;
     parsec_dtd_task_param_t *next;
 };
@@ -255,6 +257,24 @@ struct parsec_dtd_task_class_s {
     int                      ref_count;
     long unsigned int        size_of_param;
 };
+
+typedef int (parsec_dtd_arg_cb)(int first_arg, void *second_arg, int third_arg, void *cb_data);
+
+typedef struct parsec_dtd_common_args_s {
+    int rank;
+    int write_flow_count;
+    int flow_count_of_template;
+    int count_of_params_sent_by_user;
+    int flow_index;
+    long unsigned int        size_of_params;
+    void                    *value_block;
+    void                    *current_val;
+    parsec_dtd_taskpool_t   *dtd_tp;
+    parsec_dtd_task_t       *task;
+    parsec_dtd_task_param_t *head_of_param_list;
+    parsec_dtd_task_param_t *current_param;
+    parsec_dtd_task_param_t *tmp_param;
+} parsec_dtd_common_args_t;
 
 /* Function prototypes */
 void

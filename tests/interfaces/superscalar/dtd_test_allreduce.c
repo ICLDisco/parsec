@@ -31,8 +31,7 @@ reduce0( parsec_execution_stream_t    *es,
     (void)es;
     int *data;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data);
+    parsec_dtd_unpack_args(this_task, &data);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -45,9 +44,7 @@ reduce1( parsec_execution_stream_t    *es,
     int *data;
     int *second_data;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data,
-                          UNPACK_DATA,  &second_data);
+    parsec_dtd_unpack_args(this_task, &data, &second_data);
 
     *second_data += *data;
 
@@ -61,8 +58,7 @@ bcast0( parsec_execution_stream_t    *es,
     (void)es;
     int *data;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data);
+    parsec_dtd_unpack_args(this_task, &data);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -75,9 +71,7 @@ bcast1( parsec_execution_stream_t    *es,
     int *data;
     int *second_data;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data,
-                          UNPACK_DATA,  &second_data);
+    parsec_dtd_unpack_args(this_task, &data, &second_data);
 
     printf( "My rank: %d, data: %d\n", this_task->taskpool->context->my_rank, *data );
 
@@ -151,12 +145,12 @@ int main(int argc, char **argv)
         if( root != i ) {
             parsec_dtd_taskpool_insert_task( dtd_tp, reduce0,    0,  "reduce0",
                                 PASSED_BY_REF,    TILE_OF_KEY(A, i), INOUT | TILE_FULL | AFFINITY,
-                                0 );
+                                PARSEC_DTD_ARG_END );
 
             parsec_dtd_taskpool_insert_task( dtd_tp, reduce1,    0,  "reduce1",
                                 PASSED_BY_REF,    TILE_OF_KEY(A, i),    INOUT | TILE_FULL,
                                 PASSED_BY_REF,    TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
-                                0 );
+                                PARSEC_DTD_ARG_END );
         }
     }
 
@@ -171,7 +165,7 @@ int main(int argc, char **argv)
 
     parsec_dtd_taskpool_insert_task( dtd_tp, bcast0,    0,  "bcast0",
                         PASSED_BY_REF,    TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
-                        0 );
+                        PARSEC_DTD_ARG_END );
 
     if( rank == root ) {
         for( i = 0; i < world; i++ ) {
@@ -179,7 +173,7 @@ int main(int argc, char **argv)
                 parsec_dtd_taskpool_insert_task( dtd_tp, bcast1,    0,  "bcast1",
                                     PASSED_BY_REF,    TILE_OF_KEY(A, root),  INPUT | TILE_FULL,
                                     PASSED_BY_REF,    TILE_OF_KEY(A, i),     INOUT | TILE_FULL | AFFINITY,
-                                    0 );
+                                    PARSEC_DTD_ARG_END );
             }
         }
 
@@ -187,7 +181,7 @@ int main(int argc, char **argv)
         parsec_dtd_taskpool_insert_task( dtd_tp, bcast1,    0,  "bcast1",
                             PASSED_BY_REF,    TILE_OF_KEY(A, root),    INPUT | TILE_FULL,
                             PASSED_BY_REF,    TILE_OF_KEY(A, rank), INOUT | TILE_FULL | AFFINITY,
-                            0 );
+                            PARSEC_DTD_ARG_END );
     }
 //******************
 

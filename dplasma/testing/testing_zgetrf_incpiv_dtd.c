@@ -10,7 +10,7 @@
 #include "common.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/superscalar/insert_function.h"
 
 enum regions {
                TILE_FULL,
@@ -24,26 +24,20 @@ int
 parsec_core_getrf_incpiv(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
     (void)es;
-    int *m;
-    int *n;
-    int *ib;
+    int m;
+    int n;
+    int ib;
     parsec_complex64_t *A;
-    int *lda;
+    int lda;
     int *IPIV;
-    PLASMA_bool *check_info;
+    PLASMA_bool check_info;
     int *info;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_VALUE, &m,
-                          UNPACK_VALUE, &n,
-                          UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &A,
-                          UNPACK_VALUE, &lda,
-                          UNPACK_DATA,  &IPIV,
-                          UNPACK_VALUE, &check_info,
-                          UNPACK_SCRATCH, &info);
+    parsec_dtd_unpack_args(this_task, &m, &n, &ib, &A, &lda, &IPIV,
+                           &check_info, &info);
 
-    CORE_zgetrf_incpiv(*m, *n, *ib, A, *lda, IPIV, info);
+    CORE_zgetrf_incpiv(m, n, ib, A, lda, IPIV, info);
+
     if (*info != 0 && check_info)
         printf("Getrf_incpiv something is wrong\n");
 
@@ -54,32 +48,22 @@ int
 parsec_core_gessm(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
     (void)es;
-    int *m;
-    int *n;
-    int *k;
-    int *ib;
+    int m;
+    int n;
+    int k;
+    int ib;
     int *IPIV;
     parsec_complex64_t *L;
-    int *ldl;
+    int ldl;
     parsec_complex64_t *D;
-    int *ldd;
+    int ldd;
     parsec_complex64_t *A;
-    int *lda;
+    int lda;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_VALUE, &m,
-                          UNPACK_VALUE, &n,
-                          UNPACK_VALUE, &k,
-                          UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &IPIV,
-                          UNPACK_DATA,  &L,
-                          UNPACK_VALUE, &ldl,
-                          UNPACK_DATA,  &D,
-                          UNPACK_VALUE, &ldd,
-                          UNPACK_DATA,  &A,
-                          UNPACK_VALUE, &lda);
+    parsec_dtd_unpack_args(this_task, &m, &n, &k, &ib, &IPIV, &L, &ldl,
+                           &D, &ldd, &A, &lda);
 
-    CORE_zgessm(*m, *n, *k, *ib, IPIV, D, *ldd, A, *lda);
+    CORE_zgessm(m, n, k, ib, IPIV, D, ldd, A, lda);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -88,40 +72,26 @@ int
 parsec_core_tstrf(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
     (void)es;
-    int *m;
-    int *n;
-    int *ib;
-    int *nb;
+    int m;
+    int n;
+    int ib;
+    int nb;
     parsec_complex64_t *U;
-    int *ldu;
+    int ldu;
     parsec_complex64_t *A;
-    int *lda;
+    int lda;
     parsec_complex64_t *L;
-    int *ldl;
+    int ldl;
     int *IPIV;
     parsec_complex64_t *WORK;
-    int *ldwork;
+    int ldwork;
     PLASMA_bool *check_info;
     int *info;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_VALUE, &m,
-                          UNPACK_VALUE, &n,
-                          UNPACK_VALUE, &ib,
-                          UNPACK_VALUE, &nb,
-                          UNPACK_DATA,  &U,
-                          UNPACK_VALUE, &ldu,
-                          UNPACK_DATA,  &A,
-                          UNPACK_VALUE, &lda,
-                          UNPACK_DATA,  &L,
-                          UNPACK_VALUE, &ldl,
-                          UNPACK_DATA,  &IPIV,
-                          UNPACK_SCRATCH, &WORK,
-                          UNPACK_VALUE, &ldwork,
-                          UNPACK_VALUE, &check_info,
-                          UNPACK_VALUE, &info);
+    parsec_dtd_unpack_args(this_task, &m, &n, &ib, &nb, &U, &ldu, &A, &lda, &L,
+                           &ldl, &IPIV, &WORK, &ldwork, &check_info, &info);
 
-    CORE_ztstrf(*m, *n, *ib, *nb, U, *ldu, A, *lda, L, *ldl, IPIV, WORK, *ldwork, info);
+    CORE_ztstrf(m, n, ib, nb, U, ldu, A, lda, L, ldl, IPIV, WORK, ldwork, info);
 
     if (*info != 0 && check_info)
         printf("Gtstrf something is wrong\n");
@@ -133,40 +103,26 @@ int
 parsec_core_ssssm(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
     (void)es;
-    int *m1;
-    int *n1;
-    int *m2;
-    int *n2;
-    int *k;
-    int *ib;
+    int m1;
+    int n1;
+    int m2;
+    int n2;
+    int k;
+    int ib;
     parsec_complex64_t *A1;
-    int *lda1;
+    int lda1;
     parsec_complex64_t *A2;
-    int *lda2;
+    int lda2;
     parsec_complex64_t *L1;
-    int *ldl1;
+    int ldl1;
     parsec_complex64_t *L2;
-    int *ldl2;
+    int ldl2;
     int *IPIV;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_VALUE, &m1,
-                          UNPACK_VALUE, &n1,
-                          UNPACK_VALUE, &m2,
-                          UNPACK_VALUE, &n2,
-                          UNPACK_VALUE, &k,
-                          UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &A1,
-                          UNPACK_VALUE, &lda1,
-                          UNPACK_DATA,  &A2,
-                          UNPACK_VALUE, &lda2,
-                          UNPACK_DATA,  &L1,
-                          UNPACK_VALUE, &ldl1,
-                          UNPACK_DATA,  &L2,
-                          UNPACK_VALUE, &ldl2,
-                          UNPACK_DATA,  &IPIV);
+    parsec_dtd_unpack_args(this_task, &m1, &n1, &m2, &n2, &k, &ib, &A1, &lda1, &A2,
+                           &lda2, &L1, &ldl1, &L2, &ldl2, &IPIV);
 
-    CORE_zssssm(*m1, *n1, *m2, *n2, *k, *ib, A1, *lda1, A2, *lda2, L1, *ldl1, L2, *ldl2, IPIV);
+    CORE_zssssm(m1, n1, m2, n2, k, ib, A1, lda1, A2, lda2, L1, ldl1, L2, ldl2, IPIV);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -277,7 +233,7 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("Done\n");
 
     /* Getting new parsec handle of dtd type */
-    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
     /* Parameters passed on to Insert_task() */
     int k, m, n;
@@ -344,8 +300,8 @@ int main(int argc, char ** argv)
                            sizeof(int),           &ldak,                             VALUE,
                            PASSED_BY_REF,         TILE_OF(IPIV, k, k),  OUTPUT | TILE_RECTANGLE,
                            sizeof(PLASMA_bool),   &check_info,                       VALUE,
-                           sizeof(int *),         &info,                             SCRATCH,
-                           0 );
+                           sizeof(int *),         &info,                             REF,
+                           PARSEC_DTD_ARG_END );
 
         for( n = k+1; n < dcA.super.nt; n++ ) {
             tempnn = n == dcA.super.nt-1 ? (dcA.super.n)-n*(dcA.super.nb) : dcA.super.nb;
@@ -363,7 +319,7 @@ int main(int argc, char ** argv)
                                sizeof(int),           &ldak,                             VALUE,
                                PASSED_BY_REF,         TILE_OF(A, k, n),       INOUT | TILE_FULL | AFFINITY,
                                sizeof(int),           &ldak,                             VALUE,
-                              0 );
+                               PARSEC_DTD_ARG_END );
         }
         parsec_dtd_data_flush( dtd_tp, TILE_OF(L, k, k) );
         parsec_dtd_data_flush( dtd_tp, TILE_OF(IPIV, k, k) );
@@ -390,8 +346,8 @@ int main(int argc, char ** argv)
                                sizeof(parsec_complex64_t)*ib*nb,    NULL,                SCRATCH,
                                sizeof(int),           &nb,                               VALUE,
                                sizeof(PLASMA_bool),   &check_info,                       VALUE,
-                               sizeof(int *),         &info,                             SCRATCH,
-                               0 );
+                               sizeof(int *),         &info,                             REF,
+                               PARSEC_DTD_ARG_END );
 
             for( n = k+1; n < dcA.super.nt; n++ ) {
                 tempnn = n == dcA.super.nt-1 ? (dcA.super.n)-n*(dcA.super.nb) : dcA.super.nb;
@@ -414,7 +370,7 @@ int main(int argc, char ** argv)
                                    PASSED_BY_REF,         TILE_OF(A, m, k),     INPUT | TILE_FULL,
                                    sizeof(int),           &ldam,                              VALUE,
                                    PASSED_BY_REF,         TILE_OF(IPIV, m, k),  INPUT | TILE_RECTANGLE,
-                                   0 );
+                                   PARSEC_DTD_ARG_END );
             }
             parsec_dtd_data_flush( dtd_tp, TILE_OF(L, m, k) );
             parsec_dtd_data_flush( dtd_tp, TILE_OF(IPIV, m, k) );
