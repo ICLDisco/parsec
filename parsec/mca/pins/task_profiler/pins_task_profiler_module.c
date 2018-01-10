@@ -153,7 +153,7 @@ task_profiler_release_deps_begin(struct parsec_execution_stream_s*   es,
 
     PARSEC_PROFILING_TRACE(es->es_profile,
                            release_deps_trace_keyin,
-                           (*task->task_class->key)(task->taskpool, task->locals)
+                           (*task->task_class->key)(task->taskpool, task->locals),
                            task->taskpool->taskpool_id,
                            (void *)&rd_fid);
 
