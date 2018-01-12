@@ -332,12 +332,12 @@ parsec_dtd_lazy_init(void)
     /* Registering mca param for printing out traversal info */
     (void)parsec_mca_param_reg_int_name("dtd", "traversal_info",
                                        "Show graph traversal info when value >= than debug verbose",
-                                       false, false, 0, &parsec_dtd_dump_traversal_info);
+                                       false, false, 50, &parsec_dtd_dump_traversal_info);
 
     /* Registering mca param for printing out function_structure info */
     (void)parsec_mca_param_reg_int_name("dtd", "function_info",
                                        "Show master structure info when value >= than debug verbose",
-                                       false, false, 0, &parsec_dtd_dump_function_info);
+                                       false, false, 50, &parsec_dtd_dump_function_info);
 
     /* Registering mca param for tile hash table size */
     (void)parsec_mca_param_reg_int_name("dtd", "tile_hash_size",
@@ -1218,7 +1218,7 @@ parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
 parsec_taskpool_t*
 parsec_dtd_taskpool_new(void)
 {
-    if( 0 == parsec_atomic_inc_32b(&__parsec_dtd_is_initialized) ) {
+    if( 1 == parsec_atomic_inc_32b(&__parsec_dtd_is_initialized) ) {
         parsec_dtd_lazy_init();
     }
 
