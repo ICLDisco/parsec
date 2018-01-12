@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 
+SET(DPLASMA_VERSION "${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}")
+
 option(BUILD_DPLASMA
        "Compile the DPLASMA layer" ON)
 IF( NOT BUILD_DPLASMA )
@@ -88,6 +90,8 @@ if( PARSEC_OSX )
   endif( PARSEC_OSX_VECLIB )
 endif( PARSEC_OSX )
 
+set(DPLASMA_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/dplasma")
+
 if(COREBLAS_FOUND)
   Add_Subdirectory(include)
   Add_Subdirectory(cores)
@@ -102,4 +106,4 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dplasma.pc.in"
   "${PROJECT_INCLUDE_DIR}/dplasma.pc" @ONLY)
 install(FILES "${PROJECT_INCLUDE_DIR}/dplasma.pc"
-        DESTINATION dplasma/lib/pkgconfig)
+        DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib/pkgconfig)

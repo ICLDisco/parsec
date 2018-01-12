@@ -649,6 +649,7 @@ static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const parsec_pro
             assert( PROFILING_BUFFER_TYPE_DICTIONARY == dico->buffer_type );
             release_events_buffer( dico );
             dico = next;
+            nbthis = dico->this_buffer.nb_dictionary_entries;
 
             pos = 0;
         }
