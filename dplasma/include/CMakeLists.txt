@@ -16,9 +16,9 @@ install(FILES
   dplasma.h
   dplasma_complex.h
   dplasma_qr_param.h
-  DESTINATION dplasma/include)
+  DESTINATION ${DPLASMA_INSTALL_PREFIX}/include)
 
 foreach(generated_header ${generated_headers})
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION dplasma/include)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION ${DPLASMA_INSTALL_PREFIX}/include)
 endforeach()
 
