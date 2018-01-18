@@ -204,10 +204,12 @@ int __parsec_execute( parsec_execution_stream_t* es,
     return PARSEC_HOOK_RETURN_ERROR;
 }
 
-/* Increases the number of runtime associated activities (decreases if
- *   nb_tasks is negative). When this counter reaches zero the taskpool
- *   is considered as completed, and all resources will be marked for
- *   release.
+/* Update the number of runtime associated activities. When this counter
+ * reaches zero the taskpool is considered as completed, and all
+ * resources will be marked for release. It should be noted that for as long
+ * as the DSL might add additional tasks into the taskpool, it should hold
+ * one reference to the runtime activities, preventing the runtime from
+ * completing the taskpool too early.
  */
 int parsec_taskpool_update_runtime_nbtask(parsec_taskpool_t *tp, int32_t nb_tasks)
 {
@@ -215,7 +217,7 @@ int parsec_taskpool_update_runtime_nbtask(parsec_taskpool_t *tp, int32_t nb_task
 
     assert( tp->nb_pending_actions != 0 );
     remaining = tp->update_nb_runtime_task( tp, nb_tasks );
-    assert( 0<= remaining );
+    assert( 0 <= remaining );
     return parsec_check_complete_cb(tp, tp->context, remaining);
 }
 

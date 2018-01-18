@@ -334,7 +334,7 @@ parsec_cuda_taskpool_register(parsec_device_t* device, parsec_taskpool_t* tp)
      * user to write the code to assess this.
      */
     assert(PARSEC_DEV_CUDA == device->type);
-    for( i = 0; NULL != tp->task_classes_array[i]; i++ ) {
+    for( i = 0; i < tp->nb_task_classes; i++ ) {
         const parsec_task_class_t* tc = tp->task_classes_array[i];
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( dev_mask = j = 0; NULL != chores[j].hook; j++ ) {
@@ -381,7 +381,7 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
     cudaError_t cudastatus;
 
     use_cuda_index = parsec_mca_param_reg_int_name("device_cuda", "enabled",
-                                                   "The number of CUDA device to enable for the next PaRSEC context",
+                                                   "The number of CUDA device to enable for the next PaRSEC context (-1 for all available)",
                                                    false, false, -1, &use_cuda);
     parsec_mca_param_reg_int_name("device_cuda", "mask",
                                   "The bitwise mask of CUDA devices to be enabled (default all)",
@@ -415,8 +415,7 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
     cudastatus = cudaGetDeviceCount( &ndevices );
     PARSEC_CUDA_CHECK_ERROR( "cudaGetDeviceCount ", cudastatus,
                              {
-                                 if( 0 < use_cuda_index )
-                                     parsec_mca_param_set_int(use_cuda_index, 0);
+                                 parsec_mca_param_set_int(use_cuda_index, 0);
                                  return -1;
                              } );
 
@@ -426,15 +425,11 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
                              "device_cuda_enabled updated to the total number of devices (%d)\n", ndevices);
     } else {
         if( ndevices > use_cuda ) {
-            if( 0 < use_cuda_index ) {
-                ndevices = use_cuda;
-            }
-        } else if (ndevices < use_cuda ) {
-            if( 0 < use_cuda_index ) {
-                parsec_warning("User requested %d GPUs, but only %d are available in this machine. PaRSEC will enable all of them.",
-                               use_cuda, ndevices);
-                parsec_mca_param_set_int(use_cuda_index, ndevices);
-            }
+            ndevices = use_cuda;
+        } else if( ndevices < use_cuda ) {
+            parsec_warning("User requested %d GPUs, but only %d are available in this machine. PaRSEC will enable all of them.",
+                           use_cuda, ndevices);
+            parsec_mca_param_set_int(use_cuda_index, ndevices);
         }
     }
 

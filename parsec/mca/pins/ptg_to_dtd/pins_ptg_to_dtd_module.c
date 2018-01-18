@@ -72,7 +72,7 @@ static void
 copy_chores(parsec_taskpool_t *tp, parsec_dtd_taskpool_t *dtd_tp)
 {
     int i, j;
-    for( i = 0; NULL != tp->task_classes_array[i]; i++) {
+    for( i = 0; i < tp->nb_task_classes; i++) {
         for( j = 0; NULL != tp->task_classes_array[i]->incarnations[j].hook; j++) {
             parsec_hook_t **hook_not_const = (parsec_hook_t **)&(tp->task_classes_array[i]->incarnations[j].hook);
 

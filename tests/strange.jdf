@@ -22,6 +22,7 @@ first     [type = double]
 second    [type = float
            hidden = on
            default = "(float)5.2"]
+neworder  [type = "int*" hidden = on default = "NULL"] 
 //           default = "inline_C %{ return (float)5.2; %}"]
 
 /**************************************************
@@ -33,14 +34,14 @@ TASK(k)
  m = %{ return k + 1; %}
 
 // Parallel partitioning
-:descA(k, 0)
+:descA(inline_c%{return neworder[k];%}, 0)
 
-RW A <- (0 == k) ? descA(k, 0) : A TASK(k-1)
-     -> (k%2 == 1) ? A TASK(n) : A TASK(inline_c%{ return k+1; %})
+RW A <- (0 == k) ? descA(inline_c%{return neworder[k];%}, 0) : A TASK(inline_c%{return neworder[k-1]; %})
+     -> A TASK(inline_c%{ return neworder[k+1]; %})
 
 BODY
 {
-  /*printf("Task(%d)\n", k);*/
+  printf("Task(%d) val %d\n", k, *VAL);
   (*VAL) += 1;
 }
 END
@@ -55,6 +56,7 @@ int main(int argc, char* argv[] )
     parsec_context_t *parsec;
     parsec_strange_taskpool_t* tp;
     int i = 0, n = 1, val = 0, rc;
+    int * neworder;
 
     while( NULL != argv[i] ) {
         if( 0 == strncmp(argv[i], "-n=", 3) ) {
@@ -67,7 +69,10 @@ int main(int argc, char* argv[] )
         memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
         argc -= 1;
     }
-
+    neworder = malloc(n*sizeof(int));
+    for(i=0; i< n; i++){
+      neworder[i] = i;
+    }
 #ifdef PARSEC_HAVE_MPI
     {
         int provided;
