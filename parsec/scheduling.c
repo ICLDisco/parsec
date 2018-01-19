@@ -513,7 +513,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     parsec_context_t* parsec_context = es->virtual_process->parsec_context;
     int32_t my_barrier_counter = parsec_context->__parsec_internal_finalization_counter;
     parsec_task_t* task;
-    int nbiterations = 0, distance;
+    int nbiterations = 0, distance, rc;
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;

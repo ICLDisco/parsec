@@ -48,7 +48,6 @@
 #include "parsec/mca/pins/pins.h"
 #include "parsec/data_dist/matrix/matrix.h"
 
-static uint32_t __parsec_dtd_init_started = 0;     /**< Indicates that some thread entered init */
 uint32_t __parsec_dtd_is_initialized   = 0; /**< Indicates init of dtd environment is completed */
 
 int parsec_dtd_window_size             = 4000;   /**< Default window size */
@@ -97,14 +96,10 @@ static parsec_hook_return_t
 complete_hook_of_dtd(parsec_execution_stream_t *,
                      parsec_task_t *);
 
-static uint64_t DTD_hash_key (parsec_key_t key, int nb_bits, void *data);
-static int DTD_key_equal(parsec_key_t a, parsec_key_t b, void *user_data);
-static char *DTD_key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data);
-
 static parsec_key_fn_t DTD_key_fns = {
-    .key_equal = DTD_key_equal,
-    .key_print = DTD_key_print,
-    .key_hash  = DTD_hash_key
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
+    .key_print = parsec_hash_table_generic_64bits_key_print,
+    .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };
 
 inline int parsec_dtd_task_is_local(parsec_dtd_task_t *task) { return task->rank == task->super.taskpool->context->my_rank;}
@@ -712,45 +707,6 @@ parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
 #endif /* defined(PARSEC_PROF_TRACE) */
 
 /* **************************************************************************** */
-
-/**
- * This function produces a hash from a key and a parsec_hash_table_t
- *
- * This function returns a hash for a key. The hash is produced
- * by the following operation key % size
- *
- * @param[in]   key
- *                  The key to be hashed
- * @param[in]   nb_bits
- *                  number of bits that are active in the returned value
- * @param[in]   data
- *                  A pointer to the hash table
- * @return
- *              The hash for the key provided
- *
- * @ingroup     DTD_INTERFACE_INTERNAL
- */
-static uint64_t DTD_hash_key (parsec_key_t key, int nb_bits, void *data)
-{
-    uint64_t hash_val = ((uint64_t)(uintptr_t)key) & (~0ULL >> (sizeof(uint64_t)*8-nb_bits));
-    (void)data;
-    return hash_val;
-}
-
-static int DTD_key_equal(parsec_key_t _a, parsec_key_t _b, void *user_data)
-{
-    uint64_t a = (uint64_t)(uintptr_t)_a;
-    uint64_t b = (uint64_t)(uintptr_t)_b;
-    (void)user_data;
-    return a == b;
-}
-
-static char *DTD_key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)
-{
-    (void)user_data;
-    snprintf(buffer, buffer_size, "%lu", (uint64_t)(uintptr_t)k);
-    return buffer;
-}
 
 void
 parsec_dtd_track_task( parsec_dtd_taskpool_t *tp,
@@ -2550,6 +2506,7 @@ parsec_dtd_create_and_initialize_task( parsec_dtd_taskpool_t *dtd_tp,
     this_task->ht_item.key      = (parsec_key_t)(uintptr_t)(dtd_tp->task_id++);
     /* this is needed for grapher to work properly */
     this_task->super.locals[0].value = (int)(uintptr_t)this_task->ht_item.key;
+    assert( (uintptr_t)this_task->super.locals[0].value == (uintptr_t)this_task->ht_item.key );
     this_task->super.task_class      = tc;
     /**
      * +1 to make sure the task cannot be completed by the potential predecessors,

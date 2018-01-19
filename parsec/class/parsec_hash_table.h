@@ -267,6 +267,54 @@ typedef void (*hash_elem_fct_t)(void *item, void*cb_data);
  */
 void parsec_hash_table_for_all(parsec_hash_table_t* ht, hash_elem_fct_t fct, void* cb_data);
 
+/**
+ * @brief a generic key_equal function that can be used for 64 bits keys
+ *
+ * @details Use this equal function is you simply code no-collisions
+ *          identifiers within the 64 bits of the parsec_key_t.
+ *          That function simply return a == b, ignoring user_data
+ *
+ *  @arg[in] a one key
+ *  @arg[in] b the other key
+ *  @arg[in] use_data ignored parameter
+ *  @return true iff a == b
+ *
+ *  This function is simply NULL in the current implementation, because we test the
+ *  equality of the keys in the hash table implementation, and if the keys are equal on
+ *  64 bits, in the case they code the key, they are equal (tautology), and if they
+ *  point to a key, they point to the same, so they are also equal.
+ */
+#define parsec_hash_table_generic_64bits_key_equal    NULL
+
+/**
+ * @brief a generic key_print function that can be used for 64 bits keys
+ *
+ * @details simply prints the hexadecimal value of the key in buffer,
+ *          assuming that the key is on 64 bits
+ *
+ *   @arg[inout] buffer a buffer of buffer_size characters
+ *   @arg[in] buffer_size the size of buffer
+ *   @arg[in] k the key to print
+ *   @arg[in] user_data ignored parameter
+ *   @return buffer for convenience use in printf statements
+ */
+char *parsec_hash_table_generic_64bits_key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data);
+
+/**
+ * @brief a generic hash function for keys that fit in 64 bits
+ *
+ * @details computes a hash of k on nb_bits, assuming that k is a
+ *          key on 64 bits, and involving as many bits of k as possible
+ *          in the result
+ *
+ *    @arg[in] k the key to hash
+ *    @arg[in] the number of bits on which to hash k (the result is between
+ *             0 and (1 << nb_bits) - 1 inclusive)
+ *    @arg[in] user_data ignored parameter
+ *    @return a hash of k on nb_bits
+ */
+uint64_t parsec_hash_table_generic_64bits_key_hash(parsec_key_t k, int nb_bits, void *user_data);
+
 END_C_DECLS
 
 /** @} */

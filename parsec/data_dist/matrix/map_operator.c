@@ -47,6 +47,8 @@ typedef struct __parsec_map_operator_taskpool {
 static const parsec_flow_t flow_of_map_operator;
 static const parsec_task_class_t parsec_map_operator;
 
+static parsec_key_t map_operator_make_key(const parsec_taskpool_t *tp, const assignment_t *as);
+
 #define src(k,n)  (((parsec_data_collection_t*)__tp->super.src)->data_of((parsec_data_collection_t*)__tp->super.src, (k), (n)))
 #define dest(k,n)  (((parsec_data_collection_t*)__tp->super.dest)->data_of((parsec_data_collection_t*)__tp->super.dest, (k), (n)))
 
@@ -174,9 +176,6 @@ static const parsec_flow_t flow_of_map_operator = {
     .dep_in  = { &flow_of_map_operator_dep_in },
     .dep_out = { &flow_of_map_operator_dep_out }
 };
-
-static parsec_key_t map_operator_make_key(const parsec_taskpool_t *tp, const assignment_t *as);
-static uint64_t map_operator_hash_key(parsec_key_t key, int nb_bits, void *user_data);
 
 static parsec_ontask_iterate_t
 add_task_to_list(parsec_execution_stream_t *es,
@@ -327,7 +326,7 @@ static int hook_of(parsec_execution_stream_t *es,
 
 #if !defined(PARSEC_PROF_DRY_BODY)
     TAKE_TIME(es, 2*this_task->task_class->task_class_id,
-              map_operator_hash_key( map_operator_make_key(this_task->taskpool, this_task->locals), 64, NULL ), __tp->super.src,
+              parsec_hash_table_generic_64bits_key_hash( map_operator_make_key(this_task->taskpool, this_task->locals), 64, NULL ), __tp->super.src,
               ((parsec_data_collection_t*)(__tp->super.src))->data_key((parsec_data_collection_t*)__tp->super.src, k, n) );
     __tp->super.op( es, src_data, dest_data, __tp->super.op_data, k, n );
 #endif
@@ -344,7 +343,7 @@ static int complete_hook(parsec_execution_stream_t *es,
     (void)k; (void)n; (void)__tp;
 
     TAKE_TIME(es, 2*this_task->task_class->task_class_id+1,
-              map_operator_hash_key( map_operator_make_key(this_task->taskpool, this_task->locals), 64, NULL ),
+              parsec_hash_table_generic_64bits_key_hash( map_operator_make_key(this_task->taskpool, this_task->locals), 64, NULL ),
               NULL, 0);
 
 #if defined(PARSEC_PROF_GRAPHER)
@@ -376,25 +375,6 @@ static parsec_key_t map_operator_make_key(const parsec_taskpool_t *tp, const ass
     return (parsec_key_t)(uintptr_t)(((uint64_t)as[0].value << 32) | (uint64_t)as[1].value);
 }
 
-static uint64_t map_operator_hash_key(parsec_key_t key, int nb_bits, void *user_data)
-{
-    uint64_t h = (uint64_t)(uintptr_t)key;
-    uint32_t i;
-    (void)user_data;
-    for(i = nb_bits; i < sizeof(uint64_t)*8; i+=nb_bits) {
-        h = h ^ (h >> i);
-    }
-    return h & (~0 >> (64-nb_bits));
-}
-
-static int map_operator_key_equal(parsec_key_t _a, parsec_key_t _b, void *user_data)
-{
-    uint64_t a = (uint64_t)(uintptr_t)_a;
-    uint64_t b = (uint64_t)(uintptr_t)_b;
-    (void)user_data;
-    return a == b;
-}
-
 static char *map_operator_key_print(char *buffer, size_t buffer_size, parsec_key_t _key, void *user_data)
 {
     uint64_t key = (uint64_t)(uintptr_t)_key;
@@ -404,9 +384,9 @@ static char *map_operator_key_print(char *buffer, size_t buffer_size, parsec_key
 }
 
 static parsec_key_fn_t __parsec_map_operator_key_functions = {
-    .key_equal = map_operator_key_equal,
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
     .key_print = map_operator_key_print,
-    .key_hash  = map_operator_hash_key
+    .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };
 
 static const parsec_task_class_t parsec_map_operator = {

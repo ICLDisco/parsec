@@ -34,36 +34,10 @@ typedef struct {
     int               nbthreads; /* How many threads there were when this item was inserted */
 } empty_hash_item_t;
 
-static uint64_t hash_fn_mod(parsec_key_t key, int nb_bits, void *param)
-{
-    /** Use all the bits of the 64 bits key, project on the lowest base bits (0 <= hash < size) */
-    uint32_t b;
-    uint64_t h = (uint64_t)(uintptr_t)key;
-    (void)param;
-    for(b = nb_bits; b < 8*sizeof(uint64_t); b += nb_bits) {
-        h ^= (uint64_t)key >> b;
-    }
-    return (uint64_t)( h & ( ~0ULL >> (sizeof(uint64_t)*8 - nb_bits )));
-}
-
-static int key_equal(parsec_key_t a, parsec_key_t b, void *user_data)
-{
-    uint64_t _a = (uint64_t)a, _b = (uint64_t)b;
-    (void)user_data;
-    return _a == _b;
-}
-
-static char *key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)
-{
-    (void)user_data;
-    snprintf(buffer, buffer_size, "%lu", (uint64_t)k);
-    return buffer;
-}
-
 static parsec_key_fn_t key_functions = {
-    .key_equal = key_equal,
-    .key_print = key_print,
-    .key_hash  = hash_fn_mod
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
+    .key_print = parsec_hash_table_generic_64bits_key_print,
+    .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };
 
 static void *do_test(void *_param)

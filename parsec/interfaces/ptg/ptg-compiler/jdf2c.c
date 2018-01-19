@@ -1336,25 +1336,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
                 "} while (0)\n\n");
     } 
     coutput("static inline int parsec_imin(int a, int b) { return (a <= b) ? a : b; };\n\n"
-            "static inline int parsec_imax(int a, int b) { return (a >= b) ? a : b; };\n\n"
-            "static int %s_uintptr_key_equal(parsec_key_t _a, parsec_key_t _b, void *user_data)\n"
-            "{\n"
-            "  (void) user_data;\n"
-            "  uintptr_t a = (uintptr_t) _a;\n"
-            "  uintptr_t b = (uintptr_t) _b;\n"
-            "  return a == b;\n"
-            "}\n\n"
-            "static uint64_t %s_uintptr_hash_key(parsec_key_t key, int nb_bits, void *user_data)\n"
-            "{\n"
-            "  uint64_t k = (uint64_t)(uintptr_t)key;\n"
-            "  uint32_t i;\n"
-            "  (void)user_data;\n"
-            "  for(i = nb_bits; i < sizeof(uint64_t)*8; i+=nb_bits)\n"
-            "    k = k ^ (k >> i);\n"
-            "  return k & (~0ULL >> (sizeof(uint64_t)*8-nb_bits));"
-            "}\n\n",
-            jdf_basename,
-            jdf_basename);
+            "static inline int parsec_imax(int a, int b) { return (a >= b) ? a : b; };\n\n");
 
     coutput("/* Release dependencies output macro */\n"
             "#if defined(PARSEC_DEBUG_NOISIER)\n"
@@ -2546,12 +2528,12 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
     }
     
     coutput("static parsec_key_fn_t %s = {\n"
-            "   .key_equal = %s_uintptr_key_equal,\n"
+            "   .key_equal = parsec_hash_table_generic_64bits_key_equal,\n"
             "   .key_print = %s_key_print,\n"
-            "   .key_hash  = %s_uintptr_hash_key\n"
+            "   .key_hash  = parsec_hash_table_generic_64bits_key_hash\n"
             "};\n"
             "\n",
-            sname, jdf_basename, sname, jdf_basename);
+            sname, sname);
 }
 
 static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
@@ -3773,17 +3755,17 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
         string_arena_free(sa_format);
         string_arena_free(sa_params);
     }
-    
-    coutput("static parsec_key_fn_t %s = {\n"
-            "   .key_equal = %s_uintptr_key_equal,\n"
-            "   .key_print = %s_%s_key_print,\n"
-            "   .key_hash  = %s_uintptr_hash_key\n"
-            "};\n"
-            "\n",
-            jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL),
-            jdf_basename, 
-            jdf_basename, f->fname,
-            jdf_basename);
+
+    if( !(f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT) ) {
+        coutput("static parsec_key_fn_t %s = {\n"
+                "   .key_equal = parsec_hash_table_generic_64bits_key_equal,\n"
+                "   .key_print = %s_%s_key_print,\n"
+                "   .key_hash  = parsec_hash_table_generic_64bits_key_hash\n"
+                "};\n"
+                "\n",
+                jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL),
+                jdf_basename, f->fname);
+    }
 
     string_arena_free(sa_range_multiplier);
 }

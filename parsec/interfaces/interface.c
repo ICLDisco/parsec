@@ -85,35 +85,6 @@ __parsec_generic_startup_make_key(const parsec_taskpool_t *tp, const assignment_
     return NULL;
 }
 
-static int __parsec_generic_key_always_equal(parsec_key_t a, parsec_key_t b, void *user_data)
-{
-    (void)a;
-    (void)b;
-    (void)user_data;
-    assert(NULL == a);
-    assert(NULL == b);
-    return 1;
-}
-
-static char *__parsec_generic_key_print_empty_string(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)
-{
-    (void)k;
-    (void)buffer_size;
-    (void)user_data;
-    assert(buffer_size >= 1);
-    buffer[0] = '\0';
-    return buffer;
-}
-
-static uint64_t __parsec_generic_key_trivial_hash(parsec_key_t k, int nb_bits, void *user_data)
-{
-    (void)nb_bits;
-    (void)user_data;
-    (void)k;
-    assert(NULL == k);
-    return 0;
-}
-
 /**
  * This function is a stub that we attach at all the critical locations
  * to make sure the user of these objects are setting them up correcty.
@@ -140,9 +111,9 @@ static const __parsec_chore_t __parsec_generic_startup_chores[] = {
 };
 
 static parsec_key_fn_t __parsec_generic_key_functions = {
-    .key_equal = __parsec_generic_key_always_equal,
-    .key_print = __parsec_generic_key_print_empty_string,
-    .key_hash  = __parsec_generic_key_trivial_hash
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
+    .key_print = parsec_hash_table_generic_64bits_key_print,
+    .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };
 
 const parsec_task_class_t __parsec_generic_startup = {
