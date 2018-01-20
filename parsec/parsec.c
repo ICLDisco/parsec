@@ -208,10 +208,6 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     es->socket_id        = 0;
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 
-#if defined(PARSEC_SCHED_REPORT_STATISTICS)
-    es->sched_nb_tasks_done = 0;
-#endif
-
     /*
      * A single thread per VP has a little bit more responsability: allocating
      * the memory pools.

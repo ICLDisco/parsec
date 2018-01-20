@@ -40,19 +40,6 @@
 #define TAKE_TIME(ES_PROFILE, KEY, ID) do {} while(0)
 #endif
 
-#if defined(PARSEC_SCHED_REPORT_STATISTICS)
-#define PARSEC_SCHED_MAX_PRIORITY_TRACE_COUNTER 65536
-typedef struct {
-    int      thread_id;
-    int      vp_id;
-    int32_t  priority;
-    uint32_t step;
-} sched_priority_trace_t;
-static sched_priority_trace_t sched_priority_trace[PARSEC_SCHED_MAX_PRIORITY_TRACE_COUNTER];
-static uint32_t sched_priority_trace_counter;
-#endif
-
-
 #if defined(PARSEC_PROF_RUSAGE_EU) && defined(PARSEC_HAVE_GETRUSAGE) && defined(PARSEC_HAVE_RUSAGE_THREAD) && !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -438,18 +425,6 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
 
     PINS(es, SELECT_END, task);
 
-#if defined(PARSEC_SCHED_REPORT_STATISTICS)
-    {
-        uint32_t my_idx = parsec_atomic_fetch_inc_int32(&sched_priority_trace_counter) + 1;
-        if(my_idx < PARSEC_SCHED_MAX_PRIORITY_TRACE_COUNTER ) {
-            sched_priority_trace[my_idx].step      = es->sched_nb_tasks_done++;
-            sched_priority_trace[my_idx].thread_id = es->th_id;
-            sched_priority_trace[my_idx].vp_id     = es->virtual_process->vp_id;
-            sched_priority_trace[my_idx].priority  = task->priority;
-        }
-    }
-#endif
-
     if(task->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
         PINS(es, PREPARE_INPUT_BEGIN, task);
         rc = task->task_class->prepare_input(es, task);
@@ -622,34 +597,6 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     // that has no context
     PINS(es, SELECT_END, NULL);
 
-#if defined(PARSEC_SCHED_REPORT_STATISTICS)
-    parsec_inform("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu",
-            es->th_id, es->virtual_process->vp_id, nbiterations, (long long unsigned int)found_local,
-            (long long unsigned int)found_remote,
-            (long long unsigned int)found_victim,
-            (long long unsigned int)miss_local,
-            (long long unsigned int)miss_victim );
-
-    if( PARSEC_THREAD_IS_MASTER(es) ) {
-        char  priority_trace_fname[64];
-        FILE *priority_trace = NULL;
-        sprintf(priority_trace_fname, "priority_trace-%d.dat", es->virtual_process->parsec_context->my_rank);
-        priority_trace = fopen(priority_trace_fname, "w");
-        if( NULL != priority_trace ) {
-            uint32_t my_idx;
-            fprintf(priority_trace,
-                    "#Step\tPriority\tThread\tVP\n"
-                    "#Tasks are ordered in execution order\n");
-            for(my_idx = 0; my_idx < MIN(sched_priority_trace_counter, PARSEC_SCHED_MAX_PRIORITY_TRACE_COUNTER); my_idx++) {
-                fprintf(priority_trace, "%d\t%d\t%d\t%d\n",
-                        sched_priority_trace[my_idx].step, sched_priority_trace[my_idx].priority,
-                        sched_priority_trace[my_idx].thread_id, sched_priority_trace[my_idx].vp_id);
-            }
-            fclose(priority_trace);
-        }
-    }
-#endif  /* PARSEC_REPORT_STATISTICS */
-
     if( parsec_context->__parsec_internal_finalization_in_progress ) {
         PINS_THREAD_FINI(es);
     }
@@ -779,9 +726,6 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     } else {
         parsec_check_complete_cb(tp, context, tp->nb_pending_actions);
     }
-#if defined(PARSEC_SCHED_REPORT_STATISTICS)
-    sched_priority_trace_counter = 0;
-#endif
 
     return 0;
 }

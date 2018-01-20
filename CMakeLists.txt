@@ -77,9 +77,6 @@ mark_as_advanced(PARSEC_PTGPP_CFLAGS)
 option(PARSEC_WITH_DEVEL_HEADERS "Install additional headers in include/parsec allowing external compilation." OFF)
 
 ## Multicore scheduler parameters
-mark_as_advanced(PARSEC_SCHED_REPORT_STATISTICS)
-option(PARSEC_SCHED_REPORT_STATISTICS
-  "Display statistics on the scheduling at the end of the run")
 
 mark_as_advanced(PARSEC_SCHED_DEPS_MASK)
 option(PARSEC_SCHED_DEPS_MASK

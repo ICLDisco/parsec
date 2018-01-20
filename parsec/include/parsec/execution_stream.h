@@ -46,10 +46,6 @@ struct parsec_execution_stream_s {
 
     void *scheduler_object;
 
-#if defined(PARSEC_SCHED_REPORT_STATISTICS)
-    uint32_t sched_nb_tasks_done;
-#endif
-
 #if defined(PARSEC_SIM)
     int largest_simulation_date;
 #endif
