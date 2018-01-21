@@ -6,9 +6,14 @@ extern "C" %{
  *
  */
 
+#include <time.h>
 #include "strange.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
+struct prev_next_s {
+  int prev;
+  int next;
+};
 /**
  * This test build a chain using different different local variables
  * and inlined functions. The local variable m is not necessary for the
@@ -22,27 +27,43 @@ first     [type = double]
 second    [type = float
            hidden = on
            default = "(float)5.2"]
-neworder  [type = "int*" hidden = on default = "NULL"] 
+neworder  [type = "struct prev_next_s*" hidden = on default = "NULL"]
 //           default = "inline_C %{ return (float)5.2; %}"]
+
+/**************************************************
+ *                      START                     *
+ **************************************************/
+START(k)
+ k = %{return *VAL;%} .. %{return *VAL;%}
+
+ // Parallel partitionning
+: descA(%{return neworder[0].next;%}, 0)
+
+RW A <- descA(%{return neworder[0].next;%}, 0)
+     -> A TASK(%{return neworder[0].next;%}, 0)
+BODY
+    printf("Start: launch Task(%d)\n", neworder[0].next);
+END
 
 /**************************************************
  *                       TASK                     *
  **************************************************/
-TASK(k)
+TASK(k, step)
  k = 0 .. (%{ return N; %} - 1) .. %{ return 1; %}
+ step = 0 .. N .. (N+1)  // only one valid value
  n = %{ return k + 1; %}
  m = %{ return k + 1; %}
 
 // Parallel partitioning
-:descA(inline_c%{return neworder[k];%}, 0)
+:descA(k, 0)
 
-RW A <- (0 == k) ? descA(inline_c%{return neworder[k];%}, 0) : A TASK(inline_c%{return neworder[k-1]; %})
-     -> A TASK(inline_c%{ return neworder[k+1]; %})
+RW A <- (0 == step) ? A START(0) : A TASK(inline_c%{return neworder[k].prev; %}, step-1)
+     -> (step < (N-1)) ? A TASK(inline_c%{ return neworder[k].next; %}, step+1)
 
 BODY
 {
-  printf("Task(%d) val %d\n", k, *VAL);
-  (*VAL) += 1;
+    printf("Task(%d) val %d\n", k, *VAL);
+    (*VAL) += 1;
 }
 END
 
@@ -51,16 +72,39 @@ extern "C" %{
 #define TYPE  matrix_RealFloat
 static two_dim_block_cyclic_t descA;
 
+static void print_prev_next(char* msg, struct prev_next_s* no, int length)
+{
+    int i;
+    printf("\n%s\n", msg);
+    for( i = 0; i < length; i++ )
+        printf("%4d ", no[i].prev);
+    printf("\n");
+    for( i = 0; i < length; i++ )
+        printf("%4d ", no[i].next);
+    printf("\n");
+}
+
 int main(int argc, char* argv[] )
 {
     parsec_context_t *parsec;
     parsec_strange_taskpool_t* tp;
-    int i = 0, n = 1, val = 0, rc;
-    int * neworder;
+    int i = 0, n = 10000, val = 0, verbose = 0, rc;
+    struct prev_next_s* neworder;
+
+    /* We want a non-deterministic behavior unless requested via args */
+    srand(time(NULL));
 
     while( NULL != argv[i] ) {
+        if( 0 == strncmp(argv[i], "-deterministic", 7) ) {
+            srand(n);
+            goto move_and_continue;
+        }
         if( 0 == strncmp(argv[i], "-n=", 3) ) {
             n = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        if( 0 == strncmp(argv[i], "-v", 2) ) {
+            verbose++;
             goto move_and_continue;
         }
         i++;
@@ -69,10 +113,40 @@ int main(int argc, char* argv[] )
         memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
         argc -= 1;
     }
-    neworder = malloc(n*sizeof(int));
-    for(i=0; i< n; i++){
-      neworder[i] = i;
+    neworder = calloc(n, sizeof(struct prev_next_s));
+    for( i = 0; i < n; i++ ) {
+
+        /* loop until we hit a not yet picked random number */
+        do {
+            val = (rand() % (n));  /* random value between 0 and n */
+            if( 0 == neworder[val].prev ) {  /* did we picked this number before */
+                neworder[i].next = val;
+                neworder[val].prev = -1;
+                if( verbose > 1 )
+                    printf(" idx %d -> select %d\n", i, val);
+                break;
+            }
+        } while (1);
     }
+    if( verbose > 1 ) {
+        print_prev_next("After randomization", neworder, n);
+    }
+    /* build the list of prev according to the next (which is still position indexed) */
+    neworder[neworder[0].next].prev = neworder[n-1].next;
+    for( i = 1; i < n; i++ ) {
+        neworder[neworder[i].next].prev = neworder[i-1].next;
+    }
+    if( verbose > 1 ) {
+        print_prev_next("Prev fixed", neworder, n);
+    }
+    /* build the list of next from prev */
+    for( i = 0; i < n; i++ ) {
+        neworder[neworder[i].prev].next = i;
+    }
+    if( verbose ) {
+        print_prev_next("Random array", neworder, n);
+    }
+
 #ifdef PARSEC_HAVE_MPI
     {
         int provided;
@@ -91,8 +165,10 @@ int main(int argc, char* argv[] )
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
 
+    val = 0;
     tp = parsec_strange_new( (parsec_data_collection_t*)&descA, n, &val, 2.5 );
     assert( NULL != tp );
+    ((parsec_strange_taskpool_t*)tp)->_g_neworder = neworder;
 
     /* Datatype not needed for a single node test */
     parsec_arena_construct( tp->arenas[PARSEC_strange_DEFAULT_ARENA],
