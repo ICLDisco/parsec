@@ -35,13 +35,12 @@ parsec_operator_print_id( struct parsec_execution_stream_s *es,
 int main( int argc, char* argv[] )
 {
     parsec_context_t* parsec;
-    int rc;
     parsec_taskpool_t* op;
     two_dim_block_cyclic_t dcA;
     int cores = 4, world = 1, rank = 0;
     int mb = 100, nb = 100;
     int lm = 1000, ln = 1000;
-    int rows = 1;
+    int rows = 1, rc;
 
 #if defined(PARSEC_HAVE_MPI)
     {

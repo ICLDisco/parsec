@@ -30,8 +30,7 @@ double stdev(double sum, double sumsqr, double n)
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rc;
-    int rank, world;
+    int rank, world, rc;
     int nt, level, try;
     parsec_data_collection_t *dcA;
     parsec_taskpool_t *ep;

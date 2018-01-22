@@ -6,7 +6,18 @@ macro(parsec_addtest lang target input)
     set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
     set(${target}_LDFLAGS "${MPI_C_LINK_FLAGS} ${${target}_LDFLAGS}")
   endif( MPI_C_FOUND )
-  set(${target}_LIBS    parsec parsec_distribution_matrix ${EXTRA_LIBS} ${${target}_LIBS})
+  if( "${lang}" MATCHES "Fortran" )
+    set(${target}_LDFLAGS "${MPI_Fortran_LINK_FLAGS} ${${target}_LDFLAGS}")
+    # Apparently there is no standard way to detect what MPI libraries should be used
+    # for a succesful link. Thus provide a fix for all cases we have encountered so
+    # far (icc/gcc/clang with OMPI and MPICH).
+    if( DEFINED MPI_Fortran_LIB_NAMES AND (NOT "" EQUAL "${MPI_Fortran_LIB_NAMES}") )
+      set(${target}_LIBS -L${MPI_Fortran_MODULE_DIR} ${MPI_Fortran_LIB_NAMES} ${${target}_LIBS})
+    elseif( DEFINED MPI_Fortran_LIBRARIES AND (NOT ("" EQUAL "${MPI_Fortran_LIBRARIES}")) )
+      set(${target}_LIBS ${MPI_Fortran_LIBRARIES} ${${target}_LIBS})
+    endif( DEFINED MPI_Fortran_LIB_NAMES AND (NOT "" EQUAL "${MPI_Fortran_LIB_NAMES}") )
+  endif()
+  set(${target}_LIBS parsec parsec_distribution_matrix ${${target}_LIBS} ${EXTRA_LIBS})
 
   add_executable(${target} ${input})
   set_target_properties(${target} PROPERTIES

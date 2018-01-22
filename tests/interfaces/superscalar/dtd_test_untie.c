@@ -7,9 +7,6 @@
 /* parsec things */
 #include "parsec.h"
 #include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "common_timing.h"
 #include "common_data.h"
@@ -93,7 +90,7 @@ test_task_generator( parsec_execution_stream_t    *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = 20;
+    int rank, world, cores = 20, rc;
 
     if(argc > 1) {
         cores = atoi(argv[1]);
@@ -128,8 +125,10 @@ int main(int argc, char ** argv)
     dtd_tp = parsec_dtd_taskpool_new(  );
 
     /* Registering the dtd_taskpool with PARSEC context */
-    parsec_enqueue( parsec, dtd_tp );
-    parsec_context_start( parsec );
+    rc = parsec_enqueue( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start( parsec );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     nb = 1; /* size of each tile */
     nt = no_of_chain; /* total tiles */
@@ -139,8 +138,8 @@ int main(int argc, char ** argv)
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
-                          nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          MPI_INT);
+                           nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                           MPI_INT);
 #endif
 
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
@@ -154,14 +153,15 @@ int main(int argc, char ** argv)
         for( n = 0; n < no_of_chain; n++ ) {
             for( m = 0; m < tasks_in_each_chain[i]; m++ ) {
                 parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
-                                    sizeof(int),      &amount_of_work[work_index],    VALUE,
-                                    PASSED_BY_REF,    TILE_OF_KEY(A, n), INOUT  ,
-                                    0 );
+                                                 sizeof(int),      &amount_of_work[work_index],    VALUE,
+                                                 PASSED_BY_REF,    TILE_OF_KEY(A, n), INOUT  ,
+                                                 0 );
             }
             parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, n));
         }
         /* finishing all the tasks inserted, but not finishing the taskpool */
-        parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
         SYNC_TIME_PRINT(rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));
     }
@@ -175,23 +175,25 @@ int main(int argc, char ** argv)
 
         for( n = 0; n < no_of_chain; n++ ) {
             parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_Generator",
-                                sizeof(int),      &n,                     VALUE,
-                                sizeof(int),      &amount_of_work[work_index],     VALUE,
-                                sizeof(int),      &tasks_in_each_chain[i],   VALUE,
-                                sizeof(int),      &step,                  VALUE,
-                                sizeof(int),      &iteration,             VALUE,
-                                sizeof(parsec_tiled_matrix_dc_t*),    dcA,  SCRATCH,
-                                0 );
+                                             sizeof(int),      &n,                     VALUE,
+                                             sizeof(int),      &amount_of_work[work_index],     VALUE,
+                                             sizeof(int),      &tasks_in_each_chain[i],   VALUE,
+                                             sizeof(int),      &step,                  VALUE,
+                                             sizeof(int),      &iteration,             VALUE,
+                                             sizeof(parsec_tiled_matrix_dc_t*),    dcA,  SCRATCH,
+                                             0 );
 
         }
 
         /* finishing all the tasks inserted, but not finishing the taskpool */
-        parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
         SYNC_TIME_PRINT(rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));
     }
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);
     parsec_dtd_data_collection_fini( A );

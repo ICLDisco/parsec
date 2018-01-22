@@ -7,9 +7,6 @@
 /* parsec things */
 #include "parsec.h"
 #include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "common_data.h"
 #include "common_timing.h"
@@ -61,7 +58,7 @@ int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
     int rank, world, cores;
-    int nb, nt, i;
+    int nb, nt, i, rc;
     parsec_tiled_matrix_dc_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -78,7 +75,7 @@ int main(int argc, char **argv)
 
     nb = 1; /* tile_size */
     nt = world; /* total no. of tiles */
-    cores = 8;
+    cores = -1;
 
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
@@ -109,8 +106,10 @@ int main(int argc, char **argv)
     parsec_dtd_data_collection_init(A);
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, dtd_tp );
-    parsec_context_start(parsec);
+    rc = parsec_enqueue( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     for( i = 0; i < world - 1; i++ ) {
         parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_0,    0,  "task_rank_0",
@@ -122,9 +121,11 @@ int main(int argc, char **argv)
                             0 );
     }
 
-    parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
-    parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
     for( i = 0; i < world - 1; i++ ) {
         parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_0,    0,  "task_rank_0",
@@ -137,7 +138,8 @@ int main(int argc, char **argv)
     }
 
     parsec_dtd_data_flush_all( dtd_tp, A );
-    parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
     parsec_taskpool_free( dtd_tp );
 
     parsec_context_wait(parsec);

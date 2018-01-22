@@ -192,7 +192,7 @@ int parsec_enqueue( parsec_context_t* context , parsec_taskpool_t* tp);
  *
  * @param[inout] context the PaRSEC context
  * @returns: 0 if the other threads in this context have been started, -1 if the
- * context was already active, -2 if there was nothing to do and no threads hav
+ * context was already active, -2 if there was nothing to do and nothing has
  * been activated.
  */
 int parsec_context_start(parsec_context_t* context);

@@ -68,7 +68,7 @@ static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, world;
+    int rank, world, rc;
     parsec_data_collection_t taskdist;
     parsec_forward_RW_NULL_taskpool_t *tp;
 
@@ -107,9 +107,12 @@ int main(int argc, char *argv[])
                            sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_int_t );
 
-    parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
-    parsec_context_start(parsec);
-    parsec_context_wait(parsec);
+    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free((parsec_taskpool_t*)tp);
 

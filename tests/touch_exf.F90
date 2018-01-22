@@ -27,19 +27,23 @@ end interface
   type(parsec_context_t) :: context
   type(parsec_taskpool_t)  :: tp
 
+  call MPI_INIT(ret)
+  
   call parsec_init(1, context)
 
   tp = touch_initialize_f08(BLOCK, N)
 
-  call parsec_context_start(context)
+  call parsec_context_start(context, ret)
 
-  call parsec_enqueue( context, tp )
+  call parsec_enqueue( context, tp, ret )
 
-  call parsec_context_wait(context)
+  call parsec_context_wait(context, ret)
 
   call parsec_fini(context)
 
   ret = touch_finalize_f08()
+
+  call MPI_FINALIZE(ret)
 
   call exit(ret)
 END

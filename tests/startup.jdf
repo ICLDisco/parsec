@@ -65,7 +65,7 @@ struct my_priority_s {
     { .prio =  1, .message = "Increasing priority" },
     { .prio =  2, .message = "Random priority" },
     { .prio =  0, .message = NULL}};
-    
+
 #define TIMER_START(TIMER)                      \
     do {                                        \
         struct timeval tv;                      \
@@ -86,7 +86,7 @@ int main( int argc, char** argv )
     two_dim_block_cyclic_t descA;
     parsec_arena_t arena;
     parsec_context_t *parsec;
-    int ni = NN, nj = NN, nk = NN, verbose = 0, i = 1;
+    int ni = NN, nj = NN, nk = NN, verbose = 0, i = 1, rc;
     long time_elapsed;
 
 #ifdef PARSEC_HAVE_MPI
@@ -142,22 +142,35 @@ int main( int argc, char** argv )
 
     srandom((int)getpid());  /* Start the random generator */
 
+    /* Start the PaRSEC engine */
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
     /* Heat up the engine: small tasks no priority */
     tp = parsec_startup_new( &descA, ni, nj, nk );
     assert( NULL != tp );
     tp->arenas[PARSEC_startup_DEFAULT_ARENA] = &arena;
     tp->_g_pri = 0;
-    parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
-    parsec_context_wait(parsec);
+    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     for(i = 0; NULL != priorities[i].message; i++) {
+
+        /* Start the PaRSEC engine */
+        rc = parsec_context_start(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
         tp = parsec_startup_new( &descA, ni, nj, nk );
         assert( NULL != tp );
         TIMER_START(time_elapsed);
         tp->arenas[PARSEC_startup_DEFAULT_ARENA] = &arena;
         tp->_g_pri = priorities[i].prio;
-        parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+
+        rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+
         TIMER_STOP(time_elapsed);
         printf("DAG construction [%s] in %ld micro-sec\n",
                priorities[i].message, time_elapsed);

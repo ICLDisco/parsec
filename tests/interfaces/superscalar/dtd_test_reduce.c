@@ -7,9 +7,6 @@
 /* parsec things */
 #include "parsec.h"
 #include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "common_data.h"
 #include "common_timing.h"
@@ -64,7 +61,7 @@ int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
     int rank, world, cores;
-    int nb, nt;
+    int nb, nt, rc;
     parsec_tiled_matrix_dc_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -93,8 +90,8 @@ int main(int argc, char **argv)
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[0],
-                          nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          MPI_INT);
+                           nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                           MPI_INT);
 #endif
 
     /* Correctness checking */
@@ -110,11 +107,12 @@ int main(int argc, char **argv)
     int root = 0, i;
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, dtd_tp );
+    rc = parsec_enqueue( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
-    parsec_context_start(parsec);
-
-// *********************
+    // *********************
     if( rank == root) {
         printf("Root: %d\n\n", root );
     }
@@ -128,20 +126,22 @@ int main(int argc, char **argv)
     for( i = 0; i < world; i ++ ) {
         if( root != i ) {
             parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_0,    0,  "task_rank_0",
-                                PASSED_BY_REF,    TILE_OF_KEY(A, i), INOUT | TILE_FULL | AFFINITY,
-                                0 );
+                                             PASSED_BY_REF,    TILE_OF_KEY(A, i), INOUT | TILE_FULL | AFFINITY,
+                                             0 );
 
             parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_1,    0,  "task_rank_0",
-                                PASSED_BY_REF,    TILE_OF_KEY(A, i),    INOUT | TILE_FULL,
-                                PASSED_BY_REF,    TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
-                                0 );
+                                             PASSED_BY_REF,    TILE_OF_KEY(A, i),    INOUT | TILE_FULL,
+                                             PASSED_BY_REF,    TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
+                                             0 );
         }
     }
-//******************
+    //******************
     parsec_dtd_data_flush_all( dtd_tp, A );
 
-    parsec_dtd_taskpool_wait( parsec, dtd_tp );
-    parsec_context_wait(parsec);
+    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free( dtd_tp );
 

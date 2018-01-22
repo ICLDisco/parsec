@@ -7,9 +7,6 @@
 /* parsec things */
 #include "parsec.h"
 #include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "common_data.h"
 #include "common_timing.h"
@@ -44,7 +41,7 @@ int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
     int rank, world, cores;
-    int nb, nt;
+    int nb, nt, rc;
     parsec_tiled_matrix_dc_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -97,26 +94,28 @@ int main(int argc, char ** argv)
 
     if( 0 == rank ) {
         parsec_output( 0, "\nChecking DONT_TRACK flag. "
-                      "We insert %d tasks and increase a counter to see if %d task executed sequentially or not\n\n", total_tasks, total_tasks );
+                       "We insert %d tasks and increase a counter to see if %d task executed sequentially or not\n\n", total_tasks, total_tasks );
     }
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, dtd_tp );
-
-    parsec_context_start(parsec);
+    rc = parsec_enqueue( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     for( i = 0; i < total_tasks; i++ ) {
         /* This task does not have any data associated with it, so it will be inserted in all mpi processes */
         parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_dont_track,    0,  "sample_task",
-                            PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | DONT_TRACK | AFFINITY,
-                            0 );
+                                         PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | DONT_TRACK | AFFINITY,
+                                         0 );
     }
 
     parsec_dtd_data_flush_all( dtd_tp, A );
 
-    parsec_dtd_taskpool_wait( parsec, dtd_tp );
-
-    parsec_context_wait(parsec);
+    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     if( 0 == rank ) {
         parsec_output( 0, "Test passed if we do not see 0-%d printed sequentially in order\n\n", total_tasks-1 );

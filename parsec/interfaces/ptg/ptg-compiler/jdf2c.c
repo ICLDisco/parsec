@@ -3214,7 +3214,7 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
         free(array);
     }
     /* This list is NULL terminated */
-    string_arena_add_string(sa, "NULL };\n\n");
+    string_arena_add_string(sa, "  NULL  /* NULL-terminated array */};\n\n");
     coutput("%s", string_arena_get_string(sa));
 
     string_arena_free(sa);
@@ -3462,7 +3462,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "              calloc(PARSEC_%s_NB_TASK_CLASSES, sizeof(void*));\n"
             "  /* Twice the size to hold the startup tasks function_t */\n"
             "  __parsec_tp->super.super.task_classes_array = (const parsec_task_class_t**)\n"
-            "              malloc(2 * PARSEC_%s_NB_TASK_CLASSES * sizeof(parsec_task_class_t*));\n"
+            "              calloc((2 * PARSEC_%s_NB_TASK_CLASSES + 1), sizeof(parsec_task_class_t*));\n"
             "  __parsec_tp->super.super.nb_tasks = 1;\n"
             "  __parsec_tp->super.super.taskpool_type = PARSEC_TASKPOOL_TYPE_PTG;\n"
             "  __parsec_tp->super.super.nb_pending_actions = 1 + PARSEC_%s_NB_TASK_CLASSES;  /* for the startup tasks */\n"
@@ -3473,7 +3473,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     coutput("  for( i = 0; i < PARSEC_%s_NB_TASK_CLASSES; i++ ) {\n"
             "    __parsec_tp->super.super.task_classes_array[i] = tc = malloc(sizeof(parsec_task_class_t));\n"
             "    memcpy(tc, %s_task_classes[i], sizeof(parsec_task_class_t));\n"
-            "    for( j = 0; NULL != tc->incarnations[j].hook; j++);\n"
+            "    for( j = 0; NULL != tc->incarnations[j].hook; j++);  /* compute the number of incarnations */\n"
             "    tc->incarnations = (__parsec_chore_t*)malloc((j+1) * sizeof(__parsec_chore_t));\n"
             "    memcpy((__parsec_chore_t*)tc->incarnations, %s_task_classes[i]->incarnations, (j+1) * sizeof(__parsec_chore_t));\n\n"
             "    /* Add a placeholder for initialization and startup task */\n"

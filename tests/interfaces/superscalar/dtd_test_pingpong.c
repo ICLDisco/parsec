@@ -7,9 +7,6 @@
 /* parsec things */
 #include "parsec.h"
 #include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "common_data.h"
 #include "common_timing.h"
@@ -84,7 +81,7 @@ int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
     int rank, world, cores;
-    int nb, nt;
+    int nb, nt, rc;
     parsec_tiled_matrix_dc_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -118,8 +115,8 @@ int main(int argc, char **argv)
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
-                          nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          MPI_INT);
+                           nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                           MPI_INT);
 #endif
 
     /* Correctness checking */
@@ -131,8 +128,8 @@ int main(int argc, char **argv)
 
     if( 0 == rank ) {
         parsec_output( 0, "\nChecking correctness of pingpong. We send data from rank 0 to rank 1 "
-                      "And vice versa.\nWe start with 0 as data and should end up with 1 after "
-                      "the trip.\n\n" );
+                       "And vice versa.\nWe start with 0 as data and should end up with 1 after "
+                       "the trip.\n\n" );
     }
 
     parsec_data_copy_t *gdata;
@@ -149,23 +146,25 @@ int main(int argc, char **argv)
     }
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, dtd_tp );
-
-    parsec_context_start(parsec);
+    rc = parsec_enqueue( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_0,    0,  "task_rank_0",
-                       PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
-                       0 );
+                                     PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
+                                     0 );
     parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_1,    0,  "task_rank_1",
-                       PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
-                       PASSED_BY_REF,    TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
-                       0 );
+                                     PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
+                                     PASSED_BY_REF,    TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
+                                     0 );
 
     parsec_dtd_data_flush_all( dtd_tp, A );
 
-    parsec_dtd_taskpool_wait( parsec, dtd_tp );
-
-    parsec_context_wait(parsec);
+    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     if( 0 == rank ) {
         key = A->data_key(A, 0, 0);
@@ -192,8 +191,8 @@ int main(int argc, char **argv)
     /* Start of Pingpong timing */
     if( 0 == rank ) {
         parsec_output( 0, "\nChecking time of pingpong. We send data from rank 0 to rank 1 "
-                      "And vice versa.\nWe perform this pingpong for 1000 times and measure the time. "
-                      "We report the time for different size of data.\n\n" );
+                       "And vice versa.\nWe perform this pingpong for 1000 times and measure the time. "
+                       "We report the time for different size of data.\n\n" );
     }
 
     int repeat_pingpong = 1000;
@@ -203,16 +202,19 @@ int main(int argc, char **argv)
 
     for( i = 0; i < sizes_of_data; i++ ) {
         dtd_tp = parsec_dtd_taskpool_new(  );
-        parsec_enqueue( parsec, dtd_tp );
-        parsec_context_start(parsec);
+
+        rc = parsec_enqueue( parsec, dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+        rc = parsec_context_start(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
         nb = sizes[i];
         nt = 2;
 
 #if defined(PARSEC_HAVE_MPI)
         parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
-                              nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                              MPI_INT);
+                               nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                               MPI_INT);
 #endif
 
         dcA = create_and_distribute_data(rank, world, nb, nt);
@@ -225,19 +227,21 @@ int main(int argc, char **argv)
 
         for( j = 0; j < repeat_pingpong; j++ ) {
             parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_0,    0,  "task_for_timing_0",
-                               PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
-                               0 );
+                                             PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
+                                             0 );
             parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_1,    0,  "task_for_timing_1",
-                               PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
-                               PASSED_BY_REF,    TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
-                               0 );
+                                             PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
+                                             PASSED_BY_REF,    TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
+                                             0 );
         }
 
         parsec_dtd_data_flush_all( dtd_tp, A );
         /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
-        parsec_context_wait(parsec);
+        rc = parsec_context_wait(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
         SYNC_TIME_PRINT(rank, ("\tSize of message : %ld bytes\tTime for each pingpong : %12.5f\n", sizes[i]*sizeof(int), sync_time_elapsed/repeat_pingpong));
 
         parsec_arena_destruct(parsec_dtd_arenas[0]);

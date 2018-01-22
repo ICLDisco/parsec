@@ -582,7 +582,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
             misses_in_a_row = 0;  /* reset the misses counter */
 
             rc = __parsec_task_progress(es, task, distance);
-
+            (void)rc;  /* for now ignore the return value */
             nbiterations++;
         }
     }

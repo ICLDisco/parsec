@@ -274,7 +274,7 @@ parsec_dtd_taskpool_new();
  */
 int
 parsec_dtd_taskpool_wait( parsec_context_t *parsec,
-                        parsec_taskpool_t  *tp );
+                          parsec_taskpool_t  *tp );
 
 /*
  * This function flushes a specific data,
