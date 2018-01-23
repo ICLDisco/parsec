@@ -872,7 +872,6 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datatype.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/profiling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/debug.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/private_mempool.h
   DESTINATION include/parsec)
 
@@ -900,7 +899,6 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_prof_grapher.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data_internal.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datarepo.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/debug.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/hbbuffer.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_description_structures.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/execution_stream.h
@@ -935,6 +933,7 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/show_help.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/zone_malloc.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/debug.h
     DESTINATION include/parsec/utils )
 
   install(FILES

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1119,7 +1119,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#include \"parsec/constants.h\"\n"
             "#include \"parsec/data_distribution.h\"\n"
             "#include \"parsec/data_internal.h\"\n"
-            "#include \"parsec/debug.h\"\n"
+            "#include \"parsec/utils/debug.h\"\n"
             "#include \"parsec/ayudame.h\"\n"
             "#include \"parsec/devices/device.h\"\n"
             "#include \"parsec/interfaces/interface.h\"\n"
@@ -1213,7 +1213,7 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
     JDF_COUNT_LIST_ENTRIES(jdf->data, jdf_data_entry_t, next, nbdata);
     coutput("#include \"parsec/parsec_config.h\"\n"
             "#include \"parsec.h\"\n"
-            "#include \"parsec/debug.h\"\n"
+            "#include \"parsec/utils/debug.h\"\n"
             "#include \"parsec/scheduling.h\"\n"
             "#include \"parsec/mca/pins/pins.h\"\n"
             "#include \"parsec/remote_dep.h\"\n"

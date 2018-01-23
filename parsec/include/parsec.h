@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,7 +8,7 @@
 #define PARSEC_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_config.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 
 BEGIN_C_DECLS
 
@@ -38,6 +38,13 @@ BEGIN_C_DECLS
                             "%s", __FILE__, __LINE__, MSG );    \
             exit(-1);                                           \
         }                                                       \
+
+/**
+ * @brief Define a weak symbol called by PaRSEC in case of fatal error.
+ * Can be overwritten by the user level to catch and handle errors.
+ * However, this function must not return.
+ */
+extern void (*parsec_weaksym_exit)(int status);
 
 /**
  * @brief Defines a DAG of tasks

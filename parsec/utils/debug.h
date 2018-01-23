@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -49,7 +49,6 @@ extern int parsec_debug_rank;
 extern int parsec_debug_coredump_on_fatal;
 extern int parsec_debug_history_on_fatal;
 extern char parsec_debug_hostname[];
-extern void (*parsec_weaksym_exit)(int status);
 
 void parsec_debug_init(void);
 void parsec_debug_fini(void);
@@ -77,6 +76,12 @@ void parsec_debug_backtrace_dump(void);
 #   define parsec_debug_history_fini()
 #   define _PARSEC_DEBUG_HISTORY(...)
 #endif /* defined(PARSEC_DEBUG_HISTORY) */
+
+/* The main prototype is in parsec.h, but in order to avoid creating
+ * a dependencies between the header files we include this definition
+ * here.
+ */
+extern void (*parsec_weaksym_exit)(int status);
 
 /* Use when encountering a FATAL condition. Will terminate the program. */
 #define parsec_fatal(FMT, ...) do {                                  \

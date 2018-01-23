@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -68,6 +68,7 @@ size_t parsec_task_startup_chunk = 256;
 
 parsec_data_allocate_t parsec_data_allocate = malloc;
 parsec_data_free_t     parsec_data_free = free;
+void (*parsec_weaksym_exit)(int status) = _Exit;
 
 #if defined(PARSEC_PROF_TRACE)
 #if defined(PARSEC_PROF_TRACE_SCHEDULING_EVENTS)
@@ -102,6 +103,12 @@ static int parsec_runtime_max_number_of_cores = -1;
 static int parsec_runtime_bind_main_thread = 1;
 
 PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
+
+#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
+static void parsec_mpi_exit(int status) {
+    MPI_Abort(MPI_COMM_WORLD, status);
+}
+#endif
 
 /*
  * Taskpool based task definition (no specialized constructor and destructor) */
@@ -396,6 +403,15 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
         free(environ);
     }
+#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
+    int mpi_is_up;
+    MPI_Initialized(&mpi_is_up);
+    if( mpi_is_up ) {
+        MPI_Comm_rank(MPI_COMM_WORLD, &parsec_debug_rank);
+        parsec_weaksym_exit = parsec_mpi_exit;
+    }
+#endif
+
     parsec_debug_init();
     mca_components_repository_init();
 
