@@ -996,9 +996,9 @@ static void remote_dep_mpi_profiling_fini(void)
         __info.hid = __tp->taskpool_id;                                 \
         /** Recompute the base profiling key of that function */        \
         __info.fid = __tc->task_class_id;                               \
-        __info.tid = __tc->key(__tp, (rdw).locals);                     \
+        __info.tid = -1; /* TODO: should compute the TID from (rdw).locals */ \
         PARSEC_PROFILING_TRACE((PROF), (KEY), (I),                      \
-                              PROFILE_OBJECT_ID_NULL, &__info);         \
+                               PROFILE_OBJECT_ID_NULL, &__info);        \
     }
 
 #define TAKE_TIME(PROF, KEY, I) PARSEC_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, NULL);

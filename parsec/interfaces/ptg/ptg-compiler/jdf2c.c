@@ -1261,7 +1261,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
     coutput("  /* The ranges to compute the hash key */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
-        if( f->user_defines & JDF_FUNCTION_HAS_UD_HASH_FUN )
+        if( f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT )
             continue;
         for(pl = f->parameters; pl != NULL; pl = pl->next) {
             coutput("  int %s_%s_range;\n", f->fname, pl->name);
@@ -1334,21 +1334,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
                 "  (DEPS)->min = _vmin;                                                        \\\n"
                 "  (DEPS)->max = _vmax;                                                        \\\n"
                 "} while (0)\n\n");
-    } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
-        coutput("static uint32_t hash_fn_mod(uintptr_t key, uint32_t size, void *param) {\n"
-                "  /** Use all the bits of the 64 bits key, project on the lowest base bits (0 <= hash < 1024) */\n"
-                "  (void)param;\n"
-                "  int b = 0, base = 10; /* We start at 10, as size is 1024 at least */\n"
-                "  uint32_t mask = 0x3FFULL; /* same thing: assume size is 1024 at least */\n"
-                "  uint32_t h = key;\n"
-                "  while( size != (1u<<base) ) { assert(base < 32); base++; mask = (mask<<1)|1; }\n"
-                "  while( b < 64 ) {\n"
-                "    b += base;\n"
-                "    h ^= key >> b;\n"
-                "  }\n"
-                "  return (uint32_t)( h & mask);\n"
-                "}\n");
-    }
+    } 
     coutput("static inline int parsec_imin(int a, int b) { return (a <= b) ? a : b; };\n\n"
             "static inline int parsec_imax(int a, int b) { return (a >= b) ? a : b; };\n\n");
 
@@ -2500,6 +2486,56 @@ void free_l2p( jdf_l2p_t* l2p )
     }
 }
 
+static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_function_entry_t *f, const char *sname)
+{
+    jdf_name_list_t *nl;
+
+    (void)jdf;
+    
+    if( f->parameters == NULL ) {
+        /* There are no parameters for this task class */
+        coutput("static char *%s_key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)\n"
+                "{\n"
+                "  (void)user_data;\n"
+                "  snprintf(buffer, buffer_size, \"()\");\n"
+                "  return buffer;\n"
+                "}\n"
+                "\n",
+                sname);
+    } else {
+        string_arena_t *sa_format = string_arena_new(64);
+        string_arena_t *sa_params = string_arena_new(64);
+        coutput("static char *%s_key_print(char *buffer, size_t buffer_size, parsec_key_t __parsec_key_, void *user_data)\n"
+                "{\n"
+                "  uint64_t __parsec_key = (uint64_t)(uintptr_t)__parsec_key_;\n"
+                "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)user_data;\n",
+                sname,
+                jdf_basename, jdf_basename);
+        for(nl = f->parameters; NULL != nl; nl = nl->next) {
+            coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range;\n"
+                    "  __parsec_key = __parsec_key / __parsec_tp->%s_%s_range;\n",
+                    nl->name, f->fname, nl->name,
+                    f->fname, nl->name);
+            string_arena_add_string(sa_format, "%%d%s", nl->next == NULL ? "" : ", ");
+            string_arena_add_string(sa_params, "%s%s", nl->name, nl->next == NULL ? "" : ", ");
+        }
+        coutput("  snprintf(buffer, buffer_size, \"%s(%s)\", %s);\n"
+                "  return buffer;\n"
+                "}\n"
+                "\n", f->fname, string_arena_get_string(sa_format), string_arena_get_string(sa_params));
+        string_arena_free(sa_format);
+        string_arena_free(sa_params);
+    }
+    
+    coutput("static parsec_key_fn_t %s = {\n"
+            "   .key_equal = parsec_hash_table_generic_64bits_key_equal,\n"
+            "   .key_print = %s_key_print,\n"
+            "   .key_hash  = parsec_hash_table_generic_64bits_key_hash\n"
+            "};\n"
+            "\n",
+            sname, sname);
+}
+
 static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
     string_arena_t *sa1, *sa2, *sa_end;
@@ -2509,6 +2545,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     int need_to_iterate, need_min_max, need_to_count_tasks;
     int nesting = 0, idx;
     jdf_l2p_t *l2p = build_l2p(f), *l2p_item;
+    char *dep_key_fn_name = NULL;
     (void)jdf;
 
     sa1 = string_arena_new(64);
@@ -2516,9 +2553,15 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     sa_end = string_arena_new(64);
 
     need_min_max = (0 == (f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS ) ||
-                    0 == (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_FUN ));
+                    0 == (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT ));
     need_to_count_tasks = (NULL == jdf_property_get_string(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL));
     need_to_iterate = need_min_max || need_to_count_tasks;
+
+    if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE &&
+        0 == (f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
+        asprintf(&dep_key_fn_name, "%s_%s_deps_key_functions", jdf_basename, fname);
+        jdf_generate_deps_key_functions(jdf, f, dep_key_fn_name);
+    }
 
     coutput("static int %s(parsec_execution_stream_t * es, %s * this_task)\n"
             "{\n"
@@ -2700,7 +2743,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     indent(nesting));
         }
         if( need_to_iterate ) {
-            if( ! (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_FUN) ) {
+            if( ! (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT) ) {
                 coutput("  /* Set the range variables for the collision-free hash-computation */\n");
                 for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
                     dl = l2p_item->dl;
@@ -2750,8 +2793,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     f->task_class_id);
         } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
             coutput("  __parsec_tp->super.super.dependencies_array[%d] = OBJ_NEW(parsec_hash_table_t);\n"
-                    "  parsec_hash_table_init(__parsec_tp->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), 1<<10, hash_fn_mod, NULL);\n",
-                   f->task_class_id, f->task_class_id);
+                    "  parsec_hash_table_init(__parsec_tp->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), 10, %s, this_task->taskpool);\n",
+                    f->task_class_id, f->task_class_id, dep_key_fn_name);
+            free(dep_key_fn_name);
+            dep_key_fn_name = NULL;
         }
     }
 
@@ -2759,8 +2804,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  __parsec_tp->repositories[%d] = NULL;\n",
                 f->task_class_id );
     } else {
-        coutput("  __parsec_tp->repositories[%d] = data_repo_create_nothreadsafe(%s, %d);\n",
-                f->task_class_id, need_to_count_tasks ? "nb_tasks" : "PARSEC_DEFAULT_DATAREPO_HASH_LENGTH", idx );
+        coutput("  __parsec_tp->repositories[%d] = data_repo_create_nothreadsafe(%s, %s, (parsec_taskpool_t*)__parsec_tp, %d);\n",
+                f->task_class_id, need_to_count_tasks ? "nb_tasks" : "PARSEC_DEFAULT_DATAREPO_HASH_LENGTH",
+                jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL),
+                idx );
     }
 
     coutput("%s"
@@ -2894,7 +2941,7 @@ static void jdf_generate_release_task_fct(const jdf_t *jdf, jdf_function_entry_t
             jdf_basename);
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
         coutput("    parsec_hash_table_t *ht = (parsec_hash_table_t*)__parsec_tp->super.super.dependencies_array[%d];\n"
-                "    uint64_t key = this_task->task_class->key(&__parsec_tp->super.super, this_task->locals);\n"
+                "    parsec_key_t key = this_task->task_class->make_key((const parsec_taskpool_t*)__parsec_tp, (const assignment_t*)&this_task->locals);\n"
                 "    parsec_hashable_dependency_t *hash_dep = (parsec_hashable_dependency_t *)parsec_hash_table_remove(ht, key);\n"
                 "    parsec_thread_mempool_free(hash_dep->mempool_owner, hash_dep);\n",
                 f->task_class_id);
@@ -3084,8 +3131,11 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
                                 nb_input);
     }
 
-    string_arena_add_string(sa, "  .key = (parsec_functionkey_fn_t*)%s,\n",
-                            jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL));
+    string_arena_add_string(sa,
+                            "  .make_key = %s,\n"
+                            "  .key_functions = &%s,\n",
+                            jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL),
+                            jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL));
     string_arena_add_string(sa, "  .fini = (parsec_hook_t*)%s,\n", "NULL");
 
     sprintf(prefix, "%s_%s", jdf_basename, f->fname);
@@ -3608,58 +3658,116 @@ static jdf_name_list_t *definition_is_parameter(const jdf_function_entry_t *f, c
 
 static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_entry_t *f)
 {
-    string_arena_t *sa = string_arena_new(64);
+    string_arena_t *sa_format = string_arena_new(64);
+    string_arena_t *sa_params = string_arena_new(64);
+    string_arena_t *sa_range_multiplier = string_arena_new(64);
+    jdf_name_list_t *nl;
     jdf_def_list_t *dl;
     expr_info_t info;
     int idx;
 
-    coutput("static inline uint64_t %s(const __parsec_%s_internal_taskpool_t *__parsec_tp,\n"
-            "                          const %s *assignments)\n"
-            "{\n"
-            "  uint64_t __h = 0;\n",
-            jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL), jdf_basename,
-            parsec_get_name(jdf, f, "assignment_t"));
+    coutput("static inline parsec_key_t %s(const parsec_taskpool_t *tp, const assignment_t *as)\n"
+            "{\n",
+            jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
+    if( f->parameters == NULL ) {
+        coutput("  return (parsec_key_t)0;\n"
+                "}\n");
+    } else {
+        coutput( "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)tp;\n"
+                 "  const %s *assignment = (const %s*)as;\n"
+                 "  uintptr_t __parsec_id = 0;\n",
+                 jdf_basename, jdf_basename,
+                 parsec_get_name(jdf, f, "assignment_t"), parsec_get_name(jdf, f, "assignment_t"));
+            
+        info.prefix = "";
+        info.suffix = "";
+        info.sa = sa_range_multiplier;
+        info.assignments = "assignment";
 
-    info.prefix = "";
-    info.suffix = "";
-    info.sa = sa;
-    info.assignments = "assignments";
+        idx = 0;
+        for(dl = f->locals; dl != NULL; dl = dl->next) {
+            string_arena_init(sa_range_multiplier);
+            
+            coutput("  const int %s = assignment->%s.value;\n",
+                    dl->name, dl->name);
 
-    idx = 0;
-    for(dl = f->locals; dl != NULL; dl = dl->next) {
-        string_arena_init(sa);
-
-        coutput("  const int %s = assignments->%s.value;\n",
-                dl->name, dl->name);
-
-        if( definition_is_parameter(f, dl) != NULL ) {
-            if( dl->expr->op == JDF_RANGE ) {
-                coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+            if( definition_is_parameter(f, dl) != NULL ) {
+                if( dl->expr->op == JDF_RANGE ) {
+                    coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+                } else {
+                    coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr, &info));
+                }
             } else {
-                coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr, &info));
+                /* IDs should depend only on the parameters of the
+                 * function. However, we might need the other definitions because
+                 * the min expression of the parameters might depend on them. If
+                 * this is not the case, a quick "(void)" removes the warning.
+                 */
+                coutput("  (void)%s;\n", dl->name);
             }
-        } else {
-            /* Hash functions should depend only on the parameters of the
-             * function. However, we might need the other definitions because
-             * the min expression of the parameters might depend on them. If
-             * this is not the case, a quick "(void)" removes the warning.
-             */
-            coutput("  (void)%s;\n", dl->name);
+            idx++;
         }
-        idx++;
+
+        string_arena_init(sa_range_multiplier);
+        for(dl = f->locals; dl != NULL; dl = dl->next) {
+            if( definition_is_parameter(f, dl) != NULL ) {
+                coutput("  __parsec_id += (%s - %s%s_min)%s;\n", dl->name, JDF2C_NAMESPACE, dl->name, string_arena_get_string(sa_range_multiplier));
+                string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, dl->name);
+            }
+        }
+
+        coutput("  (void)__parsec_tp;\n"
+                "  return (parsec_key_t)__parsec_id;\n"
+                "}\n");
     }
 
-    string_arena_init(sa);
-    for(dl = f->locals; dl != NULL; dl = dl->next) {
-        if( definition_is_parameter(f, dl) != NULL ) {
-            coutput("  __h += (%s - %s%s_min)%s;\n", dl->name, JDF2C_NAMESPACE, dl->name, string_arena_get_string(sa));
-            string_arena_add_string(sa, " * __parsec_tp->%s_%s_range", f->fname, dl->name);
+    if( f->parameters == NULL ) {
+        /* There are no parameters for this task class */
+        coutput("static char *%s_%s_key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)\n"
+                "{\n"
+                "  (void)user_data;\n"
+                "  snprintf(buffer, buffer_size, \"()\");\n"
+                "  return buffer;\n"
+                "}\n"
+                "\n",
+                jdf_basename, f->fname);
+    } else {
+        coutput("static char *%s_%s_key_print(char *buffer, size_t buffer_size, parsec_key_t __parsec_key_, void *user_data)\n"
+                "{\n"
+                "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)user_data;\n"
+                "  uintptr_t __parsec_key = (uintptr_t)__parsec_key_;\n",
+                jdf_basename, f->fname,
+                jdf_basename, jdf_basename);
+        
+        for(nl = f->parameters; NULL != nl; nl = nl->next) {
+            coutput("  int %s = __parsec_key %% __parsec_tp->%s_%s_range;\n"
+                    "  __parsec_key /=  __parsec_tp->%s_%s_range;\n",
+                    nl->name, f->fname, nl->name,
+                    f->fname, nl->name);
+            string_arena_add_string(sa_format, "%%d%s", nl->next == NULL ? "" : ", ");
+            string_arena_add_string(sa_params, "%s%s", nl->name, nl->next == NULL ? "" : ", ");
         }
+        coutput("  snprintf(buffer, buffer_size, \"%s(%s)\", %s);\n"
+                "  return buffer;\n"
+                "}\n"
+                "\n",
+                f->fname, string_arena_get_string(sa_format), string_arena_get_string(sa_params));
+        string_arena_free(sa_format);
+        string_arena_free(sa_params);
     }
 
-    coutput(" (void)__parsec_tp; return __h;\n");
-    coutput("}\n\n");
-    string_arena_free(sa);
+    if( !(f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT) ) {
+        coutput("static parsec_key_fn_t %s = {\n"
+                "   .key_equal = parsec_hash_table_generic_64bits_key_equal,\n"
+                "   .key_print = %s_%s_key_print,\n"
+                "   .key_hash  = parsec_hash_table_generic_64bits_key_hash\n"
+                "};\n"
+                "\n",
+                jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL),
+                jdf_basename, f->fname);
+    }
+
+    string_arena_free(sa_range_multiplier);
 }
 
 static void jdf_generate_hashfunctions(const jdf_t *jdf)
@@ -3667,7 +3775,7 @@ static void jdf_generate_hashfunctions(const jdf_t *jdf)
     jdf_function_entry_t *f;
 
     for(f = jdf->functions; f != NULL; f = f->next) {
-        if( ! (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_FUN) ) {
+        if( ! (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT) ) {
             jdf_generate_hashfunction_for(jdf, f);
         }
     }
@@ -3852,8 +3960,8 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                 parsec_get_name(jdf, targetf, "assignment_t"), parsec_get_name(jdf, targetf, "assignment_t"));
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "target_locals", call));
 
-        coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s( __parsec_tp, target_locals ));\n",
-                spaces, call->func_or_mem, jdf_property_get_string(targetf->properties, JDF_PROP_UD_HASH_FN_NAME, NULL));
+        coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const assignment_t*)target_locals) );\n",
+                spaces, call->func_or_mem, jdf_property_get_string(targetf->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
 
         coutput("%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n"
                 "%s    ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", target_locals, chunk);\n"
@@ -4242,9 +4350,11 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
     (void)jdf;
 
     coutput("#if defined(PARSEC_PROF_GRAPHER)\n"
-            "  parsec_prof_grapher_task((parsec_task_t*)%s, es->th_id, es->virtual_process->vp_id, %s(__parsec_tp, &%s->locals));\n"
+            "  parsec_prof_grapher_task((parsec_task_t*)%s, es->th_id, es->virtual_process->vp_id,\n"
+            "     %s.key_hash(%s->task_class->make_key( (parsec_taskpool_t*)%s->taskpool, ((parsec_task_t*)%s)->locals), 64, NULL));\n"
             "#endif  /* defined(PARSEC_PROF_GRAPHER) */\n",
-            context_name, jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL), context_name);
+            context_name,
+            jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL), context_name, context_name, context_name);
 }
 
 static void jdf_generate_code_cache_awareness_update(const jdf_t *jdf, const jdf_function_entry_t *f)
@@ -4731,7 +4841,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "                           PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,\n"
                 "                                                     this_task->task_class->task_class_id) :\n"
                 "                           gpu_stream->prof_event_key_start),\n"
-                "                           this_task);\n");
+                "                           (parsec_task_t*)this_task);\n");
     }
 
     dyld = jdf_property_get_string(body->properties, "dyld", NULL);
@@ -5022,7 +5132,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     if( profile_on ) {
         coutput("  PARSEC_TASK_PROF_TRACE(es->es_profile,\n"
                 "                         this_task->taskpool->profiling_array[2*this_task->task_class->task_class_id],\n"
-                "                         this_task);\n");
+                "                         (parsec_task_t*)this_task);\n");
     }
 
     coutput("%s\n", body->external_code);
@@ -5089,7 +5199,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
     if( profile_on ) {
         coutput("  PARSEC_TASK_PROF_TRACE(es->es_profile,\n"
                 "                         this_task->taskpool->profiling_array[2*this_task->task_class->task_class_id+1],\n"
-                "                         this_task);\n");
+                "                         (parsec_task_t*)this_task);\n");
     }
 
     /* TODO: The data could be on the GPU */
@@ -5166,7 +5276,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                     case JDF_GUARD_UNCONDITIONAL:
                         if( NULL != dep->guard->calltrue->var ) {  /* this is a dataflow not a data access */
                             if( 0 != cond_index ) string_arena_add_string(sa_code, "    else {\n");
-                            string_arena_add_string(sa_code, "    data_repo_entry_used_once( es, %s_repo, this_task->data._f_%s.data_repo->key );\n",
+                            string_arena_add_string(sa_code, "    data_repo_entry_used_once( es, %s_repo, this_task->data._f_%s.data_repo->ht_item.key );\n",
                                                     dep->guard->calltrue->func_or_mem, dl->varname);
                             if( 0 != cond_index ) string_arena_add_string(sa_code, "    }\n");
                         }
@@ -5176,7 +5286,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                                                 dump_expr((void**)dep->guard->guard, &info));
                         need_locals++;
                         if( NULL != dep->guard->calltrue->var ) {   /* this is a dataflow not a data access */
-                            string_arena_add_string(sa_code, "      data_repo_entry_used_once( es, %s_repo, this_task->data._f_%s.data_repo->key );\n",
+                            string_arena_add_string(sa_code, "      data_repo_entry_used_once( es, %s_repo, this_task->data._f_%s.data_repo->ht_item.key );\n",
                                                     dep->guard->calltrue->func_or_mem, dl->varname);
                         }
                         string_arena_add_string(sa_code, "    }\n");
@@ -5187,13 +5297,13 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                         string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
                                                 dump_expr((void**)dep->guard->guard, &info));
                         if( NULL != dep->guard->calltrue->var ) {    /* this is a dataflow not a data access */
-                            string_arena_add_string(sa_code, "      data_repo_entry_used_once( es, %s_repo, this_task->data._f_%s.data_repo->key );\n",
+                            string_arena_add_string(sa_code, "      data_repo_entry_used_once( es, %s_repo, this_task->data._f_%s.data_repo->ht_item.key );\n",
                                                     dep->guard->calltrue->func_or_mem, dl->varname);
                         }
                         string_arena_add_string(sa_code, "    } else {\n");
                         if( NULL != dep->guard->callfalse->var ) {    /* this is a dataflow not a data access */
                             string_arena_add_string(sa_code,
-                                                    "      data_repo_entry_used_once( es, %s_repo, this_task->data._f_%s.data_repo->key );\n",
+                                                    "      data_repo_entry_used_once( es, %s_repo, this_task->data._f_%s.data_repo->ht_item.key );\n",
                                                     dep->guard->callfalse->func_or_mem, dl->varname);
                         }
                         string_arena_add_string(sa_code, "    }\n");
@@ -5250,14 +5360,14 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
        coutput("  if( action_mask & (PARSEC_ACTION_RELEASE_LOCAL_DEPS | PARSEC_ACTION_GET_REPO_ENTRY) ) {\n"
-                "    arg.output_entry = data_repo_lookup_entry_and_create( es, %s_repo, %s(__parsec_tp, (%s*)(&this_task->locals)) );\n"
+                "    arg.output_entry = data_repo_lookup_entry_and_create( es, %s_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const assignment_t*)&this_task->locals) );\n"
                 "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
                 "#if defined(PARSEC_SIM)\n"
                 "    assert(arg.output_entry->sim_exec_date == 0);\n"
                 "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
                 "#endif\n"
                 "  }\n",
-                f->fname, jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL), parsec_get_name(jdf, f, "assignment_t"));
+               f->fname, jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
 
         coutput("  iterate_successors_of_%s_%s(es, this_task, action_mask, parsec_release_dep_fct, &arg);\n"
                 "\n",
@@ -5271,7 +5381,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 "\n");
         coutput("  if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {\n"
                 "    struct parsec_vp_s** vps = es->virtual_process->parsec_context->virtual_processes;\n");
-        coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n",
+        coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->ht_item.key, arg.output_usage);\n",
                 f->fname);
         coutput("    for(__vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++) {\n"
                 "      if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
@@ -5913,18 +6023,36 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
     int rc;
 
     for(f = jdf->functions; NULL != f; f = f->next) {
-        if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL) ) {
-            rc = asprintf(&tmp, JDF2C_NAMESPACE"hash_%s", f->fname);
+        if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL) &&
+            NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL) ) {
+            rc = asprintf(&tmp, JDF2C_NAMESPACE"make_key_%s", f->fname);
             if (rc == -1) {
                 jdf_fatal(JDF_OBJECT_LINENO(f->properties),
-                          "Out of ressoruces to generate the hash function name hash_%s\n", f->fname);
+                          "Out of ressource to generate the function name make_key_%s\n", f->fname);
                 exit(1);
             }
-            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_HASH_FN_NAME, tmp);
+            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, tmp);
             free(tmp);
-            f->user_defines &= ~JDF_FUNCTION_HAS_UD_HASH_FUN;
+            rc = asprintf(&tmp, JDF2C_NAMESPACE"key_fns_%s", f->fname);
+            if (rc == -1) {
+                jdf_fatal(JDF_OBJECT_LINENO(f->properties),
+                          "Out of ressource to generate the function name key_fns_%s\n", f->fname);
+                exit(1);
+            }
+            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, tmp);
+            free(tmp);
+            
+            f->user_defines &= ~JDF_FUNCTION_HAS_UD_HASH_STRUCT;
         } else {
-            f->user_defines |= JDF_FUNCTION_HAS_UD_HASH_FUN;
+            if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL) ||
+                NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL) ) {
+                jdf_fatal(JDF_OBJECT_LINENO(f->properties),
+                          "Error in user-defined functions of task class %s:\n"
+                          "both make_key function and key_fns structure must be defined if one is\n",
+                          f->fname);
+                exit(1);
+            }
+            f->user_defines |= JDF_FUNCTION_HAS_UD_HASH_STRUCT;
         }
 
         if( NULL != jdf_property_get_string(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, NULL) ) {

@@ -21,7 +21,7 @@ struct parsec_task_s;
 struct parsec_flow_s;
 
 void  parsec_prof_grapher_init(const char *base_filename, int nbthreads);
-void  parsec_prof_grapher_task(const struct parsec_task_s *context, int thread_id, int vp_id, int task_hash);
+void  parsec_prof_grapher_task(const struct parsec_task_s *context, int thread_id, int vp_id, uint64_t task_hash);
 void  parsec_prof_grapher_dep(const struct parsec_task_s* from, const struct parsec_task_s* to,
                              int  dependency_activates_task,
                              const struct parsec_flow_s* origin_flow, const struct parsec_flow_s* dest_flow);

@@ -1018,10 +1018,10 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
 
             assert(-1 != gpu_stream->prof_event_key_start);
             PARSEC_PROFILING_TRACE(gpu_stream->profiling,
-                                  gpu_stream->prof_event_key_start,
-                                  this_task->task_class->key(this_task->taskpool, this_task->locals),
-                                  this_task->taskpool->taskpool_id,
-                                  &original);
+                                   gpu_stream->prof_event_key_start,
+                                   this_task->task_class->key_functions->key_hash(this_task->task_class->make_key(this_task->taskpool, this_task->locals), 64, NULL),
+                                   this_task->taskpool->taskpool_id,
+                                   &original);
         }
 #endif
 
@@ -1941,11 +1941,11 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
 
 #if defined(PARSEC_PROF_TRACE)
     PARSEC_PROFILING_TRACE_FLAGS( es->es_profile,
-                                 PARSEC_PROF_FUNC_KEY_END(gpu_task->ec->taskpool,
-                                                         gpu_task->ec->task_class->task_class_id),
-                                 gpu_task->ec->task_class->key( gpu_task->ec->taskpool, gpu_task->ec->locals),
-                                 gpu_task->ec->taskpool->taskpool_id, NULL,
-                                 PARSEC_PROFILING_EVENT_RESCHEDULED );
+                                  PARSEC_PROF_FUNC_KEY_END(gpu_task->ec->taskpool,
+                                                           gpu_task->ec->task_class->task_class_id),
+                                  gpu_task->ec->task_class->key_functions->key_hash(gpu_task->ec->task_class->make_key(gpu_task->ec->taskpool, gpu_task->ec->locals), 64, NULL),
+                                  gpu_task->ec->taskpool->taskpool_id, NULL,
+                                  PARSEC_PROFILING_EVENT_RESCHEDULED );
 #endif /* defined(PARSEC_PROF_TRACE) */
 
     /* Check the GPU status */

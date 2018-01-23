@@ -48,11 +48,12 @@
 #include "parsec/mca/pins/pins.h"
 #include "parsec/data_dist/matrix/matrix.h"
 
-uint32_t __parsec_dtd_is_initialized   = 0;      /**< Indicates init of dtd environment */
+uint32_t __parsec_dtd_is_initialized   = 0; /**< Indicates init of dtd environment is completed */
+
 int parsec_dtd_window_size             = 4000;   /**< Default window size */
 int parsec_dtd_threshold_size          = 2000;   /**< Default threshold size of tasks for master thread to wait on */
-static int parsec_dtd_task_hash_table_size = 104729; /**< Default task hash table size */
-static int parsec_dtd_tile_hash_table_size = 104729; /**< Default tile hash table size */
+static int parsec_dtd_task_hash_table_size = 1<<10; /**< Default task hash table size */
+static int parsec_dtd_tile_hash_table_size = 1<<10; /**< Default tile hash table size */
 static int parsec_dtd_no_of_arenas = 16;
 
 int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
@@ -95,7 +96,11 @@ static parsec_hook_return_t
 complete_hook_of_dtd(parsec_execution_stream_t *,
                      parsec_task_t *);
 
-static uint32_t hash_key(uintptr_t key, uint32_t hash_size, void *data);
+static parsec_key_fn_t DTD_key_fns = {
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
+    .key_print = parsec_hash_table_generic_64bits_key_print,
+    .key_hash  = parsec_hash_table_generic_64bits_key_hash
+};
 
 inline int parsec_dtd_task_is_local(parsec_dtd_task_t *task) { return task->rank == task->super.taskpool->context->my_rank;}
 inline int parsec_dtd_task_is_remote(parsec_dtd_task_t *task) { return !parsec_dtd_task_is_local(task);}
@@ -193,6 +198,7 @@ OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
  ******************************************************************************/
 void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
 {
+    int nb;
     tp->startup_list = (parsec_task_t**)calloc( vpmap_get_nb_vp(), sizeof(parsec_task_t*));
 
     tp->function_counter = 0;
@@ -201,16 +207,19 @@ void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
     parsec_atomic_unlock(&tp->two_hash_table->atomic_lock);
 
     tp->two_hash_table->task_and_rem_dep_h_table = OBJ_NEW(parsec_hash_table_t);
+    for(nb = 1; nb < 16 && (1<<nb)<parsec_dtd_task_hash_table_size; nb++) /* nothing */;
     parsec_hash_table_init(tp->two_hash_table->task_and_rem_dep_h_table,
                            offsetof(dtd_hash_table_pointer_item_t, ht_item),
-                           parsec_dtd_task_hash_table_size,
-                           &hash_key,
+                           nb,
+                           DTD_key_fns,
                            tp->two_hash_table->task_and_rem_dep_h_table);
+
     tp->function_h_table = OBJ_NEW(parsec_hash_table_t);
+    for(nb = 1; nb < 16 && (1<<nb)<PARSEC_DTD_NB_TASK_CLASSES; nb++) /* nothing */;
     parsec_hash_table_init(tp->function_h_table,
                            offsetof(dtd_hash_table_pointer_item_t, ht_item),
-                           PARSEC_DTD_NB_TASK_CLASSES,
-                           &hash_key,
+                           nb,
+                           DTD_key_fns,
                            tp->function_h_table);
 
     tp->super.startup_hook    = parsec_dtd_startup;
@@ -699,30 +708,6 @@ parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
 
 /* **************************************************************************** */
 
-/**
- * This function produces a hash from a key and a parsec_hash_table_t
- *
- * This function returns a hash for a key. The hash is produced
- * by the following operation key % size
- *
- * @param[in]   key
- *                  The key to be hashed
- * @param[in]   size
- *                  Size of the hash table
- * @param[in]   data
- *                  A pointer to the hash table
- * @return
- *              The hash for the key provided
- *
- * @ingroup     DTD_INTERFACE_INTERNAL
- */
-static uint32_t hash_key (uintptr_t key, uint32_t size, void *data)
-{
-    uint32_t hash_val = ((uint64_t)key) % size;
-    (void)data;
-    return hash_val;
-}
-
 void
 parsec_dtd_track_task( parsec_dtd_taskpool_t *tp,
                        uint64_t               key,
@@ -732,7 +717,7 @@ parsec_dtd_track_task( parsec_dtd_taskpool_t *tp,
 
     parsec_hash_table_t *hash_table = tp->two_hash_table->task_and_rem_dep_h_table;
 
-    item->ht_item.key   = key;
+    item->ht_item.key   = (parsec_key_t)key;
     item->mempool_owner = tp->hash_table_bucket_mempool->thread_mempools;
     item->value         = (void *)value;
 
@@ -745,7 +730,7 @@ parsec_dtd_find_task( parsec_dtd_taskpool_t *tp,
 {
     parsec_hash_table_t *hash_table = tp->two_hash_table->task_and_rem_dep_h_table;
 
-    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, key );
+    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, (parsec_key_t)key );
     return (NULL == item) ? NULL : item->value;
 }
 
@@ -756,10 +741,10 @@ parsec_dtd_untrack_task( parsec_dtd_taskpool_t *tp,
     parsec_hash_table_t *hash_table = tp->two_hash_table->task_and_rem_dep_h_table;
     void *value;
 
-    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, key );
+    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, (parsec_key_t)key );
     if( NULL == item ) return NULL;
 
-    parsec_hash_table_nolock_remove( hash_table, key );
+    parsec_hash_table_nolock_remove( hash_table, (parsec_key_t)key );
     value = item->value;
     parsec_thread_mempool_free( tp->hash_table_bucket_mempool->thread_mempools, item );
     return value;
@@ -811,7 +796,7 @@ parsec_dtd_insert_task_class( parsec_dtd_taskpool_t   *tp,
 
     parsec_hash_table_t *hash_table          =  tp->function_h_table;
 
-    item->ht_item.key   = (uint64_t)key;
+    item->ht_item.key   = (parsec_key_t)key;
     item->mempool_owner = tp->hash_table_bucket_mempool->thread_mempools;
     item->value         = (void *)value;
 
@@ -837,7 +822,7 @@ parsec_dtd_remove_task_class( parsec_dtd_taskpool_t  *tp,
 {
     parsec_hash_table_t *hash_table    =  tp->function_h_table;
 
-    parsec_hash_table_remove( hash_table, (uint64_t)key );
+    parsec_hash_table_remove( hash_table, (parsec_key_t)key );
 }
 
 /* **************************************************************************** */
@@ -862,7 +847,7 @@ parsec_dtd_find_task_class_internal( parsec_dtd_taskpool_t  *tp,
 {
     parsec_hash_table_t *hash_table      =  tp->function_h_table;
 
-    return parsec_hash_table_nolock_find ( hash_table, key );
+    return parsec_hash_table_nolock_find ( hash_table, (parsec_key_t)key );
 }
 
 /* **************************************************************************** */
@@ -923,7 +908,7 @@ parsec_dtd_tile_insert( uint64_t key,
 {
     parsec_hash_table_t *hash_table = (parsec_hash_table_t *)dc->tile_h_table;
 
-    tile->ht_item.key = (uint64_t)key;
+    tile->ht_item.key = (parsec_key_t)key;
 
     parsec_hash_table_insert( hash_table, &tile->ht_item );
 }
@@ -947,7 +932,7 @@ parsec_dtd_tile_remove( parsec_data_collection_t *dc, uint64_t key )
 {
     parsec_hash_table_t *hash_table = (parsec_hash_table_t *)dc->tile_h_table;
 
-    parsec_hash_table_remove( hash_table, (uint64_t)key );
+    parsec_hash_table_remove( hash_table, (parsec_key_t)key );
 }
 
 /* **************************************************************************** */
@@ -969,7 +954,7 @@ parsec_dtd_tile_find( parsec_data_collection_t *dc, uint64_t key )
 {
     parsec_hash_table_t *hash_table   = (parsec_hash_table_t *)dc->tile_h_table;
     assert(hash_table != NULL);
-    parsec_dtd_tile_t *tile  = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find( hash_table, (uint64_t)key );
+    parsec_dtd_tile_t *tile  = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find( hash_table, (parsec_key_t)key );
 
     return tile;
 }
@@ -1035,11 +1020,13 @@ parsec_dtd_release_task_class( parsec_dtd_taskpool_t *tp,
 void
 parsec_dtd_data_collection_init( parsec_data_collection_t *dc )
 {
+    int nb;
     dc->tile_h_table = OBJ_NEW(parsec_hash_table_t);
+    for(nb = 1; nb < 16 && (1 << nb) < parsec_dtd_tile_hash_table_size; nb++) /* nothing */;
     parsec_hash_table_init( dc->tile_h_table,
                             offsetof(parsec_dtd_tile_t, ht_item),
-                            parsec_dtd_tile_hash_table_size,
-                            &hash_key,
+                            nb,
+                            DTD_key_fns,
                             dc->tile_h_table);
 }
 
@@ -1166,12 +1153,10 @@ static symbol_t symb_dtd_taskid = {
  * The task class key generator function. For DTD the key is stored in the
  * first assignment value of the task.
  */
-static inline uint64_t
-DTD_taskclass_task_key(const parsec_dtd_taskpool_t * __tp,
-                       const assignment_t * assignments)
+static inline parsec_key_t DTD_make_key_identity(const parsec_taskpool_t *tp, const assignment_t *t)
 {
-    (void)__tp;
-    return (uint64_t)assignments[0].value;
+    (void)tp;
+    return (parsec_key_t)(uintptr_t)t[0].value;
 }
 
 void
@@ -1492,10 +1477,15 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
 #endif
         if(!not_ready) {
             assert(parsec_dtd_task_is_local(current_task));
-            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
-                                 "------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
-                                 "%d\n-----\n", current_task->super.task_class->name, current_task->ht_item.key,
-                                 current_task->super.task_class->nb_flows, current_task->flow_count);
+            if(parsec_dtd_dump_traversal_info) {
+#if defined(PARSEC_DEBUG_NOISIER)
+                char tmp[64];
+                PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+                                     "------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
+                                     "%d\n-----\n", current_task->super.task_class->key_functions->key_print(tmp, 64, current_task->ht_item.key, NULL),
+                                     current_task->super.task_class->nb_flows, current_task->flow_count);
+#endif
+            }
 
             arg->ready_lists[dst_vpid] = (parsec_task_t*)
                 parsec_list_item_ring_push_sorted( (parsec_list_item_t*)arg->ready_lists[dst_vpid],
@@ -1709,7 +1699,8 @@ complete_hook_of_dtd( parsec_execution_stream_t *es,
 
 #if defined(PARSEC_PROF_GRAPHER)
     parsec_prof_grapher_task(this_task, es->th_id, es->virtual_process->vp_id,
-                             this_task->task_class->key(this_task->taskpool, this_task->locals));
+                             this_task->task_class->key_functions->key_hash(this_task->task_class->make_key( this_task->taskpool, this_task->locals ),
+                                                                            64, NULL));
 #endif /* defined(PARSEC_PROF_GRAPHER) */
 
     PARSEC_TASK_PROF_TRACE(es->es_profile,
@@ -2227,7 +2218,8 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     *priority                 = NULL;
     tc->flags                 = 0x0 | PARSEC_HAS_IN_IN_DEPENDENCIES | PARSEC_USE_DEPS_MASK;
     tc->dependencies_goal     = 0;
-    tc->key                   = (parsec_functionkey_fn_t *)DTD_taskclass_task_key;
+    tc->make_key              = DTD_make_key_identity;
+    tc->key_functions         = &DTD_key_fns;
     tc->fini                  = NULL;
     *incarnations             = (__parsec_chore_t *)dtd_chore;
     tc->find_deps             = NULL;
@@ -2426,7 +2418,7 @@ set_descendant( parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
         /* Locking the two hash table */
         parsec_dtd_two_hash_table_lock(tp->two_hash_table);
 
-        uint64_t key = (uint64_t)(real_parent_task->ht_item.key<<32) | (1U<<real_parent_flow_index);
+        uint64_t key = (((uint64_t)real_parent_task->ht_item.key)<<32) | (1U<<real_parent_flow_index);
         parsec_remote_deps_t *dep = parsec_dtd_find_remote_dep( tp, key );
         if( NULL == dep ) {
             if( !(flow->flags & TASK_INSERTED) ) {
@@ -2511,9 +2503,10 @@ parsec_dtd_create_and_initialize_task( parsec_dtd_taskpool_t *dtd_tp,
 
     this_task->orig_task = NULL;
     this_task->super.taskpool   = (parsec_taskpool_t*)dtd_tp;
-    this_task->ht_item.key           = dtd_tp->task_id++;
+    this_task->ht_item.key      = (parsec_key_t)(uintptr_t)(dtd_tp->task_id++);
     /* this is needed for grapher to work properly */
-    this_task->super.locals[0].value = (int)this_task->ht_item.key;
+    this_task->super.locals[0].value = (int)(uintptr_t)this_task->ht_item.key;
+    assert( (uintptr_t)this_task->super.locals[0].value == (uintptr_t)this_task->ht_item.key );
     this_task->super.task_class      = tc;
     /**
      * +1 to make sure the task cannot be completed by the potential predecessors,

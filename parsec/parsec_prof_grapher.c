@@ -87,7 +87,7 @@ char *parsec_prof_grapher_taskid(const parsec_task_t *task, char *tmp, int lengt
 }
 
 void parsec_prof_grapher_task(const parsec_task_t *context,
-                             int thread_id, int vp_id, int task_hash)
+                             int thread_id, int vp_id, uint64_t task_hash)
 {
     if( NULL != grapher_file ) {
         char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
@@ -98,7 +98,7 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\","
-                "tooltip=\"hid=%u:did=%d:tname=%s:tid=%d\"];\n",
+                "tooltip=\"hid=%u:did=%d:tname=%s:tid=%lu\"];\n",
                 nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp, context->sim_exec_date,
                 context->taskpool->taskpool_id,
@@ -111,7 +111,7 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\","
-                "tooltip=\"hid=%u:tname=%s:tid=%d\"];\n",
+                "tooltip=\"hid=%u:tname=%s:tid=%lu\"];\n",
                 nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp, context->sim_exec_date,
                 context->taskpool->taskpool_id,
@@ -123,7 +123,7 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s\","
-                "tooltip=\"hid=%u:did=%d:tname=%s:tid=%d\"];\n",
+                "tooltip=\"hid=%u:did=%d:tname=%s:tid=%lu\"];\n",
                 nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp,
                 context->taskpool->taskpool_id,
@@ -136,7 +136,7 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s\","
-                "tooltip=\"hid=%u:tname=%s:tid=%d\"];\n",
+                "tooltip=\"hid=%u:tname=%s:tid=%lu\"];\n",
                 nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp,
                 context->taskpool->taskpool_id,
