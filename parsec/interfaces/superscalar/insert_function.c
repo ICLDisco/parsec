@@ -459,7 +459,7 @@ parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
     parsec_dtd_tile_retain(tile);
     parsec_dtd_taskpool_insert_task( tp, parsec_dtd_copy_data_to_matrix, 0, "Copy_data_in_dist",
                                      PASSED_BY_REF, tile, INOUT | AFFINITY,
-                                     0 );
+                                     PARSEC_DTD_ARG_END );
     tile->flushed = FLUSHED;
     parsec_dtd_tile_remove( tile->dc, tile->key );
     parsec_dtd_tile_release( tile );
@@ -605,25 +605,29 @@ parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
 {
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
     parsec_dtd_task_param_t *current_param = GET_HEAD_OF_PARAM_LIST(current_task);
-    int next_arg, i = 0;
-    void **tmp;
+    int i = 0;
+    void *tmp_val; void **tmp_ref;
     va_list arguments;
 
     va_start(arguments, this_task);
-    next_arg = va_arg(arguments, int);
-
-    while( current_param != NULL && next_arg != 0) {
-        tmp = va_arg(arguments, void**);
-        if(UNPACK_VALUE == next_arg) {
-            *tmp = current_param->pointer_to_tile;
-        } else if (UNPACK_DATA == next_arg) {
-            /* Let's return directly the usable pointer to the user */
-            *tmp = PARSEC_DATA_COPY_GET_PTR(this_task->data[i].data_in);
+    while(current_param != NULL) {
+        if((current_param->op_type & GET_OP_TYPE) == VALUE) {
+            tmp_val = va_arg(arguments, void*);
+            memcpy(tmp_val, current_param->pointer_to_tile, current_param->arg_size);
+        } else if((current_param->op_type & GET_OP_TYPE) == SCRATCH ||
+                  (current_param->op_type & GET_OP_TYPE) == REF) {
+            tmp_ref = va_arg(arguments, void**);
+            *tmp_ref = current_param->pointer_to_tile;
+        } else if((current_param->op_type & GET_OP_TYPE) == INPUT ||
+                  (current_param->op_type & GET_OP_TYPE) == INOUT ||
+                  (current_param->op_type & GET_OP_TYPE) == OUTPUT) {
+            tmp_ref = va_arg(arguments, void**);
+            *tmp_ref = PARSEC_DATA_COPY_GET_PTR(this_task->data[i].data_in);
             i++;
-        } else if (UNPACK_SCRATCH == next_arg) {
-            *tmp = current_param->pointer_to_tile;
+        } else {
+            parsec_warning("/!\\ Flag is not recognized in parsec_dtd_unpack_args /!\\.\n");
+            assert(0);
         }
-        next_arg = va_arg(arguments, int);
         current_param = current_param->next;
     }
     va_end(arguments);
@@ -2569,15 +2573,23 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
         flow->op_type = tile_op_type;
 
         *flow_index += 1;
+    } else if ((tile_op_type & GET_OP_TYPE) == REF) {
+        assert(NULL != tile);
+        current_param->pointer_to_tile = (void *)tile;
+       *current_val = ((char*)*current_val) + arg_size;
     } else if ((tile_op_type & GET_OP_TYPE) == SCRATCH) {
         assert(parsec_dtd_task_is_local(this_task));
         if(NULL == tile) {
             current_param->pointer_to_tile = *current_val;
-           *current_val = ((char*)*current_val) + arg_size;
         } else {
             current_param->pointer_to_tile = (void *)tile;
         }
-    } else {  /* We have a VALUE */
+       *current_val = ((char*)*current_val) + arg_size;
+    } else if((tile_op_type & GET_OP_TYPE) == VALUE) {
+        /* Once we get a value, we check the size,
+         * and if the size is between 4 to 8 we treat
+         * them as constant
+         */
         assert(parsec_dtd_task_is_local(this_task));
         memcpy(*current_val, (void *)tile, arg_size);
         current_param->pointer_to_tile = *current_val;
@@ -2670,7 +2682,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
             parsec_dtd_taskpool_insert_task( this_task->super.taskpool,
                                              &fake_first_out_body, 0, "Fake_FIRST_OUT",
                                              PASSED_BY_REF, tile, INOUT | AFFINITY,
-                                             0 );
+                                             PARSEC_DTD_ARG_END );
 
             parsec_dtd_last_user_lock( &(tile->last_user) );
 
@@ -2936,6 +2948,119 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
     }
 }
 
+int
+parsec_dtd_iterator_arg_get_rank(int first_arg, void *tile,
+                                 int tile_op_type, void *cb_data)
+{
+    (void)first_arg;
+    parsec_dtd_common_args_t *common_args = (parsec_dtd_common_args_t *)cb_data;
+    if( NULL != tile ) {
+        if( (tile_op_type & AFFINITY) ) {
+            if(common_args->rank == -1) {
+                if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
+                    common_args->rank = ((parsec_dtd_tile_t *)tile)->rank;
+                } else if((tile_op_type & GET_OP_TYPE) == VALUE) {
+                    common_args->rank = *(int *)tile;
+                    /* Warn user if rank passed is negative or
+                     * more than total no of mpi process.
+                     */
+                    if(common_args->rank < 0 || common_args->rank >= common_args->dtd_tp->super.context->nb_nodes) {
+                        parsec_warning("/!\\ Rank information passed to task is invalid, placing task in rank 0 /!\\.\n");
+                    }
+                }
+            } else {
+                parsec_warning("/!\\ Task is already placed, only the first use of AFFINITY flag is effective, others are ignored /!\\.\n");
+            }
+        }
+    }
+
+    if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
+        /* We create a new task class if the kernel is different and
+         * if the same kernel uses different number of data
+         */
+        common_args->flow_count_of_template++;
+        if( NULL != tile ) {
+            if( !(tile_op_type & DONT_TRACK) ) {
+                if( INOUT == (tile_op_type & GET_OP_TYPE) || OUTPUT == (tile_op_type & GET_OP_TYPE) ) {
+                    common_args->write_flow_count++;
+                }
+            }
+        }
+    }
+    return 1;
+}
+
+int
+parsec_dtd_iterator_arg_get_size(int first_arg, void *tile,
+                                 int tile_op_type, void *cb_data)
+{
+    (void)tile;
+    parsec_dtd_common_args_t *common_args = (parsec_dtd_common_args_t *)cb_data;
+    common_args->count_of_params_sent_by_user++;
+
+    if((tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH ||
+       (tile_op_type & GET_OP_TYPE) == REF ) {
+        common_args->size_of_params += first_arg;
+    }
+
+    return 1;
+}
+
+int
+parsec_dtd_iterator_arg_set_param_local(int first_arg, void *tile,
+                                        int tile_op_type, void *cb_data)
+{
+    (void)tile;
+    parsec_dtd_common_args_t *common_args = (parsec_dtd_common_args_t *)cb_data;
+    parsec_dtd_set_params_of_task( common_args->task, tile, tile_op_type,
+                                   &common_args->flow_index, &common_args->current_val,
+                                   common_args->current_param, first_arg );
+
+    common_args->current_param->arg_size = first_arg;
+    common_args->current_param->op_type  = tile_op_type;
+    common_args->tmp_param               = common_args->current_param;
+    common_args->current_param           = common_args->current_param + 1;
+    common_args->tmp_param->next         = common_args->current_param;
+
+    return 1;
+}
+
+int
+parsec_dtd_arg_set_param_remote(int first_arg, void *tile,
+                                int tile_op_type, void *cb_data)
+{
+    (void)tile;
+    parsec_dtd_common_args_t *common_args = (parsec_dtd_common_args_t *)cb_data;
+
+    if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
+        parsec_dtd_set_params_of_task( common_args->task, tile, tile_op_type,
+                                       &common_args->flow_index, NULL,
+                                       NULL, first_arg );
+    }
+    return 1;
+}
+
+/*
+ * This function iterates over a va_list, whose end
+ * is marked by PARSEC_DTD_ARG_END. It expects a set
+ * of three arguments, first of which has to be an int.
+ * A method is passed that is called for the set with
+ * accompanying data that might be needed.
+ */
+int
+parsec_dtd_arg_iterator(va_list args, parsec_dtd_arg_cb *cb, void *cb_data)
+{
+    /* We always expect three arguments to come a set */
+    int first_arg, third_arg;
+    void *second_arg;
+    while(PARSEC_DTD_ARG_END != (first_arg = va_arg(args, int))) {
+        second_arg = va_arg(args, void *);
+        third_arg  = va_arg(args, int);
+        cb(first_arg, second_arg, third_arg, cb_data);
+    }
+    return 1;
+}
+
 /* **************************************************************************** */
 /**
  * Function to insert task in PaRSEC
@@ -2978,90 +3103,37 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
     }
 
     va_list args, args_for_size, args_for_rank;
-    int next_arg, tile_op_type, flow_index = 0, this_task_rank = -1;
-    void *tile;
+    parsec_dtd_common_args_t common_args;
+
+    common_args.rank = -1; common_args.write_flow_count = 1;
+    common_args.flow_count_of_template = 0; common_args.dtd_tp = dtd_tp;
+    common_args.count_of_params_sent_by_user = 0;
+    common_args.size_of_params = 0; common_args.flow_index = 0;
 
     va_start(args, name_of_kernel);
-
 #if defined(PARSEC_PROF_TRACE)
     parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile,
                            insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL );
 #endif
-
     /* extracting the rank of the task */
     va_copy(args_for_rank, args);
-    int write_flow_count = 1;
-    int flow_count_of_template = 0;
-    while( 0 != (next_arg = va_arg(args_for_rank, int)) ) {
-        tile         = va_arg(args_for_rank, void *);
-        tile_op_type = va_arg(args_for_rank, int);
+    parsec_dtd_arg_iterator(args_for_rank, parsec_dtd_arg_get_rank, (void*)&common_args);
+    va_end(args_for_rank);
 
-        if( NULL != tile ) {
-            if( (tile_op_type & AFFINITY) ) {
-                if(this_task_rank == -1) {
-                    if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
-                        this_task_rank = ((parsec_dtd_tile_t *)tile)->rank;
-                    } else if((tile_op_type & GET_OP_TYPE) == VALUE) {
-                        this_task_rank = *(int *)tile;
-                        /* Warn user if rank passed is negative or
-                         * more than total no of mpi process.
-                         */
-                        if(this_task_rank < 0 || this_task_rank >= dtd_tp->super.context->nb_nodes) {
-                            parsec_warning("/!\\ Rank information passed to task is invalid, placing task in rank 0 /!\\.\n");
-                        }
-                    }
-                } else {
-                    parsec_warning("/!\\ Task is already placed, only the first use of AFFINITY flag is effective, others are ignored /!\\.\n");
-                }
-            }
-        }
-
-        if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
-            /* We create a new task class if the kernel is different and
-             * if the same kernel uses different number of data
-             */
-            flow_count_of_template++;
-            if( NULL != tile ) {
-                if( !(tile_op_type & DONT_TRACK) ) {
-                    if( INOUT == (tile_op_type & GET_OP_TYPE) || OUTPUT == (tile_op_type & GET_OP_TYPE) ) {
-                        write_flow_count++;
-                    }
-                }
-            }
-        }
-    }
-
-    uint64_t fkey = (uint64_t)(uintptr_t)fpointer + flow_count_of_template;
+    uint64_t fkey = (uint64_t)(uintptr_t)fpointer + common_args.flow_count_of_template;
     /* Creating master function structures */
     /* Hash table lookup to check if the function structure exists or not */
     parsec_task_class_t *tc = (parsec_task_class_t *)
                                   parsec_dtd_find_task_class(dtd_tp, fkey);
 
     if( NULL == tc ) {
-        /* calculating the size of parameters for each task class*/
-        flow_count_of_template = 0;
-        int count_of_params_sent_by_user = 0;
-        long unsigned int size_of_params = 0;
-
         va_copy(args_for_size, args);
-
-        while( 0 != (next_arg = va_arg(args_for_size, int)) ) {
-            tile         = va_arg(args_for_size, void *);
-            tile_op_type = va_arg(args_for_size, int);
-            count_of_params_sent_by_user++;
-
-            if( (tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH ) {
-                size_of_params += next_arg;
-            } else if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
-                flow_count_of_template++;
-            }
-        }
-
+        parsec_dtd_arg_iterator(args_for_size, parsec_dtd_arg_get_size, (void*)&common_args);
         va_end(args_for_size);
 
         tc = parsec_dtd_create_task_class( dtd_tp, fpointer, name_of_kernel,
-                                           count_of_params_sent_by_user,
-                                           size_of_params, flow_count_of_template );
+                                           common_args.count_of_params_sent_by_user,
+                                           common_args.size_of_params, common_args.flow_count_of_template );
 
 #if defined(PARSEC_PROF_TRACE)
         parsec_dtd_add_profiling_info((parsec_taskpool_t *)dtd_tp, tc->task_class_id, name_of_kernel);
@@ -3070,67 +3142,45 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
 
 #if defined(DISTRIBUTED)
     if( tp->context->nb_nodes > 1 ) {
-        if( (-1 == this_task_rank) && (write_flow_count > 1) ) {
+        if( (-1 == common_args.rank) && (common_args.write_flow_count > 1) ) {
             parsec_fatal( "You inserted a task with out indicating where the task should be executed(using AFFINITY flag)."
                           "This will result in executing this task on all nodes and the outcome might be not be what you want."
                           "So we are exiting for now. Please see the usage of AFFINITY flag.\n" );
-        } else if( this_task_rank == -1 && write_flow_count == 1 ) {
+        } else if( common_args.rank == -1 && common_args.write_flow_count == 1 ) {
             /* we have tasks with no real data as parameter so we are safe to execute it in each mpi process */
-            this_task_rank = tp->context->my_rank;
+            common_args.rank = tp->context->my_rank;
         }
     } else {
-        this_task_rank = 0;
+        common_args.rank = 0;
     }
 #else
-    this_task_rank = 0;
+    common_args.rank = 0;
 #endif
 
-    va_end(args_for_rank);
-
-    parsec_dtd_task_t *this_task = parsec_dtd_create_and_initialize_task(dtd_tp, tc, this_task_rank);
+    parsec_dtd_task_t *this_task = parsec_dtd_create_and_initialize_task(dtd_tp, tc, common_args.rank);
     this_task->super.priority = priority;
+    common_args.task = this_task;
 
-    parsec_object_t *object = (parsec_object_t *)this_task;
     if( parsec_dtd_task_is_local(this_task) ) {
-        /* retaining the local task as many write flows as it has and one to indicate when we have executed the task */
-        (void)parsec_atomic_add_32b( &object->obj_reference_count, (write_flow_count) );
+        parsec_object_t *object = (parsec_object_t *)this_task;
+        /* retaining the local task as many write flows as
+         * it has and one to indicate when we have executed the task */
+        (void)parsec_atomic_add_32b( &object->obj_reference_count, (common_args.write_flow_count) );
 
-        /* Iterating through the parameters of the task */
-        parsec_dtd_task_param_t *head_of_param_list, *current_param, *tmp_param = NULL;
-        void *value_block, *current_val;
+        common_args.tmp_param = NULL;
 
         /* Getting the pointer to allocated memory by mempool */
-        head_of_param_list = GET_HEAD_OF_PARAM_LIST(this_task);
-        current_param      = head_of_param_list;
-        value_block        = GET_VALUE_BLOCK(head_of_param_list, ((parsec_dtd_task_class_t*)tc)->count_of_params);
-        current_val        = value_block;
+        common_args.head_of_param_list = GET_HEAD_OF_PARAM_LIST(this_task);
+        common_args.current_param      = common_args.head_of_param_list;
+        common_args.value_block        = GET_VALUE_BLOCK(common_args.head_of_param_list, ((parsec_dtd_task_class_t*)tc)->count_of_params);
+        common_args.current_val        = common_args.value_block;
 
-        while( 0 != (next_arg = va_arg(args, int)) ) {
-            tile         = (parsec_dtd_tile_t *)va_arg(args, void *);
-            tile_op_type = va_arg(args, int);
+        parsec_dtd_arg_iterator(args, parsec_dtd_arg_set_param_local, (void*)&common_args);
 
-            parsec_dtd_set_params_of_task( this_task, tile, tile_op_type,
-                                           &flow_index, &current_val,
-                                           current_param, next_arg );
-
-            tmp_param = current_param;
-            current_param = current_param + 1;
-            tmp_param->next = current_param;
-        }
-
-        if( tmp_param != NULL )
-            tmp_param->next = NULL;
+        if( common_args.tmp_param != NULL )
+            common_args.tmp_param->next = NULL;
     } else {
-        while( 0 != (next_arg = va_arg(args, int)) ) {
-            tile         = (parsec_dtd_tile_t *)va_arg(args, void *);
-            tile_op_type = va_arg(args, int);
-
-            if( !((tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH) ) {
-                parsec_dtd_set_params_of_task( this_task, tile, tile_op_type,
-                                               &flow_index, NULL,
-                                               NULL, next_arg );
-            }
-        }
+        parsec_dtd_arg_iterator(args, parsec_dtd_arg_set_param_remote, (void*)&common_args);
     }
     va_end(args);
 

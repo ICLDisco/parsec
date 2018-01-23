@@ -10,7 +10,7 @@
 #include "common.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/superscalar/insert_function.h"
 
 enum regions {
                TILE_FULL,
@@ -27,39 +27,27 @@ static int
 parsec_core_gemm(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es;
-    PLASMA_enum *transA;
-    PLASMA_enum *transB;
-    int *m;
-    int *n;
-    int *k;
-    parsec_complex64_t *alpha;
+    PLASMA_enum transA;
+    PLASMA_enum transB;
+    int m;
+    int n;
+    int k;
+    parsec_complex64_t alpha;
     parsec_complex64_t *A;
-    int *lda;
+    int lda;
     parsec_complex64_t *B;
-    int *ldb;
-    parsec_complex64_t *beta;
+    int ldb;
+    parsec_complex64_t beta;
     parsec_complex64_t *C;
-    int *ldc;
+    int ldc;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_VALUE, &transA,
-                          UNPACK_VALUE, &transB,
-                          UNPACK_VALUE, &m,
-                          UNPACK_VALUE, &n,
-                          UNPACK_VALUE, &k,
-                          UNPACK_VALUE, &alpha,
-                          UNPACK_DATA,  &A,
-                          UNPACK_VALUE, &lda,
-                          UNPACK_DATA,  &B,
-                          UNPACK_VALUE, &ldb,
-                          UNPACK_VALUE, &beta,
-                          UNPACK_DATA,  &C,
-                          UNPACK_VALUE, &ldc);
+    parsec_dtd_unpack_args(this_task, &transA, &transB, &m, &n, &k, &alpha, &A,
+                           &lda, &B, &ldb, &beta, &C, &ldc);
 
-    CORE_zgemm(*transA, *transB, *m, *n, *k,
-               *alpha, A, *lda,
-                       B, *ldb,
-               *beta,  C, *ldc);
+    CORE_zgemm(transA, transB, m, n, k,
+               alpha,  A, lda,
+                       B, ldb,
+               beta,   C, ldc);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -129,7 +117,7 @@ int main(int argc, char ** argv)
         parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcB);
 
         /* Getting new parsec handle of dtd type */
-        parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new( );
+        parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
         /* Default type */
         dplasma_add2arena_tile( parsec_dtd_arenas[TILE_FULL],
@@ -190,7 +178,7 @@ int main(int argc, char ** argv)
                                      sizeof(parsec_complex64_t),           &zbeta,         VALUE,
                                      PASSED_BY_REF,     TILE_OF(C, m, n),     INOUT | TILE_FULL | AFFINITY,
                                      sizeof(int),           &ldcm,                         VALUE,
-                                               0 );
+                                               PARSEC_DTD_ARG_END );
                         }
                     }
                     /*
@@ -216,7 +204,7 @@ int main(int argc, char ** argv)
                                      sizeof(parsec_complex64_t),           &zbeta,         VALUE,
                                      PASSED_BY_REF,     TILE_OF(C, m, n),     INOUT | TILE_FULL | AFFINITY,
                                      sizeof(int),           &ldcm,                         VALUE,
-                                               0 );
+                                               PARSEC_DTD_ARG_END );
                         }
                     }
                 }
@@ -244,7 +232,7 @@ int main(int argc, char ** argv)
                                      sizeof(parsec_complex64_t),           &zbeta,         VALUE,
                                      PASSED_BY_REF,     TILE_OF(C, m, n),     INOUT | TILE_FULL | AFFINITY,
                                      sizeof(int),           &ldcm,                         VALUE,
-                                               0 );
+                                               PARSEC_DTD_ARG_END );
                         }
                     }
                     /*
@@ -270,7 +258,7 @@ int main(int argc, char ** argv)
                                      sizeof(parsec_complex64_t),           &zbeta,         VALUE,
                                      PASSED_BY_REF,     TILE_OF(C, m, n),     INOUT | TILE_FULL | AFFINITY,
                                      sizeof(int),           &ldcm,                         VALUE,
-                                               0 );
+                                               PARSEC_DTD_ARG_END );
                         }
                     }
                 }
@@ -324,7 +312,7 @@ int main(int argc, char ** argv)
 #endif
 
                 /* Getting new parsec handle of dtd type */
-                parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new( );
+                parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
                 if ( trans[tA] == PlasmaNoTrans ) {
                     Am = M; An = K;
@@ -429,7 +417,7 @@ int main(int argc, char ** argv)
                                              sizeof(parsec_complex64_t),           &zbeta,         VALUE,
                                              PASSED_BY_REF,     TILE_OF(C, m, n),     INOUT | TILE_FULL | AFFINITY,
                                              sizeof(int),           &ldcm,                         VALUE,
-                                                       0 );
+                                                       PARSEC_DTD_ARG_END );
                                 }
                             }
                             /*
@@ -456,7 +444,7 @@ int main(int argc, char ** argv)
                                              sizeof(parsec_complex64_t),           &zbeta,         VALUE,
                                              PASSED_BY_REF,     TILE_OF(C, m, n),     INOUT | TILE_FULL | AFFINITY,
                                              sizeof(int),           &ldcm,                         VALUE,
-                                                       0 );
+                                                       PARSEC_DTD_ARG_END );
                                 }
                             }
                         }
@@ -485,7 +473,7 @@ int main(int argc, char ** argv)
                                              sizeof(parsec_complex64_t),           &zbeta,         VALUE,
                                              PASSED_BY_REF,     TILE_OF(C, m, n),     INOUT | TILE_FULL | AFFINITY,
                                              sizeof(int),           &ldcm,                         VALUE,
-                                                       0 );
+                                                       PARSEC_DTD_ARG_END );
                                 }
                             }
                             /*
@@ -513,7 +501,7 @@ int main(int argc, char ** argv)
                                              sizeof(parsec_complex64_t),           &zbeta,         VALUE,
                                              PASSED_BY_REF,     TILE_OF(C, m, n),     INOUT | TILE_FULL | AFFINITY,
                                              sizeof(int),           &ldcm,                         VALUE,
-                                                       0 );
+                                                       PARSEC_DTD_ARG_END );
                                 }
                             }
                         }

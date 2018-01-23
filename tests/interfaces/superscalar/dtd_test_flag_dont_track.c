@@ -27,9 +27,7 @@ task_to_check_dont_track(parsec_execution_stream_t *es, parsec_task_t *this_task
     (void)es; (void)this_task;
     int *data;
 
-    parsec_dtd_unpack_args( this_task,
-                            UNPACK_DATA,  &data
-                          );
+    parsec_dtd_unpack_args( this_task, &data );
 
     printf("%d\n", *data);
     *data += 1;
@@ -105,9 +103,9 @@ int main(int argc, char ** argv)
 
     for( i = 0; i < total_tasks; i++ ) {
         /* This task does not have any data associated with it, so it will be inserted in all mpi processes */
-        parsec_dtd_taskpool_insert_task( dtd_tp, task_to_check_dont_track,    0,  "sample_task",
-                                         PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | DONT_TRACK | AFFINITY,
-                                         0 );
+        parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_dont_track,    0,  "sample_task",
+                                        PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | DONT_TRACK | AFFINITY,
+                                        PARSEC_DTD_ARG_END);
     }
 
     parsec_dtd_data_flush_all( dtd_tp, A );

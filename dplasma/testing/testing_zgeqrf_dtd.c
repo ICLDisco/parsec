@@ -10,7 +10,7 @@
 #include "common.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/superscalar/insert_function.h"
 
 enum regions {
                TILE_FULL,
@@ -23,157 +23,105 @@ int
 parsec_core_geqrt(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es;
-    int *m;
-    int *n;
-    int *ib;
+    int m;
+    int n;
+    int ib;
     parsec_complex64_t *A;
-    int *lda;
+    int lda;
     parsec_complex64_t *T;
-    int *ldt;
+    int ldt;
     parsec_complex64_t *TAU;
     parsec_complex64_t *WORK;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_VALUE, &m,
-                          UNPACK_VALUE, &n,
-                          UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &A,
-                          UNPACK_VALUE, &lda,
-                          UNPACK_DATA,  &T,
-                          UNPACK_VALUE, &ldt,
-                          UNPACK_SCRATCH, &TAU,
-                          UNPACK_SCRATCH, &WORK);
+    parsec_dtd_unpack_args(this_task, &m, &n, &ib, &A, &lda, &T, &ldt, &TAU, &WORK);
 
-    CORE_zgeqrt(*m, *n, *ib, A, *lda, T, *ldt, TAU, WORK);
+    CORE_zgeqrt(m, n, ib, A, lda, T, ldt, TAU, WORK);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-parsec_core_unmqr(parsec_execution_stream_t *es, parsec_task_t * this_task)
+parsec_core_unmqr(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es;
-    PLASMA_enum *side;
-    PLASMA_enum *trans;
-    int *m;
-    int *n;
-    int *k;
-    int *ib;
+    PLASMA_enum side;
+    PLASMA_enum trans;
+    int m;
+    int n;
+    int k;
+    int ib;
     parsec_complex64_t *A;
-    int *lda;
+    int lda;
     parsec_complex64_t *T;
-    int *ldt;
+    int ldt;
     parsec_complex64_t *C;
-    int *ldc;
+    int ldc;
     parsec_complex64_t *WORK;
-    int *ldwork;
+    int ldwork;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_VALUE, &side,
-                          UNPACK_VALUE, &trans,
-                          UNPACK_VALUE, &m,
-                          UNPACK_VALUE, &n,
-                          UNPACK_VALUE, &k,
-                          UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &A,
-                          UNPACK_VALUE, &lda,
-                          UNPACK_DATA,  &T,
-                          UNPACK_VALUE, &ldt,
-                          UNPACK_DATA,  &C,
-                          UNPACK_VALUE, &ldc,
-                          UNPACK_SCRATCH, &WORK,
-                          UNPACK_VALUE, &ldwork);
+    parsec_dtd_unpack_args(this_task, &side, &trans, &m, &n, &k, &ib, &A,
+                           &lda, &T, &ldt, &C, &ldc, &WORK, &ldwork);
 
-    CORE_zunmqr(*side, *trans, *m, *n, *k, *ib,
-                A, *lda, T, *ldt, C, *ldc, WORK, *ldwork);
+    CORE_zunmqr(side, trans, m, n, k, ib,
+                A, lda, T, ldt, C, ldc, WORK, ldwork);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-parsec_core_tsqrt(parsec_execution_stream_t *es, parsec_task_t * this_task)
+parsec_core_tsqrt(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es;
-    int *m;
-    int *n;
-    int *ib;
+    int m;
+    int n;
+    int ib;
     parsec_complex64_t *A1;
-    int *lda1;
+    int lda1;
     parsec_complex64_t *A2;
-    int *lda2;
+    int lda2;
     parsec_complex64_t *T;
-    int *ldt;
+    int ldt;
     parsec_complex64_t *TAU;
     parsec_complex64_t *WORK;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_VALUE, &m,
-                          UNPACK_VALUE, &n,
-                          UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &A1,
-                          UNPACK_VALUE, &lda1,
-                          UNPACK_DATA,  &A2,
-                          UNPACK_VALUE, &lda2,
-                          UNPACK_DATA,  &T,
-                          UNPACK_VALUE, &ldt,
-                          UNPACK_SCRATCH, &TAU,
-                          UNPACK_SCRATCH, &WORK);
+    parsec_dtd_unpack_args(this_task, &m, &n, &ib, &A1, &lda1, &A2, &lda2, &T, &ldt, &TAU, &WORK);
 
-    CORE_ztsqrt(*m, *n, *ib, A1, *lda1, A2, *lda2, T, *ldt, TAU, WORK);
+    CORE_ztsqrt(m, n, ib, A1, lda1, A2, lda2, T, ldt, TAU, WORK);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-parsec_core_tsmqr(parsec_execution_stream_t *es, parsec_task_t * this_task)
+parsec_core_tsmqr(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es;
-    PLASMA_enum *side;
-    PLASMA_enum *trans;
-    int *m1;
-    int *n1;
-    int *m2;
-    int *n2;
-    int *k;
-    int *ib;
+    PLASMA_enum side;
+    PLASMA_enum trans;
+    int m1;
+    int n1;
+    int m2;
+    int n2;
+    int k;
+    int ib;
     parsec_complex64_t *A1;
-    int *lda1;
+    int lda1;
     parsec_complex64_t *A2;
-    int *lda2;
+    int lda2;
     parsec_complex64_t *V;
-    int *ldv;
+    int ldv;
     parsec_complex64_t *T;
-    int *ldt;
+    int ldt;
     parsec_complex64_t *WORK;
-    int *ldwork;
+    int ldwork;
 
-    parsec_dtd_unpack_args(this_task,
-                          UNPACK_VALUE, &side,
-                          UNPACK_VALUE, &trans,
-                          UNPACK_VALUE, &m1,
-                          UNPACK_VALUE, &n1,
-                          UNPACK_VALUE, &m2,
-                          UNPACK_VALUE, &n2,
-                          UNPACK_VALUE, &k,
-                          UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &A1,
-                          UNPACK_VALUE, &lda1,
-                          UNPACK_DATA,  &A2,
-                          UNPACK_VALUE, &lda2,
-                          UNPACK_DATA,  &V,
-                          UNPACK_VALUE, &ldv,
-                          UNPACK_DATA,  &T,
-                          UNPACK_VALUE, &ldt,
-                          UNPACK_SCRATCH, &WORK,
-                          UNPACK_VALUE, &ldwork
-                        );
+    parsec_dtd_unpack_args(this_task, &side, &trans, &m1, &n1, &m2, &n2, &k,
+                           &ib, &A1, &lda1, &A2, &lda2, &V, &ldv, &T, &ldt, &WORK, &ldwork);
 
-    CORE_ztsmqr(*side, *trans, *m1, *n1, *m2, *n2, *k, *ib,
-                A1, *lda1, A2, *lda2, V, *ldv, T, *ldt, WORK, *ldwork);
+    CORE_ztsmqr(side, trans, m1, n1, m2, n2, k, ib,
+                A1, lda1, A2, lda2, V, ldv, T, ldt, WORK, ldwork);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
-
 
 static int check_orthogonality(parsec_context_t *parsec, int loud,
                                parsec_tiled_matrix_dc_t *Q);
@@ -186,7 +134,7 @@ static int check_solution( parsec_context_t *parsec, int loud,
                            parsec_tiled_matrix_dc_t *dcB,
                            parsec_tiled_matrix_dc_t *dcX );
 
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
@@ -257,7 +205,7 @@ int main(int argc, char ** argv)
     if(loud > 3) printf("Done\n");
 
     /* Getting new parsec handle of dtd type */
-    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
     /* Parameters passed on to Insert_task() */
     int k, m, n;
@@ -296,9 +244,6 @@ int main(int argc, char ** argv)
     parsec_enqueue(parsec, dtd_tp);
 
     SYNC_TIME_START();
-
-    /* #### parsec context Starting #### */
-
     /* start parsec context */
     parsec_context_start(parsec);
 
@@ -319,7 +264,7 @@ int main(int argc, char ** argv)
                            sizeof(int),           &dcT.super.mb,                  VALUE,
                            sizeof(parsec_complex64_t)*dcT.super.nb,       NULL,   SCRATCH,
                            sizeof(parsec_complex64_t)*ib*dcT.super.nb,    NULL,   SCRATCH,
-                           0 );
+                           PARSEC_DTD_ARG_END );
 
         for( n = k+1; n < dcA.super.nt; n++ ) {
             tempnn = n == dcA.super.nt-1 ? dcA.super.n-(n*dcA.super.nb) : dcA.super.nb;
@@ -339,7 +284,7 @@ int main(int argc, char ** argv)
                                sizeof(int),           &ldak,                              VALUE,
                                sizeof(parsec_complex64_t)*ib*dcT.super.nb,   NULL,     SCRATCH,
                                sizeof(int),           &dcT.super.nb,                   VALUE,
-                               0 );
+                               PARSEC_DTD_ARG_END );
         }
         parsec_dtd_data_flush( dtd_tp, TILE_OF(T, k, k) );
 
@@ -360,7 +305,7 @@ int main(int argc, char ** argv)
                                sizeof(int),           &dcT.super.mb,                   VALUE,
                                sizeof(parsec_complex64_t)*dcT.super.nb,       NULL,    SCRATCH,
                                sizeof(parsec_complex64_t)*ib*dcT.super.nb,    NULL,    SCRATCH,
-                               0 );
+                               PARSEC_DTD_ARG_END );
 
             for( n = k+1; n < dcA.super.nt; n++ ) {
                 tempnn = n == dcA.super.nt-1 ? dcA.super.n-(n*dcA.super.nb) : dcA.super.nb;
@@ -386,7 +331,7 @@ int main(int argc, char ** argv)
                                    sizeof(int),           &dcT.super.mb,                  VALUE,
                                    sizeof(parsec_complex64_t)*ib*dcT.super.nb,    NULL,   SCRATCH,
                                    sizeof(int),           &ldwork,                           VALUE,
-                                   0 );
+                                   PARSEC_DTD_ARG_END );
             }
             parsec_dtd_data_flush( dtd_tp, TILE_OF(T, m, k) );
         }

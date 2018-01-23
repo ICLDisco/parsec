@@ -52,7 +52,8 @@ typedef enum { INPUT=0x100000,
                INOUT=0x300000,
                ATOMIC_WRITE=0x400000, /* DO NOT USE ,Iterate_successors do not support this at this point */
                SCRATCH=0x500000,
-               VALUE=0x600000
+               VALUE=0x600000,
+               REF=0x700000
              } parsec_dtd_op_type;
 
 /*
@@ -79,6 +80,7 @@ typedef enum { AFFINITY=1<<16, /* Data affinity */
  * All regions are mutually exclusive.
  */
 #define GET_REGION_INFO 0xffff
+#define PARSEC_DTD_ARG_END -111
 
 /*
  * Array of arenas to hold the data region shape and other information.
@@ -101,9 +103,6 @@ extern int parsec_dtd_window_size;
 extern int parsec_dtd_threshold_size;
 
 #define PASSED_BY_REF                1
-#define UNPACK_VALUE                 1
-#define UNPACK_DATA                  2
-#define UNPACK_SCRATCH               3
 #define MAX_FLOW                    25 /* Max number of flows allowed per task */
 #define PARSEC_DTD_NB_TASK_CLASSES  25 /* Max number of task classes allowed */
 

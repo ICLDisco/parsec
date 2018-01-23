@@ -35,11 +35,10 @@ test_task( parsec_execution_stream_t *es,
 {
     (void)es;
 
-    int *amount_of_work;
-    parsec_dtd_unpack_args( this_task,
-                           UNPACK_VALUE,  &amount_of_work);
+    int amount_of_work;
+    parsec_dtd_unpack_args( this_task, &amount_of_work);
     int i, j, bla;
-    for( i = 0; i < *amount_of_work; i++ ) {
+    for( i = 0; i < amount_of_work; i++ ) {
         for( j = 0; j < 2; j++ ) {
             bla = j*2;
             bla = j + 20;
@@ -52,37 +51,31 @@ test_task( parsec_execution_stream_t *es,
 }
 
 int
-test_task_generator( parsec_execution_stream_t    *es,
+test_task_generator( parsec_execution_stream_t *es,
                      parsec_task_t *this_task )
 {
     (void)es;
 
     parsec_tiled_matrix_dc_t *dcA;
     parsec_taskpool_t *dtd_tp = this_task->taskpool;
-    int *total, *step, *iteration, *n;
-    int *amount_of_work;
+    int total, step, *iteration, n;
+    int amount_of_work;
     int i;
 
-    parsec_dtd_unpack_args( this_task,
-                           UNPACK_VALUE,  &n,
-                           UNPACK_VALUE,  &amount_of_work,
-                           UNPACK_VALUE,  &total,
-                           UNPACK_VALUE,  &step,
-                           UNPACK_VALUE,  &iteration,
-                           UNPACK_SCRATCH, &dcA);
+    parsec_dtd_unpack_args( this_task, &n, &amount_of_work, &total, &step, &iteration, &dcA);
 
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
-    for( i = 0; *iteration < *total; *iteration += 1, i++ ) {
-        if( i > *step ) {
+    for( i = 0; *iteration < total; *iteration += 1, i++ ) {
+        if( i > step ) {
             return PARSEC_HOOK_RETURN_AGAIN;
         } else {
             parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
-                                sizeof(int),      amount_of_work,    VALUE,
-                                PASSED_BY_REF,    TILE_OF_KEY(A, *n), INOUT  ,
-                                0 );
+                                sizeof(int),      &amount_of_work,    VALUE,
+                                PASSED_BY_REF,    TILE_OF_KEY(A, n), INOUT,
+                                PARSEC_DTD_ARG_END );
         }
     }
-    parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, *n));
+    parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, n));
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -122,7 +115,7 @@ int main(int argc, char ** argv)
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    dtd_tp = parsec_dtd_taskpool_new(  );
+    dtd_tp = parsec_dtd_taskpool_new();
 
     /* Registering the dtd_taskpool with PARSEC context */
     rc = parsec_enqueue( parsec, dtd_tp );
@@ -153,9 +146,9 @@ int main(int argc, char ** argv)
         for( n = 0; n < no_of_chain; n++ ) {
             for( m = 0; m < tasks_in_each_chain[i]; m++ ) {
                 parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
-                                                 sizeof(int),      &amount_of_work[work_index],    VALUE,
-                                                 PASSED_BY_REF,    TILE_OF_KEY(A, n), INOUT  ,
-                                                 0 );
+                                    sizeof(int),      &amount_of_work[work_index], VALUE,
+                                    PASSED_BY_REF,    TILE_OF_KEY(A, n),           INOUT,
+                                    PARSEC_DTD_ARG_END );
             }
             parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, n));
         }
@@ -175,14 +168,13 @@ int main(int argc, char ** argv)
 
         for( n = 0; n < no_of_chain; n++ ) {
             parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_Generator",
-                                             sizeof(int),      &n,                     VALUE,
-                                             sizeof(int),      &amount_of_work[work_index],     VALUE,
-                                             sizeof(int),      &tasks_in_each_chain[i],   VALUE,
-                                             sizeof(int),      &step,                  VALUE,
-                                             sizeof(int),      &iteration,             VALUE,
-                                             sizeof(parsec_tiled_matrix_dc_t*),    dcA,  SCRATCH,
-                                             0 );
-
+                                sizeof(int),      &n,                           VALUE,
+                                sizeof(int),      &amount_of_work[work_index],  VALUE,
+                                sizeof(int),      &tasks_in_each_chain[i],      VALUE,
+                                sizeof(int),      &step,                        VALUE,
+                                sizeof(int),      &iteration,                   REF,
+                                sizeof(parsec_tiled_matrix_dc_t*),    dcA,      REF,
+                                PARSEC_DTD_ARG_END );
         }
 
         /* finishing all the tasks inserted, but not finishing the taskpool */

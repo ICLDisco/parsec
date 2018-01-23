@@ -41,24 +41,21 @@ task_to_insert_task( parsec_execution_stream_t *es,
     (void)es;
 
     parsec_taskpool_t* dtd_tp = this_task->taskpool;
-    int *total, *increment, *count, i;
+    int total, increment, *count, i;
 
-    parsec_dtd_unpack_args( this_task,
-                           UNPACK_VALUE, &total,
-                           UNPACK_VALUE, &count,
-                           UNPACK_VALUE, &increment);
+    parsec_dtd_unpack_args(this_task, &total, &count, &increment);
 
     parsec_output( 0, "Task inserting task by thread: %d count: %d Total: %d increment: %d total_inserted: %d\n",
-                   es->th_id, *count, *total, *increment, *count-1 );
+                   es->th_id, *count, total, increment, *count-1 );
 
-    for( i = 0; *count < *total; i++, *count += 1 ) {
-        if( i > *increment ) {
+    for( i = 0; *count < total; i++, *count += 1 ) {
+        if( i > increment ) {
             /* Return some kind of rescheduling signal */
             return PARSEC_HOOK_RETURN_AGAIN;
         }
         /* Inserting real task */
         parsec_dtd_taskpool_insert_task( dtd_tp, real_task,    0,  "Real_Task",
-                           0 );
+                           PARSEC_DTD_ARG_END );
     }
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -108,9 +105,9 @@ int main(int argc, char ** argv)
     for( m = 0; m < no_of_tasks; m++ ) {
         parsec_dtd_taskpool_insert_task( dtd_tp, task_to_insert_task,    0,  "Task_inserting_Task",
                            sizeof(int),      &total_tasks,        VALUE,
-                           sizeof(int),      &count,              VALUE,
+                           sizeof(int),      &count,              REF,
                            sizeof(int),      &increment,          VALUE,
-                           0 );
+                           PARSEC_DTD_ARG_END );
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */

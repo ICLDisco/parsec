@@ -38,11 +38,10 @@ int
 task_hello_world( parsec_execution_stream_t *es,
                   parsec_task_t *this_task )
 {
-    int *i;
+    int i;
     (void)es; (void)this_task;
-    parsec_dtd_unpack_args( this_task,
-                            UNPACK_VALUE,  &i);
-    printf("Hello World my index is: %d\n", *i);
+    parsec_dtd_unpack_args( this_task, &i);
+    printf("Hello World my index is: %d\n", i);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -80,10 +79,10 @@ int main(int argc, char ** argv)
      * and the rank of the process
      */
     for( int i = 0; i < 10; i++ ) {
-        parsec_dtd_taskpool_insert_task( dtd_tp, task_hello_world,
-                            0,   "Hello_World_task",
-                            sizeof(int), &i, VALUE,
-                            0 );
+        parsec_dtd_taskpool_insert_task(dtd_tp, task_hello_world,
+                                        0,   "Hello_World_task",
+                                        sizeof(int), &i, VALUE,
+                                        PARSEC_DTD_ARG_END);
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
