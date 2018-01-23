@@ -283,7 +283,7 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 
     parsec_hash_table_fini(tp->two_hash_table->task_and_rem_dep_h_table);
     free(tp->two_hash_table);
-    
+
     parsec_hash_table_fini(tp->function_h_table);
 }
 
@@ -599,7 +599,7 @@ parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
     int next_arg, i = 0;
     void **tmp;
     va_list arguments;
-    
+
     va_start(arguments, this_task);
     next_arg = va_arg(arguments, int);
 
@@ -1978,10 +1978,9 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
                     break;
                 }
             }
-
             if(MAX_DEP_IN_COUNT == i) {
                 free(desc_dep);
-                parsec_fatal("Fatal Error: user could try to insert more than MAX_DEP_IN_COUNT(%d) dependencies into a flow\n", MAX_DEP_IN_COUNT);
+                parsec_fatal("Fatal Error: Maximum number of dependencies per task (MAX_DEP_IN_COUNT = %d) have been reached. Increase MAX_DEP_IN_COUNT if there is a need for additional dependencies.\n", MAX_DEP_IN_COUNT);
             }
         }
         return;
@@ -2024,7 +2023,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
             }
             if( MAX_DEP_IN_COUNT == i ) {
                 free(desc_dep);
-                parsec_fatal("Fatal Error: user could try to insert more than MAX_DEP_IN_COUNT(%d) dependencies into a flow\n", MAX_DEP_IN_COUNT);
+                parsec_fatal("Fatal Error: Maximum number of dependencies per task (MAX_DEP_IN_COUNT = %d) have been reached. Increase MAX_DEP_IN_COUNT if there is a need for additional dependencies.\n", MAX_DEP_IN_COUNT);
             }
         }
         return;
@@ -2124,6 +2123,10 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
                     (*desc_in)->dep_in[i]  = (dep_t *)desc_dep;
                     break;
                 }
+            }
+            if(MAX_DEP_IN_COUNT == i) {
+                free(desc_dep);
+                parsec_fatal("Fatal Error: Maximum number of dependencies per task (MAX_DEP_IN_COUNT = %d) have been reached. Increase MAX_DEP_IN_COUNT if there is a need for additional dependencies.\n", MAX_DEP_IN_COUNT);
             }
         }
     }
@@ -2808,12 +2811,6 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
         } else {  /* Have parent, but parent is not alive
                      We have to call iterate successor on the parent to activate this task
                    */
-            if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT) {
-                set_dependencies_for_function( (parsec_taskpool_t *)dtd_tp, NULL,
-                                               (parsec_task_class_t *)this_task->super.task_class,
-                                                0, flow_index );
-            }
-
             if( last_user.task != NULL ) {
                 set_parent( last_writer.task, last_writer.flow_index,
                             this_task, flow_index, last_writer.op_type,
@@ -2865,6 +2862,11 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                     }
                 }
             } else {
+                if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT) {
+                    set_dependencies_for_function( (parsec_taskpool_t *)dtd_tp, NULL,
+                                                   (parsec_task_class_t *)this_task->super.task_class,
+                                                    0, flow_index );
+                }
                 if( ((parsec_dtd_task_class_t *)this_task->super.task_class)->fpointer == parsec_dtd_copy_data_to_matrix ) {
                     if( parsec_dtd_task_is_remote(this_task) ) {
                         parsec_dtd_remote_task_release( this_task );

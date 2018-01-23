@@ -189,7 +189,7 @@ int main(int argc, char ** argv)
 
 
     /***** Start of timing overhead of task generation ******/
-    int total_flows[6] = {1, 2, 3, 5, 10, 15};
+    int total_flows[6] = {1, 2, 3, 5, 10};
     //int total_flows[6] = {1, 0, 0, 0, 0, 0};
     total_tasks = 100000;
     //total_tasks = 1;
@@ -199,7 +199,7 @@ int main(int argc, char ** argv)
                        "and measure the time for different number flows for each task (using 1 thread).\n\n", total_tasks );
     }
 
-    for( i = 0; i < 6; i++ ) {
+    for( i = 0; i < 5; i++ ) {
         nb = 1; /* size of each tile */
         nt = total_flows[i]*total_tasks; /* total tiles */
         //nt = total_tasks; /* total tiles */
