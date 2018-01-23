@@ -24,7 +24,7 @@ static double func(double x) {
 static char *my_simple_hash_print(char *buffer, size_t bs, parsec_key_t k, void *taskpool)
 {
     (void)taskpool;
-    snprintf(buffer, bs, "%16lx", (uint64_t)k);
+    snprintf(buffer, bs, "%16"PRIu64, (uint64_t)k);
     return buffer;
 }
 

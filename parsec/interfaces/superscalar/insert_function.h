@@ -258,8 +258,9 @@ void
 parsec_dtd_data_collection_fini( parsec_data_collection_t *dc );
 
 /*
- * This function will create and returns a parsec taskpool
- * of dtd-type.
+ * This function create and returns a PaRSEC DTD taskpool. The
+ * taskpool is not associated with any context, contains no
+ * tasks, and has no callback associated with.
  */
 parsec_taskpool_t*
 parsec_dtd_taskpool_new();

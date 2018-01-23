@@ -478,7 +478,7 @@ void parsec_hash_table_for_all(parsec_hash_table_t* ht, hash_elem_fct_t fct, voi
 char *parsec_hash_table_generic_64bits_key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)
 {
     (void)user_data;
-    snprintf(buffer, buffer_size, "%016lx", (uint64_t)(uintptr_t)k);
+    snprintf(buffer, buffer_size, "%016"PRIu64, (uint64_t)(uintptr_t)k);
     return buffer;
 }
 

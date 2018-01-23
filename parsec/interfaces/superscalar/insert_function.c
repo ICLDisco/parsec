@@ -3117,7 +3117,7 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
 #endif
     /* extracting the rank of the task */
     va_copy(args_for_rank, args);
-    parsec_dtd_arg_iterator(args_for_rank, parsec_dtd_arg_get_rank, (void*)&common_args);
+    parsec_dtd_arg_iterator(args_for_rank, parsec_dtd_iterator_arg_get_rank, (void*)&common_args);
     va_end(args_for_rank);
 
     uint64_t fkey = (uint64_t)(uintptr_t)fpointer + common_args.flow_count_of_template;
@@ -3128,7 +3128,7 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
 
     if( NULL == tc ) {
         va_copy(args_for_size, args);
-        parsec_dtd_arg_iterator(args_for_size, parsec_dtd_arg_get_size, (void*)&common_args);
+        parsec_dtd_arg_iterator(args_for_size, parsec_dtd_iterator_arg_get_size, (void*)&common_args);
         va_end(args_for_size);
 
         tc = parsec_dtd_create_task_class( dtd_tp, fpointer, name_of_kernel,
@@ -3175,7 +3175,7 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
         common_args.value_block        = GET_VALUE_BLOCK(common_args.head_of_param_list, ((parsec_dtd_task_class_t*)tc)->count_of_params);
         common_args.current_val        = common_args.value_block;
 
-        parsec_dtd_arg_iterator(args, parsec_dtd_arg_set_param_local, (void*)&common_args);
+        parsec_dtd_arg_iterator(args, parsec_dtd_iterator_arg_set_param_local, (void*)&common_args);
 
         if( common_args.tmp_param != NULL )
             common_args.tmp_param->next = NULL;
