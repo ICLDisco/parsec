@@ -666,7 +666,8 @@ fill_color(int index, int colorspace)
  */
 void
 parsec_dtd_add_profiling_info( parsec_taskpool_t *tp,
-                               int task_class_id, char* name )
+                               int task_class_id,
+                               const char* name )
 {
     char *str = fill_color(task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
     parsec_profiling_add_dictionary_keyword(name, str,
@@ -681,7 +682,7 @@ parsec_dtd_add_profiling_info( parsec_taskpool_t *tp,
 
 void
 parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
-                                       char* name,
+                                       const char* name,
                                        int *keyin, int *keyout)
 {
     (void)tp;

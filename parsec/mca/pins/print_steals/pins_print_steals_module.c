@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The University of Tennessee and The University
+ * Copyright (c) 2012-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,7 +9,7 @@
 #ifdef PARSEC_HAVE_PAPI
 #include <papi.h>
 #endif
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/execution_stream.h"
 
 static void pins_init_print_steals(parsec_context_t* master_context);

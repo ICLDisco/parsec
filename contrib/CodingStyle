@@ -14,7 +14,7 @@ Here is the list of exception that applies on this project:
 ## Debugs
 
 The runtime should never use printf directly. All debug messages
-should flow through the functions defined in `parsec/debug.h`.
+should flow through the functions defined in `parsec/utils/debug.h`.
 
 `PARSEC_DEBUG` is defined as soon as the build type is "Debug"
 (as inferred from CMake).

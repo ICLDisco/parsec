@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The University of Tennessee and The University
+ * Copyright (c) 2013-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,7 @@
 
 #if defined(PARSEC_DEBUG_HISTORY)
 #include "parsec/debug_marks.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/remote_dep.h"
 

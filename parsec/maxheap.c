@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
 
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/maxheap.h"
 

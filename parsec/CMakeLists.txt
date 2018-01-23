@@ -24,6 +24,7 @@ set(BASE_SOURCES
   utils/show_help.c
   utils/zone_malloc.c
   utils/atomic_external.c
+  utils/debug.c
 )
 
 FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)
@@ -55,7 +56,6 @@ set(SOURCES
   parsec.c
   data.c
   data_distribution.c
-  debug.c
   debug_marks.c
   devices/device.c
   mca/mca_repository.c

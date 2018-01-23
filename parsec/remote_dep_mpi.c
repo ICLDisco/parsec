@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,7 +13,7 @@
 #include "profiling.h"
 #include "parsec/class/list.h"
 #include "parsec/utils/output.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/debug_marks.h"
 #include "parsec/data.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"

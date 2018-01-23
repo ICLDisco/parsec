@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016-2017 The University of Tennessee and The University
+ * Copyright (c) 2016-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/interfaces/interface.h"
 #include "parsec/devices/device.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/scheduling.h"
 #if defined(PARSEC_HAVE_LIMITS_H)
 #include <limits.h>

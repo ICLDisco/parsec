@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "parsec/parsec_config.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/utils/output.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/utils/mca_param.h"
@@ -28,7 +28,6 @@ int parsec_debug_history_verbose = 1;
 int parsec_debug_colorize        = 10; /* 10 is the size of the format string for colors */
 int parsec_debug_coredump_on_fatal = 0;
 int parsec_debug_history_on_fatal = 0;
-void (*parsec_weaksym_exit)(int status) = _Exit;
 
 /* debug backtrace circular buffer */
 static int bt_output    = -1;
@@ -39,22 +38,10 @@ static void **stack     = NULL;
 static int* stack_size  = NULL;
 
 
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-static void parsec_mpi_exit(int status) {
-    MPI_Abort(MPI_COMM_WORLD, status);
-}
-#endif
-
-void parsec_debug_init(void) {
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-    int mpi_is_up;
-    MPI_Initialized(&mpi_is_up);
-    if( mpi_is_up ) {
-        MPI_Comm_rank(MPI_COMM_WORLD, &parsec_debug_rank);
-        parsec_weaksym_exit = parsec_mpi_exit;
-    }
-#endif
+void parsec_debug_init(void)
+{
+    /* The caller is supposed to set parsec_debug_rank if she expects
+     * nicer output. */
     gethostname(parsec_debug_hostname, sizeof(parsec_debug_hostname));
 
     parsec_debug_output = parsec_output_open(NULL);

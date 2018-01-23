@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2013-2017 The University of Tennessee and The University
+ * Copyright (c) 2013-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,7 +9,7 @@
 #include "parsec/devices/device.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/constants.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/execution_stream.h"
 #include "parsec/utils/argv.h"
 

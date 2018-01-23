@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2011-2017 The University of Tennessee and The University
+ * Copyright (c) 2011-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "parsec/parsec_config.h"
 #include "parsec.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/remote_dep.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/parsec_prof_grapher.h"

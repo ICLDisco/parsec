@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,7 +9,7 @@
 #include "parsec.h"
 #include "parsec/data_dist/matrix/grid_2Dcyclic.h"
 #include "parsec/vpmap.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 
 #include <math.h>
 #include <assert.h>

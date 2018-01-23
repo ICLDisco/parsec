@@ -1,14 +1,11 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "parsec/parsec_config.h"
-/*  unset options that make debug.h unpure, we need bindthread to compile standalone for unit tests */
-#undef PARSEC_HAVE_MPI
-#undef PARSEC_DEBUG_HISTORY
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/bindthread.h"
 #if defined(PARSEC_HAVE_HWLOC)
 #include "parsec/parsec_hwloc.h"

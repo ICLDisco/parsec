@@ -336,11 +336,11 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
 
 void
 parsec_dtd_add_profiling_info( parsec_taskpool_t *tp,
-                               int task_class_id, char *name );
+                               int task_class_id, const char *name );
 
 void
 parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
-                            char* name,
+                            const char* name,
                             int *keyin, int *keyout);
 
 void

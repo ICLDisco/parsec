@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,7 +9,7 @@
 #include "scalapack_convert.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/matrix.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 
 #ifdef PARSEC_HAVE_STRING_H
 #include <string.h>

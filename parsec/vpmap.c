@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,7 +16,7 @@
 
 #include "parsec/parsec_hwloc.h"
 #include "parsec/vpmap.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/utils/output.h"
 
 #define DEFAULT_NB_CORE 128

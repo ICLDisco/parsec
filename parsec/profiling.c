@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -32,7 +32,7 @@
 #include "parsec/profiling.h"
 #include "parsec/parsec_binary_profile.h"
 #include "parsec/data_distribution.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/class/fifo.h"
 #include "parsec/parsec_hwloc.h"
 #include "parsec/os-spec-timing.h"
