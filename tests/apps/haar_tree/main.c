@@ -149,7 +149,10 @@ int main(int argc, char *argv[])
     char **pargv;
     int ret, ch;
     uint64_t cksum = 0;
+    int alrm = 0;
     redim_string_t *rs;
+    double threshold = 1e-3;
+    double alpha = 0.33333;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -171,12 +174,22 @@ int main(int argc, char *argv[])
             break;
         }
     }
-
-    parsec = parsec_init(-1, &pargc, &pargv);
-
-
-    while ((ch = getopt(argc, argv, "xvd:")) != -1) {
+    pargv = malloc( (pargc+1) * sizeof(char*));
+    if( dashdash != -1 ) {
+        for(i = dashdash+1; i < argc; i++) {
+            pargv[i-dashdash-1] = strdup(argv[i]);
+        }
+        pargv[i-dashdash-1] = NULL;
+    } else {
+        pargv[0] = NULL;
+    }
+    parsec = parsec_init(1, &pargc, &pargv);
+    
+    while ((ch = getopt(argc, argv, "xvd:a:t:A:m:M:f:")) != -1) {
         switch (ch) {
+        case 'A':
+            alrm = atoi(optarg);
+            break;
         case 'x':
             do_checks = 1;
             break;
@@ -196,15 +209,23 @@ int main(int argc, char *argv[])
                 }
             }
             break;
+        case 't':
+            threshold = strtod(optarg, NULL);
+            break;
+        case 'a':
+            alpha = strtod(optarg, NULL);
+            break;
         case '?':
         default:
             fprintf(stderr,
-                    "Usage: %s [-x] [-v] [-d rank -d rank -d rank] -- <parsec arguments>\n"
-                    "   Implement the Project operation to build a Haar tree using PaRSEC JDFs\n"
-                    "   if -x, create a haar-tree, and check that the tree correspond to a pre-computed checksum\n"
+                    "Usage: %s [-x] [-v] [-d rank -d rank -d rank] [-a alpha] [-t threshold]-- <parsec arguments>\n"
+                    "   Implement the Project operation to build a Hartree-Fock function using PaRSEC JDFs\n"
+                    "   if -x, create a function, and check that the tree correspond to a pre-computed checksum\n"
                     "   otherwise, output A.dot, a DOT file of the created tree\n"
                     "   if -v, print some information on what task is executed by what rank\n"
-                    "   -d rank will make rank d wait for a debugger to attach\n",
+                    "   -d rank will make rank d wait for a debugger to attach\n"
+                    "   -t defines the threshold\n"
+                    "   -a is the alpha parameter of the function (to get a family of functions)\n",
                     argv[0]);
             exit(1);
         }
@@ -223,8 +244,13 @@ int main(int argc, char *argv[])
                              2, 1, 2,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-    project = parsec_project_new(treeA, world, (parsec_data_collection_t*)&fakeDesc, 1e-3, be_verbose);
-    project->arenas_datatypes[PARSEC_project_DEFAULT_ADT_IDX] = adt;
+    if(alrm > 0) {
+        alarm(alrm);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    project = parsec_project_new(treeA, world, (parsec_data_collection_t*)&fakeDesc, 1e-3, be_verbose, 1.0);
+    project->arenas_datatypes[PARSEC_project_DEFAULT_ARENA] = adt;
     PARSEC_OBJ_RETAIN(adt.arena);
     rc = parsec_context_add_taskpool(parsec, &project->super);
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
@@ -232,7 +258,11 @@ int main(int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-
+        
+    project->arenas_datatypes[PARSEC_project_DEFAULT_ARENA].arena = NULL;
+    parsec_taskpool_free(&project->super);
+    ret = 0;
+#if 0
     if( do_checks ) {
         walker = parsec_walk_new(treeA, world, (parsec_data_collection_t*)&fakeDesc,
                                 &cksum, cksum_node_fn, NULL,
@@ -251,7 +281,6 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    ret = 0;
 #if defined(HAVE_MPI)
     if( do_checks ) {
         uint64_t sum = 0;
@@ -288,11 +317,11 @@ int main(int argc, char *argv[])
         }
     }
 #endif  /* defined(HAVE_MPI) */
+    parsec_matrix_del2arena( & adt );
 
-    parsec_del2arena( & adt );
-
-    parsec_taskpool_free(&project->super);
+    walker->arenas_datatypes[PARSEC_walk_DEFAULT_ARENA].arena = NULL;
     parsec_taskpool_free(&walker->super);
+#endif
 
     tree_dist_free(treeA);
 

@@ -116,14 +116,14 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
 int parsec_taskpool_update_runtime_nbtask(parsec_taskpool_t *tp, int32_t nb_tasks);
 
 /**
- * When changing the number of local tasks, see if we need to call the
- * DAG complete_cb callback, and/or if we need to update the number of
- * active objects.
+ * @brief Scheduling-level termination detection callback
  *
- * remaining is the number of local tasks available, after updating it
- * using the appropriate atomic operation
+ * @details This function must be called when a taskpool is complete.
+ * This is usually done through a callback into the termination
+ * detection object, but DSLs may want to do additional operations,
+ * so they can call this function from their own callback.
  */
-int parsec_check_complete_cb(parsec_taskpool_t *tp, parsec_context_t *context, int remaining);
+void parsec_taskpool_termination_detected(parsec_taskpool_t *tp);
 
 /**
  * Loads the scheduler as selected using the MCA logic

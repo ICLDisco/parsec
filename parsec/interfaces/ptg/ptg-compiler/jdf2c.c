@@ -27,6 +27,8 @@
 #include "jdf2c.h"
 #include "parsec/profiling.h"
 
+#define TERMDET_XP_IDLE_ON_NBTASKS
+
 extern const char *yyfilename;
 
 static FILE *cfile;
@@ -1531,6 +1533,7 @@ static void jdf_generate_structure(jdf_t *jdf)
             "struct __parsec_%s_internal_taskpool_s {\n"
             " parsec_%s_taskpool_t super;\n"
             " volatile int32_t sync_point;\n"
+            " volatile int32_t  initial_number_tasks;\n"
             " parsec_task_t* startup_queue;\n",
             jdf_basename, jdf_basename, jdf_basename);
 
@@ -3385,8 +3388,7 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
             "   .key_print = %s_key_print,\n"
             "   .key_hash  = parsec_hash_table_generic_64bits_key_hash\n"
             "};\n"
-            "\n",
-            sname, sname);
+            "\n", sname, sname);
 }
 
 static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
@@ -3407,7 +3409,9 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     sa_end = string_arena_new(64);
 
     need_min_max = (0 == (f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY));
-    need_to_count_tasks = (0 == (f->user_defines & JDF_HAS_UD_NB_LOCAL_TASKS));
+    need_to_count_tasks = (0 == (f->user_defines & JDF_HAS_UD_NB_LOCAL_TASKS)) &&
+            (0 == (f->user_defines & JDF_HAS_DYNAMIC_TERMDET)) &&
+            (0 == (f->user_defines & JDF_HAS_USER_TRIGGERED_TERMDET));
     need_to_iterate = need_min_max || need_to_count_tasks;
 
     if( 0 != (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT) ) {
@@ -3713,10 +3717,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         
         if(need_to_count_tasks) {
             coutput("%s   if( 0 != nb_tasks ) {\n"
-                    "%s     (void)parsec_atomic_fetch_add_int32(&__parsec_tp->super.super.nb_tasks, nb_tasks);\n"
-                    "%s   }\n"
-                    "%s   saved_nb_tasks = nb_tasks;\n",
-                    indent(nesting),
+                    "%s     (void)parsec_atomic_fetch_add_int32(&__parsec_tp->initial_number_tasks, nb_tasks);\n"
+                    "%s   }\n",
                     indent(nesting),
                     indent(nesting),
                     indent(nesting));
@@ -3800,16 +3802,32 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("  if(1 == parsec_atomic_fetch_dec_int32(&__parsec_tp->sync_point)) {\n"
             "    /* Last initialization task complete. Update the number of tasks. */\n");
     if(!need_to_count_tasks) {
-        /* We only need to update the number of tasks according to the user provided count */
-        coutput("    nb_tasks = __parsec_tp->super.super.nb_tasks = %s(__parsec_tp);\n",
-                jdf_property_get_function(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL));
+        jdf_expr_t *expr;
+        jdf_def_list_t* property;
+        if( NULL != (expr = jdf_find_property(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, &property) ) ) {
+            coutput("    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, %s(__parsec_tp));\n",
+                    expr->jdf_c_code.fname);
+        } else {
+            assert((f->user_defines & JDF_HAS_USER_TRIGGERED_TERMDET) ||
+                   (NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL)));
+            /* The startup tasks are going to count the real number of tasks as they discover them.
+             * For now, we lock the idleness by creating a runtime pending action, and
+             * we use sync_point to find when all the startup tasks are done. */
+            coutput("    __parsec_tp->sync_point = PARSEC_%s_NB_TASK_CLASSES\n;"
+#ifdef TERMDET_XP_IDLE_ON_NBTASKS
+                    "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, 1);\n",
+#else
+                    "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_pa(&__parsec_tp->super.super, 1);\n",
+#endif
+                    jdf_basename);
+        }
     } else {
-        coutput("  nb_tasks = parsec_atomic_fetch_dec_int32(&__parsec_tp->super.super.nb_tasks);\n");
-        /* TODO coutput("    __parsec_tp->super.super.nb_tasks = __parsec_tp->super.super.initial_number_tasks;\n"); */
+        coutput("    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, __parsec_tp->initial_number_tasks);\n");
     }
-    coutput("    parsec_mfence();  /* write memory barrier to guarantee that the scheduler gets the correct number of tasks */\n"
+    coutput("    parsec_mfence();\n"
             "    parsec_taskpool_enable((parsec_taskpool_t*)__parsec_tp, &__parsec_tp->startup_queue,\n"
-            "                           (parsec_task_t*)this_task, es, (1 <= nb_tasks));\n");
+            "                           (parsec_task_t*)this_task, es, __parsec_tp->super.super.nb_pending_actions);\n"
+	    "    __parsec_tp->super.super.tdm.module->taskpool_ready(&__parsec_tp->super.super);\n");
     if( profile_enabled(f->properties) ) {
         coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
                 "    PARSEC_PROFILING_TRACE(es->es_profile,\n"
@@ -3819,7 +3837,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
     }
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
-        coutput("    if( 1 >= nb_tasks ) {\n"
+        coutput("    if( 1 >= __parsec_tp->super.super.nb_pending_actions ) {\n"
                 "        /* if no tasks will be generated let's prevent the runtime from calling the hook and instead go directly to complete the task */\n"
                 "        this_task->status = PARSEC_TASK_STATUS_COMPLETE;\n"
                 "    }\n");
@@ -3937,9 +3955,14 @@ static void jdf_generate_release_task_fct(const jdf_t *jdf, jdf_function_entry_t
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
         coutput("    parsec_hash_table_t *ht = (parsec_hash_table_t*)__parsec_tp->super.super.dependencies_array[%d];\n"
                 "    parsec_key_t key = this_task->task_class->make_key((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals);\n"
-                "    parsec_hashable_dependency_t *hash_dep = (parsec_hashable_dependency_t *)parsec_hash_table_remove(ht, key);\n"
-                "    parsec_thread_mempool_free(hash_dep->mempool_owner, hash_dep);\n",
+                "    parsec_hashable_dependency_t *hash_dep = (parsec_hashable_dependency_t *)parsec_hash_table_remove(ht, key);\n",
                 f->task_class_id);
+        if( f->user_defines & JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN ) {
+            coutput("    /* Must test for NULL, as user-provided startup tasks may not have a dep in the hash table */\n"
+                    "    if(NULL != hash_dep) parsec_thread_mempool_free(hash_dep->mempool_owner, hash_dep);\n");
+        } else {
+            coutput("    parsec_thread_mempool_free(hash_dep->mempool_owner, hash_dep);\n");
+        }
     }
     if( f->user_defines & JDF_HAS_UD_NB_LOCAL_TASKS ) {
         coutput("    if( (PARSEC_UNDETERMINED_NB_TASKS == __parsec_tp->super.super.nb_tasks) ||\n"
@@ -4226,6 +4249,20 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     }
     string_arena_add_string(sa, "  .find_deps = %s,\n", jdf_property_get_function(f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, NULL));
 
+    if( use_mask ) {
+        if( NULL == jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL)) {
+            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_mask,\n");
+        } else {
+            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_mask_count_task,\n");
+        }
+    } else {
+        if( NULL == jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL)) {
+            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter,\n");
+        } else {
+            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter_count_task,\n");
+        }
+    }
+    
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
         jdf_generate_code_iterate_successors_or_predecessors(jdf, f, prefix, JDF_DEP_FLOW_OUT);
@@ -4248,8 +4285,8 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
 
     sprintf(prefix, "data_lookup_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_data_lookup(jdf, f, prefix);
-    string_arena_add_string(sa, "  .prepare_input = (parsec_hook_t*)%s,\n", prefix);
     string_arena_add_string(sa, "  .prepare_output = (parsec_hook_t*)%s,\n", "NULL");
+    string_arena_add_string(sa, "  .prepare_input = (parsec_hook_t*)%s,\n", prefix);
     sprintf(prefix, "datatype_lookup_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_datatype_lookup(jdf, f, prefix);
     string_arena_add_string(sa, "  .get_datatype = (parsec_datatype_lookup_t*)%s,\n", prefix);
@@ -4549,14 +4586,32 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
 static void jdf_generate_constructor( const jdf_t* jdf )
 {
-    string_arena_t *sa1,*sa2;
+    string_arena_t *sa1, *sa2;
     profiling_init_info_t pi;
     int idx = 0;
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
+    if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL)) {
+        coutput("static parsec_hook_return_t tp_ready_when_synced(struct parsec_execution_stream_s *es, parsec_task_t *task) {\n"
+                "  (void)es;\n"
+                "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)task->taskpool;\n"
+                "  int remaining = parsec_atomic_fetch_dec_int32(&__parsec_tp->sync_point) - 1;\n"
+                "  if( 0 == remaining ) {\n"
+                #ifdef TERMDET_XP_IDLE_ON_NBTASKS
+                "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, __parsec_tp->initial_number_tasks-1);\n"
+                #else
+                "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, __parsec_tp->initial_number_tasks);\n"
+                "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_pa(&__parsec_tp->super.super, -1);\n"
+                #endif
+                "  }\n"
+                "  return PARSEC_HOOK_RETURN_DONE;\n"
+                "}\n\n", jdf_basename, jdf_basename);
+    }
+
     coutput("void __parsec_%s_internal_constructor(__parsec_%s_internal_taskpool_t* __parsec_tp)\n{\n"
+            "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)calloc(1, sizeof(__parsec_%s_internal_taskpool_t));\n"
             "  parsec_task_class_t* tc;\n"
             "  uint32_t i, j;\n\n",
             jdf_basename, jdf_basename);
@@ -4566,19 +4621,26 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     coutput("  __parsec_tp->super.super.nb_task_classes = PARSEC_%s_NB_TASK_CLASSES;\n"
             "  __parsec_tp->super.super.devices_index_mask = PARSEC_DEVICES_ALL;\n"
             "  __parsec_tp->super.super.taskpool_name = strdup(\"%s\");\n"
+            "%s\n"
+            "  __parsec_tp->super.super.tdm.module->monitor_taskpool(&__parsec_tp->super.super,\n"
+            "                                                        parsec_taskpool_termination_detected);\n"
             "  __parsec_tp->super.super.update_nb_runtime_task = parsec_add_fetch_runtime_task;\n"
             "  __parsec_tp->super.super.dependencies_array = (void **)\n"
             "              calloc(__parsec_tp->super.super.nb_task_classes, sizeof(void*));\n"
             "  /* Twice the size to hold the startup tasks function_t */\n"
             "  __parsec_tp->super.super.task_classes_array = (const parsec_task_class_t**)\n"
-            "              malloc(2 * __parsec_tp->super.super.nb_task_classes * sizeof(parsec_task_class_t*));\n"
-            "  __parsec_tp->super.super.nb_tasks = 1;\n"
+            "              calloc((2 * PARSEC_%s_NB_TASK_CLASSES + 1), sizeof(parsec_task_class_t*));\n"
+            "  __parsec_tp->super.super.tdm.module->taskpool_addto_nb_pa(&__parsec_tp->super.super, PARSEC_%s_NB_TASK_CLASSES);  /* for the startup tasks */\n"
             "  __parsec_tp->super.super.taskpool_type = PARSEC_TASKPOOL_TYPE_PTG;\n"
-            "  __parsec_tp->super.super.nb_pending_actions = 1 + __parsec_tp->super.super.nb_task_classes;  /* for the startup tasks */\n"
             "  __parsec_tp->sync_point = __parsec_tp->super.super.nb_task_classes;\n"
+            "  __parsec_tp->initial_number_tasks = 0;\n"
             "  __parsec_tp->startup_queue = NULL;\n"
             "%s",
-            jdf_basename, jdf_basename, string_arena_get_string(sa1));
+            jdf_basename, jdf_basename,
+            string_arena_get_string(jdf->termdet_init_line),
+            jdf_basename, jdf_basename,
+            string_arena_get_string(sa1));
+
     /* Prepare the functions */
     coutput("  for( i = 0; i < __parsec_tp->super.super.nb_task_classes; i++ ) {\n"
             "    __parsec_tp->super.super.task_classes_array[i] = tc = malloc(sizeof(parsec_task_class_t));\n"
@@ -4614,6 +4676,10 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
             coutput("  ((__parsec_chore_t*)&tc->incarnations[0])->hook = (parsec_hook_t *)%s;\n",
                     jdf_property_get_function(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, NULL));
+        }
+        if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL) ) {
+            coutput("  assert(NULL == tc->complete_execution);\n"
+                    "  tc->complete_execution = (parsec_hook_t*)tp_ready_when_synced;\n");
         }
     }
 
@@ -4730,6 +4796,10 @@ static void jdf_generate_new_function( const jdf_t* jdf )
             "  (void)parsec_taskpool_reserve_id((parsec_taskpool_t*)__parsec_tp);\n",
             jdf_basename);
 
+    if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL) ) {
+        coutput("  __parsec_tp->initial_number_tasks = 0;\n");
+    }
+    
     string_arena_init(sa1);
     string_arena_init(sa2);
     coutput("/* Prevent warnings related to not used hidden global variables */\n"
@@ -4828,7 +4898,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     string_arena_free(sa_range_multiplier);
 }
 
-static void jdf_generate_hashfunctions(const jdf_t *jdf)
+static void jdf_generate_makekey_and_hashstruct(const jdf_t *jdf)
 {
     jdf_function_entry_t *f;
 
@@ -8106,14 +8176,43 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
 {
     jdf_function_entry_t *f;
     jdf_def_list_t* property;
-    jdf_expr_t* expr;
+    jdf_expr_t* expr, *termdet_expr;
     char *tmp;
     int rc;
-    int global_nb_local_tasks = 0;
+    int global_user_defines = 0;
+    int uses_local_termdet = 1;
+
+    jdf->termdet_init_line = string_arena_new(128);
+    termdet_expr = jdf_find_property(jdf->global_properties, JDF_PROP_TERMDET_NAME, &property);
+    if( NULL != termdet_expr && strcmp(termdet_expr->jdf_var, JDF_PROP_TERMDET_USER_TRIGGERED) == 0 ) {
+        string_arena_add_string(jdf->termdet_init_line,
+                                "  parsec_termdet_open_module(&__parsec_tp->super.super, \"user_trigger\");");
+        uses_local_termdet = 0;
+        global_user_defines |= JDF_HAS_USER_TRIGGERED_TERMDET;
+    } else if( NULL != termdet_expr && strcmp(termdet_expr->jdf_var, JDF_PROP_TERMDET_DYNAMIC) == 0 ) {
+        string_arena_add_string(jdf->termdet_init_line,
+                                "  parsec_termdet_open_dyn_module(&__parsec_tp->super.super);");
+        uses_local_termdet = 0;
+        global_user_defines |= JDF_HAS_DYNAMIC_TERMDET;
+    } else {
+        if(NULL != termdet_expr && strcmp(termdet_expr->jdf_var, JDF_PROP_TERMDET_LOCAL) != 0)
+            jdf_warn(termdet_expr->super.lineno, "'%s' is not a recognized value for option '%s' -- option ignored\n",
+                     termdet_expr->jdf_var, JDF_PROP_TERMDET_NAME);
+        string_arena_add_string(jdf->termdet_init_line,
+                                "  parsec_termdet_open_module(&__parsec_tp->super.super, \"local\");");
+    }
 
     if( NULL != (expr = jdf_find_property(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, &property)) ) {
-        var_to_c_code(expr);
-        global_nb_local_tasks = JDF_HAS_UD_NB_LOCAL_TASKS;
+        if(uses_local_termdet) {
+            var_to_c_code(expr);
+            global_user_defines |= JDF_HAS_UD_NB_LOCAL_TASKS;
+        } else {
+            jdf_warn(expr->super.lineno,
+                     "A global "JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME" property was defined, yet the option "
+                     JDF_PROP_TERMDET_NAME" is set to '%s', so the property "JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME
+                     " will be ignored\n",
+                     termdet_expr->jdf_var);
+        }
     }
 
     for(f = jdf->functions; NULL != f; f = f->next) {
@@ -8121,7 +8220,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
          * task class, for easy and unified checks, but all tasks have the same flag on
          * xor off, as nb_local_tasks must be define globally for the taskpool in order
          * to enable the undetermined number of tasks feature. */
-        f->user_defines |= global_nb_local_tasks;
+        f->user_defines |= global_user_defines;
         
         if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL) ) {
             rc = asprintf(&tmp, JDF2C_NAMESPACE"key_fns_%s", f->fname);
@@ -8415,7 +8514,8 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     }
 
     jdf_generate_structure(jdf);
-    jdf_generate_hashfunctions(jdf);
+    jdf_generate_inline_c_functions(jdf);
+    jdf_generate_makekey_and_hashstruct(jdf);
     jdf_generate_priority_prototypes(jdf);
     jdf_generate_functions_statics(jdf); // PETER generates startup tasks
     jdf_generate_startup_hook(jdf);
