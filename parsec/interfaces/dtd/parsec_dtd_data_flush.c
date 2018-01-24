@@ -228,7 +228,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     dtd_tp->flow_set_flag[tc->task_class_id] = 1;
 
     if( parsec_dtd_task_is_local(this_task) ) {/* Task is local */
-        (void)parsec_atomic_fetch_inc_int32(&dtd_tp->super.nb_tasks);
+        dtd_tp->super.tdm.module->taskpool_addto_nb_tasks(&dtd_tp->super, 1);
         dtd_tp->local_task_inserted++;
         PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                              "Task generated -> %s %d rank %d\n", this_task->super.task_class->name, this_task->ht_item.key, this_task->rank);

@@ -42,6 +42,7 @@
 #include "parsec/mca/device/cuda/device_cuda.h"
 #endif  /* defined(PARSEC_HAVE_CUDA) */
 
+#include "parsec/mca/mca_repository.h"
 #include "parsec/constants.h"
 #include "parsec/vpmap.h"
 #include "parsec/utils/mca_param.h"
@@ -265,10 +266,9 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
 
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     parsec_dtd_param_t flush_param;
-    dtd_tp->super.nb_pending_actions = 1;  /* For the future tasks that will be inserted */
-    dtd_tp->super.nb_tasks -= PARSEC_RUNTIME_RESERVED_NB_TASKS;
-    dtd_tp->super.nb_tasks += 1;  /* For the bounded window, starting with +1 task */
-    dtd_tp->enqueue_flag = 1;
+    tp->tdm.module->taskpool_set_nb_pa(tp, 1);    /* For the future tasks that will be inserted */
+    tp->tdm.module->taskpool_set_nb_tasks(tp, 1); /* For the bounded window, starting with +1 task */
+    dtd_tp->enqueue_flag    = 1;
 
     parsec_dtd_taskpool_retain(tp);
 
@@ -630,7 +630,7 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
     /* we wait for all tasks inserted in the taskpool but not for the communication
      * invoked by those tasks.
      */
-    while( tp->nb_tasks > task_threshold_count ) {
+    while(tp->nb_tasks > (unsigned int)task_threshold_count) {
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = parsec_exponential_backoff(es, misses_in_a_row);
             nanosleep(&rqtp, NULL);
@@ -1321,30 +1321,19 @@ static inline parsec_key_t DTD_make_key_identity(const parsec_taskpool_t *tp, co
     return (parsec_key_t)(uintptr_t)t[0].value;
 }
 
-void
-__parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp)
+int parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
 {
+    int remaining = tp->tdm.module->taskpool_addto_nb_pa( tp, count );
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-    int remaining = parsec_atomic_fetch_dec_int32(&tp->nb_tasks);
-    if( 1 == remaining ) {
-        (void)parsec_atomic_cas_int32(&tp->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS);
-        dtd_tp->enqueue_flag = 0;
-    }
-
-    parsec_dtd_taskpool_release(tp);
-}
-
-int
-parsec_dtd_update_runtime_task(parsec_taskpool_t *tp, int32_t count)
-{
-    int32_t remaining;
-    remaining = parsec_atomic_fetch_add_int32(&tp->nb_pending_actions, count) + count;
-    assert(0 <= remaining);
 
     if( 0 == remaining && 1 == tp->nb_tasks ) {
-        __parsec_dtd_dequeue_taskpool(tp);
+        remaining = tp->tdm.module->taskpool_addto_nb_tasks( tp, -1 );
+        assert( 0 == remaining );
+        dtd_tp->enqueue_flag = 0;
+        tp->tdm.module->taskpool_set_nb_tasks( tp, PARSEC_RUNTIME_RESERVED_NB_TASKS );
     }
 
+    parsec_dtd_taskpool_release( tp ); /* we're done in all cases */
     return remaining;
 }
 
@@ -1381,15 +1370,13 @@ parsec_dtd_taskpool_new(void)
 
     parsec_dtd_taskpool_retain((parsec_taskpool_t *)__tp);
 
-    __tp->super.context = NULL;
-    __tp->super.on_enqueue = parsec_dtd_enqueue_taskpool;
-    __tp->super.on_enqueue_data = NULL;
-    __tp->super.on_complete = NULL;
-    __tp->super.on_complete_data = NULL;
-    __tp->super.nb_tasks = PARSEC_RUNTIME_RESERVED_NB_TASKS;
-    __tp->super.taskpool_type = PARSEC_TASKPOOL_TYPE_DTD;  /* Indicating this is a taskpool for dtd tasks */
-    __tp->super.nb_pending_actions = 0;  /* For the future tasks that will be inserted */
-    __tp->super.nb_task_classes = 0;
+    __tp->super.context            = NULL;
+    __tp->super.on_enqueue         = parsec_dtd_enqueue_taskpool;
+    __tp->super.on_enqueue_data    = NULL;
+    __tp->super.on_complete        = NULL;
+    __tp->super.on_complete_data   = NULL;
+    __tp->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_DTD;  /* Indicating this is a taskpool for dtd tasks */
+    __tp->super.nb_task_classes    = 0;
     __tp->super.update_nb_runtime_task = parsec_dtd_update_runtime_task;
 
     __tp->super.devices_index_mask = 0;
@@ -1423,7 +1410,17 @@ parsec_dtd_taskpool_new(void)
         __tp->super.taskpool_name = NULL;
     }
 
-#if defined(PARSEC_PROF_TRACE)
+    parsec_termdet_open_module(&__tp->super, "local");
+    __tp->super.tdm.module->monitor_taskpool(&__tp->super, parsec_taskpool_termination_detected);
+    __tp->super.tdm.module->taskpool_set_nb_tasks(&__tp->super, PARSEC_RUNTIME_RESERVED_NB_TASKS);
+    __tp->super.tdm.module->taskpool_set_nb_pa(&__tp->super, 0);
+
+    (void)parsec_taskpool_enable((parsec_taskpool_t *)__tp, NULL, NULL, NULL,
+                                  __tp->super.nb_pending_actions);
+
+    __tp->super.tdm.module->taskpool_ready(&__tp->super);
+
+#if defined(PARSEC_PROF_TRACE) /* TODO: should not be per taskpool */
     if( parsec_dtd_profile_verbose ) {
         parsec_dtd_add_profiling_info_generic(&__tp->super, "Insert_task",
                                               &insert_task_trace_keyin, &insert_task_trace_keyout);
@@ -1931,8 +1928,8 @@ parsec_release_dtd_task_to_mempool(parsec_execution_stream_t *es,
                                    parsec_task_t *this_task)
 {
     (void)es;
-    (void)parsec_atomic_fetch_dec_int32(&this_task->taskpool->nb_tasks);
-    return parsec_dtd_release_local_task((parsec_dtd_task_t *)this_task);
+    this_task->taskpool->tdm.module->taskpool_addto_nb_tasks(this_task->taskpool, -1);
+    return parsec_dtd_release_local_task( (parsec_dtd_task_t *)this_task );
 }
 
 void
@@ -3177,8 +3174,8 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
 
     dtd_tp->flow_set_flag[tc->task_class_id] = 1;
 
-    if( parsec_dtd_task_is_local(this_task)) {/* Task is local */
-        (void)parsec_atomic_fetch_inc_int32(&dtd_tp->super.nb_tasks);
+    if( parsec_dtd_task_is_local(this_task) ) {/* Task is local */
+        dtd_tp->super.tdm.module->taskpool_addto_nb_tasks(&dtd_tp->super, 1);
         dtd_tp->local_task_inserted++;
         PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                              "Task generated -> %s %d rank %d\n", this_task->super.task_class->name,

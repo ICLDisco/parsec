@@ -1,0 +1,181 @@
+extern "C" %{
+#include <sys/time.h>
+#include <inttypes.h>
+#include <string.h>
+#include <stdlib.h>
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+
+/**
+ * This test uses a User-Triggered-Termination (UTT) to detect
+ *  the completion of the DAG.
+ */
+%}
+
+%option termdet = "user-triggered"
+
+descA            [type = "two_dim_block_cyclic_t*"]
+tasks_cnt        [type = "int32_t *"]
+NT               [type = "int"]
+verbose          [type = "int"]
+
+STARTUP(i)
+i = 0 .. 0
+
+: descA( 0, 0 )
+
+CTL X -> X FANOUT(0, 0 .. 1)
+
+BODY
+{
+    if(verbose)
+        printf("STARTUP(0) on rank %d\n", this_task->taskpool->context->my_rank);
+    parsec_atomic_fetch_inc_int32(tasks_cnt);
+}
+END
+
+FANOUT(i, j)
+ i = 0 .. NT-1
+ j = 0 .. %{ return (1 << (i+1)) - 1; %}
+
+:descA(i, j)
+
+CTL X <- i == 0    ? X STARTUP(0)
+                   : X FANOUT(i-1, j/2)
+      -> i+1 < NT  ? X FANOUT(i+1, (2*j) .. ((2*j) + 1))
+                   : X FANIN(i, j)
+
+BODY
+{
+    if(verbose)
+        printf("FANOUT(%d, %d) on rank %d\n", i, j, this_task->taskpool->context->my_rank);
+    parsec_atomic_fetch_inc_int32(tasks_cnt);
+}
+END
+
+FANIN(i, j)
+i = 0 .. NT-1
+j = 0 .. %{ return (1 << (i+1)) - 1; %}
+
+:descA(i, j)
+
+CTL X <- i == NT-1 ? X FANOUT(i, j)
+                   : X FANIN(i+1, (2*j) .. ((2*j) + 1))
+      -> i >  0    ? X FANIN(i-1, j/2)
+                   : X END(0)
+
+BODY
+{
+    if(verbose)
+        printf("FANIN(%d, %d) on rank %d\n", i, j, this_task->taskpool->context->my_rank);
+    parsec_atomic_fetch_inc_int32(tasks_cnt);
+}
+END
+
+END(i)
+i = 0 .. 0
+
+: descA( 0, 0 )
+
+CTL X <- X FANIN(0, 0 .. 1)
+
+BODY
+{
+    if(verbose)
+         printf("END(0) on rank %d\n", this_task->taskpool->context->my_rank);
+    parsec_atomic_fetch_inc_int32(tasks_cnt);
+    this_task->taskpool->tdm.module->taskpool_set_nb_tasks(this_task->taskpool, 0);
+}
+END
+
+extern "C" %{
+
+#include <math.h>
+
+int main( int argc, char** argv )
+{
+    parsec_utt_taskpool_t* tp;
+    two_dim_block_cyclic_t descA;
+    parsec_arena_datatype_t adt;
+    parsec_datatype_t dt;
+    parsec_context_t *parsec;
+    int ws = 1, mr = 0;
+    int rc;
+    int32_t nb_tasks;
+    int ret;
+    int nt;
+
+#ifdef PARSEC_HAVE_MPI
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+        MPI_Comm_size(MPI_COMM_WORLD, &ws);
+        MPI_Comm_rank(MPI_COMM_WORLD, &mr);
+    }
+#endif
+    nt = 2*ws;
+
+    parsec = parsec_init(-1, &argc, &argv);
+    if( NULL == parsec ) {
+        exit(-1);
+    }
+
+    /**
+     * Build the data and the arena to hold it up.
+     */
+    two_dim_block_cyclic_init( &descA, matrix_RealDouble, matrix_Tile,
+                               ws /*nodes*/, mr /*rank*/,
+                               100 /* mb */, 100 /* nb */,
+                               100*nt /* lm */, 100*(1<<nt) /* ln */,
+                               0 /* i */, 0 /* j */,
+                               100*nt /* m */, 100*(1<<nt) /* n */,
+                               1 /* sm */, 1 /* sn */,
+                               1 );
+    descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
+                                      descA.super.bsiz *
+                                      parsec_datadist_getsizeoftype(matrix_RealDouble) );
+    parsec_data_collection_set_key(&descA.super.super, "A");
+
+    parsec_translate_matrix_type(matrix_RealDouble, &dt);
+    parsec_matrix_add2arena_rect(&adt, dt,
+                                 descA.super.mb, descA.super.nb, descA.super.mb);
+
+    /* Start the PaRSEC engine */
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    nb_tasks = 0;
+    tp = parsec_utt_new( &descA, &nb_tasks, nt, 1 );
+    assert( NULL != tp );
+    tp->arenas_datatypes[PARSEC_utt_DEFAULT_ARENA] = adt;
+    rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_wait(parsec);
+
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    parsec_context_wait(parsec);
+
+    ret = 0;
+    if( 0 == mr ) {
+        if( nb_tasks != 25 ) {
+            fprintf(stderr, "*** Test failed: expected 25 STARTUP tasks, found %d total\n", nb_tasks);
+            ret++;
+        }
+    }
+
+    free(descA.mat);
+    parsec_matrix_del2arena( & adt );
+
+    parsec_fini( &parsec);
+
+#ifdef PARSEC_HAVE_MPI
+    MPI_Finalize();
+#endif
+
+    return ret;
+}
+
+%}

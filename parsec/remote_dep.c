@@ -95,15 +95,16 @@ remote_dep_is_forwarded(parsec_execution_stream_t* es,
 static inline void
 remote_dep_inc_flying_messages(parsec_taskpool_t* handle)
 {
-    assert( handle->nb_pending_actions > 0 );
-    (void)parsec_atomic_fetch_inc_int32( &(handle->nb_pending_actions) );
+    assert( handle->tdm.module->taskpool_state(handle) != PARSEC_TERM_TP_TERMINATED );
+    handle->tdm.module->taskpool_addto_nb_pa(handle, 1);
 }
 
 /* allow for termination when all deps have been served */
 static inline void
 remote_dep_dec_flying_messages(parsec_taskpool_t *handle)
 {
-    (void)parsec_taskpool_update_runtime_nbtask(handle, -1);
+    assert( handle->tdm.module->taskpool_state(handle) != PARSEC_TERM_TP_TERMINATED );
+    handle->tdm.module->taskpool_addto_nb_pa(handle, -1);
 }
 #endif
 
@@ -574,7 +575,8 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                          */
                         (void)parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack);
                     }
-                    remote_dep_send(es, rank, remote_deps);
+                    if( task->taskpool->tdm.module->outgoing_message_start(task->taskpool, rank, remote_deps) )
+                        remote_dep_send(es, rank, remote_deps);
                 } else {
                     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)",
                             remote_deps->root, i, tmp, my_idx, idx, rank);

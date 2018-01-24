@@ -895,6 +895,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     PARSEC_AYU_INIT();
 
+    parsec_termdet_init();
+
     if( parsec_cmd_line_is_taken(cmd_line, "help") ||
         parsec_cmd_line_is_taken(cmd_line, "h")) {
         if( 0 == context->my_rank ) {
@@ -1232,6 +1234,9 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_mempool_stats(context);
 #endif  /* PARSEC_PROF_TRACE */
 
+    (void) parsec_termdet_close_modules();
+    (void) parsec_termdet_fini();
+
     (void) parsec_remote_dep_fini(context);
 
     parsec_remove_scheduler( context );
@@ -1544,10 +1549,13 @@ parsec_hash_find_deps(const parsec_taskpool_t *tp,
     return &hd->dependency;
 }
 
-static int
-parsec_update_deps_with_counter(const parsec_taskpool_t *tp,
+int
+parsec_update_deps_with_counter(parsec_taskpool_t *tp,
                                 const parsec_task_t* restrict task,
-                                parsec_dependency_t *deps)
+                                parsec_dependency_t *deps,
+                                const parsec_task_t* restrict origin,
+                                const parsec_flow_t* restrict origin_flow,
+                                const parsec_flow_t* restrict dest_flow)
 {
     parsec_dependency_t dep_new_value, dep_cur_value;
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
@@ -1555,6 +1563,10 @@ parsec_update_deps_with_counter(const parsec_taskpool_t *tp,
     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
 
+    (void)origin;
+    (void)origin_flow;
+    (void)dest_flow;
+    
     if( 0 == *deps ) {
         dep_new_value = parsec_check_IN_dependencies_with_counter(tp, task) - 1;
         if( parsec_atomic_cas_int32( deps, 0, dep_new_value ) == 1 )
@@ -1584,8 +1596,57 @@ parsec_update_deps_with_counter(const parsec_taskpool_t *tp,
     return dep_cur_value == 0;
 }
 
-static int
-parsec_update_deps_with_mask(const parsec_taskpool_t *tp,
+int
+parsec_update_deps_with_counter_count_task(parsec_taskpool_t *tp,
+                                           const parsec_task_t* restrict task,
+                                           parsec_dependency_t *deps,
+                                           const parsec_task_t* restrict origin,
+                                           const parsec_flow_t* restrict origin_flow,
+                                           const parsec_flow_t* restrict dest_flow)
+{
+    parsec_dependency_t dep_new_value, dep_cur_value;
+#if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
+    char tmp[MAX_TASK_STRLEN];
+    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
+#endif
+
+    (void)origin;
+    (void)origin_flow;
+    (void)dest_flow;
+    
+    if( 0 == *deps ) {
+        dep_new_value = parsec_check_IN_dependencies_with_counter(tp, task) - 1;
+        if( parsec_atomic_cas_int32( deps, 0, dep_new_value ) == 1 ) {
+            dep_cur_value = dep_new_value;
+            tp->tdm.module->taskpool_addto_nb_tasks(tp, 1);
+        } else {
+            dep_cur_value = parsec_atomic_fetch_dec_int32( deps ) - 1;
+        }
+    } else {
+        dep_cur_value = parsec_atomic_fetch_dec_int32( deps ) - 1;
+    }
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Activate counter dependency for %s leftover %d (excluding current)",
+                         tmp, dep_cur_value);
+
+#if defined(PARSEC_DEBUG_PARANOID)
+    {
+        char wtmp[MAX_TASK_STRLEN];
+        if( (uint32_t)dep_cur_value > (uint32_t)-128) {
+            parsec_fatal("task %s as reached an improbable dependency count of %u",
+                  wtmp, dep_cur_value );
+        }
+
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Task %s has a current dependencies count of %d remaining. %s to go!",
+                             tmp, dep_cur_value,
+                             (dep_cur_value == 0) ? "Ready" : "Not ready");
+    }
+#endif /* PARSEC_DEBUG_PARANOID */
+
+    return dep_cur_value == 0;
+}
+
+int
+parsec_update_deps_with_mask(parsec_taskpool_t *tp,
                              const parsec_task_t* restrict task,
                              parsec_dependency_t *deps,
                              const parsec_task_t* restrict origin,
@@ -1628,6 +1689,77 @@ parsec_update_deps_with_mask(const parsec_taskpool_t *tp,
     }
 
     dep_cur_value = parsec_atomic_fetch_or_int32( deps, dep_new_value ) | dep_new_value;
+
+#if defined(PARSEC_DEBUG_PARANOID)
+    if( (dep_cur_value & tc->dependencies_goal) == tc->dependencies_goal ) {
+        int success;
+        parsec_dependency_t tmp_mask;
+        tmp_mask = *deps;
+        success = parsec_atomic_cas_int32(deps,
+                                          tmp_mask, (tmp_mask | PARSEC_DEPENDENCIES_TASK_DONE));
+        if( !success || (tmp_mask & PARSEC_DEPENDENCIES_TASK_DONE) ) {
+            parsec_fatal("Task %s scheduled twice (second time by %s)!!!",
+                   tmpt, tmpo);
+        }
+    }
+#endif  /* defined(PARSEC_DEBUG_PARANOID) */
+
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Task %s has a current dependencies of 0x%x and a goal of 0x%x. %s to go!",
+                         tmpt, dep_cur_value, tc->dependencies_goal,
+                         ((dep_cur_value & tc->dependencies_goal) == tc->dependencies_goal) ?
+                         "Ready" : "Not ready");
+    return (dep_cur_value & tc->dependencies_goal) == tc->dependencies_goal;
+}
+
+int
+parsec_update_deps_with_mask_count_task(parsec_taskpool_t *tp,
+                                        const parsec_task_t* restrict task,
+                                        parsec_dependency_t *deps,
+                                        const parsec_task_t* restrict origin,
+                                        const parsec_flow_t* restrict origin_flow,
+                                        const parsec_flow_t* restrict dest_flow)
+{
+    parsec_dependency_t dep_new_value, dep_cur_value;
+    const parsec_task_class_t* tc = task->task_class;
+#if defined(PARSEC_DEBUG_NOISIER) || defined(PARSEC_DEBUG_PARANOID)
+    char tmpo[MAX_TASK_STRLEN], tmpt[MAX_TASK_STRLEN];
+    parsec_task_snprintf(tmpo, MAX_TASK_STRLEN, origin);
+    parsec_task_snprintf(tmpt, MAX_TASK_STRLEN, task);
+#endif
+
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Activate mask dep for %s:%s (current 0x%x now 0x%x goal 0x%x) from %s:%s",
+                         dest_flow->name, tmpt, *deps, (1 << dest_flow->flow_index), tc->dependencies_goal,
+                         origin_flow->name, tmpo);
+#if defined(PARSEC_DEBUG_PARANOID)
+    if( (*deps) & (1 << dest_flow->flow_index) ) {
+        parsec_fatal("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)",
+                     dest_flow->flow_index, tmpo,
+                     origin_flow->name, *deps,
+                     tmpt, dest_flow->name );
+    }
+#else
+    (void) origin; (void) origin_flow;
+#endif
+
+    assert( 0 == (*deps & (1 << dest_flow->flow_index)) );
+
+    dep_new_value = PARSEC_DEPENDENCIES_IN_DONE | (1 << dest_flow->flow_index);
+    /* Mark the dependencies and check if this particular instance can be executed */
+    if( !(PARSEC_DEPENDENCIES_IN_DONE & (*deps)) ) {
+        dep_new_value |= parsec_check_IN_dependencies_with_mask(tp, task);
+#if defined(PARSEC_DEBUG_NOISIER)
+        if( dep_new_value != 0 ) {
+            PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Activate IN dependencies with mask 0x%x", dep_new_value);
+        }
+#endif
+    }
+
+    dep_cur_value = parsec_atomic_fetch_or_int32( deps, dep_new_value ) | dep_new_value;
+    if( (dep_cur_value & (~dep_new_value)) == 0 ) {
+        tp->tdm.module->taskpool_addto_nb_tasks(tp, 1);
+    } else {
+        assert(0);
+    }
 
 #if defined(PARSEC_DEBUG_PARANOID)
     if( (dep_cur_value & tc->dependencies_goal) == tc->dependencies_goal ) {
@@ -1700,11 +1832,7 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Activate dependencies for %s flags = 0x%04x", tmp1, tc->flags);
     deps = tc->find_deps(origin->taskpool, es, task);
 
-    if( tc->flags & PARSEC_USE_DEPS_MASK ) {
-        completed = parsec_update_deps_with_mask(origin->taskpool, task, deps, origin, origin_flow, dest_flow);
-    } else {
-        completed = parsec_update_deps_with_counter(origin->taskpool, task, deps);
-    }
+    completed = tc->update_deps(origin->taskpool, task, deps, origin, origin_flow, dest_flow);
 
 #if defined(PARSEC_PROF_GRAPHER)
     parsec_prof_grapher_dep(origin, task, completed, origin_flow, dest_flow);
@@ -2168,8 +2296,7 @@ void parsec_taskpool_unregister( parsec_taskpool_t* tp )
     parsec_atomic_lock( &taskpool_array_lock );
     assert( tp->taskpool_id < taskpool_array_size );
     assert( taskpool_array[tp->taskpool_id] == tp );
-    assert( PARSEC_RUNTIME_RESERVED_NB_TASKS == tp->nb_tasks );
-    assert( 0 == tp->nb_pending_actions );
+    assert( PARSEC_TERM_TP_TERMINATED == tp->tdm.module->taskpool_state(tp) );
     taskpool_array[tp->taskpool_id] = NOTASKPOOL;
     parsec_atomic_unlock( &taskpool_array_lock );
 }
@@ -2863,10 +2990,9 @@ int parsec_task_deps_with_final_output(const parsec_task_t *task,
     return nbout;
 }
 
-int32_t
-parsec_add_fetch_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks )
+int parsec_add_fetch_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks )
 {
-    return parsec_atomic_fetch_add_int32(&tp->nb_pending_actions, nb_tasks ) + nb_tasks;
+    return tp->tdm.module->taskpool_addto_nb_pa(tp, nb_tasks);
 }
 
 parsec_execution_stream_t *parsec_my_execution_stream(void)

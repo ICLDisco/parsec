@@ -121,7 +121,8 @@ set(SOURCES
   vpmap.c
   maxheap.c
   hbbuffer.c
-  datarepo.c)
+  datarepo.c
+  termdet.c)
 if( PARSEC_PROF_TRACE )
   list(APPEND SOURCES dictionary.c)
 endif( PARSEC_PROF_TRACE )
