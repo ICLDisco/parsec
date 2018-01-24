@@ -7,6 +7,8 @@ bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
  - DTD interface is updated (new flag to send pointer as parameter,
    unpacking of paramteres is simpler etc).
+ - DTD provides mca param (dtd_debug_verbose) to print information
+   about traversal of DAG in a separate output stream from the default.
 
 v 2.0.0rc2
  - Rename all functions, files, directories from dague/DAGUE/DAGuE to

@@ -47,6 +47,11 @@
 #include "parsec/parsec_prof_grapher.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/utils/output.h"
+
+/* This allows DTD to have a separate stream for debug verbose output */
+int parsec_dtd_debug_output;
+static int parsec_dtd_debug_verbose = -1;
 
 uint32_t __parsec_dtd_is_initialized   = 0; /**< Indicates init of dtd environment is completed */
 
@@ -56,8 +61,8 @@ static int parsec_dtd_task_hash_table_size = 1<<10; /**< Default task hash table
 static int parsec_dtd_tile_hash_table_size = 1<<10; /**< Default tile hash table size */
 static int parsec_dtd_no_of_arenas = 16;
 
-int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
-int parsec_dtd_dump_function_info; /**< For printing function_structure info */
+int parsec_dtd_dump_traversal_info = 60; /**< Level for printing traversal info */
+int parsec_dtd_dump_function_info  = 50; /**< Level for printing function_structure info */
 int insert_task_trace_keyin;
 int insert_task_trace_keyout;
 int hashtable_trace_keyin;
@@ -338,15 +343,13 @@ parsec_dtd_lazy_init(void)
 {
     parsec_dtd_taskpool_t  *tp;
 
-    /* Registering mca param for printing out traversal info */
-    (void)parsec_mca_param_reg_int_name("dtd", "traversal_info",
-                                       "Show graph traversal info when value >= than debug verbose",
-                                       false, false, 50, &parsec_dtd_dump_traversal_info);
-
-    /* Registering mca param for printing out function_structure info */
-    (void)parsec_mca_param_reg_int_name("dtd", "function_info",
-                                       "Show master structure info when value >= than debug verbose",
-                                       false, false, 50, &parsec_dtd_dump_function_info);
+    (void)parsec_mca_param_reg_int_name("dtd", "debug_verbose",
+                                        "This param indicates the vebosity level of separate dtd output stream and "
+                                        "also determines if we will be using a separate output stream for DTD or not\n"
+                                        "Level 50 will print relationship between task class\n"
+                                        "Level 60 will print level 50 + traversal of the DAG",
+                                        false, false, parsec_dtd_debug_verbose,
+                                        &parsec_dtd_debug_verbose);
 
     /* Registering mca param for tile hash table size */
     (void)parsec_mca_param_reg_int_name("dtd", "tile_hash_size",
@@ -367,6 +370,23 @@ parsec_dtd_lazy_init(void)
     (void)parsec_mca_param_reg_int_name("dtd", "threshold_size",
                                        "Registers the supplied size overriding the default size of threshold size",
                                        false, false, parsec_dtd_threshold_size, &parsec_dtd_threshold_size);
+
+    /* Register separate dtd_debug_output_stream */
+    if(-1 != parsec_dtd_debug_verbose) {
+        /* By default we use parsec_debug_output,
+         * if it is indicated otherwise, we use a separate
+         * stream to output dtd verbose debug information
+         */
+        parsec_dtd_debug_output = parsec_output_open(NULL);
+        /* We will have only two level of verbosity
+         * 1. For traversal info of the DAG - level 49
+         * 2. Level 1 + relationship between task classes - leve 50
+         */
+        parsec_output_set_verbosity(parsec_dtd_debug_output, parsec_dtd_debug_verbose);
+    } else {
+        /* Falling back to default output stream */
+        parsec_dtd_debug_output = parsec_debug_output;
+    }
 
     parsec_dtd_taskpool_mempool = (parsec_mempool_t*) malloc (sizeof(parsec_mempool_t));
     parsec_mempool_construct( parsec_dtd_taskpool_mempool,
@@ -418,6 +438,11 @@ void parsec_dtd_fini(void)
 
     parsec_mempool_destruct( parsec_dtd_taskpool_mempool );
     free( parsec_dtd_taskpool_mempool );
+
+    if(-1 != parsec_dtd_debug_verbose) {
+        parsec_output_close(parsec_dtd_debug_output);
+        parsec_dtd_debug_output = parsec_debug_output;
+    }
 }
 
 /**
@@ -1220,7 +1245,7 @@ parsec_dtd_taskpool_new(void)
 #endif
     __tp = (parsec_dtd_taskpool_t *)parsec_thread_mempool_allocate(parsec_dtd_taskpool_mempool->thread_mempools);
 
-    PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+    PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                          "\n\n------ New Taskpool (%p)-----\n\n\n", __tp);
 
     parsec_dtd_taskpool_retain((parsec_taskpool_t *)__tp);
@@ -1481,15 +1506,13 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
 #endif
         if(!not_ready) {
             assert(parsec_dtd_task_is_local(current_task));
-            if(parsec_dtd_dump_traversal_info) {
 #if defined(PARSEC_DEBUG_NOISIER)
-                char tmp[64];
-                PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
-                                     "------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
-                                     "%d\n-----\n", current_task->super.task_class->key_functions->key_print(tmp, 64, current_task->ht_item.key, NULL),
-                                     current_task->super.task_class->nb_flows, current_task->flow_count);
+            char tmp[64];
+            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
+                                 "------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
+                                 "%d\n-----\n", current_task->super.task_class->key_functions->key_print(tmp, 64, current_task->ht_item.key, NULL),
+                                 current_task->super.task_class->nb_flows, current_task->flow_count);
 #endif
-            }
 
             arg->ready_lists[dst_vpid] = (parsec_task_t*)
                 parsec_list_item_ring_push_sorted( (parsec_list_item_t*)arg->ready_lists[dst_vpid],
@@ -1693,7 +1716,7 @@ complete_hook_of_dtd( parsec_execution_stream_t *es,
     static uint32_t atomic_internal_counter = 0;
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
-    PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+    PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                          "------------------------------------------------\n"
                          "execution done of task: %s \t %" PRIu64 "\n"
                          "task done %u rank --> %d\n",
@@ -1950,7 +1973,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
         }
         if (!dep_exists) {
             dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
-            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_debug_output,
+            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_dtd_debug_output,
                                  "%s -> LOCAL\n", parent_tc->name);
 
             desc_dep->cond          = NULL;
@@ -1996,7 +2019,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
         }
         if (!dep_exists) {
             dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
-            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_debug_output,
+            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_dtd_debug_output,
                                  "LOCAL -> %s\n", desc_tc->name);
             desc_dep->cond          = NULL;
             desc_dep->ctl_gather_nb = NULL;
@@ -2078,7 +2101,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
             dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
             dep_t *parent_dep = (dep_t *) malloc(sizeof(dep_t));
 
-            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_debug_output,
+            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_dtd_debug_output,
                                  "%s -> %s\n", parent_tc->name, desc_tc->name);
 
             /* setting out-dependency for parent */
@@ -2901,7 +2924,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
     if( parsec_dtd_task_is_local(this_task) ) {/* Task is local */
         (void)parsec_atomic_add_32b((int *)&(dtd_tp->super.nb_tasks), 1);
         dtd_tp->local_task_inserted++;
-        PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+        PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                              "Task generated -> %s %d rank %d\n", this_task->super.task_class->name, this_task->ht_item.key, this_task->rank);
     }
 
@@ -2923,7 +2946,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
     if( parsec_dtd_task_is_local(this_task) ) {
         /* Building list of initial ready task */
         if ( 0 == parsec_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
-            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                                  "------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
                                  "%d\n-----\n", this_task->super.task_class->name, this_task->ht_item.key,
                                  this_task->super.task_class->nb_flows, this_task->flow_count);
