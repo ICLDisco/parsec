@@ -289,46 +289,43 @@ int parsec_set_scheduler( parsec_context_t *parsec )
  * readylist. the new_context IS the readylist.
  */
 int __parsec_schedule(parsec_execution_stream_t* es,
-                      parsec_task_t* new_context,
+                      parsec_task_t* tasks_ring,
                       int32_t distance)
 {
     int ret;
 
-#if defined(PARSEC_DEBUG_PARANOID) && defined(PARSEC_DEBUG_NOISIER)
+#if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
     {
-        parsec_task_t* context = new_context;
-        const struct parsec_flow_s* flow;
-        int set_parameters, i;
-        char tmp[MAX_TASK_STRLEN];
+        parsec_task_t* task = tasks_ring;
+        char task_string[MAX_TASK_STRLEN];
 
         do {
-            for( i = set_parameters = 0; NULL != (flow = context->task_class->in[i]); i++ ) {
+            (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, task);
+#if defined(PARSEC_DEBUG_PARANOID)
+            const struct parsec_flow_s* flow;
+            for( int i = 0; NULL != (flow = task->task_class->in[i]); i++ ) {
                 if( FLOW_ACCESS_NONE == (flow->flow_flags & FLOW_ACCESS_MASK) ) continue;
-                if( NULL != context->data[flow->flow_index].data_repo ) {
-                    set_parameters++;
-                    if( NULL == context->data[flow->flow_index].data_in ) {
+                if( NULL != task->data[flow->flow_index].data_repo ) {
+                    if( NULL == task->data[flow->flow_index].data_in ) {
                         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)",
-                                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context),
+                                             task_string,
                                              flow->name, __FILE__, __LINE__);
                     }
                 }
             }
-            /*if( set_parameters > 1 ) {
-              parsec_fatal( "Task %s has more than one input flow set (impossible)!! (%s:%d)",
-              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
-              }*/ /* Change it as soon as dtd has a running version */
+#endif  /* defined(PARSEC_DEBUG_PARANOID) */
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "thread %d of VP %d Schedules %s (distance %d)",
                                  es->th_id, es->virtual_process->vp_id,
-                                 parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context), distance );
-            context = (parsec_task_t*)context->super.list_next;
-        } while ( context != new_context );
+                                 task_string, distance );
+            task = (parsec_task_t*)task->super.list_next;
+        } while ( task != tasks_ring );
     }
-#endif  /* defined(PARSEC_DEBUG_PARANOID) */
+#endif  /* defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER) */
 
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME(es->es_profile, schedule_push_begin, 0);
      */
-    ret = current_scheduler->module.schedule(es, new_context, distance);
+    ret = current_scheduler->module.schedule(es, tasks_ring, distance);
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( es->es_profile, schedule_push_end, 0);
      */

@@ -354,7 +354,7 @@ static inline mark_t *get_my_mark(int actual_size, int *actual_space)
 
     /* Compute how many slots we will use */
     actual_slots = 1 + (*actual_space + MARK_SIZE - 3) / MARK_SIZE;
-    
+
     /* If the start mark is still undefined, define it now */
     if( my_buffer->current_start_mark == UNDEFINED_MARK ) {
         my_buffer->current_start_mark = my_buffer->current_end_mark;
@@ -406,12 +406,15 @@ void parsec_debug_history_add(const char *format, ...) {
     va_list args;
     mark_t *my_mark;
     int actual_size, actual_space;
-    
+
     if( parsec_debug_max_history_length_per_thread == 0 )
         return;
 
     va_start(args, format);
     actual_size = vsnprintf(NULL, 0, format, args);
+    va_end(args);
+
+    va_start(args, format);
     my_mark = get_my_mark(actual_size, &actual_space);
     if( actual_space < actual_size && actual_space > 4 ) {
         vsnprintf(my_mark->mark, actual_space-4, format, args);
@@ -445,7 +448,7 @@ void parsec_debug_history_dump(void) {
 
     if( parsec_debug_max_history_length_per_thread == 0 )
         return;
-    
+
     /* Atomically swap the current marks buffer, to avoid the case when we read
      * something that is changing
      * This CAS can only fail if parsec_debug_history_dump is called
@@ -454,7 +457,7 @@ void parsec_debug_history_dump(void) {
      * push new marks.
      */
     parsec_atomic_cas_int32(&writing_buffer, printing_buffer, printing_buffer == 0 ? 1 : 0);
-    
+
     /* As long as there is a mark to display for one thread */
     parsec_inform("== Begin debug history =====================================================");
     while(1) {
@@ -536,7 +539,7 @@ void parsec_debug_history_init(void) {
     parsec_mca_param_reg_int_name("parsec", "debug_max_history_length_per_thread",
                                   "How many bytes of history to keep per thread",
                                   false, false, default_history_length, &chosen_history_length);
-    
+
     debug_start = take_time();
     if( chosen_history_length > 0 ) {
         parsec_debug_max_history_length_per_thread = MARK_SIZE * ( (chosen_history_length + MARK_SIZE - 1)/ MARK_SIZE);

@@ -328,6 +328,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'S': iparam[IPARAM_SNB] = atoi(optarg); break;
 
             case 'X': iparam[IPARAM_CHECKINV] = 1;
+                      /* Fall through */
             case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break;
 
             case 'b': iparam[IPARAM_ASYNC] = 0; break;
@@ -362,14 +363,15 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'H':
                 if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead in the exact same format after --\n", long_options[opt].name);
                 exit(-10);  /* No kidding! */
+                break;  /* because some compilers are just too annoying */
 
             case 'V':
                 if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead in the exact same format after --\n", long_options[opt].name);
                 exit(-10);  /* No kidding! */
+                break;  /* because some compilers are just too annoying */
 
             case '.':
                 add_dot = optarg;
-
                 break;
 
             case 'h': print_usage(); exit(0);
@@ -377,8 +379,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
             case '?': /* getopt_long already printed an error message. */
                 exit(1);
-                break;
-                
+                break;  /* because some compilers are just too annoying */
+
             default:
                 break; /* Assume anything else is parsec/mpi stuff */
         }

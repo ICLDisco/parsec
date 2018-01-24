@@ -139,12 +139,14 @@ static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
     if( ptg_tp->destructor == (parsec_destruct_fn_t)parsec_dtd_taskpool_destruct ) {
         return;
     }
+    /* Rebuild the local taskpool */
     if( __dtd_taskpool != NULL ) {
         parsec_taskpool_free((parsec_taskpool_t *)__dtd_taskpool);
     }
-
-    parsec_dtd_data_collection_init( __dc );
     __dtd_taskpool = (parsec_dtd_taskpool_t *)parsec_dtd_taskpool_new( );
+
+    /* There can only be one valid data collection at any moment */
+    parsec_dtd_data_collection_init( __dc );
     dtd_global_deque = OBJ_NEW(parsec_list_t);
     copy_chores(ptg_tp, __dtd_taskpool);
     {
