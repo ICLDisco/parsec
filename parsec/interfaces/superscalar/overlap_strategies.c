@@ -317,7 +317,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                     }
                 }
 
-                PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_debug_output,
+                PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                                      "------\nsuccessor of: %s \t %lld rank %d --> %s \t %lld rank: %d\nTotal flow: %d  flow_count:"
                                      "%d\n----- for pred flow: %d and desc flow: %d\n", current_task->super.task_class->name,
                                      current_task->ht_item.key, current_task->rank, current_desc->super.task_class->name,
