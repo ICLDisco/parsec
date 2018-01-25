@@ -82,7 +82,7 @@ __parsec_generic_startup_make_key(const parsec_taskpool_t *tp, const assignment_
 {
     (void)as;
     (void)tp;
-    return NULL;
+    return 0;
 }
 
 /**

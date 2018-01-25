@@ -38,7 +38,7 @@ BEGIN_C_DECLS
  * @brief Keys are arbitrary opaque objects that are accessed through a set
  *        of user-defined functions.
  */
-typedef const void *parsec_key_t;
+typedef uintptr_t parsec_key_t;
 typedef struct parsec_key_fn_s {
     /** Returns a == b */
     int          (*key_equal)(parsec_key_t a, parsec_key_t b, void *user_data);
