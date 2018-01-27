@@ -55,8 +55,8 @@ static int parsec_dtd_debug_verbose = -1;
 
 uint32_t __parsec_dtd_is_initialized   = 0; /**< Indicates init of dtd environment is completed */
 
-int parsec_dtd_window_size             = 4000;   /**< Default window size */
-int parsec_dtd_threshold_size          = 2000;   /**< Default threshold size of tasks for master thread to wait on */
+int parsec_dtd_window_size             = 8000;   /**< Default window size */
+int parsec_dtd_threshold_size          = 4000;   /**< Default threshold size of tasks for master thread to wait on */
 static int parsec_dtd_task_hash_table_size = 1<<10; /**< Default task hash table size */
 static int parsec_dtd_tile_hash_table_size = 1<<10; /**< Default tile hash table size */
 static int parsec_dtd_no_of_arenas = 16;
@@ -86,16 +86,17 @@ hook_of_dtd_task(parsec_execution_stream_t *es,
                  parsec_task_t *this_task);
 
 static void
-iterate_successors_of_dtd_task(parsec_execution_stream_t *es,
-                               const parsec_task_t *this_task,
-                               uint32_t action_mask,
-                               parsec_ontask_function_t *ontask,
-                               void *ontask_arg);
+parsec_dtd_iterate_successors(parsec_execution_stream_t *es,
+                              const parsec_task_t *this_task,
+                              uint32_t action_mask,
+                              parsec_ontask_function_t *ontask,
+                              void *ontask_arg);
 
 static int
-release_deps_of_dtd(parsec_execution_stream_t *,
-                    parsec_task_t *,
-                    uint32_t, parsec_remote_deps_t *);
+parsec_dtd_release_deps(parsec_execution_stream_t *,
+                        parsec_task_t *,
+                        uint32_t, parsec_remote_deps_t *);
+
 
 static parsec_hook_return_t
 complete_hook_of_dtd(parsec_execution_stream_t *,
@@ -296,9 +297,11 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     free(tp->startup_list);
 
     parsec_hash_table_fini(tp->two_hash_table->task_and_rem_dep_h_table);
+    OBJ_RELEASE(tp->two_hash_table->task_and_rem_dep_h_table);
     free(tp->two_hash_table);
 
     parsec_hash_table_fini(tp->function_h_table);
+    OBJ_RELEASE(tp->function_h_table);
 }
 
 /* To create object of class parsec_dtd_taskpool_t that inherits parsec_taskpool_t
@@ -443,64 +446,6 @@ void parsec_dtd_fini(void)
         parsec_output_close(parsec_dtd_debug_output);
         parsec_dtd_debug_output = parsec_debug_output;
     }
-}
-
-/**
- * Body of function to copy data to the original matrix, coming from remote tasks.
- */
-int
-parsec_dtd_copy_data_to_matrix(parsec_execution_stream_t *es,
-                               parsec_task_t *this_task)
-{
-    (void)es;
-    parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
-    parsec_dtd_tile_t *tile = (FLOW_OF(current_task, 0))->tile;
-
-    assert(tile != NULL);
-
-#if defined(DISTRIBUTED)
-    if( current_task->super.data[0].data_in != tile->data_copy ) {
-        int16_t arena_index = (FLOW_OF(current_task, 0))->arena_index;
-        parsec_dep_data_description_t data;
-        data.data   = current_task->super.data[0].data_in;
-        data.arena  = parsec_dtd_arenas[arena_index];
-        data.layout = data.arena->opaque_dtt;
-        data.count  = 1;
-        data.displ  = 0;
-        parsec_remote_dep_memcpy(this_task->taskpool,
-                                 tile->data_copy, current_task->super.data[0].data_in, &data);
-    }
-#endif
-
-    parsec_dtd_release_local_task( current_task );
-
-    return 0;
-}
-
-void
-parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
-{
-    assert(tile->flushed == NOT_FLUSHED);
-    parsec_dtd_tile_retain(tile);
-    parsec_dtd_taskpool_insert_task( tp, parsec_dtd_copy_data_to_matrix, 0, "Copy_data_in_dist",
-                                     PASSED_BY_REF, tile, INOUT | AFFINITY,
-                                     PARSEC_DTD_ARG_END );
-    tile->flushed = FLUSHED;
-    parsec_dtd_tile_remove( tile->dc, tile->key );
-    parsec_dtd_tile_release( tile );
-}
-
-void
-parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
-{
-    parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-    parsec_hash_table_t *hash_table   = (parsec_hash_table_t *)dc->tile_h_table;
-
-    PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_BEGIN, NULL);
-
-    parsec_hash_table_for_all( hash_table, (hash_elem_fct_t)parsec_dtd_data_flush, tp);
-
-    PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_END, NULL);
 }
 
 extern int __parsec_task_progress( parsec_execution_stream_t* es,
@@ -1062,7 +1007,8 @@ parsec_dtd_data_collection_init( parsec_data_collection_t *dc )
 void
 parsec_dtd_data_collection_fini( parsec_data_collection_t *dc )
 {
-    parsec_hash_table_fini( dc->tile_h_table );
+    parsec_hash_table_fini(dc->tile_h_table);
+    OBJ_RELEASE(dc->tile_h_table);
 }
 
 /* **************************************************************************** */
@@ -1105,8 +1051,6 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key )
         }
 
         SET_LAST_ACCESSOR(tile);
-
-        parsec_dtd_tile_retain(tile);
         parsec_dtd_tile_insert( tile->key,
                                 tile, dc );
     }
@@ -1291,6 +1235,10 @@ parsec_dtd_taskpool_new(void)
                                &hashtable_trace_keyin, &hashtable_trace_keyout);
 #endif
 
+    /* The first taskclass of every taskpool is the flush taskclass */
+    parsec_dtd_create_task_class(__tp, parsec_dtd_data_flush_sndrcv, "parsec_dtd_data_flush",
+                                 0, 0, 1);
+
     return (parsec_taskpool_t *)__tp;
 }
 
@@ -1449,6 +1397,7 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
         if( arg->action_mask & PARSEC_ACTION_SEND_INIT_REMOTE_DEPS ) {
             if( parsec_dtd_not_sent_to_rank((parsec_dtd_task_t *)oldcontext,
                                             dep->belongs_to->flow_index, dst_rank) ) {
+                assert(deps != NULL);
                 struct remote_dep_output_param_s* output;
                 int _array_pos, _array_mask;
 
@@ -1542,11 +1491,11 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
  * @ingroup DTD_ITERFACE_INTERNAL
  */
 static void
-iterate_successors_of_dtd_task(parsec_execution_stream_t *es,
-                               const parsec_task_t *this_task,
-                               uint32_t action_mask,
-                               parsec_ontask_function_t *ontask,
-                               void *ontask_arg)
+parsec_dtd_iterate_successors(parsec_execution_stream_t *es,
+                              const parsec_task_t *this_task,
+                              uint32_t action_mask,
+                              parsec_ontask_function_t *ontask,
+                              void *ontask_arg)
 {
     parsec_dtd_task_t   *this_dtd_task;
 
@@ -1575,10 +1524,10 @@ iterate_successors_of_dtd_task(parsec_execution_stream_t *es,
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
 static int
-release_deps_of_dtd( parsec_execution_stream_t *es,
-                     parsec_task_t *this_task,
-                     uint32_t action_mask,
-                     parsec_remote_deps_t *deps )
+parsec_dtd_release_deps(parsec_execution_stream_t *es,
+                        parsec_task_t *this_task,
+                        uint32_t action_mask,
+                        parsec_remote_deps_t *deps)
 {
     (void)deps;
     parsec_release_dep_fct_arg_t arg;
@@ -1638,7 +1587,7 @@ release_deps_of_dtd( parsec_execution_stream_t *es,
         parsec_dtd_two_hash_table_unlock(tp->two_hash_table);
     }
     assert(NULL != this_dtd_task);
-    iterate_successors_of_dtd_task(es, (parsec_task_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
+    tc->iterate_successors(es, (parsec_task_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
 
 #if defined(DISTRIBUTED)
     /* We perform this only for remote tasks that are being activated
@@ -1740,13 +1689,13 @@ complete_hook_of_dtd( parsec_execution_stream_t *es,
         action_mask |= (1U << current_dep);
     }
 
-    release_deps_of_dtd( es, this_task, action_mask     |
-                         PARSEC_ACTION_RELEASE_LOCAL_DEPS    |
-                         PARSEC_ACTION_SEND_REMOTE_DEPS      |
-                         PARSEC_ACTION_SEND_INIT_REMOTE_DEPS |
-                         PARSEC_ACTION_RELEASE_REMOTE_DEPS   |
-                         PARSEC_ACTION_COMPLETE_LOCAL_TASK,
-                         NULL );
+    this_task->task_class->release_deps(es, this_task, action_mask          |
+                                        PARSEC_ACTION_RELEASE_LOCAL_DEPS    |
+                                        PARSEC_ACTION_SEND_REMOTE_DEPS      |
+                                        PARSEC_ACTION_SEND_INIT_REMOTE_DEPS |
+                                        PARSEC_ACTION_RELEASE_REMOTE_DEPS   |
+                                        PARSEC_ACTION_COMPLETE_LOCAL_TASK,
+                                        NULL);
 
     return 0;
 }
@@ -1762,11 +1711,13 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
             parsec_dtd_tile_t *tile = (FLOW_OF(this_task, current_flow))->tile;
             if( tile == NULL ) continue;
             assert( NULL != this_task->super.data[current_flow].data_in );
-            if( !((FLOW_OF(this_task, current_flow))->flags & DATA_RELEASED) ) {
-                (FLOW_OF(this_task, current_flow))->flags |= DATA_RELEASED;
-                parsec_dtd_release_floating_data(this_task->super.data[current_flow].data_in);
+            if( !((FLOW_OF(this_task, current_flow))->op_type & DONT_TRACK) ) {
+                if( !((FLOW_OF(this_task, current_flow))->flags & DATA_RELEASED) ) {
+                    (FLOW_OF(this_task, current_flow))->flags |= DATA_RELEASED;
+                    parsec_dtd_release_floating_data(this_task->super.data[current_flow].data_in);
+                }
             }
-            if( ((parsec_dtd_task_class_t *)this_task->super.task_class)->fpointer == parsec_dtd_copy_data_to_matrix ) {
+            if(PARSEC_DTD_FLUSH_TC_ID == this_task->super.task_class->task_class_id) {
                 assert( current_flow == 0 );
                 parsec_dtd_tile_release( tile );
             }
@@ -1805,13 +1756,15 @@ parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task )
     if( 1 == parsec_atomic_add_32b( &object->obj_reference_count, -1 ) ){
         int current_flow;
         for( current_flow = 0; current_flow < this_task->super.task_class->nb_flows; current_flow++ ) {
-            if( NULL != this_task->super.data[current_flow].data_out ) {
-                parsec_dtd_release_floating_data(this_task->super.data[current_flow].data_out);
+            if( !((FLOW_OF(this_task, current_flow))->op_type & DONT_TRACK) ) {
+                if( NULL != this_task->super.data[current_flow].data_out ) {
+                    parsec_dtd_release_floating_data(this_task->super.data[current_flow].data_out);
+                }
             }
 
             parsec_dtd_tile_t *tile = (FLOW_OF(this_task, current_flow))->tile;
             if( tile == NULL ) continue;
-            if( ((parsec_dtd_task_class_t *)this_task->super.task_class)->fpointer == parsec_dtd_copy_data_to_matrix ) {
+            if(PARSEC_DTD_FLUSH_TC_ID == this_task->super.task_class->task_class_id) {
                 assert( current_flow == 0 );
                 parsec_dtd_tile_release( tile );
             }
@@ -1834,17 +1787,15 @@ data_lookup_of_dtd_task( parsec_execution_stream_t *es,
     int current_dep, op_type_on_current_flow;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
 
-    if( ((parsec_dtd_task_class_t *)this_task->task_class)->fpointer != parsec_dtd_copy_data_to_matrix ) {
-        for( current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++ ) {
-            op_type_on_current_flow = ((FLOW_OF(current_task, current_dep))->op_type & GET_OP_TYPE);
+    for( current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++ ) {
+        op_type_on_current_flow = ((FLOW_OF(current_task, current_dep))->op_type & GET_OP_TYPE);
 
-            if( NULL == current_task->super.data[current_dep].data_in ) continue;
+        if( NULL == current_task->super.data[current_dep].data_in ) continue;
 
-            if( INOUT == op_type_on_current_flow ||
-                OUTPUT == op_type_on_current_flow ) {
-                if( current_task->super.data[current_dep].data_in->readers > 0 ) {
-                    return PARSEC_HOOK_RETURN_AGAIN;
-                }
+        if( INOUT == op_type_on_current_flow ||
+            OUTPUT == op_type_on_current_flow ) {
+            if( current_task->super.data[current_dep].data_in->readers > 0 ) {
+                return PARSEC_HOOK_RETURN_AGAIN;
             }
         }
     }
@@ -1927,9 +1878,14 @@ parsec_dtd_find_and_return_dep( parsec_dtd_task_t *parent_task, parsec_dtd_task_
     int out_index = parent_flow_index;
     parsec_flow_t *flow = (parsec_flow_t*)parent_task->super.task_class->out[out_index];
     int desc_task_class_id = desc_task->super.task_class->task_class_id, i;
+    if(desc_task_class_id == PARSEC_DTD_FLUSH_TC_ID &&
+       parent_task->super.task_class->task_class_id != PARSEC_DTD_FLUSH_TC_ID) {
+        return NULL;
+    }
+
     dep_t *dep = NULL;
 
-    for (i=0; i<MAX_DEP_OUT_COUNT; i++) {
+    for(i = 0; i < MAX_DEP_OUT_COUNT; i++) {
         if( flow->dep_out[i]->task_class_id == desc_task_class_id &&
             flow->dep_out[i]->flow->flow_index == desc_flow_index ) {
             dep = (dep_t *) flow->dep_out[i];
@@ -2143,6 +2099,7 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
                 }
             }
             if(MAX_DEP_IN_COUNT == i) {
+                assert(0);
                 free(desc_dep);
                 parsec_fatal("Fatal Error: Maximum number of dependencies per task (MAX_DEP_IN_COUNT = %d) have been reached. Increase MAX_DEP_IN_COUNT if there is a need for additional dependencies.\n", MAX_DEP_IN_COUNT);
             }
@@ -2250,9 +2207,9 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     tc->fini                  = NULL;
     *incarnations             = (__parsec_chore_t *)dtd_chore;
     tc->find_deps             = NULL;
-    tc->iterate_successors    = iterate_successors_of_dtd_task;
+    tc->iterate_successors    = parsec_dtd_iterate_successors;
     tc->iterate_predecessors  = NULL;
-    tc->release_deps          = release_deps_of_dtd;
+    tc->release_deps          = parsec_dtd_release_deps;
     tc->prepare_input         = data_lookup_of_dtd_task;
     tc->prepare_output        = output_data_of_dtd_task;
     tc->get_datatype          = (parsec_datatype_lookup_t *)datatype_lookup_of_dtd_task,
@@ -2325,9 +2282,9 @@ parsec_dtd_template_release( const parsec_task_class_t *tc )
  * @ingroup         DTD_INTERFACE_INTERNAL
  */
 void
-set_flow_in_function( parsec_dtd_taskpool_t *dtd_tp,
-                      parsec_dtd_task_t *this_task, int tile_op_type,
-                      int flow_index)
+parsec_dtd_set_flow_in_function(parsec_dtd_taskpool_t *dtd_tp,
+                                parsec_dtd_task_t *this_task, int tile_op_type,
+                                int flow_index)
 {
     (void)dtd_tp;
     parsec_flow_t* flow  = (parsec_flow_t *) calloc(1, sizeof(parsec_flow_t));
@@ -2382,9 +2339,9 @@ set_flow_in_function( parsec_dtd_taskpool_t *dtd_tp,
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
 void
-set_parent(parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
-           parsec_dtd_task_t *desc_task, uint8_t desc_flow_index,
-           int parent_op_type, int desc_op_type)
+parsec_dtd_set_parent(parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
+                      parsec_dtd_task_t *desc_task, uint8_t desc_flow_index,
+                      int parent_op_type, int desc_op_type)
 {
     parsec_dtd_parent_info_t *parent = PARENT_OF(desc_task, desc_flow_index);
     (void)desc_op_type;
@@ -2417,9 +2374,9 @@ set_parent(parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
 void
-set_descendant( parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
-                parsec_dtd_task_t *desc_task, uint8_t desc_flow_index,
-                int parent_op_type, int desc_op_type, int last_user_alive )
+parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
+                          parsec_dtd_task_t *desc_task, uint8_t desc_flow_index,
+                          int parent_op_type, int desc_op_type, int last_user_alive)
 {
     parsec_dtd_taskpool_t *tp  = (parsec_dtd_taskpool_t *)parent_task->super.taskpool;
     parsec_dtd_task_t *real_parent_task = (PARENT_OF(desc_task, desc_flow_index))->task;
@@ -2636,6 +2593,41 @@ fake_first_out_body( parsec_execution_stream_t *es, parsec_task_t *this_task)
     return PARSEC_HOOK_RETURN_DONE;
 }
 
+int
+parsec_dtd_schedule_task_if_ready(int satisfied_flow, parsec_dtd_task_t *this_task,
+                                  parsec_dtd_taskpool_t *dtd_tp, int *vpid)
+{
+    /* Building list of initial ready task */
+    if ( 0 == parsec_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
+        PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
+                             "------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
+                             "%d\n-----\n", this_task->super.task_class->name, this_task->ht_item.key,
+                             this_task->super.task_class->nb_flows, this_task->flow_count);
+
+        PARSEC_LIST_ITEM_SINGLETON(this_task);
+        __parsec_schedule( dtd_tp->super.context->virtual_processes[*vpid]->execution_streams[0],
+                           (parsec_task_t *)this_task, 0 );
+        *vpid = (*vpid+1)%dtd_tp->super.context->nb_vp;
+        return 1; /* Indicating local task was ready */
+    }
+    return 0;
+}
+
+int
+parsec_dtd_block_if_threshold_reached(parsec_dtd_taskpool_t *dtd_tp, int task_threshold)
+{
+    if( (dtd_tp->local_task_inserted % dtd_tp->task_window_size) == 0 ) {
+        if( dtd_tp->task_window_size < parsec_dtd_window_size ) {
+            dtd_tp->task_window_size *= 2;
+        } else {
+            parsec_execute_and_come_back(dtd_tp->super.context, &dtd_tp->super,
+                                         task_threshold);
+            return 1; /* Indicating we blocked */
+        }
+    }
+    return 0;
+}
+
 /* **************************************************************************** */
 /**
  * Function to insert dtd task in PaRSEC
@@ -2670,7 +2662,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 
         if(0 == dtd_tp->flow_set_flag[tc->task_class_id]) {
             /* Setting flow in function structure */
-            set_flow_in_function( dtd_tp, this_task, tile_op_type, flow_index);
+            parsec_dtd_set_flow_in_function(dtd_tp, this_task, tile_op_type, flow_index);
         }
 
         if( NULL == tile ) {
@@ -2699,7 +2691,6 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
         if( NULL == last_user.task && (this_task->rank != tile->rank || (tile_op_type & GET_OP_TYPE) == INPUT) ) {
             parsec_dtd_last_user_unlock( &(tile->last_user) );
 
-            //OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
             /* parentless */
             /* Create Fake output_task */
             parsec_dtd_taskpool_insert_task( this_task->super.taskpool,
@@ -2765,9 +2756,9 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 
         /* TASK_IS_ALIVE indicates we have a parent */
         if(TASK_IS_ALIVE == last_user.alive) {
-            set_parent( last_writer.task, last_writer.flow_index,
-                        this_task, flow_index, last_writer.op_type,
-                        tile_op_type );
+            parsec_dtd_set_parent(last_writer.task, last_writer.flow_index,
+                                  this_task, flow_index, last_writer.op_type,
+                                  tile_op_type);
 
             set_dependencies_for_function( (parsec_taskpool_t *)dtd_tp,
                                            (parsec_task_class_t*)(PARENT_OF(this_task, flow_index))->task->super.task_class,
@@ -2776,9 +2767,9 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 
             if( put_in_chain ) {
                 assert(NULL != last_user.task);
-                set_descendant(last_user.task, last_user.flow_index,
-                               this_task, flow_index, last_user.op_type,
-                               tile_op_type, last_user.alive);
+                parsec_dtd_set_descendant(last_user.task, last_user.flow_index,
+                                          this_task, flow_index, last_user.op_type,
+                                          tile_op_type, last_user.alive);
             }
 
             /* Are we using the same data multiple times for the same task? */
@@ -2829,20 +2820,13 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                 }
             }
             assert( NULL != last_user.task );
-            if( parsec_dtd_task_is_remote(last_user.task) && parsec_dtd_task_is_remote(this_task) ) {
-                if( ((parsec_dtd_task_class_t *)this_task->super.task_class)->fpointer == parsec_dtd_copy_data_to_matrix ) {
-                    if( last_writer.task == last_user.task ) {
-                        parsec_dtd_remote_task_release( this_task );
-                    }
-                }
-            }
         } else {  /* Have parent, but parent is not alive
                      We have to call iterate successor on the parent to activate this task
                    */
             if( last_user.task != NULL ) {
-                set_parent( last_writer.task, last_writer.flow_index,
-                            this_task, flow_index, last_writer.op_type,
-                            tile_op_type );
+                parsec_dtd_set_parent(last_writer.task, last_writer.flow_index,
+                                      this_task, flow_index, last_writer.op_type,
+                                      tile_op_type);
 
                 set_dependencies_for_function( (parsec_taskpool_t *)dtd_tp,
                                                (parsec_task_class_t *)(PARENT_OF(this_task, flow_index))->task->super.task_class,
@@ -2851,9 +2835,9 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 
                 /* we can avoid all the hash table crap if the last_writer is not alive */
                 if( put_in_chain ) {
-                    set_descendant((PARENT_OF(this_task, flow_index))->task, (PARENT_OF(this_task, flow_index))->flow_index,
-                                   this_task, flow_index, (PARENT_OF(this_task, flow_index))->op_type,
-                                   tile_op_type, last_user.alive);
+                    parsec_dtd_set_descendant((PARENT_OF(this_task, flow_index))->task, (PARENT_OF(this_task, flow_index))->flow_index,
+                                              this_task, flow_index, (PARENT_OF(this_task, flow_index))->op_type,
+                                              tile_op_type, last_user.alive);
 
                     parsec_dtd_task_t *parent_task = (PARENT_OF(this_task, flow_index))->task;
                     if( parsec_dtd_task_is_local(parent_task) || parsec_dtd_task_is_local(this_task) ) {
@@ -2866,13 +2850,14 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                             /* To make sure we do not release any remote data held by this task */
                             parsec_dtd_remote_task_retain(parent_task);
                         }
-                        release_deps_of_dtd(es, (parsec_task_t *)(PARENT_OF(this_task, flow_index))->task,
-                                            action_mask |
-                                            PARSEC_ACTION_SEND_REMOTE_DEPS      |
-                                            PARSEC_ACTION_SEND_INIT_REMOTE_DEPS |
-                                            PARSEC_ACTION_RELEASE_REMOTE_DEPS   |
-                                            PARSEC_ACTION_COMPLETE_LOCAL_TASK   |
-                                            PARSEC_ACTION_RELEASE_LOCAL_DEPS , NULL);
+                        this_task->super.task_class->release_deps(es,
+                                                   (parsec_task_t *)(PARENT_OF(this_task, flow_index))->task,
+                                                   action_mask                         |
+                                                   PARSEC_ACTION_SEND_REMOTE_DEPS      |
+                                                   PARSEC_ACTION_SEND_INIT_REMOTE_DEPS |
+                                                   PARSEC_ACTION_RELEASE_REMOTE_DEPS   |
+                                                   PARSEC_ACTION_COMPLETE_LOCAL_TASK   |
+                                                   PARSEC_ACTION_RELEASE_LOCAL_DEPS , NULL);
                         if( parsec_dtd_task_is_local(parent_task) && parsec_dtd_task_is_remote(this_task) ) {
                             parsec_dtd_release_local_task( parent_task );
                         }
@@ -2882,11 +2867,6 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                             tile->last_user.alive = TASK_IS_NOT_ALIVE;
                             parsec_dtd_last_user_unlock( &(tile->last_user) );
                         }
-                        if( ((parsec_dtd_task_class_t *)this_task->super.task_class)->fpointer == parsec_dtd_copy_data_to_matrix ) {
-                            if( parsec_dtd_task_is_remote(this_task) ) {
-                                parsec_dtd_remote_task_release( this_task );
-                            }
-                        }
                     }
                 }
             } else {
@@ -2894,11 +2874,6 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                     set_dependencies_for_function( (parsec_taskpool_t *)dtd_tp, NULL,
                                                    (parsec_task_class_t *)this_task->super.task_class,
                                                     0, flow_index );
-                }
-                if( ((parsec_dtd_task_class_t *)this_task->super.task_class)->fpointer == parsec_dtd_copy_data_to_matrix ) {
-                    if( parsec_dtd_task_is_remote(this_task) ) {
-                        parsec_dtd_remote_task_release( this_task );
-                    }
                 }
                 this_task->super.data[flow_index].data_in = tile->data_copy;
                 satisfied_flow += 1;
@@ -2944,31 +2919,11 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 #endif
 
     if( parsec_dtd_task_is_local(this_task) ) {
-        /* Building list of initial ready task */
-        if ( 0 == parsec_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
-            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
-                                 "------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
-                                 "%d\n-----\n", this_task->super.task_class->name, this_task->ht_item.key,
-                                 this_task->super.task_class->nb_flows, this_task->flow_count);
-
-            PARSEC_LIST_ITEM_SINGLETON(this_task);
-            __parsec_schedule( dtd_tp->super.context->virtual_processes[vpid]->execution_streams[0],
-                               (parsec_task_t *)this_task, 0 );
-            vpid = (vpid+1)%dtd_tp->super.context->nb_vp;
-        }
+        parsec_dtd_schedule_task_if_ready(satisfied_flow, this_task,
+                                          dtd_tp, &vpid);
     }
 
-    if( NULL != dtd_tp->super.context ) {
-        if( (dtd_tp->local_task_inserted % dtd_tp->task_window_size) == 0 ) {
-            if( dtd_tp->task_window_size < parsec_dtd_window_size ) {
-                dtd_tp->task_window_size *= 2;
-            } else {
-                int task_threshold_count = parsec_dtd_threshold_size;
-                parsec_execute_and_come_back( dtd_tp->super.context, &dtd_tp->super,
-                                              task_threshold_count );
-            }
-        }
-    }
+    parsec_dtd_block_if_threshold_reached(dtd_tp, parsec_dtd_threshold_size);
 }
 
 int
@@ -3035,9 +2990,9 @@ parsec_dtd_iterator_arg_set_param_local(int first_arg, void *tile,
 {
     (void)tile;
     parsec_dtd_common_args_t *common_args = (parsec_dtd_common_args_t *)cb_data;
-    parsec_dtd_set_params_of_task( common_args->task, tile, tile_op_type,
-                                   &common_args->flow_index, &common_args->current_val,
-                                   common_args->current_param, first_arg );
+    parsec_dtd_set_params_of_task(common_args->task, tile, tile_op_type,
+                                  &common_args->flow_index, &common_args->current_val,
+                                  common_args->current_param, first_arg);
 
     common_args->current_param->arg_size = first_arg;
     common_args->current_param->op_type  = tile_op_type;
@@ -3154,9 +3109,9 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
         parsec_dtd_arg_iterator(args_for_size, parsec_dtd_iterator_arg_get_size, (void*)&common_args);
         va_end(args_for_size);
 
-        tc = parsec_dtd_create_task_class( dtd_tp, fpointer, name_of_kernel,
-                                           common_args.count_of_params_sent_by_user,
-                                           common_args.size_of_params, common_args.flow_count_of_template );
+        tc = parsec_dtd_create_task_class(dtd_tp, fpointer, name_of_kernel,
+                                          common_args.count_of_params_sent_by_user,
+                                          common_args.size_of_params, common_args.flow_count_of_template);
 
 #if defined(PARSEC_PROF_TRACE)
         parsec_dtd_add_profiling_info((parsec_taskpool_t *)dtd_tp, tc->task_class_id, name_of_kernel);

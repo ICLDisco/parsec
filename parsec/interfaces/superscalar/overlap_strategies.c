@@ -19,8 +19,6 @@
 #include "parsec/remote_dep.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 
-extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
-
 /***************************************************************************//**
  *
  * This function makes sure that nextinline descendant is really NULL
@@ -324,9 +322,8 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                                      current_desc->ht_item.key, current_desc->rank, current_desc->super.task_class->nb_flows,
                                      current_desc->flow_count, current_dep, tmp_desc_flow_index);
 
-                deps = parsec_dtd_find_and_return_dep( current_task, current_desc,
-                                                       current_dep, tmp_desc_flow_index );
-                assert(deps != NULL);
+                deps = parsec_dtd_find_and_return_dep(current_task, current_desc,
+                                                      current_dep, tmp_desc_flow_index);
 
                 rank_dst = current_desc->rank;
 
@@ -338,11 +335,6 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                 if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                     if( parsec_dtd_task_is_remote(current_desc) && parsec_dtd_task_is_local(current_task) ) {
                         parsec_dtd_remote_task_release( current_desc );
-                    }
-                    if( parsec_dtd_task_is_remote(current_desc) ) {
-                        if( ((parsec_dtd_task_class_t *)current_desc->super.task_class)->fpointer == parsec_dtd_copy_data_to_matrix ) {
-                            parsec_dtd_remote_task_release( current_desc );
-                        }
                     }
                     if(release_parent) {
                         if( parsec_dtd_task_is_local(current_task) ) {
