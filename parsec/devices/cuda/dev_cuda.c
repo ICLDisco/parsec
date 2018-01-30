@@ -561,13 +561,13 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
         if( show_caps ) {
             parsec_inform("GPU Device %d (capability %d.%d): %s\n"
                           "\tSM                 : %d\n"
-                          "\tclockRate (MHz)    : %2.4f\n"
+                          "\tclockRate (GHz)    : %2.2f\n"
                           "\tconcurrency        : %s\n"
                           "\tcomputeMode        : %d\n"
                           "\tpeak Gflops         : double %2.4f, single %2.4f tensor %2.4f half %2.4f",
                           i, major, minor,szName,
                           streaming_multiprocessor,
-                          clockRate,
+                          clockRate*1e-3,
                           (concurrency == 1)? "yes": "no",
                           computemode,
                           gpu_device->super.device_dweight, gpu_device->super.device_sweight, gpu_device->super.device_tweight, gpu_device->super.device_hweight);

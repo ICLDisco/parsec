@@ -278,6 +278,16 @@ int parsec_devices_freezed(parsec_context_t* context)
     return parsec_devices_are_freezed;
 }
 
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#endif
+#if defined(PARSEC_HAVE_STRING_H)
+#include <string.h>
+#endif
+#if defined(PARSEC_HAVE_ERRNO_H)
+#include <errno.h>
+#endif
+
 static int cpu_weights(parsec_device_t* device, int nstreams) {
     /* This is default value when it cannot be computed */
     /* Crude estimate that holds for Nehalem era Xeon processors */
@@ -285,27 +295,56 @@ static int cpu_weights(parsec_device_t* device, int nstreams) {
     float fp_ipc = 8.f;
     float dp_ipc = 4.f;
     char cpu_model[256]="Unkown";
-    char str[256];
+    char cpu_flags[256]="";
 
+#if defined(__linux__)
     FILE* procinfo = fopen("/proc/cpuinfo", "r");
     if( NULL == procinfo ) {
-        parsec_warning("CPU Features cannot be autodetected on this machine");
+        parsec_warning("CPU Features cannot be autodetected on this machine: %s", strerror(errno));
         goto notfound;
     }
+    char str[256];
     while( NULL != fgets(str, 256, procinfo) ) {
-        if(sscanf(str, "model name : %256c", cpu_model))
-            break;
+        /* Intel/AMD */
+        sscanf(str, "model name : %256[^\n]%*c", cpu_model);
+        if( 0 != sscanf(str, "cpu MHz : %f", &freq) )
+            freq *= 1e-3;
+        if( 0 != sscanf(str, "flags : %256[^\n]%*c", cpu_flags) )
+            break; /* done reading for an x86 type CPU */
+        /* IBM: Power */
+        sscanf(str, "cpu : %256[^\n]%*c", cpu_model);
+        if( 0 != sscanf(str, "clock : %fMHz", &freq) ) {
+            freq *= 1e-3;
+            break; /* done reading for a Power type CPU */
+        }
     }
     fclose(procinfo);
-    if( 0 == sscanf(cpu_model, "%*[^@] @ %fGHz", &freq) ) {
-        parsec_warning("CPU Frequency cannot be autodetected on this machine");
+#elif defined(__APPLE__)
+    size_t len = 256;
+    int rc = sysctlbyname("machdep.cpu.brand_string", cpu_model, &len, NULL, 0);
+    if( rc ) {
+        parsec_warning("CPU Features cannot be autodetected on this machine (Detected OSX): %s", strerror(errno));
         goto notfound;
     }
+    rc = sysctlbyname("machdep.cpu.features", cpu_flags, &len, NULL, 0);
+    if( rc ) {
+        parsec_warning("CPU Features cannot be autodetected on this machine (Detected OSX): %s", strerror(errno));
+        goto notfound;
+    }
+#endif
+    /* prefer base frequency from model name when available (avoids power
+     * saving modes and dynamic frequency scaling issues) */
+    sscanf(cpu_model, "%*[^@] @ %fGHz", &freq);
+
+#if defined(PARSEC_HAVE_BUILTIN_CPU)
     __builtin_cpu_init();
+#if defined(PARSEC_HAVE_BUILTIN_CPU512)
     if(__builtin_cpu_supports("avx512f")) {
         fp_ipc = 64;
         dp_ipc = 32;
-    } else if(__builtin_cpu_supports("avx2")) {
+    } else
+#endif /* PARSEC_HAVE_BUILTIN_CPU512; */
+         if(__builtin_cpu_supports("avx2")) {
         fp_ipc = 32;
         dp_ipc = 16;
     }
@@ -317,6 +356,25 @@ static int cpu_weights(parsec_device_t* device, int nstreams) {
         fp_ipc = 8;
         dp_ipc = 4;
     }
+#else
+    if( strstr(cpu_flags, " avx512f") ) {
+        fp_ipc = 64;
+        dp_ipc = 32;
+    }
+    else if( strstr(cpu_flags, " avx2") ) {
+        fp_ipc = 32;
+        dp_ipc = 16;
+    }
+    else if( strstr(cpu_flags, " avx") ) {
+        fp_ipc = 16;
+        dp_ipc = 8;
+    }
+    else {
+        fp_ipc = 8;
+        dp_ipc = 4;
+    }
+#endif
+
 
     {
       int show_caps = 0;
@@ -327,7 +385,7 @@ static int cpu_weights(parsec_device_t* device, int nstreams) {
       if( show_caps ) {
           parsec_inform("CPU Device: %s\n"
                         "\tParsec Streams     : %d\n"
-                        "\tclockRate (GHz)    : %3.2f\n"
+                        "\tclockRate (GHz)    : %2.2f\n"
                         "\tpeak Gflops        : double %2.4f, single %2.4f",
                         cpu_model,
                         nstreams,

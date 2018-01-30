@@ -465,13 +465,27 @@ int main(int argc, char *argv[]) {
   
 check_function_exists(asprintf PARSEC_HAVE_ASPRINTF)
 check_function_exists(vasprintf PARSEC_HAVE_VASPRINTF)
-check_include_files(getopt.h PARSEC_HAVE_GETOPT_H)
 check_include_files(unistd.h PARSEC_HAVE_UNISTD_H)
+check_include_files(getopt.h PARSEC_HAVE_GETOPT_H)
 check_function_exists(getopt_long PARSEC_HAVE_GETOPT_LONG)
 check_include_files(errno.h PARSEC_HAVE_ERRNO_H)
 check_include_files(stddef.h PARSEC_HAVE_STDDEF_H)
 check_include_files(stdbool.h PARSEC_HAVE_STDBOOL_H)
 check_include_files(ctype.h PARSEC_HAVE_CTYPE_H)
+check_c_source_compiles("
+int main(int argc, char* argv[]) {
+    __builtin_cpu_init();
+    __builtin_cpu_supports(\"avx2\");
+    return 0;
+}" PARSEC_HAVE_BUILTIN_CPU)
+if(PARSEC_HAVE_BUILTIN_CPU)
+    check_c_source_compiles("
+int main(int argc, char* argv[]) {
+    __builtin_cpu_init();
+    __builtin_cpu_supports(\"avx512f\");
+    return 0;
+}" PARSEC_HAVE_BUILTIN_CPU512)
+endif(PARSEC_HAVE_BUILTIN_CPU)
 check_function_exists(getrusage PARSEC_HAVE_GETRUSAGE)
 check_symbol_exists(RUSAGE_THREAD sys/resource.h PARSEC_HAVE_RUSAGE_THREAD)
 if( NOT PARSEC_HAVE_RUSAGE_THREAD )
