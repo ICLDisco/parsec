@@ -5,6 +5,14 @@ Copyright (c) 2009-2016 The University of Tennessee and The University
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
+ - Change API of hash tables: allow keys of arbitrary size. The API
+   features how to build a key from a task; how to hash a key into
+   1 <= N <= 64 bits; and how to compare twy keys (plus a printing
+   function to debug).
+ - Change behavior of DEBUG_HISTORY: log all information inside
+   a buffer of fixed size (MCA parameter) per thread, do not allocate
+   memory during logging, and use timestamp to re-order output
+   when the user calls dump()
  - DTD interface is updated (new flag to send pointer as parameter,
    unpacking of paramteres is simpler etc).
  - DTD provides mca param (dtd_debug_verbose) to print information
