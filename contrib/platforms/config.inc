@@ -37,6 +37,7 @@ function guess_defaults {
     OMEGA_DIR=${OMEGA_DIR:=$(dirname_bin petit)}
     PLASMA_DIR=${PLASMA_DIR:=$(pkg-config plasma --variable=prefix)}
     PAPI_DIR=${PAPI_DIR:=$(dirname_bin papi_avail)}
+    PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:=$(which python3 2>/dev/null)}
     PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:=$(which python 2>/dev/null)}
 }
 

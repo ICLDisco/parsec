@@ -1,13 +1,26 @@
 #
 # PaRSEC Internal: generation of various floating point precision files from a template.
 #
-
-set(GENDEPENDENCIES  ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/PrecisionDeps.py)
-set(PRECISIONPP      ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/PrecisionGenerator.py)
-set(PRECISIONPP_subs ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/subs.py)
-
 include(ParseArguments)
 FIND_PACKAGE(PythonInterp REQUIRED)
+if(PYTHON_VERSION_MAJOR GREATER 2)
+  get_filename_component(PYTHON_EXE_DIR ${PYTHON_EXECUTABLE} PATH)
+  find_program(PYTHON_2TO3_EXECUTABLE
+    NAMES 2to3
+    HINTS ${PYTHON_EXE_DIR})
+  if(NOT PYTHON_2TO3_EXECUTABLE)
+    message(FATAL_ERROR "2to3 python utility not found. Use Python 2.7 or provide the 2to3 utility")
+  endif()
+
+  set(GENDEPENDENCIES  ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator/PrecisionDeps.py)
+  set(PRECISIONPP      ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator/PrecisionGenerator.py)
+  set(PRECISIONPP_subs ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator/subs.py)
+else()
+  set(GENDEPENDENCIES  ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/PrecisionDeps.py)
+  set(PRECISIONPP      ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/PrecisionGenerator.py)
+  set(PRECISIONPP_subs ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/subs.py)
+endif()
+
 #
 # Generates a rule for every SOURCES file, to create the precisions in PRECISIONS. If TARGETDIR
 # is not empty then all generated files will be prepended with the $TARGETDIR/.

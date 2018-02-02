@@ -65,6 +65,7 @@ else()
   set(DPLASMA_PRECISIONS "${DPLASMA_PRECISIONS}" CACHE STRING "The precisions to compile in dplasma (accepts a colon separated list of s;d;c;z)" FORCE)
 endif()
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tools/PrecisionGenerator/")
+Add_Subdirectory(tools/PrecisionGenerator)
 
 # Veclib on OSX diverges from the standard BLAS interface. As a result, single
 # precision dplasma tests (real and complex) deliver wrong results. 
