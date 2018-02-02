@@ -29,6 +29,8 @@ typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;
 extern uint32_t __parsec_dtd_is_initialized; /* flag to indicate whether dtd_init() is called or not */
 extern int hashtable_trace_keyin;
 extern int hashtable_trace_keyout;
+extern int insert_task_trace_keyin;
+extern int insert_task_trace_keyout;
 extern int parsec_dtd_debug_output;
 extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 
