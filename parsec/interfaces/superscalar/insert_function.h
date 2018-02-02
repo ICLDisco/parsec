@@ -288,13 +288,16 @@ parsec_dtd_taskpool_wait( parsec_context_t *parsec,
  * same data distribution as we started with.
  * The tile of a data can be acqiured using the
  * TILE_OF or TILE_OF_KEY macro.
+ * To ensure consistent and correct behavior, user
+ * must wait on the taskpool before inserting
+ * new task using this data after the flush.
  */
 void
 parsec_dtd_data_flush( parsec_taskpool_t   *tp,
                        parsec_dtd_tile_t *tile );
 
 /*
- * This function flushes all the data of a dc(data descriptor).
+ * This function flushes all the data of a dc(data collection).
  * This function must be called for all dc(s) before
  * parsec_context_wait() is called.
  */

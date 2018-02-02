@@ -30,6 +30,9 @@ extern uint32_t __parsec_dtd_is_initialized; /* flag to indicate whether dtd_ini
 extern int hashtable_trace_keyin;
 extern int hashtable_trace_keyout;
 extern int parsec_dtd_debug_output;
+extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
+
+#define PARSEC_DTD_FLUSH_TC_ID    ((uint8_t)0x00)
 
 /* To flag the task we are trying to complete as a local one */
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
@@ -417,10 +420,6 @@ parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task );
 parsec_hook_return_t
 parsec_dtd_release_local_task( parsec_dtd_task_t *this_task );
 
-int
-parsec_dtd_copy_data_to_matrix( parsec_execution_stream_t *es,
-                                parsec_task_t *this_task );
-
 void
 parsec_dtd_release_task_class( parsec_dtd_taskpool_t  *tp,
                                uint64_t key );
@@ -430,6 +429,35 @@ parsec_dtd_tile_retain( parsec_dtd_tile_t *tile );
 
 void
 parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
+
+int
+parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
+                             parsec_task_t *this_task);
+
+void
+parsec_dtd_remote_task_retain(parsec_dtd_task_t *this_task);
+
+void
+parsec_dtd_set_flow_in_function( parsec_dtd_taskpool_t *dtd_tp,
+                      parsec_dtd_task_t *this_task, int tile_op_type,
+                      int flow_index);
+
+void
+parsec_dtd_set_parent(parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
+                      parsec_dtd_task_t *desc_task, uint8_t desc_flow_index,
+                      int parent_op_type, int desc_op_type);
+
+void
+parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
+                          parsec_dtd_task_t *desc_task, uint8_t desc_flow_index,
+                          int parent_op_type, int desc_op_type, int last_user_alive);
+
+int
+parsec_dtd_schedule_task_if_ready(int satisfied_flow, parsec_dtd_task_t *this_task,
+                                  parsec_dtd_taskpool_t *dtd_tp, int *vpid);
+
+int
+parsec_dtd_block_if_threshold_reached(parsec_dtd_taskpool_t *dtd_tp, int task_threshold);
 
 void
 parsec_dtd_fini();

@@ -51,6 +51,7 @@ parsec_tiled_matrix_dc_t *create_and_distribute_empty_data(int rank, int world, 
 
 void free_data(parsec_tiled_matrix_dc_t *d)
 {
+    parsec_matrix_destroy_data(d);
     parsec_data_collection_destroy(&d->super);
     free(d);
 }

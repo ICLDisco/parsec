@@ -36,7 +36,8 @@ test_task( parsec_execution_stream_t *es,
     (void)es;
 
     int amount_of_work;
-    parsec_dtd_unpack_args( this_task, &amount_of_work);
+    void *data;
+    parsec_dtd_unpack_args(this_task, &amount_of_work, &data);
     int i, j, bla;
     for( i = 0; i < amount_of_work; i++ ) {
         for( j = 0; j < 2; j++ ) {
@@ -103,6 +104,11 @@ int main(int argc, char ** argv)
     rank = 0;
 #endif
 
+    if( world != 1 ) {
+        parsec_fatal( "Nope! world is not right, we need exactly one MPI process. "
+                      "Try with \"mpirun -np 1 .....\"\n" );
+    }
+
     int m, n;
     int no_of_chain;
     int nb, nt;
@@ -160,9 +166,7 @@ int main(int argc, char ** argv)
     }
 
     count = 0;
-
     for( i = 0; i < 3; i++ ) {
-
         SYNC_TIME_START();
         int step = parsec_dtd_window_size, iteration = 0;
 
@@ -183,7 +187,6 @@ int main(int argc, char ** argv)
 
         SYNC_TIME_PRINT(rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));
     }
-
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 

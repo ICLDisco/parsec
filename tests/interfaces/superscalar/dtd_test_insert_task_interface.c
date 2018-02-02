@@ -83,6 +83,11 @@ int main(int argc, char ** argv)
     rank = 0;
 #endif
 
+    if( world != 1 ) {
+        parsec_fatal( "Nope! world is not right, we need exactly one MPI process. "
+                      "Try with \"mpirun -np 1 .....\"\n" );
+    }
+
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
     }
