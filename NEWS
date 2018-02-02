@@ -5,6 +5,10 @@ Copyright (c) 2009-2016 The University of Tennessee and The University
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
+ - Add a purely local scheduler (ll), that uses a single LIFO per
+   thread. Each schedule operation does 1 atomic (push in local queue),
+   each select operation does up to t atomics (pop in local queue, then
+   try any other thread's queue until they are all tested empty).
  - Change API of hash tables: allow keys of arbitrary size. The API
    features how to build a key from a task; how to hash a key into
    1 <= N <= 64 bits; and how to compare twy keys (plus a printing
