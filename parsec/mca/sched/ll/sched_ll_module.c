@@ -39,6 +39,8 @@ sched_ll_select(parsec_execution_stream_t *es,
 static void sched_ll_remove(parsec_context_t* master);
 static int flow_ll_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier);
 
+static int sched_ll_warning_issued = 0;
+
 const parsec_sched_module_t parsec_sched_ll_module = {
     &parsec_sched_ll_component,
     {
@@ -64,6 +66,7 @@ const parsec_sched_module_t parsec_sched_ll_module = {
  */
 static int sched_ll_install( parsec_context_t *master )
 {
+    sched_ll_warning_issued = 0;
     return 0;
 }
 
@@ -164,10 +167,24 @@ static int sched_ll_schedule(parsec_execution_stream_t* es,
                               parsec_task_t* new_context,
                               int32_t distance)
 {
-    parsec_lifo_t *sched_obj = (parsec_lifo_t*)es->scheduler_object;
-    parsec_lifo_chain(sched_obj, (parsec_list_item_t*)new_context);
-    (void)distance; /* LIFOs already implement distance heuristic, as long as
-                     * the distance is monotonistically increasing */
+    parsec_lifo_t *sched_obj;
+    if( distance > 0 ) {
+        parsec_vp_t *vp = es->virtual_process;
+        int target;
+        if( (vp->nb_cores == 1) && (sched_ll_warning_issued == 0) ) {
+            parsec_warning("Local LIFO scheduler is unable to implement active wait with a single thread.\n"
+                           "This run is at risk of live-lock\n");
+            sched_ll_warning_issued = 1;
+        }
+        target = (es->th_id + distance) % vp->nb_cores;
+        if( target == es->th_id )
+            target = (es->th_id + 1) % vp->nb_cores;
+        sched_obj = (parsec_lifo_t*)vp->execution_streams[target]->scheduler_object;
+        parsec_lifo_chain(sched_obj, (parsec_list_item_t*)new_context);
+    } else {
+        sched_obj = (parsec_lifo_t*)es->scheduler_object;
+        parsec_lifo_chain(sched_obj, (parsec_list_item_t*)new_context);
+    }
     return 0;
 }
 
