@@ -31,10 +31,11 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .compile = 1,  /* by default the file must be compiled */
     .dep_management = DEP_MANAGEMENT_DYNAMIC_HASH_TABLE,
 #if defined(PARSEC_HAVE_INDENT) && !defined(PARSEC_HAVE_AWK)
-    .noline = 1 /*< By default, don't print the #line per default if can't fix the line numbers with awk */
+    .noline = 1, /*< By default, don't print the #line per default if can't fix the line numbers with awk */
 #else
-    .noline = 0 /*< Otherwise, go for it (without INDENT or with INDENT but without AWK, lines will be ok) */
+    .noline = 0, /*< Otherwise, go for it (without INDENT or with INDENT but without AWK, lines will be ok) */
 #endif
+    .ignore_properties = NULL
 };
 jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { /* .input = */ NULL, /* .output_c = */ NULL, /* .output_h = */ NULL, /* .output_o = */ NULL,
                                                         /* .funcid = */ NULL, /* .wmask = */ 0x0, /* .compile = */ 1, /* .noline = */ 0 };
@@ -76,6 +77,11 @@ static void usage(void)
             "  --Wmutexin         Do NOT print warnings for non-obvious mutual exclusion of\n"
             "                     input flows\n"
             "  --Wremoteref       Do NOT print warnings for potential remote memory references\n"
+            "\n"
+            "  --force-profile    Force profiling all tasks, even if some are marked profile=no\n"
+            "                     in the source code (default don't)\n"
+            "  --ignore-property  List (comma separated) of properties to ignore in the JDF\n"
+            "                     (default none)\n"
             "\n",
             DEFAULTS.input,
             DEFAULTS.output_c,
@@ -131,6 +137,21 @@ static char** prepare_execv_arguments(void)
     return exec_argv;
 }
 
+static void add_to_ignore_properties(const char *optarg)
+{
+    jdf_name_list_t *nl;
+    char *arg = strdup(optarg);
+    char *l, *last;
+    
+    while( (l = strtok_r(arg, ",", &last)) ) {
+        nl = (jdf_name_list_t*)malloc(sizeof(jdf_name_list_t));
+        nl->name = l;
+        nl->next = JDF_COMPILER_GLOBAL_ARGS.ignore_properties;
+        JDF_COMPILER_GLOBAL_ARGS.ignore_properties = nl;
+        arg = last;
+    }
+}
+
 static void parse_args(int argc, char *argv[])
 {
     int ch, i;
@@ -147,7 +168,7 @@ static void parse_args(int argc, char *argv[])
     char *f = NULL;
 
     struct option longopts[] = {
-        { "debug",         no_argument,         &yydebug,   0  },
+        { "debug",         no_argument,         &yydebug,  'd' },
         { "input",         required_argument,       NULL,  'i' },
         { "output-c",      required_argument,       NULL,  'C' },
         { "output-h",      required_argument,       NULL,  'H' },
@@ -159,21 +180,24 @@ static void parse_args(int argc, char *argv[])
         { "Wremoteref",    no_argument,      &wremoteref,   1  },
         { "Werror",        no_argument,          &werror,   1  },
         { "noline",        no_argument,  &print_jdf_line,   0  },
-        { "line",          no_argument,  &print_jdf_line,   1  },
+        { "line",          no_argument,  &print_jdf_line,   0  },
         { "help",          no_argument,             NULL,  'h' },
         { "preproc",       no_argument,             NULL,  'E' },
         { "showme",        no_argument,             NULL,  's' },
         { "include",       required_argument,       NULL,  'I' },
         { "dep-management",required_argument,       NULL,  'M' },
+        { "force-profile", no_argument,             NULL,   2  },
+        { "ignore-properties", required_argument,   NULL,  'I' },
         { NULL,            0,                       NULL,   0  }
     };
 
     JDF_COMPILER_GLOBAL_ARGS.wmask = JDF_ALL_WARNINGS;
     JDF_COMPILER_GLOBAL_ARGS.dep_management = DEFAULTS.dep_management;
+    JDF_COMPILER_GLOBAL_ARGS.ignore_properties = NULL;
     
     print_jdf_line = !DEFAULTS.noline;
 
-    while( (ch = getopt_long(argc, argv, "d:i:C:H:o:f:hEsIO:M:", longopts, NULL)) != -1) {
+    while( (ch = getopt_long(argc, argv, "di:C:H:o:f:hEsIO:M:I:", longopts, NULL)) != -1) {
         switch(ch) {
         case 'd':
             yydebug = 1;
@@ -209,6 +233,9 @@ static void parse_args(int argc, char *argv[])
             f = strdup(optarg);
             break;
         case 0:
+            /* no-line / line, managed below */
+            break;
+        case 1:
             if( wmasked ) {
                 JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_MASKED_GLOBALS;
             }
@@ -221,6 +248,9 @@ static void parse_args(int argc, char *argv[])
             if( werror ) {
                 JDF_COMPILER_GLOBAL_ARGS.wmask |= JDF_WARNINGS_ARE_ERROR;
             }
+            break;
+        case 2:
+            add_to_ignore_properties("profile");
             break;
         case 'E':
             /* Don't compile the preprocessed file, instead stop after the preprocessing stage */
@@ -246,6 +276,9 @@ static void parse_args(int argc, char *argv[])
                 exit(1);
             }
             break;
+        case 'I':
+            add_to_ignore_properties(optarg);
+            break;
         case 'h':
             usage();
             exit(0);
@@ -260,7 +293,7 @@ static void parse_args(int argc, char *argv[])
     }
 
     JDF_COMPILER_GLOBAL_ARGS.noline = !print_jdf_line;
-
+    
     if( NULL == JDF_COMPILER_GLOBAL_ARGS.input ) {
         JDF_COMPILER_GLOBAL_ARGS.input = DEFAULTS.input;
     }

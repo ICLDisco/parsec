@@ -100,6 +100,7 @@ typedef struct jdf_compiler_global_args {
                      *   limit the generation to the .[ch] files */
     int   dep_management;
     int   noline;  /**< Don't dump the jdf line number in the generate .c file */
+    struct jdf_name_list *ignore_properties; /**< Properties to ignore */
 } jdf_compiler_global_args_t;
 extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
 
