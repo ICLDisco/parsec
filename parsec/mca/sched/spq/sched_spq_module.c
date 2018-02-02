@@ -37,8 +37,23 @@ typedef struct parsec_spq_priority_list_s {
     int                prio;
 } parsec_spq_priority_list_t;
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_spq_priority_list_t);
+
+static inline void parsec_spq_priority_list_construct( parsec_spq_priority_list_t*plist );
+static inline void parsec_spq_priority_list_destruct( parsec_spq_priority_list_t *plist );
+
 OBJ_CLASS_INSTANCE(parsec_spq_priority_list_t, parsec_list_item_t,
-                   NULL, NULL);
+                   parsec_spq_priority_list_construct, parsec_spq_priority_list_destruct);
+
+static inline void parsec_spq_priority_list_construct( parsec_spq_priority_list_t*plist )
+{
+    OBJ_CONSTRUCT(&plist->tasks, parsec_list_t);
+    plist->prio = -1;
+}
+
+static inline void parsec_spq_priority_list_destruct( parsec_spq_priority_list_t*plist )
+{
+    OBJ_DESTRUCT(&plist->tasks);
+}
 
 const parsec_sched_module_t parsec_sched_spq_module = {
     &parsec_sched_spq_component,
@@ -136,14 +151,18 @@ static void sched_spq_remove( parsec_context_t *master )
     int p, t;
     parsec_vp_t *vp;
     parsec_execution_stream_t *eu;
+    parsec_list_item_t *li;
+    parsec_list_t *plist;
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
         for(t = 0; t < vp->nb_cores; t++) {
             eu = vp->execution_streams[t];
             if( eu->th_id == 0 ) {
-                OBJ_DESTRUCT( eu->scheduler_object );
-                free(eu->scheduler_object);
+                plist = (parsec_list_t *)eu->scheduler_object;
+                while( (li = parsec_list_pop_front(plist)) != NULL )
+                    OBJ_RELEASE(li);
+                OBJ_RELEASE( plist );
             }
             eu->scheduler_object = NULL;
         }
