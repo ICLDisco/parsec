@@ -1397,7 +1397,6 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
         if( arg->action_mask & PARSEC_ACTION_SEND_INIT_REMOTE_DEPS ) {
             if( parsec_dtd_not_sent_to_rank((parsec_dtd_task_t *)oldcontext,
                                             dep->belongs_to->flow_index, dst_rank) ) {
-                assert(deps != NULL);
                 struct remote_dep_output_param_s* output;
                 int _array_pos, _array_mask;
 

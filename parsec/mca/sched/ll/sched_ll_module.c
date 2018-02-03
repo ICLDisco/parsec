@@ -12,7 +12,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
-#include "parsec/debug.h"
+#include "parsec/utils/debug.h"
 #include "parsec/class/lifo.h"
 
 #include "parsec/mca/sched/sched.h"
@@ -67,6 +67,7 @@ const parsec_sched_module_t parsec_sched_ll_module = {
 static int sched_ll_install( parsec_context_t *master )
 {
     sched_ll_warning_issued = 0;
+    (void)master;
     return 0;
 }
 
@@ -84,16 +85,8 @@ static int sched_ll_install( parsec_context_t *master )
  */
 static int flow_ll_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
 {
-    parsec_lifo_t *sched_obj = NULL;
-    int nq, hwloc_levels;
-    uint32_t queue_size;
-    parsec_vp_t* vp;
-
-    vp = es->virtual_process;
-
     /* Every flow creates its own local object */
-    sched_obj = OBJ_NEW(parsec_lifo_t);
-    es->scheduler_object = sched_obj;
+    es->scheduler_object = OBJ_NEW(parsec_lifo_t);
 
     /* All local allocations are now completed. Synchronize with the other
      threads before setting up the entire queues hierarchy. */
@@ -123,14 +116,15 @@ static parsec_task_t* sched_ll_select(parsec_execution_stream_t *es,
     parsec_task_t *task = NULL;
     parsec_lifo_t *sched_obj = (parsec_lifo_t*)es->scheduler_object;
     int i, d = 0;
-    task = parsec_lifo_pop(sched_obj);
+
+    task = (parsec_task_t*)parsec_lifo_pop(sched_obj);
     if( NULL == task ) {
         for(i = (es->th_id + 1) % es->virtual_process->nb_cores;
             i != es->th_id;
             i = (i+1) % es->virtual_process->nb_cores) {
             d++;
             sched_obj = (parsec_lifo_t*)es->virtual_process->execution_streams[i]->scheduler_object;
-            task = parsec_lifo_pop(sched_obj);
+            task = (parsec_task_t*)parsec_lifo_pop(sched_obj);
             if( NULL != task ) {
                 *distance = d;
 #if defined(PINS_ENABLE)
@@ -142,7 +136,7 @@ static parsec_task_t* sched_ll_select(parsec_execution_stream_t *es,
         return NULL;
     } else {
 #if defined(PINS_ENABLE)
-                task->victim_core = i;
+        task->victim_core = 0;
 #endif
         *distance = 0;
         return task;
