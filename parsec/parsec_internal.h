@@ -100,7 +100,7 @@ struct parsec_taskpool_s {
                                            *   PARSEC_RUNTIME_RESERVED_NB_TASKS).
                                            */
     int16_t                    taskpool_type;
-    uint16_t                   devices_mask; /**< A bitmask on what devices this taskpool may use */
+    uint16_t                   devices_index_mask; /**< A bitmask of devices indexes this taskpool has been registered with */
     uint32_t                   nb_task_classes;      /**< Number of task classes in the taskpool */
     int32_t                    priority;             /**< A constant used to bump the priority of tasks related to this taskpool */
     volatile int32_t           nb_pending_actions;  /**< Internal counter of pending actions tracking all runtime

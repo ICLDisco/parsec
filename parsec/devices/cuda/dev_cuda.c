@@ -163,6 +163,7 @@ static int parsec_cuda_memory_register(parsec_device_t* device, parsec_data_coll
     cudaError_t status;
     int rc = PARSEC_ERROR;
 
+    /* Memory needs to be registered only once with CUDA. */
     if (desc->memory_registration_status == MEMORY_STATUS_REGISTERED) {
         rc = PARSEC_SUCCESS;
         return rc;
@@ -191,6 +192,7 @@ static int parsec_cuda_memory_unregister(parsec_device_t* device, parsec_data_co
     cudaError_t status;
     int rc = PARSEC_ERROR;
 
+    /* Memory needs to be registered only once with CUDA. One registration = one deregistration */
     if (desc->memory_registration_status == MEMORY_STATUS_UNREGISTERED) {
         rc = PARSEC_SUCCESS;
         return rc;
@@ -213,13 +215,13 @@ static int parsec_cuda_memory_unregister(parsec_device_t* device, parsec_data_co
 
 
 void* cuda_find_incarnation(gpu_device_t* gpu_device,
-                                     const char* fname)
+                            const char* fname)
 {
     char library_name[FILENAME_MAX], function_name[FILENAME_MAX], *env;
     int i, index, capability = gpu_device->major * 10 + gpu_device->minor;
     cudaError_t status;
-    void *fn = NULL, *dlh = NULL;
-    char** argv = NULL, **target;
+    void *fn = NULL;
+    char** argv = NULL;
 
     status = cudaSetDevice( gpu_device->cuda_index );
     PARSEC_CUDA_CHECK_ERROR( "(cuda_find_incarnation) cudaSetDevice ", status, {continue;} );
@@ -256,56 +258,13 @@ void* cuda_find_incarnation(gpu_device_t* gpu_device,
         snprintf(function_name, FILENAME_MAX, "%s_SM%2d", fname, capability);
     }
 
-    for( target = argv; (NULL != target) && (NULL != *target); target++ ) {
-        struct stat status;
-        if( 0 != stat(*target, &status) ) {
-            parsec_debug_verbose(10, parsec_cuda_output_stream,
-                                "Could not stat the %s path (%s)", *target, strerror(errno));
-            continue;
-        }
-        if( S_ISDIR(status.st_mode) ) {
-            if( capability )
-                snprintf(library_name,  FILENAME_MAX, "%s/libdplasma_cucores_sm%d.so", *target, capability);
-            else
-                snprintf(library_name,  FILENAME_MAX, "%s/libdplasma_cores_cuda.so", *target);
-        } else {
-            snprintf(library_name,  FILENAME_MAX, "%s", *target);
-        }
+    if( capability )
+        snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d.so", capability);
+    else
+        snprintf(library_name,  FILENAME_MAX, "libdplasma_cores_cuda.so");
 
-        dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
-        if(NULL == dlh) {
-            parsec_debug_verbose(10, parsec_cuda_output_stream,
-                                "Could not find %s dynamic library (%s)", library_name, dlerror());
-            continue;
-        }
-        fn = dlsym(dlh, function_name);
-        dlclose(dlh);
-        if( NULL != fn ) {
-            parsec_debug_verbose(4, parsec_cuda_output_stream,
-                                "Function %s found in shared library %s",
-                                function_name, library_name);
-            break;  /* we got one, stop here */
-        }
-    }
-    /* Couldn't load from named dynamic libs, try linked/static */
-    if(NULL == fn) {
-        parsec_output_verbose(10, parsec_cuda_output_stream,
-                             "No dynamic function %s found, trying from compile time linked in\n",
-                             function_name);
-        dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
-        if(NULL != dlh) {
-            fn = dlsym(dlh, function_name);
-            if(NULL != fn) {
-                parsec_debug_verbose(4, parsec_cuda_output_stream,
-                                    "Function %s found in the application symbols",
-                                    function_name);
-            }
-            dlclose(dlh);
-        }
-    }
-
-    /* Still not found?? skip this GPU */
-    if(NULL == fn) {
+    fn = parsec_device_find_function(function_name, library_name, (const char**)argv);
+    if( NULL == fn ) {  /* look for the function with lesser capabilities */
         parsec_debug_verbose(10, parsec_cuda_output_stream,
                             "No function %s found for CUDA device %s",
                             function_name, gpu_device->super.name);
@@ -320,46 +279,53 @@ void* cuda_find_incarnation(gpu_device_t* gpu_device,
     return fn;
 }
 
+/**
+ * Register a taskpool with a device by checking that the device
+ * supports the dynamic function required by the different incarnations.
+ * If multiple devices of the same type exists we assume thay all have
+ * the same capabilities.
+ */
 static int
-parsec_cuda_taskpool_register(parsec_device_t* device, parsec_taskpool_t* tp)
+parsec_cuda_taskpool_register(parsec_device_t* device,
+                              parsec_taskpool_t* tp)
 {
     gpu_device_t* gpu_device = (gpu_device_t*)device;
-    uint32_t i, j, dev_mask = 0x0;
     int32_t rc = PARSEC_ERR_NOT_FOUND;
+    uint32_t i, j;
 
     /**
-     * Let's suppose it is not our job to detect if a particular body can
-     * run or not. We will need to add some properties that will allow the
-     * user to write the code to assess this.
+     * Detect if a particular chore has a dynamic load dependency and if yes
+     * load the corresponding module and find the function.
      */
     assert(PARSEC_DEV_CUDA == device->type);
-    for( i = 0; i < tp->nb_task_classes; i++ ) {
+    assert(tp->devices_index_mask & (1 << device->device_index));
+
+    for( i = 0; NULL != tp->task_classes_array[i]; i++ ) {
         const parsec_task_class_t* tc = tp->task_classes_array[i];
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
-        for( dev_mask = j = 0; NULL != chores[j].hook; j++ ) {
-            if( chores[j].type == device->type ) {
-                if ( NULL == chores[j].dyld ) {
-                    /* No dynamic load for this kernel */
-                    chores[gpu_device->cuda_index].dyld_fn = NULL;
+        for( j = 0; NULL != chores[j].hook; j++ ) {
+            if( chores[j].type != device->type )
+                continue;
+            if(  NULL != chores[j].dyld_fn ) {
+                continue;  /* the function has been set for another device of the same type */
+            }
+            if ( NULL == chores[j].dyld ) {
+                chores[j].dyld_fn = NULL;  /* No dynamic support required for this kernel */
+                rc = PARSEC_SUCCESS;
+            } else {
+                void* devf = cuda_find_incarnation(gpu_device, chores[j].dyld);
+                if( NULL != devf ) {
+                    chores[j].dyld_fn = devf;
                     rc = PARSEC_SUCCESS;
-                    dev_mask |= chores[j].type;
-                }
-                else {
-                    void* devf = cuda_find_incarnation(gpu_device, chores[j].dyld);
-                    if( NULL != devf ) {
-                        chores[gpu_device->cuda_index].dyld_fn = devf;
-                        rc = PARSEC_SUCCESS;
-                        dev_mask |= chores[j].type;
-                    }
                 }
             }
         }
     }
-    /* Not a single chore supports this device, there is no reason to check anything further */
-    if(PARSEC_SUCCESS != rc) {
-        tp->devices_mask &= ~(device->device_index);
+    if( PARSEC_SUCCESS != rc ) {
+        tp->devices_index_mask &= ~(1 << device->device_index);  /* drop support for this device */
+        parsec_debug_verbose(10, parsec_cuda_output_stream,
+                             "Device %d (%s) disabled for taskpool %p", device->device_index, device->name, tp);
     }
-
     return rc;
 }
 
@@ -1244,7 +1210,7 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
         /* Start at 2, to skip the recursive body */
         for( dev_index = 2; dev_index < parsec_devices_enabled(); dev_index++ ) {
             /* Skip the device if it is not configured */
-            if(!(tp->devices_mask & (1 << dev_index))) continue;
+            if(!(tp->devices_index_mask & (1 << dev_index))) continue;
             weight = parsec_device_load[dev_index] + ratio * parsec_device_sweight[dev_index];
             if( best_weight > weight ) {
                 best_index = dev_index;

@@ -488,7 +488,7 @@ device_taskpool_register_static(parsec_device_t* device, parsec_taskpool_t* tp)
                 continue;  /* the function has been set for another device of the same type */
             }
             if ( NULL == chores[j].dyld ) {
-                chores[j].dyld_fn = NULL;  /* No dynamic support required for this kernel */
+                assert( NULL == chores[j].dyld_fn );  /* No dynamic support required for this kernel */
                 rc = PARSEC_SUCCESS;
             } else {
                 void* devf = parsec_device_find_function(chores[j].dyld, NULL, NULL);
