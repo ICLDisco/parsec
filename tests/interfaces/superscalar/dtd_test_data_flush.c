@@ -84,7 +84,7 @@ task_to_check_overhead_15(parsec_execution_stream_t *es, parsec_task_t *this_tas
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores;
+    int rank, world, cores = -1;
     int nb, nt, rc;
     parsec_tiled_matrix_dc_t *dcA;
 
@@ -100,7 +100,6 @@ int main(int argc, char ** argv)
     rank = 0;
 #endif
 
-    cores = -1;
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
     }

@@ -280,7 +280,7 @@ extern "C" %{
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, world, cores, ngpus = 0;
+    int rank, world, cores = -1, ngpus = 0;
     int i, size, loops, frags;
     parsec_data_collection_t *dcA;
     parsec_taskpool_t *bw_test;
@@ -289,7 +289,6 @@ int main(int argc, char *argv[])
 
     world = 1;
     rank = 0;
-    cores = 1;
 
     loops = 10;
     frags = 1;

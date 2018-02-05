@@ -19,7 +19,7 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, world, cores;
+    int rank, world, cores = -1;
     int nt, nb, rc;
     parsec_tiled_matrix_dc_t *dcA;
     parsec_taskpool_t *msort;
@@ -35,7 +35,6 @@ int main(int argc, char *argv[])
     world = 1;
     rank = 0;
 #endif
-    cores = 1;
     parsec = parsec_init(cores, &argc, &argv);
 
     nb = 5;

@@ -35,7 +35,7 @@ task_to_check_generation(parsec_execution_stream_t *es, parsec_task_t *this_task
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores, rc;
+    int rank, world, cores = -1, rc;
     int parsec_argc;
     char** parsec_argv;
 
@@ -51,7 +51,6 @@ int main(int argc, char ** argv)
     rank = 0;
 #endif
 
-    cores = -1;  /* everything on the node */
     parsec_argv = &argv[1];
     parsec_argc = argc - 1;
     if(argv[1] != NULL) {

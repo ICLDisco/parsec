@@ -63,13 +63,9 @@ call_to_kernel_type_write( parsec_execution_stream_t    *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores;
-    int nb, nt;
+    int rank, world, cores = -1;
+    int nb, nt, i, no_of_tasks, key;
     parsec_tiled_matrix_dc_t *dcA;
-
-    cores = 8;
-    int i, j;
-    int no_of_tasks, no_of_read_tasks = 5, key;
 
 #if defined(PARSEC_HAVE_MPI)
     {

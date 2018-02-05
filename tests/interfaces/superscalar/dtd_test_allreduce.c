@@ -81,9 +81,8 @@ bcast1( parsec_execution_stream_t    *es,
 int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
-    int rc;
-    int rank, world, cores;
-    int nb, nt;
+    int rc, nb, nt;
+    int rank, world, cores = -1;
     parsec_tiled_matrix_dc_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -100,7 +99,6 @@ int main(int argc, char **argv)
 
     nb = 1; /* tile_size */
     nt = world; /* total no. of tiles */
-    cores = 8;
 
     parsec = parsec_init( cores, &argc, &argv );
 

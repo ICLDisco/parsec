@@ -114,7 +114,7 @@ int main( int argc, char** argv )
     parsec_arena_t arena;
     parsec_context_t *parsec;
     int ni = NN, nk = NN, verbose = 0, i = 1, rc;
-    int rank = 0, size = 1, mat_size, cores = 1;
+    int rank = 0, size = 1, mat_size, cores = -1;
     long time_elapsed;
 
     while( NULL != argv[i] ) {

@@ -38,7 +38,7 @@ call_to_kernel_type( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = 1, rc;
+    int rank, world, cores = -1, rc;
 
     if(argv[1] != NULL){
         cores = atoi(argv[1]);

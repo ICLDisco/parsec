@@ -84,13 +84,13 @@ test_task_generator( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = 20, rc;
+    int rank, world, cores = -1, rc;
 
     if(argc > 1) {
         cores = atoi(argv[1]);
-        if( 0 >= cores )
-            cores = 1;  /* fix it to a sane number */
     }
+    if( 0 >= cores )
+        cores = 8;  /* fix it to a sane number */
 
 #if defined(PARSEC_HAVE_MPI)
     {

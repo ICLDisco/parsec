@@ -54,7 +54,7 @@ task_rank_1( parsec_execution_stream_t *es,
 int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores;
+    int rank, world, cores = -1;
     int nb, nt, i, rc;
     parsec_tiled_matrix_dc_t *dcA;
 
@@ -72,7 +72,6 @@ int main(int argc, char **argv)
 
     nb = 1; /* tile_size */
     nt = world; /* total no. of tiles */
-    cores = -1;
 
     if(argv[1] != NULL){
         cores = atoi(argv[1]);

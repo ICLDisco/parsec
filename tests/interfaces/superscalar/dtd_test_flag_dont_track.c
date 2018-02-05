@@ -38,7 +38,7 @@ task_to_check_dont_track(parsec_execution_stream_t *es, parsec_task_t *this_task
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores;
+    int rank, world, cores = -1;
     int nb, nt, rc;
     parsec_tiled_matrix_dc_t *dcA;
 
@@ -59,7 +59,6 @@ int main(int argc, char ** argv)
                       "Try with \"mpirun -np 1 .....\"\n" );
     }
 
-    cores = 8;
     if(argv[1] != NULL){
         cores = atoi(argv[1]);
     }

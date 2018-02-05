@@ -21,7 +21,7 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, world, cores;
+    int rank, world, cores = -1;
     int size, nb, i, j, c, rc;
     parsec_data_collection_t *dcA;
     int *decision;
@@ -69,7 +69,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    cores = 1;
     pargv = &dargv;
     parsec = parsec_init(cores, &j, pargv);
     if( NULL == parsec ) {
