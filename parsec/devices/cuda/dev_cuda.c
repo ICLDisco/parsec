@@ -26,9 +26,6 @@
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
-#include <errno.h>
-#include <dlfcn.h>
-#include <sys/stat.h>
 
 #if defined(PARSEC_PROF_TRACE)
 /* Accepted values are: PARSEC_PROFILE_CUDA_TRACK_DATA_IN | PARSEC_PROFILE_CUDA_TRACK_DATA_OUT |

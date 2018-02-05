@@ -134,4 +134,16 @@ static inline int parsec_devices_enabled(void)
 PARSEC_DECLSPEC void parsec_devices_taskpool_restrict( parsec_taskpool_t *tp,
                                                        uint8_t            devices_type );
 
+/**
+ * Find a function is a set of shared libraries specified in paths. If a path
+ * points to a directory, the libname is added to pinpoint to the expected shared
+ * library. If no functions has been found on the paths the scope of the current
+ * application is searched for the function_name. Upon success the pointer to the
+ * function is returned, otherwise NULL.
+ */
+PARSEC_DECLSPEC void*
+parsec_device_find_function(const char* function_name,
+                            const char* libname,
+                            const char* paths[]);
+
 #endif  /* PARSEC_DEVICE_H_HAS_BEEN_INCLUDED */
