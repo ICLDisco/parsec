@@ -62,6 +62,7 @@ struct parsec_device_s {
 };
 
 extern uint32_t parsec_nb_devices;
+extern int parsec_device_output;
 extern parsec_atomic_lock_t parsec_devices_mutex;
 /**
  * Temporary variables used for load-balancing purposes.

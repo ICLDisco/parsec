@@ -20,6 +20,8 @@
 
 #include "parsec/devices/cuda/dev_cuda.h"
 
+int parsec_device_output = 0;
+static int parsec_device_verbose = 0;
 uint32_t parsec_nb_devices = 0;
 static uint32_t parsec_nb_max_devices = 0;
 static uint32_t parsec_devices_are_freezed = 0;
@@ -53,6 +55,13 @@ int parsec_devices_init(parsec_context_t* parsec_context)
     (void)parsec_mca_param_reg_int_name("device", "show_statistics",
                                         "Show the detailed devices statistics upon exit",
                                         false, false, 0, NULL);
+    (void)parsec_mca_param_reg_int_name("device", "verbose",
+                                        "The level of verbosity of all operations related to devices",
+                                        false, false, 0, &parsec_device_verbose);
+    if( 0 < parsec_device_verbose ) {
+        parsec_device_output = parsec_output_open(NULL);
+        parsec_output_set_verbosity(parsec_device_output, parsec_device_verbose);
+    }
     parsec_device_list = parsec_argv_split(parsec_device_list_str, ',');
 
     (void)parsec_context;
@@ -221,6 +230,10 @@ int parsec_devices_fini(parsec_context_t* parsec_context)
     if( NULL != parsec_device_list ) {
         parsec_argv_free(parsec_device_list); parsec_device_list = NULL;
     }
+    if( 0 < parsec_device_verbose ) {
+        parsec_output_close(parsec_device_output);
+        parsec_device_output = parsec_debug_output;
+    }
     return PARSEC_SUCCESS;
 }
 
@@ -236,7 +249,7 @@ parsec_device_find_function(const char* function_name,
     for( target = paths; (NULL != target) && (NULL != *target); target++ ) {
         struct stat status;
         if( 0 != stat(*target, &status) ) {
-            parsec_debug_verbose(10, parsec_debug_output,
+            parsec_debug_verbose(10, parsec_device_output,
                                  "Could not stat the %s path (%s)", *target, strerror(errno));
             continue;
         }
@@ -249,14 +262,14 @@ parsec_device_find_function(const char* function_name,
         }
         dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
         if(NULL == dlh) {
-            parsec_debug_verbose(10, parsec_debug_output,
+            parsec_debug_verbose(10, parsec_device_output,
                                  "Could not find %s dynamic library (%s)", library_name, dlerror());
             continue;
         }
         fn = dlsym(dlh, function_name);
         dlclose(dlh);
         if( NULL != fn ) {
-            parsec_debug_verbose(4, parsec_debug_output,
+            parsec_debug_verbose(4, parsec_device_output,
                                  "Function %s found in shared library %s",
                                  function_name, library_name);
             break;  /* we got one, stop here */
@@ -264,14 +277,14 @@ parsec_device_find_function(const char* function_name,
     }
     /* Couldn't load from named dynamic libs, try linked/static */
     if(NULL == fn) {
-        parsec_output_verbose(10, parsec_debug_output,
+        parsec_output_verbose(10, parsec_device_output,
                               "No dynamic function %s found, trying from compile time linked in\n",
                               function_name);
         dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
         if(NULL != dlh) {
             fn = dlsym(dlh, function_name);
             if(NULL != fn) {
-                parsec_debug_verbose(4, parsec_debug_output,
+                parsec_debug_verbose(4, parsec_device_output,
                                      "Function %s found in the application symbols",
                                      function_name);
             }
@@ -279,7 +292,7 @@ parsec_device_find_function(const char* function_name,
         }
     }
     if(NULL == fn) {
-        parsec_debug_verbose(10, parsec_debug_output,
+        parsec_debug_verbose(10, parsec_device_output,
                              "No function %s found", function_name);
     }
     return fn;
@@ -318,9 +331,9 @@ int parsec_devices_freeze(parsec_context_t* context)
     }
 
     /* Compute the weight of each device including the cores */
-    parsec_debug_verbose(4, parsec_debug_output, "Global Theoretical performance: double %2.4f single %2.4f tensor %2.4f half %2.4f", total_dperf, total_sperf, total_tperf, total_hperf);
+    parsec_debug_verbose(4, parsec_device_output, "Global Theoretical performance: double %2.4f single %2.4f tensor %2.4f half %2.4f", total_dperf, total_sperf, total_tperf, total_hperf);
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
-        parsec_debug_verbose(4, parsec_debug_output, "  Dev[%d]             ->flops double %2.4f single %2.4f tensor %2.4f half %2.4f",
+        parsec_debug_verbose(4, parsec_device_output, "  Dev[%d]             ->flops double %2.4f single %2.4f tensor %2.4f half %2.4f",
                              i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
 
         parsec_device_hweight[i] = (total_hperf / parsec_device_hweight[i]);
@@ -328,7 +341,7 @@ int parsec_devices_freeze(parsec_context_t* context)
         parsec_device_sweight[i] = (total_sperf / parsec_device_sweight[i]);
         parsec_device_dweight[i] = (total_dperf / parsec_device_dweight[i]);
         /* after the weighting */
-        parsec_debug_verbose(4, parsec_debug_output, "  Dev[%d]             ->ratio double %2.4e single %2.4e tensor %2.4e half %2.4e",
+        parsec_debug_verbose(4, parsec_device_output, "  Dev[%d]             ->ratio double %2.4e single %2.4e tensor %2.4e half %2.4e",
                              i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
     }
 
@@ -501,7 +514,7 @@ device_taskpool_register_static(parsec_device_t* device, parsec_taskpool_t* tp)
     }
     if( PARSEC_SUCCESS != rc ) {
         tp->devices_index_mask &= ~(1 << device->device_index);  /* discard this type */
-        parsec_debug_verbose(10, parsec_debug_output,
+        parsec_debug_verbose(10, parsec_device_output,
                              "Device %d (%s) disabled for taskpool %p", device->device_index, device->name, tp);
     }
 

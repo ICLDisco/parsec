@@ -103,7 +103,7 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
         *srate = 64;
         *drate = 32;
     } else {
-        parsec_debug_verbose(3, parsec_debug_output, "Unsupported GPU %d, %d, skipping.", major, minor);
+        parsec_debug_verbose(3, parsec_device_output, "Unsupported GPU %d, %d, skipping.", major, minor);
         return PARSEC_ERROR;
     }
     return PARSEC_SUCCESS;
@@ -374,7 +374,7 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
         parsec_cuda_output_stream = parsec_output_open(NULL);
         parsec_output_set_verbosity(parsec_cuda_output_stream, cuda_verbosity);
     } else {
-        parsec_cuda_output_stream = parsec_debug_output;
+        parsec_cuda_output_stream = parsec_device_output;
     }
 
     cudastatus = cudaGetDeviceCount( &ndevices );
@@ -596,7 +596,7 @@ int parsec_gpu_fini(void)
         free(gpu_device);
     }
 
-    if( parsec_debug_output != parsec_cuda_output_stream ) parsec_output_close(parsec_cuda_output_stream);
+    if( parsec_device_output != parsec_cuda_output_stream ) parsec_output_close(parsec_cuda_output_stream);
     parsec_cuda_output_stream = -1;
 
     if ( cuda_lib_path ) {
@@ -697,7 +697,7 @@ parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
                       gpu_device->super.context->my_rank, gpu_device->cuda_index);
     }
     else {
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output,  "GPU:\tAllocate %u tiles on the GPU memory", mem_elem_per_gpu );
+        PARSEC_DEBUG_VERBOSE(20, parsec_device_output,  "GPU:\tAllocate %u tiles on the GPU memory", mem_elem_per_gpu );
     }
     PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                         "GPU:\tAllocate %u tiles on the GPU memory", mem_elem_per_gpu);
@@ -1850,7 +1850,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     /* Stage-in completed for this task: it is ready to be executed */
     exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
     if( NULL != gpu_task ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "GPU[%1d]:\tExecute %s priority %d", gpu_device->cuda_index,
+        PARSEC_DEBUG_VERBOSE(10, parsec_device_output,  "GPU[%1d]:\tExecute %s priority %d", gpu_device->cuda_index,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                              gpu_task->ec->priority );
     }
@@ -1881,7 +1881,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
 
  get_data_out_of_device:
     if( NULL != gpu_task ) {  /* This task has completed its execution */
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "GPU[%1d]:\tRetrieve data (if any) for %s priority %d", gpu_device->cuda_index,
+        PARSEC_DEBUG_VERBOSE(10, parsec_device_output,  "GPU[%1d]:\tRetrieve data (if any) for %s priority %d", gpu_device->cuda_index,
                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                             gpu_task->ec->priority );
     }
@@ -1913,7 +1913,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     }
     gpu_task = (parsec_gpu_context_t*)parsec_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != gpu_task ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "GPU[%1d]:\tGet from shared queue %s priority %d", gpu_device->cuda_index,
+        PARSEC_DEBUG_VERBOSE(10, parsec_device_output,  "GPU[%1d]:\tGet from shared queue %s priority %d", gpu_device->cuda_index,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                              gpu_task->ec->priority );
     }
@@ -1921,7 +1921,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
 
  complete_task:
     assert( NULL != gpu_task );
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "GPU[%1d]:\tComplete %s priority %d", gpu_device->cuda_index,
+    PARSEC_DEBUG_VERBOSE(10, parsec_device_output,  "GPU[%1d]:\tComplete %s priority %d", gpu_device->cuda_index,
                          parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                          gpu_task->ec->priority );
     /* Everything went fine so far, the result is correct and back in the main memory */

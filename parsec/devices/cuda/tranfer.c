@@ -237,7 +237,7 @@ parsec_gpu_create_W2R_task(gpu_device_t *gpu_device,
             PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
             gpu_copy->readers++;
             d2h_task->super.data[nb_cleaned].data_out = gpu_copy;
-            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "D2H[%d] task %p:\tdata %d -> %p [%p] readers %d",
+            PARSEC_DEBUG_VERBOSE(10, parsec_device_output,  "D2H[%d] task %p:\tdata %d -> %p [%p] readers %d",
                                  gpu_device->cuda_index, (void*)d2h_task,
                                  nb_cleaned, gpu_copy, gpu_copy->original, gpu_copy->readers);
             nb_cleaned++;
@@ -271,7 +271,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
     parsec_CUDA_d2h_task_t* task = (parsec_CUDA_d2h_task_t*)gpu_task->ec;
     parsec_data_t* original;
 
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "D2H[%d] task %p: %d data transferred to host",
+    PARSEC_DEBUG_VERBOSE(10, parsec_device_output,  "D2H[%d] task %p: %d data transferred to host",
                          gpu_device->cuda_index, (void*)task, task->nb_data);
     assert(gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER);
     for( int i = 0; i < task->nb_data; i++ ) {
