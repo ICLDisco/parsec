@@ -13,10 +13,6 @@ set(OPTIONS_PTG_to_DTD "--;--mca;mca_pins;ptg_to_dtd")
 set(DEFAULT_OPTIONS "-x;-v=5")
 #set(OPTIONS "")
 
-# The space in the ALL_TESTS list is there to provide room for an empty
-# element in the list.
-set(ALL_TESTS " ;_PTG_to_DTD")
-
 set(PTG2DTD "ptg2dtd")
 set(PTD2DTD_OPTIONS "--;--mca;mca_pins;ptg_to_dtd")
 set(OPTIONS "-x;-v=5")
@@ -57,7 +53,10 @@ macro(dplasma_add_test m_nameradix m_dependsradix m_types)
 endmacro()
 
 
-set(ALL_TESTS " ;_PTG_to_DTD")
+# The space in the ALL_TESTS list is there to provide room for an empty
+# element in the list.
+set(ALL_TESTS " ;")
+#set(ALL_TESTS " ;_PTG_to_DTD")
 #
 # Check BLAS/Lapack subroutines in shared memory
 #
