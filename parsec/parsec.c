@@ -43,6 +43,7 @@
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/interfaces/interface.h"
 #include "parsec/sys/tls.h"
+#include "parsec/data_distribution.h"
 
 #include "parsec/mca/mca_repository.h"
 
@@ -715,6 +716,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Init the data infrastructure. Must be done only after the freeze of the devices */
     parsec_data_init(context);
 
+    /* Init data distribution structure */
+    parsec_data_dist_init();
+
     /* Initialize the barriers */
     parsec_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
 
@@ -729,7 +733,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     PARSEC_TLS_KEY_CREATE(parsec_tls_execution_stream);
-    
+
     if( nb_total_comp_threads > 1 ) {
         pthread_attr_t thread_attr;
 
@@ -943,6 +947,8 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_remove_scheduler( context );
 
     parsec_data_fini(context);
+
+    parsec_data_dist_fini();
 
     parsec_devices_fini(context);
 
