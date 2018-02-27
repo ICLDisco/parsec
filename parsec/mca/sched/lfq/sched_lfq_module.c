@@ -22,8 +22,6 @@
 #include "parsec/mca/pins/pins.h"
 #include "parsec/parsec_hwloc.h"
 
-static int SYSTEM_NEIGHBOR = 0;
-
 #if defined(PARSEC_PROF_TRACE)
 #define TAKE_TIME(ES_PROFILE, KEY, ID)  PARSEC_PROFILING_TRACE((ES_PROFILE), (KEY), (ID), NULL)
 #else
@@ -57,7 +55,6 @@ const parsec_sched_module_t parsec_sched_lfq_module = {
 
 static int sched_lfq_install( parsec_context_t *master )
 {
-    SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores; // defined for instrumentation
     return 0;
 }
 
@@ -148,9 +145,6 @@ sched_lfq_select(parsec_execution_stream_t *es,
     task = (parsec_task_t*)parsec_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(es)->task_queue,
                                                                        parsec_execution_context_priority_comparator);
     if( NULL != task ) {
-#if defined(PINS_ENABLE)
-        task->victim_core = LOCAL_QUEUES_OBJECT(es)->task_queue->assoc_core_num;
-#endif
         *distance = 0;
         return task;
     }
@@ -160,9 +154,6 @@ sched_lfq_select(parsec_execution_stream_t *es,
         if( NULL != task ) {
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p",
                     es->virtual_process->vp_id, es->th_id, task, i, LOCAL_QUEUES_OBJECT(es)->hierarch_queues[i]);
-#if defined(PINS_ENABLE)
-            task->victim_core = LOCAL_QUEUES_OBJECT(es)->hierarch_queues[i]->assoc_core_num;
-#endif
             *distance = i + 1;
             return task;
         }
@@ -172,9 +163,6 @@ sched_lfq_select(parsec_execution_stream_t *es,
     if( NULL != task ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "LQ\t: %d:%d found task %p in its system queue %p",
                 es->virtual_process->vp_id, es->th_id, task, LOCAL_QUEUES_OBJECT(es)->system_queue);
-#if defined(PINS_ENABLE)
-        task->victim_core = SYSTEM_NEIGHBOR;
-#endif
         *distance = 1 + LOCAL_QUEUES_OBJECT(es)->nb_hierarch_queues;
     }
     return task;

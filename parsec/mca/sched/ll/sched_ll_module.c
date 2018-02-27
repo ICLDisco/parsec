@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017      The University of Tennessee and The University
+ * Copyright (c) 2017-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -127,17 +127,11 @@ static parsec_task_t* sched_ll_select(parsec_execution_stream_t *es,
             task = (parsec_task_t*)parsec_lifo_pop(sched_obj);
             if( NULL != task ) {
                 *distance = d;
-#if defined(PINS_ENABLE)
-                task->victim_core = i;
-#endif
                 return task;
             }
         }
         return NULL;
     } else {
-#if defined(PINS_ENABLE)
-        task->victim_core = 0;
-#endif
         *distance = 0;
         return task;
     }

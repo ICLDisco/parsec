@@ -24,7 +24,6 @@
 #include "parsec/parsec_hwloc.h"
 
 #define parsec_heap_priority_comparator (offsetof(parsec_heap_t, priority))
-static int SYSTEM_NEIGHBOR = 0;
 
 /**
  * Module functions
@@ -52,7 +51,6 @@ const parsec_sched_module_t parsec_sched_ltq_module = {
 
 static int sched_ltq_install( parsec_context_t *master )
 {
-    SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores;
     return 0;
 }
 
@@ -157,9 +155,6 @@ sched_ltq_select(parsec_execution_stream_t *es,
                                  (parsec_list_item_t*)heap, 0);
     }
     if (task != NULL) {
-#if defined(PINS_ENABLE)
-        task->victim_core = LOCAL_QUEUES_OBJECT(es)->task_queue->assoc_core_num;
-#endif
         *distance = 1;
         return task;
     }
@@ -188,9 +183,6 @@ sched_ltq_select(parsec_execution_stream_t *es,
                                      (parsec_list_item_t*)heap, 0);
         }
         if (task != NULL) {
-#if defined(PINS_ENABLE)
-            task->victim_core = LOCAL_QUEUES_OBJECT(es)->hierarch_queues[i]->assoc_core_num;
-#endif
             *distance = i;
             return task;
         }
@@ -202,10 +194,6 @@ sched_ltq_select(parsec_execution_stream_t *es,
     if (heap != NULL)
         parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(es)->task_queue,
                                  (parsec_list_item_t*)heap, 0);
-#if defined(PINS_ENABLE)
-    if (task != NULL)
-        task->victim_core = SYSTEM_NEIGHBOR;
-#endif
     *distance = LOCAL_QUEUES_OBJECT(es)->nb_hierarch_queues + 1;
     return task;
 }
