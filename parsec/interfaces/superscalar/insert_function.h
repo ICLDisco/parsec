@@ -326,6 +326,13 @@ parsec_dtd_data_flush_all( parsec_taskpool_t *tp,
  */
 parsec_taskpool_t *
 parsec_dtd_get_taskpool(parsec_task_t *this_task);
+/*
+ * This function allows explicit dequeue of a taskpool.
+ * Taskpools are automatically dequeued in parsec_context_wait()
+ */
+int
+parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp,
+                            parsec_context_t  *context);
 
 END_C_DECLS
 

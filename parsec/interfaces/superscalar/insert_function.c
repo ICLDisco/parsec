@@ -126,44 +126,63 @@ static inline unsigned long exponential_backoff(uint64_t k)
 }
 
 void
-parsec_detach_all_dtd_taskpool_from_context( parsec_context_t *context )
+parsec_detach_dtd_taskpool_from_context(parsec_taskpool_t *tp,
+                                        parsec_context_t  *context)
 {
-    /* Here we wait on all dtd taskpool registered with us */
-    if( NULL != context->taskpool_array && 0 < context->taskpool_array_occupied ) {
-        int iterator;
-        for( iterator = 0; iterator < context->taskpool_array_occupied; iterator++ ) {
-            parsec_dtd_taskpool_t *tp = (parsec_dtd_taskpool_t *)context->taskpool_array[iterator];
-            if( NULL != tp ) {
-                if( tp->enqueue_flag ) {
-                    parsec_taskpool_update_runtime_nbtask( (parsec_taskpool_t *)tp, -1 );
-                }
-                context->taskpool_array[iterator] = NULL;
-            }
+    assert(tp != NULL);
+    assert(context != NULL);
+    parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
+
+    assert(dtd_tp->enqueue_flag);
+    parsec_taskpool_update_runtime_nbtask(tp, -1);
+}
+
+int
+parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp,
+                            parsec_context_t  *context)
+{
+    int should_dequeue = 0;
+    parsec_list_lock(context->taskpool_list);
+    if(parsec_list_nolock_contains(context->taskpool_list,
+                                   (parsec_list_item_t *)tp)) {
+        should_dequeue = 1;
+        parsec_list_nolock_remove(context->taskpool_list,
+                                  (parsec_list_item_t *)tp);
+    }
+    parsec_list_unlock(context->taskpool_list);
+    if(should_dequeue) {
+        parsec_detach_dtd_taskpool_from_context(tp, context);
+    }
+    return 1;
+}
+
+void
+parsec_detach_all_dtd_taskpool_from_context(parsec_context_t *context)
+{
+    if(NULL != context->taskpool_list) {
+        parsec_taskpool_t *tp;
+        while(NULL != (tp = (parsec_taskpool_t *)parsec_list_pop_front(context->taskpool_list))) {
+            parsec_detach_dtd_taskpool_from_context(tp, context);
         }
-        context->taskpool_array_occupied = 0;
     }
 }
 
 void
-parsec_dtd_attach_taskpool_to_context( parsec_taskpool_t  *tp,
-                                       parsec_context_t *parsec_context )
+parsec_dtd_attach_taskpool_to_context(parsec_taskpool_t *tp,
+                                      parsec_context_t  *context)
 {
-    if( (NULL == parsec_context->taskpool_array) ||
-        (parsec_context->taskpool_array_occupied >= parsec_context->taskpool_array_size) ) {
-        parsec_context->taskpool_array_size <<= 1;
-        parsec_context->taskpool_array = (parsec_taskpool_t**)realloc(parsec_context->taskpool_array, parsec_context->taskpool_array_size * sizeof(parsec_taskpool_t*) );
-        /* NULLify all the new elements */
-        for( int32_t i = (parsec_context->taskpool_array_size>>1); i < parsec_context->taskpool_array_size;
-             parsec_context->taskpool_array[i++] = NULL );
+    if(context->taskpool_list == NULL) {
+        context->taskpool_list = OBJ_NEW(parsec_list_t);
     }
-    parsec_context->taskpool_array[parsec_context->taskpool_array_occupied++] = tp;
+
+    parsec_list_push_back(context->taskpool_list, (parsec_list_item_t *)tp);
 }
 
 /* enqueue wrapper for dtd */
 int
-parsec_dtd_enqueue_taskpool( parsec_taskpool_t *tp, void *parsec_context )
+parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
 {
-    (void)parsec_context;
+    (void)data;
 
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     dtd_tp->super.nb_pending_actions = 1;  /* For the future tasks that will be inserted */
@@ -177,7 +196,7 @@ parsec_dtd_enqueue_taskpool( parsec_taskpool_t *tp, void *parsec_context )
                           !!(tp->context->nb_nodes > 1));
 
     /* Attaching the reference of this taskpool to the parsec context */
-    parsec_dtd_attach_taskpool_to_context( tp, tp->context );
+    parsec_dtd_attach_taskpool_to_context(tp, tp->context);
     return 0;
 }
 
@@ -1148,7 +1167,7 @@ static inline parsec_key_t DTD_make_key_identity(const parsec_taskpool_t *tp, co
 }
 
 void
-parsec_dtd_dequeue_taskpool( parsec_taskpool_t *tp )
+__parsec_dtd_dequeue_taskpool( parsec_taskpool_t *tp )
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     int remaining = parsec_atomic_fetch_dec_int32( &tp->nb_tasks );
@@ -1169,7 +1188,7 @@ parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
     assert( 0<= remaining );
 
     if( 0 == remaining && 1 == tp->nb_tasks ) {
-        parsec_dtd_dequeue_taskpool( tp );
+        __parsec_dtd_dequeue_taskpool( tp );
     }
 
     return remaining;
@@ -1216,6 +1235,7 @@ parsec_dtd_taskpool_new(void)
     __tp->super.nb_tasks           = PARSEC_RUNTIME_RESERVED_NB_TASKS;
     __tp->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_DTD;  /* Indicating this is a taskpool for dtd tasks */
     __tp->super.nb_pending_actions = 0;  /* For the future tasks that will be inserted */
+    __tp->super.nb_task_classes    = 0;
     __tp->super.update_nb_runtime_task = parsec_dtd_update_runtime_task;
 
     __tp->super.devices_index_mask = 0;
@@ -2234,6 +2254,8 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     assert( NULL == __tp->super.task_classes_array[tc->task_class_id] );
     __tp->super.task_classes_array[tc->task_class_id]     = (parsec_task_class_t *)tc;
     __tp->super.task_classes_array[tc->task_class_id + 1] = NULL;
+
+    __tp->super.nb_task_classes++;
 
     return tc;
 }

@@ -51,7 +51,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_list_t);
  * @brief locks the list mutex.
  *
  * @details that same mutex is used by all mutex protected list
- *    operations 
+ *    operations
  *
  * @param[inout] list the list to lock
  */
@@ -62,7 +62,7 @@ parsec_list_lock( parsec_list_t* list );
  * @brief unlocks the list mutex.
  *
  * @details that same mutex is used by all mutex protected list
- *    operations 
+ *    operations
  *
  * @param[inout] list the list to unlock
  */
@@ -115,9 +115,9 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  *
  * @param[inout] LIST the list on which to iterate
  * @param[inout] ITEM_NAME the variable to use as item name in CODE_BLOCK
- * @param[in] CODE_BLOCK a block of code to execute with each item (break 
+ * @param[in] CODE_BLOCK a block of code to execute with each item (break
  *    and continue are allowed)
- * @return the last considered item 
+ * @return the last considered item
  *
  * @remark lock on LIST is taken from the beginning to the end of this loop
  */
@@ -135,9 +135,9 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  *
  * @param[inout] LIST the list on which to iterate
  * @param[inout] ITEM_NAME the variable to use as item name in CODE_BLOCK
- * @param[in] CODE_BLOCK a block of code to execute with each item (break 
+ * @param[in] CODE_BLOCK a block of code to execute with each item (break
  *    and continue are allowed)
- * @return the last considered item 
+ * @return the last considered item
  *
  * @remark this is not thread safe
  */
@@ -163,7 +163,7 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  * @brief gets the next item from an item in a list
  *
  * @details PARSEC_LIST_ITERATOR_NEXT(item) does not necessarily return
- *          an element that belongs to the list. The returned value must 
+ *          an element that belongs to the list. The returned value must
  *          be checked against PARSEC_LIST_ITERATOR_END(list)
  */
 #define PARSEC_LIST_ITERATOR_NEXT(ITEM)     _OPAQUE_LIST_ITERATOR_NEXT_DEFINITION(ITEM)
@@ -188,7 +188,7 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  * @brief gets the previous item from an item in a list
  *
  * @details PARSEC_LIST_ITERATOR_PREV(item) does not necessarily return
- *          an element that belongs to the list. The returned value must 
+ *          an element that belongs to the list. The returned value must
  *          be checked against PARSEC_LIST_ITERATOR_BEGIN(list)
  */
 #define PARSEC_LIST_ITERATOR_PREV(ITEM)     _OPAQUE_LIST_ITERATOR_PREV_DEFINITION(ITEM)
@@ -206,7 +206,7 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  *
  * @remark position item must be in list
  * @remark this function is not thred safe
- * @remark if position is the Ghost Element, item is added back 
+ * @remark if position is the Ghost Element, item is added back
  */
 static inline void
 parsec_list_nolock_add_before( parsec_list_t* list,
@@ -231,7 +231,7 @@ parsec_list_nolock_add_before( parsec_list_t* list,
  *
  * @remark position item must be in list
  * @remark this function is not thred safe
- * @remark if position is the Ghost Element, item is added front 
+ * @remark if position is the Ghost Element, item is added front
  */
 static inline void
 parsec_list_nolock_add_after( parsec_list_t* list,
@@ -538,7 +538,7 @@ parsec_list_chain_back( parsec_list_t* list,
 /**
  * @brief Extracts all elements from a dequeue, giving them as a ring
  *
- * @details consider the list as a dequeue. This function creates a 
+ * @details consider the list as a dequeue. This function creates a
  *          double-linked ring of elements (first->prev points to last,
  *          and last->next points to first), that holds all elements
  *          of the dequeue. The dequeue is empty after this operation.
@@ -650,7 +650,7 @@ parsec_list_nolock_chain_back( parsec_list_t* list,
  * @brief Extracts all elements from a dequeue, giving them as a ring,
  *        without locking the list
  *
- * @details consider the list as a dequeue. This function creates a 
+ * @details consider the list as a dequeue. This function creates a
  *          double-linked ring of elements (first->prev points to last,
  *          and last->next points to first), that holds all elements
  *          of the dequeue. The dequeue is empty after this operation.
@@ -869,7 +869,7 @@ parsec_list_nolock_lifo_chain( parsec_list_t* list, parsec_list_item_t* items ) 
  * @cond FALSE
  *  Don't include the implementation part in the doxygen documentation
  *********************************************************************
- *  Interface ends here, everything else is private                     
+ *  Interface ends here, everything else is private
  */
 
 #define _HEAD(LIST) ((LIST)->ghost_element.list_next)
@@ -936,7 +936,7 @@ parsec_list_unlock( parsec_list_t* list )
     ITEM;                                                               \
 })
 
-static inline int 
+static inline int
 parsec_list_nolock_contains( parsec_list_t *list, parsec_list_item_t *item )
 {
     parsec_list_item_t* litem;
