@@ -17,7 +17,6 @@
 #include "parsec/mca/sched/rnd/sched_rnd.h"
 #include "parsec/class/dequeue.h"
 #include "parsec/mca/pins/pins.h"
-static int SYSTEM_NEIGHBOR = 0;
 
 /**
  * Module functions
@@ -45,7 +44,6 @@ const parsec_sched_module_t parsec_sched_rnd_module = {
 
 static int sched_rnd_install( parsec_context_t *master )
 {
-    SYSTEM_NEIGHBOR = master->nb_vp * master->virtual_processes[0]->nb_cores;
     return 0;
 }
 
@@ -69,10 +67,6 @@ sched_rnd_select(parsec_execution_stream_t *es,
 {
     parsec_task_t * context =
         (parsec_task_t*)parsec_list_pop_front((parsec_list_t*)es->scheduler_object);
-#if defined(PINS_ENABLE)
-    if (NULL != context)
-        context->victim_core = SYSTEM_NEIGHBOR;
-#endif
     *distance = 0;
     return context;
 }

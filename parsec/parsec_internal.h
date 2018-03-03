@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The University of Tennessee and The University
+ * Copyright (c) 2012-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -427,10 +427,6 @@ struct parsec_task_s{
     /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
      * prof_info so that the locals are part of the event specific infos */
     assignment_t               locals[MAX_LOCAL_COUNT];
-#if defined(PINS_ENABLE)
-    int                        creator_core;
-    int                        victim_core;
-#endif /* defined(PINS_ENABLE) */
 #if defined(PARSEC_SIM)
     int                        sim_exec_date;
 #endif
