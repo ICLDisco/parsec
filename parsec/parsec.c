@@ -87,6 +87,8 @@ int arena_memory_used_key, arena_memory_unused_key;
 int task_memory_alloc_key, task_memory_free_key;
 #endif  /* PARSEC_PROF_TRACE */
 
+papi_handle_t parsec_papi_sde_handle = NULL;
+
 #ifdef PARSEC_HAVE_HWLOC
 #define MAX_CORE_LIST 128
 #endif
@@ -336,6 +338,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_warning = 0;
 
+    /* 128 is an upper bound on the number of events, will be removed
+     * in future APIs */
+    parsec_papi_sde_handle = papi_sde_init("PARSEC", 128);
+    
     parsec_installdirs_open();
     parsec_mca_param_init();
     parsec_output_init();

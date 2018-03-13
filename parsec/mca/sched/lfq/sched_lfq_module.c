@@ -22,6 +22,8 @@
 #include "parsec/mca/pins/pins.h"
 #include "parsec/parsec_hwloc.h"
 
+#include "parsec/papi_sde_interface.h"
+
 #if defined(PARSEC_PROF_TRACE)
 #define TAKE_TIME(ES_PROFILE, KEY, ID)  PARSEC_PROFILING_TRACE((ES_PROFILE), (KEY), (ID), NULL)
 #else
@@ -134,6 +136,23 @@ static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
         assert( nq == sched_obj->nb_hierarch_queues );
 #endif
     }
+
+    if( 0 == es->th_id ) {
+        /* PAPI-SDE Todo: this code should go in the hook for papi_avail and be called from here */
+        /* PAPI-SDE Todo: when groups of counters are defined, these counters should be grouped under non-scheduler specific names */
+        papi_sde_register_fp_counter(parsec_papi_sde_handle, "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW", SDE_RO|SDE_INSTANT, PAPI_SDE_int, (papi_sde_fptr_t)parsec_dequeue_length, sched_obj->system_queue);
+        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW", "Number of ready to execute PaRSEC tasks waiting in the process-wide queue when using the LFQ scheduler");
+        for(nq = 0 ; nq < vp->nb_cores; nq++ ) {
+            char event_name[256];
+            char event_descr[256];
+            snprintf(event_name, 256, "PARSEC::SCHED::LFQ::PENDING_TASKS_THREAD_%d", nq);
+            papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, SDE_RO|SDE_INSTANT, PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_length, LOCAL_QUEUES_OBJECT(vp->execution_streams[nq])->task_queue);
+            snprintf(event_descr, 256, "Number of ready to execute PaRSEC tasks waiting in the queue of the thread bound on core %d of socket %d when using the LFQ scheduler",
+                     vp->execution_streams[nq]->core_id, vp->execution_streams[nq]->socket_id);
+            papi_sde_describe_counter(parsec_papi_sde_handle, event_name, event_descr);
+        }
+    }
+    
     return 0;
 }
 
@@ -215,4 +234,5 @@ static void sched_lfq_remove( parsec_context_t *master )
             // else the scheduler wasn't really initialized anyway
         }
     }
+    // PAPI-SDE Todo: unregister the counters (when this exists in the API)
 }

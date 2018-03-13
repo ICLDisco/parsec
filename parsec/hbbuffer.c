@@ -262,3 +262,15 @@ parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b, off_t priority_offset)
 
     return best_elt;
 }
+
+long long int parsec_hbbuffer_length(parsec_hbbuffer_t *b)
+{
+    int idx;
+    long long int length = 0;
+    for(idx = 0; idx < b->size; idx++) {
+        if( NULL != b->items[idx]) {
+            length++;
+        }
+    }
+    return length;
+}
