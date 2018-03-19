@@ -30,7 +30,7 @@ typedef uint8_t parsec_data_coherency_t;
 #define    DATA_COHERENCY_SHARED    ((parsec_data_coherency_t)0x4)
 
 typedef uint8_t parsec_data_status_t;
-#define    DATA_STATUS_NOT_TRANSFER        ((parsec_data_coherency_t)0x0)
+#define    DATA_STATUS_NOT_TRANSFER          ((parsec_data_coherency_t)0x0)
 #define    DATA_STATUS_UNDER_TRANSFER        ((parsec_data_coherency_t)0x1)
 #define    DATA_STATUS_COMPLETE_TRANSFER     ((parsec_data_coherency_t)0x2)
 
