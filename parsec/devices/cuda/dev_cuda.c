@@ -60,37 +60,47 @@ static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 32,
  * The following table provides updated values for future archs
  * http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#arithmetic-instructions
  */
-static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *srate, int *drate) {
+static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *drate, int *srate, int *trate, int *hrate) {
     if( major == 1 ) {
-        *srate = 8;
+        *hrate = *trate = *srate = 8;
         *drate = 1;
     } else if (major == 2 && minor == 0) {
-        *srate = 32;
+        *hrate = *trate = *srate = 32;
         *drate = 16;
     } else if (major == 2 && minor == 1) {
-        *srate = 48;
+        *hrate = *trate = *srate = 48;
         *drate = 4;
     } else if ((major == 3 && minor == 0) ||
                (major == 3 && minor == 2)) {
-        *srate = 192;
+        *hrate = *trate = *srate = 192;
         *drate = 8;
     } else if ((major == 3 && minor == 5) ||
                (major == 3 && minor == 7)) {
-        *srate = 192;
+        *hrate = *trate = *srate = 192;
         *drate = 64;
     } else if ((major == 5 && minor == 0) ||
-               (major == 5 && minor == 2) ||
-               (major == 5 && minor == 3)) {
-        *srate = 128;
+               (major == 5 && minor == 2)) {
+        *hrate = *trate = *srate = 128;
         *drate = 4;
-    } else if(major == 6 && minor == 0) {
-        *srate = 64;
+    } else if (major == 5 && minor == 3) {
+        *hrate = 256;
+        *trate = *srate = 128;
+        *drate = 4;
+    } else if (major == 6 && minor == 0) {
+        *hrate = 128;
+        *trate = *srate = 64;
         *drate = 32;
-    } else if ((major == 6 && minor == 1) ||
-               (major == 6 && minor == 2)) {
-        *srate = 128;
+    } else if (major == 6 && minor == 1) {
+        *hrate = 2;
+        *trate = *srate = 128;
         *drate = 4;
-    } else if ((major == 7 && minor == 0)) {
+    } else if (major == 6 && minor == 2) {
+        *hrate = 256;
+        *trate = *srate = 128;
+        *drate = 4;
+    } else if (major == 7 && minor == 0) {
+        *hrate = 128;
+        *trate = 512;
         *srate = 64;
         *drate = 32;
     } else {
@@ -453,7 +463,7 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
     for( i = 0; i < ndevices; i++ ) {
         gpu_device_t* gpu_device;
         char *szName;
-        int major, minor, concurrency, computemode, streaming_multiprocessor, srate, drate;
+        int major, minor, concurrency, computemode, streaming_multiprocessor, drate, srate, trate, hrate;
         float clockRate;
         struct cudaDeviceProp prop;
 
@@ -540,25 +550,27 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
         gpu_device->super.device_taskpool_register   = parsec_cuda_taskpool_register;
         gpu_device->super.device_taskpool_unregister = parsec_cuda_taskpool_unregister;
 
-        if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &srate, &drate) == PARSEC_ERROR ) {
+        if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERROR ) {
             return -1;
         }
+        gpu_device->super.device_hweight = (float)streaming_multiprocessor * (float)hrate * (float)clockRate * 2e-3f;
+        gpu_device->super.device_tweight = (float)streaming_multiprocessor * (float)trate * (float)clockRate * 2e-3f;
         gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)srate * (float)clockRate * 2e-3f;
         gpu_device->super.device_dweight = (float)streaming_multiprocessor * (float)drate * (float)clockRate * 2e-3f;
 
         if( show_caps ) {
             parsec_inform("GPU Device %d (capability %d.%d): %s\n"
                           "\tSM                 : %d\n"
-                          "\tclockRate (MHz)    : %2.4f\n"
+                          "\tclockRate (GHz)    : %2.2f\n"
                           "\tconcurrency        : %s\n"
                           "\tcomputeMode        : %d\n"
-                          "\tpeak Gflops        : single %2.4f, double %2.4f",
+                          "\tpeak Gflops         : double %2.4f, single %2.4f tensor %2.4f half %2.4f",
                           i, major, minor,szName,
                           streaming_multiprocessor,
-                          clockRate,
+                          clockRate*1e-3,
                           (concurrency == 1)? "yes": "no",
                           computemode,
-                          gpu_device->super.device_sweight, gpu_device->super.device_dweight);
+                          gpu_device->super.device_dweight, gpu_device->super.device_sweight, gpu_device->super.device_tweight, gpu_device->super.device_hweight);
         }
 
         if( PARSEC_SUCCESS != parsec_cuda_memory_reserve(gpu_device,
