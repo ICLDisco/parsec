@@ -4839,7 +4839,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "};\n"
             "\n"
             "static int gpu_kernel_submit_%s_%s(gpu_device_t            *gpu_device,\n"
-            "                                   parsec_gpu_context_t     *gpu_task,\n"
+            "                                   parsec_gpu_task_t       *gpu_task,\n"
             "                                   parsec_gpu_exec_stream_t *gpu_stream )\n"
             "{\n"
             "  %s *this_task = (%s *)gpu_task->ec;\n"
@@ -4896,7 +4896,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     coutput("#if defined(PARSEC_DEBUG_NOISIER)\n"
             "  {\n"
             "    char tmp[MAX_TASK_STRLEN];\n"
-            "    PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream, \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\\n\", gpu_device->cuda_index, \n"
+            "    PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream, \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\", gpu_device->cuda_index, \n"
             "           parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t *)this_task),\n"
             "           this_task->priority );\n"
             "  }\n"
@@ -4936,7 +4936,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     coutput("static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n"
             "{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
-            "  parsec_gpu_context_t *gpu_task;\n"
+            "  parsec_gpu_task_t *gpu_task;\n"
             "  double ratio;\n"
             "  int dev_index;\n"
             "  %s\n"
@@ -4983,18 +4983,18 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  }\n"
             "  parsec_device_load[dev_index] += ratio * parsec_device_sweight[dev_index];\n"
             "\n"
-            "  gpu_task = (parsec_gpu_context_t*)calloc(1, sizeof(parsec_gpu_context_t));\n"
+            "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
             "  OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
             "  gpu_task->submit = &gpu_kernel_submit_%s_%s;\n"
-            "  gpu_task->task_type = 0;\n",
+            "  gpu_task->task_type = 0;\n"
+            "  gpu_task->last_data_check_epoch = -1;  /* force at least one validation for the task */\n",
             jdf_basename, f->fname);
 
     /* Dump the dataflow */
+    coutput("  gpu_task->pushout = 0;\n");
     for(fl = f->dataflow, di = 0; fl != NULL; fl = fl->next, di++) {
-        coutput("  gpu_task->pushout[%d] = 0;\n"
-                "  gpu_task->flow[%d]    = &%s;\n",
-                di,
+        coutput("  gpu_task->flow[%d]    = &%s;\n",
                 di, JDF_OBJECT_ONAME( fl ));
 
         if (fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
@@ -5021,14 +5021,14 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 switch( dl->guard->guard_type ) {
                 case JDF_GUARD_UNCONDITIONAL:
                     if(testtrue) {
-                        coutput("  gpu_task->pushout[%d] = 1;\n", di);
+                        coutput("  gpu_task->pushout |= (1 << %d);\n", di);
                         goto nextflow;
                     }
                     break;
                 case JDF_GUARD_BINARY:
                     if(testtrue) {
                         coutput("  if( %s ) {\n"
-                                "    gpu_task->pushout[%d] = 1;\n"
+                                "    gpu_task->pushout |= (1 << %d);\n"
                                 "  }",
                                 dump_expr((void**)dl->guard->guard, &info), di);
                     }
@@ -5036,16 +5036,16 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 case JDF_GUARD_TERNARY:
                     if( testtrue ) {
                         if( testfalse ) {
-                            coutput("  gpu_task->pushout[%d] = 1;\n", di);
+                            coutput("  gpu_task->pushout |= (1 << %d);\n", di);
                         } else {
                             coutput("  if( %s ) {\n"
-                                    "    gpu_task->pushout[%d] = 1;\n"
+                                    "    gpu_task->pushout |= (1 << %d);\n"
                                     "  }\n",
                                     dump_expr((void**)dl->guard->guard, &info), di);
                         }
                     } else if ( testfalse ) {
                         coutput("  if( !(%s) ) {\n"
-                                "    gpu_task->pushout[%d] = 1;\n"
+                                "    gpu_task->pushout |= (1 << %d);\n"
                                 "  }\n",
                                 dump_expr((void**)dl->guard->guard, &info), di);
                     }

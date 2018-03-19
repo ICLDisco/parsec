@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -51,8 +51,8 @@ typedef struct __parsec_gpu_workspace {
     int total_workspace;
 } parsec_gpu_workspace_t;
 
-struct __parsec_gpu_context;
-typedef struct __parsec_gpu_context parsec_gpu_context_t;
+struct parsec_gpu_task_s;
+typedef struct parsec_gpu_task_s parsec_gpu_task_t;
 
 struct __parsec_gpu_exec_stream;
 typedef struct __parsec_gpu_exec_stream parsec_gpu_exec_stream_t;
@@ -60,24 +60,25 @@ typedef struct __parsec_gpu_exec_stream parsec_gpu_exec_stream_t;
 struct _gpu_device;
 typedef struct _gpu_device gpu_device_t;
 
-typedef int (*advance_task_function_t)(gpu_device_t            *gpu_device,
-                                       parsec_gpu_context_t     *gpu_task,
+typedef int (*advance_task_function_t)(gpu_device_t             *gpu_device,
+                                       parsec_gpu_task_t        *gpu_task,
                                        parsec_gpu_exec_stream_t *gpu_stream);
 
-struct __parsec_gpu_context {
-    parsec_list_item_t          list_item;
-    parsec_task_t *ec;
-    advance_task_function_t    submit;
-    int                        task_type;
-    int                        pushout[MAX_PARAM_COUNT];
-    const parsec_flow_t        *flow[MAX_PARAM_COUNT];
+struct parsec_gpu_task_s {
+    parsec_list_item_t       list_item;
+    parsec_task_t           *ec;
+    advance_task_function_t  submit;
+    uint64_t                 last_data_check_epoch;
+    int                      task_type;
+    int32_t                  pushout;
+    const parsec_flow_t     *flow[MAX_PARAM_COUNT];
 };
 
 struct __parsec_gpu_exec_stream {
-    struct __parsec_gpu_context **tasks;
+    struct parsec_gpu_task_s **tasks;
     cudaEvent_t *events;
     cudaStream_t cuda_stream;
-    const char* name;
+    char* name;
     int32_t max_events;  /* number of potential events, and tasks */
     int32_t executed;    /* number of executed tasks */
     int32_t start, end;  /* circular buffer management start and end positions */
@@ -102,8 +103,12 @@ struct _gpu_device {
                                 *   the device to access directly the memory of
                                 *   the index of the set bit device.
                                 */
+    volatile uint32_t mutex;
+    uint64_t data_avail_epoch;  /**< Identifies the epoch of the data status on the devide. It
+                                 *  is increased every time a new data is made available, so
+                                 *  that we know which tasks can be evaluated for submission.
+                                 */
     parsec_gpu_exec_stream_t* exec_stream;
-    volatile int32_t mutex;
     parsec_list_t gpu_mem_lru;
     parsec_list_t gpu_mem_owned_lru;
     parsec_list_t pending;
@@ -151,8 +156,8 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio );
 
 /* sort pending task list by number of spaces needed */
 int parsec_gpu_sort_pending_list(gpu_device_t *gpu_device);
-parsec_gpu_context_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parsec_execution_stream_t *es);
-int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device, parsec_gpu_context_t *w2r_task, parsec_execution_stream_t *es);
+parsec_gpu_task_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parsec_execution_stream_t *es);
+int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
 
 /**
  * Progress
@@ -167,7 +172,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device, parsec_gpu_context_t *w2r
  */
 parsec_hook_return_t
 parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
-                             parsec_gpu_context_t    *gpu_task,
+                             parsec_gpu_task_t    *gpu_task,
                              int which_gpu );
 
 /**
@@ -185,7 +190,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
  */
 int
 parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
-                       parsec_gpu_context_t     *gpu_task,
+                       parsec_gpu_task_t        *gpu_task,
                        parsec_gpu_exec_stream_t *gpu_stream);
 
 /**
@@ -197,19 +202,19 @@ parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
  */
 int
 parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
-                      parsec_gpu_context_t     *gpu_task,
+                      parsec_gpu_task_t        *gpu_task,
                       parsec_gpu_exec_stream_t *gpu_stream);
 
 /**
  * Make sure all data on the device is correctly put back into the queues.
  */
 int
-parsec_gpu_kernel_epilog( gpu_device_t        *gpu_device,
-                         parsec_gpu_context_t *gpu_task );
+parsec_gpu_kernel_epilog( gpu_device_t     *gpu_device,
+                         parsec_gpu_task_t *gpu_task );
 
 int
-parsec_gpu_kernel_cleanout( gpu_device_t        *gpu_device,
-                            parsec_gpu_context_t *gpu_task );
+parsec_gpu_kernel_cleanout( gpu_device_t      *gpu_device,
+                            parsec_gpu_task_t *gpu_task );
 
 END_C_DECLS
 
