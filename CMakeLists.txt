@@ -452,7 +452,7 @@ int my_printf(const char *format, ...) {
 int main() {
   return my_printf(\"toto\");
 }" PARSEC_HAVE_ATTRIBUTE_FORMAT_PRINTF)
-    
+
 endif (PARSEC_HAVE_STDARG_H)
 
 check_c_source_compiles("
@@ -462,7 +462,7 @@ int main(int argc, char *argv[]) {
   tls = 1;
   return 0;
 }" PARSEC_HAVE_THREAD_LOCAL)
-  
+
 check_function_exists(asprintf PARSEC_HAVE_ASPRINTF)
 check_function_exists(vasprintf PARSEC_HAVE_VASPRINTF)
 check_include_files(getopt.h PARSEC_HAVE_GETOPT_H)
@@ -588,7 +588,7 @@ IF( BUILD_PARSEC )
         MESSAGE(STATUS "Using PGI internal CUDA SDK in ${CUDA_TOOLKIT_ROOT_DIR}")
       endif(_path_pgcuda)
     ENDIF (_match_pgi)
-    find_package(CUDA QUIET)
+    find_package(CUDA)
     set(PARSEC_HAVE_CUDA ${CUDA_FOUND})
     if (CUDA_FOUND)
       message(STATUS "Found CUDA ${CUDA_VERSION} in ${CUDA_TOOLKIT_ROOT_DIR}")
@@ -834,31 +834,19 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
   "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
 
-try_run(RUNTIME_CMAKE_TESTS_RUN_RESULT
-        RUNTIME_CMAKE_TESTS_COMPILE_RESULT
-        ${CMAKE_CURRENT_BINARY_DIR}/runtime_cmake_tests
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/runtime_cmake_tests.c"
-        CMAKE_FLAGS 
-            "-DINCLUDE_DIRECTORIES:STRING=${CMAKE_CURRENT_BINARY_DIR}/parsec/include;${CMAKE_CURRENT_SOURCE_DIR}/parsec/include"
-            "-DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}"
-        LINK_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES}"
-        COMPILE_DEFINITIONS "-DBUILD_PARSEC"
-        COMPILE_OUTPUT_VARIABLE RUNTIME_CMAKE_COMPILE_OUTPUT
-        RUN_OUTPUT_VARIABLE RUNTIME_CMAKE_TESTS_VAL_OUTPUT)
-
-IF(NOT "${RUNTIME_CMAKE_TESTS_COMPILE_RESULT}")
-  MESSAGE(STATUS "Compilation of cmake_modules/runtime_cmake_tests.c returned: '${RUNTIME_CMAKE_COMPILE_OUTPUT}'")
-ELSE()
-  IF( "${RUNTIME_CMAKE_TESTS_RUN_RESULT}" EQUAL "0" )
-    SET(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B TRUE)
-    MESSAGE(STATUS "cmake_modules/runtime_cmake_tests.c signals that CAS 128B are active. Reconfiguring parsec_options.h")
-    configure_file (
-       "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
-       "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
-  ELSE()
-    MESSAGE(STATUS "cmake_modules/runtime_cmake_tests.c desactivated CAS 128B. Keeping parsec_options.h unchanged")
-  ENDIF()
-ENDIF()
+cmake_push_check_state()
+list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/parsec/include ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include)
+list(APPEND CMAKE_REQUIRED_DEFINITIONS -DBUILD_PARSEC)
+check_symbol_exists(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B "parsec/parsec_config.h;parsec/sys/atomic.h" PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B)
+cmake_pop_check_state()
+if(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B)
+  message(STATUS "Internal PaRSEC uses CAS 128B. Reconfiguring parsec_options.h")
+  configure_file (
+     "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
+     "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
+else()
+  message(STATUS "Internal PaRSEC does not use CAS 128B. Keeping parsec_options.h unchanged")
+endif()
 
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.h

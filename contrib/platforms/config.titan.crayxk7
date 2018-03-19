@@ -7,52 +7,69 @@
 # architecture.
 #
 
+# Be paranoid about errors and abort asap 
+set -e
+
+
+# General variables
+: ${HWLOC_DIR:=$HOME/parsec/titan/hwloc-1.11.2}
+[ -d "$HWLOC_DIR" ] || echo "HWLOC_DIR='$HWLOC_DIR' does not point to a valid hwloc install. PaRSEC may use unoptimized schedulers." 1>&2
+: ${PLASMA_DIR:=$HOME/parsec/titan/plasma-2.8.0}
+[ -d "$PLASMA_DIR" ] || echo "PLASMA_DIR='$PLASMA_DIR' does not point to a valid Plasma install. Dplasma may be disabled." 1>&2
+
+: ${TOOLCHAIN_DIR:=ToolchainX-native}
+: ${COMPUTE_DIR:=$PWD}
+SRCDIR=`dirname $0`/../../
+USER_OPTIONS="$* "
 
 cat << _EOF
 #
 # Preparing the compilation of the native tools.
+#   Cross-compiling toolchain will be found in $TOOLCHAIN_DIR
 #
 _EOF
-
-LOCATION=`dirname $0`/../../
-USER_OPTIONS="$* "
-SAVE_LDFLAGS=$LDFLAGS
-
-
-# First make the native build, so we can use the tools
-mkdir -p native
-cd native
+#
+# First make the native build, so we can use the tools on the headnode
+#
+mkdir -p $TOOLCHAIN_DIR && cd $TOOLCHAIN_DIR
 rm -rf CMakeCache.txt CMakeFiles
 
 ## Defaults for local native compilation
-module swap craype-interlagos craype-mc8
-CC=${CC:="cc"}
-CXX=${CXX:="CC"}
-FC=${FC:="ftn"}
-#LDFLAGS="${LDFLAGS} -lnuma"
-export CC CXX FC LDFLAGS
+#module swap craype-interlagos craype-mc8
+CC="cc -target-cpu=mc8"
+CXX="CC -target-cpu=mc8"
+FC="ftn -target-cpu=mc8"
+#: LDFLAGS="${LDFLAGS} -lnuma"
+export CC CXX FC CFLAGS LDFLAGS
 
 MPI="-DPARSEC_DIST_WITH_MPI=OFF"
 CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
 OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DBUILD_DPLASMA=OFF"
 HWLOC=""
 
-cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${USER_OPTIONS} ../${LOCATION}
+echo cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${USER_OPTIONS} ${SRCDIR}
+cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${USER_OPTIONS} ${SRCDIR}
 #
 # Now let's compile the tools
 #
 cd tools && make
-cd ../..
+cd -
+cd parsec/interfaces/ptg && make
+cd -
+# Done with the toolchain for the headnode
+
 
 #
 # Now let's move on with the second step, cross-compile for
 # the compute node target
 #
+mkdir -p $COMPUTE_DIR && cd $COMPUTE_DIR
 rm -rf CMakeCache.txt CMakeFiles
 
 cat << _EOF
 #
-# Preparing the cross-compile of the Cray XK7 compute node part
+# Preparing the cross-compiling of the Cray XK7 compute node part
+#   Compute node libraries and tests will be found in $COMPUTE_DIR
 #
 _EOF
 
@@ -74,21 +91,21 @@ SET( PARSEC_ATOMIC_USE_GCC_128_BUILTINS_EXITCODE
      CACHE STRING "Result from TRY_RUN" FORCE)
 _EOF
 
-# Compilers to use in cross-compile mode
-module swap craype-mc8 craype-interlagos
+# compilers to use in cross-compile mode
+#module swap craype-mc8 craype-interlagos
 CC=cc
 CXX=CC
 FC=ftn
-CFLAGS+=-mcx16
+#CFLAGS+=-mcx16
+export CC CXX FC CFLAGS LDFLAGS
 
 MPI="-DPARSEC_DIST_WITH_MPI=ON -DMPI_C_COMPILER=$CC -DMPI_CXX_COMPILER=$CXX -DMPI_Fortran_COMPILER=$FC"
-CUDA="-DPARSEC_GPU_WITH_CUDA=ON"
-HWLOC="-DHWLOC_DIR=$HOME/parsec/titan/hwloc-1.11.2"
-PLASMA="-DPLASMA_DIR=$HOME/parsec/titan/plasma-2.8.0"
-OPTS="-DBUILD_TOOLS=OFF"
+CUDA="-DPARSEC_GPU_WITH_CUDA=ON -DCUDA_TOOLKIT_ROOT_DIR=$CRAY_CUDATOOLKIT_DIR"
+HWLOC="-DHWLOC_DIR=$HWLOC_DIR"
+PLASMA="-DPLASMA_DIR=$PLASMA_DIR"
+OPTS="-DBUILD_TOOLS=OFF -DBUILD_SHARED_LIBS=OFF"
 
 # Done with variable allocation, do the thing with Cmake
-export CC CXX FC CFLAGS
-
-cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=Toolchain-interlagos-Cray-xk7.cmake -DIMPORT_EXECUTABLES=native/ImportExecutables.cmake ${PLASMA} ${MPI} ${HWLOC} ${CUDA} ${OPTS} ${USER_OPTIONS} ${LOCATION}
+echo cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=Toolchain-interlagos-Cray-xk7.cmake -DIMPORT_EXECUTABLES=$TOOLCHAIN_DIR/ImportExecutables.cmake ${PLASMA} ${MPI} ${HWLOC} ${CUDA} ${OPTS} ${USER_OPTIONS} ${SRCDIR}
+cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=Toolchain-interlagos-Cray-xk7.cmake -DIMPORT_EXECUTABLES=$TOOLCHAIN_DIR/ImportExecutables.cmake ${PLASMA} ${MPI} ${HWLOC} ${CUDA} ${OPTS} ${USER_OPTIONS} ${SRCDIR}
 
