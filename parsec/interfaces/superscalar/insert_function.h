@@ -234,9 +234,25 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
  *
  */
 void
-parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
-                                 parsec_dtd_funcptr_t *fpointer, int priority,
-                                 const char *name_of_kernel, ... );
+parsec_dtd_taskpool_insert_task(parsec_taskpool_t  *tp,
+                                parsec_dtd_funcptr_t *fpointer, int priority,
+                                const char *name_of_kernel, ...);
+
+/*
+ * This function behaves exactly like parsec_dtd_taskpool_insert_task()
+ * except it does not insert the task in PaRSEC and just returns it.
+ * Users will need to use parsec_insert_dtd_task() to insert the task
+ */
+parsec_task_t *
+parsec_dtd_taskpool_create_task(parsec_taskpool_t  *tp,
+                                parsec_dtd_funcptr_t *fpointer, int priority,
+                                const char *name_of_kernel, ...);
+
+/* This function allows users to insert a properly formed DTD task in
+ * PaRSEC.
+ */
+void
+parsec_insert_dtd_task(parsec_task_t *this_task);
 
 /*
  * This macros should be called anytime users
@@ -304,6 +320,12 @@ parsec_dtd_data_flush( parsec_taskpool_t   *tp,
 void
 parsec_dtd_data_flush_all( parsec_taskpool_t *tp,
                            parsec_data_collection_t  *dc );
+
+/*
+ * This function returns the taskpool a task bekongs to.
+ */
+parsec_taskpool_t *
+parsec_dtd_get_taskpool(parsec_task_t *this_task);
 
 END_C_DECLS
 
