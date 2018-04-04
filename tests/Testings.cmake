@@ -12,11 +12,11 @@ add_test(unit_touch_shm  ${SHM_TEST_CMD_LIST} ./touch_ex -v=5)
 #
 # Fortran Testings
 #
-if(CMAKE_Fortran_COMPILER_WORKS)
+if(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
     add_test(unit_touch_fortran_shm  ${SHM_TEST_CMD_LIST} ./touch_exf -v=5)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-endif(CMAKE_Fortran_COMPILER_WORKS)
+endif(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
 
 #
 # Distributed Memory Testings
