@@ -55,6 +55,7 @@ const parsec_sched_module_t parsec_sched_lfq_module = {
 
 static int sched_lfq_install( parsec_context_t *master )
 {
+    (void)master;
     return 0;
 }
 

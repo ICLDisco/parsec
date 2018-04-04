@@ -44,6 +44,7 @@ const parsec_sched_module_t parsec_sched_ip_module = {
 
 static int sched_ip_install( parsec_context_t *master )
 {
+    (void)master;
     return 0;
 }
 

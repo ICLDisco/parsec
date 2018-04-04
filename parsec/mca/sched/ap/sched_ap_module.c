@@ -45,6 +45,7 @@ const parsec_sched_module_t parsec_sched_ap_module = {
 
 static int sched_ap_install( parsec_context_t *master )
 {
+    (void)master;
     return 0;
 }
 
