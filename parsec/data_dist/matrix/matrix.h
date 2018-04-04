@@ -87,7 +87,7 @@ static inline int parsec_translate_matrix_type( enum matrix_type mt, parsec_data
     return 0;
 }
 
-#define parsec_tiled_matrix_dc_type        0x01
+#define parsec_tiled_matrix_dc_type   0x01
 #define two_dim_block_cyclic_type     0x02
 #define sym_two_dim_block_cyclic_type 0x04
 #define two_dim_tabular_type          0x08
@@ -194,7 +194,14 @@ parsec_data_t*
 fake_data_of(parsec_data_collection_t *mat, ...);
 
 /**
- * Helper functions to create arenas of matrices with different shapes
+ * Helper functions to create arenas of matrices with different shapes. This generic
+ * function allow for the creation of vector of vector data, or a tile in a submatrice.
+ * The m and n are the size of the tile, while the LDA is the size of the submatrix.
+ * The alignment indicates the restrictions related to the alignment of the allocated
+ * data. The resized parameter indicates the need to resize the resulting data. A negative
+ * resized indicates that no resize if necessary, while any positive value will resize
+ * the resulting datatype to resized times the size of the oldtype. This allows for the
+ * creation of column major data layouts in a row major storage.
  */
 int parsec_matrix_add2arena( parsec_arena_t *arena, parsec_datatype_t oldtype,
                              int uplo, int diag,

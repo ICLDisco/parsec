@@ -85,6 +85,14 @@ struct parsec_arena_chunk_s {
  * Constructor for the arena class. By default this constructor
  * does not enable any caching, thus it behaves more like a
  * convenience wrapper around malloc/free than a freelist.
+ *
+ * The elem_size and the opaque_ddt are in strict relationship, as they
+ * are both used when exchanging data across node. The opaque_ddt is used
+ * to describe the memory layout of the communication, while the ele_size
+ * is used to allocate the memory needed to locally store the data. This
+ * allows however for flexibility, but then the application should carefully
+ * use the arena when communicating (in general using a count and
+ * displacement).
  */
 int parsec_arena_construct(parsec_arena_t* arena,
                           size_t elem_size,

@@ -66,8 +66,8 @@ BEGIN_C_DECLS
 
 /**
  * Map the datatype creation to the well designed and well known MPI datatype
- * mainipulation. However, right now we only provide the most basic types and
- * functions to mix them together.
+ * API. The datatype support remains extremely basic, providing API only for
+ * basic datatypes and functions to mix them together.
  */
 int parsec_type_size(parsec_datatype_t type,
                      int *size);
