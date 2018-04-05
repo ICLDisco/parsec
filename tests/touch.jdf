@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2013-2016 The University of Tennessee and The University
+ * Copyright (c) 2013-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -54,6 +54,7 @@ static two_dim_block_cyclic_t descA;
 parsec_taskpool_t* touch_initialize(int block, int n)
 {
     parsec_touch_taskpool_t* tp;
+    parsec_datatype_t dt;
 
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
                                1 /*nodes*/, 0 /*rank*/,
@@ -66,10 +67,9 @@ parsec_taskpool_t* touch_initialize(int block, int n)
     tp = parsec_touch_new( &descA, ((n + block - 1) / block) - 1 );
     assert( NULL != tp );
 
-    parsec_arena_construct( tp->arenas[PARSEC_touch_DEFAULT_ARENA],
-                            descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                            PARSEC_ARENA_ALIGNMENT_SSE,
-                            PARSEC_DATATYPE_NULL);  /* change for distributed cases */
+    parsec_translate_matrix_type(TYPE, &dt);
+    parsec_matrix_add2arena_rect(tp->arenas[PARSEC_touch_DEFAULT_ARENA],
+                                 dt, descA.super.mb, descA.super.nb, descA.super.mb);
 
     return &tp->super;
 }

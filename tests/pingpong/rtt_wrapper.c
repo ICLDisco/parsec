@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,7 +11,6 @@
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-static MPI_Datatype block;
 #endif
 #include <stdio.h>
 
@@ -27,12 +26,12 @@ static MPI_Datatype block;
  */
 parsec_taskpool_t *rtt_new(parsec_data_collection_t *A, int size, int nb)
 {
-    int worldsize;
     parsec_rtt_taskpool_t *tp = NULL;
+    parsec_datatype_t block;
+    int worldsize = 1;
+
 #if defined(PARSEC_HAVE_MPI)
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-#else
-    worldsize = 1;
 #endif
 
     if( nb <= 0 || size <= 0 ) {
@@ -42,22 +41,13 @@ parsec_taskpool_t *rtt_new(parsec_data_collection_t *A, int size, int nb)
 
     tp = parsec_rtt_new(A, nb, worldsize);
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        MPI_Aint extent;
-        MPI_Type_contiguous(size, MPI_BYTE, &block);
-        MPI_Type_commit(&block);
-#if defined(PARSEC_HAVE_MPI_20)
-        MPI_Aint lb = 0; 
-        MPI_Type_get_extent(block, &lb, &extent);
-#else
-        MPI_Type_extent(block, &extent);
-#endif  /* defined(PARSEC_HAVE_MPI_20) */
-        parsec_arena_construct(tp->arenas[PARSEC_rtt_DEFAULT_ARENA],
-                               extent, PARSEC_ARENA_ALIGNMENT_SSE,
-                               block);
-    }
-#endif
+    ptrdiff_t lb, extent;
+    parsec_type_create_contiguous(size, MPI_BYTE, &block);
+    parsec_type_extent(block, &lb, &extent);
+
+    parsec_arena_construct(tp->arenas[PARSEC_rtt_DEFAULT_ARENA],
+                           extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                           block);
 
     return (parsec_taskpool_t*)tp;
 }
@@ -67,9 +57,9 @@ parsec_taskpool_t *rtt_new(parsec_data_collection_t *A, int size, int nb)
  */
 void rtt_destroy(parsec_taskpool_t *tp)
 {
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Type_free( &block );
-#endif
+    parsec_rtt_taskpool_t *rtt_tp = (parsec_rtt_taskpool_t*)tp;
+
+    parsec_type_free( &(rtt_tp->arenas[PARSEC_rtt_DEFAULT_ARENA]->opaque_dtt) );
 
     PARSEC_INTERNAL_TASKPOOL_DESTRUCT(tp);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,12 +11,13 @@
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-static MPI_Datatype block;
 #endif
 #include <stdio.h>
 
 #include "ctlgat.h"
 #include "ctlgat_wrapper.h"
+
+static parsec_datatype_t block;
 
 /**
  * @param [IN] A    the data, already distributed and allocated
@@ -42,22 +43,10 @@ parsec_taskpool_t *ctlgat_new(parsec_data_collection_t *A, int size, int nb)
 
     tp = parsec_ctlgat_new(A, nb, worldsize);
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        MPI_Aint extent;
-        MPI_Type_contiguous(size, MPI_INT, &block);
-        MPI_Type_commit(&block);
-#if defined(PARSEC_HAVE_MPI_20)
-        MPI_Aint lb = 0;
-        MPI_Type_get_extent(block, &lb, &extent);
-#else
-        MPI_Type_extent(block, &extent);
-#endif  /* defined(PARSEC_HAVE_MPI_20) */
-        parsec_arena_construct(tp->arenas[PARSEC_ctlgat_DEFAULT_ARENA],
-                               extent, PARSEC_ARENA_ALIGNMENT_SSE,
-                               block);
-    }
-#endif
+    parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &block);
+    parsec_arena_construct(tp->arenas[PARSEC_ctlgat_DEFAULT_ARENA],
+                           size * sizeof(uint8_t), PARSEC_ARENA_ALIGNMENT_SSE,
+                           block);
 
     return (parsec_taskpool_t*)tp;
 }
@@ -67,9 +56,7 @@ parsec_taskpool_t *ctlgat_new(parsec_data_collection_t *A, int size, int nb)
  */
 void ctlgat_destroy(parsec_taskpool_t *tp)
 {
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Type_free( &block );
-#endif
+    parsec_type_free( &block );
 
     PARSEC_INTERNAL_TASKPOOL_DESTRUCT(tp);
 }

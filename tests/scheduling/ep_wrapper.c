@@ -41,6 +41,7 @@ parsec_taskpool_t *ep_new(parsec_data_collection_t *A, int nt, int level)
 #else
         MPI_Type_extent(MPI_BYTE, &extent);
 #endif  /* defined(PARSEC_HAVE_MPI_20) */
+        /* The datatype is irrelevant as the example does not do communications between nodes */
         parsec_arena_construct(tp->arenas[PARSEC_ep_DEFAULT_ARENA],
                                extent, PARSEC_ARENA_ALIGNMENT_SSE,
                                MPI_BYTE);

@@ -109,11 +109,9 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-#if defined(PARSEC_HAVE_MPI)
-    parsec_arena_construct(parsec_dtd_arenas[0],
-                           nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                           MPI_INT);
-#endif
+    parsec_matrix_add2arena_rect(parsec_dtd_arenas[TILE_FULL],
+                                 parsec_datatype_int32_t,
+                                 nb, 1, nb);
 
     /* Correctness checking */
     dcA = create_and_distribute_data(rank, world, nb, nt);

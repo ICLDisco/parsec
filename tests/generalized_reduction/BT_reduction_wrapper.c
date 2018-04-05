@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -31,22 +31,13 @@ parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
 
     tp = parsec_BT_reduction_new(A, nb, nt);
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        MPI_Aint extent;
-        MPI_Type_contiguous(nb, MPI_INT, &block);
-        MPI_Type_commit(&block);
-#if defined(PARSEC_HAVE_MPI_20)
-        MPI_Aint lb = 0;
-        MPI_Type_get_extent(block, &lb, &extent);
-#else
-        MPI_Type_extent(block, &extent);
-#endif  /* defined(PARSEC_HAVE_MPI_20) */
-        parsec_arena_construct(tp->arenas[PARSEC_BT_reduction_DEFAULT_ARENA],
-                               extent, PARSEC_ARENA_ALIGNMENT_SSE,
-                               block);
-    }
-#endif
+    ptrdiff_t lb, extent;
+    parsec_type_create_contiguous(nb, MPI_INT, &block);
+    parsec_type_extent(block, &lb, &extent);
+
+    parsec_arena_construct(tp->arenas[PARSEC_BT_reduction_DEFAULT_ARENA],
+                           extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                           block);
 
     return (parsec_taskpool_t*)tp;
 }

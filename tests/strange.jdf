@@ -89,6 +89,7 @@ int main(int argc, char* argv[] )
     tp = parsec_strange_new( (parsec_data_collection_t*)&descA, n, &val, 2.5 );
     assert( NULL != tp );
 
+    /* Datatype not needed for a single node test */
     parsec_arena_construct( tp->arenas[PARSEC_strange_DEFAULT_ARENA],
                            descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
                            PARSEC_ARENA_ALIGNMENT_SSE,

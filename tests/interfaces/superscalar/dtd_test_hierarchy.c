@@ -137,11 +137,9 @@ int main(int argc, char ** argv)
     dcA = create_and_distribute_empty_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-#if defined(PARSEC_HAVE_MPI)
-    parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
-                           nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                           MPI_INT);
-#endif
+    parsec_matrix_add2arena_rect(parsec_dtd_arenas[TILE_FULL],
+                                 parsec_datatype_int32_t,
+                                 nb, 1, nb);
 
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
     parsec_dtd_data_collection_init(A);

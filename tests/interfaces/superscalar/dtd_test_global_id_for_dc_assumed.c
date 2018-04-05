@@ -72,15 +72,15 @@ int main(int argc, char **argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");*/
 
-    printf("rank: %d\tDC id: %lu\n", rank, A->dc_id);
+    printf("rank: %d\tDC id: %"PRIu64"\n", rank, (uint64_t)A->dc_id);
     assert(A->dc_id == id);
     id++;
 
-    printf("rank: %d\tDC id: %lu\n", rank, B->dc_id);
+    printf("rank: %d\tDC id: %"PRIu64"\n", rank, (uint64_t)B->dc_id);
     assert(B->dc_id == id);
     id++;
 
-    printf("rank: %d\tDC id: %lu\n", rank, C->dc_id);
+    printf("rank: %d\tDC id: %"PRIu64"\n", rank, (uint64_t)C->dc_id);
     assert(C->dc_id == id);
     id++;
 

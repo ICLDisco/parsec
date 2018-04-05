@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,7 +11,6 @@
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-static MPI_Datatype block;
 #endif
 #include <stdio.h>
 
@@ -28,6 +27,7 @@ static MPI_Datatype block;
 parsec_taskpool_t *branching_new(parsec_data_collection_t *A, int size, int nb)
 {
     parsec_branching_taskpool_t *tp = NULL;
+    parsec_datatype_t block;
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, BRANCHING nb and size must be > 0\n");
@@ -36,15 +36,10 @@ parsec_taskpool_t *branching_new(parsec_data_collection_t *A, int size, int nb)
 
     tp = parsec_branching_new(A, nb);
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        MPI_Type_vector(1, size, size, MPI_BYTE, &block);
-        MPI_Type_commit(&block);
-        parsec_arena_construct(tp->arenas[PARSEC_branching_DEFAULT_ARENA],
-                               size * sizeof(char), size * sizeof(char), 
-                               block);
-    }
-#endif
+    parsec_type_create_contiguous(size, parsec_datatype_int8_t, &block);
+    parsec_arena_construct(tp->arenas[PARSEC_branching_DEFAULT_ARENA],
+                           size * sizeof(int8_t), size * sizeof(int8_t),
+                           block);
 
     return (parsec_taskpool_t*)tp;
 }
@@ -54,9 +49,9 @@ parsec_taskpool_t *branching_new(parsec_data_collection_t *A, int size, int nb)
  */
 void branching_destroy(parsec_taskpool_t *o)
 {
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Type_free( &block );
-#endif
+    parsec_branching_taskpool_t* tp = (parsec_branching_taskpool_t*)o;
+
+    parsec_type_free(&tp->arenas[PARSEC_branching_DEFAULT_ARENA]->opaque_dtt);
 
     PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
 }

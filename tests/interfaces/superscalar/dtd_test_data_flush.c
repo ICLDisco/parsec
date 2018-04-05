@@ -213,11 +213,10 @@ int main(int argc, char ** argv)
 
         dtd_tp = parsec_dtd_taskpool_new();
 
-#if defined(PARSEC_HAVE_MPI)
-        parsec_arena_construct(parsec_dtd_arenas[0],
-                               nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                               MPI_INT);
-#endif
+        parsec_matrix_add2arena_rect(parsec_dtd_arenas[0],
+                                     parsec_datatype_int32_t,
+                                     nb, 1, nb);
+
         parsec_data_copy_t *gdata;
         parsec_data_t *data;
         int *real_data, key;
@@ -353,11 +352,9 @@ int main(int argc, char ** argv)
 
         dtd_tp = parsec_dtd_taskpool_new();
 
-#if defined(PARSEC_HAVE_MPI)
-        parsec_arena_construct(parsec_dtd_arenas[0],
-                               nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                               MPI_INT);
-#endif
+        parsec_matrix_add2arena_rect(parsec_dtd_arenas[0],
+                                     parsec_datatype_int32_t,
+                                     nb, 1, nb);
         parsec_data_copy_t *gdata;
         parsec_data_t *data;
         int *real_data, key;

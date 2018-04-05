@@ -112,6 +112,7 @@ int main( int argc, char** argv )
     parsec_complex_deps_taskpool_t* tp;
     two_dim_block_cyclic_t descA;
     parsec_arena_t arena;
+    parsec_datatype_t otype;
     parsec_context_t *parsec;
     int ni = NN, nk = NN, verbose = 0, i = 1, rc;
     int rank = 0, size = 1, mat_size, cores = -1;
@@ -164,10 +165,9 @@ int main( int argc, char** argv )
     descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
-    parsec_arena_construct( &arena,
-                           descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                           PARSEC_ARENA_ALIGNMENT_SSE,
-                           PARSEC_DATATYPE_NULL);  /* change for distributed cases */
+    parsec_translate_matrix_type(TYPE, &otype);
+    parsec_matrix_add2arena_rect(&arena, otype,
+                                 descA.super.mb, descA.super.nb, descA.super.mb);
 
     /* Heat up the engine: small tasks */
     tp = parsec_complex_deps_new( &descA, ni, nk );

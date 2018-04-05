@@ -79,6 +79,7 @@ int main(int argc, char* argv[])
     int ni = NN, nj = NN, loops = 5, i = 1, rc;
     int rank = 0, size = 1, mat_size;
     long time_elapsed;
+    parsec_datatype_t baseType, newtype;
 
     while( NULL != argv[i] ) {
         if( 0 == strncmp(argv[i], "-i=", 3) ) {
@@ -142,17 +143,15 @@ int main(int argc, char* argv[])
                                2*BLOCK, 1, mat_size, 1,
                                0, 0, mat_size, 1, 1, 1, 1);
     descB.mat = parsec_data_allocate( descB.super.nb_local_tiles *
-                                     descB.super.bsiz *
-                                     parsec_datadist_getsizeoftype(TYPE) );
-    parsec_arena_construct( &arena,
+                                      descB.super.bsiz *
+                                      parsec_datadist_getsizeoftype(TYPE) );
+
+    parsec_translate_matrix_type(TYPE, &baseType);
+    parsec_type_create_contiguous(descA.super.mb * descA.super.nb,
+                                  baseType, &newtype);
+    parsec_arena_construct(&arena,
                            descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                           PARSEC_ARENA_ALIGNMENT_SSE,
-#ifdef DISTRIBUTED
-                           MPI_FLOAT
-#else
-                           NULL
-#endif  /* DISTRIBUTED */
-                         );
+                           PARSEC_ARENA_ALIGNMENT_SSE, newtype);
 
     for( ; loops > 0; loops-- ) {
 
@@ -163,7 +162,7 @@ int main(int argc, char* argv[])
 
         rc = parsec_context_start(parsec);
         PARSEC_CHECK_ERROR(rc, "parsec_context_start");
-        
+
         TIMER_START(time_elapsed);
         rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
         PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
@@ -212,6 +211,8 @@ int main(int argc, char* argv[])
         printf("DAG execution in %ld micro-sec\n", time_elapsed);
     }
     free(descA.mat);
+
+    parsec_type_free(&newtype);
 
     parsec_fini( &parsec);
 

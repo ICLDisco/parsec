@@ -85,6 +85,11 @@ int main( int argc, char** argv )
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
+    parsec_type_free(&tile_dtt);
+    parsec_type_free(&vdtt1);
+    parsec_type_free(&vdtt2);
+    parsec_type_free(&vdtt);
+
     parsec_fini( &parsec);
 #if defined(PARSEC_HAVE_MPI)
     MPI_Finalize();

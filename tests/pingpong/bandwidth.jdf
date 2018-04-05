@@ -204,8 +204,13 @@ bandwidth_new(parsec_data_collection_t *A, int loops, int frags, int size, int w
 
     tp  = parsec_bandwidth_new(A, loops, frags, ws);
 
+    ptrdiff_t lb, extent;
+    parsec_datatype_t block;
+    parsec_type_create_contiguous(size, MPI_BYTE, &block);
+    parsec_type_extent(block, &lb, &extent);
+
     parsec_arena_construct(((parsec_bandwidth_taskpool_t*)tp)->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
-                          size*sizeof(uint8_t), PARSEC_ARENA_ALIGNMENT_SSE, PARSEC_DATATYPE_NULL);
+                          size*sizeof(uint8_t), PARSEC_ARENA_ALIGNMENT_SSE, block);
 
     return (parsec_taskpool_t*)tp;
 }
@@ -217,7 +222,12 @@ static void
 bandwidth_destroy(parsec_taskpool_t* tp)
 {
     parsec_bandwidth_taskpool_t * bw_tp = (parsec_bandwidth_taskpool_t*)tp;
-    bw_tp->arenas[PARSEC_bandwidth_DEFAULT_ARENA] = NULL;
+
+    parsec_datatype_t block;
+    block = bw_tp->arenas[PARSEC_bandwidth_DEFAULT_ARENA]->opaque_dtt;
+    bw_tp->arenas[PARSEC_bandwidth_DEFAULT_ARENA]->opaque_dtt = PARSEC_DATATYPE_NULL;
+    parsec_type_free(&block);
+
     PARSEC_INTERNAL_TASKPOOL_DESTRUCT(bw_tp);
 }
 

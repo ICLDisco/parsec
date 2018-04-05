@@ -80,6 +80,8 @@ int main( int argc, char* argv[] )
 
     parsec_map_operator_Destruct( tp );
 
+    parsec_type_free(&newtype);
+
     parsec_fini(&parsec);
 
 #if defined(PARSEC_HAVE_MPI)

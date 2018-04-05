@@ -11,12 +11,13 @@
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-static MPI_Datatype block;
 #endif
 #include <stdio.h>
 
 #include "choice.h"
 #include "choice_wrapper.h"
+
+static parsec_datatype_t newType;
 
 /**
  * @param [IN] A    the data, already distributed and allocated
@@ -36,15 +37,9 @@ parsec_taskpool_t *choice_new(parsec_data_collection_t *A, int size, int *decisi
 
     tp = parsec_choice_new(A, nb, world, decision);
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        MPI_Type_vector(1, size, size, MPI_BYTE, &block);
-        MPI_Type_commit(&block);
-        parsec_arena_construct(tp->arenas[PARSEC_choice_DEFAULT_ARENA],
-                               size * sizeof(char), size * sizeof(char),
-                               block);
-    }
-#endif
+    parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &newType);
+    parsec_arena_construct(tp->arenas[PARSEC_choice_DEFAULT_ARENA],
+                           size * sizeof(char), size * sizeof(char), newType);
 
     return (parsec_taskpool_t*)tp;
 }
@@ -57,9 +52,7 @@ void choice_destroy(parsec_taskpool_t *tp)
     parsec_choice_taskpool_t *c = (parsec_choice_taskpool_t*)tp;
     (void)c;
 
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Type_free( &block );
-#endif
+    parsec_type_free(&newType);
 
     PARSEC_INTERNAL_TASKPOOL_DESTRUCT(tp);
 }

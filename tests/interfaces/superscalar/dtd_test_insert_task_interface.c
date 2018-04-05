@@ -96,11 +96,9 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
-#if defined(PARSEC_HAVE_MPI)
-    parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
-                          nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          MPI_INT);
-#endif
+    parsec_matrix_add2arena_rect(parsec_dtd_arenas[TILE_FULL],
+                                 parsec_datatype_int32_t,
+                                 nb, 1, nb);
 
     dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
@@ -115,7 +113,7 @@ int main(int argc, char ** argv)
     int *real_data;
     for( i = 0; i < no_of_tasks; i++ ) {
         key = A->data_key(A, i, 0);
-        if( rank == A->rank_of_key(A, key) ) {
+        if( rank == (int)A->rank_of_key(A, key) ) {
             data = A->data_of_key(A, key);
             gdata = data->device_copies[0];
             real_data = PARSEC_DATA_COPY_GET_PTR((parsec_data_copy_t *) gdata);

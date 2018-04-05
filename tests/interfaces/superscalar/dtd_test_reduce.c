@@ -33,7 +33,8 @@ task_rank_0( parsec_execution_stream_t    *es,
 
     parsec_dtd_unpack_args(this_task, &data);
 
-    if(this_task->taskpool->context->my_rank == 5)sleep(1);
+    if(this_task->taskpool->context->my_rank == 5)
+        sleep(1);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -84,11 +85,9 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
-#if defined(PARSEC_HAVE_MPI)
-    parsec_arena_construct(parsec_dtd_arenas[0],
-                           nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                           MPI_INT);
-#endif
+    parsec_matrix_add2arena_rect(parsec_dtd_arenas[0],
+                                 parsec_datatype_int32_t,
+                                 nb, 1, nb);
 
     /* Correctness checking */
     dcA = create_and_distribute_data(rank, world, nb, nt);

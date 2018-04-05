@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2014     The University of Tennessee and The University
+ * Copyright (c) 2014-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -117,6 +117,8 @@ int main(int argc, char* argv[])
     tp = parsec_write_check_new( (parsec_data_collection_t*)&descA, (n / block) - 1, block );
     assert( NULL != tp );
 
+    /* This test generates no communications between processes, so the datatype
+     * associated with the arena are insignificant. */
     parsec_arena_construct( tp->arenas[PARSEC_write_check_DEFAULT_ARENA],
                             descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
                             PARSEC_ARENA_ALIGNMENT_SSE,

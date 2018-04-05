@@ -224,11 +224,11 @@ int main(int argc, char *argv[])
     two_dim_block_cyclic_init(&fakeDesc, matrix_RealFloat, matrix_Tile,
                               world, rank, 1, 1, world, world, 0, 0, world, world, 1, 1, 1);
 
-    parsec_arena_construct( &arena,
-                           2 * parsec_datadist_getsizeoftype(matrix_RealFloat),
-                           PARSEC_ARENA_ALIGNMENT_SSE,
-                           parsec_datatype_float_t
-                         );
+    parsec_matrix_add2arena( &arena, parsec_datatype_float_t,
+                             matrix_Tile, 0,
+                             2, 1, 2,
+                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
     project = parsec_project_new(treeA, world, (parsec_data_collection_t*)&fakeDesc, 1e-3, be_verbose);
     project->arenas[PARSEC_project_DEFAULT_ARENA] = &arena;
     rc = parsec_enqueue(parsec, &project->super);

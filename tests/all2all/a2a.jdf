@@ -127,22 +127,9 @@ parsec_taskpool_t *a2a_new(parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t
 
     tp = parsec_a2a_new(A, B, repeat, worldsize);
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        MPI_Aint extent;
-        MPI_Type_contiguous(size, MPI_INT, &block);
-        MPI_Type_commit(&block);
-#if defined(PARSEC_HAVE_MPI_20)
-        MPI_Aint lb = 0;
-        MPI_Type_get_extent(block, &lb, &extent);
-#else
-        MPI_Type_extent(block, &extent);
-#endif  /* defined(PARSEC_HAVE_MPI_20) */
-        parsec_arena_construct(tp->arenas[PARSEC_a2a_DEFAULT_ARENA],
-                               extent, PARSEC_ARENA_ALIGNMENT_SSE,
-                               block);
-    }
-#endif
+    parsec_matrix_add2arena_rect(tp->arenas[PARSEC_a2a_DEFAULT_ARENA],
+                                 parsec_datatype_int32_t,
+                                 size, 1, size);
 
     return (parsec_taskpool_t*)tp;
 }
