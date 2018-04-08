@@ -1,16 +1,16 @@
 /*
- * Copyright (c) 2017      The University of Tennessee and The University
+ * Copyright (c) 2017-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
+#include "parsec.h"
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
-#include "parsec/parsec_config.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/class/parsec_rwlock.h"
 #include "parsec/class/barrier.h"

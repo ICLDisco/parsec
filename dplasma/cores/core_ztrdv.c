@@ -1,12 +1,11 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
-#include "parsec/parsec_config.h"
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -12,7 +12,6 @@
 #include <math.h>
 #include <cblas.h>
 #include <lapacke.h>
-#include "parsec.h"
 #include "dplasma_complex.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include <core_blas.h>

@@ -884,6 +884,7 @@ install(FILES
 
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/debug.h
   DESTINATION include/parsec/utils)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_object.h
@@ -935,7 +936,6 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/show_help.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/zone_malloc.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/debug.h
     DESTINATION include/parsec/utils )
 
   install(FILES

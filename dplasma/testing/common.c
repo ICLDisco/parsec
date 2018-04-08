@@ -1,16 +1,14 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  */
-#include "parsec/parsec_config.h"
 #include "parsec.h"
 #include "parsec/execution_stream.h"
 #include "parsec/utils/mca_param.h"
 
 #include "common.h"
-#include "common_timing.h"
 
 #include <stdlib.h>
 #include <stdio.h>

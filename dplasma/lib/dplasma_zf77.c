@@ -13,7 +13,6 @@
 /*
  * @precisions normal z -> c d s
  */
-#include "parsec.h"
 #include <core_blas.h>
 #include "dplasma.h"
 #include "dplasmaf77.h"

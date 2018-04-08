@@ -1,9 +1,8 @@
 /*
- * Copyright (c) 2013-2017 The University of Tennessee and The University
+ * Copyright (c) 2013-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "parsec/parsec_config.h"
 #include "parsec.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"

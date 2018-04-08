@@ -18,7 +18,7 @@
 #include "parsec/profiling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/arena.h"
-#include "parsec/utils/output.h"
+#include "parsec/utils/debug.h"
 #include "parsec/utils/argv.h"
 #include "parsec/scheduling.h"
 

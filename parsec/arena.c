@@ -9,6 +9,7 @@
 #include "parsec/arena.h"
 #include "parsec/class/lifo.h"
 #include "parsec/data_internal.h"
+#include "parsec/utils/debug.h"
 #include <limits.h>
 
 #if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET)

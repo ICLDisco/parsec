@@ -8,7 +8,7 @@
 #include "parsec/class/lifo.h"
 #include "parsec/constants.h"
 #include "parsec/devices/device.h"
-#include "parsec/utils/output.h"
+#include "parsec/utils/debug.h"
 #include "parsec/data_internal.h"
 #include "parsec/arena.h"
 #include "parsec/parsec_description_structures.h"

@@ -161,6 +161,16 @@ extern void (*parsec_weaksym_exit)(int status);
 #define PARSEC_DEBUG_VERBOSE(...) do{} while(0)
 #endif /* defined(PARSEC_DEBUG_VERBOSE) */
 
+/** $brief To check if any parsec function returned error.
+ */
+#define PARSEC_CHECK_ERROR(rc, MSG)                             \
+    if( rc < 0 ) {                                              \
+        parsec_warning( "**** Error occurred in file: %s"       \
+                        ":%d : "                                \
+                        "%s", __FILE__, __LINE__, MSG );        \
+        exit(-1);                                               \
+    }                                                           \
+
 END_C_DECLS
 
 /** @} */

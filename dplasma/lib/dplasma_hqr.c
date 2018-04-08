@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -70,8 +70,6 @@
  *     high level tree to reduce communications.
  *     These lines are defined by (i-k)/p = 0.
  */
-#include "parsec/parsec_config.h"
-#include "parsec.h"
 #include "dplasma.h"
 #include "dplasma_qr_param.h"
 

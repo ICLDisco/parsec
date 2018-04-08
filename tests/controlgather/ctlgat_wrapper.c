@@ -4,7 +4,6 @@
  *                         reserved.
  */
 
-#include "parsec/parsec_config.h"
 #include "parsec.h"
 #include "parsec/data_distribution.h"
 #include "parsec/arena.h"
