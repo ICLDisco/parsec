@@ -117,15 +117,6 @@ int main(int argc, char ** argv)
         }
     }
 
-    #if 0
-    char hostname[1024];
-    gethostname(hostname, 1024);
-    printf("ssh %s module \tgdb -p %d\n", hostname, getpid());
-    int ls = 1;
-    while(ls) {
-    }
-    #endif
-
     /* Registering the dtd_taskpool with PARSEC context */
     int data1 = 10, data2 = 20;
     double data3 = 10.05;

@@ -1,18 +1,13 @@
-#include "parsec/parsec_config.h"
+/* parsec things */
+#include "parsec.h"
 
 /* system and io */
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-/* parsec things */
-#include "parsec.h"
-#include "parsec/profiling.h"
-#ifdef PARSEC_VTRACE
-#include "parsec/vt_user.h"
-#endif
 
 #include "common_data.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/utils/debug.h"
 
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
@@ -63,7 +58,7 @@ call_to_kernel_type_write( parsec_execution_stream_t    *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1;
+    int rank = 0, world = 1, cores = -1;
     int nb, nt, i, no_of_tasks, key;
     parsec_tiled_matrix_dc_t *dcA;
 
@@ -74,9 +69,6 @@ int main(int argc, char ** argv)
     }
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
 #endif
 
     if( world != 1 ) {
@@ -115,7 +107,7 @@ int main(int argc, char ** argv)
     int *real_data;
     for( i = 0; i < no_of_tasks; i++ ) {
         key = A->data_key(A, i, 0);
-        if( rank == A->rank_of_key(A, key) ) {
+        if( rank == (int)A->rank_of_key(A, key) ) {
             data = A->data_of_key(A, key);
             gdata = data->device_copies[0];
             real_data = PARSEC_DATA_COPY_GET_PTR((parsec_data_copy_t *) gdata);
@@ -123,15 +115,6 @@ int main(int argc, char ** argv)
             parsec_output( 0, "Node: %d A At key[%d]: %d\n", rank, key, *real_data );
         }
     }
-
-    #if 0
-    char hostname[1024];
-    gethostname(hostname, 1024);
-    printf("ssh %s module \tgdb -p %d\n", hostname, getpid());
-    int ls = 1;
-    while(ls) {
-    }
-    #endif
 
     /* Registering the dtd_taskpool with PARSEC context */
     int data1 = 10, data2 = 20;

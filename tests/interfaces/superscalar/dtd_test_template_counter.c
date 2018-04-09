@@ -77,15 +77,6 @@ int main(int argc, char **argv)
 
     parsec = parsec_init( cores, &argc, &argv );
 
-#if 0
-    char hostname[1024];
-    gethostname(hostname, 1024);
-    printf("ssh %s module \tgdb -p %d\n", hostname, getpid());
-    int ls = 1;
-    while(ls) {
-    }
-#endif
-
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
     parsec_matrix_add2arena_rect(parsec_dtd_arenas[TILE_FULL],

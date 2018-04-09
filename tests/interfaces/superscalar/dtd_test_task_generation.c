@@ -151,15 +151,6 @@ int main(int argc, char ** argv)
                        "We insert 10000 tasks and atomically increase a global counter to see if %d task executed\n\n", total_tasks );
     }
 
-#if 0
-    char hostname[1024];
-    gethostname(hostname, 1024);
-    printf("ssh %s module load gdb gdb -p %d\n", hostname, getpid());
-    int ls = 1;
-    while(ls) {
-    }
-#endif
-
     /* Registering the dtd_handle with PARSEC context */
     rc = parsec_enqueue( parsec, dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
