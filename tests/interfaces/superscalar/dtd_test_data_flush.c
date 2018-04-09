@@ -1,17 +1,14 @@
-#include "parsec/parsec_config.h"
+/* parsec things */
+#include "parsec.h"
 
 /* system and io */
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-/* parsec things */
-#include "parsec.h"
-#include "parsec/profiling.h"
 
 #include "common_data.h"
 #include "common_timing.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
-#include "dplasma/testing/common_timing.h"
+#include "parsec/utils/debug.h"
 
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>

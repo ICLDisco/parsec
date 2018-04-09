@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The University of Tennessee and The University
+ * Copyright (c) 2012-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * $COPYRIGHT
@@ -11,7 +11,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "parsec/parsec_config.h"
 #include "dplasma/lib/butterfly_map.h"
 #include "parsec/data_internal.h"
 

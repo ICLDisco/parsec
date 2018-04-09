@@ -1,10 +1,9 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#include "parsec/parsec_config.h"
 #include "parsec.h"
 #include "rtt_wrapper.h"
 #include "rtt_data.h"
@@ -14,6 +13,7 @@
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
+#include "parsec/utils/debug.h"
 
 int main(int argc, char *argv[])
 {

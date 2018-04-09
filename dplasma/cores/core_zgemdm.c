@@ -15,7 +15,6 @@
  * @precisions normal z -> c d s
  */
 #include <lapacke.h>
-#include "parsec/parsec_config.h"
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 

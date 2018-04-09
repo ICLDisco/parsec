@@ -9,6 +9,7 @@
  *
  */
 #include <parsec.h>
+#include "parsec/utils/debug.h"
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 #endif

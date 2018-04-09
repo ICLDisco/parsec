@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015-2017 The University of Tennessee and The University
+ * Copyright (c) 2015-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,15 +12,12 @@
  *
  */
 
-#include "parsec/parsec_config.h"
+/* parsec headers */
+#include "parsec.h"
 
 /* system and io */
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-/* parsec headers */
-#include "parsec.h"
-#include "parsec/profiling.h"
 
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 

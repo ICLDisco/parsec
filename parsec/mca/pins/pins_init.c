@@ -10,6 +10,7 @@
 #include "parsec/execution_stream.h"
 #include "parsec/profiling.h"
 #include "parsec/utils/mca_param.h"
+#include "parsec/utils/debug.h"
 
 #define MAX_NAME_SIZE 100 /* arbitrary module name limit for 'safety' */
 

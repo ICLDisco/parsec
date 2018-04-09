@@ -8,7 +8,6 @@
 #define PARSEC_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_config.h"
-#include "parsec/utils/debug.h"
 
 BEGIN_C_DECLS
 
@@ -27,17 +26,6 @@ BEGIN_C_DECLS
 #define PARSEC_VERSION    2
 /** @brief Define the PaRSEC minor version number */
 #define PARSEC_SUBVERSION 0
-
-/** $brief To check if any parsec function returned error.
-  *        Should be used by users to check correctness.
-  */
-#define PARSEC_CHECK_ERROR(rc, MSG) \
-        if( rc < 0 ) {            \
-            parsec_warning( "**** Error occurred in file: %s"   \
-                            ":%d : "                            \
-                            "%s", __FILE__, __LINE__, MSG );    \
-            exit(-1);                                           \
-        }                                                       \
 
 /**
  * @brief Define a weak symbol called by PaRSEC in case of fatal error.

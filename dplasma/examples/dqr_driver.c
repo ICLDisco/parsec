@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The University of Tennessee and The University
+ * Copyright (c) 2016-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -7,7 +7,6 @@
  *  Link with $CC $(pkg-config --libs dplasma) -o dqr_driver dqr_driver.o
  *
  */
-#include "parsec/parsec_config.h"
 #include "dplasma.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <getopt.h>

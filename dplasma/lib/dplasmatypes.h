@@ -6,7 +6,6 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "parsec.h"
 #include "dplasma.h"
 #include "parsec/arena.h"
 

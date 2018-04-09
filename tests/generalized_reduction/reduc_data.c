@@ -1,18 +1,15 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @precisions normal z -> s d c
  *
  */
 
-#include "parsec/parsec_config.h"
+#include "parsec.h"
 #include "reduc_data.h"
 #include "stdarg.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
-
-#include <assert.h>
 
 parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int mb, int mt, int typesize)
 {

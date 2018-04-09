@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#include "parsec/parsec_config.h"
+#include "parsec.h"
 #undef NDEBUG
 #include <pthread.h>
 #include <stdarg.h>

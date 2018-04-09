@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec/parsec_config.h"
+#include "parsec.h"
 #include "ctlgat_data.h"
 #include "stdarg.h"
 #include "parsec/data_distribution.h"

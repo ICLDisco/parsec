@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The University of Tennessee and The University
+ * Copyright (c) 2011-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -9,7 +9,6 @@
  *
  */
 
-#include "parsec/parsec_config.h"
 #include "dplasma.h"
 #include <math.h>
 #include "parsec/vpmap.h"

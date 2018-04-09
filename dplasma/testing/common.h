@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -7,8 +7,8 @@
 #ifndef _TESTSCOMMON_H
 #define _TESTSCOMMON_H
 
-/* includes used by the testing_*.c */
-#include "parsec/parsec_config.h"
+/* parsec things */
+#include "parsec.h"
 
 /* system and io */
 #include <stdlib.h>
@@ -19,10 +19,10 @@
 #include <cblas.h>
 #include <lapacke.h>
 #include <core_blas.h>
-/* parsec things */
-#include "parsec.h"
+
 #include "parsec/profiling.h"
 #include "parsec/parsec_internal.h"
+#include "parsec/utils/debug.h"
 #include "dplasma.h"
 /* timings */
 #include "common_timing.h"
