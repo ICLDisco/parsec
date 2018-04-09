@@ -2639,8 +2639,13 @@ parsec_dtd_block_if_threshold_reached(parsec_dtd_taskpool_t *dtd_tp, int task_th
  *
  */
 void
-parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
+parsec_insert_dtd_task(parsec_task_t *__this_task)
 {
+    if( PARSEC_TASKPOOL_TYPE_DTD != __this_task->taskpool->taskpool_type ) {
+        parsec_fatal("Error! Taskpool is of incorrect type\n");
+    }
+
+    parsec_dtd_task_t *this_task = (parsec_dtd_task_t *)__this_task;
     const parsec_task_class_t *tc          =  this_task->super.task_class;
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)this_task->super.taskpool;
 
@@ -3007,7 +3012,7 @@ parsec_dtd_iterator_arg_set_param_local(int first_arg, void *tile,
 }
 
 int
-parsec_dtd_arg_set_param_remote(int first_arg, void *tile,
+parsec_dtd_iterator_arg_set_param_remote(int first_arg, void *tile,
                                 int tile_op_type, void *cb_data)
 {
     (void)tile;
@@ -3042,32 +3047,10 @@ parsec_dtd_arg_iterator(va_list args, parsec_dtd_arg_cb *cb, void *cb_data)
     return 1;
 }
 
-/* **************************************************************************** */
-/**
- * Function to insert task in PaRSEC
- *
- * Each time the user calls it a task is created with the
- * respective parameters the user has passed. For each task
- * class a structure known as "function" is created as well.
- * (e.g. for Cholesky 4 function structures are created for
- * each task class). The flow of data from each task to others
- * and all other dependencies are tracked from this function.
- *
- * @param[in,out]   __tp
- *                      DTD taskpool
- * @param[in]       fpointer
- *                      The pointer to the body of the task
- * @param[in]       priority
- *                      The priority of the task
- * @param[in]       ...
- *                      Variadic parameters of the task
- *
- * @ingroup         DTD_INTERFACE
- */
-void
-parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
-                                 parsec_dtd_funcptr_t *fpointer, int priority,
-                                 const char *name_of_kernel, ... )
+static inline parsec_task_t *
+__parsec_dtd_taskpool_create_task(parsec_taskpool_t  *tp,
+                                  parsec_dtd_funcptr_t *fpointer, int priority,
+                                  const char *name_of_kernel, va_list args)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
 
@@ -3083,7 +3066,7 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
                       "and then try to insert task. Thank you\n" );
     }
 
-    va_list args, args_for_size, args_for_rank;
+    va_list args_for_size, args_for_rank;
     parsec_dtd_common_args_t common_args;
 
     common_args.rank = -1; common_args.write_flow_count = 1;
@@ -3091,7 +3074,6 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
     common_args.count_of_params_sent_by_user = 0;
     common_args.size_of_params = 0; common_args.flow_index = 0;
 
-    va_start(args, name_of_kernel);
 #if defined(PARSEC_PROF_TRACE)
     parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile,
                            insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL );
@@ -3161,13 +3143,74 @@ parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
         if( common_args.tmp_param != NULL )
             common_args.tmp_param->next = NULL;
     } else {
-        parsec_dtd_arg_iterator(args, parsec_dtd_arg_set_param_remote, (void*)&common_args);
+        parsec_dtd_arg_iterator(args, parsec_dtd_iterator_arg_set_param_remote, (void*)&common_args);
     }
-    va_end(args);
 
 #if defined(DISTRIBUTED)
     assert(this_task->rank != -1);
 #endif
 
-    parsec_insert_dtd_task( this_task );
+    return (parsec_task_t *)this_task;
+}
+
+/* **************************************************************************** */
+/**
+ * Function to insert task in PaRSEC
+ *
+ * Each time the user calls it a task is created with the
+ * respective parameters the user has passed. For each task
+ * class a structure known as "function" is created as well.
+ * (e.g. for Cholesky 4 function structures are created for
+ * each task class). The flow of data from each task to others
+ * and all other dependencies are tracked from this function.
+ *
+ * @param[in,out]   __tp
+ *                      DTD taskpool
+ * @param[in]       fpointer
+ *                      The pointer to the body of the task
+ * @param[in]       priority
+ *                      The priority of the task
+ * @param[in]       ...
+ *                      Variadic parameters of the task
+ *
+ * @ingroup         DTD_INTERFACE
+ */
+void
+parsec_dtd_taskpool_insert_task(parsec_taskpool_t  *tp,
+                                parsec_dtd_funcptr_t *fpointer, int priority,
+                                const char *name_of_kernel, ...)
+{
+    va_list args;
+    va_start(args, name_of_kernel);
+
+    parsec_task_t *this_task = __parsec_dtd_taskpool_create_task(tp, fpointer, priority,
+                                                                 name_of_kernel, args);
+    va_end(args);
+
+    if(NULL != this_task) {
+        parsec_insert_dtd_task(this_task);
+    } else {
+        parsec_fatal("Unknow Error! Could not create task\n");
+    }
+}
+
+parsec_task_t *
+parsec_dtd_taskpool_create_task(parsec_taskpool_t  *tp,
+                                parsec_dtd_funcptr_t *fpointer, int priority,
+                                const char *name_of_kernel, ...)
+{
+    va_list args;
+    va_start(args, name_of_kernel);
+
+    parsec_task_t *this_task = __parsec_dtd_taskpool_create_task(tp, fpointer, priority,
+                                                                 name_of_kernel, args);
+    va_end(args);
+
+    return this_task;
+}
+
+parsec_taskpool_t *
+parsec_dtd_get_taskpool(parsec_task_t *this_task)
+{
+    return this_task->taskpool;
 }

@@ -18,6 +18,7 @@ parsec_addtest(C dtd_test_task_placement "dtd_test_task_placement.c;${COMMON_DAT
 parsec_addtest(C dtd_test_insert_task_interface "dtd_test_insert_task_interface.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_data_flush "dtd_test_data_flush.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_global_id_for_dc_assumed "dtd_test_global_id_for_dc_assumed.c;${COMMON_DATA}")
+parsec_addtest(C dtd_test_explicit_task_creation "dtd_test_explicit_task_creation.c;${COMMON_DATA}")
 
 #
 # Shared Memory Testings

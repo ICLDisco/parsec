@@ -312,9 +312,6 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
                                parsec_dtd_task_param_t *current_param, int arg_size );
 
 void
-parsec_insert_dtd_task( parsec_dtd_task_t *this_task );
-
-void
 parsec_dtd_startup( parsec_context_t *context,
                     parsec_taskpool_t *tp,
                     parsec_task_t **pready_list );

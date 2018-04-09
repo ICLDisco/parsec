@@ -358,7 +358,7 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
     if( tmp_param != NULL )
         tmp_param->next = NULL;
 
-    parsec_insert_dtd_task( this_task );
+    parsec_insert_dtd_task( (parsec_task_t *)this_task );
 }
 
 static int
