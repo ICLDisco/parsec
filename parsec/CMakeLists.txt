@@ -81,6 +81,11 @@ list(APPEND SOURCES parsec_hwloc.c)
 
 if (CUDA_FOUND)
   list(APPEND SOURCES devices/cuda/dev_cuda.c)
+  if( PARSEC_WITH_DEVEL_HEADERS )
+    install(FILES
+            ${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda/dev_cuda.h
+            DESTINATION include/parsec/devices/cuda )
+  endif( PARSEC_WITH_DEVEL_HEADERS )
 endif (CUDA_FOUND)
 
 if( PARSEC_PROF_GRAPHER )

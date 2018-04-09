@@ -6,6 +6,12 @@ if( BUILD_PARSEC )
 
   INSTALL(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/interfaces/superscalar/insert_function.h
-    DESTINATION include/parsec)
+    DESTINATION include/parsec/interfaces/superscalar/)
+
+  if( PARSEC_WITH_DEVEL_HEADERS )
+    install(FILES
+            ${CMAKE_CURRENT_SOURCE_DIR}/interfaces/superscalar/insert_function_internal.h
+            DESTINATION include/parsec/interfaces/superscalar/)
+  endif( PARSEC_WITH_DEVEL_HEADERS )
 
 endif( BUILD_PARSEC )

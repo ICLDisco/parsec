@@ -953,10 +953,6 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/devices/device.h
     DESTINATION include/parsec/devices )
 
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/devices/cuda/dev_cuda.h
-    DESTINATION include/parsec/devices/cuda )
-
 endif(PARSEC_WITH_DEVEL_HEADERS)
 
 #
