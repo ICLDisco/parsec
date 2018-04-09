@@ -10,7 +10,6 @@ endif()
 # Detecting atomic support is an utterly annoying process, as it is extremely sensitive to
 # any software environment change (including other variables). Thus, prevent CMake from
 # caching any temporary in order to force the full detection every time.
-unset(PARSEC_HAVE_STD_C1x CACHE)
 unset(PARSEC_ATOMIC_USE_C11_ATOMICS CACHE)
 
 #

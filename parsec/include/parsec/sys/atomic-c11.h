@@ -83,7 +83,7 @@ int32_t parsec_atomic_cas_128b(volatile __uint128_t* location,
 {
     return atomic_compare_exchange_strong( (_Atomic __uint128_t*)location, &old_value, new_value );
 }
-#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B 1
+#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B
 #endif  /* defined(PARSEC_HAVE_UINT128b) */
 
 #if PARSEC_SIZEOF_VOID_P == 4
