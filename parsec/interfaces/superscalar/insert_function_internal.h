@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The University of Tennessee and The University
+ * Copyright (c) 2013-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -474,8 +474,6 @@ parsec_dtd_release_data_copy( parsec_data_copy_t *data )
     OBJ_RELEASE(data);
 }
 
-#define parsec_dtd_retain_floating_data(data) parsec_dtd_retain_data_copy(data)
-#define parsec_dtd_release_floating_data(data) parsec_dtd_release_data_copy(data)
 
 /***************************************************************************//**
  *
@@ -536,6 +534,26 @@ parsec_dtd_two_hash_table_unlock( parsec_dtd_two_hash_table_t *two_hash_table )
 {
     parsec_atomic_unlock(&two_hash_table->atomic_lock);
 }
+
+
+/***************************************************************************
+ *
+ *     Iterator functions for parsec_dtd_arg_iterator.
+ *
+ **************************************************************************/
+
+int
+parsec_dtd_iterator_arg_set_param_local(int first_arg, void *tile,
+                                        int tile_op_type, void *cb_data);
+int
+parsec_dtd_iterator_arg_set_param_remote(int first_arg, void *tile,
+                                         int tile_op_type, void *cb_data);
+int
+parsec_dtd_iterator_arg_get_rank(int first_arg, void *tile,
+                                 int tile_op_type, void *cb_data);
+int
+parsec_dtd_iterator_arg_get_size(int first_arg, void *tile,
+                                 int tile_op_type, void *cb_data);
 
 END_C_DECLS
 

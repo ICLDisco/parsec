@@ -1578,7 +1578,7 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
                                 this_dtd_task->super.data[flow_index].data_in = this_task->data[flow_index].data_in;
                                 this_dtd_task->super.data[flow_index].data_out = this_task->data[flow_index].data_out;
                                 /* Push data in LRU cache */
-                                parsec_dtd_retain_floating_data(this_task->data[flow_index].data_out);
+                                parsec_dtd_retain_data_copy(this_task->data[flow_index].data_out);
                             }
                             track_flow |= (1U<<flow_index); /* to make sure we are retaining the data only once */
                         }
@@ -1717,7 +1717,7 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
             if( !((FLOW_OF(this_task, current_flow))->op_type & DONT_TRACK) ) {
                 if( !((FLOW_OF(this_task, current_flow))->flags & DATA_RELEASED) ) {
                     (FLOW_OF(this_task, current_flow))->flags |= DATA_RELEASED;
-                    parsec_dtd_release_floating_data(this_task->super.data[current_flow].data_in);
+                    parsec_dtd_release_data_copy(this_task->super.data[current_flow].data_in);
                 }
             }
             if(PARSEC_DTD_FLUSH_TC_ID == this_task->super.task_class->task_class_id) {
@@ -1761,7 +1761,7 @@ parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task )
         for( current_flow = 0; current_flow < this_task->super.task_class->nb_flows; current_flow++ ) {
             if( !((FLOW_OF(this_task, current_flow))->op_type & DONT_TRACK) ) {
                 if( NULL != this_task->super.data[current_flow].data_out ) {
-                    parsec_dtd_release_floating_data(this_task->super.data[current_flow].data_out);
+                    parsec_dtd_release_data_copy(this_task->super.data[current_flow].data_out);
                 }
             }
 
