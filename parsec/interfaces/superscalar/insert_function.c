@@ -54,6 +54,8 @@
 int parsec_dtd_debug_output;
 static int parsec_dtd_debug_verbose = -1;
 
+static int parsec_dtd_profile_verbose = 0;
+
 static parsec_dc_key_t parsec_dtd_dc_id = 0;
 uint32_t __parsec_dtd_is_initialized   = 0; /**< Indicates init of dtd environment is completed */
 
@@ -375,6 +377,12 @@ parsec_dtd_lazy_init(void)
     (void)parsec_mca_param_reg_int_name("dtd", "threshold_size",
                                        "Registers the supplied size overriding the default size of threshold size",
                                        false, false, parsec_dtd_threshold_size, &parsec_dtd_threshold_size);
+
+    /* Registering mca param for threshold size */
+    (void)parsec_mca_param_reg_int_name("dtd", "profile_verbose",
+                                       "This param turns events that profiles task insertion and other dtd overheads",
+                                       false, false, parsec_dtd_profile_verbose, &parsec_dtd_profile_verbose);
+
 
     /* Register separate dtd_debug_output_stream */
     if(-1 != parsec_dtd_debug_verbose) {
@@ -1233,10 +1241,12 @@ parsec_dtd_taskpool_new(void)
                                   __tp->super.nb_pending_actions);
 
 #if defined(PARSEC_PROF_TRACE) /* TODO: should not be per taskpool */
-    parsec_dtd_add_profiling_info_generic((parsec_taskpool_t *)__tp, "Insert_task",
-                               &insert_task_trace_keyin, &insert_task_trace_keyout );
-    parsec_dtd_add_profiling_info_generic((parsec_taskpool_t *)__tp, "Hash_table_duration",
-                               &hashtable_trace_keyin, &hashtable_trace_keyout);
+    if(parsec_dtd_profile_verbose) {
+        parsec_dtd_add_profiling_info_generic((parsec_taskpool_t *)__tp, "Insert_task",
+                                   &insert_task_trace_keyin, &insert_task_trace_keyout );
+        parsec_dtd_add_profiling_info_generic((parsec_taskpool_t *)__tp, "Hash_table_duration",
+                                   &hashtable_trace_keyin, &hashtable_trace_keyout);
+    }
 #endif
 
     /* The first taskclass of every taskpool is the flush taskclass */
@@ -1459,10 +1469,9 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
         if(!not_ready) {
             assert(parsec_dtd_task_is_local(current_task));
 #if defined(PARSEC_DEBUG_NOISIER)
-            char tmp[64];
             PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                                  "------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
-                                 "%d\n-----\n", current_task->super.task_class->key_functions->key_print(tmp, 64, current_task->ht_item.key, NULL),
+                                 "%d\n-----\n", current_task->super.task_class->name, current_task->ht_item.key,
                                  current_task->super.task_class->nb_flows, current_task->flow_count);
 #endif
 
@@ -2418,7 +2427,8 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
                 flow->flags |= TASK_INSERTED;
                 parsec_dtd_untrack_remote_dep( tp, key );
 #if defined(PARSEC_PROF_TRACE)
-                parsec_profiling_trace(tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile, hashtable_trace_keyin, 0, tp->super.taskpool_id, NULL );
+                if(parsec_dtd_profile_verbose)
+                    parsec_profiling_ts_trace(hashtable_trace_keyin, 0, tp->super.taskpool_id, NULL);
 #endif
                 parsec_dtd_track_task( tp, key, real_parent_task );
                 remote_dep_dequeue_delayed_dep_release(dep);
@@ -2688,7 +2698,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         if( tile->arena_index == -1 ) {
             tile->arena_index = (tile_op_type & GET_REGION_INFO);
         }
-        (FLOW_OF(this_task, flow_index))->arena_index = tile->arena_index;
+        (FLOW_OF(this_task, flow_index))->arena_index = (tile_op_type & GET_REGION_INFO);
 
         /* Locking the last_user of the tile */
         parsec_dtd_last_user_lock( &(tile->last_user) );
@@ -2841,6 +2851,21 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                                                (parsec_task_class_t *)this_task->super.task_class,
                                                (PARENT_OF(this_task, flow_index))->flow_index, flow_index );
 
+                /* There might be cases where the parent might have iterated it's successor
+                 * while we are forming a task using same data in multiple flows. In those
+                 * cases the task we are forming will never be enabled if it has an order of
+                 * operation on the data as following: R, .... R, W. This takes care of those
+                 * cases.
+                 */
+                if(last_user.task == this_task) {
+                    if( (last_user.op_type & GET_OP_TYPE) == INPUT ) {
+                        if( this_task->super.data[last_user.flow_index].data_in != NULL ) {
+                            (void)parsec_atomic_add_32b( (int *)&(this_task->super.data[last_user.flow_index].data_in->readers) , -1 );
+                        }
+                    }
+
+                }
+
                 /* we can avoid all the hash table crap if the last_writer is not alive */
                 if( put_in_chain ) {
                     parsec_dtd_set_descendant((PARENT_OF(this_task, flow_index))->task, (PARENT_OF(this_task, flow_index))->flow_index,
@@ -2921,9 +2946,8 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
     satisfied_flow++;
 
 #if defined(PARSEC_PROF_TRACE)
-    /* try using PARSEC_PROFILING_TRACE */
-    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile,
-                           insert_task_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
+    if(parsec_dtd_profile_verbose)
+        parsec_profiling_ts_trace(insert_task_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL);
 #endif
 
     if( parsec_dtd_task_is_local(this_task) ) {
@@ -3075,9 +3099,10 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t  *tp,
     common_args.size_of_params = 0; common_args.flow_index = 0;
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile,
-                           insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL );
+    if(parsec_dtd_profile_verbose)
+        parsec_profiling_ts_trace(insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL);
 #endif
+
     /* extracting the rank of the task */
     va_copy(args_for_rank, args);
     parsec_dtd_arg_iterator(args_for_rank, parsec_dtd_iterator_arg_get_rank, (void*)&common_args);

@@ -574,14 +574,14 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
 
     task.taskpool   = origin->taskpool;
     task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
-    if( NULL == task.task_class ) {  /* This can only happen for DTD */
-        assert(origin->incoming_mask == 0);
-        return -2; /* taskclass not yet discovered locally. Defer the task activation */
-    }
 
     if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
         dtd_tp = (parsec_dtd_taskpool_t *)origin->taskpool;
         parsec_dtd_two_hash_table_lock(dtd_tp->two_hash_table);
+        if( NULL == task.task_class ) {  /* This can only happen for DTD */
+            assert(origin->incoming_mask == 0);
+            return -2; /* taskclass not yet discovered locally. Defer the task activation */
+        }
     }
 
     task.priority = 0;  /* unknown yet */
@@ -843,7 +843,7 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
             ret = remote_dep_mpi_progress(es);
         } while(ret);
 
-        if( !ret 
+        if( !ret
          && ((comm_yield == 2)
           || (comm_yield == 1
            && !parsec_list_nolock_is_empty(&dep_activates_fifo)
@@ -1831,10 +1831,41 @@ static void remote_dep_mpi_new_taskpool( parsec_execution_stream_t* es,
             int rc, position = 0;
             deps->taskpool = NULL;
             rc = remote_dep_get_datatypes(es, deps); assert( -1 != rc );
+            assert(deps->taskpool != NULL);
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate NEWOBJ\t% -8s\twith datakey %lx\tparams %lx",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                     deps->msg.deps, deps->msg.output_mask);
             item = parsec_list_nolock_remove(&dep_activates_noobj_fifo, item);
+
+            /* In case of DTD execution, receiving rank might not have discovered
+             * the task responsible for this message. So we have to put this message
+             * in a hash table so that we can activate it, when this rank discovers it.
+             */
+            if( -2 == rc ) { /* DTD problems, defer activating this remote dep */
+                deps->taskpool = (parsec_taskpool_t*)buffer;
+                assert(deps->incoming_mask != deps->msg.output_mask);
+                int i;
+                parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)obj;
+
+                for( i = 0; deps->msg.output_mask >> i; i++ ) {
+                    if( !(deps->msg.output_mask & (1U<<i) ) ) continue;
+                    if( deps->incoming_mask & (1U<<i) ) { /* we got successor for this flag, move to next */
+                        assert(0);
+                    }
+                    uint64_t key = (uint64_t)deps->msg.locals[0].value << 32 | (1U<<i);
+#if defined(PARSEC_PROF_TRACE)
+                    parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
+#endif
+                    parsec_dtd_track_remote_dep( dtd_tp, key, deps );
+                }
+
+                /* unlocking the two hash table */
+                parsec_dtd_two_hash_table_unlock( dtd_tp->two_hash_table );
+
+                assert(deps->incoming_mask == 0);
+                continue;
+            }
+
             remote_dep_mpi_recv_activate(es, deps, buffer, deps->msg.length, &position);
             free(buffer);
             (void)rc;
