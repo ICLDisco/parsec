@@ -10,6 +10,7 @@
 #include "parsec/runtime.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/class/parsec_hash_table.h"
+#include "parsec/parsec_internal.h"
 
 /** @defgroup parsec_internal_datarepo Data Repositories
  *  @ingroup parsec_internal
@@ -85,10 +86,10 @@ struct data_repo_entry_s {
     struct parsec_data_copy_s *data[1];
 };
 
-typedef struct data_repo_s {
+struct data_repo_s {
     parsec_hash_table_t table;
     unsigned int       nbdata;
-} data_repo_t;
+};
 
 BEGIN_C_DECLS
 

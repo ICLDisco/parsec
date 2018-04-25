@@ -1,0 +1,93 @@
+#!/bin/sh
+
+LOCATION=`dirname $0`/../../
+USER_OPTIONS="$* "
+SAVE_LDFLAGS=$LDFLAGS
+
+#
+# This file is for a cross-compilation. PaRSEC will be compiled
+# on the head node, using the BG/Q toolchain. All dependencies
+# (including PLASMA) have to be compiled for the expected target
+# architecture.
+#
+# Based on the CMake documentation the first step is to convince
+# cmake to use the following file:
+# BlueGeneQ-static-*.cmake
+#
+# This can be done by setting 
+# - CMAKE_SYSTEM_NAME to BlueGeneQ-static
+#
+
+cat << _EOF
+#
+# Preparing the compilation of the native tools.
+#
+_EOF
+
+
+# First make the native build, so we can use the tools
+mkdir -p native
+cd native
+rm -rf CMakeCache.txt CMakeFiles
+
+## Defaults for local native compilation
+CC=${CC:="gcc"}
+CXX=${CXX:="g++"}
+FC=${FC:="gfortran"}
+export CC CXX FC
+ 
+MPI="-DPARSEC_DIST_WITH_MPI=OFF"
+CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
+HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
+OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DBUILD_DPLASMA=OFF"
+
+cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${USER_OPTIONS} ../${LOCATION}
+#
+# Now let's compile the tools
+#
+make
+if [ $? -ne 0 ]; then
+  cd ..
+  echo "### Native tools compilation failed. Exiting."
+  exit 1
+fi
+
+cd ..
+#
+# Now let's move on with the second step, cross-compile for
+# the BlueGeneQ
+#
+rm -rf CMakeCache.txt CMakeFiles
+
+cat << _EOF
+#
+# Preparing the cross-compile of the BlueGeneQ part
+#
+_EOF
+
+#
+# Generate the cross-compiling file
+#
+cat << _EOF > Toolchain-ppc-BlueGeneQ.cmake
+# this one is important
+SET(CMAKE_SYSTEM_NAME BlueGeneQ-static)
+SET(CMAKE_SYSTEM_PROCESSOR ppc64)
+_EOF
+
+## Defaults for BG/Q cross-compilation
+CC=mpixlc_r
+CXX=mpixlcxx_r
+FC=mpixlf77_r
+
+## Disable DPLASMA for now, until we succeed compiling PLASMA
+PALSMA="-DBUILD_DPLASMA=OFF"
+MPI="-DPARSEC_DIST_WITH_MPI=ON"
+HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
+CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
+OPTS="-DBUILD_SHARED_LIBS=OFF -DBUILD_TOOLS=OFF -DPARSEC_MPI_WITH_WRAPPERS=ON"
+
+# Done with variable allocation, do the thing with Cmake
+export CC CXX FC CFLAGS
+
+cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=Toolchain-ppc-BlueGeneQ.cmake -DIMPORT_EXECUTABLES=native/ImportExecutables.cmake ${PLASMA} ${MPI} ${HWLOC} ${CUDA} ${OPTS} ${USER_OPTIONS} ${LOCATION}
+

@@ -1666,7 +1666,7 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
  *
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
-static int
+static parsec_hook_return_t
 complete_hook_of_dtd( parsec_execution_stream_t *es,
                       parsec_task_t *this_task )
 {

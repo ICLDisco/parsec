@@ -2505,7 +2505,7 @@ jdf_l2p_t* build_l2p( const jdf_function_entry_t *f )
 {
     jdf_def_list_t   *dl;
     jdf_name_list_t  *pl;
-    jdf_l2p_t *l2p = NULL, *item;
+    jdf_l2p_t *l2p = NULL, *item = NULL;
 
     for(dl = f->locals; dl != NULL; dl = dl->next) {
         for(pl = f->parameters; pl != NULL; pl = pl->next ) {

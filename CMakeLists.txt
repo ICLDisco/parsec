@@ -87,6 +87,9 @@ option(PARSEC_SCHED_DEPS_MASK
 mark_as_advanced(PARSEC_DIST_THREAD PARSEC_DIST_PRIORITIES)
 option(PARSEC_DIST_WITH_MPI
   "Build PaRSEC for distributed memory with MPI backend (conflicts all other backends)" ON)
+option(PARSEC_MPI_WITH_WRAPPERS
+       "Use wrappers to compile MPI programs -- this disable adding MPI library to the link line, which is a problem for some wrappers" OFF)
+mark_as_advanced(PARSEC_MPI_WITH_WRAPPERS)
 if(PARSEC_DIST_WITH_MPI AND 0)
   message(FATAL_ERROR "PARSEC_DIST_WITH_MPI and PARSEC_DIST_WITH_OTHER are mutually exclusive, please select only one")
 endif()
@@ -579,7 +582,9 @@ IF( BUILD_PARSEC )
     find_package(MPI)
     set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
     if (MPI_C_FOUND)
-      list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
+      if( NOT PARSEC_MPI_WITH_WRAPPERS )
+        list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
+      endif( NOT PARSEC_MPI_WITH_WRAPPERS )
       include_directories( ${MPI_C_INCLUDE_PATH} )
       list(APPEND EXTRA_INCLUDES ${MPI_C_INCLUDE_PATH})
     else (MPI_C_FOUND)
@@ -841,15 +846,17 @@ ENDIF( BUILD_PARSEC )
 #
 # Now continue with compiling the tests.
 #
-find_program(HOSTNAME_EXE hostname)
-MARK_AS_ADVANCED(HOSTNAME_EXE)
-# Test that the launchers work
-add_test(launcher_shm   ${SHM_TEST_CMD_LIST} ${HOSTNAME_EXE})
-add_test(launcher_mpi   ${MPI_TEST_CMD_LIST} 4 ${HOSTNAME_EXE})
-add_test(launcher_gpu   ${MPI_TEST_CMD_LIST} 4 ${CTEST_GPU_LAUNCHER_OPTIONS} ${HOSTNAME_EXE})
-add_subdirectory(tests)
-add_subdirectory(examples)
-add_subdirectory(dplasma)
+if( BUILD_TESTING )
+  find_program(HOSTNAME_EXE hostname)
+  MARK_AS_ADVANCED(HOSTNAME_EXE)
+  # Test that the launchers work
+  add_test(launcher_shm   ${SHM_TEST_CMD_LIST} ${HOSTNAME_EXE})
+  add_test(launcher_mpi   ${MPI_TEST_CMD_LIST} 4 ${HOSTNAME_EXE})
+  add_test(launcher_gpu   ${MPI_TEST_CMD_LIST} 4 ${CTEST_GPU_LAUNCHER_OPTIONS} ${HOSTNAME_EXE})
+  add_subdirectory(tests)
+  add_subdirectory(examples)
+  add_subdirectory(dplasma)
+endif( BUILD_TESTING )
 
 # Configuration header
 configure_file (
