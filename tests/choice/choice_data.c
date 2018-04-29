@@ -6,10 +6,10 @@
 
 #include "parsec.h"
 #include "choice_data.h"
-#include <stdarg.h>
 #include "parsec/data_distribution.h"
 #include "parsec/data_internal.h"
-
+#include <stdarg.h>
+#include <stdio.h>
 #include <assert.h>
 
 typedef struct {

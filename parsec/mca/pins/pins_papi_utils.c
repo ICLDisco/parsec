@@ -9,6 +9,7 @@
 #include "pins_papi_utils.h"
 #include "parsec/utils/output.h"
 #include "parsec/include/parsec/os-spec-timing.h"
+#include "parsec/utils/debug.h"
 
 static int init_done = 0;
 static int init_status = 0;
@@ -36,7 +37,7 @@ pins_papi_time_type_t system_units = TIME_CYCLES;
  */
 static inline const struct pins_papi_units_s* find_unit_by_name(char* name)
 {
-    int i, j;
+    uint32_t i, j;
 
     for( i = 0; i < (sizeof(pins_papi_accepted_units) / sizeof(struct pins_papi_units_s)); j = 0, i++ ) {
         for( j = 0; NULL != pins_papi_accepted_units[i].unit_name[j]; j++ ) {
@@ -70,7 +71,7 @@ int find_unit_type_by_name(char* name, pins_papi_time_type_t* ptype)
  */
 static inline const struct pins_papi_units_s* find_unit_by_type(pins_papi_time_type_t type)
 {
-    for( int i = 0; i < sizeof(pins_papi_accepted_units); i++ ) {
+    for( uint32_t i = 0; i < sizeof(pins_papi_accepted_units); i++ ) {
         if( pins_papi_accepted_units[i].unit_type == type ) {
             return &pins_papi_accepted_units[i];
         }
@@ -133,9 +134,8 @@ int convert_units(float *time, pins_papi_time_type_t source, pins_papi_time_type
  */
 int pins_papi_init(parsec_context_t * master_context)
 {
-    int i, err;
+    int err;
 
-    (void)master_context;
     if( 0 == init_done++ ) {
         err = PAPI_library_init(PAPI_VER_CURRENT); /* this has to happen before threads get created */
         if( PAPI_VER_CURRENT != err ) {
@@ -162,6 +162,7 @@ int pins_papi_init(parsec_context_t * master_context)
                      TIMER_UNIT, find_unit_name_by_type(system_units));
     }
 
+    (void)master_context;
     return init_status;
 }
 
@@ -171,6 +172,7 @@ int pins_papi_init(parsec_context_t * master_context)
  */
 int pins_papi_fini(parsec_context_t * master_context)
 {
+    (void)master_context;
     return 0;
 }
 
@@ -282,6 +284,7 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
     event->group = 0;
     events_array->events[events_array->num_counters] = event;
     events_array->num_counters++;
+    (void)compact;
     return 0;
 }
 
@@ -350,10 +353,6 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
              * the units used by this system.
              */
             if(token[0] == 'F') {
-                char* temp_save = NULL;
-                char* temp_string = strdup(&token[1]);
-                char* temp_token = strtok_r(temp_string, ":", &temp_save);
-
                 event->frequency = 1;
                 /* the remaining of this field must contain a number, which can be either
                  * a frequency or a time interval, and a unit. If the unit is missing then

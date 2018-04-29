@@ -14,6 +14,7 @@
 #include <papi.h>
 #include "parsec/execution_stream.h"
 #include "parsec/include/parsec/os-spec-timing.h"
+#include "parsec/utils/debug.h"
 #include <errno.h>
 
 static char* mca_param_string;
