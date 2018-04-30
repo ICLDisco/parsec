@@ -74,7 +74,7 @@ option(PARSEC_WANT_HOME_CONFIG_FILES
 set(PARSEC_PTGPP_CFLAGS "--noline" CACHE STRING "Additional parsec_ptgpp precompiling flags (separate flags with ';')" )
 mark_as_advanced(PARSEC_PTGPP_CFLAGS)
 
-option(PARSEC_WITH_DEVEL_HEADERS "Install additional header files in include/parsec_ptgpp to compile generated files from JDF" OFF)
+option(PARSEC_WITH_DEVEL_HEADERS "Install additional headers in include/parsec allowing external compilation." OFF)
 
 ## Multicore scheduler parameters
 mark_as_advanced(PARSEC_SCHED_REPORT_STATISTICS)
@@ -750,7 +750,9 @@ IF("${isSystemDir}" STREQUAL "-1")
   SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 ENDIF("${isSystemDir}" STREQUAL "-1")
 
-
+# Prepare the list of include directories. From the source directory we need 2 the source
+# itself and then the specialized headers from parsec/include. If we compile with VPATH
+# we need to add the same thing for the BINARY_DIR.
 set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/parsec/include")
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
