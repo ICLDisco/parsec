@@ -12,15 +12,15 @@ macro(parsec_addtest lang target input)
     # Apparently there is no standard way to detect what MPI libraries should be used
     # for a succesful link. Thus provide a fix for all cases we have encountered so
     # far (icc/gcc/clang with OMPI and MPICH).
-    if( DEFINED MPI_Fortran_LIB_NAMES AND NOT "${MPI_Fortran_LIB_NAMES}" MATCHES "NOTFOUND$" )
+    if( DEFINED MPI_Fortran_LIBRARIES AND NOT "${MPI_Fortran_LIBRARIES}" MATCHES "NOTFOUND$" )
+      set(${target}_LIBS ${MPI_Fortran_LIBRARIES} ${${target}_LIBS})
+    elseif( DEFINED MPI_Fortran_LIB_NAMES AND NOT "${MPI_Fortran_LIB_NAMES}" MATCHES "NOTFOUND$" )
       if( DEFINED MPI_Fortran_MODULE_DIR AND NOT "${MPI_Fortran_MODULE_DIR}" MATCHES "NOTFOUND$" )
         set(${target}_LIBS -L${MPI_Fortran_MODULE_DIR} ${MPI_Fortran_LIB_NAMES} ${${target}_LIBS})
       else( DEFINED MPI_Fortran_MODULE_DIR AND NOT "${MPI_Fortran_MODULE_DIR}" MATCHES "NOTFOUND$" )
         set(${target}_LIBS ${MPI_Fortran_LIB_NAMES} ${${target}_LIBS})
       endif( DEFINED MPI_Fortran_MODULE_DIR AND NOT "${MPI_Fortran_MODULE_DIR}" MATCHES "NOTFOUND$" )
-    elseif( DEFINED MPI_Fortran_LIBRARIES AND NOT "${MPI_Fortran_LIBRARIES}" MATCHES "NOTFOUND$" )
-      set(${target}_LIBS ${MPI_Fortran_LIBRARIES} ${${target}_LIBS})
-    endif( DEFINED MPI_Fortran_LIB_NAMES AND NOT "${MPI_Fortran_LIB_NAMES}" MATCHES "NOTFOUND$" )
+    endif( DEFINED MPI_Fortran_LIBRARIES AND NOT "${MPI_Fortran_LIBRARIES}" MATCHES "NOTFOUND$" )
   endif( "${lang}" MATCHES "Fortran")
 
   if( MPI_C_FOUND )
