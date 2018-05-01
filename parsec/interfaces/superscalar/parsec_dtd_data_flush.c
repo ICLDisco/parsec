@@ -253,12 +253,6 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
      * number of expected flows done during the task creation.  */
     satisfied_flow++;
 
-#if defined(PARSEC_PROF_TRACE)
-    /* try using PARSEC_PROFILING_TRACE */
-    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile,
-                           insert_task_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
-#endif
-
     if( parsec_dtd_task_is_local(this_task) ) {
         parsec_dtd_schedule_task_if_ready(satisfied_flow, this_task,
                                           dtd_tp, &vpid);
