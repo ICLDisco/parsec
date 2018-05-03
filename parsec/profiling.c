@@ -935,15 +935,14 @@ static int switch_event_buffer( parsec_thread_profiling_t *context )
 int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpool_id,
                                     void *info, uint16_t flags )
 {
-   parsec_thread_profiling_t* ctx;
-   ctx = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
-   if( NULL != ctx )
-      return parsec_profiling_trace_flags(ctx, key, event_id, taskpool_id, info, flags);
-   else {
-      set_last_error("Profiling system: error: called parsec_profiling_ts_trace_flags"
-                     " from a thread that did not call parsec_profiling_thread_init\n");
-      return -1;
-   }
+    parsec_thread_profiling_t* ctx;
+    ctx = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
+    if( NULL != ctx )
+        return parsec_profiling_trace_flags(ctx, key, event_id, taskpool_id, info, flags);
+
+    set_last_error("Profiling system: error: called parsec_profiling_ts_trace_flags"
+                   " from a thread that did not call parsec_profiling_thread_init\n");
+    return -1;
 }
 
 int
