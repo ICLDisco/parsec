@@ -340,7 +340,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     /* 128 is an upper bound on the number of events, will be removed
      * in future APIs */
-    parsec_papi_sde_handle = papi_sde_init("PARSEC", 128);
+    parsec_papi_sde_handle = papi_sde_init("PARSEC");
     
     parsec_installdirs_open();
     parsec_mca_param_init();

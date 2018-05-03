@@ -138,19 +138,27 @@ static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     }
 
     if( 0 == es->th_id ) {
-        /* PAPI-SDE Todo: this code should go in the hook for papi_avail and be called from here */
-        /* PAPI-SDE Todo: when groups of counters are defined, these counters should be grouped under non-scheduler specific names */
-        papi_sde_register_fp_counter(parsec_papi_sde_handle, "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW", SDE_RO|SDE_INSTANT, PAPI_SDE_int, (papi_sde_fptr_t)parsec_dequeue_length, sched_obj->system_queue);
+        /* PAPI-SDE Todo: this code should go in the hook for papi_avail and be called from here
+         *   -- To discuss, as this is conflicting with the MCA approach */
+        papi_sde_register_fp_counter(parsec_papi_sde_handle, "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW", PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_dequeue_length, sched_obj->system_queue);
         papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW", "Number of ready to execute PaRSEC tasks waiting in the process-wide queue when using the LFQ scheduler");
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW",
+                                      "PARSEC::SCHED::LFQ::PENDING_TASKS", PAPI_SDE_SUM);
         for(nq = 0 ; nq < vp->nb_cores; nq++ ) {
             char event_name[256];
             char event_descr[256];
             snprintf(event_name, 256, "PARSEC::SCHED::LFQ::PENDING_TASKS_THREAD_%d", nq);
-            papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, SDE_RO|SDE_INSTANT, PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_length, LOCAL_QUEUES_OBJECT(vp->execution_streams[nq])->task_queue);
+            papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                         PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_length, LOCAL_QUEUES_OBJECT(vp->execution_streams[nq])->task_queue);
+            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                          "PARSEC::SCHED::LFQ::PENDING_TASKS", PAPI_SDE_SUM);
             snprintf(event_descr, 256, "Number of ready to execute PaRSEC tasks waiting in the queue of the thread bound on core %d of socket %d when using the LFQ scheduler",
                      vp->execution_streams[nq]->core_id, vp->execution_streams[nq]->socket_id);
             papi_sde_describe_counter(parsec_papi_sde_handle, event_name, event_descr);
         }
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, "PARSEC::SCHED::PENDING_TASKS",
+                                      "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW", PAPI_SDE_SUM);
     }
     
     return 0;
