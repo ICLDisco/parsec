@@ -877,6 +877,7 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/profiling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/private_mempool.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/deprecated.h
   DESTINATION include/parsec)
 
 install(FILES

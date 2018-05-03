@@ -185,7 +185,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
 #define PASTE_CODE_ENQUEUE_KERNEL(PARSEC, KERNEL, PARAMS)               \
     SYNC_TIME_START();                                                  \
     parsec_taskpool_t* PARSEC_##KERNEL = dplasma_##KERNEL##_New PARAMS;   \
-    PARSEC_CHECK_ERROR(parsec_enqueue(PARSEC, PARSEC_##KERNEL), "parsec_enqueue");      \
+    PARSEC_CHECK_ERROR(parsec_context_add_taskpool(PARSEC, PARSEC_##KERNEL), "parsec_context_add_taskpool");      \
     if( loud > 2 ) SYNC_TIME_PRINT(rank, ( #KERNEL "\tDAG created\n"));
 
 

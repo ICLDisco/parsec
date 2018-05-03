@@ -31,12 +31,10 @@ int
 test_task( parsec_execution_stream_t *es,
            parsec_task_t *this_task )
 {
-    (void)es;
-
-    int amount_of_work;
+    int amount_of_work, i, j, bla;
     void *data;
+
     parsec_dtd_unpack_args(this_task, &amount_of_work, &data);
-    int i, j, bla;
     for( i = 0; i < amount_of_work; i++ ) {
         for( j = 0; j < 2; j++ ) {
             bla = j*2;
@@ -46,6 +44,7 @@ test_task( parsec_execution_stream_t *es,
     }
     count++;
     (void)bla;
+    (void)es;
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -122,8 +121,8 @@ int main(int argc, char ** argv)
     dtd_tp = parsec_dtd_taskpool_new();
 
     /* Registering the dtd_taskpool with PARSEC context */
-    rc = parsec_enqueue( parsec, dtd_tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_start( parsec );
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 

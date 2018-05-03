@@ -112,8 +112,8 @@ int main(int argc, char ** argv)
 #endif
 
     /* Registering the dtd_taskpool with PARSEC context */
-    rc = parsec_enqueue( parsec, dtd_tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 

@@ -156,7 +156,7 @@ static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
         }
         parsec_taskpool_set_complete_callback((parsec_taskpool_t*)ptg_tp, pins_taskpool_complete_callback, __dtd_taskpool);
     }
-    parsec_enqueue(ptg_tp->context, (parsec_taskpool_t*)__dtd_taskpool);
+    parsec_context_add_taskpool(ptg_tp->context, (parsec_taskpool_t*)__dtd_taskpool);
 }
 
 static void pins_taskpool_fini_ptg_to_dtd(parsec_taskpool_t *tp)
@@ -280,7 +280,7 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
 {
     parsec_taskpool_t *parsec_tp = (parsec_taskpool_t *)dtd_tp;
     if( 0 == dtd_tp->enqueue_flag ) {
-        parsec_enqueue( parsec_tp->context, parsec_tp );
+        parsec_context_add_taskpool( parsec_tp->context, parsec_tp );
     }
 
     parsec_dtd_task_param_t *current_paramm;

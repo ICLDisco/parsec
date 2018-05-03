@@ -122,7 +122,7 @@ dplasma_zpltmg_generic( parsec_context_t *parsec,
     parsec_zpltmg = dplasma_map_New( PlasmaUpperLower, A, dplasma_zpltmg_generic_operator, params );
     if ( parsec_zpltmg != NULL )
     {
-        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zpltmg);
+        parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zpltmg);
         dplasma_wait_until_completion(parsec);
         dplasma_map_Destruct( parsec_zpltmg );
         return 0;
@@ -219,7 +219,7 @@ dplasma_zpltmg_genvect( parsec_context_t *parsec,
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, A->mb );
 
-        parsec_enqueue(parsec, tp);
+        parsec_context_add_taskpool(parsec, tp);
         dplasma_wait_until_completion(parsec);
 
         parsec_matrix_del2arena( zpltmg_tp->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA] );

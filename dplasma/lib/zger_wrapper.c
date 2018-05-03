@@ -103,7 +103,7 @@ dplasma_zger_internal( parsec_context_t *parsec,
 
     if ( parsec_zger != NULL )
     {
-        parsec_enqueue( parsec, parsec_zger);
+        parsec_context_add_taskpool( parsec, parsec_zger);
         dplasma_wait_until_completion(parsec);
         dplasma_zger_internal_Destruct( parsec_zger );
         return 0;
@@ -148,7 +148,7 @@ dplasma_zger_internal( parsec_context_t *parsec,
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zgeru_Destruct();
  *
  *******************************************************************************
@@ -287,7 +287,7 @@ dplasma_zgeru( parsec_context_t *parsec,
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zgerc_Destruct();
  *
  *******************************************************************************

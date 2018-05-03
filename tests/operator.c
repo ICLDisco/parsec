@@ -64,8 +64,8 @@ int main( int argc, char* argv[] )
                                   NULL,
                                   parsec_operator_print_id,
                                   "A");
-    rc = parsec_enqueue(parsec, op);
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool(parsec, op);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");

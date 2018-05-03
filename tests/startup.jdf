@@ -152,8 +152,8 @@ int main( int argc, char** argv )
     assert( NULL != tp );
     tp->arenas[PARSEC_startup_DEFAULT_ARENA] = &arena;
     tp->_g_pri = 0;
-    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
@@ -169,8 +169,8 @@ int main( int argc, char** argv )
         tp->arenas[PARSEC_startup_DEFAULT_ARENA] = &arena;
         tp->_g_pri = priorities[i].prio;
 
-        rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
-        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+        rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
         TIMER_STOP(time_elapsed);
         printf("DAG construction [%s] in %ld micro-sec\n",

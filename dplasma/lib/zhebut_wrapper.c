@@ -342,7 +342,7 @@ static parsec_taskpool_t **iterate_ops(parsec_tiled_matrix_dc_t *A, int tmp_leve
             }
         }
         if( !destroy ){
-            parsec_enqueue(parsec, *subop);
+            parsec_context_add_taskpool(parsec, *subop);
         }
         return subop+1;
     }else{

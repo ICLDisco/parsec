@@ -38,7 +38,7 @@ static void multilevel_zgebmm(parsec_context_t *parsec, parsec_tiled_matrix_dc_t
         for(i_block=0; i_block < block_count; i_block++){
             for(j_block=0; j_block < block_count; j_block++){
                 op[i_block*block_count+j_block] = dplasma_zgebmm_New( B, U_but_vec, i_block, j_block, cur_level, trans, info);
-                parsec_enqueue(parsec, op[i_block*block_count+j_block]);
+                parsec_context_add_taskpool(parsec, op[i_block*block_count+j_block]);
             }
         }
 

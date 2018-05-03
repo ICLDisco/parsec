@@ -3080,7 +3080,7 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t  *tp,
 
     if( tp->context == NULL ) {
         parsec_fatal( "Sorry! You can not insert task wihtout enqueuing the taskpool to parsec_context"
-                      " first. Please make sure you call parsec_enqueue(parsec_context, taskpool) before"
+                      " first. Please make sure you call parsec_context_add_taskpool(parsec_context, taskpool) before"
                       " you try inserting task in PaRSEC\n" );
     }
 

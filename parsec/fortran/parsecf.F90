@@ -69,6 +69,8 @@ SUBROUTINE parsec_taskpool_free_f08(ctx) &
 END SUBROUTINE parsec_taskpool_free_f08
 END INTERFACE parsec_taskpool_free_f08
 
+! This function should be deprecated in same time as it's C counterpart.
+! The correct name should be parsec_context_add_taskpool.
 INTERFACE parsec_enqueue_f08
 FUNCTION parsec_enqueue_f08(context, tp) &
            BIND(C, name="parsec_enqueue")
@@ -80,6 +82,18 @@ FUNCTION parsec_enqueue_f08(context, tp) &
     INTEGER(KIND=c_int)                        :: parsec_enqueue_f08
 END FUNCTION parsec_enqueue_f08
 END INTERFACE parsec_enqueue_f08
+
+INTERFACE parsec_context_add_taskpool_f08
+FUNCTION parsec_context_add_taskpool_f08(context, tp) &
+           BIND(C, name="parsec_context_add_taskpool")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPORT parsec_taskpool_t, parsec_context_t
+    IMPLICIT NONE
+    TYPE(parsec_context_t), VALUE, INTENT(IN)  :: context
+    TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: tp
+    INTEGER(KIND=c_int)                        :: parsec_context_add_taskpool_f08
+END FUNCTION parsec_context_add_taskpool_f08
+END INTERFACE parsec_context_add_taskpool_f08
 
 INTERFACE parsec_context_wait_f08
 FUNCTION parsec_context_wait_f08(context) &
@@ -225,9 +239,21 @@ SUBROUTINE parsec_enqueue(context, tp, ierr)
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
     INTEGER(KIND=C_INT)                         :: c_err
 
-    c_err = parsec_enqueue_f08(context, tp)
+    c_err = parsec_context_add_taskpool_f08(context, tp)
     if(present(ierr)) ierr = c_err
 END SUBROUTINE parsec_enqueue
+
+SUBROUTINE parsec_context_add_taskpool(context, tp, ierr)
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPLICIT NONE
+    TYPE(parsec_context_t), INTENT(IN)          :: context
+    TYPE(parsec_taskpool_t), INTENT(IN)         :: tp
+    INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
+    INTEGER(KIND=C_INT)                         :: c_err
+
+    c_err = parsec_context_add_taskpool_f08(context, tp)
+    if(present(ierr)) ierr = c_err
+END SUBROUTINE parsec_context_add_taskpool
 
 SUBROUTINE parsec_context_wait(context, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT

@@ -75,8 +75,8 @@ int main( int argc, char** argv )
                            NB*NB*sizeof(double),
                            PARSEC_ARENA_ALIGNMENT_SSE, vdtt);
 
-    rc = parsec_enqueue( parsec, tp);
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool( parsec, tp);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");

@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
 
     msort = merge_sort_new(dcA, nb, nt);
 
-    rc = parsec_enqueue(parsec, msort);
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool(parsec, msort);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     rc = parsec_context_wait(parsec);

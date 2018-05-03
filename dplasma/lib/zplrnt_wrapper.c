@@ -93,7 +93,7 @@ dplasma_zplrnt_operator( parsec_execution_stream_t *es,
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zplrnt_Destruct();
  *
  *******************************************************************************
@@ -195,7 +195,7 @@ dplasma_zplrnt( parsec_context_t *parsec,
 
     parsec_zplrnt = dplasma_zplrnt_New(diagdom, A, seed);
 
-    parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zplrnt);
+    parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zplrnt);
     dplasma_wait_until_completion(parsec);
 
     dplasma_zplrnt_Destruct( parsec_zplrnt );

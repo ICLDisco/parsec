@@ -333,7 +333,7 @@ dplasma_zunmlq( parsec_context_t *parsec,
     parsec_zunmlq = dplasma_zunmlq_New(side, trans, A, T, C);
 
     if ( parsec_zunmlq != NULL ){
-        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zunmlq);
+        parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zunmlq);
         dplasma_wait_until_completion(parsec);
         dplasma_zunmlq_Destruct( parsec_zunmlq );
     }

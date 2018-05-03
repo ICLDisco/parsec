@@ -237,7 +237,7 @@ dplasma_zunglq( parsec_context_t *parsec,
     parsec_zunglq = dplasma_zunglq_New(A, T, Q);
 
     if ( parsec_zunglq != NULL ){
-        parsec_enqueue(parsec, parsec_zunglq);
+        parsec_context_add_taskpool(parsec, parsec_zunglq);
         dplasma_wait_until_completion(parsec);
         dplasma_zunglq_Destruct( parsec_zunglq );
     }

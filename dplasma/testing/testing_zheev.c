@@ -85,8 +85,8 @@ goto fin;
                            MB*NB*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, MB);
-    rc = parsec_enqueue(parsec, (parsec_taskpool_t*)PARSEC_diag_band_to_rect);
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)PARSEC_diag_band_to_rect);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     rc = parsec_context_wait(parsec);

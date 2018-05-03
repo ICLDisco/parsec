@@ -104,7 +104,7 @@ dplasma_zpotrf_setrecursive( parsec_taskpool_t *tp, int hmb )
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zpotrf_Destruct();
  *
  *******************************************************************************
@@ -236,7 +236,7 @@ dplasma_zpotrf( parsec_context_t *parsec,
 
     if ( parsec_zpotrf != NULL )
     {
-        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zpotrf);
+        parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)parsec_zpotrf);
         dplasma_wait_until_completion(parsec);
         dplasma_zpotrf_Destruct( parsec_zpotrf );
     }
@@ -313,7 +313,7 @@ dplasma_zpotrf_rec( parsec_context_t *parsec,
     if ( parsec_zpotrf != NULL )
     {
         dplasma_zpotrf_setrecursive( (parsec_taskpool_t*)parsec_zpotrf, hmb );
-        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zpotrf);
+        parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)parsec_zpotrf);
         dplasma_wait_until_completion(parsec);
         dplasma_zpotrf_Destruct( parsec_zpotrf );
         parsec_taskpool_sync_ids(); /* recursive DAGs are not synchronous on ids */

@@ -176,7 +176,7 @@ int parsec_fini( parsec_context_t** pcontext );
  *
  * @return 0 If the enqueue operation succeeded.
  */
-int parsec_enqueue( parsec_context_t* context , parsec_taskpool_t* tp);
+int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* tp);
 
 /**
  * @brief Start taskpool that were enqueued into the PaRSEC context
@@ -519,5 +519,8 @@ char* parsec_snprintf_assignments(char* str, size_t size,
 /**  @} */
 
 END_C_DECLS
+
+/* Temporary support for deprecated features. */
+#include "parsec/deprecated.h"
 
 #endif  /* PARSEC_H_HAS_BEEN_INCLUDED */

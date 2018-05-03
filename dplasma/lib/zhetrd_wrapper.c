@@ -87,9 +87,9 @@ dplasma_zhetrd( parsec_context_t* parsec,
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, DE->mb, DE->nb, -1);
 
-    parsec_enqueue( parsec, (parsec_taskpool_t*)h2b );
-    parsec_enqueue( parsec, (parsec_taskpool_t*)band2rect );
-    parsec_enqueue( parsec, (parsec_taskpool_t*)b2s );
+    parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)h2b );
+    parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)band2rect );
+    parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)b2s );
     dplasma_wait_until_completion(parsec);
 
 cleanup:

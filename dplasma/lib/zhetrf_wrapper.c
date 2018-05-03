@@ -101,13 +101,13 @@ int dplasma_zhetrf(parsec_context_t *parsec, parsec_tiled_matrix_dc_t *A)
     int info = 0, ginfo = 0;
 
     parsec_zhetrf = dplasma_zhetrf_New(A, &info);
-    parsec_enqueue(parsec, (parsec_taskpool_t *)parsec_zhetrf);
+    parsec_context_add_taskpool(parsec, (parsec_taskpool_t *)parsec_zhetrf);
     dplasma_wait_until_completion(parsec);
     dplasma_zhetrf_Destruct(parsec_zhetrf);
 
     /*
     parsec_ztrmdm = dplasma_ztrmdm_New(A);
-    parsec_enqueue(parsec, (parsec_taskpool_t *)parsec_ztrmdm);
+    parsec_context_add_taskpool(parsec, (parsec_taskpool_t *)parsec_ztrmdm);
     dplasma_wait_until_completion(parsec);
     dplasma_ztrmdm_Destruct(parsec_ztrmdm);
     */

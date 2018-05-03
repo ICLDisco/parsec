@@ -89,7 +89,7 @@ int main(int argc, char ** argv)
                                                                (parsec_tiled_matrix_dc_t*)&dcT );
         /* Set the recursive size */
         dplasma_zgeqrf_setrecursive( PARSEC_zgeqrf, iparam[IPARAM_HNB] );
-        parsec_enqueue(parsec, PARSEC_zgeqrf);
+        parsec_context_add_taskpool(parsec, PARSEC_zgeqrf);
         if( loud > 2 ) SYNC_TIME_PRINT(rank, ( "zgeqrf\tDAG created\n"));
 
         PASTE_CODE_PROGRESS_KERNEL(parsec, zgeqrf);

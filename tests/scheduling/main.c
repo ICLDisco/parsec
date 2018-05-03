@@ -73,8 +73,8 @@ int main(int argc, char *argv[])
                 }
 
                 ep = ep_new(dcA, nt, level);
-                rc = parsec_enqueue(parsec, ep);
-                PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+                rc = parsec_context_add_taskpool(parsec, ep);
+                PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
                 rc = parsec_context_start(parsec);
                 PARSEC_CHECK_ERROR(rc, "parsec_context_start");

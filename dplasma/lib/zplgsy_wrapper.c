@@ -80,7 +80,7 @@ dplasma_zplgsy_operator( parsec_execution_stream_t *es,
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zplgsy_Destruct();
  *
  *******************************************************************************
@@ -198,7 +198,7 @@ dplasma_zplgsy( parsec_context_t *parsec,
     parsec_zplgsy = dplasma_zplgsy_New( bump, uplo, A, seed );
 
     if ( parsec_zplgsy != NULL ) {
-        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zplgsy);
+        parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zplgsy);
         dplasma_wait_until_completion(parsec);
         dplasma_zplgsy_Destruct( parsec_zplgsy );
     }

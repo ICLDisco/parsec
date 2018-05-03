@@ -135,8 +135,8 @@ int main(int argc, char ** argv)
 
             dtd_tp = parsec_dtd_taskpool_new();
 
-            rc = parsec_enqueue( parsec, dtd_tp );
-            PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+            rc = parsec_context_add_taskpool( parsec, dtd_tp );
+            PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
             if( 10 == total_flows[i] ) {
                 for( j = 0; j < total_tasks; j += total_flows[i] ) {
@@ -233,8 +233,8 @@ int main(int argc, char ** argv)
             parsec_output( 0, "1: We pass data from rank 0 to 1 and flush it back\n");
         }
 
-        rc = parsec_enqueue(parsec, dtd_tp);
-        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+        rc = parsec_context_add_taskpool(parsec, dtd_tp);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
         int execute_in_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_1,  0,  "task_for_timing_overhead",
@@ -294,8 +294,8 @@ int main(int argc, char ** argv)
             parsec_output( 0, "2: We pass data from rank 0 to 1 and back to 0 and then try flushing it\n");
         }
 
-        rc = parsec_enqueue(parsec, dtd_tp);
-        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+        rc = parsec_context_add_taskpool(parsec, dtd_tp);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
         execute_in_rank = 0;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_for_test_2_dist_mem,  0,  "task_for_timing_overhead",
@@ -372,8 +372,8 @@ int main(int argc, char ** argv)
         }
 
 
-        rc = parsec_enqueue(parsec, dtd_tp);
-        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+        rc = parsec_context_add_taskpool(parsec, dtd_tp);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
         int execute_in_rank = 2;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_1,  0,  "task_for_timing_overhead",

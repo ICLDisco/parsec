@@ -91,8 +91,8 @@ dplasma_zgeqrs( parsec_context_t *parsec,
     parsec_zunmqr = dplasma_zunmqr_New( PlasmaLeft, PlasmaConjTrans, A, T, B );
     parsec_ztrsm  = dplasma_ztrsm_New(  PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
 
-    parsec_enqueue( parsec, parsec_zunmqr );
-    parsec_enqueue( parsec, parsec_ztrsm );
+    parsec_context_add_taskpool( parsec, parsec_zunmqr );
+    parsec_context_add_taskpool( parsec, parsec_ztrsm );
 
     dplasma_wait_until_completion( parsec );
 

@@ -124,8 +124,8 @@ dplasma_zlatms( parsec_context_t *parsec,
         *condptr = cond;
         tp = dplasma_map_New( PlasmaUpperLower, A, dplasma_zlatms_operator, condptr );
         if ( tp != NULL ) {
-            rc = parsec_enqueue(parsec, tp);
-            PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+            rc = parsec_context_add_taskpool(parsec, tp);
+            PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
             rc = parsec_context_start( parsec );
             PARSEC_CHECK_ERROR(rc, "parsec_context_start");
             rc = parsec_context_wait( parsec );

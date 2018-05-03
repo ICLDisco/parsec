@@ -115,7 +115,7 @@ dplasma_ztrsmpl_qrf( parsec_context_t *parsec,
 
     parsec_ztrsmpl_qrf = dplasma_ztrsmpl_qrf_New(qrtree, A, IPIV, B, TS, TT, lu_tab);
 
-    parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_ztrsmpl_qrf);
+    parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_ztrsmpl_qrf);
     dplasma_wait_until_completion(parsec);
 
     dplasma_ztrsmpl_qrf_Destruct( parsec_ztrsmpl_qrf );

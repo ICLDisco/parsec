@@ -70,8 +70,8 @@ dplasma_zpotri( parsec_context_t *parsec,
     parsec_ztrtri = dplasma_ztrtri_New(uplo, PlasmaNonUnit, A, &info );
     parsec_zlauum = dplasma_zlauum_New(uplo, A );
 
-    parsec_enqueue( parsec, parsec_ztrtri );
-    parsec_enqueue( parsec, parsec_zlauum );
+    parsec_context_add_taskpool( parsec, parsec_ztrtri );
+    parsec_context_add_taskpool( parsec, parsec_zlauum );
 
     dplasma_wait_until_completion( parsec );
 

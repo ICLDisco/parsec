@@ -77,7 +77,7 @@ dplasma_zlaset_operator( parsec_execution_stream_t *es,
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zlaset_Destruct();
  *
  *******************************************************************************
@@ -197,7 +197,7 @@ dplasma_zlaset( parsec_context_t *parsec,
     parsec_zlaset = dplasma_zlaset_New(uplo, alpha, beta, A);
 
     if ( parsec_zlaset != NULL ) {
-        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zlaset);
+        parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zlaset);
         dplasma_wait_until_completion(parsec);
         dplasma_zlaset_Destruct( parsec_zlaset );
     }

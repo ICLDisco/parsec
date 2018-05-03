@@ -58,7 +58,7 @@ call_to_kernel_type_write( parsec_execution_stream_t    *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1;
+    int rc, rank, world, cores = -1;
     int nb, nt, i, no_of_tasks, key;
     parsec_tiled_matrix_dc_t *dcA;
 
@@ -125,9 +125,11 @@ int main(int argc, char ** argv)
     data4.b = 2;
     data4.c = 3;
 
-    parsec_enqueue( parsec, dtd_tp );
+    rc = parsec_context_add_taskpool( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
-    parsec_context_start(parsec);
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     parsec_dtd_taskpool_insert_task(dtd_tp, call_to_kernel_type_write,    0,  "Write_Task",
                                     sizeof(int), &data1, VALUE,

@@ -362,7 +362,7 @@ int main(int argc, char ** argv)
                                  parsec_datatype_double_complex_t, dcT.super.mb, dcT.super.nb, -1);
 
     /* Registering the handle with parsec context */
-    parsec_enqueue(parsec, dtd_tp);
+    parsec_context_add_taskpool(parsec, dtd_tp);
 
     SYNC_TIME_START();
     /* start parsec context */

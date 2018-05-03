@@ -88,8 +88,8 @@ int main(int argc, char ** argv)
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
     /* Registering the dtd_handle with PARSEC context */
-    rc = parsec_enqueue(parsec, (parsec_taskpool_t *)dtd_tp);
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool(parsec, (parsec_taskpool_t *)dtd_tp);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");

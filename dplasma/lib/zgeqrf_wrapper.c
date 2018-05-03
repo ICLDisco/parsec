@@ -110,7 +110,7 @@ dplasma_zgeqrf_setrecursive( parsec_taskpool_t *tp, int hnb )
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zgeqrf_Destruct();
  *
  *******************************************************************************
@@ -282,7 +282,7 @@ dplasma_zgeqrf( parsec_context_t *parsec,
     parsec_zgeqrf = dplasma_zgeqrf_New(A, T);
 
     if ( parsec_zgeqrf != NULL ) {
-        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zgeqrf);
+        parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zgeqrf);
         dplasma_wait_until_completion(parsec);
         dplasma_zgeqrf_Destruct( parsec_zgeqrf );
     }
@@ -372,7 +372,7 @@ dplasma_zgeqrf_rec( parsec_context_t *parsec,
     parsec_zgeqrf = dplasma_zgeqrf_New(A, T);
 
     if ( parsec_zgeqrf != NULL ) {
-        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zgeqrf);
+        parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zgeqrf);
         dplasma_zgeqrf_setrecursive( (parsec_taskpool_t*)parsec_zgeqrf, hnb );
         dplasma_wait_until_completion(parsec);
         dplasma_zgeqrf_Destruct( parsec_zgeqrf );

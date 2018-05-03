@@ -139,7 +139,7 @@ int main(int argc, char ** argv)
         parsec_complex64_t zbeta;
         parsec_complex64_t zone = (parsec_complex64_t)1.0;
 
-        parsec_enqueue( parsec, dtd_tp );
+        parsec_context_add_taskpool( parsec, dtd_tp );
 
         SYNC_TIME_START();
 
@@ -376,7 +376,7 @@ int main(int argc, char ** argv)
                 parsec_complex64_t zone = (parsec_complex64_t)1.0;
 
                 /* Registering the handle with parsec context */
-                parsec_enqueue( parsec, dtd_tp );
+                parsec_context_add_taskpool( parsec, dtd_tp );
 
                 SYNC_TIME_START();
 

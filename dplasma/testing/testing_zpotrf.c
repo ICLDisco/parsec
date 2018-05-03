@@ -56,7 +56,7 @@ int main(int argc, char ** argv)
         parsec_taskpool_t* PARSEC_zpotrf = dplasma_zpotrf_New( uplo, (parsec_tiled_matrix_dc_t*)&dcA, &info );
         /* Set the recursive size */
         dplasma_zpotrf_setrecursive( PARSEC_zpotrf, iparam[IPARAM_HMB] );
-        parsec_enqueue(parsec, PARSEC_zpotrf);
+        parsec_context_add_taskpool(parsec, PARSEC_zpotrf);
         if( loud > 2 ) SYNC_TIME_PRINT(rank, ( "zpotrf\tDAG created\n"));
 
         PASTE_CODE_PROGRESS_KERNEL(parsec, zpotrf);

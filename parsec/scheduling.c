@@ -672,8 +672,8 @@ static int parsec_composed_cb( parsec_taskpool_t* o, void* cbdata )
     assert( o == compound_state->taskpools_array[completed_taskpools] ); (void)o;
     if( compound->nb_pending_actions-- ) {
         assert( NULL != compound_state->taskpools_array[completed_taskpools+1] );
-        parsec_enqueue(compound_state->ctx,
-                      compound_state->taskpools_array[completed_taskpools+1]);
+        parsec_context_add_taskpool(compound_state->ctx,
+                               compound_state->taskpools_array[completed_taskpools+1]);
     }
     return 0;
 }
@@ -733,7 +733,7 @@ parsec_taskpool_t* parsec_compose( parsec_taskpool_t* start,
 }
 /* END: Composition */
 
-int parsec_enqueue( parsec_context_t* context, parsec_taskpool_t* tp )
+int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* tp )
 {
     if( NULL == current_scheduler) {
         parsec_set_scheduler( context );

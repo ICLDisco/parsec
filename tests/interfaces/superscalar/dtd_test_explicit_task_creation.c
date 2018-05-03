@@ -33,9 +33,7 @@ int
 call_to_kernel_type_write( parsec_execution_stream_t    *es,
                            parsec_task_t *this_task )
 {
-    (void)es;
-    int data1;
-    int data2;
+    int data1, data2;
     double data3;
     struct my_datatype data4;
     int *data5;
@@ -52,13 +50,14 @@ call_to_kernel_type_write( parsec_execution_stream_t    *es,
     assert(*data5 == 30);
     assert(ref == ref_check);
 
+    (void)es;
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank = 0, world = 1, cores = -1;
+    int rc, rank = 0, world = 1, cores = -1;
     int nb, nt, i, no_of_tasks, key;
     parsec_tiled_matrix_dc_t *dcA;
 
@@ -124,9 +123,11 @@ int main(int argc, char ** argv)
     data4.b = 2;
     data4.c = 3;
 
-    parsec_enqueue( parsec, dtd_tp );
+    rc = parsec_context_add_taskpool( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
-    parsec_context_start(parsec);
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     parsec_task_t *task = parsec_dtd_taskpool_create_task(dtd_tp,
                                     call_to_kernel_type_write,    0,  "Write_Task",

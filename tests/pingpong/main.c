@@ -44,8 +44,8 @@ int main(int argc, char *argv[])
 
     nb   = 4 * world;
     rtt = rtt_new(dcA, size, nb);
-    rc = parsec_enqueue(parsec, rtt);
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool(parsec, rtt);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");

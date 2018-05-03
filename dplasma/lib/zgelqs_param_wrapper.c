@@ -110,8 +110,8 @@ dplasma_zgelqs_param( parsec_context_t *parsec,
     parsec_ztrsm  = dplasma_ztrsm_New(  PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
     parsec_zunmlq = dplasma_zunmlq_param_New( PlasmaLeft, PlasmaConjTrans, qrtree, A, TS, TT, B );
 
-    parsec_enqueue( parsec, parsec_ztrsm );
-    parsec_enqueue( parsec, parsec_zunmlq );
+    parsec_context_add_taskpool( parsec, parsec_ztrsm );
+    parsec_context_add_taskpool( parsec, parsec_zunmlq );
 
     dplasma_wait_until_completion( parsec );
 

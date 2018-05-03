@@ -70,10 +70,10 @@ dplasma_zgesv( parsec_context_t *parsec,
     parsec_taskpool_t *parsec_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, 1.0, A, B);
     parsec_taskpool_t *parsec_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
-    parsec_enqueue( parsec, parsec_zgetrf  );
-    parsec_enqueue( parsec, parsec_zlaswp );
-    parsec_enqueue( parsec, parsec_ztrsm1 );
-    parsec_enqueue( parsec, parsec_ztrsm2 );
+    parsec_context_add_taskpool( parsec, parsec_zgetrf  );
+    parsec_context_add_taskpool( parsec, parsec_zlaswp );
+    parsec_context_add_taskpool( parsec, parsec_ztrsm1 );
+    parsec_context_add_taskpool( parsec, parsec_ztrsm2 );
 
     dplasma_wait_until_completion( parsec );
 

@@ -33,7 +33,7 @@
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_ztrdsm_Destruct();
  *
  *******************************************************************************
@@ -129,7 +129,7 @@ dplasma_ztrdsm( parsec_context_t *parsec,
     parsec_ztrdsm = dplasma_ztrdsm_New(A, B);
 
     if ( parsec_ztrdsm != NULL ) {
-        parsec_enqueue( parsec, parsec_ztrdsm );
+        parsec_context_add_taskpool( parsec, parsec_ztrdsm );
         dplasma_wait_until_completion( parsec );
 
         dplasma_ztrdsm_Destruct( parsec_ztrdsm );

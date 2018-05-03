@@ -198,7 +198,7 @@ dplasma_zheev( parsec_context_t *parsec,
 
     if ( parsec_zheev != NULL )
     {
-        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zheev);
+        parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)parsec_zheev);
         dplasma_wait_until_completion(parsec);
         dplasma_zheev_Destruct( parsec_zheev );
         return info;

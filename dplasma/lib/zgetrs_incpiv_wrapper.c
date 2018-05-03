@@ -101,8 +101,8 @@ dplasma_zgetrs_incpiv(parsec_context_t *parsec,
     parsec_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
     parsec_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
-    parsec_enqueue( parsec, parsec_ztrsmpl );
-    parsec_enqueue( parsec, parsec_ztrsm   );
+    parsec_context_add_taskpool( parsec, parsec_ztrsmpl );
+    parsec_context_add_taskpool( parsec, parsec_ztrsm   );
 
     dplasma_wait_until_completion( parsec );
 

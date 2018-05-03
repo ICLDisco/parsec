@@ -43,8 +43,8 @@ int main(int argc, char *argv[])
     parsec_data_collection_set_key(dcA, "A");
 
     ctlgat = ctlgat_new(dcA, size, nb);
-    rc = parsec_enqueue(parsec, ctlgat);
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool(parsec, ctlgat);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");

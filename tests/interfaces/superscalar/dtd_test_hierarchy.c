@@ -35,11 +35,8 @@ int
 test_task( parsec_execution_stream_t *es,
            parsec_task_t *this_task )
 {
-    (void)es;
-
-    int amount_of_work;
+    int amount_of_work, i, j, bla;
     parsec_dtd_unpack_args( this_task, &amount_of_work);
-    int i, j, bla;
     for( i = 0; i < amount_of_work; i++ ) {
         //for( j = 0; j < *amount_of_work; j++ ) {
         for( j = 0; j < 2; j++ ) {
@@ -49,6 +46,7 @@ test_task( parsec_execution_stream_t *es,
         }
     }
     count++;
+    (void)es;
     (void)bla;
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -57,10 +55,8 @@ int
 test_task_generator( parsec_execution_stream_t *es,
                      parsec_task_t *this_task )
 {
-    (void)es;
-
     parsec_tiled_matrix_dc_t *dcB, *tmp;
-    int amount = 0, nb, nt;
+    int rc, amount = 0, nb, nt;
     int rank = es->virtual_process->parsec_context->my_rank;
     int world = es->virtual_process->parsec_context->nb_nodes, i;
 
@@ -73,7 +69,8 @@ test_task_generator( parsec_execution_stream_t *es,
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( es->virtual_process->parsec_context, dtd_tp );
+    rc = parsec_context_add_taskpool( es->virtual_process->parsec_context, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     for( i = 0; i < 100; i++ ) {
         parsec_dtd_taskpool_insert_task(dtd_tp, test_task,    0,  "Test_Task",
@@ -94,6 +91,7 @@ test_task_generator( parsec_execution_stream_t *es,
 
     count++;
 
+    (void)es;
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -124,8 +122,8 @@ int main(int argc, char ** argv)
     dtd_tp = parsec_dtd_taskpool_new();
 
     /* Registering the dtd_handle with PARSEC context */
-    rc = parsec_enqueue( parsec, dtd_tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_start( parsec );
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 

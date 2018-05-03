@@ -127,7 +127,7 @@
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zgebrd_ge2gb_Destruct();
  *
  *******************************************************************************
@@ -287,7 +287,7 @@ dplasma_zgebrd_ge2gbx_New( int ib,
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zgebrd_ge2gb_Destruct();
  *
  *******************************************************************************
@@ -545,7 +545,7 @@ dplasma_zgebrd_ge2gbx( parsec_context_t *parsec, int ib,
     parsec_zgebrd_ge2gb = dplasma_zgebrd_ge2gbx_New(ib, qrtre0, qrtree, lqtree,
                                                    A, TS0, TT0, TS, TT, Band);
 
-    parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zgebrd_ge2gb);
+    parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zgebrd_ge2gb);
     dplasma_wait_until_completion(parsec);
 
     dplasma_zgebrd_ge2gbx_Destruct( parsec_zgebrd_ge2gb );
@@ -605,7 +605,7 @@ dplasma_zgebrd_ge2gb( parsec_context_t *parsec, int ib,
 
     parsec_zgebrd_ge2gb = dplasma_zgebrd_ge2gb_New(ib, A, Band);
 
-    parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zgebrd_ge2gb);
+    parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zgebrd_ge2gb);
     dplasma_wait_until_completion(parsec);
 
     dplasma_zgebrd_ge2gb_Destruct( parsec_zgebrd_ge2gb );

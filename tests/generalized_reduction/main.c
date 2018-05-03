@@ -47,8 +47,8 @@ int main(int argc, char *argv[])
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
     BT_reduction = BT_reduction_new(dcA, nb, nt);
-    rc = parsec_enqueue(parsec, BT_reduction);
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool(parsec, BT_reduction);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");

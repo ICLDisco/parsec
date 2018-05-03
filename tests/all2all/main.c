@@ -42,8 +42,8 @@ int main(int argc, char *argv[])
     parsec_data_collection_set_key( (parsec_data_collection_t*)dcB, "B");
 
     a2a = a2a_new(dcA, dcB, size, repeat);
-    rc = parsec_enqueue(parsec, a2a);
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool(parsec, a2a);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");

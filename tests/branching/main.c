@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
 
     branching = branching_new(dcA, size, nb);
     if( NULL != branching ) {
-        rc = parsec_enqueue(parsec, branching);
-        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+        rc = parsec_context_add_taskpool(parsec, branching);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
         rc = parsec_context_start(parsec);
         PARSEC_CHECK_ERROR(rc, "parsec_context_start");

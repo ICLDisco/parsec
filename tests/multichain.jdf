@@ -164,8 +164,8 @@ int main(int argc, char* argv[])
         PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
         TIMER_START(time_elapsed);
-        rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
-        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+        rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
         TIMER_STOP(time_elapsed);
         printf("DAG construction in %ld micro-sec\n", time_elapsed);
 
@@ -193,8 +193,8 @@ int main(int argc, char* argv[])
         tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
 
         TIMER_START(time_elapsed);
-        rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
-        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+        rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
         TIMER_STOP(time_elapsed);
 
         rc = parsec_context_start(parsec);

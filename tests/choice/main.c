@@ -80,8 +80,8 @@ int main(int argc, char *argv[])
     decision = (int*)calloc(sizeof(int), nb+1);
 
     choice = choice_new(dcA, size, decision, nb, world);
-    rc = parsec_enqueue(parsec, choice);
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool(parsec, choice);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");

@@ -142,7 +142,7 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zgetrf_qrf_Destruct();
  *
  *******************************************************************************
@@ -441,7 +441,7 @@ dplasma_zgetrf_qrf( parsec_context_t *parsec,
 
     parsec_zgetrf_qrf = dplasma_zgetrf_qrf_New(qrtree, A, IPIV, TS, TT, criteria, alpha, lu_tab, INFO);
 
-    parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zgetrf_qrf);
+    parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zgetrf_qrf);
     dplasma_wait_until_completion(parsec);
 
     dplasma_zgetrf_qrf_Destruct( parsec_zgetrf_qrf );

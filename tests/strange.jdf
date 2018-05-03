@@ -95,8 +95,8 @@ int main(int argc, char* argv[] )
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
-    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");

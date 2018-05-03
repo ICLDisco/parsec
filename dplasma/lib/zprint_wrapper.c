@@ -75,7 +75,7 @@ int dplasma_zprint( parsec_context_t *parsec,
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, A->mb );
 
-        parsec_enqueue(parsec, (parsec_taskpool_t*)tp);
+        parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)tp);
         dplasma_wait_until_completion(parsec);
 
         parsec_matrix_del2arena( tp->arenas[PARSEC_zprint_DEFAULT_ARENA] );

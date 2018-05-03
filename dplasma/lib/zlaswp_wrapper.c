@@ -43,7 +43,7 @@
  * @return
  *          \retval NULL if incorrect parameters are given.
  *          \retval The parsec taskpool describing the operation that can be
- *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
+ *          enqueued in the runtime with parsec_context_add_taskpool(). It, then, needs to be
  *          destroy with dplasma_zlaswp_Destruct();
  *
  *******************************************************************************
@@ -162,7 +162,7 @@ dplasma_zlaswp( parsec_context_t *parsec,
 
     parsec_zlaswp = dplasma_zlaswp_New(A, IPIV, inc);
 
-    parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zlaswp);
+    parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)parsec_zlaswp);
     dplasma_wait_until_completion(parsec);
 
     dplasma_zlaswp_Destruct( parsec_zlaswp );

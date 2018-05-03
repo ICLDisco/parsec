@@ -185,7 +185,7 @@ int main(int argc, char ** argv)
                                                            (parsec_tiled_matrix_dc_t*)&dcWork );
 
         /** Schedule the QR operation */
-        parsec_enqueue(parsec, PARSEC_dgeqrf);
+        parsec_context_add_taskpool(parsec, PARSEC_dgeqrf);
 
         /** Allows PaRSEC threads to start computing */
         parsec_context_start(parsec);
