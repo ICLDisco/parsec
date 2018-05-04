@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The University of Tennessee and The University
+ * Copyright (c) 2016-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,6 +7,9 @@
 #include <stdatomic.h>
 #include <time.h>
 
+/* Memory Barriers */
+
+#define PARSEC_ATOMIC_HAS_MFENCE
 ATOMIC_STATIC_INLINE
 void parsec_mfence(void)
 {
@@ -27,119 +30,119 @@ void parsec_atomic_rmb(void)
     atomic_thread_fence(memory_order_acquire);
 }
 
-/**
- * This is extremely ugly but apparently it is the only way to correctly coherce
- * the compilers to convert to the correct type. Thanks to StackOverflow for the
- * tip (http://stackoverflow.com/questions/22851465/typeof-uses-in-c-besides-macros).
- */
-#define parsec_atomic_bor(LOCATION, OR_VALUE)  \
-    (((__typeof__(*(LOCATION)))atomic_fetch_or((_Atomic __typeof__(*(LOCATION))(*))(LOCATION), \
-                                               (OR_VALUE))) | ((__typeof__(*(LOCATION)))(OR_VALUE)))
+/* Compare and Swap */
 
+#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT32
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_bor_32b( volatile uint32_t* location,
-                                uint32_t or_value)
+int parsec_atomic_cas_int32(volatile int32_t* location,
+                            int32_t old_value,
+                            int32_t new_value)
 {
-    return (or_value | atomic_fetch_or((atomic_uint*)location, or_value));
+    return atomic_compare_exchange_strong( (_Atomic int32_t*)location, &old_value, new_value );
 }
 
-#define parsec_atomic_band(LOCATION, AND_VALUE)  \
-    (((__typeof__(*(LOCATION)))atomic_fetch_and((_Atomic __typeof__(*(LOCATION))(*))(LOCATION), \
-                                                (AND_VALUE))) & ((__typeof__(*(LOCATION)))(AND_VALUE)))
-
+#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT64
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_band_32b( volatile uint32_t* location,
-                                uint32_t and_value)
+int parsec_atomic_cas_int64(volatile int64_t* location,
+                            int64_t old_value,
+                            int64_t new_value)
 {
-    return (and_value & atomic_fetch_and((atomic_uint*)location, and_value));
+    return atomic_compare_exchange_strong( (_Atomic int64_t*)location, &old_value, new_value );
 }
 
+#if defined(PARSEC_HAVE_INT128)
+#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128
 ATOMIC_STATIC_INLINE
-int32_t parsec_atomic_cas_32b(volatile uint32_t* location,
-                              uint32_t old_value,
-                              uint32_t new_value)
+int parsec_atomic_cas_int128(volatile __int128_t* location,
+                             __int128_t old_value,
+                             __int128_t new_value)
 {
-    return atomic_compare_exchange_strong( (atomic_uint*)location, &old_value, new_value );
+    return atomic_compare_exchange_strong( (_Atomic __int128_t*)location, &old_value, new_value );
+}
+#endif  /* defined(PARSEC_HAVE_INT128) */
+
+/* Mask Operations */
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_OR_INT32
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_fetch_or_int32( volatile int32_t* location,
+                                      int32_t or_value )
+{
+    return atomic_fetch_or((_Atomic int32_t*)location, or_value);
 }
 
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_OR_INT64
 ATOMIC_STATIC_INLINE
-int32_t parsec_atomic_cas_64b(volatile uint64_t* location,
-                              uint64_t old_value,
-                              uint64_t new_value)
+int64_t parsec_atomic_fetch_or_int64( volatile int64_t* location,
+                                      int64_t or_value)
 {
-    if (sizeof(atomic_ulong) == sizeof(uint64_t))
-        return atomic_compare_exchange_strong( (atomic_ulong*)location, (unsigned long*)&old_value, new_value );
-    if (sizeof(atomic_ullong) == sizeof(uint64_t))
-      return atomic_compare_exchange_strong( (atomic_ullong*)location, (unsigned long long*)&old_value, new_value );
-    *((int*)0x0) = 0;  /* not good, there is no support */
-    return 0;
+    return atomic_fetch_or((_Atomic int64_t*)location, or_value);
 }
 
-#if defined(PARSEC_HAVE_UINT128)
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_AND_INT32
 ATOMIC_STATIC_INLINE
-int32_t parsec_atomic_cas_128b(volatile __uint128_t* location,
-                               __uint128_t old_value,
-                               __uint128_t new_value)
+int32_t parsec_atomic_fetch_and_int32( volatile int32_t* location,
+                                       int32_t and_value )
 {
-    return atomic_compare_exchange_strong( (_Atomic __uint128_t*)location, &old_value, new_value );
+    return atomic_fetch_and((_Atomic int32_t*)location, and_value);
 }
-#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B
-#endif  /* defined(PARSEC_HAVE_UINT128b) */
 
-#if PARSEC_SIZEOF_VOID_P == 4
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_AND_INT64
 ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
+int64_t parsec_atomic_fetch_and_int64( volatile int64_t* location,
+                                       int64_t and_value )
 {
-    return parsec_atomic_cas_32b((volatile uint32_t*)l, (uint32_t)o, (uint32_t)n);
+    return atomic_fetch_and((_Atomic int64_t*)location, and_value);
 }
-#elif PARSEC_SIZEOF_VOID_P == 8
+
+#if defined(PARSEC_HAVE_INT128)
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_OR_INT128
 ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
+__int128_t parsec_atomic_fetch_or_int128( volatile __int128_t* location,
+                                          __int128_t or_value )
 {
-    return parsec_atomic_cas_64b((volatile uint64_t*)l, (uint64_t)o, (uint64_t)n);
+    return atomic_fetch_or((_Atomic __int128_t*)location, or_value);
 }
-#else
-#if defined(PARSEC_HAVE_UINT128)
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_AND_INT128
 ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_ptr(volatile void* l, __uint128_t o, __uint128_t n)
+__int128_t parsec_atomic_fetch_and_int128( volatile __int128_t* location,
+                                           __int128_t and_value )
 {
-    return parsec_atomic_cas_128b((volatile __uint128_t*)l, o, n);
+    return atomic_fetch_and((_Atomic __int128_t*)location, and_value);
 }
-#else  /* defined(PARSEC_HAVE_UINT128b) */
-#error Pointers are 128 bits long but no atomic operation on 128 bits are available
-#endif  /* defined(PARSEC_HAVE_UINT128) */
 #endif
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
+/* Integer Operations -- we use atomic_fetch_add for all, let atomic.h translate the rest */
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT32
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_add_32b(volatile int32_t* l, int32_t v)
+int32_t parsec_atomic_fetch_add_int32(volatile int32_t* l, int32_t v)
 {
-    return v + atomic_fetch_add((_Atomic uint32_t*)l, v);
+    return atomic_fetch_add((_Atomic int32_t*)l, v);
 }
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_INC_32B
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT64
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_inc_32b(volatile uint32_t* l)
+int64_t parsec_atomic_fetch_add_int64(volatile int64_t* l, int64_t v)
 {
-    return 1 + atomic_fetch_add((_Atomic uint32_t*)l, 1);
+    return atomic_fetch_add((_Atomic int64_t*)l, v);
 }
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
+#if defined(PARSEC_HAVE_INT128)
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT128
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_sub_32b(volatile int32_t* l, int32_t v)
+__int128_t parsec_atomic_fetch_add_int128(volatile __int128_t* l, __int128_t v)
 {
-    return atomic_fetch_sub((_Atomic uint32_t*)l, v) - v;
+    return atomic_fetch_add((_Atomic __int128_t*)l, v);
 }
+#endif
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B
-ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_dec_32b(volatile uint32_t* l)
-{
-    return atomic_fetch_add((_Atomic uint32_t*)l, -1) - 1;
-}
+/* Locks */
 
 typedef volatile atomic_flag parsec_atomic_lock_t;
 
+#define PARSEC_ATOMIC_HAS_ATOMIC_LOCK
 ATOMIC_STATIC_INLINE
 void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )
 {
@@ -148,17 +151,18 @@ void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )
         nanosleep( &ts, NULL ); /* less bandwidth consuming */
 }
 
+#define PARSEC_ATOMIC_HAS_ATOMIC_UNLOCK
 ATOMIC_STATIC_INLINE
 void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock )
 {
     atomic_flag_clear(atomic_lock);
 }
 
+#define PARSEC_ATOMIC_HAS_ATOMIC_TRYLOCK
 ATOMIC_STATIC_INLINE
 int parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 {
     return !atomic_flag_test_and_set(atomic_lock);
 }
 
-#define PARSEC_ATOMIC_UNLOCKED 0
-
+#define PARSEC_ATOMIC_UNLOCKED ATOMIC_FLAG_INIT

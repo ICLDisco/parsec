@@ -38,7 +38,7 @@ typedef struct parsec_list_item_s {
     parsec_object_t  super;                         /**< A list item is a @ref parsec_internal_classes_object */
     volatile struct parsec_list_item_s* list_next;  /**< Pointer to the next item */
     volatile struct parsec_list_item_s* list_prev;  /**< Pointer to the previous item */
-    uint32_t aba_key;                               /**< This field is __very__ special and should be handled with extreme
+    int32_t aba_key;                                /**< This field is __very__ special and should be handled with extreme
                                                      *   care. It is used to avoid the ABA problem when atomic operations
                                                      *   are in use and we do not have support for 128 bits atomics.
                                                      */

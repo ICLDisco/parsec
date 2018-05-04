@@ -57,7 +57,7 @@ static int parsec_dtd_debug_verbose = -1;
 static int parsec_dtd_profile_verbose = 0;
 
 static parsec_dc_key_t parsec_dtd_dc_id = 0;
-uint32_t __parsec_dtd_is_initialized   = 0; /**< Indicates init of dtd environment is completed */
+int32_t __parsec_dtd_is_initialized     = 0; /**< Indicates init of dtd environment is completed */
 
 int parsec_dtd_window_size             = 8000;   /**< Default window size */
 int parsec_dtd_threshold_size          = 4000;   /**< Default threshold size of tasks for master thread to wait on */
@@ -965,7 +965,7 @@ void
 parsec_dtd_tile_release( parsec_dtd_tile_t *tile )
 {
     assert(tile->super.super.obj_reference_count>1);
-    if( 1 == parsec_atomic_add_32b( &tile->super.super.obj_reference_count, -1 ) ) {
+    if( 2 == parsec_atomic_fetch_dec_int32( &tile->super.super.obj_reference_count ) ) {
         assert(tile->flushed == FLUSHED);
         parsec_thread_mempool_free( parsec_dtd_tile_mempool->thread_mempools, tile );
     }
@@ -1148,12 +1148,11 @@ void
 parsec_dtd_dequeue_taskpool( parsec_taskpool_t *tp )
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-    int remaining = parsec_atomic_dec_32b( (uint32_t*)&tp->nb_tasks );
-    if( 0 == remaining ) {
-        (void)parsec_atomic_cas_32b((volatile uint32_t *)&tp->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS);
+    int remaining = parsec_atomic_fetch_dec_int32( &tp->nb_tasks );
+    if( 1 == remaining ) {
+        (void)parsec_atomic_cas_int32(&tp->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS);
         dtd_tp->enqueue_flag = 0;
     }
-    assert(0 == remaining);
 
     parsec_dtd_taskpool_release( tp );
     return;  /* we're done in all cases */
@@ -1162,8 +1161,8 @@ parsec_dtd_dequeue_taskpool( parsec_taskpool_t *tp )
 int
 parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
 {
-    int remaining;
-    remaining = parsec_atomic_add_32b( (int32_t*)&(tp->nb_pending_actions), count );
+    int32_t remaining;
+    remaining = parsec_atomic_fetch_add_int32( &tp->nb_pending_actions, count ) + count;
     assert( 0<= remaining );
 
     if( 0 == remaining && 1 == tp->nb_tasks ) {
@@ -1189,7 +1188,7 @@ parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
 parsec_taskpool_t*
 parsec_dtd_taskpool_new(void)
 {
-    if( 1 == parsec_atomic_inc_32b(&__parsec_dtd_is_initialized) ) {
+    if( 0 == parsec_atomic_fetch_inc_int32(&__parsec_dtd_is_initialized) ) {
         parsec_dtd_lazy_init();
     }
 
@@ -1280,7 +1279,7 @@ parsec_dtd_taskpool_retain( parsec_taskpool_t *tp )
 void
 parsec_dtd_taskpool_release( parsec_taskpool_t *tp )
 {
-    if( 1 == parsec_atomic_add_32b( &(tp->super.super.obj_reference_count) , -1 ) ) {
+    if( 2 == parsec_atomic_fetch_dec_int32( &tp->super.super.obj_reference_count ) ) {
         parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
         int i;
 
@@ -1402,7 +1401,7 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
     (void)es; (void)data; (void)src_rank; (void)dst_rank; (void)oldcontext;
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)param;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)newcontext;
-    int not_ready = 1;
+    int32_t not_ready = 1;
 
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank && src_rank == oldcontext->taskpool->context->my_rank) {
@@ -1448,7 +1447,7 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
 #endif
 
     if( parsec_dtd_task_is_local(current_task) ) {
-        not_ready = parsec_atomic_add_32b((int *)&(current_task->flow_count), -1);
+        not_ready = parsec_atomic_fetch_dec_int32(&current_task->flow_count) -1;
 
 #if defined(PARSEC_PROF_GRAPHER)
         /* Check to not print stuff redundantly */
@@ -1674,7 +1673,7 @@ complete_hook_of_dtd( parsec_execution_stream_t *es,
     parsec_dtd_task_t *this_dtd_task = (parsec_dtd_task_t *) this_task;
     int action_mask = 0;
 #if defined(PARSEC_DEBUG_NOISIER)
-    static uint32_t atomic_internal_counter = 0;
+    static int32_t atomic_internal_counter = 0;
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
     PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
@@ -1683,7 +1682,8 @@ complete_hook_of_dtd( parsec_execution_stream_t *es,
                          "task done %u rank --> %d\n",
                          this_task->task_class->name,
                          this_dtd_task->ht_item.key,
-                         parsec_atomic_inc_32b(&atomic_internal_counter), this_task->taskpool->context->my_rank);
+                         parsec_atomic_fetch_inc_int32(&atomic_internal_counter) + 1,
+                         this_task->taskpool->context->my_rank);
 
 #if defined(PARSEC_PROF_GRAPHER)
     parsec_prof_grapher_task(this_task, es->th_id, es->virtual_process->vp_id,
@@ -1717,7 +1717,7 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
 {
     parsec_object_t *object = (parsec_object_t *)this_task;
     assert(this_task->super.super.super.obj_reference_count > 1);
-    if( 1 == parsec_atomic_add_32b( &object->obj_reference_count, -1 ) ) {
+    if( 2 == parsec_atomic_fetch_dec_int32( &object->obj_reference_count ) ) {
         int current_flow;
         for( current_flow = 0; current_flow < this_task->super.task_class->nb_flows; current_flow++ ) {
             parsec_dtd_tile_t *tile = (FLOW_OF(this_task, current_flow))->tile;
@@ -1749,7 +1749,7 @@ parsec_release_dtd_task_to_mempool(parsec_execution_stream_t *es,
                                   parsec_task_t *this_task)
 {
     (void)es;
-    (void)parsec_atomic_dec_32b( (uint32_t*)&this_task->taskpool->nb_tasks );
+    (void)parsec_atomic_fetch_dec_int32( &this_task->taskpool->nb_tasks );
     return parsec_dtd_release_local_task( (parsec_dtd_task_t *)this_task );
 }
 
@@ -1757,7 +1757,7 @@ void
 parsec_dtd_remote_task_retain( parsec_dtd_task_t *this_task )
 {
     parsec_object_t *object = (parsec_object_t *)this_task;
-    (void)parsec_atomic_add_32b(&object->obj_reference_count, 1);
+    (void)parsec_atomic_fetch_inc_int32(&object->obj_reference_count);
 }
 
 void
@@ -1765,7 +1765,7 @@ parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task )
 {
     parsec_object_t *object = (parsec_object_t *)this_task;
     assert(object->obj_reference_count > 1);
-    if( 1 == parsec_atomic_add_32b( &object->obj_reference_count, -1 ) ){
+    if( 2 == parsec_atomic_fetch_dec_int32( &object->obj_reference_count ) ){
         int current_flow;
         for( current_flow = 0; current_flow < this_task->super.task_class->nb_flows; current_flow++ ) {
             if( !((FLOW_OF(this_task, current_flow))->op_type & DONT_TRACK) ) {
@@ -2611,7 +2611,7 @@ parsec_dtd_schedule_task_if_ready(int satisfied_flow, parsec_dtd_task_t *this_ta
                                   parsec_dtd_taskpool_t *dtd_tp, int *vpid)
 {
     /* Building list of initial ready task */
-    if ( 0 == parsec_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
+    if ( satisfied_flow == parsec_atomic_fetch_sub_int32(&this_task->flow_count, satisfied_flow) ) {
         PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                              "------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
                              "%d\n-----\n", this_task->super.task_class->name, this_task->ht_item.key,
@@ -2825,7 +2825,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                         FLOW_OF(last_user.task, last_user.flow_index)->flags &= ~RELEASE_OWNERSHIP_SPECIAL;
 
                         if( this_task->super.data[flow_index].data_in != NULL ) {
-                            (void)parsec_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , -1 );
+                            (void)parsec_atomic_fetch_dec_int32( &this_task->super.data[flow_index].data_in->readers );
                         }
                     }
                 }
@@ -2860,7 +2860,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                 if(last_user.task == this_task) {
                     if( (last_user.op_type & GET_OP_TYPE) == INPUT ) {
                         if( this_task->super.data[last_user.flow_index].data_in != NULL ) {
-                            (void)parsec_atomic_add_32b( (int *)&(this_task->super.data[last_user.flow_index].data_in->readers) , -1 );
+                            (void)parsec_atomic_fetch_dec_int32( &this_task->super.data[last_user.flow_index].data_in->readers );
                         }
                     }
 
@@ -2930,7 +2930,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
     dtd_tp->flow_set_flag[tc->task_class_id] = 1;
 
     if( parsec_dtd_task_is_local(this_task) ) {/* Task is local */
-        (void)parsec_atomic_add_32b((int *)&(dtd_tp->super.nb_tasks), 1);
+        (void)parsec_atomic_fetch_inc_int32(&dtd_tp->super.nb_tasks);
         dtd_tp->local_task_inserted++;
         PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                              "Task generated -> %s %d rank %d\n", this_task->super.task_class->name, this_task->ht_item.key, this_task->rank);
@@ -3153,7 +3153,7 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t  *tp,
         parsec_object_t *object = (parsec_object_t *)this_task;
         /* retaining the local task as many write flows as
          * it has and one to indicate when we have executed the task */
-        (void)parsec_atomic_add_32b( &object->obj_reference_count, (common_args.write_flow_count) );
+        (void)parsec_atomic_fetch_add_int32( &object->obj_reference_count, common_args.write_flow_count );
 
         common_args.tmp_param = NULL;
 

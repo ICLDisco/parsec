@@ -30,18 +30,18 @@ static void cksum_node_fn(tree_dist_t *tree, node_t *node, int n, int l, void *p
         double   d;
         uint64_t u;
     } aliasing;
-    uint64_t *cksum = (uint64_t*)param;
-    uint64_t up = 0;
-    uint64_t nv, ov;
+    int64_t *cksum = (int64_t*)param;
+    int64_t up = 0;
+    int64_t nv, ov;
     aliasing.d = node->s;
     up ^= aliasing.u;
     aliasing.d = node->d;
     up ^= aliasing.u;
-    up ^= (((uint64_t)l)<<32) | (uint64_t)n;
+    up ^= (((int64_t)l)<<32) | (int64_t)n;
     do {
         ov = *cksum;
         nv = ov ^ up;
-    } while(!parsec_atomic_cas_64b(cksum, ov, nv));
+    } while(!parsec_atomic_cas_int64(cksum, ov, nv));
     (void)tree;
 }
 
@@ -63,7 +63,7 @@ static void rs_add(redim_string_t *rs, const char *format, ...)
     sz = vsnprintf(NULL, 0, format, ap) + 1;
     va_end(ap);
 
-    my_pos = parsec_atomic_add_32b(&rs->cur_pos, sz) - sz;
+    my_pos = parsec_atomic_fetch_add_int32(&rs->cur_pos, sz);
     assert(my_pos>=0);
     for(;;) {
         if( my_pos + sz < rs->size ) {

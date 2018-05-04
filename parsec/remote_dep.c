@@ -80,7 +80,7 @@ static inline void
 remote_dep_inc_flying_messages(parsec_taskpool_t* handle)
 {
     assert( handle->nb_pending_actions > 0 );
-    (void)parsec_atomic_inc_32b( &(handle->nb_pending_actions) );
+    (void)parsec_atomic_fetch_inc_int32( &(handle->nb_pending_actions) );
 }
 
 /* allow for termination when all deps have been served */
@@ -96,7 +96,7 @@ static inline int
 remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
                                 int ncompleted)
 {
-    int32_t saved = parsec_atomic_sub_32b((int32_t*)&(*deps)->pending_ack, ncompleted);
+    int32_t saved = parsec_atomic_fetch_sub_int32(&(*deps)->pending_ack, ncompleted) - ncompleted;
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Complete %d (%d left) outputs of dep %p%s",
             ncompleted, saved, *deps,
             (0 == saved ? " (decrease inflight)" : ""));
@@ -430,14 +430,14 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                     }
 #endif  /* PARSEC_DEBUG_NOISIER */
                     assert(output->parent->taskpool == task->taskpool);
-                    if( 1 == parsec_atomic_add_32b(&remote_deps->pending_ack, 1) ) {
+                    if( 0 == parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack) ) {
                         keeper = 1;
                         /* Let the engine know we're working to activate the dependencies remotely */
                         remote_dep_inc_flying_messages(task->taskpool);
                         /* We need to increase the pending_ack to make the deps persistant until the
                          * end of this function.
                          */
-                        (void)parsec_atomic_add_32b((int32_t*)&remote_deps->pending_ack, 1);
+                        (void)parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack);
                     }
                     remote_dep_send(rank, remote_deps);
                 } else {

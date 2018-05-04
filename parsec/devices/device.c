@@ -20,7 +20,7 @@
 uint32_t parsec_nb_devices = 0;
 static uint32_t parsec_nb_max_devices = 0;
 static uint32_t parsec_devices_are_freezed = 0;
-parsec_atomic_lock_t parsec_devices_mutex = { PARSEC_ATOMIC_UNLOCKED };
+parsec_atomic_lock_t parsec_devices_mutex = PARSEC_ATOMIC_UNLOCKED;
 static parsec_device_t** parsec_devices = NULL;
 static char* parsec_device_list_str = NULL, **parsec_device_list = NULL;
 

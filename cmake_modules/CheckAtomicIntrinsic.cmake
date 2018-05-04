@@ -2,9 +2,9 @@
 # Check if there is support for 128 types
 #
 include(CheckTypeSize)
-CHECK_TYPE_SIZE( __uint128_t UINT128 )
-if(HAVE_UINT128)
-  set(PARSEC_HAVE_UINT128 1)
+CHECK_TYPE_SIZE( __int128_t INT128 )
+if(HAVE_INT128)
+  set(PARSEC_HAVE_INT128 1)
 endif()
 
 # Detecting atomic support is an utterly annoying process, as it is extremely sensitive to
@@ -67,12 +67,12 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
   # state from the cache.
   #
   UNSET( PARSEC_ATOMIC_USE_C11_128 CACHE )
-  if( HAVE_UINT128 AND PARSEC_ATOMIC_USE_C11_32 AND PARSEC_ATOMIC_USE_C11_64 )
+  if( HAVE_INT128 AND PARSEC_ATOMIC_USE_C11_32 AND PARSEC_ATOMIC_USE_C11_64 )
     CHECK_C_SOURCE_COMPILES("
         #include <stdatomic.h>
         int main(void) {
              __int128_t where = 0, expected = 0;
-             if( !atomic_compare_exchange_strong( (_Atomic __uint128_t*)&where, &expected, 1 ) )
+             if( !atomic_compare_exchange_strong( (_Atomic __int128_t*)&where, &expected, 1 ) )
                  return -1;
              return 0;
          }
@@ -86,7 +86,7 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
           #include <stdatomic.h>
           int main(void) {
               __int128_t where = 0, expected;
-              if( !atomic_compare_exchange_strong( (_Atomic __uint128_t*)&where, &expected, 1 ) )
+              if( !atomic_compare_exchange_strong( (_Atomic __int128_t*)&where, &expected, 1 ) )
                   return -1;
               return 0;
           }
@@ -119,7 +119,7 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
     endif( NOT PARSEC_ATOMIC_USE_C11_128 )
     list(APPEND EXTRA_LIBS ${PARSEC_ATOMIC_C11_128_EXTRA_LIBS})
     list(APPEND CMAKE_C_STANDARD_LIBRARIES ${PARSEC_ATOMIC_C11_128_EXTRA_LIBS})
-  endif( HAVE_UINT128 AND PARSEC_ATOMIC_USE_C11_32 AND PARSEC_ATOMIC_USE_C11_64 )
+  endif( HAVE_INT128 AND PARSEC_ATOMIC_USE_C11_32 AND PARSEC_ATOMIC_USE_C11_64 )
 endif( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
 
 #
@@ -163,7 +163,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
             return 0;
         }
         " PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
-    if(HAVE_UINT128)
+    if(HAVE_INT128)
       if( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS ) # try again with -mcx16
         include(CMakePushCheckState)
         CMAKE_PUSH_CHECK_STATE()
@@ -183,7 +183,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
           SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcx16" CACHE STRING "" FORCE)
         endif( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
       endif( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
-    endif(HAVE_UINT128)
+    endif(HAVE_INT128)
   endif( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
   
   # Xlc style atomics?
@@ -222,7 +222,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
 
       int main(void)
       {
-         uint32_t where  = 0;
+         int32_t where  = 0;
          if (!__sync_compare_and_swap(&where, 0, 1))
             return -1;
 
@@ -235,7 +235,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
 
         int main(void)
         {
-           uint64_t where  = 0;
+           int64_t where  = 0;
            if (!__sync_compare_and_swap(&where, 0, 1))
               return -1;
 
@@ -251,8 +251,8 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
 
       int main(void)
       {
-         uint_t where = 0;
-         if (0 != atomic_cas_uint(&where, 0, 1))
+         int_t where = 0;
+         if (0 != atomic_cas_int(&where, 0, 1))
             return -1;
 
          return 0;
@@ -265,8 +265,8 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
 
         int main(void)
         {
-           uint64_t where = 0;
-           if (0 != atomic_cas_uint(&where, 0, 1))
+           int64_t where = 0;
+           if (0 != atomic_cas_int(&where, 0, 1))
               return -1;
 
            return 0;

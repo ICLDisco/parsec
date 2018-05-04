@@ -32,12 +32,12 @@ int parsec_map_operator_profiling_array[2] = {-1};
 #endif
 
 typedef struct parsec_map_operator_taskpool {
-    parsec_taskpool_t          super;
+    parsec_taskpool_t               super;
     const parsec_tiled_matrix_dc_t* src;
           parsec_tiled_matrix_dc_t* dest;
-    volatile uint32_t          next_k;
-    parsec_operator_t           op;
-    void*                      op_data;
+    volatile int32_t                next_k;
+    parsec_operator_t               op;
+    void*                           op_data;
 } parsec_map_operator_taskpool_t;
 
 typedef struct __parsec_map_operator_taskpool {
@@ -240,7 +240,7 @@ static void iterate_successors(parsec_execution_stream_t *es,
             return;
         }
         /* Go to the next row ... atomically */
-        k = parsec_atomic_inc_32b( &__tp->super.next_k );
+        k = parsec_atomic_fetch_inc_int32( &__tp->super.next_k ) + 1;
     }
     (void)action_mask;
 }
@@ -461,7 +461,7 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
                 break;
             }
             /* Go to the next row ... atomically */
-            k = parsec_atomic_inc_32b( &__tp->super.next_k );
+            k = parsec_atomic_fetch_inc_int32( &__tp->super.next_k ) + 1;
         }
     done:  continue;
     }

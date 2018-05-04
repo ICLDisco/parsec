@@ -178,15 +178,15 @@ parsec_lifo_nolock_pop(parsec_lifo_t* lifo);
 typedef union parsec_counted_pointer_u {
     struct {
         /** update counter used when cmpset_128 is available */
-        uint64_t            counter;
+        int64_t             counter;
         /** list item pointer */
         parsec_list_item_t *item;
     } data;
-#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
     /** used for atomics when there is a cmpset that can operate on
      * two 64-bit values */
-    __uint128_t value;
-#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B) */
+    __int128_t value;
+#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) */
 } parsec_counted_pointer_t;
 
 struct parsec_lifo_s {
@@ -205,7 +205,7 @@ static inline int parsec_lifo_is_empty( parsec_lifo_t* lifo )
 }
 #define parsec_lifo_nolock_is_empty parsec_lifo_is_empty
 
-#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
 /* Add one element to the FIFO. We will return the last head of the list
  * to allow the upper level to detect if this element is the first one in the
  * list (if the list was empty before this operation).
@@ -215,7 +215,7 @@ parsec_update_counted_pointer(volatile parsec_counted_pointer_t *addr, parsec_co
                              parsec_list_item_t *item)
 {
     parsec_counted_pointer_t elem = {.data = {.counter = old.data.counter + 1, .item = item}};
-    return parsec_atomic_cas_128b(&addr->value, old.value, elem.value);
+    return parsec_atomic_cas_int128(&addr->value, old.value, elem.value);
 }
 
 static inline void parsec_lifo_push( parsec_lifo_t* lifo,
@@ -311,7 +311,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     return NULL;
 }
 
-#else  /* !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B) */
+#else  /* !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) */
 
 /* Add one element to the LIFO. We will return the last head of the list
  * to allow the upper level to detect if this element is the first one in the
@@ -438,7 +438,7 @@ static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
     parsec_list_item_t *item;
     while ((item = lifo->lifo_head.data.item) != lifo->lifo_ghost) {
         /* ensure it is safe to pop the head */
-        if (parsec_atomic_cas_32b(&item->aba_key, 0UL, 1UL)) {
+        if (parsec_atomic_cas_int32(&item->aba_key, 0UL, 1UL)) {
             continue;
         }
 
@@ -472,7 +472,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     parsec_list_item_t *item;
     if( (item = lifo->lifo_head.data.item) != lifo->lifo_ghost ) {
         /* ensure it is safe to pop the head */
-        if (parsec_atomic_cas_32b(&item->aba_key, 0UL, 1UL)) {
+        if (parsec_atomic_cas_int32(&item->aba_key, 0UL, 1UL)) {
             return NULL;
         }
 
@@ -503,7 +503,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
 #endif /* defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) */
 
 
-#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B)) */
+#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)) */
 
 static inline void parsec_lifo_nolock_push( parsec_lifo_t* lifo,
                                             parsec_list_item_t* item )

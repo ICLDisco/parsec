@@ -106,7 +106,7 @@ struct _gpu_device {
                                 *   the index of the set bit device.
                                 */
     parsec_gpu_exec_stream_t* exec_stream;
-    volatile uint32_t mutex;
+    volatile int32_t mutex;
     parsec_list_t gpu_mem_lru;
     parsec_list_t gpu_mem_owned_lru;
     parsec_list_t pending;

@@ -1265,7 +1265,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
     coutput("#include \"%s.h\"\n\n"
             "struct __parsec_%s_internal_taskpool_s {\n"
             " parsec_%s_taskpool_t super;\n"
-            " volatile uint32_t sync_point;\n"
+            " volatile int32_t sync_point;\n"
             " parsec_task_t* startup_queue;\n",
             jdf_basename, jdf_basename, jdf_basename);
 
@@ -2746,7 +2746,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         }
         if(need_to_count_tasks) {
             coutput("%s   if( 0 != nb_tasks ) {\n"
-                    "%s     (void)parsec_atomic_add_32b(&__parsec_tp->super.super.initial_number_tasks, nb_tasks);\n"
+                    "%s     (void)parsec_atomic_fetch_add_int32(&__parsec_tp->super.super.initial_number_tasks, nb_tasks);\n"
                     "%s   }\n",
                     indent(nesting),
                     indent(nesting),
@@ -2829,7 +2829,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
      * number of tasks. Don't waste time atomically counting the tasks, let the JDF decide
      * when everything is completed.
      */
-    coutput("  if(0 == parsec_atomic_dec_32b(&__parsec_tp->sync_point)) {\n"
+    coutput("  if(1 == parsec_atomic_fetch_dec_int32(&__parsec_tp->sync_point)) {\n"
             "    /* Ready to rock. Update the count of expected tasks */\n");
     if(!need_to_count_tasks) {
         coutput("    __parsec_tp->super.super.nb_tasks = %s(__parsec_tp);\n",

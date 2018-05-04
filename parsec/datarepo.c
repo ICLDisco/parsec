@@ -87,7 +87,7 @@ __data_repo_entry_used_once(parsec_execution_stream_t *es, data_repo_t *repo, pa
                             )
 {
     data_repo_entry_t *e;
-    uint32_t r = 0xffffffff;
+    int32_t r = -1;
 #if defined(PARSEC_DEBUG_NOISIER)
     char estr[64];
 #endif
@@ -101,7 +101,7 @@ __data_repo_entry_used_once(parsec_execution_stream_t *es, data_repo_t *repo, pa
     }
 #endif
     assert( NULL != e );
-    r = parsec_atomic_inc_32b(&e->usagecnt);
+    r = parsec_atomic_fetch_inc_int32(&e->usagecnt) + 1;
 
     if( (e->usagelmt == r) && (0 == e->retained) ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "entry %p/%s of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d",
@@ -138,7 +138,7 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, parsec_key_t key, uint32_
     do {
         ov = e->usagelmt;
         nv = ov + usagelmt;
-    } while( !parsec_atomic_cas_32b( &e->usagelmt, ov, nv) );
+    } while( !parsec_atomic_cas_int32( &e->usagelmt, ov, nv) );
     e->retained--;
 
     if( (e->usagelmt == e->usagecnt) && (0 == e->retained) ) {

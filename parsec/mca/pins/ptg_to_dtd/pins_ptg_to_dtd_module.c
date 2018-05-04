@@ -351,7 +351,7 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
          * executed the task
          */
         object = (parsec_object_t *)this_task;
-        (void)parsec_atomic_add_32b( &object->obj_reference_count, (write_flow_count) );
+        (void)parsec_atomic_fetch_add_int32( &object->obj_reference_count, write_flow_count );
 
     }
 
@@ -365,7 +365,7 @@ static int
 fake_hook_for_testing(parsec_execution_stream_t *es,
                       parsec_task_t *this_task)
 {
-    static parsec_atomic_lock_t pins_ptg_to_dtd_atomic_lock = {PARSEC_ATOMIC_UNLOCKED};
+    static parsec_atomic_lock_t pins_ptg_to_dtd_atomic_lock = PARSEC_ATOMIC_UNLOCKED;
     parsec_list_item_t* local_list = NULL;
 
     /* We will try to push our tasks in the same Global Deque.

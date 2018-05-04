@@ -49,7 +49,7 @@ parsec_class_t parsec_object_t_class = {
 /*
  * Local variables
  */
-static parsec_atomic_lock_t class_lock = { PARSEC_ATOMIC_UNLOCKED };
+static parsec_atomic_lock_t class_lock = PARSEC_ATOMIC_UNLOCKED;
 static void** classes = NULL;
 static int num_classes = 0;
 static int max_classes = 0;
@@ -69,7 +69,7 @@ static void expand_array(void);
  */
 int parsec_obj_update_not_inline(parsec_object_t *object, int inc)
 {
-    return parsec_atomic_add_32b(&(object->obj_reference_count), inc );
+    return parsec_atomic_fetch_add_int32(&(object->obj_reference_count), inc ) + inc;
 }
 
 /*
