@@ -14,8 +14,6 @@
 
 enum regions {
                TILE_FULL,
-               TILE_LOWER,
-               TILE_UPPER,
                TILE_RECTANGLE,
                L_TILE_RECTANGLE,
              };
@@ -251,18 +249,6 @@ int main(int argc, char ** argv)
                             PARSEC_ARENA_ALIGNMENT_SSE,
                             parsec_datatype_double_complex_t, dcA.super.mb );
 
-    /* Lower part of A without diagonal part */
-    dplasma_add2arena_lower( parsec_dtd_arenas[TILE_LOWER],
-                             dcA.super.mb*dcA.super.nb*sizeof(parsec_complex64_t),
-                             PARSEC_ARENA_ALIGNMENT_SSE,
-                             parsec_datatype_double_complex_t, dcA.super.mb, 0 );
-
-    /* Upper part of A with diagonal part */
-    dplasma_add2arena_upper( parsec_dtd_arenas[TILE_UPPER],
-                             dcA.super.mb*dcA.super.nb*sizeof(parsec_complex64_t),
-                             PARSEC_ARENA_ALIGNMENT_SSE,
-                             parsec_datatype_double_complex_t, dcA.super.mb, 1 );
-
     /* IPIV */
     dplasma_add2arena_rectangle( parsec_dtd_arenas[TILE_RECTANGLE],
                                  dcA.super.mb*sizeof(int),
@@ -315,7 +301,7 @@ int main(int argc, char ** argv)
                                PASSED_BY_REF,         TILE_OF(IPIV, k, k),    INPUT | TILE_RECTANGLE,
                                PASSED_BY_REF,         TILE_OF(L, k, k),       INPUT | L_TILE_RECTANGLE,
                                sizeof(int),           &ldl,                              VALUE,
-                               PASSED_BY_REF,         TILE_OF(A, k, k),       INPUT | TILE_LOWER,
+                               PASSED_BY_REF,         TILE_OF(A, k, k),       INPUT | TILE_FULL,
                                sizeof(int),           &ldak,                             VALUE,
                                PASSED_BY_REF,         TILE_OF(A, k, n),       INOUT | TILE_FULL | AFFINITY,
                                sizeof(int),           &ldak,                             VALUE,
@@ -336,7 +322,7 @@ int main(int argc, char ** argv)
                                sizeof(int),           &tempkn,                           VALUE,
                                sizeof(int),           &ib,                               VALUE,
                                sizeof(int),           &nb,                               VALUE,
-                               PASSED_BY_REF,         TILE_OF(A, k, k),     INOUT | TILE_UPPER,
+                               PASSED_BY_REF,         TILE_OF(A, k, k),     INOUT | TILE_FULL,
                                sizeof(int),           &ldak,                             VALUE,
                                PASSED_BY_REF,         TILE_OF(A, m, k),     INOUT | TILE_FULL | AFFINITY,
                                sizeof(int),           &ldam,                             VALUE,
@@ -458,8 +444,6 @@ int main(int argc, char ** argv)
 
     /* Cleaning data arrays we allocated for communication */
     parsec_matrix_del2arena( parsec_dtd_arenas[TILE_FULL] );
-    parsec_matrix_del2arena( parsec_dtd_arenas[TILE_LOWER] );
-    parsec_matrix_del2arena( parsec_dtd_arenas[TILE_UPPER] );
     parsec_matrix_del2arena( parsec_dtd_arenas[TILE_RECTANGLE] );
     parsec_matrix_del2arena( parsec_dtd_arenas[L_TILE_RECTANGLE] );
 
