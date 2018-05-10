@@ -3,7 +3,7 @@ PROGRAM TOUCH_EXF
   use, INTRINSIC :: ISO_C_BINDING, only : c_int
   use parsec_f08_interfaces
 
-interface touch_initialize
+interface
   function touch_initialize_f08(block, n) BIND(C, name="touch_initialize")
     use, INTRINSIC :: ISO_C_BINDING, only : c_int
     use parsec_f08_interfaces
@@ -11,14 +11,12 @@ interface touch_initialize
     integer(kind=c_int), INTENT(IN), VALUE :: block
     integer(kind=c_int), INTENT(IN), VALUE :: n
     type(parsec_taskpool_t)  :: touch_initialize_f08
-  end function
-end interface
+  end function touch_initialize_f08
 
-interface touch_finalize
   function touch_finalize_f08() BIND(C, name="touch_finalize")
     use, INTRINSIC :: ISO_C_BINDING, only : c_int
-    integer(kind=c_int) :: touch_finalize
-  end function
+    integer(kind=c_int) :: touch_finalize_f08
+  end function touch_finalize_f08
 end interface
 
   integer BLOCK, N, ret
