@@ -43,7 +43,7 @@ void parsec_atomic_rwlock_rdlock( parsec_atomic_rwlock_t* atomic_rwlock )
         if( (old_state & PARSEC_ATOMIC_RWLOCK_WRITER_BITS) == 0 ) {
             /* We don't need to care for preserving the high bits: they are 0 */
             new_state = old_state + 1;
-            if( parsec_atomic_cas_32b(atomic_rwlock, old_state, new_state) )
+            if( parsec_atomic_cas_int32(atomic_rwlock, old_state, new_state) )
                 return;
         }
     } while(1);
@@ -61,7 +61,7 @@ void parsec_atomic_rwlock_rdunlock( parsec_atomic_rwlock_t* atomic_rwlock )
         new_state =
             (((old_state & PARSEC_ATOMIC_RWLOCK_READER_BITS)-1) & PARSEC_ATOMIC_RWLOCK_READER_BITS) |
             (old_state & PARSEC_ATOMIC_RWLOCK_WRITER_WAITING_BIT);
-    } while(!parsec_atomic_cas_32b(atomic_rwlock, old_state, new_state));
+    } while(!parsec_atomic_cas_int32(atomic_rwlock, old_state, new_state));
 }
 
 void parsec_atomic_rwlock_wrlock( parsec_atomic_rwlock_t* atomic_rwlock )
@@ -71,14 +71,14 @@ void parsec_atomic_rwlock_wrlock( parsec_atomic_rwlock_t* atomic_rwlock )
         old_state = *atomic_rwlock;
         if( ((old_state == 0) || (old_state == PARSEC_ATOMIC_RWLOCK_WRITER_WAITING_BIT)) ) {
             new_state = PARSEC_ATOMIC_RWLOCK_WRITER_BIT;
-            if( parsec_atomic_cas_32b( atomic_rwlock, old_state, new_state) )
+            if( parsec_atomic_cas_int32( atomic_rwlock, old_state, new_state) )
                 return;
         }
 
         /* Just try once to set the writer waiting; we're going to loop here anyway */
         if( (old_state & PARSEC_ATOMIC_RWLOCK_WRITER_WAITING_BIT) == 0 ) {
             new_state = old_state | PARSEC_ATOMIC_RWLOCK_WRITER_WAITING_BIT;
-            parsec_atomic_cas_32b(atomic_rwlock, old_state, new_state);
+            parsec_atomic_cas_int32(atomic_rwlock, old_state, new_state);
         }
     } while(1);
 }
@@ -93,7 +93,7 @@ void parsec_atomic_rwlock_wrunlock( parsec_atomic_rwlock_t* atomic_rwlock )
         assert( (old_state & PARSEC_ATOMIC_RWLOCK_READER_BITS) == 0);
 #endif
         new_state = (old_state & PARSEC_ATOMIC_RWLOCK_WRITER_WAITING_BIT);
-    } while( !parsec_atomic_cas_32b(atomic_rwlock, old_state, new_state) );
+    } while( !parsec_atomic_cas_int32(atomic_rwlock, old_state, new_state) );
 }
 
 #elif RWLOCK_IMPL == RWLOCK_IMPL_TICKET
@@ -105,11 +105,11 @@ void parsec_atomic_rwlock_wrunlock( parsec_atomic_rwlock_t* atomic_rwlock )
 #include <string.h>
 
 #include <time.h>
-#define RINC 0x100u
+#define RINC 0x100
 
-#define WBITS  0x3u
-#define PRES   0x2u
-#define PHID   0x1u
+#define WBITS  0x3
+#define PRES   0x2
+#define PHID   0x1
 
 void parsec_atomic_rwlock_init(parsec_atomic_rwlock_t *L)
 {
@@ -118,10 +118,10 @@ void parsec_atomic_rwlock_init(parsec_atomic_rwlock_t *L)
 
 void parsec_atomic_rwlock_rdlock(parsec_atomic_rwlock_t *L)
 {
-    uint32_t w;
+    int32_t w;
     int count = 0;
     struct timespec ts = { .tv_sec = 0, .tv_nsec = 100 };
-    w = (parsec_atomic_add_32b((volatile int32_t*)&L->rin, RINC)-RINC) & WBITS;
+    w = parsec_atomic_fetch_add_int32(&L->rin, RINC) & WBITS;
     if( w == 0 )
         return;
     while( w == (L->rin & WBITS) )
@@ -131,20 +131,20 @@ void parsec_atomic_rwlock_rdlock(parsec_atomic_rwlock_t *L)
 
 void parsec_atomic_rwlock_rdunlock(parsec_atomic_rwlock_t *L)
 {
-    parsec_atomic_add_32b((volatile int32_t*)&L->rout, RINC);
+    parsec_atomic_fetch_add_int32(&L->rout, RINC);
 }
 
 void parsec_atomic_rwlock_wrlock(parsec_atomic_rwlock_t *L)
 {
-    uint32_t ticket, w;
+    int32_t ticket, w;
     int count = 0;
     struct timespec ts = { .tv_sec = 0, .tv_nsec = 100 };
-    ticket = (parsec_atomic_add_32b((volatile int32_t*)&L->win, 1)-1);
+    ticket = parsec_atomic_fetch_inc_int32(&L->win);
     while( L->wout != ticket )
         if( count++ > 1000 )
             nanosleep( &ts, NULL );
     w = PRES | (ticket & PHID);
-    ticket = (parsec_atomic_add_32b((volatile int32_t*)&L->rin, w)-w);
+    ticket = parsec_atomic_fetch_add_int32(&L->rin, w);
     count = 0;
     while( L->rout != ticket )
         if( count++ > 1000 )
@@ -162,7 +162,7 @@ void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L)
      * Per mutual exclusion of the writes, we should be the only thread that
      * changes wout at this time, so no atomic is needed here.
      */
-    parsec_atomic_band_32b(&L->rin, 0xFFFFFF00);
+    parsec_atomic_fetch_and_int32(&L->rin, 0xFFFFFF00);
     L->wout = L->wout+1;
 }
 
@@ -277,7 +277,7 @@ void parsec_atomic_rwlock_rdlock(parsec_atomic_rwlock_t *L)
         }
 
         /* Atomically update the RWL state, and try again if something changed */
-    } while(! parsec_atomic_cas_64b(&L->atomic_word, old.atomic_word, new.atomic_word) );
+    } while(! parsec_atomic_cas_int64(&L->atomic_word, old.atomic_word, new.atomic_word) );
 
     do {
         nanosleep( &ts, NULL );
@@ -302,7 +302,7 @@ void parsec_atomic_rwlock_rdunlock(parsec_atomic_rwlock_t *L)
         }
 
         /* Try until we succeed */
-    } while( !parsec_atomic_cas_64b(&L->atomic_word, old.atomic_word, new.atomic_word) );
+    } while( !parsec_atomic_cas_int64(&L->atomic_word, old.atomic_word, new.atomic_word) );
 }
 
 void parsec_atomic_rwlock_wrlock(parsec_atomic_rwlock_t *L)
@@ -321,7 +321,7 @@ void parsec_atomic_rwlock_wrlock(parsec_atomic_rwlock_t *L)
         new.fields.next_ticket = my_ticket+1;
 
         /* Try to atomically update the RWL state until we succeed */
-    } while( !parsec_atomic_cas_64b(&L->atomic_word, old.atomic_word, new.atomic_word) );
+    } while( !parsec_atomic_cas_int64(&L->atomic_word, old.atomic_word, new.atomic_word) );
 
     do {
         nanosleep( &ts, NULL );
@@ -339,7 +339,7 @@ void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L)
         new = old;
 
         new.fields.current_ticket = old.fields.current_ticket + 1;
-    } while( !parsec_atomic_cas_64b(&L->atomic_word, old.atomic_word, new.atomic_word) );
+    } while( !parsec_atomic_cas_int64(&L->atomic_word, old.atomic_word, new.atomic_word) );
 }
 
 #endif

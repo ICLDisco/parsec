@@ -237,7 +237,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     dtd_tp->flow_set_flag[tc->task_class_id] = 1;
 
     if( parsec_dtd_task_is_local(this_task) ) {/* Task is local */
-        (void)parsec_atomic_add_32b((int *)&(dtd_tp->super.nb_tasks), 1);
+        (void)parsec_atomic_fetch_inc_int32(&dtd_tp->super.nb_tasks);
         dtd_tp->local_task_inserted++;
         PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                              "Task generated -> %s %d rank %d\n", this_task->super.task_class->name, this_task->ht_item.key, this_task->rank);
@@ -282,9 +282,9 @@ parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int
     if(parsec_dtd_task_is_local(this_task)) {
         /* retaining the local task as many write flows as
          * it has and one to indicate when we have executed the task */
-        (void)parsec_atomic_add_32b(&object->obj_reference_count, 2);
+        (void)parsec_atomic_fetch_add_int32(&object->obj_reference_count, 2);
     } else {
-        (void)parsec_atomic_add_32b(&object->obj_reference_count, 1);
+        (void)parsec_atomic_fetch_inc_int32(&object->obj_reference_count);
     }
 
     parsec_insert_dtd_flush_task(this_task, tile);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,183 +15,262 @@
 BEGIN_C_DECLS
 
 #if !defined(BUILD_PARSEC)
-#include "atomic-external.h"
+#  include "atomic-external.h"
 #else  /* !defined(BUILD_PARSEC) */
 
-#if !defined(ATOMIC_STATIC_INLINE)
-#define ATOMIC_STATIC_INLINE static inline
-#endif  /* !defined(ATOMIC_STATIC_INLINE) */
+#  if !defined(ATOMIC_STATIC_INLINE)
+#    define ATOMIC_STATIC_INLINE static inline
+#  endif  /* !defined(ATOMIC_STATIC_INLINE) */
 
 /*
  * This define will exists only in the PaRSEC build, and should remain undefined
  * in all other contexts.
  */
-#define PARSEC_ATOMIC_ACCESS_TO_INTERNALS_ALLOWED 1
+#  define PARSEC_ATOMIC_ACCESS_TO_INTERNALS_ALLOWED 1
 
-#if defined(PARSEC_ATOMIC_USE_C11_ATOMICS)
-#include "atomic-c11.h"
-#else  /* defined(PARSEC_ATOMIC_USE_C11_ATOMICS) */
-
+#  if defined(PARSEC_ATOMIC_USE_C11_ATOMICS)
+#    include "atomic-c11.h"
+#  else /* defined(PARSEC_ATOMIC_USE_C11_ATOMICS) */
 /**
  * If the compiler provides atomic primitives we prefer to use
  * them instead of our own atomic assembly.
  */
-#if defined(__FUJITSU)
-  #undef PARSEC_ATOMIC_USE_XLC_32_BUILTINS
-#endif
-#if defined(PARSEC_ATOMIC_USE_XLC_32_BUILTINS)
-#  include "atomic-xlc.h"
-#elif defined(PARSEC_OSX)
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
-#  if defined(__clang__)
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#  endif  /* defined(__clang__) */
-#  include "atomic-macosx.h"
-#  if defined(__clang__)
-#    pragma clang diagnostic pop
-#  endif  /* defined(__clang__) */
-#endif  /* MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 */
-#elif defined(PARSEC_ARCH_PPC)
-#  if defined(__bgp__)
-#    include "atomic-ppc-bgp.h"
-#  else
-#    include "atomic-ppc.h"
-#  endif
-#elif defined(PARSEC_ATOMIC_USE_GCC_32_BUILTINS)
-#  include "atomic-gcc.h"
-#elif defined(PARSEC_ARCH_X86)
-#  include "atomic-x86_32.h"
-#elif defined(PARSEC_ARCH_X86_64)
-#  include "atomic-x86_64.h"
-#else
-#  error "No safe atomics available"
-#endif
+#    if defined(__FUJITSU)
+#      undef PARSEC_ATOMIC_USE_XLC_32_BUILTINS
+#    endif
+#    if defined(PARSEC_ATOMIC_USE_XLC_32_BUILTINS)
+#      include "atomic-xlc.h"
+#    elif defined(PARSEC_OSX)
+#      if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
+#        if defined(__clang__)
+#          pragma clang diagnostic push
+#          pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#        endif  /* defined(__clang__) */
+#        include "atomic-macosx.h"
+#        if defined(__clang__)
+#          pragma clang diagnostic pop
+#        endif  /* defined(__clang__) */
+#      endif  /* MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 */
+#    elif defined(PARSEC_ARCH_PPC)
+#      if defined(__bgp__)
+#        include "atomic-ppc-bgp.h"
+#      else
+#        include "atomic-ppc.h"
+#      endif
+#    elif defined(PARSEC_ATOMIC_USE_GCC_32_BUILTINS)
+#      include "atomic-gcc.h"
+#    elif defined(PARSEC_ARCH_X86)
+#      include "atomic-x86_32.h"
+#    elif defined(PARSEC_ARCH_X86_64)
+#      include "atomic-x86_64.h"
+#    else
+#      error "No safe atomics available"
+#    endif
+#  endif /* defined(PARSEC_ATOMIC_USE_C11_ATOMICS) */
 
-#if PARSEC_SIZEOF_VOID_P == 4
+/*
+ * Generic Alternative Methods, in case some routines are not directly defined
+ */
+
+/* parsec_atomic_cas_ptr */
+#  if !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_PTR)
+#    if PARSEC_SIZEOF_VOID_P == 4
+#    define PARSEC_ATOMIC_HAS_ATOMIC_CAS_PTR
 ATOMIC_STATIC_INLINE
 int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
 {
-    return parsec_atomic_cas_32b((volatile uint32_t*)l, (uint32_t)o, (uint32_t)n);
+    return parsec_atomic_cas_int32((volatile int32_t*)l, (int32_t)o, (int32_t)n);
 }
-#elif PARSEC_SIZEOF_VOID_P == 8
+#    elif PARSEC_SIZEOF_VOID_P == 8
+#    define PARSEC_ATOMIC_HAS_ATOMIC_CAS_PTR
 ATOMIC_STATIC_INLINE
 int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
 {
-    return parsec_atomic_cas_64b((volatile uint64_t*)l, (uint64_t)o, (uint64_t)n);
+    return parsec_atomic_cas_int64((volatile int64_t*)l, (int64_t)o, (int64_t)n);
 }
-#else
+#    else
+#      if defined(PARSEC_HAVE_INT128)
+#        define PARSEC_ATOMIC_HAS_ATOMIC_CAS_PTR
 ATOMIC_STATIC_INLINE
 int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
 {
-    return parsec_atomic_cas_128b((volatile __uint128_t*)l, (__uint128_t)o, (__uint128_t)n);
+    return parsec_atomic_cas_int128((volatile __int128_t*)l, (__int128_t)o, (__int128_t)n);
 }
-#endif
+#      else  /* defined(PARSEC_HAVE_INT128) */
+#        error Pointers are 128 bits long but no atomic operation on 128 bits are available
+#      endif  /* defined(PARSEC_HAVE_INT128) */
+#    endif
+#  endif /* !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_PTR) */
 
-#ifndef PARSEC_ATOMIC_HAS_ATOMIC_INC_32B
-#define PARSEC_ATOMIC_HAS_ATOMIC_INC_32B /* We now have it ! */
+/* Memory Barriers */
 
-#ifdef PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
-ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_inc_32b( volatile uint32_t *location )
-{
-    return (uint32_t)parsec_atomic_add_32b((int32_t*)location, 1);
-}
-#else
-ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_inc_32b( volatile uint32_t *location )
-{
-    uint32_t l;
-    do {
-        l = *location;
-    } while( !parsec_atomic_cas_32b( location, l, l+1 ) );
-    return l+1;
-}
-#endif  /* PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B */
-#endif  /* PARSEC_ATOMIC_HAS_ATOMIC_INC_32B */
-
-#ifndef PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B
-#define PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B /* We now have it ! */
-
-#ifdef PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
-ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_dec_32b( volatile uint32_t *location )
-{
-    return parsec_atomic_sub_32b((int32_t*)location, 1);
-}
-#else
-ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_dec_32b( volatile uint32_t *location )
-{
-    uint32_t l;
-    do {
-        l = *location;
-    } while( !parsec_atomic_cas_32b( location, l, l-1 ) );
-    return l-1;
-}
-#endif  /* PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B */
-#endif  /* PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B */
-
-#ifndef PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
-#define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
-ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_add_32b( volatile uint32_t *location, int32_t d )
-{
-    uint32_t l, n;
-    do {
-        l = *location;
-        n = (uint32_t)((int32_t)l + d);
-    } while( !parsec_atomic_cas_32b( location, l, n ) );
-    return n;
-}
-#endif /* PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B */
-
-#if !defined(PARSEC_ATOMIC_HAS_WMB)
+#  if !defined(PARSEC_ATOMIC_HAS_WMB)
+#  define PARSEC_ATOMIC_HAS_WMB
 ATOMIC_STATIC_INLINE
 void parsec_atomic_wmb(void)
 {
     parsec_mfence();
 }
-#endif  /* !defined(PARSEC_ATOMIC_HAS_WMB) */
+#  endif  /* !defined(PARSEC_ATOMIC_HAS_WMB) */
 
-#if !defined(PARSEC_ATOMIC_HAS_RMB)
+#  if !defined(PARSEC_ATOMIC_HAS_RMB)
+#  define PARSEC_ATOMIC_HAS_RMB
 ATOMIC_STATIC_INLINE
 void parsec_atomic_rmb(void)
 {
     parsec_mfence();
 }
-#endif  /* !defined(PARSEC_ATOMIC_HAS_RMB) */
+#  endif  /* !defined(PARSEC_ATOMIC_HAS_RMB) */
 
-typedef volatile uint32_t parsec_atomic_lock_t;
+/* Integer Operations */
 
-/**
- * Enumeration of lock states
- */
-enum {
-    PARSEC_ATOMIC_UNLOCKED = 0,
-    PARSEC_ATOMIC_LOCKED   = 1
-};
+/* Quite often, all atomic integer operations are based on the same
+ * addition; here, we just manage the case where the architecture
+ * does not have a better option than using add to define inc,
+ * sub, and dec */
 
+#  if !defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_INC_INT32)
+#    if defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT32)
+#      define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_INC_INT32
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_fetch_inc_int32(volatile int32_t* l)
+{
+    return parsec_atomic_fetch_add_int32(l, 1);
+}
+#    else
+#      error No definition for parsec_atomic_fetch_inc_int32
+#    endif
+#  endif
+
+#  if !defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_SUB_INT32)
+#    if defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT32)
+#      define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_SUB_INT32
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_fetch_sub_int32(volatile int32_t* l, int32_t v)
+{
+    return parsec_atomic_fetch_add_int32(l, -v);
+}
+#    else
+#      error No definition for parsec_atomic_fetch_sub_int32
+#    endif
+#  endif
+
+#  if !defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_DEC_INT32)
+#    if defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT32)
+#      define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_DEC_INT32
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_fetch_dec_int32(volatile int32_t* l)
+{
+    return parsec_atomic_fetch_add_int32(l, -1);
+}
+#    else
+#      error No definition for parsec_atomic_fetch_dec_int32
+#    endif
+#  endif
+
+#  if !defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_INC_INT64)
+#    if defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT64)
+#      define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_INC_INT64
+ATOMIC_STATIC_INLINE
+int64_t parsec_atomic_fetch_inc_int64(volatile int64_t* l)
+{
+    return parsec_atomic_fetch_add_int64(l, 1);
+}
+#    endif
+/* No error: 32 bits architectures do not need to define add/inc/sub/dec on 64 bits */
+#  endif
+
+#  if !defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_SUB_INT64)
+#    if defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT64)
+#      define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_SUB_INT64
+ATOMIC_STATIC_INLINE
+int64_t parsec_atomic_fetch_sub_int64(volatile int64_t* l, int64_t v)
+{
+    return parsec_atomic_fetch_add_int64(l, -v);
+}
+#    endif
+/* No error: 32 bits architectures do not need to define add/inc/sub/dec on 64 bits */
+#  endif
+
+#  if !defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_DEC_INT64)
+#    if defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT64)
+#      define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_DEC_INT64
+ATOMIC_STATIC_INLINE
+int64_t parsec_atomic_fetch_dec_int64(volatile int64_t* l)
+{
+    return parsec_atomic_fetch_add_int64(l, -1);
+}
+#    endif
+/* No error: 32 bits architectures do not need to define add/inc/sub/dec on 64 bits */
+#  endif
+
+#  if defined(PARSEC_HAVE_INT128)
+#    if !defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_INC_INT128)
+#      if defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT128)
+#        define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_INC_INT128
+ATOMIC_STATIC_INLINE
+__int128_t parsec_atomic_fetch_inc_int128(volatile __int128_t* l)
+{
+    return parsec_atomic_fetch_add_int128(l, 1);
+}
+#      else
+#        error No definition for parsec_atomic_fetch_inc_int128
+#      endif
+#    endif
+
+#    if !defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_SUB_INT128)
+#      if defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT128)
+#        define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_SUB_INT128
+ATOMIC_STATIC_INLINE
+__int128_t parsec_atomic_fetch_sub_int128(volatile __int128_t* l, __int128_t v)
+{
+    return parsec_atomic_fetch_add_int128(l, -v);
+}
+#      else
+#        error No definition for parsec_atomic_fetch_sub_int128
+#      endif
+#    endif
+
+#    if !defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_DEC_INT128)
+#      if defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT128)
+#        define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_DEC_INT128
+ATOMIC_STATIC_INLINE
+__int128_t parsec_atomic_fetch_dec_int128(volatile __int128_t* l)
+{
+    return parsec_atomic_fetch_add_int128(l, -1);
+}
+#      else
+#        error No definition for parsec_atomic_fetch_dec_int128
+#      endif
+#    endif
+#  endif  /* defined(PARSEC_HAVE_INT128) */
+
+/* Locks */
+
+#  if !defined(PARSEC_ATOMIC_HAS_ATOMIC_LOCK)
+typedef volatile int32_t parsec_atomic_lock_t;
+#  define PARSEC_ATOMIC_UNLOCKED 0
+#  define PARSEC_ATOMIC_HAS_ATOMIC_LOCK
 ATOMIC_STATIC_INLINE
 void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )
 {
-    while( !parsec_atomic_cas_32b( atomic_lock, 0, 1) )
+    while( !parsec_atomic_cas_int32( atomic_lock, 0, 1) )
         /* nothing */;
 }
-
+#  define PARSEC_ATOMIC_HAS_ATOMIC_UNLOCK
 ATOMIC_STATIC_INLINE
 void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock )
 {
     parsec_mfence();
     *atomic_lock = 0;
 }
-
+#  define PARSEC_ATOMIC_HAS_ATOMIC_TRYLOCK
 ATOMIC_STATIC_INLINE
 int parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 {
-    return parsec_atomic_cas_32b( atomic_lock, 0, 1 );
+    return parsec_atomic_cas_int32( atomic_lock, 0, 1 );
 }
-#endif  /* (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_ATOMICS__) */
+#  endif /* !defined(PARSEC_ATOMIC_HAS_ATOMIC_LOCK) */
 
 #endif  /* !defined(BUILD_PARSEC) */
 

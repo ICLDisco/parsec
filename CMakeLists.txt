@@ -348,7 +348,18 @@ SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set( PARSEC_OSX 1 CACHE INTERNAL "Compile on MAC OS X")
+  if( NOT PARSEC_ATOMIC_USE_C11_ATOMICS )
+    # Without C11 support, atomic-macosx.h is used;
+    # the old API of Mac OS X does not support 128 atomic operations
+    unset( PARSEC_HAVE_INT128 CACHE )
+    unset( PARSEC_HAVE_INT128 )
+  endif( NOT PARSEC_ATOMIC_USE_C11_ATOMICS )
 endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+if(PARSEC_ARCH_PPC)
+  # PPC Architecture have Int128 type, but no atomics support for this type
+  unset( PARSEC_HAVE_INT128 CACHE )
+  unset( PARSEC_HAVE_INT128 )
+endif(PARSEC_ARCH_PPC)
 
 #
 # Remove all duplicates from the CFLAGS.
@@ -853,9 +864,9 @@ configure_file (
 cmake_push_check_state()
 list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/parsec/include ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include)
 list(APPEND CMAKE_REQUIRED_DEFINITIONS -DBUILD_PARSEC)
-check_symbol_exists(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B "parsec/parsec_config.h;parsec/sys/atomic.h" PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B)
+check_symbol_exists(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128 "parsec/parsec_config.h;parsec/sys/atomic.h" PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
 cmake_pop_check_state()
-if(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B)
+if(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
   message(STATUS "Internal PaRSEC uses CAS 128B. Reconfiguring parsec_options.h")
   configure_file (
      "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"

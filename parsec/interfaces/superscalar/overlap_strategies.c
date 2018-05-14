@@ -192,7 +192,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
             if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                 if( INPUT == op_type_on_current_flow ) {
                     if(parsec_dtd_task_is_local(current_task)){
-                        (void)parsec_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), -1 );
+                        (void)parsec_atomic_fetch_dec_int32( &current_task->super.data[current_dep].data_out->readers );
                     }
                 }
             }
@@ -296,7 +296,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
                     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                         if(parsec_dtd_task_is_local(current_desc)){
-                            (void)parsec_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), 1 );
+                            (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
                         }
                     }
                     /* Each reader increments the ref count of the data_copy

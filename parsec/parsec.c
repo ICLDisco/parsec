@@ -1246,12 +1246,12 @@ parsec_update_deps_with_counter(const parsec_taskpool_t *tp,
 
     if( 0 == *deps ) {
         dep_new_value = parsec_check_IN_dependencies_with_counter(tp, task) - 1;
-        if( parsec_atomic_cas_32b( deps, 0, dep_new_value ) == 1 )
+        if( parsec_atomic_cas_int32( deps, 0, dep_new_value ) == 1 )
             dep_cur_value = dep_new_value;
         else
-            dep_cur_value = parsec_atomic_dec_32b( deps );
+            dep_cur_value = parsec_atomic_fetch_dec_int32( deps ) - 1;
     } else {
-        dep_cur_value = parsec_atomic_dec_32b( deps );
+        dep_cur_value = parsec_atomic_fetch_dec_int32( deps ) - 1;
     }
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Activate counter dependency for %s leftover %d (excluding current)",
                          tmp, dep_cur_value);
@@ -1259,7 +1259,7 @@ parsec_update_deps_with_counter(const parsec_taskpool_t *tp,
 #if defined(PARSEC_DEBUG_PARANOID)
     {
         char wtmp[MAX_TASK_STRLEN];
-        if( (uint32_t)dep_cur_value > (uint32_t)-128) {
+        if( dep_cur_value > INT_MAX-128) {
             parsec_fatal("task %s as reached an improbable dependency count of %u",
                   wtmp, dep_cur_value );
         }
@@ -1316,15 +1316,15 @@ parsec_update_deps_with_mask(const parsec_taskpool_t *tp,
 #endif
     }
 
-    dep_cur_value = parsec_atomic_bor_32b( deps, dep_new_value );
+    dep_cur_value = parsec_atomic_fetch_or_int32( deps, dep_new_value ) | dep_new_value;
 
 #if defined(PARSEC_DEBUG_PARANOID)
     if( (dep_cur_value & tc->dependencies_goal) == tc->dependencies_goal ) {
         int success;
         parsec_dependency_t tmp_mask;
         tmp_mask = *deps;
-        success = parsec_atomic_cas_32b(deps,
-                                        tmp_mask, (tmp_mask | PARSEC_DEPENDENCIES_TASK_DONE));
+        success = parsec_atomic_cas_int32(deps,
+                                          tmp_mask, (tmp_mask | PARSEC_DEPENDENCIES_TASK_DONE));
         if( !success || (tmp_mask & PARSEC_DEPENDENCIES_TASK_DONE) ) {
             parsec_fatal("Task %s scheduled twice (second time by %s)!!!",
                    tmpt, tmpo);
@@ -1694,7 +1694,7 @@ parsec_taskpool_set_priority( parsec_taskpool_t* tp, int32_t new_priority )
 }
 
 /* TODO: Change this code to something better */
-static parsec_atomic_lock_t taskpool_array_lock = { PARSEC_ATOMIC_UNLOCKED };
+static parsec_atomic_lock_t taskpool_array_lock = PARSEC_ATOMIC_UNLOCKED;
 static parsec_taskpool_t** taskpool_array = NULL;
 static uint32_t taskpool_array_size = 1, taskpool_array_pos = 0;
 #define NOTASKPOOL ((void*)-1)
@@ -2434,10 +2434,10 @@ int parsec_task_deps_with_final_output(const parsec_task_t *task,
     return nbout;
 }
 
-int
+int32_t
 parsec_ptg_update_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks )
 {
-    return parsec_atomic_add_32b((int32_t*)&(tp->nb_pending_actions), nb_tasks );
+    return parsec_atomic_fetch_add_int32(&tp->nb_pending_actions, nb_tasks ) + nb_tasks;
 }
 
 parsec_execution_stream_t *parsec_my_execution_stream(void)

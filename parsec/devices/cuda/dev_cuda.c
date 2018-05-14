@@ -1961,8 +1961,8 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
 #endif /* defined(PARSEC_PROF_TRACE) */
 
     /* Check the GPU status */
-    rc = parsec_atomic_inc_32b( &(gpu_device->mutex) );
-    if( 1 != rc ) {  /* I'm not the only one messing with this GPU */
+    rc = parsec_atomic_fetch_inc_int32( &gpu_device->mutex );
+    if( 0 != rc ) {  /* I'm not the only one messing with this GPU */
         parsec_fifo_push( &(gpu_device->pending), (parsec_list_item_t*)gpu_task );
         return PARSEC_HOOK_RETURN_ASYNC;
     }
@@ -2089,8 +2089,8 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
   remove_gpu_task:
     parsec_device_load[gpu_device->super.device_index] -= parsec_device_sweight[gpu_device->super.device_index];
     free( gpu_task );
-    rc = parsec_atomic_dec_32b( &(gpu_device->mutex) );
-    if( 0 == rc ) {  /* I was the last one */
+    rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
+    if( 1 == rc ) {  /* I was the last one */
 #if defined(PARSEC_PROF_TRACE)
         if( parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_OWN )
             PARSEC_PROFILING_TRACE( es->es_profile, parsec_cuda_own_GPU_key_end,

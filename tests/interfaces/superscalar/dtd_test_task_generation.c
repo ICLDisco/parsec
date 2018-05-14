@@ -21,14 +21,14 @@
 double time_elapsed;
 double sync_time_elapsed;
 
-uint32_t global_counter;
+int32_t global_counter;
 
 int
 task_to_check_generation(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es; (void)this_task;
 
-    (void)parsec_atomic_inc_32b(&global_counter);
+    (void)parsec_atomic_fetch_inc_int32(&global_counter);
 
     return PARSEC_HOOK_RETURN_DONE;
 }

@@ -491,7 +491,7 @@ static inline parsec_object_t *parsec_obj_new(parsec_class_t * cls)
 static inline int parsec_obj_update(parsec_object_t *object, int inc) __parsec_attribute_always_inline__;
 static inline int parsec_obj_update(parsec_object_t *object, int inc)
 {
-    return parsec_atomic_add_32b(&(object->obj_reference_count), inc );
+    return parsec_atomic_fetch_add_int32(&(object->obj_reference_count), inc ) + inc;
 }
 #else
 /* Read the comment in parsec_object.c regarding the use of this function */

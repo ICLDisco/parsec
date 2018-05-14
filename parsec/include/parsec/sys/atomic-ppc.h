@@ -1,9 +1,8 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-
 
 /**
  * Based on shared Internet knowledge and the Power7 optimization book.
@@ -13,13 +12,12 @@
 #warning This file is only for PowerPC
 #endif  /* __ PPC */
 
-#ifdef __xlC__
-/* work-around bizzare xlc bug in which it sign-extends
-   a pointer to a 32-bit signed integer */
-#define PARSEC_ASM_ADDR(a) ((uintptr_t)a)
-#else
-#define PARSEC_ASM_ADDR(a) (a)
+#if defined(PARSEC_HAVE_INT128)
+/* INT128 support was detected, yet there is no 128 atomics on this architecture */
+#error CMake Logic Error. INT128 support should be deactivated when using these atomics
 #endif
+
+/* Memory Barriers */
 
 ATOMIC_STATIC_INLINE
 void parsec_mfence( void )
@@ -42,130 +40,35 @@ void parsec_atomic_wmb(void)
     __asm__ __volatile__ ("lwsync" : : : "memory");
 }
 
-ATOMIC_STATIC_INLINE
-int parsec_atomic_bor_32b( volatile uint32_t* location,
-                           uint32_t mask )
-{
-#if !defined(__IBMC__)
-   int32_t old, t;
+/* Linked Load / Store Conditional */
 
-   __asm__ __volatile__(
-                        "1:   lwarx   %0,  0, %3   \n\t"
-                        "     or      %1, %0, %2   \n\t"
-                        "     stwcx.  %1,  0, %3   \n\t"
-                        "     bne-    1b           \n\t"
-                        : "=&r" (old), "=&r" (t)
-                        : "r" (mask), "r" PARSEC_ASM_ADDR(location)
-                        : "cc", "memory");
-
-   return t;
+#ifdef __xlC__
+/* work-around bizzare xlc bug in which it sign-extends
+   a pointer to a 32-bit signed integer */
+#define PARSEC_ASM_ADDR(a) ((uintptr_t)a)
 #else
-   return mask | __fetch_and_or(location, mask);
-#endif  /* !defined(__IBMC__) */
-}
+#define PARSEC_ASM_ADDR(a) (a)
+#endif
 
+#define PARSEC_HAVE_ATOMIC_LLSC
+
+#define PARSEC_HAVE_ATOMIC_LLSC_INT32
 ATOMIC_STATIC_INLINE
-int parsec_atomic_band_32b( volatile uint32_t* location,
-                            uint32_t mask )
-{
-#if !defined(__IBMC__)
-   int32_t old, t;
-
-   __asm__ __volatile__(
-                        "1:   lwarx   %0,  0, %3   \n\t"
-                        "     andc    %1, %0, %2   \n\t"
-                        "     stwcx.  %1,  0, %3   \n\t"
-                        "     bne-    1b           \n\t"
-                        : "=&r" (old), "=&r" (t)
-                        : "r" (mask), "r" PARSEC_ASM_ADDR(location)
-                        : "cc", "memory");
-
-   return t;
-#else
-   return mask & __fetch_and_and(location, mask);
-#endif  /* !defined(__IBMC__) */
-}
-
-ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_32b( volatile uint32_t* location,
-                           uint32_t old_value,
-                           uint32_t new_value )
-{
-#if !defined(__IBMC__)
-   int32_t ret;
-
-   __asm__ __volatile__ (
-                         "1: lwarx   %0, 0, %2  \n\t"
-                         "   cmpw    0, %0, %3  \n\t"
-                         "   bne-    2f         \n\t"
-                         "   stwcx.  %4, 0, %2  \n\t"
-                         "   bne-    1b         \n\t"
-                         "2:"
-                         : "=&r" (ret), "=m" (*location)
-                         : "r" PARSEC_ASM_ADDR(location), "r" (old_value), "r" (new_value), "m" (*location)
-                         : "cr0", "memory");
-
-   return (ret == old_value);
-#else
-   return __compare_and_swap((volatile int*)location, (int*)&old_value, (int)new_value);
-#endif  /* !defined(__IBMC__) */
-}
-
-ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_64b( volatile uint64_t* location,
-                           uint64_t old_value,
-                           uint64_t new_value )
-{
-#if !defined(__IBMC__)
-   int64_t ret;
-
-   __asm__ __volatile__ (
-                         "1: ldarx   %0, 0, %2  \n\t"
-                         "   cmpd    0, %0, %3  \n\t"
-                         "   bne-    2f         \n\t"
-                         "   stdcx.  %4, 0, %2  \n\t"
-                         "   bne-    1b         \n\t"
-                         "2:"
-                         : "=&r" (ret), "=m" (*location)
-                         : "r" (location), "r" PARSEC_ASM_ADDR(old_value), "r" (new_value), "m" (*location)
-                         : "cr0", "memory");
-
-   return (ret == old_value);
-#else
-   return __compare_and_swaplp((volatile long*)location, (long*)&old_value, (long)new_value);
-#endif  /* !defined(__IBMC__) */
-}
-
-#define PARSEC_HAVE_ATOMIC_LLSC_PTR
-ATOMIC_STATIC_INLINE
-int32_t parsec_atomic_ll_32b(volatile int32_t *location)
+int32_t parsec_atomic_ll_int32(volatile int32_t *location)
 {
    int32_t ret;
 
    __asm__ __volatile__ ("lwarx   %0, 0, %1  \n\t"
                          : "=&r" (ret)
-                         : "r" (location)
+                         : "r" PARSEC_ASM_ADDR(location)
                          :);
    return ret;
 }
 
 ATOMIC_STATIC_INLINE
-int64_t parsec_atomic_ll_64b(volatile int64_t *location)
+int parsec_atomic_sc_int32(volatile int32_t *location, int32_t newval)
 {
-   int64_t ret;
-
-   __asm__ __volatile__ ("ldarx   %0, 0, %1  \n\t"
-                         : "=&r" (ret)
-                         : "r" (location)
-                         :);
-   return ret;
-}
-#define parsec_atomic_ll_ptr parsec_atomic_ll_64b
-
-ATOMIC_STATIC_INLINE
-int parsec_atomic_sc_32b(volatile int32_t *location, int32_t newval)
-{
-    int32_t ret, foo;
+    int ret, foo;
 
     __asm__ __volatile__ ("   stwcx.  %4, 0, %3  \n\t"
                           "   li      %0,0       \n\t"
@@ -173,15 +76,28 @@ int parsec_atomic_sc_32b(volatile int32_t *location, int32_t newval)
                           "   ori     %0,%0,1    \n\t"
                           "1:"
                           : "=r" (ret), "=m" (*location), "=r" (foo)
-                          : "r" (location), "r" (newval)
+                          : "r" PARSEC_ASM_ADDR(location), "r" (newval)
                           : "cc", "memory");
     return ret;
 }
 
+#define PARSEC_HAVE_ATOMIC_LLSC_INT64
 ATOMIC_STATIC_INLINE
-int parsec_atomic_sc_64b(volatile int64_t *location, int64_t newval)
+int64_t parsec_atomic_ll_int64(volatile int64_t *location)
 {
-    int32_t ret, foo;
+   int64_t ret;
+
+   __asm__ __volatile__ ("ldarx   %0, 0, %1  \n\t"
+                         : "=&r" (ret)
+                         : "r" PARSEC_ASM_ADDR(location)
+                         :);
+   return ret;
+}
+
+ATOMIC_STATIC_INLINE
+int parsec_atomic_sc_int64(volatile int64_t *location, int64_t newval)
+{
+    int ret, foo;
 
     __asm__ __volatile__ ("   stdcx.  %4, 0, %3  \n\t"
                           "   li      %0,0       \n\t"
@@ -189,96 +105,156 @@ int parsec_atomic_sc_64b(volatile int64_t *location, int64_t newval)
                           "   ori     %0,%0,1    \n\t"
                           "1:"
                           : "=r" (ret), "=m" (*location), "=r" (foo)
-                          : "r" (location), "r" (newval)
+                          : "r" PARSEC_ASM_ADDR(location), "r" (newval)
                           : "cc", "memory");
     return ret;
 }
-#define parsec_atomic_sc_ptr parsec_atomic_sc_64b
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_INC_32B
+#if PARSEC_SIZEOF_VOID_P == 4
+#define PARSEC_HAVE_ATOMIC_LLSC_PTR
+#define parsec_atomic_ll_ptr parsec_atomic_ll_int32
+#define parsec_atomic_sc_ptr parsec_atomic_sc_int32
+#elif PARSEC_SIZEOF_VOID_P == 8
+#define PARSEC_HAVE_ATOMIC_LLSC_PTR
+#define parsec_atomic_ll_ptr parsec_atomic_ll_int64
+#define parsec_atomic_sc_ptr parsec_atomic_sc_int64
+#else
+/* No LLSC for PTR */
+#warning CMake logic error: there is no Linked-Load / Store Conditional for the pointers of this architecture. Wrong atomics file selected.
+#endif
+
+/* Compare and Swap */
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT32
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_inc_32b( volatile uint32_t *location )
+int parsec_atomic_cas_int32( volatile int32_t* location,
+                             int32_t old_value,
+                             int32_t new_value )
 {
 #if !defined(__IBMC__)
-   int32_t t;
-
-   __asm__ __volatile__(
-                        "1:   lwarx   %0, 0, %1    \n\t"
-                        "     addic   %0, %0, 1    \n\t"
-                        "     stwcx.  %0, 0, %1    \n\t"
-                        "     bne-    1b           \n\t"
-                        : "=&r" (t)
-                        : "r" (location)
-                        : "cc", "memory");
-
-   return t;
+   int32_t foo;
+   foo = parsec_atomic_ll_int32(location);
+   return ( foo == old_value && parsec_atomic_sc_int32(location, new_value) );
 #else
-   return 1 + __fetch_and_add( (volatile int*)location, 1);
+   return __compare_and_swap(location, &old_value, new_value);
 #endif  /* !defined(__IBMC__) */
 }
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B
+#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT64
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_dec_32b( volatile uint32_t *location )
+int parsec_atomic_cas_int64( volatile int64_t* location,
+                             int64_t old_value,
+                             int64_t new_value )
 {
 #if !defined(__IBMC__)
-   int32_t t;
-
-   __asm__ __volatile__(
-                        "1:   lwarx   %0, 0,%1     \n\t"
-                        "     addic   %0,%0,-1     \n\t"
-                        "     stwcx.  %0,0,%1      \n\t"
-                        "     bne-    1b           \n\t"
-                        : "=&r" (t)
-                        : "r" (location)
-                        : "cc", "memory");
-
-   return t;
+   int64_t foo;
+   foo = parsec_atomic_ll_int64(location);
+   return ( foo == old_value && parsec_atomic_sc_int64(location, new_value) );
 #else
-   return __fetch_and_add( (volatile int*)location, -1) - 1;
+   return __compare_and_swap(location, &old_value, new_value);
 #endif  /* !defined(__IBMC__) */
 }
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
+/* Mask Operations */
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_OR_INT32
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_add_32b( volatile int32_t *location, int32_t i )
+int32_t parsec_atomic_fetch_or_int32( volatile int32_t* location,
+                                      int32_t mask )
 {
 #if !defined(__IBMC__)
-   int32_t t;
-
-   __asm__ __volatile__(
-                        "1:   lwarx   %0, 0, %3    \n\t"
-                        "     add     %0, %2, %0   \n\t"
-                        "     stwcx.  %0, 0, %3    \n\t"
-                        "     bne-    1b           \n\t"
-                        : "=&r" (t), "=m" (*location)
-                        : "r" (i), "r" PARSEC_ASM_ADDR(location), "m" (*location)
-                        : "cc");
-
-   return t;
+   int32_t old, t;
+   do {
+       old = parsec_atomic_ll_int32(location);
+       t = old | mask;
+   } while( !parsec_atomic_sc_int32(location, t) );
+   return old;
 #else
-   return i + __fetch_and_add( (volatile int*)location, i);
+   return __fetch_and_or(location, mask);
 #endif  /* !defined(__IBMC__) */
 }
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_AND_INT32
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
+int32_t parsec_atomic_fetch_and_int32( volatile int32_t* location,
+                                       int32_t mask )
 {
 #if !defined(__IBMC__)
-   int32_t t;
-
-   __asm__ __volatile__(
-                        "1:   lwarx   %0,0,%3      \n\t"
-                        "     subf    %0,%2,%0     \n\t"
-                        "     stwcx.  %0,0,%3      \n\t"
-                        "     bne-    1b           \n\t"
-                        : "=&r" (t), "=m" (*location)
-                        : "r" (i), "r" PARSEC_ASM_ADDR(location)
-                        : "cc");
-
-   return t;
+   int32_t old, t;
+   do {
+       old = parsec_atomic_ll_int32(location);
+       t = old & mask;
+   } while( !parsec_atomic_sc_int32(location, t) );
+   return old;
 #else
-   return __fetch_and_add( (volatile int*)location, i) - i;
+   return __fetch_and_and(location, mask);
+#endif  /* !defined(__IBMC__) */
+}
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_OR_INT64
+ATOMIC_STATIC_INLINE
+int64_t parsec_atomic_fetch_or_int64( volatile int64_t* location,
+                                      int64_t mask )
+{
+#if !defined(__IBMC__)
+   int64_t old, t;
+   do {
+       old = parsec_atomic_ll_int64(location);
+       t = old | mask;
+   } while( !parsec_atomic_sc_int64(location, t) );
+   return old;
+#else
+   return __fetch_and_or(location, mask);
+#endif  /* !defined(__IBMC__) */
+}
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_AND_INT64
+ATOMIC_STATIC_INLINE
+int64_t parsec_atomic_fetch_and_int64( volatile int64_t* location,
+                                       int64_t mask )
+{
+#if !defined(__IBMC__)
+   int64_t old, t;
+   do {
+       old = parsec_atomic_ll_int64(location);
+       t = old & mask;
+   } while( !parsec_atomic_sc_int64(location, t) );
+   return old;
+#else
+   return __fetch_and_and(location, mask);
+#endif  /* !defined(__IBMC__) */
+}
+
+/* Integer Operations */
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT32
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_fetch_add_int32( volatile int32_t *location, int32_t val )
+{
+#if !defined(__IBMC__)
+    int64_t old, t;
+   do {
+       old = parsec_atomic_ll_int32(location);
+       t = old + val;
+   } while( !parsec_atomic_sc_int32(location, t) );
+   return old;
+#else
+   return __fetch_and_add(location, val);
+#endif  /* !defined(__IBMC__) */
+}
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT64
+ATOMIC_STATIC_INLINE
+int64_t parsec_atomic_fetch_add_int64( volatile int64_t *location, int64_t val )
+{
+#if !defined(__IBMC__)
+    int64_t old, t;
+   do {
+       old = parsec_atomic_ll_int64(location);
+       t = old + val;
+   } while( !parsec_atomic_sc_int64(location, t) );
+   return old;
+#else
+   return __fetch_and_add(location, val);
 #endif  /* !defined(__IBMC__) */
 }

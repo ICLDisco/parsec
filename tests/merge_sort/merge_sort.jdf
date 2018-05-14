@@ -118,7 +118,7 @@ int sort_5(int *elems){
 /* functions needed for the reduction */
 int tree_height(int NT){
     int i;
-    for(i=0; i<8*sizeof(NT); i++){
+    for(i=0; i<(int)(8*sizeof(NT)); i++){
         if( (1<<i) >= NT )
             return i;
     }

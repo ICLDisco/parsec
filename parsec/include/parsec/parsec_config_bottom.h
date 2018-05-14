@@ -90,12 +90,12 @@
 #endif
 
 #if defined(PARSEC_SCHED_DEPS_MASK)
-typedef uint32_t parsec_dependency_t;
+typedef int32_t parsec_dependency_t;
 #else
 /**
  * Should be large enough to support MAX_PARAM_COUNT values.
  */
-typedef uint32_t parsec_dependency_t;
+typedef int32_t parsec_dependency_t;
 #endif
 
 /*

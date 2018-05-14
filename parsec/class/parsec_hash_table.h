@@ -62,7 +62,7 @@ typedef struct parsec_hash_table_head_s {
     struct parsec_hash_table_head_s *next;                 /**< Table of smaller size that is not empty */
     struct parsec_hash_table_head_s *next_to_free;         /**< Table of smaller size, chained in allocation order */
     uint32_t                         nb_bits;              /**< This hash table has 1<<nb_bits buckets */
-    uint32_t                         used_buckets;         /**< Number of buckets still in use in this hash table */
+    int32_t                          used_buckets;         /**< Number of buckets still in use in this hash table */
     parsec_hash_table_bucket_t      *buckets;              /**< These are the buckets (that are lists of items) of this table */
 } parsec_hash_table_head_t;
                                   

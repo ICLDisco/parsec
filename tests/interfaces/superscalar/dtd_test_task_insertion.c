@@ -20,7 +20,7 @@
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
 
-uint32_t count = 0;
+int32_t count = 0;
 
 int
 test_task( parsec_execution_stream_t *es,
@@ -31,7 +31,7 @@ test_task( parsec_execution_stream_t *es,
     int amount_of_work;
     parsec_dtd_unpack_args(this_task, &amount_of_work);
 
-    (void)parsec_atomic_inc_32b(&count);
+    (void)parsec_atomic_fetch_inc_int32(&count);
 
     int i, j;
     for( i = 0; i < amount_of_work; i++ ) {

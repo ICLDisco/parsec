@@ -1,19 +1,28 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
+/* Warning: 
+ *  as of May 10, 2018, this file has not been tested, for lack of target architecture */
+
+/* Memory Barriers */
+
+#define PARSEC_ATOMIC_HAS_MFENCE
 ATOMIC_STATIC_INLINE
 void parsec_mfence(void)
 {
     __asm__ __volatile__ ("mfence\n\t":::"memory");
 }
 
+/* Compare and Swap */
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT32
 ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_32b(volatile uint32_t* location,
-                          uint32_t old_value,
-                          uint32_t new_value)
+int parsec_atomic_cas_int32(volatile int32_t* location,
+                            int32_t old_value,
+                            int32_t new_value)
 {
     unsigned char ret;
     __asm__ __volatile__ (
@@ -26,89 +35,168 @@ int parsec_atomic_cas_32b(volatile uint32_t* location,
     return (int)ret;
 }
 
+#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT64
 ATOMIC_STATIC_INLINE
-int parsec_atomic_bor_32b(volatile uint32_t* location,
-                          uint32_t value)
-{
-    uint32_t old_value;
-
-    do {
-        old_value = *location;
-    } while( !parsec_atomic_cas_32b(location, old_value, (old_value|value) ));
-    return old_value | value;
-}
-
-ATOMIC_STATIC_INLINE
-int parsec_atomic_band_32b(volatile uint32_t* location,
-                           uint32_t value)
-{
-    uint32_t old_value;
-
-    do {
-        old_value = *location;
-    } while( !parsec_atomic_cas_32b(location, old_value, (old_value&value) ));
-    return old_value & value;
-}
-
-ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_64b(volatile uint64_t* location,
-                          uint64_t old_value,
-                          uint64_t new_value)
+int parsec_atomic_cas_int64(volatile int64_t* location,
+                            int64_t old_value,
+                            int64_t new_value)
 {
     unsigned char ret;
     __asm__ __volatile__ (
                           "lock; cmpxchgq %3,%2   \n\t"
                           "      sete     %0      \n\t"
-                          : "=qm" (ret), "+a" (old_value), "+m" (*((volatile long*)location))
+                          : "=qm" (ret), "+a" (old_value), "+m" (*location)
                           : "q"(new_value)
                           : "memory", "cc");
 
    return (int)ret;
 }
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_INC_32B
+#if defined(PARSEC_HAVE_INT128)
+#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_inc_32b(volatile uint32_t *location)
+int parsec_atomic_cas_int128(volatile __int128_t* location,
+                             __int128_t old_value,
+                             __int128_t new_value)
 {
+    unsigned char ret;
+    int64_t cmp_hi, cmp_lo, with_hi, with_lo;
+    cmp_hi = (int64_t)(old_value >> 64);
+    cmp_lo = *(uint64_t*)&old_value;
+    with_hi = (int64_t)(new_value >> 64);
+    with_lo = *(uint64_t*)&new_value;
+    
     __asm__ __volatile__ (
-                          "lock; incl %0\n"
-                          : "+m" (*(location)));
-    return (*location);
+                          "lock cmpxchg16b %1  \n\t"
+                          "setz %0             \n\t"
+                          : "=qm" ( ret ), "+m" ( *location ), "+d" ( cmp_hi ), "+a" ( cmp_lo )
+                          : "c" ( with_hi ), "b" ( with_lo )
+                          : "memory", "cc");
+   
+   return (int)ret;
+}
+#endif
+
+/* Mask */
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_OR_INT32
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_fetch_or_int32(volatile int32_t* location,
+                                     int32_t value)
+{
+    int32_t old_value;
+
+    do {
+        old_value = *location;
+    } while( !parsec_atomic_cas_int32(location, old_value, (old_value|value) ));
+    return old_value;
 }
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_AND_INT32
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_dec_32b(volatile uint32_t *location)
+int32_t parsec_atomic_fetch_and_int32(volatile int32_t* location,
+                                      int32_t value)
 {
-    __asm__ __volatile__ (
-                          "lock; decl %0\n"
-                          : "+m" (*(location)));
-    return (*location);
+    int32_t old_value;
+
+    do {
+        old_value = *location;
+    } while( !parsec_atomic_cas_int32(location, old_value, (old_value&value) ));
+    return old_value;
 }
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_OR_INT64
 ATOMIC_STATIC_INLINE
-int32_t parsec_atomic_add_32b(volatile int32_t* v, int32_t i)
+int64_t parsec_atomic_fetch_or_int64(volatile int64_t* location,
+                                     int64_t value)
 {
-    int ret = i;
-   __asm__ __volatile__(
+    int64_t old_value;
+
+    do {
+        old_value = *location;
+    } while( !parsec_atomic_cas_int64(location, old_value, (old_value|value) ));
+    return old_value;
+}
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_AND_INT64
+ATOMIC_STATIC_INLINE
+int64_t parsec_atomic_fetch_and_int64(volatile int64_t* location,
+                                      int64_t value)
+{
+    int64_t old_value;
+
+    do {
+        old_value = *location;
+    } while( !parsec_atomic_cas_int64(location, old_value, (old_value&value) ));
+    return old_value;
+}
+
+#if defined(PARSEC_HAVE_INT128)
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_OR_INT128
+ATOMIC_STATIC_INLINE
+__int128_t parsec_atomic_fetch_or_int128(volatile __int128_t* location,
+                                         __int128_t value)
+{
+    __int128_t old_value;
+
+    do {
+        old_value = *location;
+    } while( !parsec_atomic_cas_int128(location, old_value, (old_value|value) ));
+    return old_value;
+}
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_AND_INT128
+ATOMIC_STATIC_INLINE
+__int128_t parsec_atomic_fetch_and_int128(volatile __int128_t* location,
+                                          __int128_t value)
+{
+    __int128_t old_value;
+
+    do {
+        old_value = *location;
+    } while( !parsec_atomic_cas_int128(location, old_value, (old_value&value) ));
+    return old_value;
+}
+#endif
+
+/* Integer */
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT32
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_fetch_add_int32(volatile int32_t* v, int32_t i)
+{
+    int32_t ret = i;
+    __asm__ __volatile__(
                         "lock; xaddl %1,%0"
                         :"+m" (*v), "+r" (ret)
                         :
                         :"memory", "cc");
-   return (ret+i);
+   return ret;
 }
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT64
 ATOMIC_STATIC_INLINE
-int32_t parsec_atomic_sub_32b(volatile int32_t* v, int32_t i)
+int64_t parsec_atomic_fetch_add_int32(volatile int64_t* v, int64_t i)
 {
-    int ret = -i;
-   __asm__ __volatile__(
+    int64_t ret = i;
+    __asm__ __volatile__(
                         "lock; xaddl %1,%0"
                         :"+m" (*v), "+r" (ret)
                         :
                         :"memory", "cc");
-   return (ret-i);
+   return ret;
 }
 
+#if defined(PARSEC_HAVE_INT128)
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT128
+ATOMIC_STATIC_INLINE
+__int128_t parsec_atomic_fetch_add_int128(volatile __int128_t* v, __int128_t i)
+{
+    __int128_t ov, nv;
+    do {
+        ov = *v;
+        nv = ov + i;
+    } while( !parsec_atomic_cas_int128(v, nv) );
+    return ov;
+}
+#endif

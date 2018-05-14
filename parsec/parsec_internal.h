@@ -111,7 +111,7 @@ struct parsec_taskpool_s {
     uint16_t                   devices_mask; /**< A bitmask on what devices this taskpool may use */
     int32_t                    initial_number_tasks; /**< Counts the number of task classes initially ready */
     int32_t                    priority;             /**< A constant used to bump the priority of tasks related to this taskpool */
-    volatile uint32_t          nb_pending_actions;  /**< Internal counter of pending actions tracking all runtime
+    volatile int32_t           nb_pending_actions;  /**< Internal counter of pending actions tracking all runtime
                                                      *   activities (such as communications, data movement, and
                                                      *   so on). Also, its value is increase by one for all the tasks
                                                      *   in the taskpool. This extra reference will be removed upon
@@ -518,7 +518,7 @@ parsec_release_dep_fct(struct parsec_execution_stream_s *es,
 int parsec_task_deps_with_final_output(const parsec_task_t *task,
                                       const dep_t **deps);
 
-int parsec_ptg_update_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks );
+int32_t parsec_ptg_update_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks );
 
 void parsec_dependencies_mark_task_as_startup(parsec_task_t* task, parsec_execution_stream_t *es);
 

@@ -34,7 +34,7 @@ parsec_release_task_to_mempool_update_nbtasks(parsec_execution_stream_t *es,
     (void)es;
     handle = this_task->taskpool;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
-    (void)parsec_atomic_dec_32b( (uint32_t*)&handle->nb_tasks );
+    (void)parsec_atomic_fetch_dec_int32( &handle->nb_tasks );
     return PARSEC_HOOK_RETURN_DONE;
 }
 

@@ -37,8 +37,8 @@
 #cmakedefine PARSEC_HAVE_COMPLEX_H
 
 /* Compiler Specific Options */
-#cmakedefine PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B
-#cmakedefine PARSEC_HAVE_UINT128
+#cmakedefine PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128
+#cmakedefine PARSEC_HAVE_INT128
 
 /* Scheduling engine */
 #cmakedefine PARSEC_SCHED_DEPS_MASK

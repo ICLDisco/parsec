@@ -22,7 +22,7 @@ struct parsec_hash_table_bucket_s {
     parsec_atomic_lock_t      lock;             /**< Buckets are lockable for multithread access 
                                                  *   We also use this lock to atomically update the
                                                  *   list of elements when needed. */
-    uint32_t                  cur_len;          /**< Number of elements currently in this bucket */
+    int32_t                   cur_len;          /**< Number of elements currently in this bucket */
     parsec_hash_table_item_t *first_item;       /**< Otherwise they are simply chained lists */
 };
 
@@ -30,7 +30,7 @@ struct parsec_hash_table_bucket_s {
 #define ITEMADDROF(ptr, ht)   (parsec_hash_table_item_t*)( ((char*)(ptr)) + ( (ht)->elt_hashitem_offset ) )
 
 static int      parsec_hash_table_mca_param_index     = -1;
-static uint32_t parsec_hash_table_max_collisions_hint = 16;
+static int32_t  parsec_hash_table_max_collisions_hint = 16;
 
 void *parsec_hash_table_item_lookup(parsec_hash_table_t *ht, parsec_hash_table_item_t *item)
 {
@@ -71,7 +71,7 @@ int parsec_hash_tables_init(void)
 
 void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits, parsec_key_fn_t key_functions, void *data)
 {
-    parsec_atomic_lock_t unlocked = { PARSEC_ATOMIC_UNLOCKED };
+    parsec_atomic_lock_t unlocked = PARSEC_ATOMIC_UNLOCKED;
     parsec_atomic_rwlock_t unlock = { 0 };
     parsec_hash_table_head_t *head;
     size_t i;
@@ -117,7 +117,7 @@ void parsec_hash_table_lock_bucket(parsec_hash_table_t *ht, parsec_key_t key )
 
 static void parsec_hash_table_resize(parsec_hash_table_t *ht)
 {
-    parsec_atomic_lock_t unlocked = { PARSEC_ATOMIC_UNLOCKED };
+    parsec_atomic_lock_t unlocked = PARSEC_ATOMIC_UNLOCKED;
     parsec_hash_table_head_t *head;
     int nb_bits = ht->rw_hash->nb_bits + 1;
     assert(nb_bits < 32);
@@ -185,9 +185,9 @@ void parsec_hash_table_nolock_insert(parsec_hash_table_t *ht, parsec_hash_table_
     item->next_item = ht->rw_hash->buckets[hash].first_item;
     item->hash64 = ht->key_functions.key_hash(key, 64, ht->hash_data);
     ht->rw_hash->buckets[hash].first_item = item;
-    res = parsec_atomic_inc_32b(&ht->rw_hash->buckets[hash].cur_len);
-    if( 1 == res ) {
-        parsec_atomic_inc_32b(&ht->rw_hash->used_buckets);
+    res = parsec_atomic_fetch_inc_int32(&ht->rw_hash->buckets[hash].cur_len);
+    if( 0 == res ) {
+        parsec_atomic_fetch_inc_int32(&ht->rw_hash->used_buckets);
     }
 #if defined(PARSEC_DEBUG_NOISIER)
     {
@@ -226,10 +226,10 @@ static void *parsec_hash_table_nolock_remove_from_old_tables(parsec_hash_table_t
                 } else {
                     prev_item->next_item = current_item->next_item;
                 }
-                res = parsec_atomic_dec_32b(&head->buckets[hash].cur_len);
-                if( 0 == res ) {
-                    res = parsec_atomic_dec_32b(&head->used_buckets);
-                    if( 0 == res ) {
+                res = parsec_atomic_fetch_dec_int32(&head->buckets[hash].cur_len);
+                if( 1 == res ) {
+                    res = parsec_atomic_fetch_dec_int32(&head->used_buckets);
+                    if( 1 == res ) {
                         parsec_atomic_cas_ptr(&prev_head->next, head, head->next);
                     }
                 }
@@ -247,10 +247,10 @@ static void *parsec_hash_table_nolock_remove_from_old_tables(parsec_hash_table_t
                  } else {
                      prev_item->next_item = current_item->next_item;
                  }
-                 res = parsec_atomic_dec_32b(&head->buckets[hash].cur_len);
-                 if( 0 == res ) {
-                     res = parsec_atomic_dec_32b(&head->used_buckets);
-                     if( 0 == res ) {
+                 res = parsec_atomic_fetch_dec_int32(&head->buckets[hash].cur_len);
+                 if( 1 == res ) {
+                     res = parsec_atomic_fetch_dec_int32(&head->used_buckets);
+                     if( 1 == res ) {
                          parsec_atomic_cas_ptr(&prev_head->next, head, head->next);
                      }
                  }
@@ -346,9 +346,9 @@ void *parsec_hash_table_nolock_remove(parsec_hash_table_t *ht, parsec_key_t key)
             } else {
                 prev_item->next_item = current_item->next_item;
             }
-            res = parsec_atomic_dec_32b(&ht->rw_hash->buckets[hash].cur_len);
-            if( 0 == res ) {
-                res = parsec_atomic_dec_32b(&ht->rw_hash->used_buckets);
+            res = parsec_atomic_fetch_dec_int32(&ht->rw_hash->buckets[hash].cur_len);
+            if( 1 == res ) {
+                res = parsec_atomic_fetch_dec_int32(&ht->rw_hash->used_buckets);
             }
 #if defined(PARSEC_DEBUG_NOISIER)
             char estr[64];

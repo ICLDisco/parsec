@@ -17,7 +17,7 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
-uint32_t count = 0;
+int32_t count = 0;
 
 enum regions {
                TILE_FULL,
@@ -32,7 +32,7 @@ call_to_kernel_type_read( parsec_execution_stream_t *es,
 
     parsec_dtd_unpack_args(this_task, &data);
     if( *data > 1 ) {
-        (void)parsec_atomic_inc_32b(&count);
+        (void)parsec_atomic_fetch_inc_int32(&count);
     }
 
     return PARSEC_HOOK_RETURN_DONE;

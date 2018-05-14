@@ -233,7 +233,7 @@ int parsec_check_complete_cb(parsec_taskpool_t *tp, parsec_context_t *context, i
         if( NULL != tp->on_complete ) {
             (void)tp->on_complete( tp, tp->on_complete_data );
         }
-        (void)parsec_atomic_dec_32b( &(context->active_taskpools) );
+        (void)parsec_atomic_fetch_dec_int32( &context->active_taskpools );
         PINS_TASKPOOL_FINI(tp);
         return 1;
     }
@@ -423,7 +423,7 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
          * this taskpool tasks once. We need to protect this action by atomically
          * setting the number of tasks to a non-zero value.
          */
-        if( parsec_atomic_cas_32b((uint32_t*)&tp->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
+        if( parsec_atomic_cas_int32(&tp->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
             parsec_taskpool_update_runtime_nbtask(tp, -1);
     }
 
@@ -440,7 +440,7 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
 
 #if defined(PARSEC_SCHED_REPORT_STATISTICS)
     {
-        uint32_t my_idx = parsec_atomic_inc_32b(&sched_priority_trace_counter);
+        uint32_t my_idx = parsec_atomic_fetch_inc_int32(&sched_priority_trace_counter) + 1;
         if(my_idx < PARSEC_SCHED_MAX_PRIORITY_TRACE_COUNTER ) {
             sched_priority_trace[my_idx].step      = es->sched_nb_tasks_done++;
             sched_priority_trace[my_idx].thread_id = es->th_id;
@@ -744,7 +744,7 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     PINS_TASKPOOL_INIT(tp);  /* PINS taskpool initialization */
 
     /* Update the number of pending taskpools */
-    (void)parsec_atomic_inc_32b( &(context->active_taskpools) );
+    (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );
 
     /* If necessary trigger the on_enqueue callback */
     if( NULL != tp->on_enqueue ) {
@@ -793,9 +793,9 @@ __parsec_context_cas_or_flag(parsec_context_t* context,
     uint32_t current_flags = context->flags;
     /* if the flags are already set don't reset them */
     if( flags == (current_flags & flags) ) return 0;
-    return parsec_atomic_cas_32b(&context->flags,
-                                 current_flags,
-                                 current_flags | flags);
+    return parsec_atomic_cas_int32(&context->flags,
+                                   current_flags,
+                                   current_flags | flags);
 }
 
 /*
@@ -822,7 +822,7 @@ int parsec_context_start( parsec_context_t* context )
         /* we keep one extra reference on the context to make sure we only match this with an
          * explicit call to parsec_context_wait.
          */
-        (void)parsec_atomic_inc_32b( (uint32_t*)&(context->active_taskpools) );
+        (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );
         return 0;
     }
     return -1;  /* Someone else start it up */
@@ -849,11 +849,11 @@ int parsec_context_wait( parsec_context_t* context )
     /* Remove the additional active_taskpool to signal the runtime that we
      * are ready to complete a scheduling epoch.
      */
-    int active = parsec_atomic_dec_32b( &(context->active_taskpools) );
+    int active = parsec_atomic_fetch_dec_int32( &context->active_taskpools ) - 1;
     if( active < 0 ) {
         parsec_warning("parsec_context_wait detected on a non-started context\n");
         /* put the context back on it's original state */
-        (void)parsec_atomic_inc_32b( &(context->active_taskpools) );
+        (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );
         return -1;
     }
 

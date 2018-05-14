@@ -46,10 +46,10 @@ typedef volatile uint32_t parsec_atomic_rwlock_t;
  *    http://dl.acm.org/citation.cfm?id=1842604
  */
 typedef volatile struct {
-    uint32_t rin;    /**< How many readers requested to enter (3 high bytes, low byte used for writer requests) */
-    uint32_t rout;   /**< How many readers left (compared only to rin read values with equal) */
-    uint32_t win;    /**< How many writers requested to enter (3 high bytes, low byte unused) */
-    uint32_t wout;   /**< How many writers left (compared only to rin read values with equal) */
+    int32_t rin;    /**< How many readers requested to enter (3 high bytes, low byte used for writer requests) */
+    int32_t rout;   /**< How many readers left (compared only to rin read values with equal) */
+    int32_t win;    /**< How many writers requested to enter (3 high bytes, low byte unused) */
+    int32_t wout;   /**< How many writers left (compared only to rin read values with equal) */
 } parsec_atomic_rwlock_t;
 
 #elif RWLOCK_IMPL == RWLOCK_IMPL_2LOCKS

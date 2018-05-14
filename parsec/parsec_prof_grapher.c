@@ -14,6 +14,7 @@
 #include "parsec/utils/colors.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/parsec_description_structures.h"
+#include "parsec/utils/debug.h"
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>

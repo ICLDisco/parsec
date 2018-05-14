@@ -33,7 +33,7 @@ int parsec_debug_history_on_fatal = 0;
 static int bt_output    = -1;
 static int ST_SIZE      = 128;
 static int ST_ASIZE     = 64;
-static uint32_t st_idx  = 0;
+static int32_t st_idx   = 0;
 static void **stack     = NULL;
 static int* stack_size  = NULL;
 
@@ -155,7 +155,7 @@ void parsec_debug_fini(void)
 #include <execinfo.h>
 
 void parsec_debug_backtrace_save(void) {
-    uint32_t my_idx = parsec_atomic_inc_32b(&st_idx) % ST_ASIZE;
+    uint32_t my_idx = (parsec_atomic_fetch_inc_int32(&st_idx) + 1) % ST_ASIZE;
     stack_size[my_idx] = backtrace(&stack[my_idx*ST_SIZE], ST_SIZE);
 }
 
@@ -239,7 +239,7 @@ static volatile mark_double_buffer_t *mark_buffers = NULL;
 /**
  * This global stores which buffer of the double buffer is currently used for writing
  */
-static volatile uint32_t writing_buffer = 0; /** Can be 0 or 1 */
+static volatile int32_t writing_buffer = 0; /** Can be 0 or 1 */
 
 /**
  * In order to print reasonable times, each timing before being printed is negatively offset by
@@ -453,7 +453,7 @@ void parsec_debug_history_dump(void) {
      * it is wanted to avoid reading from the buffer that is being used to
      * push new marks.
      */
-    parsec_atomic_cas_32b(&writing_buffer, printing_buffer, printing_buffer == 0 ? 1 : 0);
+    parsec_atomic_cas_int32(&writing_buffer, printing_buffer, printing_buffer == 0 ? 1 : 0);
     
     /* As long as there is a mark to display for one thread */
     parsec_inform("== Begin debug history =====================================================");
