@@ -299,6 +299,19 @@ typedef parsec_task_t *(*parsec_sched_base_module_select_fn_t)
 typedef void (*parsec_sched_base_module_stats_fn_t)(parsec_execution_stream_t* es);
 
 /**
+ * @brief Registers PAPI-SDE counters.
+ *
+ * @details
+ *   register the PAPI SDE counters for the specific execution stream.
+ *   If the execution stream is not specified, just register the description
+ *   of the counters (used by papi_native_avail to display available counters)
+ *
+ *  @param[in] es the calling execution stream or NULL
+ */
+typedef void (*parsec_sched_base_module_register_sde_fn_t)(parsec_execution_stream_t* es);
+
+
+/**
  * @brief Finalization.
  *
  * @details
@@ -323,12 +336,13 @@ typedef void (*parsec_sched_base_module_stats_fn_t)(parsec_execution_stream_t* e
 typedef void (*parsec_sched_base_module_remove_fn_t)(parsec_context_t* master);
 
 struct parsec_sched_base_module_1_0_0_t {
-    parsec_sched_base_module_install_fn_t     install;
-    parsec_sched_base_module_flow_init_fn_t   flow_init;
-    parsec_sched_base_module_schedule_fn_t    schedule;
-    parsec_sched_base_module_select_fn_t      select;
-    parsec_sched_base_module_stats_fn_t       display_stats;
-    parsec_sched_base_module_remove_fn_t      remove;
+    parsec_sched_base_module_install_fn_t      install;
+    parsec_sched_base_module_flow_init_fn_t    flow_init;
+    parsec_sched_base_module_schedule_fn_t     schedule;
+    parsec_sched_base_module_select_fn_t       select;
+    parsec_sched_base_module_stats_fn_t        display_stats;
+    parsec_sched_base_module_register_sde_fn_t register_sde;
+    parsec_sched_base_module_remove_fn_t       remove;
 };
 
 typedef struct parsec_sched_base_module_1_0_0_t parsec_sched_base_module_1_0_0_t;

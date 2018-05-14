@@ -36,6 +36,7 @@ static parsec_task_t *sched_ltq_select(parsec_execution_stream_t *es,
                                        int32_t* distance);
 static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier);
 static void sched_ltq_remove(parsec_context_t* master);
+static void sched_ltq_register_sde_counters(parsec_execution_stream_t *es);
 
 const parsec_sched_module_t parsec_sched_ltq_module = {
     &parsec_sched_ltq_component,
@@ -45,6 +46,7 @@ const parsec_sched_module_t parsec_sched_ltq_module = {
         sched_ltq_schedule,
         sched_ltq_select,
         NULL,
+        sched_ltq_register_sde_counters,
         sched_ltq_remove
     }
 };
@@ -55,6 +57,39 @@ static int sched_ltq_install( parsec_context_t *master )
     return 0;
 }
 
+static void sched_ltq_register_sde_counters(parsec_execution_stream_t *es)
+{
+    char event_name[256];
+    int thid;
+    parsec_vp_t *vp;
+
+    if( NULL != es && 0 == es->th_id ) {
+        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LTQ", es->virtual_process->vp_id);
+        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_system_queue_length, es->virtual_process);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ", PAPI_SDE_SUM);
+        vp = es->virtual_process;
+        for(thid = 0; thid < vp->nb_cores; thid++) {
+            snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LTQ", vp->vp_id, thid);
+            papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                         PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_length, LOCAL_QUEUES_OBJECT(vp->execution_streams[thid])->task_queue);
+            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                          "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                          "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ", PAPI_SDE_SUM);
+        }
+    }
+    if( NULL == es || 0 == es->th_id ) {
+        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ",
+                                  "the number of pending tasks for the LTQ scheduler");
+        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>/<QID>::SCHED=LTQ",
+                                  "the number of pending tasks that end up in the virtual process <VPID> queue at level <QID> for the LTQ scheduler");
+    }
+}
+
 static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
 {
     local_queues_scheduler_object_t *sched_obj = NULL;
@@ -63,6 +98,7 @@ static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     parsec_vp_t * vp = es->virtual_process;
 
     sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
+    sched_obj->local_system_queue_balance = 0;
     es->scheduler_object = sched_obj;
 
     if( es->th_id == 0 ) {
@@ -131,6 +167,9 @@ static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
         assert( nq == sched_obj->nb_hierarch_queues );
 #endif
     }
+
+    sched_ltq_register_sde_counters(es);
+    
     return 0;
 }
 
@@ -192,9 +231,14 @@ sched_ltq_select(parsec_execution_stream_t *es,
     // if nothing yet, then go to system queue
     heap = (parsec_heap_t *)parsec_dequeue_pop_front(LOCAL_QUEUES_OBJECT(es)->system_queue);
     task = heap_split_and_steal(&heap, &new_heap);
-    if (heap != NULL)
+    if( NULL != task ) {
+        LOCAL_QUEUES_OBJECT(es)->local_system_queue_balance--;
+    }
+    if (heap != NULL) {
+        LOCAL_QUEUES_OBJECT(es)->local_system_queue_balance-= heap->size;
         parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(es)->task_queue,
                                  (parsec_list_item_t*)heap, 0);
+    }
     *distance = LOCAL_QUEUES_OBJECT(es)->nb_hierarch_queues + 1;
     return task;
 }
@@ -260,6 +304,7 @@ static void sched_ltq_remove( parsec_context_t *master )
     parsec_execution_stream_t *es;
     parsec_vp_t *vp;
     local_queues_scheduler_object_t *sched_obj;
+    char event_name[256];
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
@@ -281,6 +326,12 @@ static void sched_ltq_remove( parsec_context_t *master )
 
             free(es->scheduler_object);
             es->scheduler_object = NULL;
+
+            snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LTQ", vp->vp_id, t);
+            papi_sde_unregister_counter(parsec_papi_sde_handle, event_name);
         }
+        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LTQ", p);
+        papi_sde_unregister_counter(parsec_papi_sde_handle, event_name);
     }
+    papi_sde_unregister_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ");
 }

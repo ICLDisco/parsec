@@ -25,6 +25,7 @@
  * Local function
  */
 static int sched_rnd_component_query(mca_base_module_t **module, int *priority);
+static int sched_rnd_component_register(void);
 
 /*
  * Instantiate the public struct with all of our public information
@@ -48,7 +49,7 @@ const parsec_sched_base_component_t parsec_sched_rnd_component = {
         NULL, /*< No close: open did not allocate any resource, no need to release them */
         sched_rnd_component_query, 
         /*< specific query to return the module and add it to the list of available modules */
-        NULL, /*< No register: no parameters to the absolute priority component */
+        sched_rnd_component_register, /*< Register at least the SDE events */
 	"", /*< no reserve */
     },
     {
@@ -69,6 +70,12 @@ static int sched_rnd_component_query(mca_base_module_t **module, int *priority)
     void *ptr = (void*)&parsec_sched_rnd_module;
     *priority = 1;
     *module = (mca_base_module_t *)ptr;
+    return MCA_SUCCESS;
+}
+
+static int sched_rnd_component_register(void)
+{
+    parsec_sched_rnd_module.module.register_sde(NULL);
     return MCA_SUCCESS;
 }
 

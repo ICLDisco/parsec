@@ -324,6 +324,11 @@ do { \
     } \
 } while (0)
 
+static void parsec_register_sde_events(void)
+{
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS",
+                              "the number of pending tasks. A task is said pending if it is ready to execute but waits for execution in one of the scheduler queues.");
+}
 
 parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 {
@@ -410,7 +415,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_weaksym_exit = parsec_mpi_exit;
     }
 #endif
-
+    parsec_register_sde_events();
+    
     parsec_debug_init();
     mca_components_repository_init();
 

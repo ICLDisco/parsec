@@ -38,6 +38,7 @@ sched_ll_select(parsec_execution_stream_t *es,
                  int32_t* distance);
 static void sched_ll_remove(parsec_context_t* master);
 static int flow_ll_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier);
+static void sched_ll_register_sde_counters(parsec_execution_stream_t *es);
 
 static int sched_ll_warning_issued = 0;
 
@@ -49,9 +50,60 @@ const parsec_sched_module_t parsec_sched_ll_module = {
         sched_ll_schedule,
         sched_ll_select,
         NULL,
+        sched_ll_register_sde_counters,
         sched_ll_remove
     }
 };
+
+/**
+ * @brief define a Lifo with local counter
+ *
+ * @details the lifo is augmented with a local counter.
+ *   The counter is in fact completely independent from
+ *   the lifo itself: the lifo belongs to a thread, and
+ *   the counter belongs to the same thread. Using atomic
+ *   operations, the lifo may be modified by other threads,
+ *   but the counter may not. Each thread counts on its
+ *   counter only (not using atomic operations), but they
+ *   count all lifo modifications (including modifications
+ *   of another lifo
+ *
+ *   So, the sum counters should represent a good approximation
+ *   of the number of tasks in the set of lifos, but each counter
+ *   represents how many insert/remove a given thread did, not
+ *   how many items are in the corresponding lifo
+ */
+
+typedef struct {
+    parsec_lifo_t lifo;
+    int           local_counter;
+} parsec_lifo_with_local_counter_t;
+
+PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_with_local_counter_t);
+
+static inline void parsec_lifo_with_local_counter_construct( parsec_lifo_with_local_counter_t* lifo )
+{
+    /* Don't allow strange alignemnts */
+    lifo->local_counter = 0;
+}
+
+OBJ_CLASS_INSTANCE(parsec_lifo_with_local_counter_t, parsec_lifo_t,
+                   parsec_lifo_with_local_counter_construct, NULL);
+
+static long long int parsec_lifo_with_local_counter_length( parsec_vp_t *vp )
+{
+    int t;
+    long long int sum = 0;
+    parsec_execution_stream_t *es;
+    parsec_lifo_with_local_counter_t *sched_obj;
+    
+    for(t = 0; t < vp->nb_cores; t++) {
+        es = vp->execution_streams[t];
+        sched_obj = (parsec_lifo_with_local_counter_t*)es->scheduler_object;
+        sum += sched_obj->local_counter;
+    }
+    return sum;
+}
 
 /**
  * @brief
@@ -71,6 +123,27 @@ static int sched_ll_install( parsec_context_t *master )
     return 0;
 }
 
+static void sched_ll_register_sde_counters(parsec_execution_stream_t *es)
+{
+    char event_name[256];
+    
+    if( NULL != es && 0 == es->th_id ) {
+        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=LL", es->virtual_process->vp_id);
+        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_lifo_with_local_counter_length, es->virtual_process);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LL", PAPI_SDE_SUM);
+    }
+    if( NULL == es || 0 == es->th_id ) {
+         papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LL",
+                                  "the number of pending tasks for the LL scheduler");
+         papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=LL",
+                                  "the number of pending tasks that end up in the virtual process <VPID> for the LFQ scheduler");
+    }
+}
+
 /**
  * @brief
  *    Initialize the scheduler on the calling execution stream
@@ -86,11 +159,13 @@ static int sched_ll_install( parsec_context_t *master )
 static int flow_ll_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
 {
     /* Every flow creates its own local object */
-    es->scheduler_object = OBJ_NEW(parsec_lifo_t);
+    es->scheduler_object = OBJ_NEW(parsec_lifo_with_local_counter_t);
 
     /* All local allocations are now completed. Synchronize with the other
      threads before setting up the entire queues hierarchy. */
     parsec_barrier_wait(barrier);
+
+    sched_ll_register_sde_counters(es);
 
     return 0;
 }
@@ -114,24 +189,27 @@ static parsec_task_t* sched_ll_select(parsec_execution_stream_t *es,
                                       int32_t* distance)
 {
     parsec_task_t *task = NULL;
-    parsec_lifo_t *sched_obj = (parsec_lifo_t*)es->scheduler_object;
+    parsec_lifo_with_local_counter_t *es_sched_obj = (parsec_lifo_with_local_counter_t*)es->scheduler_object;
+    parsec_lifo_with_local_counter_t *sched_obj;
     int i, d = 0;
 
-    task = (parsec_task_t*)parsec_lifo_pop(sched_obj);
+    task = (parsec_task_t*)parsec_lifo_pop(&es_sched_obj->lifo);
     if( NULL == task ) {
         for(i = (es->th_id + 1) % es->virtual_process->nb_cores;
             i != es->th_id;
             i = (i+1) % es->virtual_process->nb_cores) {
             d++;
-            sched_obj = (parsec_lifo_t*)es->virtual_process->execution_streams[i]->scheduler_object;
-            task = (parsec_task_t*)parsec_lifo_pop(sched_obj);
+            sched_obj = (parsec_lifo_with_local_counter_t*)es->virtual_process->execution_streams[i]->scheduler_object;
+            task = (parsec_task_t*)parsec_lifo_pop(&sched_obj->lifo);
             if( NULL != task ) {
                 *distance = d;
+                es_sched_obj->local_counter--;
                 return task;
             }
         }
         return NULL;
     } else {
+        es_sched_obj->local_counter--;        
         *distance = 0;
         return task;
     }
@@ -155,7 +233,12 @@ static int sched_ll_schedule(parsec_execution_stream_t* es,
                               parsec_task_t* new_context,
                               int32_t distance)
 {
-    parsec_lifo_t *sched_obj;
+    parsec_lifo_with_local_counter_t *es_sched_obj = (parsec_lifo_with_local_counter_t*)es->scheduler_object;
+    parsec_lifo_with_local_counter_t *sched_obj;
+    int len = 0;
+    _LIST_ITEM_ITERATOR(new_context, &new_context->super, item, {len++; });
+
+    es_sched_obj->local_counter+=len;
     if( distance > 0 ) {
         parsec_vp_t *vp = es->virtual_process;
         int target;
@@ -167,11 +250,10 @@ static int sched_ll_schedule(parsec_execution_stream_t* es,
         target = (es->th_id + distance) % vp->nb_cores;
         if( target == es->th_id )
             target = (es->th_id + 1) % vp->nb_cores;
-        sched_obj = (parsec_lifo_t*)vp->execution_streams[target]->scheduler_object;
-        parsec_lifo_chain(sched_obj, (parsec_list_item_t*)new_context);
+        sched_obj = (parsec_lifo_with_local_counter_t*)vp->execution_streams[target]->scheduler_object;
+        parsec_lifo_chain(&sched_obj->lifo, (parsec_list_item_t*)new_context);
     } else {
-        sched_obj = (parsec_lifo_t*)es->scheduler_object;
-        parsec_lifo_chain(sched_obj, (parsec_list_item_t*)new_context);
+        parsec_lifo_chain(&es_sched_obj->lifo, (parsec_list_item_t*)new_context);
     }
     return 0;
 }
@@ -191,18 +273,21 @@ static void sched_ll_remove( parsec_context_t *master )
     int p, t;
     parsec_execution_stream_t *es;
     parsec_vp_t *vp;
-    parsec_lifo_t *sched_obj;
+    parsec_lifo_with_local_counter_t *sched_obj;
+    char event_name[256];
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
         for(t = 0; t < vp->nb_cores; t++) {
             es = vp->execution_streams[t];
             if (es != NULL) {
-                sched_obj = (parsec_lifo_t*)es->scheduler_object;
+                sched_obj = (parsec_lifo_with_local_counter_t*)es->scheduler_object;
                 OBJ_RELEASE(sched_obj);
                 es->scheduler_object = NULL;
             }
-            // else the scheduler wasn't really initialized anyway
+            snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=LL", vp->vp_id);
+            papi_sde_unregister_counter(parsec_papi_sde_handle, event_name);
         }
     }
+    papi_sde_unregister_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LL");
 }

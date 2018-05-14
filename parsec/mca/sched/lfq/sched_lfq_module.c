@@ -42,6 +42,7 @@ sched_lfq_select(parsec_execution_stream_t *es,
                  int32_t* distance);
 static void sched_lfq_remove(parsec_context_t* master);
 static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier);
+static void sched_lfq_register_sde_counters(parsec_execution_stream_t *es);
 
 const parsec_sched_module_t parsec_sched_lfq_module = {
     &parsec_sched_lfq_component,
@@ -51,6 +52,7 @@ const parsec_sched_module_t parsec_sched_lfq_module = {
         sched_lfq_schedule,
         sched_lfq_select,
         NULL,
+        sched_lfq_register_sde_counters,
         sched_lfq_remove
     }
 };
@@ -59,6 +61,39 @@ static int sched_lfq_install( parsec_context_t *master )
 {
     (void)master;
     return 0;
+}
+
+static void sched_lfq_register_sde_counters(parsec_execution_stream_t *es)
+{
+    char event_name[256];
+    int thid;
+    parsec_vp_t *vp;
+
+    if( NULL != es && 0 == es->th_id ) {
+        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LFQ", es->virtual_process->vp_id);
+        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_system_queue_length, es->virtual_process);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LFQ", PAPI_SDE_SUM);
+        vp = es->virtual_process;
+        for(thid = 0; thid < vp->nb_cores; thid++) {
+            snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LFQ", vp->vp_id, thid);
+            papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                         PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_length, LOCAL_QUEUES_OBJECT(vp->execution_streams[thid])->task_queue);
+            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                          "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                          "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LFQ", PAPI_SDE_SUM);
+        }
+    }
+    if( NULL == es || 0 == es->th_id ) {
+        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LFQ",
+                                  "the number of pending tasks for the LFQ scheduler");
+        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>/<QID>::SCHED=LFQ",
+                                  "the number of pending tasks that end up in the virtual process <VPID> queue of queue identifier <QID> for the LFQ scheduler");
+    }
 }
 
 static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -72,6 +107,7 @@ static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
 
     /* Every flow creates its own local object */
     sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
+    sched_obj->local_system_queue_balance = 0;
     es->scheduler_object = sched_obj;
     if( 0 == es->th_id ) {  /* And flow 0 creates the system_queue */
         sched_obj->system_queue = OBJ_NEW(parsec_dequeue_t);
@@ -89,8 +125,8 @@ static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_streams[0])->system_queue;
 
     /* Each thread creates its own "local" queue, connected to the shared dequeue */
-    sched_obj->task_queue = parsec_hbbuffer_new( queue_size, 1, push_in_queue_wrapper,
-                                                (void*)sched_obj->system_queue);
+    sched_obj->task_queue = parsec_hbbuffer_new( queue_size, 1, push_in_system_queue_wrapper,
+                                                (void*)sched_obj );
     sched_obj->hierarch_queues[0] = sched_obj->task_queue;
 
     /* All local allocations are now completed. Synchronize with the other
@@ -137,29 +173,7 @@ static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
 #endif
     }
 
-    if( 0 == es->th_id ) {
-        /* PAPI-SDE Todo: this code should go in the hook for papi_avail and be called from here
-         *   -- To discuss, as this is conflicting with the MCA approach */
-        papi_sde_register_fp_counter(parsec_papi_sde_handle, "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW", PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_dequeue_length, sched_obj->system_queue);
-        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW", "Number of ready to execute PaRSEC tasks waiting in the process-wide queue when using the LFQ scheduler");
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW",
-                                      "PARSEC::SCHED::LFQ::PENDING_TASKS", PAPI_SDE_SUM);
-        for(nq = 0 ; nq < vp->nb_cores; nq++ ) {
-            char event_name[256];
-            char event_descr[256];
-            snprintf(event_name, 256, "PARSEC::SCHED::LFQ::PENDING_TASKS_THREAD_%d", nq);
-            papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                         PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_length, LOCAL_QUEUES_OBJECT(vp->execution_streams[nq])->task_queue);
-            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                          "PARSEC::SCHED::LFQ::PENDING_TASKS", PAPI_SDE_SUM);
-            snprintf(event_descr, 256, "Number of ready to execute PaRSEC tasks waiting in the queue of the thread bound on core %d of socket %d when using the LFQ scheduler",
-                     vp->execution_streams[nq]->core_id, vp->execution_streams[nq]->socket_id);
-            papi_sde_describe_counter(parsec_papi_sde_handle, event_name, event_descr);
-        }
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, "PARSEC::SCHED::PENDING_TASKS",
-                                      "PARSEC::SCHED::LFQ::PENDING_TASKS_OVERFLOW", PAPI_SDE_SUM);
-    }
+    sched_lfq_register_sde_counters(es);
     
     return 0;
 }
@@ -192,6 +206,7 @@ sched_lfq_select(parsec_execution_stream_t *es,
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "LQ\t: %d:%d found task %p in its system queue %p",
                 es->virtual_process->vp_id, es->th_id, task, LOCAL_QUEUES_OBJECT(es)->system_queue);
         *distance = 1 + LOCAL_QUEUES_OBJECT(es)->nb_hierarch_queues;
+        LOCAL_QUEUES_OBJECT(es)->local_system_queue_balance--;
     }
     return task;
 }
@@ -216,6 +231,7 @@ static void sched_lfq_remove( parsec_context_t *master )
     parsec_execution_stream_t *es;
     parsec_vp_t *vp;
     local_queues_scheduler_object_t *sched_obj;
+    char event_name[256];
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
@@ -240,7 +256,11 @@ static void sched_lfq_remove( parsec_context_t *master )
                 es->scheduler_object = NULL;
             }
             // else the scheduler wasn't really initialized anyway
+            snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LFQ", vp->vp_id, t);
+            papi_sde_unregister_counter(parsec_papi_sde_handle, event_name);
         }
+        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LFQ", p);
+        papi_sde_unregister_counter(parsec_papi_sde_handle, event_name);
     }
-    // PAPI-SDE Todo: unregister the counters (when this exists in the API)
+    papi_sde_unregister_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LFQ");
 }
