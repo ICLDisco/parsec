@@ -173,6 +173,9 @@ parsec_dtd_enqueue_taskpool( parsec_taskpool_t *tp, void *parsec_context )
 
     parsec_dtd_taskpool_retain(tp);
 
+    parsec_taskpool_enable(tp, NULL, NULL, NULL,
+                          !!(tp->context->nb_nodes > 1));
+
     /* Attaching the reference of this taskpool to the parsec context */
     parsec_dtd_attach_taskpool_to_context( tp, tp->context );
     return 0;
@@ -1237,8 +1240,6 @@ parsec_dtd_taskpool_new(void)
     parsec_atomic_unlock(&__tp->two_hash_table->atomic_lock);
 
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *) __tp);
-    (void)parsec_taskpool_enable((parsec_taskpool_t *)__tp, NULL, NULL, NULL,
-                                  __tp->super.nb_pending_actions);
 
 #if defined(PARSEC_PROF_TRACE) /* TODO: should not be per taskpool */
     if(parsec_dtd_profile_verbose) {
