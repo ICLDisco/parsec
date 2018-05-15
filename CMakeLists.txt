@@ -899,6 +899,9 @@ install(FILES
   DESTINATION include/parsec/utils)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_object.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_hash_table.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list_item.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_rwlock.h
   DESTINATION include/parsec/class)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
@@ -953,11 +956,8 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/dequeue.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_hash_table.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list_item.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_rwlock.h
     DESTINATION include/parsec/class )
 
   install(FILES
