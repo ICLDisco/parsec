@@ -66,7 +66,7 @@ static int sched_ll_component_query(mca_base_module_t **module, int *priority)
 {
     /* module type shoull be: const mca_base_module_t ** */
     void *ptr = (void*)&parsec_sched_ll_module;
-    *priority = 20;
+    *priority = 2;
     *module = (mca_base_module_t *)ptr;
     return MCA_SUCCESS;
 }
