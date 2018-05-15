@@ -63,6 +63,7 @@ add_dependencies(dplasma_cores
 install(TARGETS dplasma_cores
         ARCHIVE DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib
         LIBRARY DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib)
+set(DPLASMA_ADD_LIBS "")
 
 if( CUDA_FOUND )
   # generate the cores_cuda library (hooks to cublas)
@@ -84,6 +85,7 @@ if( CUDA_FOUND )
     install(TARGETS dplasma_cores_cuda
       ARCHIVE DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib
       LIBRARY DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib)
+    set(DPLASMA_ADD_LIBS "-ldplasma_cores_cuda")
   endif()
 
   ### Generate the CUDA .cu kernels if necessary
@@ -169,3 +171,5 @@ elseif( ${CUDA_VERSION_STRING} VERSION_LESS "8.0" )
 
   cuda_build_clean_target()
 endif()
+set(DPLASMA_EXTRA_LIBS "${DPLASMA_EXTRA_LIBS} -ldplasma_cores ${DPLASMA_ADD_LIBS}" PARENT_SCOPE)
+
