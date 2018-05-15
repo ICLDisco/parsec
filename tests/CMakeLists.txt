@@ -26,7 +26,7 @@ macro(parsec_addtest lang target input)
     set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
     set(${target}_LDFLAGS "${MPI_C_LINK_FLAGS} ${${target}_LDFLAGS}")
   endif( MPI_C_FOUND )
-  set(${target}_LIBS parsec parsec_data ${${target}_LIBS} ${EXTRA_LIBS})
+  set(${target}_LIBS parsec ${${target}_LIBS} ${EXTRA_LIBS})
 
   add_executable(${target} ${input})
   set_target_properties(${target} PROPERTIES

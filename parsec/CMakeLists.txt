@@ -92,27 +92,32 @@ if( PARSEC_PROF_GRAPHER )
   list(APPEND SOURCES parsec_prof_grapher.c)
 endif( PARSEC_PROF_GRAPHER )
 
+add_subdirectory(data_dist)
 #
 # Setup targets
 #
 if( BUILD_PARSEC )
-  add_library(parsec-base ${BASE_SOURCES})
-  set_target_properties(parsec-base PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-  set_target_properties(parsec-base PROPERTIES POSITION_INDEPENDENT_CODE ON)
-  #  if (MPI_C_FOUND)
-  #  set_target_properties(parsec-base PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
-  #endif (MPI_C_FOUND)
-  #  target_link_libraries(parsec-base ${EXTRA_LIBS})
+  # Build this as a collection of objects that can be easily either used to
+  # create an interface library or imported into the main library.
+  add_library(parsec-base-obj OBJECT ${BASE_SOURCES})
+  set_target_properties(parsec-base-obj PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+  set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-  install(TARGETS parsec-base
-          DESTINATION lib)
+  add_library(parsec-base STATIC $<TARGET_OBJECTS:parsec-base-obj>)
+
+  # Create an interface library to allow the absorbtion of the object files into
+  # the PaRSEC library.
+  add_library(parsec-base-iface INTERFACE)
+  target_sources(parsec-base-iface INTERFACE $<TARGET_OBJECTS:parsec-base-obj>)
 
   add_library(parsec ${SOURCES})
   set_target_properties(parsec PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
   if (MPI_C_FOUND)
     set_target_properties(parsec PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
   endif (MPI_C_FOUND)
-  target_link_libraries(parsec parsec-base ${EXTRA_LIBS})
+
+  target_link_libraries(parsec
+                        PRIVATE parsec_data parsec-base-iface ${EXTRA_LIBS})
 
   install(TARGETS parsec
           DESTINATION lib)
@@ -120,4 +125,3 @@ if( BUILD_PARSEC )
   install(FILES utils/help-mca-param.txt DESTINATION share/parsec)
 ENDIF( BUILD_PARSEC )
 
-add_subdirectory(data_dist)

@@ -5,7 +5,7 @@ macro(parsec_addexample lang target input)
     set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
     set(${target}_LDFLAGS "${MPI_C_LINK_FLAGS} ${${target}_LDFLAGS}")
   endif( MPI_C_FOUND )
-  set(${target}_LIBS    parsec parsec_data ${EXTRA_LIBS} ${${target}_LIBS})
+  set(${target}_LIBS    parsec ${EXTRA_LIBS} ${${target}_LIBS})
 
   add_executable(${target} ${input})
   #  message(STATUS "${target} -> ${input}")
