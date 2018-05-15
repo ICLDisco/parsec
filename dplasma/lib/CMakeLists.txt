@@ -210,7 +210,7 @@ set_target_properties(dplasma PROPERTIES POSITION_INDEPENDENT_CODE True)
 target_link_libraries(dplasma
   dplasma_cores
   ${COREBLAS_LIBRARIES}
-  parsec parsec-base parsec_distribution_matrix
+  parsec parsec-base parsec_data
   ${EXTRA_LIBS}
 )
 set_target_properties(dplasma PROPERTIES LINK_FLAGS "${COREBLAS_LDFLAGS}")
