@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The University of Tennessee and The University
+ * Copyright (c) 2013-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -17,10 +17,11 @@
 #define PARSEC_DEV_NONE       ((uint8_t)    0x00)
 #define PARSEC_DEV_CPU        ((uint8_t)(1 << 0))
 #define PARSEC_DEV_RECURSIVE  ((uint8_t)(1 << 1))
-#define PARSEC_DEV_CUDA       ((uint8_t)(1 << 2))
-#define PARSEC_DEV_INTEL_PHI  ((uint8_t)(1 << 3))
-#define PARSEC_DEV_OPENCL     ((uint8_t)(1 << 4))
-#define PARSEC_DEV_ALL        ((uint8_t)    0x1f)
+#define PARSEC_DEV_OPENMP     ((uint8_t)(1 << 2))
+#define PARSEC_DEV_CUDA       ((uint8_t)(1 << 3))
+#define PARSEC_DEV_INTEL_PHI  ((uint8_t)(1 << 4))
+#define PARSEC_DEV_OPENCL     ((uint8_t)(1 << 5))
+#define PARSEC_DEV_ALL        ((uint8_t)    0x3f)
 
 typedef struct parsec_device_s parsec_device_t;
 
@@ -99,8 +100,20 @@ extern int parsec_devices_freeze(parsec_context_t*);
  * to parsec_devices_freeze().
  */
 extern int parsec_devices_freezed(parsec_context_t*);
-
 /**
+ * Return the device index of the device that would better balance the load 
+ * average (compute and h2d load) according to the capabilities of the 
+ * devices and current positionning of data copies for this task
+ *
+ * Returns:
+ *  > 1    - if the kernel should be executed by the a GPU
+ *  0 or 1 - if the kernel should be executed by some other meaning (in this case the
+ *         execution context is not released).
+ * -1      - if the kernel is scheduled to be executed on a GPU.
+ */
+extern int parsec_devices_best_load(parsec_task_t*, double load);
+
+    /**
  * Declare a new device with the runtime. The device will later provide a list
  * of supported operations.
  */

@@ -1238,6 +1238,10 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
             "#include \"parsec/devices/cuda/dev_cuda.h\"\n"
             "extern int parsec_cuda_output_stream;\n"
             "#endif  /* defined(PARSEC_HAVE_CUDA) */\n"
+            "#if defined(PARSEC_HAVE_OPENMP)\n"
+            "#include \"parsec/devices/openmp/dev_omp.h\"\n"
+            "extern int parsec_openmp_output_stream;\n"
+            "#endif  /* defined(PARSEC_HAVE_OPENMP) */\n"
             "#include <alloca.h>\n\n"
             "#define PARSEC_%s_NB_TASK_CLASSES %d\n"
             "#define PARSEC_%s_NB_DATA %d\n\n"
@@ -4724,6 +4728,291 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
     string_arena_free(sa2);
 }
 
+static void jdf_generate_code_hook_openmp(const jdf_t *jdf,
+                                        const jdf_function_entry_t *f,
+                                        const jdf_body_t* body,
+                                        const char *name)
+{
+    jdf_def_list_t *type_property;
+    jdf_def_list_t *weight_property;
+    jdf_def_list_t *device_property;
+    const char *dyld;
+    const char *dyldtype;
+    const char *device;
+    const char *weight;
+    string_arena_t *sa, *sa2, *sa3;
+    assignment_info_t ai;
+    init_from_data_info_t ai2;
+    jdf_dataflow_t *fl;
+    expr_info_t info;
+    int di;
+    int profile_on;
+    char* output;
+
+    profile_on = profile_enabled(f->properties) && profile_enabled(body->properties);
+
+    jdf_find_property(body->properties, "type", &type_property);
+
+    /* Get the dynamic function properties */
+    dyld = jdf_property_get_string(body->properties, "dyld", NULL);
+    dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
+
+    sa  = string_arena_new(64);
+    sa2 = string_arena_new(64);
+    sa3 = string_arena_new(64);
+
+    ai.sa = sa2;
+    ai.holder = "this_task->locals.";
+    ai.expr = NULL;
+
+    string_arena_add_string(sa3, "%s",
+                            UTIL_DUMP_LIST(sa, f->locals, next,
+                                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
+
+    string_arena_add_string(sa3, "%s",
+                            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
+                                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+
+    /* Generate the openmp_kernel_submit structure and function */
+    coutput("struct parsec_body_omp_%s_%s_s {\n"
+            "  uint8_t      index;\n"
+            "  int*         stream;\n"
+            "  %s           dyld_fn;\n"
+            "};\n"
+            "\n"
+            "static int openmp_kernel_submit_%s_%s(parsec_openmp_device_t            *gpu_device,\n"
+            "                                   parsec_openmp_context_t     *gpu_task,\n"
+            "                                   parsec_openmp_exec_stream_t *gpu_stream )\n"
+            "{\n"
+            "  %s *this_task = (%s *)gpu_task->ec;\n"
+            "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
+            "  struct parsec_body_omp_%s_%s_s parsec_body = { gpu_device->omp_index, &gpu_stream->events[gpu_stream->start], NULL };\n"
+            "  int* parsec_openmp_stream = parsec_body.stream;\n"
+            "  assert(0 == *parsec_openmp_stream);\n"
+            "  *parsec_openmp_stream = 1;\n"
+            "%s\n"
+            "  (void)gpu_device; (void)gpu_stream; (void)__parsec_tp; (void)parsec_body;\n",
+            jdf_basename, f->fname,
+            dyldtype,
+            jdf_basename, f->fname,
+            parsec_get_name(jdf, f, "task_t"), parsec_get_name(jdf, f, "task_t"),
+            jdf_basename, jdf_basename,
+            jdf_basename, f->fname,
+            string_arena_get_string( sa3 ));
+
+    ai2.sa = sa2;
+    ai2.where = "out";
+    output = UTIL_DUMP_LIST(sa, f->dataflow, next,
+                            dump_data_initialization_from_data_array, &ai2, "", "", "", "");
+    if( 0 != strlen(output) ) {
+        coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
+                "%s\n",
+                output);
+    }
+
+    /**
+     * Generate code for the simulation.
+     */
+    coutput("  /** Update starting simulation date */\n"
+            "#if defined(PARSEC_SIM)\n"
+            "  {\n"
+            "    this_task->sim_exec_date = 0;\n");
+    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+
+        if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;  /* control flow, nothing to store */
+
+        coutput("    data_repo_entry_t *e%s = this_task->data._f_%s.data_repo;\n"
+                "    if( (NULL != e%s) && (e%s->sim_exec_date > this_task->sim_exec_date) )\n"
+                "      this_task->sim_exec_date = e%s->sim_exec_date;\n",
+                fl->varname, fl->varname,
+                fl->varname, fl->varname,
+                fl->varname);
+    }
+    coutput("    if( this_task->task_class->sim_cost_fct != NULL ) {\n"
+            "      this_task->sim_exec_date += this_task->task_class->sim_cost_fct(this_task);\n"
+            "    }\n"
+            "    if( es->largest_simulation_date < this_task->sim_exec_date )\n"
+            "      es->largest_simulation_date = this_task->sim_exec_date;\n"
+            "  }\n"
+            "#endif\n");
+
+    jdf_generate_code_cache_awareness_update(jdf, f);
+
+    coutput("#if defined(PARSEC_DEBUG_NOISIER)\n"
+            "  {\n"
+            "    char tmp[MAX_TASK_STRLEN];\n"
+            "    PARSEC_DEBUG_VERBOSE(10, parsec_openmp_output_stream, \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\\n\", gpu_device->omp_index, \n"
+            "           parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t *)this_task),\n"
+            "           this_task->priority );\n"
+            "  }\n"
+            "#endif /* defined(PARSEC_DEBUG_NOISIER) */\n" );
+
+    jdf_generate_code_dry_run_before(jdf, f);
+    jdf_coutput_prettycomment('-', "%s BODY", f->fname);
+
+    if( profile_on ) {
+        coutput("  PARSEC_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,\n"
+                "                           gpu_stream->profiling,\n"
+                "                           (-1 == gpu_stream->prof_event_key_start ?\n"
+                "                           PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,\n"
+                "                                                     this_task->task_class->task_class_id) :\n"
+                "                           gpu_stream->prof_event_key_start),\n"
+                "                           (parsec_task_t*)this_task);\n");
+    }
+
+    dyld = jdf_property_get_string(body->properties, "dyld", NULL);
+    dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
+    if ( NULL != dyld ) {
+        coutput("  /* Pointer to dynamic gpu function */\n"
+                "  parsec_body.dyld_fn = (%s)this_task->task_class->incarnations[gpu_device->omp_index].dyld_fn;\n\n",
+                dyldtype );
+    }
+
+    coutput("%s\n", body->external_code);
+    if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
+        coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
+    }
+    jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
+    jdf_generate_code_dry_run_after(jdf, f);
+    coutput("  return PARSEC_HOOK_RETURN_DONE;\n"
+            "}\n\n");
+
+    /* Generate the hook_openmp */
+    coutput("static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n"
+            "{\n"
+            "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
+            "  parsec_openmp_context_t *gpu_task;\n"
+            "  double ratio;\n"
+            "  int dev_index;\n"
+            "  %s\n"
+            "  (void)es; (void)__parsec_tp;\n"
+            "\n",
+            name, type_property->expr->jdf_var, parsec_get_name(jdf, f, "task_t"),
+            jdf_basename, jdf_basename,
+            string_arena_get_string( sa3 ));
+
+    info.sa = string_arena_new(64);
+    info.prefix = "";
+    info.suffix = "";
+    info.assignments = "&this_task->locals";
+
+    /* Get the ratio to  apply on the weight for this task */
+    jdf_find_property( body->properties, "weight", &weight_property );
+    if ( NULL != weight_property ) {
+        weight = dump_expr((void**)weight_property->expr, &info);
+    }
+    else {
+        weight = "1.";
+    }
+    coutput("  ratio = %s;\n", weight);
+    
+    /* Get the hint for statix and/or external gpu scheduling */
+    jdf_find_property( body->properties, "device", &device_property );
+    if ( NULL != device_property ) {
+        device = dump_expr((void**)device_property->expr, &info);
+        coutput("  dev_index = %s;\n"
+                "  if (dev_index < -1) {\n"
+                "    return PARSEC_HOOK_RETURN_NEXT;\n"
+                "  } else if (dev_index == -1) {\n"
+                "    dev_index = parsec_devices_best_load((parsec_task_t*)this_task, ratio);\n"
+                "  } else {\n"
+                "    dev_index = (dev_index %% (parsec_devices_enabled()-2)) + 2;\n"
+                "  }\n",
+                device);
+    } else {
+        coutput("  dev_index = parsec_devices_best_load((parsec_task_t*)this_task, ratio);\n");
+    }
+    coutput("  assert(dev_index >= 0);\n"
+            "  if( dev_index < 2 ) {\n"
+            "    return PARSEC_HOOK_RETURN_NEXT;  /* Fall back */\n"
+            "  }\n"
+            "  parsec_device_load[dev_index] += ratio * parsec_device_sweight[dev_index];\n"
+            "\n"
+            "  gpu_task = (parsec_openmp_context_t*)calloc(1, sizeof(parsec_openmp_context_t));\n"
+            "  OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
+            "  gpu_task->ec = (parsec_task_t*)this_task;\n"
+            "  gpu_task->submit = &openmp_kernel_submit_%s_%s;\n"
+            "  gpu_task->task_type = 0;\n",
+            jdf_basename, f->fname);
+
+    /* Dump the dataflow */
+    for(fl = f->dataflow, di = 0; fl != NULL; fl = fl->next, di++) {
+        coutput("  gpu_task->pushout[%d] = 0;\n"
+                "  gpu_task->flow[%d]    = &%s;\n",
+                di,
+                di, JDF_OBJECT_ONAME( fl ));
+
+        if (fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
+            jdf_dep_t *dl;
+            int testtrue, testfalse;
+
+            /**
+             * We force the pushout for every data that is not only going to the
+             * same kind of kernel in the future.
+             * (TODO: could be avoided with different GPU compliant kernels)
+             */
+            for(dl = fl->deps; dl != NULL; dl = dl->next) {
+                if( dl->dep_flags & JDF_DEP_FLOW_IN )
+                    continue;
+
+                testtrue = (dl->guard->calltrue != NULL) &&
+                    ((dl->guard->calltrue->var == NULL ) ||
+                     (strcmp(dl->guard->calltrue->func_or_mem, f->fname)));
+
+                testfalse = (dl->guard->callfalse != NULL) &&
+                    ((dl->guard->callfalse->var == NULL ) ||
+                     (strcmp(dl->guard->callfalse->func_or_mem, f->fname)));
+
+                switch( dl->guard->guard_type ) {
+                case JDF_GUARD_UNCONDITIONAL:
+                    if(testtrue) {
+                        coutput("  gpu_task->pushout[%d] = 1;\n", di);
+                        goto nextflow;
+                    }
+                    break;
+                case JDF_GUARD_BINARY:
+                    if(testtrue) {
+                        coutput("  if( %s ) {\n"
+                                "    gpu_task->pushout[%d] = 1;\n"
+                                "  }",
+                                dump_expr((void**)dl->guard->guard, &info), di);
+                    }
+                    break;
+                case JDF_GUARD_TERNARY:
+                    if( testtrue ) {
+                        if( testfalse ) {
+                            coutput("  gpu_task->pushout[%d] = 1;\n", di);
+                        } else {
+                            coutput("  if( %s ) {\n"
+                                    "    gpu_task->pushout[%d] = 1;\n"
+                                    "  }\n",
+                                    dump_expr((void**)dl->guard->guard, &info), di);
+                        }
+                    } else if ( testfalse ) {
+                        coutput("  if( !(%s) ) {\n"
+                                "    gpu_task->pushout[%d] = 1;\n"
+                                "  }\n",
+                                dump_expr((void**)dl->guard->guard, &info), di);
+                    }
+                    break;
+                }
+            }
+          nextflow:
+            ;
+        }
+    }
+    string_arena_free(info.sa);
+
+
+    coutput("\n"
+            "  return parsec_openmp_kernel_scheduler( es, gpu_task, dev_index );\n"
+            "}\n\n");
+
+    string_arena_free(sa);
+    string_arena_free(sa2);
+    string_arena_free(sa3);
+}
+
 static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                                         const jdf_function_entry_t *f,
                                         const jdf_body_t* body,
@@ -4769,16 +5058,16 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
-    /* Generate the gpu_kernel_submit structure and function */
+    /* Generate the cuda_kernel_submit structure and function */
     coutput("struct parsec_body_cuda_%s_%s_s {\n"
             "  uint8_t      index;\n"
             "  cudaStream_t stream;\n"
             "  %s           dyld_fn;\n"
             "};\n"
             "\n"
-            "static int gpu_kernel_submit_%s_%s(gpu_device_t            *gpu_device,\n"
-            "                                   parsec_gpu_context_t     *gpu_task,\n"
-            "                                   parsec_gpu_exec_stream_t *gpu_stream )\n"
+            "static int cuda_kernel_submit_%s_%s(parsec_cuda_device_t            *gpu_device,\n"
+            "                                   parsec_cuda_context_t     *gpu_task,\n"
+            "                                   parsec_cuda_exec_stream_t *gpu_stream )\n"
             "{\n"
             "  %s *this_task = (%s *)gpu_task->ec;\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
@@ -4874,7 +5163,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     coutput("static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n"
             "{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
-            "  parsec_gpu_context_t *gpu_task;\n"
+            "  parsec_cuda_context_t *gpu_task;\n"
             "  double ratio;\n"
             "  int dev_index;\n"
             "  %s\n"
@@ -4907,13 +5196,13 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "  if (dev_index < -1) {\n"
                 "    return PARSEC_HOOK_RETURN_NEXT;\n"
                 "  } else if (dev_index == -1) {\n"
-                "    dev_index = parsec_gpu_get_best_device((parsec_task_t*)this_task, ratio);\n"
+                "    dev_index = parsec_devices_best_load((parsec_task_t*)this_task, ratio);\n"
                 "  } else {\n"
                 "    dev_index = (dev_index %% (parsec_devices_enabled()-2)) + 2;\n"
                 "  }\n",
                 device);
     } else {
-        coutput("  dev_index = parsec_gpu_get_best_device((parsec_task_t*)this_task, ratio);\n");
+        coutput("  dev_index = parsec_devices_best_load((parsec_task_t*)this_task, ratio);\n");
     }
     coutput("  assert(dev_index >= 0);\n"
             "  if( dev_index < 2 ) {\n"
@@ -4921,10 +5210,10 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  }\n"
             "  parsec_device_load[dev_index] += ratio * parsec_device_sweight[dev_index];\n"
             "\n"
-            "  gpu_task = (parsec_gpu_context_t*)calloc(1, sizeof(parsec_gpu_context_t));\n"
+            "  gpu_task = (parsec_cuda_context_t*)calloc(1, sizeof(parsec_cuda_context_t));\n"
             "  OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
-            "  gpu_task->submit = &gpu_kernel_submit_%s_%s;\n"
+            "  gpu_task->submit = &cuda_kernel_submit_%s_%s;\n"
             "  gpu_task->task_type = 0;\n",
             jdf_basename, f->fname);
 
@@ -4998,7 +5287,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
 
 
     coutput("\n"
-            "  return parsec_gpu_kernel_scheduler( es, gpu_task, dev_index );\n"
+            "  return parsec_cuda_kernel_scheduler( es, gpu_task, dev_index );\n"
             "}\n\n");
 
     string_arena_free(sa);
@@ -5046,6 +5335,10 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
 
         if (!strcmp(type_property->expr->jdf_var, "CUDA")) {
             jdf_generate_code_hook_cuda(jdf, f, body, name);
+            goto hook_end_block;
+        }
+        if (!strcmp(type_property->expr->jdf_var, "OPENMP")) {
+            jdf_generate_code_hook_openmp(jdf, f, body, name);
             goto hook_end_block;
         }
     }

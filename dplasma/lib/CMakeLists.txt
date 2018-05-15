@@ -108,6 +108,7 @@ list(APPEND generated_jdf
 )
 
 jdf_rules(generated_files "${generated_jdf}")
+#set_source_files_properties(spotrf_U.c PROPERTIES COMPILE_FLAGS ${OpenMP_C_FLAGS})
 
 ### Generate the dplasma wrappers for all required precisions
 set(SOURCES

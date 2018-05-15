@@ -110,12 +110,9 @@ option(PARSEC_GPU_CUDA_ALLOC_PER_TILE
   "Tile based allocation engine for GPU memory (instead of internal management
   of a complete allocation)" OFF)
 mark_as_advanced(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
-option(PARSEC_GPU_WITH_OPENCL
-  "Enable GPU support using OpenCL kernels" OFF)
-mark_as_advanced(PARSEC_GPU_WITH_OPENCL) # Hide this as it is not supported yet
-if(PARSEC_GPU_WITH_OPENCL)
-  message(WARNING "Open CL is not supported yet, ignored.")
-endif()
+option(PARSEC_GPU_WITH_OPENMP
+  "Enable GPU support using OpenMP target" OFF)
+mark_as_advanced(PARSEC_GPU_WITH_OPENMP) # Hide this as it is experimental now 
 
 ### Debug options
 if( "Debug" STREQUAL CMAKE_BUILD_TYPE )
@@ -624,6 +621,11 @@ IF( BUILD_PARSEC )
       CMAKE_POP_CHECK_STATE()
     endif (CUDA_FOUND)
   endif( PARSEC_GPU_WITH_CUDA )
+
+  if( PARSEC_GPU_WITH_OPENMP )
+    find_package(OpenMP 4.5)
+    set(PARSEC_HAVE_OPENMP ${OPENMP_FOUND})
+  endif( PARSEC_GPU_WITH_OPENMP )
 
   find_package(AYUDAME QUIET)
   set(PARSEC_HAVE_AYUDAME ${AYUDAME_FOUND})

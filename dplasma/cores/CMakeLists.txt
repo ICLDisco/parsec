@@ -5,6 +5,16 @@ set(generated_headers "")
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 
+if( OPENMP_FOUND )
+    set(CORE_OMP_HEADERS
+        "")
+    set(CORE_OMP_SOURCES
+        omp_zgemm.c)
+else()
+    set(CORE_OMP_HEADERS "")
+    set(CORE_OMP_SOURCES "")
+endif()
+
 if( CUDA_FOUND )
     set(CORE_CUDA_HEADERS
     )
@@ -63,6 +73,30 @@ add_dependencies(dplasma_cores
 install(TARGETS dplasma_cores
         ARCHIVE DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib
         LIBRARY DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib)
+
+if( OPENMP_FOUND )
+  # generate the cores_omp library (hooks to mkl in omp target regions)
+  precisions_rules_py(generated_omp_files
+                 ${CORE_OMP_SOURCES}
+                 PRECISIONS "${DPLASMA_PRECISIONS}")
+
+  if( NOT "${generated_omp_files}" STREQUAL "" )
+    add_library(dplasma_cores_omp
+      ${generated_omp_files})
+    set_target_properties(dplasma_cores_omp PROPERTIES COMPILE_FLAGS "${OpenMP_C_FLAGS}")
+    set_target_properties(dplasma_cores_omp PROPERTIES LINK_FLAGS "-qoffload-option,mic,ld,\"-L$ENV{MKLROOT}/lib/mic -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core\"")
+    add_dependencies(dplasma_cores_omp
+      dplasma_includes
+      dplasma_cores_includes)
+    target_link_libraries(dplasma_cores_omp
+      ${COREBLAS_LIBRARIES}
+      ${EXTRA_LIBS})
+    target_link_libraries(dplasma_cores dplasma_cores_omp)
+    install(TARGETS dplasma_cores_omp
+      ARCHIVE DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib
+      LIBRARY DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib)
+  endif()
+endif( OPENMP_FOUND)
 
 if( CUDA_FOUND )
   # generate the cores_cuda library (hooks to cublas)

@@ -6,16 +6,18 @@
  */
 
 #include "parsec/parsec_config.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/devices/device.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/constants.h"
 #include "parsec/utils/debug.h"
 #include "parsec/execution_stream.h"
 #include "parsec/utils/argv.h"
-
+#include "parsec/data_internal.h"
 #include <stdlib.h>
 
 #include <parsec/devices/cuda/dev_cuda.h>
+#include <parsec/devices/openmp/dev_omp.h>
 
 uint32_t parsec_nb_devices = 0;
 static uint32_t parsec_nb_max_devices = 0;
@@ -201,8 +203,13 @@ int parsec_devices_fini(parsec_context_t* parsec_context)
     parsec_device_tweight = NULL;
 
 #if defined(PARSEC_HAVE_CUDA)
-    (void)parsec_gpu_fini();
+    (void)parsec_cuda_fini();
 #endif  /* defined(PARSEC_HAVE_CUDA) */
+
+#if defined(PARSEC_HAVE_OPENMP)
+
+    (void)parsec_omp_fini();
+#endif /* defined(PARSEC_HAVE_OPENMP) */
 
     if( NULL != parsec_device_recursive ) {  /* Release recursive device */
         parsec_devices_remove(parsec_device_recursive);
@@ -276,6 +283,48 @@ int parsec_devices_freezed(parsec_context_t* context)
 {
     (void)context;
     return parsec_devices_are_freezed;
+}
+
+int parsec_devices_best_load( parsec_task_t* this_task, double ratio )
+{
+    int i, dev_index = -1, data_index = 0;
+    parsec_taskpool_t* tp = this_task->taskpool;
+
+    /* Step one: Find the first data in WRITE mode stored on a GPU */
+    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+        if( (NULL != this_task->task_class->out[i]) &&
+            (this_task->task_class->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
+            data_index = this_task->task_class->out[i]->flow_index;
+            dev_index  = this_task->data[data_index].data_in->original->owner_device;
+            if (dev_index > 1) {
+                break;
+            }
+        }
+    }
+    assert(dev_index >= 0);
+
+    /* 0 is CPU, and 1 is recursive device */
+    if( dev_index <= 1 ) {  /* This is the first time we see this data for a GPU.
+                             * Let's decide which GPU will work on it. */
+        int best_index = 0;  /* default value: first CPU device */
+        float weight, best_weight = parsec_device_load[0] + ratio * parsec_device_sweight[0];
+
+        /* Start at 2, to skip the recursive body */
+        for( dev_index = 2; dev_index < parsec_devices_enabled(); dev_index++ ) {
+            /* Skip the device if it is not configured */
+            if(!(tp->devices_mask & (1 << dev_index))) continue;
+            weight = parsec_device_load[dev_index] + ratio * parsec_device_sweight[dev_index];
+            if( best_weight > weight ) {
+                best_index = dev_index;
+                best_weight = weight;
+            }
+        }
+        parsec_device_load[best_index] += ratio * parsec_device_sweight[best_index];
+        assert( best_index != 1 );
+        dev_index = best_index;
+    }
+
+    return dev_index;
 }
 
 #if defined(__APPLE__)
@@ -404,6 +453,7 @@ static int cpu_weights(parsec_device_t* device, int nstreams) {
 
 int parsec_devices_select(parsec_context_t* context)
 {
+    int rc = PARSEC_SUCCESS;
     int nb_total_comp_threads = 0;
 
     for(int p = 0; p < context->nb_vp; p++) {
@@ -430,11 +480,17 @@ int parsec_devices_select(parsec_context_t* context)
         parsec_device_recursive->device_dweight = parsec_device_cpus->device_dweight;
         parsec_devices_add(context, parsec_device_recursive);
     }
+
+#if defined(PARSEC_HAVE_OPENMP)
+    rc = parsec_omp_init(context);
+    if( PARSEC_SUCCESS != rc ) return rc;
+#endif /* define(PARSEC_HAVE_OPENMP) */
+
 #if defined(PARSEC_HAVE_CUDA)
-    return parsec_gpu_init(context);
-#else
-    return PARSEC_SUCCESS;
+    rc = parsec_cuda_init(context);
+    if( PARSEC_SUCCESS != rc ) return rc;
 #endif  /* defined(PARSEC_HAVE_CUDA) */
+    return PARSEC_SUCCESS;
 }
 
 int parsec_devices_add(parsec_context_t* context, parsec_device_t* device)

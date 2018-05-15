@@ -402,8 +402,8 @@ BODY [type=CUDA device=%{ return n; %}]
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    WORK  = parsec_gpu_pop_workspace(gpu_device, gpu_stream, descA->nb * ib * sizeof(parsec_complex64_t));
-    WORKC = parsec_gpu_pop_workspace(gpu_device, gpu_stream, descA->mb * ib * sizeof(parsec_complex64_t));
+    WORK  = parsec_cuda_pop_workspace(gpu_device, gpu_stream, descA->nb * ib * sizeof(parsec_complex64_t));
+    WORKC = parsec_cuda_pop_workspace(gpu_device, gpu_stream, descA->mb * ib * sizeof(parsec_complex64_t));
 
     dplasma_cuda_ztsmqr( PlasmaLeft, PlasmaConjTrans,
                          descA->mb, tempnn, tempmm, tempnn, descA->nb, ib,

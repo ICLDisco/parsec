@@ -49,3 +49,11 @@ OBJ_CLASS_INSTANCE(parsec_list_t, parsec_object_t,
                    parsec_list_construct, parsec_list_destruct);
 
 
+/* To be called from GDB, not from actual code */
+void parsec_list_debug_walker(parsec_list_t *list)
+{
+    parsec_list_item_t *p = (parsec_list_item_t *)list->ghost_element.list_next;
+    while (p != &(list->ghost_element)) {
+        p = (parsec_list_item_t *)p->list_next;
+    }
+}

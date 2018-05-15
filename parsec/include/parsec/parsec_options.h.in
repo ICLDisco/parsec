@@ -57,6 +57,7 @@
 #cmakedefine PARSEC_GPU_CUDA_ALLOC_PER_TILE
 #cmakedefine PARSEC_GPU_WITH_OPENCL
 #cmakedefine PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS
+#cmakedefine PARSEC_GPU_WITH_OPENMP
 
 /* debug */
 #cmakedefine PARSEC_DEBUG
@@ -94,6 +95,7 @@
 #cmakedefine PARSEC_HAVE_HWLOC
 #cmakedefine PARSEC_HAVE_PAPI
 #cmakedefine PARSEC_HAVE_CUDA
+#cmakedefine PARSEC_HAVE_OPENMP
 #cmakedefine PARSEC_HAVE_OPENCL
 #cmakedefine PARSEC_HAVE_MPI
 #cmakedefine PARSEC_HAVE_MPI_20
@@ -102,6 +104,7 @@
 #define PARSEC_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 /* Default PATH to look for the CUDA .so files */
 #define PARSEC_LIB_CUDA_PREFIX ".;@CUDA_cublas_LIBRARY@;@CMAKE_BINARY_DIR@/dplasma/cores"
+#define PARSEC_LIB_OPENMP_PREFIX ".;@CUDA_cublas_LIBRARY@;@CMAKE_BINARY_DIR@/dplasma/cores"
 
 #define PARSEC_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@
 

@@ -88,6 +88,20 @@ if (CUDA_FOUND)
   endif( PARSEC_WITH_DEVEL_HEADERS )
 endif (CUDA_FOUND)
 
+if (PARSEC_GPU_WITH_OPENMP)
+  find_package(OpenMP 4.5)
+  set(PARSEC_HAVE_OPENMP ${OPENMP_FOUND})
+  if (OPENMP_FOUND)
+    set_source_files_properties(devices/openmp/dev_omp.c PROPERTIES COMPILE_FLAGS ${OpenMP_C_FLAGS})
+    list(APPEND SOURCES devices/openmp/dev_omp.c)
+    if( PARSEC_WITH_DEVEL_HEADERS )
+        install(FILES
+          ${CMAKE_CURRENT_SOURCE_DIR}/devices/openmp/dev_omp.h
+          DESTINATION include/parsec/devices/openmp )
+    endif( PARSEC_WITH_DEVEL_HEADERS )
+  endif( OPENMP_FOUND )
+endif( PARSEC_GPU_WITH_OPENMP )
+
 if( PARSEC_PROF_GRAPHER )
   list(APPEND SOURCES parsec_prof_grapher.c)
 endif( PARSEC_PROF_GRAPHER )
@@ -112,6 +126,7 @@ if( BUILD_PARSEC )
   if (MPI_C_FOUND)
     set_target_properties(parsec PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
   endif (MPI_C_FOUND)
+  set_target_properties(parsec PROPERTIES LINK_FLAGS "${OpenMP_C_FLAGS}")
   target_link_libraries(parsec parsec-base ${EXTRA_LIBS})
 
   install(TARGETS parsec

@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#ifndef PARSEC_GPU_DATA_H_HAS_BEEN_INCLUDED
-#define PARSEC_GPU_DATA_H_HAS_BEEN_INCLUDED
+#ifndef PARSEC_CUDA_DATA_H_HAS_BEEN_INCLUDED
+#define PARSEC_CUDA_DATA_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_internal.h"
 #include "parsec/class/parsec_object.h"
@@ -23,12 +23,14 @@
 
 BEGIN_C_DECLS
 
-#define PARSEC_GPU_USE_PRIORITIES     1
+#define PARSEC_CUDA_MAX_WORKSPACE      2
+#define PARSEC_CUDA_W2R_NB_MOVE_OUT    1
 
-#define PARSEC_MAX_STREAMS            6
-#define PARSEC_MAX_EVENTS_PER_STREAM  4
-#define PARSEC_GPU_MAX_WORKSPACE      2
-#define PARSEC_GPU_W2R_NB_MOVE_OUT    1
+typedef struct __parsec_cuda_workspace {
+    void* workspace[PARSEC_CUDA_MAX_WORKSPACE];
+    int stack_head;
+    int total_workspace;
+} parsec_cuda_workspace_t;
 
 #if defined(PARSEC_PROF_TRACE)
 #define PARSEC_PROFILE_CUDA_TRACK_DATA_IN  0x0001
@@ -47,45 +49,37 @@ extern int parsec_cuda_own_GPU_key_end;
 
 #define GPU_TASK_TYPE_D2HTRANSFER 111
 
-extern float *device_load, *device_weight;
+struct __parsec_cuda_context;
+typedef struct __parsec_cuda_context parsec_cuda_context_t;
 
-typedef struct __parsec_gpu_workspace {
-    void* workspace[PARSEC_GPU_MAX_WORKSPACE];
-    int stack_head;
-    int total_workspace;
-} parsec_gpu_workspace_t;
-
-struct __parsec_gpu_context;
-typedef struct __parsec_gpu_context parsec_gpu_context_t;
-
-struct __parsec_gpu_exec_stream;
-typedef struct __parsec_gpu_exec_stream parsec_gpu_exec_stream_t;
+struct __parsec_cuda_exec_stream;
+typedef struct __parsec_cuda_exec_stream parsec_cuda_exec_stream_t;
 
 struct _gpu_device;
-typedef struct _gpu_device gpu_device_t;
+typedef struct _gpu_device parsec_cuda_device_t;
 
-typedef int (*advance_task_function_t)(gpu_device_t            *gpu_device,
-                                       parsec_gpu_context_t     *gpu_task,
-                                       parsec_gpu_exec_stream_t *gpu_stream);
+typedef int (*advance_cuda_task_function_t)(parsec_cuda_device_t            *gpu_device,
+                                       parsec_cuda_context_t     *gpu_task,
+                                       parsec_cuda_exec_stream_t *gpu_stream);
 
-struct __parsec_gpu_context {
+struct __parsec_cuda_context {
     parsec_list_item_t          list_item;
     parsec_task_t *ec;
-    advance_task_function_t    submit;
+    advance_cuda_task_function_t    submit;
     int                        task_type;
     int                        pushout[MAX_PARAM_COUNT];
     const parsec_flow_t        *flow[MAX_PARAM_COUNT];
 };
 
-struct __parsec_gpu_exec_stream {
-    struct __parsec_gpu_context **tasks;
+struct __parsec_cuda_exec_stream {
+    struct __parsec_cuda_context **tasks;
     cudaEvent_t *events;
     cudaStream_t cuda_stream;
     int32_t max_events;  /* number of potential events, and tasks */
     int32_t executed;    /* number of executed tasks */
     int32_t start, end;  /* circular buffer management start and end positions */
     parsec_list_t *fifo_pending;
-    parsec_gpu_workspace_t *workspace;
+    parsec_cuda_workspace_t *workspace;
 #if defined(PARSEC_PROF_TRACE)
     parsec_thread_profiling_t *profiling;
 #endif  /* defined(PROFILING) */
@@ -105,7 +99,7 @@ struct _gpu_device {
                                 *   the device to access directly the memory of
                                 *   the index of the set bit device.
                                 */
-    parsec_gpu_exec_stream_t* exec_stream;
+    parsec_cuda_exec_stream_t* exec_stream;
     volatile uint32_t mutex;
     parsec_list_t gpu_mem_lru;
     parsec_list_t gpu_mem_owned_lru;
@@ -124,14 +118,14 @@ struct _gpu_device {
         }                                                               \
     } while(0)
 
-int parsec_gpu_init(parsec_context_t *parsec_context);
-int parsec_gpu_fini(void);
+int parsec_cuda_init(parsec_context_t *parsec_context);
+int parsec_cuda_fini(void);
 
 /**
  * Debugging functions.
  */
-void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream);
-void dump_GPU_state(gpu_device_t* gpu_device);
+void dump_cuda_stream(parsec_cuda_exec_stream_t* exec_stream);
+void dump_cuda_device(parsec_cuda_device_t* gpu_device);
 
 /****************************************************
  ** GPU-DATA Specific Starts Here **
@@ -140,21 +134,15 @@ void dump_GPU_state(gpu_device_t* gpu_device);
 /**
  * Overload the default data_copy_t with a GPU specialized type
  */
-typedef parsec_data_copy_t parsec_gpu_data_copy_t;
+typedef parsec_data_copy_t parsec_cuda_data_copy_t;
 
 #include "parsec/data_distribution.h"
 
 /* GPU workspace  ONLY works when PARSEC_ALLOC_GPU_PER_TILE is OFF */
-int parsec_gpu_push_workspace(gpu_device_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream);
-void* parsec_gpu_pop_workspace(gpu_device_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream, size_t size);
-int parsec_gpu_free_workspace(gpu_device_t * gpu_device);
+int parsec_cuda_push_workspace(parsec_cuda_device_t* gpu_device, parsec_cuda_exec_stream_t* gpu_stream);
+void* parsec_cuda_pop_workspace(parsec_cuda_device_t* gpu_device, parsec_cuda_exec_stream_t* gpu_stream, size_t size);
+int parsec_cuda_free_workspace(parsec_cuda_device_t * gpu_device);
 
-int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio );
-
-/* sort pending task list by number of spaces needed */
-int parsec_gpu_sort_pending_list(gpu_device_t *gpu_device);
-parsec_gpu_context_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parsec_execution_stream_t *es);
-int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device, parsec_gpu_context_t *w2r_task, parsec_execution_stream_t *es);
 
 /**
  * Progress
@@ -168,8 +156,8 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device, parsec_gpu_context_t *w2r
  * where tasks ready to jump to the respective step are waiting.
  */
 parsec_hook_return_t
-parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
-                             parsec_gpu_context_t    *gpu_task,
+parsec_cuda_kernel_scheduler(parsec_execution_stream_t *es,
+                             parsec_cuda_context_t    *gpu_task,
                              int which_gpu );
 
 /**
@@ -186,9 +174,9 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
  *     -2: No more room on the GPU to move this data.
  */
 int
-parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
-                       parsec_gpu_context_t     *gpu_task,
-                       parsec_gpu_exec_stream_t *gpu_stream);
+parsec_cuda_kernel_push(parsec_cuda_device_t            *gpu_device,
+                       parsec_cuda_context_t     *gpu_task,
+                       parsec_cuda_exec_stream_t *gpu_stream);
 
 /**
  *  This function schedule the move of all the modified data for a
@@ -198,20 +186,20 @@ parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
  *           positive: the number of data to be moved.
  */
 int
-parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
-                      parsec_gpu_context_t     *gpu_task,
-                      parsec_gpu_exec_stream_t *gpu_stream);
+parsec_cuda_kernel_pop(parsec_cuda_device_t            *gpu_device,
+                      parsec_cuda_context_t     *gpu_task,
+                      parsec_cuda_exec_stream_t *gpu_stream);
 
 /**
  * Make sure all data on the device is correctly put back into the queues.
  */
 int
-parsec_gpu_kernel_epilog( gpu_device_t        *gpu_device,
-                         parsec_gpu_context_t *gpu_task );
+parsec_cuda_kernel_epilog(parsec_cuda_device_t        *gpu_device,
+                         parsec_cuda_context_t *gpu_task );
 
 int
-parsec_gpu_kernel_cleanout( gpu_device_t        *gpu_device,
-                            parsec_gpu_context_t *gpu_task );
+parsec_cuda_kernel_cleanout(parsec_cuda_device_t        *gpu_device,
+                            parsec_cuda_context_t *gpu_task );
 
 END_C_DECLS
 

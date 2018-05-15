@@ -265,6 +265,7 @@ subs = {
     ('CORE_s',      'CORE_d',      'CORE_s',      'CORE_d'     ),
     ('core_ssy',    'core_dsy',    'core_che',    'core_zhe'   ),
     ('core_s',      'core_d',      'core_c',      'core_z'     ),
+    ('omp_s',       'omp_d',       'omp_c',       'omp_z'      ),
     ('coreblas_s',  'coreblas_d',  'coreblas_c',  'coreblas_z' ),
     ('cuda_s',      'cuda_d',      'cuda_s',      'cuda_d'     ),
     ('cuda_s',      'cuda_d',      'cuda_c',      'cuda_z'     ),
