@@ -1,5 +1,4 @@
 prefix=@DPLASMA_INSTALL_PREFIX@
-exec_prefix=${prefix}/bin
 libdir=${prefix}/lib
 includedir=${prefix}/include
 
@@ -7,7 +6,7 @@ Name: DPLASMA
 Description: Distributed PLASMA over PaRSEC runtime
 Version: @DPLASMA_VERSION@
 Requires: parsec coreblas @PARSEC_PKG_REQUIRE@
-Libs: -L${libdir} -ldplasma -lparsec_distribution_matrix
+Libs: -L${libdir} -ldplasma @DPLASMA_EXTRA_LIBS@ -lparsec_distribution_matrix
 Libs.private:
 Cflags: -I${includedir}
 

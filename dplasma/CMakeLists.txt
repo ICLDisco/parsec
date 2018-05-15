@@ -68,7 +68,7 @@ LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tools/PrecisionGenera
 Add_Subdirectory(tools/PrecisionGenerator)
 
 # Veclib on OSX diverges from the standard BLAS interface. As a result, single
-# precision dplasma tests (real and complex) deliver wrong results. 
+# precision dplasma tests (real and complex) deliver wrong results.
 # Until we have a fix, make sure to disable these 2 presicisions with vecLib.
 if( PARSEC_OSX )
   check_function_exists(appleblas_sgeadd PARSEC_OSX_VECLIB)
@@ -92,6 +92,9 @@ if( PARSEC_OSX )
 endif( PARSEC_OSX )
 
 set(DPLASMA_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/dplasma")
+# Prepare a list of additional libraries needed to link with DPLASMA. This list
+# is extended according to the features supported (such as CUDA).
+set(DPLASMA_EXTRA_LIBS "")
 
 if(COREBLAS_FOUND)
   Add_Subdirectory(include)
