@@ -208,9 +208,7 @@ add_dependencies(dplasma
          dplasma_cores_includes )
 set_target_properties(dplasma PROPERTIES POSITION_INDEPENDENT_CODE True)
 target_link_libraries(dplasma
-  ${COREBLAS_LIBRARIES}
-  parsec parsec-base
-  ${EXTRA_LIBS}
+  ${COREBLAS_LIBRARIES} parsec ${EXTRA_LIBS}
 )
 set_target_properties(dplasma PROPERTIES LINK_FLAGS "${COREBLAS_LDFLAGS}")
 

@@ -112,6 +112,7 @@ if( BUILD_PARSEC )
 
   add_library(parsec ${SOURCES})
   set_target_properties(parsec PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+  set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ON)
   if (MPI_C_FOUND)
     set_target_properties(parsec PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
   endif (MPI_C_FOUND)
