@@ -48,22 +48,13 @@ precisions_rules_py(generated_files
                  "${SOURCES}"
                  PRECISIONS "${DPLASMA_PRECISIONS}")
 
-### Generate the dplasma_cores lib
+### Generate the dplasma_cores archive
 link_directories(${COREBLAS_LIBRARY_DIRS})
-add_library(dplasma_cores STATIC
-  ${generated_files})
+add_library(dplasma_cores OBJECT ${generated_files})
 set_target_properties(dplasma_cores PROPERTIES POSITION_INDEPENDENT_CODE True)
-target_link_libraries(dplasma_cores
-  ${COREBLAS_LIBRARIES}
-  ${EXTRA_LIBS})
 add_dependencies(dplasma_cores
          dplasma_includes
          dplasma_cores_includes)
-
-install(TARGETS dplasma_cores
-        ARCHIVE DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib
-        LIBRARY DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib)
-set(DPLASMA_ADD_LIBS "")
 
 if( CUDA_FOUND )
   # generate the cores_cuda library (hooks to cublas)
@@ -81,7 +72,6 @@ if( CUDA_FOUND )
       ${COREBLAS_LIBRARIES}
       ${EXTRA_LIBS})
     cuda_add_cublas_to_target( dplasma_cores_cuda )
-    target_link_libraries(dplasma_cores dplasma_cores_cuda)
     install(TARGETS dplasma_cores_cuda
       ARCHIVE DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib
       LIBRARY DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib)
@@ -95,7 +85,7 @@ if( CUDA_FOUND )
     set(CUDA_SM_TARGETS 11 13 20 CACHE STRING "Specify GPU architectures to build binaries for, BIN(PTX) format is supported")
 elseif( ${CUDA_VERSION_STRING} VERSION_LESS "8.0" )
     set(CUDA_SM_TARGETS 20 35 37 CACHE STRING "Specify GPU architectures to build binaries for, BIN(PTX) format is supported")
-  elseif( ${CUDA_VERSION_STRING} VERSION_EQUAL "8.0" )
+  elseif( ${CUDA_VERSION_STRING} VERSION_EQUAL "7.0" )
     set(CUDA_SM_TARGETS 20 35 37 60 CACHE STRING "Specify GPU architectures to build binaries for, BIN(PTX) format is supported")
   else()
     # SM_20 will be removed in cuda>8

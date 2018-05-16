@@ -202,13 +202,12 @@ link_directories(${COREBLAS_LIBRARY_DIRS})
 add_library(dplasma
             ${generated_files}
             ${generated_wrappers}
-            ${EXTRA_SOURCES})
+            ${EXTRA_SOURCES} $<TARGET_OBJECTS:dplasma_cores>)
 add_dependencies(dplasma
          dplasma_includes
          dplasma_cores_includes )
 set_target_properties(dplasma PROPERTIES POSITION_INDEPENDENT_CODE True)
 target_link_libraries(dplasma
-  dplasma_cores
   ${COREBLAS_LIBRARIES}
   parsec parsec-base
   ${EXTRA_LIBS}
