@@ -70,6 +70,7 @@ static int sched_ip_install( parsec_context_t *master )
 static void sched_ip_register_sde( parsec_execution_stream_t *es )
 {
     char event_name[256];
+    /* We register the counters only if the scheduler is installed, and only once per es */
     if( NULL != es && 0 == es->th_id ) {
         snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=IP", es->virtual_process->vp_id);
         papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
@@ -79,6 +80,8 @@ static void sched_ip_register_sde( parsec_execution_stream_t *es )
         papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
                                       "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=IP", PAPI_SDE_SUM);
     }
+    /* We describe the counters once if the scheduler is installed, or if we are called without
+     * an execution stream (typically during papi_native_avail library load) */
     if( NULL == es || 0 == es->th_id ) {
         papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=IP",
                                   "the number of pending tasks for the IP scheduler");

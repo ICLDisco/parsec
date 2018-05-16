@@ -76,6 +76,7 @@ set(SOURCES
   maxheap.c
   hbbuffer.c
   datarepo.c
+  papi_sde.c
   ${EXTRA_SOURCES}
   ${MCA_EXTRA_SOURCES}
 )

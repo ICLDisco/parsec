@@ -45,6 +45,7 @@
 #include "parsec/interfaces/interface.h"
 #include "parsec/sys/tls.h"
 #include "parsec/data_distribution.h"
+#include "parsec/papi_sde.h"
 
 #include "parsec/mca/mca_repository.h"
 
@@ -86,8 +87,6 @@ int arena_memory_alloc_key, arena_memory_free_key;
 int arena_memory_used_key, arena_memory_unused_key;
 int task_memory_alloc_key, task_memory_free_key;
 #endif  /* PARSEC_PROF_TRACE */
-
-papi_handle_t parsec_papi_sde_handle = NULL;
 
 #ifdef PARSEC_HAVE_HWLOC
 #define MAX_CORE_LIST 128
@@ -179,7 +178,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 {
     parsec_execution_stream_t* es;
     int pi;
-
+    
     /* don't use PARSEC_THREAD_IS_MASTER, it is too early and we cannot yet allocate the es struct */
     if( (0 != startup->virtual_process->vp_id) || (0 != startup->th_id) || parsec_runtime_bind_main_thread ) {
         /* Bind to the specified CORE */
@@ -191,6 +190,8 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Don't bind the main thread %i.%i",
                             startup->virtual_process->vp_id, startup->th_id);
     }
+
+    parsec_papi_sde_thread_init();
 
     es = (parsec_execution_stream_t*)malloc(sizeof(parsec_execution_stream_t));
     if( NULL == es ) {
@@ -324,12 +325,6 @@ do { \
     } \
 } while (0)
 
-static void parsec_register_sde_events(void)
-{
-    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS",
-                              "the number of pending tasks. A task is said pending if it is ready to execute but waits for execution in one of the scheduler queues.");
-}
-
 parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int ret, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
@@ -343,9 +338,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_warning = 0;
 
-    /* 128 is an upper bound on the number of events, will be removed
-     * in future APIs */
-    parsec_papi_sde_handle = papi_sde_init("PARSEC");
+    parsec_papi_sde_init();
     
     parsec_installdirs_open();
     parsec_mca_param_init();
@@ -414,9 +407,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         MPI_Comm_rank(MPI_COMM_WORLD, &parsec_debug_rank);
         parsec_weaksym_exit = parsec_mpi_exit;
     }
-#endif
-    parsec_register_sde_events();
-    
+#endif    
     parsec_debug_init();
     mca_components_repository_init();
 
@@ -563,6 +554,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                      nb_total_comp_threads, nb_cores);
         nb_cores = nb_total_comp_threads;
     }
+
+    parsec_papi_sde_enable_basic_events(nb_total_comp_threads + 1);
 
     startup = (__parsec_temporary_thread_initialization_t*)
         malloc(nb_total_comp_threads * sizeof(__parsec_temporary_thread_initialization_t));

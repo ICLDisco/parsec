@@ -84,12 +84,13 @@ parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b, off_t priority_offset);
  * @details This iterates over the bounded buffer, and counts the number of
  *   items not null at the time of execution. This function is thread safe but
  *   may return an incorrect number of items if other threads insert or remove
- *   concurrently
+ *   concurrently. It is used by SDE counters to get an approximate number of
+ *   pending tasks.
  *
  * @param[IN] b the bounded buffer
  * @return the number of items in the buffer
  */
-long long int parsec_hbbuffer_length(parsec_hbbuffer_t *b);
+long long int parsec_hbbuffer_approx_occupency(parsec_hbbuffer_t *b);
 
 END_C_DECLS
 

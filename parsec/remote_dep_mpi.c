@@ -16,6 +16,7 @@
 #include "parsec/utils/debug.h"
 #include "parsec/debug_marks.h"
 #include "parsec/data.h"
+#include "parsec/papi_sde.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 
 #define PARSEC_REMOTE_DEP_USE_THREADS
@@ -399,6 +400,7 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
     int whatsup;
 
     remote_dep_bind_thread(context);
+    parsec_papi_sde_thread_init();
 
     remote_dep_mpi_init(context);
     /* Now synchronize with the main thread */

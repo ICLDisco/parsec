@@ -263,7 +263,7 @@ parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b, off_t priority_offset)
     return best_elt;
 }
 
-long long int parsec_hbbuffer_length(parsec_hbbuffer_t *b)
+long long int parsec_hbbuffer_approx_occupency(parsec_hbbuffer_t *b)
 {
     unsigned int idx;
     long long int length = 0;

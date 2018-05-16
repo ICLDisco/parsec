@@ -15,6 +15,7 @@
 #include "parsec/os-spec-timing.h"
 #include "parsec/remote_dep.h"
 #include "parsec/scheduling.h"
+#include "parsec/papi_sde.h"
 
 #include "parsec/debug_marks.h"
 #include "parsec/ayudame.h"
@@ -281,6 +282,8 @@ int __parsec_schedule(parsec_execution_stream_t* es,
                       int32_t distance)
 {
     int ret;
+    int len;
+    parsec_task_t *task = tasks_ring;
 
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
     {
@@ -310,6 +313,9 @@ int __parsec_schedule(parsec_execution_stream_t* es,
     }
 #endif  /* defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER) */
 
+    len = 0;
+    _LIST_ITEM_ITERATOR(task, &task->super, item, {len++; });
+    parsec_papi_sde_counter_add(PARSEC_PAPI_SDE_TASKS_ENABLED, len);
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME(es->es_profile, schedule_push_begin, 0);
      */
@@ -391,6 +397,7 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
     if( NULL != task->task_class->complete_execution )
         rc = task->task_class->complete_execution( es, task );
 
+    parsec_papi_sde_counter_add(PARSEC_PAPI_SDE_TASKS_RETIRED, 1);
     PINS(es, COMPLETE_EXEC_END, task);
     AYU_TASK_COMPLETE(task);
 

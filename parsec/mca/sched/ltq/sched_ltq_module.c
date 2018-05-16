@@ -63,6 +63,7 @@ static void sched_ltq_register_sde_counters(parsec_execution_stream_t *es)
     int thid;
     parsec_vp_t *vp;
 
+    /* We register the counters only if the scheduler is installed, and only once per es */
     if( NULL != es && 0 == es->th_id ) {
         snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LTQ", es->virtual_process->vp_id);
         papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
@@ -75,13 +76,16 @@ static void sched_ltq_register_sde_counters(parsec_execution_stream_t *es)
         for(thid = 0; thid < vp->nb_cores; thid++) {
             snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LTQ", vp->vp_id, thid);
             papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                         PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_length, LOCAL_QUEUES_OBJECT(vp->execution_streams[thid])->task_queue);
+                                         PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_approx_occupency,
+                                         LOCAL_QUEUES_OBJECT(vp->execution_streams[thid])->task_queue);
             papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
                                           "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
             papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
                                           "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ", PAPI_SDE_SUM);
         }
     }
+    /* We describe the counters once if the scheduler is installed, or if we are called without
+     * an execution stream (typically during papi_native_avail library load) */
     if( NULL == es || 0 == es->th_id ) {
         papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ",
                                   "the number of pending tasks for the LTQ scheduler");
@@ -118,7 +122,7 @@ static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     sched_obj->system_queue = LOCAL_QUEUES_OBJECT(vp->execution_streams[0])->system_queue;
 
     /* Each thread creates its own "local" queue, connected to the shared dequeue */
-    sched_obj->task_queue = parsec_hbbuffer_new( queue_size, 1, push_in_queue_wrapper,
+    sched_obj->task_queue = parsec_hbbuffer_new( queue_size, 1, push_in_system_queue_wrapper,
                                                 (void*)sched_obj->system_queue);
     sched_obj->task_queue->assoc_core_num = -1; // broken since flow added
     sched_obj->hierarch_queues[0] = sched_obj->task_queue;
@@ -271,9 +275,9 @@ static int sched_ltq_schedule(parsec_execution_stream_t* es,
          * the task create a new heap. In both cases the new task become the base task
          * for further comparaison.
          */
-        for( matches = i = 0; i < MAX_PARAM_COUNT; i++) {
-            for (j = 0; j < MAX_PARAM_COUNT; j++) {
-                if (cur->data[i].data_in != NULL && cur->data[i].data_in == next->data[j].data_in)
+        for( matches = i = 0; i < cur->task_class->nb_flows; i++) {
+            for (j = 0; j < next->task_class->nb_flows; j++) {
+                if(cur->data[i].data_in == next->data[j].data_in)
                     matches++;
             }
         }

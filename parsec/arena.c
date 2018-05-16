@@ -10,6 +10,7 @@
 #include "parsec/class/lifo.h"
 #include "parsec/data_internal.h"
 #include "parsec/utils/debug.h"
+#include "parsec/papi_sde.h"
 #include <limits.h>
 
 #if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET)
@@ -91,6 +92,7 @@ void parsec_arena_destruct(parsec_arena_t* arena)
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Arena:\tfree element base ptr %p, data ptr %p (from arena %p)",
                                 item, ((parsec_arena_chunk_t*)item)->data, arena);
             TRACE_FREE(arena_memory_free_key, item);
+            parsec_papi_sde_counter_add(PARSEC_PAPI_SDE_MEM_ALLOC, -arena->elem_size);
             arena->data_free(item);
         }
         OBJ_DESTRUCT(&arena->area_lifo);
@@ -119,6 +121,7 @@ parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate
             size = sizeof( parsec_list_item_t );
         item = (parsec_list_item_t *)alloc( size );
         TRACE_MALLOC(arena_memory_alloc_key, size, item);
+        parsec_papi_sde_counter_add(PARSEC_PAPI_SDE_MEM_ALLOC, size);
         OBJ_CONSTRUCT(item, parsec_list_item_t);
         assert(NULL != item);
     }
@@ -130,6 +133,7 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
                           parsec_arena_chunk_t *chunk)
 {
     TRACE_FREE(arena_memory_unused_key, chunk);
+    parsec_papi_sde_counter_add(PARSEC_PAPI_SDE_MEM_USED, -arena->elem_size*chunk->count);
 
     if( (chunk->count == 1) && (arena->released < arena->max_released) ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tpush a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
@@ -145,6 +149,7 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
             arena->elem_size, chunk->count, arena, arena->alignment, chunk, chunk->data, sizeof(parsec_arena_chunk_t),
             PARSEC_ARENA_MIN_ALIGNMENT(arena->alignment));
     TRACE_FREE(arena_memory_free_key, chunk);
+    parsec_papi_sde_counter_add(PARSEC_PAPI_SDE_MEM_ALLOC, -arena->elem_size*chunk->count);
     if(arena->max_used != 0 && arena->max_used != INT32_MAX)
         (void)parsec_atomic_fetch_sub_int32(&arena->used, chunk->count);
     arena->data_free(chunk);
@@ -176,6 +181,7 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, i
         OBJ_CONSTRUCT(&chunk->item, parsec_list_item_t);
 
         TRACE_MALLOC(arena_memory_alloc_key, size, chunk);
+        parsec_papi_sde_counter_add(PARSEC_PAPI_SDE_MEM_ALLOC, size);
     }
     if(NULL == chunk) return NULL;  /* no more */
 
@@ -183,6 +189,7 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, i
     PARSEC_LIST_ITEM_SINGLETON( &chunk->item );
 #endif
     TRACE_MALLOC(arena_memory_used_key, size, chunk);
+    parsec_papi_sde_counter_add(PARSEC_PAPI_SDE_MEM_USED, size);
 
     chunk->origin = arena;
     chunk->count = count;

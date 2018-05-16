@@ -60,9 +60,7 @@ void *thread_fct(void *_)
     PAPI_start(eventset);
     while(1) {
         usleep(10000);
-        PAPI_stop(eventset, counts);
-        PAPI_reset(eventset);
-        PAPI_start(eventset);
+        PAPI_read(eventset, counts);
         for(i = 0; i < nbcounters; i++) {
             fprintf(stderr, "%s=%lld\t", counternames[i], counts[i]);
         }

@@ -69,6 +69,7 @@ static void sched_lhq_register_sde_counters(parsec_execution_stream_t *ces)
     parsec_execution_stream_t *es;
     local_queues_scheduler_object_t* sched_obj;
     
+    /* We register the counters only if the scheduler is installed, and only once per es */
     if( NULL != ces && 0 == ces->th_id ) {
         vp = ces->virtual_process;
         
@@ -93,7 +94,8 @@ static void sched_lhq_register_sde_counters(parsec_execution_stream_t *ces)
                     snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LHQ",
                              es->virtual_process->vp_id, idx);
                     papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                                 PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_length, sched_obj->hierarch_queues[idx]);
+                                                 PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_approx_occupency,
+                                                 sched_obj->hierarch_queues[idx]);
                     papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
                                                   "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
                     papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
@@ -102,6 +104,8 @@ static void sched_lhq_register_sde_counters(parsec_execution_stream_t *ces)
             }
         }
     }
+    /* We describe the counters once if the scheduler is installed, or if we are called without
+     * an execution stream (typically during papi_native_avail library load) */
     if( NULL == ces || 0 == ces->th_id ) {
         papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LHQ",
                                   "the number of pending tasks for the LHQ scheduler");

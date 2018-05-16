@@ -197,20 +197,6 @@ parsec_dequeue_chain_back( parsec_dequeue_t* dequeue, parsec_list_item_t* items 
 }
 
 /**
- * @brief returns the current length of the dequeue
- *
- * @param[IN] dequeue the dequeue to measure
- * @return the length of dequeue
- */
-static inline long long int parsec_dequeue_length( parsec_dequeue_t *dequeue) {
-    long long int length = 0;
-    PARSEC_LIST_ITERATOR(dequeue, item, {
-            length++;
-        });
-    return length;
-}
-
-/**
  * @brief check if list is empty, ignoring the lock
  *
  * @param[in] dequeue the dequeue to check
