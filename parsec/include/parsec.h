@@ -85,6 +85,33 @@ extern parsec_data_allocate_t parsec_data_allocate;
 extern parsec_data_free_t     parsec_data_free;
 
 /**
+ * @brief A Remote dependency
+ */
+typedef struct parsec_remote_deps_s     parsec_remote_deps_t;
+
+/**
+ * @brief Data and data copy description.
+ */
+typedef struct parsec_data_s parsec_data_t;
+typedef struct parsec_data_copy_s parsec_data_copy_t;
+
+/**
+ * @brief Data collection.
+ */
+typedef struct parsec_data_collection_s parsec_data_collection_t;
+typedef parsec_data_collection_t parsec_dc_t;
+
+/**
+ * @brief A description of the content of each data mouvement/copy
+ */
+typedef struct parsec_dep_data_description_s  parsec_dep_data_description_t;
+
+/**
+ * @brief A description of the thread private memory pool.
+ */
+typedef struct parsec_thread_mempool_s parsec_thread_mempool_t;
+
+/**
  *
  */
 typedef enum parsec_hook_return_e {

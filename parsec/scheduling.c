@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec/parsec_config.h"
+#include "parsec.h"
 #include "parsec/mca/mca_repository.h"
 #include "parsec/mca/sched/sched.h"
 #include "parsec/profiling.h"
@@ -21,6 +21,7 @@
 #include "parsec/constants.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/class/list.h"
+#include "parsec/utils/debug.h"
 
 #include <signal.h>
 #if defined(PARSEC_HAVE_STRING_H)

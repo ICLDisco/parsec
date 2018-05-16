@@ -4,9 +4,11 @@
  *                         reserved.
  */
 
-#include "parsec/parsec_config.h"
+#include "parsec.h"
 #include "parsec/datarepo.h"
 #include "parsec/utils/debug.h"
+#include "parsec/mempool.h"
+#include "parsec/execution_stream.h"
 
 data_repo_t*
 data_repo_create_nothreadsafe(unsigned int hashsize_hint, parsec_key_fn_t key_functions, void *key_hash_data, unsigned int nbdata)

@@ -38,10 +38,6 @@ BEGIN_C_DECLS
     ((type *)((char *)ptr - offsetof(type,member)))
 
 /**
- * @brief A Remote dependency
- */
-typedef struct parsec_remote_deps_s     parsec_remote_deps_t;
-/**
  * @brief A temporary memory allocated using the Arena system
  */
 typedef struct parsec_arena_chunk_s     parsec_arena_chunk_t;
@@ -61,10 +57,6 @@ typedef struct data_repo_s             data_repo_t;
  * @brief A Virtual Process
  */
 typedef struct parsec_vp_s              parsec_vp_t;
-/**
- * @brief A description of the content of each data mouvement/copy
- */
-typedef struct parsec_dep_data_description_s  parsec_dep_data_description_t;
 
 /**
  * @brief The prototype of startup functions

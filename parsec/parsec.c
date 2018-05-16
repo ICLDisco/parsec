@@ -39,6 +39,7 @@
 #include "parsec/utils/installdirs.h"
 #include "parsec/devices/device.h"
 #include "parsec/utils/cmd_line.h"
+#include "parsec/utils/debug.h"
 #include "parsec/utils/mca_param_cmd_line.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/interfaces/interface.h"

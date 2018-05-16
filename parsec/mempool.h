@@ -17,7 +17,6 @@
 BEGIN_C_DECLS
 
 typedef struct parsec_mempool_s parsec_mempool_t;
-typedef struct parsec_thread_mempool_s parsec_thread_mempool_t;
 
 /**
  * each element that is allocated from a mempool must

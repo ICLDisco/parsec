@@ -902,40 +902,50 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_hash_table.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list_item.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_rwlock.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
   DESTINATION include/parsec/class)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
   DESTINATION share/parsec/)
-
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/remote_dep.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_description_structures.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datarepo.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mempool.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data_internal.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/arena.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/execution_stream.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_internal.h
+  DESTINATION include/parsec)
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins.h
+  DESTINATION include/parsec/mca/pins)
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/mca.h
+  DESTINATION include/parsec/mca)
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/devices/device.h
+  DESTINATION include/parsec/devices )
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/interfaces/interface.h
+  DESTINATION include/parsec/interfaces/ )
+if(PARSEC_PROF_GRAPHER)
+  install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_prof_grapher.h
+    DESTINATION include/parsec )
+endif(PARSEC_PROF_GRAPHER)
 # Install header files for jdf generated code
 if( PARSEC_WITH_DEVEL_HEADERS )
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/arena.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_binary_profile.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_internal.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_prof_grapher.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data_internal.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datarepo.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/hbbuffer.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_description_structures.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/execution_stream.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/os-spec-timing.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/maxheap.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mempool.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/remote_dep.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h
     DESTINATION include/parsec )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/mca.h
-    DESTINATION include/parsec/mca )
-
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/interfaces/interface.h
-    DESTINATION include/parsec/interfaces/ )
-
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins_papi_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins_tau_utils.h
     DESTINATION include/parsec/mca/pins )
@@ -953,16 +963,10 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     DESTINATION include/parsec/utils )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/dequeue.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
     DESTINATION include/parsec/class )
-
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/devices/device.h
-    DESTINATION include/parsec/devices )
 
 endif(PARSEC_WITH_DEVEL_HEADERS)
 
@@ -1040,3 +1044,23 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion
                                  COMPATIBILITY SameMajorVersion)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake cmake_modules/RulesJDF.cmake cmake_modules/FindPARSEC.cmake
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
+
+# Prepare the contrib/build_with_parsec directory
+configure_file (
+  contrib/build_with_parsec/Makefile.in
+  ${CMAKE_CURRENT_BINARY_DIR}/contrib/build_with_parsec/Makefile @ONLY)
+
+file(GLOB_RECURSE pattern_files RELATIVE
+     "${CMAKE_CURRENT_SOURCE_DIR}/" "contrib/build_with_parsec/*.[c|h]"
+                                    "contrib/build_with_parsec/*.jdf")
+foreach( pattern_file ${pattern_files} )
+  add_custom_command(
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${pattern_file}"
+    COMMAND cmake -E copy
+            "${CMAKE_CURRENT_SOURCE_DIR}/${pattern_file}"
+            "${CMAKE_CURRENT_BINARY_DIR}/${pattern_file}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${pattern_file}"
+  )
+  list( APPEND pattern_files_dest "${pattern_file}" )
+endforeach( pattern_file )
+add_custom_target(build_with_parsec ALL DEPENDS ${pattern_files_dest})

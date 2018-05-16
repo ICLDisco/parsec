@@ -1170,8 +1170,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
-    houtput("#include \"parsec/parsec_config.h\"\n"
-            "#include \"parsec/parsec_internal.h\"\n"
+    houtput("#include \"parsec.h\"\n"
             "#include \"parsec/constants.h\"\n"
             "#include \"parsec/data_distribution.h\"\n"
             "#include \"parsec/data_internal.h\"\n"
@@ -1180,6 +1179,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#include \"parsec/devices/device.h\"\n"
             "#include \"parsec/interfaces/interface.h\"\n"
             "#include \"parsec/class/parsec_hash_table.h\"\n"
+            "#include \"parsec/execution_stream.h\"\n"
             "#include <assert.h>\n\n");
     houtput("BEGIN_C_DECLS\n\n");
 

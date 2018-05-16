@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,7 +13,7 @@
  */
 
 
-#include "parsec/parsec_internal.h"
+#include "parsec.h"
 
 BEGIN_C_DECLS
 

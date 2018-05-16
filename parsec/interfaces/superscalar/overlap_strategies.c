@@ -11,13 +11,14 @@
  *
  */
 
-#include "parsec/parsec_config.h"
+#include "parsec.h"
 #include "parsec/parsec_internal.h"
 
-#include <stdio.h>
 #include "parsec/data_distribution.h"
 #include "parsec/remote_dep.h"
+#include "parsec/execution_stream.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/utils/debug.h"
 
 /***************************************************************************//**
  *

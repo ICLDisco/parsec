@@ -47,7 +47,7 @@
 #include "parsec/parsec_prof_grapher.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec/data_dist/matrix/matrix.h"
-#include "parsec/utils/output.h"
+#include "parsec/utils/debug.h"
 #include "parsec/data_distribution.h"
 
 /* This allows DTD to have a separate stream for debug verbose output */
