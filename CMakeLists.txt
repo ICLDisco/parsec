@@ -7,6 +7,7 @@ include(CMakePushCheckState)
 # The current version number
 set (PARSEC_VERSION_MAJOR 2)
 set (PARSEC_VERSION_MINOR 0)
+set (PARSEC_VERSION_PATCH 0)
 
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)
@@ -1009,7 +1010,7 @@ set (CPACK_RESOURCE_FILE_LICENSE
      "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
 set (CPACK_PACKAGE_VERSION_MAJOR "${PARSEC_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
-set (CPACK_PACKAGE_VERSION_PATCH "gamma")
+set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
 include (CPack)
 
 # build doxygen documentation
@@ -1040,7 +1041,7 @@ configure_package_config_file(cmake_modules/ParsecConfig.cmake.in ${CMAKE_CURREN
                               INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake
                               PATH_VARS CMAKE_INSTALL_PREFIX)
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
-                                 VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.0
+    VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_PATCH}
                                  COMPATIBILITY SameMajorVersion)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake cmake_modules/RulesJDF.cmake cmake_modules/FindPARSEC.cmake
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)

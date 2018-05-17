@@ -22,11 +22,6 @@ BEGIN_C_DECLS
  *  @{
  */
 
-/** @brief Define the PaRSEC major version number */
-#define PARSEC_VERSION    2
-/** @brief Define the PaRSEC minor version number */
-#define PARSEC_SUBVERSION 0
-
 /**
  * @brief Define a weak symbol called by PaRSEC in case of fatal error.
  * Can be overwritten by the user level to catch and handle errors.

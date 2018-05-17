@@ -7,8 +7,12 @@
  * become the parsec_config.h and will hide all compiler dependent features used
  * during PaRSEC compilation.
  */
+/** @brief Define the PaRSEC major version number */
 #define PARSEC_VERSION_MAJOR @PARSEC_VERSION_MAJOR@
+/** @brief Define the PaRSEC minor version number */
 #define PARSEC_VERSION_MINOR @PARSEC_VERSION_MINOR@
+/** @brief Define the PaRSEC patch version number */
+#define PARSEC_VERSION_PATCH @PARSEC_VERSION_PATCH@
 
 /* OS dependent capabilities */
 #cmakedefine PARSEC_HAVE_PTHREAD

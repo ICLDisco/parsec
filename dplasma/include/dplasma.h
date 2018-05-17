@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -9,6 +9,10 @@
 
 #include "parsec.h"
 #include "dplasma_complex.h"
+
+#define DPLASMA_VERSION_MAJOR @DPLASMA_VERSION_MAJOR@
+#define DPLASMA_VERSION_MINOR @DPLASMA_VERSION_MINOR@
+#define DPLASMA_VERSION_PATCH @DPLASMA_VERSION_PATCH@
 
 BEGIN_C_DECLS
 

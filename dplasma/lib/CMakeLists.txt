@@ -1,3 +1,8 @@
+# The current version number
+set (DPLASMA_VERSION_MAJOR 2)
+set (DPLASMA_VERSION_MINOR 0)
+set (DPLASMA_VERSION_PATCH 0)
+
 include(PrecisionGenerator)
 include(RulesJDF)
 
@@ -211,6 +216,8 @@ target_link_libraries(dplasma
   ${COREBLAS_LIBRARIES} parsec ${EXTRA_LIBS}
 )
 set_target_properties(dplasma PROPERTIES LINK_FLAGS "${COREBLAS_LDFLAGS}")
+set_target_properties(dplasma PROPERTIES VERSION ${DPLASMA_VERSION_MAJOR}.${DPLASMA_VERSION_MINOR}
+                                         SOVERSION ${PARSEC_VERSION_MAJOR})
 
 if (MPI_C_FOUND)
   set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
