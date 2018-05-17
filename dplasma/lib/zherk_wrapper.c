@@ -9,7 +9,7 @@
 
 #include <core_blas.h>
 #include "dplasma.h"
-#include "dplasma/lib/dplasmatypes.h"
+#include "dplasmatypes.h"
 
 #include "zherk_LN.h"
 #include "zherk_LC.h"

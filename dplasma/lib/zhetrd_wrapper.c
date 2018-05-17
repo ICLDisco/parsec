@@ -8,7 +8,7 @@
  */
 #include <core_blas.h>
 #include "dplasma.h"
-#include "dplasma/lib/dplasmatypes.h"
+#include "dplasmatypes.h"
 
 #include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"

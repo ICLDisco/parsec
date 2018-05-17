@@ -60,10 +60,10 @@ static inline int dplasma_iceil(int a, int b) { return (a + b - 1) / b; };
 /* Functions specific to QR */
 #include "dplasma_qr_param.h"
 
-#include "dplasma_s.h"
-#include "dplasma_d.h"
-#include "dplasma_c.h"
-#include "dplasma_z.h"
+/* Replaced during the project configuration to list all
+ * precisions supported by this installation.
+ */
+@DPLASMA_INCLUDE_STRING@
 
 /*
  * Map operations

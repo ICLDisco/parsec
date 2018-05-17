@@ -10,7 +10,7 @@
  */
 
 #include "dplasma.h"
-#include "dplasma/lib/dplasmatypes.h"
+#include "dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "parsec/private_mempool.h"
 

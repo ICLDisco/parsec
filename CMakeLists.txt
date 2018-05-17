@@ -897,6 +897,7 @@ install(FILES
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/debug.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param.h
   DESTINATION include/parsec/utils)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_object.h
@@ -905,6 +906,7 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_rwlock.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
   DESTINATION include/parsec/class)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
@@ -956,7 +958,6 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/cmd_line.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/parsec_environ.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param_cmd_line.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/os_path.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/show_help.h
@@ -966,7 +967,6 @@ if( PARSEC_WITH_DEVEL_HEADERS )
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/dequeue.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
     DESTINATION include/parsec/class )
 
 endif(PARSEC_WITH_DEVEL_HEADERS)

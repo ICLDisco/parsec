@@ -10,7 +10,7 @@
 
 #include <lapacke.h>
 #include "dplasma.h"
-#include "dplasma/lib/dplasmatypes.h"
+#include "dplasmatypes.h"
 
 #include "map2.h"
 
