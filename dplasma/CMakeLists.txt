@@ -91,10 +91,8 @@ if( PARSEC_OSX )
   endif( PARSEC_OSX_VECLIB )
 endif( PARSEC_OSX )
 
-set(DPLASMA_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/dplasma")
-# Prepare a list of additional libraries needed to link with DPLASMA. This list
-# is extended according to the features supported (such as CUDA).
-set(DPLASMA_EXTRA_LIBS "")
+set(DPLASMA_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/dplasma"
+                           CACHE STRING "DPLASMA Installation Prefix")
 
 if(COREBLAS_FOUND)
   Add_Subdirectory(include)

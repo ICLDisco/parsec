@@ -28,8 +28,6 @@
 #include <parsec/devices/cuda/dev_cuda.h>
 #endif
 
-#include "parsec/vpmap.h"
-
 char *PARSEC_SCHED_NAME[] = {
     "", /* default */
     "lfq",
