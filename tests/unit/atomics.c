@@ -148,6 +148,7 @@ static void *pfunction(void *_param)
     return NULL;
 }
 
+#if defined(PARSEC_HAVE_INT128)
 static void positive_int128_tostr_rec(__uint128_t n, char *out, int offset, int base) {
     if (n == 0) {
         out[offset] = '\0';
@@ -187,6 +188,7 @@ static char *int128_to_str_base16(__int128_t n, char *out) {
     }
     return out;
 }
+#endif
 
 int main(int argc, char *argv[])
 {
