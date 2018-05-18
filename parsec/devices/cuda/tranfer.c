@@ -114,7 +114,7 @@ static uint64_t key_of_CUDA_d2h_task(const parsec_taskpool_t *tp,
                                      const assignment_t *assignments)
 {
     (void)tp; (void)assignments;
-    return (uint64_t)parsec_atomic_add_32b((volatile int32_t*)&parsec_CUDA_d2h_counter, 1);
+    return (uint64_t)(1 + parsec_atomic_fetch_inc_int32(&parsec_CUDA_d2h_counter));
 }
 
 static parsec_data_t*

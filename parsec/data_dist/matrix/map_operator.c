@@ -532,7 +532,7 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
     res->super.super.startup_hook = parsec_map_operator_startup_fn;
     res->super.super.destructor = (parsec_destruct_fn_t) parsec_map_operator_destructor;
     res->super.super.nb_task_classes = 1;
-    res->super.super.devices_mask = PARSEC_DEVICES_ALL;
+    res->super.super.devices_index_mask = PARSEC_DEVICES_ALL;
     res->super.super.update_nb_runtime_task = parsec_ptg_update_runtime_task;
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)res);
     return (parsec_taskpool_t*)res;

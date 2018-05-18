@@ -130,10 +130,9 @@ static int parsec_cuda_device_fini(parsec_device_t* device)
     for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
         parsec_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
 
-        exec_stream->max_events   = PARSEC_MAX_EVENTS_PER_STREAM;
-        exec_stream->executed     = 0;
-        exec_stream->start        = 0;
-        exec_stream->end          = 0;
+        exec_stream->executed = 0;
+        exec_stream->start    = 0;
+        exec_stream->end      = 0;
 
         for( k = 0; k < exec_stream->max_events; k++ ) {
             assert( NULL == exec_stream->tasks[k] );
@@ -141,6 +140,7 @@ static int parsec_cuda_device_fini(parsec_device_t* device)
             PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_device_fini) cudaEventDestroy ", status,
                                     {continue;} );
         }
+        exec_stream->max_events = 0;
         free(exec_stream->events); exec_stream->events = NULL;
         free(exec_stream->tasks); exec_stream->tasks = NULL;
         free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
@@ -468,13 +468,13 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
             exec_stream->name         = NULL;
             exec_stream->fifo_pending = (parsec_list_t*)OBJ_NEW(parsec_list_t);
             OBJ_CONSTRUCT(exec_stream->fifo_pending, parsec_list_t);
-            exec_stream->tasks  = (parsec_gpu_task_t**)malloc(exec_stream->max_events
-                                                                 * sizeof(parsec_gpu_task_t*));
-            exec_stream->events = (cudaEvent_t*)malloc(exec_stream->max_events * sizeof(cudaEvent_t));
+            exec_stream->tasks    = (parsec_gpu_task_t**)malloc(exec_stream->max_events
+                                                                * sizeof(parsec_gpu_task_t*));
+            exec_stream->events   = (cudaEvent_t*)malloc(exec_stream->max_events * sizeof(cudaEvent_t));
             /* and the corresponding events */
             for( k = 0; k < exec_stream->max_events; k++ ) {
-                exec_stream->events[k] = NULL;
-                exec_stream->tasks[k]  = NULL;
+                exec_stream->events[k]   = NULL;
+                exec_stream->tasks[k]    = NULL;
                 cudastatus = cudaEventCreate(&(exec_stream->events[k]));
                 PARSEC_CUDA_CHECK_ERROR( "(INIT) cudaEventCreate ", (cudaError_t)cudastatus,
                                          {break;} );
@@ -1301,6 +1301,45 @@ static inline parsec_list_item_t* parsec_fifo_push_ordered( parsec_list_t* fifo,
 #define PARSEC_FIFO_PUSH  parsec_list_nolock_fifo_push
 #endif
 
+static int
+parsec_gpu_callback_complete_push(gpu_device_t              *gpu_device,
+                                  parsec_gpu_task_t        **gpu_task,
+                                  parsec_gpu_exec_stream_t  *gpu_stream)
+{
+    parsec_gpu_task_t *gtask = *gpu_task;
+    parsec_task_t *task;
+    int32_t i;
+    const parsec_flow_t        *flow;
+    /**
+     * Even though cuda event return success, the PUSH may not be
+     * completed if no PUSH is required by this task and the PUSH is
+     * actually done by another task, so we need to check if the data is
+     * actually ready to use
+     */
+    assert(stream == &(gpu_device->exec_stream[0]));
+    task = gtask->ec;
+    for( i = 0; i < task->task_class->nb_flows; i++ ) {
+        flow = gtask->flow[i];
+        assert( flow );
+        assert( flow->flow_index == i );
+        if(!flow->flow_flags) continue;
+        if(task->data[i].data_out->push_task == task ) {   /* only the task who did this PUSH can modify the status */
+            task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
+            task->data[i].data_out->push_task = NULL;
+            continue;
+        }
+        assert(task->data[i].data_out->data_transfer_status == DATA_STATUS_COMPLETE_TRANSFER);
+        if( task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER ) {  /* data is not ready */
+            /**
+             * As long as we have only one stream to push the data on the GPU we should never
+             * end up in this case. Remove previous assert if changed.
+             */
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static inline int
 progress_stream( gpu_device_t* gpu_device,
                  parsec_gpu_exec_stream_t* stream,
@@ -1308,10 +1347,8 @@ progress_stream( gpu_device_t* gpu_device,
                  parsec_gpu_task_t* task,
                  parsec_gpu_task_t** out_task )
 {
-    parsec_task_t *this_task;
     advance_task_function_t progress_fct;
-    const parsec_flow_t *flow;
-    int saved_rc = 0, rc, i;
+    int saved_rc = 0, rc;
 
     /* We always handle the tasks in order. Thus if we got a new task, add it to the
      * local list (possibly by reordering the list). Also, as we can return a single
@@ -1326,37 +1363,6 @@ progress_stream( gpu_device_t* gpu_device,
     if( NULL != stream->tasks[stream->end] ) {
         rc = cudaEventQuery(stream->events[stream->end]);
         if( cudaSuccess == rc ) {
-
-            /**
-             * Even though cuda event return success, the PUSH may not be
-             * completed if no PUSH is required by this task and the PUSH is
-             * actually done by another task, so we need to check if the data is
-             * actually ready to use
-             */
-            if (stream == &(gpu_device->exec_stream[0])) {  /* exec_stream[0] is the PUSH stream */
-                parsec_gpu_task_t *gtask = stream->tasks[stream->end];
-                this_task = gtask->ec;
-                for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
-                    flow = gtask->flow[i];
-                    assert( flow );
-                    assert( flow->flow_index == i );
-                    if(!flow->flow_flags) continue;
-                    if (this_task->data[i].data_out->push_task == this_task) {   /* only the task who did this PUSH can modify the status */
-                        this_task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
-                        this_task->data[i].data_out->push_task = NULL;
-                        continue;
-                    }
-                    assert(this_task->data[i].data_out->data_transfer_status == DATA_STATUS_COMPLETE_TRANSFER);
-                    if (this_task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
-                        /**
-                         * As long as we have only one stream to push the data on the GPU we should never
-                         * end up in this case. Remove previous assert if changed.
-                         */
-                        return saved_rc;
-                    }
-                }
-            }
-
             /* Save the task for the next step */
             task = *out_task = stream->tasks[stream->end];
             PARSEC_DEBUG_VERBOSE(19, parsec_cuda_output_stream,
@@ -1364,8 +1370,9 @@ progress_stream( gpu_device_t* gpu_device,
                                  gpu_device->cuda_index,
                                  task->ec->task_class->name, (void*)task->ec, task->ec->priority,
                                  stream->name, (void*)stream);
-            stream->tasks[stream->end] = NULL;
+            stream->tasks[stream->end]    = NULL;
             stream->end = (stream->end + 1) % stream->max_events;
+
 #if defined(PARSEC_PROF_TRACE)
             if( stream->prof_event_track_enable ) {
                 PARSEC_TASK_PROF_TRACE(stream->profiling,
@@ -1376,7 +1383,10 @@ progress_stream( gpu_device_t* gpu_device,
                                        task->ec);
             }
 #endif /* (PARSEC_PROF_TRACE) */
-            return saved_rc;
+
+            rc = task->trigger(gpu_device, out_task, stream);
+            /* the task can be withdrawn by the system */
+            return rc;
         }
         if( cudaErrorNotReady != rc ) {
             PARSEC_CUDA_CHECK_ERROR( "(progress_stream) cudaEventQuery ", rc,
@@ -1429,7 +1439,7 @@ progress_stream( gpu_device_t* gpu_device,
          */
         rc = cudaEventRecord( stream->events[stream->start], stream->cuda_stream );
         assert(cudaSuccess == rc);
-        stream->tasks[stream->start] = task;
+        stream->tasks[stream->start]    = task;
         stream->start = (stream->start + 1) % stream->max_events;
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                              "GPU[%d]: Submitted %s(task %p) priority %d on stream %s{%p}",
@@ -1508,13 +1518,14 @@ void dump_GPU_state(gpu_device_t* gpu_device)
  *     -2: No more room on the GPU to move this data.
  */
 int
-parsec_gpu_kernel_push( gpu_device_t             *gpu_device,
-                        parsec_gpu_task_t        *gpu_task,
-                        parsec_gpu_exec_stream_t *gpu_stream)
+parsec_gpu_kernel_push( gpu_device_t                    *gpu_device,
+                        parsec_gpu_task_t               *gpu_task,
+                        parsec_gpu_exec_stream_t        *gpu_stream,
+                        parsec_complete_stage_trigger_t *trigger )
 {
-    int i, ret = 0;
     parsec_task_t *this_task = gpu_task->ec;
-    const parsec_flow_t        *flow;
+    const parsec_flow_t *flow;
+    int i, ret = 0;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -1524,9 +1535,9 @@ parsec_gpu_kernel_push( gpu_device_t             *gpu_device,
         return PARSEC_HOOK_RETURN_AGAIN;
 #endif
     PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
-                        "GPU[%d]: Try to Push %s",
-                        gpu_device->cuda_index,
-                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
+                         "GPU[%d]: Try to Push %s",
+                         gpu_device->cuda_index,
+                         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
 
     /* Do we have enough available memory on the GPU to hold the input and output data ? */
     ret = parsec_gpu_data_reserve_device_space( gpu_device, gpu_task );
@@ -1563,10 +1574,10 @@ parsec_gpu_kernel_push( gpu_device_t             *gpu_device,
     }
 
     PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
-                        "GPU[%d]: Push task %s DONE",
-                        gpu_device->cuda_index,
-                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
-
+                         "GPU[%d]: Push task %s DONE",
+                         gpu_device->cuda_index,
+                         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
+    *trigger = parsec_gpu_callback_complete_push;
     return ret;
 }
 
@@ -2042,3 +2053,5 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     parsec_warning("Critical issue related to the GPU discovered. Giving up\n");
     return PARSEC_HOOK_RETURN_DISABLE;
 }
+
+#endif /* PARSEC_HAVE_CUDA */

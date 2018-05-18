@@ -3367,10 +3367,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "%s"
             "    }\n"
             "    supported_dev |= device->type;\n"
-<<<<<<< HEAD
-            "    __parsec_tp->super.super.devices_mask |= (1 << _i);\n"
-=======
->>>>>>> Cleanup devices support.
             "  }\n",
             jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa1, jdf->globals, next,
@@ -3393,7 +3389,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            "        continue;\n"
                            "      }\n"));
     coutput("  /* Remove all the chores without a backend device */\n"
-            "  uint32_t i;\n"
             "  for( i = 0; i < PARSEC_%s_NB_TASK_CLASSES; i++ ) {\n"
             "    parsec_task_class_t* tc = (parsec_task_class_t*)__parsec_tp->super.super.task_classes_array[i];\n"
             "    __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;\n"
@@ -3572,12 +3567,8 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     string_arena_init(sa1);
     string_arena_init(sa2);
 
-<<<<<<< HEAD
     coutput("  __parsec_tp->super.super.nb_task_classes = PARSEC_%s_NB_TASK_CLASSES;\n"
-            "  __parsec_tp->super.super.devices_mask = PARSEC_DEVICES_ALL;\n"
-=======
-    coutput("  __parsec_tp->super.super.devices_index_mask = PARSEC_DEVICES_ALL;\n"
->>>>>>> Cleanup devices support.
+            "  __parsec_tp->super.super.devices_index_mask = PARSEC_DEVICES_ALL;\n"
             "  __parsec_tp->super.super.update_nb_runtime_task = parsec_ptg_update_runtime_task;\n"
             "  __parsec_tp->super.super.dependencies_array = (void **)\n"
             "              calloc(__parsec_tp->super.super.nb_task_classes, sizeof(void*));\n"

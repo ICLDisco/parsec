@@ -60,36 +60,55 @@ typedef struct __parsec_gpu_exec_stream parsec_gpu_exec_stream_t;
 struct _gpu_device;
 typedef struct _gpu_device gpu_device_t;
 
-typedef int (*advance_task_function_t)(gpu_device_t             *gpu_device,
-                                       parsec_gpu_task_t        *gpu_task,
-                                       parsec_gpu_exec_stream_t *gpu_stream);
+/**
+ * Callback from the engine upon CUDA event completion for each stage of a task.
+ * The same prototype is used for calling the user provided submission function.
+ */
+typedef int (*parsec_complete_stage_trigger_t)(gpu_device_t             *gpu_device,
+                                               parsec_gpu_task_t       **gpu_task,
+                                               parsec_gpu_exec_stream_t *gpu_stream);
+
+/**
+ *
+ */
+typedef int (*advance_task_function_t)(gpu_device_t                    *gpu_device,
+                                       parsec_gpu_task_t               *gpu_task,
+                                       parsec_gpu_exec_stream_t        *gpu_stream);
 
 struct parsec_gpu_task_s {
-    parsec_list_item_t       list_item;
-    parsec_task_t           *ec;
-    advance_task_function_t  submit;
-    uint64_t                 last_data_check_epoch;
-    int                      task_type;
-    int32_t                  pushout;
-    const parsec_flow_t     *flow[MAX_PARAM_COUNT];
+    parsec_list_item_t               list_item;
+    parsec_task_t                   *ec;
+    advance_task_function_t          submit;
+    parsec_complete_stage_trigger_t  trigger;
+    uint64_t                         last_data_check_epoch;
+    int                              task_type;
+    int32_t                          pushout;
+    const parsec_flow_t             *flow[MAX_PARAM_COUNT];
 };
 
 struct __parsec_gpu_exec_stream {
-    struct parsec_gpu_task_s **tasks;
-    cudaEvent_t *events;
-    cudaStream_t cuda_stream;
-    char* name;
-    int32_t max_events;  /* number of potential events, and tasks */
-    int32_t executed;    /* number of executed tasks */
-    int32_t start, end;  /* circular buffer management start and end positions */
-    parsec_list_t *fifo_pending;
-    parsec_gpu_workspace_t *workspace;
+    /* There is exactly one task per active event (max_events being the uppoer bound).
+     * Upon event completion the trigger associated with the task is called, and this
+     * trigger will decide what is going on next with the task. If the task remains
+     * in the system the trigger is supposed to update it.
+     */
+    struct parsec_gpu_task_s        **tasks;
+    cudaEvent_t                      *events;
+    cudaStream_t                      cuda_stream;
+    char                             *name;
+    int32_t                           max_events;  /* number of potential events, and tasks */
+    int32_t                           executed;    /* number of executed tasks */
+    int32_t                           start;  /* circular buffer management start and end positions */
+    int32_t                           end;
+    parsec_list_t                    *fifo_pending;
+    parsec_gpu_workspace_t           *workspace;
 #if defined(PARSEC_PROF_TRACE)
-    parsec_thread_profiling_t *profiling;
+    parsec_thread_profiling_t        *profiling;
 #endif  /* defined(PROFILING) */
 #if defined(PARSEC_PROF_TRACE)
-    int prof_event_track_enable;
-    int prof_event_key_start, prof_event_key_end;
+    int                               prof_event_track_enable;
+    int                               prof_event_key_start;
+    int                               prof_event_key_end;
 #endif  /* defined(PROFILING) */
 };
 
@@ -103,7 +122,7 @@ struct _gpu_device {
                                 *   the device to access directly the memory of
                                 *   the index of the set bit device.
                                 */
-    volatile uint32_t mutex;
+    volatile int32_t mutex;
     uint64_t data_avail_epoch;  /**< Identifies the epoch of the data status on the devide. It
                                  *  is increased every time a new data is made available, so
                                  *  that we know which tasks can be evaluated for submission.
@@ -189,9 +208,10 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
  *     -2: No more room on the GPU to move this data.
  */
 int
-parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
-                       parsec_gpu_task_t        *gpu_task,
-                       parsec_gpu_exec_stream_t *gpu_stream);
+parsec_gpu_kernel_push( gpu_device_t                    *gpu_device,
+                        parsec_gpu_task_t               *gpu_task,
+                        parsec_gpu_exec_stream_t        *gpu_stream,
+                        parsec_complete_stage_trigger_t *trigger );
 
 /**
  *  This function schedule the move of all the modified data for a

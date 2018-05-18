@@ -85,6 +85,7 @@ int main(int argc, char ** argv)
 
         /* lets rock! */
         PASTE_CODE_PROGRESS_KERNEL(parsec, zgemm);
+        PASTE_CODE_PROGRESS_KERNEL(parsec, zgemm);
 
         dplasma_zgemm_Destruct( PARSEC_zgemm );
 
@@ -150,6 +151,13 @@ int main(int argc, char ** argv)
                               (parsec_tiled_matrix_dc_t *)&dcA,
                               (parsec_tiled_matrix_dc_t *)&dcB,
                               (parsec_complex64_t)beta,
+                              (parsec_tiled_matrix_dc_t *)&dcC);
+                if(loud) printf("Start second\n");
+                dplasma_zgemm(parsec, trans[tA], trans[tB],
+                              (parsec_complex64_t)alpha,
+                              (parsec_tiled_matrix_dc_t *)&dcA,
+                              (parsec_tiled_matrix_dc_t *)&dcB,
+                              (parsec_complex64_t)0.0,
                               (parsec_tiled_matrix_dc_t *)&dcC);
                 if(loud) printf("Done\n");
 
