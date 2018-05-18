@@ -22,8 +22,8 @@
 #include <string.h>
 
 #include "parsec/class/list.h"
-#include <parsec/utils/mca_param_internal.h>
-#include <parsec/utils/keyval_parse.h>
+#include "parsec/utils/mca_param_internal.h"
+#include "parsec/utils/keyval_parse.h"
 
 static char * file_being_read;
 

@@ -8,8 +8,7 @@
  * [mpicc|cc] -o Ex00_StartStop Ex00_StartStop.c `pkg-config --cflags --libs parsec` -lpthread -lm -lrt [-ldl -lcudart]
  *
  */
-#include <parsec.h>
-#include "parsec/utils/debug.h"
+#include "parsec.h"
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 #endif

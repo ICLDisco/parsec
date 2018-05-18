@@ -8,7 +8,7 @@
 #define MCA_PINS_H
 /* PaRSEC Performance Instrumentation Callback System */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/mca/mca.h"
 
 #define PARSEC_PINS_SEPARATOR ";"

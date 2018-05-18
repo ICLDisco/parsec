@@ -15,7 +15,7 @@
 
 #include <stdlib.h>
 
-#include <parsec/devices/cuda/dev_cuda.h>
+#include "parsec/devices/cuda/dev_cuda.h"
 
 uint32_t parsec_nb_devices = 0;
 static uint32_t parsec_nb_max_devices = 0;

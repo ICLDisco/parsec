@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "dtt_bug_replicator.h"

@@ -1,5 +1,5 @@
 /* parsec things */
-#include "parsec.h"
+#include "parsec/runtime.h"
 
 /* system and io */
 #include <stdlib.h>

@@ -21,7 +21,7 @@
 #if defined(PARSEC_HAVE_GETOPT_H)
 #include <getopt.h>
 #endif  /* defined(PARSEC_HAVE_GETOPT_H) */
-#include <parsec/ayudame.h>
+#include "parsec/ayudame.h"
 
 #include "parsec/mca/pins/pins.h"
 #include "parsec/mca/sched/sched.h"

@@ -15,7 +15,7 @@
 #define INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_config.h"
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 
 BEGIN_C_DECLS

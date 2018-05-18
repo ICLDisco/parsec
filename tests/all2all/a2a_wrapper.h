@@ -1,7 +1,7 @@
 #ifndef _a2a_wrapper_h
 #define _a2a_wrapper_h
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data_dist/matrix/matrix.h"
 
 /**

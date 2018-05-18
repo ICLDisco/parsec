@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/utils/debug.h"
 #include "ctlgat_wrapper.h"
 #include "ctlgat_data.h"

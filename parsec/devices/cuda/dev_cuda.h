@@ -9,7 +9,6 @@
 
 #include "parsec/parsec_internal.h"
 #include "parsec/class/parsec_object.h"
-#include "parsec/class/fifo.h"
 #include "parsec/devices/device.h"
 
 #if defined(PARSEC_HAVE_CUDA)

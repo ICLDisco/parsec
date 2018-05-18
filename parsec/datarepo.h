@@ -7,7 +7,7 @@
 #ifndef PARSEC_DATAREPO_H_HAS_BEEN_INCLUDED
 #define PARSEC_DATAREPO_H_HAS_BEEN_INCLUDED
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/class/parsec_hash_table.h"
 

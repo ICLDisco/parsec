@@ -13,7 +13,7 @@
  */
 
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 
 BEGIN_C_DECLS
 

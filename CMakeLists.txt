@@ -878,6 +878,7 @@ install(FILES
   DESTINATION include)
 
 install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/runtime.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/ayudame.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/constants.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_config_bottom.h

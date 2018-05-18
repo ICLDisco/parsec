@@ -11,7 +11,7 @@
 #include "parsec/parsec_config.h"
 #include <stdarg.h>
 #include <stdio.h>
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data.h"
 #include "parsec/datatype.h"

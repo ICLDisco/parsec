@@ -1,7 +1,7 @@
 #ifndef TIMING_H
 #define TIMING_H
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include <stdio.h>
 #include <sys/time.h>
 

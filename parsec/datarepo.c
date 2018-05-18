@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/datarepo.h"
 #include "parsec/utils/debug.h"
 #include "parsec/mempool.h"

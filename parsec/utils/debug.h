@@ -77,7 +77,7 @@ void parsec_debug_backtrace_dump(void);
 #   define _PARSEC_DEBUG_HISTORY(...)
 #endif /* defined(PARSEC_DEBUG_HISTORY) */
 
-/* The main prototype is in parsec.h, but in order to avoid creating
+/* The main prototype is in runtime.h, but in order to avoid creating
  * a dependencies between the header files we include this definition
  * here.
  */

@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/utils/debug.h"
 #include "ep_wrapper.h"
 #include "schedmicro_data.h"

@@ -11,7 +11,7 @@
 #ifndef PARSEC_INTERNAL_H_HAS_BEEN_INCLUDED
 #define PARSEC_INTERNAL_H_HAS_BEEN_INCLUDED
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data.h"
 #include "parsec/class/list_item.h"
 #include "parsec/class/parsec_hash_table.h"

@@ -16,7 +16,7 @@
  */
 
 #include "parsec/parsec_config.h"
-#include "parsec.h"
+#include "parsec/runtime.h"
 
 #include "parsec/mca/sched/sched.h"
 #include "parsec/mca/sched/ltq/sched_ltq.h"

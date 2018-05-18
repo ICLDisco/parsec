@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "rtt_wrapper.h"
 #include "rtt_data.h"
 #if defined(PARSEC_HAVE_STRING_H)

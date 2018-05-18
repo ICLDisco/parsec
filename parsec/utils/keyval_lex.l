@@ -28,7 +28,7 @@
 #include <unistd.h>
 #endif
 
-#include <parsec/utils/keyval_lex.h>
+#include "parsec/utils/keyval_lex.h"
 
 /*
  * local functions

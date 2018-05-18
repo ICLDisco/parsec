@@ -30,7 +30,7 @@
  * scheduling of kernel routines.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/remote_dep.h"
 #include "parsec/scheduling.h"

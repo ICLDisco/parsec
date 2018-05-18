@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/utils/debug.h"
 #include "branching_wrapper.h"
 #include "branching_data.h"

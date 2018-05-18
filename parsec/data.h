@@ -7,7 +7,7 @@
 #ifndef DATA_H_HAS_BEEN_INCLUDED
 #define DATA_H_HAS_BEEN_INCLUDED
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 
 /** @defgroup parsec_internal_data Data
  *  @ingroup parsec_internal

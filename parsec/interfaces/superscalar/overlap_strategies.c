@@ -11,7 +11,7 @@
  *
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/parsec_internal.h"
 
 #include "parsec/data_distribution.h"

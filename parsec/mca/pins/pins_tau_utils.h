@@ -7,7 +7,7 @@
 #ifndef PINS_TAU_UTILS_H
 #define PINS_TAU_UTILS_H
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/execution_stream.h"
 
 void pins_tau_init(parsec_context_t * master_context);

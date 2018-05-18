@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/mca/mca_repository.h"
 #include "parsec/mca/sched/sched.h"
 #include "parsec/profiling.h"

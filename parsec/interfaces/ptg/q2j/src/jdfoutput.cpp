@@ -52,7 +52,7 @@ void print_header(void)
                   "#include <plasma.h>\n"
                   "#include <core_blas.h>\n"
                   "\n"
-                  "#include \"parsec.h\"\n"
+                  "#include \"parsec/runtime.h\"\n"
                   "#include \"data_distribution.h\"\n"
                   "#include \"parsec/data_dist/matrix/precision.h\"\n"
                   "#include \"parsec/data_dist/matrix/matrix.h\"\n"

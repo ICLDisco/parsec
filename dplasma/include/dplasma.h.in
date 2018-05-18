@@ -7,7 +7,7 @@
 #ifndef _DPLASMA_H_
 #define _DPLASMA_H_
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "dplasma_complex.h"
 
 #define DPLASMA_VERSION_MAJOR @DPLASMA_VERSION_MAJOR@

@@ -7,7 +7,7 @@
 #ifndef choice_data_h
 #define choice_data_h
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data.h"
 
 parsec_data_collection_t *create_and_distribute_data(int rank, int world, int size);

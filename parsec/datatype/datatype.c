@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/datatype.h"
 
 /**

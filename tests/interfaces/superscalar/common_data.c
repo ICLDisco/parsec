@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "common_data.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 

@@ -4,7 +4,7 @@
  *                         reserved.
  *
  */
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/execution_stream.h"
 #include "parsec/utils/mca_param.h"
 
@@ -25,7 +25,7 @@
 #include <mpi.h>
 #endif
 #if defined(PARSEC_HAVE_CUDA)
-#include <parsec/devices/cuda/dev_cuda.h>
+#include "parsec/devices/cuda/dev_cuda.h"
 #endif
 
 char *PARSEC_SCHED_NAME[] = {

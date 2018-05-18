@@ -20,7 +20,7 @@
  */
 
 #include "parsec/parsec_config.h"
-#include <parsec/constants.h>
+#include "parsec/constants.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -40,16 +40,16 @@
 
 #include "parsec/class/list_item.h"
 #include "parsec/class/list.h"
-#include <parsec/class/parsec_value_array.h>
-#include <parsec/utils/mca_param.h>
-#include <parsec/utils/mca_param_internal.h>
-#include <parsec/utils/installdirs.h>
-#include <parsec/utils/output.h>
-#include <parsec/utils/os_path.h>
-#include <parsec/utils/argv.h>
-#include <parsec/utils/show_help.h>
-#include <parsec/utils/parsec_environ.h>
-#include <parsec/utils/keyval_parse.h>
+#include "parsec/class/parsec_value_array.h"
+#include "parsec/utils/mca_param.h"
+#include "parsec/utils/mca_param_internal.h"
+#include "parsec/utils/installdirs.h"
+#include "parsec/utils/output.h"
+#include "parsec/utils/os_path.h"
+#include "parsec/utils/argv.h"
+#include "parsec/utils/show_help.h"
+#include "parsec/utils/parsec_environ.h"
+#include "parsec/utils/keyval_parse.h"
 
 /*
  * Local types

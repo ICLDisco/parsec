@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "choice_data.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data_internal.h"

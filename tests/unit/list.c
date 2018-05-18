@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #undef NDEBUG
 #include <pthread.h>
 #include <stdarg.h>

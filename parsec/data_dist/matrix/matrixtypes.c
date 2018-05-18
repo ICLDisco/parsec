@@ -4,7 +4,7 @@
  *                         reserved.
  */
 #include "parsec/parsec_config.h"
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/constants.h"
 #include "parsec/arena.h"
 #include "parsec/data_dist/matrix/matrix.h"
