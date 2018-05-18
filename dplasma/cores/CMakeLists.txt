@@ -5,25 +5,22 @@ set(generated_headers "")
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 
+set(CORE_CUDA_HEADERS "")
 if( CUDA_FOUND )
-    set(CORE_CUDA_HEADERS
-    )
-    set(CORE_CUDA_SOURCES
-        dplasma_cuda_ztsmqr.c)
+    set(CORE_CUDA_SOURCES dplasma_cuda_ztsmqr.c)
 else()
-    set(CORE_CUDA_HEADERS "")
     set(CORE_CUDA_SOURCES "")
 endif()
 
-### generate the dplasma_cores headers for all possible precisions
+### generate the dplasma_cores headers for all required precisions
 set(HEADERS
     dplasma_zcores.h
     ${CORE_CUDA_HEADERS})
 precisions_rules_py(generated_headers
-                 ${HEADERS}
-                 PRECISIONS "s;d;c;z")
+                    ${HEADERS}
+                    PRECISIONS "${DPLASMA_PRECISIONS}")
 add_custom_target(dplasma_cores_includes ALL SOURCES
-    ${generated_headers} )
+                  ${generated_headers} )
 
 foreach(generated_header ${generated_headers})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header}
@@ -50,33 +47,30 @@ precisions_rules_py(generated_files
 
 ### Generate the dplasma_cores archive
 link_directories(${COREBLAS_LIBRARY_DIRS})
-add_library(dplasma_cores OBJECT ${generated_files})
-set_target_properties(dplasma_cores PROPERTIES POSITION_INDEPENDENT_CODE True)
-add_dependencies(dplasma_cores
-         dplasma_includes
-         dplasma_cores_includes)
+add_library(dplasma_cores_obj OBJECT ${generated_files})
+set_target_properties(dplasma_cores_obj PROPERTIES POSITION_INDEPENDENT_CODE True)
+add_dependencies(dplasma_cores_obj
+                 dplasma_includes
+                 dplasma_cores_includes)
+
+add_library(dplasma_cores INTERFACE)
+target_sources(dplasma_cores INTERFACE $<TARGET_OBJECTS:dplasma_cores_obj>)
 
 if( CUDA_FOUND )
   # generate the cores_cuda library (hooks to cublas)
   precisions_rules_py(generated_cuda_files
-                 ${CORE_CUDA_SOURCES}
-                 PRECISIONS "${DPLASMA_PRECISIONS}")
+                      ${CORE_CUDA_SOURCES}
+                      PRECISIONS "${DPLASMA_PRECISIONS}")
 
-  if( NOT "${generated_cuda_files}" STREQUAL "" )
-    add_library(dplasma_cores_cuda
-      ${generated_cuda_files})
-    add_dependencies(dplasma_cores_cuda
-      dplasma_includes
-      dplasma_cores_includes)
-    target_link_libraries(dplasma_cores_cuda
-      ${COREBLAS_LIBRARIES}
-      ${EXTRA_LIBS})
-    cuda_add_cublas_to_target( dplasma_cores_cuda )
-    install(TARGETS dplasma_cores_cuda
-      ARCHIVE DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib
-      LIBRARY DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib)
-    set(DPLASMA_ADD_LIBS "-ldplasma_cores_cuda")
-  endif()
+  target_sources(dplasma_cores_obj PUBLIC ${generated_cuda_files})
+#  add_library(dplasma_cores_cuda OBJECT ${generated_cuda_files})
+#  add_dependencies(dplasma_cores_cuda
+#                   dplasma_includes
+#                   dplasma_cores_includes)
+#  target_link_libraries(dplasma_cores_cuda
+#                        ${COREBLAS_LIBRARIES}
+#                        ${EXTRA_LIBS})
+#  cuda_add_cublas_to_target( dplasma_cores_cuda )
 
   ### Generate the CUDA .cu kernels if necessary
   # By default drop support for older devices (add 11 and 13 for support
@@ -161,5 +155,4 @@ elseif( ${CUDA_VERSION_STRING} VERSION_LESS "8.0" )
 
   cuda_build_clean_target()
 endif()
-set(DPLASMA_EXTRA_LIBS "${DPLASMA_EXTRA_LIBS} ${DPLASMA_ADD_LIBS}" PARENT_SCOPE)
 

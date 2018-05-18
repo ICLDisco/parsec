@@ -18,9 +18,10 @@
 #include "parsec/profiling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/arena.h"
+#include "parsec/scheduling.h"
 #include "parsec/utils/debug.h"
 #include "parsec/utils/argv.h"
-#include "parsec/scheduling.h"
+#include "parsec/utils/zone_malloc.h"
 #include "parsec/class/fifo.h"
 
 #include <cuda.h>

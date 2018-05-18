@@ -3,10 +3,10 @@ include(PrecisionGenerator)
 # reset variables
 set(generated_headers "")
 
-### generate the dplasma headers for all possible precisions
+### generate the dplasma headers for all required precisions
 precisions_rules_py(generated_headers
-                 "dplasma_z.h"
-                 PRECISIONS "${DPLASMA_PRECISIONS}")
+                    "dplasma_z.h"
+                    PRECISIONS "${DPLASMA_PRECISIONS}")
 
 set(DPLASMA_INCLUDE_STRING "")
 foreach(generated_header ${generated_headers})

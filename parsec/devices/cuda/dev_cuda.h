@@ -18,8 +18,6 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#include "parsec/utils/zone_malloc.h"
-
 BEGIN_C_DECLS
 
 #define PARSEC_GPU_USE_PRIORITIES     1
@@ -109,7 +107,7 @@ struct _gpu_device {
     parsec_list_t gpu_mem_lru;
     parsec_list_t gpu_mem_owned_lru;
     parsec_list_t pending;
-    zone_malloc_t *memory;
+    struct zone_malloc_s *memory;
     parsec_list_item_t *sort_starting_p;
 };
 
