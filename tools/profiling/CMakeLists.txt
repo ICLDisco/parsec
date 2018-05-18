@@ -5,16 +5,19 @@ add_executable(dbp2xml dbp2xml.c dbpreader.c)
 set_target_properties(dbp2xml PROPERTIES LINKER_LANGUAGE C)
 set_target_properties(dbp2xml PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
 target_link_libraries(dbp2xml parsec-base ${GTG_LIBRARIES})
+install(TARGETS dbp2xml RUNTIME DESTINATION bin)
 
 add_executable(dbpinfos dbpinfos.c dbpreader.c)
 set_target_properties(dbpinfos PROPERTIES LINKER_LANGUAGE C)
 set_target_properties(dbpinfos PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
 target_link_libraries(dbpinfos parsec-base ${GTG_LIBRARIES})
+install(TARGETS dbpinfos RUNTIME DESTINATION bin)
 
 add_executable(dbp2mem dbp2mem.c dbpreader.c)
 set_target_properties(dbp2mem PROPERTIES LINKER_LANGUAGE C)
 set_target_properties(dbp2mem PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
 target_link_libraries(dbp2mem parsec-base ${GTG_LIBRARIES})
+install(TARGETS dbp2mem RUNTIME DESTINATION bin)
 
 find_package(GTG)
 
@@ -48,6 +51,7 @@ if(GRAPHVIZ_FOUND)
     set_target_properties(dbp-dot2png PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
     target_link_libraries(dbp-dot2png ${GRAPHVIZ_LIBRARIES} ${GD_LIBRARY})
     target_link_libraries(dbp-dot2png parsec-base)
+    install(TARGETS dbp-dot2png RUNTIME DESTINATION bin)
   endif()
 
 endif(GRAPHVIZ_FOUND)
@@ -58,4 +62,3 @@ if(CYTHON_EXECUTABLE)
   Add_Subdirectory(python)
 endif(CYTHON_EXECUTABLE)
 
-install(TARGETS dbp2xml RUNTIME DESTINATION bin)
