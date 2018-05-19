@@ -1,0 +1,467 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2020 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ *
+ */
+#include "redistribute_test.h"
+
+/**
+ * @brief CORE function, compute message size copied remote 
+ *
+ * @param [in] TL_row: row size of Top Left (NW)
+ * @param [in] TL_col: column size of Top Left (NW)
+ * @param [in] BR_row: row size of Bottom Right (SE)
+ * @param [in] BR_col: column size of Bottom Right (SE)
+ * @param [in] mb_Y_INNER: row tile size of Y, not including ghost region
+ * @param [in] nb_Y_INNER: column tile size of Y, not including ghost region
+ * @param [in] m_Y: row tile index of Y
+ * @param [in] n_Y: column tile index of Y
+ * @param [in] m_Y_start: row tile start index of Y
+ * @param [in] m_Y_end: row tile end index of Y
+ * @param [in] n_Y_start: column tile start index of Y
+ * @param [in] n_Y_end: column tile end index of Y
+ * @param [in] tid: thread id 
+ */
+
+void CORE_redistribute_bound(int TL_row, int TL_col, int BR_row, int BR_col, int mb_Y_INNER,
+                              int nb_Y_INNER, int m_Y, int n_Y, int m_Y_start, int m_Y_end,
+                              int n_Y_start, int n_Y_end, int tid, long long int *sum_remote,
+                              long long int *sum_remote_rank)
+{
+    if( m_Y == m_Y_start ){
+        if( n_Y == n_Y_start ){                                    /* North west corner */
+            sum_remote[tid] += TL_row * TL_col;
+            sum_remote_rank[tid] += TL_row * TL_col;
+        }
+        else if( (n_Y > n_Y_start) && (n_Y < n_Y_end) ){           /* North bar*/
+            sum_remote[tid] += TL_row * nb_Y_INNER;
+            sum_remote_rank[tid] += TL_row * nb_Y_INNER;
+        }
+        else if( (n_Y == n_Y_end) && (n_Y_start != n_Y_end) ){     /* North east corner */
+            sum_remote[tid] += TL_row * BR_col;
+            sum_remote_rank[tid] += TL_row * BR_col;
+        }
+    }
+
+    else if( (m_Y > m_Y_start) && (m_Y < m_Y_end) ){
+        if( n_Y == n_Y_start ){                                    /* West bar*/
+            sum_remote[tid] += mb_Y_INNER * TL_col;
+            sum_remote_rank[tid] += mb_Y_INNER * TL_col;
+        }
+        else if( (n_Y > n_Y_start) && (n_Y < n_Y_end) ){           /* Inner tile*/
+            sum_remote[tid] += mb_Y_INNER * nb_Y_INNER;
+            sum_remote_rank[tid] += mb_Y_INNER * nb_Y_INNER;
+        }
+        else if( (n_Y == n_Y_end) && (n_Y_start != n_Y_end) ){     /* East bar*/
+            sum_remote[tid] += mb_Y_INNER * BR_col;
+            sum_remote_rank[tid] += mb_Y_INNER * BR_col;
+        }
+    }
+
+    else if( (m_Y == m_Y_end) && (m_Y_start != m_Y_end) ){
+        if( n_Y == n_Y_start ){                                    /* South west corner */
+            sum_remote[tid] += BR_row * TL_col;
+            sum_remote_rank[tid] += BR_row * TL_col;
+        }
+        else if( (n_Y > n_Y_start) && (n_Y < n_Y_end) ){           /* South bar*/
+            sum_remote[tid] += BR_row * nb_Y_INNER;
+            sum_remote_rank[tid] += BR_row * nb_Y_INNER;
+        }
+        else if( (n_Y == n_Y_end) && (n_Y_start != n_Y_end) ){     /* South east corner */
+            sum_remote[tid] += BR_row * BR_col;
+            sum_remote_rank[tid] += BR_row * BR_col;
+        }
+    }
+}
+
+%}
+
+/**
+ * @brief Get the minimal time bound
+ *
+ * @details
+ * For each redistribute run, there will be a minimal time bound that
+ * base on network. It's computed by No. of message remote ( message that
+ * will send to / receive from different nodes).
+ */
+descY         [ type = "parsec_tiled_matrix_dc_t*" ]
+descT         [ type = "parsec_tiled_matrix_dc_t*" ]
+size_row      [ type = "int" ]
+size_col      [ type = "int" ]
+disi_Y        [ type = "int" ]
+disj_Y        [ type = "int" ]
+disi_T        [ type = "int" ]
+disj_T        [ type = "int" ]
+R             [ type = "int" ]
+
+sum_remote                [ type = "long long int *" ]
+sum_local                 [ type = "long long int *" ]
+sum_remote_rank_send      [ type = "long long int *" ]
+sum_remote_rank_receive   [ type = "long long int *" ]
+sum_local_rank            [ type = "long long int *" ]
+sum_nb_message_remote     [ type = "long long int *" ]
+sum_nb_message_local      [ type = "long long int *" ]
+
+mb_Y_INNER [type = "int" hidden=on default="descY->mb-2*R" ]
+nb_Y_INNER [type = "int" hidden=on default="descY->nb-2*R" ]
+mb_T_INNER [type = "int" hidden=on default="descT->mb-2*R" ]
+nb_T_INNER [type = "int" hidden=on default="descT->nb-2*R" ]
+
+m_Y_START  [type = "int" hidden=on default="disi_Y/mb_Y_INNER" ]
+n_Y_START  [type = "int" hidden=on default="disj_Y/nb_Y_INNER" ]
+m_Y_END    [type = "int" hidden=on default="(size_row+disi_Y-1)/mb_Y_INNER" ]
+n_Y_END    [type = "int" hidden=on default="(size_col+disj_Y-1)/nb_Y_INNER" ]
+
+m_T_START  [type = "int" hidden=on default="disi_T/mb_T_INNER" ]
+n_T_START  [type = "int" hidden=on default="disj_T/nb_T_INNER" ]
+m_T_END    [type = "int" hidden=on default="(size_row+disi_T-1)/mb_T_INNER" ]
+n_T_END    [type = "int" hidden=on default="(size_col+disj_T-1)/nb_T_INNER" ]
+
+/************************************************************
+ *                         Send                             *
+ ************************************************************
+ * @brief Task, to calculate data each rank send 
+ * @param m_Y, n_Y, m_T, n_T: tile index of Y and T
+ ************************************************************/
+
+Send(m_Y, n_Y, m_T, n_T)
+
+m_Y = m_Y_START .. m_Y_END
+n_Y = n_Y_START .. n_Y_END
+
+mb_Y_inner = %{ return getsize(m_Y, m_Y_START, m_Y_END, mb_Y_INNER, size_row, disi_Y%mb_Y_INNER); %}
+nb_Y_inner = %{ return getsize(n_Y, n_Y_START, n_Y_END, nb_Y_INNER, size_col, disj_Y%nb_Y_INNER); %}
+
+i_start = %{ return ((m_Y == m_Y_START)? disi_T%mb_T_INNER: (((m_Y-m_Y_START)*mb_Y_INNER-disi_Y%mb_Y_INNER)+disi_T)%mb_T_INNER); %}
+j_start = %{ return ((n_Y == n_Y_START)? disj_T%nb_T_INNER: (((n_Y-n_Y_START)*nb_Y_INNER-disj_Y%nb_Y_INNER)+disj_T)%nb_T_INNER); %}
+
+m_T_start = %{ return ((m_Y == m_Y_START)? disi_T/mb_T_INNER: (((m_Y-m_Y_START)*mb_Y_INNER-disi_Y%mb_Y_INNER)+disi_T)/mb_T_INNER); %}
+n_T_start = %{ return ((n_Y == n_Y_START)? disj_T/nb_T_INNER: (((n_Y-n_Y_START)*nb_Y_INNER-disj_Y%nb_Y_INNER)+disj_T)/nb_T_INNER); %}
+
+m_T_end = %{ return ((m_Y == m_Y_START)? (disi_T+mb_Y_inner-1)/mb_T_INNER: (((m_Y-m_Y_START)*mb_Y_INNER-disi_Y%mb_Y_INNER)+disi_T+mb_Y_inner-1)/mb_T_INNER); %}
+n_T_end = %{ return ((n_Y == n_Y_START)? (disj_T+nb_Y_inner-1)/nb_T_INNER: (((n_Y-n_Y_START)*nb_Y_INNER-disj_Y%nb_Y_INNER)+disj_T+nb_Y_inner-1)/nb_T_INNER); %}
+
+m_T = m_T_start .. m_T_end
+n_T = n_T_start .. n_T_end
+
+TL_row = %{ return parsec_imin(mb_Y_inner, mb_T_INNER-i_start); %}
+TL_col = %{ return parsec_imin(nb_Y_inner, nb_T_INNER-j_start); %}
+BR_row = (i_start + mb_Y_inner - 1) % mb_T_INNER + 1
+BR_col = (j_start + nb_Y_inner - 1) % nb_T_INNER + 1
+
+rank_Y = %{ return descY->super.rank_of(&descY->super, m_Y, n_Y); %}
+rank_T = %{ return descT->super.rank_of(&descT->super, m_T, n_T); %}
+
+: descY(m_Y, n_Y)
+
+BODY
+{
+    int tid = es->th_id;
+    if( rank_Y != rank_T )
+        CORE_redistribute_bound(TL_row, TL_col, BR_row, BR_col, mb_T_INNER, nb_T_INNER, m_T,
+                                 n_T, m_T_start, m_T_end, n_T_start, n_T_end, tid, sum_remote,
+                                 sum_remote_rank_send);
+    else
+        CORE_redistribute_bound(TL_row, TL_col, BR_row, BR_col, mb_T_INNER, nb_T_INNER, m_T,
+                                 n_T, m_T_start, m_T_end, n_T_start, n_T_end, tid, sum_local,
+                                 sum_local_rank);
+}
+END
+
+
+/************************************************************
+ *                       Receive                            *
+ ************************************************************
+ * @brief Task, to calculate data each rank receive 
+ * @param m_Y, n_Y, m_T, n_T: tile index of Y and T
+ ************************************************************/
+
+Receive(m_Y, n_Y, m_T, n_T)
+
+m_T = m_T_START .. m_T_END
+n_T = n_T_START .. n_T_END
+
+mb_T_inner = %{ return getsize(m_T, m_T_START, m_T_END, mb_T_INNER, size_row, disi_T%mb_T_INNER); %}
+nb_T_inner = %{ return getsize(n_T, n_T_START, n_T_END, nb_T_INNER, size_col, disj_T%nb_T_INNER); %}
+
+i_start = %{ return ((m_T == m_T_START)? disi_Y%mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y)%mb_Y_INNER); %}
+j_start = %{ return ((n_T == n_T_START)? disj_Y%nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y)%nb_Y_INNER); %}
+
+m_Y_start = %{ return ((m_T == m_T_START)? disi_Y/mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y)/mb_Y_INNER); %}
+n_Y_start = %{ return ((n_T == n_T_START)? disj_Y/nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y)/nb_Y_INNER); %}
+m_Y_end = %{ return ((m_T == m_T_START)? (disi_Y+mb_T_inner-1)/mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y+mb_T_inner-1)/mb_Y_INNER); %}
+n_Y_end = %{ return ((n_T == n_T_START)? (disj_Y+nb_T_inner-1)/nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y+nb_T_inner-1)/nb_Y_INNER); %}
+
+m_Y = m_Y_start .. m_Y_end
+n_Y = n_Y_start .. n_Y_end
+
+TL_row = %{ return parsec_imin(mb_T_inner, mb_Y_INNER-i_start); %}
+TL_col = %{ return parsec_imin(nb_T_inner, nb_Y_INNER-j_start); %}
+BR_row = (i_start + mb_T_inner - 1) % mb_Y_INNER + 1
+BR_col = (j_start + nb_T_inner - 1) % nb_Y_INNER + 1
+
+rank_Y = %{ return descY->super.rank_of(&descY->super, m_Y, n_Y); %}
+rank_T = %{ return descT->super.rank_of(&descT->super, m_T, n_T); %}
+
+: descT(m_T, n_T)
+
+BODY
+{
+    int tid = es->th_id;
+    if( rank_Y != rank_T ) {
+        sum_nb_message_remote[tid]++;
+        CORE_redistribute_bound(TL_row, TL_col, BR_row, BR_col, mb_Y_INNER, nb_Y_INNER, m_Y,
+                                 n_Y, m_Y_start, m_Y_end, n_Y_start, n_Y_end, tid, sum_remote,
+                                 sum_remote_rank_receive);
+    } else {
+        sum_nb_message_local[tid]++;
+    }
+}
+END
+
+extern "C" %{
+
+/**
+ * @brief New function for redistribuiton_remote 
+ * 
+ * @param [in] Y: the data, already distributed and allocated
+ * @param [in] T: the data, redistributed and allocated
+ * @param [in] size_row: row size of submatrix 
+ * @param [in] size_col: column size of submatrix
+ * @param [in] disi_Y: row displacement
+ * @param [in] disj_Y: column displacement
+ * @param [in] R: radius of ghost region 
+ * @return the parsec object to schedule.
+ */
+parsec_taskpool_t* 
+parsec_redistribute_bound_New(parsec_tiled_matrix_dc_t *Y, 
+                               parsec_tiled_matrix_dc_t *T, 
+                               int size_row, int size_col,
+                               int disi_Y, int disj_Y,
+                               int disi_T, int disj_T, int R,
+                               long long int *sum_remote,
+                               long long int *sum_local,
+                               long long int *sum_remote_rank_send,
+                               long long int *sum_remote_rank_receive,
+                               long long int *sum_local_rank,
+                               long long int *sum_nb_message_remote,
+                               long long int *sum_nb_message_local)
+{
+    parsec_taskpool_t* redistribute_bound_taskpool;
+    parsec_redistribute_bound_taskpool_t* taskpool = NULL;
+
+    taskpool = parsec_redistribute_bound_new(Y, T, size_row, size_col,
+                                     disi_Y, disj_Y, disi_T, disj_T, R,
+                                     sum_remote, sum_local, sum_remote_rank_send,
+                                     sum_remote_rank_receive, sum_local_rank,
+                                     sum_nb_message_remote, sum_nb_message_local);
+
+    redistribute_bound_taskpool = (parsec_taskpool_t*)taskpool;
+
+    return redistribute_bound_taskpool;
+}
+
+/**
+ * @param [inout] the parsec object to destroy
+ */
+void parsec_redistribute_bound_Destruct(parsec_taskpool_t *taskpool)
+{
+    parsec_taskpool_free(taskpool);  
+}
+
+/**
+ * @brief Calculate time bound of communication (based on data that is remote)
+ * 
+ * @param [in] dcY: source distribution, already distributed and allocated
+ * @param [in] dcT: target distribution, redistributed and allocated
+ * @param [in] size_row: row size of submatrix 
+ * @param [in] size_col: column size of submatrix
+ * @param [in] disi_Y: row displacement in dcY 
+ * @param [in] disj_Y: column displacement in dcY 
+ * @param [out]: Time Bound 
+ */
+double* parsec_redistribute_bound(parsec_context_t *parsec, 
+                                 parsec_tiled_matrix_dc_t *dcY, 
+                                 parsec_tiled_matrix_dc_t *dcT, 
+                                 int size_row, int size_col,
+                                 int disi_Y, int disj_Y,
+                                 int disi_T, int disj_T)
+{
+    parsec_taskpool_t *parsec_redistribute_bound_ptg = NULL;
+    double* results = (double *)calloc(8, sizeof(double));
+
+    /* R will be used for padding tiles like in AMR,
+     * here for a normal redistribution problem, R is set to 0.
+     */
+    int R = 0;
+
+    if( size_row < 1 || size_col < 1 ) {
+        if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: Submatrix size should be bigger than 1\n");
+        exit(1);
+    }
+
+    if( disi_Y < 0 || disj_Y < 0 ) {
+        if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: Source displacement should not be negative\n");
+        exit(1);
+    }
+
+    if( disi_T < 0 || disj_T < 0 ) {
+        if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: Target displacement should not be negative\n");
+        exit(1);
+    }
+
+    if( R < 0 ) {
+        if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: R should not be negative\n");
+        exit(1);
+    }
+
+    if( (disi_Y+size_row > dcY->lmt*(dcY->mb-2*R))
+        || (disj_Y+size_col > dcY->lnt*(dcY->nb-2*R)) ){
+        if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: Submatrix exceed SOURCE size\n");
+        exit(1);
+    }
+
+    if( (disi_T+size_row > dcT->lmt*(dcT->mb-2*R))
+        || (disj_T+size_col > dcT->lnt*(dcT->nb-2*R)) ){
+        if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: Submatrix exceed TARGET size\n");
+        exit(1);
+    }
+
+    /* Used for computing message size that is remote */
+    int world_size;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+    /* Make sure only 1 vp */
+    assert(parsec->nb_vp == 1);
+    int nb_threads = parsec->virtual_processes[0]->nb_cores;
+
+    long long int *sum_remote = (long long int *)calloc(nb_threads, sizeof(long long int));
+    long long int *sum_local = (long long int *)calloc(nb_threads, sizeof(long long int));
+    long long int *sum_remote_rank_send = (long long int *)calloc(nb_threads, sizeof(long long int));
+    long long int *sum_remote_rank_receive = (long long int *)calloc(nb_threads, sizeof(long long int));
+    long long int *sum_local_rank = (long long int *)calloc(nb_threads, sizeof(long long int));
+    long long int *sum_nb_message_remote = (long long int *)calloc(nb_threads, sizeof(long long int));
+    long long int *sum_nb_message_local = (long long int *)calloc(nb_threads, sizeof(long long int));
+
+    parsec_redistribute_bound_ptg = parsec_redistribute_bound_New(
+                                dcY, dcT, size_row, size_col, disi_Y,
+                                disj_Y, disi_T, disj_T, R, sum_remote,
+                                sum_local, sum_remote_rank_send,
+                                sum_remote_rank_receive, sum_local_rank,
+                                sum_nb_message_remote, sum_nb_message_local);
+
+    parsec_context_add_taskpool(parsec, parsec_redistribute_bound_ptg);
+    parsec_context_start(parsec);
+    parsec_context_wait(parsec);
+
+    parsec_redistribute_bound_Destruct(parsec_redistribute_bound_ptg);
+
+    /* Reduce value in shared-memory */ 
+    for(int i = 1; i < nb_threads; i++) {
+        sum_remote[0] += sum_remote[i];
+        sum_local[0] += sum_local[i];
+        sum_remote_rank_send[0] += sum_remote_rank_send[i];
+        sum_remote_rank_receive[0] += sum_remote_rank_receive[i];
+        sum_local_rank[0] += sum_local_rank[i];
+        sum_nb_message_remote[0] += sum_nb_message_remote[i];
+        sum_nb_message_local[0] += sum_nb_message_local[i];
+    }
+
+    long long int total_remote = 0LL;
+    long long int total_local = 0LL;
+    long long int total_nb_message_remote = 0LL;
+    long long int total_nb_message_local = 0LL;
+    long long int *total_remote_rank_send = (long long int *)calloc(world_size, sizeof(long long int));
+    long long int *total_remote_rank_receive = (long long int *)calloc(world_size, sizeof(long long int));
+    long long int *total_local_rank = (long long int *)calloc(world_size, sizeof(long long int));
+    long long int sum_remote_rank = sum_remote_rank_send[0] + sum_remote_rank_receive[0];
+    long long int *total_remote_rank = (long long int *)calloc(world_size, sizeof(long long int));
+
+    MPI_Barrier( MPI_COMM_WORLD );
+    MPI_Allreduce(&sum_remote[0], &total_remote, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&sum_local[0], &total_local, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&sum_nb_message_remote[0], &total_nb_message_remote, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&sum_nb_message_local[0], &total_nb_message_local, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allgather( &sum_remote_rank_send[0], 1, MPI_LONG_LONG_INT, total_remote_rank_send, 1, MPI_LONG_LONG_INT, MPI_COMM_WORLD);
+    MPI_Allgather( &sum_remote_rank_receive[0], 1, MPI_LONG_LONG_INT, total_remote_rank_receive, 1, MPI_LONG_LONG_INT, MPI_COMM_WORLD);
+    MPI_Allgather( &sum_local_rank[0], 1, MPI_LONG_LONG_INT, total_local_rank, 1, MPI_LONG_LONG_INT, MPI_COMM_WORLD);
+    MPI_Allgather( &sum_remote_rank, 1, MPI_LONG_LONG_INT, total_remote_rank, 1, MPI_LONG_LONG_INT, MPI_COMM_WORLD);
+    MPI_Barrier( MPI_COMM_WORLD );
+
+    /* Get max(send, receive) for all processes */
+    int save_rank_send = 0, save_rank_receive = 0, save_rank = 0;
+    for(int i = 1; i < world_size; i++) {
+        if( total_remote_rank_send[0] < total_remote_rank_send[i] ) {
+            total_remote_rank_send[0] = total_remote_rank_send[i]; 
+            save_rank_send = i;
+        }
+
+        if( total_remote_rank_receive[0] < total_remote_rank_receive[i] ) {
+            total_remote_rank_receive[0] = total_remote_rank_receive[i];
+            save_rank_receive = i;
+        }
+
+        if( total_remote_rank[0] < total_remote_rank[i] )
+            total_remote_rank[0] = total_remote_rank[i];
+    }
+
+    if( total_remote_rank_send[0] >= total_remote_rank_receive[0] )
+       save_rank = save_rank_send;
+    else
+       save_rank = save_rank_receive;
+
+    results[7] = 8.0 * total_local_rank[save_rank] * sizeof(DTYPE);
+
+    for(int i = 1; i < world_size; i++) {
+        if( total_local_rank[0] < total_local_rank[i] )
+            total_local_rank[0] = total_local_rank[i];
+    }
+
+    /* Check calculate corretness */
+    assert( (long long int)size_row * size_col == total_remote / 2 + total_local );   
+
+    results[0] = 8.0 * total_remote / 2 * sizeof(DTYPE);
+    results[1] = 8.0 * total_local * sizeof(DTYPE);
+    results[2] = 8.0 * fmax(total_remote_rank_send[0], total_remote_rank_receive[0]) * sizeof(DTYPE);
+    results[3] = 8.0 * total_local_rank[0] * sizeof(DTYPE);
+    results[4] = (double)total_nb_message_remote;
+    results[5] = (double)total_nb_message_local;
+    results[6] = 8.0 * total_remote_rank[0] * sizeof(DTYPE);
+
+#if defined(PARSEC_DEBUG_NOISIER)
+    if( 0 == (unsigned int)dcY->super.myrank ) { 
+        /* Total message remote */
+        printf("\nTotal remote message: %.10e bits\n", results[0]);
+
+        /* Total message local */
+        printf("Total local message: %.10e bits\n", results[1]);
+
+        /* max(send_or_recieve message remote of each rank) */
+        printf("Max send/receive remote memssage for each rank: %.10e bits\n", results[2]);
+
+        /* max(message local of each rank) */
+        printf("Max local memssage for each rank: %.10e bits\n", results[3]);
+
+        /* Total number of message remote */ 
+        printf("Total remote number of message: %.0lf\n", results[4]);
+
+        /* Total number of message local */
+        printf("Total local number of message: %.0lf\n\n", results[5]);
+
+        /* max(message remote of each rank) */
+        printf("Total remote number of message: %.0lf\n\n", results[6]);
+    }
+#endif
+
+    return results;
+}
+
+%}

@@ -4,6 +4,8 @@
 #
 include(ParsecCompilePTG)
 
+include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
+
 set(sources
     ${CMAKE_CURRENT_LIST_DIR}/matrix.c
     ${CMAKE_CURRENT_LIST_DIR}/matrixtypes.c
@@ -40,6 +42,11 @@ target_include_directories(parsec-data-matrix PUBLIC ${MPI_C_INCLUDE_PATH}) # ${
 
 add_dependencies(parsec parsec-data-matrix)
 target_sources(parsec PRIVATE $<TARGET_OBJECTS:parsec-data-matrix>)
+
+add_subdirectory(redistribute)
+
+add_dependencies(parsec parsec-data-redistribute)
+target_sources(parsec PRIVATE $<TARGET_OBJECTS:parsec-data-redistribute>)
 
 install(FILES
   matrix.h

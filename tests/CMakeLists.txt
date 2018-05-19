@@ -33,6 +33,7 @@ if(PARSEC_PROF_TRACE)
   add_Subdirectory(profiling)
   add_Subdirectory(standalone-profiling)
 endif(PARSEC_PROF_TRACE)
+add_Subdirectory(redistribute)
 
 parsec_addtest(C operator operator.c)
 parsec_addtest(C reduce reduce.c)

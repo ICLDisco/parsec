@@ -1,0 +1,389 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2020 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ */
+#include "redistribute_test.h"
+
+/** @brief Global, used to compare results */
+extern DTYPE *Y_g, *T_g;
+
+%}
+
+/**
+ * @brief Check result: copy to a single node
+ *
+ * @details
+ * Gather data into one process and check result. There are two matrix:
+ * Y and T. Gather both into on process and compare. If they they are
+ * The same, then it's correct; otherwise, false.
+ */
+descY [ type = "parsec_tiled_matrix_dc_t*" ]
+descT [ type = "parsec_tiled_matrix_dc_t*" ]
+size_row [ type = "int" ]
+size_col [ type = "int" ]
+disi_Y [ type = "int" ]
+disj_Y [ type = "int" ]
+disi_T [ type = "int" ]
+disj_T [ type = "int" ]
+R [ type = "int" ]
+num_col_Y [type = "int" hidden=on default="descY->lnt" ]
+num_col_T [type = "int" hidden=on default="descT->lnt" ]
+NY [type = "int" hidden=on default="(1)" ]
+NT [type = "int" hidden=on default="(1)" ]
+
+/**************************************************
+ *                    Send_Y                      *
+ **************************************************/
+Send_Y(m, n, batch_col)
+
+batch_col = 0 .. NY-1
+
+m_start = disi_Y / (descY->mb-2*R)
+m_end = (disi_Y+size_row-1) / (descY->mb-2*R)
+
+n_start = disj_Y / (descY->nb-2*R)
+n_end = (disj_Y+size_col-1) / (descY->nb-2*R)
+
+m = m_start .. m_end 
+n = %{ return batch_col*num_col_Y+n_start; %} .. %{ return parsec_imin((batch_col+1)*num_col_Y+n_start-1, n_end); %}
+
+: descY(m, n)
+
+READ Y <- descY(m, n) [ type = ORIGIN ]
+       -> Y Get_Y(m, n, batch_col) [ type = ORIGIN ]
+
+CTL ctl <- (batch_col > 0)? ctl Get_Y(m, n-num_col_Y, batch_col-1)
+
+BODY
+{
+}
+END
+
+/**************************************************
+ *                     Get_Y                      *
+ **************************************************/
+Get_Y(m, n, batch_col)
+
+batch_col = 0 .. NY-1
+
+m_start = disi_Y / (descY->mb-2*R)
+m_end = (disi_Y+size_row-1) / (descY->mb-2*R)
+
+n_start = disj_Y / (descY->nb-2*R)
+n_end = (disj_Y+size_col-1) / (descY->nb-2*R)
+
+m = m_start .. m_end       
+n = %{ return batch_col*num_col_Y+n_start; %} .. %{ return parsec_imin((batch_col+1)*num_col_Y+n_start-1, n_end); %}
+
+i_start = disi_Y % (descY->mb-2*R)
+i_end = (disi_Y+size_row-1) % (descY->mb-2*R)
+
+j_start = disj_Y % (descY->nb-2*R)
+j_end = (disj_Y+size_col-1) % (descY->nb-2*R)
+
+:descY(0, 0)
+
+READ Y <- Y Send_Y(m, n, batch_col) [ type = ORIGIN ]
+
+CTL ctl -> (batch_col < NY-1)? ctl Send_Y(m, n+num_col_Y, batch_col+1)
+
+BODY
+{
+    CORE_redistribute_dtd(Y_g, Y, descY->mb, descY->nb, m, n, m_start, m_end, n_start, n_end,
+                            i_start, i_end, j_start, j_end, size_row, size_row, size_col, R, 0, 0); 
+}
+END
+
+/**************************************************
+ *                    Send_T                      *
+ **************************************************/
+Send_T(m, n, batch_col) 
+
+
+batch_col = 0 .. NT-1
+
+m_start = disi_T / (descT->mb-2*R)
+m_end = (disi_T+size_row-1) / (descT->mb-2*R)
+
+n_start = disj_T / (descT->nb-2*R)
+n_end = (disj_T+size_col-1) / (descT->nb-2*R)
+
+m = m_start .. m_end
+n = %{ return batch_col*num_col_T+n_start; %} .. %{ return parsec_imin((batch_col+1)*num_col_T+n_start-1, n_end); %}
+
+: descT(m, n)
+
+READ T <- descT(m, n) [ type = TARGET ] 
+       -> T Get_T(m, n, batch_col) [ type = TARGET ]
+
+CTL ctl <- (batch_col > 0)? ctl Get_T(m, n-num_col_T, batch_col-1)
+
+BODY
+{
+}
+END
+
+/**************************************************
+ *                     Get_T                      *
+ **************************************************/
+Get_T(m, n, batch_col)
+
+batch_col = 0 .. NT-1
+
+m_start = disi_T / (descT->mb-2*R)
+m_end = (disi_T+size_row-1) / (descT->mb-2*R)
+
+n_start = disj_T / (descT->nb-2*R)
+n_end = (disj_T+size_col-1) / (descT->nb-2*R)
+
+m = m_start .. m_end
+n = %{ return batch_col*num_col_T+n_start; %} .. %{ return parsec_imin((batch_col+1)*num_col_T+n_start-1, n_end); %}
+
+i_start = disi_T % (descT->mb-2*R)
+i_end = (disi_T+size_row-1) % (descT->mb-2*R)
+
+j_start = disj_T % (descT->nb-2*R)
+j_end = (disj_T+size_col-1) % (descT->nb-2*R)
+
+:descY(0, 0)
+
+READ T <- T Send_T(m, n, batch_col) [ type = TARGET ] 
+
+CTL ctl -> (batch_col < NT-1)? ctl Send_T(m, n+num_col_T, batch_col+1)
+
+BODY
+{
+    CORE_redistribute_dtd(T_g, T, descT->mb, descT->nb, m, n, m_start, m_end, n_start, n_end,
+                            i_start, i_end, j_start, j_end, size_row, size_row, size_col, R, 0, 0);
+}
+END
+
+extern "C" %{
+
+/** @brief Global, used to compare result */
+DTYPE *Y_g, *T_g;
+
+/**
+ * @brief New function
+ *
+ * @param [in] Y: the data, already distributed and allocated
+ * @param [in] T: the data, redistributed and allocated
+ * @param [in] size_row: row size of submatrix to be checked 
+ * @param [in] size_col: column size of submatrix to be checked 
+ * @param [in] disi_Y: row displacement of submatrix in Y 
+ * @param [in] disj_Y: column displacement of submatrix in Y 
+ * @param [in] disi_T: row displacement of submatrix in T 
+ * @param [in] disj_T: column displacement of submatrix in T 
+ * @param [in] R: radius of ghost region 
+ * @return the parsec object to schedule.
+ */
+parsec_taskpool_t*
+parsec_redistribute_check_New(parsec_tiled_matrix_dc_t *Y,
+                                parsec_tiled_matrix_dc_t *T,
+                                int size_row, int size_col,
+                                int disi_Y, int disj_Y,
+                                int disi_T, int disj_T, int R)
+{
+    parsec_taskpool_t* redistribute_check_taskpool;
+    parsec_redistribute_check_taskpool_t* taskpool = NULL;
+
+    taskpool = parsec_redistribute_check_new(Y, T, size_row, size_col, disi_Y, disj_Y, disi_T, disj_T, R);
+    redistribute_check_taskpool = (parsec_taskpool_t*)taskpool;
+
+    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_check_ORIGIN_ARENA],
+                            MY_TYPE, matrix_UpperLower,
+                            1, Y->mb, Y->nb, Y->mb,
+                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
+    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_check_TARGET_ARENA],
+                            MY_TYPE, matrix_UpperLower,
+                            1, T->mb, T->nb, T->mb,
+                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
+    return redistribute_check_taskpool;
+}
+
+/**
+ * @param [inout] the parsec object to destroy
+ */
+void parsec_redistribute_check_Destruct(parsec_taskpool_t *taskpool)
+{
+    parsec_redistribute_check_taskpool_t *redistribute_check_taskpool = (parsec_redistribute_check_taskpool_t *)taskpool;
+    parsec_matrix_del2arena(&redistribute_check_taskpool->arenas_datatypes[PARSEC_redistribute_check_ORIGIN_ARENA]);
+    parsec_matrix_del2arena(&redistribute_check_taskpool->arenas_datatypes[PARSEC_redistribute_check_TARGET_ARENA]);
+    parsec_taskpool_free(taskpool);
+}
+
+/**
+ * @brief Check result
+ *
+ * @details
+ * Check whether value of submatrix in dcY and in dcT are 
+ * the same, not including the ghost region.
+ *      
+ * @param [in] dcY: the data, already distributed and allocated
+ * @param [in] dcT: the data, already distributed and allocated
+ * @param [in] size_row: row size of submatrix to be checked 
+ * @param [in] size_col: column size of submatrix to be checked 
+ * @param [in] disi_Y: row displacement of submatrix in Y 
+ * @param [in] disj_Y: column displacement of submatrix in Y 
+ * @param [in] disi_T: row displacement of submatrix in T 
+ * @param [in] disj_T: column displacement of submatrix in T 
+ * @param [in] R: radius of ghost region around tiles
+ * @return 0 if they are the same, and print "Redistribute
+ * Result is CORRECT", otherwise print the first detected 
+ * location and values where values are different.
+ */
+int parsec_redistribute_check(parsec_context_t *parsec,
+                                parsec_tiled_matrix_dc_t *dcY,
+                                parsec_tiled_matrix_dc_t *dcT,
+                                int size_row, int size_col,
+                                int disi_Y, int disj_Y,
+                                int disi_T, int disj_T)
+{
+    parsec_taskpool_t *parsec_redistribute_check = NULL;
+    int num_col_Y = dcY->lnt;
+    int num_col_T = dcT->lnt;
+
+    /* R will be used for padding tiles like in AMR,
+     * here for a normal redistribution problem, R is set to 0.
+     */
+    int R = 0;
+
+    int mb_Y_inner = dcY->mb - 2 * R;
+    int nb_Y_inner = dcY->nb - 2 * R;
+    int mb_T_inner = dcT->mb - 2 * R;
+    int nb_T_inner = dcT->nb - 2 * R;
+
+    int row_Y = dcY->lmt * mb_Y_inner;
+    int col_Y = dcY->lnt * nb_Y_inner;
+    int row_T = dcT->lmt * mb_T_inner;
+    int col_T = dcT->lnt * nb_T_inner;
+
+    int n_Y_start = disj_Y / nb_Y_inner;
+    int n_Y_end = (disj_Y+size_col-1) / nb_Y_inner;
+
+    int n_T_start = disj_T / nb_T_inner;
+    int n_T_end = (disj_T+size_col-1) / nb_T_inner;
+ 
+    int lnt_Y = n_Y_end - n_Y_start + 1;
+    int lnt_T = n_T_end - n_T_start + 1;
+
+    /* Check distribution, and detarmine batch size,
+     * how many tile columns exist at the same time */
+    if( dcY->dtype & two_dim_tabular_type ) {
+        num_col_Y = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
+    } else if( dcY->dtype & two_dim_block_cyclic_type ) {
+        num_col_Y = ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols;
+    } else {
+        fprintf(stderr, "Only support two_dim_block_cyclic_type and two_dim_tabular_type\n");
+    }
+
+    if( dcT->dtype & two_dim_tabular_type ) {
+        num_col_T = parsec_imin( ceil(size_col/dcT->nb), dcT->super.nodes );
+    } else if( dcT->dtype & two_dim_block_cyclic_type ) {
+        num_col_T = ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols;
+    } else {
+        fprintf(stderr, "Only support two_dim_block_cyclic_type and two_dim_tabular_type\n");
+    }
+
+    int NY = ceil((double)lnt_Y/num_col_Y);
+    int NT = ceil((double)lnt_T/num_col_T);
+
+    /* Check variables validation */
+    if( (disi_Y + size_row > row_Y) || (disj_Y + size_col > col_Y) ){ 
+	if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: Submatrix exceed Y size\n");
+        exit(1); 
+    }
+
+    if( (disi_T + size_row > row_T) || (disj_T + size_col > col_T) ){
+	if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: Submatrix exceed T size\n");
+        exit(1);
+    }
+
+    if( size_row < 1 || size_col < 1 ) {
+	if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: Submatrix size should be bigger than 1\n");
+        exit(1);
+    }
+
+    if( disi_Y < 0 || disj_Y < 0 ) {
+	if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: Source (dcY) displacement should not be negative\n");
+        exit(1);
+    }
+
+    if( disi_T < 0 || disj_T < 0 ) {
+	if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: Target (dcT) displacement should not be negative\n");
+        exit(1);
+    }
+
+    if( R < 0 ) {
+	if( 0 == dcY->super.myrank )
+            fprintf(stderr, "ERROR: R should not be negative\n");
+        exit(1);
+    }
+
+    /* Allocate memory for global array */
+    if( (unsigned int)dcY->super.myrank == dcY->super.rank_of(&dcY->super, 0, 0) ){
+	Y_g = (DTYPE *)calloc(size_row*size_col, sizeof(DTYPE));
+	T_g = (DTYPE *)calloc(size_row*size_col, sizeof(DTYPE));
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    parsec_redistribute_check = parsec_redistribute_check_New(
+                                  (parsec_tiled_matrix_dc_t *)dcY,
+                                  (parsec_tiled_matrix_dc_t *)dcT,
+                                  size_row, size_col, disi_Y, disj_Y,
+                                  disi_T, disj_T, R);
+
+    ((parsec_redistribute_check_taskpool_t *)parsec_redistribute_check)->_g_num_col_Y = num_col_Y;
+    ((parsec_redistribute_check_taskpool_t *)parsec_redistribute_check)->_g_NY = NY;
+
+    ((parsec_redistribute_check_taskpool_t *)parsec_redistribute_check)->_g_num_col_T = num_col_T;
+    ((parsec_redistribute_check_taskpool_t *)parsec_redistribute_check)->_g_NT = NT;
+
+    parsec_context_add_taskpool(parsec, parsec_redistribute_check);
+    parsec_context_start(parsec);
+    parsec_context_wait(parsec);
+    parsec_redistribute_check_Destruct(parsec_redistribute_check);
+
+    /* Check result and print the first detected location where values are different */
+    if( (unsigned int)dcY->super.myrank == dcY->super.rank_of(&dcY->super, 0, 0) ){
+
+	for(int j = 0; j < size_col; j++){
+	    for(int i = 0; i < size_row; i++){
+		if(Y_g[j*size_row+i] != T_g[j*size_row+i]){
+		    fprintf(stderr, "ERROR: In Y: (%d, %d) in tile (%d, %d): vaule %lf\n",
+		 	    (i+disi_Y)%mb_Y_inner, (j+disj_Y)%nb_Y_inner, (i+disi_Y)/mb_Y_inner, 
+                            (j+disj_Y)/nb_Y_inner, Y_g[j*size_row+i]);
+		    fprintf(stderr, "ERROR: In T: (%d, %d) in tile (%d, %d): vaule %lf\n",
+		 	    (i+disi_T)%mb_T_inner, (j+disj_T)%nb_T_inner, (i+disi_T)/mb_T_inner, 
+                            (j+disj_T)/nb_T_inner, T_g[j*size_row+i]);
+
+                    /* Free memory */
+                    free(Y_g);
+                    free(T_g);
+
+		    return PARSEC_ERROR;
+		}
+            }
+	}
+
+        /* Free memory */
+        free(Y_g);
+        free(T_g);
+
+        printf("\nRedistribute Result is CORRECT!\n\n");
+    }
+
+    return 0;
+}
+
+%}

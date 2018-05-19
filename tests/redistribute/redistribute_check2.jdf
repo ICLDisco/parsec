@@ -1,0 +1,178 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2020 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ */
+#include "redistribute_test.h"
+
+/* Print error data */
+int print_more = 0;
+
+%}
+
+/**
+ * @brief Check result: init matrix to special value
+ *
+ * @details
+ * Check if results == (DTYPE)(10*i+j+1)/(i*j+10) 
+ */
+descY      [ type = "parsec_tiled_matrix_dc_t *" ]
+size_row   [ type = "int" ]
+size_col   [ type = "int" ]
+disi_Y     [ type = "int" ]
+disj_Y     [ type = "int" ]
+info       [ type = "long long int *" ]
+
+m_START    [ type = "int" hidden=on default="disi_Y/descY->mb" ]
+n_START    [ type = "int" hidden=on default="disj_Y/descY->nb" ]
+m_END      [ type = "int" hidden=on default="(disi_Y+size_row-1)/descY->mb" ]
+n_END      [ type = "int" hidden=on default="(disj_Y+size_col-1)/descY->nb" ]
+num_col    [ type = "int" hidden=on default="descY->lnt" ]
+NT         [ type = "int" hidden=on default="(n_END-n_START)/num_col" ]
+
+/**************************************************
+ *                    Send_Y                      *
+ **************************************************/
+check_result(m, n, batch_col)
+
+batch_col = 0 .. NT
+m = m_START .. m_END 
+n = %{ return batch_col*num_col+n_START; %} .. %{ return parsec_imin((batch_col+1)*num_col+n_START-1, n_END); %}
+
+: descY(m, n)
+
+READ Y <- descY(m, n)
+
+BODY
+{
+    int myid = es->th_id;
+    int i_start = (m == m_START) ? disi_Y % descY->mb : 0;
+    int j_start = (n == n_START) ? disj_Y % descY->nb : 0;
+    int i_end = (m == m_END) ? (disi_Y + size_row - 1) % descY->mb : descY->mb-1;
+    int j_end = (n == n_END) ? (disj_Y + size_col - 1) % descY->nb : descY->nb-1;
+    
+    for(int i = i_start; i <= i_end; i++) {
+        for(int j = j_start; j <= j_end; j++) {
+            if( ((DTYPE *)Y)[j*descY->mb+i] != (DTYPE)(10*i+j+1)/(i*j+10) ) { 
+                if( print_more )
+                    fprintf(stderr, "ERROR in (%d, %d) of tile (%d, %d): %g -> %g\n",
+                                     i, j, m, n, ((DTYPE *)Y)[j*descY->mb+i],
+                                     (DTYPE)(10*i+j+1)/(i*j+10) );
+                info[myid] += 1LL;
+            }
+        }
+    }
+}
+END
+
+extern "C" %{
+/**
+ * @brief New function
+ *
+ * @param [in] Y: the data, already distributed and allocated
+ * @param [in] size_row: row size of submatrix to be checked 
+ * @param [in] size_col: column size of submatrix to be checked 
+ * @param [in] disi_Y: row displacement of submatrix in Y 
+ * @param [in] disj_Y: column displacement of submatrix in Y 
+ * @return the parsec object to schedule.
+ */
+parsec_taskpool_t*
+parsec_redistribute_check2_New(parsec_tiled_matrix_dc_t *dcY,
+                               int size_row, int size_col, int disi_Y,
+                               int disj_Y, long long int *info)
+{
+    parsec_taskpool_t* redistribute_check2_taskpool;
+    parsec_redistribute_check2_taskpool_t* taskpool = NULL;
+
+    taskpool = parsec_redistribute_check2_new(dcY, size_row, size_col, disi_Y, disj_Y, info);
+    redistribute_check2_taskpool = (parsec_taskpool_t*)taskpool;
+
+    /* Check distribution, and detarmine batch size: num_col */
+    if( dcY->dtype & two_dim_tabular_type ) {
+        taskpool->_g_num_col = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
+    } else if( dcY->dtype & two_dim_block_cyclic_type ) {
+        taskpool->_g_num_col = ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols;
+    } else {
+        fprintf(stderr, "Only support two_dim_block_cyclic_type and two_dim_tabular_type\n");
+    }
+
+    /* Calculate NT, need to update !!! */
+    int n_START = disj_Y/dcY->nb; 
+    int n_END = (disj_Y+size_col-1)/dcY->nb; 
+    taskpool->_g_NT = (n_END-n_START)/taskpool->_g_num_col;
+
+    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ARENA],
+                            MY_TYPE, matrix_UpperLower,
+                            1, dcY->mb, dcY->nb, dcY->mb,
+                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
+    return redistribute_check2_taskpool;
+}
+
+/**
+ * @param [inout] the parsec object to destroy
+ */
+void parsec_redistribute_check2_Destruct(parsec_taskpool_t *taskpool)
+{
+    parsec_redistribute_check2_taskpool_t *redistribute_check2_taskpool = (parsec_redistribute_check2_taskpool_t *)taskpool;
+    parsec_matrix_del2arena(&redistribute_check2_taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ARENA]);
+    parsec_taskpool_free(taskpool);
+}
+
+/**
+ * @brief Check result
+ *
+ * @param [in] dcY: the data, already distributed and allocated
+ * @param [in] size_row: row size of submatrix to be checked 
+ * @param [in] size_col: column size of submatrix to be checked 
+ * @param [in] disi_Y: row displacement of submatrix in Y 
+ * @param [in] disj_Y: column displacement of submatrix in Y 
+ */
+int parsec_redistribute_check2(parsec_context_t *parsec,
+                                parsec_tiled_matrix_dc_t *dcY,
+                                int size_row, int size_col,
+                                int disi_Y, int disj_Y)
+{
+    parsec_taskpool_t *parsec_redistribute_check2 = NULL;
+
+    /* Only for 1 vp */
+    assert( parsec->nb_vp == 1 );
+    int nb_threads = parsec->virtual_processes[0]->nb_cores;
+  
+    /* Used for error accumulation */
+    long long int *info = (long long int *)calloc(sizeof(long long int), nb_threads);
+
+    parsec_redistribute_check2 = parsec_redistribute_check2_New(
+                                 (parsec_tiled_matrix_dc_t *)dcY,
+                                 size_row, size_col, disi_Y, disj_Y, info);
+
+    if( NULL != parsec_redistribute_check2 ) {
+        parsec_context_add_taskpool(parsec, parsec_redistribute_check2);
+        parsec_context_start(parsec);
+        parsec_context_wait(parsec);
+        parsec_redistribute_check2_Destruct(parsec_redistribute_check2);
+    }
+
+    /* Init value to check result */
+    long long int info_sum_thd = 0LL, info_total = 0LL;
+
+    for( int i = 0; i < nb_threads; i++ ) {
+        info_sum_thd += info[i];
+    }
+
+    MPI_Barrier( MPI_COMM_WORLD );
+    MPI_Allreduce(&info_sum_thd, &info_total, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Barrier( MPI_COMM_WORLD );
+
+    if( 0 == dcY->super.myrank ) {
+        if( 0LL == info_total )
+            printf("\nRedistribute Result is CORRECT!\n\n");
+        else
+            printf("\nRedistribute Result is NOT correct! %lld\n\n", info_total);
+    }
+
+    return info_total;
+}
+
+%}
