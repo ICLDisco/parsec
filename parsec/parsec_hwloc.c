@@ -75,6 +75,17 @@ int parsec_hwloc_init(void)
 {
 #if defined(PARSEC_HAVE_HWLOC)
     if ( first_init ) {
+#if HWLOC_API_VERSION >= 0x00020000
+        /* headers are recent */
+        if (hwloc_get_api_version() < 0x20000) {
+            parsec_fatal("Compile headers and runtime hwloc libraries are not compatible (headers %x ; lib %x)", HWLOC_API_VERSION, hwloc_get_api_version());
+        }
+#else
+        /* headers are pre-2.0 */
+        if (hwloc_get_api_version() >= 0x20000) {
+            parsec_fatal("Compile headers and runtime hwloc libraries are not compatible (headers %x ; lib %x)", HWLOC_API_VERSION, hwloc_get_api_version());
+        }
+#endif
         hwloc_topology_init(&topology);
         hwloc_topology_load(topology);
         first_init = 0;
@@ -96,7 +107,11 @@ int parsec_hwloc_export_topology(int *buflen, char **xmlbuffer)
 {
 #if defined(PARSEC_HAVE_HWLOC)
     if( first_init == 0 ) {
+#if HWLOC_API_VERSION >= 0x20000
+        return hwloc_topology_export_xmlbuffer(topology, xmlbuffer, buflen, 0 /*HWLOC_TOPOLOGY_EXPORT_XML_FLAG_V1*/);
+#else
         return hwloc_topology_export_xmlbuffer(topology, xmlbuffer, buflen);
+#endif
     }
 #endif
     *buflen = 0;
@@ -193,8 +208,13 @@ size_t parsec_hwloc_cache_size( unsigned int level, int master_id )
 #endif  /* defined(PARSEC_HAVE_HWLOC_OBJ_PU) */
 
     while (obj) {
+#if HWLOC_API_VERSION >= 0x00020000
+        if((int)level == hwloc_get_type_depth(topology, obj->type)) {
+            if(hwloc_obj_type_is_cache(obj->type)) {
+#else
         if(obj->depth == level){
             if(obj->type == HWLOC_OBJ_CACHE){
+#endif
 #if defined(PARSEC_HAVE_HWLOC_CACHE_ATTR)
                 return obj->attr->cache.size;
 #else
