@@ -9,9 +9,8 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     set(testings_addexec_LDFLAGS "${MPI_C_LINK_FLAGS} ${testings_addexec_LDFLAGS}")
   endif( MPI_C_FOUND )
   set(testings_addexec_LIBS
-    common dplasma
-    ${EXTRA_LIBS}
-    )
+      common dplasma
+      ${EXTRA_LIBS})
 
   set(testings_addexec_GENFILES "")
   precisions_rules_py(testings_addexec_GENFILES
@@ -21,6 +20,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     string(REGEX REPLACE "\\.c" "" testings_addexec_EXEC ${testings_addexec_GENFILE})
 
     add_executable(${testings_addexec_EXEC} ${testings_addexec_GENFILE})
+    add_dependencies(${testings_addexec_EXEC} dplasma dplasma_includes)
     if( PLASMA_F_COMPILE_SUCCESS )
       set_target_properties(${testings_addexec_EXEC} PROPERTIES
                               LINKER_LANGUAGE Fortran

@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <stdarg.h>
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 
 static uint32_t pseudo_rank_of(struct parsec_dc *mat, ...)

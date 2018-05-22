@@ -12,15 +12,17 @@
 #include "parsec/constants.h"
 
 #if defined(PARSEC_HAVE_CUDA)
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data_internal.h"
 #include "parsec/devices/cuda/dev_cuda.h"
 #include "parsec/profiling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/arena.h"
+#include "parsec/scheduling.h"
 #include "parsec/utils/debug.h"
 #include "parsec/utils/argv.h"
-#include "parsec/scheduling.h"
+#include "parsec/utils/zone_malloc.h"
+#include "parsec/class/fifo.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>

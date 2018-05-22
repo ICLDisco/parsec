@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#include "parsec/parsec_config.h"
+#include "parsec/runtime.h"
 #include "mempool.h"
 #ifdef PARSEC_HAVE_STRING_H
 #include <string.h>

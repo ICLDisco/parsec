@@ -4,7 +4,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 #include "parsec/mca/pins/pins.h"
-#include "parsec.h"
+#include "parsec/runtime.h"
 
 typedef struct task_profiler_info_s {
     int kernel_type;

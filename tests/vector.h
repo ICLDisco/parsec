@@ -7,7 +7,7 @@
 #ifndef VECTOR_H_HAS_BEEN_INCLUDED
 #define VECTOR_H_HAS_BEEN_INCLUDED
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 
 parsec_data_collection_t*

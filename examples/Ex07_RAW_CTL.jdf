@@ -5,9 +5,7 @@ extern "C" %{
  * Each process broadcast an information to NB/2 tasks, and to a local task that updates the information.
  */
 
-#include <parsec.h>
-#include <parsec/data_distribution.h>
-#include <parsec/datatype.h>
+#include "parsec.h"
 
 %}
 

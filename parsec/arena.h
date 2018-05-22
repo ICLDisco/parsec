@@ -14,7 +14,7 @@
  *  @{
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data.h"
 #include "parsec/datatype.h"
 #if defined(PARSEC_HAVE_STDDEF_H)

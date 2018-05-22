@@ -7,7 +7,7 @@
 #ifndef PINS_PAPI_UTILS_H
 #define PINS_PAPI_UTILS_H
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/execution_stream.h"
 #include "parsec/include/parsec/os-spec-timing.h"
 

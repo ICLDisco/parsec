@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -7,8 +7,12 @@
 #ifndef _DPLASMA_H_
 #define _DPLASMA_H_
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "dplasma_complex.h"
+
+#define DPLASMA_VERSION_MAJOR @DPLASMA_VERSION_MAJOR@
+#define DPLASMA_VERSION_MINOR @DPLASMA_VERSION_MINOR@
+#define DPLASMA_VERSION_PATCH @DPLASMA_VERSION_PATCH@
 
 BEGIN_C_DECLS
 
@@ -56,10 +60,10 @@ static inline int dplasma_iceil(int a, int b) { return (a + b - 1) / b; };
 /* Functions specific to QR */
 #include "dplasma_qr_param.h"
 
-#include "dplasma_s.h"
-#include "dplasma_d.h"
-#include "dplasma_c.h"
-#include "dplasma_z.h"
+/* Replaced during the project configuration to list all
+ * precisions supported by this installation.
+ */
+@DPLASMA_INCLUDE_STRING@
 
 /*
  * Map operations

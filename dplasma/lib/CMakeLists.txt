@@ -1,3 +1,8 @@
+# The current version number
+set (DPLASMA_VERSION_MAJOR 2)
+set (DPLASMA_VERSION_MINOR 0)
+set (DPLASMA_VERSION_PATCH 0)
+
 include(PrecisionGenerator)
 include(RulesJDF)
 
@@ -194,8 +199,8 @@ set(SOURCES
   zheev_wrapper.c
 )
 precisions_rules_py(generated_wrappers
-                 "${SOURCES}"
-                 PRECISIONS "${DPLASMA_PRECISIONS}")
+                    "${SOURCES}"
+                    PRECISIONS "${DPLASMA_PRECISIONS}")
 
 ### Generate the lib
 link_directories(${COREBLAS_LIBRARY_DIRS})
@@ -207,17 +212,17 @@ add_dependencies(dplasma
          dplasma_includes
          dplasma_cores_includes )
 set_target_properties(dplasma PROPERTIES POSITION_INDEPENDENT_CODE True)
-target_link_libraries(dplasma
-  dplasma_cores
-  ${COREBLAS_LIBRARIES}
-  parsec parsec-base parsec_distribution_matrix
-  ${EXTRA_LIBS}
-)
-set_target_properties(dplasma PROPERTIES LINK_FLAGS "${COREBLAS_LDFLAGS}")
-
 if (MPI_C_FOUND)
   set_target_properties(dplasma PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif (MPI_C_FOUND)
+target_link_libraries(dplasma
+                      PRIVATE dplasma_cores
+                      PUBLIC ${COREBLAS_LIBRARIES} parsec ${EXTRA_LIBS}
+                      $<$<BOOL:${CUDA_FOUND}>:${CUDA_cublas_LIBRARY}>)
+
+set_target_properties(dplasma PROPERTIES LINK_FLAGS "${COREBLAS_LDFLAGS}")
+set_target_properties(dplasma PROPERTIES VERSION ${DPLASMA_VERSION_MAJOR}.${DPLASMA_VERSION_MINOR}
+                                         SOVERSION ${PARSEC_VERSION_MAJOR})
 
 install(TARGETS dplasma
         ARCHIVE DESTINATION ${DPLASMA_INSTALL_PREFIX}/lib

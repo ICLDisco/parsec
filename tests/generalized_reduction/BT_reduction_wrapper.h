@@ -7,7 +7,7 @@
 #if !defined(_MISSING_BT_REDUCTION_WRAPPER_H_)
 #define _MISSING_BT_REDUCTION_WRAPPER_H_
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/matrix.h"
 

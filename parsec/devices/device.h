@@ -11,7 +11,7 @@
 #if defined(PARSEC_PROF_TRACE)
 #include "parsec/profiling.h"
 #endif  /* defined(PARSEC_PROF_TRACE) */
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 
 #define PARSEC_DEV_NONE       ((uint8_t)    0x00)

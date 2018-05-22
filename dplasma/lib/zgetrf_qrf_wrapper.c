@@ -12,7 +12,7 @@
 #include "dplasma.h"
 #include <math.h>
 #include "parsec/vpmap.h"
-#include "dplasma/lib/dplasmatypes.h"
+#include "dplasmatypes.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "parsec/private_mempool.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"

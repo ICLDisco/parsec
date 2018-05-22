@@ -1170,16 +1170,12 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
-    houtput("#include \"parsec/parsec_config.h\"\n"
-            "#include \"parsec/parsec_internal.h\"\n"
+    houtput("#include \"parsec.h\"\n"
             "#include \"parsec/constants.h\"\n"
-            "#include \"parsec/data_distribution.h\"\n"
             "#include \"parsec/data_internal.h\"\n"
-            "#include \"parsec/utils/debug.h\"\n"
             "#include \"parsec/ayudame.h\"\n"
-            "#include \"parsec/devices/device.h\"\n"
-            "#include \"parsec/interfaces/interface.h\"\n"
             "#include \"parsec/class/parsec_hash_table.h\"\n"
+            "#include \"parsec/execution_stream.h\"\n"
             "#include <assert.h>\n\n");
     houtput("BEGIN_C_DECLS\n\n");
 
@@ -1266,21 +1262,8 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
     int nbfunctions, nbdata;
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
     JDF_COUNT_LIST_ENTRIES(jdf->data, jdf_data_entry_t, next, nbdata);
-    coutput("#include \"parsec/parsec_config.h\"\n"
-            "#include \"parsec.h\"\n"
-            "#include \"parsec/utils/debug.h\"\n"
-            "#include \"parsec/scheduling.h\"\n"
-            "#include \"parsec/mca/pins/pins.h\"\n"
-            "#include \"parsec/remote_dep.h\"\n"
-            "#include \"parsec/datarepo.h\"\n"
-            "#include \"parsec/data.h\"\n"
-            "#include \"parsec/mempool.h\"\n"
-            "#include \"parsec/utils/output.h\"\n"
-            "#if defined(PARSEC_PROF_GRAPHER)\n"
-            "#include \"parsec/parsec_prof_grapher.h\"\n"
-            "#endif  /* defined(PARSEC_PROF_GRAPHER) */\n"
+    coutput("#include \"parsec.h\"\n"
             "#if defined(PARSEC_HAVE_CUDA)\n"
-            "#include \"parsec/devices/cuda/dev_cuda.h\"\n"
             "extern int parsec_cuda_output_stream;\n"
             "#endif  /* defined(PARSEC_HAVE_CUDA) */\n"
             "#include <alloca.h>\n\n"

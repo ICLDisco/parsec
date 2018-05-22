@@ -81,38 +81,48 @@ list(APPEND SOURCES parsec_hwloc.c)
 
 if (CUDA_FOUND)
   list(APPEND SOURCES devices/cuda/dev_cuda.c)
-  if( PARSEC_WITH_DEVEL_HEADERS )
-    install(FILES
-            ${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda/dev_cuda.h
-            DESTINATION include/parsec/devices/cuda )
-  endif( PARSEC_WITH_DEVEL_HEADERS )
+  install(FILES
+          ${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda/dev_cuda.h
+          DESTINATION include/parsec/devices/cuda )
 endif (CUDA_FOUND)
 
 if( PARSEC_PROF_GRAPHER )
   list(APPEND SOURCES parsec_prof_grapher.c)
 endif( PARSEC_PROF_GRAPHER )
 
+add_subdirectory(data_dist)
 #
 # Setup targets
 #
 if( BUILD_PARSEC )
-  add_library(parsec-base ${BASE_SOURCES})
-  set_target_properties(parsec-base PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-  set_target_properties(parsec-base PROPERTIES POSITION_INDEPENDENT_CODE ON)
-  #  if (MPI_C_FOUND)
-  #  set_target_properties(parsec-base PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
-  #endif (MPI_C_FOUND)
-  #  target_link_libraries(parsec-base ${EXTRA_LIBS})
+  # Build this as a collection of objects that can be easily either used to
+  # create an interface library or imported into the main library.
+  add_library(parsec-base-obj OBJECT ${BASE_SOURCES})
+  set_target_properties(parsec-base-obj PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+  set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-  install(TARGETS parsec-base
-          DESTINATION lib)
+  add_library(parsec-base STATIC $<TARGET_OBJECTS:parsec-base-obj>)
+
+  # Create an interface library to allow the absorbtion of the object files into
+  # the PaRSEC library.
+  add_library(parsec-base-iface INTERFACE)
+  target_sources(parsec-base-iface INTERFACE $<TARGET_OBJECTS:parsec-base-obj>)
 
   add_library(parsec ${SOURCES})
   set_target_properties(parsec PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+  set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# For now make sure that the installed shared libraries have the right
+# version (same version as the major of the build version). Thus, every
+# change in the high-level API (and ABI) should be reflected on the
+# major version of PaRSEC.
+  set_target_properties(parsec PROPERTIES VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_PATCH}
+                                        SOVERSION ${PARSEC_VERSION_MAJOR})
   if (MPI_C_FOUND)
     set_target_properties(parsec PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
   endif (MPI_C_FOUND)
-  target_link_libraries(parsec parsec-base ${EXTRA_LIBS})
+
+  target_link_libraries(parsec
+                        PRIVATE parsec_data parsec-base-iface ${EXTRA_LIBS})
 
   install(TARGETS parsec
           DESTINATION lib)
@@ -120,4 +130,3 @@ if( BUILD_PARSEC )
   install(FILES utils/help-mca-param.txt DESTINATION share/parsec)
 ENDIF( BUILD_PARSEC )
 
-add_subdirectory(data_dist)

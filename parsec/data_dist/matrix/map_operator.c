@@ -4,8 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec/parsec_config.h"
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/utils/debug.h"
 #include "parsec/remote_dep.h"
 #include "parsec/data_dist/matrix/matrix.h"
@@ -16,6 +15,7 @@
 #include "parsec/vpmap.h"
 #include "parsec/data_internal.h"
 #include "parsec/interfaces/interface.h"
+#include "parsec/execution_stream.h"
 
 #if defined(PARSEC_PROF_TRACE)
 int parsec_map_operator_profiling_array[2] = {-1};

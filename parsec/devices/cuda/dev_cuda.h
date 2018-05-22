@@ -9,7 +9,6 @@
 
 #include "parsec/parsec_internal.h"
 #include "parsec/class/parsec_object.h"
-#include "parsec/class/fifo.h"
 #include "parsec/devices/device.h"
 
 #if defined(PARSEC_HAVE_CUDA)
@@ -18,8 +17,6 @@
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
-
-#include "parsec/utils/zone_malloc.h"
 
 BEGIN_C_DECLS
 
@@ -110,7 +107,7 @@ struct _gpu_device {
     parsec_list_t gpu_mem_lru;
     parsec_list_t gpu_mem_owned_lru;
     parsec_list_t pending;
-    zone_malloc_t *memory;
+    struct zone_malloc_s *memory;
     parsec_list_item_t *sort_starting_p;
 };
 

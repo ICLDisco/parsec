@@ -69,7 +69,7 @@ if( NOT PARSEC_FOUND )
     find_library( PARSEC_LIB parsec${backend}
       PATHS ${PARSEC_DIR}/lib
       DOC "Which PaRSEC library is used" )
-    find_library( PARSEC_EXTRA_LIB parsec_distribution_matrix${backend}
+    find_library( PARSEC_EXTRA_LIB parsec_data${backend}
       PATHS ${PARSEC_DIR}/lib
       DOC "Extra libs for PaRSEC" )
     if( PARSEC_FOUND )

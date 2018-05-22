@@ -16,7 +16,7 @@
  */
 
 #include "parsec/parsec_config.h"
-#include "parsec.h"
+#include "parsec/runtime.h"
 
 #include "parsec/mca/pins/pins.h"
 #include "parsec/mca/pins/print_steals/pins_print_steals.h"

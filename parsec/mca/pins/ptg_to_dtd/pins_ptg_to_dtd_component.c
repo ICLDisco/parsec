@@ -15,7 +15,7 @@
  * entire components just to query their version and parameters.
  */
 #include "parsec/parsec_config.h"
-#include "parsec.h"
+#include "parsec/runtime.h"
 
 #include "parsec/mca/pins/pins.h"
 #include "parsec/mca/pins/ptg_to_dtd/pins_ptg_to_dtd.h"

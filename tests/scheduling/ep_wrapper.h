@@ -7,7 +7,7 @@
 #ifndef _ep_wrapper_h
 #define _ep_wrapper_h
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 
 /**

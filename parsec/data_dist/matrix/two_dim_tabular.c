@@ -11,7 +11,7 @@
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_tabular.h"
 #include "parsec/vpmap.h"
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data.h"
 #include <string.h>
 

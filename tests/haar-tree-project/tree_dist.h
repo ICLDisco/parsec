@@ -1,7 +1,7 @@
 #ifndef _tree_dist_h
 #define _tree_dist_h
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 
 #include <stdarg.h>
 #include <assert.h>

@@ -6,9 +6,7 @@ extern "C" %{
  *    rank_of() / possibility of playing with value in rank_of
  */
 
-#include <parsec.h>
-#include <parsec/data_distribution.h>
-#include <parsec/datatype.h>
+#include "parsec.h"
 
 %}
 

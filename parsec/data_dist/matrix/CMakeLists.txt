@@ -35,23 +35,14 @@ if (MPI_C_FOUND)
     LIST(APPEND sources scalapack_convert.c)
 endif(MPI_C_FOUND)
 
-add_library(parsec_distribution_matrix
-            ${sources})
+add_library(parsec_data_matrix OBJECT ${sources})
+set_target_properties(parsec_data_matrix PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if (MPI_C_FOUND)
-    set_target_properties(parsec_distribution_matrix PROPERTIES COMPILE_FLAGS
+    set_target_properties(parsec_data_matrix PROPERTIES COMPILE_FLAGS
                           "${MPI_C_COMPILE_FLAGS}")
-    set_target_properties(parsec_distribution_matrix PROPERTIES LINK_FLAGS
+    set_target_properties(parsec_data_matrix PROPERTIES LINK_FLAGS
                           "${MPI_C_LINK_FLAGS}")
 endif(MPI_C_FOUND)
-
-target_link_libraries(parsec_distribution_matrix
-  parsec_distribution
-  ${MPI_C_LIBRARIES}
-)
-
-install(TARGETS parsec_distribution_matrix
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib)
 
 install(FILES
   matrix.h

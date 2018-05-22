@@ -3,9 +3,9 @@ extern "C" %{
 /**
  * This test that the code aborts when a NULL is forwarded in RW flow
  */
-#include <parsec.h>
-#include <parsec/data_distribution.h>
-#include <parsec/datatype.h>
+#include "parsec/runtime.h"
+#include "parsec/data_distribution.h"
+#include "parsec/datatype.h"
 
 %}
 

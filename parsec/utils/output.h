@@ -64,7 +64,7 @@
 #define PARSEC_OUTPUT_H_
 
 #include "parsec/parsec_config.h"
-#include <parsec/class/parsec_object.h>
+#include "parsec/class/parsec_object.h"
 
 #ifdef PARSEC_HAVE_STDARG_H
 #include <stdarg.h>

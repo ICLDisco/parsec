@@ -12,7 +12,7 @@
  *  @{
  */
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/parsec_description_structures.h"
 
 BEGIN_C_DECLS

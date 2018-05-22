@@ -1,9 +1,13 @@
-Copyright (c) 2009-2016 The University of Tennessee and The University
+Copyright (c) 2009-2018 The University of Tennessee and The University
                         of Tennessee Research Foundation.  All rights
                         reserved.
 
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
+
+ - Reshape the users vision of PaRSEC: they only have to include a single
+   header (parsec.h) for most usages, and link with a single library
+   (-lparsec).
 
  - Update the PaRSEC DSL handling of initial tasks. We now rely on 2
    pieces of information: the number of DSL tasks, and the number of

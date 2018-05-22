@@ -12,14 +12,12 @@
  *
  */
 
-/* parsec headers */
+/* PaRSEC headers */
 #include "parsec.h"
 
 /* system and io */
 #include <stdlib.h>
 #include <stdio.h>
-
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
 
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>

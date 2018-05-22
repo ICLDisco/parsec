@@ -10,11 +10,8 @@
  *  @{
  */
 
-#include "parsec/parsec_internal.h"
 #include "parsec/class/lifo.h"
 #include "parsec/parsec_description_structures.h"
-#include "parsec/utils/debug.h"
-#include <string.h>
 
 typedef unsigned long remote_dep_datakey_t;
 
@@ -121,42 +118,7 @@ extern parsec_remote_dep_context_t parsec_remote_dep_context;
 void remote_deps_allocation_init(int np, int max_deps);
 void remote_deps_allocation_fini(void);
 
-static inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
-{
-    parsec_remote_deps_t* remote_deps = (parsec_remote_deps_t*)parsec_lifo_pop(lifo);
-    uint32_t i, rank_bit_size;
-
-    if( NULL == remote_deps ) {
-        char *ptr;
-        PARSEC_LIFO_ITEM_ALLOC( lifo, remote_deps, parsec_remote_dep_context.elem_size );
-        remote_deps->origin = lifo;
-        remote_deps->taskpool = NULL;
-        ptr = (char*)(&(remote_deps->output[parsec_remote_dep_context.max_dep_count]));
-        rank_bit_size = sizeof(uint32_t) * ((parsec_remote_dep_context.max_nodes_number + 31) / 32);
-        memset(ptr, 0, rank_bit_size * parsec_remote_dep_context.max_dep_count);
-        for( i = 0; i < parsec_remote_dep_context.max_dep_count; i++ ) {
-            OBJ_CONSTRUCT(&remote_deps->output[i].super, parsec_list_item_t);
-            remote_deps->output[i].parent     = remote_deps;
-            remote_deps->output[i].rank_bits  = (uint32_t*)ptr;
-            remote_deps->output[i].deps_mask  = 0;
-            remote_deps->output[i].count_bits = 0;
-            remote_deps->output[i].priority   = 0xffffffff;
-            ptr += rank_bit_size;
-        }
-        /* fw_mask immediatly follows outputs */
-        remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
-        assert( (int)(ptr - (char*)remote_deps) ==
-                (int)(parsec_remote_dep_context.elem_size - rank_bit_size));
-    }
-    assert(NULL == remote_deps->taskpool);
-    remote_deps->max_priority    = 0xffffffff;
-    remote_deps->root            = -1;
-    remote_deps->pending_ack     = 0;
-    remote_deps->incoming_mask   = 0;
-    remote_deps->outgoing_mask   = 0;
-    PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "remote_deps_allocate: %p", remote_deps);
-    return remote_deps;
-}
+parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo );
 
 #define PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, TASK, COUNT) \
     if( NULL == (REMOTE_DEPS) ) { /* only once per function */                 \
@@ -164,32 +126,7 @@ static inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
     }
 
 /* This returns the deps to the freelist, no use counter */
-static inline void remote_deps_free(parsec_remote_deps_t* deps)
-{
-    uint32_t k, a;
-    assert(0 == deps->pending_ack);
-    assert(0 == deps->incoming_mask);
-    assert(0 == deps->outgoing_mask);
-    for( k = 0; k < parsec_remote_dep_context.max_dep_count; k++ ) {
-        if( 0 == deps->output[k].count_bits ) continue;
-        for(a = 0; a < (parsec_remote_dep_context.max_nodes_number + 31)/32; a++)
-            deps->output[k].rank_bits[a] = 0;
-        deps->output[k].count_bits = 0;
-#if defined(PARSEC_DEBUG_PARANOID)
-        deps->output[k].data.data   = NULL;
-        deps->output[k].data.arena  = NULL;
-        deps->output[k].data.layout = PARSEC_DATATYPE_NULL;
-        deps->output[k].data.count  = -1;
-        deps->output[k].data.displ  = 0xFFFFFFFF;
-#endif
-    }
-    PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "remote_deps_free: %p mask %x", deps, deps->outgoing_mask);
-#if defined(PARSEC_DEBUG_PARANOID)
-    memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
-#endif
-    deps->taskpool      = NULL;
-    parsec_lifo_push(deps->origin, (parsec_list_item_t*)deps);
-}
+void remote_deps_free(parsec_remote_deps_t* deps);
 
 int parsec_remote_dep_init(parsec_context_t* context);
 int parsec_remote_dep_fini(parsec_context_t* context);

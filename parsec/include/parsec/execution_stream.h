@@ -14,7 +14,6 @@
 
 #include <pthread.h>
 #include <stdint.h>
-#include "parsec/hbbuffer.h"
 #include "parsec/mempool.h"
 #include "parsec/profiling.h"
 #include "parsec/class/barrier.h"

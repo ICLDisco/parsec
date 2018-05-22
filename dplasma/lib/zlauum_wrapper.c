@@ -9,7 +9,7 @@
  *
  */
 #include "dplasma.h"
-#include "dplasma/lib/dplasmatypes.h"
+#include "dplasmatypes.h"
 
 #include "zlauum_L.h"
 #include "zlauum_U.h"

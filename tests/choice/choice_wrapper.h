@@ -7,7 +7,7 @@
 #ifndef _choice_wrapper_h
 #define _choice_wrapper_h
 
-#include "parsec.h"
+#include "parsec/runtime.h"
 #include "parsec/data.h"
 
 /**

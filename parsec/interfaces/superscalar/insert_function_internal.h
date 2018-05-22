@@ -22,6 +22,7 @@ BEGIN_C_DECLS
 #include "parsec/datarepo.h"
 #include "parsec/data_distribution.h"
 #include "parsec/interfaces/superscalar/insert_function.h"
+#include "parsec/execution_stream.h"
 
 typedef struct parsec_dtd_task_param_s  parsec_dtd_task_param_t;
 typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;

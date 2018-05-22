@@ -9,7 +9,7 @@
 
 #include <core_blas.h>
 #include "dplasma.h"
-#include "dplasma/lib/dplasmatypes.h"
+#include "dplasmatypes.h"
 
 #include "zsyrk_LN.h"
 #include "zsyrk_LT.h"
