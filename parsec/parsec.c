@@ -162,7 +162,6 @@ static void parsec_taskpool_release_resources(void);
 typedef struct __parsec_temporary_thread_initialization_t {
     parsec_vp_t *virtual_process;
     int th_id;
-    int nb_cores;
     int bindto;
     int bindto_ht;
     parsec_barrier_t*  barrier;       /*< the barrier used to synchronize for the
@@ -212,7 +211,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
      * A single thread per VP has a little bit more responsability: allocating
      * the memory pools.
      */
-    if( startup->th_id == (startup->nb_cores - 1) ) {
+    if( startup->th_id == (startup->virtual_process->nb_cores - 1) ) {
         parsec_vp_t *vp = startup->virtual_process;
 
         parsec_mempool_construct( &vp->context_mempool,
@@ -275,14 +274,14 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 }
 
 static void parsec_vp_init( parsec_vp_t *vp,
-                           int32_t nb_cores,
+                            int32_t vp_cores,
                            __parsec_temporary_thread_initialization_t *startup)
 {
     int t, pi;
     parsec_barrier_t*  barrier;
 
-    assert(nb_cores > 0);
-    vp->nb_cores = nb_cores;
+    assert(vp_cores > 0);
+    vp->nb_cores = vp_cores;
 
     barrier = (parsec_barrier_t*)malloc(sizeof(parsec_barrier_t));
     parsec_barrier_init(barrier, NULL, vp->nb_cores);
@@ -291,7 +290,6 @@ static void parsec_vp_init( parsec_vp_t *vp,
     for( t = 0; t < vp->nb_cores; t++ ) {
         startup[t].th_id = t;
         startup[t].virtual_process = vp;
-        startup[t].nb_cores = nb_cores;
         startup[t].bindto = -1;
         startup[t].bindto_ht = -1;
         startup[t].barrier = barrier;
@@ -2347,7 +2345,7 @@ void parsec_debug_taskpool_local_tasks( parsec_taskpool_t *tp,
     if( tp->dependencies_array == NULL )
         return;
 
-    for(fi = 0; NULL != tp->task_classes_array[fi]; fi++) {
+    for(fi = 0; fi < tp->nb_task_classes; fi++) {
         parsec_debug_verbose(0, parsec_debug_output, " Tasks of Class %u (%s):\n", fi, tp->task_classes_array[fi]->name);
         parsec_debug_taskpool_count_local_tasks( tp, tp->task_classes_array[fi],
                                                  show_remote, show_startup, show_complete,

@@ -19,8 +19,8 @@
 #include "parsec/utils/debug.h"
 #include "parsec/utils/output.h"
 
-#define DEFAULT_NB_CORE 128
-#define MAX_STR_SIZE 12
+/* If HWLOC is not available support up to 64 cores */
+#define DEFAULT_NB_CORE 64
 /**
  * These structures are used by the from_hardware and from_file
  * to store the whole vp map
@@ -90,7 +90,6 @@ static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread)
 
 static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, int *ht)
 {
-    //int nb_real_cores = DEFAULT_NB_CORE;
     if( (vp < 0) ||
         (vp >= nbvp) ||
         (thread < 0) ||
@@ -268,16 +267,15 @@ int vpmap_init_from_file(const char *filename)
     }
 
 
-    if( nbvp == 0 ) {
+    if( 0 == nbvp ) {
         /* If no description is available for the process, create a single monothread VP */
-        parsec_inform("No VP parameter for the process %i: create a single VP (monothread, unbound)", rank);
-        nbvp=1;
+        parsec_inform("No VP parameter for the process %i: create a single VP (single thread, unbound)", rank);
+        nbvp = 1;
         map = (vpmap_t*)malloc(sizeof(vpmap_t));
         map[0].nbthreads = 1;
         map[0].threads = (vpmap_thread_t**)malloc(sizeof(vpmap_thread_t*));
 
 #if defined(PARSEC_HAVE_HWLOC)
-        parsec_hwloc_init();
         nbcores = parsec_hwloc_nb_real_cores();
 #else
         nbcores = DEFAULT_NB_CORE;
@@ -450,7 +448,6 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
 
     assert(NULL != option);
 
-    parsec_hwloc_init();
     int nb_real_cores = parsec_hwloc_nb_real_cores();
 
     /* Parse  hexadecimal mask, range expression of core list expression */
@@ -627,21 +624,17 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
         }
 
 #if defined(PARSEC_DEBUG_NOISIER)
-        char tmp[MAX_STR_SIZE];
-        char* str = tmp;
-        size_t offset;
-        int length=0;
+        char tmp[128];
+        size_t offset = 0;
 
-        for(t=0; t<nbth; t++){
-            if( core_tab[t]==-1 )
+        for( t = 0; t < nbth; t++ ) {
+            if( -1 == core_tab[t] )
                 break;
-            offset = sprintf(str, "%i ", core_tab[t]);
-            length += offset;
-            if( length > MAX_STR_SIZE-3){
-                sprintf(str, "...");
+            offset += sprintf(tmp + offset, "%i ", core_tab[t]);
+            if( offset > (sizeof(tmp)-4)){
+                sprintf(tmp+offset, "...");
                 break;
             }
-            str += offset;
          }
         PARSEC_DEBUG_VERBOSE( 20, parsec_debug_output, "binding defined by the parsed list: %s ", tmp);
 #endif /* PARSEC_DEBUG_NOISIER */

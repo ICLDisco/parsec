@@ -1,6 +1,5 @@
 
 macro(parsec_addtest lang target input)
-  list(APPEND EXTRA_LIBS m)
 
   # Can't add Fortran target test if Fortran is not available or not
   # correctly initialized.
@@ -36,6 +35,8 @@ macro(parsec_addtest lang target input)
     LINK_FLAGS "${${target}_LDFLAGS}")
   target_link_libraries(${target} ${${target}_LIBS})
 endmacro(parsec_addtest)
+
+list(APPEND EXTRA_LIBS m)
 
 add_Subdirectory(unit)
 add_Subdirectory(profiling)

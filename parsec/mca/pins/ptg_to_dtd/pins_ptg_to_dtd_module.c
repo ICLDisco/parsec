@@ -71,8 +71,8 @@ const parsec_pins_module_t parsec_pins_ptg_to_dtd_module = {
 static void
 copy_chores(parsec_taskpool_t *tp, parsec_dtd_taskpool_t *dtd_tp)
 {
-    int i, j;
-    for( i = 0; NULL != tp->task_classes_array[i]; i++) {
+    uint32_t i, j;
+    for( i = 0; i < tp->nb_task_classes; i++) {
         for( j = 0; NULL != tp->task_classes_array[i]->incarnations[j].hook; j++) {
             parsec_hook_t **hook_not_const = (parsec_hook_t **)&(tp->task_classes_array[i]->incarnations[j].hook);
 
@@ -139,12 +139,14 @@ static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
     if( ptg_tp->destructor == (parsec_destruct_fn_t)parsec_dtd_taskpool_destruct ) {
         return;
     }
+    /* Rebuild the local taskpool */
     if( __dtd_taskpool != NULL ) {
         parsec_taskpool_free((parsec_taskpool_t *)__dtd_taskpool);
     }
-
-    parsec_dtd_data_collection_init( __dc );
     __dtd_taskpool = (parsec_dtd_taskpool_t *)parsec_dtd_taskpool_new( );
+
+    /* There can only be one valid data collection at any moment */
+    parsec_dtd_data_collection_init( __dc );
     dtd_global_deque = OBJ_NEW(parsec_list_t);
     copy_chores(ptg_tp, __dtd_taskpool);
     {

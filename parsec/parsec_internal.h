@@ -87,9 +87,9 @@ typedef void (*parsec_destruct_fn_t)(parsec_taskpool_t* tp);
  * Types of known taskpools. This should be extended as new types of taskpools are
  * to PaRSEC.
  */
-#define PARSEC_TASKPOOL_TYPE_PTG       1
-#define PARSEC_TASKPOOL_TYPE_COMPOUND  2
-#define PARSEC_TASKPOOL_TYPE_DTD       3
+#define PARSEC_TASKPOOL_TYPE_PTG       0x0001
+#define PARSEC_TASKPOOL_TYPE_COMPOUND  0x0002
+#define PARSEC_TASKPOOL_TYPE_DTD       0x0004
 
 /**
  * @brief a PaRSEC taskpool represents an a collection of tasks (with or without their dependencies).
@@ -109,7 +109,7 @@ struct parsec_taskpool_s {
                                            */
     int16_t                    taskpool_type;
     uint16_t                   devices_mask; /**< A bitmask on what devices this taskpool may use */
-    int32_t                    initial_number_tasks; /**< Counts the number of task classes initially ready */
+    uint32_t                   nb_task_classes;      /**< Number of task classes in the taskpool */
     int32_t                    priority;             /**< A constant used to bump the priority of tasks related to this taskpool */
     volatile int32_t           nb_pending_actions;  /**< Internal counter of pending actions tracking all runtime
                                                      *   activities (such as communications, data movement, and
@@ -117,8 +117,8 @@ struct parsec_taskpool_s {
                                                      *   in the taskpool. This extra reference will be removed upon
                                                      *   completion of all tasks.
                                                      */
-    parsec_context_t           *context;   /**< The PaRSEC context on which this taskpool was enqueued */
-    parsec_startup_fn_t         startup_hook; /**< Function pointer to a function that generates initial tasks */
+    parsec_context_t*           context;   /**< The PaRSEC context on which this taskpool was enqueued */
+    parsec_startup_fn_t         startup_hook;  /**< Pointer to the function that generates initial tasks */
     const parsec_task_class_t** task_classes_array; /**< Array of task classes that build this DAG */
 #if defined(PARSEC_PROF_TRACE)
     const int*                   profiling_array; /**< Array of profiling keys to start/stop each of the task classes
