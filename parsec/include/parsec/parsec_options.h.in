@@ -42,7 +42,6 @@
 
 /* Scheduling engine */
 #cmakedefine PARSEC_SCHED_DEPS_MASK
-#cmakedefine PARSEC_SCHED_REPORT_STATISTICS
 
 /* Communication engine */
 #cmakedefine PARSEC_DIST_WITH_MPI

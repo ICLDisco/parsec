@@ -209,9 +209,6 @@ static parsec_execution_stream_t parsec_comm_es = {
     .es_profile = NULL,
 #endif /* PARSEC_PROF_TRACE */
     .scheduler_object = NULL,
-#if defined(PARSEC_SCHED_REPORT_STATISTICS)
-    .sched_nb_tasks_done = 0,
-#endif
 #if defined(PARSEC_SIM)
     .largest_simulation_date = 0,
 #endif
