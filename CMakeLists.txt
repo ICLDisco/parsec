@@ -87,9 +87,6 @@ option(PARSEC_SCHED_DEPS_MASK
 mark_as_advanced(PARSEC_DIST_THREAD PARSEC_DIST_PRIORITIES)
 option(PARSEC_DIST_WITH_MPI
   "Build PaRSEC for distributed memory with MPI backend (conflicts all other backends)" ON)
-option(PARSEC_MPI_WITH_WRAPPERS
-       "Use wrappers to compile MPI programs -- this disable adding MPI library to the link line, which is a problem for some wrappers" OFF)
-mark_as_advanced(PARSEC_MPI_WITH_WRAPPERS)
 if(PARSEC_DIST_WITH_MPI AND 0)
   message(FATAL_ERROR "PARSEC_DIST_WITH_MPI and PARSEC_DIST_WITH_OTHER are mutually exclusive, please select only one")
 endif()
@@ -582,9 +579,46 @@ IF( BUILD_PARSEC )
     find_package(MPI)
     set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
     if (MPI_C_FOUND)
-      if( NOT PARSEC_MPI_WITH_WRAPPERS )
+      # See if a simple MPI Program compiles and links with MPI_C_LIBRARIES
+      # and MPI_C_INCLUDE_PATH:
+      SET(TMP_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}")
+      SET(TMP_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES}")
+      SET(CMAKE_REQUIRED_INCLUDES "${MPI_C_INCLUDE_PATH}")
+      SET(CMAKE_REQUIRED_LIBRARIES "${MPI_C_LIBRARIES}")
+      CHECK_C_SOURCE_COMPILES("#include <mpi.h>
+                               int main(int argc, char *argv[]) {
+                                 MPI_Init(&argc, &argv);
+                                 MPI_Barrier(MPI_COMM_WORLD);
+                                 MPI_Info_create((void*)0);
+                                 MPI_Finalize();
+                                 return 0;
+                               }" PARSEC_MPI_WORKS)
+      SET(CMAKE_REQUIRED_INCLUDES "${TMP_REQUIRED_INCLUDES}")
+      UNSET(TMP_REQUIRED_INCLUDES)
+      SET(CMAKE_REQUIRED_LIBRARIES "${TMP_REQUIRED_LIBRARIES}")
+      UNSET(TMP_REQUIRED_LIBRARIES)
+      if( PARSEC_MPI_WORKS )
         list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
-      endif( NOT PARSEC_MPI_WITH_WRAPPERS )
+      else( PARSEC_MPI_WORKS )
+        UNSET(PARESC_MPI_WORKS)
+        # On some platforms, users pass the mpi wrapper as the compiler
+        # and adding the MPI_C_LIBRARIES makes the wrapper fail. Try without.
+        SET(TMP_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}") 
+        SET(CMAKE_REQUIRED_INCLUDES "${MPI_C_INCLUDE_PATH}") 
+        CHECK_C_SOURCE_COMPILES("#include <mpi.h>
+                                 int main(int argc, char *argv[]) { 
+                                   MPI_Init(&argc, &argv); 
+                                   MPI_Barrier(MPI_COMM_WORLD);
+                                   MPI_Info_create((void*)0);
+                                   MPI_Finalize(); 
+                                   return 0; 
+                                 }" PARSEC_MPI_WORKS)
+        SET(CMAKE_REQUIRED_INCLUDES "${TMP_REQUIRED_INCLUDES}")
+        UNSET(TMP_REQUIRED_INCLUDES)
+        if( NOT PARSEC_MPI_WORKS )
+          MESSAGE(FATAL_ERROR "Could not compile and link a simple MPI program")
+        endif( NOT PARSEC_MPI_WORKS )
+      endif(PARSEC_MPI_WORKS)
       include_directories( ${MPI_C_INCLUDE_PATH} )
       list(APPEND EXTRA_INCLUDES ${MPI_C_INCLUDE_PATH})
     else (MPI_C_FOUND)
