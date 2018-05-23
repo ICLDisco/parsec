@@ -1814,14 +1814,16 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
 }
 
 static void remote_dep_mpi_new_taskpool( parsec_execution_stream_t* es,
-                                         dep_cmd_item_t *item )
+                                         dep_cmd_item_t *dep_cmd_item )
 {
-    parsec_taskpool_t* obj = item->cmd.new_taskpool.tp;
+    parsec_list_item_t *item;
+    parsec_taskpool_t* obj = dep_cmd_item->cmd.new_taskpool.tp;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
-    PARSEC_LIST_NOLOCK_ITERATOR(&dep_activates_noobj_fifo, item,
-    ({
+    for(item = PARSEC_LIST_ITERATOR_FIRST(&dep_activates_noobj_fifo);
+        item != PARSEC_LIST_ITERATOR_END(&dep_activates_noobj_fifo);
+        item = PARSEC_LIST_ITERATOR_NEXT(item) ) {
         parsec_remote_deps_t* deps = (parsec_remote_deps_t*)item;
         if( deps->msg.taskpool_id == obj->taskpool_id ) {
             char* buffer = (char*)deps->taskpool;  /* get back the buffer from the "temporary" storage */
@@ -1867,7 +1869,7 @@ static void remote_dep_mpi_new_taskpool( parsec_execution_stream_t* es,
             free(buffer);
             (void)rc;
         }
-    }));
+    }
 }
 
 /* In DTD runs, remote nodes might ask us to activate tasks that has not been

@@ -411,7 +411,6 @@ static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
 static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
 {
     parsec_list_item_t *item, *next;
-    int attempt = 0;
 
     item = (parsec_list_item_t *) parsec_atomic_ll_ptr((long*)&lifo->lifo_head.data.item);
     if (lifo->lifo_ghost == item) {

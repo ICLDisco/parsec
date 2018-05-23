@@ -39,6 +39,8 @@ BEGIN_C_DECLS
  */
 typedef volatile uint32_t parsec_atomic_rwlock_t;
 
+#define PARSEC_RWLOCK_UNLOCKED 0
+
 #elif RWLOCK_IMPL == RWLOCK_IMPL_TICKET
 
 /**
@@ -51,6 +53,8 @@ typedef volatile struct {
     int32_t win;    /**< How many writers requested to enter (3 high bytes, low byte unused) */
     int32_t wout;   /**< How many writers left (compared only to rin read values with equal) */
 } parsec_atomic_rwlock_t;
+
+#define PARSEC_RWLOCK_UNLOCKED 0, 0, 0, 0
 
 #elif RWLOCK_IMPL == RWLOCK_IMPL_2LOCKS
 
@@ -77,6 +81,12 @@ typedef struct {
 #endif
 } parsec_atomic_rwlock_t;
 
+#if defined(PARSEC_DEBUG_PARANOID)
+#define PARSEC_RWLOCK_UNLOCKED {PARSEC_ATOMIC_UNLOCKED}, {PARSEC_LOCK_UNLOCK}, 0, 0,
+#else
+#define PARSEC_RWLOCK_UNLOCKED {PARSEC_ATOMIC_UNLOCKED}, {PARSEC_LOCK_UNLOCK}, 0
+#endif
+
 #elif RWLOCK_IMPL == RWLOCK_IMPL_MYTICKET
 
 /**
@@ -96,6 +106,8 @@ typedef volatile union {
         uint16_t nb_readers;      /**< Number of readers on the readers_ticket */
     } fields;
 } parsec_atomic_rwlock_t;
+
+#define PARSEC_RWLOCK_UNLOCKED 0, {0, 0, 0, 0}
 
 #else
 #error "NO RWLOCK"

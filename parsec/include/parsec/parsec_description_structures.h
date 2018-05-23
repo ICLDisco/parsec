@@ -17,7 +17,6 @@ typedef struct expr_s expr_t;
 typedef struct parsec_flow_s parsec_flow_t;
 typedef struct dep_s dep_t;
 typedef struct symbol_s symbol_t;
-typedef struct parsec_data_s parsec_data_t;
 
 struct parsec_taskpool_s;
 #include "parsec/datatype.h"

@@ -575,16 +575,30 @@ IF( BUILD_PARSEC )
    endif (HWLOC_FOUND)
 
   if (PARSEC_DIST_WITH_MPI)
-    # Force the detection of the C library
-    find_package(MPI)
-    set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
-    if (MPI_C_FOUND)
+    # Test first if we are using a wrapper as the compiler
+    # In that case, we don't need to change the include path and
+    # dependent libraries.
+    CHECK_C_SOURCE_COMPILES("#include <mpi.h>
+                             int main(int argc, char *argv[]) {
+                               MPI_Init(&argc, &argv);
+                               MPI_Barrier(MPI_COMM_WORLD);
+                               MPI_Finalize();
+                               return 0;
+                             }" MPI_WORKS_WITH_WRAPPER)
+    if( MPI_WORKS_WITH_WRAPPER )
+      set(MPI_C_FOUND TRUE)
+    else( MPI_WORKS_WITH_WRAPPER )
+      # Otherwise try to find MPI in the normal way
+      find_package(MPI)
       list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
       include_directories( ${MPI_C_INCLUDE_PATH} )
       list(APPEND EXTRA_INCLUDES ${MPI_C_INCLUDE_PATH})
-    else (MPI_C_FOUND)
+    endif( MPI_WORKS_WITH_WRAPPER )
+    set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
+    if (NOT MPI_C_FOUND)
+      # Force MPI: if no compiler, do not proceed further
       MESSAGE(ERROR "MPI is required but was not found. Please provide an MPI compiler")
-    endif (MPI_C_FOUND)
+    endif (NOT MPI_C_FOUND)
   endif (PARSEC_DIST_WITH_MPI)
   #
   # Check to see if support for MPI 2.0 is available
@@ -841,15 +855,17 @@ ENDIF( BUILD_PARSEC )
 #
 # Now continue with compiling the tests.
 #
-find_program(HOSTNAME_EXE hostname)
-MARK_AS_ADVANCED(HOSTNAME_EXE)
-# Test that the launchers work
-add_test(launcher_shm   ${SHM_TEST_CMD_LIST} ${HOSTNAME_EXE})
-add_test(launcher_mpi   ${MPI_TEST_CMD_LIST} 4 ${HOSTNAME_EXE})
-add_test(launcher_gpu   ${MPI_TEST_CMD_LIST} 4 ${CTEST_GPU_LAUNCHER_OPTIONS} ${HOSTNAME_EXE})
-add_subdirectory(tests)
-add_subdirectory(examples)
-add_subdirectory(dplasma)
+if( BUILD_TESTING )
+  find_program(HOSTNAME_EXE hostname)
+  MARK_AS_ADVANCED(HOSTNAME_EXE)
+  # Test that the launchers work
+  add_test(launcher_shm   ${SHM_TEST_CMD_LIST} ${HOSTNAME_EXE})
+  add_test(launcher_mpi   ${MPI_TEST_CMD_LIST} 4 ${HOSTNAME_EXE})
+  add_test(launcher_gpu   ${MPI_TEST_CMD_LIST} 4 ${CTEST_GPU_LAUNCHER_OPTIONS} ${HOSTNAME_EXE})
+  add_subdirectory(tests)
+  add_subdirectory(examples)
+  add_subdirectory(dplasma)
+endif( BUILD_TESTING )
 
 # Configuration header
 configure_file (
