@@ -575,55 +575,30 @@ IF( BUILD_PARSEC )
    endif (HWLOC_FOUND)
 
   if (PARSEC_DIST_WITH_MPI)
-    # Force the detection of the C library
-    find_package(MPI)
-    set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
-    if (MPI_C_FOUND)
-      # See if a simple MPI Program compiles and links with MPI_C_LIBRARIES
-      # and MPI_C_INCLUDE_PATH:
-      SET(TMP_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}")
-      SET(TMP_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES}")
-      SET(CMAKE_REQUIRED_INCLUDES "${MPI_C_INCLUDE_PATH}")
-      SET(CMAKE_REQUIRED_LIBRARIES "${MPI_C_LIBRARIES}")
-      CHECK_C_SOURCE_COMPILES("#include <mpi.h>
-                               int main(int argc, char *argv[]) {
-                                 MPI_Init(&argc, &argv);
-                                 MPI_Barrier(MPI_COMM_WORLD);
-                                 MPI_Info_create((void*)0);
-                                 MPI_Finalize();
-                                 return 0;
-                               }" PARSEC_MPI_WORKS)
-      SET(CMAKE_REQUIRED_INCLUDES "${TMP_REQUIRED_INCLUDES}")
-      UNSET(TMP_REQUIRED_INCLUDES)
-      SET(CMAKE_REQUIRED_LIBRARIES "${TMP_REQUIRED_LIBRARIES}")
-      UNSET(TMP_REQUIRED_LIBRARIES)
-      if( PARSEC_MPI_WORKS )
-        list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
-      else( PARSEC_MPI_WORKS )
-        UNSET(PARESC_MPI_WORKS)
-        # On some platforms, users pass the mpi wrapper as the compiler
-        # and adding the MPI_C_LIBRARIES makes the wrapper fail. Try without.
-        SET(TMP_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}") 
-        SET(CMAKE_REQUIRED_INCLUDES "${MPI_C_INCLUDE_PATH}") 
-        CHECK_C_SOURCE_COMPILES("#include <mpi.h>
-                                 int main(int argc, char *argv[]) { 
-                                   MPI_Init(&argc, &argv); 
-                                   MPI_Barrier(MPI_COMM_WORLD);
-                                   MPI_Info_create((void*)0);
-                                   MPI_Finalize(); 
-                                   return 0; 
-                                 }" PARSEC_MPI_WORKS)
-        SET(CMAKE_REQUIRED_INCLUDES "${TMP_REQUIRED_INCLUDES}")
-        UNSET(TMP_REQUIRED_INCLUDES)
-        if( NOT PARSEC_MPI_WORKS )
-          MESSAGE(FATAL_ERROR "Could not compile and link a simple MPI program")
-        endif( NOT PARSEC_MPI_WORKS )
-      endif(PARSEC_MPI_WORKS)
+    # Test first if we are using a wrapper as the compiler
+    # In that case, we don't need to change the include path and
+    # dependent libraries.
+    CHECK_C_SOURCE_COMPILES("#include <mpi.h>
+                             int main(int argc, char *argv[]) {
+                               MPI_Init(&argc, &argv);
+                               MPI_Barrier(MPI_COMM_WORLD);
+                               MPI_Finalize();
+                               return 0;
+                             }" MPI_WORKS_WITH_WRAPPER)
+    if( MPI_WORKS_WITH_WRAPPER )
+      set(MPI_C_FOUND TRUE)
+    else( MPI_WORKS_WITH_WRAPPER )
+      # Otherwise try to find MPI in the normal way
+      find_package(MPI)
+      list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
       include_directories( ${MPI_C_INCLUDE_PATH} )
       list(APPEND EXTRA_INCLUDES ${MPI_C_INCLUDE_PATH})
-    else (MPI_C_FOUND)
+    endif( MPI_WORKS_WITH_WRAPPER )
+    set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
+    if (NOT MPI_C_FOUND)
+      # Force MPI: if no compiler, do not proceed further
       MESSAGE(ERROR "MPI is required but was not found. Please provide an MPI compiler")
-    endif (MPI_C_FOUND)
+    endif (NOT MPI_C_FOUND)
   endif (PARSEC_DIST_WITH_MPI)
   #
   # Check to see if support for MPI 2.0 is available
