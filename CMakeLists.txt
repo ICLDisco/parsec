@@ -1046,6 +1046,9 @@ MESSAGE("\n\n")
 
 # pkg-config file
 string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
+if (EXTRA_INCLUDES)
+  string (REPLACE ";" " -I" EXTRA_INCLUDES_STRING "-I${EXTRA_INCLUDES}")
+endif (EXTRA_INCLUDES)
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
