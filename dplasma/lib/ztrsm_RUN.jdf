@@ -97,8 +97,11 @@ BODY [type=CUDA
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex mzone = make_cuDoubleComplex(-1., 0.);
+    cuDoubleComplex lalpha = (k == 0) ? make_cuDoubleComplex(creal(alpha), cimag(alpha))
+                                      : make_cuDoubleComplex(1.0, 0.0);
 #else
-    double mzone = -1.;
+    parsec_complex64_t mzone = -1.;
+    parsec_complex64_t lalpha = ((k)==(0)) ? (alpha) : (parsec_complex64_t)1.0;
 #endif
 
     int tempmm = ((m)==(descB->mt-1)) ? (descB->m-(m*descB->mb)) : descB->mb;
@@ -106,7 +109,6 @@ BODY [type=CUDA
     int ldb = BLKLDD( descB, m );
     int lda = BLKLDD( descA, k );
 
-    parsec_complex64_t lalpha = ((k)==(0)) ? (alpha) : (parsec_complex64_t)1.0;
 
     cublasStatus_t status;
 

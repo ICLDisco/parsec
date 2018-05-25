@@ -96,13 +96,15 @@ BODY [type=CUDA
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex zone  = make_cuDoubleComplex( 1., 0.);
+    cuDoubleComplex minvalpha = cuCdiv(make_cuDoubleComplex(-1.0, 0),
+                                       make_cuDoubleComplex(creal(alpha), cimag(alpha)));
 #else
-    double zone = 1.;
+    parsec_complex64_t zone = 1.;
+    parsec_complex64_t minvalpha = ((parsec_complex64_t)-1.000000)/alpha;
 #endif
 
     int tempmm = ((m)==(descB->mt-1)) ? (descB->m-(m*descB->mb)) : descB->mb;
     int tempkn = ((k)==(0)) ? (descB->n-((descB->nt-1)*descB->nb)) : descB->nb;
-    parsec_complex64_t minvalpha = ((parsec_complex64_t)-1.000000)/alpha;
     int ldan = BLKLDD( descA, (descB->nt-1)-n );
     int ldb  = BLKLDD( descB, m );
 
