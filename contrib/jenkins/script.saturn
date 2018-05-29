@@ -1,0 +1,24 @@
+#!/bin/sh
+
+source /etc/profile.d/modules.sh
+source /etc/profile.d/modules_sw.sh
+
+module load cmake
+module load gcc
+module unload mpi/openmpi
+module load mpi/openmpi
+
+${WORKSPACE}/contrib/platforms/config.saturn -DCMAKE_BUILD_TYPE=${BUILDTYPE} \
+    -DDPLASMA_PRECISIONS="${DPLASMA_PRECISIONS}" \
+    -DCMAKE_INSTALL_PREFIX="${BUILDDIR}.install" \
+    -DPARSEC_DEBUG_HISTORY=ON \
+    -DPARSEC_DEBUG_NOISIER=ON \
+    -DPARSEC_DEBUG_PARANOID=ON \
+    -DPARSEC_PROF_GRAPHER=ON \
+    -DPARSEC_PROF_RUSAGE_EU=ON \
+    -DPARSEC_PROF_TRACE=ON
+
+make -j 8
+# Until jenkins user has no access to the cluster
+# ctest
+
