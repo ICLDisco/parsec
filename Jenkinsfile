@@ -33,21 +33,28 @@ propertiesData = [disableConcurrentBuilds()]
 properties(propertiesData)
 
 node {
-    def regex = '^https://bitbucket\\.org/(.*?)/(.*?)/pull-requests/(\\d+)'
+    def regex = "^https://bitbucket\\.org/(.+?)/(.+?)/pull-requests/(\\d+)"
     try {
         def l = Pattern.compile(regex).matcher(env.CHANGE_URL)
-        println "${l.group(1)} -> ${l.group(2)}"
-        config.put("organization", l.group(1))
-        config.put("repository", l.group(2))
+        if( l.find() ) {
+            config.put('organization', l.group(1))
+            config.put('repository', l.group(2))
+        }
+        println "${config.organization} -> ${config.repository}"
     } catch (Exception ex) {
         println "Exception: " + ex.getMessage() + " (${env.CHANGE_URL})"
         println "Cant identify the organization and repository from ${env.CHANGE_URL} using ${regex}"
-        config.put("organization", "icldistcomp")
-        config.put("repository", "parsec")
     }
-    if( !config.hasProperty('useHipChat') ) {
-        config.put("useHipChat", false)
+    if( (null == config.get('organization')) || (null == config.get('repository')) ) {
+        println "Missing organization or repository"
+        error("Missing organization or repository")
     }
+    if( null == config.get('useHipChat') ) {
+        config.put('useHipChat', false)
+    }
+    String userpass = config.userName + ":" + config.userPassword;
+    String basicAuth = "Basic " + userpass.bytes.encodeBase64().toString()
+    config.put('basicAuth', basicAuth)
 }
 
 // Save the master of the lack check
@@ -56,6 +63,11 @@ node {
 //currentBuild.properties.each { println "currentBuild.${it.key} -> ${it.value}" }
 //propertiesData.properties.each { println "$it.key -> $it.value" }
 //config.each { println "config.${it.key} -> ${it.value}" }
+
+// To mark the starting of a new build the previous approval should be removed
+node {
+    unapprovePullRequest(config.repository, env.CHANGE_ID)
+}
 
 pipeline {
     agent any
@@ -66,7 +78,7 @@ pipeline {
                 anyOf {
                     expression {
                         // https://github.com/jenkinsci/jenkins/blob/master/core/src/main/java/hudson/model/Result.java
-                        return isApprovedBranch(config.repository, env.CHANGE_ID)
+                        return isApprovedBranch(config.repository, env.CHANGE_ID, env.CHANGE_AUTHOR)
                     }
                 }
             }
@@ -141,6 +153,7 @@ pipeline {
             hipchatSend color: 'GREEN', notify: true, room: "CI", sendAs: "Sauron",
                 message: "SUCCESS: Job <a href=\"${env.BUILD_URL}\">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a><br>" +
                          "Pull Request <a href=\"${env.CHANGE_URL}\">#${env.CHANGE_ID}</a> ready to merge"
+            approvePullRequest(config.repository, env.CHANGE_ID)
         }
         failure {
             hipchatSend color: 'RED', notify: true, room: "CI", sendAs: "Sauron",
@@ -178,23 +191,16 @@ def displayServerResponse( InputStream is ) {
 
 // Check if the branch author has validated his work by approving
 // the branch.
-def isApprovedBranch(repository, pr) {
+def isApprovedBranch(repository, pr, byWho) {
     Boolean prApproved = false
-    String userpass = config.userName + ":" + config.userPassword;
-    String basicAuth = "Basic " + userpass.bytes.encodeBase64().toString()
 
-    def url = "https://api.bitbucket.com/2.0/repositories/${config.organization}/${repository}/pullrequests/${pr}/"
+    def url = new URL("https://api.bitbucket.org/2.0/repositories/${config.organization}/${repository}/pullrequests/${pr}/")
 
-    def conn = new URL(url).openConnection()
-    conn.setRequestProperty('Authorization', basicAuth)
+    def conn = url.openConnection()
+    conn.setRequestProperty( "Authorization", config.basicAuth)
 
     try {
         statusCode = conn.getResponseCode()
-        println "Connection status code: $statusCode "
-        if (statusCode==401) {
-            println "Not authorized"
-            response=displayServerResponse(connection.getErrorStream())
-        }
         if (statusCode==200) {
             InputStream inputStream = conn.getInputStream()
             def names = new groovy.json.JsonSlurper().parseText(inputStream.text)
@@ -204,22 +210,22 @@ def isApprovedBranch(repository, pr) {
             inputStream.close()
             names['participants'].each {
                 if( it['approved'] ) {
-                    if( it['user']['username'] == names['author']['username'] ) {
+                    if( it['user']['username'] == byWho ) {
                         prApproved = true
-                        println "Pullrequest ${pr} approved by its author ${it['user']['username']}"
+                        println "Pullrequest ${pr} approved by ${byWho}"
                     }
                 }
             }
-        }
-        if (statusCode==400) {
-            println "Bad request"
-            println "Server response:"
-            println "-----"
-            response=displayServerResponse(connection.getErrorStream())
-            println "-----"
+        } else {
+            println "[Check Approval] Connection status code: $statusCode "
+            println "[Check Approval] URL ${url.toString()}"
+            println "[Check Approval] Server response:"
+            println "[Check Approval] -----"
+            response=displayServerResponse(conn.getErrorStream())
+            println "[Check Approval] -----"
         }
     } catch (Exception e) {
-        println "Error connecting to the URL"
+        println "[Check Approval] Error connecting to the URL"
         println e.getMessage()
     } finally {
         if (conn != null) {
@@ -227,5 +233,88 @@ def isApprovedBranch(repository, pr) {
         }
     }
     return prApproved
+}
+
+def approvePullRequest(repository, pr) {
+    Boolean prApproved = false
+
+    def url = new URL("https://api.bitbucket.org/2.0/repositories/${config.organization}/${repository}/pullrequests/${pr}/approve")
+
+    def HttpURLConnection conn = (HttpURLConnection)url.openConnection()
+    conn.setRequestMethod("POST")
+    conn.setRequestProperty( "Authorization", config.basicAuth)
+    conn.setRequestProperty( "Content-type", "application/x-www-form-urlencoded")
+    conn.setRequestProperty( "Content-Length", "0")
+    conn.setDoOutput(true)
+    conn.connect()
+
+    try {
+        statusCode = conn.getResponseCode()
+        if (statusCode==200) {
+            InputStream inputStream = conn.getInputStream()
+            def names = new groovy.json.JsonSlurper().parseText(inputStream.text)
+            //names.each{ k, v ->
+            //    println "element name: ${k}, element value: ${v}"
+            //}
+            inputStream.close()
+            prApproved = true
+            println "[Approve RP] PR succesfully approved"
+        } else if (statusCode==409) {
+            println "[Approve RP] PR already approved by this user"
+            prApproved = true
+        } else {
+            println "[Approve PR] Connection status code: $statusCode "
+            println "[Approve PR] URL ${url.toString()}"
+            println "[Approve PR] Server response:"
+            response = displayServerResponse(conn.getErrorStream())
+            println "[Approve PR] ${response}" 
+            println "[Approve PR] -----"
+        }
+    } catch (Exception e) {
+        println "[Approve PR] Error connecting to the URL"
+        println e.getMessage()
+    } finally {
+        if (conn != null) {
+            conn.disconnect();
+        }
+    }
+    return prApproved
+}
+
+def unapprovePullRequest(repository, pr) {
+    Boolean prUnapproved = false
+
+    def url = new URL("https://api.bitbucket.org/2.0/repositories/${config.organization}/${repository}/pullrequests/${pr}/approve")
+
+    def HttpURLConnection conn = (HttpURLConnection)url.openConnection()
+    conn.setRequestProperty( "Content-Type", "application/x-www-form-urlencoded")
+    conn.setRequestProperty( "Authorization", config.basicAuth)
+    conn.setRequestMethod("DELETE")
+
+    try {
+        statusCode = conn.getResponseCode()
+        if (statusCode==204) {
+            println "[Unapprove RP] PR succesfully unapproved"
+            prUnapproved = true
+        } else if (statusCode==404) {
+            println "[Unapprove RP] PR not approved by this user"
+            prUnapproved = true
+        } else {
+            println "[Unapprove PR] Connection status code: ${statusCode}"
+            println "[Unapprove PR] URL ${url.toString()}"
+            println "[Unapprove PR] Server response:"
+            response = displayServerResponse(conn.getErrorStream())
+            println "[Unapprove PR] ${response}" 
+            println "[Unapprove PR] -----"
+        }
+    } catch (Exception e) {
+        println "[Unapprove PR] Error connecting to ${url.toString()}"
+        println e.getMessage()
+    } finally {
+        if (conn != null) {
+            conn.disconnect();
+        }
+    }
+    return prUnapproved
 }
 
