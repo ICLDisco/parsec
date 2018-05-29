@@ -45,6 +45,9 @@ node {
         config.put("organization", "icldistcomp")
         config.put("repository", "parsec")
     }
+    if( !config.hasProperty('useHipChat') ) {
+        config.put("useHipChat", false)
+    }
 }
 
 // Save the master of the lack check
@@ -52,7 +55,7 @@ node {
 
 //currentBuild.properties.each { println "currentBuild.${it.key} -> ${it.value}" }
 //propertiesData.properties.each { println "$it.key -> $it.value" }
-config.each { println "config.${it.key} -> ${it.value}" }
+//config.each { println "config.${it.key} -> ${it.value}" }
 
 pipeline {
     agent any
@@ -68,6 +71,15 @@ pipeline {
                 }
             }
             steps {
+                script {
+                    try {
+                        hipchatSend color: 'YELLOW', notify: false, room: "CI", sendAs: "Sauron",
+                            message: "Starting: <a href=\"${env.BUILD_URL}\">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a><br>" +
+                                     "Pull Request <a href=\"${env.CHANGE_URL}\">#${env.CHANGE_ID}</a>."
+                    } catch (Exception ex) {  //disable HipChat
+                        config.useHipChat = false
+                    }
+                }
                 checkout scm
             }
         }
@@ -113,17 +125,28 @@ pipeline {
         }
     }
     post { 
-        always { 
-            echo 'I will always say Hello again!'
-        }
+        // no always
         regression {
-            echo 'Someone screwed up !'
+            hipchatSend color: 'RED', notify: true, room: "CI", sendAs: "Sauron",
+                message: "REGRESSION: Job <a href=\"${env.BUILD_URL}\">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a><br>" +
+                         "Pull Request <a href=\"${env.CHANGE_URL}\">#${env.CHANGE_ID}</a>."
+            //emailext (
+            //    subject: "STARTED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+            //    body: """<p>STARTED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':</p>
+            //  <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>&QUOT;</p>""",
+            //    recipientProviders: [[$class: 'DevelopersRecipientProvider']]
+            //)
         }
         success {
-            echo 'We\'re good to go'
+            hipchatSend color: 'GREEN', notify: true, room: "CI", sendAs: "Sauron",
+                message: "SUCCESS: Job <a href=\"${env.BUILD_URL}\">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a><br>" +
+                         "Pull Request <a href=\"${env.CHANGE_URL}\">#${env.CHANGE_ID}</a> ready to merge"
         }
         failure {
-            echo 'Consistency is good. Your build consistently fails !'
+            hipchatSend color: 'RED', notify: true, room: "CI", sendAs: "Sauron",
+                message: "FAILURE: <a href=\"${env.BUILD_URL}\">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a><br>" +
+                         "Pull Request <a href=\"${env.CHANGE_URL}\">#${env.CHANGE_ID}</a> consistently fails.<br>" +
+                         "This kind of consistency is N.O.T. good"
         }
     }
 }
