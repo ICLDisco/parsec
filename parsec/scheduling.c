@@ -611,38 +611,43 @@ typedef struct parsec_compound_state_t {
     parsec_taskpool_t* taskpools_array[1];
 } parsec_compound_state_t;
 
+static void parsec_compound_destructor( parsec_taskpool_t* tp )
+{
+    free(tp);
+}
+
 static int parsec_composed_cb( parsec_taskpool_t* o, void* cbdata )
 {
     parsec_taskpool_t* compound = (parsec_taskpool_t*)cbdata;
     parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound->task_classes_array;
     int completed_taskpools = compound_state->completed_taskpools++;
     assert( o == compound_state->taskpools_array[completed_taskpools] ); (void)o;
-    if( compound->nb_pending_actions-- ) {
+    if( --compound->nb_pending_actions ) {
         assert( NULL != compound_state->taskpools_array[completed_taskpools+1] );
         parsec_context_add_taskpool(compound_state->ctx,
-                               compound_state->taskpools_array[completed_taskpools+1]);
+                                    compound_state->taskpools_array[completed_taskpools+1]);
+    } else {
+        parsec_check_complete_cb(compound, compound_state->ctx, 0);
     }
     return 0;
 }
 
 static void parsec_compound_startup( parsec_context_t *context,
-                                    parsec_taskpool_t *compound_tp,
-                                    parsec_task_t** startup_list)
+                                     parsec_taskpool_t *compound_tp,
+                                     parsec_task_t** startup_list )
 {
     parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound_tp->task_classes_array;
-    parsec_taskpool_t* first = compound_state->taskpools_array[0];
-    int i;
 
-    assert( NULL != first );
-    first->startup_hook(context, first, startup_list);
     compound_state->ctx = context;
     compound_tp->nb_pending_actions = compound_state->nb_taskpools;
-    for( i = 0; i < compound_state->nb_taskpools; i++ ) {
+    for( int i = 0; i < compound_state->nb_taskpools; i++ ) {
         parsec_taskpool_t* o = compound_state->taskpools_array[i];
         assert( NULL != o );
         o->on_complete      = parsec_composed_cb;
         o->on_complete_data = compound_tp;
     }
+    parsec_context_add_taskpool(compound_state->ctx, compound_state->taskpools_array[0]);
+    (void)startup_list;
 }
 
 parsec_taskpool_t* parsec_compose( parsec_taskpool_t* start,
@@ -659,8 +664,9 @@ parsec_taskpool_t* parsec_compose( parsec_taskpool_t* start,
         compound_state->taskpools_array[compound_state->nb_taskpools]   = NULL;
         /* make room for NULL terminating, if necessary */
         if( 0 == (compound_state->nb_taskpools % 16) ) {
-            compound_state = realloc(compound_state, sizeof(parsec_compound_state_t) +
-                            (1 + compound_state->nb_taskpools / 16) * 16 * sizeof(void*));
+            compound_state = realloc(compound_state,
+                                     (sizeof(parsec_compound_state_t) +
+                                      (compound_state->nb_taskpools + 16) * sizeof(void*)));
             compound->task_classes_array = (void*)compound_state;
         }
         compound_state->taskpools_array[compound_state->nb_taskpools] = NULL;
@@ -674,7 +680,9 @@ parsec_taskpool_t* parsec_compose( parsec_taskpool_t* start,
         compound_state->taskpools_array[1] = next;
         compound_state->taskpools_array[2] = NULL;
         compound_state->completed_taskpools = 0;
+        compound_state->nb_taskpools = 2;
         compound->startup_hook = parsec_compound_startup;
+        compound->destructor = parsec_compound_destructor;
     }
     return compound;
 }
@@ -701,11 +709,10 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     if( NULL != tp->startup_hook ) {
         parsec_task_t **startup_list;
         int p;
-        /* These pointers need to be initialized to NULL; doing it with calloc */
-        startup_list = (parsec_task_t**)calloc( vpmap_get_nb_vp(), sizeof(parsec_task_t*) );
-        if( NULL == startup_list ) {  /* bad bad */
-            return PARSEC_ERR_OUT_OF_RESOURCE;
-        }
+        /* These pointers need to be initialized to NULL */
+        startup_list = (parsec_task_t**)alloca( vpmap_get_nb_vp() * sizeof(parsec_task_t*) );
+        for(p = 0; p < vpmap_get_nb_vp(); startup_list[p++] = NULL);
+ 
         tp->startup_hook(context, tp, startup_list);
         for(p = 0; p < vpmap_get_nb_vp(); p++) {
             if( NULL != startup_list[p] ) {
@@ -722,7 +729,6 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
                                   startup_list[p], 0);
             }
         }
-        free(startup_list);
     } else {
         parsec_check_complete_cb(tp, context, tp->nb_pending_actions);
     }
