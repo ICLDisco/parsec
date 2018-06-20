@@ -254,7 +254,7 @@ static int release_deps(parsec_execution_stream_t *es,
     int i;
 
     PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *) this_task);
-    
+
     ready_list = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);
     for(i = 0; i < es->virtual_process->parsec_context->nb_vp; ready_list[i++] = NULL);
 
@@ -440,11 +440,12 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     fake_context.task_class = &parsec_map_operator;
     fake_context.taskpool = tp;
     fake_context.priority = 0;
+    fake_context.chore_id = 0;
     fake_context.data[0].data_repo = NULL;  /* src */
     fake_context.data[0].data_in   = NULL;
     fake_context.data[1].data_repo = NULL;  /* dst */
     fake_context.data[1].data_in   = NULL;
-    
+
     /**
      * Generate one local task per core. Each task will then take care of creating all
      * the remaining tasks for the same column of the matrix, and upon completion of
