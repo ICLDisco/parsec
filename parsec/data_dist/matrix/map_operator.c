@@ -35,7 +35,7 @@ typedef struct parsec_map_operator_taskpool {
     parsec_taskpool_t               super;
     const parsec_tiled_matrix_dc_t* src;
           parsec_tiled_matrix_dc_t* dest;
-    volatile int32_t                next_k;
+    volatile int32_t                next_n;
     parsec_operator_t               op;
     void*                           op_data;
 } parsec_map_operator_taskpool_t;
@@ -190,11 +190,11 @@ add_task_to_list(parsec_execution_stream_t *es,
     parsec_task_t** pready_list = (parsec_task_t**)_ready_lists;
     parsec_task_t* new_context = (parsec_task_t*)parsec_thread_mempool_allocate( es->context_mempool );
 
-    new_context->status = PARSEC_TASK_STATUS_NONE;
     PARSEC_COPY_EXECUTION_CONTEXT(new_context, newcontext);
+    new_context->status = PARSEC_TASK_STATUS_NONE;
     pready_list[vpid_dst] = (parsec_task_t*)parsec_list_item_ring_push_sorted( (parsec_list_item_t*)(pready_list[vpid_dst]),
-                                                                                          (parsec_list_item_t*)new_context,
-                                                                                          parsec_execution_context_priority_comparator );
+                                                                               (parsec_list_item_t*)new_context,
+                                                                               parsec_execution_context_priority_comparator );
 
     (void)oldcontext; (void)dep; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)data;
     return PARSEC_ITERATE_STOP;
@@ -207,30 +207,30 @@ static void iterate_successors(parsec_execution_stream_t *es,
                                void *ontask_arg)
 {
     __parsec_map_operator_taskpool_t *__tp = (__parsec_map_operator_taskpool_t*)this_task->taskpool;
-    int k = this_task->locals[0].value;
-    int n = this_task->locals[1].value+1;
+    int m = this_task->locals[0].value+1;
+    int n = this_task->locals[1].value;
     parsec_task_t nt;
 
     nt.priority = 0;
     nt.chore_id = 0;
-    nt.data[0].data_repo = NULL;
-    nt.data[1].data_repo = NULL;
+    nt.data[0].data_repo = NULL;  /* src  */
+    nt.data[1].data_repo = NULL;  /* dst */
     /* If this is the last n, try to move to the next k */
-    for( ; k < (int)__tp->super.src->nt; n = 0) {
-        for( ; n < (int)__tp->super.src->mt; n++ ) {
+    for( ; n < (int)__tp->super.src->nt; m = 0) {
+        for( ; m < (int)__tp->super.src->mt; m++ ) {
             if( __tp->super.src->super.myrank !=
                 ((parsec_data_collection_t*)__tp->super.src)->rank_of((parsec_data_collection_t*)__tp->super.src,
-                                                                     k, n) )
+                                                                      m, n) )
                 continue;
             int vpid =  ((parsec_data_collection_t*)__tp->super.src)->vpid_of((parsec_data_collection_t*)__tp->super.src,
-                                                                             k, n);
+                                                                              m, n);
             /* Here we go, one ready local task */
-            nt.locals[0].value = k;
+            nt.locals[0].value = m;
             nt.locals[1].value = n;
             nt.task_class = &parsec_map_operator /*this*/;
             nt.taskpool = this_task->taskpool;
-            nt.data[0].data_in = this_task->data[0].data_out;
-            nt.data[1].data_in = this_task->data[1].data_out;
+            nt.data[0].data_in = this_task->data[0].data_out;  /* src */
+            nt.data[1].data_in = this_task->data[1].data_out;  /* dst */
 
             ontask(es, &nt, this_task, &flow_of_map_operator_dep_out, NULL,
                    __tp->super.src->super.myrank,
@@ -239,8 +239,8 @@ static void iterate_successors(parsec_execution_stream_t *es,
                    ontask_arg);
             return;
         }
-        /* Go to the next row ... atomically */
-        k = parsec_atomic_fetch_inc_int32( &__tp->super.next_k ) + 1;
+        /* Go to the next column ... atomically */
+        n = parsec_atomic_fetch_inc_int32( &__tp->super.next_n ) + 1;
     }
     (void)action_mask;
 }
@@ -253,57 +253,67 @@ static int release_deps(parsec_execution_stream_t *es,
     parsec_task_t** ready_list;
     int i;
 
-    ready_list = (parsec_task_t **)calloc(sizeof(parsec_task_t *),
-                                                      vpmap_get_nb_vp());
+    PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *) this_task);
+    
+    ready_list = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);
+    for(i = 0; i < es->virtual_process->parsec_context->nb_vp; ready_list[i++] = NULL);
 
     iterate_successors(es, this_task, action_mask, add_task_to_list, ready_list);
 
     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-        for(i = 0; i < vpmap_get_nb_vp(); i++) {
-            if( NULL != ready_list[i] ) {
-                if( i == es->virtual_process->vp_id )
-                    __parsec_schedule(es, ready_list[i], 0);
-                else
-                    __parsec_schedule(es->virtual_process->parsec_context->virtual_processes[i]->execution_streams[0],
-                                     ready_list[i], 0);
-            }
+        for(i = 0; i < es->virtual_process->parsec_context->nb_vp; i++) {
+            if( NULL == ready_list[i] )
+                continue;
+            if( i == es->virtual_process->vp_id )
+                __parsec_schedule(es, ready_list[i], 0);
+            else
+                __parsec_schedule(es->virtual_process->parsec_context->virtual_processes[i]->execution_streams[0],
+                                  ready_list[i], 0);
+            ready_list[i] = NULL;
         }
     }
 
     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_REFS) {
+        const __parsec_map_operator_taskpool_t *__tp = (__parsec_map_operator_taskpool_t*)this_task->taskpool;
+
         /**
          * There is no repo to be release in this instance, so instead just release the
-         * reference of the data copy.
+         * reference of the data copy (if such a copy exists).
          *
          * data_repo_entry_used_once( eu, this_task->data[0].data_repo, this_task->data[0].data_repo->key );
          */
-        PARSEC_DATA_COPY_RELEASE(this_task->data[0].data_in);
+        if( NULL != __tp->super.src ) {
+            PARSEC_DATA_COPY_RELEASE(this_task->data[0].data_in);
+        }
+        if( NULL != __tp->super.dest ) {
+            PARSEC_DATA_COPY_RELEASE(this_task->data[1].data_in);
+        }
     }
-
-    free(ready_list);
-
+    PINS(es, RELEASE_DEPS_END, (parsec_task_t *) this_task);
     (void)deps;
-    return 1;
+    return 0;
 }
 
 static int data_lookup(parsec_execution_stream_t *es,
                        parsec_task_t *this_task)
 {
     const __parsec_map_operator_taskpool_t *__tp = (__parsec_map_operator_taskpool_t*)this_task->taskpool;
-    int k = this_task->locals[0].value;
+    int m = this_task->locals[0].value;
     int n = this_task->locals[1].value;
 
     (void)es;
 
     if( NULL != __tp->super.src ) {
-        this_task->data[0].data_in   = parsec_data_get_copy(src(k,n), 0);
+        this_task->data[0].data_in   = parsec_data_get_copy(src(m,n), 0);
         this_task->data[0].data_repo = NULL;
         this_task->data[0].data_out  = NULL;
+        OBJ_RETAIN(this_task->data[0].data_in);
     }
     if( NULL != __tp->super.dest ) {
-        this_task->data[1].data_in   = parsec_data_get_copy(dest(k,n), 0);
+        this_task->data[1].data_in   = parsec_data_get_copy(dest(m,n), 0);
         this_task->data[1].data_repo = NULL;
         this_task->data[1].data_out  = this_task->data[1].data_in;
+        OBJ_RETAIN(this_task->data[1].data_in);
     }
     return 0;
 }
@@ -312,8 +322,9 @@ static int hook_of(parsec_execution_stream_t *es,
                    parsec_task_t *this_task)
 {
     const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)this_task->taskpool;
-    int k = this_task->locals[0].value;
+    int m = this_task->locals[0].value;
     int n = this_task->locals[1].value;
+    int rc = PARSEC_HOOK_RETURN_DONE;
     const void* src_data = NULL;
     void* dest_data = NULL;
 
@@ -327,10 +338,10 @@ static int hook_of(parsec_execution_stream_t *es,
 #if !defined(PARSEC_PROF_DRY_BODY)
     TAKE_TIME(es, 2*this_task->task_class->task_class_id,
               parsec_hash_table_generic_64bits_key_hash( map_operator_make_key(this_task->taskpool, this_task->locals), 64, NULL ), __tp->super.src,
-              ((parsec_data_collection_t*)(__tp->super.src))->data_key((parsec_data_collection_t*)__tp->super.src, k, n) );
-    __tp->super.op( es, src_data, dest_data, __tp->super.op_data, k, n );
+              ((parsec_data_collection_t*)(__tp->super.src))->data_key((parsec_data_collection_t*)__tp->super.src, m, n) );
+    rc = __tp->super.op( es, src_data, dest_data, __tp->super.op_data, m, n );
 #endif
-    (void)es;
+    (void)es; (void)rc;
     return 0;
 }
 
@@ -422,38 +433,46 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     __parsec_map_operator_taskpool_t *__tp = (__parsec_map_operator_taskpool_t*)tp;
     parsec_task_t fake_context;
     parsec_task_t *ready_list;
-    int k = 0, n = 0, count = 0, vpid = 0;
+    int m = 0, n = 0, count = 0, vpid = 0;
     parsec_execution_stream_t* es;
 
     *startup_list = NULL;
     fake_context.task_class = &parsec_map_operator;
     fake_context.taskpool = tp;
     fake_context.priority = 0;
-    fake_context.data[0].data_repo = NULL;
+    fake_context.data[0].data_repo = NULL;  /* src */
     fake_context.data[0].data_in   = NULL;
-    fake_context.data[1].data_repo = NULL;
+    fake_context.data[1].data_repo = NULL;  /* dst */
     fake_context.data[1].data_in   = NULL;
-    for( vpid = 0; vpid < vpmap_get_nb_vp(); vpid++ ) {
-        /* If this is the last n, try to move to the next k */
+    
+    /**
+     * Generate one local task per core. Each task will then take care of creating all
+     * the remaining tasks for the same column of the matrix, and upon completion of
+     * all tasks on the column htey will move to the next row. The row index is marshalled
+     * using atomic operations to avoid conflicts between generators for different
+     * completed tasks.
+     */
+    for( vpid = 0; vpid < context->nb_vp; vpid++ ) {
+        /* If this is the last m, try to move to the next n */
         count = 0;
-        for( ; k < (int)__tp->super.src->nt; n = 0) {
-            for( ; n < (int)__tp->super.src->mt; n++ ) {
+        for( ; n < (int)__tp->super.src->nt; ) {
+            for( m = 0; m < (int)__tp->super.src->mt; m++ ) {
                 if (__tp->super.src->super.myrank !=
                     ((parsec_data_collection_t*)__tp->super.src)->rank_of((parsec_data_collection_t*)__tp->super.src,
-                                                                         k, n) )
+                                                                          m, n) )
                     continue;
 
                 if( vpid != ((parsec_data_collection_t*)__tp->super.src)->vpid_of((parsec_data_collection_t*)__tp->super.src,
-                                                                                 k, n) )
+                                                                                  m, n) )
                     continue;
                 /* Here we go, one ready local task */
                 ready_list = NULL;
                 es = context->virtual_processes[vpid]->execution_streams[count];
-                fake_context.locals[0].value = k;
+                fake_context.locals[0].value = m;
                 fake_context.locals[1].value = n;
                 add_task_to_list(es, &fake_context, NULL, &flow_of_map_operator_dep_out, NULL,
                                  __tp->super.src->super.myrank, -1,
-                                 0, (void*)&ready_list);
+                                 0 /* here this must always be zero due to ready_list */, (void*)&ready_list);
                 __parsec_schedule( es, ready_list, 0 );
                 count++;
                 if( count == context->virtual_processes[vpid]->nb_cores )
@@ -461,23 +480,28 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
                 break;
             }
             /* Go to the next row ... atomically */
-            k = parsec_atomic_fetch_inc_int32( &__tp->super.next_k ) + 1;
+            n = parsec_atomic_fetch_inc_int32( &__tp->super.next_n ) + 1;
         }
     done:  continue;
     }
+}
+
+static void parsec_map_operator_destructor( __parsec_map_operator_taskpool_t* tp )
+{
+    free(tp);
 }
 
 /**
  * Apply the operator op on all tiles of the src matrix. The src matrix is const, the
  * result is supposed to be pushed on the dest matrix. However, any of the two matrices
  * can be NULL, and then the data is reported as NULL in the corresponding op
- * floweter.
+ * flow.
  */
 parsec_taskpool_t*
 parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
-                       parsec_tiled_matrix_dc_t* dest,
-                       parsec_operator_t op,
-                       void* op_data)
+                        parsec_tiled_matrix_dc_t* dest,
+                        parsec_operator_t op,
+                        void* op_data)
 {
     __parsec_map_operator_taskpool_t *res;
 
@@ -495,9 +519,9 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
     res->super.super.profiling_array = parsec_map_operator_profiling_array;
     if( -1 == parsec_map_operator_profiling_array[0] ) {
         parsec_profiling_add_dictionary_keyword("operator", "fill:CC2828",
-                                               sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                               (int*)&res->super.super.profiling_array[0 + 2 * parsec_map_operator.task_class_id],
-                                               (int*)&res->super.super.profiling_array[1 + 2 * parsec_map_operator.task_class_id]);
+                                                sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                                (int*)&res->super.super.profiling_array[0 + 2 * parsec_map_operator.task_class_id],
+                                                (int*)&res->super.super.profiling_array[1 + 2 * parsec_map_operator.task_class_id]);
     }
 #  endif /* defined(PARSEC_PROF_TRACE) */
 
@@ -505,11 +529,10 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
     res->super.super.nb_tasks = src->nb_local_tiles;
     res->super.super.nb_pending_actions = 1;  /* for all local tasks */
     res->super.super.startup_hook = parsec_map_operator_startup_fn;
+    res->super.super.destructor = (parsec_destruct_fn_t) parsec_map_operator_destructor;
+    res->super.super.nb_task_classes = 1;
+    res->super.super.devices_mask = PARSEC_DEVICES_ALL;
+    res->super.super.update_nb_runtime_task = parsec_ptg_update_runtime_task;
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)res);
     return (parsec_taskpool_t*)res;
-}
-
-void parsec_map_operator_Destruct( parsec_taskpool_t* o )
-{
-    free(o);
 }

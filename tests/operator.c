@@ -4,6 +4,7 @@
  *                         reserved.
  */
 
+#include "parsec.h"
 #include "parsec/runtime.h"
 #include "parsec/data_internal.h"
 #include "parsec/execution_stream.h"
@@ -73,7 +74,7 @@ int main( int argc, char* argv[] )
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_map_operator_Destruct( op );
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(op);
 
     parsec_fini(&parsec);
 
