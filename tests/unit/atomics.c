@@ -16,7 +16,7 @@ typedef struct {
     int32_t      i32;
     int32_t      padding1;
     int64_t      i64;
-    
+
 #if defined(PARSEC_HAVE_INT128)
     __int128_t   i128;
     __int128_t   mo128;
@@ -48,7 +48,7 @@ static void *pfunction(void *_param)
     int nb_cases = 14;
 #endif
     param_t *param = (param_t*)_param;
-    
+
     parsec_bindthread(param->thid, 0);
 
     parsec_barrier_wait(&barrier1);
@@ -185,7 +185,7 @@ static char *int128_to_str_base16(__int128_t n, char *out) {
         positive_int128_tostr_rec( (__uint128_t)n, out, 0, 16 );
     else {
         out[0] = '0';
-        out[1] = '\0';        
+        out[1] = '\0';
     }
     return out;
 }
@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
     char v128a[128];
     char v128b[128];
 #endif
-    
+
     while( (ch = getopt(argc, argv, "c:n:h?")) != -1 ) {
         switch(ch) {
         case 'c':
@@ -332,19 +332,19 @@ int main(int argc, char *argv[])
                 values[nb_threads+1].ma32);
     }
     if( values[nb_threads+1].mo64 != values[i].mo64 ) {
-        fprintf(stderr, "Error in Mask Or operation on 64 bits: expected %16lx, got %16lx\n",
+        fprintf(stderr, "Error in Mask Or operation on 64 bits: expected %"PRIx64", got %"PRIx64"\n",
                 values[nb_threads+1].mo64, values[i].mo64);
         ret++;
     } else {
-        fprintf(stderr, "No error in Mask Or Operation on 64 bits: got %16lx\n",
+        fprintf(stderr, "No error in Mask Or Operation on 64 bits: got %"PRIx64"\n",
                 values[nb_threads+1].mo64);
     }
     if( values[nb_threads+1].ma64 != values[i].ma64 ) {
-        fprintf(stderr, "Error in Mask And operation on 64 bits: expected %16lx, got %16lx\n",
+        fprintf(stderr, "Error in Mask And operation on 64 bits: expected %"PRIx64", got %"PRIx64"\n",
                 values[nb_threads+1].ma64, values[i].ma64);
         ret++;
     } else {
-        fprintf(stderr, "No error in Mask And Operation on 64 bits: got %16lx\n",
+        fprintf(stderr, "No error in Mask And Operation on 64 bits: got %"PRIx64"\n",
                 values[nb_threads+1].ma64);
     }
     if( values[nb_threads+1].i32 != values[i].i32 ) {
@@ -356,11 +356,11 @@ int main(int argc, char *argv[])
                 values[nb_threads+1].i32);
     }
     if( values[nb_threads+1].i64 != values[i].i64 ) {
-        fprintf(stderr, "Error in integer operations on 64 bits: expected %ld, got %ld\n",
+        fprintf(stderr, "Error in integer operations on 64 bits: expected %"PRId64", got %"PRId64"\n",
                 values[nb_threads+1].i64, values[i].i64);
         ret++;
     } else {
-        fprintf(stderr, "No error in integer operation on 64 bits: got %ld\n",
+        fprintf(stderr, "No error in integer operation on 64 bits: got %"PRId64"\n",
                 values[nb_threads+1].i64);
     }
 #if defined(PARSEC_HAVE_INT128)
