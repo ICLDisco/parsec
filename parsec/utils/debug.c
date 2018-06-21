@@ -384,7 +384,6 @@ static inline mark_t *get_my_mark(int actual_size, int *actual_space)
     my_mark->mark[0] = '\0';
     my_mark->mark_index = my_buffer->current_index++;
     /* And update the writing mark pointer */
-    assert(my_buffer->current_end_mark < my_mark->next_mark); 
     my_buffer->current_end_mark = my_mark->next_mark;
 
     return my_mark;
