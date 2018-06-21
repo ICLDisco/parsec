@@ -97,5 +97,7 @@ if( MPI_C_FOUND )
   parsec_addtest(C multichain "${multichain_generated}")
 endif( MPI_C_FOUND )
 
+parsec_addtest(C compose "compose.c")
+
 # Define Testings
 include(Testings.cmake)

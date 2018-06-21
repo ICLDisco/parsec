@@ -153,9 +153,6 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
                        parsec_operator_t op,
                        void* op_data);
 
-extern void
-parsec_map_operator_Destruct( struct parsec_taskpool_s* o );
-
 extern struct parsec_taskpool_s*
 parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
                       parsec_tiled_matrix_dc_t* dest,
