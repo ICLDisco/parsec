@@ -374,7 +374,7 @@ static inline mark_t *get_my_mark(int actual_size, int *actual_space)
 
     /* Now prepare my_mark: make it point to its end, set the time and index, and reset the
      * string (in case another thread tries to display it before it is actually vsprintfed */
-    if( my_buffer->current_end_mark + actual_slots == (parsec_debug_max_history_length_per_thread / MARK_SIZE) )
+    if( my_buffer->current_end_mark + actual_slots >= (parsec_debug_max_history_length_per_thread / MARK_SIZE) )
         my_mark->next_mark = 0;
     else {
         assert( my_buffer->current_end_mark + actual_slots < parsec_debug_max_history_length_per_thread / MARK_SIZE );
