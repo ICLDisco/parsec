@@ -675,8 +675,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
                                                 0, NULL,
                                                 &device_delegate_begin, &device_delegate_end);
-        /* Ready to rock! The profiling must be on by default */
-        parsec_profiling_start();
     }
 #endif  /* PARSEC_PROF_TRACE */
     assert (NULL != parsec_enable_profiling);
@@ -764,6 +762,11 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Wait until all threads are done binding themselves */
     parsec_barrier_wait( &(context->barrier) );
     context->__parsec_internal_finalization_counter++;
+
+#if defined(PARSEC_PROF_TRACE)
+    /* Ready to rock! The profiling must be on by default */
+    parsec_profiling_start();
+#endif
 
     /* Release the temporary array used for starting up the threads */
     {

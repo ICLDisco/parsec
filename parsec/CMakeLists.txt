@@ -49,6 +49,14 @@ include(interfaces/CMakeLists.txt)
 # list(APPEND EXTRA_LIBS ${TAU_LIBRARIES})
 # set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" ${TAU_LIBRARY_DIR})
 
+find_package(OTF2)
+if(OTF2_FOUND)
+  set(PROFILING_SOURCE "profiling_otf2.c")
+  list(APPEND EXTRA_LIBS "otf2")
+else(OTF2_FOUND)
+  set(PROFILING_SOURCE "profiling.c")
+endif(OTF2_FOUND)
+
 set(SOURCES
   arena.c
   barrier.c
@@ -61,7 +69,7 @@ set(SOURCES
   mca/mca_repository.c
   mempool.c
   private_mempool.c
-  profiling.c
+  ${PROFILING_SOURCE}
   remote_dep.c
   scheduling.c
   vpmap.c
