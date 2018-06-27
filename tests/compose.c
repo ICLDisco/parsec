@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 {
     parsec_context_t* parsec;
     parsec_taskpool_t *tp1, *tp2, *tp3;
-    int nodes, rank, rc, i;
+    int nodes, rank, rc, i = 0;
 
 #if defined(PARSEC_HAVE_MPI)
     MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &nodes);
