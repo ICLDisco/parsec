@@ -21,7 +21,7 @@
 #include "parsec/class/dequeue.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec/parsec_hwloc.h"
-
+#include "parsec/papi_sde.h"
 #include "parsec/papi_sde_interface.h"
 
 #if defined(PARSEC_PROF_TRACE)
@@ -65,13 +65,15 @@ static int sched_lfq_install( parsec_context_t *master )
 
 static void sched_lfq_register_sde_counters(parsec_execution_stream_t *es)
 {
-    char event_name[256];
+#if defined(PARSEC_PAPI_SDE)
+    char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
     int thid;
     parsec_vp_t *vp;
 
     /* We register the counters only if the scheduler is installed, and only once per es */
     if( NULL != es && 0 == es->th_id ) {
-        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LFQ", es->virtual_process->vp_id);
+        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN,
+                 "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LFQ", es->virtual_process->vp_id);
         papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
                                      PAPI_SDE_int, (papi_sde_fptr_t)parsec_system_queue_length, es->virtual_process);
         papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
@@ -80,9 +82,11 @@ static void sched_lfq_register_sde_counters(parsec_execution_stream_t *es)
                                       "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LFQ", PAPI_SDE_SUM);
         vp = es->virtual_process;
         for(thid = 0; thid < vp->nb_cores; thid++) {
-            snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LFQ", vp->vp_id, thid);
+            snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN,
+                     "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LFQ", vp->vp_id, thid);
             papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                         PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_approx_occupency, LOCAL_QUEUES_OBJECT(vp->execution_streams[thid])->task_queue);
+                                         PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_approx_occupency,
+                                         LOCAL_QUEUES_OBJECT(vp->execution_streams[thid])->task_queue);
             papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
                                           "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
             papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
@@ -97,6 +101,9 @@ static void sched_lfq_register_sde_counters(parsec_execution_stream_t *es)
         papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>/<QID>::SCHED=LFQ",
                                   "the number of pending tasks that end up in the virtual process <VPID> queue of queue identifier <QID> for the LFQ scheduler");
     }
+#else
+    (void)es;
+#endif
 }
 
 static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -109,8 +116,7 @@ static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     vp = es->virtual_process;
 
     /* Every flow creates its own local object */
-    sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
-    sched_obj->local_system_queue_balance = 0;
+    sched_obj = (local_queues_scheduler_object_t*)calloc(sizeof(local_queues_scheduler_object_t), 1);
     es->scheduler_object = sched_obj;
     if( 0 == es->th_id ) {  /* And flow 0 creates the system_queue */
         sched_obj->system_queue = OBJ_NEW(parsec_dequeue_t);
@@ -204,12 +210,11 @@ sched_lfq_select(parsec_execution_stream_t *es,
         }
     }
 
-    task = (parsec_task_t *)parsec_dequeue_try_pop_front(LOCAL_QUEUES_OBJECT(es)->system_queue);
+    task = pop_from_system_queue_wrapper(LOCAL_QUEUES_OBJECT(es));
     if( NULL != task ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "LQ\t: %d:%d found task %p in its system queue %p",
                 es->virtual_process->vp_id, es->th_id, task, LOCAL_QUEUES_OBJECT(es)->system_queue);
         *distance = 1 + LOCAL_QUEUES_OBJECT(es)->nb_hierarch_queues;
-        LOCAL_QUEUES_OBJECT(es)->local_system_queue_balance--;
     }
     return task;
 }
@@ -221,10 +226,6 @@ static int sched_lfq_schedule(parsec_execution_stream_t* es,
     parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(es)->task_queue,
                              (parsec_list_item_t*)new_context,
                              distance);
-/* #if defined(PARSEC_PROF_TRACE) */
-/*     TAKE_TIME(es->es_profile, queue_add_begin, 0); */
-/*     TAKE_TIME(es->es_profile, queue_add_end, 0); */
-/* #endif */
     return 0;
 }
 
@@ -234,7 +235,6 @@ static void sched_lfq_remove( parsec_context_t *master )
     parsec_execution_stream_t *es;
     parsec_vp_t *vp;
     local_queues_scheduler_object_t *sched_obj;
-    char event_name[256];
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
@@ -259,11 +259,9 @@ static void sched_lfq_remove( parsec_context_t *master )
                 es->scheduler_object = NULL;
             }
             // else the scheduler wasn't really initialized anyway
-            snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LFQ", vp->vp_id, t);
-            papi_sde_unregister_counter(parsec_papi_sde_handle, event_name);
+            parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LFQ", vp->vp_id, t);
         }
-        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LFQ", p);
-        papi_sde_unregister_counter(parsec_papi_sde_handle, event_name);
+        parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LFQ", p);
     }
-    papi_sde_unregister_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LFQ");
+    parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LFQ");
 }

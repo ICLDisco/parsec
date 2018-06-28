@@ -375,10 +375,12 @@ PARSEC_DECLSPEC extern size_t parsec_task_startup_chunk;
  */
 PARSEC_DECLSPEC extern int parsec_want_rusage;
 
+#if defined(PARSEC_PAPI_SDE)
 /**
  * Global PAPI Software-Defined Event handle for PaRSEC
  */
 PARSEC_DECLSPEC extern papi_handle_t parsec_papi_sde_handle;
+#endif
 
 /**
  * Description of the state of the task. It indicates what will be the next

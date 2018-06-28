@@ -17,6 +17,7 @@
 #include "parsec/mca/sched/spq/sched_spq.h"
 #include "parsec/class/dequeue.h"
 #include "parsec/mca/pins/pins.h"
+#include "parsec/papi_sde.h"
 
 /**
  * Module functions
@@ -62,7 +63,9 @@ static inline void parsec_spq_priority_list_destruct( parsec_spq_priority_list_t
  * only an approximation of the number of tasks */
 typedef struct {
     parsec_list_t super;
+#if defined(PARSEC_PAPI_SDE)
     long long int size;
+#endif
 } parsec_list_with_size_t;
 
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_list_with_size_t);
@@ -74,7 +77,11 @@ OBJ_CLASS_INSTANCE(parsec_list_with_size_t, parsec_list_t,
 
 static inline void parsec_list_with_size_construct( parsec_list_with_size_t*plist )
 {
+#if defined(PARSEC_PAPI_SDE)
     plist->size = 0;
+#else
+    (void)plist;
+#endif
 }
 
 const parsec_sched_module_t parsec_sched_spq_module = {
@@ -100,10 +107,11 @@ static int sched_spq_install( parsec_context_t *master )
 
 static void sched_spq_register_sde( parsec_execution_stream_t *es )
 {
-    char event_name[256];
+#if defined(PARSEC_PAPI_SDE)
+    char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
     /* We register the counters only if the scheduler is installed, and only once per es */
     if( NULL != es && 0 == es->th_id ) {
-        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=SPQ", es->virtual_process->vp_id);
+        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=SPQ", es->virtual_process->vp_id);
         papi_sde_register_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,PAPI_SDE_int,
                                   &((parsec_list_with_size_t*)es->scheduler_object)->size);
         papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
@@ -119,7 +127,9 @@ static void sched_spq_register_sde( parsec_execution_stream_t *es )
         papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=SPQ",
                                   "the number of pending tasks for the SPQ scheduler on virtual process <VPID>");
     }
-
+#else
+    (void)es;
+#endif
 }
 
 static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -153,7 +163,9 @@ static parsec_task_t* sched_spq_select(parsec_execution_stream_t *es,
         plist = (parsec_spq_priority_list_t*)li;
         if( (context = (parsec_task_t*)parsec_list_pop_front(&plist->tasks)) != NULL ) {
             *distance = plist->prio;
+#if defined(PARSEC_PAPI_SDE)
             task_list->size--;
+#endif
             break;
         }
     }
@@ -166,14 +178,15 @@ static int sched_spq_schedule(parsec_execution_stream_t* es,
                              int32_t distance)
 {
     parsec_list_item_t *li;
-    int len;
     int new_prio;
     parsec_spq_priority_list_t *plist;
     parsec_list_with_size_t *task_list = (parsec_list_with_size_t*)es->scheduler_object;
-
+#if defined(PARSEC_PAPI_SDE)
+    int len;
     len = 0;
     _LIST_ITEM_ITERATOR(new_context, &new_context->super, item, {len++; });
-
+#endif
+    
     new_prio = 1;
     parsec_list_lock(&task_list->super);
     li = PARSEC_LIST_ITERATOR_FIRST(&task_list->super);
@@ -193,7 +206,9 @@ static int sched_spq_schedule(parsec_execution_stream_t* es,
         plist->prio = distance;
         parsec_list_nolock_add_before(&task_list->super, li, &plist->super);
     }
+#if defined(PARSEC_PAPI_SDE)
     task_list->size += len;
+#endif
     parsec_list_chain_sorted(&plist->tasks,
                              (parsec_list_item_t*)new_context,
                              parsec_execution_context_priority_comparator);
@@ -208,7 +223,6 @@ static void sched_spq_remove( parsec_context_t *master )
     parsec_execution_stream_t *eu;
     parsec_list_item_t *li;
     parsec_list_with_size_t *plist;
-    char event_name[256];
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
@@ -222,8 +236,7 @@ static void sched_spq_remove( parsec_context_t *master )
             }
             eu->scheduler_object = NULL;
         }
-        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=SPQ", p);
-        papi_sde_unregister_counter(parsec_papi_sde_handle, event_name);
+        parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=SPQ", p);
     }
-    papi_sde_unregister_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=SPQ");
+    parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=SPQ");
 }

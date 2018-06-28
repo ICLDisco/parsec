@@ -607,6 +607,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     if( parsec_context->__parsec_internal_finalization_in_progress ) {
         PINS_THREAD_FINI(es);
     }
+    
     return nbiterations;
 }
 

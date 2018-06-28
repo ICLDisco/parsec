@@ -274,7 +274,9 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
         return NULL;
     }
 
-    return (void*)(long)__parsec_context_wait(es);
+    void *ret = (void*)(long)__parsec_context_wait(es);
+    parsec_papi_sde_thread_fini();
+    return ret;
 }
 
 static void parsec_vp_init( parsec_vp_t *vp,
@@ -554,8 +556,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                      nb_total_comp_threads, nb_cores);
         nb_cores = nb_total_comp_threads;
     }
-
-    parsec_papi_sde_enable_basic_events(nb_total_comp_threads + 1);
 
     startup = (__parsec_temporary_thread_initialization_t*)
         malloc(nb_total_comp_threads * sizeof(__parsec_temporary_thread_initialization_t));
@@ -990,6 +990,8 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_hwloc_fini();
 #endif  /* PARSEC_HAVE_HWLOC_BITMAP */
 
+    parsec_papi_sde_fini();
+    
     if (parsec_app_name != NULL ) {
         free(parsec_app_name);
         parsec_app_name = NULL;

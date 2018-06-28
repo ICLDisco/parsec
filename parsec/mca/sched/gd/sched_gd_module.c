@@ -17,6 +17,7 @@
 #include "parsec/mca/sched/gd/sched_gd.h"
 #include "parsec/class/dequeue.h"
 #include "parsec/mca/pins/pins.h"
+#include "parsec/papi_sde.h"
 
 /**
  * Module functions
@@ -45,12 +46,18 @@ const parsec_sched_module_t parsec_sched_gd_module = {
     }
 };
 
+#if defined(PARSEC_PAPI_SDE)
 typedef struct {
     parsec_dequeue_t *dequeue;
     int               local_counter;
 } shared_dequeue_with_local_counter_t;
+#else
+typedef parsec_dequeue_t shared_dequeue_with_local_counter_t;
+#endif
+
 #define LOCAL_SCHED_OBJECT(eu_context) ((shared_dequeue_with_local_counter_t*)(eu_context)->scheduler_object)
 
+#if defined(PARSEC_PAPI_SDE)
 static long long int parsec_shared_dequeue_length( parsec_vp_t *vp )
 {
     int thid;
@@ -61,6 +68,7 @@ static long long int parsec_shared_dequeue_length( parsec_vp_t *vp )
     }
     return sum;
 }
+#endif
 
 static int sched_gd_install( parsec_context_t *master )
 {
@@ -70,10 +78,11 @@ static int sched_gd_install( parsec_context_t *master )
 
 static void sched_gd_register_sde( parsec_execution_stream_t *es )
 {
-    char event_name[256];
+#if defined(PARSEC_PAPI_SDE)
+    char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
     /* We register the counters only if the scheduler is installed, and only once per es */
     if( NULL != es && 0 == es->th_id ) {
-        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=GD", es->virtual_process->vp_id);
+        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=GD", es->virtual_process->vp_id);
         papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
                                      PAPI_SDE_int, (papi_sde_fptr_t)parsec_shared_dequeue_length, es->virtual_process);
         papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
@@ -89,12 +98,14 @@ static void sched_gd_register_sde( parsec_execution_stream_t *es )
         papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=GD",
                                   "the number of pending tasks for the GD scheduler on virtual process <VPID>");
     }
+#else
+    (void)es;
+#endif
 }
 
 static int flow_gd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
 {
     parsec_vp_t *vp = es->virtual_process;
-
     /*
      * This function is called for each execution stream. However, as there is
      * a single global dequeue per context, it will be associated with the
@@ -102,16 +113,26 @@ static int flow_gd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
      * execution stream will make reference to the same dequeue (once we
      * succesfully synchronized all execution streams).
      */
-    shared_dequeue_with_local_counter_t *sd = (shared_dequeue_with_local_counter_t*)calloc(sizeof(shared_dequeue_with_local_counter_t), 1);
-    es->scheduler_object = sd;
-    if (es == vp->execution_streams[0])
-        sd->dequeue = OBJ_NEW(parsec_dequeue_t);
-
+    if( es == vp->execution_streams[0] ) {
+#if defined(PARSEC_PAPI_SDE)
+        es->scheduler_object = (shared_dequeue_with_local_counter_t*)calloc(sizeof(shared_dequeue_with_local_counter_t), 1);
+        LOCAL_SCHED_OBJECT(es)->dequeue = OBJ_NEW(parsec_dequeue_t);
+#else
+        es->scheduler_object = OBJ_NEW(parsec_dequeue_t);
+#endif
+    }
+    
     parsec_barrier_wait(barrier);
 
     if (es != vp->execution_streams[0]) {
-        sd->dequeue = LOCAL_SCHED_OBJECT(vp->execution_streams[0])->dequeue;
-        OBJ_RETAIN(sd->dequeue);
+#if defined(PARSEC_PAPI_SDE)
+        es->scheduler_object = (shared_dequeue_with_local_counter_t*)calloc(sizeof(shared_dequeue_with_local_counter_t), 1);
+        LOCAL_SCHED_OBJECT(es)->dequeue = LOCAL_SCHED_OBJECT(vp->execution_streams[0])->dequeue;
+        OBJ_RETAIN(LOCAL_SCHED_OBJECT(es)->dequeue);
+#else
+        es->scheduler_object = LOCAL_SCHED_OBJECT(vp->execution_streams[0]);
+        OBJ_RETAIN(LOCAL_SCHED_OBJECT(es));
+#endif
     }
     
     sched_gd_register_sde( es );
@@ -124,10 +145,15 @@ sched_gd_select(parsec_execution_stream_t *es,
                 int32_t* distance)
 {
     shared_dequeue_with_local_counter_t *sd = LOCAL_SCHED_OBJECT(es);
+#if defined(PARSEC_PAPI_SDE)
     parsec_task_t * context =
         (parsec_task_t*)parsec_dequeue_try_pop_front( sd->dequeue );
     if(NULL != context)
         sd->local_counter--;
+#else
+    parsec_task_t * context =
+        (parsec_task_t*)parsec_dequeue_try_pop_front( sd );
+#endif
     *distance = 0;
     return context;
 }
@@ -136,19 +162,24 @@ static int sched_gd_schedule(parsec_execution_stream_t* es,
                              parsec_task_t* new_context,
                              int32_t distance)
 {
-    int len = 0;
     shared_dequeue_with_local_counter_t *sd = LOCAL_SCHED_OBJECT(es);
-
+    parsec_dequeue_t *dq;
+#if defined(PARSEC_PAPI_SDE)
+    int len = 0;
     _LIST_ITEM_ITERATOR(new_context, &new_context->super, item, {len++; });
+    sd->local_counter += len;
+    dq = sd->dequeue;
+#else
+    dq = sd;
+#endif
 
     if( (new_context->task_class->flags & PARSEC_HIGH_PRIORITY_TASK) &&
         (0 == distance) ) {
-        parsec_dequeue_chain_front( sd->dequeue, (parsec_list_item_t*)new_context);
+        parsec_dequeue_chain_front( dq, (parsec_list_item_t*)new_context);
     } else {
-        parsec_dequeue_chain_back( sd->dequeue, (parsec_list_item_t*)new_context);
+        parsec_dequeue_chain_back( dq, (parsec_list_item_t*)new_context);
     }
 
-    sd->local_counter += len;
     return 0;
 }
 
@@ -158,19 +189,21 @@ static void sched_gd_remove( parsec_context_t *master )
     parsec_execution_stream_t *es;
     parsec_vp_t *vp;
     int p, t;
-    char event_name[256];
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
         for(t = 0; t < vp->nb_cores; t++) {
             es = vp->execution_streams[t];
             sd = LOCAL_SCHED_OBJECT(es);
+#if defined(PARSEC_PAPI_SDE)
             OBJ_RELEASE( sd->dequeue );
             free(sd);
+#else
+            OBJ_RELEASE(sd);
+#endif
             es->scheduler_object = NULL;
         }
-        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=GD", p);
-        papi_sde_unregister_counter(parsec_papi_sde_handle, event_name);
+        parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=GD", p);
     }
-    papi_sde_unregister_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=GD");
+    parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=GD");
 }

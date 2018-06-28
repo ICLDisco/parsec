@@ -350,9 +350,9 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
         event->core = -1;
         event->frequency = 1;
 
-        /* Iterate through the separate events in the string that are separated by a '|' character. */
+        /* Iterate through the separate events in the string that are separated by a ':' character. */
         for(  /* none */; NULL != token;
-                        token = strchr(token, (int)'|'), token++ ) {
+                        token = strchr(token, (int)':'), token++ ) {
             /* This token represents the socket for this event. */
             if((0 == socket_set) && token[0] == 'S') {
                 if(token[1] != '*') {
@@ -403,7 +403,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 }
                 if( value < 0 ) {
                     parsec_debug_verbose(3, parsec_debug_output, "Obtained a negative value [%ld:%s] for the frequency of the PINS event %s. Assume frequency of 1.",
-                                 value, &token[2], token);
+                                 value, &token[1], token);
                     continue;
                 }
                 const struct pins_papi_units_s* unit = find_unit_by_name(remaining);
@@ -422,8 +422,8 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
         find_event:
             /* Convert event name to code */
             if(PAPI_OK != (err = PAPI_event_name_to_code(token, &event->pins_papi_native_event)) ) {
-                parsec_warning("Could not convert %s to a valid PAPI event name (%s). Ignore the event",
-                               token, PAPI_strerror(err));
+                parsec_debug_verbose(3, parsec_debug_output, "Could not convert %s to a valid PAPI event name (%s). Ignore the event",
+                             token, PAPI_strerror(err));
                 break;
             }
             /* We're good to go, let's add the event to our queues */

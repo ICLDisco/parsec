@@ -148,6 +148,13 @@ endif()
 option(PARSEC_PROF_TRACE
   "Enable the generation of the profiling information during
   execution" OFF)
+if( PARSEC_PROF_TRACE )
+  SET(PARSEC_PAPI_SDE "ON")
+else( PARSEC_PROF_TRACE )
+  UNSET(PARSEC_PAPI_SDE)
+  UNSET(PARSEC_PAPI_SDE CACHE)
+endif( PARSEC_PROF_TRACE )
+
 option(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET
   "Enable the profiling of active arena set to track memory usage of parsec handles" OFF)
 mark_as_advanced(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET)

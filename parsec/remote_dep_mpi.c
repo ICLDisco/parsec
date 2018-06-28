@@ -419,8 +419,11 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
         remote_dep_mpi_on(context);
         whatsup = remote_dep_dequeue_nothread_progress(context, -1 /* loop till explicitly asked to return */);
     } while(-1 != whatsup);
+
     /* Release all resources */
     remote_dep_mpi_fini(context);
+    parsec_papi_sde_thread_fini();
+    
     return (void*)context;
 }
 

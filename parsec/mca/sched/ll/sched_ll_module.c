@@ -19,6 +19,7 @@
 #include "parsec/mca/sched/ll/sched_ll.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec/parsec_hwloc.h"
+#include "parsec/papi_sde.h"
 
 #if defined(PARSEC_PROF_TRACE)
 #define TAKE_TIME(ES_PROFILE, KEY, ID)  PARSEC_PROFILING_TRACE((ES_PROFILE), (KEY), (ID), NULL)
@@ -73,30 +74,35 @@ const parsec_sched_module_t parsec_sched_ll_module = {
  *   represents how many insert/remove a given thread did, not
  *   how many items are in the corresponding lifo
  */
-
 typedef struct {
     parsec_lifo_t lifo;
+#if defined(PARSEC_PAPI_SDE)
     int           local_counter;
+#endif
 } parsec_lifo_with_local_counter_t;
 
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_with_local_counter_t);
 
 static inline void parsec_lifo_with_local_counter_construct( parsec_lifo_with_local_counter_t* lifo )
 {
-    /* Don't allow strange alignemnts */
+#if defined(PARSEC_PAPI_SDE)
     lifo->local_counter = 0;
+#else
+    (void)lifo;
+#endif
 }
 
 OBJ_CLASS_INSTANCE(parsec_lifo_with_local_counter_t, parsec_lifo_t,
                    parsec_lifo_with_local_counter_construct, NULL);
 
+#if defined(PARSEC_PAPI_SDE)
 static long long int parsec_lifo_with_local_counter_length( parsec_vp_t *vp )
 {
     int t;
     long long int sum = 0;
     parsec_execution_stream_t *es;
     parsec_lifo_with_local_counter_t *sched_obj;
-    
+
     for(t = 0; t < vp->nb_cores; t++) {
         es = vp->execution_streams[t];
         sched_obj = (parsec_lifo_with_local_counter_t*)es->scheduler_object;
@@ -104,6 +110,7 @@ static long long int parsec_lifo_with_local_counter_length( parsec_vp_t *vp )
     }
     return sum;
 }
+#endif
 
 /**
  * @brief
@@ -125,10 +132,11 @@ static int sched_ll_install( parsec_context_t *master )
 
 static void sched_ll_register_sde_counters(parsec_execution_stream_t *es)
 {
-    char event_name[256];
+#if defined(PARSEC_PAPI_SDE)
+    char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
     /* We register the counters only if the scheduler is installed, and only once per es */
     if( NULL != es && 0 == es->th_id ) {
-        snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=LL", es->virtual_process->vp_id);
+        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=LL", es->virtual_process->vp_id);
         papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
                                      PAPI_SDE_int, (papi_sde_fptr_t)parsec_lifo_with_local_counter_length, es->virtual_process);
         papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
@@ -144,6 +152,9 @@ static void sched_ll_register_sde_counters(parsec_execution_stream_t *es)
          papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=LL",
                                   "the number of pending tasks that end up in the virtual process <VPID> for the LFQ scheduler");
     }
+#else
+    (void)es;
+#endif
 }
 
 /**
@@ -205,13 +216,17 @@ static parsec_task_t* sched_ll_select(parsec_execution_stream_t *es,
             task = (parsec_task_t*)parsec_lifo_pop(&sched_obj->lifo);
             if( NULL != task ) {
                 *distance = d;
+#if defined(PARSEC_PAPI_SDE)
                 es_sched_obj->local_counter--;
+#endif
                 return task;
             }
         }
         return NULL;
     } else {
-        es_sched_obj->local_counter--;        
+#if defined(PARSEC_PAPI_SDE)
+        es_sched_obj->local_counter--;
+#endif
         *distance = 0;
         return task;
     }
@@ -237,10 +252,11 @@ static int sched_ll_schedule(parsec_execution_stream_t* es,
 {
     parsec_lifo_with_local_counter_t *es_sched_obj = (parsec_lifo_with_local_counter_t*)es->scheduler_object;
     parsec_lifo_with_local_counter_t *sched_obj;
+#if defined(PARSEC_PAPI_SDE)
     int len = 0;
     _LIST_ITEM_ITERATOR(new_context, &new_context->super, item, {len++; });
-
     es_sched_obj->local_counter+=len;
+#endif
     if( distance > 0 ) {
         parsec_vp_t *vp = es->virtual_process;
         int target;
@@ -276,7 +292,6 @@ static void sched_ll_remove( parsec_context_t *master )
     parsec_execution_stream_t *es;
     parsec_vp_t *vp;
     parsec_lifo_with_local_counter_t *sched_obj;
-    char event_name[256];
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
@@ -287,9 +302,8 @@ static void sched_ll_remove( parsec_context_t *master )
                 OBJ_RELEASE(sched_obj);
                 es->scheduler_object = NULL;
             }
-            snprintf(event_name, 256, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=LL", vp->vp_id);
-            papi_sde_unregister_counter(parsec_papi_sde_handle, event_name);
+            parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=LL", vp->vp_id);
         }
     }
-    papi_sde_unregister_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LL");
+    parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LL");
 }

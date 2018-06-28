@@ -80,6 +80,9 @@
 #cmakedefine PARSEC_PROF_DRY_BODY
 #cmakedefine PARSEC_PROF_DRY_DEP
 
+/* Software Defined Events through PAPI-SDE */
+#cmakedefine PARSEC_PAPI_SDE
+
 /* Instrumenting (PINS) */
 #cmakedefine PINS_ENABLE
 
