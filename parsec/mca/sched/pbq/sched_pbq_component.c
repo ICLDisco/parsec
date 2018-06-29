@@ -20,6 +20,7 @@
 
 #include "parsec/mca/sched/sched.h"
 #include "parsec/mca/sched/pbq/sched_pbq.h"
+#include "parsec/papi_sde.h"
 
 /*
  * Local function
@@ -74,7 +75,13 @@ static int sched_pbq_component_query(mca_base_module_t **module, int *priority)
 
 static int sched_pbq_component_register(void)
 {
-    parsec_sched_pbq_module.module.register_sde(NULL);
+#if defined(PARSEC_PAPI_SDE)
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=PBQ",
+                              "the number of pending tasks for the PBQ scheduler");
+    papi_sde_describe_counter(parsec_papi_sde_handle,
+                              "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>/<QID>::SCHED=PBQ",
+                              "the number of pending tasks that end up in the virtual process <VPID> queue at level <QID> for the PBQ scheduler");
+#endif
     return MCA_SUCCESS;
 }
 

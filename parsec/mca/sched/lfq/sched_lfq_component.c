@@ -20,6 +20,7 @@
 
 #include "parsec/mca/sched/sched.h"
 #include "parsec/mca/sched/lfq/sched_lfq.h"
+#include "parsec/papi_sde.h"
 
 /*
  * Local function
@@ -75,6 +76,11 @@ static int sched_lfq_component_query(mca_base_module_t **module, int *priority)
 
 static int sched_lfq_component_register(void)
 {
-    parsec_sched_lfq_module.module.register_sde(NULL);
+#if defined(PARSEC_PAPI_SDE)
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LFQ",
+                              "the number of pending tasks for the LFQ scheduler");
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>/<QID>::SCHED=LFQ",
+                              "the number of pending tasks that end up in the virtual process <VPID> queue of queue identifier <QID> for the LFQ scheduler");
+#endif
     return MCA_SUCCESS;
 }

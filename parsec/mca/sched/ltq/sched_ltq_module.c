@@ -37,7 +37,6 @@ static parsec_task_t *sched_ltq_select(parsec_execution_stream_t *es,
                                        int32_t* distance);
 static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier);
 static void sched_ltq_remove(parsec_context_t* master);
-static void sched_ltq_register_sde_counters(parsec_execution_stream_t *es);
 
 const parsec_sched_module_t parsec_sched_ltq_module = {
     &parsec_sched_ltq_component,
@@ -47,7 +46,6 @@ const parsec_sched_module_t parsec_sched_ltq_module = {
         sched_ltq_schedule,
         sched_ltq_select,
         NULL,
-        sched_ltq_register_sde_counters,
         sched_ltq_remove
     }
 };
@@ -56,47 +54,6 @@ static int sched_ltq_install( parsec_context_t *master )
 {
     (void)master;
     return 0;
-}
-
-static void sched_ltq_register_sde_counters(parsec_execution_stream_t *es)
-{
-#if defined(PARSEC_PAPI_SDE)
-    char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
-    int thid;
-    parsec_vp_t *vp;
-
-    /* We register the counters only if the scheduler is installed, and only once per es */
-    if( NULL != es && 0 == es->th_id ) {
-        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LTQ", es->virtual_process->vp_id);
-        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_system_queue_length, es->virtual_process);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ", PAPI_SDE_SUM);
-        vp = es->virtual_process;
-        for(thid = 0; thid < vp->nb_cores; thid++) {
-            snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LTQ", vp->vp_id, thid);
-            papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                         PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_approx_occupency,
-                                         LOCAL_QUEUES_OBJECT(vp->execution_streams[thid])->task_queue);
-            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                          "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
-            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                          "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ", PAPI_SDE_SUM);
-        }
-    }
-    /* We describe the counters once if the scheduler is installed, or if we are called without
-     * an execution stream (typically during papi_native_avail library load) */
-    if( NULL == es || 0 == es->th_id ) {
-        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ",
-                                  "the number of pending tasks for the LTQ scheduler");
-        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>/<QID>::SCHED=LTQ",
-                                  "the number of pending tasks that end up in the virtual process <VPID> queue at level <QID> for the LTQ scheduler");
-    }
-#else
-    (void)es;
-#endif
 }
 
 static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -176,7 +133,32 @@ static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
 #endif
     }
 
-    sched_ltq_register_sde_counters(es);
+#if defined(PARSEC_PAPI_SDE)
+    if( 0 == es->th_id ) {
+        char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
+        int thid;
+        parsec_vp_t *vp;
+
+        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LTQ", es->virtual_process->vp_id);
+        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_system_queue_length, es->virtual_process);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ", PAPI_SDE_SUM);
+        vp = es->virtual_process;
+        for(thid = 0; thid < vp->nb_cores; thid++) {
+            snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LTQ", vp->vp_id, thid);
+            papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                         PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_approx_occupency,
+                                         LOCAL_QUEUES_OBJECT(vp->execution_streams[thid])->task_queue);
+            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                          "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                          "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ", PAPI_SDE_SUM);
+        }
+    }
+#endif
     
     return 0;
 }
@@ -338,9 +320,9 @@ static void sched_ltq_remove( parsec_context_t *master )
             free(es->scheduler_object);
             es->scheduler_object = NULL;
 
-            parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LTQ", vp->vp_id, t);
+            PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=LTQ", vp->vp_id, t);
         }
-        parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LTQ", p);
+        PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=LTQ", p);
     }
-    parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ");
+    PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LTQ");
 }

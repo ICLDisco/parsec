@@ -31,7 +31,6 @@ sched_spq_select(parsec_execution_stream_t *es,
                 int32_t* distance);
 static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier);
 static void sched_spq_remove(parsec_context_t* master);
-static void sched_spq_register_sde( parsec_execution_stream_t *es );
 
 typedef struct parsec_spq_priority_list_s {
     parsec_list_item_t super;
@@ -92,7 +91,6 @@ const parsec_sched_module_t parsec_sched_spq_module = {
         sched_spq_schedule,
         sched_spq_select,
         NULL,
-        sched_spq_register_sde,
         sched_spq_remove
     }
 };
@@ -103,33 +101,6 @@ static int sched_spq_install( parsec_context_t *master )
 {
     (void)master;
     return 0;
-}
-
-static void sched_spq_register_sde( parsec_execution_stream_t *es )
-{
-#if defined(PARSEC_PAPI_SDE)
-    char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
-    /* We register the counters only if the scheduler is installed, and only once per es */
-    if( NULL != es && 0 == es->th_id ) {
-        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=SPQ", es->virtual_process->vp_id);
-        papi_sde_register_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,PAPI_SDE_int,
-                                  &((parsec_list_with_size_t*)es->scheduler_object)->size);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=SPQ", PAPI_SDE_SUM);
-    }
-    /* We describe the counters once if the scheduler is installed, or if we are called without
-     * an execution stream (typically during papi_native_avail library load) */
-    if( NULL == es || 0 == es->th_id ) {
-        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=SPQ",
-                                  "the number of pending tasks for the SPQ scheduler");
-        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=SPQ",
-                                  "the number of pending tasks for the SPQ scheduler on virtual process <VPID>");
-    }
-#else
-    (void)es;
-#endif
 }
 
 static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -143,7 +114,18 @@ static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
 
     es->scheduler_object = (void*)vp->execution_streams[0]->scheduler_object;
 
-    sched_spq_register_sde( es );
+#if defined(PARSEC_PAPI_SDE)
+    if( 0 == es->th_id ) {
+        char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
+        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=SPQ", es->virtual_process->vp_id);
+        papi_sde_register_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,PAPI_SDE_int,
+                                  &((parsec_list_with_size_t*)es->scheduler_object)->size);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=SPQ", PAPI_SDE_SUM);
+    }
+#endif
 
     return 0;
 }
@@ -236,7 +218,7 @@ static void sched_spq_remove( parsec_context_t *master )
             }
             eu->scheduler_object = NULL;
         }
-        parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=SPQ", p);
+        PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=SPQ", p);
     }
-    parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=SPQ");
+    PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=SPQ");
 }

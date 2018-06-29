@@ -456,7 +456,6 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_task_t);
 extern int schedule_poll_begin, schedule_poll_end;
 extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
-extern int queue_add_begin, queue_add_end;
 extern int queue_remove_begin, queue_remove_end;
 extern int device_delegate_begin, device_delegate_end;
 

@@ -400,7 +400,7 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
     int whatsup;
 
     remote_dep_bind_thread(context);
-    parsec_papi_sde_thread_init();
+    PARSEC_PAPI_SDE_THREAD_INIT();
 
     remote_dep_mpi_init(context);
     /* Now synchronize with the main thread */
@@ -422,7 +422,7 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
 
     /* Release all resources */
     remote_dep_mpi_fini(context);
-    parsec_papi_sde_thread_fini();
+    PARSEC_PAPI_SDE_THREAD_FINI();
     
     return (void*)context;
 }

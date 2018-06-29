@@ -32,7 +32,6 @@ sched_ap_select(parsec_execution_stream_t *es,
                 int32_t* distance);
 static int flow_ap_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier);
 static void sched_ap_remove(parsec_context_t* master);
-static void sched_ap_register_sde(parsec_execution_stream_t *es);
 
 const parsec_sched_module_t parsec_sched_ap_module = {
     &parsec_sched_ap_component,
@@ -42,7 +41,6 @@ const parsec_sched_module_t parsec_sched_ap_module = {
         sched_ap_schedule,
         sched_ap_select,
         NULL,
-        sched_ap_register_sde,
         sched_ap_remove
     }
 };
@@ -53,34 +51,6 @@ static int sched_ap_install( parsec_context_t *master )
 {
     (void)master;
     return 0;
-}
-
-static void sched_ap_register_sde( parsec_execution_stream_t *es )
-{
-#if defined(PARSEC_PAPI_SDE)
-    char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
-    /* We register the counters only if the scheduler is installed, and only once per es */
-    if( NULL != es && 0 == es->th_id ) {
-        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN,
-                 "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=AP", es->virtual_process->vp_id);
-        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_list_local_counter_length, es->virtual_process);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=AP", PAPI_SDE_SUM);
-    }
-    /* We describe the counters once if the scheduler is installed, or if we are called without
-     * an execution stream (typically during papi_native_avail library load) */
-    if( NULL == es || 0 == es->th_id ) {
-        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=AP",
-                                  "the number of pending tasks for the AP scheduler");
-        papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=AP",
-                                  "the number of pending tasks for the AP scheduler on virtual process <VPID>");
-    }
-#else
-    (void)es;
-#endif
 }
 
 static int flow_ap_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -100,8 +70,20 @@ static int flow_ap_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
         es->scheduler_object = sl;
     }
     
-    sched_ap_register_sde( es );
-    
+#if defined(PARSEC_PAPI_SDE)
+    if( es->th_id ) {
+        char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
+        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN,
+                 "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=AP", es->virtual_process->vp_id);
+        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_list_local_counter_length, es->virtual_process);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=AP", PAPI_SDE_SUM);
+    }
+#endif
+
     return 0;
 }
 
@@ -148,7 +130,7 @@ static void sched_ap_remove( parsec_context_t *master )
             free_parsec_list_local_counter(sl);
             es->scheduler_object = NULL;
         }
-        parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=AP", p);
+        PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=AP", p);
     }
-    parsec_papi_sde_unregister_counter("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=AP");
+    PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=AP");
 }

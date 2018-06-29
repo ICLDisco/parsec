@@ -20,6 +20,7 @@
 
 #include "parsec/mca/sched/sched.h"
 #include "parsec/mca/sched/ip/sched_ip.h"
+#include "parsec/papi_sde.h"
 
 /*
  * Local function
@@ -75,6 +76,11 @@ static int sched_ip_component_query(mca_base_module_t **module, int *priority)
 
 static int sched_ip_component_register(void)
 {
-    parsec_sched_ip_module.module.register_sde(NULL);
-    return MCA_SUCCESS;
+#if defined(PARSEC_PAPI_SDE)
+     papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=IP",
+                                  "the number of pending tasks for the IP scheduler");
+     papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=IP",
+                               "the number of pending tasks for the IP scheduler on virtual process <VPID>");
+#endif
+     return MCA_SUCCESS;
 }

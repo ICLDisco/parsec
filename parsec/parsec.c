@@ -79,7 +79,6 @@ int MEMALLOC_start_key, MEMALLOC_end_key;
 int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
 int schedule_sleep_begin, schedule_sleep_end;
-int queue_add_begin, queue_add_end;
 int queue_remove_begin, queue_remove_end;
 #endif  /* defined(PARSEC_PROF_TRACE_SCHEDULING_EVENTS) */
 int device_delegate_begin, device_delegate_end;
@@ -191,7 +190,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
                             startup->virtual_process->vp_id, startup->th_id);
     }
 
-    parsec_papi_sde_thread_init();
+    PARSEC_PAPI_SDE_THREAD_INIT();
 
     es = (parsec_execution_stream_t*)malloc(sizeof(parsec_execution_stream_t));
     if( NULL == es ) {
@@ -275,7 +274,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     }
 
     void *ret = (void*)(long)__parsec_context_wait(es);
-    parsec_papi_sde_thread_fini();
+    PARSEC_PAPI_SDE_THREAD_FINI();
     return ret;
 }
 
@@ -340,7 +339,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_warning = 0;
 
-    parsec_papi_sde_init();
+    PARSEC_PAPI_SDE_INIT();
     
     parsec_installdirs_open();
     parsec_mca_param_init();
@@ -659,9 +658,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
                                                 0, NULL,
                                                 &schedule_sleep_begin, &schedule_sleep_end);
-        parsec_profiling_add_dictionary_keyword( "Queue ADD", "fill:#767676",
-                                                0, NULL,
-                                                &queue_add_begin, &queue_add_end);
         parsec_profiling_add_dictionary_keyword( "Queue REMOVE", "fill:#B9B243",
                                                 0, NULL,
                                                 &queue_remove_begin, &queue_remove_end);
@@ -990,7 +986,7 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_hwloc_fini();
 #endif  /* PARSEC_HAVE_HWLOC_BITMAP */
 
-    parsec_papi_sde_fini();
+    PARSEC_PAPI_SDE_FINI();
     
     if (parsec_app_name != NULL ) {
         free(parsec_app_name);

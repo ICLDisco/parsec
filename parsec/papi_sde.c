@@ -58,7 +58,7 @@ hl_counter_type_t hl_counters[PARSEC_PAPI_SDE_NB_HL_COUNTERS] = {
 
 static long long int parsec_papi_sde_base_counter_cb(void *arg);
 
-void parsec_papi_sde_init(void)
+void PARSEC_PAPI_SDE_INIT(void)
 {
     parsec_papi_sde_hl_counters_t cnt;
 
@@ -82,9 +82,9 @@ void parsec_papi_sde_init(void)
     }
 }
 
-void parsec_papi_sde_fini(void)
+void PARSEC_PAPI_SDE_FINI(void)
 {
-    parsec_list_item_t *it, *tmp;
+    parsec_list_item_t *it;
     parsec_papi_sde_hl_counters_t cnt;
 
     for(cnt = PARSEC_PAPI_SDE_FIRST_BASIC_COUNTER; cnt <= PARSEC_PAPI_SDE_LAST_BASIC_COUNTER; cnt++) {
@@ -92,22 +92,15 @@ void parsec_papi_sde_fini(void)
     }
     
     parsec_atomic_rwlock_wrlock( &sde_threads_lock );
-    it = PARSEC_LIST_ITERATOR_FIRST(&sde_threads);
-    while(it != PARSEC_LIST_ITERATOR_LAST(&sde_threads)) {
-        tmp = it;
-        it = PARSEC_LIST_ITERATOR_NEXT(it);
-        
-        parsec_list_nolock_remove(&sde_threads, tmp);
-        OBJ_RELEASE(tmp);
+    while(NULL != (it = parsec_list_nolock_pop_front(&sde_threads)) ) {
+        OBJ_RELEASE(it);
     }
-    parsec_atomic_rwlock_wrunlock( &sde_threads_lock );
 
     OBJ_DESTRUCT(&sde_threads);
-    parsec_papi_sde_handle = NULL;
-    
+    parsec_papi_sde_handle = NULL;    
 }
 
-void parsec_papi_sde_thread_init(void)
+void PARSEC_PAPI_SDE_THREAD_INIT(void)
 {
     parsec_thread_sde_counters_t *new_counters;
     
@@ -127,7 +120,7 @@ void parsec_papi_sde_thread_init(void)
     parsec_atomic_rwlock_wrunlock( &sde_threads_lock );
 }
 
-void parsec_papi_sde_thread_fini(void)
+void PARSEC_PAPI_SDE_THREAD_FINI(void)
 {
     parsec_thread_sde_counters_t *my_counters;
 
@@ -136,20 +129,13 @@ void parsec_papi_sde_thread_fini(void)
         return;
     
     parsec_atomic_rwlock_wrlock( &sde_threads_lock );
-    for(parsec_list_item_t *it = PARSEC_LIST_ITERATOR_FIRST(&sde_threads);
-        it != PARSEC_LIST_ITERATOR_LAST(&sde_threads);
-        it = PARSEC_LIST_ITERATOR_NEXT(it)) {
-        if( (parsec_thread_sde_counters_t *)it == my_counters ) {
-            parsec_list_nolock_remove(&sde_threads, it);
-            break;
-        }
-    }
+    parsec_list_nolock_remove(&sde_threads, &my_counters->super);
     PARSEC_TLS_SET_SPECIFIC(parsec_papi_sde_basic_counters_tls, NULL);
     parsec_atomic_rwlock_wrunlock( &sde_threads_lock );
     OBJ_RELEASE(my_counters);
 }
 
-void parsec_papi_sde_counter_set(parsec_papi_sde_hl_counters_t cnt, long long int value)
+void PARSEC_PAPI_SDE_COUNTER_SET(parsec_papi_sde_hl_counters_t cnt, long long int value)
 {
     parsec_thread_sde_counters_t *tls_counters;
 
@@ -163,7 +149,7 @@ void parsec_papi_sde_counter_set(parsec_papi_sde_hl_counters_t cnt, long long in
     parsec_atomic_rwlock_rdunlock( &sde_threads_lock );
 }
 
-void parsec_papi_sde_counter_add(parsec_papi_sde_hl_counters_t cnt, long long int value)
+void PARSEC_PAPI_SDE_COUNTER_ADD(parsec_papi_sde_hl_counters_t cnt, long long int value)
 {
     parsec_thread_sde_counters_t *tls_counters;
 
@@ -193,7 +179,7 @@ static long long int parsec_papi_sde_base_counter_cb(void *arg)
     return sum;
 }
 
-void parsec_papi_sde_unregister_counter(const char *format, ...)
+void PARSEC_PAPI_SDE_UNREGISTER_COUNTER(const char *format, ...)
 {
     va_list ap;
     char name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];

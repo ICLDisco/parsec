@@ -20,6 +20,7 @@
 
 #include "parsec/mca/sched/sched.h"
 #include "parsec/mca/sched/lhq/sched_lhq.h"
+#include "parsec/papi_sde.h"
 
 /*
  * Local function
@@ -74,6 +75,13 @@ static int sched_lhq_component_query(mca_base_module_t **module, int *priority)
 
 static int sched_lhq_component_register(void)
 {
-    parsec_sched_lhq_module.module.register_sde(NULL);
+#if defined(PARSEC_PAPI_SDE)
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LHQ",
+                              "the number of pending tasks for the LHQ scheduler");
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LHQ::<VPID>/overflow",
+                              "the number of pending tasks that end up in the virtual process <VPID> overflow queue for the LHQ scheduler");
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LFQ::<VPID>/<QID>",
+                              "the number of pending tasks that end up in the local queue of identifier <QID> in the virtual process <VPID> for the LHQ scheduler");
+#endif
     return MCA_SUCCESS;
 }

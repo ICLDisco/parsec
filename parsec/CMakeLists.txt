@@ -143,7 +143,7 @@ if( BUILD_PARSEC )
   endif( PARSEC_PAPI_SDE )
   
   target_link_libraries(parsec
-    PRIVATE parsec_data parsec-base-iface ${EXTRA_LIBS})
+                        PRIVATE parsec_data parsec-base-iface ${EXTRA_LIBS})
 
   install(TARGETS parsec
           DESTINATION lib)

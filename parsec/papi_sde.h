@@ -5,6 +5,10 @@
 
 #if defined(PARSEC_PAPI_SDE)
 
+#include "parsec/papi_sde_interface.h"
+
+PARSEC_DECLSPEC extern papi_handle_t parsec_papi_sde_handle;
+
 typedef enum parsec_papi_sde_hl_counters_e {
     PARSEC_PAPI_SDE_MEM_ALLOC,               /**< How much memory is currently allocated by arenas */
     PARSEC_PAPI_SDE_MEM_USED,                /**< Out of MEM_ALLOC, how much memory is currently 
@@ -26,7 +30,7 @@ typedef enum parsec_papi_sde_hl_counters_e {
  *   create the papi handle, and provide the description for the
  *   base counters. Register and enable the base counters
  */
-void parsec_papi_sde_init(void);
+void PARSEC_PAPI_SDE_INIT(void);
 
 /**
  * Finalize PAPI-SDE for PaRSEC
@@ -35,7 +39,7 @@ void parsec_papi_sde_init(void);
  *   release the papi handle, unregister the base counters and
  *   free any remaining thread-specific counters.
  */
-void parsec_papi_sde_fini(void);
+void PARSEC_PAPI_SDE_FINI(void);
 
 /**
  * Per-thread initialization function
@@ -44,7 +48,7 @@ void parsec_papi_sde_fini(void);
  *   Create the TLS storage for each counter, chain the
  *   TLS block to the list of active threads
  */
-void parsec_papi_sde_thread_init(void);
+void PARSEC_PAPI_SDE_THREAD_INIT(void);
 
 /**
  * Per-thread cleanup function
@@ -53,7 +57,7 @@ void parsec_papi_sde_thread_init(void);
  *   removes the TLS block from the list of active threads
  *   and free the allocated resources for this thread.
  */
-void parsec_papi_sde_thread_fini(void);
+void PARSEC_PAPI_SDE_THREAD_FINI(void);
 
 /**
  * Set the value of the base counter for the calling thread
@@ -61,7 +65,7 @@ void parsec_papi_sde_thread_fini(void);
  *  @param[IN] cnt the counter to change
  *  @param[IN] value the new value 
  */
-void parsec_papi_sde_counter_set(parsec_papi_sde_hl_counters_t cnt, long long int value);
+void PARSEC_PAPI_SDE_COUNTER_SET(parsec_papi_sde_hl_counters_t cnt, long long int value);
 
 /**
  * Change the value of the base counter for the calling thread
@@ -69,7 +73,7 @@ void parsec_papi_sde_counter_set(parsec_papi_sde_hl_counters_t cnt, long long in
  *  @param[IN] cnt the counter to change
  *  @param[IN] value the amount to add to the current value
  */
-void parsec_papi_sde_counter_add(parsec_papi_sde_hl_counters_t cnt, long long int value);
+void PARSEC_PAPI_SDE_COUNTER_ADD(parsec_papi_sde_hl_counters_t cnt, long long int value);
 
 /**
  * Helper function to unregister a PAPI-SDE counter
@@ -81,19 +85,19 @@ void parsec_papi_sde_counter_add(parsec_papi_sde_hl_counters_t cnt, long long in
  *    @param[IN] format: a printf-like format, defining the counter name
  *       to unregister.
  */
-void parsec_papi_sde_unregister_counter(const char *format, ...);
+void PARSEC_PAPI_SDE_UNREGISTER_COUNTER(const char *format, ...);
 
 #define PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN 256
 
 #else
 
-#define parsec_papi_sde_init()                                  do{}while(0)
-#define parsec_papi_sde_fini()                                  do{}while(0)
-#define parsec_papi_sde_thread_init()                           do{}while(0)
-#define parsec_papi_sde_thread_fini()                           do{}while(0)
-#define parsec_papi_sde_counter_set(cnt, value)                 do{}while(0)
-#define parsec_papi_sde_counter_add(cnt, value)                 do{}while(0)
-#define parsec_papi_sde_unregister_counter(format, ...)         do{}while(0)
+#define PARSEC_PAPI_SDE_INIT()                                  do{}while(0)
+#define PARSEC_PAPI_SDE_FINI()                                  do{}while(0)
+#define PARSEC_PAPI_SDE_THREAD_INIT()                           do{}while(0)
+#define PARSEC_PAPI_SDE_THREAD_FINI()                           do{}while(0)
+#define PARSEC_PAPI_SDE_COUNTER_SET(cnt, value)                 do{}while(0)
+#define PARSEC_PAPI_SDE_COUNTER_ADD(cnt, value)                 do{}while(0)
+#define PARSEC_PAPI_SDE_UNREGISTER_COUNTER(format, ...)         do{}while(0)
 
 #endif /* defined(PARSEC_PAPI_SDE) */
 
