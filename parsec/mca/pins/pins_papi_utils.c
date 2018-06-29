@@ -293,6 +293,20 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
  * and adds these events to an events list for this thread if they are valid PAPI
  * events and have a valid socket, core, and frequency specified.
  *
+ * The parser accepts lines like:
+ *    <Specifiers><CounterName0>,<Specifiers><CouterName1>...
+ * Where <CounterName*> are counter names, and can contain
+ * any character except ',' and <Specifiers> is
+ *    [C<number>:][S<number>:][F<frequency>:] in any order.
+ *  <number> or <frequency> can be * to denote any
+ *  <number> is otherwise a number
+ *  <frequency> is a positive floating point number followed by a time unit
+ *  - Any specifier can be set only once per counter
+ *  - If the counter name starts with S, C or F, the corresponding specifier
+ *    must be set before providing the counter name
+ *  - If the counter name contains a ':', the three specifiers must be
+ *    set before providing the counter name
+ *
  * Returns: A valid events list on success
  *          NULL in all other cases.
  */
@@ -303,6 +317,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
     parsec_pins_papi_events_t* events = (parsec_pins_papi_events_t*)malloc(sizeof(parsec_pins_papi_events_t));
     parsec_pins_papi_event_t* event = NULL;
     PAPI_event_info_t papi_info;
+    int socket_set, core_set, frequency_set;
 
     events->num_counters = 0;
     events->num_allocated_counters = 1;
@@ -327,6 +342,10 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
         } else {
             memset(event, 0, sizeof(parsec_pins_papi_event_t));
         }
+        socket_set = 0;
+        core_set = 0;
+        frequency_set = 0;
+
         event->socket = -1;
         event->core = -1;
         event->frequency = 1;
@@ -335,15 +354,17 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
         for(  /* none */; NULL != token;
                         token = strchr(token, (int)':'), token++ ) {
             /* This token represents the socket for this event. */
-            if(token[0] == 'S') {
+            if(socket_set == 0 && token[0] == 'S') {
                 if(token[1] != '*')
                     event->socket = atoi(&token[1]);
+                socket_set = 1;
                 continue;
             }
             /* This token represents the core for this event. */
-            if(token[0] == 'C') {
+            if(core_set == 0 && token[0] == 'C') {
                 if(token[1] != '*')
                     event->core = atoi(&token[1]);
+                core_set = 1;
                 continue;
             }
 
@@ -352,8 +373,9 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
              * frequency, we must determine the units and convert the units specified into
              * the units used by this system.
              */
-            if(token[0] == 'F') {
+            if(frequency_set == 0 && token[0] == 'F') {
                 event->frequency = 1;
+                frequency_set = 1;
                 /* the remaining of this field must contain a number, which can be either
                  * a frequency or a time interval, and a unit. If the unit is missing then
                  * we have a frequency, otherwise we assume a timer.
