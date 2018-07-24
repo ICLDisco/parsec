@@ -37,7 +37,7 @@ sub parseArgs {
 usage:
    --nodefmt             Define the text in the node.
                            Expect a printf-like format.
-                           Can use %R, %V, %T, %K, %P, and %p (see below)
+                           Can use %R, %V, %T, %K, %P, %L, and %p (see below)
                            Default: '$nodefmt'
    --nodeshape           Define the shape of the node.
                            Expect an integer expression.
@@ -88,6 +88,7 @@ END
      %T  ID of the thread that ran the task
      %K  Name of the kernel
      %P  Parameters of the kernel
+     %L  Locals of the kernel (Parameters included)
      %p  priority of the task
     node shape, fill color and nodecolor
      %k  id of the kernel (from 0 to max-kernel-index)
@@ -197,7 +198,7 @@ sub nodeLineColor {
 }
 
 sub outputNode {
-  my ($ID, $R, $V, $T, $K, $P, $p) = @_;
+  my ($ID, $R, $V, $T, $K, $P, $op, $p) = @_;
 
   my $label = $nodefmt;
   $label =~ s/%R/$R/g;
@@ -205,6 +206,7 @@ sub outputNode {
   $label =~ s/%V/$V/g;
   $label =~ s/%K/$K/g;
   $label =~ s/%P/$P/g;
+  $label =~ s/%L/$op/g;
   $label =~ s/%p/$p/g;
 
   my $Kid = kernelID($K);
@@ -221,7 +223,7 @@ sub nodeRank {
 }
 
 sub computeSpaceNode {
-  my ($ID, $R, $V, $T, $K, $P, $p) = @_;
+  my ($ID, $R, $V, $T, $K, $P, $op, $p) = @_;
 
   $NR = $R+1 if( $R + 1 > $NR );
   $NV = $V+1 if( $V + 1 > $NV );
@@ -256,10 +258,10 @@ sub onNodes {
       next if ($line =~ /^digraph G {$/);
       last if ($line =~ /^}/);
       next if ($line =~ / -> /);
-      my ($ID, $COLOR, $T, $V, $K, $P, $p);
-      if( ($ID, $COLOR, $T, $V, $K, $P, $p) = ($line =~ /^([^ ]+) \[shape="[^"]+",style=filled,fillcolor="#(......)",fontcolor="black",label="<([0-9]+)\/([0-9]+)> ([^(]+)\(([^<]*)\]<([^>]+)>/) ) {
+      my ($ID, $COLOR, $T, $V, $K, $P, $op, $p);
+      if( ($ID, $COLOR, $T, $V, $K, $P, $op, $p) = ($line =~ /^([^ ]+) \[shape="[^"]+",style=filled,fillcolor="#(......)",fontcolor="black",label="<([0-9]+)\/([0-9]+)> ([^(]+)\(([^\)]*)\)\[([^>]*)\]<([^>]+)>/) ) {
         if( !ignored($K) ) {
-          $fct->($ID, $R, $V, $T, $K, $P, $p);
+          $fct->($ID, $R, $V, $T, $K, $P, $op, $p);
         }
       } else {
         print STDERR "  Error on $f:$lnb malformed line $line\n";
