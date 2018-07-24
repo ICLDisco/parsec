@@ -472,14 +472,17 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
                         if( JDF_GUARD_UNCONDITIONAL != guard->guard_type ) {
                             jdf_fatal(JDF_OBJECT_LINENO(dep),
                                       "expected WRITE-only expression with wrong type (internal error)\n");
+                            rc = -1;
                         }
                         if( (JDF_FLOW_TYPE_CTL | JDF_FLOW_TYPE_READ) & flow->flow_flags ) {
                             jdf_fatal(JDF_OBJECT_LINENO(dep),
                                       "Incorrect dependency (CTL or READ) in a WRITE-only flow (internal error)\n");
+                            rc = -1;
                         }
                         if( !(JDF_FLOW_TYPE_WRITE & flow->flow_flags) ) {
                             jdf_fatal(JDF_OBJECT_LINENO(dep),
                                       "Lack of dependency in a not WRITE-only flow (internal error)\n");
+                            rc = -1;
                         }
                         continue;
                     }
@@ -725,10 +728,10 @@ static int jdf_sanity_check_control(void)
                 if( (dep->guard->calltrue->var == NULL) ||
                     ((dep->guard->guard_type == JDF_GUARD_TERNARY) &&
                      (dep->guard->callfalse->var == NULL)) ) {
-                    rc++;
                     jdf_fatal(JDF_OBJECT_LINENO(flow),
                               "In function %s:%d the control of dependency #%d of flow %s(#%d) cannot refer to data\n",
                               func->fname, JDF_OBJECT_LINENO(flow), j, flow->varname, i );
+                    rc--;
                 }
             }
         }

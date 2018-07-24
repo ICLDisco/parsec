@@ -397,6 +397,7 @@ bodies: body
        ;
 function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simulation_cost partitioning dataflow_list priority bodies
                 {
+                    int rc;
                     jdf_function_entry_t *e = new(jdf_function_entry_t);
                     e->fname             = $1;
                     e->parameters        = $3;
@@ -408,7 +409,9 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simula
                     e->priority          = $10;
                     e->bodies            = $11;
 
-                    jdf_flatten_function(e);
+                    rc = jdf_flatten_function(e);
+                    if( rc < 0 )
+                        YYERROR;
                     $$ = e;
                     JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($3);
                 }
