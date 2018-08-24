@@ -47,7 +47,7 @@ typedef volatile uint32_t parsec_atomic_rwlock_t;
  *  Ticket based (phase-fair) implementation
  *    http://dl.acm.org/citation.cfm?id=1842604
  */
-typedef volatile struct {
+typedef volatile struct parsec_atomic_rwlock_s {
     int32_t rin;    /**< How many readers requested to enter (3 high bytes, low byte used for writer requests) */
     int32_t rout;   /**< How many readers left (compared only to rin read values with equal) */
     int32_t win;    /**< How many writers requested to enter (3 high bytes, low byte unused) */
@@ -71,7 +71,7 @@ typedef volatile struct {
  * (e.g. http://www.springer.com/us/book/9783642320262) 
  * implementation based on two atomic locks. This is write-preferring. 
  */
-typedef struct {
+typedef struct parsec_atomic_rwlock_s {
     parsec_atomic_lock_t r;  /**< Lock taken by readers to update nbreaders */
     parsec_atomic_lock_t w;  /**< Lock taken by writers and by the first / released by the last reader */
     int nbreaders;           /**< Counter of the number of readers inside the critical section */
@@ -93,7 +93,7 @@ typedef struct {
  * Simpler Ticket based (phase-fair) implementation that does not
  * depend upon endianness, but can tolerate only up to 65536 writers.
  */
-typedef volatile union {
+typedef volatile union parsec_atomic_rwlock_u {
     uint64_t atomic_word;         /**< Atomic switchable version of the structure */
     struct {
         uint16_t current_ticket;  /**< Current value of the ticket */
