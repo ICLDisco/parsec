@@ -491,7 +491,7 @@ device_taskpool_register_static(parsec_device_t* device, parsec_taskpool_t* tp)
      */
     assert(tp->devices_index_mask & (1 << device->device_index));
 
-    for( i = 0; NULL != tp->task_classes_array[i]; i++ ) {
+    for( i = 0; i < tp->nb_task_classes; i++ ) {
         const parsec_task_class_t* tc = tp->task_classes_array[i];
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( j = 0; NULL != chores[j].hook; j++ ) {

@@ -4910,7 +4910,13 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
     if ( NULL != dyld ) {
         coutput("  /* Pointer to dynamic gpu function */\n"
-                "  parsec_body.dyld_fn = (%s)this_task->task_class->incarnations[gpu_device->cuda_index].dyld_fn;\n\n",
+                "  {\n"
+                "    int chore_idx = 0;\n"
+                "    for ( ; PARSEC_DEV_NONE != this_task->task_class->incarnations[chore_idx].type; ++chore_idx) {\n"
+                "      if (this_task->task_class->incarnations[chore_idx].type == PARSEC_DEV_CUDA) break;\n"
+                "    }\n"
+                "    parsec_body.dyld_fn = (%s)this_task->task_class->incarnations[chore_idx].dyld_fn;\n"
+                "  }\n\n",
                 dyldtype );
     }
 

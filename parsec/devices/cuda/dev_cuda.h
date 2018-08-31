@@ -64,9 +64,9 @@ typedef struct _gpu_device gpu_device_t;
  * Callback from the engine upon CUDA event completion for each stage of a task.
  * The same prototype is used for calling the user provided submission function.
  */
-typedef int (*parsec_complete_stage_trigger_t)(gpu_device_t             *gpu_device,
-                                               parsec_gpu_task_t       **gpu_task,
-                                               parsec_gpu_exec_stream_t *gpu_stream);
+typedef int (*parsec_complete_stage_function_t)(gpu_device_t             *gpu_device,
+                                                parsec_gpu_task_t       **gpu_task,
+                                                parsec_gpu_exec_stream_t *gpu_stream);
 
 /**
  *
@@ -79,7 +79,7 @@ struct parsec_gpu_task_s {
     parsec_list_item_t               list_item;
     parsec_task_t                   *ec;
     advance_task_function_t          submit;
-    parsec_complete_stage_trigger_t  trigger;
+    parsec_complete_stage_function_t complete_stage;
     uint64_t                         last_data_check_epoch;
     int                              task_type;
     int32_t                          pushout;
@@ -88,9 +88,9 @@ struct parsec_gpu_task_s {
 
 struct __parsec_gpu_exec_stream {
     /* There is exactly one task per active event (max_events being the uppoer bound).
-     * Upon event completion the trigger associated with the task is called, and this
-     * trigger will decide what is going on next with the task. If the task remains
-     * in the system the trigger is supposed to update it.
+     * Upon event completion the complete_stage function associated with the task is
+     * called, and this will decide what is going on next with the task. If the task
+     * remains in the system the function is supposed to update it.
      */
     struct parsec_gpu_task_s        **tasks;
     cudaEvent_t                      *events;
@@ -210,8 +210,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
 int
 parsec_gpu_kernel_push( gpu_device_t                    *gpu_device,
                         parsec_gpu_task_t               *gpu_task,
-                        parsec_gpu_exec_stream_t        *gpu_stream,
-                        parsec_complete_stage_trigger_t *trigger );
+                        parsec_gpu_exec_stream_t        *gpu_stream);
 
 /**
  *  This function schedule the move of all the modified data for a

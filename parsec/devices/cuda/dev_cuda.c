@@ -301,14 +301,15 @@ parsec_cuda_taskpool_register(parsec_device_t* device,
     assert(PARSEC_DEV_CUDA == device->type);
     assert(tp->devices_index_mask & (1 << device->device_index));
 
-    for( i = 0; NULL != tp->task_classes_array[i]; i++ ) {
+    for( i = 0; i < tp->nb_task_classes; i++ ) {
         const parsec_task_class_t* tc = tp->task_classes_array[i];
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( j = 0; NULL != chores[j].hook; j++ ) {
             if( chores[j].type != device->type )
                 continue;
-            if(  NULL != chores[j].dyld_fn ) {
-                continue;  /* the function has been set for another device of the same type */
+            if( NULL != chores[j].dyld_fn ) {
+                /* the function has been set for another device of the same type */
+                return PARSEC_SUCCESS;
             }
             if ( NULL == chores[j].dyld ) {
                 chores[j].dyld_fn = NULL;  /* No dynamic support required for this kernel */
@@ -849,7 +850,15 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                                  "GPU[%d]:%s: Flow %s:%i has a copy on the device %p%s",
                                  gpu_device->cuda_index, task_name,
                                  flow->name, i, gpu_elem,
-                                 gpu_elem->data_transfer_status == DATA_STATUS_UNDER_TRANSFER ? " [in tranfer]" : "");
+                                 gpu_elem->data_transfer_status == DATA_STATUS_UNDER_TRANSFER ? " [in transfer]" : "");
+            if ( flow->flow_flags & FLOW_ACCESS_WRITE &&
+                gpu_elem->data_transfer_status == DATA_STATUS_UNDER_TRANSFER ) {
+                PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
+                                     "GPU[%d]:%s: Copy %p accessed RW, Descheduling while transfering data",
+                                     gpu_device->cuda_index, task_name,
+                                     gpu_elem);
+                return PARSEC_HOOK_RETURN_AGAIN;
+            }
             continue;
         }
 
@@ -1309,6 +1318,9 @@ parsec_gpu_callback_complete_push(gpu_device_t              *gpu_device,
     parsec_gpu_task_t *gtask = *gpu_task;
     parsec_task_t *task;
     int32_t i;
+#if defined(PARSEC_DEBUG_NOISIER)
+    char task_str[MAX_TASK_STRLEN];
+#endif
     const parsec_flow_t        *flow;
     /**
      * Even though cuda event return success, the PUSH may not be
@@ -1316,8 +1328,13 @@ parsec_gpu_callback_complete_push(gpu_device_t              *gpu_device,
      * actually done by another task, so we need to check if the data is
      * actually ready to use
      */
-    assert(stream == &(gpu_device->exec_stream[0]));
+    assert(gpu_stream == &(gpu_device->exec_stream[0]));
     task = gtask->ec;
+#if defined(PARSEC_DEBUG_NOISIER)
+    PARSEC_DEBUG_VERBOSE(19, parsec_cuda_output_stream,
+                         "GPU[%d]: parsec_gpu_callback_complete_push, PUSH of %s",
+                         gpu_device->cuda_index, parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task));
+#endif
     for( i = 0; i < task->task_class->nb_flows; i++ ) {
         flow = gtask->flow[i];
         assert( flow );
@@ -1337,6 +1354,7 @@ parsec_gpu_callback_complete_push(gpu_device_t              *gpu_device,
             return -1;
         }
     }
+    gtask->complete_stage = NULL;
     return 0;
 }
 
@@ -1384,7 +1402,9 @@ progress_stream( gpu_device_t* gpu_device,
             }
 #endif /* (PARSEC_PROF_TRACE) */
 
-            rc = task->trigger(gpu_device, out_task, stream);
+            rc = 0;
+            if (task->complete_stage)
+                rc = task->complete_stage(gpu_device, out_task, stream);
             /* the task can be withdrawn by the system */
             return rc;
         }
@@ -1430,6 +1450,8 @@ progress_stream( gpu_device_t* gpu_device,
         PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                              "GPU[%d]: Reschedule %s(task %p) priority %d: no room available on the GPU for data",
                              gpu_device->cuda_index, task->ec->task_class->name, (void*)task->ec, task->ec->priority);
+        *out_task = NULL;
+        return 0;
     } else {
         /**
          * Do not skip the cuda event generation. The problem is that some of the inputs
@@ -1520,8 +1542,7 @@ void dump_GPU_state(gpu_device_t* gpu_device)
 int
 parsec_gpu_kernel_push( gpu_device_t                    *gpu_device,
                         parsec_gpu_task_t               *gpu_task,
-                        parsec_gpu_exec_stream_t        *gpu_stream,
-                        parsec_complete_stage_trigger_t *trigger )
+                        parsec_gpu_exec_stream_t        *gpu_stream)
 {
     parsec_task_t *this_task = gpu_task->ec;
     const parsec_flow_t *flow;
@@ -1577,7 +1598,7 @@ parsec_gpu_kernel_push( gpu_device_t                    *gpu_device,
                          "GPU[%d]: Push task %s DONE",
                          gpu_device->cuda_index,
                          parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
-    *trigger = parsec_gpu_callback_complete_push;
+    gpu_task->complete_stage = parsec_gpu_callback_complete_push;
     return ret;
 }
 

@@ -168,7 +168,9 @@ static const symbol_t symb_CUDA_d2h_task_param = {
 static const parsec_task_class_t parsec_CUDA_d2h_task_class = {
     .name = "CUDA D2H data tranfer",
     .task_class_id = 0,
-    .nb_flows = 5,
+    .nb_flows = MAX_PARAM_COUNT,  /* This value will have an impact on the duration of the
+                                   * search for additional data to move. As this search is linear
+                                   * we need to keep this upper bound set to a reasonable value. */
     .nb_parameters = 1,
     .nb_locals = 0,
     .params = {&symb_CUDA_d2h_task_param},
@@ -257,6 +259,7 @@ parsec_gpu_create_W2R_task(gpu_device_t *gpu_device,
     w2r_task->ec               = (parsec_task_t*)d2h_task;
     w2r_task->task_type        = GPU_TASK_TYPE_D2HTRANSFER;
     w2r_task->last_data_check_epoch = gpu_device->data_avail_epoch - 1;
+    w2r_task->complete_stage   = NULL;
 
     (void)es;
     return w2r_task;
