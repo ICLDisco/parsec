@@ -1577,7 +1577,7 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
                           cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
                           (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.displ_r,
                           cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
-                          MPI_COMM_SELF, MPI_STATUS_IGNORE);
+                          dep_self, MPI_STATUS_IGNORE);
     PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
     remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);
     (void)es;
