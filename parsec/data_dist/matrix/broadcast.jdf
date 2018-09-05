@@ -144,14 +144,13 @@ BODY
     printf( "bcast_recv(k = %d)\n", k);
 END
 
-    
 extern "C" %{
 
     static inline int master_tp_complete_callback(parsec_taskpool_t* tp, void* cb_data)
     {
         parsec_taskpool_t *master_tp = (parsec_taskpool_t *)cb_data;
-        
-        parsec_ptg_update_runtime_task(master_tp, -1);
+
+        parsec_add_fetch_runtime_task(master_tp, -1);
 
         (void)tp;
         return PARSEC_HOOK_RETURN_DONE;
@@ -168,7 +167,7 @@ extern "C" %{
         ptrdiff_t lb, extent;
 
         if (NULL != master_tp)
-            parsec_ptg_update_runtime_task( master_tp, 1);
+            parsec_add_fetch_runtime_task( master_tp, 1);
 
         rank_array_dc_t *dc = create_rank_array(myrank, world, root, ranks, sz);
 

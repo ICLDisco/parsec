@@ -29,7 +29,8 @@ static char **dep_activate_buff;
 typedef struct dep_cmd_item_s dep_cmd_item_t;
 typedef union dep_cmd_u dep_cmd_t;
 
-static int remote_dep_mpi_init(parsec_context_t* context);
+static int remote_dep_mpi_setup(parsec_context_t* context);
+static int remote_dep_mpi_cleanup(parsec_context_t* context);
 static int remote_dep_mpi_fini(parsec_context_t* context);
 static int remote_dep_mpi_on(parsec_context_t* context);
 static int remote_dep_mpi_progress(parsec_execution_stream_t* es);
@@ -212,7 +213,7 @@ parsec_list_t    dep_put_fifo;             /* ordered non threaded fifo */
  * to the same destination, or with the same action key.
  */
 static dep_cmd_item_t** parsec_mpi_same_pos_items;
-static int parsec_mpi_same_pos_items_size;
+static int parsec_mpi_same_pos_items_size = 0;
 
 static void *remote_dep_dequeue_main(parsec_context_t* context);
 static int mpi_initialized = 0;
@@ -244,6 +245,14 @@ static parsec_execution_stream_t parsec_comm_es = {
     .context_mempool = NULL,
     .datarepo_mempools = {0}
 };
+
+static int remote_dep_set_ctx(parsec_context_t* context, void* opaque_comm_ctx )
+{
+    int rc;
+    rc = MPI_Comm_dup((MPI_Comm)opaque_comm_ctx, (MPI_Comm*)&context->comm_ctx);
+    rc = (MPI_SUCCESS == rc) ? PARSEC_SUCCESS : PARSEC_ERROR;
+    return rc;
+}
 
 static int remote_dep_dequeue_init(parsec_context_t* context)
 {
@@ -280,8 +289,12 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
                       "\t* to guarantee correctness of the PaRSEC runtime.\n",
                 thread_level_support == MPI_THREAD_SINGLE ? "MPI_THREAD_SINGLE" : "MPI_THREAD_FUNNELED" );
     }
-    MPI_Comm_size( (NULL == context->comm_ctx) ? MPI_COMM_WORLD : *(MPI_Comm*)context->comm_ctx,
-                   (int*)&(context->nb_nodes));
+    if( NULL == context->comm_ctx ) {
+        MPI_Comm comm;
+        MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+        context->comm_ctx = (void*)((uintptr_t)comm);  /* safe conversion to void* */
+    }
+    MPI_Comm_size( (MPI_Comm)context->comm_ctx, (int*)&(context->nb_nodes));
 
     if(parsec_param_comm_thread_multiple) {
         if( thread_level_support >= MPI_THREAD_MULTIPLE ) {
@@ -313,7 +326,7 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
         /* We're all by ourselves. In case we need to use MPI to handle data copies
          * between different formats let's setup local MPI support.
          */
-        remote_dep_mpi_init(context);
+        remote_dep_mpi_setup(context);
 
         goto up_and_running;
     }
@@ -403,27 +416,45 @@ static int remote_dep_dequeue_on(parsec_context_t* context)
     if( 0 >= parsec_communication_engine_up ) return -1;
     if( context->nb_nodes == 1 ) return 1;
 
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: comm engine signalled ON on process %d/%d",
+                         context->my_rank, context->nb_nodes);
+
     /* At this point I am supposed to own the mutex */
     parsec_communication_engine_up = 2;
     pthread_cond_signal(&mpi_thread_condition);
     pthread_mutex_unlock(&mpi_thread_mutex);
+    /* The waking up of the communication thread happen asynchronously, once the thread
+     * receives the signal. At that point it acquires the mpi_thread_mutex and set the
+     * global variable parsec_communication_engine_up to 3.
+     */
+#if 0
+    /**
+     * For safety purposes we could wait until the communication thread is up and running.
+     */
+    while( 3 != parsec_communication_engine_up ) sched_yield();
+#endif
     (void)context;
     return 1;
 }
 
 static int remote_dep_dequeue_off(parsec_context_t* context)
 {
-    if(parsec_communication_engine_up < 2) return -1;  /* Not started */
+    if(parsec_communication_engine_up < 2) return -1;  /* The start order has not been issued */
 
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
     OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action = DEP_CTL;
     item->cmd.ctl.enable = 0;  /* turn OFF the MPI thread */
     item->priority = 0;
+    /* wait until the communication thread is up and running */
     while( 3 != parsec_communication_engine_up ) sched_yield();
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: comm engine signalled OFF on process %d/%d",
+                         context->my_rank, context->nb_nodes);
     parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
 
+    /* wait until we own the PaRSEC MPI synchronization mutex */
     pthread_mutex_lock(&mpi_thread_mutex);
+    assert( 1 == parsec_communication_engine_up );
     (void)context;  /* silence warning */
     return 0;
 }
@@ -444,7 +475,6 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
     PARSEC_PAPI_SDE_THREAD_INIT();
     remote_dep_mpi_profiling_init();
 
-    remote_dep_mpi_init(context);
     /* Now synchronize with the main thread */
     pthread_mutex_lock(&mpi_thread_mutex);
     pthread_cond_signal(&mpi_thread_condition);
@@ -453,19 +483,25 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
      * the MPI stuff until we get the OFF or FINI commands. Then react the them.
      */
     do {
-        /* Now let's block */
+        /* Let's wait until we are awaken */
         pthread_cond_wait(&mpi_thread_condition, &mpi_thread_mutex);
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: comm engine ON on process %d/%d",
+                             context->my_rank, context->nb_nodes);
+        /* The MPI thread is owning the lock */
+        assert( parsec_communication_engine_up == 2 );
         /* acknoledge the activation */
         parsec_communication_engine_up = 3;
-        /* The MPI thread is owning the lock */
         remote_dep_mpi_on(context);
         whatsup = remote_dep_dequeue_nothread_progress(&parsec_comm_es, -1 /* loop till explicitly asked to return */);
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: comm engine OFF on process %d%d",
+                             context->my_rank, context->nb_nodes);
+        parsec_communication_engine_up = 1;  /* went to sleep */
     } while(-1 != whatsup);
 
     /* Release all resources */
     remote_dep_mpi_fini(context);
     PARSEC_PAPI_SDE_THREAD_FINI();
-    
+
     return (void*)context;
 }
 
@@ -519,7 +555,7 @@ static int remote_dep_dequeue_send(parsec_execution_stream_t* es, int rank,
 static MPI_Comm dep_comm;
 static MPI_Comm dep_self;
 
-void parsec_remote_dep_memcpy(parsec_execution_stream_t* es, 
+void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
                              parsec_taskpool_t* tp,
                              parsec_data_copy_t *dst,
                              parsec_data_copy_t *src,
@@ -528,9 +564,12 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
     assert( dst );
 
     /* if MPI is multithreaded do not thread-shift the sendrecv */
-    int thread_level_support;
-    MPI_Query_thread( &thread_level_support );
-    if( MPI_THREAD_MULTIPLE <= thread_level_support ) {
+    if( es->virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
+                             "COPY [in content] LOCAL DATA from %p to %p count %d",
+                             PARSEC_DATA_COPY_GET_PTR(src) + data->displ,
+                             PARSEC_DATA_COPY_GET_PTR(dst) + 0,
+                             data->count);
         MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(src) + data->displ,
                      data->count, data->layout, 0, es->th_id,
                      (char*)PARSEC_DATA_COPY_GET_PTR(dst) + 0,
@@ -538,7 +577,12 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
                      dep_self, MPI_STATUS_IGNORE);
         return;
     }
-    
+
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
+                         "create MEMCPY request from %p to %p count %d",
+                         PARSEC_DATA_COPY_GET_PTR(src) + data->displ,
+                         PARSEC_DATA_COPY_GET_PTR(dst) + 0,
+                         data->count);
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
     OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action = DEP_MEMCPY;
@@ -567,7 +611,7 @@ remote_dep_copy_allocate(parsec_dep_data_description_t* data)
     }
     dc = parsec_arena_get_copy(data->arena, data->count, 0);
     dc->coherency_state = DATA_COHERENCY_EXCLUSIVE;
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "",
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "",
             dc, data->arena->elem_size, data->count, data->displ);
     return dc;
 }
@@ -688,6 +732,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                 return -2;
             }
 
+            PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
             task.locals[k] = origin->msg.locals[k];
             task.task_class = dtd_task->super.task_class;
             origin->msg.task_class_id = dtd_task->super.task_class->task_class_id;
@@ -770,7 +815,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
             target = task.task_class->out[++pidx];
             assert(NULL != target);
         }
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tDATA %p(%s) released from %p[%d] flow idx %d",
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tDATA %p(%s) released from %p[%d] flow idx %d",
                 origin->output[i].data.data, target->name, origin, i, target->flow_index);
         task.data[target->flow_index].data_repo = NULL;
         task.data[target->flow_index].data_in   = origin->output[i].data.data;
@@ -799,7 +844,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     } else {
         assert(0);
     }
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)",
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)",
             complete_mask, action_mask);
     (void)task.task_class->release_deps(es, &task,
                                         action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
@@ -849,10 +894,11 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
 #ifndef PARSEC_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_nothread_init(parsec_context_t* context)
 {
+    if( NULL == context->comm_ctx )
+        context->comm_ctx = MPI_COMM_WORLD;
     parsec_dequeue_construct(&dep_cmd_queue);
     parsec_list_construct(&dep_cmd_fifo);
-    remote_dep_mpi_params(context);
-    return remote_dep_mpi_init(context);
+    return remote_dep_mpi_setup(context);
 }
 
 static int remote_dep_dequeue_nothread_fini(parsec_context_t* context)
@@ -873,6 +919,10 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
     dep_cmd_item_t *item, *same_pos = NULL;
     parsec_list_t temp_list;
     int ret = 0, how_many, position, executed_tasks = 0;
+
+    remote_dep_mpi_setup(context);
+    PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "rank %d ENABLE MPI communication engine",
+                         parsec_debug_rank);
 
     OBJ_CONSTRUCT(&temp_list, parsec_list_t);
  check_pending_queues:
@@ -955,6 +1005,7 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
     case DEP_CTL:
         ret = item->cmd.ctl.enable;
         OBJ_DESTRUCT(&temp_list);
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "rank %d DISABLE MPI communication engine", parsec_debug_rank);
         free(item);
         return ret;  /* FINI or OFF */
     case DEP_NEW_TASKPOOL:
@@ -999,7 +1050,6 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
     goto check_pending_queues;
 }
 
-
 /******************************************************************************
  * ALL MPI SPECIFIC CODE GOES HERE
  ******************************************************************************/
@@ -1021,6 +1071,11 @@ static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
 static int activate_cb_trace_sk, activate_cb_trace_ek;
 static int put_cb_trace_sk, put_cb_trace_ek;
 
+/**
+ * The structure describe the MPI events saves into the profiling stream. The following
+ * string represent it's description so that an external package can decrypt the
+ * binary format of the stream.
+ */
 typedef struct {
     int rank_src;  // 0
     int rank_dst;  // 4
@@ -1067,6 +1122,7 @@ static void remote_dep_mpi_profiling_init(void)
 
 static void remote_dep_mpi_profiling_fini(void)
 {
+    /* TODO: we need to clean the profiling threads memory */
     MPIsnd_prof = NULL;
     MPIrcv_prof = NULL;
     MPIctl_prof = NULL;
@@ -1108,10 +1164,11 @@ struct parsec_comm_callback_s {
     long                  storage2;
 };
 
+static MPI_Comm dep_comm = MPI_COMM_NULL;
 static parsec_comm_callback_t *array_of_callbacks;
-static MPI_Request           *array_of_requests;
-static int                   *array_of_indices;
-static MPI_Status            *array_of_statuses;
+static MPI_Request            *array_of_requests;
+static int                    *array_of_indices;
+static MPI_Status             *array_of_statuses;
 
 /* TODO: fix heterogeneous restriction by using proper mpi datatypes */
 #define dep_dtt MPI_BYTE
@@ -1131,9 +1188,14 @@ static remote_dep_wire_get_t* dep_get_buff;
 #if ULONG_MAX < UINTPTR_MAX
 #error "unsigned long is not large enough to hold a pointer!"
 #endif
-/* note: tags are necessary, because multiple activate requests are not
- * fifo, relative to one another, during the waitsome loop */
-static int MAX_MPI_TAG;
+
+/* note: tags are necessary to order communication between pairs. They are used to
+ * correctly handle data transfers, as each data provider will provide a tag which
+ * combined with the source ensure message matching consistency. As MPI requires the
+ * max tag to be positive, initializing it to a negative value allows us to check
+ * if the layer has been initialized or not.
+ */
+static int MAX_MPI_TAG = -1;
 #define MIN_MPI_TAG (REMOTE_DEP_MAX_CTRL_TAG+1)
 static volatile int __VAL_NEXT_TAG = MIN_MPI_TAG;
 #if INT_MAX == INT32_MAX
@@ -1155,7 +1217,7 @@ reread:
     else {
         __next_tag = __tag+k;
     }
- 
+
     if( parsec_comm_es.virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
         if(!next_tag_cas(&__VAL_NEXT_TAG, __tag, __next_tag)) {
             goto reread;
@@ -1167,11 +1229,16 @@ reread:
     return __tag;
 }
 
-static int remote_dep_mpi_init(parsec_context_t* context)
+/**
+ * The following 2 functions take care of all the steps necessary to initialize the
+ * invariable part of the communication engine such as the const dependencies
+ * to MPI (max tag and other global info), or local objects.
+ */
+static int remote_dep_mpi_init_once(parsec_context_t* context)
 {
-    int i, mpi_tag_ub_exists, *ub;
-    parsec_comm_callback_t* cb;
+    int mpi_tag_ub_exists, *ub;
 
+    assert(-1 == MAX_MPI_TAG);
     OBJ_CONSTRUCT(&dep_activates_fifo, parsec_list_t);
     OBJ_CONSTRUCT(&dep_activates_noobj_fifo, parsec_list_t);
     OBJ_CONSTRUCT(&dep_put_fifo, parsec_list_t);
@@ -1209,17 +1276,58 @@ static int remote_dep_mpi_init(parsec_context_t* context)
     } else {
         MAX_MPI_TAG = *ub;
         if( MAX_MPI_TAG < INT_MAX ) {
-            parsec_debug_verbose(3, parsec_debug_output, "MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies",
-                   MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT);
+            parsec_debug_verbose(3, parsec_comm_output_stream,
+                                 "MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x),"
+                                 " which might be too small should you have more than %d simultaneous remote dependencies",
+                                 MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT);
         }
     }
+
+    remote_dep_mpi_profiling_init();
+    (void)context;
+    return 0;
+}
+
+static int remote_dep_mpi_fini(parsec_context_t* context)
+{
+    assert( -1 != MAX_MPI_TAG );
+    remote_dep_mpi_cleanup(context);
+
+    OBJ_DESTRUCT(&dep_activates_fifo);
+    OBJ_DESTRUCT(&dep_activates_noobj_fifo);
+    OBJ_DESTRUCT(&dep_put_fifo);
+    MAX_MPI_TAG = -1;  /* mark the layer as uninitialized */
+    (void)context;
+    return 0;
+}
+
+static int remote_dep_mpi_setup(parsec_context_t* context)
+{
+    parsec_comm_callback_t* cb;
+    int i, rc;
+
+    if( -1 == MAX_MPI_TAG )
+        if( 0 != (rc = remote_dep_mpi_init_once(context)) ) {
+            parsec_debug_verbose(3, parsec_comm_output_stream, "MPI: Failed to correctly retrieve the max TAG."
+                                 " PaRSEC cannot continue using MPI\n");
+            return rc;
+        }
+
+    /* Did anything changed that would require a build of the management structures? */
+    if( dep_comm == (MPI_Comm)context->comm_ctx ) {
+        return 0;
+    }
+    if( MPI_COMM_NULL != dep_comm ) {
+        remote_dep_mpi_cleanup(context);
+    }
+    dep_comm = (MPI_Comm)context->comm_ctx;
 
     MPI_Comm_size(dep_comm, &(context->nb_nodes));
     MPI_Comm_rank(dep_comm, &(context->my_rank));
 
     parsec_mpi_same_pos_items_size = context->nb_nodes + (int)DEP_LAST;
     parsec_mpi_same_pos_items = (dep_cmd_item_t**)calloc(parsec_mpi_same_pos_items_size,
-                                                        sizeof(dep_cmd_item_t*));
+                                                         sizeof(dep_cmd_item_t*));
     /* Extend the number of pending activations if we have a large number of peers */
     if( context->nb_nodes > (10*parsec_comm_activations_max) )
         parsec_comm_activations_max = context->nb_nodes / 10;
@@ -1298,7 +1406,16 @@ remote_dep_mpi_initialize_execution_stream(parsec_context_t *context)
     memcpy(&parsec_comm_es, context->virtual_processes[0]->execution_streams[0], sizeof(parsec_execution_stream_t));
 }
 
-static int remote_dep_mpi_fini(parsec_context_t* context)
+/**
+ * This function should be called to release all internal structures
+ * needed to handle the internals of the communication engine. Upon
+ * return however, if the engine is to be reused it has to be reinitialized.
+ * In general this function is called either upon finalization of the PaRSEC
+ * engine or by the communication thread early during the startup process, in
+ * order to prepare for message exchange.
+ * BEWARE: this function release the communicator, it has to be called collectively.
+ */
+static int remote_dep_mpi_cleanup(parsec_context_t* context)
 {
     int i, flag;
     MPI_Status status;
@@ -1310,6 +1427,7 @@ static int remote_dep_mpi_fini(parsec_context_t* context)
         MPI_Cancel(&array_of_requests[i]);
         MPI_Test(&array_of_requests[i], &flag, &status);
         MPI_Request_free(&array_of_requests[i]);
+        assert( MPI_REQUEST_NULL == array_of_requests[i] );
     }
     parsec_comm_last_active_req -= (parsec_comm_activations_max + parsec_comm_data_get_max);
     assert(0 == parsec_comm_last_active_req);
@@ -1326,9 +1444,6 @@ static int remote_dep_mpi_fini(parsec_context_t* context)
     free(dep_activate_buff[0]);
     free(dep_activate_buff); dep_activate_buff = NULL;
 
-    OBJ_DESTRUCT(&dep_activates_fifo);
-    OBJ_DESTRUCT(&dep_activates_noobj_fifo);
-    OBJ_DESTRUCT(&dep_put_fifo);
     MPI_Comm_free(&dep_comm);
     MPI_Comm_free(&dep_self);
     (void)context;
@@ -1381,7 +1496,7 @@ static int remote_dep_mpi_pack_dep(int peer,
 
     MPI_Pack_size(dep_count, dep_dtt, dep_comm, &dsize);
     if( (length - (*position)) < dsize ) {  /* no room. bail out */
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Can't pack at %d/%d. Bail out!", *position, length);
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "Can't pack at %d/%d. Bail out!", *position, length);
         return 1;
     }
     /* Don't pack yet, we need to update the length field before packing */
@@ -1400,7 +1515,7 @@ static int remote_dep_mpi_pack_dep(int peer,
         deps->output[k].data.arena = NULL; /* make all data a control */
 #endif
         if(NULL == deps->output[k].data.arena) {
-            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, " CTL\t%s\tparam %d\tdemoted to be a control", tmp, k);
+            PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, " CTL\t%s\tparam %d\tdemoted to be a control", tmp, k);
             continue;
         }
         assert(deps->output[k].data.count > 0);
@@ -1412,12 +1527,12 @@ static int remote_dep_mpi_pack_dep(int peer,
                 MPI_Pack((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
                          deps->output[k].data.count, deps->output[k].data.layout,
                          packed_buffer, length, position, dep_comm);
-                PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, " EGR\t%s\tparam %d\tshort piggyback in the activate msg (%d/%d)",
+                PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, " EGR\t%s\tparam %d\tshort piggyback in the activate msg (%d/%d)",
                         tmp, k, *position, length);
                 msg->length += dsize;
                 continue;  /* go to the next */
             } else if( 0 != saved_position ) {
-                PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "DATA\t%s\tparam %d\texceed buffer length. Start again from here next iteration",
+                PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "DATA\t%s\tparam %d\texceed buffer length. Start again from here next iteration",
                         tmp, k);
                 *position = saved_position;
                 return 1;
@@ -1426,7 +1541,7 @@ static int remote_dep_mpi_pack_dep(int peer,
         }
         expected++;
         item->cmd.activate.task.output_mask |= (1U<<k);
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "DATA\t%s\tparam %d\tdeps %p send on demand (increase deps counter by %d [%d])",
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "DATA\t%s\tparam %d\tdeps %p send on demand (increase deps counter by %d [%d])",
                 tmp, k, deps, expected, deps->pending_ack);
     }
     if(expected)
@@ -1435,7 +1550,7 @@ static int remote_dep_mpi_pack_dep(int peer,
     item->cmd.activate.task.tag = next_tag(k);
     msg->tag = item->cmd.activate.task.tag;
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
-    parsec_debug_verbose(6, parsec_debug_output, "MPI:\tTO\t%d\tActivate\t% -8s\n"
+    parsec_debug_verbose(6, parsec_comm_output_stream, "MPI:\tTO\t%d\tActivate\t% -8s\n"
           "    \t\t\twith datakey %lx\tmask %lx\t(tag=%d) short mask %lu length %d",
           peer, tmp, msg->deps, msg->output_mask, msg->tag,
           msg->output_mask ^ item->cmd.activate.task.output_mask, msg->length);
@@ -1447,16 +1562,22 @@ static int remote_dep_mpi_pack_dep(int peer,
 
 /**
  * Perform a memcopy with datatypes by doing a local sendrecv.
- */ 
+ */
 static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
                                       dep_cmd_item_t *item)
 {
     dep_cmd_t* cmd = &item->cmd;
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
+                         "COPY LOCAL DATA from %p to %p count %d",
+                         PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.source     ) + cmd->memcpy.displ_s,
+                         PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.displ_r,
+                         cmd->memcpy.count);
+
     int rc = MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.source     ) + cmd->memcpy.displ_s,
-                          cmd->memcpy.count, cmd->memcpy.datatype, 0, es->th_id,
+                          cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
                           (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.displ_r,
-                          cmd->memcpy.count, cmd->memcpy.datatype, 0, es->th_id,
-                          dep_self, MPI_STATUS_IGNORE);
+                          cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
+                          MPI_COMM_SELF, MPI_STATUS_IGNORE);
     PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
     remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);
     (void)es;
@@ -1598,9 +1719,9 @@ remote_dep_mpi_eager_which(const parsec_remote_deps_t* deps,
         size_t extent = deps->output[k].data.arena->elem_size * deps->output[k].data.count;
 
         if( (extent <= parsec_param_eager_limit) || (extent <= parsec_param_short_limit) ) {
-            PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tPEER\tNA\t%5s MODE  k=%d\tsize=%d <= %d\t(tag=base+%d)",
-                    (extent <= parsec_param_short_limit ? "Short" : "Eager"),
-                    k, extent, parsec_param_eager_limit, k);
+            PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tPEER\tNA\t%5s MODE  k=%d\tsize=%d <= %d\t(tag=base+%d)",
+                    (extent <= (RDEP_MSG_EAGER_LIMIT) ? "Eager" : "Short"),
+                    k, extent, RDEP_MSG_SHORT_LIMIT, k);
             continue;
         }
         output_mask ^= (1U<<k);
@@ -1642,7 +1763,7 @@ static void remote_dep_mpi_put_eager(parsec_execution_stream_t* es,
             remote_dep_mpi_put_start(es, item);
             return;
         }
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI: Put Eager DELAYED for %s from %d tag %u which 0x%x (deps %p)",
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: Put Eager DELAYED for %s from %d tag %u which 0x%x (deps %p)",
             tmp, item->cmd.activate.peer, task->tag, task->output_mask, deps);
         parsec_list_nolock_push_sorted(&dep_put_fifo, (parsec_list_item_t*)item, dep_cmd_prio);
     }
@@ -1679,7 +1800,7 @@ remote_dep_mpi_save_put_cb(parsec_execution_stream_t* es,
         item = (dep_cmd_item_t*)parsec_list_nolock_pop_front(&dep_put_fifo);
         remote_dep_mpi_put_start(es, item);
     } else {
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI: Put DELAYED for %s from %d tag %u which 0x%x (deps %p)",
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: Put DELAYED for %s from %d tag %u which 0x%x (deps %p)",
                 remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), item->cmd.activate.peer,
                 task->tag, task->output_mask, (void*)deps);
     }
@@ -1710,25 +1831,25 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
 
 #if !defined(PARSEC_PROF_DRY_DEP)
     assert(task->output_mask);
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tPUT mask=%lx deps 0x%lx", task->output_mask, task->deps);
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tPUT mask=%lx deps 0x%lx", task->output_mask, task->deps);
 
     for(k = 0; task->output_mask>>k; k++) {
         assert(k < MAX_PARAM_COUNT);
         if(!((1U<<k) & task->output_mask)) continue;
 
         if(parsec_comm_puts == parsec_comm_puts_max) {
-            PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\treach PUT limit for deps 0x%lx. Reschedule.", deps);
+            PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\treach PUT limit for deps 0x%lx. Reschedule.", deps);
             parsec_list_nolock_push_front(&dep_put_fifo, (parsec_list_item_t*)item);
             return;
         }
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\t[idx %d mask(0x%x / 0x%x)] %p, %p", k, (1U<<k), task->output_mask,
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\t[idx %d mask(0x%x / 0x%x)] %p, %p", k, (1U<<k), task->output_mask,
                 deps->output[k].data.data, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data));
         dataptr = PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data);
         dtt     = deps->output[k].data.layout;
         nbdtt   = deps->output[k].data.count;
 #if defined(PARSEC_DEBUG_NOISIER)
         MPI_Type_get_name(dtt, type_name, &len);
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tTO\t%d\tPut START\tunknown \tk=%d\twith deps 0x%lx at %p type %s\t(tag=%d displ = %ld)",
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\t%d\tPut START\tunknown \tk=%d\twith deps 0x%lx at %p type %s\t(tag=%d displ = %ld)",
                item->cmd.activate.peer, k, task->deps, dataptr, type_name, tag+k, deps->output[k].data.displ);
 #endif
 
@@ -1762,7 +1883,7 @@ remote_dep_mpi_put_end_cb(parsec_execution_stream_t* es,
 {
     parsec_remote_deps_t* deps = (parsec_remote_deps_t*)cb->storage1;
 
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tTO\tna\tPut END  \tunknown \tk=%d\twith deps %p\tparams %lx\t(tag=%d) data ptr %p",
+    PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\tna\tPut END  \tunknown \tk=%d\twith deps %p\tparams %lx\t(tag=%d) data ptr %p",
             cb->storage2, deps, cb->storage2, status->MPI_TAG,
             deps->output[cb->storage2].data.data); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
@@ -1801,7 +1922,7 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
 #endif  /* RDEP_MSG_EAGER_LIMIT != 0 */
 
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
-    parsec_debug_verbose(6, parsec_debug_output, "MPI:\tFROM\t%d\tActivate\t% -8s\n"
+    parsec_debug_verbose(6, parsec_comm_output_stream, "MPI:\tFROM\t%d\tActivate\t% -8s\n"
           "\twith datakey %lx\tparams %lx length %d (pack buf %d/%d) prio %d",
            deps->from, tmp, deps->msg.deps, deps->incoming_mask,
            deps->msg.length, *position, length, deps->max_priority);
@@ -1810,7 +1931,7 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
         if(!(deps->incoming_mask & (1U<<k))) continue;
         /* Check for CTL and data that do not carry payload */
         if((NULL == deps->output[k].data.arena) || (0 == deps->output[k].data.count)) {
-            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tHERE\t%d\tGet NONE\t% -8s\tk=%d\twith datakey %lx at <NA> type CONTROL",
+            PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tHERE\t%d\tGet NONE\t% -8s\tk=%d\twith datakey %lx at <NA> type CONTROL",
                     deps->from, tmp, k, deps->msg.deps);
             deps->output[k].data.data = NULL;
             complete_mask |= (1U<<k);
@@ -1827,7 +1948,7 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
                     deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
                 }
 #ifndef PARSEC_PROF_DRY_DEP
-                PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, " EGR\t%s\tparam %d\tshort from the activate msg (%d/%d)",
+                PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, " EGR\t%s\tparam %d\tshort from the activate msg (%d/%d)",
                         tmp, k, dsize, length - *position);
                 MPI_Unpack(packed_buffer, length, position,
                            (char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
@@ -1845,7 +1966,7 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
             if(NULL == deps->output[k].data.data) {
                 deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
             }
-            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tGet EAGER\t% -8s\tk=%d\twith datakey %lx at %p\t(tag=%d)",
+            PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tGet EAGER\t% -8s\tk=%d\twith datakey %lx at %p\t(tag=%d)",
                     deps->from, tmp, k, deps->msg.deps, deps->output[k].data.data, tag+k);
 #ifndef PARSEC_PROF_DRY_DEP
             MPI_Irecv((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
@@ -1858,7 +1979,7 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
             continue;
         }
 #endif
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tGet DATA\t% -8s\tk=%d\twith datakey %lx tag=%d (to be posted)",
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tGet DATA\t% -8s\tk=%d\twith datakey %lx tag=%d (to be posted)",
                 deps->from, tmp, k, deps->msg.deps, tag+k);
     }
 #if (RDEP_MSG_EAGER_LIMIT != 0) && !defined(PARSEC_PROF_DRY_DEP)
@@ -1891,7 +2012,7 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
 #if defined(PARSEC_DEBUG_NOISIER)
         for(int k = 0; complete_mask>>k; k++)
             if((1U<<k) & complete_mask)
-                PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)",
+                PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)",
                         deps->from, tmp, k, deps->msg.deps, deps->output[k].data.data, tag+k );
 #endif
         /* If this is the only call then force the remote deps propagation */
@@ -1939,7 +2060,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
         if( -1 == rc ) {
             /* the corresponding tp doesn't exist, yet. Put it in unexpected */
             char* packed_buffer;
-            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate NoTPool\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
+            PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tActivate NoTPool\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                     cb->storage2, deps->msg.deps, deps->msg.output_mask);
             /* Copy the short data to some temp storage */
@@ -1957,7 +2078,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
             }
         }
 
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tFROM\t%d\tActivate\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tFROM\t%d\tActivate\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
                status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                cb->storage2, deps->msg.deps, deps->msg.output_mask);
         /* Import the activation message and prepare for the reception */
@@ -1990,7 +2111,7 @@ static void remote_dep_mpi_new_taskpool( parsec_execution_stream_t* es,
             deps->taskpool = NULL;
             rc = remote_dep_get_datatypes(es, deps, PARSEC_DTD_SKIP_SAVING, &position); assert( -1 != rc );
             assert(deps->taskpool != NULL);
-            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate NEWOBJ\t% -8s\twith datakey %lx\tparams %lx",
+            PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tActivate NEWOBJ\t% -8s\twith datakey %lx\tparams %lx",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                     deps->msg.deps, deps->msg.output_mask);
 
@@ -2085,7 +2206,7 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
         nbdtt = deps->output[k].data.count;
 #  if defined(PARSEC_DEBUG_NOISIER)
         MPI_Type_get_name(dtt, type_name, &len);
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s count %d displ %ld extent %d\t(tag=%d)",
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s count %d displ %ld extent %d\t(tag=%d)",
                 from, tmp, k, task->deps, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, nbdtt,
                 deps->output[k].data.displ, deps->output[k].data.arena->elem_size * nbdtt, msg.tag+k);
 #  endif
@@ -2134,7 +2255,7 @@ remote_dep_mpi_get_end_cb(parsec_execution_stream_t* es,
     char tmp[MAX_TASK_STRLEN];
 #endif
 
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tGet END  \t% -8s\tk=%d\twith datakey na        \tparams %lx\t(tag=%d)",
+    PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tGet END  \t% -8s\tk=%d\twith datakey na        \tparams %lx\t(tag=%d)",
             status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
             (int)cb->storage2, deps->incoming_mask, status->MPI_TAG); (void)status;
     DEBUG_MARK_DTA_MSG_END_RECV(status->MPI_TAG);

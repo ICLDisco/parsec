@@ -521,7 +521,7 @@ parsec_release_dep_fct(struct parsec_execution_stream_s *es,
 int parsec_task_deps_with_final_output(const parsec_task_t *task,
                                       const dep_t **deps);
 
-int32_t parsec_ptg_update_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks );
+int32_t parsec_add_fetch_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks );
 
 void parsec_dependencies_mark_task_as_startup(parsec_task_t* task, parsec_execution_stream_t *es);
 

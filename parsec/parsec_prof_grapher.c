@@ -141,7 +141,7 @@ char *parsec_prof_grapher_taskid(const parsec_task_t *task, char *tmp, int lengt
 }
 
 void parsec_prof_grapher_task(const parsec_task_t *context,
-                             int thread_id, int vp_id, uint64_t task_hash)
+                              int thread_id, int vp_id, uint64_t task_hash)
 {
     if( NULL != grapher_file ) {
         char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
@@ -156,7 +156,7 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
                 nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp, context->sim_exec_date,
                 context->taskpool->taskpool_id,
-                context->taskpool->profiling_array != NULL 
+                context->taskpool->profiling_array != NULL
                     ? BASE_KEY(context->taskpool->profiling_array[2*context->task_class->task_class_id])
                     : -1,
                 context->task_class->name,
@@ -181,7 +181,7 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
                 nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp,
                 context->taskpool->taskpool_id,
-                context->taskpool->profiling_array != NULL 
+                context->taskpool->profiling_array != NULL
                     ? BASE_KEY(context->taskpool->profiling_array[2*context->task_class->task_class_id])
                     : -1,
                 context->task_class->name,
