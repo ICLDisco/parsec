@@ -922,41 +922,45 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 
             /* Make sure the new GPU element is clean and ready to be used */
             assert( master != lru_gpu_elem->original );
-            assert( NULL   != lru_gpu_elem->original );
-
-            /* Let's check we're not trying to steal one of our own data */
-            oldmaster = lru_gpu_elem->original;
-            for( j = 0; j < i; j++ ) {
-                if( NULL == this_task->data[j].data_in ) continue;
-                if( this_task->data[j].data_in->original == oldmaster ) {
-                    PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
-                                         "GPU[%d]:%s: Drop LRU-retrieved CUDA copy %p [already in use by same task %d:%d] original %p",
-                                         gpu_device->cuda_index, task_name,
-                                         lru_gpu_elem, i, j, lru_gpu_elem->original);
-                    /* If we are the owner of this tile we need to make sure it remains available for
-                     * other tasks or we run in deadlock situations.
-                     */
-                    if( temp_loc[j] != lru_gpu_elem )
-                        temp_loc[j] = lru_gpu_elem;
+            if ( NULL != lru_gpu_elem->original ) {
+                /* Let's check we're not trying to steal one of our own data */
+                oldmaster = lru_gpu_elem->original;
+                for( j = 0; j < i; j++ ) {
+                    if( NULL == this_task->data[j].data_in ) continue;
+                    if( this_task->data[j].data_in->original == oldmaster ) {
+                        PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
+                                             "GPU[%d]:%s: Drop LRU-retrieved CUDA copy %p [already in use by same task %d:%d] original %p",
+                                             gpu_device->cuda_index, task_name,
+                                             lru_gpu_elem, i, j, lru_gpu_elem->original);
+                        /* If we are the owner of this tile we need to make sure it remains available for
+                         * other tasks or we run in deadlock situations.
+                         */
+                        if( temp_loc[j] != lru_gpu_elem )
+                            temp_loc[j] = lru_gpu_elem;
 #if defined(PARSEC_DEBUG_NOISIER)
-                    /* Make sure the data copy is indeed referenced from the current task */
-                    for( j = 0; j < i; j++ ) {
-                        if( lru_gpu_elem == temp_loc[j] ) break;
-                    }
-                    assert( j < i );
+                        /* Make sure the data copy is indeed referenced from the current task */
+                        for( j = 0; j < i; j++ ) {
+                            if( lru_gpu_elem == temp_loc[j] ) break;
+                        }
+                        assert( j < i );
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
-                    goto find_another_data;
+                        goto find_another_data;
+                    }
                 }
+
+                /* The data is not used, and it's not one of ours: we can free it or reuse it */
+                PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
+                                     "GPU[%d]:%s:\ttask %s:%d repurpose copy %p to data %p instead of %p",
+                                     gpu_device->cuda_index, task_name, this_task->task_class->name, i, lru_gpu_elem, master, oldmaster);
+                parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
             }
-
-            /* The data is not used, and it's not one of ours: we can free it or reuse it */
-            PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
-                                 "GPU[%d]:%s:\ttask %s:%d repurpose copy %p to data %p instead of %p",
-                                 gpu_device->cuda_index, task_name, this_task->task_class->name, i, lru_gpu_elem, master, oldmaster);
-            parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
-
+            else {
+                PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
+                                     "GPU[%d]:%s:\ttask %s:%d found detached memory from previously destructed data %p",
+                                     gpu_device->cuda_index, task_name, this_task->task_class->name, i, lru_gpu_elem);
+            }
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
-            /* Let's free this space, and try again to malloc some space */
+                /* Let's free this space, and try again to malloc some space */
             zone_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
             lru_gpu_elem->device_private = NULL;
             data_avail_epoch++;
@@ -1249,7 +1253,7 @@ int parsec_gpu_sort_pending_list(gpu_device_t *gpu_device)
 
 /**
  * This version is based on 4 streams: one for transfers from the memory to
- * the GPU, 2 for kernel executions and one for tranfers from the GPU into
+ * the GPU, 2 for kernel executions and one for transfers from the GPU into
  * the main memory. The synchronization on each stream is based on CUDA events,
  * such an event indicate that a specific epoch of the lifetime of a task has
  * been completed. Each type of stream (in, exec and out) has a pending FIFO,
@@ -1625,7 +1629,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
 #endif
 
     if (gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {
-        for( i = 0; i < 1; i++ ) {
+        for( i = 0; i < this_task->locals[0].value; i++ ) {
             gpu_copy = this_task->data[i].data_out;
             original = gpu_copy->original;
             status = cudaMemcpyAsync( original->device_copies[0]->device_private,
@@ -1807,6 +1811,8 @@ parsec_gpu_kernel_epilog( gpu_device_t      *gpu_device,
             PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                                  "CUDA copy %p [ref_count %d] moved to the read LRU in %s",
                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);
+            parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
+            PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
             parsec_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
         } else {
             PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
@@ -1886,7 +1892,7 @@ parsec_gpu_kernel_cleanout( gpu_device_t      *gpu_device,
 
 /**
  * This version is based on 4 streams: one for transfers from the memory to
- * the GPU, 2 for kernel executions and one for tranfers from the GPU into
+ * the GPU, 2 for kernel executions and one for transfers from the GPU into
  * the main memory. The synchronization on each stream is based on CUDA events,
  * such an event indicate that a specific epoch of the lifetime of a task has
  * been completed. Each type of stream (in, exec and out) has a pending FIFO,

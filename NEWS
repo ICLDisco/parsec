@@ -11,7 +11,7 @@ bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
  - Update the PaRSEC DSL handling of initial tasks. We now rely on 2
    pieces of information: the number of DSL tasks, and the number of
-   tasks imposed by the system (all types of data tranfer).
+   tasks imposed by the system (all types of data transfer).
 
  - Add a purely local scheduler (ll), that uses a single LIFO per
    thread. Each schedule operation does 1 atomic (push in local queue),

@@ -80,7 +80,7 @@ endif( NOT MPI_C_FOUND )
 list(APPEND SOURCES parsec_hwloc.c)
 
 if (CUDA_FOUND)
-  list(APPEND SOURCES devices/cuda/dev_cuda.c devices/cuda/tranfer.c)
+  list(APPEND SOURCES devices/cuda/dev_cuda.c devices/cuda/transfer.c)
   install(FILES
           ${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda/dev_cuda.h
           DESTINATION include/parsec/devices/cuda )

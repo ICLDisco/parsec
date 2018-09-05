@@ -128,8 +128,8 @@ struct _gpu_device {
                                  *  that we know which tasks can be evaluated for submission.
                                  */
     parsec_gpu_exec_stream_t* exec_stream;
-    parsec_list_t gpu_mem_lru;
-    parsec_list_t gpu_mem_owned_lru;
+    parsec_list_t gpu_mem_lru;   /* Read-only blocks, and fresh blocks */
+    parsec_list_t gpu_mem_owned_lru;  /* Dirty blocks */
     parsec_list_t pending;
     struct zone_malloc_s *memory;
     parsec_list_item_t *sort_starting_p;
@@ -183,7 +183,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device, parsec_gpu_task_t *w2r_ta
  */
 /**
  * This version is based on 4 streams: one for transfers from the memory to
- * the GPU, 2 for kernel executions and one for tranfers from the GPU into
+ * the GPU, 2 for kernel executions and one for transfers from the GPU into
  * the main memory. The synchronization on each stream is based on CUDA events,
  * such an event indicate that a specific epoch of the lifetime of a task has
  * been completed. Each type of stream (in, exec and out) has a pending FIFO,
