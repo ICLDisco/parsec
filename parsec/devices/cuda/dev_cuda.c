@@ -641,7 +641,7 @@ parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
     cudaMemGetInfo( &initial_free_mem, &total_mem );
     if( number_blocks != -1 ) {
         if( number_blocks == 0 ) {
-            parsec_warning("CUDA: Invalid argument: requesting 0 bytes of memory on CUDA device %s", gpu_device->super.name);
+            parsec_warning("CUDA[%d] Invalid argument: requesting 0 bytes of memory on CUDA device %s", gpu_device->cuda_index, gpu_device->super.name);
             return PARSEC_ERROR;
         } else {
             how_much_we_allocate = number_blocks * eltsize;
@@ -655,15 +655,15 @@ parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
          *  and eleventh case of computer scientists who don't know how
          *  to divide a number by another
          */
-        parsec_warning("CUDA: Requested %d bytes on CUDA device %s, but only %d bytes are available -- reducing allocation to max available",
-                      how_much_we_allocate, initial_free_mem);
+        parsec_warning("CUDA[%d] Requested %d bytes on CUDA device %s, but only %d bytes are available -- reducing allocation to max available",
+                       gpu_device->cuda_index, how_much_we_allocate, gpu_device->super.name, initial_free_mem);
         how_much_we_allocate = initial_free_mem;
     }
     if( how_much_we_allocate < eltsize ) {
         /** Handle another kind of jokers entirely, and cases of
          *  not enough memory on the device
          */
-        parsec_warning("CUDA: Cannot allocate at least one element on CUDA device %s", gpu_device->super.name);
+        parsec_warning("CUDA[%d] Cannot allocate at least one element on CUDA device %s", gpu_device->cuda_index, gpu_device->super.name);
         return PARSEC_ERROR;
     }
 
@@ -683,53 +683,61 @@ parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
                                 ({
                                     size_t _free_mem, _total_mem;
                                     cudaMemGetInfo( &_free_mem, &_total_mem );
-                                    parsec_inform("Per context: free mem %zu total mem %zu (allocated tiles %u)",
-                                                 _free_mem, _total_mem, mem_elem_per_gpu);
+                                    parsec_inform("GPU[%d] Per context: free mem %zu total mem %zu (allocated tiles %u)",
+                                                  gpu_device->cuda_index,_free_mem, _total_mem, mem_elem_per_gpu);
                                     break;
                                 }) );
         gpu_elem = OBJ_NEW(parsec_data_copy_t);
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
-                            "Allocate CUDA copy %p [ref_count %d] for data [%p]",
-                            gpu_elem, gpu_elem->super.obj_reference_count, NULL);
+                            "GPU[%d] Allocate CUDA copy %p [ref_count %d] for data [%p]",
+                             gpu_device->cuda_index,gpu_elem, gpu_elem->super.obj_reference_count, NULL);
         gpu_elem->device_private = (void*)(long)device_ptr;
         gpu_elem->device_index = gpu_device->super.device_index;
         mem_elem_per_gpu++;
         OBJ_RETAIN(gpu_elem);
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
-                            "Retain and insert CUDA copy %p [ref_count %d] in LRU",
-                            gpu_elem, gpu_elem->super.obj_reference_count);
+                            "GPU[%d] Retain and insert CUDA copy %p [ref_count %d] in LRU",
+                             gpu_device->cuda_index, gpu_elem, gpu_elem->super.obj_reference_count);
         parsec_list_nolock_fifo_push( &gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_elem );
         cudaMemGetInfo( &free_mem, &total_mem );
     }
     if( 0 == mem_elem_per_gpu && parsec_list_nolock_is_empty( &gpu_device->gpu_mem_lru ) ) {
-        parsec_warning("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!",
-                      gpu_device->super.context->my_rank, gpu_device->cuda_index);
+        parsec_warning("GPU[%d] Cannot allocate memory on GPU %s. Skip it!", gpu_device->cuda_index, gpu_device->super.name);
     }
     else {
-        PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,  "GPU:\tAllocate %u tiles on the GPU memory", mem_elem_per_gpu );
+        PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
+                             "GPU[%d] Allocate %u tiles on the GPU memory",
+                             gpu_device->cuda_index, mem_elem_per_gpu );
     }
     PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
-                        "GPU:\tAllocate %u tiles on the GPU memory", mem_elem_per_gpu);
+                         "GPU[%d] Allocate %u tiles on the GPU memory", gpu_device->cuda_index, mem_elem_per_gpu);
 #else
     if( NULL == gpu_device->memory ) {
         void* base_ptr;
-        /* We allocate all the memory on the GPU and we use our memory management */
+        /* We allocate all the memory on the GPU and we use our memory management. */
+        /* This computation leads to allocating more than available if we asked for more than GPU memory */
         mem_elem_per_gpu = (how_much_we_allocate + eltsize - 1 ) / eltsize;
         size_t total_size = (size_t)mem_elem_per_gpu * eltsize;
+        if (total_size > initial_free_mem) {
+            /* Mapping more than 100% of GPU memory is obviously wrong */
+            /* Mapping exactly 100% of the GPU memory ends up producing errors about __global__ function call is not configured */
+            /* Mapping 95% works with low-end GPUs like 1060, how much to let available for cuda runtime, I don't know how to calculate */
+            total_size = (size_t)((int)(.95*initial_free_mem / eltsize)) * eltsize;
+            mem_elem_per_gpu = total_size / eltsize;
+        }
         status = (cudaError_t)cudaMalloc(&base_ptr, total_size);
         PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_memory_reserve) cudaMalloc ", status,
-                                ({ parsec_warning("Allocating memory on the GPU device failed"); }) );
+                                 ({ parsec_warning("GPU[%d] Allocating memory on the GPU device failed", gpu_device->cuda_index); }) );
 
         gpu_device->memory = zone_malloc_init( base_ptr, mem_elem_per_gpu, eltsize );
 
         if( gpu_device->memory == NULL ) {
-            parsec_warning("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!",
-                          gpu_device->super.context->my_rank, gpu_device->cuda_index);
+            parsec_warning("GPU[%d] Cannot allocate memory on GPU %s. Skip it!", gpu_device->cuda_index, gpu_device->super.name);
             return PARSEC_ERROR;
         }
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
-                            "GPU:\tAllocate %u segment of size %d on the GPU memory",
-                            mem_elem_per_gpu, eltsize );
+                            "GPU[%d] Allocate %u segment of size %d on the GPU memory",
+                             gpu_device->cuda_index, mem_elem_per_gpu, eltsize );
     }
 #endif
 
@@ -1436,6 +1444,8 @@ progress_stream( gpu_device_t* gpu_device,
         /* Grab the submit function */
         progress_fct = task->submit;
 #if defined(PARSEC_DEBUG_PARANOID)
+        int i;
+        const parsec_flow_t *flow;
         for( i = 0; i < task->ec->task_class->nb_flows; i++ ) {
             flow = task->flow[i];
             if(!flow->flow_flags) continue;
