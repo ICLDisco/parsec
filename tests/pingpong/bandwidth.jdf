@@ -282,7 +282,7 @@ BODY [type = CUDA]
 END
 
 BODY
-    printf("PONG(%d, %d)\n", t, f);
+    //printf("PONG(%d, %d)\n", t, f);
 END
 
 extern "C" %{
@@ -297,12 +297,13 @@ int main(int argc, char *argv[])
     struct timeval tstart, tend;
     double t, bw;
 
-    world = 1;
-    rank = 0;
-
     loops = 10;
     frags = 1;
     size = 1024;
+    
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     for( i = 1; i < argc; i++ ) {
         if(0 == strcmp(argv[i], "-c")) {
@@ -340,7 +341,6 @@ int main(int argc, char *argv[])
         setenv(param, value, 1);
         free(param);
     }
-
     parsec = parsec_init(cores, &argc, &argv);
 
     for(i = 0; i < 2; i++) {
@@ -369,7 +369,7 @@ int main(int argc, char *argv[])
     free_data(dcA);
 
     parsec_fini(&parsec);
-
+    MPI_Finalize();
     return 0;
 }
 %}
