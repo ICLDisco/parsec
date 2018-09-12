@@ -1,15 +1,7 @@
-IF(OTF2_CONFIG_PATH)
-    FIND_PROGRAM(OTF2_CONFIG NAMES otf2-config
-        PATHS
-        ${OTF2_CONFIG_PATH}
-        /opt/scorep/bin
-    )
-ELSE(OTF2_CONFIG_PATH)
-    FIND_PROGRAM(OTF2_CONFIG NAMES otf2-config
-        PATHS
-        /opt/scorep/bin
-    )
-ENDIF(OTF2_CONFIG_PATH)
+FIND_PROGRAM(OTF2_CONFIG NAMES otf2-config
+             PATHS "${OTF2_DIR}/bin"
+                   "${OTF2_CONFIG_PATH}"
+                   "/opt/scorep/bin")
 
 IF(NOT OTF2_CONFIG)
     MESSAGE(STATUS "no otf2-config found")
