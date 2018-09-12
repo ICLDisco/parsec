@@ -9,6 +9,13 @@ set (PARSEC_VERSION_MAJOR 2)
 set (PARSEC_VERSION_MINOR 0)
 set (PARSEC_VERSION_PATCH 0)
 
+# CMake Policies Tuning
+if(POLICY CMP0074)
+  # CMP0074: Starting with CMake 3.12, all FIND_<something> use <something>_ROOT in the search path
+  #          in addition to the specified paths
+  cmake_policy(SET CMP0074 NEW)
+ENDIF(POLICY CMP0074)
+
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)
 enable_testing()
