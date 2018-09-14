@@ -90,6 +90,7 @@ typedef void (*parsec_destruct_fn_t)(parsec_taskpool_t* tp);
 struct parsec_taskpool_s {
     parsec_list_item_t         super;     /**< A PaRSEC taskpool is also a list_item, so it can be chained into different lists */
     uint32_t                   taskpool_id; /**< Taskpool are uniquely globally consistently named */
+    char*                      taskpool_name; /**< Handles are not uniquely named for profiling */
     volatile int32_t           nb_tasks;  /**< A placeholder for the upper level to count (if necessary) the tasks
                                            *   in the taskpool. This value is checked upon each task completion by
                                            *   the runtime, to see if the taskpool is completed (a nb_tasks equal
@@ -113,8 +114,8 @@ struct parsec_taskpool_s {
     parsec_startup_fn_t         startup_hook;  /**< Pointer to the function that generates initial tasks */
     const parsec_task_class_t** task_classes_array; /**< Array of task classes that build this DAG */
 #if defined(PARSEC_PROF_TRACE)
-    const int*                   profiling_array; /**< Array of profiling keys to start/stop each of the task classes
-                                                   *   The array is indexed on the same index as task_classes_array */
+    const int*                  profiling_array; /**< Array of profiling keys to start/stop each of the task classes
+                                                  *   The array is indexed on the same index as task_classes_array */
 #endif  /* defined(PARSEC_PROF_TRACE) */
     parsec_event_cb_t           on_enqueue;      /**< Callback called when the taskpool is enqueued (scheduled) */
     void*                       on_enqueue_data; /**< Data to pass to on_enqueue when called */
@@ -313,6 +314,11 @@ typedef struct __parsec_internal_incarnation_s {
     parsec_hook_t              *dyld_fn;
 } __parsec_chore_t;
 
+typedef struct parsec_property_s {
+    const char   *name;
+    const expr_t *expr;
+} parsec_property_t;
+
 struct parsec_task_class_s {
     const char                  *name;
 
@@ -329,6 +335,7 @@ struct parsec_task_class_s {
     const parsec_flow_t         *in[MAX_PARAM_COUNT];
     const parsec_flow_t         *out[MAX_PARAM_COUNT];
     const expr_t                *priority;
+    const parsec_property_t     *properties;     /**< {NULL, NULL} terminated array of properties holding all function-specific properties expressions */
 
     parsec_data_ref_fn_t        *initial_data;   /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
     parsec_data_ref_fn_t        *final_data;     /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */

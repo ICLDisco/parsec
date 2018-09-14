@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,6 +20,19 @@
 jdf_t current_jdf;
 int current_lineno;
 int verbose_level = 0;
+
+static char *FUNCTION_PROPERTY_KEYWORDS[] = {
+    "profile",
+    "high_priority",
+    JDF_PROP_UD_MAKE_KEY_FN_NAME,
+    JDF_PROP_UD_HASH_STRUCT_NAME,
+    JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME,
+    JDF_PROP_UD_STARTUP_TASKS_FN_NAME,
+    JDF_PROP_UD_FIND_DEPS_FN_NAME,
+    JDF_PROP_UD_ALLOC_DEPS_FN_NAME,
+    JDF_PROP_UD_FREE_DEPS_FN_NAME,
+    NULL
+};
 
 extern const char *yyfilename;
 
@@ -1377,16 +1390,63 @@ const char*jdf_property_get_string( const jdf_def_list_t* properties,
     return ret_if_not_found;  /* the expected default */
 }
 
-jdf_def_list_t *jdf_add_string_property(jdf_def_list_t **properties, const char *prop_name, const char *prop_value)
+const char* jdf_property_get_function( const jdf_def_list_t* properties,
+                                       const char* prop_name,
+                                       const char* ret_if_not_found )
 {
-    jdf_def_list_t* assign = malloc(sizeof(jdf_def_list_t));
-    assign->next              = NULL;
+    jdf_def_list_t* property;
+    jdf_expr_t* expr = jdf_find_property(properties, prop_name, &property);
+
+    if( NULL != expr ) {
+        if( JDF_OP_IS_C_CODE(expr->op) )
+            return expr->jdf_c_code.fname;
+        printf("Warning: property %s defined at line %d is not defined as a function.\n",
+               prop_name, JDF_OBJECT_LINENO(property));
+    }
+    return ret_if_not_found;  /* the expected default */
+}
+
+jdf_def_list_t *jdf_add_function_property(jdf_def_list_t **properties, const char *prop_name, const char *prop_value)
+{
+    jdf_def_list_t* assign    = calloc(1, sizeof(jdf_def_list_t));
+    assign->properties        = NULL;
     assign->name              = strdup(prop_name);
-    assign->expr              = malloc(sizeof(jdf_expr_t));
-    assign->expr->op          = JDF_VAR;
-    assign->expr->jdf_var     = strdup(prop_value);
+    assign->expr              = calloc(1, sizeof(jdf_expr_t));
+    assign->expr->op = JDF_C_CODE;
+    assign->expr->jdf_c_code.code = NULL;
+    assign->expr->jdf_c_code.lineno = -1;
+    /* This will be set by the upper level parsing if necessary */
+    assign->expr->jdf_c_code.function_context = NULL;
+    assign->expr->jdf_c_code.fname = strdup(prop_value);
+    JDF_OBJECT_ONAME(assign->expr) = strdup(prop_value);
     JDF_OBJECT_LINENO(assign) = -1;
     assign->next = *properties;
     *properties = assign;
     return assign;
+}
+
+jdf_def_list_t *jdf_add_string_property(jdf_def_list_t **properties, const char *prop_name, const char *prop_value)
+{
+    jdf_def_list_t* assign    = calloc(1, sizeof(jdf_def_list_t));
+    assign->properties        = NULL;
+    assign->name              = strdup(prop_name);
+    assign->expr              = calloc(1, sizeof(jdf_expr_t));
+    assign->expr->op          = JDF_VAR;
+    assign->expr->jdf_var     = strdup(prop_value);
+    /* JDF_OBJECT_ONAME(assign->expr) = strdup(prop_value); */
+    JDF_OBJECT_LINENO(assign) = -1;
+    assign->next = *properties;
+    *properties = assign;
+    return assign;
+}
+
+int jdf_function_property_is_keyword(const char *name)
+{
+    char **p = FUNCTION_PROPERTY_KEYWORDS;
+    while(*p != NULL) {
+        if (strcmp( *p, name) == 0)
+            return 1;
+        p++;
+    }
+    return 0;
 }
