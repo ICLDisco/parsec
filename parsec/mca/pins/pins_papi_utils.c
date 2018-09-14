@@ -354,16 +354,30 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
         for(  /* none */; NULL != token;
                         token = strchr(token, (int)':'), token++ ) {
             /* This token represents the socket for this event. */
-            if(socket_set == 0 && token[0] == 'S') {
-                if(token[1] != '*')
-                    event->socket = atoi(&token[1]);
+            if((0 == socket_set) && token[0] == 'S') {
+                if(token[1] != '*') {
+                    errno = 0;
+                    event->socket = strtol(&token[1], NULL, 10);
+                    if( 0 != errno) {  /* failed to convert. Assume we are looking at an event. */
+                        parsec_debug_verbose(10, parsec_debug_output, "Impossible to convert the socket [%s] of the PINS event %s. "
+                                             "Assume this is the name of the event", &token[1], token);
+                        goto find_event;
+                    }
+                }
                 socket_set = 1;
                 continue;
             }
             /* This token represents the core for this event. */
-            if(core_set == 0 && token[0] == 'C') {
-                if(token[1] != '*')
-                    event->core = atoi(&token[1]);
+            if((0 == core_set) && token[0] == 'C') {
+                if(token[1] != '*') {
+                    errno = 0;
+                    event->core = strtol(&token[1], NULL, 10);
+                    if( 0 != errno) {  /* failed to convert. Assume we are looking at an event. */
+                        parsec_debug_verbose(10, parsec_debug_output, "Impossible to convert the core [%s] of the PINS event %s. "
+                                             "Assume this is the name of the event", &token[1], token);
+                        goto find_event;
+                    }
+                }
                 core_set = 1;
                 continue;
             }
@@ -373,7 +387,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
              * frequency, we must determine the units and convert the units specified into
              * the units used by this system.
              */
-            if(frequency_set == 0 && token[0] == 'F') {
+            if((0 == frequency_set) && token[0] == 'F') {
                 event->frequency = 1;
                 frequency_set = 1;
                 /* the remaining of this field must contain a number, which can be either
@@ -383,9 +397,9 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 char* remaining;
                 float value = strtof(&token[1], &remaining);
                 if( remaining == &token[1] ) { /* no conversion was possible */
-                    parsec_debug_verbose(3, parsec_debug_output, "Impossible to convert the frequency [%s] of the PINS event %s. Assume frequency of 1.",
-                                 &token[1], token);
-                    continue;
+                    parsec_debug_verbose(3, parsec_debug_output, "Impossible to convert the frequency [%s] of the PINS event %s. "
+                                         "Assume this is the name of the event", &token[1], token);
+                    goto find_event;
                 }
                 if( value < 0 ) {
                     parsec_debug_verbose(3, parsec_debug_output, "Obtained a negative value [%ld:%s] for the frequency of the PINS event %s. Assume frequency of 1.",
@@ -405,6 +419,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 continue;
             }
 
+        find_event:
             /* Convert event name to code */
             if(PAPI_OK != (err = PAPI_event_name_to_code(token, &event->pins_papi_native_event)) ) {
                 parsec_debug_verbose(3, parsec_debug_output, "Could not convert %s to a valid PAPI event name (%s). Ignore the event",
