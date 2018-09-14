@@ -31,17 +31,17 @@ typedef struct {
     parsec_hbbuffer_t  *task_queue;                 /* The lowest level bounded buffer, local to this thread only */
     int                 nb_hierarch_queues;         /* The number of bounded buffers -- algorithm dependent */
     parsec_hbbuffer_t **hierarch_queues;            /* The entire set of bounded buffers */
-} local_queues_scheduler_object_t;
+} parsec_mca_sched_local_queues_scheduler_object_t;
 
-#define LOCAL_QUEUES_OBJECT(eu_context) ((local_queues_scheduler_object_t*)(eu_context)->scheduler_object)
+#define PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(eu_context) ((parsec_mca_sched_local_queues_scheduler_object_t*)(eu_context)->scheduler_object)
 
-static inline void push_in_queue_wrapper(void *store, parsec_list_item_t *elt, int32_t distance)
+static inline void parsec_mca_sched_push_in_queue_wrapper(void *store, parsec_list_item_t *elt, int32_t distance)
 {
     (void)distance;
     parsec_dequeue_chain_back( (parsec_dequeue_t*)store, elt );
 }
 
-static inline long long int parsec_system_queue_length( parsec_vp_t *vp ) {
+static inline long long int parsec_mca_sched_system_queue_length( parsec_vp_t *vp ) {
 #if defined(PARSEC_PAPI_SDE)
     long long int sum = 0;
     parsec_execution_stream_t *es;
@@ -49,7 +49,7 @@ static inline long long int parsec_system_queue_length( parsec_vp_t *vp ) {
 
     for(thid = 0; thid < vp->nb_cores; thid++) {
         es = vp->execution_streams[thid];
-        sum += LOCAL_QUEUES_OBJECT( es )->local_system_queue_balance;
+        sum += PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT( es )->local_system_queue_balance;
     }
 
     return sum;
@@ -59,7 +59,7 @@ static inline long long int parsec_system_queue_length( parsec_vp_t *vp ) {
 #endif
 }
 
-static inline parsec_task_t *pop_from_system_queue_wrapper(local_queues_scheduler_object_t *sched_obj)
+static inline parsec_task_t *parsec_mca_sched_pop_from_system_queue_wrapper(parsec_mca_sched_local_queues_scheduler_object_t *sched_obj)
 {
     parsec_task_t *task = (parsec_task_t*)parsec_dequeue_try_pop_front(sched_obj->system_queue);
 #if defined(PARSEC_PAPI_SDE)
@@ -69,9 +69,9 @@ static inline parsec_task_t *pop_from_system_queue_wrapper(local_queues_schedule
     return task;
 }
 
-static inline void push_in_system_queue_wrapper(void *sobj, parsec_list_item_t *elt, int32_t distance)
+static inline void parsec_mca_sched_push_in_system_queue_wrapper(void *sobj, parsec_list_item_t *elt, int32_t distance)
 {
-    local_queues_scheduler_object_t *obj = (local_queues_scheduler_object_t*)sobj;
+    parsec_mca_sched_local_queues_scheduler_object_t *obj = (parsec_mca_sched_local_queues_scheduler_object_t*)sobj;
 #if defined(PARSEC_PAPI_SDE)
     int len = 0;
     _LIST_ITEM_ITERATOR(elt, elt, item, {len++; });
@@ -85,7 +85,7 @@ static inline void push_in_system_queue_wrapper(void *sobj, parsec_list_item_t *
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */
-static inline void push_in_buffer_wrapper(void *store, parsec_list_item_t *elt, int32_t distance)
+static inline void parsec_mca_sched_push_in_buffer_wrapper(void *store, parsec_list_item_t *elt, int32_t distance)
 {
     /* Store is a hbbbuffer */
     parsec_hbbuffer_push_all( (parsec_hbbuffer_t*)store, elt, distance );
@@ -115,11 +115,11 @@ static inline void push_in_buffer_wrapper(void *store, parsec_list_item_t *elt, 
 typedef struct {
     parsec_list_t *list;
     int            local_counter;
-} parsec_list_local_counter_t;
+} parsec_mca_sched_list_local_counter_t;
 
-static inline parsec_list_local_counter_t *allocate_parsec_list_local_counter(parsec_list_local_counter_t *msl)
+static inline parsec_mca_sched_list_local_counter_t *parsec_mca_sched_allocate_list_local_counter(parsec_mca_sched_list_local_counter_t *msl)
 {
-    parsec_list_local_counter_t *sl = (parsec_list_local_counter_t*)malloc(sizeof(parsec_list_local_counter_t));
+    parsec_mca_sched_list_local_counter_t *sl = (parsec_mca_sched_list_local_counter_t*)malloc(sizeof(parsec_mca_sched_list_local_counter_t));
     if( NULL == msl ) {
         sl->list = OBJ_NEW(parsec_list_t);
     } else {
@@ -130,13 +130,13 @@ static inline parsec_list_local_counter_t *allocate_parsec_list_local_counter(pa
     return sl;
 }
 
-static inline void free_parsec_list_local_counter(parsec_list_local_counter_t *sl)
+static inline void parsec_mca_sched_free_list_local_counter(parsec_mca_sched_list_local_counter_t *sl)
 {
     OBJ_RELEASE(sl->list);
     free(sl);
 }
 
-static inline void chain_to_parsec_list_local_counter(parsec_list_local_counter_t *sl, parsec_task_t *it, size_t offset)
+static inline void parsec_mca_sched_list_local_counter_chain_sorted(parsec_mca_sched_list_local_counter_t *sl, parsec_task_t *it, size_t offset)
 {
     int len = 0;
     _LIST_ITEM_ITERATOR(it, &it->super, item, {len++; });
@@ -144,7 +144,7 @@ static inline void chain_to_parsec_list_local_counter(parsec_list_local_counter_
     sl->local_counter += len;
 }
 
-static inline void chain_back_to_parsec_list_local_counter(parsec_list_local_counter_t *sl, parsec_task_t *it)
+static inline void parsec_mca_sched_list_local_counter_chain_back(parsec_mca_sched_list_local_counter_t *sl, parsec_task_t *it)
 {
     int len = 0;
     _LIST_ITEM_ITERATOR(it, &it->super, item, {len++; });
@@ -152,7 +152,7 @@ static inline void chain_back_to_parsec_list_local_counter(parsec_list_local_cou
     sl->local_counter += len;
 }
 
-static inline parsec_task_t *pop_from_parsec_list_local_counter(parsec_list_local_counter_t *sl)
+static inline parsec_task_t *parsec_mca_sched_list_local_counter_pop_front(parsec_mca_sched_list_local_counter_t *sl)
 {
     parsec_task_t * context =
         (parsec_task_t*)parsec_list_pop_front(sl->list);
@@ -161,7 +161,7 @@ static inline parsec_task_t *pop_from_parsec_list_local_counter(parsec_list_loca
     return context;
 }
 
-static inline parsec_task_t *pop_back_from_parsec_list_local_counter(parsec_list_local_counter_t *sl)
+static inline parsec_task_t *parsec_mca_sched_list_local_counter_pop_back(parsec_mca_sched_list_local_counter_t *sl)
 {
     parsec_task_t * context =
         (parsec_task_t*)parsec_list_pop_front(sl->list);
@@ -170,21 +170,21 @@ static inline parsec_task_t *pop_back_from_parsec_list_local_counter(parsec_list
     return context;
 }
 
-static inline long long int parsec_list_local_counter_length( parsec_vp_t *vp )
+static inline long long int parsec_mca_sched_list_local_counter_length( parsec_vp_t *vp )
 {
     int thid;
     long long int sum = 0;
     for(thid = 0; thid < vp->nb_cores; thid++) {
-        sum += ((parsec_list_local_counter_t*)(vp->execution_streams[thid]))->local_counter;
+        sum += ((parsec_mca_sched_list_local_counter_t*)(vp->execution_streams[thid]))->local_counter;
     }
     return sum;
 }
 
 #else /* !defined(PARSEC_PAPI_SDE) */
 
-typedef parsec_list_t parsec_list_local_counter_t;
+typedef parsec_list_t parsec_mca_sched_list_local_counter_t;
 
-static inline parsec_list_local_counter_t *allocate_parsec_list_local_counter(parsec_list_local_counter_t *list)
+static inline parsec_mca_sched_list_local_counter_t *parsec_mca_sched_allocate_list_local_counter(parsec_mca_sched_list_local_counter_t *list)
 {
     if( NULL == list )
         return OBJ_NEW(parsec_list_t);
@@ -192,32 +192,32 @@ static inline parsec_list_local_counter_t *allocate_parsec_list_local_counter(pa
     return list;
 }
 
-static inline void free_parsec_list_local_counter(parsec_list_local_counter_t *sl)
+static inline void parsec_mca_sched_free_list_local_counter(parsec_mca_sched_list_local_counter_t *sl)
 {
     OBJ_RELEASE(sl);
 }
 
-static inline void chain_to_parsec_list_local_counter(parsec_list_local_counter_t *sl, parsec_task_t *it, size_t offset)
+static inline void parsec_mca_sched_list_local_counter_chain_sorted(parsec_mca_sched_list_local_counter_t *sl, parsec_task_t *it, size_t offset)
 {
     parsec_list_chain_sorted(sl, &it->super, offset);
 }
 
-static inline void chain_back_to_parsec_list_local_counter(parsec_list_local_counter_t *sl, parsec_task_t *it)
+static inline void parsec_mca_sched_list_local_counter_chain_back(parsec_mca_sched_list_local_counter_t *sl, parsec_task_t *it)
 {
     parsec_list_chain_back(sl, &it->super);
 }
 
-static inline parsec_task_t *pop_from_parsec_list_local_counter(parsec_list_local_counter_t *sl)
+static inline parsec_task_t *parsec_mca_sched_list_local_counter_pop_front(parsec_mca_sched_list_local_counter_t *sl)
 {
     return (parsec_task_t*)parsec_list_pop_front(sl);
 }
 
-static inline parsec_task_t *pop_back_from_parsec_list_local_counter(parsec_list_local_counter_t *sl)
+static inline parsec_task_t *parsec_mca_sched_list_local_counter_pop_back(parsec_mca_sched_list_local_counter_t *sl)
 {
     return (parsec_task_t*)parsec_list_pop_back(sl);
 }
 
-static inline long long int parsec_list_local_counter_length( parsec_vp_t *vp )
+static inline long long int parsec_mca_sched_list_local_counter_length( parsec_vp_t *vp )
 {
     (void)vp;
     return -1;

@@ -44,7 +44,7 @@ const parsec_sched_module_t parsec_sched_ip_module = {
     }
 };
 
-#define LOCAL_SCHED_OBJECT(eu_context) ((parsec_list_local_counter_t*)(eu_context)->scheduler_object)
+#define LOCAL_SCHED_OBJECT(eu_context) ((parsec_mca_sched_list_local_counter_t*)(eu_context)->scheduler_object)
 
 static int sched_ip_install( parsec_context_t *master )
 {
@@ -57,13 +57,13 @@ static int flow_ip_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
     parsec_vp_t *vp = es->virtual_process;
     
     if (es == vp->execution_streams[0]) {
-        es->scheduler_object = allocate_parsec_list_local_counter(NULL);
+        es->scheduler_object = parsec_mca_sched_allocate_list_local_counter(NULL);
     }
 
     parsec_barrier_wait(barrier);
 
     if( es != vp->execution_streams[0]) {
-        es->scheduler_object = allocate_parsec_list_local_counter( LOCAL_SCHED_OBJECT(vp->execution_streams[0]) );
+        es->scheduler_object = parsec_mca_sched_allocate_list_local_counter( LOCAL_SCHED_OBJECT(vp->execution_streams[0]) );
     }
 
 #if defined(PARSEC_PAPI_SDE)
@@ -72,7 +72,7 @@ static int flow_ip_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
         snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN,
                  "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=IP", es->virtual_process->vp_id);
         papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_list_local_counter_length, es->virtual_process);
+                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_mca_sched_list_local_counter_length, es->virtual_process);
         papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
                                       "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
         papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
@@ -87,7 +87,7 @@ static parsec_task_t*
 sched_ip_select(parsec_execution_stream_t *es,
                 int32_t* distance)
 {
-    parsec_task_t * context = pop_back_from_parsec_list_local_counter(LOCAL_SCHED_OBJECT(es));
+    parsec_task_t * context = parsec_mca_sched_list_local_counter_pop_back(LOCAL_SCHED_OBJECT(es));
     *distance = 0;
     return context;
 }
@@ -96,7 +96,7 @@ static int sched_ip_schedule(parsec_execution_stream_t* es,
                              parsec_task_t* new_context,
                              int32_t distance)
 {
-    parsec_list_local_counter_t *sl = LOCAL_SCHED_OBJECT(es);
+    parsec_mca_sched_list_local_counter_t *sl = LOCAL_SCHED_OBJECT(es);
 #if defined(PARSEC_DEBUG_NOISIER)
     parsec_list_item_t *it = (parsec_list_item_t*)new_context;
     char tmp[MAX_TASK_STRLEN];
@@ -107,9 +107,9 @@ static int sched_ip_schedule(parsec_execution_stream_t* es,
     } while( it != (parsec_list_item_t*)new_context );
 #endif
     if( 0 == distance ) {
-        chain_to_parsec_list_local_counter(sl, new_context, parsec_execution_context_priority_comparator);
+        parsec_mca_sched_list_local_counter_chain_sorted(sl, new_context, parsec_execution_context_priority_comparator);
     } else {
-        chain_back_to_parsec_list_local_counter(sl, new_context);
+        parsec_mca_sched_list_local_counter_chain_back(sl, new_context);
     }
     return 0;
 }
@@ -119,14 +119,14 @@ static void sched_ip_remove( parsec_context_t *master )
     int p, t;
     parsec_vp_t *vp;
     parsec_execution_stream_t *es;
-    parsec_list_local_counter_t *sl;
+    parsec_mca_sched_list_local_counter_t *sl;
 
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
         for(t = 0; t < vp->nb_cores; t++) {
             es = vp->execution_streams[t];
             sl = LOCAL_SCHED_OBJECT(es);
-            free_parsec_list_local_counter(sl);
+            parsec_mca_sched_free_list_local_counter(sl);
             es->scheduler_object = NULL;
         }
         PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=IP", p);
