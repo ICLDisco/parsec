@@ -1,0 +1,375 @@
+#!/bin/bash
+
+OPT_PREFIX=/usr/local
+OPT_SRCDIR=${0%/*}
+declare -A CMAKE_DEFINES
+
+function show_help_and_exit {
+cat <<EOF
+-h | --help
+                show usage
+-V
+                version information
+-q | --quiet | --silent
+                no configure output to the console
+-n | --no-create
+                do not run the CMake phase
+
+-DVAR=VALUE
+                Directly pass VAR=VALUE to the Cmake configure stage
+
+--srcdir=DIR
+                use DIR to find the source directory (default $OPT_SRCDIR)
+--prefix=DIR
+                install to the DIR directory (default $OPT_PREFIX)
+--host=ARCH
+                cross compile for the target ARCH architecture
+--enable-static
+                build static libraries and executables
+--enable-shared
+                build dynamic libraries and executables
+--enable-c11
+                Enable C11 standard capabilities (may conflict with OpenMP)
+--enable-cxx
+                Enable CXX bindings
+--enable-fortran
+                Enable Fortran bindings
+--enable-doc
+                Build the documentation (requires doxygen)
+
+
+--enable-debug=yes,paranoid,noisier|history|no
+                turn on debugging information
+                    yes:            normal debugging; some overhead
+                    paranoid:       more thorough assertions; extra overhead
+                    noisier:        more verbose debugging; heavy overhead
+                    history:        keep an history of latest debugging messages in memory for gdb printing; light overhead
+                    no (explicit):  remove all debugging symbols and assertions
+
+--enable-prof-trace
+                produce a trace of the execution that can be analyzed in a trace vizualizer
+--enable-prof-calltrace
+                print a message when each task body is executed
+--enable-prof-dryrun=yes|dep|body|no
+                turn on 'dry-run' mode
+                    /dep:            communication is skipped (only task completion signaling messages are sent)
+                    body:           computation is skipped (no task body execution)
+                    yes:            both communication and computation are skipped
+                    no:             normal execution
+--enable-prof-grapher
+                turn on grapher mode: generates the dependency graph instead of executing
+
+--with-tau[=DIR]
+                use the TAU profiler package [installed in DIR]
+--with-papi[=DIR]
+                use the PAPI performance counter package [installed in DIR] (default=autodetect)
+--with-gtg[=DIR]
+                use the GTG package [installed in DIR] (optional)
+
+
+--with-hwloc[=DIR]
+                use the HWLoc package [installed in DIR] (default=autodetect)
+
+
+--with-python[=DIR]
+                use the Python interpreter [installed in DIR] (default=autodetect)
+
+--with-mpi[=DIR]
+                use the MPI communication library [installed in DIR] (default=autodetect)
+--enable-collectives
+                use asynchronous dataflow collective communication
+
+
+--with-cuda[=DIR]
+                use the CUDA accelerator libray [installed in DIR] (default=autodetect)
+--with-cuda-sm-targets=x,y,z
+                compile kernels optimized for the CUDA SM model x, y and z
+                where x,y,z are two digit numbers representing a valid CUDA architecture (e.g. 35,37,60) (default=autodetect)
+
+
+Some influential environment variables:
+  CC          C compiler command
+  CFLAGS      C compiler flags
+  LDFLAGS     linker flags, e.g. -L<lib dir> if you have libraries in a
+              nonstandard directory <lib dir>
+  LIBS        libraries to pass to the linker, e.g. -l<library>
+  CPPFLAGS    (Objective) C/C++ preprocessor flags, e.g. -I<include dir> if
+              you have headers in a nonstandard directory <include dir>
+  CPP         C preprocessor
+  CXX         C++ compiler command
+  CXXFLAGS    C++ compiler flags
+  CXXCPP      C++ preprocessor
+  CCAS        assembler compiler command (defaults to CC)
+  CCASFLAGS   assembler compiler flags (defaults to CFLAGS)
+  FC          Fortran compiler command
+  FCFLAGS     Fortran compiler flags
+  PKG_CONFIG  path to pkg-config utility
+  PKG_CONFIG_PATH
+              directories to add to pkg-config's search path
+  PKG_CONFIG_LIBDIR
+              path overriding pkg-config's built-in search path
+
+Use these variables to override the choices made by 'configure' or to help
+it to find libraries and programs with nonstandard names/locations.
+
+Please report bugs to <https://bitbucket.org/icldistcomp/parsec/issues>
+EOF
+exit 1
+}
+
+function show_version_and_exit {
+echo "PaRSEC version $(git show --pretty='%h (%cd)')"
+exit 2
+}
+
+function parse_arguments {
+while [ x$1 != x ]; do
+    case "$1" in
+        -h|--help) show_help_and_exit ;;
+        -V) show_version_and_exit ;;
+        -q|--quiet|--silent) OPT_QUIET=yes; shift;;
+        -n|--no-create) OPT_NOCREATE=yes; shift;;
+        --srcdir=*) OPT_SRCDIR=${1#*=}; shift;;
+        --prefix=*) OPT_PREFIX=${1#*=}; shift;;
+        --host=*) OPT_CROSSTARGET=${1#*=}; shift;;
+        --enable-static) OPT_STATIC=yes; shift;;
+        --disable-static) OPT_STATIC=no; shift;;
+        --enable-shared) OPT_SHARED=yes; shift;;
+        --disable-shared) OPT_SHARED=no; shift;;
+        --enable-c11) OPT_C11=yes; shift;;
+        --disable-c11) OPT_C11=no; shift;;
+        --enable-cxx) OPT_CXX=yes; shift;;
+        --disable-cxx) OPT_CXX=no; shift;;
+        --enable-fortran) OPT_FORTRAN=yes; shift;;
+        --disable-fortran) OPT_FORTRAN=no; shift;;
+        --enable-doc) OPT_DOC=yes; shift;;
+        --disable-doc) OPT_DOC=no; shift;;
+
+#debug/profiling
+        --enable-debug=*) OPT_DEBUG="${1#*=}"; shift;;
+        --enable-debug) OPT_DEBUG=yes; shift;;
+        --disable-debug) OPT_DEBUG=no; shift;;
+        --enable-prof-trace) OPT_PROF_TRACE=yes; shift;;
+        --disable-prof-trace) OPT_PROF_TRACE=no; shift;;
+        --enable-prof-calltrace) OPT_PROF_CALLTRACE=yes; shift;;
+        --disable-prof-calltrace) OPT_PROF_CALLTRACE=no; shift;;
+        --enable-prof-dryrun=*) OPT_PROF_DRYRUN="${1#*=}"; shift;;
+        --enable-prof-dryrun) OPT_PROF_DRYRUN=yes; shift;;
+        --disable-prof-dryrun) OPT_PROF_DRYRUN=no; shift;;
+        --enable-prof-grapher) OPT_PROF_GRAPHER=yes; shift;;
+        --disable-prof-grapher) OPT_PROF_GRAPHER=no; shift;;
+
+        --with-tau=*) OPT_PROF_TAU="${1#*=}"; shift;;
+        --with-tau) OPT_PROF_TAU=yes; shift;;
+        --without-tau) OPT_PROF_TAU=no; shift;;
+        --with-papi=*) OPT_PROF_PAPI="${1#*=}"; shift;;
+        --with-papi) OPT_PROF_PAPI=yes; shift;;
+        --without-papi) OPT_PROF_PAPI=no; shift;;
+        --with-gtg=*) OPT_PROF_GTG="${1#*=}"; shift;;
+        --with-gtg) OPT_PROF_GTG=yes; shift;;
+        --without-gtg) OPT_PROF_GTG=no; shift;;
+
+# MPI options
+        --with-mpi=*) OPT_DIST_MPI="${1#*=}"; shift;;
+        --with-mpi) OPT_DIST_MPI=yes; shift;;
+        --without-mpi) OPT_DIST_MPI=no; shift;;
+        --enable-collectives) OPT_DIST_COLL=yes; shift;;
+        --disable-collectives) OPT_DIST_COLL=no; shift;;
+
+# Hwloc options
+        --with-hwloc=*) OPT_HWLOC="${1#*=}"; shift;;
+        --with-hwloc) OPT_HWLOC=yes; shift;;
+        --without-hwloc) OPT_HWLOC=no; shift;;
+
+# Cuda options
+        --with-cuda=*) OPT_GPU_CUDA="${1#*=}"; shift;;
+        --with-cuda) OPT_GPU_CUDA=yes; shift;;
+        --without-cuda) OPT_GPU_CUDA=no; shift;;
+        --with-cuda-sm-targets=*) OPT_GPU_CUDA_SM="${1#*=}"; shift;;
+        --with-cuda-sm-targets) OPT_GPU_CUDA_SM=yes; shift;;
+        --without-cuda-sm-targets) OPT_GPU_CUDA_SM=no; shift;;
+
+# Python options
+        --with-python=*) OPT_PYTHON="${1#*=}"; shift;;
+        --with-python) OPT_PYTHON=yes; shift;;
+        --without-python) OPT_PYTHON=no; shift;;
+
+
+# Dplasma options
+        --enable-dplasma) OPT_DPLASMA=yes; shift;;
+        --disable-dplasma) OPT_DPLASMA=no; shift;;
+        --with-coreblas=*) OPT_COREBLAS="${1#*=}"; shift;;
+        --with-coreblas) OPT_COREBLAS=yes; shift;;
+        --without-coreblas) OPT_COREBLAS=no; shift;;
+
+# Cmake passthrough
+        -D*=*) CMAKE_DEFINES[passthrough]="${CMAKE_DEFINES[passthrough]} $1"; shift;;
+
+# Environment variables
+        *=*) ENVVARS="$ENVVARS $1"; eval export $1; shift;;
+
+# Unhandled argument
+        *) show_help_and_exit ;;
+    esac
+done
+}
+
+parse_arguments $*
+
+if [ x$OPT_QUIET = xyes ]; then
+    exec &>config.log
+else
+    exec |& tee config.log
+fi
+
+cat <<EOF
+#
+### This program was invoked with the following command line
+#
+ $0 $*
+#
+###
+#
+EOF
+
+
+CMAKE_DEFINES[prefix]=${OPT_PREFIX:+-DCMAKE_INSTALL_PREFIX=$OPT_PREFIX}
+# OPT_CROSSTARGET
+[ x$OPT_STATIC = xyes ] && CMAKE_DEFINES[static]="-DBUILD_SHARED_LIB=OFF"
+[ x$OPT_STATIC = xno ] && CMAKE_DEFINES[static]="-DBUILD_SHARED_LIB=ON"
+[ x$OPT_SHARED = xyes ] && CMAKE_DEFINES[static]="-DBUILD_SHARED_LIB=OFF"
+[ x$OPT_SHARED = xno ] && CMAKE_DEFINES[static]="-DBUILD_SHARED_LIB=ON"
+[ x$OPT_SHARED = xyes ] && [ x$OPT_STATIC = xyes ] && echo >&2 "WARNING: due to Cmake limitations, you have to choose exclusively between static and shared build. This build will be static."
+[ x$OPT_C11 = xyes ] && CMAKE_DEFINES[c11]="-DSUPPORT_C11=ON"
+[ x$OPT_C11 = xno ] && CMAKE_DEFINES[c11]="-DSUPPORT_C11=OFF"
+[ x$OPT_CXX = xyes ] && CMAKE_DEFINES[cxx]="-DSUPPORT_CXX=ON"
+[ x$OPT_CXX = xno ] && CMAKE_DEFINES[cxx]="-DSUPPORT_CXX=OFF"
+[ x$OPT_FORTRAN = xyes ] && CMAKE_DEFINES[fortran]="-DSUPPORT_FORTRAN=ON"
+[ x$OPT_FORTRAN = xno ] && CMAKE_DEFINES[fortran]="-DSUPPORT_FORTRAN=OFF"
+[ x$OPT_DOC = xyes ] && CMAKE_DEFINES[doc]="-DBUILD_DOCUMENTATION=ON"
+[ x$OPT_DOC = xno ] && CMAKE_DEFINES[doc]="-DBUILD_DOCUMENTATION=OFF"
+
+if [ -z "$OPT_DEBUG" ]; then CMAKE_DEFINES[debug]="-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+elif [ $OPT_DEBUG = no ]; then CMAKE_DEFINES[debug]="-DCMAKE_BUILD_TYPE=Release"
+elif [[ $OPT_DEBUG =~ ^((yes|paranoid|noisier|history),?)+$ ]]; then
+    CMAKE_DEFINES[debug]="-DCMAKE_BUILD_TYPE=Debug"
+    [[ $OPT_DEBUG =~ paranoid ]] && CMAKE_DEFINES[debugparanoid]="-DPARSEC_DEBUG_PARANOID=ON"
+    [[ $OPT_DEBUG =~ noisier ]] && CMAKE_DEFINES[debugnoisier]="-DPARSEC_DEBUG_NOISIER=ON"
+    [[ $OPT_DEBUG =~ history ]] && CMAKE_DEFINES[debughistory]="-DPARSEC_DEBUG_HISTORY=ON"
+else echo >&2 "Option $OPT_DEBUG is invalid (can be yes|paranoid|noisier|history|no)"; exit 1; fi
+
+[ x$OPT_PROF_TRACE = xyes ] && CMAKE_DEFINES[trace]="-DPARSEC_PROF_TRACE=ON"
+[ x$OPT_PROF_TRACE = xno ] && CMAKE_DEFINES[trace]="-DPARSEC_PROF_TRACE=OFF"
+[ x$OPT_PROF_CALLTRACE = xyes ] && CMAKE_DEFINES[calltrace]="-DPARSEC_PROF_CALLTRACE=ON"
+[ x$OPT_PROF_CALLTRACE = xno ] && CMAKE_DEFINES[calltrace]="-DPARSEC_PROF_CALLTRACE=OFF"
+[ x$OPT_PROF_GRAPHER = xyes ] && CMAKE_DEFINES[grapher]="-DPARSEC_PROF_GRAPHER=ON"
+[ x$OPT_PROF_GRAPHER = xno ] && CMAKE_DEFINES[grapher]="-DPARSEC_PROF_GRAPHER=OFF"
+
+if [[ x$OPT_PROF_DRYRUN =~ ^x((yes|no|body|dep),?)*$ ]]; then
+    [[ $OPT_PROF_DRYRUN =~ yes ]] && CMAKE_DEFINES[dryrun]="-DPARSEC_PROF_DRY_RUN=ON"
+    [[ $OPT_PROF_DRYRUN =~ dep ]] && CMAKE_DEFINES[dryrundep]="-DPARSEC_PROF_DRY_DEP=ON"
+    [[ $OPT_PROF_DRYRUN =~ body ]] && CMAKE_DEFINES[dryrunbody]="-DPARSEC_PROF_DRY_BODY=ON"
+    [[ $OPT_PROF_DRYRUN =~ no ]] && CMAKE_DEFINES[dryrun]="-DPARSEC_PROF_DRY_RUN=OFF -DPARSEC_PROF_DRY_BODY=OFF -DPARSEC_PROF_DRY_DEP=OFF"
+fi
+
+case x$OPT_PROF_TAU in
+xno) CMAKE_DEFINES[tau]="-DPARSEC_PROF_TAU=OFF";;
+xyes) CMAKE_DEFINES[tau]="-DPARSEC_PROF_TAU=ON";;
+x) ;;
+*) CMAKE_DEFINES[tau]="-DPARSEC_PROF_TAU=ON -DTAU_ROOT=$OPT_PROF_TAU";;
+esac
+
+case x$OPT_PROF_PAPI in
+xno) CMAKE_DEFINES[papi]="-DPARSEC_PROF_TRACE=OFF"
+    if [[ x${CMAKE_DEFINES[trace]} =~ ON ]]; then
+        echo >&2 "WARNING: PAPI is disabled but prof-trace had been requested. Traces have been disabled."
+        CMAKE_DEFINES[trace]=""
+    fi;;
+xyes) CMAKE_DEFINES[papi]="-DPARSEC_PROF_TRACE=ON";;
+x) ;;
+*) CMAKE_DEFINES[papi]="-DPAPI_DIR=$OPT_PROF_PAPI";;
+esac
+
+case x$OPT_PROF_GTG in
+xno) ;; # No CMAKE control to remove if available
+xyes) ;; # No CMAKE control to force using
+x) ;;
+*) CMAKE_DEFINES[gtg]="-DGTG_DIR=$OPT_PROF_GTG";;
+esac
+
+case x$OPT_HWLOC in
+xno) ;; # No CMAKE control to remove if available
+xyes) ;; # No CMAKE control to force using
+x) ;;
+*) CMAKE_DEFINES[hwloc]="-DHWLOC_DIR=$OPT_HWLOC";;
+esac
+
+case x$OPT_DIST_MPI in
+xno) echo 2>&1 "WARNING: MPI is required to build this version of PaRSEC -- --without-mpi has been ignored.";;
+xyes) ;;
+x) ;;
+*)  CMAKE_DEFINES[mpi]=""
+    #TODO: deal with icc/spectrum and other variants
+    CMAKE_DEFINES[mpi]+="-DMPI_C_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpicc) "
+    CMAKE_DEFINES[mpi]+="-DMPI_CXX_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpicxx) "
+    CMAKE_DEFINES[mpi]+="-DMPI_Fortran_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpif90) "
+esac
+[ x$OPT_DIST_COLL = xyes ] && CMAKE_DEFINES[mpicoll]="-DPARSEC_DIST_COLLECTIVES=ON"
+[ x$OPT_DIST_COLL = xno ] && CMAKE_DEFINES[mpicoll]="-DPARSEC_DIST_COLLECTIVES=OFF"
+
+
+case x$OPT_GPU_CUDA in
+xno) CMAKE_DEFINES[cuda]="-DPARSEC_GPU_WITH_CUDA=OFF";;
+xyes) CMAKE_DEFINES[cuda]="-DPARSEC_GPU_WITH_CUDA=ON";;
+x) ;;
+*) CMAKE_DEFINES[cuda]="-DPARSEC_GPU_WITH_CUDA=ON -DCUDA_TOOLKIT_ROOT_DIR=$OPT_GPU_CUDA ${CC:+-DCUDA_HOST_COMPILER=$(command -v $CC)}";;
+esac
+
+case x$OPT_GPU_CUDA_SM in
+xyes) ;;
+xno) CMAKE_DEFINES[cudasm]="-DCUDA_SM_TARGETS=";;
+x) ;;
+*) CMAKE_DEFINES[cudasm]="-DCUDA_SM_TARGETS='${OPT_GPU_CUDA_SM/,/;}'";;
+esac
+
+
+case x$OPT_PYTHON in
+xno) echo >&2 "Python is required. Please provide a path to the python executable."; exit 3;;
+xyes) ;;
+x) ;;
+*)  PYTHON_EXECUTABLES=$(PATH=$OPT_PYTHON:$OPT_PYTHON/bin command -v python{,3,2})
+    for PYTHON_EXECUTABLE in $PYTHON_EXECUTABLES; do
+        [[ $PYTHON_EXECUTABLE =~ $OPT_PYTHON ]] && CMAKE_DEFINES[python]="-DPYTHON_EXECUTABLE=$PYTHON_EXECUTABLE" && break
+    done
+esac
+
+
+[ x$OPT_DPLASMA = xyes ] && CMAKE_DEFINES[dplasma]="-DBUILD_DPLASMA=ON"
+[ x$OPT_DPLASMA = xno ] && CMAKE_DEFINES[dplasma]="-DBUILD_DPLASMA=OFF"
+
+case x$OPT_COREBLAS in
+xyes) ;;
+xno) [ x$OPT_DPLASMA = xyes ] && echo >&2 "Requested --enable-dplasma and --without-coreblas, which is contradictory." && exit 3;;
+x) ;;
+*) CMAKE_DEFINES[coreblas]="-DCOREBLAS_DIR=$OPT_COREBLAS";;
+esac
+
+
+
+# CMAKE INVOCATION
+CMAKE_COMMAND="$ENVVARS cmake -G 'Unix Makefiles' $OPT_SRCDIR ${CMAKE_DEFINES[*]}"
+echo >config.status '[ x$1 = x--recheck ] && echo "Removing Cmake Cache..." && rm -rf CMakeCache.txt CMakeFiles'
+tee -a config.status <<EOF
+#
+### Cmake invocation:
+#
+  $CMAKE_COMMAND
+#
+###
+#
+EOF
+if [ x$OPT_NOCREATE != xyes ]; then
+    rm -rf CMakeCache.txt CMakeFiles
+    eval $CMAKE_COMMAND
+fi
+
