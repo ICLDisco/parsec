@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  *
@@ -12,6 +12,8 @@ extern "C" %{
 #include "dplasma/lib/dplasmaaux.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "dplasma/lib/flops.h"
+#include "dplasma/lib/floputils.h"
 #include <math.h>
 
 #if defined(PARSEC_HAVE_CUDA)
@@ -123,7 +125,7 @@ END
 /**************************************************
  *                       GEMM                     *
  **************************************************/
-GEMM(m, n, k)
+GEMM(m, n, k) [ flops = inline_c%{ return FLOPS_ZGEMM(CLEAN_MB(descC, m), CLEAN_NB(descC, n), CLEAN_NB(descA, k)); %} ]
 
 // Execution space
 m = 0 .. descC->mt-1

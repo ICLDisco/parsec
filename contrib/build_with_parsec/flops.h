@@ -1,1 +1,1 @@
-../../dplasma/testing/flops.h
+../../dplasma/lib/flops.h

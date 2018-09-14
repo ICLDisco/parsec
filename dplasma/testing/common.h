@@ -27,7 +27,7 @@
 /* timings */
 #include "common_timing.h"
 
-#include "flops.h"
+#include "dplasma/lib/flops.h"
 
 /* these are globals in common.c */
 extern char *PARSEC_SCHED_NAME[];

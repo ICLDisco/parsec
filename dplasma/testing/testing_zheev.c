@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 The University of Tennessee and The University
+ * Copyright (c) 2011-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -7,11 +7,11 @@
  *
  */
 #include "common.h"
-#include "flops.h"
 #include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/diag_band_to_rect.h"
-#include "dplasmatypes.h"
+#include "dplasma/include/dplasmatypes.h"
+#include "dplasma/lib/flops.h"
 
 /* Including the bulge chassing */
 #define FADDS_ZHEEV(__n) (((__n) * (-8.0 / 3.0 + (__n) * (1.0 + 2.0 / 3.0 * (__n)))) - 4.0)
