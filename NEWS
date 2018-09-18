@@ -5,6 +5,9 @@ Copyright (c) 2009-2018 The University of Tennessee and The University
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
+ - Add a MCA parameter to control the number of ejeted blocks from GPU
+   memory (device_cuda max_number_of_ejected_data).
+
  - Reshape the users vision of PaRSEC: they only have to include a single
    header (parsec.h) for most usages, and link with a single library
    (-lparsec).

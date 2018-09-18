@@ -42,6 +42,8 @@ int parsec_cuda_own_GPU_key_end;
 #endif  /* defined(PROFILING) */
 
 int parsec_cuda_output_stream = -1;
+
+extern int32_t parsec_CUDA_d2h_max_flows;
 static char* cuda_lib_path = NULL;
 
 static int
@@ -368,6 +370,10 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
     (void)parsec_mca_param_reg_int_name("device_cuda", "memory_number_of_blocks",
                                         "Alternative to device_cuda_memory_use: sets exactly the number of blocks to allocate (-1 means to use a percentage of the available memory)",
                                         false, false, -1, &cuda_memory_number_of_blocks);
+    (void)parsec_mca_param_reg_int_name("device_cuda", "max_number_of_ejected_data",
+                                        "Sets up the maximum number of blocks that can be ejected from GPU memory",
+                                        false, false, MAX_PARAM_COUNT, &parsec_CUDA_d2h_max_flows);
+
     if( 0 == use_cuda ) {
         return -1;  /* Nothing to do around here */
     }
@@ -816,8 +822,9 @@ parsec_cuda_memory_release( gpu_device_t* gpu_device )
  * back into the pool of available device_elem, to be picked up by another call
  * (this call will remove them from the current task).
  * Returns:
- *    0: All gpu_mem/mem_elem have been initialized
- *   -2: The task needs to rescheduled
+ *   PARSEC_HOOK_RETURN_DONE:  All gpu_mem/mem_elem have been initialized
+ *   PARSEC_HOOK_RETURN_AGAIN: At least one flow is marked under transfer, task cannot be scheduled yet
+ *   PARSEC_HOOK_RETURN_NEXT:  The task needs to rescheduled
  */
 static inline int
 parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
@@ -865,6 +872,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                                      "GPU[%d]:%s: Copy %p accessed RW, Descheduling while transfering data",
                                      gpu_device->cuda_index, task_name,
                                      gpu_elem);
+                SET_HIGHEST_PRIORITY(gpu_task, parsec_execution_context_priority_comparator);
                 return PARSEC_HOOK_RETURN_AGAIN;
             }
             continue;
@@ -906,7 +914,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
                 OBJ_RELEASE(gpu_elem);
 #endif
-                return -2;
+                return PARSEC_HOOK_RETURN_NEXT;
             }
 
             PARSEC_LIST_ITEM_SINGLETON(lru_gpu_elem);
@@ -997,7 +1005,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
     if( data_avail_epoch ) {
         gpu_device->data_avail_epoch++;
     }
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 /**
