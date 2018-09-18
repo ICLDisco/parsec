@@ -197,10 +197,12 @@ dplasma_zpoinv( parsec_context_t *parsec,
         dplasma_zpoinv_Destruct( parsec_zpoinv );
     }
 
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-#else
+    /* This covers both cases when we have not compiled with MPI, or we don't need to do the reduce */
     ginfo = info;
+#if defined(PARSEC_HAVE_MPI)
+    /* If we don't need to reduce, don't do it, this way we don't require MPI to be initialized */
+    if( A->super.nodes > 1 )
+        MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, *(MPI_Comm*)dplasma_pcomm);
 #endif
     return ginfo;
 }
