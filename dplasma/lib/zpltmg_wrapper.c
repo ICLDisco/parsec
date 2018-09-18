@@ -10,6 +10,7 @@
 
 #include "dplasma.h"
 #include "dplasmatypes.h"
+#include "dplasmaaux.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/vector_two_dim_cyclic.h"
 
@@ -424,7 +425,9 @@ dplasma_zpltmg_house( parsec_context_t *parsec,
     }
 
 #if defined(PARSEC_HAVE_MPI)
-    MPI_Bcast( &tau, 1, parsec_datatype_double_complex_t, 0, MPI_COMM_WORLD );
+    /* If we don't need to broadcast, don't do it, this way we don't require MPI to be initialized */
+    if( A->super.nodes > 1 )
+        MPI_Bcast( &tau, 1, parsec_datatype_double_complex_t, 0, *(MPI_Comm*)dplasma_pcomm );
 #endif
 
     /* Compute the Householder matrix I - tau v * v' */

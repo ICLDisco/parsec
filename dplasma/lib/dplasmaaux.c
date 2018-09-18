@@ -17,6 +17,46 @@
 
 #include "dplasmaaux.h"
 
+#if defined(PARSEC_HAVE_MPI)
+/*
+ * dplasma falls back to MPI_COMM_WORLD by default.
+ * This is sub-optimal, as this does not provide an opportunity
+ * to insulate dplasma communications from potential others, but
+ * this allows to maintain the behavior that dplasma does not
+ * need initialization / finalization.
+ *
+ * The dplasma API provides two functions to provide and free
+ * a dplasma-specific communicator if needed (these should be called
+ * before any other dplasma call and after any dplasma call, respectively)
+ */
+
+static MPI_Comm dplasma_comm = MPI_COMM_WORLD;
+void *dplasma_pcomm = &dplasma_comm;
+
+int dplasma_aux_dup_comm(void *_psrc)
+{
+    MPI_Comm *src = (MPI_Comm*)_psrc;
+    return MPI_Comm_dup(*src, &dplasma_comm);
+}
+
+int dplasma_aux_free_comm(void)
+{
+    return MPI_Comm_free(&dplasma_comm);
+}
+#else
+void *dplasma_pcomm = NULL;
+int dplasma_aux_dup_comm(void *comm)
+{
+    return -1;
+}
+
+int dplasma_aux_free_comm(void)
+{
+    return -1;
+}
+#endif
+
+
 int
 dplasma_aux_get_priority_limit( char* function, const parsec_tiled_matrix_dc_t* dc )
 {
