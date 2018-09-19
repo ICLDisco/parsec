@@ -5,6 +5,9 @@ Copyright (c) 2009-2018 The University of Tennessee and The University
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
+ - Add a backend support for OTF2 in the profiling mechanism. OTF2 is
+   used automatically if a OTF2 installation is found.
+
  - Add a MCA parameter to control the number of ejected blocks from GPU
    memory (device_cuda_max_number_of_ejected_data). Add a MCA parameter
    to control wether or not the GPU engine will take some time to sort
