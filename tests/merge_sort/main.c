@@ -5,9 +5,7 @@
  */
 
 #include <stdlib.h>
-#if !defined(_ISOC99_SOURCE)
-# define _ISOC99_SOURCE // for using strtol()
-#endif
+
 #include "parsec/runtime.h"
 #include "parsec/utils/debug.h"
 #include "merge_sort_wrapper.h"
@@ -19,8 +17,8 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1;
-    int nt, nb, rc;
+    int rank = 0, world = 1, cores = -1;
+    int nt = 1234, nb = 5, rc;
     parsec_tiled_matrix_dc_t *dcA;
     parsec_taskpool_t *msort;
 
@@ -31,16 +29,24 @@ int main(int argc, char *argv[])
     }
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
 #endif
-    parsec = parsec_init(cores, &argc, &argv);
+    if( argc > 1 ) {
+        char* endptr;
+        long val = strtol(argv[1], &endptr, 0);
+        if( endptr == argv[1] ) {
+            printf("Bad argument (found %s instead of the number of tiles)\n", argv[1]);
+            exit(-1);
+        }
+        nt = (int)val;
+        if( 0 == nt ) {
+            printf("Bad value for nt (it canot be zero) !!!\n");
+            exit(-1);
+        }
+    }
 
-    nb = 5;
-    nt = 1234;
-    if( argc > 1 ){
-        nt = (int)strtol(argv[1], NULL, 0);
+    parsec = parsec_init(cores, &argc, &argv);
+    if( NULL == parsec ) {
+        exit(1);
     }
 
     dcA = create_and_distribute_data(rank, world, nb, nt, sizeof(int));
