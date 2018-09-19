@@ -467,25 +467,31 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             if(NULL == optarg) {
                 parsec_warning("VPMAP choice (-V argument): expected argument. Falling back to default!");
             } else {
+                /* We accept a vpmap that starts with "display" as a mean to show the mapping */
                 if( !strncmp(optarg, "display", 7 )) {
                     display_vpmap = 1;
-                } else {
-                    if( !strncmp(optarg, "flat", 4) ) {
-                        /* default case (handled in parsec_init) */
-                    } else if( !strncmp(optarg, "hwloc", 5) ) {
-                        vpmap_init_from_hardware_affinity(nb_cores);
-                    } else if( !strncmp(optarg, "file:", 5) ) {
-                        vpmap_init_from_file(optarg + 5);
-                    } else if( !strncmp(optarg, "rr:", 3) ) {
-                        int n, p, co;
-                        if( sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co) == 3 ) {
-                            vpmap_init_from_parameters(n, p, co);
-                        } else {
-                            parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
-                        }
+                    if( ':' != optarg[strlen("display")] ) {
+                        parsec_warning("Display thread mapping requested but vpmar argument incorrect "
+                                       "(must start with display: to print the mapping)");
+                    } else {
+                        optarg += strlen("display:");
+                    }
+                }
+                if( !strncmp(optarg, "flat", 4) ) {
+                    /* default case (handled in parsec_init) */
+                } else if( !strncmp(optarg, "hwloc", 5) ) {
+                    vpmap_init_from_hardware_affinity(nb_cores);
+                } else if( !strncmp(optarg, "file:", 5) ) {
+                    vpmap_init_from_file(optarg + 5);
+                } else if( !strncmp(optarg, "rr:", 3) ) {
+                    int n, p, co;
+                    if( sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co) == 3 ) {
+                        vpmap_init_from_parameters(n, p, co);
                     } else {
                         parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
                     }
+                } else {
+                    parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
                 }
             }
         }
