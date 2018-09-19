@@ -286,6 +286,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
         gpu_copy = task->data[i].data_out;
         gpu_copy->readers--;
         gpu_copy->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
+        gpu_device->super.transferred_data_out += gpu_copy->original->nb_elts; /* TODO: not hardcoded, use datatype size */
         assert(gpu_copy->readers >= 0);
 
         original = gpu_copy->original;
@@ -293,7 +294,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
         cpu_copy = original->device_copies[0];
 
         if( cpu_copy->version < gpu_copy->version ) {
-            /* the GPU version has been acquired by a new tasj that is waiting for submission */
+            /* the GPU version has been acquired by a new task that is waiting for submission */
             PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                                  "D2H[%d] task %p:%i GPU data copy %p [%p] has a backup in memory",
                                  gpu_device->cuda_index, (void*)task, i, gpu_copy, gpu_copy->original);

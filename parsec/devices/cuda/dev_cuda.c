@@ -661,7 +661,7 @@ parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
          *  and eleventh case of computer scientists who don't know how
          *  to divide a number by another
          */
-        parsec_warning("CUDA[%d] Requested %d bytes on CUDA device %s, but only %d bytes are available -- reducing allocation to max available",
+        parsec_warning("CUDA[%d] Requested %zd bytes on CUDA device %s, but only %zd bytes are available -- reducing allocation to max available",
                        gpu_device->cuda_index, how_much_we_allocate, gpu_device->super.name, initial_free_mem);
         how_much_we_allocate = initial_free_mem;
     }
