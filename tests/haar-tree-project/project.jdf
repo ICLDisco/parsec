@@ -52,7 +52,6 @@ struct __parsec_project_PROJECT_task_s;
 
 static parsec_key_t end_propagate_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
 static parsec_key_t project_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
-static parsec_key_t create_node_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
 
 static uint32_t undetermined_nb_tasks(struct __parsec_project_internal_taskpool_s *__tp);
 
@@ -144,43 +143,6 @@ BODY
 }
 END
 
-CREATE_NODE (n, l) [hash_struct = my_simple_hash_fns
-                    make_key_fn = create_node_make_key
-                    find_deps_fn  = my_find_deps
-                    alloc_deps_fn = my_alloc_deps
-                    free_deps_fn  = my_free_deps ]
-  n = 0 .. 31
-  l = 0 .. (1<<n)
-
-:treeA(n, l)
-
-CTL RL <- RL PROJECT(n, l)
-
-WRITE NODE <- NEW [ type=DEFAULT ]
-
-BODY
-{
-    node_t *node = (node_t*)NODE;
-
-    double sl, sr;
-
-    if( verbose ) {
-        int rank = (((parsec_data_collection_t*)treeA)->rank_of((parsec_data_collection_t*)treeA, n, l));
-        fprintf(stderr, "CALLING CREATE_NODE(%d, %d) on rank %d\n", n, l, rank);
-    }
-
-    sl = func(key_to_x(n+1, 2*l));
-    sr = func(key_to_x(n+1, 2*l+1));
-
-    node->s = 0.5 * (sl + sr);
-    node->d = 0.5 * (sl - sr);
-    // To tell parsec to keep the reference of these two data, so it shouldn't delete them
-    OBJ_RETAIN(_f_NODE);
-    tree_dist_insert_data(treeA, _f_NODE->original, n, l);
-
-}
-END
-
 PROJECT (n, l) [hash_struct = my_simple_hash_fns
                 make_key_fn = project_make_key
                 find_deps_fn  = my_find_deps
@@ -195,9 +157,10 @@ PROJECT (n, l) [hash_struct = my_simple_hash_fns
 
 CTL RL <- (n!=0) ? RL PROJECT(n-1, l/2)
        -> larger_than_thresh ? RL PROJECT(n+1, (l*2) .. ((l*2)+1))
-       -> larger_than_thresh ? RL CREATE_NODE(n, l)
        -> ((!larger_than_thresh) & ((l%2) == 0)) ? LEFT END_PROPAGATE(n-1, l/2)
        -> ((!larger_than_thresh) & ((l%2) == 1)) ? RIGHT END_PROPAGATE(n-1, l/2)
+
+WRITE NODE <- NEW [ type=DEFAULT ]
 
 BODY
 {
@@ -219,6 +182,24 @@ BODY
 
     if ((n >= 3) && (err <= thresh)) {
         this_task->locals.larger_than_thresh.value = 0;
+    } else {
+        node_t *node = (node_t*)NODE;
+
+        double sl, sr;
+
+        if( verbose ) {
+            int rank = (((parsec_data_collection_t*)treeA)->rank_of((parsec_data_collection_t*)treeA, n, l));
+            fprintf(stderr, "CALLING CREATE_NODE(%d, %d) on rank %d\n", n, l, rank);
+        }
+
+        sl = func(key_to_x(n+1, 2*l));
+        sr = func(key_to_x(n+1, 2*l+1));
+
+        node->s = 0.5 * (sl + sr);
+        node->d = 0.5 * (sl - sr);
+        // To tell parsec to keep the reference of these two data, so it shouldn't delete them
+        OBJ_RETAIN(_f_NODE);
+        tree_dist_insert_data(treeA, _f_NODE->original, n, l);
     }
 
 }
@@ -235,13 +216,6 @@ static parsec_key_t end_propagate_make_key(const parsec_taskpool_t* __tp, const 
 {
     (void)__tp;
     const struct __parsec_project_END_PROPAGATE_assignment_s * assignments = (const struct __parsec_project_END_PROPAGATE_assignment_s *)_as;
-    return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
-}
-
-static parsec_key_t create_node_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
-{
-    (void)__tp;
-    const struct __parsec_project_CREATE_NODE_assignment_s * assignments = (const struct __parsec_project_CREATE_NODE_assignment_s *)_as;
     return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
