@@ -121,7 +121,7 @@ struct dep_s {
     expr_t const               *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
     uint8_t                    task_class_id;   /**< Index of the target parsec function in the object function array */
     uint8_t                    dep_index;      /**< Output index of the dependency. This is used to store the flow
-                                                *   before tranfering it to the successors. */
+                                                *   before transfering it to the successors. */
     uint8_t                    dep_datatype_index;  /**< Index of the output datatype. */
     parsec_flow_t const        *flow;           /**< Pointer to the flow pointed to/from this dependency */
     parsec_flow_t const        *belongs_to;     /**< The flow this dependency belongs tp */

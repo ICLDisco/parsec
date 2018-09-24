@@ -270,12 +270,10 @@ void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
 void
 parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 {
-    int i;
+    uint32_t i;
 #if defined(PARSEC_PROF_TRACE)
     free((void *)tp->super.profiling_array);
 #endif /* defined(PARSEC_PROF_TRACE) */
-
-    free(tp->super.task_classes_array);
 
     /* Destroy the data repositories for this object */
     for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
@@ -287,16 +285,18 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     tp->super.dependencies_array = NULL;
 
     /* Unregister the taskpool from the devices */
-    for (i = 0; i < (int)parsec_nb_devices; i++) {
-        if (!(tp->super.devices_mask & (1 << i)))
-            continue;
-        tp->super.devices_mask ^= (1 << i);
+    for (i = 0; i < parsec_nb_devices; i++) {
         parsec_device_t *device = parsec_devices_get(i);
+        if( !(tp->super.devices_index_mask & (1 << device->device_index)) )
+            continue;
+        tp->super.devices_index_mask &= ~(1 << device->device_index);
         if ((NULL == device) || (NULL == device->device_taskpool_unregister))
             continue;
-        if (PARSEC_SUCCESS != device->device_taskpool_unregister(device, &tp->super))
-            continue;
+        if( NULL != device->device_taskpool_unregister )
+            (void)device->device_taskpool_unregister(device, &tp->super);
     }
+    assert( 0 == tp->super.devices_index_mask );
+    free(tp->super.task_classes_array);
 
     /* dtd_taskpool specific */
     parsec_mempool_destruct(tp->hash_table_bucket_mempool);
@@ -1100,9 +1100,9 @@ hook_of_dtd_task( parsec_execution_stream_t *es,
                   parsec_task_t *this_task )
 {
     parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t*)this_task;
-    assert(parsec_dtd_task_is_local(dtd_task));
-    int rc = 0;
+    int rc = PARSEC_HOOK_RETURN_DONE;
 
+    assert(parsec_dtd_task_is_local(dtd_task));
     PARSEC_TASK_PROF_TRACE(es->es_profile,
                           this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id],
                           this_task);
@@ -1213,12 +1213,17 @@ parsec_dtd_taskpool_new(void)
     __tp->super.on_enqueue_data    = NULL;
     __tp->super.on_complete        = NULL;
     __tp->super.on_complete_data   = NULL;
-    __tp->super.devices_mask       = PARSEC_DEVICES_ALL;
     __tp->super.nb_tasks           = PARSEC_RUNTIME_RESERVED_NB_TASKS;
     __tp->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_DTD;  /* Indicating this is a taskpool for dtd tasks */
     __tp->super.nb_pending_actions = 0;  /* For the future tasks that will be inserted */
     __tp->super.update_nb_runtime_task = parsec_dtd_update_runtime_task;
 
+    __tp->super.devices_index_mask = 0;
+    for (i = 0; i < (int)parsec_nb_devices; i++) {
+        parsec_device_t *device = parsec_devices_get(i);
+        if( NULL == device ) continue;
+        __tp->super.devices_index_mask |= (1 << device->device_index);
+    }
     for(i = 0; i < vpmap_get_nb_vp(); i++) {
         __tp->startup_list[i] = NULL;
     }
@@ -1320,11 +1325,10 @@ parsec_dtd_taskpool_release( parsec_taskpool_t *tp )
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
 void
-parsec_dtd_startup( parsec_context_t            *context,
-                    parsec_taskpool_t             *tp,
-                    parsec_task_t **pready_list )
+parsec_dtd_startup( parsec_context_t   *context,
+                    parsec_taskpool_t  *tp,
+                    parsec_task_t     **pready_list )
 {
-    uint32_t supported_dev = 0;
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *) tp;
 
     /* Create the PINS DATA pointers if PINS is enabled */
@@ -1332,22 +1336,17 @@ parsec_dtd_startup( parsec_context_t            *context,
     dtd_tp->super.context = context;
 #endif /* defined(PINS_ENABLE) */
 
-    uint32_t wanted_devices = tp->devices_mask;
-    tp->devices_mask = 0;
-
+    /* register the taskpool with all available devices */
     for (uint32_t _i = 0; _i < parsec_nb_devices; _i++) {
-        if (!(wanted_devices & (1 << _i)))
-            continue;
         parsec_device_t *device = parsec_devices_get(_i);
-
-        if (NULL == device)
-            continue;
+        if (NULL == device) continue;
+        if( !(tp->devices_index_mask & (1 << device->device_index)) ) continue;  /* not supported */
         if (NULL != device->device_taskpool_register)
-            if (PARSEC_SUCCESS != device->device_taskpool_register(device, (parsec_taskpool_t *) tp))
+            if( PARSEC_SUCCESS !=
+                device->device_taskpool_register(device, (parsec_taskpool_t *)tp) ) {
+                tp->devices_index_mask &= ~(1 << device->device_index);  /* can't use this type */
                 continue;
-
-        supported_dev |= device->type;
-        tp->devices_mask |= (1 << _i);
+            }
     }
     (void)pready_list;
 

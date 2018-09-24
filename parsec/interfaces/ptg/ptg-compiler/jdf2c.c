@@ -1196,7 +1196,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     }
     houtput("  /* The array of datatypes (%s and co.) */\n"
             "  parsec_arena_t** arenas;\n"
-            "  int arenas_size;\n",
+            "  uint32_t arenas_size;\n",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->datatypes, next, name,
                                   dump_string, NULL, "", "", ",", ""));
 
@@ -3349,26 +3349,24 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
 
     coutput("static void %s_startup(parsec_context_t *context, __parsec_%s_internal_taskpool_t *__parsec_tp, parsec_list_item_t ** ready_tasks)\n"
             "{\n"
-            "  uint32_t supported_dev = 0;\n"
+            "  uint32_t i, supported_dev = 0;\n"
             " \n"
-            "  uint32_t wanted_devices = __parsec_tp->super.super.devices_mask; __parsec_tp->super.super.devices_mask = 0;\n"
-            "  uint32_t _i;\n"
-            "  for( _i = 0; _i < parsec_nb_devices; _i++ ) {\n"
-            "    if( !(wanted_devices & (1<<_i)) ) continue;\n"
-            "    parsec_device_t* device = parsec_devices_get(_i);\n"
+            "  for( i = 0; i < parsec_nb_devices; i++ ) {\n"
+            "    if( !(__parsec_tp->super.super.devices_index_mask & (1<<i)) ) continue;\n"
+            "    parsec_device_t* device = parsec_devices_get(i);\n"
             "    parsec_data_collection_t* parsec_dc;\n"
             " \n"
             "    if(NULL == device) continue;\n"
             "    if(NULL != device->device_taskpool_register)\n"
             "      if( PARSEC_SUCCESS != device->device_taskpool_register(device, (parsec_taskpool_t*)__parsec_tp) ) {\n"
             "        parsec_debug_verbose(3, parsec_debug_output, \"Device %%s refused to register taskpool %%p\", device->name, __parsec_tp);\n"
+            "        __parsec_tp->super.super.devices_index_mask &= ~(1 << device->device_index);\n"
             "        continue;\n"
             "      }\n"
             "    if(NULL != device->device_memory_register) {  /* Register all the data */\n"
             "%s"
             "    }\n"
             "    supported_dev |= device->type;\n"
-            "    __parsec_tp->super.super.devices_mask |= (1 << _i);\n"
             "  }\n",
             jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa1, jdf->globals, next,
@@ -3379,6 +3377,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            "          (PARSEC_SUCCESS != parsec_dc->register_memory(parsec_dc, device)) ) {\n"
                            "        parsec_debug_verbose(3, parsec_debug_output, \"Device %s refused to register memory for data %s (%p) from taskpool %p\",\n"
                            "                     device->name, parsec_dc->key_base, parsec_dc, __parsec_tp);\n"
+                           "        __parsec_tp->super.super.devices_index_mask &= ~(1 << device->device_index);\n"
                            "        continue;\n"
                            "      }\n",
                            ";\n"
@@ -3386,27 +3385,25 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            "          (PARSEC_SUCCESS != parsec_dc->register_memory(parsec_dc, device)) ) {\n"
                            "        parsec_debug_verbose(3, parsec_debug_output, \"Device %s refused to register memory for data %s (%p) from taskpool %p\",\n"
                            "                     device->name, parsec_dc->key_base, parsec_dc, __parsec_tp);\n"
+                           "        __parsec_tp->super.super.devices_index_mask &= ~(1 << device->device_index);\n"
                            "        continue;\n"
                            "      }\n"));
     coutput("  /* Remove all the chores without a backend device */\n"
-            "  uint32_t i;\n"
             "  for( i = 0; i < PARSEC_%s_NB_TASK_CLASSES; i++ ) {\n"
             "    parsec_task_class_t* tc = (parsec_task_class_t*)__parsec_tp->super.super.task_classes_array[i];\n"
             "    __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;\n"
-            "    uint32_t index = 0;\n"
-            "    uint32_t j;\n"
+            "    uint32_t idx = 0, j;\n"
             "    for( j = 0; NULL != chores[j].hook; j++ ) {\n"
-            "      if(supported_dev & chores[j].type) {\n"
-            "          if( j != index ) {\n"
-            "            chores[index] = chores[j];\n"
-            "            parsec_debug_verbose(20, parsec_debug_output, \"Device type %%i disabled for function %%s\"\n, chores[j].type, tc->name);\n"
-            "          }\n"
-            "          index++;\n"
+            "      if( !(supported_dev & chores[j].type) ) continue;\n"
+            "      if( j != idx ) {\n"
+            "        chores[idx] = chores[j];\n"
+            "        parsec_debug_verbose(20, parsec_debug_output, \"Device type %%i disabledfor function %%s\"\n, chores[j].type, tc->name);\n"
             "      }\n"
+            "      idx++;\n"
             "    }\n"
-            "    chores[index].type     = PARSEC_DEV_NONE;\n"
-            "    chores[index].evaluate = NULL;\n"
-            "    chores[index].hook     = NULL;\n"
+            "    chores[idx].type     = PARSEC_DEV_NONE;\n"
+            "    chores[idx].evaluate = NULL;\n"
+            "    chores[idx].hook     = NULL;\n"
             "    parsec_task_t* task = (parsec_task_t*)parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);\n"
             "    task->taskpool = (parsec_taskpool_t *)__parsec_tp;\n"
             "    task->chore_id = 0;\n"
@@ -3415,8 +3412,9 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    PARSEC_LIST_ITEM_SINGLETON(task);\n"
             "    task->priority = -1;\n"
             "    task->task_class = task->taskpool->task_classes_array[PARSEC_%s_NB_TASK_CLASSES + i];\n"
-            "    if( 0 == i ) ready_tasks[0] = &task->super;\n"
-            "    else ready_tasks[0] = parsec_list_item_ring_push(ready_tasks[0], &task->super);\n"
+            "    int where = i %% context->nb_vp;\n"
+            "    if( NULL == ready_tasks[where] ) ready_tasks[where] = &task->super;\n"
+            "    else ready_tasks[where] = parsec_list_item_ring_push(ready_tasks[where], &task->super);\n"
             "  }\n",
             jdf_basename, jdf_basename);
     /**
@@ -3443,6 +3441,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
         coutput("  size_t dependencies_size = 0;\n");
     }
+    coutput("  parsec_taskpool_unregister( &__parsec_tp->super.super );\n");
 
     coutput("  for( i = 0; i < (uint32_t)(2 * __parsec_tp->super.super.nb_task_classes); i++ ) {  /* Extra startup function added at the end */\n"
             "    parsec_task_class_t* tc = (parsec_task_class_t*)__parsec_tp->super.super.task_classes_array[i];\n"
@@ -3507,7 +3506,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  for( _i = 0; _i < parsec_nb_devices; _i++ ) {\n"
             "    parsec_device_t* device;\n"
             "    parsec_data_collection_t* parsec_dc;\n"
-            "    if(!(__parsec_tp->super.super.devices_mask & (1 << _i))) continue;\n"
+            "    if(!(__parsec_tp->super.super.devices_index_mask & (1 << _i))) continue;\n"
             "    if((NULL == (device = parsec_devices_get(_i))) || (NULL == device->device_memory_unregister)) continue;\n"
             "  %s"
             "}\n",
@@ -3519,15 +3518,14 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
     coutput("  /* Unregister the taskpool from the devices */\n"
             "  for( i = 0; i < parsec_nb_devices; i++ ) {\n"
-            "    if(!(__parsec_tp->super.super.devices_mask & (1 << i))) continue;\n"
-            "    __parsec_tp->super.super.devices_mask ^= (1 << i);\n"
+            "    if(!(__parsec_tp->super.super.devices_index_mask & (1 << i))) continue;\n"
+            "    __parsec_tp->super.super.devices_index_mask ^= (1 << i);\n"
             "    parsec_device_t* device = parsec_devices_get(i);\n"
             "    if((NULL == device) || (NULL == device->device_taskpool_unregister)) continue;\n"
             "    if( PARSEC_SUCCESS != device->device_taskpool_unregister(device, &__parsec_tp->super.super) ) continue;\n"
             "  }\n");
 
-    coutput("  parsec_taskpool_unregister( &__parsec_tp->super.super );\n"
-            "  free(__parsec_tp);\n");
+    coutput("  free(__parsec_tp);\n");
 
     coutput("}\n"
             "\n");
@@ -3559,7 +3557,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     coutput("  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)calloc(1, sizeof(__parsec_%s_internal_taskpool_t));\n"
             "  parsec_task_class_t* tc;\n"
-            "  int i, j;\n",
+            "  uint32_t i, j;\n",
             jdf_basename, jdf_basename, jdf_basename);
 
     string_arena_init(sa1);
@@ -3570,7 +3568,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     string_arena_init(sa2);
 
     coutput("  __parsec_tp->super.super.nb_task_classes = PARSEC_%s_NB_TASK_CLASSES;\n"
-            "  __parsec_tp->super.super.devices_mask = PARSEC_DEVICES_ALL;\n"
+            "  __parsec_tp->super.super.devices_index_mask = PARSEC_DEVICES_ALL;\n"
             "  __parsec_tp->super.super.update_nb_runtime_task = parsec_ptg_update_runtime_task;\n"
             "  __parsec_tp->super.super.dependencies_array = (void **)\n"
             "              calloc(__parsec_tp->super.super.nb_task_classes, sizeof(void*));\n"
@@ -3589,7 +3587,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "    __parsec_tp->super.super.task_classes_array[i] = tc = malloc(sizeof(parsec_task_class_t));\n"
             "    memcpy(tc, %s_task_classes[i], sizeof(parsec_task_class_t));\n"
             "    for( j = 0; NULL != tc->incarnations[j].hook; j++);  /* compute the number of incarnations */\n"
-            "    tc->incarnations = (__parsec_chore_t*)malloc((j+1) * sizeof(__parsec_chore_t));\n"
+            "    tc->incarnations = (__parsec_chore_t*)malloc((j+1) * sizeof(__parsec_chore_t));\n    "
             "    memcpy((__parsec_chore_t*)tc->incarnations, %s_task_classes[i]->incarnations, (j+1) * sizeof(__parsec_chore_t));\n\n"
             "    /* Add a placeholder for initialization and startup task */\n"
             "    __parsec_tp->super.super.task_classes_array[__parsec_tp->super.super.nb_task_classes+i] = tc = (parsec_task_class_t*)malloc(sizeof(parsec_task_class_t));\n"
@@ -4832,7 +4830,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "};\n"
             "\n"
             "static int gpu_kernel_submit_%s_%s(gpu_device_t            *gpu_device,\n"
-            "                                   parsec_gpu_context_t     *gpu_task,\n"
+            "                                   parsec_gpu_task_t       *gpu_task,\n"
             "                                   parsec_gpu_exec_stream_t *gpu_stream )\n"
             "{\n"
             "  %s *this_task = (%s *)gpu_task->ec;\n"
@@ -4889,7 +4887,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     coutput("#if defined(PARSEC_DEBUG_NOISIER)\n"
             "  {\n"
             "    char tmp[MAX_TASK_STRLEN];\n"
-            "    PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream, \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\\n\", gpu_device->cuda_index, \n"
+            "    PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream, \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\", gpu_device->cuda_index, \n"
             "           parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t *)this_task),\n"
             "           this_task->priority );\n"
             "  }\n"
@@ -4912,7 +4910,13 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
     if ( NULL != dyld ) {
         coutput("  /* Pointer to dynamic gpu function */\n"
-                "  parsec_body.dyld_fn = (%s)this_task->task_class->incarnations[gpu_device->cuda_index].dyld_fn;\n\n",
+                "  {\n"
+                "    int chore_idx = 0;\n"
+                "    for ( ; PARSEC_DEV_NONE != this_task->task_class->incarnations[chore_idx].type; ++chore_idx) {\n"
+                "      if (this_task->task_class->incarnations[chore_idx].type == PARSEC_DEV_CUDA) break;\n"
+                "    }\n"
+                "    parsec_body.dyld_fn = (%s)this_task->task_class->incarnations[chore_idx].dyld_fn;\n"
+                "  }\n\n",
                 dyldtype );
     }
 
@@ -4929,7 +4933,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     coutput("static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n"
             "{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
-            "  parsec_gpu_context_t *gpu_task;\n"
+            "  parsec_gpu_task_t *gpu_task;\n"
             "  double ratio;\n"
             "  int dev_index;\n"
             "  %s\n"
@@ -4976,18 +4980,18 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  }\n"
             "  parsec_device_load[dev_index] += ratio * parsec_device_sweight[dev_index];\n"
             "\n"
-            "  gpu_task = (parsec_gpu_context_t*)calloc(1, sizeof(parsec_gpu_context_t));\n"
+            "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
             "  OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
             "  gpu_task->submit = &gpu_kernel_submit_%s_%s;\n"
-            "  gpu_task->task_type = 0;\n",
+            "  gpu_task->task_type = 0;\n"
+            "  gpu_task->last_data_check_epoch = -1;  /* force at least one validation for the task */\n",
             jdf_basename, f->fname);
 
     /* Dump the dataflow */
+    coutput("  gpu_task->pushout = 0;\n");
     for(fl = f->dataflow, di = 0; fl != NULL; fl = fl->next, di++) {
-        coutput("  gpu_task->pushout[%d] = 0;\n"
-                "  gpu_task->flow[%d]    = &%s;\n",
-                di,
+        coutput("  gpu_task->flow[%d]    = &%s;\n",
                 di, JDF_OBJECT_ONAME( fl ));
 
         if (fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
@@ -5014,14 +5018,14 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 switch( dl->guard->guard_type ) {
                 case JDF_GUARD_UNCONDITIONAL:
                     if(testtrue) {
-                        coutput("  gpu_task->pushout[%d] = 1;\n", di);
+                        coutput("  gpu_task->pushout |= (1 << %d);\n", di);
                         goto nextflow;
                     }
                     break;
                 case JDF_GUARD_BINARY:
                     if(testtrue) {
                         coutput("  if( %s ) {\n"
-                                "    gpu_task->pushout[%d] = 1;\n"
+                                "    gpu_task->pushout |= (1 << %d);\n"
                                 "  }",
                                 dump_expr((void**)dl->guard->guard, &info), di);
                     }
@@ -5029,16 +5033,16 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 case JDF_GUARD_TERNARY:
                     if( testtrue ) {
                         if( testfalse ) {
-                            coutput("  gpu_task->pushout[%d] = 1;\n", di);
+                            coutput("  gpu_task->pushout |= (1 << %d);\n", di);
                         } else {
                             coutput("  if( %s ) {\n"
-                                    "    gpu_task->pushout[%d] = 1;\n"
+                                    "    gpu_task->pushout |= (1 << %d);\n"
                                     "  }\n",
                                     dump_expr((void**)dl->guard->guard, &info), di);
                         }
                     } else if ( testfalse ) {
                         coutput("  if( !(%s) ) {\n"
-                                "    gpu_task->pushout[%d] = 1;\n"
+                                "    gpu_task->pushout |= (1 << %d);\n"
                                 "  }\n",
                                 dump_expr((void**)dl->guard->guard, &info), di);
                     }

@@ -22,7 +22,6 @@ elif [ "x$USER" = "xdgenet" ]; then
   CC=gcc
   CXX=g++
   FC=gfortran
-  MPI_DIR="/sw/openmpi/2.0.2/"
   USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 #elif [ "x$USER" = "xYOURSELF" ]; then
 #  PLASMA_DIR="SOMEWHERE"

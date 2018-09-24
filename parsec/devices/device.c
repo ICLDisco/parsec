@@ -14,9 +14,14 @@
 #include "parsec/utils/argv.h"
 
 #include <stdlib.h>
+#include <errno.h>
+#include <dlfcn.h>
+#include <sys/stat.h>
 
 #include "parsec/devices/cuda/dev_cuda.h"
 
+int parsec_device_output = 0;
+static int parsec_device_verbose = 0;
 uint32_t parsec_nb_devices = 0;
 static uint32_t parsec_nb_max_devices = 0;
 static uint32_t parsec_devices_are_freezed = 0;
@@ -50,6 +55,13 @@ int parsec_devices_init(parsec_context_t* parsec_context)
     (void)parsec_mca_param_reg_int_name("device", "show_statistics",
                                         "Show the detailed devices statistics upon exit",
                                         false, false, 0, NULL);
+    (void)parsec_mca_param_reg_int_name("device", "verbose",
+                                        "The level of verbosity of all operations related to devices",
+                                        false, false, 0, &parsec_device_verbose);
+    if( 0 < parsec_device_verbose ) {
+        parsec_device_output = parsec_output_open(NULL);
+        parsec_output_set_verbosity(parsec_device_output, parsec_device_verbose);
+    }
     parsec_device_list = parsec_argv_split(parsec_device_list_str, ',');
 
     (void)parsec_context;
@@ -218,7 +230,72 @@ int parsec_devices_fini(parsec_context_t* parsec_context)
     if( NULL != parsec_device_list ) {
         parsec_argv_free(parsec_device_list); parsec_device_list = NULL;
     }
+    if( 0 < parsec_device_verbose ) {
+        parsec_output_close(parsec_device_output);
+        parsec_device_output = parsec_debug_output;
+    }
     return PARSEC_SUCCESS;
+}
+
+void*
+parsec_device_find_function(const char* function_name,
+                            const char* libname,
+                            const char* paths[])
+{
+    char library_name[FILENAME_MAX];
+    const char **target;
+    void *dlh, *fn = NULL;
+
+    for( target = paths; (NULL != target) && (NULL != *target); target++ ) {
+        struct stat status;
+        if( 0 != stat(*target, &status) ) {
+            parsec_debug_verbose(10, parsec_device_output,
+                                 "Could not stat the %s path (%s)", *target, strerror(errno));
+            continue;
+        }
+        if( S_ISDIR(status.st_mode) ) {
+            if( NULL == libname )
+                continue;
+            snprintf(library_name,  FILENAME_MAX, "%s/%s", *target, libname);
+        } else {
+            snprintf(library_name,  FILENAME_MAX, "%s", *target);
+        }
+        dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
+        if(NULL == dlh) {
+            parsec_debug_verbose(10, parsec_device_output,
+                                 "Could not find %s dynamic library (%s)", library_name, dlerror());
+            continue;
+        }
+        fn = dlsym(dlh, function_name);
+        dlclose(dlh);
+        if( NULL != fn ) {
+            parsec_debug_verbose(4, parsec_device_output,
+                                 "Function %s found in shared library %s",
+                                 function_name, library_name);
+            break;  /* we got one, stop here */
+        }
+    }
+    /* Couldn't load from named dynamic libs, try linked/static */
+    if(NULL == fn) {
+        parsec_output_verbose(10, parsec_device_output,
+                              "No dynamic function %s found, trying from compile time linked in\n",
+                              function_name);
+        dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
+        if(NULL != dlh) {
+            fn = dlsym(dlh, function_name);
+            if(NULL != fn) {
+                parsec_debug_verbose(4, parsec_device_output,
+                                     "Function %s found in the application symbols",
+                                     function_name);
+            }
+            dlclose(dlh);
+        }
+    }
+    if(NULL == fn) {
+        parsec_debug_verbose(10, parsec_device_output,
+                             "No function %s found", function_name);
+    }
+    return fn;
 }
 
 int parsec_devices_freeze(parsec_context_t* context)
@@ -254,9 +331,9 @@ int parsec_devices_freeze(parsec_context_t* context)
     }
 
     /* Compute the weight of each device including the cores */
-    parsec_debug_verbose(4, parsec_debug_output, "Global Theoretical performance: double %2.4f single %2.4f tensor %2.4f half %2.4f", total_dperf, total_sperf, total_tperf, total_hperf);
+    parsec_debug_verbose(4, parsec_device_output, "Global Theoretical performance: double %2.4f single %2.4f tensor %2.4f half %2.4f", total_dperf, total_sperf, total_tperf, total_hperf);
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
-        parsec_debug_verbose(4, parsec_debug_output, "  Dev[%d]             ->flops double %2.4f single %2.4f tensor %2.4f half %2.4f",
+        parsec_debug_verbose(4, parsec_device_output, "  Dev[%d]             ->flops double %2.4f single %2.4f tensor %2.4f half %2.4f",
                              i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
 
         parsec_device_hweight[i] = (total_hperf / parsec_device_hweight[i]);
@@ -264,7 +341,7 @@ int parsec_devices_freeze(parsec_context_t* context)
         parsec_device_sweight[i] = (total_sperf / parsec_device_sweight[i]);
         parsec_device_dweight[i] = (total_dperf / parsec_device_dweight[i]);
         /* after the weighting */
-        parsec_debug_verbose(4, parsec_debug_output, "  Dev[%d]             ->ratio double %2.4e single %2.4e tensor %2.4e half %2.4e",
+        parsec_debug_verbose(4, parsec_device_output, "  Dev[%d]             ->ratio double %2.4e single %2.4e tensor %2.4e half %2.4e",
                              i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
     }
 
@@ -402,6 +479,48 @@ static int cpu_weights(parsec_device_t* device, int nstreams) {
     return PARSEC_SUCCESS;
 }
 
+static int
+device_taskpool_register_static(parsec_device_t* device, parsec_taskpool_t* tp)
+{
+    int32_t rc = PARSEC_ERR_NOT_FOUND;
+    uint32_t i, j;
+
+    /**
+     * Detect if a particular chore has a dynamic load dependency and if yes
+     * load the corresponding module and find the function.
+     */
+    assert(tp->devices_index_mask & (1 << device->device_index));
+
+    for( i = 0; i < tp->nb_task_classes; i++ ) {
+        const parsec_task_class_t* tc = tp->task_classes_array[i];
+        __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
+        for( j = 0; NULL != chores[j].hook; j++ ) {
+            if( chores[j].type != device->type )
+                continue;
+            if(  NULL != chores[j].dyld_fn ) {
+                continue;  /* the function has been set for another device of the same type */
+            }
+            if ( NULL == chores[j].dyld ) {
+                assert( NULL == chores[j].dyld_fn );  /* No dynamic support required for this kernel */
+                rc = PARSEC_SUCCESS;
+            } else {
+                void* devf = parsec_device_find_function(chores[j].dyld, NULL, NULL);
+                if( NULL != devf ) {
+                    chores[j].dyld_fn = devf;
+                    rc = PARSEC_SUCCESS;
+                }
+            }
+        }
+    }
+    if( PARSEC_SUCCESS != rc ) {
+        tp->devices_index_mask &= ~(1 << device->device_index);  /* discard this type */
+        parsec_debug_verbose(10, parsec_device_output,
+                             "Device %d (%s) disabled for taskpool %p", device->device_index, device->name, tp);
+    }
+
+    return rc;
+}
+
 int parsec_devices_select(parsec_context_t* context)
 {
     int nb_total_comp_threads = 0;
@@ -416,6 +535,7 @@ int parsec_devices_select(parsec_context_t* context)
         parsec_device_cpus->name = "default";
         parsec_device_cpus->type = PARSEC_DEV_CPU;
         cpu_weights(parsec_device_cpus, nb_total_comp_threads);
+        parsec_device_cpus->device_taskpool_register = device_taskpool_register_static;
         parsec_devices_add(context, parsec_device_cpus);
    }
 
@@ -428,6 +548,7 @@ int parsec_devices_select(parsec_context_t* context)
         parsec_device_recursive->device_tweight = parsec_device_cpus->device_tweight;
         parsec_device_recursive->device_sweight = parsec_device_cpus->device_sweight;
         parsec_device_recursive->device_dweight = parsec_device_cpus->device_dweight;
+        parsec_device_recursive->device_taskpool_register = device_taskpool_register_static;
         parsec_devices_add(context, parsec_device_recursive);
     }
 #if defined(PARSEC_HAVE_CUDA)
@@ -498,15 +619,14 @@ void parsec_devices_taskpool_restrict(parsec_taskpool_t *tp,
     uint32_t i;
 
     for (i = 0; i < parsec_nb_devices; i++) {
-	if (!(tp->devices_mask & (1 << i)))
-	    continue;
+        device = parsec_devices_get(i);
+        if ((NULL == device) || (device->type & devices_type))
+            continue;
 
-	device = parsec_devices_get(i);
-	if ((NULL == device) || (device->type & devices_type))
-	    continue;
-
-        /* Disable this type of device */
-        tp->devices_mask &= ~(1 << i);
+        /* Force unregistration for this type of device. This is not correct, as some of
+         * the memory related to the taskpoool might still be registered with the
+         * devices we drop support. */
+        tp->devices_index_mask &= ~(1 << device->device_index);
     }
     return;
 }

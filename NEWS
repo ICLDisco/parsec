@@ -5,13 +5,18 @@ Copyright (c) 2009-2018 The University of Tennessee and The University
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
+ - Add a MCA parameter to control the number of ejected blocks from GPU
+   memory (device_cuda_max_number_of_ejected_data). Add a MCA parameter
+   to control wether or not the GPU engine will take some time to sort
+   the first N tasks of the pending queue (device_cuda_sort_pending_list).
+
  - Reshape the users vision of PaRSEC: they only have to include a single
    header (parsec.h) for most usages, and link with a single library
    (-lparsec).
 
  - Update the PaRSEC DSL handling of initial tasks. We now rely on 2
    pieces of information: the number of DSL tasks, and the number of
-   tasks imposed by the system (all types of data tranfer).
+   tasks imposed by the system (all types of data transfer).
 
  - Add a purely local scheduler (ll), that uses a single LIFO per
    thread. Each schedule operation does 1 atomic (push in local queue),

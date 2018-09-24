@@ -214,9 +214,9 @@ parsec_data_copy_t* parsec_data_copy_new(parsec_data_t* data, uint8_t device)
 /**
  * Find the corresponding copy of the data on the requested device. If the
  * copy is not available in the access mode requested, a new version will
- * be created. If no tranfer is required the correct version will be set
+ * be created. If no transfer is required the correct version will be set
  * into dest and the function returns 0. If a transfer is necessary, dest
- * will contain the pointer to the copy to be tranferred to, and the function
+ * will contain the pointer to the copy to be transferred to, and the function
  * will return 1. All other cases should be considered as errors, and a
  * negative value must be returned (corresponding to a specific PARSEC_
  * error code.

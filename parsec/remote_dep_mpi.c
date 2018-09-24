@@ -783,7 +783,7 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
     if( cycles >= 0 )
         if( 0 == cycles--) return executed_tasks;  /* report how many events were progressed */
 
-    /* Move a number of tranfers from the shared dequeue into our ordered lifo. */
+    /* Move a number of transfers from the shared dequeue into our ordered lifo. */
     how_many = 0;
     while( NULL != (item = (dep_cmd_item_t*) parsec_dequeue_try_pop_front(&dep_cmd_queue)) ) {
         if( DEP_CTL == item->action ) {

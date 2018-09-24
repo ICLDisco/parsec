@@ -75,18 +75,21 @@ int main(int argc, char ** argv)
         dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcC, Cseed);
         if(loud > 2) printf("Done\n");
 
-        /* Create PaRSEC */
-        PASTE_CODE_ENQUEUE_KERNEL(parsec, zgemm,
-                                  (tA, tB, alpha,
-                                   (parsec_tiled_matrix_dc_t *)&dcA,
-                                   (parsec_tiled_matrix_dc_t *)&dcB,
-                                   beta,
-                                   (parsec_tiled_matrix_dc_t *)&dcC));
+        int t;
+        for ( t = 0; t < 3; ++t) {
+            /* Create PaRSEC */
+            PASTE_CODE_ENQUEUE_KERNEL(parsec, zgemm,
+                                      (tA, tB, alpha,
+                                       (parsec_tiled_matrix_dc_t *)&dcA,
+                                       (parsec_tiled_matrix_dc_t *)&dcB,
+                                       beta,
+                                       (parsec_tiled_matrix_dc_t *)&dcC));
 
-        /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(parsec, zgemm);
+            /* lets rock! */
+            PASTE_CODE_PROGRESS_KERNEL(parsec, zgemm);
 
-        dplasma_zgemm_Destruct( PARSEC_zgemm );
+            dplasma_zgemm_Destruct( PARSEC_zgemm );
+        }
 
         parsec_data_free(dcA.mat);
         parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
