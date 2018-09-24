@@ -255,8 +255,8 @@ sub onNodes {
     while (<F>) {
       my $line=$_;
       $lnb++;
-      next if ($line =~ /^digraph G {$/);
-      last if ($line =~ /^}/);
+      next if ($line =~ /^digraph G \{$/);
+      last if ($line =~ /^\}/);
       next if ($line =~ / -> /);
       my ($ID, $COLOR, $T, $V, $K, $P, $op, $p);
       if( ($ID, $COLOR, $T, $V, $K, $P, $op, $p) = ($line =~ /^([^ ]+) \[shape="[^"]+",style=filled,fillcolor="#(......)",fontcolor="black",label="<([0-9]+)\/([0-9]+)> ([^(]+)\(([^\)]*)\)\[([^>]*)\]<([^>]+)>/) ) {
@@ -281,8 +281,23 @@ sub outputLink {
   $label =~ s/%s/$NSRC/g;
   $label =~ s/%d/$NDST/g;
 
-  my $color=linkColor($EL, $NSRC!=$NDST);
-  my $style=linkStyle($EL, $NSRC!=$NDST);
+  my $same = 0;
+  if( ref($NSRC) eq "SCALAR" ) {
+    if( ref($NDST) eq "SCALAR" ) {
+      $same = ($NSRC == $NDST);
+    } else {
+      $same = ($NSRC == ($NDST + 0));
+    }
+  } else {
+    if( ref($NDST) eq "SCALAR" ) {
+      $same = (($NSRC + 0) == $NDST);
+    } else {
+      $same = ( $NSRC eq $NDST );
+    }
+  }
+
+  my $color=linkColor($EL, !$same);
+  my $style=linkStyle($EL, !$same);
 
   print "$ID1 -> $ID2 [label=\"$label\" color=\"#$color\" style=\"$style\"];\n";
 }
@@ -298,17 +313,23 @@ sub onLinks {
     while (<F>) {
       my $line=$_;
       $lnb++;
-      next if ($line =~ /^digraph G {$/);
-      last if ($line =~ /^}/);
+      next if ($line =~ /^digraph G \{$/);
+      last if ($line =~ /^\}/);
       next unless ($line =~ / -> /);
-      my ($ID1, $ID2, $VSRC, $VDST, $COLOR);
+      my ($ID1, $ID2, $VSRC, $VDST, $COLOR, $NSRC, $NDST);
       if( ($ID1, $ID2, $VSRC, $VDST, $COLOR) = ($line =~ /^([^ ]+) -> ([^ ]+) \[label="([^=]+)=>([^"]+)",color="#(......)"/) ) {
-        if( exists($TASKS->{$ID1}) && exists($TASKS->{$ID2}) ) {
-          my $NSRC=nodeRank($ID1);
-          my $NDST=nodeRank($ID2);
-          my $EL=( $COLOR eq "00FF00" );
-          $fct->($ID1, $ID2, $VSRC, $VDST, $NSRC, $NDST, $EL);
-        }
+        if( exists($TASKS->{$ID1}) ) {
+          $NSRC=nodeRank($ID1);
+	} else {
+	  $NSRC="Unknown";
+	}
+	if( exists($TASKS->{$ID2}) ) {
+          $NDST=nodeRank($ID2);
+	} else {
+	  $NDST="Unknown";
+	}
+	my $EL=( $COLOR eq "00FF00" );
+	$fct->($ID1, $ID2, $VSRC, $VDST, $NSRC, $NDST, $EL);
       } else {
         print STDERR "  Error on $f:$lnb malformed line $line\n";
       }
