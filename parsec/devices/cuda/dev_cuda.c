@@ -42,6 +42,7 @@ int parsec_cuda_own_GPU_key_end;
 #endif  /* defined(PROFILING) */
 
 int parsec_cuda_output_stream = -1;
+int32_t parsec_CUDA_sort_pending_list = 0;
 
 extern int32_t parsec_CUDA_d2h_max_flows;
 static char* cuda_lib_path = NULL;
@@ -373,6 +374,9 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
     (void)parsec_mca_param_reg_int_name("device_cuda", "max_number_of_ejected_data",
                                         "Sets up the maximum number of blocks that can be ejected from GPU memory",
                                         false, false, MAX_PARAM_COUNT, &parsec_CUDA_d2h_max_flows);
+    (void)parsec_mca_param_reg_int_name("device_cuda", "sort_pending_tasks",
+                                        "Boolean to let the GPU engine sort the first pending tasks stored in the list",
+                                        false, false, 0, &parsec_CUDA_sort_pending_list);
 
     if( 0 == use_cuda ) {
         return -1;  /* Nothing to do around here */
@@ -1335,6 +1339,9 @@ parsec_gpu_callback_complete_push(gpu_device_t              *gpu_device,
                                   parsec_gpu_task_t        **gpu_task,
                                   parsec_gpu_exec_stream_t  *gpu_stream)
 {
+    (void)gpu_device;
+    (void)gpu_stream;
+
     parsec_gpu_task_t *gtask = *gpu_task;
     parsec_task_t *task;
     int32_t i;
@@ -2048,7 +2055,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
 
  fetch_task_from_shared_queue:
     assert( NULL == gpu_task );
-    if (out_task_submit == NULL && out_task_pop == NULL) {
+    if (0 == parsec_CUDA_sort_pending_list && out_task_submit == NULL && out_task_pop == NULL) {
         parsec_gpu_sort_pending_list(gpu_device);
     }
     gpu_task = (parsec_gpu_task_t*)parsec_fifo_try_pop( &(gpu_device->pending) );
