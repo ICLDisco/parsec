@@ -14,9 +14,14 @@
 #include "parsec/utils/argv.h"
 
 #include <stdlib.h>
+#if defined(PARSEC_HAVE_ERRNO_H)
 #include <errno.h>
+#endif  /* PARSEC_HAVE_ERRNO_H */
 #include <dlfcn.h>
 #include <sys/stat.h>
+#if defined(PARSEC_HAVE_STRING_H)
+#include <string.h>
+#endif  /* defined(PARSEC_HAVE_STRING_H) */
 
 #include "parsec/devices/cuda/dev_cuda.h"
 

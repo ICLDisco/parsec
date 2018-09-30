@@ -24,7 +24,7 @@
  *    To make a structure hash-able, declare a field with this type
  *    in the structure, and when creating the Hash Table with @ref parsec_hash_table_init,
  *    pass the offset of that field in that structure.
- * 
+ *
  *    Then, pass the address of that field in this structure to @ref parsec_hash_table_insert,
  *    to insert elements, and @ref parsec_hash_table_find / @ref parsec_hash_table_remove will return
  *    the pointer to the structure.
@@ -65,7 +65,7 @@ typedef struct parsec_hash_table_head_s {
     int32_t                          used_buckets;         /**< Number of buckets still in use in this hash table */
     parsec_hash_table_bucket_t      *buckets;              /**< These are the buckets (that are lists of items) of this table */
 } parsec_hash_table_head_t;
-                                  
+
 /**
  * @brief One type of hash table for task, tiles and functions 
  */

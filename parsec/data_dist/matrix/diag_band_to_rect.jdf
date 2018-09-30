@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,6 +10,8 @@ extern "C" %{
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+
+#include <string.h>
 
 /***********************************************************
  * Convert a tiled 2D cyclic symetric band diagonal matrix *

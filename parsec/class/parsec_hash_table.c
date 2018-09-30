@@ -76,7 +76,7 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
     parsec_hash_table_head_t *head;
     size_t i;
     int v;
-    
+
     if( parsec_hash_table_mca_param_index != PARSEC_ERROR ) {
         if( parsec_mca_param_lookup_int(parsec_hash_table_mca_param_index, &v) != PARSEC_ERROR ) {
             parsec_hash_table_max_collisions_hint = v;
@@ -84,7 +84,7 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
     }
 
     assert( nb_bits >= 1 && nb_bits <= 16);
-    
+
     ht->key_functions = key_functions;
     ht->hash_data = data;
     ht->elt_hashitem_offset = offset;
@@ -487,7 +487,7 @@ uint64_t parsec_hash_table_generic_64bits_key_hash(parsec_key_t key, int nb_bits
     (void)user_data;
 
     uint64_t k = (uint64_t)(uintptr_t)key;
-    
+
     /* We are often asked to compute the key on 64 bits, so treat this case first */
     if( nb_bits == 64 )
         return k;
@@ -499,7 +499,7 @@ uint64_t parsec_hash_table_generic_64bits_key_hash(parsec_key_t key, int nb_bits
      * being different on the high bits as well as keys being
      * different on the low bits.
      */
-    
+
     switch( nb_bits ) {
     /* We unrolled all cases fully to have minimal number of instructions.
      * For very small values (1 or 2 bits), just take the low bits of k
@@ -593,7 +593,7 @@ uint64_t parsec_hash_table_generic_64bits_key_hash(parsec_key_t key, int nb_bits
         if( (nb_bits <= 0) || (nb_bits > 64) ) {
             assert(nb_bits > 0 && nb_bits <= 64);
             return ~0ULL;
-        }    
+        }
         return ((k >> 32) ^ k) & (~0ULL >> (64-nb_bits));
     }
 

@@ -81,7 +81,7 @@ int32_t parsec_atomic_fetch_or_int32(volatile int32_t* location,
 
     do {
         old_value = *location;
-    } while( !parsec_atomic_cas_32b(location, old_value, (old_value|value) ));
+    } while( !parsec_atomic_cas_int32(location, old_value, (old_value|value) ));
     return old_value;
 }
 
@@ -94,7 +94,7 @@ int32_t parsec_atomic_fetch_and_int32(volatile int32_t* location,
 
     do {
         old_value = *location;
-    } while( !parsec_atomic_cas_32b(location, old_value, (old_value&value) ));
+    } while( !parsec_atomic_cas_int32(location, old_value, (old_value&value) ));
     return old_value;
 }
 
@@ -143,7 +143,7 @@ int32_t parsec_atomic_fetch_add_int32(volatile int32_t* v, int32_t i)
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT64
 ATOMIC_STATIC_INLINE
-int64_t parsec_atomic_fetch_add_int364(volatile int64_t* v, int64_t i)
+int64_t parsec_atomic_fetch_add_int64(volatile int64_t* v, int64_t i)
 {
     int64_t ov, nv;
 
