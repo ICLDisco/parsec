@@ -3697,7 +3697,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             jdf_basename, string_arena_get_string(sa1));
 
     /* Prepare the functions */
-    coutput("  for( i = 0; i < (int)__parsec_tp->super.super.nb_task_classes; i++ ) {\n"
+    coutput("  for( i = 0; i < __parsec_tp->super.super.nb_task_classes; i++ ) {\n"
             "    __parsec_tp->super.super.task_classes_array[i] = tc = malloc(sizeof(parsec_task_class_t));\n"
             "    memcpy(tc, %s_task_classes[i], sizeof(parsec_task_class_t));\n"
             "    for( j = 0; NULL != tc->incarnations[j].hook; j++);  /* compute the number of incarnations */\n"
