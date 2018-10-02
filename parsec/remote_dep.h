@@ -55,8 +55,8 @@ struct parsec_dep_data_description_s {
     struct parsec_arena_s     *arena;
     struct parsec_data_copy_s *data;
     parsec_datatype_t          layout;
-    uint64_t                  count;
-    int64_t                   displ;
+    uint64_t                   count;
+    int64_t                    displ;
 };
 
 struct remote_dep_output_param_s {
@@ -67,12 +67,12 @@ struct remote_dep_output_param_s {
     parsec_list_item_t                    super;
     parsec_remote_deps_t                 *parent;
     struct parsec_dep_data_description_s  data;        /**< The data propagated by this message. */
-    uint32_t                             deps_mask;   /**< A bitmask of all the output dependencies
-                                                       propagated by this message. The bitmask uses
-                                                       depedencies indexes not flow indexes. */
-    int32_t                              priority;    /**< the priority of the message */
-    uint32_t                             count_bits;  /**< The number of participants */
-    uint32_t*                            rank_bits;   /**< The array of bits representing the propagation path */
+    uint32_t                              deps_mask;   /**< A bitmask of all the output dependencies
+                                                            propagated by this message. The bitmask uses
+                                                            depedencies indexes not flow indexes. */
+    int32_t                               priority;    /**< the priority of the message */
+    uint32_t                              count_bits;  /**< The number of participants */
+    uint32_t*                             rank_bits;   /**< The array of bits representing the propagation path */
 };
 
 struct parsec_remote_deps_s {

@@ -4584,7 +4584,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                 string_arena_init(sa_tmp_type);
                 jdf_generate_arena_string_from_datatype(sa_tmp_type, dl->datatype);
                 string_arena_init(sa_tmp_layout);
-                if( dl->datatype.layout == dl->datatype.type ) { /* no specific layout */
+                if( NULL == dl->datatype.layout ) { /* no specific layout */
                     string_arena_add_string(sa_tmp_layout, "data->arena->opaque_dtt");
                 } else {
                     string_arena_add_string(sa_tmp_layout, "%s", dump_expr((void**)dl->datatype.layout, &info));
@@ -4602,19 +4602,19 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                     string_arena_init(sa_layout);
                     updated = 1;
                 }
-                if( strcmp(string_arena_get_string(sa_tmp_layout), string_arena_get_string(sa_layout)) ) {
+                if( updated || strcmp(string_arena_get_string(sa_tmp_layout), string_arena_get_string(sa_layout)) ) {
                     /* Same thing: the memory layout may have changed */
                     string_arena_init(sa_layout);
                     string_arena_add_string(sa_layout, "%s", string_arena_get_string(sa_tmp_layout));
                     updated = 1;
                 }
-                if( strcmp(string_arena_get_string(sa_tmp_nbelt), string_arena_get_string(sa_nbelt)) ) {
+                if( updated || strcmp(string_arena_get_string(sa_tmp_nbelt), string_arena_get_string(sa_nbelt)) ) {
                     /* Same thing: the number of transmitted elements may have changed */
                     string_arena_init(sa_nbelt);
                     string_arena_add_string(sa_nbelt, "%s", string_arena_get_string(sa_tmp_nbelt));
                     updated = 1;
                 }
-                if( strcmp(string_arena_get_string(sa_tmp_displ), string_arena_get_string(sa_displ)) ) {
+                if( updated || strcmp(string_arena_get_string(sa_tmp_displ), string_arena_get_string(sa_displ)) ) {
                     /* Same thing: the displacement may have changed */
                     string_arena_init(sa_displ);
                     string_arena_add_string(sa_displ, "%s", string_arena_get_string(sa_tmp_displ));
@@ -5816,7 +5816,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
 
                 assert( dl->datatype.count != NULL );
                 string_arena_add_string(sa_tmp_nbelt, "%s", dump_expr((void**)dl->datatype.count, &info));
-                if( dl->datatype.layout == dl->datatype.type ) { /* no specific layout */
+                if( NULL == dl->datatype.layout ) { /* no specific layout */
                     string_arena_add_string(sa_tmp_layout, "data.arena->opaque_dtt");
                 } else {
                     string_arena_add_string(sa_tmp_layout, "%s", dump_expr((void**)dl->datatype.layout, &info));

@@ -963,6 +963,7 @@ static int jdf_compare_expr(const jdf_expr_t* ex1, const jdf_expr_t* ex2)
     int ret;
 
     if( ex1 == ex2 ) {ret = 0; goto print_and_return;}
+    if( (NULL == ex1) || (NULL == ex2) ) {ret = 1; goto print_and_return;}
     if( ex1->op != ex2->op ) {ret = 1; goto print_and_return;}
     if( JDF_OP_IS_CST(ex1->op) )
     {ret = !(ex1->jdf_cst == ex2->jdf_cst); goto print_and_return;}
@@ -1076,7 +1077,11 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
     linfo.prefix = ":";
     linfo.assignments = "";
     COMPARE_EXPR(type, sa, are_types_equal);
-    COMPARE_EXPR(layout, sa, are_layout_equal);
+    if( src->layout == dst->layout ) {
+        are_layout_equal = are_types_equal;  /* layouts depend on the type */
+    } else if( (NULL != src->layout) && (NULL != dst->layout) ) {
+        COMPARE_EXPR(layout, sa, are_layout_equal);
+    }  /* otherwise we default to the initial 0 */
     COMPARE_EXPR(count, sa, are_count_equal);
     COMPARE_EXPR(displ, sa, are_displ_equal);
 
