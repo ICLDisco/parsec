@@ -654,13 +654,10 @@ dependency:   ARROW guarded_call properties
 
                   /**
                    * The memory layout used for the transfer. Works together with the
-                   * count and the displacement.
+                   * count and the displacement. If not layout is specified it is assumed
+                   * the default layout of the type (arena) will be used.
                    */
-                  expr = jdf_find_property( d->guard->properties, "layout", &property );
-                  if( NULL == expr ) {
-                      expr = jdf_find_property( d->guard->properties, "type", &property );
-                  }
-                  d->datatype.layout = expr;
+                  d->datatype.layout = jdf_find_property( d->guard->properties, "layout", &property );
 
                   /**
                    * The number of types to transfer.
