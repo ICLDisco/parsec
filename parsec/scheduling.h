@@ -76,6 +76,7 @@ int __parsec_reschedule(parsec_execution_stream_t* es,
  */
 int __parsec_context_wait(parsec_execution_stream_t* es);
 
+int __parsec_work_wait(parsec_execution_stream_t* es);
 /**
  * Execute the body of the task associated to the context.
  */

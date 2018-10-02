@@ -102,7 +102,7 @@ static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, i
 #endif /* PARSEC_HAVE_HWLOC */
     *cores = (vp * nbcores * nbht) + thread;
     if (nbht > 1 ) {
-        *ht = (*cores) % nbht;
+        *ht = thread / nbcores;
     } else {
         *ht = -1;
     }
@@ -378,7 +378,11 @@ int vpmap_init_from_flat(int _nbcores)
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 
     nbvp = 1;
-    nbcores = _nbcores/nbht;
+#if !defined(PARSEC_HYPERTHREAD_ROUND_ROBIN)
+    nbcores = _nbcores/nbht; /* Fill a core with hyperthreads before proceeding to the next one */
+#else
+    nbcores = _nbcores; /* Round robin distribution of hyperthreads */
+#endif
     nbthreadspervp = _nbcores;
 
     vpmap_nb_total_threads = nbvp * nbthreadspervp;

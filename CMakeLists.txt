@@ -90,6 +90,10 @@ mark_as_advanced(PARSEC_SCHED_DEPS_MASK)
 option(PARSEC_SCHED_DEPS_MASK
   "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" ON)
 
+mark_as_advanced(PARSEC_HAVE_HYPERTHREAD_SCHEDULER)
+option(PARSEC_HAVE_HYPERTHREAD_SCHEDULER
+  "Double the number of threads, half will compute, the other half is in charge of scheduling, lookups, and all the boring stuff" ON)
+
 ### Distributed engine parameters
 mark_as_advanced(PARSEC_DIST_THREAD PARSEC_DIST_PRIORITIES)
 option(PARSEC_DIST_WITH_MPI

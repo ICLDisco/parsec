@@ -15,6 +15,7 @@
 #include "parsec/data.h"
 #include "parsec/class/list_item.h"
 #include "parsec/class/parsec_hash_table.h"
+#include "parsec/class/fifo.h"
 #include "parsec/parsec_description_structures.h"
 #include "parsec/profiling.h"
 #include "parsec/mempool.h"

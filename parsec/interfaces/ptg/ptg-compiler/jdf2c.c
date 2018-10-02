@@ -5316,6 +5316,13 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     }
 
     coutput("%s\n", body->external_code);
+
+    if( profile_on ) {
+        coutput("  PARSEC_TASK_PROF_TRACE(es->es_profile,\n"
+                "                         this_task->taskpool->profiling_array[2*this_task->task_class->task_class_id+1],\n"
+                "                         this_task);\n");
+    }
+
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
         coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
     }
@@ -5376,7 +5383,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
         }
     }
 
-    if( profile_on ) {
+    if( 0 && profile_on ) {
         coutput("  PARSEC_TASK_PROF_TRACE(es->es_profile,\n"
                 "                         this_task->taskpool->profiling_array[2*this_task->task_class->task_class_id+1],\n"
                 "                         (parsec_task_t*)this_task);\n");
