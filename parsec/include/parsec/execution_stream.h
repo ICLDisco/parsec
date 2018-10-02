@@ -17,6 +17,7 @@
 #include "parsec/mempool.h"
 #include "parsec/profiling.h"
 #include "parsec/class/barrier.h"
+#include "parsec/class/list.h"
 
 #ifdef PINS_ENABLE
 #include "parsec/mca/pins/pins.h"
@@ -28,6 +29,15 @@
 #endif
 
 BEGIN_C_DECLS
+
+/**
+ * @brief A container for interaction between scheduler and worker thread
+ */
+typedef struct parsec_shared_information_s parsec_shared_information_t;
+/**
+ * @brief A container for interaction between scheduler and worker thread
+ */
+typedef struct parsec_loctask_s parsec_loctask_t;
 
 /**
  *  Computational Thread-specific structure
@@ -65,6 +75,9 @@ struct parsec_execution_stream_s {
                                                                     *   we use these mempools */
     parsec_thread_mempool_t *dependencies_mempool; /**< If using hashtables to store dependencies
                                                     *   those are allocated using this mempool */
+#if defined(PARSEC_HYPERTHREAD_SCHEDULER)
+    parsec_shared_information_t *shared;
+#endif
 };
 
 /**
@@ -158,6 +171,25 @@ struct parsec_context_s {
 };
 
 #define PARSEC_THREAD_IS_MASTER(eu) ( ((eu)->th_id == 0) && ((eu)->virtual_process->vp_id == 0) )
+
+struct parsec_shared_information_s {
+    parsec_barrier_t          *barrier;
+    /* the address pointer needs to be volatile, not the content pointed to */
+    parsec_loctask_t          *volatile input;
+    parsec_loctask_t          *volatile output;
+    parsec_loctask_t          *freelist; /* simple lifo no lock */
+    int                        keepgoing;
+    int                        submitted;
+};
+
+struct parsec_loctask_s {
+    parsec_list_item_t         super;
+    int                        rc;
+    int                        distance;
+    parsec_task_t             *task;
+    parsec_execution_stream_t *es;
+    parsec_loctask_t          *next;
+};
 
 END_C_DECLS
 

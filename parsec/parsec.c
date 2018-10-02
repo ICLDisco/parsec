@@ -28,6 +28,7 @@
 #include "parsec/utils/output.h"
 #include "parsec/data_internal.h"
 #include "parsec/class/list.h"
+#include "parsec/class/fifo.h"
 #include "parsec/scheduling.h"
 #include "parsec/class/barrier.h"
 #include "parsec/remote_dep.h"
@@ -167,11 +168,33 @@ typedef struct __parsec_temporary_thread_initialization_t {
     int bindto_ht;
     parsec_barrier_t*  barrier;       /*< the barrier used to synchronize for the
                                        *   local VP data construction. */
+#if defined(PARSEC_HYPERTHREAD_SCHEDULER)
+    parsec_execution_stream_t* es;
+#endif
 } __parsec_temporary_thread_initialization_t;
 
 static int parsec_parse_binding_parameter(const char* option, parsec_context_t* context,
-                                         __parsec_temporary_thread_initialization_t* startup);
+                                          __parsec_temporary_thread_initialization_t* startup);
 static int parsec_parse_comm_binding_parameter(const char* option, parsec_context_t* context);
+
+#if defined(PARSEC_HYPERTHREAD_SCHEDULER)
+static void* __parsec_worker_init( __parsec_temporary_thread_initialization_t* startup )
+{
+    parsec_execution_stream_t* es = startup->es;
+    int bindto = startup->bindto;
+    int bindto_ht = (-1 == startup->bindto_ht) ? 1 : startup->bindto_ht+1;
+
+    parsec_bindthread(bindto, bindto_ht);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Bind worker thread %i.%i on core %i [HT %i]",
+                         es->virtual_process->vp_id, es->th_id,
+                         bindto, bindto_ht);
+
+    parsec_barrier_wait(es->shared->barrier);
+    void* ret = (void*)(long)__parsec_work_wait(es);
+
+    return ret;
+}
+#endif
 
 static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* startup )
 {
@@ -181,10 +204,11 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     /* don't use PARSEC_THREAD_IS_MASTER, it is too early and we cannot yet allocate the es struct */
     if( (0 != startup->virtual_process->vp_id) || (0 != startup->th_id) || parsec_runtime_bind_main_thread ) {
         /* Bind to the specified CORE */
+        if( -1 == startup->bindto_ht ) startup->bindto_ht = 0;
         parsec_bindthread(startup->bindto, startup->bindto_ht);
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Bind thread %i.%i on core %i [HT %i]",
-                            startup->virtual_process->vp_id, startup->th_id,
-                            startup->bindto, startup->bindto_ht);
+                             startup->virtual_process->vp_id, startup->th_id,
+                             startup->bindto, startup->bindto_ht);
     } else {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Don't bind the main thread %i.%i",
                             startup->virtual_process->vp_id, startup->th_id);
@@ -233,6 +257,50 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
                                   offsetof(parsec_hashable_dependency_t, mempool_owner),
                                   vp->nb_cores);
     }
+
+#if defined(PARSEC_HYPERTHREAD_SCHEDULER)
+    int ht_activated = 0;
+    pthread_t worker;
+    es->shared = NULL;
+
+    if( 1 < parsec_hwloc_allow_ht(2) ) {
+        ht_activated = 1;
+        /* es->shared = (parsec_shared_information_t*)malloc(sizeof(parsec_shared_information_t)); */
+        posix_memalign((void**)&es->shared, 64, sizeof(parsec_shared_information_t));
+        es->shared->barrier = (parsec_barrier_t*)malloc(sizeof(parsec_barrier_t));
+        parsec_barrier_init(es->shared->barrier, NULL, 2);
+        es->shared->input     = NULL;
+        es->shared->output    = NULL;
+        es->shared->keepgoing = 1;
+        es->shared->submitted = 0;
+        es->shared->freelist  = NULL;
+
+        int i;
+        for (i = 0; i < 5; ++i) { /* we cannot have more than 5 tasks in the pipeline */
+            parsec_loctask_t *t = (parsec_loctask_t*)calloc(1, sizeof(parsec_loctask_t));
+            t->next = es->shared->freelist;
+            es->shared->freelist = t;
+        }
+
+        pthread_attr_t thread_attr;
+        pthread_attr_init(&thread_attr);
+        pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
+
+        startup->es = es;
+        /* Summon your intern */
+        pthread_create( &worker,
+                        &thread_attr,
+                        (void* (*)(void*))__parsec_worker_init,
+                        (void*)startup);
+
+        parsec_barrier_wait(es->shared->barrier);
+    }
+    else {
+        parsec_fatal("PaRSEC has been compiled with hyperthreading capabilities.\nThis machine does not support hyperthread, recompile without the PARSEC_HAVE_HYPERTHREAD_SCHEDULER.\n");
+    }
+
+#endif
+
     /* Synchronize with the other threads */
     parsec_barrier_wait(startup->barrier);
 
@@ -275,6 +343,17 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 
     void *ret = (void*)(long)__parsec_context_wait(es);
     PARSEC_PAPI_SDE_THREAD_FINI();
+
+#if defined(PARSEC_HYPERTHREAD_SCHEDULER)
+    if( ht_activated ) {
+        /* Clean worker thread body */
+        es->shared->keepgoing = 0;
+        void *work_ret = NULL;
+        pthread_join(worker, &work_ret);
+
+        free(es->shared);
+    }
+#endif
     return ret;
 }
 
@@ -296,11 +375,12 @@ static void parsec_vp_init( parsec_vp_t *vp,
         startup[t].th_id = t;
         startup[t].virtual_process = vp;
         startup[t].bindto = -1;
-        startup[t].bindto_ht = -1;
+        startup[t].bindto_ht = 0;
         startup[t].barrier = barrier;
         pi = vpmap_get_nb_cores_affinity(vp->vp_id, t);
-        if( 1 == pi )
+        if( 1 == pi ) {
             vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto, &startup[t].bindto_ht);
+        }
         else if( 1 < pi )
             parsec_warning("multiple core to bind on... for now, do nothing"); //TODO: what does that mean?
     }
@@ -662,14 +742,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                                                 0, NULL,
                                                 &queue_remove_begin, &queue_remove_end);
 #  endif /* PARSEC_PROF_TRACE_SCHEDULING_EVENTS */
-#if defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET)
+#  if defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET)
         parsec_profiling_add_dictionary_keyword( "ARENA_MEMORY", "fill:#B9B243",
                                                 sizeof(size_t), "size{int64_t}",
                                                 &arena_memory_alloc_key, &arena_memory_free_key);
         parsec_profiling_add_dictionary_keyword( "ARENA_ACTIVE_SET", "fill:#B9B243",
                                                 sizeof(size_t), "size{int64_t}",
                                                 &arena_memory_used_key, &arena_memory_unused_key);
-#endif  /* defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET) */
+#  endif  /* defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET) */
         parsec_profiling_add_dictionary_keyword( "TASK_MEMORY", "fill:#B9B243",
                                                 sizeof(size_t), "size{int64_t}",
                                                 &task_memory_alloc_key, &task_memory_free_key);
