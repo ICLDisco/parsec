@@ -424,6 +424,7 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
     return rc;
 }
 
+#if defined(PARSEC_HYPERTHREAD_SCHEDULER)
 static int __parsec_make_task_progress(parsec_execution_stream_t* es,
                                        parsec_task_t* task,
                                        int rc,
@@ -433,8 +434,10 @@ static int __parsec_make_task_progress(parsec_execution_stream_t* es,
     case PARSEC_HOOK_RETURN_DONE:    /* This execution succeeded */
         task->status = PARSEC_TASK_STATUS_COMPLETE;
         __parsec_complete_execution( es, task );
-        PARSEC_DEBUG_VERBOSE(2, parsec_debug_output, "[M%d] Completed %s, task: %p",
-                es->th_id, task->task_class->name, task);
+        char task_string[MAX_TASK_STRLEN];
+        (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, task);
+        PARSEC_DEBUG_VERBOSE(2, parsec_debug_output, "[M%d] Completing Task %s",
+                             es->th_id, task_string);
         return 1;
         break;
     case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
@@ -458,37 +461,9 @@ static int __parsec_make_task_progress(parsec_execution_stream_t* es,
     }
     return 0;
 }
-
-#if defined(PARSEC_HYPERTHREAD_SCHEDULER)
-static int __parsec_offload_task( parsec_execution_stream_t* es,
-                                   parsec_task_t* task,
-                                   int distance)
-{
-    parsec_shared_information_t* shared = es->shared;
-    struct timespec r;
-    r.tv_sec = 0;
-    r.tv_nsec = 10;
-    /* Task goes away, consider async and pull events later to make it progress */
-    parsec_loctask_t *t = shared->freelist;
-    shared->freelist = t->next;
-    t->next = NULL;
-    t->rc = rc;
-    t->task = task;
-    t->es = es;
-    t->distance = distance;
-    /* Is there a task in the pipeline? */
-    while (NULL != shared->input) {
-        /* Yes, there is one, let's try to flush the output pipeline in case we are bottlenecking the worker */
-        __parsec_drain_worker_events(es);
-        /* 'nough work done, let's sleep */
-        nanosleep(&r, NULL);
-        __asm__ __volatile__("");
-    }
-    /* Worker made room into input pipeline, let's push the next task, t */
-    shared->input = t;
-}
 #endif
 
+#if defined(PARSEC_HYPERTHREAD_SCHEDULER)
 static int __parsec_drain_worker_events(parsec_execution_stream_t* es)
 {
     /* Master side */
@@ -506,6 +481,42 @@ static int __parsec_drain_worker_events(parsec_execution_stream_t* es)
     }
     return PARSEC_SUCCESS;
 }
+#endif
+
+#if defined(PARSEC_HYPERTHREAD_SCHEDULER)
+static int __parsec_offload_task( parsec_execution_stream_t* es,
+                                   parsec_task_t* task,
+                                   int distance)
+{
+    parsec_shared_information_t* shared = es->shared;
+    struct timespec r;
+    r.tv_sec = 0;
+    r.tv_nsec = 10;
+    /* Task goes away, consider async and pull events later to make it progress */
+    parsec_loctask_t *t = shared->freelist;
+    shared->freelist = t->next;
+    t->next = NULL;
+    t->rc = -1;
+    t->task = task;
+    t->es = es;
+    t->distance = distance;
+    /* Is there a task in the pipeline? */
+    while (NULL != shared->input) {
+        /* Yes, there is one, let's try to flush the output pipeline in case we are bottlenecking the worker */
+        __parsec_drain_worker_events(es);
+        /* 'nough work done, let's sleep */
+        nanosleep(&r, NULL);
+        __asm__ __volatile__("");
+    }
+    /* Worker made room into input pipeline, let's push the next task, t */
+    char task_string[MAX_TASK_STRLEN];
+    (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, task);
+    PARSEC_DEBUG_VERBOSE(2, parsec_debug_output, "[M%d] Offloading Task %s",
+                         es->th_id, task_string);
+    shared->input = t;
+    return PARSEC_HOOK_RETURN_ASYNC;
+}
+#endif
 
 #if defined(PARSEC_HYPERTHREAD_SCHEDULER)
 int __parsec_work_wait( parsec_execution_stream_t* es )
@@ -520,6 +531,10 @@ int __parsec_work_wait( parsec_execution_stream_t* es )
         parsec_loctask_t *task = shared->input;
         if (task != NULL) {
             shared->input = NULL;
+            char task_string[MAX_TASK_STRLEN];
+            (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, task->task);
+            PARSEC_DEBUG_VERBOSE(2, parsec_debug_output, "[W%d] Executing Task %s",
+                                 es->th_id, task_string);
             task->rc = __parsec_execute( task->es, task->task );
             while (NULL != shared->output) {
                 nanosleep(&rqtp, NULL);
@@ -558,7 +573,7 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
         }
         else if(task->status <= PARSEC_TASK_STATUS_HOOK) {
 #if defined(PARSEC_HYPERTHREAD_SCHEDULER)
-            __parsec_offload_task(es, task, rc);
+            rc = __parsec_offload_task(es, task, distance);
 #else
             rc = __parsec_execute( es, task );
 #endif /* PARSEC_HYPERTHREAD_SCHEDULER */
@@ -616,10 +631,6 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
 
 int __parsec_context_wait( parsec_execution_stream_t* es )
 {
-#if defined(PARSEC_HYPERTHREAD_SCHEDULER)
-    parsec_shared_information_t* shared = es->shared;
-#endif
-
     uint64_t misses_in_a_row;
     parsec_context_t* parsec_context = es->virtual_process->parsec_context;
     int32_t my_barrier_counter = parsec_context->__parsec_internal_finalization_counter;
