@@ -83,6 +83,7 @@ struct parsec_gpu_task_s {
     uint64_t                         last_data_check_epoch;
     int                              task_type;
     int32_t                          pushout;
+    double                           load;  /* computational load imposed on the device */
     const parsec_flow_t             *flow[MAX_PARAM_COUNT];
 };
 

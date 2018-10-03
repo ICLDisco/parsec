@@ -1313,7 +1313,6 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
                 best_weight = weight;
             }
         }
-        parsec_device_load[best_index] += ratio * parsec_device_sweight[best_index];
         assert( best_index != 1 );
         dev_index = best_index;
     }
@@ -2083,7 +2082,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     __parsec_complete_execution( es, gpu_task->ec );
     gpu_device->super.executed_tasks++;
  remove_gpu_task:
-    parsec_device_load[gpu_device->super.device_index] -= parsec_device_sweight[gpu_device->super.device_index];
+    parsec_device_load[gpu_device->super.device_index] -= gpu_task->load;
     free( gpu_task );
     rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
     if( 1 == rc ) {  /* I was the last one */
