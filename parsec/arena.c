@@ -10,21 +10,44 @@
 #include "parsec/class/lifo.h"
 #include "parsec/data_internal.h"
 #include "parsec/utils/debug.h"
+#include "parsec/papi_sde.h"
 #include <limits.h>
 
-#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET)
+#if defined(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET)
 
 #include "profiling.h"
 
+/* The user wants the amount of memory logged in the trace for each
+ * arena malloc/free, we also expose it as a counter through PAPI-SDE
+ * if another tool uses that info and PARSEC_PAPI_SDE is enabled */
+
 extern int arena_memory_alloc_key, arena_memory_free_key;
 extern int arena_memory_used_key, arena_memory_unused_key;
-#define TRACE_MALLOC(key, size, ptr) parsec_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL,\
-                                                                    &size, PARSEC_PROFILING_EVENT_COUNTER|PARSEC_PROFILING_EVENT_HAS_INFO)
-#define TRACE_FREE(key, ptr)         parsec_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL,\
-                                                                    NULL, PARSEC_PROFILING_EVENT_COUNTER)
+#define TRACE_MALLOC(key, size, ptr) do {                               \
+        parsec_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, \
+                                        &size, PARSEC_PROFILING_EVENT_COUNTER|PARSEC_PROFILING_EVENT_HAS_INFO); \
+        PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_MEM_ALLOC, size);   \
+    } while(0)
+#define TRACE_FREE(key, size, ptr) do {                                 \
+        parsec_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, \
+                                        NULL, PARSEC_PROFILING_EVENT_COUNTER); \
+        PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_MEM_ALLOC, -size);  \
+    } while(0)
+
 #else
-#define TRACE_MALLOC(key, size, ptr) do {} while (0)
-#define TRACE_FREE(key, ptr) do {} while (0)
+
+/* The user does not want to log the amount of memory used for each
+ * malloc/free; we just expose the current value to external tools
+ * through PAPI-SDE. NB: if PARSEC_PAPI_SDE is not defined, this
+ * translates into no-op */
+
+#define TRACE_MALLOC(key, size, ptr) do {                               \
+        PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_MEM_ALLOC, size);   \
+    } while(0)
+#define TRACE_FREE(key, size, ptr) do {                                 \
+        PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_MEM_ALLOC, -size);  \
+    } while(0)
+
 #endif
 
 #define PARSEC_ARENA_MIN_ALIGNMENT(align) ((ptrdiff_t)(align*((sizeof(parsec_arena_chunk_t)-1)/align+1)))
@@ -90,7 +113,7 @@ void parsec_arena_destruct(parsec_arena_t* arena)
         while(NULL != (item = parsec_lifo_pop(&arena->area_lifo))) {
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Arena:\tfree element base ptr %p, data ptr %p (from arena %p)",
                                 item, ((parsec_arena_chunk_t*)item)->data, arena);
-            TRACE_FREE(arena_memory_free_key, item);
+            TRACE_FREE(arena_memory_free_key, -arena->elem_size, item);
             arena->data_free(item);
         }
         OBJ_DESTRUCT(&arena->area_lifo);
@@ -129,7 +152,7 @@ static void
 parsec_arena_release_chunk(parsec_arena_t* arena,
                           parsec_arena_chunk_t *chunk)
 {
-    TRACE_FREE(arena_memory_unused_key, chunk);
+    TRACE_FREE(arena_memory_unused_key, -arena->elem_size*chunk->count, chunk);
 
     if( (chunk->count == 1) && (arena->released < arena->max_released) ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tpush a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
@@ -144,7 +167,7 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
             arena->elem_size, chunk->count, arena, arena->alignment, chunk, chunk->data, sizeof(parsec_arena_chunk_t),
             PARSEC_ARENA_MIN_ALIGNMENT(arena->alignment));
-    TRACE_FREE(arena_memory_free_key, chunk);
+    TRACE_FREE(arena_memory_free_key, -arena->elem_size*chunk->count, chunk);
     if(arena->max_used != 0 && arena->max_used != INT32_MAX)
         (void)parsec_atomic_fetch_sub_int32(&arena->used, chunk->count);
     arena->data_free(chunk);

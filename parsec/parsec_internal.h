@@ -19,6 +19,8 @@
 #include "parsec/profiling.h"
 #include "parsec/mempool.h"
 
+#include "parsec/papi_sde_interface.h"
+
 BEGIN_C_DECLS
 
 /**
@@ -373,6 +375,13 @@ PARSEC_DECLSPEC extern size_t parsec_task_startup_chunk;
  */
 PARSEC_DECLSPEC extern int parsec_want_rusage;
 
+#if defined(PARSEC_PAPI_SDE)
+/**
+ * Global PAPI Software-Defined Event handle for PaRSEC
+ */
+PARSEC_DECLSPEC extern papi_handle_t parsec_papi_sde_handle;
+#endif
+
 /**
  * Description of the state of the task. It indicates what will be the next
  * next stage in the life-time of a task to be executed.
@@ -447,7 +456,6 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_task_t);
 extern int schedule_poll_begin, schedule_poll_end;
 extern int schedule_push_begin, schedule_push_end;
 extern int schedule_sleep_begin, schedule_sleep_end;
-extern int queue_add_begin, queue_add_end;
 extern int queue_remove_begin, queue_remove_end;
 extern int device_delegate_begin, device_delegate_end;
 

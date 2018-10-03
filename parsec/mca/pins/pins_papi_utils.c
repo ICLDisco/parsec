@@ -406,17 +406,6 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                                  value, &token[1], token);
                     continue;
                 }
-                const struct pins_papi_units_s* unit = find_unit_by_name(remaining);
-                if( NULL != unit ) {
-                    event->frequency = -1;
-                    event->time = value;
-                    convert_units(&event->time, unit->unit_type, system_units);
-                }
-                else {
-                    event->frequency = (int)value;
-                    parsec_debug_verbose(3, parsec_debug_output, "No units found.  Assuming task-based frequency: %d", event->frequency);
-                }
-                continue;
             }
 
         find_event:

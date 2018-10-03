@@ -20,11 +20,13 @@
 
 #include "parsec/mca/sched/sched.h"
 #include "parsec/mca/sched/rnd/sched_rnd.h"
+#include "parsec/papi_sde.h"
 
 /*
  * Local function
  */
 static int sched_rnd_component_query(mca_base_module_t **module, int *priority);
+static int sched_rnd_component_register(void);
 
 /*
  * Instantiate the public struct with all of our public information
@@ -48,7 +50,7 @@ const parsec_sched_base_component_t parsec_sched_rnd_component = {
         NULL, /*< No close: open did not allocate any resource, no need to release them */
         sched_rnd_component_query, 
         /*< specific query to return the module and add it to the list of available modules */
-        NULL, /*< No register: no parameters to the absolute priority component */
+        sched_rnd_component_register, /*< Register at least the SDE events */
 	"", /*< no reserve */
     },
     {
@@ -69,6 +71,17 @@ static int sched_rnd_component_query(mca_base_module_t **module, int *priority)
     void *ptr = (void*)&parsec_sched_rnd_module;
     *priority = 1;
     *module = (mca_base_module_t *)ptr;
+    return MCA_SUCCESS;
+}
+
+static int sched_rnd_component_register(void)
+{
+    #if defined(PARSEC_PAPI_SDE)
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=RND",
+                              "the number of pending tasks for the RND scheduler");
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=RND",
+                              "the number of pending tasks for the RND scheduler on virtual process <VPID>");
+#endif
     return MCA_SUCCESS;
 }
 

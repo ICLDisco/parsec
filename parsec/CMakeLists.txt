@@ -43,6 +43,10 @@ include(mca/CMakeLists.txt)
 # Import all the available interfaces
 include(interfaces/CMakeLists.txt)
 
+if( PARSEC_PAPI_SDE )
+  list(APPEND EXTRA_SOURCES "papi_sde.c")
+endif( PARSEC_PAPI_SDE )
+
 # find_package(TAU REQUIRED)
 # include_directories(${TAU_INCLUDE_DIRS})
 # message(WARNING ${TAU_INCLUDE_DIRS})
@@ -129,6 +133,15 @@ if( BUILD_PARSEC )
     set_target_properties(parsec PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
   endif (MPI_C_FOUND)
 
+  if( PARSEC_PAPI_SDE )
+    # This file is in fact provided by PAPI SDE, to serve as a fallback in case PAPI
+    # is not selected / loaded. It should be dynamic library that comes after PAPI
+    add_library(parsec-papi-sde papi_sde_interface.c)
+    list(APPEND EXTRA_LIBS parsec-papi-sde)
+    # parsec-papi-sed must come last in EXTRA_LIBS: it is to be preceded by papi if
+    # PAPI is loaded so that the weak symbols in it are overcome by PAPI
+  endif( PARSEC_PAPI_SDE )
+  
   target_link_libraries(parsec
                         PRIVATE parsec_data parsec-base-iface ${EXTRA_LIBS})
 

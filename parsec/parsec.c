@@ -45,6 +45,7 @@
 #include "parsec/interfaces/interface.h"
 #include "parsec/sys/tls.h"
 #include "parsec/data_distribution.h"
+#include "parsec/papi_sde.h"
 
 #include "parsec/mca/mca_repository.h"
 
@@ -78,7 +79,6 @@ int MEMALLOC_start_key, MEMALLOC_end_key;
 int schedule_poll_begin, schedule_poll_end;
 int schedule_push_begin, schedule_push_end;
 int schedule_sleep_begin, schedule_sleep_end;
-int queue_add_begin, queue_add_end;
 int queue_remove_begin, queue_remove_end;
 #endif  /* defined(PARSEC_PROF_TRACE_SCHEDULING_EVENTS) */
 int device_delegate_begin, device_delegate_end;
@@ -177,7 +177,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 {
     parsec_execution_stream_t* es;
     int pi;
-
+    
     /* don't use PARSEC_THREAD_IS_MASTER, it is too early and we cannot yet allocate the es struct */
     if( (0 != startup->virtual_process->vp_id) || (0 != startup->th_id) || parsec_runtime_bind_main_thread ) {
         /* Bind to the specified CORE */
@@ -189,6 +189,8 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Don't bind the main thread %i.%i",
                             startup->virtual_process->vp_id, startup->th_id);
     }
+
+    PARSEC_PAPI_SDE_THREAD_INIT();
 
     es = (parsec_execution_stream_t*)malloc(sizeof(parsec_execution_stream_t));
     if( NULL == es ) {
@@ -271,7 +273,9 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
         return NULL;
     }
 
-    return (void*)(long)__parsec_context_wait(es);
+    void *ret = (void*)(long)__parsec_context_wait(es);
+    PARSEC_PAPI_SDE_THREAD_FINI();
+    return ret;
 }
 
 static void parsec_vp_init( parsec_vp_t *vp,
@@ -322,7 +326,6 @@ do { \
     } \
 } while (0)
 
-
 parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int ret, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
@@ -336,6 +339,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_warning = 0;
 
+    PARSEC_PAPI_SDE_INIT();
+    
     parsec_installdirs_open();
     parsec_mca_param_init();
     parsec_output_init();
@@ -403,8 +408,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         MPI_Comm_rank(MPI_COMM_WORLD, &parsec_debug_rank);
         parsec_weaksym_exit = parsec_mpi_exit;
     }
-#endif
-
+#endif    
     parsec_debug_init();
     mca_components_repository_init();
 
@@ -654,9 +658,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_profiling_add_dictionary_keyword( "Sched SLEEP", "fill:#FA58F4",
                                                 0, NULL,
                                                 &schedule_sleep_begin, &schedule_sleep_end);
-        parsec_profiling_add_dictionary_keyword( "Queue ADD", "fill:#767676",
-                                                0, NULL,
-                                                &queue_add_begin, &queue_add_end);
         parsec_profiling_add_dictionary_keyword( "Queue REMOVE", "fill:#B9B243",
                                                 0, NULL,
                                                 &queue_remove_begin, &queue_remove_end);
@@ -985,6 +986,8 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_hwloc_fini();
 #endif  /* PARSEC_HAVE_HWLOC_BITMAP */
 
+    PARSEC_PAPI_SDE_FINI();
+    
     if (parsec_app_name != NULL ) {
         free(parsec_app_name);
         parsec_app_name = NULL;

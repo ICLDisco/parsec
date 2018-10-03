@@ -1,0 +1,22 @@
+Performance API (PAPI) features a Software Defined Events
+Interface (PAPI-SDE) that allows runtimes and libraries,
+like PaRSEC to expose internal counters to applications
+through PAPI.
+
+PaRSEC exposes a set of internal counters using this feature.
+
+To enable it, it is sufficient to link the application with
+PAPI (SDE enabled) and PaRSEC. Events exposed by PaRSEC then
+become available through the tools that understand PAPI
+(e.g. Tau, Score-P, etc.).
+
+As PaRSEC understands PAPI as a client, it is also possible
+to access these counters using the PaRSEC INStrumentation
+interface (PINS), see the PaRSEC wiki to enable and access
+the events internally.
+
+
+The other files in this directory provide a very simple
+library that a user can LD_PRELOAD to display the current
+value of a PAPI counter every 100ms. They can be used
+to test the behavior of the PAPI-SDE counters in PaRSEC.

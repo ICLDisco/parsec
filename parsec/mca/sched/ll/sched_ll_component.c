@@ -20,11 +20,13 @@
 
 #include "parsec/mca/sched/sched.h"
 #include "parsec/mca/sched/ll/sched_ll.h"
+#include "parsec/papi_sde.h"
 
 /*
  * Local function
  */
 static int sched_ll_component_query(mca_base_module_t **module, int *priority);
+static int sched_ll_component_register(void);
 
 /*
  * Instantiate the public struct with all of our public information
@@ -48,7 +50,7 @@ const parsec_sched_base_component_t parsec_sched_ll_component = {
         NULL, /*< No close: open did not allocate any resource, no need to release them */
         sched_ll_component_query, 
         /*< specific query to return the module and add it to the list of available modules */
-        NULL, /*< No register: no parameters to the local flat queue component */
+        sched_ll_component_register, /*< Register at least the SDE events */
         "", /*< no reserve */
     },
     {
@@ -71,3 +73,13 @@ static int sched_ll_component_query(mca_base_module_t **module, int *priority)
     return MCA_SUCCESS;
 }
 
+static int sched_ll_component_register(void)
+{
+#if defined(PARSEC_PAPI_SDE)
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LL",
+                              "the number of pending tasks for the LL scheduler");
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=LL",
+                              "the number of pending tasks that end up in the virtual process <VPID> for the LFQ scheduler");
+#endif
+    return MCA_SUCCESS;
+}

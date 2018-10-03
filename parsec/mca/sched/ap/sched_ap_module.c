@@ -17,6 +17,8 @@
 #include "parsec/mca/sched/ap/sched_ap.h"
 #include "parsec/class/dequeue.h"
 #include "parsec/mca/pins/pins.h"
+#include "parsec/mca/sched/sched_local_queues_utils.h"
+#include "parsec/papi_sde.h"
 
 /**
  * Module functions
@@ -43,6 +45,8 @@ const parsec_sched_module_t parsec_sched_ap_module = {
     }
 };
 
+#define LOCAL_SCHED_OBJECT(eu_context) ((parsec_mca_sched_list_local_counter_t*)(eu_context)->scheduler_object)
+
 static int sched_ap_install( parsec_context_t *master )
 {
     (void)master;
@@ -52,13 +56,33 @@ static int sched_ap_install( parsec_context_t *master )
 static int flow_ap_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
 {
     parsec_vp_t *vp = es->virtual_process;
+    parsec_mca_sched_list_local_counter_t *sl;
 
-    if (es == vp->execution_streams[0])
-        vp->execution_streams[0]->scheduler_object = OBJ_NEW(parsec_list_t);
-
+    if (es == vp->execution_streams[0]) {
+        sl = parsec_mca_sched_allocate_list_local_counter( NULL );
+        es->scheduler_object = sl;
+    }
+    
     parsec_barrier_wait(barrier);
 
-    es->scheduler_object = (void*)vp->execution_streams[0]->scheduler_object;
+    if( es != vp->execution_streams[0] ) {
+        sl = parsec_mca_sched_allocate_list_local_counter( LOCAL_SCHED_OBJECT(vp->execution_streams[0]) );
+        es->scheduler_object = sl;
+    }
+    
+#if defined(PARSEC_PAPI_SDE)
+    if( es->th_id ) {
+        char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
+        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN,
+                 "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=AP", es->virtual_process->vp_id);
+        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_mca_sched_list_local_counter_length, es->virtual_process);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
+                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=AP", PAPI_SDE_SUM);
+    }
+#endif
 
     return 0;
 }
@@ -67,8 +91,8 @@ static parsec_task_t*
 sched_ap_select(parsec_execution_stream_t *es,
                 int32_t* distance)
 {
-    parsec_task_t * context =
-        (parsec_task_t*)parsec_list_pop_front((parsec_list_t*)es->scheduler_object);
+    parsec_mca_sched_list_local_counter_t *sl = LOCAL_SCHED_OBJECT(es);
+    parsec_task_t * context = parsec_mca_sched_list_local_counter_pop_front(sl);
     *distance = 0;
     return context;
 }
@@ -77,6 +101,7 @@ static int sched_ap_schedule(parsec_execution_stream_t* es,
                              parsec_task_t* new_context,
                              int32_t distance)
 {
+    parsec_mca_sched_list_local_counter_t *sl = LOCAL_SCHED_OBJECT(es);
 #if defined(PARSEC_DEBUG_NOISIER)
     parsec_list_item_t *it = (parsec_list_item_t*)new_context;
     char tmp[MAX_TASK_STRLEN];
@@ -86,9 +111,7 @@ static int sched_ap_schedule(parsec_execution_stream_t* es,
         it = (parsec_list_item_t*)((parsec_list_item_t*)it)->list_next;
     } while( it != (parsec_list_item_t*)new_context );
 #endif
-    parsec_list_chain_sorted((parsec_list_t*)es->scheduler_object,
-                            (parsec_list_item_t*)new_context,
-                            parsec_execution_context_priority_comparator);
+    parsec_mca_sched_list_local_counter_chain_sorted(sl, new_context, parsec_execution_context_priority_comparator);
     (void)distance;
     return 0;
 }
@@ -98,16 +121,16 @@ static void sched_ap_remove( parsec_context_t *master )
     int p, t;
     parsec_vp_t *vp;
     parsec_execution_stream_t *es;
-
+    parsec_mca_sched_list_local_counter_t *sl;
     for(p = 0; p < master->nb_vp; p++) {
         vp = master->virtual_processes[p];
         for(t = 0; t < vp->nb_cores; t++) {
             es = vp->execution_streams[t];
-            if( es->th_id == 0 ) {
-                OBJ_DESTRUCT( es->scheduler_object );
-                free(es->scheduler_object);
-            }
+            sl = LOCAL_SCHED_OBJECT(es);
+            parsec_mca_sched_free_list_local_counter(sl);
             es->scheduler_object = NULL;
         }
+        PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=AP", p);
     }
+    PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=AP");
 }

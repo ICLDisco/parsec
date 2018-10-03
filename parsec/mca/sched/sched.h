@@ -323,12 +323,12 @@ typedef void (*parsec_sched_base_module_stats_fn_t)(parsec_execution_stream_t* e
 typedef void (*parsec_sched_base_module_remove_fn_t)(parsec_context_t* master);
 
 struct parsec_sched_base_module_1_0_0_t {
-    parsec_sched_base_module_install_fn_t     install;
-    parsec_sched_base_module_flow_init_fn_t   flow_init;
-    parsec_sched_base_module_schedule_fn_t    schedule;
-    parsec_sched_base_module_select_fn_t      select;
-    parsec_sched_base_module_stats_fn_t       display_stats;
-    parsec_sched_base_module_remove_fn_t      remove;
+    parsec_sched_base_module_install_fn_t      install;
+    parsec_sched_base_module_flow_init_fn_t    flow_init;
+    parsec_sched_base_module_schedule_fn_t     schedule;
+    parsec_sched_base_module_select_fn_t       select;
+    parsec_sched_base_module_stats_fn_t        display_stats;
+    parsec_sched_base_module_remove_fn_t       remove;
 };
 
 typedef struct parsec_sched_base_module_1_0_0_t parsec_sched_base_module_1_0_0_t;

@@ -20,11 +20,13 @@
 
 #include "parsec/mca/sched/sched.h"
 #include "parsec/mca/sched/pbq/sched_pbq.h"
+#include "parsec/papi_sde.h"
 
 /*
  * Local function
  */
 static int sched_pbq_component_query(mca_base_module_t **module, int *priority);
+static int sched_pbq_component_register(void);
 
 /*
  * Instantiate the public struct with all of our public information
@@ -48,7 +50,7 @@ const parsec_sched_base_component_t parsec_sched_pbq_component = {
         NULL, /*< No close: open did not allocate any resource, no need to release them */
         sched_pbq_component_query, 
         /*< specific query to return the module and add it to the list of available modules */
-        NULL, /*< No register: no parameters to the priority based queue component */
+        sched_pbq_component_register, /*< Register at least the SDE events */
         "", /*< no reserve */
     },
     {
@@ -68,6 +70,18 @@ static int sched_pbq_component_query(mca_base_module_t **module, int *priority)
     void *ptr = (void*)&parsec_sched_pbq_module;
     *priority = 18;
     *module = (mca_base_module_t *)ptr;
+    return MCA_SUCCESS;
+}
+
+static int sched_pbq_component_register(void)
+{
+#if defined(PARSEC_PAPI_SDE)
+    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=PBQ",
+                              "the number of pending tasks for the PBQ scheduler");
+    papi_sde_describe_counter(parsec_papi_sde_handle,
+                              "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>/<QID>::SCHED=PBQ",
+                              "the number of pending tasks that end up in the virtual process <VPID> queue at level <QID> for the PBQ scheduler");
+#endif
     return MCA_SUCCESS;
 }
 

@@ -119,14 +119,13 @@ static void pins_init_papi(parsec_context_t * master_context)
         if(num > max_supported_events)
             max_supported_events = num;
     }
-
     parsec_mca_param_reg_string_name("pins", "papi_event",
-                                    "PAPI events to be gathered at both socket and core level with task and/or time based frequency.\n",
-                                    false, false,
-                                    "", &mca_param_string);
-    if( NULL != mca_param_string ) {
-        pins_papi_events = parsec_pins_papi_events_new(mca_param_string);
-    }
+                                     "PAPI events to be gathered at both socket and core level with task and/or time based frequency.\n",
+                                     false, false,
+                                     "", &mca_param_string);
+    /* We delay interpreting the mca_param_string to later (in pins_thread_init_papi), 
+     * to give a chance to MCA modules that may declare counters to publish them into 
+     * PAPI before we look for them */
 }
 
 static void pins_fini_papi(parsec_context_t * master_context)
@@ -243,6 +242,13 @@ static void pins_thread_init_papi(parsec_execution_stream_t* es)
     int i, my_socket, my_core, err, max_counters;
     char **conv_string = NULL, *datatype;
 
+    if( 0 == es->th_id && NULL != mca_param_string ) {
+        /* We manage the mca_param_string here, to give a chance to MCA modules that
+         * declare counters to publish them into PAPI before we look for them */
+        pins_papi_events = parsec_pins_papi_events_new(mca_param_string);
+    }
+    parsec_barrier_wait( &es->virtual_process->parsec_context->barrier );
+    
     if( NULL == pins_papi_events ) /* There aren't any events, so nothing to do. */
         return;
 
