@@ -5066,12 +5066,11 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     jdf_find_property( body->properties, "weight", &weight_property );
     if ( NULL != weight_property ) {
         weight = dump_expr((void**)weight_property->expr, &info);
-    }
-    else {
+    } else {
         weight = "1.";
     }
     coutput("  ratio = %s;\n", weight);
-    
+
     /* Get the hint for statix and/or external gpu scheduling */
     jdf_find_property( body->properties, "device", &device_property );
     if ( NULL != device_property ) {
@@ -5092,13 +5091,13 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  if( dev_index < 2 ) {\n"
             "    return PARSEC_HOOK_RETURN_NEXT;  /* Fall back */\n"
             "  }\n"
-            "  parsec_device_load[dev_index] += ratio * parsec_device_sweight[dev_index];\n"
             "\n"
             "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
             "  OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
             "  gpu_task->submit = &gpu_kernel_submit_%s_%s;\n"
             "  gpu_task->task_type = 0;\n"
+            "  gpu_task->load = ratio * parsec_device_sweight[dev_index];\n"
             "  gpu_task->last_data_check_epoch = -1;  /* force at least one validation for the task */\n",
             jdf_basename, f->fname);
 
@@ -5169,8 +5168,8 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     }
     string_arena_free(info.sa);
 
-
-    coutput("\n"
+    coutput("  parsec_device_load[dev_index] += gpu_task->load;\n"
+            "\n"
             "  return parsec_gpu_kernel_scheduler( es, gpu_task, dev_index );\n"
             "}\n\n");
 
