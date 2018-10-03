@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -35,33 +35,32 @@ struct assignment_s {
 #define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
-typedef parsec_datatype_t (*expr_op_datatype_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
-typedef int32_t (*expr_op_int32_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
-typedef int64_t (*expr_op_int64_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
-typedef parsec_data_t *(*direct_data_lookup_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
 
-struct expr_s {
-    union {
-        struct {
-            struct expr_s const *op1;
-            struct expr_s const *op2;
-            union {
-                int cst;
-                struct expr_s const *expr;
-            } increment;
-        } range;
-        expr_op_int32_inline_func_t inline_func_int32;
-        expr_op_int64_inline_func_t inline_func_int64;
-    } u_expr;
-    unsigned char op;
-};
+typedef parsec_datatype_t  (*expr_op_datatype_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef parsec_data_t     *(*direct_data_lookup_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef int32_t            (*expr_op_int32_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef int64_t            (*expr_op_int64_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef float              (*expr_op_float_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef double             (*expr_op_double_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+
+typedef enum {
+    RETURN_TYPE_INT32  = 0,
+    RETURN_TYPE_INT64  = 1,
+    RETURN_TYPE_FLOAT  = 2,
+    RETURN_TYPE_DOUBLE = 3
+} return_type_t;
+
+typedef parsec_data_t *(*direct_data_lookup_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
 
 #define rop1          u_expr.range.op1
 #define rop2          u_expr.range.op2
 #define rcstinc       u_expr.range.increment.cst
 #define rexprinc      u_expr.range.increment.expr
-#define inline_func32 u_expr.inline_func_int32
-#define inline_func64 u_expr.inline_func_int64
+#define return_type   u_expr.v_func.type
+#define inline_func32 u_expr.v_func.func.inline_func_int32
+#define inline_func64 u_expr.v_func.func.inline_func_int64
+#define inline_funcfl u_expr.v_func.func.inline_func_float
+#define inline_funcdb u_expr.v_func.func.inline_func_double
 
 /**
  * Flows (data or control)
@@ -77,6 +76,29 @@ struct expr_s {
 #define FLOW_ACCESS_RW       (FLOW_ACCESS_READ | FLOW_ACCESS_WRITE)
 #define FLOW_ACCESS_MASK     (FLOW_ACCESS_READ | FLOW_ACCESS_WRITE)
 #define FLOW_HAS_IN_DEPS     ((uint8_t)(1 << 4))
+
+struct expr_s {
+    union {
+        struct {
+            struct expr_s const *op1;
+            struct expr_s const *op2;
+            union {
+                int cst;
+                struct expr_s const *expr;
+            } increment;
+        } range;
+        struct {
+            return_type_t type;
+            union {
+                expr_op_int32_inline_func_t  inline_func_int32;
+                expr_op_int64_inline_func_t  inline_func_int64;
+                expr_op_float_inline_func_t  inline_func_float;
+                expr_op_double_inline_func_t inline_func_double;
+            } func;
+        } v_func;
+    } u_expr;
+    unsigned char op;
+};
 
 struct parsec_flow_s {
     char               *name;
@@ -105,7 +127,7 @@ typedef union parsec_cst_or_fct_64_u {
 } parsec_cst_or_fct_64_t;
 
 typedef union parsec_cst_or_fct_datatype_u {
-    parsec_datatype_t                cst;
+    parsec_datatype_t               cst;
     expr_op_datatype_inline_func_t  fct;
 } parsec_cst_or_fct_datatype_t;
 

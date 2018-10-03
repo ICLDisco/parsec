@@ -72,7 +72,8 @@ priority_of_generic_startup_as_expr_fct(const parsec_taskpool_t * __tp,
 
 static const expr_t priority_of_generic_startup_as_expr = {
     .op = EXPR_OP_INLINE,
-    .u_expr = {.inline_func_int32 = (expr_op_int32_inline_func_t)priority_of_generic_startup_as_expr_fct}
+    .u_expr.v_func = {.type=0,
+                      .func = { .inline_func_int32 = (expr_op_int32_inline_func_t)priority_of_generic_startup_as_expr_fct}}
 };
 
 static inline parsec_key_t

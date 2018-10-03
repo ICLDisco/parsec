@@ -1,6 +1,6 @@
 %{
 /**
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -135,6 +135,13 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
     jdf->globals = global;
 
     return data;
+}
+
+static int key_from_type(char *type) {
+    if (!strcmp(type, "int64_t")) return 1;
+    if (!strcmp(type, "float")) return 2;
+    if (!strcmp(type, "double")) return 3;
+    return 0;
 }
 
 %}
@@ -361,6 +368,16 @@ property:     VAR ASSIGNMENT expr_simple
                   assign->name              = strdup($1);
                   assign->expr              = $3;
                   JDF_OBJECT_LINENO(assign) = JDF_OBJECT_LINENO($3);
+                  $$ = assign;
+              }
+       |      VAR VAR ASSIGNMENT expr_simple
+              {
+                  jdf_def_list_t* assign = new(jdf_def_list_t);
+                  assign->next              = NULL;
+                  assign->name              = strdup($2);
+                  assign->expr              = $4;
+                  assign->expr->jdf_type    = key_from_type($1);
+                  JDF_OBJECT_LINENO(assign) = JDF_OBJECT_LINENO($4);
                   $$ = assign;
               }
        ;
@@ -1040,6 +1057,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_CST;
                   e->jdf_cst = $1;
+                  e->jdf_type = 0;
                   $$ = e;
                   JDF_OBJECT_LINENO($$) = current_lineno;
               }
@@ -1048,6 +1066,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_CST;
                   e->jdf_cst = -$2;
+                  e->jdf_type = 0;
                   $$ = e;
                   JDF_OBJECT_LINENO($$) = current_lineno;
               }
@@ -1065,6 +1084,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   $$ = new(jdf_expr_t);
                   $$->op = JDF_C_CODE;
                   $$->jdf_c_code.code = $1;
+                  $$->jdf_type = 0;
                   $$->jdf_c_code.lineno = current_lineno;
                   /* This will be set by the upper level parsing if necessary */
                   $$->jdf_c_code.function_context = NULL;

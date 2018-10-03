@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -18,8 +18,8 @@
 
 BEGIN_C_DECLS
 
-struct parsec_execution_unit_s;
-struct parsec_handle_s;
+struct parsec_execution_stream_s;
+struct parsec_taskpool_s;
 
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
