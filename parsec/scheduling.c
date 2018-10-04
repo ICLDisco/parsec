@@ -464,19 +464,18 @@ static int __parsec_make_task_progress(parsec_execution_stream_t* es,
 #endif
 
 #if defined(PARSEC_HYPERTHREAD_SCHEDULER)
-static int __parsec_drain_worker_events(parsec_execution_stream_t* es)
+static int __parsec_drain_worker_events(parsec_execution_stream_t* es, int w)
 {
     /* Master side */
-    parsec_shared_information_t* shared = es->shared;
+    parsec_ht_team_t* team = es->team;
     /* if hyperthread scheduler, here, we pull events from the shared dedicated fifo to complete tasks */
-    if (shared->output) {
-        parsec_loctask_t *event = shared->output;
+    if (team->output[w]) {
+        parsec_offload_task_t *event = team->output[w];
         if(event) {
-            shared->output = NULL; /* atomic cas event for null */
+            team->output[w] = NULL; /* atomic cas event for null */
             __parsec_make_task_progress(es, event->task, event->rc, event->distance);
-            /* parsec_list_nolock_push_front(shared->freelist, (parsec_list_item_t*)event); */
-            event->next = shared->freelist;
-            shared->freelist = event;
+            event->next = team->freelist;
+            team->freelist = event;
         }
     }
     return PARSEC_SUCCESS;
@@ -486,65 +485,66 @@ static int __parsec_drain_worker_events(parsec_execution_stream_t* es)
 #if defined(PARSEC_HYPERTHREAD_SCHEDULER)
 static int __parsec_offload_task( parsec_execution_stream_t* es,
                                    parsec_task_t* task,
-                                   int distance)
+                                  int distance)
 {
-    parsec_shared_information_t* shared = es->shared;
+    parsec_ht_team_t* team = es->team;
     struct timespec r;
     r.tv_sec = 0;
     r.tv_nsec = 10;
     /* Task goes away, consider async and pull events later to make it progress */
-    parsec_loctask_t *t = shared->freelist;
-    shared->freelist = t->next;
+    parsec_offload_task_t *t = team->freelist;
+    team->freelist = t->next;
     t->next = NULL;
     t->rc = -1;
     t->task = task;
     t->es = es;
     t->distance = distance;
     /* Is there a task in the pipeline? */
-    while (NULL != shared->input) {
+    while (NULL != team->input[team->current_worker]) {
         /* Yes, there is one, let's try to flush the output pipeline in case we are bottlenecking the worker */
-        __parsec_drain_worker_events(es);
+        __parsec_drain_worker_events(es, team->current_worker);
         /* 'nough work done, let's sleep */
         nanosleep(&r, NULL);
         __asm__ __volatile__("");
+        team->current_worker = (team->current_worker+1)%team->nb_workers;
     }
     /* Worker made room into input pipeline, let's push the next task, t */
     char task_string[MAX_TASK_STRLEN];
     (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, task);
-    PARSEC_DEBUG_VERBOSE(2, parsec_debug_output, "[M%d] Offloading Task %s",
-                         es->th_id, task_string);
-    shared->input = t;
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "[M%d] Offloading Task %s to Hardware Thread %d",
+                         es->th_id, task_string, team->current_worker);
+    team->input[team->current_worker] = t;
     return PARSEC_HOOK_RETURN_ASYNC;
 }
 #endif
 
 #if defined(PARSEC_HYPERTHREAD_SCHEDULER)
-int __parsec_work_wait( parsec_execution_stream_t* es )
+int __parsec_work_wait( parsec_execution_stream_t* es, int id )
 {
+    char task_string[MAX_TASK_STRLEN];
     /* Worker side */
-    parsec_shared_information_t* shared = es->shared;
+    parsec_ht_team_t* team = es->team;
     struct timespec rqtp;
     rqtp.tv_sec  = 0;
     rqtp.tv_nsec = 100;
 
     do {
-        parsec_loctask_t *task = shared->input;
+        parsec_offload_task_t *task = team->input[id];
         if (task != NULL) {
-            shared->input = NULL;
-            char task_string[MAX_TASK_STRLEN];
+            team->input[id] = NULL;
             (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, task->task);
-            PARSEC_DEBUG_VERBOSE(2, parsec_debug_output, "[W%d] Executing Task %s",
-                                 es->th_id, task_string);
+            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "[W%i/%d] Executing Task %s",
+                                 es->th_id, id, task_string);
             task->rc = __parsec_execute( task->es, task->task );
-            while (NULL != shared->output) {
+            while (NULL != team->output[id]) {
                 nanosleep(&rqtp, NULL);
                 __asm__ __volatile__("");
             }
-            shared->output = task;
+            team->output[id] = task;
             continue;
         }
         nanosleep(&rqtp, NULL);
-    } while(shared->keepgoing);
+    } while(team->keepgoing);
     return PARSEC_SUCCESS;
 }
 #endif
@@ -579,7 +579,9 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
 #endif /* PARSEC_HYPERTHREAD_SCHEDULER */
         }
 #if defined(PARSEC_HYPERTHREAD_SCHEDULER)
-        __parsec_drain_worker_events(es);
+        int v;
+        for (v = 0; v < es->team->nb_workers; ++v)
+            __parsec_drain_worker_events(es, es->team->current_worker);
 #else
         /* We're good to go ... */
         switch(rc) {
@@ -708,7 +710,9 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
             nbiterations++;
         }
 #if defined(PARSEC_HYPERTHREAD_SCHEDULER)
-        __parsec_drain_worker_events(es);
+        int v;
+        for (v = 0; v < es->team->nb_workers; ++v)
+            __parsec_drain_worker_events(es, v);
 #endif /* PARSEC_HYPERTHREAD_SCHEDULER */
     }
 

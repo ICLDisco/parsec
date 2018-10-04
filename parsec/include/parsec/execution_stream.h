@@ -33,11 +33,11 @@ BEGIN_C_DECLS
 /**
  * @brief A container for interaction between scheduler and worker thread
  */
-typedef struct parsec_shared_information_s parsec_shared_information_t;
+typedef struct parsec_ht_team_s parsec_ht_team_t;
 /**
- * @brief A container for interaction between scheduler and worker thread
+ * @brief A container for exchanging task and task progress status between Master and Worker hardware threads
  */
-typedef struct parsec_loctask_s parsec_loctask_t;
+typedef struct parsec_offload_task_s parsec_offload_task_t;
 
 /**
  *  Computational Thread-specific structure
@@ -76,7 +76,8 @@ struct parsec_execution_stream_s {
     parsec_thread_mempool_t *dependencies_mempool; /**< If using hashtables to store dependencies
                                                     *   those are allocated using this mempool */
 #if defined(PARSEC_HYPERTHREAD_SCHEDULER)
-    parsec_shared_information_t *shared;
+    parsec_ht_team_t        *team;              /**< Structure handling the shared information, the barrier and,
+                                                     the different queues required for the team of HT */
 #endif
 };
 
@@ -170,23 +171,25 @@ struct parsec_context_s {
 
 #define PARSEC_THREAD_IS_MASTER(eu) ( ((eu)->th_id == 0) && ((eu)->virtual_process->vp_id == 0) )
 
-struct parsec_shared_information_s {
+struct parsec_ht_team_s {
     parsec_barrier_t          *barrier;
+    int                        nb_workers;
+    int                        current_worker;
     /* the address pointer needs to be volatile, not the content pointed to */
-    parsec_loctask_t          *volatile input;
-    parsec_loctask_t          *volatile output;
-    parsec_loctask_t          *freelist; /* simple lifo no lock */
+    parsec_offload_task_t     *volatile* input;
+    parsec_offload_task_t     *volatile* output;
+    parsec_offload_task_t     *freelist; /* simple lifo no lock */
     int                        keepgoing;
     int                        submitted;
 };
 
-struct parsec_loctask_s {
+struct parsec_offload_task_s {
     parsec_list_item_t         super;
     int                        rc;
     int                        distance;
     parsec_task_t             *task;
     parsec_execution_stream_t *es;
-    parsec_loctask_t          *next;
+    parsec_offload_task_t     *next;
 };
 
 END_C_DECLS

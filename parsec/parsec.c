@@ -182,15 +182,15 @@ static void* __parsec_worker_init( __parsec_temporary_thread_initialization_t* s
 {
     parsec_execution_stream_t* es = startup->es;
     int bindto = startup->bindto;
-    int bindto_ht = (-1 == startup->bindto_ht) ? 1 : startup->bindto_ht+1;
+    int bindto_ht = (-1 == startup->bindto_ht) ? 1 : startup->bindto_ht;
 
     parsec_bindthread(bindto, bindto_ht);
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Bind worker thread %i.%i on core %i [HT %i]",
                          es->virtual_process->vp_id, es->th_id,
                          bindto, bindto_ht);
 
-    parsec_barrier_wait(es->shared->barrier);
-    void* ret = (void*)(long)__parsec_work_wait(es);
+    parsec_barrier_wait(es->team->barrier);
+    void* ret = (void*)(long)__parsec_work_wait(es, bindto_ht-1);
 
     return ret;
 }
@@ -259,27 +259,37 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     }
 
 #if defined(PARSEC_HYPERTHREAD_SCHEDULER)
-    int ht_activated = 0;
-    pthread_t worker;
-    es->shared = NULL;
+    int ht_activated = 0, parsec_runtime_hardware_threads = 2, i;
+    pthread_t* workers = NULL;
+    es->team = NULL;
+    parsec_mca_param_reg_int_name("runtime", "hardware_threads", "Total number of hardware threads to use; 1 Manager, N-1 Workers",
+                                  false, false, parsec_runtime_hardware_threads, &parsec_runtime_hardware_threads);
 
-    if( 1 < parsec_hwloc_allow_ht(2) ) {
+    parsec_debug_verbose(3, parsec_debug_output, "Requesting %d hardware thread(s) for ES %d", parsec_runtime_hardware_threads, es->th_id);
+    int available_ht = parsec_hwloc_allow_ht(parsec_runtime_hardware_threads);
+
+    if( 1 < available_ht) {
+        parsec_debug_verbose(2, parsec_debug_output, "Activating %d (requested %d) hardware thread(s) for ES %d", available_ht, parsec_runtime_hardware_threads, es->th_id);
         ht_activated = 1;
-        /* es->shared = (parsec_shared_information_t*)malloc(sizeof(parsec_shared_information_t)); */
-        posix_memalign((void**)&es->shared, 64, sizeof(parsec_shared_information_t));
-        es->shared->barrier = (parsec_barrier_t*)malloc(sizeof(parsec_barrier_t));
-        parsec_barrier_init(es->shared->barrier, NULL, 2);
-        es->shared->input     = NULL;
-        es->shared->output    = NULL;
-        es->shared->keepgoing = 1;
-        es->shared->submitted = 0;
-        es->shared->freelist  = NULL;
+        posix_memalign((void**)&es->team, 64, sizeof(parsec_ht_team_t));
+        es->team->nb_workers     = available_ht -1;
+        posix_memalign((void**)&es->team->input,  64, es->team->nb_workers * sizeof(parsec_offload_task_t));
+        posix_memalign((void**)&es->team->output, 64, es->team->nb_workers * sizeof(parsec_offload_task_t));
+        for (i = 0; i < es->team->nb_workers; ++i) {
+            es->team->input[i]   = NULL;
+            es->team->output[i]  = NULL;
+        }
+        es->team->keepgoing      = 1;
+        es->team->submitted      = 0;
+        es->team->freelist       = NULL;
+        es->team->current_worker = 0;
+        es->team->barrier        = (parsec_barrier_t*)malloc(sizeof(parsec_barrier_t));
+        parsec_barrier_init(es->team->barrier, NULL, es->team->nb_workers+1);
 
-        int i;
-        for (i = 0; i < 5; ++i) { /* we cannot have more than 5 tasks in the pipeline */
-            parsec_loctask_t *t = (parsec_loctask_t*)calloc(1, sizeof(parsec_loctask_t));
-            t->next = es->shared->freelist;
-            es->shared->freelist = t;
+        for (i = 0; i < 5 * es->team->nb_workers; ++i) { /* we cannot have more than 5 tasks in the pipeline */
+            parsec_offload_task_t *t = (parsec_offload_task_t*)calloc(1, sizeof(parsec_offload_task_t));
+            t->next = es->team->freelist;
+            es->team->freelist = t;
         }
 
         pthread_attr_t thread_attr;
@@ -287,13 +297,25 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
         pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
 
         startup->es = es;
-        /* Summon your intern */
-        pthread_create( &worker,
-                        &thread_attr,
-                        (void* (*)(void*))__parsec_worker_init,
-                        (void*)startup);
+        workers = (pthread_t*)malloc(es->team->nb_workers * sizeof(pthread_t));
 
-        parsec_barrier_wait(es->shared->barrier);
+        /* Let's duplicate the starup struct for each team worker*/
+        __parsec_temporary_thread_initialization_t *ht_startup =
+            (__parsec_temporary_thread_initialization_t*)calloc(es->team->nb_workers, sizeof(__parsec_temporary_thread_initialization_t));
+        for (i = 0; i < es->team->nb_workers; ++i) { /* we cannot have more than 5 tasks in the pipeline */
+            ht_startup[i].bindto = startup->bindto;
+            ht_startup[i].bindto_ht = i+1;
+            ht_startup[i].es = es;                        
+            /* Summon your team of interns */
+            pthread_create( workers+i,
+                            &thread_attr,
+                            (void* (*)(void*))__parsec_worker_init,
+                            (void*)ht_startup+i);
+        }
+
+        parsec_barrier_wait(es->team->barrier);
+
+        free(ht_startup);
     }
     else {
         parsec_fatal("PaRSEC has been compiled with hyperthreading capabilities.\nThis machine does not support hyperthread, recompile without the PARSEC_HAVE_HYPERTHREAD_SCHEDULER.\n");
@@ -346,11 +368,13 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 #if defined(PARSEC_HYPERTHREAD_SCHEDULER)
     if( ht_activated ) {
         /* Clean worker thread body */
-        es->shared->keepgoing = 0;
-        void *work_ret = NULL;
-        pthread_join(worker, &work_ret);
-
-        free(es->shared);
+        es->team->keepgoing = 0;
+        for (i = 0; i < es->team->nb_workers; ++i) {
+            void *work_ret = NULL;
+            pthread_join(workers[i], &work_ret);
+        }
+        free(workers);
+        free(es->team);
     }
 #endif
     return ret;
