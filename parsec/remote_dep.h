@@ -146,7 +146,8 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                                uint32_t propagation_mask);
 
 /* Memcopy a particular data using datatype specification */
-void parsec_remote_dep_memcpy(parsec_taskpool_t* tp,
+void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
+                             parsec_taskpool_t* tp,
                              parsec_data_copy_t *dst,
                              parsec_data_copy_t *src,
                              parsec_dep_data_description_t* data);

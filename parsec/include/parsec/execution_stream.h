@@ -108,6 +108,7 @@ struct parsec_context_s {
     volatile int32_t active_taskpools;
     volatile int32_t flags;
 
+    int32_t comm_memcpy_mt; /**< true when remote_dep_memcpy is executed in the caller thread context */
     void*   comm_ctx;    /**< opaque communication context */
     int32_t nb_nodes;    /**< nb of physical processes */
     int32_t my_rank;     /**< rank of this physical process */

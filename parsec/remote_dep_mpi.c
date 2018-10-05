@@ -262,6 +262,13 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
     MPI_Comm_size( (NULL == context->comm_ctx) ? MPI_COMM_WORLD : *(MPI_Comm*)context->comm_ctx,
                    (int*)&(context->nb_nodes));
 
+    if( thread_level_support == MPI_THREAD_MULTIPLE ) { 
+        context->comm_memcpy_mt = true;
+    }
+    else {
+        context->comm_memcpy_mt = false;
+    }
+
     /**
      * Finalize the initialization of the upper level structures
      * Worst case: one of the DAGs is going to use up to
@@ -467,12 +474,27 @@ static int remote_dep_dequeue_send(int rank,
     return 1;
 }
 
-void parsec_remote_dep_memcpy(parsec_taskpool_t* tp,
+static MPI_Comm dep_comm;
+static MPI_Comm dep_self;
+
+void parsec_remote_dep_memcpy(parsec_execution_stream_t* es, 
+                             parsec_taskpool_t* tp,
                              parsec_data_copy_t *dst,
                              parsec_data_copy_t *src,
                              parsec_dep_data_description_t* data)
 {
     assert( dst );
+
+    /* if MPI is multithreaded do not thread-shift the sendrecv */
+    if( es->virtual_process->parsec_context->comm_memcpy_mt ) {
+        MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(src) + data->displ,
+                     data->count, data->layout, 0, es->th_id,
+                     (char*)PARSEC_DATA_COPY_GET_PTR(dst) + 0,
+                     data->count, data->layout, 0, es->th_id,
+                     dep_self, MPI_STATUS_IGNORE);
+        return;
+    }
+    
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
     OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action = DEP_MEMCPY;
@@ -900,20 +922,6 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
     goto check_pending_queues;
 }
 
-static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
-                                      dep_cmd_item_t *item)
-{
-    dep_cmd_t* cmd = &item->cmd;
-    int rc = MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.source     ) + cmd->memcpy.displ_s,
-                          cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
-                          (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.displ_r,
-                          cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
-                          MPI_COMM_SELF, MPI_STATUS_IGNORE);
-    PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
-    remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);
-    (void)es;
-    return (MPI_SUCCESS == rc ? 0 : -1);
-}
 
 /******************************************************************************
  * ALL MPI SPECIFIC CODE GOES HERE
@@ -1032,7 +1040,6 @@ struct parsec_comm_callback_s {
     long                  storage2;
 };
 
-static MPI_Comm dep_comm;
 static parsec_comm_callback_t *array_of_callbacks;
 static MPI_Request           *array_of_requests;
 static int                   *array_of_indices;
@@ -1088,6 +1095,7 @@ static int remote_dep_mpi_init(parsec_context_t* context)
     else {
         MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
     }
+    MPI_Comm_dup(MPI_COMM_SELF, &dep_self);
     /*
      * Based on MPI 1.1 the MPI_TAG_UB should only be defined
      * on MPI_COMM_WORLD.
@@ -1200,6 +1208,7 @@ static int remote_dep_mpi_fini(parsec_context_t* context)
     OBJ_DESTRUCT(&dep_activates_noobj_fifo);
     OBJ_DESTRUCT(&dep_put_fifo);
     MPI_Comm_free(&dep_comm);
+    MPI_Comm_free(&dep_self);
     (void)context;
     return 0;
 }
@@ -1312,6 +1321,24 @@ static int remote_dep_mpi_pack_dep(int peer,
     /* And now pack the updated message (msg->length and msg->output_mask) itself. */
     MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, length, &saved_position, dep_comm);
     return 0;
+}
+
+/**
+ * Perform a memcopy with datatypes by doing a local sendrecv.
+ */ 
+static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
+                                      dep_cmd_item_t *item)
+{
+    dep_cmd_t* cmd = &item->cmd;
+    int rc = MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.source     ) + cmd->memcpy.displ_s,
+                          cmd->memcpy.count, cmd->memcpy.datatype, 0, es->th_id,
+                          (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.displ_r,
+                          cmd->memcpy.count, cmd->memcpy.datatype, 0, es->th_id,
+                          dep_self, MPI_STATUS_IGNORE);
+    PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
+    remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);
+    (void)es;
+    return (MPI_SUCCESS == rc ? 0 : -1);
 }
 
 /**
