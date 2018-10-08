@@ -97,6 +97,8 @@ struct parsec_vp_s {
 #define PARSEC_CONTEXT_FLAG_COMM_ACTIVE    0x0001
 /* All the PaRSEC threads associated with the context are up and running. */
 #define PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE 0x0002
+/* The communication substrate supports multithreaded operations. */
+#define PARSEC_CONTEXT_FLAG_COMM_MT        0x0004
 
 /**
  * All virtual processes belong to a single physical

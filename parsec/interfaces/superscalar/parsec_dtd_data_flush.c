@@ -64,7 +64,7 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
             data.layout = data.arena->opaque_dtt;
             data.count  = 1;
             data.displ  = 0;
-            parsec_remote_dep_memcpy(this_task->taskpool,
+            parsec_remote_dep_memcpy(es, this_task->taskpool,
                          tile->data_copy, current_task->super.data[0].data_in, &data);
         }
     }

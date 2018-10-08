@@ -4424,7 +4424,8 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 "%s    data.count  = %s;\n"
                 "%s    data.displ  = %s;\n"
                 "%s    assert( data.count > 0 );\n"
-                "%s    parsec_remote_dep_memcpy(this_task->taskpool,\n"
+                "%s    parsec_remote_dep_memcpy(es,\n"
+                "%s                            this_task->taskpool,\n"
                 "%s                            parsec_data_get_copy(data_of_%s(%s), 0),\n"
                 "%s                            this_task->data._f_%s.data_out, &data);\n"
                 "%s  }\n",
@@ -4435,6 +4436,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 spaces,
                 spaces, string_arena_get_string(sa3),
                 spaces, string_arena_get_string(sa4),
+                spaces,
                 spaces,
                 spaces,
                 spaces, call->func_or_mem, string_arena_get_string(sa),
