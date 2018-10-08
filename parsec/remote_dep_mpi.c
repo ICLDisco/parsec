@@ -262,11 +262,8 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
     MPI_Comm_size( (NULL == context->comm_ctx) ? MPI_COMM_WORLD : *(MPI_Comm*)context->comm_ctx,
                    (int*)&(context->nb_nodes));
 
-    if( thread_level_support == MPI_THREAD_MULTIPLE ) { 
-        context->comm_memcpy_mt = true;
-    }
-    else {
-        context->comm_memcpy_mt = false;
+    if( thread_level_support >= MPI_THREAD_MULTIPLE ) {
+        context->flags |= PARSEC_CONTEXT_FLAG_COMM_MT;
     }
 
     /**
@@ -486,7 +483,7 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
     assert( dst );
 
     /* if MPI is multithreaded do not thread-shift the sendrecv */
-    if( es->virtual_process->parsec_context->comm_memcpy_mt ) {
+    if( es->virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
         MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(src) + data->displ,
                      data->count, data->layout, 0, es->th_id,
                      (char*)PARSEC_DATA_COPY_GET_PTR(dst) + 0,

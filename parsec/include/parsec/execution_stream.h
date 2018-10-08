@@ -97,6 +97,8 @@ struct parsec_vp_s {
 #define PARSEC_CONTEXT_FLAG_COMM_ACTIVE    0x0001
 /* All the PaRSEC threads associated with the context are up and running. */
 #define PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE 0x0002
+/* The communication substrate supports multithreaded operations. */
+#define PARSEC_CONTEXT_FLAG_COMM_MT        0x0004
 
 /**
  * All virtual processes belong to a single physical
@@ -108,7 +110,6 @@ struct parsec_context_s {
     volatile int32_t active_taskpools;
     volatile int32_t flags;
 
-    int32_t comm_memcpy_mt; /**< true when remote_dep_memcpy is executed in the caller thread context */
     void*   comm_ctx;    /**< opaque communication context */
     int32_t nb_nodes;    /**< nb of physical processes */
     int32_t my_rank;     /**< rank of this physical process */
