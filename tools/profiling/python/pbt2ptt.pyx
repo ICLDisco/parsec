@@ -112,7 +112,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
         event_conv = dbp_dictionary_convertor(cdict)
         event_length = dbp_dictionary_keylen(cdict)
 
-        logger.log(40, "Event %s conv <%s> length %d\n", event_name, event_conv, event_length)
+        logger.log(5, "Event %s conv <%s> length %d", event_name, event_conv, event_length)
         if 0 == len(event_conv) and str("PINS_EXEC") == event_name:
             event_conv = 'kernel_type{int32_t}'+PARSEC_PINS_SEPARATOR+'value1{int64_t}'+PARSEC_PINS_SEPARATOR+'value2{int64_t}'+PARSEC_PINS_SEPARATOR+'value3{int64_t}'+PARSEC_PINS_SEPARATOR
         if 0 != len(event_conv):
@@ -662,11 +662,12 @@ import struct
 cdef class ExtendedEvent:
     cdef object ev_struct
     cdef object aev
-    cdef char* fmt
+    cdef bytes fmt
     cdef int event_len
 
     def __init__(self, event_name, event_conv, event_len):
-        fmt = '@'
+        fmt = b"@"
+        cdef char* c_string
         self.aev = []
         for ev in str.split(event_conv, PARSEC_PINS_SEPARATOR):
             if 0 == len(ev):
@@ -682,49 +683,52 @@ cdef class ExtendedEvent:
                 continue
             ev_name = ev_name.replace(' ', '_')
             self.aev.append(ev_name)
+
             if ev_type == 'int8_t' or ev_type == 'signed char':
-                fmt += 'b'
+                fmt += b"b"
             elif ev_type == 'uint8_t' or ev_type == 'unsigned char':
-                fmt += 'B'
+                fmt += b"B"
             elif ev_type == ' int16_t' or ev_type == 'short':
-                fmt += 'h'
+                fmt += b"h"
             elif ev_type == 'uint16_t' or ev_type == 'unsigned short':
-                fmt += 'H'
+                fmt += b"H"
             elif ev_type == 'int32_t' or ev_type == 'int':
-                fmt += 'i'
+                fmt += b"i"
             elif ev_type == 'uint32_t' or ev_type == 'unsigned int':
-                fmt += 'I'
+                fmt += b"I"
             elif ev_type == 'int64_t' or ev_type == 'long':
-                fmt += 'l'
+                fmt += b"l"
             elif ev_type == 'uint64_t' or ev_type == 'unsigned long':
-                fmt += 'L'
+                fmt += b"L"
             elif ev_type == 'int128_t' or ev_type == 'long long':
-                fmt += 'q'
+                fmt += b"q"
             elif ev_type == 'uint128_t' or ev_type == 'unsigned long long':
-                fmt += 'Q'
+                fmt += b"Q"
             elif ev_type == 'double':
-                fmt += 'd'
+                fmt += b"d"
             elif ev_type == 'float':
-                fmt += 'f'
+                fmt += b"f"
             else:
                 m = re.search('char\[([0-9]+)\]', ev_type)
                 if m is None:
                     logger.warning('Unknown format %s', ev_type)
                 else:
-                    fmt += "%ss"%(m.group(1))
-
+                    fmt += <bytes>(b"%ss"%(m.group(1)))
         logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, fmt)
         self.ev_struct = struct.Struct(fmt)
         if event_len != len(self):
+            c_string = fmt
             logger.warning('Event %s discarded: expected length differs from provided length (%d != %d)\n'
                            'Check the conversion format <%s>\n',
-                           event_name, len(self), event_len, fmt)
+                           event_name, len(self), event_len, c_string)
             event_len = event_len if event_len < len(self) else len(self)
         self.event_len = event_len
     def __len__(self):
         return self.ev_struct.size
     def unpack(self, pybs):
         return {a: b for (a, b) in zip(self.aev, self.ev_struct.unpack(pybs))}
+    def __getstate__(self):
+        return { 'fmt': self.fmt, 'event_len': self.event_len }
 
 # add parsing clauses to this function to get infos.
 cdef parse_info(builder, event_type, char * cinfo):
