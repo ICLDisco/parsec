@@ -94,115 +94,123 @@ void parsec_compute_best_unit( uint64_t length, float* updated_value, char** bes
     return;
 }
 
+void parsec_devices_dump_and_reset_statistics(parsec_context_t* parsec_context)
+{
+    int *device_counter, total = 0;
+    uint64_t total_data_in = 0,     total_data_out = 0;
+    uint64_t total_required_in = 0, total_required_out = 0;
+    uint64_t *transferred_in, *transferred_out;
+    uint64_t *required_in,    *required_out;
+    float gtotal = 0.0;
+    float best_data_in, best_data_out;
+    float best_required_in, best_required_out;
+    char *data_in_unit, *data_out_unit;
+    char *required_in_unit, *required_out_unit;
+    char percent1[64], percent2[64];
+    parsec_device_t *device;
+    uint32_t i;
+
+    /* GPU counter for GEMM / each */
+    device_counter  = (int*)     calloc(parsec_nb_devices, sizeof(int)     );
+    transferred_in  = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
+    transferred_out = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
+    required_in     = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
+    required_out    = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
+
+    /**
+     * Save the statistics locally.
+     */
+    for(i = 0; i < parsec_nb_devices; i++) {
+        if( NULL == (device = parsec_devices[i]) ) continue;
+        assert( i == device->device_index );
+        /* Save the statistics */
+        device_counter[device->device_index]  += device->executed_tasks;
+        transferred_in[device->device_index]  += device->transferred_data_in;
+        transferred_out[device->device_index] += device->transferred_data_out;
+        required_in[device->device_index]     += device->required_data_in;
+        required_out[device->device_index]    += device->required_data_out;
+        /* Update the context-level statistics */
+        total              += device->executed_tasks;
+        total_data_in      += device->transferred_data_in;
+        total_data_out     += device->transferred_data_out;
+        total_required_in  += device->required_data_in;
+        total_required_out += device->required_data_out;
+
+        device->executed_tasks       = 0;
+        device->transferred_data_in  = 0;
+        device->transferred_data_out = 0;
+        device->required_data_in     = 0;
+        device->required_data_out    = 0;
+    }
+
+    /* Print statistics */
+    if( 0 == total_data_in )  total_data_in  = 1;
+    if( 0 == total_data_out ) total_data_out = 1;
+    gtotal = (float)total;
+
+    printf("--------------------------------------------------------------------------------------------------\n");
+    printf("|         |                    |         Data In                |         Data Out               |\n");
+    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
+           parsec_context->my_rank);
+    printf("|---------|-----------|--------|------------|-------------------|------------|-------------------|\n");
+    for( i = 0; i < parsec_nb_devices; i++ ) {
+        if( NULL == (device = parsec_devices[i]) ) continue;
+
+        parsec_compute_best_unit( required_in[i],     &best_required_in,  &required_in_unit  );
+        parsec_compute_best_unit( required_out[i],    &best_required_out, &required_out_unit );
+        parsec_compute_best_unit( transferred_in[i],  &best_data_in,      &data_in_unit      );
+        parsec_compute_best_unit( transferred_out[i], &best_data_out,     &data_out_unit     );
+
+        printf("|  Dev %2d |%10d | %6.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
+               device->device_index, device_counter[i], (device_counter[i]/gtotal)*100.00,
+               best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
+               (((double)transferred_in[i])  / (double)required_in[i] ) * 100.0,
+               best_required_out, required_out_unit, best_data_out, data_out_unit,
+               (((double)transferred_out[i]) / (double)required_out[i]) * 100.0, device->name );
+    }
+
+    printf("|---------|-----------|--------|------------|-------------------|------------|-------------------|\n");
+
+    parsec_compute_best_unit( total_required_in,  &best_required_in,  &required_in_unit  );
+    parsec_compute_best_unit( total_required_out, &best_required_out, &required_out_unit );
+    parsec_compute_best_unit( total_data_in,      &best_data_in,      &data_in_unit      );
+    parsec_compute_best_unit( total_data_out,     &best_data_out,     &data_out_unit     );
+
+    if( 0 == total_required_in ) {
+        snprintf(percent1, 64, "nan");
+    } else {
+        snprintf(percent1, 64, "%5.2f",  ((double)total_data_in  / (double)total_required_in ) * 100.0);
+    }
+    if( 0 == total_required_out ) {
+        snprintf(percent2, 64, "nan");
+    } else {
+        snprintf(percent2, 64, "%5.2f", ((double)total_data_out / (double)total_required_out) * 100.0);
+    }
+    printf("|All Devs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%s) | %8.2f%2s | %8.2f%2s(%s) |\n",
+           total, (total/gtotal)*100.00,
+           best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
+           percent1,
+           best_required_out, required_out_unit, best_data_out, data_out_unit,
+           percent2);
+    printf("-------------------------------------------------------------------------------------------------\n");
+
+    free(device_counter);
+    free(transferred_in);
+    free(transferred_out);
+    free(required_in);
+    free(required_out);
+}
+
 int parsec_devices_fini(parsec_context_t* parsec_context)
 {
-    parsec_device_t *device;
     int show_stats_index, show_stats = 0;
 
     /* If no statistics are required */
     show_stats_index = parsec_mca_param_find("device", NULL, "show_statistics");
     if( 0 < show_stats_index )
         parsec_mca_param_lookup_int(show_stats_index, &show_stats);
-    (void)parsec_context;
     if( show_stats ) {
-        int *device_counter, total = 0;
-        uint64_t total_data_in = 0,     total_data_out = 0;
-        uint64_t total_required_in = 0, total_required_out = 0;
-        uint64_t *transferred_in, *transferred_out;
-        uint64_t *required_in,    *required_out;
-        float gtotal = 0.0;
-        float best_data_in, best_data_out;
-        float best_required_in, best_required_out;
-        char *data_in_unit, *data_out_unit;
-        char *required_in_unit, *required_out_unit;
-        char percent1[64], percent2[64];
-        uint32_t i;
-
-        /* GPU counter for GEMM / each */
-        device_counter  = (int*)     calloc(parsec_nb_devices, sizeof(int)     );
-        transferred_in  = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
-        transferred_out = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
-        required_in     = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
-        required_out    = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
-
-        /**
-         * Save the statistics locally.
-         */
-        for(i = 0; i < parsec_nb_devices; i++) {
-            if( NULL == (device = parsec_devices[i]) ) continue;
-            assert( i == device->device_index );
-            /* Save the statistics */
-            device_counter[device->device_index]  += device->executed_tasks;
-            transferred_in[device->device_index]  += device->transferred_data_in;
-            transferred_out[device->device_index] += device->transferred_data_out;
-            required_in[device->device_index]     += device->required_data_in;
-            required_out[device->device_index]    += device->required_data_out;
-        }
-
-        /* Print statistics */
-        for( i = 0; i < parsec_nb_devices; i++ ) {
-            total              += device_counter[i];
-            total_data_in      += transferred_in[i];
-            total_data_out     += transferred_out[i];
-            total_required_in  += required_in[i];
-            total_required_out += required_out[i];
-        }
-
-        if( 0 == total_data_in )  total_data_in  = 1;
-        if( 0 == total_data_out ) total_data_out = 1;
-        gtotal = (float)total;
-
-        printf("--------------------------------------------------------------------------------------------------\n");
-        printf("|         |                    |         Data In                |         Data Out               |\n");
-        printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
-               parsec_context->my_rank);
-        printf("|---------|-----------|--------|------------|-------------------|------------|-------------------|\n");
-        for( i = 0; i < parsec_nb_devices; i++ ) {
-            if( NULL == (device = parsec_devices[i]) ) continue;
-
-            parsec_compute_best_unit( required_in[i],     &best_required_in,  &required_in_unit  );
-            parsec_compute_best_unit( required_out[i],    &best_required_out, &required_out_unit );
-            parsec_compute_best_unit( transferred_in[i],  &best_data_in,      &data_in_unit      );
-            parsec_compute_best_unit( transferred_out[i], &best_data_out,     &data_out_unit     );
-
-            printf("|  Dev %2d |%10d | %6.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
-                   device->device_index, device_counter[i], (device_counter[i]/gtotal)*100.00,
-                   best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
-                   (((double)transferred_in[i])  / (double)required_in[i] ) * 100.0,
-                   best_required_out, required_out_unit, best_data_out, data_out_unit,
-                   (((double)transferred_out[i]) / (double)required_out[i]) * 100.0, device->name );
-        }
-
-        printf("|---------|-----------|--------|------------|-------------------|------------|-------------------|\n");
-
-        parsec_compute_best_unit( total_required_in,  &best_required_in,  &required_in_unit  );
-        parsec_compute_best_unit( total_required_out, &best_required_out, &required_out_unit );
-        parsec_compute_best_unit( total_data_in,      &best_data_in,      &data_in_unit      );
-        parsec_compute_best_unit( total_data_out,     &best_data_out,     &data_out_unit     );
-
-        if( 0 == total_required_in ) {
-            snprintf(percent1, 64, "nan");
-        } else {
-            snprintf(percent1, 64, "%5.2f",  ((double)total_data_in  / (double)total_required_in ) * 100.0);
-        }
-        if( 0 == total_required_out ) {
-            snprintf(percent2, 64, "nan");
-        } else {
-            snprintf(percent2, 64, "%5.2f", ((double)total_data_out / (double)total_required_out) * 100.0);
-        }
-        printf("|All Devs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%s) | %8.2f%2s | %8.2f%2s(%s) |\n",
-               total, (total/gtotal)*100.00,
-               best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
-               percent1,
-               best_required_out, required_out_unit, best_data_out, data_out_unit,
-               percent2);
-        printf("-------------------------------------------------------------------------------------------------\n");
-
-        free(device_counter);
-        free(transferred_in);
-        free(transferred_out);
-        free(required_in);
-        free(required_out);
+        parsec_devices_dump_and_reset_statistics(parsec_context);
     }
 
     /* Free the local memory */

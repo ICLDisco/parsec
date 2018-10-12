@@ -119,6 +119,12 @@ PARSEC_DECLSPEC parsec_device_t* parsec_devices_get(uint32_t);
  * and moved back into the main scheduling mechanism.
  */
 PARSEC_DECLSPEC int parsec_devices_remove(parsec_device_t* device);
+
+/**
+ * Dump and reset the current device statistics.
+ */
+PARSEC_DECLSPEC void parsec_devices_dump_and_reset_statistics(parsec_context_t* parsec_context);
+
 /**
  * Returns the number of devices currently registered with the runtime. This
  * number can change until parsec_devices_freeze() is called, fact that mark the
