@@ -56,21 +56,25 @@ int
 task_to_insert_task_hello_world( parsec_execution_stream_t *es,
                                  parsec_task_t *this_task )
 {
-    int n;
+    int i, n, how_many = 5;
     (void)es; (void)this_task;
     parsec_taskpool_t *dtd_tp = this_task->taskpool;
 
     parsec_dtd_unpack_args( this_task, &n);
-    printf("I am inserting task to print \"Hello World\", and my rank is: %d\n", this_task->taskpool->context->my_rank);
+    printf("I am inserting %d tasks to print \"Hello World\", and my rank is: %d\n",
+           how_many, this_task->taskpool->context->my_rank);
 
-    for( int i = 0; i < n; i++ ) {
+    for( i = this_task->locals[0].value;
+         (i < n) && i < (this_task->locals[0].value + how_many); i++ ) {
         parsec_dtd_taskpool_insert_task(dtd_tp, task_hello_world,
                                         0,  "Hello_World_task",
                                         sizeof(int), &i, VALUE,
                                         PARSEC_DTD_ARG_END);
     }
-
-    return PARSEC_HOOK_RETURN_DONE;
+    this_task->locals[0].value = i;
+    printf("Up to %d tasks out of %d tasks generated\n",
+           this_task->locals[0].value, n);
+    return (i < n) ? PARSEC_HOOK_RETURN_AGAIN : PARSEC_HOOK_RETURN_DONE;
 }
 
 int main(int argc, char ** argv)
@@ -93,6 +97,10 @@ int main(int argc, char ** argv)
 
     /* Initializing parsec context */
     parsec = parsec_init( cores, &argc, &argv );
+    if( NULL == parsec ) {
+        printf("Cannot initialize PaRSEC\n");
+        exit(-1);
+    }
 
     /* Initializing parsec handle(collection of tasks) */
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );

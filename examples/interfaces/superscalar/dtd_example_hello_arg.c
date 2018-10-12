@@ -61,6 +61,10 @@ int main(int argc, char ** argv)
 
     /* Initializing parsec context */
     parsec = parsec_init( cores, &argc, &argv );
+    if( NULL == parsec ) {
+        printf("Cannot initialize PaRSEC\n");
+        exit(-1);
+    }
 
     /* Initializing parsec handle(collection of tasks) */
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
