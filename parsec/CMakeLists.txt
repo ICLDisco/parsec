@@ -154,9 +154,23 @@ if( BUILD_PARSEC )
     # parsec-papi-sed must come last in EXTRA_LIBS: it is to be preceded by papi if
     # PAPI is loaded so that the weak symbols in it are overcome by PAPI
   endif( PARSEC_PAPI_SDE )
-  
+
   target_link_libraries(parsec
                         PRIVATE parsec_data parsec-base-iface ${EXTRA_LIBS})
+
+#
+# If we have support for F90 build the PaRSEC module
+#
+  if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
+    include(FortranCInterface)
+    FortranCInterface_HEADER(fortran/f2c_mangle.h
+                             MACRO_NAMESPACE "PARSEC_F2C_"
+                             SYMBOL_NAMESPACE "parsec_f2c_"
+                             SYMBOLS my_sub parsecf:my_sub)
+    add_subdirectory(fortran)
+    target_link_libraries(parsec
+                          PRIVATE parsec_fortran)
+  endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 
   install(TARGETS parsec
           DESTINATION lib)

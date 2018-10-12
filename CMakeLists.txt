@@ -854,23 +854,6 @@ add_documented_files(${CMAKE_SOURCE_DIR})
 add_subdirectory(parsec)
 
 #
-# Setup targets
-#
-if( BUILD_PARSEC )
-#
-# If we have support for F90 build the PaRSEC module
-#
-  if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    include(FortranCInterface)
-    FortranCInterface_HEADER(parsec/fortran/f2c_mangle.h
-                             MACRO_NAMESPACE "PARSEC_F2C_"
-                             SYMBOL_NAMESPACE "parsec_f2c_"
-                             SYMBOLS my_sub parsecf:my_sub)
-    add_subdirectory(parsec/fortran)
-  endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-ENDIF( BUILD_PARSEC )
-
-#
 # Now continue with compiling the tests.
 #
 if( BUILD_TESTING )
