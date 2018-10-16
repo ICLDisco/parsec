@@ -48,7 +48,9 @@ precisions_rules_py(generated_files
 ### Generate the dplasma_cores archive
 link_directories(${COREBLAS_LIBRARY_DIRS})
 add_library(dplasma_cores_obj OBJECT ${generated_files})
-set_target_properties(dplasma_cores_obj PROPERTIES POSITION_INDEPENDENT_CODE True)
+if(BUILD_SHARED_LIBS)
+  set_target_properties(dplasma_cores_obj PROPERTIES POSITION_INDEPENDENT_CODE True)
+endif(BUILD_SHARED_LIBS)
 add_dependencies(dplasma_cores_obj
                  dplasma_includes
                  dplasma_cores_includes)

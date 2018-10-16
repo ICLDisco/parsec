@@ -36,7 +36,9 @@ if (MPI_C_FOUND)
 endif(MPI_C_FOUND)
 
 add_library(parsec_data_matrix OBJECT ${sources})
-set_target_properties(parsec_data_matrix PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(BUILD_SHARED_LIBS)
+  set_target_properties(parsec_data_matrix PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif(BUILD_SHARED_LIBS)
 if (MPI_C_FOUND)
     set_target_properties(parsec_data_matrix PROPERTIES COMPILE_FLAGS
                           "${MPI_C_COMPILE_FLAGS}")

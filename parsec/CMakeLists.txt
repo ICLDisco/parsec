@@ -124,7 +124,9 @@ if( BUILD_PARSEC )
   # create an interface library or imported into the main library.
   add_library(parsec-base-obj OBJECT ${BASE_SOURCES})
   set_target_properties(parsec-base-obj PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+if(BUILD_SHARED_LIBS)
   set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif(BUILD_SHARED_LIBS)
 
   add_library(parsec-base STATIC $<TARGET_OBJECTS:parsec-base-obj>)
 
@@ -135,7 +137,9 @@ if( BUILD_PARSEC )
 
   add_library(parsec ${SOURCES})
   set_target_properties(parsec PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
+if(BUILD_SHARED_LIBS)
   set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif(BUILD_SHARED_LIBS)
 # For now make sure that the installed shared libraries have the right
 # version (same version as the major of the build version). Thus, every
 # change in the high-level API (and ABI) should be reflected on the
