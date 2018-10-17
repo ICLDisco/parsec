@@ -2943,15 +2943,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         /* TODO coutput("    __parsec_tp->super.super.nb_tasks = __parsec_tp->super.super.initial_number_tasks;\n"); */
     }
     coutput("    parsec_mfence();\n"
-            "    if( 1 == nb_tasks ) {\n"
-            "      /* No local tasks, so the taskpool shoud be marked as complete. As we are still in one\n"
-            "       * of the initialization tasks, there are still runtime tasks to be completed so we can\n"
-            "       * simply decrease the number of runtime tasks without checking the entire state of the\n"
-            "       * taskpool (state that will be checked as soon as we release this task. */\n"
-            "       (void)parsec_ptg_update_runtime_task(&__parsec_tp->super.super, -1);\n"
-            "    } else\n"
-            "      parsec_taskpool_enable((parsec_taskpool_t*)__parsec_tp, &__parsec_tp->startup_queue,\n"
-            "                             (parsec_task_t*)this_task, es, __parsec_tp->super.super.nb_pending_actions);\n"
+            "    parsec_taskpool_enable((parsec_taskpool_t*)__parsec_tp, &__parsec_tp->startup_queue,\n"
+            "                           (parsec_task_t*)this_task, es, __parsec_tp->super.super.nb_pending_actions);\n"
             "    return PARSEC_HOOK_RETURN_DONE;\n"
             "  }\n");
 
