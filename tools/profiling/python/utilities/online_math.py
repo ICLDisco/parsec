@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Peter Gaultney
 # 2011.09.27
 #

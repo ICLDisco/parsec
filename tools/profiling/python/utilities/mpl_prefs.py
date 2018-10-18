@@ -1,4 +1,4 @@
-#!/usr/bin/env
+#!/usr/bin/env python
 
 sched_colors = {
     'ap': '#ee4466', # red

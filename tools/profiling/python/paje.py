@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from types import *
 import collections
 
