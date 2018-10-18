@@ -247,7 +247,17 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
         event_types = pd.Series(builder.event_types)
         event_names = pd.Series(builder.event_names)
         event_attributes = pd.Series(builder.event_attributes)
-        event_convertors = pd.Series(builder.event_convertors)
+        simple_convertors = list()
+        # We don't want the genereated hdf5 file to depend on pbt2ptt.so
+        # So we just cannot serialize builder.event_convertors, because
+        # builder.event_convertors is a dict of ExtendedEvent
+        # and the class ExtendedEvent exists only in pbt2ptt.so
+        # So, we serialize the state of each ExtendedEvent into a
+        # normal dict with only base types, and create a dataframe of this.
+        for key, value in builder.event_convertors.iteritems():
+            if( isinstance(value, ExtendedEvent) ):
+                simple_convertors.insert(key, value.__getstate__())
+        event_convertors = pd.DataFrame(simple_convertors)
         nodes = pd.DataFrame.from_records(builder.nodes)
         streams = pd.DataFrame.from_records(builder.streams)
         if len(builder.errors) > 0:
@@ -664,11 +674,13 @@ cdef class ExtendedEvent:
     cdef object aev
     cdef bytes fmt
     cdef int event_len
+    cdef bytes event_name
 
     def __init__(self, event_name, event_conv, event_len):
-        fmt = b"@"
+        self.fmt = b"@"
         cdef char* c_string
         self.aev = []
+        self.event_name = <bytes>event_name
         for ev in str.split(event_conv, PARSEC_PINS_SEPARATOR):
             if 0 == len(ev):
                 continue
@@ -685,39 +697,39 @@ cdef class ExtendedEvent:
             self.aev.append(ev_name)
 
             if ev_type == 'int8_t' or ev_type == 'signed char':
-                fmt += b"b"
+                self.fmt += b"b"
             elif ev_type == 'uint8_t' or ev_type == 'unsigned char':
-                fmt += b"B"
+                self.fmt += b"B"
             elif ev_type == ' int16_t' or ev_type == 'short':
-                fmt += b"h"
+                self.fmt += b"h"
             elif ev_type == 'uint16_t' or ev_type == 'unsigned short':
-                fmt += b"H"
+                self.fmt += b"H"
             elif ev_type == 'int32_t' or ev_type == 'int':
-                fmt += b"i"
+                self.fmt += b"i"
             elif ev_type == 'uint32_t' or ev_type == 'unsigned int':
-                fmt += b"I"
+                self.fmt += b"I"
             elif ev_type == 'int64_t' or ev_type == 'long':
-                fmt += b"l"
+                self.fmt += b"l"
             elif ev_type == 'uint64_t' or ev_type == 'unsigned long':
-                fmt += b"L"
+                self.fmt += b"L"
             elif ev_type == 'int128_t' or ev_type == 'long long':
-                fmt += b"q"
+                self.fmt += b"q"
             elif ev_type == 'uint128_t' or ev_type == 'unsigned long long':
-                fmt += b"Q"
+                self.fmt += b"Q"
             elif ev_type == 'double':
-                fmt += b"d"
+                self.fmt += b"d"
             elif ev_type == 'float':
-                fmt += b"f"
+                self.fmt += b"f"
             else:
                 m = re.search('char\[([0-9]+)\]', ev_type)
                 if m is None:
                     logger.warning('Unknown format %s', ev_type)
                 else:
-                    fmt += <bytes>(b"%ss"%(m.group(1)))
-        logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, fmt)
-        self.ev_struct = struct.Struct(fmt)
+                    self.fmt += <bytes>(b"%ss"%(m.group(1)))
+        logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, self.fmt)
+        self.ev_struct = struct.Struct(self.fmt)
         if event_len != len(self):
-            c_string = fmt
+            c_string = self.fmt
             logger.warning('Event %s discarded: expected length differs from provided length (%d != %d)\n'
                            'Check the conversion format <%s>\n',
                            event_name, len(self), event_len, c_string)
@@ -728,7 +740,7 @@ cdef class ExtendedEvent:
     def unpack(self, pybs):
         return {a: b for (a, b) in zip(self.aev, self.ev_struct.unpack(pybs))}
     def __getstate__(self):
-        return { 'fmt': self.fmt, 'event_len': self.event_len }
+        return { 'fmt': self.fmt, 'event_len': self.event_len, 'event_name': self.event_name }
 
 # add parsing clauses to this function to get infos.
 cdef parse_info(builder, event_type, char * cinfo):
