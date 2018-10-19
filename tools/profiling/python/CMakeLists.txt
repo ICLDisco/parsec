@@ -56,21 +56,23 @@ if( PYTHONINTERP_FOUND )
   endif(PYTHON_VERSION_MAJOR GREATER 2)
 
   add_custom_command(OUTPUT pbt2ptt.c
-                     COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} build_ext --inplace --quiet
+                     COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/${SETUP_PY} build_ext --inplace --quiet
                      DEPENDS ${DEPS})
 
   add_custom_target(target ALL DEPENDS ${OUTPUT})
 
-  install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install)")
-  install( FILES ${CMAKE_CURRENT_BINARY_DIR}/pbt2ptt.so
-           DESTINATION libexec/parsec )
+  install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/pbt2ptt.so DESTINATION libexec/parsec )
 
   # Install the files from the binary directory after being translated
   # by the 2to3 tool.
   foreach(file ${pyfiles})
     if( NOT ${file} EQUAL "setup.py" )
       install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${file}
-               DESTINATION libexec/parsec )
+        DESTINATION libexec/parsec
+	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+      get_filename_component(filenoext "${file}" NAME_WE)
+      get_filename_component(filenodir "${file}" NAME)
+      install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_INSTALL_PREFIX}/libexec/parsec/${filenodir} ${CMAKE_INSTALL_PREFIX}/bin/${filenoext})")
     endif( NOT ${file} EQUAL "setup.py" )
   endforeach()
 endif( PYTHONINTERP_FOUND )
