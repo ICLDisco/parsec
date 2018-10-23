@@ -2932,14 +2932,13 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
      * when everything is completed.
      */
     coutput("  if(1 == parsec_atomic_fetch_dec_int32(&__parsec_tp->sync_point)) {\n"
-            "    /* Ready to rock. Update the count of expected tasks */\n"
-            "    int32_t nb_tasks;\n");
+            "    /* Ready to rock. Update the count of expected tasks */\n");
     if(!need_to_count_tasks) {
         /* We only need to update the number of tasks according to the user provided count */
-        coutput("    __parsec_tp->super.super.nb_tasks = nb_tasks = %s(__parsec_tp);\n",
+        coutput("    __parsec_tp->super.super.nb_tasks = %s(__parsec_tp);\n",
                 jdf_property_get_function(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL));
     } else {
-        coutput("  nb_tasks = parsec_atomic_fetch_dec_int32(&__parsec_tp->super.super.nb_tasks);\n");
+        coutput("  (void)parsec_atomic_fetch_dec_int32(&__parsec_tp->super.super.nb_tasks);\n");
         /* TODO coutput("    __parsec_tp->super.super.nb_tasks = __parsec_tp->super.super.initial_number_tasks;\n"); */
     }
     coutput("    parsec_mfence();\n"
