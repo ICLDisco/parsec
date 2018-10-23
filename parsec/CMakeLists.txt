@@ -55,7 +55,7 @@ endif( PARSEC_PAPI_SDE )
 
 if(PARSEC_PROF_TRACE)
   if(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
-    find_package(OTF2)
+    find_package(OTF2 2.1.1)
     if(OTF2_FOUND)
       set(PROFILING_SOURCE "profiling_otf2.c")
       list(APPEND EXTRA_LIBS "otf2")
