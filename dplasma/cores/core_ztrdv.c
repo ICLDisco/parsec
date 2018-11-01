@@ -26,7 +26,11 @@
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
+#if defined(ADD_)
 #define  DLARFG      zlarfg_
+#else
+#define  DLARFG      zlarfg
+#endif
 extern void DLARFG(int *N, parsec_complex64_t *ALPHA, parsec_complex64_t *X, int *INCX, parsec_complex64_t *TAU);
 
 //static void band_to_trd_vmpi1(int N, int NB, parsec_complex64_t *A, int LDA);
