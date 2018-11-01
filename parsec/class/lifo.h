@@ -311,59 +311,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     return NULL;
 }
 
-#else  /* !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) */
-
-/* Add one element to the LIFO. We will return the last head of the list
- * to allow the upper level to detect if this element is the first one in the
- * list (if the list was empty before this operation).
- */
-static inline void parsec_lifo_push(parsec_lifo_t *lifo,
-                                    parsec_list_item_t *item)
-{
-    PARSEC_ITEM_ATTACH(lifo, item);
-    /* item free acts as a mini lock to avoid ABA problems */
-    item->aba_key = 1;
-    do {
-        parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
-        item->list_next = next;
-        parsec_atomic_wmb();
-        if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, item) ) {
-            parsec_atomic_wmb();
-            /* now safe to pop this item */
-            item->aba_key = 0;
-            return;
-        }
-        /* DO some kind of pause to release the bus */
-    } while (1);
-}
-
-static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
-                                     parsec_list_item_t* ring)
-{
-#if defined(PARSEC_DEBUG_PARANOID)
-    assert( (uintptr_t)ring % PARSEC_LIFO_ALIGNMENT(lifo) == 0 );
-#endif
-    PARSEC_ITEMS_ATTACH(lifo, ring);
-
-    /* item free acts as a mini lock to avoid ABA problems */
-    ring->aba_key = 1;
-    parsec_list_item_t* tail = (parsec_list_item_t*)ring->list_prev;
-
-     do {
-        parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
-        tail->list_next = next;
-        parsec_atomic_wmb();
-         if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, ring) ) {
-            parsec_atomic_wmb();
-            /* now safe to pop this item */
-            ring->aba_key = 0;
-            return;
-        }
-        /* DO some kind of pause to release the bus */
-    } while (1);
-}
-
-#if defined(PARSEC_HAVE_ATOMIC_LLSC_PTR)
+#elif defined(PARSEC_HAVE_ATOMIC_LLSC_PTR)
 
 static inline void _parsec_lifo_release_cpu (void)
 {
@@ -375,6 +323,53 @@ static inline void _parsec_lifo_release_cpu (void)
      * improvements. */
     static struct timespec interval = { .tv_sec = 0, .tv_nsec = 100 };
     nanosleep (&interval, NULL);
+}
+
+/* Add one element to the LIFO. We will return the last head of the list
+ * to allow the upper level to detect if this element is the first one in the
+ * list (if the list was empty before this operation).
+ */
+static inline void parsec_lifo_push(parsec_lifo_t *lifo,
+                                    parsec_list_item_t *item)
+{
+    int attempt = 0;
+    PARSEC_ITEM_ATTACH(lifo, item);
+
+    do {
+        if( ++attempt == 5 ) {
+            /* deliberatly suspend this thread to allow other threads to run. this should
+             * only occur during periods of contention on the lifo. */
+            _parsec_lifo_release_cpu ();
+            attempt = 0;
+        }
+        parsec_list_item_t *next = (parsec_list_item_t *) parsec_atomic_ll_ptr((long*)&lifo->lifo_head.data.item);
+        item->list_next = next;
+        parsec_atomic_wmb();
+    } while( !parsec_atomic_sc_ptr((long*)&lifo->lifo_head.data.item, (intptr_t)item) );
+}
+
+static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
+                                     parsec_list_item_t* ring)
+{
+    int attempt = 0;
+#if defined(PARSEC_DEBUG_PARANOID)
+    assert( (uintptr_t)ring % PARSEC_LIFO_ALIGNMENT(lifo) == 0 );
+#endif
+    PARSEC_ITEMS_ATTACH(lifo, ring);
+
+    parsec_list_item_t* tail = (parsec_list_item_t*)ring->list_prev;
+
+    do {
+        if( ++attempt == 5 ) {
+            /* deliberatly suspend this thread to allow other threads to run. this should
+             * only occur during periods of contention on the lifo. */
+            _parsec_lifo_release_cpu ();
+            attempt = 0;
+        }
+        parsec_list_item_t *next = (parsec_list_item_t *) parsec_atomic_ll_ptr((long*)&lifo->lifo_head.data.item);
+        tail->list_next = next;
+        parsec_atomic_wmb();
+    } while( !parsec_atomic_sc_ptr((long*)&lifo->lifo_head.data.item, (intptr_t)ring) );
 }
 
 /* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
@@ -427,7 +422,60 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     PARSEC_ITEM_DETACH(item);
     return item;
 }
+
 #else
+
+/* We don't have LL/SC... */
+
+/* Add one element to the LIFO. We will return the last head of the list
+ *  * to allow the upper level to detect if this element is the first one in the
+ *   * list (if the list was empty before this operation).
+ *    */
+static inline void parsec_lifo_push(parsec_lifo_t *lifo,
+                                    parsec_list_item_t *item)
+{
+    PARSEC_ITEM_ATTACH(lifo, item);
+    /* item free acts as a mini lock to avoid ABA problems */
+    item->aba_key = 1;
+    do {
+        parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
+        item->list_next = next;
+        parsec_atomic_wmb();
+        if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, item) ) {
+            parsec_atomic_wmb();
+            /* now safe to pop this item */
+            item->aba_key = 0;
+            return;
+        }
+        /* DO some kind of pause to release the bus */
+    } while (1);
+}
+
+static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
+                                     parsec_list_item_t* ring)
+{
+#if defined(PARSEC_DEBUG_PARANOID)
+    assert( (uintptr_t)ring % PARSEC_LIFO_ALIGNMENT(lifo) == 0 );
+#endif
+    PARSEC_ITEMS_ATTACH(lifo, ring);
+
+    /* item free acts as a mini lock to avoid ABA problems */
+    ring->aba_key = 1;
+    parsec_list_item_t* tail = (parsec_list_item_t*)ring->list_prev;
+
+     do {
+        parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
+        tail->list_next = next;
+        parsec_atomic_wmb();
+         if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, ring) ) {
+            parsec_atomic_wmb();
+            /* now safe to pop this item */
+            ring->aba_key = 0;
+            return;
+        }
+        /* DO some kind of pause to release the bus */
+    } while (1);
+}
 
 /* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
  * is empty so we return NULL.
@@ -499,8 +547,6 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     PARSEC_ITEM_DETACH(item);
     return item;
 }
-#endif /* defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) */
-
 
 #endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)) */
 
