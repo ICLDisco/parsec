@@ -1216,6 +1216,7 @@ parsec_dtd_taskpool_new(void)
     __tp->super.nb_tasks           = PARSEC_RUNTIME_RESERVED_NB_TASKS;
     __tp->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_DTD;  /* Indicating this is a taskpool for dtd tasks */
     __tp->super.nb_pending_actions = 0;  /* For the future tasks that will be inserted */
+    __tp->super.nb_task_classes    = 0;
     __tp->super.update_nb_runtime_task = parsec_dtd_update_runtime_task;
 
     __tp->super.devices_index_mask = 0;
@@ -2234,6 +2235,8 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     assert( NULL == __tp->super.task_classes_array[tc->task_class_id] );
     __tp->super.task_classes_array[tc->task_class_id]     = (parsec_task_class_t *)tc;
     __tp->super.task_classes_array[tc->task_class_id + 1] = NULL;
+
+    __tp->super.nb_task_classes++;
 
     return tc;
 }
