@@ -22,7 +22,7 @@
 #define NB_LOOPS 300000
 #define ARRAY_SIZE 12
 
-static parsec_atomic_rwlock_t rwlock = {0};
+static parsec_atomic_rwlock_t rwlock = { PARSEC_RWLOCK_UNLOCKED };
 static int large_array[ARRAY_SIZE] = {0};
 
 static parsec_barrier_t barrier;

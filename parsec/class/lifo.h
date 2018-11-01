@@ -423,9 +423,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     return item;
 }
 
-#else
-
-/* We don't have LL/SC... */
+#else /* !defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) && !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) */
 
 /* Add one element to the LIFO. We will return the last head of the list
  *  * to allow the upper level to detect if this element is the first one in the
@@ -548,7 +546,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     return item;
 }
 
-#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)) */
+#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) */
 
 static inline void parsec_lifo_nolock_push( parsec_lifo_t* lifo,
                                             parsec_list_item_t* item )
