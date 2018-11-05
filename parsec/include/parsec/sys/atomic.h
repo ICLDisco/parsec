@@ -42,14 +42,15 @@ BEGIN_C_DECLS
 #      include "atomic-xlc.h"
 #    elif defined(PARSEC_OSX)
 #      if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
-#        if defined(__clang__)
+/* Intel compiler on OSX defined __clang__ but do not support the pragmas */
+#        if defined(__clang__) && !defined(__ICC)
 #          pragma clang diagnostic push
 #          pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#        endif  /* defined(__clang__) */
+#        endif  /* defined(__clang__) && !defined(__ICC) */
 #        include "atomic-macosx.h"
-#        if defined(__clang__)
+#        if defined(__clang__) && !defined(__ICC)
 #          pragma clang diagnostic pop
-#        endif  /* defined(__clang__) */
+#        endif  /* defined(__clang__) && !defined(__ICC) */
 #      endif  /* MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 */
 #    elif defined(PARSEC_ARCH_PPC)
 #      if defined(__bgp__)
