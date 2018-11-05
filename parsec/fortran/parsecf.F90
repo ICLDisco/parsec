@@ -57,17 +57,18 @@ END FUNCTION parsec_compose_f08
 
 SUBROUTINE parsec_taskpool_free_f08(ctx) &
          BIND(C, name="parsec_taskpool_free")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPORT parsec_taskpool_t
     IMPLICIT NONE
     TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: ctx
 END SUBROUTINE parsec_taskpool_free_f08
 
-FUNCTION parsec_context_add_taskpool_f08(context, tp) &
+FUNCTION parsec_context_add_taskpool_f08(ctx, tp) &
            BIND(C, name="parsec_context_add_taskpool")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPORT parsec_taskpool_t, parsec_context_t
     IMPLICIT NONE
-    TYPE(parsec_context_t), VALUE, INTENT(IN)  :: context
+    TYPE(parsec_context_t), VALUE, INTENT(IN)  :: ctx
     TYPE(parsec_taskpool_t), VALUE, INTENT(IN) :: tp
     INTEGER(KIND=c_int)                        :: parsec_context_add_taskpool_f08
 END FUNCTION parsec_context_add_taskpool_f08
