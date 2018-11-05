@@ -1560,10 +1560,13 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_function_entry_
 
         coutput("static const expr_t %s = {\n"
                 "  .op = EXPR_OP_INLINE,\n"
-                "  .u_expr.v_func = { .type = 0, /* RETURN_TYPE_INT32 */\n"
+                "  .u_expr.v_func = { .type = %s, /* RETURN_TYPE_INT32 */\n"
                 "                     .func = { .inline_func_int32 = (expr_op_int32_inline_func_t)%s_fct }\n"
                 "                   }\n"
-                "};\n", JDF_OBJECT_ONAME(e), JDF_OBJECT_ONAME(e));
+                "};\n",
+                JDF_OBJECT_ONAME(e),
+                enum_type_name(0),
+                JDF_OBJECT_ONAME(e));
     }
 }
 
@@ -1934,10 +1937,10 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function
             "\n"
             "static const expr_t %s = {\n"
             "  .op = EXPR_OP_INLINE,\n"
-            "  .u_expr.v_func = { .type = 0, /* RETURN_TYPE_INT32 */\n"
+            "  .u_expr.v_func = { .type = %s, /* RETURN_TYPE_INT32 */\n"
             "                     .func = { .inline_func_int32 = (expr_op_int32_inline_func_t)%s_fct }\n"
             "                   }\n"
-            "};\n\n", fname, fname);
+            "};\n\n", fname, enum_type_name(0), fname);
 
     string_arena_free(sa1);
     string_arena_free(sa2);
