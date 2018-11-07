@@ -14,5 +14,19 @@ if(PYTHON_VERSION_MAJOR GREATER 2)
 
   execute_process(OUTPUT_QUIET
       COMMAND ${PYTHON_2TO3_EXECUTABLE} -w -W -n -o ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator)
+
+    install(FILES
+            ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator/PrecisionDeps.py
+            ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator/PrecisionGenerator.py
+            ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator/subs.py
+            ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator/Conversion.py
+            DESTINATION lib/PrecisionGenerator)
+else()
+    install(FILES
+            ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/PrecisionDeps.py
+            ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/PrecisionGenerator.py
+            ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/subs.py
+            ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/Conversion.py
+            DESTINATION lib/PrecisionGenerator)
 endif()
 
