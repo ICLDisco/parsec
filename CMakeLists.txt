@@ -1000,25 +1000,18 @@ install(FILES
 
 # Due to the lack of standardization detecting libraries under CMake leads
 # to unconsistents lists of libraries, where some libraries are using full path,
-# other a combination of "-L* and -l*" and others just the library name. Try
-# to get a consistent string that can be used for the generation of the
-# pkg-config files, by leaving the fullpath libraries as is, and converting
-# everything else to -l.
+# other a combination of "-L* and -l*" and others just the library name.
+# Force a coherent EXTRA_LIBS_EXPANDED that can be used for the generation of the
+# pkg-config files: leave all options starting with - as they are, and for
+# everything else add "-l" if they are not an abolute path.
 SET(EXTRA_LIBS_EXPANDED)
 FOREACH(LIB IN ITEMS ${EXTRA_LIBS})
-  if( IS_ABSOLUTE ${LIB} )
-    LIST(APPEND EXTRA_LIBS_EXPANDED ${LIB})
-  else( IS_ABSOLUTE ${LIB} )
-    if( LIB MATCHES "(^|;)-l.*" )
-      LIST(APPEND EXTRA_LIBS_EXPANDED "${LIB}")
-    else( LIB MATCHES "(^|;)-l.*" )
-      if( LIB MATCHES "(^|;)-L.*" )
-        LIST(APPEND EXTRA_LIBS_EXPANDED "${LIB}")
-      else( LIB MATCHES "(^|;)-L.*" )
-        LIST(APPEND EXTRA_LIBS_EXPANDED "-l${LIB}")
-      endif( LIB MATCHES "(^|;)-L.*" )
-    endif( LIB MATCHES "(^|;)-l.*" )
-  endif( IS_ABSOLUTE ${LIB} )
+  if( NOT LIB MATCHES "(^|;)-.*" )
+    if( NOT IS_ABSOLUTE ${LIB} )
+      SET(LIB "-l${LIB}")
+    endif( NOT IS_ABSOLUTE ${LIB} )
+  endif( NOT LIB MATCHES "(^|;)-.*" )
+  LIST(APPEND EXTRA_LIBS_EXPANDED "${LIB}")
 ENDFOREACH(LIB)
 
 # build a CPack driven installer package
@@ -1049,6 +1042,8 @@ MESSAGE("\n\n")
 string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
 if (EXTRA_INCLUDES)
   string (REPLACE ";" " -I" EXTRA_INCLUDES_STRING "-I${EXTRA_INCLUDES}")
+  # Remove the last -I if any
+  string (REPLACE "-I$" "" EXTRA_INCLUDES_STRING ${EXTRA_INCLUDES_STRING})
 endif (EXTRA_INCLUDES)
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
