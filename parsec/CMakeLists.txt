@@ -154,9 +154,11 @@ endif(BUILD_SHARED_LIBS)
     # This file is in fact provided by PAPI SDE, to serve as a fallback in case PAPI
     # is not selected / loaded. It should be dynamic library that comes after PAPI
     add_library(parsec-papi-sde papi_sde_interface.c)
-    list(APPEND EXTRA_LIBS parsec-papi-sde)
     # parsec-papi-sed must come last in EXTRA_LIBS: it is to be preceded by papi if
     # PAPI is loaded so that the weak symbols in it are overcome by PAPI
+    list(APPEND EXTRA_LIBS parsec-papi-sde)
+    # parsec-papi-sde has to be installed, to provide the default empty functions
+    install(TARGETS parsec-papi-sde DESTINATION lib)
   endif( PARSEC_PAPI_SDE )
 
   target_link_libraries(parsec
