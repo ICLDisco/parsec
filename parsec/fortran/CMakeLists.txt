@@ -6,7 +6,7 @@ IF (PARSEC_PROF_TRACE)
 ENDIF (PARSEC_PROF_TRACE)
 
 add_library(parsecf OBJECT ${sources})
-set_target_properties(parsecf PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+set_target_properties(parsecf PROPERTIES COMPILE_FLAGS "${MPI_Fortran_COMPILE_FLAGS}")
 if(BUILD_SHARED_LIBS)
   set_target_properties(parsecf PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif(BUILD_SHARED_LIBS)
