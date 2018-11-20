@@ -899,43 +899,60 @@ static char* dump_typed_globals(void **elem, void *arg)
 
 /**
  * dump_hidden_globals_init:
- *  Takes a pointer to a global variables and generate the code used to initialize
- *  the global variable during *_New. If the variable is not marked as hidden
- *  the output code will not be generated.
+ *  Generate the default initializer for all hidden variables. As we generate the
+ *  code in the order in which the variables appear in the JDF, and as we dump their
+ *  default value as is, they can reference other globals that have been already
+ *  defined. Hidden variables without default value are not generated in order to
+ *  protect the user from accessing them by mistake.
  */
 static char *dump_hidden_globals_init(void **elem, void *arg)
 {
-    jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
-    string_arena_t *sa = (string_arena_t*)arg;
-    jdf_expr_t *hidden   = jdf_find_property( global->properties, "hidden", NULL );
-    jdf_expr_t* type_str = jdf_find_property( global->properties, "type",   NULL );
-    expr_info_t info;
+    jdf_global_entry_t* global_var = (jdf_global_entry_t*)elem;
+    jdf_expr_t *hidden = jdf_find_property( global_var->properties, "hidden", NULL );
 
-    string_arena_init(sa);
+    if (NULL != hidden) { /* The hidden property is set */
+        jdf_expr_t *prop = jdf_find_property( global_var->properties, "default", NULL );
 
-    /* The property is hidden */
-    if (NULL != hidden) {
-        jdf_expr_t *prop = jdf_find_property( global->properties, "default", NULL );
+        if( NULL == prop )  /* Do we have a default value or expression? */
+            if( NULL == (prop = global_var->expression) ) return NULL;
 
-        /* We might have a default value */
-        if( NULL == prop ) prop = global->expression;
-
-        /* No default value ? */
-        if( NULL == prop ) return NULL;
+        expr_info_t info;
+        jdf_expr_t* type_str = jdf_find_property( global_var->properties, "type",   NULL );
 
         info.sa = string_arena_new(8);
         info.prefix = "";
         info.suffix = "";
         info.assignments = "assignments";
 
+        string_arena_t *sa = (string_arena_t*)arg;
+        string_arena_init(sa);
         string_arena_add_string(sa, "%s %s;",
                                 (NULL == type_str ? "int" : dump_expr((void**)type_str, &info)),
-                                global->name);
+                                global_var->name);
         string_arena_free(info.sa);
 
         return string_arena_get_string(sa);
     }
     return NULL;
+}
+
+/**
+ * dump_name_of_hidden_globals_without_default:
+ *  Only dump the hidden variables with default values. This function is
+ *  only used in _new to generate the (void) statement to prevent warnings
+ *  about unused variables.
+ */
+static char *dump_name_of_hidden_globals_without_default(void **elem, void *_)
+{
+    jdf_global_entry_t* global_var = (jdf_global_entry_t*)elem;
+    jdf_expr_t *prop = jdf_find_property( global_var->properties, "hidden", NULL );
+
+    if (NULL == prop) return NULL; /* Not a hidden global variable */
+    if( NULL == global_var->expression )  /* No default expression */
+        if( NULL == jdf_find_property( global_var->properties, "default", NULL ) )  /* No default nitializer */
+            return NULL;
+    (void)_;
+    return global_var->name;
 }
 
 /** Utils: observers for the jdf **/
@@ -3483,7 +3500,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            "        parsec_debug_verbose(3, parsec_debug_output, \"Device %s refused to register memory for data %s (%p) from taskpool %p\",\n"
                            "                     device->name, parsec_dc->key_base, parsec_dc, __parsec_tp);\n"
                            "        __parsec_tp->super.super.devices_index_mask &= ~(1 << device->device_index);\n"
-                           "        continue;\n"
                            "      }\n",
                            ";\n"
                            "      if( (NULL != parsec_dc->register_memory) &&\n"
@@ -3491,7 +3507,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            "        parsec_debug_verbose(3, parsec_debug_output, \"Device %s refused to register memory for data %s (%p) from taskpool %p\",\n"
                            "                     device->name, parsec_dc->key_base, parsec_dc, __parsec_tp);\n"
                            "        __parsec_tp->super.super.devices_index_mask &= ~(1 << device->device_index);\n"
-                           "        continue;\n"
                            "      }\n"));
     coutput("  /* Remove all the chores without a backend device */\n"
             "  for( i = 0; i < PARSEC_%s_NB_TASK_CLASSES; i++ ) {\n"
@@ -3669,7 +3684,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             jdf_basename, jdf_basename, jdf_basename);
 
     string_arena_init(sa1);
-    coutput("  /* Dump the hidden parameters */\n"
+    coutput("  /* Dump the hidden parameters with default values */\n"
             "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
                                  dump_hidden_globals_init, sa2, "", "  ", "\n", "\n"));
     string_arena_init(sa1);
@@ -3807,9 +3822,9 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             jdf_basename, jdf_basename);
 
     string_arena_init(sa1);
-    coutput("  /* Prevent warnings related to the not used hidden parameters */\n"
-            "%s", UTIL_DUMP_LIST_FIELD(sa1, jdf->globals, next, name,
-                                       dump_string, NULL, "", "  (void)", ";", ";\n"));
+    coutput("/* Prevent warnings related to not used hidden global variables */\n"
+            "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                                 dump_name_of_hidden_globals_without_default, sa2, "", "  (void)", ";", ";\n"));
 
     coutput("  return (parsec_%s_taskpool_t*)__parsec_tp;\n"
             "}\n\n",
