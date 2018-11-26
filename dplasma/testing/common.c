@@ -104,7 +104,7 @@ void print_usage(void)
             "                      (0: Alternate, 1: Higham, 2: MUMPS (specific to xgetrf_qrf)\n"
             " -a --alpha        : Threshold to swith back to QR. (specific to xgetrf_qrf)\n"
             "    --seed         : Set the seed for pseudo-random generator\n"
-            " -m --mtx          : Set the matrix generator (Default: 0, random)\n"
+            "    --mtx          : Set the matrix generator (Default: 0, random)\n"
             "\n"
             " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
@@ -158,7 +158,7 @@ void print_usage(void)
             parsec_usage();
 }
 
-#define GETOPT_STRING "bc:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:ry:V:a:R:m:"
+#define GETOPT_STRING "bc:mo:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:ry:V:a:R:G:"
 
 #if defined(PARSEC_HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -166,6 +166,8 @@ static struct option long_options[] =
     /* PaRSEC specific options */
     {"cores",       required_argument,  0, 'c'},
     {"c",           required_argument,  0, 'c'},
+    {"thread_multi",no_argument,        0, 'm'},
+    {"m",           no_argument,        0, 'm'},
     {"o",           required_argument,  0, 'o'},
     {"scheduler",   required_argument,  0, 'o'},
     {"gpus",        required_argument,  0, 'g'},
@@ -225,7 +227,7 @@ static struct option long_options[] =
     {"criteria",    required_argument,  0, '1'},
     {"alpha",       required_argument,  0, 'a'},
     {"seed",        required_argument,  0, 'R'},
-    {"mtx",         required_argument,  0, 'm'},
+    {"mtx",         required_argument,  0, 'G'},
 
     /* Recursive options */
     {"z",           required_argument,  0, 'z'},
@@ -245,7 +247,7 @@ static struct option long_options[] =
 };
 #endif  /* defined(PARSEC_HAVE_GETOPT_LONG) */
 
-static void parse_arguments(int *_argc, char*** _argv, int* iparam)
+static void read_arguments(int *_argc, char*** _argv, int* iparam)
 {
     extern char **environ;
     int opt = 0;
@@ -272,6 +274,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
         switch(c)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
+            case 'm': iparam[IPARAM_THREAD_MT] = 1; break;
             case 'o':
                 if( !strcmp(optarg, "LFQ") )
                     iparam[IPARAM_SCHEDULER] = PARSEC_SCHEDULER_LFQ;
@@ -336,7 +339,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
 
             case 'R': iparam[IPARAM_RANDOM_SEED]  = atoi(optarg); break;
-            case 'm': iparam[IPARAM_MATRIX_INIT]  = atoi(optarg); break;
+            case 'G': iparam[IPARAM_MATRIX_INIT]  = atoi(optarg); break;
 
             case 'd': iparam[IPARAM_QR_DOMINO]    = atoi(optarg) ? 1 : 0; break;
             case 'r': iparam[IPARAM_QR_TSRR]      = 1; break;
@@ -416,7 +419,16 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             *_argv = tmp;
         }
     }
+    
+    /* Set matrices dimensions to default values if not provided */
+    /* Search for N as a bare number if not provided by -N */
+    if(0 == iparam[IPARAM_N] && optind < argc) {
+        iparam[IPARAM_N] = atoi(argv[optind++]);
+    }
+    (void)rc;
+}
 
+static void parse_arguments(int *iparam) {
     int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
 
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
@@ -451,15 +463,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
         fprintf(stderr, "#!!!!! the process grid PxQ (%dx%d) is smaller than the number of nodes (%d). Some nodes are idling!\n", iparam[IPARAM_P], iparam[IPARAM_Q], iparam[IPARAM_NNODES]);
     }
 
-    /* Set matrices dimensions to default values if not provided */
-    /* Search for N as a bare number if not provided by -N */
-    while(0 == iparam[IPARAM_N])
+    if(0 == iparam[IPARAM_N])
     {
-        if(optind < argc)
-        {
-            iparam[IPARAM_N] = atoi(argv[optind++]);
-            continue;
-        }
         fprintf(stderr, "#XXXXX the matrix size (N) is not set!\n");
         exit(2);
     }
@@ -497,8 +502,6 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     /* HQR */
     if(-'P' == iparam[IPARAM_QR_HLVL_SZE]) iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_P];
     if(-'Q' == iparam[IPARAM_QR_HLVL_SZE]) iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_Q];
-
-    (void)rc;
 }
 
 static void print_arguments(int* iparam)
@@ -509,12 +512,14 @@ static void print_arguments(int* iparam)
         fprintf(stderr, "#+++++ cores detected       : %d\n", iparam[IPARAM_NCORES]);
 
     if(verbose > 1) fprintf(stderr, "#+++++ nodes x cores + gpu  : %d x %d + %d (%d+%d)\n"
+                                    "#+++++ thread mode          : %s\n"
                                     "#+++++ P x Q                : %d x %d (%d/%d)\n",
                             iparam[IPARAM_NNODES],
                             iparam[IPARAM_NCORES],
                             iparam[IPARAM_NGPUS],
                             iparam[IPARAM_NNODES] * iparam[IPARAM_NCORES],
                             iparam[IPARAM_NNODES] * iparam[IPARAM_NGPUS],
+                            iparam[IPARAM_THREAD_MT]? "THREAD_MULTIPLE": "THREAD_SERIALIZED",
                             iparam[IPARAM_P], iparam[IPARAM_Q],
                             iparam[IPARAM_Q] * iparam[IPARAM_P], iparam[IPARAM_NNODES]);
 
@@ -617,10 +622,16 @@ parsec_context_t* setup_parsec(int argc, char **argv, int *iparam)
     unix_timestamp = time(NULL);
     getcwd(cwd, sizeof(cwd));
 #endif
+    read_arguments(&argc, &argv, iparam);
 #ifdef PARSEC_HAVE_MPI
     {
+        int requested = iparam[IPARAM_THREAD_MT]? MPI_THREAD_MULTIPLE: MPI_THREAD_SERIALIZED;
         int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+        MPI_Init_thread(&argc, &argv, requested, &provided);
+        if( requested > provided ) {
+            fprintf(stderr, "#XXXXX User requested %s but the implementation returned a lower thread\n", requested==MPI_THREAD_MULTIPLE? "MPI_THREAD_MULTIPLE": "MPI_THREAD_SERIALIZED");
+            exit(2);
+        }
     }
     MPI_Comm_size(MPI_COMM_WORLD, &iparam[IPARAM_NNODES]);
     MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]);
@@ -628,7 +639,7 @@ parsec_context_t* setup_parsec(int argc, char **argv, int *iparam)
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_RANK] = 0;
 #endif
-    parse_arguments(&argc, &argv, iparam);
+    parse_arguments(iparam);
     int verbose = iparam[IPARAM_VERBOSE];
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
 

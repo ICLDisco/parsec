@@ -39,6 +39,7 @@ enum iparam_t {
   IPARAM_RANK,         /* Rank                              */
   IPARAM_NNODES,       /* Number of nodes                   */
   IPARAM_NCORES,       /* Number of cores                   */
+  IPARAM_THREAD_MT,    /* Multithreaded MPI                 */
   IPARAM_NGPUS,        /* Number of GPUs                    */
   IPARAM_P,            /* Rows in the process grid          */
   IPARAM_Q,            /* Columns in the process grid       */
@@ -203,6 +204,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     PROFILING_SAVE_iINFO("PARAM_RANK", iparam[IPARAM_RANK]);            \
     PROFILING_SAVE_iINFO("PARAM_NNODES", iparam[IPARAM_NNODES]);        \
     PROFILING_SAVE_iINFO("PARAM_NCORES", iparam[IPARAM_NCORES]);        \
+    PROFILING_SAVE_iINFO("PARAM_THREAD_MT", iparam[IPARAM_THREAD_MT]);  \
     PROFILING_SAVE_iINFO("PARAM_NGPUS", iparam[IPARAM_NGPUS]);          \
     PROFILING_SAVE_iINFO("PARAM_P", iparam[IPARAM_P]);                  \
     PROFILING_SAVE_iINFO("PARAM_Q", iparam[IPARAM_Q]);                  \
