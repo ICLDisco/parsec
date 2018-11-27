@@ -32,7 +32,7 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 40, 200, 200);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA)
+#if defined(HAVE_CUDA) && 0
     iparam[IPARAM_NGPUS] = 0;
 #endif
     /* Initialize Parsec */
@@ -129,15 +129,15 @@ int main(int argc, char ** argv)
 
     /* Create Parsec */
     if(loud > 2) printf("+++ Computing getrf ... ");
-    PASTE_CODE_ENQUEUE_KERNEL(parsec, zgetrf_fusion,
+    PASTE_CODE_ENQUEUE_KERNEL(parsec, zgetrf_ptgpanel,
                               ((parsec_tiled_matrix_dc_t*)&dcA,
                                (parsec_tiled_matrix_dc_t*)&dcIPIV,
                                P,
                                Q,
                                &info));
     /* lets rock! */
-    PASTE_CODE_PROGRESS_KERNEL(parsec, zgetrf_fusion);
-    dplasma_zgetrf_fusion_Destruct( PARSEC_zgetrf_fusion );
+    PASTE_CODE_PROGRESS_KERNEL(parsec, zgetrf_ptgpanel);
+    dplasma_zgetrf_ptgpanel_Destruct( PARSEC_zgetrf_ptgpanel );
     if(loud > 2) printf("Done.\n");
 
     if ( info != 0 ) {
@@ -174,7 +174,7 @@ int main(int argc, char ** argv)
         parsec_data_free(dcIPIVl.mat);
         parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcIPIVl);
 #else
-        dplasma_ztrsmpl_fusion(parsec,
+        dplasma_ztrsmpl_ptgpanel(parsec,
                                (parsec_tiled_matrix_dc_t *)&dcA,
                                (parsec_tiled_matrix_dc_t *)&dcIPIV,
                                (parsec_tiled_matrix_dc_t *)&dcX);
@@ -200,12 +200,6 @@ int main(int argc, char ** argv)
         parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcX);
     }
 
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        parsec_gpu_data_unregister();
-        parsec_gpu_kernel_fini(parsec, "zgemm");
-    }
-#endif
     parsec_data_free(dcA.mat);
     parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA);
     parsec_data_free(dcIPIV.mat);

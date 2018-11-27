@@ -101,7 +101,7 @@ int main(int argc, char ** argv)
 
     /* Create Parsec */
     /* Startup */
-    info = dplasma_zgetrf_fusion(parsec,
+    info = dplasma_zgetrf_ptgpanel(parsec,
                                  (parsec_tiled_matrix_dc_t*)&dcA,
                                  (parsec_tiled_matrix_dc_t*)&dcIPIV);
 
@@ -111,15 +111,15 @@ int main(int argc, char ** argv)
                         (parsec_tiled_matrix_dc_t *)&dcA );
 
         if(loud > 2) printf("+++ Computing getrf ... ");
-        PASTE_CODE_ENQUEUE_KERNEL(parsec, zgetrf_fusion,
+        PASTE_CODE_ENQUEUE_KERNEL(parsec, zgetrf_ptgpanel,
                                   ((parsec_tiled_matrix_dc_t*)&dcA,
                                    (parsec_tiled_matrix_dc_t*)&dcIPIV,
                                    P,
                                    Q,
                                    &info));
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(parsec, zgetrf_fusion);
-        dplasma_zgetrf_fusion_Destruct( PARSEC_zgetrf_fusion );
+        PASTE_CODE_PROGRESS_KERNEL(parsec, zgetrf_ptgpanel);
+        dplasma_zgetrf_ptgpanel_Destruct( PARSEC_zgetrf_ptgpanel );
         if(loud > 2) printf("Done.\n");
     }
 
