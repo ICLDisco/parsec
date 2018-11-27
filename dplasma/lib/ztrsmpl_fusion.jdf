@@ -10,10 +10,9 @@ extern "C" %{
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
-#include "data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/matrix.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
-#include <plasma.h>
 #include <lapacke.h>
 #include <core_blas.h>
 #include <math.h>
@@ -81,9 +80,9 @@ static inline int get_priority(int k, int n) {
 
 /* Globals
  */
-descA        [type = "const tiled_matrix_desc_t*" ]
-descIPIV     [type = "const tiled_matrix_desc_t*" ]
-descB        [type = "const tiled_matrix_desc_t*" ]
+descA        [type = "const parsec_tiled_matrix_dc_t*" ]
+descIPIV     [type = "const parsec_tiled_matrix_dc_t*" ]
+descB        [type = "const parsec_tiled_matrix_dc_t*" ]
 P            [type = "int"]
 
 minmnt       [type = "int" hidden=on default="( dplasma_imin( descA->mt, descA->nt ) - 1 )" ]

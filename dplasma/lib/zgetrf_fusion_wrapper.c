@@ -7,25 +7,24 @@
  *
  */
 #include "parsec.h"
-#include <plasma.h>
 #include <core_blas.h>
 #include "dplasma.h"
-#include "dplasma/lib/dplasmatypes.h"
-#include "dplasma/lib/dplasmaaux.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "dplasmatypes.h"
+#include "dplasmaaux.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "zgetrf_fusion.h"
 
 #define LDV  3
 #define IB  32
 
-parsec_handle_t*
-dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A,
-                           tiled_matrix_desc_t *IPIV,
+parsec_taskpool_t*
+dplasma_zgetrf_fusion_New( parsec_tiled_matrix_dc_t *A,
+                           parsec_tiled_matrix_dc_t *IPIV,
                            int P, int Q,
                            int *info )
 {
-    parsec_zgetrf_fusion_handle_t *parsec_zgetrf_fusion = NULL;
+    parsec_zgetrf_fusion_taskpool_t *parsec_zgetrf_fusion = NULL;
     int nb = A->nb;
 
     /* The code has to be fixed for N >> M */
@@ -71,13 +70,13 @@ dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A,
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_int_t, 2, nb, -1 );
 
-    return (parsec_handle_t*)parsec_zgetrf_fusion;
+    return (parsec_taskpool_t*)parsec_zgetrf_fusion;
 }
 
 void
-dplasma_zgetrf_fusion_Destruct( parsec_handle_t *handle )
+dplasma_zgetrf_fusion_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zgetrf_fusion_handle_t *parsec_zgetrf_fusion = (parsec_zgetrf_fusion_handle_t *)handle;
+    parsec_zgetrf_fusion_taskpool_t *parsec_zgetrf_fusion = (parsec_zgetrf_fusion_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zgetrf_fusion->arenas[PARSEC_zgetrf_fusion_DEFAULT_ARENA] );
     parsec_matrix_del2arena( parsec_zgetrf_fusion->arenas[PARSEC_zgetrf_fusion_SWAP_ARENA   ] );
@@ -86,16 +85,16 @@ dplasma_zgetrf_fusion_Destruct( parsec_handle_t *handle )
     parsec_matrix_del2arena( parsec_zgetrf_fusion->arenas[PARSEC_zgetrf_fusion_PIVOT_ARENA  ] );
     parsec_matrix_del2arena( parsec_zgetrf_fusion->arenas[PARSEC_zgetrf_fusion_PERMUT_ARENA ] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 int
 dplasma_zgetrf_fusion( parsec_context_t *parsec,
-                       tiled_matrix_desc_t *A,
-                       tiled_matrix_desc_t *IPIV )
+                       parsec_tiled_matrix_dc_t *A,
+                       parsec_tiled_matrix_dc_t *IPIV )
 {
     int info = 0, ginfo = 0 ;
-    parsec_handle_t *parsec_zgetrf_fusion = NULL;
+    parsec_taskpool_t *parsec_zgetrf_fusion = NULL;
 
     int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
     int Q = ((two_dim_block_cyclic_t*)A)->grid.cols;
@@ -104,8 +103,8 @@ dplasma_zgetrf_fusion( parsec_context_t *parsec,
 
     if ( parsec_zgetrf_fusion != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zgetrf_fusion);
-        dplasma_progress(parsec);
+        parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)parsec_zgetrf_fusion);
+        dplasma_wait_until_completion(parsec);
         dplasma_zgetrf_fusion_Destruct( parsec_zgetrf_fusion );
     }
 
