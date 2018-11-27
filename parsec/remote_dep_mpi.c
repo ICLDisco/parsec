@@ -483,7 +483,14 @@ static int remote_dep_dequeue_send(int rank,
     item->cmd.activate.task.deps        = (remote_dep_datakey_t)deps;
     item->cmd.activate.task.output_mask = 0;
     item->cmd.activate.task.tag         = 0;
-    parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*)item);
+    /* if MPI is multithreaded do not thread-shift the send activate */
+    if( parsec_comm_es.virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
+        parsec_list_item_singleton(&item->pos_list); /* TODO: see if aggregation can be put back in this case */
+        remote_dep_nothread_send(&parsec_comm_es, &item);
+    }
+    else {
+        parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*)item);
+    }
     return 1;
 }
 
@@ -1083,15 +1090,30 @@ static remote_dep_wire_get_t* dep_get_buff;
  * fifo, relative to one another, during the waitsome loop */
 static int MAX_MPI_TAG;
 #define MIN_MPI_TAG (REMOTE_DEP_MAX_CTRL_TAG+1)
-static int __VAL_NEXT_TAG = MIN_MPI_TAG;
+static volatile int __VAL_NEXT_TAG = MIN_MPI_TAG;
 static inline int next_tag(int k) {
-    int __tag = __VAL_NEXT_TAG;
+    int __tag;
+    parsec_atomic_rmb();
+reread:
+    __tag = __VAL_NEXT_TAG;
     if( __tag > (MAX_MPI_TAG-k) ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "rank %d tag rollover: min %d < %d (+%d) < max %d", parsec_debug_rank,
                MIN_MPI_TAG, __tag, k, MAX_MPI_TAG);
-        __VAL_NEXT_TAG = __tag = MIN_MPI_TAG;
-    } else
-        __VAL_NEXT_TAG += k;
+#if INT_MAX == INT32_MAX
+        if(!parsec_atomic_cas_int32(&__VAL_NEXT_TAG, __tag, MIN_MPI_TAG))
+#else
+        if(!parsec_atomic_cas_int64(&__VAL_NEXT_TAG, __tag, MIN_MPI_TAG))
+#endif
+            goto reread;
+    } 
+    else {
+#if INT_MAX == INT32_MAX
+        if(!parsec_atomic_cas_int32(&__VAL_NEXT_TAG, __tag, __tag+k))
+#else
+        if(!parsec_atomic_cas_int64(&__VAL_NEXT_TAG, __tag, __tag+k))
+#endif
+            goto reread;
+    }
     return __tag;
 }
 
@@ -1529,7 +1551,8 @@ static void remote_dep_mpi_put_eager(parsec_execution_stream_t* es,
 #endif
 
     item->cmd.activate.task.output_mask = remote_dep_mpi_eager_which(deps, task->output_mask);
-    if( 0 == item->cmd.activate.task.output_mask ) {
+    if( 0 == item->cmd.activate.task.output_mask
+     || parsec_comm_es.virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
         free(item);  /* nothing to do, no reason to keep it */
         return;
     }
