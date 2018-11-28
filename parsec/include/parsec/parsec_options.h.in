@@ -71,7 +71,6 @@
 
 /* profiling */
 #cmakedefine PARSEC_PROF_TRACE
-#cmakedefine PARSEC_PROF_STATS
 #cmakedefine PARSEC_PROF_RUSAGE_EU
 #cmakedefine PARSEC_PROF_TRACE_SCHEDULING_EVENTS
 #cmakedefine PARSEC_PROF_TRACE_ACTIVE_ARENA_SET

@@ -1016,18 +1016,6 @@ static void remote_dep_mpi_profiling_fini(void)
 #define remote_dep_mpi_profiling_fini() do {} while(0)
 #endif  /* PARSEC_PROF_TRACE */
 
-#if defined(PARSEC_STATS)
-
-#   define PARSEC_STATACC_ACCUMULATE_MSG(counter, count, datatype) do {\
-        int _sa_size; \
-        MPI_Pack_size(count, datatype, dep_comm, &_sa_size); \
-        PARSEC_STATACC_ACCUMULATE(counter, 1); \
-        PARSEC_STATACC_ACCUMULATE(counter_bytes_sent, _sa_size); \
-    }
-#else
-#   define PARSEC_STATACC_ACCUMULATE_MSG(counter, count, datatype)
-#endif /* PARSEC_STATS */
-
 typedef int (*parsec_comm_callback_f)(parsec_execution_stream_t*,
                                      parsec_comm_callback_t*,  /**< the associated callback structure */
                                      MPI_Status* status);     /**< the corresponding status */
@@ -1379,7 +1367,6 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
     *head_item = item;
     assert(NULL != ring);
 
-    PARSEC_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, packed, MPI_PACKED);
     MPI_Send((void*)packed_buffer, position, MPI_PACKED, peer, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, act++);
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(peer, (void*)&deps->msg, &deps->msg);
@@ -1998,7 +1985,6 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
     if(msg.output_mask) {
         TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Data_ctl_sk, get,
                             from, es->virtual_process->parsec_context->my_rank, (*task));
-        PARSEC_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, datakey_count, datakey_dtt);
         MPI_Send(&msg, datakey_count, datakey_dtt, from,
                  REMOTE_DEP_GET_DATA_TAG, dep_comm);
         TAKE_TIME(MPIctl_prof, MPI_Data_ctl_ek, get++);
