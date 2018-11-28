@@ -562,7 +562,7 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
         /* Initialize internal lists */
         OBJ_CONSTRUCT(&gpu_device->gpu_mem_lru,       parsec_list_t);
         OBJ_CONSTRUCT(&gpu_device->gpu_mem_owned_lru, parsec_list_t);
-        OBJ_CONSTRUCT(&gpu_device->pending,           parsec_list_t);
+        OBJ_CONSTRUCT(&gpu_device->pending,           parsec_fifo_t);
 
         gpu_device->sort_starting_p = NULL;
         parsec_devices_add(parsec_context, &(gpu_device->super));
@@ -708,7 +708,7 @@ parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                             "GPU[%d] Retain and insert CUDA copy %p [ref_count %d] in LRU",
                              gpu_device->cuda_index, gpu_elem, gpu_elem->super.obj_reference_count);
-        parsec_list_nolock_fifo_push( &gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_elem );
+        parsec_list_nolock_push_back( &gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_elem );
         cudaMemGetInfo( &free_mem, &total_mem );
     }
     if( 0 == mem_elem_per_gpu && parsec_list_nolock_is_empty( &gpu_device->gpu_mem_lru ) ) {
@@ -759,7 +759,7 @@ static void parsec_cuda_memory_release_list(gpu_device_t* gpu_device,
 {
     parsec_list_item_t* item;
 
-    while(NULL != (item = parsec_list_nolock_fifo_pop(list)) ) {
+    while(NULL != (item = parsec_list_nolock_pop_front(list)) ) {
         parsec_gpu_data_copy_t* gpu_copy = (parsec_gpu_data_copy_t*)item;
         parsec_data_t* original = gpu_copy->original;
 
@@ -895,7 +895,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 
           find_another_data:
             /* Look for a data_copy to free */
-            lru_gpu_elem = (parsec_gpu_data_copy_t*)parsec_list_nolock_fifo_pop(&gpu_device->gpu_mem_lru);
+            lru_gpu_elem = (parsec_gpu_data_copy_t*)parsec_list_nolock_pop_front(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
                 /* We can't find enough room on the GPU. Insert the tiles in the begining of
                  * the LRU (in order to be reused asap) and return without scheduling the task.
@@ -913,7 +913,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                                          gpu_device->cuda_index, task_name,
                                          temp_loc[j]);
                     /* push them at the head to reach them again at the next iteration */
-                    parsec_list_nolock_lifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
+                    parsec_list_nolock_push_front(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
                 }
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
                 OBJ_RELEASE(gpu_elem);
@@ -1004,7 +1004,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                              "GPU[%d]:%s: Retain and insert CUDA copy %p [ref_count %d] in LRU",
                              gpu_device->cuda_index, task_name,
                              gpu_elem, gpu_elem->super.super.obj_reference_count);
-        parsec_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_elem);
+        parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_elem);
     }
     if( data_avail_epoch ) {
         gpu_device->data_avail_epoch++;
@@ -1322,15 +1322,15 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
 
 #if PARSEC_GPU_USE_PRIORITIES
 
-static inline parsec_list_item_t* parsec_fifo_push_ordered( parsec_list_t* fifo,
+static inline parsec_list_item_t* parsec_push_task_ordered( parsec_list_t* list,
                                                           parsec_list_item_t* elem )
 {
-    parsec_list_nolock_push_sorted(fifo, elem, parsec_execution_context_priority_comparator);
+    parsec_list_nolock_push_sorted(list, elem, parsec_execution_context_priority_comparator);
     return elem;
 }
-#define PARSEC_FIFO_PUSH  parsec_fifo_push_ordered
+#define PARSEC_PUSH_TASK parsec_push_task_ordered
 #else
-#define PARSEC_FIFO_PUSH  parsec_list_nolock_fifo_push
+#define PARSEC_PUSH_TASK parsec_list_nolock_push_back
 #endif
 
 static int
@@ -1398,7 +1398,7 @@ progress_stream( gpu_device_t* gpu_device,
      * local list (possibly by reordering the list). Also, as we can return a single
      * task first try to see if anything completed. */
     if( NULL != task ) {
-        PARSEC_FIFO_PUSH(stream->fifo_pending, (parsec_list_item_t*)task);
+        PARSEC_PUSH_TASK(stream->fifo_pending, (parsec_list_item_t*)task);
         task = NULL;
     }
     *out_task = NULL;
@@ -1442,7 +1442,7 @@ progress_stream( gpu_device_t* gpu_device,
 
  grab_a_task:
     if( NULL == stream->tasks[stream->start] ) {  /* there is room on the stream */
-        task = (parsec_gpu_task_t*)parsec_list_nolock_fifo_pop(stream->fifo_pending);  /* get the best task */
+        task = (parsec_gpu_task_t*)parsec_list_nolock_pop_front(stream->fifo_pending);  /* get the best task */
     }
     if( NULL == task ) {  /* No tasks, we're done */
         return saved_rc;
@@ -1474,7 +1474,7 @@ progress_stream( gpu_device_t* gpu_device,
             return rc;
         }
 
-        PARSEC_FIFO_PUSH(stream->fifo_pending, (parsec_list_item_t*)task);
+        PARSEC_PUSH_TASK(stream->fifo_pending, (parsec_list_item_t*)task);
         PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                              "GPU[%d]: Reschedule %s(task %p) priority %d: no room available on the GPU for data",
                              gpu_device->cuda_index, task->ec->task_class->name, (void*)task->ec, task->ec->priority);
@@ -1700,7 +1700,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
                                      gpu_device->cuda_index, gpu_copy, flow->name);
                 parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
                 PARSEC_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
-                parsec_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+                parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
                 update_data_epoch = 1;
                 continue;  /* done with this element, go for the next one */
             }
@@ -1837,12 +1837,12 @@ parsec_gpu_kernel_epilog( gpu_device_t      *gpu_device,
                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);
             parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
             PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
-            parsec_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+            parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
         } else {
             PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                                  "CUDA copy %p [ref_count %d] moved to the owned LRU in %s",
                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);
-            parsec_list_nolock_fifo_push(&gpu_device->gpu_mem_owned_lru, (parsec_list_item_t*)gpu_copy);
+            parsec_list_nolock_push_back(&gpu_device->gpu_mem_owned_lru, (parsec_list_item_t*)gpu_copy);
         }
     }
     return 0;
@@ -1903,7 +1903,7 @@ parsec_gpu_kernel_cleanout( gpu_device_t      *gpu_device,
          * data (aka. the one that GEMM worked on) is now on the CPU.
          */
         this_task->data[i].data_out = cpu_copy;
-        parsec_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+        parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
         data_avail_epoch++;
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                              "CUDA copy %p [ref_count %d] moved to the read LRU in %s\n",
@@ -1983,7 +1983,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
          * trigger a device flush, and keep executing tasks that have their data on the device.
          */
         if( NULL != progress_task ) {
-            PARSEC_FIFO_PUSH(gpu_device->exec_stream[0].fifo_pending, (parsec_list_item_t*)progress_task);
+            PARSEC_PUSH_TASK(gpu_device->exec_stream[0].fifo_pending, (parsec_list_item_t*)progress_task);
             progress_task = NULL;
         }
         /* If we can extract data go for it, otherwise try to drain the pending tasks */

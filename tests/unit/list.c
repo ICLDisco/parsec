@@ -86,11 +86,11 @@ static void check_lifo_translate_outoforder(parsec_list_t *l1,
         memset(seen, 0, NBELT);
 
     for(e = 0; e < NBELT; e++) {
-        elt = (elt_t *)parsec_list_nolock_lifo_pop( l1 );
+        elt = (elt_t *)parsec_list_nolock_pop_front( l1 );
         if( NULL == elt )
             fatal(" ! Error: there are only %u elements in %s -- expecting %u\n", e+1, l1name, NBELT);
         check_elt( elt );
-        parsec_list_nolock_lifo_push( l2, (parsec_list_item_t *)elt );
+        parsec_list_nolock_push_front( l2, (parsec_list_item_t *)elt );
         if( elt->base >= NBELT )
             fatal(" ! Error: base of the element %u of %s is outside boundaries\n", e, l1name);
         if( seen[elt->base] == 1 )
@@ -98,7 +98,7 @@ static void check_lifo_translate_outoforder(parsec_list_t *l1,
         seen[elt->base] = 1;
     }
     /* No need to check that seen[e] == 1 for all e: this is captured by if (NULL == elt) */
-    if( (elt = (elt_t*)parsec_list_nolock_lifo_pop( l1 )) != NULL )
+    if( (elt = (elt_t*)parsec_list_nolock_pop_front( l1 )) != NULL )
         fatal(" ! Error: unexpected element of base %u in %s: it should be empty\n",
               elt->base, l1name);
 }
@@ -113,32 +113,32 @@ static void check_lifo_translate_inorder(parsec_list_t *l1,
     printf(" - pop them from %s, check they are ok, and push them back in %s\n",
            l1name, l2name);
 
-    elt = (elt_t *)parsec_list_nolock_lifo_pop( l1 );
+    elt = (elt_t *)parsec_list_nolock_pop_front( l1 );
     if( NULL == elt )
         fatal(" ! Error: expecting a full list in %s, got an empty one...\n", l1name);
     if( elt->base == 0 ) {
         check_elt( elt );
-        parsec_list_nolock_lifo_push( l2, (parsec_list_item_t *)elt );
+        parsec_list_nolock_push_front( l2, (parsec_list_item_t *)elt );
         for(e = 1; e < NBELT; e++) {
-            elt = (elt_t *)parsec_list_nolock_lifo_pop( l1 );
+            elt = (elt_t *)parsec_list_nolock_pop_front( l1 );
             if( NULL == elt )
                 fatal(" ! Error: element number %u was not found at its position in %s\n", e, l1name);
             if( elt->base != e )
                 fatal(" ! Error: element number %u has its base corrupt\n", e);
             check_elt( elt );
-            parsec_list_nolock_lifo_push( l2, (parsec_list_item_t *)elt );
+            parsec_list_nolock_push_front( l2, (parsec_list_item_t *)elt );
         }
     } else if( elt->base == NBELT-1 ) {
         check_elt( elt );
-        parsec_list_nolock_lifo_push( l2, (parsec_list_item_t *)elt );
+        parsec_list_nolock_push_front( l2, (parsec_list_item_t *)elt );
         for(e = NBELT-2; ; e--) {
-            elt = (elt_t *)parsec_list_nolock_lifo_pop( l1 );
+            elt = (elt_t *)parsec_list_nolock_pop_front( l1 );
             if( NULL == elt )
                 fatal(" ! Error: element number %u was not found at its position in %s\n", e, l1name);
             if( elt->base != e )
                 fatal(" ! Error: element number %u has its base corrupt\n", e);
             check_elt( elt );
-            parsec_list_nolock_lifo_push( l2, (parsec_list_item_t *)elt );
+            parsec_list_nolock_push_front( l2, (parsec_list_item_t *)elt );
             if( 0 == e )
                 break;
         }
@@ -172,13 +172,13 @@ static void check_list_sort(parsec_list_t* l1, parsec_list_t* l2)
 
     printf(" - randomize list l1 into l2, sort l2, check it is in order\n");
     elt_t* e;
-    while(NULL != (e = (elt_t*)parsec_list_nolock_fifo_pop(l1)))
+    while(NULL != (e = (elt_t*)parsec_list_nolock_pop_front(l1)))
     {
         int choice = rand()%3; /* do not care for true random*/
         switch(choice)
         {
             case 0:
-                parsec_list_nolock_fifo_push(l1, &e->list); /* return in l1, for later */
+                parsec_list_nolock_push_back(l1, &e->list); /* return in l1, for later */
                 break;
             case 1:
                 parsec_list_nolock_push_front(l2, &e->list);
@@ -213,15 +213,15 @@ static void *lifo_translate_elements_random(void *params)
     start = take_time();
     while( i < heavy_synchro ) {
         if( rand() % 2 == 0 ) {
-            e = parsec_list_lifo_pop( &l1 );
+            e = parsec_list_pop_front( &l1 );
             if(NULL != e) {
-                parsec_list_lifo_push(&l2, e);
+                parsec_list_push_front(&l2, e);
                 i++;
             }
         } else {
-            e = parsec_list_lifo_pop( &l2 );
+            e = parsec_list_pop_front( &l2 );
             if(NULL != e) {
-                parsec_list_lifo_push(&l1, e);
+                parsec_list_push_front(&l1, e);
                 i++;
             }
         }
@@ -310,7 +310,7 @@ int main(int argc, char *argv[])
     printf(" - create %u random elements and push them in l1\n", NBELT);
     for(e = 0; e < NBELT; e++) {
         elt = create_elem(e);
-        parsec_list_nolock_lifo_push( &l1, (parsec_list_item_t *)elt );
+        parsec_list_nolock_push_front( &l1, (parsec_list_item_t *)elt );
     }
 
     check_lifo_translate_outoforder(&l1, &l2, "l1", "l2");
@@ -358,7 +358,7 @@ int main(int argc, char *argv[])
     p = NULL;
     ch = 0;
     while( !parsec_list_nolock_is_empty( &l2 ) ) {
-        elt = (elt_t*)parsec_list_nolock_lifo_pop( &l2 );
+        elt = (elt_t*)parsec_list_nolock_pop_front( &l2 );
         if( elt == NULL )
             fatal(" ! Error: list l2 is supposed to be non empty, but it is!\n");
         if( elt == p )
@@ -366,7 +366,7 @@ int main(int argc, char *argv[])
                   ch);
         ch++;
         p = elt;
-        parsec_list_nolock_lifo_push( &l1, (parsec_list_item_t*)elt );
+        parsec_list_nolock_push_front( &l1, (parsec_list_item_t*)elt );
     }
 
     check_lifo_translate_outoforder(&l1, &l2, "l1", "l2");
@@ -375,12 +375,12 @@ int main(int argc, char *argv[])
 
     printf(" - pop all elements from l1, and free them\n");
     while( !parsec_list_nolock_is_empty( &l1 ) ) {
-        elt = (elt_t*)parsec_list_lifo_pop( &l1 );
+        elt = (elt_t*)parsec_list_pop_front( &l1 );
         free(elt);
     }
     printf(" - pop all elements from l2, and free them\n");
     while( !parsec_list_nolock_is_empty( &l2 ) ) {
-        elt = (elt_t*)parsec_list_lifo_pop( &l2 );
+        elt = (elt_t*)parsec_list_pop_front( &l2 );
         free(elt);
     }
 

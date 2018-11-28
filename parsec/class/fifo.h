@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -86,10 +86,11 @@ parsec_fifo_nolock_push(parsec_fifo_t* fifo, parsec_list_item_t* item) {
 }
 
 /**
- * @brief Chain a ring of elements at the end of another FIFO
+ * @brief Chain a ring of elements at the end of a FIFO
  *
  * @details items is a ring of elements, ordered. They are all pushed at
- *     the end of the FIFO, preserving the order between them.
+ *     the end of the FIFO, preserving the order between them (as if a
+ *     call to push had been issued for each item in the ring).
  *
  * @param[inout] fifo the FIFO to which the ring of items should be pushed
  * @param[inout] items a ring of elements add to fifo
@@ -102,11 +103,12 @@ parsec_fifo_chain(parsec_fifo_t* fifo, parsec_list_item_t* items) {
 }
 
 /**
- * @brief Chain a ring of elements at the end of another FIFO without
+ * @brief Chain a ring of elements at the end of a FIFO without
  *        taking the lock
  *
  * @details items is a ring of elements, ordered. They are all pushed at
- *     the end of the FIFO, preserving the order between them.
+ *     the end of the FIFO, preserving the order between them (as if a
+ *     call to push had been issued for each item in the ring).
  *
  * @param[inout] fifo the FIFO to which the ring of items should be pushed
  * @param[inout] items a ring of elements add to fifo
