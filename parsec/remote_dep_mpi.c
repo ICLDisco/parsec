@@ -968,7 +968,6 @@ enum {
 static parsec_thread_profiling_t* MPIctl_prof;
 static parsec_thread_profiling_t* MPIsnd_prof;
 static parsec_thread_profiling_t* MPIrcv_prof;
-static int64_t act = 0;
 static int MPI_Activate_sk, MPI_Activate_ek;
 static int64_t get = 0;
 static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
@@ -1440,15 +1439,9 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
 
     peer = item->cmd.activate.peer;  /* this doesn't change */
     deps = (parsec_remote_deps_t*)item->cmd.activate.task.deps;
-#ifdef PARSEC_PROF_TRACE
-    int64_t myact;
-    if( parsec_profile_enabled ) {
-        myact = parsec_atomic_fetch_inc_int64(&act);
-        TAKE_TIME_WITH_INFO_TS(MPI_Activate_sk, myact,
-                               es->virtual_process->parsec_context->my_rank,
-                               peer, deps->msg);
-    }
-#endif
+    TAKE_TIME_WITH_INFO_TS(MPI_Activate_sk, 0,
+                           es->virtual_process->parsec_context->my_rank,
+                           peer, deps->msg);
   pack_more:
     assert(peer == item->cmd.activate.peer);
     deps = (parsec_remote_deps_t*)item->cmd.activate.task.deps;
@@ -1471,7 +1464,7 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
     assert(NULL != ring);
 
     MPI_Send((void*)packed_buffer, position, MPI_PACKED, peer, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
-    TAKE_TIME_TS(MPI_Activate_ek, myact);
+    TAKE_TIME_TS(MPI_Activate_ek, 0);
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(peer, (void*)&deps->msg, &deps->msg);
 
     do {
