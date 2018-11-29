@@ -993,28 +993,6 @@ int parsec_fini( parsec_context_t** pcontext )
         parsec_app_name = NULL;
     }
 
-#if defined(PARSEC_STATS)
-    {
-        char filename[64];
-        char prefix[32];
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-        int rank = 0, size = 1;
-        int mpi_is_on;
-        MPI_Initialized(&mpi_is_on);
-        if(mpi_is_on) {
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            MPI_Comm_size(MPI_COMM_WORLD, &size);
-        }
-        snprintf(filename, 64, "parsec-%d.stats", rank);
-        snprintf(prefix, 32, "%d/%d", rank, size);
-# else
-        snprintf(filename, 64, "parsec.stats");
-        prefix[0] = '\0';
-# endif
-        parsec_stats_dump(filename, prefix);
-    }
-#endif
-
     parsec_taskpool_release_resources();
 
     parsec_mca_param_finalize();
