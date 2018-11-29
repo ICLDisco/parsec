@@ -14,6 +14,7 @@
 #if defined(PARSEC_HAVE_CUDA)
 #include "parsec/class/list_item.h"
 #include "parsec/class/list.h"
+#include "parsec/class/fifo.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
@@ -131,7 +132,7 @@ struct _gpu_device {
     parsec_gpu_exec_stream_t* exec_stream;
     parsec_list_t gpu_mem_lru;   /* Read-only blocks, and fresh blocks */
     parsec_list_t gpu_mem_owned_lru;  /* Dirty blocks */
-    parsec_list_t pending;
+    parsec_fifo_t pending;
     struct zone_malloc_s *memory;
     parsec_list_item_t *sort_starting_p;
 };

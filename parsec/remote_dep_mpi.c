@@ -1443,11 +1443,11 @@ static int remote_dep_mpi_progress(parsec_execution_stream_t* es)
 
       feed_more_work:
         if((parsec_comm_gets < parsec_comm_gets_max) && !parsec_list_nolock_is_empty(&dep_activates_fifo)) {
-            parsec_remote_deps_t* deps = (parsec_remote_deps_t*)parsec_list_nolock_fifo_pop(&dep_activates_fifo);
+            parsec_remote_deps_t* deps = (parsec_remote_deps_t*)parsec_list_nolock_pop_front(&dep_activates_fifo);
             remote_dep_mpi_get_start(es, deps);
         }
         if((parsec_comm_puts < parsec_comm_puts_max) && !parsec_list_nolock_is_empty(&dep_put_fifo)) {
-            dep_cmd_item_t* item = (dep_cmd_item_t*)parsec_list_nolock_fifo_pop(&dep_put_fifo);
+            dep_cmd_item_t* item = (dep_cmd_item_t*)parsec_list_nolock_pop_front(&dep_put_fifo);
             remote_dep_mpi_put_start(es, item);
         }
         if(0 == outcount) return ret;
@@ -1537,7 +1537,7 @@ remote_dep_mpi_save_put_cb(parsec_execution_stream_t* es,
     /* Get the highest priority PUT operation */
     parsec_list_nolock_push_sorted(&dep_put_fifo, (parsec_list_item_t*)item, dep_cmd_prio);
     if( parsec_comm_puts < parsec_comm_puts_max ) {
-        item = (dep_cmd_item_t*)parsec_list_nolock_fifo_pop(&dep_put_fifo);
+        item = (dep_cmd_item_t*)parsec_list_nolock_pop_front(&dep_put_fifo);
         remote_dep_mpi_put_start(es, item);
     } else {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI: Put DELAYED for %s from %d tag %u which 0x%x (deps %p)",
@@ -1749,7 +1749,7 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
 
     /* Check if we have any pending GET orders */
     if((parsec_comm_gets < parsec_comm_gets_max) && !parsec_list_nolock_is_empty(&dep_activates_fifo)) {
-        deps = (parsec_remote_deps_t*)parsec_list_nolock_fifo_pop(&dep_activates_fifo);
+        deps = (parsec_remote_deps_t*)parsec_list_nolock_pop_front(&dep_activates_fifo);
         remote_dep_mpi_get_start(es, deps);
     }
 }
@@ -1789,7 +1789,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
             memcpy(packed_buffer, dep_activate_buff[cb->storage2] + position, deps->msg.length);
             position += deps->msg.length;  /* move to the next order */
             deps->taskpool = (parsec_taskpool_t*)packed_buffer;  /* temporary storage */
-            parsec_list_nolock_fifo_push(&dep_activates_noobj_fifo, (parsec_list_item_t*)deps);
+            parsec_list_nolock_push_back(&dep_activates_noobj_fifo, (parsec_list_item_t*)deps);
             continue;
         } else {
             assert(deps->taskpool != NULL);

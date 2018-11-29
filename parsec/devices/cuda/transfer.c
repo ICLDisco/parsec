@@ -305,7 +305,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
             PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                                  "D2H[%d] task %p:%i GPU data copy %p [%p] now available",
                                  gpu_device->cuda_index, (void*)task, i, gpu_copy, gpu_copy->original);
-            parsec_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+            parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
         }
     }
     parsec_thread_mempool_free(es->context_mempool, task);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,9 +23,9 @@
  *
  *  @details There are two interfaces for LIFO: an atomic-based
  *           lock-free implementation (this file), and a lock-based
- *           lists emulation (in list.h). If you need to use 
- *           list-compatible access in the LIFO, use the list.h 
- *           implementation; otherwise, use this implementation.            
+ *           lists emulation (in list.h). If you need to use
+ *           list-compatible access in the LIFO, use the list.h
+ *           implementation; otherwise, use this implementation.
  */
 
 BEGIN_C_DECLS
@@ -61,8 +61,7 @@ static inline void
 parsec_lifo_push(parsec_lifo_t* lifo, parsec_list_item_t* item);
 
 /**
- * @brief Push an element in the LIFO, assuming the atomic operations
- *        would not fail.
+ * @brief Push an element in the LIFO, without forcing atomicity.
  *
  * @details push an element at the front of the LIFO
  *
@@ -90,8 +89,8 @@ static inline void
 parsec_lifo_chain(parsec_lifo_t* lifo, parsec_list_item_t* items);
 
 /**
- * @brief Chain a ring of elements in front of a LIFO, assuming
- *        atomic operations succeed
+ * @brief Chain a ring of elements in front of a LIFO, without
+ *        forcing atomicity.
  *
  * @details Take a ring of elements (items->prev points to the last
  *          element in items), and push all the elements of items in
@@ -134,8 +133,7 @@ static inline parsec_list_item_t*
 parsec_lifo_try_pop(parsec_lifo_t* lifo);
 
 /**
- * @brief Pop an element from the LIFO, assuming the atomic operations
- *        would not fail
+ * @brief Pop an element from the LIFO, without forcing atomicity.
  *
  * @details Pop the first element in the LIFO
  *
@@ -151,7 +149,7 @@ parsec_lifo_nolock_pop(parsec_lifo_t* lifo);
 /**
  * @cond FALSE
  ***********************************************************************
- * Interface is defined. Everything else is private thereafter 
+ * Interface is defined. Everything else is private thereafter
  */
 
 /**
@@ -426,9 +424,9 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
 #else /* !defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) && !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) */
 
 /* Add one element to the LIFO. We will return the last head of the list
- *  * to allow the upper level to detect if this element is the first one in the
- *   * list (if the list was empty before this operation).
- *    */
+ * to allow the upper level to detect if this element is the first one in the
+ * list (if the list was empty before this operation).
+ */
 static inline void parsec_lifo_push(parsec_lifo_t *lifo,
                                     parsec_list_item_t *item)
 {

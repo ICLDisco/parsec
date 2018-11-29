@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,8 @@
 /* This file contains functions to access doubly linked lists.
  * parsec_list_nolock functions are not thread safe, and
  *   can be used only when the list is locked (by list_lock) or when
- *   thread safety is ensured by another mean.
+ *   thread safety is ensured by another mean. All other functions are
+ *   thread safe.
  * When locking performance is critical, one could prefer atomic lifo (see lifo.h)
  */
 
@@ -51,7 +52,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_list_t);
  * @brief locks the list mutex.
  *
  * @details that same mutex is used by all mutex protected list
- *    operations 
+ *    operations
  *
  * @param[inout] list the list to lock
  */
@@ -62,7 +63,7 @@ parsec_list_lock( parsec_list_t* list );
  * @brief unlocks the list mutex.
  *
  * @details that same mutex is used by all mutex protected list
- *    operations 
+ *    operations
  *
  * @param[inout] list the list to unlock
  */
@@ -115,9 +116,9 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  *
  * @param[inout] LIST the list on which to iterate
  * @param[inout] ITEM_NAME the variable to use as item name in CODE_BLOCK
- * @param[in] CODE_BLOCK a block of code to execute with each item (break 
+ * @param[in] CODE_BLOCK a block of code to execute with each item (break
  *    and continue are allowed)
- * @return the last considered item 
+ * @return the last considered item
  *
  * @remark lock on LIST is taken from the beginning to the end of this loop
  */
@@ -135,9 +136,9 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  *
  * @param[inout] LIST the list on which to iterate
  * @param[inout] ITEM_NAME the variable to use as item name in CODE_BLOCK
- * @param[in] CODE_BLOCK a block of code to execute with each item (break 
+ * @param[in] CODE_BLOCK a block of code to execute with each item (break
  *    and continue are allowed)
- * @return the last considered item 
+ * @return the last considered item
  *
  * @remark this is not thread safe
  */
@@ -163,7 +164,7 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  * @brief gets the next item from an item in a list
  *
  * @details PARSEC_LIST_ITERATOR_NEXT(item) does not necessarily return
- *          an element that belongs to the list. The returned value must 
+ *          an element that belongs to the list. The returned value must
  *          be checked against PARSEC_LIST_ITERATOR_END(list)
  */
 #define PARSEC_LIST_ITERATOR_NEXT(ITEM)     _OPAQUE_LIST_ITERATOR_NEXT_DEFINITION(ITEM)
@@ -188,7 +189,7 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  * @brief gets the previous item from an item in a list
  *
  * @details PARSEC_LIST_ITERATOR_PREV(item) does not necessarily return
- *          an element that belongs to the list. The returned value must 
+ *          an element that belongs to the list. The returned value must
  *          be checked against PARSEC_LIST_ITERATOR_BEGIN(list)
  */
 #define PARSEC_LIST_ITERATOR_PREV(ITEM)     _OPAQUE_LIST_ITERATOR_PREV_DEFINITION(ITEM)
@@ -206,7 +207,7 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  *
  * @remark position item must be in list
  * @remark this function is not thred safe
- * @remark if position is the Ghost Element, item is added back 
+ * @remark if position is the Ghost Element, item is added back
  */
 static inline void
 parsec_list_nolock_add_before( parsec_list_t* list,
@@ -231,7 +232,7 @@ parsec_list_nolock_add_before( parsec_list_t* list,
  *
  * @remark position item must be in list
  * @remark this function is not thred safe
- * @remark if position is the Ghost Element, item is added front 
+ * @remark if position is the Ghost Element, item is added front
  */
 static inline void
 parsec_list_nolock_add_after( parsec_list_t* list,
@@ -538,7 +539,7 @@ parsec_list_chain_back( parsec_list_t* list,
 /**
  * @brief Extracts all elements from a dequeue, giving them as a ring
  *
- * @details consider the list as a dequeue. This function creates a 
+ * @details consider the list as a dequeue. This function creates a
  *          double-linked ring of elements (first->prev points to last,
  *          and last->next points to first), that holds all elements
  *          of the dequeue. The dequeue is empty after this operation.
@@ -650,7 +651,7 @@ parsec_list_nolock_chain_back( parsec_list_t* list,
  * @brief Extracts all elements from a dequeue, giving them as a ring,
  *        without locking the list
  *
- * @details consider the list as a dequeue. This function creates a 
+ * @details consider the list as a dequeue. This function creates a
  *          double-linked ring of elements (first->prev points to last,
  *          and last->next points to first), that holds all elements
  *          of the dequeue. The dequeue is empty after this operation.
@@ -663,213 +664,12 @@ parsec_list_nolock_chain_back( parsec_list_t* list,
 static inline parsec_list_item_t*
 parsec_list_nolock_unchain( parsec_list_t* list );
 
-/* FIFO EMULATION FUNCTIONS */
-
-/**
- * @brief Pop an element from the FIFO
- *
- * @details consider the list as a FIFO, and pop its first element
- *
- * @param[inout] list the FIFO from which to pop the element
- * @return the element that was removed from the FIFO (NULL if
- *         the FIFO was empty)
- *
- * @remark this function is thread safe
- * @remark this function might lock until no other thread manipulates the
- *         dequeue
- */
-static inline parsec_list_item_t*
-parsec_list_fifo_pop( parsec_list_t* list ) {
-    return parsec_list_pop_front(list); }
-
-/**
- * @brief Push an element in the FIFO
- *
- * @details consider the list as a FIFO, and push an element at its end
- *
- * @param[inout] list the FIFO into which to push the element
- * @param[inout] item the element to push in list
- *
- * @remark this function is thread safe
- * @remark this function might lock until no other thread manipulates the
- *         dequeue
- */
-static inline void
-parsec_list_fifo_push( parsec_list_t* list, parsec_list_item_t* item ) {
-    parsec_list_push_back(list, item); }
-
-/**
- * @brief Chain a ring of elements in a FIFO
- *
- * @details consider the list as a FIFO. Take a ring of elements
- *          (items->prev points to the last element in items),
- *          and push all the elements of items in the back of the FIFO,
- *          preserving the order in items.
- *
- * @param[inout] list the dequeue into which to push the elements
- * @param[inout] items the elements ring to push in the back
- *
- * @remark this function is thread safe
- * @remark this function might lock until no other thread manipulates the
- *         dequeue
- */
-static inline void
-parsec_list_fifo_chain( parsec_list_t* list, parsec_list_item_t* items ) {
-    parsec_list_chain_back(list, items); }
-
-/**
- * @brief Pop an element from the FIFO, without locking it
- *
- * @details consider the list as a FIFO, and pop its first element
- *
- * @param[inout] list the FIFO from which to pop the element
- * @return the element that was removed from the FIFO (NULL if
- *         the FIFO was empty)
- *
- * @remark this function is not thread safe
- */
-static inline parsec_list_item_t*
-parsec_list_nolock_fifo_pop( parsec_list_t* list ) {
-    return parsec_list_nolock_pop_front(list); }
-
-/**
- * @brief Push an element in the FIFO, without locking it
- *
- * @details consider the list as a FIFO, and push an element at its end
- *
- * @param[inout] list the FIFO into which to push the element
- * @param[inout] item the element to push in list
- *
- * @remark this function is not thread safe
- */
-static inline void
-parsec_list_nolock_fifo_push( parsec_list_t* list, parsec_list_item_t* item ) {
-    parsec_list_nolock_push_back(list, item); }
-
-/**
- * @brief Chain a ring of elements in a FIFO, without locking it
- *
- * @details consider the list as a FIFO. Take a ring of elements
- *          (items->prev points to the last element in items),
- *          and push all the elements of items in the back of the FIFO,
- *          preserving the order in items.
- *
- * @param[inout] list the dequeue into which to push the elements
- * @param[inout] items the elements ring to push in the back
- *
- * @remark this function is not thread safe
- */
-static inline void
-parsec_list_nolock_fifo_chain( parsec_list_t* list, parsec_list_item_t* items ) {
-    parsec_list_nolock_chain_back(list, items); }
-
-
-/* LIFO EMULATION FUNCTIONS */
-
-/**
- * @brief Pop an element from the LIFO
- *
- * @details consider the list as a LIFO, and pop its first element
- *
- * @param[inout] list the LIFO from which to pop the element
- * @return the element that was removed from the LIFO (NULL if
- *         the LIFO was empty)
- *
- * @remark this function is thread safe
- * @remark this function might lock until no other thread manipulates the
- *         dequeue
- */
-static inline parsec_list_item_t*
-parsec_list_lifo_pop( parsec_list_t* list ) {
-    return parsec_list_pop_front(list); }
-
-/**
- * @brief Push an element in the LIFO
- *
- * @details consider the list as a LIFO, and push an element at its front
- *
- * @param[inout] list the LIFO into which to push the element
- * @param[inout] item the element to push in list
- *
- * @remark this function is thread safe
- * @remark this function might lock until no other thread manipulates the
- *         dequeue
- */
-static inline void
-parsec_list_lifo_push( parsec_list_t* list, parsec_list_item_t* item ) {
-    parsec_list_push_front(list, item); }
-
-/**
- * @brief Chain a ring of elements in front of a LIFO
- *
- * @details consider the list as a LIFO. Take a ring of elements
- *          (items->prev points to the last element in items),
- *          and push all the elements of items in front of the LIFO,
- *          preserving the order in items.
- *
- * @param[inout] list the LIFO into which to push the elements
- * @param[inout] items the elements ring to push in front
- *
- * @remark this function is thread safe
- * @remark this function might lock until no other thread manipulates the
- *         dequeue
- */
-static inline void
-parsec_list_lifo_chain( parsec_list_t* list, parsec_list_item_t* items ) {
-    parsec_list_chain_front(list, items); }
-
-/**
- * @brief Pop an element from the LIFO, without locking it
- *
- * @details consider the list as a LIFO, and pop its first element
- *
- * @param[inout] list the LIFO from which to pop the element
- * @return the element that was removed from the LIFO (NULL if
- *         the LIFO was empty)
- *
- * @remark this function is not thread safe
- */static inline parsec_list_item_t*
-parsec_list_nolock_lifo_pop( parsec_list_t* list ) {
-    return parsec_list_nolock_pop_front(list); }
-
-/**
- * @brief Push an element in the LIFO, without locking it
- *
- * @details consider the list as a LIFO, and push an element at its front
- *
- * @param[inout] list the LIFO into which to push the element
- * @param[inout] item the element to push in list
- *
- * @remark this function is not thread safe
- */
-static inline void
-parsec_list_nolock_lifo_push( parsec_list_t* list, parsec_list_item_t* item ) {
-    parsec_list_nolock_push_front(list, item); }
-
-/**
- * @brief Chain a ring of elements in front of a LIFO, without locking it
- *
- * @details consider the list as a LIFO. Take a ring of elements
- *          (items->prev points to the last element in items),
- *          and push all the elements of items in front of the LIFO,
- *          preserving the order in items.
- *
- * @param[inout] list the LIFO into which to push the elements
- * @param[inout] items the elements ring to push in front
- *
- * @remark this function is not thread safe
- * @remark this function might lock until no other thread manipulates the
- *         dequeue
- */
-static inline void
-parsec_list_nolock_lifo_chain( parsec_list_t* list, parsec_list_item_t* items ) {
-    parsec_list_nolock_chain_front(list, items); }
 
 /**
  * @cond FALSE
  *  Don't include the implementation part in the doxygen documentation
  *********************************************************************
- *  Interface ends here, everything else is private                     
+ *  Interface ends here, everything else is private
  */
 
 #define _HEAD(LIST) ((LIST)->ghost_element.list_next)
@@ -936,7 +736,7 @@ parsec_list_unlock( parsec_list_t* list )
     ITEM;                                                               \
 })
 
-static inline int 
+static inline int
 parsec_list_nolock_contains( parsec_list_t *list, parsec_list_item_t *item )
 {
     parsec_list_item_t* litem;

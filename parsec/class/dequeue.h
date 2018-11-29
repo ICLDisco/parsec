@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -210,11 +210,6 @@ parsec_dequeue_nolock_is_empty( parsec_dequeue_t* dequeue) {
 }
 
 /**
- * @brief alias to parsec_dequeue_nolock_is_empty
- */
-#define parsec_udequeue_is_empty(dequeue) parsec_dequeue_nolock_is_empty(dequeue)
-
-/**
  * @brief Pop the head of the dequeue, without locking it
  *
  * @details consider the list as a dequeue, and pop the head of the queue
@@ -229,11 +224,6 @@ static inline parsec_list_item_t*
 parsec_dequeue_nolock_pop_front( parsec_dequeue_t* dequeue ) {
     return parsec_list_nolock_pop_front((parsec_list_t*)dequeue);
 }
-
-/**
- * @brief alias to parsec_dequeue_nolock_pop_front
- */
-#define parsec_udequeue_pop_front(dequeue) parsec_dequeue_nolock_pop_front(dequeue)
 
 /**
  * @brief Pop the tail of the dequeue, without lokcing it
@@ -252,11 +242,6 @@ parsec_dequeue_nolock_pop_back( parsec_dequeue_t* dequeue ) {
 }
 
 /**
- * @brief alias to parsec_dequeue_nolock_pop_back
- */
-#define parsec_udequeue_pop_back(dequeue) parsec_dequeue_nolock_pop_back(dequeue)
-
-/**
  * @brief Push an element at the end of the dequeue, without locking it
  *
  * @details consider the list as a dequeue, and push an element at its end
@@ -272,11 +257,6 @@ parsec_dequeue_nolock_push_front( parsec_dequeue_t* dequeue, parsec_list_item_t*
 }
 
 /**
- * @brief alias to parsec_dequeue_nolock_push_front
- */
-#define parsec_udequeue_push_front(dequeue, item) parsec_dequeue_nolock_push_front(dequeue, item)
-
-/**
  * @brief Push an element at the end of the dequeue, without locking it
  *
  * @details consider the list as a dequeue, and push an element at its end
@@ -290,11 +270,6 @@ static inline void
 parsec_dequeue_nolock_push_back( parsec_dequeue_t* dequeue, parsec_list_item_t* item ) {
     parsec_list_nolock_push_back((parsec_list_t*)dequeue, item);
 }
-
-/**
- * @brief alias to parsec_dequeue_nolock_push_back
- */
-#define parsec_udequeue_push_back(dequeue, item) parsec_dequeue_nolock_push_back(dequeue, item)
 
 /**
  * @brief Chain a ring of elements in front of a dequeue,
@@ -316,11 +291,6 @@ parsec_dequeue_nolock_chain_front( parsec_dequeue_t* dequeue, parsec_list_item_t
 }
 
 /**
- * @brief alias to parsec_dequeue_nolock_chain_front
- */
-#define parsec_udequeue_chainf(dequeue, items) parsec_dequeue_nolock_chain_front(dequeue, items)
-
-/**
  * @brief Chain a ring of elements in the end of a dequeue,
  *        without locking the dequeue
  *
@@ -339,10 +309,6 @@ parsec_dequeue_nolock_chain_back( parsec_dequeue_t* dequeue, parsec_list_item_t*
     parsec_list_nolock_chain_back((parsec_list_t*)dequeue, items);
 }
 
-/**
- * @brief alias to parsec_dequeue_nolock_chain_back
- */
-#define parsec_udequeue_chain_back(dequeue, items) parsec_dequeue_nolock_chain_back(dequeue, items)
 
 END_C_DECLS
 

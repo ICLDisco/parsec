@@ -33,7 +33,7 @@
 #include "parsec/parsec_binary_profile.h"
 #include "parsec/data_distribution.h"
 #include "parsec/utils/debug.h"
-#include "parsec/class/fifo.h"
+#include "parsec/class/list.h"
 #include "parsec/parsec_hwloc.h"
 #include "parsec/os-spec-timing.h"
 #include "parsec/sys/atomic.h"
@@ -627,7 +627,7 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
     res->first_events_buffer_offset = (off_t)-1;
     res->current_events_buffer = NULL;
 
-    parsec_list_fifo_push( &threads, (parsec_list_item_t*)res );
+    parsec_list_push_back( &threads, (parsec_list_item_t*)res );
 
     /* Allocate the first page to save time on the first event tracing */
     switch_event_buffer(res);
@@ -650,7 +650,7 @@ int parsec_profiling_fini( void )
         }
     }
 
-    while( (t = (parsec_thread_profiling_t*)parsec_list_nolock_fifo_pop(&threads)) ) {
+    while( (t = (parsec_thread_profiling_t*)parsec_list_nolock_pop_front(&threads)) ) {
         tl_freelist_t *fl = TLS_STORAGE(t);
         tl_freelist_buffer_t *b;
         while(fl->first != NULL) {
