@@ -14,8 +14,6 @@
 #include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#include "map.h"
-
 /**
  *******************************************************************************
  *
@@ -122,15 +120,12 @@ dplasma_zlatms( parsec_context_t *parsec,
         parsec_taskpool_t *tp;
         double *condptr = malloc(sizeof( double ));
         *condptr = cond;
-        tp = dplasma_map_New( PlasmaUpperLower, A, dplasma_zlatms_operator, condptr );
+        tp = parsec_apply_New( PlasmaUpperLower, A, dplasma_zlatms_operator, condptr );
         if ( tp != NULL ) {
             rc = parsec_context_add_taskpool(parsec, tp);
-            PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
             rc = parsec_context_start( parsec );
-            PARSEC_CHECK_ERROR(rc, "parsec_context_start");
             rc = parsec_context_wait( parsec );
-            PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-            dplasma_map_Destruct(tp);
+            parsec_apply_Destruct(tp);
         }
         else {
             return -1;

@@ -14,7 +14,6 @@
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/vector_two_dim_cyclic.h"
 
-#include "map.h"
 #include "zpltmg_chebvand.h"
 #include "zpltmg_fiedler.h"
 #include "zpltmg_hankel.h"
@@ -73,7 +72,7 @@ dplasma_zpltmg_generic_operator( parsec_execution_stream_t *es,
  * dplasma_zpltmg_generic - Generic wrapper for cases that are based on the map
  * function. This is the default for many test matrices generation.
  *
- * See dplasma_map() for further information.
+ * See parsec_apply() for further information.
  *
  *******************************************************************************
  *
@@ -120,12 +119,12 @@ dplasma_zpltmg_generic( parsec_context_t *parsec,
     params->seed    = seed;
     params->W       = W;
 
-    parsec_zpltmg = dplasma_map_New( PlasmaUpperLower, A, dplasma_zpltmg_generic_operator, params );
+    parsec_zpltmg = parsec_apply_New( PlasmaUpperLower, A, dplasma_zpltmg_generic_operator, params );
     if ( parsec_zpltmg != NULL )
     {
         parsec_context_add_taskpool(parsec, (parsec_taskpool_t*)parsec_zpltmg);
         dplasma_wait_until_completion(parsec);
-        dplasma_map_Destruct( parsec_zpltmg );
+        parsec_apply_Destruct( parsec_zpltmg );
         return 0;
     }
     return -101;

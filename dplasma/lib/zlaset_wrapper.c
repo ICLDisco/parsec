@@ -12,7 +12,6 @@
 #include "dplasma.h"
 #include "dplasmatypes.h"
 
-#include "map.h"
 
 static int
 dplasma_zlaset_operator( parsec_execution_stream_t *es,
@@ -50,7 +49,7 @@ dplasma_zlaset_operator( parsec_execution_stream_t *es,
  * dplasma_zlaset_New - Generates the taskpool that set the elements of the matrix
  * A on the diagonal to beta and the off-diagonals eklements to alpha.
  *
- * See dplasma_map_New() for further information.
+ * See parsec_apply_New() for further information.
  *
  *
  *******************************************************************************
@@ -100,7 +99,7 @@ dplasma_zlaset_New( PLASMA_enum uplo,
     params[0] = alpha;
     params[1] = beta;
 
-    return dplasma_map_New( uplo, A, dplasma_zlaset_operator, params );
+    return parsec_apply_New( uplo, A, dplasma_zlaset_operator, params );
 }
 
 /**
@@ -126,7 +125,7 @@ dplasma_zlaset_New( PLASMA_enum uplo,
 void
 dplasma_zlaset_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(tp);
+    parsec_apply_Destruct(tp);
 }
 
 /**
@@ -137,7 +136,6 @@ dplasma_zlaset_Destruct( parsec_taskpool_t *tp )
  * dplasma_zlaset - Set the elements of the matrix
  * A on the diagonal to beta and the off-diagonals eklements to alpha.
  *
- * See dplasma_map() for further information.
  *
  *******************************************************************************
  *

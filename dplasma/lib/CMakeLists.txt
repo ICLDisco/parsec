@@ -15,7 +15,6 @@ set(EXTRA_SOURCES
   dplasma_hqr.c
   dplasma_hqr_dbg.c
   dplasma_systolic_qr.c
-  map_wrapper.c
   map2_wrapper.c
   butterfly_map.c
 )
@@ -108,7 +107,6 @@ if( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 
 list(APPEND generated_jdf
-  ${CMAKE_CURRENT_SOURCE_DIR}/map.jdf
   ${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf
 )
 

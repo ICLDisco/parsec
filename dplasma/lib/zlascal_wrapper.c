@@ -12,7 +12,6 @@
 #include "dplasma.h"
 #include "dplasmatypes.h"
 
-#include "map.h"
 
 static int
 dplasma_zlascal_operator( parsec_execution_stream_t *es,
@@ -65,7 +64,7 @@ dplasma_zlascal_operator( parsec_execution_stream_t *es,
  *
  * dplasma_zlascal_New - Generates the taskpool that scales a matrix by a given scalar.
  *
- * See dplasma_map_New() for further information.
+ * See parsec_apply_New() for further information.
  *
  *  WARNINGS:
  *      - The computations are not done by this call.
@@ -115,7 +114,7 @@ dplasma_zlascal_New( PLASMA_enum uplo,
     parsec_complex64_t *a = (parsec_complex64_t*)malloc(sizeof(parsec_complex64_t));
     *a = alpha;
 
-    return dplasma_map_New( uplo, A, dplasma_zlascal_operator, (void*)a );
+    return parsec_apply_New( uplo, A, dplasma_zlascal_operator, (void*)a );
 }
 
 /**
@@ -141,7 +140,7 @@ dplasma_zlascal_New( PLASMA_enum uplo,
 void
 dplasma_zlascal_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(tp);
+    parsec_apply_Destruct(tp);
 }
 
 /**
@@ -151,7 +150,6 @@ dplasma_zlascal_Destruct( parsec_taskpool_t *tp )
  *
  * dplasma_zlascal - Scales a matrix by a given scalar.
  *
- * See dplasma_map() for further information.
  *
  *  WARNINGS:
  *      - This routine is equivalent to the pzlascal routine from ScaLapack and

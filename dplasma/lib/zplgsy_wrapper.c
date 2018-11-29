@@ -11,7 +11,6 @@
 #include "dplasma.h"
 #include "dplasmatypes.h"
 
-#include "map.h"
 
 struct zplgsy_args_s {
     parsec_complex64_t      bump;
@@ -51,7 +50,7 @@ dplasma_zplgsy_operator( parsec_execution_stream_t *es,
  * dplasma_zplgsy_New - Generates the taskpool that generates a random symmetric
  * matrix by tiles.
  *
- * See dplasma_map_New() for further information.
+ * See parsec_apply_New() for further information.
  *
  *  WARNINGS: The computations are not done by this call.
  *
@@ -102,7 +101,7 @@ dplasma_zplgsy_New( parsec_complex64_t bump, PLASMA_enum uplo,
     params->bump  = bump;
     params->seed  = seed;
 
-    return dplasma_map_New( uplo, A, dplasma_zplgsy_operator, params );
+    return parsec_apply_New( uplo, A, dplasma_zplgsy_operator, params );
 }
 
 /**
@@ -128,7 +127,7 @@ dplasma_zplgsy_New( parsec_complex64_t bump, PLASMA_enum uplo,
 void
 dplasma_zplgsy_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(tp);
+    parsec_apply_Destruct(tp);
 }
 
 /**
@@ -138,7 +137,6 @@ dplasma_zplgsy_Destruct( parsec_taskpool_t *tp )
  *
  * dplasma_zplgsy - Generates a random symmetric matrix by tiles.
  *
- * See dplasma_map() for further information.
  *
  *******************************************************************************
  *

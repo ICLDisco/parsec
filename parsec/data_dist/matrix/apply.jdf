@@ -1,30 +1,26 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2018      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2013      Inria. All rights reserved.
- *
  */
-#include "dplasma/lib/dplasmajdf.h"
 #include "parsec/data_dist/matrix/matrix.h"
-
 %}
 
 /*
  * Globals
  */
-uplo     [type = PLASMA_enum]
+uplo     [type = int]
 descA    [type = "parsec_tiled_matrix_dc_t*"]
 operator [type = "tiled_matrix_unary_op_t" ]
 op_args  [type = "void *" ]
 
-plasma_upper [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
-plasma_lower [type="PLASMA_enum" hidden=on default=PlasmaLower ]
+matrix_upper [type="int" hidden=on default=matrix_Upper ]
+matrix_lower [type="int" hidden=on default=matrix_Lower ]
 
-MAP_L(m, n)  [profile = off]
+APPLY_L(m, n)  [profile = off]
   // Execution space
-  m = 1 .. ((uplo == plasma_upper) ? 0 : descA->mt-1)
+  m = 1 .. ((uplo == matrix_upper) ? 0 : descA->mt-1)
   n = 0 .. ( m < descA->nt ? m-1 : descA->nt-1 )
 
   // Parallel partitioning
@@ -38,17 +34,17 @@ BODY
 {
 #if !defined(PARSEC_DRY_RUN)
     operator( es, descA, A,
-              PlasmaUpperLower, m, n, op_args );
+              matrix_UpperLower, m, n, op_args );
 #endif /* !defined(PARSEC_DRY_RUN) */
 
-    printlog("map_l( %d, %d )\n", m, n );
+   
 }
 END
 
-MAP_U(m, n)  [profile = off]
+APPLY_U(m, n)  [profile = off]
   // Execution space
   m = 0   .. descA->mt-1
-  n = m+1 .. ((uplo == plasma_lower) ? 0 : descA->nt-1)
+  n = m+1 .. ((uplo == matrix_lower) ? 0 : descA->nt-1)
 
   // Parallel partitioning
   : descA(m, n)
@@ -61,14 +57,13 @@ BODY
 {
 #if !defined(PARSEC_DRY_RUN)
     operator( es, descA, A,
-              PlasmaUpperLower, m, n, op_args );
+              matrix_UpperLower, m, n, op_args );
 #endif /* !defined(PARSEC_DRY_RUN) */
 
-    printlog("map_u( %d, %d )\n", m, n );
 }
 END
 
-MAP_DIAG(k) [profile = off]
+APPLY_DIAG(k) [profile = off]
   // Execution space
   k = 0 .. ( descA->mt < descA->nt ? descA->mt-1 : descA->nt-1 )
 
@@ -86,6 +81,5 @@ BODY
               uplo, k, k, op_args );
 #endif /* !defined(PARSEC_DRY_RUN) */
 
-    printlog("map_diag( %d, %d )\n", k, k );
 }
 END

@@ -9,7 +9,7 @@ set(generated_jdf "")
 SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf PROPERTY ADDITIONAL_PARSECPP_CFLAGS "--Wremoteref")
 SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf PROPERTY ADDITIONAL_PARSECPP_CFLAGS "--Wremoteref")
 SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf PROPERTY ADDITIONAL_PARSECPP_CFLAGS "--Wremoteref")
-jdf_rules(generated_jdf "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf;${CMAKE_CURRENT_SOURCE_DIR}/diag_band_to_rect.jdf")
+jdf_rules(generated_jdf "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf;${CMAKE_CURRENT_SOURCE_DIR}/diag_band_to_rect.jdf;${CMAKE_CURRENT_SOURCE_DIR}/apply.jdf")
 
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -27,6 +27,7 @@ set(sources
         sym_two_dim_rectangle_cyclic.c
         vector_two_dim_cyclic.c
         reduce_wrapper.c
+        apply_wrapper.c
         subtile.c
         ${generated_jdf}
 )

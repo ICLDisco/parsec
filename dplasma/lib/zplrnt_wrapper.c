@@ -11,7 +11,6 @@
 #include "dplasma.h"
 #include "dplasmatypes.h"
 
-#include "map.h"
 
 struct zplrnt_args_s {
     int                    diagdom;
@@ -70,7 +69,7 @@ dplasma_zplrnt_operator( parsec_execution_stream_t *es,
  * dplasma_zplrnt_New - Generates the taskpool that generates a random general
  * matrix by tiles.
  *
- * See dplasma_map_New() for further information.
+ * See parsec_apply_New() for further information.
  *
  *  WARNINGS: The computations are not done by this call.
  *
@@ -115,7 +114,7 @@ dplasma_zplrnt_New( int diagdom,
     params->diagdom = diagdom;
     params->seed    = seed;
 
-    return dplasma_map_New( PlasmaUpperLower, A, dplasma_zplrnt_operator, params );
+    return parsec_apply_New( PlasmaUpperLower, A, dplasma_zplrnt_operator, params );
 }
 
 /**
@@ -141,7 +140,7 @@ dplasma_zplrnt_New( int diagdom,
 void
 dplasma_zplrnt_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(tp);
+    parsec_apply_Destruct(tp);
 }
 
 /**
@@ -151,7 +150,6 @@ dplasma_zplrnt_Destruct( parsec_taskpool_t *tp )
  *
  * dplasma_zplrnt - Generates a random general matrix by tiles.
  *
- * See dplasma_map() for further information.
  *
  *******************************************************************************
  *
