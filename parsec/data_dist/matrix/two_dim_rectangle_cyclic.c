@@ -178,7 +178,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
            P, Q);
 }
 
-static void twoDBC_key_to_coordinates(parsec_data_collection_t *desc, parsec_data_key_t key, int *m, int *n)
+void twoDBC_key_to_coordinates(parsec_data_collection_t *desc, parsec_data_key_t key, int *m, int *n)
 {
     int _m, _n;
     parsec_tiled_matrix_dc_t * dc;
@@ -398,7 +398,7 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
     target->super.super.vpid_of_key = twoDBC_stview_vpid_of_key;
 }
 
-static inline unsigned int st_compute_m(two_dim_block_cyclic_t* desc, unsigned int m)
+inline unsigned int st_compute_m(two_dim_block_cyclic_t* desc, unsigned int m)
 {
     unsigned int p, ps, mt;
     p = desc->grid.rows;
@@ -410,7 +410,7 @@ static inline unsigned int st_compute_m(two_dim_block_cyclic_t* desc, unsigned i
     return m;
 }
 
-static inline unsigned int st_compute_n(two_dim_block_cyclic_t* desc, unsigned int n)
+inline unsigned int st_compute_n(two_dim_block_cyclic_t* desc, unsigned int n)
 {
     unsigned int q, qs, nt;
     q = desc->grid.cols;

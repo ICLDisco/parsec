@@ -24,7 +24,9 @@ set(sources
         two_dim_tabular.c
         grid_2Dcyclic.c
         two_dim_rectangle_cyclic.c
+        two_dim_rectangle_cyclic_band.c
         sym_two_dim_rectangle_cyclic.c
+        sym_two_dim_rectangle_cyclic_band.c
         vector_two_dim_cyclic.c
         reduce_wrapper.c
         apply_wrapper.c
@@ -50,7 +52,9 @@ endif(MPI_C_FOUND)
 install(FILES
   matrix.h
   two_dim_rectangle_cyclic.h
+  two_dim_rectangle_cyclic_band.h
   sym_two_dim_rectangle_cyclic.h
+  sym_two_dim_rectangle_cyclic_band.h
   vector_two_dim_cyclic.h
   two_dim_tabular.h
   grid_2Dcyclic.h

@@ -1,0 +1,236 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2018 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ */
+#include "parsec/data_dist/matrix/matrix.h"
+#include "two_dim_band_test.h"
+    
+/**
+ * @brief Define kernel of tile_matrix init
+ *
+ * @param [inout] Y:  inout data 
+ * @param [in] mb: row tile size 
+ * @param [in] nb: column tile size 
+ */
+void CORE_two_dim_band(double* Y, int mb, int nb){ 
+    for(int j = 0; j < nb; j++)
+        for(int i = 0; i < mb; i++)
+            Y[j*mb+i] = (i+1) * 10 + j + 1;
+}
+
+%}
+
+descY [ type = "parsec_tiled_matrix_dc_t*" ]
+uplo  [ type = "int" ]
+matrix_upper [ type = "int" hidden = on default = matrix_Upper ]
+matrix_lower [ type = "int" hidden = on default = matrix_Lower ]
+
+/**************************************************
+ *                L_Allocate                      *
+ **************************************************
+ * @brief Task, allocate memory for lower part 
+ * @param m, n: tile index
+ **************************************************/
+L_Allocate(m, n)
+
+m = 1 .. ((uplo == matrix_upper)? 0: descY->lmt-1)
+n = 0 .. m-1
+
+: descY(m, n)
+
+RW Y <- NULL 
+     -> descY(m, n)
+
+CTL ctl -> ctl L_Init(m, n)
+
+BODY
+{
+    int size = descY->bsiz * sizeof(double);   /* Could be changed flexibly */
+    this_task->data._f_Y.data_out = parsec_data_copy_new(data_of_descY(m, n), 0);
+    this_task->data._f_Y.data_out->device_private = malloc(size);
+}
+END
+
+/**************************************************
+ *                   L_Init                       *
+ **************************************************
+ * @brief Task, init value on Lower part
+ * @param m, n: tile index
+ **************************************************/
+L_Init(m, n)
+
+m = 1 .. ((uplo == matrix_upper)? 0: descY->lmt-1)
+n = 0 .. m-1
+
+: descY(m, n)
+
+RW Y <- descY(m, n) 
+     -> descY(m, n)
+
+CTL ctl <- ctl L_Allocate(m, n)
+
+BODY
+{
+    CORE_two_dim_band(Y, descY->mb, descY->nb);
+}
+END
+
+/**************************************************
+ *                U_Allocate                      *
+ **************************************************
+ * @brief Task, allocate memory for upper part
+ * @param m, n: tile index
+ **************************************************/
+U_Allocate(m, n)
+
+m = 0 .. descY->lmt-2
+n = m+1 .. ((uplo == matrix_lower)? 0: descY->lnt-1)
+
+: descY(m, n)
+
+RW Y <- NULL
+     -> descY(m, n)
+
+CTL ctl -> ctl U_Init(m, n)
+
+BODY
+{
+    int size = descY->bsiz * sizeof(double);   /* Could be changed flexibly */
+    this_task->data._f_Y.data_out = parsec_data_copy_new(data_of_descY(m, n), 0);
+    this_task->data._f_Y.data_out->device_private = malloc(size);
+}
+END
+
+/**************************************************
+ *                   U_Init                       *
+ **************************************************
+ * @brief Task, init value on Upper part 
+ * @param m, n: tile index
+ **************************************************/
+U_Init(m, n)
+
+m = 0 .. descY->lmt-2
+n = m+1 .. ((uplo == matrix_lower)? 0: descY->lnt-1)
+
+: descY(m, n)
+
+RW Y <- descY(m, n)
+     -> descY(m, n)
+
+CTL ctl <- ctl U_Allocate(m, n)
+
+BODY
+{
+    CORE_two_dim_band(Y, descY->mb, descY->nb);
+}
+END
+
+/**************************************************
+ *                D_Allocate                      *
+ **************************************************
+ * @brief Task, allocate memory for diagonal 
+ * @param m: tile index
+ **************************************************/
+D_Allocate(m)
+
+m = 0 .. descY->lmt-1
+
+: descY(m, m)
+
+RW Y <- NULL
+     -> descY(m, m)
+
+CTL ctl -> ctl D_Init(m)
+
+BODY
+{
+    int size = descY->bsiz * sizeof(double);   /* Could be changed flexibly */
+    this_task->data._f_Y.data_out = parsec_data_copy_new(data_of_descY(m, m), 0);
+    this_task->data._f_Y.data_out->device_private = malloc(size);
+}
+END
+
+/**************************************************
+ *                   D_INIT                       *
+ **************************************************
+ * @brief Task, init value on Diagonal 
+ * @param m: tile index
+ **************************************************/
+D_Init(m)
+
+m = 0 .. descY->lmt-1
+
+: descY(m, m)
+
+RW Y <- descY(m, m)
+     -> descY(m, m)
+
+CTL ctl <- ctl D_Allocate(m)
+
+BODY
+{   
+    CORE_two_dim_band(Y, descY->mb, descY->nb);
+}
+END
+
+extern "C" %{
+
+/**
+ * @param [in] Y:    the data, already distributed and allocated
+ * @param [in] uplo: Upper / Lower / UpperLower 
+ * @return the parsec object to schedule.
+ */
+parsec_taskpool_t*
+parsec_two_dim_band_New(parsec_tiled_matrix_dc_t *Y, int uplo)
+{
+    parsec_taskpool_t* two_dim_band_taskpool;
+    parsec_two_dim_band_taskpool_t* taskpool = NULL;
+
+    taskpool = parsec_two_dim_band_new(Y, uplo);
+    two_dim_band_taskpool = (parsec_taskpool_t*)taskpool;
+
+    parsec_matrix_add2arena(taskpool->arenas[PARSEC_two_dim_band_DEFAULT_ARENA],
+                            parsec_datatype_double_t, matrix_UpperLower,
+                            1, Y->mb, Y->nb, Y->mb,
+                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
+    return two_dim_band_taskpool;
+}
+
+/**
+ * @param [inout] the parsec object to destroy
+*/
+void parsec_two_dim_band_Destruct(parsec_taskpool_t *taskpool)
+{
+    parsec_two_dim_band_taskpool_t *two_dim_band_taskpool = (parsec_two_dim_band_taskpool_t *)taskpool;
+    parsec_matrix_del2arena(two_dim_band_taskpool->arenas[PARSEC_two_dim_band_DEFAULT_ARENA]);
+    parsec_taskpool_free(taskpool);
+}
+
+/**
+ * @brief Init dcY
+ * 
+ * @param [inout] dcY: the data, already distributed and allocated
+ * @param [in] uplo: Upper / Lower / UpperLower 
+ */
+int parsec_two_dim_band_test(parsec_context_t *parsec,
+                             parsec_tiled_matrix_dc_t *dcY, int uplo)
+{
+    parsec_taskpool_t *parsec_two_dim_band = NULL;
+
+    parsec_two_dim_band = parsec_two_dim_band_New( 
+                               (parsec_tiled_matrix_dc_t *)dcY, uplo);
+
+    if( parsec_two_dim_band != NULL ){
+        parsec_enqueue(parsec, parsec_two_dim_band);
+        parsec_context_start(parsec);
+        parsec_context_wait(parsec);
+        parsec_two_dim_band_Destruct(parsec_two_dim_band);
+    }
+
+    return 0;
+}
+
+%}
