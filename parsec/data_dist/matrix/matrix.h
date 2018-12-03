@@ -168,6 +168,13 @@ parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
                       void* op_data );
 extern void parsec_reduce_row_Destruct( struct parsec_taskpool_s *o );
 
+extern struct parsec_taskpool_s*
+parsec_apply_New(     int uplo,
+                      parsec_tiled_matrix_dc_t* A,
+                      tiled_matrix_unary_op_t operator,
+                      void* op_args );
+
+extern void parsec_apply_Destruct( struct parsec_taskpool_s *o );
 /*
  * Macro to get the block leading dimension
  */

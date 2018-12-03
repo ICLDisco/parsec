@@ -20,9 +20,6 @@
  *
  * dplasma_zprint - Print a matrix tile by tile.
  *
- * Rk: This function doesn't use the dplasma_map() function because it has extra
- * control to synchronize the outputs.
- *
  *******************************************************************************
  *
  * @param[in,out] parsec

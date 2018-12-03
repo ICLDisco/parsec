@@ -11,7 +11,6 @@
 #include "dplasma.h"
 #include "dplasmatypes.h"
 
-#include "map.h"
 
 struct zplghe_args_s {
     double                 bump;
@@ -51,7 +50,7 @@ dplasma_zplghe_operator( parsec_execution_stream_t *es,
  * dplasma_zplghe_New - Generates the taskpool that generates a random hermitian
  * matrix by tiles.
  *
- * See dplasma_map_New() for further information.
+ * See parsec_apply_New() for further information.
  *
  *  WARNINGS: The computations are not done by this call.
  *
@@ -100,7 +99,7 @@ dplasma_zplghe_New( double bump, PLASMA_enum uplo,
     params->bump  = bump;
     params->seed  = seed;
 
-    return dplasma_map_New( uplo, A, dplasma_zplghe_operator, params );
+    return parsec_apply_New( uplo, A, dplasma_zplghe_operator, params );
 }
 
 /**
@@ -126,7 +125,7 @@ dplasma_zplghe_New( double bump, PLASMA_enum uplo,
 void
 dplasma_zplghe_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(tp);
+    parsec_apply_Destruct(tp);
 }
 
 /**
@@ -136,7 +135,6 @@ dplasma_zplghe_Destruct( parsec_taskpool_t *tp )
  *
  * dplasma_zplghe - Generates a random hermitian matrix by tiles.
  *
- * See dplasma_map() for further information.
  *
  *******************************************************************************
  *
