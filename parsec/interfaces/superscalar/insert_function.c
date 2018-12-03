@@ -532,6 +532,28 @@ parsec_execute_and_come_back( parsec_context_t *context,
     }
 }
 
+/* Function to wait on all pending action of a taskpool */
+static int
+parsec_dtd_taskpool_wait_on_pending_action(parsec_context_t *parsec,
+                                           parsec_taskpool_t  *tp)
+{
+    (void)parsec;
+    struct timespec rqtp;
+    rqtp.tv_sec = 0;
+
+    int unit_waited = 0;
+    while(tp->nb_pending_actions > 1) {
+        unit_waited++;
+        if(100 == unit_waited) {
+            rqtp.tv_nsec = exponential_backoff(unit_waited);
+            nanosleep(&rqtp, NULL);
+            unit_waited = 0;
+        }
+    }
+    return 0;
+}
+
+
 /* **************************************************************************** */
 /**
  * Function to call when PaRSEC context should wait on a specific taskpool.
@@ -550,21 +572,23 @@ parsec_execute_and_come_back( parsec_context_t *context,
  * @ingroup         DTD_INTERFACE
  */
 int
-parsec_dtd_taskpool_wait( parsec_context_t *parsec,
-                        parsec_taskpool_t  *tp )
+parsec_dtd_taskpool_wait(parsec_context_t *parsec,
+                         parsec_taskpool_t  *tp)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-    parsec_dtd_schedule_tasks( dtd_tp );
-    dtd_tp->wait_func( parsec, tp );
+    parsec_dtd_schedule_tasks(dtd_tp);
+    dtd_tp->wait_func(parsec, tp);
+    parsec_dtd_taskpool_wait_on_pending_action(parsec, tp);
     return 0;
 }
 
+/* This function only waits until all local tasks are done */
 static void
-parsec_dtd_taskpool_wait_func( parsec_context_t *parsec,
-                             parsec_taskpool_t  *tp )
+parsec_dtd_taskpool_wait_func(parsec_context_t *parsec,
+                              parsec_taskpool_t  *tp)
 {
     (void)parsec;
-    parsec_execute_and_come_back( tp->context, tp, 1 );
+    parsec_execute_and_come_back(tp->context, tp, 1);
 }
 
 /* **************************************************************************** */
@@ -1165,7 +1189,7 @@ int
 parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
 {
     int32_t remaining;
-    remaining = parsec_atomic_fetch_add_int32( &tp->nb_pending_actions, count ) + count;
+    remaining = parsec_atomic_fetch_add_int32(&tp->nb_pending_actions, count) + count;
     assert( 0<= remaining );
 
     if( 0 == remaining && 1 == tp->nb_tasks ) {
