@@ -44,8 +44,6 @@ extern int parsec_cuda_own_GPU_key_end;
 
 #define GPU_TASK_TYPE_D2HTRANSFER 111
 
-extern float *device_load, *device_weight;
-
 typedef struct __parsec_gpu_workspace {
     void* workspace[PARSEC_GPU_MAX_WORKSPACE];
     int stack_head;
@@ -159,7 +157,7 @@ void dump_GPU_state(gpu_device_t* gpu_device);
 /****************************************************
  ** GPU-DATA Specific Starts Here **
  ****************************************************/
-PARSEC_DECLSPEC int parsec_cuda_output_stream;
+PARSEC_DECLSPEC extern int parsec_cuda_output_stream;
 
 /**
  * Overload the default data_copy_t with a GPU specialized type
