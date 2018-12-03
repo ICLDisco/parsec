@@ -1,16 +1,16 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
  *
  * @precisions normal z -> z c
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "parsec/data_dist/matrix/matrix.h"
+#include "dplasma/lib/flops.h"
+#include "dplasma/lib/floputils.h"
 
 %}
 
@@ -23,7 +23,7 @@ beta      [type = "double"]
 descC     [type = "parsec_tiled_matrix_dc_t*"]
 
 
-zher2k(n, k)
+zher2k(n, k) [flops = inline_c %{ return FLOPS_ZHER2K(CLEAN_NB(descC, n), CLEAN_MB(descA, k)); %}]
   /* Execution Space */
   n = 0 .. descC->nt-1
   k = 0 .. descA->mt-1
@@ -59,7 +59,7 @@ BODY
 }
 END
 
-zgemm_AB(m, n, k)
+zgemm_AB(m, n, k) [flops = inline_c%{ return FLOPS_ZGEMM(CLEAN_MB(descC, m), CLEAN_NB(descC, n), CLEAN_MB(descA, k)); %}]
   /* Execution Space */
   m = 1   .. descC->mt-1
   n = 0   .. m-1
@@ -99,7 +99,7 @@ BODY
 }
 END
 
-zgemm_BA(m, n, k)
+zgemm_BA(m, n, k) [flops = inline_c%{ return FLOPS_ZGEMM(CLEAN_MB(descC, m), CLEAN_NB(descC, n), CLEAN_MB(descA, k)); %}]
   /* Execution Space */
   m = 1   .. descC->mt-1
   n = 0   .. m-1

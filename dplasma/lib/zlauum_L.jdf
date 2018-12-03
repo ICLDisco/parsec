@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013-2014 Inria. All rights reserved.
@@ -12,6 +12,8 @@ extern "C" %{
  */
 #include "dplasmajdf.h"
 #include "parsec/data_dist/matrix/matrix.h"
+#include "dplasma/lib/flops.h"
+#include "dplasma/lib/floputils.h"
 
 %}
 
@@ -39,7 +41,7 @@ BODY
 }
 END
 
-lauum_zherk(k, n)
+lauum_zherk(k, n) [flops = inline_c %{ return FLOPS_ZHERK(descA->mb, CLEAN_MB(descA, k)); %}]
   /* Execution Space */
   k = 1 .. (descA->mt-1)
   n = 0 .. (k-1)
@@ -75,7 +77,7 @@ BODY
 }
 END
 
-lauum_zgemm(k, n, m)
+lauum_zgemm(k, n, m) [flops = inline_c%{ return FLOPS_ZGEMM(descA->mb, descA->nb, CLEAN_MB(descA, k)); %}]
   /* Execution Space */
   k = 2     .. (descA->mt-1)
   n = 0     .. (k-2)
@@ -114,7 +116,7 @@ BODY
 }
 END
 
-lauum_ztrmm(k, n)
+lauum_ztrmm(k, n) [ flops = inline_c %{ return FLOPS_ZTRMM(PlasmaLeft, CLEAN_MB(descA, k), descA->nb); %}]
   /* Execution Space */
   k = 1 .. (descA->mt-1)
   n = 0 .. (k-1)

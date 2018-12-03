@@ -1,5 +1,6 @@
-add_library(common STATIC common.c common_timing.h flops.h)
+add_library(common STATIC common.c common_timing.h ${CMAKE_SOURCE_DIR}/dplasma/lib/flops.h)
 target_link_libraries(common parsec ${MPI_LIBRARIES})
+
 add_dependencies(common dplasma_includes)
 
 if(MPI_C_FOUND)

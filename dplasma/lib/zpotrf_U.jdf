@@ -1,7 +1,7 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
- *                         of Tennessee Research Foundation.  All rights
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
  *
@@ -10,6 +10,8 @@ extern "C" %{
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "parsec/data_dist/matrix/matrix.h"
+#include "dplasma/lib/flops.h"
+#include "dplasma/lib/floputils.h"
 
 #if defined(PARSEC_HAVE_RECURSIVE)
 #include "parsec/data_dist/matrix/subtile.h"
@@ -48,7 +50,7 @@ smallnb    [type = "int" hidden = on default = "descA->mb" ]
 /**************************************************
  *               potrf_zpotrf                     *
  **************************************************/
-potrf_zpotrf(k) [high_priority = on]
+potrf_zpotrf(k) [high_priority = on flops = inline_c %{ return FLOPS_ZPOTRF( CLEAN_NB(descA, k) ); %}]
 
 // Execution space
 k = 0 .. descA->nt-1
@@ -114,7 +116,7 @@ END
 /**************************************************
  *               potrf_ztrsm                      *
  **************************************************/
-potrf_ztrsm(k, n) [high_priority = on]
+potrf_ztrsm(k, n) [high_priority = on flops = inline_c %{ return FLOPS_ZTRSM(PlasmaLeft, descA->mb, CLEAN_NB(descA, n)); %}]
 
 // Execution space
 k = 0   .. descA->nt-2
@@ -197,7 +199,7 @@ END
 /**************************************************
  *               potrf_zherk                      *
  **************************************************/
-potrf_zherk(k, n) [high_priority = on]
+potrf_zherk(k, n) [high_priority = on flops = inline_c %{ return FLOPS_ZHERK(CLEAN_NB(descA, n), descA->mb); %}]
 
 // Execution space
 k = 0   .. descA->nt-2
@@ -272,7 +274,7 @@ END
  *               potrf_zgemm                      *
  **************************************************/
 // Name
-potrf_zgemm(m, n, k)
+potrf_zgemm(m, n, k) [ flops = inline_c %{ return FLOPS_ZGEMM(descA->mb, CLEAN_NB(descA, n), descA->nb); %}]
 
 // Execution space
 k = 0   .. descA->mt-3

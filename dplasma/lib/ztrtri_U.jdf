@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -12,6 +12,8 @@ extern "C" %{
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "parsec/data_dist/matrix/matrix.h"
+#include "dplasma/lib/flops.h"
+#include "dplasma/lib/floputils.h"
 
 %}
 
@@ -21,7 +23,7 @@ descA     [type = "parsec_tiled_matrix_dc_t*"]
 INFO      [type = "int*"]
 
 
-ztrsmL(k, n)
+ztrsmL(k, n) [ flops = inline_c %{ return FLOPS_ZTRSM(PlasmaLeft, descA->mb, CLEAN_NB(descA, n)); %}]
   /* Execution Space */
   k = 0     .. (descA->nt-2)
   n = (k+1) .. (descA->nt-1)
@@ -49,7 +51,7 @@ BODY
     int ldak = BLKLDD( descA, k );
 
     printlog("CORE_ztrsm(%d, %d)\n"
-             "\t(PlasmaRight, uplo, PlasmaNoTrans, diag, tempmm, tempkn, -1, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
+             "\t(PlasmaLeft, uplo, PlasmaNoTrans, diag, tempkm, tempnn, -1, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
              k, n, k, k, A, k, n, B);
 
 #if !defined(PARSEC_DRY_RUN)
@@ -61,7 +63,7 @@ BODY
 }
 END
 
-zgemm(k, m, n)
+zgemm(k, m, n) [ flops = inline_c%{ return FLOPS_ZGEMM(descA->mb, CLEAN_NB(descA, n), descA->nb); %} ]
   /* Execution Space */
   k = 1     .. (descA->nt-2)
   m = 0     .. (k-1)
@@ -115,7 +117,7 @@ BODY
 }
 END
 
-ztrsmR(k, m)
+ztrsmR(k, m) [ flops = inline_c %{ return FLOPS_ZTRSM(PlasmaRight, descA->mb, CLEAN_NB(descA, k)); %}]
   /* Execution Space */
   k = 1 .. (descA->nt-1)
   m = 0 .. (k-1)
@@ -173,7 +175,7 @@ BODY
 }
 END
 
-ztrtri(k)
+ztrtri(k) [ flops = inline_c %{ return FLOPS_ZTRTRI(CLEAN_NB(descA, k)); %} ]
   /* Execution Space */
   k = 0 .. (descA->nt-1)
 

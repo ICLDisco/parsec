@@ -1,16 +1,16 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "parsec/data_dist/matrix/matrix.h"
+#include "dplasma/lib/flops.h"
+#include "dplasma/lib/floputils.h"
 
 %}
 
@@ -23,7 +23,7 @@ descA     [type = "const parsec_tiled_matrix_dc_t*"]
 descB     [type = "parsec_tiled_matrix_dc_t*"]
 
 
-ztrsm(k,n)
+ztrsm(k,n) [ flops = inline_c %{ return FLOPS_ZTRSM(side, CLEAN_MB(descB, k), CLEAN_NB(descB, n)); %}]
   /* Execution space */
   k = 0 .. (descB->mt-1)
   n = 0 .. (descB->nt-1)
@@ -76,7 +76,7 @@ END
 
 
 
-zgemm(k,m,n)
+zgemm(k,m,n) [ flops = inline_c%{ return FLOPS_ZGEMM(descB->mb, CLEAN_NB(descB, n), CLEAN_MB(descB, k)); %} ]
   /* Execution space */
   k = 0     .. (descB->mt-2)
   m = (k+1) .. (descB->mt-1)
