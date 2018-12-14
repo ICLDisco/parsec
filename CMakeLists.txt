@@ -865,7 +865,6 @@ if( BUILD_TESTING )
   add_test(launcher_gpu   ${MPI_TEST_CMD_LIST} 4 ${CTEST_GPU_LAUNCHER_OPTIONS} ${HOSTNAME_EXE})
   add_subdirectory(tests)
   add_subdirectory(examples)
-  add_subdirectory(dplasma)
 endif( BUILD_TESTING )
 
 # Configuration header
@@ -1081,3 +1080,6 @@ foreach( pattern_file ${pattern_files} )
   list( APPEND pattern_files_dest "${pattern_file}" )
 endforeach( pattern_file )
 add_custom_target(build_with_parsec ALL DEPENDS ${pattern_files_dest})
+
+add_subdirectory(dplasma)
+
