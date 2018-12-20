@@ -80,19 +80,20 @@ int main(int argc, char *argv[])
         if(rank == 0) {
             for(int t = 0; t < NT; t++)
             {
-                int rsrc = dcA.super.super.rank_of(0,t);
+                int rsrc = dcA.super.super.rank_of(&dcA.super.super, 0, t);
                 if(rsrc == 0)
                 {
-                    PLASMA_Complex64_t* datain = parsec_data_copy_get_ptr(parsec_data_get_copy(dcA.super.super.data_of(0,t), 0));
-                    PLASMA_Complex64_t* dataout = parsec_data_copy_get_ptr(parsec_data_get_copy(dcLA.super.super.data_of(0,t), 0));
-                    for(int n = 0; n < NB; n++) for(int m = 0; m < 2; m++)
-                                                {
-                                                    dataout[m+n*2] = datain[m+n*(MB+1)];
-                                                }
+                    PLASMA_Complex64_t* datain = parsec_data_copy_get_ptr(parsec_data_get_copy(dcA.super.super.data_of(&dcA.super.super, 0, t), 0));
+                    PLASMA_Complex64_t* dataout = parsec_data_copy_get_ptr(parsec_data_get_copy(dcLA.super.super.data_of(&dcA.super.super, 0, t), 0));
+                    for(int n = 0; n < NB; n++)
+                        for(int m = 0; m < 2; m++)
+                            {
+                                dataout[m+n*2] = datain[m+n*(MB+1)];
+                            }
                 }
                 else
                 {
-                    PLASMA_Complex64_t* dataout = parsec_data_copy_get_ptr(parsec_data_get_copy(dcLA.super.super.data_of(0,t), 0));
+                    PLASMA_Complex64_t* dataout = parsec_data_copy_get_ptr(parsec_data_get_copy(dcLA.super.super.data_of(&dcLA.super.super, 0, t), 0));
                     MPI_Recv(dataout, 2*NB, parsec_datatype_double_complex_t, rsrc, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 }
             }
@@ -103,9 +104,9 @@ int main(int argc, char *argv[])
             MPI_Type_vector(NB, 2, MB+1, parsec_datatype_double_complex_t, &bidiagband_dtt);
 
             for(int t = 0; t < NT; t++) {
-                if(dcA.super.super.rank_of(0,t) == (uint32_t)rank)
+                if(dcA.super.super.rank_of(&dcA.super.super, 0, t) == (uint32_t)rank)
                 {
-                    PLASMA_Complex64_t* datain = parsec_data_copy_get_ptr(parsec_data_get_copy(dcA.super.super.data_of(0,t), 0));
+                    PLASMA_Complex64_t* datain = parsec_data_copy_get_ptr(parsec_data_get_copy(dcA.super.super.data_of(&dcA.super.super, 0, t), 0));
                     MPI_Send(datain, 1, bidiagband_dtt, 0, t, MPI_COMM_WORLD);
                 }
             }
