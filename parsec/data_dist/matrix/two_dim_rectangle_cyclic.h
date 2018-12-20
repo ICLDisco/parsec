@@ -77,6 +77,9 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
 
 void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *dc, int position, int *m, int *n);
 int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *dc, int m, int n);
+unsigned int st_compute_m(two_dim_block_cyclic_t* desc, unsigned int m);
+unsigned int st_compute_n(two_dim_block_cyclic_t* desc, unsigned int n);
+void twoDBC_key_to_coordinates(parsec_data_collection_t *desc, parsec_data_key_t key, int *m, int *n);
 
 END_C_DECLS
 

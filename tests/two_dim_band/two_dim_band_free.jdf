@@ -1,0 +1,125 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2018 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ */
+#include "parsec/data_dist/matrix/matrix.h"
+#include "two_dim_band_test.h"
+
+%} 
+    
+descY [ type = "parsec_tiled_matrix_dc_t*" ]
+uplo  [ type = "int" ]
+matrix_upper [ type = "int" hidden = on default = matrix_Upper ]
+matrix_lower [ type = "int" hidden = on default = matrix_Lower ]
+
+/**************************************************
+ *                   L_Free                       *
+ **************************************************
+ * @brief Task, free memeory on Lower part
+ * @param m, n: tile index
+ **************************************************/
+L_Free(m, n)
+
+m = 1 .. ((uplo == matrix_upper)? 0: descY->lmt-1)
+n = 0 .. m-1
+
+: descY(m, n)
+
+BODY
+{
+   free(PARSEC_DATA_COPY_GET_PTR(parsec_data_get_copy(data_of_descY(m, n), 0)));
+}
+END
+
+/**************************************************
+ *                   U_Free                       *
+ **************************************************
+ * @brief Task, Free memory on Upper part 
+ * @param m, n: tile index
+ **************************************************/
+U_Free(m, n)
+
+m = 0 .. descY->lmt-2
+n = m+1 .. ((uplo == matrix_lower)? 0: descY->lnt-1)
+
+: descY(m, n)
+
+BODY
+{
+   free(PARSEC_DATA_COPY_GET_PTR(parsec_data_get_copy(data_of_descY(m, n), 0)));
+}
+END
+
+/**************************************************
+ *                   D_Free                       *
+ **************************************************
+ * @brief Task, Free on Diagonal 
+ * @param m: tile index
+ **************************************************/
+D_Free(m)
+
+m = 0 .. descY->lmt-1
+
+: descY(m, m)
+
+BODY
+{   
+   free(PARSEC_DATA_COPY_GET_PTR(parsec_data_get_copy(data_of_descY(m, m), 0)));
+}
+END
+
+extern "C" %{
+
+/**
+ * @param [in] Y:    the data, already distributed and allocated
+ * @param [in] uplo: Upper / Lower / UpperLower 
+ * @return the parsec object to schedule.
+ */
+parsec_taskpool_t*
+parsec_two_dim_band_free_New(parsec_tiled_matrix_dc_t *Y, int uplo)
+{
+    parsec_taskpool_t* two_dim_band_free_taskpool;
+    parsec_two_dim_band_free_taskpool_t* taskpool = NULL;
+
+    taskpool = parsec_two_dim_band_free_new(Y, uplo);
+    two_dim_band_free_taskpool = (parsec_taskpool_t*)taskpool;
+
+    return two_dim_band_free_taskpool;
+}
+
+/**
+ * @param [inout] the parsec object to destroy
+*/
+void parsec_two_dim_band_free_Destruct(parsec_taskpool_t *taskpool)
+{
+    parsec_two_dim_band_free_taskpool_t *two_dim_band_free_taskpool = (parsec_two_dim_band_free_taskpool_t *)taskpool;
+    parsec_taskpool_free(taskpool);
+}
+
+/**
+ * @brief Free dcY
+ * 
+ * @param [inout] dcY: the data, already distributed and allocated
+ * @param [in] uplo: Upper / Lower / UpperLower 
+ */
+int parsec_two_dim_band_free(parsec_context_t *parsec,
+                        parsec_tiled_matrix_dc_t *dcY, int uplo)
+{
+    parsec_taskpool_t *parsec_two_dim_band_free = NULL;
+
+    parsec_two_dim_band_free = parsec_two_dim_band_free_New( 
+                               (parsec_tiled_matrix_dc_t *)dcY, uplo);
+
+    if( parsec_two_dim_band_free != NULL ){
+        parsec_enqueue(parsec, parsec_two_dim_band_free);
+        parsec_context_start(parsec);
+        parsec_context_wait(parsec);
+        parsec_two_dim_band_free_Destruct(parsec_two_dim_band_free);
+    }
+
+    return 0;
+}
+
+%}
