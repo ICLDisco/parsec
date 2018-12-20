@@ -704,17 +704,17 @@ cdef class ExtendedEvent:
                 self.fmt += b"h"
             elif ev_type == 'uint16_t' or ev_type == 'unsigned short':
                 self.fmt += b"H"
-            elif ev_type == 'int32_t' or ev_type == 'int':
+            elif ev_type == 'int':
                 self.fmt += b"i"
-            elif ev_type == 'uint32_t' or ev_type == 'unsigned int':
+            elif ev_type == 'unsigned int':
                 self.fmt += b"I"
-            elif ev_type == 'int64_t' or ev_type == 'long':
-                self.fmt += b"l"
-            elif ev_type == 'uint64_t' or ev_type == 'unsigned long':
-                self.fmt += b"L"
-            elif ev_type == 'int128_t' or ev_type == 'long long':
+            elif ev_type == 'int32_t' or ev_type == 'long':
+                self.fmt += b'l'
+            elif ev_type == 'uint32_t' or ev_type == 'unsigned long':
+                self.fmt += b'L'
+            elif ev_type == 'int64_t' or ev_type == 'long long':
                 self.fmt += b"q"
-            elif ev_type == 'uint128_t' or ev_type == 'unsigned long long':
+            elif ev_type == 'uint64_t' or ev_type == 'unsigned long long':
                 self.fmt += b"Q"
             elif ev_type == 'double':
                 self.fmt += b"d"
