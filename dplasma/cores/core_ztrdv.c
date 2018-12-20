@@ -23,15 +23,10 @@
 
 #include <cblas.h>
 #include <core_blas.h>
+#include <lapacke.h>
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
-#if defined(ADD_)
-#define  DLARFG      zlarfg_
-#else
-#define  DLARFG      zlarfg
-#endif
-extern void DLARFG(int *N, parsec_complex64_t *ALPHA, parsec_complex64_t *X, int *INCX, parsec_complex64_t *TAU);
 
 //static void band_to_trd_vmpi1(int N, int NB, parsec_complex64_t *A, int LDA);
 //static void band_to_trd_vmpi2(int N, int NB, parsec_complex64_t *A, int LDA);
@@ -271,9 +266,7 @@ static void DLARFX_C(char side, int N, parsec_complex64_t V, parsec_complex64_t 
 static void CORE_zhbtelr(int N, int NB, parsec_complex64_t *A1, int LDA1, parsec_complex64_t *A2, int LDA2, parsec_complex64_t *V1, parsec_complex64_t *TAU1, int st, int ed) {
   int    J1, J2, KDM1, LDX;
   int    len, len1, len2, t1ed, t2st;
-  int    i, IONE, ITWO;
-  IONE=1;
-  ITWO=2;
+  int    i;
   (void)N;
 
   KDM1 = NB-1;
@@ -285,7 +278,7 @@ static void CORE_zhbtelr(int N, int NB, parsec_complex64_t *A1, int LDA1, parsec
      /* generate Householder to annihilate a(i+k-1,i) within the band */
      *V1(i)          = *A1(i, (st-1));
      *A1(i, (st-1))  = 0.0;
-     DLARFG( &ITWO, A1((i-1),(st-1)), V1(i), &IONE, TAU1(i) );
+     LAPACKE_zlarfg( 2, A1((i-1),(st-1)), V1(i), 1, TAU1(i) );
 
      J1   = st;
      J2   = i-2;
@@ -344,10 +337,8 @@ static void CORE_zhbtelr(int N, int NB, parsec_complex64_t *A1, int LDA1, parsec
 static void CORE_zhbtrce(int N, int NB, parsec_complex64_t *A1, int LDA1, parsec_complex64_t *A2, int LDA2, parsec_complex64_t *V1, parsec_complex64_t *TAU1, parsec_complex64_t *V2, parsec_complex64_t *TAU2, int st, int ed, int edglob) {
   int    J1, J2, J3, KDM1, LDX, pt;
   int    len, len1, len2, t1ed, t2st, iglob;
-  int    i, IONE, ITWO;
+  int    i;
   parsec_complex64_t V,T,SUM;
-  IONE=1;
-  ITWO=2;
 
   iglob = edglob+1;
   LDX   = LDA1-1;
@@ -382,7 +373,7 @@ static void CORE_zhbtrce(int N, int NB, parsec_complex64_t *A1, int LDA1, parsec
               *V2(i)     = -SUM * (*TAU1(i));
               *A2(J3, i) = *A2(J3, i) - SUM * T;
               /* generate Householder to annihilate a(j+kd,j-1) within the band */
-              DLARFG( &ITWO, A2(J2,i-1), V2(i), &IONE, TAU2(i) );
+              LAPACKE_zlarfg( 2, A2(J2,i-1), V2(i), 1, TAU2(i) );
            }
         }else if(i==NB){
            /* column (i-1) is on tile T1 while column i is on tile T2 */
@@ -396,7 +387,7 @@ static void CORE_zhbtrce(int N, int NB, parsec_complex64_t *A1, int LDA1, parsec
               *V2(i)     = -SUM * (*TAU1(i));
               *A2(J3, i) = *A2(J3, i) - SUM * T;
               /* generate Householder to annihilate a(j+kd,j-1) within the band */
-              DLARFG( &ITWO, A1(J2, i-1), V2(i), &IONE, TAU2(i) );
+              LAPACKE_zlarfg( 2, A1(J2, i-1), V2(i), 1, TAU2(i) );
            }
         }else{
            /* both column (i-1) and i are on tile T1 */
@@ -410,7 +401,7 @@ static void CORE_zhbtrce(int N, int NB, parsec_complex64_t *A1, int LDA1, parsec
               *V2(i)         = -SUM * (*TAU1(i));
               *A1(J3, i)    = *A1(J3, i) - SUM * T;
               /* generate Householder to annihilate a(j+kd,j-1) within the band */
-              DLARFG( &ITWO, A1(J2, i-1), V2(i), &IONE, TAU2(i) );
+              LAPACKE_zlarfg( 2, A1(J2, i-1), V2(i), 1, TAU2(i) );
            }
         }
      }
@@ -533,9 +524,7 @@ static void CORE_zhbtlrx(int N, int NB, parsec_complex64_t *A1, int LDA1, parsec
 #define TAU(m)   &(TAU[m-1])
 static void TRD_type1bHL(int N, int NB, parsec_complex64_t *A, int LDA, parsec_complex64_t *V, parsec_complex64_t *TAU, int st, int ed) {
   int    J1, J2, len, LDX;
-  int    i, IONE, ITWO;
-  IONE=1;
-  ITWO=2;
+  int    i;
   (void)NB;
 
   if(ed <= st){
@@ -548,7 +537,7 @@ static void TRD_type1bHL(int N, int NB, parsec_complex64_t *A, int LDA, parsec_c
      // generate Householder to annihilate a(i+k-1,i) within the band
      *V(i)          = *A(i, (st-1));
      *A(i, (st-1))  = 0.0;
-     DLARFG( &ITWO, A((i-1),(st-1)), V(i), &IONE, TAU(i) );
+     LAPACKE_zlarfg( 2, A((i-1),(st-1)), V(i), 1, TAU(i) );
 
      // apply reflector from the left (horizontal row) and from the right for only the diagonal 2x2.
      J1  = st;
@@ -581,10 +570,7 @@ static void TRD_type1bHL(int N, int NB, parsec_complex64_t *A, int LDA, parsec_c
 #define TAU(m)   &(TAU[m-1])
 static void TRD_type2bHL(int N, int NB, parsec_complex64_t *A, int LDA, parsec_complex64_t *V, parsec_complex64_t *TAU, int st, int ed) {
   int    J1, J2, J3, KDM2, len, LDX;
-  int    i, IONE, ITWO;
-  IONE=1;
-  ITWO=2;
-
+  int    i;
 
   if(ed <= st){
     printf("TRD_type 2H: ERROR st and ed %d  %d \n",st,ed);
@@ -608,7 +594,7 @@ static void TRD_type2bHL(int N, int NB, parsec_complex64_t *A, int LDA, parsec_c
          *V(J3)     =            - *A(J3,(i)) * (*TAU(i)) * (*V(i));
          *A(J3,(i)) = *A(J3,(i)) + *V(J3)  * (*V(i)); //ATTENTION THIS replacement IS VALID IN FLOAT CASE NOT IN COMPLEX
          // generate Householder to annihilate a(j+kd,j-1) within the band
-         DLARFG( &ITWO, A(J2,(i-1)), V(J3), &IONE, TAU(J3) );
+         LAPACKE_zlarfg( 2, A(J2,(i-1)), V(J3), 1, TAU(J3) );
      }
   }
                //if(id==1) return;
