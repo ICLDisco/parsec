@@ -161,7 +161,8 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
         " PARSEC_ATOMIC_USE_GCC_64_BUILTINS)
   endif( PARSEC_ATOMIC_USE_GCC_32_BUILTINS )
   if( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
-    CHECK_C_SOURCE_COMPILES("
+    if(PARSEC_HAVE_INT128)
+      CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
         int main(void) {
             __int128_t where = 0;
@@ -170,7 +171,6 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
             return 0;
         }
         " PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
-    if(PARSEC_HAVE_INT128)
       if( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS ) # try again with -mcx16
         include(CMakePushCheckState)
         CMAKE_PUSH_CHECK_STATE()
@@ -189,7 +189,8 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
         if( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
           SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcx16" CACHE STRING "" FORCE)
         endif( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
-      else( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
+      endif( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
+      if( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
         # We don't have int128 support for atomics, so we deactivate
         # int128 fields for which we only do atomics anyway
         unset(PARSEC_HAVE_INT128 CACHE)
