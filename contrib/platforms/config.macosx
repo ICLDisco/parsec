@@ -10,7 +10,7 @@ elif [ "x$USER" == "xherault" ]; then
     PLASMA_DIR=/Users/herault/Documents/Recherche/parsec/plasma-installer_2.8.0/install
 elif [ "x$USER" == "xbosilca" ]; then
     HWLOC_DIR=${HWLOC_DIR:=/Users/bosilca/opt}
-    CUDA_DIR=$(CUDA_DIR:=/Developer/NVIDIA/CUDA-9.1/}
+    CUDA_DIR=${CUDA_DIR:=/Developer/NVIDIA/CUDA-9.1/}
     GTG_DIR=${GTG_DIR:=${HOME}/opt}
     PLASMA_DIR=${PLASMA_DIR:=${HOME}/opt/PLASMA/plasma-svn/}
     #OMEGA_DIR=${OMEGA_DIR:="/Users/bosilca/tools/Omega/binary"}
