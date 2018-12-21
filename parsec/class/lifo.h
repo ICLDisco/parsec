@@ -438,7 +438,6 @@ static inline void parsec_lifo_push(parsec_lifo_t *lifo,
         item->list_next = next;
         parsec_atomic_wmb();
         if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, item) ) {
-            parsec_atomic_wmb();
             /* now safe to pop this item */
             item->aba_key = 0;
             return;
@@ -447,7 +446,7 @@ static inline void parsec_lifo_push(parsec_lifo_t *lifo,
     } while (1);
 }
 
-static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
+static inline void parsec_lifo_chain(parsec_lifo_t* lifo,
                                      parsec_list_item_t* ring)
 {
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -464,7 +463,6 @@ static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
         tail->list_next = next;
         parsec_atomic_wmb();
          if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, ring) ) {
-            parsec_atomic_wmb();
             /* now safe to pop this item */
             ring->aba_key = 0;
             return;
@@ -479,9 +477,10 @@ static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
 static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
 {
     parsec_list_item_t *item;
+
     while ((item = lifo->lifo_head.data.item) != lifo->lifo_ghost) {
         /* ensure it is safe to pop the head */
-        if (parsec_atomic_cas_int32(&item->aba_key, 0UL, 1UL)) {
+        if (!parsec_atomic_cas_int32(&item->aba_key, 0UL, 1UL)) {
             continue;
         }
 
@@ -513,35 +512,31 @@ static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
 static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
 {
     parsec_list_item_t *item;
+
     if( (item = lifo->lifo_head.data.item) != lifo->lifo_ghost ) {
         /* ensure it is safe to pop the head */
-        if (parsec_atomic_cas_int32(&item->aba_key, 0UL, 1UL)) {
+        if (!parsec_atomic_cas_int32(&item->aba_key, 0UL, 1UL)) {
             return NULL;
         }
 
         parsec_atomic_wmb ();
 
         /* try to swap out the head pointer */
-        if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item,
-                                  item, (void *)item->list_next) ) {
+        if( !parsec_atomic_cas_ptr(&lifo->lifo_head.data.item,
+                                   item, (void *)item->list_next) ) {
+            item->aba_key = 0UL;
             return NULL;
         }
 
         /* NTH: don't need another atomic here */
-        item->aba_key = 0;
+        item->aba_key = 0UL;
+        parsec_atomic_wmb ();
 
-        /* Do some kind of pause to release the bus */
+        item->list_next = NULL;
+        PARSEC_ITEM_DETACH(item);
     }
 
-    if (item == lifo->lifo_ghost) {
-        return NULL;
-    }
-
-    parsec_atomic_wmb ();
-
-    item->list_next = NULL;
-    PARSEC_ITEM_DETACH(item);
-    return item;
+    return item == lifo->lifo_ghost ? NULL : item;
 }
 
 #endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) */
