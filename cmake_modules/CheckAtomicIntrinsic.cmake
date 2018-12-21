@@ -3,9 +3,16 @@
 #
 include(CheckTypeSize)
 CHECK_TYPE_SIZE( __int128_t INT128 )
-if(HAVE_INT128)
+option(PARSEC_ENABLE_INT128 "Allow int128 support if supported by the compiler/architecture" ON)
+if(HAVE_INT128 AND PARSEC_ENABLE_INT128 )
   set(PARSEC_HAVE_INT128 1)
-endif()
+else(HAVE_INT128 AND PARSEC_ENABLE_INT128 )
+  if( NOT PARSEC_ENABLE_INT128 )
+    MESSAGE(STATUS "Support for __int128 disabled at user request")
+  else( NOT PARSEC_ENABLE_INT128 )
+    MESSAGE(STATUS "Support for __int128 unavailable")
+  endif( NOT PARSEC_ENABLE_INT128 )
+endif(HAVE_INT128 AND PARSEC_ENABLE_INT128 )
 
 # Detecting atomic support is an utterly annoying process, as it is extremely sensitive to
 # any software environment change (including other variables). Thus, prevent CMake from
@@ -67,7 +74,7 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
   # state from the cache.
   #
   UNSET( PARSEC_ATOMIC_USE_C11_128 CACHE )
-  if( HAVE_INT128 AND PARSEC_ATOMIC_USE_C11_32 AND PARSEC_ATOMIC_USE_C11_64 )
+  if( PARSEC_HAVE_INT128 AND PARSEC_ATOMIC_USE_C11_32 AND PARSEC_ATOMIC_USE_C11_64 )
     CHECK_C_SOURCE_COMPILES("
         #include <stdatomic.h>
         int main(void) {
@@ -119,7 +126,7 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
     endif( NOT PARSEC_ATOMIC_USE_C11_128 )
     list(APPEND EXTRA_LIBS ${PARSEC_ATOMIC_C11_128_EXTRA_LIBS})
     list(APPEND CMAKE_C_STANDARD_LIBRARIES ${PARSEC_ATOMIC_C11_128_EXTRA_LIBS})
-  endif( HAVE_INT128 AND PARSEC_ATOMIC_USE_C11_32 AND PARSEC_ATOMIC_USE_C11_64 )
+  endif( PARSEC_HAVE_INT128 AND PARSEC_ATOMIC_USE_C11_32 AND PARSEC_ATOMIC_USE_C11_64 )
 endif( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
 
 #
@@ -163,7 +170,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
             return 0;
         }
         " PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
-    if(HAVE_INT128)
+    if(PARSEC_HAVE_INT128)
       if( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS ) # try again with -mcx16
         include(CMakePushCheckState)
         CMAKE_PUSH_CHECK_STATE()
@@ -183,14 +190,14 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
           SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcx16" CACHE STRING "" FORCE)
         endif( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
       else( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
-	# We don't have int128 support for atomics, so we deactivate
-	# int128 fields for which we only do atomics anyway
-	unset(PARSEC_HAVE_INT128 CACHE)
-	unset(PARSEC_HAVE_INT128)
+        # We don't have int128 support for atomics, so we deactivate
+        # int128 fields for which we only do atomics anyway
+        unset(PARSEC_HAVE_INT128 CACHE)
+        unset(PARSEC_HAVE_INT128)
       endif( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
-    endif(HAVE_INT128)
+    endif(PARSEC_HAVE_INT128)
   endif( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
-  
+
   # Xlc style atomics?
   CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
@@ -317,7 +324,7 @@ if( CMAKE_SIZEOF_VOID_P MATCHES "8" )
     message( FATAL_ERROR "64 bits OS with support for 32 bits atomics but without support for 64 bits atomics")
   endif( PARSEC_HAVE_COMPARE_AND_SWAP_32 AND NOT PARSEC_HAVE_COMPARE_AND_SWAP_64 )
   if( NOT PARSEC_HAVE_COMPARE_AND_SWAP_128 )
-    message( WARNING "128 bit atomics not found but pointers are 64 bits. Some list operations will not be optimized")
+    message( STATUS "\n128 bit atomics not found but pointers are 64 bits. Some list operations will not be optimized\n")
   endif( NOT PARSEC_HAVE_COMPARE_AND_SWAP_128 )
 endif( CMAKE_SIZEOF_VOID_P MATCHES "8" )
 
