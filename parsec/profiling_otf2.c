@@ -1105,18 +1105,18 @@ void profiling_thread_save_sinfo(parsec_thread_profiling_t * thread,
 int parsec_profiling_fini( void )
 {
     parsec_thread_profiling_t *t;
-        
+
     if( !__profile_initialized ) return -1;
 
     if( 0 != parsec_profiling_dbp_dump() ) {
         return -1;
     }
 
-    while( (t = (parsec_thread_profiling_t*)parsec_list_nolock_fifo_pop(&threads)) ) {
+    while( (t = (parsec_thread_profiling_t*)parsec_list_nolock_pop_front(&threads)) ) {
         free(t);
     }
     OBJ_DESTRUCT(&threads);
-    
+
     parsec_profiling_dictionary_flush();
     start_called = 0;  /* Allow the profiling to be reinitialized */
     parsec_profile_enabled = 0;  /* turn off the profiling */
