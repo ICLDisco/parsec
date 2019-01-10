@@ -11,7 +11,7 @@ ELSE(NOT OTF2_CONFIG)
     #
     # Get the OTF2 version. The output of otf2-config follows the template "otf2-config: version x.y.z"
     # and we need to extract x.y.z.
-    execute_process(COMMAND ${OTF2_CONFIG} "--version" OUTPUT_VARIABLE OTF2_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(COMMAND ${OTF2_CONFIG} "--version" OUTPUT_VARIABLE OTF2_OUTPUT OUTPUT_STRIP_TRAILING_WHITESPACE)
     string(REPLACE " " ";" OTF2_LIST ${OTF2_OUTPUT})
     list(GET OTF2_LIST 2 OTF2_VERSION)
     if(OTF2_VERSION VERSION_LESS ${OTF2_FIND_VERSION})
