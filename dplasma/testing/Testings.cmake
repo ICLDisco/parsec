@@ -84,6 +84,11 @@ foreach(prec ${DPLASMA_PRECISIONS})
   add_test(shm_${prec}getrf_nopiv  ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf_nopiv  -N 378 -t 93       ${OPTIONS})
   add_test(shm_${prec}getrf_qrf    ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf_qrf    -N 378 -t 93 -i 17 ${OPTIONS})
 
+  # Partial pivoting
+  add_test(shm_${prec}getrf_fusion ${SHM_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_fusion ${CORES} -p 1 -N 378 ${OPTIONS})
+  add_test(shm_${prec}getrf_fusion_panel ${SHM_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_fusion_panel ${CORES} -p 1 -N 257 ${OPTIONS})
+  add_test(shm_${prec}getrf_incpiv ${SHM_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_incpiv ${CORES} -P 4 -N 378 ${OPTIONS})
+
   #add_test(shm_${prec}gesv         ${SHM_TEST_CMD_LIST} ./testing_${prec}gesv         -N 874 -K 367 -t 76       ${OPTIONS})
   add_test(shm_${prec}gesv_incpiv  ${SHM_TEST_CMD_LIST} ./testing_${prec}gesv_incpiv  -N 874 -K 367 -t 76 -i 23 ${OPTIONS})
 
@@ -194,6 +199,11 @@ if( MPI_C_FOUND )
     add_test(mpi_${prec}getrf_incpiv ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_incpiv ${CORES} -P 2 -N 378 -t 19 -i 7 ${OPTIONS})
     add_test(mpi_${prec}getrf_nopiv  ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_nopiv  ${CORES} -P 2 -N 378 -t 19      ${OPTIONS})
     add_test(mpi_${prec}getrf_qrf    ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_qrf    ${CORES} -P 2 -N 378 -t 19 -i 7 ${OPTIONS})
+
+    # Partial pivoting
+    add_test(mpi_${prec}getrf_fusion ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_fusion ${CORES} -p 1 -N 378 ${OPTIONS})
+    add_test(mpi_${prec}getrf_fusion_panel ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_fusion_panel ${CORES} -p 1 -N 257 ${OPTIONS})
+    add_test(mpi_${prec}getrf_incpiv ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}getrf_incpiv ${CORES} -P 4 -N 378 ${OPTIONS})
 
     #add_test(mpi_${prec}gesv        ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}gesv        ${CORES}  -N 874 -K 367 -t 76       ${OPTIONS})
     add_test(mpi_${prec}gesv_incpiv  ${MPI_TEST_CMD_LIST} ${PROCS} ./testing_${prec}gesv_incpiv  ${CORES} -N 874 -K 367 -t 17 -i 7 ${OPTIONS})

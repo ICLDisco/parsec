@@ -20,9 +20,20 @@ int blgchase_ztrdv2(int NT, int N, int NB,
                    dague_complex64_t *V2, dague_complex64_t *TAU2,
                    int sweep, int id, int blktile);
 
+void CORE_zgetrf_sp(int m, int  n,
+                    dague_complex64_t *A,
+                    int  stride,
+                    double  criteria,
+                    int *nbpivot);
+void CORE_zgetrf_sp_rec(int m, int  n,
+                        dague_complex64_t *A,
+                        int  stride,
+                        double  criteria,
+                        int *nbpivot);
+
 int CORE_zgetrf_rectil_1thrd(const PLASMA_desc A, int *IPIV);
 void dplasmacore_zgetrf_rectil_init(void);
-int dplasmacore_zgetrf_rectil(volatile dague_complex64_t *amax1buf,
+int  dplasmacore_zgetrf_rectil(volatile dague_complex64_t *amax1buf,
                               const tiled_matrix_desc_t *A, int *IPIV, int *info);
 
 int CORE_zplssq(int M, int N,

@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights

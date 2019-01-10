@@ -48,11 +48,17 @@ set(TESTS
   testing_zunmlq_systolic.c
   # LU
   testing_zgetrf.c
+  #testing_zgetrf_std.c
+  #testing_zgetrf_panel.c
+  testing_zgetrf_fusion.c
+  testing_zgetrf_fusion_panel.c
+  testing_zgetrf_sp.c
   testing_zgetrf_incpiv.c
   testing_zgetrf_nopiv.c
   testing_zgetrf_qrf.c
   #testing_zgesv.c
   testing_zgesv_incpiv.c
+  testing_zgerfs.c
   # Extra testings
   testing_zgeqrf_rd.c
   testing_zhebut.c

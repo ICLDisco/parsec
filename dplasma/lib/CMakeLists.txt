@@ -83,6 +83,14 @@ set(JDF
   ztrmdm.jdf
   zgeqrt.jdf
   zgeqrf_rec.jdf
+  # Under development in this branch
+  zgetrf_fusion.jdf
+  zgetrf_sp.jdf
+  #zgetrf_std.jdf
+  #zgetrf_panel.jdf
+  zgerfs.jdf
+  zgerfs_exp.jdf
+  ztrsmpl_fusion.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
@@ -187,6 +195,13 @@ set(SOURCES
   zheev_wrapper.c
   zgeqrt_wrapper.c
   zgeqrf_rec_wrapper.c
+  #
+  #zgetrf_panel_wrapper.c
+  #zgetrf_std_wrapper.c
+  zgerfs_wrapper.c
+  zgetrf_fusion_wrapper.c
+  zgetrf_sp_wrapper.c
+  ztrsmpl_fusion_wrapper.c
 )
 precisions_rules_py(generated_wrappers
                  "${SOURCES}"

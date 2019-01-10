@@ -141,6 +141,8 @@ subs = {
     ('sgetf2','dgetf2','cgetf2','zgetf2'),
     ('sgetrf','dgetrf','cgetrf','zgetrf'),
     ('SGETRF','DGETRF','CGETRF','ZGETRF'),
+    ('sgerfs','dgerfs','cgerfs','zgerfs'),
+    ('SGERFS','DGERFS','CGERFS','ZGERFS'),
     ('sgetrs','dgetrs','cgetrs','zgetrs'),
     ('SGETRS','DGETRS','CGETRS','ZGETRS'),
     ('sgerbb','dgerbb','cgerbb','zgerbb'),

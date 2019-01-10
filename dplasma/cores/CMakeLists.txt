@@ -38,6 +38,7 @@ endforeach()
 ### Generate the dplasma wrappers for all required precisions
 set(SOURCES
   core_ztrdv.c
+  core_zgetrf_sp.c
   core_zhetrf2_nopiv.c
   core_zgemdm.c
   core_zhedrk.c
