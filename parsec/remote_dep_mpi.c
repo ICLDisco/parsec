@@ -1115,28 +1115,33 @@ static remote_dep_wire_get_t* dep_get_buff;
 static int MAX_MPI_TAG;
 #define MIN_MPI_TAG (REMOTE_DEP_MAX_CTRL_TAG+1)
 static volatile int __VAL_NEXT_TAG = MIN_MPI_TAG;
+#if INT_MAX == INT32_MAX
+#define next_tag_cas(t, o, n) parsec_atomic_cas_int32(t, o, n)
+#elif INT_MAX == INT64_MAX
+#define next_tag_cas(t, o, n) parsec_atomic_cas_int64(t, o, n)
+#else
+#error "next_tag_cas written to support sizeof(int) of 4 or 8"
+#endif
 static inline int next_tag(int k) {
-    int __tag;
-    parsec_atomic_rmb();
+    int __tag, __next_tag;
 reread:
     __tag = __VAL_NEXT_TAG;
     if( __tag > (MAX_MPI_TAG-k) ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "rank %d tag rollover: min %d < %d (+%d) < max %d", parsec_debug_rank,
-               MIN_MPI_TAG, __tag, k, MAX_MPI_TAG);
-#if INT_MAX == INT32_MAX
-        if(!parsec_atomic_cas_int32(&__VAL_NEXT_TAG, __tag, MIN_MPI_TAG))
-#else
-        if(!parsec_atomic_cas_int64(&__VAL_NEXT_TAG, __tag, MIN_MPI_TAG))
-#endif
-            goto reread;
-    } 
+                MIN_MPI_TAG, __tag, k, MAX_MPI_TAG);
+        __next_tag = MIN_MPI_TAG;
+    }
     else {
-#if INT_MAX == INT32_MAX
-        if(!parsec_atomic_cas_int32(&__VAL_NEXT_TAG, __tag, __tag+k))
-#else
-        if(!parsec_atomic_cas_int64(&__VAL_NEXT_TAG, __tag, __tag+k))
-#endif
+        __next_tag = __tag+k;
+    }
+ 
+    if( parsec_comm_es.virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
+        if(!next_tag_cas(&__VAL_NEXT_TAG, __tag, __next_tag)) {
             goto reread;
+        }
+    }
+    else {
+        __VAL_NEXT_TAG = __next_tag;
     }
     return __tag;
 }
