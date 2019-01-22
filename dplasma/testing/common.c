@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -116,6 +116,7 @@ void print_usage(void)
             "\n"
             " -c --cores        : number of concurent threads (default: number of physical hyper-threads)\n"
             " -g --gpus         : number of GPU (default: 0)\n"
+            " -m --thread_multi : initialize MPI_THREAD_MULTIPLE (default: no)\n"
             " -o --scheduler    : select the scheduler (default: LFQ)\n"
             "                     Accepted values:\n"
             "                       LFQ -- Local Flat Queues\n"

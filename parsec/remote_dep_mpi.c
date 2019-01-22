@@ -271,8 +271,14 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
     MPI_Comm_size( (NULL == context->comm_ctx) ? MPI_COMM_WORLD : *(MPI_Comm*)context->comm_ctx,
                    (int*)&(context->nb_nodes));
 
-    if( thread_level_support >= MPI_THREAD_MULTIPLE ) {
-        context->flags |= PARSEC_CONTEXT_FLAG_COMM_MT;
+    if(parsec_param_comm_thread_multiple) {
+        if( thread_level_support >= MPI_THREAD_MULTIPLE ) {
+            context->flags |= PARSEC_CONTEXT_FLAG_COMM_MT;
+        }
+        else if(parsec_param_comm_thread_multiple != -1) {
+            parsec_warning("Requested multithreaded access to the communication engine, but MPI is not initialized with MPI_THREAD_MULTIPLE.\n"
+                        "\t* PaRSEC will continue with the funneled thread communication engine model.\n");
+        }
     }
 
     /**

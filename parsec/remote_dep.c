@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -31,6 +31,8 @@ int parsec_communication_engine_up = -1;
 static int comm_yield = 1;
 /* comm_yield_duration (ns) */
 static int comm_yield_ns = 5000;
+/* comm_thread_multiple: see values in the corresponding mca_register */
+static int parsec_param_comm_thread_multiple = -1;
 
 static int remote_dep_bind_thread(parsec_context_t* context);
 
@@ -213,6 +215,11 @@ int parsec_remote_dep_init(parsec_context_t* context)
                                  false, false, comm_yield, &comm_yield);
     parsec_mca_param_reg_int_name("runtime", "comm_thread_yield_duration", "Controls how long (in nanoseconds) the communication thread yields (if applicable).",
                                   false, false, comm_yield_ns, &comm_yield_ns);
+    parsec_mca_param_reg_int_name("runtime", "comm_thread_multiple", "Controls the threaded access to the communication thread.\n"
+            " -1: the communication thread access is automatically selected based on transport capabilities (e.g., MPI_THREAD_MULTIPLE).\n"
+            "  0: the communication thread access is serialized.\n"
+            "  1: the communication thread access is multiple (if the underlying transports allows (e.g., MPI_THREAD_MULTIPLE).",
+                                  false, false, parsec_param_comm_thread_multiple, &parsec_param_comm_thread_multiple);
 
     (void)remote_dep_init(context);
 
