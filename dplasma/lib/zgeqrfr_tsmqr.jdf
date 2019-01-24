@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -93,7 +93,7 @@ extern "C" %{
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgeqrfr_tsmqr_New - Generates the parsec taskpool that overwrites the general
  *  M-by-N matrix C with
@@ -186,7 +186,7 @@ dplasma_zgeqrfr_tsmqr_New( parsec_tiled_matrix_dc_t *A1,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zunmqr_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zunmqr_New().

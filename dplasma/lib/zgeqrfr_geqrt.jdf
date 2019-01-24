@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -110,7 +110,7 @@ extern "C" %{
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgeqrfr_geqrt_New - Generates the taskpool that computes the QR factorization
  * a complex M-by-N matrix A: A = Q * R.
@@ -199,7 +199,7 @@ dplasma_zgeqrfr_geqrt_New( parsec_tiled_matrix_dc_t *A,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgeqrfr_geqrt_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgeqrfr_geqrt_New().
