@@ -16,6 +16,8 @@ if(DPLASMA_WITH_RECURSIVE)
   add_definitions(-DPARSEC_HAVE_RECURSIVE)
 endif()
 
+add_documented_files(${CMAKE_CURRENT_BINARY_DIR})
+
 mark_as_advanced( PARSEC_GPU_WITH_MAGMA )
 option(DPLASMA_GPU_WITH_MAGMA
   "Enable GPU support using MAGMA kernels" OFF)

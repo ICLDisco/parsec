@@ -849,7 +849,7 @@ ENDIF(CMAKE_CROSSCOMPILING)
 
 # List of files that will go through documentation generation
 include(AddDocumentedFiles)
-add_documented_files(${CMAKE_SOURCE_DIR})
+#add_documented_files(${CMAKE_SOURCE_DIR})
 
 add_subdirectory(parsec)
 
@@ -1023,9 +1023,6 @@ set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
 include (CPack)
 
-# build doxygen documentation
-add_subdirectory(docs)
-
 MESSAGE("\n\nConfiguration flags:")
 MESSAGE("  CMAKE_C_FLAGS          = ${CMAKE_C_FLAGS}")
 MESSAGE("  CMAKE_C_LDFLAGS        = ${CMAKE_C_LDFLAGS}")
@@ -1082,4 +1079,8 @@ endforeach( pattern_file )
 add_custom_target(build_with_parsec ALL DEPENDS ${pattern_files_dest})
 
 add_subdirectory(dplasma)
+
+# build doxygen documentation. Keep this at the end to make sure all temporary
+# variables (such as the DPLASMA documentation) are correctly initialized.
+add_subdirectory(docs)
 

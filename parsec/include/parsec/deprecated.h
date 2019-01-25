@@ -13,7 +13,7 @@ BEGIN_C_DECLS
 
 /**
  * @defgroup parsec_deprecated Deprecated Runtime System
- * @ingroup parsec_deprecated
+ * @ingroup parsec
  *   PaRSEC Core routines that have been deprecated but remain temporarily
  *   provided by the project.
  *

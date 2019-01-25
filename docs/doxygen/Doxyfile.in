@@ -133,6 +133,7 @@ FULL_PATH_NAMES        = YES
 # started.
 
 STRIP_FROM_PATH        = @CMAKE_SOURCE_DIR@
+STRIP_FROM_PATH       += @CMAKE_BINARY_DIR@
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of
 # the path mentioned in the documentation of a class, which tells
@@ -141,7 +142,8 @@ STRIP_FROM_PATH        = @CMAKE_SOURCE_DIR@
 # definition is used. Otherwise one should specify the include paths that
 # are normally passed to the compiler using the -I flag.
 
-STRIP_FROM_INC_PATH    =
+STRIP_FROM_INC_PATH    = @CMAKE_SOURCE_DIR@
+STRIP_FROM_INC_PATH   += @CMAKE_BINARY_DIR@
 
 # If the SHORT_NAMES tag is set to YES, doxygen will generate much shorter
 # (but less readable) file names. This can be useful if your file system
@@ -655,7 +657,10 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories
 # with spaces.
 
-INPUT                  = @PARSEC_DOX_SRCS@
+INPUT                  = @CMAKE_SOURCE_DIR@/docs/doxygen/groups.dox
+INPUT                 += @CMAKE_SOURCE_DIR@/parsec
+INPUT                 += @CMAKE_BINARY_DIR@/parsec/include
+INPUT                 += @PARSEC_DOX_SRCS@
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding, which is
@@ -687,19 +692,25 @@ RECURSIVE              = YES
 # Note that relative paths are relative to the directory from which doxygen is
 # run.
 
-EXCLUDE                = @CMAKE_SOURCE_DIR@/examples/
-EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/PaRSEC+StarPU
+EXCLUDE                = @CMAKE_SOURCE_DIR@/examples
 EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/bfr
+EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/gpu
+EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/vim_syntax
 EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/profiling/python/utilities
 EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/profiling/python/examples
-EXCLUDE               += @CMAKE_BINARY_DIR@
-EXCLUDE               += @CMAKE_SOURCE_DIR/tools/profiling/python/pbt2ptt.c
+EXCLUDE               += @CMAKE_BINARY_DIR@/tools/profiling/python/pbt2ptt.c
+EXCLUDE               += @CMAKE_BINARY_DIR@/CMakeFiles
+EXCLUDE               += @CMAKE_BINARY_DIR@/Testing
+EXCLUDE               += @CMAKE_BINARY_DIR@/examples
+EXCLUDE               += @CMAKE_BINARY_DIR@/tests
+EXCLUDE               += @CMAKE_BINARY_DIR@/docs
+EXCLUDE               += @CMAKE_BINARY_DIR@/parsec
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
 # from the input.
 
-EXCLUDE_SYMLINKS       = NO
+EXCLUDE_SYMLINKS       = YES
 
 # If the value of the INPUT tag contains directories, you can use the
 # EXCLUDE_PATTERNS tag to specify one or more wildcard patterns to exclude
@@ -1579,13 +1590,7 @@ SEARCH_INCLUDES        = YES
 # contain include files that are not input files but should be processed by
 # the preprocessor.
 
-INCLUDE_PATH           = @CMAKE_SOURCE_DIR@/
-INCLUDE_PATH          += @CMAKE_SOURCE_DIR@/parsec
-INCLUDE_PATH          += @CMAKE_SOURCE_DIR@/parsec/include
-INCLUDE_PATH          += @CMAKE_SOURCE_DIR@/dplasma
-INCLUDE_PATH          += @CMAKE_SOURCE_DIR@/dplasma/include
-INCLUDE_PATH          += @CMAKE_BINARY_DIR@/parsec/include
-INCLUDE_PATH          += @CMAKE_BINARY_DIR@/dplasma/include
+INCLUDE_PATH           =
 
 # You can use the INCLUDE_FILE_PATTERNS tag to specify one or more wildcard
 # patterns (like *.h and *.hpp) to filter out the header-files in the
@@ -1698,7 +1703,7 @@ HIDE_UNDOC_RELATIONS   = YES
 # toolkit from AT&T and Lucent Bell Labs. The other options in this section
 # have no effect if this option is set to NO (the default)
 
-HAVE_DOT               = YES
+HAVE_DOT               = NO
 
 # The DOT_NUM_THREADS specifies the number of dot invocations doxygen is
 # allowed to run in parallel. When set to 0 (the default) doxygen will

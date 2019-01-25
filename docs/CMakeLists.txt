@@ -19,7 +19,7 @@ if (BUILD_DOCUMENTATION)
         "Out-of-source build trees with CMake for documentation)")
     else()
       get_property(SRCS GLOBAL PROPERTY PARSEC_DOX_SRCS)
-      string (REPLACE ";" " " PARSEC_DOX_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/doxygen/groups.dox;${SRCS}")
+      string (REPLACE ";" " " PARSEC_DOX_SRCS "${SRCS}")
 
       #-- Configure the Template Doxyfile for our specific project
       configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doxygen/Doxyfile.in
