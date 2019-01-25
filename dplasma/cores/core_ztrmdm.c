@@ -38,7 +38,7 @@ int CORE_ztrmdm(int uplo, int N, PLASMA_Complex64_t *A, int LDA);
 
 /***************************************************************************//**
  *
- * @ingroup CORE_PLASMA_Complex64_t
+ * @ingroup dplasma_cores_complex64
  *
  * CORE_ztrmdm scales the strictly upper or strictly lower triangular part of a
  * square matrix by the inverse of a diagonal matrix, ie performs either

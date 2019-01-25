@@ -75,6 +75,11 @@
  * @ingroup DPlasma
  *   This is the group of internal function to the DPlasma library.
  *
+ * @defgroup dplasma_cores DPLASMA CORES helper functions
+ * @ingroup DPlasma
+ *   This is the group of cores function for the DPlasma library. Such
+ *   functions are needed to augment those provided by LAPACK/BLAS.
+ *
  * @defgroup dplasma_tools Tools for DPlasma
  * @ingroup dplasma_internal
  *   This is the group of tools used to develop the DPlasma library.

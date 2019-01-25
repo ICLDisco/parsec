@@ -30,7 +30,7 @@
 
 /***************************************************************************//**
  *
- * @ingroup CORE_PLASMA_Complex64_t
+ * @ingroup dplasma_cores_complex64
  *
  **/
 #if defined(PLASMA_PARSEC_HAVE_WEAK)

@@ -45,7 +45,7 @@ void CORE_zhetrf2_nopiv(PLASMA_enum uplo, int N, int ib,
 
 /***************************************************************************//**
  *
- * @ingroup CORE_PLASMA_Complex64_t
+ * @ingroup dplasma_cores_complex64
  *
  * CORE_zhetrf2_nopiv: ZHETRF_NOPIV followed by L*D
  *

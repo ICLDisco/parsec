@@ -21,7 +21,7 @@
 /**
  ******************************************************************************
  *
- * @ingroup parsec_complex64
+ * @ingroup dplasma_cores_complex64
  *
  *  dplasma_core_zgeadd adds to matrices together as in PBLAS pzgeadd.
  *
