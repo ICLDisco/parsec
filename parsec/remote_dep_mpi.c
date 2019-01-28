@@ -399,12 +399,19 @@ static int remote_dep_dequeue_off(parsec_context_t* context)
 
 #include "parsec/bindthread.h"
 
+#if defined PARSEC_PROF_TRACE
+static void remote_dep_mpi_profiling_init(void);
+#else
+#define remote_dep_mpi_profiling_init() do {} while(0)
+#endif
+
 static void* remote_dep_dequeue_main(parsec_context_t* context)
 {
     int whatsup;
 
     remote_dep_bind_thread(context);
     PARSEC_PAPI_SDE_THREAD_INIT();
+    remote_dep_mpi_profiling_init();
 
     remote_dep_mpi_init(context);
     /* Now synchronize with the main thread */
@@ -1012,7 +1019,6 @@ static void remote_dep_mpi_profiling_fini(void)
 #else
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw) do {} while(0)
 #define TAKE_TIME(PROF, KEY, I) do {} while(0)
-#define remote_dep_mpi_profiling_init() do {} while(0)
 #define remote_dep_mpi_profiling_fini() do {} while(0)
 #endif  /* PARSEC_PROF_TRACE */
 
@@ -1158,7 +1164,6 @@ void
 remote_dep_mpi_initialize_execution_stream(parsec_context_t *context)
 {
     memcpy(&parsec_comm_es, context->virtual_processes[0]->execution_streams[0], sizeof(parsec_execution_stream_t));
-    remote_dep_mpi_profiling_init();
 }
 
 static int remote_dep_mpi_fini(parsec_context_t* context)
