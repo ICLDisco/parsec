@@ -93,6 +93,8 @@ set(JDF
   zhetrd_b2s.jdf
   ztrdsm.jdf
   ztrmdm.jdf
+  zgetrf_ptgpanel.jdf
+  ztrsmpl_ptgpanel.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
@@ -195,6 +197,9 @@ set(SOURCES
   zhetrs_wrapper.c
   ztrdsm_wrapper.c
   zheev_wrapper.c
+  #
+  zgetrf_ptgpanel_wrapper.c
+  ztrsmpl_ptgpanel_wrapper.c
 )
 precisions_rules_py(generated_wrappers
                     "${SOURCES}"

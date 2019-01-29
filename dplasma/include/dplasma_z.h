@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -319,5 +319,27 @@ int dplasma_zheev( parsec_context_t *parsec, const PLASMA_enum jobz, const PLASM
 void dplasma_zhbrdt_Destruct( parsec_taskpool_t *o );
 void dplasma_zheev_Destruct( parsec_taskpool_t *o );
 void dplasma_zherbt_Destruct( parsec_taskpool_t *o );
+
+/* LU with partial pivoting and full PTG panel */
+int  dplasma_ztrsmpl_ptgpanel( parsec_context_t *parsec, const parsec_tiled_matrix_dc_t *A,
+                             const parsec_tiled_matrix_dc_t *IPIV, parsec_tiled_matrix_dc_t *B);
+int  dplasma_zgetrf_ptgpanel( parsec_context_t *parsec, parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t *IPIV);
+int  dplasma_zgetrf_panel( parsec_context_t *parsec, parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t *IPIV);
+int  dplasma_zgetrf_sp( parsec_context_t *parsec, const double criteria, parsec_tiled_matrix_dc_t* ddescA);
+int  dplasma_zgetrf_std( parsec_context_t *parsec, parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t *IPIV);
+int  dplasma_zgerfs( parsec_context_t *parsec, parsec_tiled_matrix_dc_t* ddescA, parsec_tiled_matrix_dc_t* ddescLU, parsec_tiled_matrix_dc_t* ddescB, parsec_tiled_matrix_dc_t* ddescX);
+
+parsec_taskpool_t* dplasma_ztrsmpl_ptgpanel_New(const parsec_tiled_matrix_dc_t *A, const parsec_tiled_matrix_dc_t *IPIV, parsec_tiled_matrix_dc_t *B);
+parsec_taskpool_t* dplasma_zgetrf_std_New( parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t *IPIV, int P, int Q, int *info );
+parsec_taskpool_t* dplasma_zgetrf_panel_New( parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t *IPIV, int P, int Q, int *info );
+parsec_taskpool_t* dplasma_zgetrf_ptgpanel_New( parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t *IPIV, int P, int Q, int *info );
+parsec_taskpool_t* dplasma_zgetrf_sp_New(double criteria, parsec_tiled_matrix_dc_t *A, int *info);
+
+void dplasma_ztrsmpl_ptgpanel_Destruct( parsec_taskpool_t *o );
+void dplasma_ztrsmpl_sd_Destruct( parsec_taskpool_t *o );
+void dplasma_zgetrf_std_Destruct( parsec_taskpool_t *o );
+void dplasma_zgetrf_panel_Destruct( parsec_taskpool_t *o );
+void dplasma_zgetrf_ptgpanel_Destruct( parsec_taskpool_t *o );
+void dplasma_zgetrf_sp_Destruct( parsec_taskpool_t *o );
 
 #endif /* _DPLASMA_Z_H_ */
