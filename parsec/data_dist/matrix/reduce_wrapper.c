@@ -15,14 +15,14 @@
 parsec_taskpool_t*
 parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
                       parsec_tiled_matrix_dc_t* dest,
-                      parsec_operator_t operator,
+                      parsec_operator_t operation,
                       void* op_data )
 {
     parsec_reduce_col_taskpool_t* tp;
     parsec_datatype_t oldtype, newtype;
     ptrdiff_t lb, extent;
 
-    tp = parsec_reduce_col_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
+    tp = parsec_reduce_col_new( src, dest, operation, op_data, 0, 0, src->lnt, src->lmt );
     assert(src->mtype == dest->mtype);
     if( -1 == parsec_translate_matrix_type(src->mtype, &oldtype) ) {
         parsec_debug_verbose(3, parsec_debug_output, "Unknown matrix type %d.", src->mtype );
@@ -46,14 +46,14 @@ void parsec_reduce_col_Destruct( parsec_taskpool_t *o )
 parsec_taskpool_t*
 parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
                       parsec_tiled_matrix_dc_t* dest,
-                      parsec_operator_t operator,
+                      parsec_operator_t operation,
                       void* op_data )
 {
     parsec_reduce_row_taskpool_t* tp;
     parsec_datatype_t oldtype, newtype;
     ptrdiff_t lb, extent;
 
-    tp = parsec_reduce_row_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
+    tp = parsec_reduce_row_new( src, dest, operation, op_data, 0, 0, src->lnt, src->lmt );
     assert(src->mtype == dest->mtype);
     if( -1 == parsec_translate_matrix_type(src->mtype, &oldtype) ) {
         parsec_debug_verbose(3, parsec_debug_output, "Unknown matrix type %d.", src->mtype );
