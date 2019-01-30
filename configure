@@ -106,6 +106,8 @@ Some influential environment variables:
   CCASFLAGS   assembler compiler flags (defaults to CFLAGS)
   FC          Fortran compiler command
   FCFLAGS     Fortran compiler flags
+  CMAKE_EXECUTABLE
+              Path to the CMake executable
   PKG_CONFIG  path to pkg-config utility
   PKG_CONFIG_PATH
               directories to add to pkg-config's search path
@@ -206,13 +208,13 @@ while [ x$1 != x ]; do
         --without-coreblas) OPT_COREBLAS=no; shift;;
 
 # Cmake passthrough
-        -D*=*) CMAKE_DEFINES="$CMAKE_DEFINES $1"; shift;;
+        -D*=*) CMAKE_DEFINES+="$1 "; shift;;
 
 # Environment variables
-        [^-]*=*) ENVVARS="$ENVVARS $1"; eval export $1; shift;;
+        [^-]*=*) ENVVARS+="$1 "; eval export $1; shift;;
 
 # Unhandled argument
-        *) show_help_and_exit ;;
+        *) echo "Invalid argument: $1"; show_help_and_exit ;;
     esac
 done
 }
@@ -233,115 +235,112 @@ else _PARSEC_CONFIG_STATUS_OPT_NORECHECK=yes; fi
 export _PARSEC_CONFIG_STATUS_OPT_NORECHECK
 EOF
 tee -a config.status <<EOF
-#
 ### This program was invoked with the following command line
 #
- $0 $*
-#
-###
+    $0 $*
 #
 EOF
 chmod +x config.status
 
 
 
-CMAKE_DEFINES[$enum_prefix]=${OPT_PREFIX:+-DCMAKE_INSTALL_PREFIX=$OPT_PREFIX}
+CMAKE_DEFINES+="${OPT_PREFIX:+-DCMAKE_INSTALL_PREFIX=$OPT_PREFIX} "
 # OPT_CROSSTARGET
-[ x$OPT_STATIC = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DBUILD_SHARED_LIB=OFF"
-[ x$OPT_STATIC = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DBUILD_SHARED_LIB=ON"
-[ x$OPT_SHARED = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DBUILD_SHARED_LIB=OFF"
-[ x$OPT_SHARED = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DBUILD_SHARED_LIB=ON"
+[ x$OPT_STATIC = xyes ] && CMAKE_DEFINES+="-DBUILD_SHARED_LIB=OFF "
+[ x$OPT_STATIC = xno ] && CMAKE_DEFINES+="-DBUILD_SHARED_LIB=ON "
+[ x$OPT_SHARED = xyes ] && CMAKE_DEFINES+="-DBUILD_SHARED_LIB=OFF "
+[ x$OPT_SHARED = xno ] && CMAKE_DEFINES+="-DBUILD_SHARED_LIB=ON "
 [ x$OPT_SHARED = xyes ] && [ x$OPT_STATIC = xyes ] && echo >&2 "WARNING: due to Cmake limitations, you have to choose exclusively between static and shared build. This build will be static."
-[ x$OPT_C11 = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DSUPPORT_C11=ON"
-[ x$OPT_C11 = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DSUPPORT_C11=OFF"
-[ x$OPT_CXX = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DSUPPORT_CXX=ON"
-[ x$OPT_CXX = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DSUPPORT_CXX=OFF"
-[ x$OPT_FORTRAN = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DSUPPORT_FORTRAN=ON"
-[ x$OPT_FORTRAN = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DSUPPORT_FORTRAN=OFF"
-[ x$OPT_DOC = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DBUILD_DOCUMENTATION=ON"
-[ x$OPT_DOC = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DBUILD_DOCUMENTATION=OFF"
+[ x$OPT_C11 = xyes ] && CMAKE_DEFINES+="-DSUPPORT_C11=ON "
+[ x$OPT_C11 = xno ] && CMAKE_DEFINES+="-DSUPPORT_C11=OFF "
+[ x$OPT_CXX = xyes ] && CMAKE_DEFINES+="-DSUPPORT_CXX=ON "
+[ x$OPT_CXX = xno ] && CMAKE_DEFINES+="-DSUPPORT_CXX=OFF "
+[ x$OPT_FORTRAN = xyes ] && CMAKE_DEFINES+="-DSUPPORT_FORTRAN=ON "
+[ x$OPT_FORTRAN = xno ] && CMAKE_DEFINES+="-DSUPPORT_FORTRAN=OFF "
+[ x$OPT_DOC = xyes ] && CMAKE_DEFINES+="-DBUILD_DOCUMENTATION=ON "
+[ x$OPT_DOC = xno ] && CMAKE_DEFINES+="-DBUILD_DOCUMENTATION=OFF "
 
-if [ -z "$OPT_DEBUG" ]; then CMAKE_DEFINES="$CMAKE_DEFINES -DCMAKE_BUILD_TYPE=RelWithDebInfo"
-elif [ $OPT_DEBUG = no ]; then CMAKE_DEFINES="$CMAKE_DEFINES -DCMAKE_BUILD_TYPE=Release"
+if [ -z "$OPT_DEBUG" ]; then CMAKE_DEFINES+="-DCMAKE_BUILD_TYPE=RelWithDebInfo "
+elif [ $OPT_DEBUG = no ]; then CMAKE_DEFINES+="-DCMAKE_BUILD_TYPE=Release "
 elif [[ $OPT_DEBUG =~ ^((yes|paranoid|noisier|history),?)+$ ]]; then
-    CMAKE_DEFINES="$CMAKE_DEFINES -DCMAKE_BUILD_TYPE=Debug"
-    [[ $OPT_DEBUG =~ paranoid ]] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_DEBUG_PARANOID=ON"
-    [[ $OPT_DEBUG =~ noisier ]] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_DEBUG_NOISIER=ON"
-    [[ $OPT_DEBUG =~ history ]] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_DEBUG_HISTORY=ON"
+    CMAKE_DEFINES+="-DCMAKE_BUILD_TYPE=Debug "
+    [[ $OPT_DEBUG =~ paranoid ]] && CMAKE_DEFINES+="-DPARSEC_DEBUG_PARANOID=ON "
+    [[ $OPT_DEBUG =~ noisier ]] && CMAKE_DEFINES+="-DPARSEC_DEBUG_NOISIER=ON "
+    [[ $OPT_DEBUG =~ history ]] && CMAKE_DEFINES+="-DPARSEC_DEBUG_HISTORY=ON "
 else echo >&2 "Option $OPT_DEBUG is invalid (can be yes|paranoid|noisier|history|no)"; exit 1; fi
 
-[ x$OPT_PROF_TRACE = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_TRACE=ON"
-[ x$OPT_PROF_TRACE = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_TRACE=OFF"
-[ x$OPT_PROF_CALLTRACE = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_CALLTRACE=ON"
-[ x$OPT_PROF_CALLTRACE = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_CALLTRACE=OFF"
-[ x$OPT_PROF_GRAPHER = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_GRAPHER=ON"
-[ x$OPT_PROF_GRAPHER = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_GRAPHER=OFF"
+[ x$OPT_PROF_TRACE = xyes ] && CMAKE_DEFINES+="-DPARSEC_PROF_TRACE=ON "
+[ x$OPT_PROF_TRACE = xno ] && CMAKE_DEFINES+="-DPARSEC_PROF_TRACE=OFF "
+[ x$OPT_PROF_CALLTRACE = xyes ] && CMAKE_DEFINES+="-DPARSEC_PROF_CALLTRACE=ON "
+[ x$OPT_PROF_CALLTRACE = xno ] && CMAKE_DEFINES+="-DPARSEC_PROF_CALLTRACE=OFF "
+[ x$OPT_PROF_GRAPHER = xyes ] && CMAKE_DEFINES+="-DPARSEC_PROF_GRAPHER=ON "
+[ x$OPT_PROF_GRAPHER = xno ] && CMAKE_DEFINES+="-DPARSEC_PROF_GRAPHER=OFF "
 
 if [[ x$OPT_PROF_DRYRUN =~ ^x((yes|no|body|dep),?)*$ ]]; then
-    [[ $OPT_PROF_DRYRUN =~ yes ]] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_DRY_RUN=ON"
-    [[ $OPT_PROF_DRYRUN =~ dep ]] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_DRY_DEP=ON"
-    [[ $OPT_PROF_DRYRUN =~ body ]] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_DRY_BODY=ON"
-    [[ $OPT_PROF_DRYRUN =~ no ]] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_DRY_RUN=OFF -DPARSEC_PROF_DRY_BODY=OFF -DPARSEC_PROF_DRY_DEP=OFF"
+    [[ $OPT_PROF_DRYRUN =~ yes ]] && CMAKE_DEFINES+="-DPARSEC_PROF_DRY_RUN=ON "
+    [[ $OPT_PROF_DRYRUN =~ dep ]] && CMAKE_DEFINES+="-DPARSEC_PROF_DRY_DEP=ON "
+    [[ $OPT_PROF_DRYRUN =~ body ]] && CMAKE_DEFINES+="-DPARSEC_PROF_DRY_BODY=ON "
+    [[ $OPT_PROF_DRYRUN =~ no ]] && CMAKE_DEFINES+="-DPARSEC_PROF_DRY_RUN=OFF -DPARSEC_PROF_DRY_BODY=OFF -DPARSEC_PROF_DRY_DEP=OFF "
 fi
 
 case x$OPT_PROF_TAU in
-xno) CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_TAU=OFF";;
-xyes) CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_TAU=ON";;
+xno) CMAKE_DEFINES+="-DPARSEC_PROF_TAU=OFF ";;
+xyes) CMAKE_DEFINES+="-DPARSEC_PROF_TAU=ON ";;
 x) ;;
-*) CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_TAU=ON -DTAU_ROOT=$OPT_PROF_TAU";;
+*) CMAKE_DEFINES+="-DPARSEC_PROF_TAU=ON -DTAU_ROOT=$OPT_PROF_TAU ";;
 esac
 
 case x$OPT_PROF_PAPI in
-xno) CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_TRACE=OFF"
-    if [[ x${CMAKE_DEFINES[$enum_trace]} =~ ON ]]; then
+xno) CMAKE_DEFINES+="-DPARSEC_PROF_TRACE=OFF "
+    if [[ x$CMAKE_DEFINES =~ PARSEC_PROF_TRACE=ON ]]; then
         echo >&2 "WARNING: PAPI is disabled but prof-trace had been requested. Traces have been disabled."
-        CMAKE_DEFINES="$CMAKE_DEFINES "
+        CMAKE_DEFINES="${CMAKE_DEFINES/-DPARSEC_PROF_TRACE=ON/}"
     fi;;
-xyes) CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_PROF_TRACE=ON";;
+xyes) CMAKE_DEFINES+="-DPARSEC_PROF_TRACE=ON";;
 x) ;;
-*) CMAKE_DEFINES="$CMAKE_DEFINES -DPAPI_DIR=$OPT_PROF_PAPI";;
+*) CMAKE_DEFINES+="-DPAPI_DIR=$OPT_PROF_PAPI ";;
 esac
 
 case x$OPT_PROF_GTG in
 xno) ;; # No CMAKE control to remove if available
 xyes) ;; # No CMAKE control to force using
 x) ;;
-*) CMAKE_DEFINES="$CMAKE_DEFINES -DGTG_DIR=$OPT_PROF_GTG";;
+*) CMAKE_DEFINES+="-DGTG_DIR=$OPT_PROF_GTG ";;
 esac
 
 case x$OPT_HWLOC in
 xno) ;; # No CMAKE control to remove if available
 xyes) ;; # No CMAKE control to force using
 x) ;;
-*) CMAKE_DEFINES="$CMAKE_DEFINES -DHWLOC_DIR=$OPT_HWLOC";;
+*) CMAKE_DEFINES+="-DHWLOC_DIR=$OPT_HWLOC ";;
 esac
 
 case x$OPT_DIST_MPI in
 xno) echo 2>&1 "WARNING: MPI is required to build this version of PaRSEC -- --without-mpi has been ignored.";;
 xyes) ;;
 x) ;;
-*)  CMAKE_DEFINES="$CMAKE_DEFINES "
+*)
     #TODO: deal with icc/spectrum and other variants
-    CMAKE_DEFINES[$enum_mpi]+="-DMPI_C_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpicc) "
-    CMAKE_DEFINES[$enum_mpi]+="-DMPI_CXX_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpicxx) "
-    CMAKE_DEFINES[$enum_mpi]+="-DMPI_Fortran_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpif90) "
+    CMAKE_DEFINES+="-DMPI_C_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpicc) "
+    CMAKE_DEFINES+="-DMPI_CXX_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpicxx) "
+    CMAKE_DEFINES+="-DMPI_Fortran_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpif90) "
 esac
-[ x$OPT_DIST_COLL = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_DIST_COLLECTIVES=ON"
-[ x$OPT_DIST_COLL = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_DIST_COLLECTIVES=OFF"
+[ x$OPT_DIST_COLL = xyes ] && CMAKE_DEFINES+="-DPARSEC_DIST_COLLECTIVES=ON "
+[ x$OPT_DIST_COLL = xno ] && CMAKE_DEFINES+="-DPARSEC_DIST_COLLECTIVES=OFF "
 
 
 case x$OPT_GPU_CUDA in
-xno) CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_GPU_WITH_CUDA=OFF";;
-xyes) CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_GPU_WITH_CUDA=ON";;
+xno) CMAKE_DEFINES+="-DPARSEC_GPU_WITH_CUDA=OFF ";;
+xyes) CMAKE_DEFINES+="-DPARSEC_GPU_WITH_CUDA=ON ";;
 x) ;;
-*) CMAKE_DEFINES="$CMAKE_DEFINES -DPARSEC_GPU_WITH_CUDA=ON -DCUDA_TOOLKIT_ROOT_DIR=$OPT_GPU_CUDA ${CC:+-DCUDA_HOST_COMPILER=$(command -v $CC)}";;
+*) CMAKE_DEFINES+="-DPARSEC_GPU_WITH_CUDA=ON -DCUDA_TOOLKIT_ROOT_DIR=$OPT_GPU_CUDA ${CC:+-DCUDA_HOST_COMPILER=$(command -v $CC)} ";;
 esac
 
 case x$OPT_GPU_CUDA_SM in
 xyes) ;;
-xno) CMAKE_DEFINES="$CMAKE_DEFINES -DCUDA_SM_TARGETS=";;
+xno) CMAKE_DEFINES+="-DCUDA_SM_TARGETS= ";;
 x) ;;
-*) CMAKE_DEFINES="$CMAKE_DEFINES -DCUDA_SM_TARGETS='${OPT_GPU_CUDA_SM/,/;}'";;
+*) CMAKE_DEFINES+="-DCUDA_SM_TARGETS='${OPT_GPU_CUDA_SM/,/;}' ";;
 esac
 
 
@@ -351,28 +350,38 @@ xyes) ;;
 x) ;;
 *)  PYTHON_EXECUTABLES=$(PATH=$OPT_PYTHON:$OPT_PYTHON/bin command -v python{,3,2})
     for PYTHON_EXECUTABLE in $PYTHON_EXECUTABLES; do
-        [[ $PYTHON_EXECUTABLE =~ $OPT_PYTHON ]] && CMAKE_DEFINES="$CMAKE_DEFINES -DPYTHON_EXECUTABLE=$PYTHON_EXECUTABLE" && break
+        [[ $PYTHON_EXECUTABLE =~ $OPT_PYTHON ]] && CMAKE_DEFINES+="-DPYTHON_EXECUTABLE=$PYTHON_EXECUTABLE " && break
     done
 esac
 
 
-[ x$OPT_DPLASMA = xyes ] && CMAKE_DEFINES="$CMAKE_DEFINES -DBUILD_DPLASMA=ON"
-[ x$OPT_DPLASMA = xno ] && CMAKE_DEFINES="$CMAKE_DEFINES -DBUILD_DPLASMA=OFF"
+[ x$OPT_DPLASMA = xyes ] && CMAKE_DEFINES+="-DBUILD_DPLASMA=ON "
+[ x$OPT_DPLASMA = xno ] && CMAKE_DEFINES+="-DBUILD_DPLASMA=OFF "
 
 case x$OPT_COREBLAS in
 xyes) ;;
 xno) [ x$OPT_DPLASMA = xyes ] && echo >&2 "Requested --enable-dplasma and --without-coreblas, which is contradictory." && exit 3;;
 x) ;;
-*) CMAKE_DEFINES="$CMAKE_DEFINES -DCOREBLAS_DIR=$OPT_COREBLAS";;
+*) CMAKE_DEFINES+="-DCOREBLAS_DIR=$OPT_COREBLAS ";;
 esac
 
 
 
 # CMAKE INVOCATION
-CMAKE_COMMAND="$ENVVARS cmake -G 'Unix Makefiles' $OPT_SRCDIR $CMAKE_DEFINES"
+
+CMAKE_EXECUTABLE=${CMAKE_EXECUTABLE:-$(command -v cmake cmake3)}
+[ -d "$CMAKE_EXECUTABLE" ] && CMAKE_EXECUTABLE=$(PATH=$CMAKE_EXECUTABLE command -v cmake)
+[ ! -x "$CMAKE_EXECUTABLE" ] && echo "Could not find CMake binary $CMAKE_EXECUTABLE" && exit 3
+CMAKE_COMMAND="$ENVVARS ${CMAKE_EXECUTABLE} -G 'Unix Makefiles' $OPT_SRCDIR $CMAKE_DEFINES"
+cat <<EOF
+### CMake generated invocation
+#
+    $CMAKE_COMMAND
+#
+EOF
 
 if [ x$OPT_NOCREATE != xyes ]; then
-    [ x$_PARSEC_CONFIG_STATUS_OPT_NORECHECK = xno ] && echo "Removing Cmake Cache..." && rm -rf CMakeCache.txt CMakeFiles
+    [ x$_PARSEC_CONFIG_STATUS_OPT_NORECHECK != xyes ] && echo "Removing Cmake Cache..." && rm -rf CMakeCache.txt CMakeFiles
     eval $CMAKE_COMMAND
 fi
 
