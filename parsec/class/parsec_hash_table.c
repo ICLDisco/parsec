@@ -469,7 +469,7 @@ void parsec_hash_table_for_all(parsec_hash_table_t* ht, hash_elem_fct_t fct, voi
             while( NULL != current_item ) {
                 user_item = parsec_hash_table_item_lookup(ht, current_item);
                 current_item = current_item->next_item;
-                fct( cb_data, user_item );
+                fct( user_item, cb_data );
             }
         }
     }
