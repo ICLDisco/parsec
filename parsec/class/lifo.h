@@ -175,8 +175,13 @@ parsec_lifo_nolock_pop(parsec_lifo_t* lifo);
  */
 typedef union parsec_counted_pointer_u {
     struct {
-        /** update counter used when cmpset_128 is available */
-        int64_t             counter;
+        union {
+            /** update counter used when cmpset_128 is available */
+            int64_t             counter;
+            /* The lock used if 128-bit atomics are not available
+             * and the item's aba-key is not used. */
+            parsec_atomic_lock_t lock;
+        } guard;
         /** list item pointer */
         parsec_list_item_t *item;
     } data;
@@ -204,15 +209,13 @@ static inline int parsec_lifo_is_empty( parsec_lifo_t* lifo )
 #define parsec_lifo_nolock_is_empty parsec_lifo_is_empty
 
 #if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
-/* Add one element to the FIFO. We will return the last head of the list
- * to allow the upper level to detect if this element is the first one in the
- * list (if the list was empty before this operation).
+/* Add one element to the FIFO. Returns true if successful, false otherwise.
  */
 static inline int
 parsec_update_counted_pointer(volatile parsec_counted_pointer_t *addr, parsec_counted_pointer_t old,
                              parsec_list_item_t *item)
 {
-    parsec_counted_pointer_t elem = {.data = {.counter = old.data.counter + 1, .item = item}};
+    parsec_counted_pointer_t elem = {.data = {.guard.counter = old.data.guard.counter + 1, .item = item}};
     return parsec_atomic_cas_int128(&addr->value, old.value, elem.value);
 }
 
@@ -268,7 +271,7 @@ static inline parsec_list_item_t* parsec_lifo_pop( parsec_lifo_t* lifo )
 
     do {
 
-        old_head.data.counter = lifo->lifo_head.data.counter;
+        old_head.data.guard.counter = lifo->lifo_head.data.guard.counter;
         parsec_atomic_rmb ();
         item = old_head.data.item = lifo->lifo_head.data.item;
 
@@ -291,7 +294,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     parsec_counted_pointer_t old_head;
     parsec_list_item_t *item;
 
-    old_head.data.counter = lifo->lifo_head.data.counter;
+    old_head.data.guard.counter = lifo->lifo_head.data.guard.counter;
     parsec_atomic_rmb();
     item = old_head.data.item = lifo->lifo_head.data.item;
 
@@ -421,7 +424,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     return item;
 }
 
-#else /* !defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) && !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) */
+#elif defined(PARSEC_USE_64BIT_LOCKFREE_LIST)
 
 /* Add one element to the LIFO. We will return the last head of the list
  * to allow the upper level to detect if this element is the first one in the
@@ -539,7 +542,90 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     return item == lifo->lifo_ghost ? NULL : item;
 }
 
-#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) */
+#else /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
+
+/* Add one element to the LIFO. We will return the last head of the list
+ * to allow the upper level to detect if this element is the first one in the
+ * list (if the list was empty before this operation).
+ */
+static inline void parsec_lifo_push(parsec_lifo_t *lifo,
+                                    parsec_list_item_t *item)
+{
+    PARSEC_ITEM_ATTACH(lifo, item);
+    parsec_atomic_lock(&lifo->lifo_head.data.guard.lock);
+    parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
+    item->list_next = next;
+    lifo->lifo_head.data.item = item;
+    parsec_atomic_unlock(&lifo->lifo_head.data.guard.lock);
+}
+
+static inline void parsec_lifo_chain(parsec_lifo_t* lifo,
+                                     parsec_list_item_t* ring)
+{
+#if defined(PARSEC_DEBUG_PARANOID)
+    assert( (uintptr_t)ring % PARSEC_LIFO_ALIGNMENT(lifo) == 0 );
+#endif
+    PARSEC_ITEMS_ATTACH(lifo, ring);
+
+    parsec_atomic_lock(&lifo->lifo_head.data.guard.lock);
+    parsec_list_item_t* tail = (parsec_list_item_t*) ring->list_prev;
+
+    parsec_list_item_t *next = (parsec_list_item_t*) lifo->lifo_head.data.item;
+    tail->list_next = next;
+    lifo->lifo_head.data.item = ring;
+    parsec_atomic_unlock(&lifo->lifo_head.data.guard.lock);
+}
+
+/* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
+ * is empty so we return NULL.
+ */
+static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
+{
+    parsec_list_item_t *item;
+
+    /* Short-cut if empty to avoid lock-thrashing */
+    if (lifo->lifo_head.data.item == lifo->lifo_ghost) {
+        return NULL;
+    }
+
+    parsec_atomic_lock(&lifo->lifo_head.data.guard.lock);
+    if ((item = lifo->lifo_head.data.item) != lifo->lifo_ghost) {
+        lifo->lifo_head.data.item = (parsec_list_item_t*)item->list_next;
+        item->list_next = NULL;
+        PARSEC_ITEM_DETACH(item);
+    } else {
+        item = NULL;
+    }
+    parsec_atomic_unlock(&lifo->lifo_head.data.guard.lock);
+    return NULL;
+}
+
+static inline parsec_list_item_t *parsec_lifo_try_pop(parsec_lifo_t* lifo)
+{
+    parsec_list_item_t *item;
+
+    /* Short-cut if empty to avoid lock-thrashing */
+    if (lifo->lifo_head.data.item == lifo->lifo_ghost) {
+        return NULL;
+    }
+
+    if (!parsec_atomic_trylock(&lifo->lifo_head.data.guard.lock)) {
+        return NULL;
+    }
+
+    if ((item = lifo->lifo_head.data.item) != lifo->lifo_ghost) {
+        lifo->lifo_head.data.item = (parsec_list_item_t*)item->list_next;
+        item->list_next = NULL;
+        PARSEC_ITEM_DETACH(item);
+    } else {
+        item = NULL;
+    }
+    parsec_atomic_unlock(&lifo->lifo_head.data.guard.lock);
+    return NULL;
+
+}
+
+#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
 
 static inline void parsec_lifo_nolock_push( parsec_lifo_t* lifo,
                                             parsec_list_item_t* item )
