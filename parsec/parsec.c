@@ -1973,7 +1973,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
         int mpi_is_on;
         MPI_Initialized(&mpi_is_on);
         if(mpi_is_on) {
-            MPI_Comm_rank((MPI_Comm)context->comm_ctx, &rank);
+            MPI_Comm_rank(*(MPI_Comm*)context->comm_ctx, &rank);
         }
 #endif /* DISTRIBUTED && PARSEC_HAVE_MPI */
         while (getline(&line, &line_len, f) != -1) {
