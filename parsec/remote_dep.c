@@ -256,7 +256,7 @@ int parsec_remote_dep_set_ctx( parsec_context_t* context, void* opaque_comm_ctx 
 
 int parsec_remote_dep_progress(parsec_execution_stream_t* es)
 {
-    return remote_dep_progress(es->virtual_process[0].parsec_context, 1);
+    return remote_dep_progress(es, 1);
 }
 
 static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
@@ -515,7 +515,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                          */
                         (void)parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack);
                     }
-                    remote_dep_send(rank, remote_deps);
+                    remote_dep_send(es, rank, remote_deps);
                 } else {
                     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)",
                             remote_deps->root, i, tmp, my_idx, idx, rank);

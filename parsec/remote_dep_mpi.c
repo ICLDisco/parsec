@@ -40,21 +40,21 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
 static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
                                       dep_cmd_item_t *item);
 
-static int remote_dep_dequeue_send(int rank, parsec_remote_deps_t* deps);
+static int remote_dep_dequeue_send(parsec_execution_stream_t* es, int rank, parsec_remote_deps_t* deps);
 static int remote_dep_dequeue_new_taskpool(parsec_taskpool_t* tp);
 #ifdef PARSEC_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_init(parsec_context_t* context);
 static int remote_dep_dequeue_fini(parsec_context_t* context);
 static int remote_dep_dequeue_on(parsec_context_t* context);
 static int remote_dep_dequeue_off(parsec_context_t* context);
-/*static int remote_dep_dequeue_progress(parsec_context_t* context);*/
+/*static int remote_dep_dequeue_progress(parsec_execution_stream_t* es);*/
 #   define remote_dep_init(ctx) remote_dep_dequeue_init(ctx)
 #   define remote_dep_fini(ctx) remote_dep_dequeue_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_dequeue_on(ctx)
 #   define remote_dep_off(ctx)  remote_dep_dequeue_off(ctx)
 #   define remote_dep_new_taskpool(tp) remote_dep_dequeue_new_taskpool(tp)
-#   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
-#   define remote_dep_progress(ctx, cycles) remote_dep_dequeue_nothread_progress(ctx, cycles)
+#   define remote_dep_send(es, rank, deps) remote_dep_dequeue_send(es, rank, deps)
+#   define remote_dep_progress(es, cycles) remote_dep_dequeue_nothread_progress(es, cycles)
 
 #else
 static int remote_dep_dequeue_nothread_init(parsec_context_t* context);
@@ -64,10 +64,10 @@ static int remote_dep_dequeue_nothread_fini(parsec_context_t* context);
 #   define remote_dep_on(ctx)   remote_dep_mpi_on(ctx)
 #   define remote_dep_off(ctx)  0
 #   define remote_dep_new_taskpool(tp) remote_dep_dequeue_new_taskpool(tp)
-#   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
-#   define remote_dep_progress(ctx, cycles) remote_dep_dequeue_nothread_progress(ctx, cycles)
+#   define remote_dep_send(es, rank, deps) remote_dep_dequeue_send(es, rank, deps)
+#   define remote_dep_progress(es, cycles) remote_dep_dequeue_nothread_progress(es, cycles)
 #endif
-static int remote_dep_dequeue_nothread_progress(parsec_context_t* context, int cycles);
+static int remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es, int cycles);
 
 #include "parsec/class/dequeue.h"
 
@@ -107,8 +107,8 @@ typedef enum dep_cmd_action_t {
     DEP_MEMCPY,
     DEP_RELEASE,
     DEP_DTD_DELAYED_RELEASE,
-/*    DEP_PROGRESS,
-    DEP_PUT_DATA, */
+/*    DEP_PROGRESS, */
+    DEP_PUT_DATA,
     DEP_GET_DATA,
     DEP_CTL,
     DEP_LAST  /* always the last element. it shoud not be used */
@@ -443,7 +443,7 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
         parsec_communication_engine_up = 3;
         /* The MPI thread is owning the lock */
         remote_dep_mpi_on(context);
-        whatsup = remote_dep_dequeue_nothread_progress(context, -1 /* loop till explicitly asked to return */);
+        whatsup = remote_dep_dequeue_nothread_progress(&parsec_comm_es, -1 /* loop till explicitly asked to return */);
     } while(-1 != whatsup);
 
     /* Release all resources */
@@ -478,7 +478,7 @@ remote_dep_dequeue_delayed_dep_release(parsec_remote_deps_t *deps)
     return 1;
 }
 
-static int remote_dep_dequeue_send(int rank,
+static int remote_dep_dequeue_send(parsec_execution_stream_t* es, int rank,
                                    parsec_remote_deps_t* deps)
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
@@ -491,8 +491,8 @@ static int remote_dep_dequeue_send(int rank,
     item->cmd.activate.task.tag         = 0;
     /* if MPI is multithreaded do not thread-shift the send activate */
     if( parsec_comm_es.virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
-        parsec_list_item_singleton(&item->pos_list); /* TODO: see if aggregation can be put back in this case */
-        remote_dep_nothread_send(&parsec_comm_es, &item);
+        parsec_list_item_singleton(&item->pos_list); /* NOTE: this disables aggregation in MT cases. */
+        remote_dep_nothread_send(es, &item);
     }
     else {
         parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*)item);
@@ -834,14 +834,14 @@ static int remote_dep_dequeue_nothread_fini(parsec_context_t* context)
 #endif
 
 static int
-remote_dep_dequeue_nothread_progress(parsec_context_t* context,
+remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
                                      int cycles)
 {
+    parsec_context_t* context = es->virtual_process->parsec_context;
     parsec_list_item_t *items;
     dep_cmd_item_t *item, *same_pos;
     parsec_list_t temp_list;
     int ret = 0, how_many, position, executed_tasks = 0;
-    parsec_execution_stream_t* es = &parsec_comm_es;
 
     OBJ_CONSTRUCT(&temp_list, parsec_list_t);
  check_pending_queues:
@@ -936,6 +936,9 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
         remote_dep_nothread_send(es, &item);
         same_pos = item;
         goto have_same_pos;
+    case DEP_PUT_DATA:
+        remote_dep_mpi_put_short(es, item);
+        break;
     case DEP_MEMCPY:
         remote_dep_nothread_memcpy(es, item);
         break;
@@ -1587,21 +1590,31 @@ static void remote_dep_mpi_put_eager(parsec_execution_stream_t* es,
 #endif
 
     item->cmd.activate.task.output_mask = remote_dep_mpi_eager_which(deps, task->output_mask);
-    if( 0 == item->cmd.activate.task.output_mask
-     || parsec_comm_es.virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
+    if( 0 == item->cmd.activate.task.output_mask ) {
         free(item);  /* nothing to do, no reason to keep it */
         return;
     }
 
-    /* Check if we can process it right now */
-    if( parsec_comm_puts < parsec_comm_puts_max ) {
-        remote_dep_mpi_put_start(es, item);
-        return;
+    if( es != &parsec_comm_es ) {
+        /* The activate part is done by the caller thread. However, the
+         * comm_thread will take care of the short PUTS in its context
+         * to avoid thread synchronization cost on accesses to dep_put_fifo.
+         * So, we insert the ACTIVATE as a PUT_DATA in the front of the 
+         * cmd_queue for later handling in another call to this function
+         * but appropriately thread-shifted. */
+        item->action = DEP_PUT_DATA;
+        parsec_dequeue_push_front(&dep_cmd_queue, (parsec_list_item_t*)item);
     }
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI: Put Eager DELAYED for %s from %d tag %u which 0x%x (deps %p)",
+    else {
+        /* Check if we can process it right now */
+        if( parsec_comm_puts < parsec_comm_puts_max ) {
+            remote_dep_mpi_put_start(es, item);
+            return;
+        }
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI: Put Eager DELAYED for %s from %d tag %u which 0x%x (deps %p)",
             tmp, item->cmd.activate.peer, task->tag, task->output_mask, deps);
-
-    parsec_list_nolock_push_sorted(&dep_put_fifo, (parsec_list_item_t*)item, dep_cmd_prio);
+        parsec_list_nolock_push_sorted(&dep_put_fifo, (parsec_list_item_t*)item, dep_cmd_prio);
+    }
 }
 #endif  /* RDEP_MSG_EAGER_LIMIT != 0 */
 
