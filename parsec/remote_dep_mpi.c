@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -75,8 +75,10 @@ static int remote_dep_dequeue_nothread_progress(parsec_context_t* context, int c
  * larger the amount spent in ordering the tasks, but greater the potential
  * benefits of doing things in the right order.
  */
+static void remote_dep_mpi_params(parsec_context_t* context);
 static int parsec_param_nb_tasks_extracted = 20;
-static int parsec_param_enable_eager = PARSEC_DIST_EAGER_LIMIT;
+static size_t parsec_param_short_limit = RDEP_MSG_SHORT_LIMIT;
+static size_t parsec_param_eager_limit = RDEP_MSG_EAGER_LIMIT;
 static int parsec_param_enable_aggregate = 1;
 
 #define DEP_NB_CONCURENT 3
@@ -151,10 +153,10 @@ remote_dep_mpi_save_put_cb(parsec_execution_stream_t* es,
 static void remote_dep_mpi_put_start(parsec_execution_stream_t* es, dep_cmd_item_t* item);
 static int remote_dep_mpi_put_end_cb(parsec_execution_stream_t* es,
                                      parsec_comm_callback_t* cb, MPI_Status* status);
-#if 0 != RDEP_MSG_SHORT_LIMIT
-static void remote_dep_mpi_put_short( parsec_execution_stream_t* es,
+#if 0 != RDEP_MSG_EAGER_LIMIT
+static void remote_dep_mpi_put_eager( parsec_execution_stream_t* es,
                                       dep_cmd_item_t* item);
-#endif  /* 0 != RDEP_MSG_SHORT_LIMIT */
+#endif  /* 0 != RDEP_MSG_EAGER_LIMIT */
 static int remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
                                            parsec_comm_callback_t* cb, MPI_Status* status);
 static void remote_dep_mpi_get_start(parsec_execution_stream_t* es, parsec_remote_deps_t* deps);
@@ -233,6 +235,8 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
     int thread_level_support;
 
     assert(mpi_initialized == 0);
+
+    remote_dep_mpi_params(context);
 
     MPI_Initialized(&is_mpi_up);
     if( 0 == is_mpi_up ) {
@@ -787,6 +791,7 @@ static int remote_dep_dequeue_nothread_init(parsec_context_t* context)
 {
     parsec_dequeue_construct(&dep_cmd_queue);
     parsec_list_construct(&dep_cmd_fifo);
+    remote_dep_mpi_params(context);
     return remote_dep_mpi_init(context);
 }
 
@@ -1040,7 +1045,7 @@ static MPI_Status            *array_of_statuses;
 #define dep_dtt MPI_BYTE
 #define dep_count sizeof(remote_dep_wire_activate_t)
 #define dep_extent dep_count
-#define DEP_EAGER_BUFFER_SIZE (dep_extent+RDEP_MSG_EAGER_LIMIT)
+#define DEP_SHORT_BUFFER_SIZE (dep_extent+RDEP_MSG_SHORT_LIMIT)
 #define datakey_dtt MPI_LONG
 #define datakey_count 3
 static char **dep_activate_buff;
@@ -1130,10 +1135,10 @@ static int remote_dep_mpi_init(parsec_context_t* context)
 
     /* Create all the persistent receives (activation and GET orders) and start them */
     dep_activate_buff = (char**)calloc(parsec_comm_activations_max, sizeof(char*));
-    dep_activate_buff[0] = (char*)calloc(parsec_comm_activations_max, DEP_EAGER_BUFFER_SIZE*sizeof(char));
+    dep_activate_buff[0] = (char*)calloc(parsec_comm_activations_max, DEP_SHORT_BUFFER_SIZE*sizeof(char));
     for(i = 0; i < parsec_comm_activations_max; i++) {
-        dep_activate_buff[i] = dep_activate_buff[0] + i * DEP_EAGER_BUFFER_SIZE*sizeof(char);
-        MPI_Recv_init(dep_activate_buff[i], DEP_EAGER_BUFFER_SIZE, MPI_PACKED,
+        dep_activate_buff[i] = dep_activate_buff[0] + i * DEP_SHORT_BUFFER_SIZE*sizeof(char);
+        MPI_Recv_init(dep_activate_buff[i], DEP_SHORT_BUFFER_SIZE, MPI_PACKED,
                       MPI_ANY_SOURCE, REMOTE_DEP_ACTIVATE_TAG, dep_comm,
                       &array_of_requests[parsec_comm_last_active_req]);
         cb = &array_of_callbacks[parsec_comm_last_active_req];
@@ -1158,6 +1163,26 @@ static int remote_dep_mpi_init(parsec_context_t* context)
     }
 
     return 0;
+}
+
+#include "parsec/utils/mca_param.h"
+
+static void remote_dep_mpi_params(parsec_context_t* context) {
+    (void)context;
+#if RDEP_MSG_SHORT_LIMIT != 0
+    parsec_mca_param_reg_sizet_name("runtime", "comm_short_limit", "Controls the maximum size of a short message.",
+                                  false, false, parsec_param_short_limit, &parsec_param_short_limit);
+    if(parsec_param_short_limit > RDEP_MSG_SHORT_LIMIT) {
+        parsec_warning("User requested a short message limit of %d which is greater than compiled in limit %d; value reset to compiled limit %d", parsec_param_short_limit, RDEP_MSG_SHORT_LIMIT, RDEP_MSG_SHORT_LIMIT);
+        parsec_param_short_limit = RDEP_MSG_SHORT_LIMIT;
+    }
+#endif
+#if RDEP_MSG_EAGER_LIMIT != 0
+    parsec_mca_param_reg_sizet_name("runtime", "comm_eager_limit", "Controls the maximum size of a message that uses the eager protocol.",
+                                  false, false, parsec_param_eager_limit, &parsec_param_eager_limit);
+#endif
+    parsec_mca_param_reg_int_name("runtime", "comm_aggregate", "Aggregate multiple dependencies in the same short message (1=true,0=false).",
+                                  false, false, parsec_param_enable_aggregate, &parsec_param_enable_aggregate);
 }
 
 void
@@ -1221,7 +1246,7 @@ static int remote_dep_mpi_on(parsec_context_t* context)
 
 /**
  * Given a remote_dep_wire_activate message it packs as much as possible
- * into the provided buffer. If possible (eager allowed and enough room
+ * into the provided buffer. If possible (short allowed and enough room
  * in the buffer) some of the arguments will also be packed. Beware, the
  * remote_dep_wire_activate message itself must be updated with the
  * correct length before packing.
@@ -1258,7 +1283,7 @@ static int remote_dep_mpi_pack_dep(int peer,
            (msg->output_mask & deps->outgoing_mask) == deps->outgoing_mask);
     msg->length = 0;
     item->cmd.activate.task.output_mask = 0;  /* clean start */
-    /* Treat for special cases: CTL, Eager, etc... */
+    /* Treat for special cases: CTL, Short, etc... */
     for(k = 0; deps->outgoing_mask >> k; k++) {
         if( !((1U << k) & deps->outgoing_mask )) continue;
         if( !(deps->output[k].rank_bits[peer_bank] & peer_mask) ) continue;
@@ -1272,15 +1297,15 @@ static int remote_dep_mpi_pack_dep(int peer,
             continue;
         }
         assert(deps->output[k].data.count > 0);
-        if(parsec_param_enable_eager) {
-            /* Embed data (up to eager size) with the activate msg */
+        if(parsec_param_short_limit) {
+            /* Embed data (up to short size) with the activate msg */
             MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
                           dep_comm, &dsize);
             if((length - (*position)) >= dsize) {
                 MPI_Pack((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
                          deps->output[k].data.count, deps->output[k].data.layout,
                          packed_buffer, length, position, dep_comm);
-                PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, " EGR\t%s\tparam %d\teager piggyback in the activate msg (%d/%d)",
+                PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, " EGR\t%s\tparam %d\tshort piggyback in the activate msg (%d/%d)",
                         tmp, k, *position, length);
                 msg->length += dsize;
                 continue;  /* go to the next */
@@ -1304,7 +1329,7 @@ static int remote_dep_mpi_pack_dep(int peer,
     msg->tag = item->cmd.activate.task.tag;
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
     parsec_debug_verbose(6, parsec_debug_output, "MPI:\tTO\t%d\tActivate\t% -8s\n"
-          "    \t\t\twith datakey %lx\tmask %lx\t(tag=%d) eager mask %lu length %d",
+          "    \t\t\twith datakey %lx\tmask %lx\t(tag=%d) short mask %lu length %d",
           peer, tmp, msg->deps, msg->output_mask, msg->tag,
           msg->output_mask ^ item->cmd.activate.task.output_mask, msg->length);
 #endif
@@ -1344,7 +1369,7 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
     parsec_remote_deps_t *deps;
     dep_cmd_item_t *item = *head_item;
     parsec_list_item_t* ring = NULL;
-    char packed_buffer[DEP_EAGER_BUFFER_SIZE];
+    char packed_buffer[DEP_SHORT_BUFFER_SIZE];
     int peer, position = 0;
 
     peer = item->cmd.activate.peer;  /* this doesn't change */
@@ -1357,7 +1382,7 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
 
     parsec_list_item_singleton((parsec_list_item_t*)item);
     if( 0 == remote_dep_mpi_pack_dep(peer, item, packed_buffer,
-                                     DEP_EAGER_BUFFER_SIZE, &position) ) {
+                                     DEP_SHORT_BUFFER_SIZE, &position) ) {
         /* space left on the buffer. Move to the next item with the same destination */
         dep_cmd_item_t* next = (dep_cmd_item_t*)parsec_list_item_ring_chop(&item->pos_list);
         if( NULL == ring ) ring = (parsec_list_item_t*)item;
@@ -1381,11 +1406,11 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
         ring = parsec_list_item_ring_chop(ring);
         deps = (parsec_remote_deps_t*)item->cmd.activate.task.deps;
 
-#if RDEP_MSG_SHORT_LIMIT != 0
+#if RDEP_MSG_EAGER_LIMIT != 0
         if( 0 != item->cmd.activate.task.output_mask ) {
-            remote_dep_mpi_put_short(es, item);
+            remote_dep_mpi_put_eager(es, item);
         } else
-#endif   /* RDEP_MSG_SHORT_LIMIT != 0 */
+#endif   /* RDEP_MSG_EAGER_LIMIT != 0 */
             free(item);  /* only large messages are left */
 
         remote_dep_complete_and_cleanup(&deps, 1);
@@ -1446,16 +1471,16 @@ static int remote_dep_mpi_progress(parsec_execution_stream_t* es)
     } while(1);
 }
 
-#if RDEP_MSG_SHORT_LIMIT != 0
+#if RDEP_MSG_EAGER_LIMIT != 0
 /**
  * Compute the mask of all dependencies associated with a defined deps that can
  * be embedded in the outgoing message. This takes in account the control data
- * (with zero length), the eager data up to the allowed max amount of the
- * message as well as the short protocol (data that will follow shorthly without
+ * (with zero length), the short data up to the allowed max amount of the
+ * message as well as the eager protocol (data that will follow eagerly without
  * a need for rendez-vous).
  */
 static remote_dep_datakey_t
-remote_dep_mpi_short_which(const parsec_remote_deps_t* deps,
+remote_dep_mpi_eager_which(const parsec_remote_deps_t* deps,
                            remote_dep_datakey_t output_mask)
 {
     for(int k = 0; output_mask>>k; k++) {
@@ -1463,10 +1488,10 @@ remote_dep_mpi_short_which(const parsec_remote_deps_t* deps,
         if( NULL == deps->output[k].data.arena ) continue;  /* CONTROL dependency */
         size_t extent = deps->output[k].data.arena->elem_size * deps->output[k].data.count;
 
-        if( (extent <= (RDEP_MSG_SHORT_LIMIT)) || (extent <= (RDEP_MSG_EAGER_LIMIT)) ) {
+        if( (extent <= parsec_param_eager_limit) || (extent <= parsec_param_short_limit) ) {
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tPEER\tNA\t%5s MODE  k=%d\tsize=%d <= %d\t(tag=base+%d)",
-                    (extent <= (RDEP_MSG_EAGER_LIMIT) ? "Eager" : "Short"),
-                    k, extent, RDEP_MSG_SHORT_LIMIT, k);
+                    (extent <= parsec_param_short_limit ? "Short" : "Eager"),
+                    k, extent, parsec_param_eager_limit, k);
             continue;
         }
         output_mask ^= (1U<<k);
@@ -1474,7 +1499,7 @@ remote_dep_mpi_short_which(const parsec_remote_deps_t* deps,
     return output_mask;
 }
 
-static void remote_dep_mpi_put_short(parsec_execution_stream_t* es,
+static void remote_dep_mpi_put_eager(parsec_execution_stream_t* es,
                                      dep_cmd_item_t* item)
 {
     remote_dep_wire_get_t* task = &item->cmd.activate.task;
@@ -1484,7 +1509,7 @@ static void remote_dep_mpi_put_short(parsec_execution_stream_t* es,
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
 
-    item->cmd.activate.task.output_mask = remote_dep_mpi_short_which(deps, task->output_mask);
+    item->cmd.activate.task.output_mask = remote_dep_mpi_eager_which(deps, task->output_mask);
     if( 0 == item->cmd.activate.task.output_mask ) {
         free(item);  /* nothing to do, no reason to keep it */
         return;
@@ -1495,12 +1520,12 @@ static void remote_dep_mpi_put_short(parsec_execution_stream_t* es,
         remote_dep_mpi_put_start(es, item);
         return;
     }
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI: Put Short DELAYED for %s from %d tag %u which 0x%x (deps %p)",
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI: Put Eager DELAYED for %s from %d tag %u which 0x%x (deps %p)",
             tmp, item->cmd.activate.peer, task->tag, task->output_mask, deps);
 
     parsec_list_nolock_push_sorted(&dep_put_fifo, (parsec_list_item_t*)item, dep_cmd_prio);
 }
-#endif  /* RDEP_MSG_SHORT_LIMIT != 0 */
+#endif  /* RDEP_MSG_EAGER_LIMIT != 0 */
 
 static int
 remote_dep_mpi_save_put_cb(parsec_execution_stream_t* es,
@@ -1627,8 +1652,8 @@ remote_dep_mpi_put_end_cb(parsec_execution_stream_t* es,
 /**
  * An activation message has been received, and the remote_dep_wire_activate_t
  * part has already been extracted into the deps->msg. This function handles the
- * rest of the receiver logic, extract the possible eager and control data from
- * the buffer, post all the short protocol receives and all other local
+ * rest of the receiver logic, extract the possible short and control data from
+ * the buffer, post all the eager protocol receives and all other local
  * cleanups.
  */
 static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
@@ -1643,13 +1668,13 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
-#if RDEP_MSG_SHORT_LIMIT != 0
-    remote_dep_datakey_t short_which = remote_dep_mpi_short_which(deps, deps->incoming_mask);
+#if RDEP_MSG_EAGER_LIMIT != 0
+    remote_dep_datakey_t eager_which = remote_dep_mpi_eager_which(deps, deps->incoming_mask);
 #if !defined(PARSEC_PROF_DRY_DEP)
     MPI_Request reqs[MAX_PARAM_COUNT];
     int nb_reqs = 0, flag;
 #endif  /* !defined(PARSEC_PROF_DRY_DEP) */
-#endif  /* RDEP_MSG_SHORT_LIMIT != 0 */
+#endif  /* RDEP_MSG_EAGER_LIMIT != 0 */
 
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
     parsec_debug_verbose(6, parsec_debug_output, "MPI:\tFROM\t%d\tActivate\t% -8s\n"
@@ -1668,8 +1693,8 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
             continue;
         }
 
-        if( parsec_param_enable_eager && (length > *position) ) {
-            /* Check if the data is EAGERly embedded in the activate */
+        if( parsec_param_short_limit && (length > *position) ) {
+            /* Check if the data is short-embedded in the activate */
             MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
                           dep_comm, &dsize);
             if((length - (*position)) >= dsize) {
@@ -1678,7 +1703,7 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
                     deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
                 }
 #ifndef PARSEC_PROF_DRY_DEP
-                PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, " EGR\t%s\tparam %d\teager from the activate msg (%d/%d)",
+                PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, " EGR\t%s\tparam %d\tshort from the activate msg (%d/%d)",
                         tmp, k, dsize, length - *position);
                 MPI_Unpack(packed_buffer, length, position,
                            (char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
@@ -1688,15 +1713,15 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
                 continue;
             }
         }
-#if RDEP_MSG_SHORT_LIMIT != 0
-       /* Check if we have SHORT deps to satisfy quickly */
-        if( short_which & (1U<<k) ) {
+#if RDEP_MSG_EAGER_LIMIT != 0
+       /* Check if we have EAGER deps to satisfy quickly */
+        if( eager_which & (1U<<k) ) {
 
             assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data.data) {
                 deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
             }
-            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tGet SHORT\t% -8s\tk=%d\twith datakey %lx at %p\t(tag=%d)",
+            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tGet EAGER\t% -8s\tk=%d\twith datakey %lx at %p\t(tag=%d)",
                     deps->from, tmp, k, deps->msg.deps, deps->output[k].data.data, tag+k);
 #ifndef PARSEC_PROF_DRY_DEP
             MPI_Irecv((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
@@ -1712,12 +1737,12 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tGet DATA\t% -8s\tk=%d\twith datakey %lx tag=%d (to be posted)",
                 deps->from, tmp, k, deps->msg.deps, tag+k);
     }
-#if (RDEP_MSG_SHORT_LIMIT != 0) && !defined(PARSEC_PROF_DRY_DEP)
+#if (RDEP_MSG_EAGER_LIMIT != 0) && !defined(PARSEC_PROF_DRY_DEP)
     if (nb_reqs) {
         MPI_Waitall(nb_reqs, reqs, MPI_STATUSES_IGNORE);
         /* don't recursively call remote_dep_mpi_progress(es); */
     }
-#endif  /* (RDEP_MSG_SHORT_LIMIT != 0) && !defined(PARSEC_PROF_DRY_DEP) */
+#endif  /* (RDEP_MSG_EAGER_LIMIT != 0) && !defined(PARSEC_PROF_DRY_DEP) */
     assert(length == *position);
 
     /* Release all the already satisfied deps without posting the RDV */
@@ -1776,7 +1801,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate NoTPool\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                     cb->storage2, deps->msg.deps, deps->msg.output_mask);
-            /* Copy the eager data to some temp storage */
+            /* Copy the short data to some temp storage */
             packed_buffer = malloc(deps->msg.length);
             memcpy(packed_buffer, dep_activate_buff[cb->storage2] + position, deps->msg.length);
             position += deps->msg.length;  /* move to the next order */
@@ -1800,7 +1825,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
                     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate DeferDep\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
                             deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                             cb->storage2, deps->msg.deps, deps->msg.output_mask);
-                    /* Copy the eager data to some temp storage */
+                    /* Copy the short data to some temp storage */
                     packed_buffer = malloc(deps->msg.length);
                     memcpy(packed_buffer, dep_activate_buff[cb->storage2] + position, deps->msg.length);
                     position += deps->msg.length;  /* move to the next order */

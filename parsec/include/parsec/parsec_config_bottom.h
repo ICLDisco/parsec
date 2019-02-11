@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -77,16 +77,16 @@
 # define PARSEC_PROF_DRY_DEP
 #endif
 
-#if PARSEC_DIST_EAGER_LIMIT == 0
-#define RDEP_MSG_EAGER_LIMIT    0
-#else
-#define RDEP_MSG_EAGER_LIMIT    ((PARSEC_DIST_EAGER_LIMIT)*1024)
-#endif
-
 #if PARSEC_DIST_SHORT_LIMIT == 0
 #define RDEP_MSG_SHORT_LIMIT    0
 #else
 #define RDEP_MSG_SHORT_LIMIT    ((PARSEC_DIST_SHORT_LIMIT)*1024)
+#endif
+
+#if PARSEC_DIST_EAGER_LIMIT == 0
+#define RDEP_MSG_EAGER_LIMIT    0
+#else
+#define RDEP_MSG_EAGER_LIMIT    ((PARSEC_DIST_EAGER_LIMIT)*1024)
 #endif
 
 #if defined(PARSEC_SCHED_DEPS_MASK)
