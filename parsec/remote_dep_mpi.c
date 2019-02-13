@@ -77,6 +77,10 @@ static int remote_dep_dequeue_nothread_progress(parsec_context_t* context, int c
  */
 static void remote_dep_mpi_params(parsec_context_t* context);
 static int parsec_param_nb_tasks_extracted = 20;
+/* For the meaning of aggregate, short and eager, refer to the
+ * param register help text for comm_aggregate,
+ * comm_short_limit and comm_eager_limit respectively.
+ */
 static size_t parsec_param_short_limit = RDEP_MSG_SHORT_LIMIT;
 static size_t parsec_param_eager_limit = RDEP_MSG_EAGER_LIMIT;
 static int parsec_param_enable_aggregate = 1;
@@ -1170,7 +1174,7 @@ static int remote_dep_mpi_init(parsec_context_t* context)
 static void remote_dep_mpi_params(parsec_context_t* context) {
     (void)context;
 #if RDEP_MSG_SHORT_LIMIT != 0
-    parsec_mca_param_reg_sizet_name("runtime", "comm_short_limit", "Controls the maximum size of a short message.",
+    parsec_mca_param_reg_sizet_name("runtime", "comm_short_limit", "Controls the maximum size of a short message. Short messages contain both the control message notifying the completion of a task and the associated data that fit completely in that buffer length. The maximum size of a short message should be lower than the network MTU.",
                                   false, false, parsec_param_short_limit, &parsec_param_short_limit);
     if(parsec_param_short_limit > RDEP_MSG_SHORT_LIMIT) {
         parsec_warning("User requested a short message limit of %d which is greater than compiled in limit %d; value reset to compiled limit %d", parsec_param_short_limit, RDEP_MSG_SHORT_LIMIT, RDEP_MSG_SHORT_LIMIT);
@@ -1178,7 +1182,7 @@ static void remote_dep_mpi_params(parsec_context_t* context) {
     }
 #endif
 #if RDEP_MSG_EAGER_LIMIT != 0
-    parsec_mca_param_reg_sizet_name("runtime", "comm_eager_limit", "Controls the maximum size of a message that uses the eager protocol.",
+    parsec_mca_param_reg_sizet_name("runtime", "comm_eager_limit", "Controls the maximum size of a message that uses the eager protocol. Eager messages are sent eagerly before a 2-sided synchronization and may cause flow control and memory contentions at the receiver, but have a better latency.",
                                   false, false, parsec_param_eager_limit, &parsec_param_eager_limit);
 #endif
     parsec_mca_param_reg_int_name("runtime", "comm_aggregate", "Aggregate multiple dependencies in the same short message (1=true,0=false).",
