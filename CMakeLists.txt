@@ -103,10 +103,10 @@ option(PARSEC_DIST_PRIORITIES
   "Favor the communications that unlock the most prioritary tasks" ON)
 option(PARSEC_DIST_COLLECTIVES
   "Use optimized asynchronous operations where collective communication pattern is detected" ON)
-set   (PARSEC_DIST_EAGER_LIMIT 1 CACHE STRING
-  "Use the eager protocol (no flow control) for messages smaller than the limit in KB")
 set   (PARSEC_DIST_SHORT_LIMIT 1 CACHE STRING
   "Use the short protocol (no flow control) for messages smaller than the limit in KB")
+set   (PARSEC_DIST_EAGER_LIMIT 12 CACHE STRING
+  "Use the eager protocol (no flow control) for messages smaller than the limit in KB")
 
 ### GPU engine parameters
 option(PARSEC_GPU_WITH_CUDA
