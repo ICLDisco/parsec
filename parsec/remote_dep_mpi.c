@@ -939,7 +939,7 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
         same_pos = item;
         goto have_same_pos;
     case DEP_PUT_DATA:
-        remote_dep_mpi_put_short(es, item);
+        remote_dep_mpi_put_eager(es, item);
         break;
     case DEP_MEMCPY:
         remote_dep_nothread_memcpy(es, item);
