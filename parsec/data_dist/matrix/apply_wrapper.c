@@ -51,7 +51,7 @@
 parsec_taskpool_t *
 parsec_apply_New( int uplo,
                  parsec_tiled_matrix_dc_t *A,
-                 tiled_matrix_unary_op_t operator,
+                 tiled_matrix_unary_op_t operation,
                  void *op_args )
 {
     parsec_apply_taskpool_t *parsec_app = NULL;
@@ -65,7 +65,7 @@ parsec_apply_New( int uplo,
 
     parsec_app =   parsec_apply_new( uplo,
                                      A,
-                                     operator, op_args);
+                                     operation, op_args);
 
     switch( A->mtype ) {
     case matrix_ComplexDouble    :
@@ -165,7 +165,7 @@ int
 parsec_apply( parsec_context_t *parsec,
              int uplo,
              parsec_tiled_matrix_dc_t *A,
-             tiled_matrix_unary_op_t operator,
+             tiled_matrix_unary_op_t operation,
              void *op_args )
 {
     parsec_taskpool_t *parsec_app = NULL;
@@ -177,7 +177,7 @@ parsec_apply( parsec_context_t *parsec,
         return -2;
     }
 
-    parsec_app = parsec_apply_New( uplo, A, operator, op_args );
+    parsec_app = parsec_apply_New( uplo, A, operation, op_args );
 
     if ( parsec_app != NULL )
     {
