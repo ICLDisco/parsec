@@ -69,7 +69,7 @@ parsec_fifo_nolock_is_empty( parsec_fifo_t* fifo)
  */
 static inline void
 parsec_fifo_push(parsec_fifo_t* fifo, parsec_list_item_t* item) {
-    parsec_list_push_front((parsec_list_t*)fifo, item);
+    parsec_list_push_back((parsec_list_t*)fifo, item);
 }
 
 /**
@@ -82,7 +82,7 @@ parsec_fifo_push(parsec_fifo_t* fifo, parsec_list_item_t* item) {
  */
 static inline void
 parsec_fifo_nolock_push(parsec_fifo_t* fifo, parsec_list_item_t* item) {
-    parsec_list_nolock_push_front((parsec_list_t*)fifo, item);
+    parsec_list_nolock_push_back((parsec_list_t*)fifo, item);
 }
 
 /**
@@ -99,7 +99,7 @@ parsec_fifo_nolock_push(parsec_fifo_t* fifo, parsec_list_item_t* item) {
  */
 static inline void
 parsec_fifo_chain(parsec_fifo_t* fifo, parsec_list_item_t* items) {
-    parsec_list_chain_front((parsec_list_t*)fifo, items);
+    parsec_list_chain_back((parsec_list_t*)fifo, items);
 }
 
 /**
@@ -117,7 +117,7 @@ parsec_fifo_chain(parsec_fifo_t* fifo, parsec_list_item_t* items) {
  */
 static inline void
 parsec_fifo_nolock_chain(parsec_fifo_t* fifo, parsec_list_item_t* items) {
-    parsec_list_nolock_chain_front((parsec_list_t*)fifo, items);
+    parsec_list_nolock_chain_back((parsec_list_t*)fifo, items);
 }
 
 /**
