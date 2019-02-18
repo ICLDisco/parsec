@@ -18,6 +18,7 @@
 #include "parsec/data.h"
 #include "parsec/papi_sde.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/parsec_binary_profile.h"
 
 #define PARSEC_REMOTE_DEP_USE_THREADS
 
@@ -962,11 +963,11 @@ typedef struct {
     int rank_src;  // 0
     int rank_dst;  // 4
     uint64_t tid;  // 8
-    uint32_t hid;  // 16
-    uint8_t  fid;  // 20
+    uint32_t tpid;  // 16
+    uint32_t did;   // 20
 } parsec_profile_remote_dep_mpi_info_t; // 24 bytes
 
-static char parsec_profile_remote_dep_mpi_info_to_string[] = "src{int32_t};dst{int32_t};tid{int64_t};hid{int32_t};fid{int8_t};pad{char[3]}";
+static char parsec_profile_remote_dep_mpi_info_to_string[] = "src{int32_t};dst{int32_t};tid{int64_t};tpid{int32_t};did{int32_t}";
 
 static void remote_dep_mpi_profiling_init(void)
 {
@@ -1016,10 +1017,13 @@ static void remote_dep_mpi_profiling_fini(void)
         const parsec_task_class_t *__tc = __tp->task_classes_array[(rdw).task_class_id ]; \
         __info.rank_src = (src);                                        \
         __info.rank_dst = (dst);                                        \
-        __info.hid = __tp->taskpool_id;                                 \
+        __info.tpid = __tp->taskpool_id;                                \
         /** Recompute the base profiling key of that function */        \
-        __info.fid = __tc->task_class_id;                               \
-        __info.tid = -1; /* TODO: should compute the TID from (rdw).locals */ \
+        __info.did = __tp->profiling_array != NULL ?                    \
+             BASE_KEY(__tp->profiling_array[2*__tc->task_class_id]) :   \
+             -__tc->task_class_id;                                      \
+        __info.tid = __tc->key_functions->key_hash(                     \
+             __tc->make_key(__tp, (rdw).locals), 64, NULL);             \
         PARSEC_PROFILING_TRACE((PROF), (KEY), (I),                      \
                                PROFILE_OBJECT_ID_NULL, &__info);        \
     }
