@@ -370,9 +370,15 @@ esac
 # CMAKE INVOCATION
 
 CMAKE_EXECUTABLE=${CMAKE_EXECUTABLE:-$(command -v cmake cmake3)}
-[ -d "$CMAKE_EXECUTABLE" ] && CMAKE_EXECUTABLE=$(PATH=$CMAKE_EXECUTABLE command -v cmake)
-[ ! -x "$CMAKE_EXECUTABLE" ] && echo "Could not find CMake binary $CMAKE_EXECUTABLE" && exit 3
-CMAKE_COMMAND="$ENVVARS ${CMAKE_EXECUTABLE} -G 'Unix Makefiles' $OPT_SRCDIR $CMAKE_DEFINES"
+for cme in ${CMAKE_EXECUTABLE}; do
+    [ -d $cme ] && cme=$(PATH=$cme command -v cmake)
+    if [ -x $cme ]; then
+        CMAKE_COMMAND="$ENVVARS $cme -G 'Unix Makefiles' $OPT_SRCDIR $CMAKE_DEFINES"
+        break
+    fi
+done
+[ -z "$CMAKE_COMMAND" ] && echo "Could not find CMake binary in $CMAKE_EXECUTABLE" && exit 3
+
 cat <<EOF
 ### CMake generated invocation
 #
