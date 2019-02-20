@@ -39,8 +39,29 @@ class ParsecDAG:
         All execeptions due to file errors
         Additional exceptions when the file does not follow the format that PaRSEC is supposed to produce
         """
-        node = re.compile(r'([^ ]+)..shape="polygon",style=filled,fillcolor="#([^"]+)",fontcolor="black",label=".([0-9]+).([0-9]+). ([^\(]+)\(([0-9, ]+)\).([0-9,\[\] ]+).<([0-9]+)>{([0-9]+)}.*".tooltip="tpid=([0-9]+):did=([0-9]+).tname=([^:]+):tid=([0-9]+)')
-        link = re.compile('([^ ]+) -> ([^ ]+) .label="([^=]+)=>([^,]+)",color="#([^"]+)",style="([^"]+)"')
+        node = re.compile(r'''
+           (?P<name>[^ ]+)                       #Group name is all the characters to the first space
+           .*fillcolor="(?P<fc>[^"]+)            #Group fc is all what is inside the "" after fillcolor
+           .*label=".(?P<thid>[0-9]+)            #Group thid is the first integer in "<a/b>" at the begining of the label
+           .(?P<vpid>[0-9]+)                     #Group vpid is the second integer in "<a/b>" at the begining of the label
+           [^a-zA-Z_]*                           #Skip until the first letter
+           (?P<label>[^\(]+)                     #Group label is everything until the '(' 
+           .(?P<param>[^\)]+)                    #Group param follows the '(', it's all the things until ')' 
+           .(?P<local>[^\<]+)                    #Group local follows the ')', it's all the things until '<' 
+           .(?P<prio>[0-9]+)                     #Group prio is the inside of <prio>
+           [^\{]*                                #Skip until the '{'
+           .(?P<tpid>[0-9]+)                     #Group tpid is the inside of {tpid}
+           .*tpid=(?P<tt_tpid>[0-9]+)            #Skip until tpid=, and read group tt_tpid
+           .*did=(?P<tt_did>[0-9]+)              #Skip until did=, and read group tt_did
+           .*tname=(?P<tt_tname>[^:]+)           #Skip until tname=, and read group tt_tname
+           .*tid=(?P<tt_tid>[0-9]+)              #Skip until tid=, and read group tt_tid''', re.VERBOSE)
+        link = re.compile('''
+           (?P<src>[^ ]+)                        #Group src is everything to the first space
+           [^a-zA-Z0-9_]*(?P<dst>[^ ]+)          #Group dst is everything alphanumeric after that, to the first space
+           .*label="(?P<flow_src>[^=]+)          #Group flow_src is the first thing before '=' after label="
+           =.(?P<flow_dst>[^,]+)                 #Group flow_dst is everything to ',' after =>
+           .*color="(?P<color>[^"]+)             #Group color is everything inside color="..."
+           .*style="(?P<style>[^"]+)             #Group style is everything inside style="..." ''', re.VERBOSE)
         start = re.compile('digraph G {')
         end   = re.compile('}') 
         nb = 1
@@ -51,21 +72,30 @@ class ParsecDAG:
                 if( res ):
                     if( len(res.groups()) != 13 ):
                         raise Exception('Node lines are expected to provide 13 arguments, %d found in `%s` (line %d of %s)' % (len(res.groups()), line, nb, f) )
-                    name = res.group(1)
-                    parsec_id = self.ParsecTaskID(tpid = int(res.group(9)), tid = int(res.group(13)), did = int(res.group(11)))
+                    if( int(res.group('tt_tpid')) != int(res.group('tpid')) ):
+                        raise Exception('Node `%s` at line %d has inconsistent taskpool ids %d and %d in {} and tooltip' % \
+                                        (line, nb, int(res.group('tpid')), int(res.group('tt_tpid'))))
+                    name = res.group('name')
+                    parsec_id = self.ParsecTaskID(tpid = int(res.group('tt_tpid')),
+                                                  tid = int(res.group('tt_tid')),
+                                                  did = int(res.group('tt_did')))
                     self.idtoname[parsec_id] = name
                     self.nametoid[name] = parsec_id
-                    self.dag.add_node(name, fc = res.group(2), thid  = int(res.group(3)), vpid = int(res.group(4)), label = res.group(5),
-                                param = res.group(6), local = res.group(7), prio  = int(res.group(8)),
-                                did = int(res.group(11)), tid = int(res.group(13)), tpid = int(res.group(9)))
+                    self.dag.add_node(name, fc = res.group('fc'), thid  = int(res.group('thid')), vpid = int(res.group('vpid')),
+                                      label = res.group('label'), param = res.group('param'), local = res.group('local'),
+                                      prio  = int(res.group('prio')), did = int(res.group('tt_did')), tid = int(res.group('tt_tid')),
+                                      tpid = int(res.group('tt_tpid')))
                 else:
                     res = link.match(line)
                     if( res ):
                         if( len(res.groups()) != 6 ):
-                            raise Exception('Link lines are expected to provide 6 arguments, %d found in `%s` (line %d of %s)' % (len(res.groups()), line, nb, f) )
-                        src      = res.group(1)
-                        dst      = res.group(2)
-                        self.dag.add_edge(src, dst, flow_src = res.group(3), flow_dst = res.group(4), color = res.group(5), style = res.group(6))
+                            raise Exception('Link lines are expected to provide 6 arguments, %d found in `%s` (line %d of %s)' %\
+                                             (len(res.groups()), line, nb, f) )
+                        src      = res.group('src')
+                        dst      = res.group('dst')
+                        self.dag.add_edge(src, dst, flow_src = res.group('flow_src'),
+                                          flow_dst = res.group('flow_dst'), color = res.group('color'),
+                                          style = res.group('style'))
                     else:
                         res = start.match(line)
                         if( not res ):
@@ -109,6 +139,11 @@ class ParsecDAG:
         """Returns a node from its identifiers"""
         parsec_id = self.ParsecTaskID(tpid = int(tpid), did = int(did), tid = int(tid))
         return self.dag.nodes[ self.idtoname[parsec_id] ]
+
+    def nodename_from_id(self, tpid, did, tid):
+        """Returns the internal name of a node from its identifiers"""
+        parsec_id = self.ParsecTaskID(tpid = int(tpid), did = int(did), tid = int(tid))
+        return self.idtoname[parsec_id]
 
     def successors_from_name(self, name):
         """Returns the list of nodes successors of name"""
