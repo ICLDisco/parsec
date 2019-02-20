@@ -49,7 +49,7 @@ network_event = trace.events[ trace.events.type == trace.event_types['MPI_DATA_P
 
 # Now, we can find the corresponding task in the events trace by
 # just providing the index
-task_event = tasks.loc[(network_event.tpid, network_event.did, network_event.tid)]
+task_event = tasks.loc[(int(network_event.tpid), int(network_event.did), int(network_event.tid))]
 
 # We can also find the task in the DAG of tasks
 task_node = dag.node_from_id(network_event.tpid, network_event.did, network_event.tid)
