@@ -6,10 +6,15 @@ from collections import namedtuple
 import re
 import sys
 
+REQUIRED_NX_VERSION = [2, 0]
+
 class ParsecDAG:
     """A DAG of PaRSEC tasks"""
 
     def __init__(self):
+        if cmp( [int(x) for x in re.sub(r'(\.0+)*$','', nx.__version__).split(".")], REQUIRED_NX_VERSION ) < 0:
+            raise Exception("NetworkX '%s' or more is required, version '%s' is available" %\
+                             (".".join(str(x) for x in REQUIRED_NX_VERSION), nx.__version__))
         self.dag = nx.DiGraph()
         self.idtoname = dict()
         self.nametoid = dict()
@@ -34,7 +39,7 @@ class ParsecDAG:
         All execeptions due to file errors
         Additional exceptions when the file does not follow the format that PaRSEC is supposed to produce
         """
-        node = re.compile(r'([^ ]+)..shape="polygon",style=filled,fillcolor="#([^"]+)",fontcolor="black",label=".([0-9]+).([0-9]+). ([^\(]+)\(([0-9, ]+)\).([0-9,\[\] ]+).<([0-9]+)>{([0-9]+)}".tooltip="tpid=([0-9]+):did=([0-9]+).tname=([^:]+):tid=([0-9]+)')
+        node = re.compile(r'([^ ]+)..shape="polygon",style=filled,fillcolor="#([^"]+)",fontcolor="black",label=".([0-9]+).([0-9]+). ([^\(]+)\(([0-9, ]+)\).([0-9,\[\] ]+).<([0-9]+)>{([0-9]+)}.*".tooltip="tpid=([0-9]+):did=([0-9]+).tname=([^:]+):tid=([0-9]+)')
         link = re.compile('([^ ]+) -> ([^ ]+) .label="([^=]+)=>([^,]+)",color="#([^"]+)",style="([^"]+)"')
         start = re.compile('digraph G {')
         end   = re.compile('}') 
