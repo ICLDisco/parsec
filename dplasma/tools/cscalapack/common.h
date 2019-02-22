@@ -8,7 +8,7 @@
 #ifndef _SCALAPACK_COMMON_H_
 #define _SCALAPACK_COMMON_H_
 
-#include "../../testing/flops.h"
+#include "../../lib/flops.h"
 
 
 static int i0=0, i1=1;
