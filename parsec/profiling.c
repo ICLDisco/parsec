@@ -472,9 +472,9 @@ int parsec_profiling_init( void )
 
     OBJ_CONSTRUCT( &threads, parsec_list_t );
 
-    parsec_prof_keys = (parsec_profiling_key_t*)calloc(128, sizeof(parsec_profiling_key_t));
     parsec_prof_keys_count = 0;
     parsec_prof_keys_number = 128;
+    parsec_prof_keys = (parsec_profiling_key_t*)calloc(parsec_prof_keys_number, sizeof(parsec_profiling_key_t));
 
     file_backend_extendable = 1;
     ps = sysconf(_SC_PAGESIZE);
