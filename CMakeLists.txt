@@ -922,6 +922,7 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list_item.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_rwlock.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
   DESTINATION include/parsec/class)
