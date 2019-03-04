@@ -1,3 +1,8 @@
+if( NOT BUILD_SHARED_LIBS )
+  message(WARNING "Python support requires the building of shared libraries, but this PaRSEC installation only supports static builds. Python profiling will be disabled.")
+  return()
+endif( NOT BUILD_SHARED_LIBS )
+
 #
 # Based on http://bloerg.net/2012/11/10/cmake-and-distutils.html
 #
