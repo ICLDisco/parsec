@@ -367,6 +367,16 @@ parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
     parsec_dtd_tile_release( tile );
 }
 
+/* This function is called from parsec_hash_table_for_all(), the arguments passed
+ * are not in order for calling parsec_dtd_data_flush(). This function fixes the
+ * order of the arguments and calls parsec_dtd_data_flush().
+ */
+void
+parsec_internal_dtd_data_flush(parsec_dtd_tile_t *tile, parsec_taskpool_t *tp)
+{
+    parsec_dtd_data_flush(tp, tile);
+}
+
 /*
  * This function will flush all the data DTD has seen so far
  * pertaining to the data collection passed. The same constraints
@@ -383,7 +393,7 @@ parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
 
     PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_BEGIN, NULL);
 
-    parsec_hash_table_for_all( hash_table, (hash_elem_fct_t)parsec_dtd_data_flush, tp);
+    parsec_hash_table_for_all( hash_table, (hash_elem_fct_t)parsec_internal_dtd_data_flush, tp);
 
     PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_END, NULL);
 }
