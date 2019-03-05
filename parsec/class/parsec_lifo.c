@@ -15,7 +15,8 @@ static inline void parsec_lifo_construct( parsec_lifo_t* lifo )
     PARSEC_LIFO_ITEM_ALLOC( lifo, lifo->lifo_ghost, sizeof(parsec_list_item_t) );
     PARSEC_ITEM_ATTACH(lifo, lifo->lifo_ghost);
     lifo->lifo_head.data.item = lifo->lifo_ghost;
-    lifo->lifo_head.data.counter = 0;
+    lifo->lifo_head.data.guard.counter = 0;
+    lifo->lifo_head.data.guard.lock = PARSEC_ATOMIC_UNLOCKED;
 }
 
 static inline void parsec_lifo_destruct( parsec_lifo_t *lifo )
