@@ -346,16 +346,14 @@ parsec_dtd_insert_flush_task_pair(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile
     return 1;
 }
 
-/*
- * Function to flush a data. This will cause the data to move
- * back to the original owner. This data can not be reused by any
- * task before the flush is complete. To ensure consistent and
- * correct behavior, user must wait on the taskpool before inserting
- * new task using this data.
- * This function is non-blocking.
+/* The internal function to flush the data, aka bring the most updated version of
+ * a data back to its owner. This call is asynchronous, if necessary it inserts a
+ * transfer task into the associated taskpool, but does not wait until this transfer
+ * task completes. Thus, to ensure correct behavior the application is expected to
+ * wait on the taskpool completion before generating additional users of this data.
  */
-void
-parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
+static inline void
+parsec_internal_dtd_data_flush(parsec_dtd_tile_t *tile, parsec_taskpool_t *tp)
 {
     assert(tile->flushed == NOT_FLUSHED);
     parsec_dtd_tile_retain(tile);
@@ -367,14 +365,17 @@ parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
     parsec_dtd_tile_release( tile );
 }
 
-/* This function is called from parsec_hash_table_for_all(), the arguments passed
- * are not in order for calling parsec_dtd_data_flush(). This function fixes the
- * order of the arguments and calls parsec_dtd_data_flush().
+/*
+ * User facing function to flush a data. This will cause the data to move
+ * back to the original owner. This data should not be reused task before
+ * the flush is complete. To ensure consistent and correct behavior, users
+ * must wait on the taskpool before inserting new tasks using this data.
+ * This function is non-blocking.
  */
 void
-parsec_internal_dtd_data_flush(parsec_dtd_tile_t *tile, parsec_taskpool_t *tp)
+parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
 {
-    parsec_dtd_data_flush(tp, tile);
+    parsec_internal_dtd_data_flush(tile, tp);
 }
 
 /*
