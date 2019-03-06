@@ -16,7 +16,10 @@ static inline void parsec_lifo_construct( parsec_lifo_t* lifo )
     PARSEC_ITEM_ATTACH(lifo, lifo->lifo_ghost);
     lifo->lifo_head.data.item = lifo->lifo_ghost;
     lifo->lifo_head.data.guard.counter = 0;
-    lifo->lifo_head.data.guard.lock = PARSEC_ATOMIC_UNLOCKED;
+    /* We cannot use PARSEC_ATOMIC_UNLOCKED for not static initializers
+     * so instead we need to clear the state of the lock.
+     */
+    parsec_atomic_unlock(&lifo->lifo_head.data.guard.lock);
 }
 
 static inline void parsec_lifo_destruct( parsec_lifo_t *lifo )
