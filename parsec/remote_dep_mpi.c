@@ -636,16 +636,18 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
 
         if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
             uint64_t key = (uint64_t)origin->msg.locals[0].value<<32 | (1U<<k);
+            local_mask = 0;
+            local_mask |= (1U<<k);
             dtd_task = parsec_dtd_find_task( dtd_tp, key );
             if( NULL == dtd_task ) { return_defer = 1; continue; }
-        }
-
-        for(local_mask = i = 0; NULL != task.task_class->out[i]; i++ ) {
-            if(!(task.task_class->out[i]->flow_datatype_mask & (1U<<k))) continue;
-            for(j = 0; NULL != task.task_class->out[i]->dep_out[j]; j++ )
-                if(k == task.task_class->out[i]->dep_out[j]->dep_datatype_index)
-                    local_mask |= (1U << task.task_class->out[i]->dep_out[j]->dep_index);
-            if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
+        } else {
+            for(local_mask = i = 0; NULL != task.task_class->out[i]; i++ ) {
+                if(!(task.task_class->out[i]->flow_datatype_mask & (1U<<k))) continue;
+                for(j = 0; NULL != task.task_class->out[i]->dep_out[j]; j++ )
+                    if(k == task.task_class->out[i]->dep_out[j]->dep_datatype_index)
+                        local_mask |= (1U << task.task_class->out[i]->dep_out[j]->dep_index);
+                if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
+            }
         }
 
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
@@ -654,6 +656,9 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                 assert(0);
                 return -2;  /* We need a better fix for this */
             }
+            task.locals[k] = origin->msg.locals[k];
+            task.task_class = dtd_task->super.task_class;
+            origin->msg.task_class_id = dtd_task->super.task_class->task_class_id;
             task.task_class->iterate_successors(es, (parsec_task_t *)dtd_task,
                                                local_mask,
                                                remote_dep_mpi_retrieve_datatype,
@@ -736,13 +741,19 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     }
 #endif  /* PARSEC_DIST_COLLECTIVES */
 
-    /* We need to convert from a dep_datatype_index mask into a dep_index mask */
-    for(int i = 0; NULL != task.task_class->out[i]; i++ ) {
-        target = task.task_class->out[i];
-        if( !(complete_mask & target->flow_datatype_mask) ) continue;
-        for(int j = 0; NULL != target->dep_out[j]; j++ )
-            if(complete_mask & (1U << target->dep_out[j]->dep_datatype_index))
-                action_mask |= (1U << target->dep_out[j]->dep_index);
+    if(PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
+        /* We need to convert from a dep_datatype_index mask into a dep_index mask */
+        for(int i = 0; NULL != task.task_class->out[i]; i++ ) {
+            target = task.task_class->out[i];
+            if( !(complete_mask & target->flow_datatype_mask) ) continue;
+            for(int j = 0; NULL != target->dep_out[j]; j++ )
+                if(complete_mask & (1U << target->dep_out[j]->dep_datatype_index))
+                    action_mask |= (1U << target->dep_out[j]->dep_index);
+        }
+    } else if(PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type) {
+        action_mask = complete_mask;
+    } else {
+        assert(0);
     }
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)",
             complete_mask, action_mask);

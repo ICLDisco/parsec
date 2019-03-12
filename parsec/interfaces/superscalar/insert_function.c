@@ -1447,9 +1447,11 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
                 output = &arg->remote_deps->output[dep->dep_datatype_index];
                 assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
                 arg->remote_deps->root = src_rank;
+                /* both sides care about the dep_datatype_index which is the flow_index for DTD */
                 arg->remote_deps->outgoing_mask |= (1 << dep->dep_datatype_index);
                 if( !(output->rank_bits[_array_pos] & _array_mask) ) {
                     output->rank_bits[_array_pos] |= _array_mask;
+                    /* For DTD this means nothing at this point */
                     output->deps_mask |= (1 << dep->dep_index);
                     if( 0 == output->count_bits ) {
                         output->data = *data;
@@ -1591,37 +1593,27 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
     if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) ) {
         this_dtd_task = (parsec_dtd_task_t *)this_task;
     } else {
-        /* passing the data from MPI to the local representation of the remote_task */
         parsec_dtd_two_hash_table_lock(tp->two_hash_table);
-        int i, j, flow_index, track_flow = 0;
-        for(i = 0; i < tc->nb_flows; i++) {
-            j = 0;
-            if ( tc->out[i] != NULL ) {
-                while ( tc->out[i]->dep_out[j] != NULL ) {
-                    if ( ((1<<tc->out[i]->dep_out[j]->dep_index) & action_mask) ) {
-                        flow_index = tc->out[i]->dep_out[j]->belongs_to->flow_index;
+        int flow_index, track_flow = 0;
+        for(flow_index = 0; flow_index < tc->nb_flows; flow_index++) {
+            if((action_mask & (1 << flow_index))) {
+                if(!(track_flow & (1U << flow_index))) {
+                    this_dtd_task = parsec_dtd_find_task( tp, (uint64_t)this_task->locals[0].value<<32 | (1U<<flow_index) );
+                    assert(this_dtd_task != NULL);
 
-                        if( !(track_flow & (1U<<flow_index) ) ) {
-
-                            this_dtd_task = parsec_dtd_find_task( tp, (uint64_t)this_task->locals[0].value<<32 | (1U<<flow_index) );
-                            assert(this_dtd_task != NULL);
-
-                            if ( this_task->data[flow_index].data_out != NULL ) {
-                                assert(this_task->data[flow_index].data_out != NULL);
-                                this_dtd_task->super.data[flow_index].data_in = this_task->data[flow_index].data_in;
-                                this_dtd_task->super.data[flow_index].data_out = this_task->data[flow_index].data_out;
-                                /* Push data in LRU cache */
-                                parsec_dtd_retain_data_copy(this_task->data[flow_index].data_out);
-                            }
-                            track_flow |= (1U<<flow_index); /* to make sure we are retaining the data only once */
-                        }
+                    if( this_task->data[flow_index].data_out != NULL ) {
+                        assert(this_task->data[flow_index].data_out != NULL);
+                        this_dtd_task->super.data[flow_index].data_in = this_task->data[flow_index].data_in;
+                        this_dtd_task->super.data[flow_index].data_out = this_task->data[flow_index].data_out;
+                        parsec_dtd_retain_data_copy(this_task->data[flow_index].data_out);
                     }
-                    j++;
+                    track_flow |= (1U<<flow_index); /* to make sure we are retaining the data only once */
                 }
             }
         }
         parsec_dtd_two_hash_table_unlock(tp->two_hash_table);
     }
+
     assert(NULL != this_dtd_task);
     tc->iterate_successors(es, (parsec_task_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
 
@@ -1631,23 +1623,16 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
      * for each flow a rank is concerned about.
      */
     if( parsec_dtd_task_is_remote(this_dtd_task) && !(action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) ) {
-        int i, j, flow_index, track_flow = 0;
+        int flow_index, track_flow = 0;
         parsec_dtd_two_hash_table_lock(tp->two_hash_table);
-        for( i = 0; i < tc->nb_flows; i++ ) {
-            j = 0;
-            if ( tc->out[i] != NULL ) {
-                while ( tc->out[i]->dep_out[j] != NULL ) {
-                    if ( ((1<<tc->out[i]->dep_out[j]->dep_index) & action_mask) ) {
-                        flow_index = tc->out[i]->dep_out[j]->belongs_to->flow_index;
-                        if( !(track_flow & (1U<<flow_index) ) ) {
-                            if( NULL != parsec_dtd_untrack_task( tp, ((uint64_t)this_task->locals[0].value<<32 | (1U<<flow_index) )) ) {
-                                /* also releasing task */
-                                parsec_dtd_remote_task_release( this_dtd_task );
-                            }
-                            track_flow |= (1U<<flow_index); /* to make sure we are releasing the data only once */
-                        }
+        for(flow_index = 0; flow_index < tc->nb_flows; flow_index++) {
+            if((action_mask & (1 << flow_index))) {
+                if(!(track_flow & (1U << flow_index))) {
+                    if( NULL != parsec_dtd_untrack_task( tp, ((uint64_t)this_task->locals[0].value<<32 | (1U<<flow_index) )) ) {
+                        /* also releasing task */
+                        parsec_dtd_remote_task_release( this_dtd_task );
                     }
-                    j++;
+                    track_flow |= (1U<<flow_index); /* to make sure we are releasing the data only once */
                 }
             }
         }
@@ -1896,42 +1881,6 @@ static int datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
     return PARSEC_HOOK_RETURN_DONE;
 }
 
-
-/***************************************************************************//**
- *
- * Function to find and return a dep between two tasks
- *
- * @param[in]   parent_task, desc_task, parent_flow_index, desc_flow_index
- * @return
- *              Dep found between two tasks
- *
- * @ingroup         DTD_INTERFACE_INTERNAL
- *
- ******************************************************************************/
-dep_t *
-parsec_dtd_find_and_return_dep( parsec_dtd_task_t *parent_task, parsec_dtd_task_t *desc_task,
-                                int parent_flow_index, int desc_flow_index )
-{
-    int out_index = parent_flow_index;
-    parsec_flow_t *flow = (parsec_flow_t*)parent_task->super.task_class->out[out_index];
-    int desc_task_class_id = desc_task->super.task_class->task_class_id, i;
-    if(desc_task_class_id == PARSEC_DTD_FLUSH_TC_ID &&
-       parent_task->super.task_class->task_class_id != PARSEC_DTD_FLUSH_TC_ID) {
-        return NULL;
-    }
-
-    dep_t *dep = NULL;
-
-    for(i = 0; i < MAX_DEP_OUT_COUNT; i++) {
-        if( flow->dep_out[i]->task_class_id == desc_task_class_id &&
-            flow->dep_out[i]->flow->flow_index == desc_flow_index ) {
-            dep = (dep_t *) flow->dep_out[i];
-            break;
-        }
-    }
-    return dep;
-}
-
 /* This function creates relationship between two task function classes.
  * Arguments:   - parsec taskpool (parsec_taskpool_t *)
                 - parent master structure (parsec_task_class_t *)
@@ -1949,198 +1898,24 @@ set_dependencies_for_function(parsec_taskpool_t* tp,
                               uint8_t parent_flow_index,
                               uint8_t desc_flow_index)
 {
-    uint8_t i, dep_exists = 0, j;
+    (void) tp;
+    /* In this function we do not create deps between flow's any more. We just
+     * intialize the flow structures of the task classes accordingly.
+     */
 
-    if (NULL == desc_tc) {   /* Data is not going to any other task */
-        int out_index = parent_flow_index;
-        if(NULL != parent_tc->out[out_index]) {
-            parsec_flow_t *tmp_d_flow = (parsec_flow_t *)parent_tc->out[out_index];
-            for ( i = 0; i < MAX_DEP_IN_COUNT; i++ ) {
-                if (NULL != tmp_d_flow->dep_out[i]) {
-                    if (PARSEC_LOCAL_DATA_TASK_CLASS_ID == tmp_d_flow->dep_out[i]->task_class_id) {
-                        dep_exists = 1;
-                        break;
-                    }
-                }
-            }
-        }
-        if (!dep_exists) {
-            dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
-            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_dtd_debug_output,
-                                 "%s -> LOCAL\n", parent_tc->name);
-
-            desc_dep->cond          = NULL;
-            desc_dep->ctl_gather_nb = NULL;
-            desc_dep->task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID; /* used to indicate data is coming from memory */
-            desc_dep->dep_index     = ((parsec_dtd_task_class_t*)parent_tc)->dep_out_index++;
-            desc_dep->belongs_to    = parent_tc->out[out_index];
-            desc_dep->flow          = NULL;
-            desc_dep->direct_data   = NULL;
-            /* specific for cholesky, will need to change */
-            desc_dep->dep_datatype_index = parent_tc->out[out_index]->flow_index;
-
-            for (i=0; i<MAX_DEP_IN_COUNT; i++) {
-                if (NULL == parent_tc->out[out_index]->dep_out[i]) {
-                    /* Bypassing constness in function structure */
-                    parsec_flow_t *desc_in = (parsec_flow_t*)(parent_tc->out[out_index]);
-                    /* Setting dep in the next available dep_in array index */
-                    desc_in->dep_out[i] = (dep_t *)desc_dep;
-                    desc_in->flow_datatype_mask |= (1U<<desc_dep->dep_datatype_index);
-                    break;
-                }
-            }
-            if(MAX_DEP_IN_COUNT == i) {
-                free(desc_dep);
-                parsec_fatal("Fatal Error: Maximum number of dependencies per task (MAX_DEP_IN_COUNT = %d) have been reached. Increase MAX_DEP_IN_COUNT if there is a need for additional dependencies.\n", MAX_DEP_IN_COUNT);
-            }
-        }
-        return;
-    }
-
-    if (NULL == parent_tc) {   /* Data is not coming from any other task */
-        int in_index = desc_flow_index;
-        if(NULL != desc_tc->in[in_index]) {
-            parsec_flow_t *tmp_d_flow = (parsec_flow_t *)desc_tc->in[in_index];
-            for (i = 0; i < MAX_DEP_IN_COUNT; i++) {
-                if (NULL != tmp_d_flow->dep_in[i]) {
-                    if (tmp_d_flow->dep_in[i]->task_class_id == PARSEC_LOCAL_DATA_TASK_CLASS_ID ) {
-                        dep_exists = 1;
-                        break;
-                    }
-                }
-            }
-        }
-        if (!dep_exists) {
-            dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
-            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_dtd_debug_output,
-                                 "LOCAL -> %s\n", desc_tc->name);
-            desc_dep->cond          = NULL;
-            desc_dep->ctl_gather_nb = NULL;
-            desc_dep->task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID;
-            desc_dep->dep_index     = ((parsec_dtd_task_class_t*)desc_tc)->dep_in_index++;
-            desc_dep->belongs_to    = desc_tc->in[in_index];
-            desc_dep->flow          = NULL;
-            desc_dep->direct_data   = NULL;
-            desc_dep->dep_datatype_index = desc_tc->in[in_index]->flow_index;
-
-            for (i=0; i<MAX_DEP_IN_COUNT; i++) {
-                if (NULL == desc_tc->in[in_index]->dep_in[i]) {
-                    /* Bypassing constness in function structure */
-                    parsec_flow_t *desc_in = (parsec_flow_t*)(desc_tc->in[in_index]);
-                    /* Setting dep in the next available dep_in array index */
-                    desc_in->dep_in[i]  = (dep_t *)desc_dep;
-                    break;
-                }
-            }
-            if( MAX_DEP_IN_COUNT == i ) {
-                free(desc_dep);
-                parsec_fatal("Fatal Error: Maximum number of dependencies per task (MAX_DEP_IN_COUNT = %d) have been reached. Increase MAX_DEP_IN_COUNT if there is a need for additional dependencies.\n", MAX_DEP_IN_COUNT);
-            }
-        }
-        return;
+    if(NULL == desc_tc && NULL != parent_tc) { /* Data is not going to any other task */
+        parsec_flow_t *parent_out = (parsec_flow_t*)(parent_tc->out[parent_flow_index]);
+        parent_out->flow_datatype_mask |= (1U<<parent_flow_index);
+    } else if (NULL == parent_tc && NULL != desc_tc) {
+        parsec_flow_t *desc_in = (parsec_flow_t*)(desc_tc->in[desc_flow_index]);
+        desc_in->flow_datatype_mask |= (1U<<desc_flow_index);
     } else {
-        int out_index = parent_flow_index;
-        parsec_flow_t *tmp_flow = (parsec_flow_t *) parent_tc->out[out_index];
+        /* In this case it means we have both parent and child task_class */
+        parsec_flow_t *parent_out = (parsec_flow_t*)(parent_tc->out[parent_flow_index]);
+        parent_out->flow_datatype_mask |= (1U<<parent_flow_index);
 
-        assert(tmp_flow != NULL);
-
-        if (tmp_flow->flow_flags == FLOW_ACCESS_READ) {
-            int in_index = parent_flow_index;
-            dep_t *tmp_dep = NULL;
-            parsec_flow_t *tmp_p_flow = NULL;
-            tmp_flow = (parsec_flow_t *) parent_tc->in[in_index];
-            for ( i = 0; i < MAX_DEP_IN_COUNT; i++ ) {
-                if(NULL != tmp_flow->dep_in[i]) {
-                    tmp_dep = (dep_t *) tmp_flow->dep_in[i];
-                }
-            }
-            if(PARSEC_LOCAL_DATA_TASK_CLASS_ID == tmp_dep->task_class_id) {
-                set_dependencies_for_function(tp,
-                                              NULL, desc_tc, 0,
-                                              desc_flow_index);
-                return;
-            }
-            tmp_p_flow = (parsec_flow_t *)tmp_dep->flow;
-            parent_tc = (parsec_task_class_t *)tp->task_classes_array[tmp_dep->task_class_id];
-
-            for( j = 0; j < MAX_DEP_OUT_COUNT; j++ ) {
-                if(NULL != tmp_p_flow->dep_out[j]) {
-                    if((parsec_flow_t *)tmp_p_flow->dep_out[j]->flow == tmp_flow) {
-                        parent_flow_index = tmp_p_flow->dep_out[j]->belongs_to->flow_index;
-                        set_dependencies_for_function(tp,
-                                                      parent_tc,
-                                                      desc_tc,
-                                                      parent_flow_index,
-                                                      desc_flow_index);
-                        return;
-                    }
-                }
-            }
-            dep_exists = 1;
-        }
-
-        int desc_in_index = desc_flow_index;
-        for( i = 0; i < MAX_DEP_OUT_COUNT; i++) {
-            if( NULL != tmp_flow->dep_out[i] ) {
-                if( tmp_flow->dep_out[i]->task_class_id == desc_tc->task_class_id &&
-                    tmp_flow->dep_out[i]->flow == desc_tc->in[desc_in_index] ) {
-                    dep_exists = 1;
-                    break;
-                }
-            }
-        }
-
-        if(!dep_exists) {
-            dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
-            dep_t *parent_dep = (dep_t *) malloc(sizeof(dep_t));
-
-            PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_function_info, parsec_dtd_debug_output,
-                                 "%s -> %s\n", parent_tc->name, desc_tc->name);
-
-            /* setting out-dependency for parent */
-            parent_dep->cond            = NULL;
-            parent_dep->ctl_gather_nb   = NULL;
-            parent_dep->task_class_id   = desc_tc->task_class_id;
-            parent_dep->flow            = desc_tc->in[desc_in_index];
-            parent_dep->dep_index       = ((parsec_dtd_task_class_t*)parent_tc)->dep_out_index++;
-            parent_dep->belongs_to      = parent_tc->out[out_index];
-            parent_dep->direct_data     = NULL;
-            parent_dep->dep_datatype_index = parent_tc->out[out_index]->flow_index;
-
-            for( i = 0; i < MAX_DEP_OUT_COUNT; i++ ) {
-                if( NULL == parent_tc->out[out_index]->dep_out[i] ) {
-                    /* to bypass constness in function structure */
-                    parsec_flow_t **parent_out = (parsec_flow_t **)&(parent_tc->out[out_index]);
-                    (*parent_out)->dep_out[i] = (dep_t *)parent_dep;
-                    (*parent_out)->flow_datatype_mask |= (1U << parent_dep->dep_datatype_index);
-                    break;
-                }
-            }
-
-            /* setting in-dependency for descendant */
-            desc_dep->cond          = NULL;
-            desc_dep->ctl_gather_nb = NULL;
-            desc_dep->task_class_id = parent_tc->task_class_id;
-            desc_dep->flow          = parent_tc->out[out_index];
-            desc_dep->dep_index     = ((parsec_dtd_task_class_t*)desc_tc)->dep_in_index++;
-            desc_dep->belongs_to    = desc_tc->in[desc_in_index];
-            desc_dep->direct_data   = NULL;
-            desc_dep->dep_datatype_index = desc_tc->in[desc_in_index]->flow_index;
-
-            for(i=0; i<MAX_DEP_IN_COUNT; i++) {
-                if(NULL == desc_tc->in[desc_in_index]->dep_in[i]) {
-                    /* Bypassing constness in function strucutre */
-                    parsec_flow_t **desc_in = (parsec_flow_t **)&(desc_tc->in[desc_in_index]);
-                    (*desc_in)->dep_in[i]  = (dep_t *)desc_dep;
-                    break;
-                }
-            }
-            if(MAX_DEP_IN_COUNT == i) {
-                assert(0);
-                free(desc_dep);
-                parsec_fatal("Fatal Error: Maximum number of dependencies per task (MAX_DEP_IN_COUNT = %d) have been reached. Increase MAX_DEP_IN_COUNT if there is a need for additional dependencies.\n", MAX_DEP_IN_COUNT);
-            }
-        }
+        parsec_flow_t *desc_in = (parsec_flow_t*)(desc_tc->in[desc_flow_index]);
+        desc_in->flow_datatype_mask |= (1U<<desc_flow_index);
     }
 }
 
