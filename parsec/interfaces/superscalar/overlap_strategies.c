@@ -336,6 +336,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
 #if defined(DISTRIBUTED)
             if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) && (NULL != arg->remote_deps) ) {
+                (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
                 parsec_remote_dep_activate(es, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
                 arg->remote_deps = NULL;
             }
