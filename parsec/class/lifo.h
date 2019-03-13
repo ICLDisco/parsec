@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -215,7 +215,7 @@ static inline int
 parsec_update_counted_pointer(volatile parsec_counted_pointer_t *addr, parsec_counted_pointer_t old,
                              parsec_list_item_t *item)
 {
-    parsec_counted_pointer_t elem = {.data = {.guard.counter = old.data.guard.counter + 1, .item = item}};
+    parsec_counted_pointer_t elem = {.data = {.guard = {.counter = old.data.guard.counter + 1}, .item = item}};
     return parsec_atomic_cas_int128(&addr->value, old.value, elem.value);
 }
 

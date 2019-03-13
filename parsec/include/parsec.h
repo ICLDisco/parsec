@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,6 +8,9 @@
 #define PARSEC_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_config.h"
+
+BEGIN_C_DECLS
+
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 #include "parsec/datatype.h"
@@ -31,8 +34,6 @@
 #if defined(PARSEC_HAVE_CUDA)
 #include "parsec/devices/cuda/dev_cuda.h"
 #endif  /* defined(PARSEC_HAVE_CUDA) */
-
-BEGIN_C_DECLS
 
 /**
  * @defgroup parsec_public Header File

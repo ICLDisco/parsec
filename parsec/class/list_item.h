@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -137,8 +137,8 @@ parsec_list_item_ring_push( parsec_list_item_t* ring,
 {
 #if defined(PARSEC_DEBUG_PARANOID)
     assert( 0 == item->refcount );
-    assert( (void*)0xdeadbeef != ring->list_next );
-    assert( (void*)0xdeadbeef != ring->list_prev );
+    assert( (parsec_list_item_t*)(void*)0xdeadbeefL != ring->list_next );
+    assert( (parsec_list_item_t*)(void*)0xdeadbeefL != ring->list_prev );
 #endif
     item->list_next = ring;
     item->list_prev = ring->list_prev;
@@ -165,10 +165,10 @@ parsec_list_item_ring_merge( parsec_list_item_t* ring1,
 {
     volatile parsec_list_item_t *tmp;
 #if defined(PARSEC_DEBUG_PARANOID)
-    assert( (void*)0xdeadbeef != ring1->list_next );
-    assert( (void*)0xdeadbeef != ring1->list_prev );
-    assert( (void*)0xdeadbeef != ring2->list_next );
-    assert( (void*)0xdeadbeef != ring2->list_prev );
+    assert( (parsec_list_item_t*)(void*)0xdeadbeefL != ring1->list_next );
+    assert( (parsec_list_item_t*)(void*)0xdeadbeefL != ring1->list_prev );
+    assert( (parsec_list_item_t*)(void*)0xdeadbeefL != ring2->list_next );
+    assert( (parsec_list_item_t*)(void*)0xdeadbeefL != ring2->list_prev );
 #endif
     ring2->list_prev->list_next = ring1;
     ring1->list_prev->list_next = ring2;
@@ -195,16 +195,16 @@ static inline parsec_list_item_t*
 parsec_list_item_ring_chop( parsec_list_item_t* item )
 {
 #if defined(PARSEC_DEBUG_PARANOID)
-    assert( (void*)0xdeadbeef != item->list_next );
-    assert( (void*)0xdeadbeef != item->list_prev );
+    assert( (parsec_list_item_t*)(void*)0xdeadbeefL != item->list_next );
+    assert( (parsec_list_item_t*)(void*)0xdeadbeefL != item->list_prev );
 #endif
     parsec_list_item_t* ring = (parsec_list_item_t*)item->list_next;
     item->list_prev->list_next = item->list_next;
     item->list_next->list_prev = item->list_prev;
 #if defined(PARSEC_DEBUG_PARANOID)
     if(item->refcount) item->refcount--;
-    item->list_prev = (void*)0xdeadbeef;
-    item->list_next = (void*)0xdeadbeef;
+    item->list_prev = (parsec_list_item_t*)(void*)0xdeadbeefL;
+    item->list_next = (parsec_list_item_t*)(void*)0xdeadbeefL;
 #endif
     if(ring == item) return NULL;
     return ring;
@@ -307,8 +307,8 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
 #define PARSEC_ITEMS_ATTACH(LIST, ITEMS)                                \
     do {                                                                \
         parsec_list_item_t *_item = (ITEMS);                            \
-        assert( (void*)0xdeadbeef != _item->list_next );                \
-        assert( (void*)0xdeadbeef != _item->list_prev );                \
+        assert( (parsec_list_item_t*)(void*)0xdeadbeefL != _item->list_next ); \
+        assert( (parsec_list_item_t*)(void*)0xdeadbeefL != _item->list_prev ); \
         parsec_list_item_t *_end = (parsec_list_item_t *)_item->list_prev; \
         do {                                                            \
             PARSEC_ITEM_ATTACH(LIST, _item);                            \
@@ -321,8 +321,8 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
         parsec_list_item_t *_item = (ITEM);                             \
         /* check for not poping the ghost element */\
         assert( _item->belong_to != (void*)_item );                     \
-        _item->list_prev = (void*)0xdeadbeef;                           \
-        _item->list_next = (void*)0xdeadbeef;                           \
+        _item->list_prev = (parsec_list_item_t*)(void*)0xdeadbeefL;     \
+        _item->list_next = (parsec_list_item_t*)(void*)0xdeadbeefL;     \
         _item->refcount--;                                              \
         assert( 0 == _item->refcount );                                 \
     } while (0)
