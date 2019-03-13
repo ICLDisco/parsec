@@ -110,8 +110,12 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
         for( int i = 0; (*deps)->outgoing_mask >> i; i++ )
             if( (1U << i) & (*deps)->outgoing_mask ) {
                 assert( (*deps)->output[i].count_bits );
-                if( NULL != (*deps)->output[i].data.data )  /* if not CONTROL */
+                if( NULL != (*deps)->output[i].data.data ) { /* if not CONTROL */
+                    if( PARSEC_TASKPOOL_TYPE_DTD == (*deps)->taskpool->taskpool_type ) {
+                        (void)parsec_atomic_fetch_dec_int32(&(*deps)->output[i].data.data->readers);
+                    }
                     PARSEC_DATA_COPY_RELEASE((*deps)->output[i].data.data);
+                }
             }
         (*deps)->outgoing_mask = 0;
         if(ncompleted)

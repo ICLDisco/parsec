@@ -149,30 +149,13 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
     int op_type_on_current_flow, desc_op_type, desc_flow_index;
     parsec_dtd_tile_t *tile;
 
-    dep_t *deps;
+    dep_t deps;
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)ontask_arg;
     parsec_dep_data_description_t data;
     int rank_src = 0, rank_dst = 0, vpid_dst=0;
 
     /* finding for which flow we need to iterate successors of */
-    int flow_mask = 0;
-    int dep_mask  = 0;
-    if( (PARSEC_ACTION_COMPLETE_LOCAL_TASK & action_mask) ) {
-        flow_mask = action_mask;
-    } else {
-        for(current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++) {
-            int j = 0;
-            if( current_task->super.task_class->out[current_dep] != NULL ) {
-                while ( current_task->super.task_class->out[current_dep]->dep_out[j] != NULL ) {
-                    if ( ((1<<current_task->super.task_class->out[current_dep]->dep_out[j]->dep_index) & action_mask) ) {
-                       flow_mask |= (1U << current_task->super.task_class->out[current_dep]->dep_out[j]->belongs_to->flow_index);
-                       dep_mask |= (1U << current_task->super.task_class->out[current_dep]->dep_out[j]->dep_datatype_index);
-                    }
-                    j++;
-                }
-            }
-        }
-    }
+    int flow_mask = action_mask;
 
     rank_src = current_task->rank;
     for( current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++ ) {
@@ -323,13 +306,19 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                                      current_desc->ht_item.key, current_desc->rank, current_desc->super.task_class->nb_flows,
                                      current_desc->flow_count, current_dep, tmp_desc_flow_index);
 
-                deps = parsec_dtd_find_and_return_dep(current_task, current_desc,
-                                                      current_dep, tmp_desc_flow_index);
+                deps.cond            = NULL;
+                deps.ctl_gather_nb   = NULL;
+                deps.task_class_id   = current_desc->super.task_class->task_class_id;
+                deps.flow            = current_desc->super.task_class->in[tmp_desc_flow_index];
+                deps.dep_index       = 0; /* it will not be used anywhere for DTD, so whatever */
+                deps.belongs_to      = current_task->super.task_class->out[current_dep];
+                deps.direct_data     = NULL;
+                deps.dep_datatype_index = current_dep;
 
                 rank_dst = current_desc->rank;
 
                 ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
-                        deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
+                        &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
                 vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
 
                 /* releasing remote tasks that is a descendant of a local task */
@@ -347,6 +336,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
 #if defined(DISTRIBUTED)
             if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) && (NULL != arg->remote_deps) ) {
+                (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
                 parsec_remote_dep_activate(es, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
                 arg->remote_deps = NULL;
             }
