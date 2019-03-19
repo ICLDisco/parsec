@@ -830,7 +830,7 @@ if(AWK_EXECUTABLE)
 endif(AWK_EXECUTABLE)
 
 get_property(PARSEC_C_INCLUDES DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
-set(PARSEC_C_INCLUDES "${PARSEC_C_INCLUDES};${MPI_C_COMPILE_FLAGS}" CACHE "List of directories used to compile the parsec_ptgpp generated code" INTERNAL)
+set(PARSEC_C_INCLUDES "${PARSEC_C_INCLUDES};${MPI_C_COMPILE_FLAGS}" CACHE STRING "List of directories used to compile the parsec_ptgpp generated code" INTERNAL)
 mark_as_advanced(PARSEC_C_INCLUDES)
 
 #
