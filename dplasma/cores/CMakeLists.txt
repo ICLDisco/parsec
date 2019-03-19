@@ -64,7 +64,7 @@ if( CUDA_FOUND )
                       ${CORE_CUDA_SOURCES}
                       PRECISIONS "${DPLASMA_PRECISIONS}")
 
-  target_sources(dplasma_cores_obj PUBLIC ${generated_cuda_files})
+  target_sources(dplasma_cores_obj PRIVATE ${generated_cuda_files})
 #  add_library(dplasma_cores_cuda OBJECT ${generated_cuda_files})
 #  add_dependencies(dplasma_cores_cuda
 #                   dplasma_includes
