@@ -4430,7 +4430,9 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
         string_arena_free(sa_count);
 }
 
-static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_t *call,
+static void jdf_generate_code_call_final_write(const jdf_t *jdf,
+                                               const jdf_function_entry_t *f,
+                                               const jdf_call_t *call,
                                                jdf_datatransfer_type_t datatype,
                                                const char *spaces,
                                                const jdf_dataflow_t *flow)
@@ -4486,6 +4488,11 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 spaces, call->func_or_mem, string_arena_get_string(sa),
                 spaces, flow->varname,
                 spaces);
+        
+        coutput("#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
+                "%s  parsec_prof_grapher_data_output((parsec_task_t*)this_task, data_of_%s(%s), &flow_of_%s_%s_for_%s);\n"
+                "#endif\n",
+                spaces, call->func_or_mem, string_arena_get_string(sa), jdf_basename, f->fname, flow->varname);
     }
 
     string_arena_free(sa);
@@ -4518,14 +4525,14 @@ jdf_generate_code_flow_final_writes(const jdf_t *jdf,
         switch( dl->guard->guard_type ) {
         case JDF_GUARD_UNCONDITIONAL:
             if( dl->guard->calltrue->var == NULL ) {
-                jdf_generate_code_call_final_write( jdf, dl->guard->calltrue, dl->datatype, "", flow );
+                jdf_generate_code_call_final_write( jdf, f, dl->guard->calltrue, dl->datatype, "", flow );
             }
             break;
         case JDF_GUARD_BINARY:
             if( dl->guard->calltrue->var == NULL ) {
                 coutput("  if( %s ) {\n",
                         dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_final_write( jdf, dl->guard->calltrue, dl->datatype, "  ", flow );
+                jdf_generate_code_call_final_write( jdf, f, dl->guard->calltrue, dl->datatype, "  ", flow );
                 coutput("  }\n");
             }
             break;
@@ -4533,16 +4540,16 @@ jdf_generate_code_flow_final_writes(const jdf_t *jdf,
             if( dl->guard->calltrue->var == NULL ) {
                 coutput("  if( %s ) {\n",
                         dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_final_write( jdf, dl->guard->calltrue, dl->datatype, "  ", flow );
+                jdf_generate_code_call_final_write( jdf, f, dl->guard->calltrue, dl->datatype, "  ", flow );
                 if( dl->guard->callfalse->var == NULL ) {
                     coutput("  } else {\n");
-                    jdf_generate_code_call_final_write( jdf, dl->guard->callfalse, dl->datatype, "  ", flow );
+                    jdf_generate_code_call_final_write( jdf, f, dl->guard->callfalse, dl->datatype, "  ", flow );
                 }
                 coutput("  }\n");
             } else if ( dl->guard->callfalse->var == NULL ) {
                 coutput("  if( !(%s) ) {\n",
                         dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_final_write( jdf, dl->guard->callfalse, dl->datatype, "  ", flow );
+                jdf_generate_code_call_final_write( jdf, f, dl->guard->callfalse, dl->datatype, "  ", flow );
                 coutput("  }\n");
             }
             break;

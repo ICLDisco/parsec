@@ -1074,8 +1074,15 @@ parsec_check_IN_dependencies_with_mask(const parsec_taskpool_t *tp,
                             continue;  /* doesn't match */
                         /* the condition triggered let's check if it's for a data */
                     }  /* otherwise we have an input flow without a condition, it MUST be final */
-                    if( PARSEC_LOCAL_DATA_TASK_CLASS_ID == dep->task_class_id )
+                    if( PARSEC_LOCAL_DATA_TASK_CLASS_ID == dep->task_class_id ) {
+#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)
+                        parsec_data_t *dta;
+                        assert(NULL != dep->direct_data);
+                        dta = dep->direct_data(tp, task->locals);
+                        parsec_prof_grapher_data_input(dta, task, flow);
+#endif
                         active = (1 << flow->flow_index);
+                    }
                     break;
                 }
             }
@@ -1160,6 +1167,14 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
                 }
                 if( PARSEC_LOCAL_DATA_TASK_CLASS_ID != dep->task_class_id )  /* if not a data we must wait for the flow activation */
                     active++;
+                else {
+#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)
+                    parsec_data_t *dta;
+                    assert(NULL != dep->direct_data);
+                    dta = dep->direct_data(tp, task->locals);
+                    parsec_prof_grapher_data_input(dta, task, flow);
+#endif
+                }
                 break;
             }
         }
@@ -1329,6 +1344,8 @@ parsec_update_deps_with_mask(const parsec_taskpool_t *tp,
  * necessarily required for the startup process, but it leaves traces such that
  * all executed tasks will show consistently (no difference between the startup
  * tasks and later tasks).
+ * Since data -> task grapher logging is detected during dependency resolving,
+ * and startup tasks don't have an input dependency, we also resolve this here.
  */
 void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
                                               parsec_execution_stream_t *es)
@@ -1342,6 +1359,31 @@ void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
     } else {
         *deps = 0;
     }
+    
+#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)
+    for(int i = 0; i < tc->nb_flows; i++) {
+        const parsec_flow_t *flow = tc->in[i];
+        if( (flow->flow_flags & FLOW_HAS_IN_DEPS) == 0 )
+            continue;
+        for(int j = 0; flow->dep_in[j] != NULL; j++) {
+            const dep_t *dep = flow->dep_in[j];
+            if( NULL != dep->cond ) {
+                assert( EXPR_OP_INLINE == dep->cond->op );
+                assert( RETURN_TYPE_INT32 == dep->cond->return_type );
+                if( 0 == dep->cond->inline_func32(tp, task->locals) )
+                    continue;
+            }
+            if( dep->task_class_id == PARSEC_LOCAL_DATA_TASK_CLASS_ID ) {
+                parsec_data_t *dta;
+                assert(NULL != dep->direct_data);
+                dta = dep->direct_data(tp, task->locals);
+                parsec_prof_grapher_data_input(dta, task, flow);
+                break;
+            }
+        }
+    }
+#endif
+    
 }
 
 /*
