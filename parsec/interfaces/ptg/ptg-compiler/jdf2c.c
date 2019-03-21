@@ -776,6 +776,15 @@ static char *dump_profiling_init(void **elem, void *arg)
                          PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR, ";", "{int32_t}", "{int32_t}");
 
     string_arena_add_string(info->sa,
+                            "parsec_profiling_add_dictionary_keyword(\"%s (internal init)\", \"fill:%02X%02X%02X\",\n"
+                            "                                       0,\n"
+                            "                                       NULL,\n"
+                            "                                       (int*)&__parsec_tp->super.super.profiling_array[0 + 2 * %s_%s.task_class_id  + 2 * PARSEC_%s_NB_TASK_CLASSES/* %s (internal init) start key */],\n"
+                            "                                       (int*)&__parsec_tp->super.super.profiling_array[1 + 2 * %s_%s.task_class_id  + 2 * PARSEC_%s_NB_TASK_CLASSES/* %s (internal init) end key */]);\n",
+                            fname, 256-R, 256-G, 256-B,
+                            jdf_basename, fname, jdf_basename, fname,
+                            jdf_basename, fname, jdf_basename, fname);
+    string_arena_add_string(info->sa,
                             "parsec_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
                             "                                       sizeof(parsec_profile_data_collection_info_t)+%d*sizeof(assignment_t),\n"
                             "                                       \"%s\",\n"
@@ -786,7 +795,7 @@ static char *dump_profiling_init(void **elem, void *arg)
                             string_arena_get_string(profiling_convertor_params),
                             jdf_basename, fname, fname,
                             jdf_basename, fname, fname);
-
+ 
     string_arena_free(profiling_convertor_params);
 
     return string_arena_get_string(info->sa);
@@ -1387,7 +1396,7 @@ static void jdf_generate_structure(jdf_t *jdf)
     }
     if( need_profile )
         coutput("#if defined(PARSEC_PROF_TRACE)\n"
-                "static int %s_profiling_array[2*PARSEC_%s_NB_TASK_CLASSES] = {-1};\n"
+                "static int %s_profiling_array[4*PARSEC_%s_NB_TASK_CLASSES] = {-1};\n"
                 "#endif  /* defined(PARSEC_PROF_TRACE) */\n",
                 jdf_basename, jdf_basename);
 
@@ -2747,6 +2756,15 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_init(sa1);
     string_arena_init(sa2);
 
+    if( profile_enabled(f->properties) ) {
+        coutput("#if defined(PARSEC_PROF_TRACE)\n"
+                "  PARSEC_PROFILING_TRACE(es->es_profile,\n"
+                "                         this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id],\n"
+                "                         0,\n"
+                "                         this_task->taskpool->taskpool_id, NULL);\n"
+                "#endif\n");
+    }
+    
     info.sa = sa1;
     info.prefix = "";
     info.suffix = "";
@@ -2961,14 +2979,30 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  (void)parsec_atomic_fetch_dec_int32(&__parsec_tp->super.super.nb_tasks);\n");
         /* TODO coutput("    __parsec_tp->super.super.nb_tasks = __parsec_tp->super.super.initial_number_tasks;\n"); */
     }
+    
     coutput("    parsec_mfence();\n"
             "    parsec_taskpool_enable((parsec_taskpool_t*)__parsec_tp, &__parsec_tp->startup_queue,\n"
-            "                           (parsec_task_t*)this_task, es, __parsec_tp->super.super.nb_pending_actions);\n"
-            "    return PARSEC_HOOK_RETURN_DONE;\n"
+            "                           (parsec_task_t*)this_task, es, __parsec_tp->super.super.nb_pending_actions);\n");
+    if( profile_enabled(f->properties) ) {
+        coutput("#if defined(PARSEC_PROF_TRACE)\n"
+                "    PARSEC_PROFILING_TRACE(es->es_profile,\n"
+                "                           this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id + 1],\n"
+                "                           0,\n"
+                "                           this_task->taskpool->taskpool_id, NULL);\n"
+                "#endif\n");
+    }
+    coutput("    return PARSEC_HOOK_RETURN_DONE;\n"
             "  }\n");
-
-    coutput("  return (PARSEC_TASK_STATUS_COMPLETE == this_task->status) ? PARSEC_HOOK_RETURN_DONE : PARSEC_HOOK_RETURN_ASYNC;\n");
-    coutput("}\n\n");
+    if( profile_enabled(f->properties) ) {    
+        coutput("#if defined(PARSEC_PROF_TRACE)\n"
+                "  PARSEC_PROFILING_TRACE(es->es_profile,\n"
+                "                         this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id + 1],\n"
+                "                         0,\n"
+                "                         this_task->taskpool->taskpool_id, NULL);\n"
+                "#endif\n");
+    }
+    coutput("  return (PARSEC_TASK_STATUS_COMPLETE == this_task->status) ? PARSEC_HOOK_RETURN_DONE : PARSEC_HOOK_RETURN_ASYNC;\n"
+            "}\n\n");
 
     string_arena_free(sa_end);
     free_l2p(l2p);
