@@ -1,0 +1,170 @@
+extern "C" %{
+/*
+ * Copyright (c) 2019      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "udf_wrapper.h"
+
+static int ud_nbtasks_nb_local_tasks(struct __parsec_udf_internal_taskpool_s *tp);
+static parsec_key_t ud_make_key(const parsec_taskpool_t *tp, const assignment_t *locals);
+static int ud_startup1(parsec_execution_stream_t * es,
+                       struct __parsec_udf_UD_STARTUP1_task_s * this_task);
+static int ud_startup2(parsec_execution_stream_t * es,
+                       struct __parsec_udf_UD_STARTUP2_task_s * this_task);
+
+%}
+
+%option nb_local_tasks_fn = ud_nbtasks_nb_local_tasks
+
+A        [ type = "two_dim_block_cyclic_t *" ]
+logger   [ type = "udf_logger_fn_t" ]
+
+NOUD(m, n)
+  m = 0 .. A->super.mt-1 .. %{ return logger(1, UDF_TT_NBLOCAL); %}
+  n = 0 .. A->super.nt-1 .. %{ return logger(1, UDF_TT_NBLOCAL); %}
+
+: A(m, n)
+
+READ X <- A(m, n)
+
+BODY
+{
+    /* Nothing */
+}
+END
+
+UD_MAKE_KEY(m, n) [ make_key_fn = ud_make_key ]
+  m = 0 .. A->super.mt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_MAKEKEY); %}
+  n = 0 .. A->super.nt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_MAKEKEY); %}
+
+: A(m, n)
+
+READ X <- A(m, n)
+
+BODY
+{
+    /* Nothing */
+}
+END
+
+UD_STARTUP1(m, n) [ startup_fn = ud_startup1 ]
+  m = 0 .. A->super.mt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_STARTUP); %}
+  n = 0 .. A->super.nt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_STARTUP); %}
+
+: A(m, n)
+
+READ X <- A(m, n)
+
+BODY
+{
+    /* Nothing */
+}
+END
+
+UD_STARTUP2(m, n) [ make_key_fn = ud_make_key
+                   startup_fn = ud_startup2 ]
+  m = 0 .. A->super.mt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_MAKEKEY_STARTUP); %}
+  n = 0 .. A->super.nt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_MAKEKEY_STARTUP); %}
+
+: A(m, n)
+
+READ X <- A(m, n)
+
+BODY
+{
+    /* Nothing */
+}
+END
+
+extern "C" %{
+
+static int ud_nbtasks_nb_local_tasks(struct __parsec_udf_internal_taskpool_s *tp)
+{
+  parsec_udf_taskpool_t *utp = (parsec_udf_taskpool_t*)tp;
+  two_dim_block_cyclic_t *a = utp->_g_A;
+  return a->super.nb_local_tiles * 4;
+}
+
+static parsec_key_t ud_make_key(const parsec_taskpool_t *tp, const assignment_t *locals)
+{
+  const __parsec_udf_internal_taskpool_t *__parsec_tp = (const __parsec_udf_internal_taskpool_t *) tp;
+  const __parsec_udf_UD_MAKE_KEY_assignment_t *l = (const __parsec_udf_UD_MAKE_KEY_assignment_t *) locals;
+  return l->m.value * __parsec_tp->super._g_A->super.nt + l->n.value;
+}
+
+static int ud_startup1(parsec_execution_stream_t * es, __parsec_udf_UD_STARTUP1_task_t * this_task)
+{
+  __parsec_udf_UD_STARTUP1_task_t *new_task;
+  __parsec_udf_internal_taskpool_t *__tp = (__parsec_udf_internal_taskpool_t *) this_task->taskpool;
+  parsec_context_t *context = __tp->super.super.context;
+  int i, j;
+
+  for(i = 0; i < __tp->super._g_A->super.mt; i++) {
+    for(j = 0; j < __tp->super._g_A->super.nt; j++) {
+      if( ((parsec_data_collection_t*)(__tp->super._g_A))->rank_of((parsec_data_collection_t*)__tp->super._g_A, i, j) !=
+          ((parsec_data_collection_t*)(__tp->super._g_A))->myrank)
+        continue;
+      new_task = (__parsec_udf_UD_STARTUP1_task_t *) parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);
+      new_task->status = PARSEC_TASK_STATUS_NONE;
+      new_task->taskpool = this_task->taskpool;
+      new_task->task_class = __tp->super.super.task_classes_array[udf_UD_STARTUP1.task_class_id];
+      new_task->chore_id = 0;
+
+      new_task->locals.m.value = i;
+      new_task->locals.n.value = j;
+
+      new_task->data._f_X.data_repo = NULL;
+      new_task->data._f_X.data_in = NULL;
+      new_task->data._f_X.data_out = NULL;
+
+      new_task->priority = 1;
+
+      PARSEC_LIST_ITEM_SINGLETON(new_task);
+      parsec_dependencies_mark_task_as_startup((parsec_task_t *) new_task, es);
+      __parsec_schedule(es, (parsec_task_t *)new_task, 0);
+    }
+  }
+  
+  return PARSEC_HOOK_RETURN_DONE;
+}
+
+static int ud_startup2(parsec_execution_stream_t * es, __parsec_udf_UD_STARTUP2_task_t * this_task)
+{
+  __parsec_udf_UD_STARTUP2_task_t *new_task;
+  __parsec_udf_internal_taskpool_t *__tp = (__parsec_udf_internal_taskpool_t *) this_task->taskpool;
+  parsec_context_t *context = __tp->super.super.context;
+  int i, j;
+
+  for(i = 0; i < __tp->super._g_A->super.mt; i++) {
+    for(j = 0; j < __tp->super._g_A->super.nt; j++) {
+      if( ((parsec_data_collection_t*)(__tp->super._g_A))->rank_of((parsec_data_collection_t*)__tp->super._g_A, i, j) !=
+          ((parsec_data_collection_t*)(__tp->super._g_A))->myrank)
+        continue;
+      new_task = (__parsec_udf_UD_STARTUP2_task_t *) parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);
+      new_task->status = PARSEC_TASK_STATUS_NONE;
+      new_task->taskpool = this_task->taskpool;
+      new_task->task_class = __tp->super.super.task_classes_array[udf_UD_STARTUP2.task_class_id];
+      new_task->chore_id = 0;
+
+      new_task->locals.m.value = i;
+      new_task->locals.n.value = j;
+
+      new_task->data._f_X.data_repo = NULL;
+      new_task->data._f_X.data_in = NULL;
+      new_task->data._f_X.data_out = NULL;
+
+      new_task->priority = 1;
+
+      PARSEC_LIST_ITEM_SINGLETON(new_task);
+      parsec_dependencies_mark_task_as_startup((parsec_task_t *) new_task, es);
+      __parsec_schedule(es, (parsec_task_t *)new_task, 0);
+    }
+  }
+  
+  return PARSEC_HOOK_RETURN_DONE;
+}
+
+%}

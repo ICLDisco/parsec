@@ -332,6 +332,7 @@ static int my_project_startup(parsec_execution_stream_t * es, __parsec_project_P
   new_task->data._f_RL.data_out = NULL;
 
   new_task->priority = 1;
+  parsec_dependencies_mark_task_as_startup((parsec_task_t *) new_task, es);
 
   PARSEC_LIST_ITEM_SINGLETON(new_task);
   __parsec_schedule(es, (parsec_task_t *)new_task, 0);
