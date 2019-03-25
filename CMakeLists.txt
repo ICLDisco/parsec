@@ -901,6 +901,7 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/data_distribution.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datatype.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/profiling.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/dictionary.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/private_mempool.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/deprecated.h

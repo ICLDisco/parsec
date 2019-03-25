@@ -3648,7 +3648,8 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "    if( PARSEC_SUCCESS != device->device_taskpool_unregister(device, &__parsec_tp->super.super) ) continue;\n"
             "  }\n");
 
-    coutput("  free(__parsec_tp);\n");
+    coutput("  free(__parsec_tp->super.super.taskpool_name);\n"
+            "  free(__parsec_tp);\n");
 
     coutput("}\n"
             "\n");
@@ -3692,6 +3693,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     coutput("  __parsec_tp->super.super.nb_task_classes = PARSEC_%s_NB_TASK_CLASSES;\n"
             "  __parsec_tp->super.super.devices_index_mask = PARSEC_DEVICES_ALL;\n"
+            "  __parsec_tp->super.super.taskpool_name = strdup(\"%s\");\n"
             "  __parsec_tp->super.super.update_nb_runtime_task = parsec_ptg_update_runtime_task;\n"
             "  __parsec_tp->super.super.dependencies_array = (void **)\n"
             "              calloc(__parsec_tp->super.super.nb_task_classes, sizeof(void*));\n"
@@ -3704,8 +3706,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "  __parsec_tp->sync_point = __parsec_tp->super.super.nb_task_classes;\n"
             "  __parsec_tp->startup_queue = NULL;\n"
             "%s",
-            jdf_basename, string_arena_get_string(sa1));
-
+            jdf_basename, jdf_basename, string_arena_get_string(sa1));
     /* Prepare the functions */
     coutput("  for( i = 0; i < __parsec_tp->super.super.nb_task_classes; i++ ) {\n"
             "    __parsec_tp->super.super.task_classes_array[i] = tc = malloc(sizeof(parsec_task_class_t));\n"

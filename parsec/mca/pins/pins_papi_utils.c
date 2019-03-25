@@ -5,6 +5,7 @@
  */
 
 #include "parsec/parsec_config.h"
+#include "parsec/constants.h"
 #include <papi.h>
 #include "pins_papi_utils.h"
 #include "parsec/utils/output.h"

@@ -83,6 +83,7 @@ set(SOURCES
   data_distribution.c
   debug_marks.c
   devices/device.c
+  dictionary.c
   mca/mca_repository.c
   mempool.c
   private_mempool.c

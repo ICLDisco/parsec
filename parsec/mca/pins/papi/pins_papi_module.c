@@ -472,6 +472,7 @@ const parsec_pins_module_t parsec_pins_papi_module = {
         NULL,
         NULL,
         pins_thread_init_papi,
-        pins_thread_fini_papi,
-    }
+        pins_thread_fini_papi
+    },
+    { NULL }
 };

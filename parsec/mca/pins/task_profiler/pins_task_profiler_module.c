@@ -61,8 +61,9 @@ const parsec_pins_module_t parsec_pins_task_profiler_module = {
         NULL,
         NULL,
         pins_thread_init_task_profiler,
-        pins_thread_fini_task_profiler,
-    }
+        pins_thread_fini_task_profiler
+    },
+    { NULL }
 };
 
 static void pins_init_task_profiler(parsec_context_t *master_context)

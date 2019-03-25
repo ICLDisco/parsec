@@ -1,16 +1,24 @@
 /*
- * Copyright (c) 2012-2016 The University of Tennessee and The University
+ * Copyright (c) 2012-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
+
 #include "parsec/parsec_config.h"
+#include <math.h>
+#include <sys/mman.h>
+#include <sys/stat.h> /* For mode constants */
+#include <fcntl.h> /* For O_* constants */
+
 #include "parsec/mca/pins/pins.h"
 #include "parsec/mca/mca_repository.h"
 #include "parsec/execution_stream.h"
 #include "parsec/profiling.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/utils/debug.h"
+
+#include "parsec/dictionary.h"
 
 #define MAX_NAME_SIZE 100 /* arbitrary module name limit for 'safety' */
 
@@ -43,7 +51,7 @@ void pins_init(parsec_context_t* master_context)
         return;
     }
     pins_components = mca_components_open_bytype("pins");
-    for(i = 0; pins_components[i] != NULL; i++) /* nothing just counting */;
+    for(i = 0; pins_components[i] != NULL; i++); /* nothing just counting */
     modules_activated = (parsec_pins_module_t**)malloc(sizeof(parsec_pins_module_t*) * i);
 #if defined(PARSEC_PROF_TRACE)
     modules_activated_str = (char*)malloc( (MAX_NAME_SIZE+1) * i);
@@ -85,6 +93,11 @@ void pins_init(parsec_context_t* master_context)
     }
     parsec_profiling_add_information("PINS_MODULES", modules_activated_str);
     free(modules_activated_str);
+#endif
+
+#if defined(PARSEC_PROF_TRACE)
+    /* Fill dictionary with all the properties exposed by modules compiled AND activated by user */
+    parsec_profiling_dictionary_init(master_context, num_modules_activated, modules_activated);
 #endif
 }
 
