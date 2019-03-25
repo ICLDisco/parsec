@@ -1,21 +1,11 @@
 macro(parsec_addexample lang target input)
-  list(APPEND EXTRA_LIBS m)
-
-  if( MPI_C_FOUND )
-    set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
-    set(${target}_LDFLAGS "${MPI_C_LINK_FLAGS} ${${target}_LDFLAGS}")
-  endif( MPI_C_FOUND )
-  set(${target}_LIBS    parsec ${EXTRA_LIBS} ${${target}_LIBS})
-
   add_executable(${target} ${input})
-  #  message(STATUS "${target} -> ${input}")
-  set_target_properties(${target} PROPERTIES
-    LINKER_LANGUAGE ${lang}
-    COMPILE_FLAGS "${${target}_${lang}FLAGS} ${LOCAL_${lang}_LINK_FLAGS}"
-    LINK_FLAGS "${${target}_LDFLAGS}")
-  target_link_libraries(${target} ${${target}_LIBS})
-  #  install(TARGETS ${target} RUNTIME DESTINATION bin)
-
+  set_target_properties(${target} PROPERTIES LINKER_LANGUAGE ${lang})
+  target_link_libraries(${target}
+    PRIVATE
+    parsec
+    ${${target}_LIBS}
+    $<$<BOOL:${MPI_${lang}_FOUND}>:MPI::MPI_${lang}>)
 endmacro(parsec_addexample)
 
 parsec_addexample(C ex00 Ex00_StartStop.c)

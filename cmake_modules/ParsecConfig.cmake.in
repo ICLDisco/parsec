@@ -2,14 +2,59 @@ set(PARSEC_VERSION @PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@.@PARSEC_VERSION
 
 @PACKAGE_INIT@
 
-set_and_check(PARSEC_DIR "@CMAKE_INSTALL_PREFIX@")
-set_and_check(PARSEC_INCLUDE_DIRS "@CMAKE_INSTALL_PREFIX@/include")
-set_and_check(PARSEC_SYSCONFIG_DIRS "@CMAKE_INSTALL_PREFIX@/share")
-set_and_check(PARSEC_LIBRARY_DIRS "@CMAKE_INSTALL_PREFIX@/lib")
-set_and_check(PARSEC_BINARY_DIRS "@CMAKE_INSTALL_PREFIX@/bin")
+set_and_check(PARSEC_DIR ${PACKAGE_PREFIX_DIR})
+set_and_check(PARSEC_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
+set_and_check(PARSEC_EXTRA_INCLUDE_DIRS "@PACKAGE_EXTRA_INCLUDE_INSTALL_DIR@")
+set_and_check(PARSEC_SYSCONFIG_DIRS "@PACKAGE_SYSCONFIG_INSTALL_DIR@")
+set_and_check(PARSEC_CONFIG_DIRS "@PACKAGE_CONFIG_INSTALL_DIR@")
+set_and_check(PARSEC_LIBRARY_DIRS "@PACKAGE_LIB_INSTALL_DIR@")
+set_and_check(PARSEC_BINARY_DIRS "@PACKAGE_RUNTIME_INSTALL_DIR@")
 
 set(PARSEC_LIBRARIES "@parsec_LIB_DEPENDS@")
 set(PARSEC_EXTRA_INCLUDES "@EXTRA_INCLUDES@;@CMAKE_INSTALL_PREFIX@/include/parsec")
 set(PARSEC_EXTRA_LIBRARIES "@EXTRA_LIBS@")
-set(parsec_ptgpp_EXE "@CMAKE_INSTALL_PREFIX@/bin/@parsec_ptgpp_EXE@")
+set(parsec_ptgpp_EXE "${PARSEC_BINARY_DIRS}/@parsec_ptgpp_EXE@")
 set(PARSEC_PTGPP_CFLAGS "")
+
+# Pull the dependencies
+set(CMAKE_PREFIX_PATH @PACKAGE_CONFIG_INSTALL_DIR@)
+set(CMAKE_MODULE_PATH @PACKAGE_CONFIG_INSTALL_DIR@)
+
+find_package(Threads)
+find_package(DL)
+
+if(@PARSEC_HAVE_HWLOC@)
+  find_package(HWLOC REQUIRED)
+endif(@PARSEC_HAVE_HWLOC@)
+
+if(@PARSEC_DIST_WITH_MPI@)
+  include(CheckCSourceCompiles)
+  check_c_source_compiles("#include <mpi.h>
+                             int main(int argc, char *argv[]) {
+                               MPI_Init(&argc, &argv);
+                               MPI_Barrier(MPI_COMM_WORLD);
+                               MPI_Finalize();
+                               return 0;
+                             }" MPI_WORKS_WITH_WRAPPER)
+  if( MPI_WORKS_WITH_WRAPPER )
+    set(MPI_C_FOUND TRUE)
+  else( MPI_WORKS_WITH_WRAPPER)
+    find_package(MPI REQUIRED)
+  endif( MPI_WORKS_WITH_WRAPPER)
+endif(@PARSEC_DIST_WITH_MPI@)
+
+if(@PARSEC_HAVE_CUDA@)
+  find_package(CUDA)
+  if(CUDA_FOUND)
+    set(PARSEC_HAVE_CUDA 1)
+  endif(CUDA_FOUND)
+endif(@PARSEC_HAVE_CUDA@)
+
+if(@PARSEC_PROF_TRACE@)
+  if(@PARSEC_HAVE_PAPI@)
+    find_package(PAPI)
+  endif(@PARSEC_HAVE_PAPI@)
+endif(@PARSEC_PROF_TRACE@)
+
+# Pull the PaRSEC::<targets>
+include(${CMAKE_CURRENT_LIST_DIR}/PaRSECTargets.cmake)

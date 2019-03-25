@@ -640,7 +640,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
          * instead of in common.c/h as we do now. */
         PROFILING_SAVE_iINFO("nb_cores", nb_cores);
         PROFILING_SAVE_iINFO("nb_vps", nb_vp);
-
+	PROFILING_SAVE_sINFO("GIT_BRANCH", PARSEC_GIT_BRANCH);
+	PROFILING_SAVE_sINFO("GIT_HASH", PARSEC_GIT_HASH);
         free(cmdline_info);
 
 #  if defined(PARSEC_PROF_TRACE_SCHEDULING_EVENTS)

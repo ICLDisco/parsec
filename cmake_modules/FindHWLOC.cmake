@@ -15,7 +15,10 @@
 #  PARSEC_HAVE_HWLOC_CACHE_ATTR - new API, older versions don't have it
 #  PARSEC_HAVE_HWLOC_OBJ_PU - new API, older versions don't have it
 #
+#  HWLOC::HWLOC interface library target
 ##########
+
+include(CheckStructHasMember)
 
 mark_as_advanced(FORCE HWLOC_DIR HWLOC_INCLUDE_DIR HWLOC_LIBRARY)
 
@@ -54,6 +57,16 @@ if(HWLOC_FOUND)
     int main(void) { hwloc_obj_t o; o->type = HWLOC_OBJ_PU; return 0;}" PARSEC_HAVE_HWLOC_OBJ_PU)
   check_library_exists(${HWLOC_LIBRARY} hwloc_bitmap_free "" PARSEC_HAVE_HWLOC_BITMAP)
   set(CMAKE_REQUIRED_INCLUDES ${HWLOC_SAVE_CMAKE_REQUIRED_INCLUDES})
+  #===============================================================================
+  # Import Target ================================================================
+  if(NOT TARGET HWLOC::HWLOC)
+    add_library(HWLOC::HWLOC INTERFACE IMPORTED)
+  endif(NOT TARGET HWLOC::HWLOC)
+
+  set_property(TARGET HWLOC::HWLOC PROPERTY INTERFACE_LINK_LIBRARIES "${PC_HWLOC_LIB}")
+  set_property(TARGET HWLOC::HWLOC APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${HWLOC_LIBRARY}")
+  set_property(TARGET HWLOC::HWLOC PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${HWLOC_INCLUDE_DIR}")
+  #===============================================================================
 else(HWLOC_FOUND)
   unset(PARSEC_HAVE_HWLOC_PARENT_MEMBER CACHE)
   unset(PARSEC_HAVE_HWLOC_CACHE_ATTR CACHE)

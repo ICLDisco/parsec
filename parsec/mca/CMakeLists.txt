@@ -1,6 +1,6 @@
 # For each of the components
 
-SET(MCA_BASE_DIR ${CMAKE_SOURCE_DIR}/parsec/mca)
+SET(MCA_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/mca)
 
 FILE(GLOB MCA_COMPONENTS RELATIVE ${MCA_BASE_DIR} ${MCA_BASE_DIR}/*)
 
@@ -49,4 +49,6 @@ FOREACH (COMPONENT ${MCA_COMPONENTS})
 ENDFOREACH(COMPONENT)
 MESSAGE(STATUS "PARSEC Modular Component Architecture (MCA) discovery done.")
 
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/parsec/mca/mca_static_components.h.in ${CMAKE_BINARY_DIR}/parsec/mca/mca_static_components.h)
+message(STATUS "${MCA_EXTRA_SOURCES}")
+
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mca/mca_static_components.h.in ${CMAKE_CURRENT_BINARY_DIR}/mca/mca_static_components.h)

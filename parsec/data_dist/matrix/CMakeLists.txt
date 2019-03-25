@@ -38,15 +38,15 @@ if (MPI_C_FOUND)
     LIST(APPEND sources scalapack_convert.c)
 endif(MPI_C_FOUND)
 
-add_library(parsec_data_matrix OBJECT ${sources})
+if(NOT TARGET parsec_data_matrix)
+  add_library(parsec_data_matrix OBJECT ${sources})
+endif(NOT TARGET parsec_data_matrix)
+
 if(BUILD_SHARED_LIBS)
   set_target_properties(parsec_data_matrix PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif(BUILD_SHARED_LIBS)
 if (MPI_C_FOUND)
-    set_target_properties(parsec_data_matrix PROPERTIES COMPILE_FLAGS
-                          "${MPI_C_COMPILE_FLAGS}")
-    set_target_properties(parsec_data_matrix PROPERTIES LINK_FLAGS
-                          "${MPI_C_LINK_FLAGS}")
+  target_link_libraries(parsec_data_matrix PUBLIC MPI::MPI_C)
 endif(MPI_C_FOUND)
 
 install(FILES
@@ -59,4 +59,5 @@ install(FILES
   two_dim_tabular.h
   grid_2Dcyclic.h
   subtile.h
+  ${CMAKE_CURRENT_BINARY_DIR}/diag_band_to_rect.h
   DESTINATION include/parsec/data_dist/matrix )

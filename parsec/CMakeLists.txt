@@ -60,6 +60,7 @@ if(PARSEC_PROF_TRACE)
       set(PROFILING_SOURCE "profiling_otf2.c")
       list(APPEND EXTRA_LIBS "otf2")
       MESSAGE(STATUS "Profiling uses OTF2")
+      set(PARSEC_HAVE_OTF2 ${OTF2_FOUND})
     else(OTF2_FOUND)
       if(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
 	MESSAGE(FATAL_ERROR "Requested OTF2 tracing system is not available because OTF2 was not found")
@@ -123,49 +124,99 @@ add_subdirectory(data_dist)
 if( BUILD_PARSEC )
   # Build this as a collection of objects that can be easily either used to
   # create an interface library or imported into the main library.
-  add_library(parsec-base-obj OBJECT ${BASE_SOURCES})
-  set_target_properties(parsec-base-obj PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-if(BUILD_SHARED_LIBS)
-  set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
-endif(BUILD_SHARED_LIBS)
+  if(NOT TARGET parsec-base-obj)
+    add_library(parsec-base-obj OBJECT ${BASE_SOURCES})
+  endif(NOT TARGET parsec-base-obj)
+  target_compile_definitions(parsec-base-obj
+    PRIVATE
+    YYERROR_VERBOSE
+    BUILD_PARSEC)
+  target_include_directories(parsec-base-obj
+    PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>)
+  target_link_libraries(parsec-base-obj
+    PRIVATE
+    $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
+    $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
+    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
+    Threads::Threads)
+  if(BUILD_SHARED_LIBS)
+    set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  endif(BUILD_SHARED_LIBS)
 
-  add_library(parsec-base STATIC $<TARGET_OBJECTS:parsec-base-obj>)
+  if(NOT TARGET parsec-base)
+    add_library(parsec-base STATIC $<TARGET_OBJECTS:parsec-base-obj>)
+  endif(NOT TARGET parsec-base)
+  target_link_libraries(parsec-base
+    PRIVATE   rt DL::DL)
 
   # Create an interface library to allow the absorbtion of the object files into
   # the PaRSEC library.
-  add_library(parsec-base-iface INTERFACE)
+  if(NOT TARGET parsec-base-iface)
+    add_library(parsec-base-iface INTERFACE)
+  endif(NOT TARGET parsec-base-iface)
   target_sources(parsec-base-iface INTERFACE $<TARGET_OBJECTS:parsec-base-obj>)
+  target_link_libraries(parsec-base-iface
+    INTERFACE
+    $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
+    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
+    Threads::Threads rt DL::DL)
 
-  add_library(parsec ${SOURCES})
-  set_target_properties(parsec PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
-if(BUILD_SHARED_LIBS)
-  set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ON)
-endif(BUILD_SHARED_LIBS)
-# For now make sure that the installed shared libraries have the right
-# version (same version as the major of the build version). Thus, every
-# change in the high-level API (and ABI) should be reflected on the
-# major version of PaRSEC.
+  if(NOT TARGET parsec)
+    add_library(parsec ${SOURCES})
+  endif(NOT TARGET parsec)
+  target_compile_definitions(parsec
+    PRIVATE
+    YYERROR_VERBOSE
+    BUILD_PARSEC)
+  target_include_directories(parsec
+    PUBLIC
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>)
+  target_link_libraries(parsec
+    PRIVATE
+    parsec_data
+    parsec-base-iface
+    PUBLIC
+    $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
+    $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
+    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
+    Threads::Threads rt DL::DL
+    INTERFACE
+    ${EXTRA_LIBS}
+    )
+
+message(STATUS "papi_sde=${PARSEC_PAPI_SDE}")
+
+  if(NOT BUILD_SHARED_LIBS) # default value is ON for SHARED/FRAMEWORK lib
+    set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE OFF)
+  endif(NOT BUILD_SHARED_LIBS)
+  # For now make sure that the installed shared libraries have the right
+  # version (same version as the major of the build version). Thus, every
+  # change in the high-level API (and ABI) should be reflected on the
+  # major version of PaRSEC.
   set_target_properties(parsec PROPERTIES VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_PATCH}
-                                        SOVERSION ${PARSEC_VERSION_MAJOR})
-  if (MPI_C_FOUND)
-    set_target_properties(parsec PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
-  endif (MPI_C_FOUND)
+    SOVERSION ${PARSEC_VERSION_MAJOR})
 
   if( PARSEC_PAPI_SDE )
     # This file is in fact provided by PAPI SDE, to serve as a fallback in case PAPI
     # is not selected / loaded. It should be dynamic library that comes after PAPI
-    add_library(parsec-papi-sde papi_sde_interface.c)
-    # parsec-papi-sda must come last in EXTRA_LIBS: it is to be preceded by papi if
+    if(NOT TARGET parsec-papi-sde)
+      add_library(parsec-papi-sde SHARED papi_sde_interface.c)
+    endif(NOT TARGET parsec-papi-sde)
+    # parsec-papi-sde must come last in EXTRA_LIBS: it is to be preceded by papi if
     # PAPI is loaded so that the weak symbols in it are overcome by PAPI
-    list(APPEND EXTRA_LIBS parsec-papi-sde)
-    # Propagate the updates to the parent
-    set(EXTRA_LIBS ${EXTRA_LIBS} PARENT_SCOPE)
-    # parsec-papi-sde has to be installed, to provide the default empty functions
-    install(TARGETS parsec-papi-sde DESTINATION lib)
-  endif( PARSEC_PAPI_SDE )
+    target_link_libraries(parsec
+      PUBLIC parsec-papi-sde PAPI::PAPI)
 
-  target_link_libraries(parsec
-                        PRIVATE parsec_data parsec-base-iface ${EXTRA_LIBS})
+    # parsec-papi-sde has to be installed, to provide the default empty functions
+    install(TARGETS parsec-papi-sde
+      EXPORT parsec-targets
+      DESTINATION lib)
+    #install(FILES papi_sde_interface.h DESTINATION lib/parsec)
+  endif( PARSEC_PAPI_SDE )
 
 #
 # If we have support for F90 build the PaRSEC module
@@ -182,7 +233,9 @@ endif(BUILD_SHARED_LIBS)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 
   install(TARGETS parsec
-          DESTINATION lib)
+    EXPORT parsec-targets
+    DESTINATION lib
+    PUBLIC_HEADER ${CMAKE_INSTALL_INCLUDEDIR})
 
   install(FILES utils/help-mca-param.txt DESTINATION share/parsec)
 ENDIF( BUILD_PARSEC )
