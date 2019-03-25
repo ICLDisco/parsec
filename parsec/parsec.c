@@ -1075,12 +1075,6 @@ parsec_check_IN_dependencies_with_mask(const parsec_taskpool_t *tp,
                         /* the condition triggered let's check if it's for a data */
                     }  /* otherwise we have an input flow without a condition, it MUST be final */
                     if( PARSEC_LOCAL_DATA_TASK_CLASS_ID == dep->task_class_id ) {
-#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)
-                        parsec_data_t *dta;
-                        assert(NULL != dep->direct_data);
-                        dta = dep->direct_data(tp, task->locals);
-                        parsec_prof_grapher_data_input(dta, task, flow);
-#endif
                         active = (1 << flow->flow_index);
                     }
                     break;
@@ -1168,12 +1162,6 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
                 if( PARSEC_LOCAL_DATA_TASK_CLASS_ID != dep->task_class_id )  /* if not a data we must wait for the flow activation */
                     active++;
                 else {
-#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)
-                    parsec_data_t *dta;
-                    assert(NULL != dep->direct_data);
-                    dta = dep->direct_data(tp, task->locals);
-                    parsec_prof_grapher_data_input(dta, task, flow);
-#endif
                 }
                 break;
             }

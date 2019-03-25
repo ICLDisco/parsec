@@ -4202,6 +4202,13 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                                    dump_expr, (void*)&info, "", "", ", ", ""),
                     spaces,
                     spaces, f->varname);
+            coutput("#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
+                    "%s  parsec_prof_grapher_data_input(data_of_%s(%s), (parsec_task_t*)this_task, &%s);\n"
+                    "#endif\n",
+                    spaces,
+                    call->func_or_mem, UTIL_DUMP_LIST(sa, call->parameters, next,
+                                                      dump_expr, (void*)&info, "", "", ", ", ""),
+                    JDF_OBJECT_ONAME( f ));
         }
         /* NEW or NULL data */
         else {
@@ -4418,10 +4425,14 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             "      this_task->data._f_%s.data_repo = entry;\n"
             "    } else {\n"
             "      this_task->data._f_%s.data_out = parsec_data_get_copy(chunk->original, target_device);\n"
+            "#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
+            "      parsec_prof_grapher_data_input(chunk->original, (parsec_task_t*)this_task, &%s);\n"
+            "#endif\n"
             "    }\n",
             flow->varname, flow->varname,
             flow->varname,
-            flow->varname);
+            flow->varname,
+            JDF_OBJECT_ONAME( flow ));
     
     string_arena_free(sa);
     if( NULL != sa2 )
