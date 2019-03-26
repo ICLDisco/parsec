@@ -152,6 +152,9 @@ set(PARSEC_PROF_TRACE_SYSTEM "Auto" CACHE STRING "Select the profiling system,
  if PARSEC_PROF_TRACE is ON")
 #This enforces that only the 3 values are available in ccmake or cmake-gui
 set_property(CACHE PARSEC_PROF_TRACE_SYSTEM PROPERTY STRINGS "Auto" "OTF2" "PaRSEC Binary Tracing Format")
+option(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT
+  "Generate Profiling traces for the internal_init tasks in the PTG interface (expert mode only)" OFF)
+mark_as_advanced(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) #This is available in export mode only
 if( PARSEC_PROF_TRACE )
   SET(PARSEC_PAPI_SDE "ON")
 else( PARSEC_PROF_TRACE )

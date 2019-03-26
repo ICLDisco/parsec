@@ -1161,8 +1161,6 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
                 }
                 if( PARSEC_LOCAL_DATA_TASK_CLASS_ID != dep->task_class_id )  /* if not a data we must wait for the flow activation */
                     active++;
-                else {
-                }
                 break;
             }
         }
@@ -1346,32 +1344,7 @@ void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
         *deps = PARSEC_DEPENDENCIES_STARTUP_TASK | tc->dependencies_goal;
     } else {
         *deps = 0;
-    }
-    
-#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)
-    for(int i = 0; i < tc->nb_flows; i++) {
-        const parsec_flow_t *flow = tc->in[i];
-        if( (flow->flow_flags & FLOW_HAS_IN_DEPS) == 0 )
-            continue;
-        for(int j = 0; flow->dep_in[j] != NULL; j++) {
-            const dep_t *dep = flow->dep_in[j];
-            if( NULL != dep->cond ) {
-                assert( EXPR_OP_INLINE == dep->cond->op );
-                assert( RETURN_TYPE_INT32 == dep->cond->return_type );
-                if( 0 == dep->cond->inline_func32(tp, task->locals) )
-                    continue;
-            }
-            if( dep->task_class_id == PARSEC_LOCAL_DATA_TASK_CLASS_ID ) {
-                parsec_data_t *dta;
-                assert(NULL != dep->direct_data);
-                dta = dep->direct_data(tp, task->locals);
-                parsec_prof_grapher_data_input(dta, task, flow);
-                break;
-            }
-        }
-    }
-#endif
-    
+    }    
 }
 
 /*
