@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The University of Tennessee and The University
+ * Copyright (c) 2011-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -8,7 +8,7 @@
  */
 
 #include "dplasma.h"
-#include "dplasmatypes.h"
+#include "dplasma/types.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/private_mempool.h"

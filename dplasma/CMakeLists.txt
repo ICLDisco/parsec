@@ -93,7 +93,7 @@ if( PARSEC_OSX )
   endif( PARSEC_OSX_VECLIB )
 endif( PARSEC_OSX )
 
-set(DPLASMA_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/dplasma"
+set(DPLASMA_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}"
                            CACHE STRING "DPLASMA Installation Prefix")
 
 if(COREBLAS_FOUND)

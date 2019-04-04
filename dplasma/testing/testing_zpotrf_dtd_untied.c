@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2018 The University of Tennessee and The University
+ * Copyright (c) 2015-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -20,7 +20,7 @@
  */
 
 #include "common.h"
-#include "dplasma/include/dplasmatypes.h"
+#include "dplasma/types.h"
 #include "dplasma/lib/flops.h"
 #include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
