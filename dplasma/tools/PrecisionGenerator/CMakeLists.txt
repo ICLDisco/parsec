@@ -20,13 +20,13 @@ if(PYTHON_VERSION_MAJOR GREATER 2)
             ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator/PrecisionGenerator.py
             ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator/subs.py
             ${CMAKE_BINARY_DIR}/dplasma/tools/PrecisionGenerator/Conversion.py
-            DESTINATION lib/PrecisionGenerator)
+            DESTINATION libexec/dplasma/PrecisionGenerator)
 else()
     install(FILES
             ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/PrecisionDeps.py
             ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/PrecisionGenerator.py
             ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/subs.py
             ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/Conversion.py
-            DESTINATION lib/PrecisionGenerator)
+            DESTINATION libexec/dplasma/PrecisionGenerator)
 endif()
 
