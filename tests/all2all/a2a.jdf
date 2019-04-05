@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2013-2016 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -143,7 +143,7 @@ void a2a_destroy(parsec_taskpool_t *tp)
     MPI_Type_free( &block );
 #endif
 
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(tp);
+    parsec_taskpool_free(tp);
 }
 
 %}

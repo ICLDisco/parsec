@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -560,7 +560,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     static int pool_initialized = 0;
 
     if ( !pool_initialized ) {
-        OBJ_CONSTRUCT(&_parsec_pool_list, parsec_list_t);
+        PARSEC_OBJ_CONSTRUCT(&_parsec_pool_list, parsec_list_t);
         pool_initialized++;
     }
 
@@ -909,7 +909,7 @@ static inline int kernel_exists(char *task_name){
     static parsec_list_t kernel_name_list;
 
     if ( !kernel_count_initialized ) {
-        OBJ_CONSTRUCT(&kernel_name_list, parsec_list_t);
+        PARSEC_OBJ_CONSTRUCT(&kernel_name_list, parsec_list_t);
         kernel_count_initialized = 1;
     }
 
@@ -3241,7 +3241,7 @@ char *tree_to_body(node_t *node){
     }
 
     parsec_list_t var_def_list;
-    OBJ_CONSTRUCT(&var_def_list, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&var_def_list, parsec_list_t);
 
     assert( FCALL == node->type );
     assert( (Q2J_ANN_QUARK == _q2j_annot_API) || (Q2J_ANN_GENER == _q2j_annot_API) );

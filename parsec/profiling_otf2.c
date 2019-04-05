@@ -1,5 +1,5 @@
 /*
- * Copyright (c)      2018 The University of Tennessee and The University
+ * Copyright (c) 2018-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -48,8 +48,8 @@ typedef struct {
     char *value;
 } parsec_profiling_info_t;
 
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_profiling_info_t);
-OBJ_CLASS_INSTANCE(parsec_profiling_info_t, parsec_list_item_t,
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_profiling_info_t);
+PARSEC_OBJ_CLASS_INSTANCE(parsec_profiling_info_t, parsec_list_item_t,
                    NULL, NULL);
 
 int parsec_profile_enabled = 0;
@@ -155,7 +155,7 @@ void parsec_profiling_add_information( const char *key, const char *value )
 
     if( !__profile_initialized ) return;
 
-    new_info = OBJ_NEW(parsec_profiling_info_t);
+    new_info = PARSEC_OBJ_NEW(parsec_profiling_info_t);
     /* OTF2 format: keys must be in a namespace separated by ::,
      *              keys are in [a-zA-Z0-9_]+ */
     asprintf(&new_info->key, "PARSEC::%s", key);
@@ -187,8 +187,8 @@ int parsec_profiling_init( void )
 
     PARSEC_TLS_KEY_CREATE(tls_profiling);
 
-    OBJ_CONSTRUCT( &threads, parsec_list_t );
-    OBJ_CONSTRUCT(&global_informations, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT( &threads, parsec_list_t );
+    PARSEC_OBJ_CONSTRUCT(&global_informations, parsec_list_t);
 
     /* As we called the _start function automatically, the timing will be
      * based on this moment. By forcing back the __already_called to 0, we
@@ -246,8 +246,8 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
     if( !__profile_initialized ) return NULL;
 
     res = (parsec_thread_profiling_t*)calloc(sizeof(parsec_thread_profiling_t), 1);
-    OBJ_CONSTRUCT(res, parsec_list_item_t);
-    OBJ_CONSTRUCT(&res->informations, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(res, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(&res->informations, parsec_list_t);
 
     res->id = parsec_atomic_fetch_inc_int32(&thread_profiling_id);
     res->nb_evt = 0;
@@ -847,7 +847,7 @@ int parsec_profiling_dbp_dump( void )
             free(pi->key);
             free(pi->value);
             r = PARSEC_LIST_ITERATOR_NEXT(r);
-            OBJ_RELEASE(pi);
+            PARSEC_OBJ_RELEASE(pi);
         }
         
         rc = OTF2_GlobalDefWriter_WriteClockProperties( global_def_writer,
@@ -1118,7 +1118,7 @@ int parsec_profiling_fini( void )
     while( (t = (parsec_thread_profiling_t*)parsec_list_nolock_pop_front(&threads)) ) {
         free(t);
     }
-    OBJ_DESTRUCT(&threads);
+    PARSEC_OBJ_DESTRUCT(&threads);
 
     parsec_profiling_dictionary_flush();
     start_called = 0;  /* Allow the profiling to be reinitialized */

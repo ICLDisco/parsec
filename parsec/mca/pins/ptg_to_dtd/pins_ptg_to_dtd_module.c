@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -150,7 +150,7 @@ static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
 
     /* There can only be one valid data collection at any moment */
     parsec_dtd_data_collection_init( __dc );
-    dtd_global_deque = OBJ_NEW(parsec_list_t);
+    dtd_global_deque = PARSEC_OBJ_NEW(parsec_list_t);
     copy_chores(ptg_tp, __dtd_taskpool);
     {
         parsec_event_cb_t lfct = NULL;
@@ -171,7 +171,7 @@ static void pins_taskpool_fini_ptg_to_dtd(parsec_taskpool_t *tp)
     }
 
     parsec_dtd_data_collection_fini( __dc );
-    OBJ_RELEASE(dtd_global_deque);
+    PARSEC_OBJ_RELEASE(dtd_global_deque);
     dtd_global_deque = NULL;
 }
 
@@ -413,9 +413,9 @@ fake_hook_for_testing(parsec_execution_stream_t *es,
             int op_type;
             parsec_dtd_tile_t *tile = NULL;
 
-            if ((tmp_op_type & FLOW_ACCESS_RW) == FLOW_ACCESS_RW) {
+            if ((tmp_op_type & PARSEC_FLOW_ACCESS_RW) == PARSEC_FLOW_ACCESS_RW) {
                 op_type = INOUT;
-            } else if( (tmp_op_type & FLOW_ACCESS_RW) == FLOW_ACCESS_READ ) {
+            } else if( (tmp_op_type & PARSEC_FLOW_ACCESS_RW) == PARSEC_FLOW_ACCESS_READ ) {
                 op_type = INPUT;
             } else {
                 continue;  /* next IN flow */
@@ -447,7 +447,7 @@ fake_hook_for_testing(parsec_execution_stream_t *es,
 
             tmp_op_type = this_task->task_class->out[i]->flow_flags;
             parsec_dtd_tile_t *tile = NULL;
-            if((tmp_op_type & FLOW_ACCESS_RW) == FLOW_ACCESS_WRITE) {
+            if((tmp_op_type & PARSEC_FLOW_ACCESS_RW) == PARSEC_FLOW_ACCESS_WRITE) {
                 op_type = OUTPUT;
                 if( NULL != this_task->data[i].data_out ) {
                     data = this_task->data[i].data_out->original;

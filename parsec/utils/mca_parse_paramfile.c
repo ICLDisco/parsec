@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2013 The University of Tennessee and The University
+ * Copyright (c) 2004-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -55,7 +55,7 @@ static void save_value(const char *name, const char *value)
     if( found_elem ) return;
 
     /* We didn't already have the param, so append it to the list */
-    fv = OBJ_NEW(parsec_mca_param_file_value_t);
+    fv = PARSEC_OBJ_NEW(parsec_mca_param_file_value_t);
     if (NULL != fv) {
         fv->mbpfv_param = strdup(name);
         if (NULL != value) {

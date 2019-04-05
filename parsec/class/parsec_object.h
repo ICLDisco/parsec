@@ -54,20 +54,20 @@
  *   };
  *   typedef struct sally_t sally_t;
  *
- *   OBJ_CLASS_DECLARATION(sally_t);
+ *   PARSEC_OBJ_CLASS_DECLARATION(sally_t);
  * @endcode
  * All classes must have a parent which is also class.
  *
  * In an implementation (.c) file, instantiate a class descriptor for
  * the class like this:
  * @code
- *   OBJ_CLASS_INSTANCE(sally_t, parent_t, sally_construct, sally_destruct);
+ *   PARSEC_OBJ_CLASS_INSTANCE(sally_t, parent_t, sally_construct, sally_destruct);
  * @endcode
  * This macro actually expands to
  * @code
  *   parsec_class_t sally_t_class = {
  *     "sally_t",
- *     OBJ_CLASS(parent_t),  // pointer to parent_t_class
+ *     PARSEC_OBJ_CLASS(parent_t),  // pointer to parent_t_class
  *     sally_construct,
  *     sally_destruct,
  *     0, 0, NULL, NULL,
@@ -75,7 +75,7 @@
  *   };
  * @endcode
  * This variable should be declared in the interface (.h) file using
- * the OBJ_CLASS_DECLARATION macro as shown above.
+ * the PARSEC_OBJ_CLASS_DECLARATION macro as shown above.
  *
  * sally_construct, and sally_destruct are function pointers to the
  * constructor and destructor for the class and are best defined as
@@ -86,19 +86,19 @@
  *
  * (b) Class instantiation: dynamic
  *
- * To create a instance of a class (an object) use OBJ_NEW:
+ * To create a instance of a class (an object) use PARSEC_OBJ_NEW:
  * @code
- *   sally_t *sally = OBJ_NEW(sally_t);
+ *   sally_t *sally = PARSEC_OBJ_NEW(sally_t);
  * @endcode
  * which allocates memory of sizeof(sally_t) and runs the class's
  * constructors.
  *
- * Use OBJ_RETAIN, OBJ_RELEASE to do reference-count-based
+ * Use PARSEC_OBJ_RETAIN, PARSEC_OBJ_RELEASE to do reference-count-based
  * memory management:
  * @code
- *   OBJ_RETAIN(sally);
- *   OBJ_RELEASE(sally);
- *   OBJ_RELEASE(sally);
+ *   PARSEC_OBJ_RETAIN(sally);
+ *   PARSEC_OBJ_RELEASE(sally);
+ *   PARSEC_OBJ_RELEASE(sally);
  * @endcode
  * When the reference count reaches zero, the class's destructor, and
  * those of its parents, are run and the memory is freed.
@@ -110,17 +110,17 @@
  *
  * For an object with static (or stack) allocation, it is only
  * necessary to initialize the memory, which is done using
- * OBJ_CONSTRUCT:
+ * PARSEC_OBJ_CONSTRUCT:
  * @code
  *   sally_t sally;
  *
- *   OBJ_CONSTRUCT(&sally, sally_t);
+ *   PARSEC_OBJ_CONSTRUCT(&sally, sally_t);
  * @endcode
  * The retain/release model is not necessary here, but before the
- * object goes out of scope, OBJ_DESTRUCT should be run to release
+ * object goes out of scope, PARSEC_OBJ_DESTRUCT should be run to release
  * initialized resources:
  * @code
- *   OBJ_DESTRUCT(&sally);
+ *   PARSEC_OBJ_DESTRUCT(&sally);
  * @endcode
  */
 
@@ -167,9 +167,9 @@ struct parsec_class_t {
  * @param BASE_CLASS   Name of the class to initialize
  */
 #if defined(PARSEC_DEBUG_PARANOID)
-#define PARSEC_OBJ_STATIC_INIT(BASE_CLASS) { PARSEC_OBJ_MAGIC_ID, OBJ_CLASS(BASE_CLASS), 1, __FILE__, __LINE__ }
+#define PARSEC_OBJ_STATIC_INIT(BASE_CLASS) { PARSEC_OBJ_MAGIC_ID, PARSEC_OBJ_CLASS(BASE_CLASS), 1, __FILE__, __LINE__ }
 #else
-#define PARSEC_OBJ_STATIC_INIT(BASE_CLASS) { OBJ_CLASS(BASE_CLASS), 1 }
+#define PARSEC_OBJ_STATIC_INIT(BASE_CLASS) { PARSEC_OBJ_CLASS(BASE_CLASS), 1 }
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
 /**
@@ -200,7 +200,7 @@ struct parsec_object_t {
  * @param NAME          Name of class
  * @return              Pointer to class descriptor
  */
-#define OBJ_CLASS(NAME)     (&(NAME ## _class))
+#define PARSEC_OBJ_CLASS(NAME)     (&(NAME ## _class))
 
 
 /**
@@ -213,10 +213,10 @@ struct parsec_object_t {
  *
  * Put this in NAME.c
  */
-#define OBJ_CLASS_INSTANCE(NAME, PARENT, CONSTRUCTOR, DESTRUCTOR)       \
+#define PARSEC_OBJ_CLASS_INSTANCE(NAME, PARENT, CONSTRUCTOR, DESTRUCTOR)       \
     parsec_class_t NAME ## _class = {                                     \
         # NAME,                                                         \
-        OBJ_CLASS(PARENT),                                              \
+        PARSEC_OBJ_CLASS(PARENT),                                              \
         (parsec_construct_t) CONSTRUCTOR,                                 \
         (parsec_destruct_t) DESTRUCTOR,                                   \
         0, 0, NULL, NULL,                                               \
@@ -231,7 +231,7 @@ struct parsec_object_t {
  *
  * Put this in NAME.h
  */
-#define OBJ_CLASS_DECLARATION(NAME)             \
+#define PARSEC_OBJ_CLASS_DECLARATION(NAME)             \
     extern parsec_class_t NAME ## _class
 
 
@@ -252,11 +252,11 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
     object->cls_init_lineno = line;
     return object;
 }
-#define OBJ_NEW(type)                                   \
-    ((type *)parsec_obj_new_debug(OBJ_CLASS(type), __FILE__, __LINE__))
+#define PARSEC_OBJ_NEW(type)                                   \
+    ((type *)parsec_obj_new_debug(PARSEC_OBJ_CLASS(type), __FILE__, __LINE__))
 #else
-#define OBJ_NEW(type)                                   \
-    ((type *) parsec_obj_new(OBJ_CLASS(type)))
+#define PARSEC_OBJ_NEW(type)                                   \
+    ((type *) parsec_obj_new(PARSEC_OBJ_CLASS(type)))
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
 /**
@@ -265,7 +265,7 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
  * @param object        Pointer to the object
  */
 #if defined(PARSEC_DEBUG_PARANOID)
-#define OBJ_RETAIN(object)                                              \
+#define PARSEC_OBJ_RETAIN(object)                                              \
     do {                                                                \
         assert(NULL != ((parsec_object_t *) (object))->obj_class);        \
         assert(PARSEC_OBJ_MAGIC_ID == ((parsec_object_t *) (object))->obj_magic_id); \
@@ -273,7 +273,7 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
         assert(((parsec_object_t *) (object))->obj_reference_count >= 0); \
     } while (0)
 #else
-#define OBJ_RETAIN(object)  parsec_obj_update((parsec_object_t *) (object), 1);
+#define PARSEC_OBJ_RETAIN(object)  parsec_obj_update((parsec_object_t *) (object), 1);
 #endif
 
 /**
@@ -281,18 +281,18 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
  * an object change.
  */
 #if defined(PARSEC_DEBUG_PARANOID)
-#define OBJ_REMEMBER_FILE_AND_LINENO( OBJECT, FILE, LINENO )    \
+#define PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( OBJECT, FILE, LINENO )    \
     do {                                                        \
         ((parsec_object_t*)(OBJECT))->cls_init_file_name = FILE;  \
         ((parsec_object_t*)(OBJECT))->cls_init_lineno = LINENO;   \
     } while(0)
-#define OBJ_SET_MAGIC_ID( OBJECT, VALUE )                       \
+#define PARSEC_OBJ_SET_MAGIC_ID( OBJECT, VALUE )                       \
     do {                                                        \
         ((parsec_object_t*)(OBJECT))->obj_magic_id = (VALUE);     \
     } while(0)
 #else
-#define OBJ_REMEMBER_FILE_AND_LINENO( OBJECT, FILE, LINENO )
-#define OBJ_SET_MAGIC_ID( OBJECT, VALUE )
+#define PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( OBJECT, FILE, LINENO )
+#define PARSEC_OBJ_SET_MAGIC_ID( OBJECT, VALUE )
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
 /**
@@ -306,20 +306,20 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
  * @param object        Pointer to the object
  */
 #if defined(PARSEC_DEBUG_PARANOID)
-#define OBJ_RELEASE(object)                                     \
+#define PARSEC_OBJ_RELEASE(object)                                     \
     do {                                                        \
         assert(NULL != ((parsec_object_t *) (object))->obj_class);        \
         assert(PARSEC_OBJ_MAGIC_ID == ((parsec_object_t *) (object))->obj_magic_id); \
         if (0 == parsec_obj_update((parsec_object_t *) (object), -1)) {     \
             parsec_obj_run_destructors((parsec_object_t *) (object));       \
-            OBJ_SET_MAGIC_ID((object), 0);                      \
-            OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
+            PARSEC_OBJ_SET_MAGIC_ID((object), 0);                      \
+            PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
             free(object);                                       \
             object = NULL;                                      \
         }                                                       \
     } while (0)
 #else
-#define OBJ_RELEASE(object)                                     \
+#define PARSEC_OBJ_RELEASE(object)                                     \
     do {                                                        \
         if (0 == parsec_obj_update((parsec_object_t *) (object), -1)) {     \
             parsec_obj_run_destructors((parsec_object_t *) (object));       \
@@ -337,21 +337,21 @@ static inline parsec_object_t *parsec_obj_new_debug(parsec_class_t* type, const 
  * @param type          The object type
  */
 
-#define OBJ_CONSTRUCT(object, type)                             \
+#define PARSEC_OBJ_CONSTRUCT(object, type)                             \
 do {                                                            \
-    OBJ_CONSTRUCT_INTERNAL((object), OBJ_CLASS(type));          \
+    PARSEC_OBJ_CONSTRUCT_INTERNAL((object), PARSEC_OBJ_CLASS(type));          \
 } while (0)
 
-#define OBJ_CONSTRUCT_INTERNAL(object, type)                    \
+#define PARSEC_OBJ_CONSTRUCT_INTERNAL(object, type)                    \
 do {                                                            \
-    OBJ_SET_MAGIC_ID((object), PARSEC_OBJ_MAGIC_ID);             \
+    PARSEC_OBJ_SET_MAGIC_ID((object), PARSEC_OBJ_MAGIC_ID);             \
     if (0 == (type)->cls_initialized) {                         \
         parsec_class_initialize((type));                         \
     }                                                           \
     ((parsec_object_t *) (object))->obj_class = (type);          \
     ((parsec_object_t *) (object))->obj_reference_count = 1;     \
     parsec_obj_run_constructors((parsec_object_t *) (object));    \
-    OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
+    PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
 } while (0)
 
 
@@ -361,22 +361,22 @@ do {                                                            \
  * @param object        Pointer to the object
  */
 #if defined(PARSEC_DEBUG_PARANOID)
-#define OBJ_DESTRUCT(object)                                    \
+#define PARSEC_OBJ_DESTRUCT(object)                                    \
 do {                                                            \
     assert(PARSEC_OBJ_MAGIC_ID == ((parsec_object_t *) (object))->obj_magic_id); \
     parsec_obj_run_destructors((parsec_object_t *) (object));     \
-    OBJ_SET_MAGIC_ID((object), 0);                              \
-    OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
+    PARSEC_OBJ_SET_MAGIC_ID((object), 0);                              \
+    PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
 } while (0)
 #else
-#define OBJ_DESTRUCT(object)                                    \
+#define PARSEC_OBJ_DESTRUCT(object)                                    \
 do {                                                            \
     parsec_obj_run_destructors((parsec_object_t *) (object));     \
-    OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
+    PARSEC_OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
 } while (0)
 #endif
 
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_object_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_object_t);
 
 /* declarations *******************************************************/
 
@@ -405,7 +405,7 @@ PARSEC_DECLSPEC int parsec_class_finalize(void);
  * Run the hierarchy of class constructors for this object, in a
  * parent-first order.
  *
- * Do not use this function directly: use OBJ_CONSTRUCT() instead.
+ * Do not use this function directly: use PARSEC_OBJ_CONSTRUCT() instead.
  *
  * WARNING: This implementation relies on a hardwired maximum depth of
  * the inheritance tree!!!
@@ -431,7 +431,7 @@ static inline void parsec_obj_run_constructors(parsec_object_t * object)
  * Run the hierarchy of class destructors for this object, in a
  * parent-last order.
  *
- * Do not use this function directly: use OBJ_DESTRUCT() instead.
+ * Do not use this function directly: use PARSEC_OBJ_DESTRUCT() instead.
  *
  * @param object          Pointer to the object.
  */
@@ -453,7 +453,7 @@ static inline void parsec_obj_run_destructors(parsec_object_t * object)
  * Create new object: dynamically allocate storage and run the class
  * constructor.
  *
- * Do not use this function directly: use OBJ_NEW() instead.
+ * Do not use this function directly: use PARSEC_OBJ_NEW() instead.
  *
  * @param cls           Pointer to the class descriptor of this object
  * @return              Pointer to the object
@@ -482,7 +482,7 @@ static inline parsec_object_t *parsec_obj_new(parsec_class_t * cls)
  * Atomically update the object's reference count by some increment.
  *
  * This function should not be used directly: it is called via the
- * macros OBJ_RETAIN and OBJ_RELEASE
+ * macros PARSEC_OBJ_RETAIN and PARSEC_OBJ_RELEASE
  *
  * @param object        Pointer to the object
  * @param inc           Increment by which to update reference count

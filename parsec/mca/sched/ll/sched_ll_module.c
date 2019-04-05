@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017-2018 The University of Tennessee and The University
+ * Copyright (c) 2017-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -78,7 +78,7 @@ typedef struct {
 #endif
 } parsec_lifo_with_local_counter_t;
 
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_with_local_counter_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_lifo_with_local_counter_t);
 
 static inline void parsec_lifo_with_local_counter_construct( parsec_lifo_with_local_counter_t* lifo )
 {
@@ -89,7 +89,7 @@ static inline void parsec_lifo_with_local_counter_construct( parsec_lifo_with_lo
 #endif
 }
 
-OBJ_CLASS_INSTANCE(parsec_lifo_with_local_counter_t, parsec_lifo_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_lifo_with_local_counter_t, parsec_lifo_t,
                    parsec_lifo_with_local_counter_construct, NULL);
 
 #if defined(PARSEC_PAPI_SDE)
@@ -142,7 +142,7 @@ static int sched_ll_install( parsec_context_t *master )
 static int flow_ll_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
 {
     /* Every flow creates its own local object */
-    es->scheduler_object = OBJ_NEW(parsec_lifo_with_local_counter_t);
+    es->scheduler_object = PARSEC_OBJ_NEW(parsec_lifo_with_local_counter_t);
 
     /* All local allocations are now completed. Synchronize with the other
      threads before setting up the entire queues hierarchy. */
@@ -280,7 +280,7 @@ static void sched_ll_remove( parsec_context_t *master )
             es = vp->execution_streams[t];
             if (es != NULL) {
                 sched_obj = (parsec_lifo_with_local_counter_t*)es->scheduler_object;
-                OBJ_RELEASE(sched_obj);
+                PARSEC_OBJ_RELEASE(sched_obj);
                 es->scheduler_object = NULL;
             }
             PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=LL", vp->vp_id);

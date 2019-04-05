@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -520,7 +520,7 @@ struct parsec_task_class_s;
 /**
  * @brief Opaque structure representing the parameters of a task
  */
-struct assignment_s;
+struct parsec_assignment_s;
 
 /**
  * @brief Human-readable print function for task parameters
@@ -538,7 +538,7 @@ struct assignment_s;
  */
 char* parsec_snprintf_assignments(char* str, size_t size,
                                   const struct parsec_task_class_s* function,
-                                  const struct assignment_s* locals);
+                                  const struct parsec_assignment_s* locals);
 
 /**  @} */
 

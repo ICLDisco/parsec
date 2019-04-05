@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#ifndef _PARSEC_scheduling_h
-#define _PARSEC_scheduling_h
+#ifndef PARSEC_SCHEDULING_H_HAS_BEEN_INCLUDED
+#define PARSEC_SCHEDULING_H_HAS_BEEN_INCLUDED
 
 /** 
  *  @addtogroup parsec_internal_scheduling
@@ -137,10 +137,10 @@ int parsec_set_scheduler( parsec_context_t *parsec );
 void parsec_remove_scheduler( parsec_context_t *parsec );
 
 struct parsec_sched_module_s;
-extern struct parsec_sched_module_s *current_scheduler;
+extern struct parsec_sched_module_s *parsec_current_scheduler;
 
 END_C_DECLS
 
 /** @} */
 
-#endif  /* _PARSEC_scheduling_h */
+#endif  /* PARSEC_SCHEDULING_H_HAS_BEEN_INCLUDED */

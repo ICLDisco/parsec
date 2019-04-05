@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2011-2018 The University of Tennessee and The University
+ * Copyright (c) 2011-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "parsec/runtime.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/utils/debug.h"
 #include "parsec/remote_dep.h"
 #include "parsec/data_dist/matrix/matrix.h"
@@ -43,24 +44,24 @@ typedef struct parsec_map_operator_taskpool {
 static const parsec_flow_t flow_of_map_operator;
 static const parsec_task_class_t parsec_map_operator;
 
-static parsec_key_t map_operator_make_key(const parsec_taskpool_t *tp, const assignment_t *as);
+static parsec_key_t map_operator_make_key(const parsec_taskpool_t *tp, const parsec_assignment_t *as);
 
 #define src(k,n)  (((parsec_data_collection_t*)__tp->src)->data_of((parsec_data_collection_t*)__tp->src, (k), (n)))
 #define dest(k,n)  (((parsec_data_collection_t*)__tp->dest)->data_of((parsec_data_collection_t*)__tp->dest, (k), (n)))
 
-static inline int minexpr_of_row_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)
+static inline int minexpr_of_row_fct(const parsec_taskpool_t *tp, const parsec_assignment_t *assignments)
 {
     const parsec_map_operator_taskpool_t *__tp = (const parsec_map_operator_taskpool_t*)tp;
     (void)assignments;
     return __tp->src->i;
 }
-static const expr_t minexpr_of_row = {
-    .op = EXPR_OP_INLINE,
+static const parsec_expr_t minexpr_of_row = {
+    .op = PARSEC_EXPR_OP_INLINE,
     .u_expr.v_func = { .type = 0,
                        .func = { .inline_func_int32 = minexpr_of_row_fct }
     }
 };
-static inline int maxexpr_of_row_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)
+static inline int maxexpr_of_row_fct(const parsec_taskpool_t *tp, const parsec_assignment_t *assignments)
 {
     const parsec_map_operator_taskpool_t *__tp = (const parsec_map_operator_taskpool_t*)tp;
 
@@ -68,33 +69,33 @@ static inline int maxexpr_of_row_fct(const parsec_taskpool_t *tp, const assignme
     (void)assignments;
     return __tp->src->mt;
 }
-static const expr_t maxexpr_of_row = {
-    .op = EXPR_OP_INLINE,
+static const parsec_expr_t maxexpr_of_row = {
+    .op = PARSEC_EXPR_OP_INLINE,
     .u_expr.v_func = { .type = 0,
                        .func = { .inline_func_int32 = maxexpr_of_row_fct }
     }
 };
-static const symbol_t symb_row = {
+static const parsec_symbol_t symb_row = {
     .min = &minexpr_of_row,
     .max = &maxexpr_of_row,
     .flags = PARSEC_SYMBOL_IS_STANDALONE
 };
 
-static inline int minexpr_of_column_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)
+static inline int minexpr_of_column_fct(const parsec_taskpool_t *tp, const parsec_assignment_t *assignments)
 {
     const parsec_map_operator_taskpool_t *__tp = (const parsec_map_operator_taskpool_t*)tp;
     (void)assignments;
     return __tp->src->j;
 }
 
-static const expr_t minexpr_of_column = {
-    .op = EXPR_OP_INLINE,
+static const parsec_expr_t minexpr_of_column = {
+    .op = PARSEC_EXPR_OP_INLINE,
     .u_expr.v_func = { .type = 0,
                        .func = { .inline_func_int32 = minexpr_of_column_fct }
     }
 };
 
-static inline int maxexpr_of_column_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)
+static inline int maxexpr_of_column_fct(const parsec_taskpool_t *tp, const parsec_assignment_t *assignments)
 {
     const parsec_map_operator_taskpool_t *__tp = (const parsec_map_operator_taskpool_t*)tp;
 
@@ -102,13 +103,13 @@ static inline int maxexpr_of_column_fct(const parsec_taskpool_t *tp, const assig
     (void)assignments;
     return __tp->src->nt;
 }
-static const expr_t maxexpr_of_column = {
-    .op = EXPR_OP_INLINE,
+static const parsec_expr_t maxexpr_of_column = {
+    .op = PARSEC_EXPR_OP_INLINE,
     .u_expr.v_func = { .type = 0,
                        .func = { .inline_func_int32 = maxexpr_of_column_fct }
     }
 };
-static const symbol_t symb_column = {
+static const parsec_symbol_t symb_column = {
     .min = &minexpr_of_column,
     .max = &maxexpr_of_column,
     .flags = PARSEC_SYMBOL_IS_STANDALONE
@@ -159,13 +160,13 @@ static inline int final_data_of_map_operator(parsec_task_t *this_task,
     return __flow_nb;
 }
 
-static const dep_t flow_of_map_operator_dep_in = {
+static const parsec_dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
     .task_class_id = 0,  /* parsec_map_operator.task_class_id */
     .flow = &flow_of_map_operator,
 };
 
-static const dep_t flow_of_map_operator_dep_out = {
+static const parsec_dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
     .task_class_id = 0,  /* parsec_map_operator.task_class_id */
     .dep_index = 1,
@@ -174,8 +175,8 @@ static const dep_t flow_of_map_operator_dep_out = {
 
 static const parsec_flow_t flow_of_map_operator = {
     .name = "I",
-    .sym_type = SYM_INOUT,
-    .flow_flags = FLOW_ACCESS_RW,
+    .sym_type = PARSEC_SYM_INOUT,
+    .flow_flags = PARSEC_FLOW_ACCESS_RW,
     .flow_index = 0,
     .dep_in  = { &flow_of_map_operator_dep_in },
     .dep_out = { &flow_of_map_operator_dep_out }
@@ -185,7 +186,7 @@ static parsec_ontask_iterate_t
 add_task_to_list(parsec_execution_stream_t *es,
                  const parsec_task_t *newcontext,
                  const parsec_task_t *oldcontext,
-                 const dep_t* dep,
+                 const parsec_dep_t* dep,
                  parsec_dep_data_description_t* data,
                  int rank_src, int rank_dst,
                  int vpid_dst,
@@ -257,7 +258,7 @@ static int release_deps(parsec_execution_stream_t *es,
     parsec_task_t** ready_list;
     int i;
 
-    PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *) this_task);
+    PARSEC_PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *) this_task);
 
     ready_list = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);
     for(i = 0; i < es->virtual_process->parsec_context->nb_vp; ready_list[i++] = NULL);
@@ -293,7 +294,7 @@ static int release_deps(parsec_execution_stream_t *es,
             PARSEC_DATA_COPY_RELEASE(this_task->data[1].data_in);
         }
     }
-    PINS(es, RELEASE_DEPS_END, (parsec_task_t *) this_task);
+    PARSEC_PINS(es, RELEASE_DEPS_END, (parsec_task_t *) this_task);
     (void)deps;
     return 0;
 }
@@ -311,13 +312,13 @@ static int data_lookup(parsec_execution_stream_t *es,
         this_task->data[0].data_in   = parsec_data_get_copy(src(m,n), 0);
         this_task->data[0].data_repo = NULL;
         this_task->data[0].data_out  = NULL;
-        OBJ_RETAIN(this_task->data[0].data_in);
+        PARSEC_OBJ_RETAIN(this_task->data[0].data_in);
     }
     if( NULL != __tp->dest ) {
         this_task->data[1].data_in   = parsec_data_get_copy(dest(m,n), 0);
         this_task->data[1].data_repo = NULL;
         this_task->data[1].data_out  = this_task->data[1].data_in;
-        OBJ_RETAIN(this_task->data[1].data_in);
+        PARSEC_OBJ_RETAIN(this_task->data[1].data_in);
     }
     return 0;
 }
@@ -384,7 +385,7 @@ static __parsec_chore_t __parsec_map_operator_chores[] = {
       .hook     = NULL },
 };
 
-static parsec_key_t map_operator_make_key(const parsec_taskpool_t *tp, const assignment_t *as)
+static parsec_key_t map_operator_make_key(const parsec_taskpool_t *tp, const parsec_assignment_t *as)
 {
     (void)tp;
     return (parsec_key_t)(uintptr_t)(((uint64_t)as[0].value << 32) | (uint64_t)as[1].value);
@@ -493,7 +494,7 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
 
 static void parsec_map_operator_destructor( parsec_map_operator_taskpool_t* tp )
 {
-    OBJ_DESTRUCT((parsec_taskpool_t*)tp);
+    PARSEC_OBJ_DESTRUCT((parsec_taskpool_t*)tp);
     free(tp);
 }
 
@@ -515,7 +516,7 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
 
     /* TODO */
     tp =  (parsec_map_operator_taskpool_t*)calloc(1, sizeof(parsec_map_operator_taskpool_t));
-    OBJ_CONSTRUCT((parsec_taskpool_t*)tp, parsec_taskpool_t);
+    PARSEC_OBJ_CONSTRUCT((parsec_taskpool_t*)tp, parsec_taskpool_t);
     tp->src     = src;
     tp->dest    = dest;
     tp->op      = op;

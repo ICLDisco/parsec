@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -53,5 +53,5 @@ void choice_destroy(parsec_taskpool_t *tp)
 
     parsec_type_free(&newType);
 
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(tp);
+    parsec_taskpool_free(tp);
 }

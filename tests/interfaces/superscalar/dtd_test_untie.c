@@ -69,11 +69,11 @@ test_task_generator( parsec_execution_stream_t *es,
         } else {
             parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                 sizeof(int),      &amount_of_work,    VALUE,
-                                PASSED_BY_REF,    TILE_OF_KEY(A, n), INOUT,
+                                PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, n), INOUT,
                                 PARSEC_DTD_ARG_END );
         }
     }
-    parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, n));
+    parsec_dtd_data_flush(dtd_tp, PARSEC_DTD_TILE_OF_KEY(A, n));
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -148,10 +148,10 @@ int main(int argc, char ** argv)
             for( m = 0; m < tasks_in_each_chain[i]; m++ ) {
                 parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                     sizeof(int),      &amount_of_work[work_index], VALUE,
-                                    PASSED_BY_REF,    TILE_OF_KEY(A, n),           INOUT,
+                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, n),           INOUT,
                                     PARSEC_DTD_ARG_END );
             }
-            parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(A, n));
+            parsec_dtd_data_flush(dtd_tp, PARSEC_DTD_TILE_OF_KEY(A, n));
         }
         /* finishing all the tasks inserted, but not finishing the taskpool */
         rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );

@@ -2,6 +2,7 @@
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/execution_stream.h"
 
 #include "nvlink.h"
 

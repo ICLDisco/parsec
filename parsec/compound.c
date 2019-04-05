@@ -100,7 +100,7 @@ parsec_compose( parsec_taskpool_t* start,
                              compound, compound->nb_taskpools, next );
     } else {
         compound = calloc(1, sizeof(parsec_compound_taskpool_t));
-        OBJ_CONSTRUCT(compound, parsec_taskpool_t);
+        PARSEC_OBJ_CONSTRUCT(compound, parsec_taskpool_t);
         compound->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_COMPOUND;
         compound->taskpool_array = malloc(16 * sizeof(parsec_taskpool_t*));
         assert(NULL == compound->super.taskpool_name);

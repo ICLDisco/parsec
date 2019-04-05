@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -71,7 +71,7 @@ static int flow_pbq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
 
     if( es->th_id == 0 ) {
         sched_obj->system_queue = (parsec_dequeue_t*)malloc(sizeof(parsec_dequeue_t));
-        sched_obj->system_queue = OBJ_NEW(parsec_dequeue_t);
+        sched_obj->system_queue = PARSEC_OBJ_NEW(parsec_dequeue_t);
     }
 
     sched_obj->nb_hierarch_queues = vp->nb_cores;
@@ -221,7 +221,7 @@ static void sched_pbq_remove( parsec_context_t *master )
             sched_obj = PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es);
 
             if( es->th_id == 0 ) {
-                OBJ_DESTRUCT( sched_obj->system_queue );
+                PARSEC_OBJ_DESTRUCT( sched_obj->system_queue );
                 free( sched_obj->system_queue );
             }
             sched_obj->system_queue = NULL;

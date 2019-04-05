@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The University of Tennessee and The University
+ * Copyright (c) 2015-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -48,7 +48,7 @@ struct parsec_data_s {
                                                   * version of the data.
                                                   */
 };
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_data_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_data_t);
 
 /**
  * This structure represent a device copy of a parsec_data_t.
@@ -77,7 +77,7 @@ struct parsec_data_copy_s {
     parsec_data_status_t      data_transfer_status;   /** three status */
     struct parsec_task_s     *push_task;     /** the task who actually do the PUSH */
 };
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_data_copy_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_data_copy_t);
 
 #define PARSEC_DATA_GET_COPY(DATA, DEVID) \
     ((DATA)->device_copies[(DEVID)])
@@ -89,7 +89,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_data_copy_t);
 #define PARSEC_DATA_COPY_RELEASE(DATA)     \
     do {                                  \
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data copy %p at %s:%d", (DATA), __FILE__, __LINE__); \
-        OBJ_RELEASE((DATA));                                            \
+        PARSEC_OBJ_RELEASE((DATA));                                            \
     } while(0)
 
 /**

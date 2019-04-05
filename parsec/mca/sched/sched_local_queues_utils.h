@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -121,10 +121,10 @@ static inline parsec_mca_sched_list_local_counter_t *parsec_mca_sched_allocate_l
 {
     parsec_mca_sched_list_local_counter_t *sl = (parsec_mca_sched_list_local_counter_t*)malloc(sizeof(parsec_mca_sched_list_local_counter_t));
     if( NULL == msl ) {
-        sl->list = OBJ_NEW(parsec_list_t);
+        sl->list = PARSEC_OBJ_NEW(parsec_list_t);
     } else {
         sl->list = msl->list;
-        OBJ_RETAIN(sl->list);
+        PARSEC_OBJ_RETAIN(sl->list);
     }
     sl->local_counter = 0;
     return sl;
@@ -132,7 +132,7 @@ static inline parsec_mca_sched_list_local_counter_t *parsec_mca_sched_allocate_l
 
 static inline void parsec_mca_sched_free_list_local_counter(parsec_mca_sched_list_local_counter_t *sl)
 {
-    OBJ_RELEASE(sl->list);
+    PARSEC_OBJ_RELEASE(sl->list);
     free(sl);
 }
 
@@ -187,14 +187,14 @@ typedef parsec_list_t parsec_mca_sched_list_local_counter_t;
 static inline parsec_mca_sched_list_local_counter_t *parsec_mca_sched_allocate_list_local_counter(parsec_mca_sched_list_local_counter_t *list)
 {
     if( NULL == list )
-        return OBJ_NEW(parsec_list_t);
-    OBJ_RETAIN(list);
+        return PARSEC_OBJ_NEW(parsec_list_t);
+    PARSEC_OBJ_RETAIN(list);
     return list;
 }
 
 static inline void parsec_mca_sched_free_list_local_counter(parsec_mca_sched_list_local_counter_t *sl)
 {
-    OBJ_RELEASE(sl);
+    PARSEC_OBJ_RELEASE(sl);
 }
 
 static inline void parsec_mca_sched_list_local_counter_chain_sorted(parsec_mca_sched_list_local_counter_t *sl, parsec_task_t *it, size_t offset)

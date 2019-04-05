@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -112,11 +112,11 @@ static int sched_rnd_schedule(parsec_execution_stream_t* es,
     } while( it != (parsec_list_item_t*)new_context );
 
     /* Re-sort new_context according to new priorities */
-    OBJ_CONSTRUCT(&tmp, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&tmp, parsec_list_t);
     parsec_list_nolock_chain_front(&tmp, &new_context->super);
     parsec_list_nolock_sort(&tmp, parsec_execution_context_priority_comparator);
     new_context = (parsec_task_t*)parsec_list_nolock_unchain(&tmp);
-    OBJ_DESTRUCT(&tmp);
+    PARSEC_OBJ_DESTRUCT(&tmp);
     
     parsec_mca_sched_list_local_counter_chain_sorted(LOCAL_SCHED_OBJECT(es), new_context, parsec_execution_context_priority_comparator);
 

@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#ifndef __USE_REMOTE_DEP_H__
-#define __USE_REMOTE_DEP_H__
+#ifndef __PARSEC_USE_REMOTE_DEP_H__
+#define __PARSEC_USE_REMOTE_DEP_H__
 
 /** @addtogroup parsec_internal_communication
  *  @{
@@ -34,7 +34,7 @@ typedef struct remote_dep_wire_activate_s
     uint32_t             taskpool_id;
     uint32_t             task_class_id;
     uint32_t             length;
-    assignment_t         locals[MAX_LOCAL_COUNT];
+    parsec_assignment_t  locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
 typedef struct remote_dep_wire_get_s
@@ -186,4 +186,4 @@ END_C_DECLS
 
 /** @} */
 
-#endif /* __USE_REMOTE_DEP_H__ */
+#endif /* __PARSEC_USE_REMOTE_DEP_H__ */

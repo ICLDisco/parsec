@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,6 +23,8 @@ BEGIN_C_DECLS
 #include "parsec/data_distribution.h"
 #include "parsec/interfaces/superscalar/insert_function.h"
 #include "parsec/execution_stream.h"
+
+#define PARSEC_DTD_NB_TASK_CLASSES  25 /*< Max number of task classes allowed */
 
 typedef struct parsec_dtd_task_param_s  parsec_dtd_task_param_t;
 typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;
@@ -79,7 +81,7 @@ extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 /* Structure used to pack arguments of insert_task() */
 struct parsec_dtd_task_param_s {
     int                      arg_size;
-    parsec_dtd_op_type       op_type;
+    parsec_dtd_op_t          op_type;
     void                    *pointer_to_tile;
     parsec_dtd_task_param_t *next;
 };
@@ -181,7 +183,7 @@ struct parsec_dtd_task_s {
 };
 
 /* For creating objects of class parsec_dtd_task_t */
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_dtd_task_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_dtd_task_t);
 
 /** Tile structure **/
 typedef struct parsec_dtd_tile_user_s {
@@ -206,7 +208,7 @@ struct parsec_dtd_tile_s {
     parsec_dtd_tile_user_t    last_writer;
 };
 /* For creating objects of class parsec_dtd_tile_t */
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_dtd_tile_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_dtd_tile_t);
 
 /* for testing abstraction for PaRsec */
 struct hook_info {
@@ -369,7 +371,7 @@ parsec_execute_and_come_back( parsec_context_t *context,
                               parsec_taskpool_t  *tp,
                               int task_threshold_count );
 
-dep_t *
+parsec_dep_t *
 parsec_dtd_find_and_return_dep( parsec_dtd_task_t *parent_task,
                                 parsec_dtd_task_t *desc_task,
                                 int parent_flow_index,
@@ -455,13 +457,13 @@ static inline void
 parsec_dtd_retain_data_copy( parsec_data_copy_t *data )
 {
     assert( data->super.super.obj_reference_count >= 1 );
-    OBJ_RETAIN(data);
+    PARSEC_OBJ_RETAIN(data);
 }
 
 static inline void
 parsec_dtd_release_data_copy( parsec_data_copy_t *data )
 {
-    OBJ_RELEASE(data);
+    PARSEC_OBJ_RELEASE(data);
 }
 
 

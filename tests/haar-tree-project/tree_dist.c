@@ -262,7 +262,7 @@ void tree_dist_insert_data(tree_dist_t *tree, parsec_data_t *data, int n, int l)
     assert(tree->nodes[nid] != NULL);
     assert(tree->nodes[nid]->data == NULL);
     tree->nodes[nid]->data = data;
-    OBJ_RETAIN(data);
+    PARSEC_OBJ_RETAIN(data);
 }
 
 void tree_copy_node(tree_dist_t *tree, int nid, node_t *src)
@@ -378,7 +378,7 @@ tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
     res->super.vpid_of_key = tree_dist_vpid_of_key;
     res->super.register_memory   = tree_dist_register_memory;
     res->super.unregister_memory = tree_dist_unregister_memory;
-    res->super.memory_registration_status = MEMORY_STATUS_UNREGISTERED;
+    res->super.memory_registration_status = PARSEC_MEMORY_STATUS_UNREGISTERED;
     res->super.key_base = NULL;
     res->super.key_to_string = tree_dist_key_to_string;
     res->super.key_dim = "";

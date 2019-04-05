@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2017 The University of Tennessee and The University
+ * Copyright (c) 2004-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
@@ -52,7 +52,7 @@ struct parsec_value_array_t
  */
 typedef struct parsec_value_array_t parsec_value_array_t;
 
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_value_array_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_value_array_t);
 
 /**
  * @brief
@@ -64,7 +64,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_value_array_t);
  *  @return         error code
  *
  * @remark Note that there is no corresponding "finalize" function -- use
- * OBJ_DESTRUCT (for stack arrays) or OBJ_RELEASE (for heap arrays) to
+ * PARSEC_OBJ_DESTRUCT (for stack arrays) or PARSEC_OBJ_RELEASE (for heap arrays) to
  * delete it.
  */
 static inline int parsec_value_array_init(parsec_value_array_t *array, size_t item_sizeof)

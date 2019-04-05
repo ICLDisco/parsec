@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2018 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -45,7 +45,7 @@ typedef struct parsec_list_t {
 } parsec_list_t;
 
 /** @cond FALSE */
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_list_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_list_t);
 /** @endcond */
 
 /**

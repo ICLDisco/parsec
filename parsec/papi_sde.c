@@ -18,8 +18,8 @@ typedef struct {
     long long int      counters[PARSEC_PAPI_SDE_NB_BASIC_COUNTERS];
 } parsec_thread_sde_counters_t;
 
-OBJ_CLASS_DECLARATION(parsec_thread_sde_counters_t);
-OBJ_CLASS_INSTANCE(parsec_thread_sde_counters_t, parsec_list_item_t, NULL, NULL);
+PARSEC_OBJ_CLASS_DECLARATION(parsec_thread_sde_counters_t);
+PARSEC_OBJ_CLASS_INSTANCE(parsec_thread_sde_counters_t, parsec_list_item_t, NULL, NULL);
 
 PARSEC_TLS_DECLARE(parsec_papi_sde_basic_counters_tls);
 /* We protect the sde_threads list with an external rwlock,
@@ -65,7 +65,7 @@ void PARSEC_PAPI_SDE_INIT(void)
     parsec_papi_sde_handle = papi_sde_init("PARSEC");
 
     PARSEC_TLS_KEY_CREATE(parsec_papi_sde_basic_counters_tls);
-    OBJ_CONSTRUCT(&sde_threads, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&sde_threads, parsec_list_t);
     parsec_atomic_rwlock_init( &sde_threads_lock );
 
     for(cnt = PARSEC_PAPI_SDE_FIRST_BASIC_COUNTER; cnt <= PARSEC_PAPI_SDE_LAST_BASIC_COUNTER; cnt++) {
@@ -93,10 +93,10 @@ void PARSEC_PAPI_SDE_FINI(void)
     
     parsec_atomic_rwlock_wrlock( &sde_threads_lock );
     while(NULL != (it = parsec_list_nolock_pop_front(&sde_threads)) ) {
-        OBJ_RELEASE(it);
+        PARSEC_OBJ_RELEASE(it);
     }
 
-    OBJ_DESTRUCT(&sde_threads);
+    PARSEC_OBJ_DESTRUCT(&sde_threads);
     parsec_papi_sde_handle = NULL;    
 }
 
@@ -111,7 +111,7 @@ void PARSEC_PAPI_SDE_THREAD_INIT(void)
 
     /* General case: allocate the thread's TLS storage, and associate the pointer
      * to a place in the global array and the TLS key */
-    new_counters = OBJ_NEW(parsec_thread_sde_counters_t);
+    new_counters = PARSEC_OBJ_NEW(parsec_thread_sde_counters_t);
     memset(new_counters->counters, 0, sizeof(long long int) * PARSEC_PAPI_SDE_NB_BASIC_COUNTERS);
 
     parsec_atomic_rwlock_wrlock( &sde_threads_lock );
@@ -132,7 +132,7 @@ void PARSEC_PAPI_SDE_THREAD_FINI(void)
     parsec_list_nolock_remove(&sde_threads, &my_counters->super);
     PARSEC_TLS_SET_SPECIFIC(parsec_papi_sde_basic_counters_tls, NULL);
     parsec_atomic_rwlock_wrunlock( &sde_threads_lock );
-    OBJ_RELEASE(my_counters);
+    PARSEC_OBJ_RELEASE(my_counters);
 }
 
 void PARSEC_PAPI_SDE_COUNTER_SET(parsec_papi_sde_hl_counters_t cnt, long long int value)

@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2010 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2016 The University of Tennessee and The University
+ * Copyright (c) 2004-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2006 High Performance Computing Center Stuttgart,
@@ -116,7 +116,7 @@ static bool syslog_opened = false;
 #endif  /* defined(PARSEC_HAVE_SYSLOG) */
 static char *redirect_syslog_ident = NULL;
 
-OBJ_CLASS_INSTANCE(parsec_output_stream_t, parsec_object_t, construct, NULL);
+PARSEC_OBJ_CLASS_INSTANCE(parsec_output_stream_t, parsec_object_t, construct, NULL);
 
 /*
  * Setup the output stream infrastructure
@@ -163,7 +163,7 @@ bool parsec_output_init(void)
         redirect_syslog_ident = strdup(str);
     }
 
-    OBJ_CONSTRUCT(&verbose, parsec_output_stream_t);
+    PARSEC_OBJ_CONSTRUCT(&verbose, parsec_output_stream_t);
 #if defined(__WINDOWS__)
     {
         WSADATA wsaData;
@@ -506,7 +506,7 @@ void parsec_output_finalize(void)
 
         free (output_prefix);
         free (output_dir);
-        OBJ_DESTRUCT(&verbose);
+        PARSEC_OBJ_DESTRUCT(&verbose);
     }
 #if defined(__WINDOWS__)
     WSACleanup();

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2010-2017 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 
-#ifndef _DATA_DISTRIBUTION_H_
-#define _DATA_DISTRIBUTION_H_
+#ifndef _PARSEC_DATA_DISTRIBUTION_H_
+#define _PARSEC_DATA_DISTRIBUTION_H_
 
 #include "parsec/data.h"
 #include "parsec/class/parsec_hash_table.h"
@@ -16,9 +16,9 @@ BEGIN_C_DECLS
 struct parsec_device_module_s;
 typedef int (*parsec_memory_region_management_f)(parsec_data_collection_t*, struct parsec_device_module_s*);
 
-typedef uint8_t memory_registration_status_t;
-#define    MEMORY_STATUS_UNREGISTERED      ((memory_registration_status_t)0x0)
-#define    MEMORY_STATUS_REGISTERED        ((memory_registration_status_t)0x1)
+typedef uint8_t parsec_memory_registration_status_t;
+#define    PARSEC_MEMORY_STATUS_UNREGISTERED      ((parsec_memory_registration_status_t)0x0)
+#define    PARSEC_MEMORY_STATUS_REGISTERED        ((parsec_memory_registration_status_t)0x1)
 
 typedef uint64_t parsec_dc_key_t;
 
@@ -52,7 +52,7 @@ struct parsec_data_collection_s {
      */
     parsec_memory_region_management_f register_memory;
     parsec_memory_region_management_f unregister_memory;
-    memory_registration_status_t memory_registration_status;
+    parsec_memory_registration_status_t memory_registration_status;
 
     char      *key_base;
 

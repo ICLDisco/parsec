@@ -112,7 +112,7 @@ datatype_lookup_of_CUDA_d2h_task( parsec_execution_stream_t * es,
 
 static int32_t parsec_CUDA_d2h_counter = 0;
 static uint64_t key_of_CUDA_d2h_task(const parsec_taskpool_t *tp,
-                                     const assignment_t *assignments)
+                                     const parsec_assignment_t *assignments)
 {
     (void)tp; (void)assignments;
     return (uint64_t)(1 + parsec_atomic_fetch_inc_int32(&parsec_CUDA_d2h_counter));
@@ -120,7 +120,7 @@ static uint64_t key_of_CUDA_d2h_task(const parsec_taskpool_t *tp,
 
 static parsec_data_t*
 flow_of_CUDA_d2h_task_direct_access( const parsec_CUDA_d2h_task_t* this_task,
-                                     const assignment_t *assignments )
+                                     const parsec_assignment_t *assignments )
 {
     (void)this_task; (void)assignments;
     return NULL;
@@ -136,11 +136,11 @@ static const __parsec_chore_t __CUDA_d2h_task_chores[] = {
 };
 
 static const parsec_flow_t flow_of_CUDA_d2h_task;
-static const dep_t flow_of_CUDA_d2h_task_dep = {
+static const parsec_dep_t flow_of_CUDA_d2h_task_dep = {
     .cond = NULL,
     .ctl_gather_nb = NULL,
     .task_class_id = -1,
-    .direct_data = (direct_data_lookup_func_t)flow_of_CUDA_d2h_task_direct_access,
+    .direct_data = (parsec_data_lookup_func_t)flow_of_CUDA_d2h_task_direct_access,
     .dep_index = 1,
     .dep_datatype_index = 0,
     .belongs_to = &flow_of_CUDA_d2h_task,
@@ -148,15 +148,15 @@ static const dep_t flow_of_CUDA_d2h_task_dep = {
 
 static const parsec_flow_t flow_of_CUDA_d2h_task = {
     .name = "Generic flow for d2h tasks",
-    .sym_type = SYM_OUT,
-    .flow_flags = FLOW_ACCESS_RW | FLOW_HAS_IN_DEPS,
+    .sym_type = PARSEC_SYM_OUT,
+    .flow_flags = PARSEC_FLOW_ACCESS_RW | PARSEC_FLOW_HAS_IN_DEPS,
     .flow_index = 0,
     .flow_datatype_mask = 0x1,
     .dep_in = {},
     .dep_out = {&flow_of_CUDA_d2h_task_dep}
 };
 
-static const symbol_t symb_CUDA_d2h_task_param = {
+static const parsec_symbol_t symb_CUDA_d2h_task_param = {
     .name = "unnamed",
     .min = NULL,
     .max = NULL,
@@ -242,7 +242,7 @@ parsec_gpu_create_W2R_task(parsec_device_cuda_module_t *gpu_device,
             PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
             gpu_copy->readers++;
             d2h_task->data[nb_cleaned].data_out = gpu_copy;
-            gpu_copy->data_transfer_status = DATA_STATUS_UNDER_TRANSFER;  /* mark the copy as in transfer */
+            gpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;  /* mark the copy as in transfer */
             parsec_atomic_unlock( &gpu_copy->original->lock );
             PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,  "D2H[%d] task %p:\tdata %d -> %p [%p] readers %d",
                                  gpu_device->cuda_index, (void*)d2h_task,
@@ -263,7 +263,7 @@ parsec_gpu_create_W2R_task(parsec_device_cuda_module_t *gpu_device,
     d2h_task->locals[0].value = nb_cleaned;
 
     w2r_task = (parsec_gpu_task_t *)malloc(sizeof(parsec_gpu_task_t));
-    OBJ_CONSTRUCT(w2r_task, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(w2r_task, parsec_list_item_t);
     w2r_task->ec               = (parsec_task_t*)d2h_task;
     w2r_task->task_type        = GPU_TASK_TYPE_D2HTRANSFER;
     w2r_task->last_data_check_epoch = gpu_device->data_avail_epoch - 1;
@@ -291,7 +291,7 @@ int parsec_gpu_W2R_task_fini(parsec_device_cuda_module_t *gpu_device,
         gpu_copy = task->data[i].data_out;
         parsec_atomic_lock(&gpu_copy->original->lock);
         gpu_copy->readers--;
-        gpu_copy->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
+        gpu_copy->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
         gpu_device->super.transferred_data_out += gpu_copy->original->nb_elts; /* TODO: not hardcoded, use datatype size */
         assert(gpu_copy->readers >= 0);
 
@@ -305,8 +305,8 @@ int parsec_gpu_W2R_task_fini(parsec_device_cuda_module_t *gpu_device,
                                  "D2H[%d] task %p:%i GPU data copy %p [%p] has a backup in memory",
                                  gpu_device->cuda_index, (void*)task, i, gpu_copy, gpu_copy->original);
         } else {
-            gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
-            cpu_copy->coherency_state =  DATA_COHERENCY_SHARED;
+            gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
+            cpu_copy->coherency_state =  PARSEC_DATA_COHERENCY_SHARED;
             cpu_copy->version = gpu_copy->version;
             PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                                  "GPU[%d]: CPU copy %p gets the same version %d as GPU copy %p at %s:%d",

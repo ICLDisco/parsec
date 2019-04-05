@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,10 +15,10 @@
 static int registration_disabled;
 
 void parsec_pins_instrument(struct parsec_execution_stream_s* es,
-                            PINS_FLAG method_flag,
+                            PARSEC_PINS_FLAG method_flag,
                             parsec_task_t* task)
 {
-    assert( method_flag < PINS_FLAG_COUNT );
+    assert( method_flag < PARSEC_PINS_FLAG_COUNT );
 
     parsec_pins_next_callback_t* cb_event = &es->pins_events_cb[method_flag];
     while( NULL != cb_event->cb_func ) {
@@ -41,11 +41,11 @@ void parsec_pins_disable_registration(int disable)
  * ones.
  */
 int parsec_pins_register_callback(struct parsec_execution_stream_s* es,
-                                  PINS_FLAG method_flag,
+                                  PARSEC_PINS_FLAG method_flag,
                                   parsec_pins_callback cb_func,
                                   struct parsec_pins_next_callback_s* cb_data)
 {
-    if( method_flag >= PINS_FLAG_COUNT ) {
+    if( method_flag >= PARSEC_PINS_FLAG_COUNT ) {
         parsec_warning("PINS register MUST be called with a valid event flag.");
         return -1;
     }
@@ -69,12 +69,12 @@ int parsec_pins_register_callback(struct parsec_execution_stream_s* es,
 }
 
 int parsec_pins_unregister_callback(struct parsec_execution_stream_s* es,
-                                    PINS_FLAG method_flag,
+                                    PARSEC_PINS_FLAG method_flag,
                                     parsec_pins_callback cb,
                                     struct parsec_pins_next_callback_s** cb_data)
 {
     *cb_data = NULL;
-    if( method_flag >= PINS_FLAG_COUNT ) {
+    if( method_flag >= PARSEC_PINS_FLAG_COUNT ) {
         parsec_warning("PINS unregister MUST be called with a valid event flag.");
         return -1;
     }

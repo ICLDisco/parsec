@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -45,5 +45,5 @@ parsec_taskpool_t* merge_sort_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
 void merge_sort_destroy(parsec_taskpool_t *tp)
 {
 
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(tp);
+    parsec_taskpool_free(tp);
 }

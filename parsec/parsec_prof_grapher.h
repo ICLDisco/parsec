@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,13 +7,12 @@
 #ifndef _parsec_prof_grapher_h
 #define _parsec_prof_grapher_h
 
-/** 
+/**
  *  @addtogroup parsec_internal_profiling
  *  @{
  */
 
 #include "parsec/runtime.h"
-#include "parsec/parsec_description_structures.h"
 
 BEGIN_C_DECLS
 
@@ -30,8 +29,6 @@ void  parsec_prof_grapher_data_input(const struct parsec_data_s *data, const str
 void  parsec_prof_grapher_data_output(const struct parsec_task_s *task, const struct parsec_data_s *data, const struct parsec_flow_s *flow);
 char *parsec_prof_grapher_taskid(const struct parsec_task_s* context, char *tmp, int length);
 void  parsec_prof_grapher_fini(void);
-
-char *unique_color(int index, int colorspace);
 
 END_C_DECLS
 

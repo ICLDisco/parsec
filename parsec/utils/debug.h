@@ -18,9 +18,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec/utils/output.h"
-
 #include <stdlib.h>
-#include <stdio.h>
 
 BEGIN_C_DECLS
 
@@ -166,10 +164,7 @@ extern void (*parsec_weaksym_exit)(int status);
  */
 #define PARSEC_CHECK_ERROR(rc, MSG)                             \
     if( rc < 0 ) {                                              \
-        parsec_warning( "**** Error occurred in file: %s"       \
-                        ":%d : "                                \
-                        "%s", __FILE__, __LINE__, MSG );        \
-        exit(-1);                                               \
+        parsec_fatal( "%s", MSG );                              \
     }                                                           \
 
 END_C_DECLS

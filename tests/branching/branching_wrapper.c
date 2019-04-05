@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -52,5 +52,5 @@ void branching_destroy(parsec_taskpool_t *o)
 
     parsec_type_free(&tp->arenas[PARSEC_branching_DEFAULT_ARENA]->opaque_dtt);
 
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
+    parsec_taskpool_free(o);
 }

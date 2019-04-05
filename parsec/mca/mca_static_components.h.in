@@ -8,6 +8,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 #include "parsec/utils/mca_param.h"
+#include "parsec/utils/output.h"
 #include <assert.h>
 
 #define MCA_NB_STATIC_COMPONENTS ${MCA_NB_STATIC_COMPONENTS}

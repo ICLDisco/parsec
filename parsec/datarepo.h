@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,7 +10,6 @@
 #include "parsec/runtime.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/class/parsec_hash_table.h"
-#include "parsec/parsec_internal.h"
 
 /** @defgroup parsec_internal_datarepo Data Repositories
  *  @ingroup parsec_internal
@@ -90,6 +89,7 @@ struct data_repo_s {
     parsec_hash_table_t table;
     unsigned int       nbdata;
 };
+typedef struct data_repo_s data_repo_t;
 
 BEGIN_C_DECLS
 

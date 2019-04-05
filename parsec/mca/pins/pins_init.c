@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The University of Tennessee and The University
+ * Copyright (c) 2012-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -28,12 +28,12 @@ static parsec_pins_module_t **modules_activated = NULL;
 static mca_base_component_t **pins_components = NULL;
 
 /**
- * pins_init() should be called once and only once per runtime of a PaRSEC execution.
+ * parsec_pins_init() should be called once and only once per runtime of a PaRSEC execution.
  * It should be called near the beginning of execution, preferably when most
  * other components have been initialized, so as to allow the interfacing of
  * PINS measurements with working PaRSEC subsystems.
  */
-void pins_init(parsec_context_t* master_context)
+void parsec_pins_init(parsec_context_t* master_context)
 {
     int i = 0, err, priority = -1;
     parsec_pins_module_t *module = NULL;
@@ -105,9 +105,9 @@ void pins_init(parsec_context_t* master_context)
 }
 
 /**
- * pins_fini must call fini methods of all modules
+ * parsec_pins_fini must call fini methods of all modules
  */
-void pins_fini(parsec_context_t* master_context)
+void parsec_pins_fini(parsec_context_t* master_context)
 {
     int i = 0;
 
@@ -132,17 +132,17 @@ void pins_fini(parsec_context_t* master_context)
 
 
 /**
- * pins_thread_init() should be called once per thread runtime of a PaRSEC execution.
+ * parsec_pins_thread_init() should be called once per thread runtime of a PaRSEC execution.
  * It should be called near the beginning of the thread's lifetime, preferably
  * once most other thread components have been initialized, so as to allow the
  * interfacing of PINS measurements with working PaRSEC subsystems.
  * It MUST NOT be called BEFORE pins_init().
  */
-void pins_thread_init(parsec_execution_stream_t* es)
+void parsec_pins_thread_init(parsec_execution_stream_t* es)
 {
     int i;
 
-    for( i = 0; i < PINS_FLAG_COUNT; i++ ) {
+    for( i = 0; i < PARSEC_PINS_FLAG_COUNT; i++ ) {
         es->pins_events_cb[i].cb_func = NULL;
         es->pins_events_cb[i].cb_data = NULL;
     }
@@ -153,17 +153,17 @@ void pins_thread_init(parsec_execution_stream_t* es)
         }
     }
 
-    PINS(es, THREAD_INIT, NULL);
+    PARSEC_PINS(es, THREAD_INIT, NULL);
 }
 
 /**
  * called in scheduling.c, which is not ideal
  */
-void pins_thread_fini(parsec_execution_stream_t* es)
+void parsec_pins_thread_fini(parsec_execution_stream_t* es)
 {
     int i = 0;
 
-    PINS(es, THREAD_FINI, NULL);
+    PARSEC_PINS(es, THREAD_FINI, NULL);
 
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
@@ -172,21 +172,21 @@ void pins_thread_fini(parsec_execution_stream_t* es)
         }
     }
 
-    for( i = 0; i < PINS_FLAG_COUNT; i++ ) {
+    for( i = 0; i < PARSEC_PINS_FLAG_COUNT; i++ ) {
         assert(NULL == es->pins_events_cb[i].cb_func);
         assert(NULL == es->pins_events_cb[i].cb_data);
     }
 }
 
 /**
- * pins_taskpool_init() should be called once per PaRSEC taskpool instantiation.
+ * parsec_pins_taskpool_init() should be called once per PaRSEC taskpool instantiation.
  * It should be called near the beginning of the taskpool's lifetime, preferably
  * once most other taskpool components have been initialized, so as to allow the
  * interfacing of PINS measurements with working PaRSEC subsystems.
  *
- * It MUST NOT be called BEFORE pins_init().
+ * It MUST NOT be called BEFORE parsec_pins_init().
  */
-void pins_taskpool_init(parsec_taskpool_t* tp)
+void parsec_pins_taskpool_init(parsec_taskpool_t* tp)
 {
     int i = 0;
 
@@ -201,7 +201,7 @@ void pins_taskpool_init(parsec_taskpool_t* tp)
 /**
  * Currently uncalled in the PaRSEC DPLAMSA testing executables
  */
-void pins_taskpool_fini(parsec_taskpool_t * tp)
+void parsec_pins_taskpool_fini(parsec_taskpool_t * tp)
 {
     int i = 0;
 

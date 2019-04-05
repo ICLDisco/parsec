@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -74,7 +74,7 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
 
     assert(0 == (((uintptr_t)arena) % sizeof(uintptr_t))); /* is it aligned */
 
-    OBJ_CONSTRUCT(&arena->area_lifo, parsec_lifo_t);
+    PARSEC_OBJ_CONSTRUCT(&arena->area_lifo, parsec_lifo_t);
     arena->alignment    = alignment;
     arena->elem_size    = elem_size;
     arena->opaque_dtt   = opaque_dtt;
@@ -116,7 +116,7 @@ void parsec_arena_destruct(parsec_arena_t* arena)
             TRACE_FREE(arena_memory_free_key, -arena->elem_size, item);
             arena->data_free(item);
         }
-        OBJ_DESTRUCT(&arena->area_lifo);
+        PARSEC_OBJ_DESTRUCT(&arena->area_lifo);
     }
 }
 
@@ -142,7 +142,7 @@ parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate
             size = sizeof( parsec_list_item_t );
         item = (parsec_list_item_t *)alloc( size );
         TRACE_MALLOC(arena_memory_alloc_key, size, item);
-        OBJ_CONSTRUCT(item, parsec_list_item_t);
+        PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
         assert(NULL != item);
     }
     return item;
@@ -196,7 +196,7 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, i
         size = PARSEC_ALIGN(arena->elem_size * count + arena->alignment + sizeof(parsec_arena_chunk_t),
                            arena->alignment, size_t);
         chunk = (parsec_arena_chunk_t*)arena->data_malloc(size);
-        OBJ_CONSTRUCT(&chunk->item, parsec_list_item_t);
+        PARSEC_OBJ_CONSTRUCT(&chunk->item, parsec_list_item_t);
 
         TRACE_MALLOC(arena_memory_alloc_key, size, chunk);
     }
@@ -232,7 +232,7 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, i
      * It does not exist without at least a copy, and we don't give the
      * pointer to the user, so we must remove our retain from it
      */
-    OBJ_RELEASE(data);
+    PARSEC_OBJ_RELEASE(data);
 
     return copy;
 }

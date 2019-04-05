@@ -17,7 +17,7 @@ static void parsec_thread_mempool_construct( parsec_thread_mempool_t *thread_mem
                                             parsec_mempool_t *mempool )
 {
     thread_mempool->parent = mempool;
-    OBJ_CONSTRUCT(&thread_mempool->mempool, parsec_lifo_t);
+    PARSEC_OBJ_CONSTRUCT(&thread_mempool->mempool, parsec_lifo_t);
     thread_mempool->nb_elt = 0;
 }
 
@@ -31,7 +31,7 @@ static void parsec_thread_mempool_destruct( parsec_thread_mempool_t *thread_memp
             free(elt);
         }
     }
-    OBJ_DESTRUCT(&thread_mempool->mempool);
+    PARSEC_OBJ_DESTRUCT(&thread_mempool->mempool);
 }
 
 void parsec_mempool_construct( parsec_mempool_t *mempool,
@@ -83,7 +83,7 @@ void *parsec_thread_mempool_allocate_when_empty( parsec_thread_mempool_t *thread
     owner = (parsec_thread_mempool_t **)((char*)elt + thread_mempool->parent->pool_owner_offset);
     *owner = thread_mempool;
     if( NULL != thread_mempool->parent->obj_class ) {
-        OBJ_CONSTRUCT_INTERNAL(elt, thread_mempool->parent->obj_class);
+        PARSEC_OBJ_CONSTRUCT_INTERNAL(elt, thread_mempool->parent->obj_class);
     }
     thread_mempool->nb_elt++;
     return elt;

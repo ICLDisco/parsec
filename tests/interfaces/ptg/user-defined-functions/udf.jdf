@@ -9,7 +9,7 @@ extern "C" %{
 #include "udf_wrapper.h"
 
 static int ud_nbtasks_nb_local_tasks(struct __parsec_udf_internal_taskpool_s *tp);
-static parsec_key_t ud_make_key(const parsec_taskpool_t *tp, const assignment_t *locals);
+static parsec_key_t ud_make_key(const parsec_taskpool_t *tp, const parsec_assignment_t *locals);
 static int ud_startup1(parsec_execution_stream_t * es,
                        struct __parsec_udf_UD_STARTUP1_task_s * this_task);
 static int ud_startup2(parsec_execution_stream_t * es,
@@ -109,10 +109,10 @@ static int ud_nbtasks_nb_local_tasks(struct __parsec_udf_internal_taskpool_s *tp
   return a->super.nb_local_tiles * 5;
 }
 
-static parsec_key_t ud_make_key(const parsec_taskpool_t *tp, const assignment_t *locals)
+static parsec_key_t ud_make_key(const parsec_taskpool_t *tp, const parsec_assignment_t *locals)
 {
   const __parsec_udf_internal_taskpool_t *__parsec_tp = (const __parsec_udf_internal_taskpool_t *) tp;
-  const __parsec_udf_UD_MAKE_KEY_assignment_t *l = (const __parsec_udf_UD_MAKE_KEY_assignment_t *) locals;
+  const __parsec_udf_UD_MAKE_KEY_parsec_assignment_t *l = (const __parsec_udf_UD_MAKE_KEY_parsec_assignment_t *) locals;
   return l->m.value * __parsec_tp->super._g_A->super.nt + l->n.value;
 }
 

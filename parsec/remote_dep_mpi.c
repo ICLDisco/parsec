@@ -205,7 +205,7 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     if( NULL == task.taskpool ) return snprintf(str, len, "UNKNOWN_of_TASKPOOL_%d", origin->taskpool_id), str;
     task.task_class   = task.taskpool->task_classes_array[origin->task_class_id];
     if( NULL == task.task_class ) return snprintf(str, len, "UNKNOWN_of_TASKCLASS_%d", origin->task_class_id), str;
-    memcpy(&task.locals, origin->locals, sizeof(assignment_t) * task.task_class->nb_locals);
+    memcpy(&task.locals, origin->locals, sizeof(parsec_assignment_t) * task.task_class->nb_locals);
     task.priority     = 0xFFFFFFFF;
     return parsec_task_snprintf(str, len, &task);
 }
@@ -241,9 +241,9 @@ static parsec_execution_stream_t parsec_comm_es = {
 #if defined(PARSEC_SIM)
     .largest_simulation_date = 0,
 #endif
-#if defined(PINS_ENABLE)
+#if defined(PARSEC_PROF_PINS)
     .pins_events_cb = {{0}},
-#endif  /* defined(PINS_ENABLE) */
+#endif  /* defined(PARSEC_PROF_PINS) */
 #if defined(PARSEC_PROF_RUSAGE_EU)
 #if defined(PARSEC_HAVE_GETRUSAGE) || !defined(__bgp__)
     ._es_rusage = {{0}},
@@ -346,8 +346,8 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
      */
     remote_deps_allocation_init(context->nb_nodes, MAX_PARAM_COUNT);
 
-    OBJ_CONSTRUCT(&dep_cmd_queue, parsec_dequeue_t);
-    OBJ_CONSTRUCT(&dep_cmd_fifo, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&dep_cmd_queue, parsec_dequeue_t);
+    PARSEC_OBJ_CONSTRUCT(&dep_cmd_fifo, parsec_list_t);
 
     /* From now on the communication capabilities are enabled */
     parsec_communication_engine_up = 1;
@@ -403,7 +403,7 @@ static int remote_dep_dequeue_fini(parsec_context_t* context)
      */
     if( 1 < parsec_communication_engine_up ) {
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-        OBJ_CONSTRUCT(item, parsec_list_item_t);
+        PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
         void *ret;
 
         item->action = DEP_CTL;
@@ -422,9 +422,9 @@ static int remote_dep_dequeue_fini(parsec_context_t* context)
     }
 
     assert(NULL == parsec_dequeue_pop_front(&dep_cmd_queue));
-    OBJ_DESTRUCT(&dep_cmd_queue);
+    PARSEC_OBJ_DESTRUCT(&dep_cmd_queue);
     assert(NULL == parsec_dequeue_pop_front(&dep_cmd_fifo));
-    OBJ_DESTRUCT(&dep_cmd_fifo);
+    PARSEC_OBJ_DESTRUCT(&dep_cmd_fifo);
     mpi_initialized = 0;
 
     return 0;
@@ -471,7 +471,7 @@ static int remote_dep_dequeue_off(parsec_context_t* context)
     if(parsec_communication_engine_up < 2) return -1;  /* The start order has not been issued */
 
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-    OBJ_CONSTRUCT(item, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action = DEP_CTL;
     item->cmd.ctl.enable = 0;  /* turn OFF the MPI thread */
     item->priority = 0;
@@ -537,7 +537,7 @@ static int remote_dep_dequeue_new_taskpool(parsec_taskpool_t* tp)
 {
     if(!mpi_initialized) return 0;
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
-    OBJ_CONSTRUCT(item, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action = DEP_NEW_TASKPOOL;
     item->priority = 0;
     item->cmd.new_taskpool.tp = tp;
@@ -550,7 +550,7 @@ remote_dep_dequeue_delayed_dep_release(parsec_remote_deps_t *deps)
 {
     if(!mpi_initialized) return 0;
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
-    OBJ_CONSTRUCT(item, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action = DEP_DTD_DELAYED_RELEASE;
     item->priority = 0;
     item->cmd.release.deps = deps;
@@ -562,7 +562,7 @@ static int remote_dep_dequeue_send(parsec_execution_stream_t* es, int rank,
                                    parsec_remote_deps_t* deps)
 {
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
-    OBJ_CONSTRUCT(item, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action   = DEP_ACTIVATE;
     item->priority = deps->max_priority;
     item->cmd.activate.peer             = rank;
@@ -609,7 +609,7 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
                          PARSEC_DATA_COPY_GET_PTR(dst) + 0,
                          data->count);
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
-    OBJ_CONSTRUCT(item, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action = DEP_MEMCPY;
     item->priority = 0;
     item->cmd.memcpy.taskpool = tp;
@@ -620,7 +620,7 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
     item->cmd.memcpy.displ_r      = 0;
     item->cmd.memcpy.count        = data->count;
 
-    OBJ_RETAIN(src);
+    PARSEC_OBJ_RETAIN(src);
     remote_dep_inc_flying_messages(tp);
 
     parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
@@ -635,7 +635,7 @@ remote_dep_copy_allocate(parsec_dep_data_description_t* data)
         return NULL;
     }
     dc = parsec_arena_get_copy(data->arena, data->count, 0);
-    dc->coherency_state = DATA_COHERENCY_EXCLUSIVE;
+    dc->coherency_state = PARSEC_DATA_COHERENCY_EXCLUSIVE;
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "",
             dc, data->arena->elem_size, data->count, data->displ);
     return dc;
@@ -653,7 +653,7 @@ parsec_ontask_iterate_t
 remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
                                  const parsec_task_t *newcontext,
                                  const parsec_task_t *oldcontext,
-                                 const dep_t* dep,
+                                 const parsec_dep_t* dep,
                                  parsec_dep_data_description_t* out_data,
                                  int src_rank, int dst_rank, int dst_vpid,
                                  void *param)
@@ -950,7 +950,7 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
 
     remote_dep_mpi_setup(context);
 
-    OBJ_CONSTRUCT(&temp_list, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&temp_list, parsec_list_t);
  check_pending_queues:
     if( cycles >= 0 )
         if( 0 == cycles--) return executed_tasks;  /* report how many events were progressed */
@@ -1030,7 +1030,7 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
     switch(item->action) {
     case DEP_CTL:
         ret = item->cmd.ctl.enable;
-        OBJ_DESTRUCT(&temp_list);
+        PARSEC_OBJ_DESTRUCT(&temp_list);
         PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "rank %d DISABLE MPI communication engine", parsec_debug_rank);
         free(item);
         return ret;  /* FINI or OFF */
@@ -1264,9 +1264,9 @@ static int remote_dep_mpi_init_once(parsec_context_t* context)
     int mpi_tag_ub_exists, *ub;
 
     assert(-1 == MAX_MPI_TAG);
-    OBJ_CONSTRUCT(&dep_activates_fifo, parsec_list_t);
-    OBJ_CONSTRUCT(&dep_activates_noobj_fifo, parsec_list_t);
-    OBJ_CONSTRUCT(&dep_put_fifo, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&dep_activates_fifo, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&dep_activates_noobj_fifo, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&dep_put_fifo, parsec_list_t);
 
     assert(MPI_COMM_NULL == dep_self);
     MPI_Comm_dup(MPI_COMM_SELF, &dep_self);
@@ -1318,9 +1318,9 @@ static int remote_dep_mpi_fini(parsec_context_t* context)
         context->comm_ctx = NULL; /* We use NULL for the opaque comm_ctx, rather than the MPI specific MPI_COMM_NULL */
     }
 
-    OBJ_DESTRUCT(&dep_activates_fifo);
-    OBJ_DESTRUCT(&dep_activates_noobj_fifo);
-    OBJ_DESTRUCT(&dep_put_fifo);
+    PARSEC_OBJ_DESTRUCT(&dep_activates_fifo);
+    PARSEC_OBJ_DESTRUCT(&dep_activates_noobj_fifo);
+    PARSEC_OBJ_DESTRUCT(&dep_put_fifo);
     MAX_MPI_TAG = -1;  /* mark the layer as uninitialized */
     remote_dep_mpi_profiling_fini();
 
@@ -1827,7 +1827,7 @@ remote_dep_mpi_save_put_cb(parsec_execution_stream_t* es,
 #endif
 
     item = (dep_cmd_item_t*) malloc(sizeof(dep_cmd_item_t));
-    OBJ_CONSTRUCT(&item->super, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(&item->super, parsec_list_item_t);
     item->action = DEP_GET_DATA;
     item->cmd.activate.peer = status->MPI_SOURCE;
 
@@ -2082,7 +2082,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
                                 parsec_comm_callback_t* cb,
                                 MPI_Status* status)
 {
-    PINS(es, ACTIVATE_CB_BEGIN, NULL);
+    PARSEC_PINS(es, ACTIVATE_CB_BEGIN, NULL);
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -2133,7 +2133,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
     assert(position == length);
     /* Let's re-enable the pending request in the same position */
     MPI_Start(&array_of_requests[cb->storage1]);
-    PINS(es, ACTIVATE_CB_END, NULL);
+    PARSEC_PINS(es, ACTIVATE_CB_END, NULL);
     return 0;
 }
 
@@ -2187,7 +2187,7 @@ static void
 remote_dep_mpi_release_delayed_deps( parsec_execution_stream_t* es,
                                      dep_cmd_item_t *item )
 {
-    PINS(es, ACTIVATE_CB_BEGIN, NULL);
+    PARSEC_PINS(es, ACTIVATE_CB_BEGIN, NULL);
     parsec_remote_deps_t *deps = item->cmd.release.deps;
     int rc, position = 0;
     char* buffer = (char*)deps->taskpool;  /* get back the buffer from the "temporary" storage */
@@ -2201,7 +2201,7 @@ remote_dep_mpi_release_delayed_deps( parsec_execution_stream_t* es,
     assert(deps != NULL);
     remote_dep_mpi_recv_activate(es, deps, buffer, deps->msg.length, &position);
     free(buffer);
-    PINS(es, ACTIVATE_CB_END, NULL);
+    PARSEC_PINS(es, ACTIVATE_CB_END, NULL);
 }
 
 static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,

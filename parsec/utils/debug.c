@@ -88,19 +88,19 @@ void parsec_debug_init(void)
         bt_output = -1;
     }
     else if( 0 == strcasecmp(opt, "stderr") ) {
-        OBJ_CONSTRUCT(&lds, parsec_output_stream_t);
+        PARSEC_OBJ_CONSTRUCT(&lds, parsec_output_stream_t);
         lds.lds_want_stderr = true;
         lds.lds_want_syslog = false;
         bt_output = parsec_output_open(&lds);
-        OBJ_DESTRUCT(&lds);
+        PARSEC_OBJ_DESTRUCT(&lds);
     }
     else if( 0 == strcasecmp(opt, "file") ) {
-        OBJ_CONSTRUCT(&lds, parsec_output_stream_t);
+        PARSEC_OBJ_CONSTRUCT(&lds, parsec_output_stream_t);
         lds.lds_want_file = true;
         lds.lds_want_syslog = false;
         lds.lds_file_suffix = "backtraces";
         bt_output = parsec_output_open(&lds);
-        OBJ_DESTRUCT(&lds);
+        PARSEC_OBJ_DESTRUCT(&lds);
     }
     else {
         parsec_warning("Invalid value %s for parameter debug_backtrace_output", opt);

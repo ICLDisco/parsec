@@ -1,5 +1,5 @@
 /*
- * Copyright (c)      2017 The University of Tennessee and The University
+ * Copyright (c) 2017-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <assert.h>
 
-#if RWLOCK_IMPL == RWLOCK_IMPL_STATE
+#if PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_STATE
 
 /*
  * Simple State-based implementation with atomic CAS to update the state at each step
@@ -96,7 +96,7 @@ void parsec_atomic_rwlock_wrunlock( parsec_atomic_rwlock_t* atomic_rwlock )
     } while( !parsec_atomic_cas_int32(atomic_rwlock, old_state, new_state) );
 }
 
-#elif RWLOCK_IMPL == RWLOCK_IMPL_TICKET
+#elif PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_TICKET
 
 /* Ticket based (phase-fair) implementation
  *    http://dl.acm.org/citation.cfm?id=1842604
@@ -166,7 +166,7 @@ void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L)
     L->wout = L->wout+1;
 }
 
-#elif RWLOCK_IMPL == RWLOCK_IMPL_2LOCKS
+#elif PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_2LOCKS
 
 /* Traditional (e.g. http://www.springer.com/us/book/9783642320262)
  * implementation based on two atomic locks. This is write-preferring. */
@@ -236,7 +236,7 @@ void parsec_atomic_rwlock_rdlock(parsec_atomic_rwlock_t *L)
     parsec_atomic_unlock(&L->r);
 }
 
-#elif RWLOCK_IMPL == RWLOCK_IMPL_MYTICKET
+#elif PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_MYTICKET
 
 /* Simpler Ticket based (phase-fair) implementation that does not
  * depend upon endianness, but can tolerate only up to 65536 writers.

@@ -198,12 +198,12 @@ option(PARSEC_PROFILING_USE_HELPER_THREAD
 mark_as_advanced(PARSEC_PROFILING_USE_HELPER_THREAD)
 
 ### Instrumentation Options
-option(PINS_ENABLE
+option(PARSEC_PROF_PINS
   "Enable the use of the PaRSEC callback instrumentation system (requires PARSEC_PROF_TRACE)" ON)
-# if( PINS_ENABLE AND NOT PARSEC_PROF_TRACE )
+# if( PARSEC_PROF_PINS AND NOT PARSEC_PROF_TRACE )
 #  message(WARNING "PINS Instrumentation System requires to enable PARSEC_PROF_TRACE. Forcing profiling system on.")
 #  SET(PARSEC_PROF_TRACE ON CACHE BOOL "Enable the generation of the profiling information during execution" FORCE)
-# endif( PINS_ENABLE AND NOT PARSEC_PROF_TRACE )
+# endif( PARSEC_PROF_PINS AND NOT PARSEC_PROF_TRACE )
 
 # cmake modules setup
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)

@@ -155,7 +155,7 @@ int main(int argc, char **argv)
         printf("Using affinity with data residing in rank: %d\n", A->rank_of_key(A, 0));
         parsec_dtd_taskpool_insert_task(dtd_tp, task_precedence,    0,  "task_precedence",
                                         sizeof(int),      &intended_rank,              VALUE | AFFINITY,
-                                        PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
                                         sizeof(int),      &intended_rank,              VALUE | AFFINITY,
                                         PARSEC_DTD_ARG_END);
 
@@ -166,7 +166,7 @@ int main(int argc, char **argv)
         intended_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_moving_data,    0,  "task_moving",
                                         sizeof(int),      &intended_rank,    VALUE | AFFINITY,
-                                        PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
                                         PARSEC_DTD_ARG_END);
     }
 

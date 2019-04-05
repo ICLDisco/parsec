@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2008 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2016 The University of Tennessee and The University
+ * Copyright (c) 2004-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -144,13 +144,13 @@ static parsec_mca_param_type_t param_type_from_index (size_t index);
 /*
  * Make the class instance for parsec_mca_param_t
  */
-OBJ_CLASS_INSTANCE(parsec_mca_param_t, parsec_object_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_mca_param_t, parsec_object_t,
                    param_constructor, param_destructor);
-OBJ_CLASS_INSTANCE(parsec_mca_param_file_value_t, parsec_list_item_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_mca_param_file_value_t, parsec_list_item_t,
                    fv_constructor, fv_destructor);
-OBJ_CLASS_INSTANCE(parsec_mca_param_info_t, parsec_list_item_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_mca_param_info_t, parsec_list_item_t,
                    info_constructor, info_destructor);
-OBJ_CLASS_INSTANCE(parsec_syn_info_t, parsec_list_item_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_syn_info_t, parsec_list_item_t,
                    syn_info_constructor, syn_info_destructor);
 
 /*
@@ -162,12 +162,12 @@ int parsec_mca_param_init(void)
 
         /* Init the value array for the param storage */
 
-        OBJ_CONSTRUCT(&mca_params, parsec_value_array_t);
+        PARSEC_OBJ_CONSTRUCT(&mca_params, parsec_value_array_t);
         parsec_value_array_init(&mca_params, sizeof(parsec_mca_param_t));
 
         /* Init the file param value list */
 
-        OBJ_CONSTRUCT(&parsec_mca_param_file_values, parsec_list_t);
+        PARSEC_OBJ_CONSTRUCT(&parsec_mca_param_file_values, parsec_list_t);
 
         /* Set this before we register the parameter, below */
 
@@ -389,7 +389,7 @@ int parsec_mca_param_deregister(int index)
     /* Do not remove this item from the array otherwise we will change
        all the indices of parameters with a larger index. The destructor
        will mark this parameter as invalid. */
-    OBJ_DESTRUCT(&array[index]);
+    PARSEC_OBJ_DESTRUCT(&array[index]);
 
     return PARSEC_SUCCESS;
 }
@@ -579,7 +579,7 @@ int parsec_mca_param_dump(parsec_list_t **info, bool internal)
     if (NULL == info) {
         return PARSEC_ERROR;
     }
-    *info = OBJ_NEW(parsec_list_t);
+    *info = PARSEC_OBJ_NEW(parsec_list_t);
 
     /* Iterate through all the registered parameters */
 
@@ -588,7 +588,7 @@ int parsec_mca_param_dump(parsec_list_t **info, bool internal)
     for (i = 0; i < len; ++i) {
         if ((array[i].mbp_internal == internal || internal) &&
             PARSEC_MCA_PARAM_TYPE_MAX > array[i].mbp_type) {
-            p = OBJ_NEW(parsec_mca_param_info_t);
+            p = PARSEC_OBJ_NEW(parsec_mca_param_info_t);
             if (NULL == p) {
                 return PARSEC_ERR_OUT_OF_RESOURCE;
             }
@@ -623,7 +623,7 @@ int parsec_mca_param_dump(parsec_list_t **info, bool internal)
                      PARSEC_LIST_ITERATOR_END(array[i].mbp_synonyms) != item;
                      ++j, item = PARSEC_LIST_ITERATOR_NEXT(item)) {
                     si = (parsec_syn_info_t*) item;
-                    q = OBJ_NEW(parsec_mca_param_info_t);
+                    q = PARSEC_OBJ_NEW(parsec_mca_param_info_t);
                     if (NULL == q) {
                         return PARSEC_ERR_OUT_OF_RESOURCE;
                     }
@@ -750,9 +750,9 @@ int parsec_mca_param_dump_release(parsec_list_t *info)
 
     for (item = parsec_list_pop_front(info); NULL != item;
          item = parsec_list_pop_front(info)) {
-        OBJ_RELEASE(item);
+        PARSEC_OBJ_RELEASE(item);
     }
-    OBJ_RELEASE(info);
+    PARSEC_OBJ_RELEASE(info);
 
     return PARSEC_SUCCESS;
 }
@@ -774,16 +774,16 @@ int parsec_mca_param_finalize(void)
         array = PARSEC_VALUE_ARRAY_GET_BASE(&mca_params, parsec_mca_param_t);
         for (i = 0 ; i < size ; ++i) {
             if (PARSEC_MCA_PARAM_TYPE_MAX > array[i].mbp_type) {
-                OBJ_DESTRUCT(&array[i]);
+                PARSEC_OBJ_DESTRUCT(&array[i]);
             }
         }
-        OBJ_DESTRUCT(&mca_params);
+        PARSEC_OBJ_DESTRUCT(&mca_params);
 
         while (NULL !=
                (item = parsec_list_pop_front(&parsec_mca_param_file_values))) {
-            OBJ_RELEASE(item);
+            PARSEC_OBJ_RELEASE(item);
         }
-        OBJ_DESTRUCT(&parsec_mca_param_file_values);
+        PARSEC_OBJ_DESTRUCT(&parsec_mca_param_file_values);
 
         initialized = false;
     }
@@ -980,7 +980,7 @@ static int param_register(const char *type_name,
 
     /* Create a parameter entry */
 
-    OBJ_CONSTRUCT(&param, parsec_mca_param_t);
+    PARSEC_OBJ_CONSTRUCT(&param, parsec_mca_param_t);
     param.mbp_type = type;
     param.mbp_internal = internal;
     param.mbp_read_only = read_only;
@@ -991,14 +991,14 @@ static int param_register(const char *type_name,
     if (NULL != type_name) {
         param.mbp_type_name = strdup(type_name);
         if (NULL == param.mbp_type_name) {
-            OBJ_DESTRUCT(&param);
+            PARSEC_OBJ_DESTRUCT(&param);
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
     }
     if (NULL != component_name) {
         param.mbp_component_name = strdup(component_name);
         if (NULL == param.mbp_component_name) {
-            OBJ_DESTRUCT(&param);
+            PARSEC_OBJ_DESTRUCT(&param);
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
     }
@@ -1006,7 +1006,7 @@ static int param_register(const char *type_name,
     if (NULL != param_name) {
         param.mbp_param_name = strdup(param_name);
         if (NULL == param.mbp_param_name) {
-            OBJ_DESTRUCT(&param);
+            PARSEC_OBJ_DESTRUCT(&param);
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
     }
@@ -1025,7 +1025,7 @@ static int param_register(const char *type_name,
 
     param.mbp_full_name = (char*)malloc(len);
     if (NULL == param.mbp_full_name) {
-        OBJ_DESTRUCT(&param);
+        PARSEC_OBJ_DESTRUCT(&param);
         return PARSEC_ERROR;
     }
 
@@ -1053,7 +1053,7 @@ static int param_register(const char *type_name,
     len = strlen(param.mbp_full_name) + strlen(mca_prefix) + 16;
     param.mbp_env_var_name = (char*)malloc(len);
     if (NULL == param.mbp_env_var_name) {
-        OBJ_DESTRUCT(&param);
+        PARSEC_OBJ_DESTRUCT(&param);
         return PARSEC_ERROR;
     }
     snprintf(param.mbp_env_var_name, len, "%s%s", mca_prefix,
@@ -1204,14 +1204,14 @@ static int param_register(const char *type_name,
                                 true, array[i].mbp_full_name);
 #endif
                 /* Return an error code and hope for the best. */
-                OBJ_DESTRUCT(&param);
+                PARSEC_OBJ_DESTRUCT(&param);
                 return PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
             }
 
             /* Now delete the newly-created entry (since we just saved the
              value in the old entry) */
 
-            OBJ_DESTRUCT(&param);
+            PARSEC_OBJ_DESTRUCT(&param);
 
             /* Finally, if we have a lookup value, look it up */
 
@@ -1273,7 +1273,7 @@ static int syn_register(int index_orig, const char *syn_type_name,
     }
 
     /* Make the synonym info object */
-    si = OBJ_NEW(parsec_syn_info_t);
+    si = PARSEC_OBJ_NEW(parsec_syn_info_t);
     if (NULL == si) {
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
@@ -1289,7 +1289,7 @@ static int syn_register(int index_orig, const char *syn_type_name,
     if (NULL != syn_type_name) {
         si->si_type_name = strdup(syn_type_name);
         if (NULL == si->si_type_name) {
-            OBJ_RELEASE(si);
+            PARSEC_OBJ_RELEASE(si);
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
     }
@@ -1297,7 +1297,7 @@ static int syn_register(int index_orig, const char *syn_type_name,
     if (NULL != syn_component_name) {
         si->si_component_name = strdup(syn_component_name);
         if (NULL == si->si_component_name) {
-            OBJ_RELEASE(si);
+            PARSEC_OBJ_RELEASE(si);
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
     }
@@ -1305,7 +1305,7 @@ static int syn_register(int index_orig, const char *syn_type_name,
     if (NULL != syn_param_name) {
         si->si_param_name = strdup(syn_param_name);
         if (NULL == si->si_param_name) {
-            OBJ_RELEASE(si);
+            PARSEC_OBJ_RELEASE(si);
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
     }
@@ -1323,7 +1323,7 @@ static int syn_register(int index_orig, const char *syn_type_name,
     }
     si->si_full_name = (char*) malloc(len);
     if (NULL == si->si_full_name) {
-        OBJ_RELEASE(si);
+        PARSEC_OBJ_RELEASE(si);
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
 
@@ -1349,7 +1349,7 @@ static int syn_register(int index_orig, const char *syn_type_name,
     len = strlen(si->si_full_name) + strlen(mca_prefix) + 16;
     si->si_env_var_name = (char*) malloc(len);
     if (NULL == si->si_env_var_name) {
-        OBJ_RELEASE(si);
+        PARSEC_OBJ_RELEASE(si);
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
     snprintf(si->si_env_var_name, len, "%s%s", mca_prefix,
@@ -1361,12 +1361,12 @@ static int syn_register(int index_orig, const char *syn_type_name,
 
     /* Sanity check. Is this a valid parameter? */
     if (PARSEC_MCA_PARAM_TYPE_MAX <= array[index_orig].mbp_type) {
-        OBJ_RELEASE(si);
+        PARSEC_OBJ_RELEASE(si);
         return PARSEC_ERROR;
     }
 
     if (NULL == array[index_orig].mbp_synonyms) {
-        array[index_orig].mbp_synonyms = OBJ_NEW(parsec_list_t);
+        array[index_orig].mbp_synonyms = PARSEC_OBJ_NEW(parsec_list_t);
     }
     parsec_list_append(array[index_orig].mbp_synonyms, &(si->super));
 
@@ -1743,7 +1743,7 @@ static bool lookup_file(parsec_mca_param_t *param,
 
             parsec_list_nolock_remove(&parsec_mca_param_file_values,
                                      (parsec_list_item_t *)fv);
-            OBJ_RELEASE(fv);
+            PARSEC_OBJ_RELEASE(fv);
 
             /* Print the deprecated warning, if applicable */
             if (print_deprecated_warning) {
@@ -1876,9 +1876,9 @@ static void param_destructor(parsec_mca_param_t *p)
     if (NULL != p->mbp_synonyms) {
         for (item = parsec_list_pop_front(p->mbp_synonyms);
              NULL != item; item = parsec_list_pop_front(p->mbp_synonyms)) {
-            OBJ_RELEASE(item);
+            PARSEC_OBJ_RELEASE(item);
         }
-        OBJ_RELEASE(p->mbp_synonyms);
+        PARSEC_OBJ_RELEASE(p->mbp_synonyms);
     }
 
     /* mark this parameter as invalid */

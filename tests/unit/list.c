@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -52,7 +52,7 @@ static elt_t *create_elem(int base)
 
     r = rand() % 1024;
     elt = (elt_t*)malloc(r * sizeof(unsigned int) + sizeof(elt_t));
-    OBJ_CONSTRUCT(&elt->list, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(&elt->list, parsec_list_item_t);
     elt->base = base;
     elt->nbelt = r;
     for(j = 0; j < r; j++)
@@ -302,8 +302,8 @@ int main(int argc, char *argv[])
     threads = (pthread_t*)calloc(sizeof(pthread_t), nbthreads);
     times = (uint64_t*)calloc(sizeof(uint64_t), nbthreads);
 
-    OBJ_CONSTRUCT( &l1, parsec_list_t );
-    OBJ_CONSTRUCT( &l2, parsec_list_t );
+    PARSEC_OBJ_CONSTRUCT( &l1, parsec_list_t );
+    PARSEC_OBJ_CONSTRUCT( &l2, parsec_list_t );
 
     printf("Sequential test.\n");
 

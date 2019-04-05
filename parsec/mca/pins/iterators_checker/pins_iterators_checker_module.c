@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -42,13 +42,13 @@ static void pins_thread_init_iterators_checker(struct parsec_execution_stream_s*
 {
     struct parsec_pins_next_callback_s* event_cb =
         (struct parsec_pins_next_callback_s*)malloc(sizeof(struct parsec_pins_next_callback_s));
-    PINS_REGISTER(es, EXEC_BEGIN, iterators_checker_exec_count_begin, event_cb);
+    PARSEC_PINS_REGISTER(es, EXEC_BEGIN, iterators_checker_exec_count_begin, event_cb);
 }
 
 static void pins_thread_fini_iterators_checker(struct parsec_execution_stream_s* es)
 {
     struct parsec_pins_next_callback_s* event_cb;
-    PINS_UNREGISTER(es, EXEC_BEGIN, iterators_checker_exec_count_begin, &event_cb);
+    PARSEC_PINS_UNREGISTER(es, EXEC_BEGIN, iterators_checker_exec_count_begin, &event_cb);
     free(event_cb);
 }
 
@@ -61,7 +61,7 @@ static void pins_thread_fini_iterators_checker(struct parsec_execution_stream_s*
 static parsec_ontask_iterate_t print_link(parsec_execution_stream_t *es,
                                           const parsec_task_t *newcontext,
                                           const parsec_task_t *oldcontext,
-                                          const dep_t* dep,
+                                          const parsec_dep_t* dep,
                                           parsec_dep_data_description_t* data,
                                           int src_rank, int dst_rank, int dst_vpid,
                                           void *param)
@@ -86,7 +86,7 @@ iterators_checker_exec_count_begin(parsec_execution_stream_t* es,
                                    struct parsec_pins_next_callback_s* _data)
 {
     char  str[TASK_STR_LEN];
-    const dep_t *final_deps[MAX_PARAM_COUNT];
+    const parsec_dep_t *final_deps[MAX_PARAM_COUNT];
     parsec_data_t *data;
     int nbfo, i;
 

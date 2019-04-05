@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018      The University of Tennessee and The University
+ * Copyright (c) 2018-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -198,10 +198,10 @@ struct parsec_property_function_s {
     size_t                              offset;             /**< Offset  */
     parsec_profiling_datatype_t         type;
     union {
-	expr_op_int32_inline_func_t     inline_func_int32;
-	expr_op_int64_inline_func_t     inline_func_int64;
-	expr_op_float_inline_func_t     inline_func_float;
-	expr_op_double_inline_func_t    inline_func_double;
+	parsec_expr_op_int32_inline_func_t     inline_func_int32;
+	parsec_expr_op_int64_inline_func_t     inline_func_int64;
+	parsec_expr_op_float_inline_func_t     inline_func_float;
+	parsec_expr_op_double_inline_func_t    inline_func_double;
     } func;
 };
 
@@ -227,7 +227,7 @@ struct parsec_profiling_property_s {
     parsec_hash_table_item_t            super;    
     parsec_profiling_index_t            type;
     int                                 accumulate;
-    PINS_FLAG                           event;
+    PARSEC_PINS_FLAG                    event;
     int                                 freq;
     int                                 counter;
     int                                 state;
