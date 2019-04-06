@@ -11,7 +11,7 @@
 # Each jdf file can also be tagged with specific flags for the parsec_ptgpp
 # binary through the ADDITIONAL_PTGPP_CFLAGS property.
 #
-macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
+macro(parsec_compile_ptg jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
 
   foreach(jdf_rules_SOURCE ${jdf_rules_SOURCES})
     # Remove .jdf if present
@@ -54,4 +54,4 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
   # Mark all generated files as such.
   #
   set_source_files_properties(${jdf_rules_OUTPUTLIST} PROPERTIES GENERATED 1)
-endmacro(jdf_rules)
+endmacro(parsec_compile_ptg)

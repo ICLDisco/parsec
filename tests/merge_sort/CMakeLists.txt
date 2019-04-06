@@ -1,6 +1,6 @@
-include(RulesJDF)
+include(ParsecCompilePTG)
 
-jdf_rules(merge_sort_generated "${CMAKE_CURRENT_SOURCE_DIR}/merge_sort.jdf")
+parsec_compile_ptg(merge_sort_generated "${CMAKE_CURRENT_SOURCE_DIR}/merge_sort.jdf")
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 parsec_addtest(C merge_sort

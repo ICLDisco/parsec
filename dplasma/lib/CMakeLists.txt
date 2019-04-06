@@ -4,7 +4,7 @@ set (DPLASMA_VERSION_MINOR 0)
 set (DPLASMA_VERSION_PATCH 0)
 
 include(PrecisionGenerator)
-include(RulesJDF)
+include(ParsecCompilePTG)
 
 # reset variables
 set(generated_files "")
@@ -112,7 +112,7 @@ list(APPEND generated_jdf
   ${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf
 )
 
-jdf_rules(generated_files "${generated_jdf}")
+parsec_compile_ptg(generated_files "${generated_jdf}")
 
 ### Generate the dplasma wrappers for all required precisions
 set(SOURCES

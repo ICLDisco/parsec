@@ -1,6 +1,6 @@
-include(RulesJDF)
+include(ParsecCompilePTG)
 
-jdf_rules(ep_generated "${CMAKE_CURRENT_SOURCE_DIR}/ep.jdf")
+parsec_compile_ptg(ep_generated "${CMAKE_CURRENT_SOURCE_DIR}/ep.jdf")
 string( REGEX REPLACE "ep.[hc]" "" include_dir "${ep_generated}" )
 include_directories(${include_dir})
 
