@@ -24,7 +24,7 @@ add_custom_target(dplasma_cores_includes ALL SOURCES
 
 foreach(generated_header ${generated_headers})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header}
-          DESTINATION ${DPLASMA_INSTALL_PREFIX}/include/cores)
+          DESTINATION ${DPLASMA_INSTALL_PREFIX}/include/dplasma/cores)
 endforeach()
 
 

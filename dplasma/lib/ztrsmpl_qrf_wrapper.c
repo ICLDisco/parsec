@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2018 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -11,7 +11,7 @@
 #include <core_blas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmaaux.h"
-#include "dplasmatypes.h"
+#include "dplasma/types.h"
 #include "parsec/private_mempool.h"
 
 #include "ztrsmpl_qrf.h"

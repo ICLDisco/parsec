@@ -32,7 +32,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
                               LINK_FLAGS "${testings_addexec_LDFLAGS} ${COREBLAS_LDFLAGS}")
     endif( PLASMA_F_COMPILE_SUCCESS )
     target_link_libraries(${testings_addexec_EXEC} ${testings_addexec_LIBS} ${COREBLAS_LIBRARIES})
-    #    install(TARGETS ${testings_addexec_EXEC} RUNTIME DESTINATION bin)
+    install(TARGETS ${testings_addexec_EXEC} RUNTIME DESTINATION libexec/dplasma)
     list(APPEND ${OUTPUTLIST} ${testings_addexec_EXEC})
   endforeach()
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 The University of Tennessee and The University
+ * Copyright (c) 2015-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -8,7 +8,7 @@
  */
 
 #include "common.h"
-#include "dplasmatypes.h"
+#include "dplasma/types.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/superscalar/insert_function.h"
 

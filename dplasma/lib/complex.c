@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#include "dplasma_complex.h"
+#include "dplasma/complex.h"
 
 #ifndef PARSEC_HAVE_COMPLEX_H
 
