@@ -1,4 +1,4 @@
-include(RulesJDF)
+include(ParsecCompilePTG)
 
 #
 # Test that NULL as output returns an error
@@ -56,10 +56,10 @@ set_tests_properties(unit_jdf_output_NEW_ptgpp unit_jdf_output_NEW_true_ptgpp un
 #
 # Test that a NULL cannot be forwarded
 #
-jdf_rules(forward_RW_NULL "${CMAKE_CURRENT_SOURCE_DIR}/forward_RW_NULL.jdf")
+parsec_compile_ptg(forward_RW_NULL "${CMAKE_CURRENT_SOURCE_DIR}/forward_RW_NULL.jdf")
 parsec_addtest(C jdf_forward_RW_NULL "${forward_RW_NULL}")
 
-jdf_rules(forward_READ_NULL "${CMAKE_CURRENT_SOURCE_DIR}/forward_READ_NULL.jdf")
+parsec_compile_ptg(forward_READ_NULL "${CMAKE_CURRENT_SOURCE_DIR}/forward_READ_NULL.jdf")
 parsec_addtest(C jdf_forward_READ_NULL "${forward_READ_NULL}")
 
 add_test(unit_jdf_forward_RW_NULL_shm   ${SHM_TEST_CMD_LIST}       ./jdf_forward_RW_NULL)

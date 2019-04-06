@@ -1,6 +1,6 @@
-include(RulesJDF)
+include(ParsecCompilePTG)
 
-jdf_rules(project_generated "${CMAKE_CURRENT_SOURCE_DIR}/project.jdf;${CMAKE_CURRENT_SOURCE_DIR}/walk.jdf")
+parsec_compile_ptg(project_generated "${CMAKE_CURRENT_SOURCE_DIR}/project.jdf;${CMAKE_CURRENT_SOURCE_DIR}/walk.jdf")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})

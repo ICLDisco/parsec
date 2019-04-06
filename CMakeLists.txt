@@ -1056,7 +1056,7 @@ configure_package_config_file(cmake_modules/ParsecConfig.cmake.in ${CMAKE_CURREN
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
     VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_PATCH}
                                  COMPATIBILITY SameMajorVersion)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake cmake_modules/RulesJDF.cmake cmake_modules/FindPARSEC.cmake
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake cmake_modules/ParsecCompilePTG.cmake cmake_modules/FindPARSEC.cmake
         DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
 
 # Prepare the contrib/build_with_parsec directory
