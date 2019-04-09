@@ -390,11 +390,21 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
     }
 
     cudastatus = cudaGetDeviceCount( &ndevices );
-    PARSEC_CUDA_CHECK_ERROR( "cudaGetDeviceCount ", cudastatus,
+    if( cudaErrorNoDevice == (cudaError_t) cudastatus ) {
+        ndevices = 0;
+        /* This is normal on machines with no GPUs, let it flow
+         * to do the normal checks vis-a-vis the number of requested
+         * devices and issue a warning only when not fulfilling
+         * the user demands
+         */
+    }
+    else {
+        PARSEC_CUDA_CHECK_ERROR( "cudaGetDeviceCount ", cudastatus,
                              {
-                                 parsec_mca_param_set_int(use_cuda_index, 0);
-                                 return -1;
+                                parsec_mca_param_set_int(use_cuda_index, 0);
+                                return -1;
                              } );
+    }
 
     if( ndevices > use_cuda ) {
         if( 0 < use_cuda_index ) {
@@ -402,7 +412,7 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
         }
     } else if (ndevices < use_cuda ) {
         if( 0 < use_cuda_index ) {
-            parsec_warning("User requested %d GPUs, but only %d are available in this machine. PaRSEC will enable all of them.", use_cuda, ndevices);
+            parsec_warning("User requested %d GPUs, but only %d are available in this machine. PaRSEC will enable all %d of them.", use_cuda, ndevices, ndevices);
             parsec_mca_param_set_int(use_cuda_index, ndevices);
         }
     }
