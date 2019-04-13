@@ -619,13 +619,26 @@ IF( BUILD_PARSEC )
     endif (NOT MPI_C_FOUND)
   endif (PARSEC_DIST_WITH_MPI)
   #
-  # Check to see if support for MPI 2.0 is available
+  # Check to see if 
+  #     support for MPI 2.0 is available
+  #     known bugged version of mpi_assert_no_ordering
   #
   if (MPI_C_FOUND)
     CMAKE_PUSH_CHECK_STATE()
     list(APPEND CMAKE_REQUIRED_INCLUDES  "${MPI_C_INCLUDE_PATH}")
     list(APPEND CMAKE_REQUIRED_LIBRARIES "${MPI_C_LIBRARIES}")
     check_function_exists(MPI_Type_create_resized PARSEC_HAVE_MPI_20)
+    # MPI Info mpi_assert_enable_overtaking is buggy in Open MPI 3.1.x, x<=4;
+    #   and Open MPI 4.0.x, x <= 1
+    check_c_source_compiles("#include <mpi.h>
+                             int main(int argc, char* argv[]) {
+                             #if (3 == OMPI_MAJOR_VERSION && 1 >= OMPI_MINOR_VERSION && 4 >= OMPI_RELEASE_VERSION) || (4 == OMPI_MAJOR_VERSION && 0 == OMPI_MINOR_VERSION && 1 >= OMPI_RELEASE_VERSION)
+                             #warning \"malfunctionning mpi_assert_enable_overtaking found\"
+                             #endif
+                             return 0;
+                             }"
+                             PARSEC_HAVE_MPI_OVERTAKE
+                             FAIL_REGEX "malfunctionning mpi_assert_enable_overtaking")
     CMAKE_POP_CHECK_STATE()
   endif (MPI_C_FOUND)
 

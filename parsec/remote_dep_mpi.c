@@ -86,10 +86,7 @@ static int parsec_param_nb_tasks_extracted = 20;
 static size_t parsec_param_short_limit = RDEP_MSG_SHORT_LIMIT;
 static size_t parsec_param_eager_limit = RDEP_MSG_EAGER_LIMIT;
 static int parsec_param_enable_aggregate = 1;
-#if OPEN_MPI && (OMPI_MAJOR_VERSION < 4 || (OMPI_MAJOR_VERSION == 4 && OMPI_MINOR_VERSION < 1))
-static int parsec_param_enable_mpi_overtake = 0;
-#warning "Found Open MPI version in which setting 'mpi_assert_allow_overtaking' could result in unstable behavior; it has been disabled by default."
-#else
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
 static int parsec_param_enable_mpi_overtake = 1;
 #endif
 
@@ -281,9 +278,10 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
     if( thread_level_support >= MPI_THREAD_MULTIPLE ) {
         context->flags |= PARSEC_CONTEXT_FLAG_COMM_MT;
     }
-
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
     parsec_mca_param_reg_int_name("runtime", "comm_mpi_overtake", "Lets MPI allow overtaking of messages (if applicable). (0: no, 1: yes)",
                                   false, false, parsec_param_enable_mpi_overtake, &parsec_param_enable_mpi_overtake);
+#endif
 
     /**
      * Finalize the initialization of the upper level structures
@@ -1122,18 +1120,15 @@ static int remote_dep_mpi_init(parsec_context_t* context)
     }
     MPI_Comm_dup(MPI_COMM_SELF, &dep_self);
 
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
     if( parsec_param_enable_mpi_overtake ) {
         MPI_Info no_order;
         MPI_Info_create(&no_order);
         MPI_Info_set(no_order, "mpi_assert_allow_overtaking", "true");
         MPI_Comm_set_info(dep_comm, no_order);
         MPI_Info_free(&no_order);
-#if OPEN_MPI && (OMPI_MAJOR_VERSION < 4 || (OMPI_MAJOR_VERSION == 4 && OMPI_MINOR_VERSION < 1))
-        char version_string[MPI_MAX_LIBRARY_VERSION_STRING]; int vlen = MPI_MAX_LIBRARY_VERSION_STRING;
-        MPI_Get_library_version(version_string, &vlen);
-        parsec_warning("Found '%s', setting 'mpi_assert_allow_overtaking' could result in unstable behavior. 'runtime_comm_mpi_overtake' controls this behavior.", version_string);
-#endif
     }
+#endif
 
     /*
      * Based on MPI 1.1 the MPI_TAG_UB should only be defined
