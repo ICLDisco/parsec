@@ -71,6 +71,7 @@ static int remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es, i
 
 #include "parsec/class/dequeue.h"
 
+#include "parsec/utils/mca_param.h"
 /**
  * Number of data movements to be extracted at each step. Bigger the number
  * larger the amount spent in ordering the tasks, but greater the potential
@@ -85,6 +86,9 @@ static int parsec_param_nb_tasks_extracted = 20;
 static size_t parsec_param_short_limit = RDEP_MSG_SHORT_LIMIT;
 static size_t parsec_param_eager_limit = RDEP_MSG_EAGER_LIMIT;
 static int parsec_param_enable_aggregate = 1;
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
+static int parsec_param_enable_mpi_overtake = 1;
+#endif
 
 #define DEP_NB_CONCURENT 3
 static int DEP_NB_REQ;
@@ -280,6 +284,10 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
                         "\t* PaRSEC will continue with the funneled thread communication engine model.\n");
         }
     }
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
+    parsec_mca_param_reg_int_name("runtime", "comm_mpi_overtake", "Lets MPI allow overtaking of messages (if applicable). (0: no, 1: yes)",
+                                  false, false, parsec_param_enable_mpi_overtake, &parsec_param_enable_mpi_overtake);
+#endif
 
     /**
      * Finalize the initialization of the upper level structures
@@ -1151,6 +1159,17 @@ static int remote_dep_mpi_init(parsec_context_t* context)
         MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
     }
     MPI_Comm_dup(MPI_COMM_SELF, &dep_self);
+
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
+    if( parsec_param_enable_mpi_overtake ) {
+        MPI_Info no_order;
+        MPI_Info_create(&no_order);
+        MPI_Info_set(no_order, "mpi_assert_allow_overtaking", "true");
+        MPI_Comm_set_info(dep_comm, no_order);
+        MPI_Info_free(&no_order);
+    }
+#endif
+
     /*
      * Based on MPI 1.1 the MPI_TAG_UB should only be defined
      * on MPI_COMM_WORLD.
