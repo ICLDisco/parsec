@@ -1,0 +1,184 @@
+extern "C" %{
+/*
+ * Copyright (c) 2019 The Universiy of Tennessee and The Universiy
+ *                    of Tennessee Research Foundation. All rights
+ *                    reserved.
+ */
+#include "stencil_internal.h"
+
+/* Automatically check datetype */
+const int sizeof_datatype = sizeof(DTYPE);
+
+/**
+ * @brief stencil_1D copy data to ghost region 
+ *
+ * @param [out] A0: output data 
+ * @param [in] AL: letf input data 
+ * @param [in] AR: right input data 
+ * @param [in] MB: row tile size 
+ * @param [in] NB: column tile size 
+ * @param [in] myrank: my rank 
+ * @param [in] rank_L: rank of left neighbor 
+ * @param [in] rank_R: rank of right neighbor 
+ * @param [in] R: radius of ghost region 
+ * @param [in] n: column index 
+ * @param [in] n_max: max column index 
+ */
+static void CORE_copydata_stencil_1D(DTYPE *A0, DTYPE *AL, DTYPE *AR, int MB,
+                                  int NB, int myrank, int rank_L, int rank_R,
+                                  int R, int n, int n_max) {
+    int disp_AL, disp_AR, disp_A0;
+
+    /* Displacement of AL */ 
+    if( myrank == rank_L ) {
+        disp_AL = MB * (NB - 2 * R);
+    } else {
+        disp_AL = 0; 
+    }
+
+    /* Copy AL to left ghost region of A0 */ 
+    if( n > 0 ) {
+        memcpy((void *)A0, (void *)(AL+disp_AL), MB*R*sizeof(DTYPE));
+    }
+
+    /* Displacement of AR */
+    if( myrank == rank_R ) {
+        disp_AR = MB * R;
+    } else {
+        disp_AR = 0;
+    }
+
+    /* Displacement of right ghost region of A0 */
+    disp_A0 = MB * (NB - R);
+
+    /* Copy AR to right ghost region of A0 */
+    if( n < n_max ) {
+        memcpy((void *)(A0+disp_A0), (void *)(AR+disp_AR), MB*R*sizeof(DTYPE));
+    }
+}
+
+%}
+
+descA       [ type = "parsec_tiled_matrix_dc_t*" ]
+iter        [ type = "int" ]
+R           [ type = "int" ]
+
+task(t, n)
+
+t = 0 .. iter
+m = t % descA->lmt 
+n = 0 .. descA->lnt-1
+
+myrank = descA->super.myrank
+rank_L = %{ return rank_neighbor(descA, 0, n-1, descA->lmt-1, descA->lnt-1); %}
+rank_R = %{ return rank_neighbor(descA, 0, n+1, descA->lmt-1, descA->lnt-1); %}
+
+: descA(m, n)
+
+READ AL <- (t > 0 && n > 0)? A task(t-1, n-1): NULL              [ type = LR ]
+
+READ AR <- (t > 0 && n < descA->lnt-1)? A task(t-1, n+1): NULL   [ type = LR ]
+
+READ A0 <- (t > 0)? A task(t-1, n): NULL                         [ type = FULL ]
+
+RW A <- descA(m, n)                                              [ type = FULL ]
+     -> (t < iter)? A0 task(t+1, n)                              [ type = FULL ]
+     -> (t < iter && n > 0 )? AR task(t+1, n-1)                  [ type = LR displ = %{ return sizeof_datatype*descA->mb*R; %} ]
+     -> (t < iter && n < descA->lnt-1)? AL task(t+1, n+1)        [ type = LR displ = %{ return sizeof_datatype*descA->mb*(descA->nb-2*R); %} ]
+
+BODY
+{
+    int nb = (n == descA->lnt-1) ? parsec_imin(descA->nb, descA->ln-(descA->lnt-1)*descA->nb): descA->nb;
+#if !defined(PARSEC_DRY_RUN)
+    if( t > 0 ) {
+        CORE_copydata_stencil_1D(A0, AL, AR, descA->mb, descA->nb, myrank, rank_L, rank_R, R, n, descA->lnt-1);
+        CORE_stencil_1D(A, A0, weight_1D, descA->mb, nb, descA->mb, R);
+    }
+#endif  /* !defined(PARSEC_DRY_RUN) */
+}
+END
+
+extern "C" %{
+
+/**
+ * @brief Stencil 1D, no-blocking 
+ *
+ * @param [inout] dcA: the data, already distributed and allocated
+ * @param [in] iter: iterations
+ * @param [in] R: radius
+ */
+parsec_taskpool_t*
+parsec_stencil_1D_New(parsec_tiled_matrix_dc_t *dcA, int iter, int R)
+{
+  parsec_taskpool_t* stencil_1D_taskpool;
+  parsec_stencil_1D_taskpool_t* taskpool = NULL;
+
+  if( R < 1 ) {
+    fprintf(stderr, "Radius R should be bigger than 0\n");
+    exit(1);
+  }
+
+  if( dcA->nb < 3 * R ) {
+    fprintf(stderr, "Radius R should not be bigger than NB\n");
+    exit(1);
+  }
+
+  if( ((two_dim_block_cyclic_t *)dcA)->grid.rows != 1 ) {
+    fprintf(stderr, "\n Row in Process grid should be 1 "
+                    "to make all buffers local\n\n");
+    exit(1);
+  }
+
+  taskpool = parsec_stencil_1D_new(dcA, iter, R); 
+  stencil_1D_taskpool = (parsec_taskpool_t*)taskpool;
+
+  parsec_matrix_add2arena(taskpool->arenas[PARSEC_stencil_1D_FULL_ARENA],
+                          MY_TYPE, matrix_UpperLower,
+                          1, dcA->mb, dcA->nb, dcA->mb,
+                          PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
+  parsec_matrix_add2arena(taskpool->arenas[PARSEC_stencil_1D_LR_ARENA],
+                          MY_TYPE, matrix_UpperLower,
+                          1, dcA->mb, R, dcA->mb,
+                          PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
+  return stencil_1D_taskpool;
+}
+
+/**
+ * @param [inout] the parsec object to destroy
+*/
+void parsec_stencil_1D_Destruct(parsec_taskpool_t *taskpool)
+{
+  parsec_stencil_1D_taskpool_t *stencil_1D_taskpool = (parsec_stencil_1D_taskpool_t *)taskpool;
+  parsec_matrix_del2arena(stencil_1D_taskpool->arenas[PARSEC_stencil_1D_FULL_ARENA]);
+  parsec_matrix_del2arena(stencil_1D_taskpool->arenas[PARSEC_stencil_1D_LR_ARENA]);
+  parsec_taskpool_free(taskpool);
+}
+
+/**
+ * @brief Stencil 1D 
+ * 
+ * @param [inout] dcA: the data, already distributed and allocated
+ * @param [in] iter: iterations 
+ * @param [in] R: radius 
+ */
+int parsec_stencil_1D(parsec_context_t *parsec,
+                      parsec_tiled_matrix_dc_t *A,
+                      int iter, int R)
+{
+  parsec_taskpool_t *parsec_stencil_1D = NULL;
+
+  parsec_stencil_1D = parsec_stencil_1D_New(A, iter, R); 
+
+  if( parsec_stencil_1D != NULL ){
+      parsec_enqueue(parsec, parsec_stencil_1D);
+      parsec_context_start(parsec);
+      parsec_context_wait(parsec);
+      parsec_stencil_1D_Destruct(parsec_stencil_1D);
+  }
+
+  return 0;
+}
+
+%}
