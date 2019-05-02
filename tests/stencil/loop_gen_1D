@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ $# -ne 1 ]
+  then
+        echo "$0 Radius"
+        exit
+  fi
+
+RADIUS=$1
+echo "      OUT(i,j) = WEIGHT_1D(0)*IN(i,j)"                   > loop_body_1D.in
+jj=1
+while [ $jj -le $RADIUS ]; do
+  echo "        +WEIGHT_1D(-$jj)*IN(i,j-$jj)+WEIGHT_1D($jj)*IN(i,j+$jj)"  >> loop_body_1D.in
+  jj=`expr $jj + 1`
+done
+echo "        ;"                                                    >> loop_body_1D.in

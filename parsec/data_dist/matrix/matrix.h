@@ -175,6 +175,14 @@ parsec_apply_New(     int uplo,
                       void* op_args );
 
 extern void parsec_apply_Destruct( struct parsec_taskpool_s *o );
+
+extern int
+parsec_apply( parsec_context_t *parsec,
+             int uplo,
+             parsec_tiled_matrix_dc_t *A,
+             tiled_matrix_unary_op_t operation,
+             void *op_args );
+
 /*
  * Macro to get the block leading dimension
  */
