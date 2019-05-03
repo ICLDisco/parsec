@@ -15,6 +15,7 @@
 #ifdef PARSEC_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+extern char **environ;
 #ifdef PARSEC_HAVE_LIMITS_H
 #include <limits.h>
 #endif

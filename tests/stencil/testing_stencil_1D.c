@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
     *op_args = R;
     parsec_apply( parsec, matrix_UpperLower,
                   (parsec_tiled_matrix_dc_t *)&dcA,
-                  stencil_1D_init_ops, op_args);
+                  (tiled_matrix_unary_op_t)stencil_1D_init_ops, op_args);
 
     /* intialize weight_1D */
     weight_1D = (DTYPE *)malloc(sizeof(DTYPE) * (2*R+1));
