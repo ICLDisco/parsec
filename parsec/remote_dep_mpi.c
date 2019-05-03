@@ -84,7 +84,9 @@ static int parsec_param_nb_tasks_extracted = 20;
  * comm_short_limit and comm_eager_limit respectively.
  */
 static size_t parsec_param_short_limit = RDEP_MSG_SHORT_LIMIT;
+#if RDEP_MSG_EAGER_LIMIT != 0
 static size_t parsec_param_eager_limit = RDEP_MSG_EAGER_LIMIT;
+#endif  /* RDEP_MSG_EAGER_LIMIT != 0 */
 static int parsec_param_enable_aggregate = 1;
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
 static int parsec_param_enable_mpi_overtake = 1;
@@ -849,7 +851,7 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
 {
     parsec_context_t* context = es->virtual_process->parsec_context;
     parsec_list_item_t *items;
-    dep_cmd_item_t *item, *same_pos;
+    dep_cmd_item_t *item, *same_pos = NULL;
     parsec_list_t temp_list;
     int ret = 0, how_many, position, executed_tasks = 0;
 
@@ -947,8 +949,12 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
         same_pos = item;
         goto have_same_pos;
     case DEP_PUT_DATA:
+#if 0 != RDEP_MSG_EAGER_LIMIT
         remote_dep_mpi_put_eager(es, item);
         same_pos = NULL;
+#else
+        assert("This should never be called!");
+#endif  /* 0 != RDEP_MSG_EAGER_LIMIT */
         goto have_same_pos;
     case DEP_MEMCPY:
         remote_dep_nothread_memcpy(es, item);
@@ -1499,6 +1505,7 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
 
         remote_dep_complete_and_cleanup(&deps, 1);
     } while( NULL != ring );
+    (void)es;
     return 0;
 }
 
