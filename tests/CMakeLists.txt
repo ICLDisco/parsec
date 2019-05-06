@@ -40,6 +40,7 @@ list(APPEND EXTRA_LIBS m)
 
 add_Subdirectory(unit)
 add_Subdirectory(interfaces/superscalar)
+add_Subdirectory(interfaces/ptg)
 add_Subdirectory(jdf/new_null)
 add_Subdirectory(haar-tree-project)
 add_Subdirectory(pingpong)

@@ -173,16 +173,19 @@ typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_FLAG_HAS_DATA_OUTPUT   ((jdf_flags_t)(1 << 5))
 #define JDF_FUNCTION_FLAG_NO_PREDECESSORS   ((jdf_flags_t)(1 << 6))
 
-#define JDF_FUNCTION_HAS_UD_HASH_STRUCT     ((jdf_flags_t)(1 << 0))
-#define JDF_PROP_UD_MAKE_KEY_FN_NAME        "make_key_fn"
-#define JDF_PROP_UD_HASH_STRUCT_NAME        "hash_struct"
-
+#define JDF_HAS_UD_NB_LOCAL_TASKS              ((jdf_flags_t)(1 << 0))
 #define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"
 
-#define JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN  ((jdf_flags_t)(1 << 2))
+#define JDF_FUNCTION_HAS_UD_HASH_STRUCT        ((jdf_flags_t)(1 << 1))
+#define JDF_PROP_UD_HASH_STRUCT_NAME           "hash_struct"
+
+#define JDF_FUNCTION_HAS_UD_MAKE_KEY           ((jdf_flags_t)(1 << 2))
+#define JDF_PROP_UD_MAKE_KEY_FN_NAME           "make_key_fn"
+
+#define JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN  ((jdf_flags_t)(1 << 3))
 #define JDF_PROP_UD_STARTUP_TASKS_FN_NAME      "startup_fn"
 
-#define JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS  ((jdf_flags_t)(1 << 3))
+#define JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS  ((jdf_flags_t)(1 << 4))
 #define JDF_PROP_UD_FIND_DEPS_FN_NAME          "find_deps_fn"
 #define JDF_PROP_UD_ALLOC_DEPS_FN_NAME         "alloc_deps_fn"
 #define JDF_PROP_UD_FREE_DEPS_FN_NAME          "free_deps_fn"

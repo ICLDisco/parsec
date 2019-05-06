@@ -1361,10 +1361,13 @@ static void jdf_generate_structure(jdf_t *jdf)
 
     coutput("  /* The ranges to compute the hash key */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
-        if( f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT )
-            continue;
-        for(pl = f->parameters; pl != NULL; pl = pl->next) {
-            coutput("  int %s_%s_range;\n", f->fname, pl->name);
+        if( 0 == (f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY) ) {
+            for(pl = f->parameters; pl != NULL; pl = pl->next) {
+                coutput("  int %s_%s_range;\n", f->fname, pl->name);
+            }
+        } else {
+            coutput("  /* nothing for %s as it gets a user-defined make_key */\n",
+                    f->fname);
         }
     }
 
@@ -2624,12 +2627,15 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
 
     (void)jdf;
     
-    if( f->parameters == NULL ) {
-        /* There are no parameters for this task class */
+    if( f->parameters == NULL || (0 != (f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY)) ) {
+        /* There are no parameters for this task class, or we don't know how to inverse the key.
+         * If the user knows how to print properly, she can define the hash struct entirely;
+         * as this is only for debug / human-readable error messages, we bailout and just print the key
+         * instead of forcing to compute the range only for that. */
         coutput("static char *%s_key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)\n"
                 "{\n"
                 "  (void)user_data;\n"
-                "  snprintf(buffer, buffer_size, \"()\");\n"
+                "  snprintf(buffer, buffer_size, \"(%%llu)\", (unsigned long long int)k);\n"
                 "  return buffer;\n"
                 "}\n"
                 "\n",
@@ -2658,7 +2664,7 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
         string_arena_free(sa_format);
         string_arena_free(sa_params);
     }
-    
+
     coutput("static parsec_key_fn_t %s = {\n"
             "   .key_equal = parsec_hash_table_generic_64bits_key_equal,\n"
             "   .key_print = %s_key_print,\n"
@@ -2684,20 +2690,26 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     sa2 = string_arena_new(64);
     sa_end = string_arena_new(64);
 
-    need_min_max = (0 == (f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS ) ||
-                    0 == (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT ));
-    need_to_count_tasks = (NULL == jdf_property_get_function(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL));
+    need_min_max = (0 == (f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY));
+    need_to_count_tasks = (0 == (f->user_defines & JDF_HAS_UD_NB_LOCAL_TASKS));
     need_to_iterate = need_min_max || need_to_count_tasks;
 
-    if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE &&
-        0 == (f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
-        asprintf(&dep_key_fn_name, "%s_%s_deps_key_functions", jdf_basename, fname);
-        jdf_generate_deps_key_functions(jdf, f, dep_key_fn_name);
+    if( 0 != (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT) ) {
+        dep_key_fn_name = strdup( jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL) );
+    } else {
+        if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE) {
+            asprintf(&dep_key_fn_name, "%s_%s_deps_key_functions", jdf_basename, fname);
+            jdf_generate_deps_key_functions(jdf, f, dep_key_fn_name);
+        }
     }
 
-    coutput("static int %s(parsec_execution_stream_t * es, %s * this_task)\n"
+    coutput("/* Needs: %s %s %s */\n"
+            "static int %s(parsec_execution_stream_t * es, %s * this_task)\n"
             "{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t*)this_task->taskpool;\n",
+            need_min_max ? "min-max" : "-",
+            need_to_count_tasks ? "count-tasks" : "-",
+            need_to_iterate ? "iterate" : "-",
             fname, parsec_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename);
 
@@ -2763,15 +2775,17 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 coutput("%s    %s%s_inc = %s;\n",
                         indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info));
 
-                coutput("%s    __%s_min = parsec_imin(%s%s_start, %s%s_end);\n",
-                        indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name);
-                coutput("%s    __%s_max = parsec_imax(%s%s_start, %s%s_end);\n",
-                        indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name);
-                coutput("%s    __jdf2c_%s_min = parsec_imin(__jdf2c_%s_min, __%s_min);\n",
-                        indent(nesting), dl->name, dl->name, dl->name);
-                coutput("%s    __jdf2c_%s_max = parsec_imax(__jdf2c_%s_max, __%s_max);\n",
-                        indent(nesting), dl->name, dl->name, dl->name);
-
+                if( need_min_max ) {
+                    coutput("%s    __%s_min = parsec_imin(%s%s_start, %s%s_end);\n",
+                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name);
+                    coutput("%s    __%s_max = parsec_imax(%s%s_start, %s%s_end);\n",
+                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name);
+                    coutput("%s    __jdf2c_%s_min = parsec_imin(__jdf2c_%s_min, __%s_min);\n",
+                            indent(nesting), dl->name, dl->name, dl->name);
+                    coutput("%s    __jdf2c_%s_max = parsec_imax(__jdf2c_%s_max, __%s_max);\n",
+                            indent(nesting), dl->name, dl->name, dl->name);
+                }
+                
                 /* Adapt the loop condition depending on the value of the increment. We can
                  * now handle both increasing and decreasing execution spaces. */
                 if( JDF_OP_IS_CST(dl->expr->jdf_ta3->op) ) {
@@ -2874,18 +2888,16 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     indent(nesting),
                     indent(nesting));
         }
-        if( need_to_iterate ) {
-            if( ! (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT) ) {
-                coutput("  /* Set the range variables for the collision-free hash-computation */\n");
-                for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
-                    dl = l2p_item->dl;
-                    if( NULL == (pl = l2p_item->pl) ) continue;
-                    if(dl->expr->op == JDF_RANGE) {
-                        coutput("  __parsec_tp->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
-                                f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
-                    } else {
-                        coutput("  __parsec_tp->%s_%s_range = 1;  /* single value, not a range */\n", f->fname, pl->name);
-                    }
+        if( need_min_max ) {
+            coutput("  /* Set the range variables for the collision-free hash-computation */\n");
+            for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
+                dl = l2p_item->dl;
+                if( NULL == (pl = l2p_item->pl) ) continue;
+                if(dl->expr->op == JDF_RANGE) {
+                    coutput("  __parsec_tp->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
+                            f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
+                } else {
+                    coutput("  __parsec_tp->%s_%s_range = 1;  /* single value, not a range */\n", f->fname, pl->name);
                 }
             }
         }
@@ -2923,7 +2935,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
             coutput("  __parsec_tp->super.super.dependencies_array[%d] = dep;\n",
                     f->task_class_id);
-        } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
+        } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ||
+                   0 != (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT)) {
             coutput("  __parsec_tp->super.super.dependencies_array[%d] = OBJ_NEW(parsec_hash_table_t);\n"
                     "  parsec_hash_table_init(__parsec_tp->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), 10, %s, this_task->taskpool);\n",
                     f->task_class_id, f->task_class_id, dep_key_fn_name);
@@ -3066,6 +3079,7 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
 
 static void jdf_generate_release_task_fct(const jdf_t *jdf, jdf_function_entry_t *f, const char *prefix)
 {
+    (void)jdf;
     coutput("static parsec_hook_return_t %s(parsec_execution_stream_t *es, parsec_task_t *this_task)\n"
             "{\n"
             "    const __parsec_%s_internal_taskpool_t *__parsec_tp =\n"
@@ -3080,7 +3094,7 @@ static void jdf_generate_release_task_fct(const jdf_t *jdf, jdf_function_entry_t
                 "    parsec_thread_mempool_free(hash_dep->mempool_owner, hash_dep);\n",
                 f->task_class_id);
     }
-    if( NULL != jdf_property_get_function(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL) ) {
+    if( f->user_defines & JDF_HAS_UD_NB_LOCAL_TASKS ) {
         coutput("    if( (PARSEC_UNDETERMINED_NB_TASKS == __parsec_tp->super.super.nb_tasks) ||\n"
                 "        (0 == __parsec_tp->super.super.nb_tasks) ) {\n"
                 "        /* don't spend time counting */\n"
@@ -3603,8 +3617,6 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             coutput("  %s(__parsec_tp, __parsec_tp->super.super.dependencies_array[%d]);\n",
                     jdf_property_get_function(f->properties, JDF_PROP_UD_FREE_DEPS_FN_NAME, NULL),
                     f->task_class_id);
-            /* coutput("  %s(handle, handle->super.super.dependencies_array[%d]);\n", */
-            /*         jdf_property_get_function(f->properties, JDF_PROP_UD_FREE_DEPS_FN_NAME, NULL), */
 
         }
         coutput("  __parsec_tp->super.super.dependencies_array[%d] = NULL;\n",
@@ -3845,113 +3857,70 @@ static jdf_name_list_t *definition_is_parameter(const jdf_function_entry_t *f, c
 
 static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_entry_t *f)
 {
-    string_arena_t *sa_format = string_arena_new(64);
-    string_arena_t *sa_params = string_arena_new(64);
     string_arena_t *sa_range_multiplier = string_arena_new(64);
-    jdf_name_list_t *nl;
     jdf_def_list_t *dl;
     expr_info_t info;
     int idx;
 
-    coutput("static inline parsec_key_t %s(const parsec_taskpool_t *tp, const assignment_t *as)\n"
-            "{\n",
-            jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
-    if( f->parameters == NULL ) {
-        coutput("  return (parsec_key_t)0;\n"
-                "}\n");
-    } else {
-        coutput( "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)tp;\n"
-                 "  const %s *assignment = (const %s*)as;\n"
-                 "  uintptr_t __parsec_id = 0;\n",
-                 jdf_basename, jdf_basename,
-                 parsec_get_name(jdf, f, "assignment_t"), parsec_get_name(jdf, f, "assignment_t"));
+    if( !(f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY) ) {
+        coutput("static inline parsec_key_t %s(const parsec_taskpool_t *tp, const assignment_t *as)\n"
+                "{\n",
+                jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
+        if( f->parameters == NULL ) {
+            coutput("  return (parsec_key_t)0;\n"
+                    "}\n");
+        } else {
+            coutput( "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)tp;\n"
+                     "  const %s *assignment = (const %s*)as;\n"
+                     "  uintptr_t __parsec_id = 0;\n",
+                     jdf_basename, jdf_basename,
+                     parsec_get_name(jdf, f, "assignment_t"), parsec_get_name(jdf, f, "assignment_t"));
             
-        info.prefix = "";
-        info.suffix = "";
-        info.sa = sa_range_multiplier;
-        info.assignments = "assignment";
+            info.prefix = "";
+            info.suffix = "";
+            info.sa = sa_range_multiplier;
+            info.assignments = "assignment";
 
-        idx = 0;
-        for(dl = f->locals; dl != NULL; dl = dl->next) {
-            string_arena_init(sa_range_multiplier);
-            
-            coutput("  const int %s = assignment->%s.value;\n",
-                    dl->name, dl->name);
-
-            if( definition_is_parameter(f, dl) != NULL ) {
-                if( dl->expr->op == JDF_RANGE ) {
-                    coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+            idx = 0;
+            for(dl = f->locals; dl != NULL; dl = dl->next) {
+                string_arena_init(sa_range_multiplier);
+                
+                coutput("  const int %s = assignment->%s.value;\n",
+                        dl->name, dl->name);
+                
+                if( definition_is_parameter(f, dl) != NULL ) {
+                    if( dl->expr->op == JDF_RANGE ) {
+                        coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+                    } else {
+                        coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr, &info));
+                    }
                 } else {
-                    coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr, &info));
+                    /* IDs should depend only on the parameters of the
+                     * function. However, we might need the other definitions because
+                     * the min expression of the parameters might depend on them. If
+                     * this is not the case, a quick "(void)" removes the warning.
+                     */
+                    coutput("  (void)%s;\n", dl->name);
                 }
-            } else {
-                /* IDs should depend only on the parameters of the
-                 * function. However, we might need the other definitions because
-                 * the min expression of the parameters might depend on them. If
-                 * this is not the case, a quick "(void)" removes the warning.
-                 */
-                coutput("  (void)%s;\n", dl->name);
+                idx++;
             }
-            idx++;
-        }
 
-        string_arena_init(sa_range_multiplier);
-        for(dl = f->locals; dl != NULL; dl = dl->next) {
-            if( definition_is_parameter(f, dl) != NULL ) {
-                coutput("  __parsec_id += (%s - %s%s_min)%s;\n", dl->name, JDF2C_NAMESPACE, dl->name, string_arena_get_string(sa_range_multiplier));
-                string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, dl->name);
+            string_arena_init(sa_range_multiplier);
+            for(dl = f->locals; dl != NULL; dl = dl->next) {
+                if( definition_is_parameter(f, dl) != NULL ) {
+                    coutput("  __parsec_id += (%s - %s%s_min)%s;\n", dl->name, JDF2C_NAMESPACE, dl->name, string_arena_get_string(sa_range_multiplier));
+                    string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, dl->name);
+                }
             }
-        }
 
-        coutput("  (void)__parsec_tp;\n"
-                "  return (parsec_key_t)__parsec_id;\n"
-                "}\n");
-    }
-
-    if( f->parameters == NULL ) {
-        /* There are no parameters for this task class */
-        coutput("static char *%s_%s_key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)\n"
-                "{\n"
-                "  (void)user_data;\n"
-                "  snprintf(buffer, buffer_size, \"()\");\n"
-                "  return buffer;\n"
-                "}\n"
-                "\n",
-                jdf_basename, f->fname);
-    } else {
-        coutput("static char *%s_%s_key_print(char *buffer, size_t buffer_size, parsec_key_t __parsec_key_, void *user_data)\n"
-                "{\n"
-                "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)user_data;\n"
-                "  uintptr_t __parsec_key = (uintptr_t)__parsec_key_;\n",
-                jdf_basename, f->fname,
-                jdf_basename, jdf_basename);
-        
-        for(nl = f->parameters; NULL != nl; nl = nl->next) {
-            coutput("  int %s = __parsec_key %% __parsec_tp->%s_%s_range;\n"
-                    "  __parsec_key /=  __parsec_tp->%s_%s_range;\n",
-                    nl->name, f->fname, nl->name,
-                    f->fname, nl->name);
-            string_arena_add_string(sa_format, "%%d%s", nl->next == NULL ? "" : ", ");
-            string_arena_add_string(sa_params, "%s%s", nl->name, nl->next == NULL ? "" : ", ");
+            coutput("  (void)__parsec_tp;\n"
+                    "  return (parsec_key_t)__parsec_id;\n"
+                    "}\n");
         }
-        coutput("  snprintf(buffer, buffer_size, \"%s(%s)\", %s);\n"
-                "  return buffer;\n"
-                "}\n"
-                "\n",
-                f->fname, string_arena_get_string(sa_format), string_arena_get_string(sa_params));
-        string_arena_free(sa_format);
-        string_arena_free(sa_params);
     }
 
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT) ) {
-        coutput("static parsec_key_fn_t %s = {\n"
-                "   .key_equal = parsec_hash_table_generic_64bits_key_equal,\n"
-                "   .key_print = %s_%s_key_print,\n"
-                "   .key_hash  = parsec_hash_table_generic_64bits_key_hash\n"
-                "};\n"
-                "\n",
-                jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL),
-                jdf_basename, f->fname);
+        jdf_generate_deps_key_functions(jdf, f, jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL));
     }
 
     string_arena_free(sa_range_multiplier);
@@ -3962,9 +3931,7 @@ static void jdf_generate_hashfunctions(const jdf_t *jdf)
     jdf_function_entry_t *f;
 
     for(f = jdf->functions; f != NULL; f = f->next) {
-        if( ! (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT) ) {
-            jdf_generate_hashfunction_for(jdf, f);
-        }
+        jdf_generate_hashfunction_for(jdf, f);
     }
 }
 
@@ -6217,22 +6184,21 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
     jdf_expr_t* expr;
     char *tmp;
     int rc;
+    int global_nb_local_tasks = 0;
 
     if( NULL != (expr = jdf_find_property(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, &property)) ) {
         var_to_c_code(expr);
+        global_nb_local_tasks = JDF_HAS_UD_NB_LOCAL_TASKS;
     }
 
     for(f = jdf->functions; NULL != f; f = f->next) {
-        if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL) &&
-            NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL) ) {
-            rc = asprintf(&tmp, JDF2C_NAMESPACE"make_key_%s", f->fname);
-            if (rc == -1) {
-                jdf_fatal(JDF_OBJECT_LINENO(f->properties),
-                          "Out of ressource to generate the function name make_key_%s\n", f->fname);
-                exit(1);
-            }
-            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, tmp);
-            free(tmp);
+        /* We store the global UD flag about counting the number of local tasks in each
+         * task class, for easy and unified checks, but all tasks have the same flag on
+         * xor off, as nb_local_tasks must be define globally for the taskpool in order
+         * to enable the undetermined number of tasks feature. */
+        f->user_defines |= global_nb_local_tasks;
+        
+        if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL) ) {
             rc = asprintf(&tmp, JDF2C_NAMESPACE"key_fns_%s", f->fname);
             if (rc == -1) {
                 jdf_fatal(JDF_OBJECT_LINENO(f->properties),
@@ -6241,26 +6207,26 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             }
             (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, tmp);
             free(tmp);
-            
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_HASH_STRUCT;
         } else {
-            if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL) ||
-                NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL) ) {
-                jdf_fatal(JDF_OBJECT_LINENO(f->properties),
-                          "Error in user-defined functions of task class %s:\n"
-                          "both make_key function and key_fns structure must be defined if one is\n",
-                          f->fname);
-                exit(1);
-            }
             f->user_defines |= JDF_FUNCTION_HAS_UD_HASH_STRUCT;
         }
-
-        if( NULL != (expr = jdf_find_property(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, &property)) ) {
-            var_to_c_code(expr);
-            f->flags |= JDF_FUNCTION_FLAG_CAN_BE_STARTUP;
-            f->user_defines |= JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN;
+        
+        if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL) ) {
+            rc = asprintf(&tmp, JDF2C_NAMESPACE"make_key_%s", f->fname);
+            if (rc == -1) {
+                jdf_fatal(JDF_OBJECT_LINENO(f->properties),
+                          "Out of ressource to generate the function name make_key_%s\n", f->fname);
+                exit(1);
+            }
+            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, tmp);
+            free(tmp);
+            f->user_defines &= ~JDF_FUNCTION_HAS_UD_MAKE_KEY;
         } else {
-            f->user_defines &= ~JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN;
+            f->user_defines |= JDF_FUNCTION_HAS_UD_MAKE_KEY;
+        }
+        
+        if( NULL == (expr = jdf_find_property(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, &property)) ) {
             if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
                 rc = asprintf(&tmp, JDF2C_NAMESPACE"startup_%s", f->fname);
                 if (rc == -1) {
@@ -6270,6 +6236,11 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
                 }
                 (void)jdf_add_function_property(&f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, tmp);
             }
+            f->user_defines &= ~JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN;
+        } else {
+            var_to_c_code(expr);
+            f->flags |= JDF_FUNCTION_FLAG_CAN_BE_STARTUP;
+            f->user_defines |= JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN;
         }
 
         if( NULL != (expr = jdf_find_property(f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, &property)) ) {
@@ -6292,8 +6263,6 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             }
             f->user_defines |= JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS;
         } else {
-            f->user_defines &= ~JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS;
-
             if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
                 (void)jdf_add_function_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, "parsec_default_find_deps");
             } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
@@ -6301,6 +6270,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             } else {
                 assert(0);
             }
+            f->user_defines &= ~JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS;
         }
     }
 }
