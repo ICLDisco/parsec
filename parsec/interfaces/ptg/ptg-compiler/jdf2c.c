@@ -2650,12 +2650,12 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
                 sname,
                 jdf_basename, jdf_basename);
         for(nl = f->parameters; NULL != nl; nl = nl->next) {
-                coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range;\n"
-                        "  __parsec_key = __parsec_key / __parsec_tp->%s_%s_range;\n",
-                        nl->name, f->fname, nl->name,
-                        f->fname, nl->name);
-                string_arena_add_string(sa_format, "%%d%s", nl->next == NULL ? "" : ", ");
-                string_arena_add_string(sa_params, "%s%s", nl->name, nl->next == NULL ? "" : ", ");
+            coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range;\n"
+                    "  __parsec_key = __parsec_key / __parsec_tp->%s_%s_range;\n",
+                    nl->name, f->fname, nl->name,
+                    f->fname, nl->name);
+            string_arena_add_string(sa_format, "%%d%s", nl->next == NULL ? "" : ", ");
+            string_arena_add_string(sa_params, "%s%s", nl->name, nl->next == NULL ? "" : ", ");
         }
         coutput("  snprintf(buffer, buffer_size, \"%s(%s)\", %s);\n"
                 "  return buffer;\n"
@@ -2694,10 +2694,13 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     need_to_count_tasks = (0 == (f->user_defines & JDF_HAS_UD_NB_LOCAL_TASKS));
     need_to_iterate = need_min_max || need_to_count_tasks;
 
-    if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE &&
-        0 == (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT)) {
-        asprintf(&dep_key_fn_name, "%s_%s_deps_key_functions", jdf_basename, fname);
-        jdf_generate_deps_key_functions(jdf, f, dep_key_fn_name);
+    if( 0 != (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT) ) {
+        dep_key_fn_name = strdup( jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL) );
+    } else {
+        if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE) {
+            asprintf(&dep_key_fn_name, "%s_%s_deps_key_functions", jdf_basename, fname);
+            jdf_generate_deps_key_functions(jdf, f, dep_key_fn_name);
+        }
     }
 
     coutput("/* Needs: %s %s %s */\n"
@@ -2932,7 +2935,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
             coutput("  __parsec_tp->super.super.dependencies_array[%d] = dep;\n",
                     f->task_class_id);
-        } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
+        } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ||
+                   0 != (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT)) {
             coutput("  __parsec_tp->super.super.dependencies_array[%d] = OBJ_NEW(parsec_hash_table_t);\n"
                     "  parsec_hash_table_init(__parsec_tp->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), 10, %s, this_task->taskpool);\n",
                     f->task_class_id, f->task_class_id, dep_key_fn_name);

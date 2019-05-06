@@ -14,6 +14,13 @@ static int ud_startup1(parsec_execution_stream_t * es,
                        struct __parsec_udf_UD_STARTUP1_task_s * this_task);
 static int ud_startup2(parsec_execution_stream_t * es,
                        struct __parsec_udf_UD_STARTUP2_task_s * this_task);
+		       
+static char *ud_key_print(char *buffer, size_t buffer_size, parsec_key_t __parsec_key_, void *user_data);
+static parsec_key_fn_t ud_hash_struct = {
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
+    .key_print = ud_key_print,
+    .key_hash  = parsec_hash_table_generic_64bits_key_hash
+};
 
 %}
 
@@ -64,6 +71,20 @@ BODY
 }
 END
 
+UD_HASH_STRUCT(m, n) [ hash_struct = ud_hash_struct ]
+  m = 0 .. A->super.mt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_HASHSTRUCT); %}
+  n = 0 .. A->super.nt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_HASHSTRUCT); %}
+
+: A(m, n)
+
+READ X <- A(m, n)
+
+BODY
+{
+    /* Nothing */
+}
+END
+
 UD_STARTUP2(m, n) [ make_key_fn = ud_make_key
                    startup_fn = ud_startup2 ]
   m = 0 .. A->super.mt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_MAKEKEY_STARTUP); %}
@@ -85,7 +106,7 @@ static int ud_nbtasks_nb_local_tasks(struct __parsec_udf_internal_taskpool_s *tp
 {
   parsec_udf_taskpool_t *utp = (parsec_udf_taskpool_t*)tp;
   two_dim_block_cyclic_t *a = utp->_g_A;
-  return a->super.nb_local_tiles * 4;
+  return a->super.nb_local_tiles * 5;
 }
 
 static parsec_key_t ud_make_key(const parsec_taskpool_t *tp, const assignment_t *locals)
@@ -165,6 +186,17 @@ static int ud_startup2(parsec_execution_stream_t * es, __parsec_udf_UD_STARTUP2_
   }
   
   return PARSEC_HOOK_RETURN_DONE;
+}
+ 
+static char *ud_key_print(char *buffer, size_t buffer_size, parsec_key_t __parsec_key_, void *user_data)
+{
+    const __parsec_udf_internal_taskpool_t *__parsec_tp =
+        (const __parsec_udf_internal_taskpool_t *) user_data;
+    unsigned long long __parsec_key = (unsigned long long)__parsec_key_;
+    int m = __parsec_key / __parsec_tp->super._g_A->super.mt;
+    int n = __parsec_key % __parsec_tp->super._g_A->super.mt;
+    snprintf(buffer, buffer_size, "UD_HASH_STRUCT*(%d, %d)", m, n);
+    return buffer;
 }
 
 %}
