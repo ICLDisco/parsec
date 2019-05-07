@@ -531,10 +531,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->comm_ctx            = NULL;
     context->my_rank             = 0;
     context->nb_vp               = nb_vp;
-    /* initialize dtd taskpool array */
-    context->taskpool_array_size     = 1;
-    context->taskpool_array_occupied = 0;
-    context->taskpool_array          = NULL;
+    /* initialize dtd taskpool list */
+    context->taskpool_list       = NULL;
 #if defined(PARSEC_SIM)
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */
@@ -895,8 +893,8 @@ int parsec_fini( parsec_context_t** pcontext )
     if( __parsec_dtd_is_initialized ) {
         parsec_dtd_fini();
         /* clean dtd taskpool array */
-        free(context->taskpool_array);
-        context->taskpool_array = NULL;
+        OBJ_RELEASE(context->taskpool_list);
+        context->taskpool_list = NULL;
     }
 
     /**

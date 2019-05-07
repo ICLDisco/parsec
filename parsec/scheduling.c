@@ -542,6 +542,12 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
 
   skip_first_barrier:
     while( !all_tasks_done(parsec_context) ) {
+
+        if(PARSEC_THREAD_IS_MASTER(es)) {
+            /* Here we detach all dtd taskpools registered with us */
+            parsec_detach_all_dtd_taskpool_from_context(parsec_context);
+        }
+
 #if defined(DISTRIBUTED)
         if( (1 == parsec_communication_engine_up) &&
             (es->virtual_process[0].parsec_context->nb_nodes == 1) &&
@@ -828,9 +834,6 @@ int parsec_context_wait( parsec_context_t* context )
         (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );
         return -1;
     }
-
-    /* Here we wait on all dtd taskpools registered with us */
-    parsec_detach_all_dtd_taskpool_from_context( context );
 
     ret = __parsec_context_wait( context->virtual_processes[0]->execution_streams[0] );
 
