@@ -23,6 +23,7 @@
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/class/list.h"
 #include "parsec/utils/debug.h"
+#include "parsec/dictionary.h"
 
 #include <signal.h>
 #if defined(PARSEC_HAVE_STRING_H)
@@ -749,6 +750,10 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     } else {
         parsec_check_complete_cb(tp, context, tp->nb_pending_actions);
     }
+
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_add_taskpool_properties(tp);
+#endif
 
     return 0;
 }

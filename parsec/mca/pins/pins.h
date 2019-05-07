@@ -35,7 +35,7 @@ typedef enum PINS_FLAG {
     DATA_FLUSH_BEGIN,
     DATA_FLUSH_END,
     EXEC_BEGIN,          // called before thread executes a task
-    EXEC_END,            // called before thread executes a task
+    EXEC_END,            // called after thread executes a task
     COMPLETE_EXEC_BEGIN, // called before scheduler adds a newly-enabled task
     COMPLETE_EXEC_END,   // called after scheduler adds a newly-enabled task
     /* what follows are Special Events. They do not necessarily
@@ -55,11 +55,23 @@ typedef enum PINS_FLAG {
 BEGIN_C_DECLS
 
 /*
+ * These functions should see the profiling dictionary and register properties inside
+ */
+typedef int (*parsec_pins_profiling_register_func_t)(void);
+
+/*
+ * Structure for function pointers to register profiling stuff
+ */
+typedef struct parsec_pins_base_module_profiling_s {
+    parsec_pins_profiling_register_func_t     register_properties;
+} parsec_pins_base_module_profiling_t;
+
+/*
  * Structures for pins components
  */
 struct parsec_pins_base_component_2_0_0 {
-    mca_base_component_2_0_0_t base_version;
-    mca_base_component_data_2_0_0_t base_data;
+    mca_base_component_2_0_0_t        base_version;
+    mca_base_component_data_2_0_0_t   base_data;
 };
 
 typedef struct parsec_pins_base_component_2_0_0 parsec_pins_base_component_2_0_0_t;
@@ -89,8 +101,9 @@ typedef struct parsec_pins_base_module_1_0_0_t parsec_pins_base_module_1_0_0_t;
 typedef struct parsec_pins_base_module_1_0_0_t parsec_pins_base_module_t;
 
 typedef struct {
-    const parsec_pins_base_component_t *component;
-    parsec_pins_base_module_t     module;
+    const parsec_pins_base_component_t      *component;
+    parsec_pins_base_module_t                module;
+    parsec_pins_base_module_profiling_t      init_profiling;
 } parsec_pins_module_t;
 
 /*

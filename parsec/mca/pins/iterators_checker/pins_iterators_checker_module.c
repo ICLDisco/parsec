@@ -34,7 +34,8 @@ const parsec_pins_module_t parsec_pins_iterators_checker_module = {
         NULL,
         pins_thread_init_iterators_checker,
         pins_thread_fini_iterators_checker
-    }
+    },
+    { NULL }
 };
 
 static void pins_thread_init_iterators_checker(struct parsec_execution_stream_s* es)

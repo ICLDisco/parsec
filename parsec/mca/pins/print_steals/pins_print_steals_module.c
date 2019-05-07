@@ -25,7 +25,8 @@ const parsec_pins_module_t parsec_pins_print_steals_module = {
         NULL,
         pins_thread_init_print_steals,
         pins_thread_fini_print_steals
-    }
+    },
+    { NULL }
 };
 
 typedef struct parsec_pins_print_steals_data_s {

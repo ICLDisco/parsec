@@ -90,7 +90,7 @@ typedef void (*parsec_destruct_fn_t)(parsec_taskpool_t* tp);
 struct parsec_taskpool_s {
     parsec_list_item_t         super;     /**< A PaRSEC taskpool is also a list_item, so it can be chained into different lists */
     uint32_t                   taskpool_id; /**< Taskpool are uniquely globally consistently named */
-    char*                      taskpool_name; /**< Handles are not uniquely named for profiling */
+    char*                      taskpool_name; /**< Taskpools are not uniquely named for profiling */
     volatile int32_t           nb_tasks;  /**< A placeholder for the upper level to count (if necessary) the tasks
                                            *   in the taskpool. This value is checked upon each task completion by
                                            *   the runtime, to see if the taskpool is completed (a nb_tasks equal
