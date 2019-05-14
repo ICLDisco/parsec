@@ -217,6 +217,12 @@ sub outputNode {
   print "$ID [pencolor=\"#$nodeline\",shape=\"$nodeshape\",style=filled,fillcolor=\"#$nodefill\",fontcolor=\"black\",label=\"$label\"];\n"
 }
 
+sub outputMem {
+  my ($DC, $KEY, $LABEL) = @_;
+
+  print "${DC}_${KEY} [label=\"${LABEL}\",shape=\"circle\"];\n"
+}
+
 sub nodeRank {
   my ($ID) = @_;
   return $TASKS->{$ID}->{R};
@@ -234,6 +240,10 @@ sub computeSpaceNode {
   $TASKS->{$ID}->{'T'} = $T;
 }
 
+sub ignoreMem {
+  my ($DC, $KEY, $LABEL) = @_;
+}
+
 sub ignored {
   my ($k) = @_;
   foreach my $y ( keys %{$ignore} ) {
@@ -245,7 +255,8 @@ sub ignored {
 }
 
 sub onNodes {
-  my $fct = shift;
+  my $taskfct = shift;
+  my $memfct = shift;
   my @argv = @_;
 
   my $R=0;
@@ -261,10 +272,15 @@ sub onNodes {
       my ($ID, $COLOR, $T, $V, $K, $P, $op, $p);
       if( ($ID, $COLOR, $T, $V, $K, $P, $op, $p) = ($line =~ /^([^ ]+) \[shape="[^"]+",style=filled,fillcolor="#(......)",fontcolor="black",label="<([0-9]+)\/([0-9]+)> ([^(]+)\(([^\)]*)\)\[([^>]*)\]<([^>]+)>/) ) {
         if( !ignored($K) ) {
-          $fct->($ID, $R, $V, $T, $K, $P, $op, $p);
+          $taskfct->($ID, $R, $V, $T, $K, $P, $op, $p);
         }
       } else {
-        print STDERR "  Error on $f:$lnb malformed line $line\n";
+	my ($DC, $KEY, $LABEL);
+	if ( ($DC, $KEY, $LABEL) = ($line =~ /^([^_]+)_([^ ]+) \[label="([^"]+)"/ ) ) {
+	  $memfct->($DC, $KEY, $LABEL);
+	} else {
+	  print STDERR "  Error on $f:$lnb malformed line $line\n";
+	}
       }
     }
     $R++;
@@ -272,7 +288,7 @@ sub onNodes {
   }
 }
 
-sub outputLink {
+sub outputTaskOnlyLink {
   my ($ID1, $ID2, $VSRC, $VDST, $NSRC, $NDST, $EL) = @_;
   my $label = $linkfmt;
 
@@ -302,8 +318,14 @@ sub outputLink {
   print "$ID1 -> $ID2 [label=\"$label\" color=\"#$color\" style=\"$style\"];\n";
 }
 
+sub outputDataLink {
+  my ($ID1, $ID2, $FLOW) = @_;
+  print "$ID1 -> $ID2 [label=\"$FLOW\"];\n";
+}
+
 sub onLinks {
-  my $fct = shift;
+  my $tofct = shift;
+  my $dfct = shift;
   my @argv = @_;
 
   my $R=0;
@@ -316,7 +338,7 @@ sub onLinks {
       next if ($line =~ /^digraph G \{$/);
       last if ($line =~ /^\}/);
       next unless ($line =~ / -> /);
-      my ($ID1, $ID2, $VSRC, $VDST, $COLOR, $NSRC, $NDST);
+      my ($ID1, $ID2, $VSRC, $VDST, $COLOR, $NSRC, $NDST, $FLOW);
       if( ($ID1, $ID2, $VSRC, $VDST, $COLOR) = ($line =~ /^([^ ]+) -> ([^ ]+) \[label="([^=]+)=>([^"]+)",color="#(......)"/) ) {
         if( exists($TASKS->{$ID1}) ) {
           $NSRC=nodeRank($ID1);
@@ -329,9 +351,15 @@ sub onLinks {
 	  $NDST="Unknown";
 	}
 	my $EL=( $COLOR eq "00FF00" );
-	$fct->($ID1, $ID2, $VSRC, $VDST, $NSRC, $NDST, $EL);
+	$tofct->($ID1, $ID2, $VSRC, $VDST, $NSRC, $NDST, $EL);
       } else {
-        print STDERR "  Error on $f:$lnb malformed line $line\n";
+	if( ($ID1, $ID2, $FLOW) = ($line =~ /([^ ]+) -> ([^ ]+) \[label="([^"]+)"\]/ ) ) {
+	  if( !ignored($ID1) && !ignored($ID2) ) {
+	    $dfct->($ID1, $ID2, $FLOW);
+	  }
+	} else {
+	  print STDERR "  Error on $f:$lnb malformed line $line\n";
+	}
       }
     }
     $R++;
@@ -340,7 +368,7 @@ sub onLinks {
 }
 
 print "digraph G {\n";
-onNodes(\&computeSpaceNode, @{$inputs});
-onNodes(\&outputNode, @{$inputs});
-onLinks(\&outputLink, @{$inputs});
+onNodes(\&computeSpaceNode, \&ignoreMem, @{$inputs});
+onNodes(\&outputNode, \&outputMem, @{$inputs});
+onLinks(\&outputTaskOnlyLink, \&outputDataLink, @{$inputs});
 print "}\n";

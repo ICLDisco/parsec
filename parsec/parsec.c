@@ -1072,8 +1072,9 @@ parsec_check_IN_dependencies_with_mask(const parsec_taskpool_t *tp,
                             continue;  /* doesn't match */
                         /* the condition triggered let's check if it's for a data */
                     }  /* otherwise we have an input flow without a condition, it MUST be final */
-                    if( PARSEC_LOCAL_DATA_TASK_CLASS_ID == dep->task_class_id )
+                    if( PARSEC_LOCAL_DATA_TASK_CLASS_ID == dep->task_class_id ) {
                         active = (1 << flow->flow_index);
+                    }
                     break;
                 }
             }
@@ -1327,6 +1328,8 @@ parsec_update_deps_with_mask(const parsec_taskpool_t *tp,
  * necessarily required for the startup process, but it leaves traces such that
  * all executed tasks will show consistently (no difference between the startup
  * tasks and later tasks).
+ * Since data -> task grapher logging is detected during dependency resolving,
+ * and startup tasks don't have an input dependency, we also resolve this here.
  */
 void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
                                               parsec_execution_stream_t *es)
@@ -1339,7 +1342,7 @@ void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
         *deps = PARSEC_DEPENDENCIES_STARTUP_TASK | tc->dependencies_goal;
     } else {
         *deps = 0;
-    }
+    }    
 }
 
 /*

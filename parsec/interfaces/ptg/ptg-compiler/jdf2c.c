@@ -776,6 +776,17 @@ static char *dump_profiling_init(void **elem, void *arg)
                          PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR, ";", "{int32_t}", "{int32_t}");
 
     string_arena_add_string(info->sa,
+                            "#if defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
+                            "parsec_profiling_add_dictionary_keyword(\"%s (internal init)\", \"fill:%02X%02X%02X\",\n"
+                            "                                       0,\n"
+                            "                                       NULL,\n"
+                            "                                       (int*)&__parsec_tp->super.super.profiling_array[0 + 2 * %s_%s.task_class_id  + 2 * PARSEC_%s_NB_TASK_CLASSES/* %s (internal init) start key */],\n"
+                            "                                       (int*)&__parsec_tp->super.super.profiling_array[1 + 2 * %s_%s.task_class_id  + 2 * PARSEC_%s_NB_TASK_CLASSES/* %s (internal init) end key */]);\n"
+                            "#endif /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n",
+                            fname, 256-R, 256-G, 256-B,
+                            jdf_basename, fname, jdf_basename, fname,
+                            jdf_basename, fname, jdf_basename, fname);
+    string_arena_add_string(info->sa,
                             "parsec_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
                             "                                       sizeof(parsec_profile_data_collection_info_t)+%d*sizeof(assignment_t),\n"
                             "                                       \"%s\",\n"
@@ -1390,8 +1401,13 @@ static void jdf_generate_structure(jdf_t *jdf)
     }
     if( need_profile )
         coutput("#if defined(PARSEC_PROF_TRACE)\n"
-                "static int %s_profiling_array[2*PARSEC_%s_NB_TASK_CLASSES] = {-1};\n"
+                "#  if defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
+                "static int %s_profiling_array[4*PARSEC_%s_NB_TASK_CLASSES] = {-1}; /* 2 pairs (begin, end) per task, times two because each task class has an internal_init task */\n"
+                "#  else /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n"
+                "static int %s_profiling_array[2*PARSEC_%s_NB_TASK_CLASSES] = {-1}; /* 2 pairs (begin, end) per task */\n"
+                "#  endif /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n"
                 "#endif  /* defined(PARSEC_PROF_TRACE) */\n",
+                jdf_basename, jdf_basename,
                 jdf_basename, jdf_basename);
 
     UTIL_DUMP_LIST(sa1, jdf->globals, next,
@@ -2544,7 +2560,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s           parsec_task_snprintf(tmp, 128, (parsec_task_t*)new_task));\n"
             "%s  }\n"
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
-
+                
     coutput("%s  parsec_dependencies_mark_task_as_startup((parsec_task_t*)new_task, es);\n"
             "%s  pready_ring = parsec_list_item_ring_push_sorted(pready_ring,\n"
             "%s                                                 (parsec_list_item_t*)new_task,\n"
@@ -2759,6 +2775,15 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_init(sa1);
     string_arena_init(sa2);
 
+    if( profile_enabled(f->properties) ) {
+        coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
+                "  PARSEC_PROFILING_TRACE(es->es_profile,\n"
+                "                         this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id],\n"
+                "                         0,\n"
+                "                         this_task->taskpool->taskpool_id, NULL);\n"
+                "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
+    }
+    
     info.sa = sa1;
     info.prefix = "";
     info.suffix = "";
@@ -2976,12 +3001,27 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
     coutput("    parsec_mfence();\n"
             "    parsec_taskpool_enable((parsec_taskpool_t*)__parsec_tp, &__parsec_tp->startup_queue,\n"
-            "                           (parsec_task_t*)this_task, es, __parsec_tp->super.super.nb_pending_actions);\n"
-            "    return PARSEC_HOOK_RETURN_DONE;\n"
+            "                           (parsec_task_t*)this_task, es, __parsec_tp->super.super.nb_pending_actions);\n");
+    if( profile_enabled(f->properties) ) {
+        coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
+                "    PARSEC_PROFILING_TRACE(es->es_profile,\n"
+                "                           this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id + 1],\n"
+                "                           0,\n"
+                "                           this_task->taskpool->taskpool_id, NULL);\n"
+                "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
+    }
+    coutput("    return PARSEC_HOOK_RETURN_DONE;\n"
             "  }\n");
-
-    coutput("  return (PARSEC_TASK_STATUS_COMPLETE == this_task->status) ? PARSEC_HOOK_RETURN_DONE : PARSEC_HOOK_RETURN_ASYNC;\n");
-    coutput("}\n\n");
+    if( profile_enabled(f->properties) ) {    
+        coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
+                "  PARSEC_PROFILING_TRACE(es->es_profile,\n"
+                "                         this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id + 1],\n"
+                "                         0,\n"
+                "                         this_task->taskpool->taskpool_id, NULL);\n"
+                "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
+    }
+    coutput("  return (PARSEC_TASK_STATUS_COMPLETE == this_task->status) ? PARSEC_HOOK_RETURN_DONE : PARSEC_HOOK_RETURN_ASYNC;\n"
+            "}\n\n");
 
     string_arena_free(sa_end);
     free_l2p(l2p);
@@ -4136,6 +4176,13 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                                    dump_expr, (void*)&info, "", "", ", ", ""),
                     spaces,
                     spaces, f->varname);
+            coutput("#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
+                    "%s  parsec_prof_grapher_data_input(data_of_%s(%s), (parsec_task_t*)this_task, &%s);\n"
+                    "#endif\n",
+                    spaces,
+                    call->func_or_mem, UTIL_DUMP_LIST(sa, call->parameters, next,
+                                                      dump_expr, (void*)&info, "", "", ", ", ""),
+                    JDF_OBJECT_ONAME( f ));
         }
         /* NEW or NULL data */
         else {
@@ -4352,10 +4399,14 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             "      this_task->data._f_%s.data_repo = entry;\n"
             "    } else {\n"
             "      this_task->data._f_%s.data_out = parsec_data_get_copy(chunk->original, target_device);\n"
+            "#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
+            "      parsec_prof_grapher_data_input(chunk->original, (parsec_task_t*)this_task, &%s);\n"
+            "#endif\n"
             "    }\n",
             flow->varname, flow->varname,
             flow->varname,
-            flow->varname);
+            flow->varname,
+            JDF_OBJECT_ONAME( flow ));
     
     string_arena_free(sa);
     if( NULL != sa2 )
@@ -4364,7 +4415,9 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
         string_arena_free(sa_count);
 }
 
-static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_t *call,
+static void jdf_generate_code_call_final_write(const jdf_t *jdf,
+                                               const jdf_function_entry_t *f,
+                                               const jdf_call_t *call,
                                                jdf_datatransfer_type_t datatype,
                                                const char *spaces,
                                                const jdf_dataflow_t *flow)
@@ -4420,6 +4473,11 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 spaces, call->func_or_mem, string_arena_get_string(sa),
                 spaces, flow->varname,
                 spaces);
+        
+        coutput("#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
+                "%s  parsec_prof_grapher_data_output((parsec_task_t*)this_task, data_of_%s(%s), &flow_of_%s_%s_for_%s);\n"
+                "#endif\n",
+                spaces, call->func_or_mem, string_arena_get_string(sa), jdf_basename, f->fname, flow->varname);
     }
 
     string_arena_free(sa);
@@ -4452,14 +4510,14 @@ jdf_generate_code_flow_final_writes(const jdf_t *jdf,
         switch( dl->guard->guard_type ) {
         case JDF_GUARD_UNCONDITIONAL:
             if( dl->guard->calltrue->var == NULL ) {
-                jdf_generate_code_call_final_write( jdf, dl->guard->calltrue, dl->datatype, "", flow );
+                jdf_generate_code_call_final_write( jdf, f, dl->guard->calltrue, dl->datatype, "", flow );
             }
             break;
         case JDF_GUARD_BINARY:
             if( dl->guard->calltrue->var == NULL ) {
                 coutput("  if( %s ) {\n",
                         dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_final_write( jdf, dl->guard->calltrue, dl->datatype, "  ", flow );
+                jdf_generate_code_call_final_write( jdf, f, dl->guard->calltrue, dl->datatype, "  ", flow );
                 coutput("  }\n");
             }
             break;
@@ -4467,16 +4525,16 @@ jdf_generate_code_flow_final_writes(const jdf_t *jdf,
             if( dl->guard->calltrue->var == NULL ) {
                 coutput("  if( %s ) {\n",
                         dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_final_write( jdf, dl->guard->calltrue, dl->datatype, "  ", flow );
+                jdf_generate_code_call_final_write( jdf, f, dl->guard->calltrue, dl->datatype, "  ", flow );
                 if( dl->guard->callfalse->var == NULL ) {
                     coutput("  } else {\n");
-                    jdf_generate_code_call_final_write( jdf, dl->guard->callfalse, dl->datatype, "  ", flow );
+                    jdf_generate_code_call_final_write( jdf, f, dl->guard->callfalse, dl->datatype, "  ", flow );
                 }
                 coutput("  }\n");
             } else if ( dl->guard->callfalse->var == NULL ) {
                 coutput("  if( !(%s) ) {\n",
                         dump_expr((void**)dl->guard->guard, &info));
-                jdf_generate_code_call_final_write( jdf, dl->guard->callfalse, dl->datatype, "  ", flow );
+                jdf_generate_code_call_final_write( jdf, f, dl->guard->callfalse, dl->datatype, "  ", flow );
                 coutput("  }\n");
             }
             break;
