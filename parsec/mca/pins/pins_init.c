@@ -42,13 +42,15 @@ void pins_init(parsec_context_t* master_context)
 #if defined(PARSEC_PROF_TRACE)
     char * modules_activated_str = NULL;
 #endif /* PARSEC_PROF_TRACE */
+    modules_activated = NULL;
+    num_modules_activated = 0;
 
     parsec_debug_verbose(5, parsec_debug_output, "Initialized PaRSEC PINS callbacks to pins_empty_callback()");
     user_list = mca_components_get_user_selection("pins");
     if( NULL == user_list ) {
         parsec_debug_verbose(5, parsec_debug_output, "No PINS component requested by user");
         /* No PINS component requested by user */
-        return;
+        goto end_of_pins_init;
     }
     pins_components = mca_components_open_bytype("pins");
     for(i = 0; pins_components[i] != NULL; i++); /* nothing just counting */
@@ -57,7 +59,6 @@ void pins_init(parsec_context_t* master_context)
     modules_activated_str = (char*)malloc( (MAX_NAME_SIZE+1) * i);
     modules_activated_str[0] = '\0';
 #endif /* PARSEC_PROF_TRACE */
-    num_modules_activated = 0;
 
     for(i = 0; pins_components[i] != NULL; i++) {
         if( mca_components_belongs_to_user_list(user_list, pins_components[i]->mca_component_name) ) {
@@ -95,10 +96,12 @@ void pins_init(parsec_context_t* master_context)
     free(modules_activated_str);
 #endif
 
+ end_of_pins_init:
 #if defined(PARSEC_PROF_TRACE)
     /* Fill dictionary with all the properties exposed by modules compiled AND activated by user */
     parsec_profiling_dictionary_init(master_context, num_modules_activated, modules_activated);
 #endif
+    return;
 }
 
 /**
