@@ -19,6 +19,7 @@
 #include <libxml/parser.h>
 #include <libxml/xpath.h>
 #include <libxml/xpathInternals.h>
+#include <assert.h>
 
 typedef struct property_s        property_t;
 typedef struct function_s        function_t;
@@ -27,6 +28,24 @@ typedef struct category_s        category_t;
 typedef struct profiling_shmem_s profiling_shmem_t;
 
 const int PAGE_SIZE = 4096;
+
+/* UTF8 encoding is of variable size. However, it accepts ASCII,
+ * and only ASCII, on one byte per char, so if the buffer size is
+ * equal to the string length, the buffer can safely be cast to
+ * char* */
+#if !defined(NDEBUG)
+static const char *xml_safe_cast(const xmlChar *b)
+{
+    int len, size;
+    assert(xmlCheckUTF8(b));
+    len = xmlUTF8Strlen(b);
+    size = xmlUTF8Size(b);
+    assert(len == size);
+    return (const char*)b;
+}
+#else
+#define xml_safe_cast(xmlbuffer) ((char*)xmlbuffer)
+#endif
 
 xmlNode *
 findNode(xmlNode *node, const char *target)
@@ -44,22 +63,10 @@ findNode(xmlNode *node, const char *target)
 
 static int parse_int(xmlNode *node)
 {
-    char *buf = xmlNodeGetContent(node);    
-    int value = atoi(buf);
-    free(buf);
+    xmlChar *buf = xmlNodeGetContent(node);
+    int value = atoi(xml_safe_cast(buf));
+    xmlFree(buf);
     return value;
-}
-
-static size_t size_from_type(char c)
-{
-    switch (c) {
-    case 'i': return sizeof(int32_t); break;
-    case 'q': return sizeof(int64_t); break;
-    case 'Q': return sizeof(unsigned long long); break;
-    case 'f': return sizeof(float); break;
-    case 'd': return sizeof(double); break;
-    }
-    return sizeof(int32_t);
 }
 
 struct property_s {
@@ -184,14 +191,15 @@ static void pretty_print(profiling_shmem_t *shmem)
 static void init_property(property_t *property, xmlNode *property_node, function_t *function)
 {
     xmlNode *type_node, *offset_node;
+    xmlChar *buf;
     type_node   = findNode(property_node, "t");
     offset_node = findNode(property_node, "o");
     property->function = function;
-    property->name = strdup(property_node->name);
+    property->name = strdup( xml_safe_cast(property_node->name) );
     property->offset = parse_int(offset_node);
-    char *buf = xmlNodeGetContent(type_node);
-    property->type = buf[0];
-    free(buf);
+    buf = xmlNodeGetContent(type_node);
+    property->type = xml_safe_cast(buf)[0];
+    xmlFree(buf);
     return;
 }
 
@@ -199,7 +207,7 @@ static void init_function(function_t *function, xmlNode *function_node, namespac
 {
     int nb_property = xmlChildElementCount(function_node);
     if (nb_property > 0) {
-        function->name = strdup(function_node->name);
+        function->name = strdup( xml_safe_cast(function_node->name) );
         function->nb_properties = nb_property;
         function->properties = (property_t*)calloc(nb_property, sizeof(property_t));
         function->namespace = namespace;
@@ -219,7 +227,7 @@ static void init_namespace(namespace_t *namespace, xmlNode *namespace_node, cate
 {
     int nb_function = xmlChildElementCount(namespace_node);
     if (nb_function > 0) {
-        namespace->name = strdup(namespace_node->name);
+        namespace->name = strdup( xml_safe_cast(namespace_node->name) );
         namespace->nb_functions = nb_function;
         namespace->functions = (function_t*)calloc(nb_function, sizeof(function_t));
         namespace->category = category;
@@ -240,7 +248,7 @@ static category_t *init_category(xmlNode *category_node)
     category_t *category = (category_t*)calloc(1, sizeof(category_t));
     int nb_namespace = xmlChildElementCount(category_node);
     if (nb_namespace > 0) {
-        category->name = strdup(category_node->name);
+        category->name = strdup( xml_safe_cast(category_node->name) );
         category->nb_namespaces = nb_namespace;
         category->namespaces = (namespace_t*)calloc(nb_namespace, sizeof(namespace_t));        
         xmlNode *cur_node = xmlFirstElementChild(category_node);
@@ -260,7 +268,7 @@ int
 main(int argc, char *argv[])
 {
     int shm_fd;
-    xmlNode *root, *version_node, *application_node, *prank_node, *psize_node, *nb_vp_node, *nb_eu_node,
+    xmlNode *root, *application_node, *prank_node, *psize_node, *nb_vp_node, *nb_eu_node,
         *per_nd_node, *per_vp_node, *per_eu_node,
         *pages_per_nd_node, *pages_per_vp_node, *pages_per_eu_node;
     profiling_shmem_t *shmem = NULL;
@@ -335,7 +343,6 @@ main(int argc, char *argv[])
 
     root = xmlDocGetRootElement(header); /* <?xml ... > */
 
-    version_node     = findNode(root, "version");
     application_node = findNode(root, "application");
 
     prank_node         = findNode(application_node, "prank");
