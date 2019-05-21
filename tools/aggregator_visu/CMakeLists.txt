@@ -10,4 +10,4 @@ find_package(Threads QUIET)
 include_directories(${LIBXML2_INCLUDE_DIR})
 
 add_executable(reader reader.c)
-target_link_libraries(reader ${LIBXML2_LIBRARIES} ${EXTRA_LIBS} -lrt)
+target_link_libraries(reader ${LIBXML2_LIBRARIES} ${EXTRA_LIBS})
