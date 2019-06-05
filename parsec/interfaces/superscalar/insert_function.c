@@ -2534,7 +2534,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
             /* Create Fake output_task */
             parsec_dtd_taskpool_insert_task( this_task->super.taskpool,
                                              &fake_first_out_body, 0, "Fake_FIRST_OUT",
-                                             PASSED_BY_REF, tile, INOUT | AFFINITY,
+                                             PASSED_BY_REF, tile, INOUT | (tile_op_type & GET_REGION_INFO) | AFFINITY,
                                              PARSEC_DTD_ARG_END );
 
             parsec_dtd_last_user_lock( &(tile->last_user) );
