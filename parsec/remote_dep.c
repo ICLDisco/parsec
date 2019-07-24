@@ -36,6 +36,17 @@ static int comm_yield_ns = 5000;
 /* comm_thread_multiple: see values in the corresponding mca_register */
 static int parsec_param_comm_thread_multiple = -1;
 
+#ifdef PARSEC_DIST_COLLECTIVES
+/* comm_coll_bcast: see values in the corresponding mca_register */
+static int parsec_param_comm_coll_bcast = 1;
+static int remote_dep_bcast_chainpipeline_child(int me, int him);
+static int remote_dep_bcast_binomial_child(int me, int him);
+static int remote_dep_bcast_star_child(int me, int him);
+static int (*remote_dep_bcast_child)(int me, int him) = remote_dep_bcast_chainpipeline_child;
+#else
+#define remote_dep_bcast_child(me, him) remote_dep_bcast_start_child(me, him)
+#endif
+
 static int remote_dep_bind_thread(parsec_context_t* context);
 
 /* Clear the already forwarded remote dependency matrix */
@@ -219,9 +230,9 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
 int parsec_remote_dep_init(parsec_context_t* context)
 {
     parsec_mca_param_reg_int_name("runtime", "comm_thread_yield", "Controls the yielding behavior of the communication thread (if applicable).\n"
-                                                                 "  0: the communication thread never yield.\n"
-                                                                 "  1: the communication thread remain active when communication are pending.\n"
-                                                                 "  2: the communication thread yields as soon as it idles.",
+                                                                  "  0: the communication thread never yield.\n"
+                                                                  "  1: the communication thread remain active when communication are pending.\n"
+                                                                  "  2: the communication thread yields as soon as it idles.",
                                  false, false, comm_yield, &comm_yield);
     parsec_mca_param_reg_int_name("runtime", "comm_thread_yield_duration", "Controls how long (in nanoseconds) the communication thread yields (if applicable).",
                                   false, false, comm_yield_ns, &comm_yield_ns);
@@ -248,6 +259,29 @@ int parsec_remote_dep_init(parsec_context_t* context)
     } else {
         parsec_comm_output_stream = parsec_debug_output;
     }
+
+#ifdef PARSEC_DIST_COLLECTIVES
+    parsec_mca_param_reg_int_name("runtime", "comm_coll_bcast", "Controls the default broadcast algorithm topology.\n"
+                                                                "  0: star topology (direct one to all).\n"
+                                                                "  1: chain topology.\n"
+                                                                "  2: binomial topology.\n",
+                                  false, false, parsec_param_comm_coll_bcast, &parsec_param_comm_coll_bcast);
+    switch(parsec_param_comm_coll_bcast) {
+    case 0:
+        remote_dep_bcast_child = remote_dep_bcast_star_child;
+        break;
+    case 1:
+        remote_dep_bcast_child = remote_dep_bcast_chainpipeline_child;
+        break;
+    case 2:
+        remote_dep_bcast_child = remote_dep_bcast_binomial_child;
+        break;
+    default:
+        parsec_warning("Invalid collective type requested %d; using star topology.", parsec_param_comm_coll_bcast);
+        remote_dep_bcast_child = remote_dep_bcast_star_child;
+        break;
+    }
+#endif
 
     (void)remote_dep_init(context);
 
@@ -285,7 +319,20 @@ int parsec_remote_dep_progress(parsec_execution_stream_t* es)
     return remote_dep_progress(es, 1);
 }
 
-static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
+int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp) {
+    return remote_dep_new_taskpool(tp);
+}
+
+#ifdef PARSEC_DIST_COLLECTIVES
+
+static int remote_dep_bcast_star_child(int me, int him)
+{
+    (void)him;
+    if(me == 0) return 1;
+    else return 0;
+}
+
+static int remote_dep_bcast_chainpipeline_child(int me, int him)
 {
     assert(him >= 0);
     if(me == -1) return 0;
@@ -293,8 +340,7 @@ static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
     return 0;
 }
 
-#if defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL)
-static inline int remote_dep_bcast_binomial_child(int me, int him)
+static int remote_dep_bcast_binomial_child(int me, int him)
 {
     int k, mask;
 
@@ -316,34 +362,7 @@ static inline int remote_dep_bcast_binomial_child(int me, int him)
     /* is the remainder suffix "me" ? */
     return him == me;
 }
-#endif  /* defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL) */
 
-static inline int remote_dep_bcast_star_child(int me, int him)
-{
-    (void)him;
-    if(me == 0) return 1;
-    else return 0;
-}
-
-#ifdef PARSEC_DIST_COLLECTIVES
-#define PARSEC_DIST_COLLECTIVES_TYPE_CHAINPIPELINE
-#undef  PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL
-# ifdef PARSEC_DIST_COLLECTIVES_TYPE_CHAINPIPELINE
-#  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
-# elif defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL)
-#  define remote_dep_bcast_child(me, him) remote_dep_bcast_binomial_child(me, him)
-# else
-#  error "INVALID COLLECTIVE TYPE. YOU MUST DEFINE ONE COLLECTIVE TYPE WHEN ENABLING COLLECTIVES"
-# endif
-#else
-#  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
-#endif
-
-int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp) {
-    return remote_dep_new_taskpool(tp);
-}
-
-#ifdef PARSEC_DIST_COLLECTIVES
 /**
  * This function is called from the successor iterator in order to rebuilt
  * the information needed to propagate the collective in a meaningful way. In
