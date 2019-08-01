@@ -35,19 +35,6 @@ BEGIN_C_DECLS
 #include "parsec/devices/cuda/dev_cuda.h"
 #endif  /* defined(PARSEC_HAVE_CUDA) */
 
-/**
- * @defgroup parsec_public Header File
- * @ingroup parsec_public
- *   PaRSEC Core routines belonging to the PaRSEC Runtime System.
- *
- *   This is the public API of the PaRSEC runtime system. Functions of
- *   this module are used to manipulate PaRSEC highest level objects.
- *
- *  @{
- */
-
-/**  @} */
-
 END_C_DECLS
 
 #endif  /* PARSEC_H_HAS_BEEN_INCLUDED */

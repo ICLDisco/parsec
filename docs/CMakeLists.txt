@@ -9,15 +9,16 @@ if (BUILD_DOCUMENTATION)
   find_package(Doxygen)
 
   if (DOXYGEN_FOUND)
-
-    if( ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR} )
+    if(NOT "${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/docs")
+      message(STATUS "PaRSEC is pulled as a submodule -- Not generating documentation")
+    elseif( ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR} )
       message(FATAL_ERROR
         "Because PaRSEC generates many source files at compile time, "
         "no documentation will be generated when building directly within "
         "the source directory. To generate the documentation, re-configure "
         "and compile from an out-of-source directory (look for "
         "Out-of-source build trees with CMake for documentation)")
-    else()
+    else(NOT "${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/docs")
       get_property(SRCS GLOBAL PROPERTY PARSEC_DOX_SRCS)
       string (REPLACE ";" " " PARSEC_DOX_SRCS "${SRCS}")
 
@@ -33,9 +34,9 @@ if (BUILD_DOCUMENTATION)
         COMMENT "Generating API documentation with Doxygen"
         VERBATIM)
       #-- Add a custom target to run Doxygen when the project is built
-      add_custom_target( docs ALL
-        DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/doxygen/doxygen.stamp )
-    endif()
+      add_custom_target( docs DEPENDS parsec ${CMAKE_CURRENT_BINARY_DIR}/doxygen/doxygen.stamp )
+      message(STATUS "PaRSEC documentation can be generated with target 'docs' after the library is compiled")
+    endif(NOT "${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/docs")
   else (DOXYGEN_FOUND)
     message(FATAL_ERROR "Documentation generation requested but Doxygen application could not be found. Either install Doygen or disable the documentation generation (BUILD_DOCUMENTATION to OFF)")
   endif (DOXYGEN_FOUND)

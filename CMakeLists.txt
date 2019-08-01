@@ -848,7 +848,6 @@ set(parsec_ptgpp_EXE ${parsec_ptgpp_EXE} CACHE STRING "Point to the parsec_ptgpp
 
 # List of files that will go through documentation generation
 include(AddDocumentedFiles)
-#add_documented_files(${CMAKE_SOURCE_DIR})
 
 add_subdirectory(parsec)
 
@@ -865,6 +864,8 @@ if( BUILD_TESTING )
   add_subdirectory(tests)
   add_subdirectory(examples)
 endif( BUILD_TESTING )
+
+add_subdirectory(docs)
 
 # Fetch GIT info for this build
 # Get the current working branch

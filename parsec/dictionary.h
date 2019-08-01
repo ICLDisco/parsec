@@ -16,8 +16,8 @@
 #include "parsec/class/parsec_hash_table.h"
 
 /**
- * @defgroup parsec_dictionnary_profiling
- * @ingroup parsec_public
+ * @defgroup parsec_dictionnary_profiling Profiling: Dictionary
+ * @ingroup parsec_public_profiling
  * @{
  *
  * @brief The PaRSEC dictionary profiling system allows to expose properties
@@ -356,3 +356,7 @@ int parsec_profiling_register_property(parsec_property_function_t *func,
 void parsec_profiling_evaluate_property(void *item, void *cb_data);
 
 #endif /* PROFILING_DICTIONARY_H */
+
+/**
+ * @}
+ */

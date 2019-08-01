@@ -28,7 +28,7 @@ DOXYFILE_ENCODING      = UTF-8
 # identify the project. Note that if you do not use Doxywizard you need
 # to put quotes around the project name if it contains spaces.
 
-PROJECT_NAME           = PaRSEC/DPLASMA
+PROJECT_NAME           = PaRSEC
 
 # The PROJECT_NUMBER tag can be used to enter a project or revision number.
 # This could be handy for archiving the generated documentation or
@@ -657,7 +657,8 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories
 # with spaces.
 
-INPUT                  = @CMAKE_SOURCE_DIR@/docs/doxygen/groups.dox
+INPUT                  = @CMAKE_SOURCE_DIR@/docs/doxygen/mainpage.md
+INPUT                 += @CMAKE_SOURCE_DIR@/docs/doxygen/groups.dox
 INPUT                 += @CMAKE_SOURCE_DIR@/parsec
 INPUT                 += @CMAKE_BINARY_DIR@/parsec/include
 INPUT                 += @PARSEC_DOX_SRCS@
@@ -1019,17 +1020,17 @@ DOCSET_FEEDNAME        = "Doxygen generated docs"
 # reverse domain-name style string, e.g. com.mycompany.MyDocSet. Doxygen
 # will append .docset to the name.
 
-DOCSET_BUNDLE_ID       = fr.inria.gforge.ricar
+DOCSET_BUNDLE_ID       = edu.utk.icl.disco
 
 # When GENERATE_PUBLISHER_ID tag specifies a string that should uniquely
 # identify the documentation publisher. This should be a reverse domain-name
 # style string, e.g. com.mycompany.MyDocSet.documentation.
 
-DOCSET_PUBLISHER_ID    = fr.inria.gforge.ricar
+DOCSET_PUBLISHER_ID    = edu.utk.icl.disco
 
 # The GENERATE_PUBLISHER_NAME tag identifies the documentation publisher.
 
-DOCSET_PUBLISHER_NAME  = UniversityofBordeaux1,InriaBordeaux-Sud-Ouest,IPB
+DOCSET_PUBLISHER_NAME  = UniversityOfTennesse,InnovativeComputingLaboratory,DistributedComputingGroup
 
 # If the GENERATE_HTMLHELP tag is set to YES, additional index files
 # will be generated that can be used as input for tools like the
@@ -1092,7 +1093,7 @@ QCH_FILE               =
 # Qt Help Project output. For more information please see
 # http://doc.trolltech.com/qthelpproject.html#namespace
 
-QHP_NAMESPACE          = fr.inria.gforge.ricar
+QHP_NAMESPACE          = edu.utk.icl.disco
 
 # The QHP_VIRTUAL_FOLDER tag specifies the namespace to use when generating
 # Qt Help Project output. For more information please see
@@ -1143,7 +1144,7 @@ GENERATE_ECLIPSEHELP   = NO
 # the directory name containing the HTML and XML files should also have
 # this name.
 
-ECLIPSE_DOC_ID         = fr.inria.gforge.ricar
+ECLIPSE_DOC_ID         = edu.utk.icl.disco
 
 # The DISABLE_INDEX tag can be used to turn on/off the condensed index (tabs)
 # at top of each HTML page. The value NO (the default) enables the index and
@@ -1590,7 +1591,12 @@ SEARCH_INCLUDES        = YES
 # contain include files that are not input files but should be processed by
 # the preprocessor.
 
-INCLUDE_PATH           =
+INCLUDE_PATH           = @CMAKE_SOURCE_DIR@
+INCLUDE_PATH          += @CMAKE_SOURCE_DIR@/parsec
+INCLUDE_PATH          += @CMAKE_SOURCE_DIR@/parsec/include
+INCLUDE_PATH          += @CMAKE_BINARY_DIR@
+INCLUDE_PATH          += @CMAKE_BINARY_DIR@/parsec
+INCLUDE_PATH          += @CMAKE_BINARY_DIR@/parsec/include
 
 # You can use the INCLUDE_FILE_PATTERNS tag to specify one or more wildcard
 # patterns (like *.h and *.hpp) to filter out the header-files in the

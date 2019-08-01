@@ -12,6 +12,11 @@
 BEGIN_C_DECLS
 
 /**
+ * @addtogroup parsec_internal_runtime
+ *  @{
+ */
+
+/**
  * Task class ID for dependencies targeting local data (used as input).
  * Use this as the task_class_id of the dep_t to pinpoint to a local
  * data instead of a task.
@@ -24,20 +29,39 @@ BEGIN_C_DECLS
  */
 PARSEC_DECLSPEC extern const parsec_task_class_t __parsec_generic_startup;
 
-/* Functions to return tasks to their mempool once their execution is
- * completed. The fist one should be used when counting the tasks is
- * not necessary, while the second one contains the task counting.
+/**
+ * Function to return tasks to their mempool once their execution is
+ * completed. This function should be used when counting the number of
+ * tasks active in the taskpool (that hosts these tasks) is not
+ * necessary (e.g. when the number of tasks is undetermined, when
+ * completion of a taskpool is triggered internally by task execution
+ * or when the runtime system automatically detects the termination).
  */
 parsec_hook_return_t
 parsec_release_task_to_mempool(parsec_execution_stream_t *es,
                                parsec_task_t *this_task);
+
+/**
+ * Function to return tasks to their mempool once their execution is
+ * completed. This function should be used when counting the number of
+ * active tasks in their taskpool is used to detect termination.
+ */
 parsec_hook_return_t
 parsec_release_task_to_mempool_update_nbtasks(parsec_execution_stream_t *es,
                                               parsec_task_t *this_task);
 
+/**
+ * Function to return tasks to their mempool once their execution is
+ * completed. This function should be used when a task should be counted
+ * as an internal runtime task and not as a user task belonging to the taskpool.
+ */
 parsec_hook_return_t
 parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_stream_t *es,
                                                           parsec_task_t *this_task);
+
+/**
+ * @}
+ */
 
 END_C_DECLS
 
