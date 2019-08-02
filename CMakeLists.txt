@@ -416,6 +416,7 @@ if(NOT PARSEC_HAVE_SCHED_SETAFFINITY)
   check_library_exists(rt sched_setaffinity "" PARSEC_HAVE_SCHED_SETAFFINITYRT)
   if(PARSEC_HAVE_SCHED_SETAFFINITYRT)
     set(PARSEC_HAVE_SCHED_SETAFFINITY true)
+    list(APPEND EXTRA_LIBS rt)
   endif()
 endif(NOT PARSEC_HAVE_SCHED_SETAFFINITY)
 
@@ -439,6 +440,7 @@ if( NOT PARSEC_HAVE_CLOCK_GETTIME )
   check_library_exists(rt clock_gettime "time.h" PARSEC_HAVE_CLOCK_GETTIMERT)
   if(PARSEC_HAVE_CLOCK_GETTIMERT)
     set(PARSEC_HAVE_CLOCK_GETTIME true)
+    list(APPEND EXTRA_LIBS rt)
   endif(PARSEC_HAVE_CLOCK_GETTIMERT)
 endif( NOT PARSEC_HAVE_CLOCK_GETTIME )
 
@@ -572,6 +574,12 @@ IF( BUILD_PARSEC )
   find_package(DL)
   find_package(HWLOC)
   set(PARSEC_HAVE_HWLOC ${HWLOC_FOUND})
+  IF( HWLOC_FOUND )
+     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
+     include_directories( ${HWLOC_INCLUDE_DIRS} )
+     list(APPEND EXTRA_INCLUDES ${HWLOC_INCLUDE_DIRS})
+     set (PARSEC_PKG_REQUIRE "hwloc")
+   ENDIF (HWLOC_FOUND)
 
   if (PARSEC_DIST_WITH_MPI)
     # Test first if we are using a wrapper as the compiler
@@ -776,8 +784,8 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # the RPATH to be used when installing, but only if it's not a system directory
 LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-MESSAGE(STATUS "LINK_DIRECTORIES = ${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
-MESSAGE(STATUS "INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}/lib")
+#MESSAGE(STATUS "LINK_DIRECTORIES = ${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
+#MESSAGE(STATUS "INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}/lib")
 IF("${isSystemDir}" STREQUAL "-1")
   SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 ENDIF("${isSystemDir}" STREQUAL "-1")
@@ -788,11 +796,11 @@ ENDIF("${isSystemDir}" STREQUAL "-1")
 set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/parsec/include")
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
-STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} PARSEC_COMPILE_INPLACE)
-if(NOT PARSEC_COMPILE_INPLACE)
+STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} PARSEC_BUILD_INPLACE)
+if(NOT PARSEC_BUILD_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include")
-endif(NOT PARSEC_COMPILE_INPLACE)
+endif(NOT PARSEC_BUILD_INPLACE)
 
 #
 # Check if indent is available on the system.
@@ -827,7 +835,6 @@ mark_as_advanced(PARSEC_C_INCLUDES)
 #
 # First go for the tools.
 #
-set(parsec_ptgpp_EXE "NOT-DEFINED")
 add_subdirectory(tools)
 IF(CMAKE_CROSSCOMPILING)
   SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
@@ -837,6 +844,7 @@ IF(CMAKE_CROSSCOMPILING)
 ELSE(CMAKE_CROSSCOMPILING)
   SET(parsec_ptgpp_EXE parsec_ptgpp)
 ENDIF(CMAKE_CROSSCOMPILING)
+set(parsec_ptgpp_EXE ${parsec_ptgpp_EXE} CACHE STRING "Point to the parsec_ptgpp executable")
 
 # List of files that will go through documentation generation
 include(AddDocumentedFiles)
@@ -1032,6 +1040,8 @@ set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
 include (CPack)
 
+list(REMOVE_DUPLICATES EXTRA_LIBS)
+
 MESSAGE("\n\nConfiguration flags:")
 MESSAGE("  CMAKE_C_FLAGS          = ${CMAKE_C_FLAGS}")
 MESSAGE("  CMAKE_C_LDFLAGS        = ${CMAKE_C_LDFLAGS}")
@@ -1064,6 +1074,9 @@ install(EXPORT parsec-targets # rules to export the targets built here
   NAMESPACE PaRSEC::
   DESTINATION ${INSTALL_CONFIGDIR})
 
+export(TARGETS parsec parsec_ptgpp
+       NAMESPACE PaRSEC::
+       FILE ${CMAKE_BINARY_DIR}/parsec/cmake_modules/PaRSEC-Exports-Build.cmake)
 # cmake config files
 include(CMakePackageConfigHelpers)
 
@@ -1087,9 +1100,8 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion
 install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/PaRSECConfig.cmake
   ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
-  cmake_modules/ParsecCompilePTG.cmake  
-  ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake
   ${CMAKE_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
+  ${CMAKE_SOURCE_DIR}/cmake_modules/ParsecCompilePTG.cmake
   # Export dependencies package finders
   $<$<BOOL:PARSEC_HAVE_HWLOC>:${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake>
   $<$<BOOL:PARSEC_HAVE_PAPI>:${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPAPI.cmake>

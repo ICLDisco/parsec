@@ -1,9 +1,7 @@
 set(sources
   hash_datadist.c)
 
-if(NOT TARGET parsec_data_dist)
-  add_library(parsec_data_dist OBJECT ${sources})
-endif(NOT TARGET parsec_data_dist)
+add_library(parsec_data_dist OBJECT ${sources})
 
 if(BUILD_SHARED_LIBS)
   set_target_properties(parsec_data_dist PROPERTIES POSITION_INDEPENDENT_CODE ON)

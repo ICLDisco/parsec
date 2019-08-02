@@ -49,6 +49,4 @@ FOREACH (COMPONENT ${MCA_COMPONENTS})
 ENDFOREACH(COMPONENT)
 MESSAGE(STATUS "PARSEC Modular Component Architecture (MCA) discovery done.")
 
-message(STATUS "${MCA_EXTRA_SOURCES}")
-
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mca/mca_static_components.h.in ${CMAKE_CURRENT_BINARY_DIR}/mca/mca_static_components.h)

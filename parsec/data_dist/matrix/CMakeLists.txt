@@ -13,10 +13,6 @@ parsec_compile_ptg(generated_jdf "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${C
 
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
-if(NOT PARSEC_COMPILE_INPLACE)
-  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
-endif(NOT PARSEC_COMPILE_INPLACE)
-
 set(sources
         matrix.c
         matrixtypes.c

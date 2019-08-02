@@ -133,12 +133,11 @@ if( BUILD_PARSEC )
     BUILD_PARSEC)
   target_include_directories(parsec-base-obj
     PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+  #    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>)
+  message(STATUS "CUDA_LIBRARIES = ${CUDA_LIBRARIES}\n\n")
   target_link_libraries(parsec-base-obj
     PRIVATE
-    $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
-    $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     Threads::Threads)
   if(BUILD_SHARED_LIBS)
@@ -149,19 +148,7 @@ if( BUILD_PARSEC )
     add_library(parsec-base STATIC $<TARGET_OBJECTS:parsec-base-obj>)
   endif(NOT TARGET parsec-base)
   target_link_libraries(parsec-base
-    PRIVATE   rt DL::DL)
-
-  # Create an interface library to allow the absorbtion of the object files into
-  # the PaRSEC library.
-  if(NOT TARGET parsec-base-iface)
-    add_library(parsec-base-iface INTERFACE)
-  endif(NOT TARGET parsec-base-iface)
-  target_sources(parsec-base-iface INTERFACE $<TARGET_OBJECTS:parsec-base-obj>)
-  target_link_libraries(parsec-base-iface
-    INTERFACE
-    $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
-    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
-    Threads::Threads rt DL::DL)
+    PRIVATE Threads::Threads DL::DL)
 
   if(NOT TARGET parsec)
     add_library(parsec ${SOURCES})
@@ -178,17 +165,15 @@ if( BUILD_PARSEC )
   target_link_libraries(parsec
     PRIVATE
     parsec_data
-    parsec-base-iface
+    parsec-base
     PUBLIC
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
-    Threads::Threads rt DL::DL
+    ${CUDA_LIBRARIES}
     INTERFACE
     ${EXTRA_LIBS}
     )
-
-message(STATUS "papi_sde=${PARSEC_PAPI_SDE}")
 
   if(NOT BUILD_SHARED_LIBS) # default value is ON for SHARED/FRAMEWORK lib
     set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE OFF)

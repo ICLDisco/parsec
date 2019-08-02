@@ -1,6 +1,6 @@
 # - Find HWLOC library
-# This module finds an installed  library that implements the HWLOC
-# linear-algebra interface (see http://www.open-mpi.org/projects/hwloc/).
+# This module finds an installed library that implements the HWLOC
+# interface (see http://www.open-mpi.org/projects/hwloc/).
 #
 # This module sets the following variables:
 #  HWLOC_FOUND - set to true if a library implementing the PLASMA interface
@@ -9,6 +9,8 @@
 #    and -L).
 #  HWLOC_LIBRARIES - uncached list of libraries (using full path name) to
 #    link against to use PLASMA
+#  HWLOC_INCLUDE_DIRS - uncached list of required include directories to
+#    access HWLOC headers
 #  HWLOC_STATIC  if set on this determines what kind of linkage we do (static)
 #
 #  PARSEC_HAVE_HWLOC_PARENT_MEMBER - new API, older versions don't have it
