@@ -168,11 +168,13 @@ if( BUILD_PARSEC )
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
-    ${CUDA_LIBRARIES}
     INTERFACE
     ${EXTRA_LIBS}
     )
-
+  if( ${CUDA_FOUND} )
+    target_link_libraries(parsec
+                          PUBLIC ${CUDA_LIBRARIES})
+  endif( ${CUDA_FOUND} )
   set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
   # For now make sure that the installed shared libraries have the right
   # version (same version as the major of the build version). Thus, every
