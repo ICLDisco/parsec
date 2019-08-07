@@ -34,16 +34,12 @@ if (MPI_C_FOUND)
     LIST(APPEND sources scalapack_convert.c)
 endif(MPI_C_FOUND)
 
-if(NOT TARGET parsec_data_matrix)
-  add_library(parsec_data_matrix OBJECT ${sources})
-endif(NOT TARGET parsec_data_matrix)
+if(NOT TARGET parsec-data-matrix)
+  add_library(parsec-data-matrix OBJECT ${sources})
+endif(NOT TARGET parsec-data-matrix)
 
-if(BUILD_SHARED_LIBS)
-  set_target_properties(parsec_data_matrix PROPERTIES POSITION_INDEPENDENT_CODE ON)
-endif(BUILD_SHARED_LIBS)
-if (MPI_C_FOUND)
-  target_link_libraries(parsec_data_matrix PUBLIC MPI::MPI_C)
-endif(MPI_C_FOUND)
+set_target_properties(parsec-data-matrix PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
+target_include_directories(parsec-data-matrix PRIVATE ${MPI_C_INCLUDE_PATH})
 
 install(FILES
   matrix.h

@@ -134,21 +134,14 @@ if( BUILD_PARSEC )
   target_include_directories(parsec-base-obj
     PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-  #    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>)
-  message(STATUS "CUDA_LIBRARIES = ${CUDA_LIBRARIES}\n\n")
-  target_link_libraries(parsec-base-obj
-    PRIVATE
-    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
-    Threads::Threads)
-  if(BUILD_SHARED_LIBS)
-    set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
-  endif(BUILD_SHARED_LIBS)
+  set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
 
   if(NOT TARGET parsec-base)
     add_library(parsec-base STATIC $<TARGET_OBJECTS:parsec-base-obj>)
   endif(NOT TARGET parsec-base)
   target_link_libraries(parsec-base
-    PRIVATE Threads::Threads DL::DL)
+    PRIVATE Threads::Threads DL::DL
+    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
 
   if(NOT TARGET parsec)
     add_library(parsec ${SOURCES})
@@ -164,7 +157,7 @@ if( BUILD_PARSEC )
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>)
   target_link_libraries(parsec
     PRIVATE
-    parsec_data
+    parsec-data
     parsec-base
     PUBLIC
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
@@ -175,9 +168,7 @@ if( BUILD_PARSEC )
     ${EXTRA_LIBS}
     )
 
-  if(NOT BUILD_SHARED_LIBS) # default value is ON for SHARED/FRAMEWORK lib
-    set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE OFF)
-  endif(NOT BUILD_SHARED_LIBS)
+  set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
   # For now make sure that the installed shared libraries have the right
   # version (same version as the major of the build version). Thus, every
   # change in the high-level API (and ABI) should be reflected on the
