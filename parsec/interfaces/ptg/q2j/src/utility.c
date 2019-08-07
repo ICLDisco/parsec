@@ -3114,7 +3114,7 @@ static char *size_to_pool_name(char *size_str){
     var_def_item_t *new_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_item->var = size_str;
     new_item->def = pool_name;
-    parsec_list_nolock_lifo_push( &_parsec_pool_list, (parsec_list_item_t *)new_item );
+    parsec_list_nolock_push_front( &_parsec_pool_list, (parsec_list_item_t *)new_item );
 
     return pool_name;
 }
@@ -3208,7 +3208,7 @@ static void mark_definition_as_seen(parsec_list_t *var_def_list, char *param){
     new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_list_item->var = param;
     new_list_item->def = NULL; // we are not using the actual definition, just marking it as seen
-    parsec_list_nolock_lifo_push( var_def_list, (parsec_list_item_t *)new_list_item );
+    parsec_list_nolock_push_front( var_def_list, (parsec_list_item_t *)new_list_item );
 
     return;
 }
@@ -3454,7 +3454,7 @@ char *tree_to_body(node_t *node){
 
     // clean up the list of variables and their definitions
     var_def_item_t *item;
-    while( NULL != (item = (var_def_item_t *)parsec_list_nolock_lifo_pop(&var_def_list)) ) {
+    while( NULL != (item = (var_def_item_t *)parsec_list_nolock_pop_front(&var_def_list)) ) {
         free(item);
     }
 

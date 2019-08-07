@@ -8,7 +8,6 @@ endif(PARSEC_Q2J)
 if(OMEGA_FOUND)
   include_directories(${OMEGA_INCLUDE_DIRS})
 
-
   BISON_TARGET(parsec_q2j_yacc src/q2j.y ${CMAKE_CURRENT_BINARY_DIR}/q2j.y.c)
   FLEX_TARGET(parsec_q2j_flex src/q2j.l  ${CMAKE_CURRENT_BINARY_DIR}/q2j.l.c)
   ADD_FLEX_BISON_DEPENDENCY(parsec_q2j_flex parsec_q2j_yacc)
@@ -21,6 +20,7 @@ if(OMEGA_FOUND)
   SET_SOURCE_FILES_PROPERTIES(${FLEX_parsec_q2j_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS} -w")
 
   include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR})
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/../../../include)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../ptg-compiler)
 
   add_executable(q2j
