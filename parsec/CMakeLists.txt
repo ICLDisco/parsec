@@ -107,14 +107,17 @@ endif( NOT MPI_C_FOUND )
 list(APPEND SOURCES parsec_hwloc.c)
 
 if (CUDA_FOUND)
-  list(APPEND SOURCES devices/cuda/dev_cuda.c devices/cuda/transfer.c)
+  list(APPEND SOURCES
+      devices/cuda/dev_cuda.c
+      devices/cuda/transfer.c)
   install(FILES
           ${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda/dev_cuda.h
           DESTINATION include/parsec/devices/cuda )
 endif (CUDA_FOUND)
 
 if( PARSEC_PROF_GRAPHER )
-  list(APPEND SOURCES parsec_prof_grapher.c)
+  list(APPEND SOURCES
+      parsec_prof_grapher.c)
 endif( PARSEC_PROF_GRAPHER )
 
 add_subdirectory(data_dist)
@@ -154,7 +157,9 @@ if( BUILD_PARSEC )
     PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>
+    PRIVATE
+    $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>)
   target_link_libraries(parsec
     PRIVATE
     parsec-data

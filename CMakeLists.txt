@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.9)
 project (PARSEC C)
 
 include(CMakeDependentOption)
@@ -22,21 +22,6 @@ set(CMAKE_NO_SYSTEM_FROM_IMPORTED True)
 SET(DART_TESTING_TIMEOUT 120)
 enable_testing()
 include(CTest)
-
-set(CTEST_SHM_LAUNCHER
-      "" CACHE STRING
-      "A command to run shared memory testings")
-string(REPLACE " " ";" SHM_TEST_CMD_LIST "${CTEST_SHM_LAUNCHER}")
-set(CTEST_MPI_LAUNCHER
-      "mpiexec -n" CACHE STRING
-      "A command to run distributed memory testings")
-if( "${CTEST_MPI_LAUNCHER}" STREQUAL "" )
-    MESSAGE(WARNING "MPI tests will most likely not work: 'CTEST_MPI_LAUNCHER' is not set")
-endif()
-string(REPLACE " " ";" MPI_TEST_CMD_LIST "${CTEST_MPI_LAUNCHER}")
-set(CTEST_GPU_LAUNCHER_OPTIONS
-      "" CACHE STRING
-      "Options to pass to the CTEST_MPI_LAUNCHER to select GPU nodes")
 
 #####
 # ccmake tunable parameters
@@ -651,8 +636,6 @@ IF( BUILD_PARSEC )
         set(CUDA_HOST_COMPILATION_CPP OFF)
       endif(CUDA_VERSION VERSION_LESS "3.0")
       set(CUDA_BUILD_EMULATION OFF)
-      include_directories(${CUDA_INCLUDE_DIRS})
-      list(APPEND EXTRA_INCLUDES ${CUDA_INCLUDE_DIRS})
       CMAKE_PUSH_CHECK_STATE()
       list(APPEND CMAKE_REQUIRED_INCLUDES  "${CUDA_INCLUDE_DIRS}")
       list(APPEND CMAKE_REQUIRED_LIBRARIES "${CUDA_LIBRARIES}")
@@ -854,6 +837,21 @@ add_subdirectory(parsec)
 #
 # Now continue with compiling the tests.
 #
+set(CTEST_SHM_LAUNCHER
+      "" CACHE STRING
+      "A command to run shared memory testings")
+string(REPLACE " " ";" SHM_TEST_CMD_LIST "${CTEST_SHM_LAUNCHER}")
+set(CTEST_MPI_LAUNCHER
+    "${MPIEXEC} ${MPIEXEC_PREFLAGS} ${MPIEXEC_NUMPROC_FLAG}" CACHE STRING
+      "A command to run distributed memory testings")
+if( "${CTEST_MPI_LAUNCHER}" STREQUAL "" )
+    MESSAGE(WARNING "MPI tests will most likely not work: 'CTEST_MPI_LAUNCHER' is not set")
+endif()
+string(REPLACE " " ";" MPI_TEST_CMD_LIST "${CTEST_MPI_LAUNCHER}")
+set(CTEST_GPU_LAUNCHER_OPTIONS
+      "" CACHE STRING
+      "Options to pass to the CTEST_MPI_LAUNCHER to select GPU nodes")
+
 if( BUILD_TESTING )
   find_program(HOSTNAME_EXE hostname)
   MARK_AS_ADVANCED(HOSTNAME_EXE)

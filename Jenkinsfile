@@ -98,7 +98,6 @@ pipeline {
         stage ('Build and Test') {
             environment {
                 BUILDDIR = "build"
-                DPLASMA_PRECISIONS="s\\;d\\;c\\;z"
             }
             parallel {
                stage ('Debug all') {
