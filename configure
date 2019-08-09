@@ -128,7 +128,7 @@ exit 2
 }
 
 function parse_arguments {
-while [ x$1 != x ]; do
+while [ "x$1" != x ]; do
     case "$1" in
         -h|--help) show_help_and_exit ;;
         -V) show_version_and_exit ;;
@@ -199,27 +199,18 @@ while [ x$1 != x ]; do
         --with-python) OPT_PYTHON=yes; shift;;
         --without-python) OPT_PYTHON=no; shift;;
 
-
-# Dplasma options
-        --enable-dplasma) OPT_DPLASMA=yes; shift;;
-        --disable-dplasma) OPT_DPLASMA=no; shift;;
-        --with-coreblas=*) OPT_COREBLAS="${1#*=}"; shift;;
-        --with-coreblas) OPT_COREBLAS=yes; shift;;
-        --without-coreblas) OPT_COREBLAS=no; shift;;
-
 # Cmake passthrough
-        -D*=*) CMAKE_DEFINES+="$1 "; shift;;
+        -D*=*) CMAKE_DEFINES+=$(printf "%q " "$1"); shift;;
 
 # Environment variables
-        [^-]*=*) ENVVARS+="$1 "; eval export $1; shift;;
+        [^-]*=*) ENVVARS+=$(printf "%q " "$1"); eval export $(printf %q "$1"); shift;;
 
 # Unhandled argument
-        *) echo "Invalid argument: $1"; show_help_and_exit ;;
+        *) echo >&2 "Invalid argument: $1"; show_help_and_exit ;;
     esac
 done
 }
-
-parse_arguments $*
+parse_arguments "$@"
 
 if [ x$OPT_QUIET = xyes ]; then
     exec &>config.log
@@ -237,7 +228,7 @@ EOF
 tee -a config.status <<EOF
 ### This program was invoked with the following command line
 #
-    $0 $*
+    $0 $(for arg in "$@"; do printf "%q " "$arg"; done)
 #
 EOF
 chmod +x config.status
@@ -316,7 +307,7 @@ x) ;;
 esac
 
 case x$OPT_DIST_MPI in
-xno) echo 2>&1 "WARNING: MPI is required to build this version of PaRSEC -- --without-mpi has been ignored.";;
+xno) echo >&2 "WARNING: MPI is required to build this version of PaRSEC -- --without-mpi has been ignored.";;
 xyes) ;;
 x) ;;
 *)
@@ -355,18 +346,6 @@ x) ;;
 esac
 
 
-[ x$OPT_DPLASMA = xyes ] && CMAKE_DEFINES+="-DBUILD_DPLASMA=ON "
-[ x$OPT_DPLASMA = xno ] && CMAKE_DEFINES+="-DBUILD_DPLASMA=OFF "
-
-case x$OPT_COREBLAS in
-xyes) ;;
-xno) [ x$OPT_DPLASMA = xyes ] && echo >&2 "Requested --enable-dplasma and --without-coreblas, which is contradictory." && exit 3;;
-x) ;;
-*) CMAKE_DEFINES+="-DCOREBLAS_DIR=$OPT_COREBLAS ";;
-esac
-
-
-
 # CMAKE INVOCATION
 
 CMAKE_EXECUTABLE=${CMAKE_EXECUTABLE:-$(command -v cmake cmake3)}
@@ -377,7 +356,7 @@ for cme in ${CMAKE_EXECUTABLE}; do
         break
     fi
 done
-[ -z "$CMAKE_COMMAND" ] && echo "Could not find CMake binary in $CMAKE_EXECUTABLE" && exit 3
+[ -z "$CMAKE_COMMAND" ] && echo >&2 "Could not find CMake binary in $CMAKE_EXECUTABLE" && exit 3
 
 cat <<EOF
 ### CMake generated invocation
