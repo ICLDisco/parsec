@@ -1,42 +1,15 @@
 
 macro(parsec_addtest lang target input)
-
-  # Can't add Fortran target test if Fortran is not available or not
-  # correctly initialized.
-  if( "${lang}" MATCHES "Fortran")
-    if(NOT MPI_Fortran_FOUND)
-      message(FATAL_ERROR "Can't add a Fortran test (${target}) if Fortran support has not been detected")
-    endif(NOT MPI_Fortran_FOUND)
-    set(${target}_LDFLAGS "${MPI_Fortran_LINK_FLAGS} ${${target}_LDFLAGS}")
-    # Apparently there is no standard way to detect what MPI libraries should be used
-    # for a succesful link. Thus provide a fix for all cases we have encountered so
-    # far (icc/gcc/clang with OMPI and MPICH).
-    if( DEFINED MPI_Fortran_LIBRARIES AND NOT "${MPI_Fortran_LIBRARIES}" MATCHES "NOTFOUND$" )
-      set(${target}_LIBS ${MPI_Fortran_LIBRARIES} ${${target}_LIBS})
-    elseif( DEFINED MPI_Fortran_LIB_NAMES AND NOT "${MPI_Fortran_LIB_NAMES}" MATCHES "NOTFOUND$" )
-      if( DEFINED MPI_Fortran_MODULE_DIR AND NOT "${MPI_Fortran_MODULE_DIR}" MATCHES "NOTFOUND$" )
-        set(${target}_LIBS -L${MPI_Fortran_MODULE_DIR} ${MPI_Fortran_LIB_NAMES} ${${target}_LIBS})
-      else( DEFINED MPI_Fortran_MODULE_DIR AND NOT "${MPI_Fortran_MODULE_DIR}" MATCHES "NOTFOUND$" )
-        set(${target}_LIBS ${MPI_Fortran_LIB_NAMES} ${${target}_LIBS})
-      endif( DEFINED MPI_Fortran_MODULE_DIR AND NOT "${MPI_Fortran_MODULE_DIR}" MATCHES "NOTFOUND$" )
-    endif( DEFINED MPI_Fortran_LIBRARIES AND NOT "${MPI_Fortran_LIBRARIES}" MATCHES "NOTFOUND$" )
-  endif( "${lang}" MATCHES "Fortran")
-
-  if( MPI_C_FOUND )
-    set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
-    set(${target}_LDFLAGS "${MPI_C_LINK_FLAGS} ${${target}_LDFLAGS}")
-  endif( MPI_C_FOUND )
-  set(${target}_LIBS parsec ${${target}_LIBS} ${EXTRA_LIBS})
-
   add_executable(${target} ${input})
   set_target_properties(${target} PROPERTIES
-    LINKER_LANGUAGE ${lang}
-    COMPILE_FLAGS "${${target}_${lang}FLAGS} ${LOCAL_${lang}_LINK_FLAGS}"
-    LINK_FLAGS "${${target}_LDFLAGS}")
-  target_link_libraries(${target} ${${target}_LIBS})
-endmacro(parsec_addtest)
+    LINKER_LANGUAGE ${lang})
 
-list(APPEND EXTRA_LIBS m)
+  target_link_libraries(${target}
+    PRIVATE
+    parsec
+    ${${target}_LIBS}
+    $<$<BOOL:${MPI_${lang}_FOUND}>:MPI::MPI_${lang}>)
+endmacro(parsec_addtest)
 
 add_Subdirectory(unit)
 add_Subdirectory(interfaces/superscalar)
@@ -85,10 +58,6 @@ parsec_compile_ptg(strange_generated "${CMAKE_CURRENT_SOURCE_DIR}/strange.jdf")
 string( REGEX REPLACE "strange.[hc]" "" include_dir "${strange_generated}" )
 include_directories(${include_dir})
 parsec_addtest(C strange "${strange_generated}")
-
-#Most of the test need -lm. Add it and trim the list down.
-list(APPEND EXTRA_LIBS m)
-list(REMOVE_DUPLICATES EXTRA_LIBS)
 
 parsec_compile_ptg(startup_generated "${CMAKE_CURRENT_SOURCE_DIR}/startup.jdf")
 parsec_addtest(C startup "${startup_generated}")

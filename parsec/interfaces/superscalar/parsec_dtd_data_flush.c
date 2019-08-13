@@ -12,24 +12,6 @@
  *
  */
 
-/* Define a group for Doxygen documentation */
-/**
- * @defgroup DTD_INTERFACE Dynamic Task Discovery interface for PaRSEC
- * @ingroup parsec_public
- *
- * These functions are available from the PaRSEC library for the
- * scheduling of kernel routines.
- */
-
-/* Define a group for Doxygen documentation */
-/**
- * @defgroup DTD_INTERFACE_INTERNAL Dynamic Task Discovery functions for PaRSEC
- * @ingroup parsec_internal
- *
- * These functions are not available from the PaRSEC library for the
- * scheduling of kernel routines.
- */
-
 #include "parsec/runtime.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/remote_dep.h"
@@ -38,7 +20,11 @@
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/utils/debug.h"
 
-/*
+/**
+ * @addtogroup DTD_INTERFACE_INTERNAL
+ */
+
+/**
  * This is the body of the specialized data_flush task.
  * We use this body for both the send and receive task
  * in the case where the last writer of the data is in
@@ -73,7 +59,7 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
     return PARSEC_HOOK_RETURN_DONE;
 }
 
-/*
+/**
  * For general tasks we set the dependencies between
  * the task classes in a generic way. Data flush tasks
  * are special, where we know the kind of relationships
@@ -120,7 +106,7 @@ set_deps_for_flush_task(const parsec_task_class_t *tc)
     return 1;
 }
 
-/*
+/**
  * Function inserting special data flush task in the runtime.
  * This is a very simple form of the generic insert function,
  * where we know the exact number of flow this type of task
@@ -265,6 +251,10 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     return 1;
 }
 
+/**
+ * This function inserts a flushing task to the taskpool. It is used to flush a data
+ * using parsec_dtd_insert_flush_task_pair
+ */
 int
 parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int task_rank,
                              int priority)
@@ -300,7 +290,7 @@ parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int
     return 1;
 }
 
-/*
+/**
  * This is the method called from the exposed interface to flush a data.
  * Here, we insert two tasks 1. Send task, 2. Receive task, given the last
  * writer of the data we are flushing does not reside on the rank of the
@@ -346,7 +336,8 @@ parsec_dtd_insert_flush_task_pair(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile
     return 1;
 }
 
-/* The internal function to flush the data, aka bring the most updated version of
+/**
+ * The internal function to flush the data, aka bring the most updated version of
  * a data back to its owner. This call is asynchronous, if necessary it inserts a
  * transfer task into the associated taskpool, but does not wait until this transfer
  * task completes. Thus, to ensure correct behavior the application is expected to
@@ -365,7 +356,7 @@ parsec_internal_dtd_data_flush(parsec_dtd_tile_t *tile, parsec_taskpool_t *tp)
     parsec_dtd_tile_release( tile );
 }
 
-/*
+/**
  * User facing function to flush a data. This will cause the data to move
  * back to the original owner. This data should not be reused task before
  * the flush is complete. To ensure consistent and correct behavior, users
@@ -378,7 +369,7 @@ parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
     parsec_internal_dtd_data_flush(tile, tp);
 }
 
-/*
+/**
  * This function will flush all the data DTD has seen so far
  * pertaining to the data collection passed. The same constraints
  * hold for this function as for flushing individual tasks.

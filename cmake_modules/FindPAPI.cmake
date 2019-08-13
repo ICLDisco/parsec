@@ -9,6 +9,7 @@
 #    link against to use PAPI
 #  PAPI_INCLUDE_DIR - directory where the PAPI header files are
 #
+#  PAPI::PAPI interface library target for linking
 ##########
 
 find_package(PkgConfig QUIET)
@@ -35,6 +36,16 @@ find_library(PAPI_LIBRARY NAMES papi
              DOC "Library path for PAPI")
 
 message(STATUS "The PAPI Library is found at ${PAPI_LIBRARY}")
+
+#===============================================================================
+# Importing PAPI as a cmake target
+  if(NOT TARGET PAPI::PAPI)
+    add_library(PAPI::PAPI INTERFACE IMPORTED)
+  endif()
+
+  set_property(TARGET PAPI::PAPI APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${PAPI_LIBRARY}")
+  set_property(TARGET PAPI::PAPI PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PAPI_INCLUDE_DIR}")
+  #===============================================================================
 
 set(PAPI_LIBRARIES ${PAPI_LIBRARY} )
 set(PAPI_INCLUDE_DIRS ${PAPI_INCLUDE_DIR} )

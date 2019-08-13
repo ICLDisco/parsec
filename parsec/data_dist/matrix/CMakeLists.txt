@@ -13,10 +13,6 @@ parsec_compile_ptg(generated_jdf "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${C
 
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
-if(NOT PARSEC_COMPILE_INPLACE)
-  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
-endif(NOT PARSEC_COMPILE_INPLACE)
-
 set(sources
         matrix.c
         matrixtypes.c
@@ -38,16 +34,12 @@ if (MPI_C_FOUND)
     LIST(APPEND sources scalapack_convert.c)
 endif(MPI_C_FOUND)
 
-add_library(parsec_data_matrix OBJECT ${sources})
-if(BUILD_SHARED_LIBS)
-  set_target_properties(parsec_data_matrix PROPERTIES POSITION_INDEPENDENT_CODE ON)
-endif(BUILD_SHARED_LIBS)
-if (MPI_C_FOUND)
-    set_target_properties(parsec_data_matrix PROPERTIES COMPILE_FLAGS
-                          "${MPI_C_COMPILE_FLAGS}")
-    set_target_properties(parsec_data_matrix PROPERTIES LINK_FLAGS
-                          "${MPI_C_LINK_FLAGS}")
-endif(MPI_C_FOUND)
+if(NOT TARGET parsec-data-matrix)
+  add_library(parsec-data-matrix OBJECT ${sources})
+endif(NOT TARGET parsec-data-matrix)
+
+set_target_properties(parsec-data-matrix PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
+target_include_directories(parsec-data-matrix PRIVATE ${MPI_C_INCLUDE_PATH})
 
 install(FILES
   matrix.h
@@ -59,4 +51,5 @@ install(FILES
   two_dim_tabular.h
   grid_2Dcyclic.h
   subtile.h
+  ${CMAKE_CURRENT_BINARY_DIR}/diag_band_to_rect.h
   DESTINATION include/parsec/data_dist/matrix )

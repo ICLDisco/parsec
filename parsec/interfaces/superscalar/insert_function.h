@@ -21,13 +21,18 @@
 BEGIN_C_DECLS
 
 /**
+ * @addtogroup DTD_INTERFACE
+ *  @{
+ */
+
+/**
  * To see examples please look at testing_zpotrf_dtd.c, testing_zgeqrf_dtd.c,
  * testing_zgetrf_incpiv_dtd.c files in the directory "root_of_PaRSEC/dplasma/testing/".
  * Very simple example of inserting just one task can be found in
  * "root_of_PaRSEC/example/interfaces/superscalar/"
  **/
 
-/*
+/**
  * The following is a definition of the flags, for usage please check usage of parsec_dtd_taskpool_insert_task() below.
  *
  *   **  Details of Flags **
@@ -56,7 +61,7 @@ typedef enum { INPUT=0x100000,
                REF=0x700000
              } parsec_dtd_op_type;
 
-/*
+/**
  * The following is a definition of the flags, for usage please check usage of parsec_dtd_taskpool_insert_task() below.
  *
  *   **  Details of Flags **
@@ -75,20 +80,20 @@ typedef enum { AFFINITY=1<<16, /* Data affinity */
                DONT_TRACK=1<<17, /* Drop dependency tracking */
              } parsed_dtd_other_flag_type;
 
-/*
+/**
  * Describes different regions to express more specific dependency.
  * All regions are mutually exclusive.
  */
 #define GET_REGION_INFO 0xffff
 #define PARSEC_DTD_ARG_END -111
 
-/*
+/**
  * Array of arenas to hold the data region shape and other information.
  * Currently only 16 types of different regions are supported at a time.
  */
 extern parsec_arena_t **parsec_dtd_arenas;
 
-/*
+/**
  * Users can use this two variables to control the sliding window of task insertion.
  * This is set using a default number or the number set by the mca_param.
  * The command line to set the value of window size and threshold size are:
@@ -103,14 +108,14 @@ extern int parsec_dtd_window_size;
 extern int parsec_dtd_threshold_size;
 
 #define PASSED_BY_REF                1
-#define MAX_FLOW                    25 /* Max number of flows allowed per task */
-#define PARSEC_DTD_NB_TASK_CLASSES  25 /* Max number of task classes allowed */
+#define MAX_FLOW                    25 /*< Max number of flows allowed per task */
+#define PARSEC_DTD_NB_TASK_CLASSES  25 /*< Max number of task classes allowed */
 
 typedef struct parsec_dtd_tile_s         parsec_dtd_tile_t;
 typedef struct parsec_dtd_task_s         parsec_dtd_task_t;
 typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
 
-/*
+/**
  * Function pointer typeof  kernel pointer pased as parameter to insert_function().
  * This is the prototype of the function in which the actual operations of each task
  * is implemented by the User. The actual computation will be performed in functions
@@ -130,7 +135,7 @@ typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
  */
 typedef int (parsec_dtd_funcptr_t)(parsec_execution_stream_t *, parsec_task_t *);
 
-/*
+/**
  * This function is used to retrieve the parameters passed during insertion of a task.
  * This function takes variadic parameters.
  * 1. parsec_task_t * -> The parameter list is attached with this structure.
@@ -152,7 +157,7 @@ typedef int (parsec_dtd_funcptr_t)(parsec_execution_stream_t *, parsec_task_t *)
 void
 parsec_dtd_unpack_args( parsec_task_t *this_task, ... );
 
-/*
+/**
  * The following macro is very specific to two dimensional matrix.
  * The parameters to pass to get pointer to data
  * 1. parsec_data_collection_t *
@@ -162,7 +167,7 @@ parsec_dtd_unpack_args( parsec_task_t *this_task, ... );
 #define TILE_OF(DC, I, J) \
     parsec_dtd_tile_of(&(__dc##DC->super.super), (&(__dc##DC->super.super))->data_key(&(__dc##DC->super.super), I, J))
 
-/*
+/**
  * This macro is for any type of data. The user needs to provide the
  * data-descriptor and the key. The dc and the key will allow us
  * to uniquely identify the data a task is supposed to use.
@@ -170,10 +175,13 @@ parsec_dtd_unpack_args( parsec_task_t *this_task, ... );
 #define TILE_OF_KEY(DC, KEY) \
     parsec_dtd_tile_of(DC, KEY)
 
+/**
+ * Returns the tile belonging to data collection dc from its key
+ */
 parsec_dtd_tile_t *
 parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
 
-/*
+/**
  * Using this function users can insert task in PaRSEC
  * 1. The parsec taskpool (parsec_dtd_taskpool_t *)
  * 2. The function pointer which will be executed as the "real computation task" being inserted.
@@ -238,7 +246,7 @@ parsec_dtd_taskpool_insert_task(parsec_taskpool_t  *tp,
                                 parsec_dtd_funcptr_t *fpointer, int priority,
                                 const char *name_of_kernel, ...);
 
-/*
+/**
  * This function behaves exactly like parsec_dtd_taskpool_insert_task()
  * except it does not insert the task in PaRSEC and just returns it.
  * Users will need to use parsec_insert_dtd_task() to insert the task
@@ -248,13 +256,14 @@ parsec_dtd_taskpool_create_task(parsec_taskpool_t  *tp,
                                 parsec_dtd_funcptr_t *fpointer, int priority,
                                 const char *name_of_kernel, ...);
 
-/* This function allows users to insert a properly formed DTD task in
+/**
+ * This function allows users to insert a properly formed DTD task in
  * PaRSEC.
  */
 void
 parsec_insert_dtd_task(parsec_task_t *this_task);
 
-/*
+/**
  * This macros should be called anytime users
  * are using data in their parsec-dtd runs.
  * This functions intializes/cleans necessary
@@ -273,7 +282,7 @@ parsec_dtd_data_collection_init( parsec_data_collection_t *dc );
 void
 parsec_dtd_data_collection_fini( parsec_data_collection_t *dc );
 
-/*
+/**
  * This function create and returns a PaRSEC DTD taskpool. The
  * taskpool is not associated with any context, contains no
  * tasks, and has no callback associated with.
@@ -281,7 +290,7 @@ parsec_dtd_data_collection_fini( parsec_data_collection_t *dc );
 parsec_taskpool_t*
 parsec_dtd_taskpool_new();
 
-/*
+/**
  * This function will block until all the tasks inserted
  * so far is completed.
  * User can call this function multiple times
@@ -292,7 +301,7 @@ int
 parsec_dtd_taskpool_wait( parsec_context_t *parsec,
                           parsec_taskpool_t  *tp );
 
-/*
+/**
  * This function flushes a specific data,
  * it indicates to the engine that this data
  * will no longer be used by any further tasks.
@@ -312,7 +321,7 @@ void
 parsec_dtd_data_flush( parsec_taskpool_t   *tp,
                        parsec_dtd_tile_t *tile );
 
-/*
+/**
  * This function flushes all the data of a dc(data collection).
  * This function must be called for all dc(s) before
  * parsec_context_wait() is called.
@@ -321,18 +330,23 @@ void
 parsec_dtd_data_flush_all( parsec_taskpool_t *tp,
                            parsec_data_collection_t  *dc );
 
-/*
+/**
  * This function returns the taskpool a task bekongs to.
  */
 parsec_taskpool_t *
 parsec_dtd_get_taskpool(parsec_task_t *this_task);
-/*
+
+/**
  * This function allows explicit dequeue of a taskpool.
  * Taskpools are automatically dequeued in parsec_context_wait()
  */
 int
 parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp,
                             parsec_context_t  *context);
+
+/**
+ * @}
+ */
 
 END_C_DECLS
 

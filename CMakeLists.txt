@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.9)
 project (PARSEC C)
 
 include(CMakeDependentOption)
@@ -16,25 +16,12 @@ if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 ENDIF(POLICY CMP0074)
 
+set(CMAKE_NO_SYSTEM_FROM_IMPORTED True)
+
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)
 enable_testing()
 include(CTest)
-
-set(CTEST_SHM_LAUNCHER
-      "" CACHE STRING
-      "A command to run shared memory testings")
-string(REPLACE " " ";" SHM_TEST_CMD_LIST "${CTEST_SHM_LAUNCHER}")
-set(CTEST_MPI_LAUNCHER
-      "mpiexec -n" CACHE STRING
-      "A command to run distributed memory testings")
-if( "${CTEST_MPI_LAUNCHER}" STREQUAL "" )
-    MESSAGE(WARNING "MPI tests will most likely not work: 'CTEST_MPI_LAUNCHER' is not set")
-endif()
-string(REPLACE " " ";" MPI_TEST_CMD_LIST "${CTEST_MPI_LAUNCHER}")
-set(CTEST_GPU_LAUNCHER_OPTIONS
-      "" CACHE STRING
-      "Options to pass to the CTEST_MPI_LAUNCHER to select GPU nodes")
 
 #####
 # ccmake tunable parameters
@@ -156,7 +143,7 @@ option(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT
   "Generate Profiling traces for the internal_init tasks in the PTG interface (expert mode only)" OFF)
 mark_as_advanced(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) #This is available in export mode only
 if( PARSEC_PROF_TRACE )
-  SET(PARSEC_PAPI_SDE "ON")
+  SET(PARSEC_PAPI_SDE ON)
 else( PARSEC_PROF_TRACE )
   UNSET(PARSEC_PAPI_SDE)
   UNSET(PARSEC_PAPI_SDE CACHE)
@@ -196,7 +183,7 @@ option(PINS_ENABLE
 # endif( PINS_ENABLE AND NOT PARSEC_PROF_TRACE )
 
 # cmake modules setup
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules/")
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)
 include (CMakeDetermineSystem)
 include (CheckCCompilerFlag)
 include (CheckCSourceCompiles)
@@ -391,12 +378,12 @@ foreach( ITEM ${TMP_LIST})
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ITEM}")
 endforeach()
 
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads)
 if(Threads_FOUND)
   set(PARSEC_HAVE_PTHREAD true)
-  list(APPEND EXTRA_LIBS ${CMAKE_THREAD_LIBS_INIT})
   CMAKE_PUSH_CHECK_STATE()
-  list(APPEND CMAKE_REQUIRED_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
   check_function_exists(pthread_getspecific PARSEC_HAVE_PTHREAD_GETSPECIFIC)
   check_function_exists(pthread_barrier_init PARSEC_HAVE_PTHREAD_BARRIER)
   if(NOT PARSEC_HAVE_PTHREAD_BARRIER)
@@ -413,8 +400,8 @@ check_function_exists(sched_setaffinity PARSEC_HAVE_SCHED_SETAFFINITY)
 if(NOT PARSEC_HAVE_SCHED_SETAFFINITY)
   check_library_exists(rt sched_setaffinity "" PARSEC_HAVE_SCHED_SETAFFINITYRT)
   if(PARSEC_HAVE_SCHED_SETAFFINITYRT)
-    list(APPEND EXTRA_LIBS -lrt)
     set(PARSEC_HAVE_SCHED_SETAFFINITY true)
+    list(APPEND EXTRA_LIBS rt)
   endif()
 endif(NOT PARSEC_HAVE_SCHED_SETAFFINITY)
 
@@ -437,8 +424,8 @@ check_library_exists(c clock_gettime "time.h" PARSEC_HAVE_CLOCK_GETTIME)
 if( NOT PARSEC_HAVE_CLOCK_GETTIME )
   check_library_exists(rt clock_gettime "time.h" PARSEC_HAVE_CLOCK_GETTIMERT)
   if(PARSEC_HAVE_CLOCK_GETTIMERT)
-    list(APPEND EXTRA_LIBS -lrt)
     set(PARSEC_HAVE_CLOCK_GETTIME true)
+    list(APPEND EXTRA_LIBS rt)
   endif(PARSEC_HAVE_CLOCK_GETTIMERT)
 endif( NOT PARSEC_HAVE_CLOCK_GETTIME )
 
@@ -568,32 +555,16 @@ set(EXTRA_INCLUDES "")
 # Find optional packages
 #
 IF( BUILD_PARSEC )
-  add_definitions(-DBUILD_PARSEC)
-  # Look for dl library to dynamically load the mca modules and cuda kernels
-  check_function_exists(dlsym PARSEC_HAVE_DL)
-  if( NOT PARSEC_HAVE_DL )
-    find_library(DL_LIBRARY dl)
-    MARK_AS_ADVANCED(DL_LIBRARY)
-    if(DL_LIBRARY)
-      CMAKE_PUSH_CHECK_STATE()
-      list(APPEND CMAKE_REQUIRED_LIBRARIES ${DL_LIBRARY})
-      check_function_exists(dlsym PARSEC_HAVE_DLDL)
-      CMAKE_POP_CHECK_STATE()
-      if(PARSEC_HAVE_DLDL)
-        list(APPEND EXTRA_LIBS ${DL_LIBRARY} )
-        set(PARSEC_HAVE_DL true)
-      endif(PARSEC_HAVE_DLDL)
-    endif(DL_LIBRARY)
-  endif( NOT PARSEC_HAVE_DL )
-
+  set(PARSEC_HAVE_PAPI 0)
+  find_package(DL)
   find_package(HWLOC)
   set(PARSEC_HAVE_HWLOC ${HWLOC_FOUND})
-  if( HWLOC_FOUND )
-    list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
-    include_directories( ${HWLOC_INCLUDE_DIRS} )
-    list(APPEND EXTRA_INCLUDES ${HWLOC_INCLUDE_DIRS})
-    set (PARSEC_PKG_REQUIRE "hwloc")
-   endif (HWLOC_FOUND)
+  IF( HWLOC_FOUND )
+     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
+     include_directories( ${HWLOC_INCLUDE_DIRS} )
+     list(APPEND EXTRA_INCLUDES ${HWLOC_INCLUDE_DIRS})
+     set (PARSEC_PKG_REQUIRE "hwloc")
+   ENDIF (HWLOC_FOUND)
 
   if (PARSEC_DIST_WITH_MPI)
     # Test first if we are using a wrapper as the compiler
@@ -611,8 +582,6 @@ IF( BUILD_PARSEC )
     else( MPI_WORKS_WITH_WRAPPER )
       # Otherwise try to find MPI in the normal way
       find_package(MPI)
-      list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
-      include_directories( ${MPI_C_INCLUDE_PATH} )
       list(APPEND EXTRA_INCLUDES ${MPI_C_INCLUDE_PATH})
     endif( MPI_WORKS_WITH_WRAPPER )
     set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
@@ -660,16 +629,13 @@ IF( BUILD_PARSEC )
       endif(_path_pgcuda)
     ENDIF (_match_pgi)
     find_package(CUDA)
-    set(PARSEC_HAVE_CUDA ${CUDA_FOUND})
+    set(PARSEC_HAVE_CUDA ${CUDA_FOUND} CACHE BOOL "True if PaRSEC provide support for CUDA")
     if (CUDA_FOUND)
       message(STATUS "Found CUDA ${CUDA_VERSION} in ${CUDA_TOOLKIT_ROOT_DIR}")
       if(CUDA_VERSION VERSION_LESS "3.0")
         set(CUDA_HOST_COMPILATION_CPP OFF)
       endif(CUDA_VERSION VERSION_LESS "3.0")
       set(CUDA_BUILD_EMULATION OFF)
-      include_directories(${CUDA_INCLUDE_DIRS})
-      list(APPEND EXTRA_INCLUDES ${CUDA_INCLUDE_DIRS})
-      list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
       CMAKE_PUSH_CHECK_STATE()
       list(APPEND CMAKE_REQUIRED_INCLUDES  "${CUDA_INCLUDE_DIRS}")
       list(APPEND CMAKE_REQUIRED_LIBRARIES "${CUDA_LIBRARIES}")
@@ -801,8 +767,8 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # the RPATH to be used when installing, but only if it's not a system directory
 LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-MESSAGE(STATUS "LINK_DIRECTORIES = ${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
-MESSAGE(STATUS "INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}/lib")
+#MESSAGE(STATUS "LINK_DIRECTORIES = ${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
+#MESSAGE(STATUS "INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}/lib")
 IF("${isSystemDir}" STREQUAL "-1")
   SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 ENDIF("${isSystemDir}" STREQUAL "-1")
@@ -813,11 +779,11 @@ ENDIF("${isSystemDir}" STREQUAL "-1")
 set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/parsec/include")
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
-STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} PARSEC_COMPILE_INPLACE)
-if(NOT PARSEC_COMPILE_INPLACE)
+STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} PARSEC_BUILD_INPLACE)
+if(NOT PARSEC_BUILD_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include")
-endif(NOT PARSEC_COMPILE_INPLACE)
+endif(NOT PARSEC_BUILD_INPLACE)
 
 #
 # Check if indent is available on the system.
@@ -852,7 +818,6 @@ mark_as_advanced(PARSEC_C_INCLUDES)
 #
 # First go for the tools.
 #
-set(parsec_ptgpp_EXE "NOT-DEFINED")
 add_subdirectory(tools)
 IF(CMAKE_CROSSCOMPILING)
   SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
@@ -862,16 +827,31 @@ IF(CMAKE_CROSSCOMPILING)
 ELSE(CMAKE_CROSSCOMPILING)
   SET(parsec_ptgpp_EXE parsec_ptgpp)
 ENDIF(CMAKE_CROSSCOMPILING)
+set(parsec_ptgpp_EXE ${parsec_ptgpp_EXE} CACHE STRING "Point to the parsec_ptgpp executable")
 
 # List of files that will go through documentation generation
 include(AddDocumentedFiles)
-#add_documented_files(${CMAKE_SOURCE_DIR})
 
 add_subdirectory(parsec)
 
 #
 # Now continue with compiling the tests.
 #
+set(CTEST_SHM_LAUNCHER
+      "" CACHE STRING
+      "A command to run shared memory testings")
+string(REPLACE " " ";" SHM_TEST_CMD_LIST "${CTEST_SHM_LAUNCHER}")
+set(CTEST_MPI_LAUNCHER
+    "${MPIEXEC} ${MPIEXEC_PREFLAGS} ${MPIEXEC_NUMPROC_FLAG}" CACHE STRING
+      "A command to run distributed memory testings")
+if( "${CTEST_MPI_LAUNCHER}" STREQUAL "" )
+    MESSAGE(WARNING "MPI tests will most likely not work: 'CTEST_MPI_LAUNCHER' is not set")
+endif()
+string(REPLACE " " ";" MPI_TEST_CMD_LIST "${CTEST_MPI_LAUNCHER}")
+set(CTEST_GPU_LAUNCHER_OPTIONS
+      "" CACHE STRING
+      "Options to pass to the CTEST_MPI_LAUNCHER to select GPU nodes")
+
 if( BUILD_TESTING )
   find_program(HOSTNAME_EXE hostname)
   MARK_AS_ADVANCED(HOSTNAME_EXE)
@@ -882,6 +862,23 @@ if( BUILD_TESTING )
   add_subdirectory(tests)
   add_subdirectory(examples)
 endif( BUILD_TESTING )
+
+add_subdirectory(docs)
+
+# Fetch GIT info for this build
+# Get the current working branch
+execute_process(
+  COMMAND git rev-parse --abbrev-ref HEAD
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_BRANCH
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+# Get the latest abbreviated commit hash of the working branch
+execute_process(
+  COMMAND git log -1 --format=%h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_HASH
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # Configuration header
 configure_file (
@@ -956,6 +953,7 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/arena.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/execution_stream.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_internal.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/vpmap.h
   DESTINATION include/parsec)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins.h
@@ -1041,6 +1039,8 @@ set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
 include (CPack)
 
+list(REMOVE_DUPLICATES EXTRA_LIBS)
+
 MESSAGE("\n\nConfiguration flags:")
 MESSAGE("  CMAKE_C_FLAGS          = ${CMAKE_C_FLAGS}")
 MESSAGE("  CMAKE_C_LDFLAGS        = ${CMAKE_C_LDFLAGS}")
@@ -1053,28 +1053,60 @@ MESSAGE("\n\n")
 # but also generates the CMake package files.
 
 # pkg-config file
-string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
-if (EXTRA_INCLUDES)
-  string (REPLACE ";" " -I" EXTRA_INCLUDES_STRING "-I${EXTRA_INCLUDES}")
+#string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
+#if (EXTRA_INCLUDES)
+#  string (REPLACE ";" " -I" EXTRA_INCLUDES_STRING "-I${EXTRA_INCLUDES}")
   # Remove the last -I if any
-  string (REPLACE "-I$" "" EXTRA_INCLUDES_STRING ${EXTRA_INCLUDES_STRING})
-endif (EXTRA_INCLUDES)
-configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
-  "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
+#  string (REPLACE "-I$" "" EXTRA_INCLUDES_STRING ${EXTRA_INCLUDES_STRING})
+#endif (EXTRA_INCLUDES)
+#configure_file (
+#  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
+#  "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
 
-install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"   DESTINATION lib/pkgconfig)
+#install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"   DESTINATION lib/pkgconfig)
 
+# Export Targets
+set(INSTALL_CONFIGDIR "${CMAKE_INSTALL_PREFIX}/lib/cmake")
+
+install(EXPORT parsec-targets # rules to export the targets built here
+  FILE PaRSECTargets.cmake
+  NAMESPACE PaRSEC::
+  DESTINATION ${INSTALL_CONFIGDIR})
+
+export(TARGETS parsec parsec_ptgpp
+       NAMESPACE PaRSEC::
+       FILE ${CMAKE_BINARY_DIR}/parsec/cmake_modules/PaRSEC-Exports-Build.cmake)
 # cmake config files
 include(CMakePackageConfigHelpers)
-configure_package_config_file(cmake_modules/ParsecConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake
-                              INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake
-                              PATH_VARS CMAKE_INSTALL_PREFIX)
+
+set(INCLUDE_INSTALL_DIR include)
+set(EXTRA_INCLUDE_INSTALL_DIR include/parsec)
+set(LIB_INSTALL_DIR lib)
+set(RUNTIME_INSTALL_DIR bin)
+set(SYSCONFIG_INSTALL_DIR share)
+set(CONFIG_INSTALL_DIR lib/cmake)
+
+configure_package_config_file(cmake_modules/ParsecConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/PaRSECConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake
+  PATH_VARS LIB_INSTALL_DIR SYSCONFIG_INSTALL_DIR
+  INCLUDE_INSTALL_DIR EXTRA_INCLUDE_INSTALL_DIR
+  RUNTIME_INSTALL_DIR CONFIG_INSTALL_DIR)
+
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
     VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_PATCH}
                                  COMPATIBILITY SameMajorVersion)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake cmake_modules/ParsecCompilePTG.cmake cmake_modules/FindPARSEC.cmake
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/PaRSECConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
+  ${CMAKE_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
+  ${CMAKE_SOURCE_DIR}/cmake_modules/ParsecCompilePTG.cmake
+  # Export dependencies package finders
+  $<$<BOOL:PARSEC_HAVE_HWLOC>:${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake>
+  $<$<BOOL:PARSEC_HAVE_PAPI>:${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPAPI.cmake>
+  $<$<BOOL:PARSEC_HAVE_OTF2>:${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindOTF2.cmake>
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindDL.cmake
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
 
 # Prepare the contrib/build_with_parsec directory
 configure_file (
@@ -1095,10 +1127,3 @@ foreach( pattern_file ${pattern_files} )
   list( APPEND pattern_files_dest "${pattern_file}" )
 endforeach( pattern_file )
 add_custom_target(build_with_parsec ALL DEPENDS ${pattern_files_dest})
-
-add_subdirectory(dplasma)
-
-# build doxygen documentation. Keep this at the end to make sure all temporary
-# variables (such as the DPLASMA documentation) are correctly initialized.
-add_subdirectory(docs)
-

@@ -11,19 +11,20 @@ module purge
 module load \
   gcc/7.3.0/gcc-4.8.5-ox22 \
   openmpi/3.1.3/gcc-7.3.0-tbup \
-  cmake/3.1.0/gcc-7.3.0-rt53 \
+  cmake/3.9.6/gcc-7.3.0-4uvp \
   python/2.7.16/gcc-7.3.0-wfpb \
   otf2/2.1.1/gcc-7.3.0-ylax \
   cuda/9.2.88/gcc-7.3.0-idc7 \
 
+SATURN_LAUNCHER="-DCTEST_MPI_LAUNCHER='srun -Ccauchy -N' -DCTEST_SHM_LAUNCHER='srun -Ccauchy' -DCTEST_GPU_LAUNCHER_OPTIONS=-Cgtx1060"
+
 if [ ${BUILDTYPE} = "Debug" ] ; then
-    DEBUG_OPTIONS="-DPARSEC_DEBUG_HISTORY=ON -DPARSEC_DEBUG_PARANOID=ON -DPARSEC_DEBUG_NOISIER=ON -DPARSEC_PROF_GRAPHER=ON -DPARSEC_PROF_RUSAGE_EU=ON -DPARSEC_PROF_TRACE=ON"
+    DEBUG_OPTIONS="--enable-debug=history,noisier,paranoid --enable-prof-trace --enable-prof-grapher"
 fi
 
-${WORKSPACE}/contrib/platforms/config.saturn -DCMAKE_BUILD_TYPE=${BUILDTYPE} \
-    -DDPLASMA_PRECISIONS="${DPLASMA_PRECISIONS}" \
-    -DCMAKE_INSTALL_PREFIX="${BUILDDIR}.install" \
-    ${DEBUG_OPTIONS}
+CONFCMD="${WORKSPACE}/configure --prefix=${BUILDDIR}.install ${DEBUG_OPTIONS} ${SATURN_LAUNCHER}"
+echo $CONFCMD
+eval $CONFCMD
 
 # Build stage
 make -j 8 -l 4

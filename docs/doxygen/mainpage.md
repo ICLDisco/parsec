@@ -1,25 +1,18 @@
-PaRSEC/DPLASMA Documentation {#mainpage}
+PaRSEC Documentation {#mainpage}
 ================================
 
 # <a name="toc">Table of Contents</a>
-A. [PaRSEC Documentation](#parsecdoc)
 
-  1. [User Documentation](#parsecuser)
-  2. [Developer and Advanced Usage Documentation](#parsecdev)
-	
-B. [DPLASMA Documentation](#dplasmadoc)
+A. [User Documentation](#parsecuser)
+B. [Developer and Advanced Usage Documentation](#parsecdev)
 
-<a name="parsecdoc">PaRSEC Documentation</a>
------------------------------------------
-[(Return to Table of Contents](#toc)]
-
-### <a name="parsecuser">PaRSEC User Documentation</a> ###
+## <a name="parsecuser">PaRSEC User Documentation</a> ###
 [(Return to Table of Contents](#toc)]
 
 This document introduces the programing interfaces of PaRSEC. For more
 general information, see the
 [PaRSEC bitbucket wiki page](https://bitbucket.org/icldistcomp/parsec/wiki/Home)
-for information on how to compile and run PaRSEC and DPLASMA. Also see the
+for information on how to compile and run PaRSEC. Also see the
 [PaRSEC bitbucket wiki page](https://bitbucket.org/icldistcomp/parsec/wiki/Home)
 for more general information on how to develop applications over
 PaRSEC.
@@ -40,10 +33,8 @@ data to the task system
 - [A profiling system](@ref parsec_public_profiling) to build traces
 of the execution at runtime, providing performance information
 feedback to the application or to the user
-- And [a set of tools](@ref parsec_public_tools) to explore the execution
-traces
 
-### <a name="parsecdev">PaRSEC Developer and Advanced Usage Documentation</a> ###
+## <a name="parsecdev">PaRSEC Developer and Advanced Usage Documentation</a> ###
 [(Return to Table of Contents](#toc)]
 
 The code of the PaRSEC runtime is located in the `parsec/`
@@ -126,11 +117,3 @@ following components have specific documentation:
  - [schedulers](@ref parsec/mca/sched/sched.h) in `parsec/mca/sched`
  - [PaRSEC INStrumentation](@ref parsec/mca/pins/pins.h) in `parsec/mca/pins`
 
-
-<a name="dplasmadoc">DPLASMA Documentation</a>
---------------------------------------------
-[(Return to Table of Contents](#toc)]
-
-See the
-[PaRSEC bitbucket wiki page](https://bitbucket.org/icldistcomp/parsec/wiki/Home)
-for information on how to compile and run PaRSEC and DPLASMA.

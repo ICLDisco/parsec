@@ -1,10 +1,13 @@
-Copyright (c) 2009-2018 The University of Tennessee and The University
+Copyright (c) 2009-2019 The University of Tennessee and The University
                         of Tennessee Research Foundation.  All rights
                         reserved.
 
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
+ - Split DPLASMA and PaRSEC into separate repositories. PaRSEC moves from
+   cmake-2.0 to cmake-3.9, using targets. Targets are exported for
+   third-party integration
 
  - Add visualization tools to extract user-defined properties from the
    application (see: PR 229 visualization-tools)

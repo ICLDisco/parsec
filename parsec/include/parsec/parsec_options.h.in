@@ -13,6 +13,10 @@
 #define PARSEC_VERSION_MINOR @PARSEC_VERSION_MINOR@
 /** @brief Define the PaRSEC patch version number */
 #define PARSEC_VERSION_PATCH @PARSEC_VERSION_PATCH@
+/** @brief Define the branch that was compiled */
+#define PARSEC_GIT_BRANCH "@GIT_COMMIT_BRANCH@"
+/** @brief Define the commit hash that was compiled */
+#define PARSEC_GIT_HASH "@GIT_COMMIT_HASH@"
 
 /* OS dependent capabilities */
 #cmakedefine PARSEC_HAVE_PTHREAD

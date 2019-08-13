@@ -12,7 +12,7 @@ IS			(u|U|l|L)*
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "jdf.h"
