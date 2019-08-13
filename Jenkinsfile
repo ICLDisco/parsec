@@ -49,8 +49,8 @@ node {
         println "Missing organization or repository"
         error("Missing organization or repository")
     }
-    if( null == config.get('useHipChat') ) {
-        config.put('useHipChat', false)
+    if( null == config.get('useSlack') ) {
+        config.put('useSlack', false)
     }
     String userpass = config.userName + ":" + config.userPassword;
     String basicAuth = "Basic " + userpass.bytes.encodeBase64().toString()
@@ -85,11 +85,11 @@ pipeline {
             steps {
                 script {
                     try {
-                        hipchatSend color: 'YELLOW', notify: false, room: "CI", sendAs: "Sauron",
+                        slackSend color: 'YELLOW', channel: "ci",
                             message: "Starting: <a href=\"${env.BUILD_URL}\">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a><br>" +
                                      "Pull Request <a href=\"${env.CHANGE_URL}\">#${env.CHANGE_ID}</a>."
-                    } catch (Exception ex) {  //disable HipChat
-                        config.useHipChat = false
+                    } catch (Exception ex) {  //disable Slack
+                        config.useSlack = false
                     }
                 }
                 checkout scm
@@ -138,7 +138,7 @@ pipeline {
     post { 
         // no always
         regression {
-            hipchatSend color: 'RED', notify: true, room: "CI", sendAs: "Sauron",
+            slackSend color: 'RED', channel: "ci",
                 message: "REGRESSION: Job <a href=\"${env.BUILD_URL}\">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a><br>" +
                          "Pull Request <a href=\"${env.CHANGE_URL}\">#${env.CHANGE_ID}</a>."
             //emailext (
@@ -149,13 +149,13 @@ pipeline {
             //)
         }
         success {
-            hipchatSend color: 'GREEN', notify: true, room: "CI", sendAs: "Sauron",
+            slackSend color: 'GREEN', channel: "ci",
                 message: "SUCCESS: Job <a href=\"${env.BUILD_URL}\">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a><br>" +
                          "Pull Request <a href=\"${env.CHANGE_URL}\">#${env.CHANGE_ID}</a> ready to merge"
             approvePullRequest(config.repository, env.CHANGE_ID)
         }
         failure {
-            hipchatSend color: 'RED', notify: true, room: "CI", sendAs: "Sauron",
+            slackSend color: 'RED', channel: "ci",
                 message: "FAILURE: <a href=\"${env.BUILD_URL}\">${env.JOB_NAME} [${env.BUILD_NUMBER}]</a><br>" +
                          "Pull Request <a href=\"${env.CHANGE_URL}\">#${env.CHANGE_ID}</a> consistently fails.<br>" +
                          "This kind of consistency is N.O.T. good"
