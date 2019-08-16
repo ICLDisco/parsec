@@ -9,5 +9,5 @@ Version: @PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@
 Requires: @PARSEC_PKG_REQUIRE@
 Libs: -L${libdir} -lparsec @EXTRA_LIBS_EXPANDED@
 Libs.private: @PAPI_LIBRARIES@
-Cflags: -I${includedir} @EXTRA_INCLUDES_STRING@
+Cflags: -I${includedir} @EXTRA_INCLUDES_STRING@ @PARSEC_ATOMIC_SUPPORT_CFLAGS@
 
