@@ -1,29 +1,23 @@
 Software Dependencies
 
-To compile DPLASMA on a new platform, you will need some of the software
-below. From 1 to 4 (included) they are mandatory. Everything else is optional,
+To compile PaRSEC on a new platform, you will need some of the software
+below. From 1 to 2 (included) they are mandatory. Everything else is optional,
 they provide nice features not critical to the normal usage of this software
 package.
 
 1. cmake version 2.8.0 or above. cmake can be found in the debian package cmake,
    or as sources at the cmake download page (http://www.cmake.org/)
 
-2. a BLAS library optimized for your platform: MKL, ACML, Goto, Atlas, VecLib
-   (MAC OS X), or in the worst case the default BLAS (http://www.netlib.org/blas/).
+2. Any MPI library Open MPI, MPICH2, MVAPICH or any vendor blessed
+   implementation.
 
 3. hwloc for processor and memory locality features
    (http://www.open-mpi.org/projects/hwloc/)
 
-4. Any MPI library Open MPI, MPICH2, MVAPICH or any vendor blessed
-   implementation.
-
-5. PLASMA version 2.5 up to 2.8 (http://icl.cs.utk.edu/plasma/). Newer versions
-   are not currently supported.
-
-6. For using PINS (instrumentation based on PAPI) PAPI is required
+4. For using PINS (instrumentation based on PAPI) PAPI is required
    (http://icl.cs.utk.edu/papi/)
 
-7. For the profiling tools you need several libraries.
+5. For the profiling tools you need several libraries.
   - GTG for the trace generation (https://gforge.inria.fr/projects/gtg/)
 
   - Vite a visualization environment (only required for visualization)
@@ -32,7 +26,7 @@ package.
   - GD usually available on most of the Linux distribution via GraphViz
     installation (http://www.graphviz.org/)
 
-Configuring DPLASMA for a new platform
+Configuring PaRSEC for a new platform
 
 CMake has a comparable goal to configure, but it's subtly different. For one
 thing, CMake display the commands with colors, but this is not necessarily its
@@ -48,172 +42,251 @@ First, there are example invocations of cmake in the contrib/platforms
 accordingly to the following guidelines. These files are shell scripts that can
 be executed directly from desired build directory (VPATH or not).
 
-In order to enable the Linear Algebra package the PLASMA library is required. If
-you have a fairly recent version, correctly configured, this should be a breeze
-as it provides a pkg-config file that our configuration scripts
-understand. Thus, is your version of PLASMA is recent enough providing
--DPLASMA_DIR=my path to the PLASMA lib, should be enough to have a
-straightforward configurations process.
-
-If not, the steps are slightly more complicated, as in addition to correctly
-configuring your PLASMA installation you will need to provide our configuration
-scripts with few hints to help the detection process. Assume that on your
-architecture, the BLAS are mkl in /opt/mkl/lib/em64t; that you need to link with
-mkl_gf_lp64, mkl_sequential and mkl_core to have all the BLAS working (NB: with
-DPLASMA, use the sequential version of the BLAS, always. Using the threaded
-version of the BLAS will decrease performance, even if setting
-OMP_NUM_THREADS=1). Assume also that the PLASMA library was installed in
-/opt/plasma. You'll want to run the following script in the DPLASMA directory.
-
 rm -f CMakeCache.txt
-cmake . -DBLAS_LIBRARIES="-L/opt/mkl/lib/em64t -lmkl_gf_lp64 -lmkl_sequential -lmkl_core" \
--DPLASMA_DIR=/opt/plasma -DDPLASMA_MPI=ON
+cmake . -G 'Unix Makefiles' -DPARSEC_DIST_WITH_MPI=ON
 
 Hopefully, once the expected arguments are provided the output will look similar to:
 
--- The C compiler identification is GNU 4.6.0
--- The CXX compiler identification is GNU 4.6.0
--- The Fortran compiler identification is GNU
+-- The C compiler identification is GNU 7.4.0
 -- Checking whether C compiler has -isysroot
 -- Checking whether C compiler has -isysroot - yes
 -- Checking whether C compiler supports OSX deployment target flag
 -- Checking whether C compiler supports OSX deployment target flag - yes
--- Check for working C compiler: /usr/local/bin/gcc
--- Check for working C compiler: /usr/local/bin/gcc -- works
+-- Check for working C compiler: /opt/local/bin/gcc
+-- Check for working C compiler: /opt/local/bin/gcc -- works
 -- Detecting C compiler ABI info
--- Detecting C compiler ABI info - failed
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- The Fortran compiler identification is GNU 7.4.0
+-- Checking whether Fortran compiler has -isysroot
+-- Checking whether Fortran compiler has -isysroot - yes
+-- Checking whether Fortran compiler supports OSX deployment target flag
+-- Checking whether Fortran compiler supports OSX deployment target flag - yes
+-- Check for working Fortran compiler: /opt/local/bin/gfortran
+-- Check for working Fortran compiler: /opt/local/bin/gfortran  -- works
+-- Detecting Fortran compiler ABI info
+-- Detecting Fortran compiler ABI info - done
+-- Checking whether /opt/local/bin/gfortran supports Fortran 90
+-- Checking whether /opt/local/bin/gfortran supports Fortran 90 -- yes
+-- The CXX compiler identification is GNU 7.4.0
 -- Checking whether CXX compiler has -isysroot
 -- Checking whether CXX compiler has -isysroot - yes
 -- Checking whether CXX compiler supports OSX deployment target flag
 -- Checking whether CXX compiler supports OSX deployment target flag - yes
--- Check for working CXX compiler: /usr/local/bin/g++
--- Check for working CXX compiler: /usr/local/bin/g++ -- works
+-- Check for working CXX compiler: /opt/local/bin/g++
+-- Check for working CXX compiler: /opt/local/bin/g++ -- works
 -- Detecting CXX compiler ABI info
--- Detecting CXX compiler ABI info - failed
--- Check for working Fortran compiler: /usr/local/bin/gfortran
--- Check for working Fortran compiler: /usr/local/bin/gfortran  -- works
--- Detecting Fortran compiler ABI info
--- Detecting Fortran compiler ABI info - failed
--- Checking whether /usr/local/bin/gfortran supports Fortran 90
--- Checking whether /usr/local/bin/gfortran supports Fortran 90 -- yes
--- Found BISON: /opt/local/bin/bison (found version "2.6.5")
--- Found FLEX: /opt/local/bin/flex (found version "2.5.37")
--- Building for target i386
--- Found target for X86
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found BISON: /opt/local/bin/bison (found version "3.4.1")
+-- Found FLEX: /opt/local/bin/flex (found version "2.6.4")
+-- Building for target x86_64
+-- Found target X86_64
 -- Performing Test C_M32or64
--- Performing Test C_M32or64 - Failed
--- Performing Test PARSEC_HAVE_STD_C99
--- Performing Test PARSEC_HAVE_STD_C99 - Failed
+-- Performing Test C_M32or64 - Success
+-- Performing Test PARSEC_HAVE_STD_C1x
+-- Performing Test PARSEC_HAVE_STD_C1x - Success
 -- Performing Test PARSEC_HAVE_WALL
--- Performing Test PARSEC_HAVE_WALL - Failed
+-- Performing Test PARSEC_HAVE_WALL - Success
 -- Performing Test PARSEC_HAVE_WEXTRA
--- Performing Test PARSEC_HAVE_WEXTRA - Failed
--- Performing Test PARSEC_HAVE_WD
--- Performing Test PARSEC_HAVE_WD - Failed
+-- Performing Test PARSEC_HAVE_WEXTRA - Success
+-- Performing Test PARSEC_HAVE_PAR_EQUALITY
+-- Performing Test PARSEC_HAVE_PAR_EQUALITY - Success
 -- Performing Test PARSEC_HAVE_G3
--- Performing Test PARSEC_HAVE_G3 - Failed
--- Performing Test PARSEC_ATOMIC_USE_GCC_32_BUILTINS
--- Performing Test PARSEC_ATOMIC_USE_GCC_32_BUILTINS - Failed
--- Performing Test PARSEC_ATOMIC_USE_XLC_32_BUILTINS
--- Performing Test PARSEC_ATOMIC_USE_XLC_32_BUILTINS - Failed
--- Performing Test PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS
--- Performing Test PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS - Failed
--- Performing Test PARSEC_ATOMIC_USE_SUN_32
--- Performing Test PARSEC_ATOMIC_USE_SUN_32 - Failed
--- Looking for OSAtomicCompareAndSwap32
--- Looking for OSAtomicCompareAndSwap32 - not found
--- Looking for OSAtomicCompareAndSwap64
--- Looking for OSAtomicCompareAndSwap64 - not found
--- Looking for include file pthread.h
--- Looking for include file pthread.h - not found.
--- Could NOT find Threads (missing:  Threads_FOUND)
+-- Performing Test PARSEC_HAVE_G3 - Success
+-- Looking for sys/types.h
+-- Looking for sys/types.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for stddef.h
+-- Looking for stddef.h - found
+-- Check size of __int128_t
+-- Check size of __int128_t - done
+-- Performing Test PARSEC_COMPILER_C11_COMPLIANT
+-- Performing Test PARSEC_COMPILER_C11_COMPLIANT - Success
+-- Performing Test PARSEC_STDC_HAVE_C11_ATOMICS
+-- Performing Test PARSEC_STDC_HAVE_C11_ATOMICS - Success
+-- Looking for include file stdatomic.h
+-- Looking for include file stdatomic.h - found
+-- Performing Test PARSEC_ATOMIC_USE_C11_32
+-- Performing Test PARSEC_ATOMIC_USE_C11_32 - Success
+-- Performing Test PARSEC_ATOMIC_USE_C11_64
+-- Performing Test PARSEC_ATOMIC_USE_C11_64 - Success
+-- Performing Test PARSEC_ATOMIC_USE_C11_128
+-- Performing Test PARSEC_ATOMIC_USE_C11_128 - Failed
+-- Performing Test PARSEC_ATOMIC_USE_C11_128
+-- Performing Test PARSEC_ATOMIC_USE_C11_128 - Failed
+-- Performing Test PARSEC_ATOMIC_USE_C11_128
+-- Performing Test PARSEC_ATOMIC_USE_C11_128 - Success
+-- 	 support for 32 bits atomics - found
+-- 	 support for 64 bits atomics - found
+-- 	 support for 128 bits atomics - found
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Looking for pthread_getspecific
+-- Looking for pthread_getspecific - found
+-- Looking for pthread_barrier_init
+-- Looking for pthread_barrier_init - not found
+-- Looking for pthread_barrier_init
+-- Looking for pthread_barrier_init - not found
 -- Looking for sched_setaffinity
 -- Looking for sched_setaffinity - not found
+-- Looking for sched_setaffinity in rt
+-- Looking for sched_setaffinity in rt - not found
 -- Performing Test PARSEC_HAVE_TIMESPEC_TV_NSEC
--- Performing Test PARSEC_HAVE_TIMESPEC_TV_NSEC - Failed
--- Looking for clock_gettime in rt
--- Looking for clock_gettime in rt - not found
+-- Performing Test PARSEC_HAVE_TIMESPEC_TV_NSEC - Success
+-- Looking for clock_gettime in c
+-- Looking for clock_gettime in c - found
 -- Looking for include file stdarg.h
--- Looking for include file stdarg.h - not found.
+-- Looking for include file stdarg.h - found
+-- Performing Test PARSEC_HAVE_VA_COPY
+-- Performing Test PARSEC_HAVE_VA_COPY - Success
+-- Performing Test PARSEC_HAVE_ATTRIBUTE_FORMAT_PRINTF
+-- Performing Test PARSEC_HAVE_ATTRIBUTE_FORMAT_PRINTF - Success
+-- Performing Test PARSEC_HAVE_THREAD_LOCAL
+-- Performing Test PARSEC_HAVE_THREAD_LOCAL - Success
 -- Looking for asprintf
--- Looking for asprintf - not found
+-- Looking for asprintf - found
 -- Looking for vasprintf
--- Looking for vasprintf - not found
--- Looking for include file getopt.h
--- Looking for include file getopt.h - not found.
+-- Looking for vasprintf - found
 -- Looking for include file unistd.h
--- Looking for include file unistd.h - not found.
+-- Looking for include file unistd.h - found
+-- Looking for include file getopt.h
+-- Looking for include file getopt.h - found
 -- Looking for getopt_long
--- Looking for getopt_long - not found
+-- Looking for getopt_long - found
 -- Looking for include file errno.h
--- Looking for include file errno.h - not found.
+-- Looking for include file errno.h - found
 -- Looking for include file stddef.h
--- Looking for include file stddef.h - not found.
+-- Looking for include file stddef.h - found
+-- Looking for include file stdbool.h
+-- Looking for include file stdbool.h - found
+-- Looking for include file ctype.h
+-- Looking for include file ctype.h - found
+-- Performing Test PARSEC_HAVE_BUILTIN_CPU
+-- Performing Test PARSEC_HAVE_BUILTIN_CPU - Success
+-- Performing Test PARSEC_HAVE_BUILTIN_CPU512
+-- Performing Test PARSEC_HAVE_BUILTIN_CPU512 - Success
 -- Looking for getrusage
--- Looking for getrusage - not found
+-- Looking for getrusage - found
+-- Looking for RUSAGE_THREAD
+-- Looking for RUSAGE_THREAD - not found
+-- Looking for RUSAGE_THREAD
+-- Looking for RUSAGE_THREAD - not found
 -- Looking for include file limits.h
--- Looking for include file limits.h - not found.
+-- Looking for include file limits.h - found
 -- Looking for include file string.h
--- Looking for include file string.h - not found.
+-- Looking for include file string.h - found
+-- Looking for include file libgen.h
+-- Looking for include file libgen.h - found
 -- Looking for include file complex.h
--- Looking for include file complex.h - not found.
--- Found HWLOC: /opt/lib/libhwloc.dylib
+-- Looking for include file complex.h - found
+-- Looking for include file sys/param.h
+-- Looking for include file sys/param.h - found
+-- Looking for include file sys/types.h
+-- Looking for include file sys/types.h - found
+-- Looking for include file syslog.h
+-- Looking for include file syslog.h - found
+-- Performing Test PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE
+-- Performing Test PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE - Success
+-- Performing Test PARSEC_HAVE_ATTRIBUTE_VISIBILITY
+-- Performing Test PARSEC_HAVE_ATTRIBUTE_VISIBILITY - Success
+-- Performing Test PARSEC_HAVE_BUILTIN_EXPECT
+-- Performing Test PARSEC_HAVE_BUILTIN_EXPECT - Success
+-- Looking for dlsym
+-- Looking for dlsym - found
+-- Found HWLOC: /opt/local/lib/libhwloc.dylib
 -- Performing Test PARSEC_HAVE_HWLOC_PARENT_MEMBER
--- Performing Test PARSEC_HAVE_HWLOC_PARENT_MEMBER - Failed
+-- Performing Test PARSEC_HAVE_HWLOC_PARENT_MEMBER - Success
 -- Performing Test PARSEC_HAVE_HWLOC_CACHE_ATTR
--- Performing Test PARSEC_HAVE_HWLOC_CACHE_ATTR - Failed
+-- Performing Test PARSEC_HAVE_HWLOC_CACHE_ATTR - Success
 -- Performing Test PARSEC_HAVE_HWLOC_OBJ_PU
--- Performing Test PARSEC_HAVE_HWLOC_OBJ_PU - Failed
--- Looking for hwloc_bitmap_free in /opt/lib/libhwloc.dylib
--- Looking for hwloc_bitmap_free in /opt/lib/libhwloc.dylib - not found
--- Found MPI_C: /opt/trunk/debug/lib/libmpi.dylib;/usr/lib/libm.dylib
--- Found MPI_CXX: /opt/trunk/debug/lib/libmpi.dylib;/usr/lib/libm.dylib
--- Found MPI_Fortran: /opt/trunk/debug/lib/libmpi_usempi.a;
+-- Performing Test PARSEC_HAVE_HWLOC_OBJ_PU - Success
+-- Looking for hwloc_bitmap_free in /opt/local/lib/libhwloc.dylib
+-- Looking for hwloc_bitmap_free in /opt/local/lib/libhwloc.dylib - found
+-- Performing Test MPI_WORKS_WITH_WRAPPER
+-- Performing Test MPI_WORKS_WITH_WRAPPER - Failed
+-- Found MPI_C: /opt/ompi/master/debug/lib/libmpi.dylib (found version "3.1")
+-- Found MPI_CXX: /opt/ompi/master/debug/lib/libmpi_cxx.dylib (found version "3.1")
+-- Found MPI_Fortran: /opt/ompi/master/debug/lib/libmpi_usempif08.dylib (found version "3.1")
+-- Found MPI: TRUE (found version "3.1")
 -- Looking for MPI_Type_create_resized
--- Looking for MPI_Type_create_resized - not found
+-- Looking for MPI_Type_create_resized - found
+-- Performing Test PARSEC_HAVE_MPI_OVERTAKE
+-- Performing Test PARSEC_HAVE_MPI_OVERTAKE - Success
 -- Looking for include file Ayudame.h
--- Looking for include file Ayudame.h - not found.
--- Add '-undefined dynamic_lookup' to the linking flags
--- Could NOT find GTG (missing:  GTG_LIBRARY)
--- Found Graphviz: /usr/local/lib/libcdt.dylib
+-- Looking for include file Ayudame.h - not found
+-- Fortran adds libraries path /opt/local/lib/gcc7/gcc/x86_64-apple-darwin18/7.4.0;/opt/local/lib/gcc7;/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/lib
+-- Fortran adds libraries gfortran;gcc_ext.10.5;gcc;quadmath;m;gcc_ext.10.5;gcc
+-- Found GTG: /opt/lib/libgtg.dylib
+-- Checking for module 'libgvc'
+--   Found libgvc, version 2.40.1
+-- Found GRAPHVIZ: /opt/local/lib/libgvc.dylib;/opt/local/lib/libcgraph.dylib;/opt/local/lib/libcdt.dylib;/opt/local/lib/libpathplan.dylib
 -- Looking for gdImagePng in /opt/local/lib/libgd.dylib
--- Looking for gdImagePng in /opt/local/lib/libgd.dylib - not found
+-- Looking for gdImagePng in /opt/local/lib/libgd.dylib - found
+-- Found ZLIB: /opt/local/lib/libz.dylib (found version "1.2.11")
+-- Found PNG: /opt/local/lib/libpng.dylib (found version "1.4.12")
 -- Looking for gdImageJpeg in /opt/local/lib/libgd.dylib
--- Looking for gdImageJpeg in /opt/local/lib/libgd.dylib - not found
+-- Looking for gdImageJpeg in /opt/local/lib/libgd.dylib - found
+-- Found JPEG: /opt/local/lib/libjpeg.dylib (found version "80")
 -- Looking for gdImageGif in /opt/local/lib/libgd.dylib
--- Looking for gdImageGif in /opt/local/lib/libgd.dylib - not found
--- Found OMEGA: /tools/Omega/binary/include/omega
--- Found PythonInterp: /opt/local/bin/python (found version "2.7.3")
--- Generate precision dependencies in dplasma/parsec.public/data_dist/matrix
--- Generate precision dependencies in dplasma/parsec.public/data_dist/matrix - Done
--- Found PkgConfig: /opt/local/bin/pkg-config (found version "0.27.1")
--- checking for one of the modules 'plasma'
--- Performing Test PLASMA_C_COMPILE_SUCCESS
--- Performing Test PLASMA_C_COMPILE_SUCCESS - Failed
--- Performing Test PLASMA_F_COMPILE_SUCCESS
--- Performing Test PLASMA_F_COMPILE_SUCCESS - Failed
--- A library with PLASMA API not found. Please specify library location.
-    PLASMA_CFLAGS       = [-I/opt/PLASMA/plasma-svn/include]
-    PLASMA_LDFLAGS      = [-framework veclib -L/opt/PLASMA/plasma-svn/lib -lplasma -lcoreblas -lquark -llapacke -ltmg -lpthread -lm -lplasma]
-    PLASMA_INCLUDE_DIRS = [/opt/PLASMA/plasma-svn/include]
-    PLASMA_LIBRARY_DIRS = [/opt/PLASMA/plasma-svn/lib]
--- Generate precision dependencies in dplasma/parsec.public/dplasma/include
--- Generate precision dependencies in dplasma/parsec.public/dplasma/include - Done
--- Generate precision dependencies in dplasma/parsec.public/dplasma/cores
--- Generate precision dependencies in dplasma/parsec.public/dplasma/cores - Done
--- Generate precision dependencies in dplasma/parsec.public/dplasma/cores
--- Generate precision dependencies in dplasma/parsec.public/dplasma/cores - Done
--- Generate precision dependencies in dplasma/parsec.public/dplasma/lib
--- Generate precision dependencies in dplasma/parsec.public/dplasma/lib - Done
--- Generate precision dependencies in dplasma/parsec.public/dplasma/lib
--- Generate precision dependencies in dplasma/parsec.public/dplasma/lib - Done
--- Generate precision dependencies in dplasma/parsec.public/dplasma/testing
--- Generate precision dependencies in dplasma/parsec.public/dplasma/testing - Done
+-- Looking for gdImageGif in /opt/local/lib/libgd.dylib - found
+-- Found PythonInterp: /opt/local/bin/python (found version "2.7.16")
+-- Cython version 0.29.13 found
+-- Found Cython: /opt/local/bin/cython (Required is at least version "0.21.2")
+-- Looking for shm_open
+-- Looking for shm_open - found
+-- PARSEC Modular Component Architecture (MCA) discovery:
+-- -- Found Component `pins'
+-- Module alperf not selectable: PARSEC_PROF_TRACE disabled.
+-- ---- Module `iterators_checker' is ON
+-- The PAPI Library is found at PAPI_LIBRARY-NOTFOUND
+-- Module papi not selectable: PARSEC_PROF_TRACE disabled.
+-- ---- Module `print_steals' is ON
+-- ---- Module `ptg_to_dtd' is ON
+-- Module task_profiler not selectable: PARSEC_PROF_TRACE disabled.
+-- Component pins sources: mca/pins/pins.c;mca/pins/pins_init.c
+-- -- Found Component `sched'
+-- ---- Module `ap' is ON
+-- ---- Module `gd' is ON
+-- ---- Module `ip' is ON
+-- ---- Module `lfq' is ON
+-- ---- Module `lhq' is ON
+-- ---- Module `ll' is ON
+-- ---- Module `ltq' is ON
+-- ---- Module `pbq' is ON
+-- ---- Module `rnd' is ON
+-- ---- Module `spq' is ON
+-- Component sched sources:
+-- PARSEC Modular Component Architecture (MCA) discovery done.
+-- Could NOT find Omega; Options depending on Omega will be disabled (missing: OMEGA_INCLUDE_DIR OMEGA_LIBRARY)
+-- Detecting Fortran/C Interface
+-- Detecting Fortran/C Interface - Found GLOBAL and MODULE mangling
+-- Looking for PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128
+-- Looking for PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128 - found
+-- Internal PaRSEC uses CAS 128B. Reconfiguring parsec_options.h
+
+
+Configuration flags:
+  CMAKE_C_FLAGS          =  -m64 -std=c1x
+  CMAKE_C_LDFLAGS        =  -m64
+  CMAKE_EXE_LINKER_FLAGS =
+  EXTRA_LIBS             = -latomic;/opt/local/lib/libhwloc.dylib;-L/opt/local/lib/gcc7/gcc/x86_64-apple-darwin18/7.4.0;-L/opt/local/lib/gcc7;-L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/lib;gfortran;gcc_ext.10.5;gcc;quadmath;m
+
+
+
 -- Configuring done
 -- Generating done
--- Build files have been written to: dplasma/parsec.public/build
+-- Build files have been written to: 
 
-If this is done, congratulations, DPLASMA is configured and you're ready for
+
+
+If this is done, congratulations, PaRSEC is configured and you're ready for
 building and testing the system.
 
 In the unlikely case something goes wrong, read carefully the error message. We
@@ -224,15 +297,6 @@ mailing list and provide the CMake command and the flags, the output as well as
 the files CMakeFiles/CMakeError.log and CMakeFiles/CMakeOutput.log.
 
 Troubleshooting
-
-Issues we have encountered with BLAS libraries are out of scope of this
-README. Please, refer to your own experience to find how to have a working BLAS
-library, and header files. Those are supposed to be in the BLAS_LIBRARIES/lib
-and BLAS_LIBRARIES/include directories (create a phony directory with symbolic
-links to include/ and lib/ if needed).
-
-When using the plasma-installer, some have reported that it was necessary after
-the make and make install, to copy all .h files found in src/ to include/
 
 We use quite a few packages that are optional, don't panic if they are not found
 during the configuration. However, some of them are critical for increasing the
@@ -276,8 +340,6 @@ PARSEC_DIST_WITH_MPI ON
 PARSEC_GPU_WITH_CUDA ON
 PARSEC_OMEGA_DIR OFF
 PARSEC_PROF_* OFF (all PARSEC_PROF_ flags off)
-DPLASMA_CALL_TRACE OFF
-DPLASMA_GPU_WITH_MAGMA OFF
 
 Using the 'expert' mode (key 't' to toggle to expert mode), you can change other
 useful options, like
@@ -293,47 +355,16 @@ all the options you want in ccmake, type 'c' to configure again, and 'g' to
 generate the files. If you entered wrong values in some fields, ccmake will
 complain at 'c' time.
 
-Building Dplasma
+Building PaRSEC
 
 If the configuration was good, compilation should be as simple and fancy as
 'make'. To debug issues, turn the CMAKE_VERBOSE_MAKEFILE option to ON using
 ccmake, and check your compilation lines, and adapt your configuration options
 accordingly.
 
-Running Dplasma
+Running with PaRSEC
 
-The dplasma library is compiled into dplasma/library. All testing programs are
-compiled in dplasma/testing. Exemples are:
-
-dplasma/testing/testing_?getrf -> LU Factorization (simple or double precision)
-dplasma/testing/testing_?geqrf -> QR Factorization (simple or double precision)
-dplasma/testing/testing_?potrf -> Cholesky Factorization (simple or double precision)
-
-All the binaries should accept as input:
-
--c <n> the number of threads used for kernel execution on each node. This should
- be set to the number of cores. Remember that one additional thread will be
- spawned to handle the communications in the MPI version, but in normal run,
- this thread shares the most available core with another thread.
--N SIZE, a mandatory argument to define the size of the matrix
--g <number of GPUs> number of GPUs to use, if the operation is GPU-enabled
--t <blocksize> columns in a tile
--T <blocksize> rows in a tile, (WARNING: actually every algorithm included in
- DPLASMA requires square tiles)
--p <number of rows> to require a 2-D block cyclic distribution of p rows
--q <number of columns> to require a 2D block cyclic distribution of q columns
-
-A typical dplasma run using MPI looks like:
-
-mpirun -np 8 ./testing_spotrf -c 8 -g 0 -p 4 -q 2 -t 120 -T 120 -N 1000
-
-Meaning that we'll run Cholesky factorization on 8 nodes, 8 computing threads
-per node, nodes being arranged in a 4x2 grid, with a distributed generation of
-the matrix of size 1000x1000 singles, with tiles of size 120x120.
-
-Each test can dump the list of options with -h. Some tests have specific options
-(like -I to tune the inner block size in QR and LU, and -M in LU or QR to have
-non-square matrices).
+mpirun -np 8 ./some_parsec_app
 
 Happy hacking,
   The PaRSEC team.
