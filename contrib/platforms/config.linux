@@ -15,7 +15,6 @@ echo "#"
 #GTG_DIR=${GTG_DIR:="/path/gtg"}
 #CUDA_DIR=${CUDA_DIR:="/path/cuda"}
 #OMEGA_DIR=${OMEGA_DIR:="/path/omega"}
-#PLASMA_DIR=${PLASMA_DIR:="/path/plasma"}
 
 # This can be used to control auto detection of some packages
 #PKG_CONFIG_PATH=/some/package/lib/pkgconfig:$PKG_CONFIG_PATH

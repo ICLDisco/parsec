@@ -1059,11 +1059,10 @@ MESSAGE("\n\n")
   # Remove the last -I if any
 #  string (REPLACE "-I$" "" EXTRA_INCLUDES_STRING ${EXTRA_INCLUDES_STRING})
 #endif (EXTRA_INCLUDES)
-#configure_file (
-#  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
-#  "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
-
-#install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"   DESTINATION lib/pkgconfig)
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
+  "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
+install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"   DESTINATION lib/pkgconfig)
 
 # Export Targets
 set(INSTALL_CONFIGDIR "${CMAKE_INSTALL_PREFIX}/lib/cmake")

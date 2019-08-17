@@ -16,7 +16,6 @@ USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF"
 # USER_OPTIONS+=" -DPYTHON_INCLUDE_DIRS:FILEPATH=$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/include"
 USER_OPTIONS+=" -DPYTHON_EXECUTABLE:FILEPATH=$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/bin/python"
 USER_OPTIONS+=" -DPAPI_DIR=$HOME/sw/$HOSTNAME"
-USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 USER_OPTIONS+=" -DPINS_ENABLE=ON"
 USER_OPTIONS+=" -DPARSEC_PROF_TRACE=ON"
 
@@ -29,7 +28,6 @@ CMAKE_C_FLAGS=${CMAKE_C_FLAGS:="-g3 -fPIC"}
 CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS:="-g3 -fPIC"}
 CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH:="$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/"}
 CMAKE_FIND_ROOT_PATH=${CMAKE_FIND_ROOT_PATH="$HOME/canopy_1.1_x64/user_env/Canopy_64bit/User/"}
-PLASMADIR=${PLASMA_DIR:="/home/bosilca/unstable/dplasma/PLASMA/build/"}
 PAPI_DIR=${PAPI_DIR:="$HOME/sw/$HOSTNAME"}
 HWLOC_DIR=${HWLOC_DIR:="/home/bosilca/opt/64"}
 #MPI_DIR=${MPI_DIR:="/path/mpi"}
@@ -37,7 +35,6 @@ HWLOC_DIR=${HWLOC_DIR:="/home/bosilca/opt/64"}
 #GTG_DIR=${GTG_DIR:="/path/gtg"}
 #CUDA_DIR=${CUDA_DIR:="/path/cuda"}
 #OMEGA_DIR=${OMEGA_DIR:="/path/omega"}
-#PLASMA_DIR=${PLASMA_DIR:="/path/plasma"}
 
 # This can be used to control auto detection of some packages
 #PKG_CONFIG_PATH=/some/package/lib/pkgconfig:$PKG_CONFIG_PATH

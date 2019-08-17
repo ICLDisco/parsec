@@ -3,18 +3,11 @@
 #USER_OPTIONS+=" -DCMAKE_OSX_ARCHITECTURES=$(uname -m)"
 
 
-if [ "x$USER" == "xbouteill" ]; then
-    PLASMA_DIR=$HOME/DEVEL/parsec/plasma
-
-elif [ "x$USER" == "xherault" ]; then
-    PLASMA_DIR=/Users/herault/Documents/Recherche/parsec/plasma-installer_2.8.0/install
-elif [ "x$USER" == "xbosilca" ]; then
+if [ "x$USER" == "xbosilca" ]; then
     HWLOC_DIR=${HWLOC_DIR:=/Users/bosilca/opt}
-    CUDA_DIR=${CUDA_DIR:=/Developer/NVIDIA/CUDA-9.1/}
     GTG_DIR=${GTG_DIR:=${HOME}/opt}
-    PLASMA_DIR=${PLASMA_DIR:=${HOME}/opt/PLASMA/plasma-svn/}
     #OMEGA_DIR=${OMEGA_DIR:="/Users/bosilca/tools/Omega/binary"}
-    USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=ON -DPARSEC_DIST_WITH_MPI=ON -DDPLASMA_PRECISIONS='d'"
+    USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF -DPARSEC_DIST_WITH_MPI=ON"
     AYUDAME_DIR=${AYUDAME_DIR:="/Users/bosilca/opt/temanejo"}
 #    USER_OPTIONS+=" -DAYUDAME_DIR=${AYUDAME_DIR}"
 fi

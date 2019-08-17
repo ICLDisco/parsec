@@ -134,6 +134,8 @@ if( BUILD_PARSEC )
     PRIVATE
     YYERROR_VERBOSE
     BUILD_PARSEC)
+  target_compile_options(parsec-base-obj
+    PUBLIC ${PARSEC_ATOMIC_SUPPORT_CFLAGS})
   target_include_directories(parsec-base-obj
     PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
@@ -143,6 +145,7 @@ if( BUILD_PARSEC )
     add_library(parsec-base STATIC $<TARGET_OBJECTS:parsec-base-obj>)
   endif(NOT TARGET parsec-base)
   target_link_libraries(parsec-base
+    PUBLIC ${PARSEC_ATOMIC_SUPPORT_LIBS}
     PRIVATE Threads::Threads DL::DL
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
 
@@ -167,7 +170,6 @@ if( BUILD_PARSEC )
     PUBLIC
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
-    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     INTERFACE
     ${EXTRA_LIBS}
     )

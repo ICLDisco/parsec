@@ -14,7 +14,6 @@ USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF" #remove for XK6/7
 # This links to software I compiled myself, customize to your needs
 OPT_DIR="/nics/c/home/bouteill/.opt.kraken"
 HWLOC_DIR=${HWLOC_DIR:="$OPT_DIR/hwloc"}
-PLASMA_DIR=${PLASMA_DIR:="$OPT_DIR/plasma"}
 #CUDA_DIR=${CUDA_DIR:="$OPT_DIR/cuda"}
 #OMEGA_DIR=${OMEGA_DIR:="$OPT_DIR/Omega/"}
 #GTG_DIR=${GTG_DIR:="$OPT_DIR/gtg"}
