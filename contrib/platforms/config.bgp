@@ -80,7 +80,6 @@ FC=mpixlf77_r
 LDFLAGS="${SAVE_LDFLAGS} -L/opt/ibmcmp/xlf/bg/11.1/bglib/ -qsmp=omp"
 
 MPI="-DPARSEC_DIST_WITH_MPI=ON"
-PLASMA="-DPLASMA_DIR=/home/bosilca/opt/bluegene/"
 HWLOC="-DHWLOC_DIR=/home/bosilca/opt/bluegene"
 CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
 OPTS="-DBUILD_64bits=OFF -DBUILD_TOOLS=OFF"

@@ -3,7 +3,7 @@
 # Parse command line arguments
 if [ "$1" = "debug" ]; then 
     shift
-    DEBUG="-DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DPARSEC_DEBUG_HISTORY=ON -DPARSEC_DEBUG_PARANOID=ON -DPARSEC_DEBUG_NOISIER=ON"
+    DEBUG="-DCMAKE_BUILD_TYPE=Debug -DPARSEC_DEBUG_HISTORY=ON -DPARSEC_DEBUG_PARANOID=ON -DPARSEC_DEBUG_NOISIER=ON"
 fi
 
 if [ "$1" = "profile" ]; then
@@ -35,7 +35,6 @@ function guess_defaults {
     GTG_DIR=${GTG_DIR:=$(pkg-config gtg --variable=prefix)}
     CUDA_DIR=${CUDA_DIR:=$(dirname_bin nvcc)}
     OMEGA_DIR=${OMEGA_DIR:=$(dirname_bin petit)}
-    PLASMA_DIR=${PLASMA_DIR:=$(pkg-config plasma --variable=prefix)}
     PAPI_DIR=${PAPI_DIR:=$(dirname_bin papi_avail)}
     #PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:=$(which python3 2>/dev/null)}
     PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:=$(which python 2>/dev/null)}
@@ -96,10 +95,6 @@ if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_Q2J=OFF.*") -eq 0
     Q2J="-DOMEGA_DIR=${OMEGA_DIR}"
 fi
 
-if [ -n "${PLASMA_DIR}" ]; then
-    PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
-fi
-
 if [ -n "${PAPI_DIR}" -a -f "$PAPI_DIR/lib/libpapi.so" ]; then
     PROFILE="${PROFILE} -DPAPI_DIR=${PAPI_DIR}"
 fi
@@ -111,7 +106,7 @@ fi
 # Done with variable allocation, do the thing with Cmake
 rm -rf CMakeCache.txt CMakeFiles
 SRC_LOCATION=${SRC_LOCATION:=`dirname $0`/../../}
-CMAKE_COMMAND="cmake -G 'Unix Makefiles' ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${CUDA} ${GTG} ${PROFILE} ${PYTHON} ${DEBUG} ${USER_OPTIONS} ${TESTCMD} $* ${SRC_LOCATION}"
+CMAKE_COMMAND="cmake -G 'Unix Makefiles' ${MPI} ${HWLOC} ${Q2J} ${CUDA} ${GTG} ${PROFILE} ${PYTHON} ${DEBUG} ${USER_OPTIONS} ${TESTCMD} $* ${SRC_LOCATION}"
 echo $CMAKE_COMMAND
 eval $CMAKE_COMMAND
 }

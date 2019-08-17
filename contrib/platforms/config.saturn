@@ -4,7 +4,6 @@ if [ "x$USER" = "xbosilca" ]; then
 #  CUDA_DIR="/opt/cuda-5.0.7/cuda"
 #  HWLOC_DIR="/home/bosilca/opt/"
 #  MPI_DIR="/home/bosilca/opt/mpi"
-  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 
 elif [ "x${USER}" = "xmfaverge" ]; then
   # if [ "x${CC}" = "xgcc" ]; then
@@ -14,7 +13,6 @@ elif [ "x${USER}" = "xmfaverge" ]; then
   # fi
   #USER_OPTIONS+=" -DPARSEC_DIST_WITH_MPI=OFF"
   USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=ON"
-  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 elif [ "x$USER" = "xrhoque" ]; then
   module load gcc
   CC=gcc
@@ -22,9 +20,7 @@ elif [ "x$USER" = "xdgenet" ]; then
   CC=gcc
   CXX=g++
   FC=gfortran
-  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 #elif [ "x$USER" = "xYOURSELF" ]; then
-#  PLASMA_DIR="SOMEWHERE"
 #  USER_OPTIONS+="-DPARSEC_OPTION=ON"
 fi
 
@@ -43,11 +39,6 @@ OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
 
 . $(dirname $0)/config.inc
 guess_defaults
-if [[ "x$CC" != "x" && `basename ${CC}` = "icc" ]]; then
-  PLASMA_DIR=${PLASMA_DIR:="/sw/plasma/2.8.0i/"}
-else
-  PLASMA_DIR=${PLASMA_DIR:="/sw/plasma/2.8.0g/"}
-fi
 TESTCMD="-DCTEST_MPI_LAUNCHER=\"srun -Ccauchy -N\" -DCTEST_SHM_LAUNCHER=\"srun -Ccauchy\" -DCTEST_GPU_LAUNCHER_OPTIONS=-Cgtx1060"
 
 run_cmake $*

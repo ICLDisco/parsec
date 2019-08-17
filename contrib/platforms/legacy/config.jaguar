@@ -13,8 +13,6 @@ rm -rf CMakeCache.txt CMakeFiles
 
 env cmake `dirname $0`/../../ \
 -DMPI_LIBRARY:FILEPATH="/opt/mpt/3.5.1/xt/mpich2-pgi/lib/libmpich.a" \
--DBLAS_LIBRARIES="/opt/xt-libsci/10.4.1/pgi/lib/libsci_quadcore.a" \
--DPLASMA_DIR=/tmp/work/adanalis/PLASMA/plasma_2.1.0 \
 -DPARSEC_MPI=ON \
 -DMPI_EXTRA_LIBRARY:STRING="/opt/xt-pe/2.2.41A/lib/snos64/libpct.a;/opt/xt-pe/2.2.41A/lib/snos64/libportals.a;/opt/mpt/3.5.1/xt/pmi/lib/libpmi.a;/opt/mpt/3.5.1/xt/util/lib/libalpslli.a;/opt/mpt/3.5.1/xt/util/lib/libalpsutil.a;/usr/lib64/libm.a;/usr/lib64/libpthread.a" \
 -DMPI_LINK_FLAGS:STRING="-Bstatic" \

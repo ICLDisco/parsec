@@ -19,19 +19,10 @@ MPI_DIR="/opt/sgi/mpt/mpt-2.04/"
 HWLOC_DIR=${HWLOC_DIR:="/nics/d/home/smoreaud/libs/hwloc/"}  
 CUDA_DIR=${CUDA_DIR:="not installed"}
 # OMEGA_DIR=${OMEGA_DIR:="/opt/Omega/"}
-if [ "x${CC}" = "xgcc" ]; then
-    PLASMA_DIR=${PLASMA_DIR:="not installed"}
-else
-    PLASMA_DIR=${PLASMA_DIR:="/nics/d/home/smoreaud/libs/plasma"}
-fi
 
 #USER_OPTIONS+=" -DPARSEC_DIST_WITH_MPI=OFF"
 USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF"
 USER_OPTIONS+=" -DPARSEC_Q2J=OFF"
-USER_OPTIONS+=" -DDPLASMA_PRECISIONS=s;d;c;z"
-
-
-
 
 #####
 ## Cmake does not have a clean interface for FindXXX moducles, everyone has a different flavor. Reconciliation.
@@ -53,10 +44,6 @@ fi
 
 if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_Q2J=OFF.*") -eq 0 ]; then 
     Q2J="-DPARSEC_OMEGA_DIR=${OMEGA_DIR}"
-fi
-
-if [ "${PLASMA_DIR}" ]; then
-    PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
 fi
 
 
