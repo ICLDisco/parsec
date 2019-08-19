@@ -570,7 +570,7 @@ IF( BUILD_PARSEC )
      include_directories( ${HWLOC_INCLUDE_DIRS} )
      list(APPEND EXTRA_INCLUDES ${HWLOC_INCLUDE_DIRS})
      set (PARSEC_PKG_REQUIRE "hwloc")
-   ENDIF (HWLOC_FOUND)
+  ENDIF (HWLOC_FOUND)
 
   if (PARSEC_DIST_WITH_MPI)
     # Test first if we are using a wrapper as the compiler

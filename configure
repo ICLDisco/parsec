@@ -4,8 +4,8 @@
 #                         of Tennessee Research Foundation.  All rights
 #                         reserved.
 
-OPT_PREFIX=/usr/local
-OPT_SRCDIR=${0%/*}
+prefix=/usr/local
+srcdir=${0%/*}
 
 function show_help_and_exit {
 cat <<EOF
@@ -21,10 +21,12 @@ cat <<EOF
 -DVAR=VALUE
                 Directly pass VAR=VALUE to the Cmake configure stage
 
+--with-platform=FILE
+                source options specific for a target platform
 --srcdir=DIR
-                use DIR to find the source directory (default $OPT_SRCDIR)
+                use DIR to find the source directory (default $srcdir)
 --prefix=DIR
-                install to the DIR directory (default $OPT_PREFIX)
+                install to the DIR directory (default $prefix)
 --host=ARCH
                 cross compile for the target ARCH architecture
 --enable-static
@@ -68,7 +70,8 @@ cat <<EOF
                 use the PAPI performance counter package [installed in DIR] (default=autodetect)
 --with-gtg[=DIR]
                 use the GTG package [installed in DIR] (optional)
-
+--with-ayudame[=DIR]
+                use the Ayudame package [installed in DIR] (optional)
 
 --with-hwloc[=DIR]
                 use the HWLoc package [installed in DIR] (default=autodetect)
@@ -76,6 +79,8 @@ cat <<EOF
 
 --with-python[=DIR]
                 use the Python interpreter [installed in DIR] (default=autodetect)
+--with-omega[=DIR]
+                use the Omega package for afine loops transformations (optional)
 
 --with-mpi[=DIR]
                 use the MPI communication library [installed in DIR] (default=autodetect)
@@ -132,87 +137,121 @@ while [ "x$1" != x ]; do
     case "$1" in
         -h|--help) show_help_and_exit ;;
         -V) show_version_and_exit ;;
-        -q|--quiet|--silent) OPT_QUIET=yes; shift;;
-        -n|--no-create) OPT_NOCREATE=yes; shift;;
-        --srcdir=*) OPT_SRCDIR=${1#*=}; shift;;
-        --prefix=*) OPT_PREFIX=${1#*=}; shift;;
-        --host=*) OPT_CROSSTARGET=${1#*=}; shift;;
-        --enable-static) OPT_STATIC=yes; shift;;
-        --disable-static) OPT_STATIC=no; shift;;
-        --enable-shared) OPT_SHARED=yes; shift;;
-        --disable-shared) OPT_SHARED=no; shift;;
-        --enable-c11) OPT_C11=yes; shift;;
-        --disable-c11) OPT_C11=no; shift;;
-        --enable-cxx) OPT_CXX=yes; shift;;
-        --disable-cxx) OPT_CXX=no; shift;;
-        --enable-fortran) OPT_FORTRAN=yes; shift;;
-        --disable-fortran) OPT_FORTRAN=no; shift;;
-        --enable-doc) OPT_DOC=yes; shift;;
-        --disable-doc) OPT_DOC=no; shift;;
+        -q|--quiet|--silent) quiet=yes; shift;;
+        -n|--no-create) nocreate=yes; shift;;
+        --srcdir=*) srcdir="${1#*=}"; shift;;
+        --prefix=*) prefix="${1#*=}"; shift;;
+        --host=*) host="${1#*=}"; shift;;
+        --enable-static) enable_static=yes; shift;;
+        --disable-static) enable_static=no; shift;;
+        --enable-shared) enable_shared=yes; shift;;
+        --disable-shared) enable_shared=no; shift;;
+        --enable-c11) enable_c11=yes; shift;;
+        --disable-c11) enable_c11=no; shift;;
+        --enable-cxx) enable_cxx=yes; shift;;
+        --disable-cxx) enable_cxx=no; shift;;
+        --enable-fortran) enable_fortran=yes; shift;;
+        --disable-fortran) enable_fortran=no; shift;;
+        --enable-doc) enable_doc=yes; shift;;
+        --disable-doc) enable_doc=no; shift;;
 
 #debug/profiling
-        --enable-debug=*) OPT_DEBUG="${1#*=}"; shift;;
-        --enable-debug) OPT_DEBUG=yes; shift;;
-        --disable-debug) OPT_DEBUG=no; shift;;
-        --enable-prof-trace) OPT_PROF_TRACE=yes; shift;;
-        --disable-prof-trace) OPT_PROF_TRACE=no; shift;;
-        --enable-prof-calltrace) OPT_PROF_CALLTRACE=yes; shift;;
-        --disable-prof-calltrace) OPT_PROF_CALLTRACE=no; shift;;
-        --enable-prof-dryrun=*) OPT_PROF_DRYRUN="${1#*=}"; shift;;
-        --enable-prof-dryrun) OPT_PROF_DRYRUN=yes; shift;;
-        --disable-prof-dryrun) OPT_PROF_DRYRUN=no; shift;;
-        --enable-prof-grapher) OPT_PROF_GRAPHER=yes; shift;;
-        --disable-prof-grapher) OPT_PROF_GRAPHER=no; shift;;
+        --enable-debug=*) enable_debug="${1#*=}"; shift;;
+        --enable-debug) enable_debug=yes; shift;;
+        --disable-debug) enable_debug=no; shift;;
+        --enable-prof-trace) enable_prof_trace=yes; shift;;
+        --disable-prof-trace) enable_prof_trace=no; shift;;
+        --enable-prof-calltrace) enable_prof_calltrace=yes; shift;;
+        --disable-prof-calltrace) enable_prof_calltrace=no; shift;;
+        --enable-prof-dryrun=*) enable_prof_dryrun="${1#*=}"; shift;;
+        --enable-prof-dryrun) enable_prof_dryrun=yes; shift;;
+        --disable-prof-dryrun) enable_prof_dryrun=no; shift;;
+        --enable-prof-grapher) enable_prof_grapher=yes; shift;;
+        --disable-prof-grapher) enable_prof_grapher=no; shift;;
 
-        --with-tau=*) OPT_PROF_TAU="${1#*=}"; shift;;
-        --with-tau) OPT_PROF_TAU=yes; shift;;
-        --without-tau) OPT_PROF_TAU=no; shift;;
-        --with-papi=*) OPT_PROF_PAPI="${1#*=}"; shift;;
-        --with-papi) OPT_PROF_PAPI=yes; shift;;
-        --without-papi) OPT_PROF_PAPI=no; shift;;
-        --with-gtg=*) OPT_PROF_GTG="${1#*=}"; shift;;
-        --with-gtg) OPT_PROF_GTG=yes; shift;;
-        --without-gtg) OPT_PROF_GTG=no; shift;;
+        --with-tau=*) with_tau="${1#*=}"; shift;;
+        --with-tau) with_tau=yes; shift;;
+        --without-tau) with_tau=no; shift;;
+        --with-papi=*) with_papi="${1#*=}"; shift;;
+        --with-papi) with_papi=yes; shift;;
+        --without-papi) with_papi=no; shift;;
+        --with-gtg=*) with_gtg="${1#*=}"; shift;;
+        --with-gtg) with_gtg=yes; shift;;
+        --without-gtg) with_gtg=no; shift;;
+        --with-ayudame=*) with_ayudame="${1#*=}"; shift;;
+        --with-ayudame) with_ayudame=yes; shift;;
+        --without-ayudame) with_ayudame=no; shift;;
 
 # MPI options
-        --with-mpi=*) OPT_DIST_MPI="${1#*=}"; shift;;
-        --with-mpi) OPT_DIST_MPI=yes; shift;;
-        --without-mpi) OPT_DIST_MPI=no; shift;;
-        --enable-collectives) OPT_DIST_COLL=yes; shift;;
-        --disable-collectives) OPT_DIST_COLL=no; shift;;
+        --with-mpi=*) with_mpi="${1#*=}"; shift;;
+        --with-mpi) with_mpi=yes; shift;;
+        --without-mpi) with_mpi=no; shift;;
+        --enable-collectives) enable_collectives=yes; shift;;
+        --disable-collectives) enable_collectives=no; shift;;
 
 # Hwloc options
-        --with-hwloc=*) OPT_HWLOC="${1#*=}"; shift;;
-        --with-hwloc) OPT_HWLOC=yes; shift;;
-        --without-hwloc) OPT_HWLOC=no; shift;;
+        --with-hwloc=*) with_hwloc="${1#*=}"; shift;;
+        --with-hwloc) with_hwloc=yes; shift;;
+        --without-hwloc) with_hwloc=no; shift;;
 
 # Cuda options
-        --with-cuda=*) OPT_GPU_CUDA="${1#*=}"; shift;;
-        --with-cuda) OPT_GPU_CUDA=yes; shift;;
-        --without-cuda) OPT_GPU_CUDA=no; shift;;
-        --with-cuda-sm-targets=*) OPT_GPU_CUDA_SM="${1#*=}"; shift;;
-        --with-cuda-sm-targets) OPT_GPU_CUDA_SM=yes; shift;;
-        --without-cuda-sm-targets) OPT_GPU_CUDA_SM=no; shift;;
+        --with-cuda=*) with_cuda="${1#*=}"; shift;;
+        --with-cuda) with_cuda=yes; shift;;
+        --without-cuda) with_cuda=no; shift;;
+        --with-cuda-sm-targets=*) with_cuda_sm_targets="${1#*=}"; shift;;
+        --with-cuda-sm-targets) with_cuda_sm_targets=yes; shift;;
+        --without-cuda-sm-targets) with_cuda_sm_targets=no; shift;;
 
 # Python options
-        --with-python=*) OPT_PYTHON="${1#*=}"; shift;;
-        --with-python) OPT_PYTHON=yes; shift;;
-        --without-python) OPT_PYTHON=no; shift;;
+        --with-python=*) with_python="${1#*=}"; shift;;
+        --with-python) with_python=yes; shift;;
+        --without-python) with_python=no; shift;;
+
+# Omega options
+        --with-omega=*) with_omega="${1#*=}"; shift;;
+        --with-omega) with_omega=yes; shift;;
+        --without-omega) with_omega=no; shift;;
 
 # Cmake passthrough
-        -D*=*) CMAKE_DEFINES+=$(printf "%q " "$1"); shift;;
+        -D*=*) CMAKE_DEFINES+=" $(printf %q "$1")"; shift;;
 
 # Environment variables
-        [^-]*=*) ENVVARS+=$(printf "%q " "$1"); eval export $(printf %q "$1"); shift;;
+        [^-]*=*) ENVVARS+=" $(printf %q "$1")"; eval export $(printf %q "$1"); shift;;
 
 # Unhandled argument
+        --with-platform=*) shift;; #already managed
         *) echo >&2 "Invalid argument: $1"; show_help_and_exit ;;
     esac
 done
 }
+
+function read_platform {
+local varname
+for i in "$@"; do
+    with_platform=${i#--with-platform=}
+    [ "$i" = "$with_platform" ] && continue
+    #echo "  parse_arguments $(sed 's/#.*$//' $with_platform | sed '/^$/d' | xargs -0 -d'\n' bash -c "printf %q")"
+    if [ -r "$with_platform" ]; then
+        . $with_platform
+    elif [ -r "$srcdir/contrib/platforms/$with_platform" ]; then
+        . $srcdir/contrib/platforms/$with_platform
+    else
+      echo >&2 "Platform file $with_platform not found" &&  show_help_and_exit
+    fi
+    # convert disable/without_xxx to enable/with_xxx=no
+    compgen disable | while read -r varname; do
+        enable_${varname#*disable_}=no
+    done
+    compgen without | while read -r varname; do
+        with_${varname#*without_}=no
+    done
+done
+}
+
+read_platform "$@"
 parse_arguments "$@"
 
-if [ x$OPT_QUIET = xyes ]; then
+if [ x$quiet = xyes ]; then
     exec &>config.log
 else
     exec &> >(tee config.log)
@@ -228,123 +267,137 @@ EOF
 tee -a config.status <<EOF
 ### This program was invoked with the following command line
 #
-    $0 $(for arg in "$@"; do printf "%q " "$arg"; done)
+    $0 $(for arg in "$@"; do printf " %q" "$arg"; done)
 #
 EOF
 chmod +x config.status
 
 
 
-CMAKE_DEFINES+="${OPT_PREFIX:+-DCMAKE_INSTALL_PREFIX=$OPT_PREFIX} "
-# OPT_CROSSTARGET
-[ x$OPT_STATIC = xyes ] && CMAKE_DEFINES+="-DBUILD_SHARED_LIB=OFF "
-[ x$OPT_STATIC = xno ] && CMAKE_DEFINES+="-DBUILD_SHARED_LIB=ON "
-[ x$OPT_SHARED = xyes ] && CMAKE_DEFINES+="-DBUILD_SHARED_LIB=OFF "
-[ x$OPT_SHARED = xno ] && CMAKE_DEFINES+="-DBUILD_SHARED_LIB=ON "
-[ x$OPT_SHARED = xyes ] && [ x$OPT_STATIC = xyes ] && echo >&2 "WARNING: due to Cmake limitations, you have to choose exclusively between static and shared build. This build will be static."
-[ x$OPT_C11 = xyes ] && CMAKE_DEFINES+="-DSUPPORT_C11=ON "
-[ x$OPT_C11 = xno ] && CMAKE_DEFINES+="-DSUPPORT_C11=OFF "
-[ x$OPT_CXX = xyes ] && CMAKE_DEFINES+="-DSUPPORT_CXX=ON "
-[ x$OPT_CXX = xno ] && CMAKE_DEFINES+="-DSUPPORT_CXX=OFF "
-[ x$OPT_FORTRAN = xyes ] && CMAKE_DEFINES+="-DSUPPORT_FORTRAN=ON "
-[ x$OPT_FORTRAN = xno ] && CMAKE_DEFINES+="-DSUPPORT_FORTRAN=OFF "
-[ x$OPT_DOC = xyes ] && CMAKE_DEFINES+="-DBUILD_DOCUMENTATION=ON "
-[ x$OPT_DOC = xno ] && CMAKE_DEFINES+="-DBUILD_DOCUMENTATION=OFF "
+CMAKE_DEFINES+=" ${prefix:+-DCMAKE_INSTALL_PREFIX=$prefix}"
+# host
+[ x$enable_static = xyes ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIB=OFF"
+[ x$enable_static = xno ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIB=ON"
+[ x$enable_shared = xyes ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIB=OFF"
+[ x$enable_shared = xno ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIB=ON"
+[ x$enable_shared = xyes ] && [ x$enable_static = xyes ] && echo >&2 "WARNING: due to Cmake limitations, you have to choose exclusively between static and shared build. This build will be static."
+[ x$enable_c11 = xyes ] && CMAKE_DEFINES+=" -DSUPPORT_C11=ON"
+[ x$enable_c11 = xno ] && CMAKE_DEFINES+=" -DSUPPORT_C11=OFF"
+[ x$enable_cxx = xyes ] && CMAKE_DEFINES+=" -DSUPPORT_CXX=ON"
+[ x$enable_cxx = xno ] && CMAKE_DEFINES+=" -DSUPPORT_CXX=OFF"
+[ x$enable_fortran = xyes ] && CMAKE_DEFINES+=" -DSUPPORT_FORTRAN=ON"
+[ x$enable_fortran = xno ] && CMAKE_DEFINES+=" -DSUPPORT_FORTRAN=OFF"
+[ x$enable_doc = xyes ] && CMAKE_DEFINES+=" -DBUILD_DOCUMENTATION=ON"
+[ x$enable_doc = xno ] && CMAKE_DEFINES+="-DBUILD_DOCUMENTATION=OFF "
 
-if [ -z "$OPT_DEBUG" ]; then CMAKE_DEFINES+="-DCMAKE_BUILD_TYPE=RelWithDebInfo "
-elif [ $OPT_DEBUG = no ]; then CMAKE_DEFINES+="-DCMAKE_BUILD_TYPE=Release "
-elif [[ $OPT_DEBUG =~ ^((yes|paranoid|noisier|history),?)+$ ]]; then
-    CMAKE_DEFINES+="-DCMAKE_BUILD_TYPE=Debug "
-    [[ $OPT_DEBUG =~ paranoid ]] && CMAKE_DEFINES+="-DPARSEC_DEBUG_PARANOID=ON "
-    [[ $OPT_DEBUG =~ noisier ]] && CMAKE_DEFINES+="-DPARSEC_DEBUG_NOISIER=ON "
-    [[ $OPT_DEBUG =~ history ]] && CMAKE_DEFINES+="-DPARSEC_DEBUG_HISTORY=ON "
-else echo >&2 "Option $OPT_DEBUG is invalid (can be yes|paranoid|noisier|history|no)"; exit 1; fi
+if [ -z "$enable_debug" ]; then CMAKE_DEFINES+=" -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+elif [[ "$enable_debug" =~ ^no$ ]]; then
+    CMAKE_DEFINES+=" -DCMAKE_BUILD_TYPE=Release"
+elif [[ $enable_debug =~ ^((yes|paranoid|noisier|history),?)+$ ]]; then
+    CMAKE_DEFINES+=" -DCMAKE_BUILD_TYPE=Debug"
+    [[ $enable_debug =~ paranoid ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_PARANOID=ON"
+    [[ $enable_debug =~ noisier ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_NOISIER=ON"
+    [[ $enable_debug =~ history ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_HISTORY=ON"
+else echo >&2 "Option $enable_debug is invalid (can be yes|paranoid|noisier|history|no)"; exit 1; fi
 
-[ x$OPT_PROF_TRACE = xyes ] && CMAKE_DEFINES+="-DPARSEC_PROF_TRACE=ON "
-[ x$OPT_PROF_TRACE = xno ] && CMAKE_DEFINES+="-DPARSEC_PROF_TRACE=OFF "
-[ x$OPT_PROF_CALLTRACE = xyes ] && CMAKE_DEFINES+="-DPARSEC_PROF_CALLTRACE=ON "
-[ x$OPT_PROF_CALLTRACE = xno ] && CMAKE_DEFINES+="-DPARSEC_PROF_CALLTRACE=OFF "
-[ x$OPT_PROF_GRAPHER = xyes ] && CMAKE_DEFINES+="-DPARSEC_PROF_GRAPHER=ON "
-[ x$OPT_PROF_GRAPHER = xno ] && CMAKE_DEFINES+="-DPARSEC_PROF_GRAPHER=OFF "
+[ x$enable_prof_trace = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON"
+[ x$enable_prof_trace = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=OFF"
+[ x$enable_prof_calltrace = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_CALLTRACE=ON"
+[ x$enable_prof_calltrace = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_CALLTRACE=OFF"
+[ x$enable_prof_grapher = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_GRAPHER=ON"
+[ x$enable_prof_grapher = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_GRAPHER=OFF"
 
-if [[ x$OPT_PROF_DRYRUN =~ ^x((yes|no|body|dep),?)*$ ]]; then
-    [[ $OPT_PROF_DRYRUN =~ yes ]] && CMAKE_DEFINES+="-DPARSEC_PROF_DRY_RUN=ON "
-    [[ $OPT_PROF_DRYRUN =~ dep ]] && CMAKE_DEFINES+="-DPARSEC_PROF_DRY_DEP=ON "
-    [[ $OPT_PROF_DRYRUN =~ body ]] && CMAKE_DEFINES+="-DPARSEC_PROF_DRY_BODY=ON "
-    [[ $OPT_PROF_DRYRUN =~ no ]] && CMAKE_DEFINES+="-DPARSEC_PROF_DRY_RUN=OFF -DPARSEC_PROF_DRY_BODY=OFF -DPARSEC_PROF_DRY_DEP=OFF "
+if [[ x$enable_prof_dryrun =~ ^x((yes|no|body|dep),?)*$ ]]; then
+    [[ $enable_prof_dryrun =~ yes ]] && CMAKE_DEFINES+=" -DPARSEC_PROF_DRY_RUN=ON"
+    [[ $enable_prof_dryrun =~ dep ]] && CMAKE_DEFINES+=" -DPARSEC_PROF_DRY_DEP=ON"
+    [[ $enable_prof_dryrun =~ body ]] && CMAKE_DEFINES+=" -DPARSEC_PROF_DRY_BODY=ON"
+    [[ $enable_prof_dryrun =~ no ]] && CMAKE_DEFINES+=" -DPARSEC_PROF_DRY_RUN=OFF -DPARSEC_PROF_DRY_BODY=OFF -DPARSEC_PROF_DRY_DEP=OFF"
 fi
 
-case x$OPT_PROF_TAU in
-xno) CMAKE_DEFINES+="-DPARSEC_PROF_TAU=OFF ";;
-xyes) CMAKE_DEFINES+="-DPARSEC_PROF_TAU=ON ";;
+case x$with_tau in
+xno) CMAKE_DEFINES+=" -DPARSEC_PROF_TAU=OFF";;
+xyes) CMAKE_DEFINES+=" -DPARSEC_PROF_TAU=ON";;
 x) ;;
-*) CMAKE_DEFINES+="-DPARSEC_PROF_TAU=ON -DTAU_ROOT=$OPT_PROF_TAU ";;
+*) CMAKE_DEFINES+=" -DPARSEC_PROF_TAU=ON -DTAU_ROOT=$(printf %q "$with_tau")";;
 esac
 
-case x$OPT_PROF_PAPI in
-xno) CMAKE_DEFINES+="-DPARSEC_PROF_TRACE=OFF "
+case x$with_papi in
+xno) CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=OFF"
     if [[ x$CMAKE_DEFINES =~ PARSEC_PROF_TRACE=ON ]]; then
         echo >&2 "WARNING: PAPI is disabled but prof-trace had been requested. Traces have been disabled."
         CMAKE_DEFINES="${CMAKE_DEFINES/-DPARSEC_PROF_TRACE=ON/}"
     fi;;
-xyes) CMAKE_DEFINES+="-DPARSEC_PROF_TRACE=ON";;
+xyes) CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON";;
 x) ;;
-*) CMAKE_DEFINES+="-DPAPI_DIR=$OPT_PROF_PAPI ";;
+*) CMAKE_DEFINES+=" -DPAPI_DIR=$(printf %q "$with_papi")";;
 esac
 
-case x$OPT_PROF_GTG in
+case x$with_gtg in
 xno) ;; # No CMAKE control to remove if available
 xyes) ;; # No CMAKE control to force using
 x) ;;
-*) CMAKE_DEFINES+="-DGTG_DIR=$OPT_PROF_GTG ";;
+*) CMAKE_DEFINES+=" -DGTG_DIR=$(printf %q "$with_gtg")";;
 esac
 
-case x$OPT_HWLOC in
+case x$with_ayudame in
 xno) ;; # No CMAKE control to remove if available
 xyes) ;; # No CMAKE control to force using
 x) ;;
-*) CMAKE_DEFINES+="-DHWLOC_DIR=$OPT_HWLOC ";;
+*) CMAKE_DEFINES+=" -DAYUDAME_DIR=$(printf %q "$with_ayudame")";;
 esac
 
-case x$OPT_DIST_MPI in
+case x$with_hwloc in
+xno) ;; # No CMAKE control to remove if available
+xyes) ;; # No CMAKE control to force using
+x) ;;
+*) CMAKE_DEFINES+=" -DHWLOC_DIR=$(printf %q "$with_hwloc")";;
+esac
+
+case x$with_mpi in
 xno) echo >&2 "WARNING: MPI is required to build this version of PaRSEC -- --without-mpi has been ignored.";;
 xyes) ;;
 x) ;;
 *)
     #TODO: deal with icc/spectrum and other variants
-    CMAKE_DEFINES+="-DMPI_C_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpicc) "
-    CMAKE_DEFINES+="-DMPI_CXX_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpicxx) "
-    CMAKE_DEFINES+="-DMPI_Fortran_COMPILER=$(PATH=$OPT_DIST_MPI:$OPT_DIST_MPI/bin64:$OPT_DIST_MPI/bin command -v mpif90) "
+    CMAKE_DEFINES+=" -DMPI_C_COMPILER=$(printf %q "$(PATH=$with_mpi:$with_mpi/bin64:$with_mpi/bin command -v mpicc)")"
+    CMAKE_DEFINES+=" -DMPI_CXX_COMPILER=$(printf %q "$(PATH=$with_mpi:$with_mpi/bin64:$with_mpi/bin command -v mpicxx)")"
+    CMAKE_DEFINES+=" -DMPI_Fortran_COMPILER=$(printf %q "$(PATH=$with_mpi:$with_mpi/bin64:$with_mpi/bin command -v mpif90)")"
 esac
-[ x$OPT_DIST_COLL = xyes ] && CMAKE_DEFINES+="-DPARSEC_DIST_COLLECTIVES=ON "
-[ x$OPT_DIST_COLL = xno ] && CMAKE_DEFINES+="-DPARSEC_DIST_COLLECTIVES=OFF "
+[ x$enable_collectives = xyes ] && CMAKE_DEFINES+=" -DPARSEC_DIST_COLLECTIVES=ON"
+[ x$enable_collectives = xno ] && CMAKE_DEFINES+=" -DPARSEC_DIST_COLLECTIVES=OFF"
 
 
-case x$OPT_GPU_CUDA in
-xno) CMAKE_DEFINES+="-DPARSEC_GPU_WITH_CUDA=OFF ";;
-xyes) CMAKE_DEFINES+="-DPARSEC_GPU_WITH_CUDA=ON ";;
+case x$with_cuda in
+xno) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=OFF";;
+xyes) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=ON";;
 x) ;;
-*) CMAKE_DEFINES+="-DPARSEC_GPU_WITH_CUDA=ON -DCUDA_TOOLKIT_ROOT_DIR=$OPT_GPU_CUDA ${CC:+-DCUDA_HOST_COMPILER=$(command -v $CC)} ";;
+*) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=ON -DCUDA_TOOLKIT_ROOT_DIR=$(printf %q "$with_cuda") ${CC:+-DCUDA_HOST_COMPILER=$(printf %q "$(command -v $CC)")} ";;
 esac
 
-case x$OPT_GPU_CUDA_SM in
+case x$with_cuda_sm_targets in
 xyes) ;;
-xno) CMAKE_DEFINES+="-DCUDA_SM_TARGETS= ";;
+xno) CMAKE_DEFINES+=" -DCUDA_SM_TARGETS=";;
 x) ;;
-*) CMAKE_DEFINES+="-DCUDA_SM_TARGETS='${OPT_GPU_CUDA_SM/,/;}' ";;
+*) CMAKE_DEFINES+=" -DCUDA_SM_TARGETS='${with_cuda_sm_targets/,/;}'";;
 esac
 
 
-case x$OPT_PYTHON in
+case x$with_python in
 xno) echo >&2 "Python is required. Please provide a path to the python executable."; exit 3;;
 xyes) ;;
 x) ;;
-*)  PYTHON_EXECUTABLES=$(PATH=$OPT_PYTHON:$OPT_PYTHON/bin command -v python{,3,2})
+*)  PYTHON_EXECUTABLES=$(PATH=$with_python:$with_python/bin command -v python{,3,2})
     for PYTHON_EXECUTABLE in $PYTHON_EXECUTABLES; do
-        [[ $PYTHON_EXECUTABLE =~ $OPT_PYTHON ]] && CMAKE_DEFINES+="-DPYTHON_EXECUTABLE=$PYTHON_EXECUTABLE " && break
+        [[ $PYTHON_EXECUTABLE =~ $with_python ]] && CMAKE_DEFINES+=" -DPYTHON_EXECUTABLE=$(printf %q "$PYTHON_EXECUTABLE")" && break
     done
 esac
 
+case x$with_omega in
+xno) CMAKE_DEFINES+=" -DPARSEC_Q2J=OFF";;
+xyes) CMAKE_DEFINES+=" -DPARSEC_Q2J=ON";;
+x) ;;
+*) CMAKE_DEFINES+=" -DOMEGA_DIR=$(printf %q $with_omega)";;
+esac
 
 # CMAKE INVOCATION
 
@@ -352,7 +405,7 @@ CMAKE_EXECUTABLE=${CMAKE_EXECUTABLE:-$(command -v cmake cmake3)}
 for cme in ${CMAKE_EXECUTABLE}; do
     [ -d $cme ] && cme=$(PATH=$cme command -v cmake)
     if [ -x $cme ]; then
-        CMAKE_COMMAND="$ENVVARS $cme -G 'Unix Makefiles' $OPT_SRCDIR $CMAKE_DEFINES"
+        CMAKE_COMMAND="$ENVVARS $cme -G 'Unix Makefiles' $srcdir $CMAKE_DEFINES"
         break
     fi
 done
@@ -365,7 +418,7 @@ cat <<EOF
 #
 EOF
 
-if [ x$OPT_NOCREATE != xyes ]; then
+if [ x$nocreate != xyes ]; then
     [ x$_PARSEC_CONFIG_STATUS_OPT_NORECHECK != xyes ] && echo "Removing Cmake Cache..." && rm -rf CMakeCache.txt CMakeFiles
     eval $CMAKE_COMMAND
 fi

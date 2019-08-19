@@ -1,0 +1,17 @@
+### Defaults for saturn machine (intel-NV Linux cluster)"
+# Don't set a default installation to the build location, bad things will
+# happend, and will only confuse people.
+#prefix="$PWD"
+
+# Do not set the compiler flags (CC, CXX, FC) and the MPI flags (MPI_DIR)
+# CUDA (detected via nvcc), PAPI (detected via papi_avail), HWLOC (detected
+# via hwloc-ls) nor the PYTHON_EXECUTABLE
+# if you want the default detection to work.
+with_hwloc=${HWLOC_ROOT:="/spack/opt/spack/linux-scientific7-x86_64/gcc-7.3.0/hwloc-1.11.11-nu65xwuyodswr74llx3ymi67hgd6vmwe"}
+with_gtg=${GTG_ROOT:="/sw/gtg/0.2-2"}
+with_omega=${OMEGA_ROOT:="/sw/omega/2.1"}
+
+CMAKE_DEFINES="-DCTEST_MPI_LAUNCHER=\"srun -Ccauchy -N\" -DCTEST_SHM_LAUNCHER=\"srun -Ccauchy\" -DCTEST_GPU_LAUNCHER_OPTIONS=-Cgtx1060"
+
+
+

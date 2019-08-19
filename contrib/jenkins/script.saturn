@@ -16,13 +16,11 @@ module load \
   otf2/2.1.1/gcc-7.3.0-ylax \
   cuda/9.2.88/gcc-7.3.0-idc7 \
 
-SATURN_LAUNCHER="-DCTEST_MPI_LAUNCHER='srun -Ccauchy -N' -DCTEST_SHM_LAUNCHER='srun -Ccauchy' -DCTEST_GPU_LAUNCHER_OPTIONS=-Cgtx1060"
-
 if [ ${BUILDTYPE} = "Debug" ] ; then
     DEBUG_OPTIONS="--enable-debug=history,noisier,paranoid --enable-prof-trace --enable-prof-grapher"
 fi
 
-CONFCMD="${WORKSPACE}/configure --prefix=${BUILDDIR}.install ${DEBUG_OPTIONS} ${SATURN_LAUNCHER}"
+CONFCMD="${WORKSPACE}/configure --with-platform=saturn --prefix=${BUILDDIR}.install ${DEBUG_OPTIONS}"
 echo $CONFCMD
 eval $CONFCMD
 
