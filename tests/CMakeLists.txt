@@ -1,13 +1,11 @@
-
 macro(parsec_addtest lang target)
   add_executable(${target} ${ARGN})
   set_target_properties(${target} PROPERTIES
     LINKER_LANGUAGE ${lang})
-
   target_link_libraries(${target}
     PRIVATE
-    parsec
-    $<$<STREQUAL:Fortran,${lang}>:parsec_fortran>)
+      parsec
+      $<$<STREQUAL:Fortran,${lang}>:parsec_fortran>)
 endmacro(parsec_addtest)
 
 add_Subdirectory(unit)

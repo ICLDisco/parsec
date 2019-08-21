@@ -1,11 +1,11 @@
-macro(parsec_addexample lang target input)
-  add_executable(${target} ${input})
-  set_target_properties(${target} PROPERTIES LINKER_LANGUAGE ${lang})
+macro(parsec_addexample lang target)
+  add_executable(${target} ${ARGN})
+  set_target_properties(${target} PROPERTIES
+    LINKER_LANGUAGE ${lang})
   target_link_libraries(${target}
     PRIVATE
-    parsec
-    ${${target}_LIBS}
-    $<$<BOOL:${MPI_${lang}_FOUND}>:MPI::MPI_${lang}>)
+      parsec
+      $<$<STREQUAL:Fortran,${lang}>:parsec_fortran>)
 endmacro(parsec_addexample)
 
 parsec_addexample(C ex00 Ex00_StartStop.c)
