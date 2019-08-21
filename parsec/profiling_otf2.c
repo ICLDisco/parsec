@@ -154,6 +154,8 @@ void parsec_profiling_add_information( const char *key, const char *value )
     parsec_profiling_info_t *new_info;
     char *c;
 
+    if( !__profile_initialized ) return;
+
     new_info = OBJ_NEW(parsec_profiling_info_t);
     /* OTF2 format: keys must be in a namespace separated by ::,
      *              keys are in [a-zA-Z0-9_]+ */
