@@ -9,14 +9,14 @@ CFLAGS  = $(shell pkg-config --cflags parsec)
 LDFLAGS = $(shell pkg-config --libs parsec)
 
 PTGPP = ${PARSECDIR}/bin/parsec_ptgpp
-PTGPPFLAGS =
+PTGFLAGS =
 
 TESTS = write_check dtd_test_allreduce
 
 all:${TESTS}
 
 %.c %.h: %.jdf
-	${PTGPP} -i $< -o `basename $@ .c` ${PTGPPFLAGS}
+	${PTGPP} -i $< -o `basename $@ .c` ${PTGFLAGS}
 
 %.o: %.c
 	${CC} -o $@ -c $< ${CFLAGS}

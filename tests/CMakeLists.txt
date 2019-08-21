@@ -1,4 +1,4 @@
-macro(parsec_addtest lang target)
+function(parsec_addtest lang target)
   add_executable(${target} ${ARGN})
   set_target_properties(${target} PROPERTIES
     LINKER_LANGUAGE ${lang})
@@ -6,7 +6,7 @@ macro(parsec_addtest lang target)
     PRIVATE
       parsec
       $<$<STREQUAL:Fortran,${lang}>:parsec_fortran>)
-endmacro(parsec_addtest)
+endfunction(parsec_addtest)
 
 add_Subdirectory(unit)
 add_Subdirectory(interfaces/superscalar)
@@ -30,39 +30,33 @@ endif(PARSEC_PROF_TRACE)
 
 parsec_addtest(C operator operator.c)
 parsec_addtest(C reduce reduce.c)
-parsec_compile_ptg(dtt_generated "${CMAKE_CURRENT_SOURCE_DIR}/dtt_bug_replicator.jdf")
-parsec_addtest(C dtt_bug_replicator "dtt_bug_replicator_ex.c;${dtt_generated}")
+parsec_addtest(C dtt_bug_replicator "dtt_bug_replicator_ex.c")
+target_ptg_sources(dtt_bug_replicator PRIVATE "dtt_bug_replicator.jdf")
 
-parsec_compile_ptg(wc_generated "${CMAKE_CURRENT_SOURCE_DIR}/write_check.jdf")
-string( REGEX REPLACE "write_check.[hc]" "" include_dir "${wc_generated}" )
-include_directories(${include_dir})
-parsec_addtest(C write_check "vector.c;${wc_generated}")
+parsec_addtest(C write_check "vector.c")
+target_ptg_sources(write_check PRIVATE "write_check.jdf")
 
-parsec_compile_ptg(touch_generated "${CMAKE_CURRENT_SOURCE_DIR}/touch.jdf")
-string( REGEX REPLACE "touch.[hc]" "" include_dir "${touch_generated}" )
-include_directories(${include_dir})
-
-parsec_addtest(C touch_ex "touch_ex.c;${touch_generated}")
+parsec_addtest(C touch_ex "touch_ex.c")
+target_ptg_sources(touch_ex PRIVATE "touch.jdf")
 if(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    parsec_addtest(Fortran touch_exf "touch_exf.F90;${touch_generated}")
+    parsec_addtest(Fortran touch_exf "touch_exf.F90")
+    target_ptg_sources(touch_exf PRIVATE "touch.jdf")
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 endif(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
 
-parsec_compile_ptg(strange_generated "${CMAKE_CURRENT_SOURCE_DIR}/strange.jdf")
-string( REGEX REPLACE "strange.[hc]" "" include_dir "${strange_generated}" )
-include_directories(${include_dir})
-parsec_addtest(C strange "${strange_generated}")
+parsec_addtest(C strange)
+target_ptg_sources(strange PRIVATE "strange.jdf")
 
-parsec_compile_ptg(startup_generated "${CMAKE_CURRENT_SOURCE_DIR}/startup.jdf")
-parsec_addtest(C startup "${startup_generated}")
+parsec_addtest(C startup)
+target_ptg_sources(startup PRIVATE "startup.jdf")
 
-parsec_compile_ptg(complex_deps_generated "${CMAKE_CURRENT_SOURCE_DIR}/complex_deps.jdf")
-parsec_addtest(C complex_deps "${complex_deps_generated}")
+parsec_addtest(C complex_deps)
+target_ptg_sources(complex_deps PRIVATE "complex_deps.jdf")
 
 if( MPI_C_FOUND )
-  parsec_compile_ptg(multichain_generated "${CMAKE_CURRENT_SOURCE_DIR}/multichain.jdf")
-  parsec_addtest(C multichain "${multichain_generated}")
+  parsec_addtest(C multichain)
+  target_ptg_sources(multichain PRIVATE "multichain.jdf")
 endif( MPI_C_FOUND )
 
 parsec_addtest(C compose "compose.c")

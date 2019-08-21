@@ -74,8 +74,8 @@ option(PARSEC_WANT_HOME_CONFIG_FILES
        "Should the runtime check for the parameter configuration file in the user home (\$HOME/.parsec/mca-params.conf)" ON)
 
 ### PaRSEC PP options
-set(PARSEC_PTGPP_CFLAGS "--noline" CACHE STRING "Additional parsec_ptgpp precompiling flags (separate flags with ';')" )
-mark_as_advanced(PARSEC_PTGPP_CFLAGS)
+set(PARSEC_PTGFLAGS "--noline" CACHE STRING "Additional parsec_ptgpp precompiling flags (separate flags with ';')" )
+mark_as_advanced(PARSEC_PTGFLAGS)
 
 option(PARSEC_WITH_DEVEL_HEADERS "Install additional headers in include/parsec allowing external compilation." OFF)
 
@@ -871,7 +871,7 @@ IF(CMAKE_CROSSCOMPILING)
   install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target native-install)")
   add_test(NAME native-test COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target native-test)
 else()
-  set(parsec_ptgpp_EXE $<TARGET_FILE:parsec_ptgpp>)
+  set(parsec_ptgpp_EXE PaRSEC::parsec_ptgpp)
 ENDIF(CMAKE_CROSSCOMPILING)
 set(parsec_ptgpp_EXE ${parsec_ptgpp_EXE} CACHE STRING "Point to the parsec_ptgpp executable")
 
@@ -1158,13 +1158,15 @@ file(GLOB_RECURSE pattern_files RELATIVE
      "${CMAKE_CURRENT_SOURCE_DIR}/" "contrib/build_with_parsec/*.[c|h]"
                                     "contrib/build_with_parsec/*.jdf")
 foreach( pattern_file ${pattern_files} )
-  add_custom_command(
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${pattern_file}"
-    COMMAND ${CMAKE_COMMAND} -E copy
-            "${CMAKE_CURRENT_SOURCE_DIR}/${pattern_file}"
-            "${CMAKE_CURRENT_BINARY_DIR}/${pattern_file}"
-    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${pattern_file}"
-  )
+  if(NOT PARSEC_BUILD_INPLACE)
+    add_custom_command(
+      OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${pattern_file}"
+      COMMAND ${CMAKE_COMMAND} -E copy
+              "${CMAKE_CURRENT_SOURCE_DIR}/${pattern_file}"
+              "${CMAKE_CURRENT_BINARY_DIR}/${pattern_file}"
+      DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${pattern_file}"
+    )
+  endif(NOT PARSEC_BUILD_INPLACE)
   list( APPEND pattern_files_dest "${pattern_file}" )
 endforeach( pattern_file )
 add_custom_target(build_with_parsec ALL DEPENDS ${pattern_files_dest})
