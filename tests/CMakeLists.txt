@@ -1,14 +1,13 @@
 
-macro(parsec_addtest lang target input)
-  add_executable(${target} ${input})
+macro(parsec_addtest lang target)
+  add_executable(${target} ${ARGN})
   set_target_properties(${target} PROPERTIES
     LINKER_LANGUAGE ${lang})
 
   target_link_libraries(${target}
     PRIVATE
     parsec
-    ${${target}_LIBS}
-    $<$<BOOL:${MPI_${lang}_FOUND}>:MPI::MPI_${lang}>)
+    $<$<STREQUAL:Fortran,${lang}>:parsec_fortran>)
 endmacro(parsec_addtest)
 
 add_Subdirectory(unit)
@@ -49,8 +48,6 @@ parsec_addtest(C touch_ex "touch_ex.c;${touch_generated}")
 if(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
     parsec_addtest(Fortran touch_exf "touch_exf.F90;${touch_generated}")
-    SET_TARGET_PROPERTIES(touch_exf PROPERTIES LINKER_LANGUAGE Fortran)
-    SET_TARGET_PROPERTIES(touch_exf PROPERTIES COMPILE_FLAGS "-I${PROJECT_BINARY_DIR}/parsec/fortran -I${CMAKE_Fortran_MODULE_DIRECTORY}")
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 endif(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
 

@@ -6,6 +6,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 parsec_addtest(C project "main.c;${project_generated};tree_dist.c")
+target_link_libraries(project PRIVATE Threads::Threads)
 
 add_test(unit_haar_tree_shm ${SHM_TEST_CMD_LIST} ./project -x)
 if( MPI_C_FOUND )
