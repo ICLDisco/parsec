@@ -823,7 +823,8 @@ IF(CMAKE_CROSSCOMPILING)
   SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
   MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
   INCLUDE(${IMPORT_EXECUTABLES})
-  SET(parsec_ptgpp_EXE native-parsec_ptgpp)
+  set_target_properties(parsec_ptgpp PROPERTIES IMPORTED_GLOBAL ON)
+  SET(parsec_ptgpp_EXE parsec_ptgpp)
 ELSE(CMAKE_CROSSCOMPILING)
   SET(parsec_ptgpp_EXE parsec_ptgpp)
 ENDIF(CMAKE_CROSSCOMPILING)
@@ -1075,7 +1076,11 @@ install(EXPORT parsec-targets # rules to export the targets built here
   NAMESPACE PaRSEC::
   DESTINATION ${INSTALL_CONFIGDIR})
 
-export(TARGETS parsec parsec_ptgpp
+# do not export parsec_ptgpp when it is imported from a native cross
+if(NOT CMAKE_CROSSCOMPILING)
+  set(EXPORT_PTGPP parsec_ptgpp)
+endif()
+export(TARGETS parsec ${EXPORT_PTGPP}
        NAMESPACE PaRSEC::
        FILE ${CMAKE_BINARY_DIR}/parsec/cmake_modules/PaRSEC-Exports-Build.cmake)
 # cmake config files

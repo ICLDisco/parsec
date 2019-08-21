@@ -31,6 +31,6 @@ IF(NOT CMAKE_CROSSCOMPILING)
   #
   # Generate the EXPORT file for external projects.
   #
-  EXPORT(TARGETS parsec_ptgpp FILE "${CMAKE_BINARY_DIR}/ImportExecutables.cmake" NAMESPACE native-)
+  EXPORT(TARGETS parsec_ptgpp FILE "${CMAKE_BINARY_DIR}/ImportExecutables.cmake")
 ENDIF(NOT CMAKE_CROSSCOMPILING)
 

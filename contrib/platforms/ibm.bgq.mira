@@ -1,33 +1,33 @@
-#!/bin/sh
+#
+# This file is for a cross-compilation. 
+#   configure --with-platform=ibm.bgq.mira ...
+#
+# PaRSEC will be compiled on the head node, using the BG/Q 
+# toolchain. All dependencies have to be compiled for the
+# expected target architecture.
+#
 
-LOCATION=`dirname $0`/../../
-USER_OPTIONS="$* "
-SAVE_LDFLAGS=$LDFLAGS
+# Be paranoid about errors and abort asap 
+set -e
 
-#
-# This file is for a cross-compilation. PaRSEC will be compiled
-# on the head node, using the BG/Q toolchain. All dependencies
-# (including PLASMA) have to be compiled for the expected target
-# architecture.
-#
-# Based on the CMake documentation the first step is to convince
-# cmake to use the following file:
-# BlueGeneQ-static-*.cmake
-#
-# This can be done by setting 
-# - CMAKE_SYSTEM_NAME to BlueGeneQ-static
-#
+# General variables
+: ${HWLOC_DIR:=$HOME/parsec/mira.deps}
+[ -d "$HWLOC_DIR" ] || echo "HWLOC_DIR='$HWLOC_DIR' does not point to a valid hwloc install. PaRSEC may use unoptimized schedulers." 1>&2
+
+: ${TOOLCHAIN_DIR:=$PWD/native}
+: ${COMPUTE_DIR:=$PWD}
 
 cat << _EOF
 #
 # Preparing the compilation of the native tools.
+#   Cross-compiling toolchain will be found in $TOOLCHAIN_DIR
 #
 _EOF
 
-
-# First make the native build, so we can use the tools
-mkdir -p native
-cd native
+#
+# First make the native build, so we can use the tools on the headnode
+#
+mkdir -p $TOOLCHAIN_DIR && cd $TOOLCHAIN_DIR
 rm -rf CMakeCache.txt CMakeFiles
 
 ## Defaults for local native compilation
@@ -38,35 +38,44 @@ export CC CXX FC
  
 MPI="-DPARSEC_DIST_WITH_MPI=OFF"
 CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
-HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
-OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DBUILD_DPLASMA=OFF"
+HWLOC=""
+OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DCMAKE_INSTALL_PREFIX=$TOOLCHAIN_DIR"
 
-cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${USER_OPTIONS} ../${LOCATION}
+echo cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${PARSEC_TOOLCHAIN_OPTIONS} ${srcdir}
+cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${PARSEC_TOOLCHAIN_OPTIONS} ${srcdir}
 #
 # Now let's compile the tools
 #
-make
-if [ $? -ne 0 ]; then
-  cd ..
-  echo "### Native tools compilation failed. Exiting."
-  exit 1
-fi
+cd tools && make install
+cd -
+cd parsec/interfaces/ptg && make install
+cd -
+# Done with the toolchain for the headnode
 
-cd ..
+
 #
 # Now let's move on with the second step, cross-compile for
-# the BlueGeneQ
+# the compute node target
 #
+mkdir -p $COMPUTE_DIR && cd $COMPUTE_DIR
 rm -rf CMakeCache.txt CMakeFiles
 
 cat << _EOF
 #
-# Preparing the cross-compile of the BlueGeneQ part
+# Preparing the cross-compiling of the BlueGeneQ compute node part
+#   Compute node libraries and tests will be found in $COMPUTE_DIR
 #
 _EOF
 
 #
 # Generate the cross-compiling file
+#
+# Based on the CMake documentation the first step is to convince
+# cmake to use the following file:
+# BlueGeneQ-static-*.cmake
+#
+# This can be done by setting 
+# - CMAKE_SYSTEM_NAME to BlueGeneQ-static
 #
 cat << _EOF > Toolchain-ppc-BlueGeneQ.cmake
 # this one is important
@@ -78,16 +87,16 @@ _EOF
 CC=mpixlc_r
 CXX=mpixlcxx_r
 FC=mpixlf77_r
+export CC CXX FC CFLAGS LDFLAGS
+ENVVARS+=" CC=$CC CXX=$CXX FC=$FC CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
 
-## Disable DPLASMA for now, until we succeed compiling PLASMA
-PALSMA="-DBUILD_DPLASMA=OFF"
-MPI="-DPARSEC_DIST_WITH_MPI=ON"
-HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
-CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
-OPTS="-DBUILD_SHARED_LIBS=OFF -DBUILD_TOOLS=OFF"
+with_cuda=no
+with_mpi=yes
+enable_static=yes
+with_hwloc=${HWLOC_DIR}
 
-# Done with variable allocation, do the thing with Cmake
-export CC CXX FC CFLAGS
+TOOLCHAIN=" -DCMAKE_TOOLCHAIN_FILE=Toolchain-ppc-BlueGeneQ.cmake -DIMPORT_EXECUTABLES=$TOOLCHAIN_DIR/ImportExecutables.cmake"
+CMAKE_DEFINES+=" -DBUILD_TOOLS=OFF $TOOLCHAIN"
 
-cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=Toolchain-ppc-BlueGeneQ.cmake -DIMPORT_EXECUTABLES=native/ImportExecutables.cmake ${PLASMA} ${MPI} ${HWLOC} ${CUDA} ${OPTS} ${USER_OPTIONS} ${LOCATION}
+# Done with variable allocation, and toolchain compilation, let's have configure do the rest as usual now
 

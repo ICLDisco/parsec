@@ -132,6 +132,21 @@ echo "PaRSEC version $(git show --pretty='%h (%cd)')"
 exit 2
 }
 
+function parse_early_arguments {
+while [ "x$1" != x ]; do
+    case "$1" in
+        -h|--help) show_help_and_exit ;;
+        -V) show_version_and_exit ;;
+        -q|--quiet|--silent) quiet=yes; shift;;
+        -n|--no-create) nocreate=yes; shift;;
+        --srcdir=*) srcdir="${1#*=}"; shift;;
+        --prefix=*) prefix="${1#*=}"; shift;;
+        --host=*) host="${1#*=}"; shift;;
+        *) shift;;
+    esac
+done
+}
+
 function parse_arguments {
 while [ "x$1" != x ]; do
     case "$1" in
@@ -225,7 +240,7 @@ while [ "x$1" != x ]; do
 done
 }
 
-function read_platform {
+function read_platforms {
 local varname
 for i in "$@"; do
     with_platform=${i#--with-platform=}
@@ -248,14 +263,17 @@ for i in "$@"; do
 done
 }
 
-read_platform "$@"
-parse_arguments "$@"
+
+parse_early_arguments "$@"
 
 if [ x$quiet = xyes ]; then
     exec &>config.log
 else
     exec &> >(tee config.log)
 fi
+
+read_platforms "$@"
+parse_arguments "$@"
 
 # Create config.status
 cat >config.status <<'EOF'
@@ -276,10 +294,10 @@ chmod +x config.status
 
 CMAKE_DEFINES+=" ${prefix:+-DCMAKE_INSTALL_PREFIX=$prefix}"
 # host
-[ x$enable_static = xyes ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIB=OFF"
-[ x$enable_static = xno ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIB=ON"
-[ x$enable_shared = xyes ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIB=OFF"
-[ x$enable_shared = xno ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIB=ON"
+[ x$enable_static = xyes ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIBS=OFF"
+[ x$enable_static = xno ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIBS=ON"
+[ x$enable_shared = xyes ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIBS=ON"
+[ x$enable_shared = xno ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIBS=OFF"
 [ x$enable_shared = xyes ] && [ x$enable_static = xyes ] && echo >&2 "WARNING: due to Cmake limitations, you have to choose exclusively between static and shared build. This build will be static."
 [ x$enable_c11 = xyes ] && CMAKE_DEFINES+=" -DSUPPORT_C11=ON"
 [ x$enable_c11 = xno ] && CMAKE_DEFINES+=" -DSUPPORT_C11=OFF"
