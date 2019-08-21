@@ -1,6 +1,10 @@
-
 parsec_addtest(C lifo lifo.c)
+target_link_libraries(lifo PRIVATE Threads::Threads)
 parsec_addtest(C list list.c)
+target_link_libraries(list PRIVATE Threads::Threads)
 parsec_addtest(C rwlock rwlock.c)
+target_link_libraries(rwlock PRIVATE Threads::Threads)
 parsec_addtest(C hash hash.c)
+target_link_libraries(hash PRIVATE Threads::Threads)
 parsec_addtest(C atomics atomics.c)
+target_link_libraries(atomics PRIVATE Threads::Threads)
