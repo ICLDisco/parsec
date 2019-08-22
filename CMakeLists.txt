@@ -582,14 +582,17 @@ IF( BUILD_PARSEC )
                                MPI_Barrier(MPI_COMM_WORLD);
                                MPI_Finalize();
                                return 0;
-                             }" MPI_WORKS_WITH_WRAPPER)
-    if( MPI_WORKS_WITH_WRAPPER )
+                             }" CC_CONTAINS_MPI)
+    if( CC_CONTAINS_MPI )
+      # Create fake MPI:: targets
       set(MPI_C_FOUND TRUE)
-    else( MPI_WORKS_WITH_WRAPPER )
+      add_library(MPI::MPI_C INTERFACE IMPORTED)
+      set(MPI_Fortran_FOUND TRUE)
+      add_library(MPI::MPI_Fortran INTERFACE IMPORTED)
+    else( CC_CONTAINS_MPI )
       # Otherwise try to find MPI in the normal way
       find_package(MPI)
-      list(APPEND EXTRA_INCLUDES ${MPI_C_INCLUDE_PATH})
-    endif( MPI_WORKS_WITH_WRAPPER )
+    endif( CC_CONTAINS_MPI )
     set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
     if (NOT MPI_C_FOUND)
       # Force MPI: if no compiler, do not proceed further
