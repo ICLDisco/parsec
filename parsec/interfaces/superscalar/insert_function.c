@@ -301,6 +301,7 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     }
 
     free(tp->super.dependencies_array);
+    free(tp->super.taskpool_name);
     tp->super.dependencies_array = NULL;
 
     /* Unregister the taskpool from the devices */
@@ -1235,8 +1236,7 @@ parsec_taskpool_t*
 parsec_dtd_taskpool_new(void)
 {
     int dtd_id;
-    dtd_id = parsec_atomic_fetch_inc_int32(&__parsec_dtd_is_initialized);
-    if( 0 == dtd_id ) {
+    if( 0 == parsec_atomic_fetch_inc_int32(&__parsec_dtd_is_initialized) ) {
         parsec_dtd_lazy_init();
     }
 
@@ -1253,7 +1253,6 @@ parsec_dtd_taskpool_new(void)
 
     parsec_dtd_taskpool_retain((parsec_taskpool_t *)__tp);
 
-    asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d", dtd_id);
     __tp->super.context            = NULL;
     __tp->super.on_enqueue         = parsec_dtd_enqueue_taskpool;
     __tp->super.on_enqueue_data    = NULL;
@@ -1290,7 +1289,8 @@ parsec_dtd_taskpool_new(void)
     __tp->enqueue_flag        = 0;
     parsec_atomic_unlock(&__tp->two_hash_table->atomic_lock);
 
-    (void)parsec_taskpool_reserve_id((parsec_taskpool_t *) __tp);
+    dtd_id = parsec_taskpool_reserve_id((parsec_taskpool_t *) __tp);
+    asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d", dtd_id);
 
 #if defined(PARSEC_PROF_TRACE) /* TODO: should not be per taskpool */
     if(parsec_dtd_profile_verbose) {
