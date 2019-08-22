@@ -1234,7 +1234,9 @@ parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
 parsec_taskpool_t*
 parsec_dtd_taskpool_new(void)
 {
-    if( 0 == parsec_atomic_fetch_inc_int32(&__parsec_dtd_is_initialized) ) {
+    int dtd_id;
+    dtd_id = parsec_atomic_fetch_inc_int32(&__parsec_dtd_is_initialized);
+    if( 0 == dtd_id ) {
         parsec_dtd_lazy_init();
     }
 
@@ -1251,6 +1253,7 @@ parsec_dtd_taskpool_new(void)
 
     parsec_dtd_taskpool_retain((parsec_taskpool_t *)__tp);
 
+    asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d", dtd_id);
     __tp->super.context            = NULL;
     __tp->super.on_enqueue         = parsec_dtd_enqueue_taskpool;
     __tp->super.on_enqueue_data    = NULL;
