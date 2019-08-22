@@ -301,6 +301,7 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     }
 
     free(tp->super.dependencies_array);
+    free(tp->super.taskpool_name);
     tp->super.dependencies_array = NULL;
 
     /* Unregister the taskpool from the devices */
@@ -1288,6 +1289,7 @@ parsec_dtd_taskpool_new(void)
     parsec_atomic_unlock(&__tp->two_hash_table->atomic_lock);
 
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *) __tp);
+    asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d", __tp->super.taskpool_id);
 
 #if defined(PARSEC_PROF_TRACE) /* TODO: should not be per taskpool */
     if(parsec_dtd_profile_verbose) {
