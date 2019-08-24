@@ -1,3 +1,4 @@
+# vim: set filetype=sh :
 #
 # This file is for a cross-compilation. 
 #   configure --with-platform=ibm.bgq.mira ...
@@ -7,68 +8,37 @@
 # expected target architecture.
 #
 
-# Be paranoid about errors and abort asap 
-set -e
-
-# General variables
-: ${HWLOC_DIR:=$HOME/parsec/mira.deps}
-[ -d "$HWLOC_DIR" ] || echo "HWLOC_DIR='$HWLOC_DIR' does not point to a valid hwloc install. PaRSEC may use unoptimized schedulers." 1>&2
-
-: ${TOOLCHAIN_DIR:=$PWD/native}
-: ${COMPUTE_DIR:=$PWD}
-
-cat << _EOF
-#
-# Preparing the compilation of the native tools.
-#   Cross-compiling toolchain will be found in $TOOLCHAIN_DIR
+# First, compute node options (cross-compilation)
+cat <<_EOF
+#################################################
+# Platform $with_platform
+# Set preferences and dependencies for the
+# cross-compiled (compute) executables and libs
+# CC, CXX, FC set to use mpiwrapper-mpich3-xl
 #
 _EOF
 
-#
-# First make the native build, so we can use the tools on the headnode
-#
-mkdir -p $TOOLCHAIN_DIR && cd $TOOLCHAIN_DIR
-rm -rf CMakeCache.txt CMakeFiles
+CMAKE_EXECUTABLE=/soft/buildtools/cmake/3.14.6/bin/cmake
+[ -r "$SOFTENV_ALIASES" ] && . $SOFTENV_ALIASES 
+soft add +mpiwrapper-mpich3-xl
 
-## Defaults for local native compilation
-CC=${CC:="gcc"}
-CXX=${CXX:="g++"}
-FC=${FC:="gfortran"}
-export CC CXX FC
- 
-MPI="-DPARSEC_DIST_WITH_MPI=OFF"
-CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
-HWLOC=""
-OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DCMAKE_INSTALL_PREFIX=$TOOLCHAIN_DIR"
+# We do not use --host to guess this on this machine
+#export CC=mpixlc_r CXX=mpixlcxx_r FC=mpixlf77_r # older BG/Q may have only these
+export CC=mpicc CXX=mpicxx FC=mpif90
+ENVVARS+=" CC=$CC CXX=$CXX FC=$FC CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
 
-echo cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${PARSEC_TOOLCHAIN_OPTIONS} ${srcdir}
-cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${PARSEC_TOOLCHAIN_OPTIONS} ${srcdir}
-#
-# Now let's compile the tools
-#
-cd tools && make install
-cd -
-cd parsec/interfaces/ptg && make install
-cd -
-# Done with the toolchain for the headnode
+enable_static=yes
+with_cuda=no
+with_mpi=yes
+with_hwloc=$HOME/parsec/$with_platform/hwloc # no system provided hwloc: add some guesswork location
 
-
-#
-# Now let's move on with the second step, cross-compile for
-# the compute node target
-#
-mkdir -p $COMPUTE_DIR && cd $COMPUTE_DIR
-rm -rf CMakeCache.txt CMakeFiles
-
-cat << _EOF
-#
-# Preparing the cross-compiling of the BlueGeneQ compute node part
-#   Compute node libraries and tests will be found in $COMPUTE_DIR
-#
-_EOF
-
-#
-# Generate the cross-compiling file
+# Generate the cross-compiling toolchain file
+TOOLCHAIN_FILE=$PWD/Toolchain-$with_platform.cmake
+cat << _EOF > $TOOLCHAIN_FILE
+# Toolchain file for $with_platform
+# Warning! This file is generated !
+#   Editions will be overwritten by invoking configure
+# Set crosscompiling mode
 #
 # Based on the CMake documentation the first step is to convince
 # cmake to use the following file:
@@ -76,27 +46,28 @@ _EOF
 #
 # This can be done by setting 
 # - CMAKE_SYSTEM_NAME to BlueGeneQ-static
-#
-cat << _EOF > Toolchain-ppc-BlueGeneQ.cmake
-# this one is important
 SET(CMAKE_SYSTEM_NAME BlueGeneQ-static)
 SET(CMAKE_SYSTEM_PROCESSOR ppc64)
 _EOF
 
-## Defaults for BG/Q cross-compilation
-CC=mpixlc_r
-CXX=mpixlcxx_r
-FC=mpixlf77_r
-export CC CXX FC CFLAGS LDFLAGS
-ENVVARS+=" CC=$CC CXX=$CXX FC=$FC CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
 
-with_cuda=no
-with_mpi=yes
-enable_static=yes
-with_hwloc=${HWLOC_DIR}
+# Second, deal with the native (headnode) tools
+cat <<_EOF
+#################################################
+# Platform $with_platform
+# Set preferences and dependencies for the
+# native (headnode) executables
+_EOF
 
-TOOLCHAIN=" -DCMAKE_TOOLCHAIN_FILE=Toolchain-ppc-BlueGeneQ.cmake -DIMPORT_EXECUTABLES=$TOOLCHAIN_DIR/ImportExecutables.cmake"
-CMAKE_DEFINES+=" -DBUILD_TOOLS=OFF $TOOLCHAIN"
+# use GNU to produce headnode code
+  : ${NATIVE_CC:="gcc"}
+  : ${NATIVE_CXX:="g++"}
+  : ${NATIVE_FC="gfortran"}
 
-# Done with variable allocation, and toolchain compilation, let's have configure do the rest as usual now
+# Pass-in the toolchain file name in $1,
+# and arbitrary options to send to the native cmake invocation thereafter
+configure_native_toolchain "$TOOLCHAIN_FILE"
+#build_native_toolchain
 
+# Done with the toolchain for the headnode
+# Let's have configure do the rest as usual now

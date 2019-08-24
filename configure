@@ -301,9 +301,8 @@ function configure_native_toolchain {
     local TOOLCHAIN_FILE=$1
     shift
     cat << _EOF
-#
-# Preparing the compilation of the native tools.
-#   Cross-compiling toolchain will be found in $NATIVE_DIR
+#   Cross-compiling toolchain will be found in
+#     $NATIVE_DIR
 #
 _EOF
     mkdir -p "$NATIVE_DIR" && pushd "$NATIVE_DIR"

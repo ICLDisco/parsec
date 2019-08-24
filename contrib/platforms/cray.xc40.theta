@@ -1,5 +1,6 @@
+# vim: set filetype=sh :
 #
-# This file is for a cross-compilation. 
+# This file is for a cross-compilation.
 #   configure --with-platform=cray.xc40.theta ...
 #
 # PaRSEC will be compiled on the head node, disarming the Phi
@@ -7,108 +8,76 @@
 # expected target architecture (Phi).
 #
 
-# Be paranoid about errors and abort asap 
-set -e
-
-# General variables
-: ${HWLOC_DIR:=$HOME/parsec/theta.deps}
-[ -d "$HWLOC_DIR" ] || echo "HWLOC_DIR='$HWLOC_DIR' does not point to a valid hwloc install. PaRSEC may use unoptimized schedulers." 1>&2
-
-: ${TOOLCHAIN_DIR:=$PWD/native}
-: ${COMPUTE_DIR:=$PWD}
-
-cat << _EOF
-#
-# Preparing the compilation of the native tools.
-#   Cross-compiling toolchain will be found in $TOOLCHAIN_DIR
+# First, compute node options (cross-compilation)
+cat <<_EOF
+#################################################
+# Platform $with_platform
+# Set preferences and dependencies for the
+# cross-compiled (compute) executables and libs
+#   CC=cc CXX=CC FC=ftn
 #
 _EOF
 
-#
-# First make the native build, so we can use the tools on the headnode
-#
-mkdir -p $TOOLCHAIN_DIR && cd $TOOLCHAIN_DIR
-rm -rf CMakeCache.txt CMakeFiles
-
-## Defaults for local native compilation
-if [ "$CRAY_PRGENVINTEL" ]; then
-	CC="icc"
-	CXX="icpc"
-	FC="ifort"
-else
-# In all other cases use GNU
-	CC="gcc"
-	CXX="g++"
-	FC="gfortran"
-fi
-#: LDFLAGS="${LDFLAGS} -lnuma"
-export CC CXX FC CFLAGS LDFLAGS
-
-MPI="-DPARSEC_DIST_WITH_MPI=OFF"
-CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
-HWLOC=""
-OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DCMAKE_INSTALL_PREFIX=$TOOLCHAIN_DIR"
-
-echo cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${PARSEC_TOOLCHAIN_OPTIONS} ${srcdir}
-cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${PARSEC_TOOLCHAIN_OPTIONS} ${srcdir}
-#
-# Now let's compile the tools
-#
-cd tools && make install
-cd -
-cd parsec/interfaces/ptg && make install
-cd -
-# Done with the toolchain for the headnode
-
-
-#
-# Now let's move on with the second step, cross-compile for
-# the compute node target
-#
-mkdir -p $COMPUTE_DIR && cd $COMPUTE_DIR
-rm -rf CMakeCache.txt CMakeFiles
-
-cat << _EOF
-#
-# Preparing the cross-compiling of the Cray XC40 compute node part
-#   Compute node libraries and tests will be found in $COMPUTE_DIR
-#
-_EOF
-
-#
-# Generate the cross-compiling file
-#
-cat << _EOF > Toolchain-Phi-Cray-xc40.cmake
-# this one is important
-SET(CMAKE_SYSTEM_NAME Linux)
-SET(CMAKE_SYSTEM_PROCESSOR x86_64)
-SET( PARSEC_ATOMIC_USE_GCC_32_BUILTINS_EXITCODE 
-     "0"
-     CACHE STRING "Result from TRY_RUN" FORCE)
-SET( PARSEC_ATOMIC_USE_GCC_64_BUILTINS_EXITCODE 
-     "0"
-     CACHE STRING "Result from TRY_RUN" FORCE)
-SET( PARSEC_ATOMIC_USE_GCC_128_BUILTINS_EXITCODE 
-     "0"
-     CACHE STRING "Result from TRY_RUN" FORCE)
-_EOF
-
-# compilers to use in cross-compile mode
-CC=cc
-CXX=CC
-FC=ftn
-#CFLAGS+=-mcx16
-export CC CXX FC CFLAGS LDFLAGS
+# We do not use --host to guess this on this machine
+export CC=cc CXX=CC FC=ftn #CFLAGS+=-mcx16
 ENVVARS+=" CC=$CC CXX=$CXX FC=$FC CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
 
+enable_static=yes
 with_cuda=no
 with_mpi=yes
-enable_static=yes
-with_hwloc=$HWLOC_DIR
+[ -z $HWLOC_ROOT ] || cat >&2 <<_EOF
+Provided HWLOC module on $with_platform may cause link problems.
+We recommend you compile your own for the target
+and supply it with --with-hwloc.
+_EOF
+with_hwloc=$HOME/parsec/$with_platform/hwloc # add some guesswork location
 
-TOOLCHAIN=" -DCMAKE_TOOLCHAIN_FILE=Toolchain-Phi-Cray-xc40.cmake -DIMPORT_EXECUTABLES=$TOOLCHAIN_DIR/ImportExecutables.cmake"
-CMAKE_DEFINES+=" -DBUILD_TOOLS=OFF $TOOLCHAIN"
+# Generate the cross-compiling toolchain file
+TOOLCHAIN_FILE=$PWD/Toolchain-$with_platform.cmake
+cat << _EOF > $TOOLCHAIN_FILE
+# Toolchain file for $with_platform
+# Warning! This file is generated !
+#   Editions will be overwritten by invoking configure
+# Set crosscompiling mode
+SET(CMAKE_SYSTEM_NAME Linux)
+SET(CMAKE_SYSTEM_PROCESSOR x86_64)
+# Force try_run outcomes
+SET( PARSEC_ATOMIC_USE_GCC_32_BUILTINS_EXITCODE
+     "0"
+     CACHE STRING "Result from TRY_RUN" FORCE)
+SET( PARSEC_ATOMIC_USE_GCC_64_BUILTINS_EXITCODE
+     "0"
+     CACHE STRING "Result from TRY_RUN" FORCE)
+SET( PARSEC_ATOMIC_USE_GCC_128_BUILTINS_EXITCODE
+     "0"
+     CACHE STRING "Result from TRY_RUN" FORCE)
+_EOF
 
-# Done with variable allocation, and toolchain compilation, let's have configure do the rest as usual now
 
+# Second, deal with the native (headnode) tools
+cat <<_EOF
+#################################################
+# Platform $with_platform
+# Set preferences and dependencies for the
+# native (headnode) executables
+_EOF
+
+if [ "$CRAY_PRGENVINTEL" ]; then
+  : ${NATIVE_CC:="icc"}
+  : ${NATIVE_CXX:="icpc"}
+  : ${NATIVE_FC:="ifort"}
+else
+# In all other cases use GNU
+  : ${NATIVE_CC:="gcc"}
+  : ${NATIVE_CXX:="g++"}
+  : ${NATIVE_FC="gfortran"}
+fi
+
+# Pass-in the toolchain file name in $1,
+# and arbitrary options to send to the native cmake invocation thereafter
+configure_native_toolchain "$TOOLCHAIN_FILE"
+#build_native_toolchain
+
+# Done with the toolchain for the headnode
+# Let's have configure do the rest as usual now
 
