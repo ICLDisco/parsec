@@ -7,6 +7,9 @@
 prefix=/usr/local
 srcdir=${0%/*}
 
+# Be paranoid about errors and abort asap
+set -e
+
 function show_help_and_exit {
 cat <<EOF
 -h | --help
@@ -123,6 +126,12 @@ Use these variables to override the choices made by 'configure' or to help
 it to find libraries and programs with nonstandard names/locations.
 
 Please report bugs to <https://bitbucket.org/icldistcomp/parsec/issues>
+
+EOF
+[ -z $1 ] || cat >&2 <<EOF
+#######################################################################
+CONFIGURATION ERROR: $*
+#######################################################################
 EOF
 exit 1
 }
@@ -139,9 +148,11 @@ while [ "x$1" != x ]; do
         -V) show_version_and_exit ;;
         -q|--quiet|--silent) quiet=yes; shift;;
         -n|--no-create) nocreate=yes; shift;;
-        --srcdir=*) srcdir="${1#*=}"; shift;;
-        --prefix=*) prefix="${1#*=}"; shift;;
+        --srcdir=*) srcdir="$(printf %q "${1#*=}")"; shift;;
+        --prefix=*) prefix="$(printf %q "${1#*=}")"; shift;;
         --host=*) host="${1#*=}"; shift;;
+# Environment variables
+        [^-]*=*) eval export $(printf %q "$1"); shift;;
         *) shift;;
     esac
 done
@@ -154,8 +165,8 @@ while [ "x$1" != x ]; do
         -V) show_version_and_exit ;;
         -q|--quiet|--silent) quiet=yes; shift;;
         -n|--no-create) nocreate=yes; shift;;
-        --srcdir=*) srcdir="${1#*=}"; shift;;
-        --prefix=*) prefix="${1#*=}"; shift;;
+        --srcdir=*) srcdir="$(printf %q "${1#*=}")"; shift;;
+        --prefix=*) prefix="$(printf %q "${1#*=}")"; shift;;
         --host=*) host="${1#*=}"; shift;;
         --enable-static) enable_static=yes; shift;;
         --disable-static) enable_static=no; shift;;
@@ -231,17 +242,31 @@ while [ "x$1" != x ]; do
         -D*=*) CMAKE_DEFINES+=" $(printf %q "$1")"; shift;;
 
 # Environment variables
-        [^-]*=*) ENVVARS+=" $(printf %q "$1")"; eval export $(printf %q "$1"); shift;;
+        [^-]*=*) ENVVARS+=" $(printf %q "$1")"; shift;;
 
 # Unhandled argument
         --with-platform=*) shift;; #already managed
-        *) echo >&2 "Invalid argument: $1"; show_help_and_exit ;;
+        *) show_help_and_exit "Invalid argument: $1";;
     esac
 done
 }
 
+function set_cmake_executable {
+local cmake_executables cme
+cmake_executables=${CMAKE_EXECUTABLE:-cmake cmake3}
+set +e
+for cme in ${cmake_executables}; do
+    [ -d "$cme" ] && cme=$(PATH="$cme:$PATH" command -v cmake)
+    cme="$(command -v "$cme")" # full-path
+    [ -x "$cme" ] && break
+    cme=''
+done
+set -e
+CMAKE_EXECUTABLE=$cme
+}
+
 function read_platforms {
-local varname
+local varname i
 for i in "$@"; do
     with_platform=${i#--with-platform=}
     [ "$i" = "$with_platform" ] && continue
@@ -251,18 +276,80 @@ for i in "$@"; do
     elif [ -r "$srcdir/contrib/platforms/$with_platform" ]; then
         . $srcdir/contrib/platforms/$with_platform
     else
-      echo >&2 "Platform file $with_platform not found" &&  show_help_and_exit
+      show_help_and_exit "Platform file $with_platform not found"
     fi
     # convert disable/without_xxx to enable/with_xxx=no
-    compgen disable | while read -r varname; do
-        enable_${varname#*disable_}=no
+    for varname in ${!disable_*}; do
+      enable_${varname#*disable_}=no
     done
-    compgen without | while read -r varname; do
-        with_${varname#*without_}=no
+    for varname in ${!without_*}; do
+      with_${varname#*without_}=no
     done
 done
 }
 
+#
+# Cross compilation support helpers
+#
+# First prepare the native build, so we can use the tools on the headnode
+# Prepare the native toolchain in directory $1
+function configure_native_toolchain {
+    # This is the list of named input parameters
+    local NATIVE_DIR="${NATIVE_DIR:-$PWD/native}" NATIVE_CC="$NATIVE_CC" NATIVE_CFLAGS="$NATIVE_CFLAGS" NATIVE_CXX="$NATIVE_CXX" NATIVE_CXXFLAGS="$NATIVE_CXXFLAGS" NATIVE_LDFLAGS="$NATIVE_LDFLAGS"
+    local NATIVE_PREFIX="${NATIVE_PREFIX:-$([[ ${prefix:0:1} = '/' ]] && echo "${prefix}" || echo "${PWD}/${prefix}")}"
+    local srcdir="${NATIVE_SRCDIR:-$([[ ${srcdir:0:1} = '/' ]] && echo "${srcdir}" || echo "${PWD}/${srcdir}")}"
+    local TOOLCHAIN_FILE=$1
+    shift
+    cat << _EOF
+#
+# Preparing the compilation of the native tools.
+#   Cross-compiling toolchain will be found in $NATIVE_DIR
+#
+_EOF
+    mkdir -p "$NATIVE_DIR" && pushd "$NATIVE_DIR"
+    rm -rf CMakeCache.txt CMakeFiles
+
+    # Disable MPI, CUDA, HWLOC when creating the build-tools
+    local NATIVE_MPI="-DPARSEC_DIST_WITH_MPI=OFF"
+    local NATIVE_CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
+    local NATIVE_HWLOC=""
+    local NATIVE_COMPILERS="-DSUPPORT_FORTRAN=OFF"
+    local NATIVE_OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DCMAKE_INSTALL_PREFIX=$NATIVE_PREFIX $NATIVE_MPI $NATIVE_CUDA $NATIVE_HWLOC $NATIVE_COMPILERS"
+
+    echo "CC=\"${NATIVE_CC}\" CFLAGS=\"${NATIVE_CFLAGS}\" CXX=\"${NATIVE_CXX}\" CXXFLAGS=\"${NATIVE_CXXFLAGS}\" LDFLAGS=\"${NATIVE_LDFLAGS}\" cmake -G \"Unix Makefiles\" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} $(for i in "$@"; do printf ' %q' "$i"; done) ${srcdir}"
+    CC="${NATIVE_CC}" CFLAGS="${NATIVE_CFLAGS}" CXX="${NATIVE_CXX}" CXXFLAGS="${NATIVE_CXXFLAGS}" LDFLAGS="${NATIVE_LDFLAGS}" ${CMAKE_EXECUTABLE} -G "Unix Makefiles" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} "$@" ${srcdir}
+    popd
+    [ -r "$TOOLCHAIN_FILE" ] || echo >&2 "Cross compiling Toolchain file TOOLCHAIN_FILE=$TOOLCHAIN_FILE is missing... This will probably cause an error."
+    local TOOLCHAIN=" -DCMAKE_TOOLCHAIN_FILE=\"$TOOLCHAIN_FILE\" -DIMPORT_EXECUTABLES=\"$NATIVE_DIR/ImportExecutables.cmake\""
+    CMAKE_DEFINES+=" -DBUILD_TOOLS=OFF $TOOLCHAIN"
+}
+
+# Compile the native tools in NATIVE_DIR
+function build_native_toolchain {
+    local NATIVE_DIR="$NATIVE_DIR"
+    pushd "$NATIVE_DIR"
+    cd tools && make install
+    cd -
+    cd parsec/interfaces/ptg && make install
+    cd -
+    popd
+}
+
+# Change CC CXX FC arch to match --host request
+function host_adapt {
+    [ -z $host ] && return
+    arch=${host%%-*}
+    local bcc=${CC##*/}
+    local HOSTCC=$(command -v ${CC/%$bcc/$host-$bcc})
+    [ -z $HOSTCC ] || CC=$HOSTCC
+    local bcxx=${CXX##*/}
+    local HOSTCXX=$(command -v ${CXX/%$bcxx/$host-$bcxx})
+    [ -z $HOSTCXX ] || CXX=$HOSTCXX
+    local bfc=${FC##*/}
+    local HOSTFC=$(command -v ${FC/%$bfc/$host-$bfc})
+    [ -z $HOSTFC ] || FC=$HOSTFC
+}
+### Cross compilation support helpers end
 
 parse_early_arguments "$@"
 
@@ -272,8 +359,21 @@ else
     exec &> >(tee config.log)
 fi
 
+# Populate arch early on for xcompile platform files
+[ x$host != x ] && arch=${host%%-*}
+# Populate cmake_executable before the platform file 
+set_cmake_executable
+
 read_platforms "$@"
 parse_arguments "$@"
+
+# Re-populate CMAKE_EXECUTABLE, in the case it's been changed 
+# from the platform file
+set_cmake_executable
+[ -z "$CMAKE_EXECUTABLE" ] && echo >&2 "Could not find CMake binary" && exit 3
+
+# Do the host work again after the platform as we may have changed it there
+host_adapt
 
 # Create config.status
 cat >config.status <<'EOF'
@@ -293,7 +393,6 @@ chmod +x config.status
 
 
 CMAKE_DEFINES+=" ${prefix:+-DCMAKE_INSTALL_PREFIX=$prefix}"
-# host
 [ x$enable_static = xyes ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIBS=OFF"
 [ x$enable_static = xno ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIBS=ON"
 [ x$enable_shared = xyes ] && CMAKE_DEFINES+=" -DBUILD_SHARED_LIBS=ON"
@@ -419,15 +518,7 @@ esac
 
 # CMAKE INVOCATION
 
-CMAKE_EXECUTABLE=${CMAKE_EXECUTABLE:-$(command -v cmake cmake3)}
-for cme in ${CMAKE_EXECUTABLE}; do
-    [ -d $cme ] && cme=$(PATH=$cme command -v cmake)
-    if [ -x $cme ]; then
-        CMAKE_COMMAND="$ENVVARS $cme -G 'Unix Makefiles' $srcdir $CMAKE_DEFINES"
-        break
-    fi
-done
-[ -z "$CMAKE_COMMAND" ] && echo >&2 "Could not find CMake binary in $CMAKE_EXECUTABLE" && exit 3
+CMAKE_COMMAND="$ENVVARS $CMAKE_EXECUTABLE -G 'Unix Makefiles' $srcdir $CMAKE_DEFINES"
 
 cat <<EOF
 ### CMake generated invocation

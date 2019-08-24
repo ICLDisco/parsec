@@ -820,13 +820,50 @@ mark_as_advanced(PARSEC_C_INCLUDES)
 #
 add_subdirectory(tools)
 IF(CMAKE_CROSSCOMPILING)
+  #
+  # Import the EXPORT file from external native ptgpp.
+  #
   SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
   MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
   INCLUDE(${IMPORT_EXECUTABLES})
   set_target_properties(parsec_ptgpp PROPERTIES IMPORTED_GLOBAL ON)
-  SET(parsec_ptgpp_EXE parsec_ptgpp)
-ELSE(CMAKE_CROSSCOMPILING)
-  SET(parsec_ptgpp_EXE parsec_ptgpp)
+  get_target_property(parsec_ptgpp_EXE parsec_ptgpp LOCATION)
+  # Build it, now
+  get_filename_component(NATIVE_BINARY_DIR "${IMPORT_EXECUTABLES}" DIRECTORY BASE_DIR ${CMAKE_BINARY_DIR} CACHE)
+  include(ExternalProject)
+  ExternalProject_add(native
+    PREFIX ${NATIVE_BINARY_DIR}/CMakeFiles
+    SOURCE_DIR ${CMAKE_SOURCE_DIR}
+    BINARY_DIR ${NATIVE_BINARY_DIR}
+    CONFIGURE_COMMAND "" # Do not reconfigure, this must have been done before to produce $IMPORT_EXECUTABLES
+    # Do not do BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>/parsec/interfaces/ptg
+    #   because that breaks parallel make
+    BUILD_COMMAND "$(MAKE)" -C parsec/interfaces/ptg
+          COMMAND "$(MAKE)" -C tools
+    BUILD_ALWAYS TRUE
+    INSTALL_COMMAND "$(MAKE)" -C parsec/interfaces/ptg install
+            COMMAND "$(MAKE)" -C tools install
+    EXCLUDE_FROM_ALL TRUE
+    STEP_TARGETS build install test clean
+    BYPRODUCTS ${parsec_ptgpp_EXE}
+  )
+  ExternalProject_Add_Step(native test
+    WORKING_DIRECTORY <BINARY_DIR>
+    ALWAYS TRUE
+    COMMAND "$(MAKE)" -C parsec/interfaces/ptg test
+    COMMAND "$(MAKE)" -C tools test
+  )
+  ExternalProject_Add_Step(native clean
+    WORKING_DIRECTORY <BINARY_DIR>
+    ALWAYS TRUE
+    COMMAND "$(MAKE)" -C parsec/interfaces/ptg clean
+    COMMAND "$(MAKE)" -C tools clean
+  )
+  add_dependencies(parsec_ptgpp native-build)
+  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target native-install)")
+  add_test(NAME native-test COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target native-test)
+else()
+  set(parsec_ptgpp_EXE $<TARGET_FILE:parsec_ptgpp>)
 ENDIF(CMAKE_CROSSCOMPILING)
 set(parsec_ptgpp_EXE ${parsec_ptgpp_EXE} CACHE STRING "Point to the parsec_ptgpp executable")
 
@@ -1125,7 +1162,7 @@ file(GLOB_RECURSE pattern_files RELATIVE
 foreach( pattern_file ${pattern_files} )
   add_custom_command(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${pattern_file}"
-    COMMAND cmake -E copy
+    COMMAND ${CMAKE_COMMAND} -E copy
             "${CMAKE_CURRENT_SOURCE_DIR}/${pattern_file}"
             "${CMAKE_CURRENT_BINARY_DIR}/${pattern_file}"
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${pattern_file}"
