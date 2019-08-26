@@ -1954,7 +1954,8 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
                     position += deps->msg.length;  /* move to the next order */
                     deps->taskpool = (parsec_taskpool_t*)packed_buffer;  /* temporary storage */
 #if defined(PARSEC_PROF_TRACE)
-                    parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
+                    if(hashtable_trace_keyout != -1)
+                        parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
 #endif
                     parsec_dtd_track_remote_dep( dtd_tp, key, deps );
                 }
@@ -2022,7 +2023,8 @@ static void remote_dep_mpi_new_taskpool( parsec_execution_stream_t* es,
                     }
                     uint64_t key = (uint64_t)deps->msg.locals[0].value << 32 | (1U<<i);
 #if defined(PARSEC_PROF_TRACE)
-                    parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
+                    if(hashtable_trace_keyout != -1)
+                        parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
 #endif
                     parsec_dtd_track_remote_dep( dtd_tp, key, deps );
                 }

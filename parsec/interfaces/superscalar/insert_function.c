@@ -67,10 +67,10 @@ static int parsec_dtd_no_of_arenas = 16;
 
 int parsec_dtd_dump_traversal_info = 60; /**< Level for printing traversal info */
 int parsec_dtd_dump_function_info  = 50; /**< Level for printing function_structure info */
-int insert_task_trace_keyin;
-int insert_task_trace_keyout;
-int hashtable_trace_keyin;
-int hashtable_trace_keyout;
+int insert_task_trace_keyin = -1;
+int insert_task_trace_keyout = -1;
+int hashtable_trace_keyin = -1;
+int hashtable_trace_keyout = -1;
 
 parsec_arena_t **parsec_dtd_arenas;
 
@@ -1298,6 +1298,8 @@ parsec_dtd_taskpool_new(void)
         parsec_dtd_add_profiling_info_generic((parsec_taskpool_t *)__tp, "Hash_table_duration",
                                    &hashtable_trace_keyin, &hashtable_trace_keyout);
     }
+    parsec_profiling_add_dictionary_keyword("dtd_data_flush", "fill:#111111",0, "",
+            (int *) &__tp->super.profiling_array[0], (int *) &__tp->super.profiling_array[1]);
 #endif
 
     /* The first taskclass of every taskpool is the flush taskclass */
