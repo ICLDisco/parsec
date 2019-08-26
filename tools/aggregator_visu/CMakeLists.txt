@@ -5,6 +5,11 @@ find_package(Threads QUIET)
 #  list(APPEND EXTRA_LIBS ${CMAKE_THREAD_LIBS_INIT})
 #endif(Threads_FOUND)
 
+# Drop visualization support if we can't find libxml2.
+if(NOT LIBXML2_FOUND)
+  return()
+endif(NOT LIBXML2_FOUND)
+
 include_directories(${LIBXML2_INCLUDE_DIR})
 
 add_executable(reader reader.c)
