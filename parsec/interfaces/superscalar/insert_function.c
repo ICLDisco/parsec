@@ -212,12 +212,6 @@ OBJ_CLASS_INSTANCE(parsec_dtd_task_t, parsec_task_t,
 OBJ_CLASS_INSTANCE(parsec_dtd_tile_t, parsec_list_item_t,
                    NULL, NULL);
 
-/* To create object of class parsec_taskpool_t that inherits parsec_list_t
- * class
- */
-OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
-                   NULL, NULL);
-
 /***************************************************************************//**
  *
  * Constructor of PaRSEC's DTD taskpool.

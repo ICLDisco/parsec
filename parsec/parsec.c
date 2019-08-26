@@ -112,6 +112,12 @@ static void parsec_mpi_exit(int status) {
 }
 #endif
 
+/* To create object of class parsec_taskpool_t that inherits parsec_list_t
+ * class
+ */
+OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
+                   NULL, NULL);
+
 /*
  * Taskpool based task definition (no specialized constructor and destructor) */
 OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
