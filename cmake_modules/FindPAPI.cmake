@@ -35,23 +35,24 @@ find_library(PAPI_LIBRARY NAMES papi
              HINTS ${PC_PAPI_LIBDIR} ${PC_PAPI_LIBRARY_DIRS} ${PAPI_DIR}/lib
              DOC "Library path for PAPI")
 
-message(STATUS "The PAPI Library is found at ${PAPI_LIBRARY}")
-
-#===============================================================================
-# Importing PAPI as a cmake target
-  if(NOT TARGET PAPI::PAPI)
-    add_library(PAPI::PAPI INTERFACE IMPORTED)
-  endif()
-
-  set_property(TARGET PAPI::PAPI APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${PAPI_LIBRARY}")
-  set_property(TARGET PAPI::PAPI PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PAPI_INCLUDE_DIR}")
-  #===============================================================================
-
-set(PAPI_LIBRARIES ${PAPI_LIBRARY} )
-set(PAPI_INCLUDE_DIRS ${PAPI_INCLUDE_DIR} )
-mark_as_advanced(FORCE PAPI_DIR PAPI_INCLUDE_DIR PAPI_LIBRARY)
-
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(PAPI DEFAULT_MSG
-                                  PAPI_LIBRARY PAPI_INCLUDE_DIR )
+                                  REQUIRED_VARS PAPI_LIBRARY PAPI_INCLUDE_DIR )
+if( PAPI_FOUND )
+  message(STATUS "The PAPI Library is found at ${PAPI_LIBRARY}")
 
+  #===============================================================================
+  # Importing PAPI as a cmake target
+    if(NOT TARGET PAPI::PAPI)
+      add_library(PAPI::PAPI INTERFACE IMPORTED)
+    endif()
+
+    set_property(TARGET PAPI::PAPI APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${PAPI_LIBRARY}")
+    set_property(TARGET PAPI::PAPI PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PAPI_INCLUDE_DIR}")
+    #===============================================================================
+
+  set(PAPI_LIBRARIES ${PAPI_LIBRARY} )
+  set(PAPI_INCLUDE_DIRS ${PAPI_INCLUDE_DIR} )
+  mark_as_advanced(FORCE PAPI_DIR PAPI_INCLUDE_DIR PAPI_LIBRARY)
+
+endif( PAPI_FOUND )
