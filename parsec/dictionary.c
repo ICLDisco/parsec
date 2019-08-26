@@ -127,23 +127,23 @@ static void recursive_init_tree(parsec_profiling_node_t *node, int depth, int ma
     node->depth = depth;
 
     if (max_depth <= depth) { /* called on a leaf */
-	node->left  = NULL;
-	node->right = NULL;
-	return;
+        node->left  = NULL;
+        node->right = NULL;
+        return;
     }
 
     switch(depth) {
     case PROF_ROOT: /* root dictionary, inserts namespaces */
-	node->new_bucket = create_ns_bucket;
-	break;
+        node->new_bucket = create_ns_bucket;
+        break;
     case PROF_NAMESPACE:
-	node->new_bucket = create_tc_bucket;
-	break;
+        node->new_bucket = create_tc_bucket;
+        break;
     case PROF_TASK_CLASS:
-	node->new_bucket = create_pr_bucket;
-	break;
+        node->new_bucket = create_pr_bucket;
+        break;
     default:
-	break;
+        break;
     }
 
     node->left  = (parsec_profiling_node_t*)calloc(1, sizeof(parsec_profiling_node_t));
@@ -296,11 +296,11 @@ static void parsec_profiling_tree_setstr(parsec_profiling_tree_t *tree, char *st
 }
 
 /* call after pushing a different string in a buffer at position pos to reload the buckets */
-static void parsec_profiling_tree_reload_buckets(parsec_profiling_tree_t *tree, int pos, const char *new)
+static void parsec_profiling_tree_reload_buckets(parsec_profiling_tree_t *tree, int pos, const char *name)
 {
-    if (!strcmp(new, dict->tree->first_nodes[pos]->str)) return;
+    if (!strcmp(name, dict->tree->first_nodes[pos]->str)) return;
 
-    sprintf(dict->tree->first_nodes[pos]->str, "%s", new);
+    sprintf(dict->tree->first_nodes[pos]->str, "%s", name);
 
     parsec_profiling_node_t *node = tree->first_nodes[pos];
     while (node) {
