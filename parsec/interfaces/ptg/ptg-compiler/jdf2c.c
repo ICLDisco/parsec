@@ -4807,7 +4807,11 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                 /* fallthrough */
                 /* No break; process case for JDF_GUARD_TERNARY */
             case JDF_GUARD_TERNARY:
-                if( type == JDF_DEP_FLOW_IN ) continue_dependencies = 0;
+                if( type == JDF_DEP_FLOW_IN ) {
+                    skip_condition = 1;  /* we are forced to always match, especially as we do not
+                                          * support encapsulation in the tertiaries */
+                    continue_dependencies = 0;
+                }
                 break;
             case JDF_GUARD_BINARY:
                 if( strlen(string_arena_get_string(sa_cond)) )

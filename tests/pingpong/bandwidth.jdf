@@ -5,7 +5,8 @@ extern "C" %{
 #include <assert.h>
 #include <stdarg.h>
 #include <sys/time.h>
-
+#include <mpi.h>
+#
 #include "bandwidth.h"
 
 typedef struct {
