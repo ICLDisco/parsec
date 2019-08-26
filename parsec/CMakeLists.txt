@@ -91,6 +91,7 @@ set(SOURCES
   ${PROFILING_SOURCE}
   remote_dep.c
   scheduling.c
+  compound.c
   vpmap.c
   maxheap.c
   hbbuffer.c

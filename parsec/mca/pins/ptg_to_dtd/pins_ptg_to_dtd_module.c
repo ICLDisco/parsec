@@ -59,6 +59,9 @@ const parsec_pins_module_t parsec_pins_ptg_to_dtd_module = {
         pins_taskpool_fini_ptg_to_dtd,
         NULL,
         NULL
+    },
+    {
+        NULL
     }
 };
 
