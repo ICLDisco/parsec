@@ -195,7 +195,7 @@ if( BUILD_PARSEC )
     # parsec-papi-sde must come last in EXTRA_LIBS: it is to be preceded by papi if
     # PAPI is loaded so that the weak symbols in it are overcome by PAPI
     target_link_libraries(parsec
-      PUBLIC parsec-papi-sde PAPI::PAPI)
+      PUBLIC parsec-papi-sde $<$<BOOL:${PAPI_FOUND}>:PAPI::PAPI>)
 
     # parsec-papi-sde has to be installed, to provide the default empty functions
     install(TARGETS parsec-papi-sde

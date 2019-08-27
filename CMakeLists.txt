@@ -889,7 +889,10 @@ configure_file (
   "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
 
 cmake_push_check_state()
-list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/parsec/include ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include)
+if(NOT PARSEC_BUILD_INPLACE)
+  list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/parsec/include )
+endif(NOT PARSEC_BUILD_INPLACE)
+list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include)
 list(APPEND CMAKE_REQUIRED_DEFINITIONS -DBUILD_PARSEC)
 check_symbol_exists(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128 "parsec/parsec_config.h;parsec/sys/atomic.h" PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
 cmake_pop_check_state()
