@@ -146,9 +146,11 @@ if( BUILD_PARSEC )
     add_library(parsec-base STATIC $<TARGET_OBJECTS:parsec-base-obj>)
   endif(NOT TARGET parsec-base)
   target_link_libraries(parsec-base
-    PUBLIC ${PARSEC_ATOMIC_SUPPORT_LIBS}
-    PRIVATE Threads::Threads DL::DL
-    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
+    PUBLIC
+      ${PARSEC_ATOMIC_SUPPORT_LIBS}
+    PRIVATE
+      $<$<BOOL:${Threads_FOUND}>:Threads::Threads>
+      $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
 
   if(NOT TARGET parsec)
     add_library(parsec ${SOURCES})
@@ -168,6 +170,7 @@ if( BUILD_PARSEC )
     PRIVATE
     parsec-data
     parsec-base
+    ${CMAKE_DL_LIBS}
     PUBLIC
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>

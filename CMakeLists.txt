@@ -557,7 +557,6 @@ set(EXTRA_INCLUDES "")
 #
 IF( BUILD_PARSEC )
   set(PARSEC_HAVE_PAPI 0)
-  find_package(DL)
   find_package(HWLOC)
   set(PARSEC_HAVE_HWLOC ${HWLOC_FOUND})
   IF( HWLOC_FOUND )
@@ -1108,7 +1107,6 @@ install(FILES
   $<$<BOOL:PARSEC_HAVE_HWLOC>:${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake>
   $<$<BOOL:PARSEC_HAVE_PAPI>:${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPAPI.cmake>
   $<$<BOOL:PARSEC_HAVE_OTF2>:${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindOTF2.cmake>
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindDL.cmake
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
 
 # Prepare the contrib/build_with_parsec directory
