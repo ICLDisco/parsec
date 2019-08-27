@@ -1249,7 +1249,8 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#include \"parsec/ayudame.h\"\n"
             "#include \"parsec/class/parsec_hash_table.h\"\n"
             "#include \"parsec/execution_stream.h\"\n"
-            "#include <assert.h>\n\n");
+            "#include <assert.h>\n"
+            "#include <string.h>\n\n");
     houtput("BEGIN_C_DECLS\n\n");
 
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
