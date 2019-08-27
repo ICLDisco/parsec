@@ -97,7 +97,7 @@ void PARSEC_PAPI_SDE_UNREGISTER_COUNTER(const char *format, ...);
 #define PARSEC_PAPI_SDE_THREAD_FINI()                           do{}while(0)
 #define PARSEC_PAPI_SDE_COUNTER_SET(cnt, value)                 do{}while(0)
 #define PARSEC_PAPI_SDE_COUNTER_ADD(cnt, value)                 do{}while(0)
-#define PARSEC_PAPI_SDE_UNREGISTER_COUNTER(format, ...)         do{}while(0)
+#define PARSEC_PAPI_SDE_UNREGISTER_COUNTER(...)                 do{}while(0)
 
 #endif /* defined(PARSEC_PAPI_SDE) */
 
