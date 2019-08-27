@@ -380,7 +380,7 @@ endforeach()
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
-find_package(Threads)
+find_package(Threads REQUIRED)
 if(Threads_FOUND)
   set(PARSEC_HAVE_PTHREAD true)
   CMAKE_PUSH_CHECK_STATE()

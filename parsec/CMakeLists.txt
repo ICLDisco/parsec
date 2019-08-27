@@ -149,7 +149,7 @@ if( BUILD_PARSEC )
     PUBLIC
       ${PARSEC_ATOMIC_SUPPORT_LIBS}
     PRIVATE
-      $<$<BOOL:${Threads_FOUND}>:Threads::Threads>
+      Threads::Threads
       $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
 
   if(NOT TARGET parsec)
@@ -170,6 +170,7 @@ if( BUILD_PARSEC )
     PRIVATE
     parsec-data
     parsec-base
+    Threads::Threads
     ${CMAKE_DL_LIBS}
     PUBLIC
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
