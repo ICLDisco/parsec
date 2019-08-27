@@ -78,11 +78,11 @@
 #define PARSEC_TLS_SET_SPECIFIC(key, value)  pthread_setspecific(key, value)
 
 #else
-#error "No Thread Specific API defined (CMake should have failed)"
+#error "No Thread Local Storage API defined (CMake should have failed)"
 #endif
 
 /**
  * @}
  */
-    
+
 #endif /* PARSEC_TLS_H */

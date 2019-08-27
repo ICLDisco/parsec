@@ -54,24 +54,26 @@ endif( PARSEC_PAPI_SDE )
 # list(APPEND EXTRA_LIBS ${TAU_LIBRARIES})
 # set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" ${TAU_LIBRARY_DIR})
 
+# Assume no support for OTF2
+set(PARSEC_HAVE_OTF2 FALSE)
 if(PARSEC_PROF_TRACE)
   if(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
     find_package(OTF2 2.1.1)
     if(OTF2_FOUND)
-      set(PROFILING_SOURCE "profiling_otf2.c")
+      list(APPEND EXTRA_SOURCES "profiling_otf2.c")
       list(APPEND EXTRA_LIBS "otf2")
       MESSAGE(STATUS "Profiling uses OTF2")
       set(PARSEC_HAVE_OTF2 ${OTF2_FOUND})
     else(OTF2_FOUND)
       if(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
-	MESSAGE(FATAL_ERROR "Requested OTF2 tracing system is not available because OTF2 was not found")
+        MESSAGE(FATAL_ERROR "Requested OTF2 tracing system is not available because OTF2 was not found")
       else(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
-	set(PROFILING_SOURCE "profiling.c")
-	MESSAGE(STATUS "Profiling uses PaRSEC Binary Tracing Format")
+        list(APPEND EXTRA_SOURCES "profiling.c")
+        MESSAGE(STATUS "Profiling uses PaRSEC Binary Tracing Format")
       endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
     endif(OTF2_FOUND)
   else(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
-    set(PROFILING_SOURCE "profiling.c")
+    list(APPEND EXTRA_SOURCES "profiling.c")
     MESSAGE(STATUS "Profiling uses PaRSEC Binary Tracing Format")
   endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
 endif(PARSEC_PROF_TRACE)
@@ -89,7 +91,6 @@ set(SOURCES
   mca/mca_repository.c
   mempool.c
   private_mempool.c
-  ${PROFILING_SOURCE}
   remote_dep.c
   scheduling.c
   compound.c
@@ -122,7 +123,6 @@ if( PARSEC_PROF_GRAPHER )
       parsec_prof_grapher.c)
 endif( PARSEC_PROF_GRAPHER )
 
-add_subdirectory(data_dist)
 #
 # Setup targets
 #
@@ -152,10 +152,14 @@ if( BUILD_PARSEC )
       Threads::Threads
       $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
 
+  # As suggested @ https://crascit.com/2016/01/31/enhanced-source-file-handling-with-target_sources/
+  # create the target at the upper level and add sources to all directories below.
   if(NOT TARGET parsec)
-    add_library(parsec ${SOURCES})
+    add_library(parsec STATIC ${SOURCES} $<TARGET_OBJECTS:parsec-base-obj>)
   endif(NOT TARGET parsec)
   add_library(PaRSEC::parsec ALIAS parsec)
+
+  add_subdirectory(data_dist)
 
   target_compile_definitions(parsec
     PRIVATE
@@ -172,8 +176,6 @@ if( BUILD_PARSEC )
     $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>)
   target_link_libraries(parsec
     PRIVATE
-    parsec-data
-    parsec-base
     Threads::Threads
     ${CMAKE_DL_LIBS}
     PUBLIC
@@ -222,8 +224,9 @@ if( BUILD_PARSEC )
                              SYMBOL_NAMESPACE "parsec_f2c_"
                              SYMBOLS my_sub parsecf:my_sub)
     add_subdirectory(fortran)
-    target_link_libraries(parsec
-                          PRIVATE parsec_fortran)
+    target_sources(parsec PRIVATE $<TARGET_OBJECTS:parsec_fortran>)
+    #    target_link_libraries(parsec
+    #                      PRIVATE parsec_fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 
   install(TARGETS parsec
