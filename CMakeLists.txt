@@ -222,6 +222,11 @@ IF (_mach_ppc)
     SET(PARSEC_ARCH_PPC 1)
 ENDIF (_mach_ppc)
 
+STRING(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
+IF (_match_xlc)
+  MESSAGE(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
+ENDIF (_match_xlc)
+STRING(REGEX MATCH "XL" _match_xlc ${CMAKE_C_COMPILER_ID})
 #
 # Fix the building system for 32 or 64 bits.
 #
@@ -284,6 +289,16 @@ IF( NOT _match_xlc )
       SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c1x" )
     ENDIF( NOT PARSEC_HAVE_STD_C1x )
   ENDIF()
+
+  # Set warnings for debug builds
+  CHECK_C_COMPILER_FLAG( "-Wall" PARSEC_HAVE_WALL )
+  IF( PARSEC_HAVE_WALL )
+    set( C_WFLAGS "${C_WFLAGS} -Wall" )
+  ENDIF( PARSEC_HAVE_WALL )
+  CHECK_C_COMPILER_FLAG( "-Wextra" PARSEC_HAVE_WEXTRA )
+  IF( PARSEC_HAVE_WEXTRA )
+    set( C_WFLAGS "${C_WFLAGS} -Wextra" )
+  ENDIF( PARSEC_HAVE_WEXTRA )
 ELSE( NOT _match_xlc )
   IF(SUPPORT_C11)
     CHECK_C_COMPILER_FLAG( "-qlanglvl=extc1x" PARSEC_HAVE_STD_C1x)
@@ -301,15 +316,6 @@ ELSE( NOT _match_xlc )
   ENDIF( PARSEC_HAVE_STD_C1x )
 ENDIF(  NOT _match_xlc )
 
-# Set warnings for debug builds
-CHECK_C_COMPILER_FLAG( "-Wall" PARSEC_HAVE_WALL )
-IF( PARSEC_HAVE_WALL )
-    set( C_WFLAGS "${C_WFLAGS} -Wall" )
-ENDIF( PARSEC_HAVE_WALL )
-CHECK_C_COMPILER_FLAG( "-Wextra" PARSEC_HAVE_WEXTRA )
-IF( PARSEC_HAVE_WEXTRA )
-    set( C_WFLAGS "${C_WFLAGS} -Wextra" )
-ENDIF( PARSEC_HAVE_WEXTRA )
 
 #
 # flags for Intel icc
@@ -682,15 +688,6 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
     SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
   ENDIF (_match_pgi)
 
-  STRING(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
-  IF (_match_xlc)
-    MESSAGE(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
-  ENDIF (_match_xlc)
-  STRING(REGEX MATCH "XL" _match_xlc ${CMAKE_C_COMPILER_ID})
-  IF (_match_xlc AND BUILD_64bits)
-    MESSAGE(STATUS "Add -q64 to the C compiler/linker.")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -q64")
-  ENDIF (_match_xlc AND BUILD_64bits)
 
   STRING(REGEX MATCH ".*xlf$" _match_xlf ${CMAKE_Fortran_COMPILER})
   IF (_match_xlf)
