@@ -418,7 +418,7 @@ struct parsec_minimal_execution_context_s {
     assignment_t               locals[MAX_LOCAL_COUNT];
 };
 
-struct parsec_task_s{
+struct parsec_task_s {
     PARSEC_MINIMAL_EXECUTION_CONTEXT
 #if defined(PARSEC_PROF_TRACE)
     parsec_profile_data_collection_info_t prof_info;

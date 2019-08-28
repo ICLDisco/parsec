@@ -34,7 +34,7 @@
  */
 #define AYU_ADD_TASK(TASK)                                 \
   if( AYU_event ) {                                        \
-    int64_t _data[2] = {(TASK)->function->task_class_id, 1}; \
+    int64_t _data[2] = {(TASK)->task_class->task_class_id, 1}; \
     AYU_event( AYU_ADDTASK, (int64_t)(TASK), _data );      \
   }
 
@@ -45,15 +45,15 @@
   do { \
     uintptr_t _data[3]; \
     _data[0] = (uintptr_t)(TASK)->data[(ID)].data_repo->generator; \
-    _data[1] = (uintptr_t)(TASK)->data[(ID)].data; \
-    _data[2] = (uintptr_t)(TASK)->data[(ID)].data; \
+    _data[1] = (uintptr_t)(TASK)->data[(ID)].data_in->original; \
+    _data[2] = (uintptr_t)(TASK)->data[(ID)].data_out->original; \
     AYU_event( AYU_ADDDEPENDENCY, (int64_t)(TASK), (void*)_data ); \
    } while (0)
 
 #define AYU_ADD_TASK_DEPS(TASK) \
   if( AYU_event ) { \
     int _i; \
-    for( _i = 0; _i < (TASK)->function->nb_flows; _i++ ) { \
+    for( _i = 0; _i < (TASK)->task_class->nb_flows; _i++ ) { \
       AYU_ADD_TASK_DEP(TASK, _i); \
     } \
   }
