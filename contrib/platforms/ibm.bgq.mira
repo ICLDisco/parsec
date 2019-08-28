@@ -1,0 +1,73 @@
+# vim: set filetype=sh :
+#
+# This file is for a cross-compilation. 
+#   configure --with-platform=ibm.bgq.mira ...
+#
+# PaRSEC will be compiled on the head node, using the BG/Q 
+# toolchain. All dependencies have to be compiled for the
+# expected target architecture.
+#
+
+# First, compute node options (cross-compilation)
+cat <<_EOF
+#################################################
+# Platform $with_platform
+# Set preferences and dependencies for the
+# cross-compiled (compute) executables and libs
+# CC, CXX, FC set to use mpiwrapper-mpich3-xl
+#
+_EOF
+
+CMAKE_EXECUTABLE=/soft/buildtools/cmake/3.14.6/bin/cmake
+[ -r "$SOFTENV_ALIASES" ] && . $SOFTENV_ALIASES 
+soft add +mpiwrapper-mpich3-xl
+
+# We do not use --host to guess this on this machine
+#export CC=mpixlc_r CXX=mpixlcxx_r FC=mpixlf77_r # older BG/Q may have only these
+export CC=mpicc CXX=mpicxx FC=mpif90
+ENVVARS+=" CC=$CC CXX=$CXX FC=$FC CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
+
+enable_static=yes
+with_cuda=no
+with_mpi=yes
+with_hwloc=$HOME/parsec/$with_platform/hwloc # no system provided hwloc: add some guesswork location
+
+# Generate the cross-compiling toolchain file
+TOOLCHAIN_FILE=$PWD/Toolchain-$with_platform.cmake
+cat << _EOF > $TOOLCHAIN_FILE
+# Toolchain file for $with_platform
+# Warning! This file is generated !
+#   Editions will be overwritten by invoking configure
+# Set crosscompiling mode
+#
+# Based on the CMake documentation the first step is to convince
+# cmake to use the following file:
+# BlueGeneQ-static-*.cmake
+#
+# This can be done by setting 
+# - CMAKE_SYSTEM_NAME to BlueGeneQ-static
+SET(CMAKE_SYSTEM_NAME BlueGeneQ-static)
+SET(CMAKE_SYSTEM_PROCESSOR ppc64)
+_EOF
+
+
+# Second, deal with the native (headnode) tools
+cat <<_EOF
+#################################################
+# Platform $with_platform
+# Set preferences and dependencies for the
+# native (headnode) executables
+_EOF
+
+# use GNU to produce headnode code
+  : ${NATIVE_CC:="gcc"}
+  : ${NATIVE_CXX:="g++"}
+  : ${NATIVE_FC="gfortran"}
+
+# Pass-in the toolchain file name in $1,
+# and arbitrary options to send to the native cmake invocation thereafter
+configure_native_toolchain "$TOOLCHAIN_FILE"
+#build_native_toolchain
+
+# Done with the toolchain for the headnode
+# Let's have configure do the rest as usual now

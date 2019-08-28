@@ -1,0 +1,83 @@
+# vim: set filetype=sh :
+#
+# This file is for a cross-compilation.
+#   configure --with-platform=cray.xc40.theta ...
+#
+# PaRSEC will be compiled on the head node, disarming the Phi
+# for the toolchain. All dependencies have to be compiled for the
+# expected target architecture (Phi).
+#
+
+# First, compute node options (cross-compilation)
+cat <<_EOF
+#################################################
+# Platform $with_platform
+# Set preferences and dependencies for the
+# cross-compiled (compute) executables and libs
+#   CC=cc CXX=CC FC=ftn
+#
+_EOF
+
+# We do not use --host to guess this on this machine
+export CC=cc CXX=CC FC=ftn #CFLAGS+=-mcx16
+ENVVARS+=" CC=$CC CXX=$CXX FC=$FC CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
+
+enable_static=yes
+with_cuda=no
+with_mpi=yes
+[ -z $HWLOC_ROOT ] || cat >&2 <<_EOF
+Provided HWLOC module on $with_platform may cause link problems.
+We recommend you compile your own for the target
+and supply it with --with-hwloc.
+_EOF
+with_hwloc=$HOME/parsec/$with_platform/hwloc # add some guesswork location
+
+# Generate the cross-compiling toolchain file
+TOOLCHAIN_FILE=$PWD/Toolchain-$with_platform.cmake
+cat << _EOF > $TOOLCHAIN_FILE
+# Toolchain file for $with_platform
+# Warning! This file is generated !
+#   Editions will be overwritten by invoking configure
+# Set crosscompiling mode
+SET(CMAKE_SYSTEM_NAME Linux)
+SET(CMAKE_SYSTEM_PROCESSOR x86_64)
+# Force try_run outcomes
+SET( PARSEC_ATOMIC_USE_GCC_32_BUILTINS_EXITCODE
+     "0"
+     CACHE STRING "Result from TRY_RUN" FORCE)
+SET( PARSEC_ATOMIC_USE_GCC_64_BUILTINS_EXITCODE
+     "0"
+     CACHE STRING "Result from TRY_RUN" FORCE)
+SET( PARSEC_ATOMIC_USE_GCC_128_BUILTINS_EXITCODE
+     "0"
+     CACHE STRING "Result from TRY_RUN" FORCE)
+_EOF
+
+
+# Second, deal with the native (headnode) tools
+cat <<_EOF
+#################################################
+# Platform $with_platform
+# Set preferences and dependencies for the
+# native (headnode) executables
+_EOF
+
+if [ "$CRAY_PRGENVINTEL" ]; then
+  : ${NATIVE_CC:="icc"}
+  : ${NATIVE_CXX:="icpc"}
+  : ${NATIVE_FC:="ifort"}
+else
+# In all other cases use GNU
+  : ${NATIVE_CC:="gcc"}
+  : ${NATIVE_CXX:="g++"}
+  : ${NATIVE_FC="gfortran"}
+fi
+
+# Pass-in the toolchain file name in $1,
+# and arbitrary options to send to the native cmake invocation thereafter
+configure_native_toolchain "$TOOLCHAIN_FILE"
+#build_native_toolchain
+
+# Done with the toolchain for the headnode
+# Let's have configure do the rest as usual now
+

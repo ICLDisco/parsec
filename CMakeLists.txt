@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.9)
+cmake_minimum_required (VERSION 3.11)
 project (PARSEC C)
 
 include(CMakeDependentOption)
@@ -570,7 +570,7 @@ IF( BUILD_PARSEC )
      include_directories( ${HWLOC_INCLUDE_DIRS} )
      list(APPEND EXTRA_INCLUDES ${HWLOC_INCLUDE_DIRS})
      set (PARSEC_PKG_REQUIRE "hwloc")
-   ENDIF (HWLOC_FOUND)
+  ENDIF (HWLOC_FOUND)
 
   if (PARSEC_DIST_WITH_MPI)
     # Test first if we are using a wrapper as the compiler
@@ -582,14 +582,17 @@ IF( BUILD_PARSEC )
                                MPI_Barrier(MPI_COMM_WORLD);
                                MPI_Finalize();
                                return 0;
-                             }" MPI_WORKS_WITH_WRAPPER)
-    if( MPI_WORKS_WITH_WRAPPER )
+                             }" CC_CONTAINS_MPI)
+    if( CC_CONTAINS_MPI )
+      # Create fake MPI:: targets
       set(MPI_C_FOUND TRUE)
-    else( MPI_WORKS_WITH_WRAPPER )
+      add_library(MPI::MPI_C INTERFACE IMPORTED)
+      set(MPI_Fortran_FOUND TRUE)
+      add_library(MPI::MPI_Fortran INTERFACE IMPORTED)
+    else( CC_CONTAINS_MPI )
       # Otherwise try to find MPI in the normal way
       find_package(MPI)
-      list(APPEND EXTRA_INCLUDES ${MPI_C_INCLUDE_PATH})
-    endif( MPI_WORKS_WITH_WRAPPER )
+    endif( CC_CONTAINS_MPI )
     set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
     if (NOT MPI_C_FOUND)
       # Force MPI: if no compiler, do not proceed further
@@ -817,12 +820,50 @@ mark_as_advanced(PARSEC_C_INCLUDES)
 #
 add_subdirectory(tools)
 IF(CMAKE_CROSSCOMPILING)
+  #
+  # Import the EXPORT file from external native ptgpp.
+  #
   SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
   MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
   INCLUDE(${IMPORT_EXECUTABLES})
-  SET(parsec_ptgpp_EXE native-parsec_ptgpp)
-ELSE(CMAKE_CROSSCOMPILING)
-  SET(parsec_ptgpp_EXE parsec_ptgpp)
+  set_target_properties(parsec_ptgpp PROPERTIES IMPORTED_GLOBAL ON)
+  get_target_property(parsec_ptgpp_EXE parsec_ptgpp LOCATION)
+  # Build it, now
+  get_filename_component(NATIVE_BINARY_DIR "${IMPORT_EXECUTABLES}" DIRECTORY BASE_DIR ${CMAKE_BINARY_DIR} CACHE)
+  include(ExternalProject)
+  ExternalProject_add(native
+    PREFIX ${NATIVE_BINARY_DIR}/CMakeFiles
+    SOURCE_DIR ${CMAKE_SOURCE_DIR}
+    BINARY_DIR ${NATIVE_BINARY_DIR}
+    CONFIGURE_COMMAND "" # Do not reconfigure, this must have been done before to produce $IMPORT_EXECUTABLES
+    # Do not do BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>/parsec/interfaces/ptg
+    #   because that breaks parallel make
+    BUILD_COMMAND "$(MAKE)" -C parsec/interfaces/ptg
+          COMMAND "$(MAKE)" -C tools
+    BUILD_ALWAYS TRUE
+    INSTALL_COMMAND "$(MAKE)" -C parsec/interfaces/ptg install
+            COMMAND "$(MAKE)" -C tools install
+    EXCLUDE_FROM_ALL TRUE
+    STEP_TARGETS build install test clean
+    BYPRODUCTS ${parsec_ptgpp_EXE}
+  )
+  ExternalProject_Add_Step(native test
+    WORKING_DIRECTORY <BINARY_DIR>
+    ALWAYS TRUE
+    COMMAND "$(MAKE)" -C parsec/interfaces/ptg test
+    COMMAND "$(MAKE)" -C tools test
+  )
+  ExternalProject_Add_Step(native clean
+    WORKING_DIRECTORY <BINARY_DIR>
+    ALWAYS TRUE
+    COMMAND "$(MAKE)" -C parsec/interfaces/ptg clean
+    COMMAND "$(MAKE)" -C tools clean
+  )
+  add_dependencies(parsec_ptgpp native-build)
+  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target native-install)")
+  add_test(NAME native-test COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target native-test)
+else()
+  set(parsec_ptgpp_EXE $<TARGET_FILE:parsec_ptgpp>)
 ENDIF(CMAKE_CROSSCOMPILING)
 set(parsec_ptgpp_EXE ${parsec_ptgpp_EXE} CACHE STRING "Point to the parsec_ptgpp executable")
 
@@ -1072,7 +1113,11 @@ install(EXPORT parsec-targets # rules to export the targets built here
   NAMESPACE PaRSEC::
   DESTINATION ${INSTALL_CONFIGDIR})
 
-export(TARGETS parsec parsec_ptgpp
+# do not export parsec_ptgpp when it is imported from a native cross
+if(NOT CMAKE_CROSSCOMPILING)
+  set(EXPORT_PTGPP parsec_ptgpp)
+endif()
+export(TARGETS parsec ${EXPORT_PTGPP}
        NAMESPACE PaRSEC::
        FILE ${CMAKE_BINARY_DIR}/parsec/cmake_modules/PaRSEC-Exports-Build.cmake)
 # cmake config files
@@ -1117,7 +1162,7 @@ file(GLOB_RECURSE pattern_files RELATIVE
 foreach( pattern_file ${pattern_files} )
   add_custom_command(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${pattern_file}"
-    COMMAND cmake -E copy
+    COMMAND ${CMAKE_COMMAND} -E copy
             "${CMAKE_CURRENT_SOURCE_DIR}/${pattern_file}"
             "${CMAKE_CURRENT_BINARY_DIR}/${pattern_file}"
     DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${pattern_file}"

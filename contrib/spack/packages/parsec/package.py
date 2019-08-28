@@ -24,7 +24,7 @@ class Parsec(CMakePackage):
     variant('debug', default=False, description='Debug version (incurs performance overhead!)')
     #variant('xcompile', default=False, description='Cross compile')
 
-    depends_on('cmake@3.9.0:', type='build')
+    depends_on('cmake@3.11.0:', type='build')
     depends_on('hwloc')
     depends_on('mpi')
     #depends_on('mpi', when='+mpi')

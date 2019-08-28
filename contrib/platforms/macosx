@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# if icc is not found, detect the matching gcc/gfortran pair
+# OS X has no fortran by default, and flavor varies between fink, port, self installed, etc
+# Lets try to guess and use the same version for all 3 compilers
+if [ ! -x "$FC" ]; then
+  for gf_exe in $(command -v $(compgen -c gfortran)); do
+    gf_sfx=${gf_exe#*gfortran}
+    gf_dir=$(dirname "$gf_exe")
+    gcc_exe=$gf_dir/gcc$gf_sfx
+    gxx_exe=$gf_dir/g++$gf_sfx
+
+    if [ -x "$gcc_exe" -a -x "$gxx_exe" -a -x "$gf_exe" ]; then
+      echo "Compilers detected: $gcc_exe $gxx_exe $gf_exe"
+      ENVVARS+="CC=$gcc_exe CXX=$gxx_exe FC=$gf_exe"
+      break
+    fi
+  done
+fi
+
+# Per-user personalizations
+if [ "x$USER" == "xbosilca" ]; then
+    with_hwloc=${HWLOC_ROOT:=/Users/bosilca/opt}
+    #with_cuda=${CUDA_ROOT:=/Developer/NVIDIA/CUDA-9.1/}
+    with_gtg=${GTG_ROOT:=${HOME}/opt}
+    #with_omega=${OMEGA_ROOT:="/Users/bosilca/tools/Omega/binary"}
+    with_ayudame=${AYUDAME_ROOT:="/Users/bosilca/opt/temanejo"}
+fi
+
+

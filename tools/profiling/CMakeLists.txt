@@ -1,3 +1,6 @@
+if(NOT BUILD_TOOLS)
+  return()
+endif()
 # when crosscompiling the executable is imported from the
 # export file.
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})

@@ -1,0 +1,30 @@
+# vim: set filetype=sh :
+#
+cat <<_EOF
+#################################################
+# Platform $with_platform
+# This file is for a compilation on OLCF Summit.
+#   configure --with-platform=ibm.ac922.summit ...
+# Set preferences and dependencies for the
+# $with_platform system executables and libs
+#   CC=mpicc CXX=mpiCC FC=mpif90
+#
+_EOF
+
+module load cmake # ATM this is 3.15; use CMAKE_EXECUTABLE to override
+#module load cuda # for now this has to be done externally
+echo "Do not forget to do a 'module load cuda'"
+# The following unload has to be done externally as it modifies the internal 
+# behavior of mpicc, which cannot be cached by CMake
+#  module unload xalt
+echo "Do not forget to do a 'module unload xalt': this module causes 'ld'to misbehave"
+
+ENVVARS+=" CC=mpicc CXX=mpicxx FC=mpif90 CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
+
+#enable_static=no
+with_cuda=yes
+with_mpi=yes
+with_hwloc=yes # system default works fine
+
+# Let's have configure do the rest as usual now
+
