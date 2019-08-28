@@ -148,7 +148,6 @@ if( BUILD_PARSEC )
   target_link_libraries(parsec-base
     PUBLIC
       ${PARSEC_ATOMIC_SUPPORT_LIBS}
-    PRIVATE
       Threads::Threads
       $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
 
@@ -164,6 +163,7 @@ if( BUILD_PARSEC )
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>
+    $<$<BOOL:${HWLOC_FOUND}>:${HWLOC_INCLUDE_DIR}>
     PRIVATE
     $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>)
   target_link_libraries(parsec
