@@ -527,7 +527,7 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
 
 static int jdf_sanity_check_dataflow_type_consistency(void)
 {
-    int rc = 0, output_deps, input_deps, type_deps;
+    int rc = 0, output_deps, input_deps, type_deps, met_complete_in_dep;
     jdf_function_entry_t *f;
     jdf_dataflow_t *flow;
     jdf_dep_t *dep;
@@ -539,6 +539,7 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
                 continue;  /* not much we can say about */
             }
             input_deps = output_deps = type_deps = 0;
+            met_complete_in_dep = 0;
             for(dep = flow->deps; dep != NULL; dep = dep->next) {
                 /* Check for datatype definition concistency: if a type and a layout are equal
                  * then the count must be 1 and the displacement must be zero. Generate a warning
@@ -572,6 +573,21 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
                 }
                 if( JDF_DEP_FLOW_IN & dep->dep_flags ) {
                     input_deps++;
+                    if( met_complete_in_dep ) {
+                        jdf_warn(JDF_OBJECT_LINENO(dep),
+                                 "Function %s: flow %s has a totally satisfiable input dependency at line %d."
+                                 " All other input dependencies will be discarded in the generated code,"
+                                 " including the dependency at line %d\n",
+                                 f->fname, flow->varname, met_complete_in_dep, JDF_OBJECT_LINENO(dep));
+                    }
+                    switch( dep->guard->guard_type ) {
+                    case JDF_GUARD_UNCONDITIONAL:
+                    case JDF_GUARD_TERNARY:
+                        met_complete_in_dep = JDF_OBJECT_LINENO(dep);
+                        break;
+                    default:  /* just to force some compilers to stop complaining */
+                        break;
+                    }
                     continue;
                 }
             }
