@@ -42,6 +42,7 @@ include(mca/CMakeLists.txt)
 
 # Import all the available interfaces
 include(interfaces/CMakeLists.txt)
+add_executable(PaRSEC::parsec_ptgpp ALIAS parsec_ptgpp)
 
 if( PARSEC_PAPI_SDE )
   list(APPEND EXTRA_SOURCES "papi_sde.c")
@@ -154,13 +155,16 @@ if( BUILD_PARSEC )
   if(NOT TARGET parsec)
     add_library(parsec ${SOURCES})
   endif(NOT TARGET parsec)
+  add_library(PaRSEC::parsec ALIAS parsec)
+
   target_compile_definitions(parsec
     PRIVATE
     YYERROR_VERBOSE
     BUILD_PARSEC)
   target_include_directories(parsec
-    PUBLIC
+    INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
+    PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>
     $<$<BOOL:${HWLOC_FOUND}>:${HWLOC_INCLUDE_DIR}>
