@@ -2,7 +2,7 @@ set(PARSEC_VERSION @PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@.@PARSEC_VERSION
 
 @PACKAGE_INIT@
 
-set_and_check(PARSEC_DIR ${PACKAGE_PREFIX_DIR})
+set_and_check(PARSEC_DIR "${PACKAGE_PREFIX_DIR}")
 set_and_check(PARSEC_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
 set_and_check(PARSEC_EXTRA_INCLUDE_DIRS "@PACKAGE_EXTRA_INCLUDE_INSTALL_DIR@")
 set_and_check(PARSEC_SYSCONFIG_DIRS "@PACKAGE_SYSCONFIG_INSTALL_DIR@")
@@ -10,21 +10,26 @@ set_and_check(PARSEC_CONFIG_DIRS "@PACKAGE_CONFIG_INSTALL_DIR@")
 set_and_check(PARSEC_LIBRARY_DIRS "@PACKAGE_LIB_INSTALL_DIR@")
 set_and_check(PARSEC_BINARY_DIRS "@PACKAGE_RUNTIME_INSTALL_DIR@")
 
-set(PARSEC_LIBRARIES "@parsec_LIB_DEPENDS@")
-set(PARSEC_EXTRA_INCLUDES "@EXTRA_INCLUDES@;@CMAKE_INSTALL_PREFIX@/include/parsec")
-set(PARSEC_EXTRA_LIBRARIES "@EXTRA_LIBS@")
-set(parsec_ptgpp_EXE "${PARSEC_BINARY_DIRS}/@parsec_ptgpp_EXE@")
 set(PARSEC_PTGPP_CFLAGS "")
 
 # Pull the dependencies
-set(CMAKE_PREFIX_PATH @PACKAGE_CONFIG_INSTALL_DIR@)
-set(CMAKE_MODULE_PATH @PACKAGE_CONFIG_INSTALL_DIR@)
+list(APPEND CMAKE_PREFIX_PATH "${PARSEC_CONFIG_DIRS}/parsec")
+list(APPEND CMAKE_MODULE_PATH "${PARSEC_CONFIG_DIRS}/parsec")
 
 find_package(Threads)
 
 if(@PARSEC_HAVE_HWLOC@)
-  find_package(HWLOC REQUIRED)
+  set_and_check(HWLOC_DIR "@HWLOC_DIR@")
 endif(@PARSEC_HAVE_HWLOC@)
+
+if(@PARSEC_HAVE_OTF2@)
+  # Nothing exportable here, if this test succeed then PaRSEC supports OTF2 output.
+endif(@PARSEC_HAVE_OTF2@)
+
+if(@PARSEC_HAVE_PAPI@)
+  set_and_check(PAPI_INCLUDE_DIR "@PAPI_INCLUDE_DIR@")
+  set_and_check(PAPI_LIBRARY "@PAPI_LIBRARY@")
+endif(@PARSEC_HAVE_PAPI@)
 
 if(@PARSEC_DIST_WITH_MPI@)
   include(CheckCSourceCompiles)
@@ -50,9 +55,7 @@ if(@PARSEC_HAVE_CUDA@)
 endif(@PARSEC_HAVE_CUDA@)
 
 if(@PARSEC_PROF_TRACE@)
-  if(@PARSEC_HAVE_PAPI@)
-    find_package(PAPI)
-  endif(@PARSEC_HAVE_PAPI@)
+  # Nothing exportable here, if this test succeed then PaRSEC supports tracing
 endif(@PARSEC_PROF_TRACE@)
 
 # Pull the PaRSEC::<targets>
