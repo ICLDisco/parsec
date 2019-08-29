@@ -19,7 +19,10 @@ list(APPEND CMAKE_MODULE_PATH "${PARSEC_CONFIG_DIRS}/parsec")
 find_package(Threads)
 
 if(@PARSEC_HAVE_HWLOC@)
-  set_and_check(HWLOC_DIR "@HWLOC_DIR@")
+  # If HWLOC is found on the system directories the HWLOC_DIR is set to ""
+  if("@HWLOC_DIR@")
+    set_and_check(HWLOC_DIR "@HWLOC_DIR@")
+  endif("@HWLOC_DIR@")
 endif(@PARSEC_HAVE_HWLOC@)
 
 if(@PARSEC_HAVE_OTF2@)
