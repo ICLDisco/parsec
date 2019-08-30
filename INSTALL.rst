@@ -12,7 +12,7 @@ below. From 1 to 2 (included) they are mandatory. Everything else is
 optional, they provide nice features not critical to the normal usage
 of this software package.
 
-1. cmake version 3.11 or above. cmake can be found in the debian
+1. cmake version 3.12 or above. cmake can be found in the debian
    package cmake, or as sources at the CMake_ download page
 2. Any MPI library Open MPI, MPICH2, MVAPICH or any vendor blessed
    implementation.
