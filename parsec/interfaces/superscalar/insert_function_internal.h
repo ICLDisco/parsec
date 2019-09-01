@@ -233,6 +233,8 @@ struct parsec_dtd_taskpool_s {
     int                          task_window_size;
     int32_t                      task_threshold_size;
     int                          total_tasks_to_be_exec;
+    int                          total_threads;
+    int                          current_thread_id;
     uint32_t                     local_task_inserted;
     uint8_t                      function_counter;
     uint8_t                      flow_set_flag[PARSEC_DTD_NB_TASK_CLASSES];
