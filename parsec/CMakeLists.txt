@@ -155,7 +155,11 @@ if( BUILD_PARSEC )
   # As suggested @ https://crascit.com/2016/01/31/enhanced-source-file-handling-with-target_sources/
   # create the target at the upper level and add sources to all directories below.
   if(NOT TARGET parsec)
-    add_library(parsec STATIC ${SOURCES} $<TARGET_OBJECTS:parsec-base-obj>)
+    if( ${BUILD_SHARED_LIBS} )
+      add_library(parsec SHARED ${SOURCES} $<TARGET_OBJECTS:parsec-base-obj>)
+    else( ${BUILD_SHARED_LIBS} )
+      add_library(parsec STATIC ${SOURCES} $<TARGET_OBJECTS:parsec-base-obj>)
+    endif( ${BUILD_SHARED_LIBS} )
   endif(NOT TARGET parsec)
   add_library(PaRSEC::parsec ALIAS parsec)
 
@@ -178,6 +182,7 @@ if( BUILD_PARSEC )
     PRIVATE
     Threads::Threads
     ${CMAKE_DL_LIBS}
+    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     PUBLIC
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
