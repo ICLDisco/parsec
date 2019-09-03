@@ -11,11 +11,6 @@ if(BUILD_TOOLS AND PARSEC_Q2J AND NOT CMAKE_CROSSCOMPILING)
   BISON_TARGET(parsec_q2j_yacc src/q2j.y ${CMAKE_CURRENT_BINARY_DIR}/q2j.y.c)
   FLEX_TARGET(parsec_q2j_flex src/q2j.l  ${CMAKE_CURRENT_BINARY_DIR}/q2j.l.c)
   ADD_FLEX_BISON_DEPENDENCY(parsec_q2j_flex parsec_q2j_yacc)
-  # Bison and Flex are supposed to generate good code.  But they don't.
-  # This approach is damageable, because we can't catch C errors in our .l or .y code
-  # But if we don't do that, we'll keep having reports of compilation warnings forever.
-  set_property(SOURCE ${BISON_parsec_q2j_yacc_OUTPUTS} APPEND PROPERTY COMPILE_OPTIONS "-w")
-  set_property(SOURCE ${FLEX_parsec_q2j_flex_OUTPUTS} APPEND PROPERTY COMPILE_OPTIONS "-w")
 
   add_executable(q2j
       src/omega_interface.cpp
