@@ -6,7 +6,7 @@
 # */
 
 # - Find the Omega library
-# This module finds an installed  lirary that implements the 
+# This module finds an installed  library that implements the
 # Omega polyhydral analysis tool (see http://www.cs.umd.edu/projects/omega/).
 #
 # This module sets the following variables:
@@ -22,12 +22,14 @@ mark_as_advanced(FORCE OMEGA_DIR OMEGA_INCLUDE_DIR OMEGA_SRC_INCLUDE_DIR OMEGA_L
 
 set(OMEGA_DIR "" CACHE PATH "Root directory containing Omega")
 
-find_path(OMEGA_INCLUDE_DIR omega.h 
-          HINTS "${OMEGA_DIR}" PATH_SUFFIXES include/omega omega_lib/include 
-          DOC "Omega includes" ) 
+find_path(OMEGA_INCLUDE_DIR omega.h
+    HINTS "${OMEGA_DIR}" "$ENV{OMEGA_ROOT}"
+    PATH_SUFFIXES include/omega omega_lib/include
+    DOC "Omega includes" )
 find_path(OMEGA_SRC_INCLUDE_DIR basic/bool.h
-          HINTS "${OMEGA_DIR}" PATH_SUFFIXES basic/include
-          DOC "Omega includes in sources (only when Omega is not installed properly)" )
+    HINTS "${OMEGA_DIR}" "$ENV{OMEGA_ROOT}"
+    PATH_SUFFIXES basic/include
+    DOC "Omega includes in sources (only when Omega is not installed properly)" )
 if(OMEGA_SRC_INCLUDE_DIRS)
   set(OMEGA_INCLUDE_DIRS ${OMEGA_INCLUDE_DIR} ${OMEGA_SRC_INCLUDE_DIR})
 else()
@@ -35,13 +37,13 @@ else()
 endif()
 
 find_library(OMEGA_LIBRARY omega
-             HINTS "${OMEGA_DIR}"
-             PATH_SUFFIXES lib omega_lib/obj
-             DOC "Where the Omega libraries are")
+    HINTS "${OMEGA_DIR}" "$ENV{OMEGA_ROOT}"
+    PATH_SUFFIXES lib omega_lib/obj
+    DOC "Where the Omega libraries are")
 set(OMEGA_LIBRARIES ${OMEGA_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(OMEGA 
+find_package_handle_standard_args(OMEGA
 "Could NOT find Omega; Options depending on Omega will be disabled"
   OMEGA_INCLUDE_DIR OMEGA_LIBRARY )
 

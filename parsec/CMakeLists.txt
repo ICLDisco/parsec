@@ -28,11 +28,9 @@ set(BASE_SOURCES
 )
 
 FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)
-SET_SOURCE_FILES_PROPERTIES(${FLEX_show_help_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}")
 list(APPEND BASE_SOURCES ${FLEX_show_help_flex_OUTPUTS})
 
 FLEX_TARGET(keyval_flex utils/keyval_lex.l ${CMAKE_CURRENT_BINARY_DIR}/keyval_lex.l.c)
-SET_SOURCE_FILES_PROPERTIES(${FLEX_keyval_flex_OUTPUTS} PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS}")
 list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 
 # Read the Modular Components
