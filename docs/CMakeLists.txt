@@ -30,7 +30,7 @@ if (BUILD_DOCUMENTATION)
       add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/doxygen/doxygen.stamp
         DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/doxygen/Doxyfile
         COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxygen/Doxyfile
-        COMMAND cmake -E touch ${CMAKE_CURRENT_BINARY_DIR}/doxygen/doxygen.stamp
+        COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/doxygen/doxygen.stamp
         COMMENT "Generating API documentation with Doxygen"
         VERBATIM)
       #-- Add a custom target to run Doxygen when the project is built
