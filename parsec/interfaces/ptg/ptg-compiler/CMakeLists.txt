@@ -19,10 +19,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
   if(NOT TARGET parsec_ptgpp)
     add_executable(parsec_ptgpp jdf.c jdf2c.c jdf_unparse.c ${BISON_parsec_yacc_OUTPUTS} ${FLEX_parsec_flex_OUTPUTS})
   endif(NOT TARGET parsec_ptgpp)
-  set_target_properties(parsec_ptgpp PROPERTIES LINKER_LANGUAGE C)
-  set_target_properties(parsec_ptgpp PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
-  target_link_libraries(parsec_ptgpp PRIVATE m)
-  target_link_libraries(parsec_ptgpp PRIVATE parsec-base)
+  target_link_libraries(parsec_ptgpp PRIVATE m parsec-base)
 
   install(TARGETS parsec_ptgpp
     EXPORT parsec-targets
