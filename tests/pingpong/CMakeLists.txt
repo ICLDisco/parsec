@@ -1,10 +1,8 @@
 include(ParsecCompilePTG)
 
-parsec_compile_ptg(rtt_generated "${CMAKE_CURRENT_SOURCE_DIR}/rtt.jdf")
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
+parsec_addtest(C rtt "main.c;rtt_wrapper.c;rtt_data.c")
+target_ptg_sources(rtt PRIVATE "rtt.jdf")
 
-parsec_addtest(C rtt "main.c;${rtt_generated};rtt_wrapper.c;rtt_data.c")
-
-parsec_compile_ptg(bw_test_generated "${CMAKE_CURRENT_SOURCE_DIR}/bandwidth.jdf")
-parsec_addtest(C bw_test "${bw_test_generated}")
+parsec_addtest(C bw_test)
+target_ptg_sources(bw_test PRIVATE "bandwidth.jdf")
 

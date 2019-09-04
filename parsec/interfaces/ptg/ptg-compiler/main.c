@@ -180,7 +180,7 @@ static void parse_args(int argc, char *argv[])
         { "Wremoteref",    no_argument,      &wremoteref,   1  },
         { "Werror",        no_argument,          &werror,   1  },
         { "noline",        no_argument,  &print_jdf_line,   0  },
-        { "line",          no_argument,  &print_jdf_line,   0  },
+        { "line",          no_argument,  &print_jdf_line,   1  },
         { "help",          no_argument,             NULL,  'h' },
         { "preproc",       no_argument,             NULL,  'E' },
         { "showme",        no_argument,             NULL,  's' },
@@ -234,20 +234,8 @@ static void parse_args(int argc, char *argv[])
             break;
         case 0:
             /* no-line / line, managed below */
+            /* Wxyz, managed below */
             break;
-        case 1:
-            if( wmasked ) {
-                JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_MASKED_GLOBALS;
-            }
-            if( wmutexinput ) {
-                JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS;
-            }
-            if( wremoteref ) {
-                JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_REMOTE_MEM_REFERENCE;
-            }
-            if( werror ) {
-                JDF_COMPILER_GLOBAL_ARGS.wmask |= JDF_WARNINGS_ARE_ERROR;
-            }
             break;
         case 2:
             add_to_ignore_properties("profile");
@@ -292,8 +280,20 @@ static void parse_args(int argc, char *argv[])
         parsec_argv_append(&token_count, &extra_argv, argv[i]);
     }
 
+    if( wmasked ) {
+        JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_MASKED_GLOBALS;
+    }
+    if( wmutexinput ) {
+        JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS;
+    }
+    if( wremoteref ) {
+        JDF_COMPILER_GLOBAL_ARGS.wmask &= ~JDF_WARN_REMOTE_MEM_REFERENCE;
+    }
+    if( werror ) {
+        JDF_COMPILER_GLOBAL_ARGS.wmask |= JDF_WARNINGS_ARE_ERROR;
+    }
     JDF_COMPILER_GLOBAL_ARGS.noline = !print_jdf_line;
-    
+
     if( NULL == JDF_COMPILER_GLOBAL_ARGS.input ) {
         JDF_COMPILER_GLOBAL_ARGS.input = DEFAULTS.input;
     }
