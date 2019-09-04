@@ -15,14 +15,10 @@ static char *my_simple_hash_print(char *buffer, size_t bs, parsec_key_t k, void 
     return buffer;
 }
 
-static uint64_t my_simple_hash_hash(parsec_key_t key, int nb_bits, void *taskpool)
+static uint64_t my_simple_hash_hash(parsec_key_t key, void *taskpool)
 {
     (void)taskpool;
-    uint64_t k = (uint64_t)(uintptr_t)key;
-    uint32_t i;
-    for(i = nb_bits; i < sizeof(uint64_t)*8; i+=nb_bits)
-        k = k ^ (k >> i);
-    return k & (~0ULL >> (sizeof(uint64_t)*8-nb_bits));
+    return (uint64_t)key;
 }
 
 static parsec_key_fn_t my_simple_hash_fns = {
