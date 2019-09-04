@@ -409,7 +409,6 @@ Hopefully, once the expected arguments are provided the output will look similar
 
   Configuration flags:
     CMAKE_C_FLAGS          =  -m64 -std=c1x
-    CMAKE_C_LDFLAGS        =  -m64
     CMAKE_EXE_LINKER_FLAGS =
     EXTRA_LIBS             = -latomic;/opt/local/lib/libhwloc.dylib;-L/opt/local/lib/gcc7/gcc/x86_64-apple-darwin18/7.4.0;-L/opt/local/lib/gcc7;-L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/lib;gfortran;gcc_ext.10.5;gcc;quadmath;m
 

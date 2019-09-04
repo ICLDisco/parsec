@@ -47,6 +47,12 @@ if( SUPPORT_CXX )
 endif( SUPPORT_CXX )
 option(SUPPORT_C11
        "Enable support for C11 capabilities. Might not work with OpenMP support due to an OpenMP compilers restriction (default ON)." ON)
+IF(SUPPORT_C11)
+  set(CMAKE_C_STANDARD 11)
+ELSE(SUPPORT_C11)
+  set(CMAKE_C_STANDARD 99)
+ENDIF(SUPPORT_C11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 ## Selectively compile only parts of the framework
 option(BUILD_TOOLS
@@ -197,6 +203,8 @@ include (CheckCSourceCompiles)
 include (CheckFunctionExists)
 include (CheckSymbolExists)
 include (CheckIncludeFiles)
+include (CheckFortranCompilerFlag)
+include (CheckCXXCompilerFlag)
 
 #
 # check the capabilities of the system we are building for
@@ -229,11 +237,6 @@ IF (_mach_ppc)
     SET(PARSEC_ARCH_PPC 1)
 ENDIF (_mach_ppc)
 
-STRING(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
-IF (_match_xlc)
-  MESSAGE(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
-ENDIF (_match_xlc)
-STRING(REGEX MATCH "XL" _match_xlc ${CMAKE_C_COMPILER_ID})
 #
 # Fix the building system for 32 or 64 bits.
 #
@@ -242,13 +245,18 @@ STRING(REGEX MATCH "XL" _match_xlc ${CMAKE_C_COMPILER_ID})
 # ppc;ppc64;i386;x86_64.
 # On Linux this is a little bit tricky. We have to check that the
 # compiler supports the -m32/-m64 flags as well as the linker.
-# Once this issue is resolved the CMAKE_C_FLAGS and CMAKE_C_LDFLAGS
+# Once this issue is resolved the CMAKE_C_FLAGS and CMAKE_EXE_LINKER_FLAGS
 # have to be updated accordingly.
 #
 # TODO: Same trick for the Fortran compiler...
 #       no idea how to correctly detect if the required/optional
 #          libraries are in the correct format.
 #
+STRING(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
+IF (_match_xlc)
+  MESSAGE(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
+ENDIF (_match_xlc)
+STRING(REGEX MATCH "XL" _match_xlc ${CMAKE_C_COMPILER_ID})
 if (BUILD_64bits)
   if( _match_xlc)
     set( ARCH_BUILD "-q64" )
@@ -269,60 +277,36 @@ endif (BUILD_64bits)
 
 check_c_compiler_flag( ${ARCH_BUILD} C_M32or64 )
 if( C_M32or64 )
-  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARCH_BUILD}" )
-  set( CMAKE_C_LDFLAGS "${CMAKE_C_LDFLAGS} ${ARCH_BUILD}" )
-  set( LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${ARCH_BUILD}" )
+  string(APPEND CMAKE_C_FLAGS " ${ARCH_BUILD}")
+  # Try the same for Fortran and CXX:
+  # Use the same 64bit flag as the C compiler if possible
+  if(CMAKE_Fortran_COMPILER_WORKS)
+    check_fortran_compiler_flag( ${ARCH_BUILD} F_M32or64 )
+    if( F_M32or64 )
+      string(APPEND CMAKE_Fortran_FLAGS " ${ARCH_BUILD}")
+    endif( F_M32or64 )
+  endif()
+  if(CMAKE_CXX_COMPILER_WORKS)
+    check_cxx_compiler_flag( ${ARCH_BUILD} CXX_M32or64 )
+    if( CXX_M32or64 )
+      string(APPEND CMAKE_CXX_FLAGS " ${ARCH_BUILD}")
+    endif( CXX_M32or64 )
+  endif()
 endif( C_M32or64 )
 
 #
 # Check compiler flags and capabilities
 #
-IF( NOT _match_xlc )
-  IF( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "sparc64fx" )
-    SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} " )
-  ELSE()
-    IF(SUPPORT_C11)
-      CHECK_C_COMPILER_FLAG( "-std=c1x" PARSEC_HAVE_STD_C1x)
-    ELSE(SUPPORT_C11)
-      MESSAGE(STATUS "Performing Test PARSEC_HAVE_STD_C1x - C1x support disabled")
-    ENDIF(SUPPORT_C11)
-    IF( NOT PARSEC_HAVE_STD_C1x )
-      CHECK_C_COMPILER_FLAG( "-std=c99" PARSEC_HAVE_STD_C99)
-      IF( PARSEC_HAVE_STD_C99 )
-        SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
-      ENDIF( PARSEC_HAVE_STD_C99 )
-    ELSE( NOT PARSEC_HAVE_STD_C1x )
-      SET( PARSEC_HAVE_STD_C99 1 )
-      SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c1x" )
-    ENDIF( NOT PARSEC_HAVE_STD_C1x )
-  ENDIF()
 
-  # Set warnings for debug builds
-  CHECK_C_COMPILER_FLAG( "-Wall" PARSEC_HAVE_WALL )
-  IF( PARSEC_HAVE_WALL )
-    set( C_WFLAGS "${C_WFLAGS} -Wall" )
-  ENDIF( PARSEC_HAVE_WALL )
-  CHECK_C_COMPILER_FLAG( "-Wextra" PARSEC_HAVE_WEXTRA )
-  IF( PARSEC_HAVE_WEXTRA )
-    set( C_WFLAGS "${C_WFLAGS} -Wextra" )
-  ENDIF( PARSEC_HAVE_WEXTRA )
-ELSE( NOT _match_xlc )
-  IF(SUPPORT_C11)
-    CHECK_C_COMPILER_FLAG( "-qlanglvl=extc1x" PARSEC_HAVE_STD_C1x)
-  ELSE(SUPPORT_C11)
-    MESSAGE(STATUS "Performing Test PARSEC_HAVE_STD_C1x - C1x support disabled")
-  ENDIF(SUPPORT_C11)
-  IF( PARSEC_HAVE_STD_C1x )
-    CHECK_C_COMPILER_FLAG( "-qlanglvl=extc99" PARSEC_HAVE_STD_C99)
-    IF( PARSEC_HAVE_STD_C99 )
-      SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qlanglvl=extc99" )
-    ENDIF( PARSEC_HAVE_STD_C99 )
-  ELSE( PARSEC_HAVE_STD_C1x )
-    SET( PARSEC_HAVE_STD_C99 1 )
-    SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qlanglvl=extc1x" )
-  ENDIF( PARSEC_HAVE_STD_C1x )
-ENDIF(  NOT _match_xlc )
-
+# Set warnings for debug builds
+CHECK_C_COMPILER_FLAG( "-Wall" PARSEC_HAVE_WALL )
+IF( PARSEC_HAVE_WALL )
+  STRING( APPEND C_WFLAGS " -Wall" )
+ENDIF( PARSEC_HAVE_WALL )
+CHECK_C_COMPILER_FLAG( "-Wextra" PARSEC_HAVE_WEXTRA )
+IF( PARSEC_HAVE_WEXTRA )
+  STRING( APPEND C_WFLAGS " -Wextra" )
+ENDIF( PARSEC_HAVE_WEXTRA )
 
 #
 # flags for Intel icc
@@ -339,29 +323,28 @@ if(_match_icc)
     #       files
     # 1572: cuda compares floats with 0.0f.
     # 11074: obnoxious about not inlining long functions.
-    set( C_WFLAGS "${C_WFLAGS} -wd424,981,1419,1572,10237,11074,11076" )
+    string(APPEND C_WFLAGS " -wd424,981,1419,1572,10237,11074,11076")
   ENDIF( PARSEC_HAVE_WD )
 else(_match_icc)
   CHECK_C_COMPILER_FLAG( "-Wno-parentheses-equality" PARSEC_HAVE_PAR_EQUALITY )
   IF( PARSEC_HAVE_PAR_EQUALITY )
-        set( C_WFLAGS "${C_WFLAGS} -Wno-parentheses-equality" )
+    string(APPEND C_WFLAGS " -Wno-parentheses-equality")
   ENDIF( PARSEC_HAVE_PAR_EQUALITY )
 endif(_match_icc)
 
 # add gdb symbols in debug and relwithdebinfo
 CHECK_C_COMPILER_FLAG( "-g3" PARSEC_HAVE_G3 )
 IF( PARSEC_HAVE_G3 )
-    set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g3" )
-    set( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -g3" )
+  string(APPEND CMAKE_C_FLAGS_DEBUG " -O0 -g3")
+  string(APPEND CMAKE_C_FLAGS_RELWITHDEBINFO " -g3")
 ELSE()
-    set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" )
+  string(APPEND CMAKE_C_FLAGS_DEBUG " -O0")
 ENDIF( PARSEC_HAVE_G3)
 # verbose compilation in debug
-set( CMAKE_C_FLAGS_DEBUG "${C_WFLAGS} ${CMAKE_C_FLAGS_DEBUG}" )
+string(APPEND CMAKE_C_FLAGS_DEBUG " ${C_WFLAGS}")
 # remove asserts in release
-set( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
-SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${C_WFLAGS} ${CMAKE_C_FLAGS_RELWITHDEBINFO}" )
-SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
+string(APPEND CMAKE_C_FLAGS_RELEASE " -DNDEBUG")
+string(APPEND CMAKE_C_FLAGS_RELWITHDEBINFO " ${C_WFLAGS}")
 
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
@@ -388,7 +371,7 @@ separate_arguments(TMP_LIST)
 list(REMOVE_DUPLICATES TMP_LIST)
 set(CMAKE_C_FLAGS "")
 foreach( ITEM ${TMP_LIST})
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ITEM}")
+  string(APPEND CMAKE_C_FLAGS " ${ITEM}")
 endforeach()
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
@@ -594,8 +577,14 @@ IF( BUILD_PARSEC )
       # Create fake MPI:: targets
       set(MPI_C_FOUND TRUE)
       add_library(MPI::MPI_C INTERFACE IMPORTED)
-      set(MPI_Fortran_FOUND TRUE)
-      add_library(MPI::MPI_Fortran INTERFACE IMPORTED)
+      if(CMAKE_Fortran_COMPILER_WORKS)
+        set(MPI_Fortran_FOUND TRUE)
+        add_library(MPI::MPI_Fortran INTERFACE IMPORTED)
+      endif()
+      if(CMAKE_CXX_COMPILER_WORKS)
+        set(MPI_CXX_FOUND TRUE)
+        add_library(MPI::MPI_CXX INTERFACE IMPORTED)
+      endif()
     else( CC_CONTAINS_MPI )
       # Otherwise try to find MPI in the normal way
       find_package(MPI)
@@ -676,48 +665,17 @@ IF( BUILD_PARSEC )
     list(APPEND EXTRA_INCLUDES ${AYUDAME_INCLUDE_DIR})
     if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
       message(STATUS "Add '-undefined dynamic_lookup' to the linking flags")
-      SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -undefined dynamic_lookup")
-      SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -undefined dynamic_lookup")
+      string(APPEND CMAKE_EXE_LINKER_FLAGS " -undefined dynamic_lookup")
+      string(APPEND CMAKE_Fortran_FLAGS " -undefined dynamic_lookup")
     endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   endif(AYUDAME_FOUND)
 ENDIF( BUILD_PARSEC )
 
 #
 # Fortran tricks
+# Debug/Release FFLAGS depend on the compiler
 #
 IF (CMAKE_Fortran_COMPILER_WORKS)
-  STRING(REGEX MATCH "Intel" _match_intel ${CMAKE_Fortran_COMPILER_ID})
-  IF (_match_intel)
-    MESSAGE(STATUS "Add -nofor_main to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -nofor_main")
-  ENDIF (_match_intel)
-
-  STRING(REGEX MATCH "PGI$" _match_pgi ${CMAKE_Fortran_COMPILER_ID})
-  IF (_match_pgi)
-    MESSAGE(STATUS "Add -Mnomain to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -Mnomain -Bstatic")
-  ENDIF (_match_pgi)
-
-
-  STRING(REGEX MATCH ".*xlf$" _match_xlf ${CMAKE_Fortran_COMPILER})
-  IF (_match_xlf)
-    MESSAGE(ERROR "Please use the thread-safe version of the xlf compiler (xlf_r)")
-  ENDIF (_match_xlf)
-  STRING(REGEX MATCH "XL$" _match_xlf ${CMAKE_Fortran_COMPILER_ID})
-  IF (_match_xlf)
-    SET(arch_flags "-q32")
-    IF(BUILD_64bits)
-      SET(arch_flags "-q64")
-    ENDIF(BUILD_64bits)
-    MESSAGE(STATUS "Add ${arch_flags} and -nofor_main to the Fortran linker.")
-    SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${arch_flags} -nofor_main")
-  ENDIF (_match_xlf)
-
-#
-# Even more Fortran tricks.
-#
-# FFLAGS depend on the compiler
-
   if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     # gfortran
     set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3")
@@ -742,9 +700,9 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
     set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g")
   endif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
 
-# Coherce CMake to install the generated .mod files
-set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parsec/include/fortran)
-install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION include)
+  # Coerce CMake to install the generated .mod files
+  set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parsec/include/fortran)
+  install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION include)
 
 ENDIF (CMAKE_Fortran_COMPILER_WORKS)
 
@@ -1106,7 +1064,6 @@ list(REMOVE_DUPLICATES EXTRA_LIBS)
 
 MESSAGE("\n\nConfiguration flags:")
 MESSAGE("  CMAKE_C_FLAGS          = ${CMAKE_C_FLAGS}")
-MESSAGE("  CMAKE_C_LDFLAGS        = ${CMAKE_C_LDFLAGS}")
 MESSAGE("  CMAKE_EXE_LINKER_FLAGS = ${CMAKE_EXE_LINKER_FLAGS}")
 MESSAGE("  EXTRA_LIBS             = ${EXTRA_LIBS}")
 MESSAGE("\n\n")
