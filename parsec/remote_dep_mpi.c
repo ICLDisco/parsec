@@ -22,6 +22,10 @@
 
 #define PARSEC_REMOTE_DEP_USE_THREADS
 
+#define PARSEC_DTD_SKIP_SAVING -1
+
+static char **dep_activate_buff;
+
 typedef struct dep_cmd_item_s dep_cmd_item_t;
 typedef union dep_cmd_u dep_cmd_t;
 
@@ -29,7 +33,9 @@ static int remote_dep_mpi_init(parsec_context_t* context);
 static int remote_dep_mpi_fini(parsec_context_t* context);
 static int remote_dep_mpi_on(parsec_context_t* context);
 static int remote_dep_mpi_progress(parsec_execution_stream_t* es);
-static int remote_dep_get_datatypes(parsec_execution_stream_t* es, parsec_remote_deps_t* origin);
+static int remote_dep_get_datatypes(parsec_execution_stream_t* es,
+                                    parsec_remote_deps_t* origin,
+                                    int storage_id, int *position);
 static parsec_remote_deps_t*
 remote_dep_release_incoming(parsec_execution_stream_t* es,
                             parsec_remote_deps_t* origin,
@@ -621,13 +627,11 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
  */
 static int
 remote_dep_get_datatypes(parsec_execution_stream_t* es,
-                         parsec_remote_deps_t* origin)
+                         parsec_remote_deps_t* origin,
+                         int storage_id, int *position)
 {
     parsec_task_t task;
     uint32_t i, j, k, local_mask = 0;
-
-    parsec_dtd_taskpool_t *dtd_tp = NULL;
-    parsec_dtd_task_t *dtd_task = NULL;
 
     assert(NULL == origin->taskpool);
     origin->taskpool = parsec_taskpool_lookup(origin->msg.taskpool_id);
@@ -637,50 +641,53 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
     task.taskpool   = origin->taskpool;
     task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
 
-    if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
-        dtd_tp = (parsec_dtd_taskpool_t *)origin->taskpool;
-        parsec_dtd_two_hash_table_lock(dtd_tp->two_hash_table);
-        if( NULL == task.task_class ) {  /* This can only happen for DTD */
-            assert(origin->incoming_mask == 0);
-            return -2; /* taskclass not yet discovered locally. Defer the task activation */
-        }
-    }
-
     task.priority = 0;  /* unknown yet */
-    for(i = 0; i < task.task_class->nb_locals; i++)
-        task.locals[i] = origin->msg.locals[i];
 
-    /* We need to convert from a dep_datatype_index mask into a dep_index
-     * mask. However, in order to be able to use the above iterator we need to
-     * be able to identify the dep_index for each particular datatype index, and
-     * call the iterate_successors on each of the dep_index sets.
-     */
-    int return_defer = 0;
-    for(k = 0; origin->msg.output_mask>>k; k++) {
-        if(!(origin->msg.output_mask & (1U<<k))) continue;
+    /* This function is divided into DTD and PTG's logic */
+    if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
+        parsec_dtd_taskpool_t *dtd_tp = NULL;
+        parsec_dtd_task_t *dtd_task = NULL;
 
-        if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
+        dtd_tp = (parsec_dtd_taskpool_t *)origin->taskpool;
+
+        /* if( NULL == task.task_class ), this case will be taken care of automatically */
+
+        /* We need to convert from a dep_datatype_index mask into a dep_index
+         * mask. However, in order to be able to use the above iterator we need to
+         * be able to identify the dep_index for each particular datatype index, and
+         * call the iterate_successors on each of the dep_index sets.
+         */
+        int return_defer = 0;
+        for(k = 0; origin->msg.output_mask>>k; k++) {
+            if(!(origin->msg.output_mask & (1U<<k))) continue;
+
             uint64_t key = (uint64_t)origin->msg.locals[0].value<<32 | (1U<<k);
             local_mask = 0;
             local_mask |= (1U<<k);
-            dtd_task = parsec_dtd_find_task( dtd_tp, key );
-            if( NULL == dtd_task ) { return_defer = 1; continue; }
-        } else {
-            for(local_mask = i = 0; NULL != task.task_class->out[i]; i++ ) {
-                if(!(task.task_class->out[i]->flow_datatype_mask & (1U<<k))) continue;
-                for(j = 0; NULL != task.task_class->out[i]->dep_out[j]; j++ )
-                    if(k == task.task_class->out[i]->dep_out[j]->dep_datatype_index)
-                        local_mask |= (1U << task.task_class->out[i]->dep_out[j]->dep_index);
-                if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
-            }
-        }
 
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
-        if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
-            if( local_mask == 0 ) {
-                assert(0);
-                return -2;  /* We need a better fix for this */
+            parsec_hash_table_lock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
+            dtd_task = parsec_dtd_find_task( dtd_tp, key );
+
+            if( NULL == dtd_task ) {
+                return_defer = 1;
+
+                if( storage_id != PARSEC_DTD_SKIP_SAVING) {
+                    char* packed_buffer;
+                    /* Copy the eager data to some temp storage */
+                    packed_buffer = malloc(origin->msg.length);
+                    memcpy(packed_buffer, dep_activate_buff[storage_id] + *position, origin->msg.length);
+                    *position += origin->msg.length;  /* move to the next order */
+                    origin->taskpool = (parsec_taskpool_t*)packed_buffer;  /* temporary storage */
+                    parsec_dtd_track_remote_dep( dtd_tp, key, origin );
+                }
             }
+
+            parsec_hash_table_unlock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
+
+            if(return_defer) {
+                return -2;
+            }
+
             task.locals[k] = origin->msg.locals[k];
             task.task_class = dtd_task->super.task_class;
             origin->msg.task_class_id = dtd_task->super.task_class->task_class_id;
@@ -688,19 +695,31 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                                                local_mask,
                                                remote_dep_mpi_retrieve_datatype,
                                                origin);
-        } else {
+        }
+    } else {
+        for(i = 0; i < task.task_class->nb_locals; i++)
+            task.locals[i] = origin->msg.locals[i];
+
+        /* We need to convert from a dep_datatype_index mask into a dep_index
+         * mask. However, in order to be able to use the above iterator we need to
+         * be able to identify the dep_index for each particular datatype index, and
+         * call the iterate_successors on each of the dep_index sets.
+         */
+        for(k = 0; origin->msg.output_mask>>k; k++) {
+            if(!(origin->msg.output_mask & (1U<<k))) continue;
+            for(local_mask = i = 0; NULL != task.task_class->out[i]; i++ ) {
+                if(!(task.task_class->out[i]->flow_datatype_mask & (1U<<k))) continue;
+                for(j = 0; NULL != task.task_class->out[i]->dep_out[j]; j++ )
+                    if(k == task.task_class->out[i]->dep_out[j]->dep_datatype_index)
+                        local_mask |= (1U << task.task_class->out[i]->dep_out[j]->dep_index);
+                if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
+            }
+
+            PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
             task.task_class->iterate_successors(es, &task,
                                                 local_mask,
                                                 remote_dep_mpi_retrieve_datatype,
                                                 origin);
-        }
-    }
-
-    if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
-        if( return_defer ) return -2;
-        else {
-            assert(origin->incoming_mask == origin->msg.output_mask );
-            parsec_dtd_two_hash_table_unlock(dtd_tp->two_hash_table);
         }
     }
 
@@ -1101,7 +1120,6 @@ static MPI_Status            *array_of_statuses;
 #define DEP_SHORT_BUFFER_SIZE (dep_extent+RDEP_MSG_SHORT_LIMIT)
 #define datakey_dtt MPI_LONG
 #define datakey_count 3
-static char **dep_activate_buff;
 static remote_dep_wire_get_t* dep_get_buff;
 
 /* Pointers are converted to long to be used as keys to fetch data in the get
@@ -1916,7 +1934,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
         /* Retrieve the data arenas and update the msg.incoming_mask to reflect
          * the data we should be receiving from the predecessor.
          */
-        rc = remote_dep_get_datatypes(es, deps);
+        rc = remote_dep_get_datatypes(es, deps, cb->storage2, &position);
 
         if( -1 == rc ) {
             /* the corresponding tp doesn't exist, yet. Put it in unexpected */
@@ -1935,35 +1953,6 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
             assert(deps->taskpool != NULL);
             if( -2 == rc ) { /* DTD problems, defer activating this remote dep */
                 assert(deps->incoming_mask != deps->msg.output_mask);
-                int i;
-                parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)deps->taskpool;
-
-                for( i = 0; deps->msg.output_mask >> i; i++ ) {
-                    if( !(deps->msg.output_mask & (1U<<i) ) ) continue;
-                    if( deps->incoming_mask & (1U<<i) ) { /* we got successor for this flag, move to next */
-                        assert(0);
-                    }
-                    uint64_t key = (uint64_t)deps->msg.locals[0].value << 32 | (1U<<i);
-                    char* packed_buffer;
-                    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate DeferDep\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
-                            deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
-                            cb->storage2, deps->msg.deps, deps->msg.output_mask);
-                    /* Copy the short data to some temp storage */
-                    packed_buffer = malloc(deps->msg.length);
-                    memcpy(packed_buffer, dep_activate_buff[cb->storage2] + position, deps->msg.length);
-                    position += deps->msg.length;  /* move to the next order */
-                    deps->taskpool = (parsec_taskpool_t*)packed_buffer;  /* temporary storage */
-#if defined(PARSEC_PROF_TRACE)
-                    if(hashtable_trace_keyout != -1)
-                        parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
-#endif
-                    parsec_dtd_track_remote_dep( dtd_tp, key, deps );
-                }
-
-                /* unlocking the two hash table */
-                parsec_dtd_two_hash_table_unlock( dtd_tp->two_hash_table );
-
-                assert(deps->incoming_mask == 0);
                 continue;
             }
         }
@@ -1999,42 +1988,21 @@ static void remote_dep_mpi_new_taskpool( parsec_execution_stream_t* es,
             char* buffer = (char*)deps->taskpool;  /* get back the buffer from the "temporary" storage */
             int rc, position = 0;
             deps->taskpool = NULL;
-            rc = remote_dep_get_datatypes(es, deps); assert( -1 != rc );
+            rc = remote_dep_get_datatypes(es, deps, PARSEC_DTD_SKIP_SAVING, &position); assert( -1 != rc );
             assert(deps->taskpool != NULL);
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate NEWOBJ\t% -8s\twith datakey %lx\tparams %lx",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                     deps->msg.deps, deps->msg.output_mask);
-            item = parsec_list_nolock_remove(&dep_activates_noobj_fifo, item);
 
             /* In case of DTD execution, receiving rank might not have discovered
              * the task responsible for this message. So we have to put this message
              * in a hash table so that we can activate it, when this rank discovers it.
              */
             if( -2 == rc ) { /* DTD problems, defer activating this remote dep */
-                deps->taskpool = (parsec_taskpool_t*)buffer;
-                assert(deps->incoming_mask != deps->msg.output_mask);
-                int i;
-                parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)obj;
-
-                for( i = 0; deps->msg.output_mask >> i; i++ ) {
-                    if( !(deps->msg.output_mask & (1U<<i) ) ) continue;
-                    if( deps->incoming_mask & (1U<<i) ) { /* we got successor for this flag, move to next */
-                        assert(0);
-                    }
-                    uint64_t key = (uint64_t)deps->msg.locals[0].value << 32 | (1U<<i);
-#if defined(PARSEC_PROF_TRACE)
-                    if(hashtable_trace_keyout != -1)
-                        parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
-#endif
-                    parsec_dtd_track_remote_dep( dtd_tp, key, deps );
-                }
-
-                /* unlocking the two hash table */
-                parsec_dtd_two_hash_table_unlock( dtd_tp->two_hash_table );
-
-                assert(deps->incoming_mask == 0);
                 continue;
             }
+
+            item = parsec_list_nolock_remove(&dep_activates_noobj_fifo, item);
 
             remote_dep_mpi_recv_activate(es, deps, buffer, deps->msg.length, &position);
             free(buffer);
@@ -2060,7 +2028,7 @@ remote_dep_mpi_release_delayed_deps( parsec_execution_stream_t* es,
     char* buffer = (char*)deps->taskpool;  /* get back the buffer from the "temporary" storage */
     deps->taskpool = NULL;
 
-    rc = remote_dep_get_datatypes(es, deps);
+    rc = remote_dep_get_datatypes(es, deps, PARSEC_DTD_SKIP_SAVING, &position);
 
     assert(rc != -2);
     (void)rc;

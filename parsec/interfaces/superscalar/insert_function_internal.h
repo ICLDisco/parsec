@@ -214,15 +214,6 @@ struct hook_info {
 };
 
 /**
- * We use one hash table for both remote tasks
- * and remote_deps related to remote tasks.
- */
-typedef struct parsec_dtd_two_hash_table_s {
-    parsec_hash_table_t *task_and_rem_dep_h_table;
-    parsec_atomic_lock_t atomic_lock;
-} parsec_dtd_two_hash_table_t;
-
-/**
  * Internal DTD taskpool
  */
 struct parsec_dtd_taskpool_s {
@@ -238,7 +229,7 @@ struct parsec_dtd_taskpool_s {
     uint8_t                      flow_set_flag[PARSEC_DTD_NB_TASK_CLASSES];
     parsec_taskpool_wait_t      *wait_func;
     parsec_mempool_t            *hash_table_bucket_mempool;
-    parsec_dtd_two_hash_table_t *two_hash_table;
+    parsec_hash_table_t         *task_hash_table;
     parsec_hash_table_t         *function_h_table;
     /* ring of initial ready tasks */
     parsec_task_t              **startup_list;
@@ -401,10 +392,6 @@ parsec_dtd_track_remote_dep( parsec_dtd_taskpool_t *tp,
                              void                  *value );
 
 void *
-parsec_dtd_find_remote_dep( parsec_dtd_taskpool_t *tp,
-                            uint64_t               key );
-
-void *
 parsec_dtd_untrack_remote_dep( parsec_dtd_taskpool_t *tp,
                                uint64_t               key );
 
@@ -505,37 +492,6 @@ parsec_dtd_last_user_unlock( parsec_dtd_tile_user_t *last_user )
 {
     parsec_atomic_unlock(&last_user->atomic_lock);
 }
-
-/***************************************************************************//**
- *
- * Function to lock last_user of a tile
- *
- * @param[in,out]   two_hash_table
- *                      User we are trying to lock
- * @ingroup         DTD_INTERFACE_INTERNAL
- *
- ******************************************************************************/
-static inline void
-parsec_dtd_two_hash_table_lock( parsec_dtd_two_hash_table_t *two_hash_table )
-{
-    parsec_atomic_lock(&two_hash_table->atomic_lock);
-}
-
-/***************************************************************************//**
- *
- * Function to unlock last_user of a tile
- *
- * @param[in,out]   two_hash_table
- *                      User we are trying to unlock
- * @ingroup         DTD_INTERFACE_INTERNAL
- *
- ******************************************************************************/
-static inline void
-parsec_dtd_two_hash_table_unlock( parsec_dtd_two_hash_table_t *two_hash_table )
-{
-    parsec_atomic_unlock(&two_hash_table->atomic_lock);
-}
-
 
 /***************************************************************************
  *
