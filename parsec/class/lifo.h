@@ -10,9 +10,9 @@
 #include "parsec/parsec_config.h"
 #include "parsec/class/list_item.h"
 #include "parsec/sys/atomic.h"
-#if defined(PARSEC_HAVE_ATOMIC_LLSC_PTR)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR)
 #include <time.h>
-#endif  /* defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) */
+#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR) */
 
 /**
  * @defgroup parsec_internal_classes_lifo Last In First Out
@@ -320,7 +320,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo 
     return NULL;
 }
 
-#elif defined(PARSEC_HAVE_ATOMIC_LLSC_PTR)
+#elif defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR)
 
 LIFO_STATIC_INLINE void _parsec_lifo_release_cpu (void)
 {
@@ -550,7 +550,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo 
     return item == lifo->lifo_ghost ? NULL : item;
 }
 
-#else /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
+#else /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
 
 /* Add one element to the LIFO. We will return the last head of the list
  * to allow the upper level to detect if this element is the first one in the
@@ -633,7 +633,7 @@ LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_try_pop(parsec_lifo_t* lifo)
 
 }
 
-#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
+#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
 
 LIFO_STATIC_INLINE void parsec_lifo_nolock_push( parsec_lifo_t* lifo,
                                             parsec_list_item_t* item )

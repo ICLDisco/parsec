@@ -934,6 +934,8 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
   "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
 
+# If we use CAS on int128_t, some structures change and we need to adapt parsec_options.h
+# so that .jdf code built externally uses the same variant of parsec_lifo_t structs and such.
 cmake_push_check_state()
 if(NOT PARSEC_BUILD_INPLACE)
   list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/parsec/include )
@@ -943,12 +945,12 @@ list(APPEND CMAKE_REQUIRED_DEFINITIONS -DBUILD_PARSEC)
 check_symbol_exists(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128 "parsec/parsec_config.h;parsec/sys/atomic.h" PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
 cmake_pop_check_state()
 if(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
-  message(STATUS "Internal PaRSEC uses CAS 128B. Reconfiguring parsec_options.h")
+  message(STATUS "Internal PaRSEC uses CAS on int128_t. Reconfiguring parsec_options.h")
   configure_file (
      "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
      "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
 else()
-  message(STATUS "Internal PaRSEC does not use CAS 128B. Keeping parsec_options.h unchanged")
+  message(STATUS "Internal PaRSEC does not use CAS on int128_t. Keeping parsec_options.h unchanged")
 endif()
 
 install(FILES
