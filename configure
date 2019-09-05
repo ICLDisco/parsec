@@ -32,6 +32,8 @@ cat <<EOF
                 install to the DIR directory (default $prefix)
 --host=ARCH
                 cross compile for the target ARCH architecture
+--enable-doc
+                Build the documentation (requires doxygen)
 --enable-static
                 build static libraries and executables
 --enable-shared
@@ -42,8 +44,6 @@ cat <<EOF
                 Enable CXX bindings
 --enable-fortran
                 Enable Fortran bindings
---enable-doc
-                Build the documentation (requires doxygen)
 
 
 --enable-debug=yes,paranoid,noisier|history|no
@@ -262,7 +262,7 @@ for cme in ${cmake_executables}; do
     cme=''
 done
 set -e
-CMAKE_EXECUTABLE=$cme
+cmake_executable=$cme
 }
 
 function read_platforms {
@@ -315,8 +315,9 @@ _EOF
     local NATIVE_COMPILERS="-DSUPPORT_FORTRAN=OFF"
     local NATIVE_OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DCMAKE_INSTALL_PREFIX=$NATIVE_PREFIX $NATIVE_MPI $NATIVE_CUDA $NATIVE_HWLOC $NATIVE_COMPILERS"
 
-    echo "CC=\"${NATIVE_CC}\" CFLAGS=\"${NATIVE_CFLAGS}\" CXX=\"${NATIVE_CXX}\" CXXFLAGS=\"${NATIVE_CXXFLAGS}\" LDFLAGS=\"${NATIVE_LDFLAGS}\" cmake -G \"Unix Makefiles\" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} $(for i in "$@"; do printf ' %q' "$i"; done) ${srcdir}"
-    CC="${NATIVE_CC}" CFLAGS="${NATIVE_CFLAGS}" CXX="${NATIVE_CXX}" CXXFLAGS="${NATIVE_CXXFLAGS}" LDFLAGS="${NATIVE_LDFLAGS}" ${CMAKE_EXECUTABLE} -G "Unix Makefiles" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} "$@" ${srcdir}
+    set_cmake_executable #may have been changed in the platform file
+    echo "CC=\"${NATIVE_CC}\" CFLAGS=\"${NATIVE_CFLAGS}\" CXX=\"${NATIVE_CXX}\" CXXFLAGS=\"${NATIVE_CXXFLAGS}\" LDFLAGS=\"${NATIVE_LDFLAGS}\" ${cmake_executable} -G \"Unix Makefiles\" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} $(for i in "$@"; do printf ' %q' "$i"; done) ${srcdir}"
+    CC="${NATIVE_CC}" CFLAGS="${NATIVE_CFLAGS}" CXX="${NATIVE_CXX}" CXXFLAGS="${NATIVE_CXXFLAGS}" LDFLAGS="${NATIVE_LDFLAGS}" ${cmake_executable} -G "Unix Makefiles" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} "$@" ${srcdir}
     popd
     [ -r "$TOOLCHAIN_FILE" ] || echo >&2 "Cross compiling Toolchain file TOOLCHAIN_FILE=$TOOLCHAIN_FILE is missing... This will probably cause an error."
     local TOOLCHAIN=" -DCMAKE_TOOLCHAIN_FILE=\"$TOOLCHAIN_FILE\" -DIMPORT_EXECUTABLES=\"$NATIVE_DIR/ImportExecutables.cmake\""
@@ -358,22 +359,6 @@ else
     exec &> >(tee config.log)
 fi
 
-# Populate arch early on for xcompile platform files
-[ x$host != x ] && arch=${host%%-*}
-# Populate cmake_executable before the platform file 
-set_cmake_executable
-
-read_platforms "$@"
-parse_arguments "$@"
-
-# Re-populate CMAKE_EXECUTABLE, in the case it's been changed 
-# from the platform file
-set_cmake_executable
-[ -z "$CMAKE_EXECUTABLE" ] && echo >&2 "Could not find CMake binary" && exit 3
-
-# Do the host work again after the platform as we may have changed it there
-host_adapt
-
 # Create config.status
 cat >config.status <<'EOF'
 #!/bin/bash
@@ -389,6 +374,19 @@ tee -a config.status <<EOF
 EOF
 chmod +x config.status
 
+# Populate arch early on for xcompile platform files
+[ x$host != x ] && arch=${host%%-*}
+
+read_platforms "$@"
+parse_arguments "$@"
+
+# Populate cmake_executable, do it after the platform file
+# in the case it's been changed there.
+set_cmake_executable
+[ -z "$cmake_executable" ] && echo >&2 "Could not find CMake binary" && exit 3
+
+# Do the host work again after the platform as we may have changed it there
+host_adapt
 
 
 CMAKE_DEFINES+=" ${prefix:+-DCMAKE_INSTALL_PREFIX=$prefix}"
@@ -517,7 +515,7 @@ esac
 
 # CMAKE INVOCATION
 
-CMAKE_COMMAND="$ENVVARS $CMAKE_EXECUTABLE -G 'Unix Makefiles' $srcdir $CMAKE_DEFINES"
+CMAKE_COMMAND="$ENVVARS $cmake_executable -G 'Unix Makefiles' $srcdir $CMAKE_DEFINES"
 
 cat <<EOF
 ### CMake generated invocation
