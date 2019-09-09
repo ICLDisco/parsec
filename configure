@@ -148,8 +148,8 @@ while [ "x$1" != x ]; do
         -V) show_version_and_exit ;;
         -q|--quiet|--silent) quiet=yes; shift;;
         -n|--no-create) nocreate=yes; shift;;
-        --srcdir=*) srcdir="$(printf %q "${1#*=}")"; shift;;
-        --prefix=*) prefix="$(printf %q "${1#*=}")"; shift;;
+        --srcdir=*) srcdir="$(printf %q "$(expand_relative_path "${1#*=}")")"; shift;;
+        --prefix=*) prefix="$(printf %q "$(expand_relative_path "${1#*=}")")"; shift;;
         --host=*) host="${1#*=}"; shift;;
 # Environment variables
         [^-]*=*) eval export $(printf %q "$1"); shift;;
@@ -158,6 +158,11 @@ while [ "x$1" != x ]; do
 done
 }
 
+function expand_relative_path {
+  [[ ${1:0:1} = '/' ]] && echo "${1}" || echo "${PWD}/${1}"
+}
+srcdir="$(expand_relative_path $srcdir)"
+
 function parse_arguments {
 while [ "x$1" != x ]; do
     case "$1" in
@@ -165,8 +170,8 @@ while [ "x$1" != x ]; do
         -V) show_version_and_exit ;;
         -q|--quiet|--silent) quiet=yes; shift;;
         -n|--no-create) nocreate=yes; shift;;
-        --srcdir=*) srcdir="$(printf %q "${1#*=}")"; shift;;
-        --prefix=*) prefix="$(printf %q "${1#*=}")"; shift;;
+        --srcdir=*) srcdir="$(printf %q "$(expand_relative_path "${1#*=}")")"; shift;;
+        --prefix=*) prefix="$(printf %q "$(expand_relative_path "${1#*=}")")"; shift;;
         --host=*) host="${1#*=}"; shift;;
         --enable-static) enable_static=yes; shift;;
         --disable-static) enable_static=no; shift;;
@@ -296,8 +301,8 @@ done
 function configure_native_toolchain {
     # This is the list of named input parameters
     local NATIVE_DIR="${NATIVE_DIR:-$PWD/native}" NATIVE_CC="$NATIVE_CC" NATIVE_CFLAGS="$NATIVE_CFLAGS" NATIVE_CXX="$NATIVE_CXX" NATIVE_CXXFLAGS="$NATIVE_CXXFLAGS" NATIVE_LDFLAGS="$NATIVE_LDFLAGS"
-    local NATIVE_PREFIX="${NATIVE_PREFIX:-$([[ ${prefix:0:1} = '/' ]] && echo "${prefix}" || echo "${PWD}/${prefix}")}"
-    local srcdir="${NATIVE_SRCDIR:-$([[ ${srcdir:0:1} = '/' ]] && echo "${srcdir}" || echo "${PWD}/${srcdir}")}"
+    local NATIVE_PREFIX="${NATIVE_PREFIX:-$(expand_relative_path "${prefix}")}"
+    local srcdir="${NATIVE_SRCDIR:-$(expand_relative_path "${srcdir}")}"
     local TOOLCHAIN_FILE=$1
     shift
     cat << _EOF
