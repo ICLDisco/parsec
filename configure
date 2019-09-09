@@ -10,6 +10,11 @@ srcdir=${0%/*}
 # Be paranoid about errors and abort asap
 set -e
 
+function expand_relative_path {
+  [[ ${1:0:1} = '/' ]] && echo "${1}" || echo "${PWD}/${1}"
+}
+srcdir="$(expand_relative_path $srcdir)"
+
 function show_help_and_exit {
 cat <<EOF
 -h | --help
@@ -158,10 +163,6 @@ while [ "x$1" != x ]; do
 done
 }
 
-function expand_relative_path {
-  [[ ${1:0:1} = '/' ]] && echo "${1}" || echo "${PWD}/${1}"
-}
-srcdir="$(expand_relative_path $srcdir)"
 
 function parse_arguments {
 while [ "x$1" != x ]; do
