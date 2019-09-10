@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
     parsec_mca_param_init();
     parsec_hash_tables_init();
 
-    hint_index = parsec_mca_param_find("parsec", NULL, "parsec_hash_table_max_collisions_hint");
+    hint_index = parsec_mca_param_find("parsec", NULL, "hash_table_max_collisions_hint");
     if( hint_index == PARSEC_ERROR ) {
         fprintf(stderr, "Warning: unable to find the hash table hint, tuning behavior will be disabled\n");
     }

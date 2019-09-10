@@ -29,8 +29,12 @@ struct parsec_hash_table_bucket_s {
 #define BASEADDROF(item, ht)  (void*)(  ( (char*)(item) ) - ( (ht)->elt_hashitem_offset ) )
 #define ITEMADDROF(ptr, ht)   (parsec_hash_table_item_t*)( ((char*)(ptr)) + ( (ht)->elt_hashitem_offset ) )
 
-static int      parsec_hash_table_mca_param_index     = -1;
-static int32_t  parsec_hash_table_max_collisions_hint = 16;
+static int      parsec_hash_table_mca_param_mch_index = -1;
+static int32_t  parsec_hash_table_max_collisions_hint = 16; /* We resize if there are that many collisions */
+static int      parsec_hash_table_mca_param_mnb_index = -1;
+static int32_t  parsec_hash_table_max_table_nb_bits   = 24; /* We will never create a sub-table with more than 1<<parsec_hash_table_max_table_nb_bits buckets
+                                                             * NB: if the user calls parsec_hash_table_init with nb_bits > parsec_hash_table_max_table_nb_bits,
+                                                             *     we *will* create the first-level table with 1<<nb_bits buckets, despite this value. */
 
 void *parsec_hash_table_item_lookup(parsec_hash_table_t *ht, parsec_hash_table_item_t *item)
 {
@@ -57,15 +61,29 @@ int parsec_hash_tables_init(void)
 {
     int v = parsec_hash_table_max_collisions_hint;
 
-    parsec_hash_table_mca_param_index =
-        parsec_mca_param_reg_int_name("parsec", "parsec_hash_table_max_collisions_hint",
+    parsec_hash_table_mca_param_mch_index =
+        parsec_mca_param_reg_int_name("parsec", "hash_table_max_collisions_hint",
                                       "Sets a hint for the dynamic hash tables implementation: "
                                       "Hash-tables will be resized if a bucket reaches this number of collisions.\n",
                                       false, false, v, &v);
-    if( PARSEC_ERROR != parsec_hash_table_mca_param_index ) {
-        parsec_hash_table_max_collisions_hint = v;
+    parsec_hash_table_max_collisions_hint = v;
+    if( PARSEC_ERROR == parsec_hash_table_mca_param_mch_index ) {
         return PARSEC_ERROR;
     }
+
+    v = parsec_hash_table_max_table_nb_bits;
+    parsec_hash_table_mca_param_mnb_index =
+        parsec_mca_param_reg_int_name("parsec", "hash_table_max_table_nb_bits",
+                                      "Sets a limit on the maximum number of buckets in a resized table: "
+                                      "if a hash table needs to be resized, it will never grow bigger than "
+                                      "1<<parsec_hash_table_max_table_nb_bits buckets, even if this creates "
+                                      "more than parsec_hash_table_max_collisions_hint collisions.\n",
+                                      false, false, v, &v);
+    parsec_hash_table_max_table_nb_bits = v;
+    if( PARSEC_ERROR == parsec_hash_table_mca_param_mnb_index ) {
+        return PARSEC_ERROR;
+    }
+    
     return PARSEC_SUCCESS;
 }
 
@@ -77,9 +95,15 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
     size_t i;
     int v;
 
-    if( parsec_hash_table_mca_param_index != PARSEC_ERROR ) {
-        if( parsec_mca_param_lookup_int(parsec_hash_table_mca_param_index, &v) != PARSEC_ERROR ) {
+    if( parsec_hash_table_mca_param_mch_index != PARSEC_ERROR ) {
+        if( parsec_mca_param_lookup_int(parsec_hash_table_mca_param_mch_index, &v) != PARSEC_ERROR ) {
             parsec_hash_table_max_collisions_hint = v;
+        }
+    }
+
+    if( parsec_hash_table_mca_param_mnb_index != PARSEC_ERROR ) {
+        if( parsec_mca_param_lookup_int(parsec_hash_table_mca_param_mnb_index, &v) != PARSEC_ERROR ) {
+            parsec_hash_table_max_table_nb_bits = v;
         }
     }
 
@@ -253,7 +277,8 @@ void parsec_hash_table_unlock_bucket(parsec_hash_table_t *ht, parsec_key_t key )
     uint64_t hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
 
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
-    resize = (ht->rw_hash->buckets[hash].cur_len > parsec_hash_table_max_collisions_hint);
+    resize = (ht->rw_hash->buckets[hash].cur_len > parsec_hash_table_max_collisions_hint) &&
+        ((int)ht->rw_hash->nb_bits + 1 < parsec_hash_table_max_table_nb_bits);
     cur_head = ht->rw_hash;
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
     parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
@@ -480,7 +505,8 @@ void parsec_hash_table_insert(parsec_hash_table_t *ht, parsec_hash_table_item_t 
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
     parsec_atomic_lock(&ht->rw_hash->buckets[hash].lock);
     parsec_hash_table_nolock_insert(ht, item);
-    resize = (ht->rw_hash->buckets[hash].cur_len > parsec_hash_table_max_collisions_hint);
+    resize = (ht->rw_hash->buckets[hash].cur_len > parsec_hash_table_max_collisions_hint) &&
+        ((int)ht->rw_hash->nb_bits + 1 < parsec_hash_table_max_table_nb_bits);
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
     parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
     
