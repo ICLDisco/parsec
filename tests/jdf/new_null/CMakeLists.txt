@@ -4,22 +4,22 @@ include(ParsecCompilePTG)
 # Test that NULL as output returns an error
 #
 add_test(NAME unit_jdf_output_NULL_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i output_NULL.jdf -o output_NULL -f output_NULL)
+  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL.jdf -o output_NULL -f output_NULL)
 set_tests_properties(unit_jdf_output_NULL_ptgpp
   PROPERTIES
-  DEPENDS output_NULL.jdf)
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL.jdf)
 
 add_test(NAME unit_jdf_output_NULL_true_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i output_NULL_true.jdf -o output_NULL_true -f output_NULL_true)
+  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_true.jdf -o output_NULL_true -f output_NULL_true)
 set_tests_properties(unit_jdf_output_NULL_true_ptgpp
   PROPERTIES
-  DEPENDS output_NULL_true.jdf)
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_true.jdf)
 
 add_test(NAME unit_jdf_output_NULL_false_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i output_NULL_false.jdf -o output_NULL_false -f output_NULL_false)
+  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_false.jdf -o output_NULL_false -f output_NULL_false)
 set_tests_properties(unit_jdf_output_NULL_false_ptgpp
   PROPERTIES
-  DEPENDS output_NULL_false.jdf)
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_false.jdf)
 
 set_tests_properties(unit_jdf_output_NULL_ptgpp unit_jdf_output_NULL_true_ptgpp unit_jdf_output_NULL_false_ptgpp
   PROPERTIES
@@ -30,22 +30,22 @@ set_tests_properties(unit_jdf_output_NULL_ptgpp unit_jdf_output_NULL_true_ptgpp 
 # Test that NEW as output returns an error
 #
 add_test(NAME unit_jdf_output_NEW_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i output_NEW.jdf -o output_NEW -f output_NEW)
+  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW.jdf -o output_NEW -f output_NEW)
 set_tests_properties(unit_jdf_output_NEW_ptgpp
   PROPERTIES
-  DEPENDS output_NEW.jdf)
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW.jdf)
 
 add_test(NAME unit_jdf_output_NEW_true_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i output_NEW_true.jdf -o output_NEW_true -f output_NEW_true)
+  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_true.jdf -o output_NEW_true -f output_NEW_true)
 set_tests_properties(unit_jdf_output_NEW_true_ptgpp
   PROPERTIES
-  DEPENDS output_NEW_true.jdf)
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_true.jdf)
 
 add_test(NAME unit_jdf_output_NEW_false_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i output_NEW_false.jdf -o output_NEW_false -f output_NEW_false)
+  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_false.jdf -o output_NEW_false -f output_NEW_false)
 set_tests_properties(unit_jdf_output_NEW_false_ptgpp
   PROPERTIES
-  DEPENDS output_NEW_false.jdf)
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_false.jdf)
 
 set_tests_properties(unit_jdf_output_NEW_ptgpp unit_jdf_output_NEW_true_ptgpp unit_jdf_output_NEW_false_ptgpp
   PROPERTIES
@@ -57,10 +57,10 @@ set_tests_properties(unit_jdf_output_NEW_ptgpp unit_jdf_output_NEW_true_ptgpp un
 # Test that a NULL cannot be forwarded
 #
 parsec_addtest(C jdf_forward_RW_NULL)
-target_ptg_sources(jdf_forward_RW_NULL PRIVATE "forward_RW_NULL.jdf")
+target_ptg_sources(jdf_forward_RW_NULL PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/forward_RW_NULL.jdf")
 
 parsec_addtest(C jdf_forward_READ_NULL)
-target_ptg_sources(jdf_forward_READ_NULL PRIVATE "forward_READ_NULL.jdf")
+target_ptg_sources(jdf_forward_READ_NULL PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/forward_READ_NULL.jdf")
 
 add_test(unit_jdf_forward_RW_NULL_shm   ${SHM_TEST_CMD_LIST}       ./jdf_forward_RW_NULL)
 add_test(unit_jdf_forward_READ_NULL_shm ${SHM_TEST_CMD_LIST}       ./jdf_forward_READ_NULL)
