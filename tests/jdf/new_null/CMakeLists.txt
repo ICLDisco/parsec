@@ -5,21 +5,12 @@ include(ParsecCompilePTG)
 #
 add_test(NAME unit_jdf_output_NULL_ptgpp
   COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL.jdf -o output_NULL -f output_NULL)
-set_tests_properties(unit_jdf_output_NULL_ptgpp
-  PROPERTIES
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL.jdf)
 
 add_test(NAME unit_jdf_output_NULL_true_ptgpp
   COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_true.jdf -o output_NULL_true -f output_NULL_true)
-set_tests_properties(unit_jdf_output_NULL_true_ptgpp
-  PROPERTIES
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_true.jdf)
 
 add_test(NAME unit_jdf_output_NULL_false_ptgpp
   COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_false.jdf -o output_NULL_false -f output_NULL_false)
-set_tests_properties(unit_jdf_output_NULL_false_ptgpp
-  PROPERTIES
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_false.jdf)
 
 set_tests_properties(unit_jdf_output_NULL_ptgpp unit_jdf_output_NULL_true_ptgpp unit_jdf_output_NULL_false_ptgpp
   PROPERTIES
@@ -31,21 +22,12 @@ set_tests_properties(unit_jdf_output_NULL_ptgpp unit_jdf_output_NULL_true_ptgpp 
 #
 add_test(NAME unit_jdf_output_NEW_ptgpp
   COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW.jdf -o output_NEW -f output_NEW)
-set_tests_properties(unit_jdf_output_NEW_ptgpp
-  PROPERTIES
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW.jdf)
 
 add_test(NAME unit_jdf_output_NEW_true_ptgpp
   COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_true.jdf -o output_NEW_true -f output_NEW_true)
-set_tests_properties(unit_jdf_output_NEW_true_ptgpp
-  PROPERTIES
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_true.jdf)
 
 add_test(NAME unit_jdf_output_NEW_false_ptgpp
   COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_false.jdf -o output_NEW_false -f output_NEW_false)
-set_tests_properties(unit_jdf_output_NEW_false_ptgpp
-  PROPERTIES
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_false.jdf)
 
 set_tests_properties(unit_jdf_output_NEW_ptgpp unit_jdf_output_NEW_true_ptgpp unit_jdf_output_NEW_false_ptgpp
   PROPERTIES
