@@ -330,6 +330,9 @@ static int my_project_startup(parsec_execution_stream_t * es, __parsec_project_P
   new_task->data._f_RL.data_repo = NULL;
   new_task->data._f_RL.data_in = NULL;
   new_task->data._f_RL.data_out = NULL;
+  new_task->data._f_NODE.data_repo = NULL;
+  new_task->data._f_NODE.data_in = NULL;
+  new_task->data._f_NODE.data_out = NULL;
 
   new_task->priority = 1;
   parsec_dependencies_mark_task_as_startup((parsec_task_t *) new_task, es);
