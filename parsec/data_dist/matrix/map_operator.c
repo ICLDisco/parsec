@@ -341,7 +341,7 @@ static int hook_of(parsec_execution_stream_t *es,
 
 #if !defined(PARSEC_PROF_DRY_BODY)
     TAKE_TIME(es, 2*this_task->task_class->task_class_id,
-              parsec_hash_table_generic_64bits_key_hash( map_operator_make_key(this_task->taskpool, this_task->locals), 64, NULL ), __tp->src,
+              parsec_hash_table_generic_64bits_key_hash( map_operator_make_key(this_task->taskpool, this_task->locals), NULL ), __tp->src,
               ((parsec_data_collection_t*)(__tp->src))->data_key((parsec_data_collection_t*)__tp->src, m, n) );
     rc = __tp->op( es, src_data, dest_data, __tp->op_data, m, n );
 #endif
@@ -358,7 +358,7 @@ static int complete_hook(parsec_execution_stream_t *es,
     (void)k; (void)n; (void)__tp;
 
     TAKE_TIME(es, 2*this_task->task_class->task_class_id+1,
-              parsec_hash_table_generic_64bits_key_hash( map_operator_make_key(this_task->taskpool, this_task->locals), 64, NULL ),
+              parsec_hash_table_generic_64bits_key_hash( map_operator_make_key(this_task->taskpool, this_task->locals), NULL ),
               NULL, 0);
 
 #if defined(PARSEC_PROF_GRAPHER)
@@ -399,7 +399,7 @@ static char *map_operator_key_print(char *buffer, size_t buffer_size, parsec_key
 }
 
 static parsec_key_fn_t __parsec_map_operator_key_functions = {
-    .key_equal = parsec_hash_table_generic_64bits_key_equal,
+    .key_compare = parsec_hash_table_generic_64bits_key_compare,
     .key_print = map_operator_key_print,
     .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };

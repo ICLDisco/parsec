@@ -2710,7 +2710,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     PARSEC_PROFILING_TRACE_FLAGS( es->es_profile,
                                   PARSEC_PROF_FUNC_KEY_END(gpu_task->ec->taskpool,
                                                            gpu_task->ec->task_class->task_class_id),
-                                  gpu_task->ec->task_class->key_functions->key_hash(gpu_task->ec->task_class->make_key(gpu_task->ec->taskpool, gpu_task->ec->locals), 64, NULL),
+                                  gpu_task->ec->task_class->key_functions->key_hash(gpu_task->ec->task_class->make_key(gpu_task->ec->taskpool, gpu_task->ec->locals), NULL),
                                   gpu_task->ec->taskpool->taskpool_id, NULL,
                                   PARSEC_PROFILING_EVENT_RESCHEDULED );
 #endif /* defined(PARSEC_PROF_TRACE) */

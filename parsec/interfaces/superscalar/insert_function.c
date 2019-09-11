@@ -107,7 +107,7 @@ complete_hook_of_dtd(parsec_execution_stream_t *,
                      parsec_task_t *);
 
 static parsec_key_fn_t DTD_key_fns = {
-    .key_equal = parsec_hash_table_generic_64bits_key_equal,
+    .key_compare = parsec_hash_table_generic_64bits_key_compare,
     .key_print = parsec_hash_table_generic_64bits_key_print,
     .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };

@@ -2,10 +2,14 @@ extern "C" %{
 #include "tree_dist.h"
 #include "parsec/sys/atomic.h"
 
-static int my_simple_hash_equal(parsec_key_t a, parsec_key_t b, void *taskpool)
+static int my_simple_hash_compare(parsec_key_t a, parsec_key_t b, void *taskpool)
 {
     (void)taskpool;
-    return a == b;
+    if( a < b )
+      return -1;
+    if( a > b )
+      return 1;
+    return 0;
 }
 
 static char *my_simple_hash_print(char *buffer, size_t bs, parsec_key_t k, void *taskpool)
@@ -22,7 +26,7 @@ static uint64_t my_simple_hash_hash(parsec_key_t key, void *taskpool)
 }
 
 static parsec_key_fn_t my_simple_hash_fns = {
-    .key_equal = my_simple_hash_equal,
+    .key_compare = my_simple_hash_compare,
     .key_print = my_simple_hash_print,
     .key_hash  = my_simple_hash_hash
 };

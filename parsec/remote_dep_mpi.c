@@ -1085,7 +1085,7 @@ static void remote_dep_mpi_profiling_fini(void)
              BASE_KEY(__tp->profiling_array[2*__tc->task_class_id]) :   \
              -__tc->task_class_id;                                      \
         __info.tid = __tc->key_functions->key_hash(                     \
-             __tc->make_key(__tp, (rdw).locals), 64, NULL);             \
+             __tc->make_key(__tp, (rdw).locals), NULL);                 \
         PARSEC_PROFILING_TRACE((PROF), (KEY), (I),                      \
                                PROFILE_OBJECT_ID_NULL, &__info);        \
     }

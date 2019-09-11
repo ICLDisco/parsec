@@ -2696,7 +2696,7 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
     }
 
     coutput("static parsec_key_fn_t %s = {\n"
-            "   .key_equal = parsec_hash_table_generic_64bits_key_equal,\n"
+            "   .key_compare = parsec_hash_table_generic_64bits_key_compare,\n"
             "   .key_print = %s_key_print,\n"
             "   .key_hash  = parsec_hash_table_generic_64bits_key_hash\n"
             "};\n"
@@ -4580,7 +4580,7 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
 
     coutput("#if defined(PARSEC_PROF_GRAPHER)\n"
             "  parsec_prof_grapher_task((parsec_task_t*)%s, es->th_id, es->virtual_process->vp_id,\n"
-            "     %s.key_hash(%s->task_class->make_key( (parsec_taskpool_t*)%s->taskpool, ((parsec_task_t*)%s)->locals), 64, NULL));\n"
+            "     %s.key_hash(%s->task_class->make_key( (parsec_taskpool_t*)%s->taskpool, ((parsec_task_t*)%s)->locals), NULL));\n"
             "#endif  /* defined(PARSEC_PROF_GRAPHER) */\n",
             context_name,
             jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL), context_name, context_name, context_name);
