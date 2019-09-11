@@ -174,7 +174,7 @@ if( BUILD_PARSEC )
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>
     $<$<BOOL:${HWLOC_FOUND}>:${HWLOC_INCLUDE_DIR}>
-    PRIVATE
+    PUBLIC
     $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>)
   target_link_libraries(parsec
     PRIVATE

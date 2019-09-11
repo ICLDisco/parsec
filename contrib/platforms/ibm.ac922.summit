@@ -12,8 +12,7 @@ cat <<_EOF
 _EOF
 
 module load cmake # ATM this is 3.15; use CMAKE_EXECUTABLE to override
-#module load cuda # for now this has to be done externally
-echo "Do not forget to do a 'module load cuda'"
+[ -z $OLCF_CUDA_ROOT ] && module load cuda
 # The following unload has to be done externally as it modifies the internal 
 # behavior of mpicc, which cannot be cached by CMake
 #  module unload xalt
