@@ -744,7 +744,7 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
   endif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
 
 # Coherce CMake to install the generated .mod files
-set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/parsec/mod_files)
+set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parsec/include/fortran)
 install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION include)
 
 ENDIF (CMAKE_Fortran_COMPILER_WORKS)
