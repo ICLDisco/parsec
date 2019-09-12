@@ -28,6 +28,14 @@
  *           implementation; otherwise, use this implementation.
  */
 
+#if !defined(BUILD_PARSEC)
+#  include "lifo-external.h"
+#else  /* !defined(BUILD_PARSEC) */
+
+#  if !defined(LIFO_STATIC_INLINE)
+#    define LIFO_STATIC_INLINE static inline
+#  endif  /* !defined(LIFO_STATIC_INLINE) */
+
 BEGIN_C_DECLS
 
 /**
@@ -44,7 +52,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_t);
  *
  * @remark this function is thread safe
  */
-static inline int
+LIFO_STATIC_INLINE int
 parsec_lifo_is_empty( parsec_lifo_t* lifo );
 
 /**
@@ -57,7 +65,7 @@ parsec_lifo_is_empty( parsec_lifo_t* lifo );
  *
  * @remark this function is thread safe
  */
-static inline void
+LIFO_STATIC_INLINE void
 parsec_lifo_push(parsec_lifo_t* lifo, parsec_list_item_t* item);
 
 /**
@@ -70,7 +78,7 @@ parsec_lifo_push(parsec_lifo_t* lifo, parsec_list_item_t* item);
  *
  * @remark this function is not thread safe
  */
-static inline void
+LIFO_STATIC_INLINE void
 parsec_lifo_nolock_push(parsec_lifo_t* lifo, parsec_list_item_t* item);
 
 /**
@@ -85,7 +93,7 @@ parsec_lifo_nolock_push(parsec_lifo_t* lifo, parsec_list_item_t* item);
  *
  * @remark this function is thread safe
  */
-static inline void
+LIFO_STATIC_INLINE void
 parsec_lifo_chain(parsec_lifo_t* lifo, parsec_list_item_t* items);
 
 /**
@@ -101,7 +109,7 @@ parsec_lifo_chain(parsec_lifo_t* lifo, parsec_list_item_t* items);
  *
  * @remark this function is not thread safe
  */
-static inline void
+LIFO_STATIC_INLINE void
 parsec_lifo_nolock_chain(parsec_lifo_t* lifo, parsec_list_item_t* items);
 
 /**
@@ -115,7 +123,7 @@ parsec_lifo_nolock_chain(parsec_lifo_t* lifo, parsec_list_item_t* items);
  *
  * @remark this function is thread safe
  */
-static inline parsec_list_item_t*
+LIFO_STATIC_INLINE parsec_list_item_t*
 parsec_lifo_pop(parsec_lifo_t* lifo);
 
 /**
@@ -129,7 +137,7 @@ parsec_lifo_pop(parsec_lifo_t* lifo);
  *
  * @remark this function is thread safe
  */
-static inline parsec_list_item_t*
+LIFO_STATIC_INLINE parsec_list_item_t*
 parsec_lifo_try_pop(parsec_lifo_t* lifo);
 
 /**
@@ -143,7 +151,7 @@ parsec_lifo_try_pop(parsec_lifo_t* lifo);
  *
  * @remark this function is not thread safe
  */
-static inline parsec_list_item_t*
+LIFO_STATIC_INLINE parsec_list_item_t*
 parsec_lifo_nolock_pop(parsec_lifo_t* lifo);
 
 /**
@@ -202,7 +210,7 @@ struct parsec_lifo_s {
 /* The ghost pointer will never change. The head will change via an
  * atomic compare-and-swap. On most architectures the reading of a
  * pointer is an atomic operation so we don't have to protect it. */
-static inline int parsec_lifo_is_empty( parsec_lifo_t* lifo )
+LIFO_STATIC_INLINE int parsec_lifo_is_empty( parsec_lifo_t* lifo )
 {
     return ((parsec_list_item_t *)lifo->lifo_head.data.item == lifo->lifo_ghost);
 }
@@ -211,7 +219,7 @@ static inline int parsec_lifo_is_empty( parsec_lifo_t* lifo )
 #if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
 /* Add one element to the FIFO. Returns true if successful, false otherwise.
  */
-static inline int
+LIFO_STATIC_INLINE int
 parsec_update_counted_pointer(volatile parsec_counted_pointer_t *addr, parsec_counted_pointer_t old,
                              parsec_list_item_t *item)
 {
@@ -219,7 +227,7 @@ parsec_update_counted_pointer(volatile parsec_counted_pointer_t *addr, parsec_co
     return parsec_atomic_cas_int128(&addr->value, old.value, elem.value);
 }
 
-static inline void parsec_lifo_push( parsec_lifo_t* lifo,
+LIFO_STATIC_INLINE void parsec_lifo_push( parsec_lifo_t* lifo,
                                     parsec_list_item_t* item )
 {
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -240,7 +248,7 @@ static inline void parsec_lifo_push( parsec_lifo_t* lifo,
         /* DO some kind of pause to release the bus */
     } while (1);
 }
-static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
+LIFO_STATIC_INLINE void parsec_lifo_chain( parsec_lifo_t* lifo,
                                      parsec_list_item_t* ring)
 {
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -264,7 +272,7 @@ static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
     } while (1);
 }
 
-static inline parsec_list_item_t* parsec_lifo_pop( parsec_lifo_t* lifo )
+LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_pop( parsec_lifo_t* lifo )
 {
     parsec_list_item_t *item;
     parsec_counted_pointer_t old_head;
@@ -289,7 +297,7 @@ static inline parsec_list_item_t* parsec_lifo_pop( parsec_lifo_t* lifo )
     } while (1);
 }
 
-static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
+LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
 {
     parsec_counted_pointer_t old_head;
     parsec_list_item_t *item;
@@ -314,7 +322,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
 
 #elif defined(PARSEC_HAVE_ATOMIC_LLSC_PTR)
 
-static inline void _parsec_lifo_release_cpu (void)
+LIFO_STATIC_INLINE void _parsec_lifo_release_cpu (void)
 {
     /* there are many ways to cause the current thread to be suspended. This one
      * should work well in most cases. Another approach would be to use poll (NULL, 0, ) but
@@ -330,7 +338,7 @@ static inline void _parsec_lifo_release_cpu (void)
  * to allow the upper level to detect if this element is the first one in the
  * list (if the list was empty before this operation).
  */
-static inline void parsec_lifo_push(parsec_lifo_t *lifo,
+LIFO_STATIC_INLINE void parsec_lifo_push(parsec_lifo_t *lifo,
                                     parsec_list_item_t *item)
 {
     int attempt = 0;
@@ -349,7 +357,7 @@ static inline void parsec_lifo_push(parsec_lifo_t *lifo,
     } while( !parsec_atomic_sc_ptr((long*)&lifo->lifo_head.data.item, (intptr_t)item) );
 }
 
-static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
+LIFO_STATIC_INLINE void parsec_lifo_chain( parsec_lifo_t* lifo,
                                      parsec_list_item_t* ring)
 {
     int attempt = 0;
@@ -376,7 +384,7 @@ static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
 /* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
  * is empty so we return NULL.
  */
-static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
+LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
 {
     parsec_list_item_t *item, *next;
     int attempt = 0;
@@ -404,7 +412,7 @@ static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
     return item;
 }
 
-static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
+LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
 {
     parsec_list_item_t *item, *next;
 
@@ -430,7 +438,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
  * to allow the upper level to detect if this element is the first one in the
  * list (if the list was empty before this operation).
  */
-static inline void parsec_lifo_push(parsec_lifo_t *lifo,
+LIFO_STATIC_INLINE void parsec_lifo_push(parsec_lifo_t *lifo,
                                     parsec_list_item_t *item)
 {
     PARSEC_ITEM_ATTACH(lifo, item);
@@ -449,7 +457,7 @@ static inline void parsec_lifo_push(parsec_lifo_t *lifo,
     } while (1);
 }
 
-static inline void parsec_lifo_chain(parsec_lifo_t* lifo,
+LIFO_STATIC_INLINE void parsec_lifo_chain(parsec_lifo_t* lifo,
                                      parsec_list_item_t* ring)
 {
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -477,7 +485,7 @@ static inline void parsec_lifo_chain(parsec_lifo_t* lifo,
 /* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
  * is empty so we return NULL.
  */
-static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
+LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
 {
     parsec_list_item_t *item;
 
@@ -512,7 +520,7 @@ static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
     return item;
 }
 
-static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
+LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
 {
     parsec_list_item_t *item;
 
@@ -548,7 +556,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
  * to allow the upper level to detect if this element is the first one in the
  * list (if the list was empty before this operation).
  */
-static inline void parsec_lifo_push(parsec_lifo_t *lifo,
+LIFO_STATIC_INLINE void parsec_lifo_push(parsec_lifo_t *lifo,
                                     parsec_list_item_t *item)
 {
     PARSEC_ITEM_ATTACH(lifo, item);
@@ -559,7 +567,7 @@ static inline void parsec_lifo_push(parsec_lifo_t *lifo,
     parsec_atomic_unlock(&lifo->lifo_head.data.guard.lock);
 }
 
-static inline void parsec_lifo_chain(parsec_lifo_t* lifo,
+LIFO_STATIC_INLINE void parsec_lifo_chain(parsec_lifo_t* lifo,
                                      parsec_list_item_t* ring)
 {
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -579,7 +587,7 @@ static inline void parsec_lifo_chain(parsec_lifo_t* lifo,
 /* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
  * is empty so we return NULL.
  */
-static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
+LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
 {
     parsec_list_item_t *item;
 
@@ -600,7 +608,7 @@ static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
     return NULL;
 }
 
-static inline parsec_list_item_t *parsec_lifo_try_pop(parsec_lifo_t* lifo)
+LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_try_pop(parsec_lifo_t* lifo)
 {
     parsec_list_item_t *item;
 
@@ -627,7 +635,7 @@ static inline parsec_list_item_t *parsec_lifo_try_pop(parsec_lifo_t* lifo)
 
 #endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
 
-static inline void parsec_lifo_nolock_push( parsec_lifo_t* lifo,
+LIFO_STATIC_INLINE void parsec_lifo_nolock_push( parsec_lifo_t* lifo,
                                             parsec_list_item_t* item )
 {
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -639,7 +647,7 @@ static inline void parsec_lifo_nolock_push( parsec_lifo_t* lifo,
     lifo->lifo_head.data.item = item;
 }
 
-static inline void parsec_lifo_nolock_chain( parsec_lifo_t* lifo,
+LIFO_STATIC_INLINE void parsec_lifo_nolock_chain( parsec_lifo_t* lifo,
                                              parsec_list_item_t* items )
 {
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -653,7 +661,7 @@ static inline void parsec_lifo_nolock_chain( parsec_lifo_t* lifo,
     lifo->lifo_head.data.item = items;
 }
 
-static inline parsec_list_item_t* parsec_lifo_nolock_pop( parsec_lifo_t* lifo )
+LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_nolock_pop( parsec_lifo_t* lifo )
 {
     parsec_list_item_t* item = lifo->lifo_head.data.item;
     lifo->lifo_head.data.item = (parsec_list_item_t*)item->list_next;
@@ -669,16 +677,20 @@ static inline parsec_list_item_t* parsec_lifo_nolock_pop( parsec_lifo_t* lifo )
  * type of pointer, nor do pointers to other pointer types convert to
  * void **.
  */
-#define PARSEC_LIFO_ITEM_ALLOC( LIFO, elt, truesize ) ({         \
-    void *_elt = NULL;                                          \
-    int _rc;                                                    \
-    _rc = posix_memalign(&_elt,                                 \
-                         PARSEC_LIFO_ALIGNMENT(LIFO), (truesize));\
-    assert( 0 == _rc && NULL != _elt ); (void)_rc;              \
-    OBJ_CONSTRUCT(_elt, parsec_list_item_t);                     \
-    (elt) = (__typeof__(elt))_elt;                              \
-  })
-#define PARSEC_LIFO_ITEM_FREE( elt ) do { OBJ_DESTRUCT( elt ); free(elt); } while (0)
+LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* lifo, size_t truesize) {
+    void *elt = NULL;
+    int rc;
+    rc = posix_memalign(&elt,
+                        PARSEC_LIFO_ALIGNMENT(lifo), (truesize));
+    assert( 0 == rc && NULL != elt ); (void)rc;
+    OBJ_CONSTRUCT(elt, parsec_list_item_t);
+    return (parsec_list_item_t*) elt;
+}
+
+LIFO_STATIC_INLINE void parsec_lifo_item_free(parsec_list_item_t* item) {
+    OBJ_DESTRUCT( item );
+    free(item);
+}
 
 /** @endcond */
 
@@ -687,5 +699,6 @@ END_C_DECLS
 /**
  * @}
  */
+#endif  /* !defined(BUILD_PARSEC) */
 
 #endif  /* LIFO_H_HAS_BEEN_INCLUDED */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -33,7 +33,7 @@ parsec_private_memory_pop(parsec_memory_pool_t* pool)
 {
     parsec_list_item_t* elem = parsec_lifo_pop(&(pool->lifo));
     if( NULL == elem ) {
-        PARSEC_LIFO_ITEM_ALLOC(&(pool->lifo), elem, pool->elem_size );
+        elem = parsec_lifo_item_alloc(&(pool->lifo), pool->elem_size );
     }
     return (void*)((char*)elem+sizeof(parsec_list_item_t));
 }

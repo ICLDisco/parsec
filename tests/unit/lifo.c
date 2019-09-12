@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -18,7 +18,6 @@
 #include <mpi.h>
 #endif
 
-#define PARSEC_LIFO_ALIGNMENT_DEFAULT 5
 #include "parsec/class/lifo.h"
 #include "parsec/os-spec-timing.h"
 #include "parsec/bindthread.h"
@@ -52,7 +51,7 @@ static elt_t *create_elem(parsec_lifo_t* lifo, int base)
     unsigned int j;
 
     r = rand() % 1024;
-    PARSEC_LIFO_ITEM_ALLOC( lifo, elt, r * sizeof(unsigned int) + sizeof(elt_t) );
+    elt = (elt_t*)parsec_lifo_item_alloc( lifo, r * sizeof(unsigned int) + sizeof(elt_t) );
     elt->base = base;
     elt->nbelt = r;
     for(j = 0; j < r; j++)
