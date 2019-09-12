@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -49,8 +49,6 @@ typedef enum {
     RETURN_TYPE_FLOAT  = 2,
     RETURN_TYPE_DOUBLE = 3
 } return_type_t;
-
-typedef parsec_data_t *(*direct_data_lookup_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
 
 #define rop1          u_expr.range.op1
 #define rop2          u_expr.range.op2
