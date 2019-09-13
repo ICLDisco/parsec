@@ -28,9 +28,9 @@
  *           implementation; otherwise, use this implementation.
  */
 
-#if !defined(BUILD_PARSEC)
+#if !defined(BUILDING_PARSEC)
 #  include "parsec/class/lifo-external.h"
-#else  /* !defined(BUILD_PARSEC) */
+#else  /* !defined(BUILDING_PARSEC) */
 
 #  if !defined(LIFO_STATIC_INLINE)
 #    define LIFO_STATIC_INLINE static inline
@@ -727,6 +727,6 @@ END_C_DECLS
 /**
  * @}
  */
-#endif  /* !defined(BUILD_PARSEC) */
+#endif  /* !defined(BUILDING_PARSEC) */
 
 #endif  /* LIFO_H_HAS_BEEN_INCLUDED */

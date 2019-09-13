@@ -1,10 +1,16 @@
+/*
+ * Copyright (c) 2018-2019 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef PARSEC_TLS_H
 #define PARSEC_TLS_H
 
 /* This file does not need BEGIN_C_DECL, as it only holds macros,
  * and should only be compiled within the PaRSEC sources */
 
-#if !defined(BUILD_PARSEC)
+#if !defined(BUILDING_PARSEC)
 #error "This file is compiler / architecture dependent and should not be included from a source file that does not belong to PaRSEC core code"
 #endif
 

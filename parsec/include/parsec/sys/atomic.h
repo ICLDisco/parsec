@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -14,9 +14,9 @@
 
 BEGIN_C_DECLS
 
-#if !defined(BUILD_PARSEC)
+#if !defined(BUILDING_PARSEC)
 #  include "atomic-external.h"
-#else  /* !defined(BUILD_PARSEC) */
+#else  /* !defined(BUILDING_PARSEC) */
 
 #  if !defined(ATOMIC_STATIC_INLINE)
 #    define ATOMIC_STATIC_INLINE static inline
@@ -273,7 +273,7 @@ int parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 }
 #  endif /* !defined(PARSEC_ATOMIC_HAS_ATOMIC_LOCK) */
 
-#endif  /* !defined(BUILD_PARSEC) */
+#endif  /* !defined(BUILDING_PARSEC) */
 
 END_C_DECLS
 

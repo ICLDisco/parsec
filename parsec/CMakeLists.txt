@@ -1,3 +1,7 @@
+# Add a blanket definition on everything that's built during the build stage.
+# We do not use target_compile_definitions to avoid having to track all object 
+# libraries that could miss this otherwise.
+add_compile_definitions(BUILDING_PARSEC)
 #
 #  Settings for targets
 #
@@ -132,8 +136,7 @@ if( BUILD_PARSEC )
   endif(NOT TARGET parsec-base-obj)
   target_compile_definitions(parsec-base-obj
     PRIVATE
-    YYERROR_VERBOSE
-    BUILD_PARSEC)
+    YYERROR_VERBOSE)
   target_compile_options(parsec-base-obj
     PUBLIC ${PARSEC_ATOMIC_SUPPORT_CFLAGS})
   target_include_directories(parsec-base-obj
@@ -165,8 +168,7 @@ if( BUILD_PARSEC )
 
   target_compile_definitions(parsec
     PRIVATE
-    YYERROR_VERBOSE
-    BUILD_PARSEC)
+    YYERROR_VERBOSE)
   target_include_directories(parsec
     INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>

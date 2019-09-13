@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2016 The University of Tennessee and The University
+ * Copyright (c) 2004-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2006 High Performance Computing Center Stuttgart,
@@ -475,7 +475,7 @@ static inline parsec_object_t *parsec_obj_new(parsec_class_t * cls)
     return object;
 }
 
-#if defined(BUILD_PARSEC)
+#if defined(BUILDING_PARSEC)
 #include "parsec/sys/atomic.h"
 
 /**
@@ -497,7 +497,7 @@ static inline int parsec_obj_update(parsec_object_t *object, int inc)
 /* Read the comment in parsec_object.c regarding the use of this function */
 PARSEC_DECLSPEC int parsec_obj_update_not_inline(parsec_object_t *object, int inc);
 #define parsec_obj_update parsec_obj_update_not_inline
-#endif  /* defined(BUILD_PARSEC) */
+#endif  /* defined(BUILDING_PARSEC) */
 END_C_DECLS
 
 /**

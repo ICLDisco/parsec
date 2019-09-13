@@ -36,19 +36,19 @@
 #define END_C_DECLS            /* empty */
 #endif
 
-#if defined(PARSEC_HAVE_ATTRIBUTE_VISIBILITY) && defined(BUILD_PARSEC)
+#if defined(PARSEC_HAVE_ATTRIBUTE_VISIBILITY) && defined(BUILDING_PARSEC)
 #    define __parsec_attribute_visibility__(a) __attribute__((__visibility__(a)))
 #else
 #    define __parsec_attribute_visibility__(a)
 #endif
 
-#if defined(PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE) && defined(BUILD_PARSEC)
+#if defined(PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE) && defined(BUILDING_PARSEC)
 #    define __parsec_attribute_always_inline__ __attribute__((__always_inline__))
 #else
 #    define __parsec_attribute_always_inline__
 #endif
 
-#if defined(PARSEC_HAVE_BUILTIN_EXPECT) && defined(BUILD_PARSEC)
+#if defined(PARSEC_HAVE_BUILTIN_EXPECT) && defined(BUILDING_PARSEC)
 #define PARSEC_LIKELY(x)       __builtin_expect(!!(x), 1)
 #define PARSEC_UNLIKELY(x)     __builtin_expect(!!(x), 0)
 #else
