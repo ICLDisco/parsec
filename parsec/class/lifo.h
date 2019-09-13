@@ -29,7 +29,7 @@
  */
 
 #if !defined(BUILD_PARSEC)
-#  include "lifo-external.h"
+#  include "parsec/class/lifo-external.h"
 #else  /* !defined(BUILD_PARSEC) */
 
 #  if !defined(LIFO_STATIC_INLINE)
@@ -54,6 +54,17 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_t);
  */
 LIFO_STATIC_INLINE int
 parsec_lifo_is_empty( parsec_lifo_t* lifo );
+
+/**
+ * @brief check if the LIFO is empty, without forcing atomicity.
+ *
+ * @param[inout] lifo the LIFO to check
+ * @return 0 if lifo is not empty, 1 otherwise
+ *
+ * @remark this function is not thread safe
+ */
+PARSEC_DECLSPEC int
+parsec_nolock_lifo_is_empty( parsec_lifo_t* lifo );
 
 /**
  * @brief Push an element in the LIFO
@@ -214,7 +225,11 @@ LIFO_STATIC_INLINE int parsec_lifo_is_empty( parsec_lifo_t* lifo )
 {
     return ((parsec_list_item_t *)lifo->lifo_head.data.item == lifo->lifo_ghost);
 }
-#define parsec_lifo_nolock_is_empty parsec_lifo_is_empty
+
+/* Same as above, we need an actual function in the external case */
+LIFO_STATIC_INLINE int parsec_lifo_nolock_is_empty( parsec_lifo_t* lifo ) {
+    return ((parsec_list_item_t *)lifo->lifo_head.data.item == lifo->lifo_ghost);
+}
 
 #if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
 /* Add one element to the FIFO. Returns true if successful, false otherwise.
@@ -669,13 +684,15 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_nolock_pop( parsec_lifo_t* li
     return item;
 }
 
-/*
- * http://stackoverflow.com/questions/10528280/why-is-the-below-code-giving-dereferencing-type-punned-pointer-will-break-stric
+/**
+ * @brief Allocate a lifo item.
  *
- * void * converts to any pointer type, and any pointer type converts
- * to void *, but void ** does not convert to a pointer to some other
- * type of pointer, nor do pointers to other pointer types convert to
- * void **.
+ * @details Allocate an element that is correctly aligned to be 
+ * used in the lifo. One may change the alignment of elements before
+ * allocating the first item in the lifo by changing lifo->alignment.
+ *
+ * @param[in] lifo the LIFO the element will be used with.
+ * @return The element that was allocated.
  */
 LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* lifo, size_t truesize) {
     void *elt = NULL;
@@ -687,6 +704,17 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* li
     return (parsec_list_item_t*) elt;
 }
 
+/**
+ * @brief Free a lifo item.
+ *
+ * @details Free an item that was allocated by parsec_lifo_item_alloc.
+ *
+ * @param[inout] item the LIFO the element to free.
+ *
+ * @return none.
+ *
+ * @remarks The item must not be present in any lifo.
+ */
 LIFO_STATIC_INLINE void parsec_lifo_item_free(parsec_list_item_t* item) {
     OBJ_DESTRUCT( item );
     free(item);

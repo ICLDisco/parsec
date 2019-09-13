@@ -21,7 +21,8 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_t);
 struct parsec_lifo_opaque_s {
     parsec_object_t           super;
     uint8_t                   alignment;
-    int64_t lifo_private[32];
+    parsec_list_item_t       *lifo_ghost;
+    char lifo_private[@PARSEC_LIFO_PRIVATE_SIZEOF@];
 };
 
 /**
@@ -29,11 +30,22 @@ struct parsec_lifo_opaque_s {
  *
  * @param[inout] lifo the LIFO to check
  * @return 0 if lifo is not empty, 1 otherwise
- *
+x*
  * @remark this function is thread safe
  */
 PARSEC_DECLSPEC int
 parsec_lifo_is_empty( parsec_lifo_t* lifo );
+
+/**
+ * @brief check if the LIFO is empty, without forcing atomicity.
+ *
+ * @param[inout] lifo the LIFO to check
+ * @return 0 if lifo is not empty, 1 otherwise
+ *
+ * @remark this function is not thread safe
+ */
+PARSEC_DECLSPEC int
+parsec_nolock_lifo_is_empty( parsec_lifo_t* lifo );
 
 /**
  * @brief Push an element in the LIFO
