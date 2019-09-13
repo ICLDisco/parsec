@@ -986,11 +986,18 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_hash_table.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list_item.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_rwlock.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
   DESTINATION include/parsec/class)
+#
+# Never install directly the parsec/class/lifo.h header.
+# Instead replace it with the lifo-external.h during the installation.
+#
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo-external.h
+  DESTINATION include/parsec/class
+  RENAME lifo.h)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
   DESTINATION ${CONFIG_INSTALL_DIR}/parsec/)
@@ -1057,7 +1064,7 @@ endif(PARSEC_WITH_DEVEL_HEADERS)
 
 #
 # Never install directly the parsec/include/parsec/sys/atomic.h header.
-# Instead replace it with the atomic-extermnal.h during the installation.
+# Instead replace it with the atomic-external.h during the installation.
 #
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-external.h
