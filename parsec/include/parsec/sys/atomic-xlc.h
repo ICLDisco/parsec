@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The University of Tennessee and The University
+ * Copyright (c) 2012-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -98,30 +98,39 @@ ATOMIC_STATIC_INLINE int64_t parsec_atomic_fetch_and_int64( volatile int64_t* lo
 }
 
 /* Linked Load / Store Conditional */
-
-#define PARSEC_HAVE_ATOMIC_LLSC
-
-#define PARSEC_HAVE_ATOMIC_LLSC_INT64
-#define parsec_atomic_ll_int64 __ldarx
-#define parsec_atomic_sc_int64 __stdcx
-
-#define PARSEC_HAVE_ATOMIC_LLSC_INT32
+#if defined(PARSEC_ATOMIC_USE_XLC_LLSC_32_BUILTINS)
+#define PARSEC_ATOMIC_HAS_ATOMIC_LLSC_INT32
 #define parsec_atomic_ll_int32 __lwarx
 #define parsec_atomic_sc_int32 __stwcx
-
-#if PARSEC_SIZEOF_VOID_P == 4
-#define PARSEC_HAVE_ATOMIC_LLSC_PTR
-#define parsec_atomic_ll_ptr parsec_atomic_ll_int32
-#define parsec_atomic_sc_ptr parsec_atomic_sc_int32
-#elif PARSEC_SIZEOF_VOID_P == 8
-#define PARSEC_HAVE_ATOMIC_LLSC_PTR
-#define parsec_atomic_ll_ptr parsec_atomic_ll_int64
-#define parsec_atomic_sc_ptr parsec_atomic_sc_int64
-#else
-/* No LLSC for PTR */
-#warning CMake logic error: should not have selected these atomics on this architecture
 #endif
 
+#if defined(PARSEC_ATOMIC_USE_XLC_LLSC_64_BUILTINS)
+#define PARSEC_ATOMIC_HAS_ATOMIC_LLSC_INT64
+#define parsec_atomic_ll_int64 __ldarx
+#define parsec_atomic_sc_int64 __stdcx
+#endif
+
+#if PARSEC_SIZEOF_VOID_P == 4 && defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_INT32)
+#define PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR
+#define parsec_atomic_ll_ptr parsec_atomic_ll_int32
+#define parsec_atomic_sc_ptr parsec_atomic_sc_int32
+#elif PARSEC_SIZEOF_VOID_P == 8 && defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_INT64)
+#define PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR
+#define parsec_atomic_ll_ptr parsec_atomic_ll_int64
+#define parsec_atomic_sc_ptr parsec_atomic_sc_int64
+#endif
+
+#if !defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR)
+#if PARSEC_SIZEOF_VOID_P == 4 && !defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT64)
+/* No optimize CAS2 PTR */
+#warning CAS2 Atomic operations not available, performance may be reduced
+
+#elif PARSEC_SIZEOF_VOID_P == 8 && !defined(PARSEC_ATOMIC_CAS_INT64)
+#error CMake logic error: should not have selected these atomics on this architecture
+#endif
+#endif
+
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_INT32)
 /* Integer -- we use LL/SC for all, let atomic.h translate the missing ones */
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT32
@@ -138,6 +147,7 @@ ATOMIC_STATIC_INLINE int32_t parsec_atomic_fetch_add_int32( volatile int32_t *lo
     return old_val;
 }
 
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_INT64)
 #define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT64
 ATOMIC_STATIC_INLINE int64_t parsec_atomic_fetch_add_int64( volatile int64_t *location, int64_t i )
 {
@@ -151,3 +161,5 @@ ATOMIC_STATIC_INLINE int64_t parsec_atomic_fetch_add_int64( volatile int64_t *lo
 
     return old_val;
 }
+#endif /* LLSC_INT64 */
+#endif /* LLSC_INT32 */

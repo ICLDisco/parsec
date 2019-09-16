@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The University of Tennessee and The University
+ * Copyright (c) 2011-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -33,9 +33,9 @@ void parsec_mfence( void )
 
 /* Linked Load / Store Conditional */
 
-#define PARSEC_HAVE_ATOMIC_LLSC
+#define PARSEC_ATOMIC_HAS_ATOMIC_LLSC
 
-#define PARSEC_HAVE_ATOMIC_LLSC_INT32
+#define PARSEC_ATOMIC_HAS_ATOMIC_LLSC_INT32
 ATOMIC_STATIC_INLINE
 int32_t parsec_atomic_ll_int32(volatile int32_t *location)
 {
@@ -49,7 +49,7 @@ int parsec_atomic_sc_int32(volatile int32_t *location, int32_t newval)
 }
 
 #if PARSEC_SIZEOF_VOID_P == 4
-#define PARSEC_HAVE_ATOMIC_LLSC_PTR
+#define PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR
 #define parsec_atomic_ll_ptr parsec_atomic_ll_int32
 #define parsec_atomic_sc_ptr parsec_atomic_sc_int32
 #else

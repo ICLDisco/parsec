@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2018 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -26,7 +26,7 @@ static void parsec_thread_mempool_destruct( parsec_thread_mempool_t *thread_memp
     void *elt;
     while(NULL != (elt = parsec_lifo_pop(&thread_mempool->mempool))) {
         if(NULL != thread_mempool->parent->obj_class) {
-            PARSEC_LIFO_ITEM_FREE(elt);
+            parsec_lifo_item_free(elt);
         } else {
             free(elt);
         }
@@ -79,7 +79,7 @@ void *parsec_thread_mempool_allocate_when_empty( parsec_thread_mempool_t *thread
     void *elt;
     parsec_thread_mempool_t **owner;
 
-    PARSEC_LIFO_ITEM_ALLOC(&thread_mempool->mempool, elt, thread_mempool->parent->elt_size );
+    elt = parsec_lifo_item_alloc(&thread_mempool->mempool, thread_mempool->parent->elt_size );
     owner = (parsec_thread_mempool_t **)((char*)elt + thread_mempool->parent->pool_owner_offset);
     *owner = thread_mempool;
     if( NULL != thread_mempool->parent->obj_class ) {

@@ -934,21 +934,29 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
   "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
 
+# If we use CAS on int128_t, some structures change and we need to adapt parsec_options.h
+# so that .jdf code built externally uses the same variant of parsec_lifo_t structs and such.
 cmake_push_check_state()
 if(NOT PARSEC_BUILD_INPLACE)
   list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_BINARY_DIR}/parsec/include )
 endif(NOT PARSEC_BUILD_INPLACE)
 list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include)
-list(APPEND CMAKE_REQUIRED_DEFINITIONS -DBUILD_PARSEC)
+list(APPEND CMAKE_REQUIRED_DEFINITIONS -DBUILDING_PARSEC)
 check_symbol_exists(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128 "parsec/parsec_config.h;parsec/sys/atomic.h" PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
+list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR})
+list(APPEND CMAKE_EXTRA_INCLUDE_FILES "parsec/parsec_config.h;parsec/sys/atomic.h;parsec/class/lifo.h")
+check_type_size("((parsec_lifo_t*)0)->lifo_head" PARSEC_LIFO_PRIVATE_SIZEOF)
 cmake_pop_check_state()
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo-external.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/parsec/class/lifo-external.h")
 if(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
-  message(STATUS "Internal PaRSEC uses CAS 128B. Reconfiguring parsec_options.h")
+  message(STATUS "Internal PaRSEC uses CAS on int128_t. Reconfiguring parsec_options.h")
   configure_file (
      "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
      "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
 else()
-  message(STATUS "Internal PaRSEC does not use CAS 128B. Keeping parsec_options.h unchanged")
+  message(STATUS "Internal PaRSEC does not use CAS on int128_t. Keeping parsec_options.h unchanged")
 endif()
 
 install(FILES
@@ -979,12 +987,19 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/debug.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param.h
   DESTINATION include/parsec/utils)
+#
+# Never install directly the parsec/class/lifo.h header.
+# Instead replace it with the lifo-external.h during the installation.
+#
+install(FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/parsec/class/lifo-external.h
+  DESTINATION include/parsec/class
+  RENAME lifo.h)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_object.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_hash_table.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list_item.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_rwlock.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
@@ -1055,7 +1070,7 @@ endif(PARSEC_WITH_DEVEL_HEADERS)
 
 #
 # Never install directly the parsec/include/parsec/sys/atomic.h header.
-# Instead replace it with the atomic-extermnal.h during the installation.
+# Instead replace it with the atomic-external.h during the installation.
 #
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-external.h

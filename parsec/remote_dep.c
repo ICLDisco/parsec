@@ -136,7 +136,7 @@ inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
 
     if( NULL == remote_deps ) {
         char *ptr;
-        PARSEC_LIFO_ITEM_ALLOC( lifo, remote_deps, parsec_remote_dep_context.elem_size );
+        remote_deps = (parsec_remote_deps_t*)parsec_lifo_item_alloc( lifo, parsec_remote_dep_context.elem_size );
         remote_deps->origin = lifo;
         remote_deps->taskpool = NULL;
         ptr = (char*)(&(remote_deps->output[parsec_remote_dep_context.max_dep_count]));

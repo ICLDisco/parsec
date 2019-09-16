@@ -8,6 +8,7 @@ add_test(unit_startup3_shm ${SHM_TEST_CMD_LIST} ./startup -i=30 -j=30 -k=30 -v=5
 add_test(unit_reduce_shm ${SHM_TEST_CMD_LIST} ./reduce)
 add_test(unit_strange_shm ${SHM_TEST_CMD_LIST} ./strange)
 add_test(unit_touch_shm  ${SHM_TEST_CMD_LIST} ./touch_ex -v=5)
+add_test(unit_touch_inline_shm  ${SHM_TEST_CMD_LIST} ./touch_ex_inline -v=5)
 add_test(compose ${SHM_TEST_CMD_LIST} ./compose)
 
 #
