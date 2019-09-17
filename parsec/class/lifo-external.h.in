@@ -11,6 +11,8 @@
 #error "This file should never be used while building PaRSEC internally"
 #endif  /* defined(PARSEC_ATOMIC_ACCESS_TO_INTERNALS_ALLOWED) */
 
+#include "parsec/class/list_item.h"
+
 BEGIN_C_DECLS
 
 /**
