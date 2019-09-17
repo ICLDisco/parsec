@@ -1147,7 +1147,7 @@ export(TARGETS parsec ${EXPORT_PTGPP}
 # cmake config files
 include(CMakePackageConfigHelpers)
 
-configure_package_config_file(cmake_modules/ParsecConfig.cmake.in
+configure_package_config_file(cmake_modules/PaRSECConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_INSTALL_DIR}/parsec/PaRSECConfig.cmake
   INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/${CONFIG_INSTALL_DIR}/parsec/
   PATH_VARS LIB_INSTALL_DIR SYSCONFIG_INSTALL_DIR
@@ -1161,6 +1161,9 @@ install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_INSTALL_DIR}/parsec/PaRSECConfig.cmake
   ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
   ${CMAKE_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
+  ${CMAKE_SOURCE_DIR}/cmake_modules/FindPAPI.cmake
+  ${CMAKE_SOURCE_DIR}/cmake_modules/FindOTF2.cmake
+  ${CMAKE_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake
   ${CMAKE_SOURCE_DIR}/cmake_modules/ParsecCompilePTG.cmake
   DESTINATION ${CMAKE_INSTALL_PREFIX}/${CONFIG_INSTALL_DIR}/parsec/)
 
