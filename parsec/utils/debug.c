@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,7 +20,6 @@
 #include <pthread.h>
 
 /* globals for use in macros from debug.h */
-char parsec_debug_hostname[32]   = "unknownhost";
 int parsec_debug_rank            = -1;
 int parsec_debug_output          = 0;
 int parsec_debug_verbose         = 1;
@@ -42,8 +41,6 @@ void parsec_debug_init(void)
 {
     /* The caller is supposed to set parsec_debug_rank if she expects
      * nicer output. */
-    gethostname(parsec_debug_hostname, sizeof(parsec_debug_hostname));
-
     parsec_debug_output = parsec_output_open(NULL);
 
     parsec_mca_param_reg_int_name("debug", "verbose",

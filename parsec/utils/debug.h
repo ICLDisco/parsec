@@ -48,7 +48,7 @@ extern int parsec_debug_colorize;
 extern int parsec_debug_rank;
 extern int parsec_debug_coredump_on_fatal;
 extern int parsec_debug_history_on_fatal;
-extern char parsec_debug_hostname[];
+extern const char* parsec_hostname;
 
 void parsec_debug_init(void);
 void parsec_debug_fini(void);
@@ -89,7 +89,7 @@ extern void (*parsec_weaksym_exit)(int status);
         "%.*sx@%05d%.*s " FMT " %.*s@%.30s:%-5d (%.30s:%-5d)%.*s",   \
         parsec_debug_colorize, "\x1B[1;37;41m", parsec_debug_rank,   \
         parsec_debug_colorize, "\033[0m", ##__VA_ARGS__,             \
-        parsec_debug_colorize, "\x1B[36m", __func__, __LINE__, parsec_debug_hostname, getpid(), \
+        parsec_debug_colorize, "\x1B[36m", __func__, __LINE__, parsec_hostname, getpid(), \
         parsec_debug_colorize, "\033[0m");                           \
     if ( parsec_debug_history_on_fatal ) {                           \
         parsec_debug_history_dump();                                 \
