@@ -36,7 +36,16 @@ set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf"
 target_ptg_sources(parsec-data-matrix PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf;${CMAKE_CURRENT_SOURCE_DIR}/diag_band_to_rect.jdf;${CMAKE_CURRENT_SOURCE_DIR}/apply.jdf")
 
 set_target_properties(parsec-data-matrix PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
-target_include_directories(parsec-data-matrix PUBLIC ${MPI_C_INCLUDE_PATH}) # ${CMAKE_CURRENT_BINARY_DIR}) added by target_ptg_sources
+target_include_directories(parsec-data-matrix
+  PUBLIC
+  ${MPI_C_INCLUDE_PATH}
+  # ${CMAKE_CURRENT_BINARY_DIR}) added by target_ptg_sources
+  PRIVATE
+  $<$<NOT:${PARSEC_BUILD_INPLACE}>:
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/parsec/include>>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>)
 
 add_dependencies(parsec parsec-data-matrix)
 target_sources(parsec PRIVATE $<TARGET_OBJECTS:parsec-data-matrix>)

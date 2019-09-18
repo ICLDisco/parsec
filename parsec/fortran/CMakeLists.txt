@@ -13,7 +13,13 @@ set_target_properties(parsec_fortran PROPERTIES POSITION_INDEPENDENT_CODE ${BUIL
 
 target_include_directories(parsec_fortran
   INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
+  $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
+  PRIVATE
+  $<$<NOT:${PARSEC_BUILD_INPLACE}>:
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/parsec/include>>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>)
 target_link_libraries(parsec_fortran
   INTERFACE
   $<$<BOOL:${MPI_Fortran_FOUND}>:MPI::MPI_Fortran>

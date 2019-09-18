@@ -14,7 +14,7 @@ set(INCLUDE_INSTALL_DIR include)
 set(LIB_INSTALL_DIR lib)
 set(RUNTIME_INSTALL_DIR bin)
 set(SYSCONFIG_INSTALL_DIR share)
-set(CONFIG_INSTALL_DIR share/cmake)
+set(CONFIG_INSTALL_DIR share/cmake/parsec)
 
 # CMake Policies Tuning
 if(POLICY CMP0074)
@@ -607,7 +607,7 @@ IF( BUILD_PARSEC )
     endif (NOT MPI_C_FOUND)
   endif (PARSEC_DIST_WITH_MPI)
   #
-  # Check to see if 
+  # Check to see if
   #     support for MPI 2.0 is available
   #     known bugged version of mpi_assert_no_ordering
   #
@@ -779,18 +779,8 @@ LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib"
 IF("${isSystemDir}" STREQUAL "-1")
   SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 ENDIF("${isSystemDir}" STREQUAL "-1")
-
-# Prepare the list of include directories. From the source directory we need 2 the source
-# itself and then the specialized headers from parsec/include. If we compile with VPATH
-# we need to add the same thing for the BINARY_DIR.
 set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/parsec/include")
-include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
-include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
 STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} PARSEC_BUILD_INPLACE)
-if(NOT PARSEC_BUILD_INPLACE)
-  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
-  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include")
-endif(NOT PARSEC_BUILD_INPLACE)
 
 #
 # Check if indent is available on the system.
@@ -1005,7 +995,7 @@ install(FILES
   DESTINATION include/parsec/class)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
-  DESTINATION ${CONFIG_INSTALL_DIR}/parsec/)
+  DESTINATION ${CONFIG_INSTALL_DIR})
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/remote_dep.h
@@ -1129,12 +1119,10 @@ install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"
         DESTINATION lib/pkgconfig)
 
 # Export Targets
-set(INSTALL_CONFIGDIR "${CMAKE_INSTALL_PREFIX}/${CONFIG_INSTALL_DIR}/parsec")
-
 install(EXPORT parsec-targets # rules to export the targets built here
   FILE PaRSECTargets.cmake
   NAMESPACE PaRSEC::
-  DESTINATION ${CONFIG_INSTALL_DIR}/parsec)
+  DESTINATION ${CONFIG_INSTALL_DIR})
 
 # do not export parsec_ptgpp when it is imported from a native cross
 if(NOT CMAKE_CROSSCOMPILING)
@@ -1142,28 +1130,44 @@ if(NOT CMAKE_CROSSCOMPILING)
 endif()
 export(TARGETS parsec ${EXPORT_PTGPP}
        NAMESPACE PaRSEC::
-       FILE ${CONFIG_INSTALL_DIR}/parsec/PaRSEC-Exports-Build.cmake)
+       FILE ${PROJECT_BINARY_DIR}/PaRSECTargets.cmake)
+
 # cmake config files
 include(CMakePackageConfigHelpers)
 
 configure_package_config_file(cmake_modules/PaRSECConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_INSTALL_DIR}/parsec/PaRSECConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/${CONFIG_INSTALL_DIR}/parsec/
+  ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/PaRSECConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/${CONFIG_INSTALL_DIR}
   PATH_VARS LIB_INSTALL_DIR SYSCONFIG_INSTALL_DIR
   INCLUDE_INSTALL_DIR RUNTIME_INSTALL_DIR CONFIG_INSTALL_DIR)
 
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
     VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_PATCH}
                                  COMPATIBILITY SameMajorVersion)
+
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_INSTALL_DIR}/parsec/PaRSECConfig.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
-  ${CMAKE_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
-  ${CMAKE_SOURCE_DIR}/cmake_modules/FindPAPI.cmake
-  ${CMAKE_SOURCE_DIR}/cmake_modules/FindOTF2.cmake
-  ${CMAKE_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake
-  ${CMAKE_SOURCE_DIR}/cmake_modules/ParsecCompilePTG.cmake
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/${CONFIG_INSTALL_DIR}/parsec/)
+  ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/PaRSECConfig.cmake
+  ${PROJECT_BINARY_DIR}/ParsecConfigVersion.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/FindPAPI.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/FindOTF2.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/ParsecCompilePTG.cmake
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/${CONFIG_INSTALL_DIR})
+
+# Prepare exports for submodule inclusion
+set(LIB_INSTALL_DIR ${PROJECT_BINARY_DIR}/parsec)
+set(SYSCONFIG_INSTALL_DIR ${PROJECT_BINARY_DIR})
+set(INCLUDE_INSTALL_DIR ${PROJECT_SOURCE_DIR})
+set(RUNTIME_INSTALL_DIR ${PROJECT_BINARY_DIR})
+set(CONFIG_INSTALL_DIR ${PROJECT_SOURCE_DIR}/cmake_modules)
+
+configure_package_config_file(cmake_modules/PaRSECConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/PaRSECConfig.cmake
+  INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}
+  INSTALL_DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+  PATH_VARS LIB_INSTALL_DIR SYSCONFIG_INSTALL_DIR
+  INCLUDE_INSTALL_DIR RUNTIME_INSTALL_DIR CONFIG_INSTALL_DIR)
 
 # Prepare the contrib/build_with_parsec directory
 configure_file (
