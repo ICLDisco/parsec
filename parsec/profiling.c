@@ -14,17 +14,13 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <pthread.h>
-#include <stdio.h>
-#include <string.h>
 #include <errno.h>
 #if defined(PARSEC_PROFILING_USE_MMAP)
 #include <sys/mman.h>
 #endif
-#include <inttypes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <pthread.h>
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */

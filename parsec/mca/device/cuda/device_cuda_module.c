@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2018 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -14,7 +14,8 @@
 #if defined(PARSEC_HAVE_CUDA)
 #include "parsec/runtime.h"
 #include "parsec/data_internal.h"
-#include "parsec/devices/cuda/dev_cuda.h"
+#include "parsec/mca/device/cuda/device_cuda_internal.h"
+#include "parsec/mca/device/cuda/device_cuda.h"
 #include "parsec/profiling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/arena.h"
@@ -28,25 +29,6 @@
 #include <cuda_runtime_api.h>
 
 #if defined(PARSEC_PROF_TRACE)
-/* Accepted values are: PARSEC_PROFILE_CUDA_TRACK_DATA_IN | PARSEC_PROFILE_CUDA_TRACK_DATA_OUT |
- *                      PARSEC_PROFILE_CUDA_TRACK_OWN | PARSEC_PROFILE_CUDA_TRACK_EXEC| PARSEC_PROFILE_CUDA_TRACK_MEM_USE |
- *                      PARSEC_PROFILE_CUDA_TRACK_PREFETCH
- */
-int parsec_cuda_trackable_events = PARSEC_PROFILE_CUDA_TRACK_EXEC | PARSEC_PROFILE_CUDA_TRACK_DATA_OUT
-    | PARSEC_PROFILE_CUDA_TRACK_DATA_IN | PARSEC_PROFILE_CUDA_TRACK_OWN | PARSEC_PROFILE_CUDA_TRACK_MEM_USE
-    | PARSEC_PROFILE_CUDA_TRACK_PREFETCH;
-int parsec_cuda_own_GPU_key_start;
-int parsec_cuda_own_GPU_key_end;
-int parsec_cuda_movein_key_start;
-int parsec_cuda_movein_key_end;
-int parsec_cuda_moveout_key_start;
-int parsec_cuda_moveout_key_end;
-int parsec_cuda_allocate_memory_key;
-int parsec_cuda_free_memory_key;
-int parsec_cuda_use_memory_key_start;
-int parsec_cuda_use_memory_key_end;
-int parsec_cuda_prefetch_key_start;
-int parsec_cuda_prefetch_key_end;
 
 #define TRACE_MALLOC_IF(test, key, size, ptr) if(test) {                \
         int64_t _size = (int64_t)size;                                  \
@@ -68,18 +50,17 @@ static inline int parsec_cuda_data_advise(parsec_device_t *dev, parsec_data_t *d
 int parsec_cuda_output_stream = -1;
 int32_t parsec_CUDA_sort_pending_list = 0;
 
-extern int32_t parsec_CUDA_d2h_max_flows;
-static char* cuda_lib_path = NULL;
+static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 32, 35, 37, 50, 52, 53, 60, 61, 62, 70};
 
 static int
-parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
+parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
                            int           memory_percentage,
                            int           number_of_elements,
                            size_t        eltsize );
-static int parsec_cuda_memory_release( parsec_device_t* device );
-static int parsec_cuda_flush_lru( parsec_device_t *device );
-
-static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 32, 35, 37, 50, 52, 53, 60, 61, 62, 70};
+static int
+parsec_cuda_memory_release( parsec_device_cuda_module_t* gpu_device );
+static int
+parsec_cuda_flush_lru( parsec_device_cuda_module_t *device );
 
 /* look up how many FMA per cycle in single/double, per cuda MP
  * precision.
@@ -136,57 +117,9 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
     return PARSEC_SUCCESS;
 }
 
-
-static int parsec_cuda_device_fini(parsec_device_t* device)
-{
-    gpu_device_t* gpu_device = (gpu_device_t*)device;
-    cudaError_t status;
-    int j, k;
-
-    status = cudaSetDevice( gpu_device->cuda_index );
-    PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_device_fini) cudaSetDevice ", status,
-                            {continue;} );
-
-    /* Release the registered memory */
-    parsec_cuda_memory_release(device);
-
-    /* Release pending queue */
-    OBJ_DESTRUCT(&gpu_device->pending);
-
-    /* Release all streams */
-    for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
-        parsec_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
-
-        exec_stream->executed = 0;
-        exec_stream->start    = 0;
-        exec_stream->end      = 0;
-
-        for( k = 0; k < exec_stream->max_events; k++ ) {
-            assert( NULL == exec_stream->tasks[k] );
-            status = cudaEventDestroy(exec_stream->events[k]);
-            PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_device_fini) cudaEventDestroy ", status,
-                                    {continue;} );
-        }
-        exec_stream->max_events = 0;
-        free(exec_stream->events); exec_stream->events = NULL;
-        free(exec_stream->tasks); exec_stream->tasks = NULL;
-        OBJ_RELEASE(exec_stream->fifo_pending);
-        /* Release the stream */
-        cudaStreamDestroy( exec_stream->cuda_stream );
-        free(exec_stream->name);
-    }
-    free(gpu_device->exec_stream); gpu_device->exec_stream = NULL;
-
-    gpu_device->cuda_index = -1;
-
-    /* Cleanup the GPU memory. */
-    OBJ_DESTRUCT(&gpu_device->gpu_mem_lru);
-    OBJ_DESTRUCT(&gpu_device->gpu_mem_owned_lru);
-
-    return PARSEC_SUCCESS;
-}
-
-static int parsec_cuda_memory_register(parsec_device_t* device, parsec_data_collection_t* desc, void* ptr, size_t length)
+static int
+parsec_cuda_memory_register(parsec_device_module_t* device, parsec_data_collection_t* desc,
+                            void* ptr, size_t length)
 {
     cudaError_t status;
     int rc = PARSEC_ERROR;
@@ -215,7 +148,7 @@ static int parsec_cuda_memory_register(parsec_device_t* device, parsec_data_coll
     return rc;
 }
 
-static int parsec_cuda_memory_unregister(parsec_device_t* device, parsec_data_collection_t* desc, void* ptr)
+static int parsec_cuda_memory_unregister(parsec_device_module_t* device, parsec_data_collection_t* desc, void* ptr)
 {
     cudaError_t status;
     int rc = PARSEC_ERROR;
@@ -242,7 +175,7 @@ static int parsec_cuda_memory_unregister(parsec_device_t* device, parsec_data_co
 }
 
 
-void* cuda_find_incarnation(gpu_device_t* gpu_device,
+void* cuda_find_incarnation(parsec_device_cuda_module_t* gpu_device,
                             const char* fname)
 {
     char library_name[FILENAME_MAX], function_name[FILENAME_MAX], *env;
@@ -314,10 +247,10 @@ void* cuda_find_incarnation(gpu_device_t* gpu_device,
  * the same capabilities.
  */
 static int
-parsec_cuda_taskpool_register(parsec_device_t* device,
+parsec_cuda_taskpool_register(parsec_device_module_t* device,
                               parsec_taskpool_t* tp)
 {
-    gpu_device_t* gpu_device = (gpu_device_t*)device;
+    parsec_device_cuda_module_t* gpu_device = (parsec_device_cuda_module_t*)device;
     int32_t rc = PARSEC_ERR_NOT_FOUND;
     uint32_t i, j;
 
@@ -359,305 +292,262 @@ parsec_cuda_taskpool_register(parsec_device_t* device,
 }
 
 static int
-parsec_cuda_taskpool_unregister(parsec_device_t* device, parsec_taskpool_t* tp)
+parsec_cuda_taskpool_unregister(parsec_device_module_t* device, parsec_taskpool_t* tp)
 {
     (void)device; (void)tp;
     return PARSEC_SUCCESS;
 }
 
-int parsec_gpu_init(parsec_context_t *parsec_context)
+/**
+ * Attach a device to a PaRSEC context. A device can only be attached to
+ * a single context at the time.
+ */
+static int
+parsec_device_cuda_attach( parsec_device_cuda_module_t* device,
+                           parsec_context_t* context )
 {
-    int cuda_memory_block_size, cuda_memory_percentage, cuda_memory_number_of_blocks = -1;
-    int show_caps_index, show_caps = 0;
-    int use_cuda_index, use_cuda;
-    int cuda_mask, cuda_verbosity;
-    int ndevices, i, j, k;
+    return parsec_devices_add(context, (parsec_device_module_t*)device);
+}
+
+/**
+ * Detach a device from a context. Both the context and the device remain
+ * valid, they are simply disconnected.
+ * This function should only be called once all tasks and all data related to the
+ * context has been removed from the device.
+ */
+static int
+parsec_device_cuda_detach( parsec_device_cuda_module_t* device,
+                           parsec_context_t* context )
+{
+    (void)context;
+    return parsec_devices_remove((parsec_device_module_t*)device);
+}
+
+int
+parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
+{
+    int major, minor, concurrency, computemode, streaming_multiprocessor, drate, srate, trate, hrate;
+    parsec_device_cuda_module_t* gpu_device;
     cudaError_t cudastatus;
+    int show_caps_index, show_caps = 0, j, k;
+    char *szName;
+    float clockRate;
+    struct cudaDeviceProp prop;
 
-    use_cuda_index = parsec_mca_param_reg_int_name("device_cuda", "enabled",
-                                                   "The number of CUDA device to enable for the next PaRSEC context (-1 for all available)",
-                                                   false, false, -1, &use_cuda);
-    (void)parsec_mca_param_reg_int_name("device_cuda", "mask",
-                                        "The bitwise mask of CUDA devices to be enabled (default all)",
-                                        false, false, 0xffffffff, &cuda_mask);
-    (void)parsec_mca_param_reg_int_name("device_cuda", "verbose",
-                                        "Set the verbosity level of the CUDA device (negative value: use debug verbosity), higher is less verbose)\n",
-                                        false, false, -1, &cuda_verbosity);
-    (void)parsec_mca_param_reg_string_name("device_cuda", "path",
-                                           "Path to the shared library files containing the CUDA version of the hooks. It is a ;-separated list of either directories or .so files.\n",
-                                           false, false, PARSEC_LIB_CUDA_PREFIX, &cuda_lib_path);
-    (void)parsec_mca_param_reg_int_name("device_cuda", "memory_block_size",
-                                        "The CUDA memory page for PaRSEC internal management (in bytes).",
-                                        false, false, 512*1024, &cuda_memory_block_size);
-    (void)parsec_mca_param_reg_int_name("device_cuda", "memory_use",
-                                        "The percentage of the total GPU memory to be used by this PaRSEC context",
-                                        false, false, 95, &cuda_memory_percentage);
-    (void)parsec_mca_param_reg_int_name("device_cuda", "memory_number_of_blocks",
-                                        "Alternative to device_cuda_memory_use: sets exactly the number of blocks to allocate (-1 means to use a percentage of the available memory)",
-                                        false, false, -1, &cuda_memory_number_of_blocks);
-    (void)parsec_mca_param_reg_int_name("device_cuda", "max_number_of_ejected_data",
-                                        "Sets up the maximum number of blocks that can be ejected from GPU memory",
-                                        false, false, MAX_PARAM_COUNT, &parsec_CUDA_d2h_max_flows);
-    (void)parsec_mca_param_reg_int_name("device_cuda", "sort_pending_tasks",
-                                        "Boolean to let the GPU engine sort the first pending tasks stored in the list",
-                                        false, false, 0, &parsec_CUDA_sort_pending_list);
-
-    if( 0 == use_cuda ) {
-        return -1;  /* Nothing to do around here */
-    }
-
-    if( cuda_verbosity >= 0 ) {
-        parsec_cuda_output_stream = parsec_output_open(NULL);
-        parsec_output_set_verbosity(parsec_cuda_output_stream, cuda_verbosity);
-    } else {
-        parsec_cuda_output_stream = parsec_device_output;
-    }
-
-    cudastatus = cudaGetDeviceCount( &ndevices );
-    PARSEC_CUDA_CHECK_ERROR( "cudaGetDeviceCount ", cudastatus,
-                             {
-                                 parsec_mca_param_set_int(use_cuda_index, 0);
-                                 return -1;
-                             } );
-
-    if( ndevices > use_cuda ) {
-        if( 0 < use_cuda_index ) {
-            ndevices = use_cuda;
-        }
-    } else if (ndevices < use_cuda ) {
-        if( 0 < use_cuda_index ) {
-            parsec_warning("User requested %d GPUs, but only %d are available in this machine. PaRSEC will enable all of them.", use_cuda, ndevices);
-            parsec_mca_param_set_int(use_cuda_index, ndevices);
-        }
-    }
-
-    /* Update the number of GPU for the upper layer */
-    use_cuda = ndevices;
-    if( 0 == ndevices ) {
-        return -1;
-    }
-
-    show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities");
+    show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities"); 
     if(0 < show_caps_index) {
         parsec_mca_param_lookup_int(show_caps_index, &show_caps);
     }
+
+    *module = NULL;
+    cudastatus = cudaSetDevice( dev_id );
+    PARSEC_CUDA_CHECK_ERROR( "cudaSetDevice ", cudastatus, {return PARSEC_ERROR;} );
+    cudastatus = cudaGetDeviceProperties( &prop, dev_id );
+    PARSEC_CUDA_CHECK_ERROR( "cudaGetDeviceProperties ", cudastatus, {return PARSEC_ERROR;} );
+
+    szName    = prop.name;
+    major     = prop.major;
+    minor     = prop.minor;
+    clockRate = prop.clockRate/1e3f;
+    concurrency = prop.concurrentKernels;
+    streaming_multiprocessor = prop.multiProcessorCount;
+    computemode = prop.computeMode;
+
+    gpu_device = (parsec_device_cuda_module_t*)calloc(1, sizeof(parsec_device_cuda_module_t));
+    OBJ_CONSTRUCT(gpu_device, parsec_list_item_t);
+    gpu_device->cuda_index = (uint8_t)dev_id;
+    gpu_device->major      = (uint8_t)major;
+    gpu_device->minor      = (uint8_t)minor;
+    gpu_device->super.name = strdup(szName);
+    gpu_device->data_avail_epoch = 0;
+
+    gpu_device->max_exec_streams = PARSEC_MAX_STREAMS;
+    gpu_device->exec_stream =
+        (parsec_gpu_exec_stream_t*)malloc(gpu_device->max_exec_streams
+                                          * sizeof(parsec_gpu_exec_stream_t));
+    for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
+        parsec_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
+
+        /* Allocate the stream */
+        cudastatus = cudaStreamCreate( &(exec_stream->cuda_stream) );
+        PARSEC_CUDA_CHECK_ERROR( "cudaStreamCreate ", cudastatus,
+                                 {goto release_device;} );
+        exec_stream->workspace    = NULL;
+        exec_stream->max_events   = PARSEC_MAX_EVENTS_PER_STREAM;
+        exec_stream->executed     = 0;
+        exec_stream->start        = 0;
+        exec_stream->end          = 0;
+        exec_stream->name         = NULL;
+        exec_stream->fifo_pending = (parsec_list_t*)OBJ_NEW(parsec_list_t);
+        OBJ_CONSTRUCT(exec_stream->fifo_pending, parsec_list_t);
+        exec_stream->tasks    = (parsec_gpu_task_t**)malloc(exec_stream->max_events
+                                                            * sizeof(parsec_gpu_task_t*));
+        exec_stream->events   = (cudaEvent_t*)malloc(exec_stream->max_events * sizeof(cudaEvent_t));
+        /* and the corresponding events */
+        for( k = 0; k < exec_stream->max_events; k++ ) {
+            exec_stream->events[k]   = NULL;
+            exec_stream->tasks[k]    = NULL;
+            cudastatus = cudaEventCreate(&(exec_stream->events[k]));
+            PARSEC_CUDA_CHECK_ERROR( "(INIT) cudaEventCreate ", (cudaError_t)cudastatus,
+                                     {goto release_device;} );
+        }
+        if(j == 0) {
+            asprintf(&exec_stream->name, "h2d(%d)", j);
+        } else if(j == 1) {
+            asprintf(&exec_stream->name, "d2h(%d)", j);
+        } else {
+            asprintf(&exec_stream->name, "cuda(%d)", j);
+        }
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_add_dictionary_keyword( "cuda", "fill:#66ff66",
-                                             0, NULL,
-                                             &parsec_cuda_own_GPU_key_start, &parsec_cuda_own_GPU_key_end);
-    parsec_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
-                                             sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                             &parsec_cuda_movein_key_start, &parsec_cuda_movein_key_end);
-    parsec_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
-                                             sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                             &parsec_cuda_moveout_key_start, &parsec_cuda_moveout_key_end);
-    parsec_profiling_add_dictionary_keyword( "prefetch", "fill:#66ff66",
-                                             sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                             &parsec_cuda_prefetch_key_start, &parsec_cuda_prefetch_key_end);
-    parsec_profiling_add_dictionary_keyword( "cuda_mem_alloc", "fill:#FF66FF",
-                                             sizeof(int64_t), "size{int64_t}",
-                                             &parsec_cuda_allocate_memory_key, &parsec_cuda_free_memory_key);
-    parsec_profiling_add_dictionary_keyword( "cuda_mem_use", "fill:#FF66FF",
-                                             sizeof(int64_t), "size{int64_t}",
-                                             &parsec_cuda_use_memory_key_start, &parsec_cuda_use_memory_key_end);
-#endif  /* defined(PROFILING) */
+        exec_stream->profiling = parsec_profiling_thread_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, dev_id, j );
+        if(j == 0) {
+            exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_IN;
+        } else if(j == 1) {
+            exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_OUT;
+        } else {
+            exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_EXEC;
+        }
+#endif  /* defined(PARSEC_PROF_TRACE) */
+    }
 
-    for( i = 0; i < ndevices; i++ ) {
-        gpu_device_t* gpu_device;
-        char *szName;
-        int major, minor, concurrency, computemode, streaming_multiprocessor, drate, srate, trate, hrate;
-        float clockRate;
-        struct cudaDeviceProp prop;
+    gpu_device->super.type                 = PARSEC_DEV_CUDA;
+    gpu_device->super.executed_tasks       = 0;
+    gpu_device->super.transferred_data_in  = 0;
+    gpu_device->super.d2d_transfer         = 0;
+    gpu_device->super.transferred_data_out = 0;
+    gpu_device->super.required_data_in     = 0;
+    gpu_device->super.required_data_out    = 0;
 
-        /* Allow fine grain selection of the GPU's */
-        if( !((1 << i) & cuda_mask) ) continue;
+    gpu_device->super.attach              = (parsec_device_attach_f)parsec_device_cuda_attach;
+    gpu_device->super.detach              = (parsec_device_detach_f)parsec_device_cuda_detach;
+    gpu_device->super.memory_register     = parsec_cuda_memory_register;
+    gpu_device->super.memory_unregister   = parsec_cuda_memory_unregister;
+    gpu_device->super.taskpool_register   = parsec_cuda_taskpool_register;
+    gpu_device->super.taskpool_unregister = parsec_cuda_taskpool_unregister;
+    gpu_device->super.data_advise         = parsec_cuda_data_advise;
+    gpu_device->super.memory_release      = parsec_cuda_flush_lru;
 
-        cudastatus = cudaSetDevice( i );
-        PARSEC_CUDA_CHECK_ERROR( "cudaSetDevice ", cudastatus, {continue;} );
-        cudastatus = cudaGetDeviceProperties( &prop, i );
-        PARSEC_CUDA_CHECK_ERROR( "cudaGetDeviceProperties ", cudastatus, {continue;} );
+    if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERROR ) {
+        goto release_device;
+    }
+    gpu_device->super.device_hweight = (float)streaming_multiprocessor * (float)hrate * (float)clockRate * 2e-3f;
+    gpu_device->super.device_tweight = (float)streaming_multiprocessor * (float)trate * (float)clockRate * 2e-3f;
+    gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)srate * (float)clockRate * 2e-3f;
+    gpu_device->super.device_dweight = (float)streaming_multiprocessor * (float)drate * (float)clockRate * 2e-3f;
 
-        szName    = prop.name;
-        major     = prop.major;
-        minor     = prop.minor;
-        clockRate = prop.clockRate/1e3f;
-        concurrency = prop.concurrentKernels;
-        streaming_multiprocessor = prop.multiProcessorCount;
-        computemode = prop.computeMode;
+    /* Initialize internal lists */
+    OBJ_CONSTRUCT(&gpu_device->gpu_mem_lru,       parsec_list_t);
+    OBJ_CONSTRUCT(&gpu_device->gpu_mem_owned_lru, parsec_list_t);
+    OBJ_CONSTRUCT(&gpu_device->pending,           parsec_fifo_t);
 
-        gpu_device = (gpu_device_t*)calloc(1, sizeof(gpu_device_t));
-        OBJ_CONSTRUCT(gpu_device, parsec_list_item_t);
-        gpu_device->cuda_index = (uint8_t)i;
-        gpu_device->major      = (uint8_t)major;
-        gpu_device->minor      = (uint8_t)minor;
-        gpu_device->super.name = strdup(szName);
-        gpu_device->data_avail_epoch = 0;
+    gpu_device->sort_starting_p = NULL;
+    gpu_device->peer_access_mask = 0;  /* No GPU to GPU direct transfer by default */
 
-        gpu_device->max_exec_streams = PARSEC_MAX_STREAMS;
-        gpu_device->exec_stream =
-            (parsec_gpu_exec_stream_t*)malloc(gpu_device->max_exec_streams
-                                              * sizeof(parsec_gpu_exec_stream_t));
+    if( PARSEC_SUCCESS != parsec_cuda_memory_reserve(gpu_device,
+                                                     cuda_memory_percentage,
+                                                     cuda_memory_number_of_blocks,
+                                                     cuda_memory_block_size) ) {
+        goto release_device;
+    }
+
+    if( show_caps ) {
+        parsec_inform("GPU Device %d (capability %d.%d): %s\n"
+                      "\tSM                 : %d\n"
+                      "\tclockRate (GHz)    : %2.2f\n"
+                      "\tconcurrency        : %s\n"
+                      "\tcomputeMode        : %d\n"
+                      "\tpeak Gflops         : double %2.4f, single %2.4f tensor %2.4f half %2.4f",
+                      gpu_device->cuda_index, gpu_device->major, gpu_device->minor, gpu_device->super.name,
+                      streaming_multiprocessor,
+                      clockRate*1e-3,
+                      (concurrency == 1)? "yes": "no",
+                      computemode,
+                      gpu_device->super.device_dweight, gpu_device->super.device_sweight, gpu_device->super.device_tweight, gpu_device->super.device_hweight);
+    }
+
+    *module = (parsec_device_module_t*)gpu_device;
+    return PARSEC_SUCCESS;
+
+ release_device:
+    if( NULL != gpu_device->exec_stream) {
         for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
             parsec_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
 
-            /* Allocate the stream */
-            cudastatus = cudaStreamCreate( &(exec_stream->cuda_stream) );
-            PARSEC_CUDA_CHECK_ERROR( "cudaStreamCreate ", cudastatus,
-                                     {break;} );
-            exec_stream->workspace    = NULL;
-            exec_stream->max_events   = PARSEC_MAX_EVENTS_PER_STREAM;
-            exec_stream->executed     = 0;
-            exec_stream->start        = 0;
-            exec_stream->end          = 0;
-            exec_stream->name         = NULL;
-            exec_stream->fifo_pending = (parsec_list_t*)OBJ_NEW(parsec_list_t);
-            OBJ_CONSTRUCT(exec_stream->fifo_pending, parsec_list_t);
-            exec_stream->tasks    = (parsec_gpu_task_t**)malloc(exec_stream->max_events
-                                                                * sizeof(parsec_gpu_task_t*));
-            exec_stream->events   = (cudaEvent_t*)malloc(exec_stream->max_events * sizeof(cudaEvent_t));
-            /* and the corresponding events */
-            for( k = 0; k < exec_stream->max_events; k++ ) {
-                exec_stream->events[k]   = NULL;
-                exec_stream->tasks[k]    = NULL;
-                cudastatus = cudaEventCreate(&(exec_stream->events[k]));
-                PARSEC_CUDA_CHECK_ERROR( "(INIT) cudaEventCreate ", (cudaError_t)cudastatus,
-                                         {break;} );
+            if( NULL == exec_stream->fifo_pending ) {
+                OBJ_RELEASE(exec_stream->fifo_pending);
             }
-            if(j == 0) {
-                asprintf(&exec_stream->name, "h2d(%d)", j);
-            } else if(j == 1) {
-                asprintf(&exec_stream->name, "d2h(%d)", j);
-            } else {
-                asprintf(&exec_stream->name, "cuda(%d)", j);
+            if( NULL != exec_stream->tasks ) {
+                free(exec_stream->tasks); exec_stream->tasks = NULL;
+            }
+            if( NULL != exec_stream->events ) {
+                for( k = 0; k < exec_stream->max_events; k++ ) {
+                    if( NULL != exec_stream->events[k] ) {
+                        (void)cudaEventDestroy(exec_stream->events[k]);
+                    }
+                }
+                free(exec_stream->events); exec_stream->events = NULL;
+            }
+            if( NULL != exec_stream->name ) {
+                free(exec_stream->name); exec_stream->name = NULL;
             }
 #if defined(PARSEC_PROF_TRACE)
-            exec_stream->profiling = parsec_profiling_thread_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, i, j );
-            if(j == 0) {
-                exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_IN;
-            } else if(j == 1) {
-                exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_OUT;
-            } else {
-                exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_EXEC;
+            if( NULL != exec_stream->profiling ) {
+                /* No function to clean the profiling stream */
             }
 #endif  /* defined(PARSEC_PROF_TRACE) */
         }
-
-        gpu_device->super.type                 = PARSEC_DEV_CUDA;
-        gpu_device->super.executed_tasks       = 0;
-        gpu_device->super.transferred_data_in  = 0;
-        gpu_device->super.d2d_transfer         = 0;
-        gpu_device->super.transferred_data_out = 0;
-        gpu_device->super.required_data_in     = 0;
-        gpu_device->super.required_data_out    = 0;
-
-        gpu_device->super.device_fini                = parsec_cuda_device_fini;
-        gpu_device->super.device_memory_register     = parsec_cuda_memory_register;
-        gpu_device->super.device_memory_unregister   = parsec_cuda_memory_unregister;
-        gpu_device->super.device_taskpool_register   = parsec_cuda_taskpool_register;
-        gpu_device->super.device_taskpool_unregister = parsec_cuda_taskpool_unregister;
-        gpu_device->super.device_data_advise         = parsec_cuda_data_advise;
-        gpu_device->super.device_memory_release      = parsec_cuda_flush_lru;
-        
-        if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERROR ) {
-            return -1;
-        }
-        gpu_device->super.device_hweight = (float)streaming_multiprocessor * (float)hrate * (float)clockRate * 2e-3f;
-        gpu_device->super.device_tweight = (float)streaming_multiprocessor * (float)trate * (float)clockRate * 2e-3f;
-        gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)srate * (float)clockRate * 2e-3f;
-        gpu_device->super.device_dweight = (float)streaming_multiprocessor * (float)drate * (float)clockRate * 2e-3f;
-
-        if( show_caps ) {
-            parsec_inform("GPU Device %d (capability %d.%d): %s\n"
-                          "\tSM                 : %d\n"
-                          "\tclockRate (GHz)    : %2.2f\n"
-                          "\tconcurrency        : %s\n"
-                          "\tcomputeMode        : %d\n"
-                          "\tpeak Gflops         : double %2.4f, single %2.4f tensor %2.4f half %2.4f",
-                          i, major, minor,szName,
-                          streaming_multiprocessor,
-                          clockRate*1e-3,
-                          (concurrency == 1)? "yes": "no",
-                          computemode,
-                          gpu_device->super.device_dweight, gpu_device->super.device_sweight, gpu_device->super.device_tweight, gpu_device->super.device_hweight);
-        }
-
-        if( PARSEC_SUCCESS != parsec_cuda_memory_reserve(gpu_device,
-                                                         cuda_memory_percentage,
-                                                         cuda_memory_number_of_blocks,
-                                                         cuda_memory_block_size) ) {
-            free(gpu_device);
-            continue;
-        }
-
-        /* Initialize internal lists */
-        OBJ_CONSTRUCT(&gpu_device->gpu_mem_lru,       parsec_list_t);
-        OBJ_CONSTRUCT(&gpu_device->gpu_mem_owned_lru, parsec_list_t);
-        OBJ_CONSTRUCT(&gpu_device->pending,           parsec_fifo_t);
-
-        gpu_device->sort_starting_p = NULL;
-        parsec_devices_add(parsec_context, &(gpu_device->super));
+        free(gpu_device->exec_stream); gpu_device->exec_stream = NULL;
     }
-
-#if defined(PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS)
-    for( i = 0; i < (int)parsec_nb_devices; i++ ) {
-        gpu_device_t *source_gpu, *target_gpu;
-        int canAccessPeer;
-
-        if( NULL == (source_gpu = (gpu_device_t*)parsec_devices_get(i)) ) continue;
-        /* Skip all non CUDA devices */
-        if( PARSEC_DEV_CUDA != source_gpu->super.type ) continue;
-
-        source_gpu->peer_access_mask = 0;
-
-        cudastatus = cudaSetDevice( source_gpu->cuda_index );
-        PARSEC_CUDA_CHECK_ERROR( "(parsec_gpu_init) cudaSetDevice ", cudastatus,
-                                 {continue;} );
-        for( j = 0; j < (int)parsec_nb_devices; j++ ) {
-            if( (NULL == (target_gpu = (gpu_device_t*)parsec_devices_get(j))) || (i == j) ) continue;
-            /* Skip all non CUDA devices */
-            if( PARSEC_DEV_CUDA != target_gpu->super.type ) continue;
-
-            /* Communication mask */
-            cudastatus = cudaDeviceCanAccessPeer( &canAccessPeer, source_gpu->cuda_index, target_gpu->cuda_index );
-            PARSEC_CUDA_CHECK_ERROR( "(parsec_gpu_init) cudaDeviceCanAccessPeer ", cudastatus,
-                                     {continue;} );
-            if( 1 == canAccessPeer ) {
-                cudastatus = cudaDeviceEnablePeerAccess( target_gpu->cuda_index, 0 );
-                PARSEC_CUDA_CHECK_ERROR( "(parsec_gpu_init) cudaDeviceEnablePeerAccess ", cudastatus,
-                                         {continue;} );
-                source_gpu->peer_access_mask = (int16_t)(source_gpu->peer_access_mask | (int16_t)(1 << target_gpu->cuda_index));
-            }
-        }
-    }
-#endif
-
-    return 0;
+    free(gpu_device);
+    return PARSEC_ERROR;
 }
 
-int parsec_gpu_fini(void)
+int
+parsec_cuda_module_fini(parsec_device_module_t* device)
 {
-    gpu_device_t* gpu_device;
-    int i;
+    parsec_device_cuda_module_t* gpu_device = (parsec_device_cuda_module_t*)device;
+    cudaError_t status;
+    int j, k;
 
-    for(i = 0; i < parsec_devices_enabled(); i++) {
-        if( NULL == (gpu_device = (gpu_device_t*)parsec_devices_get(i)) ) continue;
-        if(PARSEC_DEV_CUDA != gpu_device->super.type) continue;
-        parsec_cuda_device_fini((parsec_device_t*)gpu_device);
-    }
-    for(i = 0; i < parsec_devices_enabled(); i++) {
-        if( NULL == (gpu_device = (gpu_device_t*)parsec_devices_get(i)) ) continue;
-        if(PARSEC_DEV_CUDA != gpu_device->super.type) continue;
-        parsec_devices_remove((parsec_device_t*)gpu_device);
-        free(gpu_device);
-    }
+    status = cudaSetDevice( gpu_device->cuda_index );
+    PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_device_fini) cudaSetDevice ", status,
+                            {continue;} );
 
-    if( parsec_device_output != parsec_cuda_output_stream )
-        parsec_output_close(parsec_cuda_output_stream);
-    parsec_cuda_output_stream = -1;
+    /* Release the registered memory */
+    parsec_cuda_memory_release(gpu_device);
 
-    if ( cuda_lib_path ) {
-        free(cuda_lib_path);
+    /* Release pending queue */
+    OBJ_DESTRUCT(&gpu_device->pending);
+
+    /* Release all streams */
+    for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
+        parsec_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
+
+        exec_stream->executed = 0;
+        exec_stream->start    = 0;
+        exec_stream->end      = 0;
+
+        for( k = 0; k < exec_stream->max_events; k++ ) {
+            assert( NULL == exec_stream->tasks[k] );
+            status = cudaEventDestroy(exec_stream->events[k]);
+            PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_device_fini) cudaEventDestroy ", status,
+                                    {continue;} );
+        }
+        exec_stream->max_events = 0;
+        free(exec_stream->events); exec_stream->events = NULL;
+        free(exec_stream->tasks); exec_stream->tasks = NULL;
+        free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
+        /* Release the stream */
+        cudaStreamDestroy( exec_stream->cuda_stream );
+        free(exec_stream->name);
     }
+    free(gpu_device->exec_stream); gpu_device->exec_stream = NULL;
+
+    gpu_device->cuda_index = -1;
+
+    /* Cleanup the GPU memory. */
+    OBJ_DESTRUCT(&gpu_device->gpu_mem_lru);
+    OBJ_DESTRUCT(&gpu_device->gpu_mem_owned_lru);
 
     return PARSEC_SUCCESS;
 }
@@ -668,7 +558,7 @@ int parsec_gpu_fini(void)
  * can be reserved in a single allocation.
  */
 static int
-parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
+parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
                             int           memory_percentage,
                             int           number_blocks,
                             size_t        eltsize )
@@ -792,8 +682,8 @@ parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
     return PARSEC_SUCCESS;
 }
 
-static void parsec_cuda_memory_release_list(gpu_device_t* gpu_device,
-                                           parsec_list_t* list)
+static void parsec_cuda_memory_release_list(parsec_device_cuda_module_t* gpu_device,
+                                            parsec_list_t* list)
 {
     parsec_list_item_t* item;
 
@@ -806,6 +696,7 @@ static void parsec_cuda_memory_release_list(gpu_device_t* gpu_device,
                              gpu_device->cuda_index, gpu_copy, gpu_copy->device_private, gpu_copy->super.super.obj_reference_count,
                              original, (NULL != original ? original->dc : NULL));
         assert( gpu_copy->device_index == gpu_device->super.device_index );
+
         if( DATA_COHERENCY_OWNED == gpu_copy->coherency_state ) {
             parsec_warning("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!",
                           gpu_device->cuda_index, original->key);
@@ -857,7 +748,7 @@ static int parsec_cuda_flush_lru( parsec_device_t *device )
  * should be enough to enforce a clean release.
  */
 static int
-parsec_cuda_memory_release( parsec_device_t* device )
+parsec_cuda_memory_release( parsec_device_cuda_module_t* gpu_device )
 {
     gpu_device_t *gpu_device = (gpu_device_t *)device;
     cudaError_t status;
@@ -891,7 +782,7 @@ parsec_cuda_memory_release( parsec_device_t* device )
  *   PARSEC_HOOK_RETURN_NEXT:  The task needs to rescheduled
  */
 static inline int
-parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
+parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
                                       parsec_gpu_task_t *gpu_task )
 {
     parsec_task_t *this_task = gpu_task->ec;
@@ -900,7 +791,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
     const parsec_flow_t *flow;
     int i, j, data_avail_epoch = 0;
     parsec_gpu_data_copy_t *gpu_mem_lru_cycling;
-    
+
 #if defined(PARSEC_DEBUG_NOISIER)
     char task_name[MAX_TASK_STRLEN];
     parsec_task_snprintf(task_name, MAX_TASK_STRLEN, this_task);
@@ -952,7 +843,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
             parsec_atomic_unlock(&master->lock);
             continue;
         }
-        
+
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
         gpu_elem = OBJ_NEW(parsec_data_copy_t);
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
@@ -1191,7 +1082,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
  *   -1: A copy cannot be issued due to CUDA.
  */
 static inline int
-parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
+parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
                           int32_t type,
                           parsec_data_pair_t* task_data,
                           parsec_gpu_task_t *gpu_task,
@@ -1234,7 +1125,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
         parsec_list_item_ring_chop((parsec_list_item_t*)gpu_elem);
         PARSEC_LIST_ITEM_SINGLETON(gpu_elem);
     }
-    
+
     /* Detect if we can do a device to device copy.
      * Current limitations: only for read-only data used read-only on the hosting GPU. */
     gpu_device_t *in_elem_dev = (gpu_device_t*)parsec_devices_get( in_elem->device_index );
@@ -1251,7 +1142,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
          * and we're not going to transfer from another source, skip the selection */
         if( gpu_elem->coherency_state != DATA_COHERENCY_INVALID )
             goto src_selected;
-            
+
         for(int t = 1; t < (int)parsec_nb_devices; t++) {
             gpu_device_t *target = (gpu_device_t*)parsec_devices_get(t);
             if( PARSEC_DEV_CUDA != target->super.type ) continue;
@@ -1298,7 +1189,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
                                  gpu_device->cuda_index, in_elem, in_elem->super.super.obj_reference_count, original, gpu_elem, gpu_elem->super.super.obj_reference_count);
             //return PARSEC_HOOK_RETURN_NEXT;
         }
-        
+
         /* We fall back on the CPU copy */
         assert( original->device_copies[0] != NULL && in_elem->version == original->device_copies[0]->version );
         in_elem = original->device_copies[0];
@@ -1306,7 +1197,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
         assert(in_elem->device_index == 0);
         in_elem_dev = (gpu_device_t*)parsec_devices_get(in_elem->device_index);
     }
-        
+
  src_selected:
     transfer_from = parsec_data_start_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
 
@@ -1318,7 +1209,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
                              gpu_elem, gpu_elem->super.super.obj_reference_count, gpu_elem->version,
                              __FILE__, __LINE__);
     }
-    
+
     gpu_device->super.required_data_in += original->nb_elts;
     if( -1 != transfer_from ) {
         cudaError_t status;
@@ -1330,7 +1221,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
                              gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, original->nb_elts,
                              in_elem_dev->super.device_index, in_elem->version, (void*)in_elem->device_private, in_elem, in_elem->super.super.obj_reference_count,
                              gpu_device->super.device_index, gpu_elem->version, (void*)gpu_elem->device_private);
-        
+
         assert((gpu_elem->version < in_elem->version) || (gpu_elem->data_transfer_status == DATA_STATUS_NOT_TRANSFER));
 
 #if defined(PARSEC_PROF_TRACE)
@@ -1338,7 +1229,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
             parsec_task_t *this_task = gpu_task->ec;
             parsec_profile_data_collection_info_t info;
             int prof_key_start;
-            
+
             gpu_task->prof_key_end = -1;
             if( GPU_TASK_TYPE_PREFETCH == gpu_task->task_type ) {
                 if(parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_PREFETCH) {
@@ -1424,7 +1315,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
     assert( gpu_elem->data_transfer_status == DATA_STATUS_COMPLETE_TRANSFER );
 
     parsec_data_end_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
-    
+
     PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                          "GPU[%d]:\t\tNO Move %s for data copy %p [ref_count %d, key %x] of %d bytes (host v:%d / device v:%d)",
                          gpu_device->cuda_index,
@@ -1438,7 +1329,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
     return 0;
 }
 
-void* parsec_gpu_pop_workspace(gpu_device_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream, size_t size)
+void* parsec_gpu_pop_workspace(parsec_device_cuda_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream, size_t size)
 {
     (void)gpu_device; (void)gpu_stream; (void)size;
     void *work = NULL;
@@ -1468,7 +1359,7 @@ void* parsec_gpu_pop_workspace(gpu_device_t* gpu_device, parsec_gpu_exec_stream_
     return work;
 }
 
-int parsec_gpu_push_workspace(gpu_device_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream)
+int parsec_gpu_push_workspace(parsec_device_cuda_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream)
 {
     (void)gpu_device; (void)gpu_stream;
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
@@ -1478,7 +1369,7 @@ int parsec_gpu_push_workspace(gpu_device_t* gpu_device, parsec_gpu_exec_stream_t
     return 0;
 }
 
-int parsec_gpu_free_workspace(gpu_device_t * gpu_device)
+int parsec_gpu_free_workspace(parsec_device_cuda_module_t * gpu_device)
 {
     (void)gpu_device;
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
@@ -1506,7 +1397,7 @@ int parsec_gpu_free_workspace(gpu_device_t * gpu_device)
 }
 
 static inline int
-parsec_gpu_check_space_needed(gpu_device_t *gpu_device,
+parsec_gpu_check_space_needed(parsec_device_cuda_module_t *gpu_device,
                               parsec_gpu_task_t *gpu_task)
 {
     int i;
@@ -1545,7 +1436,7 @@ void dump_list(parsec_list_t *list)
 }
 
 
-int parsec_gpu_sort_pending_list(gpu_device_t *gpu_device)
+int parsec_gpu_sort_pending_list(parsec_device_cuda_module_t *gpu_device)
 {
     parsec_list_t *sort_list = gpu_device->exec_stream[0].fifo_pending;
 
@@ -1651,7 +1542,7 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
         /* Start with a valid device for this task */
         for(best_index = 0; best_index < parsec_devices_enabled(); best_index++) {
             parsec_device_t *dev = parsec_devices_get(best_index);
-            
+
             /* Skip the device if it is not configured */
             if(!(tp->devices_index_mask & (1 << dev_index))) continue;
             /* Stop on this device if there is an incarnation for it */
@@ -1661,7 +1552,7 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
             if(NULL != this_task->task_class->incarnations[i].hook)
                 break;
         }
-        
+
         /* Start at 2, to skip the recursive body */
         for( dev_index = 2; dev_index < parsec_devices_enabled(); dev_index++ ) {
             /* Skip the device if it is not configured */
@@ -1792,7 +1683,7 @@ static char *parsec_cuda_debug_advice_to_string(int advice)
     default:
         assert(0);
         return "Undefined advice";
-    }       
+    }
 }
 #endif
 
@@ -1844,7 +1735,7 @@ static inline int parsec_cuda_data_advise(parsec_device_t *dev, parsec_data_t *d
                                  gpu_task, gpu_task->ec->data[0].data_out, gpu_task->ec->data[0].data_out->super.super.obj_reference_count);
             parsec_fifo_push( &(gpu_device->pending), (parsec_list_item_t*)gpu_task );
             return PARSEC_SUCCESS;
-        }            
+        }
         break;
     case PARSEC_DEV_DATA_ADVICE_WARMUP:
         return PARSEC_ERR_NOT_IMPLEMENTED;
@@ -1929,9 +1820,9 @@ static void parsec_gpu_send_transfercomplete_cmd_to_device(parsec_data_copy_t *c
 }
 
 static int
-parsec_gpu_callback_complete_push(gpu_device_t              *gpu_device,
-                                  parsec_gpu_task_t        **gpu_task,
-                                  parsec_gpu_exec_stream_t  *gpu_stream)
+parsec_gpu_callback_complete_push(parsec_device_cuda_module_t  *gpu_device,
+                                  parsec_gpu_task_t           **gpu_task,
+                                  parsec_gpu_exec_stream_t     *gpu_stream)
 {
     (void)gpu_device;
     (void)gpu_stream;
@@ -2030,7 +1921,7 @@ parsec_gpu_callback_complete_push(gpu_device_t              *gpu_device,
                                       (gpu_device->exec_stream[0].prof_event_track_enable ||
                                        gpu_device->exec_stream[1].prof_event_track_enable),
                                       parsec_cuda_use_memory_key_end, task->data[i].data_in->device_private);
-                        
+
                     }
                     parsec_atomic_unlock( &task->data[i].data_in->original->lock );
                     /* Notify any waiting thread that we're done messing with that device structure */
@@ -2091,12 +1982,12 @@ parsec_gpu_callback_complete_push(gpu_device_t              *gpu_device,
         }
         return parsec_cuda_destroy_task(gpu_device, gpu_task);
     }
-    
+
     return 0;
 }
 
 static inline int
-progress_stream( gpu_device_t* gpu_device,
+progress_stream( parsec_device_cuda_module_t* gpu_device,
                  parsec_gpu_exec_stream_t* stream,
                  advance_task_function_t upstream_progress_fct,
                  parsec_gpu_task_t* task,
@@ -2237,7 +2128,7 @@ void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream)
     /* Don't yet dump the fifo_pending queue */
 }
 
-void dump_GPU_state(gpu_device_t* gpu_device)
+void dump_GPU_state(parsec_device_cuda_module_t* gpu_device)
 {
     int i;
 
@@ -2288,7 +2179,7 @@ void dump_GPU_state(gpu_device_t* gpu_device)
  *     -2: No more room on the GPU to move this data.
  */
 int
-parsec_gpu_kernel_push( gpu_device_t                    *gpu_device,
+parsec_gpu_kernel_push( parsec_device_cuda_module_t     *gpu_device,
                         parsec_gpu_task_t               *gpu_task,
                         parsec_gpu_exec_stream_t        *gpu_stream)
 {
@@ -2331,7 +2222,7 @@ parsec_gpu_kernel_push( gpu_device_t                    *gpu_device,
             return PARSEC_HOOK_RETURN_ASYNC;
         }
     }
-    
+
     /* Do we have enough available memory on the GPU to hold the input and output data ? */
     ret = parsec_gpu_data_reserve_device_space( gpu_device, gpu_task );
     if( ret < 0 ) {
@@ -2377,7 +2268,7 @@ parsec_gpu_kernel_push( gpu_device_t                    *gpu_device,
  *           positive: the number of data to be moved.
  */
 int
-parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
+parsec_gpu_kernel_pop( parsec_device_cuda_module_t            *gpu_device,
                       parsec_gpu_task_t        *gpu_task,
                       parsec_gpu_exec_stream_t *gpu_stream)
 {
@@ -2552,7 +2443,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
  * Make sure all data on the device is correctly put back into the queues.
  */
 int
-parsec_gpu_kernel_epilog( gpu_device_t      *gpu_device,
+parsec_gpu_kernel_epilog( parsec_device_cuda_module_t      *gpu_device,
                           parsec_gpu_task_t *gpu_task )
 {
     parsec_task_t *this_task = gpu_task->ec;
@@ -2656,7 +2547,7 @@ parsec_gpu_kernel_epilog( gpu_device_t      *gpu_device,
  * @return Currently only success.
  */
 int
-parsec_gpu_kernel_cleanout( gpu_device_t      *gpu_device,
+parsec_gpu_kernel_cleanout( parsec_device_cuda_module_t      *gpu_device,
                             parsec_gpu_task_t *gpu_task )
 {
     parsec_task_t *this_task = gpu_task->ec;
@@ -2722,7 +2613,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
                              parsec_gpu_task_t         *gpu_task,
                              int which_gpu )
 {
-    gpu_device_t* gpu_device;
+    parsec_device_cuda_module_t* gpu_device;
     cudaError_t status;
     int rc, exec_stream = 0;
     parsec_gpu_task_t *progress_task, *out_task_submit = NULL, *out_task_pop = NULL;
@@ -2731,7 +2622,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
 #endif
     int pop_null = 0;
 
-    gpu_device = (gpu_device_t*)parsec_devices_get(which_gpu);
+    gpu_device = (parsec_device_cuda_module_t*)parsec_devices_get(which_gpu);
 
 #if defined(PARSEC_PROF_TRACE)
     PARSEC_PROFILING_TRACE_FLAGS( es->es_profile,

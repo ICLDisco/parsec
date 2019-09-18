@@ -25,6 +25,7 @@
 
 #include "parsec/mca/pins/pins.h"
 #include "parsec/mca/sched/sched.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/utils/output.h"
 #include "parsec/data_internal.h"
 #include "parsec/class/list.h"
@@ -37,7 +38,6 @@
 #include "parsec/vpmap.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/utils/installdirs.h"
-#include "parsec/devices/device.h"
 #include "parsec/utils/cmd_line.h"
 #include "parsec/utils/debug.h"
 #include "parsec/utils/mca_param_cmd_line.h"
@@ -651,8 +651,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
          * instead of in common.c/h as we do now. */
         PROFILING_SAVE_iINFO("nb_cores", nb_cores);
         PROFILING_SAVE_iINFO("nb_vps", nb_vp);
-	PROFILING_SAVE_sINFO("GIT_BRANCH", PARSEC_GIT_BRANCH);
-	PROFILING_SAVE_sINFO("GIT_HASH", PARSEC_GIT_HASH);
+        PROFILING_SAVE_sINFO("GIT_BRANCH", PARSEC_GIT_BRANCH);
+        PROFILING_SAVE_sINFO("GIT_HASH", PARSEC_GIT_HASH);
         free(cmdline_info);
 
 #  if defined(PARSEC_PROF_TRACE_SCHEDULING_EVENTS)
@@ -719,15 +719,15 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_debug_verbose(4, parsec_debug_output, "--- compiled with DEBUG_NOISIER, DEBUG_PARANOID, or DOT generation requested.");
     }
 
-    parsec_devices_init(context);
-    parsec_devices_select(context);
+    parsec_devices_init();
+    /* Init data distribution structure */
+    parsec_data_dist_init();
+
+    parsec_devices_attach(context);
     parsec_devices_freeze(context);
 
     /* Init the data infrastructure. Must be done only after the freeze of the devices */
     parsec_data_init(context);
-
-    /* Init data distribution structure */
-    parsec_data_dist_init();
 
     /* Initialize the barriers */
     parsec_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
@@ -965,7 +965,7 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_data_dist_fini();
 
-    parsec_devices_fini(context);
+    parsec_devices_fini();
 
     for(p = 0; p < context->nb_vp; p++) {
         parsec_vp_fini(context->virtual_processes[p]);

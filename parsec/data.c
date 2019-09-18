@@ -7,7 +7,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/class/lifo.h"
 #include "parsec/constants.h"
-#include "parsec/devices/device.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/utils/debug.h"
 #include "parsec/data_internal.h"
 #include "parsec/arena.h"
@@ -74,7 +74,7 @@ static void parsec_data_destruct(parsec_data_t* obj )
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data %p", obj);
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_data_copy_t *copy = NULL;
-        parsec_device_t *device = parsec_devices_get(i);
+        parsec_device_module_t *device = parsec_devices_get(i);
         assert(NULL != device);
         while( (copy = obj->device_copies[i]) != NULL )
         {

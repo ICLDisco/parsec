@@ -11,7 +11,7 @@
 #include "parsec/parsec_prof_grapher.h"
 #include "parsec/scheduling.h"
 #include "parsec/datarepo.h"
-#include "parsec/devices/device.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/vpmap.h"
 #include "parsec/data_internal.h"
 #include "parsec/interfaces/interface.h"

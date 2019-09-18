@@ -4,6 +4,32 @@
  *                         reserved.
  */
 
+/** @addtogroup parsec_device
+ *  @{
+ *
+ * @file
+ *
+ * Computing devices framework component interface.
+ *
+ * Provides the API to add computational devices to the PaRSEC
+ * runtime, including means to move the data between them and the
+ * main memory.
+ *
+ * @section Device Initialization / Finalization
+ *
+ * All components are activated upon PaRSEC startup and are expected to either
+ * complete the initialization with error (to be removed from any further uses
+ * by the runtime) or return a correctly initialized module, able to execute the
+ * runtime requests. In most cases, a module per hardware device should be the
+ * preferred approach, but it is possible to return any combination of modules,
+ * even hiding several hardware computing units behind a single module.
+ *
+ * During the component finalization, which is expected to be called after all
+ * modules have been correctly turned off and properly removed, the component
+ * complete the last stages of the shutdown, and releases all internal resources
+ * binding the process to the hardware.
+ *
+ */
 #ifndef PARSEC_DEVICE_H_HAS_BEEN_INCLUDED
 #define PARSEC_DEVICE_H_HAS_BEEN_INCLUDED
 
@@ -13,6 +39,22 @@
 #endif  /* defined(PARSEC_PROF_TRACE) */
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
+#include "parsec/mca/mca.h"
+
+BEGIN_C_DECLS
+
+typedef struct parsec_device_module_s parsec_device_module_t;
+typedef struct parsec_device_module_s parsec_device_base_module_1_0_0_t;
+typedef struct parsec_device_module_s parsec_device_base_module_t;
+
+struct parsec_device_base_component_2_0_0 {
+    mca_base_component_2_0_0_t        base_version;
+    mca_base_component_data_2_0_0_t   base_data;
+    parsec_device_base_module_t     **modules;
+};
+
+typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_2_0_0_t;
+typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t;
 
 #define PARSEC_DEV_NONE       ((uint8_t)    0x00)
 #define PARSEC_DEV_CPU        ((uint8_t)(1 << 0))
@@ -28,13 +70,14 @@
 
 typedef struct parsec_device_s parsec_device_t;
 
-typedef int   (*parsec_device_init_f)(parsec_device_t*);
-typedef int   (*parsec_device_fini_f)(parsec_device_t*);
-typedef int   (*parsec_device_taskpool_register_f)(parsec_device_t*, parsec_taskpool_t*);
-typedef int   (*parsec_device_taskpool_unregister_f)(parsec_device_t*, parsec_taskpool_t*);
-typedef int   (*parsec_device_memory_register_f)(parsec_device_t*, parsec_data_collection_t*, void*, size_t);
-typedef int   (*parsec_device_memory_unregister_f)(parsec_device_t*, parsec_data_collection_t*, void*);
-typedef int   (*parsec_device_memory_release_f)(parsec_device_t*);
+typedef int   (*parsec_device_attach_f)(parsec_device_module_t*, parsec_context_t*);
+typedef int   (*parsec_device_detach_f)(parsec_device_module_t*, parsec_context_t*);
+typedef int   (*parsec_device_taskpool_register_f)(parsec_device_module_t*, parsec_taskpool_t*);
+typedef int   (*parsec_device_taskpool_unregister_f)(parsec_device_module_t*, parsec_taskpool_t*);
+typedef int   (*parsec_device_memory_register_f)(parsec_device_module_t*, parsec_data_collection_t*, void*, size_t);
+typedef int   (*parsec_device_memory_unregister_f)(parsec_device_module_t*, parsec_data_collection_t*, void*);
+typedef int   (*parsec_device_memory_release_f)(parsec_device_module_t*);
+
 /**
  * @brief Provide hints for data management wrt a given device
  *
@@ -61,21 +104,20 @@ typedef int   (*parsec_device_memory_release_f)(parsec_device_t*);
  *        device that the data should be considered as part of the active
  *        set, as if a task had just accessed this data.
  */
-typedef int   (*parsec_device_data_advise_f)(parsec_device_t*, parsec_data_t *, int);
-typedef void* (*parsec_device_find_function_f)(parsec_device_t*, char*);
+typedef int   (*parsec_device_data_advise_f)(parsec_device_module_t*, parsec_data_t*, int);
+typedef void* (*parsec_device_find_function_f)(parsec_device_module_t*, char*);
 
-struct parsec_device_s {
-    parsec_list_item_t item;
-
+struct parsec_device_module_s {
+    const parsec_device_base_component_t  *component;
     /* Device Management Functions */
-    parsec_device_fini_f                device_fini;
-    parsec_device_taskpool_register_f   device_taskpool_register;
-    parsec_device_taskpool_unregister_f device_taskpool_unregister;
-    parsec_device_memory_register_f     device_memory_register;
-    parsec_device_memory_unregister_f   device_memory_unregister;
-    parsec_device_memory_release_f      device_memory_release;
-    parsec_device_data_advise_f         device_data_advise;
-    parsec_device_find_function_f       device_find_function;
+    parsec_device_attach_f                 attach;
+    parsec_device_detach_f                 detach;
+    parsec_device_taskpool_register_f      taskpool_register;
+    parsec_device_taskpool_unregister_f    taskpool_unregister;
+    parsec_device_memory_register_f        memory_register;
+    parsec_device_memory_unregister_f      memory_unregister;
+    parsec_device_data_advise_f            data_advise;
+    parsec_device_find_function_f          find_function;
 
     struct parsec_context_s* context;  /**< The PaRSEC context this device belongs too */
     char* name;  /**< Simple identified for the device */
@@ -102,6 +144,7 @@ BEGIN_C_DECLS
 extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
 extern parsec_atomic_lock_t parsec_devices_mutex;
+
 /**
  * Temporary variables used for load-balancing purposes.
  */
@@ -114,18 +157,18 @@ extern float *parsec_device_dweight;
  * accelerators and GPU. Memory nodes can as well be managed using the same
  * mechnism.
  */
-extern int parsec_devices_init(parsec_context_t*);
+extern int parsec_devices_init(void);
 
 /**
  * The runtime will shutdown, all internal structures have to be destroyed.
  */
-extern int parsec_devices_fini(parsec_context_t*);
+extern int parsec_devices_fini(void);
 
 /**
  * Parse the list of potential devices and see which one would succesfully load
  * and initialize in the current environment.
  */
-extern int parsec_devices_select(parsec_context_t*);
+extern int parsec_devices_attach(parsec_context_t*);
 
 /**
  * This call mark the end of the configuration step, no devices can be registered
@@ -145,15 +188,19 @@ extern int parsec_devices_freezed(parsec_context_t*);
 PARSEC_DECLSPEC void parsec_devices_reset_load(parsec_context_t *context);
 
 /**
- * Declare a new device with the runtime. The device will later provide a list
- * of supported operations.
+ * Add a new device to the context. The device provides a list of supported
+ * capabilities, and will later be checked to see it's compatibility with the
+ * needs of each taskpool.
+ *
+ * Returns a positive value to signal the device was succesfully registeres with
+ * theat index, or a negative value to signal an error during the process.
  */
-PARSEC_DECLSPEC int parsec_devices_add(parsec_context_t*, parsec_device_t*);
+PARSEC_DECLSPEC int parsec_devices_add(parsec_context_t*, parsec_device_module_t*);
 
 /**
  * Retrieve a pointer to the registered device using the provided index.
  */
-PARSEC_DECLSPEC parsec_device_t* parsec_devices_get(uint32_t);
+PARSEC_DECLSPEC parsec_device_module_t* parsec_devices_get(uint32_t);
 
 /**
  * Remove the device from the list of enabled devices. All data residing on the
@@ -161,7 +208,7 @@ PARSEC_DECLSPEC parsec_device_t* parsec_devices_get(uint32_t);
  * originator of the data), and all tasks owned by the device will be discarded
  * and moved back into the main scheduling mechanism.
  */
-PARSEC_DECLSPEC int parsec_devices_remove(parsec_device_t* device);
+PARSEC_DECLSPEC int parsec_devices_remove(parsec_device_module_t* device);
 
 /**
  * Dump and reset the current device statistics.
@@ -222,6 +269,15 @@ PARSEC_DECLSPEC void*
 parsec_device_find_function(const char* function_name,
                             const char* libname,
                             const char* paths[]);
+
+/**
+ * Macro for use in components that are of type sched
+ */
+#define PARSEC_DEVICE_BASE_VERSION_2_0_0 \
+    MCA_BASE_VERSION_2_0_0, \
+        "device", 2, 0, 0
+
+/** @} */
 
 END_C_DECLS
 

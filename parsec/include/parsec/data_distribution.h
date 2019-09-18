@@ -13,8 +13,8 @@
 
 BEGIN_C_DECLS
 
-struct parsec_device_s;
-typedef int (*parsec_memory_region_management_f)(parsec_data_collection_t*, struct parsec_device_s*);
+struct parsec_device_module_s;
+typedef int (*parsec_memory_region_management_f)(parsec_data_collection_t*, struct parsec_device_module_s*);
 
 typedef uint8_t memory_registration_status_t;
 #define    MEMORY_STATUS_UNREGISTERED      ((memory_registration_status_t)0x0)

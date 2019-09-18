@@ -30,10 +30,7 @@ BEGIN_C_DECLS
 #if defined(PARSEC_PROF_GRAPHER)
 #include "parsec/parsec_prof_grapher.h"
 #endif  /* defined(PARSEC_PROF_GRAPHER) */
-#include "parsec/devices/device.h"
-#if defined(PARSEC_HAVE_CUDA)
-#include "parsec/devices/cuda/dev_cuda.h"
-#endif  /* defined(PARSEC_HAVE_CUDA) */
+#include "parsec/mca/device/device.h"
 
 END_C_DECLS
 

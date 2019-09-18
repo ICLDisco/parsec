@@ -1,5 +1,5 @@
 #include "tree_dist.h"
-#include "parsec/devices/device.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/data.h"
 #include "parsec/vpmap.h"
 #include <string.h>
@@ -213,18 +213,22 @@ static int32_t tree_dist_vpid_of(parsec_data_collection_t *desc, ...)
     return n % vpmap_get_nb_vp();
 }
 
-static int tree_dist_register_memory(parsec_data_collection_t* desc, struct parsec_device_s* device)
+static int
+tree_dist_register_memory(parsec_data_collection_t* desc,
+                          parsec_device_module_t* device)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
-    return device->device_memory_register(device, desc,
-                                          tree->buffers->buffer,
-                                          tree->buffers->buffer_use);
+    return device->memory_register(device, desc,
+                                   tree->buffers->buffer,
+                                   tree->buffers->buffer_use);
 }
 
-static int tree_dist_unregister_memory(parsec_data_collection_t* desc, struct parsec_device_s* device)
+static int
+tree_dist_unregister_memory(parsec_data_collection_t* desc,
+                            parsec_device_module_t* device)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
-    return device->device_memory_unregister(device, desc, tree->buffers->buffer);
+    return device->memory_unregister(device, desc, tree->buffers->buffer);
 }
 
 static int tree_dist_key_to_string(parsec_data_collection_t *desc, parsec_data_key_t key, char * buffer, uint32_t buffer_size)
