@@ -5,15 +5,31 @@ Copyright (c) 2009-2019 The University of Tennessee and The University
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
- - New configure system to ease the installation of PaRSEC. See 
-   INSTALL for details.
+ - New configure system to ease the installation of PaRSEC. See
+   INSTALL for details. This system automates installation on most DOE
+   leadership systems.
 
  - Split DPLASMA and PaRSEC into separate repositories. PaRSEC moves from
-   cmake-2.0 to cmake-3.9, using targets. Targets are exported for
+   cmake-2.0 to cmake-3.12, using targets. Targets are exported for
    third-party integration
 
  - Add visualization tools to extract user-defined properties from the
    application (see: PR 229 visualization-tools)
+
+ - Automate expression of required data transfers from host-to-device and
+   device-to-host to satisfy depencencies (and anti-dependencies). PaRSEC tracks
+   multiple versions of the same data as data copies with a coherency algorithm
+   that initiates data transfers as needed. The heurisitic for the eviction policy
+   in out-of-memory event on GPU has been optimized to allow for efficient
+   operation in larger than GPU memory problems.
+
+ - Add support for MPI out-of-order matching capabilities; Added capability
+   for compute threads to send direct control messages to indicate completion
+   of tasks to remote nodes (without delegation to the communication thread)
+
+ - Add a Map operator on the Block Cyclic matrix data collection that
+   performs in-place data transformation on the collection with a user provided
+   operator.
 
  - Add support in the runtime for user-defined properties evaluated at
    runtime and easy to export through a shared memory region (see: PR
