@@ -22,6 +22,10 @@
 #define PARSEC_DEV_OPENCL     ((uint8_t)(1 << 4))
 #define PARSEC_DEV_ALL        ((uint8_t)    0x1f)
 
+#define PARSEC_DEV_DATA_ADVICE_PREFETCH              ((int) 0x01)
+#define PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE      ((int) 0x02)
+#define PARSEC_DEV_DATA_ADVICE_WARMUP                ((int) 0x03)
+
 typedef struct parsec_device_s parsec_device_t;
 
 typedef int   (*parsec_device_init_f)(parsec_device_t*);
@@ -30,6 +34,34 @@ typedef int   (*parsec_device_taskpool_register_f)(parsec_device_t*, parsec_task
 typedef int   (*parsec_device_taskpool_unregister_f)(parsec_device_t*, parsec_taskpool_t*);
 typedef int   (*parsec_device_memory_register_f)(parsec_device_t*, parsec_data_collection_t*, void*, size_t);
 typedef int   (*parsec_device_memory_unregister_f)(parsec_device_t*, parsec_data_collection_t*, void*);
+typedef int   (*parsec_device_memory_release_f)(parsec_device_t*);
+/**
+ * @brief Provide hints for data management wrt a given device
+ *
+ * @details
+ *    @param[INOUT] dev: a parsec device
+ *    @param[INOUT] data: a parsec data
+ *    @param[IN]    cmd: an advice command
+ *
+ *  All advices can be ignored by any device. They are used to optimize
+ *   usage and performance.
+ *
+ *  cmd can be 
+ *
+ *    PARSEC_DEV_DATA_ADVICE_PREFETCH: a data copy of data should be
+ *        sent to dev. If the device has an old copy of data, a fresh
+ *        one should be downloaded.
+ *
+ *    PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE: mark that this device is
+ *        the preferred device to operate Read-Write tasks on this data.
+ *
+ *    PARSEC_DEV_DATA_ADVICE_WARMUP: inform the device that the data
+ *        is in the active set: if the device manages a LRU or another
+ *        structure to compute the active set of data, this informs the
+ *        device that the data should be considered as part of the active
+ *        set, as if a task had just accessed this data.
+ */
+typedef int   (*parsec_device_data_advise_f)(parsec_device_t*, parsec_data_t *, int);
 typedef void* (*parsec_device_find_function_f)(parsec_device_t*, char*);
 
 struct parsec_device_s {
@@ -41,15 +73,19 @@ struct parsec_device_s {
     parsec_device_taskpool_unregister_f device_taskpool_unregister;
     parsec_device_memory_register_f     device_memory_register;
     parsec_device_memory_unregister_f   device_memory_unregister;
+    parsec_device_memory_release_f      device_memory_release;
+    parsec_device_data_advise_f         device_data_advise;
     parsec_device_find_function_f       device_find_function;
 
     struct parsec_context_s* context;  /**< The PaRSEC context this device belongs too */
     char* name;  /**< Simple identified for the device */
     uint64_t transferred_data_in;
     uint64_t transferred_data_out;
+    uint64_t d2d_transfer;
     uint64_t required_data_in;
     uint64_t required_data_out;
     uint64_t executed_tasks;
+    uint64_t nb_data_faults;
     float device_hweight;  /**< Number of half precision operations per second */
     float device_sweight;  /**< Number of single precision operations per second */
     float device_dweight;  /**< Number of double precision operations per second */
@@ -60,6 +96,8 @@ struct parsec_device_s {
     uint8_t device_index;
     uint8_t type;
 };
+
+BEGIN_C_DECLS
 
 extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
@@ -102,6 +140,11 @@ extern int parsec_devices_freeze(parsec_context_t*);
 extern int parsec_devices_freezed(parsec_context_t*);
 
 /**
+ * Reset the load of all the devices to force a reconsideration of the load balance
+ */
+PARSEC_DECLSPEC void parsec_devices_reset_load(parsec_context_t *context);
+
+/**
  * Declare a new device with the runtime. The device will later provide a list
  * of supported operations.
  */
@@ -142,6 +185,33 @@ PARSEC_DECLSPEC void parsec_devices_taskpool_restrict( parsec_taskpool_t *tp,
                                                        uint8_t            devices_type );
 
 /**
+ * Release all additional memory allocated on device.
+ *
+ * Device 0 (CPU) does not release the memory allocated on it,
+ * only devices with local memory (e.g. GPUs) release temporary
+ * buffers. This is used to start with an empty cache.
+ */
+PARSEC_DECLSPEC int parsec_devices_release_memory(void);
+
+/**
+ * Provides hints to a device about data
+ *
+ * Possible advices are PARSEC_DEV_DATA_ADVICE_*
+ *   PREFETCH: a copy corresponding to the data should be prefetch
+ *             on the device
+ *   PREFERRED_DEVICE: this device is the preferred device to own
+ *                     the data (may be used when selecting given
+ *                     devices)
+ *   WARMUP: if the device uses a cache policy, this tells that
+ *           the data should be considered as recently used by
+ *           the call.
+ *
+ * The advice may be ignored by the device. Each device sets their
+ * policies wrt prefetching and caching through MCA parameters.
+ */
+PARSEC_DECLSPEC int parsec_advise_data_on_device(parsec_data_t *data, int device, int advice);
+
+/**
  * Find a function is a set of shared libraries specified in paths. If a path
  * points to a directory, the libname is added to pinpoint to the expected shared
  * library. If no functions has been found on the paths the scope of the current
@@ -152,5 +222,7 @@ PARSEC_DECLSPEC void*
 parsec_device_find_function(const char* function_name,
                             const char* libname,
                             const char* paths[]);
+
+END_C_DECLS
 
 #endif  /* PARSEC_DEVICE_H_HAS_BEEN_INCLUDED */

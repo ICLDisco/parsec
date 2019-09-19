@@ -226,19 +226,23 @@ parsec_gpu_create_W2R_task(gpu_device_t *gpu_device,
             break;
         }
         gpu_copy = (parsec_gpu_data_copy_t*)item;
+        parsec_atomic_lock( &gpu_copy->original->lock );
         /* get the next item before altering the next pointer */
         item = (parsec_list_item_t*)item->list_next;  /* conversion needed for volatile */
         if( 0 == gpu_copy->readers ) {
             if( PARSEC_UNLIKELY(NULL == d2h_task) ) {  /* allocate on-demand */
                 d2h_task = (parsec_CUDA_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
-                if( PARSEC_UNLIKELY(NULL == d2h_task) )  /* we're running out of memory. Bail out. */
+                if( PARSEC_UNLIKELY(NULL == d2h_task) ) { /* we're running out of memory. Bail out. */
+                    parsec_atomic_unlock( &gpu_copy->original->lock );
                     return NULL;
+                }
             }
             parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
             PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
             gpu_copy->readers++;
             d2h_task->data[nb_cleaned].data_out = gpu_copy;
             gpu_copy->data_transfer_status = DATA_STATUS_UNDER_TRANSFER;  /* mark the copy as in transfer */
+            parsec_atomic_unlock( &gpu_copy->original->lock );
             PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,  "D2H[%d] task %p:\tdata %d -> %p [%p] readers %d",
                                  gpu_device->cuda_index, (void*)d2h_task,
                                  nb_cleaned, gpu_copy, gpu_copy->original, gpu_copy->readers);
@@ -284,6 +288,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
     assert(gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER);
     for( int i = 0; i < task->locals[0].value; i++ ) {
         gpu_copy = task->data[i].data_out;
+        parsec_atomic_lock(&gpu_copy->original->lock);
         gpu_copy->readers--;
         gpu_copy->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
         gpu_device->super.transferred_data_out += gpu_copy->original->nb_elts; /* TODO: not hardcoded, use datatype size */
@@ -303,10 +308,16 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
             cpu_copy->coherency_state =  DATA_COHERENCY_SHARED;
             cpu_copy->version = gpu_copy->version;
             PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
+                                 "GPU[%d]: CPU copy %p gets the same version %d as GPU copy %p at %s:%d",
+                                 gpu_device->cuda_index,
+                                 cpu_copy, cpu_copy->version, gpu_copy,
+                                 __FILE__, __LINE__);
+            PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                                  "D2H[%d] task %p:%i GPU data copy %p [%p] now available",
                                  gpu_device->cuda_index, (void*)task, i, gpu_copy, gpu_copy->original);
-            parsec_list_nolock_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+            parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
         }
+        parsec_atomic_unlock(&gpu_copy->original->lock);
     }
     parsec_thread_mempool_free(es->context_mempool, task);
     free(gpu_task);

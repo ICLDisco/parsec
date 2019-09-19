@@ -12,6 +12,7 @@
 #include "parsec/data_internal.h"
 #include "parsec/arena.h"
 #include "parsec/parsec_description_structures.h"
+#include "parsec/sys/atomic.h"
 
 static parsec_lifo_t parsec_data_lifo;
 static parsec_lifo_t parsec_data_copies_lifo;
@@ -45,7 +46,7 @@ static void parsec_data_copy_destruct(parsec_data_copy_t* obj)
     if( obj->flags & PARSEC_DATA_FLAG_ARENA ) {
         /* It is an arena that is now unused.
          * give the chunk back to the arena memory management.
-         * This detaches obj from obj->original, and frees everything */
+         * obj is already detached from obj->original, but this frees the arena chunk */
         parsec_arena_release(obj);
     }
 }
@@ -56,11 +57,15 @@ OBJ_CLASS_INSTANCE(parsec_data_copy_t, parsec_list_item_t,
 
 static void parsec_data_construct(parsec_data_t* obj )
 {
+    parsec_atomic_lock_t unlocked = PARSEC_ATOMIC_UNLOCKED;
     obj->owner_device     = -1;
+    obj->preferred_device = -1;
     obj->key              = 0;
     obj->nb_elts          = 0;
     for( uint32_t i = 0; i < parsec_nb_devices;
          obj->device_copies[i] = NULL, i++ );
+    obj->dc               = NULL;
+    obj->lock             = unlocked; /* Can't directly assign to PARSEC_ATOMIC_UNLOCKED because of C syntax */
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Allocate data %p", obj);
 }
 
@@ -165,20 +170,19 @@ parsec_data_copy_attach(parsec_data_t* data,
  * be safely removed.
  */
 int parsec_data_copy_detach(parsec_data_t* data,
-                           parsec_data_copy_t* copy,
-                           uint8_t device)
+                            parsec_data_copy_t* copy,
+                            uint8_t device)
 {
     parsec_data_copy_t* obj = data->device_copies[device];
-
-    if( obj != copy )
+    if( obj != copy ) {
         return PARSEC_ERR_NOT_FOUND;
-    /* Atomically set the device copy */
-    if( !parsec_atomic_cas_ptr(&data->device_copies[device], copy, copy->older) ) {
-        return PARSEC_ERROR;
     }
+    data->device_copies[device] = copy->older;
+
     copy->original     = NULL;
     copy->older        = NULL;
     OBJ_RELEASE(data);
+
     return PARSEC_SUCCESS;
 }
 
@@ -262,15 +266,55 @@ int parsec_data_get_device_copy(parsec_data_copy_t* source,
  * version of the data is lost.
  */
 int parsec_data_transfer_ownership_to_copy(parsec_data_t* data,
-                                          uint8_t device,
-                                          uint8_t access_mode)
+                                           uint8_t device,
+                                           uint8_t access_mode)
+{
+    int transfer_required;
+    parsec_atomic_lock(&data->lock);
+    transfer_required = parsec_data_start_transfer_ownership_to_copy(data, device, access_mode);
+    parsec_data_end_transfer_ownership_to_copy(data, device, access_mode);
+    parsec_atomic_unlock(&data->lock);
+    return transfer_required;
+}
+
+void parsec_data_end_transfer_ownership_to_copy(parsec_data_t* data,
+                                                uint8_t device,
+                                                uint8_t access_mode)
+{
+    parsec_data_copy_t* copy;
+
+    assert(NULL != data);
+    copy = data->device_copies[device];
+    PARSEC_DEBUG_VERBOSE(2, parsec_debug_output,
+                         "DEV[%d]: end transfer ownership of data %p to copy %p in mode %d",
+                         device, data, copy, access_mode);
+    assert( NULL != copy );
+    if( FLOW_ACCESS_READ & access_mode ) {
+        copy->coherency_state = DATA_COHERENCY_SHARED;
+    }
+    if( FLOW_ACCESS_WRITE & access_mode ) {
+        copy->coherency_state = DATA_COHERENCY_OWNED;
+    }
+}
+
+int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
+                                                 uint8_t device,
+                                                 uint8_t access_mode)
 {
     uint32_t i;
     int transfer_required = 0;
     int valid_copy = data->owner_device;
-    parsec_data_copy_t* copy = data->device_copies[device];
-    assert( NULL != copy );
+    parsec_data_copy_t* copy;
 
+    assert(NULL != data);
+
+    copy = data->device_copies[device];
+    assert( NULL != copy );
+    
+    PARSEC_DEBUG_VERBOSE(2, parsec_debug_output,
+                         "DEV[%d]: start transfer ownership of data %p to copy %p in mode %d",
+                         device, data, copy, access_mode);
+    
     switch( copy->coherency_state ) {
     case DATA_COHERENCY_INVALID:
         transfer_required = 1;
@@ -288,7 +332,7 @@ int parsec_data_transfer_ownership_to_copy(parsec_data_t* data,
     case DATA_COHERENCY_SHARED:
         for( i = 0; i < parsec_nb_devices; i++ ) {
             if( NULL == data->device_copies[i] ) continue;
-            if( DATA_COHERENCY_OWNED == data->device_copies[i]->coherency_state
+            if( DATA_COHERENCY_OWNED == data->device_copies[i]->coherency_state 
              && data->device_copies[i]->version > copy->version ) {
                 assert( (int)i == valid_copy );
                 transfer_required = 1;
@@ -341,8 +385,6 @@ int parsec_data_transfer_ownership_to_copy(parsec_data_t* data,
                 data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
             }
         }
-        copy->readers++;
-        copy->coherency_state = DATA_COHERENCY_SHARED;
     }
     else transfer_required = 0; /* finally we'll just overwrite w/o read */
 
@@ -352,15 +394,22 @@ int parsec_data_transfer_ownership_to_copy(parsec_data_t* data,
             if( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state ) continue;
             data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
         }
+    }
+
+    assert( (!transfer_required) || (data->device_copies[valid_copy]->version >= copy->version) );
+
+    if( FLOW_ACCESS_READ & access_mode ) {
+        copy->readers++;
+    }
+    if( FLOW_ACCESS_WRITE & access_mode ) {
         data->owner_device = (uint8_t)device;
-        copy->coherency_state = DATA_COHERENCY_OWNED;
     }
 
     if( !transfer_required ) {
         return -1;
     }
+
     assert( -1 != valid_copy );
-    assert( data->device_copies[valid_copy]->version >= copy->version );
     return valid_copy;
 }
 
@@ -381,7 +430,7 @@ void parsec_dump_data_copy(parsec_data_copy_t* copy)
 
 void parsec_dump_data(parsec_data_t* data)
 {
-    printf("data %p key %x owner %d\n", data, data->key, data->owner_device);
+    printf("data %p key %lu owner %d\n", data, data->key, data->owner_device);
 
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         if( NULL != data->device_copies[i])

@@ -5067,13 +5067,20 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
 
     if( profile_on ) {
-        coutput("  PARSEC_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,\n"
-                "                           gpu_stream->profiling,\n"
-                "                           (-1 == gpu_stream->prof_event_key_start ?\n"
+        coutput("#if defined(PARSEC_PROF_TRACE)\n"
+                "  if(gpu_stream->prof_event_track_enable) {\n"
+                "    PARSEC_TASK_PROF_TRACE(gpu_stream->profiling,\n"
                 "                           PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,\n"
-                "                                                     this_task->task_class->task_class_id) :\n"
-                "                           gpu_stream->prof_event_key_start),\n"
-                "                           (parsec_task_t*)this_task);\n");
+                "                                     this_task->task_class->task_class_id),\n"
+                "                           (parsec_task_t*)this_task);\n"
+                "    gpu_task->prof_key_end = PARSEC_PROF_FUNC_KEY_END(this_task->taskpool,\n"
+                "                                   this_task->task_class->task_class_id);\n"
+                "    gpu_task->prof_event_id = this_task->task_class->key_functions->\n"
+                "           key_hash(this_task->task_class->make_key(this_task->taskpool, ((parsec_task_t*)this_task)->locals),\n"
+                "                    64, NULL);\n"
+                "    gpu_task->prof_tp_id = this_task->taskpool->taskpool_id;\n"
+                "  }\n"
+                "#endif /* PARSEC_PROF_TRACE */\n");
     }
 
     dyld = jdf_property_get_string(body->properties, "dyld", NULL);

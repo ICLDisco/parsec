@@ -26,8 +26,8 @@ inline void twoDBC_band_offset(two_dim_block_cyclic_t *dc,
     *m += dc->super.i / dc->super.mb;
     *n += dc->super.j / dc->super.nb;
 
-    assert( *m < dc->super.mt );
-    assert( *n < dc->super.nt );
+    assert( *m < (unsigned int)dc->super.mt );
+    assert( *n < (unsigned int)dc->super.nt );
 }
 
 /* New rank_of for two dim block cyclic band */
@@ -44,7 +44,7 @@ uint32_t twoDBC_band_rank_of(parsec_data_collection_t * desc, ...)
     va_end(ap);
 
     /* Check tile location */
-    if( abs(m-n) < dc->band_size ){
+    if( (unsigned int)abs(m-n) < dc->band_size ){
         /* The new m in band */
         m = m - n + dc->band_size - 1;
 
@@ -93,7 +93,7 @@ parsec_data_t* twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
     key = (n * dc->super.super.lmt) + m;
 
     /* Check tile location */
-    if( abs(m-n) < dc->band_size ){
+    if( (unsigned int)abs(m-n) < dc->band_size ){
         /* The new m in band */
         m = m - n + dc->band_size - 1;
 

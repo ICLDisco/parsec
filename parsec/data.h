@@ -20,7 +20,7 @@
 
 BEGIN_C_DECLS
 
-typedef uint32_t parsec_data_key_t;
+typedef uint64_t parsec_data_key_t;
 struct parsec_context_s;
 
 typedef uint8_t parsec_data_coherency_t;
@@ -49,6 +49,7 @@ parsec_data_get_copy(parsec_data_t* data, uint32_t device);
 
 PARSEC_DECLSPEC parsec_data_copy_t*
 parsec_data_copy_new(parsec_data_t* data, uint8_t device);
+
 /**
  * Decrease the refcount of this copy of the data. If the refcount reach
  * 0 the upper level is in charge of cleaning up and releasing all content
@@ -87,13 +88,21 @@ parsec_data_copy_attach(parsec_data_t* data,
                        uint8_t device);
 PARSEC_DECLSPEC int
 parsec_data_copy_detach(parsec_data_t* data,
-                       parsec_data_copy_t* copy,
-                       uint8_t device);
+                        parsec_data_copy_t* copy,
+                        uint8_t device);
 
 PARSEC_DECLSPEC int
 parsec_data_transfer_ownership_to_copy(parsec_data_t* map,
                                       uint8_t device,
                                       uint8_t access_mode);
+PARSEC_DECLSPEC int
+parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
+                                             uint8_t device,
+                                             uint8_t access_mode);
+PARSEC_DECLSPEC void
+parsec_data_end_transfer_ownership_to_copy(parsec_data_t* data,
+                                                uint8_t device,
+                                                uint8_t access_mode);
 PARSEC_DECLSPEC void parsec_dump_data_copy(parsec_data_copy_t* copy);
 PARSEC_DECLSPEC void parsec_dump_data(parsec_data_t* copy);
 

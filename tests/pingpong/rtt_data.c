@@ -82,7 +82,7 @@ static parsec_data_t* data_of_key(parsec_data_collection_t *desc, parsec_data_ke
     return parsec_data_create( &dat->data, desc, key, dat->ptr, dat->size );
 }
 
-static uint32_t data_key(parsec_data_collection_t *desc, ...)
+static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;

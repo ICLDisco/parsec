@@ -16,7 +16,7 @@ static inline uint32_t hash_hash(uint32_t hash_size, uint32_t key)
     return key % hash_size;
 }
 
-static uint32_t      hash_data_key(   parsec_data_collection_t *desc, ...);
+static parsec_data_key_t hash_data_key(   parsec_data_collection_t *desc, ...);
 static uint32_t      hash_rank_of(    parsec_data_collection_t* dc, ... );
 static uint32_t      hash_rank_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 static int32_t       hash_vpid_of(    parsec_data_collection_t* dc, ... );
@@ -132,7 +132,7 @@ void parsec_hash_datadist_set_data(parsec_hash_datadist_t *d, void *actual_data,
     u->size = size;
 }
 
-static uint32_t      hash_data_key(    parsec_data_collection_t *desc, ...)
+static parsec_data_key_t      hash_data_key(    parsec_data_collection_t *desc, ...)
 {
     uint32_t k;
     va_list ap;

@@ -75,7 +75,7 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
 }
 
 #if defined(PARSEC_PROF_TRACE)
-static uint32_t data_key(parsec_data_collection_t *desc, ...)
+static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
