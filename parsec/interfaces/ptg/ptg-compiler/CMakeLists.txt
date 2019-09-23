@@ -13,7 +13,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
       ${CMAKE_CURRENT_SOURCE_DIR})
   target_include_directories(parsec_ptgpp PRIVATE
       ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(parsec_ptgpp PRIVATE m parsec-base-obj)
+  target_link_libraries(parsec_ptgpp PRIVATE m parsec-base)
 
   install(TARGETS parsec_ptgpp
     EXPORT parsec-targets

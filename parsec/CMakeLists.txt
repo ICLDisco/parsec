@@ -140,7 +140,8 @@ if( BUILD_PARSEC )
   target_compile_options(parsec-base-obj
     PUBLIC ${PARSEC_ATOMIC_SUPPORT_CFLAGS})
   target_include_directories(parsec-base-obj
-    PUBLIC
+    INTERFACE
+    $<INSTALL_INTERFACE:include>
     $<$<NOT:${PARSEC_BUILD_INPLACE}>:
       $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
       $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/parsec/include>>
@@ -177,21 +178,21 @@ if( BUILD_PARSEC )
   target_include_directories(parsec
     INTERFACE
     $<INSTALL_INTERFACE:include>
-    PUBLIC
     $<$<NOT:${PARSEC_BUILD_INPLACE}>:
       $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
       $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/parsec/include>>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>
-    $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>
-    $<$<BOOL:${HWLOC_FOUND}>:${HWLOC_INCLUDE_DIR}>)
+    PUBLIC
+    $<$<BOOL:${HWLOC_FOUND}>:${HWLOC_INCLUDE_DIR}>
+    $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>)
   target_link_libraries(parsec
     PRIVATE
     Threads::Threads
     ${CMAKE_DL_LIBS}
-    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     PUBLIC
+    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     INTERFACE
