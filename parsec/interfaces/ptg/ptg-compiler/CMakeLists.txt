@@ -9,7 +9,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
   if(NOT TARGET parsec_ptgpp)
     add_executable(parsec_ptgpp jdf.c jdf2c.c jdf_unparse.c ${BISON_parsec_yacc_OUTPUTS} ${FLEX_parsec_flex_OUTPUTS})
   endif(NOT TARGET parsec_ptgpp)
-  target_include_directories(parsec_ptgpp PRIVATE BEFORE
+  target_include_directories(parsec_ptgpp BEFORE PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR})
   target_include_directories(parsec_ptgpp PRIVATE
       ${CMAKE_CURRENT_BINARY_DIR})

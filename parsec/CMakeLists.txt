@@ -1,5 +1,5 @@
 # Add a blanket definition on everything that's built during the build stage.
-# We do not use target_compile_definitions to avoid having to track all object 
+# We do not use target_compile_definitions to avoid having to track all object
 # libraries that could miss this otherwise.
 add_compile_definitions(BUILDING_PARSEC)
 #
@@ -140,18 +140,24 @@ if( BUILD_PARSEC )
   target_compile_options(parsec-base-obj
     PUBLIC ${PARSEC_ATOMIC_SUPPORT_CFLAGS})
   target_include_directories(parsec-base-obj
-    PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+    INTERFACE
+    $<INSTALL_INTERFACE:include>
+    $<$<NOT:${PARSEC_BUILD_INPLACE}>:
+      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
+      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/parsec/include>>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>)
+  target_link_libraries(parsec-base-obj
+    PUBLIC
+    ${PARSEC_ATOMIC_SUPPORT_LIBS}
+    Threads::Threads
+    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
   set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
 
   if(NOT TARGET parsec-base)
-    add_library(parsec-base STATIC $<TARGET_OBJECTS:parsec-base-obj>)
+    add_library(parsec-base STATIC)
+    target_link_libraries(parsec-base PUBLIC parsec-base-obj)
   endif(NOT TARGET parsec-base)
-  target_link_libraries(parsec-base
-    PUBLIC
-      ${PARSEC_ATOMIC_SUPPORT_LIBS}
-      Threads::Threads
-      $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
 
   # As suggested @ https://crascit.com/2016/01/31/enhanced-source-file-handling-with-target_sources/
   # create the target at the upper level and add sources to all directories below.
@@ -171,19 +177,22 @@ if( BUILD_PARSEC )
     YYERROR_VERBOSE)
   target_include_directories(parsec
     INTERFACE
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>
-    PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+    $<$<NOT:${PARSEC_BUILD_INPLACE}>:
+      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
+      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/parsec/include>>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>
-    $<$<BOOL:${HWLOC_FOUND}>:${HWLOC_INCLUDE_DIR}>
     PUBLIC
+    $<$<BOOL:${HWLOC_FOUND}>:${HWLOC_INCLUDE_DIR}>
     $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>)
   target_link_libraries(parsec
     PRIVATE
     Threads::Threads
     ${CMAKE_DL_LIBS}
-    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     PUBLIC
+    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     INTERFACE
