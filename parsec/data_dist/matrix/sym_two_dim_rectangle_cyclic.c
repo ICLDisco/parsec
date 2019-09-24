@@ -41,7 +41,7 @@
 static int sym_twoDBC_memory_register(parsec_data_collection_t* desc, struct parsec_device_s* device)
 {
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
-    if( NULL != sym_twodbc->mat ) {
+    if( NULL == sym_twodbc->mat ) {
         return PARSEC_SUCCESS;
     }
     return device->device_memory_register(device, desc,
@@ -53,7 +53,7 @@ static int sym_twoDBC_memory_register(parsec_data_collection_t* desc, struct par
 static int sym_twoDBC_memory_unregister(parsec_data_collection_t* desc, struct parsec_device_s* device)
 {
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
-    if( NULL != sym_twodbc->mat ) {
+    if( NULL == sym_twodbc->mat ) {
         return PARSEC_SUCCESS;
     }
     return device->device_memory_unregister(device, desc, sym_twodbc->mat);
