@@ -108,7 +108,13 @@ parsec_data_t* twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
         /* Get position in data_map */
         position = twoDBC_coordinates_to_position(&dc->band, m, n);
 
-        return parsec_matrix_create_data( &dc->band.super, NULL, position, key );
+        if( NULL == dc->band.mat )
+            return parsec_matrix_create_data( &dc->band.super, NULL, position, key );
+        else
+            return parsec_matrix_create_data( &dc->band.super,
+                                              (char*)dc->band.mat + position * dc->band.super.bsiz
+                                              * parsec_datadist_getsizeoftype(dc->band.super.mtype),
+                                              position, key );
     }
     else{
         if( (dc->super.grid.strows != 1) || (dc->super.grid.stcols != 1) ){
@@ -122,7 +128,13 @@ parsec_data_t* twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
         /* Get position in data_map */
         position = twoDBC_coordinates_to_position(&dc->super, m, n);
 
-        return parsec_matrix_create_data( &dc->super.super, NULL, position, key );
+        if( NULL == dc->super.mat )
+            return parsec_matrix_create_data( &dc->super.super, NULL, position, key );
+        else
+            return parsec_matrix_create_data( &dc->super.super,
+                                              (char*)dc->super.mat + position * dc->super.super.bsiz
+                                              * parsec_datadist_getsizeoftype(dc->super.super.mtype),
+                                              position, key );
     }
 }
 
