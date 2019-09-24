@@ -28,6 +28,9 @@ cat <<EOF
 
 -DVAR=VALUE
                 Directly pass VAR=VALUE to the Cmake configure stage
+--
+                The remainder of the command line arguments are sent to the Cmake configure stage as-is
+
 
 --with-platform=FILE
                 source options specific for a target platform
@@ -246,6 +249,11 @@ while [ "x$1" != x ]; do
 
 # Cmake passthrough
         -D*=*) CMAKE_DEFINES+=" $(printf %q "$1")"; shift;;
+        --) shift;
+            for param in "$@"; do
+                CMAKE_DEFINES_RAW+=" $(printf %q "$param")";
+            done;
+            return;;
 
 # Environment variables
         [^-]*=*) ENVVARS+=" $(printf %q "$1")"; shift;;
@@ -521,7 +529,7 @@ esac
 
 # CMAKE INVOCATION
 
-CMAKE_COMMAND="$ENVVARS $cmake_executable -G 'Unix Makefiles' $srcdir $CMAKE_DEFINES"
+CMAKE_COMMAND="$ENVVARS $cmake_executable -G 'Unix Makefiles' $srcdir $CMAKE_DEFINES $CMAKE_DEFINES_RAW"
 
 cat <<EOF
 ### CMake generated invocation
