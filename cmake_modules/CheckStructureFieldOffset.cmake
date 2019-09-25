@@ -49,7 +49,6 @@ Check the (byte) offset of a field in a structure
   CMAKE_REQUIRED_FLAGS = string of compile command line flags
   CMAKE_REQUIRED_DEFINITIONS = list of macros to define (-DFOO=bar)
   CMAKE_REQUIRED_INCLUDES = list of include directories
-  CMAKE_REQUIRED_LINK_OPTIONS  = list of options to pass to link command
   CMAKE_REQUIRED_LIBRARIES = list of libraries to link
   CMAKE_REQUIRED_QUIET = execute quietly without messages
   CMAKE_EXTRA_INCLUDE_FILES = list of extra headers to include
@@ -91,7 +90,6 @@ function(__check_structure_field_offset_impl field structure var map language)
   configure_file(${__check_structure_field_offset_dir}/CheckStructureFieldOffset.c.in ${src} @ONLY)
   try_compile(HAVE_${var} ${CMAKE_BINARY_DIR} ${src}
     COMPILE_DEFINITIONS ${CMAKE_REQUIRED_DEFINITIONS}
-    LINK_OPTIONS ${CMAKE_REQUIRED_LINK_OPTIONS}
     LINK_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES}
     CMAKE_FLAGS
       "-DCOMPILE_DEFINITIONS:STRING=${CMAKE_REQUIRED_FLAGS}"
