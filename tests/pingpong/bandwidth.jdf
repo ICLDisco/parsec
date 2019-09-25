@@ -1,263 +1,52 @@
 extern "C" %{
-#include "parsec/data_distribution.h"
-#include "parsec/utils/mca_param.h"
+/*
+ * Copyright (c) 2019 The Universiy of Tennessee and The Universiy
+ *                    of Tennessee Research Foundation. All rights
+ *                    reserved.
+ */
 
-#include <assert.h>
-#include <stdarg.h>
-#include <sys/time.h>
+/* includes parsec headers */
+#include "parsec.h"
+#include <parsec/data_dist/matrix/two_dim_rectangle_cyclic.h>
+#include "parsec/data_dist/matrix/matrix.h"
+
+/* system and io */
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-#
-#include "bandwidth.h"
-
-typedef struct {
-    parsec_data_collection_t  super;
-    int            frags;
-    int            size;
-    parsec_data_t **data;
-    uint8_t       *ptr;
-} my_datatype_t;
-
-/**
- * This data is not distributed. A copy of the entire
- * array is available on each node.
- */
-static inline uint32_t
-rank_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
-{
-    my_datatype_t *array = (my_datatype_t*)desc;
-    int f = (int)key; (void)f;
-
-    assert( (f < array->frags) && (f >= 0) );
-    return array->super.myrank;
-}
-
-static uint32_t
-rank_of(parsec_data_collection_t *desc, ...)
-{
-    va_list ap;
-    int f;
-
-    va_start(ap, desc);
-    f = va_arg(ap, int);
-    va_end(ap);
-
-    return rank_of_key(desc, f);
-}
-
-static inline int32_t
-vpid_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
-{
-    my_datatype_t *array = (my_datatype_t*)desc;
-    int f = (key);
-
-    assert( (f < array->size) && (f >= 0) );
-    (void)array; (void)f;
-    return 0;
-}
-
-static int32_t
-vpid_of(parsec_data_collection_t *desc, ...)
-{
-    va_list ap;
-    int f;
-
-    va_start(ap, desc);
-    f = va_arg(ap, int);
-    va_end(ap);
-
-    return vpid_of_key(desc, f);
-}
-
-static inline parsec_data_t* data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
-{
-    my_datatype_t *array = (my_datatype_t*)desc;
-    int f = (int)key;
-
-    assert( (f < array->size) && (f >= 0) );
-    (void)f;
-    if(NULL == array->data[f]) {
-        parsec_data_t      *data;
-        parsec_data_copy_t *copy;
-
-        array->data[f] = data = parsec_data_new();
-        data->key = f;
-        data->nb_elts = array->size;
-
-        copy = parsec_data_copy_new(array->data[f], 0 /* main memory */);
-        copy->device_private = array->ptr + f * array->size;
-    }
-    return (void*)(array->data[f]);
-}
-
-static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
-{
-    va_list ap;
-    int f;
-
-    va_start(ap, desc);
-    f = va_arg(ap, int);
-    va_end(ap);
-
-    return data_of_key(desc, f);
-}
-
-static uint32_t data_key(parsec_data_collection_t *desc, ...)
-{
-    my_datatype_t *dat = (my_datatype_t*)desc;
-    va_list ap;
-    int f;
-
-    va_start(ap, desc);
-    f = va_arg(ap, int);
-    va_end(ap);
-
-    assert( (f < dat->size) && (f >= 0) ); (void)dat;
-
-    return (uint32_t)f;
-}
-
-static int
-memory_register(parsec_data_collection_t* desc, struct parsec_device_s* device)
-{
-    my_datatype_t* m = (my_datatype_t*)desc;
-    return device->device_memory_register(device,
-                                          desc,
-                                          m->ptr,
-                                          m->frags * m->size * sizeof(uint8_t));
-}
-
-static int
-memory_unregister(parsec_data_collection_t* desc, struct parsec_device_s* device)
-{
-    my_datatype_t* m = (my_datatype_t*)desc;
-    return device->device_memory_unregister(device, desc, m->ptr);
-}
-
-static parsec_data_collection_t*
-create_and_distribute_data(int rank, int world, int frags, int size)
-{
-    my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
-    parsec_data_collection_t *d = &(m->super);
-
-    d->myrank = rank;
-    d->nodes  = world;
-
-    d->rank_of           = rank_of;
-    d->rank_of_key       = rank_of_key;
-    d->data_of           = data_of;
-    d->data_of_key       = data_of_key;
-    d->vpid_of           = vpid_of;
-    d->vpid_of_key       = vpid_of_key;
-    d->register_memory   = memory_register;
-    d->unregister_memory = memory_unregister;
-
-#if defined(PARSEC_PROF_TRACE)
-    asprintf(&d->key_dim, "(%d)", size);
-#endif  /* defined(PARSEC_PROF_TRACE) */
-    d->key_base = strdup("A");
-    d->data_key = data_key;
-
-    m->frags = frags;
-    m->size  = size;
-    m->data  = (parsec_data_t**)calloc(frags, sizeof(parsec_data_t*));
-    m->ptr   = (uint8_t*)calloc(frags * size, sizeof(uint8_t));
-
-    return d;
-}
-
-static void
-free_data(parsec_data_collection_t *d)
-{
-    my_datatype_t *array = (my_datatype_t*)d;
-    if(NULL != array->data) {
-        /* TODO: free each parsec_data_t element */
-        free(array->data); array->data = NULL;
-    }
-    free(array->ptr); array->ptr = NULL;
-    parsec_data_collection_destroy(d);
-    free(d);
-}
-
-/**
- * @param [IN] A     the data, already distributed and allocated
- * @param [IN] loops the number of iteration
- * @param [IN] frags the number of fragments per iterations
- * @param [IN] size  size of each local data element
- * @param [IN] ws    the size of the group (1 by now)
- *
- * @return the parsec object to schedule.
- */
-static parsec_taskpool_t*
-bandwidth_new(parsec_data_collection_t *A, int loops, int frags, int size, int ws)
-{
-    parsec_bandwidth_taskpool_t *tp = NULL;
-
-    if( (loops < 1) || (frags < 1) ) {
-        fprintf(stderr, "To work, this test needs at lest 1 loop \n"
-                        "  (instead of %d) and 1 frag (instead of %d)\n", loops, frags);
-        return NULL;
-    }
-    if(size > ((my_datatype_t*)A)->size) {
-        fprintf(stderr, "The size (%d) must be smaller than the declared size of the data in the array (%d)\n",
-                size, ((my_datatype_t*)A)->size);
-        return NULL;
-    }
-
-    tp  = parsec_bandwidth_new(A, loops, frags, ws);
-
-    ptrdiff_t lb, extent;
-    parsec_datatype_t block;
-    parsec_type_create_contiguous(size, MPI_BYTE, &block);
-    parsec_type_extent(block, &lb, &extent);
-
-    parsec_arena_construct(((parsec_bandwidth_taskpool_t*)tp)->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
-                          size*sizeof(uint8_t), PARSEC_ARENA_ALIGNMENT_SSE, block);
-
-    return (parsec_taskpool_t*)tp;
-}
-
-/**
- * @param [INOUT] o the parsec object to destroy
- */
-static void
-bandwidth_destroy(parsec_taskpool_t* tp)
-{
-    parsec_bandwidth_taskpool_t * bw_tp = (parsec_bandwidth_taskpool_t*)tp;
-
-    parsec_datatype_t block;
-    block = bw_tp->arenas[PARSEC_bandwidth_DEFAULT_ARENA]->opaque_dtt;
-    bw_tp->arenas[PARSEC_bandwidth_DEFAULT_ARENA]->opaque_dtt = PARSEC_DATATYPE_NULL;
-    parsec_type_free(&block);
-
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(bw_tp);
-}
+#endif
 
 %}
 
-NT  /* number of turns */
-NF  /* number of simultaneous fragments */
-WS  /* worldsize: must be 1 by now */
+descA       [ type = "parsec_tiled_matrix_dc_t*" ]
+Disk        [ type = "parsec_tiled_matrix_dc_t*" ]
+loops       [ type = "int" ]
+frags       [ type = "int" ]
+ws          [ type = "int" ]
 
 SYNC(t)
 
-t = 0 .. NT-1
+t = 0 .. loops-1
 
-: A(0)
+: Disk(0, t%ws)
 
-CTL C -> C PING(t, 0 .. NF-1)
-      <- (t > 0) ? C PONG(t-1, 0 .. NF-1)
+CTL C -> C PING(t, 0 .. frags-1)
+      <- (t > 0) ? C PONG(t-1, 0 .. frags-1)
 BODY
-    /*printf("SYNC(%d)\n", t);*/
+
 END
 
 PING(t, f)
 
-t = 0 .. NT-1
-f = 0 .. NF-1
+t = 0 .. loops-1
+f = 0 .. frags-1
 
-: A(f)
+: Disk(0, t%ws)
 
-RW   T <- (t == 0) ? A(f) : T PONG(t-1, f)
+RW   T <- (t == 0) ? descA(f, 0) : T PONG(t-1, f)
        -> T PONG(t, f)
 CTL  C <- C SYNC(t)
 
@@ -267,110 +56,244 @@ END
 
 PONG(t, f)
 
-t = 0 .. NT-1
-f = 0 .. NF-1
+t = 0 .. loops-1
+f = 0 .. frags-1
 
-: A(f)
+: Disk(0, (t+1)%ws)
 
 RW   T <- T PING(t, f)
-       -> (t < NT-1) ? T PING(t+1, f) : A(f)
+       -> (t < loops-1) ? T PING(t+1, f)
 CTL  C -> C SYNC(t+1)
 
-BODY [type = CUDA]
-{
-    /* Nothing to do */
-}
-END
-
 BODY
-    //printf("PONG(%d, %d)\n", t, f);
+
 END
 
 extern "C" %{
 
+/**
+ * @brief bandwidth,  no-blocking 
+ *
+ * @param [in] dcA: data 
+ * @param [in] Disk: distribution 
+ * @param [in] loops: loops of bandwidth 
+ * @param [in] frags: fragments
+ * @param [in] ws: number of process
+ * @param [in] size: number of doubles
+ */
+parsec_taskpool_t*
+parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
+                    parsec_tiled_matrix_dc_t *Disk,
+                    int loops, int frags, int ws, int size)
+{
+  parsec_taskpool_t* bandwidth_taskpool;
+  parsec_bandwidth_taskpool_t* taskpool = NULL;
+
+  if( loops < 1 || frags < 1 || size < 1) {
+    fprintf(stderr, "loops/frags/size should not smaller than 1\n");
+    exit(1);
+  }
+
+  taskpool = parsec_bandwidth_new(dcA, Disk, loops, frags, ws); 
+  bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
+
+  parsec_matrix_add2arena(taskpool->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
+                          parsec_datatype_double_t, matrix_UpperLower,
+                          1, 1, size, 1,
+                          PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
+  return bandwidth_taskpool;
+}
+
+/**
+ * @param [inout] the parsec object to destroy
+*/
+void parsec_bandwidth_Destruct(parsec_taskpool_t *taskpool)
+{
+  parsec_bandwidth_taskpool_t *bandwidth_taskpool = (parsec_bandwidth_taskpool_t *)taskpool;
+  parsec_matrix_del2arena(bandwidth_taskpool->arenas[PARSEC_bandwidth_DEFAULT_ARENA]);
+  parsec_taskpool_free(taskpool);
+}
+
+/**
+ * @brief bandwidth 
+ * 
+ * @param [in] dcA: data 
+ * @param [in] Disk: distribution 
+ * @param [in] loops: loops of bandwidth
+ * @param [in] frags: fragments
+ * @param [in] ws: number of process 
+ * @param [in] size: number of doubles
+ */
+int parsec_bandwidth(parsec_context_t *parsec,
+                    parsec_tiled_matrix_dc_t *dcA,
+                    parsec_tiled_matrix_dc_t *Disk,
+                    int loops, int frags, int ws, int size)
+{
+  parsec_taskpool_t *parsec_bandwidth = NULL;
+
+  parsec_bandwidth = parsec_bandwidth_New(dcA, Disk, loops, frags, ws, size);
+
+  if( parsec_bandwidth != NULL ){
+      parsec_enqueue(parsec, parsec_bandwidth);
+      parsec_context_start(parsec);
+      parsec_context_wait(parsec);
+      parsec_bandwidth_Destruct(parsec_bandwidth);
+  }
+
+  return 0;
+}
+
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1, ngpus = 0;
-    int i, rc, size, loops, frags;
-    parsec_data_collection_t *dcA;
-    parsec_taskpool_t *bw_test;
+    parsec_taskpool_t* bandwidth_taskpool;
+    parsec_bandwidth_taskpool_t* taskpool = NULL;
+    int rank, nodes, ch, i;
+    int pargc = 0, dashdash = -1;
+    char **pargv;
     struct timeval tstart, tend;
     double t, bw;
 
-    loops = 10;
-    frags = 1;
-    size = 1024;
-    
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    /* Default */
+    int loops = 100;
+    int frags = 60;
+    int size = 1024;
+    int cores = 1;
+    int nb_runs = 1;
+
+#if defined(PARSEC_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    nodes = 1;
+    rank = 0;
+#endif
 
-    for( i = 1; i < argc; i++ ) {
-        if(0 == strcmp(argv[i], "-c")) {
-            cores = atoi(argv[i+1]); i++;
-            if( 0 >= cores ) cores = 1;
-        }
-        if(0 == strcmp(argv[i], "-n")) {
-            loops = atoi(argv[i+1]); i++;
-            if( 0 >= loops ) loops = 10;
-        }
-        if(0 == strcmp(argv[i], "-f")) {
-            frags = atoi(argv[i+1]); i++;
-            if( 0 >= frags ) frags = 1;
-        }
-        if(0 == strcmp(argv[i], "-l")) {
-            size = atoi(argv[i+1]); i++;
-            if( 0 >= size ) size = 1024;
-        }
-        /* GPU management */
-        if(0 == strcmp(argv[i], "-g")) {
-            ngpus = atoi(argv[i+1]); i++;
-            if( 0 > ngpus ) ngpus = 0;
+    while ((ch = getopt(argc, argv, "n:f:l:c:h:e:")) != -1) {
+        switch (ch) {
+            case 'n': loops = atoi(optarg); break;
+            case 'f': frags = atoi(optarg); break;
+            case 'l': size = atoi(optarg) / sizeof(double); break;
+            case 'e': nb_runs = atoi(optarg); break;
+            case 'c': cores = atoi(optarg); break;
+            case '?': case 'h': default:
+                fprintf(stderr,
+                        "-n : loops of bandwidth(default: 100)\n"
+                        "-f : frags, number of fragments (default: 60)\n"
+                        "-l : size, size of message (default: 1024 * sizeof(double))\n"
+                        "-c : number of cores used (default: 1)\n"
+                        "-e : number of runs (default: 1)\n"
+                        "\n");
+                 exit(1);
         }
     }
-    dcA = create_and_distribute_data(rank, world, frags, size);
-    parsec_data_collection_set_key(dcA, "A");
 
-    /* if the use of GPUs is specified on the command line updated the environment
-     * prior to the runtime initialization.
-     */
-    if(ngpus > 0) {
-        char *param, value[128];
-        param = parsec_mca_param_env_var("device_cuda_enabled");
-        snprintf(value, 128, "%d", ngpus);
-        setenv(param, value, 1);
-        free(param);
+    for(i = 1; i < argc; i++) {
+        if( strcmp(argv[i], "--") == 0 ) {
+            dashdash = i;
+            pargc = 0;
+        } else if( dashdash != -1 ) {
+            pargc++;
+        }
     }
-    parsec = parsec_init(cores, &argc, &argv);
+    pargv = (char**)malloc( (pargc+1) * sizeof(char*));
+    if( dashdash != -1 ) {
+        for(i = dashdash+1; i < argc; i++) {
+            pargv[i-dashdash-1] = strdup(argv[i]);
+        }
+        pargv[i-dashdash-1] = NULL;
+    } else {
+        pargv[0] = NULL;
+    }
 
-    for(i = 0; i < 2; i++) {
-        bw_test = bandwidth_new(dcA, loops, frags, size, world);
+    /* Initialize PaRSEC */
+    parsec = parsec_init(cores, &pargc, &pargv);
 
+    free(pargv);
+    if( NULL == parsec ) {
+        /* Failed to correctly initialize. In a correct scenario report
+         * upstream, but in this particular case bail out.
+         */
+        exit(-1);
+    }
+
+    /* If the number of cores has not been defined as a parameter earlier
+     * update it with the default parameter computed in parsec_init. */
+    if(cores <= 0)
+    {
+        int p, nb_total_comp_threads = 0;
+        for(p = 0; p < parsec->nb_vp; p++) {
+            nb_total_comp_threads += parsec->virtual_processes[p]->nb_cores;
+        }
+        cores = nb_total_comp_threads;
+    }
+
+    /* initializing matrix structure */
+    two_dim_block_cyclic_t dcA;
+    two_dim_block_cyclic_init(&dcA, matrix_RealDouble, matrix_Tile,
+                              nodes, rank, 1, size, frags, size, 0, 0,
+                              frags, size, 1, 1, 1);
+    dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
+                                   (size_t)dcA.super.bsiz *
+                                   (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
+    parsec_data_collection_set_key((parsec_data_collection_t*)&dcA, "dcA");
+
+    two_dim_block_cyclic_t Disk;
+    two_dim_block_cyclic_init(&Disk, matrix_RealDouble, matrix_Tile,
+                              nodes, rank, 1, 1, 1, nodes, 0, 0,
+                              1, nodes, 1, 1, 1);
+    parsec_data_collection_set_key((parsec_data_collection_t*)&Disk, "Disk");
+
+    for(i = 0; i < nb_runs; i++) {
+        /* bandwidth */
+        taskpool = parsec_bandwidth_new((parsec_tiled_matrix_dc_t *)&dcA,
+                                       (parsec_tiled_matrix_dc_t *)&Disk,
+                                       loops, frags, nodes);
+
+        bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
+
+        parsec_matrix_add2arena(taskpool->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
+                                parsec_datatype_double_t, matrix_UpperLower,
+                                1, 1, size, 1,
+                                PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
+        /* Time start */
+        MPI_Barrier(MPI_COMM_WORLD);
         gettimeofday(&tstart, NULL);
-        rc = parsec_context_add_taskpool(parsec, bw_test);
-        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
-        rc = parsec_context_start(parsec);
-        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+        parsec_context_add_taskpool(parsec, bandwidth_taskpool);
+        parsec_context_start(parsec);
+        parsec_context_wait(parsec);
 
-        rc = parsec_context_wait(parsec);
-        PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+        /* Time end */
+        MPI_Barrier(MPI_COMM_WORLD);
         gettimeofday(&tend, NULL);
 
-        if( 0 != i ) {
+        if( 0 == rank ) {
             t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
-            assert(t > 0.0);
-            bw = ((double)loops * (double)frags * (double)size) / t * ((1000.0 * 1000.0) / (1024.0 * 1024.0)) * 2.0;
-            printf("[%d, %d, %d, %08.4g] %4.8g MB/s\n", loops, frags, size, t / 1000000.0, bw);
+            bw = ((double)loops * (double)frags * (double)size) / t * 1000.0 * 1000.0 / (1000.0 * 1000.0 * 1000.0) * sizeof(double) * 8;
+            printf("%d %d %lu %08.4g %4.8g GB/s\n", loops, frags, size*sizeof(double), t / 1000000.0, bw);
         }
-        bandwidth_destroy(bw_test);
+
+        parsec_bandwidth_Destruct(bandwidth_taskpool);
     }
 
-    free_data(dcA);
+    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&Disk);
 
+    /* Clean up parsec*/
     parsec_fini(&parsec);
+
+#ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
+#endif
+
     return 0;
 }
+
 %}
