@@ -90,10 +90,6 @@ int arena_memory_used_key, arena_memory_unused_key;
 int task_memory_alloc_key, task_memory_free_key;
 #endif  /* PARSEC_PROF_TRACE */
 
-#ifdef PARSEC_HAVE_HWLOC
-#define MAX_CORE_LIST 128
-#endif
-
 int parsec_want_rusage = 0;
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)
 #include <sys/time.h>

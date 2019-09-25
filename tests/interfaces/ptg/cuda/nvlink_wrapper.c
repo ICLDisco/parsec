@@ -15,7 +15,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     /** Find all CUDA devices */
     nb = 0;
     for(dev = 0; dev < (int)parsec_nb_devices; dev++) {
-        parsec_device_t *device = parsec_devices_get(dev);
+        parsec_device_module_t *device = parsec_mca_device_get(dev);
         if( PARSEC_DEV_CUDA == device->type ) {
             nb++;
         }
@@ -30,7 +30,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     dev_index = (int*)malloc(nb * sizeof(int));
     nb = 0;
     for(dev = 0; dev < (int)parsec_nb_devices; dev++) {
-        parsec_device_t *device = parsec_devices_get(dev);
+        parsec_device_module_t *device = parsec_mca_device_get(dev);
         if( PARSEC_DEV_CUDA == device->type ) {
             dev_index[nb++] = device->device_index;
         }

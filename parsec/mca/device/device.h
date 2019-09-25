@@ -117,6 +117,7 @@ struct parsec_device_module_s {
     parsec_device_taskpool_unregister_f    taskpool_unregister;
     parsec_device_memory_register_f        memory_register;
     parsec_device_memory_unregister_f      memory_unregister;
+    parsec_device_memory_release_f         memory_release;
     parsec_device_data_advise_f            data_advise;
     parsec_device_find_function_f          find_function;
 
