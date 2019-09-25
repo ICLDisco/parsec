@@ -226,7 +226,6 @@ void parsec_prof_grapher_dep(const parsec_task_t* from, const parsec_task_t* to,
     }
 }
 
-#if defined(PARSEC_PROF_TRACE)
 static void parsec_prof_grapher_dataid(const parsec_data_t *dta, char *did, int size)
 {
     parsec_grapher_data_identifier_t id;
@@ -282,23 +281,6 @@ void  parsec_prof_grapher_data_output(const struct parsec_task_s *task, const st
         fflush(grapher_file);
     }    
 }
-#else
-/** Graphing the initial input and final input of data is only available when
- *  PARSEC_PROF_TRACE is enabled, as it relies on the key_to_string API of the
- *  data collections, and this is only available when PROF_TRACE is enabled. */
-void parsec_prof_grapher_data_input(const parsec_data_t *data, const parsec_task_t *task, const parsec_flow_t *flow)
-{
-    (void)data;
-    (void)task;
-    (void)flow;
-}
-void  parsec_prof_grapher_data_output(const struct parsec_task_s *task, const struct parsec_data_s *data, const struct parsec_flow_s *flow)
-{
-    (void)data;
-    (void)task;
-    (void)flow;
-}
-#endif
 
 static void parsec_grapher_data_ht_free_elt(void *_item, void *table)
 {
