@@ -34,6 +34,7 @@ if(@PARSEC_HAVE_PAPI@)
 endif(@PARSEC_HAVE_PAPI@)
 
 if(@PARSEC_DIST_WITH_MPI@)
+  include(CheckCSourceCompiles)
   # Test first if we are using a wrapper as the compiler
   # In that case, we don't need to change the include path and
   # dependent libraries.
