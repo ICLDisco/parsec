@@ -159,7 +159,7 @@ static int device_template_component_close(void)
         parsec_device_template_component.modules[i] = NULL;
 
         /* unregister the device from PaRSEC */
-        rc = parsec_devices_remove((parsec_device_module_t*)dev);
+        rc = parsec_mca_device_remove((parsec_device_module_t*)dev);
         if( PARSEC_SUCCESS != rc ) {
             PARSEC_DEBUG_VERBOSE(0, parsec_template_output_stream,
                                  "T[%d] Failed to unregister TEMPLATE device %d\n", 

@@ -120,7 +120,7 @@ static int
 parsec_device_template_attach( parsec_device_template_module_t* device,
                                parsec_context_t* context )
 {
-    return parsec_devices_add(context, (parsec_device_module_t*)device);
+    return parsec_mca_device_add(context, (parsec_device_module_t*)device);
 }
 
 /**
@@ -134,7 +134,7 @@ parsec_device_template_detach( parsec_device_template_module_t* device,
                                parsec_context_t* context )
 {
     (void)context;
-    return parsec_devices_remove((parsec_device_module_t*)device);
+    return parsec_mca_device_remove((parsec_device_module_t*)device);
 }
 
 int

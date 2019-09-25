@@ -719,12 +719,12 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_debug_verbose(4, parsec_debug_output, "--- compiled with DEBUG_NOISIER, DEBUG_PARANOID, or DOT generation requested.");
     }
 
-    parsec_devices_init();
+    parsec_mca_device_init();
     /* Init data distribution structure */
     parsec_data_dist_init();
 
-    parsec_devices_attach(context);
-    parsec_devices_freeze(context);
+    parsec_mca_device_attach(context);
+    parsec_mca_device_freeze(context);
 
     /* Init the data infrastructure. Must be done only after the freeze of the devices */
     parsec_data_init(context);
@@ -965,7 +965,7 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_data_dist_fini();
 
-    parsec_devices_fini();
+    parsec_mca_device_fini();
 
     for(p = 0; p < context->nb_vp; p++) {
         parsec_vp_fini(context->virtual_processes[p]);

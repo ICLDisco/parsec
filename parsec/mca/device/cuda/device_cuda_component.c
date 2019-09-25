@@ -298,7 +298,7 @@ static int device_cuda_component_close(void)
         }
 
         /* unregister the device from PaRSEC */
-        rc = parsec_devices_remove((parsec_device_module_t*)cdev);
+        rc = parsec_mca_device_remove((parsec_device_module_t*)cdev);
         if( PARSEC_SUCCESS != rc ) {
             PARSEC_DEBUG_VERBOSE(0, parsec_cuda_output_stream,
                                  "GPU[%d] Failed to unregister CUDA device %d\n", 
@@ -310,8 +310,8 @@ static int device_cuda_component_close(void)
 
 #if defined(PARSEC_DEBUG_NOISIER)
     /* Check that no CUDA devices are still registered with PaRSEC */
-    for(i = 0; i < parsec_devices_enabled(); i++) {
-        if( NULL == (cdev = (parsec_device_cuda_module_t*)parsec_devices_get(i)) ) continue;
+    for(i = 0; i < parsec_mca_device_enabled(); i++) {
+        if( NULL == (cdev = (parsec_device_cuda_module_t*)parsec_mca_device_get(i)) ) continue;
         if(PARSEC_DEV_CUDA != cdev->super.type) continue;
 
         PARSEC_DEBUG_VERBOSE(0, parsec_cuda_output_stream,

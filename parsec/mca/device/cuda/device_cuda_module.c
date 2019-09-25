@@ -306,7 +306,7 @@ static int
 parsec_device_cuda_attach( parsec_device_cuda_module_t* device,
                            parsec_context_t* context )
 {
-    return parsec_devices_add(context, (parsec_device_module_t*)device);
+    return parsec_mca_device_add(context, (parsec_device_module_t*)device);
 }
 
 /**
@@ -320,7 +320,7 @@ parsec_device_cuda_detach( parsec_device_cuda_module_t* device,
                            parsec_context_t* context )
 {
     (void)context;
-    return parsec_devices_remove((parsec_device_module_t*)device);
+    return parsec_mca_device_remove((parsec_device_module_t*)device);
 }
 
 int
@@ -1554,7 +1554,7 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
         }
 
         /* Start at 2, to skip the recursive body */
-        for( dev_index = 2; dev_index < parsec_devices_enabled(); dev_index++ ) {
+        for( dev_index = 2; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
             /* Skip the device if it is not configured */
             if(!(tp->devices_index_mask & (1 << dev_index))) continue;
             weight = parsec_device_load[dev_index] + ratio * parsec_device_sweight[dev_index];
@@ -2622,7 +2622,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
 #endif
     int pop_null = 0;
 
-    gpu_device = (parsec_device_cuda_module_t*)parsec_devices_get(which_gpu);
+    gpu_device = (parsec_device_cuda_module_t*)parsec_mca_device_get(which_gpu);
 
 #if defined(PARSEC_PROF_TRACE)
     PARSEC_PROFILING_TRACE_FLAGS( es->es_profile,

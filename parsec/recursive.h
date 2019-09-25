@@ -52,7 +52,7 @@ parsec_recursivecall( parsec_execution_stream_t    *es,
     va_list ap;
 
     /* Set mask to be used only on CPU */
-    parsec_devices_taskpool_restrict( tp, PARSEC_DEV_CPU );
+    parsec_mca_device_taskpool_restrict( tp, PARSEC_DEV_CPU );
 
     /* Callback */
     cbdata = (cb_data_t *) malloc( sizeof(cb_data_t) + (nbdesc-1)*sizeof(parsec_data_collection_t*));

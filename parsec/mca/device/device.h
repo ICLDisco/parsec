@@ -158,30 +158,30 @@ extern float *parsec_device_dweight;
  * accelerators and GPU. Memory nodes can as well be managed using the same
  * mechnism.
  */
-extern int parsec_devices_init(void);
+extern int parsec_mca_device_init(void);
 
 /**
  * The runtime will shutdown, all internal structures have to be destroyed.
  */
-extern int parsec_devices_fini(void);
+extern int parsec_mca_device_fini(void);
 
 /**
  * Parse the list of potential devices and see which one would succesfully load
  * and initialize in the current environment.
  */
-extern int parsec_devices_attach(parsec_context_t*);
+extern int parsec_mca_device_attach(parsec_context_t*);
 
 /**
  * This call mark the end of the configuration step, no devices can be registered
  * after this point. This gives a reference point regarding the number of available
  * (supported) devices.
  */
-extern int parsec_devices_freeze(parsec_context_t*);
+extern int parsec_mca_device_freeze(parsec_context_t*);
 /**
  * Return a positive value if the devices configurations has been freezed by a call
- * to parsec_devices_freeze().
+ * to parsec_mca_device_freeze().
  */
-extern int parsec_devices_freezed(parsec_context_t*);
+extern int parsec_mca_device_freezed(parsec_context_t*);
 
 /**
  * Reset the load of all the devices to force a reconsideration of the load balance
@@ -196,12 +196,12 @@ PARSEC_DECLSPEC void parsec_devices_reset_load(parsec_context_t *context);
  * Returns a positive value to signal the device was succesfully registeres with
  * theat index, or a negative value to signal an error during the process.
  */
-PARSEC_DECLSPEC int parsec_devices_add(parsec_context_t*, parsec_device_module_t*);
+PARSEC_DECLSPEC int parsec_mca_device_add(parsec_context_t*, parsec_device_module_t*);
 
 /**
  * Retrieve a pointer to the registered device using the provided index.
  */
-PARSEC_DECLSPEC parsec_device_module_t* parsec_devices_get(uint32_t);
+PARSEC_DECLSPEC parsec_device_module_t* parsec_mca_device_get(uint32_t);
 
 /**
  * Remove the device from the list of enabled devices. All data residing on the
@@ -209,19 +209,19 @@ PARSEC_DECLSPEC parsec_device_module_t* parsec_devices_get(uint32_t);
  * originator of the data), and all tasks owned by the device will be discarded
  * and moved back into the main scheduling mechanism.
  */
-PARSEC_DECLSPEC int parsec_devices_remove(parsec_device_module_t* device);
+PARSEC_DECLSPEC int parsec_mca_device_remove(parsec_device_module_t* device);
 
 /**
  * Dump and reset the current device statistics.
  */
-PARSEC_DECLSPEC void parsec_devices_dump_and_reset_statistics(parsec_context_t* parsec_context);
+PARSEC_DECLSPEC void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_context);
 
 /**
  * Returns the number of devices currently registered with the runtime. This
- * number can change until parsec_devices_freeze() is called, fact that mark the
+ * number can change until parsec_mca_device_freeze() is called, fact that mark the
  * end of the configuration stage.
  */
-static inline int parsec_devices_enabled(void)
+static inline int parsec_mca_device_enabled(void)
 {
     return parsec_nb_devices;
 }
@@ -229,8 +229,8 @@ static inline int parsec_devices_enabled(void)
 /**
  * Restrict the device type that can be used to execute the taskpool
  */
-PARSEC_DECLSPEC void parsec_devices_taskpool_restrict( parsec_taskpool_t *tp,
-                                                       uint8_t            devices_type );
+PARSEC_DECLSPEC void parsec_mca_device_taskpool_restrict( parsec_taskpool_t *tp,
+                                                          uint8_t            device_type );
 
 /**
  * Release all additional memory allocated on device.

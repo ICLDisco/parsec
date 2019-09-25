@@ -313,7 +313,7 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 
     /* Unregister the taskpool from the devices */
     for (i = 0; i < parsec_nb_devices; i++) {
-        parsec_device_module_t *device = parsec_devices_get(i);
+        parsec_device_module_t *device = parsec_mca_device_get(i);
         if( !(tp->super.devices_index_mask & (1 << device->device_index)) )
             continue;
         tp->super.devices_index_mask &= ~(1 << device->device_index);
@@ -1270,7 +1270,7 @@ parsec_dtd_taskpool_new(void)
 
     __tp->super.devices_index_mask = 0;
     for (i = 0; i < (int)parsec_nb_devices; i++) {
-        parsec_device_module_t *device = parsec_devices_get(i);
+        parsec_device_module_t *device = parsec_mca_device_get(i);
         if( NULL == device ) continue;
         __tp->super.devices_index_mask |= (1 << device->device_index);
     }
@@ -1388,7 +1388,7 @@ parsec_dtd_startup( parsec_context_t   *context,
 
     /* register the taskpool with all available devices */
     for (uint32_t _i = 0; _i < parsec_nb_devices; _i++) {
-        parsec_device_module_t *device = parsec_devices_get(_i);
+        parsec_device_module_t *device = parsec_mca_device_get(_i);
         if (NULL == device) continue;
         if( !(tp->devices_index_mask & (1 << device->device_index)) ) continue;  /* not supported */
         if (NULL != device->taskpool_register)

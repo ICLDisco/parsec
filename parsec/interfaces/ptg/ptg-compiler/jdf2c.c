@@ -3545,7 +3545,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             " \n"
             "  for( i = 0; i < parsec_nb_devices; i++ ) {\n"
             "    if( !(__parsec_tp->super.super.devices_index_mask & (1<<i)) ) continue;\n"
-            "    parsec_device_module_t* device = parsec_devices_get(i);\n"
+            "    parsec_device_module_t* device = parsec_mca_device_get(i);\n"
             "    parsec_data_collection_t* parsec_dc;\n"
             " \n"
             "    if(NULL == device) continue;\n"
@@ -3698,7 +3698,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "    parsec_device_module_t* device;\n"
             "    parsec_data_collection_t* parsec_dc;\n"
             "    if(!(__parsec_tp->super.super.devices_index_mask & (1 << _i))) continue;\n"
-            "    if((NULL == (device = parsec_devices_get(_i))) || (NULL == device->memory_unregister)) continue;\n"
+            "    if((NULL == (device = parsec_mca_device_get(_i))) || (NULL == device->memory_unregister)) continue;\n"
             "  %s"
             "}\n",
             UTIL_DUMP_LIST(sa, jdf->globals, next,
@@ -3711,7 +3711,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  for( i = 0; i < parsec_nb_devices; i++ ) {\n"
             "    if(!(__parsec_tp->super.super.devices_index_mask & (1 << i))) continue;\n"
             "    __parsec_tp->super.super.devices_index_mask ^= (1 << i);\n"
-            "    parsec_device_module_t* device = parsec_devices_get(i);\n"
+            "    parsec_device_module_t* device = parsec_mca_device_get(i);\n"
             "    if((NULL == device) || (NULL == device->taskpool_unregister)) continue;\n"
             "    if( PARSEC_SUCCESS != device->taskpool_unregister(device, &__parsec_tp->super.super) ) continue;\n"
             "  }\n");
@@ -5146,7 +5146,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "  } else if (dev_index == -1) {\n"
                 "    dev_index = parsec_gpu_get_best_device((parsec_task_t*)this_task, ratio);\n"
                 "  } else {\n"
-                "    dev_index = (dev_index %% (parsec_devices_enabled()-2)) + 2;\n"
+                "    dev_index = (dev_index %% (parsec_mca_device_enabled()-2)) + 2;\n"
                 "  }\n",
                 device);
     } else {

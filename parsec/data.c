@@ -74,7 +74,7 @@ static void parsec_data_destruct(parsec_data_t* obj )
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data %p", obj);
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_data_copy_t *copy = NULL;
-        parsec_device_module_t *device = parsec_devices_get(i);
+        parsec_device_module_t *device = parsec_mca_device_get(i);
         assert(NULL != device);
         while( (copy = obj->device_copies[i]) != NULL )
         {
@@ -105,7 +105,7 @@ int parsec_data_init(parsec_context_t* context)
      * This is a trick. Now that we know the number of available devices
      * we can update the size of the parsec_data_t class to the correct value.
      */
-    if( !parsec_devices_freezed(context) ) {
+    if( !parsec_mca_device_freezed(context) ) {
         parsec_warning("Cannot configure the data infrastructure as the devices layer has not yet been froze.");
         return PARSEC_ERROR;
     }
