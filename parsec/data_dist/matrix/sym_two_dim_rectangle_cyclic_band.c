@@ -112,7 +112,13 @@ parsec_data_t* sym_twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
         /* Get position in data_map */
         position = twoDBC_coordinates_to_position(&dc->band, m, n);
 
-        return parsec_matrix_create_data( &dc->band.super, NULL, position, key );
+        if( NULL == dc->band.mat )
+            return parsec_matrix_create_data( &dc->band.super, NULL, position, key );
+        else
+            return parsec_matrix_create_data( &dc->band.super,
+                                              (char*)dc->band.mat + position * dc->band.super.bsiz
+                                              * parsec_datadist_getsizeoftype(dc->band.super.mtype),
+                                              position, key );
     }
     else{
         /* Offset of (i, j) and assert */
@@ -121,7 +127,13 @@ parsec_data_t* sym_twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
         /* Offset of (i, j) and assert */
         position = sym_twoDBC_coordinates_to_position(&dc->super, m, n);
 
-        return parsec_matrix_create_data( &dc->super.super, NULL, position, key );
+        if( NULL == dc->super.mat )
+            return parsec_matrix_create_data( &dc->super.super, NULL, position, key );
+        else
+            return parsec_matrix_create_data( &dc->super.super,
+                                              (char*)dc->super.mat + position * dc->super.super.bsiz
+                                              * parsec_datadist_getsizeoftype(dc->super.super.mtype),
+                                              position, key );
     }
 }
 
