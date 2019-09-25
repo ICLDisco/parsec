@@ -89,7 +89,7 @@ device_template_component_query(mca_base_module_t **module, int *priority)
 
     for( i = j = 0; i < use_template; i++ ) {
 
-        rc = parsec_template_module_init(i, &parsec_device_template_component.modules[j]);
+        rc = parsec_device_template_module_init(i, &parsec_device_template_component.modules[j]);
         if( PARSEC_SUCCESS != rc ) {
             assert( NULL == parsec_device_template_component.modules[j] );
             continue;
@@ -166,7 +166,7 @@ static int device_template_component_close(void)
                                  dev->device_index, dev->device_index);
         }
 
-        rc = parsec_device_module_fini((parsec_device_module_t*)dev);
+        rc = parsec_device_template_module_fini((parsec_device_module_t*)dev);
         if( PARSEC_SUCCESS != rc ) {
             PARSEC_DEBUG_VERBOSE(0, parsec_template_output_stream,
                                  "T[%d] Failed to release resources on TEMPLATE device\n", 

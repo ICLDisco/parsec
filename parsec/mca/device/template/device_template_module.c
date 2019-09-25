@@ -9,8 +9,29 @@
 #include "parsec/sys/atomic.h"
 
 #include "parsec/utils/mca_param.h"
+#include "parsec/utils/debug.h"
 #include "parsec/constants.h"
-#include "parsec/mca/device/device.h"
+#include "parsec/mca/device/template/device_template.h"
+
+static int
+parsec_template_memory_register(parsec_device_module_t* device,
+                                parsec_data_collection_t* desc,
+                                void* ptr, size_t length)
+{
+    int rc = PARSEC_ERROR;
+
+    /* Memory needs to be registered only once with the device. One registration = one deregistration */
+    if (desc->memory_registration_status == MEMORY_STATUS_UNREGISTERED) {
+        rc = PARSEC_SUCCESS;
+        return rc;
+    }
+
+    rc = PARSEC_SUCCESS;
+    desc->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
+
+    (void)device; (void)ptr; (void)length;
+    return rc;
+}
 
 static int
 parsec_template_memory_unregister(parsec_device_module_t* device,
@@ -43,7 +64,7 @@ parsec_template_taskpool_register(parsec_device_module_t* device,
                                   parsec_taskpool_t* tp)
 {
     parsec_device_template_module_t* dev = (parsec_device_template_module_t*)device;
-    char paths[] = { ".", NULL};
+    const char* paths[] = { ".", NULL};
     int32_t rc = PARSEC_ERR_NOT_FOUND;
     uint32_t i, j;
 
@@ -80,6 +101,7 @@ parsec_template_taskpool_register(parsec_device_module_t* device,
         parsec_debug_verbose(10, parsec_template_output_stream,
                              "Device %d (%s) disabled for taskpool %p", device->device_index, device->name, tp);
     }
+    (void)dev;
     return rc;
 }
 
@@ -116,10 +138,10 @@ parsec_device_template_detach( parsec_device_template_module_t* device,
 }
 
 int
-parsec_template_module_init( int device, parsec_device_module_t** module )
+parsec_device_template_module_init( int deviceid, parsec_device_module_t** module )
 {
     parsec_device_template_module_t* device;
-    int show_caps_index, show_caps = 0, j, k;
+    int show_caps_index, show_caps = 0;
 
     show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities"); 
     if(0 < show_caps_index) {
@@ -155,12 +177,13 @@ parsec_template_module_init( int device, parsec_device_module_t** module )
         parsec_inform("TEMPLATE Device %d enabled\n", device->super.device_index);
     }
 
+    (void)deviceid;
     *module = (parsec_device_module_t*)device;
     return PARSEC_SUCCESS;
 }
 
 int
-parsec_template_module_fini(parsec_device_module_t* device)
+parsec_device_template_module_fini(parsec_device_module_t* device)
 {
     parsec_device_template_module_t* dev = (parsec_device_template_module_t*)device;
 
