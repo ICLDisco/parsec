@@ -22,6 +22,7 @@ if(@PARSEC_HAVE_HWLOC@)
   if("@HWLOC_DIR@")
     set_and_check(HWLOC_DIR "@HWLOC_DIR@")
   endif("@HWLOC_DIR@")
+  find_package(HWLOC REQUIRED)
 endif(@PARSEC_HAVE_HWLOC@)
 
 if(@PARSEC_HAVE_OTF2@)
