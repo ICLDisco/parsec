@@ -24,7 +24,12 @@ struct parsec_lifo_opaque_s {
     parsec_object_t           super;
     uint8_t                   alignment;
     parsec_list_item_t       *lifo_ghost;
-    char lifo_private[@PARSEC_LIFO_PRIVATE_SIZEOF@];
+    char                      lifo_private[@PARSEC_LIFO_REMAINING_BYTES@];
+    /* IMPORTANT:
+     *  This structure needs to be kept in sync both with the
+     *  beginning of parsec_lifo_s ***AND*** with the structure
+     *  in src_root/CMakeLists.txt to find the offset of lifo_private
+     *  at CMake time */
 };
 
 /**

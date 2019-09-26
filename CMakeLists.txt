@@ -902,8 +902,16 @@ list(APPEND CMAKE_REQUIRED_DEFINITIONS -DBUILDING_PARSEC)
 check_symbol_exists(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128 "parsec/parsec_config.h;parsec/sys/atomic.h" PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
 list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR})
 list(APPEND CMAKE_EXTRA_INCLUDE_FILES "parsec/parsec_config.h;parsec/sys/atomic.h;parsec/class/lifo.h")
-check_type_size("((parsec_lifo_t*)0)->lifo_head" PARSEC_LIFO_PRIVATE_SIZEOF)
+
+check_type_size("parsec_lifo_t" PARSEC_LIFO_OPAQUE_SIZEOF)
+include(CheckStructureFieldOffset)
+# NB: the structure below *needs* to be kept in sync with the structure
+# in lifo-external.h
+check_structure_field_offset("lifo_private" "struct{parsec_object_t super;uint8_t alignment;parsec_list_item_t*lifo_ghost;char lifo_private;}" PARSEC_LIFO_HEAD_OFFSET)
 cmake_pop_check_state()
+
+math(EXPR PARSEC_LIFO_REMAINING_BYTES "${PARSEC_LIFO_OPAQUE_SIZEOF}-${PARSEC_LIFO_HEAD_OFFSET}" OUTPUT_FORMAT DECIMAL)
+
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo-external.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/parsec/class/lifo-external.h")
