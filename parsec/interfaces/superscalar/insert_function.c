@@ -197,6 +197,21 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
 
     /* Attaching the reference of this taskpool to the parsec context */
     parsec_dtd_attach_taskpool_to_context(tp, tp->context);
+
+    /* Calculate actual total threads now that this tp is attached to a parsec context */
+
+    if(dtd_tp->super.context != NULL) {
+        /* Get total number of threads */
+        int vp_id;
+        for(vp_id = 0; vp_id <dtd_tp->super.context->nb_vp; vp_id++) {
+            dtd_tp->total_threads += dtd_tp->super.context->virtual_processes[vp_id]->nb_cores;
+        }
+    }
+
+    /* The first taskclass of every taskpool is the flush taskclass */
+    parsec_dtd_create_task_class(dtd_tp, parsec_dtd_data_flush_sndrcv, "parsec_dtd_data_flush",
+                                 0, 0, 1);
+
     return 0;
 }
 
@@ -1274,6 +1289,8 @@ parsec_dtd_taskpool_new(void)
     __tp->task_window_size    = 1;
     __tp->task_threshold_size = parsec_dtd_threshold_size;
     __tp->local_task_inserted = 0;
+    __tp->total_threads       = 0;
+    __tp->current_thread_id   = 0;
     __tp->function_counter    = 0;
     __tp->enqueue_flag        = 0;
 
@@ -1290,10 +1307,6 @@ parsec_dtd_taskpool_new(void)
     parsec_profiling_add_dictionary_keyword("dtd_data_flush", "fill:#111111",0, "",
             (int *) &__tp->super.profiling_array[0], (int *) &__tp->super.profiling_array[1]);
 #endif
-
-    /* The first taskclass of every taskpool is the flush taskclass */
-    parsec_dtd_create_task_class(__tp, parsec_dtd_data_flush_sndrcv, "parsec_dtd_data_flush",
-                                 0, 0, 1);
 
     return (parsec_taskpool_t *)__tp;
 }
@@ -1990,20 +2003,20 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
                      (count_of_params * sizeof(parsec_dtd_task_param_t)) +
                       size_of_param;
 
-    parsec_mempool_construct( &dtd_tc->context_mempool,
-                              OBJ_CLASS(parsec_dtd_task_t), total_size,
-                              offsetof(parsec_dtd_task_t, mempool_owner),
-                              1/* no. of threads*/ );
+    parsec_mempool_construct(&dtd_tc->context_mempool,
+                             OBJ_CLASS(parsec_dtd_task_t), total_size,
+                             offsetof(parsec_dtd_task_t, mempool_owner),
+                             __tp->total_threads);
 
     int total_size_remote_task = sizeof(parsec_dtd_task_t) +
                      (flow_count * sizeof(parsec_dtd_parent_info_t)) +
                      (flow_count * sizeof(parsec_dtd_descendant_info_t)) +
                      (flow_count * sizeof(parsec_dtd_min_flow_info_t));
 
-    parsec_mempool_construct( &dtd_tc->remote_task_mempool,
-                              OBJ_CLASS(parsec_dtd_task_t), total_size_remote_task,
-                              offsetof(parsec_dtd_task_t, mempool_owner),
-                              1/* no. of threads*/ );
+    parsec_mempool_construct(&dtd_tc->remote_task_mempool,
+                             OBJ_CLASS(parsec_dtd_task_t), total_size_remote_task,
+                             offsetof(parsec_dtd_task_t, mempool_owner),
+                             __tp->total_threads);
 
     /*
      To bypass const in function structure.
@@ -2308,7 +2321,8 @@ parsec_dtd_create_and_initialize_task( parsec_dtd_taskpool_t *dtd_tp,
     } else {
         dtd_task_mempool = &((parsec_dtd_task_class_t*)tc)->remote_task_mempool;
     }
-    this_task = (parsec_dtd_task_t *)parsec_thread_mempool_allocate(dtd_task_mempool->thread_mempools);
+    this_task = (parsec_dtd_task_t *)parsec_thread_mempool_allocate(dtd_task_mempool->thread_mempools + dtd_tp->current_thread_id);
+    dtd_tp->current_thread_id = (dtd_tp->current_thread_id + 1) % dtd_tp->total_threads;
 
     assert(this_task->super.super.super.obj_reference_count == 1);
 
@@ -2892,16 +2906,16 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t  *tp,
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
 
-    if( tp->context == NULL ) {
-        parsec_fatal( "Sorry! You can not insert task wihtout enqueuing the taskpool to parsec_context"
-                      " first. Please make sure you call parsec_context_add_taskpool(parsec_context, taskpool) before"
-                      " you try inserting task in PaRSEC\n" );
-    }
-
     if( dtd_tp == NULL ) {
         parsec_fatal( "Wait! You need to pass a correct parsec taskpool in order to insert task. "
                       "Please use \"parsec_dtd_taskpool_new()\" to create new taskpool"
                       "and then try to insert task. Thank you\n" );
+    }
+
+    if( tp->context == NULL ) {
+        parsec_fatal( "Sorry! You can not insert task wihtout enqueuing the taskpool to parsec_context"
+                      " first. Please make sure you call parsec_context_add_taskpool(parsec_context, taskpool) before"
+                      " you try inserting task in PaRSEC\n" );
     }
 
     va_list args_for_size, args_for_rank;
