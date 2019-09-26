@@ -1,0 +1,12 @@
+if(PARSEC_HAVE_CUDA)
+  if( NOT CUDA_cublas_LIBRARY )
+    message(WARNING "CUBLAS library not automatically detected when CUDA was found -- not enabling nvlink test")
+  else( NOT CUDA_cublas_LIBRARY )
+    include(ParsecCompilePTG)
+
+    parsec_addtest(C nvlink "nvlink_main.c;nvlink_wrapper.c")
+    target_include_directories(nvlink PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
+    target_ptg_sources(nvlink PRIVATE "nvlink.jdf")
+    target_link_libraries(nvlink PRIVATE ${CUDA_cublas_LIBRARY})
+  endif( NOT CUDA_cublas_LIBRARY )
+endif(PARSEC_HAVE_CUDA)

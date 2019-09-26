@@ -238,6 +238,10 @@ static inline void
 parsec_list_nolock_add_after( parsec_list_t* list,
                       parsec_list_item_t* position,
                       parsec_list_item_t* item );
+static inline void
+parsec_list_add_after( parsec_list_t* list,
+                      parsec_list_item_t* position,
+                      parsec_list_item_t* item );
 
 /**
  * @brief removes an element from a list without
@@ -776,6 +780,17 @@ parsec_list_nolock_add_after( parsec_list_t* list,
     newel->list_next = position->list_next;
     position->list_next->list_prev = newel;
     position->list_next = newel;
+}
+
+
+static inline void
+parsec_list_add_after( parsec_list_t* list,
+                             parsec_list_item_t* position,
+                             parsec_list_item_t* newel )
+{
+    parsec_list_lock(list);
+    parsec_list_nolock_add_after(list, position, newel);
+    parsec_list_unlock(list);
 }
 
 

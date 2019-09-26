@@ -132,7 +132,8 @@ parsec_detach_dtd_taskpool_from_context(parsec_taskpool_t *tp,
     assert(tp != NULL);
     assert(context != NULL);
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-
+    (void)context;
+    (void)dtd_tp;
     assert(dtd_tp->enqueue_flag);
     parsec_taskpool_update_runtime_nbtask(tp, -1);
 }

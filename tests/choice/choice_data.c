@@ -98,7 +98,7 @@ static int vpid_of(parsec_data_collection_t *desc, ...)
 }
 
 #if defined(PARSEC_PROF_TRACE)
-static uint32_t data_key(struct parsec_data_collection_s *desc, ...)
+static parsec_data_key_t data_key(struct parsec_data_collection_s *desc, ...)
 {
     int k;
     va_list ap;

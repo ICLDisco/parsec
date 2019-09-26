@@ -22,11 +22,9 @@
 #endif
 #include <string.h>
 
-static uint32_t tiled_matrix_data_key(struct parsec_data_collection_s *desc, ...);
+static parsec_data_key_t tiled_matrix_data_key(struct parsec_data_collection_s *desc, ...);
 
-#if defined(PARSEC_PROF_TRACE)
-static int      tiled_matrix_key_to_string(struct parsec_data_collection_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
-#endif
+static int      tiled_matrix_key_to_string(struct parsec_data_collection_s * desc, parsec_data_key_t datakey, char * buffer, uint32_t buffer_size);
 
 parsec_data_t*
 parsec_matrix_create_data(parsec_tiled_matrix_dc_t* matrix,
@@ -134,10 +132,8 @@ void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
     tdesc->nt = (j+n-1)/nb - j/nb + 1;
 
     /* finish to update the main object properties */
-#if defined(PARSEC_PROF_TRACE)
     o->key_to_string = tiled_matrix_key_to_string;
     asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
-#endif
 }
 
 void
@@ -203,7 +199,7 @@ tiled_matrix_submatrix( parsec_tiled_matrix_dc_t *tdesc,
 }
 
 /* return a unique key (unique only for the specified parsec_dc) associated to a data */
-static uint32_t tiled_matrix_data_key(struct parsec_data_collection_s *desc, ...)
+static parsec_data_key_t tiled_matrix_data_key(struct parsec_data_collection_s *desc, ...)
 {
     parsec_tiled_matrix_dc_t * dc;
     unsigned int m, n;
@@ -223,8 +219,7 @@ static uint32_t tiled_matrix_data_key(struct parsec_data_collection_s *desc, ...
     return ((n * dc->lmt) + m);
 }
 
-#if defined(PARSEC_PROF_TRACE)
-static int  tiled_matrix_key_to_string(struct parsec_data_collection_s *desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+static int  tiled_matrix_key_to_string(struct parsec_data_collection_s *desc, parsec_data_key_t datakey, char * buffer, uint32_t buffer_size)
 /* return a string meaningful for profiling about data */
 {
     parsec_tiled_matrix_dc_t * dc;
@@ -240,7 +235,6 @@ static int  tiled_matrix_key_to_string(struct parsec_data_collection_s *desc, ui
     }
     return res;
 }
-#endif /* PARSEC_PROF_TRACE */
 
 /*
  * Writes the data into the file filename

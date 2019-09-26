@@ -32,6 +32,8 @@ BEGIN_C_DECLS
 #define PARSEC_PROFILE_CUDA_TRACK_DATA_OUT 0x0002
 #define PARSEC_PROFILE_CUDA_TRACK_OWN      0x0004
 #define PARSEC_PROFILE_CUDA_TRACK_EXEC     0x0008
+#define PARSEC_PROFILE_CUDA_TRACK_MEM_USE  0x0010
+#define PARSEC_PROFILE_CUDA_TRACK_PREFETCH 0x0020
 
 extern int parsec_cuda_trackable_events;
 extern int parsec_cuda_movein_key_start;
@@ -42,7 +44,11 @@ extern int parsec_cuda_own_GPU_key_start;
 extern int parsec_cuda_own_GPU_key_end;
 #endif  /* defined(PROFILING) */
 
-#define GPU_TASK_TYPE_D2HTRANSFER 111
+#define GPU_TASK_TYPE_KERNEL       000
+#define GPU_TASK_TYPE_D2HTRANSFER  111
+#define GPU_TASK_TYPE_PREFETCH     222
+#define GPU_TASK_TYPE_WARMUP       333
+#define GPU_TASK_TYPE_D2D_COMPLETE 444
 
 typedef struct __parsec_gpu_workspace {
     void* workspace[PARSEC_GPU_MAX_WORKSPACE];
@@ -76,14 +82,26 @@ typedef int (*advance_task_function_t)(gpu_device_t                    *gpu_devi
 
 struct parsec_gpu_task_s {
     parsec_list_item_t               list_item;
-    parsec_task_t                   *ec;
-    advance_task_function_t          submit;
-    parsec_complete_stage_function_t complete_stage;
-    uint64_t                         last_data_check_epoch;
     int                              task_type;
     int32_t                          pushout;
-    double                           load;  /* computational load imposed on the device */
-    const parsec_flow_t             *flow[MAX_PARAM_COUNT];
+    advance_task_function_t          submit;
+    parsec_complete_stage_function_t complete_stage;
+#if defined(PARSEC_PROF_TRACE)
+    int                              prof_key_end;
+    uint64_t                         prof_event_id;
+    uint32_t                         prof_tp_id;
+#endif
+    union {
+        struct {
+            parsec_task_t                   *ec;
+            uint64_t                         last_data_check_epoch;
+            double                           load;  /* computational load imposed on the device */
+            const parsec_flow_t             *flow[MAX_PARAM_COUNT];
+        };
+        struct {
+            parsec_data_copy_t *copy;
+        };
+    };
 };
 
 struct __parsec_gpu_exec_stream {
@@ -104,11 +122,7 @@ struct __parsec_gpu_exec_stream {
     parsec_gpu_workspace_t           *workspace;
 #if defined(PARSEC_PROF_TRACE)
     parsec_thread_profiling_t        *profiling;
-#endif  /* defined(PROFILING) */
-#if defined(PARSEC_PROF_TRACE)
     int                               prof_event_track_enable;
-    int                               prof_event_key_start;
-    int                               prof_event_key_end;
 #endif  /* defined(PROFILING) */
 };
 

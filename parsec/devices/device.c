@@ -644,3 +644,37 @@ void parsec_devices_taskpool_restrict(parsec_taskpool_t *tp,
     return;
 }
 
+int parsec_advise_data_on_device(parsec_data_t *data, int device, int advice)
+{
+    parsec_device_t *dev;
+    dev = parsec_devices_get(device);
+    if( NULL == dev )
+        return PARSEC_ERR_NOT_FOUND;
+    if( NULL == dev->device_data_advise )
+        return PARSEC_SUCCESS;
+    return dev->device_data_advise(dev, data, advice);
+}
+
+void parsec_devices_reset_load(parsec_context_t *context)
+{
+    int i;
+    (void)context;
+    if( NULL == parsec_device_load )
+        return;
+    for(i = 0; i < (int)parsec_nb_devices; i++) {
+        parsec_device_load[i] = 0;
+    }
+}
+
+int parsec_devices_release_memory(void)
+{
+    int i;
+    parsec_device_t *d;
+    for(i = 1; i < (int)parsec_nb_devices; i++) {
+        d = parsec_devices_get(i);
+        if(NULL != d && NULL != d->device_memory_release) {
+            d->device_memory_release(d);
+        }
+    }
+    return PARSEC_SUCCESS;
+}

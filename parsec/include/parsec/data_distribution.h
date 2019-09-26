@@ -56,12 +56,10 @@ struct parsec_data_collection_s {
 
     char      *key_base;
 
-#ifdef PARSEC_PROF_TRACE
     /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
     int (*key_to_string)(parsec_data_collection_t *d, parsec_data_key_t key, char * buffer, uint32_t buffer_size);
     char      *key_dim;
     char      *key;
-#endif /* PARSEC_PROF_TRACE */
 };
 
 /**
