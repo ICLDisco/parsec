@@ -8,8 +8,6 @@
 /**
  * @file insert_function.c
  *
- * @version 2.0.0
- *
  */
 
 /* Define a group for Doxygen documentation */

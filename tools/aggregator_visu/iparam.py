@@ -10,9 +10,7 @@ is used to parse and store command line parameters. It provides accessors
 and mutators to the stored fileds.
 
 @author Damien Genet
-@email dgenet@icl.utk.edu
-@date 2017-02-09
-@version 0.1.0
+@email parsec-users@icl.utk.edu
 """
 
 import sys, getopt

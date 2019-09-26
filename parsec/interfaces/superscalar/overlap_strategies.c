@@ -7,8 +7,6 @@
 /**
  * @file overlap_strategies.c
  *
- * @version 2.0.0
- *
  */
 
 #include "parsec/runtime.h"

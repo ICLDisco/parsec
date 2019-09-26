@@ -9,9 +9,7 @@ This python script is the main script for the basic GUI that just prints
 data in the terminal.
 
 @author Damien Genet
-@email dgenet@icl.utk.edu
-@date 2017-02-09
-@version 0.1.0
+@email parsec-users@icl.utk.edu
 """
 
 import socket

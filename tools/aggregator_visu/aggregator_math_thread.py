@@ -9,9 +9,7 @@ This python script is the source code for the mathematical thread in
 charge of taking data and applying math operator to generate new data
 
 @author Damien Genet
-@email dgenet@icl.utk.edu
-@date 2017-02-09
-@version 0.1.0
+@email parsec-users@icl.utk.edu
 """
 
 import threading

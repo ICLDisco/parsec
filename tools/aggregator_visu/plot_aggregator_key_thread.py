@@ -9,9 +9,7 @@ This python script contains the source of the thread connecting the GUI
 with the aggregator.
 
 @author Damien Genet
-@email dgenet@icl.utk.edu
-@date 2017-02-09
-@version 0.1.0
+@email parsec-users@icl.utk.edu
 """
 
 import socket
