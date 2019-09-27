@@ -1081,12 +1081,12 @@ MESSAGE("\n\n")
 # but also generates the CMake package files.
 
 # pkg-config file
-#string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
-#if (EXTRA_INCLUDES)
-#  string (REPLACE ";" " -I" EXTRA_INCLUDES_STRING "-I${EXTRA_INCLUDES}")
+string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
+if (EXTRA_INCLUDES)
+  string (REPLACE ";" " -I" EXTRA_INCLUDES_STRING "-I${EXTRA_INCLUDES}")
   # Remove the last -I if any
-#  string (REPLACE "-I$" "" EXTRA_INCLUDES_STRING ${EXTRA_INCLUDES_STRING})
-#endif (EXTRA_INCLUDES)
+  string (REPLACE "-I$" "" EXTRA_INCLUDES_STRING ${EXTRA_INCLUDES_STRING})
+endif (EXTRA_INCLUDES)
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
