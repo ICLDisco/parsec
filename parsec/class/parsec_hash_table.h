@@ -81,6 +81,11 @@ struct parsec_hash_table_s {
                                                      *   at this offset */
     parsec_key_fn_t           key_functions;        /**< How to acccess and modify the keys */
     void                     *hash_data;            /**< This is the last parameter of the hashing function */
+    int                       max_collisions_hint;  /**< How many collisions before this hash table is resized */
+    int                       max_table_nb_bits;    /**< Maximum size of the hash table: above this, if max_collisions_hint
+                                                     *   is reached, a warning is issued (once), and elements just get stacked
+                                                     *   in the same buckets. */
+    int                       warning_issued;       /**< Number of times the warning mentionned above has been issued */
     parsec_hash_table_head_t *rw_hash;              /**< Added elements go in this hash table */
 };
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_hash_table_t);
@@ -138,10 +143,14 @@ void parsec_hash_table_lock_bucket(parsec_hash_table_t *ht, parsec_key_t key );
  * @details allow other threads to update this bucket.
  *  This operation might block and resize the table, if non-locking
  *  insertions during the critical section added too many elements.
+ *  Use it through the parsec_hash_table_unlock_bucket macro
  *  @arg[inout] ht  the parsec_hash_table
  *  @arg[in]    key the key for which to unlock the bucket
+ *  @arg[in]    file the file where the caller of the function is
+ *  @arg[in]    line the line at which this function is called
  */
-void parsec_hash_table_unlock_bucket(parsec_hash_table_t *ht, parsec_key_t key );
+void parsec_hash_table_unlock_bucket_impl(parsec_hash_table_t *ht, parsec_key_t key, const char *file, int line);
+#define parsec_hash_table_unlock_bucket(ht, key) parsec_hash_table_unlock_bucket_impl(ht, key, __FILE__, __LINE__)
 
 /**
  * @brief Destroy a hash table
@@ -199,11 +208,15 @@ void *parsec_hash_table_nolock_remove(parsec_hash_table_t *ht, parsec_key_t key)
  *  table. This function is thread-safe but assumes that the element does
  *  not belong to the table. This might lock the table to redimension it,
  *  if a bucket holds more than parsec_hash_table_max_collisions MCA parameter
+ *  Use this through the parsec_hash_table_insert macro.
  *  @arg[inout] ht the hash table
  *  @arg[inout] item the pointer to the structure with a parsec_hash_table_item_t
  *              structure at the right offset (see parsec_hash_table_init)
+ *  @arg[in]    file the name of the file where the caller of this function is
+ *  @arg[in]    line the line at which the caller is
  */
-void parsec_hash_table_insert(parsec_hash_table_t *ht, parsec_hash_table_item_t *item);
+void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_item_t *item, const char *file, int line);
+#define parsec_hash_table_insert(ht, item) parsec_hash_table_insert_impl(ht, item, __FILE__, __LINE__)
 
 /**
  * @brief Find element in the hash table wihout locking it

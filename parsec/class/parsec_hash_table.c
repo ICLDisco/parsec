@@ -97,13 +97,13 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
 
     if( parsec_hash_table_mca_param_mch_index != PARSEC_ERROR ) {
         if( parsec_mca_param_lookup_int(parsec_hash_table_mca_param_mch_index, &v) != PARSEC_ERROR ) {
-            parsec_hash_table_max_collisions_hint = v;
+            ht->max_collisions_hint = v;
         }
     }
 
     if( parsec_hash_table_mca_param_mnb_index != PARSEC_ERROR ) {
         if( parsec_mca_param_lookup_int(parsec_hash_table_mca_param_mnb_index, &v) != PARSEC_ERROR ) {
-            parsec_hash_table_max_table_nb_bits = v;
+            ht->max_table_nb_bits = v;
         }
     }
 
@@ -112,7 +112,8 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
     ht->key_functions = key_functions;
     ht->hash_data = data;
     ht->elt_hashitem_offset = offset;
-
+    ht->warning_issued = 0;
+    
     head = malloc(sizeof(parsec_hash_table_head_t));
     head->buckets      = malloc( (1ULL<<nb_bits) * sizeof(parsec_hash_table_bucket_t));
     head->nb_bits      = nb_bits;
@@ -270,15 +271,24 @@ static void parsec_hash_table_resize(parsec_hash_table_t *ht)
     }
 }
 
-void parsec_hash_table_unlock_bucket(parsec_hash_table_t *ht, parsec_key_t key )
+void parsec_hash_table_unlock_bucket_impl(parsec_hash_table_t *ht, parsec_key_t key, const char *file, int line)
 {
-    int resize;
+    int resize = 0;
     parsec_hash_table_head_t *cur_head;
     uint64_t hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
 
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
-    resize = (ht->rw_hash->buckets[hash].cur_len > parsec_hash_table_max_collisions_hint) &&
-        ((int)ht->rw_hash->nb_bits + 1 < parsec_hash_table_max_table_nb_bits);
+    if( ht->rw_hash->buckets[hash].cur_len > ht->max_collisions_hint ) {
+        if( (int)ht->rw_hash->nb_bits + 1 < ht->max_table_nb_bits )
+            resize = 1;
+        else {
+            if( !ht->warning_issued ) {
+                parsec_warning("%s:%d -- Hash table has %d collisions in bucket %lu, but it already spans over %lu buckets. Performance might get very bad if more elements continue to stack in this bucket. Consider allowing larger resize with the MCA parameter parsec_hash_table_max_table_nb_bits",
+                               file, line, ht->rw_hash->buckets[hash].cur_len, hash, (1UL<<ht->rw_hash->nb_bits));
+                ht->warning_issued = 1;
+            }
+        }
+    }
     cur_head = ht->rw_hash;
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
     parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
@@ -494,19 +504,28 @@ void *parsec_hash_table_nolock_remove(parsec_hash_table_t *ht, parsec_key_t key)
     return parsec_hash_table_nolock_remove_from_old_tables(ht, key);
 }
 
-void parsec_hash_table_insert(parsec_hash_table_t *ht, parsec_hash_table_item_t *item)
+void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_item_t *item, const char *file, int line)
 {
     uint64_t hash;
     parsec_hash_table_head_t *cur_head;
-    int resize;
+    int resize = 0;
     parsec_atomic_rwlock_rdlock(&ht->rw_lock);
     cur_head = ht->rw_hash;
     hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(item->key, ht->hash_data), ht->rw_hash->nb_bits);
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
     parsec_atomic_lock(&ht->rw_hash->buckets[hash].lock);
     parsec_hash_table_nolock_insert(ht, item);
-    resize = (ht->rw_hash->buckets[hash].cur_len > parsec_hash_table_max_collisions_hint) &&
-        ((int)ht->rw_hash->nb_bits + 1 < parsec_hash_table_max_table_nb_bits);
+    if( ht->rw_hash->buckets[hash].cur_len > ht->max_collisions_hint ) {
+        if( (int)ht->rw_hash->nb_bits + 1 < ht->max_table_nb_bits )
+            resize = 1;
+        else {
+            if( !ht->warning_issued ) {
+                parsec_warning("%s:%d -- Hash table has %d collisions in bucket %lu, but it already spans over %lu buckets. Performance might get very bad if more elements continue to stack in this bucket. Consider allowing larger resize with the MCA parameter parsec_hash_table_max_table_nb_bits",
+                               file, line, ht->rw_hash->buckets[hash].cur_len, hash, (1UL<<ht->rw_hash->nb_bits));
+                ht->warning_issued = 1;
+            }
+        }
+    }
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
     parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
     
