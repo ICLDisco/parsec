@@ -399,7 +399,7 @@ static char *map_operator_key_print(char *buffer, size_t buffer_size, parsec_key
 }
 
 static parsec_key_fn_t __parsec_map_operator_key_functions = {
-    .key_compare = parsec_hash_table_generic_64bits_key_compare,
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
     .key_print = map_operator_key_print,
     .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };

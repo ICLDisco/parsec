@@ -2696,7 +2696,7 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
     }
 
     coutput("static parsec_key_fn_t %s = {\n"
-            "   .key_compare = parsec_hash_table_generic_64bits_key_compare,\n"
+            "   .key_equal = parsec_hash_table_generic_64bits_key_equal,\n"
             "   .key_print = %s_key_print,\n"
             "   .key_hash  = parsec_hash_table_generic_64bits_key_hash\n"
             "};\n"
@@ -5076,8 +5076,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "    gpu_task->prof_key_end = PARSEC_PROF_FUNC_KEY_END(this_task->taskpool,\n"
                 "                                   this_task->task_class->task_class_id);\n"
                 "    gpu_task->prof_event_id = this_task->task_class->key_functions->\n"
-                "           key_hash(this_task->task_class->make_key(this_task->taskpool, ((parsec_task_t*)this_task)->locals),\n"
-                "                    64, NULL);\n"
+                "           key_hash(this_task->task_class->make_key(this_task->taskpool, ((parsec_task_t*)this_task)->locals), NULL);\n"
                 "    gpu_task->prof_tp_id = this_task->taskpool->taskpool_id;\n"
                 "  }\n"
                 "#endif /* PARSEC_PROF_TRACE */\n");

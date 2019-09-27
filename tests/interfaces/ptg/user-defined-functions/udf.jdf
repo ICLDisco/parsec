@@ -17,7 +17,7 @@ static int ud_startup2(parsec_execution_stream_t * es,
 		       
 static char *ud_key_print(char *buffer, size_t buffer_size, parsec_key_t __parsec_key_, void *user_data);
 static parsec_key_fn_t ud_hash_struct = {
-    .key_compare = parsec_hash_table_generic_64bits_key_compare,
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
     .key_print = ud_key_print,
     .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };

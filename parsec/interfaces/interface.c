@@ -110,7 +110,7 @@ static const __parsec_chore_t __parsec_generic_startup_chores[] = {
 };
 
 static parsec_key_fn_t __parsec_generic_key_functions = {
-    .key_compare = parsec_hash_table_generic_64bits_key_compare,
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
     .key_print = parsec_hash_table_generic_64bits_key_print,
     .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };

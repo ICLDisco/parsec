@@ -51,10 +51,10 @@ static int        parsec_profiling_change_shmem(void);
 static int        parsec_profiling_dump_header_shmem(void);
 
 
-static int dict_key_compare(parsec_key_t keyA, parsec_key_t keyB, void *data)
+static int dict_key_equal(parsec_key_t keyA, parsec_key_t keyB, void *data)
 {
     (void)data;
-    return strcmp((char*)keyA, (char*)keyB);
+    return !strcmp((char*)keyA, (char*)keyB);
 }
 
 static char * dict_key_print(char *buffer, size_t buffer_size,
@@ -79,7 +79,7 @@ static uint64_t dict_key_hash(parsec_key_t key, void *data)
 }
 
 static parsec_key_fn_t dict_key_fns = {
-    .key_compare = dict_key_compare,
+    .key_equal = dict_key_equal,
     .key_print = dict_key_print,
     .key_hash = dict_key_hash
 };

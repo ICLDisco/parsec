@@ -23,7 +23,7 @@ static parsec_hash_table_t *parsec_dc_hash_table = NULL;
 static int parsec_dc_hash_table_size = 101;
 
 static parsec_key_fn_t dc_key_fns = {
-    .key_compare = parsec_hash_table_generic_64bits_key_compare,
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
     .key_print = parsec_hash_table_generic_64bits_key_print,
     .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };
