@@ -912,7 +912,7 @@ include(CheckStructureFieldOffset)
 check_structure_field_offset("lifo_private" "struct{parsec_object_t super;uint8_t alignment;parsec_list_item_t*lifo_ghost;char lifo_private;}" PARSEC_LIFO_HEAD_OFFSET)
 cmake_pop_check_state()
 
-math(EXPR PARSEC_LIFO_REMAINING_BYTES "${PARSEC_LIFO_OPAQUE_SIZEOF}-${PARSEC_LIFO_HEAD_OFFSET}" OUTPUT_FORMAT DECIMAL)
+math(EXPR PARSEC_LIFO_REMAINING_BYTES "${PARSEC_LIFO_OPAQUE_SIZEOF}-${PARSEC_LIFO_HEAD_OFFSET}")
 
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo-external.h.in"
