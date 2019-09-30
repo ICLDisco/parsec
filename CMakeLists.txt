@@ -366,6 +366,7 @@ endif(PARSEC_ARCH_PPC)
 #
 # Remove all duplicates from the CFLAGS.
 #
+if(CMAKE_C_FLAGS)
 set(TMP_LIST ${CMAKE_C_FLAGS})
 separate_arguments(TMP_LIST)
 list(REMOVE_DUPLICATES TMP_LIST)
@@ -373,6 +374,7 @@ set(CMAKE_C_FLAGS "")
 foreach( ITEM ${TMP_LIST})
   string(APPEND CMAKE_C_FLAGS " ${ITEM}")
 endforeach()
+endif()
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
@@ -1068,7 +1070,9 @@ set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
 include (CPack)
 
+if(EXTRA_LIBS)
 list(REMOVE_DUPLICATES EXTRA_LIBS)
+endif()
 
 MESSAGE("\n\nConfiguration flags:")
 MESSAGE("  CMAKE_C_FLAGS          = ${CMAKE_C_FLAGS}")
