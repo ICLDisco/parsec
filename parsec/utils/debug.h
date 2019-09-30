@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -120,6 +120,7 @@ extern void (*parsec_weaksym_exit)(int status);
 
 #if defined(PARSEC_DEBUG_HISTORY)
 #define parsec_debug_verbose(LVL, OUT, FMT, ...) do {                \
+    (void)(OUT);                                                     \
     _PARSEC_DEBUG_HISTORY(LVL,                                       \
         "D@%05d " FMT " @%.20s:%-5d", parsec_debug_rank,             \
         ##__VA_ARGS__, __func__, __LINE__);                          \

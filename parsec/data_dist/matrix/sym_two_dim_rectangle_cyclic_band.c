@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The University of Tennessee and The University
+ * Copyright (c) 2017-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -49,9 +49,9 @@ uint32_t sym_twoDBC_band_rank_of(parsec_data_collection_t * desc, ...)
             (dc->super.uplo == matrix_Upper && n>=m) );
 
     /* Check tile location */
-    if( (unsigned int)abs(m-n) < dc->band_size ){
+    if( (unsigned int)abs(m-(int)n) < dc->band_size ){
         /* New index */
-        m = abs(m - n); 
+        m = abs(m - (int)n);
 
         if( (dc->band.grid.strows != 1) || (dc->band.grid.stcols != 1) ){
             m = st_compute_m(&dc->band, m);
@@ -97,9 +97,9 @@ parsec_data_t* sym_twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
     key = (n * dc->super.super.lmt) + m;
 
     /* Check tile location */
-    if( (unsigned int)abs(m-n) < dc->band_size ){
+    if( (unsigned int)abs(m-(int)n) < dc->band_size ){
         /* The new m in band */
-        m = abs(m - n); 
+        m = abs(m - (int)n);
 
         if( (dc->band.grid.strows != 1) || (dc->band.grid.stcols != 1) ){
             m = st_compute_m(&dc->band, m);

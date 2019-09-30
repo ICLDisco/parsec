@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -258,7 +258,7 @@ int vpmap_init_from_file(const char *filename)
             if ( tgt_rank == rank ){
                 nbvp++;
             }
-        } else if( (line[0] == ':') ){
+        } else if( line[0] == ':' ){
             /* no target proc specified, applies to all. */
             nbvp++;
         } else {
