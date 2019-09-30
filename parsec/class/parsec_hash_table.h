@@ -29,7 +29,8 @@
  *    to insert elements, and @ref parsec_hash_table_find / @ref parsec_hash_table_remove will return
  *    the pointer to the structure.
  *
- *    Keys are limited to uint64_t at this time.
+ *    Keys are uintptr integers, but users may pass a pointer and provide a user-defined
+ *    comparison function to use arbitrary length keys.
  */
 
 BEGIN_C_DECLS
@@ -40,15 +41,17 @@ BEGIN_C_DECLS
  */
 typedef uintptr_t parsec_key_t;
 typedef struct parsec_key_fn_s {
-    /** Returns a == b */
+    /** Returns a == b
+     *  user_data is the pointer passed to hash_table_create */
     int          (*key_equal)(parsec_key_t a, parsec_key_t b, void *user_data);
     /** Writes up to buffer_size-1 bytes into buffer, creating a human-readable version of k 
      *  user_data is the pointer passed to hash_table_create*/
     char *       (*key_print)(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data);
-    /** Returns a hash of k, between 0 and 1<<nb_bits-1.
-     *  (1 <= nb_bits <= 16)
+    /** Returns a hash of k, between 0 and 1ULL<<64
+     *  If the key is already unique and comparable directly without passing it to key_equal,
+     *  this function can return key.
      *  user_data is the pointer passed to hash_table_create */
-    uint64_t     (*key_hash)(parsec_key_t k, int nb_bits, void *user_data);
+    uint64_t     (*key_hash)(parsec_key_t k, void *user_data);
 } parsec_key_fn_t;
 
 typedef struct parsec_hash_table_s        parsec_hash_table_t;       /**< A Hash Table */
@@ -78,6 +81,11 @@ struct parsec_hash_table_s {
                                                      *   at this offset */
     parsec_key_fn_t           key_functions;        /**< How to acccess and modify the keys */
     void                     *hash_data;            /**< This is the last parameter of the hashing function */
+    int                       max_collisions_hint;  /**< How many collisions before this hash table is resized */
+    int                       max_table_nb_bits;    /**< Maximum size of the hash table: above this, if max_collisions_hint
+                                                     *   is reached, a warning is issued (once), and elements just get stacked
+                                                     *   in the same buckets. */
+    int                       warning_issued;       /**< Number of times the warning mentionned above has been issued */
     parsec_hash_table_head_t *rw_hash;              /**< Added elements go in this hash table */
 };
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_hash_table_t);
@@ -135,10 +143,14 @@ void parsec_hash_table_lock_bucket(parsec_hash_table_t *ht, parsec_key_t key );
  * @details allow other threads to update this bucket.
  *  This operation might block and resize the table, if non-locking
  *  insertions during the critical section added too many elements.
+ *  Use it through the parsec_hash_table_unlock_bucket macro
  *  @arg[inout] ht  the parsec_hash_table
  *  @arg[in]    key the key for which to unlock the bucket
+ *  @arg[in]    file the file where the caller of the function is
+ *  @arg[in]    line the line at which this function is called
  */
-void parsec_hash_table_unlock_bucket(parsec_hash_table_t *ht, parsec_key_t key );
+void parsec_hash_table_unlock_bucket_impl(parsec_hash_table_t *ht, parsec_key_t key, const char *file, int line);
+#define parsec_hash_table_unlock_bucket(ht, key) parsec_hash_table_unlock_bucket_impl(ht, key, __FILE__, __LINE__)
 
 /**
  * @brief Destroy a hash table
@@ -196,11 +208,15 @@ void *parsec_hash_table_nolock_remove(parsec_hash_table_t *ht, parsec_key_t key)
  *  table. This function is thread-safe but assumes that the element does
  *  not belong to the table. This might lock the table to redimension it,
  *  if a bucket holds more than parsec_hash_table_max_collisions MCA parameter
+ *  Use this through the parsec_hash_table_insert macro.
  *  @arg[inout] ht the hash table
  *  @arg[inout] item the pointer to the structure with a parsec_hash_table_item_t
  *              structure at the right offset (see parsec_hash_table_init)
+ *  @arg[in]    file the name of the file where the caller of this function is
+ *  @arg[in]    line the line at which the caller is
  */
-void parsec_hash_table_insert(parsec_hash_table_t *ht, parsec_hash_table_item_t *item);
+void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_item_t *item, const char *file, int line);
+#define parsec_hash_table_insert(ht, item) parsec_hash_table_insert_impl(ht, item, __FILE__, __LINE__)
 
 /**
  * @brief Find element in the hash table wihout locking it
@@ -303,17 +319,14 @@ char *parsec_hash_table_generic_64bits_key_print(char *buffer, size_t buffer_siz
 /**
  * @brief a generic hash function for keys that fit in 64 bits
  *
- * @details computes a hash of k on nb_bits, assuming that k is a
- *          key on 64 bits, and involving as many bits of k as possible
- *          in the result
+ * @details computes a hash of k on 64 bits, assuming that k is a
+ *          key on 64 bits. This function returns k.
  *
  *    @arg[in] k the key to hash
- *    @arg[in] the number of bits on which to hash k (the result is between
- *             0 and (1 << nb_bits) - 1 inclusive)
  *    @arg[in] user_data ignored parameter
- *    @return a hash of k on nb_bits
+ *    @return a 64-bits hash of k on nb_bits
  */
-uint64_t parsec_hash_table_generic_64bits_key_hash(parsec_key_t k, int nb_bits, void *user_data);
+uint64_t parsec_hash_table_generic_64bits_key_hash(parsec_key_t k, void *user_data);
 
 END_C_DECLS
 

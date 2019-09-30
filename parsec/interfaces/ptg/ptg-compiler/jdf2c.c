@@ -4580,7 +4580,7 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
 
     coutput("#if defined(PARSEC_PROF_GRAPHER)\n"
             "  parsec_prof_grapher_task((parsec_task_t*)%s, es->th_id, es->virtual_process->vp_id,\n"
-            "     %s.key_hash(%s->task_class->make_key( (parsec_taskpool_t*)%s->taskpool, ((parsec_task_t*)%s)->locals), 64, NULL));\n"
+            "     %s.key_hash(%s->task_class->make_key( (parsec_taskpool_t*)%s->taskpool, ((parsec_task_t*)%s)->locals), NULL));\n"
             "#endif  /* defined(PARSEC_PROF_GRAPHER) */\n",
             context_name,
             jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL), context_name, context_name, context_name);
@@ -5076,8 +5076,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "    gpu_task->prof_key_end = PARSEC_PROF_FUNC_KEY_END(this_task->taskpool,\n"
                 "                                   this_task->task_class->task_class_id);\n"
                 "    gpu_task->prof_event_id = this_task->task_class->key_functions->\n"
-                "           key_hash(this_task->task_class->make_key(this_task->taskpool, ((parsec_task_t*)this_task)->locals),\n"
-                "                    64, NULL);\n"
+                "           key_hash(this_task->task_class->make_key(this_task->taskpool, ((parsec_task_t*)this_task)->locals), NULL);\n"
                 "    gpu_task->prof_tp_id = this_task->taskpool->taskpool_id;\n"
                 "  }\n"
                 "#endif /* PARSEC_PROF_TRACE */\n");

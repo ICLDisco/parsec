@@ -466,8 +466,8 @@ extern int device_delegate_begin, device_delegate_end;
     PARSEC_PROFILING_TRACE((PROFILE),                                   \
                            (KEY),                                       \
                            (TASK)->task_class->key_functions->          \
-                           key_hash((TASK)->task_class->make_key( (TASK)->taskpool, (TASK)->locals ), \
-                                    64, NULL),                          \
+                           key_hash((TASK)->task_class->make_key(       \
+                             (TASK)->taskpool, (TASK)->locals ), NULL), \
                            (TASK)->taskpool->taskpool_id, (void*)&(TASK)->prof_info)
 
 #define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \

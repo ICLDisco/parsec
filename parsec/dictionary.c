@@ -65,25 +65,17 @@ static char * dict_key_print(char *buffer, size_t buffer_size,
   return buffer;
 }
 
-static uint64_t dict_key_hash(parsec_key_t key, int nbits, void *data)
+static uint64_t dict_key_hash(parsec_key_t key, void *data)
 {
     (void)data;
     char *str = (char*)key;
-    size_t i, len = strlen(str);
-    uint64_t acc = 1, hash = 0x0;
+    uint64_t h = 1125899906842597ULL; // Large prime
+    int len = strlen(str);
 
-    for (i = 0; i < len; ++i)
-      acc *= (str[i]-'*');
-
-    int b = nbits;
-    uint64_t mask = (1 << nbits) -1;
-
-    for (; b < 64; b += nbits) {
-      hash = hash ^ (acc & mask);
-      acc = acc >> nbits;
+    for (int i = 0; i < len; i++) {
+        h = 31*h + str[i];
     }
-
-    return hash;
+    return h;
 }
 
 static parsec_key_fn_t dict_key_fns = {

@@ -462,7 +462,6 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
     char *name, *type;
     int t;
     int strid;
-    char string[256];
     if( !__profile_initialized ) return 0;
 #if defined(PARSEC_HAVE_MPI)
     int MPI_ready;
@@ -562,8 +561,6 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
             if( strcmp(type, otf2_convertor[t].type_name) == 0 ) {
                 regions[region].otf2_attribute_types[regions[region].otf2_nb_attributes] = otf2_convertor[t].type_desc;
                 if( NULL != global_def_writer ) {
-                    //snprintf(string, 256, "PARSEC::%s_%d::%s", key_name, region, name);
-                    /* We are on rank 0 */
                     strid = next_otf2_global_strid();
                     rc = OTF2_GlobalDefWriter_WriteString(global_def_writer,
                                                           strid,

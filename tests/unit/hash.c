@@ -62,7 +62,6 @@ static void *do_test(void *_param)
     item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
     for(t = 0; t < nbtests; t++) {
         item_array[t].ht_item.key = (parsec_key_t)((uint64_t)((nbthreads+1) * t + id));
-        item_array[t].ht_item.next_item = NULL;
         item_array[t].thread_id = id;
         item_array[t].nbthreads = nbthreads;
     }
@@ -81,7 +80,7 @@ static void *do_test(void *_param)
                         (uint64_t)item_array[t].ht_item.key,
                         ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads,
                         id, nbthreads);
-                raise(SIGABRT);
+                //raise(SIGABRT);
             }
             parsec_hash_table_nolock_insert(&hash_table, &item_array[t].ht_item);
             parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
@@ -114,7 +113,7 @@ static void *do_test(void *_param)
                             id, nbthreads,
                             ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads);
                 }
-                raise(SIGABRT);
+                //raise(SIGABRT);
             }
         }
 
@@ -128,7 +127,7 @@ static void *do_test(void *_param)
                         (uint64_t)item_array[t].ht_item.key,
                         ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads,
                         id, nbthreads);
-                raise(SIGABRT);
+                //raise(SIGABRT);
             }
             parsec_hash_table_nolock_insert(&hash_table, &item_array[t].ht_item);
             parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
@@ -161,7 +160,7 @@ static void *do_test(void *_param)
                             id, nbthreads,
                             ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads);
                 }
-                raise(SIGABRT);
+                //raise(SIGABRT);
             }
         }
     }
@@ -187,22 +186,29 @@ int main(int argc, char *argv[])
     uint64_t maxtime;
     void *retval;
     int *params;
-    int hint_index = -1;
-    int tuning_min = -1;
-    int tuning_max = -1;
-    int tuning_inc = 1;
-    int tuning;
+    int mc_hint_index = -1;
+    int mc_tuning_min = -1;
+    int mc_tuning_max = -1;
+    int mc_tuning_inc = 1;
+    int mc_tuning;
+    int md_hint_index = -1;
+    int md_tuning_min = -1;
+    int md_tuning_max = -1;
+    int md_tuning_inc = 1;
+    int md_tuning;
 
     parsec_hwloc_init();
     parsec_mca_param_init();
     parsec_hash_tables_init();
 
-    hint_index = parsec_mca_param_find("parsec", NULL, "parsec_hash_table_max_collisions_hint");
-    if( hint_index == PARSEC_ERROR ) {
+    mc_hint_index = parsec_mca_param_find("parsec", NULL, "hash_table_max_collisions_hint");
+    md_hint_index = parsec_mca_param_find("parsec", NULL, "hash_table_max_table_nb_bits");
+    if( mc_hint_index == PARSEC_ERROR ||
+        md_hint_index == PARSEC_ERROR ) {
         fprintf(stderr, "Warning: unable to find the hash table hint, tuning behavior will be disabled\n");
     }
     
-    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:h?")) != -1 ) {
+    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:h?")) != -1 ) {
         switch(ch) {
         case 'c':
             ch = strtol(optarg, &m, 0);
@@ -231,26 +237,50 @@ int main(int argc, char *argv[])
             if( (ch <= 0) || (m[0] != '\0') ) {
                 fprintf(stderr, argv[0], "invalid -t value");
             }
-            tuning_min = ch;
+            mc_tuning_min = ch;
             break;
         case 'T':
             ch = strtol(optarg, &m, 0);
             if( (ch <= 0) || (m[0] != '\0') ) {
                 fprintf(stderr, argv[0], "invalid -T value");
             }
-            tuning_max = ch;
+            mc_tuning_max = ch;
             break;
         case 'i':
             ch = strtol(optarg, &m, 0);
             if( (ch <= 0) || (m[0] != '\0') ) {
                 fprintf(stderr, argv[0], "invalid -i value");
             }
-            tuning_inc = ch;
+            mc_tuning_inc = ch;
+            break;
+        case 'd':
+            ch = strtol(optarg, &m, 0);
+            if( (ch <= 0) || (m[0] != '\0') ) {
+                fprintf(stderr, argv[0], "invalid -t value");
+            }
+            md_tuning_min = ch;
+            break;
+        case 'D':
+            ch = strtol(optarg, &m, 0);
+            if( (ch <= 0) || (m[0] != '\0') ) {
+                fprintf(stderr, argv[0], "invalid -T value");
+            }
+            md_tuning_max = ch;
+            break;
+        case 'I':
+            ch = strtol(optarg, &m, 0);
+            if( (ch <= 0) || (m[0] != '\0') ) {
+                fprintf(stderr, argv[0], "invalid -i value");
+            }
+            md_tuning_inc = ch;
             break;
         case 'h':
         case '?':
         default:
-            fprintf(stderr, "Usage: %s [-c nbthreads|-m minthreads -M maxthreads|-t min_hint -T max_hint -i inc_hint]\n", argv[0]);
+            fprintf(stderr,
+                    "Usage: %s [-c nbthreads|-m minthreads -M maxthreads]\n"
+                    "          [-t max_coll_min -T max_coll_max -i max_coll_inc]\n"
+                    "          [-d max_table_depth_min -D max_table_depth_max -I max_table_depth_inc]\n", argv[0]);
             exit(1);
             break;
         }
@@ -263,58 +293,82 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    if( tuning_min > 0 ) {
-        if( tuning_max < tuning_min ||
-            hint_index < 0 ||
-            tuning_inc <= 0 ) {
-            fprintf(stderr, "Impossible to do a tuning run (hint = %d, max = %d, min = %d, inc = %d, see -h)\n",
-                    hint_index, tuning_max, tuning_min, tuning_inc);
+    if( mc_tuning_min > 0 ) {
+        if( mc_tuning_max < mc_tuning_min ||
+            mc_hint_index < 0 ||
+            mc_tuning_inc <= 0 ) {
+            fprintf(stderr, "Impossible to do a tuning run (max collisions = %d, max = %d, min = %d, inc = %d, see -h)\n",
+                    mc_hint_index, mc_tuning_max, mc_tuning_min, mc_tuning_inc);
             exit(1);
         }
     } else {
-        if( hint_index < 0 ) {
+        if( mc_hint_index < 0 ) {
             /* This does not matter, since we cannot set it, just define a non-zero range */
-            tuning_min = 0;
-            tuning_max = 1;
+            mc_tuning_min = 0;
+            mc_tuning_max = 1;
         } else {
-            parsec_mca_param_lookup_int(hint_index, &tuning);
-            tuning_min = tuning;
-            tuning_max = tuning+1;
+            parsec_mca_param_lookup_int(mc_hint_index, &mc_tuning);
+            mc_tuning_min = mc_tuning;
+            mc_tuning_max = mc_tuning+1;
+        }
+    }
+    
+    if( md_tuning_min > 0 ) {
+        if( md_tuning_max < md_tuning_min ||
+            md_hint_index < 0 ||
+            md_tuning_inc <= 0 ) {
+            fprintf(stderr, "Impossible to do a tuning run (max table depth = %d, max = %d, min = %d, inc = %d, see -h)\n",
+                    md_hint_index, md_tuning_max, md_tuning_min, md_tuning_inc);
+            exit(1);
+        }
+    } else {
+        if( md_hint_index < 0 ) {
+            /* This does not matter, since we cannot set it, just define a non-zero range */
+            md_tuning_min = 0;
+            md_tuning_max = 1;
+        } else {
+            parsec_mca_param_lookup_int(md_hint_index, &md_tuning);
+            md_tuning_min = md_tuning;
+            md_tuning_max = md_tuning+1;
         }
     }
 
     threads = calloc(sizeof(pthread_t), maxthreads);
     params = calloc(sizeof(int), 2*(maxthreads+1));
-    
-    for(tuning = tuning_min; tuning < tuning_max; tuning += tuning_inc) {
-        if(hint_index > 0) {
-            parsec_mca_param_set_int(hint_index, tuning);
-        }
 
-        for( nbthreads = minthreads; nbthreads < maxthreads; nbthreads++) {
-            for(e = 0; e < nbthreads+1; e++) {
-                params[2*e] = e;
-                params[2*e+1] = nbthreads+1;
+    for(md_tuning = md_tuning_min; md_tuning < md_tuning_max; md_tuning += md_tuning_inc) {
+        for(mc_tuning = mc_tuning_min; mc_tuning < mc_tuning_max; mc_tuning += mc_tuning_inc) {
+            if(mc_hint_index > 0) {
+                parsec_mca_param_set_int(mc_hint_index, mc_tuning);
+            }
+            if(md_hint_index > 0) {
+                parsec_mca_param_set_int(md_hint_index, md_tuning);
             }
 
-            parsec_barrier_init(&barrier1, NULL, nbthreads+1);    
-            parsec_barrier_init(&barrier2, NULL, nbthreads+1);    
-            for(e = 0; e < nbthreads; e++) {
-                pthread_create(&threads[e], NULL, do_test, &params[2*e]);
+            for( nbthreads = minthreads; nbthreads < maxthreads; nbthreads++) {
+                for(e = 0; e < nbthreads+1; e++) {
+                    params[2*e] = e;
+                    params[2*e+1] = nbthreads+1;
+                }
+
+                parsec_barrier_init(&barrier1, NULL, nbthreads+1);    
+                parsec_barrier_init(&barrier2, NULL, nbthreads+1);    
+                for(e = 0; e < nbthreads; e++) {
+                    pthread_create(&threads[e], NULL, do_test, &params[2*e]);
+                }
+                maxtime = (uint64_t)do_test(&params[2*nbthreads]);
+                for(e = 0; e < nbthreads; e++) {
+                    pthread_join(threads[e], &retval);
+                    if( (uint64_t)retval > maxtime )
+                        maxtime = (uint64_t)retval;
+                }
+                parsec_barrier_destroy(&barrier1);
+                parsec_barrier_destroy(&barrier2);
+                printf("%lu threads %"PRIu64" "TIMER_UNIT" max_coll %d max_table_depth %d\n", nbthreads+1, maxtime, mc_tuning, md_tuning);
+                fflush(stdout);
             }
-            maxtime = (uint64_t)do_test(&params[2*nbthreads]);
-            for(e = 0; e < nbthreads; e++) {
-                pthread_join(threads[e], &retval);
-                if( (uint64_t)retval > maxtime )
-                    maxtime = (uint64_t)retval;
-            }
-            parsec_barrier_destroy(&barrier1);
-            parsec_barrier_destroy(&barrier2);
-            printf("%lu threads %"PRIu64" "TIMER_UNIT" hint %d\n", nbthreads+1, maxtime, tuning);
-            fflush(stdout);
         }
     }
-
     free(threads);
     free(params);
 }

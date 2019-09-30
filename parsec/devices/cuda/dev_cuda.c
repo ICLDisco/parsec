@@ -1360,7 +1360,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
                 }
 
                 if( NULL != this_task->taskpool ) {
-                    gpu_task->prof_event_id = this_task->task_class->key_functions->key_hash(this_task->task_class->make_key(this_task->taskpool, this_task->locals), 64, NULL);
+                    gpu_task->prof_event_id = this_task->task_class->key_functions->key_hash(this_task->task_class->make_key(this_task->taskpool, this_task->locals), NULL);
                     gpu_task->prof_tp_id = this_task->taskpool->taskpool_id;
                 } else {
                     gpu_task->prof_event_id = (uint64_t)original;
@@ -2483,7 +2483,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
                         }
                         gpu_task->prof_key_end = parsec_cuda_moveout_key_end;
                         gpu_task->prof_tp_id   = this_task->taskpool->taskpool_id;
-                        gpu_task->prof_event_id = this_task->task_class->key_functions->key_hash(this_task->task_class->make_key(this_task->taskpool, this_task->locals), 64, NULL);
+                        gpu_task->prof_event_id = this_task->task_class->key_functions->key_hash(this_task->task_class->make_key(this_task->taskpool, this_task->locals), NULL);
                         PARSEC_PROFILING_TRACE(gpu_stream->profiling,
                                                parsec_cuda_moveout_key_start,
                                                gpu_task->prof_event_id,
@@ -2710,7 +2710,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     PARSEC_PROFILING_TRACE_FLAGS( es->es_profile,
                                   PARSEC_PROF_FUNC_KEY_END(gpu_task->ec->taskpool,
                                                            gpu_task->ec->task_class->task_class_id),
-                                  gpu_task->ec->task_class->key_functions->key_hash(gpu_task->ec->task_class->make_key(gpu_task->ec->taskpool, gpu_task->ec->locals), 64, NULL),
+                                  gpu_task->ec->task_class->key_functions->key_hash(gpu_task->ec->task_class->make_key(gpu_task->ec->taskpool, gpu_task->ec->locals), NULL),
                                   gpu_task->ec->taskpool->taskpool_id, NULL,
                                   PARSEC_PROFILING_EVENT_RESCHEDULED );
 #endif /* defined(PARSEC_PROF_TRACE) */

@@ -65,15 +65,13 @@ static char *grapher_data_id_key_print(char *buffer, size_t buffer_size, parsec_
     return buffer;
 }
 
-static uint64_t grapher_data_id_key_hash(parsec_key_t key, int nb_bits, void *unused)
+static uint64_t grapher_data_id_key_hash(parsec_key_t key, void *unused)
 {
     parsec_grapher_data_identifier_t *id = (parsec_grapher_data_identifier_t*)key;
     uint64_t k = 0;
     (void)unused;
     k = ((uintptr_t)id->dc) | ((uintptr_t)id->data_key);
-    if(nb_bits == 64)
-        return k;
-    return k % ( (1<<nb_bits) - 1 );
+    return k;
 }
 
 static parsec_key_fn_t parsec_grapher_data_key_fns = {

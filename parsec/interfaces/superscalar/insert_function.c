@@ -1726,8 +1726,7 @@ complete_hook_of_dtd( parsec_execution_stream_t *es,
 
 #if defined(PARSEC_PROF_GRAPHER)
     parsec_prof_grapher_task(this_task, es->th_id, es->virtual_process->vp_id,
-                             this_task->task_class->key_functions->key_hash(this_task->task_class->make_key( this_task->taskpool, this_task->locals ),
-                                                                            64, NULL));
+                             this_task->task_class->key_functions->key_hash(this_task->task_class->make_key( this_task->taskpool, this_task->locals ), NULL));
 #endif /* defined(PARSEC_PROF_GRAPHER) */
 
     PARSEC_TASK_PROF_TRACE(es->es_profile,
