@@ -911,6 +911,9 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
      * corresponding data on the GPU available.
      */
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+        /* Make sure data_in is not NULL */
+        if( NULL == this_task->data[i].data_in ) continue;
+
         gpu_mem_lru_cycling = NULL;
         flow = gpu_task->flow[i];
         assert( flow && (flow->flow_index == i) );
@@ -1514,6 +1517,9 @@ parsec_gpu_check_space_needed(gpu_device_t *gpu_device,
     const parsec_flow_t *flow;
 
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+        /* Make sure data_in is not NULL */
+        if( NULL == this_task->data[i].data_in ) continue;
+
         flow = gpu_task->flow[i];
         if(FLOW_ACCESS_NONE == (FLOW_ACCESS_MASK & flow->flow_flags)) continue;
 
@@ -1617,6 +1623,9 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
 
     /* Step one: Find the first data in WRITE mode stored on a GPU */
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+        /* Make sure data_in is not NULL */
+        if( NULL == this_task->data[i].data_in ) continue;
+
         if( (NULL != this_task->task_class->out[i]) &&
             (this_task->task_class->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
             data_index = this_task->task_class->out[i]->flow_index;
@@ -1949,6 +1958,9 @@ parsec_gpu_callback_complete_push(gpu_device_t              *gpu_device,
                          gpu_device->cuda_index, parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task));
 #endif
     for( i = 0; i < task->task_class->nb_flows; i++ ) {
+        /* Make sure data_in is not NULL */
+        if( NULL == task->data[i].data_in ) continue;
+
         flow = gtask->flow[i];
         assert( flow );
         assert( flow->flow_index == i );
@@ -2158,6 +2170,9 @@ progress_stream( gpu_device_t* gpu_device,
         int i;
         const parsec_flow_t *flow;
         for( i = 0; i < task->ec->task_class->nb_flows; i++ ) {
+            /* Make sure data_in is not NULL */
+            if( NULL == task->ec->data[i].data_in ) continue;
+
             flow = task->flow[i];
             if(FLOW_ACCESS_NONE == (FLOW_ACCESS_MASK & flow->flow_flags)) continue;
             assert(task->ec->data[i].data_out->data_transfer_status == DATA_STATUS_COMPLETE_TRANSFER);
@@ -2325,6 +2340,9 @@ parsec_gpu_kernel_push( gpu_device_t                    *gpu_device,
     }
 
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+        /* Make sure data_in is not NULL */
+        if( NULL == this_task->data[i].data_in ) continue;
+
         flow = gpu_task->flow[i];
         /* Skip CTL flows */
         if(FLOW_ACCESS_NONE == (FLOW_ACCESS_MASK & flow->flow_flags)) continue;
@@ -2398,6 +2416,9 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
 
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
         /* We need to manage all data that has been used as input, even if they were read only */
+
+        /* Make sure data_in is not NULL */
+        if( NULL == this_task->data[i].data_in ) continue;
 
         flow = gpu_task->flow[i];
         if( FLOW_ACCESS_NONE == (FLOW_ACCESS_MASK & flow->flow_flags) )  continue;  /* control flow */
@@ -2548,6 +2569,9 @@ parsec_gpu_kernel_epilog( gpu_device_t      *gpu_device,
 #endif
 
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+        /* Make sure data_in is not NULL */
+        if( NULL == this_task->data[i].data_in ) continue;
+
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
 
@@ -2649,6 +2673,9 @@ parsec_gpu_kernel_cleanout( gpu_device_t      *gpu_device,
 #endif
 
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+        /* Make sure data_in is not NULL */
+        if( NULL == this_task->data[i].data_in ) continue;
+
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
         if( !(gpu_task->flow[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
