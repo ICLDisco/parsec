@@ -142,11 +142,11 @@ if( BUILD_PARSEC )
   target_include_directories(parsec-base-obj
     INTERFACE
     $<INSTALL_INTERFACE:include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>
     $<$<NOT:${PARSEC_BUILD_INPLACE}>:
       $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
-      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/parsec/include>>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>)
+      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/parsec/include>>)
   target_link_libraries(parsec-base-obj
     PUBLIC
     ${PARSEC_ATOMIC_SUPPORT_LIBS}
