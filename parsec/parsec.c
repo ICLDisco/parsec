@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -36,6 +36,7 @@
 #include "parsec/bindthread.h"
 #include "parsec/parsec_prof_grapher.h"
 #include "parsec/vpmap.h"
+#include "parsec/class/info.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/utils/installdirs.h"
 #include "parsec/utils/cmd_line.h"

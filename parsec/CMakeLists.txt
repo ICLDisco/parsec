@@ -15,6 +15,7 @@ set(BASE_SOURCES
   class/parsec_value_array.c
   class/parsec_hash_table.c
   class/parsec_rwlock.c
+  class/info.c
   utils/argv.c
   utils/cmd_line.c
   utils/colors.c

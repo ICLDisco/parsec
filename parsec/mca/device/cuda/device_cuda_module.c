@@ -333,7 +333,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     computemode = prop.computeMode;
 
     gpu_device = (parsec_device_cuda_module_t*)calloc(1, sizeof(parsec_device_cuda_module_t));
-    PARSEC_OBJ_CONSTRUCT(gpu_device, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(gpu_device, parsec_device_cuda_module_t);
     gpu_device->cuda_index = (uint8_t)dev_id;
     gpu_device->major      = (uint8_t)major;
     gpu_device->minor      = (uint8_t)minor;

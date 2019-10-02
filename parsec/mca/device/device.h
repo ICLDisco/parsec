@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The University of Tennessee and The University
+ * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -40,6 +40,7 @@
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 #include "parsec/mca/mca.h"
+#include "parsec/class/info.h"
 
 BEGIN_C_DECLS
 
@@ -68,8 +69,6 @@ typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t
 #define PARSEC_DEV_DATA_ADVICE_PREFETCH              ((int) 0x01)
 #define PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE      ((int) 0x02)
 #define PARSEC_DEV_DATA_ADVICE_WARMUP                ((int) 0x03)
-
-typedef struct parsec_device_s parsec_device_t;
 
 typedef int   (*parsec_device_attach_f)(parsec_device_module_t*, parsec_context_t*);
 typedef int   (*parsec_device_detach_f)(parsec_device_module_t*, parsec_context_t*);
@@ -109,6 +108,7 @@ typedef int   (*parsec_device_data_advise_f)(parsec_device_module_t*, parsec_dat
 typedef void* (*parsec_device_find_function_f)(parsec_device_module_t*, char*);
 
 struct parsec_device_module_s {
+    parsec_object_t                        super;
     const parsec_device_base_component_t  *component;
     /* Device Management Functions */
     parsec_device_attach_f                 attach;
@@ -121,6 +121,7 @@ struct parsec_device_module_s {
     parsec_device_data_advise_f            data_advise;
     parsec_device_find_function_f          find_function;
 
+    parsec_info_object_array_t             infos; /**< Per-device info objects are stored here */
     struct parsec_context_s* context;  /**< The PaRSEC context this device belongs too */
     char* name;  /**< Simple identified for the device */
     uint64_t transferred_data_in;
@@ -141,9 +142,12 @@ struct parsec_device_module_s {
     uint8_t type;
 };
 
+PARSEC_OBJ_CLASS_DECLARATION(parsec_device_module_t);
+
 extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
 extern parsec_atomic_lock_t parsec_devices_mutex;
+extern parsec_info_t parsec_per_device_infos;
 
 /**
  * Temporary variables used for load-balancing purposes.

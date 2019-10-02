@@ -171,6 +171,8 @@ static const int parsec_name_placeholders_max = 64;
 
 static void free_name_placeholders(void) {
     int i;
+    if(NULL == parsec_name_placeholders)
+        return;
     for(i = 0; i < parsec_name_placeholders_max; i++) {
         if(NULL == parsec_name_placeholders[i]) continue;
         free(parsec_name_placeholders[i]);
@@ -5596,6 +5598,24 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
     string_arena_free(sa2);
 }
 
+static int jdf_has_cuda_chore(const jdf_t *jdf, const char *fname)
+{
+    jdf_function_entry_t *f;
+    jdf_body_t* body;
+    jdf_def_list_t *type_property;
+
+    for(f = jdf->functions; f != NULL; f = f->next) {
+        if( strcmp(f->fname, fname) ) continue;
+        for(body = f->bodies; body != NULL; body = body->next) {
+            jdf_find_property(body->properties, "type", &type_property);
+            if( NULL != type_property && !strcmp(type_property->expr->jdf_var, "CUDA"))
+                return 1;
+        }
+        return 0;
+    }
+    return 0;
+}
+
 static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                                         const jdf_function_entry_t *f,
                                         const jdf_body_t* body,
@@ -5834,11 +5854,11 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
 
                 testtrue = (dl->guard->calltrue != NULL) &&
                     ((dl->guard->calltrue->var == NULL ) ||
-                     (strcmp(dl->guard->calltrue->func_or_mem, f->fname)));
+                     (!jdf_has_cuda_chore(jdf, dl->guard->calltrue->func_or_mem)));
 
                 testfalse = (dl->guard->callfalse != NULL) &&
                     ((dl->guard->callfalse->var == NULL ) ||
-                     (strcmp(dl->guard->callfalse->func_or_mem, f->fname)));
+                     (!jdf_has_cuda_chore(jdf, dl->guard->callfalse->func_or_mem)));
 
                 switch( dl->guard->guard_type ) {
                 case JDF_GUARD_UNCONDITIONAL:

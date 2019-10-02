@@ -17,7 +17,6 @@
 #include "parsec/mempool.h"
 #include "parsec/profiling.h"
 #include "parsec/class/barrier.h"
-#include "parsec/class/list.h"
 
 #ifdef PARSEC_PROF_PINS
 #include "parsec/mca/pins/pins.h"

@@ -26,6 +26,8 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
+PARSEC_OBJ_CLASS_INSTANCE(parsec_device_cuda_module_t, parsec_device_module_t, NULL, NULL);
+
 static int device_cuda_component_open(void);
 static int device_cuda_component_close(void);
 static int device_cuda_component_query(mca_base_module_2_0_0_t **module, int *priority);
