@@ -20,6 +20,7 @@ extern int current_lineno;
 extern int yydebug;
 char *yyfilename;
 char** extra_argv;
+int jdfdebug = 0;
 
 static jdf_compiler_global_args_t DEFAULTS = {
     .input = "-",
@@ -48,7 +49,7 @@ static void usage(void)
             "  unrecognized options and COMPILER_OPTIONS are all added to the options\n"
             "  passed to the final compiler.\n"
             "  recognized OPTIONS are the following:\n"
-            "  --debug|-d         Enable bison debug output\n"
+            "  --debug|-d         Enable debug output\n"
             "  --input|-i         Input File (JDF) (default '%s')\n"
             "  --output|-o        Set the BASE name for .c, .h, .o and function name (no default).\n"
             "                     Changing this value has precendence over the defaults of\n"
@@ -200,6 +201,7 @@ static void parse_args(int argc, char *argv[])
         switch(ch) {
         case 'd':
             yydebug = 1;
+            jdfdebug = 1;
             break;
         case 'i':
             if( NULL != JDF_COMPILER_GLOBAL_ARGS.input )

@@ -129,6 +129,7 @@ typedef struct jdf {
 int jdf_unparse( const jdf_t *jdf, FILE *out );
 
 extern jdf_t current_jdf;
+extern int   jdfdebug;
 
 /** A prologue/epilogue is a c-code that is dumped as-is with a sharp-line directive
  *  We remember the line number in the JDF file where this external code was found
@@ -198,6 +199,7 @@ typedef struct jdf_function_entry {
     jdf_flags_t                flags;
     jdf_flags_t                user_defines;
     int32_t                    task_class_id;
+    int32_t                    nb_max_local_def;
     struct jdf_def_list       *locals;
     struct jdf_call           *predicate;
     struct jdf_dataflow       *dataflow;
@@ -276,9 +278,10 @@ typedef struct jdf_datatransfer_type {
 struct jdf_dep {
     struct jdf_object_t      super;
     jdf_dep_t               *next;
-    struct jdf_guarded_call *guard;
-    jdf_datatransfer_type_t  datatype;
-    jdf_dep_flags_t          dep_flags;
+    struct jdf_expr         *local_defs;         /**< named ranges can specify sets of deps from this single dep */
+    struct jdf_guarded_call *guard;               /**< there can be conditions and ternaries to produce the calls */
+    jdf_datatransfer_type_t  datatype;            /**< we extract a specific property for the datatype if there is one */
+    jdf_dep_flags_t          dep_flags;           /**< flags (see JDF_DEP_* above) */
     uint8_t                  dep_index;           /**< the index of the dependency in the context of the function */
     uint8_t                  dep_datatype_index;  /**< the smallest index of all dependencies
                                                    *   sharing a common datatype. */
@@ -299,9 +302,10 @@ typedef struct jdf_guarded_call {
 
 typedef struct jdf_call {
     struct jdf_object_t       super;
-    char                     *var;
-    char                     *func_or_mem;
-    struct jdf_expr          *parameters;
+    struct jdf_expr          *local_defs;     /**< Each call can have some local indicies, allowing to define sets of deps */
+    char                     *var;             /**< If func_or_mem is a function, var is the name of the flow on that function */
+    char                     *func_or_mem;     /**< string of the function (task class) or data collection referred to in this call */
+    struct jdf_expr          *parameters;      /**< list of parameters for that task class / data collection */
 } jdf_call_t;
 
 #define JDF_IS_CALL_WITH_NO_INPUT(CALL)                         \
@@ -364,7 +368,14 @@ typedef struct jdf_expr {
     struct jdf_object_t           super;
     struct jdf_expr              *next;
     struct jdf_expr              *next_inline;
+    struct jdf_expr              *local_variables; /**< the list of named local variables that are defined with
+                                                    *   a named range and are used to define this expression */
     jdf_expr_operand_t            op;
+    char                         *alias;           /**< if alias != NULL, this expression defines a local variable named alias */
+    int                      ldef_index;           /**< if alias != NULL, the local variable is stored in ldef[ldef_index] */
+    int                           scope;           /**< if alias != NULL, scope is the scope of that definition
+                                                    *    (this is used internally by the parser to compute how many definitions to
+                                                    *     remove; this is not used outside the parser) */
     union {
         struct {
             struct jdf_expr      *arg1;
@@ -469,5 +480,11 @@ int jdf_flatten_function(jdf_function_entry_t* function);
  * Returns true iff property name is a property keyword for a function.
  **/
 int jdf_function_property_is_keyword(const char *name);
+
+/**
+ * Assign the ldef_index to all local definitions of a given jdf_function_t, and
+ * compute the number of local definitions required
+ */
+int jdf_assign_ldef_index(jdf_function_entry_t *f);
 
 #endif

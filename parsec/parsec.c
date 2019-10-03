@@ -1254,6 +1254,27 @@ parsec_check_IN_dependencies_with_mask(const parsec_taskpool_t *tp,
     return ret;
 }
 
+static parsec_ontask_iterate_t count_deps_fct(struct parsec_execution_stream_s* es,
+                                              const parsec_task_t *newcontext,
+                                              const parsec_task_t *oldcontext,
+                                              const parsec_dep_t* dep,
+                                              parsec_dep_data_description_t *data,
+                                              int rank_src, int rank_dst, int vpid_dst,
+                                              void *param)
+{
+    int *pactive = (int*)param;
+    (void)es;
+    (void)newcontext;
+    (void)oldcontext;
+    (void)dep;
+    (void)data;
+    (void)rank_src;
+    (void)rank_dst;
+    (void)vpid_dst;
+    *pactive = *pactive+1;
+    return PARSEC_ITERATE_CONTINUE;
+}
+
 static parsec_dependency_t
 parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
                                            const parsec_task_t* task )
@@ -1292,14 +1313,18 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
                 dep = flow->dep_in[j];
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
-                    assert( dep->cond->op == PARSEC_EXPR_OP_INLINE );
-                    if( dep->cond->inline_func32(tp, task->locals) ) {
-                        if( NULL == dep->ctl_gather_nb)
-                            active++;
-                        else {
-                            assert( dep->ctl_gather_nb->op == PARSEC_EXPR_OP_INLINE );
-                            active += dep->ctl_gather_nb->inline_func32(tp, task->locals);
+                    if( dep->cond->op == PARSEC_EXPR_OP_INLINE ) {
+                        if( dep->cond->inline_func32(tp, task->locals) ) {
+                            if( NULL == dep->ctl_gather_nb)
+                                active++;
+                            else {
+                                assert( dep->ctl_gather_nb->op == PARSEC_EXPR_OP_INLINE );
+                                active += dep->ctl_gather_nb->inline_func32(tp, task->locals);
+                            }
                         }
+                    } else {
+                        /* Complicated case: fall back to iterate_predecessors with a counter */
+                        task->task_class->iterate_predecessors(NULL, task, 1 << flow->flow_index,  count_deps_fct, &active);
                     }
                 } else {
                     if( NULL == dep->ctl_gather_nb)
