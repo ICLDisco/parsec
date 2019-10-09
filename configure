@@ -294,10 +294,10 @@ for i in "$@"; do
     fi
     # convert disable/without_xxx to enable/with_xxx=no
     for varname in ${!disable_*}; do
-      enable_${varname#*disable_}=no
+      eval enable_${varname#*disable_}=no
     done
     for varname in ${!without_*}; do
-      with_${varname#*without_}=no
+      eval with_${varname#*without_}=no
     done
 done
 }
