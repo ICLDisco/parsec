@@ -29,14 +29,26 @@ static void register_base_component(const char *cname)
     char *help, *ignored;
     int rc;
 
-    rc = asprintf(&help, "Limit the list of allowed modules for component %s", cname);
-    parsec_mca_param_reg_string_name("mca", cname,
-                                    help,
-                                    false, false, NULL,
-                                    &ignored);
+    rc = asprintf(&help, "Default selection set of components for the %s framework "
+                  "(<not set> means use all components that can be found)", cname);
+    rc = parsec_mca_param_reg_string_name("mca", cname,
+                                          help,
+                                          false, false,
+                                          NULL, &ignored);
+    if( 0 < rc ) {  /* parameter succesfully registered */
+        /* Create a synonym to facilitate the MCA params */
+        (void)parsec_mca_param_reg_syn_name(rc, NULL, cname, false);
+    }
+    free(help);
+    rc = asprintf(&help, "Verbosity level for the %s framework (default: 0). "
+                  "Valid values: -1:\"none\", 0:\"error\", 10:\"component\", 20:\"warn\", "
+                  "40:\"info\", 60:\"trace]\", 80:\"debug\", 100:\"max]\", 0 - 100", cname);
+    parsec_mca_param_reg_int_name(cname, "verbose",
+                                  help, false, false,
+                                  0, (int*)&ignored);
+    free(help);
     (void)ignored;
     (void)rc;
-    free(help);
 }
 
 static void mca_static_components_init(void)

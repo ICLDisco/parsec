@@ -110,15 +110,15 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
         return MCA_SUCCESS;
     }
 #if defined(PARSEC_PROF_TRACE)
-      parsec_profiling_add_dictionary_keyword( "cuda", "fill:#66ff66",
-                                               0, NULL,
-                                               &parsec_cuda_own_GPU_key_start, &parsec_cuda_own_GPU_key_end);
-      parsec_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
-                                               sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                               &parsec_cuda_movein_key_start, &parsec_cuda_movein_key_end);
-     parsec_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
-                                              sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                              &parsec_cuda_moveout_key_start, &parsec_cuda_moveout_key_end);
+    parsec_profiling_add_dictionary_keyword( "cuda", "fill:#66ff66",
+                                             0, NULL,
+                                             &parsec_cuda_own_GPU_key_start, &parsec_cuda_own_GPU_key_end);
+    parsec_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
+                                             sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                             &parsec_cuda_movein_key_start, &parsec_cuda_movein_key_end);
+    parsec_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
+                                             sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                             &parsec_cuda_moveout_key_start, &parsec_cuda_moveout_key_end);
     parsec_profiling_add_dictionary_keyword( "prefetch", "fill:#66ff66",
                                              sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
                                              &parsec_cuda_prefetch_key_start, &parsec_cuda_prefetch_key_end);
@@ -153,6 +153,11 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
 
     for( i = 0; NULL != (source_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[i]); i++ ) {
         int canAccessPeer;
+        source_gpu->peer_access_mask = 0;
+
+        cudastatus = cudaSetDevice( source_gpu->cuda_index );
+        PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaSetDevice ", cudastatus,
+                                 {continue;} );
 
         for( j = 0; NULL != (target_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[j]); j++ ) {
             if( i == j ) continue;
@@ -163,7 +168,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
                                      {continue;} );
             if( 1 == canAccessPeer ) {
                 cudastatus = cudaDeviceEnablePeerAccess( target_gpu->cuda_index, 0 );
-                PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_ciomponent_query) cuCtxEnablePeerAccess ", cudastatus,
+                PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cuCtxEnablePeerAccess ", cudastatus,
                                          {continue;} );
                 source_gpu->peer_access_mask = (int16_t)(source_gpu->peer_access_mask | (int16_t)(1 << target_gpu->cuda_index));
             }

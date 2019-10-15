@@ -1815,8 +1815,9 @@ parsec_gpu_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
     (void)current_dev;
     PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                          "GPU[%1d]: data copy %p [ref_count %d] D2D transfer is complete, sending order to count it to CUDA Device %d",
-                         current_dev->cuda_index, gpu_task->ec->data[0].data_out,
-                         gpu_task->ec->data[0].data_out->super.super.obj_reference_count, dst_dev->cuda_index);
+                         ((parsec_device_cuda_module_t*)current_dev)->cuda_index, gpu_task->ec->data[0].data_out,
+                         gpu_task->ec->data[0].data_out->super.super.obj_reference_count,
+                         ((parsec_device_cuda_module_t*)dst_dev)->cuda_index);
     parsec_fifo_push( &(((parsec_device_cuda_module_t*)dst_dev)->pending), (parsec_list_item_t*)gpu_task );
 }
 

@@ -97,7 +97,8 @@ static parsec_list_t threads;
 static char *hr_id = NULL;
 static parsec_profiling_info_t *parsec_profiling_infos = NULL;
 
-static char *parsec_profiling_last_error = NULL;
+#define MAX_PROFILING_ERROR_STRING_LEN 1024
+static char  parsec_profiling_last_error[MAX_PROFILING_ERROR_STRING_LEN+1] = { '\0', };
 static int   parsec_profiling_raise_error = 0;
 
 /* File backend globals. */
@@ -420,11 +421,10 @@ static void set_last_error(const char *format, ...)
 {
     va_list ap;
     int rc;
-    if( parsec_profiling_last_error )
-        free(parsec_profiling_last_error);
     va_start(ap, format);
-    rc = vasprintf(&parsec_profiling_last_error, format, ap);
+    rc = vsnprintf(parsec_profiling_last_error, MAX_PROFILING_ERROR_STRING_LEN, format, ap);
     va_end(ap);
+    fprintf(stderr, "-- %s", parsec_profiling_last_error);
     parsec_profiling_raise_error = 1;
     (void)rc;
 }
@@ -880,7 +880,6 @@ static void write_down_existing_buffer(tl_freelist_t *fl,
 {
     if( NULL == buffer )
         return;
-    assert( count > 0 );
 
     do_and_measure_perf(PERF_MEMSET,
       memset( &(buffer->buffer[count]), 0, event_avail_space - count ));
@@ -932,6 +931,11 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
                                     void *info, uint16_t flags )
 {
     parsec_thread_profiling_t* ctx;
+
+    if( (-1 == file_backend_fd) || (!start_called) ) {
+        return -1;
+    }
+
     ctx = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
     if( NULL != ctx )
         return parsec_profiling_trace_flags(ctx, key, event_id, taskpool_id, info, flags);

@@ -60,7 +60,8 @@ static int __profile_initialized = 0;  /* not initialized */
 static int __already_called = 0;
 static parsec_time_t parsec_start_time;
 static int          start_called = 0;
-static char *parsec_profiling_last_error = NULL;
+#define MAX_PROFILING_ERROR_STRING_LEN 1024
+static char  parsec_profiling_last_error[MAX_PROFILING_ERROR_STRING_LEN+1] = { '\0', };
 static int   parsec_profiling_raise_error = 0;
 static parsec_list_t global_informations;
 
@@ -94,10 +95,8 @@ static void set_last_error(const char *format, ...)
 {
     va_list ap;
     int rc;
-    if( parsec_profiling_last_error )
-        free(parsec_profiling_last_error);
     va_start(ap, format);
-    rc = vasprintf(&parsec_profiling_last_error, format, ap);
+    rc = vsnprintf(parsec_profiling_last_error, MAX_PROFILING_ERROR_STRING_LEN, format, ap);
     va_end(ap);
     parsec_warning("ParSEC profiling OTF2 -- Last error set to %s", parsec_profiling_last_error);
     parsec_profiling_raise_error = 1;
@@ -621,6 +620,11 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
                                     void *info, uint16_t flags )
 {
     parsec_thread_profiling_t* ctx;
+    
+    if( !start_called ) {
+        return -1;
+    }
+
     ctx = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
     if( NULL != ctx )
         return parsec_profiling_trace_flags(ctx, key, event_id, taskpool_id, info, flags);

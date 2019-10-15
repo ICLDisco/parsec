@@ -55,21 +55,12 @@ float *parsec_device_tweight = NULL;
 
 int parsec_mca_device_init(void)
 {
-    char* parsec_device_list_str = NULL, **parsec_device_list = NULL;
+    char** parsec_device_list = NULL;
     parsec_device_module_t **modules = NULL;
 #if defined(PARSEC_PROF_TRACE)
     char modules_activated_str[1024] = "";
 #endif  /* defined(PARSEC_PROF_TRACE) */
     int i, j, rc, priority;
-
-    if( 0 < (rc = parsec_mca_param_find("device", NULL, NULL)) ) {
-        parsec_output(0, "Use of MCA parameter device has been deprecated. Please migrate your MCA param file to use mca_device instead\n");
-        parsec_mca_param_lookup_string(rc, &parsec_device_list_str);
-    }
-    (void)parsec_mca_param_reg_string_name("mca", "device",
-                                           "Comma delimited list of devices to be enabled (or all)",
-                                           false, false,
-                                           NULL == parsec_device_list_str ? "all" : parsec_device_list_str, &parsec_device_list_str);
 
     (void)parsec_mca_param_reg_int_name("device", "show_capabilities",
                                         "Show the detailed devices capabilities",
@@ -77,9 +68,9 @@ int parsec_mca_device_init(void)
     (void)parsec_mca_param_reg_int_name("device", "show_statistics",
                                         "Show the detailed devices statistics upon exit",
                                         false, false, 0, NULL);
-    (void)parsec_mca_param_reg_int_name("device", "verbose",
-                                        "The level of verbosity of all operations related to devices",
-                                        false, false, 0, &parsec_device_verbose);
+    if( 0 < (rc = parsec_mca_param_find("device", NULL, "verbose")) ) {
+        parsec_mca_param_lookup_int(rc, &parsec_device_verbose);
+    }
     if( 0 < parsec_device_verbose ) {
         parsec_device_output = parsec_output_open(NULL);
         parsec_output_set_verbosity(parsec_device_output, parsec_device_verbose);
