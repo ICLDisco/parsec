@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018 The University of Tennessee and The University
+ * Copyright (c) 2016-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,7 +11,8 @@
 #include "parsec.h"
 #include "parsec/constants.h"
 #include "parsec/data_internal.h"
-#include "parsec/devices/cuda/dev_cuda.h"
+#include "parsec/mca/device/cuda/device_cuda.h"
+#include "parsec/mca/device/cuda/device_cuda_internal.h"
 #include "parsec/profiling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/arena.h"
@@ -209,7 +210,7 @@ static const parsec_task_class_t parsec_CUDA_d2h_task_class = {
  * GPU data copy in shared mode.
  */
 parsec_gpu_task_t*
-parsec_gpu_create_W2R_task(gpu_device_t *gpu_device,
+parsec_gpu_create_W2R_task(parsec_device_cuda_module_t *gpu_device,
                            parsec_execution_stream_t *es)
 {
     parsec_gpu_task_t *w2r_task = NULL;
@@ -275,7 +276,7 @@ parsec_gpu_create_W2R_task(gpu_device_t *gpu_device,
 /**
  * Complete a data copy transfer originated from the engine.
  */
-int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
+int parsec_gpu_W2R_task_fini(parsec_device_cuda_module_t *gpu_device,
                              parsec_gpu_task_t *gpu_task,
                              parsec_execution_stream_t *es)
 {

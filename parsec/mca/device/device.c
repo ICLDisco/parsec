@@ -1,17 +1,19 @@
 /*
  *
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "parsec/parsec_config.h"
-#include "parsec/devices/device.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/utils/mca_param.h"
+#include "parsec/mca/mca_repository.h"
 #include "parsec/constants.h"
 #include "parsec/utils/debug.h"
 #include "parsec/execution_stream.h"
 #include "parsec/utils/argv.h"
+#include "parsec/parsec_internal.h"
 
 #include <stdlib.h>
 #if defined(PARSEC_HAVE_ERRNO_H)
@@ -23,25 +25,27 @@
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
 
-#include "parsec/devices/cuda/dev_cuda.h"
-
 int parsec_device_output = 0;
 static int parsec_device_verbose = 0;
 uint32_t parsec_nb_devices = 0;
 static uint32_t parsec_nb_max_devices = 0;
-static uint32_t parsec_devices_are_freezed = 0;
+static uint32_t parsec_mca_device_are_freezed = 0;
 parsec_atomic_lock_t parsec_devices_mutex = PARSEC_ATOMIC_UNLOCKED;
-static parsec_device_t** parsec_devices = NULL;
-static char* parsec_device_list_str = NULL, **parsec_device_list = NULL;
+static parsec_device_module_t** parsec_devices = NULL;
 
-static parsec_device_t* parsec_device_cpus = NULL;
-static parsec_device_t* parsec_device_recursive = NULL;
+static parsec_device_module_t* parsec_device_cpus = NULL;
+static parsec_device_module_t* parsec_device_recursive = NULL;
+
+static int num_modules_activated = 0;
+static parsec_device_module_t **modules_activated = NULL;
+
+static mca_base_component_t **device_components = NULL;
 
 /**
  * Temporary solution: Use the following two arrays to taskpool the weight and
  * the load on different devices. These arrays are not available before the
- * call to parsec_devices_freeze(). This is just a first step, a smarter approach
- * should take this spot.
+ * call to parsec_mca_device_registration_complete(). This is just a first step,
+ * a smarter approach should take this spot.
  */
 float *parsec_device_load = NULL;
 float *parsec_device_hweight = NULL;
@@ -49,28 +53,86 @@ float *parsec_device_sweight = NULL;
 float *parsec_device_dweight = NULL;
 float *parsec_device_tweight = NULL;
 
-int parsec_devices_init(parsec_context_t* parsec_context)
+int parsec_mca_device_init(void)
 {
-    (void)parsec_mca_param_reg_string_name("device", NULL,
-                                           "Comma delimited list of devices to be enabled (or all)",
-                                           false, false, "all", &parsec_device_list_str);
+    char** parsec_device_list = NULL;
+    parsec_device_module_t **modules = NULL;
+#if defined(PARSEC_PROF_TRACE)
+    char modules_activated_str[1024] = "";
+#endif  /* defined(PARSEC_PROF_TRACE) */
+    int i, j, rc, priority;
+
     (void)parsec_mca_param_reg_int_name("device", "show_capabilities",
                                         "Show the detailed devices capabilities",
                                         false, false, 0, NULL);
     (void)parsec_mca_param_reg_int_name("device", "show_statistics",
                                         "Show the detailed devices statistics upon exit",
                                         false, false, 0, NULL);
-    (void)parsec_mca_param_reg_int_name("device", "verbose",
-                                        "The level of verbosity of all operations related to devices",
-                                        false, false, 0, &parsec_device_verbose);
+    if( 0 < (rc = parsec_mca_param_find("device", NULL, "verbose")) ) {
+        parsec_mca_param_lookup_int(rc, &parsec_device_verbose);
+    }
     if( 0 < parsec_device_verbose ) {
         parsec_device_output = parsec_output_open(NULL);
         parsec_output_set_verbosity(parsec_device_output, parsec_device_verbose);
     }
-    parsec_device_list = parsec_argv_split(parsec_device_list_str, ',');
+    parsec_device_list = mca_components_get_user_selection("device");
 
-    (void)parsec_context;
-    return PARSEC_ERR_NOT_IMPLEMENTED;
+    device_components = mca_components_open_bytype("device");
+    for(i = 0; NULL != device_components[i]; i++); /* nothing just counting */
+    if( 0 == i ) {  /* no devices */
+        parsec_debug_verbose(10, parsec_debug_output, "No devices found on %s\n", parsec_hostname);
+        return PARSEC_ERR_NOT_FOUND;
+    }
+    modules_activated = (parsec_device_module_t**)malloc(sizeof(parsec_device_module_t*) * i);
+    modules_activated[0] = NULL;
+
+    for(i = j = 0; NULL != device_components[i]; i++) {
+        if( mca_components_belongs_to_user_list(parsec_device_list, device_components[i]->mca_component_name) ) {
+            if (device_components[i]->mca_query_component != NULL) {
+                rc = device_components[i]->mca_query_component((mca_base_module_t**)&modules, &priority);
+                if( MCA_SUCCESS != rc ) {
+                    parsec_debug_verbose(10, parsec_debug_output, "query function for component %s return no module",
+                                         device_components[i]->mca_component_name);
+                    device_components[i]->mca_close_component();
+                    device_components[i] = NULL;
+                    continue;
+                }
+                parsec_debug_verbose(10, parsec_debug_output, "query function for component %s[%d] returns priority %d",
+                                     device_components[i]->mca_component_name, i, priority);
+                if( (NULL == modules) || (NULL == modules[0]) ) {
+                    parsec_debug_verbose(10, parsec_debug_output, "query function for component %s returns no modules. Remove.",
+                                         device_components[i]->mca_component_name);
+                    device_components[i]->mca_close_component();
+                    device_components[i] = NULL;
+                    continue;
+                }
+                if( i != j ) {  /* compress the list of components */
+                    device_components[j] = device_components[i];
+                    device_components[i] = NULL;
+                    j++;
+                }
+                modules_activated[num_modules_activated++] = modules[0];
+#if defined(PARSEC_PROF_TRACE)
+                strncat(modules_activated_str, device_components[i]->mca_component_name, 1023);
+                strncat(modules_activated_str, ",", 1023);
+#endif
+            }
+        }
+    }
+    mca_components_free_user_list(parsec_device_list);
+    parsec_debug_verbose(5, parsec_debug_output, "Found %d components, activated %d", i, num_modules_activated);
+
+#if defined(PARSEC_PROF_TRACE)
+    /* replace trailing comma with \0 */
+    if ( strlen(modules_activated_str) > 1) {
+        if( modules_activated_str[ strlen(modules_activated_str) - 1 ] == ',' ) {
+            modules_activated_str[strlen(modules_activated_str) - 1] = '\0';
+        }
+    }
+    parsec_profiling_add_information("DEVICE_MODULES", modules_activated_str);
+#endif
+
+    return PARSEC_SUCCESS;
 }
 
 void parsec_compute_best_unit( uint64_t length, float* updated_value, char** best_unit )
@@ -94,7 +156,7 @@ void parsec_compute_best_unit( uint64_t length, float* updated_value, char** bes
     return;
 }
 
-void parsec_devices_dump_and_reset_statistics(parsec_context_t* parsec_context)
+void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_context)
 {
     int *device_counter, total = 0;
     uint64_t total_data_in = 0,     total_data_out = 0;
@@ -107,7 +169,7 @@ void parsec_devices_dump_and_reset_statistics(parsec_context_t* parsec_context)
     char *data_in_unit, *data_out_unit;
     char *required_in_unit, *required_out_unit;
     char percent1[64], percent2[64];
-    parsec_device_t *device;
+    parsec_device_module_t *device;
     uint32_t i;
 
     /* GPU counter for GEMM / each */
@@ -151,7 +213,7 @@ void parsec_devices_dump_and_reset_statistics(parsec_context_t* parsec_context)
     printf("--------------------------------------------------------------------------------------------------\n");
     printf("|         |                    |         Data In                |         Data Out               |\n");
     printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
-           parsec_context->my_rank);
+           (NULL == parsec_context ? -1 : parsec_context->my_rank));
     printf("|---------|-----------|--------|------------|-------------------|------------|-------------------|\n");
     for( i = 0; i < parsec_nb_devices; i++ ) {
         if( NULL == (device = parsec_devices[i]) ) continue;
@@ -201,7 +263,7 @@ void parsec_devices_dump_and_reset_statistics(parsec_context_t* parsec_context)
     free(required_out);
 }
 
-int parsec_devices_fini(parsec_context_t* parsec_context)
+int parsec_mca_device_fini(void)
 {
     int show_stats_index, show_stats = 0;
 
@@ -210,7 +272,7 @@ int parsec_devices_fini(parsec_context_t* parsec_context)
     if( 0 < show_stats_index )
         parsec_mca_param_lookup_int(show_stats_index, &show_stats);
     if( show_stats ) {
-        parsec_devices_dump_and_reset_statistics(parsec_context);
+        parsec_mca_device_dump_and_reset_statistics(NULL);
     }
 
     /* Free the local memory */
@@ -225,24 +287,29 @@ int parsec_devices_fini(parsec_context_t* parsec_context)
     if(NULL != parsec_device_tweight) free(parsec_device_tweight);
     parsec_device_tweight = NULL;
 
-#if defined(PARSEC_HAVE_CUDA)
-    (void)parsec_gpu_fini();
-#endif  /* defined(PARSEC_HAVE_CUDA) */
+    parsec_device_module_t *module;
+    mca_base_component_t *component;
+    for(int i = 0; i < num_modules_activated; i++ ) {
+        module = modules_activated[i];
+        
+        component = (mca_base_component_t*)module->component;
+        component->mca_close_component();
+        modules_activated[i] = NULL;
+    }
+    num_modules_activated = 0;
+    free(modules_activated); modules_activated = NULL;
 
     if( NULL != parsec_device_recursive ) {  /* Release recursive device */
-        parsec_devices_remove(parsec_device_recursive);
+        parsec_mca_device_remove(parsec_device_recursive);
         free(parsec_device_recursive); parsec_device_recursive = NULL;
     }
     if( NULL != parsec_device_cpus ) {  /* Release the main CPU device */
-        parsec_devices_remove(parsec_device_cpus);
+        parsec_mca_device_remove(parsec_device_cpus);
         free(parsec_device_cpus); parsec_device_cpus = NULL;
     }
 
     free(parsec_devices); parsec_devices = NULL;
-    free(parsec_device_list_str); parsec_device_list_str = NULL;
-    if( NULL != parsec_device_list ) {
-        parsec_argv_free(parsec_device_list); parsec_device_list = NULL;
-    }
+
     if( 0 < parsec_device_verbose ) {
         parsec_output_close(parsec_device_output);
         parsec_device_output = parsec_debug_output;
@@ -311,12 +378,12 @@ parsec_device_find_function(const char* function_name,
     return fn;
 }
 
-int parsec_devices_freeze(parsec_context_t* context)
+int parsec_mca_device_registration_complete(parsec_context_t* context)
 {
     float total_hperf = 0.0, total_sperf = 0.0, total_dperf = 0.0, total_tperf = 0.0;
     (void)context;
 
-    if(parsec_devices_are_freezed)
+    if(parsec_mca_device_are_freezed)
         return -1;
 
     if(NULL != parsec_device_load) free(parsec_device_load);
@@ -330,7 +397,7 @@ int parsec_devices_freeze(parsec_context_t* context)
     if(NULL != parsec_device_tweight) free(parsec_device_tweight);
     parsec_device_tweight = (float*)calloc(parsec_nb_devices, sizeof(float));
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
-        parsec_device_t* device = parsec_devices[i];
+        parsec_device_module_t* device = parsec_devices[i];
         if( NULL == device ) continue;
         parsec_device_hweight[i] = device->device_hweight;
         parsec_device_sweight[i] = device->device_sweight;
@@ -358,27 +425,21 @@ int parsec_devices_freeze(parsec_context_t* context)
                              i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
     }
 
-    parsec_devices_are_freezed = 1;
+    parsec_mca_device_are_freezed = 1;
     return 0;
 }
 
-int parsec_devices_freezed(parsec_context_t* context)
+int parsec_mca_device_registration_completed(parsec_context_t* context)
 {
     (void)context;
-    return parsec_devices_are_freezed;
+    return parsec_mca_device_are_freezed;
 }
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
 #endif
-#if defined(PARSEC_HAVE_STRING_H)
-#include <string.h>
-#endif
-#if defined(PARSEC_HAVE_ERRNO_H)
-#include <errno.h>
-#endif
 
-static int cpu_weights(parsec_device_t* device, int nstreams) {
+static int cpu_weights(parsec_device_module_t* device, int nstreams) {
     /* This is default value when it cannot be computed */
     /* Crude estimate that holds for Nehalem era Xeon processors */
     float freq = 2.5f;
@@ -493,7 +554,7 @@ static int cpu_weights(parsec_device_t* device, int nstreams) {
 }
 
 static int
-device_taskpool_register_static(parsec_device_t* device, parsec_taskpool_t* tp)
+device_taskpool_register_static(parsec_device_module_t* device, parsec_taskpool_t* tp)
 {
     int32_t rc = PARSEC_ERR_NOT_FOUND;
     uint32_t i, j;
@@ -534,9 +595,11 @@ device_taskpool_register_static(parsec_device_t* device, parsec_taskpool_t* tp)
     return rc;
 }
 
-int parsec_devices_select(parsec_context_t* context)
+int parsec_mca_device_attach(parsec_context_t* context)
 {
-    int nb_total_comp_threads = 0;
+    parsec_device_base_component_t *component;
+    parsec_device_module_t *module;
+    int nb_total_comp_threads = 0, rc;
 
     for(int p = 0; p < context->nb_vp; p++) {
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
@@ -544,36 +607,50 @@ int parsec_devices_select(parsec_context_t* context)
 
     /* By now let's add one device for the CPUs */
     {
-        parsec_device_cpus = (parsec_device_t*)calloc(1, sizeof(parsec_device_t));
+        parsec_device_cpus = (parsec_device_module_t*)calloc(1, sizeof(parsec_device_module_t));
         parsec_device_cpus->name = "default";
         parsec_device_cpus->type = PARSEC_DEV_CPU;
         cpu_weights(parsec_device_cpus, nb_total_comp_threads);
-        parsec_device_cpus->device_taskpool_register = device_taskpool_register_static;
-        parsec_devices_add(context, parsec_device_cpus);
+        parsec_device_cpus->taskpool_register = device_taskpool_register_static;
+        parsec_mca_device_add(context, parsec_device_cpus);
    }
 
     /* By now let's add one device for the recursive kernels */
     {
-        parsec_device_recursive = (parsec_device_t*)calloc(1, sizeof(parsec_device_t));
+        parsec_device_recursive = (parsec_device_module_t*)calloc(1, sizeof(parsec_device_module_t));
         parsec_device_recursive->name = "recursive";
         parsec_device_recursive->type = PARSEC_DEV_RECURSIVE;
         parsec_device_recursive->device_hweight = parsec_device_cpus->device_hweight;
         parsec_device_recursive->device_tweight = parsec_device_cpus->device_tweight;
         parsec_device_recursive->device_sweight = parsec_device_cpus->device_sweight;
         parsec_device_recursive->device_dweight = parsec_device_cpus->device_dweight;
-        parsec_device_recursive->device_taskpool_register = device_taskpool_register_static;
-        parsec_devices_add(context, parsec_device_recursive);
+        parsec_device_recursive->taskpool_register = device_taskpool_register_static;
+        parsec_mca_device_add(context, parsec_device_recursive);
     }
-#if defined(PARSEC_HAVE_CUDA)
-    return parsec_gpu_init(context);
-#else
+
+    for( int i = 0; NULL != (component = (parsec_device_base_component_t*)device_components[i]); i++ ) {
+        for( int j = 0; NULL != (module = component->modules[j]); j++ ) {
+            if (NULL == module->attach) {
+                parsec_debug_verbose(10, parsec_debug_output, "A device module MUST contain an attach function. Disqualifying %s:%s module",
+                                     component->base_version.mca_component_name, module->name);
+                continue;
+            }
+            rc = module->attach(module, context);
+            if( 0 > rc ) {
+                parsec_debug_verbose(10, parsec_debug_output, "Attach failed for device %s:%s on context %p.",
+                                     component->base_version.mca_component_name, module->name, context);
+                continue;
+            }
+            parsec_debug_verbose(5, parsec_debug_output, "Activated DEVICE module %s:%s on context %p.",
+                                 component->base_version.mca_component_name, module->name, context);
+        }
+    }
     return PARSEC_SUCCESS;
-#endif  /* defined(PARSEC_HAVE_CUDA) */
 }
 
-int parsec_devices_add(parsec_context_t* context, parsec_device_t* device)
+int parsec_mca_device_add(parsec_context_t* context, parsec_device_module_t* device)
 {
-    if( parsec_devices_are_freezed ) {
+    if( parsec_mca_device_are_freezed ) {
         return PARSEC_ERROR;
     }
     if( NULL != device->context ) {
@@ -586,7 +663,7 @@ int parsec_devices_add(parsec_context_t* context, parsec_device_t* device)
             parsec_nb_max_devices = 4;
         else
             parsec_nb_max_devices *= 2; /* every other time */
-        parsec_devices = realloc(parsec_devices, parsec_nb_max_devices * sizeof(parsec_device_t*));
+        parsec_devices = realloc(parsec_devices, parsec_nb_max_devices * sizeof(parsec_device_module_t*));
     }
     parsec_devices[parsec_nb_devices] = device;
     device->device_index = parsec_nb_devices;
@@ -596,14 +673,14 @@ int parsec_devices_add(parsec_context_t* context, parsec_device_t* device)
     return device->device_index;
 }
 
-parsec_device_t* parsec_devices_get(uint32_t device_index)
+parsec_device_module_t* parsec_mca_device_get(uint32_t device_index)
 {
     if( device_index >= parsec_nb_devices )
         return NULL;
     return parsec_devices[device_index];
 }
 
-int parsec_devices_remove(parsec_device_t* device)
+int parsec_mca_device_remove(parsec_device_module_t* device)
 {
     int rc = PARSEC_SUCCESS;
 
@@ -620,20 +697,20 @@ int parsec_devices_remove(parsec_device_t* device)
     device->context = NULL;
     device->device_index = -1;
   unlock_and_return_rc:
-    parsec_atomic_unlock(&parsec_devices_mutex);  /* CRITICAL SECTION: BEGIN */
+    parsec_atomic_unlock(&parsec_devices_mutex);  /* CRITICAL SECTION: END */
     return rc;
 }
 
 
-void parsec_devices_taskpool_restrict(parsec_taskpool_t *tp,
-                                      uint8_t            devices_type)
+void parsec_mca_device_taskpool_restrict(parsec_taskpool_t *tp,
+                                         uint8_t            device_type)
 {
-    parsec_device_t *device;
+    parsec_device_module_t *device;
     uint32_t i;
 
     for (i = 0; i < parsec_nb_devices; i++) {
-        device = parsec_devices_get(i);
-        if ((NULL == device) || (device->type & devices_type))
+        device = parsec_mca_device_get(i);
+        if ((NULL == device) || (device->type & device_type))
             continue;
 
         /* Force unregistration for this type of device. This is not correct, as some of
@@ -646,34 +723,32 @@ void parsec_devices_taskpool_restrict(parsec_taskpool_t *tp,
 
 int parsec_advise_data_on_device(parsec_data_t *data, int device, int advice)
 {
-    parsec_device_t *dev;
-    dev = parsec_devices_get(device);
+    parsec_device_module_t *dev = parsec_mca_device_get(device);
+
     if( NULL == dev )
         return PARSEC_ERR_NOT_FOUND;
-    if( NULL == dev->device_data_advise )
+    if( NULL == dev->data_advise )
         return PARSEC_SUCCESS;
-    return dev->device_data_advise(dev, data, advice);
+    return dev->data_advise(dev, data, advice);
 }
 
 void parsec_devices_reset_load(parsec_context_t *context)
 {
-    int i;
-    (void)context;
     if( NULL == parsec_device_load )
         return;
-    for(i = 0; i < (int)parsec_nb_devices; i++) {
+    for(int i = 0; i < (int)parsec_nb_devices; i++) {
         parsec_device_load[i] = 0;
     }
+    (void)context;
 }
 
 int parsec_devices_release_memory(void)
 {
-    int i;
-    parsec_device_t *d;
-    for(i = 1; i < (int)parsec_nb_devices; i++) {
-        d = parsec_devices_get(i);
-        if(NULL != d && NULL != d->device_memory_release) {
-            d->device_memory_release(d);
+    parsec_device_module_t *dev;
+    for(int i = 1; i < (int)parsec_nb_devices; i++) {
+        dev = parsec_mca_device_get(i);
+        if((NULL != dev) && (NULL != dev->memory_release)) {
+            dev->memory_release(dev);
         }
     }
     return PARSEC_SUCCESS;

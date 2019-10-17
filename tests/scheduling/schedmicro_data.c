@@ -15,7 +15,6 @@
 
 #include <string.h>
 #include <assert.h>
-#include <string.h>
 
 typedef struct {
     parsec_data_collection_t super;

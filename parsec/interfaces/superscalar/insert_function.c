@@ -37,7 +37,7 @@
 #include "parsec/parsec_internal.h"
 #include "parsec/scheduling.h"
 #include "parsec/remote_dep.h"
-#include "parsec/devices/device.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/constants.h"
 #include "parsec/vpmap.h"
 #include "parsec/utils/mca_param.h"
@@ -313,14 +313,13 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 
     /* Unregister the taskpool from the devices */
     for (i = 0; i < parsec_nb_devices; i++) {
-        parsec_device_t *device = parsec_devices_get(i);
+        parsec_device_module_t *device = parsec_mca_device_get(i);
         if( !(tp->super.devices_index_mask & (1 << device->device_index)) )
             continue;
         tp->super.devices_index_mask &= ~(1 << device->device_index);
-        if ((NULL == device) || (NULL == device->device_taskpool_unregister))
+        if ((NULL == device) || (NULL == device->taskpool_unregister))
             continue;
-        if( NULL != device->device_taskpool_unregister )
-            (void)device->device_taskpool_unregister(device, &tp->super);
+        (void)device->taskpool_unregister(device, &tp->super);
     }
     assert( 0 == tp->super.devices_index_mask );
     free(tp->super.task_classes_array);
@@ -1271,7 +1270,7 @@ parsec_dtd_taskpool_new(void)
 
     __tp->super.devices_index_mask = 0;
     for (i = 0; i < (int)parsec_nb_devices; i++) {
-        parsec_device_t *device = parsec_devices_get(i);
+        parsec_device_module_t *device = parsec_mca_device_get(i);
         if( NULL == device ) continue;
         __tp->super.devices_index_mask |= (1 << device->device_index);
     }
@@ -1389,12 +1388,12 @@ parsec_dtd_startup( parsec_context_t   *context,
 
     /* register the taskpool with all available devices */
     for (uint32_t _i = 0; _i < parsec_nb_devices; _i++) {
-        parsec_device_t *device = parsec_devices_get(_i);
+        parsec_device_module_t *device = parsec_mca_device_get(_i);
         if (NULL == device) continue;
         if( !(tp->devices_index_mask & (1 << device->device_index)) ) continue;  /* not supported */
-        if (NULL != device->device_taskpool_register)
+        if (NULL != device->taskpool_register)
             if( PARSEC_SUCCESS !=
-                device->device_taskpool_register(device, (parsec_taskpool_t *)tp) ) {
+                device->taskpool_register(device, (parsec_taskpool_t *)tp) ) {
                 tp->devices_index_mask &= ~(1 << device->device_index);  /* can't use this type */
                 continue;
             }

@@ -30,7 +30,7 @@
 #include <assert.h>
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
-#include "parsec/devices/device.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/vpmap.h"
 #include "parsec/data.h"
 
@@ -38,25 +38,25 @@
 #define UINT_MAX (~0UL)
 #endif
 
-static int sym_twoDBC_memory_register(parsec_data_collection_t* desc, struct parsec_device_s* device)
+static int sym_twoDBC_memory_register(parsec_data_collection_t* desc, parsec_device_module_t* device)
 {
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
     if( NULL == sym_twodbc->mat ) {
         return PARSEC_SUCCESS;
     }
-    return device->device_memory_register(device, desc,
-                                          sym_twodbc->mat,
-                                          ((size_t)sym_twodbc->super.nb_local_tiles * (size_t)sym_twodbc->super.bsiz *
-                                           (size_t)parsec_datadist_getsizeoftype(sym_twodbc->super.mtype)));
+    return device->memory_register(device, desc,
+                                   sym_twodbc->mat,
+                                   ((size_t)sym_twodbc->super.nb_local_tiles * (size_t)sym_twodbc->super.bsiz *
+                                   (size_t)parsec_datadist_getsizeoftype(sym_twodbc->super.mtype)));
 }
 
-static int sym_twoDBC_memory_unregister(parsec_data_collection_t* desc, struct parsec_device_s* device)
+static int sym_twoDBC_memory_unregister(parsec_data_collection_t* desc, parsec_device_module_t* device)
 {
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
     if( NULL == sym_twodbc->mat ) {
         return PARSEC_SUCCESS;
     }
-    return device->device_memory_unregister(device, desc, sym_twodbc->mat);
+    return device->memory_unregister(device, desc, sym_twodbc->mat);
 }
 
 static uint32_t sym_twoDBC_rank_of(parsec_data_collection_t * desc, ...)

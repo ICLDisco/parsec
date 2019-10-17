@@ -9,7 +9,7 @@
 #include "parsec/utils/debug.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "parsec/devices/device.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/vpmap.h"
 
 static uint32_t twoDBC_rank_of(parsec_data_collection_t* dc, ...);
@@ -35,25 +35,25 @@ static int32_t twoDBC_st_vpid_of_key(parsec_data_collection_t* dc, parsec_data_k
 static parsec_data_t* twoDBC_st_data_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 #endif
 
-static int twoDBC_memory_register(parsec_data_collection_t* desc, struct parsec_device_s* device)
+static int twoDBC_memory_register(parsec_data_collection_t* desc, parsec_device_module_t* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
     if( NULL == twodbc->mat ) {
         return PARSEC_SUCCESS;
     }
-    return device->device_memory_register(device, desc,
-                                          twodbc->mat,
-                                          ((size_t)twodbc->super.nb_local_tiles * (size_t)twodbc->super.bsiz *
-                                           (size_t)parsec_datadist_getsizeoftype(twodbc->super.mtype)));
+    return device->memory_register(device, desc,
+                                   twodbc->mat,
+                                   ((size_t)twodbc->super.nb_local_tiles * (size_t)twodbc->super.bsiz *
+                                   (size_t)parsec_datadist_getsizeoftype(twodbc->super.mtype)));
 }
 
-static int twoDBC_memory_unregister(parsec_data_collection_t* desc, struct parsec_device_s* device)
+static int twoDBC_memory_unregister(parsec_data_collection_t* desc, parsec_device_module_t* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
     if( NULL == twodbc->mat ) {
         return PARSEC_SUCCESS;
     }
-    return device->device_memory_unregister(device, desc, twodbc->mat);
+    return device->memory_unregister(device, desc, twodbc->mat);
 }
 
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,

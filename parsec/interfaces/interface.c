@@ -6,7 +6,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec/interfaces/interface.h"
-#include "parsec/devices/device.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/utils/debug.h"
 #include "parsec/scheduling.h"
 #if defined(PARSEC_HAVE_LIMITS_H)

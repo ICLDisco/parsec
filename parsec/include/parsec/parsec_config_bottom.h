@@ -110,7 +110,7 @@ typedef int32_t parsec_dependency_t;
 
 #define MAX_TASK_STRLEN 128
 
-#define PARSEC_MAX_STR_KEY_LEN 64
+#define PARSEC_MAX_DEVICE_NAME_LEN 64
 
 #define COMPARISON_VAL(it, off)                 (*((int*)(((uintptr_t)(it))+off)))
 #define HIGHER_IS_BETTER

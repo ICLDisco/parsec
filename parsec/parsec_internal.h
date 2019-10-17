@@ -19,7 +19,12 @@
 #include "parsec/profiling.h"
 #include "parsec/mempool.h"
 
+#include <string.h>
+
 BEGIN_C_DECLS
+
+/* NULL terminated local hostname of the current PaRSEC process */
+PARSEC_DECLSPEC const char* parsec_hostname;
 
 /**
  * @defgroup parsec_internal_runtime Internal Runtime

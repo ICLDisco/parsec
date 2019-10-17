@@ -993,9 +993,6 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/mca.h
   DESTINATION include/parsec/mca)
 install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/devices/device.h
-  DESTINATION include/parsec/devices )
-install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/interfaces/interface.h
   DESTINATION include/parsec/interfaces/ )
 if(PARSEC_PROF_GRAPHER)

@@ -24,7 +24,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include "profiling.h"
+#include "parsec/profiling.h"
 
 #define NB_THREADS         4
 #define EVENTS_PER_THREAD 10

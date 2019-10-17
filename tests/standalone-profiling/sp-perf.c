@@ -10,7 +10,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <stdio.h>
-#include "profiling.h"
+#include "parsec/profiling.h"
 
 typedef struct {
     pthread_t                 pthread_id;

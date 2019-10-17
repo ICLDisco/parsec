@@ -1339,6 +1339,8 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
     coutput("#include \"parsec.h\"\n"
             "#if defined(PARSEC_HAVE_CUDA)\n"
             "extern int parsec_cuda_output_stream;\n"
+            "#include \"parsec/mca/device/cuda/device_cuda.h\"\n"
+            "#include \"parsec/mca/device/cuda/device_cuda_internal.h\"\n"
             "#endif  /* defined(PARSEC_HAVE_CUDA) */\n"
             "#include <alloca.h>\n\n"
             "#define PARSEC_%s_NB_TASK_CLASSES %d\n"
@@ -3543,17 +3545,17 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             " \n"
             "  for( i = 0; i < parsec_nb_devices; i++ ) {\n"
             "    if( !(__parsec_tp->super.super.devices_index_mask & (1<<i)) ) continue;\n"
-            "    parsec_device_t* device = parsec_devices_get(i);\n"
+            "    parsec_device_module_t* device = parsec_mca_device_get(i);\n"
             "    parsec_data_collection_t* parsec_dc;\n"
             " \n"
             "    if(NULL == device) continue;\n"
-            "    if(NULL != device->device_taskpool_register)\n"
-            "      if( PARSEC_SUCCESS != device->device_taskpool_register(device, (parsec_taskpool_t*)__parsec_tp) ) {\n"
+            "    if(NULL != device->taskpool_register)\n"
+            "      if( PARSEC_SUCCESS != device->taskpool_register(device, (parsec_taskpool_t*)__parsec_tp) ) {\n"
             "        parsec_debug_verbose(3, parsec_debug_output, \"Device %%s refused to register taskpool %%p\", device->name, __parsec_tp);\n"
             "        __parsec_tp->super.super.devices_index_mask &= ~(1 << device->device_index);\n"
             "        continue;\n"
             "      }\n"
-            "    if(NULL != device->device_memory_register) {  /* Register all the data */\n"
+            "    if(NULL != device->memory_register) {  /* Register all the data */\n"
             "%s"
             "    }\n"
             "    supported_dev |= device->type;\n"
@@ -3693,10 +3695,10 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     coutput("  /* Unregister all the data */\n"
             "  uint32_t _i;\n"
             "  for( _i = 0; _i < parsec_nb_devices; _i++ ) {\n"
-            "    parsec_device_t* device;\n"
+            "    parsec_device_module_t* device;\n"
             "    parsec_data_collection_t* parsec_dc;\n"
             "    if(!(__parsec_tp->super.super.devices_index_mask & (1 << _i))) continue;\n"
-            "    if((NULL == (device = parsec_devices_get(_i))) || (NULL == device->device_memory_unregister)) continue;\n"
+            "    if((NULL == (device = parsec_mca_device_get(_i))) || (NULL == device->memory_unregister)) continue;\n"
             "  %s"
             "}\n",
             UTIL_DUMP_LIST(sa, jdf->globals, next,
@@ -3709,9 +3711,9 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  for( i = 0; i < parsec_nb_devices; i++ ) {\n"
             "    if(!(__parsec_tp->super.super.devices_index_mask & (1 << i))) continue;\n"
             "    __parsec_tp->super.super.devices_index_mask ^= (1 << i);\n"
-            "    parsec_device_t* device = parsec_devices_get(i);\n"
-            "    if((NULL == device) || (NULL == device->device_taskpool_unregister)) continue;\n"
-            "    if( PARSEC_SUCCESS != device->device_taskpool_unregister(device, &__parsec_tp->super.super) ) continue;\n"
+            "    parsec_device_module_t* device = parsec_mca_device_get(i);\n"
+            "    if((NULL == device) || (NULL == device->taskpool_unregister)) continue;\n"
+            "    if( PARSEC_SUCCESS != device->taskpool_unregister(device, &__parsec_tp->super.super) ) continue;\n"
             "  }\n");
 
     coutput("  free(__parsec_tp->super.super.taskpool_name);\n"
@@ -4999,9 +5001,9 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  %s           dyld_fn;\n"
             "};\n"
             "\n"
-            "static int gpu_kernel_submit_%s_%s(gpu_device_t            *gpu_device,\n"
-            "                                   parsec_gpu_task_t       *gpu_task,\n"
-            "                                   parsec_gpu_exec_stream_t *gpu_stream )\n"
+            "static int gpu_kernel_submit_%s_%s(parsec_device_cuda_module_t *gpu_device,\n"
+            "                                   parsec_gpu_task_t           *gpu_task,\n"
+            "                                   parsec_gpu_exec_stream_t    *gpu_stream )\n"
             "{\n"
             "  %s *this_task = (%s *)gpu_task->ec;\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
@@ -5091,7 +5093,8 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "    for ( ; PARSEC_DEV_NONE != this_task->task_class->incarnations[chore_idx].type; ++chore_idx) {\n"
                 "      if (this_task->task_class->incarnations[chore_idx].type == PARSEC_DEV_CUDA) break;\n"
                 "    }\n"
-                "    parsec_body.dyld_fn = (%s)this_task->task_class->incarnations[chore_idx].dyld_fn;\n"
+                "    /* The void* cast prevents the compiler from complaining about the type change */\n"
+                "    parsec_body.dyld_fn = (%s)(void*)this_task->task_class->incarnations[chore_idx].dyld_fn;\n"
                 "  }\n\n",
                 dyldtype );
     }
@@ -5143,7 +5146,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "  } else if (dev_index == -1) {\n"
                 "    dev_index = parsec_gpu_get_best_device((parsec_task_t*)this_task, ratio);\n"
                 "  } else {\n"
-                "    dev_index = (dev_index %% (parsec_devices_enabled()-2)) + 2;\n"
+                "    dev_index = (dev_index %% (parsec_mca_device_enabled()-2)) + 2;\n"
                 "  }\n",
                 device);
     } else {

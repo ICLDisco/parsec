@@ -88,7 +88,6 @@ set(SOURCES
   data.c
   data_distribution.c
   debug_marks.c
-  devices/device.c
   dictionary.c
   mca/mca_repository.c
   mempool.c
@@ -110,15 +109,6 @@ else( NOT MPI_C_FOUND )
   list(APPEND SOURCES datatype/datatype_mpi.c)
 endif( NOT MPI_C_FOUND )
 list(APPEND SOURCES parsec_hwloc.c)
-
-if (CUDA_FOUND)
-  list(APPEND SOURCES
-      devices/cuda/dev_cuda.c
-      devices/cuda/transfer.c)
-  install(FILES
-          ${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda/dev_cuda.h
-          DESTINATION include/parsec/devices/cuda )
-endif (CUDA_FOUND)
 
 if( PARSEC_PROF_GRAPHER )
   list(APPEND SOURCES

@@ -25,6 +25,7 @@
 
 #include "parsec/mca/pins/pins.h"
 #include "parsec/mca/sched/sched.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/utils/output.h"
 #include "parsec/data_internal.h"
 #include "parsec/class/list.h"
@@ -37,7 +38,6 @@
 #include "parsec/vpmap.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/utils/installdirs.h"
-#include "parsec/devices/device.h"
 #include "parsec/utils/cmd_line.h"
 #include "parsec/utils/debug.h"
 #include "parsec/utils/mca_param_cmd_line.h"
@@ -66,6 +66,9 @@
 /*
  * Global variables.
  */
+char parsec_hostname_array[HOST_NAME_MAX] = "not yet initialized";
+const char* parsec_hostname = parsec_hostname_array;
+
 size_t parsec_task_startup_iter = 64;
 size_t parsec_task_startup_chunk = 256;
 
@@ -86,10 +89,6 @@ int arena_memory_alloc_key, arena_memory_free_key;
 int arena_memory_used_key, arena_memory_unused_key;
 int task_memory_alloc_key, task_memory_free_key;
 #endif  /* PARSEC_PROF_TRACE */
-
-#ifdef PARSEC_HAVE_HWLOC
-#define MAX_CORE_LIST 128
-#endif
 
 int parsec_want_rusage = 0;
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)
@@ -344,6 +343,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char **env_variable, *env_name, *env_value;
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_warning = 0;
+
+    gethostname(parsec_hostname_array, sizeof(parsec_hostname));
 
     PARSEC_PAPI_SDE_INIT();
     
@@ -646,8 +647,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
          * instead of in common.c/h as we do now. */
         PROFILING_SAVE_iINFO("nb_cores", nb_cores);
         PROFILING_SAVE_iINFO("nb_vps", nb_vp);
-	PROFILING_SAVE_sINFO("GIT_BRANCH", PARSEC_GIT_BRANCH);
-	PROFILING_SAVE_sINFO("GIT_HASH", PARSEC_GIT_HASH);
+        PROFILING_SAVE_sINFO("GIT_BRANCH", PARSEC_GIT_BRANCH);
+        PROFILING_SAVE_sINFO("GIT_HASH", PARSEC_GIT_HASH);
         free(cmdline_info);
 
 #  if defined(PARSEC_PROF_TRACE_SCHEDULING_EVENTS)
@@ -714,15 +715,15 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_debug_verbose(4, parsec_debug_output, "--- compiled with DEBUG_NOISIER, DEBUG_PARANOID, or DOT generation requested.");
     }
 
-    parsec_devices_init(context);
-    parsec_devices_select(context);
-    parsec_devices_freeze(context);
+    parsec_mca_device_init();
+    /* Init data distribution structure */
+    parsec_data_dist_init();
+
+    parsec_mca_device_attach(context);
+    parsec_mca_device_registration_complete(context);
 
     /* Init the data infrastructure. Must be done only after the freeze of the devices */
     parsec_data_init(context);
-
-    /* Init data distribution structure */
-    parsec_data_dist_init();
 
     /* Initialize the barriers */
     parsec_barrier_init( &(context->barrier), NULL, nb_total_comp_threads );
@@ -960,7 +961,7 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_data_dist_fini();
 
-    parsec_devices_fini(context);
+    parsec_mca_device_fini();
 
     for(p = 0; p < context->nb_vp; p++) {
         parsec_vp_fini(context->virtual_processes[p]);
