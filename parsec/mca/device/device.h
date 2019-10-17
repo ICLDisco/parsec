@@ -177,12 +177,12 @@ extern int parsec_mca_device_attach(parsec_context_t*);
  * after this point. This gives a reference point regarding the number of available
  * (supported) devices.
  */
-extern int parsec_mca_device_freeze(parsec_context_t*);
+extern int parsec_mca_device_registration_complete(parsec_context_t*);
 /**
- * Return a positive value if the devices configurations has been freezed by a call
- * to parsec_mca_device_freeze().
+ * Return a positive value if the devices configurations has been completed 
+ * by a prior call to parsec_mca_device_registration_complete().
  */
-extern int parsec_mca_device_freezed(parsec_context_t*);
+extern int parsec_mca_device_registration_completed(parsec_context_t*);
 
 /**
  * Reset the load of all the devices to force a reconsideration of the load balance
@@ -219,8 +219,8 @@ PARSEC_DECLSPEC void parsec_mca_device_dump_and_reset_statistics(parsec_context_
 
 /**
  * Returns the number of devices currently registered with the runtime. This
- * number can change until parsec_mca_device_freeze() is called, fact that mark the
- * end of the configuration stage.
+ * number can change until parsec_mca_device_registration_complete() is
+ * called, fact that mark the end of the configuration stage.
  */
 static inline int parsec_mca_device_enabled(void)
 {

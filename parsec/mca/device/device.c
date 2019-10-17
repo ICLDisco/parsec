@@ -44,8 +44,8 @@ static mca_base_component_t **device_components = NULL;
 /**
  * Temporary solution: Use the following two arrays to taskpool the weight and
  * the load on different devices. These arrays are not available before the
- * call to parsec_mca_device_freeze(). This is just a first step, a smarter approach
- * should take this spot.
+ * call to parsec_mca_device_registration_complete(). This is just a first step,
+ * a smarter approach should take this spot.
  */
 float *parsec_device_load = NULL;
 float *parsec_device_hweight = NULL;
@@ -99,7 +99,7 @@ int parsec_mca_device_init(void)
                 }
                 parsec_debug_verbose(10, parsec_debug_output, "query function for component %s[%d] returns priority %d",
                                      device_components[i]->mca_component_name, i, priority);
-                if( NULL == modules ) {
+                if( (NULL == modules) || (NULL == modules[0]) ) {
                     parsec_debug_verbose(10, parsec_debug_output, "query function for component %s returns no modules. Remove.",
                                          device_components[i]->mca_component_name);
                     device_components[i]->mca_close_component();
@@ -378,7 +378,7 @@ parsec_device_find_function(const char* function_name,
     return fn;
 }
 
-int parsec_mca_device_freeze(parsec_context_t* context)
+int parsec_mca_device_registration_complete(parsec_context_t* context)
 {
     float total_hperf = 0.0, total_sperf = 0.0, total_dperf = 0.0, total_tperf = 0.0;
     (void)context;
@@ -429,7 +429,7 @@ int parsec_mca_device_freeze(parsec_context_t* context)
     return 0;
 }
 
-int parsec_mca_device_freezed(parsec_context_t* context)
+int parsec_mca_device_registration_completed(parsec_context_t* context)
 {
     (void)context;
     return parsec_mca_device_are_freezed;

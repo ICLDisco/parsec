@@ -115,7 +115,7 @@ int parsec_data_init(parsec_context_t* context)
      * This is a trick. Now that we know the number of available devices
      * we can update the size of the parsec_data_t class to the correct value.
      */
-    if( !parsec_mca_device_freezed(context) ) {
+    if( !parsec_mca_device_registration_completed(context) ) {
         parsec_warning("Cannot configure the data infrastructure as the devices layer has not yet been froze.");
         return PARSEC_ERROR;
     }

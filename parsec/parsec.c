@@ -720,7 +720,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_data_dist_init();
 
     parsec_mca_device_attach(context);
-    parsec_mca_device_freeze(context);
+    parsec_mca_device_registration_complete(context);
 
     /* Init the data infrastructure. Must be done only after the freeze of the devices */
     parsec_data_init(context);
