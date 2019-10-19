@@ -41,7 +41,7 @@ parsec_taskpool_t *rtt_new(parsec_data_collection_t *A, int size, int nb)
     tp = parsec_rtt_new(A, nb, worldsize);
 
     ptrdiff_t lb, extent;
-    parsec_type_create_contiguous(size, MPI_BYTE, &block);
+    parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &block);
     parsec_type_extent(block, &lb, &extent);
 
     parsec_arena_construct(tp->arenas[PARSEC_rtt_DEFAULT_ARENA],

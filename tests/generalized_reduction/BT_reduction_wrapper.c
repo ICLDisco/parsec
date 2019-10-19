@@ -10,8 +10,9 @@
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-static MPI_Datatype block;
 #endif
+static parsec_datatype_t block;
+
 #include <stdio.h>
 
 #include "BT_reduction.h"
@@ -31,7 +32,7 @@ parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
     tp = parsec_BT_reduction_new(A, nb, nt);
 
     ptrdiff_t lb, extent;
-    parsec_type_create_contiguous(nb, MPI_INT, &block);
+    parsec_type_create_contiguous(nb, parsec_datatype_int32_t, &block);
     parsec_type_extent(block, &lb, &extent);
 
     parsec_arena_construct(tp->arenas[PARSEC_BT_reduction_DEFAULT_ARENA],

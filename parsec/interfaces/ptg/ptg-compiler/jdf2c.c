@@ -2208,7 +2208,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
             string_arena_add_string(psa, "%s&%s", sep, JDF_OBJECT_ONAME(dl));
             sprintf(sep, ",\n ");
         } else if( dl->guard->guard_type == JDF_GUARD_TERNARY ) {
-            jdf_expr_t not = {0,};
+            jdf_expr_t not = {{0},};
 
             sprintf(depname, "%s_iftrue", JDF_OBJECT_ONAME(dl));
             sprintf(condname, "expr_of_cond_for_%s", depname);
@@ -3030,8 +3030,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 "                           this_task->taskpool->taskpool_id, NULL);\n"
                 "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
     }
-    coutput("    return PARSEC_HOOK_RETURN_DONE;\n"
-            "  }\n");
     if( profile_enabled(f->properties) ) {    
         coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
                 "  PARSEC_PROFILING_TRACE(es->es_profile,\n"

@@ -1,7 +1,7 @@
 #ifndef PAPI_SDE_H_INCLUDED
 #define PAPI_SDE_H_INCLUDED
 
-#include "parsec/parsec_options.h"
+#include "parsec/parsec_config.h"
 
 #if defined(PARSEC_PAPI_SDE)
 

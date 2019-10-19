@@ -31,10 +31,12 @@ RW  A <- (k == 0)  ? mydata( k ) : A Task( k-1 )
 BODY
 {
     int *Aint = (int*)A;
-    int rank;
+    int rank = 0;
     *Aint += 1;
 
+#if defined(PARSEC_HAVE_MPI)
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+#endif  /* defined(PARSEC_HAVE_MPI) */
     printf("I am element %d in the chain computed on node %d\n", *Aint, rank );
 }
 END

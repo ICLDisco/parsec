@@ -66,7 +66,7 @@
 /*
  * Global variables.
  */
-char parsec_hostname_array[HOST_NAME_MAX] = "not yet initialized";
+char parsec_hostname_array[128] = "not yet initialized";
 const char* parsec_hostname = parsec_hostname_array;
 
 size_t parsec_task_startup_iter = 64;
@@ -344,10 +344,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_warning = 0;
 
-    gethostname(parsec_hostname_array, sizeof(parsec_hostname));
+    gethostname(parsec_hostname_array, sizeof(parsec_hostname_array));
 
     PARSEC_PAPI_SDE_INIT();
-    
+
     parsec_installdirs_open();
     parsec_mca_param_init();
     parsec_output_init();
