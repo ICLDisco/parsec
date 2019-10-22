@@ -1021,12 +1021,6 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
                                  gpu_device->cuda_index, task_name,
                                  lru_gpu_elem, lru_gpu_elem->super.super.obj_reference_count);
             OBJ_RELEASE(lru_gpu_elem);
-            if( NULL != lru_gpu_elem ) {
-                PARSEC_DEBUG_VERBOSE(1, parsec_cuda_output_stream,
-                                 "GPU[%d]:%s: Release LRU-retrieved CUDA copy %p [ref_count %d: must be 0] will raise an Assertion",
-                                 gpu_device->cuda_index, task_name,
-                                 lru_gpu_elem, lru_gpu_elem->super.super.obj_reference_count);
-            }
             assert( NULL == lru_gpu_elem );
             goto malloc_data;
         }
@@ -2322,13 +2316,6 @@ parsec_gpu_kernel_pop( parsec_device_cuda_module_t            *gpu_device,
 
         gpu_copy = this_task->data[i].data_out;
         original = gpu_copy->original;
-        if( this_task->data[i].data_in != NULL && original != this_task->data[i].data_in->original ) {
-            PARSEC_DEBUG_VERBOSE(1, parsec_cuda_output_stream,
-                                 "GPU[%d]: Will raise Assertion that original != this_task->data[i].data_in->original because gpu_copy = %p, original = %p, data[%d].data_in = %p in %s",
-                                 gpu_device->cuda_index,
-                                 gpu_copy, original, i, this_task->data[i].data_in,
-                                 parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task));
-        }
         assert( this_task->data[i].data_in == NULL || original == this_task->data[i].data_in->original );
 
         if( !(flow->flow_flags & FLOW_ACCESS_WRITE) ) {
