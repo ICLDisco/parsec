@@ -2208,7 +2208,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
             string_arena_add_string(psa, "%s&%s", sep, JDF_OBJECT_ONAME(dl));
             sprintf(sep, ",\n ");
         } else if( dl->guard->guard_type == JDF_GUARD_TERNARY ) {
-            jdf_expr_t not = {0,};
+            jdf_expr_t not = {{0},};
 
             sprintf(depname, "%s_iftrue", JDF_OBJECT_ONAME(dl));
             sprintf(condname, "expr_of_cond_for_%s", depname);
@@ -2746,9 +2746,11 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             jdf_basename, jdf_basename);
 
     if(need_to_count_tasks) {
-        coutput("  uint32_t nb_tasks = 0, saved_nb_tasks = nb_tasks;\n");
+        coutput("  int32_t nb_tasks = 0, saved_nb_tasks = 0;\n");
         /* prepare the epilog output to prevent compiler from complaining about initialized but unused data */
-        string_arena_add_string(sa_end, "(void)nb_tasks; (void)saved_nb_tasks;\n");
+        string_arena_add_string(sa_end, "(void)saved_nb_tasks;\n");
+    } else {
+        coutput("  int32_t nb_tasks = 0;\n");
     }
     if( need_min_max ) {
         for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
@@ -2924,7 +2926,9 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         if(need_to_count_tasks) {
             coutput("%s   if( 0 != nb_tasks ) {\n"
                     "%s     (void)parsec_atomic_fetch_add_int32(&__parsec_tp->super.super.nb_tasks, nb_tasks);\n"
-                    "%s   }\n",
+                    "%s   }\n"
+                    "%s   saved_nb_tasks = nb_tasks;\n",
+                    indent(nesting),
                     indent(nesting),
                     indent(nesting),
                     indent(nesting));
@@ -2945,7 +2949,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
     /* If this startup task belongs to a task class that has the pontetial to generate initial tasks,
      * we should be careful to delay the generation of these tasks until all initializations tasks
-     * have been completed (or we face the opportunity for race condition between creating the
+     * have been completed (or we might face a race condition between creating the
      * dependencies arrays and accessing them). We synchronize the initial tasks via a sync. Until
      * the sync trigger all task-generation tasks will be enqueued on the taskpool's startup_queue.
      */
@@ -3006,7 +3010,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
      * when everything is completed.
      */
     coutput("  if(1 == parsec_atomic_fetch_dec_int32(&__parsec_tp->sync_point)) {\n"
-            "    /* Ready to rock. Update the count of expected tasks */\n");
+            "    /* Last initialization task complete. Update the number of tasks. */\n");
     if(!need_to_count_tasks) {
         /* We only need to update the number of tasks according to the user provided count */
         coutput("    __parsec_tp->super.super.nb_tasks = %s(__parsec_tp);\n",
@@ -3015,9 +3019,9 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  (void)parsec_atomic_fetch_dec_int32(&__parsec_tp->super.super.nb_tasks);\n");
         /* TODO coutput("    __parsec_tp->super.super.nb_tasks = __parsec_tp->super.super.initial_number_tasks;\n"); */
     }
-    coutput("    parsec_mfence();\n"
+    coutput("    parsec_mfence();  /* write memory barrier to guarantee that the scheduler gets the correct number of tasks */\n"
             "    parsec_taskpool_enable((parsec_taskpool_t*)__parsec_tp, &__parsec_tp->startup_queue,\n"
-            "                           (parsec_task_t*)this_task, es, __parsec_tp->super.super.nb_pending_actions);\n");
+            "                           (parsec_task_t*)this_task, es, (1 > nb_tasks));\n");
     if( profile_enabled(f->properties) ) {
         coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
                 "    PARSEC_PROFILING_TRACE(es->es_profile,\n"
@@ -3026,8 +3030,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 "                           this_task->taskpool->taskpool_id, NULL);\n"
                 "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
     }
-    coutput("    return PARSEC_HOOK_RETURN_DONE;\n"
-            "  }\n");
     if( profile_enabled(f->properties) ) {    
         coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
                 "  PARSEC_PROFILING_TRACE(es->es_profile,\n"
@@ -3036,8 +3038,17 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 "                         this_task->taskpool->taskpool_id, NULL);\n"
                 "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
     }
-    coutput("  return (PARSEC_TASK_STATUS_COMPLETE == this_task->status) ? PARSEC_HOOK_RETURN_DONE : PARSEC_HOOK_RETURN_ASYNC;\n"
-            "}\n\n");
+    if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
+        coutput("    if( 1 >= nb_tasks ) {\n"
+                "        /* if no tasks will be generated let's prevent the runtime from calling the hook and instead go directly to complete the task */\n"
+                "        this_task->status = PARSEC_TASK_STATUS_COMPLETE;\n"
+                "    }\n");
+    }
+    coutput("    return PARSEC_HOOK_RETURN_DONE;\n"
+            "  }\n"
+            "  return %s;\n"
+            "}\n\n",
+            (f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP) ? "PARSEC_HOOK_RETURN_ASYNC" : "PARSEC_HOOK_RETURN_DONE");
 
     string_arena_free(sa_end);
     free_l2p(l2p);
@@ -3762,7 +3773,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     coutput("  __parsec_tp->super.super.nb_task_classes = PARSEC_%s_NB_TASK_CLASSES;\n"
             "  __parsec_tp->super.super.devices_index_mask = PARSEC_DEVICES_ALL;\n"
             "  __parsec_tp->super.super.taskpool_name = strdup(\"%s\");\n"
-            "  __parsec_tp->super.super.update_nb_runtime_task = parsec_ptg_update_runtime_task;\n"
+            "  __parsec_tp->super.super.update_nb_runtime_task = parsec_add_fetch_runtime_task;\n"
             "  __parsec_tp->super.super.dependencies_array = (void **)\n"
             "              calloc(__parsec_tp->super.super.nb_task_classes, sizeof(void*));\n"
             "  /* Twice the size to hold the startup tasks function_t */\n"

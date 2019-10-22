@@ -24,6 +24,8 @@
  * -  3: communication thread is up but sleeping
  */
 int parsec_communication_engine_up = -1;
+static int parsec_comm_output_stream = 0;
+static int parsec_comm_verbose = 0;
 
 #ifdef DISTRIBUTED
 
@@ -41,7 +43,7 @@ static inline void
 remote_dep_reset_forwarded(parsec_execution_stream_t* es,
                            parsec_remote_deps_t* rdeps)
 {
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "fw reset\tcontext %p deps %p", (void*)es, rdeps);
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "fw reset\tcontext %p deps %p", (void*)es, rdeps);
     memset(rdeps->remote_dep_fw_mask, 0,
            es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
 }
@@ -54,7 +56,7 @@ remote_dep_mark_forwarded(parsec_execution_stream_t* es,
 {
     uint32_t boffset;
 
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "fw mark\tREMOTE rank %d", rank);
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "fw mark\tREMOTE rank %d", rank);
     boffset = rank / (8 * sizeof(uint32_t));
     assert(boffset <= es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
     (void)es;
@@ -72,7 +74,7 @@ remote_dep_is_forwarded(parsec_execution_stream_t* es,
     boffset = rank / (8 * sizeof(uint32_t));
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "fw test\tREMOTE rank %d (value=%x)", rank, (int) (rdeps->remote_dep_fw_mask[boffset] & mask));
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "fw test\tREMOTE rank %d (value=%x)", rank, (int) (rdeps->remote_dep_fw_mask[boffset] & mask));
     (void)es;
     return (int) ((rdeps->remote_dep_fw_mask[boffset] & mask) != 0);
 }
@@ -100,7 +102,7 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
                                 int ncompleted)
 {
     int32_t saved = parsec_atomic_fetch_sub_int32(&(*deps)->pending_ack, ncompleted) - ncompleted;
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Complete %d (%d left) outputs of dep %p%s",
+    PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "Complete %d (%d left) outputs of dep %p%s",
             ncompleted, saved, *deps,
             (0 == saved ? " (decrease inflight)" : ""));
     if(0 == saved) {
@@ -162,7 +164,7 @@ inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
     remote_deps->pending_ack     = 0;
     remote_deps->incoming_mask   = 0;
     remote_deps->outgoing_mask   = 0;
-    PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "remote_deps_allocate: %p", remote_deps);
+    PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "remote_deps_allocate: %p", remote_deps);
     return remote_deps;
 }
 
@@ -185,7 +187,7 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
         deps->output[k].data.displ  = 0xFFFFFFFF;
 #endif
     }
-    PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "remote_deps_free: %p mask %x", deps, deps->outgoing_mask);
+    PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "remote_deps_free: %p mask %x", deps, deps->outgoing_mask);
 #if defined(PARSEC_DEBUG_PARANOID)
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
@@ -220,6 +222,24 @@ int parsec_remote_dep_init(parsec_context_t* context)
             "  0: the communication thread access is serialized.\n"
             "  1: the communication thread access is multiple (if the underlying transports allows (e.g., MPI_THREAD_MULTIPLE).",
                                   false, false, parsec_param_comm_thread_multiple, &parsec_param_comm_thread_multiple);
+    parsec_mca_param_reg_int_name("comm", "verbose",
+                                  "Set the output level for the communication engine messages"
+                                  ", 0: Errors only"
+                                  ", 1: Warnings (minimum recommended)"
+                                  ", 2: Info (default)"
+                                  ", 3-4: User Debug"
+                                  ", 5-9: Devel Debug"
+                                  ", >=10: Chatterbox Debug"
+#if !defined(PARSEC_DEBUG_PARANOID) || !defined(PARSEC_DEBUG_NOISIER) || !defined(PARSEC_DEBUG_HISTORY)
+                                  " (heaviest debug output available only when compiling with PARSEC_DEBUG_PARANOID, PARSEC_DEBUG_NOISIER and/or PARSEC_DEBU    G_HISTORY in ccmake)"
+#endif
+                                  , false, false, 1, &parsec_comm_verbose);
+    if( parsec_comm_verbose >= 0 ) {
+        parsec_comm_output_stream = parsec_output_open(NULL);
+        parsec_output_set_verbosity(parsec_comm_output_stream, parsec_comm_verbose);
+    } else {
+        parsec_comm_output_stream = parsec_debug_output;
+    }
 
     (void)remote_dep_init(context);
 
@@ -249,9 +269,7 @@ int parsec_remote_dep_off(parsec_context_t* context)
 
 int parsec_remote_dep_set_ctx( parsec_context_t* context, void* opaque_comm_ctx )
 {
-    parsec_remote_dep_fini( context );
-    context->comm_ctx = opaque_comm_ctx;
-    return parsec_remote_dep_init( context );
+    return remote_dep_set_ctx( context, opaque_comm_ctx );
 }
 
 int parsec_remote_dep_progress(parsec_execution_stream_t* es)
@@ -465,13 +483,13 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                 count++;
 
                 if(remote_dep_is_forwarded(es, remote_deps, rank)) {  /* already in the counting */
-                    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (already done)",
+                    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (already done)",
                             remote_deps->root, i, tmp, my_idx, idx, rank);
                     continue;
                 }
                 idx++;
                 if(my_idx == -1) {
-                    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip",
+                    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip",
                             remote_deps->root, i, tmp, my_idx, idx, rank);
                     if(rank == es->virtual_process->parsec_context->my_rank) {
                         my_idx = idx;
@@ -479,7 +497,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                     remote_dep_mark_forwarded(es, remote_deps, rank);
                     continue;
                 }
-                PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, " TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)",
+                PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, " TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)",
                         tmp, remote_deps->root, es->virtual_process->parsec_context->my_rank, my_idx, rank);
 
                 int remote_dep_bcast_child_permits = 0;
@@ -491,14 +509,14 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                 }
 
                 if(remote_dep_bcast_child_permits) {
-                    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)",
+                    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)",
                             remote_deps->root, i, tmp, my_idx, idx, rank, remote_deps->outgoing_mask);
                     assert(remote_deps->outgoing_mask & (1U<<i));
 #if defined(PARSEC_DEBUG_NOISIER)
                     for(int flow_index = 0; NULL != task->task_class->out[flow_index]; flow_index++) {
                         if( task->task_class->out[flow_index]->flow_datatype_mask & (1<<i) ) {
                             assert( NULL != task->task_class->out[flow_index] );
-                            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, " TOPO\t%s flow %s root=%d\t%d (d%d) -> %d (d%d)",
+                            PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, " TOPO\t%s flow %s root=%d\t%d (d%d) -> %d (d%d)",
                                     tmp, task->task_class->out[flow_index]->name, remote_deps->root,
                                     es->virtual_process->parsec_context->my_rank, my_idx, rank, idx);
                             break;
@@ -517,7 +535,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                     }
                     remote_dep_send(es, rank, remote_deps);
                 } else {
-                    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)",
+                    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)",
                             remote_deps->root, i, tmp, my_idx, idx, rank);
                 }
                 assert(!remote_dep_is_forwarded(es, remote_deps, rank));
@@ -586,7 +604,7 @@ static int remote_dep_bind_thread(parsec_context_t* context)
     if( context->comm_th_core >= 0 ) {
         /* Bind to the specified core */
         if(parsec_bindthread(context->comm_th_core, -1) == context->comm_th_core) {
-            parsec_debug_verbose(4, parsec_debug_output, "Communication thread bound to physical core %d",  context->comm_th_core);
+            parsec_debug_verbose(4, parsec_comm_output_stream, "Communication thread bound to physical core %d",  context->comm_th_core);
 
             /* Check if this core is not used by a computation thread */
             if( hwloc_bitmap_isset(context->cpuset_free_mask, context->comm_th_core) ) {
@@ -594,7 +612,7 @@ static int remote_dep_bind_thread(parsec_context_t* context)
                 comm_yield = 0;
             } else {
                 /* The thread shares the core. Let comm_yield as user-set. */
-                parsec_debug_verbose(4, parsec_debug_output, "Communication thread is bound to core %d which is also hosting a compute execution unit", context->comm_th_core);
+                parsec_debug_verbose(4, parsec_comm_output_stream, "Communication thread is bound to core %d which is also hosting a compute execution unit", context->comm_th_core);
             }
         } else {
 #if !defined(PARSEC_OSX)
@@ -619,7 +637,7 @@ static int remote_dep_bind_thread(parsec_context_t* context)
                 /* There is no guarantee the thread doesn't share the core. Let comm_yield as user-set. */
             }
         }
-        parsec_debug_verbose(4, parsec_debug_output,
+        parsec_debug_verbose(4, parsec_comm_output_stream,
                             "Communication thread bound on the cpu mask %s (with%s yield back-off)",
                             str, (comm_yield ? "" : "out"));
         free(str);
@@ -633,9 +651,9 @@ static int remote_dep_bind_thread(parsec_context_t* context)
     }
     int boundto = parsec_bindthread(nb_total_comp_threads, -1);
     if (boundto != nb_total_comp_threads) {
-        parsec_debug_verbose(4, parsec_debug_output, "Communication thread floats");
+        parsec_debug_verbose(4, parsec_comm_output_stream, "Communication thread floats");
     } else {
-        parsec_debug_verbose(4, parsec_debug_output, "Communication thread bound to physical core %d", boundto);
+        parsec_debug_verbose(4, parsec_comm_output_stream, "Communication thread bound to physical core %d", boundto);
         /* The thread (presumably) enjoys an exclusive core. Force disable comm_yield. */
         comm_yield = 0;
     }

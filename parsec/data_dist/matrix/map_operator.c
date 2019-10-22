@@ -533,14 +533,14 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
     }
 #  endif /* defined(PARSEC_PROF_TRACE) */
 
-    tp->super.taskpool_id = 0;
+    tp->super.taskpool_id = 1111;
     tp->super.nb_tasks = src->nb_local_tiles;
     tp->super.nb_pending_actions = 1;  /* for all local tasks */
     tp->super.startup_hook = parsec_map_operator_startup_fn;
     tp->super.destructor = (parsec_destruct_fn_t) parsec_map_operator_destructor;
-    tp->super.nb_task_classes = 0;
+    tp->super.nb_task_classes = 1;
     tp->super.devices_index_mask = PARSEC_DEVICES_ALL;
-    tp->super.update_nb_runtime_task = parsec_ptg_update_runtime_task;
+    tp->super.update_nb_runtime_task = parsec_add_fetch_runtime_task;
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)tp);
     return (parsec_taskpool_t*)tp;
 }

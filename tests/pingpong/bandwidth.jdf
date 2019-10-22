@@ -6,9 +6,9 @@ extern "C" %{
  */
 
 /* includes parsec headers */
-#include "parsec.h"
+#include <parsec.h>
 #include <parsec/data_dist/matrix/two_dim_rectangle_cyclic.h>
-#include "parsec/data_dist/matrix/matrix.h"
+#include <parsec/data_dist/matrix/matrix.h>
 
 /* system and io */
 #include <stdlib.h>
@@ -263,7 +263,9 @@ int main(int argc, char *argv[])
                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
         /* Time start */
+#if defined(PARSEC_HAVE_MPI)
         MPI_Barrier(MPI_COMM_WORLD);
+#endif  /* defined(PARSEC_HAVE_MPI) */
         gettimeofday(&tstart, NULL);
 
         parsec_context_add_taskpool(parsec, bandwidth_taskpool);
@@ -271,7 +273,9 @@ int main(int argc, char *argv[])
         parsec_context_wait(parsec);
 
         /* Time end */
+#if defined(PARSEC_HAVE_MPI)
         MPI_Barrier(MPI_COMM_WORLD);
+#endif  /* defined(PARSEC_HAVE_MPI) */
         gettimeofday(&tend, NULL);
 
         if( 0 == rank ) {

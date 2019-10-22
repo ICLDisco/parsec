@@ -637,7 +637,7 @@ int parsec_profiling_fini( void )
 {
     parsec_thread_profiling_t *t;
     int i;
-        
+
     if( !__profile_initialized ) return -1;
 
     if( bpf_filename ) {

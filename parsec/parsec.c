@@ -66,7 +66,7 @@
 /*
  * Global variables.
  */
-char parsec_hostname_array[HOST_NAME_MAX] = "not yet initialized";
+char parsec_hostname_array[128] = "not yet initialized";
 const char* parsec_hostname = parsec_hostname_array;
 
 size_t parsec_task_startup_iter = 64;
@@ -147,7 +147,7 @@ static void parsec_rusage(bool print)
                      "Block Input Operations      : %10ld\n"
                      "Block Output Operations     : %10ld\n"
                      "Maximum Resident set size   : %10ld\n"
-                     "=============================================================\n",
+                     "-------------------------------------------------------------\n",
                      usr, sys, usr + sys,
                      current.ru_minflt  - _parsec_rusage.ru_minflt, current.ru_majflt  - _parsec_rusage.ru_majflt,
                      current.ru_nswap   - _parsec_rusage.ru_nswap,
@@ -344,10 +344,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_warning = 0;
 
-    gethostname(parsec_hostname_array, sizeof(parsec_hostname));
+    gethostname(parsec_hostname_array, sizeof(parsec_hostname_array));
 
     PARSEC_PAPI_SDE_INIT();
-    
+
     parsec_installdirs_open();
     parsec_mca_param_init();
     parsec_output_init();
@@ -540,6 +540,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->nb_vp               = nb_vp;
     /* initialize dtd taskpool list */
     context->taskpool_list       = NULL;
+    context->comm_ctx                = NULL;
 #if defined(PARSEC_SIM)
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */
@@ -2429,7 +2430,7 @@ int parsec_task_deps_with_final_output(const parsec_task_t *task,
 }
 
 int32_t
-parsec_ptg_update_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks )
+parsec_add_fetch_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks )
 {
     return parsec_atomic_fetch_add_int32(&tp->nb_pending_actions, nb_tasks ) + nb_tasks;
 }

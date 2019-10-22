@@ -18,6 +18,15 @@ extern "C" %{
 #include "multichain.h"
 static parsec_multichain_taskpool_t* tp;
 static int verbose = 0;
+
+/* Create an array of communicator to test PaRSEC capability
+ * to work over different communicators. In addition to informing
+ * the runtime about the change all data should be correctly
+ * created.
+ */
+ static const int max_comms = 6;
+ static MPI_Comm comms[6] = {MPI_COMM_WORLD, MPI_COMM_SELF, MPI_COMM_NULL,
+                             MPI_COMM_NULL,  MPI_COMM_NULL, MPI_COMM_WORLD};
 %}
 
 descA      [type = "two_dim_block_cyclic_t*"]
@@ -57,6 +66,27 @@ END
 
 extern "C" %{
 
+static void create_communicators(void)
+{
+    int rank, size;
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_split(MPI_COMM_WORLD, 0, size-1-rank, &comms[2]);
+    MPI_Comm_split(MPI_COMM_WORLD, (rank < (size-1) ? 0 : MPI_UNDEFINED), rank, &comms[3]);
+    MPI_Comm_split(MPI_COMM_WORLD, rank % 2, rank, &comms[4]);
+}
+static void release_comms(void)
+{
+    int i;
+    for( i = 0; i < (int)(sizeof(comms) / sizeof(MPI_Comm)); i++ ) {
+        if( (MPI_COMM_WORLD == comms[i]) ||
+            (MPI_COMM_SELF == comms[i]) ||
+            (MPI_COMM_NULL == comms[i]) )
+            continue;
+        MPI_Comm_free(&comms[i]);
+    }
+}
 #define TIMER_START(TIMER)                      \
     do {                                        \
         struct timeval tv;                      \
@@ -76,10 +106,11 @@ int main(int argc, char* argv[])
     two_dim_block_cyclic_t descA, descB;
     parsec_arena_t arena;
     parsec_context_t *parsec;
-    int ni = NN, nj = NN, loops = 5, i = 1, rc;
+    int ni = NN, nj = NN, loops = 5, i = 1, l, rc;
     int rank = 0, size = 1, mat_size;
     long time_elapsed;
     parsec_datatype_t baseType, newtype;
+    MPI_Comm comm;
 
     while( NULL != argv[i] ) {
         if( 0 == strncmp(argv[i], "-i=", 3) ) {
@@ -121,100 +152,115 @@ int main(int argc, char* argv[])
         int provided;
         MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
     }
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    create_communicators();
 #endif  /* DISTRIBUTED */
     parsec = parsec_init(2, &argc, &argv);
     assert( NULL != parsec );
 
-    /**
-     * Build the data and the arena to hold it up.
-     */
-    mat_size = 2*BLOCK*size*ni;
-    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                               size /*nodes*/, rank /*rank*/,
-                               2*BLOCK, 1, mat_size, 1,
-                               0, 0, mat_size, 1, 1, 1, 1);
-    descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
-                                     descA.super.bsiz *
-                                     parsec_datadist_getsizeoftype(TYPE) );
-    two_dim_block_cyclic_init( &descB, TYPE, matrix_Tile,
-                               size /*nodes*/, rank /*rank*/,
-                               2*BLOCK, 1, mat_size, 1,
-                               0, 0, mat_size, 1, 1, 1, 1);
-    descB.mat = parsec_data_allocate( descB.super.nb_local_tiles *
-                                      descB.super.bsiz *
-                                      parsec_datadist_getsizeoftype(TYPE) );
-
-    parsec_translate_matrix_type(TYPE, &baseType);
-    parsec_type_create_contiguous(descA.super.mb * descA.super.nb,
-                                  baseType, &newtype);
-    parsec_arena_construct(&arena,
-                           descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                           PARSEC_ARENA_ALIGNMENT_SSE, newtype);
-
-    for( ; loops > 0; loops-- ) {
-
-        printf("\n\n\n%d iterations remaining\n\n\n", loops);
-        tp = parsec_multichain_new( &descA, &descB, ni, nj );
-        assert( NULL != tp );
-        tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
-
-        rc = parsec_context_start(parsec);
-        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
-
-        TIMER_START(time_elapsed);
-        rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
-        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
-        TIMER_STOP(time_elapsed);
-        printf("DAG construction in %ld micro-sec\n", time_elapsed);
-
-        TIMER_START(time_elapsed);
-        rc = parsec_context_wait(parsec);
-        PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-        TIMER_STOP(time_elapsed);
-
-        printf("DAG execution in %ld micro-sec\n", time_elapsed);
-        if( verbose >= 5 ) {
-            printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
-                   "                 encoding=\"none\" compression=\"none\">\n"
-                   "%g\n"
-                   "</DartMeasurement>\n",
-                   (double)time_elapsed);
-        }
-
+    for( i = 0; i < max_comms; i++ ) {
         /**
-         * Validate the parsec_context_start / parsec_context_wait functionality.
+         * Build the data and the arena to hold it up.
          */
-        printf("\n\nChecking the parsec_context_start / parsec_context_wait (sleep 5)\n\n");
-        tp = parsec_multichain_new( &descA, &descB, ni, nj );
-        assert( NULL != tp );
+#ifdef DISTRIBUTED
+        MPI_Barrier(MPI_COMM_WORLD);
+        comm = comms[i];
+        if( MPI_COMM_NULL == comm ) continue;
+        MPI_Comm_size(comm, &size);
+        MPI_Comm_rank(comm, &rank);
+        printf("Starting the test %d (%d/%d)\n", i, rank, size);
+        parsec_remote_dep_set_ctx(parsec, (void*)comm);
+#endif  /* DISTRIBUTED */
+        mat_size = 2*BLOCK*size*ni;
+        two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+                                   size /*nodes*/, rank /*rank*/,
+                                   2*BLOCK, 1, mat_size, 1,
+                                   0, 0, mat_size, 1, 1, 1, 1);
+        descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
+                                          descA.super.bsiz *
+                                          parsec_datadist_getsizeoftype(TYPE) );
+        two_dim_block_cyclic_init( &descB, TYPE, matrix_Tile,
+                                   size /*nodes*/, rank /*rank*/,
+                                   2*BLOCK, 1, mat_size, 1,
+                                   0, 0, mat_size, 1, 1, 1, 1);
+        descB.mat = parsec_data_allocate( descB.super.nb_local_tiles *
+                                          descB.super.bsiz *
+                                          parsec_datadist_getsizeoftype(TYPE) );
 
-        tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
+        parsec_translate_matrix_type(TYPE, &baseType);
+        parsec_type_create_contiguous(descA.super.mb * descA.super.nb,
+                                      baseType, &newtype);
+        parsec_arena_construct(&arena,
+                               descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                               PARSEC_ARENA_ALIGNMENT_SSE, newtype);
 
-        TIMER_START(time_elapsed);
-        rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
-        PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
-        TIMER_STOP(time_elapsed);
+        for( l = loops; l > 0; l-- ) {
 
-        rc = parsec_context_start(parsec);
-        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+            printf("\n\n\n%d iterations remaining\n\n\n", l);
+            tp = parsec_multichain_new( &descA, &descB, ni, nj );
+            assert( NULL != tp );
+            tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
 
-        sleep(5);
-        printf("Main thread going for the wait (remaining tasks %d)\n", tp->super.nb_tasks);
-        /* By now most of the tasks should be completed */
-        TIMER_START(time_elapsed);
-        rc = parsec_context_wait(parsec);
-        PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-        TIMER_STOP(time_elapsed);
+            rc = parsec_context_start(parsec);
+            PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
-        printf("DAG execution in %ld micro-sec\n", time_elapsed);
-    }
-    free(descA.mat);
+            TIMER_START(time_elapsed);
+            rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+            PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+            TIMER_STOP(time_elapsed);
+            printf("DAG construction in %ld micro-sec\n", time_elapsed);
 
-    parsec_type_free(&newtype);
+            TIMER_START(time_elapsed);
+            rc = parsec_context_wait(parsec);
+            PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+            TIMER_STOP(time_elapsed);
+
+            printf("DAG execution in %ld micro-sec\n", time_elapsed);
+            if( verbose >= 5 ) {
+                printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
+                       "                 encoding=\"none\" compression=\"none\">\n"
+                       "%g\n"
+                       "</DartMeasurement>\n",
+                       (double)time_elapsed);
+            }
+
+            /**
+             * Validate the parsec_context_start / parsec_context_wait functionality.
+             */
+            printf("\n\nChecking the parsec_context_start / parsec_context_wait (sleep 1)\n\n");
+            tp = parsec_multichain_new( &descA, &descB, ni, nj );
+            assert( NULL != tp );
+
+            tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
+
+            TIMER_START(time_elapsed);
+            rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+            PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+            TIMER_STOP(time_elapsed);
+
+            rc = parsec_context_start(parsec);
+            PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+            sleep(1);
+            printf("Main thread going for the wait (remaining tasks %d)\n", tp->super.nb_tasks);
+            /* By now most of the tasks should be completed */
+            TIMER_START(time_elapsed);
+            rc = parsec_context_wait(parsec);
+            PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+            TIMER_STOP(time_elapsed);
+
+            printf("DAG execution in %ld micro-sec\n", time_elapsed);
+        }
+        free(descA.mat);
+        free(descB.mat);
+
+        parsec_type_free(&newtype);
+    }  /* go to the next communicator */
 
     parsec_fini( &parsec);
+#ifdef DISTRIBUTED
+    release_comms();
+    MPI_Finalize();
+#endif  /* DISTRIBUTED */
 
     return 0;
 }
