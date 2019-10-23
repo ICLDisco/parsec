@@ -70,7 +70,7 @@
 # undef DISTRIBUTED
 #endif
 
-/*#define PARSEC_HARD_SUPERTILE */
+/*#define PARSEC_SUPERTILE_WITH_VIEW */
 
 #if defined(PARSEC_PROF_DRY_RUN)
 # define PARSEC_PROF_DRY_BODY

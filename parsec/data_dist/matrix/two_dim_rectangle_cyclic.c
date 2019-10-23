@@ -26,7 +26,7 @@ static uint32_t twoDBC_stview_rank_of_key(parsec_data_collection_t* dc, parsec_d
 static int32_t twoDBC_stview_vpid_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 static parsec_data_t* twoDBC_stview_data_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 
-#if defined(PARSEC_HARD_SUPERTILE)
+#if !PARSEC_SUPERTILE_WITH_VIEW
 static uint32_t twoDBC_st_rank_of(parsec_data_collection_t* dc, ...);
 static int32_t twoDBC_st_vpid_of(parsec_data_collection_t* dc, ...);
 static parsec_data_t* twoDBC_st_data_of(parsec_data_collection_t* dc, ...);
@@ -99,11 +99,11 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
         parsec_fatal("matrix_Lapack storage not supported with a grid that is not 1xQ");
     }
 
-#if defined(PARSEC_HARD_SUPERTILE)
+#if !PARSEC_SUPERTILE_WITH_VIEW
     grid_2Dcyclic_init(&dc->grid, myrank, P, Q, nrst, ncst);
 #else
     grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1);
-#endif /* PARSEC_HARD_SUPERTILE */
+#endif /* PARSEC_SUPERTILE_WITH_VIEW */
 
     /* Compute the number of rows handled by the local process */
     dc->nb_elem_r = 0;
@@ -150,7 +150,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
         o->vpid_of_key  = twoDBC_vpid_of_key;
         o->data_of_key  = twoDBC_data_of_key;
     } else {
-#if defined(PARSEC_HARD_SUPERTILE)
+#if !PARSEC_SUPERTILE_WITH_VIEW
         o->rank_of      = twoDBC_st_rank_of;
         o->vpid_of      = twoDBC_st_vpid_of;
         o->data_of      = twoDBC_st_data_of;
@@ -159,7 +159,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
         o->data_of_key  = twoDBC_st_data_of_key;
 #else
         two_dim_block_cyclic_supertiled_view(dc, dc, nrst, ncst);
-#endif /* PARSEC_HARD_SUPERTILE */
+#endif /* PARSEC_SUPERTILE_WITH_VIEW */
     }
     o->register_memory   = twoDBC_memory_register;
     o->unregister_memory = twoDBC_memory_unregister;
@@ -485,7 +485,7 @@ static parsec_data_t* twoDBC_stview_data_of_key(parsec_data_collection_t *desc, 
     return twoDBC_stview_data_of(desc, m, n);
 }
 
-#if defined(PARSEC_HARD_SUPERTILE)
+#if !PARSEC_SUPERTILE_WITH_VIEW
 /*
  *
  * Set of functions with super-tiles
@@ -644,4 +644,4 @@ static parsec_data_t* twoDBC_st_data_of_key(parsec_data_collection_t *desc, pars
     return twoDBC_st_data_of(desc, m, n);
 }
 
-#endif /* PARSEC_HARD_SUPERTILE */
+#endif /* PARSEC_SUPERTILE_WITH_VIEW */
