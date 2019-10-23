@@ -798,9 +798,6 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
      * corresponding data on the GPU available.
      */
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
-        /* Make sure data_in is not NULL */
-        if( NULL == this_task->data[i].data_in ) continue;
-
         gpu_mem_lru_cycling = NULL;
         flow = gpu_task->flow[i];
         assert( flow && (flow->flow_index == i) );
