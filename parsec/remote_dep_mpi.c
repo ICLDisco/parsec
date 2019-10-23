@@ -249,8 +249,10 @@ static parsec_execution_stream_t parsec_comm_es = {
 static int remote_dep_set_ctx(parsec_context_t* context, void* opaque_comm_ctx )
 {
     int rc;
-    rc = MPI_Comm_dup((MPI_Comm)opaque_comm_ctx, (MPI_Comm*)&context->comm_ctx);
+    MPI_Comm comm;
+    rc = MPI_Comm_dup((MPI_Comm)opaque_comm_ctx, &comm);
     rc = (MPI_SUCCESS == rc) ? PARSEC_SUCCESS : PARSEC_ERROR;
+    context->comm_ctx = (void*)((uintptr_t)comm);  /* safe conversion to void* */
     return rc;
 }
 
@@ -493,7 +495,7 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
         parsec_communication_engine_up = 3;
         remote_dep_mpi_on(context);
         whatsup = remote_dep_dequeue_nothread_progress(&parsec_comm_es, -1 /* loop till explicitly asked to return */);
-        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: comm engine OFF on process %d%d",
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: comm engine OFF on process %d/%d",
                              context->my_rank, context->nb_nodes);
         parsec_communication_engine_up = 1;  /* went to sleep */
     } while(-1 != whatsup);
@@ -760,7 +762,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                 if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
             }
 
-            PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
+            PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
             task.task_class->iterate_successors(es, &task,
                                                 local_mask,
                                                 remote_dep_mpi_retrieve_datatype,
@@ -894,10 +896,13 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
 #ifndef PARSEC_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_nothread_init(parsec_context_t* context)
 {
-    if( NULL == context->comm_ctx )
-        context->comm_ctx = MPI_COMM_WORLD;
     parsec_dequeue_construct(&dep_cmd_queue);
     parsec_list_construct(&dep_cmd_fifo);
+    if(NULL == context->comm_ctx) {
+        MPI_Comm comm;
+        MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+        context->comm_ctx = (void*)((uintptr_t)comm);  /* safe conversion to void* */
+    }
     return remote_dep_mpi_setup(context);
 }
 
@@ -921,8 +926,6 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
     int ret = 0, how_many, position, executed_tasks = 0;
 
     remote_dep_mpi_setup(context);
-    PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "rank %d ENABLE MPI communication engine",
-                         parsec_debug_rank);
 
     OBJ_CONSTRUCT(&temp_list, parsec_list_t);
  check_pending_queues:
@@ -1210,7 +1213,7 @@ static inline int next_tag(int k) {
 reread:
     __tag = __VAL_NEXT_TAG;
     if( __tag > (MAX_MPI_TAG-k) ) {
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "rank %d tag rollover: min %d < %d (+%d) < max %d", parsec_debug_rank,
+        PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "rank %d tag rollover: min %d < %d (+%d) < max %d", parsec_debug_rank,
                 MIN_MPI_TAG, __tag, k, MAX_MPI_TAG);
         __next_tag = MIN_MPI_TAG;
     }
@@ -1242,24 +1245,6 @@ static int remote_dep_mpi_init_once(parsec_context_t* context)
     OBJ_CONSTRUCT(&dep_activates_fifo, parsec_list_t);
     OBJ_CONSTRUCT(&dep_activates_noobj_fifo, parsec_list_t);
     OBJ_CONSTRUCT(&dep_put_fifo, parsec_list_t);
-
-    if( NULL != context->comm_ctx ) {
-        MPI_Comm_dup(*(MPI_Comm*)context->comm_ctx, &dep_comm);
-    }
-    else {
-        MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
-    }
-    MPI_Comm_dup(MPI_COMM_SELF, &dep_self);
-
-#if defined(PARSEC_HAVE_MPI_OVERTAKE)
-    if( parsec_param_enable_mpi_overtake ) {
-        MPI_Info no_order;
-        MPI_Info_create(&no_order);
-        MPI_Info_set(no_order, "mpi_assert_allow_overtaking", "true");
-        MPI_Comm_set_info(dep_comm, no_order);
-        MPI_Info_free(&no_order);
-    }
-#endif
 
     /*
      * Based on MPI 1.1 the MPI_TAG_UB should only be defined
@@ -1314,13 +1299,31 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
         }
 
     /* Did anything changed that would require a build of the management structures? */
-    if( dep_comm == (MPI_Comm)context->comm_ctx ) {
+    assert(NULL != context->comm_ctx);
+    if(dep_comm == (MPI_Comm)context->comm_ctx) {
         return 0;
     }
-    if( MPI_COMM_NULL != dep_comm ) {
+    PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "rank %d ENABLE MPI communication engine",
+                         parsec_debug_rank);
+    if(MPI_COMM_NULL != dep_comm) {
+        parsec_debug_verbose(3, parsec_comm_output_stream, "MPI: Rearming the dep_comm and dep_self.");
+        /* Cleanup prior setup */
         remote_dep_mpi_cleanup(context);
     }
-    dep_comm = (MPI_Comm)context->comm_ctx;
+    assert(MPI_COMM_NULL != context->comm_ctx);
+    dep_comm = (MPI_Comm) context->comm_ctx;
+    //MPI_Comm_dup((MPI_Comm)context->comm_ctx, &dep_comm); /* We will MPI_Comm_free it in cleanup */
+    MPI_Comm_dup(MPI_COMM_SELF, &dep_self);
+
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
+    if( parsec_param_enable_mpi_overtake ) {
+        MPI_Info no_order;
+        MPI_Info_create(&no_order);
+        MPI_Info_set(no_order, "mpi_assert_allow_overtaking", "true");
+        MPI_Comm_set_info(dep_comm, no_order);
+        MPI_Info_free(&no_order);
+    }
+#endif
 
     MPI_Comm_size(dep_comm, &(context->nb_nodes));
     MPI_Comm_rank(dep_comm, &(context->my_rank));
@@ -1741,7 +1744,7 @@ static void remote_dep_mpi_put_eager(parsec_execution_stream_t* es,
 
     item->cmd.activate.task.output_mask = remote_dep_mpi_eager_which(deps, task->output_mask);
     if( 0 == item->cmd.activate.task.output_mask ) {
-        PARSEC_DEBUG_VERBOSE(1, parsec_debug_output, "PUT_EAGER no data for item %p, freeing", item);
+        PARSEC_DEBUG_VERBOSE(1, parsec_comm_output_stream, "PUT_EAGER no data for item %p, freeing", item);
         free(item);  /* nothing to do, no reason to keep it */
         return;
     }
@@ -1754,7 +1757,7 @@ static void remote_dep_mpi_put_eager(parsec_execution_stream_t* es,
          * cmd_queue for later handling in another call to this function
          * but appropriately thread-shifted. */
         item->action = DEP_PUT_DATA;
-        PARSEC_DEBUG_VERBOSE(100, parsec_debug_output, "PUT_DATA item %p enqueued", item);
+        PARSEC_DEBUG_VERBOSE(100, parsec_comm_output_stream, "PUT_DATA item %p enqueued", item);
         parsec_dequeue_push_front(&dep_cmd_queue, (parsec_list_item_t*)item);
     }
     else {
@@ -1871,7 +1874,7 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
     }
 #endif  /* !defined(PARSEC_PROF_DRY_DEP) */
     if(0 == task->output_mask) {
-        PARSEC_DEBUG_VERBOSE(100, parsec_debug_output, "PUT_START output_maks completed for item %p, freeing", item);
+        PARSEC_DEBUG_VERBOSE(100, parsec_comm_output_stream, "PUT_START output_maks completed for item %p, freeing", item);
         free(item);
     }
 }
