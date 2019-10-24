@@ -540,7 +540,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->nb_vp               = nb_vp;
     /* initialize dtd taskpool list */
     context->taskpool_list       = NULL;
-    context->comm_ctx                = NULL;
 #if defined(PARSEC_SIM)
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */
@@ -803,8 +802,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     if( parsec_cmd_line_is_taken(cmd_line, "help") ||
         parsec_cmd_line_is_taken(cmd_line, "h")) {
-        if( 0 == context->my_rank )
-        {
+        if( 0 == context->my_rank ) {
             char* help_msg = parsec_cmd_line_get_usage_msg(cmd_line);
             parsec_list_t* l = NULL;
 
