@@ -49,6 +49,9 @@ if(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 endif(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
 
+parsec_addtest(C supertiles)
+target_ptg_sources(supertiles PRIVATE "supertiles.jdf")
+
 parsec_addtest(C strange)
 target_ptg_sources(strange PRIVATE "strange.jdf")
 
