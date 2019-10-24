@@ -231,7 +231,7 @@ int parsec_remote_dep_init(parsec_context_t* context)
                                   ", 5-9: Devel Debug"
                                   ", >=10: Chatterbox Debug"
 #if !defined(PARSEC_DEBUG_PARANOID) || !defined(PARSEC_DEBUG_NOISIER) || !defined(PARSEC_DEBUG_HISTORY)
-                                  " (heaviest debug output available only when compiling with PARSEC_DEBUG_PARANOID, PARSEC_DEBUG_NOISIER and/or PARSEC_DEBU    G_HISTORY in ccmake)"
+                                  " (heaviest debug output available only when compiling with PARSEC_DEBUG_PARANOID, PARSEC_DEBUG_NOISIER and/or PARSEC_DEBUG_HISTORY in ccmake)"
 #endif
                                   , false, false, 1, &parsec_comm_verbose);
     if( parsec_comm_verbose >= 0 ) {
