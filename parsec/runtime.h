@@ -137,14 +137,16 @@ typedef enum parsec_hook_return_e {
 parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[]);
 
 /**
- * @brief Change the communicator to use with the context
+ * @brief Change the communicator to use with the context. This function is
+ * collective across all processes in this context.
  *
  * @details
- * Reset the remote_dep comm engine associated with the PaRSEC context, and use
+ * Reset the comm engine associated with the PaRSEC context, and use
  * the communication context opaque_comm_ctx in the future (typically an MPI
- * communicator).
+ * communicator). The context can only be changed while the PaRSEC runtime
+ * is down, more specifically while the communication thread is not active.
  *
- * parsec_context_wait becomes collective accross nodes spanning
+ * parsec_context_wait becomes collective across nodes spanning
  * on this communication context.
  *
  * @param[inout] context the PaRSEC context

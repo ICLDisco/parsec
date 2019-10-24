@@ -110,6 +110,14 @@ static int parsec_comm_puts_max        = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
 static int parsec_comm_puts            = 0;
 static int parsec_comm_last_active_req = 0;
 
+/* The internal communicator used by the communication engine to host its requests and
+ * other operations. It is a copy of the context->comm_ctx (which is a duplicate of
+ * whatever the user provides).
+ */
+static MPI_Comm dep_comm = MPI_COMM_NULL;
+/* The internal communicator for all intra-node communications */
+static MPI_Comm dep_self = MPI_COMM_NULL;
+
 /**
  * The order is important as it will be used to compute the index in the
  * pending array of messages.
@@ -246,14 +254,33 @@ static parsec_execution_stream_t parsec_comm_es = {
     .datarepo_mempools = {0}
 };
 
+/**
+ * Store the user provided communicator in the PaRSEC context. We need to make a
+ * copy to make sure the communicator does not dissapear before the communication
+ * engine starts up.
+ */
 static int remote_dep_set_ctx(parsec_context_t* context, void* opaque_comm_ctx )
 {
-    int rc;
     MPI_Comm comm;
+    int rc;
+
+    /* We can only change the communicator if the communication engine is not active */
+    if( 1 < parsec_communication_engine_up ) {
+        parsec_warning("Cannot change PaRSEC's MPI communicator while the engine is running [ignored]");
+        return PARSEC_ERROR;
+    }
+    /* Are we trying to set a congruent communicator a second time? */
+    if( NULL != context->comm_ctx ) {
+        MPI_Comm_compare(*(MPI_Comm*)&context->comm_ctx, (MPI_Comm)opaque_comm_ctx, &rc);
+        if( (MPI_IDENT == rc) || (MPI_CONGRUENT == rc) ) {
+            PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "Set the same or a congruent communicator. Nothing to do");
+            return PARSEC_SUCCESS;
+        }
+        MPI_Comm_free((MPI_Comm*)&context->comm_ctx);
+    }
     rc = MPI_Comm_dup((MPI_Comm)opaque_comm_ctx, &comm);
-    rc = (MPI_SUCCESS == rc) ? PARSEC_SUCCESS : PARSEC_ERROR;
     context->comm_ctx = (void*)((uintptr_t)comm);  /* safe conversion to void* */
-    return rc;
+    return (MPI_SUCCESS == rc) ? PARSEC_SUCCESS : PARSEC_ERROR;
 }
 
 static int remote_dep_dequeue_init(parsec_context_t* context)
@@ -475,7 +502,6 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
 
     remote_dep_bind_thread(context);
     PARSEC_PAPI_SDE_THREAD_INIT();
-    remote_dep_mpi_profiling_init();
 
     /* Now synchronize with the main thread */
     pthread_mutex_lock(&mpi_thread_mutex);
@@ -553,9 +579,6 @@ static int remote_dep_dequeue_send(parsec_execution_stream_t* es, int rank,
     }
     return 1;
 }
-
-static MPI_Comm dep_comm;
-static MPI_Comm dep_self;
 
 void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
                              parsec_taskpool_t* tp,
@@ -1167,7 +1190,6 @@ struct parsec_comm_callback_s {
     long                  storage2;
 };
 
-static MPI_Comm dep_comm = MPI_COMM_NULL;
 static parsec_comm_callback_t *array_of_callbacks;
 static MPI_Request            *array_of_requests;
 static int                    *array_of_indices;
@@ -1246,6 +1268,10 @@ static int remote_dep_mpi_init_once(parsec_context_t* context)
     OBJ_CONSTRUCT(&dep_activates_noobj_fifo, parsec_list_t);
     OBJ_CONSTRUCT(&dep_put_fifo, parsec_list_t);
 
+    assert(MPI_COMM_NULL == dep_self);
+    MPI_Comm_dup(MPI_COMM_SELF, &dep_self);
+    assert(MPI_COMM_NULL == dep_comm);
+
     /*
      * Based on MPI 1.1 the MPI_TAG_UB should only be defined
      * on MPI_COMM_WORLD.
@@ -1273,15 +1299,31 @@ static int remote_dep_mpi_init_once(parsec_context_t* context)
     return 0;
 }
 
+/**
+ * The communication engine is now completely disabled. All internal resources
+ * are released, and no future communications are possible.
+ * Anything initialized in init_once must be disposed off here
+ */
 static int remote_dep_mpi_fini(parsec_context_t* context)
 {
     assert( -1 != MAX_MPI_TAG );
     remote_dep_mpi_cleanup(context);
 
+    /* Remove the static handles */
+    MPI_Comm_free(&dep_self); /* dep_self becomes MPI_COMM_NULL */
+
+    /* Release the context communicators if any */
+    if( NULL != context->comm_ctx) {
+        MPI_Comm_free((MPI_Comm*)&context->comm_ctx);
+        context->comm_ctx = NULL; /* We use NULL for the opaque comm_ctx, rather than the MPI specific MPI_COMM_NULL */
+    }
+
     OBJ_DESTRUCT(&dep_activates_fifo);
     OBJ_DESTRUCT(&dep_activates_noobj_fifo);
     OBJ_DESTRUCT(&dep_put_fifo);
     MAX_MPI_TAG = -1;  /* mark the layer as uninitialized */
+    remote_dep_mpi_profiling_fini();
+
     (void)context;
     return 0;
 }
@@ -1312,8 +1354,6 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
     }
     assert(MPI_COMM_NULL != context->comm_ctx);
     dep_comm = (MPI_Comm) context->comm_ctx;
-    //MPI_Comm_dup((MPI_Comm)context->comm_ctx, &dep_comm); /* We will MPI_Comm_free it in cleanup */
-    MPI_Comm_dup(MPI_COMM_SELF, &dep_self);
 
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
     if( parsec_param_enable_mpi_overtake ) {
@@ -1423,8 +1463,6 @@ static int remote_dep_mpi_cleanup(parsec_context_t* context)
     int i, flag;
     MPI_Status status;
 
-    remote_dep_mpi_profiling_fini();
-
     /* Cancel and release all persistent requests */
     for(i = 0; i < parsec_comm_activations_max + parsec_comm_data_get_max; i++) {
         MPI_Cancel(&array_of_requests[i]);
@@ -1447,8 +1485,11 @@ static int remote_dep_mpi_cleanup(parsec_context_t* context)
     free(dep_activate_buff[0]);
     free(dep_activate_buff); dep_activate_buff = NULL;
 
-    MPI_Comm_free(&dep_comm);
-    MPI_Comm_free(&dep_self);
+    /* Force a reconstruction of the internal dep_comm but without free it, in order
+     * to avoid releasing the context->comm_ctx.
+     */
+    dep_comm = MPI_COMM_NULL;
+
     (void)context;
     return 0;
 }
