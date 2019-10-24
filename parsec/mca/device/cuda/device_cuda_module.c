@@ -2231,13 +2231,13 @@ parsec_gpu_kernel_push( parsec_device_cuda_module_t     *gpu_device,
     }
 
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
-        /* Make sure data_in is not NULL */
-        if( NULL == this_task->data[i].data_in ) continue;
 
         flow = gpu_task->flow[i];
         /* Skip CTL flows */
         if(FLOW_ACCESS_NONE == (FLOW_ACCESS_MASK & flow->flow_flags)) continue;
-        if(this_task->data[i].data_in == NULL) continue;
+
+        /* Make sure data_in is not NULL */
+        if( NULL == this_task->data[i].data_in ) continue;
 
         assert( NULL != parsec_data_copy_get_ptr(this_task->data[i].data_in) );
 
