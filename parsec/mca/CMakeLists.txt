@@ -12,7 +12,7 @@ FOREACH (COMPONENT ${MCA_COMPONENTS})
         FILE(GLOB MODS RELATIVE ${MCA_BASE_DIR}/${COMPONENT} ${MCA_BASE_DIR}/${COMPONENT}/*)
         FOREACH (MODULE ${MODS})
             IF( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/${MODULE}/.ignore" )
-                MESSAGE(STATUS "---- Module `${COMPONENT}` is ignored (due to .ignore)")
+                MESSAGE(STATUS "---- Module `${COMPONENT}/${MODULE}` is ignored (due to .ignore)")
                 CONTINUE()
             ENDIF( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/${MODULE}/.ignore" )
             IF( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/${MODULE}/ValidateModule.CMake" )
@@ -36,12 +36,14 @@ FOREACH (COMPONENT ${MCA_COMPONENTS})
         ENDFOREACH(MODULE)
         SET(MCA_STATIC_COMPONENTS_ACCESSORS "${MCA_STATIC_COMPONENTS_ACCESSORS}  register_base_component(\"${COMPONENT}\");")
 
+        # Give the component a chance to get involved in the configuration step and
+        # define a list of files to be installed.
         IF( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/CMakeLists.txt" )
             include("${MCA_BASE_DIR}/${COMPONENT}/CMakeLists.txt")
         ELSE( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/CMakeLists.txt" )
             FILE(GLOB MCA_${COMPONENT}_SOURCES ${MCA_BASE_DIR}/${COMPONENT}/[^\\.]*.c)
         ENDIF( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/CMakeLists.txt" )
-        # MESSAGE(STATUS "Component ${COMPONENT} sources: ${MCA_${COMPONENT}_SOURCES}")
+        #MESSAGE(STATUS "Component ${COMPONENT} sources: ${MCA_${COMPONENT}_SOURCES}")
 
         FOREACH(SRC ${MCA_${COMPONENT}_SOURCES})
             LIST(APPEND MCA_EXTRA_SOURCES ${SRC}) # this will include sources in the component top-level dir
