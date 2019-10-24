@@ -446,7 +446,7 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams) {
     float fp_ipc = 8.f;
     float dp_ipc = 4.f;
     char cpu_model[256]="Unkown";
-    char cpu_flags[256]="";
+    char *cpu_flags;
 
 #if defined(__linux__)
     FILE* procinfo = fopen("/proc/cpuinfo", "r");
@@ -454,6 +454,7 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams) {
         parsec_warning("CPU Features cannot be autodetected on this machine: %s", strerror(errno));
         goto notfound;
     }
+    cpu_flags = malloc(256);
     char str[256];
     while( NULL != fgets(str, 256, procinfo) ) {
         /* Intel/AMD */
@@ -471,12 +472,15 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams) {
     }
     fclose(procinfo);
 #elif defined(__APPLE__)
-    size_t len = 256;
+    size_t len = sizeof(cpu_model);
     int rc = sysctlbyname("machdep.cpu.brand_string", cpu_model, &len, NULL, 0);
     if( rc ) {
         parsec_warning("CPU Features cannot be autodetected on this machine (Detected OSX): %s", strerror(errno));
         goto notfound;
     }
+    len = 0;
+    rc = sysctlbyname("machdep.cpu.features", NULL, &len, NULL, 0);
+    cpu_flags = malloc(len);
     rc = sysctlbyname("machdep.cpu.features", cpu_flags, &len, NULL, 0);
     if( rc ) {
         parsec_warning("CPU Features cannot be autodetected on this machine (Detected OSX): %s", strerror(errno));
@@ -525,7 +529,7 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams) {
         dp_ipc = 4;
     }
 #endif
-
+    free(cpu_flags);
 
     {
       int show_caps = 0;
