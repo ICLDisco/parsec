@@ -3013,10 +3013,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             "    /* Last initialization task complete. Update the number of tasks. */\n");
     if(!need_to_count_tasks) {
         /* We only need to update the number of tasks according to the user provided count */
-        coutput("    __parsec_tp->super.super.nb_tasks = %s(__parsec_tp);\n",
+        coutput("    nb_tasks = __parsec_tp->super.super.nb_tasks = %s(__parsec_tp);\n",
                 jdf_property_get_function(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL));
     } else {
-        coutput("  (void)parsec_atomic_fetch_dec_int32(&__parsec_tp->super.super.nb_tasks);\n");
+        coutput("  nb_tasks = parsec_atomic_fetch_dec_int32(&__parsec_tp->super.super.nb_tasks);\n");
         /* TODO coutput("    __parsec_tp->super.super.nb_tasks = __parsec_tp->super.super.initial_number_tasks;\n"); */
     }
     coutput("    parsec_mfence();  /* write memory barrier to guarantee that the scheduler gets the correct number of tasks */\n"
