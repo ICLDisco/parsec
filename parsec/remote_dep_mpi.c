@@ -107,12 +107,15 @@ static int parsec_param_enable_mpi_overtake = 1;
 #define DEP_NB_CONCURENT 3
 static int DEP_NB_REQ;
 
-static int parsec_comm_activations_max = 2*DEP_NB_CONCURENT;
-static int parsec_comm_data_get_max    = 2*DEP_NB_CONCURENT;
-static int parsec_comm_gets_max        = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
-static int parsec_comm_gets            = 0;
-static int parsec_comm_puts_max        = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
-static int parsec_comm_puts            = 0;
+static int parsec_comm_mca_activations_max = 0;  /* 0 allows dynamic initialization */
+static int parsec_comm_activations_max     = 2*DEP_NB_CONCURENT;
+static int parsec_comm_mca_data_get_max    = 0;  /* 0 allows dynamic initialization */
+static int parsec_comm_data_get_max        = 2*DEP_NB_CONCURENT;
+static int parsec_comm_gets_max            = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
+static int parsec_comm_gets                = 0;
+static int parsec_comm_puts_max            = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
+static int parsec_comm_puts                = 0;
+
 /* The number of valid requests in the array_of_requests, bounded by the total number
  * of possibly posted requests (DEP_NB_REQ). This is the number that we pass to
  * MPI_Testsome and should be maintained as small as possible in order to minimize
@@ -1754,10 +1757,19 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
     parsec_mpi_same_pos_items = (dep_cmd_item_t**)calloc(parsec_mpi_same_pos_items_size,
                                                          sizeof(dep_cmd_item_t*));
     /* Extend the number of pending activations if we have a large number of peers */
-    if( context->nb_nodes > (100*parsec_comm_activations_max) )
-        parsec_comm_activations_max = context->nb_nodes / 100;
-    if( context->nb_nodes > (200*parsec_comm_data_get_max) )
-        parsec_comm_data_get_max = context->nb_nodes / 200;
+    parsec_comm_activations_max = parsec_comm_mca_activations_max;
+    if( 0 == parsec_comm_mca_activations_max ) {
+        parsec_comm_activations_max = 2*DEP_NB_CONCURENT;
+        if( context->nb_nodes > (100*parsec_comm_activations_max) )
+            parsec_comm_activations_max = context->nb_nodes / 100;
+    }
+    parsec_comm_data_get_max = parsec_comm_mca_data_get_max;
+    if( 0 == parsec_comm_mca_data_get_max ) {
+        parsec_comm_data_get_max = 2*DEP_NB_CONCURENT;
+        if( context->nb_nodes > (200*parsec_comm_data_get_max) )
+            parsec_comm_data_get_max = context->nb_nodes / 200;
+    }
+
     DEP_NB_REQ = (2 + parsec_comm_gets_max + parsec_comm_puts_max);
 
     array_of_callbacks = (parsec_comm_callback_t*)calloc(DEP_NB_REQ, sizeof(parsec_comm_callback_t));
@@ -1824,8 +1836,19 @@ static void remote_dep_mpi_params(parsec_context_t* context) {
         parsec_param_eager_limit = 0;
     }
 #endif
-    parsec_mca_param_reg_int_name("runtime", "comm_aggregate", "Aggregate multiple dependencies in the same short message (1=true,0=false).",
+    parsec_mca_param_reg_int_name("runtime", "comm_aggregate", "Aggregate multiple dependencies in the same"
+                                  "short message (1=true,0=false).",
                                   false, false, parsec_param_enable_aggregate, &parsec_param_enable_aggregate);
+
+    parsec_mca_param_reg_int_name("runtime", "comm_mpi_posted_requests", "Maximum number of posted requests for each type of"
+                                  " active message. This number should be at least 1, and should remain reasonably low."
+                                  " Set to zero to allow the runtime to dynamically configure it.",
+                                  false, false, 0, &parsec_comm_mca_activations_max);
+    parsec_mca_param_reg_int_name("runtime", "comm_mpi_posted_data", "Maximum number of posted data transfers requests"
+                                  ", including puts and gets. This number should be at least 1, and should remain reasonably low."
+                                  " Set to zero to allow the runtime to dynamically configure it.",
+                                  false, false, 0, &parsec_comm_mca_data_get_max);
+
 }
 
 void
