@@ -1464,6 +1464,26 @@ struct parsec_comm_callback_s {
 
 typedef struct parsec_comm_am_s parsec_comm_am_t;
 
+/**
+ * The Active Message (AM) management structure for MPI. The first 3 fields
+ * cb_fct, cb_data and tag are mostly traditional, indicating what function,
+ * and with what argument to be called for a specific tag. The rest of the
+ * fields are specific to MPI and are as follows:
+ * - am_length: the maximum length for the AM messages of this type
+ * - req_count: the number of entris of this type the MPI layer is expected
+ *              to create. All these entries (basically persistent requests)
+ *              are always started, but will not be tested until they are
+ *              expected to contain valid information (circular waiting list
+ *              on the posted received taking in account the FIFO order of
+ *              the match.
+ * - req_idx: the index in the array_of_requests where this type of AM starts
+ * - comm: the communicator on which requests for this type of AM are posted.
+ *         Posting each type of tag on its own communicator might ease issues
+ *         with matching in multi-threaded environments.
+ * - buf: a pointer to the memory used by all posted AM of this type, assuming
+ *        req_count messages of max length am_length.
+ * - reqs: the array of posted persistent requests for this tag.
+ */
 struct parsec_comm_am_s {
     parsec_comm_callback_f cb_fct;
     void* cb_data;
