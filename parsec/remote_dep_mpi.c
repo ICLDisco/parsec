@@ -113,6 +113,11 @@ static int parsec_comm_gets_max        = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
 static int parsec_comm_gets            = 0;
 static int parsec_comm_puts_max        = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
 static int parsec_comm_puts            = 0;
+/* The number of valid requests in the array_of_requests, bounded by the total number
+ * of possibly posted requests (DEP_NB_REQ). This is the number that we pass to
+ * MPI_Testsome and should be maintained as small as possible in order to minimize
+ * MPI overheads.
+ */
 static int parsec_comm_last_active_req = 0;
 
 /* These internal communicators are used by the communication engine to host its requests
@@ -1788,7 +1793,6 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
         cb->dep_idx  = array_of_active_messages[i].req_idx;
         parsec_comm_last_active_req++;
     }
-    parsec_comm_last_active_req = REMOTE_DEP_MAX_CTRL_TAG;
     return 0;
 }
 
