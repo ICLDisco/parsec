@@ -37,13 +37,23 @@ include(CTest)
 ## Check for the support of additional languages and capabilities
 option(SUPPORT_FORTRAN
        "Enable support for Fortran bindings (default ON)" ON)
+# In CMake 3.12, enable_language OPTIONAL has no effect and will still 
+# enable the language for a compiler that does not work/is not present
+# causing all sort of problems downstream. For now use CheckLanguage before.
+include(CheckLanguage)
 if( SUPPORT_FORTRAN )
-  enable_language(Fortran OPTIONAL)
+  check_language(Fortran)
+  if(CMAKE_Fortran_COMPILER)
+    enable_language(Fortran OPTIONAL)
+  endif()
 endif( SUPPORT_FORTRAN )
 option(SUPPORT_CXX
        "Enable support for CXX bindings (default ON)" ON)
 if( SUPPORT_CXX )
-  enable_language(CXX OPTIONAL)
+  check_language(CXX)
+  if(CMAKE_CXX_COMPILER)
+    enable_language(CXX OPTIONAL)
+  endif()
 endif( SUPPORT_CXX )
 option(SUPPORT_C11
        "Enable support for C11 capabilities. Might not work with OpenMP support due to an OpenMP compilers restriction (default ON)." ON)
