@@ -10,11 +10,8 @@ if(NOT TARGET parsec_fortran)
 endif(NOT TARGET parsec_fortran)
 
 set_target_properties(parsec_fortran PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
+# CMake should be smart enough to set the correct linker language by itself
 
 target_include_directories(parsec_fortran
   INTERFACE
   $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
-target_link_libraries(parsec_fortran
-  INTERFACE
-  $<$<BOOL:${MPI_Fortran_FOUND}>:MPI::MPI_Fortran>
-)
