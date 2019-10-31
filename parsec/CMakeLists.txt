@@ -176,7 +176,7 @@ if( BUILD_PARSEC )
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/devices/cuda>
     PUBLIC
     $<$<BOOL:${HWLOC_FOUND}>:${HWLOC_INCLUDE_DIR}>
-    $<$<BOOL:${CUDA_FOUND}>:${CUDA_INCLUDE_DIRS}>)
+    $<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDA_INCLUDE_DIRS}>)
   target_link_libraries(parsec
     PRIVATE
     Threads::Threads
@@ -188,10 +188,10 @@ if( BUILD_PARSEC )
     INTERFACE
     ${EXTRA_LIBS}
     )
-  if( ${CUDA_FOUND} )
+  if( ${PARSEC_HAVE_CUDA} )
     target_link_libraries(parsec
                           PUBLIC ${CUDA_LIBRARIES})
-  endif( ${CUDA_FOUND} )
+  endif( ${PARSEC_HAVE_CUDA} )
   set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
   # For now make sure that the installed shared libraries have the right
   # version (same version as the major of the build version). Thus, every
