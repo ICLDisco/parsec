@@ -30,9 +30,9 @@ endif( MPI_C_FOUND )
 #
 # CUDA Testings
 #
-if (CUDA_FOUND AND MPI_C_FOUND)
+if (PARSEC_HAVE_CUDA AND MPI_C_FOUND)
 # The headnode lack GPUs so we need MPI in order to get the test to run on
 # one of the nodes.
-endif (CUDA_FOUND AND MPI_C_FOUND)
+endif (PARSEC_HAVE_CUDA AND MPI_C_FOUND)
 
 
