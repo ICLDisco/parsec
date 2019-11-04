@@ -176,6 +176,12 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
     }
 #endif
 
+    parsec_cuda_output_stream = parsec_device_output;
+    if( cuda_verbosity >= 0 ) {
+        parsec_cuda_output_stream = parsec_output_open(NULL);
+        parsec_output_set_verbosity(parsec_cuda_output_stream, cuda_verbosity);
+    }
+
     /* module type should be: const mca_base_module_t ** */
     void *ptr = parsec_device_cuda_component.modules;
     *priority = 10;
@@ -230,12 +236,6 @@ static int device_cuda_component_open(void)
 
     if( 0 == use_cuda ) {
         return MCA_ERROR;  /* Nothing to do around here */
-    }
-
-    parsec_cuda_output_stream = parsec_device_output;
-    if( cuda_verbosity >= 0 ) {
-        parsec_cuda_output_stream = parsec_output_open(NULL);
-        parsec_output_set_verbosity(parsec_cuda_output_stream, cuda_verbosity);
     }
 
     cudastatus = cudaGetDeviceCount( &ndevices );
