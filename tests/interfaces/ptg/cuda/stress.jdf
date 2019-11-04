@@ -1,0 +1,141 @@
+extern "C" %{
+#include "parsec/utils/mca_param.h"
+
+#include "parsec/data_distribution.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+
+#include <assert.h>
+#include <stdarg.h>
+#include <sys/time.h>
+#include <mpi.h>
+#if defined(PARSEC_HAVE_CUDA)
+#include <cublas.h>
+#endif  /* defined(PARSEC_HAVE_CUDA) */
+
+#include "stress.h"
+
+/**
+ *
+ */
+
+
+typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 double alpha, double *d_A, int lda,
+                                 double *d_B, int ldb,
+                                 double beta,  double *d_C, int ldc );
+%}
+
+/*
+ * Globals
+ */
+descA             [type = "two_dim_block_cyclic_t *"]
+NP                [type = "int"]
+NGPUs             [type = "int"]
+cuda_device_index [ type = "int *" ]
+
+/**************************************************
+ *        C Creation and destruction              *
+ **************************************************/
+MAKE_C(g, r)
+
+// Execution space
+g = 0 .. NGPUs-1
+r = 0 .. NP-1
+
+// Parallel partitioning
+: descA(0, r)
+
+WRITE C <- NEW
+        -> C GEMM(0, g, r)
+
+BODY
+    memset(C, 0, sizeof(double)*descA->super.mt*descA->super.nt);
+    if( -1 != cuda_device_index[g] )
+        parsec_advise_data_on_device(_f_C->original,
+                                     cuda_device_index[g],
+                                     PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
+END
+
+DISCARD_C(g, r)
+
+// Execution space
+g = 0 .. NGPUs-1
+r = 0 .. NP-1
+
+// Parallel partitioning
+: descA(0, r)
+
+READ C <- C GEMM(descA->super.mt-1, g, r)
+
+BODY
+
+END
+
+/**************************************************
+ *                 Data Access                    *
+ **************************************************/
+
+READ_A(m, r)
+
+// Execution space
+m = 0 .. descA->super.mt-1
+r = 0 .. NP-1
+
+// Parallel partitioning
+: descA(m, r)
+
+READ A <- descA(m, r)
+       -> A GEMM( m, 0, r )
+       -> B GEMM( m, 0 .. NGPUs-1, r )
+BODY
+        /* nothing */
+END
+
+    
+/**************************************************
+ *                       GEMM                     *
+ **************************************************/
+GEMM(m, g, r)
+
+// Execution space
+m = 0 .. descA->super.mt-1
+g = 0 .. NGPUs-1
+r = 0 .. NP-1
+
+// Parallel partitioning
+: descA(m, r)
+
+// Parameters
+READ A <- (g == 0) ? A READ_A(m, r) : A GEMM(m, g-1, r)
+       -> ((g + 1) < NGPUs)         ? A GEMM(m, g+1, r)
+READ B <- A READ_A( (m+g) % descA->super.mt, r)
+RW   C <- (m == 0) ? C MAKE_C(g, r) : C GEMM(m-1, g, r)
+       -> ((m + 1) < (descA->super.mt)) ? C GEMM(m+1, g, r)
+                                    : C DISCARD_C(g, r)
+
+BODY [type=CUDA
+      dyld=cublasDgemm dyldtype=cublas_dgemm_t
+      weight=(1)]
+{
+    cublasStatus_t status;
+    cublasSetKernelStream( parsec_body.stream );
+    parsec_body.dyld_fn( 'N', 'N', 
+                         descA->super.mb, descA->super.nb, descA->super.mb,
+                         0.0, (double*)A, descA->super.mb,
+                         (double*)B, descA->super.mb,
+                         1.0, (double*)C, descA->super.mb );
+    status = cublasGetError();
+    PARSEC_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
+}
+END
+
+BODY
+{
+    fprintf(stderr, "Kernel GEMM(%d, %d, %d) in stress test is running on a CPU, which is not the intended behavior\n",
+            m, g, r);
+}
+END
+
+
