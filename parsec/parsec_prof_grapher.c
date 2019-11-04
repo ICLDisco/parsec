@@ -61,7 +61,9 @@ static char *grapher_data_id_key_print(char *buffer, size_t buffer_size, parsec_
 {
     parsec_grapher_data_identifier_t *id = (parsec_grapher_data_identifier_t*)k;
     (void)unused;
-    if( NULL != id->dc->key_base )
+    if( NULL == id->dc )
+        snprintf(buffer, buffer_size, "NEW key %"PRIuPTR, (uintptr_t)id->data_key);
+    else if( NULL != id->dc->key_base )
         snprintf(buffer, buffer_size, "DC(%s) key %"PRIuPTR, id->dc->key_base, (uintptr_t)id->data_key);
     else
         snprintf(buffer, buffer_size, "Uknown DC(%p) key %"PRIuPTR, id->dc, (uintptr_t)id->data_key);
@@ -232,7 +234,6 @@ static void parsec_prof_grapher_dataid(const parsec_data_t *dta, char *did, int 
     parsec_grapher_data_identifier_hash_table_item_t *it;
 
     assert(NULL != dta);
-    assert(NULL != dta->dc);
     assert(NULL != grapher_file);
     assert(NULL != data_ht);
     
@@ -245,12 +246,18 @@ static void parsec_prof_grapher_dataid(const parsec_data_t *dta, char *did, int 
         it = (parsec_grapher_data_identifier_hash_table_item_t*)malloc(sizeof(parsec_grapher_data_identifier_hash_table_item_t));
         it->id = id;
         it->ht_item.key = (parsec_key_t)(uintptr_t)&it->id;
-        asprintf(&it->did, "dc%p_%"PRIuPTR, it->id.dc, (uintptr_t)it->id.data_key);
+        if(NULL != it->id.dc)
+            asprintf(&it->did, "dc%p_%"PRIuPTR, it->id.dc, (uintptr_t)it->id.data_key);
+        else
+            asprintf(&it->did, "dta%p_%"PRIuPTR, dta, (uintptr_t)it->id.data_key);
         parsec_hash_table_nolock_insert(data_ht, &it->ht_item);
         parsec_hash_table_unlock_bucket(data_ht, key);
 
-        assert(NULL != dta->dc->key_to_string);
-        dta->dc->key_to_string(dta->dc, dta->key, data_name, MAX_TASK_STRLEN);
+        if(NULL != dta->dc && NULL != dta->dc->key_to_string) {
+            dta->dc->key_to_string(dta->dc, dta->key, data_name, MAX_TASK_STRLEN);
+        } else {
+            snprintf(data_name, MAX_TASK_STRLEN, "NEW");
+        }
         fprintf(grapher_file, "%s [label=\"%s%s\",shape=\"circle\"]\n", it->did, NULL != dta->dc->key_base ? dta->dc->key_base : "", data_name);
     } else
         parsec_hash_table_unlock_bucket(data_ht, key);

@@ -4202,7 +4202,7 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                     spaces,
                     spaces, f->varname);
             coutput("#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
-                    "%s  parsec_prof_grapher_data_input(data_of_%s(%s), (parsec_task_t*)this_task, &%s);\n"
+                    "%s  parsec_prof_grapher_data_input(data_of_%s(%s), (parsec_task_t*)this_task, &%s, 1);\n"
                     "#endif\n",
                     spaces,
                     call->func_or_mem, UTIL_DUMP_LIST(sa, call->parameters, next,
@@ -4425,7 +4425,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             "    } else {\n"
             "      this_task->data._f_%s.data_out = parsec_data_get_copy(chunk->original, target_device);\n"
             "#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
-            "      parsec_prof_grapher_data_input(chunk->original, (parsec_task_t*)this_task, &%s);\n"
+            "      parsec_prof_grapher_data_input(chunk->original, (parsec_task_t*)this_task, &%s, 0);\n"
             "#endif\n"
             "    }\n",
             flow->varname, flow->varname,
