@@ -115,7 +115,8 @@ static int parsec_comm_gets_max            = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
 static int parsec_comm_gets                = 0;
 static int parsec_comm_puts_max            = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
 static int parsec_comm_puts                = 0;
-
+static int parsec_comm_am_test_count       = 1;  /* How many requests of each AM type to be added to the
+                                                  * testsome. */
 /* The number of valid requests in the array_of_requests, bounded by the total number
  * of possibly posted requests (DEP_NB_REQ). This is the number that we pass to
  * MPI_Testsome and should be maintained as small as possible in order to minimize
@@ -1478,13 +1479,13 @@ typedef struct parsec_comm_am_s parsec_comm_am_t;
  * and with what argument to be called for a specific tag. The rest of the
  * fields are specific to MPI and are as follows:
  * - am_length: the maximum length for the AM messages of this type
- * - req_count: the number of entris of this type the MPI layer is expected
+ * - req_count: the number of entries of this AM type the MPI layer is expected
  *              to create. All these entries (basically persistent requests)
- *              are always started, but will not be tested until they are
- *              expected to contain valid information (circular waiting list
- *              on the posted received taking in account the FIFO order of
- *              the match.
- * - req_idx: the index in the array_of_requests where this type of AM starts
+ *              are always started, but will not be tested until necessary.
+ *              or expected to contain valid information. This is implemented
+ *              using a circular waiting list on the posted received taking in
+ *              account the FIFO order of the match.
+ * - req_idx: the index of the next request in reqs to be assed to the waiting list
  * - comm: the communicator on which requests for this type of AM are posted.
  *         Posting each type of tag on its own communicator might ease issues
  *         with matching in multi-threaded environments.
@@ -1769,15 +1770,18 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
         if( context->nb_nodes > (200*parsec_comm_data_get_max) )
             parsec_comm_data_get_max = context->nb_nodes / 200;
     }
-
-    DEP_NB_REQ = (2 + parsec_comm_gets_max + parsec_comm_puts_max);
+    if( 0 == parsec_comm_am_test_count ) {  /* somewhere between 1 and 1/4 parsec_comm_activations_max */
+        parsec_comm_am_test_count = parsec_comm_activations_max / 4;
+        if( 0 == parsec_comm_am_test_count )
+            parsec_comm_am_test_count = 1;
+    }
+    DEP_NB_REQ = ((parsec_comm_am_test_count * REMOTE_DEP_MAX_CTRL_TAG) +  /* for all AM messages */
+                  parsec_comm_gets_max + parsec_comm_puts_max);            /* for data transfers */
 
     array_of_callbacks = (parsec_comm_callback_t*)calloc(DEP_NB_REQ, sizeof(parsec_comm_callback_t));
     array_of_requests  = (MPI_Request*)malloc(DEP_NB_REQ * sizeof(MPI_Request));
     array_of_indices   = (int*)calloc(DEP_NB_REQ, sizeof(int));
     array_of_statuses  = (MPI_Status*)calloc(DEP_NB_REQ, sizeof(MPI_Status));
-    for(i = 0; i < DEP_NB_REQ; i++)
-        array_of_requests[i] = MPI_REQUEST_NULL;
 
     array_of_active_messages = (parsec_comm_am_t*)malloc(REMOTE_DEP_MAX_CTRL_TAG * sizeof(parsec_comm_am_t));
     for( i = 0; i < REMOTE_DEP_MAX_CTRL_TAG; i++ ) {
@@ -1791,20 +1795,31 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
     parsec_register_am( REMOTE_DEP_GET_DATA_TAG, parsec_comm_data_get_max,
                         sizeof(remote_dep_wire_get_t),
                         remote_dep_mpi_save_put_cb );
-
     parsec_allocate_am_resources(array_of_active_messages, REMOTE_DEP_MAX_CTRL_TAG);
 
     /* prepare the first instance of the array_of_requests by moving the oldest requests
      * of each type into the testsome array.
      */
     for( i = 0; i < REMOTE_DEP_MAX_CTRL_TAG; i++ ) {
-        array_of_requests[i] = array_of_active_messages[i].reqs[array_of_active_messages[i].req_idx];
-        cb = &array_of_callbacks[parsec_comm_last_active_req];
-        cb->fct      = array_of_active_messages[i].cb_fct;
-        cb->deps_ptr = 0;
-        cb->dep_idx  = array_of_active_messages[i].req_idx;
-        parsec_comm_last_active_req++;
+        parsec_comm_am_t* am = &array_of_active_messages[i];
+        assert( parsec_comm_am_test_count < am->req_count );
+
+        for( int j = 0; j < parsec_comm_am_test_count; j++ ) {
+            cb = &array_of_callbacks[parsec_comm_last_active_req];
+            cb->fct      = am->cb_fct;
+            cb->deps_ptr = 0;
+
+            cb->dep_idx  = am->req_idx;
+            array_of_requests[parsec_comm_last_active_req] = am->reqs[am->req_idx];
+            am->req_idx = (am->req_idx + 1) % am->req_count;  /* move to the next */
+
+            parsec_comm_last_active_req++;
+        }
     }
+    /* all the other requests must be cleaned */
+    for(; i < DEP_NB_REQ; i++)
+        array_of_requests[i] = MPI_REQUEST_NULL;
+
     return 0;
 }
 
@@ -1848,7 +1863,11 @@ static void remote_dep_mpi_params(parsec_context_t* context) {
                                   ", including puts and gets. This number should be at least 1, and should remain reasonably low."
                                   " Set to zero to allow the runtime to dynamically configure it.",
                                   false, false, 0, &parsec_comm_mca_data_get_max);
-
+    parsec_mca_param_reg_int_name("runtime", "comm_mpi_tested_requests", "Number of requests for each type of "
+                                  "active message to be tested each round. This number should be at least 1, smaller than "
+                                  "comm_mpi_posted_requests and should remain reasonably low."
+                                  " Set to zero to allow the runtime to dynamically configure it.",
+                                  false, false, 0, &parsec_comm_am_test_count);
 }
 
 void
@@ -2196,13 +2215,12 @@ static int remote_dep_mpi_progress(parsec_execution_stream_t* es)
             restart_persistent = (array_of_requests[pos] != MPI_REQUEST_NULL);
             if( restart_persistent && (pos < REMOTE_DEP_MAX_CTRL_TAG) ) {
                 parsec_comm_am_t* am = &array_of_active_messages[pos];
-                rbuf = am->buf + am->am_length * am->req_idx;
+                rbuf = am->buf + am->am_length * cb->dep_idx;
             }
             MPI_Get_count(status, MPI_PACKED, &count);
 
             cb->fct(es, cb, status->MPI_SOURCE, status->MPI_TAG, rbuf, count);
 
-            ret++;
             /* Automatically restart all persistent requests. However, in order to
              * balance the use of all persistent requests, we need to save the started request
              * back into the AM array of request, and instead start checking the status of
@@ -2210,11 +2228,14 @@ static int remote_dep_mpi_progress(parsec_execution_stream_t* es)
              */
             if( restart_persistent && (pos < REMOTE_DEP_MAX_CTRL_TAG) ) {
                 parsec_comm_am_t* am = &array_of_active_messages[pos];
-                MPI_Start(&am->reqs[am->req_idx]);               /* restart the request */
-                am->req_idx = (am->req_idx + 1) % am->req_count; /* move to next req */
+                MPI_Start(&am->reqs[cb->dep_idx]);               /* restart the request */
+
                 array_of_requests[pos] = am->reqs[am->req_idx];  /* start checking */
+                cb->dep_idx = am->req_idx;
+                am->req_idx = (am->req_idx + 1) % am->req_count;  /* move to the next */
             }
         }
+        ret += outcount;
 
         /* Compact the pending requests in order to minimize the testsome waiting time.
          * Parsing the array_of_indices in the reverse order insure a smooth and fast
