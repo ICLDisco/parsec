@@ -99,6 +99,7 @@ static int parsec_param_nb_tasks_extracted = 20;
  * comm_short_limit respectively.
  */
 static size_t parsec_param_short_limit = RDEP_MSG_SHORT_LIMIT;
+static size_t parsec_param_eager_limit = RDEP_MSG_EAGER_LIMIT;
 static int parsec_param_enable_aggregate = 1;
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
 static int parsec_param_enable_mpi_overtake = 1;
@@ -107,8 +108,7 @@ static int parsec_param_enable_mpi_overtake = 1;
 #define DEP_NB_CONCURENT 3
 static int DEP_NB_REQ;
 
-static int parsec_comm_activations_max     = 0;
-static int parsec_comm_data_get_max        = 0;
+static int parsec_comm_am_posted_max       = 2*DEP_NB_CONCURENT;
 static int parsec_comm_gets_max            = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
 static int parsec_comm_gets                = 0;
 static int parsec_comm_puts_max            = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
@@ -201,10 +201,8 @@ static void remote_dep_mpi_put_start(parsec_execution_stream_t* es, dep_cmd_item
 static int remote_dep_mpi_put_end_cb(parsec_execution_stream_t* es,
                                      parsec_comm_callback_t* cb,
                                      int source, int tag, void* rbuf, int32_t length);
-#if 0 != RDEP_MSG_EAGER_LIMIT
 static void remote_dep_mpi_put_eager( parsec_execution_stream_t* es,
                                       dep_cmd_item_t* item);
-#endif  /* 0 != RDEP_MSG_EAGER_LIMIT */
 static int remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
                                            parsec_comm_callback_t* cb,
                                            int source, int tag, void* rbuf, int32_t length);
@@ -1312,6 +1310,15 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
         remote_dep_nothread_send(es, &item);
         same_pos = item;
         goto have_same_pos;
+    case DEP_PUT_DATA:
+#if 0 != RDEP_MSG_EAGER_LIMIT
+        if(  0 < parsec_param_eager_limit ) {
+            remote_dep_mpi_put_eager(es, item);
+            same_pos = NULL;
+        } else
+#endif  /* 0 != RDEP_MSG_EAGER_LIMIT */
+            assert("This should never be called!");
+        goto have_same_pos;
     case DEP_MEMCPY:
         remote_dep_nothread_memcpy(es, item);
         break;
@@ -1756,20 +1763,25 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
     parsec_mpi_same_pos_items = (dep_cmd_item_t**)calloc(parsec_mpi_same_pos_items_size,
                                                          sizeof(dep_cmd_item_t*));
     /* Extend the number of pending activations if we have a large number of peers */
-    if( 0 == parsec_comm_activations_max ) {
-        parsec_comm_activations_max = 2*DEP_NB_CONCURENT;
-        if( context->nb_nodes > (100*parsec_comm_activations_max) )
-            parsec_comm_activations_max = context->nb_nodes / 100;
+    if( 0 == parsec_comm_am_posted_max ) {
+        parsec_comm_am_posted_max = 2*DEP_NB_CONCURENT;
+        if( context->nb_nodes > (100*parsec_comm_am_posted_max) )
+            parsec_comm_am_posted_max = context->nb_nodes / 100;
     }
-    if( 0 == parsec_comm_data_get_max ) {
-        parsec_comm_data_get_max = 2*DEP_NB_CONCURENT;
-        if( context->nb_nodes > (200*parsec_comm_data_get_max) )
-            parsec_comm_data_get_max = context->nb_nodes / 200;
-    }
-    if( 0 == parsec_comm_am_test_count ) {  /* somewhere between 1 and 1/4 parsec_comm_activations_max */
-        parsec_comm_am_test_count = parsec_comm_activations_max / 4;
+    if( 0 == parsec_comm_am_test_count ) {  /* somewhere between 1 and 1/4 parsec_comm_am_posted_max */
+        parsec_comm_am_test_count = parsec_comm_am_posted_max / 4;
         if( 0 == parsec_comm_am_test_count )
             parsec_comm_am_test_count = 1;
+    }
+    if( 0 == parsec_comm_gets_max ) {
+        parsec_comm_gets_max = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
+        if( context->nb_nodes > (200 *parsec_comm_gets_max) )
+            parsec_comm_gets_max = context->nb_nodes / 200;
+    }
+    if( 0 == parsec_comm_puts_max ) {
+         parsec_comm_puts_max = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
+        if( context->nb_nodes > (200 * parsec_comm_puts_max) )
+             parsec_comm_puts_max = context->nb_nodes / 200;
     }
     DEP_NB_REQ = ((parsec_comm_am_test_count * REMOTE_DEP_MAX_CTRL_TAG) +  /* for all AM messages */
                   parsec_comm_gets_max + parsec_comm_puts_max);            /* for data transfers */
@@ -1785,20 +1797,21 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
         am->cb_fct = NULL;  /* a sane value as NULL callbacks make little sense */
     }
 
-    parsec_register_am( REMOTE_DEP_ACTIVATE_TAG, parsec_comm_activations_max,
+    parsec_register_am( REMOTE_DEP_ACTIVATE_TAG, parsec_comm_am_posted_max,
                         DEP_SHORT_BUFFER_SIZE,
                         remote_dep_mpi_save_activate_cb );
-    parsec_register_am( REMOTE_DEP_GET_DATA_TAG, parsec_comm_data_get_max,
+    parsec_register_am( REMOTE_DEP_GET_DATA_TAG, parsec_comm_am_posted_max,
                         sizeof(remote_dep_wire_get_t),
                         remote_dep_mpi_save_put_cb );
     parsec_allocate_am_resources(array_of_active_messages, REMOTE_DEP_MAX_CTRL_TAG);
 
+    assert( 0 == parsec_comm_last_active_req );
     /* prepare the first instance of the array_of_requests by moving the oldest requests
      * of each type into the testsome array.
      */
     for( i = 0; i < REMOTE_DEP_MAX_CTRL_TAG; i++ ) {
         parsec_comm_am_t* am = &array_of_active_messages[i];
-        assert( parsec_comm_am_test_count < am->req_count );
+        assert( parsec_comm_am_test_count <= am->req_count );
 
         for( int j = 0; j < parsec_comm_am_test_count; j++ ) {
             cb = &array_of_callbacks[parsec_comm_last_active_req];
@@ -1807,13 +1820,15 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
 
             cb->dep_idx  = am->req_idx;
             array_of_requests[parsec_comm_last_active_req] = am->reqs[am->req_idx];
+            PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "%d: tag %d replace AR[%d] with AM[%d]->req[%d] [=>%d]\n",
+                                 context->my_rank, am->tag, parsec_comm_last_active_req, am->tag, am->req_idx, parsec_comm_last_active_req);
             am->req_idx = (am->req_idx + 1) % am->req_count;  /* move to the next */
 
             parsec_comm_last_active_req++;
         }
     }
     /* all the other requests must be cleaned */
-    for(; i < DEP_NB_REQ; i++)
+    for( i = (REMOTE_DEP_MAX_CTRL_TAG * parsec_comm_am_test_count); i < DEP_NB_REQ; i++)
         array_of_requests[i] = MPI_REQUEST_NULL;
 
     return 0;
@@ -1835,35 +1850,37 @@ static void remote_dep_mpi_params(parsec_context_t* context) {
         parsec_param_short_limit = RDEP_MSG_SHORT_LIMIT;
     }
 #endif
-#if RDEP_MSG_EAGER_LIMIT != 0
     if( parsec_param_comm_thread_multiple ) parsec_param_eager_limit = 0;
     parsec_mca_param_reg_sizet_name("runtime", "comm_eager_limit", "Controls the maximum size of a message that "
                                     "uses the eager protocol. Eager messages are sent eagerly before a 2-sided "
                                     "synchronization and may cause flow control and memory contentions at the "
                                     "receiver, but have a better latency.",
-                                  false, false, parsec_param_eager_limit, &parsec_param_eager_limit);
+                                    false, (RDEP_MSG_EAGER_LIMIT == 0 ? true : false), parsec_param_eager_limit, &parsec_param_eager_limit);
     if( parsec_param_comm_thread_multiple && parsec_param_eager_limit ) {
         parsec_warning("Using eager and thread multiple MPI messaging is not implemented yet. Disabling Eager.");
         parsec_param_eager_limit = 0;
     }
-#endif
     parsec_mca_param_reg_int_name("runtime", "comm_aggregate", "Aggregate multiple dependencies in the same"
                                   "short message (1=true,0=false).",
                                   false, false, parsec_param_enable_aggregate, &parsec_param_enable_aggregate);
 
-    parsec_mca_param_reg_int_name("runtime", "comm_mpi_posted_requests", "Maximum number of posted requests for each type of"
+    parsec_mca_param_reg_int_name("runtime", "comm_mpi_am_posted_requests", "Maximum number of posted requests for each type of"
                                   " active message. This number should be at least 1, and should remain reasonably low."
                                   " Set to zero to allow the runtime to dynamically configure it.",
-                                  false, false, 0, &parsec_comm_activations_max);
-    parsec_mca_param_reg_int_name("runtime", "comm_mpi_posted_data", "Maximum number of posted data transfers requests"
-                                  ", including puts and gets. This number should be at least 1, and should remain reasonably low."
-                                  " Set to zero to allow the runtime to dynamically configure it.",
-                                  false, false, 0, &parsec_comm_data_get_max);
-    parsec_mca_param_reg_int_name("runtime", "comm_mpi_tested_requests", "Number of requests for each type of "
+                                  false, false, parsec_comm_am_posted_max, &parsec_comm_am_posted_max);
+    parsec_mca_param_reg_int_name("runtime", "comm_mpi_am_tested_requests", "Number of requests for each type of "
                                   "active message to be tested each round. This number should be at least 1, smaller than "
                                   "comm_mpi_posted_requests and should remain reasonably low."
                                   " Set to zero to allow the runtime to dynamically configure it.",
-                                  false, false, 0, &parsec_comm_am_test_count);
+                                  false, false, parsec_comm_am_test_count, &parsec_comm_am_test_count);
+    parsec_mca_param_reg_int_name("runtime", "comm_mpi_posted_gets", "Maximum number of posted GET data transfers."
+                                  "This number should be at least 1, and should remain reasonably low."
+                                  " Set to zero to allow the runtime to dynamically configure it.",
+                                  false, false, parsec_comm_gets_max, &parsec_comm_gets_max);
+    parsec_mca_param_reg_int_name("runtime", "comm_mpi_posted_puts", "Maximum number of posted PUT data transfers."
+                                  "This number should be at least 1, and should remain reasonably low."
+                                  " Set to zero to allow the runtime to dynamically configure it.",
+                                  false, false, parsec_comm_puts_max, &parsec_comm_puts_max);
 }
 
 void
@@ -2180,7 +2197,14 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
         item = (dep_cmd_item_t*)ring;
         ring = parsec_list_item_ring_chop(ring);
         deps = (parsec_remote_deps_t*)item->cmd.activate.task.deps;
-        free(item);  /* only large messages are left */
+
+#if RDEP_MSG_EAGER_LIMIT != 0
+        if( (0 < parsec_param_eager_limit) && (0 != item->cmd.activate.task.output_mask) ) {
+            remote_dep_mpi_put_eager(es, item);
+        } else
+#endif   /* RDEP_MSG_EAGER_LIMIT != 0 */
+            free(item);  /* only large messages are left */
+
         remote_dep_complete_and_cleanup(&deps, 1);
     } while( NULL != ring );
     (void)es;
@@ -2189,9 +2213,10 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
 
 static int remote_dep_mpi_progress(parsec_execution_stream_t* es)
 {
-    MPI_Status *status;
     int ret = 0, idx, outcount, pos, count, restart_persistent;
     parsec_comm_callback_t* cb;
+    parsec_comm_am_t* am;
+    MPI_Status *status;
     void *rbuf;
 
     if( !PARSEC_THREAD_IS_MASTER(es) ) return 0;
@@ -2211,30 +2236,69 @@ static int remote_dep_mpi_progress(parsec_execution_stream_t* es)
             restart_persistent = (pos < (parsec_comm_am_test_count * REMOTE_DEP_MAX_CTRL_TAG));
             if( restart_persistent ) {
                 assert( MPI_REQUEST_NULL != array_of_requests[pos] );
-                parsec_comm_am_t* am = (parsec_comm_am_t*)cb->deps_ptr;
+                am = (parsec_comm_am_t*)cb->deps_ptr;
                 rbuf = am->buf + am->am_length * cb->dep_idx;
             }
             MPI_Get_count(status, MPI_PACKED, &count);
 
             cb->fct(es, cb, status->MPI_SOURCE, status->MPI_TAG, rbuf, count);
 
-            /* Automatically restart all persistent requests. However, in order to
-             * balance the use of all persistent requests, we need to save the started request
-             * back into the AM array of request, and instead start checking the status of
-             * the longest waiting request.
+            /* Automatically restart all persistent requests. Keep in mind that while they are active
+             * they are not in the array_of_requests so they are not actively tested for completion. This
+             * means that we are trying to reduce the number of unexpected while keeping the number
+             * of tested requests under control.
              */
             if( restart_persistent ) {
-                parsec_comm_am_t* am = (parsec_comm_am_t*)cb->deps_ptr;
+                am = (parsec_comm_am_t*)cb->deps_ptr;
                 assert(am->reqs[cb->dep_idx] == array_of_requests[pos]);
                 MPI_Start(&am->reqs[cb->dep_idx]);               /* restart the request */
-
-                array_of_requests[pos] = am->reqs[am->req_idx];  /* start checking */
-                cb->dep_idx = am->req_idx;
-                parsec_output_verbose(0, 0, "tag %d replace AR[%d] with AM->red[%d]\n", am->tag, pos, am->req_idx);
-                am->req_idx = (am->req_idx + 1) % am->req_count;  /* move to the next */
+                array_of_requests[pos] = MPI_REQUEST_NULL;
+                cb->dep_idx = -1;
             }
         }
         ret += outcount;
+        /* Because of the FIFO matching order all AM messages must complete in the order in which they were
+         * started. Thus, in the array of requests we need to identify the block of completed requests (in the
+         * begining of the AM block of requests, and then shift left the rest of the active requests. The
+         * remaining spaces will then be refilled with requests from the AM structure.
+         */
+        for( idx = 0; idx < REMOTE_DEP_MAX_CTRL_TAG; idx++ ) {
+            int start_range = idx * parsec_comm_am_test_count;
+            int end_range = start_range + parsec_comm_am_test_count;
+            int next_non_null;
+            am = &array_of_active_messages[idx];
+
+            /* Find the first non completed pending request */
+            for( next_non_null = start_range; next_non_null < end_range; next_non_null++ )
+                if( MPI_REQUEST_NULL != array_of_requests[next_non_null] )
+                    break;
+            if( start_range == next_non_null ) {  /* nothing has been completed in this AM */
+#if defined(PARSEC_DEBUG)
+                for( ; next_non_null < end_range; next_non_null++ )
+                     assert( MPI_REQUEST_NULL != array_of_requests[next_non_null] );
+#endif  /* defined(PARSEC_DEBUG) */
+                continue;                         /* move to the next AM set */
+            }
+            PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "%d: tag %d completed block from %d to %d\n",
+                                 es->virtual_process->parsec_context->my_rank, idx, start_range, next_non_null);
+            /* Shift left the block from the first non NULL until the end of the AM space */
+            for( pos = start_range; next_non_null < end_range; pos++, next_non_null++ ) {
+                assert( array_of_callbacks[pos].deps_ptr == array_of_callbacks[next_non_null].deps_ptr );
+                array_of_requests[pos] = array_of_requests[next_non_null];
+                array_of_callbacks[pos].dep_idx = array_of_callbacks[next_non_null].dep_idx;
+                PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "%d: tag %d fill AR[%d] with AR[%d]\n",
+                                     es->virtual_process->parsec_context->my_rank, idx, pos, next_non_null);
+            }
+            /* Refill remaining space with new requests */
+            for( ; pos < end_range; pos++ ) {
+                assert( am == (parsec_comm_am_t*)array_of_callbacks[pos].deps_ptr );
+                array_of_requests[pos] = am->reqs[am->req_idx];  /* next request to be checked for completion */
+                array_of_callbacks[pos].dep_idx = am->req_idx;
+                PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "%d: tag %d replace AR[%d] with AM[%d]->req[%d] [=>%d]\n",
+                                     es->virtual_process->parsec_context->my_rank, am->tag, pos, am->tag, am->req_idx, parsec_comm_last_active_req);
+                am->req_idx = (am->req_idx + 1) % am->req_count;  /* move to the next */
+            }
+        }
 
         /* Compact the pending requests in order to minimize the testsome waiting time.
          * Parsing the array_of_indices in the reverse order insure a smooth and fast
@@ -2249,8 +2313,9 @@ static int remote_dep_mpi_progress(parsec_execution_stream_t* es)
             if( parsec_comm_last_active_req > pos ) {
                 array_of_requests[pos]  = array_of_requests[parsec_comm_last_active_req];
                 array_of_callbacks[pos] = array_of_callbacks[parsec_comm_last_active_req];
-            }
-            array_of_requests[parsec_comm_last_active_req] = MPI_REQUEST_NULL;
+                array_of_requests[parsec_comm_last_active_req] = MPI_REQUEST_NULL;
+            } else
+                assert( MPI_REQUEST_NULL == array_of_requests[pos] );
         }
 
       feed_more_work:
@@ -2455,6 +2520,13 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
+#if RDEP_MSG_EAGER_LIMIT != 0
+    remote_dep_datakey_t eager_which = parsec_param_eager_limit ? remote_dep_mpi_eager_which(deps, deps->incoming_mask) : 0;
+#if !defined(PARSEC_PROF_DRY_DEP)
+    MPI_Request reqs[MAX_PARAM_COUNT];
+    int nb_reqs = 0, flag;
+#endif  /* !defined(PARSEC_PROF_DRY_DEP) */
+#endif  /* RDEP_MSG_EAGER_LIMIT != 0 */
 
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
     parsec_debug_verbose(6, parsec_comm_output_stream, "MPI:\tFROM\t%d\tActivate\t% -8s\n"
