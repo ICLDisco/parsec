@@ -136,7 +136,7 @@ it to find libraries and programs with nonstandard names/locations.
 Please report bugs to <https://bitbucket.org/icldistcomp/parsec/issues>
 
 EOF
-[ -z $1 ] || cat >&2 <<EOF
+[ -z "$1" ] || cat >&2 <<EOF
 #######################################################################
 CONFIGURATION ERROR: $*
 #######################################################################
