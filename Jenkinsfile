@@ -8,7 +8,7 @@ import java.util.regex.Matcher
 
 // https://qa.nuxeo.org/jenkins/pipeline-syntax/globals
 
-def PROJECT_NAME = "project_name"
+def PROJECT_NAME = "PaRSEC"
 
 //node {
 //    sh 'env > env.txt' 
