@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
     
     parsec = parsec_init(-1, &argc, &argv);
 
-    tp = testing_stress_New(parsec, 10, 512);
+    tp = testing_stress_New(parsec, 4000, 1024);
     if( NULL != tp ) {
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);

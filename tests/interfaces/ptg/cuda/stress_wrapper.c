@@ -49,6 +49,7 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
     dcA->mat = parsec_data_allocate((size_t)dcA->super.nb_local_tiles *
                                     (size_t)dcA->super.bsiz *
                                    (size_t)parsec_datadist_getsizeoftype(dcA->super.mtype));
+    assert(NULL != dcA->mat);
     parsec_data_collection_set_key((parsec_data_collection_t*)dcA, "A");
 
     for(i = 0; i < dcA->super.nb_local_tiles * mb * mb; i++)
