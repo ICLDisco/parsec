@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2017-2018 The Universiy of Tennessee and The Universiy
+ * Copyright (c) 2017-2020 The Universiy of Tennessee and The Universiy
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  */

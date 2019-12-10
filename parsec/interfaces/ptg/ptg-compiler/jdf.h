@@ -193,6 +193,8 @@ typedef unsigned int jdf_flags_t;
 #define JDF_PROP_UD_ALLOC_DEPS_FN_NAME         "alloc_deps_fn"
 #define JDF_PROP_UD_FREE_DEPS_FN_NAME          "free_deps_fn"
 
+#define JDF_PROP_NO_AUTOMATIC_TASKPOOL_INSTANCE "no_taskpool_instance"
+
 typedef struct jdf_function_entry {
     struct jdf_object_t        super;
     struct jdf_function_entry *next;

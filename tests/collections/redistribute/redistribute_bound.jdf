@@ -264,14 +264,6 @@ parsec_redistribute_bound_New(parsec_tiled_matrix_dc_t *Y,
 }
 
 /**
- * @param [inout] the parsec object to destroy
- */
-void parsec_redistribute_bound_Destruct(parsec_taskpool_t *taskpool)
-{
-    parsec_taskpool_free(taskpool);  
-}
-
-/**
  * @brief Calculate time bound of communication (based on data that is remote)
  * 
  * @param [in] dcY: source distribution, already distributed and allocated
@@ -361,8 +353,6 @@ double* parsec_redistribute_bound(parsec_context_t *parsec,
     parsec_context_add_taskpool(parsec, parsec_redistribute_bound_ptg);
     parsec_context_start(parsec);
     parsec_context_wait(parsec);
-
-    parsec_redistribute_bound_Destruct(parsec_redistribute_bound_ptg);
 
     /* Reduce value in shared-memory */ 
     for(int i = 1; i < nb_threads; i++) {

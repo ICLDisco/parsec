@@ -39,9 +39,9 @@ int main(int argc, char *argv[])
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
-        testing_nvlink_Destruct(tp);
+        parsec_taskpool_free(tp);
     }
-    
+
     parsec_fini(&parsec);
 #if defined(DISTRIBUTED)
     MPI_Finalize();

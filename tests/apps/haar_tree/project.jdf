@@ -1,4 +1,9 @@
 extern "C" %{
+/*
+ * Copyright (c) 2014-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "tree_dist.h"
 #include <math.h>
 #include "parsec/sys/atomic.h"
@@ -203,6 +208,7 @@ END
 
 
 extern "C" %{
+
 static uint64_t my_simple_tree_hash(int n, int l)
 {
     return (((uint64_t)n) << 32) | ((uint64_t)l);

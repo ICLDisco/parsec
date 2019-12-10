@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The University of Tennessee and The University
+ * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
                 end = take_time();
                 PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-                ep_destroy(ep);
+                parsec_taskpool_free(ep);
 
                 val = (double)diff_time(start, end);
                 sum = sum + val;

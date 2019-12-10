@@ -88,6 +88,8 @@ int global_to_local_index(int N, int idx){
 
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 dataA      [type = "struct parsec_tiled_matrix_dc_t *"]
 NB         [type = int]
 NT         [type = int]

@@ -34,6 +34,8 @@ typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                  double beta,  double *d_C, int ldc );
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 /*
  * Globals
  */

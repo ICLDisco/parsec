@@ -11,6 +11,8 @@ int print_more = 0;
 
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 /**
  * @brief Check result: init matrix to special value
  *
@@ -51,7 +53,7 @@ BODY
     int j_start = (n == n_START) ? disj_Y % descY->nb : 0;
     int i_end = (m == m_END) ? (disi_Y + size_row - 1) % descY->mb : descY->mb-1;
     int j_end = (n == n_END) ? (disj_Y + size_col - 1) % descY->nb : descY->nb-1;
-    
+
     for(int i = i_start; i <= i_end; i++) {
         for(int j = j_start; j <= j_end; j++) {
             if( ((DTYPE *)Y)[j*descY->mb+i] != (DTYPE)(10*i+j+1)/(i*j+10) ) { 
@@ -110,15 +112,14 @@ parsec_redistribute_check2_New(parsec_tiled_matrix_dc_t *dcY,
     return redistribute_check2_taskpool;
 }
 
-/**
- * @param [inout] the parsec object to destroy
- */
-void parsec_redistribute_check2_Destruct(parsec_taskpool_t *taskpool)
+static void
+__parsec_taskpool_redistribute_check2_destructor(parsec_redistribute_check2_taskpool_t *redistribute_check2_taskpool)
 {
-    parsec_redistribute_check2_taskpool_t *redistribute_check2_taskpool = (parsec_redistribute_check2_taskpool_t *)taskpool;
     parsec_matrix_del2arena(&redistribute_check2_taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ADT_IDX]);
-    parsec_taskpool_free(taskpool);
 }
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_check2_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_taskpool_redistribute_check2_destructor);
 
 /**
  * @brief Check result
@@ -151,7 +152,6 @@ int parsec_redistribute_check2(parsec_context_t *parsec,
         parsec_context_add_taskpool(parsec, parsec_redistribute_check2);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
-        parsec_redistribute_check2_Destruct(parsec_redistribute_check2);
     }
 
     /* Init value to check result */

@@ -242,6 +242,8 @@ CORE_redistribute_update(DTYPE *T, DTYPE *NW, DTYPE *NE, DTYPE *SW, DTYPE *SE, D
 
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 /**
  * @brief Redistribute from source dc to target dc
  *

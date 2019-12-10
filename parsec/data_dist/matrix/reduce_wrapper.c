@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The University of Tennessee and The University
+ * Copyright (c) 2011-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,6 +11,15 @@
 #include "parsec/arena.h"
 #include "reduce_col.h"
 #include "reduce_row.h"
+
+static void
+__parsec_reduce_col_destructor(parsec_reduce_col_taskpool_t* tp)
+{
+    parsec_type_free(&tp->arenas_datatypes[PARSEC_reduce_col_DEFAULT_ADT_IDX].opaque_dtt);
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_reduce_col_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_reduce_col_destructor);
 
 parsec_taskpool_t*
 parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
@@ -38,10 +47,16 @@ parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
     return (parsec_taskpool_t*)tp;
 }
 
-void parsec_reduce_col_Destruct( parsec_taskpool_t *o )
+
+
+static void
+__parsec_reduce_row_destructor(parsec_reduce_row_taskpool_t* tp)
 {
-    parsec_taskpool_free(o);
+    parsec_type_free(&tp->arenas_datatypes[PARSEC_reduce_row_DEFAULT_ADT_IDX].opaque_dtt);
 }
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_reduce_row_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_reduce_row_destructor);
 
 parsec_taskpool_t*
 parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
@@ -66,10 +81,5 @@ parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
                                     PARSEC_ARENA_ALIGNMENT_SSE,
                                     newtype);
     return (parsec_taskpool_t*)tp;
-}
-
-void parsec_reduce_row_Destruct( parsec_taskpool_t *o )
-{
-    parsec_taskpool_free(o);
 }
 

@@ -6,6 +6,8 @@ extern "C" %{
  */
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 A        [ type = "parsec_data_collection_t *" ]
 NT       [ type = "int" ]
 P        [ type = "int" ]
