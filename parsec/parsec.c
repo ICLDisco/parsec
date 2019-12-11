@@ -823,6 +823,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     return context;
 }
 
+int parsec_version( parsec_context_t* context, int* version_major, int* version_minor, int* version_patch) {
+    (void)context;
+    *version_major = PARSEC_VERSION_MAJOR;
+    *version_minor = PARSEC_VERSION_MINOR;
+    *version_patch = PARSEC_VERSION_PATCH;
+    return PARSEC_SUCCESS;
+}
+
 void parsec_abort(parsec_context_t* ctx, int status)
 {
     /* ATM, MPI_Abort aborts the whole job, in the future it would be nice to

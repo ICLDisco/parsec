@@ -37,6 +37,18 @@ SUBROUTINE parsec_init_f08(nbcores, ctx, ierr) &
     INTEGER(KIND=c_int), INTENT(OUT)        :: ierr
 END SUBROUTINE parsec_init_f08
 
+FUNCTION parsec_version_f08(ctx, major, minor, patch) &
+         BIND(C, name="parsec_version")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPORT parsec_context_t
+    IMPLICIT NONE
+    TYPE(parsec_context_t), VALUE, INTENT(IN) :: ctx
+    INTEGER(KIND=c_int), INTENT(OUT)        :: major
+    INTEGER(KIND=c_int), INTENT(OUT)        :: minor
+    INTEGER(KIND=c_int), INTENT(OUT)        :: patch
+    INTEGER(KIND=c_int)                     :: parsec_version_f08
+END FUNCTION parsec_version_f08
+
 SUBROUTINE parsec_fini_f08(context,ierr) &
            BIND(C, name="parsec_fini_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
