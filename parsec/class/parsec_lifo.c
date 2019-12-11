@@ -41,6 +41,6 @@ static inline void parsec_lifo_destruct( parsec_lifo_t *lifo )
     }
 }
 
-OBJ_CLASS_INSTANCE(parsec_lifo_t, parsec_object_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_lifo_t, parsec_object_t,
                    parsec_lifo_construct, parsec_lifo_destruct);
 

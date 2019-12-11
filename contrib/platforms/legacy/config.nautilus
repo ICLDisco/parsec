@@ -52,7 +52,7 @@ if [ "x${USER}" = "xsmoreaud" ]; then
   unset CUDA_DIR
   USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF "
   
-  USER_OPTIONS+="-DPINS_ENABLE=ON " 
+  USER_OPTIONS+="-DPARSEC_PROF_PINS=ON " 
   PAPI_DIR=${PAPI_DIR:="/sw/analysis/papi/4.2.1/sles11.1_gnu4.6.3/"}
   USER_OPTIONS+="-DPAPI_DIR=$PAPI_DIR "
 fi

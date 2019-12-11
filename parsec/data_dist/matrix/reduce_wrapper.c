@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The University of Tennessee and The University
+ * Copyright (c) 2011-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -40,7 +40,7 @@ parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
 
 void parsec_reduce_col_Destruct( parsec_taskpool_t *o )
 {
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
+    parsec_taskpool_free(o);
 }
 
 parsec_taskpool_t*
@@ -70,6 +70,6 @@ parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
 
 void parsec_reduce_row_Destruct( parsec_taskpool_t *o )
 {
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
+    parsec_taskpool_free(o);
 }
 

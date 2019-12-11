@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -149,7 +149,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
     int op_type_on_current_flow, desc_op_type, desc_flow_index;
     parsec_dtd_tile_t *tile;
 
-    dep_t deps;
+    parsec_dep_t deps;
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)ontask_arg;
     parsec_dep_data_description_t data;
     int rank_src = 0, rank_dst = 0, vpid_dst=0;

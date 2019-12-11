@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -19,7 +19,7 @@
 #include "parsec/class/barrier.h"
 #include "parsec/class/list.h"
 
-#ifdef PINS_ENABLE
+#ifdef PARSEC_PROF_PINS
 #include "parsec/mca/pins/pins.h"
 #endif
 
@@ -50,9 +50,9 @@ struct parsec_execution_stream_s {
     int largest_simulation_date;
 #endif
 
-#if defined(PINS_ENABLE)
-    struct parsec_pins_next_callback_s pins_events_cb[PINS_FLAG_COUNT];
-#endif  /* defined(PINS_ENABLE) */
+#if defined(PARSEC_PROF_PINS)
+    struct parsec_pins_next_callback_s pins_events_cb[PARSEC_PINS_FLAG_COUNT];
+#endif  /* defined(PARSEC_PROF_PINS) */
 
 #if defined(PARSEC_PROF_RUSAGE_EU)
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)

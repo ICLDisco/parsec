@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The University of Tennessee and The University
+ * Copyright (c) 2012-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,12 +12,24 @@
 #define PARSEC_INTERNAL_H_HAS_BEEN_INCLUDED
 
 #include "parsec/runtime.h"
-#include "parsec/data.h"
+#include "parsec/data_internal.h"
 #include "parsec/class/list_item.h"
 #include "parsec/class/parsec_hash_table.h"
 #include "parsec/parsec_description_structures.h"
 #include "parsec/profiling.h"
 #include "parsec/mempool.h"
+#include "parsec/arena.h"
+#include "parsec/remote_dep.h"
+#include "parsec/datarepo.h"
+#include "parsec/data.h"
+#include "parsec/utils/debug.h"
+#include "parsec/utils/output.h"
+
+#if defined(PARSEC_PROF_GRAPHER)
+#include "parsec/parsec_prof_grapher.h"
+#endif  /* defined(PARSEC_PROF_GRAPHER) */
+#include "parsec/mca/device/device.h"
+
 
 #include <string.h>
 
@@ -134,7 +146,7 @@ struct parsec_taskpool_s {
                                              *   Indexed on the same index as functions array */
 };
 
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_taskpool_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_taskpool_t);
 
 /**
  * @brief Bitmask representing all possible devices
@@ -224,7 +236,7 @@ typedef int (parsec_sim_cost_fct_t)(const parsec_task_t *task);
 typedef parsec_ontask_iterate_t (parsec_ontask_function_t)(struct parsec_execution_stream_s* es,
                                                          const parsec_task_t *newcontext,
                                                          const parsec_task_t *oldcontext,
-                                                         const dep_t* dep,
+                                                         const parsec_dep_t* dep,
                                                          parsec_dep_data_description_t *data,
                                                          int rank_src, int rank_dst, int vpid_dst,
                                                          void *param);
@@ -241,7 +253,7 @@ typedef void (parsec_traverse_function_t)(struct parsec_execution_stream_s *,
  * Returns the key associated with the task
  */
 typedef parsec_key_t (parsec_functionkey_fn_t)(const parsec_taskpool_t *tp,
-                                               const assignment_t *assignments);
+                                               const parsec_assignment_t *assignments);
 /**
  *
  */
@@ -321,7 +333,7 @@ typedef struct __parsec_internal_incarnation_s {
 
 typedef struct parsec_property_s {
     const char   *name;
-    const expr_t *expr;
+    const parsec_expr_t *expr;
 } parsec_property_t;
 
 struct parsec_task_class_s {
@@ -335,11 +347,11 @@ struct parsec_task_class_s {
     uint8_t                      nb_locals;
 
     parsec_dependency_t          dependencies_goal;
-    const symbol_t              *params[MAX_LOCAL_COUNT];
-    const symbol_t              *locals[MAX_LOCAL_COUNT];
+    const parsec_symbol_t       *params[MAX_LOCAL_COUNT];
+    const parsec_symbol_t       *locals[MAX_LOCAL_COUNT];
     const parsec_flow_t         *in[MAX_PARAM_COUNT];
     const parsec_flow_t         *out[MAX_PARAM_COUNT];
-    const expr_t                *priority;
+    const parsec_expr_t         *priority;
     const parsec_property_t     *properties;     /**< {NULL, NULL} terminated array of properties holding all function-specific properties expressions */
 
     parsec_data_ref_fn_t        *initial_data;   /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
@@ -347,7 +359,7 @@ struct parsec_task_class_s {
     parsec_data_ref_fn_t        *data_affinity;  /**< Populates an array of data references, of size 1 */
     parsec_functionkey_fn_t     *key_generator;
     parsec_key_fn_t             *key_functions;
-    parsec_key_t               (*make_key)(const parsec_taskpool_t *, const assignment_t *);
+    parsec_key_t               (*make_key)(const parsec_taskpool_t *, const parsec_assignment_t *);
 #if defined(PARSEC_SIM)
     parsec_sim_cost_fct_t       *sim_cost_fct;
 #endif
@@ -420,7 +432,7 @@ struct parsec_minimal_execution_context_s {
 #endif /* defined(PARSEC_PROF_TRACE) */
     /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
      * prof_info so that the locals are part of the event specific infos */
-    assignment_t               locals[MAX_LOCAL_COUNT];
+    parsec_assignment_t             locals[MAX_LOCAL_COUNT];
 };
 
 struct parsec_task_s {
@@ -430,13 +442,13 @@ struct parsec_task_s {
 #endif /* defined(PARSEC_PROF_TRACE) */
     /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
      * prof_info so that the locals are part of the event specific infos */
-    assignment_t               locals[MAX_LOCAL_COUNT];
+    parsec_assignment_t        locals[MAX_LOCAL_COUNT];
 #if defined(PARSEC_SIM)
     int                        sim_exec_date;
 #endif
     parsec_data_pair_t         data[MAX_PARAM_COUNT];
 };
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_task_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_task_t);
 
 #define PARSEC_COPY_EXECUTION_CONTEXT(dest, src) \
     do {                                                                \
@@ -510,7 +522,7 @@ parsec_ontask_iterate_t
 parsec_release_dep_fct(struct parsec_execution_stream_s *es,
                        const parsec_task_t *newcontext,
                        const parsec_task_t *oldcontext,
-                       const dep_t* dep,
+                       const parsec_dep_t* dep,
                        parsec_dep_data_description_t* data,
                        int rank_src, int rank_dst, int vpid_dst,
                        void *param);
@@ -519,7 +531,7 @@ parsec_release_dep_fct(struct parsec_execution_stream_s *es,
  *  Returns the number of output deps on which there is a final output
  */
 int parsec_task_deps_with_final_output(const parsec_task_t *task,
-                                      const dep_t **deps);
+                                      const parsec_dep_t **deps);
 
 int32_t parsec_add_fetch_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks );
 
@@ -534,19 +546,6 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
                                       struct data_repo_entry_s* dest_repo_entry,
                                       parsec_dep_data_description_t* data,
                                       parsec_task_t** pready_list);
-
-/**
- * This is a convenience macro for the wrapper file. Do not call this destructor
- * directly from the applications, or face memory leaks as it only release the
- * most internal structures, while leaving the datatypes and the tasks management
- * buffers untouched. Instead, from the application layer call the _Destruct.
- */
-#define PARSEC_INTERNAL_TASKPOOL_DESTRUCT(OBJ)                            \
-    do {                                                               \
-        void* __obj = (void*)(OBJ);                                    \
-        ((parsec_taskpool_t*)__obj)->destructor((parsec_taskpool_t*)__obj);  \
-        (OBJ) = NULL;                                                  \
-    } while (0)
 
 #define parsec_execution_context_priority_comparator offsetof(parsec_task_t, priority)
 

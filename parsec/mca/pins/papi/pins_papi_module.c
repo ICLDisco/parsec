@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The University of Tennessee and The University
+ * Copyright (c) 2012-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -208,7 +208,7 @@ static int register_event_cb(parsec_execution_stream_t* es,
     }
 
     /* Register the EXEC_BEGIN and EXEC_END callbacks */
-    PINS_REGISTER(es, EXEC_END, pins_papi_trace,
+    PARSEC_PINS_REGISTER(es, EXEC_END, pins_papi_trace,
                   (parsec_pins_next_callback_t*)event_cb);
     if(need_begin) {
         /* We need to create a copy of the event_cb so the linked lists don't share pointers */
@@ -222,7 +222,7 @@ static int register_event_cb(parsec_execution_stream_t* es,
         cb_copy->groups = event_cb->groups;
         cb_copy->event = event_cb->event;
 
-        PINS_REGISTER(es, EXEC_BEGIN, pins_papi_trace,
+        PARSEC_PINS_REGISTER(es, EXEC_BEGIN, pins_papi_trace,
                       (parsec_pins_next_callback_t*)cb_copy);
     }
 
@@ -419,7 +419,7 @@ static void pins_thread_fini_papi(parsec_execution_stream_t* es)
     int i;
 
     do {
-        PINS_UNREGISTER(es, EXEC_END, pins_papi_trace, (parsec_pins_next_callback_t**)&event_cb);
+        PARSEC_PINS_UNREGISTER(es, EXEC_END, pins_papi_trace, (parsec_pins_next_callback_t**)&event_cb);
 
         if( NULL == event_cb )
             return;
@@ -434,7 +434,7 @@ static void pins_thread_fini_papi(parsec_execution_stream_t* es)
         }
         /* EXEC_BEGIN was registered, so unregister it. */
         if( has_begin ) {  /* this must have an EXEC_BEGIN */
-            PINS_UNREGISTER(es, EXEC_BEGIN, pins_papi_trace, (parsec_pins_next_callback_t**)&start_cb);
+            PARSEC_PINS_UNREGISTER(es, EXEC_BEGIN, pins_papi_trace, (parsec_pins_next_callback_t**)&start_cb);
             if( NULL == start_cb ) {
                 parsec_debug_verbose(3, parsec_debug_output, "Unsetting exception of an event with frequency 1 but without a start callback. Ignored.");
             }

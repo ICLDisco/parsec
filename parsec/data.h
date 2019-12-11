@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2012-2018 The University of Tennessee and The University
+ * Copyright (c) 2012-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#ifndef DATA_H_HAS_BEEN_INCLUDED
-#define DATA_H_HAS_BEEN_INCLUDED
+#ifndef PARSEC_DATA_H_HAS_BEEN_INCLUDED
+#define PARSEC_DATA_H_HAS_BEEN_INCLUDED
 
 #include "parsec/runtime.h"
 
@@ -24,15 +24,15 @@ typedef uint64_t parsec_data_key_t;
 struct parsec_context_s;
 
 typedef uint8_t parsec_data_coherency_t;
-#define    DATA_COHERENCY_INVALID   ((parsec_data_coherency_t)0x0)
-#define    DATA_COHERENCY_OWNED     ((parsec_data_coherency_t)0x1)
-#define    DATA_COHERENCY_EXCLUSIVE ((parsec_data_coherency_t)0x2)
-#define    DATA_COHERENCY_SHARED    ((parsec_data_coherency_t)0x4)
+#define    PARSEC_DATA_COHERENCY_INVALID   ((parsec_data_coherency_t)0x0)
+#define    PARSEC_DATA_COHERENCY_OWNED     ((parsec_data_coherency_t)0x1)
+#define    PARSEC_DATA_COHERENCY_EXCLUSIVE ((parsec_data_coherency_t)0x2)
+#define    PARSEC_DATA_COHERENCY_SHARED    ((parsec_data_coherency_t)0x4)
 
 typedef uint8_t parsec_data_status_t;
-#define    DATA_STATUS_NOT_TRANSFER          ((parsec_data_coherency_t)0x0)
-#define    DATA_STATUS_UNDER_TRANSFER        ((parsec_data_coherency_t)0x1)
-#define    DATA_STATUS_COMPLETE_TRANSFER     ((parsec_data_coherency_t)0x2)
+#define    PARSEC_DATA_STATUS_NOT_TRANSFER          ((parsec_data_coherency_t)0x0)
+#define    PARSEC_DATA_STATUS_UNDER_TRANSFER        ((parsec_data_coherency_t)0x1)
+#define    PARSEC_DATA_STATUS_COMPLETE_TRANSFER     ((parsec_data_coherency_t)0x2)
 
 typedef uint8_t parsec_data_flag_t;
 #define PARSEC_DATA_FLAG_ARENA     ((parsec_data_flag_t)0x01)
@@ -121,4 +121,4 @@ END_C_DECLS
 
 /** @} */
 
-#endif  /* DATA_H_HAS_BEEN_INCLUDED */
+#endif  /* PARSEC_DATA_H_HAS_BEEN_INCLUDED */

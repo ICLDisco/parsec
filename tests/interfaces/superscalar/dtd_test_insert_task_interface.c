@@ -136,7 +136,7 @@ int main(int argc, char ** argv)
                                     sizeof(int), &data2, VALUE | AFFINITY,
                                     sizeof(double),  &data3, VALUE,
                                     sizeof(struct my_datatype), &data4, VALUE,
-                                    PASSED_BY_REF,    TILE_OF_KEY(A, 0),   INOUT | TILE_FULL,
+                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),   INOUT | TILE_FULL,
                                     sizeof(void *),  A, REF,
                                     PARSEC_DTD_ARG_END);
 

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -114,12 +114,12 @@ static void parsec_mpi_exit(int status) {
 /* To create object of class parsec_taskpool_t that inherits parsec_list_t
  * class
  */
-OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
                    NULL, NULL);
 
 /*
  * Taskpool based task definition (no specialized constructor and destructor) */
-OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
                    NULL, NULL);
 
 static void parsec_rusage(bool print)
@@ -223,7 +223,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
         parsec_vp_t *vp = startup->virtual_process;
 
         parsec_mempool_construct( &vp->context_mempool,
-                                  OBJ_CLASS(parsec_task_t), sizeof(parsec_task_t),
+                                  PARSEC_OBJ_CLASS(parsec_task_t), sizeof(parsec_task_t),
                                   offsetof(parsec_task_t, mempool_owner),
                                   vp->nb_cores );
 
@@ -241,8 +241,8 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     /* Synchronize with the other threads */
     parsec_barrier_wait(startup->barrier);
 
-    if( NULL != current_scheduler->module.flow_init )
-        current_scheduler->module.flow_init(es, startup->barrier);
+    if( NULL != parsec_current_scheduler->module.flow_init )
+        parsec_current_scheduler->module.flow_init(es, startup->barrier);
 
     es->context_mempool = &(es->virtual_process->context_mempool.thread_mempools[es->th_id]);
     for(pi = 0; pi <= MAX_PARAM_COUNT; pi++) {
@@ -267,7 +267,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     }
 #endif /* PARSEC_PROF_TRACE */
 
-    PINS_THREAD_INIT(es);
+    PARSEC_PINS_THREAD_INIT(es);
 
 #if defined(PARSEC_SIM)
     es->largest_simulation_date = 0;
@@ -353,7 +353,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_output_init();
 
     /* Extract what we can from the arguments */
-    cmd_line = OBJ_NEW(parsec_cmd_line_t);
+    cmd_line = PARSEC_OBJ_NEW(parsec_cmd_line_t);
     if( NULL == cmd_line ) {
         return NULL;
     }
@@ -695,8 +695,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Introduce communication engine */
     (void)parsec_remote_dep_init(context);
 
-    /* Initialize Performance Instrumentation (PINS) */
-    PINS_INIT(context);
+    /* Initialize Performance Instrumentation (PARSEC_PINS) */
+    PARSEC_PINS_INIT(context);
 
     if(parsec_enable_dot) {
 #if defined(PARSEC_PROF_GRAPHER)
@@ -798,7 +798,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             false, false, parsec_want_rusage, &parsec_want_rusage);
     parsec_rusage(false);
 
-    AYU_INIT();
+    PARSEC_AYU_INIT();
 
     if( parsec_cmd_line_is_taken(cmd_line, "help") ||
         parsec_cmd_line_is_taken(cmd_line, "h")) {
@@ -818,7 +818,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     if( NULL != cmd_line )
-        OBJ_RELEASE(cmd_line);
+        PARSEC_OBJ_RELEASE(cmd_line);
 
     return context;
 }
@@ -900,7 +900,7 @@ int parsec_fini( parsec_context_t** pcontext )
     if( __parsec_dtd_is_initialized ) {
         parsec_dtd_fini();
         /* clean dtd taskpool array */
-        OBJ_RELEASE(context->taskpool_list);
+        PARSEC_OBJ_RELEASE(context->taskpool_list);
         context->taskpool_list = NULL;
     }
 
@@ -926,7 +926,7 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_rusage(true);
 
-    PINS_THREAD_FINI(context->virtual_processes[0]->execution_streams[0]);
+    PARSEC_PINS_THREAD_FINI(context->virtual_processes[0]->execution_streams[0]);
 
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
@@ -945,7 +945,7 @@ int parsec_fini( parsec_context_t** pcontext )
      * have cleaned all their provate memory. Unleash the global cleaning process.
      */
 
-    PINS_FINI(context);
+    PARSEC_PINS_FINI(context);
 
 #ifdef PARSEC_PROF_TRACE
     parsec_mempool_stats(context);
@@ -968,7 +968,7 @@ int parsec_fini( parsec_context_t** pcontext )
         context->virtual_processes[p] = NULL;
     }
 
-    AYU_FINI();
+    PARSEC_AYU_FINI();
 #ifdef PARSEC_PROF_TRACE
     (void)parsec_profiling_fini( );  /* we're leaving, ignore errors */
 #endif  /* PARSEC_PROF_TRACE */
@@ -1012,6 +1012,16 @@ int parsec_fini( parsec_context_t** pcontext )
     return 0;
 }
 
+#define rop1          u_expr.range.op1
+#define rop2          u_expr.range.op2
+#define rcstinc       u_expr.range.increment.cst
+#define rexprinc      u_expr.range.increment.expr
+#define return_type   u_expr.v_func.type
+#define inline_func32 u_expr.v_func.func.inline_func_int32
+#define inline_func64 u_expr.v_func.func.inline_func_int64
+#define inline_funcfl u_expr.v_func.func.inline_func_float
+#define inline_funcdb u_expr.v_func.func.inline_func_double
+
 /*
  * Resolve all IN() dependencies for this particular instance of execution.
  */
@@ -1022,7 +1032,7 @@ parsec_check_IN_dependencies_with_mask(const parsec_taskpool_t *tp,
     const parsec_task_class_t* tc = task->task_class;
     int i, j, active;
     const parsec_flow_t* flow;
-    const dep_t* dep;
+    const parsec_dep_t* dep;
     parsec_dependency_t ret = 0;
 
     if( !(tc->flags & PARSEC_HAS_IN_IN_DEPENDENCIES) ) {
@@ -1042,14 +1052,14 @@ parsec_check_IN_dependencies_with_mask(const parsec_taskpool_t *tp,
          * On the other hand, if all conditions for the control are false,
          * it is assumed that no control should be expected.
          */
-        if( FLOW_ACCESS_NONE == (flow->flow_flags & FLOW_ACCESS_MASK) ) {
+        if( PARSEC_FLOW_ACCESS_NONE == (flow->flow_flags & PARSEC_FLOW_ACCESS_MASK) ) {
             active = (1 << flow->flow_index);
             /* Control case: resolved unless we find at least one input control */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
-                    assert( dep->cond->op == EXPR_OP_INLINE );
+                    assert( dep->cond->op == PARSEC_EXPR_OP_INLINE );
                     if( 0 == dep->cond->inline_func32(tp, task->locals) ) {
                         /* Cannot use control gather magic with the USE_DEPS_MASK */
                         assert( NULL == dep->ctl_gather_nb );
@@ -1060,9 +1070,9 @@ parsec_check_IN_dependencies_with_mask(const parsec_taskpool_t *tp,
                 break;
             }
         } else {
-            if( !(flow->flow_flags & FLOW_HAS_IN_DEPS) ) continue;
+            if( !(flow->flow_flags & PARSEC_FLOW_HAS_IN_DEPS) ) continue;
             if( NULL == flow->dep_in[0] ) {
-                /* As the flow is tagged with FLOW_HAS_IN_DEPS and there is no
+                /* As the flow is tagged with PARSEC_FLOW_HAS_IN_DEPS and there is no
                  * dep_in we are in the case where a write only dependency used
                  * an in dependency to specify the arena where the data should
                  * be allocated.
@@ -1074,7 +1084,7 @@ parsec_check_IN_dependencies_with_mask(const parsec_taskpool_t *tp,
                     dep = flow->dep_in[j];
                     if( NULL != dep->cond ) {
                         /* Check if the condition apply on the current setting */
-                        assert( dep->cond->op == EXPR_OP_INLINE );
+                        assert( dep->cond->op == PARSEC_EXPR_OP_INLINE );
                         if( 0 == dep->cond->inline_func32(tp, task->locals) )
                             continue;  /* doesn't match */
                         /* the condition triggered let's check if it's for a data */
@@ -1098,7 +1108,7 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
     const parsec_task_class_t* tc = task->task_class;
     int i, j, active;
     const parsec_flow_t* flow;
-    const dep_t* dep;
+    const parsec_dep_t* dep;
     parsec_dependency_t ret = 0;
 
     if( !(tc->flags & PARSEC_HAS_CTL_GATHER) &&
@@ -1123,18 +1133,18 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
          *  it is assumed that no control should be expected.
          */
         active = 0;
-        if( FLOW_ACCESS_NONE == (flow->flow_flags & FLOW_ACCESS_MASK) ) {
+        if( PARSEC_FLOW_ACCESS_NONE == (flow->flow_flags & PARSEC_FLOW_ACCESS_MASK) ) {
             /* Control case: just count how many must be resolved */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
-                    assert( dep->cond->op == EXPR_OP_INLINE );
+                    assert( dep->cond->op == PARSEC_EXPR_OP_INLINE );
                     if( dep->cond->inline_func32(tp, task->locals) ) {
                         if( NULL == dep->ctl_gather_nb)
                             active++;
                         else {
-                            assert( dep->ctl_gather_nb->op == EXPR_OP_INLINE );
+                            assert( dep->ctl_gather_nb->op == PARSEC_EXPR_OP_INLINE );
                             active += dep->ctl_gather_nb->inline_func32(tp, task->locals);
                         }
                     }
@@ -1142,7 +1152,7 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
                     if( NULL == dep->ctl_gather_nb)
                         active++;
                     else {
-                        assert( dep->ctl_gather_nb->op == EXPR_OP_INLINE );
+                        assert( dep->ctl_gather_nb->op == PARSEC_EXPR_OP_INLINE );
                         active += dep->ctl_gather_nb->inline_func32(tp, task->locals);
                     }
                 }
@@ -1157,7 +1167,7 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
                 dep = flow->dep_in[j];
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
-                    assert( dep->cond->op == EXPR_OP_INLINE );
+                    assert( dep->cond->op == PARSEC_EXPR_OP_INLINE );
                     if( 0 == dep->cond->inline_func32(tp, task->locals) )
                         continue;  /* doesn't match */
                     /* the condition triggered let's check if it's for a data */
@@ -1397,7 +1407,7 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
             parsec_task_t *new_context = (parsec_task_t *) parsec_thread_mempool_allocate(es->context_mempool);
             PARSEC_COPY_EXECUTION_CONTEXT(new_context, task);
             new_context->status = PARSEC_TASK_STATUS_NONE;
-            AYU_ADD_TASK(new_context);
+            PARSEC_AYU_ADD_TASK(new_context);
 
             PARSEC_DEBUG_VERBOSE(6, parsec_debug_output,
                    "%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d",
@@ -1417,7 +1427,7 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
             new_context->data[(int)dest_flow->flow_index].data_in   = origin->data[origin_flow->flow_index].data_out;
             (void)data;
-            AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
+            PARSEC_AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
             if(task->task_class->flags & PARSEC_IMMEDIATE_TASK) {
                 PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "  Task %s is immediate and will be executed ASAP", tmp1);
@@ -1449,7 +1459,7 @@ parsec_ontask_iterate_t
 parsec_release_dep_fct(parsec_execution_stream_t *es,
                       const parsec_task_t *newcontext,
                       const parsec_task_t *oldcontext,
-                      const dep_t* dep,
+                      const parsec_dep_t* dep,
                       parsec_dep_data_description_t* data,
                       int src_rank, int dst_rank, int dst_vpid,
                       void *param)
@@ -1466,7 +1476,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
      */
     if( PARSEC_UNLIKELY((data->data == NULL) &&
                        (es->virtual_process->parsec_context->my_rank == src_rank) &&
-                       ((dep->belongs_to->flow_flags & FLOW_ACCESS_MASK) != FLOW_ACCESS_NONE)) ) {
+                       ((dep->belongs_to->flow_flags & PARSEC_FLOW_ACCESS_MASK) != PARSEC_FLOW_ACCESS_NONE)) ) {
         char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
         parsec_fatal("A NULL is forwarded\n"
                     "\tfrom: %s flow %s\n"
@@ -1519,7 +1529,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
     if( (arg->action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) &&
         (es->virtual_process->parsec_context->my_rank == dst_rank) ) {
         /* Old condition */
-        /* if( FLOW_ACCESS_NONE != (src_flow->flow_flags & FLOW_ACCESS_MASK) ) { */
+        /* if( PARSEC_FLOW_ACCESS_NONE != (src_flow->flow_flags & PARSEC_FLOW_ACCESS_MASK) ) { */
 
         /* Copying data in data-repo if there is data .
          * We are doing this in order for dtd to be able to track control dependences.
@@ -1533,7 +1543,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
              * Thus, if the ref count is not increased here, the data might dissapear
              * before this task released it completely.
              */
-            OBJ_RETAIN( arg->output_entry->data[src_flow->flow_index] );
+            PARSEC_OBJ_RETAIN( arg->output_entry->data[src_flow->flow_index] );
         }
         parsec_release_local_OUT_dependencies(es, oldcontext, src_flow,
                                               newcontext, dep->flow,
@@ -1593,7 +1603,7 @@ parsec_task_snprintf( char* str, size_t size,
  */
 char* parsec_snprintf_assignments( char* str, size_t size,
                                   const parsec_task_class_t* tc,
-                                  const assignment_t* locals)
+                                  const parsec_assignment_t* locals)
 {
     unsigned int ip, index = 0;
 
@@ -2170,11 +2180,11 @@ int parsec_getsimulationdate( parsec_context_t *parsec_context ){
 }
 #endif
 
-static int32_t parsec_expr_eval32(const expr_t *expr, parsec_task_t *context)
+static int32_t parsec_expr_eval32(const parsec_expr_t *expr, parsec_task_t *context)
 {
     parsec_taskpool_t *tp = context->taskpool;
 
-    assert( expr->op == EXPR_OP_INLINE );
+    assert( expr->op == PARSEC_EXPR_OP_INLINE );
     return expr->inline_func32(tp, context->locals);
 }
 
@@ -2399,23 +2409,23 @@ void parsec_debug_all_taskpools_local_tasks( int show_remote, int show_startup, 
  *  Returns the number of output deps on which there is a final output
  */
 int parsec_task_deps_with_final_output(const parsec_task_t *task,
-                                       const dep_t **deps)
+                                       const parsec_dep_t **deps)
 {
     const parsec_task_class_t *tc = task->task_class;
-    const parsec_flow_t  *flow;
-    const dep_t          *dep;
+    const parsec_flow_t *flow;
+    const parsec_dep_t *dep;
     int fi, di, nbout = 0;
 
     for(fi = 0; fi < tc->nb_flows && tc->out[fi] != NULL; fi++) {
         flow = tc->out[fi];
-        if( ! (SYM_OUT & flow->sym_type ) )
+        if( ! (PARSEC_SYM_OUT & flow->sym_type ) )
             continue;
         for(di = 0; di < MAX_DEP_OUT_COUNT && flow->dep_out[di] != NULL; di++) {
             dep = flow->dep_out[di];
             if( dep->task_class_id != PARSEC_LOCAL_DATA_TASK_CLASS_ID )
                 continue;
             if( NULL != dep->cond ) {
-                assert( EXPR_OP_INLINE == dep->cond->op );
+                assert( PARSEC_EXPR_OP_INLINE == dep->cond->op );
                 if( dep->cond->inline_func32(task->taskpool, task->locals) )
                     continue;
             }

@@ -2,7 +2,7 @@
 # variables not used.
 find_package(PAPI QUIET)
 
-if (PINS_ENABLE)
+if (PARSEC_PROF_PINS)
   if (NOT PARSEC_PROF_TRACE)
     MESSAGE(STATUS "Module ${MODULE} not selectable: PARSEC_PROF_TRACE disabled.")
   else (NOT PARSEC_PROF_TRACE)
@@ -26,7 +26,7 @@ if (PINS_ENABLE)
       SET(MCA_${COMPONENT}_${MODULE} OFF)
     endif( PARSEC_HAVE_PAPI )
   endif (NOT PARSEC_PROF_TRACE)
-else (PINS_ENABLE)
+else (PARSEC_PROF_PINS)
   MESSAGE(STATUS "Module ${MODULE} not selectable: PINS disabled.")
   SET(MCA_${COMPONENT}_${MODULE} OFF)
-endif (PINS_ENABLE)
+endif (PARSEC_PROF_PINS)

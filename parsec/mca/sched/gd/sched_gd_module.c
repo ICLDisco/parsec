@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -87,9 +87,9 @@ static int flow_gd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
     if( es == vp->execution_streams[0] ) {
 #if defined(PARSEC_PAPI_SDE)
         es->scheduler_object = (shared_dequeue_with_local_counter_t*)calloc(sizeof(shared_dequeue_with_local_counter_t), 1);
-        LOCAL_SCHED_OBJECT(es)->dequeue = OBJ_NEW(parsec_dequeue_t);
+        LOCAL_SCHED_OBJECT(es)->dequeue = PARSEC_OBJ_NEW(parsec_dequeue_t);
 #else
-        es->scheduler_object = OBJ_NEW(parsec_dequeue_t);
+        es->scheduler_object = PARSEC_OBJ_NEW(parsec_dequeue_t);
 #endif
     }
     
@@ -99,10 +99,10 @@ static int flow_gd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
 #if defined(PARSEC_PAPI_SDE)
         es->scheduler_object = (shared_dequeue_with_local_counter_t*)calloc(sizeof(shared_dequeue_with_local_counter_t), 1);
         LOCAL_SCHED_OBJECT(es)->dequeue = LOCAL_SCHED_OBJECT(vp->execution_streams[0])->dequeue;
-        OBJ_RETAIN(LOCAL_SCHED_OBJECT(es)->dequeue);
+        PARSEC_OBJ_RETAIN(LOCAL_SCHED_OBJECT(es)->dequeue);
 #else
         es->scheduler_object = LOCAL_SCHED_OBJECT(vp->execution_streams[0]);
-        OBJ_RETAIN(LOCAL_SCHED_OBJECT(es));
+        PARSEC_OBJ_RETAIN(LOCAL_SCHED_OBJECT(es));
 #endif
     }
     
@@ -178,10 +178,10 @@ static void sched_gd_remove( parsec_context_t *master )
             es = vp->execution_streams[t];
             sd = LOCAL_SCHED_OBJECT(es);
 #if defined(PARSEC_PAPI_SDE)
-            OBJ_RELEASE( sd->dequeue );
+            PARSEC_OBJ_RELEASE( sd->dequeue );
             free(sd);
 #else
-            OBJ_RELEASE(sd);
+            PARSEC_OBJ_RELEASE(sd);
 #endif
             es->scheduler_object = NULL;
         }

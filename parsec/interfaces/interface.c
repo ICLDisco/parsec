@@ -1,10 +1,11 @@
 /**
- * Copyright (c) 2016-2018 The University of Tennessee and The University
+ * Copyright (c) 2016-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "parsec/parsec_config.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/interfaces/interface.h"
 #include "parsec/mca/device/device.h"
 #include "parsec/utils/debug.h"
@@ -63,21 +64,21 @@ parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_strea
 
 static inline int
 priority_of_generic_startup_as_expr_fct(const parsec_taskpool_t * __tp,
-                                        const assignment_t * locals)
+                                        const parsec_assignment_t * locals)
 {
     (void)__tp;
     (void)locals;
     return INT_MIN;
 }
 
-static const expr_t priority_of_generic_startup_as_expr = {
-    .op = EXPR_OP_INLINE,
+static const parsec_expr_t priority_of_generic_startup_as_expr = {
+    .op = PARSEC_EXPR_OP_INLINE,
     .u_expr.v_func = {.type=0,
-                      .func = { .inline_func_int32 = (expr_op_int32_inline_func_t)priority_of_generic_startup_as_expr_fct}}
+                      .func = { .inline_func_int32 = (parsec_expr_op_int32_inline_func_t)priority_of_generic_startup_as_expr_fct}}
 };
 
 static inline parsec_key_t
-__parsec_generic_startup_make_key(const parsec_taskpool_t *tp, const assignment_t *as)
+__parsec_generic_startup_make_key(const parsec_taskpool_t *tp, const parsec_assignment_t *as)
 {
     (void)as;
     (void)tp;

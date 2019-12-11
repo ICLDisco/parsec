@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -466,7 +466,7 @@ int parsec_profiling_init( void )
 
     PARSEC_TLS_KEY_CREATE(tls_profiling);
 
-    OBJ_CONSTRUCT( &threads, parsec_list_t );
+    PARSEC_OBJ_CONSTRUCT( &threads, parsec_list_t );
 
     parsec_prof_keys_count = 0;
     parsec_prof_keys_number = 128;
@@ -608,7 +608,7 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
         t_fl->nb_allocated++;
     }
 
-    OBJ_CONSTRUCT(res, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(res, parsec_list_item_t);
     va_start(ap, format);
     rc = vasprintf(&res->hr_id, format, ap); assert(rc!=-1); (void)rc;
     va_end(ap);
@@ -667,7 +667,7 @@ int parsec_profiling_fini( void )
         free(t);
     }
     free(hr_id);
-    OBJ_DESTRUCT(&threads);
+    PARSEC_OBJ_DESTRUCT(&threads);
 
 #if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
     io_cmd_t *cmd = io_cmd_allocate();

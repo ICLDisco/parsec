@@ -29,7 +29,7 @@ if [ "x${USER}" = "xsmoreaud" ]; then
   USER_OPTIONS+="-DPARSEC_GPU_WITH_CUDA=OFF "
 
   PAPI_DIR=${PAPI_DIR:="/mnt/scratch/sw/papi-5.0.1"}
-  USER_OPTIONS+="-DPINS_ENABLE=ON "
+  USER_OPTIONS+="-DPARSEC_PROF_PINS=ON "
   USER_OPTIONS+="-DPAPI_DIR=$PAPI_DIR "
 fi
 

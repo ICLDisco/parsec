@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2005 The University of Tennessee and The University
+ * Copyright (c) 2004-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -69,7 +69,7 @@
  * \endverbatim
  *
  * The caller to this interface creates a command line handle
- * (parsec_cmd_line_t) with OBJ_NEW() and then uses it to register the
+ * (parsec_cmd_line_t) with PARSEC_OBJ_NEW() and then uses it to register the
  * desired parameters via parsec_cmd_line_make_opt3(). Once all the
  * parameters have been registered, the user invokes
  * parsec_cmd_line_parse() with the command line handle and the argv/argc
@@ -226,11 +226,11 @@ typedef struct parsec_cmd_line_init_t parsec_cmd_line_init_t;
  * threads invoke functions on the same handle at the same time --
  * access will be serialized in an unspecified order.
  *
- * Once finished, handles should be released with OBJ_RELEASE().  The
+ * Once finished, handles should be released with PARSEC_OBJ_RELEASE().  The
  * destructor for parsec_cmd_line_t handles will free all memory
  * associated with the handle.
  */
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_cmd_line_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_cmd_line_t);
 
 /**
  * Make a command line handle from a table of initializers.
@@ -246,7 +246,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_cmd_line_t);
  * to pre-seed an PARSEC command line handle.  The last instance in
  * the table must have '\0' for the short name and NULL for the
  * single-dash and long names.  The handle is expected to have
- * been OBJ_NEW'ed or OBJ_CONSTRUCT'ed already.
+ * been PARSEC_OBJ_NEW'ed or PARSEC_OBJ_CONSTRUCT'ed already.
  *
  * Upon return, the command line handle is just like any other.  A
  * sample using this syntax:

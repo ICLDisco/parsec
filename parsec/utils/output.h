@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2016 The University of Tennessee and The University
+ * Copyright (c) 2004-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -554,14 +554,18 @@ PARSEC_DECLSPEC void parsec_output_set_output_file_info(const char *dir,
  * The intended usage is to invoke the constructor and then enable
  * the output fields that you want.
  */
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_output_stream_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_output_stream_t);
 
 #if !defined(PARSEC_HAVE_VASPRINTF)
 int vasprintf(char **ptr, const char *fmt, va_list ap);
+#else
+#include <stdio.h>
 #endif  /* !defined(PARSEC_HAVE_VASPRINTF) */
 
 #if !defined(PARSEC_HAVE_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, ...);
+#else
+#include <stdio.h>
 #endif  /* !defined(PARSEC_HAVE_ASPRINTF) */
 
 END_C_DECLS

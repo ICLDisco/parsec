@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -22,7 +22,7 @@ parsec_list_item_construct( parsec_list_item_t* item )
 #endif
 }
 
-OBJ_CLASS_INSTANCE(parsec_list_item_t, parsec_object_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_list_item_t, parsec_object_t,
                    parsec_list_item_construct, NULL);
 
 /**
@@ -45,7 +45,7 @@ parsec_list_destruct( parsec_list_t* list )
     assert(parsec_list_is_empty(list)); (void)list;
 }
 
-OBJ_CLASS_INSTANCE(parsec_list_t, parsec_object_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_list_t, parsec_object_t,
                    parsec_list_construct, parsec_list_destruct);
 
 

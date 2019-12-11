@@ -4,19 +4,20 @@
  *                         reserved.
  */
 
-#ifndef ATOMIC_H_HAS_BEEN_INCLUDED
-#define ATOMIC_H_HAS_BEEN_INCLUDED
+#ifndef PARSEC_ATOMIC_H_HAS_BEEN_INCLUDED
+#define PARSEC_ATOMIC_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_config.h"
-#include <stdint.h>
-#include <unistd.h>
-#include <assert.h>
 
 BEGIN_C_DECLS
 
 #if !defined(BUILDING_PARSEC)
 #  include "atomic-external.h"
 #else  /* !defined(BUILDING_PARSEC) */
+
+#include <stdint.h>
+#include <unistd.h>
+#include <assert.h>
 
 #  if !defined(ATOMIC_STATIC_INLINE)
 #    define ATOMIC_STATIC_INLINE static inline

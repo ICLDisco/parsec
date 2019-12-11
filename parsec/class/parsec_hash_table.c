@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -42,7 +42,7 @@ void *parsec_hash_table_item_lookup(parsec_hash_table_t *ht, parsec_hash_table_i
 }
 
 /* To create object of class parsec_hash_table that inherits parsec_object_t class */
-OBJ_CLASS_INSTANCE(parsec_hash_table_t, parsec_object_t, NULL, NULL);
+PARSEC_OBJ_CLASS_INSTANCE(parsec_hash_table_t, parsec_object_t, NULL, NULL);
 
 /* If the keys are equal in value, then the item is the right one.
  * This will work for all keys that fit directly in the 64 bits of the
@@ -608,7 +608,7 @@ void parsec_hash_table_stat(parsec_hash_table_t *ht)
     }
 }
 
-void parsec_hash_table_for_all(parsec_hash_table_t* ht, hash_elem_fct_t fct, void* cb_data)
+void parsec_hash_table_for_all(parsec_hash_table_t* ht, parsec_hash_elem_fct_t fct, void* cb_data)
 {
     parsec_hash_table_head_t *head;
     parsec_hash_table_item_t *current_item;

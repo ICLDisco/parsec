@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -79,7 +79,7 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
 
             if( es->th_id == 0 ) {
                 sched_obj->system_queue = (parsec_dequeue_t*)malloc(sizeof(parsec_dequeue_t));
-                OBJ_CONSTRUCT(sched_obj->system_queue, parsec_dequeue_t);
+                PARSEC_OBJ_CONSTRUCT(sched_obj->system_queue, parsec_dequeue_t);
             } else {
                 sched_obj->system_queue = PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(vp->execution_streams[0])->system_queue;
             }

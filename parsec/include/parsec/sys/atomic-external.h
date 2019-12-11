@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2016-2018 The University of Tennessee and The University
+ * Copyright (c) 2016-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#ifndef ATOMIC_EXTERNAL_H_HAS_BEEN_INCLUDED
-#define ATOMIC_EXTERNAL_H_HAS_BEEN_INCLUDED
+#ifndef PARSEC_ATOMIC_EXTERNAL_H_HAS_BEEN_INCLUDED
+#define PARSEC_ATOMIC_EXTERNAL_H_HAS_BEEN_INCLUDED
 
 #if defined(PARSEC_ATOMIC_ACCESS_TO_INTERNALS_ALLOWED)
 #error "This file should never be used while building PaRSEC internally"
@@ -82,4 +82,4 @@ PARSEC_DECLSPEC int parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock );
 
 END_C_DECLS
 
-#endif  /* ATOMIC_EXTERNAL_H_HAS_BEEN_INCLUDED */
+#endif  /* PARSEC_ATOMIC_EXTERNAL_H_HAS_BEEN_INCLUDED */

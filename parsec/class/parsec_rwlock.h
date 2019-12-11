@@ -1,11 +1,11 @@
 /*
- * Copyright (c)      2017 The University of Tennessee and The University
+ * Copyright (c) 2017-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#ifndef RWLOCK_H_HAS_BEEN_INCLUDED
-#define RWLOCK_H_HAS_BEEN_INCLUDED
+#ifndef PARSEC_RWLOCK_H_HAS_BEEN_INCLUDED
+#define PARSEC_RWLOCK_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_config.h"
 #include "parsec/sys/atomic.h"
@@ -15,20 +15,20 @@
 
 BEGIN_C_DECLS
 
-#define RWLOCK_IMPL_STATE  1    /**< Simple State-based RWLock */
-#define RWLOCK_IMPL_TICKET 2    /**< Phase-fair RWLock from http://dl.acm.org/citation.cfm?id=1842604 */
-#define RWLOCK_IMPL_2LOCKS 3    /**< Traditional RWLock based on two atomic locks (http://www.springer.com/us/book/9783642320262)
-                                 *   (Enables paranoid checks by recording what threads are in read or write state when
-                                 *   PARSEC_DEBUG_PARANOID is on) */
-#define RWLOCK_IMPL_MYTICKET 4  /**< Simpler (more portable?) version of the phase-fair RWLock */
+#define PARSEC_RWLOCK_IMPL_STATE  1    /**< Simple State-based RWLock */
+#define PARSEC_RWLOCK_IMPL_TICKET 2    /**< Phase-fair RWLock from http://dl.acm.org/citation.cfm?id=1842604 */
+#define PARSEC_RWLOCK_IMPL_2LOCKS 3    /**< Traditional RWLock based on two atomic locks (http://www.springer.com/us/book/9783642320262)
+                                        *   (Enables paranoid checks by recording what threads are in read or write state when
+                                        *   PARSEC_DEBUG_PARANOID is on) */
+#define PARSEC_RWLOCK_IMPL_MYTICKET 4  /**< Simpler (more portable?) version of the phase-fair RWLock */
 
 /**
  * There are 4 implementations of the RWLocks.
  * The following define chooses which one we use.
  */
-#define RWLOCK_IMPL RWLOCK_IMPL_TICKET
+#define PARSEC_RWLOCK_IMPL PARSEC_RWLOCK_IMPL_TICKET
 
-#if RWLOCK_IMPL == RWLOCK_IMPL_STATE
+#if PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_STATE
 
 /**
  * Simple State-based implementation with atomic CAS to update the state at each step
@@ -41,7 +41,7 @@ typedef volatile uint32_t parsec_atomic_rwlock_t;
 
 #define PARSEC_RWLOCK_UNLOCKED 0
 
-#elif RWLOCK_IMPL == RWLOCK_IMPL_TICKET
+#elif PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_TICKET
 
 /**
  *  Ticket based (phase-fair) implementation
@@ -56,7 +56,7 @@ typedef volatile struct parsec_atomic_rwlock_s {
 
 #define PARSEC_RWLOCK_UNLOCKED 0, 0, 0, 0
 
-#elif RWLOCK_IMPL == RWLOCK_IMPL_2LOCKS
+#elif PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_2LOCKS
 
 #if defined(PARSEC_DEBUG_PARANOID)
 /** For Paranoid checks, keep a list of MAX_READERS_TO_CHECK readers inside the critical section */
@@ -87,7 +87,7 @@ typedef struct parsec_atomic_rwlock_s {
 #define PARSEC_RWLOCK_UNLOCKED {PARSEC_ATOMIC_UNLOCKED}, {PARSEC_LOCK_UNLOCK}, 0
 #endif
 
-#elif RWLOCK_IMPL == RWLOCK_IMPL_MYTICKET
+#elif PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_MYTICKET
 
 /**
  * Simpler Ticket based (phase-fair) implementation that does not
@@ -174,4 +174,4 @@ void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L);
 
 END_C_DECLS
 
-#endif  /* RWLOCK_H_HAS_BEEN_INCLUDED */
+#endif  /* PARSEC_RWLOCK_H_HAS_BEEN_INCLUDED */

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2017 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -45,6 +45,7 @@
 #include "parsec/interfaces/interface.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/parsec_prof_grapher.h"
+#include "parsec/utils/colors.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/utils/debug.h"
@@ -74,7 +75,7 @@ int hashtable_trace_keyout = -1;
 
 parsec_arena_t **parsec_dtd_arenas;
 
-extern parsec_sched_module_t *current_scheduler;
+extern parsec_sched_module_t *parsec_current_scheduler;
 
 /* Global mempool for all the parsec DTD taskpools that will be created for a run */
 parsec_mempool_t *parsec_dtd_taskpool_mempool = NULL;
@@ -173,7 +174,7 @@ parsec_dtd_attach_taskpool_to_context(parsec_taskpool_t *tp,
                                       parsec_context_t  *context)
 {
     if(context->taskpool_list == NULL) {
-        context->taskpool_list = OBJ_NEW(parsec_list_t);
+        context->taskpool_list = PARSEC_OBJ_NEW(parsec_list_t);
     }
 
     parsec_list_push_back(context->taskpool_list, (parsec_list_item_t *)tp);
@@ -219,13 +220,13 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
 /* To create object of class parsec_dtd_task_t that inherits parsec_task_t
  * class
  */
-OBJ_CLASS_INSTANCE(parsec_dtd_task_t, parsec_task_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_dtd_task_t, parsec_task_t,
                    NULL, NULL);
 
 /* To create object of class .list_itemdtd_tile_t that inherits parsec_list_item_t
  * class
  */
-OBJ_CLASS_INSTANCE(parsec_dtd_tile_t, parsec_list_item_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_dtd_tile_t, parsec_list_item_t,
                    NULL, NULL);
 
 /***************************************************************************//**
@@ -245,7 +246,7 @@ void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
 
     tp->function_counter = 0;
 
-    tp->task_hash_table = OBJ_NEW(parsec_hash_table_t);
+    tp->task_hash_table = PARSEC_OBJ_NEW(parsec_hash_table_t);
     for(nb = 1; nb < 16 && (1<<nb)<parsec_dtd_task_hash_table_size; nb++) /* nothing */;
     parsec_hash_table_init(tp->task_hash_table,
                            offsetof(dtd_hash_table_pointer_item_t, ht_item),
@@ -253,7 +254,7 @@ void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
                            DTD_key_fns,
                            tp->task_hash_table);
 
-    tp->function_h_table = OBJ_NEW(parsec_hash_table_t);
+    tp->function_h_table = PARSEC_OBJ_NEW(parsec_hash_table_t);
     for(nb = 1; nb < 16 && (1<<nb)<PARSEC_DTD_NB_TASK_CLASSES; nb++) /* nothing */;
     parsec_hash_table_init(tp->function_h_table,
                            offsetof(dtd_hash_table_pointer_item_t, ht_item),
@@ -330,16 +331,16 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     free(tp->startup_list);
 
     parsec_hash_table_fini(tp->task_hash_table);
-    OBJ_RELEASE(tp->task_hash_table);
+    PARSEC_OBJ_RELEASE(tp->task_hash_table);
 
     parsec_hash_table_fini(tp->function_h_table);
-    OBJ_RELEASE(tp->function_h_table);
+    PARSEC_OBJ_RELEASE(tp->function_h_table);
 }
 
 /* To create object of class parsec_dtd_taskpool_t that inherits parsec_taskpool_t
  * class
  */
-OBJ_CLASS_INSTANCE(parsec_dtd_taskpool_t, parsec_taskpool_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_dtd_taskpool_t, parsec_taskpool_t,
                    parsec_dtd_taskpool_constructor, parsec_dtd_taskpool_destructor);
 
 
@@ -431,7 +432,7 @@ parsec_dtd_lazy_init(void)
 
     parsec_dtd_taskpool_mempool = (parsec_mempool_t*) malloc (sizeof(parsec_mempool_t));
     parsec_mempool_construct( parsec_dtd_taskpool_mempool,
-                              OBJ_CLASS(parsec_dtd_taskpool_t), sizeof(parsec_dtd_taskpool_t),
+                              PARSEC_OBJ_CLASS(parsec_dtd_taskpool_t), sizeof(parsec_dtd_taskpool_t),
                               offsetof(parsec_dtd_taskpool_t, mempool_owner),
                               1/* no. of threads*/ );
 
@@ -441,7 +442,7 @@ parsec_dtd_lazy_init(void)
     /* Initializing the tile mempool and attaching it to the tp */
     parsec_dtd_tile_mempool = (parsec_mempool_t*) malloc (sizeof(parsec_mempool_t));
     parsec_mempool_construct( parsec_dtd_tile_mempool,
-                              OBJ_CLASS(parsec_dtd_tile_t), sizeof(parsec_dtd_tile_t),
+                              PARSEC_OBJ_CLASS(parsec_dtd_tile_t), sizeof(parsec_dtd_tile_t),
                               offsetof(parsec_dtd_tile_t, mempool_owner),
                               1/* no. of threads*/ );
 
@@ -545,7 +546,7 @@ parsec_execute_and_come_back( parsec_context_t *context,
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
 
-        task = current_scheduler->module.select(es, &distance);
+        task = parsec_current_scheduler->module.select(es, &distance);
 
         if( task != NULL ) {
             misses_in_a_row = 0;  /* reset the misses counter */
@@ -686,7 +687,7 @@ fill_color(int index, int colorspace)
 {
     char *str, *color;
     str = (char *)calloc(12,sizeof(char));
-    color = unique_color(index, colorspace);
+    color = parsec_unique_color(index, colorspace);
     snprintf(str,12,"fill:%s",color+1); /* need to remove the prepended '#' */
     free(color);
     return str;
@@ -1026,7 +1027,7 @@ parsec_dtd_tile_release( parsec_dtd_tile_t *tile )
 void
 parsec_dtd_tile_retain( parsec_dtd_tile_t *tile )
 {
-    OBJ_RETAIN(tile);
+    PARSEC_OBJ_RETAIN(tile);
 }
 
 /* **************************************************************************** */
@@ -1057,7 +1058,7 @@ void
 parsec_dtd_data_collection_init( parsec_data_collection_t *dc )
 {
     int nb;
-    dc->tile_h_table = OBJ_NEW(parsec_hash_table_t);
+    dc->tile_h_table = PARSEC_OBJ_NEW(parsec_hash_table_t);
     for(nb = 1; nb < 16 && (1 << nb) < parsec_dtd_tile_hash_table_size; nb++) /* nothing */;
     parsec_hash_table_init( dc->tile_h_table,
                             offsetof(parsec_dtd_tile_t, ht_item),
@@ -1071,7 +1072,7 @@ void
 parsec_dtd_data_collection_fini( parsec_data_collection_t *dc )
 {
     parsec_hash_table_fini(dc->tile_h_table);
-    OBJ_RELEASE(dc->tile_h_table);
+    PARSEC_OBJ_RELEASE(dc->tile_h_table);
     parsec_dc_unregister_id(dc->dc_id);
 }
 
@@ -1176,7 +1177,7 @@ static const __parsec_chore_t dtd_chore[] = {
 };
 
 /* for GRAPHER purpose */
-static symbol_t symb_dtd_taskid = {
+static parsec_symbol_t symb_dtd_taskid = {
     .name           = "task_id",
     .context_index  = 0,
     .min            = NULL,
@@ -1190,7 +1191,7 @@ static symbol_t symb_dtd_taskid = {
  * The task class key generator function. For DTD the key is stored in the
  * first assignment value of the task.
  */
-static inline parsec_key_t DTD_make_key_identity(const parsec_taskpool_t *tp, const assignment_t *t)
+static inline parsec_key_t DTD_make_key_identity(const parsec_taskpool_t *tp, const parsec_assignment_t *t)
 {
     (void)tp;
     return (parsec_key_t)(uintptr_t)t[0].value;
@@ -1329,7 +1330,7 @@ parsec_dtd_taskpool_destruct(parsec_taskpool_t *tp)
 void
 parsec_dtd_taskpool_retain( parsec_taskpool_t *tp )
 {
-    OBJ_RETAIN(tp);
+    PARSEC_OBJ_RETAIN(tp);
 }
 
 void
@@ -1382,9 +1383,9 @@ parsec_dtd_startup( parsec_context_t   *context,
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *) tp;
 
     /* Create the PINS DATA pointers if PINS is enabled */
-#if defined(PINS_ENABLE)
+#if defined(PARSEC_PROF_PINS)
     dtd_tp->super.context = context;
-#endif /* defined(PINS_ENABLE) */
+#endif /* defined(PARSEC_PROF_PINS) */
 
     /* register the taskpool with all available devices */
     for (uint32_t _i = 0; _i < parsec_nb_devices; _i++) {
@@ -1443,7 +1444,7 @@ parsec_ontask_iterate_t
 dtd_release_dep_fct( parsec_execution_stream_t *es,
                      const parsec_task_t *newcontext,
                      const parsec_task_t *oldcontext,
-                     const dep_t *dep,
+                     const parsec_dep_t *dep,
                      parsec_dep_data_description_t *data,
                      int src_rank, int dst_rank, int dst_vpid,
                      void *param )
@@ -1508,7 +1509,7 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
 
         origin_flow->name = "A";
         dest_flow->name = "A";
-        dest_flow->flow_flags = FLOW_ACCESS_RW;
+        dest_flow->flow_flags = PARSEC_FLOW_ACCESS_RW;
 
         parsec_prof_grapher_dep(oldcontext, newcontext, !not_ready, origin_flow, dest_flow);
 
@@ -1598,7 +1599,7 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
 
     assert(NULL != es);
 
-    PINS(es, RELEASE_DEPS_BEGIN, this_task);
+    PARSEC_PINS(es, RELEASE_DEPS_BEGIN, this_task);
 #if defined(DISTRIBUTED)
     arg.remote_deps = deps;
 #endif /* defined(DISTRIBUTED) */
@@ -1686,7 +1687,7 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
         }
     }
 
-    PINS(es, RELEASE_DEPS_END, this_task);
+    PARSEC_PINS(es, RELEASE_DEPS_END, this_task);
     return 0;
 }
 
@@ -2003,7 +2004,7 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
                       size_of_param;
 
     parsec_mempool_construct(&dtd_tc->context_mempool,
-                             OBJ_CLASS(parsec_dtd_task_t), total_size,
+                             PARSEC_OBJ_CLASS(parsec_dtd_task_t), total_size,
                              offsetof(parsec_dtd_task_t, mempool_owner),
                              __tp->total_threads);
 
@@ -2013,7 +2014,7 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
                      (flow_count * sizeof(parsec_dtd_min_flow_info_t));
 
     parsec_mempool_construct(&dtd_tc->remote_task_mempool,
-                             OBJ_CLASS(parsec_dtd_task_t), total_size_remote_task,
+                             PARSEC_OBJ_CLASS(parsec_dtd_task_t), total_size_remote_task,
                              offsetof(parsec_dtd_task_t, mempool_owner),
                              __tp->total_threads);
 
@@ -2022,9 +2023,9 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
      Getting address of the const members in local mutable pointers.
      */
     const char **name_not_const = (const char **)&(tc->name);
-    symbol_t **params     = (symbol_t **) &tc->params;
-    symbol_t **locals     = (symbol_t **) &tc->locals;
-    expr_t **priority     = (expr_t **)&tc->priority;
+    parsec_symbol_t **params     = (parsec_symbol_t **) &tc->params;
+    parsec_symbol_t **locals     = (parsec_symbol_t **) &tc->locals;
+    parsec_expr_t **priority     = (parsec_expr_t **)&tc->priority;
     __parsec_chore_t **incarnations = (__parsec_chore_t **)&(tc->incarnations);
 
     *name_not_const           = name;
@@ -2143,11 +2144,11 @@ parsec_dtd_set_flow_in_function(parsec_dtd_taskpool_t *dtd_tp,
     }
 
     if ((tile_op_type & GET_OP_TYPE) == INPUT) {
-        flow->flow_flags = FLOW_ACCESS_READ;
+        flow->flow_flags = PARSEC_FLOW_ACCESS_READ;
     } else if ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
-        flow->flow_flags = FLOW_ACCESS_WRITE;
+        flow->flow_flags = PARSEC_FLOW_ACCESS_WRITE;
     } else if ((tile_op_type & GET_OP_TYPE) == INOUT) {
-        flow->flow_flags = FLOW_ACCESS_RW;
+        flow->flow_flags = PARSEC_FLOW_ACCESS_RW;
     }
 
     parsec_flow_t **in = (parsec_flow_t **)&(this_task->super.task_class->in[flow_index]);
@@ -2282,7 +2283,7 @@ parsec_dtd_schedule_tasks( parsec_dtd_taskpool_t *__tp )
     parsec_task_t **startup_list = __tp->startup_list;
     parsec_list_t temp;
 
-    OBJ_CONSTRUCT( &temp, parsec_list_t );
+    PARSEC_OBJ_CONSTRUCT( &temp, parsec_list_t );
     for(int p = 0; p < vpmap_get_nb_vp(); p++) {
         if( NULL == startup_list[p] ) continue;
 
@@ -2295,7 +2296,7 @@ parsec_dtd_schedule_tasks( parsec_dtd_taskpool_t *__tp )
                           startup_list[p], 0 );
         startup_list[p] = NULL;
     }
-    OBJ_DESTRUCT(&temp);
+    PARSEC_OBJ_DESTRUCT(&temp);
 }
 
 /* **************************************************************************** */
@@ -2381,6 +2382,7 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
         (tile_op_type & GET_OP_TYPE) == INOUT  ||
         (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE)
     {
+        assert(PASSED_BY_REF == arg_size);
         this_task->super.data[*flow_index].data_in   = NULL;
         this_task->super.data[*flow_index].data_out  = NULL;
         this_task->super.data[*flow_index].data_repo = NULL;
@@ -2395,9 +2397,11 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
         *flow_index += 1;
     } else if ((tile_op_type & GET_OP_TYPE) == REF) {
         assert(NULL != tile);
+        assert(0 < arg_size);
         current_param->pointer_to_tile = (void *)tile;
        *current_val = ((char*)*current_val) + arg_size;
     } else if ((tile_op_type & GET_OP_TYPE) == SCRATCH) {
+        assert(0 < arg_size);
         assert(parsec_dtd_task_is_local(this_task));
         if(NULL == tile) {
             current_param->pointer_to_tile = *current_val;
@@ -2410,6 +2414,7 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
          * and if the size is between 4 to 8 we treat
          * them as constant
          */
+        assert(0 != arg_size);
         assert(parsec_dtd_task_is_local(this_task));
         memcpy(*current_val, (void *)tile, arg_size);
         current_param->pointer_to_tile = *current_val;

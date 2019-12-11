@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2012 The University of Tennessee and The University
+ * Copyright (c) 2004-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -55,7 +55,7 @@ int parsec_show_help_init(void)
 {
     parsec_output_stream_t lds;
 
-    OBJ_CONSTRUCT(&lds, parsec_output_stream_t);
+    PARSEC_OBJ_CONSTRUCT(&lds, parsec_output_stream_t);
     lds.lds_want_stderr = true;
     output_stream = parsec_output_open(&lds);
 

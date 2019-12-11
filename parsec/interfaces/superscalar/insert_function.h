@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015-2017 The University of Tennessee and The University
+ * Copyright (c) 2015-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  **/
@@ -11,10 +11,9 @@
  *
  **/
 
-#ifndef INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
-#define INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
+#ifndef PARSEC_INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
+#define PARSEC_INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
 
-#include "parsec/parsec_config.h"
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 
@@ -49,43 +48,34 @@ BEGIN_C_DECLS
  *                  to allocate memory specified by the user.
  *                  This flag can also be used to pass pointer of any variable. Please look at the usage below.
  *  VALUE:          Tells the runtime to copy the value as a parameter of the task.
+ *  REF:            Tells the runtime to reference the user pointer (i.e., not a PaRSEC data)
  *
+ *  AFFINITY:       Indicates where to place a task. This flag should be provided with a data and the
+ *                  runtime will place the task in the rank where the data, this flag was provided with,
+ *                  resides.
+ *  DONT_TRACK:     This flag indicates to the runtime to not track any dependency associated with the
+ *                  data this flag was provided with.
+ *
+ *  Lower 16 bits:  Index (arbitrary value) for different REGIONS to express more specific dependency.
+ *                  Regions indices are user provided and must be mutually exclusive for the tile.
  */
-#define GET_OP_TYPE 0xf00000
 typedef enum { INPUT=0x100000,
                OUTPUT=0x200000,
                INOUT=0x300000,
                ATOMIC_WRITE=0x400000, /* DO NOT USE ,Iterate_successors do not support this at this point */
                SCRATCH=0x500000,
                VALUE=0x600000,
-               REF=0x700000
-             } parsec_dtd_op_type;
-
-/**
- * The following is a definition of the flags, for usage please check usage of parsec_dtd_taskpool_insert_task() below.
- *
- *   **  Details of Flags **
- *
- *  AFFINITY:       Indicates where to place a task. This flag should be provided with a data and the
- *                  runtime will place the task in the rank where the data, this flag was provided with,
- *                  resides.
- *
- *  DONT_TRACK:     This flag indicates to the runtime to not track any dependency associated with the
- *                  data this flag was provided with.
- *
- */
-
-#define GET_OTHER_FLAG_INFO 0xf0000
-typedef enum { AFFINITY=1<<16, /* Data affinity */
+               REF=0x700000,
+               GET_OP_TYPE=0xf00000, /* MASK: not an actual value, used to filter the relevant enum values */
+               AFFINITY=1<<16, /* Data affinity */
                DONT_TRACK=1<<17, /* Drop dependency tracking */
-             } parsed_dtd_other_flag_type;
+               GET_OTHER_FLAG_INFO=0xf0000, /* MASK: not an actual value, used to filter the relevant enum values */
+               GET_REGION_INFO=0xffff /* MASK: not an actual value, used to filter the relevant enum values */
+             } parsec_dtd_op_t;
 
-/**
- * Describes different regions to express more specific dependency.
- * All regions are mutually exclusive.
- */
-#define GET_REGION_INFO 0xffff
-#define PARSEC_DTD_ARG_END -111
+typedef enum { PASSED_BY_REF=-1,
+               PARSEC_DTD_ARG_END=0
+             } parsec_dtd_size_t;
 
 /**
  * Array of arenas to hold the data region shape and other information.
@@ -107,9 +97,6 @@ extern parsec_arena_t **parsec_dtd_arenas;
 extern int parsec_dtd_window_size;
 extern int parsec_dtd_threshold_size;
 
-#define PASSED_BY_REF                1
-#define MAX_FLOW                    25 /*< Max number of flows allowed per task */
-#define PARSEC_DTD_NB_TASK_CLASSES  25 /*< Max number of task classes allowed */
 
 typedef struct parsec_dtd_tile_s         parsec_dtd_tile_t;
 typedef struct parsec_dtd_task_s         parsec_dtd_task_t;
@@ -164,7 +151,7 @@ parsec_dtd_unpack_args( parsec_task_t *this_task, ... );
  * 2. m (coordinates of the data in the matrix)
  * 3. n (coordinates of the data in the matrix)
  */
-#define TILE_OF(DC, I, J) \
+#define PARSEC_DTD_TILE_OF(DC, I, J) \
     parsec_dtd_tile_of(&(__dc##DC->super.super), (&(__dc##DC->super.super))->data_key(&(__dc##DC->super.super), I, J))
 
 /**
@@ -172,7 +159,7 @@ parsec_dtd_unpack_args( parsec_task_t *this_task, ... );
  * data-descriptor and the key. The dc and the key will allow us
  * to uniquely identify the data a task is supposed to use.
  */
-#define TILE_OF_KEY(DC, KEY) \
+#define PARSEC_DTD_TILE_OF_KEY(DC, KEY) \
     parsec_dtd_tile_of(DC, KEY)
 
 /**
@@ -188,7 +175,7 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
  *    This function should include the actual computation the user wants to perform on the data.
  * 3. The priority of the task, if not sure user should provide 0.
  * 4. The name of the task.
- * 5. Variadic type paramter. User can pass any number of paramters. The runtime will pack the
+ * 5. Variadic type parameter. User can pass any number of paramters. The runtime will pack the
  *    parameters and attach them to the task they belong to. User can later use unpakcing
  *    fuction provided to get access to the parametrs.
  *    Each paramter to pass to a task should be expressed in the form of a triplet. e.g
@@ -214,9 +201,9 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
  *                               copied),
  *
  *
- *    3.    PASSED_BY_REF,         TILE_OF(dc, i, j),               INOUT/INPUT/OUTPUT,
+ *    3.    PASSED_BY_REF,         PARSEC_DTD_TILE_OF(dc, i, j),               INOUT/INPUT/OUTPUT,
  *                                         /                                    /
- *                                 TILE_OF_KEY(dc, key),            INOUT | REGION_INFO,
+ *                                 PARSEC_DTD_TILE_OF_KEY(dc, key),            INOUT | REGION_INFO,
  *                                                                              /
  *                                                                     INOUT | AFFINITY/DONT_TRACK,
  *                                                                              /
@@ -264,7 +251,7 @@ void
 parsec_insert_dtd_task(parsec_task_t *this_task);
 
 /**
- * This macros should be called anytime users
+ * This function should be called anytime users
  * are using data in their parsec-dtd runs.
  * This functions intializes/cleans necessary
  * structures in a data-descriptor(dc). The
@@ -272,13 +259,9 @@ parsec_insert_dtd_task(parsec_task_t *this_task);
  * has been acquired, and the fini before
  * the dc is cleaned.
  */
-#define DTD_DC_INIT(DC) \
-    parsec_dtd_data_collection_init(&(__dc##DC->super.super))
 void
 parsec_dtd_data_collection_init( parsec_data_collection_t *dc );
 
-#define DTD_DC_FINI(DC) \
-    parsec_dtd_data_collection_fini(&(__dc##DC->super.super))
 void
 parsec_dtd_data_collection_fini( parsec_data_collection_t *dc );
 
@@ -312,7 +295,7 @@ parsec_dtd_taskpool_wait( parsec_context_t *parsec,
  * to the rank that owns it. So we end up with the
  * same data distribution as we started with.
  * The tile of a data can be acqiured using the
- * TILE_OF or TILE_OF_KEY macro.
+ * PARSEC_DTD_TILE_OF or PARSEC_DTD_TILE_OF_KEY macro.
  * To ensure consistent and correct behavior, user
  * must wait on the taskpool before inserting
  * new task using this data after the flush.
@@ -350,4 +333,4 @@ parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp,
 
 END_C_DECLS
 
-#endif  /* INSERT_FUNCTION_H_HAS_BEEN_INCLUDED */
+#endif  /* PARSEC_INSERT_FUNCTION_H_HAS_BEEN_INCLUDED */

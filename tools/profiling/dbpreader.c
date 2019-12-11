@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <inttypes.h>
 #include <errno.h>
 #include <sys/mman.h>
@@ -794,7 +795,7 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
         res->first_events_buffer_offset = br->first_events_buffer_offset;
         res->current_events_buffer = refer_events_buffer(dbp->fd, br->first_events_buffer_offset);
 
-        OBJ_CONSTRUCT( res, parsec_list_item_t );
+        PARSEC_OBJ_CONSTRUCT( res, parsec_list_item_t );
 
         dbp->threads[head->nb_threads - nb].file = dbp;
         dbp->threads[head->nb_threads - nb].profile = res;

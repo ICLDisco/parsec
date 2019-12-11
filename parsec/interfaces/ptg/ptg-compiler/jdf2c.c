@@ -60,11 +60,11 @@ static char *short_type[] = {   "int32",   "int64", "float", "double" };
 static inline char* enum_type_name(int type)
 {
     switch(type) {
-    case 1: return "RETURN_TYPE_INT64"; break;
-    case 2: return "RETURN_TYPE_FLOAT"; break;
-    case 3: return "RETURN_TYPE_DOUBLE"; break;
+    case 1: return "PARSEC_RETURN_TYPE_INT64"; break;
+    case 2: return "PARSEC_RETURN_TYPE_FLOAT"; break;
+    case 3: return "PARSEC_RETURN_TYPE_DOUBLE"; break;
     default:
-        return "RETURN_TYPE_INT32";
+        return "PARSEC_RETURN_TYPE_INT32";
         break;
     }
 }
@@ -520,7 +520,7 @@ char * dump_expr(void **elem, void *arg)
  * Dump a predicate like
  *  #define F_pred(k, n, m) (__parsec_tp->ABC->rank == __parsec_tp->ABC->rank_of(__parsec_tp->ABC, k, n, m))
  * In case one of the arguments is an inline C we need to prepare the assignments to match the expected call
- * &(__parsec_%s_%s_assignment_t){.%s.value = %s, .%s.value = %s, .%s.value = %s}.
+ * &(__parsec_%s_%s_parsec_assignment_t){.%s.value = %s, .%s.value = %s, .%s.value = %s}.
  */
 static char* dump_predicate(void** elem, void *arg)
 {
@@ -532,7 +532,7 @@ static char* dump_predicate(void** elem, void *arg)
 
     /* Prepare the assignment field for the complex calls (where we have inline_C functions) */
     string_arena_init(sa);
-    string_arena_add_string(sa, "&(__parsec_%s_%s_assignment_t){%s}",
+    string_arena_add_string(sa, "&(__parsec_%s_%s_parsec_assignment_t){%s}",
                             jdf_basename, f->fname,
                             UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
                                                  dump_C99_struct_initialization, sa3,
@@ -788,7 +788,7 @@ static char *dump_profiling_init(void **elem, void *arg)
                             jdf_basename, fname, jdf_basename, fname);
     string_arena_add_string(info->sa,
                             "parsec_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
-                            "                                       sizeof(parsec_profile_data_collection_info_t)+%d*sizeof(assignment_t),\n"
+                            "                                       sizeof(parsec_profile_data_collection_info_t)+%d*sizeof(parsec_assignment_t),\n"
                             "                                       \"%s\",\n"
                             "                                       (int*)&__parsec_tp->super.super.profiling_array[0 + 2 * %s_%s.task_class_id /* %s start key */],\n"
                             "                                       (int*)&__parsec_tp->super.super.profiling_array[1 + 2 * %s_%s.task_class_id /* %s end key */]);\n",
@@ -1186,7 +1186,7 @@ static inline char* jdf_generate_task_typedef(void **elt, void* arg)
     sa_data = string_arena_new(64);
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nb_locals);
     UTIL_DUMP_LIST_FIELD(sa_locals, f->locals, next, name, dump_string, NULL,
-                         "", "  assignment_t ", ";\n", ";\n");
+                         "", "  parsec_assignment_t ", ";\n", ";\n");
 
     JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nb_flows);
     UTIL_DUMP_LIST_FIELD(sa_data, f->dataflow, next, varname, dump_string, NULL,
@@ -1196,12 +1196,12 @@ static inline char* jdf_generate_task_typedef(void **elt, void* arg)
     /* Prepare the structure for the named assignments */
     string_arena_add_string(sa, "typedef struct %s {\n"
                             "%s"
-                            "  assignment_t reserved[MAX_LOCAL_COUNT-%d];\n"
+                            "  parsec_assignment_t reserved[MAX_LOCAL_COUNT-%d];\n"
                             "} %s;\n\n",
                             parsec_get_name(NULL, f, "assignment_s"),
                             string_arena_get_string(sa_locals),
                             nb_locals,
-                            parsec_get_name(NULL, f, "assignment_t"));
+                            parsec_get_name(NULL, f, "parsec_assignment_t"));
     string_arena_add_string(sa, "typedef struct %s {\n"
                             "%s"
                             "  parsec_data_pair_t unused[MAX_LOCAL_COUNT-%d];\n"
@@ -1244,13 +1244,8 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
     houtput("#include \"parsec.h\"\n"
-            "#include \"parsec/constants.h\"\n"
-            "#include \"parsec/data_internal.h\"\n"
-            "#include \"parsec/ayudame.h\"\n"
-            "#include \"parsec/class/parsec_hash_table.h\"\n"
-            "#include \"parsec/execution_stream.h\"\n"
-            "#include <assert.h>\n"
-            "#include <string.h>\n\n");
+            "#include \"parsec/parsec_internal.h\"\n\n"
+            );
     houtput("BEGIN_C_DECLS\n\n");
 
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
@@ -1259,7 +1254,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
         datatype_index++;
     }
     houtput("#define PARSEC_%s_ARENA_INDEX_MIN %d\n", jdf_basename, datatype_index);
-    houtput("\ntypedef struct parsec_%s_taskpool_s {\n", jdf_basename);
+    houtput("typedef struct parsec_%s_taskpool_s {\n", jdf_basename);
     houtput("  parsec_taskpool_t super;\n");
     {
         typed_globals_info_t prop = { sa2, NULL, NULL, .prefix = "_g_" };
@@ -1337,6 +1332,9 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
     JDF_COUNT_LIST_ENTRIES(jdf->data, jdf_data_entry_t, next, nbdata);
     coutput("#include \"parsec.h\"\n"
+            "#include \"parsec/parsec_internal.h\"\n"
+            "#include \"parsec/ayudame.h\"\n"
+            "#include \"parsec/execution_stream.h\"\n"
             "#if defined(PARSEC_HAVE_CUDA)\n"
             "extern int parsec_cuda_output_stream;\n"
             "#include \"parsec/mca/device/cuda/device_cuda.h\"\n"
@@ -1482,7 +1480,7 @@ static void jdf_generate_structure(jdf_t *jdf)
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
             "    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, \"task %%s acquires flow %%s from %%s %%s data ptr %%p\",\\\n"
             "           parsec_task_snprintf(tmp1, 128, (parsec_task_t*)(TASKI)), (DEPI),\\\n"
-            "           (DEPO), parsec_snprintf_assignments(tmp2, 128, (FUNO), (assignment_t*)(LOCALS)), (PTR));\\\n"
+            "           (DEPO), parsec_snprintf_assignments(tmp2, 128, (FUNO), (parsec_assignment_t*)(LOCALS)), (PTR));\\\n"
             "  } while(0)\n"
             "#else\n"
             "#define RELEASE_DEP_OUTPUT(ES, DEPO, TASKO, DEPI, TASKI, RSRC, RDST, DATA)\n"
@@ -1498,7 +1496,7 @@ static void jdf_generate_structure(jdf_t *jdf)
  * expresion is a constant then it is directly returned, if the expression is an
  * inlined function then a call to the original accessor is generated
  * instead. This function only generates the code without generating the
- * corresponding expr_t.
+ * corresponding parsec_expr_t.
  */
 static void
 jdf_generate_function_without_expression(const jdf_t *jdf,
@@ -1519,7 +1517,7 @@ jdf_generate_function_without_expression(const jdf_t *jdf,
 
     coutput("static inline %s %s%s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *locals)\n"
             "{\n",
-            rettype, name, suffix, jdf_basename, parsec_get_name(jdf, f, "assignment_t"));
+            rettype, name, suffix, jdf_basename, parsec_get_name(jdf, f, "parsec_assignment_t"));
     if( !(JDF_OP_IS_C_CODE(e->op) || (JDF_OP_IS_CST(e->op))) ) {
         ai.sa = sa;
         ai.holder = "locals->";
@@ -1562,8 +1560,8 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_function_entry_
         jdf_generate_expression(jdf, f, e->jdf_ta2, subf);
 
         if( e->jdf_ta3->op == JDF_CST ) {
-            coutput("static const expr_t %s = {\n"
-                    "  .op = EXPR_OP_RANGE_CST_INCREMENT,\n"
+            coutput("static const parsec_expr_t %s = {\n"
+                    "  .op = PARSEC_EXPR_OP_RANGE_CST_INCREMENT,\n"
                     "  .u_expr.range = {\n"
                     "    .op1 = &rangemin_of_%s,\n"
                     "    .op2 = &rangemax_of_%s,\n"
@@ -1574,8 +1572,8 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_function_entry_
         } else {
             sprintf(subf, "rangeincrement_of_%s", JDF_OBJECT_ONAME(e));
             jdf_generate_expression(jdf, f, e->jdf_ta3, subf);
-            coutput("static const expr_t %s = {\n"
-                    "  .op = EXPR_OP_RANGE_EXPR_INCREMENT,\n"
+            coutput("static const parsec_expr_t %s = {\n"
+                    "  .op = PARSEC_EXPR_OP_RANGE_EXPR_INCREMENT,\n"
                     "  .u_expr.range = {\n"
                     "    .op1 = &rangemin_of_%s,\n"
                     "    .op2 = &rangemax_of_%s,\n"
@@ -1587,20 +1585,20 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_function_entry_
     } else if (e->op == JDF_C_CODE || e->op == JDF_CST) {
         jdf_generate_function_without_expression(jdf, f, e, JDF_OBJECT_ONAME(e), "_fct", full_type[e->jdf_type]);
 
-        coutput("static const expr_t %s = {\n"
-                "  .op = EXPR_OP_INLINE,\n"
+        coutput("static const parsec_expr_t %s = {\n"
+                "  .op = PARSEC_EXPR_OP_INLINE,\n"
                 "  .u_expr.v_func = { .type = %s,\n"
-                "                     .func = { .inline_func_%s = (expr_op_%s_inline_func_t)%s_fct }\n"
+                "                     .func = { .inline_func_%s = (parsec_expr_op_%s_inline_func_t)%s_fct }\n"
                 "                   }\n"
                 "};\n", JDF_OBJECT_ONAME(e), enum_type_name(e->jdf_type), short_type[e->jdf_type],
                 short_type[e->jdf_type], JDF_OBJECT_ONAME(e));
     } else {
         jdf_generate_function_without_expression(jdf, f, e, JDF_OBJECT_ONAME(e), "_fct", "int");
 
-        coutput("static const expr_t %s = {\n"
-                "  .op = EXPR_OP_INLINE,\n"
-                "  .u_expr.v_func = { .type = %s, /* RETURN_TYPE_INT32 */\n"
-                "                     .func = { .inline_func_int32 = (expr_op_int32_inline_func_t)%s_fct }\n"
+        coutput("static const parsec_expr_t %s = {\n"
+                "  .op = PARSEC_EXPR_OP_INLINE,\n"
+                "  .u_expr.v_func = { .type = %s, /* PARSEC_RETURN_TYPE_INT32 */\n"
+                "                     .func = { .inline_func_int32 = (parsec_expr_op_int32_inline_func_t)%s_fct }\n"
                 "                   }\n"
                 "};\n",
                 JDF_OBJECT_ONAME(e),
@@ -1861,7 +1859,7 @@ static void jdf_generate_symbols( const jdf_t *jdf, const jdf_function_entry_t *
         exprname = (char*)malloc(strlen(JDF_OBJECT_ONAME(d)) + 16);
         string_arena_init(sa);
 
-        string_arena_add_string(sa, "static const symbol_t %s = { .name = \"%s\", .context_index = %d, ", JDF_OBJECT_ONAME(d), d->name, id);
+        string_arena_add_string(sa, "static const parsec_symbol_t %s = { .name = \"%s\", .context_index = %d, ", JDF_OBJECT_ONAME(d), d->name, id);
 
         if( d->expr->op == JDF_RANGE ) {
             sprintf(exprname, "minexpr_of_%s", JDF_OBJECT_ONAME(d));
@@ -1923,7 +1921,7 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function
             "{\n"
             "  int   __nb_found = 0;\n"
             "  (void)__parsec_tp;\n",
-            fname, jdf_basename, parsec_get_name(jdf, of, "assignment_t"));
+            fname, jdf_basename, parsec_get_name(jdf, of, "parsec_assignment_t"));
 
     info1.sa = sa1;
     info1.prefix = "";
@@ -1974,10 +1972,10 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function
     coutput("  return __nb_found;\n"
             "}\n"
             "\n"
-            "static const expr_t %s = {\n"
-            "  .op = EXPR_OP_INLINE,\n"
-            "  .u_expr.v_func = { .type = %s, /* RETURN_TYPE_INT32 */\n"
-            "                     .func = { .inline_func_int32 = (expr_op_int32_inline_func_t)%s_fct }\n"
+            "static const parsec_expr_t %s = {\n"
+            "  .op = PARSEC_EXPR_OP_INLINE,\n"
+            "  .u_expr.v_func = { .type = %s, /* PARSEC_RETURN_TYPE_INT32 */\n"
+            "                     .func = { .inline_func_int32 = (parsec_expr_op_int32_inline_func_t)%s_fct }\n"
             "                   }\n"
             "};\n\n", fname, enum_type_name(0), fname);
 
@@ -2022,7 +2020,7 @@ static void jdf_generate_direct_data_function(const jdf_t *jdf, const char *mem,
             "  return NULL;\n"
             "}\n"
             "\n",
-            function_name, jdf_basename, parsec_get_name(jdf, f, "assignment_t"),
+            function_name, jdf_basename, parsec_get_name(jdf, f, "parsec_assignment_t"),
             UTIL_DUMP_LIST(sa1, f->locals, next,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"),
             UTIL_DUMP_LIST_FIELD(sa3, f->locals, next, name,
@@ -2080,7 +2078,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
         dump_expr((void**)dep->guard->guard, &info);
     }
     string_arena_add_string(sa,
-                            "static const dep_t %s = {\n"
+                            "static const parsec_dep_t %s = {\n"
                             "  .cond = %s,  /* %s%s */\n"
                             "  .ctl_gather_nb = %s,\n",
                             JDF_OBJECT_ONAME(call),
@@ -2105,7 +2103,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
                                     jdf_basename, call->func_or_mem);
         }
         string_arena_add_string(sa,
-                                "  .direct_data = (direct_data_lookup_func_t)NULL,\n"
+                                "  .direct_data = (parsec_data_lookup_func_t)NULL,\n"
                                 "  .flow = &flow_of_%s_%s_for_%s,\n",
                                 jdf_basename, call->func_or_mem, call->var);
     } else {
@@ -2116,7 +2114,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
                                               string_arena_get_string(tmp_fct_name));
             string_arena_add_string(sa,
                                     "  .task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID, /* %s_%s */\n"
-                                    "  .direct_data = (direct_data_lookup_func_t)&%s,\n",
+                                    "  .direct_data = (parsec_data_lookup_func_t)&%s,\n",
                                     jdf_basename, call->func_or_mem,
                                     string_arena_get_string(tmp_fct_name));
             string_arena_free(tmp_fct_name);
@@ -2124,7 +2122,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
         else {
             string_arena_add_string(sa,
                                     "  .task_class_id = PARSEC_LOCAL_DATA_TASK_CLASS_ID, /* %s_%s */\n"
-                                    "  .direct_data = (direct_data_lookup_func_t)NULL,\n",
+                                    "  .direct_data = (parsec_data_lookup_func_t)NULL,\n",
                                     jdf_basename, call->func_or_mem);
         }
     }
@@ -2233,14 +2231,14 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
 
     alldeps_type = jdf_dataflow_type(flow);
     sym_type = ((alldeps_type & JDF_DEP_FLOW_IN) ?
-                ((alldeps_type & JDF_DEP_FLOW_OUT) ? "SYM_INOUT" : "SYM_IN") : "SYM_OUT");
+                ((alldeps_type & JDF_DEP_FLOW_OUT) ? "PARSEC_SYM_INOUT" : "PARSEC_SYM_IN") : "PARSEC_SYM_OUT");
 
     string_arena_init(flow_flags);
-    string_arena_add_string(flow_flags, "%s", ((flow->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
+    string_arena_add_string(flow_flags, "%s", ((flow->flow_flags & JDF_FLOW_TYPE_CTL) ? "PARSEC_FLOW_ACCESS_NONE" :
                                                ((flow->flow_flags & JDF_FLOW_TYPE_READ) ?
-                                                ((flow->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_RW" : "FLOW_ACCESS_READ") : "FLOW_ACCESS_WRITE")));
+                                                ((flow->flow_flags & JDF_FLOW_TYPE_WRITE) ? "PARSEC_FLOW_ACCESS_RW" : "PARSEC_FLOW_ACCESS_READ") : "PARSEC_FLOW_ACCESS_WRITE")));
     if(flow->flow_flags & JDF_FLOW_HAS_IN_DEPS)
-        string_arena_add_string(flow_flags, "|FLOW_HAS_IN_DEPS");
+        string_arena_add_string(flow_flags, "|PARSEC_FLOW_HAS_IN_DEPS");
 
     if(strlen(string_arena_get_string(sa_dep_in)) == 0) {
         string_arena_add_string(sa_dep_in, "NULL");
@@ -2769,7 +2767,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
 
     if( need_to_iterate ) {
-        coutput("  %s assignments;\n", parsec_get_name(jdf, f, "assignment_t"));
+        coutput("  %s assignments;\n", parsec_get_name(jdf, f, "parsec_assignment_t"));
         if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
             coutput("  parsec_dependencies_t *dep = NULL;\n");
         }
@@ -2968,7 +2966,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
     string_arena_free(sa1);
     string_arena_free(sa2);
-    coutput("\n  AYU_REGISTER_TASK(&%s_%s);\n", jdf_basename, f->fname);
+    coutput("\n  PARSEC_AYU_REGISTER_TASK(&%s_%s);\n", jdf_basename, f->fname);
     idx = 0;
     JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, idx);
     if( f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS ) {
@@ -2982,7 +2980,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     f->task_class_id);
         } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ||
                    0 != (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_STRUCT)) {
-            coutput("  __parsec_tp->super.super.dependencies_array[%d] = OBJ_NEW(parsec_hash_table_t);\n"
+            coutput("  __parsec_tp->super.super.dependencies_array[%d] = PARSEC_OBJ_NEW(parsec_hash_table_t);\n"
                     "  parsec_hash_table_init(__parsec_tp->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), 10, %s, this_task->taskpool);\n",
                     f->task_class_id, f->task_class_id, dep_key_fn_name);
             free(dep_key_fn_name);
@@ -3156,7 +3154,7 @@ static void jdf_generate_release_task_fct(const jdf_t *jdf, jdf_function_entry_t
             jdf_basename);
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
         coutput("    parsec_hash_table_t *ht = (parsec_hash_table_t*)__parsec_tp->super.super.dependencies_array[%d];\n"
-                "    parsec_key_t key = this_task->task_class->make_key((const parsec_taskpool_t*)__parsec_tp, (const assignment_t*)&this_task->locals);\n"
+                "    parsec_key_t key = this_task->task_class->make_key((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals);\n"
                 "    parsec_hashable_dependency_t *hash_dep = (parsec_hashable_dependency_t *)parsec_hash_table_remove(ht, key);\n"
                 "    parsec_thread_mempool_free(hash_dep->mempool_owner, hash_dep);\n",
                 f->task_class_id);
@@ -3541,7 +3539,7 @@ static void jdf_generate_priority_prototypes( const jdf_t *jdf )
     for(f = jdf->functions; f != NULL; f = f->next) {
         if( NULL == f->priority ) continue;
         coutput("static inline int priority_of_%s_as_expr_fct(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *assignments);\n",
-                JDF_OBJECT_ONAME( f ), jdf_basename, parsec_get_name(jdf, f, "assignment_t"));
+                JDF_OBJECT_ONAME( f ), jdf_basename, parsec_get_name(jdf, f, "parsec_assignment_t"));
     }
 }
 
@@ -3609,7 +3607,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    task->taskpool = (parsec_taskpool_t *)__parsec_tp;\n"
             "    task->chore_id = 0;\n"
             "    task->status = PARSEC_TASK_STATUS_NONE;\n"
-            "    memset(&task->locals, 0, sizeof(assignment_t) * MAX_LOCAL_COUNT);\n"
+            "    memset(&task->locals, 0, sizeof(parsec_assignment_t) * MAX_LOCAL_COUNT);\n"
             "    PARSEC_LIST_ITEM_SINGLETON(task);\n"
             "    task->priority = -1;\n"
             "    task->task_class = task->taskpool->task_classes_array[PARSEC_%s_NB_TASK_CLASSES + i];\n"
@@ -3889,7 +3887,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     }
 
     for(jdf_function_entry_t *f = jdf->functions; f != NULL; f = f->next) {
-        coutput("  AYU_REGISTER_TASK(&%s_%s);\n",
+        coutput("  PARSEC_AYU_REGISTER_TASK(&%s_%s);\n",
                 jdf_basename, f->fname);
     }
 
@@ -3931,7 +3929,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     int idx;
 
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY) ) {
-        coutput("static inline parsec_key_t %s(const parsec_taskpool_t *tp, const assignment_t *as)\n"
+        coutput("static inline parsec_key_t %s(const parsec_taskpool_t *tp, const parsec_assignment_t *as)\n"
                 "{\n",
                 jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
         if( f->parameters == NULL ) {
@@ -3942,7 +3940,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
                      "  const %s *assignment = (const %s*)as;\n"
                      "  uintptr_t __parsec_id = 0;\n",
                      jdf_basename, jdf_basename,
-                     parsec_get_name(jdf, f, "assignment_t"), parsec_get_name(jdf, f, "assignment_t"));
+                     parsec_get_name(jdf, f, "parsec_assignment_t"), parsec_get_name(jdf, f, "parsec_assignment_t"));
             
             info.prefix = "";
             info.suffix = "";
@@ -4179,10 +4177,10 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
             exit(1);
         }
         coutput("%s *target_locals = (%s*)&generic_locals;\n",
-                parsec_get_name(jdf, targetf, "assignment_t"), parsec_get_name(jdf, targetf, "assignment_t"));
+                parsec_get_name(jdf, targetf, "parsec_assignment_t"), parsec_get_name(jdf, targetf, "parsec_assignment_t"));
         coutput("%s", jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "target_locals", call));
 
-        coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const assignment_t*)target_locals) );\n",
+        coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)target_locals) );\n",
                 spaces, call->func_or_mem, jdf_property_get_string(targetf->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
 
         coutput("%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n"
@@ -4196,7 +4194,7 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
         /* Memory references */
         if ( call->parameters != NULL) {
             coutput("%s    chunk = parsec_data_get_copy(data_of_%s(%s), target_device);\n"
-                    "%s    OBJ_RETAIN(chunk);\n"
+                    "%s    PARSEC_OBJ_RETAIN(chunk);\n"
                     "%s    this_task->data._f_%s.data_out = chunk;\n",
                     spaces, call->func_or_mem,
                     UTIL_DUMP_LIST(sa, call->parameters, next,
@@ -4908,7 +4906,7 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
     coutput("static int %s(parsec_execution_stream_t *es, %s *this_task)\n"
             "{\n"
             "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
-            "  assignment_t generic_locals[MAX_PARAM_COUNT];  /* generic task locals */\n"
+            "  parsec_assignment_t generic_locals[MAX_PARAM_COUNT];  /* generic task locals */\n"
             "  int target_device = 0; (void)target_device;\n"
             "  (void)__parsec_tp; (void)generic_locals; (void)es;\n"
             "  parsec_data_copy_t *chunk = NULL;\n"
@@ -5169,7 +5167,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  }\n"
             "\n"
             "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
-            "  OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
+            "  PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
             "  gpu_task->submit = &gpu_kernel_submit_%s_%s;\n"
             "  gpu_task->task_type = 0;\n"
@@ -5373,9 +5371,9 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                        "    }\n",
                        fl->varname,
                        fl->varname,
-                       ((fl->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
+                       ((fl->flow_flags & JDF_FLOW_TYPE_CTL) ? "PARSEC_FLOW_ACCESS_NONE" :
                         ((fl->flow_flags & JDF_FLOW_TYPE_READ) ?
-                         ((fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_RW" : "FLOW_ACCESS_READ") : "FLOW_ACCESS_WRITE")));
+                         ((fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? "PARSEC_FLOW_ACCESS_RW" : "PARSEC_FLOW_ACCESS_READ") : "PARSEC_FLOW_ACCESS_WRITE")));
             }
         }
         coutput("#endif  /* defined(PARSEC_HAVE_CUDA) */\n");
@@ -5596,7 +5594,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 {
     coutput("static int %s(parsec_execution_stream_t *es, %s *this_task, uint32_t action_mask, parsec_remote_deps_t *deps)\n"
             "{\n"
-            "PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *)this_task);"
+            "PARSEC_PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *)this_task);"
             "{\n"
             "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
             "  parsec_release_dep_fct_arg_t arg;\n"
@@ -5616,7 +5614,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
        coutput("  if( action_mask & (PARSEC_ACTION_RELEASE_LOCAL_DEPS | PARSEC_ACTION_GET_REPO_ENTRY) ) {\n"
-                "    arg.output_entry = data_repo_lookup_entry_and_create( es, %s_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const assignment_t*)&this_task->locals) );\n"
+                "    arg.output_entry = data_repo_lookup_entry_and_create( es, %s_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals) );\n"
                 "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
                 "#if defined(PARSEC_SIM)\n"
                 "    assert(arg.output_entry->sim_exec_date == 0);\n"
@@ -5655,7 +5653,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     jdf_generate_code_free_hash_table_entry(jdf, f);
 
     coutput(
-        "PINS(es, RELEASE_DEPS_END, (parsec_task_t *)this_task);"
+        "PARSEC_PINS(es, RELEASE_DEPS_END, (parsec_task_t *)this_task);"
         "}\n"
         "  return 0;\n"
         "}\n"
@@ -6205,7 +6203,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     assignment_info_t ai;
     int rc;
 
-    /* Make sure we generate an inline only once (this allows for shortcuts while identifying identical expr_t */
+    /* Make sure we generate an inline only once (this allows for shortcuts while identifying identical parsec_expr_t */
     if( NULL != expr->jdf_c_code.fname )
         return;
 
@@ -6223,7 +6221,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
                 "  (void)__parsec_tp;\n",
                 full_type[expr->jdf_type],
                 expr->jdf_c_code.fname, jdf_basename,
-                parsec_get_name(NULL, expr->jdf_c_code.function_context, "assignment_t"));
+                parsec_get_name(NULL, expr->jdf_c_code.function_context, "parsec_assignment_t"));
 
         coutput("  /* This inline C function was declared in the context of the task %s */\n",
                 expr->jdf_c_code.function_context->fname);
@@ -6241,7 +6239,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
         rc = asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
                       jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
         assert(rc != -1);
-        coutput("static inline int %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const assignment_t *assignments)\n"
+        coutput("static inline int %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const parsec_assignment_t *assignments)\n"
                 "{\n"
                 "  /* This inline C function was declared in the global context: no variables */\n"
                 "  (void)assignments;\n"

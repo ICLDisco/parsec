@@ -33,9 +33,9 @@ struct __parsec_walk_DOWN_assignment_s;
 struct __parsec_walk_DO_DOWN_assignment_s;
 struct __parsec_walk_DOWN_task_s;
 
-static parsec_key_t up_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
-static parsec_key_t down_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
-static parsec_key_t do_down_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
+static parsec_key_t up_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as);
+static parsec_key_t down_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as);
+static parsec_key_t do_down_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as);
 static uint32_t undetermined_nb_tasks(struct __parsec_walk_internal_taskpool_s *__tp);
 
 static void                *my_alloc_deps(struct __parsec_walk_internal_taskpool_s *__tp);
@@ -225,21 +225,21 @@ static uint64_t my_simple_tree_hash(int n, int l)
     return (((uint64_t)n) << 32) | ((uint64_t)l);
 }
 
-static parsec_key_t up_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
+static parsec_key_t up_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as)
 {
     const struct __parsec_walk_UP_assignment_s * assignments = (const struct __parsec_walk_UP_assignment_s *)_as;
     (void)__tp;
     return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static parsec_key_t down_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
+static parsec_key_t down_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as)
 {
     const struct __parsec_walk_DOWN_assignment_s * assignments = (const struct __parsec_walk_DOWN_assignment_s *)_as;
     (void)__tp;
     return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static parsec_key_t do_down_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
+static parsec_key_t do_down_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as)
 {
     const struct __parsec_walk_DO_DOWN_assignment_s * assignments = (struct __parsec_walk_DO_DOWN_assignment_s *)_as;
     (void)__tp;

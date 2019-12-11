@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -119,9 +119,9 @@ void parsec_prof_grapher_init(const char *base_filename, int nbthreads)
     nbfuncs = 128;
     colors = (char**)malloc(nbfuncs * sizeof(char*));
     for(t = 0; t < nbfuncs; t++)
-        colors[t] = unique_color(rank * nbfuncs + t, size * nbfuncs);
+        colors[t] = parsec_unique_color(rank * nbfuncs + t, size * nbfuncs);
 
-    data_ht = OBJ_NEW(parsec_hash_table_t);
+    data_ht = PARSEC_OBJ_NEW(parsec_hash_table_t);
     parsec_hash_table_init(data_ht, offsetof(parsec_grapher_data_identifier_hash_table_item_t, ht_item), 16, parsec_grapher_data_key_fns, NULL);
 }
 
@@ -218,8 +218,8 @@ void parsec_prof_grapher_dep(const parsec_task_t* from, const parsec_task_t* to,
                 "%s [label=\"%s=>%s\",color=\"#%s\",style=\"%s\"]\n",
                 tmp, origin_flow->name, dest_flow->name,
                 dependency_activates_task ? "00FF00" : "FF0000",
-                ((dest_flow->flow_flags == FLOW_ACCESS_NONE) ? "dotted":
-                 (dest_flow->flow_flags == FLOW_ACCESS_RW) ? "solid" : "dashed"));
+                ((dest_flow->flow_flags == PARSEC_FLOW_ACCESS_NONE) ? "dotted":
+                 (dest_flow->flow_flags == PARSEC_FLOW_ACCESS_RW) ? "solid" : "dashed"));
         fflush(grapher_file);
     }
 }
@@ -305,7 +305,7 @@ void parsec_prof_grapher_fini(void)
 
     /* Free all data records */
     parsec_hash_table_for_all(data_ht, parsec_grapher_data_ht_free_elt, data_ht);
-    OBJ_RELEASE(data_ht);
+    PARSEC_OBJ_RELEASE(data_ht);
     data_ht = NULL;
 }
 

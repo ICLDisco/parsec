@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#ifndef _mempool_h
-#define _mempool_h
+#ifndef _parsec_mempool_h
+#define _parsec_mempool_h
 
 #include "parsec/parsec_config.h"
 #include "parsec/class/lifo.h"
@@ -67,7 +67,7 @@ struct parsec_thread_mempool_s {
 #define PARSEC_MEMPOOL_CONSTRUCT( mempool, type, field_name, nbthreads )    \
     do {                                                                   \
         type __pseudo_elt;                                                 \
-        parsec_mempool_construct( (mempool), OBJ_CLASS(type), sizeof(type), \
+        parsec_mempool_construct( (mempool), PARSEC_OBJ_CLASS(type), sizeof(type), \
                                  (char*)&(__pseudo_elt.##field_name) -     \
                                  (char*)&(__pseudo_elt),                   \
                                  nbthreads );                              \
@@ -179,4 +179,4 @@ uint64_t parsec_mempool_destruct( parsec_mempool_t *mempool );
 
 END_C_DECLS
 
-#endif /* defined(_mempool_h) */
+#endif /* defined(_parsec_mempool_h) */

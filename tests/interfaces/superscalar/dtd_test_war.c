@@ -120,15 +120,15 @@ int main(int argc, char ** argv)
     for( i = 0; i < no_of_tasks; i++ ) {
         key = A->data_key(A, i, 0);
         parsec_dtd_taskpool_insert_task( dtd_tp, call_to_kernel_type_write,    0,  "Write_Task",
-                           PASSED_BY_REF,    TILE_OF_KEY(A, key),   INOUT | TILE_FULL | AFFINITY,
+                           PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, key),   INOUT | TILE_FULL | AFFINITY,
                            PARSEC_DTD_ARG_END );
         for( j = 0; j < no_of_read_tasks; j++ ) {
             parsec_dtd_taskpool_insert_task( dtd_tp, call_to_kernel_type_read,   0,   "Read_Task",
-                               PASSED_BY_REF,    TILE_OF_KEY(A, key),   INPUT | TILE_FULL | AFFINITY,
+                               PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, key),   INPUT | TILE_FULL | AFFINITY,
                                PARSEC_DTD_ARG_END );
         }
         parsec_dtd_taskpool_insert_task( dtd_tp, call_to_kernel_type_write,    0,  "Write_Task",
-                           PASSED_BY_REF,    TILE_OF_KEY(A, key),   INOUT | TILE_FULL | AFFINITY,
+                           PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, key),   INOUT | TILE_FULL | AFFINITY,
                            PARSEC_DTD_ARG_END );
     }
 

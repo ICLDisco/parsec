@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016-2017 The University of Tennessee and The University
+ * Copyright (c) 2016-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,7 @@
 #ifndef PARSEC_INTERFACE_H_HAS_BEEN_INCLUDED
 #define PARSEC_INTERFACE_H_HAS_BEEN_INCLUDED
 
-#include "parsec/parsec_internal.h"
+#include "parsec/runtime.h"
 
 BEGIN_C_DECLS
 
@@ -18,7 +18,7 @@ BEGIN_C_DECLS
 
 /**
  * Task class ID for dependencies targeting local data (used as input).
- * Use this as the task_class_id of the dep_t to pinpoint to a local
+ * Use this as the task_class_id of the parsec_dep_t to pinpoint to a local
  * data instead of a task.
  */
 #define PARSEC_LOCAL_DATA_TASK_CLASS_ID ((uint8_t)0xFF) /* task_class_id is uint8_t */

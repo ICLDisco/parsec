@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -74,8 +74,8 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
 int
 set_deps_for_flush_task(const parsec_task_class_t *tc)
 {
-    dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
-    dep_t *parent_dep = (dep_t *) malloc(sizeof(dep_t));
+    parsec_dep_t *desc_dep = (parsec_dep_t *) malloc(sizeof(parsec_dep_t));
+    parsec_dep_t *parent_dep = (parsec_dep_t *) malloc(sizeof(parsec_dep_t));
 
     parent_dep->cond            = NULL;
     parent_dep->ctl_gather_nb   = NULL;
@@ -97,11 +97,11 @@ set_deps_for_flush_task(const parsec_task_class_t *tc)
 
 
     parsec_flow_t **parent_out = (parsec_flow_t **)&(tc->out[0]);
-    (*parent_out)->dep_out[0] = (dep_t *)parent_dep;
+    (*parent_out)->dep_out[0] = (parsec_dep_t *)parent_dep;
     (*parent_out)->flow_datatype_mask |= (1U << parent_dep->dep_datatype_index);
 
     parsec_flow_t **desc_in = (parsec_flow_t **)&(tc->in[0]);
-    (*desc_in)->dep_in[0]  = (dep_t *)desc_dep;
+    (*desc_in)->dep_in[0]  = (parsec_dep_t *)desc_dep;
 
     return 1;
 }
@@ -267,7 +267,7 @@ parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int
                                             (parsec_task_class_t *)tc, task_rank);
     this_task->super.priority = priority;
     int flow_index = 0;
-    parsec_dtd_set_params_of_task(this_task, tile, INOUT, &flow_index, NULL, NULL, 0);
+    parsec_dtd_set_params_of_task(this_task, tile, INOUT, &flow_index, NULL, NULL, PASSED_BY_REF);
 
     parsec_object_t *object = (parsec_object_t *)this_task;
     /* this task will vanish as we insert the next receive task */
@@ -383,9 +383,9 @@ parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     parsec_hash_table_t *hash_table   = (parsec_hash_table_t *)dc->tile_h_table;
 
-    PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_BEGIN, NULL);
+    PARSEC_PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_BEGIN, NULL);
 
-    parsec_hash_table_for_all( hash_table, (hash_elem_fct_t)parsec_internal_dtd_data_flush, tp);
+    parsec_hash_table_for_all( hash_table, (parsec_hash_elem_fct_t)parsec_internal_dtd_data_flush, tp);
 
-    PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_END, NULL);
+    PARSEC_PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_END, NULL);
 }

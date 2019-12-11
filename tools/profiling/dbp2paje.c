@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The University of Tennessee and The University
+ * Copyright (c) 2011-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -604,7 +604,7 @@ static int dump_one_event( parsec_list_t *consolidated_events,
     cev = (consolidated_event_t*)malloc(sizeof(consolidated_event_t) +
                                         dbp_event_info_len(estart, dbp) +
                                         dbp_event_info_len(eend,   dbp) );
-    OBJ_CONSTRUCT(cev, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(cev, parsec_list_item_t);
 
     cev->event_id  = dbp_event_get_event_id(  estart );
     cev->taskpool_id = dbp_event_get_taskpool_id( estart );
@@ -646,7 +646,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     int nb_steps;
 
     pit = dbp_iterator_new_from_thread( th );
-    OBJ_CONSTRUCT( &consolidated_events, parsec_list_t );
+    PARSEC_OBJ_CONSTRUCT( &consolidated_events, parsec_list_t );
     while( (e = dbp_iterator_current(pit)) != NULL ) {
         if( KEY_IS_START( dbp_event_get_key(e) ) ) {
 
@@ -772,7 +772,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
         progress_bar_event_output();
     }
 
-    OBJ_DESTRUCT( &consolidated_events );
+    PARSEC_OBJ_DESTRUCT( &consolidated_events );
     return 0;
 }
 

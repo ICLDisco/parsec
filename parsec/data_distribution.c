@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017      The University of Tennessee and The University
+ * Copyright (c) 2017-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -32,7 +32,7 @@ int
 parsec_data_dist_init(void)
 {
     int count;
-    parsec_dc_hash_table = OBJ_NEW(parsec_hash_table_t);
+    parsec_dc_hash_table = PARSEC_OBJ_NEW(parsec_hash_table_t);
     for(count = 1; count < 16 && (1<<count)<parsec_dc_hash_table_size; count++) /* nothing */;
     parsec_hash_table_init(parsec_dc_hash_table,
                            offsetof(parsec_dc_t, ht_item),
@@ -86,7 +86,7 @@ parsec_data_collection_init(parsec_data_collection_t *d,
     d->nodes  = nodes;
     d->myrank = myrank;
     d->tile_h_table = NULL;
-    d->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
+    d->memory_registration_status = PARSEC_MEMORY_STATUS_UNREGISTERED;
 }
 
 void

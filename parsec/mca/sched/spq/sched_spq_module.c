@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2017-2018 The University of Tennessee and The University
+ * Copyright (c) 2017-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -37,23 +37,23 @@ typedef struct parsec_spq_priority_list_s {
     parsec_list_t      tasks;
     int                prio;
 } parsec_spq_priority_list_t;
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_spq_priority_list_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_spq_priority_list_t);
 
 static inline void parsec_spq_priority_list_construct( parsec_spq_priority_list_t*plist );
 static inline void parsec_spq_priority_list_destruct( parsec_spq_priority_list_t *plist );
 
-OBJ_CLASS_INSTANCE(parsec_spq_priority_list_t, parsec_list_item_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_spq_priority_list_t, parsec_list_item_t,
                    parsec_spq_priority_list_construct, parsec_spq_priority_list_destruct);
 
 static inline void parsec_spq_priority_list_construct( parsec_spq_priority_list_t*plist )
 {
-    OBJ_CONSTRUCT(&plist->tasks, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&plist->tasks, parsec_list_t);
     plist->prio = -1;
 }
 
 static inline void parsec_spq_priority_list_destruct( parsec_spq_priority_list_t*plist )
 {
-    OBJ_DESTRUCT(&plist->tasks);
+    PARSEC_OBJ_DESTRUCT(&plist->tasks);
 }
 
 /* Since we're locking the list for all operations anyway,
@@ -67,11 +67,11 @@ typedef struct {
 #endif
 } parsec_list_with_size_t;
 
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_list_with_size_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_list_with_size_t);
 
 static inline void parsec_list_with_size_construct( parsec_list_with_size_t*plist );
 
-OBJ_CLASS_INSTANCE(parsec_list_with_size_t, parsec_list_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_list_with_size_t, parsec_list_t,
                    parsec_list_with_size_construct, NULL);
 
 static inline void parsec_list_with_size_construct( parsec_list_with_size_t*plist )
@@ -108,7 +108,7 @@ static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     parsec_vp_t *vp = es->virtual_process;
 
     if (es == vp->execution_streams[0])
-        vp->execution_streams[0]->scheduler_object = OBJ_NEW(parsec_list_with_size_t);
+        vp->execution_streams[0]->scheduler_object = PARSEC_OBJ_NEW(parsec_list_with_size_t);
 
     parsec_barrier_wait(barrier);
 
@@ -184,7 +184,7 @@ static int sched_spq_schedule(parsec_execution_stream_t* es,
         li = PARSEC_LIST_ITERATOR_NEXT(li);
     }
     if( new_prio ) {
-        plist = OBJ_NEW(parsec_spq_priority_list_t);
+        plist = PARSEC_OBJ_NEW(parsec_spq_priority_list_t);
         plist->prio = distance;
         parsec_list_nolock_add_before(&task_list->super, li, &plist->super);
     }
@@ -213,8 +213,8 @@ static void sched_spq_remove( parsec_context_t *master )
             if( eu->th_id == 0 ) {
                 plist = (parsec_list_with_size_t *)eu->scheduler_object;
                 while( (li = parsec_list_pop_front(&plist->super)) != NULL )
-                    OBJ_RELEASE(li);
-                OBJ_RELEASE( plist );
+                    PARSEC_OBJ_RELEASE(li);
+                PARSEC_OBJ_RELEASE( plist );
             }
             eu->scheduler_object = NULL;
         }

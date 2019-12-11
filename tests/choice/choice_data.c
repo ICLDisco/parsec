@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -39,10 +39,10 @@ get_or_create_data(my_datatype_t* dat, uint32_t pos)
     assert(pos <= dat->size);
 
     if( NULL == data ) {
-        parsec_data_copy_t* data_copy = OBJ_NEW(parsec_data_copy_t);
-        data = OBJ_NEW(parsec_data_t);
+        parsec_data_copy_t* data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
+        data = PARSEC_OBJ_NEW(parsec_data_t);
 
-        data_copy->coherency_state = DATA_COHERENCY_OWNED;
+        data_copy->coherency_state = PARSEC_DATA_COHERENCY_OWNED;
         data_copy->original = data;
         data_copy->device_private = &dat->data[pos];
 

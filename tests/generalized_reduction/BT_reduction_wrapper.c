@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -51,5 +51,5 @@ void BT_reduction_destroy(parsec_taskpool_t *o)
     MPI_Type_free( &block );
 #endif
 
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
+    parsec_taskpool_free(o);
 }

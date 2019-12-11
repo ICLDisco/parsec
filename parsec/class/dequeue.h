@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -33,7 +33,7 @@ BEGIN_C_DECLS
  * @brief An (opaque) dequeue object
  */
 typedef parsec_list_t parsec_dequeue_t;
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_dequeue_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_dequeue_t);
 
 /**
  * @brief check if dequeue is empty

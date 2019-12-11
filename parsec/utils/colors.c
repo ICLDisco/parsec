@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 The University of Tennessee and The University
+ * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -73,7 +73,7 @@ static inline double get_rand_in_range(int m, int M)
     return (double)m + (double)rand_r(&color_seed) / ((double)RAND_MAX / (M - m + 1) + 1);
 }
 
-char *unique_color(int index, int colorspace)
+char *parsec_unique_color(int index, int colorspace)
 {
     char color[8];
     double r, g, b;

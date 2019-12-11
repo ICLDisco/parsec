@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -136,7 +136,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
     char tmp[MAX_TASK_STRLEN];
     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
-    AYU_TASK_RUN(es->th_id, task);
+    PARSEC_AYU_TASK_RUN(es->th_id, task);
 
     if (NULL == tc->incarnations[task->chore_id].hook) {
 #if !defined(PARSEC_DEBUG)
@@ -148,7 +148,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
         return PARSEC_HOOK_RETURN_ERROR;
     }
 
-    PINS(es, EXEC_BEGIN, task);
+    PARSEC_PINS(es, EXEC_BEGIN, task);
     /* Try all the incarnations until one agree to execute. */
     do {
         if( NULL != (eval = tc->incarnations[task->chore_id].evaluate) ) {
@@ -177,7 +177,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
 
         rc = hook( es, task );
         if( PARSEC_HOOK_RETURN_NEXT != rc ) {
-            PINS(es, EXEC_END, task);
+            PARSEC_PINS(es, EXEC_END, task);
             if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
                 /* Let's assume everything goes just fine */
                 task->status = PARSEC_TASK_STATUS_COMPLETE;
@@ -190,7 +190,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
     } while(NULL != tc->incarnations[task->chore_id].hook);
     assert(task->status == PARSEC_TASK_STATUS_HOOK);
     /* We're out of luck, no more chores */
-    PINS(es, EXEC_END, task);
+    PARSEC_PINS(es, EXEC_END, task);
     return PARSEC_HOOK_RETURN_ERROR;
 }
 
@@ -226,22 +226,22 @@ int parsec_check_complete_cb(parsec_taskpool_t *tp, parsec_context_t *context, i
             (void)tp->on_complete( tp, tp->on_complete_data );
         }
         (void)parsec_atomic_fetch_dec_int32( &context->active_taskpools );
-        PINS_TASKPOOL_FINI(tp);
+        PARSEC_PINS_TASKPOOL_FINI(tp);
         return 1;
     }
     return 0;
 }
 
-parsec_sched_module_t *current_scheduler                  = NULL;
+parsec_sched_module_t *parsec_current_scheduler           = NULL;
 static parsec_sched_base_component_t *scheduler_component = NULL;
 
 void parsec_remove_scheduler( parsec_context_t *parsec )
 {
-    if( NULL != current_scheduler ) {
-        current_scheduler->module.remove( parsec );
+    if( NULL != parsec_current_scheduler ) {
+        parsec_current_scheduler->module.remove( parsec );
         assert( NULL != scheduler_component );
         mca_component_close( (mca_base_component_t*)scheduler_component );
-        current_scheduler = NULL;
+        parsec_current_scheduler = NULL;
         scheduler_component = NULL;
     }
 }
@@ -252,7 +252,7 @@ int parsec_set_scheduler( parsec_context_t *parsec )
     mca_base_module_t    *new_scheduler = NULL;
     mca_base_component_t *new_component = NULL;
 
-    assert(NULL == current_scheduler);
+    assert(NULL == parsec_current_scheduler);
     scheds = mca_components_open_bytype( "sched" );
     mca_components_query(scheds,
                          &new_scheduler,
@@ -264,13 +264,13 @@ int parsec_set_scheduler( parsec_context_t *parsec )
     }
 
     parsec_remove_scheduler( parsec );
-    current_scheduler   = (parsec_sched_module_t*)new_scheduler;
+    parsec_current_scheduler   = (parsec_sched_module_t*)new_scheduler;
     scheduler_component = (parsec_sched_base_component_t*)new_component;
 
-    parsec_debug_verbose(4, parsec_debug_output, " Installing scheduler %s", current_scheduler->component->base_version.mca_component_name);
-    PROFILING_SAVE_sINFO("sched", (char *)current_scheduler->component->base_version.mca_component_name);
+    parsec_debug_verbose(4, parsec_debug_output, " Installing scheduler %s", parsec_current_scheduler->component->base_version.mca_component_name);
+    PROFILING_SAVE_sINFO("sched", (char *)parsec_current_scheduler->component->base_version.mca_component_name);
 
-    current_scheduler->module.install( parsec );
+    parsec_current_scheduler->module.install( parsec );
     return 1;
 }
 
@@ -296,7 +296,7 @@ int __parsec_schedule(parsec_execution_stream_t* es,
 #if defined(PARSEC_DEBUG_PARANOID)
             const struct parsec_flow_s* flow;
             for( int i = 0; NULL != (flow = task->task_class->in[i]); i++ ) {
-                if( FLOW_ACCESS_NONE == (flow->flow_flags & FLOW_ACCESS_MASK) ) continue;
+                if( PARSEC_FLOW_ACCESS_NONE == (flow->flow_flags & PARSEC_FLOW_ACCESS_MASK) ) continue;
                 if( NULL != task->data[flow->flow_index].data_repo ) {
                     if( NULL == task->data[flow->flow_index].data_in ) {
                         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)",
@@ -320,7 +320,7 @@ int __parsec_schedule(parsec_execution_stream_t* es,
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME(es->es_profile, schedule_push_begin, 0);
      */
-    ret = current_scheduler->module.schedule(es, tasks_ring, distance);
+    ret = parsec_current_scheduler->module.schedule(es, tasks_ring, distance);
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( es->es_profile, schedule_push_end, 0);
      */
@@ -390,7 +390,7 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
     /* complete execution PINS event includes the preparation of the
      * output and the and the call to complete_execution.
      */
-    PINS(es, COMPLETE_EXEC_BEGIN, task);
+    PARSEC_PINS(es, COMPLETE_EXEC_BEGIN, task);
 
     if( NULL != task->task_class->prepare_output ) {
         task->task_class->prepare_output( es, task );
@@ -399,8 +399,8 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
         rc = task->task_class->complete_execution( es, task );
 
     PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_RETIRED, 1);
-    PINS(es, COMPLETE_EXEC_END, task);
-    AYU_TASK_COMPLETE(task);
+    PARSEC_PINS(es, COMPLETE_EXEC_END, task);
+    PARSEC_AYU_TASK_COMPLETE(task);
 
     /* Succesfull execution. The context is ready to be released, all
      * dependencies have been marked as completed.
@@ -431,12 +431,12 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
 {
     int rc = PARSEC_HOOK_RETURN_DONE;
 
-    PINS(es, SELECT_END, task);
+    PARSEC_PINS(es, SELECT_END, task);
 
     if(task->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
-        PINS(es, PREPARE_INPUT_BEGIN, task);
+        PARSEC_PINS(es, PREPARE_INPUT_BEGIN, task);
         rc = task->task_class->prepare_input(es, task);
-        PINS(es, PREPARE_INPUT_END, task);
+        PARSEC_PINS(es, PREPARE_INPUT_END, task);
     }
     switch(rc) {
     case PARSEC_HOOK_RETURN_DONE: {
@@ -486,7 +486,7 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
     }
 
     // subsequent select begins
-    PINS(es, SELECT_BEGIN, NULL);
+    PARSEC_PINS(es, SELECT_BEGIN, NULL);
     return rc;
 }
 
@@ -520,7 +520,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     parsec_rusage_per_es(es, false);
 
     /* first select begin, right before the wait_for_the... goto label */
-    PINS(es, SELECT_BEGIN, NULL);
+    PARSEC_PINS(es, SELECT_BEGIN, NULL);
 
     /* The main loop where all the threads will spend their time */
   wait_for_the_next_round:
@@ -535,7 +535,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         goto finalize_progress;
     }
 
-    if( NULL == current_scheduler ) {
+    if( NULL == parsec_current_scheduler ) {
         parsec_fatal("Main thread entered parsec_context_wait, while a scheduler is not selected yet!");
         return -1;
     }
@@ -565,7 +565,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
 
-        task = current_scheduler->module.select(es, &distance);
+        task = parsec_current_scheduler->module.select(es, &distance);
 
         if( task != NULL ) {
             misses_in_a_row = 0;  /* reset the misses counter */
@@ -609,10 +609,10 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     // final select end - can we mark this as special somehow?
     // actually, it will already be obviously special, since it will be the only select
     // that has no context
-    PINS(es, SELECT_END, NULL);
+    PARSEC_PINS(es, SELECT_END, NULL);
 
     if( parsec_context->__parsec_internal_finalization_in_progress ) {
-        PINS_THREAD_FINI(es);
+        PARSEC_PINS_THREAD_FINI(es);
     }
 
     return nbiterations;
@@ -620,13 +620,13 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
 
 int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* tp )
 {
-    if( NULL == current_scheduler) {
+    if( NULL == parsec_current_scheduler) {
         parsec_set_scheduler( context );
     }
 
     tp->context = context;  /* save the context */
 
-    PINS_TASKPOOL_INIT(tp);  /* PINS taskpool initialization */
+    PARSEC_PINS_TASKPOOL_INIT(tp);  /* PINS taskpool initialization */
 
     /* Update the number of pending taskpools */
     (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );

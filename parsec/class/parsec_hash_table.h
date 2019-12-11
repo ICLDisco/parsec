@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -88,7 +88,7 @@ struct parsec_hash_table_s {
     int                       warning_issued;       /**< Number of times the warning mentionned above has been issued */
     parsec_hash_table_head_t *rw_hash;              /**< Added elements go in this hash table */
 };
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_hash_table_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_hash_table_t);
 
 /**
  * @brief Hashtable Item
@@ -267,7 +267,7 @@ void *parsec_hash_table_item_lookup(parsec_hash_table_t *ht, parsec_hash_table_i
  * @arg[inout] cb_data an opaque pointer corresponding to the user parameter
  *             (see @ref parsec_hash_table_for_all)
  */
-typedef void (*hash_elem_fct_t)(void *item, void*cb_data);
+typedef void (*parsec_hash_elem_fct_t)(void *item, void*cb_data);
 
 /**
  * @brief Call the function passed as argument for all items in the
@@ -281,7 +281,7 @@ typedef void (*hash_elem_fct_t)(void *item, void*cb_data);
  *  @arg[in] fct   function to apply to all items in the hash table
  *  @arg[in] cb_data data to pass for each element as the first parameter of the fct.
  */
-void parsec_hash_table_for_all(parsec_hash_table_t* ht, hash_elem_fct_t fct, void* cb_data);
+void parsec_hash_table_for_all(parsec_hash_table_t* ht, parsec_hash_elem_fct_t fct, void* cb_data);
 
 /**
  * @brief a generic key_equal function that can be used for 64 bits keys

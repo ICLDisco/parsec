@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2013 The University of Tennessee and The University
+ * Copyright (c) 2004-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -71,7 +71,7 @@ typedef struct cmd_line_option_t cmd_line_option_t;
 static void option_constructor(cmd_line_option_t *cmd);
 static void option_destructor(cmd_line_option_t *cmd);
 
-OBJ_CLASS_INSTANCE(cmd_line_option_t,
+PARSEC_OBJ_CLASS_INSTANCE(cmd_line_option_t,
                    parsec_list_item_t,
                    option_constructor, option_destructor);
 
@@ -102,7 +102,7 @@ struct cmd_line_param_t {
 typedef struct cmd_line_param_t cmd_line_param_t;
 static void param_constructor(cmd_line_param_t *cmd);
 static void param_destructor(cmd_line_param_t *cmd);
-OBJ_CLASS_INSTANCE(cmd_line_param_t,
+PARSEC_OBJ_CLASS_INSTANCE(cmd_line_param_t,
                    parsec_list_item_t,
                    param_constructor, param_destructor);
 
@@ -111,7 +111,7 @@ OBJ_CLASS_INSTANCE(cmd_line_param_t,
  */
 static void cmd_line_constructor(parsec_cmd_line_t *cmd);
 static void cmd_line_destructor(parsec_cmd_line_t *cmd);
-OBJ_CLASS_INSTANCE(parsec_cmd_line_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_cmd_line_t,
                    parsec_object_t,
                    cmd_line_constructor,
                    cmd_line_destructor);
@@ -152,7 +152,7 @@ int parsec_cmd_line_create(parsec_cmd_line_t *cmd,
     if (NULL == cmd) {
         return PARSEC_ERR_BAD_PARAM;
     }
-    OBJ_CONSTRUCT(cmd, parsec_cmd_line_t);
+    PARSEC_OBJ_CONSTRUCT(cmd, parsec_cmd_line_t);
 
     /* Ensure we got a table */
 
@@ -370,7 +370,7 @@ int parsec_cmd_line_parse(parsec_cmd_line_t *cmd, bool ignore_unknown,
                    (insertted by split_shorts()), then print an error
                    and return. */
 
-                param = OBJ_NEW(cmd_line_param_t);
+                param = PARSEC_OBJ_NEW(cmd_line_param_t);
                 if (NULL == param) {
                     parsec_atomic_unlock(&cmd->lcl_mutex);
                     return PARSEC_ERR_OUT_OF_RESOURCE;
@@ -396,7 +396,7 @@ int parsec_cmd_line_parse(parsec_cmd_line_t *cmd, bool ignore_unknown,
                             fprintf(stderr, "Type '%s --help' for usage.\n",
                                     cmd->lcl_argv[0]);
                         }
-                        OBJ_RELEASE(param);
+                        PARSEC_OBJ_RELEASE(param);
                         printed_error = true;
                         goto error;
                     } else {
@@ -414,7 +414,7 @@ int parsec_cmd_line_parse(parsec_cmd_line_t *cmd, bool ignore_unknown,
                             if (NULL != param->clp_argv) {
                                 parsec_argv_free(param->clp_argv);
                             }
-                            OBJ_RELEASE(param);
+                            PARSEC_OBJ_RELEASE(param);
                             printed_error = true;
                             goto error;
                         }
@@ -914,8 +914,8 @@ static void cmd_line_constructor(parsec_cmd_line_t *cmd)
 
     /* Initialize the lists */
 
-    OBJ_CONSTRUCT(&cmd->lcl_options, parsec_list_t);
-    OBJ_CONSTRUCT(&cmd->lcl_params, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&cmd->lcl_options, parsec_list_t);
+    PARSEC_OBJ_CONSTRUCT(&cmd->lcl_params, parsec_list_t);
 
     /* Initialize the argc/argv pairs */
 
@@ -936,7 +936,7 @@ static void cmd_line_destructor(parsec_cmd_line_t *cmd)
     for (item = parsec_list_pop_front(&cmd->lcl_options);
          NULL != item;
          item = parsec_list_pop_front(&cmd->lcl_options)) {
-        OBJ_RELEASE(item);
+        PARSEC_OBJ_RELEASE(item);
     }
 
     /* Free any parsed results */
@@ -945,8 +945,8 @@ static void cmd_line_destructor(parsec_cmd_line_t *cmd)
 
     /* Destroy the lists */
 
-    OBJ_DESTRUCT(&cmd->lcl_options);
-    OBJ_DESTRUCT(&cmd->lcl_params);
+    PARSEC_OBJ_DESTRUCT(&cmd->lcl_options);
+    PARSEC_OBJ_DESTRUCT(&cmd->lcl_params);
 }
 
 
@@ -968,7 +968,7 @@ static int make_opt(parsec_cmd_line_t *cmd, parsec_cmd_line_init_t *e)
 
     /* Allocate and fill an option item */
 
-    option = OBJ_NEW(cmd_line_option_t);
+    option = PARSEC_OBJ_NEW(cmd_line_option_t);
     if (NULL == option) {
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
@@ -1014,7 +1014,7 @@ static void free_parse_results(parsec_cmd_line_t *cmd)
     for (item = parsec_list_pop_front(&cmd->lcl_params);
          NULL != item;
          item = parsec_list_pop_front(&cmd->lcl_params)) {
-        OBJ_RELEASE(item);
+        PARSEC_OBJ_RELEASE(item);
     }
 
     /* Free the argv's */

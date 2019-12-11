@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -74,7 +74,7 @@ static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)calloc(sizeof(parsec_mca_sched_local_queues_scheduler_object_t), 1);
     es->scheduler_object = sched_obj;
     if( 0 == es->th_id ) {  /* And flow 0 creates the system_queue */
-        sched_obj->system_queue = OBJ_NEW(parsec_dequeue_t);
+        sched_obj->system_queue = PARSEC_OBJ_NEW(parsec_dequeue_t);
     }
 
     sched_obj->nb_hierarch_queues = vp->nb_cores;
@@ -225,7 +225,7 @@ static void sched_lfq_remove( parsec_context_t *master )
                 sched_obj = PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es);
 
                 if( es->th_id == 0 ) {
-                    OBJ_DESTRUCT( sched_obj->system_queue );
+                    PARSEC_OBJ_DESTRUCT( sched_obj->system_queue );
                     free( sched_obj->system_queue );
                 }
                 sched_obj->system_queue = NULL;

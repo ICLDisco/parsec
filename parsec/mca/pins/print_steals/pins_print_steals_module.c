@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018 The University of Tennessee and The University
+ * Copyright (c) 2012-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -54,14 +54,14 @@ static void pins_thread_init_print_steals(parsec_execution_stream_t* es)
     parsec_pins_print_steals_data_t* event_cb =
         (parsec_pins_print_steals_data_t*)calloc(1, sizeof(parsec_pins_print_steals_data_t) +
                                                  (total_cores + 2) * sizeof(long));
-    PINS_REGISTER(es, SELECT_END, stop_print_steals_count,
+    PARSEC_PINS_REGISTER(es, SELECT_END, stop_print_steals_count,
                   (parsec_pins_next_callback_t*)event_cb);
 }
 
 static void pins_thread_fini_print_steals(parsec_execution_stream_t* es)
 {
     parsec_pins_print_steals_data_t* event_cb;
-    PINS_UNREGISTER(es, SELECT_END, stop_print_steals_count,
+    PARSEC_PINS_UNREGISTER(es, SELECT_END, stop_print_steals_count,
                   (parsec_pins_next_callback_t**)&event_cb);
 
     for (int k = 0; k < total_cores + 2; k++)

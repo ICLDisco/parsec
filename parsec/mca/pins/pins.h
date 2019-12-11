@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#ifndef MCA_PINS_H
-#define MCA_PINS_H
+#ifndef PARSEC_MCA_PINS_H
+#define PARSEC_MCA_PINS_H
 /* PaRSEC Performance Instrumentation Callback System */
 
 #include "parsec/runtime.h"
@@ -23,7 +23,7 @@ typedef struct parsec_pins_next_callback_s {
     struct parsec_pins_next_callback_s* cb_data;
 } parsec_pins_next_callback_t;
 
-typedef enum PINS_FLAG {
+typedef enum PARSEC_PINS_FLAG {
     SELECT_BEGIN = 0,    // called before scheduler begins looking for an available task
     SELECT_END,          // called after scheduler has finished looking for an available task
     PREPARE_INPUT_BEGIN,
@@ -48,9 +48,9 @@ typedef enum PINS_FLAG {
      PARSEC_PROLOGUE,
      PARSEC_RELEASE,
      */
-    /* PINS_FLAG_COUNT is not an event at all */
-    PINS_FLAG_COUNT
-} PINS_FLAG;
+    /* PARSEC_PINS_FLAG_COUNT is not an event at all */
+    PARSEC_PINS_FLAG_COUNT
+} PARSEC_PINS_FLAG;
 
 BEGIN_C_DECLS
 
@@ -81,6 +81,10 @@ typedef struct parsec_pins_base_component_2_0_0 parsec_pins_base_component_t;
  * Structure for sched modules
  */
 
+/*
+ These functions should each be called once at the appropriate lifecycle of the PaRSEC Context
+ except that taskpool functions should be called once per taskpool, and thread functions once per thread
+ */
 typedef void (*parsec_pins_base_module_init_fn_t)(struct parsec_context_s * master);
 typedef void (*parsec_pins_base_module_fini_fn_t)(struct parsec_context_s * master);
 typedef void (*parsec_pins_base_module_taskpool_init_fn_t)(struct parsec_taskpool_s * tp);
@@ -115,22 +119,18 @@ typedef struct {
 
 END_C_DECLS
 
-/*
- These functions should each be called once at the appropriate lifecycle of the PaRSEC Context
- except that handle functions should be called once per taskpool, and thread functions once per thread
- */
-void pins_init(struct parsec_context_s * master);
-void pins_fini(struct parsec_context_s * master);
-void pins_taskpool_init(struct parsec_taskpool_s * tp);
-void pins_taskpool_fini(struct parsec_taskpool_s * tp);
-void pins_thread_init(struct parsec_execution_stream_s * es);
-void pins_thread_fini(struct parsec_execution_stream_s * es);
+void parsec_pins_init(struct parsec_context_s * master);
+void parsec_pins_fini(struct parsec_context_s * master);
+void parsec_pins_taskpool_init(struct parsec_taskpool_s * tp);
+void parsec_pins_taskpool_fini(struct parsec_taskpool_s * tp);
+void parsec_pins_thread_init(struct parsec_execution_stream_s * es);
+void parsec_pins_thread_fini(struct parsec_execution_stream_s * es);
 
 /*
  the following functions are intended for public use wherever they are necessary
  */
 void parsec_pins_instrument(struct parsec_execution_stream_s* es,
-                            PINS_FLAG method_flag,
+                            PARSEC_PINS_FLAG method_flag,
                             struct parsec_task_s* task);
 
 void parsec_pins_disable_registration(int disable);
@@ -138,61 +138,61 @@ void parsec_pins_disable_registration(int disable);
 int parsec_pins_is_module_enabled(char * module_name);
 
 int parsec_pins_register_callback(struct parsec_execution_stream_s* es,
-                           PINS_FLAG method_flag,
+                           PARSEC_PINS_FLAG method_flag,
                            parsec_pins_callback cb,
                            parsec_pins_next_callback_t* cb_data);
 
 int parsec_pins_unregister_callback(struct parsec_execution_stream_s* es,
-                             PINS_FLAG method_flag,
+                             PARSEC_PINS_FLAG method_flag,
                              parsec_pins_callback cb,
                              parsec_pins_next_callback_t** cb_data);
 
-#ifdef PINS_ENABLE
+#ifdef PARSEC_PROF_PINS
 
-#define PINS(unit, method_flag, task)         \
+#define PARSEC_PINS(unit, method_flag, task)         \
     parsec_pins_instrument(unit, method_flag, task)
-#define PINS_DISABLE_REGISTRATION(boolean)      \
+#define PARSEC_PINS_DISABLE_REGISTRATION(boolean)      \
     parsec_pins_disable_registration(boolean)
-#define PINS_REGISTER(unit, method_flag, cb, data)       \
+#define PARSEC_PINS_REGISTER(unit, method_flag, cb, data)       \
     parsec_pins_register_callback(unit, method_flag, cb, data)
-#define PINS_UNREGISTER(unit, method_flag, cb, pdata)     \
+#define PARSEC_PINS_UNREGISTER(unit, method_flag, cb, pdata)     \
     parsec_pins_unregister_callback(unit, method_flag, cb, pdata)
-#define PINS_INIT(master_context)               \
-    pins_init(master_context)
-#define PINS_FINI(master_context)               \
-    pins_fini(master_context)
-#define PINS_THREAD_INIT(exec_unit)             \
-    pins_thread_init(exec_unit)
-#define PINS_TASKPOOL_INIT(parsec_tp)           \
-    pins_taskpool_init(parsec_tp)
-#define PINS_THREAD_FINI(exec_unit)             \
-    pins_thread_fini(exec_unit)
-#define PINS_TASKPOOL_FINI(parsec_tp)           \
-    pins_taskpool_fini(parsec_tp)
+#define PARSEC_PINS_INIT(master_context)               \
+    parsec_pins_init(master_context)
+#define PARSEC_PINS_FINI(master_context)               \
+    parsec_pins_fini(master_context)
+#define PARSEC_PINS_THREAD_INIT(exec_unit)             \
+    parsec_pins_thread_init(exec_unit)
+#define PARSEC_PINS_TASKPOOL_INIT(parsec_tp)           \
+    parsec_pins_taskpool_init(parsec_tp)
+#define PARSEC_PINS_THREAD_FINI(exec_unit)             \
+    parsec_pins_thread_fini(exec_unit)
+#define PARSEC_PINS_TASKPOOL_FINI(parsec_tp)           \
+    parsec_pins_taskpool_fini(parsec_tp)
 
-#else // NOT PINS_ENABLE
+#else // NOT PARSEC_PROF_PINS
 
-#define PINS(method_flag, exec_unit, task)      \
+#define PARSEC_PINS(method_flag, exec_unit, task)      \
     do {} while (0)
-#define PINS_DISABLE_REGISTRATION(boolean)      \
+#define PARSEC_PINS_DISABLE_REGISTRATION(boolean)      \
     do {} while(0)
-#define PINS_REGISTER(method_flag, cb, data)    \
+#define PARSEC_PINS_REGISTER(method_flag, cb, data)    \
     do {} while (0)
-#define PINS_UNREGISTER(method_flag, cb, data)  \
+#define PARSEC_PINS_UNREGISTER(method_flag, cb, data)  \
     do {} while (0)
-#define PINS_INIT(master_context)               \
+#define PARSEC_PINS_INIT(master_context)               \
     do {} while (0)
-#define PINS_FINI(master_context)               \
+#define PARSEC_PINS_FINI(master_context)               \
     do {} while (0)
-#define PINS_THREAD_INIT(exec_unit)             \
+#define PARSEC_PINS_THREAD_INIT(exec_unit)             \
     do {} while (0)
-#define PINS_TASKPOOL_INIT(parsec_tp)           \
+#define PARSEC_PINS_TASKPOOL_INIT(parsec_tp)           \
     do {} while (0)
-#define PINS_THREAD_FINI(exec_unit)             \
+#define PARSEC_PINS_THREAD_FINI(exec_unit)             \
     do {} while (0)
-#define PINS_TASKPOOL_FINI(parsec_tp)           \
+#define PARSEC_PINS_TASKPOOL_FINI(parsec_tp)           \
     do {} while (0)
 
-#endif // PINS_ENABLE
+#endif // PARSEC_PROF_PINS
 
-#endif // PINS_H
+#endif // PARSEC_PINS_H

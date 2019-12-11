@@ -48,7 +48,7 @@ typedef struct parsec_list_item_s {
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 } parsec_list_item_t;
 
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_list_item_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_list_item_t);
 
 /**
  * @brief Convenience macro to access the next field without casting

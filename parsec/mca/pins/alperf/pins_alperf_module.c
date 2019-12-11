@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018      The University of Tennessee and The University
+ * Copyright (c) 2018-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -50,13 +50,13 @@ const parsec_pins_module_t parsec_pins_alperf_module = {
 
 static void pins_thread_init_alperf(parsec_execution_stream_t *es) {
     parsec_pins_next_callback_t *cb_taskpool = (parsec_pins_next_callback_t*)calloc(1, sizeof(parsec_pins_next_callback_t));
-    if (0 > PINS_REGISTER(es, EXEC_END, alperf_exec_count_end, cb_taskpool))
+    if (0 > PARSEC_PINS_REGISTER(es, EXEC_END, alperf_exec_count_end, cb_taskpool))
         parsec_warning("alperf PINS module failed registering.");
 }
 
 static void pins_thread_fini_alperf(parsec_execution_stream_t *es) {
     parsec_pins_next_callback_t *cb_taskpool;
-    PINS_UNREGISTER(es, EXEC_END, alperf_exec_count_end, &cb_taskpool);
+    PARSEC_PINS_UNREGISTER(es, EXEC_END, alperf_exec_count_end, &cb_taskpool);
     free(cb_taskpool);
 }
 

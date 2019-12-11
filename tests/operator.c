@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2018 The University of Tennessee and The University
+ * Copyright (c) 2011-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -74,7 +74,7 @@ int main( int argc, char* argv[] )
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(op);
+    parsec_taskpool_free(op);
 
     parsec_fini(&parsec);
 

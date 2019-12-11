@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The University of Tennessee and The University
+ * Copyright (c) 2012-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -97,47 +97,47 @@ static void pins_thread_init_task_profiler(struct parsec_execution_stream_s * es
 {
     parsec_pins_next_callback_t* event_cb;
     event_cb = (parsec_pins_next_callback_t*)malloc(sizeof(parsec_pins_next_callback_t));
-    PINS_REGISTER(es, EXEC_BEGIN, task_profiler_exec_count_begin, event_cb);
+    PARSEC_PINS_REGISTER(es, EXEC_BEGIN, task_profiler_exec_count_begin, event_cb);
     event_cb = (parsec_pins_next_callback_t*)malloc(sizeof(parsec_pins_next_callback_t));
-    PINS_REGISTER(es, EXEC_END, task_profiler_exec_count_end, event_cb);
+    PARSEC_PINS_REGISTER(es, EXEC_END, task_profiler_exec_count_end, event_cb);
 
     event_cb = (parsec_pins_next_callback_t*)malloc(sizeof(parsec_pins_next_callback_t));
-    PINS_REGISTER(es, RELEASE_DEPS_BEGIN, task_profiler_release_deps_begin, event_cb);
+    PARSEC_PINS_REGISTER(es, RELEASE_DEPS_BEGIN, task_profiler_release_deps_begin, event_cb);
     event_cb = (parsec_pins_next_callback_t*)malloc(sizeof(parsec_pins_next_callback_t));
-    PINS_REGISTER(es, RELEASE_DEPS_END, task_profiler_release_deps_end, event_cb);
+    PARSEC_PINS_REGISTER(es, RELEASE_DEPS_END, task_profiler_release_deps_end, event_cb);
 
     event_cb = (parsec_pins_next_callback_t*)malloc(sizeof(parsec_pins_next_callback_t));
-    PINS_REGISTER(es, ACTIVATE_CB_BEGIN, task_profiler_activate_cb_begin, event_cb);
+    PARSEC_PINS_REGISTER(es, ACTIVATE_CB_BEGIN, task_profiler_activate_cb_begin, event_cb);
     event_cb = (parsec_pins_next_callback_t*)malloc(sizeof(parsec_pins_next_callback_t));
-    PINS_REGISTER(es, ACTIVATE_CB_END, task_profiler_activate_cb_end, event_cb);
+    PARSEC_PINS_REGISTER(es, ACTIVATE_CB_END, task_profiler_activate_cb_end, event_cb);
 
     event_cb = (parsec_pins_next_callback_t*)malloc(sizeof(parsec_pins_next_callback_t));
-    PINS_REGISTER(es, DATA_FLUSH_BEGIN, task_profiler_data_flush_begin, event_cb);
+    PARSEC_PINS_REGISTER(es, DATA_FLUSH_BEGIN, task_profiler_data_flush_begin, event_cb);
     event_cb = (parsec_pins_next_callback_t*)malloc(sizeof(parsec_pins_next_callback_t));
-    PINS_REGISTER(es, DATA_FLUSH_END, task_profiler_data_flush_end, event_cb);
+    PARSEC_PINS_REGISTER(es, DATA_FLUSH_END, task_profiler_data_flush_end, event_cb);
 }
 
 static void pins_thread_fini_task_profiler(struct parsec_execution_stream_s * es)
 {
     parsec_pins_next_callback_t* event_cb;
-    PINS_UNREGISTER(es, EXEC_BEGIN, task_profiler_exec_count_begin, &event_cb);
+    PARSEC_PINS_UNREGISTER(es, EXEC_BEGIN, task_profiler_exec_count_begin, &event_cb);
     free(event_cb);
-    PINS_UNREGISTER(es, EXEC_END, task_profiler_exec_count_end, &event_cb);
-    free(event_cb);
-
-    PINS_UNREGISTER(es, RELEASE_DEPS_BEGIN, task_profiler_release_deps_begin, &event_cb);
-    free(event_cb);
-    PINS_UNREGISTER(es, RELEASE_DEPS_END, task_profiler_release_deps_end, &event_cb);
+    PARSEC_PINS_UNREGISTER(es, EXEC_END, task_profiler_exec_count_end, &event_cb);
     free(event_cb);
 
-    PINS_UNREGISTER(es, ACTIVATE_CB_BEGIN, task_profiler_activate_cb_begin, &event_cb);
+    PARSEC_PINS_UNREGISTER(es, RELEASE_DEPS_BEGIN, task_profiler_release_deps_begin, &event_cb);
     free(event_cb);
-    PINS_UNREGISTER(es, ACTIVATE_CB_END, task_profiler_activate_cb_end, &event_cb);
+    PARSEC_PINS_UNREGISTER(es, RELEASE_DEPS_END, task_profiler_release_deps_end, &event_cb);
     free(event_cb);
 
-    PINS_UNREGISTER(es, DATA_FLUSH_BEGIN, task_profiler_data_flush_begin, &event_cb);
+    PARSEC_PINS_UNREGISTER(es, ACTIVATE_CB_BEGIN, task_profiler_activate_cb_begin, &event_cb);
     free(event_cb);
-    PINS_UNREGISTER(es, DATA_FLUSH_END, task_profiler_data_flush_end, &event_cb);
+    PARSEC_PINS_UNREGISTER(es, ACTIVATE_CB_END, task_profiler_activate_cb_end, &event_cb);
+    free(event_cb);
+
+    PARSEC_PINS_UNREGISTER(es, DATA_FLUSH_BEGIN, task_profiler_data_flush_begin, &event_cb);
+    free(event_cb);
+    PARSEC_PINS_UNREGISTER(es, DATA_FLUSH_END, task_profiler_data_flush_end, &event_cb);
     free(event_cb);
 }
 

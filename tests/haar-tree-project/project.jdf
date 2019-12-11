@@ -46,8 +46,8 @@ struct __parsec_project_PROJECT_assignment_s;
 struct __parsec_project_CREATE_NODE_assignment_s;
 struct __parsec_project_PROJECT_task_s;
 
-static parsec_key_t end_propagate_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
-static parsec_key_t project_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
+static parsec_key_t end_propagate_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as);
+static parsec_key_t project_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as);
 
 static uint32_t undetermined_nb_tasks(struct __parsec_project_internal_taskpool_s *__tp);
 
@@ -194,7 +194,7 @@ BODY
         node->s = 0.5 * (sl + sr);
         node->d = 0.5 * (sl - sr);
         // To tell parsec to keep the reference of these two data, so it shouldn't delete them
-        OBJ_RETAIN(_f_NODE);
+        PARSEC_OBJ_RETAIN(_f_NODE);
         tree_dist_insert_data(treeA, _f_NODE->original, n, l);
     }
 
@@ -208,14 +208,14 @@ static uint64_t my_simple_tree_hash(int n, int l)
     return (((uint64_t)n) << 32) | ((uint64_t)l);
 }
 
-static parsec_key_t end_propagate_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
+static parsec_key_t end_propagate_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as)
 {
     (void)__tp;
     const struct __parsec_project_END_PROPAGATE_assignment_s * assignments = (const struct __parsec_project_END_PROPAGATE_assignment_s *)_as;
     return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static parsec_key_t project_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
+static parsec_key_t project_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as)
 {
     (void)__tp;
     const struct __parsec_project_PROJECT_assignment_s * assignments = (const struct __parsec_project_PROJECT_assignment_s *)_as;

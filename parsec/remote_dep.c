@@ -145,7 +145,7 @@ inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
         rank_bit_size = sizeof(uint32_t) * ((parsec_remote_dep_context.max_nodes_number + 31) / 32);
         memset(ptr, 0, rank_bit_size * parsec_remote_dep_context.max_dep_count);
         for( i = 0; i < parsec_remote_dep_context.max_dep_count; i++ ) {
-            OBJ_CONSTRUCT(&remote_deps->output[i].super, parsec_list_item_t);
+            PARSEC_OBJ_CONSTRUCT(&remote_deps->output[i].super, parsec_list_item_t);
             remote_deps->output[i].parent     = remote_deps;
             remote_deps->output[i].rank_bits  = (uint32_t*)ptr;
             remote_deps->output[i].deps_mask  = 0;
@@ -348,7 +348,7 @@ parsec_ontask_iterate_t
 parsec_gather_collective_pattern(parsec_execution_stream_t *es,
                                  const parsec_task_t *newcontext,
                                  const parsec_task_t *oldcontext,
-                                 const dep_t* dep,
+                                 const parsec_dep_t* dep,
                                  parsec_dep_data_description_t* data,
                                  int src_rank, int dst_rank, int dst_vpid,
                                  void *param)
@@ -467,7 +467,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
             /* if propagated and not a CONTROL */
             assert(NULL != output->data.arena);
             assert(NULL != (void*)(intptr_t)(output->data.layout));
-            OBJ_RETAIN(output->data.data);
+            PARSEC_OBJ_RETAIN(output->data.data);
         }
 
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {
@@ -575,7 +575,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
             parsec_remote_dep_context.max_dep_count * rankbits_size +
             /* One extra rankbit to track the delivery of Activates */
             rankbits_size;
-        OBJ_CONSTRUCT(&parsec_remote_dep_context.freelist, parsec_lifo_t);
+        PARSEC_OBJ_CONSTRUCT(&parsec_remote_dep_context.freelist, parsec_lifo_t);
         parsec_remote_dep_inited = 1;
     }
 
@@ -591,7 +591,7 @@ void remote_deps_allocation_fini(void)
         while(NULL != (rdeps = (parsec_remote_deps_t*) parsec_lifo_pop(&parsec_remote_dep_context.freelist))) {
             free(rdeps);
         }
-        OBJ_DESTRUCT(&parsec_remote_dep_context.freelist);
+        PARSEC_OBJ_DESTRUCT(&parsec_remote_dep_context.freelist);
     }
     parsec_remote_dep_inited = 0;
 }

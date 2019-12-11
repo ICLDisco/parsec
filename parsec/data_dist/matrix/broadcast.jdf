@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2011-2016 The University of Tennessee and The University
+ * Copyright (c) 2011-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -54,12 +54,12 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
         if(NULL == *dat->data) {
             parsec_data_t *data;
 
-            data = OBJ_NEW(parsec_data_t);
+            data = PARSEC_OBJ_NEW(parsec_data_t);
             data->owner_device = 0;
             data->key = k;
             data->dc = (parsec_data_collection_t*)desc;
             data->nb_elts = 1;
-            parsec_data_copy_t* data_copy = (parsec_data_copy_t*)OBJ_NEW(parsec_data_copy_t);
+            parsec_data_copy_t* data_copy = (parsec_data_copy_t*)PARSEC_OBJ_NEW(parsec_data_copy_t);
             parsec_data_copy_attach(data, data_copy, 0);
             data_copy->device_private = NULL;
             *dat->data = data;
@@ -209,7 +209,7 @@ void parsec_broadcast_Destruct( parsec_taskpool_t *o )
 
     release_rank_array(dc);
 
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
+    parsec_taskpool_free(o);
 }
    
 %}

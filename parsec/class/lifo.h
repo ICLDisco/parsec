@@ -42,7 +42,7 @@ BEGIN_C_DECLS
  * @brief opaque structure to hold a LIFO
  */
 typedef struct parsec_lifo_s parsec_lifo_t;
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_lifo_t);
 
 /**
  * @brief check if the LIFO is empty
@@ -174,7 +174,7 @@ parsec_lifo_nolock_pop(parsec_lifo_t* lifo);
 /**
  * By default all LIFO will handle elements aligned to PARSEC_LIFO_ALIGNMENT_DEFAULT
  * bits. If a different type of alignment is needed, the trick is to manually allocate
- * the lifo and set the alignment by hand before calling OBJ_CONSTRUCT on it.
+ * the lifo and set the alignment by hand before calling PARSEC_OBJ_CONSTRUCT on it.
  */
 #if !defined(PARSEC_LIFO_ALIGNMENT_DEFAULT)
 #define PARSEC_LIFO_ALIGNMENT_DEFAULT 3
@@ -700,7 +700,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* li
     rc = posix_memalign(&elt,
                         PARSEC_LIFO_ALIGNMENT(lifo), (truesize));
     assert( 0 == rc && NULL != elt ); (void)rc;
-    OBJ_CONSTRUCT(elt, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(elt, parsec_list_item_t);
     return (parsec_list_item_t*) elt;
 }
 
@@ -716,7 +716,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* li
  * @remarks The item must not be present in any lifo.
  */
 LIFO_STATIC_INLINE void parsec_lifo_item_free(parsec_list_item_t* item) {
-    OBJ_DESTRUCT( item );
+    PARSEC_OBJ_DESTRUCT( item );
     free(item);
 }
 

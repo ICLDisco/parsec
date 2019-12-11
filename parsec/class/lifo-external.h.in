@@ -19,7 +19,7 @@ BEGIN_C_DECLS
  * @brief opaque structure to hold a LIFO
  */
 typedef struct parsec_lifo_opaque_s parsec_lifo_t;
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_t);
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_lifo_t);
 struct parsec_lifo_opaque_s {
     parsec_object_t           super;
     uint8_t                   alignment;
