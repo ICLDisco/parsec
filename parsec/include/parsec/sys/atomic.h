@@ -55,8 +55,10 @@ BEGIN_C_DECLS
 #      endif  /* MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 */
 #    elif defined(PARSEC_ARCH_PPC)
 #      if defined(__bgp__)
+#        define PARSEC_ATOMIC_USE_PPC_BGP 1
 #        include "atomic-ppc-bgp.h"
 #      else
+#        define PARSEC_ATOMIC_USE_PPC 1
 #        include "atomic-ppc.h"
 #      endif
 #    elif defined(PARSEC_ATOMIC_USE_GCC_32_BUILTINS)

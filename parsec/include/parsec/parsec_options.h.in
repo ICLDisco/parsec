@@ -7,6 +7,8 @@
  * become the parsec_config.h and will hide all compiler dependent features used
  * during PaRSEC compilation.
  */
+/** @brief Define the compilation date of the runtime */
+#define PARSEC_COMPILE_DATE "@PARSEC_COMPILE_DATE@"
 /** @brief Define the PaRSEC major version number */
 #define PARSEC_VERSION_MAJOR @PARSEC_VERSION_MAJOR@
 /** @brief Define the PaRSEC minor version number */
@@ -17,6 +19,10 @@
 #define PARSEC_GIT_BRANCH "@GIT_COMMIT_BRANCH@"
 /** @brief Define the commit hash that was compiled */
 #define PARSEC_GIT_HASH "@GIT_COMMIT_HASH@"
+/** @brief Define the changes to the commit hash that was compiled */
+#define PARSEC_GIT_DIRTY "@GIT_COMMIT_DIRTY@"
+/** @brief Define the commit date of the runtime */
+#define PARSEC_GIT_DATE "@GIT_COMMIT_DATE@"
 
 /* OS dependent capabilities */
 #cmakedefine PARSEC_HAVE_PTHREAD

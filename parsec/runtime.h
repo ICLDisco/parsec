@@ -140,17 +140,35 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[]);
  * @brief Obtain the version number of the PaRSEC runtime
  *
  * @details
- * Obtain the version number of the version number of the PaRSEC runtime that created the 
- * context
+ * Obtain the version number of the PaRSEC runtime that created the context
  *
  * @param[in]    context the parsec_context to query
  * @param[out]   version_major a pointer to the major version number (i.e., 19, in version 19.11.1)
  * @param[out]   version_minor a pointer to the minor version number (i.e., 11 in version 19.11.1)
  * @param[out]   version_patch a pointer to the patch version number (i.e., 1 in version 19.11.1)
+ *               Unreleased (e.g., git master) versions will have patch=0
  *
  * @return PARSEC_SUCCESS on success
  */
 int parsec_version( parsec_context_t* context, int* version_major, int* version_minor, int* version_patch);
+
+/**
+ * @brief Obtain the version string describing important options used when
+ * compiling the PaRSEC runtime
+ *
+ * @details
+ * Obtain the version of the version string describing important options used when compiling 
+ * the PaRSEC runtime that created the context
+ *
+ * @param[in]    context the parsec_context to query
+ * @param[in]    len the length of the output array (in char)
+ * @param[out]   version_string a pointer to the array in which the description is output. When 
+ *               the version_string is longer than `len`, the output is truncated.
+ *
+ * @return PARSEC_SUCCESS on success
+ * @return PARSEC_ERR_VALUE_OUT_OF_BOUNDS when version_string is truncated
+ */
+int parsec_version_ex( parsec_context_t* context, size_t len, char* version_string);
 
 /**
  * @brief Change the communicator to use with the context. This function is

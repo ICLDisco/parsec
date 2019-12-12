@@ -49,6 +49,17 @@ FUNCTION parsec_version_f08(ctx, major, minor, patch) &
     INTEGER(KIND=c_int)                     :: parsec_version_f08
 END FUNCTION parsec_version_f08
 
+FUNCTION parsec_version_ex_f08(ctx, len, version_string) &
+         BIND(C, name="parsec_version_ex")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
+    IMPORT parsec_context_t
+    IMPLICIT NONE
+    TYPE(parsec_context_t), VALUE, INTENT(IN) :: ctx
+    INTEGER(KIND=c_int), INTENT(IN)         :: len
+    INTEGER(KIND=c_char), INTENT(OUT)       :: version_string(*)
+    INTEGER(KIND=c_int)                     :: parsec_version_ex_f08
+END FUNCTION parsec_version_ex_f08
+
 SUBROUTINE parsec_fini_f08(context,ierr) &
            BIND(C, name="parsec_fini_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT

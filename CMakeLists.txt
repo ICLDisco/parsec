@@ -877,6 +877,8 @@ endif( BUILD_TESTING )
 
 add_subdirectory(docs)
 
+string(TIMESTAMP PARSEC_COMPILE_DATE)
+
 # Fetch GIT info for this build
 # Get the current working branch
 execute_process(
@@ -890,6 +892,23 @@ execute_process(
   COMMAND git log -1 --format=%h
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE GIT_COMMIT_HASH
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+# Get the status of the clone
+execute_process(
+  COMMAND git diff HEAD --shortstat
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_DIRTY)
+string(STRIP "${GIT_COMMIT_DIRTY}" GIT_COMMIT_DIRTY)
+if(NOT GIT_COMMIT_DIRTY)
+  set(GIT_COMMIT_DIRTY "no")
+endif()
+
+# Get the date of the commit hash
+execute_process(
+  COMMAND git log -1 --format=%cd --date=short
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_DATE
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # Configuration header

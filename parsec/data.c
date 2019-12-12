@@ -295,7 +295,7 @@ void parsec_data_end_transfer_ownership_to_copy(parsec_data_t* data,
 
     assert(NULL != data);
     copy = data->device_copies[device];
-    PARSEC_DEBUG_VERBOSE(2, parsec_debug_output,
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
                          "DEV[%d]: end transfer ownership of data %p to copy %p in mode %d",
                          device, data, copy, access_mode);
     assert( NULL != copy );
@@ -321,7 +321,7 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
     copy = data->device_copies[device];
     assert( NULL != copy );
     
-    PARSEC_DEBUG_VERBOSE(2, parsec_debug_output,
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
                          "DEV[%d]: start transfer ownership of data %p to copy %p in mode %d",
                          device, data, copy, access_mode);
     
