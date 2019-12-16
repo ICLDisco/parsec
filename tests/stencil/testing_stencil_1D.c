@@ -13,12 +13,13 @@ int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
     int rank, nodes, ch;
-    int pargc = 0, dashdash = -1;
+    int pargc = 0;
     char **pargv;
     double gflops, flops;
     int i, jj;
 
     /* Default */
+    int m = 0;
     int M = 8;
     int N = 8;
     int MB = 4;
@@ -30,20 +31,9 @@ int main(int argc, char *argv[])
     int iter = 10;
     int R = 1;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    nodes = 1;
-    rank = 0;
-#endif
-
-    while ((ch = getopt(argc, argv, "M:N:t:T:s:S:P:Q:c:I:R:h:")) != -1) {
+    while ((ch = getopt(argc, argv, "m:M:N:t:T:s:S:P:Q:c:I:R:h:")) != -1) {
         switch (ch) {
+            case 'm': m = atoi(optarg); break;
             case 'M': M = atoi(optarg); break;
             case 'N': N = atoi(optarg); break;
             case 't': MB = atoi(optarg); break;
@@ -56,6 +46,7 @@ int main(int argc, char *argv[])
             case 'R': R = atoi(optarg); break;
             case '?': case 'h': default:
                 fprintf(stderr,
+                        "-m : initialize MPI_THREAD_MULTIPLE (default: 0/no)\n"
                         "-M : row dimension (M) of the matrices (default: 8)\n"
                         "-N : column dimension (N) of the matrices (default: 8)\n"
                         "-t : row dimension (MB) of the tiles (default: 4)\n"
@@ -71,28 +62,31 @@ int main(int argc, char *argv[])
         }
     }
 
+#if defined(PARSEC_HAVE_MPI)
+    {
+        int provided;
+        int requested = m? MPI_THREAD_MULTIPLE: MPI_THREAD_SERIALIZED;
+        MPI_Init_thread(&argc, &argv, requested, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    nodes = 1;
+    rank = 0;
+#endif
+
+    pargc = 0; pargv = NULL;
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
-            dashdash = i;
-            pargc = 0;
-        } else if( dashdash != -1 ) {
-            pargc++;
+            pargc = argc - i;
+            pargv = &argv[i];
+            break;
         }
-    }
-    pargv = (char**)malloc( (pargc+1) * sizeof(char*));
-    if( dashdash != -1 ) {
-        for(i = dashdash+1; i < argc; i++) {
-            pargv[i-dashdash-1] = strdup(argv[i]);
-        }
-        pargv[i-dashdash-1] = NULL;
-    } else {
-        pargv[0] = NULL;
     }
 
     /* Initialize PaRSEC */
     parsec = parsec_init(cores, &pargc, &pargv);
 
-    free(pargv);
     if( NULL == parsec ) {
         /* Failed to correctly initialize. In a correct scenario report
          * upstream, but in this particular case bail out.
