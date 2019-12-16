@@ -717,7 +717,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     if(0 == parsec_debug_rank && parsec_debug_verbose >= 3) {
         char version_info[4096];
-        parsec_version_ex(context, 4096, version_info);
+        parsec_version_ex(4096, version_info);
         parsec_inform("== PaRSEC Runtime Compilation Configurations ===============================");
         parsec_output(parsec_debug_output, "%s", version_info);
         parsec_inform("============================================================================");
@@ -831,16 +831,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     return context;
 }
 
-int parsec_version( parsec_context_t* context, int* version_major, int* version_minor, int* version_patch) {
-    (void)context;
+int parsec_version( int* version_major, int* version_minor, int* version_patch) {
     *version_major = PARSEC_VERSION_MAJOR;
     *version_minor = PARSEC_VERSION_MINOR;
     *version_patch = PARSEC_VERSION_PATCH;
     return PARSEC_SUCCESS;
 }
 
-int parsec_version_ex( parsec_context_t* context, size_t len, char* version_string) {
-    (void)context;
+int parsec_version_ex( size_t len, char* version_string) {
     int ret;
 
     ret = snprintf(version_string, len,
@@ -905,7 +903,7 @@ int parsec_version_ex( parsec_context_t* context, size_t len, char* version_stri
 #else
         "no"
 #endif /*PARSEC_PROF_TRACE*/
-            ,
+        ,
 #if defined(PARSEC_HAVE_MPI)
         "mpi"
 #if defined(PARSEC_HAVE_MPI_20)
