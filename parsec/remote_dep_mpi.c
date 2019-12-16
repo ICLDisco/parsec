@@ -536,6 +536,7 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
 static int remote_dep_dequeue_new_taskpool(parsec_taskpool_t* tp)
 {
     if(!mpi_initialized) return 0;
+    remote_dep_inc_flying_messages(tp);
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
     PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action = DEP_NEW_TASKPOOL;
@@ -2174,6 +2175,7 @@ static void remote_dep_mpi_new_taskpool( parsec_execution_stream_t* es,
             (void)rc;
         }
     }
+    remote_dep_dec_flying_messages(obj);
 }
 
 /* In DTD runs, remote nodes might ask us to activate tasks that has not been

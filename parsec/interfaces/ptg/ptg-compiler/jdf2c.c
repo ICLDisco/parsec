@@ -3019,7 +3019,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
     coutput("    parsec_mfence();  /* write memory barrier to guarantee that the scheduler gets the correct number of tasks */\n"
             "    parsec_taskpool_enable((parsec_taskpool_t*)__parsec_tp, &__parsec_tp->startup_queue,\n"
-            "                           (parsec_task_t*)this_task, es, (1 > nb_tasks));\n");
+            "                           (parsec_task_t*)this_task, es, (1 <= nb_tasks));\n");
     if( profile_enabled(f->properties) ) {
         coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
                 "    PARSEC_PROFILING_TRACE(es->es_profile,\n"
