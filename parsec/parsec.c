@@ -1857,7 +1857,9 @@ int parsec_taskpool_enable(parsec_taskpool_t* tp,
     }
     /* Always register the taskpool. This allows the taskpool destructor to unregister it in all cases. */
     parsec_taskpool_register(tp);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d", tp, tp->taskpool_id);
     if( 0 != distributed ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d with the comm engine", tp, tp->taskpool_id);
         (void)parsec_remote_dep_new_taskpool(tp);
     }
     return PARSEC_HOOK_RETURN_DONE;
