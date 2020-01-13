@@ -1203,7 +1203,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
 
         /* If it is already under transfer, don't schedule the transfer again.
          * This happens if the task refers twice (or more) to the same input flow */
-        if( gpu_elem->data_transfer_status == DATA_STATUS_UNDER_TRANSFER ) {
+        if( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {
             PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                                  "GPU[%d]:\t\tMove %s data copy %p [ref_count %d, key %x] of %d bytes\t(src dev: %d, v:%d, ptr:%p, copy:%p [ref_count %d] / dst dev: %d, v:%d, ptr:%p): data copy is already under transfer, ignoring double request",
                                  gpu_device->cuda_index,
@@ -1220,7 +1220,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
                                  in_elem_dev->super.device_index, in_elem->version, (void*)in_elem->device_private, in_elem, in_elem->super.super.obj_reference_count,
                                  gpu_device->super.device_index, gpu_elem->version, (void*)gpu_elem->device_private);
 
-            assert((gpu_elem->version < in_elem->version) || (gpu_elem->data_transfer_status == DATA_STATUS_NOT_TRANSFER));
+            assert((gpu_elem->version < in_elem->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
 
 #if defined(PARSEC_PROF_TRACE)
             if( gpu_stream->prof_event_track_enable  ) {
@@ -1283,7 +1283,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
                                                             original->nb_elts);
                                          parsec_atomic_unlock( &original->lock );                    
                                          if( NULL != release_after_data_in_is_attached )
-                                             OBJ_RELEASE(release_after_data_in_is_attached);
+                                             PARSEC_OBJ_RELEASE(release_after_data_in_is_attached);
                                          assert(0);
                                          return -1; } );
             if( in_elem_dev->super.type != PARSEC_DEV_CUDA )
@@ -1294,7 +1294,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
                 gpu_device->super.nb_data_faults += original->nb_elts;
 
             /* update the data version in GPU immediately, and mark the data under transfer */
-            assert((gpu_elem->version != in_elem->version) || (gpu_elem->data_transfer_status == DATA_STATUS_NOT_TRANSFER));
+            assert((gpu_elem->version != in_elem->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
             gpu_elem->version = in_elem->version;
             PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                                  "GPU[%d]: GPU copy %p [ref_count %d] gets the same version %d as copy %p [ref_count %d] at %s:%d",
@@ -1302,7 +1302,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
                                  gpu_elem, gpu_elem->super.super.obj_reference_count, gpu_elem->version, in_elem, in_elem->super.super.obj_reference_count,
                                  __FILE__, __LINE__);
 
-            gpu_elem->data_transfer_status = DATA_STATUS_UNDER_TRANSFER;
+            gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
         }
         gpu_elem->push_task = gpu_task->ec;  /* only the task who does the transfer can modify the data status later. */
         parsec_atomic_unlock( &original->lock );
