@@ -1786,7 +1786,7 @@ static void remote_dep_mpi_put_eager(parsec_execution_stream_t* es,
 
     item->cmd.activate.task.output_mask = remote_dep_mpi_eager_which(deps, task->output_mask);
     if( 0 == item->cmd.activate.task.output_mask ) {
-        PARSEC_DEBUG_VERBOSE(1, parsec_comm_output_stream, "PUT_EAGER no data for item %p, freeing", item);
+        PARSEC_DEBUG_VERBOSE(100, parsec_comm_output_stream, "PUT_EAGER no data for item %p, freeing", item);
         free(item);  /* nothing to do, no reason to keep it */
         return;
     }
