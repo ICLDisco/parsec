@@ -700,7 +700,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     if(parsec_enable_dot) {
 #if defined(PARSEC_PROF_GRAPHER)
-        parsec_prof_grapher_init(parsec_enable_dot, nb_total_comp_threads);
+        parsec_prof_grapher_init(context, parsec_enable_dot, nb_total_comp_threads);
         slow_option_warning = 1;
 #else
         parsec_warning("DOT generation requested, but PARSEC_PROF_GRAPHER was not selected during compilation: DOT generation ignored.");

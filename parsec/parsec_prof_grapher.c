@@ -18,6 +18,8 @@
 #include "parsec/class/parsec_hash_table.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data_internal.h"
+#include "parsec/utils/mca_param.h"
+#include "parsec/execution_stream.h"
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
@@ -34,6 +36,7 @@ FILE *grapher_file = NULL;
 static int nbfuncs = -1;
 static char **colors = NULL;
 static parsec_hash_table_t *data_ht = NULL;
+static int parsec_prof_grapher_memmode = 0;
 
 typedef struct {
     parsec_data_collection_t *dc;
@@ -80,29 +83,27 @@ static parsec_key_fn_t parsec_grapher_data_key_fns = {
     .key_hash  = grapher_data_id_key_hash
 };
 
-void parsec_prof_grapher_init(const char *base_filename, int nbthreads)
+void parsec_prof_grapher_init(const parsec_context_t *parsec_context, const char *base_filename, int nbthreads)
 {
     char *filename;
-    int t, size = 1, rank = 0;
-
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
     char *format;
-    int l10 = 0, cs;
+    int t, l10 = 0, cs;
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    cs = size;
+    cs = parsec_context->nb_nodes;
     while(cs > 0) {
       l10++;
       cs = cs/10;
     }
     asprintf(&format, "%%s-%%0%dd.dot", l10);
-    asprintf(&filename, format, base_filename, rank);
+    asprintf(&filename, format, base_filename, parsec_context->my_rank);
     free(format);
-#else
-    asprintf(&filename, "%s.dot", base_filename);
-#endif
 
+    parsec_mca_param_reg_int_name("parsec_prof_grapher", "memmode", "How memory references are traced in the DAG of tasks "
+                                 "(default is 0, possible values are 0: no tracing of memory references, 1: trace only the "
+                                  "direct memory references, 2: trace memory references even when data is passed from task "
+                                  "to task)",
+                                  false, false, parsec_prof_grapher_memmode, &parsec_prof_grapher_memmode);
+    
     grapher_file = fopen(filename, "w");
     if( NULL == grapher_file ) {
         parsec_warning("Grapher:\tunable to create %s (%s) -- DOT graphing disabled", filename, strerror(errno));
@@ -114,12 +115,12 @@ void parsec_prof_grapher_init(const char *base_filename, int nbthreads)
     fprintf(grapher_file, "digraph G {\n");
     fflush(grapher_file);
 
-    srandom(size*(rank+1));  /* for consistent color generation */
+    srandom(parsec_context->nb_nodes*(parsec_context->my_rank+1));  /* for consistent color generation */
     (void)nbthreads;
     nbfuncs = 128;
     colors = (char**)malloc(nbfuncs * sizeof(char*));
     for(t = 0; t < nbfuncs; t++)
-        colors[t] = parsec_unique_color(rank * nbfuncs + t, size * nbfuncs);
+        colors[t] = parsec_unique_color(parsec_context->my_rank * nbfuncs + t, parsec_context->nb_nodes * nbfuncs);
 
     data_ht = PARSEC_OBJ_NEW(parsec_hash_table_t);
     parsec_hash_table_init(data_ht, offsetof(parsec_grapher_data_identifier_hash_table_item_t, ht_item), 16, parsec_grapher_data_key_fns, NULL);
@@ -250,15 +251,17 @@ static void parsec_prof_grapher_dataid(const parsec_data_t *dta, char *did, int 
 
         assert(NULL != dta->dc->key_to_string);
         dta->dc->key_to_string(dta->dc, dta->key, data_name, MAX_TASK_STRLEN);
-        fprintf(grapher_file, "%s [label=\"%s\",shape=\"circle\"]\n", it->did, data_name);
+        fprintf(grapher_file, "%s [label=\"%s%s\",shape=\"circle\"]\n", it->did, NULL != dta->dc->key_base ? dta->dc->key_base : "", data_name);
     } else
         parsec_hash_table_unlock_bucket(data_ht, key);
     strncpy(did, it->did, size);
 }
 
-void  parsec_prof_grapher_data_input(const parsec_data_t *data, const parsec_task_t *task, const parsec_flow_t *flow)
+void  parsec_prof_grapher_data_input(const parsec_data_t *data, const parsec_task_t *task, const parsec_flow_t *flow, int direct_reference)
 {
-    if( NULL != grapher_file ) {
+    if( NULL != grapher_file &&
+        (( direct_reference == 1 && parsec_prof_grapher_memmode == 1 ) ||
+         ( parsec_prof_grapher_memmode == 2 )) ) {
         char tid[128];
         char did[128];
         parsec_prof_grapher_taskid( task, tid, 128 );
@@ -270,7 +273,9 @@ void  parsec_prof_grapher_data_input(const parsec_data_t *data, const parsec_tas
 
 void  parsec_prof_grapher_data_output(const struct parsec_task_s *task, const struct parsec_data_s *data, const struct parsec_flow_s *flow)
 {
-    if( NULL != grapher_file ) {
+    /* All output are direct references to a data */
+    if( NULL != grapher_file &&
+        (parsec_prof_grapher_memmode >= 1 ) ) {
         char tid[128];
         char did[128];
         parsec_prof_grapher_taskid( task, tid, 128 );
