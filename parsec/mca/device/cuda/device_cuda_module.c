@@ -1201,96 +1201,109 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
     if( -1 != transfer_from ) {
         cudaError_t status;
 
-        PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
-                             "GPU[%d]:\t\tMove %s data copy %p [ref_count %d, key %x] of %d bytes\t(src dev: %d, v:%d, ptr:%p, copy:%p [ref_count %d] / dst dev: %d, v:%d, ptr:%p)",
-                             gpu_device->cuda_index,
-                             in_elem_dev->super.type == PARSEC_DEV_CUDA ? "D2D": "H2D",
-                             gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, original->nb_elts,
-                             in_elem_dev->super.device_index, in_elem->version, (void*)in_elem->device_private, in_elem, in_elem->super.super.obj_reference_count,
-                             gpu_device->super.device_index, gpu_elem->version, (void*)gpu_elem->device_private);
+        /* If it is already under transfer, don't schedule the transfer again.
+         * This happens if the task refers twice (or more) to the same input flow */
+        if( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {
+            PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
+                                 "GPU[%d]:\t\tMove %s data copy %p [ref_count %d, key %x] of %d bytes\t(src dev: %d, v:%d, ptr:%p, copy:%p [ref_count %d] / dst dev: %d, v:%d, ptr:%p): data copy is already under transfer, ignoring double request",
+                                 gpu_device->cuda_index,
+                                 in_elem_dev->super.type == PARSEC_DEV_CUDA ? "D2D": "H2D",
+                                 gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, original->nb_elts,
+                                 in_elem_dev->super.device_index, in_elem->version, (void*)in_elem->device_private, in_elem, in_elem->super.super.obj_reference_count,
+                                 gpu_device->super.device_index, gpu_elem->version, (void*)gpu_elem->device_private);
+        } else {
+            PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
+                                 "GPU[%d]:\t\tMove %s data copy %p [ref_count %d, key %x] of %d bytes\t(src dev: %d, v:%d, ptr:%p, copy:%p [ref_count %d] / dst dev: %d, v:%d, ptr:%p)",
+                                 gpu_device->cuda_index,
+                                 in_elem_dev->super.type == PARSEC_DEV_CUDA ? "D2D": "H2D",
+                                 gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, original->nb_elts,
+                                 in_elem_dev->super.device_index, in_elem->version, (void*)in_elem->device_private, in_elem, in_elem->super.super.obj_reference_count,
+                                 gpu_device->super.device_index, gpu_elem->version, (void*)gpu_elem->device_private);
 
-        assert((gpu_elem->version < in_elem->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
+            assert((gpu_elem->version < in_elem->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
 
 #if defined(PARSEC_PROF_TRACE)
-        if( gpu_stream->prof_event_track_enable  ) {
-            parsec_task_t *this_task = gpu_task->ec;
-            parsec_profile_data_collection_info_t info;
-            int prof_key_start;
+            if( gpu_stream->prof_event_track_enable  ) {
+                parsec_task_t *this_task = gpu_task->ec;
+                parsec_profile_data_collection_info_t info;
+                int prof_key_start;
 
-            gpu_task->prof_key_end = -1;
-            if( GPU_TASK_TYPE_PREFETCH == gpu_task->task_type ) {
-                if(parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_PREFETCH) {
-                    prof_key_start = parsec_cuda_prefetch_key_start;
-                    gpu_task->prof_key_end = parsec_cuda_prefetch_key_end;
-                }
-            } else {
-                if(parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_IN) {
-                    prof_key_start = parsec_cuda_movein_key_start;
-                    gpu_task->prof_key_end = parsec_cuda_movein_key_end;
-                }
-            }
-
-            if( gpu_task->prof_key_end != -1 ) {
-                if( NULL != original->dc ) {
-                    info.desc = original->dc;
-                    info.id   = original->key;
+                gpu_task->prof_key_end = -1;
+                if( GPU_TASK_TYPE_PREFETCH == gpu_task->task_type ) {
+                    if(parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_PREFETCH) {
+                        prof_key_start = parsec_cuda_prefetch_key_start;
+                        gpu_task->prof_key_end = parsec_cuda_prefetch_key_end;
+                    }
                 } else {
-                    assert( GPU_TASK_TYPE_PREFETCH != gpu_task->task_type );
-                    info.desc = (parsec_dc_t*)original;
-                    info.id   = -1;
+                    if(parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_IN) {
+                        prof_key_start = parsec_cuda_movein_key_start;
+                        gpu_task->prof_key_end = parsec_cuda_movein_key_end;
+                    }
                 }
 
-                if( NULL != this_task->taskpool ) {
-                    gpu_task->prof_event_id = this_task->task_class->key_functions->key_hash(this_task->task_class->make_key(this_task->taskpool, this_task->locals), NULL);
-                    gpu_task->prof_tp_id = this_task->taskpool->taskpool_id;
-                } else {
-                    gpu_task->prof_event_id = (uint64_t)original;
-                    gpu_task->prof_tp_id = PROFILE_OBJECT_ID_NULL;
+                if( gpu_task->prof_key_end != -1 ) {
+                    if( NULL != original->dc ) {
+                        info.desc = original->dc;
+                        info.id   = original->key;
+                    } else {
+                        assert( GPU_TASK_TYPE_PREFETCH != gpu_task->task_type );
+                        info.desc = (parsec_dc_t*)original;
+                        info.id   = -1;
+                    }
+
+                    if( NULL != this_task->taskpool ) {
+                        gpu_task->prof_event_id = this_task->task_class->key_functions->key_hash(this_task->task_class->make_key(this_task->taskpool, this_task->locals), NULL);
+                        gpu_task->prof_tp_id = this_task->taskpool->taskpool_id;
+                    } else {
+                        gpu_task->prof_event_id = (uint64_t)original;
+                        gpu_task->prof_tp_id = PROFILE_OBJECT_ID_NULL;
+                    }
+                    PARSEC_PROFILING_TRACE(gpu_stream->profiling,
+                                           prof_key_start,
+                                           gpu_task->prof_event_id,
+                                           gpu_task->prof_tp_id,
+                                           &info);
                 }
-                PARSEC_PROFILING_TRACE(gpu_stream->profiling,
-                                       prof_key_start,
-                                       gpu_task->prof_event_id,
-                                       gpu_task->prof_tp_id,
-                                       &info);
-            }
-        } 
+            } 
 #endif
-        /* Push data into the GPU from the source device */
-        status = (cudaError_t)cudaMemcpyAsync( gpu_elem->device_private,
-                                               in_elem->device_private, original->nb_elts,
-                                               in_elem_dev->super.type != PARSEC_DEV_CUDA ? cudaMemcpyHostToDevice : cudaMemcpyDeviceToDevice,
-                                               gpu_stream->cuda_stream );
-        PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", status,
-                                 { if( in_elem_dev->super.type != PARSEC_DEV_CUDA )
-                                       parsec_warning("<<%p>> -> <<%p on CUDA device %d>> [%d, H2D]",
-                                                      in_elem->device_private, gpu_elem->device_private, gpu_device->cuda_index,
-                                                      original->nb_elts);
-                                   else
-                                       parsec_warning("<<%p on CUDA device %d>> -> <<%p on CUDA device %d>> [%d, D2D]",
-                                                      in_elem->device_private, in_elem_dev->cuda_index,
-                                                      gpu_elem->device_private, gpu_device->cuda_index,
-                                                      original->nb_elts);
-                                   parsec_atomic_unlock( &original->lock );                    
-                                   if( NULL != release_after_data_in_is_attached )
-                                       PARSEC_OBJ_RELEASE(release_after_data_in_is_attached);
-                                   return -1; } );
-        if( in_elem_dev->super.type != PARSEC_DEV_CUDA )
-            gpu_device->super.transferred_data_in += original->nb_elts;
-        else
-            gpu_device->super.d2d_transfer += original->nb_elts;
-        if( GPU_TASK_TYPE_KERNEL == gpu_task->task_type )
-            gpu_device->super.nb_data_faults += original->nb_elts;
+            /* Push data into the GPU from the source device */
+            status = (cudaError_t)cudaMemcpyAsync( gpu_elem->device_private,
+                                                   in_elem->device_private, original->nb_elts,
+                                                   in_elem_dev->super.type != PARSEC_DEV_CUDA ? cudaMemcpyHostToDevice : cudaMemcpyDeviceToDevice,
+                                                   gpu_stream->cuda_stream );
+            PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", status,
+                                     { if( in_elem_dev->super.type != PARSEC_DEV_CUDA )
+                                             parsec_warning("<<%p>> -> <<%p on CUDA device %d>> [%d, H2D]",
+                                                            in_elem->device_private, gpu_elem->device_private, gpu_device->cuda_index,
+                                                            original->nb_elts);
+                                         else
+                                             parsec_warning("<<%p on CUDA device %d>> -> <<%p on CUDA device %d>> [%d, D2D]",
+                                                            in_elem->device_private, in_elem_dev->cuda_index,
+                                                            gpu_elem->device_private, gpu_device->cuda_index,
+                                                            original->nb_elts);
+                                         parsec_atomic_unlock( &original->lock );                    
+                                         if( NULL != release_after_data_in_is_attached )
+                                             PARSEC_OBJ_RELEASE(release_after_data_in_is_attached);
+                                         assert(0);
+                                         return -1; } );
+            if( in_elem_dev->super.type != PARSEC_DEV_CUDA )
+                gpu_device->super.transferred_data_in += original->nb_elts;
+            else
+                gpu_device->super.d2d_transfer += original->nb_elts;
+            if( GPU_TASK_TYPE_KERNEL == gpu_task->task_type )
+                gpu_device->super.nb_data_faults += original->nb_elts;
 
-        /* update the data version in GPU immediately, and mark the data under transfer */
-        assert((gpu_elem->version != in_elem->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
-        gpu_elem->version = in_elem->version;
-        PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
-                             "GPU[%d]: GPU copy %p [ref_count %d] gets the same version %d as copy %p [ref_count %d] at %s:%d",
-                             gpu_device->cuda_index,
-                             gpu_elem, gpu_elem->super.super.obj_reference_count, gpu_elem->version, in_elem, in_elem->super.super.obj_reference_count,
-                             __FILE__, __LINE__);
+            /* update the data version in GPU immediately, and mark the data under transfer */
+            assert((gpu_elem->version != in_elem->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
+            gpu_elem->version = in_elem->version;
+            PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
+                                 "GPU[%d]: GPU copy %p [ref_count %d] gets the same version %d as copy %p [ref_count %d] at %s:%d",
+                                 gpu_device->cuda_index,
+                                 gpu_elem, gpu_elem->super.super.obj_reference_count, gpu_elem->version, in_elem, in_elem->super.super.obj_reference_count,
+                                 __FILE__, __LINE__);
 
-        gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
+            gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
+        }
         gpu_elem->push_task = gpu_task->ec;  /* only the task who does the transfer can modify the data status later. */
         parsec_atomic_unlock( &original->lock );
         if( NULL != release_after_data_in_is_attached )
