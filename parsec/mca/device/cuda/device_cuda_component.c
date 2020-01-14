@@ -130,7 +130,10 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
                                              &parsec_cuda_use_memory_key_start, &parsec_cuda_use_memory_key_end);
 #endif  /* defined(PROFILING) */
 
-    parsec_device_cuda_component.modules = (parsec_device_module_t**)calloc(use_cuda + 1, sizeof(parsec_device_module_t*));
+    if( use_cuda >= 1)
+        parsec_device_cuda_component.modules = (parsec_device_module_t**)calloc(use_cuda + 1, sizeof(parsec_device_module_t*));
+    else
+        parsec_device_cuda_component.modules = NULL;
 
     for( i = j = 0; i < use_cuda; i++ ) {
 
@@ -151,7 +154,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
     parsec_device_cuda_module_t *source_gpu, *target_gpu;
     cudaError_t cudastatus;
 
-    for( i = 0; NULL != (source_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[i]); i++ ) {
+    for( i = 0; i < use_cuda && NULL != (source_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[i]); i++ ) {
         int canAccessPeer;
         source_gpu->peer_access_mask = 0;
 
@@ -180,7 +183,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
     void *ptr = parsec_device_cuda_component.modules;
     *priority = 10;
     *module = (mca_base_module_t *)ptr;
-
+    
     return MCA_SUCCESS;
 }
 
@@ -228,7 +231,7 @@ static int device_cuda_component_open(void)
     cudaError_t cudastatus;
     int ndevices;
 
-    if( 0 == use_cuda ) {
+    if( 0 <= use_cuda ) {
         return MCA_ERROR;  /* Nothing to do around here */
     }
 
