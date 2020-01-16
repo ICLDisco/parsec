@@ -14,8 +14,6 @@
 #ifndef INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED
 #define INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED
 
-BEGIN_C_DECLS
-
 #include "parsec/parsec_internal.h"
 #include "parsec/data.h"
 #include "parsec/data_internal.h"
@@ -23,6 +21,8 @@ BEGIN_C_DECLS
 #include "parsec/data_distribution.h"
 #include "parsec/interfaces/superscalar/insert_function.h"
 #include "parsec/execution_stream.h"
+
+BEGIN_C_DECLS
 
 #define PARSEC_DTD_NB_TASK_CLASSES  25 /*< Max number of task classes allowed */
 

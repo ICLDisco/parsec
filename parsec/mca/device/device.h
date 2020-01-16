@@ -141,8 +141,6 @@ struct parsec_device_module_s {
     uint8_t type;
 };
 
-BEGIN_C_DECLS
-
 extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
 extern parsec_atomic_lock_t parsec_devices_mutex;
