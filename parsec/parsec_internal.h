@@ -36,7 +36,7 @@
 BEGIN_C_DECLS
 
 /* NULL terminated local hostname of the current PaRSEC process */
-PARSEC_DECLSPEC const char* parsec_hostname;
+PARSEC_DECLSPEC extern const char* parsec_hostname;
 
 /**
  * @defgroup parsec_internal_runtime Internal Runtime
