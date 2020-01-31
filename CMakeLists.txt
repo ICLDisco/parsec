@@ -71,11 +71,6 @@ mark_as_advanced(BUILD_TOOLS)
 option(BUILD_PARSEC
        "Compile the PaRSEC framework" ON)
 mark_as_advanced(BUILD_PARSEC)
-if( BUILD_PARSEC )
-  if( NOT BUILD_TOOLS AND NOT CMAKE_CROSSCOMPILING )
-    message(FATAL_ERROR "Building the PaRSEC layer requires the PaRSEC tools")
-  endif( NOT BUILD_TOOLS AND NOT CMAKE_CROSSCOMPILING )
-endif( BUILD_PARSEC )
 
 ### Misc options
 option(BUILD_SHARED_LIBS
@@ -220,10 +215,8 @@ include (CheckCXXCompilerFlag)
 # check the capabilities of the system we are building for
 #
 
-IF( BUILD_TOOLS )
-  # Check for compiler tools
-  find_package(BISON)
-ENDIF( BUILD_TOOLS )
+# Check for compiler tools
+find_package(BISON)
 find_package(FLEX)
 set(PARSEC_HAVE_RECENT_LEX 0)
 

@@ -6,17 +6,17 @@ endif()
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(dbp2xml dbp2xml.c dbpreader.c)
 set_target_properties(dbp2xml PROPERTIES LINKER_LANGUAGE C)
-target_link_libraries(dbp2xml parsec-base ${GTG_LIBRARIES})
+target_link_libraries(dbp2xml parsec-base)
 install(TARGETS dbp2xml RUNTIME DESTINATION bin)
 
 add_executable(dbpinfos dbpinfos.c dbpreader.c)
 set_target_properties(dbpinfos PROPERTIES LINKER_LANGUAGE C)
-target_link_libraries(dbpinfos parsec-base ${GTG_LIBRARIES})
+target_link_libraries(dbpinfos parsec-base)
 install(TARGETS dbpinfos RUNTIME DESTINATION bin)
 
 add_executable(dbp2mem dbp2mem.c dbpreader.c)
 set_target_properties(dbp2mem PROPERTIES LINKER_LANGUAGE C)
-target_link_libraries(dbp2mem parsec-base ${GTG_LIBRARIES})
+target_link_libraries(dbp2mem parsec-base)
 install(TARGETS dbp2mem RUNTIME DESTINATION bin)
 
 find_package(GTG)
@@ -37,8 +37,8 @@ if(GRAPHVIZ_FOUND)
 
   add_executable(testgraph testgraph.c graph.c)
   set_target_properties(testgraph PROPERTIES LINKER_LANGUAGE C)
-  target_link_libraries(testgraph ${GRAPHVIZ_LIBRARIES})
-  target_link_libraries(testgraph parsec-base)
+  target_link_libraries(testgraph)
+  target_link_libraries(testgraph parsec-base ${GRAPHVIZ_LIBRARIES})
 
   find_package(GD QUIET)
 
