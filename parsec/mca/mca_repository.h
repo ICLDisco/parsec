@@ -10,6 +10,7 @@ int mca_components_belongs_to_user_list(char **list, const char *name);
 char **mca_components_get_user_selection(char *type);
 void mca_components_free_user_list(char **list);
 
+char *mca_components_list_compiled(char* type_name);
 mca_base_component_t **mca_components_open_bytype(char *type);
 void mca_components_query(mca_base_component_t **opened_components,
                           mca_base_module_t **selected_module,

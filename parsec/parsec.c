@@ -840,6 +840,9 @@ int parsec_version( int* version_major, int* version_minor, int* version_patch) 
 
 int parsec_version_ex( size_t len, char* version_string) {
     int ret;
+    char *sched_components = mca_components_list_compiled("sched");
+    char *device_components = mca_components_list_compiled("device");
+    char *pins_components = mca_components_list_compiled("pins");
 
     ret = snprintf(version_string, len,
         "version\t\t= %d.%d.%d\n"
@@ -850,8 +853,10 @@ int parsec_version_ex( size_t len, char* version_string) {
         "compile_date\t= %s\n"
         "debug\t\t= %s\n"
         "profiling\t= %s\n"
+        "pins\t\t= %s\n"
         "comms\t\t= %s\n"
         "devices\t\t= %s\n"
+        "scheds\t\t= %s\n"
         "hwloc\t\t= %s\n"
         "bits\t\t= %s\n"
         "atomics\t\t= %s\n"
@@ -891,9 +896,6 @@ int parsec_version_ex( size_t len, char* version_string) {
 #if defined(PARSEC_PROF_DRY_DEP)
         "+drydep"
 #endif
-#if defined(PARSEC_PROF_PINS)
-        "+pins"
-#endif
 #if defined(PARSEC_PROF_GRAPHER)
         "+grapher"
 #endif
@@ -904,6 +906,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         "no"
 #endif /*PARSEC_PROF_TRACE*/
         ,
+        pins_components,
 #if defined(PARSEC_HAVE_MPI)
         "mpi"
 #if defined(PARSEC_HAVE_MPI_20)
@@ -914,14 +917,8 @@ int parsec_version_ex( size_t len, char* version_string) {
 #endif
 #endif
         ,
-        "cpu"
-#if defined(PARSEC_GPU_WITH_CUDA)
-        ",cuda"
-#if defined(PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS)
-        "+peer_access"
-#endif
-#endif
-        ,
+        device_components,
+        sched_components,
 #if defined(PARSEC_HAVE_HWLOC)
         "yes"
 #else
@@ -968,6 +965,9 @@ int parsec_version_ex( size_t len, char* version_string) {
         CMAKE_PARSEC_C_COMPILER,
         CMAKE_PARSEC_C_FLAGS
     );
+    free(device_components);
+    free(sched_components);
+    free(pins_components);
     return len > (size_t)ret? PARSEC_SUCCESS: PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
 }
 

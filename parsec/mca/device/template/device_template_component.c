@@ -50,6 +50,10 @@ parsec_device_base_component_t parsec_device_template_component = {
 
         /* Component name and version */
         "template",
+#if defined(PARSEC_SOME_SPECIAL_BUILD_OPTIONS)
+        "+build_option"
+#endif
+        "",
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
 

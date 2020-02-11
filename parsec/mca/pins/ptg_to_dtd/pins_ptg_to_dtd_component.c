@@ -39,6 +39,7 @@ const parsec_pins_base_component_t parsec_pins_ptg_to_dtd_component = {
 
         /* Component name and version */
         "ptg_to_dtd",
+        "", /* options */
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
 

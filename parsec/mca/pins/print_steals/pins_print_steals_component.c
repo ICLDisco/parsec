@@ -40,6 +40,7 @@ const parsec_pins_base_component_t parsec_pins_print_steals_component = {
 
         /* Component name and version */
         "print_steals",
+        "", /* options */
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
 
