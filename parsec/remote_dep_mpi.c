@@ -355,7 +355,7 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
         /* We're all by ourselves. In case we need to use MPI to handle data copies
          * between different formats let's setup local MPI support.
          */
-        remote_dep_mpi_setup(context);
+        remote_dep_mpi_on(context);
 
         goto up_and_running;
     }
@@ -456,12 +456,13 @@ static int remote_dep_dequeue_on(parsec_context_t* context)
      * receives the signal. At that point it acquires the mpi_thread_mutex and set the
      * global variable parsec_communication_engine_up to 3.
      */
-#if 0
+
     /**
-     * For safety purposes we could wait until the communication thread is up and running.
+     * We need to wait for the communication thread to perform the mpi_setup
+     * as it will fill-up my_rank on the context.
      */
     while( 3 != parsec_communication_engine_up ) sched_yield();
-#endif
+
     (void)context;
     return 1;
 }
@@ -517,9 +518,9 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
                              context->my_rank, context->nb_nodes);
         /* The MPI thread is owning the lock */
         assert( parsec_communication_engine_up == 2 );
+        remote_dep_mpi_on(context);
         /* acknoledge the activation */
         parsec_communication_engine_up = 3;
-        remote_dep_mpi_on(context);
         whatsup = remote_dep_dequeue_nothread_progress(&parsec_comm_es, -1 /* loop till explicitly asked to return */);
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: comm engine OFF on process %d/%d",
                              context->my_rank, context->nb_nodes);
@@ -948,8 +949,6 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
     dep_cmd_item_t *item, *same_pos = NULL;
     parsec_list_t temp_list;
     int ret = 0, how_many, position, executed_tasks = 0;
-
-    remote_dep_mpi_setup(context);
 
     PARSEC_OBJ_CONSTRUCT(&temp_list, parsec_list_t);
  check_pending_queues:
@@ -1497,6 +1496,7 @@ static int remote_dep_mpi_cleanup(parsec_context_t* context)
 
 static int remote_dep_mpi_on(parsec_context_t* context)
 {
+    remote_dep_mpi_setup(context);
 #ifdef PARSEC_PROF_TRACE
     /* put a start marker on each line */
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, 0);
