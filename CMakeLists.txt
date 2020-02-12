@@ -9,6 +9,11 @@ set (PARSEC_VERSION_MAJOR 2)
 set (PARSEC_VERSION_MINOR 0)
 set (PARSEC_VERSION_PATCH 0)
 
+# Set the following values for a release
+#set(GIT_COMMIT_HASH deafbeed)
+#set(GIT_COMMIT_TAG vX.Y.Z)
+#set(GIT_COMMIT_DATE yyyy-mm-dd)
+
 # Configure the installation paths
 set(INCLUDE_INSTALL_DIR include)
 set(LIB_INSTALL_DIR lib)
@@ -879,22 +884,40 @@ add_subdirectory(docs)
 
 string(TIMESTAMP PARSEC_COMPILE_DATE)
 
-# Fetch GIT info for this build
+# Fetch GIT info for this build, if not preset for a release
+# Get the latest abbreviated commit hash of the working branch
+if(NOT GIT_COMMIT_HASH)
+execute_process(
+  COMMAND git log -1 --format=%h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_HASH
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
+if(NOT GIT_COMMIT_HASH)
+  set(GIT_COMMIT_HASH "unknown")
+  set(GIT_COMMIT_BRANCH "")
+  set(GIT_COMMIT_DIRTY "")
+  set(GIT_COMMIT_DATE "")
+endif()
+endif(NOT GIT_COMMIT_HASH)
+# Get the date of the commit hash
+if(NOT GIT_COMMIT_DATE)
+execute_process(
+  COMMAND git log -1 --format=%cd --date=short
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_DATE
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
 # Get the current working branch
+if(NOT GIT_COMMIT_BRANCH)
 execute_process(
   COMMAND git rev-parse --abbrev-ref HEAD
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE GIT_COMMIT_BRANCH
   OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-# Get the latest abbreviated commit hash of the working branch
-execute_process(
-  COMMAND git log -1 --format=%h
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT_HASH
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-
+endif()
 # Get the status of the clone
+if(NOT GIT_COMMIT_DIRTY)
 execute_process(
   COMMAND git diff HEAD --shortstat
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -903,13 +926,7 @@ string(STRIP "${GIT_COMMIT_DIRTY}" GIT_COMMIT_DIRTY)
 if(NOT GIT_COMMIT_DIRTY)
   set(GIT_COMMIT_DIRTY "no")
 endif()
-
-# Get the date of the commit hash
-execute_process(
-  COMMAND git log -1 --format=%cd --date=short
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT_DATE
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
 
 # Configuration header
 configure_file (

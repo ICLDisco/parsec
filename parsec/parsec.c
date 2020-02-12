@@ -846,14 +846,16 @@ int parsec_version_ex( size_t len, char* version_string) {
 
     ret = snprintf(version_string, len,
         "version\t\t= %d.%d.%d\n"
-        "git_tag\t\t= %s\n"
         "git_hash\t= %s\n"
+        "git_tag\t\t= %s\n"
         "git_dirty\t= %s\n"
         "git_date\t= %s\n"
         "compile_date\t= %s\n"
         "debug\t\t= %s\n"
         "profiling\t= %s\n"
+#if defined(PARSEC_PROF_TRACE)
         "pins\t\t= %s\n"
+#endif
         "comms\t\t= %s\n"
         "devices\t\t= %s\n"
         "scheds\t\t= %s\n"
@@ -865,8 +867,8 @@ int parsec_version_ex( size_t len, char* version_string) {
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
         PARSEC_VERSION_PATCH,
-        PARSEC_GIT_BRANCH,
         PARSEC_GIT_HASH,
+        PARSEC_GIT_BRANCH,
         PARSEC_GIT_DIRTY,
         PARSEC_GIT_DATE,
         PARSEC_COMPILE_DATE,
@@ -902,11 +904,11 @@ int parsec_version_ex( size_t len, char* version_string) {
 #if defined(PARSEC_SIM)
         "+sim"
 #endif
+        ,
+        pins_components,
 #else
         "no"
 #endif /*PARSEC_PROF_TRACE*/
-        ,
-        pins_components,
 #if defined(PARSEC_HAVE_MPI)
         "mpi"
 #if defined(PARSEC_HAVE_MPI_20)
