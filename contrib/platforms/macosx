@@ -23,7 +23,6 @@ if [ "x$USER" == "xbosilca" ]; then
     with_hwloc=${HWLOC_ROOT:=/Users/bosilca/opt}
     #with_cuda=${CUDA_ROOT:=/Developer/NVIDIA/CUDA-9.1/}
     with_gtg=${GTG_ROOT:=${HOME}/opt}
-    #with_omega=${OMEGA_ROOT:="/Users/bosilca/tools/Omega/binary"}
     with_ayudame=${AYUDAME_ROOT:="/Users/bosilca/opt/temanejo"}
 fi
 

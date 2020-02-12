@@ -105,7 +105,6 @@ how one sets some default options.
 
   with_hwloc=${HWLOC_ROOT:="/spack/opt/spack/linux-scientific7-x86_64/gcc-7.3.0/hwloc-1.11.11-nu65xwuyodswr74llx3ymi67hgd6vmwe"}
   with_gtg=${GTG_ROOT:="/sw/gtg/0.2-2"}
-  with_omega=${OMEGA_ROOT:="/sw/omega/2.1"}
 
   # BLAS: use MKL
   [ -z "${MKLROOT}" ] || module load intel-mkl/2019.3.199/gcc-7.3.0-2pn4
@@ -399,7 +398,6 @@ Hopefully, once the expected arguments are provided the output will look similar
   -- ---- Module `spq' is ON
   -- Component sched sources:
   -- PARSEC Modular Component Architecture (MCA) discovery done.
-  -- Could NOT find Omega; Options depending on Omega will be disabled (missing: OMEGA_INCLUDE_DIR OMEGA_LIBRARY)
   -- Detecting Fortran/C Interface
   -- Detecting Fortran/C Interface - Found GLOBAL and MODULE mangling
   -- Looking for PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128
@@ -499,7 +497,6 @@ Notable parameters are::
   PARSEC_DIST_COLLECTIVES         ON
   PARSEC_DIST_WITH_MPI            ON
   PARSEC_GPU_WITH_CUDA            ON
-  PARSEC_OMEGA_DIR                OFF
   PARSEC_PROF_*                   OFF (all PARSEC_PROF_ flags off)
 
 Using the *expert* mode (key 't' to toggle to expert mode), you can change other

@@ -18,11 +18,10 @@ MPI_DIR="/opt/sgi/mpt/mpt-2.04/"
 #MPI_DIR="/nics/d/home/smoreaud/libs/ompi"
 HWLOC_DIR=${HWLOC_DIR:="/nics/d/home/smoreaud/libs/hwloc/"}  
 CUDA_DIR=${CUDA_DIR:="not installed"}
-# OMEGA_DIR=${OMEGA_DIR:="/opt/Omega/"}
+
 
 #USER_OPTIONS+=" -DPARSEC_DIST_WITH_MPI=OFF"
 USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF"
-USER_OPTIONS+=" -DPARSEC_Q2J=OFF"
 
 #####
 ## Cmake does not have a clean interface for FindXXX moducles, everyone has a different flavor. Reconciliation.
@@ -42,8 +41,8 @@ if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_GPU_WITH_CUDA=OFF.
     export CUDA_BIN_PATH=${CUDA_DIR}
 fi
 
-if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_Q2J=OFF.*") -eq 0 ]; then 
-    Q2J="-DPARSEC_OMEGA_DIR=${OMEGA_DIR}"
+
+
 fi
 
 
@@ -65,6 +64,6 @@ fi
 LOCATION=$(dirname $0)/../..
 export CC CXX FC
 
-echo cmake -G "Unix Makefiles" ${MPI}  -DMPI_LIBRARY="-L$MPICH_DIR/lib -lmpich -lfmpich -lmpl"  ${HWLOC} ${CUDA} ${Q2J} ${PLASMA} ${USER_OPTIONS} ${LOCATION}
-cmake -G "Unix Makefiles" ${MPI}  -DMPI_LIBRARY="-L$MPICH_DIR/lib -lmpich -lfmpich -lmpl"  ${HWLOC} ${CUDA} ${Q2J} ${PLASMA} ${USER_OPTIONS} ${LOCATION}
+echo cmake -G "Unix Makefiles" ${MPI}  -DMPI_LIBRARY="-L$MPICH_DIR/lib -lmpich -lfmpich -lmpl"  ${HWLOC} ${CUDA} ${PLASMA} ${USER_OPTIONS} ${LOCATION}
+cmake -G "Unix Makefiles" ${MPI}  -DMPI_LIBRARY="-L$MPICH_DIR/lib -lmpich -lfmpich -lmpl"  ${HWLOC} ${CUDA} ${PLASMA} ${USER_OPTIONS} ${LOCATION}
 

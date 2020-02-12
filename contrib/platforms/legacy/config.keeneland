@@ -14,7 +14,7 @@ FC=${FC:="ifort"}
 HWLOC_DIR=${HWLOC_DIR:="/nics/c/home/bouteill/KEENELAND/hwloc/1.9"}
 #GTG_DIR=${GTG_DIR:="/opt/gtg"}
 #CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
-#OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
+
 
 . $(dirname $0)/config.inc
 # guess_defaults  # No guesses on Keeneland.

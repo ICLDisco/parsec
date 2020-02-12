@@ -14,7 +14,7 @@ MPI_DIR=${MPI_DIR:="/mnt/scratch/sw/openmpi-1.3.1-intel"}
 HWLOC_DIR=${HWLOC_DIR:="/home/wwu12/opt/hwloc-1.7.2"}
 GTG_DIR=${GTG_DIR:="/home/wwu12/opt/gtg-0.2"}
 CUDA_DIR=${CUDA_DIR:="/mnt/scratch/cuda-5.0.35"}
-#OMEGA_DIR=${OMEGA_DIR:="/path/omega"}
+
 PAPI_DIR=${PAPI_DIR:="/mnt/scratch/sw/papi-5.0.1"}
 
 # This can be used to control auto detection of some packages

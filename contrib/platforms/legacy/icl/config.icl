@@ -19,7 +19,7 @@ echo "#"
 #HWLOC_DIR=${HWLOC_DIR:="/path/hwloc"}
 #GTG_DIR=${GTG_DIR:="/path/gtg"}
 #CUDA_DIR=${CUDA_DIR:="/mnt/scratch/cuda"}
-#OMEGA_DIR=${OMEGA_DIR:="/path/omega"}
+
 
 # This can be used to control auto detection of some packages
 #PKG_CONFIG_PATH=/some/package/lib/pkgconfig:$PKG_CONFIG_PATH
