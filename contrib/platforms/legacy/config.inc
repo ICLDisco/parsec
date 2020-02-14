@@ -34,7 +34,7 @@ function guess_defaults {
     HWLOC_DIR=${HWLOC_DIR:=$(dirname_bin hwloc-ls)}
     GTG_DIR=${GTG_DIR:=$(pkg-config gtg --variable=prefix)}
     CUDA_DIR=${CUDA_DIR:=$(dirname_bin nvcc)}
-    OMEGA_DIR=${OMEGA_DIR:=$(dirname_bin petit)}
+
     PAPI_DIR=${PAPI_DIR:=$(dirname_bin papi_avail)}
     #PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:=$(which python3 2>/dev/null)}
     PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:=$(which python 2>/dev/null)}
@@ -91,8 +91,8 @@ if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_GPU_WITH_CUDA=OFF.
     CUDA="-DCUDA_TOOLKIT_ROOT_DIR=${CUDA_DIR} -DCUDA_HOST_COMPILER=$(which \"${CC}\" 2>/dev/null)"
 fi
 
-if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_Q2J=OFF.*") -eq 0 ]; then
-    Q2J="-DOMEGA_DIR=${OMEGA_DIR}"
+
+
 fi
 
 if [ -n "${PAPI_DIR}" -a -f "$PAPI_DIR/lib/libpapi.so" ]; then
@@ -106,7 +106,7 @@ fi
 # Done with variable allocation, do the thing with Cmake
 rm -rf CMakeCache.txt CMakeFiles
 SRC_LOCATION=${SRC_LOCATION:=`dirname $0`/../../}
-CMAKE_COMMAND="cmake -G 'Unix Makefiles' ${MPI} ${HWLOC} ${Q2J} ${CUDA} ${GTG} ${PROFILE} ${PYTHON} ${DEBUG} ${USER_OPTIONS} ${TESTCMD} $* ${SRC_LOCATION}"
+CMAKE_COMMAND="cmake -G 'Unix Makefiles' ${MPI} ${HWLOC} ${CUDA} ${GTG} ${PROFILE} ${PYTHON} ${DEBUG} ${USER_OPTIONS} ${TESTCMD} $* ${SRC_LOCATION}"
 echo $CMAKE_COMMAND
 eval $CMAKE_COMMAND
 }

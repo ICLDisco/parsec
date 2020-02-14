@@ -19,8 +19,7 @@ if [ ! -z "$HWLOC_DIR" -a ! -d "$HWLOC_DIR" ]; then
     echo "You need to install HWLOC, could not be found in $HWLOC_DIR"
     exit 1
 fi
-# To compile the Q2J compiler. You can compile and use PaRSEC without it.
-#OMEGA_DIR=${OMEGA_DIR:="$OPT_DIR/Omega/"}
+
 # To compile tracing support tools. Tracing can work without this, you'll need to do the analysis on another machine.
 #GTG_DIR=${GTG_DIR:="$OPT_DIR/gtg"}
 

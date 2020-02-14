@@ -90,8 +90,6 @@ cat <<EOF
 
 --with-python[=DIR]
                 use the Python interpreter [installed in DIR] (default=autodetect)
---with-omega[=DIR]
-                use the Omega package for afine loops transformations (optional)
 
 --with-mpi[=DIR]
                 use the MPI communication library [installed in DIR] (default=autodetect)
@@ -241,11 +239,6 @@ while [ "x$1" != x ]; do
         --with-python=*) with_python="${1#*=}"; shift;;
         --with-python) with_python=yes; shift;;
         --without-python) with_python=no; shift;;
-
-# Omega options
-        --with-omega=*) with_omega="${1#*=}"; shift;;
-        --with-omega) with_omega=yes; shift;;
-        --without-omega) with_omega=no; shift;;
 
 # Cmake passthrough
         -D*=*) CMAKE_DEFINES+=" $(printf %q "$1")"; shift;;
@@ -518,13 +511,6 @@ x) ;;
     for PYTHON_EXECUTABLE in $PYTHON_EXECUTABLES; do
         [[ $PYTHON_EXECUTABLE =~ $with_python ]] && CMAKE_DEFINES+=" -DPYTHON_EXECUTABLE=$(printf %q "$PYTHON_EXECUTABLE")" && break
     done
-esac
-
-case x$with_omega in
-xno) CMAKE_DEFINES+=" -DPARSEC_Q2J=OFF";;
-xyes) CMAKE_DEFINES+=" -DPARSEC_Q2J=ON";;
-x) ;;
-*) CMAKE_DEFINES+=" -DOMEGA_DIR=$(printf %q $with_omega)";;
 esac
 
 # CMAKE INVOCATION
