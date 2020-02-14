@@ -39,6 +39,7 @@ const parsec_pins_base_component_t parsec_pins_task_profiler_component = {
 
         /* Component name and version */
         "task_profiler",
+        "", /* options */
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
 

@@ -269,11 +269,14 @@ struct mca_base_component_2_0_0_t {
 
   char mca_component_name[MCA_BASE_MAX_COMPONENT_NAME_LEN + 1];
   /**< This comopnent's string name. */
+  char mca_options_name[MCA_BASE_MAX_COMPONENT_NAME_LEN + 1];
+  /**< This component's compile-time options string (e.g.,
+   * +peer_access when CUDA supports peer_access). */
   int mca_component_major_version;
   /**< This component's major version number. */
   int mca_component_minor_version;
   /**< This component's minor version number. */
-  
+
   mca_base_open_component_1_0_0_fn_t mca_open_component;
   /**< Method for opening this component. */
   mca_base_close_component_1_0_0_fn_t mca_close_component;

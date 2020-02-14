@@ -49,6 +49,7 @@ const parsec_pins_base_component_t parsec_pins_alperf_component = {
 
         /* Component name and version */
         "alperf",
+        "", /* options */
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
 

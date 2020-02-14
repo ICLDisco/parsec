@@ -71,6 +71,34 @@ void mca_components_free_user_list(char **list)
     }
 }
 
+char *mca_components_list_compiled(char* type_name)
+{
+    int i, len=0, prn=0;
+    char *components_string;
+
+    for(i = 0; mca_static_components[i] != NULL; i++) {
+        if( strcmp( mca_static_components[i]->mca_type_name, type_name ) ) continue;
+        len += strlen(mca_static_components[i]->mca_type_name)
+             + strlen(mca_static_components[i]->mca_component_name)
+             + strlen(mca_static_components[i]->mca_options_name)
+             + 2;
+    }
+    components_string = (char*)malloc(sizeof(char)*len);
+    char *prs = components_string;
+    for(i = 0; mca_static_components[i] != NULL; i++) {
+        if( strcmp( mca_static_components[i]->mca_type_name, type_name ) ) continue;
+        prn = snprintf(prs, len, "%s_%s%s,", 
+                mca_static_components[i]->mca_type_name,
+                mca_static_components[i]->mca_component_name,
+                mca_static_components[i]->mca_options_name);
+        assert(prn > 0);
+        len -= prn;
+        prs += prn;
+    }
+    /* last comma truncated by snprintf, nothing to do to remove it */
+    return components_string;
+}
+
 mca_base_component_t **mca_components_open_bytype(char *type)
 {
     int i, nb, n;

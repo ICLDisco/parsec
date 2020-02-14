@@ -3560,7 +3560,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    if(NULL == device) continue;\n"
             "    if(NULL != device->taskpool_register)\n"
             "      if( PARSEC_SUCCESS != device->taskpool_register(device, (parsec_taskpool_t*)__parsec_tp) ) {\n"
-            "        parsec_debug_verbose(3, parsec_debug_output, \"Device %%s refused to register taskpool %%p\", device->name, __parsec_tp);\n"
+            "        parsec_debug_verbose(5, parsec_debug_output, \"Device %%s refused to register taskpool %%p\", device->name, __parsec_tp);\n"
             "        __parsec_tp->super.super.devices_index_mask &= ~(1 << device->device_index);\n"
             "        continue;\n"
             "      }\n"

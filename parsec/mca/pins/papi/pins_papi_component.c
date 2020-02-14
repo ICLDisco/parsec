@@ -41,6 +41,7 @@ const parsec_pins_base_component_t parsec_pins_papi_component = {
 
         /* Component name and version */
         "papi",
+        "", /* options */
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
 

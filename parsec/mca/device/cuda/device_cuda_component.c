@@ -76,6 +76,11 @@ parsec_device_base_component_t parsec_device_cuda_component = {
 
         /* Component name and version */
         "cuda",
+        /* Component options */
+#if defined(PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS)
+        "+peer_access"
+#endif
+        "",
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
 

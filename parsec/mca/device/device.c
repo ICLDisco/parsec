@@ -64,7 +64,7 @@ int parsec_mca_device_init(void)
 
     (void)parsec_mca_param_reg_int_name("device", "show_capabilities",
                                         "Show the detailed devices capabilities",
-                                        false, false, 0, NULL);
+                                        false, false, parsec_debug_verbose >= 4 || (parsec_debug_verbose >= 3 && parsec_debug_rank == 0), NULL);
     (void)parsec_mca_param_reg_int_name("device", "show_statistics",
                                         "Show the detailed devices statistics upon exit",
                                         false, false, 0, NULL);
@@ -411,9 +411,9 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
     }
 
     /* Compute the weight of each device including the cores */
-    parsec_debug_verbose(4, parsec_device_output, "Global Theoretical performance: double %2.4f single %2.4f tensor %2.4f half %2.4f", total_dperf, total_sperf, total_tperf, total_hperf);
+    parsec_debug_verbose(6, parsec_device_output, "Global Theoretical performance: double %2.4f single %2.4f tensor %2.4f half %2.4f", total_dperf, total_sperf, total_tperf, total_hperf);
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
-        parsec_debug_verbose(4, parsec_device_output, "  Dev[%d]             ->flops double %2.4f single %2.4f tensor %2.4f half %2.4f",
+        parsec_debug_verbose(6, parsec_device_output, "  Dev[%d]             ->flops double %2.4f single %2.4f tensor %2.4f half %2.4f",
                              i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
 
         parsec_device_hweight[i] = (total_hperf / parsec_device_hweight[i]);
@@ -421,7 +421,7 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
         parsec_device_sweight[i] = (total_sperf / parsec_device_sweight[i]);
         parsec_device_dweight[i] = (total_dperf / parsec_device_dweight[i]);
         /* after the weighting */
-        parsec_debug_verbose(4, parsec_device_output, "  Dev[%d]             ->ratio double %2.4e single %2.4e tensor %2.4e half %2.4e",
+        parsec_debug_verbose(6, parsec_device_output, "  Dev[%d]             ->ratio double %2.4e single %2.4e tensor %2.4e half %2.4e",
                              i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
     }
 

@@ -27,6 +27,25 @@ END SUBROUTINE
 END INTERFACE
 
 INTERFACE
+FUNCTION parsec_version_f08(major, minor, patch) &
+         BIND(C, name="parsec_version")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPLICIT NONE
+    INTEGER(KIND=c_int), INTENT(OUT)        :: major
+    INTEGER(KIND=c_int), INTENT(OUT)        :: minor
+    INTEGER(KIND=c_int), INTENT(OUT)        :: patch
+    INTEGER(KIND=c_int)                     :: parsec_version_f08
+END FUNCTION parsec_version_f08
+
+FUNCTION parsec_version_ex_f08(len, version_string) &
+         BIND(C, name="parsec_version_ex")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
+    IMPLICIT NONE
+    INTEGER(KIND=c_int), INTENT(IN)         :: len
+    CHARACTER(KIND=c_char), INTENT(OUT)     :: version_string(*)
+    INTEGER(KIND=c_int)                     :: parsec_version_ex_f08
+END FUNCTION parsec_version_ex_f08
+
 SUBROUTINE parsec_init_f08(nbcores, ctx, ierr) &
          BIND(C, name="parsec_init_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT

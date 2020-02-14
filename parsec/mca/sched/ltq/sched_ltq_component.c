@@ -42,6 +42,7 @@ const parsec_sched_base_component_t parsec_sched_ltq_component = {
 
         /* Component name and version */
         "ltq",
+        "", /* options */
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
 

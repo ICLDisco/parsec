@@ -39,6 +39,7 @@ const parsec_pins_base_component_t parsec_pins_iterators_checker_component = {
 
         /* Component name and version */
         "iterators_checker",
+        "", /* options */
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
 

@@ -710,9 +710,17 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(PARSEC_DEBUG_NOISIER) || defined(PARSEC_DEBUG_PARANOID)
     slow_option_warning = 1;
 #endif
-    if( slow_option_warning && 0 == context->my_rank ) {
+    if( slow_option_warning && 0 == parsec_debug_rank ) {
         parsec_warning("/!\\ DEBUG LEVEL WILL PROBABLY REDUCE THE PERFORMANCE OF THIS RUN /!\\.\n");
         parsec_debug_verbose(4, parsec_debug_output, "--- compiled with DEBUG_NOISIER, DEBUG_PARANOID, or DOT generation requested.");
+    }
+
+    if(0 == parsec_debug_rank && parsec_debug_verbose >= 3) {
+        char version_info[4096];
+        parsec_version_ex(4096, version_info);
+        parsec_inform("== PaRSEC Runtime Compilation Configurations ===============================");
+        parsec_output(parsec_debug_output, "%s", version_info);
+        parsec_inform("============================================================================");
     }
 
     parsec_mca_device_init();
@@ -821,6 +829,148 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         PARSEC_OBJ_RELEASE(cmd_line);
 
     return context;
+}
+
+int parsec_version( int* version_major, int* version_minor, int* version_patch) {
+    *version_major = PARSEC_VERSION_MAJOR;
+    *version_minor = PARSEC_VERSION_MINOR;
+    *version_patch = PARSEC_VERSION_PATCH;
+    return PARSEC_SUCCESS;
+}
+
+int parsec_version_ex( size_t len, char* version_string) {
+    int ret;
+    char *sched_components = mca_components_list_compiled("sched");
+    char *device_components = mca_components_list_compiled("device");
+    char *pins_components = mca_components_list_compiled("pins");
+
+    ret = snprintf(version_string, len,
+        "version\t\t= %d.%d.%d\n"
+        "git_hash\t= %s\n"
+        "git_tag\t\t= %s\n"
+        "git_dirty\t= %s\n"
+        "git_date\t= %s\n"
+        "compile_date\t= %s\n"
+        "debug\t\t= %s\n"
+        "profiling\t= %s\n"
+#if defined(PARSEC_PROF_TRACE)
+        "pins\t\t= %s\n"
+#endif
+        "comms\t\t= %s\n"
+        "devices\t\t= %s\n"
+        "scheds\t\t= %s\n"
+        "hwloc\t\t= %s\n"
+        "bits\t\t= %s\n"
+        "atomics\t\t= %s\n"
+        "c_compiler\t= %s\n"
+        "c_flags\t\t= %s\n",
+        PARSEC_VERSION_MAJOR,
+        PARSEC_VERSION_MINOR,
+        PARSEC_VERSION_PATCH,
+        PARSEC_GIT_HASH,
+        PARSEC_GIT_BRANCH,
+        PARSEC_GIT_DIRTY,
+        PARSEC_GIT_DATE,
+        PARSEC_COMPILE_DATE,
+#if defined(PARSEC_DEBUG)
+        "yes"
+#if defined(PARSEC_DEBUG_PARANOID)
+        "+paranoid"
+#endif
+#if defined(PARSEC_DEBUG_NOISIER)
+        "+noisier"
+#endif
+#if defined(PARSEC_DEBUG_HISTORY)
+        "+history"
+#endif
+#else
+        "no"
+#endif /*PARSEC_DEBUG*/
+        ,
+#if defined(PARSEC_PROF_TRACE)
+        "yes"
+#if defined(PARSEC_PROF_DRY_RUN)
+        "+dryrun"
+#endif
+#if defined(PARSEC_PROF_DRY_BODY)
+        "+drybody"
+#endif
+#if defined(PARSEC_PROF_DRY_DEP)
+        "+drydep"
+#endif
+#if defined(PARSEC_PROF_GRAPHER)
+        "+grapher"
+#endif
+#if defined(PARSEC_SIM)
+        "+sim"
+#endif
+        ,
+        pins_components,
+#else
+        "no"
+#endif /*PARSEC_PROF_TRACE*/
+#if defined(PARSEC_HAVE_MPI)
+        "mpi"
+#if defined(PARSEC_HAVE_MPI_20)
+        "2"
+#endif
+#if defined(PARSEC_DIST_THREAD)
+        "+thread_multiple"
+#endif
+#endif
+        ,
+        device_components,
+        sched_components,
+#if defined(PARSEC_HAVE_HWLOC)
+        "yes"
+#else
+        "no"
+#endif
+        ,
+#if 8 == PARSEC_SIZEOF_VOID_P
+#if 0 == ULONG_MAX>>63
+        "llp64"
+#elif 0 == UINT_MAX>>63
+        "lp64"
+#else
+        "ilp64"
+#endif
+#else
+        "ilp32"
+#endif
+        ,
+        /* these tests in the same order as in atomic.h */
+#if defined(PARSEC_ATOMIC_USE_C11_ATOMICS)
+        "c11"
+#elif defined(PARSEC_ATOMIC_USE_XLC_32_BUILTINS)
+        "xlc_builtins"
+#elif defined(PARSEC_ATOMIC_USE_PPC_BGP)
+        "ppc_bgp"
+#elif defined(PARSEC_ATOMIC_USE_PPC)
+        "ppc"
+#elif defined(PARSEC_ATOMIC_USE_GCC_32_BUILTINS)
+        "gcc_builtins"
+#elif defined(PARSEC_ARCH_X86)
+        "asm_x86_32"
+#elif defined(PARSEC_ARCH_X86_64)
+        "asm_x86_64"
+#else
+#error "No safe atomics available" /*should never happen due to similar check in atomic.h*/
+#endif
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
+        "+cas128"
+#endif
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR)
+        "+llsc"
+#endif
+        ,
+        CMAKE_PARSEC_C_COMPILER,
+        CMAKE_PARSEC_C_FLAGS
+    );
+    free(device_components);
+    free(sched_components);
+    free(pins_components);
+    return len > (size_t)ret? PARSEC_SUCCESS: PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
 }
 
 void parsec_abort(parsec_context_t* ctx, int status)
