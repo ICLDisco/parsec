@@ -1107,14 +1107,6 @@ install(EXPORT parsec-targets # rules to export the targets built here
   NAMESPACE PaRSEC::
   DESTINATION ${CONFIG_INSTALL_DIR})
 
-# do not export parsec_ptgpp when it is imported from a native cross
-if(NOT CMAKE_CROSSCOMPILING)
-  set(EXPORT_PTGPP parsec_ptgpp)
-endif()
-export(TARGETS parsec ${EXPORT_PTGPP}
-       NAMESPACE PaRSEC::
-       FILE ${PROJECT_BINARY_DIR}/PaRSECTargets.cmake)
-
 # cmake config files
 include(CMakePackageConfigHelpers)
 
