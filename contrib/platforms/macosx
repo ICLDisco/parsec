@@ -1,18 +1,18 @@
 #!/bin/bash
 
-# if icc is not found, detect the matching gcc/gfortran pair
+# if icc/CLang is not set, detect the matching gcc/gfortran pair
 # OS X has no fortran by default, and flavor varies between fink, port, self installed, etc
 # Lets try to guess and use the same version for all 3 compilers
-if [ ! -x "$FC" ]; then
-  for gf_exe in $(command -v $(compgen -c gfortran)); do
+if [ "x$enable_fortran" != xno -a ! -x "$(command -v "$CC")" ]; then
+  for gf_exe in $FC $(command -v $(compgen -c gfortran)); do
     gf_sfx=${gf_exe#*gfortran}
     gf_dir=$(dirname "$gf_exe")
     gcc_exe=$gf_dir/gcc$gf_sfx
     gxx_exe=$gf_dir/g++$gf_sfx
 
     if [ -x "$gcc_exe" -a -x "$gxx_exe" -a -x "$gf_exe" ]; then
-      echo "Compilers detected: $gcc_exe $gxx_exe $gf_exe"
-      ENVVARS+="CC=$gcc_exe CXX=$gxx_exe FC=$gf_exe"
+      echo "Compilers detected: $gcc_exe $gxx_exe $gf_exe; override by setting CC/FC/CXX"
+      ENVVARS+=" CC=$gcc_exe CXX=$gxx_exe FC=$gf_exe"
       break
     fi
   done
