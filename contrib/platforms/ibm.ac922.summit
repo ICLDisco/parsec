@@ -11,17 +11,23 @@ cat <<_EOF
 #
 _EOF
 
-module load cmake # ATM this is 3.15; use CMAKE_EXECUTABLE to override
-[ -z $OLCF_CUDA_ROOT ] && module load cuda
+[ -n "$OLCF_CMAKE_ROOT" ] || module load cmake
+echo -e "Using CMake\tfrom\t$OLCF_CMAKE_ROOT"
+
 # The following unload has to be done externally as it modifies the internal 
 # behavior of mpicc, which cannot be cached by CMake
 #  module unload xalt
-echo "Do not forget to do a 'module unload xalt': this module causes 'ld'to misbehave"
+[ -n "$XALT_OLCF" ] && (echo "XALT module detected; this may cause 'ld' to misbehave: perform 'module unload xalt' before invoking configure."; exit 1)
+[ -n "$OLCF_CUDA_ROOT" ] || module load cuda
+echo -e "Using CUDA\tfrom\t$OLCF_CUDA_ROOT"
 
-ENVVARS+=" CC=mpicc CXX=mpicxx FC=mpif90 CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
+[ -n "$LMOD_MPI_NAME" ] || module load spectrum-mpi
+echo -e "Using MPI\tfrom\t$LMOD_MPI_NAME"
+
+ENVVARS+=" CC=mpicc CXX=mpicxx FC=mpif90 CFLAGS='$CFLAGS' LDFLAGS='$LDFLAGS'"
 
 #enable_static=no
-with_cuda=yes
+with_cuda=$OLCF_CUDA_ROOT
 with_mpi=yes
 with_hwloc=yes # system default works fine
 
