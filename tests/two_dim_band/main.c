@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The University of Tennessee and The University
+ * Copyright (c) 2017-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -24,9 +24,9 @@ int main(int argc, char *argv[])
     enum matrix_uplo uplo = matrix_Upper; //matrix_Lower
     enum matrix_uplo full = matrix_UpperLower;
     /* Super */
-    int N = 16, NB = 4, P = 1, SMB = 1, SNB = 1;
+    int N = 16, NB = 4, P = 1, KP = 1, KQ = 1;
     /* Band */
-    int P_BAND = 1, SMB_BAND = 1, SNB_BAND = 1, BAND_SIZE = 1;
+    int P_BAND = 1, KP_BAND = 1, KQ_BAND = 1, BAND_SIZE = 1;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -65,25 +65,25 @@ int main(int argc, char *argv[])
         switch (ch) {
             case 'N': N = atoi(optarg); break;
             case 'T': NB = atoi(optarg); break;
-            case 's': SMB = atoi(optarg); break;
-            case 'S': SMB = atoi(optarg); break;
+            case 's': KP = atoi(optarg); break;
+            case 'S': KP = atoi(optarg); break;
             case 'P': P = atoi(optarg); break;
             case 'p': P_BAND = atoi(optarg); break;
-            case 'f': SMB_BAND = atoi(optarg); break;
-            case 'F': SNB_BAND = atoi(optarg); break;
+            case 'f': KP_BAND = atoi(optarg); break;
+            case 'F': KQ_BAND = atoi(optarg); break;
             case 'b': BAND_SIZE = atoi(optarg); break;
             case '?': case 'h': default:
                 fprintf(stderr,
                         "SUPER:\n"
                         "-N : dimension (N) of the matrices (default: 16)\n"
                         "-T : dimension (NB) of the tiles (default: 4)\n"
-                        "-s : rows of tiles in a supertile (default: 1)\n"
-                        "-S : columns of tiles in a supertile (default: 1)\n"
+                        "-s : rows of tiles in a k-cyclic distribution (default: 1)\n"
+                        "-S : columns of tiles in a k-cyclic distribution (default: 1)\n"
                         "-P : rows (P) in the PxQ process grid (default: 1)\n"
                         "BAND:\n"
                         "-p : rows (p) in the pxq process grid (default: 1)\n"
-                        "-f : rows of tiles in a supertile (default: 1)\n"
-                        "-F : columns of tiles in a supertile (default: 1)\n"
+                        "-f : rows of tiles in a k-cyclic distribution (default: 1)\n"
+                        "-F : columns of tiles in a k-cyclic distribution (default: 1)\n"
                         "-b : band size (default: 1)\n"
                         "\n");
             exit(1);
@@ -95,13 +95,13 @@ int main(int argc, char *argv[])
     two_dim_block_cyclic_band_t dcY;
     two_dim_block_cyclic_init(&dcY.super, matrix_RealDouble, matrix_Tile,
                                 nodes, rank, NB, NB, N, N, 0, 0,
-                                N, N, SMB, SNB, P);
+                                N, N, KP, KQ, P);
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcY, "dcY.super");
 
     /* Init band */
     two_dim_block_cyclic_init(&dcY.band, matrix_RealDouble, matrix_Tile,
                                 nodes, rank, NB, NB, NB*(2*BAND_SIZE-1), N, 0, 0,
-                                NB*(2*BAND_SIZE-1), N, SMB_BAND, SNB_BAND, P_BAND);
+                                NB*(2*BAND_SIZE-1), N, KP_BAND, KQ_BAND, P_BAND);
     parsec_data_collection_set_key(&dcY.band.super.super, "dcY band");
 
     /* Set band size */
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
     /* Init band */
     two_dim_block_cyclic_init(&dcYP.band, matrix_RealDouble, matrix_Tile,
                                 nodes, rank, NB, NB, NB*BAND_SIZE, N, 0, 0,
-                                NB*BAND_SIZE, N, SMB_BAND, SNB_BAND, P_BAND);
+                                NB*BAND_SIZE, N, KP_BAND, KQ_BAND, P_BAND);
     parsec_data_collection_set_key(&dcYP.band.super.super, "dcYP band");
 
     /* Set band size */
@@ -139,18 +139,18 @@ int main(int argc, char *argv[])
     parsec_two_dim_band_test(parsec, (parsec_tiled_matrix_dc_t *)&dcY, full);
 
     if( 0 == rank )
-        printf("Y  Init \tSUPER: PxQ= %3d %-3d, SMBxSNB=%3d %-3d, N= %7d, NB= %4d; BAND: PxQ= %3d %-3d SMBxSNB=%3d %-3d, BAND_SIZE=%3d, M= %7d, N= %4d\n",
-               P, nodes/P, SMB, SNB, N, NB,
-               P_BAND, nodes/P_BAND, SMB_BAND, SNB_BAND, BAND_SIZE, NB*(2*BAND_SIZE-1), N);
+        printf("Y  Init \tSUPER: PxQ= %3d %-3d, KPxKQ=%3d %-3d, N= %7d, NB= %4d; BAND: PxQ= %3d %-3d KPxKQ=%3d %-3d, BAND_SIZE=%3d, M= %7d, N= %4d\n",
+               P, nodes/P, KP, KQ, N, NB,
+               P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, BAND_SIZE, NB*(2*BAND_SIZE-1), N);
 
 
     /* Allocate memory and set value */
     parsec_two_dim_band_test(parsec, (parsec_tiled_matrix_dc_t *)&dcYP, uplo);
 
     if( 0 == rank )
-        printf("YP Init \tSUPER: PxQ= %3d %-3d, SMBxSNB=%3d %-3d, N= %7d, NB= %4d; BAND: PxQ= %3d %-3d SMBxSNB=%3d %-3d, BAND_SIZE=%3d, M= %7d, N= %4d\n",
-               P, nodes/P, SMB, SNB, N, NB,
-               P_BAND, nodes/P_BAND, SMB_BAND, SNB_BAND, BAND_SIZE, NB*BAND_SIZE, N);
+        printf("YP Init \tSUPER: PxQ= %3d %-3d, KPxKQ=%3d %-3d, N= %7d, NB= %4d; BAND: PxQ= %3d %-3d KPxKQ=%3d %-3d, BAND_SIZE=%3d, M= %7d, N= %4d\n",
+               P, nodes/P, KP, KQ, N, NB,
+               P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, BAND_SIZE, NB*BAND_SIZE, N);
 
     /* Free memory */
     parsec_two_dim_band_free(parsec, (parsec_tiled_matrix_dc_t *)&dcY, full);

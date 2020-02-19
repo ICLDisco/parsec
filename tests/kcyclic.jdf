@@ -17,18 +17,19 @@ extern "C" %{
 #endif
 
 #define TYPE  matrix_Integer
-parsec_taskpool_t* supertiles_taskpool(two_dim_block_cyclic_t* A,
-                                       two_dim_block_cyclic_t* VA,
-                                       two_dim_block_cyclic_t* SA);
+parsec_taskpool_t* kcyclic_taskpool(two_dim_block_cyclic_t* A,
+                                    two_dim_block_cyclic_t* VA,
+                                    two_dim_block_cyclic_t* CA);
 
 int main( int argc, char** argv )
 {
     parsec_context_t* parsec;
     parsec_taskpool_t* tp;
-    int nodes = 1, rank = 0, p = 1, st = 2, n = 9;
+    int nodes = 1, rank = 0, p = 1,
+        n = 9, mb = 3, nb = 1, kp = 2, kq = 2;
     two_dim_block_cyclic_t descA;
     two_dim_block_cyclic_t viewA;
-    two_dim_block_cyclic_t descSTA;
+    two_dim_block_cyclic_t descCA;
     int rc;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -48,35 +49,35 @@ int main( int argc, char** argv )
     /* Create a copy of A with (standard) 2D-cyclic */
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
                                nodes, rank,
-                               3, 1, n, n,
+                               mb, nb , n, n,
                                0, 0, n, n, 1, 1, p);
     descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
 
-    /* Create a copy of A with physical supertiled 2D-cyclic */
-    two_dim_block_cyclic_init( &descSTA, TYPE, matrix_Tile,
+    /* Create a copy of A with physical 2D-k-cyclic distribution */
+    two_dim_block_cyclic_init( &descCA, TYPE, matrix_Tile,
                                nodes, rank,
-                               3, 1, n, n,
-                               0, 0, n, n, st, st, p);
-    descSTA.mat = parsec_data_allocate( descSTA.super.nb_local_tiles *
-                                        descSTA.super.bsiz *
+                               mb, nb, n, n,
+                               0, 0, n, n, kp, kq, p);
+    descCA.mat = parsec_data_allocate( descCA.super.nb_local_tiles *
+                                        descCA.super.bsiz *
                                         parsec_datadist_getsizeoftype(TYPE) );
 
-    /* Create a view of A in supertiled order;
+    /* Create a view of A in (pseudo) k-cyclic order;
      * This is not a copy of A! It uses the same descA.mat. 
-     * This is not in the same order as the physical supertiling descSTA! */
-    two_dim_block_cyclic_supertiled_view( &viewA, &descA, st, st);
+     * This is not in the same order as the physical k-cyclic descCA! */
+    two_dim_block_cyclic_kview( &viewA, &descA, kp, kq);
 
     /* Now, run the test... */
     if(rank == 0) {
-        printf("Running the supertiling test; NP=%d, P=%d, ST=%d\n"
+        printf("Running the k-cyclicity test; NP=%d, P=%d, KCyclic=%d\n"
                "  A is a normal 2D cyclic matrix\n"
-               "  stA is a supertiled matrix\n"
-               "  viewA is a supertiled view of A\n",
-               nodes, p, st);
+               "  CA is a copy of A with a k-cyclic distribution\n"
+               "  VA is a view of A with a reordered (pseudo k-cyclic) access order\n",
+               nodes, p, kp);
     }
-    tp = supertiles_taskpool(&descA, &viewA, &descSTA);
+    tp = kcyclic_taskpool(&descA, &viewA, &descCA);
 
     rc = parsec_context_add_taskpool( parsec, tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
@@ -90,7 +91,7 @@ int main( int argc, char** argv )
     parsec_fini( &parsec);
 
     free(descA.mat);
-    free(descSTA.mat);
+    free(descCA.mat);
 
 #if defined(PARSEC_HAVE_MPI)
     MPI_Finalize();
@@ -104,7 +105,7 @@ int main( int argc, char** argv )
 
 dA          [type = "two_dim_block_cyclic_t*"]
 dVA         [type = "two_dim_block_cyclic_t*"]
-dSA         [type = "two_dim_block_cyclic_t*"]
+dCA         [type = "two_dim_block_cyclic_t*"]
 MT          [type = int hidden = on default = "dA->super.mt-1"]
 NT          [type = int hidden = on default = "dA->super.nt-1"]
 
@@ -130,20 +131,20 @@ BODY
     a[2] = dc->rank_of(dc, M, N);
 END
 
-FILL_SA(M, N)
+FILL_CA(M, N)
   M = 0..MT
   N = 0..NT
-: dSA(M,N)
+: dCA(M,N)
 
-RW SA   <-  dSA(M,N)
-        ->  SA COMPARE(M,N)
+RW CA   <-  dCA(M,N)
+        ->  CA COMPARE(M,N)
 
 BODY
-    int *sa = SA;
-    parsec_data_collection_t* dc = &dSA->super.super;
-    sa[0] = M;
-    sa[1] = N;
-    sa[2] = dc->rank_of(dc, M, N);
+    int *ca = CA;
+    parsec_data_collection_t* dc = &dCA->super.super;
+    ca[0] = M;
+    ca[1] = N;
+    ca[2] = dc->rank_of(dc, M, N);
 END
 
 /* Note how there is no FILL_VA: it shares storage with A */
@@ -179,40 +180,40 @@ COMPARE(M, N)
 : dA(M,N)
 
 READ A  <-  A    FILL_A(M, N)
-READ SA <-  SA   FILL_SA(M, N)
+READ CA <-  CA   FILL_CA(M, N)
 READ VA <-  VA   READ_VA(M,N)
 
 BODY
-    int *a = A, *sa = SA, *va = VA;
-    const char *errorst     = "ERROR: A and stA content different!";
-    const char *errorview   = "ERROR: viewA is not a permutation of A!";
-    const char *noerror     = "";
+    int *a = A, *ca = CA, *va = VA;
+    const char *errorkcyclic = "ERROR: A and CA content different!";
+    const char *errorview    = "ERROR: VA is not a permutation of A!";
+    const char *noerror      = "";
     const char *error = noerror;
 
-    if(a[0] != sa[0] || a[1] != sa[1]) error = errorst;
+    if(a[0] != ca[0] || a[1] != ca[1]) error = errorkcyclic;
     parsec_data_collection_t* dc = &dA->super.super;
     if(va[2] != (int)dc->rank_of(dc, va[0], va[1])) error = errorview;
-    printf("M=%02d, N=%02d\tA=%02d,%02d@%02d\tstA=%02d,%02d@%02d\tviewA=%02d,%02d@%02d\t%s\n", M, N,
+    printf("M=%02d, N=%02d\tA=%02d,%02d@%02d\tCA=%02d,%02d@%02d\tVA=%02d,%02d@%02d\t%s\n", M, N,
             a[0], a[1], a[2],
-            sa[0], sa[1], sa[2],
+            ca[0], ca[1], ca[2],
             va[0], va[1], va[2],
             error);
 END
 
 extern "C" %{
 
-parsec_taskpool_t* supertiles_taskpool(two_dim_block_cyclic_t* A,
+parsec_taskpool_t* kcyclic_taskpool(two_dim_block_cyclic_t* A,
                                        two_dim_block_cyclic_t* VA,
-                                       two_dim_block_cyclic_t* SA)
+                                       two_dim_block_cyclic_t* CA)
 {
-    parsec_supertiles_taskpool_t* tp;
+    parsec_kcyclic_taskpool_t* tp;
     parsec_datatype_t dt;
 
-    tp = parsec_supertiles_new(A, VA, SA);
+    tp = parsec_kcyclic_new(A, VA, CA);
     assert( NULL != tp );
 
     parsec_translate_matrix_type(TYPE, &dt);
-    parsec_matrix_add2arena_rect(tp->arenas[PARSEC_supertiles_DEFAULT_ARENA],
+    parsec_matrix_add2arena_rect(tp->arenas[PARSEC_kcyclic_DEFAULT_ARENA],
                                  dt, A->super.mb, A->super.nb, A->super.mb);
 
     return &tp->super;

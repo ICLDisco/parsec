@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,14 +16,14 @@
 
 int default_vp_data_dist();
 
-void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, int myrank, int P, int Q, int nrst, int ncst)
+void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, int myrank, int P, int Q, int kp, int kq)
 {
     /* Filling matrix description woth user parameter */
     grid->rank = myrank ;
     grid->rows = P;
     grid->cols = Q;
-    grid->strows = nrst;
-    grid->stcols = ncst;
+    grid->krows = kp;
+    grid->kcols = kq;
 
     /* computing colRANK and rowRANK */
     grid->rrank = myrank / Q;

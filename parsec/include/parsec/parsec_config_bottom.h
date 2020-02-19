@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2019 The University of Tennessee and The University
+ * Copyright (c) 2010-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -70,7 +70,7 @@
 # undef DISTRIBUTED
 #endif
 
-/*#define PARSEC_SUPERTILE_WITH_VIEW */
+/*#define PARSEC_KCYCLIC_WITH_VIEW */
 
 #if defined(PARSEC_PROF_DRY_RUN)
 # define PARSEC_PROF_DRY_BODY
