@@ -716,6 +716,13 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
 
 ENDIF (CMAKE_Fortran_COMPILER_WORKS)
 
+# Find how to link shm_open
+check_function_exists(shm_open PARSEC_HAVE_SHM_OPEN)
+if(NOT PARSEC_HAVE_SHM_OPEN)
+  check_library_exists(rt shm_open "" PARSEC_SHM_OPEN_IN_LIBRT)
+  set(PARSEC_HAVE_SHM_OPEN ${PARSEC_SHM_OPEN_IN_LIBRT} CACHE INTERNAL "Have function shm_open")
+endif(NOT PARSEC_HAVE_SHM_OPEN)
+
 #
 ##
 ###
