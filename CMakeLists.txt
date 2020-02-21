@@ -1152,13 +1152,13 @@ configure_package_config_file(cmake_modules/PaRSECConfig.cmake.in
   PATH_VARS LIB_INSTALL_DIR SYSCONFIG_INSTALL_DIR
   INCLUDE_INSTALL_DIR RUNTIME_INSTALL_DIR CONFIG_INSTALL_DIR)
 
-write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/ParsecConfigVersion.cmake
     VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_PATCH}
                                  COMPATIBILITY SameMajorVersion)
 
 install(FILES
   ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/PaRSECConfig.cmake
-  ${PROJECT_BINARY_DIR}/ParsecConfigVersion.cmake
+  ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/ParsecConfigVersion.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindPAPI.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindOTF2.cmake
@@ -1174,7 +1174,7 @@ set(RUNTIME_INSTALL_DIR ${PROJECT_BINARY_DIR})
 set(CONFIG_INSTALL_DIR ${PROJECT_SOURCE_DIR}/cmake_modules)
 
 configure_package_config_file(cmake_modules/PaRSECConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/PaRSECConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/parsec-submodule-config.cmake
   INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}
   INSTALL_DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
   PATH_VARS LIB_INSTALL_DIR SYSCONFIG_INSTALL_DIR
