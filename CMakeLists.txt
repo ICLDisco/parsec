@@ -815,6 +815,10 @@ check_symbol_exists(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128 "parsec/parsec_config.h;
 list(APPEND CMAKE_REQUIRED_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR})
 list(APPEND CMAKE_EXTRA_INCLUDE_FILES "parsec/parsec_config.h;parsec/sys/atomic.h;parsec/class/lifo.h")
 
+# We remove these definitions from the cache, as using the cache version
+# causes problems if switching options between two configure...
+unset(HAVE_PARSEC_OPAQUE_LIFO_SIZEOF CACHE)
+unset(HAVE_PARSEC_LIFO_HEAD_OFFSET CACHE)
 check_type_size("parsec_lifo_t" PARSEC_LIFO_OPAQUE_SIZEOF)
 include(CheckStructureFieldOffset)
 # NB: the structure below *needs* to be kept in sync with the structure
