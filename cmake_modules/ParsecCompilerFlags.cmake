@@ -1,10 +1,4 @@
 include (CheckCCompilerFlag)
-include (CheckCXXCompilerFlag)
-include (CheckFortranCompilerFlag)
-include (CheckFunctionExists)
-include (CheckSymbolExists)
-include (CheckIncludeFiles)
-include (CMakePushCheckState)
 
 #
 # Fix the building system for 32 or 64 bits.
@@ -139,10 +133,14 @@ if(CMAKE_Fortran_COMPILER_WORKS)
     if(${Fortran_COMPILER_NAME} MATCHES g77)
       add_compile_options("$<$<COMPILE_LANGUAGE:Fortran>:-fno-f2c>")
     endif()
-    #foreach(item IN ITEMS ${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES})
-    # list(APPEND EXTRA_LIBS "-L${item}")
-    #endforeach()
-    #list(APPEND EXTRA_LIBS ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+    # We append the implicit fortran link flags for the case where FC=/somepath/f90
+    # and /somepath/lib/libf90.so is not in LD_LIBRARY_PATH. This is typical for non-system
+    # installed gfortan where the implicit -lgfortran may not resolved at application link time
+    # otherwise.
+    foreach(item IN ITEMS ${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES})
+      list(APPEND EXTRA_LIBS "-L${item}")
+    endforeach()
+    list(APPEND EXTRA_LIBS ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
   elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
     # ifort
     add_compile_options("$<$<COMPILE_LANGUAGE:Fortran>:-f77rtl>")

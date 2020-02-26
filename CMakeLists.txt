@@ -954,20 +954,28 @@ set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
 include (CPack)
 
-
+# Prepare the cflags/ldflags for the PkgConfig parsec.pc file
 set(EXTRA_CFLAGS ${CMAKE_C_FLAGS})
 set(EXTRA_LDFLAGS ${CMAKE_EXE_LINKER_FLAGS})
 
-foreach(extra_flag IN ITEMS ${PARSEC_ATOMIC_SUPPORT_OPTIONS} ${PARSEC_ARCH_OPTIONS})
+# Libraries that are added to the public parsec export and have special include flags (imported targets) have to be there set as well.
+foreach(extra_flag IN ITEMS ${CUDA_INCLUDE_DIRS} ${MPI_C_INCLUDE_DIRS})
+  if(NOT extra_flag)
+    continue()
+  endif(NOT extra_flag)
   if(extra_flag MATCHES "COMPILE_LANGUAGE:C>:([^>]*)" )
     set(extra_flag "${CMAKE_MATCH_1}")
   elseif(extra_flag MATCHES "COMPILE_LANGUAGE")
     continue()
   endif()
-  string(APPEND EXTRA_CFLAGS " ${extra_flag}")
+  string(APPEND EXTRA_INCLUDES " ${extra_flag}")
 endforeach()
 
+# Libraries that are added to the public parsec export but not to EXTRA_LIBS (imported targets)  have to be there set as well.
 foreach(extra_lib IN ITEMS ${PARSEC_ATOMIC_SUPPORT_LIBS} ${CUDA_LIBRARIES} ${MPI_C_LIBRARIES} ${PAPI_LIBRARIES})
+  if(NOT extra_lib)
+    continue()
+  endif(NOT extra_lib)
   list(APPEND EXTRA_LIBS ${extra_lib})
 endforeach()
 
