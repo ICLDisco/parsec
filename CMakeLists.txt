@@ -207,11 +207,14 @@ option(PARSEC_PROF_PINS
 
 # cmake modules setup
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)
-include (ParsecCompilerFlags)
+include (CMakeDetermineSystem)
+include (CheckCCompilerFlag)
 include (CheckCSourceCompiles)
 include (CheckFunctionExists)
 include (CheckSymbolExists)
 include (CheckIncludeFiles)
+include (CheckFortranCompilerFlag)
+include (CheckCXXCompilerFlag)
 
 #
 # check the capabilities of the system we are building for
@@ -241,6 +244,8 @@ IF (_mach_ppc)
     MESSAGE(STATUS "Found target for PPC")
     SET(PARSEC_ARCH_PPC 1)
 ENDIF (_mach_ppc)
+
+include (ParsecCompilerFlags)
 
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
@@ -551,12 +556,9 @@ IF( BUILD_PARSEC )
         ${AYUDAME_INCLUDE_DIR})
     if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
       message(STATUS "Add '-undefined dynamic_lookup' to the linking flags")
-      target_link_options(parsec
+      target_link_libraries(parsec
         PUBLIC
         "-undefined dynamic_lookup")
-      target_compile_options(parsec
-        PUBLIC
-        "$<$<COMPILE_LANGUAGE:Fortran>:-undefined dynamic_lookup>")
     endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   endif(AYUDAME_FOUND)
 
@@ -942,6 +944,33 @@ install(FILES
   DESTINATION include/parsec/sys
   RENAME atomic.h)
 
+# build a CPack driven installer package
+include (InstallRequiredSystemLibraries)
+set(CPACK_GENERATOR "TBZ2")
+set (CPACK_RESOURCE_FILE_LICENSE
+     "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
+set (CPACK_PACKAGE_VERSION_MAJOR "${PARSEC_VERSION_MAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
+set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
+include (CPack)
+
+
+set(EXTRA_CFLAGS ${CMAKE_C_FLAGS})
+set(EXTRA_LDFLAGS ${CMAKE_EXE_LINKER_FLAGS})
+
+foreach(extra_flag IN ITEMS ${PARSEC_ATOMIC_SUPPORT_OPTIONS} ${PARSEC_ARCH_OPTIONS})
+  if(extra_flag MATCHES "COMPILE_LANGUAGE:C>:([^>]*)" )
+    set(extra_flag "${CMAKE_MATCH_1}")
+  elseif(extra_flag MATCHES "COMPILE_LANGUAGE")
+    continue()
+  endif()
+  string(APPEND EXTRA_CFLAGS " ${extra_flag}")
+endforeach()
+
+foreach(extra_lib IN ITEMS ${PARSEC_ATOMIC_SUPPORT_LIBS} ${CUDA_LIBRARIES} ${MPI_C_LIBRARIES} ${PAPI_LIBRARIES})
+  list(APPEND EXTRA_LIBS ${extra_lib})
+endforeach()
+
 # Due to the lack of standardization detecting libraries under CMake leads
 # to unconsistents lists of libraries, where some libraries are using full path,
 # other a combination of "-L* and -l*" and others just the library name.
@@ -958,23 +987,15 @@ FOREACH(LIB IN ITEMS ${EXTRA_LIBS})
   LIST(APPEND EXTRA_LIBS_EXPANDED "${LIB}")
 ENDFOREACH(LIB)
 
-# build a CPack driven installer package
-include (InstallRequiredSystemLibraries)
-set(CPACK_GENERATOR "TBZ2")
-set (CPACK_RESOURCE_FILE_LICENSE
-     "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
-set (CPACK_PACKAGE_VERSION_MAJOR "${PARSEC_VERSION_MAJOR}")
-set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
-set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
-include (CPack)
-
 if(EXTRA_LIBS)
-list(REMOVE_DUPLICATES EXTRA_LIBS)
+  # For printing only: we need the duplicates in EXPANDED for static builds
+  list(REMOVE_DUPLICATES EXTRA_LIBS)
 endif()
 
-MESSAGE("\n\nConfiguration flags:")
-MESSAGE("  CMAKE_C_FLAGS          = ${CMAKE_C_FLAGS}")
-MESSAGE("  CMAKE_EXE_LINKER_FLAGS = ${CMAKE_EXE_LINKER_FLAGS}")
+MESSAGE("\n\nPkgConfig Configuration Flags:")
+MESSAGE("  EXTRA_CFLAGS           = ${EXTRA_CFLAGS}")
+MESSAGE("  EXTRA_LDFLAGS          = ${EXTRA_LDFLAGS}")
+MESSAGE("  EXTRA_INCLUDES         = ${EXTRA_INCLUDES}")
 MESSAGE("  EXTRA_LIBS             = ${EXTRA_LIBS}")
 MESSAGE("\n\n")
 
