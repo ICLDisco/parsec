@@ -2,6 +2,7 @@
 # We do not use target_compile_definitions to avoid having to track all object
 # libraries that could miss this otherwise.
 add_compile_definitions(BUILDING_PARSEC)
+add_compile_options(${PARSEC_ATOMIC_SUPPORT_OPTIONS})
 #
 #  Settings for targets
 #
@@ -128,7 +129,7 @@ if( BUILD_PARSEC )
     PRIVATE
     YYERROR_VERBOSE)
   target_compile_options(parsec-base-obj
-    PUBLIC ${PARSEC_ATOMIC_SUPPORT_CFLAGS})
+    PUBLIC ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
   target_include_directories(parsec-base-obj
     INTERFACE
     $<INSTALL_INTERFACE:include>
@@ -162,6 +163,12 @@ if( BUILD_PARSEC )
 
   add_subdirectory(data_dist)
 
+  # Propagage the selected arch to clients to avoid inconsistent build options.
+  # In particular, we want to void having a different ILP32/64 when calling parsec APIs.
+  target_compile_options(parsec
+    INTERFACE
+    ${PARSEC_ARCH_OPTIONS}
+    ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
   target_compile_definitions(parsec
     PRIVATE
     YYERROR_VERBOSE)
@@ -186,6 +193,7 @@ if( BUILD_PARSEC )
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     INTERFACE
+    ${PARSEC_ATOMIC_SUPPORT_LIBS}
     ${EXTRA_LIBS}
     )
   if( ${PARSEC_HAVE_CUDA} )
