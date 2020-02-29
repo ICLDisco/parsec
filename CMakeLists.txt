@@ -179,6 +179,12 @@ option(PARSEC_DEBUG_NOISIER
   "Enable chatterbox-like verbose debugging (may impact performance)." OFF)
 option(PARSEC_DEBUG_HISTORY
   "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur." OFF)
+option(PARSEC_DEBUG_MEM_ADDR
+  "Enable the memory access checker, if the compiler supports it." OFF)
+option(PARSEC_DEBUG_MEM_LEAK
+    "Enable only the memory leak checker, if the compiler supports it." OFF)
+option(PARSEC_DEBUG_MEM_RACE
+  "Enable the memory thread-race checker, if the compiler supports it. This option is incompatible with the memory address and leak checker in many compilers." OFF)
 
 ### Simulating Options
 option(PARSEC_SIM
@@ -301,6 +307,44 @@ if(PARSEC_ARCH_PPC)
   unset( PARSEC_HAVE_INT128 CACHE )
   unset( PARSEC_HAVE_INT128 )
 endif(PARSEC_ARCH_PPC)
+
+if(PARSEC_DEBUG_MEM_RACE OR PARSEC_DEBUG_MEM_ADDR OR PARSEC_DEBUG_MEM_LEAK)
+  # Don't redetect cached values
+  if(NOT PARSEC_SANITIZE_COMPILE_OPTIONS OR NOT PARSEC_SANITIZE_LINK_OPTIONS)
+    if(PARSEC_DEBUG_MEM_LEAK)
+      cmake_push_check_state()
+      list(APPEND CMAKE_REQUIRED_LIBRARIES "-fsanitize=leak")
+      check_c_compiler_flag("-fsanitize=leak" PARSEC_HAVE_DEBUG_MEM_LEAK)
+      if(PARSEC_HAVE_DEBUG_MEM_LEAK)
+        list(APPEND PARSEC_SANITIZE_COMPILE_OPTIONS "-fsanitize=leak")
+        list(APPEND PARSEC_SANITIZE_LINK_OPTIONS "-fsanitize=leak")
+      endif()
+      cmake_pop_check_state()
+    endif()
+    if(PARSEC_DEBUG_MEM_ADDR)
+      cmake_push_check_state()
+      list(APPEND CMAKE_REQUIRED_LIBRARIES "-fsanitize=address")
+      check_c_compiler_flag("-fsanitize=address" PARSEC_HAVE_DEBUG_MEM_ADDR)
+      if(PARSEC_HAVE_DEBUG_MEM_ADDR)
+        list(APPEND PARSEC_SANITIZE_COMPILE_OPTIONS "-fsanitize=address")
+        list(APPEND PARSEC_SANITIZE_LINK_OPTIONS "-fsanitize=address")
+      endif()
+      cmake_pop_check_state()
+    endif()
+    if(PARSEC_DEBUG_MEM_RACE)
+      cmake_push_check_state()
+      list(APPEND CMAKE_REQUIRED_LIBRARIES "-fsanitize=thread")
+      check_c_compiler_flag("-fsanitize=thread" PARSEC_HAVE_DEBUG_MEM_RACE)
+      if(PARSEC_HAVE_DEBUG_MEM_RACE)
+        list(APPEND PARSEC_SANITIZE_COMPILE_OPTIONS "-fsanitize=thread")
+        list(APPEND PARSEC_SANITIZE_LINK_OPTIONS "-fsanitize=thread")
+      endif()
+      cmake_pop_check_state()
+    endif()
+    set(PARSEC_SANITIZE_COMPILE_OPTIONS "${PARSEC_SANITIZE_COMPILE_OPTIONS}" CACHE STRING "Memory sanitizer compile options")
+    set(PARSEC_SANITIZE_LINK_OPTIONS "${PARSEC_SANITIZE_LINK_OPTIONS}" CACHE STRING "Memory sanitizer link options")
+  endif(NOT PARSEC_SANITIZE_COMPILE_OPTIONS OR NOT PARSEC_SANITIZE_LINK_OPTIONS)
+endif(PARSEC_DEBUG_MEM_RACE OR PARSEC_DEBUG_MEM_ADDR OR PARSEC_DEBUG_MEM_LEAK)
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)

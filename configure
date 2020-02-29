@@ -57,12 +57,15 @@ cat <<EOF
                 Enable Fortran bindings
 
 
---enable-debug=yes,paranoid,noisier|history|no
+--enable-debug=yes,paranoid,noisier|history,memaddr|memleak|memrace,no
                 turn on debugging information
                     yes:            normal debugging; some overhead
                     paranoid:       more thorough assertions; extra overhead
                     noisier:        more verbose debugging; heavy overhead
                     history:        keep an history of latest debugging messages in memory for gdb printing; light overhead
+                    memaddr:        use the memory sanitizer for out-of-bound detection
+                    memleak:        use the memory sanitizer for leak detection
+                    memrace:        use the memory sanitizer for thread-race detection
                     no (explicit):  remove all debugging symbols and assertions
 
 --enable-prof-trace
@@ -444,12 +447,15 @@ CMAKE_DEFINES+=" ${prefix:+-DCMAKE_INSTALL_PREFIX=$prefix}"
 if [ -z "$enable_debug" ]; then CMAKE_DEFINES+=" -DCMAKE_BUILD_TYPE=RelWithDebInfo"
 elif [[ "$enable_debug" =~ ^no$ ]]; then
     CMAKE_DEFINES+=" -DCMAKE_BUILD_TYPE=Release"
-elif [[ $enable_debug =~ ^((yes|paranoid|noisier|history),?)+$ ]]; then
+elif [[ $enable_debug =~ ^((yes|paranoid|noisier|history|memrace|memaddr|memleak),?)+$ ]]; then
     CMAKE_DEFINES+=" -DCMAKE_BUILD_TYPE=Debug"
     [[ $enable_debug =~ paranoid ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_PARANOID=ON"
     [[ $enable_debug =~ noisier ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_NOISIER=ON"
     [[ $enable_debug =~ history ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_HISTORY=ON"
-else echo >&2 "Option $enable_debug is invalid (can be yes|paranoid|noisier|history|no)"; exit 1; fi
+    [[ $enable_debug =~ memrace ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_MEM_RACE=ON"
+    [[ $enable_debug =~ memaddr ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_MEM_ADDR=ON"
+    [[ $enable_debug =~ memleak ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_MEM_LEAK=ON"
+else echo >&2 "Option $enable_debug is invalid (can be yes|paranoid|noisier|history|memrace|memaddr|memleak|no)"; exit 1; fi
 
 [ x$enable_prof_trace = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON"
 [ x$enable_prof_trace = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=OFF"
