@@ -909,6 +909,7 @@ int parsec_version_ex( size_t len, char* version_string) {
 #else
         "no"
 #endif /*PARSEC_PROF_TRACE*/
+        ,
 #if defined(PARSEC_HAVE_MPI)
         "mpi"
 #if defined(PARSEC_HAVE_MPI_20)
