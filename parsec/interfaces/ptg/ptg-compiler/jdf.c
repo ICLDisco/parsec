@@ -1115,6 +1115,7 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
     COMPARE_EXPR(displ, sa, are_displ_equal);
 
     string_arena_free(sa);
+    string_arena_free(sa1);
 
     (void)linfo; /* Used with verbose=3 */
 
