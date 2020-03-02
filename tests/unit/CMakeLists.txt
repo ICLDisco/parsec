@@ -13,4 +13,5 @@ parsec_addtest(C list_inline list.c)
 parsec_addtest(C hash_inline hash.c)
 set_property(TARGET atomics_inline rwlock_inline lifo_inline list_inline hash_inline
   APPEND PROPERTY COMPILE_DEFINITIONS BUILDING_PARSEC)
-
+set_property(TARGET atomics_inline rwlock_inline lifo_inline list_inline hash_inline
+  APPEND PROPERTY COMPILE_OPTIONS ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
