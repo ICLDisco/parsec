@@ -905,7 +905,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         "+sim"
 #endif
         ,
-        pins_components,
+        pins_components
 #else
         "no"
 #endif /*PARSEC_PROF_TRACE*/
