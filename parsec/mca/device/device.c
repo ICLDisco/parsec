@@ -454,17 +454,17 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams) {
         parsec_warning("CPU Features cannot be autodetected on this machine: %s", strerror(errno));
         goto notfound;
     }
-    cpu_flags = malloc(256);
-    char str[256];
-    while( NULL != fgets(str, 256, procinfo) ) {
+    cpu_flags = calloc(4096, sizeof(char));
+    char str[4096];
+    while( NULL != fgets(str, 4096, procinfo) ) {
         /* Intel/AMD */
-        sscanf(str, "model name : %256[^\n]%*c", cpu_model);
+        sscanf(str, "model name : %255[^\n]%*c", cpu_model);
         if( 0 != sscanf(str, "cpu MHz : %f", &freq) )
             freq *= 1e-3;
-        if( 0 != sscanf(str, "flags : %256[^\n]%*c", cpu_flags) )
+        if( 0 != sscanf(str, "flags : %4095[^\n]%*c", cpu_flags) )
             break; /* done reading for an x86 type CPU */
         /* IBM: Power */
-        sscanf(str, "cpu : %256[^\n]%*c", cpu_model);
+        sscanf(str, "cpu : %255[^\n]%*c", cpu_model);
         if( 0 != sscanf(str, "clock : %fMHz", &freq) ) {
             freq *= 1e-3;
             break; /* done reading for a Power type CPU */
