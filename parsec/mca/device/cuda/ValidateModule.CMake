@@ -7,6 +7,7 @@ if( PARSEC_HAVE_CUDA )
   SET(MCA_${COMPONENT}_${MODULE}_CONSTRUCTOR "${COMPONENT}_${MODULE}_static_component")
   install(FILES
           ${CMAKE_CURRENT_SOURCE_DIR}/mca/device/cuda/device_cuda.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/mca/device/cuda/device_cuda_internal.h
           DESTINATION include/parsec/mca/device/cuda )
 else (PARSEC_HAVE_CUDA)
   MESSAGE(STATUS "Module ${MODULE} not selectable: does not have CUDA")
