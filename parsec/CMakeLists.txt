@@ -237,8 +237,8 @@ if( BUILD_PARSEC )
 
   install(TARGETS parsec
     EXPORT parsec-targets
-    DESTINATION lib
-    PUBLIC_HEADER ${CMAKE_INSTALL_INCLUDEDIR})
+    LIBRARY DESTINATION lib
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
   install(FILES utils/help-mca-param.txt DESTINATION share/parsec)
 ENDIF( BUILD_PARSEC )
