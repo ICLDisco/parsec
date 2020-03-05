@@ -245,114 +245,7 @@ IF (_mach_ppc)
     SET(PARSEC_ARCH_PPC 1)
 ENDIF (_mach_ppc)
 
-#
-# Fix the building system for 32 or 64 bits.
-#
-# On MAC OS X there is a easy solution, by setting the
-# CMAKE_OSX_ARCHITECTURES to a subset of the following values:
-# ppc;ppc64;i386;x86_64.
-# On Linux this is a little bit tricky. We have to check that the
-# compiler supports the -m32/-m64 flags as well as the linker.
-# Once this issue is resolved the CMAKE_C_FLAGS and CMAKE_EXE_LINKER_FLAGS
-# have to be updated accordingly.
-#
-# TODO: Same trick for the Fortran compiler...
-#       no idea how to correctly detect if the required/optional
-#          libraries are in the correct format.
-#
-STRING(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
-IF (_match_xlc)
-  MESSAGE(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
-ENDIF (_match_xlc)
-STRING(REGEX MATCH "XL" _match_xlc ${CMAKE_C_COMPILER_ID})
-if (BUILD_64bits)
-  if( _match_xlc)
-    set( ARCH_BUILD "-q64" )
-  else (_match_xlc)
-    if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "sparc64fx" )
-      set ( ARCH_BUILD " " )
-    else()
-      set( ARCH_BUILD "-m64" )
-    endif()
-  endif(_match_xlc)
-else (BUILD_64bits)
-  if( _match_xlc)
-    set( ARCH_BUILD "-q32" )
-  else (_match_xlc)
-    set( ARCH_BUILD "-m32" )
-  endif(_match_xlc)
-endif (BUILD_64bits)
-
-check_c_compiler_flag( ${ARCH_BUILD} C_M32or64 )
-if( C_M32or64 )
-  string(APPEND CMAKE_C_FLAGS " ${ARCH_BUILD}")
-  # Try the same for Fortran and CXX:
-  # Use the same 64bit flag as the C compiler if possible
-  if(CMAKE_Fortran_COMPILER_WORKS)
-    check_fortran_compiler_flag( ${ARCH_BUILD} F_M32or64 )
-    if( F_M32or64 )
-      string(APPEND CMAKE_Fortran_FLAGS " ${ARCH_BUILD}")
-    endif( F_M32or64 )
-  endif()
-  if(CMAKE_CXX_COMPILER_WORKS)
-    check_cxx_compiler_flag( ${ARCH_BUILD} CXX_M32or64 )
-    if( CXX_M32or64 )
-      string(APPEND CMAKE_CXX_FLAGS " ${ARCH_BUILD}")
-    endif( CXX_M32or64 )
-  endif()
-endif( C_M32or64 )
-
-#
-# Check compiler flags and capabilities
-#
-
-# Set warnings for debug builds
-CHECK_C_COMPILER_FLAG( "-Wall" PARSEC_HAVE_WALL )
-IF( PARSEC_HAVE_WALL )
-  STRING( APPEND C_WFLAGS " -Wall" )
-ENDIF( PARSEC_HAVE_WALL )
-CHECK_C_COMPILER_FLAG( "-Wextra" PARSEC_HAVE_WEXTRA )
-IF( PARSEC_HAVE_WEXTRA )
-  STRING( APPEND C_WFLAGS " -Wextra" )
-ENDIF( PARSEC_HAVE_WEXTRA )
-
-#
-# flags for Intel icc
-#
-STRING(REGEX MATCH ".*icc$" _match_icc ${CMAKE_C_COMPILER})
-if(_match_icc)
-  # Silence annoying warnings
-  CHECK_C_COMPILER_FLAG( "-wd424" PARSEC_HAVE_WD )
-  IF( PARSEC_HAVE_WD )
-    # 424: checks for duplicate ";"
-    # 981: every volatile triggers a "unspecified evaluation order", obnoxious
-    #      but might be useful for some debugging sessions.
-    # 1419: warning about extern functions being declared in .c
-    #       files
-    # 1572: cuda compares floats with 0.0f.
-    # 11074: obnoxious about not inlining long functions.
-    string(APPEND C_WFLAGS " -wd424,981,1419,1572,10237,11074,11076")
-  ENDIF( PARSEC_HAVE_WD )
-else(_match_icc)
-  CHECK_C_COMPILER_FLAG( "-Wno-parentheses-equality" PARSEC_HAVE_PAR_EQUALITY )
-  IF( PARSEC_HAVE_PAR_EQUALITY )
-    string(APPEND C_WFLAGS " -Wno-parentheses-equality")
-  ENDIF( PARSEC_HAVE_PAR_EQUALITY )
-endif(_match_icc)
-
-# add gdb symbols in debug and relwithdebinfo
-CHECK_C_COMPILER_FLAG( "-g3" PARSEC_HAVE_G3 )
-IF( PARSEC_HAVE_G3 )
-  string(APPEND CMAKE_C_FLAGS_DEBUG " -O0 -g3")
-  string(APPEND CMAKE_C_FLAGS_RELWITHDEBINFO " -g3")
-ELSE()
-  string(APPEND CMAKE_C_FLAGS_DEBUG " -O0")
-ENDIF( PARSEC_HAVE_G3)
-# verbose compilation in debug
-string(APPEND CMAKE_C_FLAGS_DEBUG " ${C_WFLAGS}")
-# remove asserts in release
-string(APPEND CMAKE_C_FLAGS_RELEASE " -DNDEBUG")
-string(APPEND CMAKE_C_FLAGS_RELWITHDEBINFO " ${C_WFLAGS}")
+include (ParsecCompilerFlags)
 
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
@@ -370,19 +263,6 @@ if(PARSEC_ARCH_PPC)
   unset( PARSEC_HAVE_INT128 CACHE )
   unset( PARSEC_HAVE_INT128 )
 endif(PARSEC_ARCH_PPC)
-
-#
-# Remove all duplicates from the CFLAGS.
-#
-if(CMAKE_C_FLAGS)
-set(TMP_LIST ${CMAKE_C_FLAGS})
-separate_arguments(TMP_LIST)
-list(REMOVE_DUPLICATES TMP_LIST)
-set(CMAKE_C_FLAGS "")
-foreach( ITEM ${TMP_LIST})
-  string(APPEND CMAKE_C_FLAGS " ${ITEM}")
-endforeach()
-endif()
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
@@ -671,50 +551,23 @@ IF( BUILD_PARSEC )
 # compile correctly.
 #
   if(AYUDAME_FOUND)
-    include_directories( ${AYUDAME_INCLUDE_DIR} )
-    list(APPEND EXTRA_INCLUDES ${AYUDAME_INCLUDE_DIR})
+    target_include_directories(parsec
+        PRIVATE
+        ${AYUDAME_INCLUDE_DIR})
     if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
       message(STATUS "Add '-undefined dynamic_lookup' to the linking flags")
-      string(APPEND CMAKE_EXE_LINKER_FLAGS " -undefined dynamic_lookup")
-      string(APPEND CMAKE_Fortran_FLAGS " -undefined dynamic_lookup")
+      target_link_libraries(parsec
+        PUBLIC
+        "-undefined dynamic_lookup")
     endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   endif(AYUDAME_FOUND)
-ENDIF( BUILD_PARSEC )
-
-#
-# Fortran tricks
-# Debug/Release FFLAGS depend on the compiler
-#
-IF (CMAKE_Fortran_COMPILER_WORKS)
-  if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    # gfortran
-    set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3")
-    set (CMAKE_Fortran_FLAGS_DEBUG   "-fno-f2c -O0 -g")
-    MESSAGE(STATUS "Fortran adds libraries path ${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES}")
-    FOREACH(ITEM IN ITEMS ${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES})
-      list(APPEND EXTRA_LIBS "-L${ITEM}")
-    ENDFOREACH(ITEM)
-    MESSAGE(STATUS "Fortran adds libraries ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}")
-    list(APPEND EXTRA_LIBS ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
-  elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
-    # ifort
-    set (CMAKE_Fortran_FLAGS_RELEASE "-f77rtl -O3")
-    set (CMAKE_Fortran_FLAGS_DEBUG   "-f77rtl -O0 -g")
-    string (REPLACE "-i_dynamic" "" CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS}")
-  else (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
-    get_filename_component (Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
-    message ("CMAKE_Fortran_COMPILER full path: " ${CMAKE_Fortran_COMPILER})
-    message ("Fortran compiler: " ${Fortran_COMPILER_NAME})
-    message ("No optimized Fortran compiler flags are known, we just try -O2...")
-    set (CMAKE_Fortran_FLAGS_RELEASE "-O2")
-    set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g")
-  endif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
 
   # Coerce CMake to install the generated .mod files
-  set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parsec/include/fortran)
-  install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION include)
-
-ENDIF (CMAKE_Fortran_COMPILER_WORKS)
+  if(CMAKE_Fortran_COMPILER_WORKS)
+    set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parsec/include/fortran)
+    install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION include)
+  endif(CMAKE_Fortran_COMPILER_WORKS)
+ENDIF( BUILD_PARSEC )
 
 # Find how to link shm_open
 check_function_exists(shm_open PARSEC_HAVE_SHM_OPEN)
@@ -1091,6 +944,41 @@ install(FILES
   DESTINATION include/parsec/sys
   RENAME atomic.h)
 
+# build a CPack driven installer package
+include (InstallRequiredSystemLibraries)
+set(CPACK_GENERATOR "TBZ2")
+set (CPACK_RESOURCE_FILE_LICENSE
+     "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
+set (CPACK_PACKAGE_VERSION_MAJOR "${PARSEC_VERSION_MAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
+set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
+include (CPack)
+
+# Prepare the cflags/ldflags for the PkgConfig parsec.pc file
+set(EXTRA_CFLAGS ${CMAKE_C_FLAGS})
+set(EXTRA_LDFLAGS ${CMAKE_EXE_LINKER_FLAGS})
+
+# Libraries that are added to the public parsec export and have special include flags (imported targets) have to be there set as well.
+foreach(extra_flag IN ITEMS ${CUDA_INCLUDE_DIRS} ${MPI_C_INCLUDE_DIRS})
+  if(NOT extra_flag)
+    continue()
+  endif(NOT extra_flag)
+  if(extra_flag MATCHES "COMPILE_LANGUAGE:C>:([^>]*)" )
+    set(extra_flag "${CMAKE_MATCH_1}")
+  elseif(extra_flag MATCHES "COMPILE_LANGUAGE")
+    continue()
+  endif()
+  string(APPEND EXTRA_INCLUDES " ${extra_flag}")
+endforeach()
+
+# Libraries that are added to the public parsec export but not to EXTRA_LIBS (imported targets)  have to be there set as well.
+foreach(extra_lib IN ITEMS ${PARSEC_ATOMIC_SUPPORT_LIBS} ${CUDA_LIBRARIES} ${MPI_C_LIBRARIES} ${PAPI_LIBRARIES})
+  if(NOT extra_lib)
+    continue()
+  endif(NOT extra_lib)
+  list(APPEND EXTRA_LIBS ${extra_lib})
+endforeach()
+
 # Due to the lack of standardization detecting libraries under CMake leads
 # to unconsistents lists of libraries, where some libraries are using full path,
 # other a combination of "-L* and -l*" and others just the library name.
@@ -1107,23 +995,15 @@ FOREACH(LIB IN ITEMS ${EXTRA_LIBS})
   LIST(APPEND EXTRA_LIBS_EXPANDED "${LIB}")
 ENDFOREACH(LIB)
 
-# build a CPack driven installer package
-include (InstallRequiredSystemLibraries)
-set(CPACK_GENERATOR "TBZ2")
-set (CPACK_RESOURCE_FILE_LICENSE
-     "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
-set (CPACK_PACKAGE_VERSION_MAJOR "${PARSEC_VERSION_MAJOR}")
-set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
-set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
-include (CPack)
-
 if(EXTRA_LIBS)
-list(REMOVE_DUPLICATES EXTRA_LIBS)
+  # For printing only: we need the duplicates in EXPANDED for static builds
+  list(REMOVE_DUPLICATES EXTRA_LIBS)
 endif()
 
-MESSAGE("\n\nConfiguration flags:")
-MESSAGE("  CMAKE_C_FLAGS          = ${CMAKE_C_FLAGS}")
-MESSAGE("  CMAKE_EXE_LINKER_FLAGS = ${CMAKE_EXE_LINKER_FLAGS}")
+MESSAGE("\n\nPkgConfig Configuration Flags:")
+MESSAGE("  EXTRA_CFLAGS           = ${EXTRA_CFLAGS}")
+MESSAGE("  EXTRA_LDFLAGS          = ${EXTRA_LDFLAGS}")
+MESSAGE("  EXTRA_INCLUDES         = ${EXTRA_INCLUDES}")
 MESSAGE("  EXTRA_LIBS             = ${EXTRA_LIBS}")
 MESSAGE("\n\n")
 

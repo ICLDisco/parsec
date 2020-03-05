@@ -2,6 +2,7 @@
 # We do not use target_compile_definitions to avoid having to track all object
 # libraries that could miss this otherwise.
 add_compile_definitions(BUILDING_PARSEC)
+add_compile_options(${PARSEC_ATOMIC_SUPPORT_OPTIONS})
 #
 #  Settings for targets
 #
@@ -128,7 +129,7 @@ if( BUILD_PARSEC )
     PRIVATE
     YYERROR_VERBOSE)
   target_compile_options(parsec-base-obj
-    PUBLIC ${PARSEC_ATOMIC_SUPPORT_CFLAGS})
+    PUBLIC ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
   target_include_directories(parsec-base-obj
     INTERFACE
     $<INSTALL_INTERFACE:include>
@@ -186,6 +187,7 @@ if( BUILD_PARSEC )
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     INTERFACE
+    ${PARSEC_ATOMIC_SUPPORT_LIBS}
     ${EXTRA_LIBS}
     )
   if( ${PARSEC_HAVE_CUDA} )
