@@ -198,6 +198,27 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
         # int128 fields for which we only do atomics anyway
         unset(PARSEC_HAVE_INT128 CACHE)
         unset(PARSEC_HAVE_INT128)
+      else( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
+        # Sanity check for old and certainly broken compilers (clang 3)
+        # that have support for 16 bytes swap but no other operation (and
+        # lie about by setting __has_builtin(__sync_fetch_and_and_16)
+        include(CMakePushCheckState)
+        CMAKE_PUSH_CHECK_STATE()
+        SET( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${_PARSEC_ATOMIC_SUPPORT_OPTIONS}" )
+        CHECK_C_SOURCE_COMPILES("
+            #include <stdint.h>
+            int main(void) {
+                __int128_t where = 0;
+                if( !__sync_fetch_and_and(&where, 1))
+                   return -1;
+                if( !__sync_fetch_and_or(&where, 1))
+                   return -1;
+                if( !__sync_fetch_and_add(&where, 1))
+                   return -1;
+                return 0;
+             }
+             " PARSEC_ATOMIC_USE_GCC_128_OTHER_BUILTINS)
+        CMAKE_POP_CHECK_STATE()
       endif( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
     endif(PARSEC_HAVE_INT128)
   endif( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
@@ -331,6 +352,12 @@ endif( PARSEC_ATOMIC_USE_SUN_32 OR PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS OR PAR
 if( PARSEC_ATOMIC_USE_SUN_64 OR PARSEC_ATOMIC_USE_MIPOSPRO_64_BUILTINS OR PARSEC_ATOMIC_USE_XLC_64_BUILTINS OR PARSEC_ATOMIC_USE_GCC_64_BUILTINS OR PARSEC_ATOMIC_USE_C11_64)
   set( PARSEC_HAVE_COMPARE_AND_SWAP_64 1 CACHE INTERNAL "Atomic operation on 64 bits are supported")
 endif( PARSEC_ATOMIC_USE_SUN_64 OR PARSEC_ATOMIC_USE_MIPOSPRO_64_BUILTINS OR PARSEC_ATOMIC_USE_XLC_64_BUILTINS OR PARSEC_ATOMIC_USE_GCC_64_BUILTINS OR PARSEC_ATOMIC_USE_C11_64)
+
+# Validation for __sync builtins on int128_t
+if( PARSEC_ATOMIC_USE_GCC_128_BUILTINS AND
+    NOT PARSEC_ATOMIC_USE_C11_128 AND NOT PARSEC_ATOMIC_USE_GCC_128_OTHER_BUILTINS )
+  MESSAGE(STATUS "Support for atomic compare-and-swap (CAS) on int128_t found but support for some other atomic operations on int128_t (any combination of AND, OR and ADD) is missing. Replacements based on CAS will be provided.\n")
+endif()
 
 if( PARSEC_ATOMIC_USE_GCC_128_BUILTINS OR PARSEC_ATOMIC_USE_C11_128)
   set( PARSEC_HAVE_COMPARE_AND_SWAP_128 1 CACHE INTERNAL "Atomic operation on 128 bits are supported")
