@@ -34,15 +34,22 @@ if (BUILD_DOCUMENTATION)
         COMMENT "Generating API documentation with Doxygen"
         VERBATIM)
       #-- Add a custom target to run Doxygen when the project is built
-      add_custom_target( docs DEPENDS parsec ${CMAKE_CURRENT_BINARY_DIR}/doxygen/doxygen.stamp )
-      message(STATUS "PaRSEC documentation can be generated with target 'docs' after the library is compiled")
+      add_custom_target(docs-parsec DEPENDS parsec ${CMAKE_CURRENT_BINARY_DIR}/doxygen/doxygen.stamp )
+      message(STATUS "PaRSEC documentation can be generated with target 'docs-parsec' after the library is compiled")
     endif(NOT "${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/docs")
   else (DOXYGEN_FOUND)
     message(FATAL_ERROR "Documentation generation requested but Doxygen application could not be found. Either install Doygen or disable the documentation generation (BUILD_DOCUMENTATION to OFF)")
   endif (DOXYGEN_FOUND)
 else (BUILD_DOCUMENTATION)
-  add_custom_target( docs
+  add_custom_target(docs-parsec
     COMMAND true
     COMMAND true
     COMMENT "No documentation will be generated. Configure with BUILD_DOCUMENTATION set to ON" VERBATIM)
 endif (BUILD_DOCUMENTATION)
+
+# if "global" docs target exists, add dependency on docs-parsec
+if (TARGET docs)
+  add_dependencies(docs docs-parsec)
+else(TARGET docs)
+  add_custom_target(docs DEPENDS docs-parsec)
+endif(TARGET docs)
