@@ -87,6 +87,7 @@ int64_t parsec_atomic_fetch_and_int64( volatile int64_t* location,
 }
 
 #if defined(PARSEC_HAVE_INT128) && defined(PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
+#if defined(PARSEC_ATOMIC_USE_GCC_128_OTHER_BUILTINS)
 #define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_OR_INT128
 ATOMIC_STATIC_INLINE
 __int128_t parsec_atomic_fetch_or_int128( volatile __int128_t* location,
@@ -102,7 +103,32 @@ __int128_t parsec_atomic_fetch_and_int128( volatile __int128_t* location,
 {
     return __sync_fetch_and_and(location, and_value);
 }
-#endif
+#else  /* defined(PARSEC_ATOMIC_USE_GCC_128_OTHER_BUILTINS) */
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_OR_INT128
+ATOMIC_STATIC_INLINE
+__int128_t parsec_atomic_fetch_or_int128( volatile __int128_t* location,
+                                          __int128_t or_value )
+{
+    __int128_t old;
+    do {
+        old = *location;
+    } while( !__sync_bool_compare_and_swap(location, old, old | or_value ) );
+    return old;
+}
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_AND_INT128
+ATOMIC_STATIC_INLINE
+__int128_t parsec_atomic_fetch_and_int128( volatile __int128_t* location,
+                                           __int128_t and_value )
+{
+    __int128_t old;
+    do {
+        old = *location;
+    } while( !__sync_bool_compare_and_swap(location, old, old & and_value) );
+    return old;
+}
+#endif  /* defined(PARSEC_ATOMIC_USE_GCC_128_OTHER_BUILTINS) */
+#endif  /* defined(PARSEC_HAVE_INT128) && defined(PARSEC_ATOMIC_USE_GCC_128_BUILTINS) */
 
 /* Integer -- we use __sync_fetch_and_add for all, let atomic.h translate the missing ones */
 
@@ -121,10 +147,25 @@ int64_t parsec_atomic_fetch_add_int64(volatile int64_t* l, int64_t v)
 }
 
 #if defined(PARSEC_HAVE_INT128) && defined(PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
+#if defined(PARSEC_ATOMIC_USE_GCC_128_OTHER_BUILTINS)
 #define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT128
 ATOMIC_STATIC_INLINE
 __int128_t parsec_atomic_fetch_add_int128(volatile __int128_t* l, __int128_t v)
 {
     return __sync_fetch_and_add(l, v);
 }
-#endif
+
+#else  /* defined(PARSEC_ATOMIC_USE_GCC_128_OTHER_BUILTINS) */
+#define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT128
+ATOMIC_STATIC_INLINE
+__int128_t parsec_atomic_fetch_add_int128( volatile __int128_t* location,
+                                           __int128_t v)
+{
+    __int128_t old;
+    do {
+        old = *location;
+    } while( !__sync_bool_compare_and_swap(location, old, old + v) );
+    return old;
+}
+#endif  /* defined(PARSEC_ATOMIC_USE_GCC_128_OTHER_BUILTINS) */
+#endif  /* defined(PARSEC_HAVE_INT128) && defined(PARSEC_ATOMIC_USE_GCC_128_BUILTINS) */

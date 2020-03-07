@@ -92,7 +92,7 @@ option(PARSEC_WANT_HOME_CONFIG_FILES
 set(PARSEC_PTGFLAGS "--noline" CACHE STRING "Additional parsec_ptgpp precompiling flags (separate flags with ';')" )
 mark_as_advanced(PARSEC_PTGFLAGS)
 
-option(PARSEC_WITH_DEVEL_HEADERS "Install additional headers in include/parsec allowing external compilation." OFF)
+option(PARSEC_WITH_DEVEL_HEADERS "Install additional headers in include/parsec allowing external compilation." ON)
 
 ## Multicore scheduler parameters
 
