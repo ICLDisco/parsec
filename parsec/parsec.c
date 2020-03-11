@@ -1502,7 +1502,7 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
 parsec_dependency_t*
 parsec_default_find_deps(const parsec_taskpool_t *tp,
                          parsec_execution_stream_t *es,
-                         const parsec_task_t* restrict task)
+                         const parsec_task_t* PARSEC_RESTRICT task)
 {
     parsec_dependencies_t *deps;
     int p;
@@ -1524,7 +1524,7 @@ parsec_default_find_deps(const parsec_taskpool_t *tp,
 parsec_dependency_t*
 parsec_hash_find_deps(const parsec_taskpool_t *tp,
                       parsec_execution_stream_t *es,
-                      const parsec_task_t* restrict task)
+                      const parsec_task_t* PARSEC_RESTRICT task)
 {
     parsec_hashable_dependency_t *hd;
     parsec_key_handle_t kh;
@@ -1552,11 +1552,11 @@ parsec_hash_find_deps(const parsec_taskpool_t *tp,
 
 int
 parsec_update_deps_with_counter(parsec_taskpool_t *tp,
-                                const parsec_task_t* restrict task,
+                                const parsec_task_t* PARSEC_RESTRICT task,
                                 parsec_dependency_t *deps,
-                                const parsec_task_t* restrict origin,
-                                const parsec_flow_t* restrict origin_flow,
-                                const parsec_flow_t* restrict dest_flow)
+                                const parsec_task_t* PARSEC_RESTRICT origin,
+                                const parsec_flow_t* PARSEC_RESTRICT origin_flow,
+                                const parsec_flow_t* PARSEC_RESTRICT dest_flow)
 {
     parsec_dependency_t dep_new_value, dep_cur_value;
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
@@ -1599,11 +1599,11 @@ parsec_update_deps_with_counter(parsec_taskpool_t *tp,
 
 int
 parsec_update_deps_with_mask(parsec_taskpool_t *tp,
-                             const parsec_task_t* restrict task,
+                             const parsec_task_t* PARSEC_RESTRICT task,
                              parsec_dependency_t *deps,
-                             const parsec_task_t* restrict origin,
-                             const parsec_flow_t* restrict origin_flow,
-                             const parsec_flow_t* restrict dest_flow)
+                             const parsec_task_t* PARSEC_RESTRICT origin,
+                             const parsec_flow_t* PARSEC_RESTRICT origin_flow,
+                             const parsec_flow_t* PARSEC_RESTRICT dest_flow)
 {
     parsec_dependency_t dep_new_value, dep_cur_value;
     const parsec_task_class_t* tc = task->task_class;
@@ -1671,7 +1671,7 @@ parsec_update_deps_with_mask(parsec_taskpool_t *tp,
  * Since data -> task grapher logging is detected during dependency resolving,
  * and startup tasks don't have an input dependency, we also resolve this here.
  */
-void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
+void parsec_dependencies_mark_task_as_startup(parsec_task_t* PARSEC_RESTRICT task,
                                               parsec_execution_stream_t *es)
 {
     const parsec_task_class_t* tc = task->task_class;
@@ -1692,10 +1692,10 @@ void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
  */
 int
 parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
-                                      const parsec_task_t* restrict origin,
-                                      const parsec_flow_t* restrict origin_flow,
-                                      const parsec_task_t* restrict task,
-                                      const parsec_flow_t* restrict dest_flow,
+                                      const parsec_task_t* PARSEC_RESTRICT origin,
+                                      const parsec_flow_t* PARSEC_RESTRICT origin_flow,
+                                      const parsec_task_t* PARSEC_RESTRICT task,
+                                      const parsec_flow_t* PARSEC_RESTRICT dest_flow,
                                       parsec_dep_data_description_t* data,
                                       parsec_task_t** pready_ring,
                                       data_repo_t* target_repo,

@@ -36,6 +36,14 @@
 #define END_C_DECLS            /* empty */
 #endif
 
+/* If we're in C++, define PARSEC_RESTRICT to nothing, because it's not supported by many C++ compilers */
+#if defined(c_plusplus) || defined(__cplusplus)
+#  define PARSEC_RESTRICT
+#else  /* defined(c_plusplus) || defined(__cplusplus) */
+/* restrict is a requirement of C99 and PaRSEC is C99 or above, so it's fine to always define it */
+#  define PARSEC_RESTRICT restrict
+#endif /* defined(c_plusplus) || defined(__cplusplus) */
+
 #if defined(PARSEC_HAVE_ATTRIBUTE_VISIBILITY) && defined(BUILDING_PARSEC)
 #    define __parsec_attribute_visibility__(a) __attribute__((__visibility__(a)))
 #else

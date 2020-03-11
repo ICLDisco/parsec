@@ -12,7 +12,7 @@ extern "C" %{
  * This test has been conceived for issue 247.
  * https://bitbucket.org/icldistcomp/parsec/issues/247
  */
-#include "tests/interfaces/ptg/compiler_checks/vector.h"
+#include "tests/dsl/ptg/ptgpp/vector.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #if MAX_LOCAL_COUNT > 10
