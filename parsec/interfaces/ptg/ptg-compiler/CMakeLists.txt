@@ -6,22 +6,22 @@ IF(NOT CMAKE_CROSSCOMPILING)
   FLEX_TARGET(parsec_flex parsec.l  ${CMAKE_CURRENT_BINARY_DIR}/parsec.l.c)
   ADD_FLEX_BISON_DEPENDENCY(parsec_flex parsec_yacc)
 
-  if(NOT TARGET parsec_ptgpp)
-    add_executable(parsec_ptgpp jdf.c jdf2c.c jdf_unparse.c ${BISON_parsec_yacc_OUTPUTS} ${FLEX_parsec_flex_OUTPUTS})
-  endif(NOT TARGET parsec_ptgpp)
-  target_include_directories(parsec_ptgpp BEFORE PRIVATE
+  if(NOT TARGET parsec-ptgpp)
+    add_executable(parsec-ptgpp jdf.c jdf2c.c jdf_unparse.c ${BISON_parsec_yacc_OUTPUTS} ${FLEX_parsec_flex_OUTPUTS})
+  endif(NOT TARGET parsec-ptgpp)
+  target_include_directories(parsec-ptgpp BEFORE PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR})
-  target_include_directories(parsec_ptgpp PRIVATE
+  target_include_directories(parsec-ptgpp PRIVATE
       ${CMAKE_CURRENT_BINARY_DIR})
-  target_link_libraries(parsec_ptgpp PRIVATE m parsec-base)
+  target_link_libraries(parsec-ptgpp PRIVATE m parsec-base)
 
-  install(TARGETS parsec_ptgpp
+  install(TARGETS parsec-ptgpp
     EXPORT parsec-targets
-    RUNTIME DESTINATION bin)
+    RUNTIME DESTINATION ${PARSEC_INSTALL_BINDIR})
 
   #
   # Generate the EXPORT file for external projects.
   #
-  EXPORT(TARGETS parsec_ptgpp FILE "${CMAKE_BINARY_DIR}/ImportExecutables.cmake")
+  EXPORT(TARGETS parsec-ptgpp FILE "${CMAKE_BINARY_DIR}/ImportExecutables.cmake")
 ENDIF(NOT CMAKE_CROSSCOMPILING)
 

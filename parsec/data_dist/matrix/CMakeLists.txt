@@ -52,4 +52,4 @@ install(FILES
   grid_2Dcyclic.h
   subtile.h
   ${CMAKE_CURRENT_BINARY_DIR}/diag_band_to_rect.h
-  DESTINATION include/parsec/data_dist/matrix )
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/data_dist/matrix )

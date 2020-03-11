@@ -4,34 +4,34 @@ include(ParsecCompilePTG)
 # Test that NULL as output returns an error
 #
 add_test(NAME unit_jdf_output_NULL_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL.jdf -o output_NULL -f output_NULL)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL.jdf -o output_NULL -f output_NULL)
 
 add_test(NAME unit_jdf_output_NULL_true_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_true.jdf -o output_NULL_true -f output_NULL_true)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_true.jdf -o output_NULL_true -f output_NULL_true)
 
 add_test(NAME unit_jdf_output_NULL_false_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_false.jdf -o output_NULL_false -f output_NULL_false)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NULL_false.jdf -o output_NULL_false -f output_NULL_false)
 
 set_tests_properties(unit_jdf_output_NULL_ptgpp unit_jdf_output_NULL_true_ptgpp unit_jdf_output_NULL_false_ptgpp
   PROPERTIES
-  DEPENDS "${parsec_ptgpp_EXE}"
+  DEPENDS "${PARSEC_PTGPP_EXECUTABLE}"
   PASS_REGULAR_EXPRESSION "NULL data only supported in IN dependencies.")
 
 #
 # Test that NEW as output returns an error
 #
 add_test(NAME unit_jdf_output_NEW_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW.jdf -o output_NEW -f output_NEW)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW.jdf -o output_NEW -f output_NEW)
 
 add_test(NAME unit_jdf_output_NEW_true_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_true.jdf -o output_NEW_true -f output_NEW_true)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_true.jdf -o output_NEW_true -f output_NEW_true)
 
 add_test(NAME unit_jdf_output_NEW_false_ptgpp
-  COMMAND ${parsec_ptgpp_EXE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_false.jdf -o output_NEW_false -f output_NEW_false)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/output_NEW_false.jdf -o output_NEW_false -f output_NEW_false)
 
 set_tests_properties(unit_jdf_output_NEW_ptgpp unit_jdf_output_NEW_true_ptgpp unit_jdf_output_NEW_false_ptgpp
   PROPERTIES
-  DEPENDS "${parsec_ptgpp_EXE}"
+  DEPENDS "${PARSEC_PTGPP_EXECUTABLE}"
   PASS_REGULAR_EXPRESSION "Automatic data allocation with NEW only supported in IN dependencies."
   )
 

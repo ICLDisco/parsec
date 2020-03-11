@@ -45,7 +45,7 @@ include(mca/CMakeLists.txt)
 
 # Import all the available interfaces
 include(interfaces/CMakeLists.txt)
-add_executable(PaRSEC::parsec_ptgpp ALIAS parsec_ptgpp)
+add_executable(PaRSEC::parsec-ptgpp ALIAS parsec-ptgpp)
 
 if( PARSEC_PAPI_SDE )
   list(APPEND EXTRA_SOURCES "papi_sde.c")
@@ -132,7 +132,7 @@ if( BUILD_PARSEC )
     PUBLIC ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
   target_include_directories(parsec-base-obj
     INTERFACE
-    $<INSTALL_INTERFACE:include>
+    $<INSTALL_INTERFACE:${PARSEC_INSTALL_INCLUDEDIR}>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>
     $<$<NOT:${PARSEC_BUILD_INPLACE}>:
@@ -168,7 +168,7 @@ if( BUILD_PARSEC )
     YYERROR_VERBOSE)
   target_include_directories(parsec
     INTERFACE
-    $<INSTALL_INTERFACE:include>
+    $<INSTALL_INTERFACE:${PARSEC_INSTALL_INCLUDEDIR}>
     $<$<NOT:${PARSEC_BUILD_INPLACE}>:
       $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}>
       $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/parsec/include>>
@@ -216,8 +216,8 @@ if( BUILD_PARSEC )
     # parsec-papi-sde has to be installed, to provide the default empty functions
     install(TARGETS parsec-papi-sde
       EXPORT parsec-targets
-      DESTINATION lib)
-    #install(FILES papi_sde_interface.h DESTINATION lib/parsec)
+      DESTINATION ${PARSEC_INSTALL_LIBDIR})
+  #install(FILES papi_sde_interface.h DESTINATION ${PARSEC_INSTALL_LIBDIR}/parsec)
   endif( PARSEC_PAPI_SDE )
 
 #
@@ -237,10 +237,10 @@ if( BUILD_PARSEC )
 
   install(TARGETS parsec
     EXPORT parsec-targets
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    ARCHIVE DESTINATION ${PARSEC_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${PARSEC_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${PARSEC_INSTALL_INCLUDEDIR})
 
-  install(FILES utils/help-mca-param.txt DESTINATION share/parsec)
+  install(FILES utils/help-mca-param.txt DESTINATION ${PARSEC_INSTALL_DATADIR}/parsec)
 ENDIF( BUILD_PARSEC )
 
