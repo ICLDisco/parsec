@@ -507,7 +507,7 @@ case x$with_python in
 xno) echo >&2 "Python is required. Please provide a path to the python executable."; exit 3;;
 xyes) ;;
 x) ;;
-*)  PYTHON_EXECUTABLES=$(PATH=$with_python:$with_python/bin command -v $with_python python{,3,2})
+*)  PYTHON_EXECUTABLES=$(PATH="$with_python:$with_python/bin:${PATH}" command -v $with_python python{,3,2})
     for PYTHON_EXECUTABLE in $PYTHON_EXECUTABLES; do
         [[ $PYTHON_EXECUTABLE =~ $with_python ]] && CMAKE_DEFINES+=" -DPYTHON_EXECUTABLE=$(printf %q "$PYTHON_EXECUTABLE")" && break
     done
