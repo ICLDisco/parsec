@@ -15,9 +15,9 @@ BEGIN_C_DECLS
  * distributed data vector and basic functionalities
  *******************************************************************/
 typedef enum vector_distrib {
-    PlasmaVectorRow,
-    PlasmaVectorCol,
-    PlasmaVectorDiag
+    matrix_VectorRow,
+    matrix_VectorCol,
+    matrix_VectorDiag
 } vector_distrib_t;
 
 /*
