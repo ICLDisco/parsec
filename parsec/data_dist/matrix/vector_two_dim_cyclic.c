@@ -70,7 +70,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
     dc->distrib = distrib;
 
     switch ( distrib ) {
-    case PlasmaVectorDiag:
+    case matrix_VectorDiag:
     {
         int pmq   = dc->grid.crank - dc->grid.rrank;
         int gcdpq = gcd( P, Q );
@@ -99,7 +99,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
     }
     break;
 
-    case PlasmaVectorRow:
+    case matrix_VectorRow:
     {
         dc->lcm = Q;
 
@@ -112,7 +112,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
     }
     break;
 
-    case PlasmaVectorCol:
+    case matrix_VectorCol:
     default:
         dc->lcm = P;
 
@@ -180,10 +180,10 @@ static uint32_t vector_twoDBC_rank_of(parsec_data_collection_t * desc, ...)
     m += dc->super.i / dc->super.mb;
 
     /* P(rr, cr) has the tile, compute the rank*/
-    if ( dc->distrib != PlasmaVectorCol )
+    if ( dc->distrib != matrix_VectorCol )
         rr = m % dc->grid.rows;
 
-    if ( dc->distrib != PlasmaVectorRow )
+    if ( dc->distrib != matrix_VectorRow )
         cr = m % dc->grid.cols;
 
     res = rr * dc->grid.cols + cr;
@@ -223,10 +223,10 @@ static int32_t vector_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
 #endif
 
     /* Compute the local tile row */
-    if ( dc->distrib != PlasmaVectorCol )
+    if ( dc->distrib != matrix_VectorCol )
         local_m = (m / dc->grid.rows) % p;
 
-    if ( dc->distrib != PlasmaVectorRow )
+    if ( dc->distrib != matrix_VectorRow )
         local_n = (m / dc->grid.cols) % q;
 
     vpid = local_m * q + local_n;
