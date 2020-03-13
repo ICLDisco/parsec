@@ -52,6 +52,7 @@ endif(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
 
 parsec_addtest(C kcyclic)
 target_ptg_sources(kcyclic PRIVATE "kcyclic.jdf")
+target_link_libraries(kcyclic PRIVATE m)
 
 parsec_addtest(C strange)
 target_ptg_sources(strange PRIVATE "strange.jdf")
