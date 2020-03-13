@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -53,7 +53,7 @@ void vector_two_dim_cyclic_init(vector_two_dim_cyclic_t * vdesc,
                                 int mb, int lm, int i, int m,
                                 int process_GridRows );
 
-void vector_two_dim_cyclic_supertiled_view( vector_two_dim_cyclic_t* target,
+void vector_two_dim_cyclic_kview( vector_two_dim_cyclic_t* target,
                                             vector_two_dim_cyclic_t* origin,
                                             int rst );
 

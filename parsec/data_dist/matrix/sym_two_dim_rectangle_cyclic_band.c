@@ -53,9 +53,9 @@ uint32_t sym_twoDBC_band_rank_of(parsec_data_collection_t * desc, ...)
         /* New index */
         m = abs(m - (int)n);
 
-        if( (dc->band.grid.strows != 1) || (dc->band.grid.stcols != 1) ){
-            m = st_compute_m(&dc->band, m);
-            n = st_compute_n(&dc->band, n);
+        if( (dc->band.grid.krows != 1) || (dc->band.grid.kcols != 1) ){
+            m = kview_compute_m(&dc->band, m);
+            n = kview_compute_n(&dc->band, n);
         }
 
         /* Offset of (i, j) and assert */
@@ -101,9 +101,9 @@ parsec_data_t* sym_twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
         /* The new m in band */
         m = abs(m - (int)n);
 
-        if( (dc->band.grid.strows != 1) || (dc->band.grid.stcols != 1) ){
-            m = st_compute_m(&dc->band, m);
-            n = st_compute_n(&dc->band, n);
+        if( (dc->band.grid.krows != 1) || (dc->band.grid.kcols != 1) ){
+            m = kview_compute_m(&dc->band, m);
+            n = kview_compute_n(&dc->band, n);
         }
 
         /* Offset of (i, j) and assert */

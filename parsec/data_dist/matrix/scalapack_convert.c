@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2018 The University of Tennessee and The University
+ * Copyright (c) 2010-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -348,8 +348,8 @@ int tiles_to_scalapack(parsec_tiled_matrix_dc_t * dc, int * desc, void * sca_mat
 	    if( dc->super.super.myrank ==
 		dc->super.super.rank_of((parsec_data_collection_t *)dc, i, j ) )
                 {
-                    il = i / ( dc->grid.strows * dc->grid.rows ) +  (i % ( dc->grid.strows * dc->grid.rows )) - ( dc->grid.strows * dc->grid.rrank );
-                    jl = j / ( dc->grid.stcols * dc->grid.cols ) +  (j % ( dc->grid.stcols * dc->grid.cols )) - ( dc->grid.stcols * dc->grid.crank );
+                    il = i / ( dc->grid.krows * dc->grid.rows ) +  (i % ( dc->grid.krows * dc->grid.rows )) - ( dc->grid.krows * dc->grid.rrank );
+                    jl = j / ( dc->grid.kcols * dc->grid.cols ) +  (j % ( dc->grid.kcols * dc->grid.cols )) - ( dc->grid.kcols * dc->grid.crank );
                     dec = ((int64_t)(dc->super.nb)*(int64_t)(dc->lm)*(int64_t)(jl)) + (int64_t)((dc->super.mb)*(il));
                     bdl = dc->super.super.data_of((parsec_data_collection_t *)dc, i, j );
                     lapack = &sca_mat[ dec ];

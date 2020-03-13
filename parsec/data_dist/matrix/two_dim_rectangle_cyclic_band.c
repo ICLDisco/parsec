@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The University of Tennessee and The University
+ * Copyright (c) 2017-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -48,9 +48,9 @@ uint32_t twoDBC_band_rank_of(parsec_data_collection_t * desc, ...)
         /* The new m in band */
         m = m - n + dc->band_size - 1;
 
-        if( (dc->band.grid.strows != 1) || (dc->band.grid.stcols != 1) ){
-            m = st_compute_m(&dc->band, m);
-            n = st_compute_n(&dc->band, n);
+        if( (dc->band.grid.krows != 1) || (dc->band.grid.kcols != 1) ){
+            m = kview_compute_m(&dc->band, m);
+            n = kview_compute_n(&dc->band, n);
         }
 
         /* Offset of (i, j) and assert */
@@ -59,9 +59,9 @@ uint32_t twoDBC_band_rank_of(parsec_data_collection_t * desc, ...)
         return twoDBC_band_get_rank(&dc->band, m, n);
     }
     else{
-        if( (dc->super.grid.strows != 1) || (dc->super.grid.stcols != 1) ){
-            m = st_compute_m(&dc->super, m);
-            n = st_compute_n(&dc->super, n);
+        if( (dc->super.grid.krows != 1) || (dc->super.grid.kcols != 1) ){
+            m = kview_compute_m(&dc->super, m);
+            n = kview_compute_n(&dc->super, n);
         }
 
         /* Offset of (i, j) and assert */
@@ -97,9 +97,9 @@ parsec_data_t* twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
         /* The new m in band */
         m = m - n + dc->band_size - 1;
 
-        if( (dc->band.grid.strows != 1) || (dc->band.grid.stcols != 1) ){
-            m = st_compute_m(&dc->band, m);
-            n = st_compute_n(&dc->band, n);
+        if( (dc->band.grid.krows != 1) || (dc->band.grid.kcols != 1) ){
+            m = kview_compute_m(&dc->band, m);
+            n = kview_compute_n(&dc->band, n);
         }
 
         /* Offset of (i, j) and assert */
@@ -117,9 +117,9 @@ parsec_data_t* twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
                                               position, key );
     }
     else{
-        if( (dc->super.grid.strows != 1) || (dc->super.grid.stcols != 1) ){
-            m = st_compute_m(&dc->super, m);
-            n = st_compute_n(&dc->super, n);
+        if( (dc->super.grid.krows != 1) || (dc->super.grid.kcols != 1) ){
+            m = kview_compute_m(&dc->super, m);
+            n = kview_compute_n(&dc->super, n);
         }
 
         /* Offset of (i, j) and assert */

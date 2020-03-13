@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2019 The University of Tennessee and The University
- *                    of Tennessee Research Foundation.  All rights
- *                    reserved.
+ * Copyright (c) 2019-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
  */
 #include "stencil_internal.h"
 #include "tests/interfaces/superscalar/common_timing.h"
@@ -25,8 +25,8 @@ int main(int argc, char *argv[])
     int MB = 4;
     int NB = 4;
     int P = 1;
-    int SMB = 1;
-    int SNB = 1;
+    int KP = 1;
+    int KQ = 1;
     int cores = -1;
     int iter = 10;
     int R = 1;
@@ -38,8 +38,8 @@ int main(int argc, char *argv[])
             case 'N': N = atoi(optarg); break;
             case 't': MB = atoi(optarg); break;
             case 'T': NB = atoi(optarg); break;
-            case 's': SMB = atoi(optarg); break;
-            case 'S': SNB = atoi(optarg); break;
+            case 's': KP = atoi(optarg); break;
+            case 'S': KQ = atoi(optarg); break;
             case 'P': P = atoi(optarg); break;
             case 'c': cores = atoi(optarg); break;
             case 'I': iter = atoi(optarg); break;
@@ -51,8 +51,8 @@ int main(int argc, char *argv[])
                         "-N : column dimension (N) of the matrices (default: 8)\n"
                         "-t : row dimension (MB) of the tiles (default: 4)\n"
                         "-T : column dimension (NB) of the tiles (default: 4)\n"
-                        "-s : rows of tiles in a supertile (default: 1)\n"
-                        "-S : columns of tiles in a supertile (default: 1)\n"
+                        "-s : rows of tiles in a k-cyclic distribution (default: 1)\n"
+                        "-S : columns of tiles in a k-cyclic distribution (default: 1)\n"
                         "-P : rows (P) in the PxQ process grid (default: 1)\n"
                         "-c : number of cores used (default: -1)\n"
                         "-I : iterations (default: 10)\n"
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
     two_dim_block_cyclic_t dcA;
     two_dim_block_cyclic_init(&dcA, matrix_RealDouble, matrix_Tile,
                                 nodes, rank, MB, NB+2*R, M, N+2*R*NNB, 0, 0,
-                                M, N+2*R*NNB, SMB, SNB, P);
+                                M, N+2*R*NNB, KP, KQ, P);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
                                    (size_t)dcA.super.bsiz *
                                    (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
@@ -166,10 +166,10 @@ int main(int argc, char *argv[])
     SYNC_TIME_START(); 
     parsec_stencil_1D(parsec, (parsec_tiled_matrix_dc_t *)&dcA, iter, R);
     SYNC_TIME_PRINT(rank, ("Stencil" "\tN= %d NB= %d M= %d MB= %d "
-                           "PxQ= %d %d SMBxSNB= %d %d "
+                           "PxQ= %d %d KPxKQ= %d %d "
                            "Iteration= %d Radius= %d Kernel_type= %d "
                            "Number_of_buffers= %d cores= %d : %lf gflops\n",
-                           N, NB, M, MB, P, nodes/P, SMB, SNB, iter, R, LOOPGEN, 
+                           N, NB, M, MB, P, nodes/P, KP, KQ, iter, R, LOOPGEN, 
                            MMB, cores, gflops=(flops/1e9)/sync_time_elapsed)); 
 
     parsec_data_free(dcA.mat);

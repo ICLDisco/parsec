@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -145,20 +145,20 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "vector_two_dim_cyclic_init: \n"
             "      dc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
             "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
-            "      nrst = %d, ncst = %d, P = %d, Q = %d",
+            "      kp = %d, kq = %d, P = %d, Q = %d",
             dc, dc->super.mtype, dc->super.super.nodes, dc->super.super.myrank,
             dc->super.mb, dc->super.nb,
             dc->super.lm, dc->super.ln,
             dc->super.i,  dc->super.j,
             dc->super.m,  dc->super.n,
-            dc->grid.strows, dc->grid.stcols,
+            dc->grid.krows, dc->grid.kcols,
             P, Q);
 }
 
 
 /*
  *
- * Set of functions with no super-tiles
+ * Set of functions do not support k-cycling
  *
  */
 static uint32_t vector_twoDBC_rank_of(parsec_data_collection_t * desc, ...)

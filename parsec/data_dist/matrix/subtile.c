@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -68,7 +68,7 @@ static inline void subtile_key_to_coordinates(parsec_data_collection_t *desc, pa
 
 /*
  *
- * Set of functions with no super-tiles
+ * Set of functions do not support k-cycling
  *
  */
 static uint32_t subtile_rank_of(parsec_data_collection_t * desc, ...)

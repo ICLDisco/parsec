@@ -1,0 +1,224 @@
+extern "C" %{
+/*
+ * Copyright (c) 2019-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "parsec.h"
+#include "parsec/data_distribution.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include <sys/time.h>
+#include <string.h>
+#include <stdlib.h>
+#include <math.h>
+#if defined(PARSEC_HAVE_MPI)
+#include <mpi.h>
+#endif
+
+#define TYPE  matrix_Integer
+parsec_taskpool_t* kcyclic_taskpool(two_dim_block_cyclic_t* A,
+                                    two_dim_block_cyclic_t* VA,
+                                    two_dim_block_cyclic_t* CA);
+
+int main( int argc, char** argv )
+{
+    parsec_context_t* parsec;
+    parsec_taskpool_t* tp;
+    int nodes = 1, rank = 0, p = 1,
+        n = 9, mb = 3, nb = 1, kp = 2, kq = 2;
+    two_dim_block_cyclic_t descA;
+    two_dim_block_cyclic_t viewA;
+    two_dim_block_cyclic_t descCA;
+    int rc;
+
+#if defined(PARSEC_HAVE_MPI)
+    int required = MPI_THREAD_MULTIPLE, provided = 0;
+    MPI_Init_thread(&argc, &argv, required, &provided);
+    MPI_Comm_size(MPI_COMM_WORLD, &nodes);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+
+    parsec = parsec_init(1, &argc, &argv);
+    if( NULL == parsec ) {
+        exit(-2);
+    }
+    n *= nodes; /* scale it */
+    p = sqrt(nodes);
+
+    /* Create a copy of A with (standard) 2D-cyclic */
+    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+                               nodes, rank,
+                               mb, nb , n, n,
+                               0, 0, n, n, 1, 1, p);
+    descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
+                                     descA.super.bsiz *
+                                     parsec_datadist_getsizeoftype(TYPE) );
+
+    /* Create a copy of A with physical 2D-k-cyclic distribution */
+    two_dim_block_cyclic_init( &descCA, TYPE, matrix_Tile,
+                               nodes, rank,
+                               mb, nb, n, n,
+                               0, 0, n, n, kp, kq, p);
+    descCA.mat = parsec_data_allocate( descCA.super.nb_local_tiles *
+                                        descCA.super.bsiz *
+                                        parsec_datadist_getsizeoftype(TYPE) );
+
+    /* Create a view of A in (pseudo) k-cyclic order;
+     * This is not a copy of A! It uses the same descA.mat. 
+     * This is not in the same order as the physical k-cyclic descCA! */
+    two_dim_block_cyclic_kview( &viewA, &descA, kp, kq);
+
+    /* Now, run the test... */
+    if(rank == 0) {
+        printf("Running the k-cyclicity test; NP=%d, P=%d, KCyclic=%d\n"
+               "  A is a normal 2D cyclic matrix\n"
+               "  CA is a copy of A with a k-cyclic distribution\n"
+               "  VA is a view of A with a reordered (pseudo k-cyclic) access order\n",
+               nodes, p, kp);
+    }
+    tp = kcyclic_taskpool(&descA, &viewA, &descCA);
+
+    rc = parsec_context_add_taskpool( parsec, tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    parsec_fini( &parsec);
+
+    free(descA.mat);
+    free(descCA.mat);
+
+#if defined(PARSEC_HAVE_MPI)
+    MPI_Finalize();
+#endif
+    return 0;
+}
+
+
+
+%}
+
+dA          [type = "two_dim_block_cyclic_t*"]
+dVA         [type = "two_dim_block_cyclic_t*"]
+dCA         [type = "two_dim_block_cyclic_t*"]
+MT          [type = int hidden = on default = "dA->super.mt-1"]
+NT          [type = int hidden = on default = "dA->super.nt-1"]
+
+FILL_A(M, N)
+  M = 0..MT
+  N = 0..NT
+: dA(M,N)
+
+RW A    <-  dA(M,N)
+        ->  A COMPARE(M,N)
+
+/* make sure A is completely filled up before reading VA 
+ * FILL_A(0,N) reduces columnwise completion of the fillup */
+CTL C   <-  (M==0)? C FILL_A(1..MT, N)
+        ->  (M!=0)? C FILL_A(0, N)
+        ->  (M==0)? C READ_VA(0, 0)
+
+BODY
+    int *a = A;
+    parsec_data_collection_t* dc = &dA->super.super;
+    a[0] = M;
+    a[1] = N;
+    a[2] = dc->rank_of(dc, M, N);
+END
+
+FILL_CA(M, N)
+  M = 0..MT
+  N = 0..NT
+: dCA(M,N)
+
+RW CA   <-  dCA(M,N)
+        ->  CA COMPARE(M,N)
+
+BODY
+    int *ca = CA;
+    parsec_data_collection_t* dc = &dCA->super.super;
+    ca[0] = M;
+    ca[1] = N;
+    ca[2] = dc->rank_of(dc, M, N);
+END
+
+/* Note how there is no FILL_VA: it shares storage with A */
+READ_VA(M, N)
+  M = 0..MT
+  N = 0..NT
+: dVA(M,N)
+
+READ VA <-  dVA(M,N)
+        ->  VA COMPARE(M,N)
+
+/* make sure A is completely filled up before reading VA
+ * READ_VA(0,0) reduces the CTL from FILL_A
+ * then broadcast to the first block-row
+ * then each top of a column broadcasts columnwise */
+CTL C
+/* reduce from FILL_A */
+    <-  (M==0 && N==0)? C FILL_A(0, 0..NT)
+/* broadcast rowwise from READ_VA(0, 0) */
+    ->  (M==0 && N==0)? C READ_VA(0, 1..NT)
+    <-  (M==0 && N!=0)? C READ_VA(0, 0)
+/* broadcast columnwise from READ_VA(0, x) */
+    ->  (M==0)?         C READ_VA(1..MT, N)
+    <-  (M!=0)?         C READ_VA(0, N)
+
+BODY
+/*nothing*/
+END
+
+COMPARE(M, N)
+  M = 0..MT
+  N = 0..NT
+: dA(M,N)
+
+READ A  <-  A    FILL_A(M, N)
+READ CA <-  CA   FILL_CA(M, N)
+READ VA <-  VA   READ_VA(M,N)
+
+BODY
+    int *a = A, *ca = CA, *va = VA;
+    const char *errorkcyclic = "ERROR: A and CA content different!";
+    const char *errorview    = "ERROR: VA is not a permutation of A!";
+    const char *noerror      = "";
+    const char *error = noerror;
+
+    if(a[0] != ca[0] || a[1] != ca[1]) error = errorkcyclic;
+    parsec_data_collection_t* dc = &dA->super.super;
+    if(va[2] != (int)dc->rank_of(dc, va[0], va[1])) error = errorview;
+    printf("M=%02d, N=%02d\tA=%02d,%02d@%02d\tCA=%02d,%02d@%02d\tVA=%02d,%02d@%02d\t%s\n", M, N,
+            a[0], a[1], a[2],
+            ca[0], ca[1], ca[2],
+            va[0], va[1], va[2],
+            error);
+END
+
+extern "C" %{
+
+parsec_taskpool_t* kcyclic_taskpool(two_dim_block_cyclic_t* A,
+                                       two_dim_block_cyclic_t* VA,
+                                       two_dim_block_cyclic_t* CA)
+{
+    parsec_kcyclic_taskpool_t* tp;
+    parsec_datatype_t dt;
+
+    tp = parsec_kcyclic_new(A, VA, CA);
+    assert( NULL != tp );
+
+    parsec_translate_matrix_type(TYPE, &dt);
+    parsec_matrix_add2arena_rect(tp->arenas[PARSEC_kcyclic_DEFAULT_ARENA],
+                                 dt, A->super.mb, A->super.nb, A->super.mb);
+
+    return &tp->super;
+}
+
+
+%}
+
