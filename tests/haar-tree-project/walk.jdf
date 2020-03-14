@@ -180,7 +180,7 @@ BODY
         fprintf(stderr, "CALLING DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
-    if( tree_dist_lookup_node(tree, n, l) == -1 ) {
+    if( !tree_dist_has_node(tree, n, l) ) {
         if( verbose ) {
             int rank = (((parsec_data_collection_t*)__parsec_tp->super._g_tree)->rank_of((parsec_data_collection_t*)__parsec_tp->super._g_tree, n, l));
             fprintf(stderr, "Node (%d, %d) does not exist on rank %d\n", n, l, rank);

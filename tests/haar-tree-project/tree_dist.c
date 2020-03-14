@@ -5,116 +5,6 @@
 #include <string.h>
 
 /***********************************************************************************************
- * Internals
- ***********************************************************************************************/
-static int tree_dist_hash_key(tree_dist_t *tree, int n, int l)
-{
-    return (l ^ n) % tree->allocated_nodes;
-}
-
-static int tree_lookup_node(tree_dist_t *tree, int n, int l, int *id)
-{
-    int hash_key = tree_dist_hash_key(tree, n, l);
-    int i;
-
-    i = hash_key;
-    pthread_rwlock_rdlock( &tree->resize_lock );
-    do {
-        if( NULL == tree->nodes[i] ) {
-            /** Empty spot: (n, l) is not in the tree, or it would be here
-             *    -- This uses the fact that nodes are inserted but never removed
-             *       from the hash table
-             */
-            pthread_rwlock_unlock( &tree->resize_lock );
-            *id = i;
-            return 0;
-        }
-        if( (tree->nodes[i]->n == n) && (tree->nodes[i]->l == l) ) {
-            pthread_rwlock_unlock( &tree->resize_lock );
-            if( NULL != tree->nodes[i]->data ) {
-                *id = i;
-                return 1;
-            } else {
-                *id = -1;
-                return 0;
-            }
-        }
-        i = ((i+1) % tree->allocated_nodes);
-    } while(i != hash_key);
-    pthread_rwlock_unlock( &tree->resize_lock );
-    *id = -1;
-    return 0;
-}
-
-static int tree_lookup_or_allocate_node(tree_dist_t *tree, int n, int l)
-{
-    tree_dist_node_t *node = NULL;
-    int nid, hash_key, i, j;
-    size_t old_size;
-    tree_dist_node_t **old_nodes;
-
-    if( tree_lookup_node(tree, n, l, &nid) )
-        return nid;
-
-  try_again:
-    pthread_rwlock_rdlock( &tree->resize_lock );
-    i = hash_key = tree_dist_hash_key(tree, n, l);
-    do {
-        if( NULL == tree->nodes[i] ) {
-            /** Empty spot: (n, l) is not in the tree, or it would be here
-             *    -- This uses the fact that nodes are inserted but never removed
-             *       from the hash table
-             *    -- Try to steal that spot
-             */
-            if( NULL == node ) {
-                node = (tree_dist_node_t *)malloc(sizeof(tree_dist_node_t));
-                node->n = n;
-                node->l = l;
-                node->data = NULL;
-            }
-            if( parsec_atomic_cas_ptr(&tree->nodes[i], NULL, node) ) {
-                pthread_rwlock_unlock( &tree->resize_lock );
-                return i;
-            }
-        }
-        if( (tree->nodes[i]->n == n) && (tree->nodes[i]->l == l) ) {
-            pthread_rwlock_unlock( &tree->resize_lock );
-            if( NULL != node )
-                free(node);
-            return i;
-        }
-        i = ((i+1) % tree->allocated_nodes);
-    } while(i != hash_key);
-    pthread_rwlock_unlock( &tree->resize_lock );
-
-    /** The hash is too small... */
-    old_size = tree->allocated_nodes;
-    pthread_rwlock_wrlock( &tree->resize_lock );
-    if( old_size != tree->allocated_nodes ) {
-        /** Somebody else reallocated the hash table, I should have room */
-        pthread_rwlock_unlock( &tree->resize_lock );
-        goto try_again;
-    }
-    old_nodes = tree->nodes;
-    tree->allocated_nodes = (size_t)( 2 * old_size );
-    tree->nodes = calloc(tree->allocated_nodes, sizeof(tree_dist_node_t*));
-    /** Rehash everything */
-    for(i = 0; i < (int)old_size; i++) {
-        if( old_nodes[i] ) {
-            /** Since I'm the only one messing with the table, *and* the table size
-             *  is bigger, I will always find a spot for every element */
-            for(j = tree_dist_hash_key(tree, old_nodes[i]->n, old_nodes[i]->l);
-                tree->nodes[j] != NULL; j = (j+1)%tree->allocated_nodes)
-                /** Nothing to do */ ;
-            tree->nodes[j] = old_nodes[i];
-        }
-    }
-    pthread_rwlock_unlock( &tree->resize_lock );
-    free(old_nodes);
-    goto try_again;
-}
-
-/***********************************************************************************************
  * parsec data distribution interface
  ***********************************************************************************************/
 
@@ -122,44 +12,61 @@ static parsec_data_key_t tree_dist_data_key(parsec_data_collection_t *desc, ...)
 {
     va_list ap;
     int n, l;
-    int nid;
+    int64_t k;
     va_start(ap, desc);
     n = va_arg(ap, int);
     l = va_arg(ap, int);
     va_end(ap);
-    nid = tree_lookup_or_allocate_node((tree_dist_t*)desc, n, l);
-    return nid;
+    k = ((int64_t)n)<<32 | ((int32_t)l);
+    return k;
+}
+
+static tree_dist_node_t *lookup_or_create_node(tree_dist_t *tree, parsec_data_key_t key)
+{
+    tree_dist_node_t *node;
+
+    parsec_hash_table_lock_bucket(&tree->nodes, key);
+    node = parsec_hash_table_nolock_find(&tree->nodes, key);
+    if(NULL == node) {
+        node = (tree_dist_node_t*)malloc(sizeof(tree_dist_node_t));
+        node->n = (int32_t) ( (key >> 32) );
+        node->l = (int32_t) ( (key & 0xffffffff) );
+        node->ht_item.key = key;
+        node->data = NULL;
+        node->rank = node->n % tree->super.nodes;
+        node->vpid = node->n / tree->super.nodes % vpmap_get_nb_vp();
+        parsec_hash_table_nolock_insert(&tree->nodes, &node->ht_item);
+    }
+    parsec_hash_table_unlock_bucket(&tree->nodes, key);
+    return node;
 }
 
 static uint32_t tree_dist_rank_of_key(parsec_data_collection_t *desc, parsec_data_key_t k)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
-    assert(k < tree->allocated_nodes);
-    assert(NULL != tree->nodes[k]);
-    return tree->nodes[k]->n % tree->super.nodes;
+    tree_dist_node_t *node = lookup_or_create_node(tree, k);
+    assert(NULL != node);
+    return node->n % tree->super.nodes;
 }
 
 static uint32_t tree_dist_rank_of(parsec_data_collection_t *desc, ...)
 {
-    tree_dist_t *tree = (tree_dist_t*)desc;
     va_list ap;
     int n, l;
     va_start(ap, desc);
     n = va_arg(ap, int);
     l = va_arg(ap, int);
     va_end(ap);
-    (void)l;
-    return n % tree->super.nodes;
+    return tree_dist_rank_of_key(desc, tree_dist_data_key(desc, n, l));
 }
 
 static parsec_data_t* tree_dist_data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
-    void *pos;
+    tree_dist_node_t *node = lookup_or_create_node(tree, key);
     tree_buffer_t *buffer;
-    assert(key < tree->allocated_nodes);
-    assert(tree->nodes[key] != NULL);
-    if( tree->nodes[key]->data == NULL ) {
+    char *pos;
+    if( node->data == NULL ) {
         assert(tree->super.myrank == tree_dist_rank_of_key(desc, key));
         {
             pthread_mutex_lock(&tree->buffer_lock);
@@ -175,30 +82,28 @@ static parsec_data_t* tree_dist_data_of_key(parsec_data_collection_t *desc, pars
             tree->buffers->buffer_use += sizeof(node_t);
             pthread_mutex_unlock(&tree->buffer_lock);
         }
-        parsec_data_create(&tree->nodes[key]->data, desc, key, pos, sizeof(node_t));
+        parsec_data_create(&node->data, desc, key, pos, sizeof(node_t));
     }
-    return tree->nodes[key]->data;
+    return node->data;
 }
 
 static parsec_data_t* tree_dist_data_of(parsec_data_collection_t *desc, ...)
 {
     va_list ap;
     int n, l;
-    int nid;
     va_start(ap, desc);
     n = va_arg(ap, int);
     l = va_arg(ap, int);
     va_end(ap);
-    nid = tree_lookup_or_allocate_node((tree_dist_t*)desc, n, l);
-    return tree_dist_data_of_key(desc, nid);
+    return tree_dist_data_of_key(desc, tree_dist_data_key(desc, n, l));
 }
 
 static int32_t tree_dist_vpid_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
-    assert(key < tree->allocated_nodes);
-    assert(NULL != tree->nodes[key]);
-    return tree->nodes[key]->n % vpmap_get_nb_vp();
+    tree_dist_node_t *node = lookup_or_create_node(tree, key);
+    assert(NULL != node);
+    return node->vpid;
 }
 
 static int32_t tree_dist_vpid_of(parsec_data_collection_t *desc, ...)
@@ -209,8 +114,7 @@ static int32_t tree_dist_vpid_of(parsec_data_collection_t *desc, ...)
     n = va_arg(ap, int);
     l = va_arg(ap, int);
     va_end(ap);
-    (void)l;
-    return n % vpmap_get_nb_vp();
+    return tree_dist_vpid_of_key(desc,  tree_dist_data_key(desc, n, l));
 }
 
 static int
@@ -233,12 +137,13 @@ tree_dist_unregister_memory(parsec_data_collection_t* desc,
 
 static int tree_dist_key_to_string(parsec_data_collection_t *desc, parsec_data_key_t key, char * buffer, uint32_t buffer_size)
 {
+    int n = (int32_t) ( (key >> 32) );
+    int l = (int32_t) ( (key & 0xffffffff) );
+
     (void)desc;
-    (void)key;
-    if( buffer_size > 0 )
-        buffer[0] = '\0';
-    (void)desc;
-    (void)key;
+    if( buffer_size > 0 ) {
+        snprintf(buffer, buffer_size, "%d, %d", n, l);
+    }
     return PARSEC_SUCCESS;
 }
 
@@ -248,61 +153,55 @@ static int tree_dist_key_to_string(parsec_data_collection_t *desc, parsec_data_k
 
 void tree_dist_insert_node(tree_dist_t *tree, node_t *node, int n, int l)
 {
-    int nid;
+    parsec_data_key_t key =  tree_dist_data_key(&tree->super, n, l);
+    tree_dist_node_t *tnode = lookup_or_create_node(tree, key);
 
-    nid = tree_lookup_or_allocate_node(tree, n, l);
-    assert(tree->nodes[nid] != NULL);
-    tree_copy_node(tree, nid, node);
+    tree_copy_node(tnode, node);
 }
 
 void tree_dist_insert_data(tree_dist_t *tree, parsec_data_t *data, int n, int l)
 {
-    int nid;
-    nid = tree_lookup_or_allocate_node(tree, n, l);
-    assert(tree->nodes[nid] != NULL);
-    assert(tree->nodes[nid]->data == NULL);
-    tree->nodes[nid]->data = data;
+    parsec_data_key_t key =  tree_dist_data_key(&tree->super, n, l);
+    tree_dist_node_t *node = lookup_or_create_node(tree, key);
+
+    node->data = data;
     PARSEC_OBJ_RETAIN(data);
 }
 
-void tree_copy_node(tree_dist_t *tree, int nid, node_t *src)
+void tree_copy_node(tree_dist_node_t *tnode, node_t *src)
 {
     parsec_data_copy_t *data_copy;
     node_t *dst;
-    assert(nid < (int)tree->allocated_nodes);
-    assert(tree->nodes[nid] != NULL);
-    if( tree->nodes[nid]->data == NULL ) {
-        (void)tree_dist_data_of_key(&tree->super, nid);
-    }
-    data_copy = parsec_data_get_copy(tree->nodes[nid]->data, 0);
+    data_copy = parsec_data_get_copy(tnode->data, 0);
     dst = (node_t*)parsec_data_copy_get_ptr(data_copy);
     memcpy(dst, src, sizeof(node_t));
 }
 
-static void walker_print_node(tree_dist_t *tree, int nid, int n, int l, double s, double d, void *param)
+static void walker_print_node(tree_dist_t *tree, tree_dist_node_t *node, int n, int l, double s, double d, void *param)
 {
     FILE *f = (FILE*)param;
-    if( nid != -1 ) {
-        fprintf(f,  "n%d_%d [label=\"[%d:%d,%d](%g, %g)\"];\n", n, l, nid, n, l, s, d);
+    if( node != NULL ) {
+        fprintf(f,  "n%d_%d [label=\"[%p:%d,%d](%g, %g)\"];\n", n, l, node, n, l, s, d);
     } else {
         fprintf(f,  "n%d_%d [label=\"[#:%d,%d](-)\"];\n", n, l, n, l);
     }
     (void)tree;
 }
 
-static void walker_print_child(tree_dist_t *tree, int nid, int pn, int pl, int cn, int cl, void *param)
+static void walker_print_child(tree_dist_t *tree, tree_dist_node_t *node, int pn, int pl, int cn, int cl, void *param)
 {
     FILE *f = (FILE*)param;
     fprintf(f, "n%d_%d -> n%d_%d;\n", pn, pl, cn, cl);
     (void)tree;
-    (void)nid;
+    (void)node;
 }
 
 static int walk_tree_rec(tree_walker_node_fn_t *node_fn,
                           tree_walker_child_fn_t *child_fn,
                           void *fn_param, tree_dist_t *tree, int n, int l)
 {
-    int nid;
+    tree_dist_node_t *tnode;
+    parsec_data_key_t key;
     double s = 0.0, d = 0.0;
     node_t *node;
     parsec_data_copy_t *data_copy;
@@ -310,19 +209,20 @@ static int walk_tree_rec(tree_walker_node_fn_t *node_fn,
         fprintf(stderr, "tree_dist does not implement distributed tree walking yet.\n");
         return 0;
     }
-    if( tree_lookup_node(tree, n, l, &nid) ) {
-        data_copy = parsec_data_get_copy(tree->nodes[nid]->data, 0);
+    key = tree_dist_data_key(&tree->super, n, l);
+    if( (tnode = parsec_hash_table_find(&tree->nodes, key)) != NULL ) {
+        data_copy = parsec_data_get_copy(tnode->data, 0);
         if( NULL != data_copy ) {
             node = (node_t*)parsec_data_copy_get_ptr(data_copy);
             s = node->s;
             d = node->d;
         }
-        node_fn(tree, nid, n, l, s, d, fn_param);
+        node_fn(tree, tnode, n, l, s, d, fn_param);
         if( walk_tree_rec(node_fn, child_fn, fn_param, tree, n+1, l*2) ) {
-            child_fn(tree, nid, n, l, n+1, l*2, fn_param);
+            child_fn(tree, tnode, n, l, n+1, l*2, fn_param);
         }
         if( walk_tree_rec(node_fn, child_fn, fn_param, tree, n+1, l*2+1) ) {
-            child_fn(tree, nid, n, l, n+1, l*2+1, fn_param);
+            child_fn(tree, tnode, n, l, n+1, l*2+1, fn_param);
         }
         return 1;
     }
@@ -350,17 +250,26 @@ int tree_dist_to_dotfile(tree_dist_t *tree, char *filename)
     return 0;
 }
 
-int tree_dist_lookup_node(tree_dist_t *tree, int n, int l)
+int tree_dist_has_node(tree_dist_t *tree, int n, int l)
 {
-    int nid;
-    if( tree_lookup_node(tree, n, l, &nid) )
-        return nid;
-    return -1;
+    tree_dist_node_t *tnode;
+    parsec_data_key_t key;
+    key = tree_dist_data_key(&tree->super, n, l);
+    tnode = parsec_hash_table_find(&tree->nodes, key);
+    if(NULL == tnode)
+        return 0;
+    return NULL != tnode->data;
 }
 
 /***********************************************************************************************
  * Tree creation function
  ***********************************************************************************************/
+
+static parsec_key_fn_t tree_node_hash_fn_struct = {
+    .key_equal = parsec_hash_table_generic_64bits_key_equal,
+    .key_print = parsec_hash_table_generic_64bits_key_print,
+    .key_hash  = parsec_hash_table_generic_64bits_key_hash
+};
 
 tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
 {
@@ -388,9 +297,24 @@ tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
     pthread_mutex_init(&res->buffer_lock, NULL);
     res->buffers = NULL;
 
-    pthread_rwlock_init(&res->resize_lock, NULL);
-    res->allocated_nodes = 1;
-    res->nodes = (tree_dist_node_t **)calloc(1, sizeof(tree_dist_node_t*));
+    parsec_hash_table_init(&res->nodes, offsetof(tree_dist_node_t, ht_item), 8,
+                           tree_node_hash_fn_struct, NULL);
 
     return res;
+}
+
+void tree_dist_node_free(void *item, void*cb_data)
+{
+    tree_dist_node_t *tnode = (tree_dist_node_t*)item;
+    tree_dist_t *tree = (tree_dist_t*)cb_data;
+    parsec_hash_table_nolock_remove(&tree->nodes, tnode->ht_item.key);
+    free(tnode);
+}
+
+void tree_dist_free(tree_dist_t *tree)
+{
+    parsec_hash_table_for_all(&tree->nodes, tree_dist_node_free, tree);
+    if(NULL != tree->buffers) free(tree->buffers);
+    parsec_data_collection_destroy(&tree->super);
+    free(tree);
 }

@@ -298,6 +298,8 @@ int main(int argc, char *argv[])
     walker->arenas[PARSEC_walk_DEFAULT_ARENA] = NULL;
     parsec_taskpool_free(&walker->super);
 
+    tree_dist_free(treeA);
+    
     parsec_fini(&parsec);
 
 #ifdef PARSEC_HAVE_MPI
