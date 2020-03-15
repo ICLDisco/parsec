@@ -292,7 +292,7 @@ static int32_t twoDBC_vpid_of_key(parsec_data_collection_t *desc, parsec_data_ke
  * twoDBC_position_to_coordinates()
  * Other files (zhebut) depend on the inverse function.
  */
-inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *dc, int m, int n){
+static inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *dc, int m, int n){
     int position, local_m, local_n;
 
     /* Compute the local tile row */
@@ -313,7 +313,7 @@ inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *dc, int m, int
  * This is the inverse function of: twoDBC_coordinates_to_position()
  * Please keep them in sync, other files (zhebut) depend on this function.
  */
-inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *dc, int position, int *m, int *n)
+static inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *dc, int position, int *m, int *n)
 {
     int local_m, local_n;
 
@@ -398,7 +398,7 @@ void two_dim_block_cyclic_kview( two_dim_block_cyclic_t* target,
     target->super.super.vpid_of_key = twoDBC_kview_vpid_of_key;
 }
 
-inline unsigned int kview_compute_m(two_dim_block_cyclic_t* desc, unsigned int m)
+static inline unsigned int kview_compute_m(two_dim_block_cyclic_t* desc, unsigned int m)
 {
     unsigned int p, ps, mt;
     p = desc->grid.rows;
@@ -410,7 +410,7 @@ inline unsigned int kview_compute_m(two_dim_block_cyclic_t* desc, unsigned int m
     return m;
 }
 
-inline unsigned int kview_compute_n(two_dim_block_cyclic_t* desc, unsigned int n)
+static inline unsigned int kview_compute_n(two_dim_block_cyclic_t* desc, unsigned int n)
 {
     unsigned int q, qs, nt;
     q = desc->grid.cols;

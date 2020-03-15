@@ -6,6 +6,9 @@ extern "C" %{
  */
 #include "parsec/data_dist/matrix/matrix.h"
 #include "two_dim_band_test.h"
+
+/* Print rank for each tile */
+static int print_rank = 0;
     
 /**
  * @brief Define kernel of tile_matrix init
@@ -74,6 +77,7 @@ CTL ctl <- ctl L_Allocate(m, n)
 BODY
 {
     CORE_two_dim_band(Y, descY->mb, descY->nb);
+    if( print_rank ) printf("rank_L %d %d : %d %d\n", m, n, descY->super.myrank, descY->super.rank_of(&descY->super, m, n ));
 }
 END
 
@@ -124,6 +128,7 @@ CTL ctl <- ctl U_Allocate(m, n)
 BODY
 {
     CORE_two_dim_band(Y, descY->mb, descY->nb);
+    if( print_rank ) printf("rank_U %d %d : %d %d\n", m, n, descY->super.myrank, descY->super.rank_of(&descY->super, m, n ));
 }
 END
 
@@ -172,6 +177,7 @@ CTL ctl <- ctl D_Allocate(m)
 BODY
 {   
     CORE_two_dim_band(Y, descY->mb, descY->nb);
+    if( print_rank ) printf("rank_D %d %d : %d %d\n", m, m, descY->super.myrank, descY->super.rank_of(&descY->super, m, m ));
 }
 END
 

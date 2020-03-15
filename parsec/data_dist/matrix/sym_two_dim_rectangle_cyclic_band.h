@@ -18,15 +18,15 @@
 
 /* New structure */
 typedef struct sym_two_dim_block_cyclic_band_s {
-    sym_two_dim_block_cyclic_t super;
+    parsec_tiled_matrix_dc_t super;
     two_dim_block_cyclic_t band;
+    sym_two_dim_block_cyclic_t off_band;
     unsigned int band_size;     /** Number of band rows = band_size */
 } sym_two_dim_block_cyclic_band_t;
 
-/* New rank_of, rank_of_key for sym two dim block cyclic band */
-uint32_t sym_twoDBC_band_rank_of(parsec_data_collection_t * desc, ...);
-uint32_t sym_twoDBC_band_rank_of_key(parsec_data_collection_t *desc, parsec_data_key_t key);
-
-/* New data_of, data_of_key for sym two dim block cyclic band */
-parsec_data_t* sym_twoDBC_band_data_of(parsec_data_collection_t *desc, ...);
-parsec_data_t* sym_twoDBC_band_data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key);
+/* 
+ * sym_two_dim_block_cyclic_band_t structure init 
+ * It inherits from off-band, so should be called after initialization of off_band 
+ */
+void sym_two_dim_block_cyclic_band_init( sym_two_dim_block_cyclic_band_t *desc, 
+                                     int nodes, int myrank, int band_size );
