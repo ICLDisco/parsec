@@ -16,16 +16,16 @@ TESTS = write_check dtd_test_allreduce
 all:${TESTS}
 
 %.c %.h: %.jdf
-	${PTGPP} -i $< -o `basename $@ .c` ${PTGFLAGS}
+	${PTGPP} -E -i $< -o `basename $@ .c` ${PTGFLAGS}
 
 %.o: %.c
-	${CC} -o $@ -c $< ${CFLAGS}
+	${CC} ${CFLAGS} -o $@ -c $<
 
 write_check: write_check.o
-	${CC} -o $@ $< ${LDFLAGS}
+	${CC} -o $@ ${LDFLAGS} $<
 
 dtd_test_allreduce: dtd_test_allreduce.o
-	${CC} -o $@ $< ${LDFLAGS}
+	${CC} -o $@ ${LDFLAGS} $^
 
 clean:
 	rm -f *.o ${TESTS} write_check.h
