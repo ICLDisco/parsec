@@ -646,10 +646,6 @@ if(AWK_EXECUTABLE)
   set(PARSEC_HAVE_AWK 1)
 endif(AWK_EXECUTABLE)
 
-get_property(PARSEC_C_INCLUDES DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
-set(PARSEC_C_INCLUDES "${PARSEC_C_INCLUDES};${MPI_C_COMPILE_FLAGS}" CACHE STRING "List of directories used to compile the parsec_ptgpp generated code" INTERNAL)
-mark_as_advanced(PARSEC_C_INCLUDES)
-
 #
 # First go for the tools.
 #
@@ -788,6 +784,35 @@ if(NOT GIT_COMMIT_DIRTY)
 endif()
 endif()
 
+#
+# No external detection below this point !
+#
+# All detections have now been completed, we can start generating code for building and
+# installing PaRSEC.
+#
+
+# Libraries that are added to the public parsec export and have special include
+#flags (imported targets) have to be there set as well.
+foreach(extra_flag IN ITEMS ${CUDA_INCLUDE_DIRS} ${MPI_C_INCLUDE_DIRS})
+  if(NOT extra_flag)
+    continue()
+  endif(NOT extra_flag)
+  if(extra_flag MATCHES "COMPILE_LANGUAGE:C>:([^>]*)" )
+    set(extra_flag "${CMAKE_MATCH_1}")
+  elseif(extra_flag MATCHES "COMPILE_LANGUAGE")
+    continue()
+  endif()
+  list(APPEND EXTRA_INCLUDES ${extra_flag})
+endforeach()
+
+# We need this CMake variable to be defined for the generation of parsec_option.h
+# even if it is not the final value (we will not use it until the cmake completion.
+# We will reset the variable to the correct value later before the final generation
+# of the parsec_options.h header.
+set(PARSEC_C_INCLUDES "${CMAKE_INSTALL_PREFIX}/${INCLUDE_INSTALL_DIR};${EXTRA_INCLUDES}"
+    CACHE STRING "List of directories used to compile the parsec_ptgpp generated code")
+mark_as_advanced(PARSEC_C_INCLUDES)
+
 # Configuration header
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_config.h.in"
@@ -820,13 +845,14 @@ math(EXPR PARSEC_LIFO_REMAINING_BYTES "${PARSEC_LIFO_OPAQUE_SIZEOF}-${PARSEC_LIF
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo-external.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/parsec/class/lifo-external.h")
+
+# It might be possible that we need to reconfigure the parsec_option.h header
+# to account for the change in int128_t atomic support.
 if(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
   message(STATUS "Internal PaRSEC uses CAS on int128_t. Reconfiguring parsec_options.h")
   configure_file (
      "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
      "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
-else()
-  message(STATUS "Internal PaRSEC does not use CAS on int128_t. Keeping parsec_options.h unchanged")
 endif()
 
 install(FILES
@@ -958,19 +984,6 @@ include (CPack)
 set(EXTRA_CFLAGS ${CMAKE_C_FLAGS})
 set(EXTRA_LDFLAGS ${CMAKE_EXE_LINKER_FLAGS})
 
-# Libraries that are added to the public parsec export and have special include flags (imported targets) have to be there set as well.
-foreach(extra_flag IN ITEMS ${CUDA_INCLUDE_DIRS} ${MPI_C_INCLUDE_DIRS})
-  if(NOT extra_flag)
-    continue()
-  endif(NOT extra_flag)
-  if(extra_flag MATCHES "COMPILE_LANGUAGE:C>:([^>]*)" )
-    set(extra_flag "${CMAKE_MATCH_1}")
-  elseif(extra_flag MATCHES "COMPILE_LANGUAGE")
-    continue()
-  endif()
-  string(APPEND EXTRA_INCLUDES " ${extra_flag}")
-endforeach()
-
 # Libraries that are added to the public parsec export but not to EXTRA_LIBS (imported targets)  have to be there set as well.
 foreach(extra_lib IN ITEMS ${PARSEC_ATOMIC_SUPPORT_LIBS} ${CUDA_LIBRARIES} ${MPI_C_LIBRARIES} ${PAPI_LIBRARIES})
   if(NOT extra_lib)
@@ -1013,11 +1026,17 @@ MESSAGE("\n\n")
 
 # pkg-config file
 string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
+
+set(EXTRA_INCLUDES_EXPANDED "")
 if (EXTRA_INCLUDES)
-  string (REPLACE ";" " -I" EXTRA_INCLUDES_STRING "-I${EXTRA_INCLUDES}")
-  # Remove the last -I if any
-  string (REPLACE "-I$" "" EXTRA_INCLUDES_STRING ${EXTRA_INCLUDES_STRING})
+  FOREACH(ITEM IN ITEMS ${EXTRA_INCLUDES})
+    if( NOT IS_ABSOLUTE ${ITEM} )
+      MESSAGE(STATUS "Item ${ITEM} in EXTRA_INCLUDES might be malformed")
+    endif( NOT IS_ABSOLUTE ${ITEM} )
+    set(EXTRA_INCLUDES_EXPANDED "${EXTRA_INCLUDES_EXPANDED} -I${ITEM}")
+  ENDFOREACH(ITEM IN ITEMS ${EXTRA_INCLUDES})
 endif (EXTRA_INCLUDES)
+
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)

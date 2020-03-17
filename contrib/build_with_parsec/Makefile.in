@@ -1,12 +1,12 @@
 PARSECDIR=@CMAKE_INSTALL_PREFIX@
 PARSEC_PKGCONFIG=@CMAKE_INSTALL_PREFIX@/lib/pkgconfig
 
-export PKG_CONFIG_PATH+="${PARSEC_PKGCONFIG}"
+PKG_CONFIG_PATH += "${PARSEC_PKGCONFIG}"
 
 CC = gcc
 
-CFLAGS  = $(shell pkg-config --cflags parsec)
-LDFLAGS = $(shell pkg-config --libs parsec)
+CFLAGS  = $(shell PKG_CONFIG_PATH="${PKG_CONFIG_PATH}" pkg-config --cflags parsec)
+LDFLAGS = $(shell PKG_CONFIG_PATH="${PKG_CONFIG_PATH}" pkg-config --libs parsec)
 
 PTGPP = ${PARSECDIR}/bin/parsec_ptgpp
 PTGFLAGS =
