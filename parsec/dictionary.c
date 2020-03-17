@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019      The University of Tennessee and The University
+ * Copyright (c) 2019-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -847,6 +847,10 @@ int parsec_profiling_add_taskpool_properties(parsec_taskpool_t *h)
     parsec_task_class_t *f;
     parsec_property_t *p;
 
+    if((h->nb_task_classes > 0) && (NULL == h->task_classes_array)) {
+        parsec_debug_verbose(5, parsec_debug_output, "Taskpool %s: this taskpool is not completely initialized. This is a bug in this taskpool: it did not set its task classes array. thus it cannot be profiled", h->taskpool_name);
+        return PARSEC_ERR_BAD_PARAM;
+    }
     parsec_profiling_tree_reload_buckets(dict->tree, PROF_NAMESPACE, h->taskpool_name);
     for (i = 0; i < h->nb_task_classes; i++) {
 	f = (parsec_task_class_t*)(h->task_classes_array[i]);

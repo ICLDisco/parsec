@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The University of Tennessee and The University
+ * Copyright (c) 2011-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -494,6 +494,9 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
 
 static void parsec_map_operator_destructor( parsec_map_operator_taskpool_t* tp )
 {
+    free(tp->super.task_classes_array);
+    tp->super.task_classes_array = NULL;
+    tp->super.nb_task_classes = 0;
     PARSEC_OBJ_DESTRUCT((parsec_taskpool_t*)tp);
     free(tp);
 }
@@ -540,6 +543,9 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
     tp->super.startup_hook = parsec_map_operator_startup_fn;
     tp->super.destructor = (parsec_destruct_fn_t) parsec_map_operator_destructor;
     tp->super.nb_task_classes = 1;
+    tp->super.task_classes_array = (const parsec_task_class_t **)
+        malloc(tp->super.nb_task_classes * sizeof(parsec_task_class_t *));
+    tp->super.task_classes_array[0] = &parsec_map_operator;
     tp->super.devices_index_mask = PARSEC_DEVICES_ALL;
     tp->super.update_nb_runtime_task = parsec_add_fetch_runtime_task;
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)tp);
