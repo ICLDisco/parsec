@@ -141,8 +141,8 @@ static void add_to_ignore_properties(const char *optarg)
 {
     jdf_name_list_t *nl;
     char *arg = strdup(optarg);
-    char *l, *last;
-    
+    char *l, *last = NULL;
+
     while( (l = strtok_r(arg, ",", &last)) ) {
         nl = (jdf_name_list_t*)malloc(sizeof(jdf_name_list_t));
         nl->name = l;

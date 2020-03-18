@@ -1,6 +1,6 @@
 %{
 /**
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -28,6 +28,11 @@
  */
 #define YYERROR_VERBOSE 1
 struct yyscan_t;
+#if defined(YYPURE) && YYPURE
+extern int yylex(struct yyscan_t *yycontrol);
+#else
+extern int yylex(void);
+#endif
 
 #include "parsec.y.h"
 
@@ -231,7 +236,7 @@ static int key_from_type(char *type) {
 %locations
 %error-verbose
 %parse-param {struct yyscan_t *yycontrol}
-%lex-param   {struct yyscan_t *yycontrol}
+/*%lex-param   {struct yyscan_t *yycontrol}*/
 %%
 jdf_file:       prologue jdf epilogue
                 {
@@ -1080,7 +1085,6 @@ expr_simple:  expr_simple EQUAL expr_simple
               }
        |      EXTERN_DECL
               {
-                  jdf_expr_t *ne;
                   $$ = new(jdf_expr_t);
                   $$->op = JDF_C_CODE;
                   $$->jdf_c_code.code = $1;
