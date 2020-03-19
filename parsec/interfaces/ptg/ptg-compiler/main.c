@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -154,7 +154,7 @@ static void add_to_ignore_properties(const char *optarg)
 
 static void parse_args(int argc, char *argv[])
 {
-    int ch, i;
+    int ch, i, print_compile_cmd = 0;
     int wmasked = 0;
     int wmutexinput = 0;
     int wremoteref = 0;
@@ -194,7 +194,7 @@ static void parse_args(int argc, char *argv[])
     JDF_COMPILER_GLOBAL_ARGS.wmask = JDF_ALL_WARNINGS;
     JDF_COMPILER_GLOBAL_ARGS.dep_management = DEFAULTS.dep_management;
     JDF_COMPILER_GLOBAL_ARGS.ignore_properties = NULL;
-    
+
     print_jdf_line = !DEFAULTS.noline;
 
     while( (ch = getopt_long(argc, argv, "di:C:H:o:f:hEsIO:M:I:", longopts, NULL)) != -1) {
@@ -244,15 +244,9 @@ static void parse_args(int argc, char *argv[])
             /* Don't compile the preprocessed file, instead stop after the preprocessing stage */
             JDF_COMPILER_GLOBAL_ARGS.compile = 0;
             break;
-        case 's': {
-            /* print the compilation options used to compile the preprocessed output */
-            char** exec_argv = prepare_execv_arguments();
-            for( int i = 0; i < parsec_argv_count(exec_argv); ++i )
-                fprintf(stderr, "%s ", exec_argv[i]);
-            fprintf(stderr, "\n");
-            free(exec_argv);
-            exit(0);
-        }
+        case 's':
+            print_compile_cmd = 1;
+            break;
         case 'M':
             if( strcmp(optarg, DEP_MANAGEMENT_DYNAMIC_HASH_TABLE_STRING) == 0 )
                 JDF_COMPILER_GLOBAL_ARGS.dep_management = DEP_MANAGEMENT_DYNAMIC_HASH_TABLE;
@@ -354,6 +348,16 @@ static void parse_args(int argc, char *argv[])
         free(h);
     if( NULL != o )
         free(o);
+
+    if( print_compile_cmd ) {
+        /* print the compilation options used to compile the preprocessed output */
+        char** exec_argv = prepare_execv_arguments();
+        for( int i = 0; i < parsec_argv_count(exec_argv); ++i )
+            fprintf(stderr, "%s ", exec_argv[i]);
+        fprintf(stderr, "\n");
+        free(exec_argv);
+        exit(0);
+    }
 }
 
 int main(int argc, char *argv[])
