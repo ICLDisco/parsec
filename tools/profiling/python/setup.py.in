@@ -121,9 +121,9 @@ def distutils_dir_name(dname):
         return 'LIB_DIR'
 
 setup(
-    name = 'PaRSEC Binary Trace Interface',
+    name = 'pbt2ptt',
     version='@PACKAGE_VERSION@',
-    description='parses and converts the PaRSEC Binary Trace format into a pandas-based Python tabular format',
+    description='PaRSEC Binary Trace Interface parses and converts the PaRSEC Binary Trace format into a pandas-based Python tabular format',
     url='http://icl.cs.utk.edu/parsec/',
     package_dir={ '': package_dir },
     cmdclass = {'build_ext': local_compiler_build_ext},
@@ -131,5 +131,5 @@ setup(
 )
 
 install_dir = distutils_dir_name('lib')
-print('Installed Python Trace Tables module to', install_dir)
+print 'Installed Python Trace Tables module to'%{install_dir}
 
