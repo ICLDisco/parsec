@@ -853,6 +853,8 @@ if(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
   configure_file (
      "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
      "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
+else()
+  message(STATUS "Internal PaRSEC does not use CAS on int128_t. Keeping parsec_options.h unchanged")
 endif()
 
 install(FILES
