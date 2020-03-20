@@ -1,7 +1,7 @@
 prefix=@CMAKE_INSTALL_PREFIX@
-exec_prefix=${prefix}/bin
-libdir=${prefix}/lib
-includedir=${prefix}/include
+exec_prefix=${prefix}/@PARSEC_INSTALL_BINDIR@
+libdir=${prefix}/@PARSEC_INSTALL_LIBDIR@
+includedir=${prefix}/@PARSEC_INSTALL_INCLUDEDIR@
 
 Name: PaRSEC
 Description: Parallel Runtime Scheduling and Execution Controller

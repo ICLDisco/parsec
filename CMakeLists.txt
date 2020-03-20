@@ -3,6 +3,7 @@ project (PARSEC C)
 
 include(CMakeDependentOption)
 include(CMakePushCheckState)
+include(GNUInstallDirs)
 
 # The current version number
 set (PARSEC_VERSION_MAJOR 2)
@@ -15,11 +16,12 @@ set (PARSEC_VERSION_PATCH 0)
 #set(GIT_COMMIT_DATE yyyy-mm-dd)
 
 # Configure the installation paths
-set(INCLUDE_INSTALL_DIR include)
-set(LIB_INSTALL_DIR lib)
-set(RUNTIME_INSTALL_DIR bin)
-set(SYSCONFIG_INSTALL_DIR share)
-set(CONFIG_INSTALL_DIR share/cmake/parsec)
+set(PARSEC_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
+set(PARSEC_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR})
+set(PARSEC_INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR})
+set(PARSEC_INSTALL_LIBEXECDIR ${CMAKE_INSTALL_LIBEXECDIR})
+set(PARSEC_INSTALL_DATADIR ${CMAKE_INSTALL_DATADIR})
+set(PARSEC_INSTALL_CMAKEDIR ${CMAKE_INSTALL_DATADIR}/cmake/parsec)
 
 # CMake Policies Tuning
 if(POLICY CMP0074)
@@ -89,7 +91,7 @@ option(PARSEC_WANT_HOME_CONFIG_FILES
        "Should the runtime check for the parameter configuration file in the user home (\$HOME/.parsec/mca-params.conf)" ON)
 
 ### PaRSEC PP options
-set(PARSEC_PTGFLAGS "--noline" CACHE STRING "Additional parsec_ptgpp precompiling flags (separate flags with ';')" )
+set(PARSEC_PTGFLAGS "--noline" CACHE STRING "Additional parsec-ptgpp precompiling flags (separate flags with ';')" )
 mark_as_advanced(PARSEC_PTGFLAGS)
 
 option(PARSEC_WITH_DEVEL_HEADERS "Install additional headers in include/parsec allowing external compilation." ON)
@@ -565,7 +567,7 @@ IF( BUILD_PARSEC )
   # Coerce CMake to install the generated .mod files
   if(CMAKE_Fortran_COMPILER_WORKS)
     set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parsec/include/fortran)
-    install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION include)
+    install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION ${PARSEC_INSTALL_INCLUDEDIR})
   endif(CMAKE_Fortran_COMPILER_WORKS)
 ENDIF( BUILD_PARSEC )
 
@@ -601,11 +603,11 @@ SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # the RPATH to be used when installing, but only if it's not a system directory
-LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}" isSystemDir)
 #MESSAGE(STATUS "LINK_DIRECTORIES = ${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
-#MESSAGE(STATUS "INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}/lib")
+#MESSAGE(STATUS "INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}")
 IF("${isSystemDir}" STREQUAL "-1")
-  SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+  SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}")
 ENDIF("${isSystemDir}" STREQUAL "-1")
 
 # Prepare the list of include directories. From the source directory we need 2 the source
@@ -657,8 +659,8 @@ IF(CMAKE_CROSSCOMPILING)
   SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
   MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
   INCLUDE(${IMPORT_EXECUTABLES})
-  set_target_properties(parsec_ptgpp PROPERTIES IMPORTED_GLOBAL ON)
-  get_target_property(parsec_ptgpp_EXE parsec_ptgpp LOCATION)
+  set_target_properties(parsec-ptgpp PROPERTIES IMPORTED_GLOBAL ON)
+  get_target_property(PARSEC_PTGPP_EXECUTABLE parsec-ptgpp LOCATION)
   # Build it, now
   get_filename_component(NATIVE_BINARY_DIR "${IMPORT_EXECUTABLES}" DIRECTORY BASE_DIR ${CMAKE_BINARY_DIR} CACHE)
   include(ExternalProject)
@@ -676,7 +678,7 @@ IF(CMAKE_CROSSCOMPILING)
             COMMAND "$(MAKE)" -C tools install
     EXCLUDE_FROM_ALL TRUE
     STEP_TARGETS build install test clean
-    BYPRODUCTS ${parsec_ptgpp_EXE}
+    BYPRODUCTS ${PARSEC_PTGPP_EXECUTABLE}
   )
   ExternalProject_Add_Step(native test
     WORKING_DIRECTORY <BINARY_DIR>
@@ -690,13 +692,13 @@ IF(CMAKE_CROSSCOMPILING)
     COMMAND "$(MAKE)" -C parsec/interfaces/ptg clean
     COMMAND "$(MAKE)" -C tools clean
   )
-  add_dependencies(parsec_ptgpp native-build)
+  add_dependencies(parsec-ptgpp native-build)
   install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target native-install)")
   add_test(NAME native-test COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target native-test)
 else()
-  set(parsec_ptgpp_EXE PaRSEC::parsec_ptgpp)
+  set(PARSEC_PTGPP_EXECUTABLE parsec-ptgpp)
 ENDIF(CMAKE_CROSSCOMPILING)
-set(parsec_ptgpp_EXE ${parsec_ptgpp_EXE} CACHE STRING "Point to the parsec_ptgpp executable")
+set(PARSEC_PTGPP_EXECUTABLE ${PARSEC_PTGPP_EXECUTABLE} CACHE STRING "Point to the parsec-ptgpp executable")
 
 # List of files that will go through documentation generation
 include(AddDocumentedFiles)
@@ -809,7 +811,7 @@ endforeach()
 # even if it is not the final value (we will not use it until the cmake completion.
 # We will reset the variable to the correct value later before the final generation
 # of the parsec_options.h header.
-set(PARSEC_C_INCLUDES "${CMAKE_INSTALL_PREFIX}/${INCLUDE_INSTALL_DIR};${EXTRA_INCLUDES}"
+set(PARSEC_C_INCLUDES "${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_INCLUDEDIR};${EXTRA_INCLUDES}"
     CACHE STRING "List of directories used to compile the parsec_ptgpp generated code")
 mark_as_advanced(PARSEC_C_INCLUDES)
 
@@ -859,7 +861,7 @@ endif()
 
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.h
-  DESTINATION include)
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR})
 
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/runtime.h
@@ -873,25 +875,25 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/private_mempool.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/deprecated.h
-  DESTINATION include/parsec)
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec)
 
 install(FILES
   ${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h
-  DESTINATION include/parsec
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec
   RENAME parsec_config.h)
 
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/debug.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param.h
-  DESTINATION include/parsec/utils)
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/utils)
 #
 # Never install directly the parsec/class/lifo.h header.
 # Instead replace it with the lifo-external.h during the installation.
 #
 install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/parsec/class/lifo-external.h
-  DESTINATION include/parsec/class
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class
   RENAME lifo.h)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_object.h
@@ -901,10 +903,10 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
-  DESTINATION include/parsec/class)
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
-  DESTINATION ${CONFIG_INSTALL_DIR})
+  DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/remote_dep.h
@@ -916,20 +918,20 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/execution_stream.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_internal.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/vpmap.h
-  DESTINATION include/parsec)
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins.h
-  DESTINATION include/parsec/mca/pins)
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/mca/pins)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/mca.h
-  DESTINATION include/parsec/mca)
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/mca)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/interfaces/interface.h
-  DESTINATION include/parsec/interfaces/ )
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/interfaces/ )
 if(PARSEC_PROF_GRAPHER)
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_prof_grapher.h
-    DESTINATION include/parsec )
+    DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec )
 endif(PARSEC_PROF_GRAPHER)
 # Install header files for jdf generated code
 if( PARSEC_WITH_DEVEL_HEADERS )
@@ -938,12 +940,12 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/hbbuffer.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/os-spec-timing.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/maxheap.h
-    DESTINATION include/parsec )
+    DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins_papi_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins_tau_utils.h
-    DESTINATION include/parsec/mca/pins )
+    DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/mca/pins )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/argv.h
@@ -954,12 +956,12 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/show_help.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/zone_malloc.h
-    DESTINATION include/parsec/utils )
+    DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/utils )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/dequeue.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
-    DESTINATION include/parsec/class )
+    DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class )
 
 endif(PARSEC_WITH_DEVEL_HEADERS)
 
@@ -969,7 +971,7 @@ endif(PARSEC_WITH_DEVEL_HEADERS)
 #
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-external.h
-  DESTINATION include/parsec/sys
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/sys
   RENAME atomic.h)
 
 # build a CPack driven installer package
@@ -1043,22 +1045,22 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
 install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"
-        DESTINATION lib/pkgconfig)
+        DESTINATION ${PARSEC_INSTALL_LIBDIR}/pkgconfig)
 
 # Export Targets
 install(EXPORT parsec-targets # rules to export the targets built here
   FILE PaRSECTargets.cmake
   NAMESPACE PaRSEC::
-  DESTINATION ${CONFIG_INSTALL_DIR})
+  DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
 
 # cmake config files
 include(CMakePackageConfigHelpers)
 
 configure_package_config_file(cmake_modules/PaRSECConfig.cmake.in
   ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/PaRSECConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/${CONFIG_INSTALL_DIR}
-  PATH_VARS LIB_INSTALL_DIR SYSCONFIG_INSTALL_DIR
-  INCLUDE_INSTALL_DIR RUNTIME_INSTALL_DIR CONFIG_INSTALL_DIR)
+  INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_CMAKEDIR}
+  PATH_VARS PARSEC_INSTALL_LIBDIR
+  PARSEC_INSTALL_INCLUDEDIR PARSEC_INSTALL_BINDIR PARSEC_INSTALL_LIBEXECDIR PARSEC_INSTALL_CMAKEDIR)
 
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/ParsecConfigVersion.cmake
     VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_PATCH}
@@ -1072,21 +1074,21 @@ install(FILES
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindOTF2.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/ParsecCompilePTG.cmake
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/${CONFIG_INSTALL_DIR})
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_CMAKEDIR})
 
 # Prepare exports for submodule inclusion
-set(LIB_INSTALL_DIR ${PROJECT_BINARY_DIR}/parsec)
-set(SYSCONFIG_INSTALL_DIR ${PROJECT_BINARY_DIR})
-set(INCLUDE_INSTALL_DIR ${PROJECT_SOURCE_DIR})
-set(RUNTIME_INSTALL_DIR ${PROJECT_BINARY_DIR})
-set(CONFIG_INSTALL_DIR ${PROJECT_SOURCE_DIR}/cmake_modules)
+set(PARSEC_INSTALL_LIBDIR ${PROJECT_BINARY_DIR}/parsec)
+set(PARSEC_INSTALL_INCLUDEDIR ${PROJECT_SOURCE_DIR})
+set(PARSEC_INSTALL_BINDIR ${PROJECT_BINARY_DIR})
+set(PARSEC_INSTALL_LIBEXECDIR ${PROJECT_BINARY_DIR})
+set(PARSEC_INSTALL_CMAKEDIR ${PROJECT_SOURCE_DIR}/cmake_modules)
 
 configure_package_config_file(cmake_modules/PaRSECConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/parsec-submodule-config.cmake
   INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}
   INSTALL_DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-  PATH_VARS LIB_INSTALL_DIR SYSCONFIG_INSTALL_DIR
-  INCLUDE_INSTALL_DIR RUNTIME_INSTALL_DIR CONFIG_INSTALL_DIR)
+  PATH_VARS PARSEC_INSTALL_LIBDIR
+  PARSEC_INSTALL_INCLUDEDIR PARSEC_INSTALL_BINDIR PARSEC_INSTALL_LIBEXECDIR PARSEC_INSTALL_CMAKEDIR)
 
 # Prepare the contrib/build_with_parsec directory
 configure_file (

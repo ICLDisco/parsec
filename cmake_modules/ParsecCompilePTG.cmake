@@ -31,9 +31,9 @@ function(target_ptg_sources target mode)
     # its cmake source_file name, yet we depend on the source_file name as it is how cmake tracks it
     add_custom_command(
         OUTPUT ${outname}.h ${outname}.c
-        COMMAND $<TARGET_FILE:PaRSEC::parsec_ptgpp> ${PARSEC_PTGFLAGS} ${compile_options} -E -i ${location} -o ${outname} -f ${fnname}
+        COMMAND $<TARGET_FILE:PaRSEC::parsec-ptgpp> ${PARSEC_PTGFLAGS} ${compile_options} -E -i ${location} -o ${outname} -f ${fnname}
         MAIN_DEPENDENCY ${infile}
-        DEPENDS ${infile} PaRSEC::parsec_ptgpp)
+        DEPENDS ${infile} PaRSEC::parsec-ptgpp)
 
     # Copy the properties to the generated files
     get_property(cflags     SOURCE ${infile} PROPERTY COMPILE_OPTIONS)
