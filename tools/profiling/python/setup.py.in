@@ -32,13 +32,14 @@ libs = ['parsec-base'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
 lib_dirs = (['@PROJECT_BINARY_DIR@/parsec']) # +
 #            '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';') )
 run_dirs = [] # '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
-package_dir='@CMAKE_CURRENT_BINARY_DIR@'
 
 debuggeron = False
 if 'Debug' == build_type:
     debuggeron = True
     extra_compile_args.append('-O0') # Overwrite the default Cython compilation flags
 
+# Cython does not support VPATH, so the generated files will always reside on the
+# SOURCE_DIR, except if we explicitly move them to the build directory.
 extensions = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
                                     '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
                          include_dirs=['@PROJECT_SOURCE_DIR@/parsec/include',
@@ -46,8 +47,8 @@ extensions = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
                                        '@PROJECT_BINARY_DIR@/parsec/include',
                                        '@PROJECT_BINARY_DIR@',
                                        '@CMAKE_CURRENT_SOURCE_DIR@/../'],
-                         depends=['setup.py.in',
-                                  'pbt2ptt.pxd',
+                         depends=['@CMAKE_CURRENT_BINARY_DIR@/setup.py',
+                                  '@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pxd',
                                   '@CMAKE_CURRENT_BINARY_DIR@/../dbpreader.h',
                                   '@PROJECT_SOURCE_DIR@/parsec/parsec_binary_profiling.h',
                                   '@PROJECT_SOURCE_DIR@/include/parsec/os-spec-timing.h'],
@@ -122,14 +123,17 @@ def distutils_dir_name(dname):
 
 setup(
     name = 'pbt2ptt',
-    version='@PACKAGE_VERSION@',
+    version='@PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@.@PARSEC_VERSION_PATCH@',
     description='PaRSEC Binary Trace Interface parses and converts the PaRSEC Binary Trace format into a pandas-based Python tabular format',
     url='http://icl.cs.utk.edu/parsec/',
-    package_dir={ '': package_dir },
+    package_dir={ '': '@CMAKE_CURRENT_SOURCE_DIR@'},
     cmdclass = {'build_ext': local_compiler_build_ext},
-    ext_modules = cythonize(extensions)
+    ext_modules = cythonize(extensions),
+    author='George Bosilca',
+    license='BSD',
+    platforms=['all']
 )
 
-install_dir = distutils_dir_name('lib')
-print 'Installed Python Trace Tables module to'%{install_dir}
+#install_dir = distutils_dir_name('lib')
+#print('Installed Python Trace Tables module to %s' % {install_dir})
 
