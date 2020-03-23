@@ -131,7 +131,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
                                              sizeof(int64_t), "size{int64_t}",
                                              &parsec_cuda_allocate_memory_key, &parsec_cuda_free_memory_key);
     parsec_profiling_add_dictionary_keyword( "cuda_mem_use", "fill:#FF66FF",
-                                             sizeof(int64_t), "size{int64_t}",
+                                             sizeof(parsec_device_cuda_memory_prof_info_t), PARSEC_DEVICE_CUDA_MEMORY_PROF_INFO_CONVERTER,
                                              &parsec_cuda_use_memory_key_start, &parsec_cuda_use_memory_key_end);
 #endif  /* defined(PROFILING) */
 
