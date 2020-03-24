@@ -363,7 +363,9 @@ static void parse_args(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     int rc;
+#if defined(PARSEC_HAVE_RECENT_LEX)
     yyscan_t scanner = NULL;
+#endif
 
     parse_args(argc, argv);
 #if defined(PARSEC_HAVE_RECENT_LEX)
@@ -389,7 +391,11 @@ int main(int argc, char *argv[])
     jdf_prepare_parsing();
 
     /*yydebug = 5;*/
+#if defined(PARSEC_HAVE_RECENT_LEX)
     if( yyparse(scanner) > 0 ) {
+#else
+    if( yyparse() > 0 ) {
+#endif
         exit(1);
     }
 #if defined(PARSEC_HAVE_RECENT_LEX)

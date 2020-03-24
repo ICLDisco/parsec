@@ -45,12 +45,16 @@ static jdf_expr_t *inline_c_functions = NULL;
  * http://oreilly.com/linux/excerpts/9780596155971/error-reporting-recovery.html
  *
  */
-static void yyerror(YYLTYPE *locp,
+static void yyerror(
 #if defined(YYPURE) && YYPURE
+                    YYLTYPE *locp,
                     struct yyscan_t* yyscanner,
 #endif  /* defined(YYPURE) && YYPURE */
                     char const *msg)
 {
+#if !defined(YYPURE) || !YYPURE
+    YYLTYPE *locp = &yylloc;
+#endif
     if(NULL != locp) {
         if(locp->first_line) {
             fprintf(stderr, "parse error at (%d) %d.%d-%d.%d: %s\n",
@@ -235,7 +239,7 @@ static int key_from_type(char *type) {
 /*%pure-parser*/
 %locations
 %error-verbose
-%parse-param {struct yyscan_t *yycontrol}
+/*%parse-param {struct yyscan_t *yycontrol}*/
 /*%lex-param   {struct yyscan_t *yycontrol}*/
 %%
 jdf_file:       prologue jdf epilogue
