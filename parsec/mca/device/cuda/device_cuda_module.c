@@ -379,7 +379,16 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
             asprintf(&exec_stream->name, "cuda(%d)", j);
         }
 #if defined(PARSEC_PROF_TRACE)
-        exec_stream->profiling = parsec_profiling_thread_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, dev_id, j );
+        /* Each 'exec' stream gets its own profiling stream, except IN and OUT stream that share it.
+         * It's good to separate the exec streams to know what was submitted to what stream
+         * We don't have this issue for the IN and OUT streams because types of event discriminate
+         * what happens where, and separating them consumes memory and increases the number of 
+         * events that needs to be matched between streams because we cannot differentiate some
+         * ends between IN or OUT, so they are all logged on the same stream. */
+        if(1 || j != 1)
+            exec_stream->profiling = parsec_profiling_thread_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, dev_id, j );
+        else
+            exec_stream->profiling = gpu_device->exec_stream[0].profiling; 
         if(j == 0) {
             exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & ( PARSEC_PROFILE_CUDA_TRACK_DATA_IN | PARSEC_PROFILE_CUDA_TRACK_MEM_USE );
         } else if(j == 1) {
@@ -472,7 +481,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
             }
 #if defined(PARSEC_PROF_TRACE)
             if( NULL != exec_stream->profiling ) {
-                /* No function to clean the profiling stream */
+                /* No function to clean the profiling stream. If one is introduced
+                 * some day, remember that exec streams 0 and 1 share the same 
+                 * ->profiling stream. */
             }
 #endif  /* defined(PARSEC_PROF_TRACE) */
         }
