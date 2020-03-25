@@ -1,6 +1,6 @@
 %{
 /**
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -28,6 +28,11 @@
  */
 #define YYERROR_VERBOSE 1
 struct yyscan_t;
+#if defined(YYPURE) && YYPURE
+extern int yylex(struct yyscan_t *yycontrol);
+#else
+extern int yylex(void);
+#endif
 
 #include "parsec.y.h"
 
@@ -40,12 +45,16 @@ static jdf_expr_t *inline_c_functions = NULL;
  * http://oreilly.com/linux/excerpts/9780596155971/error-reporting-recovery.html
  *
  */
-static void yyerror(YYLTYPE *locp,
+static void yyerror(
 #if defined(YYPURE) && YYPURE
+                    YYLTYPE *locp,
                     struct yyscan_t* yyscanner,
 #endif  /* defined(YYPURE) && YYPURE */
                     char const *msg)
 {
+#if !defined(YYPURE) || !YYPURE
+    YYLTYPE *locp = &yylloc;
+#endif
     if(NULL != locp) {
         if(locp->first_line) {
             fprintf(stderr, "parse error at (%d) %d.%d-%d.%d: %s\n",
@@ -230,8 +239,8 @@ static int key_from_type(char *type) {
 /*%pure-parser*/
 %locations
 %error-verbose
-%parse-param {struct yyscan_t *yycontrol}
-%lex-param   {struct yyscan_t *yycontrol}
+/*%parse-param {struct yyscan_t *yycontrol}*/
+/*%lex-param   {struct yyscan_t *yycontrol}*/
 %%
 jdf_file:       prologue jdf epilogue
                 {
@@ -1080,7 +1089,6 @@ expr_simple:  expr_simple EQUAL expr_simple
               }
        |      EXTERN_DECL
               {
-                  jdf_expr_t *ne;
                   $$ = new(jdf_expr_t);
                   $$->op = JDF_C_CODE;
                   $$->jdf_c_code.code = $1;

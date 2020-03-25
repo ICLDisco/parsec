@@ -1,6 +1,6 @@
 %{
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,7 +12,6 @@
 
 #include "parsec/parsec_config.h"
 #include "jdf.h"
-#include "parsec.y.h"
 
 extern char *yyfilename;
 extern int current_lineno;
@@ -52,7 +51,6 @@ static char *extern_code(char *base, int len, int line)
 
 char string_buf[MAX_STR_CONST];
 char *string_buf_ptr;
-extern YYSTYPE yylval;
 
 #if defined(PARSEC_HAVE_RECENT_LEX)
 #define YY_USER_ACTION yylloc->first_line = yylloc->last_line = yylineno; \
@@ -67,11 +65,18 @@ extern YYSTYPE yylval;
 #define YY_POP_STATE()        yy_pop_state()
 typedef void* yyscan_t;
 #endif  /* defined(PARSEC_HAVE_RECENT_LEX) */
+#if defined(YYPURE) && YYPURE
+#define YY_DECL int yylex(struct yyscan_t *yycontrol)
+#else
+#define YY_DECL int yylex(void)
+#endif
+#include "parsec.y.h"
 %}
 /*%option bison-bridge bison-locations*/
 /*%option reentrant*/
-%option noyywrap yylineno
-%option stack
+%option yylineno
+%option stack noyy_top_state
+%option nounput noinput noyywrap
 /*%option debug*/
 
 WHITE         [\f\t\v ]
