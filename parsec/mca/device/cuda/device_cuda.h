@@ -164,6 +164,16 @@ parsec_gpu_kernel_cleanout( parsec_device_cuda_module_t *gpu_device,
 
 END_C_DECLS
 
+#define PARSEC_CUDA_CHECK_ERROR( STR, ERROR, CODE )                     \
+    do {                                                                \
+        cudaError_t __cuda_error = (cudaError_t) (ERROR);               \
+        if( cudaSuccess != __cuda_error ) {                             \
+            parsec_warning( "%s:%d %s%s", __FILE__, __LINE__,           \
+                            (STR), cudaGetErrorString(__cuda_error) );  \
+            CODE;                                                       \
+        }                                                               \
+    } while(0)
+
 #endif /* defined(PARSEC_HAVE_CUDA) */
 
 #endif  /* PARSEC_DEVICE_CUDA_H_HAS_BEEN_INCLUDED */

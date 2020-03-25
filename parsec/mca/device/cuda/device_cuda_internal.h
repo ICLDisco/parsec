@@ -133,22 +133,6 @@ struct parsec_device_cuda_module_s {
     parsec_list_item_t *sort_starting_p;
 };
 
-#define PARSEC_CUDA_CHECK_ERROR( STR, ERROR, CODE )                      \
-    do {                                                                \
-        cudaError_t __cuda_error = (cudaError_t) (ERROR);               \
-        if( cudaSuccess != __cuda_error ) {                             \
-            parsec_warning( "%s:%d %s%s", __FILE__, __LINE__,          \
-                    (STR), cudaGetErrorString(__cuda_error) );          \
-            CODE;                                                       \
-        }                                                               \
-    } while(0)
-
-/**
- * Debugging functions.
- */
-void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream);
-void dump_GPU_state(parsec_device_cuda_module_t* gpu_device);
-
 /****************************************************
  ** GPU-DATA Specific Starts Here **
  ****************************************************/

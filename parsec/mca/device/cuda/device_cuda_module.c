@@ -354,7 +354,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     gpu_device->cuda_index = (uint8_t)dev_id;
     gpu_device->major      = (uint8_t)major;
     gpu_device->minor      = (uint8_t)minor;
-    gpu_device->super.name = strdup(szName);
+    asprintf(&gpu_device->super.name, "%s (%d)", szName, dev_id);
     gpu_device->data_avail_epoch = 0;
 
     gpu_device->max_exec_streams = PARSEC_MAX_STREAMS;
@@ -448,16 +448,20 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
 
     if( show_caps ) {
         parsec_inform("GPU Device %d (capability %d.%d): %s\n"
+                      "\tLocation (PCI Bus/Device/Domain): %x:%x.%x\n"
                       "\tSM                 : %d\n"
                       "\tclockRate (GHz)    : %2.2f\n"
                       "\tconcurrency        : %s\n"
                       "\tcomputeMode        : %d\n"
-                      "\tpeak Gflops         : double %2.4f, single %2.4f tensor %2.4f half %2.4f",
+                      "\tPeak Memory Bandwidth (GB/s): %.2f [Clock Rate (Khz) %d | Bus Width (bits) %d]\n"
+                      "\tpeak Gflops         : double %2.3f, single %2.3f tensor %2.3f half %2.3f\n",
                       gpu_device->cuda_index, gpu_device->major, gpu_device->minor, gpu_device->super.name,
+                      prop.pciBusID, prop.pciDeviceID, prop.pciDomainID,
                       streaming_multiprocessor,
                       clockRate*1e-3,
                       (concurrency == 1)? "yes": "no",
                       computemode,
+                      2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6, prop.memoryClockRate, prop.memoryBusWidth,
                       gpu_device->super.device_dweight, gpu_device->super.device_sweight, gpu_device->super.device_tweight, gpu_device->super.device_hweight);
     }
 
