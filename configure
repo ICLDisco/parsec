@@ -509,7 +509,7 @@ xyes) ;;
 x) ;;
 *)  PYTHON_EXECUTABLES=$(PATH="$with_python:$with_python/bin:${PATH}" command -v $with_python python{,3,2})
     for PYTHON_EXECUTABLE in $PYTHON_EXECUTABLES; do
-        [[ $PYTHON_EXECUTABLE =~ $with_python ]] && CMAKE_DEFINES+=" -DPYTHON_EXECUTABLE=$(printf %q "$PYTHON_EXECUTABLE")" && break
+        [[ $PYTHON_EXECUTABLE =~ $with_python ]] && CMAKE_DEFINES+=" -DPython_EXECUTABLE=$(printf %q "$PYTHON_EXECUTABLE")" && break
     done
 esac
 
