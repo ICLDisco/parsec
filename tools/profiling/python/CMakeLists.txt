@@ -48,7 +48,7 @@ foreach(file ${pyfiles})
                  ${CMAKE_CURRENT_BINARY_DIR}/${file} COPYONLY)
 endforeach()
 
-if(PYTHON_VERSION_MAJOR GREATER 2)
+if(Python_VERSION_MAJOR GREATER 2)
   # If we are using python 3.x we need to convert our scripts from
   # python 2 to python 3. Look for the 2to3 helper script
   get_filename_component(PYTHON_EXE_DIR ${Python_EXECUTABLE} PATH)
@@ -57,12 +57,12 @@ if(PYTHON_VERSION_MAJOR GREATER 2)
                HINTS ${PYTHON_EXE_DIR})
 
   if(NOT PYTHON_2TO3_EXECUTABLE)
-    message(WARNING "2to3 python utility not found. The profiling scripts will not be converted for use with selected Python version ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+    message(WARNING "2to3 python utility not found. The profiling scripts will not be converted for use with selected Python version ${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}")
   else()
     execute_process(OUTPUT_QUIET
                     COMMAND ${PYTHON_2TO3_EXECUTABLE} -w -n ${CMAKE_CURRENT_BINARY_DIR}/examples)
   endif(NOT PYTHON_2TO3_EXECUTABLE)
-endif(PYTHON_VERSION_MAJOR GREATER 2)
+endif(Python_VERSION_MAJOR GREATER 2)
 
 add_custom_command(OUTPUT ${OUTPUT}
                    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/${SETUP_PY} build_ext --quiet
