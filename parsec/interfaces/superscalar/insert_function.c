@@ -1158,9 +1158,7 @@ hook_of_dtd_task( parsec_execution_stream_t *es,
                           this_task);
 
 #if !defined(PARSEC_PROF_DRY_BODY)
-#if !defined(PARSEC_DRY_RUN)
     rc = ((parsec_dtd_task_class_t *)(dtd_task->super.task_class))->fpointer(es, this_task);
-#endif /* !defined(PARSEC_DRY_RUN) */
 #endif
 
     return rc;

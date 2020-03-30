@@ -89,12 +89,10 @@ RW A <- descA(m, n)                                              [ type = FULL ]
 BODY
 {
     int nb = (n == descA->lnt-1) ? parsec_imin(descA->nb, descA->ln-(descA->lnt-1)*descA->nb): descA->nb;
-#if !defined(PARSEC_DRY_RUN)
     if( t > 0 ) {
         CORE_copydata_stencil_1D(A0, AL, AR, descA->mb, descA->nb, myrank, rank_L, rank_R, R, n, descA->lnt-1);
         CORE_stencil_1D(A, A0, weight_1D, descA->mb, nb, descA->mb, R);
     }
-#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
