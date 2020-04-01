@@ -36,6 +36,7 @@ int use_cuda_index, use_cuda;
 int cuda_mask, cuda_verbosity;
 int cuda_memory_block_size, cuda_memory_percentage, cuda_memory_number_of_blocks;
 int parsec_cuda_output_stream = -1;
+
 int32_t parsec_CUDA_sort_pending_list = 0;
 
 int32_t parsec_CUDA_d2h_max_flows;
@@ -61,6 +62,7 @@ int parsec_cuda_use_memory_key_start;
 int parsec_cuda_use_memory_key_end;
 int parsec_cuda_prefetch_key_start;
 int parsec_cuda_prefetch_key_end;
+int parsec_device_cuda_one_profiling_stream_per_cuda_stream = 0;
 #endif  /* defined(PROFILING) */
 
 /*
@@ -227,6 +229,11 @@ static int device_cuda_component_register(void)
     (void)parsec_mca_param_reg_int_name("device_cuda", "sort_pending_tasks",
                                         "Boolean to let the GPU engine sort the first pending tasks stored in the list",
                                         false, false, 0, &parsec_CUDA_sort_pending_list);
+#if defined(PARSEC_PROF_TRACE)
+    (void)parsec_mca_param_reg_int_name("device_cuda", "one_profiling_stream_per_cuda_stream",
+                                        "Boolean to separate the profiling of each cuda stream into a single profiling stream",
+                                        false, false, 0, &parsec_device_cuda_one_profiling_stream_per_cuda_stream);
+#endif
 
     /* If CUDA was not requested avoid initializing the devices */
     return (0 == use_cuda ? MCA_ERROR : MCA_SUCCESS);

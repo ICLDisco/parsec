@@ -440,7 +440,7 @@ cpdef construct_stream_in_process(pipe, builder, filenames, node_streams,
 
     cond_print('Reporting one . per stream: ', report_progress, end='')
     sys.stdout.flush()
-    
+
     # node_streams is our thread-specific input data
     for node_id, stream_id in node_streams: # should be list of tuples
         cfile = dbp_reader_get_file(dbp, builder.node_order[node_id])

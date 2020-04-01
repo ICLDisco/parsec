@@ -48,6 +48,7 @@ extern int parsec_cuda_use_memory_key_start;
 extern int parsec_cuda_use_memory_key_end;
 extern int parsec_cuda_prefetch_key_start;
 extern int parsec_cuda_prefetch_key_end;
+extern int parsec_device_cuda_one_profiling_stream_per_cuda_stream;
 #endif  /* defined(PROFILING) */
 
 #define GPU_TASK_TYPE_KERNEL       000

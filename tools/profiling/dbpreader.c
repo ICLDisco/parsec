@@ -386,7 +386,7 @@ dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_eve
 
     if( dbp_event_get_event_id(ref) == 0 )
         return NULL; /* Shortcut: if you did not provide an event id, we cannot match on another thread */
- 
+
     dbp_file = pos->thread->file;
 
     for(th = dbp_file_nb_threads(dbp_file)-1; th>=0; th--) {
