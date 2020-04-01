@@ -438,19 +438,58 @@ cpdef construct_stream_in_process(pipe, builder, filenames, node_streams,
     # note that this requires re-opening the binary files in each thread
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
 
+    cond_print('Reporting one . per stream: ', report_progress, end='')
+    sys.stdout.flush()
+
     # node_streams is our thread-specific input data
     for node_id, stream_id in node_streams: # should be list of tuples
         cfile = dbp_reader_get_file(dbp, builder.node_order[node_id])
-        construct_stream(builder, skeleton_only, dbp, cfile, node_id, stream_id)
+        construct_stream(builder, skeleton_only, dbp, cfile, node_id, stream_id, report_progress=report_progress)
         cond_print('.', report_progress, end='')
         sys.stdout.flush()
 
     # now we must send the constructed objects back to the spawning process
     if len(builder.events) > 0:
-        builder.events = pd.DataFrame.from_records(builder.events)
+        # At this time, builder.events is a list of dictionaries with variable keys
+        # We are going to make a pd.DataFrame out of it.
+        # However, when pandas does not have a value for a column, it puts NaN in it by
+        # default, if that column can be converted to a numerical value.
+        # This creates problems, as NaN is a floating point value: some columns with
+        # integer information gets converted to floating point, just because some rows
+        # don't have this information.
+        # The solution is to force pandas to use 'object' as the type of this column.
+        # 'object' types can still be added, substracted, etc. if they can be cast dynamically
+        # to a numeric value, so it is portable to get all the columns of the dataframe
+        # to use the type 'object'.
+        # Unfortunately, we use from_records to build the dataframe (which is faster than
+        # appending the rows one by one to the dataframe), and from_records cannot take
+        # a default column type: we need to provide the column type of each record.
+        # That means that first we need to cleanup builder.events: we need to extract
+        # the values as list( tuple ), and thus we need to ensure that each dict of the
+        # original list has the same keys.
+        with Timer() as t:
+            # First, we compute the keys:
+            allkeys = frozenset().union(*builder.events)
+            # Then, we add the missing keys to each row, with the value 'None' in it
+            for e in builder.events:
+                for missing in allkeys.difference(e):
+                    e[missing] = None
+            # Then, we build the list( tuple ) that represents the values of builder.events
+            vals = []
+            for d in builder.events:
+                val = [d[k] for k in allkeys]
+                vals.append( tuple(val) )
+            # And we build the list( tuple ) that represent the (name, type) for each column
+            types = zip(allkeys, np.full( len(allkeys), 'object'))
+            # And finally, we can transform (vals, types) as a DataFrame with each column
+            # typed as 'object' and the 'None' values recognized everywhere they appear
+        cond_print('\nSanitizing the events took ' + str(t.interval) + ' seconds' ,
+                    report_progress, end='')
+        builder.events = pd.DataFrame.from_records(np.array(vals, dtype=types))
     else:
         builder.events = pd.DataFrame()
     if len(builder.errors) > 0:
+        # We don't care how errors are converted by pandas, these are not processed by
         builder.errors = pd.DataFrame.from_records(builder.errors)
     else:
         builder.errors = pd.DataFrame()
@@ -462,7 +501,7 @@ thread_id_in_descrip = re.compile('.*thread\s+(\d+).*', re.IGNORECASE)
 vp_id_in_descrip = re.compile('.*VP\s+(\d+).*', re.IGNORECASE)
 
 cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
-                      int node_id, int stream_id):
+                      int node_id, int stream_id, report_progress=False):
     """Converts all events using the C interface into a list of Python dicts
 
     Also creates a 'stream' dict describing the very basic information
@@ -601,6 +640,8 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                     error = {'node_id':node_id, 'stream_id':stream_id, 'taskpool_id':taskpool_id,
                              'type':event_type, 'begin':begin, 'end':0,
                              'flags':event_flags, 'id':event_id, 'error_msg':'event lack completion match.'}
+                    if report_progress:
+                        print("{} does not have an ending event".format(error))
                     builder.errors.append(error)
 
         dbp_iterator_next(it_s)

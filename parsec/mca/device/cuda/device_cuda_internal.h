@@ -48,6 +48,7 @@ extern int parsec_cuda_use_memory_key_start;
 extern int parsec_cuda_use_memory_key_end;
 extern int parsec_cuda_prefetch_key_start;
 extern int parsec_cuda_prefetch_key_end;
+extern int parsec_device_cuda_one_profiling_stream_per_cuda_stream;
 #endif  /* defined(PROFILING) */
 
 #define GPU_TASK_TYPE_KERNEL       000
@@ -218,6 +219,15 @@ parsec_gpu_kernel_cleanout( parsec_device_cuda_module_t *gpu_device,
                             parsec_gpu_task_t    *gpu_task );
 
 END_C_DECLS
+
+#if defined(PARSEC_PROF_TRACE)
+typedef struct {
+    uint64_t size;
+    uint64_t data_key;
+    uint64_t dc_id;
+} parsec_device_cuda_memory_prof_info_t;
+#define PARSEC_DEVICE_CUDA_MEMORY_PROF_INFO_CONVERTER "size{int64_t};data_key{uint64_t};dc_id{uint64_t}"
+#endif /* PARSEC_PROF_TRACE */
 
 #endif /* defined(PARSEC_HAVE_CUDA) */
 

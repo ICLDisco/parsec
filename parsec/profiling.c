@@ -958,6 +958,8 @@ parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
         return -1;
     }
 
+    assert( key >= 2 );
+
     this_event_length = EVENT_LENGTH( key, (NULL != info) );
     assert( this_event_length < event_avail_space );
     if( context->next_event_position + this_event_length > event_avail_space ) {
@@ -1375,7 +1377,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
     int64_t zero;
     char *xmlbuffer;
     int rank = 0, worldsize = 1, buflen;
-    int  min_fd = -1, rc;
+    int  min_fd = -1, rc, na_s, na_e;
 #if defined(PARSEC_HAVE_MPI)
     char *unique_str;
 
@@ -1480,6 +1482,13 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
         parsec_profiling_add_information("HWLOC-XML", xmlbuffer);
         parsec_hwloc_free_xml_buffer(xmlbuffer);
     }
+
+    /* We reserve the keys 0/1 in order to capture cases where a trace is called with
+     * an unitialized key */
+    parsec_profiling_add_dictionary_keyword( "N/A", "fill:#000000", 0, "", &na_s, &na_e);
+    assert(na_s == 0 && na_e==1);
+    (void)na_s; (void)na_e;
+
     return 0;
 }
 

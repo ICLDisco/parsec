@@ -28,22 +28,6 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#if defined(PARSEC_PROF_TRACE)
-
-#define TRACE_MALLOC_IF(test, key, size, ptr) if(test) {                \
-        int64_t _size = (int64_t)size;                                  \
-        parsec_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, \
-                                        &_size, PARSEC_PROFILING_EVENT_COUNTER|PARSEC_PROFILING_EVENT_HAS_INFO); \
-    }
-#define TRACE_FREE_IF(test, key, ptr) if(test) {                        \
-        parsec_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, \
-                                        NULL, PARSEC_PROFILING_EVENT_COUNTER); \
-    }
-#else
-#define TRACE_MALLOC_IF(test, key, size, ptr) do {   } while(0)
-#define TRACE_FREE_IF(test, key, ptr)   do {    } while(0)
-#endif  /* defined(PROFILING) */
-
 static int parsec_cuda_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice);
 
 static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 32, 35, 37, 50, 52, 53, 60, 61, 62, 70};
@@ -395,13 +379,22 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
             asprintf(&exec_stream->name, "cuda(%d)", j);
         }
 #if defined(PARSEC_PROF_TRACE)
-        exec_stream->profiling = parsec_profiling_thread_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, dev_id, j );
+        /* Each 'exec' stream gets its own profiling stream, except IN and OUT stream that share it.
+         * It's good to separate the exec streams to know what was submitted to what stream
+         * We don't have this issue for the IN and OUT streams because types of event discriminate
+         * what happens where, and separating them consumes memory and increases the number of 
+         * events that needs to be matched between streams because we cannot differentiate some
+         * ends between IN or OUT, so they are all logged on the same stream. */
+        if(j == 0 || (parsec_device_cuda_one_profiling_stream_per_cuda_stream == 1 && j != 1))
+            exec_stream->profiling = parsec_profiling_thread_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, dev_id, j );
+        else
+            exec_stream->profiling = gpu_device->exec_stream[0].profiling; 
         if(j == 0) {
-            exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_IN;
+            exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & ( PARSEC_PROFILE_CUDA_TRACK_DATA_IN | PARSEC_PROFILE_CUDA_TRACK_MEM_USE );
         } else if(j == 1) {
-            exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_OUT;
+            exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & ( PARSEC_PROFILE_CUDA_TRACK_DATA_OUT | PARSEC_PROFILE_CUDA_TRACK_MEM_USE );
         } else {
-            exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_EXEC;
+            exec_stream->prof_event_track_enable = parsec_cuda_trackable_events & ( PARSEC_PROFILE_CUDA_TRACK_EXEC | PARSEC_PROFILE_CUDA_TRACK_MEM_USE );
         }
 #endif  /* defined(PARSEC_PROF_TRACE) */
     }
@@ -492,7 +485,10 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
             }
 #if defined(PARSEC_PROF_TRACE)
             if( NULL != exec_stream->profiling ) {
-                /* No function to clean the profiling stream */
+                /* No function to clean the profiling stream. If one is introduced
+                 * some day, remember that exec streams 0 and 1 always share the same 
+                 * ->profiling stream, and that all of them share the same
+                 * ->profiling stream if parsec_device_cuda_one_profiling_stream_per_cuda_stream == 0 */
             }
 #endif  /* defined(PARSEC_PROF_TRACE) */
         }
@@ -704,10 +700,20 @@ static void parsec_cuda_memory_release_list(parsec_device_cuda_module_t* gpu_dev
 #if defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
         cudaFree( gpu_copy->device_private );
 #else
-        TRACE_FREE_IF((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
-                      (gpu_device->exec_stream[0].prof_event_track_enable ||
-                       gpu_device->exec_stream[1].prof_event_track_enable),
-                      parsec_cuda_free_memory_key, gpu_copy->device_private);
+
+#if defined(PARSEC_PROF_TRACE)
+        if((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
+           (gpu_device->exec_stream[0].prof_event_track_enable ||
+            gpu_device->exec_stream[1].prof_event_track_enable)) {
+            parsec_profiling_trace_flags(gpu_device->exec_stream[0].profiling,
+                                         parsec_cuda_free_memory_key, (int64_t)gpu_copy->device_private, gpu_device->cuda_index,
+                                         NULL, PARSEC_PROFILING_EVENT_COUNTER);
+            parsec_profiling_trace_flags(gpu_device->exec_stream[0].profiling,
+                                         parsec_cuda_use_memory_key_end,
+                                         (uint64_t)gpu_copy->device_private,
+                                         gpu_device->cuda_index, NULL, 0);
+        }
+#endif
         zone_free( gpu_device->memory, (void*)gpu_copy->device_private );
 #endif
         gpu_copy->device_private = NULL;
@@ -1005,15 +1011,24 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
             }
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
             /* Let's free this space, and try again to malloc some space */
-            TRACE_FREE_IF((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
-                          (gpu_device->exec_stream[0].prof_event_track_enable ||
-                           gpu_device->exec_stream[1].prof_event_track_enable),
-                          parsec_cuda_free_memory_key, lru_gpu_elem->device_private);
             PARSEC_DEBUG_VERBOSE(2, parsec_cuda_output_stream,
                                  "GPU[%d] Release CUDA copy %p (device_ptr %p) [ref_count %d: must be 1], attached to %p",
                                  gpu_device->cuda_index,
                                  lru_gpu_elem, lru_gpu_elem->device_private, lru_gpu_elem->super.super.obj_reference_count,
                                  oldmaster);
+#if defined(PARSEC_PROF_TRACE)
+            if((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
+               (gpu_device->exec_stream[0].prof_event_track_enable ||
+                gpu_device->exec_stream[1].prof_event_track_enable)) {
+                parsec_profiling_trace_flags(gpu_device->exec_stream[0].profiling,
+                                             parsec_cuda_free_memory_key, (int64_t)lru_gpu_elem->device_private, gpu_device->cuda_index,
+                                             NULL, PARSEC_PROFILING_EVENT_COUNTER);
+                parsec_profiling_trace_flags(gpu_device->exec_stream[0].profiling,
+                                             parsec_cuda_use_memory_key_end,
+                                             (uint64_t)lru_gpu_elem->device_private,
+                                             gpu_device->cuda_index, NULL, 0);
+            }
+#endif
             zone_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
             lru_gpu_elem->device_private = NULL;
             data_avail_epoch++;
@@ -1029,10 +1044,15 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
                              "GPU[%d] Succeeded Allocating CUDA copy %p at real address %p [ref_count %d] for data %p",
                              gpu_device->cuda_index,
                              gpu_elem, gpu_elem->device_private, gpu_elem->super.super.obj_reference_count, master);
-        TRACE_MALLOC_IF((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
+#if defined(PARSEC_PROF_TRACE)
+        if((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
                         (gpu_device->exec_stream[0].prof_event_track_enable ||
-                         gpu_device->exec_stream[1].prof_event_track_enable),
-                        parsec_cuda_allocate_memory_key, master->nb_elts, gpu_elem->device_private);
+                         gpu_device->exec_stream[1].prof_event_track_enable)) {
+            parsec_profiling_trace_flags(gpu_device->exec_stream[0].profiling,
+                                         parsec_cuda_allocate_memory_key, (int64_t)gpu_elem->device_private, gpu_device->cuda_index,
+                                         &master->nb_elts, PARSEC_PROFILING_EVENT_COUNTER|PARSEC_PROFILING_EVENT_HAS_INFO);
+        }
+#endif
 #else
         gpu_elem = lru_gpu_elem;
 #endif
@@ -1047,10 +1067,6 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
         parsec_data_copy_attach(master, gpu_elem, gpu_device->super.device_index);
         this_task->data[i].data_out = gpu_elem;
         temp_loc[i] = gpu_elem;
-        TRACE_MALLOC_IF((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
-                        (gpu_device->exec_stream[0].prof_event_track_enable ||
-                         gpu_device->exec_stream[1].prof_event_track_enable),
-                        parsec_cuda_use_memory_key_start, master->nb_elts, gpu_elem->device_private);
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                              "GPU[%d]:%s: Retain and insert CUDA copy %p [ref_count %d] in LRU",
                              gpu_device->cuda_index, task_name,
@@ -1228,47 +1244,45 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
 
 #if defined(PARSEC_PROF_TRACE)
             if( gpu_stream->prof_event_track_enable  ) {
-                parsec_task_t *this_task = gpu_task->ec;
                 parsec_profile_data_collection_info_t info;
-                int prof_key_start;
 
-                gpu_task->prof_key_end = -1;
-                if( GPU_TASK_TYPE_PREFETCH == gpu_task->task_type ) {
-                    if(parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_PREFETCH) {
-                        prof_key_start = parsec_cuda_prefetch_key_start;
-                        gpu_task->prof_key_end = parsec_cuda_prefetch_key_end;
-                    }
+                if( NULL != original->dc ) {
+                    info.desc = original->dc;
+                    info.id   = original->key;
                 } else {
-                    if(parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_IN) {
-                        prof_key_start = parsec_cuda_movein_key_start;
-                        gpu_task->prof_key_end = parsec_cuda_movein_key_end;
-                    }
+                    assert( GPU_TASK_TYPE_PREFETCH != gpu_task->task_type );
+                    info.desc = (parsec_dc_t*)original;
+                    info.id   = -1;
                 }
+                gpu_task->prof_key_end = -1;
 
-                if( gpu_task->prof_key_end != -1 ) {
-                    if( NULL != original->dc ) {
-                        info.desc = original->dc;
-                        info.id   = original->key;
-                    } else {
-                        assert( GPU_TASK_TYPE_PREFETCH != gpu_task->task_type );
-                        info.desc = (parsec_dc_t*)original;
-                        info.id   = -1;
-                    }
-
-                    if( NULL != this_task->taskpool ) {
-                        gpu_task->prof_event_id = this_task->task_class->key_functions->key_hash(this_task->task_class->make_key(this_task->taskpool, this_task->locals), NULL);
-                        gpu_task->prof_tp_id = this_task->taskpool->taskpool_id;
-                    } else {
-                        gpu_task->prof_event_id = (uint64_t)original;
-                        gpu_task->prof_tp_id = PROFILE_OBJECT_ID_NULL;
-                    }
+                if( GPU_TASK_TYPE_PREFETCH == gpu_task->task_type && (parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_PREFETCH) ) {
+                    gpu_task->prof_key_end = parsec_cuda_prefetch_key_end;
+                    gpu_task->prof_event_id = (int64_t)gpu_elem->device_private;
+                    gpu_task->prof_tp_id = gpu_device->cuda_index;
                     PARSEC_PROFILING_TRACE(gpu_stream->profiling,
-                                           prof_key_start,
+                                           parsec_cuda_prefetch_key_start,
                                            gpu_task->prof_event_id,
                                            gpu_task->prof_tp_id,
                                            &info);
                 }
-            } 
+                if(GPU_TASK_TYPE_PREFETCH != gpu_task->task_type && (parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_IN) ) {
+                    PARSEC_PROFILING_TRACE(gpu_stream->profiling,
+                                           parsec_cuda_movein_key_start,
+                                           (int64_t)gpu_elem->device_private,
+                                           gpu_device->cuda_index,
+                                           &info);
+                }
+                if(parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) {
+                        parsec_device_cuda_memory_prof_info_t _info;
+                        _info.size = (uint64_t)original->nb_elts;
+                        _info.data_key = gpu_elem->original->key;
+                        _info.dc_id = (uint64_t)(gpu_elem->original->dc);
+                        parsec_profiling_trace_flags(gpu_stream->profiling,
+                                                     parsec_cuda_use_memory_key_start, (uint64_t)gpu_elem->device_private,
+                                                     gpu_device->cuda_index, &_info, PARSEC_PROFILING_EVENT_HAS_INFO);
+                }
+            }
 #endif
             /* Push data into the GPU from the source device */
             status = (cudaError_t)cudaMemcpyAsync( gpu_elem->device_private,
@@ -1350,10 +1364,15 @@ void* parsec_gpu_pop_workspace(parsec_device_cuda_module_t* gpu_device, parsec_g
                                  "GPU[%d] Succeeded Allocating workspace %d (device_ptr %p)",
                                  gpu_device->cuda_index,
                                  i, gpu_stream->workspace->workspace[i]);
-            TRACE_MALLOC_IF((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
-                            (gpu_device->exec_stream[0].prof_event_track_enable ||
-                             gpu_device->exec_stream[1].prof_event_track_enable),
-                            parsec_cuda_allocate_memory_key, size, gpu_stream->workspace->workspace[i]);
+#if defined(PARSEC_PROF_TRACE)
+            if((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
+               (gpu_device->exec_stream[0].prof_event_track_enable ||
+                gpu_device->exec_stream[1].prof_event_track_enable)) {
+                parsec_profiling_trace_flags(gpu_stream->profiling,
+                                             parsec_cuda_allocate_memory_key, (int64_t)gpu_stream->workspace->workspace[i], gpu_device->cuda_index,
+                                             &size, PARSEC_PROFILING_EVENT_COUNTER|PARSEC_PROFILING_EVENT_HAS_INFO);
+            }
+#endif
         }
     }
     assert (gpu_stream->workspace->stack_head >= 0);
@@ -1382,10 +1401,15 @@ int parsec_gpu_free_workspace(parsec_device_cuda_module_t * gpu_device)
         parsec_gpu_exec_stream_t *gpu_stream = &(gpu_device->exec_stream[i]);
         if (gpu_stream->workspace != NULL) {
             for (j = 0; j < gpu_stream->workspace->total_workspace; j++) {
-                TRACE_FREE_IF((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
-                              (gpu_device->exec_stream[0].prof_event_track_enable ||
-                               gpu_device->exec_stream[1].prof_event_track_enable),
-                              parsec_cuda_free_memory_key, gpu_stream->workspace->workspace[j]);
+#if defined(PARSEC_PROF_TRACE)
+                if((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
+                   (gpu_device->exec_stream[0].prof_event_track_enable ||
+                    gpu_device->exec_stream[1].prof_event_track_enable)) {
+                    parsec_profiling_trace_flags(gpu_stream->profiling,
+                                                 parsec_cuda_allocate_memory_key, (int64_t)gpu_stream->workspace->workspace[i], gpu_device->cuda_index,
+                                                 NULL, PARSEC_PROFILING_EVENT_COUNTER);
+                }
+#endif
                 PARSEC_DEBUG_VERBOSE(2, parsec_cuda_output_stream,
                                      "GPU[%d] Release workspace %d (device_ptr %p)",
                                      gpu_device->cuda_index,
@@ -1822,6 +1846,9 @@ parsec_gpu_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
                                             * not ignored when poping the data from the fake task */ 
     gpu_task->ec->data[0].data_out = copy; /* We "free" data[i].data_out if its readers reaches 0 */
     gpu_task->ec->data[0].data_repo = NULL;
+#if defined(PARSEC_PROF_TRACE)
+    gpu_task->prof_key_end = -1; /* D2D complete tasks are pure internal management, we do not trace them */
+#endif
     (void)current_dev;
     PARSEC_DEBUG_VERBOSE(3, parsec_cuda_output_stream,
                          "GPU[%1d]: data copy %p [ref_count %d] D2D transfer is complete, sending order to count it to CUDA Device %d",
@@ -1874,6 +1901,15 @@ parsec_gpu_callback_complete_push(parsec_device_cuda_module_t  *gpu_device,
             parsec_data_end_transfer_ownership_to_copy(task->data[i].data_out->original,
                                                        gpu_device->super.device_index,
                                                        flow->flow_flags);
+#if defined(PARSEC_PROF_TRACE)
+            if(parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_IN) {
+                PARSEC_PROFILING_TRACE(gpu_stream->profiling,
+                                       parsec_cuda_movein_key_end,
+                                       (int64_t)(int64_t)task->data[i].data_out->device_private,
+                                       gpu_device->cuda_index,
+                                       NULL);
+            }
+#endif
             task->data[i].data_out->push_task = NULL;
             parsec_atomic_unlock(&task->data[i].data_out->original->lock);
             parsec_device_cuda_module_t *src_device = (parsec_device_cuda_module_t*)parsec_mca_device_get( task->data[i].data_in->device_index );
@@ -1929,11 +1965,6 @@ parsec_gpu_callback_complete_push(parsec_device_cuda_module_t  *gpu_device,
                         PARSEC_LIST_ITEM_SINGLETON(task->data[i].data_in);
                         parsec_list_push_back(&src_device->gpu_mem_lru, (parsec_list_item_t*)task->data[i].data_in);
                         src_device->data_avail_epoch++;
-                        TRACE_FREE_IF((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
-                                      (gpu_device->exec_stream[0].prof_event_track_enable ||
-                                       gpu_device->exec_stream[1].prof_event_track_enable),
-                                      parsec_cuda_use_memory_key_end, task->data[i].data_in->device_private);
-
                     }
                     parsec_atomic_unlock( &task->data[i].data_in->original->lock );
                     /* Notify any waiting thread that we're done messing with that device structure */
@@ -2037,9 +2068,11 @@ progress_stream( parsec_device_cuda_module_t* gpu_device,
             stream->end = (stream->end + 1) % stream->max_events;
 
 #if defined(PARSEC_PROF_TRACE)
-            if( stream->prof_event_track_enable && task->prof_key_end != -1 ) {
-                PARSEC_PROFILING_TRACE(stream->profiling, task->prof_key_end, task->prof_event_id, task->prof_tp_id, NULL);
-            }
+            if( stream->prof_event_track_enable ) {
+                if( task->prof_key_end != -1 ) {
+                    PARSEC_PROFILING_TRACE(stream->profiling, task->prof_key_end, task->prof_event_id, task->prof_tp_id, NULL);
+                } 
+            } 
 #endif /* (PARSEC_PROF_TRACE) */
 
             rc = 0;
@@ -2271,6 +2304,9 @@ parsec_gpu_kernel_push( parsec_device_cuda_module_t     *gpu_device,
                          gpu_device->cuda_index,
                          parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
     gpu_task->complete_stage = parsec_gpu_callback_complete_push;
+#if defined(PARSEC_PROF_TRACE)
+    gpu_task->prof_key_end = -1; /* We do not log that event as the completion of this task */
+#endif
     return ret;
 }
 
@@ -2356,10 +2392,6 @@ parsec_gpu_kernel_pop( parsec_device_cuda_module_t            *gpu_device,
                                      gpu_device->cuda_index, gpu_copy, gpu_copy->super.super.obj_reference_count, flow->name);
                 parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
                 PARSEC_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
-                TRACE_FREE_IF((parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_MEM_USE) &&
-                              (gpu_device->exec_stream[0].prof_event_track_enable ||
-                               gpu_device->exec_stream[1].prof_event_track_enable),
-                              parsec_cuda_use_memory_key_end, gpu_copy->device_private);
                 parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
                 update_data_epoch = 1;
                 parsec_atomic_unlock(&original->lock);

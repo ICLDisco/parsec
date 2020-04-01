@@ -489,6 +489,7 @@ void profiling_thread_save_sinfo(parsec_thread_profiling_t * thread,
 #if defined(PARSEC_PROF_TRACE)
 #define PROFILING_SAVE_dINFO(key, double_value) profiling_save_dinfo(key, double_value)
 #define PROFILING_SAVE_iINFO(key, integer_value) profiling_save_iinfo(key, integer_value)
+#define PROFILING_SAVE_uint64INFO(key, integer_value) profiling_save_uint64info(key, integer_value)
 #define PROFILING_SAVE_sINFO(key, str_value) profiling_save_sinfo(key, str_value)
 #define PROFILING_THREAD_SAVE_dINFO(thread, key, double_value)  \
     profiling_thread_save_dinfo(thread, key, double_value)
@@ -501,6 +502,7 @@ void profiling_thread_save_sinfo(parsec_thread_profiling_t * thread,
 #else
 #define PROFILING_SAVE_dINFO(key, double_value) do {} while(0)
 #define PROFILING_SAVE_iINFO(key, integer_value) do {} while(0)
+#define PROFILING_SAVE_uint64INFO(key, integer_value) do {} while(0)
 #define PROFILING_SAVE_sINFO(key, str_value) do {} while(0)
 #define PROFILING_THREAD_SAVE_dINFO(thread, key, double_value) do {} while(0)
 #define PROFILING_THREAD_SAVE_iINFO(thread, key, integer_value) do {} while(0)

@@ -12,6 +12,6 @@ if __name__ == '__main__':
     groups = ptt_utils.group_trace_filenames(sys.argv[1:])
     for f in groups:
         print("Processing %s" % f)
-        name = pbt2ptt.convert(f)
+        name = pbt2ptt.convert(f, multiprocess=True, report_progress=False)
         print("Generated: %s" % (name))
     sys.exit(0)
