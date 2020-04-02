@@ -290,7 +290,7 @@ tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
     res->super.memory_registration_status = PARSEC_MEMORY_STATUS_UNREGISTERED;
     res->super.key_base = NULL;
     res->super.key_to_string = tree_dist_key_to_string;
-    res->super.key_dim = "";
+    res->super.key_dim = NULL;
     res->super.key     = "";
 
     /** Then, the tree-specific info */
