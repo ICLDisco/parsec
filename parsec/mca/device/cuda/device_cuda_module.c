@@ -466,7 +466,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
         for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
             parsec_gpu_exec_stream_t* exec_stream = &(gpu_device->exec_stream[j]);
 
-            if( NULL == exec_stream->fifo_pending ) {
+            if( NULL != exec_stream->fifo_pending ) {
                 PARSEC_OBJ_RELEASE(exec_stream->fifo_pending);
             }
             if( NULL != exec_stream->tasks ) {
