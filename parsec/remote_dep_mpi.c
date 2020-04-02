@@ -1220,7 +1220,7 @@ static remote_dep_wire_get_t* dep_get_buff;
  * max tag to be positive, initializing it to a negative value allows us to check
  * if the layer has been initialized or not.
  */
-static int MAX_MPI_TAG = -1;
+static int MAX_MPI_TAG = -1, mca_tag_ub = -1;
 #define MIN_MPI_TAG (REMOTE_DEP_MAX_CTRL_TAG+1)
 static volatile int __VAL_NEXT_TAG = MIN_MPI_TAG;
 #if INT_MAX == INT32_MAX
@@ -1281,17 +1281,22 @@ static int remote_dep_mpi_init_once(parsec_context_t* context)
 #else
     MPI_Attr_get(MPI_COMM_WORLD, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);
 #endif  /* defined(PARSEC_HAVE_MPI_20) */
+
+    parsec_mca_param_reg_int_name("mpi", "tag_ub",
+                                  "The upper bound of the TAG used by the MPI communication engine. Bounded by the MPI_TAG_UB attribute on the MPI implementation MPI_COMM_WORLD. (-1 for MPI default)",
+                                  false, false, -1, &mca_tag_ub);
+
     if( !mpi_tag_ub_exists ) {
-        MAX_MPI_TAG = INT_MAX;
-        parsec_warning("Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30); Lets assume any integer value is a valid MPI Tag.\n");
+        MAX_MPI_TAG = (-1 == mca_tag_ub) ? INT_MAX : mca_tag_ub;
+        parsec_warning("Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30). The max tag is therefore set using the MCA mpi_tag_ub (current value %d).\n", MAX_MPI_TAG);
     } else {
-        MAX_MPI_TAG = *ub;
-        if( MAX_MPI_TAG < INT_MAX ) {
-            parsec_debug_verbose(3, parsec_comm_output_stream,
-                                 "MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x),"
-                                 " which might be too small should you have more than %d simultaneous remote dependencies",
-                                 MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT);
-        }
+        MAX_MPI_TAG = ((-1 == mca_tag_ub) || (mca_tag_ub > *ub)) ? *ub : mca_tag_ub;
+    }
+    if( MAX_MPI_TAG < INT_MAX ) {
+        parsec_debug_verbose(3, parsec_comm_output_stream,
+                             "MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x),"
+                             " which might be too small should you have more than %d pending remote dependencies",
+                             MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_DEP_OUT_COUNT);
     }
 
     remote_dep_mpi_profiling_init();
