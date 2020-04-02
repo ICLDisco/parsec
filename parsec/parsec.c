@@ -918,6 +918,8 @@ int parsec_version_ex( size_t len, char* version_string) {
 #if defined(PARSEC_DIST_THREAD)
         "+thread_multiple"
 #endif
+#else  /* defined(PARSEC_HAVE_MPI) */
+        "single process only"
 #endif
         ,
         device_components,
