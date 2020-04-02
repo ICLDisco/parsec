@@ -53,6 +53,10 @@ set_tests_properties(
   PASS_REGULAR_EXPRESSION "A NULL is forwarded"
 )
 
+parsec_addtest(C write_check "vector.c")
+target_ptg_sources(write_check PRIVATE "write_check.jdf")
+add_test( write_check_shm ${SHM_TEST_CMD_LIST} ./write_check)
+
 if( MPI_C_FOUND )
   add_test(unit_jdf_forward_RW_NULL_mpi   ${MPI_TEST_CMD_LIST} 2 ./jdf_forward_RW_NULL)
   add_test(unit_jdf_forward_READ_NULL_mpi ${MPI_TEST_CMD_LIST} 2 ./jdf_forward_READ_NULL)
@@ -63,4 +67,21 @@ if( MPI_C_FOUND )
     PASS_REGULAR_EXPRESSION "A NULL is forwarded"
   )
 endif( MPI_C_FOUND )
+
+#
+# Test to validate the number of input and output dependencies.
+# Should fail is PaRSEC is compiled without support for more than 20
+# output dependencies.
+#
+parsec_addtest(C will_fail_output_deps_check_shm)
+target_ptg_sources(will_fail_output_deps_check_shm PRIVATE "output_deps_check.jdf")
+# Avoid building these targets normally
+set_target_properties(will_fail_output_deps_check_shm PROPERTIES
+                      EXCLUDE_FROM_ALL TRUE
+                      EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+add_test( NAME will_fail_output_deps_check_shm
+          COMMAND ${CMAKE_COMMAND} --build . --target will_fail_output_deps_check_shm ${SHM_TEST_CMD_LIST} ./output_deps_check
+          WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(will_fail_output_deps_check_shm PROPERTIES WILL_FAIL TRUE)
+
 

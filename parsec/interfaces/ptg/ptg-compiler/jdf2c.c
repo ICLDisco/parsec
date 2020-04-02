@@ -2165,7 +2165,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
     string_arena_t *sa_dep_out = string_arena_new(64);
     string_arena_t* flow_flags = string_arena_new(64);
     string_arena_t *psa;
-    jdf_dep_t *dl;
+    jdf_dep_t *dl, *save_dl;
     uint32_t flow_datatype_mask = 0;
     char sep_in[4], sep_out[4];  /* one char more to deal with '\n' special cases (Windows) */
 
@@ -2252,12 +2252,40 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
 
     if(strlen(string_arena_get_string(sa_dep_in)) == 0) {
         string_arena_add_string(sa_dep_in, "NULL");
+    } else {
+        for(save_dl = NULL, dl = flow->deps; NULL != dl; dl = dl->next) {
+            if( dl->dep_flags & JDF_DEP_FLOW_IN ) {
+                if( (NULL == save_dl) || (save_dl->dep_index < dl->dep_index) )
+                    save_dl = dl;
+            }
+        }
+        if( NULL != save_dl ) {
+            string_arena_add_string(sa,
+                                    "#if MAX_DEP_IN_COUNT < %d  /* number of input dependencies */\n"
+                                    "    #error Too many input dependencies (supports up to MAX_DEP_IN_COUNT [=%d] but found %d). Fix the code or recompile PaRSEC with a larger MAX_DEP_IN_COUNT.\n"
+                                    "#endif\n",
+                                    save_dl->dep_index + 1, MAX_DEP_IN_COUNT, save_dl->dep_index + 1);
+        }
     }
     if(strlen(string_arena_get_string(sa_dep_out)) == 0) {
         string_arena_add_string(sa_dep_out, "NULL");
+    } else {
+        for(save_dl = NULL, dl = flow->deps; NULL != dl; dl = dl->next) {
+            if ( dl->dep_flags & JDF_DEP_FLOW_OUT ) {
+                if( (NULL == save_dl) || (save_dl->dep_index < dl->dep_index) )
+                    save_dl = dl;
+            }
+        }
+        if( NULL != save_dl ) {
+            string_arena_add_string(sa,
+                                    "#if MAX_DEP_OUT_COUNT < %d  /* number of output dependencies */\n"
+                                    "    #error Too many output dependencies (supports up to MAX_DEP_OUT_COUNT [=%d] but found %d). Fix the code or recompile PaRSEC with a larger MAX_DEP_OUT_COUNT.\n"
+                                    "#endif\n",
+                                    save_dl->dep_index + 1, MAX_DEP_OUT_COUNT, save_dl->dep_index + 1);
+        }
     }
     string_arena_add_string(sa,
-                            "static const parsec_flow_t %s = {\n"
+                            "\nstatic const parsec_flow_t %s = {\n"
                             "  .name               = \"%s\",\n"
                             "  .sym_type           = %s,\n"
                             "  .flow_flags         = %s,\n"
@@ -4508,7 +4536,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf,
                 spaces, call->func_or_mem, string_arena_get_string(sa),
                 spaces, flow->varname,
                 spaces);
-        
+
         coutput("#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
                 "%s  parsec_prof_grapher_data_output((parsec_task_t*)this_task, data_of_%s(%s), &flow_of_%s_%s_for_%s);\n"
                 "#endif\n",
