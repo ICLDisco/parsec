@@ -1,4 +1,4 @@
-if(NOT BUILD_TOOLS)
+if(NOT BUILD_TOOLS OR NOT PARSEC_PROF_TRACE)
   return()
 endif()
 # when crosscompiling the executable is imported from the
