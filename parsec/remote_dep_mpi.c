@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1237,11 +1237,9 @@ reread:
     if( __tag > (MAX_MPI_TAG-k) ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "rank %d tag rollover: min %d < %d (+%d) < max %d", parsec_debug_rank,
                 MIN_MPI_TAG, __tag, k, MAX_MPI_TAG);
-        __next_tag = MIN_MPI_TAG;
+        __tag = MIN_MPI_TAG;
     }
-    else {
-        __next_tag = __tag+k;
-    }
+    __next_tag = __tag+k;
 
     if( parsec_comm_es.virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
         if(!next_tag_cas(&__VAL_NEXT_TAG, __tag, __next_tag)) {
