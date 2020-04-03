@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2019 The University of Tennessee and The University
+ * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -23,12 +23,6 @@
 #include "parsec/parsec_hwloc.h"
 #include "parsec/papi_sde.h"
 #include "parsec/papi_sde_interface.h"
-
-#if defined(PARSEC_PROF_TRACE)
-#define TAKE_TIME(ES_PROFILE, KEY, ID)  PARSEC_PROFILING_TRACE((ES_PROFILE), (KEY), (ID), NULL)
-#else
-#define TAKE_TIME(ES_PROFILE, KEY, ID) do {} while(0)
-#endif
 
 /**
  * Module functions

@@ -37,11 +37,6 @@
 #if defined(PARSEC_HAVE_SCHED_SETAFFINITY)
 #include <linux/unistd.h>
 #endif  /* defined(PARSEC_HAVE_SCHED_SETAFFINITY) */
-#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_SCHEDULING_EVENTS)
-#define TAKE_TIME(ES_PROFILE, KEY, ID)  PARSEC_PROFILING_TRACE((ES_PROFILE), (KEY), (ID), NULL)
-#else
-#define TAKE_TIME(ES_PROFILE, KEY, ID) do {} while(0)
-#endif
 
 #if defined(PARSEC_PROF_RUSAGE_EU) && defined(PARSEC_HAVE_GETRUSAGE) && defined(PARSEC_HAVE_RUSAGE_THREAD) && !defined(__bgp__)
 #include <sys/time.h>
@@ -317,13 +312,7 @@ int __parsec_schedule(parsec_execution_stream_t* es,
     len = 0;
     _LIST_ITEM_ITERATOR(task, &task->super, item, {len++; });
     PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_ENABLED, len);
-    /* Deactivate this measurement, until the MPI thread has its own execution unit
-     *  TAKE_TIME(es->es_profile, schedule_push_begin, 0);
-     */
     ret = parsec_current_scheduler->module.schedule(es, tasks_ring, distance);
-    /* Deactivate this measurement, until the MPI thread has its own execution unit
-     *  TAKE_TIME( es->es_profile, schedule_push_end, 0);
-     */
 
     return ret;
 }
