@@ -73,15 +73,57 @@ endif( MPI_C_FOUND )
 # Should fail is PaRSEC is compiled without support for more than 20
 # output dependencies.
 #
-parsec_addtest(C will_fail_output_deps_check_shm)
-target_ptg_sources(will_fail_output_deps_check_shm PRIVATE "output_deps_check.jdf")
+parsec_addtest(C must_fail_too_many_in_deps)
+target_ptg_sources(must_fail_too_many_in_deps PRIVATE "too_many_in_deps.jdf")
 # Avoid building these targets normally
-set_target_properties(will_fail_output_deps_check_shm PROPERTIES
+set_target_properties(must_fail_too_many_in_deps PROPERTIES
                       EXCLUDE_FROM_ALL TRUE
                       EXCLUDE_FROM_DEFAULT_BUILD TRUE)
-add_test( NAME will_fail_output_deps_check_shm
-          COMMAND ${CMAKE_COMMAND} --build . --target will_fail_output_deps_check_shm ${SHM_TEST_CMD_LIST} ./output_deps_check
+add_test( NAME must_fail_too_many_in_deps_shm
+          COMMAND ${CMAKE_COMMAND} --build . --target must_fail_too_many_in_deps ${SHM_TEST_CMD_LIST} ./too_many_in_deps
           WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-set_tests_properties(will_fail_output_deps_check_shm PROPERTIES WILL_FAIL TRUE)
+set_tests_properties(must_fail_too_many_in_deps_shm PROPERTIES WILL_FAIL TRUE)
 
+parsec_addtest(C must_fail_too_many_out_deps)
+target_ptg_sources(must_fail_too_many_out_deps PRIVATE "too_many_out_deps.jdf")
+# Avoid building these targets normally
+set_target_properties(must_fail_too_many_out_deps PROPERTIES
+                      EXCLUDE_FROM_ALL TRUE
+                      EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+add_test( NAME must_fail_too_many_out_deps_shm
+          COMMAND ${CMAKE_COMMAND} --build . --target must_fail_too_many_out_deps ${SHM_TEST_CMD_LIST} ./too_many_out_deps
+          WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(must_fail_too_many_out_deps_shm PROPERTIES WILL_FAIL TRUE)
 
+parsec_addtest(C must_fail_too_many_read_flows)
+target_ptg_sources(must_fail_too_many_read_flows PRIVATE "too_many_read_flows.jdf")
+# Avoid building these targets normally
+set_target_properties(must_fail_too_many_read_flows PROPERTIES
+                      EXCLUDE_FROM_ALL TRUE
+                      EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+add_test( NAME must_fail_too_many_read_flows_shm
+          COMMAND ${CMAKE_COMMAND} --build . --target must_fail_too_many_read_flows ${SHM_TEST_CMD_LIST} ./too_many_read_flows
+          WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+        set_tests_properties(must_fail_too_many_read_flows_shm PROPERTIES WILL_FAIL TRUE)
+
+parsec_addtest(C must_fail_too_many_write_flows)
+target_ptg_sources(must_fail_too_many_write_flows PRIVATE "too_many_write_flows.jdf")
+# Avoid building these targets normally
+set_target_properties(must_fail_too_many_write_flows PROPERTIES
+                      EXCLUDE_FROM_ALL TRUE
+                      EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+add_test( NAME must_fail_too_many_write_flows_shm
+          COMMAND ${CMAKE_COMMAND} --build . --target must_fail_too_many_write_flows ${SHM_TEST_CMD_LIST} ./too_many_write_flows
+          WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(must_fail_too_many_write_flows_shm PROPERTIES WILL_FAIL TRUE)
+
+parsec_addtest(C must_fail_too_many_local_vars)
+target_ptg_sources(must_fail_too_many_local_vars PRIVATE "too_many_local_vars.jdf")
+# Avoid building these targets normally
+set_target_properties(must_fail_too_many_local_vars PROPERTIES
+                      EXCLUDE_FROM_ALL TRUE
+                      EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+add_test( NAME must_fail_too_many_local_vars_shm
+          COMMAND ${CMAKE_COMMAND} --build . --target must_fail_too_many_local_vars ${SHM_TEST_CMD_LIST} ./too_many_local_vars
+          WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+set_tests_properties(must_fail_too_many_local_vars_shm PROPERTIES WILL_FAIL TRUE)

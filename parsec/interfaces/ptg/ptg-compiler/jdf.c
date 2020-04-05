@@ -525,6 +525,54 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
     return rc;
 }
 
+static int jdf_sanity_check_flows_and_deps_number(void)
+{
+    jdf_function_entry_t *f;
+    jdf_dataflow_t *flow;
+    jdf_dep_t *dep;
+    int rc = 0, flows_in, flows_out, deps_in, deps_out;
+
+    for(f = current_jdf.functions; f != NULL; f = f->next) {
+        flows_in = flows_out = 0;
+        for(flow = f->dataflow; flow != NULL; flow = flow->next) {
+
+            flows_out += !!(JDF_FLOW_TYPE_WRITE & flow->flow_flags);
+            flows_in  += !!(JDF_FLOW_TYPE_READ & flow->flow_flags);
+
+            deps_in = deps_out = 0;
+            for(dep = flow->deps; dep != NULL; dep = dep->next) {
+                deps_in += !!(JDF_DEP_FLOW_IN & dep->dep_flags);
+                deps_out += !!(JDF_DEP_FLOW_OUT & dep->dep_flags);
+            }
+            if( MAX_DEP_IN_COUNT < deps_in ) {
+                jdf_warn(JDF_OBJECT_LINENO(flow),
+                         "Function %s: flow %s has too many (%d) input dependencies (max allowed by this PaRSEC build is %d)\n",
+                         f->fname, flow->varname, deps_in, MAX_DEP_IN_COUNT);
+                rc--;
+            }
+            if( MAX_DEP_OUT_COUNT < deps_out ) {
+                jdf_warn(JDF_OBJECT_LINENO(flow),
+                         "Function %s: flow %s has too many (%d) output dependencies (max allowed by this PaRSEC build is %d)\n",
+                         f->fname, flow->varname, deps_out, MAX_DEP_OUT_COUNT);
+                rc--;
+            }
+        }
+        if( MAX_PARAM_COUNT < flows_in ) {
+            jdf_warn(JDF_OBJECT_LINENO(f),
+                     "Function %s: has too many (%d) input or READ flows (max allowed by this PaRSEC build is %d)\n",
+                     f->fname, flows_in, MAX_PARAM_COUNT);
+            rc--;
+        }
+        if( MAX_PARAM_COUNT < flows_out ) {
+            jdf_warn(JDF_OBJECT_LINENO(f),
+                     "Function %s: has too many (%d) output or WRITE flows (max allowed by this PaRSEC build is %d)\n",
+                     f->fname, flows_out, MAX_PARAM_COUNT);
+            rc--;
+        }
+    }
+    return rc;
+}
+
 static int jdf_sanity_check_dataflow_type_consistency(void)
 {
     int rc = 0, output_deps, input_deps, type_deps, met_complete_in_dep;
@@ -967,6 +1015,7 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
     DO_CHECK( jdf_sanity_check_predicates_unbound() );
     DO_CHECK( jdf_sanity_check_dataflow_expressions_unbound() );
 
+    DO_CHECK( jdf_sanity_check_flows_and_deps_number() );
     DO_CHECK( jdf_sanity_check_dataflow_naming_collisions() );
     DO_CHECK( jdf_sanity_check_dataflow_type_consistency() );
     DO_CHECK( jdf_sanity_check_dataflow_unexisting_data() );

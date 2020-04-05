@@ -403,9 +403,6 @@ int main(int argc, char *argv[])
 #endif  /* defined(PARSEC_HAVE_RECENT_LEX) */
 
     rc = jdf_sanity_checks( JDF_COMPILER_GLOBAL_ARGS.wmask );
-    if(rc < 0)
-        return 1;
-
     if( (JDF_COMPILER_GLOBAL_ARGS.wmask & JDF_WARNINGS_ARE_ERROR) &&
         (rc != 0) ) {
         return 1;
