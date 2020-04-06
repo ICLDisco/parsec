@@ -1200,9 +1200,13 @@ static inline char* jdf_generate_task_typedef(void **elt, void* arg)
     JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nb_flows);
     UTIL_DUMP_LIST_FIELD(sa_data, f->dataflow, next, varname, dump_string, NULL,
                          "", "  parsec_data_pair_t _f_", ";\n", ";\n");
-
     string_arena_init(sa);
     /* Prepare the structure for the named assignments */
+    string_arena_add_string(sa,
+                            "#if MAX_LOCAL_COUNT < %d  /* number of parameters and locals %s */\n"
+                            "  #error Too many parameters and local variables (%d out of MAX_LOCAL_COUNT) for task %s\n"
+                            "#endif  /* MAX_PARAM_COUNT */\n",
+                            nb_locals, f->fname, nb_locals, f->fname);
     string_arena_add_string(sa, "typedef struct %s {\n"
                             "%s"
                             "  parsec_assignment_t reserved[MAX_LOCAL_COUNT-%d];\n"
@@ -1211,6 +1215,11 @@ static inline char* jdf_generate_task_typedef(void **elt, void* arg)
                             string_arena_get_string(sa_locals),
                             nb_locals,
                             parsec_get_name(NULL, f, "parsec_assignment_t"));
+    string_arena_add_string(sa,
+                            "#if MAX_PARAM_COUNT < %d  /* total number of flows for task %s */\n"
+                            "  #error Too many flows (%d out of MAX_PARAM_COUNT) for task %s\n"
+                            "#endif  /* MAX_PARAM_COUNT */\n",
+                            nb_flows, f->fname, nb_flows, f->fname);
     string_arena_add_string(sa, "typedef struct %s {\n"
                             "%s"
                             "  parsec_data_pair_t unused[MAX_LOCAL_COUNT-%d];\n"
@@ -2165,7 +2174,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
     string_arena_t *sa_dep_out = string_arena_new(64);
     string_arena_t* flow_flags = string_arena_new(64);
     string_arena_t *psa;
-    jdf_dep_t *dl, *save_dl;
+    jdf_dep_t *dl;
     uint32_t flow_datatype_mask = 0;
     char sep_in[4], sep_out[4];  /* one char more to deal with '\n' special cases (Windows) */
 
@@ -2253,36 +2262,28 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
     if(strlen(string_arena_get_string(sa_dep_in)) == 0) {
         string_arena_add_string(sa_dep_in, "NULL");
     } else {
-        for(save_dl = NULL, dl = flow->deps; NULL != dl; dl = dl->next) {
-            if( dl->dep_flags & JDF_DEP_FLOW_IN ) {
-                if( (NULL == save_dl) || (save_dl->dep_index < dl->dep_index) )
-                    save_dl = dl;
-            }
+        int deps_in = 0;
+        for(dl = flow->deps; NULL != dl; dl = dl->next) {
+            deps_in += !!(dl->dep_flags & JDF_DEP_FLOW_IN);
         }
-        if( NULL != save_dl ) {
-            string_arena_add_string(sa,
-                                    "#if MAX_DEP_IN_COUNT < %d  /* number of input dependencies */\n"
-                                    "    #error Too many input dependencies (supports up to MAX_DEP_IN_COUNT [=%d] but found %d). Fix the code or recompile PaRSEC with a larger MAX_DEP_IN_COUNT.\n"
-                                    "#endif\n",
-                                    save_dl->dep_index + 1, MAX_DEP_IN_COUNT, save_dl->dep_index + 1);
-        }
+        string_arena_add_string(sa,
+                                "#if MAX_DEP_IN_COUNT < %d  /* number of input dependencies */\n"
+                                "    #error Too many input dependencies (supports up to MAX_DEP_IN_COUNT [=%d] but found %d). Fix the code or recompile PaRSEC with a larger MAX_DEP_IN_COUNT.\n"
+                                "#endif\n",
+                                deps_in, MAX_DEP_IN_COUNT, deps_in);
     }
     if(strlen(string_arena_get_string(sa_dep_out)) == 0) {
         string_arena_add_string(sa_dep_out, "NULL");
     } else {
-        for(save_dl = NULL, dl = flow->deps; NULL != dl; dl = dl->next) {
-            if ( dl->dep_flags & JDF_DEP_FLOW_OUT ) {
-                if( (NULL == save_dl) || (save_dl->dep_index < dl->dep_index) )
-                    save_dl = dl;
-            }
+        int deps_out = 0;
+        for(dl = flow->deps; NULL != dl; dl = dl->next) {
+            deps_out += !!(dl->dep_flags & JDF_DEP_FLOW_OUT);
         }
-        if( NULL != save_dl ) {
-            string_arena_add_string(sa,
-                                    "#if MAX_DEP_OUT_COUNT < %d  /* number of output dependencies */\n"
-                                    "    #error Too many output dependencies (supports up to MAX_DEP_OUT_COUNT [=%d] but found %d). Fix the code or recompile PaRSEC with a larger MAX_DEP_OUT_COUNT.\n"
-                                    "#endif\n",
-                                    save_dl->dep_index + 1, MAX_DEP_OUT_COUNT, save_dl->dep_index + 1);
-        }
+        string_arena_add_string(sa,
+                                "#if MAX_DEP_OUT_COUNT < %d  /* number of output dependencies */\n"
+                                "    #error Too many output dependencies (supports up to MAX_DEP_OUT_COUNT [=%d] but found %d). Fix the code or recompile PaRSEC with a larger MAX_DEP_OUT_COUNT.\n"
+                                "#endif\n",
+                                deps_out, MAX_DEP_OUT_COUNT, deps_out);
     }
     string_arena_add_string(sa,
                             "\nstatic const parsec_flow_t %s = {\n"
@@ -3385,9 +3386,23 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
         use_mask = 1;
     sprintf(prefix, "flow_of_%s_%s_for_", jdf_basename, f->fname);
     has_control_gather = 0;
-    for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++)
-        use_mask &= jdf_generate_dataflow(jdf, f, fl, prefix, &has_control_gather);
-
+    {
+        int in_flows = 0, out_flows = 0;
+        for(i = 0, fl = f->dataflow; fl != NULL; fl = fl->next, i++) {
+            use_mask &= jdf_generate_dataflow(jdf, f, fl, prefix, &has_control_gather);
+            in_flows += !!(fl->flow_flags & JDF_FLOW_TYPE_READ);
+            out_flows += !!(fl->flow_flags & JDF_FLOW_TYPE_WRITE);
+        }
+        string_arena_add_string(sa,
+                                "#if MAX_PARAM_COUNT < %d  /* number of read flows of %s */\n"
+                                "  #error Too many read flows for task %s\n"
+                                "#endif  /* MAX_PARAM_COUNT */\n"
+                                "#if MAX_PARAM_COUNT < %d  /* number of write flows of %s */\n"
+                                "  #error Too many write flows for task %s\n"
+                                "#endif  /* MAX_PARAM_COUNT */\n",
+                                in_flows, f->fname, f->fname,
+                                out_flows, f->fname, f->fname);
+    }
     if( jdf_property_get_int(f->properties, "mask_deps", 0) && (use_mask == 0) ) {
         jdf_warn(JDF_OBJECT_LINENO(f),
                  "In task %s, mask_deps was requested, but this method cannot be provided\n"

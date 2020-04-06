@@ -1,0 +1,120 @@
+extern "C" %{
+/*
+ * Copyright (c) 2020      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+/**
+ * This test validate the ptg compiler detection of a too large number of
+ * write flows, exceeding the supported number MAX_PARAM_COUNT
+ *
+ * This test has been conceived for issue 247.
+ * https://bitbucket.org/icldistcomp/parsec/issues/247
+ */
+#include "tests/interfaces/ptg/compiler_checks/vector.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+
+#if MAX_PARAM_COUNT > 20
+#error MAX_PARAM_COUNT is too large for this test.
+#endif  /* MAX_PARAM_COUNT > 20 */
+
+%}
+
+A          [type = "parsec_data_collection_t*"]
+NT         [type = int]
+
+TASK(k)
+
+  k = 0 .. NT
+: A(k,0)
+
+  WRITE A0  -> A(k, 0)
+  WRITE A1  -> A(k, 0)
+  WRITE A2  -> A(k, 0)
+  WRITE A3  -> A(k, 0)
+  WRITE A4  -> A(k, 0)
+  WRITE A5  -> A(k, 0)
+  WRITE A6  -> A(k, 0)
+  WRITE A7  -> A(k, 0)
+  WRITE A8  -> A(k, 0)
+  WRITE A9  -> A(k, 0)
+  WRITE A10 -> A(k, 0)
+  WRITE A11 -> A(k, 0)
+  WRITE A12 -> A(k, 0)
+  WRITE A13 -> A(k, 0)
+  WRITE A14 -> A(k, 0)
+  WRITE A15 -> A(k, 0)
+  WRITE A16 -> A(k, 0)
+  WRITE A17 -> A(k, 0)
+  WRITE A18 -> A(k, 0)
+  WRITE A19 -> A(k, 0)
+  WRITE A20 -> A(k, 0)
+  WRITE A21 -> A(k, 0)
+BODY
+    printf("TASK(%d)\n", k);
+END
+
+extern "C" %{
+
+#define TYPE  matrix_Integer
+static two_dim_block_cyclic_t descA;
+
+int main(int argc, char* argv[])
+{
+    parsec_output_deps_check_taskpool_t* tp;
+    parsec_context_t *parsec;
+    int block = 10, n = 1000, rc;
+
+#ifdef PARSEC_HAVE_MPI
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+    }
+#endif
+
+    parsec = parsec_init(-1, &argc, &argv);
+    if( NULL == parsec ) {
+        exit(-1);
+    }
+
+    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+                               1 /*nodes*/, 0 /*rank*/,
+                               block, 1, n, 1,
+                               0, 0, n, n, 1, 1, 1);
+    descA.mat = parsec_data_allocate( n * parsec_datadist_getsizeoftype(TYPE) );
+    for( int i = 0; i < n; ((int*)descA.mat)[i++] = 1);
+
+    /**
+     * The original data is consistently initialized to 1. Upon completion it should
+     * start with 2 and increase monotonically.
+     */
+    tp = parsec_output_deps_check_new( (parsec_data_collection_t*)&descA, (n / block) - 1 );
+    assert( NULL != tp );
+
+    /* This test generates no communications between processes, so the datatype
+     * associated with the arena are insignificant. */
+    parsec_arena_construct( tp->arenas[PARSEC_output_deps_check_DEFAULT_ARENA],
+                            descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            PARSEC_DATATYPE_NULL);  /* change for distributed cases */
+
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    free(descA.mat);
+
+#ifdef PARSEC_HAVE_MPI
+    MPI_Finalize();
+#endif
+    return 0;
+}
+
+%}
+
