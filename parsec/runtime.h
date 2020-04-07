@@ -185,7 +185,7 @@ int parsec_version_ex( size_t len, char* version_string);
  * @param[in] opaque_comm_ctx the new communicator object to use
  * @return PARSEC_SUCCESS on success
  */
-int parsec_remote_dep_set_ctx( parsec_context_t* context, void* opaque_comm_ctx );
+int parsec_remote_dep_set_ctx( parsec_context_t* context, intptr_t opaque_comm_ctx );
 
 
 /**

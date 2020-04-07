@@ -37,8 +37,7 @@ static jdf_compiler_global_args_t DEFAULTS = {
 #endif
     .ignore_properties = NULL
 };
-jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { /* .input = */ NULL, /* .output_c = */ NULL, /* .output_h = */ NULL, /* .output_o = */ NULL,
-                                                        /* .funcid = */ NULL, /* .wmask = */ 0x0, /* .compile = */ 1, /* .noline = */ 0 };
+jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { 0, .compile = 1 };
 
 static void usage(void)
 {

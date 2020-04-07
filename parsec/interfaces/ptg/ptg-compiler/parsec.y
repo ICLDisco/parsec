@@ -65,7 +65,9 @@ static void yyerror(
                     current_lineno, msg);
         }
     } else {
+#if defined(YYPURE) && YYPURE
         fprintf(stderr, "parse error near line %d: %s\n ", yyget_lineno(), msg);
+#endif
     }
 }
 

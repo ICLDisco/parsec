@@ -8,6 +8,7 @@
 #include "parsec/constants.h"
 #include "parsec/arena.h"
 #include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/utils/debug.h"
 
 #if defined(PARSEC_HAVE_MPI)
 /* just for the type names */
@@ -48,7 +49,10 @@ int parsec_matrix_define_contiguous( parsec_datatype_t oldtype,
         MPI_Initialized(&mpi_is_on);
         if(mpi_is_on) {
             MPI_Type_get_name(oldtype, oldtype_name, &len);
-            snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "CONT %s*%4u", oldtype_name, nb_elem);
+            len = snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "CONT %s*%4u", oldtype_name, nb_elem);
+            if(len >= MPI_MAX_OBJECT_NAME) {
+                parsec_debug_verbose(50, parsec_debug_output, "Type name %s truncated when deriving from %s", newtype_name, oldtype_name);
+            }
             MPI_Type_set_name(*newtype, newtype_name);
         }
     }
@@ -96,7 +100,10 @@ int parsec_matrix_define_rectangle( parsec_datatype_t oldtype,
         MPI_Initialized(&mpi_is_on);
         if(mpi_is_on) {
             MPI_Type_get_name(oldtype, oldtype_name, &len);
-            snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "RECT %s*%4u*%4u", oldtype_name, mb, nb);
+            len = snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "RECT %s*%4u*%4u", oldtype_name, mb, nb);
+            if(len >= MPI_MAX_OBJECT_NAME) {
+                parsec_debug_verbose(50, parsec_debug_output, "Type name %s truncated when deriving from %s", newtype_name, oldtype_name);
+            }
             MPI_Type_set_name(*newtype, newtype_name);
         }
     }
@@ -157,7 +164,10 @@ int parsec_matrix_define_triangle( parsec_datatype_t oldtype,
         MPI_Initialized(&mpi_is_on);
         if(mpi_is_on) {
             MPI_Type_get_name(oldtype, oldtype_name, &len);
-            snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "%s %s*%4u*%4u", (uplo==matrix_Upper)?"UPPER":"LOWER", oldtype_name, m, n);
+            len = snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "%s %s*%4u*%4u", (uplo==matrix_Upper)?"UPPER":"LOWER", oldtype_name, m, n);
+            if(len >= MPI_MAX_OBJECT_NAME) {
+                parsec_debug_verbose(50, parsec_debug_output, "Type name %s truncated when deriving from %s", newtype_name, oldtype_name);
+            }
             MPI_Type_set_name(*newtype, newtype_name);
         }
     }

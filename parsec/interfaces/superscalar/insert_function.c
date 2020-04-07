@@ -1745,7 +1745,7 @@ complete_hook_of_dtd( parsec_execution_stream_t *es,
                                         PARSEC_ACTION_COMPLETE_LOCAL_TASK,
                                         NULL);
 
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 parsec_hook_return_t
@@ -2857,7 +2857,7 @@ parsec_dtd_iterator_arg_set_param_local(int first_arg, void *tile,
                                   common_args->current_param, first_arg);
 
     common_args->current_param->arg_size = first_arg;
-    common_args->current_param->op_type  = tile_op_type;
+    common_args->current_param->op_type  = (parsec_dtd_op_t)tile_op_type;
     common_args->tmp_param               = common_args->current_param;
     common_args->current_param           = common_args->current_param + 1;
     common_args->tmp_param->next         = common_args->current_param;

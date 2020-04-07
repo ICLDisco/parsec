@@ -535,7 +535,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->active_taskpools      = 0;
     context->flags               = 0;
     context->nb_nodes            = 1;
-    context->comm_ctx            = NULL;
+    context->comm_ctx            = -1;
     context->my_rank             = 0;
     context->nb_vp               = nb_vp;
     /* initialize dtd taskpool list */
@@ -2413,6 +2413,7 @@ parsec_debug_taskpool_count_local_tasks( parsec_taskpool_t *tp,
     parsec_data_ref_t ref;
     int li, init;
 
+    PARSEC_OBJ_CONSTRUCT(&task, parsec_task_t);
     PARSEC_LIST_ITEM_SINGLETON( &task.super );
     task.mempool_owner = NULL;
     task.taskpool = tp;
