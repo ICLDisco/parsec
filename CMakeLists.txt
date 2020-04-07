@@ -455,32 +455,8 @@ IF( BUILD_PARSEC )
   ENDIF (HWLOC_FOUND)
 
   if (PARSEC_DIST_WITH_MPI)
-    # Test first if we are using a wrapper as the compiler
-    # In that case, we don't need to change the include path and
-    # dependent libraries.
-    CHECK_C_SOURCE_COMPILES("#include <mpi.h>
-                             int main(int argc, char *argv[]) {
-                               MPI_Init(&argc, &argv);
-                               MPI_Barrier(MPI_COMM_WORLD);
-                               MPI_Finalize();
-                               return 0;
-                             }" CC_CONTAINS_MPI)
-    if( CC_CONTAINS_MPI )
-      # Create fake MPI:: targets
-      set(MPI_C_FOUND TRUE)
-      add_library(MPI::MPI_C INTERFACE IMPORTED)
-      if(CMAKE_Fortran_COMPILER_WORKS)
-        set(MPI_Fortran_FOUND TRUE)
-        add_library(MPI::MPI_Fortran INTERFACE IMPORTED)
-      endif()
-      if(CMAKE_CXX_COMPILER_WORKS)
-        set(MPI_CXX_FOUND TRUE)
-        add_library(MPI::MPI_CXX INTERFACE IMPORTED)
-      endif()
-    else( CC_CONTAINS_MPI )
-      # Otherwise try to find MPI in the normal way
-      find_package(MPI)
-    endif( CC_CONTAINS_MPI )
+    # Otherwise try to find MPI in the normal way
+    find_package(MPI)
     set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
     if (NOT MPI_C_FOUND)
       # Force MPI: if no compiler, do not proceed further
