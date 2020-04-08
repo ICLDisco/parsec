@@ -53,7 +53,7 @@ if(Python_VERSION_MAJOR GREATER 2)
   # python 2 to python 3. Look for the 2to3 helper script
   get_filename_component(PYTHON_EXE_DIR ${Python_EXECUTABLE} PATH)
   find_program(PYTHON_2TO3_EXECUTABLE
-               NAMES 2to3
+               NAMES 2to3 2to3-${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}
                HINTS ${PYTHON_EXE_DIR})
 
   if(NOT PYTHON_2TO3_EXECUTABLE)
