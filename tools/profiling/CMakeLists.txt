@@ -32,12 +32,12 @@ endif()
 
 find_package(Graphviz QUIET)
 
-if(GRAPHVIZ_FOUND)
+if(Graphviz_FOUND)
 
   add_executable(parsec-graph testgraph.c graph.c)
   set_target_properties(parsec-graph PROPERTIES LINKER_LANGUAGE C)
-  target_include_directories(parsec-graph PRIVATE ${GRAPHVIZ_INCLUDE_DIRS})
-  target_link_libraries(parsec-graph parsec-base ${GRAPHVIZ_LIBRARIES})
+  target_include_directories(parsec-graph PRIVATE ${Graphviz_INCLUDE_DIRS})
+  target_link_libraries(parsec-graph parsec-base ${Graphviz_LIBRARIES})
 
   find_package(GD QUIET)
 
@@ -45,12 +45,12 @@ if(GRAPHVIZ_FOUND)
 
     add_executable(parsec-dbp-dot2png dbp-dot2png.c dbpreader.c graph.c animation.c)
     set_target_properties(parsec-dbp-dot2png PROPERTIES LINKER_LANGUAGE C)
-    target_include_directories(parsec-dbp-dot2png PRIVATE ${GRAPHVIZ_INCLUDE_DIRS} ${GD_INCLUDE_DIR})
-    target_link_libraries(parsec-dbp-dot2png parsec-base ${GRAPHVIZ_LIBRARIES} ${GD_LIBRARY})
+    target_include_directories(parsec-dbp-dot2png PRIVATE ${Graphviz_INCLUDE_DIRS} ${GD_INCLUDE_DIR})
+    target_link_libraries(parsec-dbp-dot2png parsec-base ${Graphviz_LIBRARIES} ${GD_LIBRARY})
     install(TARGETS parsec-dbp-dot2png RUNTIME DESTINATION ${PARSEC_INSTALL_BINDIR})
   endif()
 
-endif(GRAPHVIZ_FOUND)
+endif(Graphviz_FOUND)
 
 # Python support for profiling (requires Cython 0.21.2)
 find_package(Cython 0.21.2)
