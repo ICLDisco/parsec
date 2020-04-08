@@ -71,7 +71,7 @@ add_custom_command(OUTPUT ${OUTPUT}
                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
 
-install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} \"${CMAKE_CURRENT_BINARY_DIR}/${SETUP_PY}\" install --skip-build --prefix=${CMAKE_INSTALL_PREFIX})")
+install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} \"${CMAKE_CURRENT_BINARY_DIR}/${SETUP_PY}\" install --skip-build --prefix=${CMAKE_INSTALL_PREFIX} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
 
 # We need to install the rest of the python profiling support file into the correct
 # python location (same as the generated python module). This should be
