@@ -1,4 +1,11 @@
 extern "C" %{
+/*
+ * Copyright (c) 2019-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "parsec/parsec_config.h"
 #include "parsec/utils/mca_param.h"
 
 #include "parsec/data_distribution.h"
@@ -10,10 +17,9 @@ extern "C" %{
 #include <sys/time.h>
 #include <mpi.h>
 #if defined(PARSEC_HAVE_CUDA)
+#include "parsec/mca/device/cuda/device_cuda_internal.h"
 #include <cublas.h>
 #endif  /* defined(PARSEC_HAVE_CUDA) */
-
-#include "nvlink.h"
 
 /**
  *

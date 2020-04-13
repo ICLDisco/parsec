@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1354,9 +1354,7 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
             "#include \"parsec/ayudame.h\"\n"
             "#include \"parsec/execution_stream.h\"\n"
             "#if defined(PARSEC_HAVE_CUDA)\n"
-            "extern int parsec_cuda_output_stream;\n"
             "#include \"parsec/mca/device/cuda/device_cuda.h\"\n"
-            "#include \"parsec/mca/device/cuda/device_cuda_internal.h\"\n"
             "#endif  /* defined(PARSEC_HAVE_CUDA) */\n"
             "#include <alloca.h>\n\n"
             "#define PARSEC_%s_NB_TASK_CLASSES %d\n"
