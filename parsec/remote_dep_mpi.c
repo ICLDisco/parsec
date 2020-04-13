@@ -1234,9 +1234,9 @@ static volatile int __VAL_NEXT_TAG = MIN_MPI_TAG;
 #error "next_tag_cas written to support sizeof(int) of 4 or 8"
 #endif
 static inline int next_tag(int k) {
-    int __tag, __next_tag;
+    int __tag, __tag_o, __next_tag;
 reread:
-    __tag = __VAL_NEXT_TAG;
+    __tag = __tag_o = __VAL_NEXT_TAG;
     if( __tag > (MAX_MPI_TAG-k) ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "rank %d tag rollover: min %d < %d (+%d) < max %d", parsec_debug_rank,
                 MIN_MPI_TAG, __tag, k, MAX_MPI_TAG);
@@ -1245,7 +1245,7 @@ reread:
     __next_tag = __tag+k;
 
     if( parsec_comm_es.virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
-        if(!next_tag_cas(&__VAL_NEXT_TAG, __tag, __next_tag)) {
+        if(!next_tag_cas(&__VAL_NEXT_TAG, __tag_o, __next_tag)) {
             goto reread;
         }
     }
