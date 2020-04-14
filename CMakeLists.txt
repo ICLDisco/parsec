@@ -31,6 +31,10 @@ if(POLICY CMP0074)
 ENDIF(POLICY CMP0074)
 
 set(CMAKE_NO_SYSTEM_FROM_IMPORTED True)
+# On OSX only find the Apple frameworks is nothing else is available.
+# Without this option the default is to provide the XCode installed version
+# completely disregarding the versions installed by Mac Ports or Brew.
+set(CMAKE_FIND_FRAMEWORK LAST)
 
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)

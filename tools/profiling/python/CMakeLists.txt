@@ -18,22 +18,12 @@ set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx"
                 "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
                 "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/../../../parsec/parsec_binary_profile.h"
+                "${CMAKE_CURRENT_BINARY_DIR}/common_utils.py"
+                "${CMAKE_CURRENT_BINARY_DIR}/parsec_trace_tables.py"
+                "${CMAKE_CURRENT_BINARY_DIR}/ptt_utils.py"
                 parsec-base)
 set(SETUP_PY    "setup.py")
 set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
-
-# Create FISH environment PaRSEC python support
-configure_file(utilities/fish.env.in
-               ${CMAKE_CURRENT_BINARY_DIR}/utilities/fish.env @ONLY )
-# Create bash environment PaRSEC python support
-configure_file(utilities/bash.env.in
-               ${CMAKE_CURRENT_BINARY_DIR}/utilities/bash.env @ONLY )
-# Create csh and friends environment PaRSEC python support
-configure_file(utilities/csh.env.in
-               ${CMAKE_CURRENT_BINARY_DIR}/utilities/csh.env @ONLY )
-install( FILES ${CMAKE_CURRENT_BINARY_DIR}/utilities/fish.env ${CMAKE_CURRENT_BINARY_DIR}/utilities/bash.env ${CMAKE_CURRENT_BINARY_DIR}/utilities/csh.env
-         DESTINATION ${PARSEC_INSTALL_BINDIR}
-         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
 # Always generate the setup.py first, to include it in the 2to3 conversion
 # if necessary
@@ -65,19 +55,26 @@ if(Python_VERSION_MAJOR GREATER 2)
 endif(Python_VERSION_MAJOR GREATER 2)
 
 add_custom_command(OUTPUT ${OUTPUT}
-                   COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/${SETUP_PY} build_ext --quiet
+                   COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/${SETUP_PY} build --quiet
                    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
                    DEPENDS ${DEPS}
                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
 
+# Call python distutils to install all python support in the right location
+# (aka. according to the OS demands). Prepare to reconfigure the shell
+# helper scripts to point to the right location
 install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} \"${CMAKE_CURRENT_BINARY_DIR}/${SETUP_PY}\" install --skip-build --prefix=${CMAKE_INSTALL_PREFIX} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
 
-# We need to install the rest of the python profiling support file into the correct
-# python location (same as the generated python module). This should be
-# ${CMAKE_INSTALL_PREFIX}/lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages
-install( FILES ${CMAKE_CURRENT_BINARY_DIR}/common_utils.py ${CMAKE_CURRENT_BINARY_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_BINARY_DIR}/ptt_utils.py
-         DESTINATION ${PARSEC_INSTALL_LIBDIR}/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages)
+# Create bash environment PaRSEC python support
+configure_file(utilities/bash.env.in
+               ${CMAKE_CURRENT_BINARY_DIR}/utilities/bash.env @ONLY )
+# Create csh and friends environment PaRSEC python support
+configure_file(utilities/csh.env.in
+               ${CMAKE_CURRENT_BINARY_DIR}/utilities/csh.env @ONLY )
+install( FILES ${CMAKE_CURRENT_BINARY_DIR}/utilities/bash.env ${CMAKE_CURRENT_BINARY_DIR}/utilities/csh.env
+         DESTINATION ${PARSEC_INSTALL_BINDIR}
+         PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
 # Install the files from the binary directory after being translated
 # by the 2to3 tool.
