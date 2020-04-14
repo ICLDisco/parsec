@@ -673,6 +673,8 @@ parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
                              gpu_device->cuda_index, mem_elem_per_gpu, eltsize );
     }
 #endif
+    gpu_device->mem_block_size = eltsize;
+    gpu_device->mem_nb_blocks = mem_elem_per_gpu;
 
     return PARSEC_SUCCESS;
 }

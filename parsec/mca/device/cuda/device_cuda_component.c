@@ -32,7 +32,7 @@ static int device_cuda_component_query(mca_base_module_2_0_0_t **module, int *pr
 static int device_cuda_component_register(void);
 
 int use_cuda_index, use_cuda;
-int cuda_mask, cuda_verbosity;
+int cuda_mask, cuda_verbosity, cuda_nvlink_mask;
 int cuda_memory_block_size, cuda_memory_percentage, cuda_memory_number_of_blocks;
 int parsec_cuda_output_stream = -1;
 
@@ -164,6 +164,9 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
         int canAccessPeer;
         source_gpu->peer_access_mask = 0;
 
+        if( ! ( (1<<i) & cuda_nvlink_mask ) )
+            continue; /* The user disabled NVLINK for that GPU */
+        
         cudastatus = cudaSetDevice( source_gpu->cuda_index );
         PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaSetDevice ", cudastatus,
                                  {continue;} );
@@ -207,6 +210,9 @@ static int device_cuda_component_register(void)
     (void)parsec_mca_param_reg_int_name("device_cuda", "mask",
                                         "The bitwise mask of CUDA devices to be enabled (default all)",
                                         false, false, 0xffffffff, &cuda_mask);
+     (void)parsec_mca_param_reg_int_name("device_cuda", "nvlink_mask",
+                                        "What devices are allowed to use NVLINK if available (default all)",
+                                        false, false, 0xffffffff, &cuda_nvlink_mask);
     (void)parsec_mca_param_reg_int_name("device_cuda", "verbose",
                                         "Set the verbosity level of the CUDA device (negative value: use debug verbosity), higher is less verbose)\n",
                                         false, false, -1, &cuda_verbosity);
