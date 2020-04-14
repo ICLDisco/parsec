@@ -66,16 +66,13 @@ add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
 # helper scripts to point to the right location
 install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} \"${CMAKE_CURRENT_BINARY_DIR}/${SETUP_PY}\" install --skip-build --prefix=${CMAKE_INSTALL_PREFIX} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
 
-# Create FISH environment PaRSEC python support
-configure_file(utilities/fish.env.in
-               ${CMAKE_CURRENT_BINARY_DIR}/utilities/fish.env @ONLY )
 # Create bash environment PaRSEC python support
 configure_file(utilities/bash.env.in
                ${CMAKE_CURRENT_BINARY_DIR}/utilities/bash.env @ONLY )
 # Create csh and friends environment PaRSEC python support
 configure_file(utilities/csh.env.in
                ${CMAKE_CURRENT_BINARY_DIR}/utilities/csh.env @ONLY )
-install( FILES ${CMAKE_CURRENT_BINARY_DIR}/utilities/fish.env ${CMAKE_CURRENT_BINARY_DIR}/utilities/bash.env ${CMAKE_CURRENT_BINARY_DIR}/utilities/csh.env
+install( FILES ${CMAKE_CURRENT_BINARY_DIR}/utilities/bash.env ${CMAKE_CURRENT_BINARY_DIR}/utilities/csh.env
          DESTINATION ${PARSEC_INSTALL_BINDIR}
          PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
