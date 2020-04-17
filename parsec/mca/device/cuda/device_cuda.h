@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2019 The University of Tennessee and The University
+ * Copyright (c) 2010-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,16 +23,17 @@ BEGIN_C_DECLS
 
 #define PARSEC_GPU_USE_PRIORITIES     1
 
-#define GPU_TASK_TYPE_D2HTRANSFER 111
-
 struct parsec_gpu_task_s;
 typedef struct parsec_gpu_task_s parsec_gpu_task_t;
 
-struct __parsec_gpu_exec_stream;
-typedef struct __parsec_gpu_exec_stream parsec_gpu_exec_stream_t;
+struct parsec_gpu_exec_stream_s;
+typedef struct parsec_gpu_exec_stream_s parsec_gpu_exec_stream_t;
 
 struct parsec_device_cuda_module_s;
 typedef struct parsec_device_cuda_module_s parsec_device_cuda_module_t;
+
+struct parsec_gpu_workspace_s;
+typedef struct parsec_gpu_workspace_s parsec_gpu_workspace_t;
 
 extern parsec_device_base_component_t parsec_device_cuda_component;
 
@@ -73,6 +74,51 @@ struct parsec_gpu_task_s {
           parsec_data_copy_t        *copy;
         };
     };
+};
+
+struct parsec_device_cuda_module_s {
+    parsec_device_module_t    super;
+    uint8_t                   cuda_index;
+    uint8_t                   major;
+    uint8_t                   minor;
+    uint8_t                   max_exec_streams;
+    int16_t                   peer_access_mask;  /**< A bit set to 1 represent the capability of
+                                                  *   the device to access directly the memory of
+                                                  *   the index of the set bit device.
+                                                  */
+    volatile int32_t          mutex;
+    uint64_t                  data_avail_epoch;  /**< Identifies the epoch of the data status on the devide. It
+                                                  *   is increased every time a new data is made available, so
+                                                  *   that we know which tasks can be evaluated for submission.
+                                                  */
+    parsec_gpu_exec_stream_t *exec_stream;
+    parsec_list_t             gpu_mem_lru;   /* Read-only blocks, and fresh blocks */
+    parsec_list_t             gpu_mem_owned_lru;  /* Dirty blocks */
+    parsec_fifo_t             pending;
+    struct zone_malloc_s     *memory;
+    parsec_list_item_t       *sort_starting_p;
+};
+
+struct parsec_gpu_exec_stream_s {
+    /* There is exactly one task per active event (max_events being the uppoer bound).
+     * Upon event completion the complete_stage function associated with the task is
+     * called, and this will decide what is going on next with the task. If the task
+     * remains in the system the function is supposed to update it.
+     */
+    struct parsec_gpu_task_s        **tasks;
+    cudaEvent_t                      *events;
+    cudaStream_t                      cuda_stream;
+    char                             *name;
+    int32_t                           max_events;  /* number of potential events, and tasks */
+    int32_t                           executed;    /* number of executed tasks */
+    int32_t                           start;  /* circular buffer management start and end positions */
+    int32_t                           end;
+    parsec_list_t                    *fifo_pending;
+    parsec_gpu_workspace_t           *workspace;
+#if defined(PARSEC_PROF_TRACE)
+    parsec_thread_profiling_t        *profiling;
+    int                               prof_event_track_enable;
+#endif  /* defined(PROFILING) */
 };
 
 /**
