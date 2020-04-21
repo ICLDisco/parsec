@@ -18,16 +18,15 @@
 BEGIN_C_DECLS
 
 /**
- * Mark a execution context as being ready to be scheduled, i.e. all
- * input dependencies are resolved. The execution context can be
- * executed immediately or delayed until resources become available.
+ * Mark tasks (ring) as being ready to be scheduled, i.e. all input
+ * dependencies are resolved. These tasks can be progressed immediately
+ * or delayed until resources become available.
  *
- * @param[in] eu The execution unit where the tasks are to be proposed
+ * @param[in] es The execution stream where the task is to be proposed
  *             for scheduling. This is a hint, as the scheduling engine
- *             is free to push them where it decides.
- * @param[in] ec The execution context to be executed. This include
- *             calling the attached hook (if any) as well as marking
- *             all dependencies as completed.
+ *             is free to push the task where it decides.
+ * @param[in] task_ring A ring of tasks to be executed. The next step in each
+ *            task execution will depend on the DSL engine.
  * @param[in] distance Suggested distance to the current state where the tasks
  *             are to be pushed. The larger the value (in absolute) the
  *             further away the tasks will be pushed. This is a hint
