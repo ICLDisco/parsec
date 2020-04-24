@@ -885,9 +885,6 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
   DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class)
 install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
-  DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
-install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/remote_dep.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_description_structures.h
@@ -1049,7 +1046,6 @@ write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECT
 install(FILES
   ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/PaRSECConfig.cmake
   ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/ParsecConfigVersion.cmake
-  ${PROJECT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindPAPI.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindOTF2.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake
