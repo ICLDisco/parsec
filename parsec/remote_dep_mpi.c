@@ -749,8 +749,8 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                     memcpy(packed_buffer, dep_activate_buff[storage_id] + *position, origin->msg.length);
                     *position += origin->msg.length;  /* move to the next order */
                     origin->taskpool = (parsec_taskpool_t*)packed_buffer;  /* temporary storage */
-                    parsec_dtd_track_remote_dep( dtd_tp, key, origin );
                 }
+                parsec_dtd_track_remote_dep( dtd_tp, key, origin );
             }
 
             parsec_hash_table_unlock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
@@ -2163,15 +2163,17 @@ static void remote_dep_mpi_new_taskpool( parsec_execution_stream_t* es,
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                     deps->msg.deps, deps->msg.output_mask);
 
+            item = parsec_list_nolock_remove(&dep_activates_noobj_fifo, item);
+
             /* In case of DTD execution, receiving rank might not have discovered
              * the task responsible for this message. So we have to put this message
              * in a hash table so that we can activate it, when this rank discovers it.
              */
             if( -2 == rc ) { /* DTD problems, defer activating this remote dep */
+                deps->taskpool = (parsec_taskpool_t*) buffer;
                 continue;
             }
 
-            item = parsec_list_nolock_remove(&dep_activates_noobj_fifo, item);
 
             remote_dep_mpi_recv_activate(es, deps, buffer, deps->msg.length, &position);
             free(buffer);
