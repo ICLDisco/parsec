@@ -744,6 +744,17 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             if( NULL == dtd_task ) {
                 return_defer = 1;
 
+                /* AM buffers are reused by the comm engine once the activation
+                 * has been conveyed to upper layer. In case of DTD we might receive msg to
+                 * activate a task that the local node (the recipient of the activation)
+                 * have not discovered yet. In that case we need to store the buffer,
+                 * but note, we only need to store it the first time we are receiving this
+                 * activation. PARSEC_DTD_SKIP_SAVING indicates whether this is the first
+                 * time or not. Since, this function is called from other places (when
+                 * we later try to activate a task for which we have already received
+                 * an activation for) we do not need to store the buffer and we send
+                 * PARSEC_DTD_SKIP_SAVING as an indicaton of that.
+                 */
                 if( storage_id != PARSEC_DTD_SKIP_SAVING) {
                     char* packed_buffer;
                     /* Copy the eager data to some temp storage */
