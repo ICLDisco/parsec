@@ -61,8 +61,9 @@ fake_data_of(parsec_data_collection_t *mat, ...)
                                      0, 0 );
 }
 
-/***************************************************************************//**
- *  Internal static descriptor initializer (PLASMA code)
+/***************************************************************************/
+/**
+ *  Internal static descriptor initializer
  **/
 void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
                              enum matrix_type    mtyp,

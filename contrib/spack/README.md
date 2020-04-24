@@ -17,7 +17,12 @@ spack load parsec
 
 ## Recommended version
 
-Until the next stable release (2.0), it is recommended to use the _devel_ version.
+The master branch is considered production stable and is the recommended
+version.
+
+For users that favor a stable API, dated releases do not
+introduce API changes between patchlevels (e.g., from 19.11.0 to 19.11.1).
+
 
 
 ## Variants
@@ -34,7 +39,3 @@ Until the next stable release (2.0), it is recommended to use the _devel_ versio
 [PaRSEC]: http://icl.utk.edu/parsec/
 [Spack]: https://spack.readthedocs.io/en/latest/index.html
 [DPlasma]: http://icl.utk.edu/dplasma/
-[ScaLAPACK]: http://www.netlib.org/scalapack/
-[Plasma]: https://bitbucket.org/icl/plasma
-[plasma-installer]: http://icl.cs.utk.edu/projectsfiles/plasma/pubs/plasma-installer_2.8.0.tar.gz
-[plasma-tarball]: https://bitbucket.org/icl/plasma/downloads/plasma-2.8.tar.gz

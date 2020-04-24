@@ -195,13 +195,13 @@ void* cuda_find_incarnation(parsec_device_cuda_module_t* gpu_device,
     }
     else {
         capability = cuda_legal_compute_capabilitites[index];
-        snprintf(function_name, FILENAME_MAX, "%s_SM%2d", fname, capability);
+        snprintf(function_name, FILENAME_MAX, "%s_sm%2d", fname, capability);
     }
 
-    if( capability )
-        snprintf(library_name,  FILENAME_MAX, "libdplasma_cucores_sm%d.so", capability);
-    else
-        snprintf(library_name,  FILENAME_MAX, "libdplasma_cores_cuda.so");
+    /* Try this by default, if not present its fine. CUCORES_LIB above can
+     * contain a path to the fully named library if this default does not make
+     * sense. */
+    snprintf(library_name, FILENAME_MAX, "%s.so", fname);
 
     fn = parsec_device_find_function(function_name, library_name, (const char**)argv);
     if( NULL == fn ) {  /* look for the function with lesser capabilities */

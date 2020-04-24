@@ -3,12 +3,12 @@
 # interface (see http://www.open-mpi.org/projects/hwloc/).
 #
 # This module sets the following variables:
-#  HWLOC_FOUND - set to true if a library implementing the PLASMA interface
+#  HWLOC_FOUND - set to true if a library implementing the HWLOC interface
 #    is found
 #  HWLOC_LINKER_FLAGS - uncached list of required linker flags (excluding -l
 #    and -L).
 #  HWLOC_LIBRARIES - uncached list of libraries (using full path name) to
-#    link against to use PLASMA
+#    link against to use HWLOC
 #  HWLOC_INCLUDE_DIRS - uncached list of required include directories to
 #    access HWLOC headers
 #  HWLOC_STATIC  if set on this determines what kind of linkage we do (static)
