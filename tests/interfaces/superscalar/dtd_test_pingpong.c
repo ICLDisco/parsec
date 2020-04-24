@@ -36,7 +36,7 @@ task_for_timing_0( parsec_execution_stream_t *es,
 
 int
 task_for_timing_1( parsec_execution_stream_t *es,
-             parsec_task_t *this_task )
+                   parsec_task_t *this_task )
 {
     (void)es; (void)this_task;
 
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
     parsec_matrix_add2arena_rect(parsec_dtd_arenas[TILE_FULL],
                                  parsec_datatype_int32_t,
@@ -179,19 +179,19 @@ int main(int argc, char **argv)
 
 
     /* Start of Pingpong timing */
+    int repeat_pingpong = 1;
     if( 0 == rank ) {
         parsec_output( 0, "\nChecking time of pingpong. We send data from rank 0 to rank 1 "
-                       "And vice versa.\nWe perform this pingpong for 1000 times and measure the time. "
-                       "We report the time for different size of data.\n\n" );
+            "And vice versa.\nWe perform this pingpong for %d times and measure the time. "
+            "We report the time for different size of data for each trip.\n\n", repeat_pingpong );
     }
 
-    int repeat_pingpong = 1000;
     int sizes_of_data = 4, i, j;
     int sizes[4] = {100, 1000, 10000, 100000};
 
 
     for( i = 0; i < sizes_of_data; i++ ) {
-        dtd_tp = parsec_dtd_taskpool_new(  );
+        dtd_tp = parsec_dtd_taskpool_new();
 
         rc = parsec_context_add_taskpool( parsec, dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");

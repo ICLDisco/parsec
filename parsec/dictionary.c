@@ -469,8 +469,8 @@ struct param_s {
 static int parsec_profiling_dump_header_shmem(void)
 {
     if (dict->shmem && dict->shmem->buffer) {
-	/* Shmem object is activated using mca param, and shmem area is opened */
-	sprintf(dict->shmem->buffer+3*sizeof(int), "%s", dict->shmem->header);
+        /* Shmem object is activated using mca param, and shmem area is opened */
+        sprintf((char*)dict->shmem->buffer+3*sizeof(int), "%s", dict->shmem->header);
     }
     return PARSEC_SUCCESS;
 }
@@ -699,7 +699,7 @@ void parsec_profiling_evaluate_property(void *item, void* cb_data)
     struct parsec_execution_stream_s *exec_unit = (struct parsec_execution_stream_s*)tmp[0];
     struct parsec_task_s *task = (struct parsec_task_s*)tmp[1];
 
-    void *buf = dict->shmem->buffer + (dict->shmem->first_eu + exec_unit->th_id)*DICT_PAGE_SIZE + pr->func.offset;
+    void *buf = (char*)dict->shmem->buffer + (dict->shmem->first_eu + exec_unit->th_id)*DICT_PAGE_SIZE + pr->func.offset;
 
     switch (pr->func.type) {
     case PROPERTIES_INT32:
@@ -864,7 +864,7 @@ int parsec_profiling_add_taskpool_properties(parsec_taskpool_t *h)
 	    int exists = parsec_profiling_tree_look_for_path(dict->tree);
 
 	    parsec_profiling_property_t* pr_bucket = (parsec_profiling_property_t*) parsec_profiling_tree_add_missing_buckets(dict->tree);
-	    pr_bucket->func.type = p->expr->u_expr.v_func.type;
+	    pr_bucket->func.type = (parsec_profiling_datatype_t)p->expr->u_expr.v_func.type;
 	    pr_bucket->state |= PROPERTY_PROVIDED;
 	    pr_bucket->type = PROFILING_PER_EU;
 	    pr_bucket->accumulate = CUMULATIVE;

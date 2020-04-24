@@ -68,7 +68,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
                                int P )
 {
     int temp, Q;
-    parsec_data_collection_t       *o     = &(dc->super.super);
+    parsec_data_collection_t *o     = &(dc->super.super);
     parsec_tiled_matrix_dc_t *tdesc = &(dc->super);
 
     /* Initialize the tiled_matrix descriptor */

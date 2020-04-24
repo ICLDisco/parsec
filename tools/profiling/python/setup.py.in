@@ -127,10 +127,14 @@ setup(
     description='PaRSEC Binary Trace Interface parses and converts the PaRSEC Binary Trace format into a pandas-based Python tabular format',
     url='http://icl.cs.utk.edu/parsec/',
     package_dir={ '': '@CMAKE_CURRENT_SOURCE_DIR@'},
+    py_modules=['ptt_utils', 'parsec_trace_tables', 'common_utils'],
     cmdclass = {'build_ext': local_compiler_build_ext},
     ext_modules = cythonize(extensions),
     author='George Bosilca',
     license='BSD',
+    classifiers =["License :: OSI Approved :: BSD",
+                  "Programming Language :: C",
+                  "Topic :: Software Development :: Libraries :: Python Modules"],
     platforms=['all']
 )
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2019 The University of Tennessee and The University
+ * Copyright (c) 2010-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,7 +15,6 @@
 #include "parsec/runtime.h"
 #include "parsec/data_internal.h"
 #include "parsec/mca/device/cuda/device_cuda_internal.h"
-#include "parsec/mca/device/cuda/device_cuda.h"
 #include "parsec/profiling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/arena.h"
@@ -1340,7 +1339,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
                          (NULL == in_elem_dev) ? "h2d" : (in_elem_dev->super.type == PARSEC_DEV_CUDA ? "D2D": "H2D"),
                          gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, original->nb_elts,
                          in_elem->version, gpu_elem->version);
-    parsec_atomic_unlock( &original->lock );                    
+    parsec_atomic_unlock( &original->lock );
     if( NULL != release_after_data_in_is_attached )
         PARSEC_OBJ_RELEASE(release_after_data_in_is_attached);
     /* TODO: data keeps the same coherence flags as before */

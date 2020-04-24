@@ -77,8 +77,8 @@ void parsec_pins_init(parsec_context_t* master_context)
                        module->component->base_version.mca_component_name);
                 modules_activated[num_modules_activated++] = module;
 #if defined(PARSEC_PROF_TRACE)
-                strncat(modules_activated_str, pins_components[i]->mca_component_name, MAX_NAME_SIZE);
-                strncat(modules_activated_str, ",", 1);
+                strncat(modules_activated_str, pins_components[i]->mca_component_name, MAX_NAME_SIZE-strlen(modules_activated_str));
+                strncat(modules_activated_str, ",", MAX_NAME_SIZE-strlen(modules_activated_str));
 #endif
             }
         }

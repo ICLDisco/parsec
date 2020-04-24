@@ -33,27 +33,8 @@ if(@PARSEC_HAVE_PAPI@)
 endif(@PARSEC_HAVE_PAPI@)
 
 if(@PARSEC_DIST_WITH_MPI@)
-  include(CheckCSourceCompiles)
-  # Test first if we are using a wrapper as the compiler
-  # In that case, we don't need to change the include path and
-  # dependent libraries.
-  CHECK_C_SOURCE_COMPILES("#include <mpi.h>
-                           int main(int argc, char *argv[]) {
-                             MPI_Init(&argc, &argv);
-                             MPI_Barrier(MPI_COMM_WORLD);
-                             MPI_Finalize();
-                             return 0;
-                           }" CC_CONTAINS_MPI)
-  if( CC_CONTAINS_MPI )
-    # Create fake MPI:: targets
-    set(MPI_C_FOUND TRUE)
-    add_library(MPI::MPI_C INTERFACE IMPORTED)
-    set(MPI_Fortran_FOUND TRUE)
-    add_library(MPI::MPI_Fortran INTERFACE IMPORTED)
-  else( CC_CONTAINS_MPI )
-    # Otherwise try to find MPI in the normal way
-    find_package(MPI REQUIRED)
-  endif( CC_CONTAINS_MPI )
+  # Otherwise try to find MPI in the normal way
+  find_package(MPI REQUIRED)
 endif(@PARSEC_DIST_WITH_MPI@)
 
 if(@PARSEC_HAVE_CUDA@)

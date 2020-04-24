@@ -47,7 +47,7 @@ static inline int minexpr_of_row_fct(const parsec_taskpool_t *tp, const parsec_a
 }
 static const parsec_expr_t minexpr_of_row = {
     .op = PARSEC_EXPR_OP_INLINE,
-    .u_expr.v_func = { .type = 0,
+    .u_expr.v_func = { .type = PARSEC_RETURN_TYPE_INT32,
                        .func = { .inline_func_int32 = minexpr_of_row_fct }
     }
 };
@@ -61,7 +61,7 @@ static inline int maxexpr_of_row_fct(const parsec_taskpool_t *tp, const parsec_a
 }
 static const parsec_expr_t maxexpr_of_row = {
     .op = PARSEC_EXPR_OP_INLINE,
-    .u_expr.v_func = { .type = 0,
+    .u_expr.v_func = { .type = PARSEC_RETURN_TYPE_INT32,
                        .func = { .inline_func_int32 = maxexpr_of_row_fct }
     }
 };
@@ -80,7 +80,7 @@ static inline int minexpr_of_column_fct(const parsec_taskpool_t *tp, const parse
 
 static const parsec_expr_t minexpr_of_column = {
     .op = PARSEC_EXPR_OP_INLINE,
-    .u_expr.v_func = { .type = 0,
+    .u_expr.v_func = { .type = PARSEC_RETURN_TYPE_INT32,
                        .func = { .inline_func_int32 = minexpr_of_column_fct }
     }
 };
@@ -95,7 +95,7 @@ static inline int maxexpr_of_column_fct(const parsec_taskpool_t *tp, const parse
 }
 static const parsec_expr_t maxexpr_of_column = {
     .op = PARSEC_EXPR_OP_INLINE,
-    .u_expr.v_func = { .type = 0,
+    .u_expr.v_func = { .type = PARSEC_RETURN_TYPE_INT32,
                        .func = { .inline_func_int32 = maxexpr_of_column_fct }
     }
 };

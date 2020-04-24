@@ -111,7 +111,7 @@ struct parsec_context_s {
     volatile int32_t active_taskpools;
     volatile int32_t flags;
 
-    void*   comm_ctx;    /**< opaque communication context */
+    intptr_t comm_ctx;   /**< opaque communication context */
     int32_t nb_nodes;    /**< nb of physical processes */
     int32_t my_rank;     /**< rank of this physical process */
 

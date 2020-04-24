@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1354,9 +1354,7 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
             "#include \"parsec/ayudame.h\"\n"
             "#include \"parsec/execution_stream.h\"\n"
             "#if defined(PARSEC_HAVE_CUDA)\n"
-            "extern int parsec_cuda_output_stream;\n"
             "#include \"parsec/mca/device/cuda/device_cuda.h\"\n"
-            "#include \"parsec/mca/device/cuda/device_cuda_internal.h\"\n"
             "#endif  /* defined(PARSEC_HAVE_CUDA) */\n"
             "#include <alloca.h>\n\n"
             "#define PARSEC_%s_NB_TASK_CLASSES %d\n"
@@ -2225,7 +2223,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
             string_arena_add_string(psa, "%s&%s", sep, JDF_OBJECT_ONAME(dl));
             sprintf(sep, ",\n ");
         } else if( dl->guard->guard_type == JDF_GUARD_TERNARY ) {
-            jdf_expr_t not = {{0},};
+            jdf_expr_t not = {0};
 
             sprintf(depname, "%s_iftrue", JDF_OBJECT_ONAME(dl));
             sprintf(condname, "expr_of_cond_for_%s", depname);
@@ -2838,7 +2836,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 "                         this_task->taskpool->taskpool_id, NULL);\n"
                 "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
     }
-    
+
     info.sa = sa1;
     info.prefix = "";
     info.suffix = "";
@@ -2865,7 +2863,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     coutput("%s    __jdf2c_%s_max = parsec_imax(__jdf2c_%s_max, __%s_max);\n",
                             indent(nesting), dl->name, dl->name, dl->name);
                 }
-                
+
                 /* Adapt the loop condition depending on the value of the increment. We can
                  * now handle both increasing and decreasing execution spaces. */
                 if( JDF_OP_IS_CST(dl->expr->jdf_ta3->op) ) {
@@ -3065,14 +3063,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 "                           this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id + 1],\n"
                 "                           0,\n"
                 "                           this_task->taskpool->taskpool_id, NULL);\n"
-                "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
-    }
-    if( profile_enabled(f->properties) ) {    
-        coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
-                "  PARSEC_PROFILING_TRACE(es->es_profile,\n"
-                "                         this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id + 1],\n"
-                "                         0,\n"
-                "                         this_task->taskpool->taskpool_id, NULL);\n"
                 "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
     }
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
@@ -3862,9 +3852,10 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     string_arena_init(sa1);
     idx = 0;
     for(jdf_function_entry_t *f = jdf->functions; f != NULL; f = f->next) {
-        coutput("  tc = (parsec_task_class_t *)__parsec_tp->super.super.task_classes_array[__parsec_tp->super.super.nb_task_classes+%d];\n"
+        coutput("  /* Startup task for %s */\n"
+                "  tc = (parsec_task_class_t *)__parsec_tp->super.super.task_classes_array[__parsec_tp->super.super.nb_task_classes+%d];\n"
                 "  tc->name = \"Startup for %s\";\n",
-                idx, f->fname);
+                f->fname, idx, f->fname);
         idx++;
         coutput("  tc->prepare_input = (parsec_hook_t*)%s_%s_internal_init;\n",
                 jdf_basename, f->fname);
@@ -6487,7 +6478,7 @@ int jdf_optimize( jdf_t* jdf )
         jdf_check_relatives(f, JDF_DEP_FLOW_IN, JDF_FUNCTION_FLAG_NO_PREDECESSORS);
 
         can_be_startup = 1;
-        UTIL_DUMP_LIST(sa, f->dataflow, next, has_ready_input_dependency, &can_be_startup, NULL, NULL, NULL, NULL);
+        UTIL_DUMP_LIST(sa, f->dataflow, next, has_ready_input_dependency, &can_be_startup, "", "", "", "");
         if( can_be_startup ) {
             f->flags |= JDF_FUNCTION_FLAG_CAN_BE_STARTUP;
         }

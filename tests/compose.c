@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The University of Tennessee and The University
+ * Copyright (c) 2018-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,6 +7,7 @@
 #include "parsec.h"
 #include "parsec/execution_stream.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include <string.h>
 
 #define TYPE  matrix_Integer
 

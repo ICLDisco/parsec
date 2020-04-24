@@ -271,7 +271,7 @@ int parsec_set_scheduler( parsec_context_t *parsec )
 
 /*
  * This is where we end up after the release_dep_fct is called and generates a
- * readylist. the new_context IS the readylist.
+ * readylist.
  */
 int __parsec_schedule(parsec_execution_stream_t* es,
                       parsec_task_t* tasks_ring,
@@ -625,6 +625,10 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
         tp->on_enqueue(tp, tp->on_enqueue_data);
     }
 
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_add_taskpool_properties(tp);
+#endif
+
     if( NULL != tp->startup_hook ) {
         parsec_task_t **startup_list;
         int vpid;
@@ -646,10 +650,6 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     } else {
         parsec_check_complete_cb(tp, context, tp->nb_pending_actions);
     }
-
-#if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_add_taskpool_properties(tp);
-#endif
 
     return 0;
 }

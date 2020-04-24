@@ -168,7 +168,7 @@ int main(int argc, char* argv[])
         MPI_Comm_size(comm, &size);
         MPI_Comm_rank(comm, &rank);
         printf("Starting the test %d (%d/%d)\n", i, rank, size);
-        parsec_remote_dep_set_ctx(parsec, (void*)comm);
+        parsec_remote_dep_set_ctx(parsec, (intptr_t)comm);
 #endif  /* DISTRIBUTED */
         mat_size = 2*BLOCK*size*ni;
         two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,

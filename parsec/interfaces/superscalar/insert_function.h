@@ -54,7 +54,7 @@ BEGIN_C_DECLS
  *                  runtime will place the task in the rank where the data, this flag was provided with,
  *                  resides.
  *  DONT_TRACK:     This flag indicates to the runtime to not track any dependency associated with the
- *                  data this flag was provided with.
+ *                  data this flag was provided to.
  *
  *  Lower 16 bits:  Index (arbitrary value) for different REGIONS to express more specific dependency.
  *                  Regions indices are user provided and must be mutually exclusive for the tile.

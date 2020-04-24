@@ -14,8 +14,7 @@ PROGRAM GENERATE_F
      real*8:: d2
   end type dd_type
 
-  integer BLOCK, N, ret
-  parameter (BLOCK=10, N=100)
+  integer ret
   integer(8) info_length, prof_length, event_id
   type(dfi_type), target :: dfi
   type(dd_type), target  :: dd
@@ -49,11 +48,11 @@ PROGRAM GENERATE_F
   event_id = 1
   do i = 1, 1000, 1
      dfi%d = i * 1.0d0
-     dfi%f = i * 1.0d0
+     dfi%f = i * 1.0
      dfi%i = i
      call parsec_profile_trace(prof_tp, k1_start, event_id, 1, &
           C_LOC(dfi), ierr)
-     dfi%f = i * 2.0d0
+     dfi%f = i * 2.0
      call parsec_profile_trace(prof_tp, k1_end, event_id, 1, &
           C_LOC(dfi), ierr)
      call parsec_profile_trace(prof_tp, k3_start, event_id, 1, &
