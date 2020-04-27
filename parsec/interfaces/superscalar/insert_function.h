@@ -26,7 +26,7 @@ BEGIN_C_DECLS
 
 /**
  * To see examples please look at testing_zpotrf_dtd.c, testing_zgeqrf_dtd.c,
- * testing_zgetrf_incpiv_dtd.c files in the directory "root_of_PaRSEC/dplasma/testing/".
+ * testing_zgetrf_incpiv_dtd.c files in the directory "root_of_DPLASMA/tests/testing/".
  * Very simple example of inserting just one task can be found in
  * "root_of_PaRSEC/example/interfaces/superscalar/"
  **/

@@ -362,11 +362,4 @@ int tiles_to_scalapack(parsec_tiled_matrix_dc_t * dc, int * desc, void * sca_mat
     return 0;
 }
 */
-/*
-int scalapack_to_tiles(DPLASMA_desc * dc, int * desc, double ** sca_mat)
-{
-    return 1;
-}
-
-*/
 #endif
