@@ -97,6 +97,8 @@ struct parsec_device_cuda_module_s {
     parsec_fifo_t             pending;
     struct zone_malloc_s     *memory;
     parsec_list_item_t       *sort_starting_p;
+    size_t  mem_block_size;
+    int64_t mem_nb_blocks;
 };
 
 struct parsec_gpu_exec_stream_s {
