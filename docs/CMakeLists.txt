@@ -11,6 +11,7 @@ if (BUILD_DOCUMENTATION)
   if (DOXYGEN_FOUND)
     if(NOT "${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/docs")
       message(STATUS "PaRSEC is pulled as a submodule -- Not generating documentation")
+      return()
     elseif( ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR} )
       message(FATAL_ERROR
         "Because PaRSEC generates many source files at compile time, "

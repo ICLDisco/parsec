@@ -694,7 +694,6 @@ RECURSIVE              = YES
 # run.
 
 EXCLUDE                = @CMAKE_SOURCE_DIR@/examples
-EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/bfr
 EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/gpu
 EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/vim_syntax
 EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/profiling/python/utilities
