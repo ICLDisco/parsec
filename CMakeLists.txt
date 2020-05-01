@@ -886,6 +886,7 @@ install(FILES
   DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/recursive.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/remote_dep.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_description_structures.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datarepo.h
