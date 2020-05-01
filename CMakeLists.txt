@@ -150,8 +150,6 @@ option(PARSEC_DEBUG_NOISIER
   "Enable chatterbox-like verbose debugging (may impact performance)." OFF)
 option(PARSEC_DEBUG_HISTORY
   "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur." OFF)
-option(PARSEC_CALL_TRACE
-  "Enable the output of the kernels call trace during execution" OFF)
 
 ### Simulating Options
 option(PARSEC_SIM
