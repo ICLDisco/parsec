@@ -109,7 +109,7 @@ int main(int argc, char ** argv)
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
     SYNC_TIME_PRINT(rank, ("\n"));

@@ -271,7 +271,7 @@ parsec_dtd_data_collection_fini( parsec_data_collection_t *dc );
  * tasks, and has no callback associated with.
  */
 parsec_taskpool_t*
-parsec_dtd_taskpool_new();
+parsec_dtd_taskpool_new(void);
 
 /**
  * This function will block until all the tasks inserted
@@ -281,8 +281,7 @@ parsec_dtd_taskpool_new();
  * Takes a parsec context and a parsec taskpool as input.
  */
 int
-parsec_dtd_taskpool_wait( parsec_context_t *parsec,
-                          parsec_taskpool_t  *tp );
+parsec_dtd_taskpool_wait( parsec_taskpool_t  *tp );
 
 /**
  * This function flushes a specific data,
@@ -324,8 +323,7 @@ parsec_dtd_get_taskpool(parsec_task_t *this_task);
  * Taskpools are automatically dequeued in parsec_context_wait()
  */
 int
-parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp,
-                            parsec_context_t  *context);
+parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp);
 
 /**
  * @}

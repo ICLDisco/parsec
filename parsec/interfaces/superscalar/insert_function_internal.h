@@ -86,7 +86,7 @@ struct parsec_dtd_task_param_s {
     parsec_dtd_task_param_t *next;
 };
 
-typedef void (parsec_taskpool_wait_t)( parsec_context_t *context, parsec_taskpool_t *tp );
+typedef void (parsec_taskpool_wait_t)( parsec_taskpool_t *tp );
 
 #define SUCCESSOR_ITERATED (1<<0)
 #define TASK_INSERTED (1<<1)
@@ -367,8 +367,7 @@ parsec_dtd_task_release( parsec_dtd_taskpool_t  *tp,
                          uint32_t             key );
 
 void
-parsec_execute_and_come_back( parsec_context_t *context,
-                              parsec_taskpool_t  *tp,
+parsec_execute_and_come_back( parsec_taskpool_t  *tp,
                               int task_threshold_count );
 
 parsec_dep_t *
