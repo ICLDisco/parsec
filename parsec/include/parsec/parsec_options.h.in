@@ -77,7 +77,6 @@
 #cmakedefine PARSEC_DEBUG_NOISIER
 #cmakedefine PARSEC_DEBUG_HISTORY
 #cmakedefine PARSEC_LIFO_USE_ATOMICS
-#cmakedefine PARSEC_CALL_TRACE
 
 /* profiling */
 #cmakedefine PARSEC_PROF_TRACE
