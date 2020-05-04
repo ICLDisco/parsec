@@ -82,7 +82,8 @@ test_task_generator( parsec_execution_stream_t *es,
     parsec_dtd_data_flush(dtd_tp, PARSEC_DTD_TILE_OF_KEY(B, rank));
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_taskpool_wait( es->virtual_process->parsec_context, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
     parsec_dtd_data_collection_fini(B);
     free_data(dcB);
@@ -153,7 +154,7 @@ int main(int argc, char ** argv)
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
     parsec_output( 0, "Successfully executed %d tasks in rank %d\n", count, parsec->my_rank );

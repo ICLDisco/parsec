@@ -141,7 +141,7 @@ int main(int argc, char ** argv)
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
@@ -171,7 +171,7 @@ int main(int argc, char ** argv)
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
     }
@@ -197,7 +197,7 @@ int main(int argc, char ** argv)
                                         PARSEC_DTD_ARG_END);
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));

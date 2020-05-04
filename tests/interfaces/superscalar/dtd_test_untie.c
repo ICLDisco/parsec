@@ -154,7 +154,7 @@ int main(int argc, char ** argv)
             parsec_dtd_data_flush(dtd_tp, PARSEC_DTD_TILE_OF_KEY(A, n));
         }
         /* finishing all the tasks inserted, but not finishing the taskpool */
-        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
         SYNC_TIME_PRINT(rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));
@@ -177,7 +177,7 @@ int main(int argc, char ** argv)
         }
 
         /* finishing all the tasks inserted, but not finishing the taskpool */
-        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
         SYNC_TIME_PRINT(rank, ("No of chains : %d, No of tasks in each chain: %d,  Amount of work: %d\n", no_of_chain, tasks_in_each_chain[i], amount_of_work[work_index]));

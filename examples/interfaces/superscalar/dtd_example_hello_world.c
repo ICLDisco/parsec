@@ -46,7 +46,7 @@ task_hello_world( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = 1;
+    int rc, rank, world, cores = 1;
 
     /* Initializing MPI */
 #if defined(PARSEC_HAVE_MPI)
@@ -72,9 +72,11 @@ int main(int argc, char ** argv)
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_context_add_taskpool( parsec, dtd_tp );
+    rc = parsec_context_add_taskpool( parsec, dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     /* Starting the parsec_context */
-    parsec_context_start( parsec );
+    rc = parsec_context_start( parsec );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     /* Inserting task to print Hello World
      * and the rank of the process
@@ -84,10 +86,11 @@ int main(int argc, char ** argv)
                                     PARSEC_DTD_ARG_END);
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_taskpool_wait( parsec, dtd_tp );
-
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
     /* Waiting on the context */
-    parsec_context_wait(parsec);
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     /* Cleaning the parsec handle */
     parsec_taskpool_free( dtd_tp );

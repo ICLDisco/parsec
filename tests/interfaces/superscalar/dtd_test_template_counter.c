@@ -106,10 +106,10 @@ int main(int argc, char **argv)
                             PARSEC_DTD_ARG_END );
     }
 
-    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
-    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
     for( i = 0; i < world - 1; i++ ) {
@@ -123,7 +123,7 @@ int main(int argc, char **argv)
     }
 
     parsec_dtd_data_flush_all( dtd_tp, A );
-    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
     parsec_taskpool_free( dtd_tp );
 

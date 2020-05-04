@@ -126,36 +126,37 @@ static inline unsigned long exponential_backoff(uint64_t k)
     return r * TIME_STEP;
 }
 
-void
-parsec_detach_dtd_taskpool_from_context(parsec_taskpool_t *tp,
-                                        parsec_context_t  *context)
+static void
+parsec_detach_dtd_taskpool_from_context(parsec_taskpool_t *tp)
 {
     assert(tp != NULL);
-    assert(context != NULL);
-    parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-    (void)context;
-    (void)dtd_tp;
-    assert(dtd_tp->enqueue_flag);
+    assert(((parsec_dtd_taskpool_t*)tp)->enqueue_flag);
     parsec_taskpool_update_runtime_nbtask(tp, -1);
 }
 
 int
-parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp,
-                            parsec_context_t  *context)
+parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp)
 {
     int should_dequeue = 0;
-    parsec_list_lock(context->taskpool_list);
-    if(parsec_list_nolock_contains(context->taskpool_list,
+    if( NULL == tp->context ) {
+        return PARSEC_NOT_SUPPORTED;
+    }
+    /* If the taskpool is attached to a context then we better find it
+     * taskpool_list.
+     */
+    parsec_list_lock(tp->context->taskpool_list);
+    if(parsec_list_nolock_contains(tp->context->taskpool_list,
                                    (parsec_list_item_t *)tp)) {
         should_dequeue = 1;
-        parsec_list_nolock_remove(context->taskpool_list,
+        parsec_list_nolock_remove(tp->context->taskpool_list,
                                   (parsec_list_item_t *)tp);
     }
-    parsec_list_unlock(context->taskpool_list);
+    parsec_list_unlock(tp->context->taskpool_list);
     if(should_dequeue) {
-        parsec_detach_dtd_taskpool_from_context(tp, context);
+        parsec_detach_dtd_taskpool_from_context(tp);
+        return 0;
     }
-    return 1;
+    return PARSEC_ERR_NOT_FOUND;
 }
 
 void
@@ -164,7 +165,7 @@ parsec_detach_all_dtd_taskpool_from_context(parsec_context_t *context)
     if(NULL != context->taskpool_list) {
         parsec_taskpool_t *tp;
         while(NULL != (tp = (parsec_taskpool_t *)parsec_list_pop_front(context->taskpool_list))) {
-            parsec_detach_dtd_taskpool_from_context(tp, context);
+            parsec_detach_dtd_taskpool_from_context(tp);
         }
     }
 }
@@ -503,22 +504,19 @@ extern int __parsec_task_progress( parsec_execution_stream_t* es,
  * once the number of pending tasks in the engine reaches the
  * threshold size.
  *
- * @param[in]   context
- *                  The PaRSEC context (pointer to the runtime instance)
  * @param[in]   tp
  *                  PaRSEC dtd taskpool
  *
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
 void
-parsec_execute_and_come_back( parsec_context_t *context,
-                              parsec_taskpool_t *tp,
+parsec_execute_and_come_back( parsec_taskpool_t *tp,
                               int task_threshold_count )
 {
     uint64_t misses_in_a_row;
-    parsec_execution_stream_t* es = context->virtual_processes[0]->execution_streams[0];
+    parsec_execution_stream_t* es = tp->context->virtual_processes[0]->execution_streams[0];
     parsec_task_t* task;
-    int rc, nbiterations = 0, distance;
+    int rc, distance;
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
@@ -528,15 +526,15 @@ parsec_execute_and_come_back( parsec_context_t *context,
     /* The master thread might not have to trigger the barrier if the other
      * threads have been activated by a previous start.
      */
-    if( !(PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags) ) {
-        (void)parsec_remote_dep_on(context);
+    if( !(PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & tp->context->flags) ) {
+        (void)parsec_remote_dep_on(tp->context);
         /* Mark the context so that we will skip the initial barrier during the _wait */
-        context->flags |= PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE;
+        tp->context->flags |= PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE;
         /* Wake up the other threads */
-        parsec_barrier_wait( &(context->barrier) );
+        parsec_barrier_wait( &(tp->context->barrier) );
     }
 
-    /* we wait for only all the tasks inserted in the taskpool and not for all the communication
+    /* we wait for all tasks inserted in the taskpool but not for the communication
      * invoked by those tasks.
      */
     while(tp->nb_tasks > task_threshold_count) {
@@ -553,17 +551,14 @@ parsec_execute_and_come_back( parsec_context_t *context,
 
             rc = __parsec_task_progress(es, task, distance);
             (void)rc;
-            nbiterations++;
         }
     }
 }
 
 /* Function to wait on all pending action of a taskpool */
 static int
-parsec_dtd_taskpool_wait_on_pending_action(parsec_context_t *parsec,
-                                           parsec_taskpool_t  *tp)
+parsec_dtd_taskpool_wait_on_pending_action(parsec_taskpool_t  *tp)
 {
-    (void)parsec;
     struct timespec rqtp;
     rqtp.tv_sec = 0;
 
@@ -590,31 +585,30 @@ parsec_dtd_taskpool_wait_on_pending_action(parsec_context_t *parsec,
  * Users should call this function everytime they insert a bunch of tasks.
  * Users can call this function once per taskpool.
  *
- * @param[in]       parsec
- *                      The PaRSEC context
- * @param[in,out]   tp
+ * @param[in]   tp
  *                      PaRSEC dtd taskpool
  *
  * @ingroup         DTD_INTERFACE
  */
 int
-parsec_dtd_taskpool_wait(parsec_context_t *parsec,
-                         parsec_taskpool_t  *tp)
+parsec_dtd_taskpool_wait(parsec_taskpool_t  *tp)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
+    if( NULL == tp->context ) {  /* the taskpool is not associated with any parsec_context
+                                    so it can't be waited upon */
+        return PARSEC_NOT_SUPPORTED;
+    }
     parsec_dtd_schedule_tasks(dtd_tp);
-    dtd_tp->wait_func(parsec, tp);
-    parsec_dtd_taskpool_wait_on_pending_action(parsec, tp);
+    dtd_tp->wait_func(tp);
+    parsec_dtd_taskpool_wait_on_pending_action(tp);
     return 0;
 }
 
 /* This function only waits until all local tasks are done */
 static void
-parsec_dtd_taskpool_wait_func(parsec_context_t *parsec,
-                              parsec_taskpool_t  *tp)
+parsec_dtd_taskpool_wait_func(parsec_taskpool_t  *tp)
 {
-    (void)parsec;
-    parsec_execute_and_come_back(tp->context, tp, 1);
+    parsec_execute_and_come_back(tp, 1);
 }
 
 /* **************************************************************************** */
@@ -2463,7 +2457,7 @@ parsec_dtd_block_if_threshold_reached(parsec_dtd_taskpool_t *dtd_tp, int task_th
         if( dtd_tp->task_window_size < parsec_dtd_window_size ) {
             dtd_tp->task_window_size *= 2;
         } else {
-            parsec_execute_and_come_back(dtd_tp->super.context, &dtd_tp->super,
+            parsec_execute_and_come_back(&dtd_tp->super,
                                          task_threshold);
             return 1; /* Indicating we blocked */
         }

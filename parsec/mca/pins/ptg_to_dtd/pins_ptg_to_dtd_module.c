@@ -119,7 +119,7 @@ static int pins_taskpool_complete_callback(parsec_taskpool_t* ptg_tp, void* void
      * If there is any task with more than 9 flows it will get stuck in the
      * following function call.
      */
-    parsec_execute_and_come_back( dtd_tp->context, dtd_tp, 10);
+    parsec_execute_and_come_back( dtd_tp, 10);
 
     parsec_detach_all_dtd_taskpool_from_context( ptg_tp->context );
 
