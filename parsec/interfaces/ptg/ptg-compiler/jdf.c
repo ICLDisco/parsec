@@ -129,6 +129,7 @@ static int jdf_sanity_check_expr_bound_before_global(jdf_expr_t *e, jdf_global_e
 {
     jdf_global_entry_t *g2;
     char *vc, *dot;
+    jdf_expr_t *nr;
     int rc = 0;
     switch( e->op ) {
     case JDF_VAR:
@@ -144,9 +145,15 @@ static int jdf_sanity_check_expr_bound_before_global(jdf_expr_t *e, jdf_global_e
             }
         }
         if( g2 == g1 ) {
-            jdf_fatal(JDF_OBJECT_LINENO(g1), "Global %s is defined using variable %s (in %s) which is unbound at this time\n",
-                      g1->name, vc, e->jdf_var);
-            rc = -1;
+            for(nr = e->local_variables; NULL != nr; nr = nr->next) {
+                if( !strcmp(nr->alias, vc) )
+                    break;
+            }
+            if(NULL == nr) {
+                jdf_fatal(JDF_OBJECT_LINENO(g1), "Global %s is defined using variable %s (in %s) which is unbound at this time\n",
+                          g1->name, vc, e->jdf_var);
+                rc = -1;
+            }
         }
         free(vc);
         return rc;
@@ -267,9 +274,19 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
 {
     jdf_global_entry_t *g;
     jdf_def_list_t *d2;
+    jdf_expr_t *nr;
     char *vc, *dot;
     int rc = 0;
 
+    if(NULL != e->local_variables) {
+        /* Use the opportunity to update the number of local definitions
+         * that we may need to define this expression */
+        int nb = 0;
+        for(nr = e->local_variables; nr != NULL; nr = nr->next)
+            if(NULL != nr->alias)
+                nb++;
+    }
+    
     switch( e->op ) {
     case JDF_VAR:
         vc = strdup(e->jdf_var);
@@ -283,15 +300,21 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
             }
         }
         if( g == NULL ) {
-            for(d2 = f->locals; d2 != d; d2 = d2->next) {
-                if( !strcmp( vc, d2->name ) ) {
+            for(nr = e->local_variables; NULL != nr; nr = nr->next) {
+                if( !strcmp(nr->alias, vc) )
                     break;
-                }
             }
-            if( d2 == d ) {
-                jdf_fatal(JDF_OBJECT_LINENO(d), "Local %s is defined using variable %s (in %s) which is unbound at this time\n",
-                          d->name,  vc, e->jdf_var);
-                rc = -1;
+            if(NULL == nr) {
+                for(d2 = f->locals; d2 != d; d2 = d2->next) {
+                    if( !strcmp( vc, d2->name ) ) {
+                        break;
+                    }
+                }
+                if( d2 == d ) {
+                    jdf_fatal(JDF_OBJECT_LINENO(d), "Local %s is defined using variable %s (in %s) which is unbound at this time\n",
+                              d->name,  vc, e->jdf_var);
+                    rc = -1;
+                }
             }
         }
         free(vc);
@@ -340,9 +363,19 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
 {
     jdf_global_entry_t *g;
     jdf_def_list_t *d;
+    jdf_expr_t *nr;
     char *vc, *dot;
     int rc = 0;
-
+    
+    if(NULL != e->local_variables) {
+        /* Use the opportunity to update the number of local definitions
+         * that we may need to define this expression */
+        int nb = 0;
+        for(nr = e->local_variables; nr != NULL; nr = nr->next)
+            if(NULL != nr->alias)
+                nb++;
+    }
+    
     switch( e->op ) {
     case JDF_VAR:
         vc = strdup(e->jdf_var);
@@ -362,9 +395,15 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
                 }
             }
             if( d == NULL ) {
-                jdf_fatal(JDF_OBJECT_LINENO(f), "%s of function %s is defined using variable %s (in %s) which is unbound at this time\n",
-                          kind, f->fname, vc, e->jdf_var);
-                rc = -1;
+                for(nr = e->local_variables; NULL != nr; nr = nr->next) {
+                    if( !strcmp(nr->alias, vc) )
+                        break;
+                }
+                if(NULL == nr) {
+                    jdf_fatal(JDF_OBJECT_LINENO(f), "%s of function %s is defined using variable %s (in %s) which is unbound at this time\n",
+                              kind, f->fname, vc, e->jdf_var);
+                    rc = -1;
+                }
             }
         }
         free(vc);
@@ -1513,6 +1552,93 @@ int jdf_function_property_is_keyword(const char *name)
         if (strcmp( *p, name) == 0)
             return 1;
         p++;
+    }
+    return 0;
+}
+
+int jdf_assign_ldef_index(jdf_function_entry_t *f)
+{
+    jdf_expr_t *ld;
+    jdf_def_list_t *dl;
+    jdf_dataflow_t *fl;
+    jdf_dep_t *dep;
+    int nb_ldef_for_locals;
+    int nb_ldef_for_deps;
+    int nb_ldef_for_calls;
+
+    f->nb_max_local_def = 0;
+    
+    /* Local definitions can appear either in the locals or in the deps/calls.
+     *  If they appear in the locals, they need to have a unique position
+     *  If they appear in the dataflow, each dep can re-use the locals of another dep
+     *                                  each call can re-use the locals of another call
+     */
+
+    DO_DEBUG_VERBOSE(2, ({fprintf(stderr, "Indexing task class %s\n", f->fname);}) );
+    
+    for(dl = f->locals; NULL != dl; dl = dl->next) {
+        for( ld = dl->expr->local_variables; ld != NULL; ld = ld->next ) {
+            assert(NULL != ld->alias);
+            if( ld->ldef_index == -1 ) {
+                ld->ldef_index = f->nb_max_local_def;
+                f->nb_max_local_def++;
+                DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  local %s, ldef %s is at %d\n", dl->name, ld->alias, ld->ldef_index); }) );
+            }
+        }
+    }
+
+    nb_ldef_for_locals = f->nb_max_local_def;
+    for(fl = f->dataflow; NULL != fl; fl = fl->next) {
+        int depi = 0;
+        for(dep = fl->deps; NULL != dep; dep = dep->next, depi++) {
+            nb_ldef_for_deps = nb_ldef_for_locals;
+            for(ld = dep->local_defs; NULL != ld; ld = ld->next) {
+                assert(NULL != ld->alias);
+                if( ld->ldef_index == -1 ) {
+                    ld->ldef_index = nb_ldef_for_deps;
+                    nb_ldef_for_deps++;
+                    DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  Flow for %s, dep %d: ldef %s is at %d\n", fl->varname, depi, ld->alias, ld->ldef_index); }) );
+                }
+            }
+            switch( dep->guard->guard_type ) {
+            case JDF_GUARD_UNCONDITIONAL:
+            case JDF_GUARD_BINARY:
+                nb_ldef_for_calls = nb_ldef_for_deps;
+                for(ld = dep->guard->calltrue->local_defs; NULL != ld; ld = ld->next) {
+                    assert(NULL != ld->alias);
+                    if( ld->ldef_index == -1 ) {
+                        ld->ldef_index = nb_ldef_for_calls;
+                        nb_ldef_for_calls++;
+                        DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  Flow for %s, dep %d, calltrue: ldef %s is at %d\n", fl->varname, depi, ld->alias, ld->ldef_index); }) );
+                    }
+                }
+                break;
+            case JDF_GUARD_TERNARY:
+                nb_ldef_for_calls = nb_ldef_for_deps;
+                for(ld = dep->guard->calltrue->local_defs; NULL != ld; ld = ld->next) {
+                    assert(NULL != ld->alias);
+                    if( ld->ldef_index == -1 ) {
+                        ld->ldef_index = nb_ldef_for_calls;
+                        nb_ldef_for_calls++;
+                        DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  Flow for %s, dep %d, calltrue: ldef %s is at %d\n", fl->varname, depi, ld->alias, ld->ldef_index); }) );
+                    }
+                }
+                nb_ldef_for_calls = nb_ldef_for_deps;
+                for(ld = dep->guard->callfalse->local_defs; NULL != ld; ld = ld->next) {
+                    assert(NULL != ld->alias);
+                    if( ld->ldef_index == -1 ) {
+                        ld->ldef_index = nb_ldef_for_calls;
+                        nb_ldef_for_calls++;
+                        DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  Flow for %s, dep %d, callfalse: ldef %s is at %d\n", fl->varname, depi, ld->alias, ld->ldef_index); }) );
+                    }
+                }
+                break;
+            }
+            if( nb_ldef_for_deps > f->nb_max_local_def )
+                f->nb_max_local_def = nb_ldef_for_deps;
+            if( nb_ldef_for_calls > f->nb_max_local_def )
+                f->nb_max_local_def = nb_ldef_for_calls;
+        }
     }
     return 0;
 }

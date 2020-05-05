@@ -1,0 +1,219 @@
+extern "C" %{
+#include <sys/time.h>
+#include <inttypes.h>
+#include <string.h>
+#include <stdlib.h>
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+
+/**
+ * This test defines sparse execution domains to illustrate the
+ * use of local indices in the PTG/JDF syntax.
+ */
+%}
+
+descA            [type = "two_dim_block_cyclic_t*"]
+nb_tasks_array   [type = "int32_t *"]
+
+STARTUP(odd, even)
+
+odd = [ i = 0 .. %{ return 4; %} ] %{ return 2*i+1; %}
+even = [ i = 0 .. 4 ] 2*i
+
+: descA( (odd/2) % descA->super.mt, (even/2) % descA->super.nt)
+
+READ A <- descA( (odd/2) % descA->super.mt, (even/2) % descA->super.nt)
+       -> [ i = 0 .. odd ] odd < 4 ? [ j = 0 .. %{ return even; %} .. 2 ] A tA(odd, even, %{ return i; %}, j/2) : [ j = 0 .. even .. 2 ] A tB(odd, even, i, j/2)
+
+CTL  X -> Y tG(0)
+
+BODY
+{
+   usleep( rand() % 50000 + 50000);
+   parsec_atomic_fetch_inc_int32(&nb_tasks_array[0]);
+}
+END
+
+tG(zero)
+
+zero = 0 .. 0
+
+: descA(0, 0)
+
+CTL Y <- [ i = 0 .. 4, j = 0 .. 4 ] i >= 0 ? X STARTUP(2*i+1, 2*j)
+
+BODY
+{
+   /* nothing */
+}
+END
+
+tA(o, e, i, j)
+
+o = [ k = 0 .. 4 ] 2*k+1
+e = [ k = 0 .. 4 ] 2*k
+i = 0 .. o < 4 ? o : -1
+j = 0 .. e / 2
+
+: descA(i % descA->super.mt, j % descA->super.nt)
+
+READ A <- A STARTUP(o, e)
+
+BODY
+{
+   usleep( rand() % 50000 + 50000);
+   parsec_atomic_fetch_inc_int32(&nb_tasks_array[1]);
+}
+END
+
+tB(o, e, i, j)
+
+o = [ k = 0 .. 4 ] 2*k+1
+e = [ k = 0 .. 4 ] 2*k
+i = 6 .. o
+j = 0 .. e / 2
+
+: descA(i % descA->super.mt, j % descA->super.nt)
+
+READ A <- A STARTUP(o, e)
+        -> o == 7 && e == 0 && i == 7 && j == 0 ? [ l = 1 .. 2 ] A tC(l, 2*l .. 3*l)
+
+BODY
+{
+   usleep( rand() % 50000 + 50000);
+   parsec_atomic_fetch_inc_int32(&nb_tasks_array[2]);
+}
+END
+
+tC(l1, l2)
+
+l1 = 1 .. 2
+l2 = 2*l1 .. 3*l1
+
+: descA(l1 % descA->super.mt, l2 % descA->super.nt)
+
+READ A <- A tB(7, 0, 7, 0)
+
+BODY
+{
+   usleep( rand() % 50000 + 50000);
+   parsec_atomic_fetch_inc_int32(&nb_tasks_array[3]);
+}
+END
+
+extern "C" %{
+
+#include <math.h>
+
+int main( int argc, char** argv )
+{
+    parsec_local_indices_taskpool_t* tp;
+    two_dim_block_cyclic_t descA;
+    parsec_arena_t arena;
+    parsec_datatype_t dt;
+    parsec_context_t *parsec;
+    int ws = 1, mr = 0;
+    int rc;
+    int p = 1, c;
+    int local_nb[4];
+    int global_nb[4];
+    int ret;
+
+    srand( getpid() );
+
+#ifdef PARSEC_HAVE_MPI
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+	MPI_Comm_size(MPI_COMM_WORLD, &ws);
+	MPI_Comm_rank(MPI_COMM_WORLD, &mr);
+        for(c = (int)sqrt(ws)+1; c > 0; c--) {
+	  if( (c < ws) && (ws % c) == 0 ) {
+	    p = c;
+	    break;
+	  }
+        }
+    }
+#endif
+
+    parsec = parsec_init(-1, &argc, &argv);
+    if( NULL == parsec ) {
+       exit(-1);
+    }
+
+    /**
+     * Build the data and the arena to hold it up.
+     */
+    two_dim_block_cyclic_init( &descA, matrix_RealDouble, matrix_Tile,
+                               ws /*nodes*/, mr /*rank*/,
+                               100 /* mb */, 100 /* nb */,
+			       100*10 /* lm */, 100*10 /* ln */,
+                               0 /* i */, 0 /* j */,
+			       100*10 /* m */, 100*10 /* n */,
+			       1 /* sm */, 1 /* sn */,
+			       p );
+    descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
+                                     descA.super.bsiz *
+                                     parsec_datadist_getsizeoftype(matrix_RealDouble) );
+    parsec_data_collection_set_key(&descA.super.super, "A");
+
+    parsec_translate_matrix_type(matrix_RealDouble, &dt);
+    parsec_matrix_add2arena_rect(&arena, dt,
+                                 descA.super.mb, descA.super.nb, descA.super.mb);
+
+    /* Start the PaRSEC engine */
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    /* Heat up the engine: small tasks no priority */
+    memset(local_nb, 0, 4*sizeof(int));
+    tp = parsec_local_indices_new( &descA, (int32_t*)local_nb );
+    assert( NULL != tp );
+    tp->arenas[PARSEC_local_indices_DEFAULT_ARENA] = &arena;
+    rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    parsec_context_wait(parsec);
+
+#ifdef PARSEC_HAVE_MPI
+    MPI_Reduce(local_nb, global_nb, 4, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+#else
+    memcpy(global_nb, local_nb, 4*sizeof(int));
+#endif
+    ret = 0;
+    if( 0 == mr ) {
+        if( global_nb[0] != 25 ) {
+	  fprintf(stderr, "*** Test failed: expected 25 STARTUP tasks, found %d total\n", global_nb[0]);
+	  ret++;
+	}
+	if( global_nb[1] != 90 ) {
+	  fprintf(stderr, "*** Test failed: expected 90 tA tasks, found %d total\n", global_nb[1]);
+	  ret++;
+	}
+	if( global_nb[2] != 90 ) {
+	  fprintf(stderr, "*** Test failed: expected 90 tB tasks, found %d total\n", global_nb[2]);
+	  ret++;
+	}
+	if( global_nb[3] != 5 ) {
+	  fprintf(stderr, "*** Test failed: expected 5 tC tasks, found %d total\n", global_nb[3]);
+	  ret++;
+	}
+    }
+
+    free(descA.mat);
+    parsec_arena_destruct(&arena);
+
+    parsec_fini( &parsec);
+
+#ifdef PARSEC_HAVE_MPI
+    MPI_Finalize();
+#endif
+
+    return ret;
+}
+
+%}
