@@ -37,7 +37,7 @@ find_library(PAPI_LIBRARY NAMES papi
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(PAPI DEFAULT_MSG
-                                  REQUIRED_VARS PAPI_LIBRARY PAPI_INCLUDE_DIR )
+                                  PAPI_LIBRARY PAPI_INCLUDE_DIR )
 if( PAPI_FOUND )
   message(STATUS "The PAPI Library is found at ${PAPI_LIBRARY}")
 
