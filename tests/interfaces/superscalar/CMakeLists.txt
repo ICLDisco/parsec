@@ -20,6 +20,7 @@ parsec_addtest(C dtd_test_data_flush "dtd_test_data_flush.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_global_id_for_dc_assumed "dtd_test_global_id_for_dc_assumed.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_explicit_task_creation "dtd_test_explicit_task_creation.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_tp_enqueue_dequeue "dtd_test_tp_enqueue_dequeue.c")
+parsec_addtest(C dtd_test_interleave_actions "dtd_test_interleave_actions.c")
 
 #
 # Shared Memory Testings
@@ -37,4 +38,5 @@ if( MPI_C_FOUND )
   add_test(unit_dtd_task_inserting_task_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_task_inserting_task)
   add_test(unit_dtd_task_insertion_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_task_insertion)
   add_test(unit_dtd_war_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_war)
+  add_test(unit_dtd_interleave_actions_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_interleave_actions)
 endif( MPI_C_FOUND )
