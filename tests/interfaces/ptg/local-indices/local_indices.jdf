@@ -21,11 +21,13 @@ even = [ i = 0 .. 4 ] 2*i
 
 : descA( (odd/2) % descA->super.mt, (even/2) % descA->super.nt)
 
-READ A <- descA( (odd/2) % descA->super.mt, (even/2) % descA->super.nt)
+READ A <- descA((odd/2) % descA->super.mt, (even/2) % descA->super.nt)
        -> [ i = 0 .. odd ] odd < 4 ? [ j = 0 .. %{ return even; %} .. 2 ] A tA(odd, even, %{ return i; %}, j/2) : [ j = 0 .. even .. 2 ] A tB(odd, even, i, j/2)
 
-CTL  X -> Y tG(0)
-
+CTL  X <- [ i = 0 .. odd ] i == -1 ? X STARTUP(0, 0)
+       -> [ i = 0 .. odd ] i == -1 ? X STARTUP(0, 0)
+       -> Y tG(0)
+       
 BODY
 {
    usleep( rand() % 50000 + 50000);
