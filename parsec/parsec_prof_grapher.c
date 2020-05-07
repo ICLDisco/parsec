@@ -90,14 +90,25 @@ void parsec_prof_grapher_init(const parsec_context_t *parsec_context, const char
     char *filename;
     char *format;
     int t, l10 = 0, cs;
-
-    cs = parsec_context->nb_nodes;
+    int rank = 0;
+    int worldsize = 1;
+#if defined(PARSEC_HAVE_MPI)
+    int MPI_ready;
+    (void)MPI_Initialized(&MPI_ready);
+    if(MPI_ready) {
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
+    }
+#endif
+    (void)parsec_context;
+    
+    cs = worldsize;
     while(cs > 0) {
       l10++;
       cs = cs/10;
     }
     asprintf(&format, "%%s-%%0%dd.dot", l10);
-    asprintf(&filename, format, base_filename, parsec_context->my_rank);
+    asprintf(&filename, format, base_filename, rank);
     free(format);
 
     parsec_mca_param_reg_int_name("parsec_prof_grapher", "memmode", "How memory references are traced in the DAG of tasks "
@@ -117,12 +128,12 @@ void parsec_prof_grapher_init(const parsec_context_t *parsec_context, const char
     fprintf(grapher_file, "digraph G {\n");
     fflush(grapher_file);
 
-    srandom(parsec_context->nb_nodes*(parsec_context->my_rank+1));  /* for consistent color generation */
+    srandom(worldsize*(rank+1));  /* for consistent color generation */
     (void)nbthreads;
     nbfuncs = 128;
     colors = (char**)malloc(nbfuncs * sizeof(char*));
     for(t = 0; t < nbfuncs; t++)
-        colors[t] = parsec_unique_color(parsec_context->my_rank * nbfuncs + t, parsec_context->nb_nodes * nbfuncs);
+        colors[t] = parsec_unique_color(rank * nbfuncs + t, worldsize * nbfuncs);
 
     data_ht = PARSEC_OBJ_NEW(parsec_hash_table_t);
     parsec_hash_table_init(data_ht, offsetof(parsec_grapher_data_identifier_hash_table_item_t, ht_item), 16, parsec_grapher_data_key_fns, NULL);
