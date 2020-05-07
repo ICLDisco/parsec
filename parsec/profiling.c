@@ -1470,8 +1470,8 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
     profile_head->rank = rank;
     profile_head->worldsize = worldsize;
 
-    /* Reset the error system */
-    set_last_error("Profiling system: success");
+    /* Reset the error system without printing it on stderr */
+    snprintf(parsec_profiling_last_error, MAX_PROFILING_ERROR_STRING_LEN, "Profiling system: success");
     parsec_profiling_raise_error = 0;
 
     /* It's fine to re-reset the event date: we're back with a zero-length event set */
