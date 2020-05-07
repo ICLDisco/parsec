@@ -2704,18 +2704,18 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
     jdf_dep_t *dep;
     expr_info_t info = EMPTY_EXPR_INFO;
     string_arena_t *sa = string_arena_new(64);
-    int write_next_label, continue_if_true, goto_if_false, goto_if_true;
+    int write_next_label, continue_if_true, goto_if_false, goto_if_true, skip_continue;
 
     coutput("  %s "JDF2C_NAMESPACE"_tmp_locals = *(%s*)&this_task->locals;\n"
             "  (void)"JDF2C_NAMESPACE"_tmp_locals;\n",
             parsec_get_name(jdf, f, "parsec_assignment_t"),
             parsec_get_name(jdf, f, "parsec_assignment_t"));
-    
+
     info.prefix = "";
     info.suffix = "";
     info.sa = sa;
     info.assignments = "&"JDF2C_NAMESPACE"_tmp_locals";
-    
+
     write_next_label = 0;
 
     /* First, we point to the first flow with a DEP_IN */
@@ -2726,9 +2726,12 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
         if(NULL == dep) continue;
         break;
     }
-    
+
     for(; NULL != flow; flow = next_flow) {
-        /* Then, we compute next_flow as the next one with a DEP_IN */
+        /* Then, we compute next_flow as the next one with a DEP_IN. This flow is
+         * needed to be able to generate the goto label to jump from one flow to
+         * the next.
+         */
         for(next_flow = flow->next; NULL != next_flow; next_flow = next_flow->next) {
             for(dep = next_flow->deps; NULL != dep; dep = dep->next)
                 if( JDF_DEP_FLOW_IN & dep->dep_flags )
@@ -2741,7 +2744,8 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
             coutput(" "JDF2C_NAMESPACE"_check_flow_%s:\n", flow->varname);
             write_next_label = 0;
         }
-                    
+        skip_continue = 0;
+
         for(dep = flow->deps; NULL != dep; dep = dep->next) {
             if( ! (dep->dep_flags & JDF_DEP_FLOW_IN) ) {
                 continue;
@@ -2749,13 +2753,14 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
             continue_if_true = 0;
             goto_if_true = 0;
             goto_if_false = 0;
-            
+
             if( dep->guard->guard_type == JDF_GUARD_UNCONDITIONAL ) {
                 /* We cannot be a control flow, or has_ready_input_dependency would have returned false */
                 assert( 0 == (JDF_FLOW_TYPE_CTL & flow->flow_flags) );
                 /* We are necessarily depending on a direct memory, for the same reason */
                 assert( NULL == dep->guard->calltrue->var );
                 coutput("  /* Flow for %s is always a memory reference */\n", flow->varname);
+                skip_continue = 1;  /* no need to complete the flow with a continue */
                 break; /* No need to go check other cases, no need to print the flow label, or the continue */
             } else if( dep->guard->guard_type == JDF_GUARD_BINARY ) {
                 if(NULL != dep->guard->calltrue->var) {
@@ -2770,10 +2775,11 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
             } else if( dep->guard->guard_type == JDF_GUARD_TERNARY ) {
                 /* We cannot be a control flow in ternary, or there would always be a case where we cannot be a startup task */
                 assert( 0 == (JDF_FLOW_TYPE_CTL & flow->flow_flags) );
-                
+
                 if( (NULL == dep->guard->calltrue->var) && (NULL == dep->guard->callfalse->var) ) {
                     /* No condition, we always depend on a direct memory reference */
                     coutput("  /* Flow for %s is always a memory reference */\n", flow->varname);
+                    skip_continue = 1;  /* no need to complete the flow with a continue */
                     break; /* No need to go check other cases, no need to print the flow label, or the continue */
                 } else {
                     if( NULL == dep->guard->calltrue->var ) {
@@ -2819,8 +2825,9 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
                         nextname);
                 write_next_label = 1;
             } if( continue_if_true) {
-                coutput("  if( %s ) continue; /* This candidate does not work for flow %s */\n",
+                coutput("  if( %s ) continue; /* %s %s() is not a memory reference for flow %s */\n",
                         dump_expr((void**)dep->guard->guard, &info),
+                        dep->guard->calltrue->var, dep->guard->calltrue->func_or_mem,
                         flow->varname);
             }
             if( NULL != dep->guard->guard->local_variables ) {
@@ -2833,7 +2840,7 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
             }
         }
 
-        if(write_next_label) {
+        if(write_next_label && !skip_continue) {
             coutput("  continue; /* All other cases are not startup tasks */\n");
         }
     }
@@ -4942,7 +4949,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     info.prefix = "";
     info.suffix = "";
     info.assignments = "    &this_task->locals";
-    
+
     if ( flow->flow_flags & JDF_FLOW_TYPE_READ ) {
         int check = 1;
         for(dl = flow->deps; dl != NULL; dl = dl->next) {
