@@ -521,7 +521,7 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
     tp->super.profiling_array = parsec_map_operator_profiling_array;
     if( -1 == parsec_map_operator_profiling_array[0] ) {
         parsec_profiling_add_dictionary_keyword("operator", "fill:CC2828",
-                                                sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                                sizeof(parsec_task_prof_info_t), PARSEC_TASK_PROF_INFO_CONVERTOR,
                                                 (int*)&tp->super.profiling_array[0 + 2 * parsec_map_operator.task_class_id],
                                                 (int*)&tp->super.profiling_array[1 + 2 * parsec_map_operator.task_class_id]);
     }

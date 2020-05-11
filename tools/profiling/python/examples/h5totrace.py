@@ -235,7 +235,8 @@ if __name__ == '__main__':
                 if "M%dV%d"%(t.node_id, t.vp_id) not in paje_container_aliases:
                     paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dV%d" % (t.node_id,t.vp_id), Type=paje_ct,
                                                                                                         Container=paje_container_aliases["M%d"%(t.node_id)])
-        if "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
+        match = re.search(r'PaRSEC', t.description)
+        if match is not None and "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
                 if hasattr(t, 'vp_id') and isinstance(t.vp_id, int):
                         paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id), Type=paje_ct,
                                                                                                                 Container=paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)])
@@ -306,7 +307,7 @@ if __name__ == '__main__':
                     begin_date = container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)]
                 else:
                     begin_date = ev['begin']
-                key = "hid=%d:did=%d:tid=%d"%(ev.taskpool_id,ev.type,ev.id)
+                key = "tpid=%d:tcid=%d:tid=%d"%(ev.taskpool_id,ev.tcid,ev.id)
                 if args.DAG:
                     dag_info[key] = { 'container': paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                       'start': float(ev.begin), 'end': float(ev.end), 'rank': ev.node_id }
@@ -323,7 +324,7 @@ if __name__ == '__main__':
     if args.COMM:
         try:
             snd_type = store.event_types['MPI_DATA_PLD_SND']
-            rcv_type = store.event_types['MPI_DATA_PLD_SND']
+            rcv_type = store.event_types['MPI_DATA_PLD_RCV']
         except KeyError:
             warning("You requested to display communication, but no MPI event types were logged in this profile")
         else:
@@ -336,9 +337,9 @@ if __name__ == '__main__':
                 PajeSetState.PajeEvent(Time=float(send.end), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(send.node_id)],
                                            Value=paje_entity_waiting, task_name="Waiting")
                 recvs = store.events[ ( (store.events.type == rcv_type) &
-                                        (store.events.fid == send['fid']) &
-                                        (store.events.hid == send['hid']) &
-                                        (store.events.tid == send['tid']) ) ]
+                                        (store.events.tcid  == send['tcid']) &
+                                        (store.events.tpid  == send['tpid']) &
+                                        (store.events.tid   == send['tid']) ) ]
                 for rrecv in recvs.iterrows():
                     recv = rrecv[1]
                     PajeSetState.PajeEvent(Time=float(recv.begin), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(recv.node_id)],
@@ -376,7 +377,6 @@ if __name__ == '__main__':
                 PajeStartLink.PajeEvent(Time=src_info['end'], Type=link_type, Container=paje_c_appli, StartContainer=src_info['container'], Value="", Key="%d"%(nblink))
                 PajeEndLink.PajeEvent(Time=dst_info['start'], Type=link_type, Container=paje_c_appli, EndContainer=dst_info['container'], Value="", Key="%d"%(nblink))
                 nblink = nblink+1
-                print("done %s -> %s"%(src_uid, dst_uid))
 
     for name,cer in counter_events.iteritems():
         if not cer['error']:

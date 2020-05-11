@@ -711,8 +711,7 @@ parsec_dtd_add_profiling_info( parsec_taskpool_t *tp,
 {
     char *str = fill_color(task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
     parsec_profiling_add_dictionary_keyword(name, str,
-                                            sizeof(parsec_profile_data_collection_info_t),
-                                            PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                            sizeof(parsec_task_prof_info_t), PARSEC_TASK_PROF_INFO_CONVERTOR,
                                             (int *) &tp->profiling_array[0 +
                                                                          2 * task_class_id]  /* start key */,
                                             (int *) &tp->profiling_array[1 +
@@ -728,8 +727,7 @@ parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
     (void)tp;
     char *str = fill_color(*keyin, PARSEC_DTD_NB_TASK_CLASSES);
     parsec_profiling_add_dictionary_keyword(name, str,
-                                            sizeof(parsec_profile_data_collection_info_t),
-                                            PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                            sizeof(parsec_task_prof_info_t), PARSEC_TASK_PROF_INFO_CONVERTOR,
                                             keyin,
                                             keyout);
     free(str);
@@ -2550,7 +2548,9 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
 
         if( INOUT == (tile_op_type & GET_OP_TYPE) || OUTPUT == (tile_op_type & GET_OP_TYPE) ) {
 #if defined(PARSEC_PROF_TRACE)
-            this_task->super.prof_info.id = tile->key;
+            this_task->super.prof_info.desc = NULL;
+            this_task->super.prof_info.data_id = tile->key;
+            this_task->super.prof_info.task_class_id = tc->task_class_id;
 #endif
 
             /* Setting the last_user info with info of this_task */

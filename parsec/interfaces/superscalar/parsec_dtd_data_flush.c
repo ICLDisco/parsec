@@ -149,7 +149,9 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     READ_FROM_TILE(last_writer, tile->last_writer);
 
 #if defined(PARSEC_PROF_TRACE)
-    this_task->super.prof_info.id = tile->key;
+    this_task->super.prof_info.desc = NULL;
+    this_task->super.prof_info.data_id = tile->key;
+    this_task->super.prof_info.task_class_id = tc->task_class_id;
 #endif
 
     /* Setting the last_user info with info of this_task */

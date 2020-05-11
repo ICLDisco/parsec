@@ -787,7 +787,7 @@ static char *dump_profiling_init(void **elem, void *arg)
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nb_locals);
     profiling_convertor_params = string_arena_new(64);
     UTIL_DUMP_LIST_FIELD(profiling_convertor_params, f->locals, next, name, dump_string, NULL,
-                         PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR, ";", "{int32_t}", "{int32_t}");
+                         PARSEC_TASK_PROF_INFO_CONVERTOR, ";", "{int32_t}", "{int32_t}");
 
     string_arena_add_string(info->sa,
                             "#if defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
@@ -802,7 +802,7 @@ static char *dump_profiling_init(void **elem, void *arg)
                             jdf_basename, fname, jdf_basename, fname);
     string_arena_add_string(info->sa,
                             "parsec_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
-                            "                                       sizeof(parsec_profile_data_collection_info_t)+%d*sizeof(parsec_assignment_t),\n"
+                            "                                       sizeof(parsec_task_prof_info_t)+%d*sizeof(parsec_assignment_t),\n"
                             "                                       \"%s\",\n"
                             "                                       (int*)&__parsec_tp->super.super.profiling_array[0 + 2 * %s_%s.task_class_id /* %s start key */],\n"
                             "                                       (int*)&__parsec_tp->super.super.profiling_array[1 + 2 * %s_%s.task_class_id /* %s end key */]);\n",
@@ -1285,7 +1285,7 @@ static inline char* jdf_generate_task_typedef(void **elt, void* arg)
     string_arena_add_string(sa, "typedef struct %s {\n"
                             "    PARSEC_MINIMAL_EXECUTION_CONTEXT\n"
                             "#if defined(PARSEC_PROF_TRACE)\n"
-                            "    parsec_profile_data_collection_info_t prof_info;\n"
+                            "    parsec_task_prof_info_t prof_info;\n"
                             "#endif /* defined(PARSEC_PROF_TRACE) */\n"
                             "    struct __parsec_%s_%s_assignment_s locals;\n"
                             "#if defined(PARSEC_SIM)\n"
@@ -5573,7 +5573,8 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
         coutput("  /** Generate profiling information */\n"
                 "#if defined(PARSEC_PROF_TRACE)\n"
                 "  this_task->prof_info.desc = (parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s;\n"
-                "  this_task->prof_info.id   = ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->data_key((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
+                "  this_task->prof_info.data_id   = ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->data_key((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
+                "  this_task->prof_info.task_class_id = this_task->task_class->task_class_id;\n"
                 "#endif  /* defined(PARSEC_PROF_TRACE) */\n",
                 f->predicate->func_or_mem,
                 f->predicate->func_or_mem, f->predicate->func_or_mem,

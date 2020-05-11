@@ -1248,12 +1248,12 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
                 parsec_profile_data_collection_info_t info;
 
                 if( NULL != original->dc ) {
-                    info.desc = original->dc;
-                    info.id   = original->key;
+                    info.desc    = original->dc;
+                    info.data_id = original->key;
                 } else {
                     assert( GPU_TASK_TYPE_PREFETCH != gpu_task->task_type );
-                    info.desc = (parsec_dc_t*)original;
-                    info.id   = -1;
+                    info.desc    = (parsec_dc_t*)original;
+                    info.data_id = -1;
                 }
                 gpu_task->prof_key_end = -1;
 
@@ -2427,11 +2427,11 @@ parsec_gpu_kernel_pop( parsec_device_cuda_module_t            *gpu_device,
                     if(parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_DATA_OUT) {
                         parsec_profile_data_collection_info_t info;
                         if( NULL != original->dc ) {
-                            info.desc = original->dc;
-                            info.id   = original->key;
+                            info.desc    = original->dc;
+                            info.data_id = original->key;
                         } else {
-                            info.desc = (parsec_dc_t*)original;
-                            info.id   = -1;
+                            info.desc    = (parsec_dc_t*)original;
+                            info.data_id = -1;
                         }
                         gpu_task->prof_key_end = parsec_cuda_moveout_key_end;
                         gpu_task->prof_tp_id   = this_task->taskpool->taskpool_id;

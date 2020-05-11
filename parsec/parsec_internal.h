@@ -428,7 +428,7 @@ PARSEC_DECLSPEC extern int parsec_want_rusage;
 struct parsec_minimal_execution_context_s {
     PARSEC_MINIMAL_EXECUTION_CONTEXT
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profile_data_collection_info_t prof_info;
+    parsec_task_prof_info_t         prof_info;
 #endif /* defined(PARSEC_PROF_TRACE) */
     /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
      * prof_info so that the locals are part of the event specific infos */
@@ -438,7 +438,7 @@ struct parsec_minimal_execution_context_s {
 struct parsec_task_s {
     PARSEC_MINIMAL_EXECUTION_CONTEXT
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profile_data_collection_info_t prof_info;
+    parsec_task_prof_info_t    prof_info;
 #endif /* defined(PARSEC_PROF_TRACE) */
     /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
      * prof_info so that the locals are part of the event specific infos */
@@ -484,10 +484,10 @@ extern int device_delegate_begin, device_delegate_end;
                            (KEY),                                       \
                            (TASK)->task_class->key_functions->          \
                            key_hash((TASK)->task_class->make_key(       \
-                             (TASK)->taskpool, (TASK)->locals ), NULL), \
-                           (TASK)->taskpool->taskpool_id, (void*)&(TASK)->prof_info)
+                              (TASK)->taskpool, (TASK)->locals ), NULL), \
+                              (TASK)->taskpool->taskpool_id, (void*)&(TASK)->prof_info); 
 
-#define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \
+#define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)  \
     if(!!(COND)) {                                           \
         PARSEC_TASK_PROF_TRACE((PROFILE), (KEY), (TASK));     \
     }

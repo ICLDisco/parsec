@@ -18,7 +18,7 @@ class ParsecDAG:
         self.dag = nx.DiGraph()
         self.idtoname = dict()
         self.nametoid = dict()
-        self.ParsecTaskID = namedtuple("ParsecTaskID", ["tpid", "did", "tid"])
+        self.ParsecTaskID = namedtuple("ParsecTaskID", ["tpid", "tcid", "tid"])
 
     def _load_parsec_dot_file(self, f):
         """Module-private function. Adds nodes and links found in a file to the DAG being built
@@ -52,8 +52,8 @@ class ParsecDAG:
            [^\{]*                                #Skip until the '{'
            .(?P<tpid>[0-9]+)                     #Group tpid is the inside of {tpid}
            .*tpid=(?P<tt_tpid>[0-9]+)            #Skip until tpid=, and read group tt_tpid
-           .*did=(?P<tt_did>[0-9]+)              #Skip until did=, and read group tt_did
-           .*tname=(?P<tt_tname>[^:]+)           #Skip until tname=, and read group tt_tname
+           .*tcid=(?P<tt_tcid>[0-9]+)            #Skip until tcid=, and read group tt_tcid
+           .*tcname=(?P<tt_tcname>[^:]+)         #Skip until tcname=, and read group tt_tcname
            .*tid=(?P<tt_tid>[0-9]+)              #Skip until tid=, and read group tt_tid''', re.VERBOSE)
         link = re.compile('''
            (?P<src>[^ ]+)                        #Group src is everything to the first space
@@ -78,12 +78,12 @@ class ParsecDAG:
                     name = res.group('name')
                     parsec_id = self.ParsecTaskID(tpid = int(res.group('tt_tpid')),
                                                   tid = int(res.group('tt_tid')),
-                                                  did = int(res.group('tt_did')))
+                                                  tcid = int(res.group('tt_tcid')))
                     self.idtoname[parsec_id] = name
                     self.nametoid[name] = parsec_id
                     self.dag.add_node(name, fc = res.group('fc'), thid  = int(res.group('thid')), vpid = int(res.group('vpid')),
                                       label = res.group('label'), param = res.group('param'), local = res.group('local'),
-                                      prio  = int(res.group('prio')), did = int(res.group('tt_did')), tid = int(res.group('tt_tid')),
+                                      prio  = int(res.group('prio')), tcid = int(res.group('tt_tcid')), tid = int(res.group('tt_tid')),
                                       tpid = int(res.group('tt_tpid')))
                 else:
                     res = link.match(line)
@@ -121,7 +121,7 @@ class ParsecDAG:
           a Directed Graph holding all the nodes (tasks) and edges (flows) found in the dot files
           Each node is decorated with thid (thread id), vpid (virtual process id), label (task class name),
             param (parameters), local (values of local variables), prio (priority of the task),
-            did (dictionary entry. Corresponds to the 'type' of events in the HDF5), tid (Task Identifier,
+            tcid (task class ID, corresponds to the 'type' of events in the HDF5), tid (Task Identifier,
             corresponds to the 'id' of events in the HDF5, and tpid (Taskpool Identifier, corresponds to
             the 'taskpool_id' of events in the HDF5).
           Each edge is decorated with flow_src (the name of the source flow), flow_dst (the name of the
@@ -135,23 +135,23 @@ class ParsecDAG:
         """Returns a node from its internal name"""
         return self.dag.nodes[name]
 
-    def node_from_id(self, tpid, did, tid):
+    def node_from_id(self, tpid, tcid, tid):
         """Returns a node from its identifiers"""
-        parsec_id = self.ParsecTaskID(tpid = int(tpid), did = int(did), tid = int(tid))
+        parsec_id = self.ParsecTaskID(tpid = int(tpid), tcid = int(tcid), tid = int(tid))
         return self.dag.nodes[ self.idtoname[parsec_id] ]
 
-    def nodename_from_id(self, tpid, did, tid):
+    def nodename_from_id(self, tpid, tcid, tid):
         """Returns the internal name of a node from its identifiers"""
-        parsec_id = self.ParsecTaskID(tpid = int(tpid), did = int(did), tid = int(tid))
+        parsec_id = self.ParsecTaskID(tpid = int(tpid), tcid = int(tcid), tid = int(tid))
         return self.idtoname[parsec_id]
 
     def successors_from_name(self, name):
         """Returns the list of nodes successors of name"""
         return self.dag[name]
 
-    def successors_from_id(self, tpid, did, tid):
-        """Returns the list of nodes successors of (tpid, did, tid)"""
-        parsec_id = self.ParsecTaskID(tpid = int(tpid), did = int(did), tid = int(tid))
+    def successors_from_id(self, tpid, tcid, tid):
+        """Returns the list of nodes successors of (tpid, tcid, tid)"""
+        parsec_id = self.ParsecTaskID(tpid = int(tpid), tcid = int(tcid), tid = int(tid))
         return self.dag[ self.idtoname[parsec_id] ]
 
 if __name__ == '__main__':
