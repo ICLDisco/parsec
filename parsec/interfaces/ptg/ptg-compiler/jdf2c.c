@@ -3914,12 +3914,26 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     jdf_generate_affinity(jdf, f, prefix);
     string_arena_add_string(sa, "  .data_affinity = (parsec_data_ref_fn_t*)%s,\n", prefix);
 
+    /**
+     * As of 05/2020 I disabled the generation of the initial_data and final_data
+     * because 1) they are incorrect with regard to the local indices, and 2) are
+     * not necessary right now for the engine (we use data_lookup to get the
+     * data in all cases).
+     */
+#if 0
     sprintf(prefix, "initial_data_of_%s_%s", jdf_basename, f->fname);
     ret = jdf_generate_initfinal_data(jdf, JDF_DEP_FLOW_IN, f, prefix);
+#else
+    ret = -1;  /* to get NULL for .initial_data */
+#endif
     string_arena_add_string(sa, "  .initial_data = (parsec_data_ref_fn_t*)%s,\n", (0 != ret ? prefix : "NULL"));
 
+#if 0
     sprintf(prefix, "final_data_of_%s_%s", jdf_basename, f->fname);
     ret = jdf_generate_initfinal_data(jdf, JDF_DEP_FLOW_OUT, f, prefix);
+#else
+    ret = -1;  /* to get NULL for .final_data */
+#endif
     string_arena_add_string(sa, "  .final_data = (parsec_data_ref_fn_t*)%s,\n", (0 != ret ? prefix : "NULL"));
 
     if( NULL != f->priority ) {
