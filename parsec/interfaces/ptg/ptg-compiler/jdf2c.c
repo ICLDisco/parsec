@@ -2700,87 +2700,152 @@ static char* has_ready_input_dependency(void **elt, void *pint)
 
 static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_function_entry_t *f, const jdf_dataflow_t *dataflow)
 {
-    const jdf_dataflow_t *flow;
+    const jdf_dataflow_t *flow, *next_flow;
     jdf_dep_t *dep;
     expr_info_t info = EMPTY_EXPR_INFO;
     string_arena_t *sa = string_arena_new(64);
-    int generate_condition;
-    int invert_condition;
+    int write_next_label, continue_if_true, goto_if_false, goto_if_true, skip_continue;
 
     coutput("  %s "JDF2C_NAMESPACE"_tmp_locals = *(%s*)&this_task->locals;\n"
             "  (void)"JDF2C_NAMESPACE"_tmp_locals;\n",
             parsec_get_name(jdf, f, "parsec_assignment_t"),
             parsec_get_name(jdf, f, "parsec_assignment_t"));
-    
+
     info.prefix = "";
     info.suffix = "";
     info.sa = sa;
     info.assignments = "&"JDF2C_NAMESPACE"_tmp_locals";
 
+    write_next_label = 0;
+
+    /* First, we point to the first flow with a DEP_IN */
     for(flow = dataflow; NULL != flow; flow = flow->next) {
+        for(dep = flow->deps; NULL != dep; dep = dep->next)
+            if( JDF_DEP_FLOW_IN & dep->dep_flags )
+                break;
+        if(NULL == dep) continue;
+        break;
+    }
+
+    for(; NULL != flow; flow = next_flow) {
+        /* Then, we compute next_flow as the next one with a DEP_IN. This flow is
+         * needed to be able to generate the goto label to jump from one flow to
+         * the next.
+         */
+        for(next_flow = flow->next; NULL != next_flow; next_flow = next_flow->next) {
+            for(dep = next_flow->deps; NULL != dep; dep = dep->next)
+                if( JDF_DEP_FLOW_IN & dep->dep_flags )
+                    break;
+            if(NULL == dep) continue;
+            break;
+        }
+
+        if(write_next_label) {
+            coutput(" "JDF2C_NAMESPACE"_check_flow_%s:\n", flow->varname);
+            write_next_label = 0;
+        }
+        skip_continue = 0;
+
         for(dep = flow->deps; NULL != dep; dep = dep->next) {
-            generate_condition = 0;
-            invert_condition = 0;
             if( ! (dep->dep_flags & JDF_DEP_FLOW_IN) ) {
                 continue;
             }
-            if( dep->guard->guard_type == JDF_GUARD_BINARY ) {
-                if( (NULL == dep->guard->calltrue->var) ||
-                    (flow->flow_flags & JDF_FLOW_TYPE_CTL)) {
-                    generate_condition = 1;
-                    invert_condition = 0; //(0 != (JDF_FLOW_TYPE_CTL & flow->flow_flags));
+            continue_if_true = 0;
+            goto_if_true = 0;
+            goto_if_false = 0;
+
+            if( dep->guard->guard_type == JDF_GUARD_UNCONDITIONAL ) {
+                /* We cannot be a control flow, or has_ready_input_dependency would have returned false */
+                assert( 0 == (JDF_FLOW_TYPE_CTL & flow->flow_flags) );
+                /* We are necessarily depending on a direct memory, for the same reason */
+                assert( NULL == dep->guard->calltrue->var );
+                coutput("  /* Flow for %s is always a memory reference */\n", flow->varname);
+                skip_continue = 1;  /* no need to complete the flow with a continue */
+                break; /* No need to go check other cases, no need to print the flow label, or the continue */
+            } else if( dep->guard->guard_type == JDF_GUARD_BINARY ) {
+                if(NULL != dep->guard->calltrue->var) {
+                    /* Either we have a <- cond ? A task(), in which case we want to discard the task if cond is true
+                     *     or we have a <- cond ? CTL task(), in which case we also want to discard the task if cond is true */
+                    continue_if_true = 1;
+                } else {
+                    /* Here, we have found a direct memory access */
+                    assert( 0 == (JDF_FLOW_TYPE_CTL & flow->flow_flags) );
+                    goto_if_true = 1;
                 }
-            }
-            if( dep->guard->guard_type == JDF_GUARD_TERNARY ) {
+            } else if( dep->guard->guard_type == JDF_GUARD_TERNARY ) {
+                /* We cannot be a control flow in ternary, or there would always be a case where we cannot be a startup task */
+                assert( 0 == (JDF_FLOW_TYPE_CTL & flow->flow_flags) );
+
                 if( (NULL == dep->guard->calltrue->var) && (NULL == dep->guard->callfalse->var) ) {
-                    /* No condition */
+                    /* No condition, we always depend on a direct memory reference */
+                    coutput("  /* Flow for %s is always a memory reference */\n", flow->varname);
+                    skip_continue = 1;  /* no need to complete the flow with a continue */
+                    break; /* No need to go check other cases, no need to print the flow label, or the continue */
                 } else {
                     if( NULL == dep->guard->calltrue->var ) {
-                        generate_condition = 1;
-                        invert_condition = (0 != (JDF_FLOW_TYPE_CTL & flow->flow_flags));
-                    } else if( NULL == dep->guard->callfalse->var ) {
-                        generate_condition = 1;
-                        invert_condition = (0 == (JDF_FLOW_TYPE_CTL & flow->flow_flags));
+                        assert( NULL != dep->guard->callfalse->var );
+                        goto_if_true = 1;
+                    } else {
+                        assert( NULL == dep->guard->callfalse->var );
+                        goto_if_false = 1;
                     }
                 }
             }
-            if( generate_condition ) {
-                jdf_expr_t *ld;
-                if( NULL != dep->guard->guard->local_variables ) {
-                    for(ld = jdf_expr_lv_first(dep->guard->guard->local_variables);
-                        ld != NULL; ld = jdf_expr_lv_next(dep->guard->guard->local_variables, ld)) {
-                        assert(NULL != ld->alias);
-                        assert(-1 != ld->ldef_index);
-                        coutput("  int %s;\n", ld->alias);
-                        if(JDF_RANGE == ld->op) {
-                            coutput("  for( %s = %s;",
-                                    ld->alias, dump_expr((void**)ld->jdf_ta1, &info));
-                            coutput("%s <= %s; %s+=",
-                                    ld->alias, dump_expr((void**)ld->jdf_ta2, &info), ld->alias);
-                            coutput("%s) {\n"
-                                    "     "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s;\n",
-                                    dump_expr((void**)ld->jdf_ta3, &info),
-                                    ld->ldef_index, ld->alias);
-                        } else {
-                            coutput("  "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s = %s;\n",
-                                    ld->ldef_index, ld->alias, dump_expr((void**)ld, &info));
-                        }
+
+            assert( continue_if_true || goto_if_false || goto_if_true );
+            jdf_expr_t *ld;
+            if( NULL != dep->guard->guard->local_variables ) {
+                for(ld = jdf_expr_lv_first(dep->guard->guard->local_variables);
+                    ld != NULL; ld = jdf_expr_lv_next(dep->guard->guard->local_variables, ld)) {
+                    assert(NULL != ld->alias);
+                    assert(-1 != ld->ldef_index);
+                    coutput("  int %s;\n", ld->alias);
+                    if(JDF_RANGE == ld->op) {
+                        coutput("  for( %s = %s;",
+                                ld->alias, dump_expr((void**)ld->jdf_ta1, &info));
+                        coutput("%s <= %s; %s+=",
+                                ld->alias, dump_expr((void**)ld->jdf_ta2, &info), ld->alias);
+                        coutput("%s) {\n"
+                                "     "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s;\n",
+                                dump_expr((void**)ld->jdf_ta3, &info),
+                                ld->ldef_index, ld->alias);
+                    } else {
+                        coutput("  "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s = %s;\n",
+                                ld->ldef_index, ld->alias, dump_expr((void**)ld, &info));
                     }
                 }
-                coutput("  if( %s%s%s ) continue;\n",
-                        invert_condition ? "!(" : "",
+            }
+
+            if( goto_if_false || goto_if_true ) {
+                char *nextname = (NULL == next_flow) ? JDF2C_NAMESPACE"done" : next_flow->varname;
+                coutput("  if( %s%s%s ) goto "JDF2C_NAMESPACE"_check_flow_%s;\n",
+                        goto_if_false ? "!(" : "",
                         dump_expr((void**)dep->guard->guard, &info),
-                        invert_condition ? ")" : "" );
-                if( NULL != dep->guard->guard->local_variables ) {
-                    for(ld = jdf_expr_lv_first(dep->guard->guard->local_variables);
-                        ld != NULL; ld = jdf_expr_lv_next(dep->guard->guard->local_variables, ld)) {
-                        if(JDF_RANGE == ld->op) {
-                            coutput("  }\n");
-                        }
+                        goto_if_false ? ")" : "",
+                        nextname);
+                write_next_label = 1;
+            } if( continue_if_true) {
+                coutput("  if( %s ) continue; /* %s %s() is not a memory reference for flow %s */\n",
+                        dump_expr((void**)dep->guard->guard, &info),
+                        dep->guard->calltrue->var, dep->guard->calltrue->func_or_mem,
+                        flow->varname);
+            }
+            if( NULL != dep->guard->guard->local_variables ) {
+                for(ld = jdf_expr_lv_first(dep->guard->guard->local_variables);
+                    ld != NULL; ld = jdf_expr_lv_next(dep->guard->guard->local_variables, ld)) {
+                    if(JDF_RANGE == ld->op) {
+                        coutput("  }\n");
                     }
                 }
             }
         }
+
+        if(write_next_label && !skip_continue) {
+            coutput("  continue; /* All other cases are not startup tasks */\n");
+        }
+    }
+    if(write_next_label) {
+        coutput(" "JDF2C_NAMESPACE"_check_flow_"JDF2C_NAMESPACE"done:\n");
     }
 
     string_arena_free(sa);
@@ -3849,12 +3914,26 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     jdf_generate_affinity(jdf, f, prefix);
     string_arena_add_string(sa, "  .data_affinity = (parsec_data_ref_fn_t*)%s,\n", prefix);
 
+    /**
+     * As of 05/2020 I disabled the generation of the initial_data and final_data
+     * because 1) they are incorrect with regard to the local indices, and 2) are
+     * not necessary right now for the engine (we use data_lookup to get the
+     * data in all cases).
+     */
+#if 0
     sprintf(prefix, "initial_data_of_%s_%s", jdf_basename, f->fname);
     ret = jdf_generate_initfinal_data(jdf, JDF_DEP_FLOW_IN, f, prefix);
+#else
+    ret = -1;  /* to get NULL for .initial_data */
+#endif
     string_arena_add_string(sa, "  .initial_data = (parsec_data_ref_fn_t*)%s,\n", (0 != ret ? prefix : "NULL"));
 
+#if 0
     sprintf(prefix, "final_data_of_%s_%s", jdf_basename, f->fname);
     ret = jdf_generate_initfinal_data(jdf, JDF_DEP_FLOW_OUT, f, prefix);
+#else
+    ret = -1;  /* to get NULL for .final_data */
+#endif
     string_arena_add_string(sa, "  .final_data = (parsec_data_ref_fn_t*)%s,\n", (0 != ret ? prefix : "NULL"));
 
     if( NULL != f->priority ) {
@@ -4884,7 +4963,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     info.prefix = "";
     info.suffix = "";
     info.assignments = "    &this_task->locals";
-    
+
     if ( flow->flow_flags & JDF_FLOW_TYPE_READ ) {
         int check = 1;
         for(dl = flow->deps; dl != NULL; dl = dl->next) {
