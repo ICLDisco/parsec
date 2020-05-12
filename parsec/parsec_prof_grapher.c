@@ -11,7 +11,6 @@
 #if defined(PARSEC_PROF_TRACE)
 #include "parsec/parsec_binary_profile.h"
 #endif
-#include "parsec/utils/colors.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/parsec_description_structures.h"
 #include "parsec/utils/debug.h"
@@ -33,8 +32,6 @@
 #if defined(PARSEC_PROF_GRAPHER)
 
 FILE *grapher_file = NULL;
-static int nbfuncs = -1;
-static char **colors = NULL;
 static parsec_hash_table_t *data_ht = NULL;
 static int parsec_prof_grapher_memmode = 0;
 
@@ -85,21 +82,10 @@ static parsec_key_fn_t parsec_grapher_data_key_fns = {
     .key_hash  = grapher_data_id_key_hash
 };
 
-void parsec_prof_grapher_init(const parsec_context_t *parsec_context, const char *base_filename, int nbthreads)
+void parsec_prof_grapher_init(const parsec_context_t *parsec_context, const char *filename)
 {
-    char *filename;
-    char *format;
-    int t, l10 = 0, cs;
-
-    cs = parsec_context->nb_nodes;
-    while(cs > 0) {
-      l10++;
-      cs = cs/10;
-    }
-    asprintf(&format, "%%s-%%0%dd.dot", l10);
-    asprintf(&filename, format, base_filename, parsec_context->my_rank);
-    free(format);
-
+    (void)parsec_context;
+    
     parsec_mca_param_reg_int_name("parsec_prof_grapher", "memmode", "How memory references are traced in the DAG of tasks "
                                  "(default is 0, possible values are 0: no tracing of memory references, 1: trace only the "
                                   "direct memory references, 2: trace memory references even when data is passed from task "
@@ -109,20 +95,10 @@ void parsec_prof_grapher_init(const parsec_context_t *parsec_context, const char
     grapher_file = fopen(filename, "w");
     if( NULL == grapher_file ) {
         parsec_warning("Grapher:\tunable to create %s (%s) -- DOT graphing disabled", filename, strerror(errno));
-        free(filename);
         return;
-    } else {
-        free(filename);
     }
     fprintf(grapher_file, "digraph G {\n");
     fflush(grapher_file);
-
-    srandom(parsec_context->nb_nodes*(parsec_context->my_rank+1));  /* for consistent color generation */
-    (void)nbthreads;
-    nbfuncs = 128;
-    colors = (char**)malloc(nbfuncs * sizeof(char*));
-    for(t = 0; t < nbfuncs; t++)
-        colors[t] = parsec_unique_color(parsec_context->my_rank * nbfuncs + t, parsec_context->nb_nodes * nbfuncs);
 
     data_ht = PARSEC_OBJ_NEW(parsec_hash_table_t);
     parsec_hash_table_init(data_ht, offsetof(parsec_grapher_data_identifier_hash_table_item_t, ht_item), 16, parsec_grapher_data_key_fns, NULL);
@@ -148,59 +124,24 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
 {
     if( NULL != grapher_file ) {
         char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
+        char sim_date[64];
         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context);
         parsec_prof_grapher_taskid(context, nmp, MAX_TASK_STRLEN);
 #if defined(PARSEC_SIM)
-#  if defined(PARSEC_PROF_TRACE)
-        fprintf(grapher_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
-                "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\","
-                "tooltip=\"tpid=%u:did=%d:tname=%s:tid=%lu\"];\n",
-                nmp, colors[context->task_class->task_class_id % nbfuncs],
-                thread_id, vp_id, tmp, context->sim_exec_date,
-                context->taskpool->taskpool_id,
-                context->taskpool->profiling_array != NULL
-                    ? BASE_KEY(context->taskpool->profiling_array[2*context->task_class->task_class_id])
-                    : -1,
-                context->task_class->name,
-                task_hash);
-#  else
-        fprintf(grapher_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
-                "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\","
-                "tooltip=\"tpid=%u:tname=%s:tid=%lu\"];\n",
-                nmp, colors[context->task_class->task_class_id % nbfuncs],
-                thread_id, vp_id, tmp, context->sim_exec_date,
-                context->taskpool->taskpool_id,
-                context->task_class->name,
-                task_hash);
-#  endif
+        snprintf(sim_date, 64, " [%d]", context->sim_exec_date);
 #else
-#  if defined(PARSEC_PROF_TRACE)
-        fprintf(grapher_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
-                "fontcolor=\"black\",label=\"<%d/%d> %s\","
-                "tooltip=\"tpid=%u:did=%d:tname=%s:tid=%lu\"];\n",
-                nmp, colors[context->task_class->task_class_id % nbfuncs],
-                thread_id, vp_id, tmp,
-                context->taskpool->taskpool_id,
-                context->taskpool->profiling_array != NULL
-                    ? BASE_KEY(context->taskpool->profiling_array[2*context->task_class->task_class_id])
-                    : -1,
-                context->task_class->name,
-                task_hash);
-#  else
-        fprintf(grapher_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
-                "fontcolor=\"black\",label=\"<%d/%d> %s\","
-                "tooltip=\"tpid=%u:tname=%s:tid=%lu\"];\n",
-                nmp, colors[context->task_class->task_class_id % nbfuncs],
-                thread_id, vp_id, tmp,
-                context->taskpool->taskpool_id,
-                context->task_class->name,
-                task_hash);
-#  endif
+        sim_date[0]='\0';
 #endif
+        fprintf(grapher_file,
+            "%s [shape=\"polygon\","
+            "label=\"<%d/%d> %s%s\","
+            "tooltip=\"tpid=%u:tcid=%d:tcname=%s:tid=%lu\"];\n",
+            nmp,
+            thread_id, vp_id, tmp, sim_date,
+            context->taskpool->taskpool_id,
+            context->task_class->task_class_id,
+            context->task_class->name,
+            task_hash);
         fflush(grapher_file);
     }
 }
@@ -303,16 +244,10 @@ static void parsec_grapher_data_ht_free_elt(void *_item, void *table)
 
 void parsec_prof_grapher_fini(void)
 {
-    int t;
-
     if( NULL == grapher_file ) return;
 
     fprintf(grapher_file, "}\n");
     fclose(grapher_file);
-    for(t = 0; t < nbfuncs; t++)
-        free(colors[t]);
-    free(colors);
-    colors = NULL;
     grapher_file = NULL;
 
     /* Free all data records */

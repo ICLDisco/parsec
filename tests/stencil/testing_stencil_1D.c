@@ -84,6 +84,13 @@ int main(int argc, char *argv[])
         }
     }
 
+    if(0) {
+        volatile int loop = 1;
+        fprintf(stderr, "gdb -p %d\n", getpid());
+        while(loop)
+            sleep(1);
+    }
+    
     /* Initialize PaRSEC */
     parsec = parsec_init(cores, &pargc, &pargv);
 

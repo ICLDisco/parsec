@@ -49,12 +49,12 @@ network_event = trace.events[ trace.events.type == trace.event_types['MPI_DATA_P
 
 # Now, we can find the corresponding task in the events trace by
 # just providing the index
-task_event = tasks.loc[(int(network_event.tpid), int(network_event.did), int(network_event.tid))]
+task_event = tasks.loc[(int(network_event.tpid), int(network_event.tcid), int(network_event.tid))]
 
 # We can also find the task in the DAG of tasks
-task_node = dag.node_from_id(network_event.tpid, network_event.did, network_event.tid)
+task_node = dag.node_from_id(network_event.tpid, network_event.tcid, network_event.tid)
 # And then we can compute its successors in the DAG
-slist = dag.successors_from_id(network_event.tpid, network_event.did, network_event.tid)
+slist = dag.successors_from_id(network_event.tpid, network_event.tcid, network_event.tid)
 
 # Small caveat: tasks found from the DAG are dicts, not python classes, so one
 # needs to access the fields with the ['field'] notation, and not with the .field
@@ -70,8 +70,8 @@ for n in slist.keys():
     s = dag.node_from_name(n)
     # Lookup that task in the set of traced events. We use the indexing
     # again to speedup the process
-    succ_event = tasks.loc[(s['tpid'], s['did'], s['tid'])]
-    # It's possible that this task did not execute on the same node
+    succ_event = tasks.loc[(s['tpid'], s['tcid'], s['tid'])]
+    # It's possible that this task task class id not execute on the same node
     # as the payload receive event. For example, the origin task could
     # have broadcast the data to many other tasks. So, as we are only
     # interested in the tasks that depend on this payload receive event,

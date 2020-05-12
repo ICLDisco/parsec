@@ -515,17 +515,26 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     parsec_hash_tables_init();
 
+#if defined(PARSEC_PROF_GRAPHER)
+    char *parsec_mca_enable_dot = parsec_enable_dot;
+    parsec_mca_param_reg_string_name("parsec", "dot", "Create a DOT file from the DAGs executed by parsec (one file per rank)",
+                                     false, false, parsec_mca_enable_dot, &parsec_mca_enable_dot);
+    if( NULL != parsec_mca_enable_dot ) {
+        asprintf(&parsec_enable_dot, "%s-%d.dot", parsec_mca_enable_dot, parsec_debug_rank);
+    }
     if( parsec_cmd_line_is_taken(cmd_line, "dot") ) {
+        // command-line has priority over MCA parameter
         char* optarg = NULL;
         GET_STR_ARGV(cmd_line, "dot", optarg);
 
         if( parsec_enable_dot ) free( parsec_enable_dot );
         if( NULL == optarg ) {
-            parsec_enable_dot = strdup(parsec_app_name);
+            asprintf(&parsec_enable_dot, "%s-%d.dot", parsec_app_name, parsec_debug_rank);
         } else {
-            parsec_enable_dot = strdup(optarg);
+            asprintf(&parsec_enable_dot, "%s-%d.dot", optarg, parsec_debug_rank);
         }
     }
+#endif
 
     /* the extra allocation will pertain to the virtual_processes array */
     context = (parsec_context_t*)malloc(sizeof(parsec_context_t) + (nb_vp-1) * sizeof(parsec_vp_t*));
@@ -698,14 +707,12 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Initialize Performance Instrumentation (PARSEC_PINS) */
     PARSEC_PINS_INIT(context);
 
-    if(parsec_enable_dot) {
 #if defined(PARSEC_PROF_GRAPHER)
-        parsec_prof_grapher_init(context, parsec_enable_dot, nb_total_comp_threads);
+    if(parsec_enable_dot) {
+        parsec_prof_grapher_init(context, parsec_enable_dot);
         slow_option_warning = 1;
-#else
-        parsec_warning("DOT generation requested, but PARSEC_PROF_GRAPHER was not selected during compilation: DOT generation ignored.");
-#endif  /* defined(PARSEC_PROF_GRAPHER) */
     }
+#endif  /* defined(PARSEC_PROF_GRAPHER) */
 
 #if defined(PARSEC_DEBUG_NOISIER) || defined(PARSEC_DEBUG_PARANOID)
     slow_option_warning = 1;
