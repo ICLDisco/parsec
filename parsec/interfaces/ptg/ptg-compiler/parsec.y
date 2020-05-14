@@ -164,7 +164,6 @@ static void named_expr_push_scope(void) {
 }
 
 static void named_expr_pop_scope(void) {
-    int scope = current_locally_bound_variables_scope;
     assert(current_locally_bound_variables_scope > 0);
     while(NULL != current_locally_bound_variables && current_locally_bound_variables->scope == current_locally_bound_variables_scope) {
         current_locally_bound_variables = current_locally_bound_variables->next;
@@ -272,7 +271,7 @@ static jdf_expr_t *named_expr_push_in_scope(char *var, jdf_expr_t *e) {
 %debug
 /*%pure-parser*/
 %locations
-%error-verbose
+%define parse.error verbose
 /*%parse-param {struct yyscan_t *yycontrol}*/
 /*%lex-param   {struct yyscan_t *yycontrol}*/
 %%

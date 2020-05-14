@@ -293,15 +293,16 @@ static parsec_data_key_t vector_twoDBC_data_key(struct parsec_data_collection_s 
 #endif /* defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) */
 
 /* return a string meaningful for profiling about data */
-static int  vector_twoDBC_key_to_string(struct parsec_data_collection_s * desc, parsec_data_key_t datakey, char * buffer, uint32_t buffer_size)
+static int
+vector_twoDBC_key_to_string(struct parsec_data_collection_s* desc, parsec_data_key_t datakey,
+                            char * buffer, uint32_t buffer_size)
 {
     int res;
     (void)desc;
 
-    res = snprintf(buffer, buffer_size, "(%lu)", datakey);
-    if (res < 0)
-    {
-        printf("error in key_to_string for tile (%lu) key: %lu\n", datakey, datakey);
+    res = snprintf(buffer, buffer_size, "(%llu)", datakey);
+    if (res < 0) {
+        printf("error in key_to_string for data collection (%llu) key: %llu\n", desc->dc_id, datakey);
     }
     return res;
 }

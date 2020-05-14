@@ -1949,6 +1949,7 @@ static void jdf_generate_affinity( const jdf_t *jdf, const jdf_function_entry_t 
     string_arena_free(sa5);
 }
 
+#if 0
 static void jdf_generate_initfinal_data_for_call(const jdf_call_t *call,
                                                  string_arena_t* sa,
                                                  int il)
@@ -2127,7 +2128,7 @@ static int jdf_generate_initfinal_data( const jdf_t *jdf,
     string_arena_free(sa3);
     return nbdep;
 }
-
+#endif  /* 0 */
 
 static void jdf_generate_symbols( const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix )
 {
@@ -2553,7 +2554,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
             string_arena_add_string(psa, "%s&%s", sep, JDF_OBJECT_ONAME(dl));
             sprintf(sep, ",\n ");
         } else if( dl->guard->guard_type == JDF_GUARD_TERNARY ) {
-            jdf_expr_t not = {0};
+            jdf_expr_t not = {};
 
             sprintf(depname, "%s_iftrue", JDF_OBJECT_ONAME(dl));
             sprintf(condname, "expr_of_cond_for_%s", depname);
