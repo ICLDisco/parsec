@@ -145,6 +145,9 @@ parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate
         PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
         assert(NULL != item);
     }
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tpop a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
+                arena->elem_size, arena, arena->alignment, item, ((parsec_arena_chunk_t*)item)->data, sizeof(parsec_arena_chunk_t),
+                PARSEC_ARENA_MIN_ALIGNMENT(arena->alignment));
     return item;
 }
 

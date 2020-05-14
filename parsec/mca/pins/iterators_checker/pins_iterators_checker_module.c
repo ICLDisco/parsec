@@ -108,7 +108,7 @@ iterators_checker_exec_count_begin(parsec_execution_stream_t* es,
     for(i = 0; i < nbfo; i++) {
         data = final_deps[i]->direct_data(task->taskpool, task->locals);
         if( NULL != data )
-            fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d key is %lu, on device %d. \n",
+            fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d key is %llu, on device %d. \n",
                     str, i, nbfo, data->key, data->owner_device);
         else
             fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d is remote\n",
