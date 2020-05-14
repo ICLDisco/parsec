@@ -4923,7 +4923,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     jdf_dep_t *dl;
     expr_info_t info = EMPTY_EXPR_INFO;
     string_arena_t *sa, *sa2 = NULL, *sa_count = NULL;
-    int cond_index = 0;
+    int cond_index = 0, has_output_deps = 0;
     char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
 
     if( JDF_FLOW_TYPE_CTL & flow->flow_flags ) {
@@ -4938,19 +4938,16 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
         return;
     }
 
-    {
-        int has_output_deps = 0;
-        for(dl = flow->deps; dl != NULL; dl = dl->next) {
-            if ( dl->dep_flags & JDF_DEP_FLOW_OUT ) {
-                has_output_deps = 1;
-                break;
-            }
+    for(dl = flow->deps; dl != NULL; dl = dl->next) {
+        if ( dl->dep_flags & JDF_DEP_FLOW_OUT ) {
+            has_output_deps = 1;
+            break;
         }
-        if( !has_output_deps ) {
-            coutput("    this_task->data._f_%s.data_out = NULL;  /* input only */\n\n", flow->varname);
-        } else {
-            coutput("    this_task->data._f_%s.data_out = NULL;  /* By default, if nothing matches */\n\n", flow->varname);
-        }
+    }
+    if( !has_output_deps ) {
+        coutput("\n    this_task->data._f_%s.data_out = NULL;  /* input only */\n", flow->varname);
+    } else {
+        coutput("\n    this_task->data._f_%s.data_out = NULL;  /* By default, if nothing matches */\n", flow->varname);
     }
 
     coutput( "  if( NULL == (chunk = this_task->data._f_%s.data_in) ) {  /* flow %s */\n"
@@ -5058,15 +5055,17 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
  done_with_input:
     coutput("      this_task->data._f_%s.data_in   = chunk;   /* flow %s */\n"
             "      this_task->data._f_%s.data_repo = entry;\n"
-            "    } else {\n"
-            "      this_task->data._f_%s.data_out = parsec_data_get_copy(chunk->original, target_device);\n"
-            "#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
+            "    } else {\n",
+            flow->varname, flow->varname,
+            flow->varname);
+    if(has_output_deps) {
+        coutput("      this_task->data._f_%s.data_out = parsec_data_get_copy(chunk->original, target_device);\n",
+                flow->varname);
+    }
+    coutput("#if defined(PARSEC_PROF_GRAPHER) && defined(PARSEC_PROF_TRACE)\n"
             "      parsec_prof_grapher_data_input(chunk->original, (parsec_task_t*)this_task, &%s, 0);\n"
             "#endif\n"
             "    }\n",
-            flow->varname, flow->varname,
-            flow->varname,
-            flow->varname,
             JDF_OBJECT_ONAME( flow ));
     
     string_arena_free(sa);
@@ -6199,9 +6198,9 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                             string_arena_add_string(sa_code, "      data_repo_entry_used_once( es, %s_repo, this_task->data._f_%s.data_repo->ht_item.key );\n",
                                                     dep->guard->calltrue->func_or_mem, dl->varname);
                         }
-                        string_arena_add_string(sa_code, "    } else {\n");
                         if( NULL != dep->guard->callfalse->var ) {    /* this is a dataflow not a data access */
                             string_arena_add_string(sa_code,
+                                                    "    } else {\n"
                                                     "      data_repo_entry_used_once( es, %s_repo, this_task->data._f_%s.data_repo->ht_item.key );\n",
                                                     dep->guard->callfalse->func_or_mem, dl->varname);
                         }
