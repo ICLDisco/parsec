@@ -1,11 +1,12 @@
 #!/bin/bash
 #
-# Copyright (c) 2018-2019 The University of Tennessee and The University
+# Copyright (c) 2018-2020 The University of Tennessee and The University
 #                         of Tennessee Research Foundation.  All rights
 #                         reserved.
 
 prefix=/usr/local
 srcdir=${0%/*}
+cmake_generator="Unix Makefiles"
 
 # Be paranoid about errors and abort asap
 set -e
@@ -30,6 +31,8 @@ cat <<EOF
                 Directly pass VAR=VALUE to the Cmake configure stage
 --
                 The remainder of the command line arguments are sent to the Cmake configure stage as-is
+--with-ninja[=DIR]
+                Use Ninja to build to project
 
 
 --with-platform=FILE
@@ -244,6 +247,11 @@ while [ "x$1" != x ]; do
         --enable-python-venv) enable_python_venv=yes; shift;;
         --disable-python-venv) enable_python_venv=no; shift;;
 
+# Ninja Generator
+        --with-ninja=*) with_ninja="${1#*=}"; shift;;
+        --with-ninja) with_ninja=yes; shift;;
+        --without-ninja) with_ninja=no; shift;;
+
 # Cmake passthrough
         -D*=*) CMAKE_DEFINES+=" $(printf %q "$1")"; shift;;
         --) shift;
@@ -337,8 +345,8 @@ _EOF
     local NATIVE_OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DCMAKE_INSTALL_PREFIX=$NATIVE_PREFIX $NATIVE_MPI $NATIVE_CUDA $NATIVE_HWLOC $NATIVE_COMPILERS"
 
     set_cmake_executable #may have been changed in the platform file
-    echo "CC=\"${NATIVE_CC}\" CFLAGS=\"${NATIVE_CFLAGS}\" CXX=\"${NATIVE_CXX}\" CXXFLAGS=\"${NATIVE_CXXFLAGS}\" LDFLAGS=\"${NATIVE_LDFLAGS}\" ${cmake_executable} -G \"Unix Makefiles\" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} $(for i in "$@"; do printf ' %q' "$i"; done) ${srcdir}"
-    CC="${NATIVE_CC}" CFLAGS="${NATIVE_CFLAGS}" CXX="${NATIVE_CXX}" CXXFLAGS="${NATIVE_CXXFLAGS}" LDFLAGS="${NATIVE_LDFLAGS}" ${cmake_executable} -G "Unix Makefiles" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} "$@" ${srcdir}
+    echo "CC=\"${NATIVE_CC}\" CFLAGS=\"${NATIVE_CFLAGS}\" CXX=\"${NATIVE_CXX}\" CXXFLAGS=\"${NATIVE_CXXFLAGS}\" LDFLAGS=\"${NATIVE_LDFLAGS}\" ${cmake_executable} -G\"${cmake_generator}\" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} $(for i in "$@"; do printf ' %q' "$i"; done) ${srcdir}"
+    CC="${NATIVE_CC}" CFLAGS="${NATIVE_CFLAGS}" CXX="${NATIVE_CXX}" CXXFLAGS="${NATIVE_CXXFLAGS}" LDFLAGS="${NATIVE_LDFLAGS}" ${cmake_executable} -G"${cmake_generator}" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} "$@" ${srcdir}
     popd
     [ -r "$TOOLCHAIN_FILE" ] || echo >&2 "Cross compiling Toolchain file TOOLCHAIN_FILE=$TOOLCHAIN_FILE is missing... This will probably cause an error."
     local TOOLCHAIN=" -DCMAKE_TOOLCHAIN_FILE=\"$TOOLCHAIN_FILE\" -DIMPORT_EXECUTABLES=\"$NATIVE_DIR/ImportExecutables.cmake\""
@@ -532,9 +540,25 @@ xyes) set_python_venv ;;
 *) ;;
 esac
 
+case x$with_ninja in
+xno) ;;
+xyes) cmake_generator="Ninja";; # do as we are told no questions asked.
+*) if cmake --help | grep '^\s*Ninja\s*=' -q ; then
+    if [ x$with_ninja = x ]; then
+        # just probe, if nothing found that's ok.
+        NINJA_EXECUTABLES=$(command -v ninja) || true
+    else
+        NINJA_EXECUTABLES=$(PATH="$with_ninja:$with_ninja/bin:${PATH}" command -v $with_ninja ninja)
+    fi
+    if [ "$NINJA_EXECUTABLES" ]; then
+        cmake_generator="Ninja"
+    fi
+   fi
+esac
+
 # CMAKE INVOCATION
 
-CMAKE_COMMAND="$ENVVARS $cmake_executable -G 'Unix Makefiles' $srcdir $CMAKE_DEFINES $CMAKE_DEFINES_RAW"
+CMAKE_COMMAND="$ENVVARS $cmake_executable -G'$cmake_generator' $srcdir $CMAKE_DEFINES $CMAKE_DEFINES_RAW"
 
 cat <<EOF
 ### CMake generated invocation
@@ -546,5 +570,10 @@ EOF
 if [ x$nocreate != xyes ]; then
     [ x$_PARSEC_CONFIG_STATUS_OPT_NORECHECK != xyes ] && echo "Removing Cmake Cache..." && rm -rf CMakeCache.txt CMakeFiles
     eval $CMAKE_COMMAND
+    cat<<EOF
+#
+### CMake Generator: $cmake_generator
+#
+EOF
 fi
 
