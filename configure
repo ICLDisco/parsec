@@ -90,6 +90,8 @@ cat <<EOF
 
 --with-python[=DIR]
                 use the Python interpreter [installed in DIR] (default=autodetect)
+--enable-python-venv
+                create a Python virtualenv that contains the dependencies for Parsec profiling tools (default=false)
 
 --with-mpi[=DIR]
                 use the MPI communication library [installed in DIR] (default=autodetect)
@@ -239,6 +241,8 @@ while [ "x$1" != x ]; do
         --with-python=*) with_python="${1#*=}"; shift;;
         --with-python) with_python=yes; shift;;
         --without-python) with_python=no; shift;;
+        --enable-python-venv) enable_python_venv=yes; shift;;
+        --disable-python-venv) enable_python_venv=no; shift;;
 
 # Cmake passthrough
         -D*=*) CMAKE_DEFINES+=" $(printf %q "$1")"; shift;;
@@ -293,6 +297,16 @@ for i in "$@"; do
       eval with_${varname#*without_}=no
     done
 done
+}
+
+function set_python_venv {
+    if [ -x "$(command -v virtualenv)" ]; then
+        virtualenv --clear --prompt='pyparsec> ' ${PYTHON_EXECUTABLE:+-p ${PYTHON_EXECUTABLE}} venv
+        source venv/bin/activate
+        pip install Cython pandas matplotlib tables
+    else
+        echo >&2 "Could not prepare a Python venv because \`virtualenv\` was not found... Continue with native Python."
+    fi
 }
 
 #
@@ -511,6 +525,11 @@ x) ;;
     for PYTHON_EXECUTABLE in $PYTHON_EXECUTABLES; do
         [[ $PYTHON_EXECUTABLE =~ $with_python ]] && CMAKE_DEFINES+=" -DPython_EXECUTABLE=$(printf %q "$PYTHON_EXECUTABLE")" && break
     done
+esac
+
+case x$enable_python_venv in
+xyes) set_python_venv ;;
+*) ;;
 esac
 
 # CMAKE INVOCATION
