@@ -309,7 +309,7 @@ done
 
 function set_python_venv {
     if [ -x "$(command -v virtualenv)" ]; then
-        virtualenv --clear --prompt='pyparsec> ' ${PYTHON_EXECUTABLE:+-p ${PYTHON_EXECUTABLE}} venv
+        virtualenv --prompt='pyparsec> ' ${PYTHON_EXECUTABLE:+-p ${PYTHON_EXECUTABLE}} venv
         source venv/bin/activate
         pip install Cython pandas matplotlib tables
     else
@@ -530,15 +530,20 @@ xno) echo >&2 "Python is required. Please provide a path to the python executabl
 xyes) ;;
 x) ;;
 *)  PYTHON_EXECUTABLES=$(PATH="$with_python:$with_python/bin:${PATH}" command -v $with_python python{,3,2})
-    for PYTHON_EXECUTABLE in $PYTHON_EXECUTABLES; do
-        [[ $PYTHON_EXECUTABLE =~ $with_python ]] && CMAKE_DEFINES+=" -DPython_EXECUTABLE=$(printf %q "$PYTHON_EXECUTABLE")" && break
+    for pe in $PYTHON_EXECUTABLES; do
+        [[ $pe =~ $with_python ]] && PYTHON_EXECUTABLE=$pe && break
     done
 esac
 
 case x$enable_python_venv in
-xyes) set_python_venv ;;
+xyes) set_python_venv ;
+      pe=$(command -v $PWD/venv/bin/python)
+      [[ $pe ]] && PYTHON_EXECUTABLE=$pe;;
 *) ;;
 esac
+
+[[ x$PYTHON_EXECUTABLE != x ]] && CMAKE_DEFINES+=" -DPython_EXECUTABLE=$(printf %q "$PYTHON_EXECUTABLE")"
+
 
 case x$with_ninja in
 xno) ;;
