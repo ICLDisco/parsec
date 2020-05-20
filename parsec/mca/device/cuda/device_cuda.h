@@ -101,6 +101,8 @@ struct parsec_device_cuda_module_s {
     int64_t mem_nb_blocks;
 };
 
+PARSEC_OBJ_CLASS_DECLARATION(parsec_device_cuda_module_t);
+
 struct parsec_gpu_exec_stream_s {
     /* There is exactly one task per active event (max_events being the uppoer bound).
      * Upon event completion the complete_stage function associated with the task is

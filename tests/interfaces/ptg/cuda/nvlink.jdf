@@ -17,19 +17,44 @@ extern "C" %{
 #include <sys/time.h>
 #include <mpi.h>
 #if defined(PARSEC_HAVE_CUDA)
-#include "parsec/mca/device/cuda/device_cuda_internal.h"
-#include <cublas.h>
+#include "parsec/mca/device/device.h"
+#include <cublas_v2.h>
 #endif  /* defined(PARSEC_HAVE_CUDA) */
 
 /**
  *
  */
 
+typedef cublasStatus_t (*cublas_dgemm_v2_t) ( cublasHandle_t handle,
+                                              cublasOperation_t transa, cublasOperation_t transb,
+                                              int m, int n, int k,
+                                              const double *alpha,
+                                              const double *A, int lda,
+                                              const double *B, int ldb,
+                                              const double *beta,
+                                              double       *C, int ldc);
 
-typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
-                                 double alpha, double *d_A, int lda,
-                                 double *d_B, int ldb,
-                                 double beta,  double *d_C, int ldc );
+static cublasHandle_t create_or_lookup_cublas_handle(parsec_device_module_t *mod,
+                                                     parsec_info_id_t cuhi,
+                                                     cudaStream_t cuda_stream)
+{
+    cublasHandle_t ret;
+    ret = parsec_info_get(&mod->infos, cuhi);
+    if( NULL == ret ) {
+        cublasHandle_t handle;
+        cublasStatus_t status;
+        /* No need to call cudaSetDevice, as this has been done by PaRSEC before calling the task body */
+        status = cublasCreate(&handle);
+        assert(CUBLAS_STATUS_SUCCESS == status);
+        status = cublasSetStream(handle, cuda_stream);
+        assert(CUBLAS_STATUS_SUCCESS == status);
+        ret = parsec_info_test_and_set(&mod->infos, cuhi, handle, NULL);
+        /* We are the only thread modifying this entry, so the test and set should always succeed */
+        assert(ret == handle);
+    }
+    return ret;
+}
+
 %}
 
 /*
@@ -37,6 +62,7 @@ typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
  */
 descA             [type = "two_dim_block_cyclic_t *"]
 NP                [type = "int"]
+CuHI              [type = "parsec_info_id_t"]
 NGPUs             [type = "int"]
 cuda_device_index [ type = "int *" ]
 
@@ -119,18 +145,22 @@ RW   C <- (m == 0) ? C MAKE_C(g, r) : C GEMM(m-1, g, r)
                                     : C DISCARD_C(g, r)
 
 BODY [type=CUDA
-      dyld=cublasDgemm dyldtype=cublas_dgemm_t
+      dyld=cublasDgemm_v2 dyldtype=cublas_dgemm_v2_t
       weight=(1)]
 {
     cublasStatus_t status;
-    cublasSetKernelStream( parsec_body.stream );
-    parsec_body.dyld_fn( 'N', 'N', 
-                         descA->super.mb, descA->super.nb, descA->super.mb,
-                         0.0, (double*)A, descA->super.mb,
-                         (double*)A, descA->super.mb,
-                         1.0, (double*)C, descA->super.mb );
-    status = cublasGetError();
-    PARSEC_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+    cublasHandle_t handle;
+    double alpha=0.0;
+    double beta=1.0;
+    handle = create_or_lookup_cublas_handle(&gpu_device->super, CuHI, gpu_stream->cuda_stream);
+    assert(NULL != handle);
+    status = parsec_body.dyld_fn( handle,
+                                  CUBLAS_OP_N, CUBLAS_OP_N, 
+                                  descA->super.mb, descA->super.nb, descA->super.mb,
+                                  &alpha, (double*)A, descA->super.mb,
+                                  (double*)A, descA->super.mb,
+                                  &beta, (double*)C, descA->super.mb );
+    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm_v2 ", status,
                             {return -1;} );
 }
 END

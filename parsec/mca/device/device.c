@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2013-2019 The University of Tennessee and The University
+ * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -33,6 +33,8 @@ static uint32_t parsec_mca_device_are_freezed = 0;
 parsec_atomic_lock_t parsec_devices_mutex = PARSEC_ATOMIC_UNLOCKED;
 static parsec_device_module_t** parsec_devices = NULL;
 
+parsec_info_t parsec_per_device_infos;
+
 static parsec_device_module_t* parsec_device_cpus = NULL;
 static parsec_device_module_t* parsec_device_recursive = NULL;
 
@@ -53,6 +55,23 @@ float *parsec_device_sweight = NULL;
 float *parsec_device_dweight = NULL;
 float *parsec_device_tweight = NULL;
 
+static void parsec_device_module_constructor(parsec_object_t *obj)
+{
+    parsec_device_module_t *mod = (parsec_device_module_t*)obj;
+    PARSEC_OBJ_CONSTRUCT(&mod->infos, parsec_info_object_array_t);
+    parsec_info_object_array_init(&mod->infos, &parsec_per_device_infos);
+}
+
+static void parsec_device_module_destructor(parsec_object_t *obj)
+{
+    parsec_device_module_t *mod = (parsec_device_module_t*)obj;
+    PARSEC_OBJ_DESTRUCT(&mod->infos);
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_device_module_t, parsec_object_t,
+                          parsec_device_module_constructor,
+                          parsec_device_module_destructor);
+
 int parsec_mca_device_init(void)
 {
     char** parsec_device_list = NULL;
@@ -61,6 +80,8 @@ int parsec_mca_device_init(void)
     char modules_activated_str[1024] = "";
 #endif  /* defined(PARSEC_PROF_TRACE) */
     int i, j, rc, priority;
+
+    PARSEC_OBJ_CONSTRUCT(&parsec_per_device_infos, parsec_info_t);
 
     (void)parsec_mca_param_reg_int_name("device", "show_capabilities",
                                         "Show the detailed devices capabilities",
@@ -314,6 +335,9 @@ int parsec_mca_device_fini(void)
         parsec_output_close(parsec_device_output);
         parsec_device_output = parsec_debug_output;
     }
+
+    PARSEC_OBJ_DESTRUCT(&parsec_per_device_infos);
+
     return PARSEC_SUCCESS;
 }
 

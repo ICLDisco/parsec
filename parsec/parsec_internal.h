@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The University of Tennessee and The University
+ * Copyright (c) 2012-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -24,12 +24,12 @@
 #include "parsec/data.h"
 #include "parsec/utils/debug.h"
 #include "parsec/utils/output.h"
+#include "parsec/class/info.h"
 
 #if defined(PARSEC_PROF_GRAPHER)
 #include "parsec/parsec_prof_grapher.h"
 #endif  /* defined(PARSEC_PROF_GRAPHER) */
 #include "parsec/mca/device/device.h"
-
 
 #include <string.h>
 

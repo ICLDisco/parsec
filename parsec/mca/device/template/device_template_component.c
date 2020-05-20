@@ -23,6 +23,8 @@
 #include "parsec/utils/zone_malloc.h"
 #include "parsec/class/fifo.h"
 
+PARSEC_OBJ_CLASS_INSTANCE(parsec_device_template_module_t, parsec_device_module_t, NULL, NULL);
+
 static int device_template_component_open(void);
 static int device_template_component_close(void);
 static int device_template_component_query(mca_base_module_2_0_0_t **module, int *priority);
