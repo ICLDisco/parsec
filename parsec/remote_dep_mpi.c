@@ -335,6 +335,12 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
             parsec_warning("Requested multithreaded access to the communication engine, but MPI is not initialized with MPI_THREAD_MULTIPLE.\n"
                         "\t* PaRSEC will continue with the funneled thread communication engine model.\n");
         }
+#if RDEP_MSG_EAGER_LIMIT != 0
+        if( (context->flags & PARSEC_CONTEXT_FLAG_COMM_MT) && parsec_param_eager_limit ) {
+            parsec_warning("Using eager and thread multiple MPI messaging is not implemented yet. Disabling Eager.");
+            parsec_param_eager_limit = 0;
+        }
+#endif
     }
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
     parsec_mca_param_reg_int_name("runtime", "comm_mpi_overtake", "Lets MPI allow overtaking of messages (if applicable). (0: no, 1: yes)",
@@ -1445,13 +1451,8 @@ static void remote_dep_mpi_params(parsec_context_t* context) {
     }
 #endif
 #if RDEP_MSG_EAGER_LIMIT != 0
-    if( parsec_param_comm_thread_multiple ) parsec_param_eager_limit = 0;
     parsec_mca_param_reg_sizet_name("runtime", "comm_eager_limit", "Controls the maximum size of a message that uses the eager protocol. Eager messages are sent eagerly before a 2-sided synchronization and may cause flow control and memory contentions at the receiver, but have a better latency.",
                                   false, false, parsec_param_eager_limit, &parsec_param_eager_limit);
-    if( parsec_param_comm_thread_multiple && parsec_param_eager_limit ) {
-        parsec_warning("Using eager and thread multiple MPI messaging is not implemented yet. Disabling Eager.");
-        parsec_param_eager_limit = 0;
-    }
 #endif
     parsec_mca_param_reg_int_name("runtime", "comm_aggregate", "Aggregate multiple dependencies in the same short message (1=true,0=false).",
                                   false, false, parsec_param_enable_aggregate, &parsec_param_enable_aggregate);
@@ -1772,6 +1773,9 @@ static remote_dep_datakey_t
 remote_dep_mpi_eager_which(const parsec_remote_deps_t* deps,
                            remote_dep_datakey_t output_mask)
 {
+    if( 0 == parsec_param_eager_limit )  /* eager disabled via MCA */
+        return 0;
+
     for(int k = 0; output_mask>>k; k++) {
         if( !(output_mask & (1U<<k)) ) continue;            /* No dependency */
         if( NULL == deps->output[k].data.arena ) continue;  /* CONTROL dependency */
