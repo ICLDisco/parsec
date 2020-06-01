@@ -12,8 +12,8 @@ int
 parsec_private_memory_init( parsec_memory_pool_t* pool,
                            size_t size )
 {
-    pool->lifo.alignment = 0;
     PARSEC_OBJ_CONSTRUCT( &(pool->lifo), parsec_lifo_t );
+    pool->lifo.alignment = 0;  /* reset the default alignment to the minimum possible */
     pool->elem_size = size + sizeof(parsec_list_item_t);
     return 0;
 }
