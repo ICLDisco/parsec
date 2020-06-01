@@ -74,11 +74,10 @@ endif()
 
 # Some compilers produce better debugging outputs with Og vs O0
 # but this should only be used in RelWithDebInfo mode.
+set(o0flag "")
 check_c_compiler_flag( "-Og" PARSEC_HAVE_Og )
 if( PARSEC_HAVE_Og )
   set(o0flag "-Og")
-else()
-  set(o0flag "-O0")
 endif()
 
 # Set warnings for debug builds
