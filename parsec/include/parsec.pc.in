@@ -5,7 +5,7 @@ includedir=${prefix}/@PARSEC_INSTALL_INCLUDEDIR@
 
 Name: PaRSEC
 Description: Parallel Runtime Scheduling and Execution Controller
-Version: @PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@.@PARSEC_VERSION_PATCH@
+Version: @PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@.@PARSEC_VERSION_RELEASE@
 Requires: @PARSEC_PKG_REQUIRE@
 Libs: -L${libdir} -lparsec @EXTRA_LIBS_EXPANDED@ @EXTRA_LDFLAGS@
 Libs.private: @PAPI_LIBRARIES@
