@@ -143,14 +143,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[]);
  * @details
  * Obtain the version number of the PaRSEC runtime
  *
- * @param[out]   version_major a pointer to the major version number (i.e., 19, in version 19.11.1)
- * @param[out]   version_minor a pointer to the minor version number (i.e., 11 in version 19.11.1)
- * @param[out]   version_patch a pointer to the patch version number (i.e., 1 in version 19.11.1)
+ * @param[out]   version_major a pointer to the major version number (i.e., 3, in version 3.0.1911)
+ * @param[out]   version_minor a pointer to the minor version number (i.e., 0 in version 3.0.1911)
+ * @param[out]   version_release a pointer to the patch version number (i.e., 1911 in version 3.0.1911)
  *               Unreleased (e.g., git master) versions will have patch=0
  *
  * @return PARSEC_SUCCESS on success
  */
-int parsec_version( int* version_major, int* version_minor, int* version_patch);
+int parsec_version( int* version_major, int* version_minor, int* version_release);
 
 /**
  * @brief Obtain the version string describing important options used when

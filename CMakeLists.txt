@@ -6,13 +6,29 @@ include(CMakePushCheckState)
 include(GNUInstallDirs)
 
 # The current version number
-set (PARSEC_VERSION_MAJOR 2)
-set (PARSEC_VERSION_MINOR 0)
-set (PARSEC_VERSION_PATCH 0)
+#   This uses the numbering scheme from libtool -version_number c:r:a
+#      see http://www.sourceware.org/autobook/autobook/autobook_61.html
+#   with PARSEC_VERSION_MAJOR=c-a
+#        PARSEC_VERSION_MINOR=a
+#        PARSEC_VERSION_RELEASE=YYWW
+#   When making a backward compatible addition to the API
+#     PARSEC_VERSION_MAJOR does not change
+#     PARSEC_VERSION_MINOR increases by 1
+#   When making a backward incompabilte change to an API (or exposed structure)
+#     PARSEC_VERSION_MAJOR increases by 1
+#     PARSEC_VERSION_MINOR resets to 0
+# Unlike strict libtool numbering, PARSEC_VERSION_RELEASE is an monotonous 
+# increasing number that corresponds to the software version release number
+# and never resets to 0 (e.g., for a release number 20.06 made in the second week
+# of february 2020, PARSEC_VERSION_RELEASE=2006)
+set (PARSEC_VERSION_MAJOR   3)
+set (PARSEC_VERSION_MINOR   0)
+set (PARSEC_VERSION_RELEASE 0) # Devel master have no release number
+#set (PARSEC_VERSION_RELEASE 2023) # Set and uncomment for a release
 
 # Set the following values for a release
 #set(GIT_COMMIT_HASH deafbeed)
-#set(GIT_COMMIT_TAG vX.Y.Z)
+#set(GIT_COMMIT_TAG vYY.WW)
 #set(GIT_COMMIT_DATE yyyy-mm-dd)
 
 # Configure the installation paths
@@ -968,7 +984,7 @@ set (CPACK_RESOURCE_FILE_LICENSE
      "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
 set (CPACK_PACKAGE_VERSION_MAJOR "${PARSEC_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
-set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_PATCH}")
+set (CPACK_PACKAGE_VERSION_RELEASE "${PARSEC_VERSION_RELEASE}")
 include (CPack)
 
 # Prepare the cflags/ldflags for the PkgConfig parsec.pc file
@@ -1050,8 +1066,8 @@ configure_package_config_file(cmake_modules/PaRSECConfig.cmake.in
   PARSEC_INSTALL_INCLUDEDIR PARSEC_INSTALL_BINDIR PARSEC_INSTALL_LIBEXECDIR PARSEC_INSTALL_CMAKEDIR)
 
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/ParsecConfigVersion.cmake
-    VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_PATCH}
-                                 COMPATIBILITY SameMajorVersion)
+  VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_RELEASE}
+  COMPATIBILITY SameMajorVersion)
 
 install(FILES
   ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/PaRSECConfig.cmake

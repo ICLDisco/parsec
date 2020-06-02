@@ -200,7 +200,7 @@ if( BUILD_PARSEC )
   # version (same version as the major of the build version). Thus, every
   # change in the high-level API (and ABI) should be reflected on the
   # major version of PaRSEC.
-  set_target_properties(parsec PROPERTIES VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_PATCH}
+  set_target_properties(parsec PROPERTIES VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_RELEASE}
     SOVERSION ${PARSEC_VERSION_MAJOR})
 
   if( PARSEC_PAPI_SDE )

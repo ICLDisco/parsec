@@ -839,10 +839,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     return context;
 }
 
-int parsec_version( int* version_major, int* version_minor, int* version_patch) {
+int parsec_version( int* version_major, int* version_minor, int* version_release) {
     *version_major = PARSEC_VERSION_MAJOR;
     *version_minor = PARSEC_VERSION_MINOR;
-    *version_patch = PARSEC_VERSION_PATCH;
+    *version_release = PARSEC_VERSION_RELEASE;
     return PARSEC_SUCCESS;
 }
 
@@ -874,7 +874,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         "c_flags\t\t= %s\n",
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
-        PARSEC_VERSION_PATCH,
+        PARSEC_VERSION_RELEASE,
         PARSEC_GIT_HASH,
         PARSEC_GIT_BRANCH,
         PARSEC_GIT_DIRTY,

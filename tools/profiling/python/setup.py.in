@@ -123,7 +123,7 @@ def distutils_dir_name(dname):
 
 setup(
     name = 'pbt2ptt',
-    version='@PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@.@PARSEC_VERSION_PATCH@',
+    version='@PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@.@PARSEC_VERSION_RELEASE@',
     description='PaRSEC Binary Trace Interface parses and converts the PaRSEC Binary Trace format into a pandas-based Python tabular format',
     url='http://icl.cs.utk.edu/parsec/',
     package_dir={ '': '@CMAKE_CURRENT_SOURCE_DIR@'},
