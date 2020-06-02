@@ -74,10 +74,10 @@ endif()
 
 # Some compilers produce better debugging outputs with Og vs O0
 # but this should only be used in RelWithDebInfo mode.
-set(o0flag "")
+set(ogflag "")
 check_c_compiler_flag( "-Og" PARSEC_HAVE_Og )
 if( PARSEC_HAVE_Og )
-  set(o0flag "-Og")
+  set(ogflag "-Og")
 endif()
 
 # Set warnings for debug builds
@@ -116,7 +116,7 @@ endif(_match_icc)
 
 # verbose compilation in debug
 add_compile_options(
-  "$<$<CONFIG:RELWITHDEBINFO>:${o0flag};${wflags}>"
+  "$<$<CONFIG:RELWITHDEBINFO>:${ogflag};${wflags}>"
   "$<$<CONFIG:DEBUG>:${wflags}>")
 # remove asserts in release
 add_compile_definitions(
