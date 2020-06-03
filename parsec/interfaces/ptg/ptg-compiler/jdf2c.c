@@ -1338,8 +1338,8 @@ static void jdf_generate_header_file(const jdf_t* jdf)
                                 "", "  ", ";\n", ";\n"));
     }
     houtput("  /* The array of datatypes (%s and co.) */\n"
-            "  parsec_arena_t** arenas;\n"
-            "  uint32_t arenas_size;\n",
+            "  parsec_arena_datatype_t** arenas_datatypes;\n"
+            "  uint32_t arenas_datatypes_size;\n",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->datatypes, next, name,
                                   dump_string, NULL, "", "", ",", ""));
 
@@ -2295,7 +2295,10 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function
                     indent(nbopen), targetf->fname, pl->name, dump_expr( (void**)le->jdf_ta3, &info3 ));
             nbopen+=2;
         } else {
-            coutput("%s  int %s_%s = %s;\n", indent(nbopen), targetf->fname, pl->name, dump_expr( (void**)le, &info1 ));
+            coutput("%s  int %s_%s = %s;\n"
+                    "%s  (void)%s_%s;\n",
+                    indent(nbopen), targetf->fname, pl->name, dump_expr( (void**)le, &info1 ),
+                    indent(nbopen), targetf->fname, pl->name);
         }                    
     }
     coutput("%s  __nb_found++;\n", indent(nbopen));
@@ -4277,14 +4280,14 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  free(__parsec_tp->super.super.task_classes_array); __parsec_tp->super.super.task_classes_array = NULL;\n"
             "  __parsec_tp->super.super.nb_task_classes = 0;\n"
             "\n"
-            "  for(i = 0; i < (uint32_t)__parsec_tp->super.arenas_size; i++) {\n"
-            "    if( __parsec_tp->super.arenas[i] != NULL ) {\n"
-            "      parsec_arena_destruct(__parsec_tp->super.arenas[i]);\n"
-            "      free(__parsec_tp->super.arenas[i]); __parsec_tp->super.arenas[i] = NULL;\n"
+            "  for(i = 0; i < (uint32_t)__parsec_tp->super.arenas_datatypes_size; i++) {\n"
+            "    if( __parsec_tp->super.arenas_datatypes[i] != NULL ) {\n"
+            "      PARSEC_OBJ_RELEASE(__parsec_tp->super.arenas_datatypes[i]->arena);\n"
+            "      free(__parsec_tp->super.arenas_datatypes[i]); __parsec_tp->super.arenas_datatypes[i] = NULL;\n"
             "    }\n"
             "  }\n"
-            "  free( __parsec_tp->super.arenas ); __parsec_tp->super.arenas = NULL;\n"
-            "  __parsec_tp->super.arenas_size = 0;\n");
+            "  free( __parsec_tp->super.arenas_datatypes ); __parsec_tp->super.arenas_datatypes = NULL;\n"
+            "  __parsec_tp->super.arenas_datatypes_size = 0;\n");
 
     coutput("  /* Destroy the data repositories for this object */\n");
     for( f = jdf->functions; NULL != f; f = f->next ) {
@@ -4456,7 +4459,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         jdf_expr_t *arena_strut = NULL;
         jdf_def_list_t* prop;
 
-        coutput("  /* Compute the number of arenas: */\n");
+        coutput("  /* Compute the number of arenas_datatypes: */\n");
 
         for( g = jdf->datatypes; NULL != g; g = g->next ) {
             coutput("  /*   PARSEC_%s_%s_ARENA  ->  %d */\n",
@@ -4474,17 +4477,17 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             info.sa = string_arena_new(64);
             info.assignments = "NULL";
 
-            coutput("  __parsec_tp->super.arenas_size = %d + %s;\n",
+            coutput("  __parsec_tp->super.arenas_datatypes_size = %d + %s;\n",
                     datatype_index, dump_expr((void**)arena_strut, &info));
 
             string_arena_free(info.sa);
         } else {
-            coutput("  __parsec_tp->super.arenas_size = %d;\n", datatype_index);
+            coutput("  __parsec_tp->super.arenas_datatypes_size = %d;\n", datatype_index);
         }
 
-        coutput("  __parsec_tp->super.arenas = (parsec_arena_t **)malloc(__parsec_tp->super.arenas_size * sizeof(parsec_arena_t*));\n"
-                "  for(i = 0; i < __parsec_tp->super.arenas_size; i++) {\n"
-                "    __parsec_tp->super.arenas[i] = (parsec_arena_t*)calloc(1, sizeof(parsec_arena_t));\n"
+        coutput("  __parsec_tp->super.arenas_datatypes = (parsec_arena_datatype_t **)malloc(__parsec_tp->super.arenas_datatypes_size * sizeof(parsec_arena_datatype_t*));\n"
+                "  for(i = 0; i < __parsec_tp->super.arenas_datatypes_size; i++) {\n"
+                "    __parsec_tp->super.arenas_datatypes[i] = (parsec_arena_datatype_t*)calloc(1, sizeof(parsec_arena_datatype_t));\n"
                 "  }\n");
     }
 
@@ -4764,7 +4767,7 @@ jdf_generate_arena_string_from_datatype(string_arena_t *sa,
     info.suffix = "";
     info.assignments = "&this_task->locals";
 
-    string_arena_add_string(sa, "__parsec_tp->super.arenas[");
+    string_arena_add_string(sa, "__parsec_tp->super.arenas_datatypes[");
     if( JDF_CST == datatype.type->op ) {
         string_arena_add_string(sa, "%d", datatype.type->jdf_cst);
     } else if( (JDF_VAR == datatype.type->op) || (JDF_STRING == datatype.type->op) ) {
@@ -4865,7 +4868,7 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                 assert( dl->datatype.count != NULL );
                 string_arena_add_string(sa2, "%s", dump_expr((void**)dl->datatype.count, &info));
 
-                coutput("%s    chunk = parsec_arena_get_copy(%s, %s, target_device);\n"
+                coutput("%s    chunk = parsec_arena_get_copy(%s->arena, %s, target_device);\n"
                         "%s    chunk->original->owner_device = target_device;\n"
                         "%s    this_task->data._f_%s.data_out = chunk;\n",
                         spaces, string_arena_get_string(sa), string_arena_get_string(sa2),
@@ -4912,7 +4915,7 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
         }
     }
 
-    coutput("%s    chunk = parsec_arena_get_copy(%s, %s, target_device);\n"
+    coutput("%s    chunk = parsec_arena_get_copy(%s->arena, %s, target_device);\n"
             "%s    chunk->original->owner_device = target_device;\n",
             spaces, arena, count,
             spaces);
@@ -5113,8 +5116,8 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf,
         coutput("%s  if( (NULL != this_task->data._f_%s.data_out) && (this_task->data._f_%s.data_out->original != data_of_%s(%s)) ) {\n"
                 "%s    parsec_dep_data_description_t data;\n"
                 "%s    data.data   = this_task->data._f_%s.data_out;\n"
-                "%s    data.arena  = %s;\n"
-                "%s    data.layout = data.arena->opaque_dtt;\n"
+                "%s    data.arena  = %s->arena;\n"
+                "%s    data.layout = %s->opaque_dtt;\n"
                 "%s    data.count  = %s;\n"
                 "%s    data.displ  = %s;\n"
                 "%s    assert( data.count > 0 );\n"
@@ -5127,7 +5130,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf,
                 spaces,
                 spaces, flow->varname,
                 spaces, string_arena_get_string(sa2),
-                spaces,
+                spaces, string_arena_get_string(sa2),
                 spaces, string_arena_get_string(sa3),
                 spaces, string_arena_get_string(sa4),
                 spaces,
@@ -5400,7 +5403,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                 jdf_generate_arena_string_from_datatype(sa_tmp_type, dl->datatype);
                 string_arena_init(sa_tmp_layout);
                 if( NULL == dl->datatype.layout ) { /* no specific layout */
-                    string_arena_add_string(sa_tmp_layout, "data->arena->opaque_dtt");
+                    string_arena_add_string(sa_tmp_layout, "%s->opaque_dtt", string_arena_get_string(sa_tmp_type));
                 } else {
                     string_arena_add_string(sa_tmp_layout, "%s", dump_expr((void**)dl->datatype.layout, &info));
                 }
@@ -5412,7 +5415,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                 if( strcmp(string_arena_get_string(sa_tmp_type), string_arena_get_string(sa_type)) ) {
                     string_arena_init(sa_type);
                     /* The type might change (possibly from undefined), so let's output */
-                    string_arena_add_string(sa_type, "%s", string_arena_get_string(sa_tmp_type));
+                    string_arena_add_string(sa_type, "%s->arena", string_arena_get_string(sa_tmp_type));
                     /* As we change the arena force the reset of the layout */
                     string_arena_init(sa_layout);
                     updated = 1;
@@ -6765,7 +6768,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                 assert( dl->datatype.count != NULL );
                 string_arena_add_string(sa_tmp_nbelt, "%s", dump_expr((void**)dl->datatype.count, &info));
                 if( NULL == dl->datatype.layout ) { /* no specific layout */
-                    string_arena_add_string(sa_tmp_layout, "data.arena->opaque_dtt");
+                    string_arena_add_string(sa_tmp_layout, "%s->opaque_dtt", string_arena_get_string(sa_tmp_type));
                 } else {
                     string_arena_add_string(sa_tmp_layout, "%s", dump_expr((void**)dl->datatype.layout, &info));
                 }
@@ -6778,7 +6781,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                     string_arena_init(sa_type);
                     /* The type might change (possibly from undefined), so let's output */
                     string_arena_add_string(sa_type, "%s", string_arena_get_string(sa_tmp_type));
-                    string_arena_add_string(sa_temp, "    data.arena  = %s;\n", string_arena_get_string(sa_type));
+                    string_arena_add_string(sa_temp, "    data.arena  = %s%s;\n", string_arena_get_string(sa_type), ( JDF_FLOW_TYPE_CTL & fl->flow_flags )? "":"->arena");
                     /* As we change the arena force the reset of the layout */
                     string_arena_init(sa_layout);
                 }

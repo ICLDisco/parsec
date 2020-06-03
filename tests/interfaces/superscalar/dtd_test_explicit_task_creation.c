@@ -88,7 +88,7 @@ int main(int argc, char ** argv)
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
 #if defined(PARSEC_HAVE_MPI)
-    parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
+    parsec_arena_datatype_construct(parsec_dtd_arenas_datatypes[TILE_FULL],
                           nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                           MPI_INT);
 #endif

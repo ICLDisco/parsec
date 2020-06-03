@@ -15,8 +15,8 @@
  */
 
 #include "parsec/runtime.h"
+#include "parsec/constants.h"
 #include "parsec/data.h"
-#include "parsec/datatype.h"
 #if defined(PARSEC_HAVE_STDDEF_H)
 #include <stddef.h>
 #endif  /* PARSEC_HAVE_STDDEF_H */
@@ -47,11 +47,11 @@ extern size_t parsec_arena_max_cached_memory;
  * are stored into arenas.
  */
 struct parsec_arena_s {
+    parsec_object_t       super;
     parsec_lifo_t         area_lifo;     /**< An arena is also a LIFO */
     size_t                alignment;     /**< alignment to be respected, elem_size should be >> alignment,
                                           *   prefix size is the minimum alignment */
     size_t                elem_size;     /**< size of one element (unpacked in memory, aka extent) */
-    parsec_datatype_t     opaque_dtt;    /**< the appropriate type for the network engine to send an element */
     volatile int32_t      used;          /**< elements currently allocated from the arena */
     int32_t               max_used;      /**< maximum size of the arena in elements */
     volatile int32_t      released;      /**< elements currently released but still cached in the freelist */
@@ -63,6 +63,8 @@ struct parsec_arena_s {
     parsec_data_allocate_t data_malloc;
     parsec_data_free_t     data_free;
 };
+PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_arena_t);
+
 
 struct parsec_arena_chunk_s {
     /** A chunk is also a list item.
@@ -95,9 +97,8 @@ struct parsec_arena_chunk_s {
  * displacement).
  */
 int parsec_arena_construct(parsec_arena_t* arena,
-                          size_t elem_size,
-                          size_t alignment,
-                          parsec_datatype_t opaque_dtt);
+                           size_t elem_size,
+                           size_t alignment);
 /**
  * Extended constructor for the arena class. It enabled the
  * caching support up to max_released number of elements,
@@ -105,11 +106,10 @@ int parsec_arena_construct(parsec_arena_t* arena,
  * active elements at the same time.
  */
 int parsec_arena_construct_ex(parsec_arena_t* arena,
-                             size_t elem_size,
-                             size_t alignment,
-                             parsec_datatype_t opaque_dtt,
-                             size_t max_used,
-                             size_t max_released);
+                              size_t elem_size,
+                              size_t alignment,
+                              size_t max_used,
+                              size_t max_released);
 /**
  * Release the arena. All the memory allocated for the elements
  * by the arena is released, but not the parsec_data_copy_t and

@@ -81,8 +81,7 @@ typedef enum { PASSED_BY_REF=-1,
  * Array of arenas to hold the data region shape and other information.
  * Currently only 16 types of different regions are supported at a time.
  */
-extern parsec_arena_t **parsec_dtd_arenas;
-
+extern parsec_arena_datatype_t **parsec_dtd_arenas_datatypes;
 /**
  * Users can use this two variables to control the sliding window of task insertion.
  * This is set using a default number or the number set by the mca_param.

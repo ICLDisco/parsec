@@ -127,7 +127,7 @@ parsec_taskpool_t *a2a_new(parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t
 
     tp = parsec_a2a_new(A, B, repeat, worldsize);
 
-    parsec_matrix_add2arena_rect(tp->arenas[PARSEC_a2a_DEFAULT_ARENA],
+    parsec_matrix_add2arena_rect(tp->arenas_datatypes[PARSEC_a2a_DEFAULT_ARENA],
                                  parsec_datatype_int32_t,
                                  size, 1, size);
 

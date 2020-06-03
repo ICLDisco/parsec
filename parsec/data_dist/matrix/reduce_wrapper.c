@@ -30,7 +30,7 @@ parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
     }
     parsec_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
     parsec_type_extent(newtype, &lb, &extent);
-    parsec_arena_construct(tp->arenas[PARSEC_reduce_col_DEFAULT_ARENA],
+    parsec_arena_datatype_construct(tp->arenas_datatypes[PARSEC_reduce_col_DEFAULT_ARENA],
                            extent,
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            newtype);
@@ -61,7 +61,7 @@ parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
     }
     parsec_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
     parsec_type_extent(newtype, &lb, &extent);
-    parsec_arena_construct(tp->arenas[PARSEC_reduce_row_DEFAULT_ARENA],
+    parsec_arena_datatype_construct(tp->arenas_datatypes[PARSEC_reduce_row_DEFAULT_ARENA],
                            extent,
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            newtype);

@@ -97,7 +97,7 @@ parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
   taskpool = parsec_bandwidth_new(dcA, Disk, loops, frags, ws); 
   bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-  parsec_matrix_add2arena(taskpool->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
+  parsec_matrix_add2arena(taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ARENA],
                           parsec_datatype_double_t, matrix_UpperLower,
                           1, 1, size, 1,
                           PARSEC_ARENA_ALIGNMENT_SSE, -1 );
@@ -111,7 +111,7 @@ parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
 void parsec_bandwidth_Destruct(parsec_taskpool_t *taskpool)
 {
   parsec_bandwidth_taskpool_t *bandwidth_taskpool = (parsec_bandwidth_taskpool_t *)taskpool;
-  parsec_matrix_del2arena(bandwidth_taskpool->arenas[PARSEC_bandwidth_DEFAULT_ARENA]);
+  parsec_matrix_del2arena(bandwidth_taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ARENA]);
   parsec_taskpool_free(taskpool);
 }
 
@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
 
         bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-        parsec_matrix_add2arena(taskpool->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
+        parsec_matrix_add2arena(taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ARENA],
                                 parsec_datatype_double_t, matrix_UpperLower,
                                 1, 1, size, 1,
                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );

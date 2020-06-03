@@ -67,7 +67,7 @@ parsec_taskpool_t* touch_initialize(int block, int n)
     assert( NULL != tp );
 
     parsec_translate_matrix_type(TYPE, &dt);
-    parsec_matrix_add2arena_rect(tp->arenas[PARSEC_touch_DEFAULT_ARENA],
+    parsec_matrix_add2arena_rect(tp->arenas_datatypes[PARSEC_touch_DEFAULT_ARENA],
                                  dt, descA.super.mb, descA.super.nb, descA.super.mb);
 
     return &tp->super;

@@ -61,7 +61,6 @@ typedef intptr_t  parsec_datatype_t;
 
 #endif  /* !defined(PARSEC_HAVE_MPI) */
 
-
 BEGIN_C_DECLS
 
 /**

@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
 
     tp = parsec_Ex06_RAW_new(&mydata, world, rank);
 
-    parsec_arena_construct(tp->arenas[PARSEC_Ex06_RAW_DEFAULT_ARENA],
+    parsec_arena_datatype_construct(tp->arenas_datatypes[PARSEC_Ex06_RAW_DEFAULT_ARENA],
                            sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_int_t );
 

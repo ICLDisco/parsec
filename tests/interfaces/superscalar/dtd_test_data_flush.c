@@ -210,7 +210,7 @@ int main(int argc, char ** argv)
 
         dtd_tp = parsec_dtd_taskpool_new();
 
-        parsec_matrix_add2arena_rect(parsec_dtd_arenas[0],
+        parsec_matrix_add2arena_rect(parsec_dtd_arenas_datatypes[0],
                                      parsec_datatype_int32_t,
                                      nb, 1, nb);
 
@@ -349,7 +349,7 @@ int main(int argc, char ** argv)
 
         dtd_tp = parsec_dtd_taskpool_new();
 
-        parsec_matrix_add2arena_rect(parsec_dtd_arenas[0],
+        parsec_matrix_add2arena_rect(parsec_dtd_arenas_datatypes[0],
                                      parsec_datatype_int32_t,
                                      nb, 1, nb);
         parsec_data_copy_t *gdata;

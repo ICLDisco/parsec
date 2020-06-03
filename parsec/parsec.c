@@ -67,6 +67,10 @@
 /*
  * Global variables.
  */
+
+parsec_external_fini_t *external_fini_cbs = NULL;
+int                     n_external_fini_cbs = 0;
+
 char parsec_hostname_array[128] = "not yet initialized";
 const char* parsec_hostname = parsec_hostname_array;
 
@@ -1052,10 +1056,27 @@ static void parsec_vp_fini( parsec_vp_t *vp )
     }
 }
 
+void parsec_context_at_fini(parsec_external_fini_cb_t cb, void *data){
+    n_external_fini_cbs++;
+    external_fini_cbs = (parsec_external_fini_t *)realloc(
+            external_fini_cbs, sizeof(parsec_external_fini_t)*n_external_fini_cbs);
+    external_fini_cbs[n_external_fini_cbs-1].cb = cb;
+    external_fini_cbs[n_external_fini_cbs-1].data = data;
+}
+
 int parsec_fini( parsec_context_t** pcontext )
 {
     parsec_context_t* context = *pcontext;
     int nb_total_comp_threads, p;
+
+    if(external_fini_cbs != NULL){
+        int i;
+        for(i = 0; i < n_external_fini_cbs; i++){
+            external_fini_cbs[i].cb( external_fini_cbs[i].data ) ;
+        }
+        free(external_fini_cbs); external_fini_cbs = NULL;
+        n_external_fini_cbs = 0;
+    }
 
     /* if dtd environment is set-up, we clean */
     if( __parsec_dtd_is_initialized ) {

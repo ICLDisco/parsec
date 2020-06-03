@@ -104,7 +104,7 @@ static void release_comms(void)
 int main(int argc, char* argv[])
 {
     two_dim_block_cyclic_t descA, descB;
-    parsec_arena_t arena;
+    parsec_arena_datatype_t adt;
     parsec_context_t *parsec;
     int ni = NN, nj = NN, loops = 5, i = 1, l, rc;
     int rank = 0, size = 1, mat_size;
@@ -189,7 +189,7 @@ int main(int argc, char* argv[])
         parsec_translate_matrix_type(TYPE, &baseType);
         parsec_type_create_contiguous(descA.super.mb * descA.super.nb,
                                       baseType, &newtype);
-        parsec_arena_construct(&arena,
+        parsec_arena_datatype_construct(&adt,
                                descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
                                PARSEC_ARENA_ALIGNMENT_SSE, newtype);
 
@@ -198,7 +198,7 @@ int main(int argc, char* argv[])
             printf("\n\n\n%d iterations remaining\n\n\n", l);
             tp = parsec_multichain_new( &descA, &descB, ni, nj );
             assert( NULL != tp );
-            tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
+            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ARENA] = &adt;
 
             rc = parsec_context_start(parsec);
             PARSEC_CHECK_ERROR(rc, "parsec_context_start");
@@ -230,7 +230,7 @@ int main(int argc, char* argv[])
             tp = parsec_multichain_new( &descA, &descB, ni, nj );
             assert( NULL != tp );
 
-            tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
+            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ARENA] = &adt;
 
             TIMER_START(time_elapsed);
             rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );

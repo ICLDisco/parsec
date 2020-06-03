@@ -64,7 +64,7 @@ int parsec_dtd_window_size             = 8000;   /**< Default window size */
 int parsec_dtd_threshold_size          = 4000;   /**< Default threshold size of tasks for master thread to wait on */
 static int parsec_dtd_task_hash_table_size = 1<<16; /**< Default task hash table size */
 static int parsec_dtd_tile_hash_table_size = 1<<16; /**< Default tile hash table size */
-static int parsec_dtd_no_of_arenas = 16;
+static int parsec_dtd_no_of_arenas_datatypes = 16;
 
 int parsec_dtd_dump_traversal_info = 60; /**< Level for printing traversal info */
 int parsec_dtd_dump_function_info  = 50; /**< Level for printing function_structure info */
@@ -73,7 +73,7 @@ int insert_task_trace_keyout = -1;
 int hashtable_trace_keyin = -1;
 int hashtable_trace_keyout = -1;
 
-parsec_arena_t **parsec_dtd_arenas;
+parsec_arena_datatype_t **parsec_dtd_arenas_datatypes;
 
 extern parsec_sched_module_t *parsec_current_scheduler;
 
@@ -448,9 +448,9 @@ parsec_dtd_lazy_init(void)
                               1/* no. of threads*/ );
 
     int i;
-    parsec_dtd_arenas = (parsec_arena_t **) malloc(parsec_dtd_no_of_arenas * sizeof(parsec_arena_t *));
-    for (i = 0; i < parsec_dtd_no_of_arenas; i++) {
-        parsec_dtd_arenas[i] = (parsec_arena_t *) calloc(1, sizeof(parsec_arena_t));
+    parsec_dtd_arenas_datatypes = (parsec_arena_datatype_t **) malloc(parsec_dtd_no_of_arenas_datatypes * sizeof(parsec_arena_datatype_t *));
+    for (i = 0; i < parsec_dtd_no_of_arenas_datatypes; i++) {
+        parsec_dtd_arenas_datatypes[i] = (parsec_arena_datatype_t *) calloc(1, sizeof(parsec_arena_datatype_t));
     }
 }
 
@@ -468,13 +468,13 @@ void parsec_dtd_fini(void)
     assert(parsec_dtd_taskpool_mempool != NULL);
 #endif
     int i;
-    for( i = 0; i < parsec_dtd_no_of_arenas; i++ ) {
-        if (parsec_dtd_arenas[i] != NULL) {
-            free(parsec_dtd_arenas[i]);
-            parsec_dtd_arenas[i] = NULL;
+    for( i = 0; i < parsec_dtd_no_of_arenas_datatypes; i++ ) {
+        if (parsec_dtd_arenas_datatypes[i] != NULL) {
+            free(parsec_dtd_arenas_datatypes[i]);
+            parsec_dtd_arenas_datatypes[i] = NULL;
         }
     }
-    free(parsec_dtd_arenas);
+    free(parsec_dtd_arenas_datatypes);
 
     parsec_mempool_destruct( parsec_dtd_tile_mempool );
     free( parsec_dtd_tile_mempool );
@@ -1882,8 +1882,8 @@ static int datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
     int i;
     for( i = 0; i < this_task->task_class->nb_flows; i++) {
         if((*flow_mask) & (1U<<i)) {
-            data->arena  = parsec_dtd_arenas[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index];
-            data->layout = data->arena->opaque_dtt;
+            data->arena  = parsec_dtd_arenas_datatypes[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index]->arena;
+            data->layout = parsec_dtd_arenas_datatypes[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index]->opaque_dtt;
             (*flow_mask) &= ~(1U<<i);
             return PARSEC_HOOK_RETURN_NEXT;
         }

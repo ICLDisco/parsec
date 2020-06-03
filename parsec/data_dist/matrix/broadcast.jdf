@@ -175,13 +175,13 @@ extern "C" %{
         parsec_broadcast_taskpool_t *tp = parsec_broadcast_new( dc );
 
         parsec_type_extent(stype, &lb, &extent);
-        parsec_arena_construct(tp->arenas[PARSEC_broadcast_STYPE_ARENA],
+        parsec_arena_datatype_construct(tp->arenas_datatypes[PARSEC_broadcast_STYPE_ARENA],
                            extent,
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            stype);
 
         parsec_type_extent(rtype, &lb, &extent);
-        parsec_arena_construct(tp->arenas[PARSEC_broadcast_RTYPE_ARENA],
+        parsec_arena_datatype_construct(tp->arenas_datatypes[PARSEC_broadcast_RTYPE_ARENA],
                            extent,
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            rtype);

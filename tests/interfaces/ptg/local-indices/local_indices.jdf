@@ -110,7 +110,7 @@ int main( int argc, char** argv )
 {
     parsec_local_indices_taskpool_t* tp;
     two_dim_block_cyclic_t descA;
-    parsec_arena_t arena;
+    parsec_arena_datatype_t adt;
     parsec_datatype_t dt;
     parsec_context_t *parsec;
     int ws = 1, mr = 0;
@@ -159,7 +159,7 @@ int main( int argc, char** argv )
     parsec_data_collection_set_key(&descA.super.super, "A");
 
     parsec_translate_matrix_type(matrix_RealDouble, &dt);
-    parsec_matrix_add2arena_rect(&arena, dt,
+    parsec_matrix_add2arena_rect(&adt, dt,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
     /* Start the PaRSEC engine */
@@ -170,7 +170,8 @@ int main( int argc, char** argv )
     memset(local_nb, 0, 4*sizeof(int));
     tp = parsec_local_indices_new( &descA, (int32_t*)local_nb );
     assert( NULL != tp );
-    tp->arenas[PARSEC_local_indices_DEFAULT_ARENA] = &arena;
+    tp->arenas_datatypes[PARSEC_local_indices_DEFAULT_ARENA] = &adt;
+    PARSEC_OBJ_RETAIN(adt.arena);
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_wait(parsec);
@@ -207,7 +208,7 @@ int main( int argc, char** argv )
     }
 
     free(descA.mat);
-    parsec_arena_destruct(&arena);
+    PARSEC_OBJ_RELEASE(adt.arena);
 
     parsec_fini( &parsec);
 

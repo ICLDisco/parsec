@@ -43,11 +43,11 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
 #if defined(DISTRIBUTED)
     if(tile->rank == current_task->rank) { /* this is a receive task*/
         if( current_task->super.data[0].data_in != tile->data_copy ) {
-            int16_t arena_index = (FLOW_OF(current_task, 0))->arena_index;
+            int16_t index = (FLOW_OF(current_task, 0))->arena_index;
             parsec_dep_data_description_t data;
             data.data   = current_task->super.data[0].data_in;
-            data.arena  = parsec_dtd_arenas[arena_index];
-            data.layout = data.arena->opaque_dtt;
+            data.arena  = parsec_dtd_arenas_datatypes[index]->arena;
+            data.layout = parsec_dtd_arenas_datatypes[index]->opaque_dtt;
             data.count  = 1;
             data.displ  = 0;
             parsec_remote_dep_memcpy(es, this_task->taskpool,
