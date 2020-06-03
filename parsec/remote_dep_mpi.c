@@ -92,7 +92,10 @@ static int parsec_param_nb_tasks_extracted = 20;
  */
 static size_t parsec_param_short_limit = RDEP_MSG_SHORT_LIMIT;
 #if RDEP_MSG_EAGER_LIMIT != 0
+/* Disable this by default as it is currently broken
 static size_t parsec_param_eager_limit = RDEP_MSG_EAGER_LIMIT;
+*/
+static size_t parsec_param_eager_limit = 0;
 #endif  /* RDEP_MSG_EAGER_LIMIT != 0 */
 static int parsec_param_enable_aggregate = 1;
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
@@ -1773,7 +1776,8 @@ static remote_dep_datakey_t
 remote_dep_mpi_eager_which(const parsec_remote_deps_t* deps,
                            remote_dep_datakey_t output_mask)
 {
-    if( 0 == parsec_param_eager_limit )  /* eager disabled via MCA */
+    if( 0 == parsec_param_eager_limit &&
+        0 == parsec_param_short_limit )  /* both disabled via MCA */
         return 0;
 
     for(int k = 0; output_mask>>k; k++) {
@@ -1783,7 +1787,7 @@ remote_dep_mpi_eager_which(const parsec_remote_deps_t* deps,
 
         if( (extent <= parsec_param_eager_limit) || (extent <= parsec_param_short_limit) ) {
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tPEER\tNA\t%5s MODE  k=%d\tsize=%d <= %d\t(tag=base+%d)",
-                    (extent <= (RDEP_MSG_EAGER_LIMIT) ? "Eager" : "Short"),
+                    (extent <= (RDEP_MSG_SHORT_LIMIT) ? "Short" : "Eager"),
                     k, extent, RDEP_MSG_SHORT_LIMIT, k);
             continue;
         }
