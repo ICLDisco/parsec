@@ -1776,16 +1776,14 @@ static remote_dep_datakey_t
 remote_dep_mpi_eager_which(const parsec_remote_deps_t* deps,
                            remote_dep_datakey_t output_mask)
 {
-    if( 0 == parsec_param_eager_limit &&
-        0 == parsec_param_short_limit )  /* both disabled via MCA */
+    if( 0 == parsec_param_eager_limit )
         return 0;
 
     for(int k = 0; output_mask>>k; k++) {
-        if( !(output_mask & (1U<<k)) ) continue;            /* No dependency */
+        if( !(output_mask & (1U<<k)) ) continue;            /* No dependency/satisfied short */
         if( NULL == deps->output[k].data.arena ) continue;  /* CONTROL dependency */
         size_t extent = deps->output[k].data.arena->elem_size * deps->output[k].data.count;
-
-        if( (extent <= parsec_param_eager_limit) || (extent <= parsec_param_short_limit) ) {
+        if( (extent <= parsec_param_eager_limit) ) {
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tPEER\tNA\t%5s MODE  k=%d\tsize=%d <= %d\t(tag=base+%d)",
                     (extent <= (RDEP_MSG_SHORT_LIMIT) ? "Short" : "Eager"),
                     k, extent, RDEP_MSG_SHORT_LIMIT, k);
@@ -1980,13 +1978,10 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
-#if RDEP_MSG_EAGER_LIMIT != 0
-    remote_dep_datakey_t eager_which = remote_dep_mpi_eager_which(deps, deps->incoming_mask);
-#if !defined(PARSEC_PROF_DRY_DEP)
+#if RDEP_MSG_EAGER_LIMIT != 0 && !defined(PARSEC_PROF_DRY_DEP)
     MPI_Request reqs[MAX_PARAM_COUNT];
     int nb_reqs = 0, flag;
-#endif  /* !defined(PARSEC_PROF_DRY_DEP) */
-#endif  /* RDEP_MSG_EAGER_LIMIT != 0 */
+#endif  /* RDEP_MSG_EAGER_LIMIT != 0 && !defined(PARSEC_PROF_DRY_DEP) */
 
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
     parsec_debug_verbose(6, parsec_comm_output_stream, "MPI:\tFROM\t%d\tActivate\t% -8s\n"
@@ -2027,7 +2022,7 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
         }
 #if RDEP_MSG_EAGER_LIMIT != 0
        /* Check if we have EAGER deps to satisfy quickly */
-        if( eager_which & (1U<<k) ) {
+        if( parsec_param_eager_limit >= (deps->output[k].data.arena->elem_size * deps->output[k].data.count) ) {
 
             assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data.data) {
