@@ -27,7 +27,7 @@ static uint32_t rank_of(parsec_data_collection_t *desc, ...)
     va_end(ap);
 
     if (k == 0) return dat->root;
-    
+
     return dat->ranks[k-1];
 }
 
@@ -65,7 +65,7 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
             *dat->data = data;
         }
     }
-        
+
     return (void*)(*dat->data);
 }
 
@@ -113,7 +113,7 @@ static void release_rank_array(parsec_data_collection_t *d)
     parsec_data_collection_destroy(d);
     free(d);
 }
-   
+
 %}
 
 
@@ -137,7 +137,7 @@ END
 recv(k)
     k = 1 .. NT
 : descA(k)
-    
+
   RW A <- A send(0) [type = RTYPE]
           -> descA(k)
 BODY
@@ -175,22 +175,22 @@ extern "C" %{
         parsec_broadcast_taskpool_t *tp = parsec_broadcast_new( dc );
 
         parsec_type_extent(stype, &lb, &extent);
-        parsec_arena_datatype_construct(tp->arenas_datatypes[PARSEC_broadcast_STYPE_ARENA],
-                           extent,
-                           PARSEC_ARENA_ALIGNMENT_SSE,
-                           stype);
+        parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_broadcast_STYPE_ARENA],
+                                         extent,
+                                         PARSEC_ARENA_ALIGNMENT_SSE,
+                                         stype);
 
         parsec_type_extent(rtype, &lb, &extent);
-        parsec_arena_datatype_construct(tp->arenas_datatypes[PARSEC_broadcast_RTYPE_ARENA],
-                           extent,
-                           PARSEC_ARENA_ALIGNMENT_SSE,
-                           rtype);
+        parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_broadcast_RTYPE_ARENA],
+                                         extent,
+                                         PARSEC_ARENA_ALIGNMENT_SSE,
+                                         rtype);
 
         if (NULL != master_tp)
             parsec_taskpool_set_complete_callback( (parsec_taskpool_t*)tp,
                                                    master_tp_complete_callback,
                                                    (void *)master_tp );
-        
+
         return (parsec_taskpool_t*)tp;
     }
 
@@ -211,5 +211,5 @@ void parsec_broadcast_Destruct( parsec_taskpool_t *o )
 
     parsec_taskpool_free(o);
 }
-   
+
 %}

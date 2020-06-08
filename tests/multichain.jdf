@@ -189,16 +189,17 @@ int main(int argc, char* argv[])
         parsec_translate_matrix_type(TYPE, &baseType);
         parsec_type_create_contiguous(descA.super.mb * descA.super.nb,
                                       baseType, &newtype);
-        parsec_arena_datatype_construct(&adt,
-                               descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                               PARSEC_ARENA_ALIGNMENT_SSE, newtype);
+        parsec_arena_datatype_construct( &adt,
+                                         descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                                         PARSEC_ARENA_ALIGNMENT_SSE, newtype);
 
         for( l = loops; l > 0; l-- ) {
 
             printf("\n\n\n%d iterations remaining\n\n\n", l);
             tp = parsec_multichain_new( &descA, &descB, ni, nj );
             assert( NULL != tp );
-            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ARENA] = &adt;
+            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ARENA] = adt;
+            PARSEC_OBJ_RETAIN(adt.arena);
 
             rc = parsec_context_start(parsec);
             PARSEC_CHECK_ERROR(rc, "parsec_context_start");
@@ -211,6 +212,7 @@ int main(int argc, char* argv[])
 
             TIMER_START(time_elapsed);
             rc = parsec_context_wait(parsec);
+            parsec_taskpool_free(&tp->super);
             PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
             TIMER_STOP(time_elapsed);
 
@@ -230,8 +232,8 @@ int main(int argc, char* argv[])
             tp = parsec_multichain_new( &descA, &descB, ni, nj );
             assert( NULL != tp );
 
-            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ARENA] = &adt;
-
+            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ARENA] = adt;
+            PARSEC_OBJ_RETAIN(adt.arena);
             TIMER_START(time_elapsed);
             rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
             PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
@@ -245,6 +247,7 @@ int main(int argc, char* argv[])
             /* By now most of the tasks should be completed */
             TIMER_START(time_elapsed);
             rc = parsec_context_wait(parsec);
+            parsec_taskpool_free(&tp->super);
             PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
             TIMER_STOP(time_elapsed);
 
@@ -252,7 +255,7 @@ int main(int argc, char* argv[])
         }
         free(descA.mat);
         free(descB.mat);
-
+        PARSEC_OBJ_RELEASE(adt.arena);
         parsec_type_free(&newtype);
     }  /* go to the next communicator */
 

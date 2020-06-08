@@ -111,11 +111,10 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
                               size_t max_used,
                               size_t max_released);
 /**
- * Release the arena. All the memory allocated for the elements
- * by the arena is released, but not the parsec_data_copy_t and
- * parsec_data_t allocated to support the arena.
+ * There is no explicit call to release an arena. Arenas being PaRSEC objects
+ * they will be automatically released when their refcount reaches 0. They
+ * should therefore be manipulated using PARSEC_OBJ_RELEASE.
  */
-void parsec_arena_destruct(parsec_arena_t* arena);
 
 parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, int device);
 void parsec_arena_release(parsec_data_copy_t* ptr);

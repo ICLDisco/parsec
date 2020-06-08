@@ -191,10 +191,10 @@ parsec_two_dim_band_New(parsec_tiled_matrix_dc_t *Y, int uplo)
     taskpool = parsec_two_dim_band_new(Y, uplo);
     two_dim_band_taskpool = (parsec_taskpool_t*)taskpool;
 
-    parsec_matrix_add2arena(taskpool->arenas_datatypes[PARSEC_two_dim_band_DEFAULT_ARENA],
-                            parsec_datatype_double_t, matrix_UpperLower,
-                            1, Y->mb, Y->nb, Y->mb,
-                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+    parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_two_dim_band_DEFAULT_ARENA],
+                             parsec_datatype_double_t, matrix_UpperLower,
+                             1, Y->mb, Y->nb, Y->mb,
+                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
     return two_dim_band_taskpool;
 }
@@ -205,7 +205,7 @@ parsec_two_dim_band_New(parsec_tiled_matrix_dc_t *Y, int uplo)
 void parsec_two_dim_band_Destruct(parsec_taskpool_t *taskpool)
 {
     parsec_two_dim_band_taskpool_t *two_dim_band_taskpool = (parsec_two_dim_band_taskpool_t *)taskpool;
-    parsec_matrix_del2arena(two_dim_band_taskpool->arenas_datatypes[PARSEC_two_dim_band_DEFAULT_ARENA]);
+    parsec_matrix_del2arena(&two_dim_band_taskpool->arenas_datatypes[PARSEC_two_dim_band_DEFAULT_ARENA]);
     parsec_taskpool_free(taskpool);
 }
 

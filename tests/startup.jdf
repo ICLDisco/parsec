@@ -150,12 +150,13 @@ int main( int argc, char** argv )
     /* Heat up the engine: small tasks no priority */
     tp = parsec_startup_new( &descA, ni, nj, nk );
     assert( NULL != tp );
-    tp->arenas_datatypes[PARSEC_startup_DEFAULT_ARENA] = &adt;
+    tp->arenas_datatypes[PARSEC_startup_DEFAULT_ARENA] = adt;
     PARSEC_OBJ_RETAIN(adt.arena);
     tp->_g_pri = 0;
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_wait(parsec);
+    parsec_taskpool_free(&tp->super);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     for(i = 0; NULL != priorities[i].message; i++) {
@@ -167,7 +168,7 @@ int main( int argc, char** argv )
         tp = parsec_startup_new( &descA, ni, nj, nk );
         assert( NULL != tp );
         TIMER_START(time_elapsed);
-        tp->arenas_datatypes[PARSEC_startup_DEFAULT_ARENA] = &adt;
+        tp->arenas_datatypes[PARSEC_startup_DEFAULT_ARENA] = adt;
         PARSEC_OBJ_RETAIN(adt.arena);
         tp->_g_pri = priorities[i].prio;
 
@@ -186,6 +187,7 @@ int main( int argc, char** argv )
         }
         TIMER_START(time_elapsed);
         parsec_context_wait(parsec);
+        parsec_taskpool_free(&tp->super);
         TIMER_STOP(time_elapsed);
         printf("DAG execution [%s] in %ld micro-sec\n",
                priorities[i].message, time_elapsed);
@@ -193,6 +195,7 @@ int main( int argc, char** argv )
 
     free(descA.mat);
     PARSEC_OBJ_RELEASE(adt.arena);
+    parsec_matrix_del2arena( & adt );
 
     parsec_fini( &parsec);
 

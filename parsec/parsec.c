@@ -1056,7 +1056,8 @@ static void parsec_vp_fini( parsec_vp_t *vp )
     }
 }
 
-void parsec_context_at_fini(parsec_external_fini_cb_t cb, void *data){
+void parsec_context_at_fini(parsec_external_fini_cb_t cb, void *data)
+{
     n_external_fini_cbs++;
     external_fini_cbs = (parsec_external_fini_t *)realloc(
             external_fini_cbs, sizeof(parsec_external_fini_t)*n_external_fini_cbs);
@@ -1068,15 +1069,6 @@ int parsec_fini( parsec_context_t** pcontext )
 {
     parsec_context_t* context = *pcontext;
     int nb_total_comp_threads, p;
-
-    if(external_fini_cbs != NULL){
-        int i;
-        for(i = 0; i < n_external_fini_cbs; i++){
-            external_fini_cbs[i].cb( external_fini_cbs[i].data ) ;
-        }
-        free(external_fini_cbs); external_fini_cbs = NULL;
-        n_external_fini_cbs = 0;
-    }
 
     /* if dtd environment is set-up, we clean */
     if( __parsec_dtd_is_initialized ) {
@@ -1105,6 +1097,19 @@ int parsec_fini( parsec_context_t** pcontext )
     /* Now wait until every thread is back */
     context->__parsec_internal_finalization_in_progress = 1;
     parsec_barrier_wait( &(context->barrier) );
+
+    /**
+     * The registered at_fini callbacks should be called as early as possible in the
+     * context finalization, but not before any actions visible to the outside world
+     * has been completed (aka. not until the communication engine is up).
+     */
+    if( NULL != external_fini_cbs ) {
+        for(int i = 0; i < n_external_fini_cbs; i++){
+            external_fini_cbs[i].cb( external_fini_cbs[i].data ) ;
+        }
+        free(external_fini_cbs); external_fini_cbs = NULL;
+        n_external_fini_cbs = 0;
+    }
 
     parsec_rusage(true);
 

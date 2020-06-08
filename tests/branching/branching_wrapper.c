@@ -36,9 +36,9 @@ parsec_taskpool_t *branching_new(parsec_data_collection_t *A, int size, int nb)
     tp = parsec_branching_new(A, nb);
 
     parsec_type_create_contiguous(size, parsec_datatype_int8_t, &block);
-    parsec_arena_datatype_construct(tp->arenas_datatypes[PARSEC_branching_DEFAULT_ARENA],
-                           size * sizeof(int8_t), size * sizeof(int8_t),
-                           block);
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_branching_DEFAULT_ARENA],
+                                     size * sizeof(int8_t), size * sizeof(int8_t),
+                                     block );
 
     return (parsec_taskpool_t*)tp;
 }
@@ -50,7 +50,7 @@ void branching_destroy(parsec_taskpool_t *o)
 {
     parsec_branching_taskpool_t* tp = (parsec_branching_taskpool_t*)o;
 
-    parsec_type_free(&tp->arenas_datatypes[PARSEC_branching_DEFAULT_ARENA]->opaque_dtt);
+    parsec_type_free(&tp->arenas_datatypes[PARSEC_branching_DEFAULT_ARENA].opaque_dtt);
 
     parsec_taskpool_free(o);
 }

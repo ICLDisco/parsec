@@ -210,9 +210,9 @@ int main(int argc, char ** argv)
 
         dtd_tp = parsec_dtd_taskpool_new();
 
-        parsec_matrix_add2arena_rect(parsec_dtd_arenas_datatypes[0],
-                                     parsec_datatype_int32_t,
-                                     nb, 1, nb);
+        parsec_matrix_add2arena_rect( &parsec_dtd_arenas_datatypes[0],
+                                      parsec_datatype_int32_t,
+                                      nb, 1, nb );
 
         parsec_data_copy_t *gdata;
         parsec_data_t *data;
@@ -334,6 +334,9 @@ int main(int argc, char ** argv)
         }
         parsec_dtd_data_collection_fini(A);
         free_data(dcA);
+
+        parsec_type_free(&parsec_dtd_arenas_datatypes[0].opaque_dtt);
+        PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0].arena);
     } else if (world == 3) {
         /* We send data from rank 0 to 2 and flush it back
          * rank 1 does nothing.
@@ -349,9 +352,9 @@ int main(int argc, char ** argv)
 
         dtd_tp = parsec_dtd_taskpool_new();
 
-        parsec_matrix_add2arena_rect(parsec_dtd_arenas_datatypes[0],
-                                     parsec_datatype_int32_t,
-                                     nb, 1, nb);
+        parsec_matrix_add2arena_rect( &parsec_dtd_arenas_datatypes[0],
+                                      parsec_datatype_int32_t,
+                                      nb, 1, nb);
         parsec_data_copy_t *gdata;
         parsec_data_t *data;
         int *real_data, key;
@@ -402,6 +405,9 @@ int main(int argc, char ** argv)
         }
         parsec_dtd_data_collection_fini(A);
         free_data(dcA);
+
+        parsec_type_free(&parsec_dtd_arenas_datatypes[0].opaque_dtt);
+        PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0].arena);
     }
 
     parsec_fini(&parsec);

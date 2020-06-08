@@ -90,10 +90,10 @@ int main(int argc, char* argv[])
 
     /* This test generates no communications between processes, so the datatype
      * associated with the arena are insignificant. */
-    parsec_arena_datatype_construct( tp->arenas_datatypes[PARSEC_too_many_read_flows_DEFAULT_ARENA],
-                            descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                            PARSEC_ARENA_ALIGNMENT_SSE,
-                            PARSEC_DATATYPE_NULL);  /* change for distributed cases */
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_too_many_read_flows_DEFAULT_ARENA],
+                                     descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                                     PARSEC_ARENA_ALIGNMENT_SSE,
+                                     PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");

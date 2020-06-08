@@ -221,8 +221,8 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
             /* setting data */
             data.data   = current_task->super.data[current_dep].data_out;
-            data.arena  = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index]->arena;
-            data.layout = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index]->opaque_dtt;
+            data.arena  = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].arena;
+            data.layout = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].opaque_dtt;
             data.count  = 1;
             data.displ  = 0;
 

@@ -96,7 +96,7 @@ int parsec_arena_construct(parsec_arena_t* arena,
                                     parsec_arena_max_cached_memory);
 }
 
-void parsec_arena_destruct(parsec_arena_t* arena)
+static void parsec_arena_destructor(parsec_arena_t* arena)
 {
     parsec_list_item_t* item;
 
@@ -118,7 +118,7 @@ void parsec_arena_destruct(parsec_arena_t* arena)
     }
 }
 
-PARSEC_OBJ_CLASS_INSTANCE(parsec_arena_t, parsec_object_t, NULL, parsec_arena_destruct);
+PARSEC_OBJ_CLASS_INSTANCE(parsec_arena_t, parsec_object_t, NULL, parsec_arena_destructor);
 
 static inline parsec_list_item_t*
 parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate_t alloc )

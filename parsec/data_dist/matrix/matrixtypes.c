@@ -32,9 +32,9 @@ int parsec_arena_datatype_construct(parsec_arena_datatype_t *adt,
 }
 
 int parsec_matrix_define_contiguous( parsec_datatype_t oldtype,
-                                    unsigned int nb_elem,
-                                    int resized,
-                                    parsec_datatype_t* newtype )
+                                     unsigned int nb_elem,
+                                     int resized,
+                                     parsec_datatype_t* newtype )
 {
     int oldsize, rc;
 
@@ -77,11 +77,11 @@ int parsec_matrix_define_contiguous( parsec_datatype_t oldtype,
 }
 
 int parsec_matrix_define_rectangle( parsec_datatype_t oldtype,
-                                   unsigned int mb,
-                                   unsigned int nb,
-                                   unsigned int ld,
-                                   int resized,
-                                   parsec_datatype_t* newtype )
+                                    unsigned int mb,
+                                    unsigned int nb,
+                                    unsigned int ld,
+                                    int resized,
+                                    parsec_datatype_t* newtype )
 {
     int oldsize, rc;
 
@@ -128,11 +128,11 @@ int parsec_matrix_define_rectangle( parsec_datatype_t oldtype,
 }
 
 int parsec_matrix_define_triangle( parsec_datatype_t oldtype,
-                                  int uplo, int diag,
-                                  unsigned int m,
-                                  unsigned int n,
-                                  unsigned int ld,
-                                  parsec_datatype_t* newtype )
+                                   int uplo, int diag,
+                                   unsigned int m,
+                                   unsigned int n,
+                                   unsigned int ld,
+                                   parsec_datatype_t* newtype )
 {
     int *blocklens, *indices, oldsize, rc;
     unsigned int i;
@@ -202,6 +202,7 @@ int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t 
 {
     int rc;
     ptrdiff_t lb = 0;
+
     *extent = 0;
     *newtype = PARSEC_DATATYPE_NULL;
 #if defined(PARSEC_HAVE_MPI)

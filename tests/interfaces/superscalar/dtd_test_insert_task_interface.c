@@ -91,9 +91,9 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
-    parsec_matrix_add2arena_rect(parsec_dtd_arenas_datatypes[TILE_FULL],
-                                 parsec_datatype_int32_t,
-                                 nb, 1, nb);
+    parsec_matrix_add2arena_rect( &parsec_dtd_arenas_datatypes[TILE_FULL],
+                                  parsec_datatype_int32_t,
+                                  nb, 1, nb);
 
     dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
@@ -150,6 +150,8 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_free( dtd_tp );
 
+    parsec_type_free(&parsec_dtd_arenas_datatypes[TILE_FULL].opaque_dtt);
+    PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[TILE_FULL].arena);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 

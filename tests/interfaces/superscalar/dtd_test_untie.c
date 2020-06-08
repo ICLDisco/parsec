@@ -132,9 +132,9 @@ int main(int argc, char ** argv)
     dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    parsec_matrix_add2arena_rect(parsec_dtd_arenas_datatypes[TILE_FULL],
-                                 parsec_datatype_int32_t,
-                                 nb, 1, nb);
+    parsec_matrix_add2arena_rect( &parsec_dtd_arenas_datatypes[TILE_FULL],
+                                  parsec_datatype_int32_t,
+                                  nb, 1, nb);
 
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
     parsec_dtd_data_collection_init(A);
@@ -185,7 +185,8 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0]->arena);
+    parsec_type_free(&parsec_dtd_arenas_datatypes[TILE_FULL].opaque_dtt);
+    PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[TILE_FULL].arena);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 

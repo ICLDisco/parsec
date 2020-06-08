@@ -73,7 +73,7 @@ int insert_task_trace_keyout = -1;
 int hashtable_trace_keyin = -1;
 int hashtable_trace_keyout = -1;
 
-parsec_arena_datatype_t **parsec_dtd_arenas_datatypes;
+parsec_arena_datatype_t *parsec_dtd_arenas_datatypes;
 
 extern parsec_sched_module_t *parsec_current_scheduler;
 
@@ -447,11 +447,7 @@ parsec_dtd_lazy_init(void)
                               offsetof(parsec_dtd_tile_t, mempool_owner),
                               1/* no. of threads*/ );
 
-    int i;
-    parsec_dtd_arenas_datatypes = (parsec_arena_datatype_t **) malloc(parsec_dtd_no_of_arenas_datatypes * sizeof(parsec_arena_datatype_t *));
-    for (i = 0; i < parsec_dtd_no_of_arenas_datatypes; i++) {
-        parsec_dtd_arenas_datatypes[i] = (parsec_arena_datatype_t *) calloc(1, sizeof(parsec_arena_datatype_t));
-    }
+    parsec_dtd_arenas_datatypes = (parsec_arena_datatype_t *) calloc(parsec_dtd_no_of_arenas_datatypes, sizeof(parsec_arena_datatype_t));
 }
 
 /* **************************************************************************** */
@@ -467,14 +463,8 @@ void parsec_dtd_fini(void)
 #if defined(PARSEC_DEBUG_PARANOID)
     assert(parsec_dtd_taskpool_mempool != NULL);
 #endif
-    int i;
-    for( i = 0; i < parsec_dtd_no_of_arenas_datatypes; i++ ) {
-        if (parsec_dtd_arenas_datatypes[i] != NULL) {
-            free(parsec_dtd_arenas_datatypes[i]);
-            parsec_dtd_arenas_datatypes[i] = NULL;
-        }
-    }
-    free(parsec_dtd_arenas_datatypes);
+    free(parsec_dtd_arenas_datatypes); parsec_dtd_arenas_datatypes = NULL;
+    parsec_dtd_no_of_arenas_datatypes = 0;
 
     parsec_mempool_destruct( parsec_dtd_tile_mempool );
     free( parsec_dtd_tile_mempool );
@@ -1882,8 +1872,8 @@ static int datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
     int i;
     for( i = 0; i < this_task->task_class->nb_flows; i++) {
         if((*flow_mask) & (1U<<i)) {
-            data->arena  = parsec_dtd_arenas_datatypes[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index]->arena;
-            data->layout = parsec_dtd_arenas_datatypes[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index]->opaque_dtt;
+            data->arena  = parsec_dtd_arenas_datatypes[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index].arena;
+            data->layout = parsec_dtd_arenas_datatypes[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index].opaque_dtt;
             (*flow_mask) &= ~(1U<<i);
             return PARSEC_HOOK_RETURN_NEXT;
         }

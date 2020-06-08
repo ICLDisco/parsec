@@ -85,31 +85,15 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-    parsec_matrix_add2arena_rect(parsec_dtd_arenas_datatypes[TILE_FULL],
-                                 parsec_datatype_int32_t,
-                                 nb, 1, nb);
+    parsec_matrix_add2arena_rect( &parsec_dtd_arenas_datatypes[TILE_FULL],
+                                  parsec_datatype_int32_t,
+                                  nb, 1, nb);
 
     dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
     parsec_dtd_data_collection_init(A);
-
-#if 0
-    parsec_data_copy_t *gdata;
-    parsec_data_t *data;
-    int *real_data;
-    for( i = 0; i < no_of_tasks; i++ ) {
-        key = A->data_key(A, i, 0);
-        if( rank == A->rank_of_key(A, key) ) {
-            data = A->data_of_key(A, key);
-            gdata = data->device_copies[0];
-            real_data = PARSEC_DATA_COPY_GET_PTR((parsec_data_copy_t *) gdata);
-            *real_data = 0;
-            parsec_output( 0, "Node: %d A At key[%d]: %d\n", rank, key, *real_data );
-        }
-    }
-#endif
 
     /* Registering the dtd_taskpool with PARSEC context */
     rc = parsec_context_add_taskpool( parsec, dtd_tp );
@@ -142,17 +126,6 @@ int main(int argc, char ** argv)
     if( count > 0 ) {
         parsec_fatal( "Write after Read dependencies are not bsing satisfied properly\n\n" );
     } else {
-#if 0
-        for( i = 0; i < no_of_tasks; i++ ) {
-            key = A->data_key(A, i, 0);
-            if( rank == A->rank_of_key(A, key) ) {
-                data = A->data_of_key(A, key);
-                gdata = data->device_copies[0];
-                real_data = PARSEC_DATA_COPY_GET_PTR((parsec_data_copy_t *) gdata);
-                parsec_output( 0, "Node: %d A At key[%d]: %d\n", rank, key, *real_data );
-            }
-        }
-#endif
         parsec_output( 0, "\nWAR test passed\n\n" );
     }
 
@@ -160,6 +133,9 @@ int main(int argc, char ** argv)
 
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
+
+    parsec_type_free(&parsec_dtd_arenas_datatypes[TILE_FULL].opaque_dtt);
+    PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[TILE_FULL].arena);
 
     parsec_fini(&parsec);
 

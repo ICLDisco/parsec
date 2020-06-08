@@ -88,9 +88,9 @@ int main(int argc, char ** argv)
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
 #if defined(PARSEC_HAVE_MPI)
-    parsec_arena_datatype_construct(parsec_dtd_arenas_datatypes[TILE_FULL],
-                          nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          MPI_INT);
+    parsec_arena_datatype_construct( &parsec_dtd_arenas_datatypes[TILE_FULL],
+                                     nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                     MPI_INT );
 #endif
 
     dcA = create_and_distribute_data(rank, world, nb, nt);
@@ -149,6 +149,8 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free( dtd_tp );
+    parsec_type_free(&parsec_dtd_arenas_datatypes[TILE_FULL].opaque_dtt);
+    PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[TILE_FULL].arena);
 
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);

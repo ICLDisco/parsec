@@ -46,8 +46,8 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
             int16_t index = (FLOW_OF(current_task, 0))->arena_index;
             parsec_dep_data_description_t data;
             data.data   = current_task->super.data[0].data_in;
-            data.arena  = parsec_dtd_arenas_datatypes[index]->arena;
-            data.layout = parsec_dtd_arenas_datatypes[index]->opaque_dtt;
+            data.arena  = parsec_dtd_arenas_datatypes[index].arena;
+            data.layout = parsec_dtd_arenas_datatypes[index].opaque_dtt;
             data.count  = 1;
             data.displ  = 0;
             parsec_remote_dep_memcpy(es, this_task->taskpool,
