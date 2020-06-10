@@ -69,26 +69,26 @@ parsec_apply_New( int uplo,
 
     switch( A->mtype ) {
     case matrix_ComplexDouble    :
-        parsec_matrix_add2arena( parsec_app->arenas[PARSEC_apply_DEFAULT_ARENA], 
+        parsec_matrix_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ARENA], 
                                  parsec_datatype_double_complex_t,
                                  matrix_UpperLower, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
         break;
     case matrix_ComplexFloat     :
-        parsec_matrix_add2arena( parsec_app->arenas[PARSEC_apply_DEFAULT_ARENA], 
+        parsec_matrix_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ARENA], 
                                  parsec_datatype_complex_t,
                                  matrix_UpperLower, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
         break;
     case matrix_RealDouble       :
-        parsec_matrix_add2arena( parsec_app->arenas[PARSEC_apply_DEFAULT_ARENA], parsec_datatype_double_t,
+        parsec_matrix_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ARENA], parsec_datatype_double_t,
                                  matrix_UpperLower, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
         break;
     case matrix_RealFloat        :
-        parsec_matrix_add2arena( parsec_app->arenas[PARSEC_apply_DEFAULT_ARENA], parsec_datatype_float_t,
+        parsec_matrix_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ARENA], parsec_datatype_float_t,
                                  matrix_UpperLower, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
         break;
     case matrix_Integer          :
     default:
-        parsec_matrix_add2arena( parsec_app->arenas[PARSEC_apply_DEFAULT_ARENA], parsec_datatype_int_t,
+        parsec_matrix_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ARENA], parsec_datatype_int_t,
                                  matrix_UpperLower, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
     }
     return (parsec_taskpool_t*)parsec_app;
@@ -116,7 +116,7 @@ parsec_apply_Destruct( parsec_taskpool_t *tp )
         free( omap->_g_op_args );
     }
 
-    parsec_matrix_del2arena( omap->arenas[PARSEC_apply_DEFAULT_ARENA] );
+    parsec_matrix_del2arena( &omap->arenas_datatypes[PARSEC_apply_DEFAULT_ARENA] );
 
     parsec_taskpool_free(tp);
 }

@@ -44,9 +44,9 @@ parsec_taskpool_t *rtt_new(parsec_data_collection_t *A, int size, int nb)
     parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &block);
     parsec_type_extent(block, &lb, &extent);
 
-    parsec_arena_construct(tp->arenas[PARSEC_rtt_DEFAULT_ARENA],
-                           extent, PARSEC_ARENA_ALIGNMENT_SSE,
-                           block);
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ARENA],
+                                     extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                                     block );
 
     return (parsec_taskpool_t*)tp;
 }
@@ -58,7 +58,7 @@ void rtt_destroy(parsec_taskpool_t *tp)
 {
     parsec_rtt_taskpool_t *rtt_tp = (parsec_rtt_taskpool_t*)tp;
 
-    parsec_type_free( &(rtt_tp->arenas[PARSEC_rtt_DEFAULT_ARENA]->opaque_dtt) );
+    parsec_type_free( &(rtt_tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ARENA].opaque_dtt) );
 
     parsec_taskpool_free(tp);
 }

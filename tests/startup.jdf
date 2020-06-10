@@ -84,7 +84,7 @@ int main( int argc, char** argv )
 {
     parsec_startup_taskpool_t* tp;
     two_dim_block_cyclic_t descA;
-    parsec_arena_t arena;
+    parsec_arena_datatype_t adt;
     parsec_datatype_t dt;
     parsec_context_t *parsec;
     int ni = NN, nj = NN, nk = NN, verbose = 0, i = 1, rc;
@@ -138,7 +138,7 @@ int main( int argc, char** argv )
                                      parsec_datadist_getsizeoftype(TYPE) );
 
     parsec_translate_matrix_type(TYPE, &dt);
-    parsec_matrix_add2arena_rect(&arena, dt,
+    parsec_matrix_add2arena_rect(&adt, dt,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
     srandom((int)getpid());  /* Start the random generator */
@@ -150,11 +150,13 @@ int main( int argc, char** argv )
     /* Heat up the engine: small tasks no priority */
     tp = parsec_startup_new( &descA, ni, nj, nk );
     assert( NULL != tp );
-    tp->arenas[PARSEC_startup_DEFAULT_ARENA] = &arena;
+    tp->arenas_datatypes[PARSEC_startup_DEFAULT_ARENA] = adt;
+    PARSEC_OBJ_RETAIN(adt.arena);
     tp->_g_pri = 0;
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_wait(parsec);
+    parsec_taskpool_free(&tp->super);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     for(i = 0; NULL != priorities[i].message; i++) {
@@ -166,7 +168,8 @@ int main( int argc, char** argv )
         tp = parsec_startup_new( &descA, ni, nj, nk );
         assert( NULL != tp );
         TIMER_START(time_elapsed);
-        tp->arenas[PARSEC_startup_DEFAULT_ARENA] = &arena;
+        tp->arenas_datatypes[PARSEC_startup_DEFAULT_ARENA] = adt;
+        PARSEC_OBJ_RETAIN(adt.arena);
         tp->_g_pri = priorities[i].prio;
 
         rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
@@ -184,13 +187,15 @@ int main( int argc, char** argv )
         }
         TIMER_START(time_elapsed);
         parsec_context_wait(parsec);
+        parsec_taskpool_free(&tp->super);
         TIMER_STOP(time_elapsed);
         printf("DAG execution [%s] in %ld micro-sec\n",
                priorities[i].message, time_elapsed);
     }
 
     free(descA.mat);
-    parsec_arena_destruct(&arena);
+    PARSEC_OBJ_RELEASE(adt.arena);
+    parsec_matrix_del2arena( & adt );
 
     parsec_fini( &parsec);
 

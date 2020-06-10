@@ -23,6 +23,12 @@ BEGIN_C_DECLS
  *  @{
  */
 
+
+/**
+ * Arena-datatype management.
+ */
+typedef struct parsec_arena_datatype_s parsec_arena_datatype_t;
+
 /**
  * @brief Define a weak symbol called by PaRSEC in case of fatal error.
  * Can be overwritten by the user level to catch and handle errors.
@@ -59,6 +65,20 @@ typedef struct parsec_arena_s             parsec_arena_t;
  * @brief Opaque structure representing a Task Class
  */
 typedef struct parsec_task_class_s      parsec_task_class_t;
+
+
+/**
+ * @brief Prototype of a external fini function
+ */
+typedef void (*parsec_external_fini_cb_t)(void*);
+
+/**
+ * @brief External fini function & data
+ */
+typedef struct parsec_external_fini_s {
+    parsec_external_fini_cb_t  cb;   /**< external fini callback */
+    void                      *data; /**< external fini callback args */
+}parsec_external_fini_t;
 
 /**
  * @brief Prototype of the allocator function
@@ -216,6 +236,11 @@ void parsec_abort( parsec_context_t* pcontext, int status);
  * @return PARSEC_SUCCESS on success
  */
 int parsec_fini( parsec_context_t** pcontext );
+
+/**
+ * Setup external finilize routine to be callback during parsec_fini
+ */
+void parsec_context_at_fini(parsec_external_fini_cb_t cb, void *data);
 
 /**
  * @brief Enqueue a PaRSEC taskpool into the PaRSEC context

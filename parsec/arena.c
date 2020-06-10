@@ -55,10 +55,10 @@ extern int arena_memory_used_key, arena_memory_unused_key;
 size_t parsec_arena_max_allocated_memory = SIZE_MAX;  /* unlimited */
 size_t parsec_arena_max_cached_memory    = 256*1024*1024; /* limited to 256MB */
 
+
 int parsec_arena_construct_ex(parsec_arena_t* arena,
                              size_t elem_size,
                              size_t alignment,
-                             parsec_datatype_t opaque_dtt,
                              size_t max_allocated_memory,
                              size_t max_cached_memory)
 {
@@ -77,7 +77,6 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
     PARSEC_OBJ_CONSTRUCT(&arena->area_lifo, parsec_lifo_t);
     arena->alignment    = alignment;
     arena->elem_size    = elem_size;
-    arena->opaque_dtt   = opaque_dtt;
     arena->used         = 0;
     arena->max_used     = (max_allocated_memory / elem_size > (size_t)INT32_MAX)? INT32_MAX: max_allocated_memory / elem_size;
     arena->released     = 0;
@@ -89,16 +88,15 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
 
 int parsec_arena_construct(parsec_arena_t* arena,
                           size_t elem_size,
-                          size_t alignment,
-                          parsec_datatype_t opaque_dtt)
+                          size_t alignment)
 {
     return parsec_arena_construct_ex(arena, elem_size,
-                                    alignment, opaque_dtt,
+                                    alignment,
                                     parsec_arena_max_allocated_memory,
                                     parsec_arena_max_cached_memory);
 }
 
-void parsec_arena_destruct(parsec_arena_t* arena)
+static void parsec_arena_destructor(parsec_arena_t* arena)
 {
     parsec_list_item_t* item;
 
@@ -119,6 +117,8 @@ void parsec_arena_destruct(parsec_arena_t* arena)
         PARSEC_OBJ_DESTRUCT(&arena->area_lifo);
     }
 }
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_arena_t, parsec_object_t, NULL, parsec_arena_destructor);
 
 static inline parsec_list_item_t*
 parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate_t alloc )

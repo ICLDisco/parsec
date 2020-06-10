@@ -135,7 +135,7 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
         fprintf(grapher_file,
             "%s [shape=\"polygon\","
             "label=\"<%d/%d> %s%s\","
-            "tooltip=\"tpid=%u:tcid=%d:tcname=%s:tid=%lu\"];\n",
+            "tooltip=\"tpid=%u:tcid=%d:tcname=%s:tid=%llu\"];\n",
             nmp,
             thread_id, vp_id, tmp, sim_date,
             context->taskpool->taskpool_id,
@@ -177,7 +177,7 @@ static void parsec_prof_grapher_dataid(const parsec_data_t *dta, char *did, int 
     assert(NULL != dta);
     assert(NULL != grapher_file);
     assert(NULL != data_ht);
-    
+
     id.dc = dta->dc;
     id.data_key = dta->key;
     key = (parsec_key_t)(uintptr_t)&id;

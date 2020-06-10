@@ -136,9 +136,9 @@ int main(int argc, char *argv[])
      */
     tp = parsec_Ex05_Broadcast_new(&mydata, world, rank);
 
-    parsec_arena_construct(tp->arenas[PARSEC_Ex05_Broadcast_DEFAULT_ARENA],
-                           sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                           parsec_datatype_int_t );
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_Ex05_Broadcast_DEFAULT_ARENA],
+                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                     parsec_datatype_int_t );
 
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");

@@ -6,7 +6,7 @@
 
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
-#include "parsec/arena.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
@@ -35,9 +35,9 @@ parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
     parsec_type_create_contiguous(nb, parsec_datatype_int32_t, &block);
     parsec_type_extent(block, &lb, &extent);
 
-    parsec_arena_construct(tp->arenas[PARSEC_BT_reduction_DEFAULT_ARENA],
-                           extent, PARSEC_ARENA_ALIGNMENT_SSE,
-                           block);
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_BT_reduction_DEFAULT_ARENA],
+                                     extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                                     block);
 
     return (parsec_taskpool_t*)tp;
 }

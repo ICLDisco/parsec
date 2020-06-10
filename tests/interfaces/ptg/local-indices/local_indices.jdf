@@ -27,7 +27,7 @@ READ A <- descA((odd/2) % descA->super.mt, (even/2) % descA->super.nt)
 CTL  X <- [ i = 0 .. odd ] i == -1 ? X STARTUP(0, 0)
        -> [ i = 0 .. odd ] i == -1 ? X STARTUP(0, 0)
        -> Y tG(0)
-       
+
 BODY
 {
    usleep( rand() % 50000 + 50000);
@@ -110,7 +110,7 @@ int main( int argc, char** argv )
 {
     parsec_local_indices_taskpool_t* tp;
     two_dim_block_cyclic_t descA;
-    parsec_arena_t arena;
+    parsec_arena_datatype_t adt;
     parsec_datatype_t dt;
     parsec_context_t *parsec;
     int ws = 1, mr = 0;
@@ -126,13 +126,13 @@ int main( int argc, char** argv )
     {
         int provided;
         MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-	MPI_Comm_size(MPI_COMM_WORLD, &ws);
-	MPI_Comm_rank(MPI_COMM_WORLD, &mr);
+        MPI_Comm_size(MPI_COMM_WORLD, &ws);
+        MPI_Comm_rank(MPI_COMM_WORLD, &mr);
         for(c = (int)sqrt(ws)+1; c > 0; c--) {
-	  if( (c < ws) && (ws % c) == 0 ) {
-	    p = c;
-	    break;
-	  }
+            if( (c < ws) && (ws % c) == 0 ) {
+                p = c;
+                break;
+            }
         }
     }
 #endif
@@ -148,18 +148,18 @@ int main( int argc, char** argv )
     two_dim_block_cyclic_init( &descA, matrix_RealDouble, matrix_Tile,
                                ws /*nodes*/, mr /*rank*/,
                                100 /* mb */, 100 /* nb */,
-			       100*10 /* lm */, 100*10 /* ln */,
+                               100*10 /* lm */, 100*10 /* ln */,
                                0 /* i */, 0 /* j */,
-			       100*10 /* m */, 100*10 /* n */,
-			       1 /* sm */, 1 /* sn */,
-			       p );
+                               100*10 /* m */, 100*10 /* n */,
+                               1 /* sm */, 1 /* sn */,
+                               p );
     descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
-                                     descA.super.bsiz *
-                                     parsec_datadist_getsizeoftype(matrix_RealDouble) );
+                                      descA.super.bsiz *
+                                      parsec_datadist_getsizeoftype(matrix_RealDouble) );
     parsec_data_collection_set_key(&descA.super.super, "A");
 
     parsec_translate_matrix_type(matrix_RealDouble, &dt);
-    parsec_matrix_add2arena_rect(&arena, dt,
+    parsec_matrix_add2arena_rect(&adt, dt,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
     /* Start the PaRSEC engine */
@@ -170,10 +170,11 @@ int main( int argc, char** argv )
     memset(local_nb, 0, 4*sizeof(int));
     tp = parsec_local_indices_new( &descA, (int32_t*)local_nb );
     assert( NULL != tp );
-    tp->arenas[PARSEC_local_indices_DEFAULT_ARENA] = &arena;
+    tp->arenas_datatypes[PARSEC_local_indices_DEFAULT_ARENA] = adt;
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_wait(parsec);
+
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     rc = parsec_context_start(parsec);
@@ -189,25 +190,25 @@ int main( int argc, char** argv )
     ret = 0;
     if( 0 == mr ) {
         if( global_nb[0] != 25 ) {
-	  fprintf(stderr, "*** Test failed: expected 25 STARTUP tasks, found %d total\n", global_nb[0]);
-	  ret++;
-	}
-	if( global_nb[1] != 90 ) {
-	  fprintf(stderr, "*** Test failed: expected 90 tA tasks, found %d total\n", global_nb[1]);
-	  ret++;
-	}
-	if( global_nb[2] != 90 ) {
-	  fprintf(stderr, "*** Test failed: expected 90 tB tasks, found %d total\n", global_nb[2]);
-	  ret++;
-	}
-	if( global_nb[3] != 5 ) {
-	  fprintf(stderr, "*** Test failed: expected 5 tC tasks, found %d total\n", global_nb[3]);
-	  ret++;
-	}
+            fprintf(stderr, "*** Test failed: expected 25 STARTUP tasks, found %d total\n", global_nb[0]);
+            ret++;
+        }
+        if( global_nb[1] != 90 ) {
+            fprintf(stderr, "*** Test failed: expected 90 tA tasks, found %d total\n", global_nb[1]);
+            ret++;
+        }
+        if( global_nb[2] != 90 ) {
+            fprintf(stderr, "*** Test failed: expected 90 tB tasks, found %d total\n", global_nb[2]);
+            ret++;
+        }
+        if( global_nb[3] != 5 ) {
+            fprintf(stderr, "*** Test failed: expected 5 tC tasks, found %d total\n", global_nb[3]);
+            ret++;
+        }
     }
 
     free(descA.mat);
-    parsec_arena_destruct(&arena);
+    parsec_matrix_del2arena( & adt );
 
     parsec_fini( &parsec);
 

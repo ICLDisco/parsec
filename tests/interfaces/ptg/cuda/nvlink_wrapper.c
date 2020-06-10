@@ -33,7 +33,7 @@ static void destruct_cublas_handle(void *p)
 parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb )
 {
     parsec_nvlink_taskpool_t* testing_handle = NULL;
-    parsec_arena_t *arena;
+    parsec_arena_datatype_t adt;
     int *dev_index, nb, dev, i;
     two_dim_block_cyclic_t *dcA;
 
@@ -87,8 +87,8 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
 
     testing_handle = parsec_nvlink_new(dcA, ctx->nb_nodes, CuHI, nb, dev_index);
 
-    arena = testing_handle->arenas[PARSEC_nvlink_DEFAULT_ARENA];
-    parsec_matrix_add2arena( arena, parsec_datatype_double_complex_t,
+    adt = testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ARENA];
+    parsec_matrix_add2arena( &adt, parsec_datatype_double_complex_t,
                              matrix_UpperLower, 1, mb, mb, mb,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
@@ -99,8 +99,7 @@ void testing_nvlink_Destruct( parsec_taskpool_t *tp )
 {
     parsec_nvlink_taskpool_t *nvlink_taskpool = (parsec_nvlink_taskpool_t *)tp;
     two_dim_block_cyclic_t *dcA;
-    if (nvlink_taskpool->arenas[PARSEC_nvlink_DEFAULT_ARENA])
-        parsec_matrix_del2arena( nvlink_taskpool->arenas[PARSEC_nvlink_DEFAULT_ARENA] );
+    parsec_matrix_del2arena( & nvlink_taskpool->arenas_datatypes[PARSEC_nvlink_DEFAULT_ARENA] );
     parsec_data_free(nvlink_taskpool->_g_descA->mat);
     parsec_info_unregister(&parsec_per_device_infos, nvlink_taskpool->_g_CuHI, NULL);
     dcA = nvlink_taskpool->_g_descA;

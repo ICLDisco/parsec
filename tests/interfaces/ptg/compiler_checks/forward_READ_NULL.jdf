@@ -103,9 +103,9 @@ int main(int argc, char *argv[])
      * The arena is now also used to describe the layout to the communication
      * engine (MPI)
      */
-    parsec_arena_construct(tp->arenas[PARSEC_forward_READ_NULL_DEFAULT_ARENA],
-                          sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          parsec_datatype_int_t );
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_forward_READ_NULL_DEFAULT_ARENA],
+                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                     parsec_datatype_int_t );
 
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");

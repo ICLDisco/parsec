@@ -63,10 +63,10 @@ int main( int argc, char* argv[] )
                                                NULL);
     /* Prepare the arena for the reduction */
     parsec_type_create_contiguous(nb, parsec_datatype_float_t, &newtype);
-    parsec_arena_construct(((parsec_reduce_taskpool_t*)tp)->arenas[PARSEC_reduce_DEFAULT_ARENA],
-                          nb*sizeof(float),
-                          PARSEC_ARENA_ALIGNMENT_SSE,
-                          newtype);
+    parsec_arena_datatype_construct(&((parsec_reduce_taskpool_t*)tp)->arenas_datatypes[PARSEC_reduce_DEFAULT_ARENA],
+                                    nb*sizeof(float),
+                                    PARSEC_ARENA_ALIGNMENT_SSE,
+                                    newtype);
 
     rc = parsec_context_add_taskpool(parsec, tp);
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
