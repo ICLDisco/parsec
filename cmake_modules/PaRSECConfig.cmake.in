@@ -30,6 +30,7 @@ endif(@PARSEC_HAVE_OTF2@)
 if(@PARSEC_HAVE_PAPI@)
   set_and_check(PAPI_INCLUDE_DIR "@PAPI_INCLUDE_DIR@")
   set_and_check(PAPI_LIBRARY "@PAPI_LIBRARY@")
+  find_package(PAPI REQUIRED)
 endif(@PARSEC_HAVE_PAPI@)
 
 if(@PARSEC_DIST_WITH_MPI@)
