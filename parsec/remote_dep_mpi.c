@@ -721,8 +721,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
         return -1; /* the parsec taskpool doesn't exist yet */
 
     task.taskpool   = origin->taskpool;
-    task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
-
+    /* Do not set the task.task_class here, because it might trigger a race condition in DTD */
     task.priority = 0;  /* unknown yet */
 
     /* This function is divided into DTD and PTG's logic */
@@ -791,6 +790,8 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                                                origin);
         }
     } else {
+        task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
+
         for(i = 0; i < task.task_class->nb_locals; i++)
             task.locals[i] = origin->msg.locals[i];
 
