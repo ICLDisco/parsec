@@ -468,7 +468,6 @@ set(EXTRA_INCLUDES "")
 # Find optional packages
 #
 IF( BUILD_PARSEC )
-  set(PARSEC_HAVE_PAPI 0)
   find_package(HWLOC)
   set(PARSEC_HAVE_HWLOC ${HWLOC_FOUND})
   IF( HWLOC_FOUND )
