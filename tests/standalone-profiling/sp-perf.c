@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include "parsec/profiling.h"
 
+#include <mpi.h>
+
 typedef struct {
     pthread_t                 pthread_id;
     int                       thread_index;
@@ -44,14 +46,16 @@ static void *run_thread(void *_arg)
 
     if( profiling )
         ti->prof = parsec_profiling_thread_init(4096, "Thread %d", ti->thread_index);
-
+    
+    pthread_barrier_wait(&barrier); // We wait that all threads have called init
+       
     for(i = 0; i < D*D; i++) {
         a[i] = (double)rand() / RAND_MAX;
         b[i] = (double)rand() / RAND_MAX;
         c[i] = (double)rand() / RAND_MAX;
     }
     
-    pthread_barrier_wait(&barrier);
+    pthread_barrier_wait(&barrier); // Then we wait that all threads are ready and that the main thread has called start
     gettimeofday(&start, NULL);
     
     for(i = 0; i < tasks_per_thread; i++) {
@@ -76,6 +80,8 @@ int main(int argc, char *argv[])
     int nbthreads = 1;
     char *filename = NULL;
 
+    MPI_Init(&argc, &argv);
+    
     while ((opt = getopt(argc, argv, "f:n:N:h?")) != -1) {
         switch (opt) {
         case 'f':
@@ -106,22 +112,23 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
 
         parsec_profiling_add_dictionary_keyword("Event", "#FF0000", 0, NULL, &event_startkey, &event_endkey);
-
-        parsec_profiling_start();
     }
 
-    pthread_barrier_init(&barrier, NULL, nbthreads);
+    pthread_barrier_init(&barrier, NULL, nbthreads+1);
     thread_info = (per_thread_info_t *)calloc(nbthreads, sizeof(per_thread_info_t));
     
-    for(i = 1; i < nbthreads; i++) {
+    for(i = 0; i < nbthreads; i++) {
         thread_info[i].thread_index = i;
         pthread_create(&thread_info[i].pthread_id, NULL, run_thread, &thread_info[i]);
     }
 
-    thread_info[0].thread_index = 0;
-    run_thread(&thread_info[0]);
-
-    for(i = 1; i < nbthreads; i++)
+    pthread_barrier_wait(&barrier); // We wait first that all threads have called thread_init
+    if(profiling) {
+        parsec_profiling_start();
+    }
+    pthread_barrier_wait(&barrier); // Then we free all compute threads to run
+    
+    for(i = 0; i < nbthreads; i++)
         pthread_join(thread_info[i].pthread_id, NULL);
 
     if( profiling ) {
@@ -133,6 +140,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Thread %d Total Time (s): %d.%06d\n", i, (int)thread_info[i].duration.tv_sec, (int)thread_info[i].duration.tv_usec);
     }
     free(thread_info);
+
+    MPI_Finalize();
 
     exit(EXIT_SUCCESS);
 }

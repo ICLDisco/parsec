@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include "parsec/profiling.h"
 
+#include <mpi.h>
+
 #define NB_THREADS         4
 #define EVENTS_PER_THREAD 10
 
@@ -40,7 +42,9 @@ typedef struct {
     double d;
 } event_b_info_t;
 
-#define EVENT_B_INFO_CONVERTER "i{int};d{double}"
+static pthread_barrier_t barrier;
+
+#define EVENT_B_INFO_CONVERTER "i{int32_t};d{double}"
 
 /**
  * Declare a pair of int for each event type: a start key and an end key
@@ -67,6 +71,10 @@ static void *run_thread(void *_arg)
      */
     ti->prof = parsec_profiling_thread_init(4096, "This is the name of thread %d", ti->thread_index);
 
+    /* Once parsec_profiling_thread_init has been called, the main thread can call
+     * parsec_profiling_start */
+    pthread_barrier_wait(&barrier);
+    
     /**
      *  You can save runtime-specific information per threads, in the form of key/value pair
      */
@@ -74,6 +82,10 @@ static void *run_thread(void *_arg)
                                            "This is a thread-specific information key",
                                            "This is the corresponding value");
 
+    /* Then, the threads need to wait that parsec_profiling_start() has been called
+     * before they can proceed to log events */
+    pthread_barrier_wait(&barrier);
+    
     for(i = 0; i < EVENTS_PER_THREAD; i++) {
         if( rand() % 2 == 0 ) {
             /**
@@ -114,10 +126,12 @@ static void *run_thread(void *_arg)
     return NULL;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    int i;
+    int i, rc;
     per_thread_info_t thread_info[NB_THREADS];
+
+    MPI_Init(&argc, &argv); // MPI is only needed if using OTF2 as a backend. It can be ignored otherwise.
 
     /** First, there is a sequential part (no threads) */
 
@@ -129,7 +143,9 @@ int main()
      *   It will be named sp-<%d>.prof-XXXX where <%d> is the MPI rank (0 if no MPI), and XXXXX is a random value
      *  second argument "Demonstration..." is a human readable string to qualify the trace
      */
-    parsec_profiling_dbp_start( "sp", "Demonstration of basic PaRSEC profiling system" );
+    rc = parsec_profiling_dbp_start( "sp", "Demonstration of basic PaRSEC profiling system" );
+    if( 0 != rc )
+        return 0;
 
     /** Each Event type must be defined before any event is traced
      *  They are defined by being added to a dictionary.
@@ -152,20 +168,21 @@ int main()
      */
     parsec_profiling_add_information("This is a global information key", "This is the global information value");
 
-    /** profiling_start() defines the time 0. It must be called, or no event will be traced */
-    parsec_profiling_start();
-
-    /** After this step, multithreaded execution can start */
-
-    for(i = 1; i < NB_THREADS; i++) {
+    pthread_barrier_init(&barrier, NULL, NB_THREADS+1);
+    
+    for(i = 0; i < NB_THREADS; i++) {
         thread_info[i].thread_index = i;
         pthread_create(&thread_info[i].pthread_id, NULL, run_thread, &thread_info[i]);
     }
 
-    thread_info[0].thread_index = 0;
-    run_thread(&thread_info[0]);
+    pthread_barrier_wait(&barrier); // we wait that all threads call start
+    
+    /** profiling_start() defines the time 0. It must be called, once all threads have initialized, or no event will be traced */
+    parsec_profiling_start();
 
-    for(i = 1; i < NB_THREADS; i++)
+    pthread_barrier_wait(&barrier); // all other threads are waiting that signal we called profiling_start
+    
+    for(i = 0; i < NB_THREADS; i++)
         pthread_join(thread_info[i].pthread_id, NULL);
 
     /** dbp_dump() will flush the trace file. fini() will also flush if it was not done before
@@ -174,4 +191,6 @@ int main()
      */
     parsec_profiling_dbp_dump();
     parsec_profiling_fini();
+
+    MPI_Finalize();
 }

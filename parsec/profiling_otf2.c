@@ -310,7 +310,7 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
     }
 
     /* Reset the error system */
-    set_last_error("PaRSEC Profiling System: success");
+    snprintf(parsec_profiling_last_error, MAX_PROFILING_ERROR_STRING_LEN, "PaRSEC Profiling System: success");
     parsec_profiling_raise_error = 0;
 
     /* It's fine to re-reset the event date: we're back with a zero-length event set */
@@ -584,6 +584,9 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
                 /* We don't support fixed-size strings yet, so we just remember to skip the bytes */
                 int nb = atoi(&type[5]);
                 regions[region].otf2_attribute_types[regions[region].otf2_nb_attributes] = -nb;
+            } else {
+                parsec_warning("PaRSEC Profiling System: OTF2 Error -- Unrecognized type '%s' -- type size must be specified e.g. int32_t", type);
+                regions[region].otf2_attribute_types[regions[region].otf2_nb_attributes] = 0;
             }
         }
         regions[region].otf2_nb_attributes++;
@@ -799,7 +802,7 @@ int parsec_profiling_dbp_dump( void )
     }
     parsec_list_unlock( &threads );
 
-#if defined(MPI)
+#if defined(PARSEC_HAVE_MPI)
     if( MPI_ready ) {
         MPI_Reduce( &epoch,
                     &gepoch,
