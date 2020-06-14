@@ -52,9 +52,5 @@ if(Graphviz_FOUND)
 
 endif(Graphviz_FOUND)
 
-# Python support for profiling (requires Cython 0.21.2)
-find_package(Cython 0.21.2)
-if(CYTHON_EXECUTABLE)
-  Add_Subdirectory(python)
-endif(CYTHON_EXECUTABLE)
+Add_Subdirectory(python)
 
