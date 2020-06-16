@@ -8,7 +8,7 @@ CC = gcc
 CFLAGS  = $(shell PKG_CONFIG_PATH="${PKG_CONFIG_PATH}" pkg-config --cflags parsec)
 LDFLAGS = $(shell PKG_CONFIG_PATH="${PKG_CONFIG_PATH}" pkg-config --libs parsec)
 
-PTGPP = ${PARSECDIR}/bin/parsec_ptgpp
+PTGPP = ${PARSECDIR}/bin/parsec-ptgpp
 PTGFLAGS =
 
 TESTS = write_check dtd_test_allreduce

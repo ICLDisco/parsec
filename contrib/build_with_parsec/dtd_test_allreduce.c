@@ -100,10 +100,13 @@ int main(int argc, char **argv)
     nt = world; /* total no. of tiles */
 
     parsec = parsec_init( cores, &argc, &argv );
+    if( NULL == parsec ) {
+        return -1;
+    }
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
-    parsec_matrix_add2arena_rect(parsec_dtd_arenas_datatypes[TILE_FULL],
+    parsec_matrix_add2arena_rect(&parsec_dtd_arenas_datatypes[TILE_FULL],
                                  parsec_datatype_int32_t,
                                  nb, 1, nb);
 
@@ -203,7 +206,7 @@ int main(int argc, char **argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     parsec_taskpool_free( dtd_tp );
 
-    PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0]->arena);
+    PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0].arena);
     parsec_dtd_data_collection_fini( A );
     parsec_matrix_destroy_data(dcA);
     parsec_data_collection_destroy(&dcA->super);
