@@ -59,8 +59,14 @@ if(Python_VERSION_MAJOR GREATER 2)
   else()
     execute_process(OUTPUT_QUIET
                     COMMAND ${PYTHON_2TO3_EXECUTABLE} -w -n ${CMAKE_CURRENT_BINARY_DIR}/examples)
-    execute_process(OUTPUT_QUIET
-                    COMMAND ${PYTHON_2TO3_EXECUTABLE} -w -n "${CMAKE_CURRENT_BINARY_DIR}/common_utils.py ${CMAKE_CURRENT_BINARY_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_BINARY_DIR}/ptt_utils.py")
+    #
+    # Convert all python utilities
+    #
+    set(SRC_PYTHON_SUPPORT "common_utils.py" "parsec_trace_tables.py" "ptt_utils.py")
+    foreach(file ${SRC_PYTHON_SUPPORT})
+      execute_process(OUTPUT_QUIET
+                      COMMAND ${PYTHON_2TO3_EXECUTABLE} -w -n "${CMAKE_CURRENT_BINARY_DIR}/${file}")
+    endforeach()
   endif(NOT PYTHON_2TO3_EXECUTABLE)
 endif(Python_VERSION_MAJOR GREATER 2)
 
