@@ -88,7 +88,5 @@ cdef extern from "dbpreader.h":
    char *dbp_event_get_info(dbp_event_t *e)
    int   dbp_event_info_len(dbp_event_t *e, dbp_multifile_reader_t *dbp)
 
-   enum: OPEN_ERROR
-
    # DEBUG
    void dbp_file_print(dbp_file_t* file)

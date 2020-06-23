@@ -20,9 +20,13 @@ TERMINOLOGY NOTES:
 # between multiple traces.
 """
 
+from __future__ import print_function
+
+cimport cpython.version
+
 # cython: trace=False
 # ...but could be True if we wanted to # import cProfile, pstats
-from __future__ import print_function
+# cython: c_string_type=str, c_string_encoding=ascii
 
 import sys
 import os
@@ -35,6 +39,7 @@ import multiprocessing
 import binascii
 import pandas as pd
 import logging
+import traceback
 
 from parsec_trace_tables import * # the pure Python classes
 from common_utils import *
@@ -46,7 +51,7 @@ logging.basicConfig(level=10, format='%(message)s')
 logger = logging.getLogger(__name__)
 
 # This should be identical to the C PARSEC_PINS_SEPARATOR
-PARSEC_PINS_SEPARATOR = ";"
+PARSEC_PINS_SEPARATOR = ';'
 
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=False,
            add_info=dict()):
@@ -113,7 +118,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
         event_length = dbp_dictionary_keylen(cdict)
 
         logger.log(5, "Event %s conv <%s> length %d", event_name, event_conv, event_length)
-        if 0 == len(event_conv) and str("PINS_EXEC") == event_name:
+        if 0 == len(event_conv) and str("PINS_EXEC") == str(event_name):
             event_conv = 'kernel_type{int32_t}'+PARSEC_PINS_SEPARATOR+'value1{int64_t}'+PARSEC_PINS_SEPARATOR+'value2{int64_t}'+PARSEC_PINS_SEPARATOR+'value3{int64_t}'+PARSEC_PINS_SEPARATOR
         if 0 != len(event_conv):
             builder.event_convertors[event_type] = ExtendedEvent(builder.event_names[event_type],
@@ -163,7 +168,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     # extraction of the events from the different profiling files. Otherwise,
     # everything will be done locally in this thread.
     with Timer() as t:
-        if multiprocess:
+        if multiprocess > 1:
             node_thread_chunks = chunk(node_streams, multiprocess)
             for nt_chunk in node_thread_chunks:
                 my_end, their_end = Pipe()
@@ -205,7 +210,6 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
                    + ' seconds per thread.', report_progress)
     else:
         cond_print('\n', report_progress)
-
     # sort streams
     for node_id in sorted(builder.unordered_streams_by_node.keys()):
         for stream_id in sorted(builder.unordered_streams_by_node[node_id].keys()):
@@ -233,14 +237,17 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
         for key, val in add_info.iteritems():
             add_kv(builder.information, key, val)
 
-    if len(builder.events) > 0:
-        cond_print('Then we concatenate the event DataFrames....', report_progress)
-        with Timer() as t:
-            events = pd.concat(builder.events)
-        cond_print('   events DataFrame concatenation time: ' + str(t.interval), report_progress)
+    if isinstance(builder.events, pd.DataFrame):
+        events = builder.events
     else:
-        events = pd.DataFrame()
-        cond_print('No events were found in the trace.', report_progress)
+        if len(builder.events) > 0:
+            cond_print('Then we concatenate the event DataFrames....', report_progress)
+            with Timer() as t:
+                events = pd.concat(builder.events)
+            cond_print('   events DataFrame concatenation time: ' + str(t.interval), report_progress)
+        else:
+            events = pd.DataFrame()
+            cond_print('No events were found in the trace.', report_progress)
 
     with Timer() as t:
         information = pd.Series(builder.information)
@@ -260,10 +267,14 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
         event_convertors = pd.DataFrame(simple_convertors)
         nodes = pd.DataFrame.from_records(builder.nodes)
         streams = pd.DataFrame.from_records(builder.streams)
-        if len(builder.errors) > 0:
-            errors = pd.concat(builder.errors)
+        if isinstance(builder.errors, pd.DataFrame):
+            errors = builder.errors
         else:
-            errors = pd.DataFrame()
+            if len(builder.errors) > 0:
+                errors = pd.concat(builder.errors)
+            else:
+                errors = pd.DataFrame()
+
     cond_print('Constructed additional structures in {0} seconds.'.format(t.interval),
                report_progress)
 
@@ -351,7 +362,7 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
                 out_dir = None
                 break
         try:
-            rank_zero_filename = os.path.basename(trace.nodes.iloc[0]['filename'])
+            rank_zero_filename = os.path.basename(trace.nodes.iloc[0]['filename'].decode("utf-8"))
             # if we don't already have an out_dir
             if not out_dir:
                 for filename in filenames:
@@ -369,7 +380,7 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
             else:
                 out = get_basic_ptt_name(rank_zero_filename)
         except Exception as e:
-            print(e)
+            traceback.print_exc()
             out = get_basic_ptt_name(os.path.basename(filenames[0]))
         if not out_dir:
             out_dir = '.'
@@ -403,7 +414,7 @@ cpdef add_kv(dct, key, value, append_if_present=True):
         # by putting it directly in the dictionary.
         dct[key] = value
     elif append_if_present:
-        list_k = key + '_list'
+        list_k = str(key) + '_list'
         if list_k in dct:
             if isinstance(dct[list_k], list):
                 dct[list_k].append(value)
@@ -417,7 +428,11 @@ cpdef add_kv(dct, key, value, append_if_present=True):
 cdef char** string_list_to_c_strings(strings):
     ''' Converts a list of Python strings to C-style strings '''
     cdef char ** c_argv
-    bytes_strings = [bytes(x) for x in strings]
+    IF PY_VERSION_HEX >= 0x03000000:
+        bytes_strings = [bytes(x, encoding='utf8') for x in strings]
+    ELSE:
+        bytes_strings = [bytes(x) for x in strings]
+
     c_argv = <char**>malloc(sizeof(char*) * len(bytes_strings))
     if c_argv is NULL:
         raise MemoryError()
@@ -474,18 +489,17 @@ cpdef construct_stream_in_process(pipe, builder, filenames, node_streams,
             for e in builder.events:
                 for missing in allkeys.difference(e):
                     e[missing] = None
-            # Then, we build the list( tuple ) that represents the values of builder.events
-            vals = []
-            for d in builder.events:
-                val = [d[k] for k in allkeys]
-                vals.append( tuple(val) )
-            # And we build the list( tuple ) that represent the (name, type) for each column
-            types = zip(allkeys, np.full( len(allkeys), 'object'))
-            # And finally, we can transform (vals, types) as a DataFrame with each column
-            # typed as 'object' and the 'None' values recognized everywhere they appear
+            # Then, we build a dict of typed Series, for each key of builder.events
+            record = dict()
+            for k in allkeys:
+                # val is the list of values for that key
+                val = []
+                for d in builder.events:
+                    val.append(d[k])
+                record[k] = pd.Series(val, dtype=np.dtype(object))
         cond_print('\nSanitizing the events took ' + str(t.interval) + ' seconds' ,
                     report_progress, end='')
-        builder.events = pd.DataFrame.from_records(np.array(vals, dtype=types))
+        builder.events = pd.DataFrame(record)
     else:
         builder.events = pd.DataFrame()
     if len(builder.errors) > 0:
@@ -522,7 +536,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
     cdef uint64_t prev_begin = 0
     cdef void * cinfo = NULL
 
-    th_begin = sys.maxint
+    th_begin = sys.maxsize
     th_end = 0
     stream_descrip = dbp_thread_get_hr_id(cstream)
     stream = {'node_id': node_id, 'stream_id': stream_id, 'description': stream_descrip}
@@ -537,7 +551,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
     try:
         th_duration = stream['end'] - stream['begin']
     except:
-        th_duration = sys.maxint
+        th_duration = sys.maxsize
 
     builder.unordered_streams_by_node[node_id][stream_id] = stream
     while event_s != NULL and not skeleton_only:
@@ -582,12 +596,12 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                             event_info = parse_info(builder, event_type, <char*>cinfo)
 
                             if None != event_info:
-                                #print(event_type, event_name, event_info)
-                                if 'PINS_PAPI' in builder.event_names[event_type]:
+                                if b'PINS_PAPI' in builder.event_names[event_type]:
                                    for keyNum in range(0,len(event_info.keys())):
                                        event[event_info.keys()[keyNum] + '_start'] = event_info.values()[keyNum]
                                 event.update(event_info)
-                        except:
+                        except Exception as e:
+                            traceback.print_exc()
                             print('Failed to extract info from the start event (taskpool_id {0} event_id {1})'.format(taskpool_id, event_id))
 
                 it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
@@ -711,18 +725,23 @@ import struct
 # The event_len is the length in bytes of the event.
 #
 cdef class ExtendedEvent:
-    cdef object ev_struct
-    cdef object aev
-    cdef bytes fmt
-    cdef int event_len
-    cdef bytes event_name
+    cdef readonly object ev_struct
+    cdef readonly object aev
+    cdef readonly bytes fmt
+    cdef readonly int event_len
+    cdef readonly bytes event_name
 
-    def __init__(self, event_name, event_conv, event_len):
+    def __cinit__(self, event_name, event_conv, event_len):
         self.fmt = b"@"
         cdef char* c_string
         self.aev = []
         self.event_name = <bytes>event_name
-        for ev in str.split(event_conv, PARSEC_PINS_SEPARATOR):
+
+        IF PY_VERSION_HEX >= 0x03000000:
+            event_conv_str = event_conv.decode('ascii')
+        ELSE:
+            event_conv_str = event_conv
+        for ev in str.split(event_conv_str, PARSEC_PINS_SEPARATOR):
             if 0 == len(ev):
                 continue
             ev_list = str.split(ev, '{', 2)
@@ -769,6 +788,9 @@ cdef class ExtendedEvent:
                     self.fmt += <bytes>(b"%ss"%(m.group(1)))
         logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, self.fmt)
         self.ev_struct = struct.Struct(self.fmt)
+        if self.ev_struct is None:
+            logger.warning('Construction of ExtendedEvent failed: struct.Struct("{}") returned None'.format(self.fmt))
+
         if event_len != len(self):
             c_string = self.fmt
             logger.warning('Event %s discarded: expected length differs from provided length (%d != %d)\n'
@@ -777,6 +799,9 @@ cdef class ExtendedEvent:
             event_len = event_len if event_len < len(self) else len(self)
         self.event_len = event_len
     def __len__(self):
+        if self.ev_struct is None:
+            logger.warning('Calling pickle on a non-constructed ExtendedEvent')
+            raise TypeError
         return self.ev_struct.size
     def unpack(self, pybs):
         return {a: b for (a, b) in zip(self.aev, self.ev_struct.unpack(pybs))}
@@ -787,6 +812,8 @@ cdef class ExtendedEvent:
 cdef parse_info(builder, event_type, char * cinfo):
     cdef bytes pybs
 
+    event_type = int(event_type)
+
     if None == builder.event_convertors[event_type]:
        return None
 
@@ -795,5 +822,5 @@ cdef parse_info(builder, event_type, char * cinfo):
         #print('hex = {0}'.format(binascii.hexlify(pybs)))
         return builder.event_convertors[event_type].unpack(pybs)
     except Exception as e:
-        print(e)
+        traceback.print_exc()
         return None
