@@ -378,7 +378,7 @@ if __name__ == '__main__':
                 PajeEndLink.PajeEvent(Time=dst_info['start'], Type=link_type, Container=paje_c_appli, EndContainer=dst_info['container'], Value="", Key="%d"%(nblink))
                 nblink = nblink+1
 
-    for name,cer in counter_events.iteritems():
+    for name,cer in counter_events.items():
         if not cer['error']:
             ce = cer['events']
             ce.sort(cmp = lambda x, y: cmp(x['time'], y['time']) )
