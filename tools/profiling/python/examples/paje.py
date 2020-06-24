@@ -162,9 +162,21 @@ class PajeDef:
         self.event_type = event_type
 
         TraceFile.write('%%EventDef %s %d\n' % (self.event_type, self.def_key))
-        for k, v in self.paje_fields.iteritems():
+        for k, v in self.paje_fields.items():
             TraceFile.write('%% %s %s\n' % (k, v))
         TraceFile.write('%EndEventDef\n')
+
+    def checkString(self, obj):
+        try:
+            return isinstance(obj, basestring)
+        except NameError:
+            return isinstance(obj, str)
+
+    def checkFloat(self, obj):
+        return isinstance(obj, float)
+
+    def checkInt(self, obj):
+        return isinstance(obj, int)
 
     def PajeEvent(self, **kwarg):
         global next_alias
@@ -183,22 +195,22 @@ class PajeDef:
                     alias = val
 
             if v == 'date':
-                assert type(val) is FloatType, "PajeEvent: Key %s is supposed to be a date" % (k)
+                assert self.checkFloat(val), "PajeEvent: Key %s is supposed to be a date" % (k)
                 TraceFile.write("%g " % (val))
             elif v == 'int':
-                assert type(val) is IntType, "PajeEvent: Key %s is supposed to be an integer" % (k)
+                assert self.checkInt(val), "PajeEvent: Key %s is supposed to be an integer" % (k)
                 TraceFile.write("%d " % (val))
             elif v == 'double':
-                assert type(val) is FloatType, "PajeEvent: Key %s is supposed to be a double" % (k)
+                assert self.checkFloat(val), "PajeEvent: Key %s is supposed to be a double" % (k)
                 TraceFile.write("%g " % (val))
             elif v == 'hex':
-                assert type(val) is StringType, "PajeEvent: Key %s is supposed to be an hexadecimal number" % (k)
+                assert self.checkString(val), "PajeEvent: Key %s is supposed to be an hexadecimal number" % (k)
                 TraceFile.write("%s " % (val))
             elif v == 'string':
-                assert type(val) is StringType, "PajeEvent: Key %s is supposed to be a string" % (k)
+                assert self.checkString(val), "PajeEvent: Key %s is supposed to be a string" % (k)
                 TraceFile.write("\"%s\" " % (val))
             else:
-                assert type(val) is StringType, "PajeEvent: Key %s is supposed to be a color" % (k)
+                assert self.checkString(val), "PajeEvent: Key %s is supposed to be a color" % (k)
                 TraceFile.write("\"%s\" " % (val))
         TraceFile.write("\n")
         return alias

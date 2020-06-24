@@ -108,7 +108,7 @@ class ParsecTraceTables(object):
             return False
         store = pd.HDFStore(filename + '.tmp', 'w', complevel=complevel, complib=complib)
         for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
-            store.put(name, self.__dict__[name])
+            store.put(name, self.__dict__[name], encoding='ascii')
         if table:
             store.put('events', self.events, format='t', append=append)
         else:

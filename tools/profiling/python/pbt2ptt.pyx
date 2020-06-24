@@ -53,6 +53,14 @@ logger = logging.getLogger(__name__)
 # This should be identical to the C PARSEC_PINS_SEPARATOR
 PARSEC_PINS_SEPARATOR = ';'
 
+cpdef tostring(val):
+    """ Converts potential bytes array to string when in python3 """
+    try:
+        ret = val.decode("ascii")
+    except AttributeError:
+        ret = val
+    return ret
+
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=False,
            add_info=dict()):
     """ Given binary trace filenames, returns a PaRSEC Trace Table (PTT) object
@@ -109,9 +117,9 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     for event_type in range(nb_dict_entries):
         cdict = dbp_reader_get_dictionary(dbp, event_type)
         event_name = dbp_dictionary_name(cdict)
-        builder.event_names[event_type] = event_name
-        builder.event_types[event_name] = event_type
-        builder.event_attributes[event_type] = str(dbp_dictionary_attributes(cdict))
+        builder.event_names[event_type] = tostring(event_name)
+        builder.event_types[tostring(event_name)] = event_type
+        builder.event_attributes[event_type] = tostring(dbp_dictionary_attributes(cdict))
         builder.event_convertors[event_type] = None
 
         event_conv = dbp_dictionary_convertor(cdict)
@@ -136,15 +144,15 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     node_streams = []
     for node_id in sorted(builder.node_order.keys()):
         cfile = dbp_reader_get_file(dbp, builder.node_order[node_id])
-        node_dct = {'exe':dbp_file_hr_id(cfile),
-                    'filename':dbp_file_get_name(cfile),
-                    'id':node_id,
-                    'error':dbp_file_error(cfile)}
+        node_dct = {'exe':tostring(dbp_file_hr_id(cfile)),
+                    'filename':tostring(dbp_file_get_name(cfile)),
+                    'id':tostring(node_id),
+                    'error':tostring(dbp_file_error(cfile))}
         for index in range(dbp_file_nb_infos(cfile)):
             cinfo = dbp_file_get_info(cfile, index)
-            key = dbp_info_get_key(cinfo)
+            key   = dbp_info_get_key(cinfo)
             value = dbp_info_get_value(cinfo)
-            add_kv(node_dct, key, value)
+            add_kv(node_dct, tostring(key), tostring(value))
         try:
             node_dct['exe_abspath'] = os.path.abspath(
                 node_dct['cwd'] + os.sep + node_dct['exe'])
@@ -230,12 +238,12 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
                     del builder.information[key]
     builder.information['nb_nodes'] = nb_files
     builder.information['worldsize'] = worldsize
-    builder.information['last_error'] = last_error
+    builder.information['last_error'] = tostring(last_error)
     # allow the caller (who may know something extra about the run)
     # to specify additional trace information
     if add_info:
         for key, val in add_info.iteritems():
-            add_kv(builder.information, key, val)
+            add_kv(builder.information, tostring(key), tostring(val))
 
     if isinstance(builder.events, pd.DataFrame):
         events = builder.events
@@ -362,7 +370,7 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
                 out_dir = None
                 break
         try:
-            rank_zero_filename = os.path.basename(trace.nodes.iloc[0]['filename'].decode("utf-8"))
+            rank_zero_filename = os.path.basename(trace.nodes.iloc[0]['filename'])
             # if we don't already have an out_dir
             if not out_dir:
                 for filename in filenames:
@@ -539,13 +547,13 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
     th_begin = sys.maxsize
     th_end = 0
     stream_descrip = dbp_thread_get_hr_id(cstream)
-    stream = {'node_id': node_id, 'stream_id': stream_id, 'description': stream_descrip}
+    stream = {'node_id': node_id, 'stream_id': stream_id, 'description': tostring(stream_descrip)}
 
     for i in range(dbp_thread_nb_infos(cstream)):
         th_info = dbp_thread_get_info(cstream, i)
         key = dbp_info_get_key(th_info)
         value = dbp_info_get_value(th_info)
-        add_kv(stream, key, value)
+        add_kv(stream, tostring(key), tostring(value))
 
     # sanity check events
     try:
@@ -596,7 +604,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                             event_info = parse_info(builder, event_type, <char*>cinfo)
 
                             if None != event_info:
-                                if b'PINS_PAPI' in builder.event_names[event_type]:
+                                if 'PINS_PAPI' in builder.event_names[event_type]:
                                    for keyNum in range(0,len(event_info.keys())):
                                        event[event_info.keys()[keyNum] + '_start'] = event_info.values()[keyNum]
                                 event.update(event_info)
@@ -806,7 +814,7 @@ cdef class ExtendedEvent:
     def unpack(self, pybs):
         return {a: b for (a, b) in zip(self.aev, self.ev_struct.unpack(pybs))}
     def __getstate__(self):
-        return { 'fmt': self.fmt, 'event_len': self.event_len, 'event_name': self.event_name }
+        return { 'fmt': tostring(self.fmt), 'event_len': self.event_len, 'event_name': tostring(self.event_name) }
 
 # add parsing clauses to this function to get infos.
 cdef parse_info(builder, event_type, char * cinfo):
