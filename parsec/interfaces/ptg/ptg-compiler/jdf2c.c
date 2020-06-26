@@ -304,6 +304,32 @@ static char* dump_data(void** elem, void *arg)
     return string_arena_get_string(sa);
 }
 
+static int expr_requires_assignment(const jdf_expr_t *expr, int inc_locals)
+{
+    if( inc_locals && NULL != expr->local_variables ) {
+        return 1;
+    }
+    if(expr->op == JDF_C_CODE)
+        return 1;
+    if( JDF_OP_IS_UNARY( expr->op ) )
+        return expr_requires_assignment(expr->jdf_ua, inc_locals);
+    if( JDF_OP_IS_TERNARY( expr->op ) )
+        return expr_requires_assignment(expr->jdf_ta1, inc_locals) ||
+            expr_requires_assignment(expr->jdf_ta2, inc_locals) ||
+            expr_requires_assignment(expr->jdf_ta3, inc_locals);
+    if( JDF_OP_IS_CST( expr->op ) )
+        return 0;
+    if( JDF_OP_IS_STRING( expr->op ) )
+        return 0;
+    if( JDF_OP_IS_VAR( expr->op ) )
+        return 0;
+    if( JDF_OP_IS_BINARY( expr->op ) )
+        return expr_requires_assignment( expr->jdf_ba1, inc_locals ) ||
+            expr_requires_assignment( expr->jdf_ba2, inc_locals );
+    assert(0);
+    return 1;
+}
+
 /**
  * dump_rank:
  *   Dump a global symbol like
@@ -3155,9 +3181,18 @@ void free_l2p( jdf_l2p_t* l2p )
     }
 }
 
+static jdf_name_list_t *definition_is_parameter(const jdf_function_entry_t *f, const jdf_def_list_t *dl)
+{
+    jdf_name_list_t *pl;
+    for( pl = f->parameters; pl != NULL; pl = pl->next )
+        if( strcmp(pl->name, dl->name) == 0 )
+            return pl;
+    return NULL;
+}
+
 static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_function_entry_t *f, const char *sname)
 {
-    jdf_name_list_t *nl;
+    jdf_def_list_t *dl;
 
     (void)jdf;
     
@@ -3177,26 +3212,82 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
     } else {
         string_arena_t *sa_format = string_arena_new(64);
         string_arena_t *sa_params = string_arena_new(64);
+        string_arena_t *sa_info = string_arena_new(64);
+        expr_info_t info;
+        int first_param = 1;
+        int need_assignment = 0;
+        
+        info.sa = sa_info;
+        info.prefix = "";
+        info.suffix = "";
+        info.assignments = "&"JDF2C_NAMESPACE"_assignments";
+
+        for(dl = f->locals; dl != NULL; dl = dl->next) {
+            if( expr_requires_assignment(dl->expr, 1) ) {
+                need_assignment = 1;
+                break;
+            }
+        }
+        
         coutput("static char *%s_key_print(char *buffer, size_t buffer_size, parsec_key_t __parsec_key_, void *user_data)\n"
                 "{\n"
                 "  uint64_t __parsec_key = (uint64_t)(uintptr_t)__parsec_key_;\n"
                 "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)user_data;\n",
                 sname,
                 jdf_basename, jdf_basename);
-        for(nl = f->parameters; NULL != nl; nl = nl->next) {
-            coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range;\n"
-                    "  __parsec_key = __parsec_key / __parsec_tp->%s_%s_range;\n",
-                    nl->name, f->fname, nl->name,
-                    f->fname, nl->name);
-            string_arena_add_string(sa_format, "%%d%s", nl->next == NULL ? "" : ", ");
-            string_arena_add_string(sa_params, "%s%s", nl->name, nl->next == NULL ? "" : ", ");
+        if(need_assignment)
+            coutput("  %s "JDF2C_NAMESPACE"_assignments;\n", parsec_get_name(jdf, f, "parsec_assignment_t"));
+        
+        for(dl = f->locals; dl != NULL; dl = dl->next) {
+            if( definition_is_parameter(f, dl) != NULL ) {
+                int have_min = 0;
+                if( dl->expr->op == JDF_RANGE ) {
+                    coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+                    have_min = 1;
+                } else {
+                    if( dl->expr->local_variables != NULL ) {
+                        char *vname;
+                        asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, dl->name);
+                        coutput("  int %s;\n", vname);
+                        jdf_generate_range_min_without_fn(jdf, dl->expr, vname, "(&"JDF2C_NAMESPACE"_assignments)");
+                        free(vname);
+                        have_min = 1;
+                    }
+                }
+                if(have_min) {
+                    coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range + %s%s_min;\n",
+                            dl->name, f->fname, dl->name, JDF2C_NAMESPACE, dl->name);
+                } else {
+                    coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range;\n",
+                            dl->name, f->fname, dl->name);
+                }
+                string_arena_add_string(sa_format, "%s%%d", first_param?"":", ");
+                string_arena_add_string(sa_params, "%s%s", first_param?"":", ", dl->name);
+                first_param = 0;
+                coutput("  __parsec_key = __parsec_key / __parsec_tp->%s_%s_range;\n",
+                        f->fname, dl->name);
+            } else {
+                /* IDs should depend only on the parameters of the
+                 * function. However, we might need the other definitions because
+                 * the min expression of the parameters might depend on them. If
+                 * this is not the case, a quick "(void)" removes the warning.
+                 */
+                coutput("  int %s = %s;\n"
+                        "  (void)%s;\n",
+                        dl->name, dump_expr((void**)dl->expr, &info), dl->name);
+            }
+            if(need_assignment)
+                coutput("  "JDF2C_NAMESPACE"_assignments.%s.value = %s;\n", dl->name, dl->name);
         }
+        if(need_assignment)
+            coutput("  (void)"JDF2C_NAMESPACE"_assignments;\n");
         coutput("  snprintf(buffer, buffer_size, \"%s(%s)\", %s);\n"
                 "  return buffer;\n"
                 "}\n"
                 "\n", f->fname, string_arena_get_string(sa_format), string_arena_get_string(sa_params));
         string_arena_free(sa_format);
         string_arena_free(sa_params);
+        string_arena_free(sa_info);
     }
 
     coutput("static parsec_key_fn_t %s = {\n"
@@ -4538,15 +4629,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     string_arena_free(sa1);
     string_arena_free(sa2);
-}
-
-static jdf_name_list_t *definition_is_parameter(const jdf_function_entry_t *f, const jdf_def_list_t *dl)
-{
-    jdf_name_list_t *pl;
-    for( pl = f->parameters; pl != NULL; pl = pl->next )
-        if( strcmp(pl->name, dl->name) == 0 )
-            return pl;
-    return NULL;
 }
 
 static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_entry_t *f)
