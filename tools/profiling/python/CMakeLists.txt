@@ -18,20 +18,30 @@ if( NOT CYTHON_EXECUTABLE )
   return()
 endif( NOT CYTHON_EXECUTABLE )
 
-set(SRC_PYTHON_SUPPORT common_utils.py parsec_trace_tables.py ptt_utils.py)
+set(SRC_PYTHON_SUPPORT ${CMAKE_CURRENT_SOURCE_DIR}/common_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_SOURCE_DIR}/ptt_utils.py)
 set(SETUP_PY setup.py)
-
-# Copy all Python files to the build directory before we
-# potentially modify them with 2to3
-foreach(file ${SRC_PYTHON_SUPPORT} pbt2ptt.pyx pbt2ptt.pxd)
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${file}
-                 ${CMAKE_CURRENT_BINARY_DIR}/${file} COPYONLY)
-endforeach()
 
 # Always generate the setup.py first, to include it in the 2to3 conversion
 # if necessary
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${SETUP_PY}.in
                ${CMAKE_CURRENT_BINARY_DIR}/${SETUP_PY} @ONLY )
+
+#
+# Based on http://bloerg.net/2012/11/10/cmake-and-distutils.html
+#
+set(DEPS        pbt2ptt.pyx pbt2ptt.pxd common_utils.py parsec_trace_tables.py ptt_utils.py
+                "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in"
+                "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
+                "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/../../../parsec/parsec_binary_profile.h"
+                parsec-base)
+set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
+
+# Start preparing the python building target
+add_custom_command(OUTPUT ${OUTPUT}
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd ${CMAKE_CURRENT_BINARY_DIR}
+                   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd ${CMAKE_CURRENT_BINARY_DIR}
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 if(Python_VERSION_MAJOR GREATER 2)
   # If we are using python 3.x we need to convert our scripts from
@@ -46,34 +56,25 @@ if(Python_VERSION_MAJOR GREATER 2)
   else()
     execute_process(OUTPUT_QUIET
                     COMMAND ${PYTHON_2TO3_EXECUTABLE} -W -n ${CMAKE_CURRENT_SOURCE_DIR}/examples -o ${CMAKE_CURRENT_BINARY_DIR}/examples)
-    #
-    # Convert all python utilities
-    #
-    foreach(file ${SRC_PYTHON_SUPPORT})
-      execute_process(OUTPUT_QUIET
-                      COMMAND ${PYTHON_2TO3_EXECUTABLE} -w -n "${CMAKE_CURRENT_BINARY_DIR}/${file}")
-    endforeach()
+    # Convert the python module supporting files of necessary
+    add_custom_command(OUTPUT ${OUTPUT}
+                       COMMAND ${PYTHON_2TO3_EXECUTABLE} -W -n ${CMAKE_CURRENT_SOURCE_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}
+                       DEPENDS ${SRC_PYTHON_SUPPORT}
+                       APPEND)
   endif(NOT PYTHON_2TO3_EXECUTABLE)
+else(Python_VERSION_MAJOR GREATER 2)
+    # Copy the python module supporting files
+    add_custom_command(OUTPUT ${OUTPUT}
+                       COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC_PYTHON_SUPPORT} ${CMAKE_CURRENT_BINARY_DIR}
+                       DEPENDS ${SRC_PYTHON_SUPPORT}
+                       APPEND)
 endif(Python_VERSION_MAJOR GREATER 2)
 
-
-
-#
-# Based on http://bloerg.net/2012/11/10/cmake-and-distutils.html
-#
-set(DEPS        pbt2ptt.pyx pbt2ptt.pxd common_utils.py parsec_trace_tables.py ptt_utils.py
-                "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in"
-                "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
-                "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/../../../parsec/parsec_binary_profile.h"
-                parsec-base)
-set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp")
-
+# and compile the python module
 add_custom_command(OUTPUT ${OUTPUT}
                    COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/${SETUP_PY} build --quiet
                    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
-                   DEPENDS ${DEPS}
-                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+                   APPEND)
 add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
 
 

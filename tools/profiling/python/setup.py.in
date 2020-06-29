@@ -129,7 +129,7 @@ setup(
     py_modules=['ptt_utils', 'parsec_trace_tables', 'common_utils'],
     cmdclass = {'build_ext': local_compiler_build_ext},
     ext_modules = cythonize(extensions,
-                            compiler_directives={'language_level' : "@Python_VERSION_MAJOR@"},
+                            compiler_directives={'language_level' : @Python_VERSION_MAJOR@},
                             gdb_debug=debuggeron,
                             compile_time_env={'PY_VERSION_HEX':sys.hexversion}),
     author='George Bosilca',
