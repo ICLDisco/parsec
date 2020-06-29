@@ -321,6 +321,9 @@ typedef int (parsec_data_ref_fn_t)(parsec_task_t *task,
 #define PARSEC_USE_DEPS_MASK              0x0020
 #define PARSEC_HAS_CTL_GATHER             0X0040
 
+#define PARSEC_TASK_CLASS_TYPE_PTG        0x01
+#define PARSEC_TASK_CLASS_TYPE_DTD        0x02
+
 /**
  * Find the dependency corresponding to a given execution context.
  */
@@ -356,6 +359,8 @@ struct parsec_task_class_s {
     uint8_t                      nb_flows;
     uint8_t                      nb_parameters;
     uint8_t                      nb_locals;
+
+    uint8_t                      task_class_type;
 
     parsec_dependency_t          dependencies_goal;
     const parsec_symbol_t       *params[MAX_LOCAL_COUNT];
@@ -439,7 +444,7 @@ PARSEC_DECLSPEC extern int parsec_want_rusage;
     const  parsec_task_class_t    *task_class;       \
     int32_t                        priority;         \
     uint8_t                        status;           \
-    uint8_t                        chore_id;         \
+    uint8_t                        chore_mask;       \
     uint8_t                        unused[2];        \
     struct data_repo_entry_s      *repo_entry; /* The task contains its own data repo entry;
                                                 * It is created during datalookup if it hasn't

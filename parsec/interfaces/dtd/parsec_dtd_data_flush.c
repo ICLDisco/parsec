@@ -269,6 +269,7 @@ parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int
     parsec_dtd_task_t *this_task = parsec_dtd_create_and_initialize_task(dtd_tp,
                                             (parsec_task_class_t *)tc, task_rank);
     this_task->super.priority = priority;
+    this_task->super.chore_mask = 1; /* data flush task class has only one incarnation */
     int flow_index = 0;
     parsec_dtd_set_params_of_task(this_task, tile, PARSEC_INOUT, &flow_index, NULL, NULL, PASSED_BY_REF);
 

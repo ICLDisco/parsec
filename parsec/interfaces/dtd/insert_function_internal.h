@@ -25,7 +25,6 @@ BEGIN_C_DECLS
 #define PARSEC_DTD_NB_TASK_CLASSES  25 /*< Max number of task classes allowed */
 
 typedef struct parsec_dtd_task_param_s  parsec_dtd_task_param_t;
-typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;
 
 extern int32_t __parsec_dtd_is_initialized; /* flag to indicate whether dtd_init() is called or not */
 extern int hashtable_trace_keyin;
@@ -224,8 +223,6 @@ struct parsec_dtd_taskpool_s {
     int                          task_window_size;
     int32_t                      task_threshold_size;
     int                          total_tasks_to_be_exec;
-    int                          total_threads;
-    int                          current_thread_id;
     uint32_t                     local_task_inserted;
     uint8_t                      function_counter;
     uint8_t                      flow_set_flag[PARSEC_DTD_NB_TASK_CLASSES];
@@ -243,17 +240,21 @@ struct parsec_dtd_taskpool_s {
  * Extension of parsec_task_class_t class
  */
 struct parsec_dtd_task_class_s {
-    parsec_task_class_t      super;
-    parsec_hash_table_item_t ht_item;
-    parsec_thread_mempool_t *mempool_owner;
-    parsec_dtd_funcptr_t    *fpointer;
-    parsec_mempool_t         context_mempool;
-    parsec_mempool_t         remote_task_mempool;
-    int8_t                   dep_datatype_index;
-    int8_t                   dep_out_index;
-    int8_t                   dep_in_index;
-    int8_t                   count_of_params;
-    int                      ref_count;
+    parsec_task_class_t        super;
+    parsec_hash_table_item_t   ht_item;
+    parsec_thread_mempool_t   *mempool_owner;
+    parsec_mempool_t           context_mempool;
+    parsec_mempool_t           remote_task_mempool;
+    int8_t                     dep_datatype_index;
+    int8_t                     dep_out_index;
+    int8_t                     dep_in_index;
+    int8_t                     count_of_params;
+    int                        ref_count;
+    parsec_dtd_param_t        *params;
+    parsec_hook_t             *cpu_func_ptr;
+#if defined(PARSEC_HAVE_CUDA)
+    parsec_advance_task_function_t cuda_func_ptr;
+#endif
 };
 
 typedef int (parsec_dtd_arg_cb)(int first_arg, void *second_arg, int third_arg, void *cb_data);
@@ -277,9 +278,6 @@ typedef struct parsec_dtd_common_args_s {
 /* Function prototypes */
 void
 parsec_detach_all_dtd_taskpool_from_context( parsec_context_t *context );
-
-void
-parsec_dtd_template_release( const parsec_task_class_t *tc );
 
 void
 parsec_dtd_taskpool_release( parsec_taskpool_t *tp );
@@ -344,11 +342,6 @@ parsec_dtd_task_class_t *
 parsec_dtd_find_task_class( parsec_dtd_taskpool_t  *tp,
                             uint64_t key );
 
-parsec_task_class_t*
-parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t* fpointer,
-                              const char* name, int count_of_params, long unsigned int size_of_param,
-                              int flow_count );
-
 void
 parsec_dtd_add_profiling_info( parsec_taskpool_t *tp,
                                int task_class_id, const char *name );
@@ -409,6 +402,12 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task );
 void
 parsec_dtd_release_task_class( parsec_dtd_taskpool_t  *tp,
                                uint64_t key );
+
+void
+parsec_dtd_template_retain( const parsec_task_class_t *tc );
+
+void
+parsec_dtd_template_release( const parsec_task_class_t *tc );
 
 void
 parsec_dtd_tile_retain( parsec_dtd_tile_t *tile );

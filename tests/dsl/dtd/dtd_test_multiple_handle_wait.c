@@ -82,8 +82,8 @@ int main(int argc, char ** argv)
         SYNC_TIME_START();
         for( j = 0; j < total_tasks; j++ ) {
             /* This task does not have any data associated with it, so it will be inserted in all mpi processes */
-            parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_generation,    0,  "sample_task",
-                                            PARSEC_DTD_ARG_END);
+            parsec_dtd_insert_task(dtd_tp, task_to_check_generation, 0, PARSEC_DEV_CPU, "sample_task",
+                                   PARSEC_DTD_ARG_END);
         }
 
         rc = parsec_dtd_taskpool_wait( dtd_tp );

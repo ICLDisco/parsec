@@ -162,6 +162,9 @@ int main(int argc, char **argv)
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
     parsec_dtd_data_collection_init(A);
 
+    parsec_data_copy_t *gdata;
+    parsec_data_t *data;
+    int *real_data, key;
 
     /* Registering the dtd_handle with PARSEC context */
     rc = parsec_context_add_taskpool( parsec, dtd_tp );
@@ -172,19 +175,25 @@ int main(int argc, char **argv)
 
 //Reduce:
 // *********************
+    key = A->data_key(A, rank, 0);
+    data = A->data_of_key(A, key);
+    gdata = data->device_copies[0];
+    real_data = PARSEC_DATA_COPY_GET_PTR((parsec_data_copy_t *) gdata);
+    *real_data = rank;
 
     for( i = 0; i < nt; i ++ ) {
-        parsec_dtd_taskpool_insert_task( dtd_tp, fill_data, 0,  "fill_data",
-                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, i), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
-                            sizeof(int),      &i, PARSEC_VALUE,
-                            PARSEC_DTD_ARG_END );
+        parsec_dtd_insert_task( dtd_tp, fill_data, 0, PARSEC_DEV_CPU, "fill_data",
+                                PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, i), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
+                                sizeof(int), &i, PARSEC_VALUE,
+                                PARSEC_DTD_ARG_END );
         if(i != root) {
-            parsec_dtd_taskpool_insert_task( dtd_tp, reduce_accumulate, 0,  "reduce_accumulate",
-                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, root), PARSEC_INOUT | TILE_FULL,
-                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, i),    PARSEC_INPUT | TILE_FULL | PARSEC_AFFINITY, /* not the best affinity, but it exercises more PaRSEC subsystems that way */
-                            PARSEC_DTD_ARG_END );
+            parsec_dtd_insert_task( dtd_tp, reduce_accumulate, 0,  PARSEC_DEV_CPU, "reduce_accumulate",
+                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, root), PARSEC_INOUT | TILE_FULL,
+                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, i),    PARSEC_INPUT | TILE_FULL | PARSEC_AFFINITY, /* not the best affinity, but it exercises more PaRSEC subsystems that way */
+                                    PARSEC_DTD_ARG_END );
         }
     }
+
 
 //Test force data flush back to root; note that other than for the printf below,
 //this would be unecessary, PaRSEC would do the correct thing in bcast anyway
@@ -198,12 +207,12 @@ int main(int argc, char **argv)
         printf("Root: %d; value=%d\n\n", root, ((int*)m->mat)[0] );
     }
 
-//Broadcast:
-// *********************
+    //Broadcast:
+    // *********************
 
     for( i = 0; i < world; i++ ) {
         if( i != root ) {
-            parsec_dtd_taskpool_insert_task( dtd_tp, bcast_recv, 0,  "bcast_recv",
+            parsec_dtd_insert_task( dtd_tp, bcast_recv, 0,  PARSEC_DEV_CPU, "bcast_recv",
                                     PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, root),  PARSEC_INPUT | TILE_FULL,
                                     PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, i),     PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                     PARSEC_DTD_ARG_END );

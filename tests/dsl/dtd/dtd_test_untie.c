@@ -66,10 +66,10 @@ test_task_generator( parsec_execution_stream_t *es,
         if( i > step ) {
             return PARSEC_HOOK_RETURN_AGAIN;
         } else {
-            parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
-                                sizeof(int),      &amount_of_work,    PARSEC_VALUE,
-                                PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, n), PARSEC_INOUT,
-                                PARSEC_DTD_ARG_END );
+            parsec_dtd_insert_task(dtd_tp, test_task, 0, PARSEC_DEV_CPU, "Test_Task",
+                                   sizeof(int), &amount_of_work, PARSEC_VALUE,
+                                   PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, n), PARSEC_INOUT,
+                                   PARSEC_DTD_ARG_END );
         }
     }
     parsec_dtd_data_flush(dtd_tp, PARSEC_DTD_TILE_OF_KEY(A, n));
@@ -151,10 +151,10 @@ int main(int argc, char ** argv)
         SYNC_TIME_START();
         for( n = 0; n < no_of_chain; n++ ) {
             for( m = 0; m < tasks_in_each_chain[i]; m++ ) {
-                parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
-                                    sizeof(int),      &amount_of_work[work_index], PARSEC_VALUE,
-                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, n), PARSEC_INOUT,
-                                    PARSEC_DTD_ARG_END );
+                parsec_dtd_insert_task(dtd_tp, test_task, 0, PARSEC_DEV_CPU, "Test_Task",
+                                       sizeof(int), &amount_of_work[work_index], PARSEC_VALUE,
+                                       PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, n), PARSEC_INOUT,
+                                       PARSEC_DTD_ARG_END );
             }
             parsec_dtd_data_flush(dtd_tp, PARSEC_DTD_TILE_OF_KEY(A, n));
         }
@@ -171,14 +171,14 @@ int main(int argc, char ** argv)
         int step = parsec_dtd_window_size, iteration = 0;
 
         for( n = 0; n < no_of_chain; n++ ) {
-            parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_Generator",
-                                sizeof(int),      &n,                           PARSEC_VALUE,
-                                sizeof(int),      &amount_of_work[work_index],  PARSEC_VALUE,
-                                sizeof(int),      &tasks_in_each_chain[i],      PARSEC_VALUE,
-                                sizeof(int),      &step,                        PARSEC_VALUE,
-                                sizeof(int),      &iteration,                   PARSEC_REF,
-                                sizeof(parsec_tiled_matrix_dc_t*),    dcA,      PARSEC_REF,
-                                PARSEC_DTD_ARG_END );
+            parsec_dtd_insert_task(dtd_tp, test_task_generator, 0, PARSEC_DEV_CPU, "Test_Task_Generator",
+                                   sizeof(int), &n, PARSEC_VALUE,
+                                   sizeof(int), &amount_of_work[work_index], PARSEC_VALUE,
+                                   sizeof(int), &tasks_in_each_chain[i], PARSEC_VALUE,
+                                   sizeof(int), &step, PARSEC_VALUE,
+                                   sizeof(int), &iteration, PARSEC_REF,
+                                   sizeof(parsec_tiled_matrix_dc_t*), dcA, PARSEC_REF,
+                                   PARSEC_DTD_ARG_END );
         }
 
         /* finishing all the tasks inserted, but not finishing the taskpool */

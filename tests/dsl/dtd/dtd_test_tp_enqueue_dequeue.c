@@ -65,8 +65,8 @@ task_with_callback(parsec_execution_stream_t *es, parsec_task_t *this_task)
     /* parsec_context_wait() will be called a lot later,
      * let's detach it explicitly so that the tps are over */
     for(i = 0; i < 1000; i++) {
-        parsec_dtd_taskpool_insert_task(dtd_tp, task,    0,  "task",
-                                        PARSEC_DTD_ARG_END);
+        parsec_dtd_insert_task(dtd_tp, task, 0, PARSEC_DEV_CPU, "task",
+                               PARSEC_DTD_ARG_END);
     }
 
     /* We expect to complete this taskpool asynchronously, via the call to
@@ -125,8 +125,8 @@ int main(int argc, char **argv)
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     for(i = 0; i < 10000; i++) {
-        parsec_dtd_taskpool_insert_task(dtd_tp, task,    0,  "task",
-                                        PARSEC_DTD_ARG_END);
+        parsec_dtd_insert_task(dtd_tp, task, 0, PARSEC_DEV_CPU, "task",
+                               PARSEC_DTD_ARG_END);
     }
 
     rc = parsec_context_wait(parsec);
@@ -145,8 +145,8 @@ int main(int argc, char **argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     for(i = 0; i < 1; i++) {
-        parsec_dtd_taskpool_insert_task(dtd_tp, task_with_callback,    0,  "task1",
-                                        PARSEC_DTD_ARG_END);
+        parsec_dtd_insert_task(dtd_tp, task_with_callback, 0, PARSEC_DEV_CPU, "task1",
+                               PARSEC_DTD_ARG_END);
     }
 
     usleep(100000);

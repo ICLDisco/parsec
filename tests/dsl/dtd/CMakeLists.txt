@@ -21,4 +21,6 @@ parsec_addtest_executable(C dtd_test_global_id_for_dc_assumed SOURCES dtd_test_g
 parsec_addtest_executable(C dtd_test_explicit_task_creation SOURCES dtd_test_explicit_task_creation.c)
 parsec_addtest_executable(C dtd_test_tp_enqueue_dequeue SOURCES dtd_test_tp_enqueue_dequeue.c)
 parsec_addtest_executable(C dtd_test_interleave_actions SOURCES dtd_test_interleave_actions.c)
-
+if( PARSEC_GPU_WITH_CUDA )
+  parsec_addtest_executable(C dtd_test_cuda_task_insert SOURCES dtd_test_cuda_task_insert.c)
+endif()

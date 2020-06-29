@@ -203,28 +203,28 @@ insert_task(parsec_execution_stream_t *es, parsec_task_t *this_task)
 
             for(m_Y = m_Y_start; m_Y <= m_Y_end; m_Y++){
                 for(n_Y = n_Y_start; n_Y <= n_Y_end; n_Y++){
-                      parsec_dtd_taskpool_insert_task( dtd_tp,
-                            &parsec_core_redistribute_dtd,  0, "redistribute_dtd",
-                            PASSED_BY_REF,   TILE_OF_INSERT(T, m_T, n_T),   PARSEC_OUTPUT | TARGET | PARSEC_AFFINITY,
-                            PASSED_BY_REF,   TILE_OF_INSERT(Y, m_Y, n_Y),   PARSEC_INPUT | SOURCE,
-                            sizeof(int),     &dcY->super.mb,                PARSEC_VALUE,
-                            sizeof(int),     &dcY->super.nb,                PARSEC_VALUE,
-                            sizeof(int),     &m_Y,                          PARSEC_VALUE,
-                            sizeof(int),     &n_Y,                          PARSEC_VALUE,
-                            sizeof(int),     &m_Y_start,                    PARSEC_VALUE,
-                            sizeof(int),     &m_Y_end,                      PARSEC_VALUE,
-                            sizeof(int),     &n_Y_start,                    PARSEC_VALUE,
-                            sizeof(int),     &n_Y_end,                      PARSEC_VALUE,
-                            sizeof(int),     &i_start,                      PARSEC_VALUE,
-                            sizeof(int),     &i_end,                        PARSEC_VALUE,
-                            sizeof(int),     &j_start,                      PARSEC_VALUE,
-                            sizeof(int),     &j_end,                        PARSEC_VALUE,
-                            sizeof(int),     &dcT->super.mb,                PARSEC_VALUE,
-                            sizeof(int),     &mb_T_inner,                   PARSEC_VALUE,
-                            sizeof(int),     &nb_T_inner,                   PARSEC_VALUE,
-                            sizeof(int),     &i_start_T,                    PARSEC_VALUE,
-                            sizeof(int),     &j_start_T,                    PARSEC_VALUE,
-                            PARSEC_DTD_ARG_END );
+                      parsec_dtd_insert_task(dtd_tp,
+                                             &parsec_core_redistribute_dtd, 0, PARSEC_DEV_CPU,"redistribute_dtd",
+                                             PASSED_BY_REF, TILE_OF_INSERT(T, m_T, n_T),   PARSEC_OUTPUT | TARGET | PARSEC_AFFINITY,
+                                             PASSED_BY_REF, TILE_OF_INSERT(Y, m_Y, n_Y),   PARSEC_INPUT | SOURCE,
+                                             sizeof(int), &dcY->super.mb, PARSEC_VALUE,
+                                             sizeof(int), &dcY->super.nb, PARSEC_VALUE,
+                                             sizeof(int), &m_Y, PARSEC_VALUE,
+                                             sizeof(int), &n_Y, PARSEC_VALUE,
+                                             sizeof(int), &m_Y_start, PARSEC_VALUE,
+                                             sizeof(int), &m_Y_end, PARSEC_VALUE,
+                                             sizeof(int), &n_Y_start, PARSEC_VALUE,
+                                             sizeof(int), &n_Y_end, PARSEC_VALUE,
+                                             sizeof(int), &i_start, PARSEC_VALUE,
+                                             sizeof(int), &i_end, PARSEC_VALUE,
+                                             sizeof(int), &j_start, PARSEC_VALUE,
+                                             sizeof(int), &j_end, PARSEC_VALUE,
+                                             sizeof(int), &dcT->super.mb, PARSEC_VALUE,
+                                             sizeof(int), &mb_T_inner, PARSEC_VALUE,
+                                             sizeof(int), &nb_T_inner, PARSEC_VALUE,
+                                             sizeof(int), &i_start_T, PARSEC_VALUE,
+                                             sizeof(int), &j_start_T, PARSEC_VALUE,
+                                             PARSEC_DTD_ARG_END );
                 }
             }
         }
@@ -294,16 +294,17 @@ insert_task_reshuffle(parsec_execution_stream_t *es, parsec_task_t *this_task)
                  size_row-(m_T_END-m_T_START)*dcT->super.mb): dcT->super.mb;
             nb = (n_T == n_T_END)? parsec_imin(dcT->super.nb,
                  size_col-(n_T_END-n_T_START)*dcT->super.nb): dcT->super.nb;
-            parsec_dtd_taskpool_insert_task( dtd_tp,
-                &parsec_core_redistribute_reshuffle_dtd,  0, "redistribute_reshuffle_dtd",
-                PASSED_BY_REF,   TILE_OF_INSERT(T, m_T, n_T),   PARSEC_OUTPUT | TARGET | PARSEC_AFFINITY,
-                PASSED_BY_REF,   TILE_OF_INSERT(Y, m_Y, n_Y),   PARSEC_INPUT | SOURCE,
-                sizeof(int),     &mb,                           PARSEC_VALUE,
-                sizeof(int),     &nb,                           PARSEC_VALUE,
-                sizeof(int),     &dcT->super.mb,                PARSEC_VALUE,
-                sizeof(int),     &m_T,                          PARSEC_VALUE,
-                sizeof(int),     &m_T_END,                      PARSEC_VALUE,
-                PARSEC_DTD_ARG_END );
+            parsec_dtd_insert_task(dtd_tp,
+                                   &parsec_core_redistribute_reshuffle_dtd, 0,
+                                   PARSEC_DEV_CPU, "redistribute_reshuffle_dtd",
+                                   PASSED_BY_REF, TILE_OF_INSERT(T, m_T, n_T),   PARSEC_OUTPUT | TARGET | PARSEC_AFFINITY,
+                                   PASSED_BY_REF, TILE_OF_INSERT(Y, m_Y, n_Y),   PARSEC_INPUT | SOURCE,
+                                   sizeof(int), &mb, PARSEC_VALUE,
+                                   sizeof(int), &nb, PARSEC_VALUE,
+                                   sizeof(int), &dcT->super.mb, PARSEC_VALUE,
+                                   sizeof(int), &m_T, PARSEC_VALUE,
+                                   sizeof(int), &m_T_END, PARSEC_VALUE,
+                                   PARSEC_DTD_ARG_END );
         }
     }
 
@@ -391,27 +392,27 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     if( (dcY->mb == dcT->mb) && (dcY->nb == dcT->nb) && (disi_Y % dcY->mb == 0)
         && (disj_Y % dcY->nb == 0) && (disi_T % dcT->mb == 0) && (disj_T % dcT->nb == 0) ) {
         /* When tile sizes are the same and displacements are at start of tiles */
-        parsec_dtd_taskpool_insert_task( dtd_tp,       insert_task_reshuffle, 0, "insert_task_reshuffle",
-                       sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcY,  PARSEC_REF,
-                       sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcT,  PARSEC_REF,
-                       sizeof(int),                &size_row,           PARSEC_VALUE,
-                       sizeof(int),                &size_col,           PARSEC_VALUE,
-                       sizeof(int),                &disi_Y,             PARSEC_VALUE,
-                       sizeof(int),                &disj_Y,             PARSEC_VALUE,
-                       sizeof(int),                &disi_T,             PARSEC_VALUE,
-                       sizeof(int),                &disj_T,             PARSEC_VALUE,
-                       PARSEC_DTD_ARG_END );
+        parsec_dtd_insert_task(dtd_tp, insert_task_reshuffle, 0, PARSEC_DEV_CPU, "insert_task_reshuffle",
+                               sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcY, PARSEC_REF,
+                               sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcT, PARSEC_REF,
+                               sizeof(int), &size_row, PARSEC_VALUE,
+                               sizeof(int), &size_col, PARSEC_VALUE,
+                               sizeof(int), &disi_Y, PARSEC_VALUE,
+                               sizeof(int), &disj_Y, PARSEC_VALUE,
+                               sizeof(int), &disi_T, PARSEC_VALUE,
+                               sizeof(int), &disj_T, PARSEC_VALUE,
+                               PARSEC_DTD_ARG_END );
     } else {
-        parsec_dtd_taskpool_insert_task( dtd_tp,       insert_task, 0, "insert_task",
-                       sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcY,  PARSEC_REF,
-                       sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcT,  PARSEC_REF,
-                       sizeof(int),                      &size_row,                      PARSEC_VALUE,
-                       sizeof(int),                      &size_col,                      PARSEC_VALUE,
-                       sizeof(int),                      &disi_Y,                        PARSEC_VALUE,
-                       sizeof(int),                      &disj_Y,                        PARSEC_VALUE,
-                       sizeof(int),                      &disi_T,                        PARSEC_VALUE,
-                       sizeof(int),                      &disj_T,                        PARSEC_VALUE,
-                       PARSEC_DTD_ARG_END );
+        parsec_dtd_insert_task(dtd_tp, insert_task, 0, PARSEC_DEV_CPU, "insert_task",
+                               sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcY, PARSEC_REF,
+                               sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcT, PARSEC_REF,
+                               sizeof(int), &size_row, PARSEC_VALUE,
+                               sizeof(int), &size_col, PARSEC_VALUE,
+                               sizeof(int), &disi_Y, PARSEC_VALUE,
+                               sizeof(int), &disj_Y, PARSEC_VALUE,
+                               sizeof(int), &disi_T, PARSEC_VALUE,
+                               sizeof(int), &disj_T, PARSEC_VALUE,
+                               PARSEC_DTD_ARG_END );
     }
 
     /* Finishing all the tasks inserted, but not finishing the handle */

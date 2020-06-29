@@ -175,7 +175,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
             if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                 if( PARSEC_INPUT == op_type_on_current_flow ) {
                     if(parsec_dtd_task_is_local(current_task)){
-                        (void)parsec_atomic_fetch_dec_int32( &current_task->super.data[current_dep].data_out->readers );
+                       (void)parsec_atomic_fetch_dec_int32( &current_task->super.data[current_dep].data_out->readers );
                     }
                 }
             }
@@ -248,7 +248,8 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                 /* Forward the data to each successor */
                 if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                     if(parsec_dtd_task_is_local(current_desc)) {
-                        current_desc->super.data[desc_flow_index].data_in = current_task->super.data[current_dep].data_out;
+                       /* printf("[iterate_sucessors] %s -> %s, data_in = %p, data_out = %p\n", current_task->super.task_class->name, current_desc->super.task_class->name, current_desc->super.data[desc_flow_index].data_in, current_task->super.data[current_dep].data_out); */
+                       current_desc->super.data[desc_flow_index].data_in = current_task->super.data[current_dep].data_out;
                         /* We retain local, remote data for each successor */
                         parsec_dtd_retain_data_copy(current_task->super.data[current_dep].data_out);
                     }
@@ -289,7 +290,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
                     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                         if(parsec_dtd_task_is_local(current_desc)){
-                            (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
+                           (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
                         }
                     }
                     /* Each reader increments the ref count of the data_copy

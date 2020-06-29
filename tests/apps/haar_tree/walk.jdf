@@ -349,7 +349,7 @@ static int my_walk_startup(parsec_execution_stream_t * es, __parsec_walk_DOWN_ta
   new_task->status = PARSEC_TASK_STATUS_NONE;
   new_task->taskpool = this_task->taskpool;
   new_task->task_class = __tp->super.super.task_classes_array[walk_DOWN.task_class_id];
-  new_task->chore_id = 0;
+  new_task->chore_mask = PARSEC_DEV_ALL;
 
   new_task->locals.n.value = 0;
   new_task->locals.l.value = 0;

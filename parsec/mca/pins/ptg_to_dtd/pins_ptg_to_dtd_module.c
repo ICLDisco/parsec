@@ -15,6 +15,7 @@
  * level is manipulation (possible waiting on), and the one we create for internal purposes.
  */
 #include "parsec/parsec_config.h"
+#include "parsec/sys/atomic.h"
 #include "parsec/mca/pins/pins.h"
 #include "pins_ptg_to_dtd.h"
 #include "parsec/profiling.h"
@@ -41,6 +42,8 @@ static parsec_list_t *dtd_global_deque = NULL;
 static parsec_dtd_taskpool_t *__dtd_taskpool = NULL;
 /* We  use a global dc as PTG has varying behavior */
 static parsec_data_collection_t *__dc;
+
+static parsec_atomic_lock_t pins_ptg_to_dtd_class_lock;
 
 /* Prototype of some of the static functions */
 static void pins_init_ptg_to_dtd(parsec_context_t *master_context);
@@ -195,7 +198,7 @@ testing_hook_of_dtd_task(parsec_execution_stream_t *es,
      * Check to see which interface, if it is the PTG inserting task in DTD then
      * this condition will be true
      */
-    rc = ((parsec_dtd_task_class_t *)(dtd_task->super.task_class))->fpointer(es, orig_task);
+    rc = ((parsec_dtd_task_class_t *)(dtd_task->super.task_class))->cpu_func_ptr(es, orig_task);
     if(rc == PARSEC_HOOK_RETURN_DONE) {
         /* Completing the orig task */
         dtd_task->orig_task = NULL;
@@ -208,15 +211,10 @@ testing_hook_of_dtd_task(parsec_execution_stream_t *es,
 /* chores and parsec_task_class_t structure initialization
  * This is for the ptg inserting task in dtd mode
  */
-static const __parsec_chore_t dtd_chore_for_testing[] = {
-    {.type      = PARSEC_DEV_CPU,
-     .evaluate  = NULL,
-     .hook      = (parsec_hook_t*)testing_hook_of_dtd_task },
-    {.type      = PARSEC_DEV_NONE,
-     .evaluate  = NULL,
-     .hook      = NULL},             /* End marker */
-};
-
+static __parsec_chore_t dtd_chore_for_testing =
+        {.type      = PARSEC_DEV_CPU,
+         .evaluate  = NULL,
+         .hook      = (parsec_hook_t*)testing_hook_of_dtd_task };
 
 /* Function to manage tiles once insert_task() is called, this functions is to
  * generate tasks from PTG and insert it using insert task interface.
@@ -286,29 +284,52 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
     }
 
     parsec_dtd_task_param_t *current_paramm;
-    int next_arg = -1, tile_op_type, flow_index = 0;
+    int tile_op_type, flow_index = 0;
     void *tile;
 
+    parsec_atomic_lock(&pins_ptg_to_dtd_class_lock);
     /* Creating master function structures */
     /* Hash table lookup to check if the function structure exists or not */
     uint64_t fkey = (uint64_t)(uintptr_t)fpointer + count_of_params;
-    parsec_task_class_t *tc = (parsec_task_class_t *)parsec_dtd_find_task_class
-                                                      (dtd_tp, fkey);
+    parsec_task_class_t *tc = (parsec_task_class_t *)parsec_dtd_find_task_class(dtd_tp, fkey);
 
     if( NULL == tc ) {
-        /* calculating the size of parameters for each task class*/
-        long unsigned int size_of_params = 0;
+        parsec_dtd_param_t *params;
+        params = (parsec_dtd_param_t *)malloc(sizeof(parsec_dtd_param_t) * count_of_params);
+        for(int i = 0; i < count_of_params; i++) {
+            params[i].size = PASSED_BY_REF;
+            assert(NULL != orig_task->task_class->in[i]);
+            if( (orig_task->task_class->in[i]->flow_flags & PARSEC_FLOW_ACCESS_MASK) == PARSEC_FLOW_ACCESS_RW )
+                params[i].op = PARSEC_INOUT;
+            else if( (orig_task->task_class->in[i]->flow_flags & PARSEC_FLOW_ACCESS_MASK) == PARSEC_FLOW_ACCESS_READ )
+                params[i].op = PARSEC_INPUT;
+            else if( (orig_task->task_class->in[i]->flow_flags & PARSEC_FLOW_ACCESS_MASK) == PARSEC_FLOW_ACCESS_WRITE )
+                params[i].op = PARSEC_OUTPUT;
+            else
+                assert(0);
+        }
+        tc = (parsec_task_class_t*)parsec_dtd_create_task_classv( dtd_tp, name_of_kernel,
+                                                                  count_of_params, params);
+        parsec_dtd_task_class_add_chore(&dtd_tp->super, tc, PARSEC_DEV_CPU, fpointer);
+        free(params);
 
-        tc = parsec_dtd_create_task_class( dtd_tp, fpointer, name_of_kernel, count_of_params,
-                                           size_of_params, count_of_params );
+        __parsec_chore_t *incarnations = (__parsec_chore_t *)tc->incarnations;
+        for(int i = 0; PARSEC_DEV_NONE != incarnations[i].type; i++ ) {
+            if( PARSEC_DEV_CPU == incarnations[i].type ) {
+                incarnations[i] = dtd_chore_for_testing;
+            }
+        }
+        tc->prepare_input = data_lookup_ptg_to_dtd_task;
 
-        __parsec_chore_t **incarnations = (__parsec_chore_t **)&(tc->incarnations);
-        *incarnations                   = (__parsec_chore_t *)dtd_chore_for_testing;
-        tc->prepare_input               = data_lookup_ptg_to_dtd_task;
+        parsec_dtd_register_task_class(&dtd_tp->super, fkey, tc);
+        assert(NULL != parsec_dtd_find_task_class(dtd_tp, fkey));
+        parsec_atomic_unlock(&pins_ptg_to_dtd_class_lock);
 
 #if defined(PARSEC_PROF_TRACE)
         parsec_dtd_add_profiling_info((parsec_taskpool_t *)dtd_tp, tc->task_class_id, name_of_kernel);
 #endif /* defined(PARSEC_PROF_TRACE) */
+    } else {
+        parsec_atomic_unlock(&pins_ptg_to_dtd_class_lock);
     }
 
     parsec_dtd_task_t *this_task = parsec_dtd_create_and_initialize_task(dtd_tp, tc, 0/*setting rank as 0*/);
@@ -337,7 +358,7 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
 
         parsec_dtd_set_params_of_task( this_task, tile, tile_op_type,
                                        &flow_index, &current_val,
-                                       current_param, next_arg );
+                                       current_param, PASSED_BY_REF );
 
         tmp_param = current_param;
         current_param = current_param + 1;

@@ -92,7 +92,6 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
             }
         }
     }
-    assert(dev_index >= 0);
 
     /* 0 is CPU, and 1 is recursive device */
     if( dev_index <= 1 ) {  /* This is the first time we see this data for a GPU.
@@ -105,13 +104,21 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
             parsec_device_module_t *dev = parsec_mca_device_get(best_index);
 
             /* Skip the device if it is not configured */
-            if(!(tp->devices_index_mask & (1 << dev_index))) continue;
+            if(!(tp->devices_index_mask & (1 << best_index))) continue;
             /* Stop on this device if there is an incarnation for it */
             for(i = 0; NULL != this_task->task_class->incarnations[i].hook; i++)
-                if( this_task->task_class->incarnations[i].type == dev->type )
+                if( (this_task->task_class->incarnations[i].type == dev->type) && (this_task->chore_mask & (1<<i)) )
                     break;
-            if(NULL != this_task->task_class->incarnations[i].hook)
+            if((NULL != this_task->task_class->incarnations[i].hook) && (this_task->chore_mask & (1 << i)))
                 break;
+        }
+
+        if(parsec_mca_device_enabled() == best_index) {
+            /* We tried all possible devices, and none of them have an implementation
+             * for this task! */
+            parsec_warning("*** Task class '%s' has no valid implementation for the available devices",
+                           this_task->task_class->name);
+            return -1;
         }
 
         /* Start at 2, to skip the recursive body */
@@ -133,18 +140,18 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
     /* Sanity check: if at least one of the data copies is not parsec
      * managed, check that all the non-parsec-managed data copies
      * exist on the same device */
-    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
-        /* Make sure data_in is not NULL */
-        if (NULL == this_task->data[i].data_in) continue;
-        if ((this_task->data[i].data_in->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) == 0 &&
-            this_task->data[i].data_in->device_index != dev_index) {
-            char task_str[MAX_TASK_STRLEN];
-            parsec_fatal("*** User-Managed Copy Error: Task %s is selected to run on device %d,\n"
-                         "*** but flow %d is represented by a data copy not managed by PaRSEC,\n"
-                         "*** and does not have a copy on that device\n",
-                         parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task), dev_index, i);
-        }
-    }
+     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+         /* Make sure data_in is not NULL */
+         if (NULL == this_task->data[i].data_in) continue;
+         if ((this_task->data[i].data_in->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) == 0 &&
+              this_task->data[i].data_in->device_index != dev_index) {
+             char task_str[MAX_TASK_STRLEN];
+             parsec_fatal("*** User-Managed Copy Error: Task %s is selected to run on device %d,\n"
+                          "*** but flow %d is represented by a data copy not managed by PaRSEC,\n"
+                          "*** and does not have a copy on that device\n",
+                          parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task), dev_index, i);
+         }
+     }
     return dev_index;
 }
 
@@ -706,6 +713,8 @@ device_taskpool_register_static(parsec_device_module_t* device, parsec_taskpool_
 
     for( i = 0; i < tp->nb_task_classes; i++ ) {
         const parsec_task_class_t* tc = tp->task_classes_array[i];
+        if(NULL == tp->task_classes_array[i])
+            continue;
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( j = 0; NULL != chores[j].hook; j++ ) {
             if( chores[j].type != device->type )

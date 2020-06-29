@@ -1521,6 +1521,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
     return 0;
 }
 
+
 static parsec_flow_t parsec_cuda_data_prefetch_flow = {
     .name = "FLOW",
     .flow_flags = PARSEC_FLOW_ACCESS_READ,

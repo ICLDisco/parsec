@@ -131,29 +131,35 @@ int __parsec_execute( parsec_execution_stream_t* es,
     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
     PARSEC_AYU_TASK_RUN(es->th_id, task);
+    unsigned int chore_id;
 
-    if (NULL == tc->incarnations[task->chore_id].hook) {
+    /* Find first bit in chore_mask that is not 0 */
+    for(chore_id = 0; NULL != tc->incarnations[chore_id].hook; chore_id++)
+        if( 0 != (task->chore_mask & (1<<chore_id)) )
+            break;
+
+    if (chore_id == sizeof(task->chore_mask)*8) {
 #if !defined(PARSEC_DEBUG)
         char tmp[MAX_TASK_STRLEN];
         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
-        parsec_warning("Task %s[%d] run out of valid incarnations. Consider it complete",
-                       tmp, tc->incarnations[task->chore_id].type);
+        parsec_warning("Task %s ran out of valid incarnations. Consider it complete",
+                       tmp);
         return PARSEC_HOOK_RETURN_ERROR;
     }
 
     PARSEC_PINS(es, EXEC_BEGIN, task);
     /* Try all the incarnations until one agree to execute. */
     do {
-        if( NULL != (eval = tc->incarnations[task->chore_id].evaluate) ) {
+        if( NULL != (eval = tc->incarnations[chore_id].evaluate) ) {
             rc = eval(task);
             if( PARSEC_HOOK_RETURN_DONE != rc ) {
                 if( PARSEC_HOOK_RETURN_NEXT != rc ) {
 #if defined(PARSEC_DEBUG)
                     parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Failed to evaluate %s[%d] chore %d",
                                          es->th_id, es->virtual_process->vp_id,
-                                         tmp, tc->incarnations[task->chore_id].type,
-                                         task->chore_id);
+                                         tmp, tc->incarnations[chore_id].type,
+                                         chore_id);
 #endif
                     break;
                 }
@@ -164,10 +170,10 @@ int __parsec_execute( parsec_execution_stream_t* es,
 #if defined(PARSEC_DEBUG)
         parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
                              es->th_id, es->virtual_process->vp_id,
-                             tmp, tc->incarnations[task->chore_id].type,
-                             task->chore_id);
+                             tmp, tc->incarnations[chore_id].type,
+                             chore_id);
 #endif
-        parsec_hook_t *hook = tc->incarnations[task->chore_id].hook;
+        parsec_hook_t *hook = tc->incarnations[chore_id].hook;
 
         rc = hook( es, task );
 #if defined(PARSEC_PROF_TRACE)
@@ -182,9 +188,13 @@ int __parsec_execute( parsec_execution_stream_t* es,
             return rc;
         }
     next_chore:
-        task->chore_id++;
-
-    } while(NULL != tc->incarnations[task->chore_id].hook);
+        /* Mark this chore as tested */
+        task->chore_mask &= ~( 1<<chore_id );
+        /* Find next chore to try */
+        for(chore_id = chore_id+1; NULL != tc->incarnations[chore_id].hook; chore_id++)
+            if( 0 != (task->chore_mask & (1<<chore_id)) )
+                break;
+    } while(NULL != tc->incarnations[chore_id].hook);
     assert(task->status == PARSEC_TASK_STATUS_HOOK);
     /* We're out of luck, no more chores */
     PARSEC_PINS(es, EXEC_END, task);

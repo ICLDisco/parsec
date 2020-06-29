@@ -15,7 +15,9 @@ extern "C" %{
 #include <assert.h>
 #include <stdarg.h>
 #include <sys/time.h>
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
+#endif  /* defined(PARSEC_HAVE_MPI) */
 #if defined(PARSEC_HAVE_CUDA)
 #include "parsec/mca/device/device.h"
 #include <cublas_v2.h>

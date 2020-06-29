@@ -67,10 +67,10 @@ task_to_insert_task_hello_world( parsec_execution_stream_t *es,
 
     for( i = this_task->locals[0].value;
          (i < n) && i < (this_task->locals[0].value + how_many); i++ ) {
-        parsec_dtd_taskpool_insert_task(dtd_tp, task_hello_world,
-                                        0,  "Hello_World_task",
-                                        sizeof(int), &i, PARSEC_VALUE,
-                                        PARSEC_DTD_ARG_END);
+        parsec_dtd_insert_task(dtd_tp, task_hello_world,
+                               0, PARSEC_DEV_CPU, "Hello_World_task",
+                               sizeof(int), &i, PARSEC_VALUE,
+                               PARSEC_DTD_ARG_END);
     }
     this_task->locals[0].value = i;
     printf("Up to %d tasks out of %d tasks generated\n",
@@ -117,10 +117,10 @@ int main(int argc, char ** argv)
      * will print Hello World and the
      * rank of the process
      */
-    parsec_dtd_taskpool_insert_task(dtd_tp, task_to_insert_task_hello_world,
-                                    0,  "Task_inserting_task",
-                                    sizeof(int), &number_of_tasks, PARSEC_VALUE,
-                                    PARSEC_DTD_ARG_END);
+    parsec_dtd_insert_task(dtd_tp, task_to_insert_task_hello_world,
+                           0, PARSEC_DEV_CPU, "Task_inserting_task",
+                           sizeof(int), &number_of_tasks, PARSEC_VALUE,
+                           PARSEC_DTD_ARG_END);
 
     /* finishing all the tasks inserted, but not finishing the handle */
     rc = parsec_dtd_taskpool_wait( dtd_tp );

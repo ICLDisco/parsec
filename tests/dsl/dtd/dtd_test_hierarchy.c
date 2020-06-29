@@ -71,10 +71,10 @@ test_task_generator( parsec_execution_stream_t *es,
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     for( i = 0; i < 100; i++ ) {
-        parsec_dtd_taskpool_insert_task(dtd_tp, test_task,    0,  "Test_Task",
-                                        sizeof(int),       &amount,    PARSEC_VALUE,
-                                        PASSED_BY_REF,     PARSEC_DTD_TILE_OF_KEY(B, rank), PARSEC_INOUT | PARSEC_AFFINITY,
-                                        PARSEC_DTD_ARG_END);
+        parsec_dtd_insert_task(dtd_tp, test_task, 0, PARSEC_DEV_CPU, "Test_Task",
+                               sizeof(int), &amount, PARSEC_VALUE,
+                               PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(B, rank), PARSEC_INOUT | PARSEC_AFFINITY,
+                               PARSEC_DTD_ARG_END);
     }
 
     parsec_dtd_data_flush(dtd_tp, PARSEC_DTD_TILE_OF_KEY(B, rank));
@@ -144,11 +144,11 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     for( m = 0; m < nt; m++ ) {
-        parsec_dtd_taskpool_insert_task(dtd_tp, test_task_generator,    0,  "Test_Task_generator",
-                                        sizeof(int),       &nb,                 PARSEC_VALUE,
-                                        sizeof(int),       &nt,                 PARSEC_VALUE,
-                                        PASSED_BY_REF,     PARSEC_DTD_TILE_OF_KEY(A, m),   PARSEC_INOUT | PARSEC_AFFINITY,
-                                        PARSEC_DTD_ARG_END);
+        parsec_dtd_insert_task(dtd_tp, test_task_generator, 0, PARSEC_DEV_CPU, "Test_Task_generator",
+                               sizeof(int), &nb, PARSEC_VALUE,
+                               sizeof(int), &nt, PARSEC_VALUE,
+                               PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, m),   PARSEC_INOUT | PARSEC_AFFINITY,
+                               PARSEC_DTD_ARG_END);
 
         parsec_dtd_data_flush(dtd_tp, PARSEC_DTD_TILE_OF_KEY(A, m));
     }
