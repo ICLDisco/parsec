@@ -55,10 +55,10 @@ if(Python_VERSION_MAJOR GREATER 2)
     message(WARNING "2to3 python utility not found. The profiling scripts will not be converted for use with selected Python version ${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}")
   else()
     execute_process(OUTPUT_QUIET
-                    COMMAND ${PYTHON_2TO3_EXECUTABLE} -W -n ${CMAKE_CURRENT_SOURCE_DIR}/examples -o ${CMAKE_CURRENT_BINARY_DIR}/examples)
+                    COMMAND ${PYTHON_2TO3_EXECUTABLE} --no-diffs -W -n ${CMAKE_CURRENT_SOURCE_DIR}/examples -o ${CMAKE_CURRENT_BINARY_DIR}/examples)
     # Convert the python module supporting files of necessary
     add_custom_command(OUTPUT ${OUTPUT}
-                       COMMAND ${PYTHON_2TO3_EXECUTABLE} -W -n ${CMAKE_CURRENT_SOURCE_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}
+                       COMMAND ${PYTHON_2TO3_EXECUTABLE} --no-diffs -W -n ${CMAKE_CURRENT_SOURCE_DIR} -o ${CMAKE_CURRENT_BINARY_DIR}
                        DEPENDS ${SRC_PYTHON_SUPPORT}
                        APPEND)
   endif(NOT PYTHON_2TO3_EXECUTABLE)
