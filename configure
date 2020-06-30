@@ -206,6 +206,8 @@ while [ "x$1" != x ]; do
         --disable-prof-dryrun) enable_prof_dryrun=no; shift;;
         --enable-prof-grapher) enable_prof_grapher=yes; shift;;
         --disable-prof-grapher) enable_prof_grapher=no; shift;;
+        --enable-prof-pins) enable_prof_pins=yes; shift;;
+        --disable-prof-pins) enable_prof_pins=no; shift;;
 
         --with-tau=*) with_tau="${1#*=}"; shift;;
         --with-tau) with_tau=yes; shift;;
@@ -449,6 +451,8 @@ else echo >&2 "Option $enable_debug is invalid (can be yes|paranoid|noisier|hist
 [ x$enable_prof_calltrace = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_CALLTRACE=OFF"
 [ x$enable_prof_grapher = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_GRAPHER=ON"
 [ x$enable_prof_grapher = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_GRAPHER=OFF"
+[ x$enable_prof_pins = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_PINS=ON"
+[ x$enable_prof_pins = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_PINS=OFF"
 
 if [[ x$enable_prof_dryrun =~ ^x((yes|no|body|dep),?)*$ ]]; then
     [[ $enable_prof_dryrun =~ yes ]] && CMAKE_DEFINES+=" -DPARSEC_PROF_DRY_RUN=ON"
