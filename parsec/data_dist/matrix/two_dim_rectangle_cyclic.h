@@ -114,10 +114,7 @@ void two_dim_block_cyclic_kview( two_dim_block_cyclic_t* target,
                                  two_dim_block_cyclic_t* origin,
                                  int kp, int kq );
 
-void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *dc, int position, int *m, int *n);
-int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *dc, int m, int n);
-unsigned int kview_compute_m(two_dim_block_cyclic_t* desc, unsigned int m);
-unsigned int kview_compute_n(two_dim_block_cyclic_t* desc, unsigned int n);
+/* Also used in *band* structure */
 void twoDBC_key_to_coordinates(parsec_data_collection_t *desc, parsec_data_key_t key, int *m, int *n);
 
 END_C_DECLS
