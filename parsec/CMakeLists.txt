@@ -15,6 +15,8 @@ set(BASE_SOURCES
   class/parsec_value_array.c
   class/parsec_hash_table.c
   class/parsec_rwlock.c
+  class/parsec_future.c
+  class/parsec_datacopy_future.c
   class/info.c
   utils/argv.c
   utils/cmd_line.c

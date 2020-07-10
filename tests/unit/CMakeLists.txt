@@ -2,6 +2,8 @@ link_libraries(Threads::Threads)
 
 parsec_addtest(C atomics atomics.c)
 parsec_addtest(C rwlock rwlock.c)
+parsec_addtest(C future future.c)
+parsec_addtest(C future_datacopy future_datacopy.c)
 parsec_addtest(C lifo lifo.c)
 parsec_addtest(C list list.c)
 parsec_addtest(C hash hash.c)
@@ -15,3 +17,5 @@ set_property(TARGET atomics_inline rwlock_inline lifo_inline list_inline hash_in
   APPEND PROPERTY COMPILE_DEFINITIONS BUILDING_PARSEC)
 set_property(TARGET atomics_inline rwlock_inline lifo_inline list_inline hash_inline
   APPEND PROPERTY COMPILE_OPTIONS ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
+
+include(Testings.cmake)
