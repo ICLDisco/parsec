@@ -67,7 +67,7 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
     assert( k < dat->size && k >= 0 );
     (void)k;
     if(NULL == dat->data) {
-        dat->data = parsec_data_copy_new(NULL, 0, MPI_BYTE);
+        dat->data = parsec_data_copy_new(NULL, 0, MPI_BYTE, PARSEC_DATA_FLAG_PARSEC_MANAGED);
         dat->data->device_private = dat->ptr;
     }
     return (void*)(dat->data);

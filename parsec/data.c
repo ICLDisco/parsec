@@ -206,7 +206,7 @@ int parsec_data_copy_detach(parsec_data_t* data,
  * Data copy type is set to the specified one.
  */
 parsec_data_copy_t* parsec_data_copy_new(parsec_data_t* data, uint8_t device,
-                                         parsec_datatype_t dtt)
+                                         parsec_datatype_t dtt, parsec_data_flag_t flags)
 {
     parsec_data_copy_t* copy;
 
@@ -219,6 +219,7 @@ parsec_data_copy_t* parsec_data_copy_new(parsec_data_t* data, uint8_t device,
     } else {
         PARSEC_OBJ_CONSTRUCT(copy, parsec_data_copy_t);
     }
+    copy->flags = flags;
     if( PARSEC_SUCCESS != parsec_data_copy_attach(data, copy, device) ) {
         PARSEC_OBJ_RELEASE(copy);
         return NULL;
@@ -482,7 +483,8 @@ void* parsec_data_get_ptr(parsec_data_t* data, uint32_t device)
 parsec_data_t*
 parsec_data_create( parsec_data_t **holder,
                    parsec_data_collection_t *desc,
-                   parsec_data_key_t key, void *ptr, size_t size )
+                   parsec_data_key_t key,
+                   void *ptr, size_t size, parsec_data_flag_t flags )
 {
     parsec_data_t *data = *holder;
 
@@ -493,6 +495,7 @@ parsec_data_create( parsec_data_t **holder,
         data_copy->coherency_state = PARSEC_DATA_COHERENCY_OWNED;
         data_copy->device_private = ptr;
         data_copy->dtt = desc->default_dtt;
+        data_copy->flags = flags;
 
         data->owner_device = 0;
         data->key = key;
@@ -508,7 +511,7 @@ parsec_data_create( parsec_data_t **holder,
     } else {
         /* Do we have a copy of this data */
         if( NULL == data->device_copies[0] ) {
-            parsec_data_copy_t* data_copy = parsec_data_copy_new(data, 0, desc->default_dtt);
+            parsec_data_copy_t* data_copy = parsec_data_copy_new(data, 0, desc->default_dtt, flags);
             data_copy->device_private = ptr;
         }
     }

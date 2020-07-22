@@ -6,10 +6,20 @@ This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
 v20.12
+ - Enable users to manage their own data copies without PaRSEC
+   interfering. Data copies are marked as being owned by PaRSEC or
+   not and managed by PaRSEC or not. A data copy owned by PaRSEC can
+   be reclaimed by PaRSEC when its reference count reaches 0, a data
+   copy managed by PaRSEC can be copied / moved onto a different
+   device, while a data copy not managed by PaRSEC will never be
+   moved by the runtime.
+
  - Add an info system, and introduce two info hooks. See parsec/class/info.h
    for details. The info system allows the user to register info objects
    with different levels of structures and dynamic objects in the PaRSEC
    runtime.
+
+ - PaRSEC now requires CMake 3.16.
 
  - New configure system to ease the installation of PaRSEC. See
    INSTALL for details. This system automates installation on most DOE

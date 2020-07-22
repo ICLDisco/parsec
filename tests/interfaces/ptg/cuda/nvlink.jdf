@@ -40,6 +40,7 @@ typedef cublasStatus_t (*cublas_dgemm_v2_t) ( cublasHandle_t handle,
  * Globals
  */
 descA             [type = "two_dim_block_cyclic_t *"]
+userM             [type = "two_dim_block_cyclic_t *"]
 NP                [type = "int"]
 CuHI              [type = "parsec_info_id_t"]
 NGPUs             [type = "int"]
@@ -58,7 +59,7 @@ r = 0 .. NP-1
 : descA(0, r)
 
 WRITE C <- NEW
-        -> C GEMM(0, g, r)
+        -> C GEMM1(0, g, r)
 
 BODY
     memset(C, 0, sizeof(double)*descA->super.mt*descA->super.nt);
@@ -76,7 +77,7 @@ r = 0 .. NP-1
 // Parallel partitioning
 : descA(0, r)
 
-READ C <- C GEMM(descA->super.mt-1, g, r)
+READ C <- C GEMM1(descA->super.mt-1, g, r)
 
 BODY
 
@@ -96,7 +97,8 @@ r = 0 .. NP-1
 : descA(m, r)
 
 READ A <- descA(m, r)
-       -> A GEMM(m, 0, r)
+       -> A GEMM1(m, 0, r)
+       -> A GEMM2(m, 0, r)
 
 BODY
 
@@ -104,9 +106,9 @@ END
 
     
 /**************************************************
- *                       GEMM                     *
+ *                       GEMMs                    *
  **************************************************/
-GEMM(m, g, r)
+GEMM1(m, g, r)
 
 // Execution space
 m = 0 .. descA->super.mt-1
@@ -117,10 +119,10 @@ r = 0 .. NP-1
 : descA(m, r)
 
 // Parameters
-READ A <- (g == 0) ? A READ_A(m, r) : A GEMM(m, g-1, r)
-       -> ((g + 1) < NGPUs)         ? A GEMM(m, g+1, r)
-RW   C <- (m == 0) ? C MAKE_C(g, r) : C GEMM(m-1, g, r)
-       -> ((m + 1) < (descA->super.mt)) ? C GEMM(m+1, g, r)
+READ A <- (g == 0) ? A READ_A(m, r) : A GEMM1(m, g-1, r)
+       -> ((g + 1) < NGPUs)         ? A GEMM1(m, g+1, r)
+RW   C <- (m == 0) ? C MAKE_C(g, r) : C GEMM1(m-1, g, r)
+       -> ((m + 1) < (descA->super.mt)) ? C GEMM1(m+1, g, r)
                                     : C DISCARD_C(g, r)
 
 BODY [type=CUDA
@@ -147,6 +149,51 @@ END
 BODY
 {
     fprintf(stderr, "Kernel GEMM(%d, %d, %d) in nvlink test is running on a CPU, which is not the intended behavior\n",
+            m, g, r);
+}
+END
+
+
+GEMM2(m, g, r)
+
+// Execution space
+m = 0 .. descA->super.mt-1
+g = 0 .. NGPUs-1
+r = 0 .. NP-1
+
+// Parallel partitioning
+: userM(g, r)
+
+// Parameters
+READ A <- (g == 0) ? A READ_A(m, r) : A GEMM2(m, g-1, r)
+       -> ((g + 1) < NGPUs)         ? A GEMM2(m, g+1, r)
+RW   C <- (m == 0) ? userM(g, r)    : C GEMM2(m-1, g, r)
+       -> ((m + 1) < (descA->super.mt)) ? C GEMM2(m+1, g, r)
+
+BODY [type=CUDA
+      dyld=cublasDgemm_v2 dyldtype=cublas_dgemm_v2_t
+      weight=(1)]
+{
+    cublasStatus_t status;
+    cublasHandle_t handle;
+    double alpha=0.0;
+    double beta=1.0;
+    handle = parsec_info_get(&gpu_stream->infos, CuHI);
+    assert(NULL != handle);
+    status = parsec_body.dyld_fn( handle,
+                                  CUBLAS_OP_N, CUBLAS_OP_N, 
+                                  descA->super.mb, descA->super.nb, descA->super.mb,
+                                  &alpha, (double*)A, descA->super.mb,
+                                  (double*)A, descA->super.mb,
+                                  &beta, (double*)C, descA->super.mb );
+    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm_v2 ", status,
+                            {return -1;} );
+}
+END
+
+BODY
+{
+    fprintf(stderr, "Kernel GEMM2(%d, %d, %d) in nvlink test is running on a CPU, which is not the intended behavior\n",
             m, g, r);
 }
 END
