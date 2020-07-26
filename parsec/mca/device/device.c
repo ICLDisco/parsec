@@ -70,7 +70,7 @@ float *parsec_device_tweight = NULL;
 
 int parsec_get_best_device( parsec_task_t* this_task, double ratio )
 {
-    int i, dev_index = -1, data_index = 0;
+    int i, dev_index = -1, data_index = 0, all_write_flows_unbound = 1;
     parsec_taskpool_t* tp = this_task->taskpool;
 
     /* Step one: Find the first data in WRITE mode stored on a GPU */
@@ -80,6 +80,8 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
 
         if( (NULL != this_task->task_class->out[i]) &&
             (this_task->task_class->out[i]->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
+            if( NULL != this_task->data[i].source_repo_entry )
+                all_write_flows_unbound = 0;
             data_index = this_task->task_class->out[i]->flow_index;
             if( this_task->data[data_index].data_in->original->preferred_device != -1 )
                 dev_index = this_task->data[data_index].data_in->original->preferred_device;
@@ -92,6 +94,31 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
             }
         }
     }
+
+    /* TODO needs to re-address for dtd */
+    if( all_write_flows_unbound ) {
+        /* Step two: Find the first data in READ mode stored on a GPU
+         * if data repos of all WRITE flows are NULL
+         */
+        for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+            /* Skip flow when data_in is NULL */
+            if( NULL == this_task->data[i].data_in ) continue;
+
+            if( (NULL != this_task->data[i].source_repo_entry) ) {
+                data_index = this_task->task_class->in[i]->flow_index;
+                if( this_task->data[data_index].data_in->original->preferred_device != -1 )
+                    dev_index = this_task->data[data_index].data_in->original->preferred_device;
+                if (dev_index > 1) {
+                    break;
+                }
+                dev_index  = this_task->data[data_index].data_in->original->owner_device;
+                if (dev_index > 1) {
+                    break;
+                }
+            }
+        }
+    }
+
     assert(dev_index >= 0);
 
     /* 0 is CPU, and 1 is recursive device */

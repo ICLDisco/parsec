@@ -1,0 +1,217 @@
+extern "C" %{
+/*
+ * Copyright (c) 2021 The Universiy of Tennessee and The Universiy
+ *                    of Tennessee Research Foundation. All rights
+ *                    reserved.
+ */
+#include "cuda_test_internal.h"
+
+%}
+
+%option no_taskpool_instance = true  /* can be aything */
+
+descA                [ type = "parsec_tiled_matrix_dc_t*" ]
+info                 [ type = "int*" ]
+
+nb_cuda_devices      [ type = "int"   hidden = on default = 0 ]
+cuda_device_index    [ type = "int *" hidden = on default = "NULL"]
+
+/**************************************************
+ *                 gpu_bind_A                     *
+ **************************************************/
+gpu_bind_A(m, n)
+
+// Execution space
+m = 0 .. descA->nt-1
+n = 0 .. m
+
+// Parallel partitioning
+:descA(m, n)
+
+READ A <- descA(m, n)
+       -> A task(m, n)
+
+BODY
+{
+#if defined(PARSEC_HAVE_CUDA)
+    if( nb_cuda_devices > 0 ) {
+        int g = (n * descA->nt + m) % nb_cuda_devices; 
+        parsec_advise_data_on_device( _f_A->original,
+                                    cuda_device_index[g],
+                                    PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE );
+    }
+#endif
+}
+END
+
+/**************************************************
+ *                    task                        *
+ **************************************************/
+task(m, n)
+
+// Execution space
+m = 0 .. descA->nt-1
+n = 0 .. m
+
+// Parallel partitioning
+:descA(m, n)
+
+READ A <- A gpu_bind_A(m, n)
+
+WRITE B <- NEW
+        -> B fake_task(m, n)
+
+BODY [type=CUDA weight=m+n+1]
+{   
+#if defined(PARSEC_HAVE_CUDA)
+    if( nb_cuda_devices > 0 ) { 
+        int g = (n * descA->nt + m) % nb_cuda_devices;
+        int my_device =  cuda_device->cuda_index;
+        if( g != my_device )
+        {
+#if defined(PARSEC_DEBUG_NOISIER)
+            fprintf(stderr, "GPU (%d, %d) : supposed_gpu_id %d ; real_gpu_id %d ; nb_cuda_devices %d\n",
+                    m, n, g, my_device, nb_cuda_devices);
+#endif
+        }
+        else
+            /* Set value for B of each byte */
+            cudaMemset( B, 1, descA->mb * descA->nb * sizeof(double) ); 
+    }
+#endif
+}
+END
+
+BODY
+{
+#if defined(PARSEC_DEBUG_NOISIER)
+    fprintf(stderr, "CPU (%d, %d) nb_cuda_devices %d\n", m, n, nb_cuda_devices);
+#endif
+}
+END
+
+/**************************************************
+ *               fake_task                        *
+ **************************************************/
+fake_task(m, n)
+
+// Execution space
+m = 0 .. descA->nt-1
+n = 0 .. m
+
+// Parallel partitioning
+:descA(m, n)
+
+READ B <- B task(m, n)
+
+BODY
+{
+    /* As set a byte to 00000001, then 4 bytes integer will be 16843009 */
+    for(int i = 0; i < descA->mb * descA->nb * 2; i++) {
+        if( nb_cuda_devices > 0 && 16843009 != ((int *)B)[i] ) {
+            info[es->th_id] ++;
+#if defined(PARSEC_DEBUG_NOISIER)
+            fprintf(stderr, "(%d, %d) : %d : value error\n", m, n, i);
+#endif
+        }
+    }
+}
+END
+
+
+extern "C" %{
+
+/**
+ * @param [inout] dcA: the data, already distributed and allocated
+ */
+static parsec_taskpool_t*
+parsec_get_best_device_check_New(parsec_tiled_matrix_dc_t *dcA, int *info)
+{
+    parsec_taskpool_t* get_best_device_check_taskpool;
+    parsec_get_best_device_check_taskpool_t* taskpool = NULL;
+
+    taskpool = parsec_get_best_device_check_new(dcA, info); 
+    get_best_device_check_taskpool = (parsec_taskpool_t*)taskpool;
+
+#if defined(PARSEC_HAVE_CUDA)
+    /** Find all CUDA devices */
+    int nb = 0;
+    for(int i = 0; i < (int)parsec_nb_devices; i++) {
+        parsec_device_module_t *device = parsec_mca_device_get(i);
+        if( PARSEC_DEV_CUDA == device->type ) {
+            nb++;
+        }
+    }
+
+    if( 0 == nb )
+        printf("No GPU device found\n");
+
+    int *dev_index = (int*)malloc(nb * sizeof(int));
+    nb = 0;
+    for(int i = 0; i < (int)parsec_nb_devices; i++) {
+        parsec_device_module_t *device = parsec_mca_device_get(i);
+        if( PARSEC_DEV_CUDA == device->type ) {
+            dev_index[nb++] = device->device_index;
+        }
+    }
+
+    taskpool->_g_nb_cuda_devices = nb;
+    taskpool->_g_cuda_device_index = dev_index;
+#endif
+
+    parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX],
+            parsec_datatype_double_t, matrix_UpperLower,
+            1, dcA->mb, dcA->nb, dcA->mb,
+            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
+    return get_best_device_check_taskpool;
+}
+
+/**
+ * @param [inout] the parsec object to destroy
+ */
+static void
+__parsec_taskpool_get_best_device_check_destructor(parsec_get_best_device_check_taskpool_t *get_best_device_check_taskpool)
+{
+    parsec_matrix_del2arena(&get_best_device_check_taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX]);
+#if defined(PARSEC_HAVE_CUDA)
+    if( NULL != get_best_device_check_taskpool->_g_cuda_device_index )
+        free(get_best_device_check_taskpool->_g_cuda_device_index);
+#endif
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_get_best_device_check_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_taskpool_get_best_device_check_destructor);
+
+/**
+ * @param [inout] dcA: the data, already distributed and allocated
+ */
+int parsec_get_best_device_check(parsec_context_t *parsec,
+		parsec_tiled_matrix_dc_t *A)
+{
+    /* Only for 1 vp */
+    assert( parsec->nb_vp == 1 );
+    int nb_threads = parsec->virtual_processes[0]->nb_cores;
+    int *info_tmp = (int *)calloc( sizeof(int), nb_threads );
+    int info = 0;
+
+    parsec_taskpool_t *parsec_get_best_device_check = NULL;
+    parsec_get_best_device_check = parsec_get_best_device_check_New(A, info_tmp); 
+
+    if( parsec_get_best_device_check != NULL ){
+	    parsec_enqueue(parsec, parsec_get_best_device_check);
+	    parsec_context_start(parsec);
+	    parsec_context_wait(parsec);
+    }
+
+    /* Gather info */
+    for( int i = 1; i < nb_threads; i++ ) {
+        info_tmp[0] += info_tmp[i];
+    }
+
+    MPI_Allreduce(&info_tmp[0], &info, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    return info;
+}
+
+%}

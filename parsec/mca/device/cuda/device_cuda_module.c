@@ -1389,8 +1389,17 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
                              __FILE__, __LINE__);
     }
 
-    gpu_device->super.required_data_in += nb_elts;
-    if( -1 != transfer_from ) {
+    /* If data is from NEW, as we skip NULL */
+    if( NULL == task_data->source_repo_entry )
+	    transfer_from = -1;
+
+    /* Do not need to be tranferred */
+    if( -1 == transfer_from ) {
+        gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
+    } else {
+        /* Update the transferred required_data_in size */
+        gpu_device->super.required_data_in += original->nb_elts;
+
         /* If it is already under transfer, don't schedule the transfer again.
          * This happens if the task refers twice (or more) to the same input flow */
         if( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {
