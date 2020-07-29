@@ -95,14 +95,16 @@ int main(int argc, char *argv[])
     /* Init Off_band */
     two_dim_block_cyclic_band_t dcY;
     two_dim_block_cyclic_init(&dcY.off_band, matrix_RealDouble, matrix_Tile,
-                                nodes, rank, NB, NB, N, N, 0, 0,
-                                N, N, KP, KQ, P);
+                                rank, NB, NB, N, N, 0, 0,
+                                N, N,
+                                P, nodes/P, KP, KQ, 0, 0);
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcY, "dcY off_band");
 
     /* Init band */
     two_dim_block_cyclic_init(&dcY.band, matrix_RealDouble, matrix_Tile,
-                                nodes, rank, NB, NB, NB*(2*BAND_SIZE-1), N, 0, 0,
-                                NB*(2*BAND_SIZE-1), N, KP_BAND, KQ_BAND, P_BAND);
+                                rank, NB, NB, NB*(2*BAND_SIZE-1), N, 0, 0,
+                                NB*(2*BAND_SIZE-1), N,
+                                P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, 0, 0);
     parsec_data_collection_set_key(&dcY.band.super.super, "dcY band");
 
     /* Init two_dim_block_cyclic_band_t structure */
@@ -113,14 +115,15 @@ int main(int argc, char *argv[])
 
     /* Init Off_band */
     sym_two_dim_block_cyclic_init(&dcYP.off_band, matrix_RealDouble,
-                                nodes, rank, NB, NB, N, N, 0, 0,
-                                N, N, P, uplo);
+                                rank, NB, NB, N, N, 0, 0,
+                                N, N, P, nodes/P, uplo);
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcYP, "dcYP off_band");
 
     /* Init band */
     two_dim_block_cyclic_init(&dcYP.band, matrix_RealDouble, matrix_Tile,
-                                nodes, rank, NB, NB, NB*BAND_SIZE, N, 0, 0,
-                                NB*BAND_SIZE, N, KP_BAND, KQ_BAND, P_BAND);
+                                rank, NB, NB, NB*BAND_SIZE, N, 0, 0,
+                                NB*BAND_SIZE, N,
+                                P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, 0, 0);
     parsec_data_collection_set_key(&dcYP.band.super.super, "dcYP band");
 
     /* Init two_dim_block_cyclic_band_t structure */

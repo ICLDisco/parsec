@@ -72,11 +72,11 @@ END
 extern "C" %{
 
 /**
- * @brief bandwidth,  no-blocking 
+ * @brief bandwidth,  no-blocking
  *
- * @param [in] dcA: data 
- * @param [in] Disk: distribution 
- * @param [in] loops: loops of bandwidth 
+ * @param [in] dcA: data
+ * @param [in] Disk: distribution
+ * @param [in] loops: loops of bandwidth
  * @param [in] frags: fragments
  * @param [in] ws: number of process
  * @param [in] size: number of doubles
@@ -94,7 +94,7 @@ parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
     exit(1);
   }
 
-  taskpool = parsec_bandwidth_new(dcA, Disk, loops, frags, ws); 
+  taskpool = parsec_bandwidth_new(dcA, Disk, loops, frags, ws);
   bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
   parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ARENA],
@@ -116,13 +116,13 @@ void parsec_bandwidth_Destruct(parsec_taskpool_t *taskpool)
 }
 
 /**
- * @brief bandwidth 
- * 
- * @param [in] dcA: data 
- * @param [in] Disk: distribution 
+ * @brief bandwidth
+ *
+ * @param [in] dcA: data
+ * @param [in] Disk: distribution
  * @param [in] loops: loops of bandwidth
  * @param [in] frags: fragments
- * @param [in] ws: number of process 
+ * @param [in] ws: number of process
  * @param [in] size: number of doubles
  */
 int parsec_bandwidth(parsec_context_t *parsec,
@@ -236,8 +236,9 @@ int main(int argc, char *argv[])
     /* initializing matrix structure */
     two_dim_block_cyclic_t dcA;
     two_dim_block_cyclic_init(&dcA, matrix_RealDouble, matrix_Tile,
-                              nodes, rank, 1, size, frags, size, 0, 0,
-                              frags, size, 1, 1, 1);
+                              rank, 1, size, frags, size, 0, 0,
+                              frags, size,
+                              1, nodes, 1, 1, 0, 0);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
                                    (size_t)dcA.super.bsiz *
                                    (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
@@ -245,8 +246,9 @@ int main(int argc, char *argv[])
 
     two_dim_block_cyclic_t Disk;
     two_dim_block_cyclic_init(&Disk, matrix_RealDouble, matrix_Tile,
-                              nodes, rank, 1, 1, 1, nodes, 0, 0,
-                              1, nodes, 1, 1, 1);
+                              rank, 1, 1, 1, nodes, 0, 0,
+                              1, nodes,
+                              1, nodes, 1, 1, 0, 0);
     parsec_data_collection_set_key((parsec_data_collection_t*)&Disk, "Disk");
 
     for(i = 0; i < nb_runs; i++) {

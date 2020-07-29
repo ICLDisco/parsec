@@ -50,8 +50,8 @@ int main( int argc, char** argv )
 
     PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
         two_dim_block_cyclic, (&dcA, matrix_RealDouble, matrix_Tile,
-                               nodes, rank, NB, NB, N, N, 0, 0,
-                               N, N, 1, 1, 1));
+                               rank, NB, NB, N, N, 0, 0,
+                               N, N, 1, nodes, 1, 1, 0, 0));
 
     tp = (parsec_taskpool_t*) (dtt_tp = parsec_dtt_bug_replicator_new(&dcA.super.super));
     assert( NULL != tp );

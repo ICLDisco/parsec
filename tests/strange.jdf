@@ -158,9 +158,10 @@ int main(int argc, char* argv[] )
     assert( NULL != parsec );
 
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                               1 /*nodes*/, 0 /*rank*/,
+                               0 /*rank*/,
                                1, 1, n, 1,
-                               0, 0, n, 1, 1, 1, 1);
+                               0, 0, n, 1,
+                               1, 1, 1, 1, 0, 0);
     descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );

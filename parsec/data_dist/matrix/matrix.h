@@ -108,10 +108,10 @@ typedef struct parsec_tiled_matrix_dc_t {
     int ln;             /**< number of columns of the entire matrix */
     int lmt;            /**< number of tile rows of the entire matrix - derived parameter */
     int lnt;            /**< number of tile columns of the entire matrix - derived parameter */
-    int llm;            /**< number of rows of the matrix stored localy - derived parameter */
-    int lln;            /**< number of columns of the matrix stored localy - derived parameter */
+    int llm;            /**< number of rows of the matrix stored locally - derived parameter */
+    int lln;            /**< number of columns of the matrix stored locally - derived parameter */
     int i;              /**< row index to the beginning of the submatrix */
-    int j;              /**< column indes to the beginning of the submatrix */
+    int j;              /**< column index to the beginning of the submatrix */
     int m;              /**< number of rows of the submatrix */
     int n;              /**< number of columns of the submatrix */
     int mt;             /**< number of tile rows of the submatrix - derived parameter */

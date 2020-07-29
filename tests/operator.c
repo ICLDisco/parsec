@@ -55,7 +55,8 @@ int main( int argc, char* argv[] )
     parsec = parsec_init(cores, &argc, &argv);
 
     two_dim_block_cyclic_init( &dcA, matrix_RealFloat, matrix_Tile,
-                               world, rank, mb, nb, lm, ln, 0, 0, lm, ln, 1, 1, rows );
+                               rank, mb, nb, lm, ln, 0, 0, lm, ln,
+                               rows, world/rows, 1, 1, 0, 0);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
                                      (size_t)dcA.super.bsiz *
                                      (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));

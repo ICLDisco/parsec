@@ -173,16 +173,18 @@ int main(int argc, char* argv[])
 #endif  /* DISTRIBUTED */
         mat_size = 2*BLOCK*size*ni;
         two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                                   size /*nodes*/, rank /*rank*/,
+                                   rank /*rank*/,
                                    2*BLOCK, 1, mat_size, 1,
-                                   0, 0, mat_size, 1, 1, 1, 1);
+                                   0, 0, mat_size, 1,
+                                   1, size, 1, 1, 0, 0);
         descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                           descA.super.bsiz *
                                           parsec_datadist_getsizeoftype(TYPE) );
         two_dim_block_cyclic_init( &descB, TYPE, matrix_Tile,
-                                   size /*nodes*/, rank /*rank*/,
+                                   rank /*rank*/,
                                    2*BLOCK, 1, mat_size, 1,
-                                   0, 0, mat_size, 1, 1, 1, 1);
+                                   0, 0, mat_size, 1,
+                                   1, size, 1, 1, 0, 0);
         descB.mat = parsec_data_allocate( descB.super.nb_local_tiles *
                                           descB.super.bsiz *
                                           parsec_datadist_getsizeoftype(TYPE) );

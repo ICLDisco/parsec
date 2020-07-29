@@ -113,13 +113,14 @@ int main(int argc, char **argv)
     /* Correctness checking */
     two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
     two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
-                              world, rank,
+                              rank,
                               nb, 1,
                               nt*nb, 1,
                               0, 0,
                               nt*nb, 1,
+                              world, 1,
                               1, 1,
-                              world);
+                              0, 0);
 
     m->mat = parsec_data_allocate((size_t)m->super.nb_local_tiles *
                                   (size_t)m->super.bsiz *

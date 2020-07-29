@@ -222,15 +222,16 @@ static int32_t sym_twoDBC_vpid_of_key(parsec_data_collection_t *desc, parsec_dat
 
 void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * dc,
                                    enum matrix_type mtype,
-                                   int nodes, int myrank,
+                                   int myrank,
                                    int mb,   int nb,   /* Tile size */
                                    int lm,   int ln,   /* Global matrix size (what is stored)*/
                                    int i,    int j,    /* Staring point in the global matrix */
                                    int m,    int n,    /* Submatrix size (the one concerned by the computation */
-                                   int P, int uplo )
+                                   int P,    int Q,    /* process process grid */
+                                   int uplo )
 {
     int nb_elem, total;
-    int Q;
+    int nodes = P*Q;
     /* Initialize the tiled_matrix descriptor */
     parsec_data_collection_t *o = &(dc->super.super);
 
@@ -254,10 +255,9 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * dc,
         parsec_warning("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
         P = nodes;
     }
-    Q = nodes / P;
     if(nodes != P*Q)
         parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
-    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1);
+    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1, 0, 0);
 
     /* Extra parameters */
     dc->uplo = uplo;

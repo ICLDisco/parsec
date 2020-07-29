@@ -82,9 +82,9 @@ int main(int argc, char* argv[])
     assert( NULL != parsec );
 
     two_dim_block_cyclic_init( &dcA, TYPE, matrix_Tile,
-                               nodes, rank,
+                               rank,
                                block, 1, N, 1,
-                               0, 0, N, 1, 1, 1, nodes);
+                               0, 0, N, 1, nodes, 1, 1, 1, 0, 0);
     parsec_data_collection_set_key(&dcA.super.super, "A");
     dcA.mat = parsec_data_allocate( N * parsec_datadist_getsizeoftype(TYPE) );
     for( int i = 0; i < N; ((int*)dcA.mat)[i++] = 1);
