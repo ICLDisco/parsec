@@ -19,12 +19,16 @@
 #if defined(PARSEC_HAVE_ERRNO_H)
 #include <errno.h>
 #endif  /* PARSEC_HAVE_ERRNO_H */
+#if defined(PARSEC_HAVE_DLFCN_H)
 #include <dlfcn.h>
+#endif  /* PARSEC_HAVE_DLFCN_H */
 #include <sys/stat.h>
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
-
+#if defined(__WINDOWS__)
+#include <windows.h>
+#endif  /* defined(__WINDOWS__) */
 int parsec_device_output = 0;
 static int parsec_device_verbose = 0;
 uint32_t parsec_nb_devices = 0;
@@ -348,7 +352,7 @@ parsec_device_find_function(const char* function_name,
 {
     char library_name[FILENAME_MAX];
     const char **target;
-    void *dlh, *fn = NULL;
+    void *fn = NULL;
 
     for( target = paths; (NULL != target) && (NULL != *target); target++ ) {
         struct stat status;
@@ -364,7 +368,17 @@ parsec_device_find_function(const char* function_name,
         } else {
             snprintf(library_name,  FILENAME_MAX, "%s", *target);
         }
-        dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
+#if defined(__WINDOWS__)
+        HMODULE dlh = LoadLibraryW(library_name);
+        if(NULL == dlh) {
+            parsec_debug_verbose(10, parsec_device_output,
+                                 "Could not find %s dynamic library (%s)", library_name, GetLastError());
+            continue;
+        }
+        fn = GetProcAddress(dlh, function_name);
+        FreeLibrary(dlh);
+#elif defined(PARSEC_HAVE_DLFCN_H)
+        void* dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
         if(NULL == dlh) {
             parsec_debug_verbose(10, parsec_device_output,
                                  "Could not find %s dynamic library (%s)", library_name, dlerror());
@@ -372,6 +386,9 @@ parsec_device_find_function(const char* function_name,
         }
         fn = dlsym(dlh, function_name);
         dlclose(dlh);
+#else
+#error Lacking dynamic loading capabilities.
+#endif
         if( NULL != fn ) {
             parsec_debug_verbose(4, parsec_device_output,
                                  "Function %s found in shared library %s",
@@ -384,16 +401,26 @@ parsec_device_find_function(const char* function_name,
         parsec_output_verbose(10, parsec_device_output,
                               "No dynamic function %s found, trying from compile time linked in\n",
                               function_name);
-        dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
+#if defined(__WINDOWS__)
+        HMODULE dlh = GetModuleHandleA(NULL);
+        if(NULL != dlh) {
+            fn = GetProcAddress(dlh, function_name);
+            FreeLibrary(dlh);
+        }
+#elif defined(PARSEC_HAVE_DLFCN_H)
+        void* dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
         if(NULL != dlh) {
             fn = dlsym(dlh, function_name);
+            dlclose(dlh);
+        }
+#else
+#error Lacking dynamic loading capabilities.
+#endif
             if(NULL != fn) {
                 parsec_debug_verbose(4, parsec_device_output,
                                      "Function %s found in the application symbols",
                                      function_name);
             }
-            dlclose(dlh);
-        }
     }
     if(NULL == fn) {
         parsec_debug_verbose(10, parsec_device_output,
@@ -463,14 +490,15 @@ int parsec_mca_device_registration_completed(parsec_context_t* context)
 #include <sys/sysctl.h>
 #endif
 
-static int cpu_weights(parsec_device_module_t* device, int nstreams) {
+static int cpu_weights(parsec_device_module_t* device, int nstreams)
+{
     /* This is default value when it cannot be computed */
     /* Crude estimate that holds for Nehalem era Xeon processors */
     float freq = 2.5f;
     float fp_ipc = 8.f;
     float dp_ipc = 4.f;
     char cpu_model[256]="Unkown";
-    char *cpu_flags;
+    char *cpu_flags = NULL;
 
 #if defined(__linux__)
     FILE* procinfo = fopen("/proc/cpuinfo", "r");

@@ -24,6 +24,9 @@
 #include "parsec/constants.h"
 #include "parsec/utils/installdirs.h"
 #include "parsec/utils/os_path.h"
+#if defined(__WINDOWS__)
+#  include <windows.h>
+#endif  /* defined(__WINDOWS__) */
 
 parsec_install_dirs_t parsec_install_dirs = {
     NULL, /* prefix */
@@ -290,7 +293,7 @@ parsec_installdirs_open(void)
     /* Step one, get everything from the default configuration */
 #ifdef __WINDOWS__
     /* On Windows the default installation is specified in the registry */
-    parsec_installdirs_windows()
+    parsec_installdirs_windows();
 #else
     /* Otherwise it can be deducted at compile time */
     SET_FIELD(PARSEC_INSTALL_PREFIX, prefix, "");

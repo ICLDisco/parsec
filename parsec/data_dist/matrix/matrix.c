@@ -134,7 +134,9 @@ void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
 
     /* finish to update the main object properties */
     o->key_to_string = tiled_matrix_key_to_string;
-    asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
+    if( asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt) <= 0 ) {
+        o->key_dim = NULL;
+    }
 }
 
 void

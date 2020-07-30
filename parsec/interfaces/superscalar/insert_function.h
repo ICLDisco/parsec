@@ -36,41 +36,41 @@ BEGIN_C_DECLS
  *
  *   **  Details of Flags **
  *
- *  INPUT:          Data is used in read-only mode, no modification is done.
- *  OUTPUT:         Data is used in write-only, written only, not read.
- *  INOUT:          Data is read and written both.
- *  ATOMIC_WRITE:   Data is used like OUTPUT but the ordering of the tasks having this flag is not maintained
- *                  by the scheduler.
- *                  It is the responsibility of the user to make sure data is written atomically.
- *                  Treated like INPUT by the scheduler.
- *                  This flag is not currently VALID, please refrain from using it.
- *  SCRATCH:        Will be used by the task as scratch pad, does not effect the DAG, tells the runtime
- *                  to allocate memory specified by the user.
- *                  This flag can also be used to pass pointer of any variable. Please look at the usage below.
- *  VALUE:          Tells the runtime to copy the value as a parameter of the task.
- *  REF:            Tells the runtime to reference the user pointer (i.e., not a PaRSEC data)
+ *  PARSEC_INPUT:        Data is used in read-only mode, no modification is done.
+ *  PARSEC_OUTPUT:       Data is used in write-only, written only, not read.
+ *  PARSEC_INOUT:        Data is read and written both.
+ *  PARSEC_ATOMIC_WRITE: Data is used like OUTPUT but the ordering of the tasks having this flag is not maintained
+ *                       by the scheduler.
+ *                       It is the responsibility of the user to make sure data is written atomically.
+ *                       Treated like PARSEC_INPUT by the scheduler.
+ *                       This flag is not currently VALID, please refrain from using it.
+ *  PARSEC_SCRATCH:      Will be used by the task as scratch pad, does not effect the DAG, tells the runtime
+ *                       to allocate memory specified by the user.
+ *                       This flag can also be used to pass pointer of any variable. Please look at the usage below.
+ *  PARSEC_VALUE:        Tells the runtime to copy the value as a parameter of the task.
+ *  PARSEC_REF:          Tells the runtime to reference the user pointer (i.e., not a PaRSEC data)
  *
- *  AFFINITY:       Indicates where to place a task. This flag should be provided with a data and the
- *                  runtime will place the task in the rank where the data, this flag was provided with,
- *                  resides.
- *  DONT_TRACK:     This flag indicates to the runtime to not track any dependency associated with the
- *                  data this flag was provided to.
+ *  PARSEC_AFFINITY:     Indicates where to place a task. This flag should be provided with a data and the
+ *                       runtime will place the task in the rank where the data, this flag was provided with,
+ *                       resides.
+ *  PARSEC_DONT_TRACK:   This flag indicates to the runtime to not track any dependency associated with the
+ *                       data this flag was provided to.
  *
- *  Lower 16 bits:  Index (arbitrary value) for different REGIONS to express more specific dependency.
- *                  Regions indices are user provided and must be mutually exclusive for the tile.
+ *  Lower 16 bits:       Index (arbitrary value) for different REGIONS to express more specific dependency.
+ *                       Regions indices are user provided and must be mutually exclusive for the tile.
  */
-typedef enum { INPUT=0x100000,
-               OUTPUT=0x200000,
-               INOUT=0x300000,
-               ATOMIC_WRITE=0x400000, /* DO NOT USE ,Iterate_successors do not support this at this point */
-               SCRATCH=0x500000,
-               VALUE=0x600000,
-               REF=0x700000,
-               GET_OP_TYPE=0xf00000, /* MASK: not an actual value, used to filter the relevant enum values */
-               AFFINITY=1<<16, /* Data affinity */
-               DONT_TRACK=1<<17, /* Drop dependency tracking */
-               GET_OTHER_FLAG_INFO=0xf0000, /* MASK: not an actual value, used to filter the relevant enum values */
-               GET_REGION_INFO=0xffff /* MASK: not an actual value, used to filter the relevant enum values */
+typedef enum { PARSEC_INPUT=0x100000,
+               PARSEC_OUTPUT=0x200000,
+               PARSEC_INOUT=0x300000,
+               PARSEC_ATOMIC_WRITE=0x400000, /* DO NOT USE ,Iterate_successors do not support this at this point */
+               PARSEC_SCRATCH=0x500000,
+               PARSEC_VALUE=0x600000,
+               PARSEC_REF=0x700000,
+               PARSEC_GET_OP_TYPE=0xf00000, /* MASK: not an actual value, used to filter the relevant enum values */
+               PARSEC_AFFINITY=1<<16, /* Data affinity */
+               PARSEC_DONT_TRACK=1<<17, /* Drop dependency tracking */
+               PARSEC_GET_OTHER_FLAG_INFO=0xf0000, /* MASK: not an actual value, used to filter the relevant enum values */
+               PARSEC_GET_REGION_INFO=0xffff /* MASK: not an actual value, used to filter the relevant enum values */
              } parsec_dtd_op_t;
 
 typedef enum { PASSED_BY_REF=-1,
@@ -200,16 +200,13 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
  *                               copied),
  *
  *
- *    3.    PASSED_BY_REF,         PARSEC_DTD_TILE_OF(dc, i, j),               INOUT/INPUT/OUTPUT,
- *                                         /                                    /
- *                                 PARSEC_DTD_TILE_OF_KEY(dc, key),            INOUT | REGION_INFO,
- *                                                                              /
- *                                                                     INOUT | AFFINITY/DONT_TRACK,
- *                                                                              /
- *                                                                     INOUT | REGION_INFO | AFFINITY/DONT_TRACK,
+ *    3.    PASSED_BY_REF,         PARSEC_DTD_TILE_OF(dc, i, j),       PARSEC_INOUT/PARSEC_INPUT/PARSEC_OUTPUT,  /
+ *                                 PARSEC_DTD_TILE_OF_KEY(dc, key),    PARSEC_INOUT | REGION_INFO, /
+ *                                                                     PARSEC_INOUT | PARSEC_AFFINITY/PARSEC_DONT_TRACK, /
+ *                                                                     PARSEC_INOUT | PARSEC_REGION_INFO | PARSEC_AFFINITY/PARSEC_DONT_TRACK,
  *
  *          (To specify we        (We call tile_of with            (First shows the essential flag
- *           are passing only      data-descriptor and either       INPUT/INOUT/OUTPUT to indicate the type
+ *           are passing only      data-descriptor and either       PARSEC_INPUT/PARSEC_INOUT/PARSEC_OUTPUT to indicate the type
  *           reference of data),   a key or indices in a 2D         of operation the task will be performing
  *                                 matrix),                         on the data. The other flags are combined
  *                                                                  with this flag. REGION_INFO states the index

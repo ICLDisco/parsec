@@ -88,7 +88,7 @@ WHITE         [\f\t\v ]
 %x body_init
 
 %%
-extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}                          {
+extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*[\r\n]+([^\%]|(\%[^\}]))*\%\}                          {
                           int lstart, lend, bstart, skip_line = 0;
                           /* This assumes that no extern language rightfully has a "
                            * in its name, which is also an assumption of the lexer anyway */
@@ -121,8 +121,8 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                       }
 SIMCOST               { ECHO; return SIMCOST; }
 <*>"/*"               { YY_PUSH_STATE(comment);                            }
-<comment>[^*\n]*      {  /* Eat up non '*'s */                             }
-<comment>"*"+[^*/\n]* {  /* Eat '*'s not followed by a '/' */              }
+<comment>[^*\n\r]*    {  /* Eat up non '*'s */                             }
+<comment>"*"+[^*/\n\r]* {  /* Eat '*'s not followed by a '/' */              }
 <comment>"*"+"/"      { YY_POP_STATE();  /* Done with the comment BLOCK */ }
 <*>{WHITE}+           {  /* Eat multiple white-spaces */                   }
 <*>[0-9]+             { YYLVAL(number) = atol(yytext);
@@ -173,15 +173,15 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
 <body_init>{WHITE}*[\[] {
                            YY_PUSH_STATE(properties);
                            return PROPERTIES_ON;                           }
-<body_init>{WHITE}*\n {    current_lineno++;
+<body_init>{WHITE}*[\n\r] {    current_lineno++;
                            YY_POP_STATE();
                            YY_PUSH_STATE(body);                            }
 <body>^{WHITE}*(?i:end) { YY_POP_STATE();
                           YYLVAL(string) = extern_code(yytext, strlen(yytext) - 3, 1);
                           ECHO; return BODY_END;                           }
-<body>[^\n]*          { yymore();}
-<body>{WHITE}*\n      { yymore();}
-<body>"//".*\n        { yymore(); }
+<body>[^\n\r]*        { yymore();}
+<body>{WHITE}*[\n\r]  { yymore();}
+<body>"//".*[\n\r]    { yymore(); }
 ^%(?i:option)         { ECHO; return OPTION;                               }
 <*>"("                { ECHO; return OPEN_PAR;                             }
 <*>")"                { ECHO; return CLOSE_PAR;                            }
@@ -220,7 +220,7 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
 <*>\"                 { string_buf_ptr = string_buf;
                         YY_PUSH_STATE(dstr);                               }
 
-<dstr>\n              {
+<dstr>[\n\r]          {
                         /* error - unterminated string constant */
                         printf("Unterminated string constant at line %d\n", current_lineno);
                         exit(-1);                                          }
@@ -249,15 +249,15 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
 <dstr>\\b             { *string_buf_ptr++ = '\b';                          }
 <dstr>\\f             { *string_buf_ptr++ = '\f';                          }
 
-<dstr>\\(.|\n)        { *string_buf_ptr++ = yytext[1];                     }
+<dstr>\\(.|\n|\r)     { *string_buf_ptr++ = yytext[1];                     }
 
-<dstr>[^\\\n\"]+      {
+<dstr>[^\\\n\r\"]+    {
                         char *yptr = yytext;
                         while ( *yptr )
                             *string_buf_ptr++ = *yptr++;                   }
 
-<*>\n                 { current_lineno++;                                  }
-<*>"//".*\n           { current_lineno++;                                  }
+<*>[\n\r]             { current_lineno++;                                  }
+<*>"//".*[\n\r]       { current_lineno++;                                  }
 <*>[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)* {
                         YYLVAL(string) = strdup(yytext);
                         ECHO; return VAR;                                  }

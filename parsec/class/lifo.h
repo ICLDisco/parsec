@@ -696,12 +696,17 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_nolock_pop( parsec_lifo_t* li
  * @param[in] lifo the LIFO the element will be used with.
  * @return The element that was allocated.
  */
-LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* lifo, size_t truesize) {
+LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* lifo, size_t truesize)
+{
     void *elt = NULL;
+#if defined(WIN64)
+    elt = _aligned_malloc((truesize), PARSEC_LIFO_ALIGNMENT(lifo));
+#else
     int rc;
     rc = posix_memalign(&elt,
                         PARSEC_LIFO_ALIGNMENT(lifo), (truesize));
     assert( 0 == rc && NULL != elt ); (void)rc;
+#endif  /* WIN64 */
     PARSEC_OBJ_CONSTRUCT(elt, parsec_list_item_t);
     return (parsec_list_item_t*) elt;
 }

@@ -142,11 +142,11 @@ int main(int argc, char **argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     parsec_dtd_taskpool_insert_task(dtd_tp, task_rank_0,    0,  "task_rank_0",
-                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
+                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                     PARSEC_DTD_ARG_END);
     parsec_dtd_taskpool_insert_task(dtd_tp, task_rank_1,    0,  "task_rank_1",
-                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
-                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
+                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL,
+                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 1), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                     PARSEC_DTD_ARG_END);
 
     parsec_dtd_data_flush_all( dtd_tp, A );
@@ -216,11 +216,11 @@ int main(int argc, char **argv)
 
         for( j = 0; j < repeat_pingpong; j++ ) {
             parsec_dtd_taskpool_insert_task(dtd_tp, task_rank_0,    0,  "task_for_timing_0",
-                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
+                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                             PARSEC_DTD_ARG_END);
             parsec_dtd_taskpool_insert_task(dtd_tp, task_rank_1,    0,  "task_for_timing_1",
-                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
-                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
+                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL,
+                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 1), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                             PARSEC_DTD_ARG_END);
         }
         parsec_dtd_data_flush_all( dtd_tp, A );

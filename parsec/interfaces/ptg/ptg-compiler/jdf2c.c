@@ -117,8 +117,23 @@ static void coutput(const char *format, ...)
 
     if( len == -1 ) {
         fprintf(stderr, "Unable to ouptut a string: %s\n", strerror(errno));
-    } else {
+    } else if( 0 < len ) {
+#if defined(__WINDOWS__)  || defined(__MINGW64__) || defined(__CYGWIN__)
+        char *start = res, *end;
+        while( NULL != (end = strchr(start, '\n'))) {
+            if( (end != start) && (end[-1] != '\r')) {
+                fwrite(start, (end - start), 1, cfile);
+                fwrite("\r\n", 2, 1, cfile);
+            } else {
+                fwrite(start, (end - start) + 1, 1, cfile);
+            }
+            len -= (end - start) + 1;
+            start = end + 1;  /* skip the current \n */
+        }
+        fwrite(start, len, 1, cfile);
+#else
         fwrite(res, len, 1, cfile);
+#endif  /* defined(__WINDOWS__)  || defined(__MINGW64__) || defined(__CYGWIN__) */
         cfile_lineno += nblines(res);
         free(res);
     }
@@ -139,8 +154,23 @@ static void houtput(const char *format, ...)
 
     if( len == -1 ) {
         fprintf(stderr, "Unable to ouptut a string: %s\n", strerror(errno));
-    } else {
+    } else if( 0 < len ) {
+#if defined(__WINDOWS__)  || defined(__MINGW64__) || defined(__CYGWIN__)
+        char *start = res, *end;
+        while( NULL != (end = strchr(start, '\n'))) {
+            if( (end != start) && (end[-1] != '\r')) {
+                fwrite(start, (end - start), 1, hfile);
+                fwrite("\r\n", 2, 1, hfile);
+            } else {
+                fwrite(start, (end - start + 1), 1, hfile);
+            }
+            len -= (end - start) + 1;
+            start = end + 1;  /* skip the current \n */
+        }
+        fwrite(start, len, 1, hfile);
+#else
         fwrite(res, len, 1, hfile);
+#endif  /* defined(__WINDOWS__)  || defined(__MINGW64__) || defined(__CYGWIN__) */
         hfile_lineno += nblines(res);
         free(res);
     }
@@ -1438,7 +1468,11 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
             "#if defined(PARSEC_HAVE_CUDA)\n"
             "#include \"parsec/mca/device/cuda/device_cuda.h\"\n"
             "#endif  /* defined(PARSEC_HAVE_CUDA) */\n"
-            "#include <alloca.h>\n\n"
+            "#if defined(_MSC_VER) || defined(__MINGW32__)\n"
+            "#  include <malloc.h>\n"
+            "#else\n"
+            "#  include <alloca.h>\n"
+            "#endif  /* defined(_MSC_VER) || defined(__MINGW32__) */\n\n"
             "#define PARSEC_%s_NB_TASK_CLASSES %d\n"
             "#define PARSEC_%s_NB_DATA %d\n\n"
             "typedef struct __parsec_%s_internal_taskpool_s __parsec_%s_internal_taskpool_t;\n"
@@ -3247,7 +3281,10 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
                 } else {
                     if( dl->expr->local_variables != NULL ) {
                         char *vname;
-                        asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, dl->name);
+                        if( asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, dl->name) <= 0 ) {
+                            fprintf(stderr, "Cannot allocate internal memory for the PTG compiler\n");
+                            exit(-1);
+                        }
                         coutput("  int %s;\n", vname);
                         jdf_generate_range_min_without_fn(jdf, dl->expr, vname, "(&"JDF2C_NAMESPACE"_assignments)");
                         free(vname);
@@ -3324,7 +3361,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         dep_key_fn_name = strdup( jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL) );
     } else {
         if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE) {
-            asprintf(&dep_key_fn_name, "%s_%s_deps_key_functions", jdf_basename, fname);
+            if( asprintf(&dep_key_fn_name, "%s_%s_deps_key_functions", jdf_basename, fname) <= 0 ) {
+                fprintf(stderr, "Cannot allocate internal memory for the PTG compiler\n");
+                exit(-1);
+            }
             jdf_generate_deps_key_functions(jdf, f, dep_key_fn_name);
         }
     }
@@ -4672,7 +4712,10 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
                     } else {
                         if( dl->expr->local_variables != NULL ) {
                             char *vname;
-                            asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, dl->name);
+                            if( asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, dl->name) <= 0 ) {
+                                fprintf(stderr, "Cannot allocate internal memory for the PTG compiler\n");
+                                exit(-1);
+                            }
                             coutput("  int %s;\n", vname);
                             jdf_generate_range_min_without_fn(jdf, dl->expr, vname, "assignment");
                             free(vname);
@@ -7331,7 +7374,7 @@ int jdf_optimize( jdf_t* jdf )
 
 /** Main Function */
 
-#if defined(PARSEC_HAVE_INDENT)
+#if defined(PARSEC_HAVE_INDENT) && !(defined(__WINDOWS__) || defined(__MING64__) || defined(__CYGWIN__))
 #include <sys/wait.h>
 #endif
 
@@ -7344,7 +7387,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     cfile = NULL;
     hfile = NULL;
 
-#if defined(PARSEC_HAVE_INDENT)
+#if defined(PARSEC_HAVE_INDENT) && !(defined(__WINDOWS__) || defined(__MING64__) || defined(__CYGWIN__))
     /* When we apply indent/awk to the output of jdf2c, we need to make 
      * sure that the resultant file is flushed onto the filesystem before 
      * the rest of the compilation chain can takeover. An original version
@@ -7368,7 +7411,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
         perror("Creating pipe between jdf2c and indent");
         goto err;
     }
-    child = fork();;
+    child = fork();
     if( -1 == child ) {
         perror("Creating fork to run indent");
         goto err;
@@ -7447,7 +7490,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      * Dump the prologue section
      */
     if( NULL != jdf->prologue ) {
-        coutput("%s\n", jdf->prologue->external_code);
+        coutput("%s", jdf->prologue->external_code);
         if( !JDF_COMPILER_GLOBAL_ARGS.noline )
             coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
     }
@@ -7470,23 +7513,21 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      * Dump all the epilogue sections
      */
     if( NULL != jdf->epilogue ) {
-        coutput("%s\n", jdf->epilogue->external_code);
+        coutput("%s", jdf->epilogue->external_code);
         if( !JDF_COMPILER_GLOBAL_ARGS.noline )
             coutput("#line %d \"%s\"\n",cfile_lineno+1, jdf_cfilename);
     }
 
  err:
     if( NULL != cfile ) {
-        fsync(fileno(cfile));
         fclose(cfile);
     }
 
     if( NULL != hfile ) {
-        fsync(fileno(hfile));
         fclose(hfile);
     }
 
-#if defined(PARSEC_HAVE_INDENT)
+#if defined(PARSEC_HAVE_INDENT) && !(defined(__WINDOWS__) || defined(__MING64__) || defined(__CYGWIN__))
     /* wait for the indent command to generate the output files for us */
     if( -1 != child ) {
         waitpid(child, NULL, 0);

@@ -56,6 +56,10 @@
 #define PARSEC_UNLIKELY(x)     (x)
 #endif
 
+#if defined(__WINDOWS__)
+#define _CRT_RAND_S  
+#endif
+
 #if defined(PARSEC_HAVE_STDDEF_H)
 #include <stddef.h>
 #endif  /* PARSEC_HAVE_STDDEF_H */
@@ -169,7 +173,7 @@ typedef int32_t parsec_dependency_t;
 #    endif  /* defined(PARSEC_IMPORTS) */
 #    define PARSEC_MODULE_DECLSPEC
 #  endif  /* defined(_USRDLL) */
-#  include "parsec/win32/win_compat.h"
+#include "parsec/utils/win_compat.h"
 #else
 #  if defined(PARSEC_C_PARSEC_HAVE_VISIBILITY)
 #    define PARSEC_DECLSPEC           __parsec_attribute_visibility__("default")

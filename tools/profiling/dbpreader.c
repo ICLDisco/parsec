@@ -12,7 +12,9 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <errno.h>
+#if defined(PARSEC_PROFILING_USE_MMAP)
 #include <sys/mman.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>

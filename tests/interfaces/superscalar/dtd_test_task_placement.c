@@ -142,21 +142,21 @@ int main(int argc, char **argv)
         /* Testing AFFINITY flag with value */
         intended_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_task_placement,    0,  "task_task_placement",
-                                        sizeof(int),      &intended_rank,              VALUE | AFFINITY,
+                                        sizeof(int),      &intended_rank,              PARSEC_VALUE | PARSEC_AFFINITY,
                                         PARSEC_DTD_ARG_END);
 
         intended_rank = 2;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_task_placement,    0,  "task_task_placement",
-                                        sizeof(int),      &intended_rank,              VALUE | AFFINITY,
+                                        sizeof(int),      &intended_rank,              PARSEC_VALUE | PARSEC_AFFINITY,
                                         PARSEC_DTD_ARG_END);
 
 
         intended_rank = 1;
         printf("Using affinity with data residing in rank: %d\n", A->rank_of_key(A, 0));
         parsec_dtd_taskpool_insert_task(dtd_tp, task_precedence,    0,  "task_precedence",
-                                        sizeof(int),      &intended_rank,              VALUE | AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
-                                        sizeof(int),      &intended_rank,              VALUE | AFFINITY,
+                                        sizeof(int),      &intended_rank,               PARSEC_VALUE | PARSEC_AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
+                                        sizeof(int),      &intended_rank,               PARSEC_VALUE | PARSEC_AFFINITY,
                                         PARSEC_DTD_ARG_END);
 
         /* Data reside in rank 0 and we set the data to 20,
@@ -165,8 +165,8 @@ int main(int argc, char **argv)
          */
         intended_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_moving_data,    0,  "task_moving",
-                                        sizeof(int),      &intended_rank,    VALUE | AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
+                                        sizeof(int),      &intended_rank,    PARSEC_VALUE | PARSEC_AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL,
                                         PARSEC_DTD_ARG_END);
     }
 

@@ -139,7 +139,9 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
     o->key_to_string = vector_twoDBC_key_to_string;
     o->key_dim       = NULL;
     o->key           = NULL;
-    asprintf(&(o->key_dim), "(%d)", dc->super.lmt);
+    if( asprintf(&(o->key_dim), "(%d)", dc->super.lmt) <= 0 ) {
+        o->key_dim = NULL;
+    }
     dc->super.data_map = (parsec_data_t**)calloc(dc->super.nb_local_tiles, sizeof(parsec_data_t*));
 
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "vector_two_dim_cyclic_init: \n"
@@ -300,9 +302,9 @@ vector_twoDBC_key_to_string(struct parsec_data_collection_s* desc, parsec_data_k
     int res;
     (void)desc;
 
-    res = snprintf(buffer, buffer_size, "(%llu)", datakey);
+    res = snprintf(buffer, buffer_size, "(%"PRIu64")", datakey);
     if (res < 0) {
-        printf("error in key_to_string for data collection (%llu) key: %llu\n", desc->dc_id, datakey);
+        printf("error in key_to_string for data collection (%"PRIu64") key: %"PRIu64"\n", desc->dc_id, datakey);
     }
     return res;
 }

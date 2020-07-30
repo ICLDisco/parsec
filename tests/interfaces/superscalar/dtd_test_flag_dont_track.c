@@ -87,7 +87,7 @@ int main(int argc, char ** argv)
 
 
     if( 0 == rank ) {
-        parsec_output( 0, "\nChecking DONT_TRACK flag. "
+        parsec_output( 0, "\nChecking PARSEC_DONT_TRACK flag. "
                        "We insert %d tasks and increase a counter to see if %d task executed sequentially or not\n\n", total_tasks, total_tasks );
     }
 
@@ -100,7 +100,7 @@ int main(int argc, char ** argv)
     for( i = 0; i < total_tasks; i++ ) {
         /* This task does not have any data associated with it, so it will be inserted in all mpi processes */
         parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_dont_track,    0,  "sample_task",
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | DONT_TRACK | AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | PARSEC_DONT_TRACK | PARSEC_AFFINITY,
                                         PARSEC_DTD_ARG_END);
     }
 

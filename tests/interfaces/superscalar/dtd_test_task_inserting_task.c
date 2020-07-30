@@ -102,9 +102,9 @@ int main(int argc, char ** argv)
 
     for( m = 0; m < no_of_tasks; m++ ) {
         parsec_dtd_taskpool_insert_task( dtd_tp, task_to_insert_task,    0,  "Task_inserting_Task",
-                           sizeof(int),      &total_tasks,        VALUE,
-                           sizeof(int),      &count,              REF,
-                           sizeof(int),      &increment,          VALUE,
+                           sizeof(int),      &total_tasks, PARSEC_VALUE,
+                           sizeof(int),      &count,       PARSEC_REF,
+                           sizeof(int),      &increment,   PARSEC_VALUE,
                            PARSEC_DTD_ARG_END );
     }
 

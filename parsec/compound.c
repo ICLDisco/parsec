@@ -104,7 +104,10 @@ parsec_compose( parsec_taskpool_t* start,
         compound->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_COMPOUND;
         compound->taskpool_array = malloc(16 * sizeof(parsec_taskpool_t*));
         assert(NULL == compound->super.taskpool_name);
-        asprintf(&compound->super.taskpool_name, "Compound Taskpool %d", next->taskpool_id);
+        if( asprintf(&compound->super.taskpool_name, "Compound Taskpool %d",
+                     next->taskpool_id) <= 0 ) {
+            compound->super.taskpool_name = NULL;
+        }
 
         compound->taskpool_array[0] = start;
         compound->taskpool_array[1] = next;

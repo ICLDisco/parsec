@@ -971,7 +971,8 @@ variable: VAR
         | variable ARROW VAR
             {
                  char* tmp = NULL;
-                 asprintf(&tmp, "%s->%s", $1->jdf_var, $3);
+                 if( asprintf(&tmp, "%s->%s", $1->jdf_var, $3) <= 0 )
+                     tmp = NULL;
                  free($1->jdf_var);
                  $1->jdf_var = tmp;
                  $$ = $1;

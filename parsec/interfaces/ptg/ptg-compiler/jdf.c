@@ -1558,13 +1558,11 @@ int jdf_function_property_is_keyword(const char *name)
 
 int jdf_assign_ldef_index(jdf_function_entry_t *f)
 {
+    int nb_ldef_for_locals, nb_ldef_for_deps, nb_ldef_for_calls = 0;
     jdf_expr_t *ld;
     jdf_def_list_t *dl;
     jdf_dataflow_t *fl;
     jdf_dep_t *dep;
-    int nb_ldef_for_locals;
-    int nb_ldef_for_deps;
-    int nb_ldef_for_calls;
 
     f->nb_max_local_def = 0;
     

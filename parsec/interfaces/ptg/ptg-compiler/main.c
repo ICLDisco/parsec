@@ -101,30 +101,23 @@ static char** prepare_execv_arguments(void)
     char** include_argv = parsec_argv_split(CMAKE_PARSEC_C_INCLUDES, ';');
 
     /* Let's prepare the include_argv by prepending -I to each one */
-    int i, token_count = parsec_argv_count(include_argv);
-    for( i = 0; i < token_count; i++ ) {
-        char* temp = include_argv[i];
-        asprintf(&include_argv[i], "-I%s", temp);
-        free(temp);
-    }
-
-    token_count = 5 + (parsec_argv_count(flags_argv) +
-                       parsec_argv_count(include_argv) +
-                       parsec_argv_count(extra_argv));
+    int i, token_count = 0;
     char** exec_argv = NULL;
 
     /* Now let's join all arguments together */
-    token_count = 0;
     parsec_argv_append(&token_count, &exec_argv, CMAKE_PARSEC_C_COMPILER);
     for( i = 0; i < parsec_argv_count(flags_argv); ++i ) {
         parsec_argv_append(&token_count, &exec_argv, flags_argv[i]);
     }
-    free(flags_argv);
+    parsec_argv_free(flags_argv);
 
     for( i = 0; i < parsec_argv_count(include_argv); ++i ) {
-        parsec_argv_append(&token_count, &exec_argv, include_argv[i]);
+        char* temp;
+        asprintf(&temp, "-I%s", include_argv[i]);
+        parsec_argv_append(&token_count, &exec_argv, temp);
+        free(temp);
     }
-    free(include_argv);
+    parsec_argv_free(include_argv);
 
     for( i = 0; i < parsec_argv_count(extra_argv); ++i ) {
         parsec_argv_append(&token_count, &exec_argv, extra_argv[i]);
@@ -356,7 +349,7 @@ static void parse_args(int argc, char *argv[])
         for( int i = 0; i < parsec_argv_count(exec_argv); ++i )
             fprintf(stderr, "%s ", exec_argv[i]);
         fprintf(stderr, "\n");
-        free(exec_argv);
+        parsec_argv_free(exec_argv);
         exit(0);
     }
 }
@@ -428,7 +421,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\n");
         execv(exec_argv[0], exec_argv);
         fprintf(stderr, "Compilation failed with error %d (%s)\n", errno, strerror(errno));
-        free(exec_argv);
+        parsec_argv_free(exec_argv);
         return -1;
     }
 
