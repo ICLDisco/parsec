@@ -29,7 +29,7 @@
 
 static int parsec_cuda_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice);
 
-static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 32, 35, 37, 50, 52, 53, 60, 61, 62, 70};
+static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 32, 35, 37, 50, 52, 53, 60, 61, 62, 70, 75};
 
 static int
 parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
@@ -84,13 +84,14 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
         *hrate = 256;
         *trate = *srate = 128;
         *drate = 4;
-    } else if (major == 7 && minor == 0) {
+    } else if ((major == 7 && minor == 0) ||
+               (major == 7 && minor == 5)) {
         *hrate = 128;
         *trate = 512;
         *srate = 64;
         *drate = 32;
     } else {
-        parsec_debug_verbose(3, parsec_cuda_output_stream, "Unsupported GPU %d, %d, skipping.", major, minor);
+        parsec_warning("Unsupported GPU %d, %d, skipping.", major, minor);
         return PARSEC_ERROR;
     }
     return PARSEC_SUCCESS;
