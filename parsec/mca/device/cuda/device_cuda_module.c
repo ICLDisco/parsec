@@ -28,8 +28,14 @@
 #include <cuda_runtime_api.h>
 
 static int parsec_cuda_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice);
-
-static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 32, 35, 37, 50, 52, 53, 60, 61, 62, 70};
+/**
+ * According to
+ * https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#gpu-feature-list
+ * and
+ * https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#virtual-architecture-feature-list
+ * we should limit the list of supported architectures to more recent setups.
+ */
+static int cuda_legal_compute_capabilitites[] = {35, 37, 50, 52, 53, 60, 61, 62, 70, 72, 75, 80};
 
 static int
 parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
@@ -46,27 +52,24 @@ parsec_cuda_flush_lru( parsec_device_cuda_module_t *device );
  * The following table provides updated values for future archs
  * http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#arithmetic-instructions
  */
-static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *drate, int *srate, int *trate, int *hrate) {
-    if( major == 1 ) {
-        *hrate = *trate = *srate = 8;
-        *drate = 1;
-    } else if (major == 2 && minor == 0) {
-        *hrate = *trate = *srate = 32;
-        *drate = 16;
-    } else if (major == 2 && minor == 1) {
-        *hrate = *trate = *srate = 48;
-        *drate = 4;
-    } else if ((major == 3 && minor == 0) ||
-               (major == 3 && minor == 2)) {
-        *hrate = *trate = *srate = 192;
+static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *drate, int *srate, int *trate, int *hrate)
+{
+    /* Some sane defaults for unknown architectures */
+    *srate = 8;
+    *drate = 1;
+    *hrate = *trate = 0;  /* not supported */
+
+    if ((major == 3 && minor == 0) ||
+        (major == 3 && minor == 2)) {
+        *srate = 192;
         *drate = 8;
     } else if ((major == 3 && minor == 5) ||
                (major == 3 && minor == 7)) {
-        *hrate = *trate = *srate = 192;
+        *srate = 192;
         *drate = 64;
     } else if ((major == 5 && minor == 0) ||
                (major == 5 && minor == 2)) {
-        *hrate = *trate = *srate = 128;
+        *srate = 128;
         *drate = 4;
     } else if (major == 5 && minor == 3) {
         *hrate = 256;
@@ -74,23 +77,39 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
         *drate = 4;
     } else if (major == 6 && minor == 0) {
         *hrate = 128;
-        *trate = *srate = 64;
+        *srate = 64;
         *drate = 32;
     } else if (major == 6 && minor == 1) {
         *hrate = 2;
-        *trate = *srate = 128;
+        *srate = 128;
         *drate = 4;
     } else if (major == 6 && minor == 2) {
         *hrate = 256;
-        *trate = *srate = 128;
+        *srate = 128;
         *drate = 4;
     } else if (major == 7 && minor == 0) {
         *hrate = 128;
         *trate = 512;
         *srate = 64;
         *drate = 32;
-    } else {
-        parsec_debug_verbose(3, parsec_cuda_output_stream, "Unsupported GPU %d, %d, skipping.", major, minor);
+    } else if (major == 7 && minor == 5) {
+        *hrate = 128;
+        *trate = 512;
+        *srate = 64;
+        *drate = 2;
+    } else if (major == 8 && minor == 0) {
+        *hrate = 256;
+        *trate = 512;
+        *srate = 64;
+        *drate = 32;
+    } else {  /* Unknown device */
+        if( major >= 8 ) {  /* If more recent than 8.0 let's assume the performance will not decrease */
+            *hrate = 256;
+            *trate = 512;
+            *srate = 64;
+            *drate = 32;
+        }
+        parsec_warning("Unsupported GPU %d, %d, skipping.", major, minor);
         return PARSEC_ERROR;
     }
     return PARSEC_SUCCESS;
@@ -158,7 +177,7 @@ void* cuda_find_incarnation(parsec_device_cuda_module_t* gpu_device,
                             const char* fname)
 {
     char library_name[FILENAME_MAX], function_name[FILENAME_MAX], *env;
-    int i, index, capability = gpu_device->major * 10 + gpu_device->minor;
+    int index, capability = gpu_device->major * 10 + gpu_device->minor;
     cudaError_t status;
     void *fn = NULL;
     char** argv = NULL;
@@ -166,15 +185,17 @@ void* cuda_find_incarnation(parsec_device_cuda_module_t* gpu_device,
     status = cudaSetDevice( gpu_device->cuda_index );
     PARSEC_CUDA_CHECK_ERROR( "(cuda_find_incarnation) cudaSetDevice ", status, {continue;} );
 
-    for( i = 0, index = -1; i < (int)(sizeof(cuda_legal_compute_capabilitites)/sizeof(int)); i++ ) {
-        if(cuda_legal_compute_capabilitites[i] == capability) {
-            index = i;
+    for( index = 0; index < (int)(sizeof(cuda_legal_compute_capabilitites)/sizeof(int)); index++ ) {
+        if(cuda_legal_compute_capabilitites[index] >= capability) {
             break;
         }
     }
-    if( -1 == index ) {  /* This shouldn't have happened */
-        return NULL;
-    }
+    /* Current position is either equal or larger than the current capability,
+     * so we need to move one position back for the next iteration, such that
+     * the first test is with the device capability and then we fall back on
+     * the list of supported architectures.
+     */
+    index--;
 
     /**
      * Prepare the list of PATH or FILE to be searched for a CUDA shared library.
@@ -188,16 +209,8 @@ void* cuda_find_incarnation(parsec_device_cuda_module_t* gpu_device,
         argv = parsec_argv_split(cuda_lib_path, ';');
     }
 
+    snprintf(function_name, FILENAME_MAX, "%s_sm%2d", fname, capability);
   retry_lesser_sm_version:
-    if( -1 == index ) {
-        capability = 0;
-        snprintf(function_name, FILENAME_MAX, "%s", fname);
-    }
-    else {
-        capability = cuda_legal_compute_capabilitites[index];
-        snprintf(function_name, FILENAME_MAX, "%s_sm%2d", fname, capability);
-    }
-
     /* Try this by default, if not present its fine. CUCORES_LIB above can
      * contain a path to the fully named library if this default does not make
      * sense. */
@@ -208,9 +221,16 @@ void* cuda_find_incarnation(parsec_device_cuda_module_t* gpu_device,
         parsec_debug_verbose(10, parsec_cuda_output_stream,
                             "No function %s found for CUDA device %s",
                             function_name, gpu_device->super.name);
-        index--;
-        if(-1 <= index)
+        if( -1 <= index ) {  /* we bail out at -2 */
+            if( -1 == index ) {
+                snprintf(function_name, FILENAME_MAX, "%s", fname);
+            } else {
+               capability = cuda_legal_compute_capabilitites[index];
+               snprintf(function_name, FILENAME_MAX, "%s_sm%2d", fname, capability);
+            }
+            index--;
             goto retry_lesser_sm_version;
+        }
     }
 
     if( NULL != argv )
@@ -416,7 +436,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     gpu_device->super.memory_release      = (parsec_device_memory_release_f)parsec_cuda_flush_lru;
 
     if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERROR ) {
-        goto release_device;
+        parsec_warning( "Device %s with capabilities %d.%d not fully configured in PaRSEC. This run "
+                        "performance might be negatively impacted. Please contact the PaRSEC runtime "
+                        "developers", gpu_device->super.name, major, minor );
     }
     gpu_device->super.device_hweight = (float)streaming_multiprocessor * (float)hrate * (float)clockRate * 2e-3f;
     gpu_device->super.device_tweight = (float)streaming_multiprocessor * (float)trate * (float)clockRate * 2e-3f;

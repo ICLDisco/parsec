@@ -33,7 +33,6 @@ static void destruct_cublas_handle(void *p)
 parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb )
 {
     parsec_nvlink_taskpool_t* testing_handle = NULL;
-    parsec_arena_datatype_t adt;
     int *dev_index, nb, dev, i;
     two_dim_block_cyclic_t *dcA;
 
@@ -87,8 +86,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
 
     testing_handle = parsec_nvlink_new(dcA, ctx->nb_nodes, CuHI, nb, dev_index);
 
-    adt = testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ARENA];
-    parsec_matrix_add2arena( &adt, parsec_datatype_double_complex_t,
+    parsec_matrix_add2arena( &testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ARENA], parsec_datatype_double_complex_t,
                              matrix_UpperLower, 1, mb, mb, mb,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
