@@ -1,14 +1,11 @@
 /*
- * Copyright (c) 2012-2019 The University of Tennessee and The University
+ * Copyright (c) 2012-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "pins_print_steals.h"
 #include "parsec/mca/pins/pins.h"
-#ifdef PARSEC_HAVE_PAPI
-#include <papi.h>
-#endif
 #include "parsec/utils/debug.h"
 #include "parsec/execution_stream.h"
 
