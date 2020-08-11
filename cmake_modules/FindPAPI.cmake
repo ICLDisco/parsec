@@ -39,7 +39,7 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(PAPI DEFAULT_MSG
                                   PAPI_LIBRARY PAPI_INCLUDE_DIR )
 if( PAPI_FOUND )
-  message(STATUS "The PAPI Library is found at ${PAPI_LIBRARY}")
+    message(STATUS "PAPI Library found at ${PAPI_INCLUDE_DIR} ${PAPI_LIBRARY}")
 
   #===============================================================================
   # Importing PAPI as a cmake target
