@@ -137,6 +137,8 @@ void parsec_pins_disable_registration(int disable);
 
 int parsec_pins_is_module_enabled(char * module_name);
 
+int parsec_pins_nb_modules_enabled(void);
+
 int parsec_pins_register_callback(struct parsec_execution_stream_s* es,
                            PARSEC_PINS_FLAG method_flag,
                            parsec_pins_callback cb,

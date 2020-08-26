@@ -235,12 +235,13 @@ task_profiler_exec_count_begin(struct parsec_execution_stream_s*   es,
                                struct parsec_task_s*               task,
                                struct parsec_pins_next_callback_s* cb_data)
 {
-    if (NULL != task->taskpool->profiling_array)
+    if (NULL != task->taskpool->profiling_array &&
+        task->task_class->task_class_id < task->taskpool->nb_task_classes)
         PARSEC_PROFILING_TRACE(es->es_profile,
-                               task->taskpool->profiling_array[2 * task->task_class->task_class_id],
-                               task->task_class->key_functions->key_hash(task->task_class->make_key(task->taskpool, task->locals), NULL),
-                               task->taskpool->taskpool_id,
-                               (void *)NULL);
+                               task->taskpool->profiling_array[2*task->task_class->task_class_id],
+                               task->task_class->key_functions->key_hash(
+                                       task->task_class->make_key( task->taskpool, task->locals ), NULL),
+                               task->taskpool->taskpool_id, NULL);
     (void)cb_data;
 }
 
@@ -249,12 +250,11 @@ task_profiler_exec_count_end(struct parsec_execution_stream_s*   es,
                              struct parsec_task_s*               task,
                              struct parsec_pins_next_callback_s* cb_data)
 {
-    if (NULL != task->taskpool->profiling_array)
-        PARSEC_PROFILING_TRACE(es->es_profile,
-                               task->taskpool->profiling_array[1 + 2 * task->task_class->task_class_id],
-                               task->task_class->key_functions->key_hash(task->task_class->make_key(task->taskpool, task->locals), NULL),
-                               task->taskpool->taskpool_id,
-                               (void *)NULL);
+    if (NULL != task->taskpool->profiling_array &&
+        task->task_class->task_class_id < task->taskpool->nb_task_classes)
+        PARSEC_TASK_PROF_TRACE(es->es_profile,
+                               task->taskpool->profiling_array[2*task->task_class->task_class_id+1],
+                               task);
     (void)cb_data;
 }
 

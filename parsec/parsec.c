@@ -348,6 +348,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char **env_variable, *env_name, *env_value;
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_warning = 0;
+    int profiling_enabled = 0;
 
     gethostname(parsec_hostname_array, sizeof(parsec_hostname_array));
 
@@ -637,6 +638,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
         if( ret != 0 ) {
             parsec_warning("Profiling framework deactivated because of error %s.", parsec_profiling_strerror());
+        } else {
+            profiling_enabled = 1;
         }
 
         l = strlen(parsec_app_name);  /* use the known application name */
@@ -709,8 +712,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Introduce communication engine */
     (void)parsec_remote_dep_init(context);
 
-    /* Initialize Performance Instrumentation (PARSEC_PINS) */
     PARSEC_PINS_INIT(context);
+    if(profiling_enabled && (0 == parsec_pins_nb_modules_enabled())) {
+        if(parsec_debug_rank == 0)
+            parsec_warning("*** PaRSEC Profiling warning: creating profile file as requested,\n"
+                           "*** but no PINS module is enabled, so the file will probably be empty\n"
+                           "*** Activate the MCA PINS Module task_profiler to get the previous behavior\n"
+                           "***   ( --mca mca_pins task_profiler )\n");
+    }
 
 #if defined(PARSEC_PROF_GRAPHER)
     if(parsec_enable_dot) {

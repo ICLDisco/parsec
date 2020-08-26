@@ -768,7 +768,7 @@ cdef class ExtendedEvent:
                 self.fmt += b"b"
             elif ev_type == 'uint8_t' or ev_type == 'unsigned char':
                 self.fmt += b"B"
-            elif ev_type == ' int16_t' or ev_type == 'short':
+            elif ev_type == 'int16_t' or ev_type == 'short':
                 self.fmt += b"h"
             elif ev_type == 'uint16_t' or ev_type == 'unsigned short':
                 self.fmt += b"H"

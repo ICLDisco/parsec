@@ -5658,6 +5658,7 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
                 "  this_task->prof_info.desc = (parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s;\n"
                 "  this_task->prof_info.data_id   = ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->data_key((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
                 "  this_task->prof_info.task_class_id = this_task->task_class->task_class_id;\n"
+                "  this_task->prof_info.task_return_code = -1;\n"
                 "#endif  /* defined(PARSEC_PROF_TRACE) */\n",
                 f->predicate->func_or_mem,
                 f->predicate->func_or_mem, f->predicate->func_or_mem,
@@ -6121,12 +6122,6 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     jdf_generate_code_dry_run_before(jdf, f);
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
 
-    if( profile_on ) {
-        coutput("  PARSEC_TASK_PROF_TRACE(es->es_profile,\n"
-                "                         this_task->taskpool->profiling_array[2*this_task->task_class->task_class_id],\n"
-                "                         (parsec_task_t*)this_task);\n");
-    }
-
     coutput("%s\n", body->external_code);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
         coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
@@ -6194,12 +6189,6 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
                     fl->varname, fl->varname,
                     fl->varname, fl->varname );
         }
-    }
-
-    if( profile_on ) {
-        coutput("  PARSEC_TASK_PROF_TRACE(es->es_profile,\n"
-                "                         this_task->taskpool->profiling_array[2*this_task->task_class->task_class_id+1],\n"
-                "                         (parsec_task_t*)this_task);\n");
     }
 
     /* TODO: The data could be on the GPU */

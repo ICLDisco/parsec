@@ -231,3 +231,12 @@ int parsec_pins_is_module_enabled(char * name)
     }
     return 0; /* no, this module is not enabled */
 }
+
+/*
+ * This function is used to check that at least one module is on, when
+ * tracing to a file, or the file will mostly be empty.
+ */
+int parsec_pins_nb_modules_enabled(void)
+{
+    return num_modules_activated;
+}

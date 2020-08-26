@@ -367,10 +367,11 @@ typedef struct {
 typedef struct {
     struct parsec_data_collection_s *desc;
     uint32_t                         data_id;
-    int32_t                          task_class_id;
+    int16_t                          task_class_id;
+    int16_t                          task_return_code;
 } parsec_task_prof_info_t;    
 
-#define PARSEC_TASK_PROF_INFO_CONVERTOR "dc_key{uint64_t};dc_dataid{uint32_t};tcid{int32_t}"
+#define PARSEC_TASK_PROF_INFO_CONVERTOR "dc_key{uint64_t};dc_dataid{uint32_t};tcid{int16_t};trc{int16_t}"
 
 /**
  * @brief String used to identify GPU streams
