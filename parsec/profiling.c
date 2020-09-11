@@ -567,7 +567,7 @@ void parsec_profiling_start(void)
 parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const char *format, ...)
 {
     va_list ap;
-    parsec_thread_profiling_t *res;
+    parsec_thread_profiling_t *res, *ctx;
     int rc;
 
     if( !__profile_initialized ) return NULL;
@@ -585,7 +585,9 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
         fprintf(stderr, "*** %s\n", parsec_profiling_strerror());
         return NULL;
     }
-    PARSEC_TLS_SET_SPECIFIC(tls_profiling, res);
+    ctx = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
+    if( NULL != ctx )
+        PARSEC_TLS_SET_SPECIFIC(tls_profiling, res);
 
     res->tls_storage = malloc(sizeof(tl_freelist_t));
     tl_freelist_t *t_fl = (tl_freelist_t*)res->tls_storage;

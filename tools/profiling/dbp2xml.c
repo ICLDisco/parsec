@@ -41,6 +41,23 @@ static void output(const char *format, ...)
     va_end(ap);
 }
 
+static void dump_info(FILE *tracefile, const dbp_event_t *e, const dbp_multifile_reader_t *dbp)
+{
+    static char *infostr = NULL;
+    static int infostr_len = 0;
+    int len = dbp_event_info_len(e, dbp);
+    int k;
+    unsigned char *nfo = dbp_event_get_info( e );
+    if(3*len+1 > infostr_len) {
+        infostr = realloc(infostr, 3 * len + 1);
+        infostr_len = 3*len+1;
+    }
+    for(k = 0; k < len; k++) {
+        snprintf(infostr + 3*k, 4, "%02X ", nfo[k]);
+    }
+    fprintf(tracefile, "                     <INFO><![CDATA[%s]]></INFO>\n", infostr);
+}
+
 static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, const dbp_thread_t *th)
 {
     int displayed_key, k;
@@ -85,10 +102,10 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
                             start, end);
 
                     if( dbp_event_get_flags( e ) & PARSEC_PROFILING_EVENT_HAS_INFO ) {
-                        /** TODO fprintf(tracefile, "       <INFO><![CDATA[%s]]></INFO>\n", infostr); */
+                        dump_info(tracefile, e, dbp);
                     }
                     if( dbp_event_get_flags( g ) & PARSEC_PROFILING_EVENT_HAS_INFO ) {
-                        /** TODO fprintf(tracefile, "       <INFO ATEND=\"true\"><![CDATA[%s]]></INFO>\n", infostr); */
+                        dump_info(tracefile, g, dbp);
                     }
                     fprintf(tracefile, "                  </EVENT>\n");
 
@@ -108,7 +125,50 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
             "            </THREAD>\n");
 }
 
-static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp )
+static void dump_one_xml_raw(FILE *tracefile, const dbp_multifile_reader_t *dbp, const dbp_thread_t *th)
+{
+    uint64_t t;
+    int k;
+    dbp_event_iterator_t *it;
+    const dbp_event_t *e;
+    dbp_dictionary_t *dic;
+    char *ks;
+
+    fprintf(tracefile,
+            "            <THREAD>\n"
+            "               <IDENTIFIER><![CDATA[%s]]></IDENTIFIER>\n", dbp_thread_get_hr_id(th) );
+
+    it = dbp_iterator_new_from_thread( th );
+    while( (e = dbp_iterator_current(it)) != NULL ) {
+        t = dbp_event_get_timestamp( e );
+        k = dbp_event_get_key(e);
+        if( BASE_KEY(k) > 0 && BASE_KEY(k) < dbp_reader_nb_dictionary_entries(dbp) ) {
+           dic =  dbp_reader_get_dictionary(dbp, BASE_KEY(k));
+           ks = dbp_dictionary_name(dic);
+        } else {
+            ks = "Undefined Entry";
+        }
+        fprintf(tracefile,
+                "               <EVENT>\n"
+                "                     <DICT_KEY>%d (%s of %d -- %s)</DIT_KEY>\n"
+                "                     <ID>%"PRIu32":%"PRIu64"</ID>\n"
+                "                     <TIME>%"PRIu64"</TIME>\n",
+                k, KEY_IS_START(k) ? "start" : "end", BASE_KEY(k), ks,
+                dbp_event_get_taskpool_id(e),
+                dbp_event_get_event_id( e ),
+                t);
+
+        if( dbp_event_get_flags( e ) & PARSEC_PROFILING_EVENT_HAS_INFO ) {
+            dump_info(tracefile, e, dbp);
+        }
+        fprintf(tracefile, "                  </EVENT>\n");
+        dbp_iterator_next(it);
+    }
+    fprintf(tracefile,
+            "            </THREAD>\n");
+}
+
+static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp, int raw )
 {
     int i, ifd, t;
     dbp_file_t *file;
@@ -163,8 +223,14 @@ static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp )
 
         fprintf(tracefile, "         <PROFILES>\n");
 
-        for(t = 0; t < dbp_file_nb_threads(file); t++) {
-            dump_one_xml(tracefile, dbp, dbp_file_get_thread(file, t));
+        if( raw ) {
+            for (t = 0; t < dbp_file_nb_threads(file); t++) {
+                dump_one_xml_raw(tracefile, dbp, dbp_file_get_thread(file, t));
+            }
+        } else {
+            for (t = 0; t < dbp_file_nb_threads(file); t++) {
+                dump_one_xml(tracefile, dbp, dbp_file_get_thread(file, t));
+            }
         }
         fprintf(tracefile,
                 "         </PROFILES>\n"
@@ -180,10 +246,30 @@ static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp )
 int main(int argc, char *argv[])
 {
     dbp_multifile_reader_t *dbp;
+    int raw = 0;
+    char **files;
+    int nbfiles;
 
-    dbp = dbp_reader_open_files(argc-1, argv+1);
+    nbfiles = argc-1;
+    files = argv+1;
 
-    dump_xml( "out.xml", dbp);
+    if( argc < 2 ) {
+        fprintf(stderr,
+                "Usage: %s [-raw] file1 file2 ...\n"
+                "  -raw: dump each event individually, even if it is corrupted\n"
+                "  default: dump pairs of events, as matched by the matching rules\n"
+                " Output is out.xml\n", argv[0]);
+        exit(1);
+    }
+    if( strcmp(argv[1], "-raw") == 0 ) {
+        nbfiles--;
+        files++;
+        raw = 1;
+    }
+
+    dbp = dbp_reader_open_files(nbfiles, files);
+
+    dump_xml( "out.xml", dbp, raw);
 
     dbp_reader_close_files(dbp);
     free(dbp);
