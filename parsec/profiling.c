@@ -80,7 +80,6 @@ typedef struct tl_freelist_s {
 static int parsec_profiling_per_thread_buffer_freelist_min = 2;
 
 static tl_freelist_t *default_freelist = NULL;
-#define TLS_STORAGE(t)  ( (tl_freelist_t*)((t)->tls_storage) )
 
 static parsec_profiling_buffer_t *allocate_empty_buffer(tl_freelist_t *fl, off_t *offset, char type);
 
@@ -564,39 +563,32 @@ void parsec_profiling_start(void)
     parsec_start_time = take_time();
 }
 
-parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const char *format, ...)
+parsec_thread_profiling_t* parsec_profiling_stream_create( size_t length, const char *stream_name)
 {
-    va_list ap;
-    parsec_thread_profiling_t *res, *ctx;
+    parsec_thread_profiling_t *sprof;
     int rc;
 
     if( !__profile_initialized ) return NULL;
     if( -1 == file_backend_fd ) {
-        set_last_error("Profiling system: parsec_profiling_thread_init: call before parsec_profiling_dbp_start");
+        set_last_error("Profiling system: parsec_profiling_stream_create: call before parsec_profiling_dbp_start");
         return NULL;
     }
-    /*  Remark: maybe calloc would be less perturbing for the measurements,
-     *  if we consider that we don't care about the _init phase, but only
-     *  about the measurement phase that happens later.
-     */
-    res = (parsec_thread_profiling_t*)malloc( sizeof(parsec_thread_profiling_t) + length );
-    if( NULL == res ) {
-        set_last_error("Profiling system: parsec_profiling_thread_init: unable to allocate %u bytes", length);
+
+    sprof = (parsec_thread_profiling_t*)malloc( sizeof(parsec_thread_profiling_t) + length );
+    if( NULL == sprof ) {
+        set_last_error("Profiling system: parsec_profiling_stream_create: unable to allocate %u bytes", length);
         fprintf(stderr, "*** %s\n", parsec_profiling_strerror());
         return NULL;
     }
-    ctx = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
-    if( NULL != ctx )
-        PARSEC_TLS_SET_SPECIFIC(tls_profiling, res);
 
-    res->tls_storage = malloc(sizeof(tl_freelist_t));
-    tl_freelist_t *t_fl = (tl_freelist_t*)res->tls_storage;
+    sprof->buffers_freelist = (tl_freelist_t*)malloc(sizeof(tl_freelist_t));
+    tl_freelist_t *t_fl = sprof->buffers_freelist;
     tl_freelist_buffer_t *e;
     pthread_mutex_init(&t_fl->lock, NULL);
     e = (tl_freelist_buffer_t*)do_allocate_new_buffer();
     if( NULL == e ) {
-        free(res->tls_storage);
-        free(res);
+        free(sprof->buffers_freelist);
+        free(sprof);
         return NULL;
     }
     e->next = NULL;
@@ -610,29 +602,49 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
         t_fl->nb_allocated++;
     }
 
-    PARSEC_OBJ_CONSTRUCT(res, parsec_list_item_t);
-    va_start(ap, format);
-    rc = vasprintf(&res->hr_id, format, ap); assert(rc!=-1); (void)rc;
-    va_end(ap);
+    PARSEC_OBJ_CONSTRUCT(sprof, parsec_list_item_t);
+    sprof->hr_id = (char*)stream_name;  /* the array is in fact const */
 
     assert( event_buffer_size != 0 );
     /* To trigger a buffer allocation at first creation of an event */
-    res->next_event_position = event_buffer_size;
-    res->nb_events = 0;
+    sprof->next_event_position = event_buffer_size;
+    sprof->nb_events = 0;
 
-    res->infos = NULL;
+    sprof->infos = NULL;
 
-    res->first_events_buffer_offset = (off_t)-1;
-    res->current_events_buffer = NULL;
+    sprof->first_events_buffer_offset = (off_t)-1;
+    sprof->current_events_buffer = NULL;
 
-    parsec_list_push_back( &threads, (parsec_list_item_t*)res );
+    parsec_list_push_back( &threads, (parsec_list_item_t*)sprof );
 
     /* Allocate the first page to save time on the first event tracing */
-    switch_event_buffer(res);
+    switch_event_buffer(sprof);
 
-    memset(res->thread_perf, 0, sizeof(parsec_profiling_perf_t)*PERF_MAX);
+    memset(sprof->thread_perf, 0, sizeof(parsec_profiling_perf_t)*PERF_MAX);
 
-    return res;
+    return sprof;
+}
+
+parsec_thread_profiling_t* parsec_profiling_thread_init( size_t length, const char *format, ...)
+{
+    parsec_thread_profiling_t *tprof;
+    char* stream_name;
+    va_list ap;
+    int rc;
+
+    va_start(ap, format);
+    rc = vasprintf(&stream_name, format, ap); assert(rc!=-1); (void)rc;
+    va_end(ap);
+
+    tprof = parsec_profiling_stream_create(length, stream_name);
+    if( NULL == tprof ) {
+        free(stream_name);
+        return NULL;
+    }
+    if( NULL != PARSEC_TLS_GET_SPECIFIC(tls_profiling) )
+        PARSEC_TLS_SET_SPECIFIC(tls_profiling, tprof);
+
+    return tprof;
 }
 
 int parsec_profiling_fini( void )
@@ -649,7 +661,7 @@ int parsec_profiling_fini( void )
     }
 
     while( (t = (parsec_thread_profiling_t*)parsec_list_nolock_pop_front(&threads)) ) {
-        tl_freelist_t *fl = TLS_STORAGE(t);
+        tl_freelist_t *fl = t->buffers_freelist;
         tl_freelist_buffer_t *b;
         while(fl->first != NULL) {
             b = fl->first;
@@ -912,7 +924,7 @@ static int switch_event_buffer( parsec_thread_profiling_t *context )
     parsec_profiling_buffer_t *old_buffer;
     off_t off;
 
-    new_buffer = allocate_empty_buffer((tl_freelist_t*)context->tls_storage, &off, PROFILING_BUFFER_TYPE_EVENTS);
+    new_buffer = allocate_empty_buffer(context->buffers_freelist, &off, PROFILING_BUFFER_TYPE_EVENTS);
 
     old_buffer = context->current_events_buffer;
     if( NULL == old_buffer ) {
@@ -920,7 +932,7 @@ static int switch_event_buffer( parsec_thread_profiling_t *context )
     } else {
         old_buffer->next_buffer_file_offset = off;
     }
-    write_down_existing_buffer((tl_freelist_t*)context->tls_storage, old_buffer, context->next_event_position );
+    write_down_existing_buffer(context->buffers_freelist, old_buffer, context->next_event_position );
 
     context->current_events_buffer = new_buffer;
     context->current_events_buffer_offset = off;
@@ -1215,8 +1227,8 @@ static int64_t dump_thread(int *nbth)
 
         if( pos + th_size >= event_avail_space ) {
             b->this_buffer.nb_threads = nbthis;
-            n = allocate_empty_buffer((tl_freelist_t*)thread->tls_storage, &b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_THREAD);
-            write_down_existing_buffer((tl_freelist_t*)thread->tls_storage, b, pos);
+            n = allocate_empty_buffer(thread->buffers_freelist, &b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_THREAD);
+            write_down_existing_buffer(thread->buffers_freelist, b, pos);
 
             if( NULL == n ) {
                 set_last_error("Profiling system: error: Threads will be truncated to %d threads only -- buffer allocation error\n", nb);
@@ -1289,7 +1301,7 @@ int parsec_profiling_dbp_dump( void )
         it = PARSEC_LIST_ITERATOR_NEXT( it ) ) {
         t = (parsec_thread_profiling_t*)it;
         if( NULL != t->current_events_buffer && t->next_event_position != 0 ) {
-            write_down_existing_buffer((tl_freelist_t*)t->tls_storage, t->current_events_buffer, t->next_event_position);
+            write_down_existing_buffer(t->buffers_freelist, t->current_events_buffer, t->next_event_position);
             t->current_events_buffer = NULL;
         }
     }
@@ -1343,7 +1355,7 @@ int parsec_profiling_dbp_dump( void )
         it != PARSEC_LIST_ITERATOR_END( &threads );
         it = PARSEC_LIST_ITERATOR_NEXT( it ) ) {
         t = (parsec_thread_profiling_t*)it;
-        tl_freelist_t *fl = TLS_STORAGE(t);
+        tl_freelist_t *fl = t->buffers_freelist;
         while(fl->first != NULL) {
             b = fl->first;
             fl->first = b->next;

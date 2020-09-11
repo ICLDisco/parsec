@@ -129,18 +129,20 @@ typedef struct parsec_profiling_perf_s {
     uint32_t perf_number_calls;
 } parsec_profiling_perf_t;
 
+struct tl_freelist_s;
+
 struct parsec_thread_profiling_s {
-    parsec_list_item_t        list;
-    int64_t                  next_event_position; /* When in write mode, points to the next available storage byte
-                                                   *   in current_events_buffer */
-    char                    *hr_id;
-    parsec_profiling_perf_t  thread_perf[PERF_MAX];
-    void                    *tls_storage;
-    uint64_t                 nb_events;
-    parsec_profiling_info_t  *infos;
-    off_t                    first_events_buffer_offset; /* Offset (in the file) of the first events buffer */
-    pthread_t                thread_owner;
-    off_t                     current_events_buffer_offset;
+    parsec_list_item_t         list;
+    int64_t                    next_event_position; /* When in write mode, points to the next available storage byte
+                                                     *   in current_events_buffer */
+    char                      *hr_id;
+    parsec_profiling_perf_t    thread_perf[PERF_MAX];
+    struct tl_freelist_s      *buffers_freelist;
+    uint64_t                   nb_events;
+    parsec_profiling_info_t   *infos;
+    off_t                      first_events_buffer_offset; /* Offset (in the file) of the first events buffer */
+    pthread_t                  thread_owner;
+    off_t                      current_events_buffer_offset;
     parsec_profiling_buffer_t *current_events_buffer;     /* points to the events buffer in which we are writing. */
 };
 

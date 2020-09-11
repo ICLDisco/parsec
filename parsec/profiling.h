@@ -180,6 +180,26 @@ void parsec_profiling_thread_add_information(parsec_thread_profiling_t * thread,
                                             const char *key, const char *value );
 
 /**
+ * @brief Create a profiling stream that can be used to store events.
+ *
+ * @details This function create a profiling stream that is not thread-safe, it
+ * must be carefully protected by the caller against concurrent accesses. Moreover,
+ * this stream is not associated with any runtime resources, it is free to use
+ * as necessary by the caller. The stream is however tracked by the runtime, and if
+ * not removed by use user before the profiling_fini it will be dumped and disposed
+ * as all other profiling streams.
+ *
+ * param[in] length the length (in bytes) of the buffer queue to store events.
+ * param[in] stream_name the name of the stream. This pointer is stored in the stream
+ *           stream instead of a copy.
+ * @return pointer to the new thread_profiling structure. NULL if an error.
+ * @remark the call to this function is thread safe, the resulting structure is not.
+ */
+parsec_thread_profiling_t*
+parsec_profiling_stream_create( size_t length,
+                                const char *stream_name );
+
+/**
  * @brief Initializes the buffer trace with the specified length.
  *
  * @details This function must be called once per thread that will use the profiling
