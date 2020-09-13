@@ -258,17 +258,17 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 #ifdef PARSEC_PROF_TRACE
     {
         char *binding = parsec_hwloc_get_binding();
-        es->es_profile = parsec_profiling_thread_init( 2*1024*1024,
-                                                      PARSEC_PROFILE_THREAD_STR,
-                                                      es->th_id,
-                                                      es->virtual_process->vp_id,
-                                                      NULL == binding ? "(No Binding Information)" : binding);
+        es->es_profile = parsec_profiling_stream_init( 2*1024*1024,
+                                                       PARSEC_PROFILE_THREAD_STR,
+                                                       es->th_id,
+                                                       es->virtual_process->vp_id,
+                                                       NULL == binding ? "(No Binding Information)" : binding);
         if(NULL != binding) free(binding);
     }
     if( NULL != es->es_profile ) {
-        PROFILING_THREAD_SAVE_iINFO(es->es_profile, "boundto", startup->bindto);
-        PROFILING_THREAD_SAVE_iINFO(es->es_profile, "th_id", es->th_id);
-        PROFILING_THREAD_SAVE_iINFO(es->es_profile, "vp_id", es->virtual_process->vp_id );
+        PROFILING_STREAM_SAVE_iINFO(es->es_profile, "boundto", startup->bindto);
+        PROFILING_STREAM_SAVE_iINFO(es->es_profile, "th_id", es->th_id);
+        PROFILING_STREAM_SAVE_iINFO(es->es_profile, "vp_id", es->virtual_process->vp_id );
     }
 #endif /* PARSEC_PROF_TRACE */
 

@@ -122,7 +122,7 @@ static parsec_profiling_perf_t parsec_profiling_global_perf[PERF_MAX];
 #define do_and_measure_perf( perf_counter, code ) do {                  \
         parsec_time_t start, end;                                       \
         parsec_profiling_perf_t *pa;                                    \
-        parsec_thread_profiling_t* tp;                                  \
+        parsec_profiling_stream_t* tp;                                  \
         tp = PARSEC_TLS_GET_SPECIFIC(tls_profiling);                    \
         if( NULL == tp )                                                \
             pa = &parsec_profiling_global_perf[perf_counter];           \
@@ -427,7 +427,7 @@ static void set_last_error(const char *format, ...)
     parsec_profiling_raise_error = 1;
     (void)rc;
 }
-static int switch_event_buffer(parsec_thread_profiling_t *context);
+static int switch_event_buffer(parsec_profiling_stream_t *context);
 
 char *parsec_profiling_strerror(void)
 {
@@ -444,15 +444,15 @@ void parsec_profiling_add_information( const char *key, const char *value )
     parsec_profiling_infos = n;
 }
 
-void parsec_profiling_thread_add_information(parsec_thread_profiling_t * thread,
-                                            const char *key, const char *value )
+void parsec_profiling_stream_add_information(parsec_profiling_stream_t* stream,
+                                             const char *key, const char *value )
 {
     parsec_profiling_info_t *n;
     n = (parsec_profiling_info_t *)calloc(1, sizeof(parsec_profiling_info_t));
     n->key = strdup(key);
     n->value = strdup(value);
-    n->next = thread->infos;
-    thread->infos = n;
+    n->next = stream->infos;
+    stream->infos = n;
 }
 
 int parsec_profiling_init( void )
@@ -563,9 +563,9 @@ void parsec_profiling_start(void)
     parsec_start_time = take_time();
 }
 
-parsec_thread_profiling_t* parsec_profiling_stream_create( size_t length, const char *stream_name)
+parsec_profiling_stream_t* parsec_profiling_stream_create( size_t length, const char *stream_name)
 {
-    parsec_thread_profiling_t *sprof;
+    parsec_profiling_stream_t *sprof;
     int rc;
 
     if( !__profile_initialized ) return NULL;
@@ -574,7 +574,7 @@ parsec_thread_profiling_t* parsec_profiling_stream_create( size_t length, const 
         return NULL;
     }
 
-    sprof = (parsec_thread_profiling_t*)malloc( sizeof(parsec_thread_profiling_t) + length );
+    sprof = (parsec_profiling_stream_t*)malloc( sizeof(parsec_profiling_stream_t) + length );
     if( NULL == sprof ) {
         set_last_error("Profiling system: parsec_profiling_stream_create: unable to allocate %u bytes", length);
         fprintf(stderr, "*** %s\n", parsec_profiling_strerror());
@@ -625,9 +625,9 @@ parsec_thread_profiling_t* parsec_profiling_stream_create( size_t length, const 
     return sprof;
 }
 
-parsec_thread_profiling_t* parsec_profiling_thread_init( size_t length, const char *format, ...)
+parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const char *format, ...)
 {
-    parsec_thread_profiling_t *tprof;
+    parsec_profiling_stream_t *tprof;
     char* stream_name;
     va_list ap;
     int rc;
@@ -649,7 +649,7 @@ parsec_thread_profiling_t* parsec_profiling_thread_init( size_t length, const ch
 
 int parsec_profiling_fini( void )
 {
-    parsec_thread_profiling_t *t;
+    parsec_profiling_stream_t *t;
     int i;
 
     if( !__profile_initialized ) return -1;
@@ -660,7 +660,7 @@ int parsec_profiling_fini( void )
         }
     }
 
-    while( (t = (parsec_thread_profiling_t*)parsec_list_nolock_pop_front(&threads)) ) {
+    while( (t = (parsec_profiling_stream_t*)parsec_list_nolock_pop_front(&threads)) ) {
         tl_freelist_t *fl = t->buffers_freelist;
         tl_freelist_buffer_t *b;
         while(fl->first != NULL) {
@@ -776,10 +776,10 @@ int parsec_profiling_fini( void )
 
 int parsec_profiling_reset( void )
 {
-    parsec_thread_profiling_t *t;
+    parsec_profiling_stream_t *t;
 
     PARSEC_LIST_ITERATOR(&threads, it, {
-        t = (parsec_thread_profiling_t*)it;
+        t = (parsec_profiling_stream_t*)it;
         t->next_event_position = 0;
         /* TODO: should reset the backend file / recreate it */
     });
@@ -918,7 +918,7 @@ static void write_down_existing_buffer(tl_freelist_t *fl,
 #endif
 }
 
-static int switch_event_buffer( parsec_thread_profiling_t *context )
+static int switch_event_buffer( parsec_profiling_stream_t *context )
 {
     parsec_profiling_buffer_t *new_buffer;
     parsec_profiling_buffer_t *old_buffer;
@@ -944,7 +944,7 @@ static int switch_event_buffer( parsec_thread_profiling_t *context )
 int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpool_id,
                                     void *info, uint16_t flags )
 {
-    parsec_thread_profiling_t* ctx;
+    parsec_profiling_stream_t* ctx;
 
     if( (-1 == file_backend_fd) || (!start_called) ) {
         return -1;
@@ -955,12 +955,12 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
         return parsec_profiling_trace_flags(ctx, key, event_id, taskpool_id, info, flags);
 
     set_last_error("Profiling system: error: called parsec_profiling_ts_trace_flags"
-                   " from a thread that did not call parsec_profiling_thread_init\n");
+                   " from a thread that did not call parsec_profiling_stream_init\n");
     return -1;
 }
 
 int
-parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
+parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
                             uint64_t event_id, uint32_t taskpool_id,
                             void *info, uint16_t flags)
 {
@@ -1167,13 +1167,13 @@ static int64_t dump_dictionary(int *nbdico)
     return first_off;
 }
 
-static size_t thread_size(parsec_thread_profiling_t *thread)
+static size_t thread_size(parsec_profiling_stream_t *thread)
 {
     size_t s = 0;
     parsec_profiling_info_t *i;
     int ks, vs;
 
-    s += sizeof(parsec_profiling_thread_buffer_t) - sizeof(parsec_profiling_info_buffer_t);
+    s += sizeof(parsec_profiling_stream_buffer_t) - sizeof(parsec_profiling_info_buffer_t);
     for(i = thread->infos; NULL!=i; i = i->next) {
         ks = strlen(i->key);
         vs = strlen(i->value);
@@ -1190,14 +1190,14 @@ static size_t thread_size(parsec_thread_profiling_t *thread)
 static int64_t dump_thread(int *nbth)
 {
     parsec_profiling_buffer_t *b, *n;
-    parsec_profiling_thread_buffer_t *tb;
+    parsec_profiling_stream_buffer_t *tb;
     int nb, nbthis, nbinfos, ks, vs, pos;
     parsec_profiling_info_t *i;
     parsec_profiling_info_buffer_t *ib;
     off_t off;
     size_t th_size;
     parsec_list_item_t *it;
-    parsec_thread_profiling_t* thread;
+    parsec_profiling_stream_t* thread;
 
     if( parsec_list_is_empty(&threads) ) {
         *nbth = 0;
@@ -1218,7 +1218,7 @@ static int64_t dump_thread(int *nbth)
     for(it = PARSEC_LIST_ITERATOR_FIRST( &threads );
         it != PARSEC_LIST_ITERATOR_END( &threads );
         it = PARSEC_LIST_ITERATOR_NEXT( it ) ) {
-        thread = (parsec_thread_profiling_t*)it;
+        thread = (parsec_profiling_stream_t*)it;
 
         if(thread->nb_events == 0)
             continue; /* We don't store threads with no events at all */
@@ -1241,7 +1241,7 @@ static int64_t dump_thread(int *nbth)
             nbthis = 0;
         }
 
-        tb = (parsec_profiling_thread_buffer_t *)&(b->buffer[pos]);
+        tb = (parsec_profiling_stream_buffer_t *)&(b->buffer[pos]);
         tb->nb_events = thread->nb_events;
         strncpy(tb->hr_id, thread->hr_id, 127); /* We copy only up to 127 bytes to leave room for the '\0' */
         tb->first_events_buffer_offset = thread->first_events_buffer_offset;
@@ -1251,7 +1251,7 @@ static int64_t dump_thread(int *nbth)
 
         nbinfos = 0;
         i = thread->infos;
-        pos += sizeof(parsec_profiling_thread_buffer_t) - sizeof(parsec_profiling_info_buffer_t);
+        pos += sizeof(parsec_profiling_stream_buffer_t) - sizeof(parsec_profiling_info_buffer_t);
         while( NULL != i ) {
             ks = strlen(i->key);
             vs = strlen(i->value);
@@ -1280,7 +1280,7 @@ static int64_t dump_thread(int *nbth)
 int parsec_profiling_dbp_dump( void )
 {
     int nb_threads = 0;
-    parsec_thread_profiling_t *t;
+    parsec_profiling_stream_t *t;
     int nb_infos, nb_dico;
     parsec_list_item_t *it;
 
@@ -1299,7 +1299,7 @@ int parsec_profiling_dbp_dump( void )
     for(it = PARSEC_LIST_ITERATOR_FIRST( &threads );
         it != PARSEC_LIST_ITERATOR_END( &threads );
         it = PARSEC_LIST_ITERATOR_NEXT( it ) ) {
-        t = (parsec_thread_profiling_t*)it;
+        t = (parsec_profiling_stream_t*)it;
         if( NULL != t->current_events_buffer && t->next_event_position != 0 ) {
             write_down_existing_buffer(t->buffers_freelist, t->current_events_buffer, t->next_event_position);
             t->current_events_buffer = NULL;
@@ -1354,7 +1354,7 @@ int parsec_profiling_dbp_dump( void )
     for(it = PARSEC_LIST_ITERATOR_FIRST( &threads );
         it != PARSEC_LIST_ITERATOR_END( &threads );
         it = PARSEC_LIST_ITERATOR_NEXT( it ) ) {
-        t = (parsec_thread_profiling_t*)it;
+        t = (parsec_profiling_stream_t*)it;
         tl_freelist_t *fl = t->buffers_freelist;
         while(fl->first != NULL) {
             b = fl->first;
@@ -1551,38 +1551,38 @@ void profiling_save_sinfo(const char *key, char* svalue)
     parsec_profiling_add_information(key, svalue);
 }
 
-void profiling_thread_save_dinfo(parsec_thread_profiling_t * thread,
+void profiling_stream_save_dinfo(parsec_profiling_stream_t* stream,
                                  const char *key, double value)
 {
     char *svalue;
-    int rv=asprintf(&svalue, "%g", value);
+    int rv = asprintf(&svalue, "%g", value);
     (void)rv;
-    parsec_profiling_thread_add_information(thread, key, svalue);
+    parsec_profiling_stream_add_information(stream, key, svalue);
     free(svalue);
 }
 
-void profiling_thread_save_iinfo(parsec_thread_profiling_t * thread,
+void profiling_stream_save_iinfo(parsec_profiling_stream_t* stream,
                                  const char *key, int value)
 {
     char *svalue;
-    int rv=asprintf(&svalue, "%d", value);
+    int rv = asprintf(&svalue, "%d", value);
     (void)rv;
-    parsec_profiling_thread_add_information(thread, key, svalue);
+    parsec_profiling_stream_add_information(stream, key, svalue);
     free(svalue);
 }
 
-void profiling_thread_save_uint64info(parsec_thread_profiling_t * thread,
+void profiling_stream_save_uint64info(parsec_profiling_stream_t* stream,
                                       const char *key, unsigned long long int value)
 {
     char *svalue;
-    int rv=asprintf(&svalue, "%llu", value);
+    int rv = asprintf(&svalue, "%llu", value);
     (void)rv;
-    parsec_profiling_thread_add_information(thread, key, svalue);
+    parsec_profiling_stream_add_information(stream, key, svalue);
     free(svalue);
 }
 
-void profiling_thread_save_sinfo(parsec_thread_profiling_t * thread,
+void profiling_stream_save_sinfo(parsec_profiling_stream_t* stream,
                                  const char *key, char* svalue)
 {
-    parsec_profiling_thread_add_information(thread, key, svalue);
+    parsec_profiling_stream_add_information(stream, key, svalue);
 }

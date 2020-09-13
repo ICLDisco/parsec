@@ -136,7 +136,7 @@ struct parsec_device_module_s {
     float device_dweight;  /**< Number of double precision operations per second */
     float device_tweight;  /**< Number of tensor operations per second */
 #if defined(PARSEC_PROF_TRACE)
-    parsec_thread_profiling_t *profiling;
+    parsec_profiling_stream_t *profiling;
 #endif  /* defined(PROFILING) */
     uint8_t device_index;
     uint8_t type;

@@ -3,7 +3,7 @@ cdef extern from "parsec/parsec_config.h":
     pass
 
 cdef extern from "parsec/parsec_binary_profile.h":
-   ctypedef struct parsec_thread_profiling_t:
+   ctypedef struct parsec_profiling_stream_t:
       pass
 
    int KEY_IS_START(int key)

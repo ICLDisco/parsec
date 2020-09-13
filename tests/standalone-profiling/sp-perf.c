@@ -15,11 +15,11 @@
 #include <mpi.h>
 
 typedef struct {
-    pthread_t                 pthread_id;
-    int                       thread_index;
-    parsec_thread_profiling_t *prof;
-    struct timeval            duration;
-    double                    dummy;
+    pthread_t                  pthread_id;
+    int                        thread_index;
+    parsec_profiling_stream_t *prof;
+    struct timeval             duration;
+    double                     dummy;
 } per_thread_info_t;
 
 static int event_startkey, event_endkey;
@@ -45,7 +45,7 @@ static void *run_thread(void *_arg)
     double a[D*D], b[D*D], c[D*D];
 
     if( profiling )
-        ti->prof = parsec_profiling_thread_init(4096, "Thread %d", ti->thread_index);
+        ti->prof = parsec_profiling_stream_init(4096, "Thread %d", ti->thread_index);
     
     pthread_barrier_wait(&barrier); // We wait that all threads have called init
        

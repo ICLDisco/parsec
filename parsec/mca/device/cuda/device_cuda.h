@@ -120,7 +120,7 @@ struct parsec_gpu_exec_stream_s {
     parsec_list_t                    *fifo_pending;
     parsec_gpu_workspace_t           *workspace;
 #if defined(PARSEC_PROF_TRACE)
-    parsec_thread_profiling_t        *profiling;
+    parsec_profiling_stream_t        *profiling;
     int                               prof_event_track_enable;
 #endif  /* defined(PROFILING) */
 };

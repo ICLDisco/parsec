@@ -9,10 +9,10 @@
 #include <stdlib.h>
 #include "parsec/profiling.h"
 
-parsec_thread_profiling_t*
+parsec_profiling_stream_t*
 parsec_profile_thread_init_f08( size_t length, const char *id_name, int* ierr)
 {
-    parsec_thread_profiling_t* tp = parsec_profiling_thread_init(length, "%s", id_name);
+    parsec_profiling_stream_t* tp = parsec_profiling_stream_init(length, "%s", id_name);
     *ierr = (NULL == tp) ? -1 : 0;
     return tp;
 }

@@ -77,7 +77,7 @@ typedef struct {
     int64_t  first_events_buffer_offset; /* Offset of the first events buffer for this thread */
     int32_t  nb_infos;                   /* Number of infos that follow in this thread */
     parsec_profiling_info_buffer_t infos[1];/* First profiling_info_buffer for this thread */
-} parsec_profiling_thread_buffer_t;
+} parsec_profiling_stream_buffer_t;
 
 /**
  * Structure of a PaRSEC Binary Profile:
@@ -131,7 +131,7 @@ typedef struct parsec_profiling_perf_s {
 
 struct tl_freelist_s;
 
-struct parsec_thread_profiling_s {
+struct parsec_profiling_stream_s {
     parsec_list_item_t         list;
     int64_t                    next_event_position; /* When in write mode, points to the next available storage byte
                                                      *   in current_events_buffer */
