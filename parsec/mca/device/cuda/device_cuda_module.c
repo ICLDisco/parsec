@@ -405,7 +405,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
          * events that needs to be matched between streams because we cannot differentiate some
          * ends between IN or OUT, so they are all logged on the same stream. */
         if(j == 0 || (parsec_device_cuda_one_profiling_stream_per_cuda_stream == 1 && j != 1))
-            exec_stream->profiling = parsec_profiling_thread_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, dev_id, j );
+            exec_stream->profiling = parsec_profiling_stream_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, dev_id, j );
         else
             exec_stream->profiling = gpu_device->exec_stream[0].profiling; 
         if(j == 0) {

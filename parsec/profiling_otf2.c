@@ -23,7 +23,7 @@
 #endif
 #include <otf2/OTF2_MPI_Collectives.h>
 
-struct parsec_thread_profiling_s {
+struct parsec_profiling_stream_s {
     parsec_list_item_t super;
     int                id;
     uint64_t           nb_evt;
@@ -172,11 +172,11 @@ void parsec_profiling_add_information( const char *key, const char *value )
     parsec_list_push_back(&global_informations, &new_info->super);
 }
 
-void parsec_profiling_thread_add_information(parsec_thread_profiling_t * thread,
-                                            const char *key, const char *value )
+void parsec_profiling_stream_add_information(parsec_profiling_stream_t* stream,
+                                             const char *key, const char *value )
 {
     char *info;
-    asprintf(&info, "%s [Thread %d]", key, thread->id);
+    asprintf(&info, "%s [Thread %d]", key, stream->id);
     parsec_profiling_add_information(info, value);
     free(info);
 }
@@ -237,15 +237,15 @@ int parsec_profiling_init( void )
     return 0;
 }
 
-parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const char *format, ...)
+parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const char *format, ...)
 {
-    parsec_thread_profiling_t *res;
+    parsec_profiling_stream_t* res;
 
     (void)length;
     
     if( !__profile_initialized ) return NULL;
 
-    res = (parsec_thread_profiling_t*)calloc(sizeof(parsec_thread_profiling_t), 1);
+    res = (parsec_profiling_stream_t*)calloc(sizeof(parsec_profiling_stream_t), 1);
     PARSEC_OBJ_CONSTRUCT(res, parsec_list_item_t);
     PARSEC_OBJ_CONSTRUCT(&res->informations, parsec_list_t);
 
@@ -253,14 +253,20 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
     res->nb_evt = 0;
     res->evt_writer = NULL;
 
-    PARSEC_TLS_SET_SPECIFIC(tls_profiling, res);
-
     (void)format; /* All strings must be written by the rank 0 in OTF2.
                    * For now, forget about the human-readable data */
     
     parsec_list_push_back( &threads, (parsec_list_item_t*)res );
 
     return res;
+}
+
+parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *new )
+{
+    parsec_profiling_stream_t *old;
+    old = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
+    PARSEC_TLS_SET_SPECIFIC(tls_profiling, new);
+    return old;
 }
 
 int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
@@ -388,7 +394,7 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
 void parsec_profiling_start(void)
 {
     parsec_list_item_t *r;
-    parsec_thread_profiling_t *tp;
+    parsec_profiling_stream_t *tp;
     int size = 1, rank = 0;
 #if defined(PARSEC_HAVE_MPI)
     int MPI_ready;
@@ -424,7 +430,7 @@ void parsec_profiling_start(void)
     for( r = PARSEC_LIST_ITERATOR_FIRST(&threads);
          r != PARSEC_LIST_ITERATOR_END(&threads);
          r = PARSEC_LIST_ITERATOR_NEXT(r) ) {
-        tp = (parsec_thread_profiling_t*)r;
+        tp = (parsec_profiling_stream_t*)r;
         tp->id += threads_before_me;
         tp->evt_writer = OTF2_Archive_GetEvtWriter( otf2_archive, tp->id );
         if( NULL == tp->evt_writer ) {
@@ -622,7 +628,7 @@ int parsec_profiling_dictionary_flush( void )
 int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpool_id,
                                     void *info, uint16_t flags )
 {
-    parsec_thread_profiling_t* ctx;
+    parsec_profiling_stream_t* ctx;
     
     if( !start_called ) {
         return -1;
@@ -633,12 +639,12 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
         return parsec_profiling_trace_flags(ctx, key, event_id, taskpool_id, info, flags);
 
     set_last_error("Profiling system: error: called parsec_profiling_ts_trace_flags"
-                   " from a thread that did not call parsec_profiling_thread_init\n");
+                   " from a thread that did not call parsec_profiling_stream_init\n");
     return -1;
 }
 
 int
-parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
+parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
                              uint64_t event_id, uint32_t taskpool_id,
                              void *info, uint16_t flags)
 {
@@ -784,7 +790,7 @@ int parsec_profiling_dbp_dump( void )
     for( r = PARSEC_LIST_ITERATOR_FIRST(&threads);
          r != PARSEC_LIST_ITERATOR_END(&threads);
          r = PARSEC_LIST_ITERATOR_NEXT(r) ) {
-        parsec_thread_profiling_t *tp = (parsec_thread_profiling_t*)r;
+        parsec_profiling_stream_t *tp = (parsec_profiling_stream_t*)r;
         rc = OTF2_Archive_CloseEvtWriter( otf2_archive, tp->evt_writer );
         if(rc != OTF2_SUCCESS) {
             parsec_warning("PaRSEC Profiling System: OTF2 Error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
@@ -1072,45 +1078,45 @@ void profiling_save_sinfo(const char *key, char* svalue)
     parsec_profiling_add_information(key, svalue);
 }
 
-void profiling_thread_save_dinfo(parsec_thread_profiling_t * thread,
+void profiling_stream_save_dinfo(parsec_profiling_stream_t* stream,
                                  const char *key, double value)
 {
     char *svalue;
-    int rv=asprintf(&svalue, "%g", value);
+    int rv = asprintf(&svalue, "%g", value);
     (void)rv;
-    parsec_profiling_thread_add_information(thread, key, svalue);
+    parsec_profiling_stream_add_information(stream, key, svalue);
     free(svalue);
 }
 
-void profiling_thread_save_iinfo(parsec_thread_profiling_t * thread,
+void profiling_stream_save_iinfo(parsec_profiling_stream_t* stream,
                                  const char *key, int value)
 {
     char *svalue;
-    int rv=asprintf(&svalue, "%d", value);
+    int rv = asprintf(&svalue, "%d", value);
     (void)rv;
-    parsec_profiling_thread_add_information(thread, key, svalue);
+    parsec_profiling_stream_add_information(stream, key, svalue);
     free(svalue);
 }
 
-void profiling_thread_save_uint64info(parsec_thread_profiling_t * thread,
+void profiling_stream_save_uint64info(parsec_profiling_stream_t* stream,
                                       const char *key, unsigned long long int value)
 {
     char *svalue;
-    int rv=asprintf(&svalue, "%llu", value);
+    int rv = asprintf(&svalue, "%llu", value);
     (void)rv;
-    parsec_profiling_thread_add_information(thread, key, svalue);
+    parsec_profiling_stream_add_information(stream, key, svalue);
     free(svalue);
 }
 
-void profiling_thread_save_sinfo(parsec_thread_profiling_t * thread,
+void profiling_stream_save_sinfo(parsec_profiling_stream_t* stream,
                                  const char *key, char* svalue)
 {
-    parsec_profiling_thread_add_information(thread, key, svalue);
+    parsec_profiling_stream_add_information(stream, key, svalue);
 }
 
 int parsec_profiling_fini( void )
 {
-    parsec_thread_profiling_t *t;
+    parsec_profiling_stream_t *t;
 
     if( !__profile_initialized ) return -1;
 
@@ -1118,7 +1124,7 @@ int parsec_profiling_fini( void )
         return -1;
     }
 
-    while( (t = (parsec_thread_profiling_t*)parsec_list_nolock_pop_front(&threads)) ) {
+    while( (t = (parsec_profiling_stream_t*)parsec_list_nolock_pop_front(&threads)) ) {
         free(t);
     }
     PARSEC_OBJ_DESTRUCT(&threads);

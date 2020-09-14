@@ -1110,9 +1110,9 @@ enum {
 } parsec_remote_dep_tag_t;
 
 #ifdef PARSEC_PROF_TRACE
-static parsec_thread_profiling_t* MPIctl_prof;
-static parsec_thread_profiling_t* MPIsnd_prof;
-static parsec_thread_profiling_t* MPIrcv_prof;
+static parsec_profiling_stream_t* MPIctl_prof;
+static parsec_profiling_stream_t* MPIsnd_prof;
+static parsec_profiling_stream_t* MPIrcv_prof;
 static int MPI_Activate_sk, MPI_Activate_ek;
 static int64_t get = 0;
 static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
@@ -1164,9 +1164,9 @@ static void remote_dep_mpi_profiling_init(void)
                                             parsec_profile_remote_dep_mpi_info_to_string,
                                             &put_cb_trace_sk, &put_cb_trace_ek);
 
-    MPIctl_prof = parsec_profiling_thread_init( 2*1024*1024, "MPI ctl");
-    MPIsnd_prof = parsec_profiling_thread_init( 2*1024*1024, "MPI isend");
-    MPIrcv_prof = parsec_profiling_thread_init( 2*1024*1024, "MPI irecv");
+    MPIctl_prof = parsec_profiling_stream_init( 2*1024*1024, "MPI ctl");
+    MPIsnd_prof = parsec_profiling_stream_init( 2*1024*1024, "MPI isend");
+    MPIrcv_prof = parsec_profiling_stream_init( 2*1024*1024, "MPI irecv");
     parsec_comm_es.es_profile = MPIctl_prof;
 }
 

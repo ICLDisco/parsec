@@ -204,7 +204,7 @@ dbp_dictionary_t *dbp_reader_get_dictionary(const dbp_multifile_reader_t *dbp, i
       (dbp_main_object)->dico_keys[BASE_KEY((dbp_event)->native->event.key)].keylen : 0))
 
 struct dbp_thread {
-    const parsec_thread_profiling_t  *profile;
+    const parsec_profiling_stream_t *profile;
     dbp_file_t                      *file;
     int                              nb_infos;
     dbp_info_t                      *infos;
@@ -746,7 +746,7 @@ static int check_dictionary(const dbp_multifile_reader_t *dbp, int fd, const par
     return -1;
 }
 
-static size_t read_thread_infos(parsec_thread_profiling_t * res,
+static size_t read_thread_infos(parsec_profiling_stream_t* res,
                                 dbp_thread_t *th,
                                 int nb_infos, const char *br)
 {
@@ -773,8 +773,8 @@ static size_t read_thread_infos(parsec_thread_profiling_t * res,
 
 static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_header_t *head)
 {
-    parsec_thread_profiling_t *res;
-    parsec_profiling_thread_buffer_t *br;
+    parsec_profiling_stream_t *res;
+    parsec_profiling_stream_buffer_t *br;
     parsec_profiling_buffer_t *b, *next;
     int nb, nbthis, pos;
 
@@ -789,8 +789,8 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
         assert(PROFILING_BUFFER_TYPE_THREAD == b->buffer_type);
         assert(nbthis > 0);
 
-        br = (parsec_profiling_thread_buffer_t*)&(b->buffer[pos]);
-        res = (parsec_thread_profiling_t*)malloc( sizeof(parsec_thread_profiling_t) );
+        br = (parsec_profiling_stream_buffer_t*)&(b->buffer[pos]);
+        res = (parsec_profiling_stream_t*)malloc( sizeof(parsec_profiling_stream_t) );
         res->next_event_position = -1; /* No need for a next event position */
         res->nb_events = br->nb_events;
         res->hr_id = (char*)malloc(128);
@@ -803,7 +803,7 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
         dbp->threads[head->nb_threads - nb].file = dbp;
         dbp->threads[head->nb_threads - nb].profile = res;
 
-        pos += sizeof(parsec_profiling_thread_buffer_t) - sizeof(parsec_profiling_info_buffer_t);
+        pos += sizeof(parsec_profiling_stream_buffer_t) - sizeof(parsec_profiling_info_buffer_t);
         pos += read_thread_infos( res, &dbp->threads[head->nb_threads-nb],
                                   br->nb_infos, (char*)br->infos );
 

@@ -34,7 +34,7 @@
 typedef struct {
     pthread_t                 pthread_id;
     int                       thread_index;
-    parsec_thread_profiling_t *prof;
+    parsec_profiling_stream_t *prof;
 } per_thread_info_t;
 
 typedef struct {
@@ -58,9 +58,9 @@ static void *run_thread(void *_arg)
     int i;
 
     /** This code is thread-specific
-     *  Each thread must use its own parsec_thread_profiling_t * head to trace events
-     *  If two threads share the same parsec_thread_profiling_t * or two threads use the
-     *  same parsec_thread_profiling_t * to trace events, the trace will be corrupted
+     *  Each thread must use its own parsec_profiling_stream_t * head to trace events
+     *  If two threads share the same parsec_profiling_stream_t * or two threads use the
+     *  same parsec_profiling_stream_t * to trace events, the trace will be corrupted
      *
      *  4096 is the size of the events page; memory allocation and potentially I/O
      *       flush may happen every time events fill up these pages.
@@ -69,18 +69,18 @@ static void *run_thread(void *_arg)
      *       Otherwise, take the largest value that does not hinder your application.
      *  format, printf arguments: to build a unique human-readable name for the thread
      */
-    ti->prof = parsec_profiling_thread_init(4096, "This is the name of thread %d", ti->thread_index);
+    ti->prof = parsec_profiling_stream_init(4096, "This is the name of thread %d", ti->thread_index);
 
-    /* Once parsec_profiling_thread_init has been called, the main thread can call
+    /* Once parsec_profiling_stream_init has been called, the main thread can call
      * parsec_profiling_start */
     pthread_barrier_wait(&barrier);
     
     /**
      *  You can save runtime-specific information per threads, in the form of key/value pair
      */
-    parsec_profiling_thread_add_information(ti->prof,
-                                           "This is a thread-specific information key",
-                                           "This is the corresponding value");
+    parsec_profiling_stream_add_information(ti->prof,
+                                            "This is a thread-specific information key",
+                                            "This is the corresponding value");
 
     /* Then, the threads need to wait that parsec_profiling_start() has been called
      * before they can proceed to log events */
@@ -90,7 +90,7 @@ static void *run_thread(void *_arg)
         if( rand() % 2 == 0 ) {
             /**
              * This is how to trace an event without additional information.
-             *  the parsec_thread_profiling_t * must be the one of *this* thread
+             *  the parsec_profiling_stream_t * must be the one of *this* thread
              *  startkey / endkey, depending if this is starting a state or ending one.
              *   NB: a state that is started must be ended; a state that is ended must have been started before
              *  i is an identifier of the event.

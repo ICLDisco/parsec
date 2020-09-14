@@ -40,7 +40,7 @@ struct parsec_execution_stream_s {
     pthread_t pthread_id;     /**< POSIX thread identifier. */
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_thread_profiling_t *es_profile;
+    parsec_profiling_stream_t *es_profile;
 #endif /* PARSEC_PROF_TRACE */
 
     void *scheduler_object;
