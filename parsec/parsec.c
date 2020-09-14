@@ -263,6 +263,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
                                                        es->th_id,
                                                        es->virtual_process->vp_id,
                                                        NULL == binding ? "(No Binding Information)" : binding);
+        parsec_profiling_set_default_thread( es->es_profile );
         if(NULL != binding) free(binding);
     }
     if( NULL != es->es_profile ) {

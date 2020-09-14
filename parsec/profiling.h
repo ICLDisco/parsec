@@ -190,29 +190,30 @@ void parsec_profiling_stream_add_information(parsec_profiling_stream_t* stream,
  * as all other profiling streams.
  *
  * param[in] length the length (in bytes) of the buffer queue to store events.
- * param[in] stream_name the name of the stream. This pointer is stored in the stream
- *           stream instead of a copy.
+ * param[in] format the name of the stream, following the printf convention
  * @return pointer to the new stream_profiling structure. NULL if an error.
  * @remark the call to this function is thread safe, the resulting structure is not.
  */
 parsec_profiling_stream_t*
-parsec_profiling_stream_create( size_t length,
-                                const char *stream_name );
+parsec_profiling_stream_init( size_t length, const char *format, ...);
 
 /**
- * @brief Initializes the buffer trace with the specified length.
+ * @brief set the default profiling_stream to use on the calling thread
  *
- * @details This function must be called once per stream that will use the profiling
- * functions. This creates the profiling_stream_unit_t that must be passed to
- * the tracing function call. See note about thread safety.
+ * @details When using parsec_profiling_trace_flags_ts to log an event,
+ * the default profiling_stream bound to the calling thread
+ * is used. By default no profiling_stream is bound to any thread. Using
+ * this function, the user decided what profiling_stream should be used
+ * for the calling thread. The function returns the old bound profiling_stream
+ * if any.
  *
- * @param[in] length the length (in bytes) of the buffer queue to store events.
- * @param[in] format printf-like to associate a human-readable
- *                           definition of the calling stream
- * @return pointer to the new stream_profiling structure. NULL if an error.
- * @remark thread safe
+ * @param[in] new: the new profiling_stream to bind on the calling thread
+ * @return         the old profiling_stream that was bound to the calling thread
+ *                 (NULL initially).
+ * @remark not thread safe
  */
-parsec_profiling_stream_t *parsec_profiling_stream_init( size_t length, const char *format, ...);
+parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *new );
+
 
 /**
  * @brief Inserts a new keyword in the dictionnary

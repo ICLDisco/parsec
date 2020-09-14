@@ -563,20 +563,21 @@ void parsec_profiling_start(void)
     parsec_start_time = take_time();
 }
 
-parsec_profiling_stream_t* parsec_profiling_stream_create( size_t length, const char *stream_name)
+parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const char *format, ...)
 {
     parsec_profiling_stream_t *sprof;
+    va_list ap;
     int rc;
 
     if( !__profile_initialized ) return NULL;
     if( -1 == file_backend_fd ) {
-        set_last_error("Profiling system: parsec_profiling_stream_create: call before parsec_profiling_dbp_start");
+        set_last_error("Profiling system: parsec_profiling_stream_init: call before parsec_profiling_dbp_start");
         return NULL;
     }
 
     sprof = (parsec_profiling_stream_t*)malloc( sizeof(parsec_profiling_stream_t) + length );
     if( NULL == sprof ) {
-        set_last_error("Profiling system: parsec_profiling_stream_create: unable to allocate %u bytes", length);
+        set_last_error("Profiling system: parsec_profiling_stream_init: unable to allocate %u bytes", length);
         fprintf(stderr, "*** %s\n", parsec_profiling_strerror());
         return NULL;
     }
@@ -603,7 +604,9 @@ parsec_profiling_stream_t* parsec_profiling_stream_create( size_t length, const 
     }
 
     PARSEC_OBJ_CONSTRUCT(sprof, parsec_list_item_t);
-    sprof->hr_id = (char*)stream_name;  /* the array is in fact const */
+    va_start(ap, format);
+    rc = vasprintf(&sprof->hr_id, format, ap); assert(rc!=-1); (void)rc;
+    va_end(ap);
 
     assert( event_buffer_size != 0 );
     /* To trigger a buffer allocation at first creation of an event */
@@ -625,26 +628,12 @@ parsec_profiling_stream_t* parsec_profiling_stream_create( size_t length, const 
     return sprof;
 }
 
-parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const char *format, ...)
+parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *new )
 {
-    parsec_profiling_stream_t *tprof;
-    char* stream_name;
-    va_list ap;
-    int rc;
-
-    va_start(ap, format);
-    rc = vasprintf(&stream_name, format, ap); assert(rc!=-1); (void)rc;
-    va_end(ap);
-
-    tprof = parsec_profiling_stream_create(length, stream_name);
-    if( NULL == tprof ) {
-        free(stream_name);
-        return NULL;
-    }
-    if( NULL != PARSEC_TLS_GET_SPECIFIC(tls_profiling) )
-        PARSEC_TLS_SET_SPECIFIC(tls_profiling, tprof);
-
-    return tprof;
+    parsec_profiling_stream_t *old;
+    old = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
+    PARSEC_TLS_SET_SPECIFIC(tls_profiling, new);
+    return old;
 }
 
 int parsec_profiling_fini( void )
