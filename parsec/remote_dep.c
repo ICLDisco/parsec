@@ -139,6 +139,9 @@ inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
     if( NULL == remote_deps ) {
         char *ptr;
         remote_deps = (parsec_remote_deps_t*)parsec_lifo_item_alloc( lifo, parsec_remote_dep_context.elem_size );
+        PARSEC_VALGRIND_MEMPOOL_ALLOC(lifo,
+                                      ((unsigned char *)remote_deps)+sizeof(parsec_list_item_t),
+                                      parsec_remote_dep_context.elem_size - sizeof(parsec_list_item_t));
         remote_deps->origin = lifo;
         remote_deps->taskpool = NULL;
         ptr = (char*)(&(remote_deps->output[parsec_remote_dep_context.max_dep_count]));
@@ -157,6 +160,10 @@ inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
         assert( (int)(ptr - (char*)remote_deps) ==
                 (int)(parsec_remote_dep_context.elem_size - rank_bit_size));
+    } else {
+        PARSEC_VALGRIND_MEMPOOL_ALLOC(lifo,
+                                      ((unsigned char *)remote_deps)+sizeof(parsec_list_item_t),
+                                      parsec_remote_dep_context.elem_size - sizeof(parsec_list_item_t));
     }
     assert(NULL == remote_deps->taskpool);
     remote_deps->max_priority    = 0xffffffff;
@@ -193,6 +200,7 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
 #endif
     deps->taskpool      = NULL;
     parsec_lifo_push(deps->origin, (parsec_list_item_t*)deps);
+    PARSEC_VALGRIND_MEMPOOL_FREE(deps->origin, ((unsigned char *)deps)+sizeof(parsec_list_item_t));
 }
 
 #endif
@@ -576,6 +584,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
             /* One extra rankbit to track the delivery of Activates */
             rankbits_size;
         PARSEC_OBJ_CONSTRUCT(&parsec_remote_dep_context.freelist, parsec_lifo_t);
+        PARSEC_VALGRIND_CREATE_MEMPOOL(&parsec_remote_dep_context.freelist, 0, 1);
         parsec_remote_dep_inited = 1;
     }
 
@@ -592,6 +601,7 @@ void remote_deps_allocation_fini(void)
             free(rdeps);
         }
         PARSEC_OBJ_DESTRUCT(&parsec_remote_dep_context.freelist);
+        PARSEC_VALGRIND_DESTROY_MEMPOOL(&parsec_remote_dep_context.freelist);
     }
     parsec_remote_dep_inited = 0;
 }

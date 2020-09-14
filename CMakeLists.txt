@@ -436,6 +436,8 @@ check_include_files(sys/param.h PARSEC_HAVE_SYS_PARAM_H)
 check_include_files(sys/types.h PARSEC_HAVE_SYS_TYPES_H)
 check_include_files(syslog.h PARSEC_HAVE_SYSLOG_H)
 
+check_include_files(valgrind/valgrind.h PARSEC_HAVE_VALGRIND_API)
+
 check_c_source_compiles("
 static int toto(int c) __attribute__ ((always_inline));
 static int toto(int c) {
