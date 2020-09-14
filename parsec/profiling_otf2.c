@@ -253,14 +253,20 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     res->nb_evt = 0;
     res->evt_writer = NULL;
 
-    PARSEC_TLS_SET_SPECIFIC(tls_profiling, res);
-
     (void)format; /* All strings must be written by the rank 0 in OTF2.
                    * For now, forget about the human-readable data */
     
     parsec_list_push_back( &threads, (parsec_list_item_t*)res );
 
     return res;
+}
+
+parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *new )
+{
+    parsec_profiling_stream_t *old;
+    old = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
+    PARSEC_TLS_SET_SPECIFIC(tls_profiling, new);
+    return old;
 }
 
 int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
