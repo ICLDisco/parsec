@@ -28,7 +28,31 @@ static void destruct_cublas_handle(void *p)
         assert(status == CUBLAS_STATUS_SUCCESS);
     }
 }
+
+static void *create_cublas_handle(void *obj, void *p)
+{
+    cublasHandle_t handle;
+    cublasStatus_t status;
+    parsec_gpu_exec_stream_t *stream = (parsec_gpu_exec_stream_t *)obj;
+    (void)p;
+    /* No need to call cudaSetDevice, as this has been done by PaRSEC before calling the task body */
+    status = cublasCreate(&handle);
+    assert(CUBLAS_STATUS_SUCCESS == status);
+    status = cublasSetStream(handle, stream->cuda_stream);
+    assert(CUBLAS_STATUS_SUCCESS == status);
+    return (void*)handle;
+}
 #endif
+
+static void destroy_cublas_handle(void *_h, void *_n)
+{
+#if defined(PARSEC_HAVE_CUDA)
+    cublasHandle_t cublas_handle = (cublasHandle_t)_h;
+    cublasDestroy_v2(cublas_handle);
+#endif
+    (void)_n;
+    (void)_h;
+}
 
 parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb )
 {
@@ -61,7 +85,10 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     }
 
 #if defined(PARSEC_HAVE_CUDA)
-    parsec_info_id_t CuHI = parsec_info_register(&parsec_per_device_infos, "CUBLAS::HANDLE", NULL);
+    parsec_info_id_t CuHI = parsec_info_register(&parsec_per_stream_infos, "CUBLAS::HANDLE",
+                                                 destroy_cublas_handle, NULL,
+                                                 create_cublas_handle, NULL,
+                                                 NULL);
     assert(CuHI != -1);
 #else
     int CuHI = -1;
@@ -100,7 +127,7 @@ void testing_nvlink_Destruct( parsec_taskpool_t *tp )
     two_dim_block_cyclic_t *dcA;
     parsec_matrix_del2arena( & nvlink_taskpool->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX] );
     parsec_data_free(nvlink_taskpool->_g_descA->mat);
-    parsec_info_unregister(&parsec_per_device_infos, nvlink_taskpool->_g_CuHI, NULL);
+    parsec_info_unregister(&parsec_per_stream_infos, nvlink_taskpool->_g_CuHI, NULL);
     dcA = nvlink_taskpool->_g_descA;
     parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)nvlink_taskpool->_g_descA );
     parsec_taskpool_free(tp);

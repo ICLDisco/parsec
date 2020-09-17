@@ -619,6 +619,36 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
 int parsec_getsimulationdate( parsec_context_t *parsec_context );
 #endif
 
+/*********************** Global Info Handles *****************************/
+
+/**
+ * @brief Device-level info
+ *
+ * @details infos stored under this handle exist per device:
+ *      there is one info_array per device (as obtained by
+ *      parsec_mca_device_get), and this array is indexed
+ *      by the info IDs stored inside this global.
+ *
+ *      The info-specific object passed to the constructor
+ *      function for info objects is the corresponding
+ *      parsec_device_module_t*.
+ */
+extern parsec_info_t parsec_per_device_infos;
+
+/**
+ * @brief Stream-level info
+ *
+ * @details infos stored under this handle exist per device-stream:
+ *      some devices, like the CUDA device, define multiple streams
+ *      of execution; they define one info_array per such stream,
+ *      and this array is indexed by the info IDs stored inside this
+ *      global.
+ *
+ *      the info-specific object passed to the constructor function
+ *      for info objects is the corresponding parsec_gpu_exec_stream_t*
+ */
+extern parsec_info_t parsec_per_stream_infos;
+
 /** @} */
 
 END_C_DECLS

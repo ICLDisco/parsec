@@ -372,6 +372,8 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
         PARSEC_CUDA_CHECK_ERROR( "cudaStreamCreate ", cudastatus,
                                  {goto release_device;} );
         exec_stream->workspace    = NULL;
+        PARSEC_OBJ_CONSTRUCT(&exec_stream->infos, parsec_info_object_array_t);
+        parsec_info_object_array_init(&exec_stream->infos, &parsec_per_stream_infos, exec_stream);
         exec_stream->max_events   = PARSEC_MAX_EVENTS_PER_STREAM;
         exec_stream->executed     = 0;
         exec_stream->start        = 0;
@@ -557,6 +559,9 @@ parsec_cuda_module_fini(parsec_device_module_t* device)
         /* Release the stream */
         cudaStreamDestroy( exec_stream->cuda_stream );
         free(exec_stream->name);
+
+        /* Release Info object array */
+        PARSEC_OBJ_DESTRUCT(&exec_stream->infos);
     }
     free(gpu_device->exec_stream); gpu_device->exec_stream = NULL;
 
