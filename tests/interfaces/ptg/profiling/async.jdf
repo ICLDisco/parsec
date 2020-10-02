@@ -1,0 +1,267 @@
+extern "C" %{
+#include <sys/time.h>
+#include <inttypes.h>
+#include <string.h>
+#include <stdlib.h>
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+
+/**
+ * This test creates asynchronous tasks to stress the profiling
+ * system and test it is working correcty.
+ *
+ * taskqueue is a shared array of tasks.
+ *   In STARTUP(0), taskqueue is initialized to NULL for all tasks
+ *   ASYNC(k) atomically tries to set this_task in tasqueue[k];
+ *      if it succeeds, it returns ASYNC and waits to be rescheduled
+ *      if it fails, it means that (void*)-1 should be there: it executed once and has been rescheduled
+ *   RESCHED(0) finds the first item in taskqueue that is not NULL and not (void*)-1
+ *      if there is one that is not (void*)-1, it atomically set it to (void*)-1, reschedules the task
+ *         and return AGAIN
+ *      if there is none, but there is at least an element with NULL in taskqueue, it returns AGAIN
+ *      if all elements are (void*)-1, it completes
+ */
+
+/* Additionally, this test also dynamically creates profiling streams (if profiling is enabled),
+ * and records new events in those streams. For this it uses this thread local variable.
+ * The new kind of events we log record the full duration of the ASYNC and RESCHED tasks, from
+ * first execution to last one. To do so, we use taskqueue[10] to store (void*)-1 once RESCHED
+ * executed once, so taskqueue must be 11 long even if it stores only 10 tasks. */
+
+#if defined(PARSEC_PROF_TRACE)
+#include "parsec/profiling.h"
+__thread parsec_profiling_stream_t *custom_prof_stream = NULL;
+int fullasync_startkey, fullasync_endkey;
+int fullresched_startkey, fullresched_endkey;
+#endif
+
+%}
+
+descA            [ type = "two_dim_block_cyclic_t*"]
+verbose          [ type = "int" ]
+taskqueue        [ type = "parsec_task_t **" ]
+NB               [ type = "int" ]
+
+STARTUP(s)
+
+s = 0 .. 0
+
+: descA( 0 ,0 )
+
+CTL X -> X ASYNC(0 .. (NB-1))
+      -> X RESCHED(0)
+
+BODY
+{
+    int i;
+    for(i = 0; i < NB+1; i++)
+        taskqueue[i] = NULL; /* The ASYNC tasks will return ASYNC */
+    if(verbose)
+        fprintf(stderr, "Executed STARTUP(0)\n");
+}
+END
+
+ASYNC(k)
+
+k = 0 .. (NB-1)
+
+: descA(0, 0)
+
+CTL X <- X STARTUP(0)
+
+BODY
+{
+#if defined(PARSEC_PROF_TRACE)
+    if(NULL == custom_prof_stream) {
+        custom_prof_stream = parsec_profiling_stream_init(4096, "custom stream %d", es->th_id);
+    }
+    if(NULL == taskqueue[k])
+        parsec_profiling_trace_flags(custom_prof_stream, fullasync_startkey, k, this_task->taskpool->taskpool_id, NULL, 0);
+#endif
+    PARSEC_LIST_ITEM_SINGLETON(this_task);
+    if( parsec_atomic_cas_ptr(&taskqueue[k], NULL, this_task) ) {
+        if(verbose)
+            fprintf(stderr, "ASYNC(%d) executes for the first time and returns ASYNC\n", k);
+        return PARSEC_HOOK_RETURN_ASYNC;
+    }
+    if(verbose)
+        fprintf(stderr, "ASYNC(%d) executes for the second time and is DONE\n", k);
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_trace_flags(custom_prof_stream, fullasync_endkey, k, this_task->taskpool->taskpool_id, NULL, 0);
+#endif
+}
+END
+
+RESCHED(s)
+
+s = 0 .. 0
+
+:descA(0, 0)
+
+CTL X <- X STARTUP(0)
+
+BODY
+{
+    parsec_task_t *t;
+    int i, done = 0;
+    int bs;
+#if defined(PARSEC_PROF_TRACE)
+    if(NULL == custom_prof_stream) {
+        custom_prof_stream = parsec_profiling_stream_init(4096, "custom stream %d", es->th_id);
+    }
+    if(NULL == taskqueue[NB])
+        parsec_profiling_trace_flags(custom_prof_stream, fullresched_startkey, 0, this_task->taskpool->taskpool_id, NULL, 0);
+    taskqueue[NB] = (void*)-1;
+#endif
+
+    bs = random() % 40 + 1;
+
+if(verbose)
+        fprintf(stderr, "RESCHED(0) executes...\n");
+    for(i = 0; i < NB; i++) {
+        t = taskqueue[i];
+        if(NULL != t) {
+            done++;
+            if( (void*)-1 != t ) {
+                if(verbose)
+                    fprintf(stderr, "RESCHED(0) reschedules ASYNC(%d)\n", i);
+                parsec_atomic_cas_ptr(&taskqueue[i], t, (void*)-1);
+                __parsec_schedule(es, t, 0);
+                bs--;
+                if(bs == 0)
+                    break;
+            }
+        }
+    }
+    if(NB != done) {
+        if(verbose)
+            fprintf(stderr, "RESCHED(0) has found only %d tasks that have been rescheduled: it will try again\n", done);
+        return PARSEC_HOOK_RETURN_AGAIN;
+    }
+    if(verbose)
+        fprintf(stderr, "RESCHED(0) has found %d tasks that have been rescheduled: job done\n", NB);
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_trace_flags(custom_prof_stream, fullresched_endkey, 0, this_task->taskpool->taskpool_id, NULL, 0);
+#endif
+}
+END
+
+extern "C" %{
+
+#include <math.h>
+
+int main( int argc, char** argv )
+{
+    parsec_async_taskpool_t* tp;
+    two_dim_block_cyclic_t descA;
+    parsec_arena_datatype_t adt;
+    parsec_datatype_t dt;
+    parsec_context_t *parsec;
+    int ws, mr, rc;
+    parsec_task_t **taskqueue;
+    int verbose = 0;
+    int NB = 1000000;
+    int parsec_argc = argc, arg;
+    char **parsec_argv = NULL;
+
+#ifdef PARSEC_HAVE_MPI
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+        MPI_Comm_size(MPI_COMM_WORLD, &ws);
+        MPI_Comm_rank(MPI_COMM_WORLD, &mr);
+    }
+#endif
+
+#if !defined(PARSEC_PROF_TRACE)
+    fprintf(stderr, "This profiling test has been compiled with profiling disabled...\n");
+    exit(1);
+#endif
+
+    parsec_argv = (char **)malloc(parsec_argc * sizeof(char*));
+    parsec_argv[0] = argv[0];
+    parsec_argc = 1;
+    for(arg = 1; arg < argc; arg++) {
+        if(strcmp(argv[arg], "--") == 0)
+            break;
+    }
+    if( arg < argc ) {
+        for(arg = arg+1; arg < argc; arg++)
+            parsec_argv[parsec_argc++] = argv[arg];
+    }
+    parsec_argv[parsec_argc] = NULL;
+
+    if( argc > 1 &&
+        ( (strcmp(argv[1], "-v") == 0 ) ||
+          (strcmp(argv[1], "--verbose") == 0)) ) {
+        verbose = 1;
+        argv++;
+        argc--;
+    }
+
+    parsec = parsec_init(-1, &parsec_argc, &parsec_argv);
+    if( NULL == parsec ) {
+        exit(-1);
+    }
+
+    if( argc > 1 ) {
+        NB = atoi(argv[1]);
+    }
+    if(NB <= 0) {
+        fprintf(stderr, "Usage: async [-v] NB [--mca profile_filename /path/to/profile --mca mca_pins task_profiler\n");
+        return 1;
+    }
+
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_add_dictionary_keyword( "FULL_ASYNC", "fillcolor:#000000", 0, "", &fullasync_startkey, &fullasync_endkey);
+    parsec_profiling_add_dictionary_keyword( "FULL_RESCHED", "fillcolor:#FF0000", 0, "", &fullresched_startkey, &fullresched_endkey);
+    profiling_save_iinfo("NB", NB);
+#endif
+
+    taskqueue = (parsec_task_t**)calloc(sizeof(parsec_task_t*), (NB+1));
+    /**
+     * Build the data and the arena to hold it up.
+     */
+    two_dim_block_cyclic_init( &descA, matrix_RealDouble, matrix_Tile,
+                               mr /*rank*/,
+                               1 /* mb */, 1 /* nb */,
+                               1 /* lm */, 1 /* ln */,
+                               0 /* i  */, 0 /* j  */,
+                               1 /* m  */, 1 /* n  */,
+                               ws /* P */, 1 /* Q  */,
+                               1 /* kp */, 1 /* kq */,
+                               0 /* ip */, 0 /* jq */ );
+    descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
+                                      descA.super.bsiz *
+                                      parsec_datadist_getsizeoftype(matrix_RealDouble) );
+    parsec_data_collection_set_key(&descA.super.super, "A");
+
+    parsec_translate_matrix_type(matrix_RealDouble, &dt);
+    parsec_matrix_add2arena_rect(&adt, dt,
+                                 descA.super.mb, descA.super.nb, descA.super.mb);
+
+    /* Start the PaRSEC engine */
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    tp = parsec_async_new( &descA, verbose, taskqueue, NB );
+    assert( NULL != tp );
+    tp->arenas_datatypes[PARSEC_async_DEFAULT_ARENA] = adt;
+    rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    free(descA.mat);
+    parsec_matrix_del2arena( & adt );
+
+    parsec_fini( &parsec);
+
+#ifdef PARSEC_HAVE_MPI
+    MPI_Finalize();
+#endif
+
+    return 0;
+}
+
+%}
