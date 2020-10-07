@@ -71,7 +71,7 @@ static void pins_init_task_profiler(parsec_context_t *master_context)
     (void)master_context;
     parsec_profiling_add_dictionary_keyword("RELEASE_DEPS", "fill:#FF0000",
                                            sizeof(int32_t),
-                                           "rd_fid{int32_t}",
+                                           "tcid{int32_t}",
                                            &release_deps_trace_keyin,
                                            &release_deps_trace_keyout);
 
@@ -150,13 +150,13 @@ task_profiler_release_deps_begin(struct parsec_execution_stream_s*   es,
                                  struct parsec_task_s*               task,
                                  struct parsec_pins_next_callback_s* cb_data)
 {
-    int32_t rd_fid = task->task_class->task_class_id;
+    int32_t tcid = task->task_class->task_class_id;
 
     PARSEC_PROFILING_TRACE(es->es_profile,
                            release_deps_trace_keyin,
                            task->task_class->key_functions->key_hash(task->task_class->make_key(task->taskpool, task->locals), NULL),
                            task->taskpool->taskpool_id,
-                           (void *)&rd_fid);
+                           (void *)&tcid);
 
     (void)cb_data;
 }
@@ -166,13 +166,13 @@ task_profiler_release_deps_end(struct parsec_execution_stream_s*   es,
                                struct parsec_task_s*               task,
                                struct parsec_pins_next_callback_s* cb_data)
 {
-    int32_t rd_fid = task->task_class->task_class_id;
+    int32_t tcid = task->task_class->task_class_id;
 
     PARSEC_PROFILING_TRACE(es->es_profile,
                            release_deps_trace_keyout,
                            task->task_class->key_functions->key_hash(task->task_class->make_key(task->taskpool, task->locals), NULL),
                            task->taskpool->taskpool_id,
-                           (void*)&rd_fid);
+                           (void*)&tcid);
     (void)cb_data;
 }
 
