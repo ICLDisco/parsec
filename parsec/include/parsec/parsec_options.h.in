@@ -79,6 +79,8 @@
 /* GPU Support */
 #cmakedefine PARSEC_GPU_WITH_CUDA
 #cmakedefine PARSEC_GPU_CUDA_ALLOC_PER_TILE
+#cmakedefine PARSEC_GPU_WITH_HIP
+#cmakedefine PARSEC_GPU_HIP_ALLOC_PER_TILE
 #cmakedefine PARSEC_GPU_WITH_OPENCL
 #cmakedefine PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS
 
@@ -120,6 +122,7 @@
 #cmakedefine PARSEC_HAVE_HWLOC
 #cmakedefine PARSEC_HAVE_PAPI
 #cmakedefine PARSEC_HAVE_CUDA
+#cmakedefine PARSEC_HAVE_HIP
 #cmakedefine PARSEC_HAVE_OPENCL
 #cmakedefine PARSEC_HAVE_MPI
 #cmakedefine PARSEC_HAVE_MPI_20
@@ -130,7 +133,8 @@
 #define PARSEC_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 /* Default PATH to look for the CUDA .so files */
 #define PARSEC_LIB_CUDA_PREFIX "."
-#define PARSEC_LIB_LEVE_ZERO_PREFIX "."
+#define PARSEC_LIB_HIP_PREFIX "."
+#define PARSEC_LIB_LEVEL_ZERO_PREFIX "."
 
 #define PARSEC_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@
 

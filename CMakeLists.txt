@@ -167,6 +167,12 @@ option(PARSEC_GPU_CUDA_ALLOC_PER_TILE
   "Tile based allocation engine for GPU memory (instead of internal management
   of a complete allocation)" OFF)
 mark_as_advanced(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
+option(PARSEC_GPU_WITH_HIP
+    "Enable GPU support using HIP kernels" ON)
+option(PARSEC_GPU_HIP_ALLOC_PER_TILE
+  "Tile based allocation engine for GPU memory (instead of internal management
+  of a complete allocation)" OFF)
+mark_as_advanced(PARSEC_GPU_HIP_ALLOC_PER_TILE)
 option(PARSEC_GPU_WITH_OPENCL
   "Enable GPU support using OpenCL kernels" OFF)
 mark_as_advanced(PARSEC_GPU_WITH_OPENCL) # Hide this as it is not supported yet
@@ -703,6 +709,25 @@ int main(int argc, char *argv[]) {
     endif (CUDAToolkit_FOUND)
   endif( PARSEC_GPU_WITH_CUDA )
 
+  if( PARSEC_GPU_WITH_HIP )
+    if( PARSEC_HAVE_CUDA )
+    # the underlying reason is that the generated ptg code cannot include at the same time
+    # cuda_runtime.h and hip_runtime.h, so we need to modify the dev_cuda.h to not expose any
+    # structure that depends on these headers.
+    message(FATAL_ERROR "For the time being HIP and CUDA devices cannot be compiled at the same time. Choose one by setting explicitely the options PARSEC_GPU_WITH_{CUDA|HIP}")
+    endif()
+    # This is kinda ugly but the PATH and HINTS don't get transmitted to sub-dependents
+    set(CMAKE_SYSTEM_PREFIX_PATH_save ${CMAKE_SYSTEM_PREFIX_PATH})
+    list(APPEND CMAKE_SYSTEM_PREFIX_PATH /opt/rocm)
+    find_package(HIP)
+    set(CMAKE_SYSTEM_PREFIX_PATH ${CMAKE_SYSTEM_PREFIX_PATH_save})
+    set(PARSEC_HAVE_HIP ${HIP_FOUND} CACHE BOOL "True if PaRSEC provide support for HIP")
+    if(HIP_FOUND)
+      message(STATUS "Found HIP ${HIP_VERSION} in ${HIP_LIB_INSTALL_DIR}")
+      get_target_property(extra_hip_libs hip::host INTERFACE_LINK_LIBRARIES)
+      list(APPEND EXTRA_LIBS ${extra_hip_libs})
+    endif(HIP_FOUND)
+  endif( PARSEC_GPU_WITH_HIP )
   find_package(AYUDAME QUIET)
   set(PARSEC_HAVE_AYUDAME ${AYUDAME_FOUND})
 #
@@ -896,7 +921,10 @@ endif()
 string(REPLACE " " ";" MPI_TEST_CMD_LIST "${CTEST_MPI_LAUNCHER}")
 set(CTEST_CUDA_LAUNCHER_OPTIONS
       "" CACHE STRING
-      "Options to pass to the CTEST_MPI_LAUNCHER to select GPU nodes")
+      "Options to pass to the CTEST_MPI_LAUNCHER to select CUDA nodes")
+set(CTEST_HIP_LAUNCHER_OPTIONS
+      "" CACHE STRING
+      "Options to pass to the CTEST_MPI_LAUNCHER to select RoCM/HIP nodes")
 
 if( BUILD_TESTING )
   find_program(HOSTNAME_EXE hostname)
@@ -909,6 +937,9 @@ if( BUILD_TESTING )
   if(PARSEC_HAVE_CUDA)
     add_test(launcher:cuda   ${MPI_TEST_CMD_LIST} 4 ${CTEST_CUDA_LAUNCHER_OPTIONS} ${HOSTNAME_EXE})
   endif(PARSEC_HAVE_CUDA)
+  if(PARSEC_HAVE_HIP)
+      add_test(launcher:hip   ${MPI_TEST_CMD_LIST} 4 ${CTEST_HIP_LAUNCHER_OPTIONS} ${HOSTNAME_EXE})
+  endif(PARSEC_HAVE_HIP)
   add_subdirectory(tests)
   add_subdirectory(examples)
 endif( BUILD_TESTING )
