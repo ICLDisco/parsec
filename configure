@@ -111,6 +111,9 @@ cat <<EOF
                 compile kernels optimized for the CUDA SM model x, y and z
                 where x,y,z are two digit numbers representing a valid CUDA architecture (e.g. 35,37,60) (default=autodetect)
 
+--with-hip[=DIR]
+                use the AMD RoCM accelerator libray [installed in DIR] (default=autodetect)
+
 
 Some influential environment variables:
   CC          C compiler command
@@ -247,6 +250,11 @@ while [ "x$1" != x ]; do
         --with-cuda-sm-targets) with_cuda_sm_targets=yes; shift;;
         --without-cuda-sm-targets) with_cuda_sm_targets=no; shift;;
 
+# RoCM options
+        --with-hip=*) with_hip="${1#*=}"; shift;;
+        --with-hip) with_hip=yes; shift;;
+        --without-hip) with_hip=no; shift;;
+
 # Python options
         --with-python=*) with_python="${1#*=}"; shift;;
         --with-python) with_python=yes; shift;;
@@ -344,12 +352,12 @@ _EOF
     mkdir -p "$NATIVE_DIR" && pushd "$NATIVE_DIR"
     rm -rf CMakeCache.txt CMakeFiles
 
-    # Disable MPI, CUDA, HWLOC when creating the build-tools
+    # Disable MPI, GPU, HWLOC when creating the build-tools
     local NATIVE_MPI="-DPARSEC_DIST_WITH_MPI=OFF"
-    local NATIVE_CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
+    local NATIVE_GPU="-DPARSEC_GPU_WITH_CUDA=OFF -DPARSEC_GPU_WITH_HIP=OFF"
     local NATIVE_HWLOC=""
     local NATIVE_COMPILERS="-DSUPPORT_FORTRAN=OFF"
-    local NATIVE_OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DCMAKE_INSTALL_PREFIX=$NATIVE_PREFIX $NATIVE_MPI $NATIVE_CUDA $NATIVE_HWLOC $NATIVE_COMPILERS"
+    local NATIVE_OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DCMAKE_INSTALL_PREFIX=$NATIVE_PREFIX $NATIVE_MPI $NATIVE_GPU $NATIVE_HWLOC $NATIVE_COMPILERS"
 
     set_cmake_executable #may have been changed in the platform file
     echo "CC=\"${NATIVE_CC}\" CFLAGS=\"${NATIVE_CFLAGS}\" CXX=\"${NATIVE_CXX}\" CXXFLAGS=\"${NATIVE_CXXFLAGS}\" LDFLAGS=\"${NATIVE_LDFLAGS}\" ${cmake_executable} -G\"${cmake_generator}\" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} $(for i in "$@"; do printf ' %q' "$i"; done) ${srcdir}"
@@ -528,6 +536,12 @@ x) ;;
 *) CMAKE_DEFINES+=" -DCUDA_SM_TARGETS='${with_cuda_sm_targets/,/;}'";;
 esac
 
+case x$with_hip in
+xno) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_HIP=OFF";;
+xyes) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_HIP=ON";;
+x) ;;
+*) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_HIP=ON -DHIP_ROOT=$(printf %q "$with_hip")";;
+esac
 
 case x$with_python in
 xno) echo >&2 "Python is required. Please provide a path to the python executable."; exit 3;;
