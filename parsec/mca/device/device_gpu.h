@@ -45,9 +45,9 @@ typedef int (*parsec_complete_stage_function_t)(parsec_device_gpu_module_t  *gpu
 /**
  *
  */
-typedef int (*advance_task_function_t)(parsec_device_gpu_module_t  *gpu_device,
-                                       parsec_gpu_task_t           *gpu_task,
-                                       parsec_gpu_exec_stream_t    *gpu_stream);
+typedef int (*parsec_advance_task_function_t)(parsec_device_gpu_module_t  *gpu_device,
+                                              parsec_gpu_task_t           *gpu_task,
+                                              parsec_gpu_exec_stream_t    *gpu_stream);
 
 /* Function type to transfer data to the GPU device.
  * Transfer transfer the <count> contiguous bytes from
@@ -80,7 +80,7 @@ struct parsec_gpu_task_s {
     parsec_list_item_t               list_item;
     int                              task_type;
     int32_t                          pushout;
-    advance_task_function_t          submit;
+    parsec_advance_task_function_t   submit;
     parsec_complete_stage_function_t complete_stage;
     parsec_stage_in_function_t      *stage_in;
     parsec_stage_out_function_t     *stage_out;
@@ -162,7 +162,7 @@ typedef struct parsec_gpu_workspace_s {
  ****************************************************/
 PARSEC_DECLSPEC extern int parsec_gpu_output_stream;
 PARSEC_DECLSPEC extern int parsec_gpu_verbosity;
-PARSEC_DECLSPEC extern int32_t parsec_GPU_d2h_max_flows;
+PARSEC_DECLSPEC extern int32_t parsec_gpu_d2h_max_flows;
 
 /**
  * Debugging functions.
@@ -186,12 +186,10 @@ int parsec_gpu_push_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu
 void* parsec_gpu_pop_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream, size_t size);
 int parsec_gpu_free_workspace(parsec_device_gpu_module_t * gpu_device);
 
-int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio );
-
 /* sort pending task list by number of spaces needed */
 int parsec_gpu_sort_pending_list(parsec_device_gpu_module_t *gpu_device);
-parsec_gpu_task_t* parsec_gpu_create_W2R_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es);
-int parsec_gpu_W2R_task_fini(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
+parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es);
+int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
 
 void parsec_gpu_enable_debug(void);
 
@@ -199,11 +197,11 @@ void parsec_gpu_enable_debug(void);
 char *parsec_gpu_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task );
 #endif
 
-#define GPU_TASK_TYPE_KERNEL       0x0000
-#define GPU_TASK_TYPE_D2HTRANSFER  0x1000
-#define GPU_TASK_TYPE_PREFETCH     0x2000
-#define GPU_TASK_TYPE_WARMUP       0x4000
-#define GPU_TASK_TYPE_D2D_COMPLETE 0x8000
+#define PARSEC_GPU_TASK_TYPE_KERNEL       0x0000
+#define PARSEC_GPU_TASK_TYPE_D2HTRANSFER  0x1000
+#define PARSEC_GPU_TASK_TYPE_PREFETCH     0x2000
+#define PARSEC_GPU_TASK_TYPE_WARMUP       0x4000
+#define PARSEC_GPU_TASK_TYPE_D2D_COMPLETE 0x8000
 
 #if defined(PARSEC_PROF_TRACE)
 #define PARSEC_PROFILE_GPU_TRACK_DATA_IN  0x0001

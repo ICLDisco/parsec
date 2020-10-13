@@ -6697,13 +6697,13 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "  if (dev_index < -1) {\n"
                 "    return PARSEC_HOOK_RETURN_NEXT;\n"
                 "  } else if (dev_index == -1) {\n"
-                "    dev_index = parsec_gpu_get_best_device((parsec_task_t*)this_task, ratio);\n"
+                "    dev_index = parsec_get_best_device((parsec_task_t*)this_task, ratio);\n"
                 "  } else {\n"
                 "    dev_index = (dev_index %% (parsec_mca_device_enabled()-2)) + 2;\n"
                 "  }\n",
                 device);
     } else {
-        coutput("  dev_index = parsec_gpu_get_best_device((parsec_task_t*)this_task, ratio);\n");
+        coutput("  dev_index = parsec_get_best_device((parsec_task_t*)this_task, ratio);\n");
     }
     coutput("  assert(dev_index >= 0);\n"
             "  if( dev_index < 2 ) {\n"

@@ -247,112 +247,15 @@ int parsec_gpu_free_workspace(parsec_device_gpu_module_t * gpu_device)
     return 0;
 }
 
-/**
- * Try to find the best device to execute the kernel based on the compute
- * capability of the card.
- *
- * Returns:
- *  > 1    - if the kernel should be executed by the a GPU
- *  0 or 1 - if the kernel should be executed by some other meaning (in this case the
- *         execution context is not released).
- * -1      - if the kernel is scheduled to be executed on a GPU.
- *
- * This version is based on 4 streams: one for transfers from the memory to
- * the GPU, 2 for kernel executions and one for transfers from the GPU into
- * the main memory. The synchronization on each stream is based on events,
- * such an event indicate that a specific epoch of the lifetime of a task has
- * been completed. Each type of stream (in, exec and out) has a pending FIFO,
- * where tasks ready to jump to the respective step are waiting.
- */
-int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
-{
-    int i, dev_index = -1, data_index = 0;
-    parsec_taskpool_t* tp = this_task->taskpool;
-
-    /* Step one: Find the first data in WRITE mode stored on a GPU */
-    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
-        /* Make sure data_in is not NULL */
-        if( NULL == this_task->data[i].data_in ) continue;
-
-        if( (NULL != this_task->task_class->out[i]) &&
-            (this_task->task_class->out[i]->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
-            data_index = this_task->task_class->out[i]->flow_index;
-            if( this_task->data[data_index].data_in->original->preferred_device != -1 )
-                dev_index = this_task->data[data_index].data_in->original->preferred_device;
-            if (dev_index > 1) {
-                break;
-            }
-            dev_index  = this_task->data[data_index].data_in->original->owner_device;
-            if (dev_index > 1) {
-                break;
-            }
-        }
-    }
-    assert(dev_index >= 0);
-
-    /* 0 is CPU, and 1 is recursive device */
-    if( dev_index <= 1 ) {  /* This is the first time we see this data for a GPU.
-                             * Let's decide which GPU will work on it. */
-        int best_index;
-        float weight, best_weight = parsec_device_load[0] + ratio * parsec_device_sweight[0];
-
-        /* Start with a valid device for this task */
-        for(best_index = 0; best_index < parsec_mca_device_enabled(); best_index++) {
-            parsec_device_module_t *dev = parsec_mca_device_get(best_index);
-
-            /* Skip the device if it is not configured */
-            if(!(tp->devices_index_mask & (1 << dev_index))) continue;
-            /* Stop on this device if there is an incarnation for it */
-            for(i = 0; NULL != this_task->task_class->incarnations[i].hook; i++)
-                if( this_task->task_class->incarnations[i].type == dev->type )
-                    break;
-            if(NULL != this_task->task_class->incarnations[i].hook)
-                break;
-        }
-
-        /* Start at 2, to skip the recursive body */
-        for( dev_index = 2; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
-            /* Skip the device if it is not configured */
-            if(!(tp->devices_index_mask & (1 << dev_index))) continue;
-            weight = parsec_device_load[dev_index] + ratio * parsec_device_sweight[dev_index];
-            if( best_weight > weight ) {
-                best_index = dev_index;
-                best_weight = weight;
-            }
-        }
-        // Load problem: was nothing to do here
-        parsec_device_load[best_index] += ratio * parsec_device_sweight[best_index];
-        assert( best_index != 1 );
-        dev_index = best_index;
-    }
-
-    /* Sanity check: if at least one of the data copies is not parsec
-     * managed, check that all the non-parsec-managed data copies
-     * exist on the same device */
-    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
-        /* Make sure data_in is not NULL */
-        if (NULL == this_task->data[i].data_in) continue;
-        if ((this_task->data[i].data_in->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) == 0 &&
-            this_task->data[i].data_in->device_index != dev_index) {
-            char task_str[MAX_TASK_STRLEN];
-            parsec_fatal("*** User-Managed Copy Error: Task %s is selected to run on device %d,\n"
-                         "*** but flow %d is represented by a data copy not managed by PaRSEC,\n"
-                         "*** and does not have a copy on that device\n",
-                         parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task), dev_index, i);
-        }
-    }
-    return dev_index;
-}
-
 #if defined(PARSEC_DEBUG_NOISIER)
 char *parsec_gpu_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task )
 {
     char buffer[64];
     parsec_data_t *data;
     switch( gpu_task->task_type ) {
-        case GPU_TASK_TYPE_KERNEL:
+        case PARSEC_GPU_TASK_TYPE_KERNEL:
             return parsec_task_snprintf(tmp, len, gpu_task->ec);
-        case GPU_TASK_TYPE_PREFETCH:
+        case PARSEC_GPU_TASK_TYPE_PREFETCH:
             assert(NULL != gpu_task->ec);
             assert(NULL != gpu_task->ec->data[0].data_in );
             data = gpu_task->ec->data[0].data_in->original;
@@ -363,16 +266,16 @@ char *parsec_gpu_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gp
                 snprintf(tmp, len, "PREFETCH for %s (data %p)", buffer, data);
             }
             return tmp;
-        case GPU_TASK_TYPE_WARMUP:
+        case PARSEC_GPU_TASK_TYPE_WARMUP:
             assert(NULL != gpu_task->copy->original && NULL != gpu_task->copy->original->dc);
             gpu_task->copy->original->dc->key_to_string(gpu_task->copy->original->dc, gpu_task->copy->original->key, buffer, 64);
             snprintf(tmp, len, "WARMUP %s on device %d",
                      buffer, gpu_task->copy->device_index);
             return tmp;
-        case GPU_TASK_TYPE_D2HTRANSFER:
+        case PARSEC_GPU_TASK_TYPE_D2HTRANSFER:
             snprintf(tmp, len, "Device to Host Transfer");
             return tmp;
-        case GPU_TASK_TYPE_D2D_COMPLETE:
+        case PARSEC_GPU_TASK_TYPE_D2D_COMPLETE:
             snprintf(tmp, len, "D2D Transfer Complete for data copy %p [ref_count %d]",
                      gpu_task->ec->data[0].data_out, gpu_task->ec->data[0].data_out->super.super.obj_reference_count);
             return tmp;

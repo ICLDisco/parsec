@@ -33,13 +33,14 @@ static int device_cuda_component_close(void);
 static int device_cuda_component_query(mca_base_module_2_0_0_t **module, int *priority);
 static int device_cuda_component_register(void);
 
-int use_cuda_index, use_cuda;
-int cuda_mask, cuda_nvlink_mask;
-int cuda_memory_block_size, cuda_memory_percentage, cuda_memory_number_of_blocks;
+/* mca params */
+int parsec_device_cuda_enabled_index, parsec_device_cuda_enabled;
+int parsec_cuda_sort_pending = 0;
+int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_memory_number_of_blocks;
+char* parsec_cuda_lib_path = NULL;
 
-int32_t parsec_CUDA_sort_pending_list = 0;
+static int cuda_mask, cuda_nvlink_mask;
 
-char* cuda_lib_path = NULL;
 
 /*
  * Instantiate the public struct with all of our public information
@@ -89,19 +90,19 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
 
     *module = NULL;
     *priority = 0;
-    if( 0 == use_cuda ) {
+    if( 0 == parsec_device_cuda_enabled ) {
         return MCA_SUCCESS;
     }
 #if defined(PARSEC_PROF_TRACE)
     parsec_gpu_init_profiling();
 #endif  /* defined(PROFILING) */
 
-    if( use_cuda >= 1)
-        parsec_device_cuda_component.modules = (parsec_device_module_t**)calloc(use_cuda + 1, sizeof(parsec_device_module_t*));
+    if( parsec_device_cuda_enabled >= 1)
+        parsec_device_cuda_component.modules = (parsec_device_module_t**)calloc(parsec_device_cuda_enabled + 1, sizeof(parsec_device_module_t*));
     else
         parsec_device_cuda_component.modules = NULL;
 
-    for( i = j = 0; i < use_cuda; i++ ) {
+    for( i = j = 0; i < parsec_device_cuda_enabled; i++ ) {
 
         /* Allow fine grain selection of the GPU's */
         if( !((1 << i) & cuda_mask) ) continue;
@@ -120,7 +121,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
     parsec_device_cuda_module_t *source_gpu, *target_gpu;
     cudaError_t cudastatus;
 
-    for( i = 0; i < use_cuda && NULL != (source_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[i]); i++ ) {
+    for( i = 0; i < parsec_device_cuda_enabled && NULL != (source_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[i]); i++ ) {
         int canAccessPeer;
         source_gpu->super.peer_access_mask = 0;
 
@@ -161,9 +162,9 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
 
 static int device_cuda_component_register(void)
 {
-    use_cuda_index = parsec_mca_param_reg_int_name("device_cuda", "enabled",
+    parsec_device_cuda_enabled_index = parsec_mca_param_reg_int_name("device_cuda", "enabled",
                                                    "The number of CUDA device to enable for the next PaRSEC context (-1 for all available)",
-                                                   false, false, -1, &use_cuda);
+                                                   false, false, -1, &parsec_device_cuda_enabled);
     (void)parsec_mca_param_reg_int_name("device_cuda", "mask",
                                         "The bitwise mask of CUDA devices to be enabled (default all)",
                                         false, false, 0xffffffff, &cuda_mask);
@@ -175,22 +176,22 @@ static int device_cuda_component_register(void)
                                         false, false, -1, &parsec_gpu_verbosity);
     (void)parsec_mca_param_reg_string_name("device_cuda", "path",
                                            "Path to the shared library files containing the CUDA version of the hooks. It is a ;-separated list of either directories or .so files.\n",
-                                           false, false, PARSEC_LIB_CUDA_PREFIX, &cuda_lib_path);
+                                           false, false, PARSEC_LIB_CUDA_PREFIX, &parsec_cuda_lib_path);
     (void)parsec_mca_param_reg_int_name("device_cuda", "memory_block_size",
                                         "The CUDA memory page for PaRSEC internal management (in bytes).",
-                                        false, false, 512*1024, &cuda_memory_block_size);
+                                        false, false, 512*1024, &parsec_cuda_memory_block_size);
     (void)parsec_mca_param_reg_int_name("device_cuda", "memory_use",
                                         "The percentage of the total GPU memory to be used by this PaRSEC context",
-                                        false, false, 95, &cuda_memory_percentage);
+                                        false, false, 95, &parsec_cuda_memory_percentage);
     (void)parsec_mca_param_reg_int_name("device_cuda", "memory_number_of_blocks",
                                         "Alternative to device_cuda_memory_use: sets exactly the number of blocks to allocate (-1 means to use a percentage of the available memory)",
-                                        false, false, -1, &cuda_memory_number_of_blocks);
+                                        false, false, -1, &parsec_cuda_memory_number_of_blocks);
     (void)parsec_mca_param_reg_int_name("device_cuda", "max_number_of_ejected_data",
                                         "Sets up the maximum number of blocks that can be ejected from GPU memory",
-                                        false, false, MAX_PARAM_COUNT, &parsec_GPU_d2h_max_flows);
+                                        false, false, MAX_PARAM_COUNT, &parsec_gpu_d2h_max_flows);
     (void)parsec_mca_param_reg_int_name("device_cuda", "sort_pending_tasks",
                                         "Boolean to let the GPU engine sort the first pending tasks stored in the list",
-                                        false, false, 0, &parsec_CUDA_sort_pending_list);
+                                        false, false, 0, &parsec_cuda_sort_pending);
 #if defined(PARSEC_PROF_TRACE)
     (void)parsec_mca_param_reg_int_name("device_cuda", "one_profiling_stream_per_cuda_stream",
                                         "Boolean to separate the profiling of each cuda stream into a single profiling stream",
@@ -198,7 +199,7 @@ static int device_cuda_component_register(void)
 #endif
 
     /* If CUDA was not requested avoid initializing the devices */
-    return (0 == use_cuda ? MCA_ERROR : MCA_SUCCESS);
+    return (0 == parsec_device_cuda_enabled ? MCA_ERROR : MCA_SUCCESS);
 }
 
 /**
@@ -211,7 +212,7 @@ static int device_cuda_component_open(void)
     cudaError_t cudastatus;
     int ndevices;
 
-    if( 0 <= use_cuda ) {
+    if( 0 <= parsec_device_cuda_enabled ) {
         return MCA_ERROR;  /* Nothing to do around here */
     }
 
@@ -227,26 +228,26 @@ static int device_cuda_component_open(void)
     else {
         PARSEC_CUDA_CHECK_ERROR( "cudaGetDeviceCount ", cudastatus,
                              {
-                                parsec_mca_param_set_int(use_cuda_index, 0);
+                                parsec_mca_param_set_int(parsec_device_cuda_enabled_index, 0);
                                 return MCA_ERROR;
                              } );
     }
 
-    if( ndevices > use_cuda ) {
-        if( 0 < use_cuda_index ) {
-            ndevices = use_cuda;
+    if( ndevices > parsec_device_cuda_enabled ) {
+        if( 0 < parsec_device_cuda_enabled_index ) {
+            ndevices = parsec_device_cuda_enabled;
         }
-    } else if (ndevices < use_cuda ) {
-        if( 0 < use_cuda_index ) {
+    } else if (ndevices < parsec_device_cuda_enabled ) {
+        if( 0 < parsec_device_cuda_enabled_index ) {
             parsec_warning("User requested %d CUDA devices, but only %d are available on %s\n."
                            " PaRSEC will enable all %d of them.",
-                           use_cuda, ndevices, parsec_hostname, ndevices);
-            parsec_mca_param_set_int(use_cuda_index, ndevices);
+                           parsec_device_cuda_enabled, ndevices, parsec_hostname, ndevices);
+            parsec_mca_param_set_int(parsec_device_cuda_enabled_index, ndevices);
         }
     }
 
     /* Update the number of GPU for the upper layer */
-    use_cuda = ndevices;
+    parsec_device_cuda_enabled = ndevices;
     if( 0 == ndevices ) {
         return -1;
     }
@@ -308,8 +309,8 @@ static int device_cuda_component_close(void)
         parsec_output_close(parsec_gpu_output_stream);
     parsec_gpu_output_stream = parsec_device_output;
 
-    if ( cuda_lib_path ) {
-        free(cuda_lib_path);
+    if ( parsec_cuda_lib_path ) {
+        free(parsec_cuda_lib_path);
     }
 
     return PARSEC_SUCCESS;
