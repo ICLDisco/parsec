@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <math.h>
@@ -58,6 +59,9 @@ static const char *short_type[] = {   "int32",   "int64", "float", "double", "co
 
 /* C99 doesn't help us initialize a structure to zero easily */
 static const jdf_expr_t jdf_empty_expr;
+
+static char* strdup_upper(const char *str);
+static char* strdup_lower(const char *str);
 
 #define TASKPOOL_GLOBAL_PREFIX  "__parsec_tp->super."
 
@@ -1502,9 +1506,13 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
             "#include \"parsec/parsec_internal.h\"\n"
             "#include \"parsec/ayudame.h\"\n"
             "#include \"parsec/execution_stream.h\"\n"
+            "#include \"parsec/mca/device/device_gpu.h\"\n"
             "#if defined(PARSEC_HAVE_CUDA)\n"
             "#include \"parsec/mca/device/cuda/device_cuda.h\"\n"
             "#endif  /* defined(PARSEC_HAVE_CUDA) */\n"
+            "#if defined(PARSEC_HAVE_HIP)\n"
+            "#include \"parsec/mca/device/hip/device_hip.h\"\n"
+            "#endif  /* defined(PARSEC_HAVE_HIP) */\n"
             "#if defined(_MSC_VER) || defined(__MINGW32__)\n"
             "#  include <malloc.h>\n"
             "#else\n"
@@ -3927,8 +3935,11 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
             string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s },\n", base_name);
         } else {
-            string_arena_add_string(sa, "#if defined(PARSEC_HAVE_%s)\n", type_property->expr->jdf_var);
-            string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s,\n", type_property->expr->jdf_var);
+            char* dev_upper = strdup_upper(type_property->expr->jdf_var);
+            char* dev_lower = strdup_lower(type_property->expr->jdf_var);
+
+            string_arena_add_string(sa, "#if defined(PARSEC_HAVE_%s)\n", dev_upper);
+            string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s,\n", dev_upper);
             if( NULL == dyld_property ) {
                 string_arena_add_string(sa, "      .dyld     = NULL,\n");
             } else {
@@ -3943,8 +3954,9 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
                 string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
             }
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
-            string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, type_property->expr->jdf_var);
-            string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_%s) */\n", type_property->expr->jdf_var);
+            string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_lower);
+            string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_%s) */\n", dev_upper);
+            free(dev_upper); free(dev_lower);
         }
         body = body->next;
     } while (NULL != body);
@@ -6537,7 +6549,7 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
     string_arena_free(sa2);
 }
 
-static int jdf_has_cuda_chore(const jdf_t *jdf, const char *fname)
+static int jdf_has_gpu_chore(const jdf_t *jdf, const char *fname, const char *dname)
 {
     jdf_function_entry_t *f;
     jdf_body_t* body;
@@ -6547,7 +6559,7 @@ static int jdf_has_cuda_chore(const jdf_t *jdf, const char *fname)
         if( strcmp(f->fname, fname) ) continue;
         for(body = f->bodies; body != NULL; body = body->next) {
             jdf_find_property(body->properties, "type", &type_property);
-            if( NULL != type_property && !strcmp(type_property->expr->jdf_var, "CUDA"))
+            if( NULL != type_property && !strcasecmp(dname, type_property->expr->jdf_var))
                 return 1;
         }
         return 0;
@@ -6555,10 +6567,10 @@ static int jdf_has_cuda_chore(const jdf_t *jdf, const char *fname)
     return 0;
 }
 
-static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
-                                        const jdf_function_entry_t *f,
-                                        const jdf_body_t* body,
-                                        const char *name)
+static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
+                                       const jdf_function_entry_t *f,
+                                       const jdf_body_t* body,
+                                       const char *name)
 {
     jdf_def_list_t *type_property;
     jdf_def_list_t *stage_in_property;
@@ -6583,6 +6595,8 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     profile_on = profile_enabled(f->properties) && profile_enabled(body->properties);
 
     jdf_find_property(body->properties, "type", &type_property);
+    char* dev_upper = strdup_upper(type_property->expr->jdf_var);
+    char* dev_lower = strdup_lower(type_property->expr->jdf_var);
 
     /* Get the dynamic function properties */
     dyld = jdf_property_get_string(body->properties, "dyld", NULL);
@@ -6604,31 +6618,35 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
-    /* Generate the cuda_kernel_submit structure and function */
-    coutput("struct parsec_body_cuda_%s_%s_s {\n"
+    /* Generate the kernel_submit structure and function */
+    coutput("struct parsec_body_%s_%s_%s_s {\n"
             "  uint8_t      index;\n"
-            "  cudaStream_t stream;\n"
+            "  %sStream_t stream;\n"
             "  %s           dyld_fn;\n"
             "};\n"
             "\n"
-            "static int cuda_kernel_submit_%s_%s(parsec_device_gpu_module_t  *gpu_device,\n"
-            "                                    parsec_gpu_task_t           *gpu_task,\n"
-            "                                    parsec_gpu_exec_stream_t    *gpu_stream )\n"
+            "static int %s_kernel_submit_%s_%s(parsec_device_gpu_module_t  *gpu_device,\n"
+            "                                  parsec_gpu_task_t           *gpu_task,\n"
+            "                                  parsec_gpu_exec_stream_t    *gpu_stream )\n"
             "{\n"
             "  %s *this_task = (%s *)gpu_task->ec;\n"
-            "  parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)gpu_device;\n"
-            "  parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;\n"
+            "  parsec_device_%s_module_t *%s_device = (parsec_device_%s_module_t*)gpu_device;\n"
+            "  parsec_%s_exec_stream_t *%s_stream = (parsec_%s_exec_stream_t*)gpu_stream;\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
-            "  struct parsec_body_cuda_%s_%s_s parsec_body = { cuda_device->cuda_index, cuda_stream->cuda_stream, NULL };\n"
+            "  struct parsec_body_%s_%s_%s_s parsec_body = { %s_device->%s_index, %s_stream->%s_stream, NULL };\n"
             "%s\n"
-            "  (void)gpu_device; (void)gpu_stream; (void)__parsec_tp; (void)parsec_body; (void)cuda_device; (void)cuda_stream;\n",
-            jdf_basename, f->fname,
+            "  (void)gpu_device; (void)gpu_stream; (void)__parsec_tp; (void)parsec_body; (void)%s_device; (void)%s_stream;\n",
+            dev_lower, jdf_basename, f->fname,
+            dev_lower,
             dyldtype,
-            jdf_basename, f->fname,
+            dev_lower, jdf_basename, f->fname,
             parsec_get_name(jdf, f, "task_t"), parsec_get_name(jdf, f, "task_t"),
+            dev_lower, dev_lower, dev_lower,
+            dev_lower, dev_lower, dev_lower,
             jdf_basename, jdf_basename,
-            jdf_basename, f->fname,
-            string_arena_get_string( sa3 ));
+            dev_lower, jdf_basename, f->fname, dev_lower, dev_lower, dev_lower, dev_lower,
+            string_arena_get_string( sa3 ),
+            dev_lower, dev_lower);
 
     ai2.sa = sa2;
     ai2.where = "out";
@@ -6675,7 +6693,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "           parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t *)this_task),\n"
             "           this_task->priority );\n"
             "  }\n"
-            "#endif /* defined(PARSEC_DEBUG_NOISIER) */\n" );
+            "#endif /* defined(PARSEC_DEBUG_NOISIER) */\n");
 
     jdf_generate_code_dry_run_before(jdf, f);
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
@@ -6701,11 +6719,12 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "  {\n"
                 "    int chore_idx = 0;\n"
                 "    for ( ; PARSEC_DEV_NONE != this_task->task_class->incarnations[chore_idx].type; ++chore_idx) {\n"
-                "      if (this_task->task_class->incarnations[chore_idx].type == PARSEC_DEV_CUDA) break;\n"
+                "      if (this_task->task_class->incarnations[chore_idx].type == PARSEC_DEV_%s) break;\n"
                 "    }\n"
                 "    /* The void* cast prevents the compiler from complaining about the type change */\n"
                 "    parsec_body.dyld_fn = (%s)(void*)this_task->task_class->incarnations[chore_idx].dyld_fn;\n"
                 "  }\n\n",
+                dev_upper,
                 dyldtype );
     }
 
@@ -6718,7 +6737,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     coutput("  return PARSEC_HOOK_RETURN_DONE;\n"
             "}\n\n");
 
-    /* Generate the hook_cuda */
+    /* Generate the hook device */
     coutput("static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n"
             "{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
@@ -6728,7 +6747,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  %s\n"
             "  (void)es; (void)__parsec_tp;\n"
             "\n",
-            name, type_property->expr->jdf_var, parsec_get_name(jdf, f, "task_t"),
+            name, dev_lower, parsec_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename,
             string_arena_get_string( sa3 ));
 
@@ -6770,24 +6789,24 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
             "  PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
-            "  gpu_task->submit = &cuda_kernel_submit_%s_%s;\n"
+            "  gpu_task->submit = &%s_kernel_submit_%s_%s;\n"
             "  gpu_task->task_type = 0;\n"
             "  gpu_task->load = ratio * parsec_device_sweight[dev_index];\n"
             "  gpu_task->last_data_check_epoch = -1;  /* force at least one validation for the task */\n",
-            jdf_basename, f->fname);
+            dev_lower, jdf_basename, f->fname);
 
     /* Set up stage in/out callbacks */
     jdf_find_property(body->properties, "stage_in", &stage_in_property);
     jdf_find_property(body->properties, "stage_out", &stage_out_property);
 
     if(stage_in_property == NULL) {
-        coutput("  gpu_task->stage_in  = parsec_default_cuda_stage_in;\n");
+        coutput("  gpu_task->stage_in  = parsec_default_%s_stage_in;\n", dev_lower);
     }else{
         coutput("  gpu_task->stage_in  = %s;\n", dump_expr((void**)stage_in_property->expr, &info));
     }
 
     if(stage_out_property == NULL) {
-        coutput("  gpu_task->stage_out = parsec_default_cuda_stage_out;\n");
+        coutput("  gpu_task->stage_out = parsec_default_%s_stage_out;\n", dev_lower);
     }else{
         coutput("  gpu_task->stage_out = %s;\n", dump_expr((void**)stage_out_property->expr, &info));
     }
@@ -6846,11 +6865,11 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
 
                 testtrue = (dl->guard->calltrue != NULL) &&
                     ((dl->guard->calltrue->var == NULL ) ||
-                     (!jdf_has_cuda_chore(jdf, dl->guard->calltrue->func_or_mem)));
+                     (!jdf_has_gpu_chore(jdf, dl->guard->calltrue->func_or_mem, dev_lower)));
 
                 testfalse = (dl->guard->callfalse != NULL) &&
                     ((dl->guard->callfalse->var == NULL ) ||
-                     (!jdf_has_cuda_chore(jdf, dl->guard->callfalse->func_or_mem)));
+                     (!jdf_has_gpu_chore(jdf, dl->guard->callfalse->func_or_mem, dev_lower)));
 
                 switch( dl->guard->guard_type ) {
                 case JDF_GUARD_UNCONDITIONAL:
@@ -6894,9 +6913,12 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
 
     coutput("  parsec_device_load[dev_index] += gpu_task->load;\n"
             "\n"
-            "  return parsec_cuda_kernel_scheduler( es, gpu_task, dev_index );\n"
-            "}\n\n");
+            "  return parsec_%s_kernel_scheduler( es, gpu_task, dev_index );\n"
+            "}\n\n",
+            dev_lower);
 
+    free(dev_lower);
+    free(dev_upper);
     string_arena_free(sa);
     string_arena_free(sa2);
     string_arena_free(sa3);
@@ -6914,6 +6936,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     jdf_dataflow_t *fl;
     int di;
     char* output;
+    char* type_upper = NULL;
 
     jdf_find_property(body->properties, "type", &type_property);
     if(NULL != type_property) {
@@ -6935,10 +6958,12 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
         }
     }
     if( NULL != type_property) {
-        coutput("#if defined(PARSEC_HAVE_%s)\n", type_property->expr->jdf_var);
+        type_upper = strdup_upper(type_property->expr->jdf_var);
+        coutput("#if defined(PARSEC_HAVE_%s)\n", type_upper);
 
-        if (!strcmp(type_property->expr->jdf_var, "CUDA")) {
-            jdf_generate_code_hook_cuda(jdf, f, body, name);
+        if (!strcasecmp(type_property->expr->jdf_var, "cuda")
+         || !strcasecmp(type_property->expr->jdf_var, "hip")) {
+            jdf_generate_code_hook_gpu(jdf, f, body, name);
             goto hook_end_block;
         }
     }
@@ -7005,7 +7030,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     if ((NULL == type_property) ||
         (!strcmp(type_property->expr->jdf_var, "RECURSIVE"))) {
         coutput("  /** Transfer the ownership to the CPU */\n"
-                "#if defined(PARSEC_HAVE_CUDA)\n");
+                "#if defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP)\n");
 
         for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
             /* Update the ownership of read/write data */
@@ -7023,7 +7048,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                          ((fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? "PARSEC_FLOW_ACCESS_RW" : "PARSEC_FLOW_ACCESS_READ") : "PARSEC_FLOW_ACCESS_WRITE")));
             }
         }
-        coutput("#endif  /* defined(PARSEC_HAVE_CUDA) */\n");
+        coutput("#endif  /* defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP) */\n");
     }
     jdf_generate_code_cache_awareness_update(jdf, f);
 
@@ -7043,8 +7068,10 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     string_arena_free(sa2);
 
   hook_end_block:
-    if( NULL != type_property)
-        coutput("#endif  /*  defined(PARSEC_HAVE_%s) */\n", type_property->expr->jdf_var);
+    if( NULL != type_property) {
+        coutput("#endif  /*  defined(PARSEC_HAVE_%s) */\n", type_upper);
+        free(type_upper);
+    }
 }
 
 static void
@@ -8600,3 +8627,24 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
 #endif
     return ret;
 }
+
+static char* strdup_upper(const char *str) {
+    char *ret = NULL;
+    int i;
+    ret = strdup(str);
+    for(i = 0; str[i] != '\0'; i++) {
+        ret[i] = toupper(ret[i]);
+    }
+    return ret;
+}
+
+static char* strdup_lower(const char *str) {
+    char *ret = NULL;
+    int i;
+    ret = strdup(str);
+    for(i = 0; str[i] != '\0'; i++) {
+        ret[i] = tolower(ret[i]);
+    }
+    return ret;
+}
+
