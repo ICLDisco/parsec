@@ -23,8 +23,8 @@ should flow through the functions defined in `parsec/utils/debug.h`.
 is defined by default in the "Release" build type.
 
 `PARSEC_DEBUG_NOISIER` compiles in all debug output using one
-of the all uppercase output functions (i.e. `PARSEC_DEBUG_VERBOSE,
-PARSEC_OUTPUT, etc.) By default all uppercase output functions
+of the all uppercase output functions (i.e. `PARSEC_DEBUG_VERBOSE`,
+`PARSEC_OUTPUT`, etc.) By default all uppercase output functions
 are stripped from the compilation. Lowercase ouput functions
 (i.e. `parsec_debug_verbose` are always compiled in (including
 in "Release" build type!)
@@ -86,9 +86,18 @@ components should abide by them, in all debug output streams:
 3-4. User Debug (i.e. process mapping details, loaded
      components, etc.)
 5-9. Devel Debug (i.e. once per task action)
->=10. Chatterbox Debug (i.e. breakdown of the steps of an
+10+. Chatterbox Debug (i.e. breakdown of the steps of an
      action, actions that happen in loops, etc.)
 
 In addition, things like memory allocations, freelist status, etc.
 should use a level >=20.
+
+### Memory leaks and out-of-bound accesses
+
+One can track memory leaks, data races, and invalid pointer accesses
+with the ASAN compile options: `PARSEC_DEBUG_MEM_LEAK`, `PARSEC_DEBUG_MEM_ADDR`,
+and `PARSEC_DEBUG_MEM_RACE` (`--enable-debug=memleak,memaddr,memrace` in
+the configure script). More information on how to use the tool can be
+found at
+https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer
 
