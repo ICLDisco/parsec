@@ -34,21 +34,27 @@ function(target_ptg_sources target mode)
         COMMAND $<TARGET_FILE:PaRSEC::parsec-ptgpp> ${PARSEC_PTGFLAGS} ${compile_options} -E -i ${location} -o ${outname} -f ${fnname}
         MAIN_DEPENDENCY ${infile}
         DEPENDS ${infile} PaRSEC::parsec-ptgpp)
+    add_custom_target(ptgpp_${target}.${outname} DEPENDS ${outname}.h ${outname}.c)
 
     # Copy the properties to the generated files
     get_property(cflags     SOURCE ${infile} PROPERTY COMPILE_OPTIONS)
     get_property(includes   SOURCE ${infile} PROPERTY INCLUDE_DIRECTORIES)
     get_property(defs       SOURCE ${infile} PROPERTY COMPILE_DEFINITIONS)
     list(APPEND includes "$<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDA_INCLUDE_DIRS}>")
-    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/${outname}.c" PROPERTIES
+    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/${outname}.c" "${CMAKE_CURRENT_BINARY_DIR}/${outname}.h"
+                                  TARGET_DIRECTORY ${target}
+                                  PROPERTIES
+                                    GENERATED 1
                                     COMPILE_OPTIONS "${cflags}"
                                     INCLUDE_DIRECTORIES "${includes}"
                                     COMPILE_DEFINITIONS "${defs}")
 
+    # make sure we produce .h before we build other .c in the target
+    add_dependencies(${target} ptgpp_${target}.${outname})
     # add to the target
     target_sources(${target} ${mode} "${CMAKE_CURRENT_BINARY_DIR}/${outname}.h;${CMAKE_CURRENT_BINARY_DIR}/${outname}.c")
   endforeach()
-  target_include_directories(${target} ${mode} 
+  target_include_directories(${target} ${mode}
     ${CMAKE_CURRENT_BINARY_DIR} # set include dirs so that the target can find outname.h
     $<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDA_INCLUDE_DIRS}> # any include of outname.h will also need cuda.h atm
   )
