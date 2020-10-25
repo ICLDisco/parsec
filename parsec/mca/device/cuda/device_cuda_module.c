@@ -106,10 +106,9 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
             *trate = 512;
             *srate = 64;
             *drate = 32;
-            parsec_warning("Unsupported GPU %d, %d, assuming 8, 0 capability.", major, minor);
+            parsec_warning("Unknown GPU capabilities %d, %d, assuming 8, 0 capability.", major, minor);
         } else {
-            parsec_warning("Unsupported GPU %d, %d, skipping.", major, minor);
-            return PARSEC_ERROR;
+            parsec_warning("Unknown GPU capabilities %d, %d, assuming basic capability.", major, minor);
         }
     }
     return PARSEC_SUCCESS;
@@ -460,9 +459,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     device->memory_release      = parsec_cuda_flush_lru;
 
     if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERROR ) {
-        parsec_warning( "Device %s with capabilities %d.%d not fully configured in PaRSEC. This run "
-                        "performance might be negatively impacted. Please contact the PaRSEC runtime "
-                        "developers", device->name, major, minor );
+        parsec_warning( "Device %s with capabilities %d.%d is unknown. Gflops rate is a random guess."
+                        "Load balancing and performance might be negatively impacted. Please contact"
+                        "the PaRSEC runtime developers", gpu_device->super.name, major, minor );
     }
     device->device_hweight = (float)streaming_multiprocessor * (float)hrate * (float)clockRate * 2e-3f;
     device->device_tweight = (float)streaming_multiprocessor * (float)trate * (float)clockRate * 2e-3f;
