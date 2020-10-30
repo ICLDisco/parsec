@@ -133,6 +133,13 @@ static parsec_profiling_perf_t parsec_profiling_global_perf[PERF_MAX];
         pa->perf_number_calls++;                                        \
     } while(0)
 
+/**
+ * Reserve space for the next batch of event. If the backend file
+ * still has room for additional pages return the offset of the next
+ * page, otherwise extend the backend file and return the offset of
+ * the next page.
+ * If the file cannot be extended, return a negative value.
+ */
 static off_t find_free_segment(void)
 {
     off_t my_offset;
@@ -146,7 +153,6 @@ static off_t find_free_segment(void)
                       (uint64_t)file_backend_size, strerror(errno));
               file_backend_extendable = 0;
               pthread_mutex_unlock(&file_backend_lock);
-              assert(0);
               return (off_t)-1;
           });
     }
@@ -156,18 +162,22 @@ static off_t find_free_segment(void)
     return my_offset;
 }
 
-static parsec_profiling_buffer_t *do_allocate_new_buffer(void)
+/**
+ * Allocate a new profiling buffer either from the pending
+ * buffers previously allocated, or from an extended allocation.
+ * Return NULL on critical errors, such as no more memory on the
+ * backend device, errors that should be threaded as catastrophic.
+ */
+static parsec_profiling_buffer_t*
+profiling_allocate_new_buffer(void)
 {
     parsec_profiling_buffer_t *res = NULL;
     off_t my_offset;
 
     my_offset = find_free_segment();
     if( -1 == my_offset ) {
-        close(file_backend_fd);
-        file_backend_fd = -1;
         fprintf(stderr, "### Profiling: Unable to find a free segment in backend file\n");
-        file_backend_extendable = 0;
-        return NULL;
+        goto clean_and_return;
     }
 
 #if defined(PARSEC_PROFILING_USE_MMAP)
@@ -180,11 +190,8 @@ static parsec_profiling_buffer_t *do_allocate_new_buffer(void)
 #endif
 
     if( NULL == res ) {
-        file_backend_extendable = 0;
-        close(file_backend_fd);
-        file_backend_fd = -1;
         fprintf(stderr, "### Profiling: Unable to allocate / map segment in backend file (%s)n", strerror(errno));
-        return NULL;
+        goto clean_and_return;
     }
 
 #if 0 && !defined(NDEBUG)
@@ -196,10 +203,22 @@ static parsec_profiling_buffer_t *do_allocate_new_buffer(void)
     res->next_buffer_file_offset = (off_t)-1;
 
     return res;
+
+ clean_and_return:
+    /* We are in the middle of possibly multiple operations on the
+     * backend file. It is totally unsafe to close and set to -1
+     * the backend file especially as we are not thread-protected,
+     * instead just disable the profiling for the time being. The
+     * existing backend file will be closed normally at the end of
+     * the execution.
+     */
+    file_backend_extendable = 0;
+    return NULL;
 }
 
 #if !defined(PARSEC_PROFILING_USE_MMAP)
-static void do_assign_buffer_to_free_segment(parsec_profiling_buffer_t *res)
+static void
+profiling_assign_buffer_to_free_segment(parsec_profiling_buffer_t *res)
 {
     off_t my_offset = find_free_segment();
 #if 0 && !defined(NDEBUG)
@@ -211,7 +230,12 @@ static void do_assign_buffer_to_free_segment(parsec_profiling_buffer_t *res)
 }
 #endif
 
-static parsec_profiling_buffer_t *allocate_from_freelist(tl_freelist_t *fl)
+/**
+ * Prepare a new profiling buffer either from the freelist or
+ * using a newly allocated (or mmaped).
+ */
+static parsec_profiling_buffer_t*
+allocate_from_freelist(tl_freelist_t *fl)
 {
     tl_freelist_buffer_t *head;
     parsec_profiling_buffer_t *res = NULL;
@@ -229,12 +253,13 @@ static parsec_profiling_buffer_t *allocate_from_freelist(tl_freelist_t *fl)
     } else {
         fl->nb_allocated++;
         pthread_mutex_unlock(&fl->lock);
-        res = do_allocate_new_buffer();
+        res = profiling_allocate_new_buffer();
     }
     return res;
 }
 
-static void free_to_freelist(tl_freelist_t *fl, parsec_profiling_buffer_t *b)
+static void
+free_to_freelist(tl_freelist_t *fl, parsec_profiling_buffer_t *b)
 {
 #if !defined(PARSEC_PROFILING_USE_MMAP)
     int ret;
@@ -248,7 +273,7 @@ static void free_to_freelist(tl_freelist_t *fl, parsec_profiling_buffer_t *b)
           fprintf(stderr, "Warning profiling system: unmap of the events backend file at %p failed: %s\n",
                   b, strerror(errno));
       });
-    b = do_allocate_new_buffer();
+    b = profiling_allocate_new_buffer();
     if( NULL == b )
         return;
 #else
@@ -268,7 +293,7 @@ static void free_to_freelist(tl_freelist_t *fl, parsec_profiling_buffer_t *b)
         }
     }
     pthread_mutex_unlock( &file_backend_lock );
-    do_assign_buffer_to_free_segment(b);
+    profiling_assign_buffer_to_free_segment(b);
 #endif
 
     pthread_mutex_lock(&fl->lock);
@@ -323,13 +348,12 @@ static io_cmd_t *io_cmd_allocate(void)
     if( free_cmd_queue.next == NULL ) {
         pthread_mutex_unlock(&free_cmd_queue.lock);
         cmd = (io_cmd_t*)malloc(sizeof(io_cmd_t));
-        return cmd;
     } else {
         cmd = free_cmd_queue.next;
         free_cmd_queue.next = cmd->next;
         pthread_mutex_unlock(&free_cmd_queue.lock);
-        return cmd;
     }
+    return cmd;
 }
 
 static void io_cmd_free(io_cmd_t *cmd)
@@ -574,6 +598,10 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
         set_last_error("Profiling system: parsec_profiling_stream_init: call before parsec_profiling_dbp_start");
         return NULL;
     }
+    if( 0 == file_backend_extendable ) {
+        set_last_error("Profiling system: parsec_profiling_stream_init called on a blocked backend");
+        return NULL;
+    }
 
     sprof = (parsec_profiling_stream_t*)malloc( sizeof(parsec_profiling_stream_t) + length );
     if( NULL == sprof ) {
@@ -586,7 +614,7 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     tl_freelist_t *t_fl = sprof->buffers_freelist;
     tl_freelist_buffer_t *e;
     pthread_mutex_init(&t_fl->lock, NULL);
-    e = (tl_freelist_buffer_t*)do_allocate_new_buffer();
+    e = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
     if( NULL == e ) {
         free(sprof->buffers_freelist);
         free(sprof);
@@ -596,7 +624,7 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     t_fl->first = e;
     t_fl->nb_allocated = 1;
     for(rc = 1; rc < parsec_profiling_per_thread_buffer_freelist_min; rc++) {
-        e->next = (tl_freelist_buffer_t*)do_allocate_new_buffer();
+        e->next = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
         assert(NULL != e->next);
         e = e->next;
         e->next = NULL;
@@ -839,7 +867,13 @@ int parsec_profiling_dictionary_flush( void )
     return 0;
 }
 
-static parsec_profiling_buffer_t *allocate_empty_buffer(tl_freelist_t *fl, off_t *offset, char type)
+/**
+ * Allocate a new profiling buffer and return the pointer and the offset.
+ *
+ * Returns NULL is the allocation failed.
+ */
+static parsec_profiling_buffer_t*
+allocate_empty_buffer(tl_freelist_t *fl, off_t *offset, char type)
 {
     parsec_profiling_buffer_t *res;
 
@@ -914,6 +948,9 @@ static int switch_event_buffer( parsec_profiling_stream_t *context )
     off_t off;
 
     new_buffer = allocate_empty_buffer(context->buffers_freelist, &off, PROFILING_BUFFER_TYPE_EVENTS);
+    if( NULL == new_buffer ) {  /* no more profiling */
+        return -1;
+    }
 
     old_buffer = context->current_events_buffer;
     if( NULL == old_buffer ) {
@@ -1444,7 +1481,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
     default_freelist = malloc(sizeof(tl_freelist_t));
     tl_freelist_buffer_t *e;
     pthread_mutex_init(&default_freelist->lock, NULL);
-    e = (tl_freelist_buffer_t*)do_allocate_new_buffer();
+    e = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
     if( NULL == e ) {
         return -1;
     }
@@ -1452,7 +1489,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
     default_freelist->first = e;
     default_freelist->nb_allocated = 1;
     for(rc = 1; rc < parsec_profiling_per_thread_buffer_freelist_min; rc++) {
-        e->next = (tl_freelist_buffer_t*)do_allocate_new_buffer();
+        e->next = (tl_freelist_buffer_t*)profiling_allocate_new_buffer();
         if( NULL == e->next ) {
             return -1;
         }
