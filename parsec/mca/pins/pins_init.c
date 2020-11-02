@@ -7,9 +7,7 @@
 
 #include "parsec/parsec_config.h"
 #include <math.h>
-#include <sys/mman.h>
 #include <sys/stat.h> /* For mode constants */
-#include <fcntl.h> /* For O_* constants */
 
 #include "parsec/mca/pins/pins.h"
 #include "parsec/mca/mca_repository.h"

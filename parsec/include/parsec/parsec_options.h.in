@@ -30,6 +30,9 @@
 #cmakedefine PARSEC_HAVE_CLOCK_GETTIME
 #cmakedefine PARSEC_HAVE_ASPRINTF
 #cmakedefine PARSEC_HAVE_VASPRINTF
+#cmakedefine PARSEC_HAVE_RAND_R
+#cmakedefine PARSEC_HAVE_GETLINE
+#cmakedefine PARSEC_HAVE_SETENV
 #cmakedefine PARSEC_HAVE_STDARG_H
 #cmakedefine PARSEC_HAVE_UNISTD_H
 #cmakedefine PARSEC_HAVE_SYS_PARAM_H
@@ -49,6 +52,9 @@
 #cmakedefine PARSEC_HAVE_STRING_H
 #cmakedefine PARSEC_HAVE_GEN_H
 #cmakedefine PARSEC_HAVE_COMPLEX_H
+#cmakedefine PARSEC_HAVE_EXECINFO_H
+#cmakedefine PARSEC_HAVE_SYS_MMAN_H
+#cmakedefine PARSEC_HAVE_DLFCN_H
 
 /* Compiler Specific Options */
 #cmakedefine PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128

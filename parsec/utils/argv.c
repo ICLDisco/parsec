@@ -68,7 +68,7 @@ int parsec_argv_append_nosize(char ***argv, const char *arg)
         /* count how many entries currently exist */
         argc = parsec_argv_count(*argv);
 
-        *argv = (char**) realloc(*argv, (argc + 2) * sizeof(char *));
+        *argv = (char**) realloc(*argv, (argc * 2) * sizeof(char *));
         if (NULL == *argv) {
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }

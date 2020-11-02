@@ -147,7 +147,7 @@ void parsec_debug_fini(void)
     parsec_debug_history_fini();
 }
 
-
+#if defined(PARSEC_HAVE_EXECINFO_H)
 /* STACKTRACES circular buffer */
 #include <execinfo.h>
 
@@ -172,6 +172,7 @@ void parsec_debug_backtrace_dump(void) {
         parsec_output(bt_output, "[%d]\n", r);
     }
 }
+#endif  /* defined(PARSEC_HAVE_EXECINFO_H) */
 
 /* DEBUG HISTORY circular buffer */
 

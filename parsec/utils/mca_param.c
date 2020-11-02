@@ -37,6 +37,9 @@
 #ifdef PARSEC_HAVE_CTYPE_H
 #include <ctype.h>
 #endif
+#if defined(__WINDOWS__)
+#  include <windows.h>
+#endif  /* defined(__WINDOWS__) */
 
 #include "parsec/class/list_item.h"
 #include "parsec/class/list.h"

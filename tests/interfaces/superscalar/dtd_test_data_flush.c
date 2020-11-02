@@ -141,38 +141,38 @@ int main(int argc, char ** argv)
             if( 10 == total_flows[i] ) {
                 for( j = 0; j < total_tasks; j += total_flows[i] ) {
                     parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_10,  0,  "task_for_timing_overhead",
-                                                    sizeof(int),      &total_flows[i],      VALUE,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j),    INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+1),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+2),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+3),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+4),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+5),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+6),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+7),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+8),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+9),  INOUT,
+                                                    sizeof(int),      &total_flows[i],      PARSEC_VALUE,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j),    PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+1),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+2),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+3),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+4),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+5),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+6),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+7),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+8),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+9),  PARSEC_INOUT,
                                                     PARSEC_DTD_ARG_END);
                 }
             } else if( 15 == total_flows[i] ) {
                 for( j = 0; j < total_tasks; j += total_flows[i] ) {
                     parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_15,  0,  "task_for_timing_overhead",
-                                                    sizeof(int),      &total_flows[i],      VALUE,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j),    INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+1),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+2),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+3),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+4),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+5),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+6),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+7),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+8),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+9),  INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+10), INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+11), INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+12), INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+13), INOUT,
-                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+14), INOUT,
+                                                    sizeof(int),      &total_flows[i],      PARSEC_VALUE,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j),    PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+1),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+2),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+3),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+4),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+5),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+6),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+7),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+8),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+9),  PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+10), PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+11), PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+12), PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+13), PARSEC_INOUT,
+                                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, j+14), PARSEC_INOUT,
                                                     PARSEC_DTD_ARG_END);
                 }
             }
@@ -238,8 +238,8 @@ int main(int argc, char ** argv)
 
         int execute_in_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_1,  0,  "task_for_timing_overhead",
-                                        sizeof(int),      &execute_in_rank,     VALUE | AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    INOUT,
+                                        sizeof(int),      &execute_in_rank,     PARSEC_VALUE | PARSEC_AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT,
                                         PARSEC_DTD_ARG_END);
 
         parsec_dtd_data_flush_all(dtd_tp, A);
@@ -299,18 +299,18 @@ int main(int argc, char ** argv)
 
         execute_in_rank = 0;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_for_test_2_dist_mem,  0,  "task_for_timing_overhead",
-                                        sizeof(int),      &execute_in_rank,     VALUE | AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    INOUT,
+                                        sizeof(int),      &execute_in_rank,     PARSEC_VALUE | PARSEC_AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT,
                                         PARSEC_DTD_ARG_END);
         execute_in_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_for_test_2_dist_mem,  0,  "task_for_timing_overhead",
-                                        sizeof(int),      &execute_in_rank,     VALUE | AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    INOUT,
+                                        sizeof(int),      &execute_in_rank,     PARSEC_VALUE | PARSEC_AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT,
                                         PARSEC_DTD_ARG_END);
         execute_in_rank = 0;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_for_test_2_dist_mem,  0,  "task_for_timing_overhead",
-                                        sizeof(int),      &execute_in_rank,     VALUE | AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    INOUT,
+                                        sizeof(int),      &execute_in_rank,     PARSEC_VALUE | PARSEC_AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT,
                                         PARSEC_DTD_ARG_END);
 
         parsec_dtd_data_flush_all(dtd_tp, A);
@@ -380,8 +380,8 @@ int main(int argc, char ** argv)
 
         int execute_in_rank = 2;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_1,  0,  "task_for_timing_overhead",
-                                        sizeof(int),      &execute_in_rank,     VALUE | AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    INOUT,
+                                        sizeof(int),      &execute_in_rank,     PARSEC_VALUE | PARSEC_AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT,
                                         PARSEC_DTD_ARG_END);
 
         parsec_dtd_data_flush_all(dtd_tp, A);

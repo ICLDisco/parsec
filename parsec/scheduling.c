@@ -34,10 +34,9 @@
 #if defined(PARSEC_HAVE_ERRNO_H)
 #include <errno.h>
 #endif  /* defined(PARSEC_HAVE_ERRNO_H) */
-#if defined(PARSEC_HAVE_SCHED_SETAFFINITY)
-#include <linux/unistd.h>
-#endif  /* defined(PARSEC_HAVE_SCHED_SETAFFINITY) */
-
+#if defined(PARSEC_HAVE_UNISTD_H)
+#include <unistd.h>
+#endif  /* defined(PARSEC_HAVE_UNISTD_H) */
 #if defined(PARSEC_PROF_RUSAGE_EU) && defined(PARSEC_HAVE_GETRUSAGE) && defined(PARSEC_HAVE_RUSAGE_THREAD) && !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -359,10 +358,6 @@ int __parsec_reschedule(parsec_execution_stream_t* es, parsec_task_t* task)
     /* no luck so far, let's reschedule the task on the same execution unit */
     return __parsec_schedule(es, task, 0);
 }
-
-#ifdef  PARSEC_HAVE_SCHED_SETAFFINITY
-#define gettid() syscall(__NR_gettid)
-#endif /* PARSEC_HAVE_SCHED_SETAFFINITY */
 
 #define TIME_STEP 5410
 #define MIN(x, y) ( (x)<(y)?(x):(y) )

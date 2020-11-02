@@ -20,9 +20,9 @@ static uint32_t sym_twoDBC_band_rank_of(parsec_data_collection_t * desc, ...)
     va_end(ap);
 
     /* Check tile location within band_size */
-    if( (unsigned int)abs((int)m-n) < dc->band_size ) {
+    if( (unsigned int)abs((int)m-(int)n) < dc->band_size ) {
         /* New index */
-        m = (unsigned int)abs((int)m - n);
+        m = (unsigned int)abs((int)m - (int)n);
         return dc->band.super.super.rank_of(&dc->band.super.super, m, n);
     }
 
@@ -43,9 +43,9 @@ static int32_t sym_twoDBC_band_vpid_of(parsec_data_collection_t * desc, ...)
     va_end(ap);
 
     /* Check tile location within band_size */
-    if( (unsigned int)abs((int)m-n) < dc->band_size ) {
+    if( (unsigned int)abs((int)m - (int)n) < dc->band_size ) {
         /* The new m in band */
-        m = (unsigned int)abs((int)m - n);
+        m = (unsigned int)abs((int)m - (int)n);
         return dc->band.super.super.vpid_of(&dc->band.super.super, m, n);
     }
 
@@ -71,9 +71,9 @@ static parsec_data_t* sym_twoDBC_band_data_of(parsec_data_collection_t *desc, ..
 #endif
 
     /* Check tile location within band_size */
-    if( (unsigned int)abs((int)m-n) < dc->band_size ) {
+    if( (unsigned int)abs((int)m - (int)n) < dc->band_size ) {
         /* The new m in band */
-        m = (unsigned int)abs((int)m - n);
+        m = (unsigned int)abs((int)m - (int)n);
         return dc->band.super.super.data_of(&dc->band.super.super, m, n);
     }
 

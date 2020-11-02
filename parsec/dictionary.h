@@ -293,7 +293,7 @@ struct parsec_profiling_tree_s {
 
 #define MAX_LENGTH_NAME 256
 
-parsec_profiling_dictionary_t *parsec_profiling_dictionary;
+extern parsec_profiling_dictionary_t *parsec_profiling_dictionary;
 
 /**
  * @brief Initialize the dictionnary by exploring the context.

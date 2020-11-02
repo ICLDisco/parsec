@@ -119,7 +119,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)this_task->super.taskpool;
 
     int flow_index = 0;
-    int satisfied_flow = 0, tile_op_type = INOUT;
+    int satisfied_flow = 0, tile_op_type = PARSEC_INOUT;
     static int vpid = 0;
 
     if( NULL == tile ) {
@@ -269,7 +269,7 @@ parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int
                                             (parsec_task_class_t *)tc, task_rank);
     this_task->super.priority = priority;
     int flow_index = 0;
-    parsec_dtd_set_params_of_task(this_task, tile, INOUT, &flow_index, NULL, NULL, PASSED_BY_REF);
+    parsec_dtd_set_params_of_task(this_task, tile, PARSEC_INOUT, &flow_index, NULL, NULL, PASSED_BY_REF);
 
     parsec_object_t *object = (parsec_object_t *)this_task;
     /* this task will vanish as we insert the next receive task */

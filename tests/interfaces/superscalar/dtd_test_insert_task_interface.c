@@ -132,12 +132,12 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     parsec_dtd_taskpool_insert_task(dtd_tp, call_to_kernel_type_write,    0,  "Write_Task",
-                                    sizeof(int), &data1, VALUE,
-                                    sizeof(int), &data2, VALUE | AFFINITY,
-                                    sizeof(double),  &data3, VALUE,
-                                    sizeof(struct my_datatype), &data4, VALUE,
-                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),   INOUT | TILE_FULL,
-                                    sizeof(void *),  A, REF,
+                                    sizeof(int), &data1, PARSEC_VALUE,
+                                    sizeof(int), &data2, PARSEC_VALUE | PARSEC_AFFINITY,
+                                    sizeof(double),  &data3, PARSEC_VALUE,
+                                    sizeof(struct my_datatype), &data4, PARSEC_VALUE,
+                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),   PARSEC_INOUT | TILE_FULL,
+                                    sizeof(void *),  A, PARSEC_REF,
                                     PARSEC_DTD_ARG_END);
 
     parsec_dtd_data_flush_all( dtd_tp, A );

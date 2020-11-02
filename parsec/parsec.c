@@ -102,31 +102,6 @@ int parsec_want_rusage = 0;
 
 static struct rusage _parsec_rusage;
 
-static char *parsec_enable_dot = NULL;
-static char *parsec_app_name = NULL;
-
-static int parsec_runtime_max_number_of_cores = -1;
-static int parsec_runtime_bind_main_thread = 1;
-
-PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
-
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-static void parsec_mpi_exit(int status) {
-    MPI_Abort(MPI_COMM_WORLD, status);
-}
-#endif
-
-/* To create object of class parsec_taskpool_t that inherits parsec_list_t
- * class
- */
-PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
-                   NULL, NULL);
-
-/*
- * Taskpool based task definition (no specialized constructor and destructor) */
-PARSEC_OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
-                   NULL, NULL);
-
 static void parsec_rusage(bool print)
 {
     struct rusage current;
@@ -167,6 +142,31 @@ static void parsec_rusage(bool print)
 #else
 #define parsec_rusage(b) do {} while(0)
 #endif /* defined(PARSEC_HAVE_GETRUSAGE) */
+
+static char *parsec_enable_dot = NULL;
+static char *parsec_app_name = NULL;
+
+static int parsec_runtime_max_number_of_cores = -1;
+static int parsec_runtime_bind_main_thread = 1;
+
+PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
+
+#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
+static void parsec_mpi_exit(int status) {
+    MPI_Abort(MPI_COMM_WORLD, status);
+}
+#endif
+
+/* To create object of class parsec_taskpool_t that inherits parsec_list_t
+ * class
+ */
+PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
+                   NULL, NULL);
+
+/*
+ * Taskpool based task definition (no specialized constructor and destructor) */
+PARSEC_OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
+                   NULL, NULL);
 
 static void parsec_taskpool_release_resources(void);
 

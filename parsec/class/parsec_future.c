@@ -100,14 +100,14 @@ static parsec_future_fn_t parsec_base_future_functions = {
     .is_ready         = parsec_base_future_is_ready,
     .set              = parsec_base_future_set,
     .get              = parsec_base_future_get,
-    .future_init      = parsec_base_future_init
+    .future_init      = (parsec_future_init_t)parsec_base_future_init
 };
 
 static parsec_future_fn_t parsec_countable_future_functions = {
     .is_ready         = parsec_base_future_is_ready,
     .set              = parsec_countable_future_set,
     .get              = parsec_base_future_get,
-    .future_init      = parsec_countable_future_init
+    .future_init      = (parsec_future_init_t)parsec_countable_future_init
 };
 
 static void parsec_base_future_construct(parsec_base_future_t* future)

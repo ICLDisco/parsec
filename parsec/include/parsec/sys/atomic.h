@@ -15,9 +15,11 @@ BEGIN_C_DECLS
 #  include "atomic-external.h"
 #else  /* !defined(BUILDING_PARSEC) */
 
-#include <stdint.h>
-#include <unistd.h>
-#include <assert.h>
+#  include <stdint.h>
+#  if defined(PARSEC_HAVE_UNISTD_H)
+#    include <unistd.h>
+#  endif  /* PARSEC_HAVE_UNISTD_H */
+#  include <assert.h>
 
 #  if !defined(ATOMIC_STATIC_INLINE)
 #    define ATOMIC_STATIC_INLINE static inline
@@ -63,6 +65,8 @@ BEGIN_C_DECLS
 #      endif
 #    elif defined(PARSEC_ATOMIC_USE_GCC_32_BUILTINS)
 #      include "atomic-gcc.h"
+#    elif defined(__WINDOWS__)  && !defined(__MINGW64__)
+#      include "atomic-winnt.h"
 #    elif defined(PARSEC_ARCH_X86)
 #      include "atomic-x86_32.h"
 #    elif defined(PARSEC_ARCH_X86_64)

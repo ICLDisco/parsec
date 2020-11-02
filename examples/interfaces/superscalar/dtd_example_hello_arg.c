@@ -82,7 +82,7 @@ int main(int argc, char ** argv)
     for( int i = 0; i < 10; i++ ) {
         parsec_dtd_taskpool_insert_task(dtd_tp, task_hello_world,
                                         0,   "Hello_World_task",
-                                        sizeof(int), &i, VALUE,
+                                        sizeof(int), &i, PARSEC_VALUE,
                                         PARSEC_DTD_ARG_END);
     }
 

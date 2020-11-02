@@ -342,6 +342,11 @@ if( NOT PARSEC_HAVE_CLOCK_GETTIME )
   endif(PARSEC_HAVE_CLOCK_GETTIMERT)
 endif( NOT PARSEC_HAVE_CLOCK_GETTIME )
 
+if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR
+   CMAKE_SYSTEM_NAME MATCHES "MSYS")
+  check_library_exists(ws2_32 WSAStartup "" PARSEC_HAVE_WS2_32)
+endif()
+
 # stdlib, stdio, string, getopt, etc
 check_include_files(stdarg.h PARSEC_HAVE_STDARG_H)
 # va_copy is special as it is not required to be a function.
@@ -402,6 +407,13 @@ check_include_files(errno.h PARSEC_HAVE_ERRNO_H)
 check_include_files(stddef.h PARSEC_HAVE_STDDEF_H)
 check_include_files(stdbool.h PARSEC_HAVE_STDBOOL_H)
 check_include_files(ctype.h PARSEC_HAVE_CTYPE_H)
+check_include_files(execinfo.h PARSEC_HAVE_EXECINFO_H)
+check_include_files(sys/mman.h PARSEC_HAVE_SYS_MMAN_H)
+check_include_files(dlfcn.h PARSEC_HAVE_DLFCN_H)
+check_function_exists(rand_r PARSEC_HAVE_RAND_R)
+check_function_exists(getline PARSEC_HAVE_GETLINE)
+check_function_exists(setenv PARSEC_HAVE_SETENV)
+
 check_c_source_compiles("
 int main(int argc, char* argv[]) {
     __builtin_cpu_init();
@@ -847,7 +859,12 @@ include(CheckStructureFieldOffset)
 check_structure_field_offset("lifo_private" "struct{parsec_object_t super;uint8_t alignment;parsec_list_item_t*lifo_ghost;char lifo_private;}" PARSEC_LIFO_HEAD_OFFSET)
 cmake_pop_check_state()
 
-math(EXPR PARSEC_LIFO_REMAINING_BYTES "${PARSEC_LIFO_OPAQUE_SIZEOF}-${PARSEC_LIFO_HEAD_OFFSET}")
+if( PARSEC_LIFO_HEAD_OFFSET )
+  math(EXPR PARSEC_LIFO_REMAINING_BYTES "${PARSEC_LIFO_OPAQUE_SIZEOF} - ${PARSEC_LIFO_HEAD_OFFSET}")
+else()
+  message(FATAL_ERROR "Cannot determine the offset of the lifo_private field in PaRSEC LIFO \
+   structure. Assume something is wrong with the compilation and need to be fixed before continuing.")
+endif( PARSEC_LIFO_HEAD_OFFSET )
 
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo-external.h.in"

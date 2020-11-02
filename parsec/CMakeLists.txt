@@ -33,6 +33,7 @@ set(BASE_SOURCES
   utils/zone_malloc.c
   utils/atomic_external.c
   utils/debug.c
+  utils/win_compat.c
 )
 
 FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)
@@ -92,7 +93,6 @@ set(SOURCES
   data.c
   data_distribution.c
   debug_marks.c
-  dictionary.c
   mca/mca_repository.c
   mempool.c
   private_mempool.c
@@ -106,7 +106,9 @@ set(SOURCES
   ${EXTRA_SOURCES}
   ${MCA_EXTRA_SOURCES}
 )
-
+if( PARSEC_PROF_TRACE )
+  list(APPEND SOURCES dictionary.c)
+endif( PARSEC_PROF_TRACE )
 if( NOT MPI_C_FOUND )
   list(APPEND SOURCES datatype/datatype.c)
 else( NOT MPI_C_FOUND )
@@ -145,6 +147,7 @@ if( BUILD_PARSEC )
     PUBLIC
     ${PARSEC_ATOMIC_SUPPORT_LIBS}
     Threads::Threads
+    $<$<BOOL:${PARSEC_HAVE_WS2_32}>:ws2_32>
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
   set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
 

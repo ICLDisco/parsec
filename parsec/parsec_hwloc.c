@@ -15,8 +15,12 @@
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(PARSEC_HAVE_UNISTD_H)
 #include <unistd.h>
-
+#endif  /* defined(PARSEC_HAVE_UNISTD_H) */
+#if defined(__WINDOWS__)
+#include <windows.h>
+#endif  /* defined(__WINDOWS__) */
 #if defined(PARSEC_HAVE_HWLOC)
 static hwloc_topology_t topology;
 static int first_init = 1;
@@ -234,6 +238,10 @@ int parsec_hwloc_nb_real_cores(void)
 {
 #if defined(PARSEC_HAVE_HWLOC)
     return hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
+#elif defined(__WINDOWS__)
+    SYSTEM_INFO systemInfo;
+    GetSystemInfo(&systemInfo);
+    return systemInfo.dwNumberOfProcessors;
 #else
     int nb_cores = sysconf(_SC_NPROCESSORS_ONLN);
     if(nb_cores == -1) {

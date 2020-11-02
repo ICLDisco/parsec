@@ -232,9 +232,9 @@ static void* parsec_datacopy_future_get(parsec_base_future_t* future)
 static parsec_future_fn_t parsec_datacopy_future_functions = {
     .is_ready         = parsec_datacopy_future_is_ready,
     .get              = parsec_datacopy_future_get,
-    .get_or_trigger   = parsec_datacopy_future_get_or_trigger,
+    .get_or_trigger   = (parsec_future_get_or_trigger_t)parsec_datacopy_future_get_or_trigger,
     .set              = parsec_datacopy_future_set,
-    .future_init      = parsec_datacopy_future_init
+    .future_init      = (parsec_future_init_t)parsec_datacopy_future_init
 };
 
 /**

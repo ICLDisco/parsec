@@ -22,7 +22,7 @@
 #include "parsec/mca/pins/pins.h"
 #endif
 
-#if defined(PARSEC_HAVE_GETRUSAGE) || !defined(__bgp__)
+#if defined(PARSEC_HAVE_GETRUSAGE)
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
