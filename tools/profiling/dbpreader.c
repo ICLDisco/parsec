@@ -16,7 +16,6 @@
 #include <sys/mman.h>
 #endif
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <stdarg.h>
 
@@ -59,7 +58,6 @@ typedef enum {
     WRONG_BYTE_ORDER,
     DIFF_HR_ID,
     DIFF_BUFFER_SIZE,
-    DIFF_WORLD_SIZE,
     DICT_IGNORED,
     DICT_BROKEN,
     THREADS_BROKEN,
@@ -70,13 +68,15 @@ typedef enum {
 
 struct dbp_file {
     struct dbp_multifile_reader *parent;
-    char *hr_id;
-    int fd;
-    char *filename;
-    int rank;
-    int nb_infos;
-    int nb_threads;
-    int error;
+    char  *hr_id;
+    int    fd;
+    char  *filename;
+    int    rank;
+    int    nb_infos;
+    int    nb_threads;
+    int    nb_dico_map;
+    int    error;
+    int   *dico_map;
     struct dbp_info  **infos;
     struct dbp_thread *threads;
 };
@@ -129,10 +129,10 @@ void *dbp_event_get_info(const dbp_event_t *e)
     return NULL;
 }
 
-int dbp_event_info_len(const dbp_event_t *e, const dbp_multifile_reader_t *dbp)
+int dbp_event_info_len(const dbp_event_t *e, const dbp_file_t *file)
 {
     if( e->native->event.flags & PARSEC_PROFILING_EVENT_HAS_INFO ) {
-        return dbp_dictionary_keylen(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e))));
+        return dbp_dictionary_keylen(dbp_file_get_dictionary(file, BASE_KEY(dbp_event_get_key(e))));
     }
     return 0;
 }
@@ -186,6 +186,7 @@ struct dbp_multifile_reader {
     parsec_profiling_binary_file_header_t header;
     int nb_files;
     int dico_size;
+    int dico_allocated;
     int nb_infos;
     int last_error;
     dbp_info_t *infos;
@@ -193,16 +194,25 @@ struct dbp_multifile_reader {
     dbp_file_t *files;
 };
 
-dbp_dictionary_t *dbp_reader_get_dictionary(const dbp_multifile_reader_t *dbp, int did)
+dbp_dictionary_t *dbp_file_get_dictionary(const dbp_file_t *file, int did)
 {
-    assert( did >= 0 && did < dbp->dico_size );
-    return &(dbp->dico_keys[did]);
+    int global_dico_id;
+    assert( did >= 0 && did < file->nb_dico_map );
+    global_dico_id = file->dico_map[did];
+    assert( global_dico_id >= 0 && global_dico_id < file->parent->dico_size );
+    return &(file->parent->dico_keys[global_dico_id]);
 }
 
-#define DBP_EVENT_LENGTH(dbp_event, dbp_main_object)                    \
-    (sizeof(parsec_profiling_output_base_event_t) +                      \
-     (EVENT_HAS_INFO((dbp_event)->native) ?                             \
-      (dbp_main_object)->dico_keys[BASE_KEY((dbp_event)->native->event.key)].keylen : 0))
+int dbp_file_translate_local_dico_to_global(const dbp_file_t *file, int lid)
+{
+    assert( lid >= 0 && lid < file->nb_dico_map );
+    return file->dico_map[lid];
+}
+
+#define DBP_EVENT_LENGTH(dbp_event, dbp_object)				\
+  (sizeof(parsec_profiling_output_base_event_t) +			\
+   (EVENT_HAS_INFO((dbp_event)->native) ?				\
+    (dbp_object)->parent->dico_keys[(dbp_object)->dico_map[BASE_KEY((dbp_event)->native->event.key)]].keylen : 0))
 
 struct dbp_thread {
     const parsec_profiling_stream_t *profile;
@@ -325,7 +335,7 @@ const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
     current = it->current_event.native;
     if( NULL == current )
         return NULL;
-    elen = DBP_EVENT_LENGTH(&it->current_event, it->thread->file->parent);
+    elen = DBP_EVENT_LENGTH(&it->current_event, it->thread->file);
     assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
     if( it->current_event_index+1 >= it->current_events_buffer->this_buffer.nb_events ) {
         next_off = it->current_events_buffer->next_buffer_file_offset;
@@ -487,6 +497,11 @@ int dbp_file_nb_infos(const dbp_file_t *file)
     return file->nb_infos;
 }
 
+int dbp_file_nb_dictionary_entries(const dbp_file_t *file)
+{
+    return file->nb_dico_map;
+}
+
 int dbp_file_error(const dbp_file_t *file)
 {
     return file->error;
@@ -512,6 +527,13 @@ int dbp_reader_nb_files(const dbp_multifile_reader_t *dbp)
 int dbp_reader_nb_dictionary_entries(const dbp_multifile_reader_t *dbp)
 {
     return dbp->dico_size;
+}
+
+dbp_dictionary_t *dbp_reader_get_dictionary(const dbp_multifile_reader_t *dbp, int i)
+{
+    assert(i >= 0);
+    assert(i < dbp->dico_size);
+    return &dbp->dico_keys[i];
 }
 
 int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
@@ -620,13 +642,12 @@ static void read_infos(dbp_file_t *dbp, parsec_profiling_binary_file_header_t *h
     release_events_buffer( info );
 }
 
-static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const parsec_profiling_binary_file_header_t *head)
+static int read_dictionary(dbp_file_t *file, int fd, const parsec_profiling_binary_file_header_t *head)
 {
     parsec_profiling_buffer_t *dico, *next;
     parsec_profiling_key_buffer_t *a;
-    int nb, nbthis, pos;
-
-    dbp->dico_size = 0;
+    int nb, nbthis, pos, i;
+    dbp_multifile_reader_t *dbp = file->parent;
 
     /* Dictionaries match: take the first in memory */
     dico = refer_events_buffer( fd, head->dictionary_offset );
@@ -637,34 +658,49 @@ static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const parsec_pro
     }
     assert( PROFILING_BUFFER_TYPE_DICTIONARY == dico->buffer_type );
 
-    dbp->dico_size = head->dictionary_size;
-    dbp->dico_keys = (dbp_dictionary_t *)calloc(head->dictionary_size, sizeof(dbp_dictionary_t));
-    nb = dbp->dico_size;
+    file->nb_dico_map = head->dictionary_size;
+    file->dico_map = (int*)malloc(sizeof(int) * file->nb_dico_map);
+    memset(file->dico_map, -1, sizeof(int) * file->nb_dico_map);
+
+    nb = 0;
     nbthis = dico->this_buffer.nb_dictionary_entries;
     pos = 0;
-    while( nb > 0 ) {
+    while( nb < file->nb_dico_map ) {
         a = (parsec_profiling_key_buffer_t*)&dico->buffer[pos];
 
-        dbp->dico_keys[ dbp->dico_size - nb ].name = malloc( 64 );
-        strncpy(dbp->dico_keys[ dbp->dico_size - nb ].name, a->name, 64);
-        assert( strlen(a->attributes) > 6 );
-        dbp->dico_keys[ dbp->dico_size - nb ].attributes = malloc( 128 );
-        strncpy(dbp->dico_keys[ dbp->dico_size - nb ].attributes, ((char*)a->attributes) + strlen(a->attributes) - 6, 128 );
-        dbp->dico_keys[ dbp->dico_size - nb ].convertor = (char*)malloc(a->keyinfo_convertor_length+1);
-        memcpy(dbp->dico_keys[ dbp->dico_size - nb ].convertor,
-               a->convertor,
-               a->keyinfo_convertor_length);
-        dbp->dico_keys[ dbp->dico_size - nb ].convertor[a->keyinfo_convertor_length] = '\0';
-        dbp->dico_keys[ dbp->dico_size - nb ].keylen = a->keyinfo_length;
-
+        for(i = 0; i < dbp->dico_size; i++) {
+            if( a->keyinfo_length == dbp->dico_keys[i].keylen &&
+                strcmp(a->name, dbp->dico_keys[i].name) == 0 &&
+                strcmp(a->convertor, dbp->dico_keys[i].convertor) == 0 )
+                break;
+        }
+        file->dico_map[nb] = i;
+        if(i == dbp->dico_size) {
+            if (dbp->dico_size == dbp->dico_allocated) {
+                dbp->dico_allocated += 16;
+                dbp->dico_keys = realloc(dbp->dico_keys, dbp->dico_allocated * sizeof(dbp_dictionary_t));
+            }
+            dbp->dico_keys[i].name = malloc(64);
+            strncpy(dbp->dico_keys[i].name, a->name, 64);
+            assert(strlen(a->attributes) > 6);
+            dbp->dico_keys[i].attributes = malloc(128);
+            strncpy(dbp->dico_keys[i].attributes, ((char *) a->attributes) + strlen(a->attributes) - 6, 128);
+            dbp->dico_keys[i].convertor = (char *) malloc(a->keyinfo_convertor_length + 1);
+            memcpy(dbp->dico_keys[i].convertor,
+                   a->convertor,
+                   a->keyinfo_convertor_length);
+            dbp->dico_keys[i].convertor[a->keyinfo_convertor_length] = '\0';
+            dbp->dico_keys[i].keylen = a->keyinfo_length;
+            dbp->dico_size++;
+        }
         pos += a->keyinfo_convertor_length - 1 + sizeof(parsec_profiling_key_buffer_t);
-        nb--;
+        nb++;
         nbthis--;
 
-        if( nb > 0 && nbthis == 0 ) {
+        if( nb < file->nb_dico_map && nbthis == 0 ) {
             next = refer_events_buffer( fd, dico->next_buffer_file_offset );
             if( NULL == next ) {
-                fprintf(stderr, "Dictionary entry %d is broken. Dictionary broken.\n", dbp->dico_size - nb);
+                fprintf(stderr, "Dictionary entry %d is broken. Dictionary broken.\n", nb);
                 release_events_buffer( dico );
                 return -1;
             }
@@ -678,90 +714,6 @@ static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const parsec_pro
     }
     release_events_buffer( dico );
     return 0;
-}
-
-static int check_dictionary(const dbp_multifile_reader_t *dbp, int fd, const parsec_profiling_binary_file_header_t *head)
-{
-    parsec_profiling_buffer_t *dico, *next;
-    parsec_profiling_key_buffer_t *a;
-    int nb, nbthis, pos;
-
-    /* Dictionaries match: take the first in memory */
-    dico = refer_events_buffer( fd, head->dictionary_offset );
-    if( NULL == dico ) {
-        fprintf(stderr, "Unable to read entire dictionary entry at offset %"PRId64"\n",
-                head->dictionary_offset);
-        return -1;
-    }
-    assert( PROFILING_BUFFER_TYPE_DICTIONARY == dico->buffer_type );
-
-    if(dbp->dico_size != head->dictionary_size) {
-        fprintf(stderr, "Dictionary sizes do not match.\n");
-        goto error;
-    }
-
-    nb = dbp->dico_size;
-    nbthis = dico->this_buffer.nb_dictionary_entries;
-    pos = 0;
-    while( nb > 0 ) {
-        a = (parsec_profiling_key_buffer_t*)&dico->buffer[pos];
-
-        if( strncmp(dbp->dico_keys[ dbp->dico_size - nb ].name, a->name, 64) ) {
-            fprintf(stderr, "Dictionary entry %d has a name of %s in the reference dictionary, and %s in the new file dictionary.\n",
-                    dbp->dico_size - nb, dbp->dico_keys[ dbp->dico_size - nb ].name, a->name);
-            goto error;
-        }
-
-        assert( strlen(a->attributes) > 6 );
-        if( strncmp(dbp->dico_keys[ dbp->dico_size - nb ].attributes, ((char*)a->attributes) + strlen(a->attributes) - 6, 128 ) ) {
-            fprintf(stderr, "Dictionary entry %d has a name of %s in the reference dictionary, and %s in the new file dictionary.\n",
-                    dbp->dico_size - nb, dbp->dico_keys[ dbp->dico_size - nb ].attributes, a->attributes);
-            goto error;
-        }
-
-        if( strlen(dbp->dico_keys[ dbp->dico_size - nb ].convertor) != (size_t)a->keyinfo_convertor_length ) {
-            fprintf(stderr, "Dictionary entry %d has a convertor of %d bytes in the reference dictionary, and %d in the new file dictionary.\n",
-                    dbp->dico_size - nb, (int)strlen(dbp->dico_keys[ dbp->dico_size - nb ].convertor), a->keyinfo_convertor_length);
-            goto error;
-        }
-
-        if( strncmp(dbp->dico_keys[ dbp->dico_size - nb ].convertor,
-                    a->convertor,
-                    a->keyinfo_convertor_length) ) {
-            fprintf(stderr, "Dictionary entry %d has a convertor in the reference dictionary, that is different from the convertor for the same entry in the new file dictionary.\n",
-                    dbp->dico_size - nb);
-            goto error;
-        }
-
-        if( dbp->dico_keys[ dbp->dico_size - nb ].keylen != a->keyinfo_length ) {
-            fprintf(stderr, "Dictionary entry %d has an info length in the reference dictionary of %d bytes, that is different from the key info length of %d bytes for the same entry in the new file dictionary.\n",
-                    dbp->dico_size - nb, dbp->dico_keys[ dbp->dico_size - nb ].keylen, a->keyinfo_length);
-            goto error;
-        }
-
-        pos += a->keyinfo_convertor_length - 1 + sizeof(parsec_profiling_key_buffer_t);
-        nb--;
-        nbthis--;
-
-        if( nb > 0 && nbthis == 0 ) {
-            next = refer_events_buffer( fd, dico->next_buffer_file_offset );
-            if( NULL == next ) {
-                fprintf(stderr, "Dictionary entry %d is broken. Dictionary broken.\n", dbp->dico_size - nb);
-                goto error;
-            }
-            assert( PROFILING_BUFFER_TYPE_DICTIONARY == dico->buffer_type );
-            release_events_buffer( dico );
-            dico = next;
-
-            pos = 0;
-        }
-    }
-    release_events_buffer( dico );
-    return 0;
-
-  error:
-    release_events_buffer( dico );
-    return -1;
 }
 
 static size_t read_thread_infos(parsec_profiling_stream_t* res,
@@ -862,6 +814,9 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
     dbp = (dbp_multifile_reader_t*)malloc(sizeof(dbp_multifile_reader_t));
     dbp->files = (dbp_file_t*)malloc(nbfiles * sizeof(dbp_file_t));
     dbp->last_error = SUCCESS;
+    dbp->dico_size = 0;
+    dbp->dico_allocated = 8;
+    dbp->dico_keys = calloc(sizeof(dbp_dictionary_t), dbp->dico_allocated);
 
     n = 0;
     for(i = 0; i < nbfiles; i++) {
@@ -901,47 +856,48 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             dbp->files[n].error = -WRONG_BYTE_ORDER;
             goto close_and_continue;
         }
-        if( n > 0 ) {
-            if( memcmp(&head, &dbp->header, sizeof(parsec_profiling_binary_file_header_t)) ) {
-                if( strncmp(head.hr_id, dbp->files[0].hr_id, 128) ) {
-                    fprintf(stderr, "The profile in file %s has unique id %s, which is not compatible with id %s of file %s. File ignored.\n",
-                            dbp->files[n].filename, head.hr_id,
-                            dbp->files[0].hr_id, dbp->files[0].filename);
-                    dbp->files[n].error = -DIFF_HR_ID;
-                    goto close_and_continue;
-                }
 
-                if( head.profile_buffer_size != event_buffer_size ) {
-                    fprintf(stderr, "The profile in file %s has a buffer size of %d, which is not compatible with the buffer size %d of file %s. File ignored.\n",
-                            dbp->files[n].filename, head.profile_buffer_size,
-                            event_buffer_size, dbp->files[0].filename);
-                    dbp->files[n].error = -DIFF_BUFFER_SIZE;
-                    goto close_and_continue;
-                }
-            }
-            if( check_dictionary(dbp, fd, &head) != 0 ) {
-                fprintf(stderr, "The profile in file %s has a broken or unmatching dictionary. Dictionary ignored.\n",
-                        dbp->files[n].filename);
-                dbp->files[n].error = -DICT_IGNORED;
-            }
-        } else {
+        if(n == 0) {
             event_buffer_size = head.profile_buffer_size;
             event_avail_space = event_buffer_size -
                 ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
-
-            if( read_dictionary(dbp, fd, &head) != 0 ) {
-                fprintf(stderr, "The profile in file %s has a broken dictionary. Trying to use the dictionary of next file. Ignoring the file.\n",
-                        dbp->files[n].filename);
-                dbp->files[n].error = -DICT_BROKEN;
+        } else {
+            if( strncmp(head.hr_id, dbp->files[0].hr_id, 128) ) {
+                fprintf(stderr, "The profile in file %s has unique id %s, which is not compatible with id %s of file %s. File ignored.\n",
+                        dbp->files[n].filename, head.hr_id,
+                        dbp->files[0].hr_id, dbp->files[0].filename);
+                dbp->files[n].error = -DIFF_HR_ID;
                 goto close_and_continue;
             }
-            memcpy(&dbp->header, &head, sizeof(parsec_profiling_binary_file_header_t));
+
+            if( head.profile_buffer_size != event_buffer_size ) {
+                fprintf(stderr, "The profile in file %s has a buffer size of %d, which is not compatible with the buffer size %d of file %s. File ignored.\n",
+                        dbp->files[n].filename, head.profile_buffer_size,
+                        event_buffer_size, dbp->files[0].filename);
+                dbp->files[n].error = -DIFF_BUFFER_SIZE;
+                goto close_and_continue;
+            }
+        }
+
+        if( head.profile_buffer_size != event_buffer_size ) {
+            fprintf(stderr, "The profile in file %s has a buffer size of %d, which is not compatible with the buffer size %d of file %s. File ignored.\n",
+                    dbp->files[n].filename, head.profile_buffer_size,
+                    event_buffer_size, dbp->files[0].filename);
+            dbp->files[n].error = -DIFF_BUFFER_SIZE;
+            goto close_and_continue;
         }
 
         dbp->files[n].hr_id = strdup(head.hr_id);
         dbp->files[n].rank = head.rank;
 
         read_infos(&dbp->files[n], &head /*dbp->header*/);
+
+        if( read_dictionary(&dbp->files[n], fd, &head) != 0 ) {
+            fprintf(stderr, "The profile in file %s has a broken dictionary. Trying to use the dictionary of next file. Ignoring the file.\n",
+                    dbp->files[n].filename);
+            dbp->files[n].error = -DICT_BROKEN;
+            goto close_and_continue;
+        }
 
         if( read_threads(&dbp->files[n], &head) != 0 ) {
             fprintf(stderr, "unable to read all threads of profile %d in file %s. File ignored.\n",

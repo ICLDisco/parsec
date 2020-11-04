@@ -41,11 +41,11 @@ static void output(const char *format, ...)
     va_end(ap);
 }
 
-static void dump_info(FILE *tracefile, const dbp_event_t *e, const dbp_multifile_reader_t *dbp)
+static void dump_info(FILE *tracefile, const dbp_event_t *e, const dbp_file_t *file)
 {
     static char *infostr = NULL;
     static int infostr_len = 0;
-    int len = dbp_event_info_len(e, dbp);
+    int len = dbp_event_info_len(e, file);
     int k;
     unsigned char *nfo = dbp_event_get_info( e );
     if(3*len+1 > infostr_len) {
@@ -58,18 +58,20 @@ static void dump_info(FILE *tracefile, const dbp_event_t *e, const dbp_multifile
     fprintf(tracefile, "                     <INFO><![CDATA[%s]]></INFO>\n", infostr);
 }
 
-static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, const dbp_thread_t *th)
+static void dump_one_xml(FILE *tracefile, const dbp_file_t *file, int t)
+
 {
     int displayed_key, k;
     uint64_t start, end;
     dbp_event_iterator_t *it, *m;
     const dbp_event_t *e, *g;
+    const dbp_thread_t *th = dbp_file_get_thread(file, t);
 
     fprintf(tracefile,
             "            <THREAD>\n"
             "               <IDENTIFIER><![CDATA[%s]]></IDENTIFIER>\n", dbp_thread_get_hr_id(th) );
 
-    for( k = 0; k < dbp_reader_nb_dictionary_entries(dbp); k++ ) {
+    for( k = 0; k < dbp_file_nb_dictionary_entries(file); k++ ) {
         displayed_key = 0;
 
         it = dbp_iterator_new_from_thread( th );
@@ -79,7 +81,7 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
 	      m = dbp_iterator_find_matching_event_all_threads(it, 0);
                 if( NULL == m ) {
                     WARNING("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
-                             dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
+                             dbp_dictionary_name(dbp_file_get_dictionary(file, BASE_KEY(dbp_event_get_key(e)))),
                              dbp_event_get_taskpool_id(e), dbp_event_get_event_id(e),
                              dbp_event_get_timestamp(e));
                 } else {
@@ -102,10 +104,10 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
                             start, end);
 
                     if( dbp_event_get_flags( e ) & PARSEC_PROFILING_EVENT_HAS_INFO ) {
-                        dump_info(tracefile, e, dbp);
+                        dump_info(tracefile, e, file);
                     }
                     if( dbp_event_get_flags( g ) & PARSEC_PROFILING_EVENT_HAS_INFO ) {
-                        dump_info(tracefile, g, dbp);
+                        dump_info(tracefile, g, file);
                     }
                     fprintf(tracefile, "                  </EVENT>\n");
 
@@ -125,7 +127,7 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
             "            </THREAD>\n");
 }
 
-static void dump_one_xml_raw(FILE *tracefile, const dbp_multifile_reader_t *dbp, const dbp_thread_t *th)
+static void dump_one_xml_raw(FILE *tracefile, const dbp_file_t *file, int thid)
 {
     uint64_t t;
     int k;
@@ -133,6 +135,7 @@ static void dump_one_xml_raw(FILE *tracefile, const dbp_multifile_reader_t *dbp,
     const dbp_event_t *e;
     dbp_dictionary_t *dic;
     char *ks;
+    const dbp_thread_t *th = dbp_file_get_thread(file, thid);
 
     fprintf(tracefile,
             "            <THREAD>\n"
@@ -142,8 +145,8 @@ static void dump_one_xml_raw(FILE *tracefile, const dbp_multifile_reader_t *dbp,
     while( (e = dbp_iterator_current(it)) != NULL ) {
         t = dbp_event_get_timestamp( e );
         k = dbp_event_get_key(e);
-        if( BASE_KEY(k) > 0 && BASE_KEY(k) < dbp_reader_nb_dictionary_entries(dbp) ) {
-           dic =  dbp_reader_get_dictionary(dbp, BASE_KEY(k));
+        if( BASE_KEY(k) > 0 && BASE_KEY(k) < dbp_file_nb_dictionary_entries(file) ) {
+           dic =  dbp_file_get_dictionary(file, BASE_KEY(k));
            ks = dbp_dictionary_name(dic);
         } else {
             ks = "Undefined Entry";
@@ -159,7 +162,7 @@ static void dump_one_xml_raw(FILE *tracefile, const dbp_multifile_reader_t *dbp,
                 t);
 
         if( dbp_event_get_flags( e ) & PARSEC_PROFILING_EVENT_HAS_INFO ) {
-            dump_info(tracefile, e, dbp);
+            dump_info(tracefile, e, file);
         }
         fprintf(tracefile, "                  </EVENT>\n");
         dbp_iterator_next(it);
@@ -225,11 +228,11 @@ static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp, in
 
         if( raw ) {
             for (t = 0; t < dbp_file_nb_threads(file); t++) {
-                dump_one_xml_raw(tracefile, dbp, dbp_file_get_thread(file, t));
+                dump_one_xml_raw(tracefile, file, t);
             }
         } else {
             for (t = 0; t < dbp_file_nb_threads(file); t++) {
-                dump_one_xml(tracefile, dbp, dbp_file_get_thread(file, t));
+                dump_one_xml(tracefile, file, t);
             }
         }
         fprintf(tracefile,

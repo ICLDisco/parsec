@@ -39,26 +39,28 @@ cdef extern from "dbpreader.h":
    char * dbp_info_get_value(dbp_info_t * info)
 
    dbp_multifile_reader_t* dbp_reader_open_files(int nbfiles, char * files[])
-   int dbp_reader_read_threads(dbp_multifile_reader_t * dbp)
    int dbp_reader_nb_files(dbp_multifile_reader_t * dbp)
    int dbp_reader_nb_dictionary_entries(dbp_multifile_reader_t * dbp)
-   int dbp_reader_worldsize(dbp_multifile_reader_t * dbp)
    int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
    void dbp_reader_close_files(dbp_multifile_reader_t * dbp)
-   void dbp_reader_dispose_reader(dbp_multifile_reader_t * dbp)
+   void dbp_reader_destruct(dbp_multifile_reader_t * dbp)
 
+   dbp_dictionary_t * dbp_file_get_dictionary(dbp_file_t * file, int did)
    dbp_dictionary_t * dbp_reader_get_dictionary(dbp_multifile_reader_t * dbp, int did)
+   int dbp_file_translate_local_dico_to_global(dbp_file_t *file, int lid)
    char * dbp_dictionary_name(dbp_dictionary_t * dico)
-   char * dbp_dictionary_convertor(dbp_dictionary_t * dico)
    char * dbp_dictionary_attributes(dbp_dictionary_t * dico)
+   char * dbp_dictionary_convertor(dbp_dictionary_t * dico)
    int dbp_dictionary_keylen(dbp_dictionary_t * dico)
 
    dbp_file_t *dbp_reader_get_file(dbp_multifile_reader_t *dbp, int fid)
 
    char *dbp_file_hr_id(dbp_file_t *file)
+   char *dbp_file_get_name(dbp_file_t *file)
    int dbp_file_get_rank(dbp_file_t *file)
    int dbp_file_nb_threads(dbp_file_t *file)
    int dbp_file_nb_infos(dbp_file_t *file)
+   int dbp_file_nb_dictionary_entries(const dbp_file_t *file)
    int dbp_file_error(const dbp_file_t *file)
    dbp_info_t *dbp_file_get_info(dbp_file_t *file, int iid)
 
@@ -67,7 +69,6 @@ cdef extern from "dbpreader.h":
    int dbp_thread_nb_events(dbp_thread_t *th)
    int dbp_thread_nb_infos(dbp_thread_t *th)
    char * dbp_thread_get_hr_id(dbp_thread_t *th)
-   char * dbp_file_get_name(dbp_file_t *file)
    dbp_info_t *dbp_thread_get_info(dbp_thread_t *th, int iid)
 
    dbp_event_iterator_t *dbp_iterator_new_from_thread(dbp_thread_t *th)

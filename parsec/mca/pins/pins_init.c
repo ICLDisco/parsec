@@ -51,12 +51,16 @@ void parsec_pins_init(parsec_context_t* master_context)
         goto end_of_pins_init;
     }
     pins_components = mca_components_open_bytype("pins");
-    for(i = 0; pins_components[i] != NULL; i++); /* nothing just counting */
-    modules_activated = (parsec_pins_module_t**)malloc(sizeof(parsec_pins_module_t*) * i);
+    for(i = 0; pins_components[i] != NULL; i++); /* nothing just counting upper bound */
+    if(i>0) {
+        modules_activated = (parsec_pins_module_t**)malloc(sizeof(parsec_pins_module_t*) * i);
 #if defined(PARSEC_PROF_TRACE)
-    modules_activated_str = (char*)malloc( (MAX_NAME_SIZE+1) * i);
-    modules_activated_str[0] = '\0';
+        modules_activated_str = (char *) malloc((MAX_NAME_SIZE + 1) * i);
+        modules_activated_str[0] = '\0';
 #endif /* PARSEC_PROF_TRACE */
+    } else {
+        modules_activated = NULL;
+    }
 
     for(i = 0; pins_components[i] != NULL; i++) {
         if( mca_components_belongs_to_user_list(user_list, pins_components[i]->mca_component_name) ) {
@@ -85,13 +89,15 @@ void parsec_pins_init(parsec_context_t* master_context)
     parsec_debug_verbose(5, parsec_debug_output, "Found %d components, activated %d", i, num_modules_activated);
 #if defined(PARSEC_PROF_TRACE)
     /* replace trailing comma with \0 */
-    if ( strlen(modules_activated_str) > 1) {
-        if( modules_activated_str[ strlen(modules_activated_str) - 1 ] == ',' ) {
-            modules_activated_str[strlen(modules_activated_str) - 1] = '\0';
+    if( NULL != modules_activated ) {
+        if (strlen(modules_activated_str) > 1) {
+            if (modules_activated_str[strlen(modules_activated_str) - 1] == ',') {
+                modules_activated_str[strlen(modules_activated_str) - 1] = '\0';
+            }
         }
+        parsec_profiling_add_information("PINS_MODULES", modules_activated_str);
+        free(modules_activated_str);
     }
-    parsec_profiling_add_information("PINS_MODULES", modules_activated_str);
-    free(modules_activated_str);
 #endif
 
  end_of_pins_init:
