@@ -186,16 +186,17 @@ if( BUILD_PARSEC )
   target_link_libraries(parsec
     PRIVATE
     Threads::Threads
-    ${CMAKE_DL_LIBS}
     $<$<BOOL:${PARSEC_SHM_OPEN_IN_LIBRT}>:rt>
     PUBLIC
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
+    ${EXTRA_LIBS}
     INTERFACE
     ${PARSEC_ATOMIC_SUPPORT_LIBS}
-    ${EXTRA_LIBS}
     )
+# How to correctly deal with ${CMAKE_DL_LIBS} on a multi-platform way ?
+
   if( ${PARSEC_HAVE_CUDA} )
     target_link_libraries(parsec
                           PUBLIC ${CUDA_LIBRARIES})

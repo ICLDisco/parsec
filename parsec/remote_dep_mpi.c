@@ -1207,8 +1207,8 @@ typedef int (*parsec_comm_callback_f)(parsec_execution_stream_t*,
                                      MPI_Status* status);     /**< the corresponding status */
 struct parsec_comm_callback_s {
     parsec_comm_callback_f fct;
-    long                  storage1;
-    long                  storage2;
+    void*                  cb_data;
+    int                    idx;  /* index of the MPI request in the array of request */
 };
 
 static parsec_comm_callback_t *array_of_callbacks;
@@ -1221,18 +1221,19 @@ static MPI_Status             *array_of_statuses;
 #define dep_count sizeof(remote_dep_wire_activate_t)
 #define dep_extent dep_count
 #define DEP_SHORT_BUFFER_SIZE (dep_extent+RDEP_MSG_SHORT_LIMIT)
+#if ULONG_MAX == UINTPTR_MAX
 #define datakey_dtt MPI_LONG
+#else
+#define datakey_dtt MPI_LONG_LONG
+#endif
 #define datakey_count 3
 static remote_dep_wire_get_t* dep_get_buff;
 
-/* Pointers are converted to long to be used as keys to fetch data in the get
+/* Pointers are converted to ptrdiff_t to be used as keys to fetch data in the get
  * rdv protocol. Make sure we can carry pointers correctly.
  */
 #ifdef PARSEC_HAVE_LIMITS_H
 #include <limits.h>
-#endif
-#if ULONG_MAX < UINTPTR_MAX
-#error "unsigned long is not large enough to hold a pointer!"
 #endif
 
 /* note: tags are necessary to order communication between pairs. They are used to
@@ -1420,8 +1421,8 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
                       &array_of_requests[parsec_comm_last_active_req]);
         cb = &array_of_callbacks[parsec_comm_last_active_req];
         cb->fct      = remote_dep_mpi_save_activate_cb;
-        cb->storage1 = parsec_comm_last_active_req;
-        cb->storage2 = i;
+        cb->cb_data  = (void*)(uintptr_t)parsec_comm_last_active_req;
+        cb->idx      = i;
         MPI_Start(&array_of_requests[parsec_comm_last_active_req]);
         parsec_comm_last_active_req++;
     }
@@ -1433,8 +1434,8 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
                       &array_of_requests[parsec_comm_last_active_req]);
         cb = &array_of_callbacks[parsec_comm_last_active_req];
         cb->fct      = remote_dep_mpi_save_put_cb;
-        cb->storage1 = parsec_comm_last_active_req;
-        cb->storage2 = i;
+        cb->cb_data  = (void*)(uintptr_t)parsec_comm_last_active_req;
+        cb->idx      = i;
         MPI_Start(&array_of_requests[parsec_comm_last_active_req]);
         parsec_comm_last_active_req++;
     }
@@ -1853,7 +1854,7 @@ remote_dep_mpi_save_put_cb(parsec_execution_stream_t* es,
     item->cmd.activate.peer = status->MPI_SOURCE;
 
     task = &(item->cmd.activate.task);
-    memcpy(task, &dep_get_buff[cb->storage2], sizeof(remote_dep_wire_get_t));
+    memcpy(task, &dep_get_buff[cb->idx], sizeof(remote_dep_wire_get_t));
     deps = (parsec_remote_deps_t*) (uintptr_t) task->deps;
     assert(0 != deps->pending_ack);
     assert(0 != deps->outgoing_mask);
@@ -1870,7 +1871,7 @@ remote_dep_mpi_save_put_cb(parsec_execution_stream_t* es,
                 task->tag, task->output_mask, (void*)deps);
     }
     /* Let's re-enable the pending request in the same position */
-    MPI_Start(&array_of_requests[cb->storage1]);
+    MPI_Start(&array_of_requests[(int)(ptrdiff_t)cb->cb_data]);
     return 0;
 }
 
@@ -1927,8 +1928,8 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
                   &array_of_requests[parsec_comm_last_active_req]);
         cb = &array_of_callbacks[parsec_comm_last_active_req];
         cb->fct      = remote_dep_mpi_put_end_cb;
-        cb->storage1 = (long)deps;
-        cb->storage2 = k;
+        cb->cb_data  = (void*)deps;
+        cb->idx      = k;
         parsec_comm_last_active_req++;
         parsec_comm_puts++;
         assert(parsec_comm_last_active_req <= DEP_NB_REQ);
@@ -1946,13 +1947,13 @@ remote_dep_mpi_put_end_cb(parsec_execution_stream_t* es,
                           parsec_comm_callback_t* cb,
                           MPI_Status* status)
 {
-    parsec_remote_deps_t* deps = (parsec_remote_deps_t*)cb->storage1;
+    parsec_remote_deps_t* deps = (parsec_remote_deps_t*)cb->cb_data;
 
     PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\tna\tPut END  \tunknown \tk=%d\twith deps %p\tparams %lx\t(tag=%d) data ptr %p",
-            cb->storage2, deps, cb->storage2, status->MPI_TAG,
-            deps->output[cb->storage2].data.data); (void)status;
+            cb->idx, deps, (long)cb->idx, status->MPI_TAG,
+            deps->output[cb->idx].data.data); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
-    TAKE_TIME(MPIsnd_prof, MPI_Data_plds_ek, cb->storage2);
+    TAKE_TIME(MPIsnd_prof, MPI_Data_plds_ek, cb->idx);
     remote_dep_complete_and_cleanup(&deps, 1);
     parsec_comm_puts--;
     (void)es;
@@ -2113,24 +2114,24 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
     MPI_Get_count(status, MPI_PACKED, &length);
     while(position < length) {
         deps = remote_deps_allocate(&parsec_remote_dep_context.freelist);
-        MPI_Unpack(dep_activate_buff[cb->storage2], length, &position,
+        MPI_Unpack(dep_activate_buff[cb->idx], length, &position,
                    &deps->msg, dep_count, dep_dtt, dep_comm);
         deps->from = status->MPI_SOURCE;
 
         /* Retrieve the data arenas and update the msg.incoming_mask to reflect
          * the data we should be receiving from the predecessor.
          */
-        rc = remote_dep_get_datatypes(es, deps, cb->storage2, &position);
+        rc = remote_dep_get_datatypes(es, deps, cb->idx, &position);
 
         if( -1 == rc ) {
             /* the corresponding tp doesn't exist, yet. Put it in unexpected */
             char* packed_buffer;
             PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tActivate NoTPool\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
-                    cb->storage2, deps->msg.deps, deps->msg.output_mask);
+                    cb->idx, deps->msg.deps, deps->msg.output_mask);
             /* Copy the short data to some temp storage */
             packed_buffer = malloc(deps->msg.length);
-            memcpy(packed_buffer, dep_activate_buff[cb->storage2] + position, deps->msg.length);
+            memcpy(packed_buffer, dep_activate_buff[cb->idx] + position, deps->msg.length);
             position += deps->msg.length;  /* move to the next order */
             deps->taskpool = (parsec_taskpool_t*)packed_buffer;  /* temporary storage */
             parsec_list_nolock_push_back(&dep_activates_noobj_fifo, (parsec_list_item_t*)deps);
@@ -2145,15 +2146,15 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
 
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tFROM\t%d\tActivate\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
                status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
-               cb->storage2, deps->msg.deps, deps->msg.output_mask);
+               cb->idx, deps->msg.deps, deps->msg.output_mask);
         /* Import the activation message and prepare for the reception */
-        remote_dep_mpi_recv_activate(es, deps, dep_activate_buff[cb->storage2],
+        remote_dep_mpi_recv_activate(es, deps, dep_activate_buff[cb->idx],
                                      position + deps->msg.length, &position);
         assert( parsec_param_enable_aggregate || (position == length));
     }
     assert(position == length);
     /* Let's re-enable the pending request in the same position */
-    MPI_Start(&array_of_requests[cb->storage1]);
+    MPI_Start(&array_of_requests[(int)(ptrdiff_t)cb->cb_data]);
     PARSEC_PINS(es, ACTIVATE_CB_END, NULL);
     return 0;
 }
@@ -2286,8 +2287,8 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
                   &array_of_requests[parsec_comm_last_active_req]);
         parsec_comm_callback_t* cb = &array_of_callbacks[parsec_comm_last_active_req];
         cb->fct      = remote_dep_mpi_get_end_cb;
-        cb->storage1 = (long)deps;
-        cb->storage2 = k;
+        cb->cb_data  = (void*)deps;
+        cb->idx      = k;
         parsec_comm_last_active_req++;
         parsec_comm_gets++;
         assert(parsec_comm_last_active_req <= DEP_NB_REQ);
@@ -2318,17 +2319,17 @@ remote_dep_mpi_get_end_cb(parsec_execution_stream_t* es,
                           parsec_comm_callback_t* cb,
                           MPI_Status* status)
 {
-    parsec_remote_deps_t* deps = (parsec_remote_deps_t*)cb->storage1;
+    parsec_remote_deps_t* deps = (parsec_remote_deps_t*)cb->cb_data;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
 
     PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tGet END  \t% -8s\tk=%d\twith datakey na        \tparams %lx\t(tag=%d)",
             status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
-            (int)cb->storage2, deps->incoming_mask, status->MPI_TAG); (void)status;
+            cb->idx, deps->incoming_mask, status->MPI_TAG); (void)status;
     DEBUG_MARK_DTA_MSG_END_RECV(status->MPI_TAG);
-    TAKE_TIME(MPIrcv_prof, MPI_Data_pldr_ek, (int)cb->storage2);
-    remote_dep_mpi_get_end(es, (int)cb->storage2, deps);
+    TAKE_TIME(MPIrcv_prof, MPI_Data_pldr_ek, cb->idx);
+    remote_dep_mpi_get_end(es, cb->idx, deps);
     parsec_comm_gets--;
     return 0;
 }

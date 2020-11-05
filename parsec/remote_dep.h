@@ -15,7 +15,7 @@
 
 BEGIN_C_DECLS
 
-typedef unsigned long remote_dep_datakey_t;
+typedef ptrdiff_t remote_dep_datakey_t;
 
 #define PARSEC_ACTION_DEPS_MASK                  0x00FFFFFF
 #define PARSEC_ACTION_RELEASE_LOCAL_DEPS         0x01000000

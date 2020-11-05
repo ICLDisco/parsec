@@ -87,18 +87,19 @@ static void release_comms(void)
         MPI_Comm_free(&comms[i]);
     }
 }
-#define TIMER_START(TIMER)                      \
-    do {                                        \
-        struct timeval tv;                      \
-        gettimeofday(&tv,NULL);                 \
-        (TIMER) = tv.tv_sec * 1e6 + tv.tv_usec; \
+
+#define TIMER_START(_TIMER)                      \
+    do {                                         \
+        struct timeval tv;                       \
+        gettimeofday(&tv,NULL);                  \
+        (_TIMER) = tv.tv_sec * 1e6 + tv.tv_usec; \
     } while (0)
 
-#define TIMER_STOP(TIMER)                                   \
-    do {                                                    \
-        struct timeval tv;                                  \
-        gettimeofday(&tv,NULL);                             \
-        (TIMER) = (tv.tv_sec * 1e6 + tv.tv_usec) - (TIMER); \
+#define TIMER_STOP(_TIMER)                                    \
+    do {                                                      \
+        struct timeval tv;                                    \
+        gettimeofday(&tv,NULL);                               \
+        (_TIMER) = (tv.tv_sec * 1e6 + tv.tv_usec) - (_TIMER); \
     } while (0)
 
 int main(int argc, char* argv[])

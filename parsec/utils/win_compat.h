@@ -13,7 +13,16 @@
 #define WIN_COMPAT_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_config.h"
+
+#if !defined(__WINDOWS__)
+#error "utils/win_compat.h should not have been included on any OSes except Windows"
+#endif  /* ! defined(__WINDWOS__) */
+
+#define _CRT_RAND_S  /* needed for rand_s */
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <winsock.h>
 
 #if !defined(PARSEC_HAVE_GETLINE)
 ssize_t getdelim(char **buf, size_t *bufsiz, int delimiter, FILE *fp);

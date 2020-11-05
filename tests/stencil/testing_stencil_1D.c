@@ -9,6 +9,9 @@
 /* Timming */
 double sync_time_elapsed = 0.0;
 
+/* Global array of weight */
+DTYPE * weight_1D;
+
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;

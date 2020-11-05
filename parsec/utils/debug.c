@@ -32,7 +32,6 @@ int parsec_debug_history_on_fatal = 0;
 static int bt_output    = -1;
 static int ST_SIZE      = 128;
 static int ST_ASIZE     = 64;
-static int32_t st_idx   = 0;
 static void **stack     = NULL;
 static int* stack_size  = NULL;
 
@@ -150,6 +149,7 @@ void parsec_debug_fini(void)
 #if defined(PARSEC_HAVE_EXECINFO_H)
 /* STACKTRACES circular buffer */
 #include <execinfo.h>
+static int32_t st_idx   = 0;
 
 void parsec_debug_backtrace_save(void) {
     uint32_t my_idx = (parsec_atomic_fetch_inc_int32(&st_idx) + 1) % ST_ASIZE;

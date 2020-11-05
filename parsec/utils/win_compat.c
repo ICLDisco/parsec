@@ -9,7 +9,7 @@
  * $HEADER$
  */
 
-#include "parsec/utils/win_compat.h"
+#include "parsec/parsec_config.h"
 #include <stdlib.h>
 
 #if !defined(PARSEC_HAVE_GETLINE)

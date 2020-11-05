@@ -10,55 +10,58 @@ include (CheckCCompilerFlag)
 # compiler supports the -m32/-m64 flags as well as the linker.
 # Once this issue is resolved the directory compile_options
 # have to be updated accordingly.
+# On windows you have to use the correct compiler, as there seems to
+# be no specific flag for 64 bits compilations.
 #
 # TODO: For the Fortran compiler:
 #         no idea how to correctly detect if the required/optional
 #         libraries are in the correct format.
-#
-string(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
-if(_match_xlc)
-  message(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
-endif(_match_xlc)
-string(REGEX MATCH "XL" _match_xlc ${CMAKE_C_COMPILER_ID})
-if (BUILD_64bits)
-  if( _match_xlc)
-    set( arch_build "-q64" )
-  else (_match_xlc)
-    if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "sparc64fx" )
-      set ( arch_build " " )
-    else()
-      set( arch_build "-m64" )
-    endif()
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
+  string(REGEX MATCH ".*xlc$" _match_xlc ${CMAKE_C_COMPILER})
+  if(_match_xlc)
+    message(ERROR "Please use the thread-safe version of the xlc compiler (xlc_r)")
   endif(_match_xlc)
-else (BUILD_64bits)
-  if( _match_xlc)
-    set( arch_build "-q32" )
-  else (_match_xlc)
-    set( arch_build "-m32" )
-  endif(_match_xlc)
-endif (BUILD_64bits)
+  string(REGEX MATCH "XL" _match_xlc ${CMAKE_C_COMPILER_ID})
+  if (BUILD_64bits)
+    if( _match_xlc)
+      set( arch_build "-q64" )
+    else (_match_xlc)
+      if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "sparc64fx" )
+        set ( arch_build " " )
+      else()
+        set( arch_build "-m64" )
+      endif()
+    endif(_match_xlc)
+  else (BUILD_64bits)
+    if( _match_xlc)
+      set( arch_build "-q32" )
+    else (_match_xlc)
+      set( arch_build "-m32" )
+    endif(_match_xlc)
+  endif (BUILD_64bits)
 
-check_c_compiler_flag( ${arch_build} C_M32or64 )
-if( C_M32or64 )
-  # Try the same for Fortran and CXX:
-  # Use the same 64bit flag as the C compiler if possible
-  if(CMAKE_Fortran_COMPILER_WORKS)
-    check_fortran_compiler_flag( ${arch_build} F_M32or64 )
-  endif()
-  if(CMAKE_CXX_COMPILER_WORKS)
-    check_cxx_compiler_flag( ${arch_build} CXX_M32or64 )
-  endif()
-  set(arch_build_lang "$<$<COMPILE_LANGUAGE:C>:${arch_build}>")
-  if( F_M32or64 )
-    list(APPEND arch_build_lang "$<$<COMPILE_LANGUAGE:Fortran>:${arch_build}>")
-  endif( F_M32or64 )
-  if( CXX_M32or64 )
-    list(APPEND arch_build_lang "$<$<COMPILE_LANGUAGE:CXX>:${arch_build}>")
-  endif( CXX_M32or64 )
-  set(PARSEC_ARCH_OPTIONS "${arch_build_lang}" CACHE STRING "List of compile options used to select the target architecture (e.g., -m64, -mtune=haswell, etc.)")
-  mark_as_advanced(PARSEC_ARCH_OPTIONS)
-  add_compile_options("${PARSEC_ARCH_OPTIONS}")
-endif( C_M32or64 )
+  check_c_compiler_flag( ${arch_build} C_M32or64 )
+  if( C_M32or64 )
+    # Try the same for Fortran and CXX:
+    # Use the same 64bit flag as the C compiler if possible
+    if(CMAKE_Fortran_COMPILER_WORKS)
+      check_fortran_compiler_flag( ${arch_build} F_M32or64 )
+    endif()
+    if(CMAKE_CXX_COMPILER_WORKS)
+      check_cxx_compiler_flag( ${arch_build} CXX_M32or64 )
+    endif()
+    set(arch_build_lang "$<$<COMPILE_LANGUAGE:C>:${arch_build}>")
+    if( F_M32or64 )
+      list(APPEND arch_build_lang "$<$<COMPILE_LANGUAGE:Fortran>:${arch_build}>")
+    endif( F_M32or64 )
+    if( CXX_M32or64 )
+      list(APPEND arch_build_lang "$<$<COMPILE_LANGUAGE:CXX>:${arch_build}>")
+    endif( CXX_M32or64 )
+    set(PARSEC_ARCH_OPTIONS "${arch_build_lang}" CACHE STRING "List of compile options used to select the target architecture (e.g., -m64, -mtune=haswell, etc.)")
+    mark_as_advanced(PARSEC_ARCH_OPTIONS)
+    add_compile_options("${PARSEC_ARCH_OPTIONS}")
+  endif( C_M32or64 )
+endif(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
 
 #
 # Check compiler debug flags and capabilities
@@ -108,10 +111,14 @@ if(_match_icc)
     list(APPEND wflags "-wd424,981,1419,1572,10237,11074,11076")
   endif( PARSEC_HAVE_WD )
 else(_match_icc)
-  check_c_compiler_flag( "-Wno-parentheses-equality" PARSEC_HAVE_PAR_EQUALITY )
-  if( PARSEC_HAVE_PAR_EQUALITY )
-    list(APPEND wflags "-Wno-parentheses-equality")
-  endif( PARSEC_HAVE_PAR_EQUALITY )
+  # At best this function checks if the compiler issue an error if the flags are
+  # not understood. Unfortunately most compilers fail to do so, and we end up with
+  # warnings during compilation. Until we figure out a better way, I will comment
+  # out all unnecessary flags.
+  #check_c_compiler_flag( "-Wno-parentheses-equality" PARSEC_HAVE_PAR_EQUALITY )
+  #if( PARSEC_HAVE_PAR_EQUALITY )
+  #  list(APPEND wflags "-Wno-parentheses-equality")
+  #endif( PARSEC_HAVE_PAR_EQUALITY )
 endif(_match_icc)
 
 # verbose compilation in debug

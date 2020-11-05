@@ -364,7 +364,8 @@ int main(int argc, char *argv[])
                 }
                 parsec_barrier_destroy(&barrier1);
                 parsec_barrier_destroy(&barrier2);
-                printf("%lu threads %"PRIu64" "TIMER_UNIT" max_coll %d max_table_depth %d\n", nbthreads+1, maxtime, mc_tuning, md_tuning);
+                printf("%lu threads %"PRIu64" "TIMER_UNIT" max_coll %d max_table_depth %d\n",
+                       (long)(nbthreads+1), maxtime, mc_tuning, md_tuning);
                 fflush(stdout);
             }
         }
