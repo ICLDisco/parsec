@@ -75,7 +75,7 @@ rank_R = %{ return rank_neighbor(descA, 0, n+1, descA->lmt-1, descA->lnt-1); %}
 
 : descA(m, n)
 
-READ AL <- (t > 0 && n > 0)? A task(t-1, n-1): NULL              [ type = LR ]
+READ AL <- (t > 0 && n > 0)? B task(t-1, n-1): NULL              [ type = LR ]
 
 READ AR <- (t > 0 && n < descA->lnt-1)? A task(t-1, n+1): NULL   [ type = LR ]
 
@@ -84,6 +84,8 @@ READ A0 <- (t > 0)? A task(t-1, n): NULL                         [ type = FULL ]
 RW A <- descA(m, n)                                              [ type = FULL ]
      -> (t < iter)? A0 task(t+1, n)                              [ type = FULL ]
      -> (t < iter && n > 0 )? AR task(t+1, n-1)                  [ type = LR displ = %{ return sizeof_datatype*descA->mb*R; %} ]
+
+RW B <- NULL                                                     [ type = FULL ]
      -> (t < iter && n < descA->lnt-1)? AL task(t+1, n+1)        [ type = LR displ = %{ return sizeof_datatype*descA->mb*(descA->nb-2*R); %} ]
 
 BODY
@@ -93,6 +95,9 @@ BODY
         CORE_copydata_stencil_1D(A0, AL, AR, descA->mb, descA->nb, myrank, rank_L, rank_R, R, n, descA->lnt-1);
         CORE_stencil_1D(A, A0, weight_1D, descA->mb, nb, descA->mb, R);
     }
+
+    /* Set address of A to B to avoid same flow to the same node with different datatype and displacement */
+    this_task->data._f_B.data_out = this_task->data._f_A.data_out;
 }
 END
 
