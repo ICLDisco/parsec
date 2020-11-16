@@ -128,7 +128,7 @@ k = 0 .. 0
 : descA(k)
 
   READ A  <- descA(k)
-          -> A recv(0 .. NT) [type = STYPE]
+          -> A recv(0 .. NT) [type_remote = STYPE]
 BODY
     printf( "bcast_send(k = %d\n", k);
 END
@@ -137,8 +137,7 @@ END
 recv(k)
     k = 1 .. NT
 : descA(k)
-
-  RW A <- A send(0) [type = RTYPE]
+  RW A <- A send(0) [type_remote = RTYPE]
           -> descA(k)
 BODY
     printf( "bcast_recv(k = %d)\n", k);
@@ -175,13 +174,13 @@ extern "C" %{
         parsec_broadcast_taskpool_t *tp = parsec_broadcast_new( dc );
 
         parsec_type_extent(stype, &lb, &extent);
-        parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_broadcast_STYPE_ARENA],
+        parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_broadcast_STYPE_ADT_IDX],
                                          extent,
                                          PARSEC_ARENA_ALIGNMENT_SSE,
                                          stype);
 
         parsec_type_extent(rtype, &lb, &extent);
-        parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_broadcast_RTYPE_ARENA],
+        parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_broadcast_RTYPE_ADT_IDX],
                                          extent,
                                          PARSEC_ARENA_ALIGNMENT_SSE,
                                          rtype);

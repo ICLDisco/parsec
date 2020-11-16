@@ -180,6 +180,7 @@ add_task_to_list(parsec_execution_stream_t *es,
                  parsec_dep_data_description_t* data,
                  int rank_src, int rank_dst,
                  int vpid_dst,
+                 data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                  void *_ready_lists)
 {
     parsec_task_t** pready_list = (parsec_task_t**)_ready_lists;
@@ -192,6 +193,7 @@ add_task_to_list(parsec_execution_stream_t *es,
                                                                                parsec_execution_context_priority_comparator );
 
     (void)oldcontext; (void)dep; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)data;
+    (void)successor_repo; (void)successor_repo_key;
     return PARSEC_ITERATE_STOP;
 }
 
@@ -208,8 +210,8 @@ static void iterate_successors(parsec_execution_stream_t *es,
 
     nt.priority = 0;
     nt.chore_id = 0;
-    nt.data[0].data_repo = NULL;  /* src  */
-    nt.data[1].data_repo = NULL;  /* dst */
+    nt.data[0].source_repo_entry = NULL;  /* src  */
+    nt.data[1].source_repo_entry = NULL;  /* dst */
     /* If this is the last n, try to move to the next k */
     for( ; n < (int)__tp->src->nt; m = 0) {
         for( ; m < (int)__tp->src->mt; m++ ) {
@@ -231,6 +233,7 @@ static void iterate_successors(parsec_execution_stream_t *es,
                    __tp->src->super.myrank,
                    __tp->src->super.myrank,
                    vpid,
+                   NULL, 0,
                    ontask_arg);
             return;
         }
@@ -275,7 +278,7 @@ static int release_deps(parsec_execution_stream_t *es,
          * There is no repo to be release in this instance, so instead just release the
          * reference of the data copy (if such a copy exists).
          *
-         * data_repo_entry_used_once( eu, this_task->data[0].data_repo, this_task->data[0].data_repo->key );
+         * data_repo_entry_used_once( this_task->data[0].data_repo, this_task->data[0].data_repo->key );
          */
         if( NULL != __tp->src ) {
             PARSEC_DATA_COPY_RELEASE(this_task->data[0].data_in);
@@ -300,13 +303,13 @@ static int data_lookup(parsec_execution_stream_t *es,
 
     if( NULL != __tp->src ) {
         this_task->data[0].data_in   = parsec_data_get_copy(src(m,n), 0);
-        this_task->data[0].data_repo = NULL;
+        this_task->data[0].source_repo_entry = NULL;
         this_task->data[0].data_out  = NULL;
         PARSEC_OBJ_RETAIN(this_task->data[0].data_in);
     }
     if( NULL != __tp->dest ) {
         this_task->data[1].data_in   = parsec_data_get_copy(dest(m,n), 0);
-        this_task->data[1].data_repo = NULL;
+        this_task->data[1].source_repo_entry = NULL;
         this_task->data[1].data_out  = this_task->data[1].data_in;
         PARSEC_OBJ_RETAIN(this_task->data[1].data_in);
     }
@@ -436,10 +439,19 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     fake_context.taskpool = tp;
     fake_context.priority = 0;
     fake_context.chore_id = 0;
-    fake_context.data[0].data_repo = NULL;  /* src */
-    fake_context.data[0].data_in   = NULL;
-    fake_context.data[1].data_repo = NULL;  /* dst */
-    fake_context.data[1].data_in   = NULL;
+
+    fake_context.repo_entry = NULL;
+
+    fake_context.data[0].source_repo       = NULL;  /* src */
+    fake_context.data[0].source_repo_entry = NULL;  /* src */
+    fake_context.data[0].data_in           = NULL;
+    fake_context.data[0].data_out          = NULL;
+    fake_context.data[0].fulfill           = 0;
+    fake_context.data[1].source_repo       = NULL;  /* dst */
+    fake_context.data[1].source_repo_entry = NULL;  /* dst */
+    fake_context.data[1].data_in           = NULL;
+    fake_context.data[1].data_out          = NULL;
+    fake_context.data[1].fulfill           = 0;
 
     /**
      * Generate one local task per core. Each task will then take care of creating all
@@ -468,7 +480,8 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
                 fake_context.locals[1].value = n;
                 add_task_to_list(es, &fake_context, NULL, &flow_of_map_operator_dep_out, NULL,
                                  __tp->src->super.myrank, -1,
-                                 0 /* here this must always be zero due to ready_list */, (void*)&ready_list);
+                                 0 /* here this must always be zero due to ready_list */, 
+                                 NULL, 0, (void*)&ready_list);
                 __parsec_schedule( es, ready_list, 0 );
                 count++;
                 if( count == context->virtual_processes[vpid]->nb_cores )

@@ -18,6 +18,7 @@
 #include "parsec/class/parsec_object.h"
 #include "parsec/arena.h"
 #include "parsec/data.h"
+#include "parsec/class/parsec_future.h"
 
 /**
  * This is a variable changed only once, and contains the total number of
@@ -67,16 +68,18 @@ struct parsec_data_copy_s {
 
     struct parsec_data_copy_s   *older;                 /**< unused yet */
     parsec_data_t               *original;
-    struct parsec_arena_chunk_s *arena_chunk;           /**< If this is an arena-based data, keep
+    struct parsec_arena_chunk_s *arena_chunk;        /**< If this is an arena-based data, keep
                                                       *   the chunk pointer here, to avoid
                                                       *   risky pointers arithmetic (pointers mis-alignment
                                                       *   depending on many parameters) */
     void                     *device_private;        /**< The pointer to the device-specific data.
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
-    parsec_data_status_t      data_transfer_status;   /** three status */
-    struct parsec_task_s     *push_task;     /** the task who actually do the PUSH */
+    parsec_data_status_t      data_transfer_status;  /** three status */
+    struct parsec_task_s     *push_task;             /** the task who actually do the PUSH */
+    parsec_datatype_t         dtt;                   /**< the appropriate type for the network engine to send an element */
 };
+
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_data_copy_t);
 
 #define PARSEC_DATA_GET_COPY(DATA, DEVID) \

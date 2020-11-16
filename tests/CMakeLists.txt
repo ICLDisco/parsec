@@ -29,6 +29,8 @@ add_Subdirectory(merge_sort)
 endif(PARSEC_HAVE_RANDOM)
 add_Subdirectory(two_dim_band)
 add_Subdirectory(stencil)
+add_Subdirectory(reshape)
+
 if(PARSEC_PROF_TRACE)
   add_Subdirectory(profiling)
   add_Subdirectory(standalone-profiling)

@@ -210,7 +210,7 @@ SORT(i)
   : dataA(i,0)
 
   RW A <- A INIT_DATA(i)
-       -> A REDUCE(0, i) [ type= DEFAULT layout= MY_TYPE count= NB ]
+       -> A REDUCE(0, i) [ type_remote= DEFAULT layout_remote= MY_TYPE count_remote= NB ]
 
 BODY
    int type;
@@ -242,16 +242,16 @@ REDUCE(lvl,i)
 
   : dataA(i,0)
 
-  READ  A <- (lvl==0) ? A SORT(i)             [ type= DEFAULT layout= MY_TYPE count= NB ]
-          <- (lvl>0)  ? C REDUCE(lvl-1, i*2)  [ type= DEFAULT layout= MY_TYPE count= A_data_size ]
+  READ  A <- (lvl==0) ? A SORT(i)             [ type_remote= DEFAULT layout_remote= MY_TYPE count_remote= NB ]
+          <- (lvl>0)  ? C REDUCE(lvl-1, i*2)  [ type_remote= DEFAULT layout_remote= MY_TYPE count_remote= A_data_size ]
 
   READ  B <- (lvl==0) ? NULL
           <- (lvl>0) && (prnt_width-1<=i*2) ? NULL
-          <- (lvl>0) && (prnt_width-1> i*2) ? C REDUCE(lvl-1, i*2+1) [ type= DEFAULT layout= MY_TYPE count= B_data_size ]
+          <- (lvl>0) && (prnt_width-1> i*2) ? C REDUCE(lvl-1, i*2+1) [ type_remote= DEFAULT layout_remote= MY_TYPE count_remote= B_data_size ]
 
-  WRITE C -> (lvl<h) && (0==i%2) ? A REDUCE(lvl+1, i/2)  [ type= DEFAULT layout= MY_TYPE count= data_size ]
-          -> (lvl<h) && (0!=i%2) ? B REDUCE(lvl+1, i/2)  [ type= DEFAULT layout= MY_TYPE count= data_size ]
-          -> (lvl==h) ? C RESULT(0)                      [ type= DEFAULT layout= MY_TYPE count= data_size ]
+  WRITE C -> (lvl<h) && (0==i%2) ? A REDUCE(lvl+1, i/2)  [type= DEFAULT layout= MY_TYPE count= data_size type_remote= DEFAULT layout_remote= MY_TYPE count_remote= data_size ]
+          -> (lvl<h) && (0!=i%2) ? B REDUCE(lvl+1, i/2)  [type= DEFAULT layout= MY_TYPE count= data_size type_remote= DEFAULT layout_remote= MY_TYPE count_remote= data_size ]
+          -> (lvl==h) ? C RESULT(0)                      [type= DEFAULT layout= MY_TYPE count= data_size type_remote= DEFAULT layout_remote= MY_TYPE count_remote= data_size ]
 
 BODY
 

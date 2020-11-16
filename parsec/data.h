@@ -8,6 +8,7 @@
 #define PARSEC_DATA_H_HAS_BEEN_INCLUDED
 
 #include "parsec/runtime.h"
+#include "parsec/datatype.h"
 
 /** @defgroup parsec_internal_data Data
  *  @ingroup parsec_internal
@@ -48,7 +49,8 @@ PARSEC_DECLSPEC parsec_data_copy_t*
 parsec_data_get_copy(parsec_data_t* data, uint32_t device);
 
 PARSEC_DECLSPEC parsec_data_copy_t*
-parsec_data_copy_new(parsec_data_t* data, uint8_t device);
+parsec_data_copy_new(parsec_data_t* data, uint8_t device,
+                     parsec_datatype_t dtt);
 
 /**
  * Decrease the refcount of this copy of the data. If the refcount reach

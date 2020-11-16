@@ -1089,6 +1089,8 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
                              __FILE__, __LINE__);
         parsec_data_copy_attach(master, gpu_elem, gpu_device->super.device_index);
         this_task->data[i].data_out = gpu_elem;
+        /* set the new datacopy type to the correct one */
+        this_task->data[i].data_out->dtt = this_task->data[i].data_in->dtt;
         temp_loc[i] = gpu_elem;
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                              "GPU[%d]:%s: Retain and insert CUDA copy %p [ref_count %d] in LRU",
@@ -1782,7 +1784,8 @@ parsec_cuda_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int ad
             PARSEC_OBJ_RETAIN(data->device_copies[ data->owner_device ]);
             gpu_task->ec->data[0].data_in = data->device_copies[ data->owner_device ];
             gpu_task->ec->data[0].data_out = NULL;
-            gpu_task->ec->data[0].data_repo = NULL;
+            gpu_task->ec->data[0].source_repo_entry = NULL;
+            gpu_task->ec->data[0].source_repo = NULL;
             PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                                  "GPU[%1d]: data copy %p [ref_count %d] linked to prefetch gpu task %p on GPU copy %p [ref_count %d]",
                                  gpu_device->cuda_index, gpu_task->ec->data[0].data_in, gpu_task->ec->data[0].data_in->super.super.obj_reference_count,
@@ -1868,7 +1871,8 @@ parsec_gpu_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
     gpu_task->ec->data[0].data_in = copy;  /* We need to set not-null in data_in, so that the fake flow is
                                             * not ignored when poping the data from the fake task */ 
     gpu_task->ec->data[0].data_out = copy; /* We "free" data[i].data_out if its readers reaches 0 */
-    gpu_task->ec->data[0].data_repo = NULL;
+    gpu_task->ec->data[0].source_repo_entry = NULL;
+    gpu_task->ec->data[0].source_repo = NULL;
 #if defined(PARSEC_PROF_TRACE)
     gpu_task->prof_key_end = -1; /* D2D complete tasks are pure internal management, we do not trace them */
 #endif

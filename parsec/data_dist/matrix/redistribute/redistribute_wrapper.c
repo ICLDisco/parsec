@@ -98,7 +98,7 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
         int n_T_END = (size_col+disj_T-1) / dcT->nb;
         taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
 
-        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ARENA],
+        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX],
                                 MY_TYPE, matrix_UpperLower,
                                 1, dcY->mb, dcY->nb, dcY->mb,
                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );
@@ -132,7 +132,7 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
     	int n_T_END = (size_col+disj_T-1) / (dcT->nb-2*R);
     	taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
 
-    	parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ARENA],
+    	parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX],
                                     MY_TYPE, matrix_UpperLower,
                                     1, 1, 1, 1,
                                     PARSEC_ARENA_ALIGNMENT_SSE, -1 );
@@ -140,17 +140,17 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
         int Y_LDA = dcY->storage == matrix_Lapack ? dcY->llm : dcY->mb;
         int T_LDA = dcT->storage == matrix_Lapack ? dcT->llm : dcT->mb;
 
-        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ARENA],
+        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ADT_IDX],
                                 MY_TYPE, matrix_UpperLower,
                                 1, dcT->mb, dcT->nb, T_LDA,
                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ARENA],
-                                MY_TYPE, matrix_UpperLower,
-                                1, dcY->mb, dcY->nb, Y_LDA,
-                                PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        // parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ADT_IDX],
+        //                         MY_TYPE, matrix_UpperLower,
+        //                         1, dcY->mb, dcY->nb, Y_LDA,
+        //                         PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ARENA],
+        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX],
                                 MY_TYPE, matrix_UpperLower,
                                 1, dcY->mb-2*R, dcY->nb-2*R, Y_LDA,
                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );
@@ -176,12 +176,12 @@ void parsec_redistribute_Destruct(parsec_taskpool_t *taskpool)
         && (redistribute_taskpool->_g_disj_T % redistribute_taskpool->_g_descT->nb == 0) )
     {
         parsec_redistribute_reshuffle_taskpool_t *redistribute_reshuffle_taskpool = (parsec_redistribute_reshuffle_taskpool_t *)taskpool;
-        parsec_matrix_del2arena(&redistribute_reshuffle_taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ARENA]);
+        parsec_matrix_del2arena(&redistribute_reshuffle_taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX]);
     } else {
-        parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ARENA]);
-        parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ARENA]);
-        parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ARENA]);
-        parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ARENA]);
+        parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX]);
+        parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ADT_IDX]);
+        // parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ADT_IDX]);
+        parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX]);
     }
 
     parsec_taskpool_free(taskpool);

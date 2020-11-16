@@ -168,7 +168,7 @@ int main(int argc, char **argv)
         assert( *real_data == 1);
     }
 
-    parsec_type_free(&parsec_dtd_arenas_datatypes[TILE_FULL].opaque_dtt);
+    parsec_matrix_del2arena(&parsec_dtd_arenas_datatypes[TILE_FULL]);
     PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[TILE_FULL].arena);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
@@ -234,7 +234,7 @@ int main(int argc, char **argv)
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
         SYNC_TIME_PRINT(rank, ("\tSize of message : %ld bytes\tTime for each pingpong : %12.5f\n", sizes[i]*sizeof(int), sync_time_elapsed/repeat_pingpong));
 
-        parsec_type_free(&parsec_dtd_arenas_datatypes[TILE_FULL].opaque_dtt);
+        parsec_matrix_del2arena(&parsec_dtd_arenas_datatypes[TILE_FULL]);
         PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[TILE_FULL].arena);
         parsec_dtd_data_collection_fini( A );
         free_data(dcA);

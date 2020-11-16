@@ -137,7 +137,8 @@ static int ud_startup1(parsec_execution_stream_t * es, __parsec_udf_UD_STARTUP1_
       new_task->locals.m.value = i;
       new_task->locals.n.value = j;
 
-      new_task->data._f_X.data_repo = NULL;
+      new_task->data._f_X.source_repo = NULL;
+      new_task->data._f_X.source_repo_entry = NULL;
       new_task->data._f_X.data_in = NULL;
       new_task->data._f_X.data_out = NULL;
 
@@ -173,7 +174,8 @@ static int ud_startup2(parsec_execution_stream_t * es, __parsec_udf_UD_STARTUP2_
       new_task->locals.m.value = i;
       new_task->locals.n.value = j;
 
-      new_task->data._f_X.data_repo = NULL;
+      new_task->data._f_X.source_repo = NULL;
+      new_task->data._f_X.source_repo_entry = NULL;
       new_task->data._f_X.data_in = NULL;
       new_task->data._f_X.data_out = NULL;
 

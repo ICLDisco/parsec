@@ -304,9 +304,9 @@ n_Y_end = %{ return ((n_T == n_T_START)? (disj_Y+nb_T_inner-1)/nb_Y_INNER: (size
 
 : descT(m_T, n_T)
 
-RW T <- descT(m_T, n_T)                                                           [ type = TARGET ]
-     -> T Update(m_Y_start .. m_Y_end, n_Y_start .. n_Y_end, m_T, n_T, batch_col) [ type = TARGET ]
-     -> T Receive(m_T, n_T, batch_col)                                            [ type = TARGET ]
+RW T <- descT(m_T, n_T) /*[ type = TARGET type_data = TARGET ]*/
+     -> T Update(m_Y_start .. m_Y_end, n_Y_start .. n_Y_end, m_T, n_T, batch_col) [ type_remote = TARGET ]
+     -> T Receive(m_T, n_T, batch_col) [ type_remote = TARGET ]
 
 BODY
 {
@@ -351,40 +351,40 @@ rank_T = %{ return descT->super.rank_of(&descT->super, m_T, n_T); %}
 
 : descY(m_Y, n_Y)
 
-READ Y <- descY(m_Y, n_Y)    [ type = SOURCE ]
-       -> ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return TL_row*TL_col; %} ]
-       -> ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return TL_row*BR_col; %} ]
-       -> ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return BR_row*TL_col; %} ]
-       -> ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return BR_row*BR_col; %} ]
-       -> ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return TL_row*nb_Y_INNER; %} ]
-       -> ((rank_Y == rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return BR_row*nb_Y_INNER; %} ]
-       -> ((rank_Y == rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return mb_Y_INNER*TL_col; %} ]
-       -> ((rank_Y == rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return mb_Y_INNER*BR_col; %} ]
-       -> ((m_Y > m_Y_start) && (m_Y < m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? I Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = INNER displ = %{ return 8*(descY->mb*R+R); %} ]
+READ Y <- descY(m_Y, n_Y) /*[ type = SOURCE type_data = SOURCE ]*/
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*TL_col; %} ]
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*BR_col; %} ]
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*TL_col; %} ]
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*BR_col; %} ]
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*nb_Y_INNER; %} ]
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*nb_Y_INNER; %} ]
+       -> ((rank_Y == rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*TL_col; %} ]
+       -> ((rank_Y == rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*BR_col; %} ]
+       -> ((m_Y > m_Y_start) && (m_Y < m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? I Update(m_Y, n_Y, m_T, n_T, batch_col) [ type_remote = INNER displ_remote = %{ return 8*(descY->mb*R+R); %} ]
 
 RW NW <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NEW: NULL [ layout = MY_TYPE count = %{ return TL_row*TL_col; %} ]
-      -> ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return TL_row*TL_col; %} ]
+      -> ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*TL_col; %} ]
 
 RW NE <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return TL_row*BR_col; %} ]
-      -> ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return TL_row*BR_col; %} ]
+      -> ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*BR_col; %} ]
 
 RW SW <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return BR_row*TL_col; %} ]
-      -> ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return BR_row*TL_col; %} ]
+      -> ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*TL_col; %} ]
 
 RW SE <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return BR_row*BR_col; %} ]
-      -> ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return BR_row*BR_col; %} ]
+      -> ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*BR_col; %} ]
 
 RW N <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return TL_row*nb_Y_INNER; %} ]
-     -> ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return TL_row*nb_Y_INNER; %} ]
+     -> ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*nb_Y_INNER; %} ]
 
 RW S <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return BR_row*nb_Y_INNER; %} ]
-     -> ((rank_Y != rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return BR_row*nb_Y_INNER; %} ]
+     -> ((rank_Y != rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*nb_Y_INNER; %} ]
 
 RW W <- ((rank_Y != rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return mb_Y_INNER*TL_col; %} ]
-     -> ((rank_Y != rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return mb_Y_INNER*TL_col; %} ]
+     -> ((rank_Y != rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*TL_col; %} ]
 
 RW E <- ((rank_Y != rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return mb_Y_INNER*BR_col; %} ]
-     -> ((rank_Y != rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return mb_Y_INNER*BR_col; %} ]
+     -> ((rank_Y != rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*BR_col; %} ]
 
 CTL ctl <- (batch_col > 0)? ctl2 Receive(m_T, n_T-num_col, batch_col-1)
 
@@ -437,33 +437,33 @@ rank_T = %{ return descT->super.rank_of(&descT->super, m_T, n_T); %}
 
 : descT(m_T, n_T)
 
-READ T <- T Init(m_T, n_T, batch_col) [ type = TARGET ]
+READ T <- T Init(m_T, n_T, batch_col) [ type_remote = TARGET ]
 
-READ NW <- ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return TL_row*TL_col; %} ]
-        <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout = MY_TYPE count = %{ return TL_row*TL_col; %} ]
+READ NW <- ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*TL_col; %} ]
+        <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return TL_row*TL_col; %} ]
 
-READ NE <- ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return TL_row*BR_col; %} ]
-        <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout = MY_TYPE count = %{ return TL_row*BR_col; %} ]
+READ NE <- ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*BR_col; %} ]
+        <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return TL_row*BR_col; %} ]
 
-READ SW <- ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return BR_row*TL_col; %} ]
-        <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout = MY_TYPE count = %{ return BR_row*TL_col; %} ]
+READ SW <- ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*TL_col; %} ]
+        <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return BR_row*TL_col; %} ]
 
-READ SE <- ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return BR_row*BR_col; %} ]
-        <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout = MY_TYPE count = %{ return BR_row*BR_col; %} ]
+READ SE <- ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*BR_col; %} ]
+        <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return BR_row*BR_col; %} ]
 
-READ N <- ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return TL_row*nb_Y_INNER; %} ]
-       <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout = MY_TYPE count = %{ return TL_row*nb_Y_INNER; %} ]
+READ N <- ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*nb_Y_INNER; %} ]
+       <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return TL_row*nb_Y_INNER; %} ]
 
-READ S <- ((rank_Y == rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return BR_row*nb_Y_INNER; %} ]
-       <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout = MY_TYPE count = %{ return BR_row*nb_Y_INNER; %} ]
+READ S <- ((rank_Y == rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*nb_Y_INNER; %} ]
+       <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return BR_row*nb_Y_INNER; %} ]
 
-READ W <- ((rank_Y == rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return mb_Y_INNER*TL_col; %} ]
-       <- ((rank_Y != rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout = MY_TYPE count = %{ return mb_Y_INNER*TL_col; %} ]
+READ W <- ((rank_Y == rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*TL_col; %} ]
+       <- ((rank_Y != rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*TL_col; %} ]
 
-READ E <- ((rank_Y == rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout = MY_TYPE count = %{ return mb_Y_INNER*BR_col; %} ]
-       <- ((rank_Y != rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout = MY_TYPE count = %{ return mb_Y_INNER*BR_col; %} ]
+READ E <- ((rank_Y == rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*BR_col; %} ]
+       <- ((rank_Y != rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*BR_col; %} ]
 
-READ I <- ((m_Y > m_Y_start) && (m_Y < m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout = MY_TYPE count = %{ return mb_Y_INNER*nb_Y_INNER; %} ]
+READ I <- ((m_Y > m_Y_start) && (m_Y < m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*nb_Y_INNER; %} ]
 
 CTL ctl -> ctl1 Receive(m_T, n_T, batch_col)
 
@@ -516,8 +516,8 @@ n_Y_end_next = ((n_T-n_T_START+num_col)*nb_T_INNER-disj_T%nb_T_INNER+disj_Y + nb
 
 : descT(m_T, n_T)
 
-RW T <- T Init(m_T, n_T, batch_col) [ type = TARGET ]
-     -> descT(m_T, n_T) [ type = TARGET ]
+RW T <- T Init(m_T, n_T, batch_col) [ type_remote = TARGET ]
+     -> descT(m_T, n_T) /*[ type = TARGET type_data = TARGET ]*/
 
 CTL ctl1 <- ctl Update(m_Y_start .. m_Y_end, n_Y_start .. n_Y_end, m_T, n_T, batch_col)
 

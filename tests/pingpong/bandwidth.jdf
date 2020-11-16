@@ -72,11 +72,11 @@ END
 extern "C" %{
 
 /**
- * @brief bandwidth,  no-blocking
+ * @brief bandwidth,  no-blocking 
  *
- * @param [in] dcA: data
- * @param [in] Disk: distribution
- * @param [in] loops: loops of bandwidth
+ * @param [in] dcA: data 
+ * @param [in] Disk: distribution 
+ * @param [in] loops: loops of bandwidth 
  * @param [in] frags: fragments
  * @param [in] ws: number of process
  * @param [in] size: number of doubles
@@ -94,10 +94,10 @@ parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
     exit(1);
   }
 
-  taskpool = parsec_bandwidth_new(dcA, Disk, loops, frags, ws);
+  taskpool = parsec_bandwidth_new(dcA, Disk, loops, frags, ws); 
   bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-  parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ARENA],
+  parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
                            parsec_datatype_double_t, matrix_UpperLower,
                            1, 1, size, 1,
                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
@@ -111,18 +111,18 @@ parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
 void parsec_bandwidth_Destruct(parsec_taskpool_t *taskpool)
 {
   parsec_bandwidth_taskpool_t *bandwidth_taskpool = (parsec_bandwidth_taskpool_t *)taskpool;
-  parsec_matrix_del2arena(&bandwidth_taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ARENA]);
+  parsec_matrix_del2arena(&bandwidth_taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX]);
   parsec_taskpool_free(taskpool);
 }
 
 /**
- * @brief bandwidth
- *
- * @param [in] dcA: data
- * @param [in] Disk: distribution
+ * @brief bandwidth 
+ * 
+ * @param [in] dcA: data 
+ * @param [in] Disk: distribution 
  * @param [in] loops: loops of bandwidth
  * @param [in] frags: fragments
- * @param [in] ws: number of process
+ * @param [in] ws: number of process 
  * @param [in] size: number of doubles
  */
 int parsec_bandwidth(parsec_context_t *parsec,
@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
 
         bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-        parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ARENA],
+        parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
                                  parsec_datatype_double_t, matrix_UpperLower,
                                  1, 1, size, 1,
                                  PARSEC_ARENA_ALIGNMENT_SSE, -1 );

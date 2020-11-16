@@ -18,8 +18,8 @@ RW D  <- D Selector(k, k)
       -> (k == NT) ? A(k)
       -> %{ return (k < NT) && idecision(pos) == 1; %} ? D TA(k, k)
       -> %{ return (k < NT) && idecision(pos) == 2; %} ? D TB(k, k)
-RW C  <- decision( pos )           [type=DECISION]
-      -> A LChoice( k, 0 .. P-1 )  [type=DECISION]
+RW C  <- decision( pos )           [type_remote=DECISION]
+      -> A LChoice( k, 0 .. P-1 )  [type_remote=DECISION]
 
 BODY
     {
@@ -71,9 +71,9 @@ first = %{
 
 : decision( k*P + p )
 
-READ A  <- C GenChoice( k )      [type=DECISION]
-RW   C  <- decision( k*P + p )   [type=DECISION]
-        -> decision( k*P + p )   [type=DECISION]
+READ A  <- C GenChoice( k )      [type_remote=DECISION]
+RW   C  <- decision( k*P + p )   [type_remote=DECISION]
+        -> decision( k*P + p )   [type_remote=DECISION]
 CTL ct  <- (k > 0) ? ct LChoice(k-1, P)
         -> ct Selector(k, first..NT..P )
         -> ( k == NT ) ? ct1 Ter1(p) : ct LChoice(k+1, p)

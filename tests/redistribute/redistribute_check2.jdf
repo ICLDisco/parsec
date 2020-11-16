@@ -102,7 +102,7 @@ parsec_redistribute_check2_New(parsec_tiled_matrix_dc_t *dcY,
     int n_END = (disj_Y+size_col-1)/dcY->nb; 
     taskpool->_g_NT = (n_END-n_START)/taskpool->_g_num_col;
 
-    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ARENA],
+    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ADT_IDX],
                             MY_TYPE, matrix_UpperLower,
                             1, dcY->mb, dcY->nb, dcY->mb,
                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );
@@ -116,7 +116,7 @@ parsec_redistribute_check2_New(parsec_tiled_matrix_dc_t *dcY,
 void parsec_redistribute_check2_Destruct(parsec_taskpool_t *taskpool)
 {
     parsec_redistribute_check2_taskpool_t *redistribute_check2_taskpool = (parsec_redistribute_check2_taskpool_t *)taskpool;
-    parsec_matrix_del2arena(&redistribute_check2_taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ARENA]);
+    parsec_matrix_del2arena(&redistribute_check2_taskpool->arenas_datatypes[PARSEC_redistribute_check2_DEFAULT_ADT_IDX]);
     parsec_taskpool_free(taskpool);
 }
 

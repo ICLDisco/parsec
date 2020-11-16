@@ -1,0 +1,23 @@
+add_test(reshape_shm ${SHM_TEST_CMD_LIST} ./reshape -N 120 -t 9 -c 10)
+add_test(reshape_shm_multi ${SHM_TEST_CMD_LIST} ./reshape -N 120 -t 9 -c 10 -m 1)
+if( MPI_C_FOUND )
+  add_test(reshape_mpi ${MPI_TEST_CMD_LIST} 4 ./reshape -N 120 -t 9 -c 10)
+  add_test(reshape_mpi_multi ${MPI_TEST_CMD_LIST} 4 ./reshape -N 120 -t 9 -c 10 -m 1 )
+endif( MPI_C_FOUND)
+
+add_test(input_dep_reshape_single_copy_shm ${SHM_TEST_CMD_LIST} ./input_dep_reshape_single_copy -N 12 -t 2 -c 2)
+add_test(input_dep_reshape_single_copy_shm_multi ${SHM_TEST_CMD_LIST} ./input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1)
+if( MPI_C_FOUND )
+  add_test(input_dep_reshape_single_copy_mpi ${MPI_TEST_CMD_LIST} 4 ./input_dep_reshape_single_copy -N 12 -t 2 -c 2)
+  add_test(input_dep_reshape_single_copy_mpi_multi ${MPI_TEST_CMD_LIST} 4 ./input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1 )
+endif( MPI_C_FOUND)
+
+
+add_test(reshape_remote_multiple_outs_same_pred_flow_shm ${SHM_TEST_CMD_LIST} ./remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10)
+add_test(reshape_remote_multiple_outs_same_pred_flow_shm_multi ${SHM_TEST_CMD_LIST} ./remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1)
+if( MPI_C_FOUND )
+  add_test(reshape_remote_multiple_outs_same_pred_flow_mpi ${MPI_TEST_CMD_LIST} 4 ./remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 )
+  add_test(reshape_remote_multiple_outs_same_pred_flow_mpi_multi ${MPI_TEST_CMD_LIST} 4 ./remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 )
+endif( MPI_C_FOUND)
+
+add_test(avoidable_reshape_shm ${SHM_TEST_CMD_LIST} ./avoidable_reshape -N 100 -t 2 -c 10)

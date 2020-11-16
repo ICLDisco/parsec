@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
     parsec_walk_taskpool_t *walker;
     parsec_arena_datatype_t adt;
     int do_checks = 0, be_verbose = 0;
-    int pargc = 0, i, dashdash = -1;
+    int pargc = 0, i;
     char **pargv;
     int ret, ch;
     uint64_t cksum = 0;
@@ -163,23 +163,15 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
 
+    pargc = 0; pargv = NULL;
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
-            dashdash = i;
-            pargc = 0;
-        } else if( dashdash != -1 ) {
-            pargc++;
+            pargc = argc - i;
+            pargv = &argv[i];
+            break;
         }
     }
-    pargv = malloc( (pargc+1) * sizeof(char*));
-    if( dashdash != -1 ) {
-        for(i = dashdash+1; i < argc; i++) {
-            pargv[i-dashdash-1] = strdup(argv[i]);
-        }
-        pargv[i-dashdash-1] = NULL;
-    } else {
-        pargv[0] = NULL;
-    }
+
     parsec = parsec_init(-1, &pargc, &pargv);
 
 
@@ -232,7 +224,7 @@ int main(int argc, char *argv[])
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
     project = parsec_project_new(treeA, world, (parsec_data_collection_t*)&fakeDesc, 1e-3, be_verbose);
-    project->arenas_datatypes[PARSEC_project_DEFAULT_ARENA] = adt;
+    project->arenas_datatypes[PARSEC_project_DEFAULT_ADT_IDX] = adt;
     PARSEC_OBJ_RETAIN(adt.arena);
     rc = parsec_context_add_taskpool(parsec, &project->super);
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
@@ -251,7 +243,7 @@ int main(int argc, char *argv[])
                                 rs, print_node_fn, print_link_fn,
                                 be_verbose);
     }
-    walker->arenas_datatypes[PARSEC_walk_DEFAULT_ARENA] = adt;
+    walker->arenas_datatypes[PARSEC_walk_DEFAULT_ADT_IDX] = adt;
     rc = parsec_context_add_taskpool(parsec, &walker->super);
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_start(parsec);

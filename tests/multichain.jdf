@@ -201,7 +201,7 @@ int main(int argc, char* argv[])
             printf("\n\n\n%d iterations remaining\n\n\n", l);
             tp = parsec_multichain_new( &descA, &descB, ni, nj );
             assert( NULL != tp );
-            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ARENA] = adt;
+            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ADT_IDX] = adt;
             PARSEC_OBJ_RETAIN(adt.arena);
 
             rc = parsec_context_start(parsec);
@@ -235,7 +235,7 @@ int main(int argc, char* argv[])
             tp = parsec_multichain_new( &descA, &descB, ni, nj );
             assert( NULL != tp );
 
-            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ARENA] = adt;
+            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ADT_IDX] = adt;
             PARSEC_OBJ_RETAIN(adt.arena);
             TIMER_START(time_elapsed);
             rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );

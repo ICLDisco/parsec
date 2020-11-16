@@ -145,3 +145,9 @@ parsec_type_create_resized( parsec_datatype_t oldtype,
     rc = MPI_Type_commit(newtype);
     return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
+
+int parsec_type_match(parsec_datatype_t dtt1,
+                      parsec_datatype_t dtt2){
+    (void)dtt1; (void)dtt2;
+    return ( dtt1 == dtt2 ? PARSEC_SUCCESS : PARSEC_ERROR);
+}

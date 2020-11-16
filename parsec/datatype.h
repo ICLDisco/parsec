@@ -22,6 +22,7 @@
  */
 
 #define PARSEC_DATATYPE_NULL  MPI_DATATYPE_NULL
+#define PARSEC_DATATYPE_PACKED  MPI_PACKED
 typedef MPI_Datatype parsec_datatype_t;
 
 #define parsec_datatype_int_t              MPI_INT
@@ -42,6 +43,7 @@ typedef MPI_Datatype parsec_datatype_t;
 #else  /* !defined(PARSEC_HAVE_MPI) */
 
 #define PARSEC_DATATYPE_NULL  ((intptr_t)NULL)
+#define PARSEC_DATATYPE_PACKED  ((intptr_t)NULL)
 typedef intptr_t  parsec_datatype_t;
 
 #define parsec_datatype_int_t              1
@@ -105,6 +107,15 @@ int parsec_type_create_resized(parsec_datatype_t oldtype,
                                ptrdiff_t lb,
                                ptrdiff_t extent,
                                parsec_datatype_t *newtype);
+
+/**
+ * Routine to check if two datatypes represent the same data extraction.
+ * @param[in] parsec_datatype_t datatype
+ * @param[in] parsec_datatype_t datatype
+ * @return PARSEC_SUCCESS if the two datatypes matches, PARSEC_ERROR otherwise.
+ */
+int parsec_type_match(parsec_datatype_t dtt1,
+                      parsec_datatype_t dtt2);
 
 END_C_DECLS
 

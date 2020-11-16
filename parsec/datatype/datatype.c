@@ -138,3 +138,10 @@ int parsec_type_create_resized(parsec_datatype_t oldtype,
     (void)lb; (void)extent; (void)oldtype;
     return PARSEC_SUCCESS;
 }
+
+int parsec_type_match(parsec_datatype_t dtt1,
+                      parsec_datatype_t dtt2){
+    (void)dtt1; (void)dtt2;
+    return PARSEC_SUCCESS;
+}
+

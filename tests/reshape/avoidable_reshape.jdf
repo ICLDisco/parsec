@@ -1,0 +1,54 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ */
+#include "parsec/data_dist/matrix/matrix.h"
+
+
+    /*******************
+     * No local reshape
+     * When only type_remote is used on the dependencies, the pointer to the origianl
+     * matrix tiles is passed to the succesors tasks. Thus, the full original tiles are
+     * set to 0.
+     *******************/
+
+%}
+
+descA  [type = "parsec_tiled_matrix_dc_t*"]
+
+/**************************************************
+ *                       READ_A                   *
+ **************************************************/
+READ_A(m, k)  [profile = off]
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+
+: descA(m, k)
+
+RW A <- descA(m, k)       [type = DEFAULT type_data = DEFAULT]
+     -> A WRITE_A(m, k)
+
+BODY
+{
+}
+END
+
+/**************************************************
+ *                       WRITE_A                  *
+ **************************************************/
+WRITE_A(m, k)  [profile = off]
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+
+: descA(m, k)
+
+RW A <- A READ_A(m, k)
+     -> descA(m, k)
+BODY
+{
+}
+END

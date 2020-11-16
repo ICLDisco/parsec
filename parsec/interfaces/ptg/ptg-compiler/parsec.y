@@ -170,7 +170,7 @@ static void named_expr_pop_scope(void) {
     }
     current_locally_bound_variables_scope--;
 }
- 
+
 static jdf_expr_t *named_expr_push_in_scope(char *var, jdf_expr_t *e) {
     e->next = current_locally_bound_variables;
     e->alias = var;
@@ -180,6 +180,80 @@ static jdf_expr_t *named_expr_push_in_scope(char *var, jdf_expr_t *e) {
     return e;
 }
 
+static void process_datatype(jdf_datatransfer_type_t *datatype,
+                              jdf_dep_t *d,
+                              const jdf_def_list_t *properties,
+                              jdf_def_list_t *property,
+                              char *layout,
+                              char *count,
+                              char *displ){
+      struct jdf_name_list *g, *e, *prec;
+      jdf_expr_t *expr = datatype->type;
+      if( NULL != jdf_find_property( properties, "arena_index", &property ) ) {
+          jdf_fatal(current_lineno, "Old construct arena_index used. Please update the code to use type instead.\n");
+          yyerror("");
+      }
+      if( NULL != jdf_find_property( properties, "nb_elt", &property ) ) {
+          jdf_fatal(current_lineno, "Old construct nb_elt used. Please update the code to use count instead.\n");
+          yyerror("");
+      }
+
+      if (expr->op == JDF_C_CODE){ /* Correct the type of the JDF_C_CODE function */
+          expr->jdf_type = PARSEC_RETURN_TYPE_ARENA_DATATYPE_T;
+      }
+
+      if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
+          /* Special case: [type = SOMETHING] -> define the PARSEC_ARENA_SOMETHING arena index */
+          for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
+              if( 0 == strcmp(expr->jdf_var, g->name) ) {
+                  break;
+              }
+              prec = g;
+          }
+          if( NULL == g ) {
+              e = new(struct jdf_name_list);
+              e->name = strdup(expr->jdf_var);
+              e->next = NULL;
+              if( NULL != prec ) {
+                  prec->next = e;
+              } else {
+                  current_jdf.datatypes = e;
+              }
+          }
+      }
+
+      /**
+       * The memory layout used for the transfer. Works together with the
+       * count and the displacement. If not layout is specified it is assumed
+       * the default layout of the type (arena) will be used.
+       */
+      datatype->layout = jdf_find_property( d->guard->properties, layout, &property );
+
+      /**
+       * The number of types to transfer.
+       */
+      expr = jdf_find_property( d->guard->properties, count, &property );
+      if( NULL == expr ) {
+          expr          = new(jdf_expr_t);
+          expr->op      = JDF_CST;
+          expr->jdf_cst = 1;
+      }
+      datatype->count = expr;
+
+      /**
+       * The displacement from the begining of the type.
+       */
+      expr = jdf_find_property( d->guard->properties, displ, &property );
+      if( NULL == expr ) {
+          expr          = new(jdf_expr_t);
+          expr->op      = JDF_CST;
+          expr->jdf_cst = 0;
+      } else {
+          if( !((JDF_CST != expr->op) && (0 == expr->jdf_cst)) )
+              d->dep_flags |= JDF_DEP_HAS_DISPL;
+      }
+      datatype->displ = expr;
+}
 %}
 
 %union {
@@ -469,7 +543,7 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simula
                     e->bodies            = $11;
 
                     jdf_assign_ldef_index(e);
-                    
+
                     rc = jdf_flatten_function(e);
                     if( rc < 0 )
                         YYERROR;
@@ -610,7 +684,7 @@ named_expr: PROPERTIES_ON { named_expr_push_scope(); } named_expr_list PROPERTIE
                    $$ = NULL;
                    /* We still create a new scope for the (inexisting) named range
                     * as the scope will be popped unconditionally */
-                   named_expr_push_scope(); 
+                   named_expr_push_scope();
                }
         ;
 
@@ -618,7 +692,7 @@ named_expr_list: VAR ASSIGNMENT expr_range
                {
                    $$ = named_expr_push_in_scope($1, $3);
                }
-        |  named_expr_list COMMA VAR ASSIGNMENT expr_range 
+        |  named_expr_list COMMA VAR ASSIGNMENT expr_range
            {
                $$ = named_expr_push_in_scope($3, $5);
            }
@@ -637,18 +711,44 @@ dependencies:  dependency dependencies
 
 dependency:   ARROW named_expr guarded_call properties
               {
-                  struct jdf_name_list *g, *e, *prec;
                   jdf_dep_t *d = new(jdf_dep_t);
                   jdf_expr_t *expr;
+                  jdf_expr_t *expr_remote;
+                  jdf_expr_t *expr_data;
                   jdf_def_list_t* property = $4;
+                  jdf_def_list_t* property_remote = $4;
+                  jdf_def_list_t* property_data = $4;
 
                   d->local_defs = $2;
-                  
+
+                  expr = jdf_find_property($4, "type", &property);
+                  expr_remote = jdf_find_property($4, "type_remote", &property_remote);
+                  expr_data = jdf_find_property($4, "type_data", &property_data);
+                  /* Warn when using type_remote & type_data on the same dep.
+                   * Here we should check if type|type_data on in/out desc.
+                   * And type|type_remote on task dependencies.
+                   */
+                  if((expr_remote != NULL) && (expr_data != NULL)){
+                      jdf_fatal(JDF_OBJECT_LINENO($4),
+                          " the simultaneous usage of type_remote and type_data is not supported. \n");
+                      YYERROR;
+                  }
+
                   /* If neither is defined, we define the old simple DEFAULT arena */
-                  if( NULL == (expr = jdf_find_property($4, "type", &property)) ) {
+                  if( NULL == expr ) {
                       property = jdf_create_properties_list( "type", 0, "DEFAULT", NULL );
                       expr = jdf_find_property( property, "type", &property );
                       property->next = $4;
+                  }
+                  if( NULL == expr_remote ) {
+                      property_remote = jdf_create_properties_list( "type_remote", 0, "DEFAULT", NULL );
+                      expr_remote = jdf_find_property( property_remote, "type_remote", &property_remote );
+                      property_remote->next = $4;
+                  }
+                  if( NULL == expr_data ) {
+                      property_data = jdf_create_properties_list( "type_data", 0, "DEFAULT", NULL );
+                      expr_data = jdf_find_property( property_data, "type_data", &property_data );
+                      property_data->next = $4;
                   }
 
                   /* Validate the datatype definition of WRITE only data */
@@ -707,68 +807,16 @@ dependency:   ARROW named_expr guarded_call properties
                   $3->properties   = property;
                   d->dep_flags     = $1;
                   d->guard         = $3;
-                  d->datatype.type = expr;
-                  JDF_OBJECT_LINENO(&d->datatype) = current_lineno;
+                  d->datatype_local.type = expr;
+                  d->datatype_remote.type = expr_remote;
+                  d->datatype_data.type = expr_data;
+                  JDF_OBJECT_LINENO(&d->datatype_local) = current_lineno;
+                  JDF_OBJECT_LINENO(&d->datatype_remote) = current_lineno;
+                  JDF_OBJECT_LINENO(&d->datatype_data) = current_lineno;
 
-                  if( NULL != jdf_find_property( $4, "arena_index", &property ) ) {
-                      jdf_fatal(current_lineno, "Old construct arena_index used. Please update the code to use type instead.\n");
-                      YYERROR;
-                  }
-                  if( NULL != jdf_find_property( $4, "nb_elt", &property ) ) {
-                      jdf_fatal(current_lineno, "Old construct nb_elt used. Please update the code to use count instead.\n");
-                      YYERROR;
-                  }
-                  if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
-                      /* Special case: [type = SOMETHING] -> define the PARSEC_ARENA_SOMETHING arena index */
-                      for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
-                          if( 0 == strcmp(expr->jdf_var, g->name) ) {
-                              break;
-                          }
-                          prec = g;
-                      }
-                      if( NULL == g ) {
-                          e = new(struct jdf_name_list);
-                          e->name = strdup(expr->jdf_var);
-                          e->next = NULL;
-                          if( NULL != prec ) {
-                              prec->next = e;
-                          } else {
-                              current_jdf.datatypes = e;
-                          }
-                      }
-                  }
-
-                  /**
-                   * The memory layout used for the transfer. Works together with the
-                   * count and the displacement. If not layout is specified it is assumed
-                   * the default layout of the type (arena) will be used.
-                   */
-                  d->datatype.layout = jdf_find_property( d->guard->properties, "layout", &property );
-
-                  /**
-                   * The number of types to transfer.
-                   */
-                  expr = jdf_find_property( d->guard->properties, "count", &property );
-                  if( NULL == expr ) {
-                      expr          = new(jdf_expr_t);
-                      expr->op      = JDF_CST;
-                      expr->jdf_cst = 1;
-                  }
-                  d->datatype.count = expr;
-
-                  /**
-                   * The displacement from the begining of the type.
-                   */
-                  expr = jdf_find_property( d->guard->properties, "displ", &property );
-                  if( NULL == expr ) {
-                      expr          = new(jdf_expr_t);
-                      expr->op      = JDF_CST;
-                      expr->jdf_cst = 0;
-                  } else {
-                      if( !((JDF_CST != expr->op) && (0 == expr->jdf_cst)) )
-                          d->dep_flags |= JDF_DEP_HAS_DISPL;
-                  }
-                  d->datatype.displ = expr;
+                  process_datatype(&d->datatype_local, d, $4, property, "layout", "count", "displ");
+                  process_datatype(&d->datatype_remote, d, $4, property_remote, "layout_remote", "count_remote", "displ_remote");
+                  process_datatype(&d->datatype_data, d, $4, property_data, "layout_data", "count_data", "displ_data");
 
                   JDF_OBJECT_LINENO(d) = JDF_OBJECT_LINENO($3);
                   assert( 0 != JDF_OBJECT_LINENO($3) );
@@ -921,7 +969,7 @@ expr_range: expr_simple RANGE expr_simple
                   e->jdf_ta3->local_variables = current_locally_bound_variables;
                   e->jdf_ta3->scope = -1;
                   e->jdf_ta3->alias = NULL;
-                  
+
                   e->local_variables = current_locally_bound_variables;
                   e->scope = -1;
                   e->alias = NULL;
@@ -1244,7 +1292,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   $$ = new(jdf_expr_t);
                   $$->op = JDF_C_CODE;
                   $$->jdf_c_code.code = $1;
-                  $$->jdf_type = 0;
+                  $$->jdf_type = PARSEC_RETURN_TYPE_INT32;
                   $$->local_variables = current_locally_bound_variables;
                   $$->scope = -1;
                   $$->alias = NULL;

@@ -219,10 +219,17 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
             /* setting data */
             data.data   = current_task->super.data[current_dep].data_out;
-            data.arena  = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].arena;
-            data.layout = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].opaque_dtt;
-            data.count  = 1;
-            data.displ  = 0;
+            data.remote.arena  =
+                    parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].arena;
+            data.remote.src_datatype = data.remote.dst_datatype =
+                    parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].opaque_dtt;
+            data.remote.src_count = data.remote.dst_count = 1;
+            data.remote.src_displ = data.remote.dst_displ = 0;
+
+            data.data_future = NULL;
+            data.local.arena  = NULL;
+            data.local.src_datatype = data.local.dst_datatype = PARSEC_DATATYPE_NULL;
+            data.local.src_count = data.local.dst_count = data.local.src_displ = data.local.dst_displ = 0;
 
             desc_op_type = ((DESC_OF(current_task, current_dep))->op_type & PARSEC_GET_OP_TYPE);
             desc_flow_index = (DESC_OF(current_task, current_dep))->flow_index;
@@ -316,7 +323,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                 rank_dst = current_desc->rank;
 
                 ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
-                        &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
+                        &deps, &data, rank_src, rank_dst, vpid_dst, NULL, 0, ontask_arg );
                 vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
 
                 /* releasing remote tasks that is a descendant of a local task */

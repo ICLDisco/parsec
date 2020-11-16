@@ -18,6 +18,8 @@ set(BASE_SOURCES
   class/parsec_future.c
   class/parsec_datacopy_future.c
   class/info.c
+  class/parsec_future.c
+  class/parsec_datacopy_future.c
   utils/argv.c
   utils/cmd_line.c
   utils/colors.c
@@ -90,6 +92,7 @@ set(SOURCES
   barrier.c
   bindthread.c
   parsec.c
+  parsec_reshape.c
   data.c
   data_distribution.c
   debug_marks.c

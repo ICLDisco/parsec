@@ -425,12 +425,12 @@ parsec_redistribute_no_optimization_New(parsec_tiled_matrix_dc_t *dcY,
     int n_T_END = (size_col+disj_T-1) / dcT->nb;
     taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
 
-    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ARENA],
+    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ADT_IDX],
                                 MY_TYPE, matrix_UpperLower,
                                 1, dcT->mb, dcT->nb, dcT->mb,
                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ARENA],
+    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ADT_IDX],
 		    MY_TYPE, matrix_UpperLower,
 		    1, dcY->mb, dcY->nb, dcY->mb,
 		    PARSEC_ARENA_ALIGNMENT_SSE, -1 );
@@ -445,8 +445,8 @@ void parsec_redistribute_no_optimization_Destruct(parsec_taskpool_t *taskpool)
 {   
     parsec_redistribute_no_optimization_taskpool_t *redistribute_no_optimization_taskpool = (parsec_redistribute_no_optimization_taskpool_t *)taskpool;
     
-    parsec_matrix_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ARENA]);
-    parsec_matrix_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ARENA]);
+    parsec_matrix_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ADT_IDX]);
+    parsec_matrix_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ADT_IDX]);
     
     parsec_taskpool_free(taskpool);
 }

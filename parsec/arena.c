@@ -176,7 +176,9 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
     arena->data_free(chunk);
 }
 
-parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, int device)
+parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
+                                          size_t count, int device,
+                                          parsec_datatype_t dtt)
 {
     parsec_arena_chunk_t *chunk;
     parsec_data_t *data;
@@ -226,7 +228,7 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, i
 
     data->nb_elts = count * arena->elem_size;
 
-    copy = parsec_data_copy_new( data, device );
+    copy = parsec_data_copy_new( data, device, dtt );
     copy->flags |= PARSEC_DATA_FLAG_ARENA;
     copy->device_private = chunk->data;
     copy->arena_chunk = chunk;

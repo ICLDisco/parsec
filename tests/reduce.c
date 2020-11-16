@@ -38,6 +38,9 @@ int main( int argc, char* argv[] )
     int nb = 100, ln = 900;
     int rows = 1;
     parsec_datatype_t newtype;
+    int pargc = 0, i;
+    char **pargv;
+
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -48,7 +51,16 @@ int main( int argc, char* argv[] )
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
-    parsec = parsec_init(cores, &argc, &argv);
+    pargc = 0; pargv = NULL;
+    for(i = 1; i < argc; i++) {
+        if( strcmp(argv[i], "--") == 0 ) {
+            pargc = argc - i;
+            pargv = &argv[i];
+            break;
+        }
+    }
+
+    parsec = parsec_init(cores, &pargc, &pargv);
 
     two_dim_block_cyclic_init( &dcA, matrix_RealFloat, matrix_Tile,
                                rank, nb, 1, ln, 1, 0, 0, ln, 1,
@@ -64,7 +76,7 @@ int main( int argc, char* argv[] )
                                                NULL);
     /* Prepare the arena for the reduction */
     parsec_type_create_contiguous(nb, parsec_datatype_float_t, &newtype);
-    parsec_arena_datatype_construct(&((parsec_reduce_taskpool_t*)tp)->arenas_datatypes[PARSEC_reduce_DEFAULT_ARENA],
+    parsec_arena_datatype_construct(&((parsec_reduce_taskpool_t*)tp)->arenas_datatypes[PARSEC_reduce_DEFAULT_ADT_IDX],
                                     nb*sizeof(float),
                                     PARSEC_ARENA_ALIGNMENT_SSE,
                                     newtype);

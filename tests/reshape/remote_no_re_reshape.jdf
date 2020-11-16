@@ -1,0 +1,65 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ */
+
+#include "parsec/data_dist/matrix/matrix.h"
+
+    /*******************************
+     * Remote reshape no re-reshape
+     * Reshape during output before packing.
+     *******************************/
+
+%}
+
+descA  [type = "parsec_tiled_matrix_dc_t*"]
+nbthrd [type = "int"]
+
+/**************************************************
+ *                       READ_A                   *
+ **************************************************/
+READ_A(m, k)  [profile = off]
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+
+: descA(m, k)
+
+RW A <- descA(m, k)
+     -> A TASK_A(k, m) [type = LOWER_TILE type_remote = DEFAULT]
+
+BODY
+{
+}
+END
+/**************************************************
+ *                       TASK_A                   *
+ **************************************************/
+TASK_A(m, k)  [profile = off]
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+
+: descA(m, k)
+
+RW A <- A READ_A(k, m) [type_remote = DEFAULT]
+     -> descA(m, k) [type = LOWER_TILE type_data = LOWER_TILE]
+
+BODY
+{
+    memset( A, 0, sizeof(int)*descA->mb*descA->nb);
+
+//    printf("%d TASK_A(%d, %d, %d) A %p %s (source=%d, me=%d)\n", es->th_id, m, k, t, A, _f_A->dtt->arena->name, rank_of_descA(k, m), rank_of_descA(m, k) );
+    if(rank_of_descA(m, k)!=rank_of_descA(k, m)){
+        //unpack as DEFAULT & no re-reshaping during the remote release_local_deps
+        assert(__parsec_tp->super.arenas_datatypes[PARSEC_remote_no_re_reshape_DEFAULT_ADT_IDX].opaque_dtt
+                == _f_A->dtt);
+    }else{
+        //reshaped to lower on output
+        assert(__parsec_tp->super.arenas_datatypes[PARSEC_remote_no_re_reshape_LOWER_TILE_ADT_IDX].opaque_dtt
+                == _f_A->dtt);
+    }
+}
+END

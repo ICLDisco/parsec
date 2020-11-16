@@ -161,7 +161,6 @@ int main( int argc, char** argv )
     parsec_translate_matrix_type(matrix_RealDouble, &dt);
     parsec_matrix_add2arena_rect(&adt, dt,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
-
     /* Start the PaRSEC engine */
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
@@ -170,7 +169,7 @@ int main( int argc, char** argv )
     memset(local_nb, 0, 4*sizeof(int));
     tp = parsec_local_indices_new( &descA, (int32_t*)local_nb );
     assert( NULL != tp );
-    tp->arenas_datatypes[PARSEC_local_indices_DEFAULT_ARENA] = adt;
+    tp->arenas_datatypes[PARSEC_local_indices_DEFAULT_ADT_IDX] = adt;
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_wait(parsec);

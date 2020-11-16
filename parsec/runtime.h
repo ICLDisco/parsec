@@ -118,9 +118,15 @@ typedef struct parsec_data_collection_s parsec_data_collection_t;
 typedef parsec_data_collection_t parsec_dc_t;
 
 /**
- * @brief A description of the content of each data mouvement/copy
+ * @brief A description of the content of each data movement/copy
  */
 typedef struct parsec_dep_data_description_s  parsec_dep_data_description_t;
+typedef struct parsec_dep_type_description_s  parsec_dep_type_description_t;
+
+/**
+ * @brief A description of the reshape promise
+ */
+typedef struct parsec_reshape_promise_description_s parsec_reshape_promise_description_t;
 
 /**
  * @brief A description of the thread private memory pool.
@@ -136,9 +142,15 @@ typedef enum parsec_hook_return_e {
     PARSEC_HOOK_RETURN_NEXT    = -2,  /* Try next variant [if any] */
     PARSEC_HOOK_RETURN_DISABLE = -3,  /* Disable the device, something went wrong */
     PARSEC_HOOK_RETURN_ASYNC   = -4,  /* The task is outside our reach, the completion will
-                                      * be triggered asynchronously. */
+                                       * be triggered asynchronously. */
     PARSEC_HOOK_RETURN_ERROR   = -5,  /* Some other major error happened */
 } parsec_hook_return_t;
+
+/* In order for the reshaping to work, retry codes should be negative
+ * completion ones positive. */
+#define PARSEC_HOOK_RETURN_RESHAPE_DONE 1
+#define PARSEC_HOOK_RETURN_DONE_NO_RESHAPE 0
+
 
 /**
  * @brief Create a new PaRSEC execution context

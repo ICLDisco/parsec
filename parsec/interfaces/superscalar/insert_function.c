@@ -1035,9 +1035,10 @@ parsec_dtd_release_task_class( parsec_dtd_taskpool_t *tp,
 }
 
 void
-parsec_dtd_data_collection_init( parsec_data_collection_t *dc )
+parsec_dtd_data_collection_init( parsec_data_collection_t *dc)
 {
     int nb;
+
     dc->tile_h_table = PARSEC_OBJ_NEW(parsec_hash_table_t);
     for(nb = 1; nb < 16 && (1 << nb) < parsec_dtd_tile_hash_table_size; nb++) /* nothing */;
     parsec_hash_table_init( dc->tile_h_table,
@@ -1428,9 +1429,11 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
                      const parsec_dep_t *dep,
                      parsec_dep_data_description_t *data,
                      int src_rank, int dst_rank, int dst_vpid,
+                     data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                      void *param )
 {
     (void)es; (void)data; (void)src_rank; (void)dst_rank; (void)oldcontext;
+    (void)successor_repo; (void) successor_repo_key;
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)param;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)newcontext;
     int32_t not_ready = 1;
@@ -1456,6 +1459,11 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
                 arg->remote_deps->root = src_rank;
                 /* both sides care about the dep_datatype_index which is the flow_index for DTD */
                 arg->remote_deps->outgoing_mask |= (1 << dep->dep_datatype_index);
+                output->data.data_future = NULL;
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+                output->data.repo = NULL;
+                output->data.repo_key = -1;
+#endif
                 if( !(output->rank_bits[_array_pos] & _array_mask) ) {
                     output->rank_bits[_array_pos] |= _array_mask;
                     /* For DTD this means nothing at this point */
@@ -1867,24 +1875,31 @@ static int datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
                                        uint32_t *flow_mask, parsec_dep_data_description_t *data)
 {
     (void)es;
-    data->count = 1;
-    data->displ = 0;
+    data->remote.src_count = data->remote.dst_count = 1;
+    data->remote.src_displ = data->remote.dst_displ = 0;
+    data->data_future = NULL;
+    data->local.arena  = NULL;
+    data->local.src_datatype = data->local.dst_datatype = PARSEC_DATATYPE_NULL;
+    data->local.src_count = data->local.dst_count = data->local.src_displ = data->local.dst_displ = 0;
 
     int i;
     for( i = 0; i < this_task->task_class->nb_flows; i++) {
         if((*flow_mask) & (1U<<i)) {
-            data->arena  = parsec_dtd_arenas_datatypes[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index].arena;
-            data->layout = parsec_dtd_arenas_datatypes[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index].opaque_dtt;
+            data->remote.arena  =
+                    parsec_dtd_arenas_datatypes[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index].arena;
+            data->remote.src_datatype = data->remote.dst_datatype =
+                    parsec_dtd_arenas_datatypes[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index].opaque_dtt;
             (*flow_mask) &= ~(1U<<i);
             return PARSEC_HOOK_RETURN_NEXT;
         }
     }
 
-    data->arena  = NULL;
+    data->remote.arena  = NULL;
     data->data   = NULL;
-    data->layout = PARSEC_DATATYPE_NULL;
-    data->count  = 0;
-    data->displ  = 0;
+    data->remote.src_datatype = data->remote.dst_datatype = PARSEC_DATATYPE_NULL;
+    data->remote.src_count = data->remote.dst_count = 0;
+    data->remote.src_displ = data->remote.dst_displ = 0;
+
     (*flow_mask) = 0;		/* nothing left */
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -2366,7 +2381,8 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
         assert(PASSED_BY_REF == arg_size);
         this_task->super.data[*flow_index].data_in   = NULL;
         this_task->super.data[*flow_index].data_out  = NULL;
-        this_task->super.data[*flow_index].data_repo = NULL;
+        this_task->super.data[*flow_index].source_repo_entry = NULL;
+        this_task->super.data[*flow_index].source_repo = NULL;
 
         parsec_dtd_flow_info_t *flow = FLOW_OF(this_task, *flow_index);
         /* Saving tile pointer for each flow in a task */

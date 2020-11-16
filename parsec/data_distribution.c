@@ -6,6 +6,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec/data_distribution.h"
+#include "parsec/utils/debug.h"
 
 #if defined(PARSEC_HAVE_STDARG_H)
 #include <stdarg.h>
@@ -87,6 +88,7 @@ parsec_data_collection_init(parsec_data_collection_t *d,
     d->myrank = myrank;
     d->tile_h_table = NULL;
     d->memory_registration_status = PARSEC_MEMORY_STATUS_UNREGISTERED;
+    d->default_dtt = PARSEC_DATATYPE_NULL;
 }
 
 void
@@ -98,6 +100,7 @@ parsec_data_collection_destroy(parsec_data_collection_t *d)
 #endif
     if( NULL != d->key_base ) free(d->key_base);
     d->key_base = NULL;
+
 }
 
 #if defined(PARSEC_PROF_TRACE)

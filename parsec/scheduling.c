@@ -294,7 +294,7 @@ int __parsec_schedule(parsec_execution_stream_t* es,
             const struct parsec_flow_s* flow;
             for( int i = 0; NULL != (flow = task->task_class->in[i]); i++ ) {
                 if( PARSEC_FLOW_ACCESS_NONE == (flow->flow_flags & PARSEC_FLOW_ACCESS_MASK) ) continue;
-                if( NULL != task->data[flow->flow_index].data_repo ) {
+                if( NULL != task->data[flow->flow_index].source_repo_entry ) {
                     if( NULL == task->data[flow->flow_index].data_in ) {
                         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)",
                                              task_string,

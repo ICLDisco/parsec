@@ -64,8 +64,10 @@ static parsec_ontask_iterate_t print_link(parsec_execution_stream_t *es,
                                           const parsec_dep_t* dep,
                                           parsec_dep_data_description_t* data,
                                           int src_rank, int dst_rank, int dst_vpid,
+                                          data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                                           void *param)
 {
+    (void)successor_repo; (void) successor_repo_key;
     char  new_str[TASK_STR_LEN];
     char  old_str[TASK_STR_LEN];
     char *info = (char*)param;
