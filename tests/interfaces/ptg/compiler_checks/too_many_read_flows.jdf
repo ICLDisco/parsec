@@ -79,9 +79,10 @@ int main(int argc, char* argv[])
     }
 
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                               1 /*nodes*/, 0 /*rank*/,
+                               0 /*rank*/,
                                block, 1, n, 1,
-                               0, 0, n, n, 1, 1, 1);
+                               0, 0, n, n,
+                               1, 1, 1, 1, 0, 0);
     descA.mat = parsec_data_allocate( n * parsec_datadist_getsizeoftype(TYPE) );
     for( int i = 0; i < n; ((int*)descA.mat)[i++] = 1);
 

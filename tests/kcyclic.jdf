@@ -48,24 +48,26 @@ int main( int argc, char** argv )
 
     /* Create a copy of A with (standard) 2D-cyclic */
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                               nodes, rank,
+                               rank,
                                mb, nb , n, n,
-                               0, 0, n, n, 1, 1, p);
+                               0, 0, n, n,
+                               p, nodes/p, 1, 1, 0, 0);
     descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
 
     /* Create a copy of A with physical 2D-k-cyclic distribution */
     two_dim_block_cyclic_init( &descCA, TYPE, matrix_Tile,
-                               nodes, rank,
+                               rank,
                                mb, nb, n, n,
-                               0, 0, n, n, kp, kq, p);
+                               0, 0, n, n,
+                               p, nodes/p, kp, kq, 0, 0);
     descCA.mat = parsec_data_allocate( descCA.super.nb_local_tiles *
                                         descCA.super.bsiz *
                                         parsec_datadist_getsizeoftype(TYPE) );
 
     /* Create a view of A in (pseudo) k-cyclic order;
-     * This is not a copy of A! It uses the same descA.mat. 
+     * This is not a copy of A! It uses the same descA.mat.
      * This is not in the same order as the physical k-cyclic descCA! */
     two_dim_block_cyclic_kview( &viewA, &descA, kp, kq);
 
@@ -117,7 +119,7 @@ FILL_A(M, N)
 RW A    <-  dA(M,N)
         ->  A COMPARE(M,N)
 
-/* make sure A is completely filled up before reading VA 
+/* make sure A is completely filled up before reading VA
  * FILL_A(0,N) reduces columnwise completion of the fillup */
 CTL C   <-  (M==0)? C FILL_A(1..MT, N)
         ->  (M!=0)? C FILL_A(0, N)

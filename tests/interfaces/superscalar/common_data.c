@@ -12,13 +12,14 @@ parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int mb
 {
     two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
     two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
-                              world, rank,
+                              rank,
                               mb, 1,      /* Tile size */
                               mt*mb, 1,   /* Global matrix size (what is stored)*/
                               0, 0,       /* Staring point in the global matrix */
                               mt*mb, 1,   /* Submatrix size (the one concerned by the computation */
+                              world, 1,
                               1, 1,       /* k-cyclicity */
-                              world);
+                              0, 0);
 
     m->mat = parsec_data_allocate((size_t)m->super.nb_local_tiles *
                                 (size_t)m->super.bsiz *
@@ -31,13 +32,14 @@ parsec_tiled_matrix_dc_t *create_and_distribute_empty_data(int rank, int world, 
 {
     two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
     two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
-                              world, rank,
+                              rank,
                               mb, 1,      /* Tile size */
                               mt*mb, 1,   /* Global matrix size (what is stored)*/
                               0, 0,       /* Staring point in the global matrix */
                               mt*mb, 1,   /* Submatrix size (the one concerned by the computation */
+                              world, 1,
                               1, 1,       /* k-cyclicity */
-                              world);
+                              0, 0);
 
     return (parsec_tiled_matrix_dc_t*)m;
 }

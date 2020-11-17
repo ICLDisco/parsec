@@ -146,13 +146,13 @@ int main( int argc, char** argv )
      * Build the data and the arena to hold it up.
      */
     two_dim_block_cyclic_init( &descA, matrix_RealDouble, matrix_Tile,
-                               ws /*nodes*/, mr /*rank*/,
+                               mr /*rank*/,
                                100 /* mb */, 100 /* nb */,
                                100*10 /* lm */, 100*10 /* ln */,
                                0 /* i */, 0 /* j */,
                                100*10 /* m */, 100*10 /* n */,
-                               1 /* sm */, 1 /* sn */,
-                               p );
+                               p, ws/p, 1 /* sm */, 1 /* sn */,
+                               0, 0);
     descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                       descA.super.bsiz *
                                       parsec_datadist_getsizeoftype(matrix_RealDouble) );

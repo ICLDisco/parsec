@@ -63,15 +63,19 @@ typedef struct sym_two_dim_block_cyclic {
  * @param j starting column index for the computation on a submatrix
  * @param m number of rows of the entire submatrix
  * @param n numbr of column of the entire submatrix
- * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
+ * @param p number of row of processes of the process grid the
+ *   resulting distribution will be made so that pxq=nodes
+ * @param q number of col of processes of the process grid the
+ *   resulting distribution will be made so that pxq=nodes
  * @param uplo upper or lower triangular part of the matrix is kept
  */
 void sym_two_dim_block_cyclic_init( sym_two_dim_block_cyclic_t * dc,
                                     enum matrix_type mtype,
-                                    int nodes, int myrank,
+                                    int myrank,
                                     int mb, int nb, int lm, int ln,
                                     int i, int j, int m, int n,
-                                    int process_GridRows, int uplo );
+                                    int P, int Q, /* process process grid */
+                                    int uplo );
 
 static inline size_t sym_twoDBC_coordinates_to_position(sym_two_dim_block_cyclic_t *dc, int m, int n){
     size_t pos;

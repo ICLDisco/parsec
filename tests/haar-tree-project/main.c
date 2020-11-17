@@ -221,7 +221,10 @@ int main(int argc, char *argv[])
     treeA = tree_dist_create_empty(rank, world);
 
     two_dim_block_cyclic_init(&fakeDesc, matrix_RealFloat, matrix_Tile,
-                              world, rank, 1, 1, world, world, 0, 0, world, world, 1, 1, 1);
+                              rank,
+                              1, 1, world, world,
+                              0, 0, world, world,
+                              1, world, 1, 1, 0, 0);
 
     parsec_matrix_add2arena( &adt, parsec_datatype_float_t,
                              matrix_Tile, 0,

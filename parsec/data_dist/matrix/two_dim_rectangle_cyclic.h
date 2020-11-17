@@ -55,6 +55,10 @@ typedef struct two_dim_block_cyclic {
  * @param j starting column index for the computation on a submatrix
  * @param m number of rows of the entire submatrix
  * @param n numbr of column of the entire submatrix
+ * @param p number of row of processes of the process grid the
+ *   resulting distribution will be made so that pxq=nodes
+ * @param q number of col of processes of the process grid the
+ *   resulting distribution will be made so that pxq=nodes
  * @param kp number of rows of tiles for k-cyclic block distribution
  *   act as-if the process grid had nkp repetitions for every process row
  *   (see example for kq below)
@@ -63,21 +67,20 @@ typedef struct two_dim_block_cyclic {
  *   For example, kp=1, kq=2 leads to the following pxq=2x4 process grid
  *   | 0 | 0 | 1 | 1 | 2 | 2 | 3 | 3 |
  *   | 4 | 4 | 5 | 5 | 6 | 6 | 7 | 7 |
- * @param p number of row of processes of the process grid (has to divide nodes) the
- *   resulting distribution will be made so that pxq=nodes
- */
+ * @param ip starting point on the process grid rows
+ * @param jq starting point on the process grid cols
+  */
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
                                enum matrix_type mtype,
                                enum matrix_storage storage,
-                               int nodes, int myrank,
-                               int mb,   int nb,   /* Tile size */
-                               int lm,   int ln,   /* Global matrix size (what is stored)*/
-                               int i,    int j,    /* Staring point in the global matrix */
-                               int m,    int n,    /* Submatrix size (the one concerned by the computation */
-                               int kp,   int kq,   /* k-cyclicity */
-                               int p );
-
-
+                               int myrank,
+                               int mb,    int nb,   /* Tile size */
+                               int lm,    int ln,   /* Global matrix size (what is stored)*/
+                               int i,     int j,    /* Staring point in the global matrix */
+                               int m,     int n,    /* Submatrix size (the one concerned by the computation */
+                               int p,     int q,    /* process process grid*/
+                               int kp,    int kq,   /* k-cyclicity */
+                               int ip,    int jq);   /* starting point on the process grid*/
 
 
 /**

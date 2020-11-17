@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     };
     int option_index = 0, c;
     int P = -1, MB = -1, NB = -1, M = -1, N = -1;
-    
+
 #if defined(PARSEC_HAVE_MPI)
     {
         int provided;
@@ -126,12 +126,12 @@ int main(int argc, char *argv[])
 #endif
         exit(1);
     }
-    
+
     two_dim_block_cyclic_t A;
     two_dim_block_cyclic_init(&A,
                               matrix_ComplexDouble, matrix_Tile,
-                              world, rank, MB, NB, M, N, 0, 0,
-                              M, N, 1, 1, P);
+                              rank, MB, NB, M, N, 0, 0,
+                              M, N, P, world/P, 1, 1, 0, 0);
     A.mat = parsec_data_allocate((size_t)A.super.nb_local_tiles *
                                  (size_t)A.super.bsiz *
                                  (size_t)parsec_datadist_getsizeoftype(A.super.mtype));
@@ -141,12 +141,12 @@ int main(int argc, char *argv[])
     parsec_context_add_taskpool(parsec, &udf_tp->super);
     parsec_context_start(parsec);
     parsec_context_wait(parsec);
-    
+
     printf("Rank %d - %d local tiles\n", rank, A.super.nb_local_tiles);
     for(int i = 0; i < UDF_TT_MAX; i++) {
         printf("Rank %d - user function defined for '%s': iterator is called %d times (%g / tile)\n", rank, UDF_TASKTYPE_NAME[i], calls[i], (double)calls[i]/(double)A.super.nb_local_tiles);
     }
-    
+
     parsec_fini(&parsec);
 
 #ifdef PARSEC_HAVE_MPI

@@ -59,22 +59,24 @@ static int twoDBC_memory_unregister(parsec_data_collection_t* desc, parsec_devic
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
                                enum matrix_type mtype,
                                enum matrix_storage storage,
-                               int nodes, int myrank,
-                               int mb,   int nb,   /* Tile size */
-                               int lm,   int ln,   /* Global matrix size (what is stored)*/
-                               int i,    int j,    /* Staring point in the global matrix */
-                               int m,    int n,    /* Submatrix size (the one concerned by the computation */
-                               int kp, int kq,     /* k-cyclicity */
-                               int P )
+                               int myrank,
+                               int mb,    int nb,   /* Tile size */
+                               int lm,    int ln,   /* Global matrix size (what is stored)*/
+                               int i,     int j,    /* Staring point in the global matrix */
+                               int m,     int n,    /* Submatrix size (the one concerned by the computation */
+                               int P,     int Q,    /* process process grid */
+                               int kp,    int kq,   /* k-cyclicity */
+                               int ip,    int jq)   /* starting point on the process grid */
 {
-    int temp, Q;
+    int temp;
+    int nodes = P*Q;
     parsec_data_collection_t *o     = &(dc->super.super);
     parsec_tiled_matrix_dc_t *tdesc = &(dc->super);
 
     /* Initialize the tiled_matrix descriptor */
     parsec_tiled_matrix_dc_init( tdesc, mtype, storage, two_dim_block_cyclic_type,
-                            nodes, myrank,
-                            mb, nb, lm, ln, i, j, m, n );
+                                 nodes, myrank,
+                                 mb, nb, lm, ln, i, j, m, n );
     dc->mat = NULL;  /* No data associated with the matrix yet */
 
     /* WARNING: This has to be removed when padding will be removed */
@@ -87,22 +89,14 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
         }
     }
 
-    if(nodes < P) {
-        parsec_warning("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
-        P = nodes;
-    }
-    Q = nodes / P;
-    if(nodes != P*Q)
-        parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
-
     if( (storage == matrix_Lapack) && (P!=1) ) {
         parsec_fatal("matrix_Lapack storage not supported with a grid that is not 1xQ");
     }
 
 #if !PARSEC_KCYCLIC_WITH_VIEW
-    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, kp, kq);
+    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, kp, kq, ip, jq);
 #else
-    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1);
+    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1, ip, jq);
 #endif /* PARSEC_KCYCLIC_WITH_VIEW */
 
     /* Compute the number of rows handled by the local process */
@@ -210,16 +204,17 @@ static uint32_t twoDBC_rank_of(parsec_data_collection_t * desc, ...)
     n = va_arg(ap, unsigned int);
     va_end(ap);
 
+    /* Assert using local info */
+    assert( m < dc->super.mt );
+    assert( n < dc->super.nt );
+
     /* Offset by (i,j) to translate (m,n) in the global matrix */
     m += dc->super.i / dc->super.mb;
     n += dc->super.j / dc->super.nb;
 
-    assert( m < dc->super.mt );
-    assert( n < dc->super.nt );
-
     /* P(rr, cr) has the tile, compute the mpi rank*/
-    rr = m % dc->grid.rows;
-    cr = n % dc->grid.cols;
+    rr = (m % dc->grid.rows + dc->grid.ip) % dc->grid.rows;
+    cr = (n % dc->grid.cols + dc->grid.jq) % dc->grid.cols;
     res = rr * dc->grid.cols + cr;
 
     return res;
@@ -256,16 +251,17 @@ static int32_t twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
     n = (int)va_arg(ap, unsigned int);
     va_end(ap);
 
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += dc->super.i / dc->super.mb;
-    n += dc->super.j / dc->super.nb;
-
+    /* Assert using local info */
     assert( m < dc->super.mt );
     assert( n < dc->super.nt );
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_rank_of(desc, m, n));
 #endif
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
 
     /* Compute the local tile row */
     local_m = m / dc->grid.rows;
@@ -343,16 +339,17 @@ static parsec_data_t* twoDBC_data_of(parsec_data_collection_t *desc, ...)
     n = (int)va_arg(ap, unsigned int);
     va_end(ap);
 
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += dc->super.i / dc->super.mb;
-    n += dc->super.j / dc->super.nb;
-
+    /* Assert using local info */
     assert( m < dc->super.mt );
     assert( n < dc->super.nt );
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_rank_of(desc, m, n));
 #endif
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
 
     position = twoDBC_coordinates_to_position(dc, m, n);
 
@@ -517,8 +514,8 @@ static uint32_t twoDBC_kcyclic_rank_of(parsec_data_collection_t * desc, ...)
     stc = n / dc->grid.kcols;
 
     /* P(rr, cr) has the tile, compute the mpi rank*/
-    rr = str % dc->grid.rows;
-    cr = stc % dc->grid.cols;
+    rr = (str % dc->grid.rows + dc->grid.ip) % dc->grid.rows;
+    cr = (stc % dc->grid.cols + dc->grid.jq) % dc->grid.cols;
     res = rr * dc->grid.cols + cr;
 
     /* printf("tile (%d, %d) belongs to process %d [%d,%d] in a grid of %dx%d\n", */
@@ -557,13 +554,14 @@ static int32_t twoDBC_kcyclic_vpid_of(parsec_data_collection_t *desc, ...)
     n = (int)va_arg(ap, unsigned int);
     va_end(ap);
 
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += dc->super.i / dc->super.mb;
-    n += dc->super.j / dc->super.nb;
-
+    /* Assert using local info */
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_kcyclic_rank_of(desc, m, n));
 #endif
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
 
     /* Compute the local tile row */
     local_m = ( m / (dc->grid.krows * dc->grid.rows) ) * dc->grid.krows;
@@ -603,13 +601,14 @@ static parsec_data_t* twoDBC_kcyclic_data_of(parsec_data_collection_t *desc, ...
     n = (int)va_arg(ap, unsigned int);
     va_end(ap);
 
-    /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += dc->super.i / dc->super.mb;
-    n += dc->super.j / dc->super.nb;
-
+    /* Assert using local info */
 #if defined(DISTRIBUTED)
     assert(desc->myrank == twoDBC_kcyclic_rank_of(desc, m, n));
 #endif
+
+    /* Offset by (i,j) to translate (m,n) in the global matrix */
+    m += dc->super.i / dc->super.mb;
+    n += dc->super.j / dc->super.nb;
 
     /* Compute the local tile row */
     local_m = ( m / (dc->grid.krows * dc->grid.rows) ) * dc->grid.krows;

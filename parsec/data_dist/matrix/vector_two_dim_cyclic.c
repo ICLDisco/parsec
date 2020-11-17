@@ -40,14 +40,14 @@ static inline int lcm(int a, int b) {
 void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
                                  enum matrix_type mtype,
                                  enum vector_distrib distrib,
-                                 int nodes, int myrank,
+                                 int myrank,
                                  int mb,   /* Segment size                                           */
                                  int lm,   /* Global vector size (what is stored)                    */
                                  int i,    /* Staring point in the global vector                     */
                                  int m,    /* Sub-vector size (the one concerned by the computation) */
-                                 int P )
+                                 int P, int Q )/* process process grid */
 {
-    int Q;
+    int nodes = P*Q;
     parsec_data_collection_t *o = &(dc->super.super);
 
     /* Initialize the tiled_matrix descriptor */
@@ -56,15 +56,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
                             mb, 1, lm, 1, i, 0, m, 1 );
     dc->mat = NULL;  /* No data associated with the vector yet */
 
-    if(nodes < P) {
-        parsec_warning("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
-        P = nodes;
-    }
-    Q = nodes / P;
-    if(nodes != P*Q)
-        parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
-
-    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1);
+    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1, 0, 0);
 
     dc->super.nb_local_tiles = 0;
     dc->distrib = distrib;

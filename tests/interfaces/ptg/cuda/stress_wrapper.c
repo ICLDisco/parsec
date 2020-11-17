@@ -37,16 +37,17 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
             }
         }
     }
-    
+
     dcA = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
     two_dim_block_cyclic_init(dcA, matrix_RealDouble, matrix_Tile,
-                              ctx->nb_nodes, ctx->my_rank,
+                              ctx->my_rank,
                               mb, mb,
                               depth*mb, ctx->nb_nodes*mb,
                               0, 0,
                               depth*mb, ctx->nb_nodes*mb,
+                              1, ctx->nb_nodes,
                               1, 1,
-                              1);
+                              0, 0);
     dcA->mat = parsec_data_allocate((size_t)dcA->super.nb_local_tiles *
                                     (size_t)dcA->super.bsiz *
                                    (size_t)parsec_datadist_getsizeoftype(dcA->super.mtype));
