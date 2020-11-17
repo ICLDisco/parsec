@@ -6045,10 +6045,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     init_from_data_info_t ai2;
     jdf_dataflow_t *fl;
     int di;
-    int profile_on;
     char* output;
-
-    profile_on = profile_enabled(f->properties) && profile_enabled(body->properties);
 
     jdf_find_property(body->properties, "type", &type_property);
     if(NULL != type_property) {
@@ -6189,11 +6186,8 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
 {
     string_arena_t *sa, *sa2;
     int di;
-    int profile_on;
     jdf_dataflow_t *fl;
     assignment_info_t ai;
-
-    profile_on = profile_enabled(f->properties);
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
