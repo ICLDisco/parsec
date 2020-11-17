@@ -118,7 +118,7 @@ static void coutput(const char *format, ...)
     if( len == -1 ) {
         fprintf(stderr, "Unable to ouptut a string: %s\n", strerror(errno));
     } else if( 0 < len ) {
-#if defined(__WINDOWS__)  || defined(__MINGW64__) || defined(__CYGWIN__)
+#if (defined(__WINDOWS__) || defined(__CYGWIN__)) && !defined(__MINGW64__)
         char *start = res, *end;
         while( NULL != (end = strchr(start, '\n'))) {
             if( (end != start) && (end[-1] != '\r')) {
@@ -133,7 +133,7 @@ static void coutput(const char *format, ...)
         fwrite(start, len, 1, cfile);
 #else
         fwrite(res, len, 1, cfile);
-#endif  /* defined(__WINDOWS__)  || defined(__MINGW64__) || defined(__CYGWIN__) */
+#endif  /* (defined(__WINDOWS__) || defined(__CYGWIN__)) && !defined(__MINGW64__) */
         cfile_lineno += nblines(res);
         free(res);
     }
@@ -155,7 +155,7 @@ static void houtput(const char *format, ...)
     if( len == -1 ) {
         fprintf(stderr, "Unable to ouptut a string: %s\n", strerror(errno));
     } else if( 0 < len ) {
-#if defined(__WINDOWS__)  || defined(__MINGW64__) || defined(__CYGWIN__)
+#if (defined(__WINDOWS__) || defined(__CYGWIN__)) && !defined(__MINGW64__)
         char *start = res, *end;
         while( NULL != (end = strchr(start, '\n'))) {
             if( (end != start) && (end[-1] != '\r')) {
@@ -170,7 +170,7 @@ static void houtput(const char *format, ...)
         fwrite(start, len, 1, hfile);
 #else
         fwrite(res, len, 1, hfile);
-#endif  /* defined(__WINDOWS__)  || defined(__MINGW64__) || defined(__CYGWIN__) */
+#endif  /* (defined(__WINDOWS__) || defined(__CYGWIN__)) && !defined(__MINGW64__) */
         hfile_lineno += nblines(res);
         free(res);
     }

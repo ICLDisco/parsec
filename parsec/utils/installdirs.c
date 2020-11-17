@@ -114,6 +114,9 @@ parsec_installdirs_windows(void)
                     break;
             }
         }
+        if( NULL == parsec_home ) {
+            parsec_home = PARSEC_INSTALL_PREFIX;
+        }
 
         RegCloseKey(parsec_key);
     }

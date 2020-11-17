@@ -31,6 +31,10 @@
 #cmakedefine PARSEC_HAVE_ASPRINTF
 #cmakedefine PARSEC_HAVE_VASPRINTF
 #cmakedefine PARSEC_HAVE_RAND_R
+#cmakedefine PARSEC_HAVE_RANDOM
+#cmakedefine PARSEC_HAVE_ERAND48
+#cmakedefine PARSEC_HAVE_NRAND48
+#cmakedefine PARSEC_HAVE_LRAND48
 #cmakedefine PARSEC_HAVE_GETLINE
 #cmakedefine PARSEC_HAVE_SETENV
 #cmakedefine PARSEC_HAVE_STDARG_H
@@ -55,6 +59,7 @@
 #cmakedefine PARSEC_HAVE_EXECINFO_H
 #cmakedefine PARSEC_HAVE_SYS_MMAN_H
 #cmakedefine PARSEC_HAVE_DLFCN_H
+#cmakedefine PARSEC_HAVE_SYSCONF
 
 /* Compiler Specific Options */
 #cmakedefine PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128
@@ -118,6 +123,7 @@
 #cmakedefine PARSEC_HAVE_OPENCL
 #cmakedefine PARSEC_HAVE_MPI
 #cmakedefine PARSEC_HAVE_MPI_20
+#cmakedefine PARSEC_HAVE_MPI_30
 #cmakedefine PARSEC_HAVE_MPI_OVERTAKE
 #cmakedefine PARSEC_HAVE_AYUDAME
 

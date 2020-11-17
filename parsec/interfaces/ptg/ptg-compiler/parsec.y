@@ -240,7 +240,7 @@ static jdf_expr_t *named_expr_push_in_scope(char *var, jdf_expr_t *e) {
 %type <number>PROPERTIES_ON
 %type <number>PROPERTIES_OFF
 %type <string>STRING
-%type <number>INT
+%type <number>JDF_INT
 %type <number>DEPENDENCY_TYPE
 %type <number>DATA_NEW
 %type <number>DATA_NULL
@@ -248,7 +248,7 @@ static jdf_expr_t *named_expr_push_in_scope(char *var, jdf_expr_t *e) {
 %token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY_START BODY_END STRING SIMCOST
 %token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF
 %token DATA_NEW DATA_NULL
-%token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
+%token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT JDF_INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE OPTION
 
 /* C99 operator precedence: http://en.cppreference.com/w/c/language/operator_precedence */
@@ -1204,7 +1204,7 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   $$ = $1;
               }
-       |      INT
+       |      JDF_INT
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_CST;
@@ -1216,7 +1216,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   $$ = e;
                   JDF_OBJECT_LINENO($$) = current_lineno;
               }
-       |      MINUS INT
+       |      MINUS JDF_INT
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_CST;

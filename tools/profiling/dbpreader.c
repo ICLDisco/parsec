@@ -212,6 +212,7 @@ struct dbp_thread {
     dbp_info_t                      *infos;
 };
 
+#if defined(PARSEC_PROFILING_USE_MMAP)
 static void release_events_buffer(parsec_profiling_buffer_t *buffer)
 {
     if( NULL == buffer )
@@ -230,6 +231,30 @@ static parsec_profiling_buffer_t *refer_events_buffer( int fd, int64_t offset )
         return NULL;
     return res;
 }
+#else
+static void release_events_buffer(parsec_profiling_buffer_t *buffer)
+{
+    if( NULL == buffer )
+        return;
+    free(buffer);
+}
+
+static parsec_profiling_buffer_t *refer_events_buffer( int fd, int64_t offset )
+{
+    off_t pos = lseek(fd, offset, SEEK_SET);
+    if( -1 == pos ) {
+        return NULL;
+    }
+    parsec_profiling_buffer_t *res = (parsec_profiling_buffer_t*)malloc(event_buffer_size);
+    pos = read(fd, res, event_buffer_size);
+    if( pos <= 0 ) {
+        free(res);
+        res = NULL;
+    }
+    return res;
+}
+
+#endif  /* defined(PARSEC_PROFILING_USE_MMAP) */
 
 dbp_event_iterator_t *dbp_iterator_new_from_thread(const dbp_thread_t *th)
 {

@@ -71,12 +71,14 @@ cat <<EOF
                 print a message when each task body is executed
 --enable-prof-dryrun=yes|dep|body|no
                 turn on 'dry-run' mode
-                    /dep:            communication is skipped (only task completion signaling messages are sent)
+                    dep:            communication is skipped (only task completion signaling messages are sent)
                     body:           computation is skipped (no task body execution)
                     yes:            both communication and computation are skipped
                     no:             normal execution
 --enable-prof-grapher
                 turn on grapher mode: generates the dependency graph instead of executing
+--enable-testing
+                enable the compilation of all PaRSEC tests
 
 --with-tau[=DIR]
                 use the TAU profiler package [installed in DIR]
@@ -192,6 +194,8 @@ while [ "x$1" != x ]; do
         --disable-fortran) enable_fortran=no; shift;;
         --enable-doc) enable_doc=yes; shift;;
         --disable-doc) enable_doc=no; shift;;
+        --enable-testing) enable_testing=yes; shift;;
+        --disable-testing) enable_testing=no; shift;;
 
 #debug/profiling
         --enable-debug=*) enable_debug="${1#*=}"; shift;;
@@ -433,7 +437,9 @@ CMAKE_DEFINES+=" ${prefix:+-DCMAKE_INSTALL_PREFIX=$prefix}"
 [ x$enable_fortran = xyes ] && CMAKE_DEFINES+=" -DSUPPORT_FORTRAN=ON"
 [ x$enable_fortran = xno ] && CMAKE_DEFINES+=" -DSUPPORT_FORTRAN=OFF"
 [ x$enable_doc = xyes ] && CMAKE_DEFINES+=" -DBUILD_DOCUMENTATION=ON"
-[ x$enable_doc = xno ] && CMAKE_DEFINES+="-DBUILD_DOCUMENTATION=OFF "
+[ x$enable_doc = xno ] && CMAKE_DEFINES+=" -DBUILD_DOCUMENTATION=OFF"
+[ x$enable_testing = xyes ] && CMAKE_DEFINES+=" -DBUILD_TESTING=ON"
+[ x$enable_testing = xno ] && CMAKE_DEFINES+=" -DBUILD_TESTING=OFF"
 
 if [ -z "$enable_debug" ]; then CMAKE_DEFINES+=" -DCMAKE_BUILD_TYPE=RelWithDebInfo"
 elif [[ "$enable_debug" =~ ^no$ ]]; then

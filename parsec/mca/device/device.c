@@ -369,7 +369,10 @@ parsec_device_find_function(const char* function_name,
             snprintf(library_name,  FILENAME_MAX, "%s", *target);
         }
 #if defined(__WINDOWS__)
-        HMODULE dlh = LoadLibraryW(library_name);
+        wchar_t wlibrary_name[FILENAME_MAX];
+        MultiByteToWideChar(CP_ACP, MB_COMPOSITE, library_name, strlen(library_name),
+                            wlibrary_name, FILENAME_MAX);
+        HMODULE dlh = LoadLibraryW(wlibrary_name);
         if(NULL == dlh) {
             parsec_debug_verbose(10, parsec_device_output,
                                  "Could not find %s dynamic library (%s)", library_name, GetLastError());
@@ -538,6 +541,8 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
         parsec_warning("CPU Features cannot be autodetected on this machine (Detected OSX): %s", strerror(errno));
         goto notfound;
     }
+#else
+    goto notfound;
 #endif
     /* prefer base frequency from model name when available (avoids power
      * saving modes and dynamic frequency scaling issues) */

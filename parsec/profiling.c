@@ -36,8 +36,6 @@
 #include "parsec/utils/mca_param.h"
 #include "parsec/sys/tls.h"
 
-#define min(a, b) ((a)<(b)?(a):(b))
-
 #ifndef HOST_NAME_MAX
 #if defined(PARSEC_OSX)
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
@@ -458,7 +456,7 @@ void parsec_profiling_stream_add_information(parsec_profiling_stream_t* stream,
 int parsec_profiling_init( void )
 {
     parsec_profiling_buffer_t dummy_events_buffer;
-    long ps;
+    long ps = (16 * 1024);  /* a sane default value */
     int parsec_profiling_minimal_ebs;
 
     if( __profile_initialized ) return -1;
@@ -472,7 +470,9 @@ int parsec_profiling_init( void )
     parsec_prof_keys = (parsec_profiling_key_t*)calloc(parsec_prof_keys_number, sizeof(parsec_profiling_key_t));
 
     file_backend_extendable = 1;
+#if defined(PARSEC_HAVE_SYSCONF)
     ps = sysconf(_SC_PAGESIZE);
+#endif  /* defined(PARSEC_HAVE_SYSCONF) */
 
     parsec_profiling_minimal_ebs = 1;
     parsec_mca_param_reg_int_name("profile", "buffer_pages", "Number of pages per profiling buffer"
@@ -707,8 +707,8 @@ int parsec_profiling_fini( void )
 #endif
         fprintf(stderr,
                 "### Profiling Performance on rank %d\n"
-                "#   Buffer Size: %lu bytes\n"
-                "#   File Resize Size: %lu bytes (%d buffers)\n"
+                "#   Buffer Size: %"PRIu64" bytes\n"
+                "#   File Resize Size: %"PRIu64" bytes (%d buffers)\n"
 #if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
                 "#   User Thread: Time spent waiting to append command to a queue: %"PRIu64" %s. Number of calls: %u\n"
 #endif
@@ -1377,7 +1377,7 @@ int parsec_profiling_dbp_dump( void )
 
 int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
 {
-    int64_t zero;
+    off_t zero;
     char *xmlbuffer;
     int rank = 0, worldsize = 1, buflen;
     int  min_fd = -1, rc, na_s, na_e;

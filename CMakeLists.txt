@@ -192,7 +192,12 @@ option(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT
   "Generate Profiling traces for the internal_init tasks in the PTG interface (expert mode only)" OFF)
 mark_as_advanced(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) #This is available in export mode only
 if( PARSEC_PROF_TRACE )
-  SET(PARSEC_PAPI_SDE ON)
+  if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR
+     CMAKE_SYSTEM_NAME MATCHES "MINGW64")
+    SET(PARSEC_PAPI_SDE OFF)
+  else()
+    SET(PARSEC_PAPI_SDE ON)
+  endif()
 else( PARSEC_PROF_TRACE )
   UNSET(PARSEC_PAPI_SDE)
   UNSET(PARSEC_PAPI_SDE CACHE)
@@ -343,8 +348,10 @@ if( NOT PARSEC_HAVE_CLOCK_GETTIME )
 endif( NOT PARSEC_HAVE_CLOCK_GETTIME )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR
-   CMAKE_SYSTEM_NAME MATCHES "MSYS")
+   CMAKE_SYSTEM_NAME MATCHES "MINGW64")
   check_library_exists(ws2_32 WSAStartup "" PARSEC_HAVE_WS2_32)
+  list(APPEND EXTRA_LIBS ws2_32)
+  list(APPEND EXTRA_LIBS wsock32)
 endif()
 
 # stdlib, stdio, string, getopt, etc
@@ -398,11 +405,8 @@ int main(int argc, char *argv[]) {
   return 0;
 }" PARSEC_HAVE_THREAD_LOCAL)
 
-check_function_exists(asprintf PARSEC_HAVE_ASPRINTF)
-check_function_exists(vasprintf PARSEC_HAVE_VASPRINTF)
 check_include_files(unistd.h PARSEC_HAVE_UNISTD_H)
 check_include_files(getopt.h PARSEC_HAVE_GETOPT_H)
-check_function_exists(getopt_long PARSEC_HAVE_GETOPT_LONG)
 check_include_files(errno.h PARSEC_HAVE_ERRNO_H)
 check_include_files(stddef.h PARSEC_HAVE_STDDEF_H)
 check_include_files(stdbool.h PARSEC_HAVE_STDBOOL_H)
@@ -410,9 +414,19 @@ check_include_files(ctype.h PARSEC_HAVE_CTYPE_H)
 check_include_files(execinfo.h PARSEC_HAVE_EXECINFO_H)
 check_include_files(sys/mman.h PARSEC_HAVE_SYS_MMAN_H)
 check_include_files(dlfcn.h PARSEC_HAVE_DLFCN_H)
+
+check_function_exists(asprintf PARSEC_HAVE_ASPRINTF)
+check_function_exists(vasprintf PARSEC_HAVE_VASPRINTF)
+check_function_exists(getopt_long PARSEC_HAVE_GETOPT_LONG)
 check_function_exists(rand_r PARSEC_HAVE_RAND_R)
 check_function_exists(getline PARSEC_HAVE_GETLINE)
 check_function_exists(setenv PARSEC_HAVE_SETENV)
+check_function_exists(sysconf PARSEC_HAVE_SYSCONF)
+
+if( NOT PARSEC_HAVE_SYS_MMAN_H AND PARSEC_PROFILING_USE_MMAP )
+  message(STATUS "sys/mman.h not found: PARSEC_PROFILING_USE_MMAP is disabled -- Profiling will allocate and free each tracing block")
+  set(PARSEC_PROFILING_USE_MMAP OFF CACHE BOOL "Use a Helper Thread to create the profile files" FORCE)
+endif( NOT PARSEC_HAVE_SYS_MMAN_H AND PARSEC_PROFILING_USE_MMAP )
 
 check_c_source_compiles("
 int main(int argc, char* argv[]) {
@@ -510,17 +524,20 @@ IF( BUILD_PARSEC )
     list(APPEND CMAKE_REQUIRED_INCLUDES  "${MPI_C_INCLUDE_PATH}")
     list(APPEND CMAKE_REQUIRED_LIBRARIES "${MPI_C_LIBRARIES}")
     check_function_exists(MPI_Type_create_resized PARSEC_HAVE_MPI_20)
-    # MPI Info mpi_assert_enable_overtaking is buggy in Open MPI 3.1.x, x<=4;
-    #   and Open MPI 4.0.x, x <= 1
-    check_c_source_compiles("#include <mpi.h>
-                             int main(int argc, char* argv[]) {
-                             #if (3 == OMPI_MAJOR_VERSION && 1 >= OMPI_MINOR_VERSION && 4 >= OMPI_RELEASE_VERSION) || (4 == OMPI_MAJOR_VERSION && 0 == OMPI_MINOR_VERSION && 1 >= OMPI_RELEASE_VERSION)
-                             #warning \"malfunctionning mpi_assert_enable_overtaking found\"
-                             #endif
-                             return 0;
-                             }"
-                             PARSEC_HAVE_MPI_OVERTAKE
-                             FAIL_REGEX "malfunctionning mpi_assert_enable_overtaking")
+    check_function_exists(MPI_Comm_set_info PARSEC_HAVE_MPI_30)
+    if(PARSEC_HAVE_MPI_30)
+      # MPI Info mpi_assert_enable_overtaking is buggy in Open MPI 3.1.x, x<=4;
+      #   and Open MPI 4.0.x, x <= 1
+      check_c_source_compiles("#include <mpi.h>
+                               int main(int argc, char* argv[]) {
+                               #if (3 == OMPI_MAJOR_VERSION && 1 >= OMPI_MINOR_VERSION && 4 >= OMPI_RELEASE_VERSION) || (4 == OMPI_MAJOR_VERSION && 0 == OMPI_MINOR_VERSION && 1 >= OMPI_RELEASE_VERSION)
+                               #warning \"malfunctionning mpi_assert_enable_overtaking found\"
+                               #endif
+                               return 0;
+                               }"
+                               PARSEC_HAVE_MPI_OVERTAKE
+                               FAIL_REGEX "malfunctionning mpi_assert_enable_overtaking")
+    endif(PARSEC_HAVE_MPI_30)
     CMAKE_POP_CHECK_STATE()
   endif (MPI_C_FOUND)
 

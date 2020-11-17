@@ -4,6 +4,9 @@
  *                         reserved.
  */
 
+#include "parsec/parsec_config.h"
+#include "parsec/utils/output.h"
+
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -113,7 +116,7 @@ static char** prepare_execv_arguments(void)
 
     for( i = 0; i < parsec_argv_count(include_argv); ++i ) {
         char* temp;
-        asprintf(&temp, "-I%s", include_argv[i]);
+        (void)asprintf(&temp, "-I%s", include_argv[i]);  /* silence compiler */
         parsec_argv_append(&token_count, &exec_argv, temp);
         free(temp);
     }

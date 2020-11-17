@@ -41,6 +41,7 @@
 #include "parsec/utils/installdirs.h"
 #include "parsec/utils/cmd_line.h"
 #include "parsec/utils/debug.h"
+#include "parsec/utils/parsec_environ.h"
 #include "parsec/utils/mca_param_cmd_line.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/interfaces/interface.h"
@@ -345,7 +346,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     __parsec_temporary_thread_initialization_t *startup;
     parsec_context_t* context;
     parsec_cmd_line_t *cmd_line = NULL;
-    char **environ = NULL;
+    char **ctx_environ = NULL;
     char **env_variable, *env_name, *env_value;
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
     int slow_option_warning = 0;
@@ -398,9 +399,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
     }
 
-    ret = parsec_mca_cmd_line_process_args(cmd_line, &environ, &environ);
-    if( environ != NULL ) {
-        for(env_variable = environ;
+    ret = parsec_mca_cmd_line_process_args(cmd_line, &ctx_environ, &environ);
+    if( ctx_environ != NULL ) {
+        for(env_variable = ctx_environ;
             *env_variable != NULL;
             env_variable++) {
             env_name = *env_variable;
@@ -410,10 +411,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                 *env_value = '\0';
                 env_value++;
             }
-            setenv(env_name, env_value, 1);
+            parsec_setenv(env_name, env_value, true, &environ);
             free(*env_variable);
         }
-        free(environ);
+        free(ctx_environ);
     }
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
     int mpi_is_up;

@@ -122,11 +122,11 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*[\r\n]+([^\%]|(\%[^\}]))*\%\}       
 SIMCOST               { ECHO; return SIMCOST; }
 <*>"/*"               { YY_PUSH_STATE(comment);                            }
 <comment>[^*\n\r]*    {  /* Eat up non '*'s */                             }
-<comment>"*"+[^*/\n\r]* {  /* Eat '*'s not followed by a '/' */              }
+<comment>"*"+[^*/\n\r]* {  /* Eat '*'s not followed by a '/' */            }
 <comment>"*"+"/"      { YY_POP_STATE();  /* Done with the comment BLOCK */ }
 <*>{WHITE}+           {  /* Eat multiple white-spaces */                   }
 <*>[0-9]+             { YYLVAL(number) = atol(yytext);
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 CTL                   { YYLVAL(number) = JDF_FLOW_TYPE_CTL;
                         ECHO; return DEPENDENCY_TYPE;                      }
 RW                    { YYLVAL(number) = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE;
@@ -151,21 +151,21 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
 <properties>"\]"      { YY_POP_STATE();
                         ECHO; return PROPERTIES_OFF;                       }
 <properties>[oO][nN]  { YYLVAL(number) = 1;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 <properties>[tT][rR][uU][eE] {
                         YYLVAL(number) = 1;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 <properties>[yY][eE][sS] {
                         YYLVAL(number) = 1;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 <properties>[oO][fF][fF] {
                         YYLVAL(number) = 0;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 <properties>[fF][aA][lL][sS][eE] {
                         YYLVAL(number) = 0;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 <properties>[nN][oO] {  YYLVAL(number) = 0;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 
 <INITIAL>^{WHITE}*(?i:body) {
                            YY_PUSH_STATE(body_init);
