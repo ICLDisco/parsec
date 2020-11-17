@@ -81,10 +81,6 @@ typedef struct parsec_data_pair_s       parsec_data_pair_t;
  */
 typedef struct parsec_dependencies_s    parsec_dependencies_t;
 /**
- * @brief A data repository entry
- */
-typedef struct data_repo_s             data_repo_t;
-/**
  * @brief A Virtual Process
  */
 typedef struct parsec_vp_s              parsec_vp_t;

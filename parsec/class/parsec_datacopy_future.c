@@ -245,7 +245,7 @@ static parsec_future_fn_t parsec_datacopy_future_functions = {
  */
 static void parsec_datacopy_future_construct(parsec_base_future_t* future)
 {
-    parsec_atomic_lock_t temp = { PARSEC_ATOMIC_UNLOCKED };
+    parsec_atomic_lock_t temp = PARSEC_ATOMIC_UNLOCKED;
     future->future_lock = temp;
     parsec_datacopy_future_t* d_fut = (parsec_datacopy_future_t*)future;
     d_fut->super.future_class = &parsec_datacopy_future_functions;

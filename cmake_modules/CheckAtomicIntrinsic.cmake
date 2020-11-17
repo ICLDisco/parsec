@@ -25,7 +25,7 @@ unset(_PARSEC_ATOMIC_SUPPORT_OPTIONS)
 #
 # C11 include support for atomic operations via stdatomic.h but only when
 # __STDC_NO_ATOMICS__ is not defined.
-if( SUPPORT_C11 AND PARSEC_HAVE_STD_C1x )
+if( SUPPORT_C11 )
   CHECK_C_SOURCE_COMPILES("
       #if __STDC_VERSION__ >= 201112L
       int main(void) { return 0; }
@@ -47,7 +47,7 @@ if( SUPPORT_C11 AND PARSEC_HAVE_STD_C1x )
           check_include_files(stdatomic.h PARSEC_ATOMIC_USE_C11_ATOMICS)
         endif( PARSEC_STDC_HAVE_C11_ATOMICS )
   endif( PARSEC_COMPILER_C11_COMPLIANT )
-endif( SUPPORT_C11 AND PARSEC_HAVE_STD_C1x )
+endif( SUPPORT_C11 )
 if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
   CHECK_C_SOURCE_COMPILES("
     #include <stdint.h>

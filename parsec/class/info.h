@@ -86,10 +86,10 @@ PARSEC_OBJ_CLASS_DECLARATION(parsec_info_object_array_t);
 /**
  * @brief a collection of infos
  */
-typedef struct parsec_info_s {
+struct parsec_info_s {
     parsec_list_t        info_list;  /**< The list of infos */
     int                  max_id;     /**< The largest id known today in the list */
-} parsec_info_t;
+};
 
 BEGIN_C_DECLS
 
