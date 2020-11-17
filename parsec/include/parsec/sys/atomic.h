@@ -44,7 +44,7 @@ BEGIN_C_DECLS
 #    if defined(PARSEC_ATOMIC_USE_XLC_32_BUILTINS)
 #      include "atomic-xlc.h"
 #    elif defined(PARSEC_OSX)
-#      if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
+#      if (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12) || (__clang_major__ >= 12)
 /* Intel compiler on OSX defined __clang__ but do not support the pragmas */
 #        if defined(__clang__) && !defined(__ICC)
 #          pragma clang diagnostic push

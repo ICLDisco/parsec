@@ -117,13 +117,13 @@ static void parsec_base_future_construct(parsec_base_future_t* future)
     future->status = 0;
     future->cb_fulfill = NULL;
     future->tracked_data = NULL;
-    parsec_atomic_lock_t temp = { PARSEC_ATOMIC_UNLOCKED };
+    parsec_atomic_lock_t temp = PARSEC_ATOMIC_UNLOCKED;
     future->future_lock = temp;
 }
 
 static void parsec_countable_future_construct(parsec_base_future_t* future)
 {
-    parsec_atomic_lock_t temp = { PARSEC_ATOMIC_UNLOCKED };
+    parsec_atomic_lock_t temp = PARSEC_ATOMIC_UNLOCKED;
     future->future_lock = temp;
     parsec_countable_future_t* c_fut = (parsec_countable_future_t*)future;
     c_fut->super.future_class = &parsec_countable_future_functions;
