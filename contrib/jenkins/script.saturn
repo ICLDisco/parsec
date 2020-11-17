@@ -14,18 +14,7 @@ module load \
   cmake/3.18.2 \
   python/3.8.5 \
   otf2/2.1.1 \
-  cuda/9.2.88 # cleanup loaded by default modules
-module purge
-# load explicit versions to remain consistent over time
-# using the lowest compatible version of cmake to force
-# upgrading the cmake_required when we add new features
-module load \
-  gcc/7.3.0 \
-  openmpi/4.0.2 \
-  cmake/3.18.2 \
-  python/3.8.5 \
-  otf2/2.1.1 \
-  cuda/9.2.88 \\
+  cuda/9.2.88
 
 if [ ${BUILDTYPE} = "Debug" ] ; then
     DEBUG_OPTIONS="--enable-debug=history,noisier,paranoid --enable-prof-trace --enable-prof-grapher"
