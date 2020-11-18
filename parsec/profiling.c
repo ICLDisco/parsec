@@ -21,9 +21,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#if defined(PARSEC_HAVE_MPI)
-#include <mpi.h>
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 #include "parsec/profiling.h"
 #include "parsec/parsec_binary_profile.h"
@@ -85,9 +82,10 @@ static parsec_profiling_buffer_t *allocate_empty_buffer(tl_freelist_t *fl, off_t
 static unsigned int parsec_prof_keys_count, parsec_prof_keys_number;
 static parsec_profiling_key_t* parsec_prof_keys;
 
-static int __already_called = 0;
+static int         __already_called = 0;
 static parsec_time_t parsec_start_time;
-static int          start_called = 0;
+static int           start_called = 0;
+static int           parsec_profiling_process_id = 0;
 
 /* Process-global profiling list */
 static parsec_list_t threads;
@@ -477,7 +475,7 @@ void parsec_profiling_stream_add_information(parsec_profiling_stream_t* stream,
     stream->infos = n;
 }
 
-int parsec_profiling_init( void )
+int parsec_profiling_init( int process_id )
 {
     parsec_profiling_buffer_t dummy_events_buffer;
     long ps = (16 * 1024);  /* a sane default value */
@@ -498,6 +496,7 @@ int parsec_profiling_init( void )
     ps = sysconf(_SC_PAGESIZE);
 #endif  /* defined(PARSEC_HAVE_SYSCONF) */
 
+    parsec_profiling_process_id   = process_id;
     parsec_profiling_minimal_ebs = 1;
     parsec_mca_param_reg_int_name("profile", "buffer_pages", "Number of pages per profiling buffer"
                                  "(default is 1, must be at least large enough to hold the binary file header)",
@@ -566,7 +565,7 @@ int parsec_profiling_init( void )
 #if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
     io_helper_thread_init();
 #endif
-
+    
     __profile_initialized = 1; //* confirmed */
     return 0;
 }
@@ -576,13 +575,6 @@ void parsec_profiling_start(void)
     if(start_called)
         return;
 
-#if defined(PARSEC_HAVE_MPI)
-    {
-        int flag;
-        (void)MPI_Initialized(&flag);
-        if(flag) MPI_Barrier(MPI_COMM_WORLD);
-    }
-#endif
     start_called = 1;
     parsec_start_time = take_time();
 }
@@ -718,14 +710,6 @@ int parsec_profiling_fini( void )
 #endif
     
     if( parsec_profiling_show_profiling_performance ) {
-        int rank = 0;
-#if defined(PARSEC_HAVE_MPI)
-        int MPI_ready;
-        (void)MPI_Initialized(&MPI_ready);
-        if(MPI_ready) {
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        }
-#endif
         parsec_profiling_perf_t *pa = parsec_profiling_global_perf;
         char *ti;
 #if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
@@ -734,7 +718,7 @@ int parsec_profiling_fini( void )
         ti = "";
 #endif
         fprintf(stderr,
-                "### Profiling Performance on rank %d\n"
+                "### Profiling Performance on process id %d\n"
                 "#   Buffer Size: %"PRIu64" bytes\n"
                 "#   File Resize Size: %"PRIu64" bytes (%d buffers)\n"
 #if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
@@ -752,7 +736,7 @@ int parsec_profiling_fini( void )
 #endif
                 "#   %sTime Spent Resetting Buffers to 0: %"PRIu64" %s. Number of memset: %u\n"
                 "#   %sTime spent waiting for Exclusive Access to Buffer Management: %"PRIu64" %s. Number of calls: %u\n",
-                rank,
+                parsec_profiling_process_id,
                 event_buffer_size,
                 event_buffer_size * parsec_profiling_file_multiplier, parsec_profiling_file_multiplier,
 #if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
@@ -784,9 +768,10 @@ int parsec_profiling_fini( void )
     parsec_profiling_dictionary_flush();
     free(parsec_prof_keys);
     parsec_prof_keys_number = 0;
-    start_called = 0;  /* Allow the profiling to be reinitialized */
+    start_called = 0;            /* Allow the profiling to be reinitialized */
     parsec_profile_enabled = 0;  /* turn off the profiling */
-    __profile_initialized = 0;  /* not initialized */
+    __profile_initialized = 0;   /* not initialized */
+    parsec_profiling_process_id   = 0;
 
     return 0;
 }
@@ -1416,65 +1401,23 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
 {
     off_t zero;
     char *xmlbuffer;
-    int rank = 0, worldsize = 1, buflen;
-    int  min_fd = -1, rc, na_s, na_e;
-#if defined(PARSEC_HAVE_MPI)
-    char *unique_str;
-
-    int MPI_ready;
-    (void)MPI_Initialized(&MPI_ready);
-    if(MPI_ready) {
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
-    }
-#endif
+    int  buflen;
+    int  rc;
+    int  na_s, na_e;
 
     if( !__profile_initialized ) return -1;
 
-    rc = asprintf(&bpf_filename, "%s-%d.prof-XXXXXX", basefile, rank);
+    rc = asprintf(&bpf_filename, "%s-%d.prof", basefile, parsec_profiling_process_id);
     if (rc == -1) {
-        set_last_error("Profiling system: error: one (or more) process could not create the backend file name (out of ressource).\n");
+        set_last_error("Profiling system: error: one (or more) process could not create the backend file name (out of resource).\n");
         return -1;
     }
-    if( rank == 0 ) {
-        /* The first process create the unique locally unique filename, and then
-         * share it with every other participants. If such a file cannot be
-         * created broacast an empty key to all other processes.
-         */
-        mode_t old_mask = umask(S_IWGRP | S_IWOTH);
-        min_fd = file_backend_fd = mkstemp(bpf_filename);
-        (void)umask(old_mask);
-        if( -1 == file_backend_fd ) {
-            set_last_error("Profiling system: error: Unable to create backend file %s: %s. Events not logged.\n",
-                           bpf_filename, strerror(errno));
-            file_backend_extendable = 0;
-            memset(bpf_filename, 0, strlen(bpf_filename));
-        }
-    }
-
-#if defined(PARSEC_HAVE_MPI)
-    if( worldsize > 1) {
-        unique_str = bpf_filename + (strlen(bpf_filename) - 6);  /* pinpoint directly into the bpf_filename */
-
-        MPI_Bcast(unique_str, 7, MPI_CHAR, 0, MPI_COMM_WORLD);
-        if( 0 != rank ) {
-            if( *unique_str != '\0') {
-                file_backend_fd = open(bpf_filename, O_RDWR | O_CREAT | O_TRUNC, 00600);
-            }  /* else we are in the error propagation from the rank 0 */
-        }
-        MPI_Allreduce(&file_backend_fd, &min_fd, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-    }
-#endif
-    if( -1 == min_fd ) {
-        set_last_error("Profiling system: error: one (or more) process could not create the backend file. Events not logged.\n");
-        if( -1 != file_backend_fd ) {
-            close(file_backend_fd);
-            unlink(bpf_filename);
-        }
+    file_backend_fd = open(bpf_filename, O_RDWR | O_CREAT | O_TRUNC, 00600);
+    if( -1 == file_backend_fd ) {
+        set_last_error("Profiling system: error: this process could not create the backend file. Events not logged.\n");
         free(bpf_filename);
         bpf_filename = NULL;
         file_backend_extendable = 0;
-        file_backend_fd = -1;
         return -1;
     }
 
@@ -1507,8 +1450,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
     profile_head->byte_order = 0x0123456789ABCDEF;
     profile_head->profile_buffer_size = event_buffer_size;
     strncpy(profile_head->hr_id, hr_info, 127); /* We copy only up to 127 bytes to leave room for the '\0' */
-    profile_head->rank = rank;
-    profile_head->worldsize = worldsize;
+    profile_head->rank = parsec_profiling_process_id;
 
     /* Reset the error system without printing it on stderr */
     snprintf(parsec_profiling_last_error, MAX_PROFILING_ERROR_STRING_LEN, "Profiling system: success");

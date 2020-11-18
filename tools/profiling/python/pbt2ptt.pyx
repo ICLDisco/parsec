@@ -109,7 +109,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
 
     nb_dict_entries = dbp_reader_nb_dictionary_entries(dbp)
     nb_files = dbp_reader_nb_files(dbp)
-    worldsize = dbp_reader_worldsize(dbp)
+    worldsize = nb_files
     last_error = dbp_reader_last_error(dbp)
 
     # create event dictionaries first, for later use while reading events

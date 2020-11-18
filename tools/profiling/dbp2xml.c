@@ -212,7 +212,7 @@ static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp, in
     fprintf(tracefile, " </DICTIONARY>\n");
 
     fprintf(tracefile, "   <DISTRIBUTED_PROFILE TIME_UNIT=\""TIMER_UNIT"\" WORLD_SIZE=\"%d\">\n",
-            dbp_reader_worldsize(dbp));
+            dbp_reader_nb_files(dbp));
     for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
         file = dbp_reader_get_file(dbp, ifd);
 

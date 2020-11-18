@@ -130,13 +130,15 @@ int main(int argc, char *argv[])
 {
     int i, rc;
     per_thread_info_t thread_info[NB_THREADS];
+    int mpi_rank;
 
     MPI_Init(&argc, &argv); // MPI is only needed if using OTF2 as a backend. It can be ignored otherwise.
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
 
     /** First, there is a sequential part (no threads) */
 
     /** We initialize the system */
-    parsec_profiling_init();
+    parsec_profiling_init(mpi_rank);
 
     /** MPI should be initialized before the dbp_start call, if it is a distributed application
      *  first argument sp is the base name for the trace file

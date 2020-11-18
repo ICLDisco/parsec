@@ -186,7 +186,6 @@ struct dbp_multifile_reader {
     parsec_profiling_binary_file_header_t header;
     int nb_files;
     int dico_size;
-    int worldsize;
     int nb_infos;
     int last_error;
     dbp_info_t *infos;
@@ -516,11 +515,6 @@ int dbp_reader_nb_files(const dbp_multifile_reader_t *dbp)
 int dbp_reader_nb_dictionary_entries(const dbp_multifile_reader_t *dbp)
 {
     return dbp->dico_size;
-}
-
-int dbp_reader_worldsize(const dbp_multifile_reader_t *dbp)
-{
-    return dbp->worldsize;
 }
 
 int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
@@ -927,14 +921,6 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                     dbp->files[n].error = -DIFF_BUFFER_SIZE;
                     goto close_and_continue;
                 }
-
-                if( head.worldsize != dbp->worldsize ) {
-                    fprintf(stderr, "The profile in file %s has a world size of %d, which is not compatible with the world size %d of file %s. File ignored.\n",
-                            dbp->files[n].filename, head.worldsize,
-                            dbp->worldsize, dbp->files[0].filename);
-                    dbp->files[n].error = -DIFF_WORLD_SIZE;
-                    goto close_and_continue;
-                }
             }
             if( check_dictionary(dbp, fd, &head) != 0 ) {
                 fprintf(stderr, "The profile in file %s has a broken or unmatching dictionary. Dictionary ignored.\n",
@@ -952,7 +938,6 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                 dbp->files[n].error = -DICT_BROKEN;
                 goto close_and_continue;
             }
-            dbp->worldsize = head.worldsize;
             memcpy(&dbp->header, &head, sizeof(parsec_profiling_binary_file_header_t));
         }
 

@@ -115,24 +115,56 @@ extern "C" {
  * the profiling.
  */
 typedef struct parsec_profiling_stream_s parsec_profiling_stream_t;
-
+    
 /**
  * @brief Initializes the profiling engine.
  *
  * @details Call this ONCE per process.
+ *   @param [IN] rank: the unique identifier of the process,
+ *      typically the rank of the process in an MPI application.
  * @return 0    if success, -1 otherwise
  *
  * @remark not thread safe
  */
-int parsec_profiling_init( void );
+int parsec_profiling_init( int rank );
 
 /**
  * @brief Set the reference time to now in the profiling system.
+ *   In case of a parallel (multi-processes) run, the calling
+ *   library should synchronize the processes before calling this,
+ *   to minimize the drift.
  *
  * @details Optionally called before any even is traced.
  * @remark Not thread safe.
  */
 void parsec_profiling_start(void);
+
+#if defined(PARSEC_HAVE_OTF2)
+/**
+ * @brief change the default communicator when using the OTF2
+ *   backend
+ *
+ * @details OTF2 relies on MPI to trace events types and collect
+ *   information. We also need to gather the dictionaries to build
+ *   a consistent list of events at the end, and profiling_otf2
+ *   does this using MPI_Gatherv, which is a collective on the
+ *   communicator that is passed here.
+ *
+ *  @param[IN] pcomm: a pointer to the communicator handle to
+ *       use.
+ *
+ *  @remark 
+ *     - this call is a collective on *pcomm. The process calls
+ *       MPI_Comm_dup on *pcomm during this call
+ *     - the duplicate of the communicator is MPI_Comm_free(d) when
+ *       parsec_profiling_fini is called. 
+ *     - If parsec_profiling_otf2_set_comm is not called before 
+ *       parsec_profiling_init, MPI_COMM_WORLD is used by default.
+ *     - Only local MPI calls are issued in all other functions, so
+ *       any MPI threading model should be supported.
+ */
+void parsec_profiling_otf2_set_comm( void *pcomm );
+#endif
 
 /**
  * @brief Releases all resources for the tracing.

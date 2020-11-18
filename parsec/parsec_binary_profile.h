@@ -93,7 +93,6 @@ typedef struct {
     int32_t info_size;           /* Number of global info entries */
     int64_t info_offset;         /* Offset of the first info profiling_buffer */
     int32_t rank;                /* Rank of the process that generated this profile */
-    int32_t worldsize;           /* Worldsize of the MPI application that generated this profile */
     int32_t nb_threads;          /* Number of threads in this profile */
     int64_t thread_offset;       /* Offset of the first thread profiling_buffer */
     /* Padding to align on profile_buffer_size -- required to allow for mmaping of buffers */

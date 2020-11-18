@@ -901,10 +901,9 @@ int main(int argc, char *argv[])
     for(i = 0; i < dbp_reader_nb_files(dbp); i++) {
         int l;
         file = dbp_reader_get_file(dbp, i);
-        l = 3 + snprintf(NULL, 0, "#%s Rank %d/%d",
+        l = 3 + snprintf(NULL, 0, "#%s Rank %d",
                          dbp_file_hr_id(file),
-                         dbp_file_get_rank(file),
-                         dbp_reader_worldsize(dbp));
+                         dbp_file_get_rank(file));
         if( l > stat_columns[0] )
             stat_columns[0] = l;
     }
@@ -927,10 +926,9 @@ int main(int argc, char *argv[])
         printf("\n");
         for(i = 0; i < dbp_reader_nb_files(dbp); i++) {
             file = dbp_reader_get_file(dbp, i);
-            printf("#%s Rank %d/%d\n",
+            printf("#%s Rank %d\n",
                    dbp_file_hr_id(file),
-                   dbp_file_get_rank(file),
-                   dbp_reader_worldsize(dbp));
+                   dbp_file_get_rank(file));
             for(j = 0; j < dbp_file_nb_threads(file); j++) {
                 printf("#  %s", dico_stat[i][j].name);
 

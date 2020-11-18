@@ -79,8 +79,10 @@ int main(int argc, char *argv[])
     per_thread_info_t *thread_info;
     int nbthreads = 1;
     char *filename = NULL;
+    int mpi_rank;
 
     MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     
     while ((opt = getopt(argc, argv, "f:n:N:h?")) != -1) {
         switch (opt) {
@@ -107,7 +109,7 @@ int main(int argc, char *argv[])
     }
 
     if( profiling ) {
-        parsec_profiling_init();
+        parsec_profiling_init(mpi_rank);
         if( parsec_profiling_dbp_start(filename, "PaRSEC profiling system performance evaluation" ) == -1 )
             exit(EXIT_FAILURE);
 

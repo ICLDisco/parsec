@@ -1518,6 +1518,10 @@ static int remote_dep_mpi_on(parsec_context_t* context)
 {
     remote_dep_mpi_setup(context);
 #ifdef PARSEC_PROF_TRACE
+    /** This is broken at this time, as remote_dep_mpi_setup is
+     *  called after remote_dep_mpi_on, if more than one node.
+     *  We remove the ON markers for now. */
+#if 0
     /* put a start marker on each line */
     TAKE_TIME(MPIctl_prof, MPI_Activate_sk, 0);
     TAKE_TIME(MPIsnd_prof, MPI_Activate_sk, 0);
@@ -1526,6 +1530,7 @@ static int remote_dep_mpi_on(parsec_context_t* context)
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, 0);
     TAKE_TIME(MPIsnd_prof, MPI_Activate_ek, 0);
     TAKE_TIME(MPIrcv_prof, MPI_Activate_ek, 0);
+#endif
 #endif
     (void)context;
     return 0;
