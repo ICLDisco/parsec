@@ -147,7 +147,21 @@ parsec_type_create_resized( parsec_datatype_t oldtype,
 }
 
 int parsec_type_match(parsec_datatype_t dtt1,
-                      parsec_datatype_t dtt2){
+                      parsec_datatype_t dtt2)
+{
     (void)dtt1; (void)dtt2;
     return ( dtt1 == dtt2 ? PARSEC_SUCCESS : PARSEC_ERROR);
+}
+
+int parsec_type_contiguous(parsec_datatype_t dtt)
+{
+    int rc;
+    int num_integers, num_addresses, num_datatypes, combiner;
+    rc = MPI_Type_get_envelope(dtt, &num_integers, &num_addresses, &num_datatypes, &combiner);
+    if( MPI_SUCCESS != rc ) return PARSEC_ERROR;
+    /* Weak: datatype may be contiguous but not created with MPI_Type_contiguous */
+    if( combiner == MPI_COMBINER_CONTIGUOUS ){
+        return PARSEC_SUCCESS;
+    }
+    return PARSEC_ERROR;
 }
