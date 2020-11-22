@@ -624,7 +624,8 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     }
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_add_taskpool_properties(tp);
+    if( parsec_profile_enabled )
+        parsec_profiling_add_taskpool_properties(tp);
 #endif
 
     if( NULL != tp->startup_hook ) {
