@@ -184,6 +184,100 @@ parsec_apply( parsec_context_t *parsec,
              parsec_tiled_matrix_dc_t *A,
              tiled_matrix_unary_op_t operation,
              void *op_args );
+/**
+ * @brief Non-blocking function of redistribute for PTG
+ *
+ * @param [in] source: source distribution, already distributed and allocated
+ * @param [out] target: target distribution, redistributed and allocated
+ * @param [in] size_row: row size to be redistributed
+ * @param [in] size_col: column size to be redistributed
+ * @param [in] disi_source: row displacement in source
+ * @param [in] disj_source: column displacement in source
+ * @param [in] disi_target: row displacement in target
+ * @param [in] disj_target: column displacement in target
+ * @return the parsec object to schedule.
+ */
+parsec_taskpool_t*
+parsec_redistribute_New(parsec_tiled_matrix_dc_t *source,
+                        parsec_tiled_matrix_dc_t *target,
+                        int size_row, int size_col,
+                        int disi_source, int disj_source,
+                        int disi_target, int disj_target);
+
+/**
+ * @brief Cases other than that of parsec_redistribute_ss_Destruct 
+ * @param [inout] the parsec object to destroy
+ */
+void parsec_redistribute_Destruct(parsec_taskpool_t *taskpool);
+
+/**
+ * @brief Redistribute source to target of PTG
+ *
+ * @details 
+ * Source and target could be ANY distribuiton with ANY displacement 
+ * in both source and target. 
+ *
+ * @param [in] source: source distribution, already distributed and allocated
+ * @param [out] target: target distribution, redistributed and allocated
+ * @param [in] size_row: row size to be redistributed
+ * @param [in] size_col: column size to be redistributed
+ * @param [in] disi_source: row displacement in source 
+ * @param [in] disj_source: column displacement in source 
+ * @param [in] disi_target: row displacement in target
+ * @param [in] disj_target: column displacement in target
+ */
+int parsec_redistribute(parsec_context_t *parsec,
+                        parsec_tiled_matrix_dc_t *source,
+                        parsec_tiled_matrix_dc_t *target,
+                        int size_row, int size_col,
+                        int disi_source, int disj_source,
+                        int disi_target, int disj_target);
+
+/**
+ * @brief Non-blocking function of redistribute for DTD 
+ * 
+ * @details 
+ * Source and target could be ANY distribuiton with ANY displacement 
+ * in both source and target. 
+ *
+ * @param [in] source: source distribution, already distributed and allocated
+ * @param [out] target: target distribution, redistributed and allocated
+ * @param [in] size_row: row size to be redistributed
+ * @param [in] size_col: column size to be redistributed
+ * @param [in] disi_source: row displacement in source 
+ * @param [in] disj_source: column displacement in source 
+ * @param [in] disi_target: row displacement in target
+ * @param [in] disj_target: column displacement in target
+ */
+int parsec_redistribute_dtd_New(parsec_context_t *parsec,
+                            parsec_tiled_matrix_dc_t *source,
+                            parsec_tiled_matrix_dc_t *target,
+                            int size_row, int size_col,
+                            int disi_source, int disj_source,
+                            int disi_target, int disj_target);
+
+/**
+ * @brief Redistribute source to target of DTD 
+ * 
+ * @details 
+ * Source and target could be ANY distribuiton with ANY displacement 
+ * in both source and target. 
+ * 
+ * @param [in] source: source distribution, already distributed and allocated
+ * @param [out] target: target distribution, redistributed and allocated
+ * @param [in] size_row: row size to be redistributed
+ * @param [in] size_col: column size to be redistributed
+ * @param [in] disi_source: row displacement in source 
+ * @param [in] disj_source: column displacement in source 
+ * @param [in] disi_target: row displacement in target
+ * @param [in] disj_target: column displacement in target
+ */
+int parsec_redistribute_dtd(parsec_context_t *parsec,
+                            parsec_tiled_matrix_dc_t *source,
+                            parsec_tiled_matrix_dc_t *target,
+                            int size_row, int size_col,
+                            int disi_source, int disj_source,
+                            int disi_target, int disj_target);
 
 /*
  * Macro to get the block leading dimension
