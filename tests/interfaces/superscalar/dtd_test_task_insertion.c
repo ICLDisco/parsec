@@ -105,8 +105,6 @@ int main(int argc, char ** argv)
     /* Registering the dtd_handle with PARSEC context */
     rc = parsec_context_add_taskpool( parsec, dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
-    rc = parsec_context_start( parsec );
-    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     if( rank == 0 ) {
         parsec_output( 0, "In all the tests we insert tasks "
@@ -128,6 +126,9 @@ int main(int argc, char ** argv)
                        "executes them simultaneously, main thread joins after all tasks are inserted "
                        "\n\n", no_of_tasks, cores-1 );
     }
+
+    rc = parsec_context_start( parsec );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     for( n = 0; n < 3; n++ ) {
         count = 0;
