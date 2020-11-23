@@ -125,8 +125,6 @@ int main(int argc, char ** argv)
     /* Registering the dtd_handle with PARSEC context */
     rc = parsec_context_add_taskpool( parsec, dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
-    rc = parsec_context_start( parsec );
-    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     nb = 1; /* size of each tile */
     nt = world; /* total tiles */
@@ -142,6 +140,8 @@ int main(int argc, char ** argv)
     parsec_dtd_data_collection_init(A);
 
     SYNC_TIME_START();
+    rc = parsec_context_start( parsec );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     for( m = 0; m < nt; m++ ) {
         parsec_dtd_taskpool_insert_task(dtd_tp, test_task_generator,    0,  "Test_Task_generator",
