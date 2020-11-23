@@ -737,6 +737,7 @@ int parsec_profiling_dictionary_init(parsec_context_t *master_context,
     (void)modules;
 
     dict = (parsec_profiling_dictionary_t*)calloc(1, sizeof(parsec_profiling_dictionary_t));
+    PARSEC_OBJ_CONSTRUCT(dict, parsec_hash_table_t);  /* Initialize the base object */
 
     parsec_hash_table_init(&dict->properties, 0, 8, dict_key_fns, NULL);
 
@@ -860,45 +861,51 @@ int parsec_profiling_add_taskpool_properties(parsec_taskpool_t *h)
         parsec_debug_verbose(5, parsec_debug_output, "Taskpool %s: this taskpool is not completely initialized. This is a bug in this taskpool: it did not set its task classes array. thus it cannot be profiled", h->taskpool_name);
         return PARSEC_ERR_BAD_PARAM;
     }
+    if( NULL == h->taskpool_name ) {
+        parsec_debug_verbose(5, parsec_debug_output, "Taskpool %p (type %d, id %d) is unnamed, and as such cannot be profiled.",
+                             h, h->taskpool_type, h->taskpool_id);
+        return PARSEC_ERR_BAD_PARAM;
+    }
+
     parsec_profiling_tree_reload_buckets(dict->tree, PROF_NAMESPACE, h->taskpool_name);
     for (i = 0; i < h->nb_task_classes; i++) {
-	    f = (parsec_task_class_t*)(h->task_classes_array[i]);
-	    parsec_profiling_tree_reload_buckets(dict->tree, PROF_TASK_CLASS, f->name);
+        f = (parsec_task_class_t*)(h->task_classes_array[i]);
+        parsec_profiling_tree_reload_buckets(dict->tree, PROF_TASK_CLASS, f->name);
 
-	    p = (parsec_property_t*)(f->properties);
-	    while (p && NULL != p->expr) {
-	        parsec_profiling_tree_reload_buckets(dict->tree, PROF_PROPERTY, p->name);
+        p = (parsec_property_t*)(f->properties);
+        while (p && NULL != p->expr) {
+            parsec_profiling_tree_reload_buckets(dict->tree, PROF_PROPERTY, p->name);
 
             /* check if anyone requested ns:tc:pr or the wilcard combinations */
-	        int exists = parsec_profiling_tree_look_for_path(dict->tree);
+            int exists = parsec_profiling_tree_look_for_path(dict->tree);
 
-	        parsec_profiling_property_t* pr_bucket = (parsec_profiling_property_t*) parsec_profiling_tree_add_missing_buckets(dict->tree);
-	        pr_bucket->func.type = (parsec_profiling_datatype_t)p->expr->u_expr.v_func.type;
-	        pr_bucket->state |= PROPERTY_PROVIDED;
-	        pr_bucket->type = PROFILING_PER_EU;
-	        pr_bucket->accumulate = CUMULATIVE;
+            parsec_profiling_property_t* pr_bucket = (parsec_profiling_property_t*) parsec_profiling_tree_add_missing_buckets(dict->tree);
+            pr_bucket->func.type = (parsec_profiling_datatype_t)p->expr->u_expr.v_func.type;
+            pr_bucket->state |= PROPERTY_PROVIDED;
+            pr_bucket->type = PROFILING_PER_EU;
+            pr_bucket->accumulate = CUMULATIVE;
 
-	        if (exists) pr_bucket->state |= PROPERTY_REQUESTED;
+            if (exists) pr_bucket->state |= PROPERTY_REQUESTED;
 
-	        switch (pr_bucket->func.type) {
-	        case PROPERTIES_INT32:
-		        pr_bucket->func.func.inline_func_int32  = p->expr->u_expr.v_func.func.inline_func_int32;
-		        break;
-	        case PROPERTIES_INT64:
-		        pr_bucket->func.func.inline_func_int64  = p->expr->u_expr.v_func.func.inline_func_int64;
-		        break;
-	        case PROPERTIES_FLOAT:
-		        pr_bucket->func.func.inline_func_float  = p->expr->u_expr.v_func.func.inline_func_float;
-		        break;
-	        case PROPERTIES_DOUBLE:
-		        pr_bucket->func.func.inline_func_double = p->expr->u_expr.v_func.func.inline_func_double;
-		        break;
-	        case PROPERTIES_UNKNOWN:
-	        default:
-		        break;
-	        }
-	        p++;
-	    }
+            switch (pr_bucket->func.type) {
+            case PROPERTIES_INT32:
+                pr_bucket->func.func.inline_func_int32  = p->expr->u_expr.v_func.func.inline_func_int32;
+                break;
+            case PROPERTIES_INT64:
+                pr_bucket->func.func.inline_func_int64  = p->expr->u_expr.v_func.func.inline_func_int64;
+                break;
+            case PROPERTIES_FLOAT:
+                pr_bucket->func.func.inline_func_float  = p->expr->u_expr.v_func.func.inline_func_float;
+                break;
+            case PROPERTIES_DOUBLE:
+                pr_bucket->func.func.inline_func_double = p->expr->u_expr.v_func.func.inline_func_double;
+                break;
+            case PROPERTIES_UNKNOWN:
+            default:
+                break;
+            }
+            p++;
+        }
     }
 
     dict->version++;

@@ -124,7 +124,7 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     if( count > 0 ) {
-        parsec_fatal( "Write after Read dependencies are not bsing satisfied properly\n\n" );
+        parsec_fatal( "Write after Read dependencies are not being satisfied properly\n\n" );
     } else {
         parsec_output( 0, "\nWAR test passed\n\n" );
     }

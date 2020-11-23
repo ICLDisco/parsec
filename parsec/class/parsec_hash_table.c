@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -83,7 +83,7 @@ int parsec_hash_tables_init(void)
     if( PARSEC_ERROR == parsec_hash_table_mca_param_mnb_index ) {
         return PARSEC_ERROR;
     }
-    
+
     return PARSEC_SUCCESS;
 }
 
