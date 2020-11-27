@@ -7,8 +7,6 @@
  *
  * @file insert_function_internal.h
  *
- * @version 2.0.0
- *
  **/
 
 #ifndef INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED

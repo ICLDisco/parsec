@@ -1,10 +1,11 @@
-Copyright (c) 2009-2019 The University of Tennessee and The University
+Copyright (c) 2009-2020 The University of Tennessee and The University
                         of Tennessee Research Foundation.  All rights
                         reserved.
 
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
+v20.12
  - PaRSEC now requires CMake 3.16.
 
  - New configure system to ease the installation of PaRSEC. See

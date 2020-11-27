@@ -8,7 +8,8 @@
 /**
  * @file dtd_example_hello_world.c
  *
- * @version 2.0.0
+ * @version 3.0
+ * @email parsec-users@icl.utk.edu
  *
  */
 

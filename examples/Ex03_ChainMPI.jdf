@@ -4,6 +4,10 @@ extern "C" %{
  * This example shows how to distribute the tasks over different nodes
  *    descriptor as global
  *    rank_of() / possibility of playing with value in rank_of
+ *
+ * @version 3.0
+ * @email parsec-users@icl.utk.edu
+ *
  */
 
 #include "parsec.h"

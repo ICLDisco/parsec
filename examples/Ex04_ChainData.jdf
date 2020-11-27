@@ -5,6 +5,10 @@ extern "C" %{
  *    data_of()
  *    parsec_data_create()
  *    parsec_data_destroy()
+ *
+ * @version 3.0
+ * @email parsec-users@icl.utk.edu
+ *
  */
 
 #include "parsec.h"

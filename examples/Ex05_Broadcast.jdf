@@ -6,6 +6,10 @@ extern "C" %{
  *    inline
  *
  * Each process broadcast an information to NB/2 tasks.
+ *
+ * @version 3.0
+ * @email parsec-users@icl.utk.edu
+ *
  */
 
 #include "parsec.h"

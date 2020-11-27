@@ -1,0 +1,8 @@
+- e4s_product: parsec
+  version: 0.1.0
+  Description: "PaRSEC: the Parallel Runtime Scheduler and Execution Controller for micro-tasks on distributed heterogeneous systems."
+  area: PMR
+  MemberProduct: False
+  website: https://www.exascaleproject.org/project/parsec-distributed-tasking-exascale
+  docs: [{doc:README,type:readme},{doc:NEWS,type=changelog},{doc:License.txt,type=license}]
+  subrepo_urls: ["https://bitbucket.org/icldistcomp/parsec.git"]

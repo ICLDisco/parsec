@@ -7,8 +7,6 @@
  *
  * @file insert_function.h
  *
- * @version 2.0.0
- *
  **/
 
 #ifndef PARSEC_INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
