@@ -81,7 +81,7 @@ set_target_properties(must_fail_too_many_in_deps PROPERTIES
                       EXCLUDE_FROM_DEFAULT_BUILD TRUE)
 add_test( NAME must_fail_too_many_in_deps_shm
           COMMAND ${CMAKE_COMMAND} --build . --target must_fail_too_many_in_deps ${SHM_TEST_CMD_LIST} ./too_many_in_deps
-          WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set_tests_properties(must_fail_too_many_in_deps_shm PROPERTIES WILL_FAIL TRUE)
 
 parsec_addtest(C must_fail_too_many_out_deps)
@@ -92,7 +92,7 @@ set_target_properties(must_fail_too_many_out_deps PROPERTIES
                       EXCLUDE_FROM_DEFAULT_BUILD TRUE)
 add_test( NAME must_fail_too_many_out_deps_shm
           COMMAND ${CMAKE_COMMAND} --build . --target must_fail_too_many_out_deps ${SHM_TEST_CMD_LIST} ./too_many_out_deps
-          WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set_tests_properties(must_fail_too_many_out_deps_shm PROPERTIES WILL_FAIL TRUE)
 
 parsec_addtest(C must_fail_too_many_read_flows)
@@ -103,7 +103,7 @@ set_target_properties(must_fail_too_many_read_flows PROPERTIES
                       EXCLUDE_FROM_DEFAULT_BUILD TRUE)
 add_test( NAME must_fail_too_many_read_flows_shm
           COMMAND ${CMAKE_COMMAND} --build . --target must_fail_too_many_read_flows ${SHM_TEST_CMD_LIST} ./too_many_read_flows
-          WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
         set_tests_properties(must_fail_too_many_read_flows_shm PROPERTIES WILL_FAIL TRUE)
 
 parsec_addtest(C must_fail_too_many_write_flows)
@@ -114,7 +114,7 @@ set_target_properties(must_fail_too_many_write_flows PROPERTIES
                       EXCLUDE_FROM_DEFAULT_BUILD TRUE)
 add_test( NAME must_fail_too_many_write_flows_shm
           COMMAND ${CMAKE_COMMAND} --build . --target must_fail_too_many_write_flows ${SHM_TEST_CMD_LIST} ./too_many_write_flows
-          WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set_tests_properties(must_fail_too_many_write_flows_shm PROPERTIES WILL_FAIL TRUE)
 
 parsec_addtest(C must_fail_too_many_local_vars)
@@ -125,5 +125,5 @@ set_target_properties(must_fail_too_many_local_vars PROPERTIES
                       EXCLUDE_FROM_DEFAULT_BUILD TRUE)
 add_test( NAME must_fail_too_many_local_vars_shm
           COMMAND ${CMAKE_COMMAND} --build . --target must_fail_too_many_local_vars ${SHM_TEST_CMD_LIST} ./too_many_local_vars
-          WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+          WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set_tests_properties(must_fail_too_many_local_vars_shm PROPERTIES WILL_FAIL TRUE)
