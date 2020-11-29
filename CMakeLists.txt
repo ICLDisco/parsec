@@ -787,7 +787,7 @@ set(GIT_COMMIT_HASH "$Format:%h$")
 if(GIT_COMMIT_HASH MATCHES "Format:")
   unset(GIT_COMMIT_HASH)
 endif()
-set(GIT_COMMIT_DATE "$Format:%cs$")
+set(GIT_COMMIT_DATE "$Format:%cI$")
 if(GIT_COMMIT_DATE MATCHES "Format:")
   unset(GIT_COMMIT_DATE)
 endif()
@@ -809,10 +809,11 @@ endif(NOT GIT_COMMIT_HASH)
 # Get the date of the commit hash
 if(NOT GIT_COMMIT_DATE)
 execute_process(
-  COMMAND git log -1 --format=%cs
+  COMMAND git log -1 --format=%cI
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE GIT_COMMIT_DATE
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
 endif()
 # Get the tag, if any
 if(NOT GIT_COMMIT_TAG)
@@ -820,7 +821,8 @@ execute_process(
   COMMAND git describe --tags  --exact-match
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE GIT_COMMIT_TAG
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
 endif()
 set(GIT_COMMIT_BRANCH ${GIT_COMMIT_TAG})
 # Get the current working branch if no tag
@@ -829,7 +831,8 @@ execute_process(
   COMMAND git rev-parse --abbrev-ref HEAD
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE GIT_COMMIT_BRANCH
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
 endif()
 # Get the status of the clone
 if(NOT GIT_COMMIT_DIRTY)
