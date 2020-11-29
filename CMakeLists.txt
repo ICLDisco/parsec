@@ -30,9 +30,7 @@ set (PARSEC_VERSION_RELEASE 0) # Devel master have no release number
 #set (PARSEC_VERSION_RELEASE 2012) # Set and uncomment for a release
 
 # Set the following values for a release
-#set(GIT_COMMIT_HASH deafbeed)
 #set(GIT_COMMIT_TAG vYY.MM)
-#set(GIT_COMMIT_DATE yyyy-mm-dd)
 
 # Configure the installation paths
 set(PARSEC_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
@@ -784,6 +782,15 @@ add_subdirectory(docs)
 string(TIMESTAMP PARSEC_COMPILE_DATE)
 
 # Fetch GIT info for this build, if not preset for a release
+# First, check if `git archive` has substituted the special values
+set(GIT_COMMIT_HASH "$Format:%h$")
+if(GIT_COMMIT_HASH MATCHES "Format:")
+  unset(GIT_COMMIT_HASH)
+endif()
+set(GIT_COMMIT_DATE "$Format:%cs$")
+if(GIT_COMMIT_DATE MATCHES "Format:")
+  unset(GIT_COMMIT_DATE)
+endif()
 # Get the latest abbreviated commit hash of the working branch
 if(NOT GIT_COMMIT_HASH)
 execute_process(
@@ -802,12 +809,21 @@ endif(NOT GIT_COMMIT_HASH)
 # Get the date of the commit hash
 if(NOT GIT_COMMIT_DATE)
 execute_process(
-  COMMAND git log -1 --format=%cd --date=short
+  COMMAND git log -1 --format=%cs
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   OUTPUT_VARIABLE GIT_COMMIT_DATE
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
-# Get the current working branch
+# Get the tag, if any
+if(NOT GIT_COMMIT_TAG)
+execute_process(
+  COMMAND git describe --tags  --exact-match
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_COMMIT_TAG
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
+set(GIT_COMMIT_BRANCH ${GIT_COMMIT_TAG})
+# Get the current working branch if no tag
 if(NOT GIT_COMMIT_BRANCH)
 execute_process(
   COMMAND git rev-parse --abbrev-ref HEAD
@@ -820,7 +836,8 @@ if(NOT GIT_COMMIT_DIRTY)
 execute_process(
   COMMAND git diff HEAD --shortstat
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT_DIRTY)
+  OUTPUT_VARIABLE GIT_COMMIT_DIRTY
+  ERROR_QUIET)
 string(STRIP "${GIT_COMMIT_DIRTY}" GIT_COMMIT_DIRTY)
 if(NOT GIT_COMMIT_DIRTY)
   set(GIT_COMMIT_DIRTY "no")
@@ -1025,12 +1042,20 @@ install(FILES
 
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)
-set(CPACK_GENERATOR "TBZ2")
+if(NOT CPACK_GENERATOR)
+  set(CPACK_GENERATOR "TBZ2")
+endif()
+set (CPACK_PACKAGE_NAME "PaRSEC")
+set (CPACK_PACKAGE_VENDOR "Innovative Computing Laboratory, The University of Tennessee")
+set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "PaRSEC: the Parallel Runtime Scheduler and Execution Controller for micro-tasks on distributed heterogeneous systems")
+set (CPACK_PACKAGE_HOMEPAGE_URL "https://www.exascaleproject.org/project/parsec-distributed-tasking-exascale")
+set (CPACK_RESOURCE_FILE_README
+     "${CMAKE_CURRENT_SOURCE_DIR}/README")
 set (CPACK_RESOURCE_FILE_LICENSE
      "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
 set (CPACK_PACKAGE_VERSION_MAJOR "${PARSEC_VERSION_MAJOR}")
 set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
-set (CPACK_PACKAGE_VERSION_RELEASE "${PARSEC_VERSION_RELEASE}")
+set (CPACK_PACKAGE_VERSION_PATCH "${PARSEC_VERSION_RELEASE}")
 include (CPack)
 
 # Prepare the cflags/ldflags for the PkgConfig parsec.pc file
@@ -1107,7 +1132,7 @@ include(CMakePackageConfigHelpers)
 
 configure_package_config_file(cmake_modules/PaRSECConfig.cmake.in
   ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/PaRSECConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_CMAKEDIR}
+  INSTALL_DESTINATION ${PARSEC_INSTALL_CMAKEDIR}
   PATH_VARS PARSEC_INSTALL_LIBDIR
   PARSEC_INSTALL_INCLUDEDIR PARSEC_INSTALL_BINDIR PARSEC_INSTALL_LIBEXECDIR PARSEC_INSTALL_CMAKEDIR)
 
@@ -1122,7 +1147,7 @@ install(FILES
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindOTF2.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/ParsecCompilePTG.cmake
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_CMAKEDIR})
+  DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
 
 # Prepare exports for submodule inclusion
 set(PARSEC_INSTALL_LIBDIR ${PROJECT_BINARY_DIR}/parsec)
