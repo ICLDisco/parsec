@@ -16,11 +16,6 @@ class Parsec(CMakePackage):
     list_url = "https://bitbucket.org/icldistcomp/parsec/downloads/?tab=tags"
     git      = "https://bitbucket.org/icldistcomp/parsec.git"
 
-#    def url_for_version(self, version):
-#        url = "https://bitbucket.org/icldistcomp/parsec/get/v{1}.{2}.tar.bz2"
-#        print('DEBUG:'+version.string+' '+version[2:].string[:2]+'.'+version[2:].string[2:])
-#        return url.format(version, version[2:].string[:2], version[2:].string[2:])
-
     version('master', branch='master')
     version('3.0.2012-rc1', sha256='a0f013bd5a2c44c61d3d76bab102e3ca3bab68ef2e89d7b5f544b9c1a6fde475')
     version('1.1.0', '6c8b2b8d6408004bdb4c6d9134da74a4', url='https://bitbucket.org/icldistcomp/parsec/get/v1.1.0.tar.bz2')
