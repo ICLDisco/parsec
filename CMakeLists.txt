@@ -1051,7 +1051,7 @@ endif()
 set (CPACK_PACKAGE_NAME "PaRSEC")
 set (CPACK_PACKAGE_VENDOR "Innovative Computing Laboratory, The University of Tennessee")
 set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "PaRSEC: the Parallel Runtime Scheduler and Execution Controller for micro-tasks on distributed heterogeneous systems")
-set (CPACK_PACKAGE_HOMEPAGE_URL "https://www.exascaleproject.org/project/parsec-distributed-tasking-exascale")
+set (CPACK_PACKAGE_HOMEPAGE_URL "https://icl.utk.edu/dte/)
 set (CPACK_RESOURCE_FILE_README
      "${CMAKE_CURRENT_SOURCE_DIR}/README")
 set (CPACK_RESOURCE_FILE_LICENSE

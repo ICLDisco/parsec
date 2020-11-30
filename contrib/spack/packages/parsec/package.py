@@ -11,7 +11,7 @@ from spack import *
 class Parsec(CMakePackage):
     """PaRSEC: the Parallel Runtime Scheduler and Execution Controller for micro-tasks on distributed heterogeneous systems"""
 
-    homepage = "https://www.exascaleproject.org/project/parsec-distributed-tasking-exascale"
+    homepage = "https://icl.utk.edu/dte"
     url      = "https://bitbucket.org/icldistcomp/parsec/get/parsec-3.0.2012.tar.bz2"
     list_url = "https://bitbucket.org/icldistcomp/parsec/downloads/?tab=tags"
     git      = "https://bitbucket.org/icldistcomp/parsec.git"
