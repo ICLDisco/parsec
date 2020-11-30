@@ -437,12 +437,12 @@ char * dump_expr(void **elem, void *arg)
         break;
     }
     case JDF_EQUAL:
-        string_arena_add_string(sa, "(%s == %s)",
+        string_arena_add_string(sa, "(%s) == (%s)",
                                 dump_expr((void**)e->jdf_ba1, &li),
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
     case JDF_NOTEQUAL:
-        string_arena_add_string(sa, "(%s != %s)",
+        string_arena_add_string(sa, "(%s) != (%s)",
                                 dump_expr((void**)e->jdf_ba1, &li),
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
@@ -462,27 +462,27 @@ char * dump_expr(void **elem, void *arg)
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
     case JDF_LESS:
-        string_arena_add_string(sa, "(%s < %s)",
+        string_arena_add_string(sa, "(%s) < (%s)",
                                 dump_expr((void**)e->jdf_ba1, &li),
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
     case JDF_LEQ:
-        string_arena_add_string(sa, "(%s <= %s)",
+        string_arena_add_string(sa, "(%s) <= (%s)",
                                 dump_expr((void**)e->jdf_ba1, &li),
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
     case JDF_MORE:
-        string_arena_add_string(sa, "(%s > %s)",
+        string_arena_add_string(sa, "(%s) > (%s)",
                                 dump_expr((void**)e->jdf_ba1, &li),
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
     case JDF_MEQ:
-        string_arena_add_string(sa, "(%s >= %s)",
+        string_arena_add_string(sa, "(%s) >= (%s)",
                                 dump_expr((void**)e->jdf_ba1, &li),
                                 dump_expr((void**)e->jdf_ba2, &ri) );
         break;
     case JDF_NOT:
-        string_arena_add_string(sa, "!%s",
+        string_arena_add_string(sa, "!(%s)",
                                 dump_expr((void**)e->jdf_ua, &li));
         break;
     case JDF_PLUS:
@@ -532,7 +532,7 @@ char * dump_expr(void **elem, void *arg)
         ti.suffix = expr_info->suffix;
         ti.assignments = expr_info->assignments;
 
-        string_arena_add_string(sa, "(%s ? %s : %s)",
+        string_arena_add_string(sa, "((%s) ? (%s) : (%s))",
                                 dump_expr((void**)e->jdf_tat, &ti),
                                 dump_expr((void**)e->jdf_ta1, &li),
                                 dump_expr((void**)e->jdf_ta2, &ri) );
@@ -2807,7 +2807,7 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
         }
 
         if(write_next_label) {
-            coutput(" "JDF2C_NAMESPACE"_check_flow_%s:\n", flow->varname);
+            coutput(" %s_check_flow:\n", flow->varname);
             write_next_label = 0;
         }
         skip_continue = 0;
@@ -2884,7 +2884,7 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
 
             if( goto_if_false || goto_if_true ) {
                 char *nextname = (NULL == next_flow) ? JDF2C_NAMESPACE"done" : next_flow->varname;
-                coutput("  if( %s%s%s ) goto "JDF2C_NAMESPACE"_check_flow_%s;\n",
+                coutput("  if( %s%s%s ) goto %s_check_flow;\n",
                         goto_if_false ? "!(" : "",
                         dump_expr((void**)dep->guard->guard, &info),
                         goto_if_false ? ")" : "",
@@ -2911,7 +2911,7 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
         }
     }
     if(write_next_label) {
-        coutput(" "JDF2C_NAMESPACE"_check_flow_"JDF2C_NAMESPACE"done:\n");
+        coutput(" "JDF2C_NAMESPACE"done_check_flow:\n");
     }
 
     string_arena_free(sa);
@@ -3034,7 +3034,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
                     nesting++;
                     ctx_level++;
                 }
-            } 
+            }
             coutput("%s    this_task->locals.%s.value = %s = %s;\n",
                     indent(nesting), dl->name, dl->name, dump_expr((void**)dl->expr, &info1));
         } else {
