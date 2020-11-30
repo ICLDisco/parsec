@@ -563,11 +563,11 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
 
     builder.unordered_streams_by_node[node_id][stream_id] = stream
     while event_s != NULL and not skeleton_only:
-        event_type = dbp_event_get_key(event_s) / 2 # to match dictionary
+        event_type = int(dbp_event_get_key(event_s) / 2) # to match dictionary
         if not event_type in builder.event_names:
            error = {'node_id': node_id, 'stream_id': stream_id, 'taskpool_id': dbp_event_get_taskpool_id(event_s),
                     'type': 'NA', 'begin': begin, 'end': 'unknown', 'flags': dbp_event_get_flags(event_s),
-                    'id': dbp_event_get_event_id(event_s), 'error_msg': ' event type not in event names'}
+                    'id': dbp_event_get_event_id(event_s), 'error_msg': "event type {} not in event names".format(event_type)}
            builder.errors.append(error)
         else:
             event_name = builder.event_names[event_type]
