@@ -701,11 +701,11 @@ IF(CMAKE_CROSSCOMPILING)
   set_target_properties(parsec-ptgpp PROPERTIES IMPORTED_GLOBAL ON)
   get_target_property(PARSEC_PTGPP_EXECUTABLE parsec-ptgpp LOCATION)
   # Build it, now
-  get_filename_component(NATIVE_BINARY_DIR "${IMPORT_EXECUTABLES}" DIRECTORY BASE_DIR ${CMAKE_BINARY_DIR} CACHE)
+  get_filename_component(NATIVE_BINARY_DIR "${IMPORT_EXECUTABLES}" DIRECTORY BASE_DIR ${PROJECT_BINARY_DIR} CACHE)
   include(ExternalProject)
   ExternalProject_add(native
     PREFIX ${NATIVE_BINARY_DIR}/CMakeFiles
-    SOURCE_DIR ${CMAKE_SOURCE_DIR}
+    SOURCE_DIR ${PROJECT_SOURCE_DIR}
     BINARY_DIR ${NATIVE_BINARY_DIR}
     CONFIGURE_COMMAND "" # Do not reconfigure, this must have been done before to produce $IMPORT_EXECUTABLES
     # Do not do BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR>/parsec/interfaces/ptg
@@ -732,8 +732,8 @@ IF(CMAKE_CROSSCOMPILING)
     COMMAND "$(MAKE)" -C tools clean
   )
   add_dependencies(parsec-ptgpp native-build)
-  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target native-install)")
-  add_test(NAME native-test COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target native-test)
+  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR} --target native-install)")
+  add_test(NAME native-test COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR} --target native-test)
 else()
   set(PARSEC_PTGPP_EXECUTABLE parsec-ptgpp)
 ENDIF(CMAKE_CROSSCOMPILING)
