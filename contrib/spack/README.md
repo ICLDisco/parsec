@@ -10,7 +10,7 @@ To use the PaRSEC Spack integration, issue the following commands:
 
 ```shell
 spack repo add $PARSEC_SRCDIR/contrib/spack
-spack install parsec@devel
+spack install parsec@master
 spack load parsec
 ```
 
@@ -29,11 +29,12 @@ and support codes compiled with prior versions for similar majors (e.g., from
 
 ## Variants
 
-  Name [Default] |  Allowed values  | Description
----------------- | ---------------- | ----------------------------------------------
-  cuda [on]      |  True, False     | Use CUDA for GPU acceleration
-  debug [off]    |  True, False     | Debug version **incurs performance overhead!**
-  profile [off]  |  True, False     | Generate profiling data
+  Name [Default]         |  Allowed values                 | Description
+------------------------ | ------------------------------- | ----------------------------------------------
+  cuda [on]              |  True, False                    | Use CUDA for GPU acceleration
+  build_type             |  RelWithDebInfo, Debug, Release | Debug version **incurs performance overhead!**
+  debug_verbose [off]    |  True, False                    | Debug version **incurs performance overhead!**
+  profile [off]          |  True, False                    | Generate profiling data
 
 
 *****************************************************************************************
