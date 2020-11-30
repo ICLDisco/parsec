@@ -14,11 +14,6 @@ static inline int parsec_imin(int a, int b)
     return (a <= b) ? a : b;
 };
 
-static inline int parsec_imax(int a, int b)
-{
-    return (a >= b) ? a : b;
-};
-
 enum regions { SOURCE,
                TARGET };
 
