@@ -3,6 +3,6 @@
   Description: "PaRSEC: the Parallel Runtime Scheduler and Execution Controller for micro-tasks on distributed heterogeneous systems."
   area: PMR
   MemberProduct: False
-  website: https://www.exascaleproject.org/project/parsec-distributed-tasking-exascale
+  website: https://icl.utk.edu/dte
   docs: [{doc:README,type:readme},{doc:NEWS,type=changelog},{doc:License.txt,type=license}]
   subrepo_urls: ["https://bitbucket.org/icldistcomp/parsec.git"]
