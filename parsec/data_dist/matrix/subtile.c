@@ -21,7 +21,7 @@ subtile_desc_t *subtile_desc_create( const parsec_tiled_matrix_t *tdesc,
                                      int i,  int j,    /* Starting point in the tile */
                                      int m,  int n)    /* Submatrix size (the one concerned by the computation) */
 {
-    subtile_desc_t *sdesc = malloc( sizeof(subtile_desc_t) );
+    subtile_desc_t *sdesc = (subtile_desc_t*)malloc( sizeof(subtile_desc_t) );
     parsec_data_collection_t *o = &(sdesc->super.super);
     (void)mt; (void)nt;
 
