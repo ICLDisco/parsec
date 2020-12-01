@@ -207,6 +207,26 @@ int parsec_version_ex( size_t len, char* version_string);
  *
  * @details
  * Reset the comm engine associated with the PaRSEC context, and use
+ * the communication context opaque_comm_ctx provided by a ScaLAPACK application,
+ * which will result on a duplicate in all invokations.
+ * The context can only be changed while the PaRSEC runtime
+ * is down, more specifically while the communication thread is not active.
+ *
+ * parsec_context_wait becomes collective across nodes spanning
+ * on this communication context.
+ *
+ * @param[inout] context the PaRSEC context
+ * @param[in] opaque_comm_ctx the new communicator object to use
+ * @return PARSEC_SUCCESS on success
+ */
+int parsec_remote_dep_set_blacs_ctx(parsec_context_t* context, intptr_t opaque_comm_ctx);
+
+/**
+ * @brief Change the communicator to use with the context. This function is
+ * collective across all processes in this context.
+ *
+ * @details
+ * Reset the comm engine associated with the PaRSEC context, and use
  * the communication context opaque_comm_ctx in the future (typically an MPI
  * communicator). The context can only be changed while the PaRSEC runtime
  * is down, more specifically while the communication thread is not active.
@@ -467,6 +487,17 @@ int parsec_taskpool_register(parsec_taskpool_t* tp);
  * @return PARSEC_SUCCESS on success, an error otherwise
  */
 void parsec_taskpool_unregister(parsec_taskpool_t* tp);
+
+/**
+ * @brief Globally synchronize taskpool IDs.
+ *
+ * @details
+ *  Globally synchronize taskpool IDs so that next register generates the same
+ *  id at all ranks on a given communicator. This is a collective over the communication object
+ *  associated with PaRSEC, and can be used to resolve discrepancies introduced by
+ *  taskpools not registered over all ranks.
+*/
+void parsec_taskpool_sync_ids_context( void* comm );
 
 /**
  * @brief Globally synchronize taskpool IDs.

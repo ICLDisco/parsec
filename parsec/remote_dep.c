@@ -313,6 +313,11 @@ int parsec_remote_dep_off(parsec_context_t* context)
     return remote_dep_off(context);
 }
 
+int parsec_remote_dep_set_blacs_ctx(parsec_context_t* context, intptr_t opaque_comm_ctx)
+{
+    return remote_dep_set_blacs_ctx( context, opaque_comm_ctx);
+}
+
 int parsec_remote_dep_set_ctx( parsec_context_t* context, intptr_t opaque_comm_ctx )
 {
     return remote_dep_set_ctx( context, opaque_comm_ctx );

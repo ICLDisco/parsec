@@ -263,6 +263,50 @@ static parsec_execution_stream_t parsec_comm_es = {
 };
 
 /**
+ * Store the ScaLAPACK provided communicator in the PaRSEC context. We need to make a
+ * copy to make sure the communicator does not dissapear before the communication
+ * engine starts up.
+ */
+static int remote_dep_set_blacs_ctx(parsec_context_t* context, intptr_t opaque_comm_ctx)
+{
+    MPI_Comm comm;
+    int rc;
+
+    /* We can only change the communicator if the communication engine is not active */
+    if( 1 < parsec_communication_engine_up ) {
+        parsec_warning("Cannot change PaRSEC's MPI communicator while the engine is running [ignored]");
+        return PARSEC_ERROR;
+    }
+
+    if( -1 != context->comm_ctx ) {
+        MPI_Comm_free((MPI_Comm*)&context->comm_ctx);
+    }
+    rc = MPI_Comm_dup((MPI_Comm)opaque_comm_ctx, &comm);
+    context->comm_ctx = (intptr_t)comm;
+    
+    parsec_taskpool_sync_ids_context((MPI_Comm)context->comm_ctx);
+
+    /* We need to update size, otherwise using the old comm size and size 1
+     * can lead to a different execution path regarding setup.  */
+    MPI_Comm_size( (MPI_Comm)context->comm_ctx, (int*)&(context->nb_nodes));
+    if(context->nb_nodes == 1){
+        /* ensure all MPI is setup as it won't be done later */
+        remote_dep_mpi_on(context);
+    }
+
+    /* Next lines would be necessary in case of using now a context larger than
+     * the one originally used for parsec_init.
+     */
+    /*remote_deps_allocation_init(context->nb_nodes, MAX_PARAM_COUNT);*/
+    /*context->remote_dep_fw_mask_sizeof = ((context->nb_nodes + 31) / 32) * sizeof(uint32_t);*/
+
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "Register context: setting new parsec_context sz %d", context->nb_nodes);
+
+    return (MPI_SUCCESS == rc) ? PARSEC_SUCCESS : PARSEC_ERROR;
+}
+
+
+/**
  * Store the user provided communicator in the PaRSEC context. We need to make a
  * copy to make sure the communicator does not dissapear before the communication
  * engine starts up.
@@ -289,6 +333,7 @@ static int remote_dep_set_ctx(parsec_context_t* context, intptr_t opaque_comm_ct
     }
     rc = MPI_Comm_dup((MPI_Comm)opaque_comm_ctx, &comm);
     context->comm_ctx = (intptr_t)comm;
+    parsec_taskpool_sync_ids_context(*(MPI_Comm*)&context->comm_ctx);
     return (MPI_SUCCESS == rc) ? PARSEC_SUCCESS : PARSEC_ERROR;
 }
 
@@ -1488,7 +1533,16 @@ static int remote_dep_mpi_init_once(parsec_context_t* context)
  */
 static int remote_dep_mpi_fini(parsec_context_t* context)
 {
-    assert( -1 != MAX_MPI_TAG );
+    if( -1 == MAX_MPI_TAG ) {
+        /* Current process hasn't participated in any taskpools */
+        /* Release the context communicators if any */
+        if( -1 != context->comm_ctx) {
+            MPI_Comm_free((MPI_Comm*)&context->comm_ctx);
+            context->comm_ctx = -1; /* We use -1 for the opaque comm_ctx, rather than the MPI specific MPI_COMM_NULL */
+        }
+        return 0;
+    }
+
     remote_dep_mpi_cleanup(context);
 
     /* Remove the static handles */
