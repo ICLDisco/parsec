@@ -96,7 +96,7 @@ static int32_t subtile_vpid_of_key(parsec_data_collection_t *desc, parsec_data_k
 static parsec_data_t* subtile_data_of(parsec_data_collection_t *desc, ...)
 {
     int m, n, position;
-    size_t pos;
+    size_t pos = 0;
     va_list ap;
     subtile_desc_t * sdesc;
     sdesc = (subtile_desc_t *)desc;
@@ -113,9 +113,12 @@ static parsec_data_t* subtile_data_of(parsec_data_collection_t *desc, ...)
 
     position = sdesc->super.lmt * n + m;
 
-    pos = (n * sdesc->super.nb) * sdesc->super.lm
-        +  m * sdesc->super.mb;
-    pos *= parsec_datadist_getsizeoftype(sdesc->super.mtype);
+    /* If mat allocatd, set pos to the right position for each tile */
+    if( NULL != sdesc->mat ) {
+        pos = (n * sdesc->super.nb) * sdesc->super.lm
+            +  m * sdesc->super.mb;
+        pos *= parsec_datadist_getsizeoftype(sdesc->super.mtype);
+    }
 
     return parsec_matrix_create_data( &sdesc->super,
                                      (char*)sdesc->mat + pos,
