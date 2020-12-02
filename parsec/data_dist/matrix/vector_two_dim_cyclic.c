@@ -232,7 +232,7 @@ static int32_t vector_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
 static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 {
     int m;
-    size_t pos;
+    size_t pos = 0;
     int local_m;
     va_list ap;
     vector_two_dim_cyclic_t * dc;
@@ -254,9 +254,13 @@ static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
     assert( dc->super.bsiz == dc->super.mb );
 
     local_m = m / dc->lcm;
-    pos = local_m * dc->super.mb;
 
-    pos *= parsec_datadist_getsizeoftype(dc->super.mtype);
+    /* If mat allocatd, set pos to the right position for each tile */
+    if( NULL != dc->mat ) {
+        pos = local_m * dc->super.mb;
+        pos *= parsec_datadist_getsizeoftype(dc->super.mtype);
+    }
+
     return parsec_matrix_create_data(&dc->super,
                                     (char*)dc->mat + pos,
                                     local_m, m);

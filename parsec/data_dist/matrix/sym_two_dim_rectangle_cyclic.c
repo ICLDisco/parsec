@@ -122,9 +122,9 @@ static uint32_t sym_twoDBC_rank_of_key(parsec_data_collection_t *desc, parsec_da
 
 static parsec_data_t* sym_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 {
-    int m, n;
+    int m, n, position;
     sym_two_dim_block_cyclic_t * dc;
-    size_t pos;
+    size_t pos = 0;
     va_list ap;
 
     dc = (sym_two_dim_block_cyclic_t *)desc;
@@ -149,11 +149,15 @@ static parsec_data_t* sym_twoDBC_data_of(parsec_data_collection_t *desc, ...)
     assert( (dc->uplo == matrix_Lower && m>=n) ||
             (dc->uplo == matrix_Upper && n>=m) );
 
-    pos = sym_twoDBC_coordinates_to_position(dc, m, n);
+    position = sym_twoDBC_coordinates_to_position(dc, m, n);
+
+    /* If mat allocatd, set pos to the right position for each tile */
+    if( NULL != dc->mat )
+        pos = position;
 
     return parsec_matrix_create_data( &dc->super,
                                      (char*)dc->mat + pos * dc->super.bsiz * parsec_datadist_getsizeoftype(dc->super.mtype),
-                                     pos, (n * dc->super.lmt) + m );
+                                     position, (n * dc->super.lmt) + m );
 }
 
 static parsec_data_t* sym_twoDBC_data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
