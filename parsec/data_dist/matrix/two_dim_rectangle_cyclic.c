@@ -328,7 +328,7 @@ static inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *dc, in
 static parsec_data_t* twoDBC_data_of(parsec_data_collection_t *desc, ...)
 {
     int m, n, position;
-    size_t pos;
+    size_t pos = 0;
     va_list ap;
     two_dim_block_cyclic_t * dc;
     dc = (two_dim_block_cyclic_t *)desc;
@@ -353,14 +353,17 @@ static parsec_data_t* twoDBC_data_of(parsec_data_collection_t *desc, ...)
 
     position = twoDBC_coordinates_to_position(dc, m, n);
 
-    if( dc->super.storage == matrix_Tile ) {
-        pos = position;
-        pos *= (size_t)dc->super.bsiz;
-    } else {
-        int local_m = m / dc->grid.rows;
-        int local_n = n / dc->grid.cols;
-        pos = (local_n * dc->super.nb) * dc->super.llm
-            +  local_m * dc->super.mb;
+    /* If mat allocatd, set pos to the right position for each tile */
+    if( NULL != dc->mat ) {
+        if( dc->super.storage == matrix_Tile ) {
+            pos = position;
+            pos *= (size_t)dc->super.bsiz;
+        } else {
+            int local_m = m / dc->grid.rows;
+            int local_n = n / dc->grid.cols;
+            pos = (local_n * dc->super.nb) * dc->super.llm
+                +  local_m * dc->super.mb;
+        }
     }
 
     return parsec_matrix_create_data( &dc->super,
@@ -589,7 +592,7 @@ static int32_t twoDBC_kcyclic_vpid_of_key(parsec_data_collection_t *desc, parsec
 
 static parsec_data_t* twoDBC_kcyclic_data_of(parsec_data_collection_t *desc, ...)
 {
-    size_t pos;
+    size_t pos = 0;
     int m, n, local_m, local_n, position;
     va_list ap;
     two_dim_block_cyclic_t * dc;
@@ -623,12 +626,16 @@ static parsec_data_t* twoDBC_kcyclic_data_of(parsec_data_collection_t *desc, ...
     local_n += n % dc->grid.kcols;
 
     position = dc->nb_elem_r * local_n + local_m;;
-    if( dc->super.storage == matrix_Tile ) {
-        pos = position;
-        pos *= (size_t)dc->super.bsiz;
-    } else {
-        pos = (local_n * dc->super.nb) * dc->super.llm
-            +  local_m * dc->super.mb;
+
+    /* If mat allocatd, set pos to the right position for each tile */ 
+    if( NULL != dc->mat ) {    
+        if( dc->super.storage == matrix_Tile ) {
+            pos = position;
+            pos *= (size_t)dc->super.bsiz;
+        } else {
+            pos = (local_n * dc->super.nb) * dc->super.llm
+                +  local_m * dc->super.mb;
+        }
     }
 
     return parsec_matrix_create_data( &dc->super,
