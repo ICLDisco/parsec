@@ -280,11 +280,13 @@ struct jdf_dep {
     jdf_dep_t               *next;
     struct jdf_expr         *local_defs;         /**< named ranges can specify sets of deps from this single dep */
     struct jdf_guarded_call *guard;               /**< there can be conditions and ternaries to produce the calls */
-    jdf_datatransfer_type_t  datatype;            /**< we extract a specific property for the datatype if there is one */
+    jdf_datatransfer_type_t  datatype_local;      /**< type reshaping */
+    jdf_datatransfer_type_t  datatype_remote;     /**< type for packing & sending to a remote */
+    jdf_datatransfer_type_t  datatype_data;       /**< type applied to the data collection when reading or writing */
     jdf_dep_flags_t          dep_flags;           /**< flags (see JDF_DEP_* above) */
     uint8_t                  dep_index;           /**< the index of the dependency in the context of the function */
     uint8_t                  dep_datatype_index;  /**< the smallest index of all dependencies
-                                                   *   sharing a common datatype. */
+                                                   *   sharing a common remote datatype. */
 };
 
 typedef enum { JDF_GUARD_UNCONDITIONAL,
@@ -314,7 +316,7 @@ typedef struct jdf_call {
 /**
  * Return true if the flow is set only to define the global datatype of WRITE-only flow
  * If it is the case the guard is unconditional with only the NEW keyword and
- * optionnally some properties as follow:
+ * optionally some properties as follow:
  *   WRITE X <- NEW  [type = DEFAULT]
  */
 #define JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(DEP)                           \
@@ -486,5 +488,37 @@ int jdf_function_property_is_keyword(const char *name);
  * compute the number of local definitions required
  */
 int jdf_assign_ldef_index(jdf_function_entry_t *f);
+
+/* Function to check the datatype specified on the dependency.
+ * Returns:
+ * - DEP_UNDEFINED_DATATYPE if no datatype has been set up by the user.
+ * - DEP_CUSTOM_DATATYPE otherwise. */
+#define DEP_UNDEFINED_DATATYPE 0
+#define DEP_CUSTOM_DATATYPE 1
+int jdf_dep_undefined_type(jdf_datatransfer_type_t datatype );
+
+/* Define datatypes that JDF_C_CODE functions can return. */
+static char *full_type[]  = { "int32_t", "int64_t", "float", "double", "parsec_arena_datatype_t*" };
+static char *short_type[] = {   "int32",   "int64", "float", "double", "parsec_arena_datatype_t*" };
+
+#define PARSEC_RETURN_TYPE_INT32                0
+#define PARSEC_RETURN_TYPE_INT64                1
+#define PARSEC_RETURN_TYPE_FLOAT                2
+#define PARSEC_RETURN_TYPE_DOUBLE               3
+#define PARSEC_RETURN_TYPE_ARENA_DATATYPE_T     4
+
+static inline char* enum_type_name(int type)
+{
+    switch(type) {
+    case PARSEC_RETURN_TYPE_INT64: return "PARSEC_RETURN_TYPE_INT64"; break;
+    case PARSEC_RETURN_TYPE_FLOAT: return "PARSEC_RETURN_TYPE_FLOAT"; break;
+    case PARSEC_RETURN_TYPE_DOUBLE: return "PARSEC_RETURN_TYPE_DOUBLE"; break;
+    case PARSEC_RETURN_TYPE_ARENA_DATATYPE_T: return "PARSEC_RETURN_TYPE_ARENA_DATATYPE_T"; break;
+    default:
+        return "PARSEC_RETURN_TYPE_INT32";
+        break;
+    }
+}
+
 
 #endif

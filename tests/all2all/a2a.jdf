@@ -40,12 +40,12 @@ t = 0 .. NT-1
 
 : descB(t, 0)
 
-READ B <- (r == 0) ? descB(t, 0) : B READER_B(r-1, t) [count = %{ return 1; %}
-                                                       displ = %{ return 0; %}]
-       -> A RECV(r, 0 .. NT-1, t)                     [count = 1
-                                                       displ = 0]
-       -> A FANIN(r, t)                               [count = %{ return always_one(); %}
-                                                       displ = %{ return always_zero(); %}]
+READ B <- (r == 0) ? descB(t, 0) : B READER_B(r-1, t) [count_remote = %{ return 1; %}
+                                                       displ_remote = %{ return 0; %}]
+       -> A RECV(r, 0 .. NT-1, t)                     [count_remote = 1
+                                                       displ_remote = 0]
+       -> A FANIN(r, t)                               [count_remote = %{ return always_one(); %}
+                                                       displ_remote = %{ return always_zero(); %}]
        -> (r != NR-1) ? B READER_B(r+1, t)
 BODY
 END
@@ -127,9 +127,11 @@ parsec_taskpool_t *a2a_new(parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t
 
     tp = parsec_a2a_new(A, B, repeat, worldsize);
 
-    parsec_matrix_add2arena_rect( &tp->arenas_datatypes[PARSEC_a2a_DEFAULT_ARENA],
+    parsec_matrix_add2arena_rect( &tp->arenas_datatypes[PARSEC_a2a_DEFAULT_ADT_IDX],
                                   parsec_datatype_int32_t,
                                   size, 1, size);
+
+
 
     return (parsec_taskpool_t*)tp;
 }

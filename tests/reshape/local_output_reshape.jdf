@@ -1,0 +1,73 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ */
+#include "parsec/data_dist/matrix/matrix.h"
+
+    /************************
+     * Local reshape on output
+     * When using [type] on an output dependency, a new datacopy with the correct
+     * shape is created and passed to successors.
+     * Thus, only the lower part of original tiles is set to 0.
+     ************************/
+
+
+%}
+
+descA  [type = "parsec_tiled_matrix_dc_t*"]
+
+/**************************************************
+ *                       READ_A                   *
+ **************************************************/
+READ_A(m, k)  [profile = off]
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+
+: descA(m, k)
+
+RW A <- descA(m, k)
+     -> A SET_ZEROS(m, k) [type = LOWER_TILE]
+
+BODY
+{
+}
+END
+
+/**************************************************
+ *                     SET_ZEROS                  *
+ **************************************************/
+SET_ZEROS(m, k)  [profile = off]
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+
+: descA(m, k)
+
+RW A <- A READ_A(m, k)
+     -> A WRITE_A(m, k)
+
+BODY
+{
+    memset( A, 0, sizeof(int)*descA->mb*descA->nb);
+}
+END
+
+/**************************************************
+ *                       WRITE_A                  *
+ **************************************************/
+WRITE_A(m, k)  [profile = off]
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+
+: descA(m, k)
+
+RW A <- A SET_ZEROS(m, k)
+     -> descA(m, k)       [type = LOWER_TILE type_data = LOWER_TILE]
+BODY
+{
+}
+END

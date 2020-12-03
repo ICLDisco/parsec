@@ -20,6 +20,12 @@
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/parsec_binary_profile.h"
 
+#include "parsec/parsec_internal.h"
+
+#if defined(PARSEC_DEBUG)
+static int64_t count_reshaping = 0;
+#endif
+
 #define PARSEC_REMOTE_DEP_USE_THREADS
 
 #define PARSEC_DTD_SKIP_SAVING -1
@@ -45,6 +51,8 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
 static int remote_dep_nothread_send(parsec_execution_stream_t* es,
                                     dep_cmd_item_t **head_item);
 static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
+                                      dep_cmd_item_t *item);
+static int local_dep_nothread_reshape(parsec_execution_stream_t* es,
                                       dep_cmd_item_t *item);
 
 static int remote_dep_dequeue_send(parsec_execution_stream_t* es, int rank, parsec_remote_deps_t* deps);
@@ -129,6 +137,7 @@ typedef enum dep_cmd_action_t {
     DEP_ACTIVATE      = -1,
     DEP_NEW_TASKPOOL  =  0,
     DEP_MEMCPY,
+    DEP_MEMCPY_RESHAPE,
     DEP_RELEASE,
     DEP_DTD_DELAYED_RELEASE,
 /*    DEP_PROGRESS, */
@@ -144,7 +153,7 @@ union dep_cmd_u {
         int                   peer;
     } activate;
     struct {
-        parsec_remote_deps_t  *deps;
+        parsec_remote_deps_t *deps;
     } release;
     struct {
         int enable;
@@ -156,19 +165,25 @@ union dep_cmd_u {
         parsec_taskpool_t    *taskpool;
         parsec_data_copy_t   *source;
         parsec_data_copy_t   *destination;
-        parsec_datatype_t     datatype;
-        int64_t               displ_s;
-        int64_t               displ_r;
-        int                   count;
+        parsec_dep_type_description_t layout;
     } memcpy;
+    struct {
+        parsec_taskpool_t    *taskpool;
+        parsec_data_copy_t   *source;
+        parsec_data_copy_t   *destination;
+        parsec_dep_type_description_t layout;
+        parsec_task_t        *task;
+        parsec_datacopy_future_t *future;
+        parsec_reshape_promise_description_t *dt;
+    } memcpy_reshape;
 };
 
 struct dep_cmd_item_s {
     parsec_list_item_t super;
     parsec_list_item_t pos_list;
-    dep_cmd_action_t  action;
-    int               priority;
-    dep_cmd_t         cmd;
+    dep_cmd_action_t   action;
+    int                priority;
+    dep_cmd_t          cmd;
 };
 #define dep_cmd_prio (offsetof(dep_cmd_item_t, priority))
 #define dep_mpi_pos_list (offsetof(dep_cmd_item_t, priority) - offsetof(dep_cmd_item_t, pos_list))
@@ -438,6 +453,10 @@ static int remote_dep_dequeue_fini(parsec_context_t* context)
     PARSEC_OBJ_DESTRUCT(&dep_cmd_fifo);
     mpi_initialized = 0;
 
+#if defined(PARSEC_DEBUG)
+    PARSEC_DEBUG_VERBOSE(0, parsec_debug_output, "Process has reshaped %zu tiles.", count_reshaping);
+#endif
+
     return 0;
 }
 
@@ -497,6 +516,7 @@ static int remote_dep_dequeue_off(parsec_context_t* context)
     pthread_mutex_lock(&mpi_thread_mutex);
     assert( 1 == parsec_communication_engine_up );
     (void)context;  /* silence warning */
+
     return 0;
 }
 
@@ -604,34 +624,31 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
     /* if MPI is multithreaded do not thread-shift the sendrecv */
     if( es->virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
-                             "COPY [in content] LOCAL DATA from %p to %p count %d",
-                             (char*)PARSEC_DATA_COPY_GET_PTR(src) + data->displ,
-                             (char*)PARSEC_DATA_COPY_GET_PTR(dst) + 0,
-                             data->count);
-        MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(src) + data->displ,
-                     data->count, data->layout, 0, es->th_id,
-                     (char*)PARSEC_DATA_COPY_GET_PTR(dst) + 0,
-                     data->count, data->layout, 0, es->th_id,
+                             "COPY [in content] LOCAL DATA from %p[%p] to %p[%p] count %d",
+                             (char*)PARSEC_DATA_COPY_GET_PTR(src) + data->local.src_displ, data->local.src_datatype,
+                             (char*)PARSEC_DATA_COPY_GET_PTR(dst) + data->local.dst_displ, data->local.dst_datatype,
+                             data->local.dst_count);
+        MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(src) + data->local.src_displ,
+                     data->local.src_count, data->local.src_datatype, 0, es->th_id,
+                     (char*)PARSEC_DATA_COPY_GET_PTR(dst) + data->local.dst_displ,
+                     data->local.dst_count, data->local.dst_datatype, 0, es->th_id,
                      dep_self, MPI_STATUS_IGNORE);
         return;
     }
 
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
                          "create MEMCPY request from %p to %p count %d",
-                         (char*)PARSEC_DATA_COPY_GET_PTR(src) + data->displ,
-                         (char*)PARSEC_DATA_COPY_GET_PTR(dst) + 0,
-                         data->count);
+                         (char*)PARSEC_DATA_COPY_GET_PTR(src) + data->local.src_displ,
+                         (char*)PARSEC_DATA_COPY_GET_PTR(dst) + data->local.dst_displ,
+                         data->local.dst_count);
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
     PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action = DEP_MEMCPY;
     item->priority = 0;
     item->cmd.memcpy.taskpool = tp;
-    item->cmd.memcpy.source       = src;
-    item->cmd.memcpy.destination  = dst;
-    item->cmd.memcpy.datatype     = data->layout;
-    item->cmd.memcpy.displ_s      = data->displ;
-    item->cmd.memcpy.displ_r      = 0;
-    item->cmd.memcpy.count        = data->count;
+    item->cmd.memcpy.source      = src;
+    item->cmd.memcpy.destination = dst;
+    item->cmd.memcpy.layout      = data->local;
 
     PARSEC_OBJ_RETAIN(src);
     remote_dep_inc_flying_messages(tp);
@@ -640,19 +657,115 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
 }
 
 static inline parsec_data_copy_t*
-remote_dep_copy_allocate(parsec_dep_data_description_t* data)
+remote_dep_copy_allocate(parsec_dep_type_description_t* data)
 {
     parsec_data_copy_t* dc;
     if( NULL == data->arena ) {
-        assert(0 == data->count);
+        assert(0 == data->dst_count);
         return NULL;
     }
-    dc = parsec_arena_get_copy(data->arena, data->count, 0);
+    dc = parsec_arena_get_copy(data->arena, data->dst_count, 0, data->dst_datatype);
+
     dc->coherency_state = PARSEC_DATA_COHERENCY_EXCLUSIVE;
-    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "",
-            dc, data->arena->elem_size, data->count, data->displ);
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 " %p",
+            dc, data->arena->elem_size, data->dst_count, data->dst_displ, data->arena);
     return dc;
 }
+
+/**
+ *
+ * Allocate a new datacopy for a reshape.
+ *
+ * @param[in] data parsec_dep_type_description_t.
+ * @return new datatcopy.
+ */
+static inline parsec_data_copy_t*
+reshape_copy_allocate(parsec_dep_type_description_t* data)
+{
+    parsec_data_copy_t* dc;
+    dc = remote_dep_copy_allocate(data);
+
+    parsec_data_start_transfer_ownership_to_copy(dc->original,
+                                                 0,
+                                                 PARSEC_FLOW_ACCESS_RW);
+    return dc;
+}
+
+/**
+ *
+ * Routine to fulfilled a reshape promise by the current thread
+ * (when MPI_THREAD_MULTIPLE) or delegate the reshaping to the communication
+ * thread.
+ * Routine set as callback when initializing a future.
+ *
+ * @param[inout] future future for the reshaping, may be fulfilled by this call or
+ * later on by the communication thread.
+ * @param[in] in_data input arguments for the reshaping.
+ * @param[in] es parsec_execution_stream_t.
+ * @param[in] tp parsec_taskpool_t.
+ * @param[in] task parsec_task_t.
+ */
+void parsec_local_reshape(parsec_base_future_t *future,
+                          void **in_data,
+                          parsec_execution_stream_t *es,
+                          parsec_task_t *task){
+
+    parsec_reshape_promise_description_t *dt = (parsec_reshape_promise_description_t*)*in_data;
+    parsec_taskpool_t* tp = (task != NULL) ? task->taskpool: NULL;
+
+#if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
+    char task_string[MAX_TASK_STRLEN]="INLINE REMOTE";
+    if(task != NULL)
+        (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, task);
+#endif
+
+    /* if MPI is multithreaded do not thread-shift the sendrecv */
+    if( (es->virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT)
+            || (tp == NULL && task == NULL)/* || I AM COMM THREAD */)
+    {
+        parsec_data_copy_t *reshape_data = reshape_copy_allocate(dt->local);
+
+        MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(dt->data) + dt->local->src_displ, dt->local->src_count, dt->local->src_datatype,
+                     0, es->th_id,
+                     (char*)PARSEC_DATA_COPY_GET_PTR(reshape_data)  + dt->local->dst_displ, dt->local->dst_count, dt->local->dst_datatype,
+                     0, es->th_id,
+                     dep_self, MPI_STATUS_IGNORE);
+
+        PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
+                             "th%d \033[01;33mRESHAPE_PROMISE\033[0m COMPLETED COMP-THREAD to [%p:%p -> %p:%p] for %s fut %p",
+                             es->th_id, dt->data, dt->data->dtt,
+                             reshape_data, dt->local->dst_datatype, task_string, future);
+
+        parsec_future_set(future, reshape_data);
+
+#if defined(PARSEC_DEBUG)
+        parsec_atomic_fetch_add_int64(&count_reshaping,1);
+#endif
+        return;
+    }
+
+    PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
+                         "th%d \033[01;33mRESHAPE_PROMISE\033[0m TRIGGERED to [%p:%p -> ...:%p] for %s fut %p",
+                         es->th_id, dt->data, dt->data->dtt,
+                         dt->local->dst_datatype, task_string, future);
+
+    dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
+    PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
+    item->action = DEP_MEMCPY_RESHAPE;
+    item->priority = 0;
+    item->cmd.memcpy.taskpool    = tp;
+    item->cmd.memcpy.source      = dt->data;
+    item->cmd.memcpy.destination = NULL;
+    item->cmd.memcpy.layout      = *(dt->local);
+
+    item->cmd.memcpy_reshape.future = (parsec_datacopy_future_t *)future;
+    item->cmd.memcpy_reshape.dt = dt;
+    item->cmd.memcpy_reshape.task = task;
+
+    remote_dep_inc_flying_messages(tp);
+    parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
+}
+
 #define is_inplace(ctx,dep) NULL
 #define is_read_only(ctx,dep) NULL
 
@@ -669,9 +782,11 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
                                  const parsec_dep_t* dep,
                                  parsec_dep_data_description_t* out_data,
                                  int src_rank, int dst_rank, int dst_vpid,
+                                 data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                                  void *param)
 {
     (void)eu; (void)oldcontext; (void)dst_vpid; (void)newcontext; (void)out_data;
+    (void)successor_repo; (void) successor_repo_key;
     if( dst_rank != eu->virtual_process->parsec_context->my_rank )
         return PARSEC_ITERATE_CONTINUE;
 
@@ -679,13 +794,29 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
     struct remote_dep_output_param_s* output = &deps->output[dep->dep_datatype_index];
     const parsec_task_class_t* fct           = newcontext->task_class;
     uint32_t flow_mask                       = (1U << dep->flow->flow_index) | 0x80000000;  /* in flow */
+
+    parsec_datatype_t old_dtt = output->data.remote.dst_datatype;
+
     /* Extract the datatype, count and displacement from the target task */
-    if( PARSEC_HOOK_RETURN_DONE == fct->get_datatype(eu, newcontext, &flow_mask, &output->data) ) {
-        /* something is wrong, we are unable to extract the expected datatype
-         from the receiver task. At this point it is difficult to stop the
-         algorithm, so let's assume the send datatype is to be used instead.*/
-        output->data = *out_data;
-    }
+
+    fct->get_datatype(eu, newcontext, &flow_mask, &output->data);
+    /* Checking PARSEC_HOOK_RETURN_DONE == fct->get_datatype and setting
+     * output->data to *out_data is no longer valid.
+     * Now, send operation can rely on the datacopy dtt,
+     * thus, the send data (which would be contained on out_data)
+     * can not be retrieved during iterate successors.
+     * In PARSEC_HOOK_RETURN_DONE != fct->get_datatype,
+     * most probably this is a CTL flow, and when returning PARSEC_HOOK_RETURN_DONE
+     * output->data is set to the appropriate parameters (CTL info).
+     * Otherwise, we should assert but can't distinguish if it was CTL or error.
+     */
+//    if( PARSEC_HOOK_RETURN_DONE == fct->get_datatype(eu, newcontext, &flow_mask, &output->data) ) {
+//        /* something is wrong, we are unable to extract the expected datatype
+//         from the receiver task. At this point it is difficult to stop the
+//         algorithm, so let's assume the send datatype is to be used instead.*/
+//         output->data = *out_data;
+//    }
+
 
     parsec_data_t* data_arena = is_read_only(oldcontext, dep);
     if(NULL == data_arena) {
@@ -699,7 +830,42 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
     if( deps->max_priority < newcontext->priority ) deps->max_priority = newcontext->priority;
     deps->incoming_mask |= (1U << dep->dep_datatype_index);
     deps->root           = src_rank;
-    return PARSEC_ITERATE_STOP;
+
+    if(output->data.remote.dst_count == 0){
+        /* control dep */
+        return PARSEC_ITERATE_STOP;
+    }
+    if(old_dtt != NULL){
+        if(old_dtt != output->data.remote.dst_datatype){
+#if defined(PARSEC_DEBUG_NOISIER)
+        char type_name_src[MAX_TASK_STRLEN] = "NULL";
+        char type_name_dst[MAX_TASK_STRLEN] = "NULL";
+        int len;
+        if(old_dtt!=PARSEC_DATATYPE_NULL) MPI_Type_get_name(old_dtt, type_name_src, &len);
+        if(output->data.remote.dst_datatype!=PARSEC_DATATYPE_NULL) MPI_Type_get_name(output->data.remote.dst_datatype, type_name_dst, &len);
+        PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "MPI: retrieve dtt for %s [dep_datatype_index %x] DTT: old %s new %s (%p) --> PACKED",
+                newcontext->task_class->name, dep->dep_datatype_index, type_name_src, type_name_dst, output->data.remote.dst_datatype);
+#endif
+            int dsize;
+            MPI_Pack_size(output->data.remote.dst_count, output->data.remote.dst_datatype, dep_comm, &dsize);
+            output->data.remote.src_count = output->data.remote.dst_count = dsize;
+            output->data.remote.src_datatype = output->data.remote.dst_datatype = PARSEC_DATATYPE_PACKED;
+
+            return PARSEC_ITERATE_STOP;
+        }
+    }
+#if defined(PARSEC_DEBUG_NOISIER)
+    {
+        char type_name_src[MAX_TASK_STRLEN] = "NULL";
+        char type_name_dst[MAX_TASK_STRLEN] = "NULL";
+        int len;
+        if((old_dtt != NULL)&&(old_dtt!=PARSEC_DATATYPE_NULL)) MPI_Type_get_name(old_dtt, type_name_src, &len);
+        if(output->data.remote.dst_datatype!=PARSEC_DATATYPE_NULL) MPI_Type_get_name(output->data.remote.dst_datatype, type_name_dst, &len);
+        PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "MPI: retrieve dtt for %s [dep_datatype_index %x] DTT: old %s new %s (%p)--> CONTINUE",
+                newcontext->task_class->name, dep->dep_datatype_index, type_name_src, type_name_dst, output->data.remote.dst_datatype);
+    }
+#endif
+    return PARSEC_ITERATE_CONTINUE;
 }
 
 /**
@@ -779,11 +945,17 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             if(return_defer) {
                 return -2;
             }
+            task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
+
+            for(i = 0; i < task.task_class->nb_flows;
+                task.data[i].data_in = task.data[i].data_out = NULL, task.data[i].source_repo_entry = NULL, task.data[i].source_repo = NULL, i++);
 
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
             task.locals[k] = origin->msg.locals[k];
             task.task_class = dtd_task->super.task_class;
             origin->msg.task_class_id = dtd_task->super.task_class->task_class_id;
+
+            origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = NULL;
             task.task_class->iterate_successors(es, (parsec_task_t *)dtd_task,
                                                local_mask,
                                                remote_dep_mpi_retrieve_datatype,
@@ -792,6 +964,9 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
     } else {
         task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
 
+        for(i = 0; i < task.task_class->nb_flows;
+            task.data[i].data_in = task.data[i].data_out = NULL, task.data[i].source_repo_entry = NULL, task.data[i].source_repo = NULL, i++);
+        
         for(i = 0; i < task.task_class->nb_locals; i++)
             task.locals[i] = origin->msg.locals[i];
 
@@ -810,6 +985,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                 if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
             }
 
+            origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = NULL;
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
             task.task_class->iterate_successors(es, &task,
                                                 local_mask,
@@ -854,7 +1030,8 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     for(i = 0; i < task.task_class->nb_locals;
         task.locals[i] = origin->msg.locals[i], i++);
     for(i = 0; i < task.task_class->nb_flows;
-        task.data[i].data_in = task.data[i].data_out = NULL, task.data[i].data_repo = NULL, i++);
+        task.data[i].data_in = task.data[i].data_out = NULL, task.data[i].source_repo_entry = NULL, task.data[i].source_repo = NULL, i++);
+    task.repo_entry = NULL;
 
     for(i = 0; complete_mask>>i; i++) {
         assert(i < MAX_PARAM_COUNT);
@@ -867,7 +1044,8 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
         }
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tDATA %p(%s) released from %p[%d] flow idx %d",
                 origin->output[i].data.data, target->name, origin, i, target->flow_index);
-        task.data[target->flow_index].data_repo = NULL;
+        task.data[target->flow_index].source_repo = NULL;
+        task.data[target->flow_index].source_repo_entry = NULL;
         task.data[target->flow_index].data_in   = origin->output[i].data.data;
         task.data[target->flow_index].data_out  = origin->output[i].data.data;
     }
@@ -897,7 +1075,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)",
             complete_mask, action_mask);
     (void)task.task_class->release_deps(es, &task,
-                                        action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
+                                        action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS | PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE,
                                         NULL);
     assert(0 == (origin->incoming_mask & complete_mask));
 
@@ -1078,6 +1256,9 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
         goto have_same_pos;
     case DEP_MEMCPY:
         remote_dep_nothread_memcpy(es, item);
+        break;
+    case DEP_MEMCPY_RESHAPE:
+        local_dep_nothread_reshape(es, item);
         break;
     default:
         assert(0 && item->action); /* Not a valid action */
@@ -1582,20 +1763,26 @@ static int remote_dep_mpi_pack_dep(int peer,
 
         /* Remove CTL from the message we expect to send */
 #if defined(PARSEC_PROF_DRY_DEP)
-        deps->output[k].data.arena = NULL; /* make all data a control */
+        parsec_set_CTL_dep(deps->output[k].data);
 #endif
-        if(NULL == deps->output[k].data.arena) {
+        if( parsec_is_CTL_dep(deps->output[k].data) ) {
             PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, " CTL\t%s\tparam %d\tdemoted to be a control", tmp, k);
             continue;
         }
-        assert(deps->output[k].data.count > 0);
-        if(parsec_param_short_limit) {
-            /* Embed data (up to short size) with the activate msg */
-            MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
+        assert(deps->output[k].data.remote.src_count > 0);
+
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+        /* If we want to reshape before sending, we don't do eager short. */
+        if( (deps->output[k].data.data_future == NULL) && (parsec_param_short_limit) ) {
+#else
+        if( parsec_param_short_limit ) {
+#endif
+            /* Embed data (up to short size) with the activate msg only if not reshaping needs to be performed */
+            MPI_Pack_size(deps->output[k].data.remote.src_count, deps->output[k].data.remote.src_datatype,
                           dep_comm, &dsize);
             if((length - (*position)) >= dsize) {
-                MPI_Pack((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
-                         deps->output[k].data.count, deps->output[k].data.layout,
+                MPI_Pack((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.remote.src_displ,
+                         deps->output[k].data.remote.src_count, deps->output[k].data.remote.src_datatype,
                          packed_buffer, length, position, dep_comm);
                 PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, " EGR\t%s\tparam %d\tshort piggyback in the activate msg (%d/%d)",
                         tmp, k, *position, length);
@@ -1638,18 +1825,65 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
 {
     dep_cmd_t* cmd = &item->cmd;
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
-                         "COPY LOCAL DATA from %p to %p count %d",
-                         (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.source     ) + cmd->memcpy.displ_s,
-                         (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.displ_r,
-                         cmd->memcpy.count);
+                         "COPY LOCAL DATA from %p[%p] to %p[%p] count %d",
+                         (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.source     ) + cmd->memcpy.layout.src_displ, cmd->memcpy.layout.src_datatype,
+                         (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.layout.dst_displ, cmd->memcpy.layout.dst_datatype,
+                         cmd->memcpy.layout.dst_count);
 
-    int rc = MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.source     ) + cmd->memcpy.displ_s,
-                          cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
-                          (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.displ_r,
-                          cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
+    int rc = MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.source     ) + cmd->memcpy.layout.src_displ,
+                          cmd->memcpy.layout.src_count, cmd->memcpy.layout.src_datatype, 0, 0,
+                          (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.layout.dst_displ,
+                          cmd->memcpy.layout.dst_count, cmd->memcpy.layout.dst_datatype, 0, 0,
                           dep_self, MPI_STATUS_IGNORE);
     PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
     remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);
+    (void)es;
+    return (MPI_SUCCESS == rc ? 0 : -1);
+}
+
+
+/**
+ *
+ * Routine to fulfill a reshape promise by the communication thread.
+ *
+ * @param[in] es parsec_execution_stream_t
+ * @param[in] item dep_cmd_item_t
+ */
+static int local_dep_nothread_reshape(parsec_execution_stream_t* es,
+                                      dep_cmd_item_t *item)
+{
+
+    dep_cmd_t* cmd = &item->cmd;
+    cmd->memcpy.destination = reshape_copy_allocate(item->cmd.memcpy_reshape.dt->local);
+
+#if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
+    char task_string[MAX_TASK_STRLEN]="NULL TASK";
+    if(item->cmd.memcpy_reshape.task != NULL)
+        (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, item->cmd.memcpy_reshape.task);
+#endif
+    PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
+                         "th%d \033[01;33mRESHAPE_PROMISE\033[0m COMPLETED COMM-THREAD to [%p:%p -> %p:%p] for %s fut %p",
+                         es->th_id, item->cmd.memcpy_reshape.dt->data, item->cmd.memcpy_reshape.dt->data->dtt,
+                         cmd->memcpy.destination, item->cmd.memcpy_reshape.dt->local->dst_datatype, task_string, item->cmd.memcpy_reshape.future);
+
+    /* Source datacopy needs to be retained again, it will only be release
+     * once all successors have consumed the future, in case it is needed
+     * as an input for nested futures.
+     */
+    PARSEC_OBJ_RETAIN(cmd->memcpy.source);
+
+    int rc = remote_dep_nothread_memcpy(es, item);
+    assert(MPI_SUCCESS == rc);
+
+    parsec_future_set(item->cmd.memcpy_reshape.future, cmd->memcpy.destination);
+
+    /*Not working if rescheduled by commthread, thus future trigger routines return ASYNC */
+    /*__parsec_schedule(es, item->cmd.memcpy_reshape.task, 0);*/
+
+#if defined(PARSEC_DEBUG)
+    parsec_atomic_fetch_add_int64(&count_reshaping,1);
+#endif
+
     (void)es;
     return (MPI_SUCCESS == rc ? 0 : -1);
 }
@@ -1787,8 +2021,8 @@ remote_dep_below_threshold(const parsec_remote_deps_t* deps,
 
     for(int k = 0; output_mask>>k; k++) {
         if( !(output_mask & (1U<<k)) ) continue;            /* No dependency/satisfied short */
-        if( NULL == deps->output[k].data.arena ) continue;  /* CONTROL dependency */
-        size_t extent = deps->output[k].data.arena->elem_size * deps->output[k].data.count;
+        if( NULL == deps->output[k].data.remote.arena ) continue;  /* CONTROL dependency */
+        size_t extent = deps->output[k].data.remote.arena->elem_size * deps->output[k].data.remote.dst_count;
 
         if( extent <= threshold ) {
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tPEER\tNA\t%5s MODE  k=%d\tsize=%d <= %d\t(tag=base+%d)",
@@ -1904,6 +2138,50 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
     assert(task->output_mask);
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tPUT mask=%lx deps 0x%lx", task->output_mask, task->deps);
 
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+    int all_completed = 1;
+    parsec_data_copy_t *old_data;
+    parsec_data_copy_t *reshape_data;
+    /* Check all reshape promises have been fulfill if any */
+    for(k = 0; task->output_mask>>k; k++) {
+        if(!((1U<<k) & task->output_mask)) continue;
+        if( deps->output[k].data.data_future != NULL ){
+            data_repo_t *repo = deps->output[k].data.repo;
+            parsec_key_t repo_key = deps->output[k].data.repo_key;
+
+            old_data = deps->output[k].data.data;
+
+            reshape_data = parsec_future_get_or_trigger(deps->output[k].data.data_future, NULL, NULL, es, NULL, NULL);
+
+            if(reshape_data == NULL){
+                all_completed = 0;
+                continue;
+            }
+
+            PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
+                                 "th%d \033[01;33mRESHAPE_PROMISE\033[0m OBTAINED DEPS-REMOTE [%p:%p] for %s fut %p",
+                                 es->th_id, deps->output[k].data.data, (deps->output[k].data.data)->dtt, "INLINE REMOTE", deps->output[k].data.data_future);
+
+            deps->output[k].data.data = reshape_data;
+
+            PARSEC_OBJ_RETAIN(reshape_data);
+            PARSEC_DATA_COPY_RELEASE(old_data);/*old data has been retained for remote communication*/
+
+            PARSEC_OBJ_RELEASE(deps->output[k].data.data_future);
+            deps->output[k].data.data_future = NULL;
+
+            /* consume from the repo that contains the reshape promise */
+            if( repo != NULL ) data_repo_entry_used_once(repo, repo_key);
+
+        }
+    }
+    if( ! all_completed ) {
+        PARSEC_DEBUG_VERBOSE(4, parsec_comm_output_stream, "MPI:\tReshaping promises not yet completed for deps 0x%lx. Reschedule.", deps);
+        parsec_list_nolock_push_front(&dep_put_fifo, (parsec_list_item_t*)item);
+        return;
+    }
+#endif
+
     for(k = 0; task->output_mask>>k; k++) {
         assert(k < MAX_PARAM_COUNT);
         if(!((1U<<k) & task->output_mask)) continue;
@@ -1916,19 +2194,19 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\t[idx %d mask(0x%x / 0x%x)] %p, %p", k, (1U<<k), task->output_mask,
                 deps->output[k].data.data, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data));
         dataptr = PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data);
-        dtt     = deps->output[k].data.layout;
-        nbdtt   = deps->output[k].data.count;
+        dtt     = deps->output[k].data.remote.src_datatype;
+        nbdtt   = deps->output[k].data.remote.src_count;
 #if defined(PARSEC_DEBUG_NOISIER)
         MPI_Type_get_name(dtt, type_name, &len);
-        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\t%d\tPut START\tunknown \tk=%d\twith deps 0x%lx at %p type %s\t(tag=%d displ = %ld)",
-               item->cmd.activate.peer, k, task->deps, dataptr, type_name, tag+k, deps->output[k].data.displ);
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\t%d\tPut START\tunknown \tk=%d\twith deps 0x%lx at %p type %s (%p)\t(tag=%d displ = %ld)",
+               item->cmd.activate.peer, k, task->deps, dataptr, type_name, dtt, tag+k, deps->output[k].data.remote.src_displ);
 #endif
 
         TAKE_TIME_WITH_INFO(MPIsnd_prof, MPI_Data_plds_sk, k,
                             es->virtual_process->parsec_context->my_rank,
                             item->cmd.activate.peer, deps->msg);
         task->output_mask ^= (1U<<k);
-        MPI_Isend((char*)dataptr + deps->output[k].data.displ, nbdtt, dtt,
+        MPI_Isend((char*)dataptr + deps->output[k].data.remote.src_displ, nbdtt, dtt,
                   item->cmd.activate.peer, tag + k, dep_comm,
                   &array_of_requests[parsec_comm_last_active_req]);
         cb = &array_of_callbacks[parsec_comm_last_active_req];
@@ -2001,29 +2279,29 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
     for(k = 0; deps->incoming_mask>>k; k++) {
         if(!(deps->incoming_mask & (1U<<k))) continue;
         /* Check for CTL and data that do not carry payload */
-        if((NULL == deps->output[k].data.arena) || (0 == deps->output[k].data.count)) {
+        if( parsec_is_CTL_dep(deps->output[k].data) ){
             PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tHERE\t%d\tGet NONE\t% -8s\tk=%d\twith datakey %lx at <NA> type CONTROL",
                     deps->from, tmp, k, deps->msg.deps);
-            deps->output[k].data.data = NULL;
+            /* deps->output[k].data.data = NULL; This is unnecessary*/
             complete_mask |= (1U<<k);
             continue;
         }
 
         if( parsec_param_short_limit && (length > *position) ) {
             /* Check if the data is short-embedded in the activate */
-            MPI_Pack_size(deps->output[k].data.count, deps->output[k].data.layout,
+            MPI_Pack_size(deps->output[k].data.remote.src_count, deps->output[k].data.remote.src_datatype,
                           dep_comm, &dsize);
             if((length - (*position)) >= dsize) {
                 assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
                 if(NULL == deps->output[k].data.data) {
-                    deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
+                    deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote);
                 }
 #ifndef PARSEC_PROF_DRY_DEP
                 PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, " EGR\t%s\tparam %d\tshort from the activate msg (%d/%d)",
                         tmp, k, dsize, length - *position);
                 MPI_Unpack(packed_buffer, length, position,
-                           (char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
-                           deps->output[k].data.count, deps->output[k].data.layout, dep_comm);
+                           (char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.remote.dst_displ,
+                           deps->output[k].data.remote.dst_count, deps->output[k].data.remote.dst_datatype, dep_comm);
 #endif
                 complete_mask |= (1U<<k);
                 continue;
@@ -2035,13 +2313,13 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
 
             assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
             if(NULL == deps->output[k].data.data) {
-                deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
+                deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote);
             }
             PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tGet EAGER\t% -8s\tk=%d\twith datakey %lx at %p\t(tag=%d)",
                     deps->from, tmp, k, deps->msg.deps, deps->output[k].data.data, tag+k);
 #ifndef PARSEC_PROF_DRY_DEP
-            MPI_Irecv((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ,
-                      deps->output[k].data.count, deps->output[k].data.layout,
+            MPI_Irecv((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.remote.dst_displ,
+                      deps->output[k].data.remote.dst_count, deps->output[k].data.remote.dst_datatype,
                       deps->from, tag + k, dep_comm, &reqs[nb_reqs]);
             nb_reqs++;
             MPI_Testall(nb_reqs, reqs, &flag, MPI_STATUSES_IGNORE);  /* a little progress */
@@ -2268,7 +2546,7 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
         /* prepare the local receiving data */
         assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
         if(NULL == deps->output[k].data.data) {
-            deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
+            deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote);
         }
 #ifdef PARSEC_PROF_DRY_DEP
         (void)dtt; (void)nbdtt; (void)msg; (void)from;
@@ -2276,18 +2554,18 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
         remote_dep_mpi_get_end(es, k, deps);
         deps->incoming_mask ^= (1U<<k);
 #else
-        dtt   = deps->output[k].data.layout;
-        nbdtt = deps->output[k].data.count;
+        dtt   = deps->output[k].data.remote.dst_datatype;
+        nbdtt = deps->output[k].data.remote.dst_count;
 #  if defined(PARSEC_DEBUG_NOISIER)
         MPI_Type_get_name(dtt, type_name, &len);
-        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s count %d displ %ld extent %d\t(tag=%d)",
-                from, tmp, k, task->deps, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, nbdtt,
-                deps->output[k].data.displ, deps->output[k].data.arena->elem_size * nbdtt, msg.tag+k);
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s (%p) count %d displ %ld extent %d\t(tag=%d)",
+                from, tmp, k, task->deps, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, dtt, nbdtt,
+                deps->output[k].data.remote.dst_displ, deps->output[k].data.remote.arena->elem_size * nbdtt, msg.tag+k);
 #  endif
         TAKE_TIME_WITH_INFO(MPIrcv_prof, MPI_Data_pldr_sk, k, from,
                             es->virtual_process->parsec_context->my_rank, deps->msg);
         DEBUG_MARK_DTA_MSG_START_RECV(from, deps->output[k].data.data, msg.tag+k);
-        MPI_Irecv((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ, nbdtt,
+        MPI_Irecv((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.remote.dst_displ, nbdtt,
                   dtt, from, msg.tag + k, dep_comm,
                   &array_of_requests[parsec_comm_last_active_req]);
         parsec_comm_callback_t* cb = &array_of_callbacks[parsec_comm_last_active_req];

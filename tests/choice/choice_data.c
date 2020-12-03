@@ -36,15 +36,17 @@ static inline parsec_data_t*
 get_or_create_data(my_datatype_t* dat, uint32_t pos)
 {
     parsec_data_t* data = dat->data_map[pos];
+    parsec_data_copy_t* data_copy;
     assert(pos <= dat->size);
 
     if( NULL == data ) {
-        parsec_data_copy_t* data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
+        data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
         data = PARSEC_OBJ_NEW(parsec_data_t);
 
         data_copy->coherency_state = PARSEC_DATA_COHERENCY_OWNED;
         data_copy->original = data;
         data_copy->device_private = &dat->data[pos];
+        data_copy->dtt = dat->super.default_dtt;
 
         data->owner_device = 0;
         data->key = pos;
@@ -59,7 +61,7 @@ get_or_create_data(my_datatype_t* dat, uint32_t pos)
     } else {
         /* Do we have a copy of this data */
         if( NULL == data->device_copies[0] ) {
-            parsec_data_copy_t* data_copy = parsec_data_copy_new(data, 0);
+            data_copy = parsec_data_copy_new(data, 0, dat->super.default_dtt);
             data_copy->device_private = &dat->data[pos];
         }
     }
@@ -80,7 +82,7 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
     (void)k;
 
     return get_or_create_data(dat, k);
-} 
+}
 
 static int vpid_of(parsec_data_collection_t *desc, ...)
 {

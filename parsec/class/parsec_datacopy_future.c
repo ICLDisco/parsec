@@ -125,18 +125,11 @@ static void* parsec_datacopy_future_get_or_trigger(parsec_base_future_t* future,
         return parsec_datacopy_future_get_or_trigger_internal(future, es, task);
     }
 
-    /* Complete the base future */
-    if(!(d_fut->super.status & PARSEC_DATA_FUTURE_STATUS_COMPLETED)){
-        if( (data = parsec_datacopy_future_get_or_trigger_internal(future, es, task)) == NULL){
-            /* future being generating */
-            return data;
-        }
-    }
-
+    /* Only complete the base future if it is a match */
     /* Check if target data matches the given specs */
     if( d_fut->cb_match(future, d_fut->cb_match_data_in, cb_data_in)){
         /* future data matches requested version */
-        return d_fut->super.tracked_data;
+        return parsec_datacopy_future_get_or_trigger_internal(future, es, task);
     }
 
     assert(d_fut->nested_enable); /*second level future is able to create more nested versions */
@@ -166,8 +159,7 @@ static void* parsec_datacopy_future_get_or_trigger(parsec_base_future_t* future,
     /* create new nested future relying on the callback to set it up */
     assert(cb_setup_nested != NULL);
     parsec_datacopy_future_t* new_nested_fut;
-    cb_setup_nested(((parsec_base_future_t**)&new_nested_fut),
-                    d_fut->super.tracked_data, cb_data_in);
+    cb_setup_nested(((parsec_base_future_t**)&new_nested_fut), d_fut, cb_data_in);
     PARSEC_OBJ_CONSTRUCT(&new_nested_fut->super.item, parsec_list_item_t);
     new_nested_fut->nested_enable = 0;
     parsec_list_nolock_push_back(d_fut->nested_futures, (parsec_list_item_t*) &new_nested_fut->super.item);
@@ -267,22 +259,25 @@ static void parsec_datacopy_future_cleanup_nested(parsec_base_future_t* future)
 {
     parsec_datacopy_future_t* d_fut = (parsec_datacopy_future_t*)future;
 
-    PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                         "\033[01;33mRESHAPE_PROMISE\033[0m CLEANUP_NESTED fut %p (copy %p) %s status: %s & %s",
+    PARSEC_DEBUG_VERBOSE(14, parsec_debug_output,
+                         "RESHAPE_PROMISE CLEANUP_NESTED fut %p (copy %p) %s status: %s & %s",
                          d_fut, d_fut->super.tracked_data,
                          (d_fut->nested_enable == 1)? "root": "leave",
                          (d_fut->super.status & PARSEC_DATA_FUTURE_STATUS_TRIGGERED)? "TRIGGERED": "NOTTRIGGERED",
                          (d_fut->super.status & PARSEC_DATA_FUTURE_STATUS_COMPLETED)? "COMPLETED": "NOTCOMPLETED");
 
-    parsec_atomic_lock(&d_fut->super.future_lock);
-    assert( (d_fut->super.status & PARSEC_DATA_FUTURE_STATUS_COMPLETED) );
+    /* Base future doesn't need to be completed, it can be used as an intermediate to create nested futures.
+     * However, nested futures have to be completed.
+     */
+    if(!d_fut->nested_enable)
+            assert( (d_fut->super.status & PARSEC_DATA_FUTURE_STATUS_COMPLETED) );
 
     if(d_fut->nested_futures != NULL){
         parsec_datacopy_future_t* nested_future;
         while(parsec_list_nolock_is_empty(d_fut->nested_futures) == 0){
             nested_future = (parsec_datacopy_future_t*)parsec_list_nolock_pop_front(d_fut->nested_futures);
-            PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                                 "\033[01;33mRESHAPE_PROMISE\033[0m CLEANUP_NESTED fut %p (copy %p) have nested %p",
+            PARSEC_DEBUG_VERBOSE(14, parsec_debug_output,
+                                 "RESHAPE_PROMISE CLEANUP_NESTED fut %p (copy %p) have nested %p",
                                  d_fut, d_fut->super.tracked_data, nested_future);
             /* manually run destructor - workaround: future -> base_future -> list item -> object, fix? */
             parsec_datacopy_future_destruct((parsec_base_future_t*)nested_future);
@@ -290,7 +285,6 @@ static void parsec_datacopy_future_cleanup_nested(parsec_base_future_t* future)
         }
         PARSEC_OBJ_RELEASE(d_fut->nested_futures);
     }
-    parsec_atomic_unlock(&d_fut->super.future_lock);
 }
 
 /**
@@ -305,8 +299,8 @@ static void parsec_datacopy_future_destruct(parsec_base_future_t* future)
 {
     parsec_datacopy_future_t* d_fut = (parsec_datacopy_future_t*)future;
 
-    PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                         "\033[01;33mRESHAPE_PROMISE\033[0m DESTROY fut %p (copy %p) %s status: %s & %s",
+    PARSEC_DEBUG_VERBOSE(14, parsec_debug_output,
+                         "RESHAPE_PROMISE DESTROY fut %p (copy %p) %s status: %s & %s",
                          d_fut, d_fut->super.tracked_data,
                          (d_fut->nested_enable == 1)? "root": "leave",
                          (d_fut->super.status & PARSEC_DATA_FUTURE_STATUS_TRIGGERED)? "TRIGGERED": "NOTTRIGGERED",

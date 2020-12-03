@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 
     parsec_context_wait(parsec);
 
-    parsec_type_free(&parsec_dtd_arenas_datatypes[TILE_FULL].opaque_dtt);
+    parsec_matrix_del2arena(&parsec_dtd_arenas_datatypes[TILE_FULL]);
     PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[TILE_FULL].arena);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);

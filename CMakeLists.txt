@@ -974,6 +974,7 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/info.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_future.h
   DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class)
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h

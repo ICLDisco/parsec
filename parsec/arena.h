@@ -68,7 +68,7 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_arena_t);
 
 struct parsec_arena_chunk_s {
     /** A chunk is also a list item.
-     *  This chunck is chained when it resides inside an arena's free list
+     *  This chunk is chained when it resides inside an arena's free list
      *  It is SINGLETON when ( (not in a free list) and (in debug mode) ) */
     parsec_list_item_t item;
     uint32_t           count;    /**< Number of basic elements pointed by param in this chunck */
@@ -116,7 +116,9 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
  * should therefore be manipulated using PARSEC_OBJ_RELEASE.
  */
 
-parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, int device);
+parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
+                                          size_t count, int device,
+                                          parsec_datatype_t dtt);
 void parsec_arena_release(parsec_data_copy_t* ptr);
 
 END_C_DECLS

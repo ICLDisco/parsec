@@ -245,7 +245,7 @@ int main( int argc, char** argv )
 
     tp = parsec_async_new( &descA, verbose, taskqueue, NB );
     assert( NULL != tp );
-    tp->arenas_datatypes[PARSEC_async_DEFAULT_ARENA] = adt;
+    tp->arenas_datatypes[PARSEC_async_DEFAULT_ADT_IDX] = adt;
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 

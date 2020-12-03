@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
     parsec_data_collection_t mydata;
     parsec_Ex04_ChainData_taskpool_t *tp;
     int mycounter;
+    parsec_arena_datatype_t adt;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -127,17 +128,21 @@ int main(int argc, char *argv[])
      * Let's create the local data (mycounter), and the parsec_data_t associated to it
      */
     mycounter = 300 + rank;
-    ddata_mycounter = parsec_data_create( &ddata_mycounter, /* The parsec_data_t taskpool value   */
-                                         &mydata,          /* The descriptor associated to it */
-                                         0,                /* The data key (see later)        */
-                                         &mycounter,       /* The pointer to the data         */
-                                         sizeof(int)       /* The size of the data            */);
-
 
     parsec_data_collection_init(&mydata, world, rank);
     mydata.rank_of = rank_of;
     mydata.vpid_of = vpid_of;
     mydata.data_key = data_key;
+
+    parsec_arena_datatype_construct( &adt,
+                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                     parsec_datatype_int_t );
+
+    ddata_mycounter = parsec_data_create( &ddata_mycounter, /* The parsec_data_t taskpool value   */
+                                         &mydata,          /* The descriptor associated to it */
+                                         0,                /* The data key (see later)        */
+                                         &mycounter,       /* The pointer to the data         */
+                                         sizeof(int)       /* The size of the data            */);
 
     /**
      * Here we update the data_of pointer from the descriptor
@@ -146,9 +151,7 @@ int main(int argc, char *argv[])
 
     tp = parsec_Ex04_ChainData_new(&mydata, 20);
 
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_Ex04_ChainData_DEFAULT_ARENA],
-                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                                     parsec_datatype_int_t );
+    tp->arenas_datatypes[PARSEC_Ex04_ChainData_DEFAULT_ADT_IDX] = adt; 
 
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");

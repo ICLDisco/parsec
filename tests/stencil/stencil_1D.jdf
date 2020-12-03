@@ -75,16 +75,16 @@ rank_R = %{ return rank_neighbor(descA, 0, n+1, descA->lmt-1, descA->lnt-1); %}
 
 : descA(m, n)
 
-READ AL <- (t > 0 && n > 0)? A task(t-1, n-1): NULL              [ type = LR ]
+READ AL <- (t > 0 && n > 0)? A task(t-1, n-1): NULL              [ type_remote = LR ]
 
-READ AR <- (t > 0 && n < descA->lnt-1)? A task(t-1, n+1): NULL   [ type = LR ]
+READ AR <- (t > 0 && n < descA->lnt-1)? A task(t-1, n+1): NULL   [ type_remote = LR ]
 
-READ A0 <- (t > 0)? A task(t-1, n): NULL                         [ type = FULL ]
+READ A0 <- (t > 0)? A task(t-1, n): NULL                         [ type_remote = FULL ]
 
-RW A <- descA(m, n)                                              [ type = FULL ]
-     -> (t < iter)? A0 task(t+1, n)                              [ type = FULL ]
-     -> (t < iter && n > 0 )? AR task(t+1, n-1)                  [ type = LR displ = %{ return sizeof_datatype*descA->mb*R; %} ]
-     -> (t < iter && n < descA->lnt-1)? AL task(t+1, n+1)        [ type = LR displ = %{ return sizeof_datatype*descA->mb*(descA->nb-2*R); %} ]
+RW A <- descA(m, n)                                              /*[ type = FULL ]*/
+     -> (t < iter)? A0 task(t+1, n)                              [ type_remote = FULL ]
+     -> (t < iter && n > 0 )? AR task(t+1, n-1)                  [ type_remote = LR displ_remote = %{ return sizeof_datatype*descA->mb*R; %} ]
+     -> (t < iter && n < descA->lnt-1)? AL task(t+1, n+1)        [ type_remote = LR displ_remote = %{ return sizeof_datatype*descA->mb*(descA->nb-2*R); %} ]
 
 BODY
 {
@@ -130,12 +130,12 @@ parsec_stencil_1D_New(parsec_tiled_matrix_dc_t *dcA, int iter, int R)
   taskpool = parsec_stencil_1D_new(dcA, iter, R); 
   stencil_1D_taskpool = (parsec_taskpool_t*)taskpool;
 
-  parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ARENA],
+  parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX],
                            MY_TYPE, matrix_UpperLower,
                            1, dcA->mb, dcA->nb, dcA->mb,
                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
-
-  parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ARENA],
+  
+  parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX],
                            MY_TYPE, matrix_UpperLower,
                            1, dcA->mb, R, dcA->mb,
                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
@@ -149,8 +149,8 @@ parsec_stencil_1D_New(parsec_tiled_matrix_dc_t *dcA, int iter, int R)
 void parsec_stencil_1D_Destruct(parsec_taskpool_t *taskpool)
 {
   parsec_stencil_1D_taskpool_t *stencil_1D_taskpool = (parsec_stencil_1D_taskpool_t *)taskpool;
-  parsec_matrix_del2arena(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ARENA]);
-  parsec_matrix_del2arena(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ARENA]);
+  parsec_matrix_del2arena(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX]);
+  parsec_matrix_del2arena(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX]);
   parsec_taskpool_free(taskpool);
 }
 

@@ -17,6 +17,7 @@ static parsec_datatype_t block;
 
 #include "BT_reduction.h"
 #include "BT_reduction_wrapper.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 /**
  * @param [IN] A    the data, already distributed and allocated
@@ -35,7 +36,7 @@ parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
     parsec_type_create_contiguous(nb, parsec_datatype_int32_t, &block);
     parsec_type_extent(block, &lb, &extent);
 
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_BT_reduction_DEFAULT_ARENA],
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_BT_reduction_DEFAULT_ADT_IDX],
                                      extent, PARSEC_ARENA_ALIGNMENT_SSE,
                                      block);
 

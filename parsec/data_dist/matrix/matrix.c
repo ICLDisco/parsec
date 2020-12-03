@@ -137,13 +137,29 @@ void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
     if( asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt) <= 0 ) {
         o->key_dim = NULL;
     }
+
+    /* Define the default datatye of the datacollection */
+    parsec_datatype_t elem_dt = PARSEC_DATATYPE_NULL;
+    ptrdiff_t extent;
+    parsec_translate_matrix_type( tdesc->mtype, &elem_dt );
+    if( 0 != parsec_matrix_define_datatype(&o->default_dtt, elem_dt,
+                                              matrix_UpperLower, 1 /*diag*/,
+                                              tdesc->mb, tdesc->nb, tdesc->mb /*ld*/,
+                                              -1/*resized*/, &extent)){
+        parsec_fatal("Unable to create a datatype for the data collection.");
+    }
+
+
 }
 
 void
 parsec_tiled_matrix_dc_destroy( parsec_tiled_matrix_dc_t *tdesc )
 {
+    parsec_data_collection_t *dc = (parsec_data_collection_t*)tdesc;
+    parsec_type_free(&dc->default_dtt);
+
     parsec_matrix_destroy_data( tdesc );
-    parsec_data_collection_destroy( (parsec_data_collection_t*)tdesc );
+    parsec_data_collection_destroy( dc );
 }
 
 

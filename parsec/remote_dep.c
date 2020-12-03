@@ -199,10 +199,14 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
         deps->output[k].count_bits = 0;
 #if defined(PARSEC_DEBUG_PARANOID)
         deps->output[k].data.data   = NULL;
-        deps->output[k].data.arena  = NULL;
-        deps->output[k].data.layout = PARSEC_DATATYPE_NULL;
-        deps->output[k].data.count  = -1;
-        deps->output[k].data.displ  = 0xFFFFFFFF;
+        deps->output[k].data.local.arena  = NULL;
+        deps->output[k].data.local.src_displ = deps->output[k].data.local.dst_displ = 0xFFFFFFFF;
+        deps->output[k].data.local.src_datatype = deps->output[k].data.local.dst_datatype = NULL;
+        deps->output[k].data.local.src_count = deps->output[k].data.local.dst_count = -1;
+        deps->output[k].data.remote.arena  = NULL;
+        deps->output[k].data.remote.src_displ = deps->output[k].data.remote.dst_displ = 0xFFFFFFFF;
+        deps->output[k].data.remote.src_datatype = deps->output[k].data.remote.dst_datatype = NULL;
+        deps->output[k].data.remote.src_count = deps->output[k].data.remote.dst_count = -1;
 #endif
     }
     PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "remote_deps_free: %p mask %x", deps, deps->outgoing_mask);
@@ -378,8 +382,10 @@ parsec_gather_collective_pattern(parsec_execution_stream_t *es,
                                  const parsec_dep_t* dep,
                                  parsec_dep_data_description_t* data,
                                  int src_rank, int dst_rank, int dst_vpid,
+                                 data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                                  void *param)
 {
+    (void)successor_repo; (void) successor_repo_key;
     parsec_remote_deps_t* deps = (parsec_remote_deps_t*)param;
     struct remote_dep_output_param_s* output = &deps->output[dep->dep_datatype_index];
     const int _array_pos  = dst_rank / (8 * sizeof(uint32_t));
@@ -492,8 +498,9 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
          */
         if( (remote_deps->outgoing_mask & (1U<<i)) && (NULL != output->data.data) ) {
             /* if propagated and not a CONTROL */
-            assert(NULL != output->data.arena);
-            assert(NULL != (void*)(intptr_t)(output->data.layout));
+            /* This assert is not correct anymore, we don't need and arena to send to a remote
+             * assert(NULL != output->data.remote.arena);*/
+            assert( !parsec_is_CTL_dep(output->data) );
             PARSEC_OBJ_RETAIN(output->data.data);
         }
 

@@ -308,7 +308,7 @@ static int jdf_deps_unparse( const jdf_dep_t *deps, FILE *out )
     if( err < 0 )
         return err;
 
-    err = jdf_datatransfer_type_unparse( deps->datatype, out );
+    err = jdf_datatransfer_type_unparse( deps->datatype_remote, out );
     if( err < 0 )
         return err;
     fprintf(out, "\n");

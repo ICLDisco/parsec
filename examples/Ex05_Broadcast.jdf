@@ -109,6 +109,7 @@ int main(int argc, char *argv[])
     parsec_data_collection_t mydata;
     parsec_Ex05_Broadcast_taskpool_t *tp;
     int mycounter;
+    parsec_arena_datatype_t adt;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -125,9 +126,6 @@ int main(int argc, char *argv[])
     parsec = parsec_init(-1, &argc, &argv);
 
     mycounter = 300 + rank;
-    ddata_mycounter = parsec_data_create(
-        &ddata_mycounter, &mydata, 0,
-        &mycounter, sizeof(int));
 
     parsec_data_collection_init(&mydata, world, rank);
     mydata.rank_of = rank_of;
@@ -135,14 +133,20 @@ int main(int argc, char *argv[])
     mydata.data_key = data_key;
     mydata.data_of = data_of;
 
+    parsec_arena_datatype_construct( &adt,
+                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                     parsec_datatype_int_t );
+
+    ddata_mycounter = parsec_data_create(
+        &ddata_mycounter, &mydata, 0,
+        &mycounter, sizeof(int));
+
     /**
      * We now remove the NB parameter as it is an hidden global
      */
     tp = parsec_Ex05_Broadcast_new(&mydata, world, rank);
 
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_Ex05_Broadcast_DEFAULT_ARENA],
-                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                                     parsec_datatype_int_t );
+    tp->arenas_datatypes[PARSEC_Ex05_Broadcast_DEFAULT_ADT_IDX] = adt;
 
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");

@@ -150,8 +150,9 @@ int main( int argc, char** argv )
     /* Heat up the engine: small tasks no priority */
     tp = parsec_startup_new( &descA, ni, nj, nk );
     assert( NULL != tp );
-    tp->arenas_datatypes[PARSEC_startup_DEFAULT_ARENA] = adt;
+    tp->arenas_datatypes[PARSEC_startup_DEFAULT_ADT_IDX] = adt;
     PARSEC_OBJ_RETAIN(adt.arena);
+
     tp->_g_pri = 0;
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
@@ -167,8 +168,9 @@ int main( int argc, char** argv )
 
         tp = parsec_startup_new( &descA, ni, nj, nk );
         assert( NULL != tp );
+
         TIMER_START(time_elapsed);
-        tp->arenas_datatypes[PARSEC_startup_DEFAULT_ARENA] = adt;
+        tp->arenas_datatypes[PARSEC_startup_DEFAULT_ADT_IDX] = adt;
         PARSEC_OBJ_RETAIN(adt.arena);
         tp->_g_pri = priorities[i].prio;
 

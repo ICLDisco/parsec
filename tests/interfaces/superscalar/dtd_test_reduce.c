@@ -138,7 +138,7 @@ int main(int argc, char **argv)
 
     parsec_taskpool_free( dtd_tp );
 
-    parsec_type_free(&parsec_dtd_arenas_datatypes[0].opaque_dtt);
+    parsec_matrix_del2arena(&parsec_dtd_arenas_datatypes[0]);
     PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0].arena);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);

@@ -38,10 +38,10 @@ PING(k)
 :dataA(0, 0)
 
 // Parameters
-RW A <- k==0 ? dataA(0, 0) : A PONG(k-1)       [type = DTT1]
-     -> k < descA.nt-1 ? A PONG(k)             [type = DTT1]
-RW B <- k==0 ? dataA(0, 0) : B PONG(k-1)       [type = DTT2]
-     -> k < descA.nt-1 ? B PONG(k)             [type = DTT2]
+RW A <- k==0 ? dataA(0, 0) : A PONG(k-1)       /*[type = DTT1]*/
+     -> k < descA.nt-1 ? A PONG(k)             [type_remote = DTT1]
+RW B <- k==0 ? dataA(0, 0) : B PONG(k-1)       /*[type = DTT2]*/
+     -> k < descA.nt-1 ? B PONG(k)             [type_remote = DTT2]
 BODY
   if( 0 == procpid ) procpid = getpid();
   printf("%d: _-^^-__-^^-__ PING %d (A = %p, B = %p)\n", (int)procpid, k, (void*)A, (void*)B);
@@ -55,11 +55,11 @@ PONG(k)
 
 :dataA(0,1)
 
-READ A <- (k == 0) ? A PING(k)                 [type = DTT2]
-       <- A PING(k)                            [type = DTT1]
-       -> A PING(k+1)                          [type = DTT2]
-READ B <- B PING(k)                            [type = DTT1]
-       -> B PING(k+1)                          [type = DTT1]
+READ A <- (k == 0) ? A PING(k)                 [type_remote = DTT2]
+       <- A PING(k)                            [type_remote = DTT1]
+       -> A PING(k+1)                          [type_remote = DTT2]
+READ B <- B PING(k)                            [type_remote = DTT1]
+       -> B PING(k+1)                          [type_remote = DTT1]
 
 BODY
   if( 0 == procpid ) procpid = getpid();

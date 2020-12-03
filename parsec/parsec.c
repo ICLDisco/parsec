@@ -372,6 +372,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Declare the command line for the .dot generation */
     parsec_cmd_line_make_opt3(cmd_line, 'h', "help", "help", 0,
                              "Show the usage text.");
+    parsec_cmd_line_make_opt3(cmd_line, 'w', "wait", "wait", 1,
+                             "Sleep for n seconds");
     parsec_cmd_line_make_opt3(cmd_line, '.', "dot", "parsec_dot", 1,
                              "Filename for the .dot file");
     parsec_cmd_line_make_opt3(cmd_line, 'b', NULL, "parsec_bind", 1,
@@ -387,6 +389,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_cmd_line_make_opt3(cmd_line, 'H', "ht", "ht", 1,
                              "Enable hyperthreading");
     parsec_mca_cmd_line_setup(cmd_line);
+
 
     if( (NULL != pargc) && (0 != *pargc) ) {
         parsec_app_name = strdup( (*pargv)[0] );
@@ -419,6 +422,17 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
         free(ctx_environ);
     }
+
+    /* Sleep for n seconds */
+    int wait_seconds=-1;
+    parsec_mca_param_reg_int_name("runtime", "wait", "Sleep for N seconds",
+                                 false, false, wait_seconds, &wait_seconds);
+    GET_INT_ARGV(cmd_line, "wait", wait_seconds);
+    if(wait_seconds>0){
+        int spin = 10*wait_seconds;
+        do { usleep(100000); spin--; } while(spin);
+    }
+
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
     int mpi_is_up;
     MPI_Initialized(&mpi_is_up);
@@ -1311,6 +1325,7 @@ static parsec_ontask_iterate_t count_deps_fct(struct parsec_execution_stream_s* 
                                               const parsec_dep_t* dep,
                                               parsec_dep_data_description_t *data,
                                               int rank_src, int rank_dst, int vpid_dst,
+                                              data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                                               void *param)
 {
     int *pactive = (int*)param;
@@ -1322,6 +1337,7 @@ static parsec_ontask_iterate_t count_deps_fct(struct parsec_execution_stream_s* 
     (void)rank_src;
     (void)rank_dst;
     (void)vpid_dst;
+    (void)successor_repo; (void) successor_repo_key;
     *pactive = *pactive+1;
     return PARSEC_ITERATE_CONTINUE;
 }
@@ -1602,9 +1618,11 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
                                       const parsec_flow_t* restrict origin_flow,
                                       const parsec_task_t* restrict task,
                                       const parsec_flow_t* restrict dest_flow,
-                                      data_repo_entry_t* dest_repo_entry,
                                       parsec_dep_data_description_t* data,
-                                      parsec_task_t** pready_ring)
+                                      parsec_task_t** pready_ring,
+                                      data_repo_t* target_repo,
+                                      parsec_data_copy_t* target_dc,
+                                      data_repo_entry_t* target_repo_entry)
 {
     const parsec_task_class_t* tc = task->task_class;
     parsec_dependency_t *deps;
@@ -1634,6 +1652,7 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
          */
         {
             parsec_task_t *new_context = (parsec_task_t *) parsec_thread_mempool_allocate(es->context_mempool);
+
             PARSEC_COPY_EXECUTION_CONTEXT(new_context, task);
             new_context->status = PARSEC_TASK_STATUS_NONE;
             PARSEC_AYU_ADD_TASK(new_context);
@@ -1648,13 +1667,15 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
 
             assert( dest_flow->flow_index <= new_context->task_class->nb_flows);
             memset( new_context->data, 0, sizeof(parsec_data_pair_t) * new_context->task_class->nb_flows);
+            new_context->repo_entry = NULL;
             /*
              * Save the data_repo and the pointer to the data for later use. This will prevent the
              * engine from atomically locking the hash table for at least one of the flow
              * for each execution context.
              */
-            new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
-            new_context->data[(int)dest_flow->flow_index].data_in   = origin->data[origin_flow->flow_index].data_out;
+            new_context->data[(int)dest_flow->flow_index].source_repo = target_repo;
+            new_context->data[(int)dest_flow->flow_index].source_repo_entry = target_repo_entry;
+            new_context->data[(int)dest_flow->flow_index].data_in   = target_dc;
             (void)data;
             PARSEC_AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
@@ -1691,10 +1712,30 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
                       const parsec_dep_t* dep,
                       parsec_dep_data_description_t* data,
                       int src_rank, int dst_rank, int dst_vpid,
+                      data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                       void *param)
 {
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)param;
     const parsec_flow_t* src_flow = dep->belongs_to;
+    const parsec_flow_t* dst_flow = dep->flow;
+
+
+    data_repo_t        *target_repo = arg->output_repo;
+    data_repo_entry_t  *target_repo_entry = arg->output_entry;
+    parsec_data_copy_t *target_dc = target_repo_entry->data[src_flow->flow_index];
+    data_repo_entry_t  *entry_for_reshapping =
+            data_repo_lookup_entry(successor_repo, successor_repo_key);
+    /* If the successor repo has been advanced with a reshape promise,
+     * that one is selected for release_deps, otherwise the one on the
+     * predecessor repo is selected.
+     * (On the predecessor repo there may be a fulfilled or unfulfilled future,
+     * on the successor repo is always unfulfilled).
+     */
+    if( (entry_for_reshapping != NULL) && (entry_for_reshapping->data[dst_flow->flow_index] != NULL) ){
+        target_repo = successor_repo;
+        target_repo_entry = entry_for_reshapping;
+        target_dc = entry_for_reshapping->data[dst_flow->flow_index];
+    }
 
     /*
      * Check that we don't forward a NULL data to someone else. This
@@ -1716,7 +1757,6 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
-
         assert( 0 == (arg->action_mask & PARSEC_ACTION_RECV_INIT_REMOTE_DEPS) );
 
         if( arg->action_mask & PARSEC_ACTION_SEND_INIT_REMOTE_DEPS ){
@@ -1738,8 +1778,32 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
                 output->deps_mask |= (1 << dep->dep_index);
                 if( 0 == output->count_bits ) {
                     output->data = *data;
+                    assert(output->data.data_future == NULL);
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+                    /* Now everything is a reshaping entry */
+                    /* Check if we need to reshape before sending */
+                    if(parsec_is_CTL_dep(output->data)){ /* CTL DEP */
+                        output->data.data_future = NULL;
+                        output->data.repo = NULL;
+                        output->data.repo_key = -1;
+                    }else{
+                        /* Get reshape from whatever repo it has been set up into */
+                        output->data.data_future = (parsec_datacopy_future_t*)target_dc;
+                        output->data.repo = target_repo;
+                        output->data.repo_key = target_repo_entry->ht_item.key;
+                        PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
+                                         "th%d \033[01;33mRESHAPE_PROMISE\033[0m SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
+                                         es->th_id, output->data.data, (output->data.data)->dtt,
+                                         (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
+                                         output->data.data_future);
+                    }
+#endif
                 } else {
                     assert(output->data.data == data->data);
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+                    /* There's a reshape entry that is not being managed. */
+                    assert( !((entry_for_reshapping != NULL) && (entry_for_reshapping->data[dst_flow->flow_index] != NULL)) );
+#endif
                 }
                 output->count_bits++;
                 if(newcontext->priority > output->priority) {
@@ -1748,6 +1812,14 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
                         arg->remote_deps->max_priority = newcontext->priority;
                 }
             }  /* otherwise the bit is already flipped, the peer is already part of the propagation. */
+            else{
+                assert(output->data.data == data->data);
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+                /* There's a reshape entry that is not being managed. */
+                assert( !((entry_for_reshapping != NULL) && (entry_for_reshapping->data[dst_flow->flow_index] != NULL)) );
+#endif
+            }
+
         }
     }
 #else
@@ -1757,28 +1829,18 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 
     if( (arg->action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) &&
         (es->virtual_process->parsec_context->my_rank == dst_rank) ) {
-        /* Old condition */
-        /* if( PARSEC_FLOW_ACCESS_NONE != (src_flow->flow_flags & PARSEC_FLOW_ACCESS_MASK) ) { */
-
         /* Copying data in data-repo if there is data .
          * We are doing this in order for dtd to be able to track control dependences.
+         * Usage count of the repo is dealt with when setting up reshape promises.
          */
-        if( oldcontext->data[src_flow->flow_index].data_out != NULL ) {
-            arg->output_entry->data[src_flow->flow_index] = oldcontext->data[src_flow->flow_index].data_out;
-            arg->output_usage++;
-            /* BEWARE: This increment is required to be done here. As the target task
-             * bits are marked, another thread can now enable the task. Once schedulable
-             * the task will try to access its input data and decrement their ref count.
-             * Thus, if the ref count is not increased here, the data might dissapear
-             * before this task released it completely.
-             */
-            PARSEC_OBJ_RETAIN( arg->output_entry->data[src_flow->flow_index] );
-        }
-        parsec_release_local_OUT_dependencies(es, oldcontext, src_flow,
-                                              newcontext, dep->flow,
-                                              arg->output_entry,
+        parsec_release_local_OUT_dependencies(es,
+                                              oldcontext,
+                                              src_flow,
+                                              newcontext,
+                                              dep->flow,
                                               data,
-                                              &arg->ready_lists[dst_vpid]);
+                                              &arg->ready_lists[dst_vpid],
+                                              target_repo, target_dc, target_repo_entry);
     }
 
     return PARSEC_ITERATE_CONTINUE;
