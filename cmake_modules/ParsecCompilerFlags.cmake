@@ -86,11 +86,11 @@ endif()
 # Set warnings for debug builds
 check_c_compiler_flag( "-Wall" PARSEC_HAVE_WALL )
 if( PARSEC_HAVE_WALL )
-  list(APPEND wflags "-Wall" )
+  list(APPEND wflags "$<$<NOT:$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-Wall>" )
 endif( PARSEC_HAVE_WALL )
 check_c_compiler_flag( "-Wextra" PARSEC_HAVE_WEXTRA )
 if( PARSEC_HAVE_WEXTRA )
-  list(APPEND wflags "-Wextra" )
+  list(APPEND wflags "$<$<NOT:$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-Wextra>" )
 endif( PARSEC_HAVE_WEXTRA )
 
 #
