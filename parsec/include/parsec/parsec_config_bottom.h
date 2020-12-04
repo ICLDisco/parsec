@@ -131,12 +131,6 @@
 #define RDEP_MSG_SHORT_LIMIT    ((PARSEC_DIST_SHORT_LIMIT)*1024)
 #endif
 
-#if PARSEC_DIST_EAGER_LIMIT == 0
-#define RDEP_MSG_EAGER_LIMIT    0
-#else
-#define RDEP_MSG_EAGER_LIMIT    ((PARSEC_DIST_EAGER_LIMIT)*1024)
-#endif
-
 #if defined(PARSEC_SCHED_DEPS_MASK)
 typedef int32_t parsec_dependency_t;
 #else
