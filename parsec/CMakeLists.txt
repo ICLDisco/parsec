@@ -2,7 +2,7 @@
 # We do not use target_compile_definitions to avoid having to track all object
 # libraries that could miss this otherwise.
 add_compile_definitions(BUILDING_PARSEC)
-add_compile_options(${PARSEC_ATOMIC_SUPPORT_OPTIONS})
+add_compile_options("$<$<NOT:$<COMPILE_LANGUAGE:Fortran>>:${PARSEC_ATOMIC_SUPPORT_OPTIONS}>")
 #
 #  Settings for targets
 #
