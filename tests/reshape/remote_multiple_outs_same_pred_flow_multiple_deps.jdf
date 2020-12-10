@@ -33,6 +33,7 @@ RW A <- descV(k, 0)
 
 BODY
 {
+  /* Empty body */
 }
 END
 
@@ -51,6 +52,7 @@ READ  B  <- A READ_A(m)
 
 BODY
 {
+  /* Empty body */
 }
 END
 
@@ -70,6 +72,7 @@ READ  B  <- A READ_A(m)
 
 BODY
 {
+  /* Empty body */
 }
 END
 
@@ -91,24 +94,25 @@ READ B  <- A READ_A(m)     [type_remote=LOWER_TILE]
 
 BODY
 {
+#if 0
+    printf("%2d %10s (%2d, %2d) ", getpid(), "TASK_A - B", m, k);
+    for(int i = 0; i<descM->mb; i++){
+        for(int j = 0; j<descM->nb; j++){
+            printf("%3d ", ((int*)B)[j * descM->mb + i]);
+        }
+        printf("\n\t\t\t  ");
+    }
+    printf("\n");
 
-//    printf("%2d %10s (%2d, %2d) ", getpid(), "TASK_A - B", m, k);
-//    for(int i = 0; i<descM->mb; i++){
-//        for(int j = 0; j<descM->nb; j++){
-//            printf("%3d ", ((int*)B)[j * descM->mb + i]);
-//        }
-//        printf("\n\t\t\t  ");
-//    }
-//    printf("\n");
-
-//    printf("%2d %10s (%2d, %2d) ", getpid(), "TASK_A - A", m, k);
-//    for(int i = 0; i<descM->mb; i++){
-//        for(int j = 0; j<descM->nb; j++){
-//            printf("%3d ", ((int*)A)[j * descM->mb + i]);
-//        }
-//        printf("\n\t\t\t  ");
-//    }
-//    printf("\n");
+    printf("%2d %10s (%2d, %2d) ", getpid(), "TASK_A - A", m, k);
+    for(int i = 0; i<descM->mb; i++){
+        for(int j = 0; j<descM->nb; j++){
+            printf("%3d ", ((int*)A)[j * descM->mb + i]);
+        }
+        printf("\n\t\t\t  ");
+    }
+    printf("\n");
+#endif
 
     /* Copy lower to A (which contains upper) and write back */
     for(int i = 0; i < descM->mb; i++){

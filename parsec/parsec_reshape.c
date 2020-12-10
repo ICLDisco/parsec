@@ -26,7 +26,8 @@
  *
  * @param[in] future  datacopy future.
  */
-void parsec_cleanup_reshape_promise(parsec_base_future_t *future){
+void parsec_cleanup_reshape_promise(parsec_base_future_t *future)
+{
     parsec_datacopy_future_t* d_fut = (parsec_datacopy_future_t*)future;
     if(d_fut->cb_fulfill_data_in != NULL){
         parsec_reshape_promise_description_t *future_in_data =
@@ -65,8 +66,10 @@ void parsec_cleanup_reshape_promise(parsec_base_future_t *future){
  * invocation.
  * @return 1 if the tracked data matches the requested shape.
  */
-int parsec_reshape_check_match_datatypes(parsec_base_future_t* f,
-                                 void *t1, void *t2){
+int
+parsec_reshape_check_match_datatypes(parsec_base_future_t* f,
+                                     void *t1, void *t2)
+{
     (void)f;
     parsec_datatype_t *tracked_data_match = (parsec_datatype_t *)t1;
     parsec_dep_data_description_t *target = (parsec_dep_data_description_t *)t2;
@@ -114,10 +117,10 @@ parsec_new_reshape_promise(parsec_dep_data_description_t* data,
     future_in_data->local->dst_datatype = data->local.dst_datatype;
     future_in_data->local->dst_count    = data->local.dst_count;
     future_in_data->local->dst_displ    = data->local.dst_displ;
-    if(type == PARSEC_UNFULFILLED_RESHAPE_PROMISE){
+    if(type == PARSEC_UNFULFILLED_RESHAPE_PROMISE) {
         match_data[0]                       = data->local.src_datatype;
         match_data[1]                       = data->local.dst_datatype;
-    }else{
+    } else {
         match_data[0] = match_data[1]       = future_in_data->data->dtt;
         /* JDF generated code set up src & dst to PARSEC_DATATYPE_NULL
          * to indicate no type on dependency. Correct for possible nested reshapes. */
@@ -137,29 +140,6 @@ parsec_new_reshape_promise(parsec_dep_data_description_t* data,
      * Every other successor won't consume the original data->data.
      */
     PARSEC_OBJ_RETAIN( future_in_data->data );
-
-    /* Give a hint of possible unmatching issues for the selected reshape
-     * on debug mode*/
-#if defined(PARSEC_DEBUG_ENABLE)
-        char type_name_src[MAX_TASK_STRLEN] = "NULL";
-        char type_name_dst[MAX_TASK_STRLEN] = "NULL";
-        int len;
-        int src_pack_size=0, dst_pack_size=0;
-        if(future_in_data->local->src_datatype != PARSEC_DATATYPE_NULL) {
-            MPI_Type_get_name(future_in_data->local->src_datatype, type_name_src, &len);
-            MPI_Pack_size(future_in_data->local->src_count, future_in_data->local->src_datatype, MPI_COMM_WORLD, &src_pack_size);
-        }
-        if(future_in_data->local->dst_datatype != PARSEC_DATATYPE_NULL) {
-            MPI_Type_get_name(future_in_data->local->dst_datatype, type_name_dst, &len);
-            MPI_Pack_size(future_in_data->local->dst_count, future_in_data->local->dst_datatype, MPI_COMM_WORLD, &dst_pack_size);
-        }
-        if(src_pack_size != dst_pack_size){
-            parsec_warning("parsec_new_reshape_promise: reshape requested between dtt with different packed size fut %p dtt [%p:%s = sz(%d) -> %p:%s= sz(%d)]",
-                             data_future,
-                             future_in_data->local->src_datatype, type_name_src, src_pack_size,
-                             future_in_data->local->dst_datatype, type_name_dst, dst_pack_size);
-        }
-#endif
 
     return data_future;
 }
@@ -200,20 +180,22 @@ void parsec_setup_nested_future(parsec_datacopy_future_t** future,
 
     data->data = tmp; /* restore the contents of the dep_data_description */
 
-#if defined(PARSEC_DEBUG_NOISIER) || defined(PARSEC_DEBUG_PARANOID)
+#if (defined(PARSEC_DEBUG_NOISIER) || defined(PARSEC_DEBUG_PARANOID)) && defined(PARSEC_HAVE_MPI)
     char type_string[MAX_TASK_STRLEN]="UNFULFILLED";
     char orig_string[MAX_TASK_STRLEN]="NESTED";
     char type_name_src[MAX_TASK_STRLEN] = "NULL";
     char type_name_dst[MAX_TASK_STRLEN] = "NULL";
     int len;
-    if(data->local.src_datatype!=PARSEC_DATATYPE_NULL) MPI_Type_get_name(data->local.src_datatype, type_name_src, &len);
-    if(data->local.dst_datatype!=PARSEC_DATATYPE_NULL) MPI_Type_get_name(data->local.dst_datatype, type_name_dst, &len);
+    if(data->local.src_datatype != PARSEC_DATATYPE_NULL)
+	MPI_Type_get_name(data->local.src_datatype, type_name_src, &len);
+    if(data->local.dst_datatype != PARSEC_DATATYPE_NULL)
+	MPI_Type_get_name(data->local.dst_datatype, type_name_dst, &len);
     PARSEC_DEBUG_VERBOSE(12, parsec_debug_output,
                          "RESHAPE_PROMISE CREATE %s %s [%p:..:%p -> ..:%p] fut %p dtt %s -> %s",
                          type_string, orig_string, data_src, data_src->dtt,
                          data->local.dst_datatype,
                          *future, type_name_src, type_name_dst);
-#endif
+#endif  /* (defined(PARSEC_DEBUG_NOISIER) || defined(PARSEC_DEBUG_PARANOID)) && defined(PARSEC_HAVE_MPI) */
 }
 
 
@@ -289,8 +271,8 @@ parsec_create_reshape_promise(parsec_execution_stream_t *es,
     setup_flow_index = predecessor_dep_flow_index;
     setup_repo_entry = predecessor_repo_entry;
 
-    if ( predecessor_repo_entry->data[predecessor_dep_flow_index] != NULL ){
-        if(promise_type == PARSEC_UNFULFILLED_RESHAPE_PROMISE){
+    if ( predecessor_repo_entry->data[predecessor_dep_flow_index] != NULL ) {
+        if(promise_type == PARSEC_UNFULFILLED_RESHAPE_PROMISE) {
             /* New unfulfilled reshape promises are set up on the succcessor repo
              * in case the predecessor repo is already occupied. */
             *setup_repo = successor_repo;
@@ -298,11 +280,11 @@ parsec_create_reshape_promise(parsec_execution_stream_t *es,
             setup_flow_index = successor_dep_flow_index;
             setup_repo_entry = data_repo_lookup_entry_and_create(es, successor_repo,
                                                                successor_repo_key);
-        }else{
+        } else {
             data->data_future = (parsec_datacopy_future_t*)predecessor_repo_entry->data[predecessor_dep_flow_index];
             /* New fulfilled promises are set up on the successor repo in case
              * they track a data different to the one tracked by the predecessor repo. */
-            if(data->data != parsec_future_get_or_trigger(data->data_future, NULL, NULL, NULL, NULL)){
+            if(data->data != parsec_future_get_or_trigger(data->data_future, NULL, NULL, NULL, NULL)) {
                 /* This case happens when a predecessor sends multiple copies with
                  * different shapes (type_remote) on the same output flow to a set
                  * of successors on the same remote destination node.
@@ -324,12 +306,12 @@ parsec_create_reshape_promise(parsec_execution_stream_t *es,
     }
 
 
-    if ( data->data_future == NULL ){
+    if ( data->data_future == NULL ) {
         /* Create a new future in case one is not already available. */
         data->data_future = parsec_new_reshape_promise(data, promise_type);
         new_future = 1;
 
-        if(promise_type == PARSEC_FULFILLED_RESHAPE_PROMISE){
+        if(promise_type == PARSEC_FULFILLED_RESHAPE_PROMISE) {
             parsec_future_set(data->data_future, data->data);
         }
     }
@@ -350,18 +332,18 @@ parsec_create_reshape_promise(parsec_execution_stream_t *es,
     /* Set up the reshape promise. */
     setup_repo_entry->data[setup_flow_index] = (parsec_data_copy_t *)data->data_future;
     /* Increase the usage count of the repo where the reshape has been set up. */
-    if ( (*setup_repo == successor_repo) && (( *setup_repo_key == successor_repo_key )) ){
+    if ( (*setup_repo == successor_repo) && (( *setup_repo_key == successor_repo_key )) ) {
         /* If the reshape promise is set up on the successor repo, usage limit
          * is increase now. */
         data_repo_entry_addto_usage_limit(*setup_repo, *setup_repo_key, 1);
-    }else{
+    } else {
         /* If the reshape promise is set up on the predecessor repo, output_usage
          * is increase now to track the usage, and the limit is set on release_deps
          * later on.
          * Note, when creating inline reshape promise reading from desc, output_usage
          * will be null.
          */
-        if( output_usage!= NULL ) (*output_usage)++;
+        if( NULL != output_usage ) (*output_usage)++;
     }
 }
 
