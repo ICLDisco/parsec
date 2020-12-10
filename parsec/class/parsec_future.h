@@ -39,16 +39,16 @@ typedef struct  parsec_base_future_t             parsec_base_future_t;
 typedef struct  parsec_future_fn_t               parsec_future_fn_t;
 
 /* Callback routines types */
-typedef void  (*parsec_future_cb_fulfill)       (parsec_base_future_t *, ...);
-typedef void  (*parsec_future_cb_nested)        (parsec_base_future_t **, ...);
-typedef int   (*parsec_future_cb_match)         (parsec_base_future_t *, ...);
-typedef void  (*parsec_future_cb_cleanup)       (parsec_base_future_t *, ...);
+typedef void  (*parsec_future_cb_fulfill)       ();
+typedef void  (*parsec_future_cb_nested)        ();
+typedef int   (*parsec_future_cb_match)         ();
+typedef void  (*parsec_future_cb_cleanup)       ();
 
 typedef int   (*parsec_future_is_ready_t)       (parsec_base_future_t *);
-typedef void* (*parsec_future_get_or_trigger_t) (parsec_base_future_t *, ...);
+typedef void* (*parsec_future_get_or_trigger_t) ();
 typedef void  (*parsec_future_set_t)            (parsec_base_future_t *, void*);
 typedef void* (*parsec_future_get_t)            (parsec_base_future_t *);
-typedef void  (*parsec_future_init_t)           (parsec_base_future_t *, ...);
+typedef void  (*parsec_future_init_t)           ();
 
 #define PARSEC_DATA_FUTURE_STATUS_INIT      ((uint8_t)0x01) /* Future has been initialized. */
 #define PARSEC_DATA_FUTURE_STATUS_TRIGGERED ((uint8_t)0x02) /* Future has been triggered. */
