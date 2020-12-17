@@ -34,9 +34,8 @@ lib_dirs = (['@PROJECT_BINARY_DIR@/parsec']) # +
 run_dirs = [] # '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
 
 debuggeron = False
-if 'Debug' == build_type:
+if 'Debug' == build_type or 'RelWithDebInfo' == build_type:
     debuggeron = True
-    extra_compile_args.append('-O0') # Overwrite the default Cython compilation flags
 
 # Cython does not support VPATH, so the generated files will always reside on the
 # SOURCE_DIR, except if we explicitly move them to the build directory.
