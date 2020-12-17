@@ -59,6 +59,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     parsec_nvlink_taskpool_t* testing_handle = NULL;
     int *dev_index, nb, dev, i;
     two_dim_block_cyclic_t *dcA;
+    two_dim_block_cyclic_t *userM;
 
     /** Find all CUDA devices */
     nb = 0;
@@ -94,6 +95,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     int CuHI = -1;
 #endif
 
+    /* A is used READ-ONLY by both GEMM1 and GEMM2 */
     dcA = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
     two_dim_block_cyclic_init(dcA, matrix_RealDouble, matrix_Tile,
                               ctx->my_rank,
@@ -105,24 +107,81 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
                               0, 0);
     dcA->mat = parsec_data_allocate((size_t)dcA->super.nb_local_tiles *
                                     (size_t)dcA->super.bsiz *
-                                   (size_t)parsec_datadist_getsizeoftype(dcA->super.mtype));
+                                    (size_t)parsec_datadist_getsizeoftype(dcA->super.mtype));
     parsec_data_collection_set_key((parsec_data_collection_t*)dcA, "A");
 
     for(i = 0; i < dcA->super.nb_local_tiles * mb * mb; i++)
         ((double*)dcA->mat)[i] = (double)rand() / (double)RAND_MAX;
 
-    testing_handle = parsec_nvlink_new(dcA, ctx->nb_nodes, CuHI, nb, dev_index);
+    /* GEMM1 tasks will create one data copy per GPU, and work on those.
+     * see nvlink.jdf:MAKE_C tasks */
+    
+    /* userM is a user-managed matrix: the user creates the data copies
+     * only on the GPU they want the GEMM2 to run. To simplify the code,
+     * we use two_dim_block_cyclic that requires to also have a CPU data
+     * copy, then for each data, we allocate a GPU data copy */
+    userM = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
+    two_dim_block_cyclic_init(userM, matrix_RealDouble, matrix_Tile,
+                              ctx->my_rank,
+                              mb, mb,
+                              nb*mb, ctx->nb_nodes*mb,
+                              0, 0,
+                              nb*mb, ctx->nb_nodes*mb,
+                              1, 1,
+                              1, 1,
+                              0, 0);
+    size_t userMlsize = (size_t)userM->super.nb_local_tiles *
+        (size_t)userM->super.bsiz *
+        (size_t)parsec_datadist_getsizeoftype(userM->super.mtype);
+    userM->mat = parsec_data_allocate(userMlsize);
+    memset(userM->mat, 0, userMlsize);
+
+    /* Now, we create a GPU version of each tile. As these tiles will be accessed RW
+     * in the JDF, this also pins the task on the GPU that we chose to host the tile */
+    for(int g = 0, dev = 0; dev < (int)parsec_nb_devices; dev++) {
+        parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)parsec_mca_device_get(dev);
+        if( PARSEC_DEV_CUDA == cuda_device->super.type ) {
+            /* We get the data from the data collection */
+            parsec_data_t *dta = ((parsec_dc_t*)userM)->data_of((parsec_dc_t*)userM, g, ctx->my_rank);
+            /* The corresponding data copy on CPU RAM */
+            parsec_data_copy_t *cpu_copy = parsec_data_get_copy(dta, 0);
+            /* And we create a new data copy on GPU */
+            parsec_data_copy_t *gpu_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
+            /* We chose the GPU */
+            cudaError_t status = cudaSetDevice( cuda_device->cuda_index );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaSetDevice ", status, {return NULL;} );
+            /* Allocate memory on it, for one tile */
+            status = (cudaError_t)cudaMalloc( &gpu_copy->device_private, mb*mb*parsec_datadist_getsizeoftype(matrix_RealDouble) );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMalloc ", status, {return NULL;} );
+            /* Attach this copy to the data, on the corresponding device */
+            parsec_data_copy_attach(dta, gpu_copy, cuda_device->super.device_index);
+            /* We also need to tell PaRSEC that the owner of this data is the GPU, or the
+             * GPU might not be selected to work on that data */
+            parsec_data_transfer_ownership_to_copy(dta, cuda_device->super.device_index, PARSEC_FLOW_ACCESS_RW);
+            /* And copy the tile from CPU to GPU */
+            status = (cudaError_t)cudaMemcpy( gpu_copy->device_private,
+                                              cpu_copy->device_private,
+                                              dta->nb_elts,
+                                              cudaMemcpyHostToDevice );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMemcpy ", status, {return NULL;} );
+            g++;
+        }
+    }
+    
+    testing_handle = parsec_nvlink_new(dcA, userM, ctx->nb_nodes, CuHI, nb, dev_index);
 
     parsec_matrix_add2arena( &testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX],
                              parsec_datatype_double_complex_t,
                              matrix_UpperLower, 1, mb, mb, mb,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
-
+    
     return &testing_handle->super;
 }
 
 void testing_nvlink_Destruct( parsec_taskpool_t *tp )
 {
+    int g, dev;
+    two_dim_block_cyclic_t *userM;
     parsec_nvlink_taskpool_t *nvlink_taskpool = (parsec_nvlink_taskpool_t *)tp;
     two_dim_block_cyclic_t *dcA;
     parsec_matrix_del2arena( & nvlink_taskpool->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX] );
@@ -130,6 +189,26 @@ void testing_nvlink_Destruct( parsec_taskpool_t *tp )
     parsec_info_unregister(&parsec_per_stream_infos, nvlink_taskpool->_g_CuHI, NULL);
     dcA = nvlink_taskpool->_g_descA;
     parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)nvlink_taskpool->_g_descA );
+
+    userM = nvlink_taskpool->_g_userM;
+    for(g = 0, dev = 0; dev < (int)parsec_nb_devices; dev++) {
+        parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)parsec_mca_device_get(dev);
+        if( PARSEC_DEV_CUDA == cuda_device->super.type ) {
+            parsec_data_t *dta = ((parsec_dc_t*)userM)->data_of((parsec_dc_t*)userM, g, userM->super.super.myrank);
+            parsec_data_copy_t *gpu_copy = parsec_data_get_copy(dta, cuda_device->super.device_index);
+            cudaError_t status = cudaSetDevice( cuda_device->cuda_index );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaSetDevice ", status, {} );
+            status = (cudaError_t)cudaFree( gpu_copy->device_private );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaFree ", status, {} );
+            gpu_copy->device_private = NULL;
+            parsec_data_copy_detach(dta, gpu_copy, cuda_device->super.device_index);
+            PARSEC_OBJ_RELEASE(gpu_copy);
+            g++;
+        }
+    }
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)nvlink_taskpool->_g_userM );
+    
     parsec_taskpool_free(tp);
     free(dcA);
+    free(userM);
 }

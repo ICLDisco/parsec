@@ -156,7 +156,8 @@ int main(int argc, char *argv[])
     mycounter = 300 + rank;
     ddata_mycounter = parsec_data_create(
         &ddata_mycounter, &mydata, 0,
-        &mycounter, sizeof(int));
+        &mycounter, sizeof(int),
+        PARSEC_DATA_FLAG_PARSEC_MANAGED);
 
     tp = parsec_Ex06_RAW_new(&mydata, world, rank);
 

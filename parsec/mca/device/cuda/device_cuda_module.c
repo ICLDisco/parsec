@@ -108,9 +108,11 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
             *trate = 512;
             *srate = 64;
             *drate = 32;
+            parsec_warning("Unsupported GPU %d, %d, assuming 8, 0 capability.", major, minor);
+        } else {
+            parsec_warning("Unsupported GPU %d, %d, skipping.", major, minor);
+            return PARSEC_ERROR;
         }
-        parsec_warning("Unsupported GPU %d, %d, skipping.", major, minor);
-        return PARSEC_ERROR;
     }
     return PARSEC_SUCCESS;
 }
@@ -651,6 +653,7 @@ parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
                             "GPU[%d] Allocate CUDA copy %p [ref_count %d] for data [%p]",
                              gpu_device->cuda_index,gpu_elem, gpu_elem->super.obj_reference_count, NULL);
         gpu_elem->device_private = (void*)(long)device_ptr;
+        gpu_elem->flags |= PARSEC_DATA_FLAG_PARSEC_OWNED;
         gpu_elem->device_index = gpu_device->super.device_index;
         mem_elem_per_gpu++;
         PARSEC_OBJ_RETAIN(gpu_elem);
@@ -725,6 +728,8 @@ static void parsec_cuda_memory_release_list(parsec_device_cuda_module_t* gpu_dev
             parsec_warning("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!",
                           gpu_device->cuda_index, original->key);
         }
+        assert(0 != (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
+
 #if defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
         cudaFree( gpu_copy->device_private );
 #else
@@ -881,7 +886,9 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
                              "GPU[%d]:%s: Allocate CUDA copy %p sz %d[ref_count %d] for data %p",
                              gpu_device->cuda_index, task_name,
                              gpu_elem, gpu_task->flow_nb_elts[i], gpu_elem->super.super.obj_reference_count, master);
+        gpu_elem->flags = PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED;
       malloc_data:
+        assert(0 != (gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
         gpu_elem->device_private = zone_malloc(gpu_device->memory, gpu_task->flow_nb_elts[i]);
         if( NULL == gpu_elem->device_private ) {
 #endif
@@ -900,7 +907,10 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
                                      flow->name, i, this_task->task_class->nb_flows, task_name );
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
                 for( j = 0; j < i; j++ ) {
+                    /* This flow could be a control flow */
                     if( NULL == temp_loc[j] ) continue;
+                    /* This flow could be non-parsec-owned, in which case we can't reclaim it */
+                    if( 0 == (temp_loc[j]->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
                     PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                                          "GPU[%d]:%s:\tAdd copy %p [ref_count %d] back to the LRU list",
                                          gpu_device->cuda_index, task_name,
@@ -949,6 +959,7 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
                                      "GPU[%d]:%s: Push back LRU-retrieved CUDA copy %p [readers %d, ref_count %d] original %p",
                                      gpu_device->cuda_index, task_name,
                                      lru_gpu_elem, lru_gpu_elem->readers, lru_gpu_elem->super.super.obj_reference_count, lru_gpu_elem->original);
+                assert(0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
                 parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
                 if( NULL == gpu_mem_lru_cycling ) {
                     gpu_mem_lru_cycling = lru_gpu_elem;
@@ -975,6 +986,7 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
                     /* Even if we have the lock on oldmaster, any other thread
                      * might be adding/removing other elements to the list, so we
                      * need to protect all accesses to gpu_mem_lru with the locked version */
+                    assert(0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
                     parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
                     if( NULL == gpu_mem_lru_cycling ) {
                         gpu_mem_lru_cycling = lru_gpu_elem;
@@ -1057,6 +1069,7 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
                                              gpu_device->cuda_index, NULL, 0);
             }
 #endif
+            assert( 0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
             zone_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
             lru_gpu_elem->device_private = NULL;
             data_avail_epoch++;
@@ -1101,6 +1114,7 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* gpu_device,
                              "GPU[%d]:%s: Retain and insert CUDA copy %p [ref_count %d] in LRU",
                              gpu_device->cuda_index, task_name,
                              gpu_elem, gpu_elem->super.super.obj_reference_count);
+        assert(0 != (gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
         parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_elem);
         parsec_atomic_unlock(&master->lock);
     }
@@ -1705,6 +1719,21 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
         dev_index = best_index;
     }
 
+    /* Sanity check: if at least one of the data copies is not parsec
+     * managed, check that all the non-parsec-managed data copies
+     * exist on the same device */
+     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+         /* Make sure data_in is not NULL */
+         if (NULL == this_task->data[i].data_in) continue;
+         if ((this_task->data[i].data_in->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) == 0 &&
+              this_task->data[i].data_in->device_index != dev_index) {
+             char task_str[MAX_TASK_STRLEN];
+             parsec_fatal("*** User-Managed Copy Error: Task %s is selected to run on device %d,\n"
+                          "*** but flow %d is represented by a data copy not managed by PaRSEC,\n"
+                          "*** and does not have a copy on that device\n",
+                          parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task), dev_index, i);
+         }
+     }
     return dev_index;
 }
 
@@ -2003,14 +2032,16 @@ parsec_gpu_callback_complete_push(parsec_device_cuda_module_t  *gpu_device,
      */
     assert(gpu_stream == &(gpu_device->exec_stream[0]));
     task = gtask->ec;
-#if defined(PARSEC_DEBUG_NOISIER)
     PARSEC_DEBUG_VERBOSE(19, parsec_cuda_output_stream,
                          "GPU[%d]: parsec_gpu_callback_complete_push, PUSH of %s",
                          gpu_device->cuda_index, parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task));
-#endif
+
     for( i = 0; i < task->task_class->nb_flows; i++ ) {
         /* Make sure data_in is not NULL */
         if( NULL == task->data[i].data_in ) continue;
+        /* We also don't push back non-parsec-owned copies */
+        if(NULL != task->data[i].data_out &&
+           0 == (task->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED)) continue;
 
         flow = gtask->flow[i];
         assert( flow );
@@ -2234,6 +2265,7 @@ progress_stream( parsec_device_cuda_module_t* gpu_device,
 
             flow = task->flow[i];
             if(PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & flow->flow_flags)) continue;
+            if( 0 == (task->ec->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
             assert(task->ec->data[i].data_out->data_transfer_status == PARSEC_DATA_STATUS_COMPLETE_TRANSFER);
         }
 #endif /* defined(PARSEC_DEBUG_PARANOID) */
@@ -2318,7 +2350,8 @@ void dump_GPU_state(parsec_device_cuda_module_t* gpu_device)
         PARSEC_LIST_ITERATOR(&gpu_device->gpu_mem_lru, item,
                                     {
                                         parsec_gpu_data_copy_t* gpu_copy = (parsec_gpu_data_copy_t*)item;
-                                        parsec_output(parsec_cuda_output_stream, "  %d. elem %p GPU mem %p\n", i, gpu_copy, gpu_copy->device_private);
+                                        parsec_output(parsec_cuda_output_stream, "  %d. elem %p flags 0x%x GPU mem %p\n",
+                                                      i, gpu_copy, gpu_copy->flags, gpu_copy->device_private);
                                         parsec_dump_data_copy(gpu_copy);
                                         i++;
                                     });
@@ -2329,7 +2362,8 @@ void dump_GPU_state(parsec_device_cuda_module_t* gpu_device)
         PARSEC_LIST_ITERATOR(&gpu_device->gpu_mem_owned_lru, item,
                                     {
                                         parsec_gpu_data_copy_t* gpu_copy = (parsec_gpu_data_copy_t*)item;
-                                        parsec_output(parsec_cuda_output_stream, "  %d. elem %p GPU mem %p\n", i, gpu_copy, gpu_copy->device_private);
+                                        parsec_output(parsec_cuda_output_stream, "  %d. elem %p flags 0x%x GPU mem %p\n",
+                                                      i, gpu_copy, gpu_copy->flags, gpu_copy->device_private);
                                         parsec_dump_data_copy(gpu_copy);
                                         i++;
                                     });
@@ -2407,6 +2441,11 @@ parsec_gpu_kernel_push( parsec_device_cuda_module_t     *gpu_device,
         /* Make sure data_in is not NULL */
         if( NULL == this_task->data[i].data_in ) continue;
 
+        /* If there is already a GPU data copy (set by reserve_device_space), and this copy
+         * is not parsec-owned, don't stage in */
+        if( NULL != this_task->data[i].data_out &&
+            (0 == (this_task->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) ) continue;
+
         assert( NULL != parsec_data_copy_get_ptr(this_task->data[i].data_in) );
 
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
@@ -2457,6 +2496,8 @@ parsec_gpu_kernel_pop( parsec_device_cuda_module_t *gpu_device,
     if (gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {
         for( i = 0; i < this_task->locals[0].value; i++ ) {
             gpu_copy = this_task->data[i].data_out;
+            /* If the gpu copy is not owned by parsec, we don't manage it at all */
+            if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
             original = gpu_copy->original;
             if(PARSEC_SUCCESS != gpu_task->stage_out(gpu_task, (1U << i), gpu_stream)){
                 parsec_warning( "%s: %s%s", __FILE__, __LINE__,
@@ -2485,6 +2526,10 @@ parsec_gpu_kernel_pop( parsec_device_cuda_module_t *gpu_device,
         if( PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & flow->flow_flags) )  continue;  /* control flow */
 
         gpu_copy = this_task->data[i].data_out;
+
+        /* If the gpu copy is not owned by parsec, we don't manage it at all */
+        if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
+
         original = gpu_copy->original;
         nb_elts = gpu_task->flow_nb_elts[i];
 
@@ -2625,6 +2670,7 @@ parsec_gpu_kernel_epilog( parsec_device_cuda_module_t      *gpu_device,
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
 
+
         if( !(gpu_task->flow[i]->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
             /* Warning data_out for read only flows has been overwritten in pop */
             continue;
@@ -2634,6 +2680,9 @@ parsec_gpu_kernel_epilog( parsec_device_cuda_module_t      *gpu_device,
         original = gpu_copy->original;
         cpu_copy = original->device_copies[0];
 
+        /* If it is a copy managed by the user, don't bother either */
+        if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
+        
         /**
          * There might be a race condition here. We can't assume the first CPU
          * version is the corresponding CPU copy, as a new CPU-bound data
@@ -2747,7 +2796,9 @@ parsec_gpu_kernel_cleanout( parsec_device_cuda_module_t      *gpu_device,
          * data (aka. the one that GEMM worked on) is now on the CPU.
          */
         this_task->data[i].data_out = cpu_copy;
-        parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+        if( 0 != (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) {
+            parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+        }
         parsec_atomic_unlock(&original->lock);
         data_avail_epoch++;
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,

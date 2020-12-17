@@ -82,7 +82,7 @@ static parsec_data_t* tree_dist_data_of_key(parsec_data_collection_t *desc, pars
             tree->buffers->buffer_use += sizeof(node_t);
             pthread_mutex_unlock(&tree->buffer_lock);
         }
-        parsec_data_create(&node->data, desc, key, pos, sizeof(node_t));
+        parsec_data_create(&node->data, desc, key, pos, sizeof(node_t), PARSEC_DATA_FLAG_PARSEC_MANAGED);
     }
     return node->data;
 }

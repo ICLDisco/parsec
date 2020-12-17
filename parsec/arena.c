@@ -228,8 +228,10 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
 
     data->nb_elts = count * arena->elem_size;
 
-    copy = parsec_data_copy_new( data, device, dtt );
-    copy->flags |= PARSEC_DATA_FLAG_ARENA;
+    copy = parsec_data_copy_new( data, device, dtt,
+                                 PARSEC_DATA_FLAG_ARENA |
+                                 PARSEC_DATA_FLAG_PARSEC_OWNED |
+                                 PARSEC_DATA_FLAG_PARSEC_MANAGED);
     copy->device_private = chunk->data;
     copy->arena_chunk = chunk;
 

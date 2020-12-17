@@ -142,7 +142,9 @@ int main(int argc, char *argv[])
                                          &mydata,          /* The descriptor associated to it */
                                          0,                /* The data key (see later)        */
                                          &mycounter,       /* The pointer to the data         */
-                                         sizeof(int)       /* The size of the data            */);
+                                         sizeof(int),      /* The size of the data            */
+                                         /* PaRSEC manages this data, but it is owned by the user */
+                                         PARSEC_DATA_FLAG_PARSEC_MANAGED);
 
     /**
      * Here we update the data_of pointer from the descriptor

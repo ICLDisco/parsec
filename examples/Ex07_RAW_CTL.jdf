@@ -150,7 +150,6 @@ int main(int argc, char *argv[])
 
     parsec = parsec_init(-1, &argc, &argv);
 
-
     parsec_data_collection_init(&mydata, world, rank);
     mydata.rank_of = rank_of;
     mydata.vpid_of = vpid_of;
@@ -164,7 +163,8 @@ int main(int argc, char *argv[])
     mycounter = 300 + rank;
     ddata_mycounter = parsec_data_create(
         &ddata_mycounter, &mydata, 0,
-        &mycounter, sizeof(int));
+        &mycounter, sizeof(int),
+        PARSEC_DATA_FLAG_PARSEC_MANAGED);
 
     tp = parsec_Ex07_RAW_CTL_new(&mydata, world, rank);
 

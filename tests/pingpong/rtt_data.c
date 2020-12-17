@@ -73,13 +73,13 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
     va_end(ap);
 
     assert( (unsigned int)k < dat->super.nodes && k >= 0 );
-    return parsec_data_create( &dat->data, desc, k, dat->ptr, dat->size );
+    return parsec_data_create( &dat->data, desc, k, dat->ptr, dat->size, PARSEC_DATA_FLAG_PARSEC_MANAGED );
 }
 
 static parsec_data_t* data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     my_datatype_t *dat = (my_datatype_t*)desc;
-    return parsec_data_create( &dat->data, desc, key, dat->ptr, dat->size );
+    return parsec_data_create( &dat->data, desc, key, dat->ptr, dat->size, PARSEC_DATA_FLAG_PARSEC_MANAGED );
 }
 
 static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)

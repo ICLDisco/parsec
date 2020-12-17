@@ -34,10 +34,29 @@ typedef uint8_t parsec_data_status_t;
 #define    PARSEC_DATA_STATUS_NOT_TRANSFER          ((parsec_data_coherency_t)0x0)
 #define    PARSEC_DATA_STATUS_UNDER_TRANSFER        ((parsec_data_coherency_t)0x1)
 #define    PARSEC_DATA_STATUS_COMPLETE_TRANSFER     ((parsec_data_coherency_t)0x2)
-
+/**
+ * Data copies have three levels of 'ownership':
+ * - a data copy can be owned and managed by PaRSEC.
+ *   This is typically the data copies coming from arenas
+ *   and most gpu data copies. PaRSEC knows how to move them
+ *   allocate and free them. They have the flag
+ *   PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED
+ * - it can be managed but not owned by PaRSEC. This is typically
+ *   the case of data collections: PaRSEC knows how to create
+ *   duplicates of this copy, but cannot release its device_private,
+ *   and is not responsible of the life cycle of the device_private
+ *   pointer. Such copies have the flag PARSEC_DATA_FLAG_PARSEC_MANAGED
+ * - it can be neither owned nor managed by PaRSEC. This is typically
+ *   the case of user-managed copies on the GPU. The user is responsible
+ *   for the lifecycle of the data copy, and trying to move such data
+ *   copy (create a duplicate on the same or another device) should
+ *   not happen and if needed will issue a runtime error
+ **/
 typedef uint8_t parsec_data_flag_t;
-#define PARSEC_DATA_FLAG_ARENA     ((parsec_data_flag_t)0x01)
-#define PARSEC_DATA_FLAG_TRANSIT   ((parsec_data_flag_t)0x02)
+#define PARSEC_DATA_FLAG_ARENA          ((parsec_data_flag_t)1<<0)
+#define PARSEC_DATA_FLAG_TRANSIT        ((parsec_data_flag_t)1<<1)
+#define PARSEC_DATA_FLAG_PARSEC_MANAGED ((parsec_data_flag_t)1<<6)
+#define PARSEC_DATA_FLAG_PARSEC_OWNED   ((parsec_data_flag_t)1<<7)
 
 /**
  * Initialize the PaRSEC data infrastructure
@@ -50,7 +69,7 @@ parsec_data_get_copy(parsec_data_t* data, uint32_t device);
 
 PARSEC_DECLSPEC parsec_data_copy_t*
 parsec_data_copy_new(parsec_data_t* data, uint8_t device,
-                     parsec_datatype_t dtt);
+                     parsec_datatype_t dtt, parsec_data_flag_t flags);
 
 /**
  * Decrease the refcount of this copy of the data. If the refcount reach
@@ -111,7 +130,8 @@ PARSEC_DECLSPEC void parsec_dump_data(parsec_data_t* copy);
 PARSEC_DECLSPEC parsec_data_t *
 parsec_data_create( parsec_data_t **holder,
                    parsec_data_collection_t *desc,
-                   parsec_data_key_t key, void *ptr, size_t size );
+                   parsec_data_key_t key,
+                   void *ptr, size_t size, parsec_data_flag_t flags);
 
 /**
  * Destroy the parsec_data_t generated through a call to parsec_data_create

@@ -51,7 +51,9 @@ CTL ctl -> ctl L_Init(m, n)
 BODY
 {
     int size = descY->bsiz * sizeof(double);   /* Could be changed flexibly */
-    this_task->data._f_Y.data_out = parsec_data_copy_new(data_of_descY(m, n), 0, PARSEC_two_dim_band_DEFAULT_ADT->opaque_dtt);
+    this_task->data._f_Y.data_out = parsec_data_copy_new(data_of_descY(m, n), 0,
+                                                         PARSEC_two_dim_band_DEFAULT_ADT->opaque_dtt,
+                                                         PARSEC_DATA_FLAG_PARSEC_MANAGED);
     this_task->data._f_Y.data_out->device_private = malloc(size);
 }
 END
@@ -102,7 +104,9 @@ CTL ctl -> ctl U_Init(m, n)
 BODY
 {
     int size = descY->bsiz * sizeof(double);   /* Could be changed flexibly */
-    this_task->data._f_Y.data_out = parsec_data_copy_new(data_of_descY(m, n), 0, PARSEC_two_dim_band_DEFAULT_ADT->opaque_dtt);
+    this_task->data._f_Y.data_out = parsec_data_copy_new(data_of_descY(m, n), 0,
+                                                         PARSEC_two_dim_band_DEFAULT_ADT->opaque_dtt,
+                                                         PARSEC_DATA_FLAG_PARSEC_MANAGED);
     this_task->data._f_Y.data_out->device_private = malloc(size);
 }
 END
@@ -152,7 +156,9 @@ CTL ctl -> ctl D_Init(m)
 BODY
 {
     int size = descY->bsiz * sizeof(double);   /* Could be changed flexibly */
-    this_task->data._f_Y.data_out = parsec_data_copy_new(data_of_descY(m, m), 0, PARSEC_two_dim_band_DEFAULT_ADT->opaque_dtt);
+    this_task->data._f_Y.data_out = parsec_data_copy_new(data_of_descY(m, m), 0,
+                                                         PARSEC_two_dim_band_DEFAULT_ADT->opaque_dtt,
+                                                         PARSEC_DATA_FLAG_PARSEC_MANAGED);
     this_task->data._f_Y.data_out->device_private = malloc(size);
 }
 END

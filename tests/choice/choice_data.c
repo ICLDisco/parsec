@@ -61,7 +61,7 @@ get_or_create_data(my_datatype_t* dat, uint32_t pos)
     } else {
         /* Do we have a copy of this data */
         if( NULL == data->device_copies[0] ) {
-            data_copy = parsec_data_copy_new(data, 0, dat->super.default_dtt);
+            data_copy = parsec_data_copy_new(data, 0, dat->super.default_dtt, PARSEC_DATA_FLAG_PARSEC_MANAGED);
             data_copy->device_private = &dat->data[pos];
         }
     }

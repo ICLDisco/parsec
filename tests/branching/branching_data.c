@@ -58,7 +58,7 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
     (void)k;
 
     if(NULL == dat->data) {
-        dat->data = parsec_data_copy_new(NULL, 0, desc->default_dtt);
+        dat->data = parsec_data_copy_new(NULL, 0, desc->default_dtt, PARSEC_DATA_FLAG_PARSEC_MANAGED);
         dat->data->device_private = dat->ptr;
     }
     return (void*)(dat->data);

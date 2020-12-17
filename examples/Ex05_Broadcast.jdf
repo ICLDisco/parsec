@@ -139,7 +139,8 @@ int main(int argc, char *argv[])
 
     ddata_mycounter = parsec_data_create(
         &ddata_mycounter, &mydata, 0,
-        &mycounter, sizeof(int));
+        &mycounter, sizeof(int),
+        PARSEC_DATA_FLAG_PARSEC_MANAGED);
 
     /**
      * We now remove the NB parameter as it is an hidden global

@@ -35,7 +35,8 @@ parsec_matrix_create_data(parsec_tiled_matrix_dc_t* matrix,
     assert( pos <= matrix->nb_local_tiles );
     return parsec_data_create( matrix->data_map + pos,
                               &(matrix->super), key, ptr,
-                              matrix->bsiz * parsec_datadist_getsizeoftype(matrix->mtype) );
+                              matrix->bsiz * parsec_datadist_getsizeoftype(matrix->mtype),
+                              PARSEC_DATA_FLAG_PARSEC_MANAGED);
 }
 
 void
