@@ -117,6 +117,12 @@ int parsec_type_create_resized(parsec_datatype_t oldtype,
 int parsec_type_match(parsec_datatype_t dtt1,
                       parsec_datatype_t dtt2);
 
+/**
+ * Routine to check if a datatype is contiguous.
+ * @param[in] parsec_datatype_t datatype
+ * @return PARSEC_SUCCESS if it was created with MPI_Type_contiguous, PARSEC_ERROR otherwise.
+ */
+int parsec_type_contiguous(parsec_datatype_t dtt);
 END_C_DECLS
 
 /** @} */

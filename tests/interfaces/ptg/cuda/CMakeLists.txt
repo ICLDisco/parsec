@@ -13,5 +13,11 @@ if(PARSEC_HAVE_CUDA)
     target_include_directories(stress PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
     target_ptg_sources(stress PRIVATE "stress.jdf")
     target_link_libraries(stress PRIVATE ${CUDA_CUBLAS_LIBRARIES})
+
+    parsec_addtest(C stage "stage_main.c;")
+    target_include_directories(stage PRIVATE $<$<NOT:${PARSEC_BUILD_INPLACE}>:${CMAKE_CURRENT_SOURCE_DIR}>)
+    target_ptg_sources(stage PRIVATE "stage_custom.jdf")
+    target_link_libraries(stage PRIVATE ${CUDA_CUBLAS_LIBRARIES})
+
   endif( NOT CUDA_cublas_LIBRARY )
 endif(PARSEC_HAVE_CUDA)

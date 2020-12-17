@@ -6461,6 +6461,10 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                                         const char *name)
 {
     jdf_def_list_t *type_property;
+    jdf_def_list_t *stage_in_property;
+    jdf_def_list_t *stage_out_property;
+    jdf_def_list_t *size_property;
+    jdf_def_list_t *desc_property;
     jdf_def_list_t *weight_property;
     jdf_def_list_t *device_property;
     const char *dyld;
@@ -6672,11 +6676,60 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  gpu_task->last_data_check_epoch = -1;  /* force at least one validation for the task */\n",
             jdf_basename, f->fname);
 
+    /* Set up stage in/out callbacks */
+    jdf_find_property(body->properties, "stage_in", &stage_in_property);
+    jdf_find_property(body->properties, "stage_out", &stage_out_property);
+
+    if(stage_in_property == NULL) {
+        coutput("  gpu_task->stage_in  = parsec_default_gpu_stage_in;\n");
+    }else{
+        coutput("  gpu_task->stage_in  = %s;\n", dump_expr((void**)stage_in_property->expr, &info));
+    }
+
+    if(stage_out_property == NULL) {
+        coutput("  gpu_task->stage_out = parsec_default_gpu_stage_out;\n");
+    }else{
+        coutput("  gpu_task->stage_out = %s;\n", dump_expr((void**)stage_out_property->expr, &info));
+    }
+
     /* Dump the dataflow */
     coutput("  gpu_task->pushout = 0;\n");
     for(fl = f->dataflow, di = 0; fl != NULL; fl = fl->next, di++) {
-        coutput("  gpu_task->flow[%d]    = &%s;\n",
+        coutput("  gpu_task->flow[%d]         = &%s;\n",
                 di, JDF_OBJECT_ONAME( fl ));
+
+        sprintf(sa->ptr, "%s.dc", fl->varname);
+        jdf_find_property(body->properties, sa->ptr, &desc_property);
+        if(desc_property == NULL){
+            coutput("  gpu_task->flow_dc[%d] = NULL;\n", di);
+        }else{
+            coutput("  gpu_task->flow_dc[%d] = (parsec_data_collection_t *)%s;\n", di,
+                        dump_expr((void**)desc_property->expr, &info));
+        }
+
+        sprintf(sa->ptr, "%s.size", fl->varname);
+        jdf_find_property(body->properties, sa->ptr, &size_property);
+
+        if(fl->flow_flags & JDF_FLOW_TYPE_CTL) {
+            if(size_property != NULL){
+                fprintf(stderr, "Error: specifying GPU buffer size for CTL flow %s at line %d\n",
+                        fl->varname, JDF_OBJECT_LINENO(fl));
+                exit(-1);
+            }
+            coutput("  gpu_task->flow_nb_elts[%d] = 0;\n", di);
+        }else{
+            if(size_property == NULL){
+                coutput("  gpu_task->flow_nb_elts[%d] = gpu_task->ec->data[%d].data_in->original->nb_elts;\n", di, di);
+            }else{
+                coutput("  gpu_task->flow_nb_elts[%d] = %s;\n",
+                        di, dump_expr((void**)size_property->expr, &info));
+                if( (stage_in_property == NULL) || ( stage_out_property == NULL )){
+                    coutput("  assert(gpu_task->ec->data[%d].data_in->original->nb_elts <= %s);\n",
+                            di, dump_expr((void**)size_property->expr, &info));
+                }
+
+            }
+        }
 
         if (fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
             jdf_dep_t *dl;

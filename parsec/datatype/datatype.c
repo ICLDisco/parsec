@@ -145,3 +145,8 @@ int parsec_type_match(parsec_datatype_t dtt1,
     return PARSEC_SUCCESS;
 }
 
+int parsec_type_contiguous(parsec_datatype_t dtt)
+{
+    (void)dtt;
+    return PARSEC_SUCCESS;
+}
