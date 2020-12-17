@@ -37,8 +37,6 @@ static uint32_t parsec_mca_device_are_freezed = 0;
 parsec_atomic_lock_t parsec_devices_mutex = PARSEC_ATOMIC_UNLOCKED;
 static parsec_device_module_t** parsec_devices = NULL;
 
-parsec_info_t parsec_per_device_infos;
-
 static parsec_device_module_t* parsec_device_cpus = NULL;
 static parsec_device_module_t* parsec_device_recursive = NULL;
 
@@ -59,22 +57,8 @@ float *parsec_device_sweight = NULL;
 float *parsec_device_dweight = NULL;
 float *parsec_device_tweight = NULL;
 
-static void parsec_device_module_constructor(parsec_object_t *obj)
-{
-    parsec_device_module_t *mod = (parsec_device_module_t*)obj;
-    PARSEC_OBJ_CONSTRUCT(&mod->infos, parsec_info_object_array_t);
-    parsec_info_object_array_init(&mod->infos, &parsec_per_device_infos);
-}
-
-static void parsec_device_module_destructor(parsec_object_t *obj)
-{
-    parsec_device_module_t *mod = (parsec_device_module_t*)obj;
-    PARSEC_OBJ_DESTRUCT(&mod->infos);
-}
-
 PARSEC_OBJ_CLASS_INSTANCE(parsec_device_module_t, parsec_object_t,
-                          parsec_device_module_constructor,
-                          parsec_device_module_destructor);
+                          NULL, NULL);
 
 int parsec_mca_device_init(void)
 {
@@ -86,6 +70,7 @@ int parsec_mca_device_init(void)
     int i, j, rc, priority;
 
     PARSEC_OBJ_CONSTRUCT(&parsec_per_device_infos, parsec_info_t);
+    PARSEC_OBJ_CONSTRUCT(&parsec_per_stream_infos, parsec_info_t);
 
     (void)parsec_mca_param_reg_int_name("device", "show_capabilities",
                                         "Show the detailed devices capabilities",
@@ -137,6 +122,7 @@ int parsec_mca_device_init(void)
                     j++;
                 }
                 modules_activated[num_modules_activated++] = modules[0];
+
 #if defined(PARSEC_PROF_TRACE)
                 strncat(modules_activated_str, device_components[i]->mca_component_name, 1023);
                 strncat(modules_activated_str, ",", 1023);
@@ -341,6 +327,7 @@ int parsec_mca_device_fini(void)
     }
 
     PARSEC_OBJ_DESTRUCT(&parsec_per_device_infos);
+    PARSEC_OBJ_DESTRUCT(&parsec_per_stream_infos);
 
     return PARSEC_SUCCESS;
 }
@@ -731,6 +718,8 @@ int parsec_mca_device_add(parsec_context_t* context, parsec_device_module_t* dev
     parsec_nb_devices++;
     device->context = context;
     parsec_atomic_unlock(&parsec_devices_mutex);  /* CRITICAL SECTION: END */
+    PARSEC_OBJ_CONSTRUCT(&device->infos, parsec_info_object_array_t);
+    parsec_info_object_array_init(&device->infos, &parsec_per_device_infos, device);
     return device->device_index;
 }
 
@@ -745,6 +734,7 @@ int parsec_mca_device_remove(parsec_device_module_t* device)
 {
     int rc = PARSEC_SUCCESS;
 
+    PARSEC_OBJ_DESTRUCT(&device->infos);
     parsec_atomic_lock(&parsec_devices_mutex);  /* CRITICAL SECTION: BEGIN */
     if( NULL == device->context ) {
         rc = PARSEC_ERR_BAD_PARAM;

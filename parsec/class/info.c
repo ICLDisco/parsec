@@ -17,11 +17,30 @@ static void parsec_info_constructor(parsec_object_t *obj)
 {
     parsec_info_t *nfo = (parsec_info_t*)obj;
     nfo->max_id = -1;
+    PARSEC_OBJ_CONSTRUCT(&nfo->ioa_list, parsec_list_t);
 }
 
-PARSEC_OBJ_CLASS_INSTANCE(parsec_info_t, parsec_list_t, parsec_info_constructor, NULL);
+static void parsec_info_destructor(parsec_object_t *obj)
+{
+    parsec_info_t *nfo = (parsec_info_t*)obj;
+    parsec_list_item_t *item, *next;
+    for(item = PARSEC_LIST_ITERATOR_FIRST(&nfo->info_list);
+        item != PARSEC_LIST_ITERATOR_END(&nfo->info_list);
+        item = next) {
+        next = PARSEC_LIST_ITERATOR_NEXT(item);
+        parsec_info_entry_t *ie = (parsec_info_entry_t*)item;
+        parsec_info_unregister(nfo, ie->iid, NULL);
+    }
+    PARSEC_OBJ_DESTRUCT(&nfo->ioa_list);
+    /* nfo->info_list is the parent and will be destructed at exit */
+}
 
-parsec_info_id_t parsec_info_register(parsec_info_t *nfo, const char *name, void *cb_data)
+PARSEC_OBJ_CLASS_INSTANCE(parsec_info_t, parsec_list_t, parsec_info_constructor, parsec_info_destructor);
+
+parsec_info_id_t parsec_info_register(parsec_info_t *nfo, const char *name,
+                                      parsec_info_destructor_t destructor, void *des_data,
+                                      parsec_info_constructor_t constructor, void *cons_data,
+                                      void *cb_data)
 {
     parsec_list_item_t *item, *next_item;
     parsec_info_entry_t *ie, *nie;
@@ -36,6 +55,10 @@ parsec_info_id_t parsec_info_register(parsec_info_t *nfo, const char *name, void
     PARSEC_OBJ_CONSTRUCT(nie, parsec_list_item_t);
     nie->info = nfo;
     nie->name = strdup(name);
+    nie->destructor = destructor;
+    nie->des_data = des_data;
+    nie->constructor = constructor;
+    nie->cons_data = cons_data;
     nie->cb_data = cb_data;
 
     parsec_list_lock(&nfo->info_list);
@@ -80,18 +103,34 @@ parsec_info_id_t parsec_info_register(parsec_info_t *nfo, const char *name, void
     return ret;
 }
 
-parsec_info_id_t parsec_info_unregister(parsec_info_t *nfo, parsec_info_id_t iid, void **pcb_data)
+parsec_info_id_t parsec_info_unregister(parsec_info_t *nfo, parsec_info_id_t iid,
+                                        void **pcb_data)
 {
-    parsec_list_item_t *item;
+    parsec_list_item_t *item, *next, *item2;
     parsec_info_entry_t *ie, *found = NULL;
+    parsec_info_object_array_t *ioa;
     int max_id = -1;
 
     parsec_list_lock(&nfo->info_list);
     for(item = PARSEC_LIST_ITERATOR_FIRST(&nfo->info_list);
         item != PARSEC_LIST_ITERATOR_END(&nfo->info_list);
-        item = PARSEC_LIST_ITERATOR_NEXT(item)) {
+        item = next) {
+        next = PARSEC_LIST_ITERATOR_NEXT(item);
         ie = (parsec_info_entry_t*)item;
         if( ie->iid == iid ) {
+            if(NULL != ie->destructor) {
+                parsec_list_lock(&nfo->ioa_list);
+                for(item2 = PARSEC_LIST_ITERATOR_FIRST(&nfo->ioa_list);
+                    item2 != PARSEC_LIST_ITERATOR_END(&nfo->ioa_list);
+                    item2 = PARSEC_LIST_ITERATOR_NEXT(item2)) {
+                    ioa = (parsec_info_object_array_t*)item2;
+                    if(iid < ioa->known_infos && NULL != ioa->info_objects[iid]) {
+                        ie->destructor(ioa->info_objects[iid], ie->des_data);
+                        ioa->info_objects[iid] = NULL;
+                    }
+                }
+                parsec_list_unlock(&nfo->ioa_list);
+            }
             parsec_list_nolock_remove(&nfo->info_list, item);
             assert(NULL == found);
             found = ie;
@@ -138,6 +177,26 @@ parsec_info_id_t parsec_info_lookup(parsec_info_t *nfo, const char *name, void *
     return ret;
 }
 
+static parsec_info_entry_t *parsec_info_lookup_by_iid(parsec_info_t *nfo, int iid)
+{
+    parsec_list_item_t *item;
+    parsec_info_entry_t *ie;
+    parsec_info_entry_t *ret = NULL;
+
+    parsec_list_lock(&nfo->info_list);
+    for(item = PARSEC_LIST_ITERATOR_FIRST(&nfo->info_list);
+        item != PARSEC_LIST_ITERATOR_END(&nfo->info_list);
+        item = PARSEC_LIST_ITERATOR_NEXT(item)) {
+        ie = (parsec_info_entry_t*)item;
+        if( ie->iid == iid ) {
+            ret = ie;
+            break;
+        }
+    }
+    parsec_list_unlock(&nfo->info_list);
+    return ret;
+}
+
 static void parsec_info_object_array_constructor(parsec_object_t *obj)
 {
     parsec_info_object_array_t *oa = (parsec_info_object_array_t*)obj;
@@ -145,24 +204,42 @@ static void parsec_info_object_array_constructor(parsec_object_t *obj)
     oa->info_objects = NULL;
     oa->infos = NULL;
     parsec_atomic_rwlock_init(&oa->rw_lock);
+    PARSEC_LIST_ITEM_SINGLETON(&oa->list_item);
 }
 
 /* The constructor cannot set the info, as it does not take additional
  * parameters. Thus, it is needed to call init after constructing the
  * info_object_array. */
-void parsec_info_object_array_init(parsec_info_object_array_t *oa, parsec_info_t *nfo)
+void parsec_info_object_array_init(parsec_info_object_array_t *oa, parsec_info_t *nfo, void *cons_obj)
 {
     oa->known_infos = nfo->max_id+1;
+    parsec_list_push_front(&nfo->ioa_list, &oa->list_item);
     if(oa->known_infos == 0)
         oa->info_objects = NULL;
     else
         oa->info_objects = calloc(sizeof(void*), oa->known_infos);
     oa->infos = nfo;
+    oa->cons_obj = cons_obj;
 }
 
 static void parsec_info_object_array_destructor(parsec_object_t *obj)
 {
+    parsec_list_item_t *next, *item;
     parsec_info_object_array_t *oa = (parsec_info_object_array_t*)obj;
+    /* If we are a singleton, we have already been removed from the list */
+    if(oa->list_item.list_next != &oa->list_item) {
+        parsec_list_lock(&oa->infos->ioa_list);
+        for (item = PARSEC_LIST_ITERATOR_FIRST(&oa->infos->ioa_list);
+             item != PARSEC_LIST_ITERATOR_END(&oa->infos->ioa_list);
+             item = next) {
+            next = PARSEC_LIST_ITERATOR_NEXT(item);
+            if (item == &oa->list_item) {
+                parsec_list_nolock_remove(&oa->infos->ioa_list, item);
+                break;
+            }
+        }
+        parsec_list_unlock(&oa->infos->ioa_list);
+    }
     if(NULL != oa->info_objects)
         free(oa->info_objects);
     oa->info_objects = NULL;
@@ -170,7 +247,7 @@ static void parsec_info_object_array_destructor(parsec_object_t *obj)
     oa->known_infos = -1;
 }
 
-PARSEC_OBJ_CLASS_INSTANCE(parsec_info_object_array_t, parsec_object_t,
+PARSEC_OBJ_CLASS_INSTANCE(parsec_info_object_array_t, parsec_list_item_t,
                           parsec_info_object_array_constructor,
                           parsec_info_object_array_destructor);
 
@@ -222,9 +299,21 @@ void *parsec_info_test_and_set(parsec_info_object_array_t *oa, parsec_info_id_t 
 
 void *parsec_info_get(parsec_info_object_array_t *oa, parsec_info_id_t iid)
 {
-    void *ret;
+    void *ret, *nio;
+    parsec_info_entry_t *ie;
+
     parsec_ioa_resize_and_rdlock(oa, iid);
     ret = oa->info_objects[iid];
     parsec_atomic_rwlock_rdunlock(&oa->rw_lock);
+    if(NULL != ret)
+        return ret;
+    ie = parsec_info_lookup_by_iid(oa->infos, iid);
+    if(NULL == ie->constructor)
+        return ret;
+    nio = ie->constructor(oa->cons_obj, ie->cons_data);
+    ret = parsec_info_test_and_set(oa, iid, ret, NULL);
+    if(ret != nio && NULL != ie->destructor) {
+        ie->destructor(nio, ie->des_data);
+    }
     return ret;
 }

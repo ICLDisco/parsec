@@ -34,27 +34,6 @@ typedef cublasStatus_t (*cublas_dgemm_v2_t) ( cublasHandle_t handle,
                                               const double *beta,
                                               double       *C, int ldc);
 
-static cublasHandle_t create_or_lookup_cublas_handle(parsec_device_module_t *mod,
-                                                     parsec_info_id_t cuhi,
-                                                     cudaStream_t cuda_stream)
-{
-    cublasHandle_t ret;
-    ret = parsec_info_get(&mod->infos, cuhi);
-    if( NULL == ret ) {
-        cublasHandle_t handle;
-        cublasStatus_t status;
-        /* No need to call cudaSetDevice, as this has been done by PaRSEC before calling the task body */
-        status = cublasCreate(&handle);
-        assert(CUBLAS_STATUS_SUCCESS == status);
-        status = cublasSetStream(handle, cuda_stream);
-        assert(CUBLAS_STATUS_SUCCESS == status);
-        ret = parsec_info_test_and_set(&mod->infos, cuhi, handle, NULL);
-        /* We are the only thread modifying this entry, so the test and set should always succeed */
-        assert(ret == handle);
-    }
-    return ret;
-}
-
 %}
 
 /*
@@ -152,7 +131,7 @@ BODY [type=CUDA
     cublasHandle_t handle;
     double alpha=0.0;
     double beta=1.0;
-    handle = create_or_lookup_cublas_handle(&gpu_device->super, CuHI, gpu_stream->cuda_stream);
+    handle = parsec_info_get(&gpu_stream->infos, CuHI);
     assert(NULL != handle);
     status = parsec_body.dyld_fn( handle,
                                   CUBLAS_OP_N, CUBLAS_OP_N, 

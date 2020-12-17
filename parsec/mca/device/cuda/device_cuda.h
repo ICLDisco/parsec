@@ -158,6 +158,8 @@ struct parsec_gpu_exec_stream_s {
     int32_t                           end;
     parsec_list_t                    *fifo_pending;
     parsec_gpu_workspace_t           *workspace;
+    parsec_info_object_array_t        infos; /**< Per-stream info objects are stored here */
+
 #if defined(PARSEC_PROF_TRACE)
     parsec_profiling_stream_t        *profiling;
     int                               prof_event_track_enable;

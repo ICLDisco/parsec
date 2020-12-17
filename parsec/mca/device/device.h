@@ -147,7 +147,6 @@ PARSEC_OBJ_CLASS_DECLARATION(parsec_device_module_t);
 extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
 extern parsec_atomic_lock_t parsec_devices_mutex;
-extern parsec_info_t parsec_per_device_infos;
 
 /**
  * Temporary variables used for load-balancing purposes.
