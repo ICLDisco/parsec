@@ -20,7 +20,7 @@ parsec_addtest_executable(C dtd_test_data_flush SOURCES dtd_test_data_flush.c ${
 parsec_addtest_executable(C dtd_test_global_id_for_dc_assumed SOURCES dtd_test_global_id_for_dc_assumed.c ${COMMON_DATA})
 parsec_addtest_executable(C dtd_test_explicit_task_creation SOURCES dtd_test_explicit_task_creation.c ${COMMON_DATA})
 parsec_addtest_executable(C dtd_test_tp_enqueue_dequeue SOURCES dtd_test_tp_enqueue_dequeue.c)
-parsec_addtest_executable(C dtd_test_interleave_actions dtd_test_interleave_actions.c)
+parsec_addtest_executable(C dtd_test_interleave_actions SOURCES dtd_test_interleave_actions.c)
 
 #
 # Shared Memory Testings
