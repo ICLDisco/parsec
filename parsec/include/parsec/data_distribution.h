@@ -18,8 +18,8 @@ struct parsec_device_module_s;
 typedef int (*parsec_memory_region_management_f)(parsec_data_collection_t*, struct parsec_device_module_s*);
 
 typedef uint8_t parsec_memory_registration_status_t;
-#define    PARSEC_MEMORY_STATUS_UNREGISTERED            ((parsec_memory_registration_status_t)0x0)
-#define    PARSEC_MEMORY_STATUS_REGISTERED              ((parsec_memory_registration_status_t)0x1)
+#define    PARSEC_MEMORY_STATUS_UNREGISTERED      ((parsec_memory_registration_status_t)0x0)
+#define    PARSEC_MEMORY_STATUS_REGISTERED        ((parsec_memory_registration_status_t)0x1)
 
 typedef uint64_t parsec_dc_key_t;
 
