@@ -26,6 +26,12 @@ master
    with different levels of structures and dynamic objects in the PaRSEC
    runtime.
 
+ - PTG supports user-defined routines to move data between GPU and
+   CPU, and user-defined sizes for buffers allocated on the GPU.
+
+ - PTG supports reshaping data propagated between local tasks and
+   the speficiation of two types on acccesses to data colletions.
+
 v20.12
  - PaRSEC API 3.0
 
@@ -106,6 +112,7 @@ v20.12
 
  - DTD provides mca param (dtd_debug_verbose) to print information
    about traversal of DAG in a separate output stream from the default.
+
 
 v 2.0.0rc2
  - Rename all functions, files, directories from dague/DAGUE/DAGuE to
