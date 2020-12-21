@@ -703,22 +703,44 @@ void parsec_local_reshape(parsec_base_future_t *future,
         (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, task);
 #endif
 
+#if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
+    char type_name_src[MAX_TASK_STRLEN] = "NULL";
+    char type_name_dst[MAX_TASK_STRLEN] = "NULL";
+    int len;
+    int src_pack_size=0, dst_pack_size=0;
+    if(dt->local->src_datatype != PARSEC_DATATYPE_NULL) {
+        MPI_Type_get_name(dt->local->src_datatype, type_name_src, &len);
+        MPI_Pack_size(dt->local->src_count, dt->local->src_datatype, MPI_COMM_WORLD, &src_pack_size);
+    }
+    if(dt->local->dst_datatype != PARSEC_DATATYPE_NULL) {
+        MPI_Type_get_name(dt->local->dst_datatype, type_name_dst, &len);
+        MPI_Pack_size(dt->local->dst_count, dt->local->dst_datatype, MPI_COMM_WORLD, &dst_pack_size);
+    }
+    if(src_pack_size != dst_pack_size){
+        parsec_warning("parsec_local_reshape: reshape requested between dtt with different packed size fut %p dtt [%p:%s = sz(%d) -> %p:%s= sz(%d)]",
+                         future,
+                         dt->local->src_datatype, type_name_src, src_pack_size,
+                         dt->local->dst_datatype, type_name_dst, dst_pack_size);
+    }
+#endif
+
+
     /* if MPI is multithreaded do not thread-shift the sendrecv */
     if( (es->virtual_process->parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT)
             || (tp == NULL && task == NULL)/* || I AM COMM THREAD */)
     {
         parsec_data_copy_t *reshape_data = reshape_copy_allocate(dt->local);
 
+        PARSEC_DEBUG_VERBOSE(2, parsec_debug_output,
+                             "th%d RESHAPE_PROMISE COMPLETED COMP-THREAD to [%p:%p:%s -> %p:%p:%s] for %s fut %p",
+                             es->th_id, dt->data, dt->data->dtt, type_name_src,
+                             reshape_data, dt->local->dst_datatype, type_name_dst, task_string, future);
+
         MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(dt->data) + dt->local->src_displ, dt->local->src_count, dt->local->src_datatype,
                      0, es->th_id,
                      (char*)PARSEC_DATA_COPY_GET_PTR(reshape_data)  + dt->local->dst_displ, dt->local->dst_count, dt->local->dst_datatype,
                      0, es->th_id,
                      dep_self, MPI_STATUS_IGNORE);
-
-        PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                             "th%d \033[01;33mRESHAPE_PROMISE\033[0m COMPLETED COMP-THREAD to [%p:%p -> %p:%p] for %s fut %p",
-                             es->th_id, dt->data, dt->data->dtt,
-                             reshape_data, dt->local->dst_datatype, task_string, future);
 
         parsec_future_set(future, reshape_data);
 
@@ -729,9 +751,9 @@ void parsec_local_reshape(parsec_base_future_t *future,
     }
 
     PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                         "th%d \033[01;33mRESHAPE_PROMISE\033[0m TRIGGERED to [%p:%p -> ...:%p] for %s fut %p",
-                         es->th_id, dt->data, dt->data->dtt,
-                         dt->local->dst_datatype, task_string, future);
+                         "th%d RESHAPE_PROMISE TRIGGERED to [%p:%p:%s -> ...:%p:%s] for %s fut %p",
+                         es->th_id, dt->data, dt->data->dtt, type_name_src,
+                         dt->local->dst_datatype, type_name_dst, task_string, future);
 
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
     PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
@@ -1825,7 +1847,7 @@ static int local_dep_nothread_reshape(parsec_execution_stream_t* es,
         (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, item->cmd.memcpy_reshape.task);
 #endif
     PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                         "th%d \033[01;33mRESHAPE_PROMISE\033[0m COMPLETED COMM-THREAD to [%p:%p -> %p:%p] for %s fut %p",
+                         "th%d RESHAPE_PROMISE COMPLETED COMM-THREAD to [%p:%p -> %p:%p] for %s fut %p",
                          es->th_id, item->cmd.memcpy_reshape.dt->data, item->cmd.memcpy_reshape.dt->data->dtt,
                          cmd->memcpy.destination, item->cmd.memcpy_reshape.dt->local->dst_datatype, task_string, item->cmd.memcpy_reshape.future);
 
@@ -2045,7 +2067,7 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
             }
 
             PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                                 "th%d \033[01;33mRESHAPE_PROMISE\033[0m OBTAINED DEPS-REMOTE [%p:%p] for %s fut %p",
+                                 "th%d RESHAPE_PROMISE OBTAINED DEPS-REMOTE [%p:%p] for %s fut %p",
                                  es->th_id, deps->output[k].data.data, (deps->output[k].data.data)->dtt, "INLINE REMOTE", deps->output[k].data.data_future);
 
             deps->output[k].data.data = reshape_data;
