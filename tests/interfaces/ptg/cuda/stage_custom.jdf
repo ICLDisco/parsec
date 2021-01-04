@@ -250,7 +250,7 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
 
     descA->mat = parsec_data_allocate( (size_t) nelems *
                                        (size_t)parsec_datadist_getsizeoftype(descA->super.mtype));
-    parsec_data_collection_set_key((parsec_data_collection_t*)&descA, "descA");
+    parsec_data_collection_set_key((parsec_data_collection_t*)descA, "descA");
 
     two_dim_block_cyclic_t *descB;
     descB = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
@@ -260,7 +260,7 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
     descB->mat = parsec_data_allocate( (size_t) nelems *
                                        (size_t)parsec_datadist_getsizeoftype(descB->super.mtype));
     assert(NULL != descB->mat);
-    parsec_data_collection_set_key((parsec_data_collection_t*)&descB, "descB");
+    parsec_data_collection_set_key((parsec_data_collection_t*)descB, "descB");
 
     int ldam = descB->super.mb;
     int ldbm = descB->super.llm;
