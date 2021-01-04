@@ -514,7 +514,7 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
         /* The MPI thread is owning the lock */
         assert( parsec_communication_engine_up == 2 );
         remote_dep_mpi_on(context);
-        /* acknoledge the activation */
+        /* acknowledge the activation */
         parsec_communication_engine_up = 3;
         whatsup = remote_dep_dequeue_nothread_progress(&parsec_comm_es, -1 /* loop till explicitly asked to return */);
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: comm engine OFF on process %d/%d",
@@ -1086,9 +1086,6 @@ enum {
 } parsec_remote_dep_tag_t;
 
 #ifdef PARSEC_PROF_TRACE
-static parsec_profiling_stream_t* MPIctl_prof;
-static parsec_profiling_stream_t* MPIsnd_prof;
-static parsec_profiling_stream_t* MPIrcv_prof;
 static int MPI_Activate_sk, MPI_Activate_ek;
 static int64_t get = 0;
 static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
@@ -1140,18 +1137,12 @@ static void remote_dep_mpi_profiling_init(void)
                                             parsec_profile_remote_dep_mpi_info_to_string,
                                             &put_cb_trace_sk, &put_cb_trace_ek);
 
-    MPIctl_prof = parsec_profiling_stream_init( 2*1024*1024, "MPI ctl");
-    MPIsnd_prof = parsec_profiling_stream_init( 2*1024*1024, "MPI isend");
-    MPIrcv_prof = parsec_profiling_stream_init( 2*1024*1024, "MPI irecv");
-    parsec_comm_es.es_profile = MPIctl_prof;
+    parsec_comm_es.es_profile = parsec_profiling_stream_init( 2*1024*1024, "MPI thread");
 }
 
 static void remote_dep_mpi_profiling_fini(void)
 {
     /* TODO: we need to clean the profiling threads memory */
-    MPIsnd_prof = NULL;
-    MPIrcv_prof = NULL;
-    MPIctl_prof = NULL;
 }
 
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw)                \
@@ -1489,20 +1480,14 @@ static int remote_dep_mpi_cleanup(parsec_context_t* context)
 static int remote_dep_mpi_on(parsec_context_t* context)
 {
     remote_dep_mpi_setup(context);
-#ifdef PARSEC_PROF_TRACE
-    /** This is broken at this time, as remote_dep_mpi_setup is
-     *  called after remote_dep_mpi_on, if more than one node.
-     *  We remove the ON markers for now. */
-#if 0
-    /* put a start marker on each line */
-    TAKE_TIME(MPIctl_prof, MPI_Activate_sk, 0);
-    TAKE_TIME(MPIsnd_prof, MPI_Activate_sk, 0);
-    TAKE_TIME(MPIrcv_prof, MPI_Activate_sk, 0);
-    MPI_Barrier(dep_comm);
-    TAKE_TIME(MPIctl_prof, MPI_Activate_ek, 0);
-    TAKE_TIME(MPIsnd_prof, MPI_Activate_ek, 0);
-    TAKE_TIME(MPIrcv_prof, MPI_Activate_ek, 0);
-#endif
+#if defined(PARSEC_PROF_TRACE)
+    /* This is less than ideal, but remote_dep_mpi_setup
+     * holds a mpi_comm_dup() which is often implemented
+     * as a synchronizing routine between the ranks, and
+     * parsec_profiling_start() protects against multiple
+     * calls, so it's the best current place to decide of
+     * a common starting time. */
+    parsec_profiling_start();
 #endif
     (void)context;
     return 0;
@@ -1819,7 +1804,7 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
                item->cmd.activate.peer, k, task->deps, dataptr, type_name, tag+k, deps->output[k].data.displ);
 #endif
 
-        TAKE_TIME_WITH_INFO(MPIsnd_prof, MPI_Data_plds_sk, k,
+        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_plds_sk, k,
                             es->virtual_process->parsec_context->my_rank,
                             item->cmd.activate.peer, deps->msg);
         task->output_mask ^= (1U<<k);
@@ -1853,7 +1838,7 @@ remote_dep_mpi_put_end_cb(parsec_execution_stream_t* es,
             cb->idx, deps, (long)cb->idx, status->MPI_TAG,
             deps->output[cb->idx].data.data); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
-    TAKE_TIME(MPIsnd_prof, MPI_Data_plds_ek, cb->idx);
+    TAKE_TIME(es->es_profile, MPI_Data_plds_ek, cb->idx);
     remote_dep_complete_and_cleanup(&deps, 1);
     parsec_comm_puts--;
     (void)es;
@@ -2128,7 +2113,7 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
                 from, tmp, k, task->deps, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, nbdtt,
                 deps->output[k].data.displ, deps->output[k].data.arena->elem_size * nbdtt, msg.tag+k);
 #  endif
-        TAKE_TIME_WITH_INFO(MPIrcv_prof, MPI_Data_pldr_sk, k, from,
+        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_pldr_sk, k, from,
                             es->virtual_process->parsec_context->my_rank, deps->msg);
         DEBUG_MARK_DTA_MSG_START_RECV(from, deps->output[k].data.data, msg.tag+k);
         MPI_Irecv((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.displ, nbdtt,
@@ -2145,11 +2130,11 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
     }
 #if !defined(PARSEC_PROF_DRY_DEP)
     if(msg.output_mask) {
-        TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Data_ctl_sk, get,
+        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_ctl_sk, get,
                             from, es->virtual_process->parsec_context->my_rank, (*task));
         MPI_Send(&msg, datakey_count, datakey_dtt, from,
                  REMOTE_DEP_GET_DATA_TAG, dep_comm);
-        TAKE_TIME(MPIctl_prof, MPI_Data_ctl_ek, get++);
+        TAKE_TIME(es->es_profile, MPI_Data_ctl_ek, get++);
         DEBUG_MARK_CTL_MSG_GET_SENT(from, (void*)&msg, &msg);
     }
 #endif  /* !defined(PARSEC_PROF_DRY_DEP) */
@@ -2177,7 +2162,7 @@ remote_dep_mpi_get_end_cb(parsec_execution_stream_t* es,
             status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
             cb->idx, deps->incoming_mask, status->MPI_TAG); (void)status;
     DEBUG_MARK_DTA_MSG_END_RECV(status->MPI_TAG);
-    TAKE_TIME(MPIrcv_prof, MPI_Data_pldr_ek, cb->idx);
+    TAKE_TIME(es->es_profile, MPI_Data_pldr_ek, cb->idx);
     remote_dep_mpi_get_end(es, cb->idx, deps);
     parsec_comm_gets--;
     return 0;
