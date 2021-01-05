@@ -105,6 +105,7 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
     d->key_base = strdup("A");
     d->data_key = data_key;
 #endif
+    parsec_type_create_contiguous(size, parsec_datatype_uint32_t, &d->default_dtt);
 
     m->size = size;
     m->seg  = seg;

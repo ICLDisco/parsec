@@ -292,6 +292,7 @@ tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
     res->super.key_to_string = tree_dist_key_to_string;
     res->super.key_dim = NULL;
     res->super.key     = "";
+    parsec_type_create_contiguous(2, parsec_datatype_float_t, &res->super.default_dtt);
 
     /** Then, the tree-specific info */
     pthread_mutex_init(&res->buffer_lock, NULL);

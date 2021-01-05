@@ -128,6 +128,7 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
     d->key = NULL;
     d->data_key = data_key;
 #endif
+    parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &d->default_dtt);
 
     m->size     = size;
     m->data_map = (parsec_data_t**)calloc(size, sizeof(parsec_data_t*));

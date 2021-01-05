@@ -115,6 +115,7 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
 #if defined(PARSEC_PROF_TRACE)
     asprintf(&d->key_dim, "(%d)", world);
 #endif
+    parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &d->default_dtt);
 
     m->size = size;
     m->data = NULL;
