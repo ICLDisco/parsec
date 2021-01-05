@@ -824,11 +824,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_barrier_wait( &(context->barrier) );
     context->__parsec_internal_finalization_counter++;
 
-#if defined(PARSEC_PROF_TRACE)
-    /* Ready to rock! The profiling must be on by default */
-    parsec_profiling_start();
-#endif
-
     /* Release the temporary array used for starting up the threads */
     {
         parsec_barrier_t* barrier = startup[0].barrier;

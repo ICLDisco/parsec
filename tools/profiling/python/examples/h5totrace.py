@@ -230,20 +230,11 @@ if __name__ == '__main__':
             continue
         if "M%d"%(t.node_id) not in paje_container_aliases:
             paje_container_aliases["M%d"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%d" % (t.node_id), Type=paje_ct, Container=paje_c_appli)
-        if hasattr(t, 'vp_id'):
-            if not math.isnan(t.vp_id):
-                if "M%dV%d"%(t.node_id, t.vp_id) not in paje_container_aliases:
-                    paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dV%d" % (t.node_id,t.vp_id), Type=paje_ct,
-                                                                                                        Container=paje_container_aliases["M%d"%(t.node_id)])
         match = re.search(r'PaRSEC', t.description)
         if match is not None and "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
-                if hasattr(t, 'vp_id') and isinstance(t.vp_id, int):
-                        paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id), Type=paje_ct,
-                                                                                                                Container=paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)])
-                else:
-                        paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id), Type=paje_ct,
-                                                                                                                Container=paje_container_aliases["M%d"%(t.node_id)])
-                container_endstate["M%dT%d"%(t.node_id,t.stream_id)] = 0.0
+            paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id), Type=paje_ct,
+                                                                                                     Container=paje_container_aliases["M%d"%(t.node_id)])
+            container_endstate["M%dT%d"%(t.node_id,t.stream_id)] = 0.0
         else:
             match = re.search(r'GPU\ ([0-9]+)\-([0-9]+)', t.description)
             if match is not None:
@@ -258,10 +249,11 @@ if __name__ == '__main__':
             else:
                 match = re.search(r'MPI.*', t.description)
                 if match is not None:
-                    if "M%dMPI"%(t.node_id) not in paje_container_aliases:
-                        paje_container_aliases["M%dMPI"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dMPI" % (t.node_id),
-                                                                                                     Type=paje_ct, Container=paje_container_aliases["M%d"%(t.node_id)])
-                        container_endstate["M%dMPI"%(t.node_id)] = 0.0
+                    if "M%dT%d"%(t.node_id,t.stream_id) not in paje_container_aliases:
+                        paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dMPI" % (t.node_id),
+                                                                                                                 Type=paje_ct, Container=paje_container_aliases["M%d"%(t.node_id)])
+                        paje_container_aliases["M%dMPI"%(t.node_id)] = paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)]
+                        container_endstate["M%dT%d"%(t.node_id,t.stream_id)] = 0.0
                 else:
                     print("Found unknown stream description '%s' at stream_id %d"%(t.description, trindex))
                     if "M%dUnknown"%(t.node_id) not in paje_container_aliases:
@@ -279,7 +271,7 @@ if __name__ == '__main__':
 
     progress = 0.0
     delta = 1.0 / len(store.events)
-    for evr in store.events.iterrows():
+    for evr in store.events.sort_values(['node_id', 'stream_id', 'begin']).iterrows():
         update_progress( progress )
         progress = progress + delta
         ev = evr[1]
@@ -299,7 +291,7 @@ if __name__ == '__main__':
 #                warning('You requested to use counters for events of type %s, but such events are not marked as counter-types'%(type_name))
         else:
             #Don't forget to check if that container was ignored by the user
-            if ( (int(ev['flags']) & (1<<2)) == 0) and ("M%dT%d"%(ev.node_id,ev.stream_id) in paje_container_aliases):
+            if ( "M%dT%d"%(ev.node_id,ev.stream_id) in paje_container_aliases):
                 if ev['end'] <= container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)]:
                     #This event is entirely under the current event on that stream: skip it
                     continue
@@ -307,7 +299,20 @@ if __name__ == '__main__':
                     begin_date = container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)]
                 else:
                     begin_date = ev['begin']
-                key = "tpid=%d:tcid=%d:tid=%d"%(ev.taskpool_id,ev.tcid,ev.id)
+                try:
+                    tpid="%d"%(ev.taskpool_id)
+                except TypeError:
+                    tpid="-"
+                try:
+                    tcid="%d"%(ev.tcid)
+                except TypeError:
+                    tcid="-"
+                try:
+                    evid="%d"%(ev.id)
+                except TypeError:
+                    evid="-"
+                key = "tpid={}:tcid={}:tid={}".format(tpid, tcid, evid)
+                print(key)
                 if args.DAG:
                     dag_info[key] = { 'container': paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                       'start': float(ev.begin), 'end': float(ev.end), 'rank': ev.node_id }
@@ -332,20 +337,12 @@ if __name__ == '__main__':
             nblink = 0
             for sendr in sends.iterrows():
                 send = sendr[1]
-                PajeSetState.PajeEvent(Time=float(send.begin), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(send.node_id)],
-                                           Value=state_aliases[send.type], task_name=store.event_names[send.type])
-                PajeSetState.PajeEvent(Time=float(send.end), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(send.node_id)],
-                                           Value=paje_entity_waiting, task_name="Waiting")
                 recvs = store.events[ ( (store.events.type == rcv_type) &
                                         (store.events.tcid  == send['tcid']) &
                                         (store.events.tpid  == send['tpid']) &
                                         (store.events.tid   == send['tid']) ) ]
                 for rrecv in recvs.iterrows():
                     recv = rrecv[1]
-                    PajeSetState.PajeEvent(Time=float(recv.begin), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(recv.node_id)],
-                                           Value=state_aliases[recv.type], task_name=store.event_names[recv.type])
-                    PajeSetState.PajeEvent(Time=float(recv.end), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(recv.node_id)],
-                                           Value=paje_entity_waiting, task_name="Waiting")
                     PajeStartLink.PajeEvent(Time=float(send.begin), Type=paje_lcom, Container=paje_c_appli,
                                             StartContainer = paje_container_aliases["M%dMPI"%(send.src)],
                                             Value = "", Key="%d"%(nblink))
@@ -356,20 +353,20 @@ if __name__ == '__main__':
 
     if args.DAG:
         nblink = 0
-        for src, dstlist in dot_links.iteritems():
+        for src, dstlist in dot_links.items():
             for dst in dstlist:
                 try:
                     src_uid = task_dot_id[src]
                     dst_uid = task_dot_id[dst]
                 except KeyError as e:
                     print("couldn't find %s in task_dot_id"%(e))
-                    pass
+                    continue
                 try:
                     src_info = dag_info[src_uid]
                     dst_info = dag_info[dst_uid]
                 except KeyError as e:
                     print("couldn't find %s in dag_info"%(e))
-                    pass
+                    continue
                 if src_info['rank'] == dst_info['rank']:
                     link_type=paje_lslt
                 else:
