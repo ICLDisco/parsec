@@ -1742,6 +1742,12 @@ static int remote_dep_mpi_pack_dep(int peer,
             continue;
         }
         assert(deps->output[k].data.remote.src_count > 0);
+#if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
+	if(NULL == deps->output[k].data.remote.src_datatype) {
+	  parsec_fatal("Output %d of %s has not defined a datatype: check that the data collection does define a datatype for each data it provides",
+		       k, tmp);
+	}
+#endif
 
 #ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
         /* If we want to reshape before sending, we don't do short messages. */
