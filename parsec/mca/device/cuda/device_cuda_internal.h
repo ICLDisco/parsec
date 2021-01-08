@@ -52,6 +52,7 @@ extern int use_cuda_index, use_cuda;
 extern int cuda_mask, cuda_verbosity;
 extern int cuda_memory_block_size, cuda_memory_percentage, cuda_memory_number_of_blocks;
 extern char* cuda_lib_path;
+extern int32_t parsec_CUDA_d2h_max_flows;
 extern int32_t parsec_CUDA_sort_pending_list;
 
 PARSEC_DECLSPEC extern const parsec_device_module_t parsec_device_cuda_module;
