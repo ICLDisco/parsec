@@ -91,43 +91,39 @@ int main(int argc, char *argv[])
     }
 
     /* dcY initializing matrix structure */
-
     /* Init Off_band */
     two_dim_block_cyclic_band_t dcY;
     two_dim_block_cyclic_init(&dcY.off_band, matrix_RealDouble, matrix_Tile,
                                 rank, NB, NB, N, N, 0, 0,
                                 N, N,
                                 P, nodes/P, KP, KQ, 0, 0);
-    parsec_data_collection_set_key((parsec_data_collection_t*)&dcY, "dcY off_band");
-
     /* Init band */
     two_dim_block_cyclic_init(&dcY.band, matrix_RealDouble, matrix_Tile,
                                 rank, NB, NB, NB*(2*BAND_SIZE-1), N, 0, 0,
                                 NB*(2*BAND_SIZE-1), N,
                                 P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, 0, 0);
-    parsec_data_collection_set_key(&dcY.band.super.super, "dcY band");
-
     /* Init two_dim_block_cyclic_band_t structure */
     two_dim_block_cyclic_band_init( &dcY, nodes, rank, BAND_SIZE );
+    /* set key needs dcY to be initialized already */
+    parsec_data_collection_set_key(&dcY.off_band.super.super, "dcY off_band");
+    parsec_data_collection_set_key(&dcY.band.super.super, "dcY band");
 
     /* YP */
     sym_two_dim_block_cyclic_band_t dcYP;
-
     /* Init Off_band */
     sym_two_dim_block_cyclic_init(&dcYP.off_band, matrix_RealDouble,
                                 rank, NB, NB, N, N, 0, 0,
                                 N, N, P, nodes/P, uplo);
-    parsec_data_collection_set_key((parsec_data_collection_t*)&dcYP, "dcYP off_band");
-
     /* Init band */
     two_dim_block_cyclic_init(&dcYP.band, matrix_RealDouble, matrix_Tile,
                                 rank, NB, NB, NB*BAND_SIZE, N, 0, 0,
                                 NB*BAND_SIZE, N,
                                 P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, 0, 0);
-    parsec_data_collection_set_key(&dcYP.band.super.super, "dcYP band");
-
     /* Init two_dim_block_cyclic_band_t structure */
     sym_two_dim_block_cyclic_band_init( &dcYP, nodes, rank, BAND_SIZE );
+    /* set key needs dcYP to be initialized already */
+    parsec_data_collection_set_key(&dcYP.off_band.super.super, "dcYP off_band");
+    parsec_data_collection_set_key(&dcYP.band.super.super, "dcYP band");
 
     /* Allocate memory and set value */
     parsec_two_dim_band_test(parsec, (parsec_tiled_matrix_dc_t *)&dcY, full);
