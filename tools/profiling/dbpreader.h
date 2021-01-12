@@ -29,7 +29,9 @@ void dbp_reader_destruct(dbp_multifile_reader_t *dbp);
 /* Dictionary interface */
 
 typedef struct dbp_dictionary dbp_dictionary_t;
+dbp_dictionary_t *dbp_file_get_dictionary(const dbp_file_t *dbp, int did);
 dbp_dictionary_t *dbp_reader_get_dictionary(const dbp_multifile_reader_t *dbp, int did);
+int dbp_file_translate_local_dico_to_global(const dbp_file_t *file, int lid);
 char *dbp_dictionary_name(const dbp_dictionary_t *dico);
 char *dbp_dictionary_attributes(const dbp_dictionary_t *dico);
 char *dbp_dictionary_convertor(const dbp_dictionary_t *dico);
@@ -45,6 +47,7 @@ char * dbp_file_get_name(const dbp_file_t *file);
 int dbp_file_get_rank(const dbp_file_t *file);
 int dbp_file_nb_threads(const dbp_file_t *file);
 int dbp_file_nb_infos(const dbp_file_t *file);
+int dbp_file_nb_dictionary_entries(const dbp_file_t *file);
 int dbp_file_error(const dbp_file_t *file);
 dbp_info_t *dbp_file_get_info(const dbp_file_t *file, int iid);
 
@@ -78,7 +81,7 @@ uint64_t dbp_event_get_event_id(const dbp_event_t *e);
 uint32_t dbp_event_get_taskpool_id(const dbp_event_t *e);
 uint64_t dbp_event_get_timestamp(const dbp_event_t *e);
 void *dbp_event_get_info(const dbp_event_t *e);
-int   dbp_event_info_len(const dbp_event_t *e, const dbp_multifile_reader_t *dbp);
+int   dbp_event_info_len(const dbp_event_t *e, const dbp_file_t *dbp);
 
 // DEBUG
 void dbp_file_print(dbp_file_t * file);

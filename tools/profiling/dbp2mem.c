@@ -48,7 +48,8 @@ static void find_memory_ref_in_thread(const dbp_multifile_reader_t *dbp, int dic
     uint64_t k;
     dbp_event_iterator_t *it;
     const dbp_event_t *e;
-    const dbp_thread_t *th = dbp_file_get_thread( dbp_reader_get_file(dbp, nid), tid);
+    const dbp_file_t *file = dbp_reader_get_file(dbp, nid);
+    const dbp_thread_t *th = dbp_file_get_thread(file, tid);
     memalloc_event_t *m = NULL;
     size_t *info;
 
@@ -70,7 +71,7 @@ static void find_memory_ref_in_thread(const dbp_multifile_reader_t *dbp, int dic
 
         if( KEY_IS_START( dbp_event_get_key(e) ) ) {
             if( (dbp_event_get_flags( e ) & PARSEC_PROFILING_EVENT_HAS_INFO) &&
-                (dbp_event_info_len(e, dbp) == sizeof(size_t)) ) {
+                (dbp_event_info_len(e, file) == sizeof(size_t)) ) {
                 info = dbp_event_get_info(e);
                 m->size = *info;
                 if( m->size == 0 ) {
@@ -85,7 +86,7 @@ static void find_memory_ref_in_thread(const dbp_multifile_reader_t *dbp, int dic
                     fprintf(stderr, "Event has no size information. Cannot trace this event!\n");
                 } else {
                     fprintf(stderr, "Event has an information of size %d, not %lu. Cannot trace this event!\n",
-                            dbp_event_info_len(e, dbp), (unsigned long)sizeof(size_t));
+                            dbp_event_info_len(e, file), (unsigned long)sizeof(size_t));
                 }
                 free(m);
                 dbp_iterator_next(it);
@@ -109,19 +110,21 @@ static int find_references( FILE *tracefile, char *dico_name,
     long long int allocated;
     int dico_id;
 
-    for(i = 0; i < dbp_reader_nb_dictionary_entries(dbp); i++) {
-        dico = dbp_reader_get_dictionary(dbp, i);
-        if( !strcmp(dbp_dictionary_name(dico), dico_name) ) {
-            dico_id = i;
-            goto keep_going;
-        }
-    }
-    fprintf(stderr, "Unable to find the dictionary entry called '%s'\n", dico_name);
-    return -1;
-  keep_going:
-
     for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
-        for(t = 0; t < dbp_file_nb_threads(dbp_reader_get_file(dbp, ifd)); t++) {
+        const dbp_file_t *file = dbp_reader_get_file(dbp, ifd);
+
+        for(i = 0; i < dbp_file_nb_dictionary_entries(file); i++) {
+            dico = dbp_file_get_dictionary(file, i);
+            if( !strcmp(dbp_dictionary_name(dico), dico_name) ) {
+                dico_id = i;
+                goto keep_going;
+            }
+        }
+        fprintf(stderr, "Unable to find the dictionary entry called '%s'\n", dico_name);
+        continue;
+
+      keep_going:
+        for(t = 0; t < dbp_file_nb_threads(file); t++) {
             find_memory_ref_in_thread(dbp, dico_id, ifd, t);
             printf("Found all memory references in thread %d of node %d\n", t, ifd);
         }
