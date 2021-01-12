@@ -30,7 +30,7 @@ set (PARSEC_VERSION_RELEASE 0) # Devel master have no release number
 set (PARSEC_VERSION_RELEASE 2012) # Set and uncomment for a release
 
 # Set the following values for a release
-set(GIT_COMMIT_TAG v20.12rc1)
+set(GIT_COMMIT_TAG parsec-3.0.2012)
 
 # Configure the installation paths
 set(PARSEC_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
