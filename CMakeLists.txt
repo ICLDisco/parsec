@@ -1185,3 +1185,6 @@ foreach( pattern_file ${pattern_files} )
   list( APPEND pattern_files_dest "${pattern_file}" )
 endforeach( pattern_file )
 add_custom_target(build_with_parsec ALL DEPENDS ${pattern_files_dest})
+
+message(WARNING "PaRSEC API 3.x is entering legacy mode! PaRSEC ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_RELEASE} is the final version for API 3.x; there will be no further updates. You should consider upgrading to PaRSEC API 4.x.")
+
