@@ -5,7 +5,11 @@ Copyright (c) 2009-2020 The University of Tennessee and The University
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
-v20.12
+master
+ - PaRSEC API 4.0 (still changing)
+
+ - PaRSEC now requires CMake 3.18.
+
  - PaRSEC profiling system does not require for local dicitonaries to
    be identical between ranks anymore.
 
@@ -21,6 +25,9 @@ v20.12
    for details. The info system allows the user to register info objects
    with different levels of structures and dynamic objects in the PaRSEC
    runtime.
+
+v20.12
+ - PaRSEC API 3.0
 
  - PaRSEC now requires CMake 3.16.
 
@@ -45,6 +52,10 @@ v20.12
  - Add support for MPI out-of-order matching capabilities; Added capability
    for compute threads to send direct control messages to indicate completion
    of tasks to remote nodes (without delegation to the communication thread)
+
+ - Remove communication mode EAGER from the runtime. It had a rare
+   but hard to correct bug that would rarely deadlock, and the performance
+   benefit was small.
 
  - Add a Map operator on the Block Cyclic matrix data collection that
    performs in-place data transformation on the collection with a user provided
