@@ -6,6 +6,8 @@ This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
 v20.12
+ - PaRSEC API 3.0
+
  - PaRSEC now requires CMake 3.16.
 
  - New configure system to ease the installation of PaRSEC. See
@@ -29,6 +31,10 @@ v20.12
  - Add support for MPI out-of-order matching capabilities; Added capability
    for compute threads to send direct control messages to indicate completion
    of tasks to remote nodes (without delegation to the communication thread)
+
+ - Remove communication mode EAGER from the runtime. It had a rare
+   but hard to correct bug that would rarely deadlock, and the performance
+   benefit was small.
 
  - Add a Map operator on the Block Cyclic matrix data collection that
    performs in-place data transformation on the collection with a user provided
