@@ -20,6 +20,21 @@
  * datacopies that are received by the different successors tasks on the
  * same process. Thus, checking workaround to avoid the fake
  * predecessor repo not being overwrite during reception.
+ *
+ * Note this test doesn't work with runtime_comm_short_limit != 0.
+ * This test sends two ouput flows on a task with different shapes,
+ * and received then on a remote successor with two different shapes.
+ * Currently, PaRSEC doesn't support this scenario using SHORT.
+ * In this case, two datas are included on the activation message, and
+ * after reception on the receiver, the predecessor task is faked and
+ * iterate_sucessors of the predecessor task is run only ONCE, therefore,
+ * for one sucessors the flow will contain incorrect data.
+ *
+ * When SHORT is not used, PaRSEC runs iterate_sucessors for each data received,
+ * thus, always the correct data is used.
+ * This gives the chance to the reshaping mechanism to put the first data on
+ * the predecessor's repo, and any subsequent data on the sucessors repo, avoiding
+ * any overwrites.
  */
 
 int main(int argc, char *argv[])

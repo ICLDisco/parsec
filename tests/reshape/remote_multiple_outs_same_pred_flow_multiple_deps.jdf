@@ -47,8 +47,8 @@ k = 0 .. descM->nt-1
 
 : descM(m, k)
 
-READ  A  <- A READ_A(m)
-READ  B  <- A READ_A(m)
+READ  A  <- A READ_A(m) [type_remote=LOWER_TILE]
+READ  B  <- A READ_A(m) [type_remote=UPPER_TILE]
 
 BODY
 {
@@ -67,8 +67,8 @@ k = 0 .. descM->nt-1
 
 : descM(m, k)
 
-READ  A  <- A READ_A(m)
-READ  B  <- A READ_A(m)
+READ  A  <- A READ_A(m) [type_remote=UPPER_TILE]
+READ  B  <- A READ_A(m) [type_remote=LOWER_TILE]
 
 BODY
 {

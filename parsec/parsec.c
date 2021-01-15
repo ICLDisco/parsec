@@ -1790,7 +1790,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
                         output->data.repo = target_repo;
                         output->data.repo_key = target_repo_entry->ht_item.key;
                         PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                                         "th%d \033[01;33mRESHAPE_PROMISE\033[0m SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
+                                         "th%d RESHAPE_PROMISE SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
                                          es->th_id, output->data.data, (output->data.data)->dtt,
                                          (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
                                          output->data.data_future);

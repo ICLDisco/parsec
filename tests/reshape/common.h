@@ -69,25 +69,31 @@ int reshape_print(parsec_execution_stream_t *es,
       int requested = m ? MPI_THREAD_MULTIPLE : MPI_THREAD_SERIALIZED; \
       MPI_Init_thread(&argc, &argv, requested, &provided);             \
       MPI_Comm_size(MPI_COMM_WORLD, &nodes);                           \
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);                            \
+      if( requested > provided ) {                                     \
+          fprintf(stderr, "#XXXXX User requested %s but the implementation returned a lower thread\n", requested==MPI_THREAD_MULTIPLE? "MPI_THREAD_MULTIPLE": "MPI_THREAD_SERIALIZED");\
+          exit(2);                                                     \
+      }
 #else
   #define DO_INIT_MPI()                                                \
       nodes = 1;                                                       \
       rank = 0;
 #endif
 
-#define DO_INIT()                                                                       \
-    char *name;                                                                         \
-    int do_sleep = 0;                                                                   \
-    while ((ch = getopt(argc, argv, "m:M:N:t:T:s:S:P:Q:c:I:R:h:w")) != -1) {            \
-        switch (ch) {                                                                   \
-            case 'm': m = atoi(optarg); break;                                          \
-            case 'N': N = M = atoi(optarg); break;                                      \
-            case 't': MB = NB = atoi(optarg); break;                                    \
-            case 'T': MB = NB = atoi(optarg); break;                                    \
-            case 'P': P = atoi(optarg); break;                                          \
-            case 'c': cores = atoi(optarg); break;                                      \
-            case 'w': do_sleep = 1; break;                                              \
+#define DO_INIT()                                                                        \
+    char *name;                                                                          \
+    int do_sleep = 0;                                                                    \
+    int pargc = 0;                                                                       \
+    char **pargv;                                                                        \
+    while ((ch = getopt(argc, argv, "m:M:N:t:T:s:S:P:Q:c:I:R:h:w")) != -1) {             \
+        switch (ch) {                                                                    \
+            case 'm': m = atoi(optarg); break;                                           \
+            case 'N': N = M = atoi(optarg); break;                                       \
+            case 't': MB = NB = atoi(optarg); break;                                     \
+            case 'T': MB = NB = atoi(optarg); break;                                     \
+            case 'P': P = atoi(optarg); break;                                           \
+            case 'c': cores = atoi(optarg); break;                                       \
+            case 'w': do_sleep = 1; break;                                               \
             case '?': case 'h': default:                                                 \
                 fprintf(stderr,                                                          \
                         "-m : initialize MPI_THREAD_MULTIPLE (default: 0/no)\n"          \
@@ -104,13 +110,21 @@ int reshape_print(parsec_execution_stream_t *es,
     DO_INIT_MPI();                                                                       \
     if(do_sleep) sleep(10);                                                              \
     /* Initialize PaRSEC */                                                              \
-    parsec = parsec_init(cores, NULL, NULL);                                         \
+    pargc = 0; pargv = NULL;                                                             \
+    for(int i = 1; i < argc; i++) {                                                      \
+        if( strcmp(argv[i], "--") == 0 ) {                                               \
+            pargc = argc - i;                                                            \
+            pargv = &argv[i];                                                            \
+            break;                                                                       \
+        }                                                                                \
+    }                                                                                    \
+    parsec = parsec_init(cores, &pargc, &pargv);                                         \
     if( NULL == parsec ) {                                                               \
         /* Failed to correctly initialize. In a correct scenario report*/                \
          /* upstream, but in this particular case bail out.*/                            \
         exit(-1);                                                                        \
     }                                                                                    \
-    (void)name; (void)do_sleep;
+    (void)name;
 
 
 #define DO_INI_DATATYPES()                                                \
