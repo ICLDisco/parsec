@@ -520,6 +520,29 @@ parsec_data_create( parsec_data_t **holder,
     return data;
 }
 
+parsec_data_t*
+parsec_data_create_with_type( parsec_data_collection_t *desc,
+                              parsec_data_key_t key, void *ptr, size_t size,
+                              parsec_datatype_t dtt)
+{
+    parsec_data_t *clone;
+
+    parsec_data_copy_t* data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
+    clone = PARSEC_OBJ_NEW(parsec_data_t);
+
+    data_copy->coherency_state = PARSEC_DATA_COHERENCY_OWNED;
+    data_copy->device_private = ptr;
+    data_copy->dtt = dtt;
+
+    clone->owner_device = 0;
+    clone->key = key;
+    clone->dc = desc;
+    clone->nb_elts = size;
+    parsec_data_copy_attach(clone, data_copy, 0);
+
+    return clone;
+}
+
 void
 parsec_data_destroy( parsec_data_t *data )
 {

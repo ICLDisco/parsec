@@ -473,6 +473,17 @@ void parsec_taskpool_unregister(parsec_taskpool_t* tp);
  *
  * @details
  *  Globally synchronize taskpool IDs so that next register generates the same
+ *  id at all ranks on a given communicator. This is a collective over the communication object
+ *  associated with PaRSEC, and can be used to resolve discrepancies introduced by
+ *  taskpools not registered over all ranks.
+*/
+void parsec_taskpool_sync_ids_context( void* comm );
+
+/**
+ * @brief Globally synchronize taskpool IDs.
+ *
+ * @details
+ *  Globally synchronize taskpool IDs so that next register generates the same
  *  id at all ranks. This is a collective over the communication object
  *  associated with PaRSEC, and can be used to resolve discrepancies introduced by
  *  taskpools not registered over all ranks.

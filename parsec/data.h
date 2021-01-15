@@ -133,6 +133,11 @@ parsec_data_create( parsec_data_t **holder,
                    parsec_data_key_t key,
                    void *ptr, size_t size, parsec_data_flag_t flags);
 
+parsec_data_t*
+parsec_data_create_with_type( parsec_data_collection_t *desc,
+                              parsec_data_key_t key, void *ptr, size_t size,
+                              parsec_datatype_t dtt);
+
 /**
  * Destroy the parsec_data_t generated through a call to parsec_data_create
  */

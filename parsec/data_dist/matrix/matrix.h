@@ -117,6 +117,8 @@ typedef struct parsec_tiled_matrix_dc_t {
     int mt;             /**< number of tile rows of the submatrix - derived parameter */
     int nt;             /**< number of tile columns of the submatrix - derived parameter */
     int nb_local_tiles; /**< number of tile handled locally */
+    int slm;            /**< number of local rows of the submatrix */
+    int sln;            /**< number of local columns of the submatrix */
 } parsec_tiled_matrix_dc_t;
 
 void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,

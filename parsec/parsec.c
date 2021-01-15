@@ -191,7 +191,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 {
     parsec_execution_stream_t* es;
     int pi;
-    
+
     /* don't use PARSEC_THREAD_IS_MASTER, it is too early and we cannot yet allocate the es struct */
     if( (0 != startup->virtual_process->vp_id) || (0 != startup->th_id) || parsec_runtime_bind_main_thread ) {
         /* Bind to the specified CORE */
@@ -375,8 +375,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Declare the command line for the .dot generation */
     parsec_cmd_line_make_opt3(cmd_line, 'h', "help", "help", 0,
                              "Show the usage text.");
-    parsec_cmd_line_make_opt3(cmd_line, 'w', "wait", "wait", 1,
-                             "Sleep for n seconds");
     parsec_cmd_line_make_opt3(cmd_line, '.', "dot", "parsec_dot", 1,
                              "Filename for the .dot file");
     parsec_cmd_line_make_opt3(cmd_line, 'b', NULL, "parsec_bind", 1,
@@ -426,16 +424,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         free(ctx_environ);
     }
 
-    /* Sleep for n seconds */
-    int wait_seconds=-1;
-    parsec_mca_param_reg_int_name("runtime", "wait", "Sleep for N seconds",
-                                 false, false, wait_seconds, &wait_seconds);
-    GET_INT_ARGV(cmd_line, "wait", wait_seconds);
-    if(wait_seconds>0){
-        int spin = 10*wait_seconds;
-        do { usleep(100000); spin--; } while(spin);
-    }
-
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
     int mpi_is_up;
     MPI_Initialized(&mpi_is_up);
@@ -446,7 +434,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #endif
         parsec_weaksym_exit = parsec_mpi_exit;
     }
-#endif    
+#endif
     parsec_debug_init();
     mca_components_repository_init();
 
@@ -1208,7 +1196,7 @@ int parsec_fini( parsec_context_t** pcontext )
 #endif  /* PARSEC_HAVE_HWLOC_BITMAP */
 
     PARSEC_PAPI_SDE_FINI();
-    
+
     if (parsec_app_name != NULL ) {
         free(parsec_app_name);
         parsec_app_name = NULL;
@@ -1602,7 +1590,7 @@ void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
         *deps = PARSEC_DEPENDENCIES_STARTUP_TASK | tc->dependencies_goal;
     } else {
         *deps = 0;
-    }    
+    }
 }
 
 /*
@@ -2057,28 +2045,39 @@ int parsec_taskpool_register( parsec_taskpool_t* tp )
 }
 
 /* globally synchronize taskpool id's so that next register generates the same
- * id at all ranks. */
-void parsec_taskpool_sync_ids( void )
+ * id at all ranks on a given communicator. */
+void parsec_taskpool_sync_ids_context( void* comm )
 {
-    uint32_t idx;
+    uint32_t idx,msz;
     parsec_atomic_lock( &taskpool_array_lock );
     idx = (int)taskpool_array_pos;
+    msz = (int)taskpool_array_size;
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
     int mpi_is_on;
     MPI_Initialized(&mpi_is_on);
     if( mpi_is_on ) {
-        MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
+        MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, (MPI_Comm)comm );
+        while (idx >= msz){
+            msz <<= 1;
+        }
     }
 #endif
-    if( idx >= taskpool_array_size ) {
-        taskpool_array_size <<= 1;
-        taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, taskpool_array_size * sizeof(parsec_taskpool_t*) );
+    if( msz > taskpool_array_size ) {
+        taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, msz * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
-        for( uint32_t i = (taskpool_array_size>>1); i < taskpool_array_size;
+        for( uint32_t i = taskpool_array_size; i < msz;
              taskpool_array[i++] = NOTASKPOOL );
     }
+    taskpool_array_size = msz;
     taskpool_array_pos = idx;
     parsec_atomic_unlock( &taskpool_array_lock );
+}
+
+/* globally synchronize taskpool id's so that next register generates the same
+ * id at all ranks. */
+void parsec_taskpool_sync_ids( void )
+{
+  parsec_taskpool_sync_ids_context( (void*)((uintptr_t)MPI_COMM_WORLD) );
 }
 
 /* Unregister the taskpool with the engine. This make the taskpool_id available for

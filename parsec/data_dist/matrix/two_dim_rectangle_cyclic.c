@@ -38,22 +38,73 @@ static parsec_data_t* twoDBC_kcyclic_data_of_key(parsec_data_collection_t* dc, p
 static int twoDBC_memory_register(parsec_data_collection_t* desc, parsec_device_module_t* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
-    if( NULL == twodbc->mat ) {
+    if( (NULL == twodbc->mat ) || (twodbc->super.nb_local_tiles == 0)) {
         return PARSEC_SUCCESS;
     }
     return device->memory_register(device, desc,
                                    twodbc->mat,
-                                   ((size_t)twodbc->super.nb_local_tiles * (size_t)twodbc->super.bsiz *
+                                   ((size_t)twodbc->super.llm * (size_t)twodbc->super.lln *
                                    (size_t)parsec_datadist_getsizeoftype(twodbc->super.mtype)));
 }
 
 static int twoDBC_memory_unregister(parsec_data_collection_t* desc, parsec_device_module_t* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
-    if( NULL == twodbc->mat ) {
+    if( (NULL == twodbc->mat ) || (twodbc->super.nb_local_tiles == 0)) {
         return PARSEC_SUCCESS;
     }
     return device->memory_unregister(device, desc, twodbc->mat);
+}
+
+
+void two_dim_block_cyclic_lapack_init(two_dim_block_cyclic_t * dc,
+                               enum matrix_type mtype,
+                               enum matrix_storage storage,
+                               int myrank,
+                               int mb,   int nb,   /* Tile size */
+                               int lm,   int ln,   /* Global matrix size (what is stored)*/
+                               int i,    int j,    /* Staring point in the global matrix */
+                               int m,    int n,    /* Submatrix size (the one concerned by the computation */
+                               int P,    int Q,    /* process process grid */
+                               int kp,   int kq,   /* k-cyclicity */
+                               int ip,   int jq,   /* starting point on the process grid */
+                               int mloc, int nloc){/* number of local rows and cols of the matrix */
+
+    assert(storage == matrix_Lapack);
+
+    two_dim_block_cyclic_init(dc,
+                              mtype,
+                              storage,
+                              myrank,
+                              mb, nb,  /* Tile size */
+                              lm, ln,  /* Global matrix size (what is stored)*/
+                              i,  j,   /* Staring point in the global matrix */
+                              m,  n,   /* Submatrix size (the one concerned by the computation */
+                              P,  Q,   /* process process grid */
+                              kp, kq,  /* k-cyclicity */
+                              ip, jq); /* starting point on the process grid */
+
+    parsec_tiled_matrix_dc_t *tdesc = &(dc->super);
+    tdesc->lln = nloc;
+    tdesc->llm = mloc;
+
+    /* Generate default dtt for LAPACK storage */
+    parsec_data_collection_t *o = (parsec_data_collection_t*)tdesc;
+    parsec_datatype_t elem_dt = PARSEC_DATATYPE_NULL;
+    ptrdiff_t extent;
+    parsec_translate_matrix_type( tdesc->mtype, &elem_dt );
+    parsec_type_free(&o->default_dtt);
+    /* Default type is MBxNB if we have enough rows&cols */
+    if( 0 != parsec_matrix_define_datatype(&o->default_dtt, elem_dt,
+                                              matrix_UpperLower, 1 /*diag*/,
+                                              (tdesc->mb > tdesc->m ? tdesc->m : tdesc->mb),
+                                              (tdesc->nb > tdesc->n ? tdesc->n : tdesc->nb),
+                                              tdesc->llm/*ld*/,
+                                              -1/*resized*/, &extent)){
+        parsec_fatal("Unable to create a datatype for the data collection.");
+    }
+
+
 }
 
 void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
@@ -79,30 +130,25 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
                                  mb, nb, lm, ln, i, j, m, n );
     dc->mat = NULL;  /* No data associated with the matrix yet */
 
-    /* WARNING: This has to be removed when padding will be removed */
-    if ( (storage == matrix_Lapack) && (nodes > 1) ) {
-        if ( tdesc->lm % mb != 0 ) {
-            parsec_fatal("In distributed with Lapack storage, lm has to be a multiple of mb\n");
-        }
-        if ( tdesc->ln % nb != 0 ) {
-            parsec_fatal("In distributed with Lapack storage, ln has to be a multiple of nb\n");
-        }
-    }
-
-    if( (storage == matrix_Lapack) && (P!=1) ) {
-        parsec_fatal("matrix_Lapack storage not supported with a grid that is not 1xQ");
-    }
-
 #if !PARSEC_KCYCLIC_WITH_VIEW
     grid_2Dcyclic_init(&dc->grid, myrank, P, Q, kp, kq, ip, jq);
 #else
     grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1, ip, jq);
 #endif /* PARSEC_KCYCLIC_WITH_VIEW */
 
+    if(storage == matrix_Lapack) {
+        tdesc->slm = tdesc->sln = 0;
+    }
+
     /* Compute the number of rows handled by the local process */
     dc->nb_elem_r = 0;
     temp = dc->grid.rrank * dc->grid.krows; /* row coordinate of the first tile to handle */
     while( temp < tdesc->lmt ) {
+        if(storage == matrix_Lapack) {
+            tdesc->slm += temp == 0          ? ((i % mb) == 0 ? mb : mb - i) /* first row */
+                        : temp == tdesc->lmt ? ( m % mb)                     /* last row */
+                        : mb; /* middle row */
+        }
         if( (temp + (dc->grid.krows)) < tdesc->lmt ) {
             dc->nb_elem_r += (dc->grid.krows);
             temp += ((dc->grid.rows) * (dc->grid.krows));
@@ -116,6 +162,11 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
     dc->nb_elem_c = 0;
     temp = dc->grid.crank * dc->grid.kcols;
     while( temp < tdesc->lnt ) {
+        if(storage == matrix_Lapack) {
+            tdesc->sln += temp == 0          ? ((j % nb) == 0 ? nb : nb - j) /* first col */
+                        : temp == tdesc->lnt ? ( n % nb)                     /* last col*/
+                        : nb; /* middle col*/
+        }
         if( (temp + (dc->grid.kcols)) < tdesc->lnt ) {
             dc->nb_elem_c += (dc->grid.kcols);
             temp += (dc->grid.cols) * (dc->grid.kcols);
@@ -125,14 +176,19 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
         break;
     }
 
+    /* If rows or cols are 0, then no elemns, set
+     * both to 0.
+     * */
+    if(dc->nb_elem_r == 0) dc->nb_elem_c = 0;
+    if(dc->nb_elem_c == 0) dc->nb_elem_r = 0;
     /* Total number of tiles stored locally */
     tdesc->nb_local_tiles = dc->nb_elem_r * dc->nb_elem_c;
     tdesc->data_map = (parsec_data_t**)calloc(tdesc->nb_local_tiles, sizeof(parsec_data_t*));
 
     /* Update llm and lln */
-    if ( !((storage == matrix_Lapack) && (nodes == 1)) ) {
-        tdesc->llm = dc->nb_elem_r * mb;
-        tdesc->lln = dc->nb_elem_c * nb;
+    if(storage != matrix_Lapack) {
+        tdesc->slm = tdesc->llm = dc->nb_elem_r * mb;
+        tdesc->sln = tdesc->lln = dc->nb_elem_c * nb;
     }
 
     /* set the methods */
@@ -161,15 +217,23 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * dc,
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "two_dim_block_cyclic_init: \n"
            "      dc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
-           "      kp = %d, kq = %d, P = %d, Q = %d",
+           "      mt = %d, nt = %d, lmt = %d, lnt = %d, llm = %d, lln = %d, slm = %d, sln = %d, nb_local_tile = %d \n"
+           "      kp = %d, kq = %d, ip = %d, jq = %d, P = %d, Q = %d, rowrank %d, colrank %d",
            dc, tdesc->mtype, tdesc->super.nodes,
            tdesc->super.myrank,
            tdesc->mb, tdesc->nb,
            tdesc->lm, tdesc->ln,
            tdesc->i,  tdesc->j,
            tdesc->m,  tdesc->n,
+           tdesc->mt, tdesc->nt,
+           tdesc->lmt, tdesc->lnt,
+           tdesc->llm, tdesc->lln,
+           tdesc->slm, tdesc->sln,
+           tdesc->nb_local_tiles,
            dc->grid.krows, dc->grid.kcols,
-           P, Q);
+           dc->grid.ip, dc->grid.jq,
+           dc->grid.rows, dc->grid.cols,
+           dc->grid.rrank, dc->grid.crank);
 }
 
 void twoDBC_key_to_coordinates(parsec_data_collection_t *desc, parsec_data_key_t key, int *m, int *n)
@@ -361,8 +425,8 @@ static parsec_data_t* twoDBC_data_of(parsec_data_collection_t *desc, ...)
         } else {
             int local_m = m / dc->grid.rows;
             int local_n = n / dc->grid.cols;
-            pos = (local_n * dc->super.nb) * dc->super.llm
-                +  local_m * dc->super.mb;
+            pos = (((size_t)local_n) * ((size_t)dc->super.nb)) * ((size_t)dc->super.llm)
+                +  ((size_t)local_m) * ((size_t)dc->super.mb);
         }
     }
 
@@ -633,8 +697,8 @@ static parsec_data_t* twoDBC_kcyclic_data_of(parsec_data_collection_t *desc, ...
             pos = position;
             pos *= (size_t)dc->super.bsiz;
         } else {
-            pos = (local_n * dc->super.nb) * dc->super.llm
-                +  local_m * dc->super.mb;
+            pos = (((size_t)local_n) * ((size_t)dc->super.nb)) * ((size_t)dc->super.llm)
+                +  ((size_t)local_m) * ((size_t)dc->super.mb);
         }
     }
 

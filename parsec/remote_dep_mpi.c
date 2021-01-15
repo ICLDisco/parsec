@@ -264,7 +264,7 @@ static parsec_execution_stream_t parsec_comm_es = {
 
 /**
  * Store the user provided communicator in the PaRSEC context. We need to make a
- * copy to make sure the communicator does not dissapear before the communication
+ * copy to make sure the communicator does not disappear before the communication
  * engine starts up.
  */
 static int remote_dep_set_ctx(parsec_context_t* context, intptr_t opaque_comm_ctx )
@@ -277,18 +277,44 @@ static int remote_dep_set_ctx(parsec_context_t* context, intptr_t opaque_comm_ct
         parsec_warning("Cannot change PaRSEC's MPI communicator while the engine is running [ignored]");
         return PARSEC_ERROR;
     }
-    /* Are we trying to set a congruent communicator a second time? */
+
     assert(-1 != opaque_comm_ctx /* -1 reserved for non-initialized */);
+
     if( -1 != context->comm_ctx ) {
+#if 0
+        /* Currently, parsec is initialized with comm world.
+         * When checking for congruent communicators, an application changing
+         * the context comm by decreasing and then increasing the number of
+         * processes may lead to processes making different decisions after MPI_Comm_compare
+         * and then deadlocks during MPI_Comm_dup.
+         * E.g. running a taskpool with a subset A of the processes and then
+         * moving to a taskpool including all processes.
+         * Processes in {WORLD - A} have comm_context equal to comm world and
+         * won't set a new comm, thus {A} processes will deadlock on MPI_Comm_dup */
+
+        /* Are we trying to set a congruent communicator a second time? */
         MPI_Comm_compare((MPI_Comm)context->comm_ctx, (MPI_Comm)opaque_comm_ctx, &rc);
         if( (MPI_IDENT == rc) || (MPI_CONGRUENT == rc) ) {
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "Set the same or a congruent communicator. Nothing to do");
             return PARSEC_SUCCESS;
         }
+#endif
         MPI_Comm_free((MPI_Comm*)&context->comm_ctx);
     }
     rc = MPI_Comm_dup((MPI_Comm)opaque_comm_ctx, &comm);
     context->comm_ctx = (intptr_t)comm;
+    parsec_taskpool_sync_ids_context(*(MPI_Comm*)&context->comm_ctx);
+
+    MPI_Comm_size( (MPI_Comm)context->comm_ctx, (int*)&(context->nb_nodes));
+    if(context->nb_nodes == 1){
+        /* Corner case when moving from WORLD!=1 to WORLD=1 after parsec_init.
+         * If MPI_COMM_WORLD=1, parsec_init ends up running remote_dep_mpi_on on
+         * the app process, otherwise, communication thread does it.
+         * When moving to WORLD=1, we need to run remote_dep_mpi_on ensure all
+         * MPI is setup as it won't be done later by the comm thread. */
+        remote_dep_mpi_on(context);
+    }
+
     return (MPI_SUCCESS == rc) ? PARSEC_SUCCESS : PARSEC_ERROR;
 }
 
@@ -1501,7 +1527,16 @@ static int remote_dep_mpi_init_once(parsec_context_t* context)
  */
 static int remote_dep_mpi_fini(parsec_context_t* context)
 {
-    assert( -1 != MAX_MPI_TAG );
+    if( -1 == MAX_MPI_TAG ) {
+        /* Current process hasn't participated in any taskpools */
+        /* Release the context communicators if any */
+        if( -1 != context->comm_ctx) {
+            MPI_Comm_free((MPI_Comm*)&context->comm_ctx);
+            context->comm_ctx = -1; /* We use -1 for the opaque comm_ctx, rather than the MPI specific MPI_COMM_NULL */
+        }
+        return 0;
+    }
+
     remote_dep_mpi_cleanup(context);
 
     /* Remove the static handles */
