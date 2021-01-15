@@ -108,9 +108,10 @@ parsec_data_collection_destroy(parsec_data_collection_t *d)
 
 void parsec_data_collection_set_key( parsec_data_collection_t* d, char* name)
 {
-    char dim[strlen(name) + strlen( (d)->key_dim ) + 4];
+    char *kdim = (NULL != d->key_dim)? d->key_dim: "";
+    char dim[strlen(name) + strlen(kdim) + 4];
     (d)->key_base = strdup(name);
-    sprintf(dim, "%s%s", name, (d)->key_dim);
+    sprintf(dim, "%s%s", name, kdim);
     parsec_profiling_add_information( "DIMENSION", dim );
 }
 #endif  /* defined(PARSEC_PROF_TRACE) */
