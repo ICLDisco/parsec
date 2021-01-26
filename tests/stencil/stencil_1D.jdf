@@ -59,6 +59,11 @@ static void CORE_copydata_stencil_1D(DTYPE *A0, DTYPE *AL, DTYPE *AR, int MB,
 
 %}
 
+/**
+ * 1D stencil
+ * descA->lmt (number of tiles in row) is the number of buffers used,
+ * which should not be smaller than 2, otherwise result is not correct !!!
+ */
 descA       [ type = "parsec_tiled_matrix_dc_t*" ]
 iter        [ type = "int" ]
 R           [ type = "int" ]

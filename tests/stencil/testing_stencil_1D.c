@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
                         "-s : rows of tiles in a k-cyclic distribution (default: 1)\n"
                         "-S : columns of tiles in a k-cyclic distribution (default: 1)\n"
                         "-P : rows (P) in the PxQ process grid (default: 1)\n"
-                        "-c : number of cores used (default: -1)\n"
+                        "-c : number of cores used (default: -1/all cores)\n"
                         "-I : iterations (default: 10)\n"
                         "-R : radius (default: 1)\n"
                         "\n");
@@ -115,13 +115,28 @@ int main(int argc, char *argv[])
         cores = nb_total_comp_threads;
     }
 
-    assert(R > 0);
+    /* Make sure valid parameters are passed */
+    if( M < 1 || N < 1 || MB < 1 || NB < 1 || P < 1 || KP < 1 || KQ < 1 || iter < 1 || R < 1 ) {
+        if( 0 == rank ) {
+            fprintf(stderr, "Wrong value is passed !!! -h for help\n");
+            fprintf(stderr, "M %d N %d MB %d NB %d P %d KP %d KQ %d cores %d iteration %d R %d m %d\n",
+                    M, N, MB, NB, P, KP, KQ, cores, iter, R, m);
+        }
+        exit(1); 
+    }
 
     /* Used for ghost region */
     int NNB = (int)(ceil((double)N/NB));
 
     /* No. of buffers */
     int MMB = (int)(ceil((double)M/MB));
+
+    /* Make sure at least two buffers are used, otherwise result is not correct */
+    if( MMB < 2 ) {
+        if( 0 == rank )
+            fprintf(stderr, "At least two buffers is needed, which is ceil(M/MB)= %d M= %d MB= %d\n", MMB, M, MB);
+        exit(1);
+    }
 
     /* Flops */
     flops = FLOPS_STENCIL_1D(N*MB);
