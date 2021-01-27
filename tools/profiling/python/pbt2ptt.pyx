@@ -813,7 +813,12 @@ cdef class ExtendedEvent:
             raise TypeError
         return self.ev_struct.size
     def unpack(self, pybs):
-        return {a: b for (a, b) in zip(self.aev, self.ev_struct.unpack(pybs))}
+        ret = {a: b for (a, b) in zip(self.aev, self.ev_struct.unpack(pybs))}
+        keys = list(ret.keys()) # Need to duplicate list, as ret.keys() can't change if we iterate on it
+        for k in keys:
+            if k.startswith('##'):
+                del ret[k]
+        return ret
     def __getstate__(self):
         return { 'fmt': tostring(self.fmt), 'event_len': self.event_len, 'event_name': tostring(self.event_name) }
 

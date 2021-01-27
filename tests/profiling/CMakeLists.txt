@@ -6,3 +6,5 @@ if(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 endif(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
 
+# Define Testings
+include(Testings.cmake)
