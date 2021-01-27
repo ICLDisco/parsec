@@ -140,7 +140,6 @@ static void parsec_rusage(bool print)
                      current.ru_maxrss);
     }
     _parsec_rusage = current;
-    return;
 }
 #define parsec_rusage(b) do { if(parsec_want_rusage > 0) parsec_rusage(b); } while(0)
 #else
@@ -2160,12 +2159,12 @@ void parsec_usage(void)
             "A PaRSEC argument sequence prefixed by \"--\" can end the command line\n\n"
             "     --parsec_bind_comm   : define the core the communication thread will be bound on\n"
             "\n"
-            "     Warning:: The binding options rely on hwloc. The core numerotation is defined between 0 and the number of cores.\n"
+            "     Warning:: The binding options rely on HWLOC. The core numbering is defined between 0 and the number of cores.\n"
             "     Be careful when used with cgroups.\n"
             "\n"
             "    --help         : this message\n"
             "\n"
-            " -c --cores        : number of concurent threads (default: number of physical hyper-threads)\n"
+            " -c --cores        : number of concurrent threads (default: number of physical hyper-threads)\n"
             " -g --gpus         : number of GPU (default: 0)\n"
             " -o --scheduler    : select the scheduler (default: LFQ)\n"
             "                     Accepted values:\n"
@@ -2197,7 +2196,7 @@ void parsec_usage(void)
             "                                          -- a core list          (exp: 1,3,5-6)\n"
             "                                          -- a hexadecimal mask   (exp: 0xff012)\n"
             "                                          -- a binding range expression: [start];[end];[step] \n"
-            "                                             wich defines a round-robin one thread per core distribution from start\n"
+            "                                             which defines a round-robin one thread per core distribution from start\n"
             "                                             (default 0) to end (default physical core number) by step (default 1)\n"
             "\n"
             );
@@ -2453,7 +2452,6 @@ static int parsec_parse_comm_binding_parameter(const char* option, parsec_contex
         else
             parsec_warning("the binding defined by --parsec_bind_comm has been ignored (illegal core number)");
     } else {
-        /* TODO:: Add binding NUIOA aware by default */
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "default binding for the communication thread");
     }
     return 0;
