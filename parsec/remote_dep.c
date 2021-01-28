@@ -36,12 +36,12 @@ static int comm_yield_ns = 5000;
 /* comm_thread_multiple: see values in the corresponding mca_register */
 static int parsec_param_comm_thread_multiple = -1;
 
+static int remote_dep_bcast_star_child(int me, int him);
 #ifdef PARSEC_DIST_COLLECTIVES
 /* comm_coll_bcast: see values in the corresponding mca_register */
 static int parsec_param_comm_coll_bcast = 1;
 static int remote_dep_bcast_chainpipeline_child(int me, int him);
 static int remote_dep_bcast_binomial_child(int me, int him);
-static int remote_dep_bcast_star_child(int me, int him);
 static int (*remote_dep_bcast_child)(int me, int him) = remote_dep_bcast_chainpipeline_child;
 #else
 #define remote_dep_bcast_child(me, him) remote_dep_bcast_start_child(me, him)
@@ -327,14 +327,14 @@ int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp) {
     return remote_dep_new_taskpool(tp);
 }
 
-#ifdef PARSEC_DIST_COLLECTIVES
-
 static int remote_dep_bcast_star_child(int me, int him)
 {
     (void)him;
     if(me == 0) return 1;
     else return 0;
 }
+
+#ifdef PARSEC_DIST_COLLECTIVES
 
 static int remote_dep_bcast_chainpipeline_child(int me, int him)
 {
@@ -538,8 +538,10 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                 /* Right now DTD only supports a star broadcast topology */
                 if( PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type ) {
                     remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
+#ifdef PARSEC_DIST_COLLECTIVES
                 } else {
                     remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
+#endif  /* PARSEC_DIST_COLLECTIVES */
                 }
 
                 if(remote_dep_bcast_child_permits) {
