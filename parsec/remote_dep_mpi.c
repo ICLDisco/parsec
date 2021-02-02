@@ -1334,9 +1334,19 @@ typedef struct {
     uint64_t tid;  // 8
     uint32_t tpid;  // 16
     uint32_t tcid;  // 20
-} parsec_profile_remote_dep_mpi_info_t; // 24 bytes
+    int32_t msg_size; // 24
+    int32_t padding;  // 28 -- this field is not necessary, but the structure will be padded
+                      //       by the compiler due to the uint64_t field. It is declared here
+                      //       just to be consistent with the conversion string.
+} parsec_profile_remote_dep_mpi_info_t; // 32 bytes
 
-static char parsec_profile_remote_dep_mpi_info_to_string[] = "src{int32_t};dst{int32_t};tid{int64_t};tpid{int32_t};tcid{int32_t}";
+static char parsec_profile_remote_dep_mpi_info_to_string[] = "src{int32_t};"
+                                                             "dst{int32_t};"
+                                                             "tid{int64_t};"
+                                                             "tpid{int32_t};"
+                                                             "tcid{int32_t};"
+                                                             "msg_size{int32_t};"
+                                                             "##padding{int32_t}";
 
 static void remote_dep_mpi_profiling_init(void)
 {
@@ -1374,7 +1384,7 @@ static void remote_dep_mpi_profiling_fini(void)
     /* TODO: we need to clean the profiling threads memory */
 }
 
-#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw)                \
+#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw, nbdtt, dtt, comm)  \
     if( parsec_profile_enabled ) {                                      \
         parsec_profile_remote_dep_mpi_info_t __info;                    \
         parsec_taskpool_t *__tp = parsec_taskpool_lookup( (rdw).taskpool_id ); \
@@ -1385,6 +1395,7 @@ static void remote_dep_mpi_profiling_fini(void)
         __info.tcid = (rdw).task_class_id;                              \
         __info.tid  = __tc->key_functions->key_hash(                    \
                              __tc->make_key(__tp, (rdw).locals), NULL); \
+        MPI_Pack_size(nbdtt, dtt, comm, &__info.msg_size);              \
         PARSEC_PROFILING_TRACE((PROF), (KEY), (I),                      \
                                PROFILE_OBJECT_ID_NULL, &__info);        \
     }
@@ -1392,7 +1403,7 @@ static void remote_dep_mpi_profiling_fini(void)
 #define TAKE_TIME(PROF, KEY, I) PARSEC_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, NULL)
 
 #else
-#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw) do {} while(0)
+#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw, count, dtt, comm) do {} while(0)
 #define TAKE_TIME(PROF, KEY, I) do {} while(0)
 #define remote_dep_mpi_profiling_init() do {} while(0)
 #define remote_dep_mpi_profiling_fini() do {} while(0)
@@ -1926,9 +1937,7 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
 
     peer = item->cmd.activate.peer;  /* this doesn't change */
     deps = (parsec_remote_deps_t*)item->cmd.activate.task.deps;
-    TAKE_TIME_WITH_INFO(es->es_profile, MPI_Activate_sk, 0,
-                        es->virtual_process->parsec_context->my_rank,
-                        peer, deps->msg);
+
   pack_more:
     assert(peer == item->cmd.activate.peer);
     deps = (parsec_remote_deps_t*)item->cmd.activate.task.deps;
@@ -1950,6 +1959,9 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
     *head_item = item;
     assert(NULL != ring);
 
+    TAKE_TIME_WITH_INFO(es->es_profile, MPI_Activate_sk, 0,
+                        es->virtual_process->parsec_context->my_rank,
+                        peer, deps->msg, position, MPI_PACKED, dep_comm);
     MPI_Send((void*)packed_buffer, position, MPI_PACKED, peer, REMOTE_DEP_ACTIVATE_TAG, dep_comm);
     TAKE_TIME(es->es_profile, MPI_Activate_ek, 0);
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(peer, (void*)&deps->msg, &deps->msg);
@@ -2147,7 +2159,7 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
 
         TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_plds_sk, k,
                             es->virtual_process->parsec_context->my_rank,
-                            item->cmd.activate.peer, deps->msg);
+                            item->cmd.activate.peer, deps->msg, nbdtt, dtt, dep_comm);
         task->output_mask ^= (1U<<k);
         MPI_Isend((char*)dataptr + deps->output[k].data.remote.src_displ, nbdtt, dtt,
                   item->cmd.activate.peer, tag + k, dep_comm,
@@ -2455,7 +2467,8 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
                 deps->output[k].data.remote.dst_displ, deps->output[k].data.remote.arena->elem_size * nbdtt, msg.tag+k);
 #  endif
         TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_pldr_sk, k, from,
-                            es->virtual_process->parsec_context->my_rank, deps->msg);
+                            es->virtual_process->parsec_context->my_rank, deps->msg,
+                            nbdtt, dtt, dep_comm);
         DEBUG_MARK_DTA_MSG_START_RECV(from, deps->output[k].data.data, msg.tag+k);
         MPI_Irecv((char*)PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data) + deps->output[k].data.remote.dst_displ, nbdtt,
                   dtt, from, msg.tag + k, dep_comm,
@@ -2472,7 +2485,8 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
 #if !defined(PARSEC_PROF_DRY_DEP)
     if(msg.output_mask) {
         TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_ctl_sk, get,
-                            from, es->virtual_process->parsec_context->my_rank, (*task));
+                            from, es->virtual_process->parsec_context->my_rank,
+                            (*task), datakey_count, datakey_dtt, dep_comm);
         MPI_Send(&msg, datakey_count, datakey_dtt, from,
                  REMOTE_DEP_GET_DATA_TAG, dep_comm);
         TAKE_TIME(es->es_profile, MPI_Data_ctl_ek, get++);
