@@ -29,10 +29,7 @@ function(parsec_addtest_executable lang target)
   cmake_parse_arguments(PARSEC_ADDTEST "${options}" "" "${multiValueArgs}" ${ARGN})
   add_executable(${target} ${PARSEC_ADDTEST_SOURCES})
   set_target_properties(${target} PROPERTIES LINKER_LANGUAGE ${lang})
-  target_link_libraries(${target}
-    PRIVATE
-      parsec
-      $<$<STREQUAL:Fortran,${lang}>:parsec_fortran>)
+  target_link_libraries(${target} PRIVATE parsec)
   if(NOT ${PARSEC_ADDTEST_NODEFAULTBUILD})
     add_dependencies(parsec_build_tests ${target})
   endif()

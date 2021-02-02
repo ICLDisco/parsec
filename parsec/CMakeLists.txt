@@ -163,15 +163,26 @@ if( BUILD_PARSEC )
   # create the target at the upper level and add sources to all directories below.
   if(NOT TARGET parsec)
     if( ${BUILD_SHARED_LIBS} )
-      add_library(parsec SHARED ${SOURCES} $<TARGET_OBJECTS:parsec-base-obj>)
+      add_library(parsec SHARED)
     else( ${BUILD_SHARED_LIBS} )
-      add_library(parsec STATIC ${SOURCES} $<TARGET_OBJECTS:parsec-base-obj>)
+      add_library(parsec STATIC)
     endif( ${BUILD_SHARED_LIBS} )
   endif(NOT TARGET parsec)
   add_library(PaRSEC::parsec ALIAS parsec)
 
+  target_sources(parsec PRIVATE $<IF:$<BOOL:PARSEC_SANITIZE_COMPILE_OPTIONS>,${BASE_SOURCES},$<TARGET_OBJECTS:parsec-base-obj>>)
+  target_sources(parsec PRIVATE ${SOURCES})
   add_subdirectory(data_dist)
 
+  target_compile_options(parsec
+    PRIVATE
+    ${PARSEC_SANITIZE_COMPILE_OPTIONS}
+    INTERFACE
+    #for tests and examples
+    $<BUILD_INTERFACE:${PARSEC_SANITIZE_COMPILE_OPTIONS}>)
+  target_link_options(parsec
+    PUBLIC
+    ${PARSEC_SANITIZE_LINK_OPTIONS})
   target_compile_definitions(parsec
     PRIVATE
     YYERROR_VERBOSE)
@@ -234,15 +245,7 @@ if( BUILD_PARSEC )
 # If we have support for F90 build the PaRSEC module
 #
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    include(FortranCInterface)
-    FortranCInterface_HEADER(fortran/f2c_mangle.h
-                             MACRO_NAMESPACE "PARSEC_F2C_"
-                             SYMBOL_NAMESPACE "parsec_f2c_"
-                             SYMBOLS my_sub parsecf:my_sub)
     add_subdirectory(fortran)
-    target_sources(parsec PRIVATE $<TARGET_OBJECTS:parsec_fortran>)
-    #    target_link_libraries(parsec
-    #                      PRIVATE parsec_fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 
   install(TARGETS parsec

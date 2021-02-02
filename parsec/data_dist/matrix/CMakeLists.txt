@@ -26,22 +26,14 @@ if (MPI_C_FOUND)
   LIST(APPEND sources ${CMAKE_CURRENT_LIST_DIR}/scalapack_convert.c)
 endif(MPI_C_FOUND)
 
-if(NOT TARGET parsec-data-matrix)
-  add_library(parsec-data-matrix OBJECT ${sources})
-endif(NOT TARGET parsec-data-matrix)
-
 set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf"
                     "${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf"
                     "${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf"
              APPEND PROPERTY PTGPP_COMPILE_OPTIONS "--Wremoteref")
 
-target_ptg_sources(parsec-data-matrix PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf;${CMAKE_CURRENT_SOURCE_DIR}/diag_band_to_rect.jdf;${CMAKE_CURRENT_SOURCE_DIR}/apply.jdf")
+target_ptg_sources(parsec PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf;${CMAKE_CURRENT_SOURCE_DIR}/diag_band_to_rect.jdf;${CMAKE_CURRENT_SOURCE_DIR}/apply.jdf")
 
-set_target_properties(parsec-data-matrix PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
-target_include_directories(parsec-data-matrix PUBLIC ${MPI_C_INCLUDE_PATH}) # ${CMAKE_CURRENT_BINARY_DIR}) added by target_ptg_sources
-
-add_dependencies(parsec parsec-data-matrix)
-target_sources(parsec PRIVATE $<TARGET_OBJECTS:parsec-data-matrix>)
+target_sources(parsec PRIVATE ${sources})
 
 add_subdirectory(redistribute)
 
