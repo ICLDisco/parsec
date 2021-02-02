@@ -518,7 +518,7 @@ IF( BUILD_PARSEC )
     set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
     if (NOT MPI_C_FOUND)
       # Force MPI: if no compiler, do not proceed further
-      MESSAGE(ERROR "MPI is required but was not found. Please provide an MPI compiler")
+      MESSAGE(FATAL_ERROR "MPI is required but was not found. Please provide an MPI compiler")
     endif (NOT MPI_C_FOUND)
   endif (PARSEC_DIST_WITH_MPI)
   #
