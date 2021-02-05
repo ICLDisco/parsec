@@ -209,9 +209,9 @@ int dbp_file_translate_local_dico_to_global(const dbp_file_t *file, int lid)
     return file->dico_map[lid];
 }
 
-#define DBP_EVENT_LENGTH(dbp_event, dbp_object)				\
-  (sizeof(parsec_profiling_output_base_event_t) +			\
-   (EVENT_HAS_INFO((dbp_event)->native) ?				\
+#define DBP_EVENT_LENGTH(dbp_event, dbp_object)             \
+  (sizeof(parsec_profiling_output_base_event_t) +           \
+   (EVENT_HAS_INFO((dbp_event)->native) ?                   \
     (dbp_object)->parent->dico_keys[(dbp_object)->dico_map[BASE_KEY((dbp_event)->native->event.key)]].keylen : 0))
 
 struct dbp_thread {

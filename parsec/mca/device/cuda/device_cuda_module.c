@@ -327,7 +327,7 @@ parsec_device_cuda_detach( parsec_device_cuda_module_t* device,
 int
 parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
 {
-    int major, minor, concurrency, computemode, streaming_multiprocessor, drate, srate, trate, hrate;
+    int major, minor, concurrency, computemode, streaming_multiprocessor, drate, srate, trate, hrate, len;
     parsec_device_cuda_module_t* gpu_device;
     cudaError_t cudastatus;
     int show_caps_index, show_caps = 0, j, k;
@@ -359,7 +359,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     gpu_device->cuda_index = (uint8_t)dev_id;
     gpu_device->major      = (uint8_t)major;
     gpu_device->minor      = (uint8_t)minor;
-    asprintf(&gpu_device->super.name, "%s (%d)", szName, dev_id);
+    len = asprintf(&gpu_device->super.name, "%s (%d)", szName, dev_id);
+    if(-1 == len)
+        gpu_device->super.name = "";
     gpu_device->data_avail_epoch = 0;
 
     gpu_device->max_exec_streams = PARSEC_MAX_STREAMS;
@@ -395,11 +397,17 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                                      {goto release_device;} );
         }
         if(j == 0) {
-            asprintf(&exec_stream->name, "h2d(%d)", j);
+            len = asprintf(&exec_stream->name, "h2d(%d)", j);
+            if(-1 == len)
+                exec_stream->name = "h2d";
         } else if(j == 1) {
-            asprintf(&exec_stream->name, "d2h(%d)", j);
+            len = asprintf(&exec_stream->name, "d2h(%d)", j);
+            if(-1 == len)
+                exec_stream->name = "d2h";
         } else {
-            asprintf(&exec_stream->name, "cuda(%d)", j);
+            len = asprintf(&exec_stream->name, "cuda(%d)", j);
+            if(-1 == len)
+                exec_stream->name = "cuda";
         }
 #if defined(PARSEC_PROF_TRACE)
         /* Each 'exec' stream gets its own profiling stream, except IN and OUT stream that share it.
@@ -1341,8 +1349,6 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
 
     gpu_device->super.required_data_in += nb_elts;
     if( -1 != transfer_from ) {
-        cudaError_t status;
-
         /* If it is already under transfer, don't schedule the transfer again.
          * This happens if the task refers twice (or more) to the same input flow */
         if( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {
@@ -2488,7 +2494,6 @@ parsec_gpu_kernel_pop( parsec_device_cuda_module_t *gpu_device,
     uint32_t                    nb_elts;
     const parsec_flow_t        *flow;
     int return_code = 0, how_many = 0, i, update_data_epoch = 0;
-    cudaError_t status;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif

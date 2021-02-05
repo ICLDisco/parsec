@@ -80,7 +80,7 @@ s = 0 .. NT-1
 
 : descB(t, 0)
 
-RW   A <- B READER_B(r, t)
+READ A <- B READER_B(r, t)
 READ B <- A SEND(r, t, s)
 CTL  T -> T FANIN(r, t)
 
@@ -93,8 +93,8 @@ t = 0 .. NT-1
 
 : descB(t, 0)
 
-RW A  <- B READER_B(r, t)
-CTL T <- T RECV(r, t, 0 .. NT-1)
+READ A <- B READER_B(r, t)
+CTL  T <- T RECV(r, t, 0 .. NT-1)
 
 BODY
 END

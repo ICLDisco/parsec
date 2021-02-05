@@ -133,206 +133,206 @@ int main(int argc, char *argv[])
 
     for(int i = 0; i < num_runs; i++) {
 #if RUN_PTG
-         /* 
+        /* 
          * Init dcY not including ghost region; if initvalue is 0,
          * init to 0; otherwise init to numbers based on index 
          */ 
         int *op_args = (int *)malloc(sizeof(int));
-	*op_args = 1;
-	parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcY,
-                  (tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+        *op_args = 1;
+        parsec_apply( parsec, matrix_UpperLower,
+                      (parsec_tiled_matrix_dc_t *)&dcY,
+                      (tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
 
-	/* Timer start */ 
-	SYNC_TIME_START();
+        /* Timer start */ 
+        SYNC_TIME_START();
 
-	/* Main part, call parsec_redistribute; double is default, which could be
-	 * changed in parsec/data_dist/matrix/redistribute/redistribute_internal.h
-	 */
+        /* Main part, call parsec_redistribute; double is default, which could be
+         * changed in parsec/data_dist/matrix/redistribute/redistribute_internal.h
+         */
         if( no_optimization_version )
             parsec_redistribute_no_optimization(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-				(parsec_tiled_matrix_dc_t *)&dcT,
-				size_row, size_col, disi_Y, disj_Y,
-				disi_T, disj_T);
-	else
+                                                (parsec_tiled_matrix_dc_t *)&dcT,
+                                                size_row, size_col, disi_Y, disj_Y,
+                                                disi_T, disj_T);
+        else
             parsec_redistribute(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-				(parsec_tiled_matrix_dc_t *)&dcT,
-				size_row, size_col, disi_Y, disj_Y,
-				disi_T, disj_T);
-
-	/* Timer end */
-	if( time ) {
-#if PRINT_MORE
-		SYNC_TIME_PRINT(rank, ("\"testing_redistribute_PTG\""
-					"\tRedistributed Size: m= %d n= %d"
-					"\tSource: P= %d Q= %d M= %d N= %d MB= %d NB= %d I= %d J=%d SMB= %d SNB= %d"
-					"\tTarget: PR= %d QR= %d MR= %d NR= %d MBR= %d NBR= %d i= %d j=%d SMBR= %d SNBR= %d"
-					"\tCores: %d\n\n",
-					size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
-					PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores));
-#else
-		SYNC_TIME_STOP();
-#endif
-		time_ptg = sync_time_elapsed;
-	}
-
-	/* Check result */
-	if( check ){
-		if( 0 == rank )
-			printf("Checking result for PTG:");
-
-#if COPY_TO_1NODE
-		parsec_redistribute_check(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-				(parsec_tiled_matrix_dc_t *)&dcT,
-				size_row, size_col, disi_Y, disj_Y,
-				disi_T, disj_T);
-#else 
-		/* Init dcY to 0 */
-		int *op_args = (int *)malloc(sizeof(int));
-		*op_args = 0;
-		parsec_apply( parsec, matrix_UpperLower,
-				(parsec_tiled_matrix_dc_t *)&dcY,
-				(tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
-
-		/* Redistribute back from dcT to dcY */
-		parsec_redistribute(parsec, (parsec_tiled_matrix_dc_t *)&dcT,
-				(parsec_tiled_matrix_dc_t *)&dcY,
-				size_row, size_col, disi_T, disj_T,
-				disi_Y, disj_Y);
-
-		parsec_redistribute_check2(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-				size_row, size_col, disi_Y, disj_Y);
-#endif /* COPY_TO_1NODE */
-	}
-#endif /* RUN_PTG */
-
-#if RUN_DTD
-	/* 
-	 * Init dcT to 0.0 for DTD 
-	 */
-	int *op_args_dtd = (int *)malloc(sizeof(int));
-	*op_args_dtd = 0;
-	parsec_apply( parsec, matrix_UpperLower,
-			(parsec_tiled_matrix_dc_t *)&dcT,
-			(tiled_matrix_unary_op_t)redistribute_init_ops, op_args_dtd);
-
-	/* Timer start */
-	SYNC_TIME_START();
-
-	/* Main part, call parsec_redistribute_dtd; double is default, which could be
-	 * changed in parsec/data_dist/matrix/redistribute/redistribute_internal.h
-	 */
-	parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-			(parsec_tiled_matrix_dc_t *)&dcT,
-			size_row, size_col, disi_Y, disj_Y,
-			disi_T, disj_T);
-
-	/* Timer end */
-	if( time ) {
-#if PRINT_MORE
-		SYNC_TIME_PRINT(rank, ("\"testing_redistribute_DTD\""
-					"\tRedistributed Size: m= %d n= %d"
-					"\tSource: P= %d Q= %d M= %d N= %d MB= %d NB= %d I= %d J=%d SMB= %d SNB= %d"
-					"\tTarget: PR= %d QR= %d MR= %d NR= %d MBR= %d NBR= %d i= %d j=%d SMBR= %d SNBR= %d"
-					"\tCores: %d\n\n",
-					size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
-					PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores));
-#else
-		SYNC_TIME_STOP();
-#endif
-		time_dtd = sync_time_elapsed;
-	}
-
-	/* Check result */
-	if( check ){
-		if( 0 == rank )
-			printf("Checking result for DTD:");
-
-#if COPY_TO_1NODE
-                parsec_redistribute_check(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
                                 (parsec_tiled_matrix_dc_t *)&dcT,
                                 size_row, size_col, disi_Y, disj_Y,
                                 disi_T, disj_T);
+
+        /* Timer end */
+        if( time ) {
+#if PRINT_MORE
+            SYNC_TIME_PRINT(rank, ("\"testing_redistribute_PTG\""
+                                   "\tRedistributed Size: m= %d n= %d"
+                                   "\tSource: P= %d Q= %d M= %d N= %d MB= %d NB= %d I= %d J=%d SMB= %d SNB= %d"
+                                   "\tTarget: PR= %d QR= %d MR= %d NR= %d MBR= %d NBR= %d i= %d j=%d SMBR= %d SNBR= %d"
+                                   "\tCores: %d\n\n",
+                                   size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
+                                   PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores));
 #else
-		/* Init dcY to 0 */
-		int *op_args = (int *)malloc(sizeof(int));
-		*op_args = 0;
-		parsec_apply( parsec, matrix_UpperLower,
-				(parsec_tiled_matrix_dc_t *)&dcY,
-				(tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+            SYNC_TIME_STOP();
+#endif
+            time_ptg = sync_time_elapsed;
+        }
 
-		/* Redistribute back from dcT to dcY */
-		parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_dc_t *)&dcT,
-				(parsec_tiled_matrix_dc_t *)&dcY,
-				size_row, size_col, disi_T, disj_T,
-				disi_Y, disj_Y);
+        /* Check result */
+        if( check ){
+            if( 0 == rank )
+                printf("Checking result for PTG:");
 
-		parsec_redistribute_check2(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-				size_row, size_col, disi_Y, disj_Y);
+#if COPY_TO_1NODE
+            parsec_redistribute_check(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
+                                      (parsec_tiled_matrix_dc_t *)&dcT,
+                                      size_row, size_col, disi_Y, disj_Y,
+                                      disi_T, disj_T);
+#else 
+            /* Init dcY to 0 */
+            int *op_args = (int *)malloc(sizeof(int));
+            *op_args = 0;
+            parsec_apply( parsec, matrix_UpperLower,
+                          (parsec_tiled_matrix_dc_t *)&dcY,
+                          (tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+
+            /* Redistribute back from dcT to dcY */
+            parsec_redistribute(parsec, (parsec_tiled_matrix_dc_t *)&dcT,
+                                (parsec_tiled_matrix_dc_t *)&dcY,
+                                size_row, size_col, disi_T, disj_T,
+                                disi_Y, disj_Y);
+
+            parsec_redistribute_check2(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
+                                       size_row, size_col, disi_Y, disj_Y);
 #endif /* COPY_TO_1NODE */
-	}
+        }
+#endif /* RUN_PTG */
+
+#if RUN_DTD
+        /* 
+         * Init dcT to 0.0 for DTD 
+         */
+        int *op_args_dtd = (int *)malloc(sizeof(int));
+        *op_args_dtd = 0;
+        parsec_apply( parsec, matrix_UpperLower,
+                      (parsec_tiled_matrix_dc_t *)&dcT,
+                      (tiled_matrix_unary_op_t)redistribute_init_ops, op_args_dtd);
+
+        /* Timer start */
+        SYNC_TIME_START();
+
+        /* Main part, call parsec_redistribute_dtd; double is default, which could be
+         * changed in parsec/data_dist/matrix/redistribute/redistribute_internal.h
+         */
+        parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
+                                (parsec_tiled_matrix_dc_t *)&dcT,
+                                size_row, size_col, disi_Y, disj_Y,
+                                disi_T, disj_T);
+
+        /* Timer end */
+        if( time ) {
+#if PRINT_MORE
+            SYNC_TIME_PRINT(rank, ("\"testing_redistribute_DTD\""
+                                   "\tRedistributed Size: m= %d n= %d"
+                                   "\tSource: P= %d Q= %d M= %d N= %d MB= %d NB= %d I= %d J=%d SMB= %d SNB= %d"
+                                   "\tTarget: PR= %d QR= %d MR= %d NR= %d MBR= %d NBR= %d i= %d j=%d SMBR= %d SNBR= %d"
+                                   "\tCores: %d\n\n",
+                                   size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
+                                   PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores));
+#else
+            SYNC_TIME_STOP();
+#endif
+            time_dtd = sync_time_elapsed;
+        }
+
+        /* Check result */
+        if( check ){
+            if( 0 == rank )
+                printf("Checking result for DTD:");
+
+#if COPY_TO_1NODE
+            parsec_redistribute_check(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
+                                      (parsec_tiled_matrix_dc_t *)&dcT,
+                                      size_row, size_col, disi_Y, disj_Y,
+                                      disi_T, disj_T);
+#else
+            /* Init dcY to 0 */
+            int *op_args = (int *)malloc(sizeof(int));
+            *op_args = 0;
+            parsec_apply( parsec, matrix_UpperLower,
+                          (parsec_tiled_matrix_dc_t *)&dcY,
+                          (tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+
+            /* Redistribute back from dcT to dcY */
+            parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_dc_t *)&dcT,
+                                    (parsec_tiled_matrix_dc_t *)&dcY,
+                                    size_row, size_col, disi_T, disj_T,
+                                    disi_Y, disj_Y);
+
+            parsec_redistribute_check2(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
+                                       size_row, size_col, disi_Y, disj_Y);
+#endif /* COPY_TO_1NODE */
+        }
 #endif /* RUN_DTD */
 
-	if( time ) {
-		/* Timer start */
-		SYNC_TIME_START();
+        if( time ) {
+            /* Timer start */
+            SYNC_TIME_START();
 
-		/* Call parsec_redistribute_bound to get time bound */
-		results = parsec_redistribute_bound(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-				(parsec_tiled_matrix_dc_t *)&dcT,
-				size_row, size_col, disi_Y, disj_Y,
-				disi_T, disj_T);
+            /* Call parsec_redistribute_bound to get time bound */
+            results = parsec_redistribute_bound(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
+                                                (parsec_tiled_matrix_dc_t *)&dcT,
+                                                size_row, size_col, disi_Y, disj_Y,
+                                                disi_T, disj_T);
 
-		/* Timer end */
+            /* Timer end */
 #if PRINT_MORE
-		SYNC_TIME_PRINT(rank, ("\"testing_redistribute_bound\""
-					"\tRedistributed Size: m= %d n= %d"
-					"\tSource: P= %d Q= %d M= %d N= %d MB= %d NB= %d I= %d J=%d SMB= %d SNB= %d"
-					"\tTarget: PR= %d QR= %d MR= %d NR= %d MBR= %d NBR= %d i= %d j=%d SMBR= %d SNBR= %d"
-					"\tCores: %d\n\n",
-					size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
-					PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores));
+            SYNC_TIME_PRINT(rank, ("\"testing_redistribute_bound\""
+                                   "\tRedistributed Size: m= %d n= %d"
+                                   "\tSource: P= %d Q= %d M= %d N= %d MB= %d NB= %d I= %d J=%d SMB= %d SNB= %d"
+                                   "\tTarget: PR= %d QR= %d MR= %d NR= %d MBR= %d NBR= %d i= %d j=%d SMBR= %d SNBR= %d"
+                                   "\tCores: %d\n\n",
+                                   size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
+                                   PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores));
 #else
-		SYNC_TIME_STOP();
+            SYNC_TIME_STOP();
 #endif
-	}
+        }
 
-	/* Print info to draw figures */
-	if( 0 == rank && time ) {
-		double ratio_remote = results[7] / results[2];
-		double input_bandwidth_mix = network_bandwidth && memcpy_bandwidth ? network_bandwidth * memcpy_bandwidth / ((ratio_remote + 1) * network_bandwidth + memcpy_bandwidth) / 1.0e9 : 0.0;
-		double input_bandwidth_worst = network_bandwidth && memcpy_bandwidth ? network_bandwidth * memcpy_bandwidth / ((ratio_remote + 2) * network_bandwidth + memcpy_bandwidth) / 1.0e9 : 0.0;
+        /* Print info to draw figures */
+        if( 0 == rank && time ) {
+            double ratio_remote = results[7] / results[2];
+            double input_bandwidth_mix = network_bandwidth && memcpy_bandwidth ? network_bandwidth * memcpy_bandwidth / ((ratio_remote + 1) * network_bandwidth + memcpy_bandwidth) / 1.0e9 : 0.0;
+            double input_bandwidth_worst = network_bandwidth && memcpy_bandwidth ? network_bandwidth * memcpy_bandwidth / ((ratio_remote + 2) * network_bandwidth + memcpy_bandwidth) / 1.0e9 : 0.0;
 #if PRINT_MORE
-		printf("'Time_PTG', 'Time_DTD', 'm', 'n', 'P', 'Q', 'M', 'N', 'MB', 'NB', 'I', 'J', 'SMB', 'SNB', "
-				"'PR', 'QR', 'MR', 'NR', 'MBR', 'NBR', 'i', 'j', 'SMBR', 'SNBR', 'cores', 'nodes', "
-				"'ratio_remote', 'thread_multiple', 'no_optimization_version', "
-				"'Total_message_remote_bits', 'Total_message_local_bits', "
-				"'Max_send_or_receive_message_each_rank_bits', 'Max_local_message_each_rank_bits', "
-				"'Number_of_message_remote', 'Number_of_message_local', 'Max_remote_message_each_rank_bits', "
-				"'Max_local_related_remote', 'Input_network_bandwidth_Gbits', 'Input_memcpy_bandwidth_Gbits', "
-				"'Input_bandwidth_mix_Gbits', 'Input_bandwidth_worst_Gbits', "
-				"'Output_network_bandwidth_ptg_Gbits', 'Output_network_bandwidth_ptg_bidir_Gbits', "
-				"'Output_memcpy_bandwidth_ptg_Gbits', 'Output_network_bandwidth_dtd_Gbits', "
-				"'Output_network_bandwidth_dtd_bidir_Gbits', 'Output_memcpy_bandwidth_dtd_Gbits' "
-				"\n\n");
+            printf("'Time_PTG', 'Time_DTD', 'm', 'n', 'P', 'Q', 'M', 'N', 'MB', 'NB', 'I', 'J', 'SMB', 'SNB', "
+                   "'PR', 'QR', 'MR', 'NR', 'MBR', 'NBR', 'i', 'j', 'SMBR', 'SNBR', 'cores', 'nodes', "
+                   "'ratio_remote', 'thread_multiple', 'no_optimization_version', "
+                   "'Total_message_remote_bits', 'Total_message_local_bits', "
+                   "'Max_send_or_receive_message_each_rank_bits', 'Max_local_message_each_rank_bits', "
+                   "'Number_of_message_remote', 'Number_of_message_local', 'Max_remote_message_each_rank_bits', "
+                   "'Max_local_related_remote', 'Input_network_bandwidth_Gbits', 'Input_memcpy_bandwidth_Gbits', "
+                   "'Input_bandwidth_mix_Gbits', 'Input_bandwidth_worst_Gbits', "
+                   "'Output_network_bandwidth_ptg_Gbits', 'Output_network_bandwidth_ptg_bidir_Gbits', "
+                   "'Output_memcpy_bandwidth_ptg_Gbits', 'Output_network_bandwidth_dtd_Gbits', "
+                   "'Output_network_bandwidth_dtd_bidir_Gbits', 'Output_memcpy_bandwidth_dtd_Gbits' "
+                   "\n\n");
 #endif
-		printf("OUTPUT %lf %lf %d %d %d %d %d %d %d %d %d %d %d %d " 
-				"%d %d %d %d %d %d %d %d %d %d %d %d %.2lf %d %d "
-				"%.10e %.10e %.10e %.10e %.2lf %.2lf %.10e %.10e "
-				"%.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf\n",
-				time_ptg, time_dtd, size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
-				PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores, nodes, ratio_remote, thread_type, no_optimization_version,
-				results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7],
-				network_bandwidth / 1.0e9, memcpy_bandwidth / 1.0e9,
-				input_bandwidth_mix, input_bandwidth_worst,
-				(time_ptg ? results[2] / 1.0e9 / time_ptg : 0.0),
-				(time_ptg ? results[6] / 1.0e9 / time_ptg : 0.0),
-				(time_ptg ? (results[2] + results[3]) / 1.0e9 / time_ptg : 0.0),
-				(time_dtd ? results[2] / 1.0e9 / time_dtd: 0.0),
-				(time_dtd ? results[6] / 1.0e9 / time_ptg : 0.0),
-				(time_dtd ? (results[2] + results[3]) / 1.0e9 / time_dtd : 0.0)
-		      );
-	}
+            printf("OUTPUT %lf %lf %d %d %d %d %d %d %d %d %d %d %d %d " 
+                   "%d %d %d %d %d %d %d %d %d %d %d %d %.2lf %d %d "
+                   "%.10e %.10e %.10e %.10e %.2lf %.2lf %.10e %.10e "
+                   "%.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf\n",
+                   time_ptg, time_dtd, size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
+                   PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores, nodes, ratio_remote, 
+                   thread_type, no_optimization_version,
+                   results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7],
+                   network_bandwidth / 1.0e9, memcpy_bandwidth / 1.0e9,
+                   input_bandwidth_mix, input_bandwidth_worst,
+                   (time_ptg ? results[2] / 1.0e9 / time_ptg : 0.0),
+                   (time_ptg ? results[6] / 1.0e9 / time_ptg : 0.0),
+                   (time_ptg ? (results[2] + results[3]) / 1.0e9 / time_ptg : 0.0),
+                   (time_dtd ? results[2] / 1.0e9 / time_dtd: 0.0),
+                   (time_dtd ? results[6] / 1.0e9 / time_ptg : 0.0),
+                   (time_dtd ? (results[2] + results[3]) / 1.0e9 / time_dtd : 0.0));
+        }
 
     }
 

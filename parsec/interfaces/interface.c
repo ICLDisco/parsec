@@ -107,7 +107,7 @@ static const __parsec_chore_t __parsec_generic_startup_chores[] = {
      .hook = (parsec_hook_t *) parsec_empty_function_without_arguments},  /* To be replaced at runtime with the correct point to the startup tasks */
     {.type = PARSEC_DEV_NONE,
      .evaluate = NULL,
-     .hook = (parsec_hook_t *) NULL},	/* End marker */
+     .hook = (parsec_hook_t *) NULL},                                     /* End marker */
 };
 
 static parsec_key_fn_t __parsec_generic_key_functions = {

@@ -117,8 +117,8 @@ void two_dim_block_cyclic_band_init( two_dim_block_cyclic_band_t *desc,
     parsec_data_collection_t *dc = (parsec_data_collection_t*)desc;
 
     parsec_tiled_matrix_dc_init( &desc->super, off_band->mtype, off_band->storage, off_band->dtype,
-		                 nodes, myrank, off_band->mb, off_band->nb, off_band->lm, off_band->ln,
-		                 off_band->i, off_band->j, off_band->m, off_band->n );
+                                 nodes, myrank, off_band->mb, off_band->nb, off_band->lm, off_band->ln,
+                                 off_band->i, off_band->j, off_band->m, off_band->n );
 
     desc->band_size  = band_size;
     dc->rank_of      = twoDBC_band_rank_of;

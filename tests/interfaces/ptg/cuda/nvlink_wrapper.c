@@ -26,6 +26,7 @@ static void destruct_cublas_handle(void *p)
     if(NULL != handle) {
         status = cublasDestroy(handle);
         assert(status == CUBLAS_STATUS_SUCCESS);
+        (void)status;
     }
 }
 
@@ -40,6 +41,7 @@ static void *create_cublas_handle(void *obj, void *p)
     assert(CUBLAS_STATUS_SUCCESS == status);
     status = cublasSetStream(handle, stream->cuda_stream);
     assert(CUBLAS_STATUS_SUCCESS == status);
+    (void)status;
     return (void*)handle;
 }
 #endif

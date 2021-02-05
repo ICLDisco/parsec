@@ -82,16 +82,20 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
 {
     my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
     parsec_data_collection_t *d = &(m->super);
-
+    
     d->myrank = rank;
     d->nodes  = world;
     d->rank_of = rank_of;
     d->data_of = data_of;
     d->vpid_of = vpid_of;
 #if defined(PARSEC_PROF_TRACE)
-    asprintf(&d->key_dim, "(%d)", size);
-    d->key_base = NULL;
-    d->data_key = data_key;
+    {
+      int len = asprintf(&d->key_dim, "(%d)", size);
+      if( -1 == len )
+	d->key_dim = NULL;
+      d->key_base = NULL;
+      d->data_key = data_key;
+    }
 #endif
     parsec_type_create_contiguous(size, parsec_datatype_int32_t, &d->default_dtt);
 

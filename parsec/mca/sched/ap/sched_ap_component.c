@@ -52,7 +52,7 @@ const parsec_sched_base_component_t parsec_sched_ap_component = {
         sched_ap_component_query, 
         /*< specific query to return the module and add it to the list of available modules */
         sched_ap_component_register, /*< Register at least the SDE event names */
-	"", /*< no reserve */
+        "", /*< no reserve */
     },
     {
         /* The component has no metada */

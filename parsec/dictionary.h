@@ -198,10 +198,10 @@ struct parsec_property_function_s {
     size_t                              offset;             /**< Offset  */
     parsec_profiling_datatype_t         type;
     union {
-	parsec_expr_op_int32_inline_func_t     inline_func_int32;
-	parsec_expr_op_int64_inline_func_t     inline_func_int64;
-	parsec_expr_op_float_inline_func_t     inline_func_float;
-	parsec_expr_op_double_inline_func_t    inline_func_double;
+        parsec_expr_op_int32_inline_func_t     inline_func_int32;
+        parsec_expr_op_int64_inline_func_t     inline_func_int64;
+        parsec_expr_op_float_inline_func_t     inline_func_float;
+        parsec_expr_op_double_inline_func_t    inline_func_double;
     } func;
 };
 
@@ -300,8 +300,8 @@ extern parsec_profiling_dictionary_t *parsec_profiling_dictionary;
  * @details Exploring the PINS modules is not yet supported.
  */
 int parsec_profiling_dictionary_init(parsec_context_t *master_context,
-				     int num_modules,
-				     parsec_pins_module_t **modules);
+                                     int num_modules,
+                                     parsec_pins_module_t **modules);
 
 /**
  * @brief Free all the data structure and close the shared memory region.
@@ -342,11 +342,11 @@ int parsec_profiling_add_taskpool_properties(parsec_taskpool_t *h);
  * @remark not thread safe
  */
 int parsec_profiling_register_property(parsec_property_function_t *func,
-				       const char *namespace,
-				       const char *task_class,
-				       const char *property,
-				       parsec_profiling_index_t who,
-				       int accumulative);
+                                       const char *namespace,
+                                       const char *task_class,
+                                       const char *property,
+                                       parsec_profiling_index_t who,
+                                       int accumulative);
 
 /**
  * @brief This function evaluates the requested properties into the shared memory region

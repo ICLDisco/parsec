@@ -1900,7 +1900,7 @@ static int datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
     data->remote.src_count = data->remote.dst_count = 0;
     data->remote.src_displ = data->remote.dst_displ = 0;
 
-    (*flow_mask) = 0;		/* nothing left */
+    (*flow_mask) = 0;           /* nothing left */
 
     return PARSEC_HOOK_RETURN_DONE;
 }

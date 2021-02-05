@@ -93,6 +93,18 @@ if( PARSEC_HAVE_WEXTRA )
   list(APPEND wflags "$<$<NOT:$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-Wextra>" )
 endif( PARSEC_HAVE_WEXTRA )
 
+# Flex-generated files make some compilers generate a significant
+# amount of warnings. We define here warning silent options
+# that are passed only to Flex-generated files if they are
+# supported by the compilers.
+SET(PARSEC_FLEX_GENERATED_OPTIONS)
+foreach(_flag "-Wno-misleading-indentation" "-Wno-sign-compare")
+  check_c_compiler_flag("${_flag}" _has_flag)
+  if( _has_flag )
+    list(APPEND PARSEC_FLEX_GENERATED_OPTIONS "${_flag}")
+  endif( _has_flag )
+endforeach()
+
 #
 # flags for Intel icc
 #

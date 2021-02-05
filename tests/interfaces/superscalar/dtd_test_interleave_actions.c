@@ -89,10 +89,8 @@ int main(int argc, char **argv) {
    int pargc;
    char **pargv;
    int c;
-   int digit_optind = 0;
 
    while (1) {
-       int this_option_optind = optind ? optind : 1;
        int option_index = 0;
        static struct option long_options[] = {
                 {"add-taskpool", no_argument, 0,  'a' },

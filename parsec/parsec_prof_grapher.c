@@ -135,7 +135,7 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
         fprintf(grapher_file,
             "%s [shape=\"polygon\","
             "label=\"<%d/%d> %s%s\","
-            "tooltip=\"tpid=%u:tcid=%d:tcname=%s:tid=%llu\"];\n",
+            "tooltip=\"tpid=%u:tcid=%d:tcname=%s:tid=%"PRIu64"\"];\n",
             nmp,
             thread_id, vp_id, tmp, sim_date,
             context->taskpool->taskpool_id,

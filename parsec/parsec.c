@@ -2045,7 +2045,7 @@ int parsec_taskpool_register( parsec_taskpool_t* tp )
 
 /* globally synchronize taskpool id's so that next register generates the same
  * id at all ranks on a given communicator. */
-void parsec_taskpool_sync_ids_context( void* comm )
+void parsec_taskpool_sync_ids_context( intptr_t comm )
 {
     uint32_t idx,msz;
     parsec_atomic_lock( &taskpool_array_lock );
@@ -2076,7 +2076,7 @@ void parsec_taskpool_sync_ids_context( void* comm )
  * id at all ranks. */
 void parsec_taskpool_sync_ids( void )
 {
-  parsec_taskpool_sync_ids_context( (void*)((uintptr_t)MPI_COMM_WORLD) );
+  parsec_taskpool_sync_ids_context( (intptr_t)MPI_COMM_WORLD );
 }
 
 /* Unregister the taskpool with the engine. This make the taskpool_id available for

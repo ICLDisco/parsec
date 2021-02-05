@@ -6,6 +6,11 @@ IF(NOT CMAKE_CROSSCOMPILING)
   FLEX_TARGET(parsec_flex parsec.l  ${CMAKE_CURRENT_BINARY_DIR}/parsec.l.c)
   ADD_FLEX_BISON_DEPENDENCY(parsec_flex parsec_yacc)
 
+  if(PARSEC_FLEX_GENERATED_OPTIONS)
+    set_source_files_properties(${FLEX_parsec_flex_OUTPUTS}
+      PROPERTIES COMPILE_OPTIONS "${PARSEC_FLEX_GENERATED_OPTIONS}")
+  endif(PARSEC_FLEX_GENERATED_OPTIONS)
+
   if(NOT TARGET parsec-ptgpp)
     add_executable(parsec-ptgpp jdf.c jdf2c.c jdf_unparse.c ${BISON_parsec_yacc_OUTPUTS} ${FLEX_parsec_flex_OUTPUTS})
   endif(NOT TARGET parsec-ptgpp)

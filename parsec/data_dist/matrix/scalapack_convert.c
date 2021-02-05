@@ -345,8 +345,8 @@ int tiles_to_scalapack(parsec_tiled_matrix_dc_t * dc, int * desc, void * sca_mat
     for ( j = 0 ; j < dc->super.lnt ; j++)
         for ( i = 0 ; i < dc->super.lmt ; i++)
         {
-	    if( dc->super.super.myrank ==
-		dc->super.super.rank_of((parsec_data_collection_t *)dc, i, j ) )
+            if( dc->super.super.myrank ==
+                dc->super.super.rank_of((parsec_data_collection_t *)dc, i, j ) )
                 {
                     il = i / ( dc->grid.krows * dc->grid.rows ) +  (i % ( dc->grid.krows * dc->grid.rows )) - ( dc->grid.krows * dc->grid.rrank );
                     jl = j / ( dc->grid.kcols * dc->grid.cols ) +  (j % ( dc->grid.kcols * dc->grid.cols )) - ( dc->grid.kcols * dc->grid.crank );
@@ -358,7 +358,7 @@ int tiles_to_scalapack(parsec_tiled_matrix_dc_t * dc, int * desc, void * sca_mat
                         for (x = 0; x < (dc->super.mb); x++)
                             lapack[(dc->lm)*y+x] = bdl[(dc->super.nb)*y + x];
                 }
-	}
+    }
     return 0;
 }
 */

@@ -116,9 +116,12 @@ static char** prepare_execv_arguments(void)
 
     for( i = 0; i < parsec_argv_count(include_argv); ++i ) {
         char* temp;
-        (void)asprintf(&temp, "-I%s", include_argv[i]);  /* silence compiler */
-        parsec_argv_append(&token_count, &exec_argv, temp);
-        free(temp);
+        int len;
+        len = asprintf(&temp, "-I%s", include_argv[i]);
+        if(len != -1) {
+            parsec_argv_append(&token_count, &exec_argv, temp);
+            free(temp);
+        }
     }
     parsec_argv_free(include_argv);
 
