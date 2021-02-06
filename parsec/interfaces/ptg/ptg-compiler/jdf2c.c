@@ -3911,7 +3911,8 @@ static void jdf_generate_release_task_fct(const jdf_t *jdf, jdf_function_entry_t
     }
     if( f->user_defines & JDF_HAS_UD_NB_LOCAL_TASKS ) {
         coutput("    if( (PARSEC_UNDETERMINED_NB_TASKS == __parsec_tp->super.super.nb_tasks) ||\n"
-                "        (0 == __parsec_tp->super.super.nb_tasks) ) {\n"
+                "        (0 == __parsec_tp->super.super.nb_tasks) ||\n"
+                "        (PARSEC_RUNTIME_RESERVED_NB_TASKS == __parsec_tp->super.super.nb_tasks) ) {\n"
                 "        /* don't spend time counting */\n"
                 "        return parsec_release_task_to_mempool(es, this_task);\n"
                 "    }\n");
