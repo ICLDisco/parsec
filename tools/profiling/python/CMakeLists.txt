@@ -1,5 +1,6 @@
 if( NOT BUILD_SHARED_LIBS )
   message(WARNING "Python support requires the building of shared libraries, but this PaRSEC installation only supports static builds. Python profiling will be disabled.")
+  set(PARSEC_PYTHON_TOOLS OFF CACHE BOOL "True iff Python tools are enabled in PaRSEC")
   return()
 endif( NOT BUILD_SHARED_LIBS )
 
@@ -8,6 +9,7 @@ FIND_PACKAGE(Python COMPONENTS Interpreter Development
 
 if( NOT Python_Development_FOUND )
   message(STATUS "Python Development not found. Disabling the profiling tools")
+  set(PARSEC_PYTHON_TOOLS OFF CACHE BOOL "True iff Python tools are enabled in PaRSEC")
   return()
 endif( NOT Python_Development_FOUND )
 
@@ -15,10 +17,11 @@ endif( NOT Python_Development_FOUND )
 find_package(Cython 0.21.2)
 if( NOT CYTHON_EXECUTABLE )
   message(STATUS "Cython > 0.21.2 not found. Disabling the profiling tools")
+  set(PARSEC_PYTHON_TOOLS OFF CACHE BOOL "True iff Python tools are enabled in PaRSEC")
   return()
 endif( NOT CYTHON_EXECUTABLE )
 
-set(SRC_PYTHON_SUPPORT ${CMAKE_CURRENT_SOURCE_DIR}/common_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_SOURCE_DIR}/ptt_utils.py)
+set(SRC_PYTHON_SUPPORT ${CMAKE_CURRENT_SOURCE_DIR}/common_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_SOURCE_DIR}/ptt_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/profile2h5.py)
 set(SETUP_PY setup.py)
 
 set(PYTHON_TOOLS_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -96,7 +99,7 @@ install( FILES ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.sh ${PYTHON_TOOLS_BI
 
 # Install the files from the binary directory after being translated
 # by the 2to3 tool.
-file(GLOB pyfiles RELATIVE ${PYTHON_TOOLS_BIN_DIR} "examples/*.py")
+file(GLOB pyfiles RELATIVE ${PYTHON_TOOLS_BIN_DIR} "examples/*.py" "profile2h5.py")
 foreach(file ${pyfiles})
   install( FILES ${PYTHON_TOOLS_BIN_DIR}/${file}
            DESTINATION ${PARSEC_INSTALL_LIBEXECDIR}/parsec
@@ -105,4 +108,7 @@ foreach(file ${pyfiles})
   get_filename_component(filenodir "${file}" NAME)
   install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBEXECDIR}/parsec/${filenodir} ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_BINDIR}/${filenoext})")
 endforeach()
+
+set(PARSEC_PYTHON_TOOLS ON CACHE BOOL "True if Python tools are enabled in PaRSEC")
+
 
