@@ -83,11 +83,14 @@ char *mca_components_list_compiled(char* type_name)
              + strlen(mca_static_components[i]->mca_options_name)
              + 2;
     }
-    components_string = (char*)malloc(sizeof(char)*len);
+    if (0 == len) {
+        len = 1;
+    }
+    components_string = (char*)calloc(len, sizeof(char));
     char *prs = components_string;
     for(i = 0; mca_static_components[i] != NULL; i++) {
         if( strcmp( mca_static_components[i]->mca_type_name, type_name ) ) continue;
-        prn = snprintf(prs, len, "%s_%s%s,", 
+        prn = snprintf(prs, len, "%s_%s%s,",
                 mca_static_components[i]->mca_type_name,
                 mca_static_components[i]->mca_component_name,
                 mca_static_components[i]->mca_options_name);
