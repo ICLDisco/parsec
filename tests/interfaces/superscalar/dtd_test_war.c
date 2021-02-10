@@ -8,6 +8,7 @@
 #include "common_data.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/utils/debug.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
@@ -17,7 +18,8 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
-int32_t count = 0;
+static volatile int32_t count_war_error = 0;
+static volatile int32_t count_raw_error = 0;
 
 enum regions {
                TILE_FULL,
@@ -31,8 +33,11 @@ call_to_kernel_type_read( parsec_execution_stream_t *es,
     int *data;
 
     parsec_dtd_unpack_args(this_task, &data);
+    if( *data < 1 ) {
+        (void)parsec_atomic_fetch_inc_int32(&count_raw_error);
+    }
     if( *data > 1 ) {
-        (void)parsec_atomic_fetch_inc_int32(&count);
+        (void)parsec_atomic_fetch_inc_int32(&count_war_error);
     }
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -90,6 +95,11 @@ int main(int argc, char ** argv)
                                   nb, 1, nb);
 
     dcA = create_and_distribute_data(rank, world, nb, nt);
+    memset(((two_dim_block_cyclic_t *)dcA)->mat,
+            0,
+            (size_t)dcA->nb_local_tiles *
+            (size_t)dcA->bsiz *
+            (size_t)parsec_datadist_getsizeoftype(dcA->mtype));
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
@@ -123,10 +133,14 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    if( count > 0 ) {
+    if( count_war_error > 0 ) {
         parsec_fatal( "Write after Read dependencies are not being satisfied properly\n\n" );
-    } else {
-        parsec_output( 0, "\nWAR test passed\n\n" );
+    }
+    if( count_raw_error > 0 ) {
+        parsec_fatal( "Read after Write dependencies are not being satisfied properly\n\n" );
+    }
+    if( count_raw_error == 0 && count_war_error == 0 ) {
+        parsec_output( 0, "WAR test passed\n\n" );
     }
 
     parsec_taskpool_free( dtd_tp );
