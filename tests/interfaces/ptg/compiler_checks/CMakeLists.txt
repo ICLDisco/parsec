@@ -66,6 +66,7 @@ if( MPI_C_FOUND )
     PROPERTIES
     PASS_REGULAR_EXPRESSION "A NULL is forwarded"
   )
+  parsec_addtest_cmd(write_check_mpi ${MPI_TEST_CMD_LIST} 4 ./write_check)
 endif( MPI_C_FOUND )
 
 #
