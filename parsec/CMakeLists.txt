@@ -44,6 +44,13 @@ list(APPEND BASE_SOURCES ${FLEX_show_help_flex_OUTPUTS})
 FLEX_TARGET(keyval_flex utils/keyval_lex.l ${CMAKE_CURRENT_BINARY_DIR}/keyval_lex.l.c)
 list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 
+if(PARSEC_FLEX_GENERATED_OPTIONS)
+  set_source_files_properties(${FLEX_show_help_flex_OUTPUTS}
+    PROPERTIES COMPILE_OPTIONS "${PARSEC_FLEX_GENERATED_OPTIONS}")
+  set_source_files_properties(${FLEX_keyval_flex_OUTPUTS}
+    PROPERTIES COMPILE_OPTIONS "${PARSEC_FLEX_GENERATED_OPTIONS}")
+endif(PARSEC_FLEX_GENERATED_OPTIONS)
+
 # Read the Modular Components
 #   This must be read using include and not add_subdirectory because
 #   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.

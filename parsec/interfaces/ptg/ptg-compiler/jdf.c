@@ -618,6 +618,7 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
     jdf_function_entry_t *f;
     jdf_dataflow_t *flow;
     jdf_dep_t *dep;
+    jdf_expr_t *disable_warning = NULL;
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
         for(flow = f->dataflow; flow != NULL; flow = flow->next) {
@@ -632,6 +633,11 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
                  * then the count must be 1 and the displacement must be zero. Generate a warning
                  * and replace the default if it's not the case.
                  */
+                if( (disable_warning = jdf_find_property( dep->guard->properties, DISABLE_DEP_WARNING_PROPERTY_NAME, NULL)) != NULL ) {
+                    if( (JDF_VAR == disable_warning->op) && (0 == strcasecmp("disable", disable_warning->jdf_var)) ) {
+                        continue;
+                    }
+                }
                 if( dep->datatype_remote.type == dep->datatype_remote.layout ) {
                     if( (JDF_CST != dep->datatype_remote.count->op) ||
                         ((JDF_CST == dep->datatype_remote.count->op) && (1 != dep->datatype_remote.count->jdf_cst))) {
@@ -694,7 +700,11 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
                     continue;
                 }
             }
-
+            if( (NULL != disable_warning) &&
+                (JDF_VAR == disable_warning->op) &&
+                (0 == strcasecmp("disable", disable_warning->jdf_var)) ) {
+                continue;
+            }
             if( JDF_FLOW_TYPE_WRITE & flow->flow_flags ) {
                 /* We should have no IN dependencies, except for the arena assignment
                  * and at least one OUT dep */

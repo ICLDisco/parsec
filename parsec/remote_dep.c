@@ -201,11 +201,11 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
         deps->output[k].data.data   = NULL;
         deps->output[k].data.local.arena  = NULL;
         deps->output[k].data.local.src_displ = deps->output[k].data.local.dst_displ = 0xFFFFFFFF;
-        deps->output[k].data.local.src_datatype = deps->output[k].data.local.dst_datatype = NULL;
+        deps->output[k].data.local.src_datatype = deps->output[k].data.local.dst_datatype = PARSEC_DATATYPE_NULL;
         deps->output[k].data.local.src_count = deps->output[k].data.local.dst_count = -1;
         deps->output[k].data.remote.arena  = NULL;
         deps->output[k].data.remote.src_displ = deps->output[k].data.remote.dst_displ = 0xFFFFFFFF;
-        deps->output[k].data.remote.src_datatype = deps->output[k].data.remote.dst_datatype = NULL;
+        deps->output[k].data.remote.src_datatype = deps->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
         deps->output[k].data.remote.src_count = deps->output[k].data.remote.dst_count = -1;
 #endif
     }

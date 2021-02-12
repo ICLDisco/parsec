@@ -101,9 +101,13 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
     d->data_of = data_of;
     d->vpid_of = vpid_of;
 #if defined(PARSEC_PROF_TRACE)
-    asprintf(&d->key_dim, "(%d)", size);
-    d->key_base = strdup("A");
-    d->data_key = data_key;
+    {
+      int len = asprintf(&d->key_dim, "(%d)", size);
+      if( -1 == len )
+	d->key_dim = NULL;
+      d->key_base = strdup("A");
+      d->data_key = data_key;
+    }
 #endif
     parsec_type_create_contiguous(size, parsec_datatype_uint32_t, &d->default_dtt);
 

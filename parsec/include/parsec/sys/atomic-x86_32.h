@@ -40,8 +40,8 @@ int parsec_atomic_cas_int32(volatile int32_t* location,
     return (int)ret;
 }
 
-#define ll_low(x)	*(((unsigned int *)&(x)) + 0)
-#define ll_high(x)	*(((unsigned int *)&(x)) + 1)
+#define ll_low(x)    *(((unsigned int *)&(x)) + 0)
+#define ll_high(x)   *(((unsigned int *)&(x)) + 1)
 
 ATOMIC_STATIC_INLINE
 int64_t parsec_atomic_cas_int64(volatile int64_t* location,

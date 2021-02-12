@@ -36,7 +36,7 @@ static int   hfile_lineno;
 static const char *jdf_basename;
 static const char *jdf_cfilename;
 
-/** Optional declarations of local functions */
+/* Optional declarations of local functions */
 static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *expr);
 static void jdf_generate_code_hooks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
@@ -50,9 +50,18 @@ jdf_generate_code_find_deps(const jdf_t *jdf,
                             const char *name);
 static void jdf_generate_inline_c_functions(jdf_t* jdf);
 
+/* local constants */
+
+/* Define datatypes that JDF_C_CODE functions can return. */
+static const char *full_type[]  = { "int32_t", "int64_t", "float", "double", "parsec_arena_datatype_t*" };
+static const char *short_type[] = {   "int32",   "int64", "float", "double", "parsec_arena_datatype_t*" };
+
+/* C99 doesn't help us initialize a structure to zero easily */
+static const jdf_expr_t jdf_empty_expr;
+
 #define TASKPOOL_GLOBAL_PREFIX  "__parsec_tp->super."
 
-/** A coutput and houtput functions to write in the .h and .c files, counting the number of lines */
+/* A coutput and houtput functions to write in the .h and .c files, counting the number of lines */
 
 static inline int nblines(const char *p)
 {
@@ -2325,7 +2334,10 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function
             if( ld == call->local_defs ) {
                 depdone=1;
             } else {
-                coutput("%s  int %s = "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value;\n", indent(nbopen), ld->alias, ld->ldef_index);
+                coutput("%s  int %s = "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value;\n"
+                        "%s  (void)%s;\n",
+                        indent(nbopen), ld->alias, ld->ldef_index,
+                        indent(nbopen), ld->alias);
                 continue;
             }
         }
@@ -2630,7 +2642,7 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_function_entry_t* 
             string_arena_add_string(psa, "%s&%s", sep, JDF_OBJECT_ONAME(dl));
             sprintf(sep, ",\n ");
         } else if( dl->guard->guard_type == JDF_GUARD_TERNARY ) {
-            jdf_expr_t not = {};
+            jdf_expr_t not = jdf_empty_expr;
 
             sprintf(depname, "%s_iftrue", JDF_OBJECT_ONAME(dl));
             sprintf(condname, "expr_of_cond_for_%s", depname);

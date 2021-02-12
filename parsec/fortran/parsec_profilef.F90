@@ -174,7 +174,7 @@ CONTAINS
     INTEGER(KIND=C_SIZE_T)                    :: c_length
     CHARACTER(KIND=C_CHAR), POINTER           :: c_id_name(:)
     INTEGER(KIND=C_INT)                       :: c_ierr
-    INTEGER                                   :: i
+    INTEGER                                   :: i = 1
 
     c_length = length
     ALLOCATE(c_id_name(LEN_TRIM(id_name)+1))
@@ -201,7 +201,7 @@ CONTAINS
     CHARACTER(KIND=C_CHAR), POINTER            :: c_key_name(:)
     CHARACTER(KIND=C_CHAR), POINTER            :: c_attr(:)
     CHARACTER(KIND=C_CHAR), POINTER            :: c_conv_code(:)
-    INTEGER                                    :: i
+    INTEGER                                    :: i = 1
 
     c_info_length = info_length
     ALLOCATE(c_key_name(LEN_TRIM(key_name)+1))
@@ -262,7 +262,7 @@ CONTAINS
     INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
 
     INTEGER(KIND=c_int)                        :: c_ierr
-    INTEGER i
+    INTEGER                                    :: i = 1
 
     ALLOCATE(c_fname(LEN_TRIM(fname)+1))
     c_fname(:) = (/ (fname(i:i), i = 1, LEN_TRIM(fname)), c_null_char /)

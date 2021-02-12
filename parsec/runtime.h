@@ -477,7 +477,7 @@ void parsec_taskpool_unregister(parsec_taskpool_t* tp);
  *  associated with PaRSEC, and can be used to resolve discrepancies introduced by
  *  taskpools not registered over all ranks.
 */
-void parsec_taskpool_sync_ids_context( void* comm );
+void parsec_taskpool_sync_ids_context( intptr_t comm );
 
 /**
  * @brief Globally synchronize taskpool IDs.

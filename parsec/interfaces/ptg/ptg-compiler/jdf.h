@@ -56,7 +56,7 @@ typedef struct jdf_object_t {
 #define JDF_OBJECT_ONAME( OBJ )    (OBJ)->super.oname
 
 /**
- * Internam name marker for the arena allocation of the WRITE-only
+ * Internal name marker for the arena allocation of the WRITE-only
  * dependencies. This name is internally associated with the corresponding
  * variable, and can be safely used as a marker.
  */
@@ -88,6 +88,8 @@ int jdf_sanity_checks( jdf_warning_mask_t mask );
 #define DEP_MANAGEMENT_DYNAMIC_HASH_TABLE 1
 #define DEP_MANAGEMENT_INDEX_ARRAY_STRING        "index-array"
 #define DEP_MANAGEMENT_INDEX_ARRAY        2
+
+#define DISABLE_DEP_WARNING_PROPERTY_NAME        "warning"
 
 typedef struct jdf_compiler_global_args {
     char *input;
@@ -496,10 +498,6 @@ int jdf_assign_ldef_index(jdf_function_entry_t *f);
 #define DEP_UNDEFINED_DATATYPE 0
 #define DEP_CUSTOM_DATATYPE 1
 int jdf_dep_undefined_type(jdf_datatransfer_type_t datatype );
-
-/* Define datatypes that JDF_C_CODE functions can return. */
-static char *full_type[]  = { "int32_t", "int64_t", "float", "double", "parsec_arena_datatype_t*" };
-static char *short_type[] = {   "int32",   "int64", "float", "double", "parsec_arena_datatype_t*" };
 
 #define PARSEC_RETURN_TYPE_INT32                0
 #define PARSEC_RETURN_TYPE_INT64                1

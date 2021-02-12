@@ -301,7 +301,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dpar
     if(iparam[IPARAM_NB_R] < 0) iparam[IPARAM_NB_R] = -iparam[IPARAM_NB_R];
 
     if( iparam[IPARAM_MB] <= 0 || iparam[IPARAM_NB] <= 0 ){ 
-	fprintf(stderr, "#XXXXX Source tile size (NB) is negative!\n");
+        fprintf(stderr, "#XXXXX Source tile size (NB) is negative!\n");
         exit(2);
     }
 

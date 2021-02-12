@@ -57,7 +57,7 @@ static void HSVtoRGB( double *r, double *g, double *b, double h, double s, doubl
         *g = 0;
         *b = c;
         break;
-    default:		// case 5:
+    default: // case 5:
         *r = c;
         *g = 0;
         *b = x;

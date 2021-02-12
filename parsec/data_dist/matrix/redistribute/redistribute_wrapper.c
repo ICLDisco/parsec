@@ -110,9 +110,9 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
          */
         int R = 0;
 
-    	/* new taskpool */
-    	taskpool = parsec_redistribute_new(dcY, dcT, size_row, size_col, disi_Y, disj_Y, disi_T, disj_T, R);
-    	redistribute_taskpool = (parsec_taskpool_t*)taskpool;
+        /* new taskpool */
+        taskpool = parsec_redistribute_new(dcY, dcT, size_row, size_col, disi_Y, disj_Y, disi_T, disj_T, R);
+        redistribute_taskpool = (parsec_taskpool_t*)taskpool;
 
         /* Check distribution, and detarmine batch size: num_col */
         if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_tabular_type) ) {
@@ -127,15 +127,15 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
             fprintf(stderr, "Only support two_dim_block_cyclic_type and two_dim_tabular_type\n");
         }
 
-    	/* Calculate NT, need to update !!! */
-    	int n_T_START = disj_T / (dcT->nb-2*R);
-    	int n_T_END = (size_col+disj_T-1) / (dcT->nb-2*R);
-    	taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
+        /* Calculate NT, need to update !!! */
+        int n_T_START = disj_T / (dcT->nb-2*R);
+        int n_T_END = (size_col+disj_T-1) / (dcT->nb-2*R);
+        taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
 
-    	parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX],
-                                    MY_TYPE, matrix_UpperLower,
-                                    1, 1, 1, 1,
-                                    PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX],
+                                MY_TYPE, matrix_UpperLower,
+                                1, 1, 1, 1,
+                                PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
         int Y_LDA = dcY->storage == matrix_Lapack ? dcY->llm : dcY->mb;
         int T_LDA = dcT->storage == matrix_Lapack ? dcT->llm : dcT->mb;

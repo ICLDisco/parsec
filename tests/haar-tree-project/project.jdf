@@ -156,7 +156,7 @@ CTL RL <- (n!=0) ? RL PROJECT(n-1, l/2)
        -> ((!larger_than_thresh) & ((l%2) == 0)) ? LEFT END_PROPAGATE(n-1, l/2)
        -> ((!larger_than_thresh) & ((l%2) == 1)) ? RIGHT END_PROPAGATE(n-1, l/2)
 
-WRITE NODE <- NEW [ type=DEFAULT ]
+WRITE NODE <- NEW [ type=DEFAULT warning=disable ]
 
 BODY
 {

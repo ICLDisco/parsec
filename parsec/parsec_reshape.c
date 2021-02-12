@@ -187,9 +187,9 @@ void parsec_setup_nested_future(parsec_datacopy_future_t** future,
     char type_name_dst[MAX_TASK_STRLEN] = "NULL";
     int len;
     if(data->local.src_datatype != PARSEC_DATATYPE_NULL)
-	MPI_Type_get_name(data->local.src_datatype, type_name_src, &len);
+        MPI_Type_get_name(data->local.src_datatype, type_name_src, &len);
     if(data->local.dst_datatype != PARSEC_DATATYPE_NULL)
-	MPI_Type_get_name(data->local.dst_datatype, type_name_dst, &len);
+        MPI_Type_get_name(data->local.dst_datatype, type_name_dst, &len);
     PARSEC_DEBUG_VERBOSE(12, parsec_debug_output,
                          "RESHAPE_PROMISE CREATE %s %s [%p:..:%p -> ..:%p] fut %p dtt %s -> %s",
                          type_string, orig_string, data_src, data_src->dtt,

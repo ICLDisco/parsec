@@ -303,7 +303,7 @@ static int remote_dep_set_ctx(parsec_context_t* context, intptr_t opaque_comm_ct
     }
     rc = MPI_Comm_dup((MPI_Comm)opaque_comm_ctx, &comm);
     context->comm_ctx = (intptr_t)comm;
-    parsec_taskpool_sync_ids_context(*(MPI_Comm*)&context->comm_ctx);
+    parsec_taskpool_sync_ids_context(context->comm_ctx);
 
     MPI_Comm_size( (MPI_Comm)context->comm_ctx, (int*)&(context->nb_nodes));
     if(context->nb_nodes == 1){
@@ -867,7 +867,7 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
         /* control dep */
         return PARSEC_ITERATE_STOP;
     }
-    if(old_dtt != NULL){
+    if(old_dtt != PARSEC_DATATYPE_NULL){
         if(old_dtt != output->data.remote.dst_datatype){
 #if defined(PARSEC_DEBUG_NOISIER)
         char type_name_src[MAX_TASK_STRLEN] = "NULL";
@@ -891,7 +891,7 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
         char type_name_src[MAX_TASK_STRLEN] = "NULL";
         char type_name_dst[MAX_TASK_STRLEN] = "NULL";
         int len;
-        if((old_dtt != NULL)&&(old_dtt!=PARSEC_DATATYPE_NULL)) MPI_Type_get_name(old_dtt, type_name_src, &len);
+        if(old_dtt!=PARSEC_DATATYPE_NULL) MPI_Type_get_name(old_dtt, type_name_src, &len);
         if(output->data.remote.dst_datatype!=PARSEC_DATATYPE_NULL) MPI_Type_get_name(output->data.remote.dst_datatype, type_name_dst, &len);
         PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "MPI: retrieve dtt for %s [dep_datatype_index %x] DTT: old %s new %s (%p)--> CONTINUE",
                 newcontext->task_class->name, dep->dep_datatype_index, type_name_src, type_name_dst, output->data.remote.dst_datatype);
@@ -987,7 +987,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             task.task_class = dtd_task->super.task_class;
             origin->msg.task_class_id = dtd_task->super.task_class->task_class_id;
 
-            origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = NULL;
+            origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
             task.task_class->iterate_successors(es, (parsec_task_t *)dtd_task,
                                                local_mask,
                                                remote_dep_mpi_retrieve_datatype,
@@ -1017,7 +1017,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                 if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
             }
 
-            origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = NULL;
+            origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
             task.task_class->iterate_successors(es, &task,
                                                 local_mask,
@@ -1796,10 +1796,11 @@ static int remote_dep_mpi_pack_dep(int peer,
         }
         assert(deps->output[k].data.remote.src_count > 0);
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
-	if(NULL == deps->output[k].data.remote.src_datatype) {
-	  parsec_fatal("Output %d of %s has not defined a datatype: check that the data collection does define a datatype for each data it provides",
-		       k, tmp);
-	}
+        if(PARSEC_DATATYPE_NULL == deps->output[k].data.remote.src_datatype) {
+            parsec_fatal("Output %d of %s has not defined a datatype: check that the data collection does"
+                         " define a datatype for each data it provides",
+                         k, tmp);
+        }
 #endif
 
 #ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE

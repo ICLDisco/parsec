@@ -93,28 +93,28 @@ static void parsec_profiling_chain_siblings(parsec_profiling_tree_t *tree)
     parsec_profiling_node_t *head = tree->root;
     parsec_profiling_node_t *tail = tree->root;
     while (head) {
-	    if (head->left) {
-	        tail->next_sibling = head->left;
-	        tail = head->left;
-	    }
-	    if (head->right) {
-	        tail->next_sibling = head->right;
-	        tail = head->right;
-	    }
-	    head = head->next_sibling;
+        if (head->left) {
+            tail->next_sibling = head->left;
+            tail = head->left;
+        }
+        if (head->right) {
+            tail->next_sibling = head->right;
+            tail = head->right;
+        }
+        head = head->next_sibling;
     }
 
     parsec_profiling_node_t *node = tree->root;
     while (node) { /* the next_sibling chain ends up with a NULL on each row */
-	    node->next_sibling = NULL;
-	    node = node->right;
+        node->next_sibling = NULL;
+        node = node->right;
     }
     int i = 0;
     node = tree->root;
     while (node) { /* we store the first node of the next_sibling chain for each row */
-	    tree->first_nodes[i] = node;
-	    i++;
-	    node = node->left;
+        tree->first_nodes[i] = node;
+        i++;
+        node = node->left;
     }
 }
 
@@ -209,13 +209,13 @@ static parsec_profiling_namespace_t *find_or_insert_ns(parsec_hash_table_t *ht, 
     parsec_profiling_namespace_t *ns_bucket = NULL;
     ns_bucket = parsec_hash_table_nolock_find(ht, (parsec_key_t)ns);
     if (!ns_bucket) {
-	    /* Namespace doesn't exist, therefore insert it */
-	    ns_bucket = calloc(1, sizeof(parsec_profiling_namespace_t));
-	    str = (char*)calloc(strlen(ns)+1, sizeof(char));
-	    sprintf(str, "%s", ns);
-	    ns_bucket->super.key = (uint64_t)str;
-	    parsec_hash_table_init(&ns_bucket->task_classes, 0, 8, dict_key_fns, NULL);
-	    parsec_hash_table_nolock_insert(ht, &ns_bucket->super);
+        /* Namespace doesn't exist, therefore insert it */
+        ns_bucket = calloc(1, sizeof(parsec_profiling_namespace_t));
+        str = (char*)calloc(strlen(ns)+1, sizeof(char));
+        sprintf(str, "%s", ns);
+        ns_bucket->super.key = (uint64_t)str;
+        parsec_hash_table_init(&ns_bucket->task_classes, 0, 8, dict_key_fns, NULL);
+        parsec_hash_table_nolock_insert(ht, &ns_bucket->super);
     }
     return ns_bucket;
 }
@@ -225,14 +225,14 @@ static parsec_profiling_task_class_t *find_or_insert_tc(parsec_hash_table_t *ht,
     char *str = NULL;
     parsec_profiling_task_class_t *tc_bucket = NULL;
     if (NULL == (tc_bucket = parsec_hash_table_nolock_find(ht, (parsec_key_t)tc))) {
-	    /* Function doesn't exist, therefore insert it */
-	    tc_bucket = calloc(1, sizeof(parsec_profiling_task_class_t));
-	    str = (char*)calloc(strlen(tc)+1, sizeof(char));
-	    sprintf(str, "%s", tc);
-	    tc_bucket->super.key = (uint64_t)str;
-	    parsec_hash_table_init(&tc_bucket->properties, 0, 8, dict_key_fns, NULL);
+        /* Function doesn't exist, therefore insert it */
+        tc_bucket = calloc(1, sizeof(parsec_profiling_task_class_t));
+        str = (char*)calloc(strlen(tc)+1, sizeof(char));
+        sprintf(str, "%s", tc);
+        tc_bucket->super.key = (uint64_t)str;
+        parsec_hash_table_init(&tc_bucket->properties, 0, 8, dict_key_fns, NULL);
 
-	    parsec_hash_table_nolock_insert(ht, &tc_bucket->super);
+        parsec_hash_table_nolock_insert(ht, &tc_bucket->super);
     }
     return tc_bucket;
 }
@@ -242,14 +242,14 @@ static parsec_profiling_property_t *find_or_insert_pr(parsec_hash_table_t *ht, c
     char *str = NULL;
     parsec_profiling_property_t *pr_bucket = NULL;
     if (NULL == (pr_bucket = parsec_hash_table_nolock_find(ht, (parsec_key_t)pr))) {
-	    /* Namespace doesn't exist, therfore create everything */
-	    pr_bucket = calloc(1, sizeof(parsec_profiling_property_t));
-	    str = (char*)calloc(strlen(pr)+1, sizeof(char));
-	    sprintf(str, "%s", pr);
-	    pr_bucket->super.key = (uint64_t)str;
-	    pr_bucket->state = PROPERTY_NO_STATE;
-	    pr_bucket->accumulate = 0;
-	    parsec_hash_table_nolock_insert(ht, &pr_bucket->super);
+        /* Namespace doesn't exist, therfore create everything */
+        pr_bucket = calloc(1, sizeof(parsec_profiling_property_t));
+        str = (char*)calloc(strlen(pr)+1, sizeof(char));
+        sprintf(str, "%s", pr);
+        pr_bucket->super.key = (uint64_t)str;
+        pr_bucket->state = PROPERTY_NO_STATE;
+        pr_bucket->accumulate = 0;
+        parsec_hash_table_nolock_insert(ht, &pr_bucket->super);
     }
     return pr_bucket;
 }
@@ -284,9 +284,9 @@ static void parsec_profiling_tree_setstr(parsec_profiling_tree_t *tree, char *st
 {
     parsec_profiling_node_t *node = tree->first_nodes[pos];
     while (node) { /* will overshoot to next line */
-	    if (!node->wildcard)
-	        node->str = str;
-	    node = node->next_sibling;
+        if (!node->wildcard)
+            node->str = str;
+        node = node->next_sibling;
     }
     return;
 }
@@ -300,25 +300,25 @@ static void parsec_profiling_tree_reload_buckets(parsec_profiling_tree_t *tree, 
 
     parsec_profiling_node_t *node = tree->first_nodes[pos];
     while (node) {
-	    node->bucket = NULL;
-	    if (node->parent->ht) {
-  	        node->bucket = parsec_hash_table_nolock_find(node->parent->ht, (parsec_key_t)node->str);
-	    }
-	    if (node->bucket) {
-	        switch(pos) {
-	        case PROF_NAMESPACE:
-		        node->ht = &((parsec_profiling_namespace_t*)node->bucket)->task_classes;
-		        break;
-	        case PROF_TASK_CLASS:
-		        node->ht = &((parsec_profiling_task_class_t*)node->bucket)->properties;
-		        break;
-	        case PROF_PROPERTY: /* No hashtable to catch */
-		        break;
-	        default: /* how did you end up here? */
-		        break;
-	        }
-	    }
-	    node = node->next_sibling;
+        node->bucket = NULL;
+        if (node->parent->ht) {
+              node->bucket = parsec_hash_table_nolock_find(node->parent->ht, (parsec_key_t)node->str);
+        }
+        if (node->bucket) {
+            switch(pos) {
+            case PROF_NAMESPACE:
+                node->ht = &((parsec_profiling_namespace_t*)node->bucket)->task_classes;
+                break;
+            case PROF_TASK_CLASS:
+                node->ht = &((parsec_profiling_task_class_t*)node->bucket)->properties;
+                break;
+            case PROF_PROPERTY: /* No hashtable to catch */
+                break;
+            default: /* how did you end up here? */
+                break;
+            }
+        }
+        node = node->next_sibling;
     }
     return;
 }
@@ -339,9 +339,9 @@ static parsec_hash_table_item_t *parsec_profiling_tree_add_missing_buckets(parse
                 node->ht = &((parsec_profiling_namespace_t*)bucket)->task_classes;
             else if (node->depth == 2)
                 node->ht = &((parsec_profiling_task_class_t*)bucket)->properties;
-  	    }
+        }
 
-	    node = node->left;
+        node = node->left;
     }
     return bucket; /* return the leaf, if everything goes well */
 }
@@ -350,10 +350,10 @@ static int parsec_profiling_tree_look_for_path(parsec_profiling_tree_t *tree)
 {
     parsec_profiling_node_t *node = tree->first_nodes[tree->depth];
     while(node) {
-	    parsec_profiling_property_t *pr = (parsec_profiling_property_t*)node->bucket;
-	    if (pr && pr->state == PROPERTY_REQUESTED)
-	        return 1;
-	    node = node->next_sibling;
+        parsec_profiling_property_t *pr = (parsec_profiling_property_t*)node->bucket;
+        if (pr && pr->state == PROPERTY_REQUESTED)
+            return 1;
+        node = node->next_sibling;
     }
     return 0;
 }
@@ -361,9 +361,9 @@ static int parsec_profiling_tree_look_for_path(parsec_profiling_tree_t *tree)
 static void parsec_profiling_tree_recursive_delete(parsec_profiling_node_t *node)
 {
     if (node->left)
-	    parsec_profiling_tree_recursive_delete(node->left);
+        parsec_profiling_tree_recursive_delete(node->left);
     if (node->right)
-	    parsec_profiling_tree_recursive_delete(node->right);
+        parsec_profiling_tree_recursive_delete(node->right);
     free(node);
 }
 
@@ -490,12 +490,12 @@ static void dump_property(void *item, void *cb_data)
     parsec_profiling_property_t *pr = (parsec_profiling_property_t*)item;
     struct param_s *params = (struct param_s*)cb_data;
     if (pr->state == (PROPERTY_REQUESTED|PROPERTY_PROVIDED) && pr->type == params->type) {
-	    char *name = (char*)pr->super.key;
-	    char *buff = params->pr_buff+strlen(params->pr_buff);
-	    sprintf(buff, "        <%s><t>%c</t><o>%zu</o></%s>\n", name, code_for_type(pr->func.type), *(params->offset), name);
-	    params->pr_count++;
-	    pr->func.offset = *(params->offset);
-	    *(params->offset) += sizeof_for_type(pr->func.type);
+        char *name = (char*)pr->super.key;
+        char *buff = params->pr_buff+strlen(params->pr_buff);
+        sprintf(buff, "        <%s><t>%c</t><o>%zu</o></%s>\n", name, code_for_type(pr->func.type), *(params->offset), name);
+        params->pr_count++;
+        pr->func.offset = *(params->offset);
+        *(params->offset) += sizeof_for_type(pr->func.type);
     }
 }
 
@@ -514,10 +514,10 @@ static void dump_task_class(void *item, void *cb_data)
     parsec_hash_table_for_all(&tc->properties, dump_property, cb_data);
     /* Dump if necessary */
     if (0 < strlen(params->pr_buff)) {
-	    char *name = (char*)tc->super.key;
-	    char *buff = params->tc_buff+strlen(params->tc_buff);
-	    sprintf(buff, "      <%s>\n%s      </%s>\n", name, params->pr_buff, name);
-	    params->tc_count++;
+        char *name = (char*)tc->super.key;
+        char *buff = params->tc_buff+strlen(params->tc_buff);
+        sprintf(buff, "      <%s>\n%s      </%s>\n", name, params->pr_buff, name);
+        params->tc_count++;
     }
 }
 
@@ -536,9 +536,9 @@ static void dump_namespace(void *item, void *cb_data)
     parsec_hash_table_for_all(&ns->task_classes, dump_task_class, cb_data);
     /* Dump if necessary */
     if (0 < strlen(params->tc_buff)) {
-	    char *name = (char*)ns->super.key;
-	    char *buff = params->ns_buff+strlen(params->ns_buff);
-	    sprintf(buff, "    <%s>\n%s    </%s>\n", name, params->tc_buff, name);
+        char *name = (char*)ns->super.key;
+        char *buff = params->ns_buff+strlen(params->ns_buff);
+        sprintf(buff, "    <%s>\n%s    </%s>\n", name, params->tc_buff, name);
     }
 }
 
@@ -586,19 +586,19 @@ static int parsec_profiling_update_xml_header(void)
     parsec_hash_table_for_all(&dict->properties, dump_namespace, &tmp);
 
     if (0 < strlen(tmp.ns_buff)) {
-	    sprintf(desc, "  <per_nd_properties>\n");
-	    desc += 22;
-	    sprintf(desc, "%s", tmp.ns_buff);
-	    desc += strlen(tmp.ns_buff);
-	    sprintf(desc, "  </per_nd_properties>\n");
-	    desc += 23;
+        sprintf(desc, "  <per_nd_properties>\n");
+        desc += 22;
+        sprintf(desc, "%s", tmp.ns_buff);
+        desc += strlen(tmp.ns_buff);
+        sprintf(desc, "  </per_nd_properties>\n");
+        desc += 23;
     }
 
     if (dict->shmem) {
-	    dict->shmem->nb_node_pages = 1+(per_nd_offset-1)/DICT_PAGE_SIZE;
-	    sprintf(buff, "  <pages_per_nd>%d</pages_per_nd>\n", dict->shmem->nb_node_pages);
-	    sprintf(desc, "%s", buff);
-	    desc += strlen(buff);
+        dict->shmem->nb_node_pages = 1+(per_nd_offset-1)/DICT_PAGE_SIZE;
+        sprintf(buff, "  <pages_per_nd>%d</pages_per_nd>\n", dict->shmem->nb_node_pages);
+        sprintf(desc, "%s", buff);
+        desc += strlen(buff);
     }
 
     size_t per_vp_offset = 0;
@@ -608,19 +608,19 @@ static int parsec_profiling_update_xml_header(void)
     parsec_hash_table_for_all(&dict->properties, dump_namespace, &tmp);
 
     if (0 < strlen(tmp.ns_buff)) {
-	    sprintf(desc, "  <per_vp_properties>\n");
-	    desc += 22;
-	    sprintf(desc, "%s", tmp.ns_buff);
-	    desc += strlen(tmp.ns_buff);
-	    sprintf(desc, "  </per_vp_properties>\n");
-	    desc += 23;
+        sprintf(desc, "  <per_vp_properties>\n");
+        desc += 22;
+        sprintf(desc, "%s", tmp.ns_buff);
+        desc += strlen(tmp.ns_buff);
+        sprintf(desc, "  </per_vp_properties>\n");
+        desc += 23;
     }
 
     if (dict->shmem) {
-	    dict->shmem->nb_vp_pages = 1+(per_vp_offset-1)/DICT_PAGE_SIZE;
-	    sprintf(buff, "  <pages_per_vp>%d</pages_per_vp>\n", dict->shmem->nb_vp_pages);
-	    sprintf(desc, "%s", buff);
-	    desc += strlen(buff);
+        dict->shmem->nb_vp_pages = 1+(per_vp_offset-1)/DICT_PAGE_SIZE;
+        sprintf(buff, "  <pages_per_vp>%d</pages_per_vp>\n", dict->shmem->nb_vp_pages);
+        sprintf(desc, "%s", buff);
+        desc += strlen(buff);
     }
 
     size_t per_th_offset = 0;
@@ -631,19 +631,19 @@ static int parsec_profiling_update_xml_header(void)
     parsec_hash_table_for_all(&dict->properties, dump_namespace, &tmp);
 
     if (0 < strlen(tmp.ns_buff)) {
-	    sprintf(desc, "  <per_eu_properties>\n");
-	    desc += 22;
-	    sprintf(desc, "%s", tmp.ns_buff);
-	    desc += strlen(tmp.ns_buff);
-	    sprintf(desc, "  </per_eu_properties>\n");
+        sprintf(desc, "  <per_eu_properties>\n");
+        desc += 22;
+        sprintf(desc, "%s", tmp.ns_buff);
+        desc += strlen(tmp.ns_buff);
+        sprintf(desc, "  </per_eu_properties>\n");
         desc += 23;
     }
 
     if (dict->shmem) {
-	    dict->shmem->nb_eu_pages = 1+(per_th_offset-1)/DICT_PAGE_SIZE;
-	    sprintf(buff, "  <pages_per_eu>%d</pages_per_eu>\n", dict->shmem->nb_eu_pages);
-	    sprintf(desc, "%s", buff);
-	    desc += strlen(buff);
+        dict->shmem->nb_eu_pages = 1+(per_th_offset-1)/DICT_PAGE_SIZE;
+        sprintf(buff, "  <pages_per_eu>%d</pages_per_eu>\n", dict->shmem->nb_eu_pages);
+        sprintf(desc, "%s", buff);
+        desc += strlen(buff);
     }
 
     sprintf(buff, "%s", "</application>\n</root>\n");
@@ -664,31 +664,31 @@ static int parsec_profiling_change_shmem(void)
     int nb_pages = dict->shmem->nb_xml_pages + dict->shmem->nb_node_pages
         + dict->shmem->nb_vp * dict->shmem->nb_vp_pages + dict->shmem->nb_eu * dict->shmem->nb_eu_pages;
     if (dict->shmem->nb_pages != nb_pages) {
-	    parsec_mca_param_reg_string_name("pins", "shmem_name",
+        parsec_mca_param_reg_string_name("pins", "shmem_name",
                                          "Name of the Shared memory area to save App level perf counters.\n",
                                          false, false,
                                          "parsec_shmem", &dict->shmem->shmem_name);
 
-	    dict->shmem->shm_fd = shm_open(dict->shmem->shmem_name, O_RDWR | O_CREAT, 0666);
-	    int ret = ftruncate(dict->shmem->shm_fd, nb_pages*DICT_PAGE_SIZE);
-	    if (0 > ret) {
-	        perror("parsec_profiling_change_shmem, error:");
-	        return PARSEC_ERROR;
-	    }
+        dict->shmem->shm_fd = shm_open(dict->shmem->shmem_name, O_RDWR | O_CREAT, 0666);
+        int ret = ftruncate(dict->shmem->shm_fd, nb_pages*DICT_PAGE_SIZE);
+        if (0 > ret) {
+            perror("parsec_profiling_change_shmem, error:");
+            return PARSEC_ERROR;
+        }
 
-	    if (MAP_FAILED == (dict->shmem->buffer = mmap(0, nb_pages*DICT_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, dict->shmem->shm_fd, 0))) {
-	        fprintf(stderr, "Map failed to area %s\n", dict->shmem->shmem_name);
-	        /* Turn off feature */
+        if (MAP_FAILED == (dict->shmem->buffer = mmap(0, nb_pages*DICT_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, dict->shmem->shm_fd, 0))) {
+            fprintf(stderr, "Map failed to area %s\n", dict->shmem->shmem_name);
+            /* Turn off feature */
 
-	        return PARSEC_ERROR;
-	    }
-	    memset(dict->shmem->buffer, '\0', nb_pages*DICT_PAGE_SIZE);
-	    ((int*)dict->shmem->buffer)[0] = nb_pages;
-	    ((int*)dict->shmem->buffer)[1] = dict->running;
-	    ((int*)dict->shmem->buffer)[2] = dict->version;
-	    parsec_debug_verbose(10, parsec_debug_output, "Opened a shared memory area named %s.", dict->shmem->shmem_name);
-	    dict->shmem->first_vp = dict->shmem->nb_xml_pages + dict->shmem->nb_node_pages;
-	    dict->shmem->first_eu = dict->shmem->first_vp + dict->shmem->nb_vp * dict->shmem->nb_vp_pages;
+            return PARSEC_ERROR;
+        }
+        memset(dict->shmem->buffer, '\0', nb_pages*DICT_PAGE_SIZE);
+        ((int*)dict->shmem->buffer)[0] = nb_pages;
+        ((int*)dict->shmem->buffer)[1] = dict->running;
+        ((int*)dict->shmem->buffer)[2] = dict->version;
+        parsec_debug_verbose(10, parsec_debug_output, "Opened a shared memory area named %s.", dict->shmem->shmem_name);
+        dict->shmem->first_vp = dict->shmem->nb_xml_pages + dict->shmem->nb_node_pages;
+        dict->shmem->first_eu = dict->shmem->first_vp + dict->shmem->nb_vp * dict->shmem->nb_vp_pages;
     }
 
     return PARSEC_SUCCESS;
@@ -711,21 +711,21 @@ void parsec_profiling_evaluate_property(void *item, void* cb_data)
 
     switch (pr->func.type) {
     case PROPERTIES_INT32:
-	    *(int32_t*)buf = pr->accumulate*(*(int32_t*)buf) + pr->func.func.inline_func_int32(task->taskpool, task->locals);
-	    break;
+        *(int32_t*)buf = pr->accumulate*(*(int32_t*)buf) + pr->func.func.inline_func_int32(task->taskpool, task->locals);
+        break;
     case PROPERTIES_INT64:
-	    *(int64_t*)buf = pr->accumulate*(*(int64_t*)buf) + pr->func.func.inline_func_int64(task->taskpool, task->locals);
-	    break;
+        *(int64_t*)buf = pr->accumulate*(*(int64_t*)buf) + pr->func.func.inline_func_int64(task->taskpool, task->locals);
+        break;
     case PROPERTIES_FLOAT:
-	    *(float*)buf   = pr->accumulate*(*(float*)buf)   + pr->func.func.inline_func_float(task->taskpool, task->locals);
-	    break;
+        *(float*)buf   = pr->accumulate*(*(float*)buf)   + pr->func.func.inline_func_float(task->taskpool, task->locals);
+        break;
     case PROPERTIES_DOUBLE:
-	    *(double*)buf  = pr->accumulate*(*(double*)buf)  + pr->func.func.inline_func_double(task->taskpool, task->locals);
-	    break;
+        *(double*)buf  = pr->accumulate*(*(double*)buf)  + pr->func.func.inline_func_double(task->taskpool, task->locals);
+        break;
     case PROPERTIES_ULONGLONG:
     default:
-	    /* Unknown type */
-	    break;
+        /* Unknown type */
+        break;
     }
 }
 
@@ -770,17 +770,17 @@ int parsec_profiling_dictionary_init(parsec_context_t *master_context,
     parsec_profiling_property_t  *pr_bucket = NULL;
     s = user_props;
     while( ( c = strtok_r(s, ";", &s) ) != NULL ) {
-	    ns = strtok_r(c, ":", &c);
-	    tc = strtok_r(c, ":", &c);
-	    pr = strtok_r(c, ":", &c);
-	    ns_bucket = find_or_insert_ns(&dict->properties, ns);
-	    tc_bucket = find_or_insert_tc(&ns_bucket->task_classes, tc);
-	    pr_bucket = find_or_insert_pr(&tc_bucket->properties, pr);
+        ns = strtok_r(c, ":", &c);
+        tc = strtok_r(c, ":", &c);
+        pr = strtok_r(c, ":", &c);
+        ns_bucket = find_or_insert_ns(&dict->properties, ns);
+        tc_bucket = find_or_insert_tc(&ns_bucket->task_classes, tc);
+        pr_bucket = find_or_insert_pr(&tc_bucket->properties, pr);
 
-	    pr_bucket->event      = EXEC_END;
-	    pr_bucket->freq       = 1;
-	    pr_bucket->counter    = 0;
-	    pr_bucket->state     |= PROPERTY_REQUESTED;
+        pr_bucket->event      = EXEC_END;
+        pr_bucket->freq       = 1;
+        pr_bucket->counter    = 0;
+        pr_bucket->state     |= PROPERTY_REQUESTED;
     }
 
     dict->shmem = NULL;
@@ -792,19 +792,19 @@ int parsec_profiling_dictionary_init(parsec_context_t *master_context,
     /* This section prepares the shared memory module */
     if (mca_shmem_activate) {
 #if defined(PARSEC_HAVE_SYS_MMAN_H)
-	    dict->shmem           = (parsec_profiling_shmem_t*)calloc(1, sizeof(parsec_profiling_shmem_t));
-	    dict->shmem->nb_pages = 0;
-	    dict->shmem->header   = (char*)calloc(10*DICT_PAGE_SIZE, sizeof(char));
-	    dict->shmem->nb_vp    = master_context->nb_vp;
-	    dict->shmem->nb_eu    = 0;
-	    dict->shmem->first_vp = -1;
-	    dict->shmem->first_eu = -1;
+        dict->shmem           = (parsec_profiling_shmem_t*)calloc(1, sizeof(parsec_profiling_shmem_t));
+        dict->shmem->nb_pages = 0;
+        dict->shmem->header   = (char*)calloc(10*DICT_PAGE_SIZE, sizeof(char));
+        dict->shmem->nb_vp    = master_context->nb_vp;
+        dict->shmem->nb_eu    = 0;
+        dict->shmem->first_vp = -1;
+        dict->shmem->first_eu = -1;
 
-	    for (int i = 0; i < dict->shmem->nb_vp; ++i)
-	        dict->shmem->nb_eu += master_context->virtual_processes[i]->nb_cores;
-    	/* Activate the shmem PINS module */
+        for (int i = 0; i < dict->shmem->nb_vp; ++i)
+            dict->shmem->nb_eu += master_context->virtual_processes[i]->nb_cores;
+        /* Activate the shmem PINS module */
 #else
-	    parsec_warning("*** PaRSEC: Dictionary requested, but compiled on a system without sys/mman.h: cannot enable shared file");
+        parsec_warning("*** PaRSEC: Dictionary requested, but compiled on a system without sys/mman.h: cannot enable shared file");
 #endif
     }
 

@@ -347,11 +347,6 @@ static int32_t twoDBC_vpid_of_key(parsec_data_collection_t *desc, parsec_data_ke
     return twoDBC_vpid_of(desc, m, n);
 }
 
-/*
- * Do not change this function without updating the inverse function:
- * twoDBC_position_to_coordinates()
- * Other files (zhebut) depend on the inverse function.
- */
 static inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *dc, int m, int n){
     int position, local_m, local_n;
 
@@ -367,26 +362,6 @@ static inline int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *dc, int
     position = dc->nb_elem_r * local_n + local_m;
 
     return position;
-}
-
-/*
- * This is the inverse function of: twoDBC_coordinates_to_position()
- * Please keep them in sync, other files (zhebut) depend on this function.
- */
-static inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *dc, int position, int *m, int *n)
-{
-    int local_m, local_n;
-
-    local_m = position%(dc->nb_elem_r);
-    local_n = position/(dc->nb_elem_r);
-
-    *m = local_m*(dc->grid.rows) + dc->grid.rrank;
-    *n = local_n*(dc->grid.cols) + dc->grid.crank;
-#if defined(PARSEC_DEBUG_PARANOID)
-    assert(position == twoDBC_coordinates_to_position(dc, *m, *n));
-#endif  /* defined(PARSEC_DEBUG_PARANOID) */
-
-    return;
 }
 
 static parsec_data_t* twoDBC_data_of(parsec_data_collection_t *desc, ...)

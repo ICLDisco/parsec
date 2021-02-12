@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
 
     DO_INIT();
 
-    assert(nodes = 1);
+    assert(nodes == 1);
 
     DO_INI_DATATYPES();
 

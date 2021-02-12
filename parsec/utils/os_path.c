@@ -53,17 +53,17 @@ char *parsec_os_path(int relative, ...)
     va_end(ap);
 
     if (0 == num_elements) { /* must be looking for a simple answer */
-    	path = (char *)malloc(3);
+        path = (char *)malloc(3);
         path[0] = '\0';
-    	if (relative) {
-    	    strcpy(path, ".");
+        if (relative) {
+            strcpy(path, ".");
             strcat(path, path_sep);
-    	} else {
+        } else {
 #ifndef __WINDOWS__
-    	    strcpy(path, path_sep);
+            strcpy(path, path_sep);
 #endif
-    	}
-    	return(path);
+        }
+        return(path);
     }
 
     /* setup path with enough room for the string terminator, the elements, and
@@ -74,7 +74,7 @@ char *parsec_os_path(int relative, ...)
     }
         
     if (total_length > MAXPATHLEN) {  /* path length is too long - reject it */
-    	return(NULL);
+        return(NULL);
     }
 
     path = (char *)malloc(total_length);
@@ -90,7 +90,7 @@ char *parsec_os_path(int relative, ...)
     va_start(ap, relative);
     /* Windows does not require to have the initial separator. */
     if( NULL != (element = va_arg(ap, char*)) ) {
-    	if (path_sep[0] != element[0]) {
+        if (path_sep[0] != element[0]) {
 #ifdef __WINDOWS__
             if( relative )
 #endif  /* __WINDOWS__ */
@@ -99,7 +99,7 @@ char *parsec_os_path(int relative, ...)
         strcat(path, element);
     }
     while (NULL != (element=va_arg(ap, char*))) {
-    	if (path_sep[0] != element[0]) {
+        if (path_sep[0] != element[0]) {
             strcat(path, path_sep);
         }
         strcat(path, element);
