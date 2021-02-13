@@ -289,7 +289,7 @@ static int release_deps(parsec_execution_stream_t *es,
     }
     PARSEC_PINS(es, RELEASE_DEPS_END, (parsec_task_t *) this_task);
     (void)deps;
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 static int data_lookup(parsec_execution_stream_t *es,
@@ -313,7 +313,7 @@ static int data_lookup(parsec_execution_stream_t *es,
         this_task->data[1].data_out  = this_task->data[1].data_in;
         PARSEC_OBJ_RETAIN(this_task->data[1].data_in);
     }
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 static int hook_of(parsec_execution_stream_t *es,
@@ -340,7 +340,7 @@ static int hook_of(parsec_execution_stream_t *es,
     rc = __tp->op( es, src_data, dest_data, __tp->op_data, m, n );
 #endif
     (void)es; (void)rc;
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 static int complete_hook(parsec_execution_stream_t *es,
@@ -366,7 +366,7 @@ static int complete_hook(parsec_execution_stream_t *es,
                   PARSEC_ACTION_DEPS_MASK),
                  NULL);
 
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 static __parsec_chore_t __parsec_map_operator_chores[] = {
