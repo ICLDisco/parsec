@@ -648,11 +648,11 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     return sprof;
 }
 
-parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *new )
+parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *stream )
 {
     parsec_profiling_stream_t *old;
     old = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
-    PARSEC_TLS_SET_SPECIFIC(tls_profiling, new);
+    PARSEC_TLS_SET_SPECIFIC(tls_profiling, stream);
     return old;
 }
 
