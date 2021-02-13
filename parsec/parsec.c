@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -27,6 +27,7 @@
 #include "parsec/mca/sched/sched.h"
 #include "parsec/mca/device/device.h"
 #include "parsec/utils/output.h"
+#include "parsec/utils/show_help.h"
 #include "parsec/data_internal.h"
 #include "parsec/class/list.h"
 #include "parsec/scheduling.h"
@@ -364,6 +365,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_installdirs_open();
     parsec_mca_param_init();
     parsec_output_init();
+    parsec_show_help_init();
 
     /* Extract what we can from the arguments */
     cmd_line = PARSEC_OBJ_NEW(parsec_cmd_line_t);
@@ -1203,9 +1205,10 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_taskpool_release_resources();
 
+    parsec_show_help_finalize();
+    parsec_output_finalize();
     parsec_mca_param_finalize();
     parsec_installdirs_close();
-    parsec_output_finalize();
 
     free(context);
     *pcontext = NULL;
