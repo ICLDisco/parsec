@@ -244,7 +244,7 @@ parsec_profiling_stream_init( size_t length, const char *format, ...);
  *                 (NULL initially).
  * @remark not thread safe
  */
-parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *new );
+parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *stream );
 
 
 /**
