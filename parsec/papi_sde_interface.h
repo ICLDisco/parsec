@@ -3,6 +3,12 @@
 
 #include <stdint.h>
 
+/* Note that on success, most of these functions return 0, NOT PARSEC_SUCCESS.
+ * PARSEC_SUCCESS may be lower than 0 (0 >= PARSEC_SUCCESS > error codes).
+ * This is done so that this file can be used without including
+ * parsec/constants.h.
+ */
+
 #define PAPI_SDE_RO       0x00
 #define PAPI_SDE_RW       0x01
 #define PAPI_SDE_DELTA    0x00
