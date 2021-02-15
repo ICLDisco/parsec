@@ -232,7 +232,7 @@ insert_task(parsec_execution_stream_t *es, parsec_task_t *this_task)
     parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)dcY );
     parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)dcT );
 
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 /*
