@@ -197,10 +197,10 @@ void parsec_profiling_otf2_set_comm(void *_pcomm)
 
 int parsec_profiling_init( int process_id )
 {
-    if( __profile_initialized ) return -1;
+    if( __profile_initialized ) return PARSEC_ERR_NOT_SUPPORTED;
 
     (void)process_id; /* OTF2 renames the processes according to their rank */
-    
+
     PARSEC_TLS_KEY_CREATE(tls_profiling);
 
     PARSEC_OBJ_CONSTRUCT( &threads, parsec_list_t );
@@ -265,7 +265,7 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
     parsec_profiling_stream_t* res;
 
     (void)length;
-    
+
     if( !__profile_initialized ) return NULL;
 
     res = (parsec_profiling_stream_t*)calloc(sizeof(parsec_profiling_stream_t), 1);
@@ -278,7 +278,7 @@ parsec_profiling_stream_t* parsec_profiling_stream_init( size_t length, const ch
 
     (void)format; /* All strings must be written by the rank 0 in OTF2.
                    * For now, forget about the human-readable data */
-    
+
     parsec_list_push_back( &threads, (parsec_list_item_t*)res );
 
     return res;
@@ -308,7 +308,7 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
     }
 
     if( !__profile_initialized ) return -1;
-    
+
     basefile = strdup(_basefile);
     archive_name = NULL;
     for(c = basefile; *c != '\0'; c++) {
@@ -331,7 +331,7 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
         set_last_error("PaRSEC Profiling System: error -- '%s': directory not found", archive_path);
         free(archive_path);
         free(archive_name);
-        return -1;
+        return PARSEC_ERR_NOT_FOUND;
     }
 
     /* Reset the error system */
@@ -354,7 +354,7 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
     if( NULL == otf2_archive ) {
         set_last_error("PaRSEC Profiling System: OTF2 Error while creating archive");
         /* archive was not created, do not close it */
-        return -1;
+        return PARSEC_ERROR;
     }
 
     rc = OTF2_Archive_SetFlushCallbacks( otf2_archive, &flush_callbacks, NULL );
@@ -362,7 +362,7 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
         set_last_error("PaRSEC Profiling System: OTF2 error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
         /* OTF2 seg faults if closing the archive at this time */
         otf2_archive = NULL;
-        return -1;
+        return PARSEC_ERROR;
     }
     rc = OTF2_MPI_Archive_SetCollectiveCallbacks( otf2_archive,
                                                   parsec_otf2_profiling_comm,
@@ -371,34 +371,34 @@ int parsec_profiling_dbp_start( const char *_basefile, const char *hr_info )
         set_last_error("PaRSEC Profiling System: OTF2 error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
         /* OTF2 seg faults if closing the archive at this time */
         otf2_archive = NULL;
-        return -1;
+        return PARSEC_ERROR;
     }
     rc = OTF2_Archive_OpenEvtFiles( otf2_archive );
     if( OTF2_SUCCESS != rc ) {
         set_last_error("PaRSEC Profiling System: OTF2 error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
         OTF2_Archive_Close(otf2_archive);
-        return -1;
+        return PARSEC_ERROR;
     }
 
     if( rank == 0 ) {
         global_def_writer = OTF2_Archive_GetGlobalDefWriter( otf2_archive );
         OTF2_GlobalDefWriter_WriteString(global_def_writer, emptystrid, "");
     }
-    
+
     gethostname(hostname, 256);
     if( (rc = OTF2_Archive_SetMachineName(otf2_archive, hostname)) != OTF2_SUCCESS ) {
         set_last_error("PaRSEC Profiling System: error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
-        return -1;
+        return PARSEC_ERROR;
     }
 
     if( (rc = OTF2_Archive_SetDescription(otf2_archive, hr_info)) != OTF2_SUCCESS ) {
         set_last_error("PaRSEC Profiling System: error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
-        return -1;
+        return PARSEC_ERROR;
     }
-    
+
     if( (rc = OTF2_Archive_SetCreator(otf2_archive, "PaRSEC Profiling System")) != OTF2_SUCCESS ) {
         set_last_error("PaRSEC Profiling System: error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
-        return -1;
+        return PARSEC_ERROR;
     }
 
     if( parsec_hwloc_export_topology(&buflen, &xmlbuffer) != -1 &&
@@ -421,7 +421,7 @@ void parsec_profiling_start(void)
 
     if( NULL == otf2_archive )
         return;
-    
+
     if(parsec_profiling_mpi_on) {
         MPI_Comm_size(parsec_otf2_profiling_comm, &size);
         MPI_Comm_rank(parsec_otf2_profiling_comm, &rank);
@@ -437,7 +437,7 @@ void parsec_profiling_start(void)
         threads_per_rank[0] = thread_profiling_id;
         threads_before_me = 0;
     }
-    
+
     parsec_list_lock( &threads );
     for( r = PARSEC_LIST_ITERATOR_FIRST(&threads);
          r != PARSEC_LIST_ITERATOR_END(&threads);
@@ -482,7 +482,7 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
         MPI_Comm_rank(parsec_otf2_profiling_comm, &rank);
     }
     (void)attributes;
-    
+
     if( next_region + 1 >= nbregions ) {
         nbregions += 128;
         regions = realloc(regions, sizeof(parsec_profiling_region_t) * nbregions);
@@ -503,17 +503,17 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
     } else {
         regions[region].attr_index = 0;
     }
-    
+
     if( NULL == orig_convertor_code )
         return 0; /* Nothing else to do */
-    
+
     convertor_code = strdup(orig_convertor_code);
     c = convertor_code;
     regions[region].otf2_nb_attributes = 1;
     for(c = convertor_code; *c != '\0'; c++)
         if( *c == ';' )
             regions[region].otf2_nb_attributes++;
-    
+
     while( *c != '\0') {
         while( *c != '{' ) {
             c++;
@@ -567,7 +567,7 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
             c++;
         }
         *c++ = '\0'; /* Overwrite '}' into a '\0' so type is terminated */
-        
+
         for(t = 0; t < nb_native_otf2_types; t++) {
             if( strcmp(type, otf2_convertor[t].type_name) == 0 ) {
                 regions[region].otf2_attribute_types[regions[region].otf2_nb_attributes] = otf2_convertor[t].type_desc;
@@ -615,12 +615,12 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
                 regions[region].otf2_nb_attributes = 0;
                 goto malformed_convertor_code;
     }
-    
+
     malformed_convertor_code:
     free(convertor_code);
     *key_start = region;
     *key_end   = -region;
-    
+
     return 0;
 }
 
@@ -635,9 +635,9 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
                                     void *info, uint16_t flags )
 {
     parsec_profiling_stream_t* ctx;
-    
+
     if( !start_called ) {
-        return -1;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
 
     ctx = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
@@ -646,7 +646,7 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
 
     set_last_error("Profiling system: error: called parsec_profiling_ts_trace_flags"
                    " from a thread that did not call parsec_profiling_stream_init\n");
-    return -1;
+    return PARSEC_ERR_NOT_SUPPORTED;
 }
 
 int
@@ -664,19 +664,19 @@ parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
     (void)taskpool_id;
     (void)event_id;
     (void)flags;
-    
+
     if( !start_called ) {
-        return -1;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
 
     if( NULL == context->evt_writer )
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
 
     now = take_time();
     timestamp = diff_time(parsec_start_time, now);
 
     region = key < 0 ? -key : key;
-    
+
     if( NULL != info ) {
         attribute_list = OTF2_AttributeList_New();
         ptr = info;
@@ -745,7 +745,7 @@ parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
         rc = OTF2_EvtWriter_Leave( context->evt_writer,
                                    attribute_list,
                                    timestamp,
-                                  region );        
+                                  region );
     if(rc != OTF2_SUCCESS) {
         parsec_warning("PaRSEC Profiling System: OTF2 Error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
     } else {
@@ -776,18 +776,18 @@ int parsec_profiling_dbp_dump( void )
     int *displs;
 
     if( NULL == otf2_archive )
-        return -1;
-    
+        return PARSEC_ERR_NOT_SUPPORTED;
+
     if(parsec_profiling_mpi_on) {
         MPI_Comm_rank(parsec_otf2_profiling_comm, &rank);
         MPI_Comm_size(parsec_otf2_profiling_comm, &size);
-    } 
+    }
     levts = (uint64_t*)malloc( sizeof(uint64_t) * thread_profiling_id );
 
     if( !__profile_initialized ) return 0;
 
     epoch = parsec_profiling_get_time();
-    
+
     parsec_list_lock( &threads );
     for( r = PARSEC_LIST_ITERATOR_FIRST(&threads);
          r != PARSEC_LIST_ITERATOR_END(&threads);
@@ -843,7 +843,7 @@ int parsec_profiling_dbp_dump( void )
         memcpy(perlocation, levts, nb_threads_total * sizeof(uint64_t));
     }
     free(levts);
-    
+
     if ( 0 == rank ) {
         r = PARSEC_LIST_ITERATOR_FIRST(&global_informations);
         while( r != PARSEC_LIST_ITERATOR_END(&global_informations) ) {
@@ -856,7 +856,7 @@ int parsec_profiling_dbp_dump( void )
             r = PARSEC_LIST_ITERATOR_NEXT(r);
             PARSEC_OBJ_RELEASE(pi);
         }
-        
+
         rc = OTF2_GlobalDefWriter_WriteClockProperties( global_def_writer,
                                                         1000000000,
                                                         0, gepoch + 1);
@@ -1021,9 +1021,9 @@ int parsec_profiling_dbp_dump( void )
             parsec_warning("PaRSEC Profiling System: OTF2 Error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
     }
     otf2_archive = NULL;
-    
+
     if( parsec_profiling_raise_error )
-        return -1;
+        return PARSEC_ERROR;
 
     return 0;
 }
@@ -1114,10 +1114,10 @@ int parsec_profiling_fini( void )
 {
     parsec_profiling_stream_t *t;
 
-    if( !__profile_initialized ) return -1;
+    if( !__profile_initialized ) return PARSEC_ERR_NOT_SUPPORTED;
 
     if( 0 != parsec_profiling_dbp_dump() ) {
-        return -1;
+        return PARSEC_ERROR;
     }
 
     while( (t = (parsec_profiling_stream_t*)parsec_list_nolock_pop_front(&threads)) ) {

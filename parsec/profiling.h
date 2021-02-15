@@ -76,6 +76,10 @@
  * These key/value pairs can be saved globally for the process, or per profiling
  * stream.
  *
+ * Note that on success, most of these functions return 0, NOT PARSEC_SUCCESS.
+ * PARSEC_SUCCESS may be lower than 0 (0 >= PARSEC_SUCCESS > error codes).
+ * This is done so that this file can be used without including
+ * parsec/constants.h.
  */
 
 /**
@@ -122,7 +126,7 @@ typedef struct parsec_profiling_stream_s parsec_profiling_stream_t;
  * @details Call this ONCE per process.
  *   @param [IN] rank: the unique identifier of the process,
  *      typically the rank of the process in an MPI application.
- * @return 0    if success, -1 otherwise
+ * @return 0    if success, negative otherwise
  *
  * @remark not thread safe
  */
@@ -172,7 +176,7 @@ void parsec_profiling_otf2_set_comm( void *pcomm );
  * @details Thread contexts become invalid after this call.
  *          Must be called after the dbp_dump if a dbp_start was called.
  *
- * @return 0    if success, -1 otherwise.
+ * @return 0    if success, negative otherwise.
  * @remark not thread safe
  */
 int parsec_profiling_fini( void );
@@ -184,7 +188,7 @@ int parsec_profiling_fini( void );
  * to do a new profiling with the same thread contexts. This does not
  * invalidate the current thread contexts.
  *
- * @return 0 if succes, -1 otherwise
+ * @return 0 if succes, negative otherwise
  * not thread safe
  */
 int parsec_profiling_reset( void );
@@ -277,7 +281,7 @@ int parsec_profiling_add_dictionary_keyword( const char* name, const char* attri
  * @remark Emptying the dictionnary without reseting the profiling system will yield
  * undeterminate results
  *
- * @return 0 if success, -1 otherwise.
+ * @return 0 if success, negative otherwise.
  * @remark not thread safe
  */
 int parsec_profiling_dictionary_flush( void );
@@ -300,7 +304,7 @@ int parsec_profiling_dictionary_flush( void );
  * @param[in] info    a pointer to an area of size info_length for this key (see
  *                        parsec_profiling_add_dictionary_keyword)
  * @param[in] flags   flags related to the event
- * @return 0 if success, -1 otherwise.
+ * @return 0 if success, negative otherwise.
  * @remark not thread safe (if two threads share a same thread_context. Safe per thread_context)
  */
 int parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
@@ -331,7 +335,7 @@ int parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
  * @param[in] info    a pointer to an area of size info_length for this key (see
  *                        parsec_profiling_add_dictionary_keyword)
  * @param[in] flags   flags related to the event
- * @return 0 if success, -1 otherwise.
+ * @return 0 if success, negative otherwise.
  * @remark thread safe
  */
 int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t object_id,
@@ -360,7 +364,7 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t object_
  *                      profile. Used "uniquely" identify the experiment, and
  *                      check that all separate profile files correspond to a same
  *                      experiment.
- * @return 0 if success, -1 otherwise.
+ * @return 0 if success, negative otherwise.
  * @remark not thread safe.
  */
 int parsec_profiling_dbp_start( const char *basefile, const char *hr_info );
@@ -370,7 +374,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info );
  * @details Completes the file opened with dbp_start.
  * Every single dbp_start should have a matching dbp_dump.
  *
- * @return 0 if success, -1 otherwise
+ * @return 0 if success, negative otherwise
  * @remark not thread safe
  */
 int parsec_profiling_dbp_dump( void );
