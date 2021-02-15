@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2020 The University of Tennessee and The University
+ * Copyright (c) 2010-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1414,7 +1414,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* gpu_device,
 #endif
             /* Push data into the GPU from the source device */
             if(PARSEC_SUCCESS != gpu_task->stage_in(gpu_task, (1U << flow->flow_index), gpu_stream)){
-                parsec_warning( "%s: %s%s", __FILE__, __LINE__,
+                parsec_warning( "%s:%d %s", __FILE__, __LINE__,
                                 "gpu_task->stage_in");
                 if( in_elem_dev->super.type != PARSEC_DEV_CUDA )
                     parsec_warning("<<%p>> -> <<%p on CUDA device %d>> [%d, H2D]",
@@ -1889,7 +1889,7 @@ parsec_cuda_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int ad
     case PARSEC_DEV_DATA_ADVICE_PREFETCH:
         {
             if( parsec_type_contiguous(data->device_copies[ data->owner_device ]->dtt) != PARSEC_SUCCESS){
-                parsec_warning( "%s: %s%s", __FILE__, __LINE__,
+                parsec_warning( "%s:%d %s", __FILE__, __LINE__,
                                 " PARSEC_DEV_DATA_ADVICE_PREFETCH cannot be applied to non contiguous types ");
                 return PARSEC_ERROR;
             }
@@ -2505,7 +2505,7 @@ parsec_gpu_kernel_pop( parsec_device_cuda_module_t *gpu_device,
             if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
             original = gpu_copy->original;
             if(PARSEC_SUCCESS != gpu_task->stage_out(gpu_task, (1U << i), gpu_stream)){
-                parsec_warning( "%s: %s%s", __FILE__, __LINE__,
+                parsec_warning( "%s:%d %s", __FILE__, __LINE__,
                                 "gpu_task->stage_out from device ");
                 parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->task_class->out[i]->name,
                                 gpu_copy->device_private, original->device_copies[0]->device_private);
@@ -2619,7 +2619,7 @@ parsec_gpu_kernel_pop( parsec_device_cuda_module_t *gpu_device,
 #endif
                 /* Move the data back into main memory */
                 if( PARSEC_SUCCESS != gpu_task->stage_out(gpu_task, (1U << flow->flow_index), gpu_stream)){
-                    parsec_warning( "%s: %s%s", __FILE__, __LINE__,
+                    parsec_warning( "%s:%d %s", __FILE__, __LINE__,
                                     "gpu_task->stage_out from device ");
                     parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->task_class->out[i]->name,
                                    gpu_copy->device_private, original->device_copies[0]->device_private);
