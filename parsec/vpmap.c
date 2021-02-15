@@ -18,6 +18,7 @@
 #include "parsec/vpmap.h"
 #include "parsec/utils/debug.h"
 #include "parsec/utils/output.h"
+#include "parsec/constants.h"
 
 /* If HWLOC is not available support up to 64 cores */
 #define DEFAULT_NB_CORE 64
@@ -73,7 +74,7 @@ static int vpmap_get_nb_threads_in_vp_parameters(int vp)
     if( (vp < 0) ||
         (vp >= nbvp) ||
         (nbcores == -1) )
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
     return nbthreadspervp;
 }
 
@@ -84,7 +85,7 @@ static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread)
         (thread < 0) ||
         (thread >= nbthreadspervp )||
         (nbcores == -1) )
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
     return 1;
 }
 
@@ -130,8 +131,8 @@ static int vpmap_get_nb_threads_in_vp_datamap(int vp)
 {
     if( (vp < 0) ||
         (vp >= nbvp) ||
-        (map == NULL) )
-        return -1;
+        (NULL == map) )
+        return PARSEC_ERR_BAD_PARAM;
     return map[vp].nbthreads;
 }
 
@@ -142,7 +143,7 @@ static int vpmap_get_nb_cores_affinity_datamap(int vp, int thread)
         (map == NULL) ||
         (thread < 0) ||
         (thread >= map[vp].nbthreads ) )
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
     return map[vp].threads[thread]->nbcores;
 }
 
@@ -170,8 +171,7 @@ int vpmap_init_from_hardware_affinity(int nbcores)
     nbht = parsec_hwloc_get_ht();
 
     if (nbvp <= 0 ) {
-        vpmap_init_from_flat(nbcores);
-        return 0;
+        return vpmap_init_from_flat(nbcores);
     }
 
     map = (vpmap_t*)calloc(nbvp, sizeof(vpmap_t));
@@ -183,6 +183,7 @@ int vpmap_init_from_hardware_affinity(int nbcores)
 
     for( vp_id = 0; vp_id < nbvp; vp_id++ ) {
         nbthreadspervp = parsec_hwloc_nb_cores_per_obj(level, vp_id) * nbht;
+        if( PARSEC_SUCCESS > nbthreadspervp ) parsec_fatal("could not determine the number of threads for the VP map");
         vpmap_nb_total_threads += nbthreadspervp;
 
         map[vp_id].nbthreads = nbthreadspervp;
@@ -208,10 +209,10 @@ int vpmap_init_from_hardware_affinity(int nbcores)
     vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_datamap;
     vpmap_get_core_affinity = vpmap_get_core_affinity_datamap;
 
-    return 0;
+    return PARSEC_SUCCESS;
 #else
     (void)nbcores;
-    return -1;
+    return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif
 }
 
@@ -225,7 +226,7 @@ int vpmap_init_from_file(const char *filename)
 
     if( nbvp != -1 ) {
         vpmap_nb_total_threads = -1;
-        return -1;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
 
 #if defined(PARSEC_HAVE_HWLOC)
@@ -235,7 +236,7 @@ int vpmap_init_from_file(const char *filename)
     f = fopen(filename, "r");
     if( NULL == f ) {
         parsec_warning("File open %s: %s (default thread binding).", filename, strerror(errno));
-        return -1;
+        return PARSEC_ERR_NOT_FOUND;
     }
 
     nbvp = 0;
@@ -336,7 +337,7 @@ int vpmap_init_from_file(const char *filename)
     vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_datamap;
     vpmap_get_core_affinity = vpmap_get_core_affinity_datamap;
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int vpmap_init_from_parameters(int _nbvp, int _nbthreadspervp, int _nbcores)
@@ -345,7 +346,7 @@ int vpmap_init_from_parameters(int _nbvp, int _nbthreadspervp, int _nbcores)
         nbthreadspervp != -1 ||
         nbcores != -1 ) {
         vpmap_nb_total_threads = -1;
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
     }
 
 #if defined(PARSEC_HAVE_HWLOC)
@@ -361,7 +362,7 @@ int vpmap_init_from_parameters(int _nbvp, int _nbthreadspervp, int _nbcores)
     vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_parameters;
     vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;
     vpmap_get_core_affinity = vpmap_get_core_affinity_parameters;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int vpmap_init_from_flat(int _nbcores)
@@ -370,7 +371,7 @@ int vpmap_init_from_flat(int _nbcores)
         nbthreadspervp != -1 ||
         nbcores != -1 ) {
         vpmap_nb_total_threads = -1;
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
     }
 
 #if defined(PARSEC_HAVE_HWLOC)
@@ -386,7 +387,7 @@ int vpmap_init_from_flat(int _nbcores)
     vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_parameters;
     vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;
     vpmap_get_core_affinity = vpmap_get_core_affinity_parameters;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 void vpmap_display_map(void) {
@@ -653,10 +654,10 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             c++;
         }
     }
-    return 0;
+    return PARSEC_SUCCESS;
 #else
     (void)vp; (void)nbth; (void)binding;
     parsec_warning("the binding defined has been ignored (requires a build with HWLOC with bitmap support).");
-    return -1;
+    return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
 }

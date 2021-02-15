@@ -157,8 +157,9 @@ parsec_apply_Destruct( parsec_taskpool_t *tp )
  *******************************************************************************
  *
  * @return
- *          \retval -i if the ith parameters is incorrect.
- *          \retval 0 on success.
+ *          \retval PARSEC_ERR_BAD_PARAM if parameters are incorrect.
+ *          \retval PARSEC_ERROR if an apply taskpool could not be created.
+ *          \retval PARSEC_SUCCESS on success.
  *
  ******************************************************************************/
 int
@@ -174,7 +175,7 @@ parsec_apply( parsec_context_t *parsec,
         (uplo != matrix_Upper)      &&
         (uplo != matrix_Lower))
     {
-        return -2;
+        return PARSEC_ERR_BAD_PARAM;
     }
 
     parsec_app = parsec_apply_New( uplo, A, operation, op_args );
@@ -186,6 +187,9 @@ parsec_apply( parsec_context_t *parsec,
         parsec_context_wait( parsec );
         parsec_apply_Destruct( parsec_app );
     }
+    else {
+        return PARSEC_ERROR;
+    }
 
-    return 0;
+    return PARSEC_SUCCESS;
 }

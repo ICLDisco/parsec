@@ -3,9 +3,9 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  *
  */
@@ -52,7 +52,7 @@ const parsec_sched_module_t parsec_sched_lfq_module = {
 static int sched_lfq_install( parsec_context_t *master )
 {
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -158,8 +158,8 @@ static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
         }
     }
 #endif
-    
-    return 0;
+
+    return PARSEC_SUCCESS;
 }
 
 static parsec_task_t*
@@ -201,7 +201,7 @@ static int sched_lfq_schedule(parsec_execution_stream_t* es,
     parsec_hbbuffer_push_all(PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->task_queue,
                              (parsec_list_item_t*)new_context,
                              distance);
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void sched_lfq_remove( parsec_context_t *master )

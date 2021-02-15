@@ -40,7 +40,7 @@ void vpmap_fini(void);
  *   Bind threads of the same vp on the different cores of the
  *     corresponding socket
  *   Uses hwloc
- * @return 0 if success; -1 if the initialization was not possible.
+ * @return PARSEC_SUCCESS if success; -1 if the initialization was not possible.
  */
 int vpmap_init_from_hardware_affinity(int nbcores);
 

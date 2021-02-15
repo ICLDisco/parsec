@@ -425,7 +425,7 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
     (void)context;
 
     if(parsec_mca_device_are_freezed)
-        return -1;
+        return PARSEC_ERR_NOT_SUPPORTED;
 
     if(NULL != parsec_device_load) free(parsec_device_load);
     parsec_device_load = (float*)calloc(parsec_nb_devices, sizeof(float));
@@ -467,7 +467,7 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
     }
 
     parsec_mca_device_are_freezed = 1;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_mca_device_registration_completed(parsec_context_t* context)
@@ -699,7 +699,7 @@ int parsec_mca_device_attach(parsec_context_t* context)
 int parsec_mca_device_add(parsec_context_t* context, parsec_device_module_t* device)
 {
     if( parsec_mca_device_are_freezed ) {
-        return PARSEC_ERROR;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
     if( NULL != device->context ) {
         /* This device already belong to a PaRSEC context */

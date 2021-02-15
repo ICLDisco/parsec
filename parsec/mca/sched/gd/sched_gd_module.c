@@ -71,7 +71,7 @@ static long long int parsec_shared_dequeue_length( parsec_vp_t *vp )
 static int sched_gd_install( parsec_context_t *master )
 {
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static int flow_gd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -119,7 +119,7 @@ static int flow_gd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
     }
 #endif
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static parsec_task_t*
@@ -162,7 +162,7 @@ static int sched_gd_schedule(parsec_execution_stream_t* es,
         parsec_dequeue_chain_back( dq, (parsec_list_item_t*)new_context);
     }
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void sched_gd_remove( parsec_context_t *master )

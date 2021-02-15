@@ -24,7 +24,7 @@ parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
 
     tp = parsec_reduce_col_new( src, dest, operation, op_data, 0, 0, src->lnt, src->lmt );
     assert(src->mtype == dest->mtype);
-    if( -1 == parsec_translate_matrix_type(src->mtype, &oldtype) ) {
+    if( PARSEC_SUCCESS != parsec_translate_matrix_type(src->mtype, &oldtype) ) {
         parsec_debug_verbose(3, parsec_debug_output, "Unknown matrix type %d.", src->mtype );
         return NULL;
     }
@@ -55,7 +55,7 @@ parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
 
     tp = parsec_reduce_row_new( src, dest, operation, op_data, 0, 0, src->lnt, src->lmt );
     assert(src->mtype == dest->mtype);
-    if( -1 == parsec_translate_matrix_type(src->mtype, &oldtype) ) {
+    if( PARSEC_SUCCESS != parsec_translate_matrix_type(src->mtype, &oldtype) ) {
         parsec_debug_verbose(3, parsec_debug_output, "Unknown matrix type %d.", src->mtype );
         return NULL;
     }

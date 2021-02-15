@@ -7,6 +7,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/private_mempool.h"
 #include "parsec/class/lifo.h"
+#include "parsec/constants.h"
 
 int
 parsec_private_memory_init( parsec_memory_pool_t* pool,
@@ -15,7 +16,7 @@ parsec_private_memory_init( parsec_memory_pool_t* pool,
     PARSEC_OBJ_CONSTRUCT( &(pool->lifo), parsec_lifo_t );
     pool->lifo.alignment = 0;  /* reset the default alignment to the minimum possible */
     pool->elem_size = size + sizeof(parsec_list_item_t);
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_private_memory_fini( parsec_memory_pool_t* pool )
@@ -26,5 +27,5 @@ int parsec_private_memory_fini( parsec_memory_pool_t* pool )
         PARSEC_OBJ_RELEASE(elem);
     }
     PARSEC_OBJ_DESTRUCT( &(pool->lifo) );
-    return 0;
+    return PARSEC_SUCCESS;
 }

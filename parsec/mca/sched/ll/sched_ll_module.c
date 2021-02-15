@@ -3,9 +3,9 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  *
  */
@@ -118,7 +118,7 @@ static int sched_ll_install( parsec_context_t *master )
 {
     sched_ll_warning_issued = 0;
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /**
@@ -155,7 +155,7 @@ static int flow_ll_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
     }
 #endif
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /**
@@ -218,7 +218,7 @@ static parsec_task_t* sched_ll_select(parsec_execution_stream_t *es,
  *   @param[INOUT] es          the calling execution stream
  *   @param[INOUT] new_context the ring of ready tasks to schedule
  *   @param[IN] distance       the distance hint
- *   @return PARSEC_SUCCESS in case of success, a negative number 
+ *   @return PARSEC_SUCCESS in case of success, a negative number
  *                          otherwise.
  */
 static int sched_ll_schedule(parsec_execution_stream_t* es,
@@ -248,7 +248,7 @@ static int sched_ll_schedule(parsec_execution_stream_t* es,
     } else {
         parsec_lifo_chain(&es_sched_obj->lifo, (parsec_list_item_t*)new_context);
     }
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /**

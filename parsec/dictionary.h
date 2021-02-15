@@ -327,7 +327,7 @@ parsec_profiling_property_t  *find_property(parsec_profiling_task_class_t* tc, c
  * @brief Extract the provided properties from the taskpool
  *
  * @details Call this ONCE per per taskpool. Will increase the version of the dictionnary
- * @return 0    if success, never fails!
+ * @return PARSEC_SUCCESS    if success, never fails!
  *
  * @remark not thread safe
  */
@@ -337,7 +337,7 @@ int parsec_profiling_add_taskpool_properties(parsec_taskpool_t *h);
  * @brief Manually forge a property and add it to the dictionnary
  *
  * @details Modules can use this function to add their own property to the dictionnary
- * @return 0    if success, never fails!
+ * @return PARSEC_SUCCESS    if success, never fails!
  *
  * @remark not thread safe
  */

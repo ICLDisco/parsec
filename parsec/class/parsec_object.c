@@ -171,7 +171,7 @@ void parsec_class_initialize(parsec_class_t *cls)
 /*
  * Note that this is finalize for *all* classes.
  */
-int parsec_class_finalize(void)
+void parsec_class_finalize(void)
 {
     int i;
 
@@ -186,8 +186,6 @@ int parsec_class_finalize(void)
         num_classes = 0;
         max_classes = 0;
     }
-
-    return 0;
 }
 
 

@@ -84,9 +84,9 @@ static inline int parsec_translate_matrix_type( enum matrix_type mt, parsec_data
     case matrix_ComplexDouble: *dt = parsec_datatype_double_complex_t; break;
     default:
         fprintf(stderr, "%s:%d Unknown matrix_type (%d)\n", __func__, __LINE__, mt);
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
     }
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 #define parsec_tiled_matrix_dc_type   0x01

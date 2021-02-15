@@ -157,7 +157,7 @@ int parsec_setenv(const char *name, const char *value, bool overwrite,
             } else {
                 free(compare);
                 free(newvalue);
-                return PARSEC_EXISTS;
+                return PARSEC_ERR_EXISTS;
             }
         }
     }

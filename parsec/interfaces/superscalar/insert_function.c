@@ -137,7 +137,7 @@ parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp)
 {
     int should_dequeue = 0;
     if( NULL == tp->context ) {
-        return PARSEC_NOT_SUPPORTED;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
     /* If the taskpool is attached to a context then we better find it
      * taskpool_list.
@@ -152,7 +152,7 @@ parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp)
     parsec_list_unlock(tp->context->taskpool_list);
     if(should_dequeue) {
         parsec_detach_dtd_taskpool_from_context(tp);
-        return 0;
+        return PARSEC_SUCCESS;
     }
     return PARSEC_ERR_NOT_FOUND;
 }
@@ -213,7 +213,7 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
     parsec_dtd_create_task_class(dtd_tp, parsec_dtd_data_flush_sndrcv, "parsec_dtd_data_flush",
                                  0, 0, 1);
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /* To create object of class parsec_dtd_task_t that inherits parsec_task_t
@@ -584,12 +584,12 @@ parsec_dtd_taskpool_wait(parsec_taskpool_t  *tp)
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     if( NULL == tp->context ) {  /* the taskpool is not associated with any parsec_context
                                     so it can't be waited upon */
-        return PARSEC_NOT_SUPPORTED;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
     parsec_dtd_schedule_tasks(dtd_tp);
     dtd_tp->wait_func(tp);
     parsec_dtd_taskpool_wait_on_pending_action(tp);
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /* This function only waits until all local tasks are done */
