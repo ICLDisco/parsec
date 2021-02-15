@@ -14,7 +14,7 @@ int parsec_barrier_init(parsec_barrier_t* barrier, const void* attr, unsigned in
     int rc;
 
     if( 0 != (rc = pthread_mutex_init(&(barrier->mutex), attr)) ) {
-        return rc;
+        return rc; // Note how we return a posix error code, not a parsec one. This is mimicking pthreads API.
     }
 
     barrier->count      = count;
