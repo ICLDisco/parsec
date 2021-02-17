@@ -24,7 +24,7 @@ include(GNUInstallDirs)
 #   MM is the 2 digits of the release month,
 # (e.g., for a release tagged v20.02 made in the second month
 # of february 2020, PARSEC_VERSION_RELEASE=2002)
-set (PARSEC_VERSION_MAJOR   3)
+set (PARSEC_VERSION_MAJOR   4)
 set (PARSEC_VERSION_MINOR   0)
 set (PARSEC_VERSION_RELEASE 0) # Devel master have no release number
 #set (PARSEC_VERSION_RELEASE 2012) # Set and uncomment for a release
