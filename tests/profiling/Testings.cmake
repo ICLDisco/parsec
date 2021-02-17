@@ -1,5 +1,5 @@
 find_package (Python COMPONENTS Interpreter)
-if(Python_FOUND AND PARSEC_PYTHON_TOOLS AND PARSEC_PROF_TRACE AND MPI_C_FOUbND)
+if(Python_FOUND AND PARSEC_PYTHON_TOOLS AND PARSEC_PROF_TRACE AND MPI_C_FOUND)
   execute_process(COMMAND ${Python_EXECUTABLE} -c
     "from __future__ import print_function; import sysconfig; import sys; print('{}-{}.{}'.format(sysconfig.get_platform(),sys.version_info[0],sys.version_info[1]), end='')"
     OUTPUT_VARIABLE SYSCONF)
