@@ -335,34 +335,29 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
 {
     if( size_row < 1 || size_col < 1 ) {
         if( 0 == dcY->super.myrank )
-            fprintf(stderr, "ERROR: Submatrix size should be bigger than 1\n");
-        exit(1);
+            parsec_warning("ERROR: Submatrix size should be bigger than 1\n");
+        return PARSEC_ERROR;
     }
 
-    if( disi_Y < 0 || disj_Y < 0 ) {
+    if( disi_Y < 0 || disj_Y < 0 ||
+        disi_T < 0 || disj_T < 0 ) {
         if( 0 == dcY->super.myrank )
-            fprintf(stderr, "ERROR: Source displacement should not be negative\n");
-        exit(1);
-    }
-
-    if( disi_T < 0 || disj_T < 0 ) {
-        if( 0 == dcY->super.myrank )
-            fprintf(stderr, "ERROR: Target displacement should not be negative\n");
-        exit(1);
+            parsec_warning("ERROR: Submatrix displacement should not be negative\n");
+        return PARSEC_ERROR;
     }
 
     if( (disi_Y+size_row > dcY->lmt*dcY->mb)
         || (disj_Y+size_col > dcY->lnt*dcY->nb) ){
         if( 0 == dcY->super.myrank )
-            fprintf(stderr, "ERROR: Submatrix exceed SOURCE size\n");
-        exit(1);
+            parsec_warning("ERROR: Submatrix exceed SOURCE size\n");
+        return PARSEC_ERROR;
     }
 
     if( (disi_T+size_row > dcT->lmt*dcT->mb)
         || (disj_T + size_col > dcT->lnt*dcT->nb) ){
         if( 0 == dcY->super.myrank )
-            fprintf(stderr, "ERROR: Submatrix exceed TARGET size\n");
-        exit(1);
+            parsec_warning("ERROR: Submatrix exceed TARGET size\n");
+        return PARSEC_ERROR;
     }
 
     /* Initializing dc for dtd */

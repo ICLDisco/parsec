@@ -38,37 +38,48 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
                         int disi_T, int disj_T)
 {
     parsec_taskpool_t* redistribute_taskpool;
+    int num_cols;
 
     if( size_row < 1 || size_col < 1 ) {
         if( 0 == dcY->super.myrank )
-            fprintf(stderr, "ERROR: Submatrix size should be bigger than 1\n");
-        exit(1);
+            parsec_warning("ERROR: Submatrix size should be bigger than 1\n");
+        return NULL;
     }
 
-    if( disi_Y < 0 || disj_Y < 0 ) {
+    if( disi_Y < 0 || disj_Y < 0 ||
+        disi_T < 0 || disj_T < 0 ) {
         if( 0 == dcY->super.myrank )
-            fprintf(stderr, "ERROR: Source displacement should not be negative\n");
-        exit(1);
+            parsec_warning("ERROR: Submatrix displacement should not be negative\n");
+        return NULL;
     }
 
-    if( disi_T < 0 || disj_T < 0 ) {
+    if( (disi_Y+size_row > dcY->lmt*dcY->mb) ||
+        (disj_Y+size_col > dcY->lnt*dcY->nb) ){
         if( 0 == dcY->super.myrank )
-            fprintf(stderr, "ERROR: Target displacement should not be negative\n");
-        exit(1);
-    }
-
-    if( (disi_Y+size_row > dcY->lmt*dcY->mb)
-        || (disj_Y+size_col > dcY->lnt*dcY->nb) ){
-        if( 0 == dcY->super.myrank )
-            fprintf(stderr, "ERROR: Submatrix exceed SOURCE size\n");
-        exit(1);
+            parsec_warning("ERROR: Submatrix exceed SOURCE size\n");
+        return NULL;
     }
 
     if( (disi_T+size_row > dcT->lmt*dcT->mb)
         || (disj_T+size_col > dcT->lnt*dcT->nb) ){
         if( 0 == dcY->super.myrank )
-            fprintf(stderr, "ERROR: Submatrix exceed TARGET size\n");
-        exit(1);
+            parsec_warning("ERROR: Submatrix exceed TARGET size\n");
+        return NULL;
+    }
+
+    /* Check distribution, and determine batch size: num_col */
+    if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_tabular_type) ) {
+        num_cols = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
+    } else if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_block_cyclic_type) ) {
+        num_cols = ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols;
+    } else if( (dcY->dtype & two_dim_block_cyclic_type) && (dcT->dtype & two_dim_tabular_type) ) {
+        num_cols = ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols;
+    } else if( (dcY->dtype & two_dim_block_cyclic_type) && (dcT->dtype & two_dim_block_cyclic_type) ) {
+        num_cols = parsec_imax( ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols,
+                                ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols );
+    } else {
+        parsec_warning("This version of data redistribution only supports two_dim_block_cyclic_type and two_dim_tabular_type");
+        return NULL;
     }
 
     /* Optimized version: tile sizes of source and target ar the same,
@@ -76,22 +87,10 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
     if( (dcY->mb == dcT->mb) && (dcY->nb == dcT->nb) && (disi_Y % dcY->mb == 0)
         && (disj_Y % dcY->nb == 0) && (disi_T % dcT->mb == 0) && (disj_T % dcT->nb == 0) ) {
         parsec_redistribute_reshuffle_taskpool_t* taskpool = NULL;
-        /* new taskpool */
-        taskpool = parsec_redistribute_reshuffle_new(dcY, dcT, size_row, size_col, disi_Y, disj_Y, disi_T, disj_T);
-        redistribute_taskpool = (parsec_taskpool_t*)taskpool;
 
-        /* Check distribution, and detarmine batch size: num_col */
-        if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_tabular_type) ) {
-            taskpool->_g_num_col = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
-        } else if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_block_cyclic_type) ) {
-            taskpool->_g_num_col = ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols;
-        } else if( (dcY->dtype & two_dim_block_cyclic_type) && (dcT->dtype & two_dim_tabular_type) ) {
-            taskpool->_g_num_col = ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols;
-        } else if( (dcY->dtype & two_dim_block_cyclic_type) && (dcT->dtype & two_dim_block_cyclic_type) ) {
-            taskpool->_g_num_col = parsec_imax( ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols, ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols );
-        } else {
-            fprintf(stderr, "Only support two_dim_block_cyclic_type and two_dim_tabular_type\n");
-        }
+        taskpool = parsec_redistribute_reshuffle_new(dcY, dcT, size_row, size_col, disi_Y, disj_Y, disi_T, disj_T);
+        taskpool->_g_num_col = num_cols;
+        redistribute_taskpool = (parsec_taskpool_t*)taskpool;
 
         /* Calculate NT, need to update !!! */
         int n_T_START = disj_T / dcT->nb;
@@ -102,7 +101,7 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
                                 MY_TYPE, matrix_UpperLower,
                                 1, dcY->mb, dcY->nb, dcY->mb,
                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );
-    /* General version */
+        /* General version */
     } else {
         parsec_redistribute_taskpool_t* taskpool = NULL;
         /* R will be used for padding tiles like in AMR,
@@ -110,22 +109,9 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
          */
         int R = 0;
 
-        /* new taskpool */
         taskpool = parsec_redistribute_new(dcY, dcT, size_row, size_col, disi_Y, disj_Y, disi_T, disj_T, R);
+        taskpool->_g_num_col = num_cols;
         redistribute_taskpool = (parsec_taskpool_t*)taskpool;
-
-        /* Check distribution, and detarmine batch size: num_col */
-        if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_tabular_type) ) {
-            taskpool->_g_num_col = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
-        } else if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_block_cyclic_type) ) {
-            taskpool->_g_num_col = ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols;
-        } else if( (dcY->dtype & two_dim_block_cyclic_type) && (dcT->dtype & two_dim_tabular_type) ) {
-            taskpool->_g_num_col = ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols;
-        } else if( (dcY->dtype & two_dim_block_cyclic_type) && (dcT->dtype & two_dim_block_cyclic_type) ) {
-            taskpool->_g_num_col = parsec_imax( ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols, ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols );
-        } else {
-            fprintf(stderr, "Only support two_dim_block_cyclic_type and two_dim_tabular_type\n");
-        }
 
         /* Calculate NT, need to update !!! */
         int n_T_START = disj_T / (dcT->nb-2*R);
@@ -144,11 +130,6 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
                                 MY_TYPE, matrix_UpperLower,
                                 1, dcT->mb, dcT->nb, T_LDA,
                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );
-
-        // parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ADT_IDX],
-        //                         MY_TYPE, matrix_UpperLower,
-        //                         1, dcY->mb, dcY->nb, Y_LDA,
-        //                         PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
         parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX],
                                 MY_TYPE, matrix_UpperLower,
