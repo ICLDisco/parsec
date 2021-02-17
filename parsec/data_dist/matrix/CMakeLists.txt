@@ -22,10 +22,6 @@ set(sources
     ${CMAKE_CURRENT_LIST_DIR}/subtile.c
 )
 
-if (MPI_C_FOUND)
-  LIST(APPEND sources ${CMAKE_CURRENT_LIST_DIR}/scalapack_convert.c)
-endif(MPI_C_FOUND)
-
 set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf"
                     "${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf"
                     "${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf"
