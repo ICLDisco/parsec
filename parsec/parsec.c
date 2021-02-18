@@ -2192,7 +2192,7 @@ void parsec_usage(void)
             "                                   bound in a round-robin fashion on the number of cores c (overloads the -c flag)\n"
             "                       file:filename -- uses filename to load the virtual process map. Each entry details a virtual\n"
             "                                        process mapping using the semantic  [mpi_rank]:nb_thread:binding  with:\n"
-            "                                        - mpi_rank : the mpi process rank (empty if not relevant)\n"
+            "                                        - mpi_rank : the mpi process rank (in MPI_COMM_WORLD; empty if not relevant)\n"
             "                                        - nb_thread : the number of threads under the virtual process\n"
             "                                                      (overloads the -c flag)\n"
             "                                        - binding : a set of cores for the thread binding. Accepted values are:\n"
@@ -2277,15 +2277,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
             return PARSEC_ERR_NOT_FOUND;
         }
 
-        int rank = 0, line_num = 0;
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-        /* distributed version: set the rank to find the corresponding line in the rankfile */
-        int mpi_is_on;
-        MPI_Initialized(&mpi_is_on);
-        if(mpi_is_on) {
-            MPI_Comm_rank(*(MPI_Comm*)context->comm_ctx, &rank);
-        }
-#endif /* DISTRIBUTED && PARSEC_HAVE_MPI */
+        int rank = parsec_debug_rank, line_num = 0;
         while (getline(&line, &line_len, f) != -1) {
             if(line_num == rank) {
                 PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI_process %i uses the binding parameters: %s", rank, line);
@@ -2434,6 +2426,52 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
         free(str);
     }
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
+
+#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
+    MPI_Comm comml = MPI_COMM_NULL; int nl = 0, rl = MPI_PROC_NULL;
+    MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
+    MPI_Comm_size(comml, &nl);
+    if( 1 < nl ) {
+        /* Hu-ho, double check that our binding is not conflicting with other
+         * local procs */
+        MPI_Comm_rank(comml, &rl);
+        char *myset, *allsets;
+
+        if( 0 != hwloc_bitmap_list_asprintf(&myset, context->cpuset_allowed_mask) ) {
+        }
+        int *setlen = calloc(nl, sizeof(int));
+        int *displ = calloc(nl, sizeof(int));
+        setlen[rl] = strlen(myset);
+        MPI_Gather(&setlen[rl], 1, MPI_INT, setlen, 1, MPI_INT, 0, comml);
+        displ[0] = 0;
+        for( i = 1; i < nl; i++ ) {
+            displ[i] = displ[i-1]+setlen[i-1];
+        }
+        allsets = calloc(displ[nl-1]+setlen[nl-1], sizeof(char));
+        MPI_Gatherv(myset, setlen[rl], MPI_CHAR, allsets, setlen, displ, MPI_CHAR, 0, comml);
+        free(myset);
+        free(setlen);
+
+        if( 0 == rl ) {
+            int notgood = false;
+            for( i = 1; i < nl; i++ ) {
+                hwloc_bitmap_t other = hwloc_bitmap_alloc();
+                hwloc_bitmap_list_sscanf(other, &allsets[displ[i]]);
+                if(hwloc_bitmap_intersects(context->cpuset_allowed_mask, other)) {
+                    notgood = true;
+                }
+                hwloc_bitmap_free(other);
+            }
+            if( notgood ) {
+                parsec_warning("/!\\ CPU BINDING WILL PROBABLY REDUCE THE PERFORMANCE OF THIS RUN /!\\\n"
+                               "\tMultiple PaRSEC processes use the same cpuset on the same node;\n"
+                               "\tThis is probably unintentional, and will perform poorly.");
+            }
+        }
+        free(allsets);
+        free(displ);
+    }
+#endif
 
     return PARSEC_SUCCESS;
 #else
