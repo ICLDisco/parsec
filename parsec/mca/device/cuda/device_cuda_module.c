@@ -2189,6 +2189,22 @@ parsec_gpu_callback_complete_push(parsec_device_cuda_module_t  *gpu_device,
     return 0;
 }
 
+/**
+ * This function tries to progress a stream, by picking up a ready task
+ * and applying the progress function. The task to be progresses is
+ * always the highest priority in the waiting queue, even when a task
+ * has been specified as an input argument.
+ * The progress function is either specified by the caller via the
+ * upstream_progress_fct input argument or by the next task to be progresses
+ * via the submit function associated with the task. In any case, this
+ * function progresses a single task, which is then returned as the
+ * out_task parameter.
+ *
+ * Beware: this function does not generate errors by itself, instead
+ * it propagates upward the return code of the progress function.
+ * However, by convention the error code follows the parsec_hook_return_e
+ * enum.
+ */
 static inline int
 progress_stream( parsec_device_cuda_module_t* gpu_device,
                  parsec_gpu_exec_stream_t* stream,
@@ -2233,7 +2249,7 @@ progress_stream( parsec_device_cuda_module_t* gpu_device,
             } 
 #endif /* (PARSEC_PROF_TRACE) */
 
-            rc = 0;
+            rc = PARSEC_HOOK_RETURN_DONE;
             if (task->complete_stage)
                 rc = task->complete_stage(gpu_device, out_task, stream);
             /* the task can be withdrawn by the system */
@@ -2241,7 +2257,7 @@ progress_stream( parsec_device_cuda_module_t* gpu_device,
         }
         if( cudaErrorNotReady != rc ) {
             PARSEC_CUDA_CHECK_ERROR( "(progress_stream) cudaEventQuery ", rc,
-                                     {return -1;} );
+                                     {return PARSEC_HOOK_RETURN_AGAIN;} );
         }
     }
 
@@ -2295,24 +2311,24 @@ progress_stream( parsec_device_cuda_module_t* gpu_device,
                                  gpu_device->cuda_index, (void*)task->ec);
         }
         *out_task = NULL;
-        return 0;
-    } else {
-        /**
-         * Do not skip the cuda event generation. The problem is that some of the inputs
-         * might be in the pipe of being transferred to the GPU. If we activate this task
-         * too early, it might get executed before the data is available on the GPU.
-         * Obviously, this lead to incorrect results.
-         */
-        rc = cudaEventRecord( stream->events[stream->start], stream->cuda_stream );
-        assert(cudaSuccess == rc);
-        stream->tasks[stream->start]    = task;
-        stream->start = (stream->start + 1) % stream->max_events;
-        PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
-                             "GPU[%d]: Submitted %s(task %p) priority %d on stream %s{%p}",
-                             gpu_device->cuda_index,
-                             task->ec->task_class->name, (void*)task->ec, task->ec->priority,
-                             stream->name, (void*)stream);
+        return PARSEC_HOOK_RETURN_DONE;
     }
+    /**
+     * Do not skip the cuda event generation. The problem is that some of the inputs
+     * might be in the pipe of being transferred to the GPU. If we activate this task
+     * too early, it might get executed before the data is available on the GPU.
+     * Obviously, this lead to incorrect results.
+     */
+    rc = cudaEventRecord( stream->events[stream->start], stream->cuda_stream );
+    assert(cudaSuccess == rc);
+    stream->tasks[stream->start]    = task;
+    stream->start = (stream->start + 1) % stream->max_events;
+    PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
+                         "GPU[%d]: Submitted %s(task %p) priority %d on stream %s{%p}",
+                         gpu_device->cuda_index,
+                         task->ec->task_class->name, (void*)task->ec, task->ec->priority,
+                         stream->name, (void*)stream);
+
     task = NULL;
     goto grab_a_task;
 }
