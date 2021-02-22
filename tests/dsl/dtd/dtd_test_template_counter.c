@@ -51,7 +51,7 @@ task_rank_1( parsec_execution_stream_t *es,
 int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1;
+    int rank, world;
     int nb, nt, i, rc;
     parsec_tiled_matrix_t *dcA;
     parsec_arena_datatype_t *adt;
@@ -71,11 +71,7 @@ int main(int argc, char **argv)
     nb = 1; /* tile_size */
     nt = world; /* total no. of tiles */
 
-    if(argv[1] != NULL){
-        cores = atoi(argv[1]);
-    }
-
-    parsec = parsec_init( cores, &argc, &argv );
+    parsec = parsec_init( &argc, &argv );
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 

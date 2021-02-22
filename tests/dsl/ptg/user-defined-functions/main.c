@@ -102,7 +102,8 @@ int main(int argc, char *argv[])
 
     largc = argc - optind;
     largv = argv + optind;
-    parsec = parsec_init(cores, &largc, &largv);
+    parsec_setenv_mca_param_int("runtime_num_cores", cores);
+    parsec = parsec_init(&largc, &largv);
     if( NULL == parsec ) {
         exit(-1);
     }

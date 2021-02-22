@@ -27,7 +27,7 @@ end interface
 
   call MPI_INIT(ret)
 
-  call parsec_init(1, context)
+  call parsec_init(context)
 
   tp = touch_initialize_f08(BLOCK, N)
 

@@ -155,7 +155,8 @@ int main(int argc, char* argv[])
     }
     create_communicators();
 #endif  /* DISTRIBUTED */
-    parsec = parsec_init(2, &argc, &argv);
+    parsec_setenv_mca_param_int("runtime_num_cores", 2);
+    parsec = parsec_init(&argc, &argv);
     assert( NULL != parsec );
 
     for( i = 0; i < max_comms; i++ ) {

@@ -46,12 +46,11 @@ FUNCTION parsec_version_ex_f08(len, version_string) &
     INTEGER(KIND=c_int)                     :: parsec_version_ex_f08
 END FUNCTION parsec_version_ex_f08
 
-SUBROUTINE parsec_init_f08(nbcores, ctx, ierr) &
+SUBROUTINE parsec_init_f08(ctx, ierr) &
          BIND(C, name="parsec_init_f08")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPORT parsec_context_t
     IMPLICIT NONE
-    INTEGER(KIND=c_int), VALUE, INTENT(IN)  :: nbcores
     TYPE(parsec_context_t), INTENT(OUT)     :: ctx
     INTEGER(KIND=c_int), INTENT(OUT)        :: ierr
 END SUBROUTINE parsec_init_f08
@@ -180,15 +179,14 @@ END INTERFACE
 
 CONTAINS
 
-SUBROUTINE parsec_init(nbcores, ctx, ierr)
+SUBROUTINE parsec_init(ctx, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPLICIT NONE
-    INTEGER(KIND=c_int), VALUE, INTENT(IN)     :: nbcores
     TYPE(parsec_context_t), INTENT(OUT)        :: ctx
     INTEGER(KIND=c_int), OPTIONAL, INTENT(OUT) :: ierr
     INTEGER(KIND=c_int)                        :: c_err
 
-    call parsec_init_f08(nbcores, ctx, c_err)
+    call parsec_init_f08(ctx, c_err)
     if(present(ierr)) ierr = c_err
 END SUBROUTINE parsec_init
 

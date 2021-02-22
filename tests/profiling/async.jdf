@@ -198,7 +198,7 @@ int main( int argc, char** argv )
         argc--;
     }
 
-    parsec = parsec_init(-1, &parsec_argc, &parsec_argv);
+    parsec = parsec_init(&parsec_argc, &parsec_argv);
     if( NULL == parsec ) {
         exit(-1);
     }

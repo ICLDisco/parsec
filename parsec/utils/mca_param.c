@@ -2593,14 +2593,32 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
 }
 
 /*
- * Set an MCA parameter in the environment provided.
- * If environment is environ, the MCA parameter is into the global environment
- * and can be accessed when the parameter is actually registered.
+ * Set a string type MCA parameter in the global environment so
+ * it can be accessed when the parameter is actually registered.
  */
-void parsec_setenv_mca_param( char *param, char *value, char ***env )
+void parsec_setenv_mca_param_string( char *param, char *value )
 {
     char *name;
+    extern char **environ;
+
     (void) parsec_mca_var_env_name (param, &name);
-    parsec_setenv(name, value, true, env);
+    parsec_setenv(name, value, true, &environ);
     free(name);
 }
+
+/*
+ * Set an integer type MCA parameter in the global environment so
+ * it can be accessed when the parameter is actually registered.
+ */
+void parsec_setenv_mca_param_int( char *param, int ivalue ) {
+    char *name;
+    char *value;
+    extern char **environ;
+
+    (void)parsec_mca_var_env_name(param, &name);
+    (void)asprintf(&value, "%d", ivalue);
+    parsec_setenv(name, value, true, &environ);
+    free(name);
+    free(value);
+}
+

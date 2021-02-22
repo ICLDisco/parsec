@@ -22,7 +22,7 @@ volatile int32_t nb_taskC = 0;
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, world, cores = 1;
+    int rank, world;
     int size, nb, rc;
     parsec_data_collection_t *dcA;
     parsec_taskpool_t *branching;
@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     world = 1;
     rank = 0;
 #endif
-    parsec = parsec_init(cores, &argc, &argv);
+    parsec = parsec_init(&argc, &argv);
 
     size = 256;
     if(argc != 2) {

@@ -154,7 +154,7 @@ int main(int argc, char* argv[] )
     }
 #endif
 
-    parsec = parsec_init(-1, &argc, &argv);
+    parsec = parsec_init(&argc, &argv);
     assert( NULL != parsec );
 
     parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,

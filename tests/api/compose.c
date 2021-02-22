@@ -78,7 +78,9 @@ int main(int argc, char* argv[])
         argc -= 1;
     }
 
-    parsec = parsec_init(1, &argc, &argv);
+    extern char **environ;
+    parsec_setenv_mca_param_int("runtime_num_cores", 1);
+    parsec = parsec_init(&argc, &argv);
     assert( NULL != parsec );
 
     parsec_matrix_block_cyclic_init( &dcA, TYPE, PARSEC_MATRIX_TILE,

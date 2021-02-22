@@ -112,7 +112,7 @@ task_to_check_overhead_15(parsec_execution_stream_t *es, parsec_task_t *this_tas
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1;
+    int rank, world;
     int nb, nt, rc;
     parsec_tiled_matrix_t *dcA;
 
@@ -136,12 +136,8 @@ int main(int argc, char ** argv)
                       "Try with \"mpirun -np 1 .....\"\n" );
     }
 
-    if(argv[1] != NULL){
-        cores = atoi(argv[1]);
-    }
-
     /* Creating parsec context and initializing dtd environment */
-    parsec = parsec_init( cores, &argc, &argv );
+    parsec = parsec_init( &argc, &argv );
 
     /****** Checking task generation ******/
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();

@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     }
 
     /* Initialize PaRSEC */
-    parsec = parsec_init(-1, &pargc, &pargv);
+    parsec = parsec_init(&pargc, &pargv);
 
     while ((ch = getopt(argc, argv, "N:T:s:S:P:p:f:F:b:h")) != -1) {
         switch (ch) {

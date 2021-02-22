@@ -62,11 +62,7 @@ task_to_insert_task( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1, rc;
-
-    if(argv[1] != NULL){
-        cores = atoi(argv[1]);
-    }
+    int rank, world, rc;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -83,7 +79,7 @@ int main(int argc, char ** argv)
     int m;
     int no_of_tasks = 1;
 
-    parsec = parsec_init( cores, &argc, &argv );
+    parsec = parsec_init( &argc, &argv );
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 

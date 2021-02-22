@@ -171,6 +171,9 @@ static void add_to_env(char **params, char **values, char ***env)
        vars of the form OMPI_MCA_*=value. */
 
     for (i = 0; NULL != params && NULL != params[i]; ++i) {
-        parsec_setenv_mca_param( params[i], values[i], env );
+        char *name;
+        (void) parsec_mca_var_env_name(params[i], &name);
+        parsec_setenv(name, values[i], true, env);
+        free(name);
     }
 }

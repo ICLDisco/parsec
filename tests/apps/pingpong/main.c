@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
 
-    parsec = parsec_init(-1, &argc, &argv);
+    parsec = parsec_init(&argc, &argv);
 
     size = 256;
 

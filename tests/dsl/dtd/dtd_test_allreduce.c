@@ -91,7 +91,7 @@ int main(int argc, char **argv)
     parsec_context_t* parsec;
     parsec_arena_datatype_t *adt;
     int rc, nb, nt;
-    int rank, world, cores = -1, root = 0;
+    int rank, world, root = 0;
     int i;
     parsec_tiled_matrix_t *dcA;
 
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
         argc -= 1;
     }
 
-    parsec = parsec_init( cores, &argc, &argv );
+    parsec = parsec_init( &argc, &argv );
     if( NULL == parsec ) {
         return -1;
     }

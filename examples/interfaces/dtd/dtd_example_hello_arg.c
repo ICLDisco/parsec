@@ -62,7 +62,9 @@ int main(int argc, char ** argv)
 #endif
 
     /* Initializing parsec context */
-    parsec = parsec_init( cores, &argc, &argv );
+    /* Let's PaRSEC know we'd like to use only one core */
+    parsec_setenv_mca_param_int("runtime_num_cores", cores);
+    parsec = parsec_init( &argc, &argv );
     if( NULL == parsec ) {
         printf("Cannot initialize PaRSEC\n");
         exit(-1);

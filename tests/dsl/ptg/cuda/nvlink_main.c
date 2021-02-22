@@ -31,8 +31,8 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif /* DISTRIBUTED */
-    
-    parsec = parsec_init(-1, &argc, &argv);
+
+    parsec = parsec_init(&argc, &argv);
 
     tp = testing_nvlink_New(parsec, 10, 512);
     if( NULL != tp ) {

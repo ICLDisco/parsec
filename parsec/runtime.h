@@ -161,13 +161,12 @@ typedef enum parsec_hook_return_e {
  * execution context. Several contextes can cohexist on disjoint resources
  * in same time.
  *
- * @param[in]    nb_cores the number of cores to use
  * @param[inout] pargc a pointer to the number of arguments passed in pargv
  * @param[inout] pargv an argv-like NULL terminated array of arguments to pass to
  *        the PaRSEC engine.
  * @return the newly created PaRSEC context
  */
-parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[]);
+parsec_context_t* parsec_init(int* pargc, char** pargv[]);
 
 /**
  * @brief Obtain the version number of the PaRSEC runtime

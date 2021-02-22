@@ -42,7 +42,8 @@ int main(int argc, char **argv)
     nt = world; /* total no. of tiles */
     cores = 8;
 
-    parsec = parsec_init( cores, &argc, &argv );
+    parsec_setenv_mca_param_int("runtime_num_cores", cores);
+    parsec = parsec_init( &argc, &argv );
 
     dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");

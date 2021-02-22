@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
 
-    parsec = parsec_init(-1, &argc, &argv);
+    parsec = parsec_init(&argc, &argv);
 
     parsec_data_collection_init(&mydata, world, rank);
     mydata.rank_of = rank_of;

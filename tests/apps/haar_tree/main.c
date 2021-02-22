@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    parsec = parsec_init(-1, &pargc, &pargv);
+    parsec = parsec_init(&pargc, &pargv);
 
 
     while ((ch = getopt(argc, argv, "xvd:")) != -1) {

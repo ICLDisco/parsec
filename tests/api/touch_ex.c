@@ -39,7 +39,8 @@ int main( int argc, char** argv )
         argc -= 1;
     }
 
-    parsec = parsec_init(1, &argc, &argv);
+    parsec_setenv_mca_param_int("runtime_num_cores", 1);
+    parsec = parsec_init(&argc, &argv);
     if( NULL == parsec ) {
         exit(-2);
     }
