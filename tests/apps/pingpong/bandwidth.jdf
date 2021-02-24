@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2020 The Universiy of Tennessee and The Universiy
+ * Copyright (c) 2019-2021 The Universiy of Tennessee and The Universiy
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  */
@@ -22,8 +22,8 @@ extern "C" %{
 
 %}
 
-descA       [ type = "parsec_tiled_matrix_dc_t*" ]
-Disk        [ type = "parsec_tiled_matrix_dc_t*" ]
+descA       [ type = "parsec_tiled_matrix_t*" ]
+Disk        [ type = "parsec_tiled_matrix_t*" ]
 loops       [ type = "int" ]
 frags       [ type = "int" ]
 ws          [ type = "int" ]
@@ -83,8 +83,8 @@ extern "C" %{
  * @param [in] size: number of doubles
  */
 parsec_taskpool_t*
-parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
-                    parsec_tiled_matrix_dc_t *Disk,
+parsec_bandwidth_New(parsec_tiled_matrix_t *dcA,
+                    parsec_tiled_matrix_t *Disk,
                     int loops, int frags, int ws, int size)
 {
   parsec_taskpool_t* bandwidth_taskpool;
@@ -98,8 +98,8 @@ parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
   taskpool = parsec_bandwidth_new(dcA, Disk, loops, frags, ws); 
   bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-  parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
-                           parsec_datatype_double_t, matrix_UpperLower,
+  parsec_tiled_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
+                           parsec_datatype_double_t, PARSEC_MATRIX_FULL,
                            1, 1, size, 1,
                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
@@ -112,7 +112,7 @@ parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
 void parsec_bandwidth_Destruct(parsec_taskpool_t *taskpool)
 {
   parsec_bandwidth_taskpool_t *bandwidth_taskpool = (parsec_bandwidth_taskpool_t *)taskpool;
-  parsec_matrix_del2arena(&bandwidth_taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX]);
+  parsec_tiled_matrix_del2arena(&bandwidth_taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX]);
   parsec_taskpool_free(taskpool);
 }
 
@@ -127,8 +127,8 @@ void parsec_bandwidth_Destruct(parsec_taskpool_t *taskpool)
  * @param [in] size: number of doubles
  */
 int parsec_bandwidth(parsec_context_t *parsec,
-                    parsec_tiled_matrix_dc_t *dcA,
-                    parsec_tiled_matrix_dc_t *Disk,
+                    parsec_tiled_matrix_t *dcA,
+                    parsec_tiled_matrix_t *Disk,
                     int loops, int frags, int ws, int size)
 {
   parsec_taskpool_t *parsec_bandwidth = NULL;
@@ -236,8 +236,8 @@ int main(int argc, char *argv[])
     }
 
     /* initializing matrix structure */
-    two_dim_block_cyclic_t dcA;
-    two_dim_block_cyclic_init(&dcA, matrix_RealDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_t dcA;
+    parsec_matrix_block_cyclic_init(&dcA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                               rank, 1, size, frags, size, 0, 0,
                               frags, size,
                               1, nodes, 1, 1, 0, 0);
@@ -246,8 +246,8 @@ int main(int argc, char *argv[])
                                    (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcA, "dcA");
 
-    two_dim_block_cyclic_t Disk;
-    two_dim_block_cyclic_init(&Disk, matrix_RealDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_t Disk;
+    parsec_matrix_block_cyclic_init(&Disk, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                               rank, 1, 1, 1, nodes, 0, 0,
                               1, nodes,
                               1, nodes, 1, 1, 0, 0);
@@ -255,14 +255,14 @@ int main(int argc, char *argv[])
 
     for(i = 0; i < nb_runs; i++) {
         /* bandwidth */
-        taskpool = parsec_bandwidth_new((parsec_tiled_matrix_dc_t *)&dcA,
-                                       (parsec_tiled_matrix_dc_t *)&Disk,
+        taskpool = parsec_bandwidth_new((parsec_tiled_matrix_t *)&dcA,
+                                       (parsec_tiled_matrix_t *)&Disk,
                                        loops, frags, nodes);
 
         bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-        parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
-                                 parsec_datatype_double_t, matrix_UpperLower,
+        parsec_tiled_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
+                                 parsec_datatype_double_t, PARSEC_MATRIX_FULL,
                                  1, 1, size, 1,
                                  PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
@@ -291,8 +291,8 @@ int main(int argc, char *argv[])
         parsec_bandwidth_Destruct(bandwidth_taskpool);
     }
 
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&Disk);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&Disk);
 
     /* Clean up parsec*/
     parsec_fini(&parsec);

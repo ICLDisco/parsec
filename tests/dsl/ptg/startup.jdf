@@ -23,7 +23,7 @@ extern "C" %{
  */
 %}
 
-descA      [type = "two_dim_block_cyclic_t*"]
+descA      [type = "parsec_matrix_block_cyclic_t*"]
 NI         [type = int]
 NJ         [type = int]
 NK         [type = int]
@@ -60,7 +60,7 @@ END
 extern "C" %{
 
 #define NN    10
-#define TYPE  matrix_RealFloat
+#define TYPE  PARSEC_MATRIX_FLOAT
 
 struct my_priority_s {
     int prio;
@@ -89,7 +89,7 @@ struct my_priority_s {
 int main( int argc, char** argv )
 {
     parsec_startup_taskpool_t* tp;
-    two_dim_block_cyclic_t descA;
+    parsec_matrix_block_cyclic_t descA;
     parsec_arena_datatype_t adt;
     parsec_datatype_t dt;
     parsec_context_t *parsec;
@@ -135,7 +135,7 @@ int main( int argc, char** argv )
     /**
      * Build the data and the arena to hold it up.
      */
-    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+    parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,
                                0 /*rank*/,
                                NN, NN, ni * NN, NN,
                                0, 0, ni * NN, NN, 1, 1, 1, 1, 0, 0);
@@ -144,7 +144,7 @@ int main( int argc, char** argv )
                                      parsec_datadist_getsizeoftype(TYPE) );
 
     parsec_translate_matrix_type(TYPE, &dt);
-    parsec_matrix_add2arena_rect(&adt, dt,
+    parsec_tiled_matrix_add2arena_rect(&adt, dt,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
     srandom((int)getpid());  /* Start the random generator */
@@ -203,7 +203,7 @@ int main( int argc, char** argv )
 
     free(descA.mat);
     PARSEC_OBJ_RELEASE(adt.arena);
-    parsec_matrix_del2arena( & adt );
+    parsec_tiled_matrix_del2arena( & adt );
 
     parsec_fini( &parsec);
 

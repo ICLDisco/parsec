@@ -36,7 +36,7 @@ int fullresched_startkey, fullresched_endkey;
 
 %}
 
-descA            [ type = "two_dim_block_cyclic_t*"]
+descA            [ type = "parsec_matrix_block_cyclic_t*"]
 verbose          [ type = "int" ]
 taskqueue        [ type = "parsec_task_t **" ]
 NB               [ type = "int" ]
@@ -152,7 +152,7 @@ extern "C" %{
 int main( int argc, char** argv )
 {
     parsec_async_taskpool_t* tp;
-    two_dim_block_cyclic_t descA;
+    parsec_matrix_block_cyclic_t descA;
     parsec_arena_datatype_t adt;
     parsec_datatype_t dt;
     parsec_context_t *parsec;
@@ -221,7 +221,7 @@ int main( int argc, char** argv )
     /**
      * Build the data and the arena to hold it up.
      */
-    two_dim_block_cyclic_init( &descA, matrix_RealDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_init( &descA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                                mr /*rank*/,
                                1 /* mb */, 1 /* nb */,
                                1 /* lm */, 1 /* ln */,
@@ -232,11 +232,11 @@ int main( int argc, char** argv )
                                0 /* ip */, 0 /* jq */ );
     descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                       descA.super.bsiz *
-                                      parsec_datadist_getsizeoftype(matrix_RealDouble) );
+                                      parsec_datadist_getsizeoftype(PARSEC_MATRIX_DOUBLE) );
     parsec_data_collection_set_key(&descA.super.super, "A");
 
-    parsec_translate_matrix_type(matrix_RealDouble, &dt);
-    parsec_matrix_add2arena_rect(&adt, dt,
+    parsec_translate_matrix_type(PARSEC_MATRIX_DOUBLE, &dt);
+    parsec_tiled_matrix_add2arena_rect(&adt, dt,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
     /* Start the PaRSEC engine */
@@ -253,7 +253,7 @@ int main( int argc, char** argv )
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     free(descA.mat);
-    parsec_matrix_del2arena( & adt );
+    parsec_tiled_matrix_del2arena( & adt );
 
     parsec_fini( &parsec);
 

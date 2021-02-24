@@ -53,7 +53,7 @@ int
 test_task_generator( parsec_execution_stream_t *es,
                      parsec_task_t *this_task )
 {
-    parsec_tiled_matrix_dc_t *dcB, *tmp;
+    parsec_tiled_matrix_t *dcB, *tmp;
     int rc, amount = 0, nb, nt;
     int rank = es->virtual_process->parsec_context->my_rank;
     int world = es->virtual_process->parsec_context->nb_nodes, i;
@@ -114,7 +114,7 @@ int main(int argc, char ** argv)
 
     int m;
     int nb, nt;
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_tiled_matrix_t *dcA;
     parsec_taskpool_t *dtd_tp;
 
     parsec = parsec_init( cores, &argc, &argv );
@@ -132,7 +132,7 @@ int main(int argc, char ** argv)
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
     adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_matrix_add2arena_rect( adt,
+    parsec_tiled_matrix_add2arena_rect( adt,
                                   parsec_datatype_int32_t,
                                   nb, 1, nb );
 
@@ -164,7 +164,7 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_matrix_del2arena(adt);
+    parsec_tiled_matrix_del2arena(adt);
     PARSEC_OBJ_RELEASE(adt->arena);
     parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );

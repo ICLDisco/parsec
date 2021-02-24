@@ -13,7 +13,7 @@ static int verbose = 0;
 A          [type = "parsec_data_collection_t*"]
 NT         [type = int]
 BLOCK      [type = int]
-P          [type = int hidden=true default="((two_dim_block_cyclic_t*)A)->grid.rows-1"]
+P          [type = int hidden=true default="((parsec_matrix_block_cyclic_t*)A)->grid.rows-1"]
 
 STARTUP(p, k)
   k = 0 .. NT
@@ -70,8 +70,8 @@ END
 
 extern "C" %{
 
-#define TYPE  matrix_Integer
-static two_dim_block_cyclic_t descA;
+#define TYPE  PARSEC_MATRIX_INTEGER
+static parsec_matrix_block_cyclic_t descA;
 
 int main(int argc, char* argv[])
 {
@@ -116,7 +116,7 @@ int main(int argc, char* argv[])
         exit(-1);
     }
 
-    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+    parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,
                                rank,
                                1, block, np, n,
                                0, 0, np, n, np, 1, 1, 1, 0, 0);

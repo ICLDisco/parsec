@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,10 +12,10 @@ BEGIN_C_DECLS
 
 /**
  * Exploit the tiled_matrix_desc to recursively split a single tile part of a
- * parsec_tiled_matrix_dc_t
+ * parsec_matrix_t
  */
 typedef struct subtile_desc_s {
-    parsec_tiled_matrix_dc_t super;
+    parsec_tiled_matrix_t super;
     void *mat;      /**< pointer to the beginning of the matrix */
     int vpid;
 } subtile_desc_t;
@@ -59,7 +59,7 @@ typedef struct subtile_desc_s {
  *       nb.
  *
  */
-subtile_desc_t *subtile_desc_create( const parsec_tiled_matrix_dc_t *tdesc,
+subtile_desc_t *subtile_desc_create( const parsec_tiled_matrix_t *tdesc,
                                      int mt, int nt,
                                      int mb, int nb,
                                      int i,  int j,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -43,9 +43,9 @@ int main(int argc, char *argv[])
     int rank, nodes, ch;
     int ret = 0, cret;
     int *op_args;
-    two_dim_block_cyclic_t dcA;
-    two_dim_block_cyclic_t dcA_check;
-    two_dim_block_cyclic_t dcV;
+    parsec_matrix_block_cyclic_t dcA;
+    parsec_matrix_block_cyclic_t dcA_check;
+    parsec_matrix_block_cyclic_t dcV;
     parsec_taskpool_t * tp;
     /* Default */
     int m = 0;
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 
     /* Matrix allocation */
     //P = nodes;
-    two_dim_block_cyclic_init(&dcA, matrix_Integer, matrix_Tile,
+    parsec_matrix_block_cyclic_init(&dcA, PARSEC_MATRIX_INTEGER, PARSEC_MATRIX_TILE,
                               rank, MB, NB, M, N, 0, 0,
                               M, N, P, nodes/P, KP, KQ, 0, 0);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
                                    (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcA, "dcA");
 
-    two_dim_block_cyclic_init(&dcA_check, matrix_Integer, matrix_Tile,
+    parsec_matrix_block_cyclic_init(&dcA_check, PARSEC_MATRIX_INTEGER, PARSEC_MATRIX_TILE,
                               rank, MB, NB, M, N, 0, 0,
                               M, N, P, nodes/P, KP, KQ, 0, 0);
     dcA_check.mat = parsec_data_allocate((size_t)dcA_check.super.nb_local_tiles *
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcA_check, "dcA_check");
 
     //P = 1;
-    two_dim_block_cyclic_init(&dcV, matrix_Integer, matrix_Tile,
+    parsec_matrix_block_cyclic_init(&dcV, PARSEC_MATRIX_INTEGER, PARSEC_MATRIX_TILE,
                               rank, MB, NB, M, NB, 0, 0,
                               M, NB, P, nodes/P, KP, KQ, 0, 0);
     dcV.mat = parsec_data_allocate((size_t)dcV.super.nb_local_tiles *
@@ -96,22 +96,22 @@ int main(int argc, char *argv[])
 
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
 
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcV,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_count, NULL);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcV,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count, NULL);
 
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA_check,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_count, NULL);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA_check,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count, NULL);
 
     {
       parsec_remote_multiple_outs_same_pred_flow_taskpool_t *ctp = NULL;
-      ctp = parsec_remote_multiple_outs_same_pred_flow_new((parsec_tiled_matrix_dc_t *)&dcA,
-            (parsec_tiled_matrix_dc_t *)&dcV );
+      ctp = parsec_remote_multiple_outs_same_pred_flow_new((parsec_tiled_matrix_t *)&dcA,
+            (parsec_tiled_matrix_t *)&dcV );
 
       ctp->arenas_datatypes[PARSEC_remote_multiple_outs_same_pred_flow_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_remote_multiple_outs_same_pred_flow_LOWER_TILE_ADT_IDX] = adt_lower;
@@ -130,22 +130,22 @@ int main(int argc, char *argv[])
 
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
 
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcV,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_count, NULL);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcV,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count, NULL);
 
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA_check,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_count, NULL);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA_check,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count, NULL);
 
     {
       parsec_remote_multiple_outs_same_pred_flow_multiple_deps_taskpool_t *ctp = NULL;
-      ctp = parsec_remote_multiple_outs_same_pred_flow_multiple_deps_new((parsec_tiled_matrix_dc_t *)&dcA,
-            (parsec_tiled_matrix_dc_t *)&dcV );
+      ctp = parsec_remote_multiple_outs_same_pred_flow_multiple_deps_new((parsec_tiled_matrix_t *)&dcA,
+            (parsec_tiled_matrix_t *)&dcV );
 
       ctp->arenas_datatypes[PARSEC_remote_multiple_outs_same_pred_flow_multiple_deps_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_remote_multiple_outs_same_pred_flow_multiple_deps_LOWER_TILE_ADT_IDX] = adt_lower;
@@ -156,25 +156,25 @@ int main(int argc, char *argv[])
     }
 
     // name=strdup("dcA");
-    // parsec_apply( parsec, matrix_UpperLower,
-    //               (parsec_tiled_matrix_dc_t *)&dcA,
-    //               (tiled_matrix_unary_op_t)reshape_print, name);
+    // parsec_apply( parsec, PARSEC_MATRIX_FULL,
+    //               (parsec_tiled_matrix_t *)&dcA,
+    //               (parsec_tiled_matrix_unary_op_t)reshape_print, name);
 
     // name=strdup("dcA_check");
-    // parsec_apply( parsec, matrix_UpperLower,
-    //               (parsec_tiled_matrix_dc_t *)&dcA_check,
-    //               (tiled_matrix_unary_op_t)reshape_print, name);
+    // parsec_apply( parsec, PARSEC_MATRIX_FULL,
+    //               (parsec_tiled_matrix_t *)&dcA_check,
+    //               (parsec_tiled_matrix_unary_op_t)reshape_print, name);
 
     /* Clean up */
     DO_FINI_DATATYPES();
 
     parsec_data_free(dcA.mat);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
     parsec_data_free(dcA_check.mat);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA_check);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA_check);
 
     parsec_data_free(dcV.mat);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcV);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcV);
 
     parsec_fini(&parsec);
 

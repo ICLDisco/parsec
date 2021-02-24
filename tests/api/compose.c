@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 The University of Tennessee and The University
+ * Copyright (c) 2018-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,9 +9,9 @@
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <string.h>
 
-#define TYPE  matrix_Integer
+#define TYPE  PARSEC_MATRIX_INTEGER
 
-static two_dim_block_cyclic_t dcA;
+static parsec_matrix_block_cyclic_t dcA;
 static int N = 100;
 static int block = 10;
 
@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
     parsec = parsec_init(1, &argc, &argv);
     assert( NULL != parsec );
 
-    two_dim_block_cyclic_init( &dcA, TYPE, matrix_Tile,
+    parsec_matrix_block_cyclic_init( &dcA, TYPE, PARSEC_MATRIX_TILE,
                                rank,
                                block, 1, N, 1,
                                0, 0, N, 1, nodes, 1, 1, 1, 0, 0);
@@ -89,11 +89,11 @@ int main(int argc, char* argv[])
     dcA.mat = parsec_data_allocate( N * parsec_datadist_getsizeoftype(TYPE) );
     for( int i = 0; i < N; ((int*)dcA.mat)[i++] = 1);
 
-    tp1 = parsec_map_operator_New((parsec_tiled_matrix_dc_t*)&dcA,
+    tp1 = parsec_map_operator_New((parsec_tiled_matrix_t*)&dcA,
                                    NULL,
                                    parsec_operator_print_id,
                                    "tp1");
-    tp2 = parsec_map_operator_New((parsec_tiled_matrix_dc_t*)&dcA,
+    tp2 = parsec_map_operator_New((parsec_tiled_matrix_t*)&dcA,
                                    NULL,
                                    parsec_operator_print_id,
                                    "tp2");

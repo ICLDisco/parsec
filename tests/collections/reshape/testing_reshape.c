@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -31,8 +31,8 @@ int main(int argc, char *argv[])
     int rank, nodes, ch;
     int ret = 0, cret;
     int *op_args;
-    two_dim_block_cyclic_t dcA;
-    two_dim_block_cyclic_t dcA_check;
+    parsec_matrix_block_cyclic_t dcA;
+    parsec_matrix_block_cyclic_t dcA_check;
     parsec_taskpool_t * tp;
 
     /* Default */
@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     DO_INI_DATATYPES();
 
     /* Matrix allocation */
-    two_dim_block_cyclic_init(&dcA, matrix_Integer, matrix_Tile,
+    parsec_matrix_block_cyclic_init(&dcA, PARSEC_MATRIX_INTEGER, PARSEC_MATRIX_TILE,
                               rank, MB, NB, M, N, 0, 0,
                               M, N, P, nodes/P, KP, KQ, 0, 0);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
                                    (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcA, "dcA");
 
-    two_dim_block_cyclic_init(&dcA_check, matrix_Integer, matrix_Tile,
+    parsec_matrix_block_cyclic_init(&dcA_check, PARSEC_MATRIX_INTEGER, PARSEC_MATRIX_TILE,
                               rank, MB, NB, M, N, 0, 0,
                               M, N, P, nodes/P, KP, KQ, 0, 0);
     dcA_check.mat = parsec_data_allocate((size_t)dcA_check.super.nb_local_tiles *
@@ -76,19 +76,19 @@ int main(int argc, char *argv[])
      *******************/
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 1;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
 
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA_check,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA_check,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
 
     {
       parsec_local_no_reshape_taskpool_t *ctp = NULL;
-      ctp = parsec_local_no_reshape_new((parsec_tiled_matrix_dc_t *)&dcA );
+      ctp = parsec_local_no_reshape_new((parsec_tiled_matrix_t *)&dcA );
 
       ctp->arenas_datatypes[PARSEC_local_no_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_local_no_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
@@ -107,20 +107,20 @@ int main(int argc, char *argv[])
      *************************/
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 1;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 1;
     op_args[1] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA_check,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA_check,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
 
     {
       parsec_local_read_reshape_taskpool_t *ctp = NULL;
-      ctp = parsec_local_read_reshape_new((parsec_tiled_matrix_dc_t *)&dcA);
+      ctp = parsec_local_read_reshape_new((parsec_tiled_matrix_t *)&dcA);
 
       ctp->arenas_datatypes[PARSEC_local_read_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_local_read_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
@@ -139,21 +139,21 @@ int main(int argc, char *argv[])
      ************************/
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 1;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
 
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 1;
     op_args[1] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA_check,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA_check,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
 
     {
       parsec_local_output_reshape_taskpool_t *ctp = NULL;
-      ctp = parsec_local_output_reshape_new((parsec_tiled_matrix_dc_t *)&dcA);
+      ctp = parsec_local_output_reshape_new((parsec_tiled_matrix_t *)&dcA);
 
       ctp->arenas_datatypes[PARSEC_local_output_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_local_output_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
@@ -173,20 +173,20 @@ int main(int argc, char *argv[])
 
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 1;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 1;
     op_args[1] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA_check,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA_check,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
 
     {
       parsec_local_input_reshape_taskpool_t *ctp = NULL;
-      ctp = parsec_local_input_reshape_new((parsec_tiled_matrix_dc_t *)&dcA);
+      ctp = parsec_local_input_reshape_new((parsec_tiled_matrix_t *)&dcA);
 
       ctp->arenas_datatypes[PARSEC_local_input_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_local_input_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
@@ -205,20 +205,20 @@ int main(int argc, char *argv[])
      *************************/
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 1;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 1;
     op_args[1] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA_check,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA_check,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
 
     {
       parsec_remote_read_reshape_taskpool_t *ctp = NULL;
-      ctp = parsec_remote_read_reshape_new((parsec_tiled_matrix_dc_t *)&dcA);
+      ctp = parsec_remote_read_reshape_new((parsec_tiled_matrix_t *)&dcA);
 
       ctp->arenas_datatypes[PARSEC_remote_read_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_remote_read_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
@@ -235,20 +235,20 @@ int main(int argc, char *argv[])
      *******************************/
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 1;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 1;
     op_args[1] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA_check,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA_check,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
 
     {
       parsec_remote_no_re_reshape_taskpool_t *ctp = NULL;
-      ctp = parsec_remote_no_re_reshape_new((parsec_tiled_matrix_dc_t *)&dcA, cores );
+      ctp = parsec_remote_no_re_reshape_new((parsec_tiled_matrix_t *)&dcA, cores );
 
       ctp->arenas_datatypes[PARSEC_remote_no_re_reshape_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_remote_no_re_reshape_LOWER_TILE_ADT_IDX] = adt_lower;
@@ -268,18 +268,18 @@ int main(int argc, char *argv[])
 
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_count, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count, op_args);
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA_check,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_count_lower2upper_matrix, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA_check,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count_lower2upper_matrix, op_args);
     {
       parsec_local_input_LU_LL_taskpool_t *ctp = NULL;
-      ctp = parsec_local_input_LU_LL_new((parsec_tiled_matrix_dc_t *)&dcA);
+      ctp = parsec_local_input_LU_LL_new((parsec_tiled_matrix_t *)&dcA);
 
       ctp->arenas_datatypes[PARSEC_local_input_LU_LL_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_local_input_LU_LL_LOWER_TILE_ADT_IDX] = adt_lower;
@@ -290,18 +290,18 @@ int main(int argc, char *argv[])
     }
 
     // name=strdup("OUT dcA");
-    // parsec_apply( parsec, matrix_UpperLower,
-    //               (parsec_tiled_matrix_dc_t *)&dcA,
-    //               (tiled_matrix_unary_op_t)reshape_print, name);
+    // parsec_apply( parsec, PARSEC_MATRIX_FULL,
+    //               (parsec_tiled_matrix_t *)&dcA,
+    //               (parsec_tiled_matrix_unary_op_t)reshape_print, name);
 
     /* Clean up */
     DO_FINI_DATATYPES();
 
     parsec_data_free(dcA.mat);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 
     parsec_data_free(dcA_check.mat);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA_check);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA_check);
 
     parsec_fini(&parsec);
 

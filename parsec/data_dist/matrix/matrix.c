@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2018 The University of Tennessee and The University
+ * Copyright (c) 2010-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -27,7 +27,7 @@ static parsec_data_key_t tiled_matrix_data_key(struct parsec_data_collection_s *
 static int      tiled_matrix_key_to_string(struct parsec_data_collection_s * desc, parsec_data_key_t datakey, char * buffer, uint32_t buffer_size);
 
 parsec_data_t*
-parsec_matrix_create_data(parsec_tiled_matrix_dc_t* matrix,
+parsec_tiled_matrix_create_data(parsec_tiled_matrix_t* matrix,
                          void* ptr,
                          int pos,
                          parsec_data_key_t key)
@@ -40,7 +40,7 @@ parsec_matrix_create_data(parsec_tiled_matrix_dc_t* matrix,
 }
 
 void
-parsec_matrix_destroy_data( parsec_tiled_matrix_dc_t* matrix )
+parsec_tiled_matrix_destroy_data( parsec_tiled_matrix_t* matrix )
 {
     if ( matrix->data_map != NULL ) {
         parsec_data_t **data = matrix->data_map;
@@ -55,20 +55,13 @@ parsec_matrix_destroy_data( parsec_tiled_matrix_dc_t* matrix )
     }
 }
 
-parsec_data_t*
-fake_data_of(parsec_data_collection_t *mat, ...)
-{
-    return parsec_matrix_create_data( (parsec_tiled_matrix_dc_t*)mat, NULL,
-                                     0, 0 );
-}
-
 /***************************************************************************/
 /**
  *  Internal static descriptor initializer
  **/
-void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
-                             enum matrix_type    mtyp,
-                             enum matrix_storage storage,
+void parsec_tiled_matrix_init( parsec_tiled_matrix_t *tdesc,
+                             parsec_matrix_type_t    mtyp,
+                             parsec_matrix_storage_t storage,
                              int dtype, int nodes, int myrank,
                              int mb, int nb,
                              int lm, int ln,
@@ -97,8 +90,8 @@ void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
     tdesc->data_map = NULL;
     tdesc->mtype    = mtyp;
     tdesc->storage  = storage;
-    tdesc->dtype    = parsec_tiled_matrix_dc_type | dtype;
-    tdesc->tileld   = (storage == matrix_Tile) ? mb : lm;
+    tdesc->dtype    = parsec_matrix_type | dtype;
+    tdesc->tileld   = (storage == PARSEC_MATRIX_TILE) ? mb : lm;
     tdesc->mb       = mb;
     tdesc->nb       = nb;
     tdesc->bsiz     = mb * nb;
@@ -114,7 +107,7 @@ void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
     tdesc->lnt = (ln%nb==0) ? (ln/nb) : (ln/nb+1);
 
     /* Update lm and ln to include the padding */
-    if ( storage != matrix_Lapack ) {
+    if ( storage != PARSEC_MATRIX_LAPACK ) {
         tdesc->lm = tdesc->lmt * tdesc->mb;
         tdesc->ln = tdesc->lnt * tdesc->nb;
     }
@@ -144,7 +137,7 @@ void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
     ptrdiff_t extent;
     parsec_translate_matrix_type( tdesc->mtype, &elem_dt );
     if( PARSEC_SUCCESS != parsec_matrix_define_datatype(&o->default_dtt, elem_dt,
-                                              matrix_UpperLower, 1 /*diag*/,
+                                              PARSEC_MATRIX_FULL, 1 /*diag*/,
                                               tdesc->mb, tdesc->nb, tdesc->mb /*ld*/,
                                               -1/*resized*/, &extent)){
         parsec_fatal("Unable to create a datatype for the data collection.");
@@ -154,22 +147,22 @@ void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
 }
 
 void
-parsec_tiled_matrix_dc_destroy( parsec_tiled_matrix_dc_t *tdesc )
+parsec_tiled_matrix_destroy( parsec_tiled_matrix_t *tdesc )
 {
     parsec_data_collection_t *dc = (parsec_data_collection_t*)tdesc;
     parsec_type_free(&dc->default_dtt);
 
-    parsec_matrix_destroy_data( tdesc );
+    parsec_tiled_matrix_destroy_data( tdesc );
     parsec_data_collection_destroy( dc );
 }
 
 
-parsec_tiled_matrix_dc_t *
-tiled_matrix_submatrix( parsec_tiled_matrix_dc_t *tdesc,
+parsec_tiled_matrix_t *
+parsec_tiled_matrix_submatrix( parsec_tiled_matrix_t *tdesc,
                         int i, int j, int m, int n)
 {
     int mb, nb;
-    parsec_tiled_matrix_dc_t *newdesc;
+    parsec_tiled_matrix_t *newdesc;
 
     mb = tdesc->mb;
     nb = tdesc->nb;
@@ -191,17 +184,17 @@ tiled_matrix_submatrix( parsec_tiled_matrix_dc_t *tdesc,
         return NULL;
     }
 
-    if( tdesc->dtype & two_dim_block_cyclic_type ) {
-        newdesc = (parsec_tiled_matrix_dc_t*) malloc ( sizeof(two_dim_block_cyclic_t) );
-        memcpy( newdesc, tdesc, sizeof(two_dim_block_cyclic_t) );
+    if( tdesc->dtype & parsec_matrix_block_cyclic_type ) {
+        newdesc = (parsec_tiled_matrix_t*) malloc ( sizeof(parsec_matrix_block_cyclic_t) );
+        memcpy( newdesc, tdesc, sizeof(parsec_matrix_block_cyclic_t) );
     }
-    else if( tdesc->dtype & sym_two_dim_block_cyclic_type ) {
-        newdesc = (parsec_tiled_matrix_dc_t*) malloc ( sizeof(sym_two_dim_block_cyclic_t) );
-        memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
+    else if( tdesc->dtype & parsec_matrix_sym_block_cyclic_type ) {
+        newdesc = (parsec_tiled_matrix_t*) malloc ( sizeof(parsec_matrix_sym_block_cyclic_t) );
+        memcpy( newdesc, tdesc, sizeof(parsec_matrix_sym_block_cyclic_t) );
     }
-    else if( tdesc->dtype & two_dim_tabular_type ) {
-        newdesc = (parsec_tiled_matrix_dc_t*) malloc ( sizeof(two_dim_tabular_t) );
-        memcpy( newdesc, tdesc, sizeof(two_dim_tabular_t) );
+    else if( tdesc->dtype & parsec_matrix_tabular_type ) {
+        newdesc = (parsec_tiled_matrix_t*) malloc ( sizeof(parsec_matrix_tabular_t) );
+        memcpy( newdesc, tdesc, sizeof(parsec_matrix_tabular_t) );
     } else {
         parsec_warning("Type not completely defined");
         return NULL;
@@ -221,10 +214,10 @@ tiled_matrix_submatrix( parsec_tiled_matrix_dc_t *tdesc,
 /* return a unique key (unique only for the specified parsec_dc) associated to a data */
 static parsec_data_key_t tiled_matrix_data_key(struct parsec_data_collection_s *desc, ...)
 {
-    parsec_tiled_matrix_dc_t * dc;
+    parsec_tiled_matrix_t * dc;
     unsigned int m, n;
     va_list ap;
-    dc = (parsec_tiled_matrix_dc_t*)desc;
+    dc = (parsec_tiled_matrix_t*)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -242,10 +235,10 @@ static parsec_data_key_t tiled_matrix_data_key(struct parsec_data_collection_s *
 static int  tiled_matrix_key_to_string(struct parsec_data_collection_s *desc, parsec_data_key_t datakey, char * buffer, uint32_t buffer_size)
 /* return a string meaningful for profiling about data */
 {
-    parsec_tiled_matrix_dc_t * dc;
+    parsec_tiled_matrix_t * dc;
     unsigned int m, n;
     int res;
-    dc = (parsec_tiled_matrix_dc_t*)desc;
+    dc = (parsec_tiled_matrix_t*)desc;
     m = datakey % dc->lmt;
     n = datakey / dc->lmt;
     res = snprintf(buffer, buffer_size, "(%u, %u)", m, n);
@@ -260,7 +253,7 @@ static int  tiled_matrix_key_to_string(struct parsec_data_collection_s *desc, pa
  * Writes the data into the file filename
  * Sequential function per node
  */
-int tiled_matrix_data_write(parsec_tiled_matrix_dc_t *tdesc, char *filename)
+int parsec_tiled_matrix_data_write(parsec_tiled_matrix_t *tdesc, char *filename)
 {
     parsec_data_collection_t *dc = &(tdesc->super);
     parsec_data_t* data;
@@ -276,7 +269,7 @@ int tiled_matrix_data_write(parsec_tiled_matrix_dc_t *tdesc, char *filename)
         return PARSEC_ERR_NOT_FOUND;
     }
 
-    if ( tdesc->storage == matrix_Tile ) {
+    if ( tdesc->storage == PARSEC_MATRIX_TILE ) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( dc->rank_of( dc, i, j ) == myrank ) {
@@ -308,7 +301,7 @@ int tiled_matrix_data_write(parsec_tiled_matrix_dc_t *tdesc, char *filename)
  * Read the data from the file filename
  * Sequential function per node
  */
-int tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename)
+int parsec_tiled_matrix_data_read(parsec_tiled_matrix_t *tdesc, char *filename)
 {
     parsec_data_collection_t *dc = &(tdesc->super);
     parsec_data_t* data;
@@ -324,7 +317,7 @@ int tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename)
         return -1;
     }
 
-    if ( tdesc->storage == matrix_Tile ) {
+    if ( tdesc->storage == PARSEC_MATRIX_TILE ) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( dc->rank_of( dc, i, j ) == myrank ) {

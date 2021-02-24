@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The University of Tennessee and The University
+ * Copyright (c) 2018-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,16 +15,17 @@
 #endif
 
 /* New structure */
-typedef struct two_dim_block_cyclic_band_s {
-    parsec_tiled_matrix_dc_t super;
-    two_dim_block_cyclic_t band;
-    two_dim_block_cyclic_t off_band;
-    unsigned int band_size;     /** Number of band rows = 2 * band_size - 1 */ 
-} two_dim_block_cyclic_band_t;
+typedef struct parsec_matrix_block_cyclic_band_s {
+    parsec_tiled_matrix_t super;
+    parsec_matrix_block_cyclic_t band;
+    parsec_matrix_block_cyclic_t off_band;
+    unsigned int band_size;     /** Number of band rows = 2 * band_size - 1 */
+} parsec_matrix_block_cyclic_band_t;
 
-/* 
- * two_dim_block_cyclic_band_t structure init 
+/*
+ * two_dim_block_cyclic_band_t structure init
  * It inherits from off-band, so should be called after initialization of off_band
  */
-void two_dim_block_cyclic_band_init( two_dim_block_cyclic_band_t *desc,
-                                     int nodes, int myrank, int band_size );
+void parsec_matrix_block_cyclic_band_init(
+    parsec_matrix_block_cyclic_band_t *desc,
+    int nodes, int myrank, int band_size );

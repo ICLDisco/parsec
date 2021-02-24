@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2020 The University of Tennessee and The University
+ * Copyright (c) 2019-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -34,14 +34,14 @@ stage_stride_in(parsec_gpu_task_t *gtask,
     parsec_data_copy_t * copy_out;
     parsec_task_t *task = gtask->ec;
     parsec_device_gpu_module_t *in_elem_dev;
-    parsec_tiled_matrix_dc_t * dc;
+    parsec_tiled_matrix_t * dc;
     int elem_sz;
     int i;
     for(i = 0; i < task->task_class->nb_flows; i++){
         if(flow_mask & (1U << i)){
             copy_in = task->data[i].data_in;
             copy_out = task->data[i].data_out;
-            dc = (parsec_tiled_matrix_dc_t*)gtask->flow_dc[i];
+            dc = (parsec_tiled_matrix_t*)gtask->flow_dc[i];
             elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
             in_elem_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get( copy_in->device_index);
             if(in_elem_dev->super.type != PARSEC_DEV_CUDA ){
@@ -81,14 +81,14 @@ stage_stride_out(parsec_gpu_task_t *gtask,
     parsec_data_copy_t * copy_in;
     parsec_data_copy_t * copy_out;
     parsec_task_t *task = gtask->ec;
-    parsec_tiled_matrix_dc_t * dc;
+    parsec_tiled_matrix_t * dc;
     int elem_sz;
     int i;
     for(i = 0; i < task->task_class->nb_flows; i++){
         if(flow_mask & (1U << i)){
             copy_in = task->data[i].data_out;
             copy_out = copy_in->original->device_copies[0];
-            dc = (parsec_tiled_matrix_dc_t*)gtask->flow_dc[i];
+            dc = (parsec_tiled_matrix_t*)gtask->flow_dc[i];
             elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
             /* copy width bytes heigth times, skipping pitch - width bytes every time */
             size_t dpitch = dc->llm * elem_sz;
@@ -122,8 +122,8 @@ typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
  */
 
 
-descA  [type = "parsec_tiled_matrix_dc_t*"]
-descB  [type = "parsec_tiled_matrix_dc_t*"]
+descA  [type = "parsec_tiled_matrix_t*"]
+descB  [type = "parsec_tiled_matrix_t*"]
 OUT    [type = "int*"]
 
 /**************************************************
@@ -244,9 +244,9 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
     int KP = 1;
     int KQ = 1;
 
-    two_dim_block_cyclic_t *descA;
-    descA = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
-    two_dim_block_cyclic_init(descA, matrix_RealDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_t *descA;
+    descA = (parsec_matrix_block_cyclic_t*)calloc(1, sizeof(parsec_matrix_block_cyclic_t));
+    parsec_matrix_block_cyclic_init(descA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                               ctx->my_rank, MB, NB, M, N, 0, 0,
                               M, N, P, ctx->nb_nodes/P, KP, KQ, 0, 0);
 
@@ -256,9 +256,9 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
                                        (size_t)parsec_datadist_getsizeoftype(descA->super.mtype));
     parsec_data_collection_set_key((parsec_data_collection_t*)descA, "descA");
 
-    two_dim_block_cyclic_t *descB;
-    descB = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
-    two_dim_block_cyclic_init(descB, matrix_RealDouble, matrix_Lapack,
+    parsec_matrix_block_cyclic_t *descB;
+    descB = (parsec_matrix_block_cyclic_t*)calloc(1, sizeof(parsec_matrix_block_cyclic_t));
+    parsec_matrix_block_cyclic_init(descB, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_LAPACK,
                               ctx->my_rank, MB, NB, M, N, 0, 0,
                               M, N, P, ctx->nb_nodes/P, KP, KQ, 0, 0);
     descB->mat = parsec_data_allocate( (size_t) nelems *
@@ -295,7 +295,7 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
 //            &((double*)descB->mat)[i], ((double*)descB->mat)[i]);
 //    }
 
-    testing_handle = parsec_stage_custom_new((parsec_tiled_matrix_dc_t*)descA, (parsec_tiled_matrix_dc_t*)descB, ret);
+    testing_handle = parsec_stage_custom_new((parsec_tiled_matrix_t*)descA, (parsec_tiled_matrix_t*)descB, ret);
 
     return &testing_handle->super;
 }
@@ -303,13 +303,13 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
 static void
 __parsec_taskpool_stage_custom_destructor(parsec_stage_custom_taskpool_t *stage_custom_taskpool)
 {
-    two_dim_block_cyclic_t *descA = (two_dim_block_cyclic_t*)stage_custom_taskpool->_g_descA;
-    two_dim_block_cyclic_t *descB = (two_dim_block_cyclic_t*)stage_custom_taskpool->_g_descB;
+    parsec_matrix_block_cyclic_t *descA = (parsec_matrix_block_cyclic_t*)stage_custom_taskpool->_g_descA;
+    parsec_matrix_block_cyclic_t *descB = (parsec_matrix_block_cyclic_t*)stage_custom_taskpool->_g_descB;
 
     parsec_data_free(descA->mat);
-    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)stage_custom_taskpool->_g_descA );
+    parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)stage_custom_taskpool->_g_descA );
     parsec_data_free(descB->mat);
-    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)stage_custom_taskpool->_g_descB );
+    parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)stage_custom_taskpool->_g_descB );
     free(descA);
     free(descB);
 }

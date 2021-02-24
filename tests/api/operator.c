@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The University of Tennessee and The University
+ * Copyright (c) 2011-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -37,7 +37,7 @@ int main( int argc, char* argv[] )
 {
     parsec_context_t* parsec;
     parsec_taskpool_t* op;
-    two_dim_block_cyclic_t dcA;
+    parsec_matrix_block_cyclic_t dcA;
     int cores = -1, world = 1, rank = 0;
     int mb = 100, nb = 100;
     int lm = 1000, ln = 1000;
@@ -54,7 +54,7 @@ int main( int argc, char* argv[] )
 
     parsec = parsec_init(cores, &argc, &argv);
 
-    two_dim_block_cyclic_init( &dcA, matrix_RealFloat, matrix_Tile,
+    parsec_matrix_block_cyclic_init( &dcA, PARSEC_MATRIX_FLOAT, PARSEC_MATRIX_TILE,
                                rank, mb, nb, lm, ln, 0, 0, lm, ln,
                                rows, world/rows, 1, 1, 0, 0);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
@@ -62,7 +62,7 @@ int main( int argc, char* argv[] )
                                      (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
 
     parsec_data_collection_set_key(&dcA.super.super, "A");
-    op = parsec_map_operator_New((parsec_tiled_matrix_dc_t*)&dcA,
+    op = parsec_map_operator_New((parsec_tiled_matrix_t*)&dcA,
                                   NULL,
                                   parsec_operator_print_id,
                                   "A");

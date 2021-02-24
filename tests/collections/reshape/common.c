@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,8 +7,8 @@
 #include "common.h"
 
 int reshape_set_matrix_value(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args)
 {
     int *A = (int *)_A;
@@ -24,8 +24,8 @@ int reshape_set_matrix_value(parsec_execution_stream_t *es,
 }
 
 int reshape_set_matrix_value_count(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args)
 {
     int *A = (int *)_A;
@@ -41,8 +41,8 @@ int reshape_set_matrix_value_count(parsec_execution_stream_t *es,
 }
 
 int reshape_set_matrix_value_count_lower2upper_matrix(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args)
 {
     int *A = (int *)_A;
@@ -78,8 +78,8 @@ int reshape_set_matrix_value_count_lower2upper_matrix(parsec_execution_stream_t 
 
 
 int reshape_set_matrix_value_lower_tile(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args)
 {
     int *A = (int *)_A;
@@ -101,8 +101,8 @@ int reshape_set_matrix_value_lower_tile(parsec_execution_stream_t *es,
 }
 
 int reshape_set_matrix_value_position(parsec_execution_stream_t *es,
-                                      const parsec_tiled_matrix_dc_t *descA,
-                                      void *_A, enum matrix_uplo uplo,
+                                      const parsec_tiled_matrix_t *descA,
+                                      void *_A, parsec_matrix_uplo_t uplo,
                                       int m, int n, void *args)
 {
     int *A = (int *)_A;
@@ -118,8 +118,8 @@ int reshape_set_matrix_value_position(parsec_execution_stream_t *es,
 }
 
 int reshape_set_matrix_value_position_swap(parsec_execution_stream_t *es,
-                                      const parsec_tiled_matrix_dc_t *descA,
-                                      void *_A, enum matrix_uplo uplo,
+                                      const parsec_tiled_matrix_t *descA,
+                                      void *_A, parsec_matrix_uplo_t uplo,
                                       int m, int n, void *args)
 {
     int *A = (int *)_A;
@@ -156,7 +156,7 @@ int reshape_set_matrix_value_position_swap(parsec_execution_stream_t *es,
     return 0;
 }
 
-int check_matrix_equal(two_dim_block_cyclic_t dcA, two_dim_block_cyclic_t dcA_check){
+int check_matrix_equal(parsec_matrix_block_cyclic_t dcA, parsec_matrix_block_cyclic_t dcA_check){
     int ret = 0;
     for(int i=0; i < dcA_check.super.nb_local_tiles * dcA_check.super.bsiz; i++){
         if( ((int*)dcA.mat)[i] != ((int*)dcA_check.mat)[i]){
@@ -172,8 +172,8 @@ int check_matrix_equal(two_dim_block_cyclic_t dcA, two_dim_block_cyclic_t dcA_ch
 
 
 int reshape_print(parsec_execution_stream_t *es,
-                  const parsec_tiled_matrix_dc_t *descA,
-                  void *_A, enum matrix_uplo uplo,
+                  const parsec_tiled_matrix_t *descA,
+                  void *_A, parsec_matrix_uplo_t uplo,
                   int m, int n, void *args)
 {
     int *A = (int *)_A;

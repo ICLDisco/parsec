@@ -24,7 +24,7 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
 {
     parsec_stress_taskpool_t* testing_handle = NULL;
     int *dev_index, nb, dev, i;
-    two_dim_block_cyclic_t *dcA;
+    parsec_matrix_block_cyclic_t *dcA;
 
     /** Find all CUDA devices */
     nb = 0;
@@ -51,8 +51,8 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
         }
     }
 
-    dcA = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
-    two_dim_block_cyclic_init(dcA, matrix_RealDouble, matrix_Tile,
+    dcA = (parsec_matrix_block_cyclic_t*)calloc(1, sizeof(parsec_matrix_block_cyclic_t));
+    parsec_matrix_block_cyclic_init(dcA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                               ctx->my_rank,
                               mb, mb,
                               depth*mb, ctx->nb_nodes*mb,
@@ -72,9 +72,10 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
 
     testing_handle = parsec_stress_new(dcA, ctx->nb_nodes, nb, dev_index);
 
-    parsec_matrix_add2arena( &testing_handle->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX],
+    parsec_tiled_matrix_add2arena( &testing_handle->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX],
                              parsec_datatype_double_complex_t,
-                             matrix_UpperLower, 1, mb, mb, mb,
+                             PARSEC_MATRIX_FULL, 1, mb, mb, mb,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
     return &testing_handle->super;
 }
+

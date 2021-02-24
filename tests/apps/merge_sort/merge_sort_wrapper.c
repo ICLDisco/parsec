@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,6 +7,7 @@
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
 #include "parsec/arena.h"
+#include "parsec/data_dist/matrix/matrix.h"
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
@@ -23,7 +24,7 @@
  *
  * @return the parsec object to schedule.
  */
-parsec_taskpool_t* merge_sort_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
+parsec_taskpool_t* merge_sort_new(parsec_tiled_matrix_t *A, int nb, int nt)
 {
     parsec_merge_sort_taskpool_t *tp = NULL;
 

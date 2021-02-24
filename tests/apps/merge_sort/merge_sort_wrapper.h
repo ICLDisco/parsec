@@ -5,6 +5,6 @@
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/matrix.h"
 
-parsec_taskpool_t *merge_sort_new(parsec_tiled_matrix_dc_t *A, int size, int nt);
+parsec_taskpool_t *merge_sort_new(parsec_tiled_matrix_t *A, int size, int nt);
 
 #endif

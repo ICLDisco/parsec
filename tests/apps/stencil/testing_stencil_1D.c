@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 The University of Tennessee and The University
+ * Copyright (c) 2019-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -143,8 +143,8 @@ int main(int argc, char *argv[])
 
     /* initializing matrix structure */
     /* Y */
-    two_dim_block_cyclic_t dcA;
-    two_dim_block_cyclic_init(&dcA, matrix_RealDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_t dcA;
+    parsec_matrix_block_cyclic_init(&dcA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                                 rank, MB, NB+2*R, M, N+2*R*NNB, 0, 0,
                                 M, N+2*R*NNB,
                                 P, nodes/P, KP, KQ, 0, 0);
@@ -159,9 +159,9 @@ int main(int argc, char *argv[])
      */
     int *op_args = (int *)malloc(sizeof(int));
     *op_args = R;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)stencil_1D_init_ops, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)stencil_1D_init_ops, op_args);
 
     /* intialize weight_1D */
     weight_1D = (DTYPE *)malloc(sizeof(DTYPE) * (2*R+1));
@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
 
     /* Stencil_1D */
     SYNC_TIME_START();
-    parsec_stencil_1D(parsec, (parsec_tiled_matrix_dc_t *)&dcA, iter, R);
+    parsec_stencil_1D(parsec, (parsec_tiled_matrix_t *)&dcA, iter, R);
     SYNC_TIME_PRINT(rank, ("Stencil" "\tN= %d NB= %d M= %d MB= %d "
                            "PxQ= %d %d KPxKQ= %d %d "
                            "Iteration= %d Radius= %d Kernel_type= %d "
@@ -199,7 +199,7 @@ int main(int argc, char *argv[])
                            MMB, cores, gflops=(flops/1e9)/sync_time_elapsed));
 
     parsec_data_free(dcA.mat);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 
     /* Clean up parsec*/
     parsec_fini(&parsec);

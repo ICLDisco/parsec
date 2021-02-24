@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2017-2020 The Universiy of Tennessee and The Universiy
+ * Copyright (c) 2017-2021 The Universiy of Tennessee and The Universiy
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  */
@@ -9,10 +9,10 @@ extern "C" %{
 
 %} 
     
-descY [ type = "parsec_tiled_matrix_dc_t*" ]
+descY [ type = "parsec_tiled_matrix_t*" ]
 uplo  [ type = "int" ]
-matrix_upper [ type = "int" hidden = on default = matrix_Upper ]
-matrix_lower [ type = "int" hidden = on default = matrix_Lower ]
+matrix_upper [ type = "int" hidden = on default = PARSEC_MATRIX_UPPER ]
+matrix_lower [ type = "int" hidden = on default = PARSEC_MATRIX_LOWER ]
 
 /**************************************************
  *                   L_Free                       *
@@ -78,7 +78,7 @@ extern "C" %{
  * @return the parsec object to schedule.
  */
 parsec_taskpool_t*
-parsec_two_dim_band_free_New(parsec_tiled_matrix_dc_t *Y, int uplo)
+parsec_two_dim_band_free_New(parsec_tiled_matrix_t *Y, int uplo)
 {
     parsec_taskpool_t* two_dim_band_free_taskpool;
     parsec_two_dim_band_free_taskpool_t* taskpool = NULL;
@@ -104,12 +104,12 @@ void parsec_two_dim_band_free_Destruct(parsec_taskpool_t *taskpool)
  * @param [in] uplo: Upper / Lower / UpperLower
  */
 int parsec_two_dim_band_free(parsec_context_t *parsec,
-                        parsec_tiled_matrix_dc_t *dcY, int uplo)
+                        parsec_tiled_matrix_t *dcY, int uplo)
 {
     parsec_taskpool_t *parsec_two_dim_band_free = NULL;
 
     parsec_two_dim_band_free = parsec_two_dim_band_free_New( 
-                               (parsec_tiled_matrix_dc_t *)dcY, uplo);
+                               (parsec_tiled_matrix_t *)dcY, uplo);
 
     if( parsec_two_dim_band_free != NULL ){
         parsec_enqueue(parsec, parsec_two_dim_band_free);

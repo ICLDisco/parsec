@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2020      The University of Tennessee and The University
+ * Copyright (c) 2020-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -57,8 +57,8 @@ END
 
 extern "C" %{
 
-#define TYPE  matrix_Integer
-static two_dim_block_cyclic_t descA;
+#define TYPE  PARSEC_MATRIX_INTEGER
+static parsec_matrix_block_cyclic_t descA;
 
 int main(int argc, char* argv[])
 {
@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
         exit(-1);
     }
 
-    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+    parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,
                                0 /*rank*/,
                                block, 1, n, 1,
                                0, 0, n, n,

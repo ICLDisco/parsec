@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -27,8 +27,8 @@ int main(int argc, char *argv[])
     int rank, nodes, ch;
     int ret = 0, cret;
     int *op_args;
-    two_dim_block_cyclic_t dcA;
-    two_dim_block_cyclic_t dcA_check;
+    parsec_matrix_block_cyclic_t dcA;
+    parsec_matrix_block_cyclic_t dcA_check;
     parsec_taskpool_t * tp;
 
     /* Default */
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     DO_INI_DATATYPES();
 
     /* Matrix allocation */
-    two_dim_block_cyclic_init(&dcA, matrix_Integer, matrix_Tile,
+    parsec_matrix_block_cyclic_init(&dcA, PARSEC_MATRIX_INTEGER, PARSEC_MATRIX_TILE,
                               rank, MB, NB, M, N, 0, 0,
                               M, N, P, nodes/P, KP, KQ, 0, 0);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
                                    (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcA, "dcA");
 
-    two_dim_block_cyclic_init(&dcA_check, matrix_Integer, matrix_Tile,
+    parsec_matrix_block_cyclic_init(&dcA_check, PARSEC_MATRIX_INTEGER, PARSEC_MATRIX_TILE,
                               rank, MB, NB, M, N, 0, 0,
                               M, N, P, nodes/P, KP, KQ, 0, 0);
     dcA_check.mat = parsec_data_allocate((size_t)dcA_check.super.nb_local_tiles *
@@ -71,19 +71,19 @@ int main(int argc, char *argv[])
      *******************/
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_count, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count, op_args);
 
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 0;
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA_check,
-                  (tiled_matrix_unary_op_t)reshape_set_matrix_value_count, op_args);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA_check,
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count, op_args);
 
     {
       parsec_avoidable_reshape_taskpool_t *ctp = NULL;
-      ctp = parsec_avoidable_reshape_new((parsec_tiled_matrix_dc_t *)&dcA );
+      ctp = parsec_avoidable_reshape_new((parsec_tiled_matrix_t *)&dcA );
 
       ctp->arenas_datatypes[PARSEC_avoidable_reshape_DEFAULT_ADT_IDX]    = adt_default;
 
@@ -108,10 +108,10 @@ int main(int argc, char *argv[])
     DO_FINI_DATATYPES();
 
     parsec_data_free(dcA.mat);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 
     parsec_data_free(dcA_check.mat);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA_check);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA_check);
 
     parsec_fini(&parsec);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2020 The University of Tennessee and The University
+ * Copyright (c) 2011-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -24,8 +24,8 @@ int parsec_map_operator_profiling_array[2] = {-1};
 
 typedef struct parsec_map_operator_taskpool {
     parsec_taskpool_t               super;
-    const parsec_tiled_matrix_dc_t* src;
-          parsec_tiled_matrix_dc_t* dest;
+    const parsec_tiled_matrix_t* src;
+          parsec_tiled_matrix_t* dest;
     volatile int32_t                next_n;
     parsec_operator_t               op;
     void*                           op_data;
@@ -536,8 +536,8 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_map_operator_taskpool_t, parsec_taskpool_t,
  * flow.
  */
 parsec_taskpool_t*
-parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
-                        parsec_tiled_matrix_dc_t* dest,
+parsec_map_operator_New(const parsec_tiled_matrix_t* src,
+                        parsec_tiled_matrix_t* dest,
                         parsec_operator_t op,
                         void* op_data)
 {

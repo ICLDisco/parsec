@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -14,9 +14,10 @@
 #include <math.h>
 #include <assert.h>
 
+static
 int default_vp_data_dist();
 
-void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, int myrank, int P, int Q, int kp, int kq, int ip, int jq)
+void parsec_grid_2Dcyclic_init(parsec_grid_2Dcyclic_t *grid, int myrank, int P, int Q, int kp, int kq, int ip, int jq)
 {
     /* Filling matrix description with user parameter */
     grid->rank = myrank ;
@@ -41,7 +42,7 @@ void grid_2Dcyclic_init(grid_2Dcyclic_t *grid, int myrank, int P, int Q, int kp,
     grid->vp_p = vpmap_get_nb_vp()/default_vp_data_dist();
 }
 
-
+static
 int default_vp_data_dist()
 {
     int p, q, pq;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -118,18 +118,18 @@ int main(int argc, char *argv[])
 
     /* Initializing matrix structure */
     /* Initializing dcY */
-    two_dim_tabular_t dcY;
-    two_dim_tabular_init( &dcY, matrix_RealDouble,
+    parsec_matrix_tabular_t dcY;
+    parsec_matrix_tabular_init( &dcY, PARSEC_MATRIX_DOUBLE,
                           nodes, rank, MB+2*R, NB+2*R, M+2*R*MMB, N+2*R*NNB, 0, 0,
                           M+2*R*MMB, N+2*R*NNB, NULL);
-    two_dim_tabular_set_random_table( &dcY, Yseed );
+    parsec_matrix_tabular_set_random_table( &dcY, Yseed );
 
     /* Initializing dcT */
-    two_dim_tabular_t dcT;
-    two_dim_tabular_init( &dcT, matrix_RealDouble,
+    parsec_matrix_tabular_t dcT;
+    parsec_matrix_tabular_init( &dcT, PARSEC_MATRIX_DOUBLE,
                           nodes, rank, MBR+2*R, NBR+2*R, MR+2*R*MMBR, NR+2*R*NNBR, 0, 0,
                           MR+2*R*MMBR, NR+2*R*NNBR, NULL);
-    two_dim_tabular_set_random_table( &dcT, Tseed );
+    parsec_matrix_tabular_set_random_table( &dcT, Tseed );
 
     for(int i = 0; i < num_runs; i++) {
 #if RUN_PTG
@@ -138,10 +138,10 @@ int main(int argc, char *argv[])
          * init to 0; otherwise init to numbers based on index 
          */ 
         int *op_args = (int *)malloc(sizeof(int));
-        *op_args = 1;
-        parsec_apply( parsec, matrix_UpperLower,
-                      (parsec_tiled_matrix_dc_t *)&dcY,
-                      (tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+	    *op_args = 1;
+	    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                     (parsec_tiled_matrix_t *)&dcY,
+                     (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
 
         /* Timer start */ 
         SYNC_TIME_START();
@@ -150,13 +150,13 @@ int main(int argc, char *argv[])
          * changed in parsec/data_dist/matrix/redistribute/redistribute_internal.h
          */
         if( no_optimization_version )
-            parsec_redistribute_no_optimization(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-                                                (parsec_tiled_matrix_dc_t *)&dcT,
+            parsec_redistribute_no_optimization(parsec, (parsec_tiled_matrix_t *)&dcY,
+                                                (parsec_tiled_matrix_t *)&dcT,
                                                 size_row, size_col, disi_Y, disj_Y,
                                                 disi_T, disj_T);
         else
-            parsec_redistribute(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-                                (parsec_tiled_matrix_dc_t *)&dcT,
+            parsec_redistribute(parsec, (parsec_tiled_matrix_t *)&dcY,
+                                (parsec_tiled_matrix_t *)&dcT,
                                 size_row, size_col, disi_Y, disj_Y,
                                 disi_T, disj_T);
 
@@ -182,26 +182,28 @@ int main(int argc, char *argv[])
                 printf("Checking result for PTG:");
 
 #if COPY_TO_1NODE
-            parsec_redistribute_check(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-                                      (parsec_tiled_matrix_dc_t *)&dcT,
+            parsec_redistribute_check(parsec, (parsec_tiled_matrix_t *)&dcY,
+                                      (parsec_tiled_matrix_t *)&dcT,
                                       size_row, size_col, disi_Y, disj_Y,
                                       disi_T, disj_T);
 #else 
+
             /* Init dcY to 0 */
             int *op_args = (int *)malloc(sizeof(int));
             *op_args = 0;
-            parsec_apply( parsec, matrix_UpperLower,
-                          (parsec_tiled_matrix_dc_t *)&dcY,
-                          (tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+            parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                          (parsec_tiled_matrix_t *)&dcY,
+                          (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
 
             /* Redistribute back from dcT to dcY */
-            parsec_redistribute(parsec, (parsec_tiled_matrix_dc_t *)&dcT,
-                                (parsec_tiled_matrix_dc_t *)&dcY,
+            parsec_redistribute(parsec, (parsec_tiled_matrix_t *)&dcT,
+                                (parsec_tiled_matrix_t *)&dcY,
                                 size_row, size_col, disi_T, disj_T,
                                 disi_Y, disj_Y);
 
-            parsec_redistribute_check2(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
+            parsec_redistribute_check2(parsec, (parsec_tiled_matrix_t *)&dcY,
                                        size_row, size_col, disi_Y, disj_Y);
+
 #endif /* COPY_TO_1NODE */
         }
 #endif /* RUN_PTG */
@@ -212,9 +214,9 @@ int main(int argc, char *argv[])
          */
         int *op_args_dtd = (int *)malloc(sizeof(int));
         *op_args_dtd = 0;
-        parsec_apply( parsec, matrix_UpperLower,
-                      (parsec_tiled_matrix_dc_t *)&dcT,
-                      (tiled_matrix_unary_op_t)redistribute_init_ops, op_args_dtd);
+        parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                      (parsec_tiled_matrix_t *)&dcT,
+                      (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args_dtd);
 
         /* Timer start */
         SYNC_TIME_START();
@@ -222,8 +224,8 @@ int main(int argc, char *argv[])
         /* Main part, call parsec_redistribute_dtd; double is default, which could be
          * changed in parsec/data_dist/matrix/redistribute/redistribute_internal.h
          */
-        parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-                                (parsec_tiled_matrix_dc_t *)&dcT,
+        parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_t *)&dcY,
+                                (parsec_tiled_matrix_t *)&dcT,
                                 size_row, size_col, disi_Y, disj_Y,
                                 disi_T, disj_T);
 
@@ -249,25 +251,25 @@ int main(int argc, char *argv[])
                 printf("Checking result for DTD:");
 
 #if COPY_TO_1NODE
-            parsec_redistribute_check(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-                                      (parsec_tiled_matrix_dc_t *)&dcT,
+            parsec_redistribute_check(parsec, (parsec_tiled_matrix_t *)&dcY,
+                                      (parsec_tiled_matrix_t *)&dcT,
                                       size_row, size_col, disi_Y, disj_Y,
                                       disi_T, disj_T);
 #else
             /* Init dcY to 0 */
             int *op_args = (int *)malloc(sizeof(int));
             *op_args = 0;
-            parsec_apply( parsec, matrix_UpperLower,
-                          (parsec_tiled_matrix_dc_t *)&dcY,
-                          (tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+            parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                          (parsec_tiled_matrix_t *)&dcY,
+                          (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
 
             /* Redistribute back from dcT to dcY */
-            parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_dc_t *)&dcT,
-                                    (parsec_tiled_matrix_dc_t *)&dcY,
+            parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_t *)&dcT,
+                                    (parsec_tiled_matrix_t *)&dcY,
                                     size_row, size_col, disi_T, disj_T,
                                     disi_Y, disj_Y);
 
-            parsec_redistribute_check2(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
+            parsec_redistribute_check2(parsec, (parsec_tiled_matrix_t *)&dcY,
                                        size_row, size_col, disi_Y, disj_Y);
 #endif /* COPY_TO_1NODE */
         }
@@ -278,8 +280,8 @@ int main(int argc, char *argv[])
             SYNC_TIME_START();
 
             /* Call parsec_redistribute_bound to get time bound */
-            results = parsec_redistribute_bound(parsec, (parsec_tiled_matrix_dc_t *)&dcY,
-                                                (parsec_tiled_matrix_dc_t *)&dcT,
+            results = parsec_redistribute_bound(parsec, (parsec_tiled_matrix_t *)&dcY,
+                                                (parsec_tiled_matrix_t *)&dcT,
                                                 size_row, size_col, disi_Y, disj_Y,
                                                 disi_T, disj_T);
 
@@ -337,8 +339,8 @@ int main(int argc, char *argv[])
     }
 
     /* Free memory */
-    two_dim_tabular_destroy( &dcY );
-    two_dim_tabular_destroy( &dcT );
+    parsec_matrix_tabular_destroy( &dcY );
+    parsec_matrix_tabular_destroy( &dcT );
 
     cleanup_parsec(parsec, iparam, dparam);
     return 0;

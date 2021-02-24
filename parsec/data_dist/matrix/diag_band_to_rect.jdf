@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2011-2018 The University of Tennessee and The University
+ * Copyright (c) 2011-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,8 +20,8 @@ extern "C" %{
 
 %}
 
-descA  [type = "sym_two_dim_block_cyclic_t*"]
-descB  [type = "two_dim_block_cyclic_t*"]
+descA  [type = "parsec_matrix_sym_block_cyclic_t*"]
+descB  [type = "parsec_matrix_block_cyclic_t*"]
 MT  [type = int]
 NT  [type = int]
 MB  [type = int]

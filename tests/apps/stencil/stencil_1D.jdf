@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2020 The Universiy of Tennessee and The Universiy
+ * Copyright (c) 2019-2021 The Universiy of Tennessee and The Universiy
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  */
@@ -64,7 +64,7 @@ static void CORE_copydata_stencil_1D(DTYPE *A0, DTYPE *AL, DTYPE *AR, int MB,
  * descA->lmt (number of tiles in row) is the number of buffers used,
  * which should not be smaller than 2, otherwise result is not correct !!!
  */
-descA       [ type = "parsec_tiled_matrix_dc_t*" ]
+descA       [ type = "parsec_tiled_matrix_t*" ]
 iter        [ type = "int" ]
 R           [ type = "int" ]
 
@@ -111,7 +111,7 @@ extern "C" %{
  * @param [in] R: radius
  */
 parsec_taskpool_t*
-parsec_stencil_1D_New(parsec_tiled_matrix_dc_t *dcA, int iter, int R)
+parsec_stencil_1D_New(parsec_tiled_matrix_t *dcA, int iter, int R)
 {
   parsec_taskpool_t* stencil_1D_taskpool;
   parsec_stencil_1D_taskpool_t* taskpool = NULL;
@@ -126,7 +126,7 @@ parsec_stencil_1D_New(parsec_tiled_matrix_dc_t *dcA, int iter, int R)
     exit(1);
   }
 
-  if( ((two_dim_block_cyclic_t *)dcA)->grid.rows != 1 ) {
+  if( ((parsec_matrix_block_cyclic_t *)dcA)->grid.rows != 1 ) {
     fprintf(stderr, "\n Row in Process grid should be 1 "
                     "to make all buffers local\n\n");
     exit(1);
@@ -135,13 +135,13 @@ parsec_stencil_1D_New(parsec_tiled_matrix_dc_t *dcA, int iter, int R)
   taskpool = parsec_stencil_1D_new(dcA, iter, R); 
   stencil_1D_taskpool = (parsec_taskpool_t*)taskpool;
 
-  parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX],
-                           MY_TYPE, matrix_UpperLower,
+  parsec_tiled_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX],
+                           MY_TYPE, PARSEC_MATRIX_FULL,
                            1, dcA->mb, dcA->nb, dcA->mb,
                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
   
-  parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX],
-                           MY_TYPE, matrix_UpperLower,
+  parsec_tiled_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX],
+                           MY_TYPE, PARSEC_MATRIX_FULL,
                            1, dcA->mb, R, dcA->mb,
                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
@@ -154,8 +154,8 @@ parsec_stencil_1D_New(parsec_tiled_matrix_dc_t *dcA, int iter, int R)
 void parsec_stencil_1D_Destruct(parsec_taskpool_t *taskpool)
 {
   parsec_stencil_1D_taskpool_t *stencil_1D_taskpool = (parsec_stencil_1D_taskpool_t *)taskpool;
-  parsec_matrix_del2arena(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX]);
-  parsec_matrix_del2arena(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX]);
+  parsec_tiled_matrix_del2arena(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX]);
+  parsec_tiled_matrix_del2arena(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX]);
   parsec_taskpool_free(taskpool);
 }
 
@@ -167,7 +167,7 @@ void parsec_stencil_1D_Destruct(parsec_taskpool_t *taskpool)
  * @param [in] R: radius 
  */
 int parsec_stencil_1D(parsec_context_t *parsec,
-                      parsec_tiled_matrix_dc_t *A,
+                      parsec_tiled_matrix_t *A,
                       int iter, int R)
 {
   parsec_taskpool_t *parsec_stencil_1D = NULL;

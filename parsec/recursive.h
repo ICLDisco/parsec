@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019 The University of Tennessee and The University
+ * Copyright (c) 2015-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -28,7 +28,7 @@ static inline int parsec_recursivecall_callback(parsec_taskpool_t* tp, void* cb_
     rc = __parsec_complete_execution(data->es, data->context);
 
     for(i=0; i<data->nbdesc; i++){
-        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(data->desc[i]) );
+        parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)(data->desc[i]) );
         free( data->desc[i] );
     }
 

@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world;
     tree_dist_t *treeA;
-    two_dim_block_cyclic_t fakeDesc;
+    parsec_matrix_block_cyclic_t fakeDesc;
     parsec_project_taskpool_t *project;
     parsec_walk_taskpool_t *walker;
     parsec_arena_datatype_t adt;
@@ -212,14 +212,14 @@ int main(int argc, char *argv[])
 
     treeA = tree_dist_create_empty(rank, world);
 
-    two_dim_block_cyclic_init(&fakeDesc, matrix_RealFloat, matrix_Tile,
+    parsec_matrix_block_cyclic_init(&fakeDesc, PARSEC_MATRIX_FLOAT, PARSEC_MATRIX_TILE,
                               rank,
                               1, 1, world, world,
                               0, 0, world, world,
                               1, world, 1, 1, 0, 0);
 
-    parsec_matrix_add2arena( &adt, parsec_datatype_float_t,
-                             matrix_Tile, 0,
+    parsec_tiled_matrix_add2arena( &adt, parsec_datatype_float_t,
+                             PARSEC_MATRIX_FULL, 0,
                              2, 1, 2,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
     }
 #endif  /* defined(HAVE_MPI) */
 
-    parsec_matrix_del2arena( & adt );
+    parsec_tiled_matrix_del2arena( & adt );
 
     parsec_taskpool_free(&project->super);
     parsec_taskpool_free(&walker->super);

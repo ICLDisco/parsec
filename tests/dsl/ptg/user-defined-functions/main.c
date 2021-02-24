@@ -127,9 +127,9 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    two_dim_block_cyclic_t A;
-    two_dim_block_cyclic_init(&A,
-                              matrix_ComplexDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_t A;
+    parsec_matrix_block_cyclic_init(&A,
+                              PARSEC_MATRIX_COMPLEX_DOUBLE, PARSEC_MATRIX_TILE,
                               rank, MB, NB, M, N, 0, 0,
                               M, N, P, world/P, 1, 1, 0, 0);
     A.mat = parsec_data_allocate((size_t)A.super.nb_local_tiles *

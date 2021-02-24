@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -11,11 +11,11 @@
 #include "stdarg.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int mb, int mt, int typesize)
+parsec_tiled_matrix_t *create_and_distribute_data(int rank, int world, int mb, int mt, int typesize)
 {
-    two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
+    parsec_matrix_block_cyclic_t *m = (parsec_matrix_block_cyclic_t*)malloc(sizeof(parsec_matrix_block_cyclic_t));
 
-    two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_init(m, PARSEC_MATRIX_COMPLEX_DOUBLE, PARSEC_MATRIX_TILE,
                               rank,
                               mb*typesize, 1,
                               mt*mb*typesize, 1,
@@ -29,10 +29,10 @@ parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int mb
                                 (size_t)m->super.bsiz *
                                 (size_t)parsec_datadist_getsizeoftype(m->super.mtype));
 
-    return (parsec_tiled_matrix_dc_t*)m;
+    return (parsec_tiled_matrix_t*)m;
 }
 
-void free_data(parsec_tiled_matrix_dc_t *d)
+void free_data(parsec_tiled_matrix_t *d)
 {
     parsec_data_collection_destroy(&d->super);
     free(d);

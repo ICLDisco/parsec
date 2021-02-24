@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -33,7 +33,7 @@ int main( int argc, char* argv[] )
     parsec_context_t* parsec;
     int rc;
     parsec_taskpool_t* tp;
-    two_dim_block_cyclic_t dcA;
+    parsec_matrix_block_cyclic_t dcA;
     int cores = -1, world = 1, rank = 0;
     int nb = 100, ln = 900;
     int rows = 1;
@@ -62,7 +62,7 @@ int main( int argc, char* argv[] )
 
     parsec = parsec_init(cores, &pargc, &pargv);
 
-    two_dim_block_cyclic_init( &dcA, matrix_RealFloat, matrix_Tile,
+    parsec_matrix_block_cyclic_init( &dcA, PARSEC_MATRIX_FLOAT, PARSEC_MATRIX_TILE,
                                rank, nb, 1, ln, 1, 0, 0, ln, 1,
                                rows, world/rows, 1, 1, 0, 0);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
@@ -71,8 +71,8 @@ int main( int argc, char* argv[] )
 
     parsec_data_collection_set_key(&dcA.super.super, "A");
 
-    tp = (parsec_taskpool_t*)parsec_reduce_new((parsec_tiled_matrix_dc_t*)&dcA,
-                                               (parsec_tiled_matrix_dc_t*)&dcA,
+    tp = (parsec_taskpool_t*)parsec_reduce_new((parsec_tiled_matrix_t*)&dcA,
+                                               (parsec_tiled_matrix_t*)&dcA,
                                                NULL);
     /* Prepare the arena for the reduction */
     parsec_type_create_contiguous(nb, parsec_datatype_float_t, &newtype);

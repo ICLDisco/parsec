@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,7 +15,7 @@ BEGIN_C_DECLS
  *******************************************************************/
 
 /* Placeholder for all relevant 2D distribution parameters */
-typedef struct grid_2Dcyclic {
+typedef struct parsec_grid_2Dcyclic {
     int rank;       /**< Sequential rank of this processor */
     int rows;       /**< number of processes rows in the process grid */
     int cols;       /**< number of processes cols in the process grid - derived parameter */
@@ -29,7 +29,7 @@ typedef struct grid_2Dcyclic {
     int cloc;       /**< number of column of tiles handled by this process - derived parameter */
     int vp_p;       /**< number of rows used for data distribution by the VP */
     int vp_q;       /**< number of cols used for data distribution by the VP */
-} grid_2Dcyclic_t;
+} parsec_grid_2Dcyclic_t;
 
 /************************************************
  *   sequential ranks distribution
@@ -52,7 +52,7 @@ typedef struct grid_2Dcyclic {
  * @param jq: process column over which the first column of the array is distributed
  *
  */
-void grid_2Dcyclic_init(grid_2Dcyclic_t* grid, int rank, int P, int Q, int kp, int kq, int ip, int jq);
+void parsec_grid_2Dcyclic_init(parsec_grid_2Dcyclic_t* grid, int rank, int P, int Q, int kp, int kq, int ip, int jq);
 
 END_C_DECLS
 

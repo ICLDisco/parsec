@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -154,8 +154,8 @@ static int
 insert_task(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es;
-    two_dim_block_cyclic_t *dcY;
-    two_dim_block_cyclic_t *dcT;
+    parsec_matrix_block_cyclic_t *dcY;
+    parsec_matrix_block_cyclic_t *dcT;
     int size_row, size_col, disi_Y, disj_Y, disi_T, disj_T;
 
     parsec_taskpool_t *dtd_tp = (parsec_taskpool_t *)this_task->taskpool;
@@ -268,8 +268,8 @@ static int
 insert_task_reshuffle(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es;
-    two_dim_block_cyclic_t *dcY;
-    two_dim_block_cyclic_t *dcT;
+    parsec_matrix_block_cyclic_t *dcY;
+    parsec_matrix_block_cyclic_t *dcT;
     int size_row, size_col, disi_Y, disj_Y, disi_T, disj_T;
 
     parsec_taskpool_t *dtd_tp = (parsec_taskpool_t *)this_task->taskpool;
@@ -329,8 +329,8 @@ insert_task_reshuffle(parsec_execution_stream_t *es, parsec_task_t *this_task)
  */
 static int
 parsec_redistribute_New_dtd(parsec_context_t *parsec,
-                            parsec_tiled_matrix_dc_t *dcY,
-                            parsec_tiled_matrix_dc_t *dcT,
+                            parsec_tiled_matrix_t *dcY,
+                            parsec_tiled_matrix_t *dcT,
                             int size_row, int size_col,
                             int disi_Y, int disj_Y,
                             int disi_T, int disj_T)
@@ -374,14 +374,14 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
 
     /* Allocating data arrays to be used by comm engine */
     adt = parsec_dtd_create_arena_datatype(parsec, &TARGET);
-    parsec_matrix_add2arena(adt,
-                            MY_TYPE, matrix_UpperLower,
+    parsec_tiled_matrix_add2arena(adt,
+                            MY_TYPE, PARSEC_MATRIX_FULL,
                             1, dcT->mb, dcT->nb, dcT->mb,
                             PARSEC_ARENA_ALIGNMENT_SSE, -1);
 
     adt = parsec_dtd_create_arena_datatype(parsec, &SOURCE);
-    parsec_matrix_add2arena(adt,
-                            MY_TYPE, matrix_UpperLower,
+    parsec_tiled_matrix_add2arena(adt,
+                            MY_TYPE, PARSEC_MATRIX_FULL,
                             1, dcY->mb, dcY->nb, dcY->mb,
                             PARSEC_ARENA_ALIGNMENT_SSE, -1);
 
@@ -392,27 +392,27 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     if( (dcY->mb == dcT->mb) && (dcY->nb == dcT->nb) && (disi_Y % dcY->mb == 0)
         && (disj_Y % dcY->nb == 0) && (disi_T % dcT->mb == 0) && (disj_T % dcT->nb == 0) ) {
         /* When tile sizes are the same and displacements are at start of tiles */
-        parsec_dtd_insert_task(dtd_tp, insert_task_reshuffle, 0, PARSEC_DEV_CPU, "insert_task_reshuffle",
-                               sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcY, PARSEC_REF,
-                               sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcT, PARSEC_REF,
-                               sizeof(int), &size_row, PARSEC_VALUE,
-                               sizeof(int), &size_col, PARSEC_VALUE,
-                               sizeof(int), &disi_Y, PARSEC_VALUE,
-                               sizeof(int), &disj_Y, PARSEC_VALUE,
-                               sizeof(int), &disi_T, PARSEC_VALUE,
-                               sizeof(int), &disj_T, PARSEC_VALUE,
-                               PARSEC_DTD_ARG_END );
+        parsec_dtd_insert_task( dtd_tp,       insert_task_reshuffle, 0, "insert_task_reshuffle",
+                       sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcY,  PARSEC_REF,
+                       sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcT,  PARSEC_REF,
+                       sizeof(int),                &size_row,           PARSEC_VALUE,
+                       sizeof(int),                &size_col,           PARSEC_VALUE,
+                       sizeof(int),                &disi_Y,             PARSEC_VALUE,
+                       sizeof(int),                &disj_Y,             PARSEC_VALUE,
+                       sizeof(int),                &disi_T,             PARSEC_VALUE,
+                       sizeof(int),                &disj_T,             PARSEC_VALUE,
+                       PARSEC_DTD_ARG_END );
     } else {
-        parsec_dtd_insert_task(dtd_tp, insert_task, 0, PARSEC_DEV_CPU, "insert_task",
-                               sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcY, PARSEC_REF,
-                               sizeof(two_dim_block_cyclic_t *), (two_dim_block_cyclic_t *)dcT, PARSEC_REF,
-                               sizeof(int), &size_row, PARSEC_VALUE,
-                               sizeof(int), &size_col, PARSEC_VALUE,
-                               sizeof(int), &disi_Y, PARSEC_VALUE,
-                               sizeof(int), &disj_Y, PARSEC_VALUE,
-                               sizeof(int), &disi_T, PARSEC_VALUE,
-                               sizeof(int), &disj_T, PARSEC_VALUE,
-                               PARSEC_DTD_ARG_END );
+        parsec_dtd_insert_task( dtd_tp,       insert_task, 0, "insert_task",
+                       sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcY,  PARSEC_REF,
+                       sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcT,  PARSEC_REF,
+                       sizeof(int),                      &size_row,                      PARSEC_VALUE,
+                       sizeof(int),                      &size_col,                      PARSEC_VALUE,
+                       sizeof(int),                      &disi_Y,                        PARSEC_VALUE,
+                       sizeof(int),                      &disj_Y,                        PARSEC_VALUE,
+                       sizeof(int),                      &disi_T,                        PARSEC_VALUE,
+                       sizeof(int),                      &disj_T,                        PARSEC_VALUE,
+                       PARSEC_DTD_ARG_END );
     }
 
     /* Finishing all the tasks inserted, but not finishing the handle */
@@ -451,8 +451,8 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
  * @param [in] disj_T: column displacement in dcT
  */
 int parsec_redistribute_dtd(parsec_context_t *parsec,
-                            parsec_tiled_matrix_dc_t *dcY,
-                            parsec_tiled_matrix_dc_t *dcT,
+                            parsec_tiled_matrix_t *dcY,
+                            parsec_tiled_matrix_t *dcT,
                             int size_row, int size_col,
                             int disi_Y, int disj_Y,
                             int disi_T, int disj_T)

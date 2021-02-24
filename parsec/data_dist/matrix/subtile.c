@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,7 +15,7 @@ static uint32_t      subtile_rank_of_key(parsec_data_collection_t* dc, parsec_da
 static int32_t       subtile_vpid_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 static parsec_data_t* subtile_data_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 
-subtile_desc_t *subtile_desc_create( const parsec_tiled_matrix_dc_t *tdesc,
+subtile_desc_t *subtile_desc_create( const parsec_tiled_matrix_t *tdesc,
                                      int mt, int nt,   /* Tile in tdesc */
                                      int mb, int nb,   /* sub-tiles size  */
                                      int i,  int j,    /* Starting point in the tile */
@@ -26,7 +26,7 @@ subtile_desc_t *subtile_desc_create( const parsec_tiled_matrix_dc_t *tdesc,
     (void)mt; (void)nt;
 
     /* Initialize the tiled_matrix descriptor */
-    parsec_tiled_matrix_dc_init( &(sdesc->super), tdesc->mtype, matrix_Lapack, 0,
+    parsec_tiled_matrix_init( &(sdesc->super), tdesc->mtype, PARSEC_MATRIX_LAPACK, 0,
                             tdesc->super.nodes, tdesc->super.myrank,
                             mb, nb, BLKLDD( tdesc, mt ), tdesc->nb,
                             i, j, m, n );
@@ -56,9 +56,9 @@ subtile_desc_t *subtile_desc_create( const parsec_tiled_matrix_dc_t *tdesc,
 static inline void subtile_key_to_coordinates(parsec_data_collection_t *desc, parsec_data_key_t key, int *m, int *n)
 {
     int _m, _n;
-    parsec_tiled_matrix_dc_t *tdesc;
+    parsec_tiled_matrix_t *tdesc;
 
-    tdesc = (parsec_tiled_matrix_dc_t *)desc;
+    tdesc = (parsec_tiled_matrix_t *)desc;
 
     _m = key % tdesc->lmt;
     _n = key / tdesc->lmt;
@@ -120,7 +120,7 @@ static parsec_data_t* subtile_data_of(parsec_data_collection_t *desc, ...)
         pos *= parsec_datadist_getsizeoftype(sdesc->super.mtype);
     }
 
-    return parsec_matrix_create_data( &sdesc->super,
+    return parsec_tiled_matrix_create_data( &sdesc->super,
                                      (char*)sdesc->mat + pos,
                                      position, position );
 }

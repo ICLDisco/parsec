@@ -1,0 +1,65 @@
+With the 4.0 release, PaRSEC has undergone a major renaming in an effort to properly namespace symbols provided by PaRSEC.
+This will likely affect existing codes that will have to adapt to using the new symbols.
+To help with this effort, the sed script `contrib/renaming/rename.sed` is provided that can be used to apply the changes to existing source code files.
+To apply the changes, users can execute the following command:
+
+```
+find -name *.c -o -name *.h -o -name *.cc | xargs sed -i -f $PARSEC_SOURCE_DIR/contrib/renaming/rename.sed
+```
+
+Depending on your source code, your may have to adapt the above line to apply to all relevant files.
+
+The full list of replacements can be found below:
+
+```
+# data types
+enum matrix_type -> parsec_matrix_type_t
+matrix_RealDouble -> PARSEC_MATRIX_DOUBLE
+matrix_RealFloat -> PARSEC_MATRIX_FLOAT
+matrix_Integer -> PARSEC_MATRIX_INTEGER
+matrix_Byte -> PARSEC_MATRIX_BYTE
+matrix_ComplexFloat -> PARSEC_MATRIX_COMPLEX_FLOAT
+matrix_ComplexDouble -> PARSEC_MATRIX_COMPLEX_DOUBLE
+
+# storage
+enum matrix_storage -> parsec_matrix_storage_t
+matrix_Lapack -> PARSEC_MATRIX_LAPACK
+matrix_Tile -> PARSEC_MATRIX_TILE
+
+# matrix shapes
+enum matrix_uplo -> parsec_matrix_uplo_t
+matrix_UpperLower -> PARSEC_MATRIX_FULL
+matrix_Upper -> PARSEC_MATRIX_UPPER
+matrix_Lower -> PARSEC_MATRIX_LOWER
+
+# vector shapes
+enum vector_distrib -> parsec_matrix_vector_distrib_t
+matrix_VectorRow -> PARSEC_MATRIX_VECTOR_DISTRIB_ROW
+matrix_VectorCol -> PARSEC_MATRIX_VECTOR_DISTRIB_COL
+matrix_VectorDiag -> PARSEC_MATRIX_VECTOR_DISTRIB_DIAG
+
+# matrix implementations
+parsec_tiled_matrix_dc* -> parsec_tiled_matrix*
+sym_two_dim_block_cyclic* -> parsec_matrix_sym_block_cyclic*
+two_dim_block_cyclic* -> parsec_matrix_block_cyclic*
+two_dim_tabular_* -> parsec_matrix_tabular_*
+two_dim_td_table_clone_table_structure -> parsec_matrix_tabular_clone_table_structure
+
+# symbols in matrix.h
+tiled_matrix_submatrix -> parsec_tiled_matrix_submatrix
+parsec_matrix_create_data -> parsec_tiled_matrix_create_data
+parsec_matrix_add2arena -> parsec_tiled_matrix_add2arena
+parsec_matrix_del2arena -> parsec_tiled_matrix_del2arena
+parsec_matrix_data_* -> parsec_tiled_matrix_data_*
+
+
+# vector
+vector_two_dim_cyclic_* -> parsec_matrix_vector_*
+
+# 2D grid
+grid_2Dcyclic_* -> parsec_grid_2Dcyclic_*
+
+# matrix ops
+tiled_matrix_unary_op_t -> parsec_tiled_matrix_unary_op_t
+tiled_matrix_binary_op_t -> parsec_tiled_matrix_binary_op_t
+```
