@@ -232,7 +232,7 @@ int main(int argc, char **argv)
 
         rc = parsec_context_wait(parsec);
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-        SYNC_TIME_PRINT(rank, ("\tSize of message : %ld bytes\tTime for each pingpong : %12.5f\n", sizes[i]*sizeof(int), sync_time_elapsed/repeat_pingpong));
+        SYNC_TIME_PRINT(rank, ("\tSize of message : %lld bytes\tTime for each pingpong : %12.5f\n", sizes[i]*sizeof(int), sync_time_elapsed/repeat_pingpong));
 
         parsec_matrix_del2arena(&parsec_dtd_arenas_datatypes[TILE_FULL]);
         PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[TILE_FULL].arena);

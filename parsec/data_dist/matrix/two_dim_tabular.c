@@ -251,6 +251,7 @@ void two_dim_tabular_set_random_table(two_dim_tabular_t *dc,
             }
         }
     }
+    (void)seed;  /* stop the compiler from complaining about unused data */
 #elif defined(PARSEC_HAVE_RAND_R)
     rankseed = rand_r(&seed);
     vpseed   = rand_r(&seed);

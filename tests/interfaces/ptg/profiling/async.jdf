@@ -113,9 +113,9 @@ BODY
     taskqueue[NB] = (void*)-1;
 #endif
 
-    bs = random() % 40 + 1;
+    bs = rand() % 40 + 1;
 
-if(verbose)
+    if(verbose)
         fprintf(stderr, "RESCHED(0) executes...\n");
     for(i = 0; i < NB; i++) {
         t = taskqueue[i];

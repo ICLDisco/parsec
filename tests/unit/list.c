@@ -252,12 +252,11 @@ static void usage(const char *name, const char *msg)
 
 int main(int argc, char *argv[])
 {
-    unsigned int e;
     elt_t *elt, *p;
     pthread_t *threads;
     uint64_t *times;
     uint64_t min_time, max_time, sum_time;
-    long int nbthreads = 1;
+    unsigned int e, nbthreads = 1;
     int ch;
     char *m;
 
@@ -273,12 +272,14 @@ int main(int argc, char *argv[])
 
     while( (ch = getopt(argc, argv, "c:n:N:h?")) != -1 ) {
         switch(ch) {
-        case 'c':
-            nbthreads = strtol(optarg, &m, 0);
-            if( (nbthreads <= 0) || (m[0] != '\0') ) {
+        case 'c': {
+            long nth = strtol(optarg, &m, 0);
+            if( (nth <= 0) || (m[0] != '\0') ) {
                 usage(argv[0], "invalid -c value");
             }
+            nbthreads = nth;
             break;
+        }
         case 'n':
             NBELT = strtol(optarg, &m, 0);
             if( (NBELT <= 0) || (m[0] != '\0') ) {
@@ -321,7 +322,7 @@ int main(int argc, char *argv[])
 
     printf("Parallel test.\n");
 
-    printf(" - translate elements from l1 to l2 or from l2 to l1 (random), %u times on %ld threads\n",
+    printf(" - translate elements from l1 to l2 or from l2 to l1 (random), %u times on %u threads\n",
            NBTIMES, nbthreads);
     for(e = 0; e < nbthreads; e++) {
         times[e] = e;
@@ -345,7 +346,7 @@ int main(int argc, char *argv[])
         }
         sum_time += times[e];
     }
-    printf("== Time to move %u times per thread for %ld threads from l1 to l2 or l2 to l1 randomly:\n"
+    printf("== Time to move %u times per thread for %u threads from l1 to l2 or l2 to l1 randomly:\n"
            "== MIN %"PRIu64" %s\n"
            "== MAX %"PRIu64" %s\n"
            "== AVG %g %s\n",
