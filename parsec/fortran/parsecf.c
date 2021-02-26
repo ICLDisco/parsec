@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,27 +8,41 @@
 #include <string.h>
 #include <stdlib.h>
 
+/**
+ * @brief A function callable from Fortran allowing to initialize the PaRSEC runtime
+ * 
+ * @param nbcores 
+ * @param context 
+ * @param ierr 
+ * 
+ * As there is no standard way to find the arg[cv] in Fortran, we build them using
+ * the PARSEC_ARGS environment variable.
+ */
 void parsec_init_f08(int nbcores, parsec_context_t** context, int* ierr)
 {
-    char *args, *token, **argv = NULL;
+    char *args = NULL, *token, **argv = NULL;
     int argc = 0;
 
     if( NULL != (args = getenv("PARSEC_ARGS"))) {
         args = token = strdup(args);
-        while(NULL != strsep(&args, ";=")) argc++;
+        while( NULL != (token = strpbrk(token, "=;")) ) {  /* count the number of argv */
+            argc++;
+        }
         argv = (char**)malloc((2+argc) * sizeof(char*));
-        free(token);
-        args = strdup(getenv("PARSEC_ARGS"));
         argc = 1;
         argv[0] = "myapp";  /* No idea how to extract the real application name from Fortran */
-        while( NULL != (token = strsep(&args, ";=")) ) {
-            argv[argc] = token;
-            argc++;
+        token = strtok(args, "=;");
+        while( NULL != token ) {
+            argv[argc++] = token;
+            token = strtok(NULL, " =;");
         }
         argv[argc] = NULL;
     }
     *context = parsec_init(nbcores, &argc, &argv);
+    /* Cleanup the locals used to initialize parsec */
     free(argv);
+    if( NULL != args )
+        free(args);
     *ierr = (NULL == *context) ? 0 : -1;
 }
 

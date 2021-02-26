@@ -14,6 +14,7 @@ extern "C" %{
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
@@ -284,7 +285,7 @@ int main(int argc, char *argv[])
         if( 0 == rank ) {
             t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
             bw = ((double)loops * (double)frags * (double)size) / t * 1000.0 * 1000.0 / (1000.0 * 1000.0 * 1000.0) * sizeof(double) * 8;
-            printf("%d %d %lu %08.4g %4.8g GB/s\n", loops, frags, size*sizeof(double), t / 1000000.0, bw);
+            printf("%d %d %llu %08.4g %4.8g GB/s\n", loops, frags, size*sizeof(double), t / 1000000.0, bw);
         }
 
         parsec_bandwidth_Destruct(bandwidth_taskpool);
