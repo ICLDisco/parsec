@@ -118,7 +118,7 @@ int main(int argc, char ** argv)
 
     int tasks_in_each_chain[3] = {1000, 10000, 100000};
 
-    parsec_setenv_mca_param_int("runtime_num_cores", cores);
+    parsec_param_set_int("runtime_num_cores", cores);
     parsec = parsec_init( &argc, &argv );
     /* compute the number of cores as detected from parsec */
     for(int p = 0, cores = 0; p < parsec->nb_vp; p++) {

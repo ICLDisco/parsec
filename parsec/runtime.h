@@ -153,6 +153,40 @@ typedef enum parsec_hook_return_e {
 
 
 /**
+ * Set an MCA environment parameter with a string value
+ *
+ * @param param Name of the type containing the variable.
+ * @param value Value of the mca parameter to set.
+ *
+ * This function sets an MCA environment parameter in the global environment
+ * of the application (i.e., environ) so that it cane be used as the default
+ * value for the parameter when it is accessed by the PaRSEC engine. Thus, an
+ * external application can register some parameters that will later be used by
+ * the initialization in the engine.
+ *
+ */
+PARSEC_DECLSPEC void
+parsec_param_set_string( char *param,
+                         char *value);
+
+/**
+ * Set an MCA environment parameter with an integer value
+ *
+ * @param param Name of the type containing the variable.
+ * @param value Value of the mca parameter to set.
+ *
+ * This function sets an MCA environment parameter in the global environment
+ * of the application (i.e., environ) so that it cane be used as the default
+ * value for the parameter when it is accessed by the PaRSEC engine. Thus, an
+ * external application can register some parameters that will later be used by
+ * the initialization in the engine.
+ *
+ */
+PARSEC_DECLSPEC void
+parsec_param_set_int( char *param,
+                      int ivalue);
+
+/**
  * @brief Create a new PaRSEC execution context
  *
  * @details

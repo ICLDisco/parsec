@@ -2596,7 +2596,7 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
  * Set a string type MCA parameter in the global environment so
  * it can be accessed when the parameter is actually registered.
  */
-void parsec_setenv_mca_param_string( char *param, char *value )
+void parsec_param_set_string( char *param, char *value )
 {
     char *name;
     extern char **environ;
@@ -2610,7 +2610,7 @@ void parsec_setenv_mca_param_string( char *param, char *value )
  * Set an integer type MCA parameter in the global environment so
  * it can be accessed when the parameter is actually registered.
  */
-void parsec_setenv_mca_param_int( char *param, int ivalue ) {
+void parsec_param_set_int( char *param, int ivalue ) {
     char *name;
     char *value;
     extern char **environ;

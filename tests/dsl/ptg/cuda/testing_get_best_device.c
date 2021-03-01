@@ -106,10 +106,10 @@ int main(int argc, char *argv[])
     if( nb_gpus < 1 && 0 == rank ) {
 	    fprintf(stderr, "Warnning: if run on GPUs, please set --gpus=value bigger than 0\n");
     }
-    parsec_setenv_mca_param_int( "device_cuda_enabled", nb_gpus );
+    parsec_param_set_int( "device_cuda_enabled", nb_gpus );
 #endif
     if( -1 != cores )
-        parsec_setenv_mca_param_int( "runtime_num_cores", cores );
+        parsec_param_set_int( "runtime_num_cores", cores );
 
     /* Initialize PaRSEC */
     parsec = parsec_init(&pargc, &pargv);

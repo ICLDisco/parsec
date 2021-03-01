@@ -402,7 +402,7 @@ parsec_context_t* setup_parsec(int argc, char **argv, int *iparam, double *dpara
         for( parsec_argc = 1, idx++; idx < argc;
              parsec_argv[parsec_argc] = argv[idx], parsec_argc++, idx++);
     }
-    parsec_setenv_mca_param_int("runtime_num_cores", iparam[IPARAM_NCORES]);
+    parsec_param_set_int("runtime_num_cores", iparam[IPARAM_NCORES]);
     parsec_context_t* ctx = parsec_init(&parsec_argc, &parsec_argv);
     free(parsec_argv);
     if( NULL == ctx ) {

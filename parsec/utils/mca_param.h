@@ -787,7 +787,7 @@ parsec_mca_show_mca_params(parsec_list_t *info,
                           bool pretty_print);
 
 /**
- * Set an MCA environment parameter.with a string value
+ * Set an MCA environment parameter with a string value
  *
  * @param param Name of the type containing the variable.
  * @param value Value of the mca parameter to set.
@@ -800,11 +800,11 @@ parsec_mca_show_mca_params(parsec_list_t *info,
  *
  */
 PARSEC_DECLSPEC void
-parsec_setenv_mca_param_string( char *param,
-                                char *value);
+parsec_param_set_string( char *param,
+                         char *value);
 
 /**
- * Set an MCA environment parameter.with an integer value
+ * Set an MCA environment parameter with an integer value
  *
  * @param param Name of the type containing the variable.
  * @param value Value of the mca parameter to set.
@@ -817,8 +817,8 @@ parsec_setenv_mca_param_string( char *param,
  *
  */
 PARSEC_DECLSPEC void
-parsec_setenv_mca_param_int( char *param,
-                             int ivalue);
+parsec_param_set_int( char *param,
+                      int ivalue);
 END_C_DECLS
 
 #endif /* PARSEC_MCA_PARAM_H */

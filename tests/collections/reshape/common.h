@@ -118,7 +118,7 @@ int reshape_print(parsec_execution_stream_t *es,
             break;                                                                       \
         }                                                                                \
     }                                                                                    \
-    parsec_setenv_mca_param_int("runtime_num_cores", cores);                             \
+    parsec_param_set_int("runtime_num_cores", cores);                                    \
     parsec = parsec_init(&pargc, &pargv);                                                \
     if( NULL == parsec ) {                                                               \
         /* Failed to correctly initialize. In a correct scenario report*/                \
