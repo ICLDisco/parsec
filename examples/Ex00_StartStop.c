@@ -7,7 +7,7 @@
  *
  * [mpicc|cc] -o Ex00_StartStop Ex00_StartStop.c `pkg-config --cflags --libs parsec` -lpthread -lm -lrt [-ldl -lcudart]
  *
- * @version 3.0
+ * @version 4.0
  * @email parsec-users@icl.utk.edu
  *
  */
