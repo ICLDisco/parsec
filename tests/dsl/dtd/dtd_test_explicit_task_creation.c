@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 /* parsec things */
 #include "parsec/runtime.h"
 

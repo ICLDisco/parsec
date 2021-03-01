@@ -1,3 +1,8 @@
+! -*- f90 -*-
+! Copyright (c) 2014-2021 The University of Tennessee and The University
+!                         of Tennessee Research Foundation.  All rights
+!                         reserved.
+! $COPYRIGHT$
 PROGRAM TOUCH_EXF
 
   use, INTRINSIC :: ISO_C_BINDING, only : c_int
