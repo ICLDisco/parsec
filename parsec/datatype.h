@@ -37,8 +37,8 @@ typedef MPI_Datatype parsec_datatype_t;
 #define parsec_datatype_float_t            MPI_FLOAT
 #define parsec_datatype_double_t           MPI_DOUBLE
 #define parsec_datatype_long_double_t      MPI_LONG_DOUBLE
-#define parsec_datatype_complex_t          MPI_COMPLEX
-#define parsec_datatype_double_complex_t   MPI_DOUBLE_COMPLEX
+#define parsec_datatype_complex_t          MPI_C_COMPLEX
+#define parsec_datatype_double_complex_t   MPI_C_DOUBLE_COMPLEX
 
 #else  /* !defined(PARSEC_HAVE_MPI) */
 
