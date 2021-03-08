@@ -700,14 +700,14 @@ ENDIF("${isSystemDir}" STREQUAL "-1")
 # Prepare the list of include directories. From the source directory we need 2 the source
 # itself and then the specialized headers from parsec/include. If we compile with VPATH
 # we need to add the same thing for the BINARY_DIR.
-set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/parsec/include")
-include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
-include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
 STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} PARSEC_BUILD_INPLACE)
 if(NOT PARSEC_BUILD_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include")
 endif(NOT PARSEC_BUILD_INPLACE)
+set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/parsec/include")
+include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
+include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
 
 #
 # Check if indent is available on the system.
