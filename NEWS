@@ -8,6 +8,8 @@ bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 master
  - PaRSEC API 4.0 (still changing)
 
+ - PARSEC_SUCCESS changed to 0 (from -1), all values for PARSEC_ERR_XYZ changed.
+
  - PaRSEC now requires CMake 3.18.
 
  - PaRSEC profiling system does not require for local dicitonaries to

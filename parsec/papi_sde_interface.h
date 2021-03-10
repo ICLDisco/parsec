@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2018-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #ifndef PAPI_SDE_INTERFACE_H
 #define PAPI_SDE_INTERFACE_H
 

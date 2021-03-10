@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -35,6 +35,7 @@ BEGIN_C_DECLS
 /** @cond FALSE */
 #if defined(_POSIX_BARRIERS) && (_POSIX_BARRIERS - 20012L) >= 0 && 0
 
+//Note how we return a posix error code, not a parsec one.
 typedef pthread_barrier_t parsec_barrier_t;
 #define parsec_barrier_init pthread_barrier_init
 #define parsec_barrier_wait pthread_barrier_wait
@@ -61,6 +62,8 @@ typedef struct parsec_barrier_t {
                                       *   passively once all threads have joined the barrier */
 } parsec_barrier_t;
 
+//Note how in the following API we return a posix error code, not a parsec one.
+
 /**
  * @brief Initializes a barrier
  *
@@ -70,7 +73,7 @@ typedef struct parsec_barrier_t {
  * @param[out] barrier the barrier to initialize
  * @param[in] pthread_mutex_attr attributes to pass to pthread_mutex_init
  * @param[in] count number of threads that will join the barrier
- * @return 0 if success another code otherwise.
+ * @return 0 if success, a POSIX error code otherwise.
  */
 int parsec_barrier_init(parsec_barrier_t *barrier, const void *pthread_mutex_attr, unsigned int count);
 
@@ -84,7 +87,7 @@ int parsec_barrier_init(parsec_barrier_t *barrier, const void *pthread_mutex_att
  *       barrier.
  *
  * @param[inout] barrier the barrier to wait upon
- * @return 0 if success another code otherwise.
+ * @return 0 if success, a POSIX error code otherwise.
  */
 int parsec_barrier_wait(parsec_barrier_t* barrier);
 
@@ -101,7 +104,7 @@ int parsec_barrier_wait(parsec_barrier_t* barrier);
  *      uninitialized barrier.
  *
  * @param[inout] barrier the barrier to destroy
- * @return 0 if success another code otherwise.
+ * @return 0 if success, a POSIX error code otherwise.
  */
 int parsec_barrier_destroy(parsec_barrier_t* barrier);
 #define PARSEC_IMPLEMENT_BARRIERS 1

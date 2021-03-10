@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -280,7 +280,7 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
  * This call should be paired with one of the completion calls, test or wait.
  *
  * @param[inout] context the PaRSEC context
- * @returns: 0 if the other threads in this context have been started, -1 if the
+ * @return 0 if the other threads in this context have been started, -1 if the
  * context was already active, -2 if there was nothing to do and nothing has
  * been activated.
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -264,7 +264,7 @@ parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling
  * @param[in] convertor_code php code to convert a info byte array into XML code.
  * @param[out] key_start the key to use to denote the start of an event of this type
  * @param[out] key_end the key to use to denote the end of an event of this type.
- * @return 0    if success, -1 otherwie.
+ * @return 0 if success, negative otherwise.
  * @remark not thread safe
  */
 int parsec_profiling_add_dictionary_keyword( const char* name, const char* attributes,
