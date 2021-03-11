@@ -19,17 +19,6 @@ set_target_properties(parsec-dbp2mem PROPERTIES LINKER_LANGUAGE C)
 target_link_libraries(parsec-dbp2mem parsec-base)
 install(TARGETS parsec-dbp2mem RUNTIME DESTINATION ${PARSEC_INSTALL_BINDIR})
 
-find_package(GTG)
-
-if(GTG_FOUND)
-  add_executable(parsec-dbp2paje dbp2paje.c dbpreader.c)
-  set_target_properties(parsec-dbp2paje PROPERTIES LINKER_LANGUAGE C)
-  target_include_directories(parsec-dbp2paje PRIVATE ${GTG_INCLUDE_DIR})
-  target_link_libraries(parsec-dbp2paje parsec-base ${GTG_LIBRARIES})
-
-  install(TARGETS parsec-dbp2paje RUNTIME DESTINATION ${PARSEC_INSTALL_BINDIR})
-endif()
-
 find_package(Graphviz QUIET)
 
 if(Graphviz_FOUND)
