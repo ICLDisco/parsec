@@ -268,7 +268,7 @@ void parsec_context_at_fini(parsec_external_fini_cb_t cb, void *data);
  *                are to be executed.
  * @param[inout] tp The parsec taskpool with pending tasks.
  *
- * @return 0 If the enqueue operation succeeded.
+ * @return PARSEC_SUCCESS If the enqueue operation succeeded.
  */
 int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* tp);
 
@@ -316,9 +316,9 @@ int parsec_context_test( parsec_context_t* context );
  *
  * @param[inout] context The parsec context where the execution is taking place.
  *
- * @return * A negative number to signal an error raised by one of the enqueued
- *           taskpools. Any other value, aka. a positive number (including 0),
- *           to signal succesful completion of all work associated with the context.
+ * @return PARSEC_SUCCESS   The context has completed and all work associated
+ *                          with the context is done.
+ * @return less than PARSEC_SUCCESS If something went wrong.
  */
 int parsec_context_wait(parsec_context_t* context);
 
@@ -326,7 +326,7 @@ int parsec_context_wait(parsec_context_t* context);
  * @brief taskpool-callback type definition
  *
  * @details
- * The completion callback of a parsec_taskpool. Once the taskpoolhas been
+ * The completion callback of a parsec_taskpool. Once the taskpool has been
  * completed, i.e. all the local tasks associated with the taskpool have
  * been executed, and before the taskpool is marked as done, this callback
  * will be triggered. Inside the callback the taskpool should not be

@@ -731,5 +731,5 @@ int parsec_context_wait( parsec_context_t* context )
     assert(context->flags & PARSEC_CONTEXT_FLAG_COMM_ACTIVE);
     assert(context->flags & PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE);
     context->flags ^= (PARSEC_CONTEXT_FLAG_COMM_ACTIVE | PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE);
-    return ret;
+    return (ret >= 0)? PARSEC_SUCCESS: ret;
 }
