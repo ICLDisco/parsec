@@ -197,7 +197,6 @@ void parsec_profiling_otf2_set_comm(void *_pcomm)
 
 int parsec_profiling_init( int process_id )
 {
-    int flag;
     if( __profile_initialized ) return -1;
 
     (void)process_id; /* OTF2 renames the processes according to their rank */
