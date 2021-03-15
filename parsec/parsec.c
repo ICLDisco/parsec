@@ -100,6 +100,8 @@ int task_memory_alloc_key, task_memory_free_key;
 parsec_info_t parsec_per_device_infos;
 parsec_info_t parsec_per_stream_infos;
 
+static int slow_bind_warning = 1;
+
 int parsec_want_rusage = 0;
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)
 #include <sys/time.h>
@@ -352,7 +354,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     char **ctx_environ = NULL;
     char **env_variable, *env_name, *env_value;
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
-    int slow_option_warning = 0;
+    int slow_option_used = 0;
 #if defined(PARSEC_PROF_TRACE)
     int profiling_id = 0;
 #endif
@@ -439,10 +441,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_debug_init();
     mca_components_repository_init();
 
+    parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Disable warnings about the runtime detecting poorly performing binding configuration", false, false, slow_bind_warning, &slow_bind_warning);
+
 #if defined(PARSEC_HAVE_HWLOC)
     parsec_hwloc_init();
 #if defined(PARSEC_OSX)
-    parsec_warning("OS X < 10.13 does not support thread/process binding. Performance might be affected");
+    if( slow_bind_warning && 0 == parsec_debug_rank )
+        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                       "OS X < 10.13 does not support thread/process binding.\n");
 #endif  /* defined(PARSEC_OSX) */
 #endif  /* defined(HWLOC) */
 
@@ -452,7 +458,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         GET_INT_ARGV(cmd_line, "ht", hyperth);
         parsec_hwloc_allow_ht(hyperth);
 #else
-        parsec_warning("Option ht (hyper-threading) is only supported when HWLOC is enabled at compile time.");
+        if( 0 == parsec_debug_rank )
+            parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                           "Option ht (hyper-threading) is only supported when HWLOC is enabled at compile time.\n");
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
     }
 
@@ -468,7 +476,11 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         else {
             nb_cores = parsec_runtime_max_number_of_cores;
             if( parsec_runtime_max_number_of_cores > parsec_hwloc_nb_real_cores() ) {
-                parsec_warning("The runtime is running in an over-subscribe mode, usually unfit for performance.");
+                if( slow_bind_warning )
+                    parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                                   "Requested binding %d threads, which is more than the physical number of cores %d.\n"
+                                   "\tOversubscribing cores is often slow. You should change the value of the `runtime_num_cores` parameter.\n",
+                                   parsec_runtime_max_number_of_cores, parsec_hwloc_nb_real_cores());
             }
         }
     }
@@ -502,7 +514,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                 if( !strncmp(optarg, "display", 7 )) {
                     display_vpmap = 1;
                     if( ':' != optarg[strlen("display")] ) {
-                        parsec_warning("Display thread mapping requested but vpmar argument incorrect "
+                        parsec_warning("Display thread mapping requested but vpmap argument incorrect "
                                        "(must start with display: to print the mapping)");
                     } else {
                         optarg += strlen("display:");
@@ -585,8 +597,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     if( nb_cores != nb_total_comp_threads ) {
-        parsec_warning("Your vpmap uses %d threads when %d cores where available",
-                     nb_total_comp_threads, nb_cores);
+        if( slow_bind_warning )
+            parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                           "Your vpmap uses %d threads when %d cores where available\n",
+                           nb_total_comp_threads, nb_cores);
         nb_cores = nb_total_comp_threads;
     }
 
@@ -738,14 +752,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(PARSEC_PROF_GRAPHER)
     if(parsec_enable_dot) {
         parsec_prof_grapher_init(context, parsec_enable_dot);
-        slow_option_warning = 1;
+        slow_option_used = 1;
     }
 #endif  /* defined(PARSEC_PROF_GRAPHER) */
 
 #if defined(PARSEC_DEBUG_NOISIER) || defined(PARSEC_DEBUG_PARANOID)
-    slow_option_warning = 1;
+    slow_option_used = 1;
 #endif
-    if( slow_option_warning && 0 == parsec_debug_rank ) {
+    if( slow_option_used && 0 == parsec_debug_rank ) {
         parsec_warning("/!\\ DEBUG LEVEL WILL PROBABLY REDUCE THE PERFORMANCE OF THIS RUN /!\\.\n");
         parsec_debug_verbose(4, parsec_debug_output, "--- compiled with DEBUG_NOISIER, DEBUG_PARANOID, or DOT generation requested.");
     }
@@ -2431,7 +2445,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
     MPI_Comm comml = MPI_COMM_NULL; int nl = 0, rl = MPI_PROC_NULL;
     MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
     MPI_Comm_size(comml, &nl);
-    if( 1 < nl ) {
+    if( 1 < nl && slow_bind_warning ) {
         /* Hu-ho, double check that our binding is not conflicting with other
          * local procs */
         MPI_Comm_rank(comml, &rl);
@@ -2463,9 +2477,12 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
                 hwloc_bitmap_free(other);
             }
             if( notgood ) {
-                parsec_warning("/!\\ CPU BINDING WILL PROBABLY REDUCE THE PERFORMANCE OF THIS RUN /!\\\n"
-                               "\tMultiple PaRSEC processes use the same cpuset on the same node;\n"
-                               "\tThis is probably unintentional, and will perform poorly.");
+                parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                               "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
+                               "\tThis is often unintentional, and will perform poorly.\n"
+                               "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
+                               "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
+                               "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
             }
         }
         free(allsets);
@@ -2478,7 +2495,10 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
     (void)option;
     (void)context;
     (void)startup;
-    parsec_warning("the binding defined by --parsec_bind has been ignored (requires a build with HWLOC with bitmap support).");
+    if( 0 == parsec_debug_rank )
+        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                       "The binding defined by --parsec_bind has been ignored!\n"
+                       "\tThis option requires a build with HWLOC with bitmap support.");
     return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
 }
@@ -2498,7 +2518,10 @@ static int parsec_parse_comm_binding_parameter(const char* option, parsec_contex
     return PARSEC_SUCCESS;
 #else
     (void)option; (void)context;
-    parsec_warning("The binding defined by --parsec_bind_comm has been ignored (requires HWLOC use with bitmap support).");
+    if( 0 == parsec_debug_rank )
+        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                       "The binding defined by --parsec_bind_comm has been ignored!\n"
+                       "\tThis option requires a build with HWLOC with bitmap support.");
     return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif  /* PARSEC_HAVE_HWLOC */
 }
