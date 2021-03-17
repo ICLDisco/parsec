@@ -17,6 +17,7 @@
 #include "parsec/mempool.h"
 #include "parsec/profiling.h"
 #include "parsec/class/barrier.h"
+#include "parsec/class/parsec_hash_table.h"
 
 #ifdef PARSEC_PROF_PINS
 #include "parsec/mca/pins/pins.h"
@@ -127,7 +128,8 @@ struct parsec_context_s {
 
     int32_t nb_vp; /**< number of virtual processes in this physical process */
 
-    parsec_list_t     *taskpool_list; /**< list of dtd taskpools registered with this context */
+    parsec_list_t       *taskpool_list;                  /**< list of dtd taskpools registered with this context */
+    parsec_hash_table_t  dtd_arena_datatypes_hash_table; /**< Hash table that stores the arena datatypes used by DTD */
 
 #if defined(PARSEC_SIM)
     int largest_simulation_date;

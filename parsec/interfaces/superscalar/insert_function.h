@@ -76,10 +76,48 @@ typedef enum { PASSED_BY_REF=-1,
              } parsec_dtd_size_t;
 
 /**
- * Array of arenas to hold the data region shape and other information.
- * Currently only 16 types of different regions are supported at a time.
+ * @brief Create a new Arena Datatype for DTD
+ * @details Associate the new Arena Datatype with the
+ *    context @p ctx and the unique id @p id. The id must
+ *    not be used before. This function is thread-safe
+ *    per context, but not thread-safe if called in parallel
+ *    on the same context.
+ *
+ * @param ctx the context in which the arena datatype exists.
+ * @param id the unique ID the user assigns to this new Arena
+ *    Datatype. The function will return an error if an Arena
+ *    Datatype with this ID already exists in this context.
+ * @return the new Arena Datatype, or NULL if there was an error
+ *    (@p id already exists in @p ctx).
  */
-extern parsec_arena_datatype_t *parsec_dtd_arenas_datatypes;
+parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx, int id);
+
+/**
+ * @brief returns the Arena Datatype associated with this identifier
+ *    in this context
+ * @details This function is thread-safe as long as the Arena Datatype
+ *    associated with this @p id in this @p ctx is not removed in parallel.
+ * @param ctx the context in which the Arena Datatype exists
+ * @param id the unique identifier of the Arena Datatype
+ * @return the existing Arena Datatype, or NULL if there was an
+ *    error.
+ */
+parsec_arena_datatype_t *parsec_dtd_get_arena_datatype(parsec_context_t *ctx, int id);
+
+/**
+ * @brief release the Arena Datatype and its association to the
+ *    unique identifier
+ * @details This function is only valid if @p id is the unique
+ *    identifier associated to an Arena Datatype in @p ctx. This
+ *    function releases the Arena Datatype and its association with the
+ *    identifier.
+ * @param ctx the context in which the Arena Datatype exists
+ * @param id the unique identifier of the Arena Datatype to release
+ * @return PARSEC_SUCCESS in case of success, or an error code
+ *    otherwise.
+ */
+int parsec_dtd_destroy_arena_datatype(parsec_context_t *ctx, int id);
+
 /**
  * Users can use this two variables to control the sliding window of task insertion.
  * This is set using a default number or the number set by the mca_param.

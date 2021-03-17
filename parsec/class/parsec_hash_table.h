@@ -328,6 +328,8 @@ char *parsec_hash_table_generic_64bits_key_print(char *buffer, size_t buffer_siz
  */
 uint64_t parsec_hash_table_generic_64bits_key_hash(parsec_key_t k, void *user_data);
 
+extern parsec_key_fn_t parsec_hash_table_generic_key_fn;
+
 END_C_DECLS
 
 /** @} */

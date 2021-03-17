@@ -249,13 +249,11 @@ struct parsec_dtd_task_class_s {
     parsec_dtd_funcptr_t    *fpointer;
     parsec_mempool_t         context_mempool;
     parsec_mempool_t         remote_task_mempool;
-    int                      index_of_rank_info;
     int8_t                   dep_datatype_index;
     int8_t                   dep_out_index;
     int8_t                   dep_in_index;
     int8_t                   count_of_params;
     int                      ref_count;
-    long unsigned int        size_of_param;
 };
 
 typedef int (parsec_dtd_arg_cb)(int first_arg, void *second_arg, int third_arg, void *cb_data);

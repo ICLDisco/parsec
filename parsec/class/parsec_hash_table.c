@@ -639,3 +639,9 @@ uint64_t parsec_hash_table_generic_64bits_key_hash(parsec_key_t key, void *user_
     (void)user_data;
     return (uint64_t)key;
 }
+
+parsec_key_fn_t parsec_hash_table_generic_key_fn = {
+        .key_equal = parsec_hash_table_generic_64bits_key_equal,
+        .key_hash  = parsec_hash_table_generic_64bits_key_hash,
+        .key_print = parsec_hash_table_generic_64bits_key_print
+};

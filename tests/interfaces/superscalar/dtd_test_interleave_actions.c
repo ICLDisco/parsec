@@ -89,6 +89,7 @@ int main(int argc, char **argv) {
    int pargc;
    char **pargv;
    int c;
+   parsec_arena_datatype_t *adt;
 
    while (1) {
        int option_index = 0;
@@ -174,10 +175,8 @@ int main(int argc, char **argv) {
 
    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-   // FIXME: parsec_dtd_arenas (insert_function.c) is not allocated
-   // unless `parsec_dtd_taskpool_new()` is called first.
-   parsec_matrix_add2arena_rect(
-         &parsec_dtd_arenas_datatypes[TILE_FULL],
+   adt = parsec_dtd_create_arena_datatype(parsec_context, TILE_FULL);
+   parsec_matrix_add2arena_rect( adt,
          parsec_datatype_int32_t,
          nb, 1, nb);
 
@@ -248,8 +247,10 @@ int main(int argc, char **argv) {
    ret = parsec_context_wait(parsec_context);
    PARSEC_CHECK_ERROR(ret, "parsec_context_wait");
 
-   // Cleanup data and parsec data structures
-   parsec_matrix_del2arena(&parsec_dtd_arenas_datatypes[TILE_FULL]);
+    // Cleanup data and parsec data structures
+   parsec_matrix_del2arena(adt);
+   PARSEC_OBJ_RELEASE(adt->arena);
+   parsec_dtd_destroy_arena_datatype(parsec_context, TILE_FULL);
    parsec_dtd_data_collection_fini( A );
    free_data(dcA);
 

@@ -581,6 +581,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->nb_vp               = nb_vp;
     /* initialize dtd taskpool list */
     context->taskpool_list       = NULL;
+    parsec_hash_table_init(&context->dtd_arena_datatypes_hash_table, offsetof(parsec_arena_datatype_t, ht_item),
+                           8, parsec_hash_table_generic_key_fn, NULL);
 #if defined(PARSEC_SIM)
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */
@@ -1097,10 +1099,21 @@ void parsec_context_at_fini(parsec_external_fini_cb_t cb, void *data)
     external_fini_cbs[n_external_fini_cbs-1].data = data;
 }
 
+static void parsec_clean_and_warn_dtd_arena_datatypes(void *elt, void *dta)
+{
+    void **params = (void **)dta;
+    parsec_hash_table_t *ht = (parsec_hash_table_t*)params[0];
+    parsec_arena_datatype_t *adt = (parsec_arena_datatype_t*)elt;
+    int *count = (int*)params[1];
+    (*count)++;
+    parsec_hash_table_remove(ht, adt->ht_item.key);
+}
+
 int parsec_fini( parsec_context_t** pcontext )
 {
     parsec_context_t* context = *pcontext;
-    int nb_total_comp_threads, p;
+    int nb_total_comp_threads, p, nb_items;
+    void *params[2] = {&context->dtd_arena_datatypes_hash_table, &nb_items};
 
     /* if dtd environment is set-up, we clean */
     if( __parsec_dtd_is_initialized ) {
@@ -1109,6 +1122,14 @@ int parsec_fini( parsec_context_t** pcontext )
         PARSEC_OBJ_RELEASE(context->taskpool_list);
         context->taskpool_list = NULL;
     }
+    nb_items = 0;
+    parsec_hash_table_for_all(&context->dtd_arena_datatypes_hash_table, parsec_clean_and_warn_dtd_arena_datatypes,
+                              params);
+    if(0 != nb_items) {
+        parsec_warning("/!\\ Warning: %d DTD arena datatypes are still registered with this parsec context at "
+                       "release time\n", nb_items);
+    }
+    parsec_hash_table_fini(&context->dtd_arena_datatypes_hash_table);
 
     /**
      * We need to force the main thread to drain all possible pending messages
