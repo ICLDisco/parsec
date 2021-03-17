@@ -1,5 +1,4 @@
 *~
-contrib/spack/packages/parsec/package.pyc
 
 # Cmake and configure generated files
 config.log
@@ -52,3 +51,10 @@ tests/unit/Makefile
 tools/Makefile
 tools/profiling/Makefile
 tools/profiling/python/Makefile
+
+# contrib/build_with_parsec tests
+contrib/build_with_parsec/Makefile
+contrib/build_with_parsec/dtd_test_allreduce
+contrib/build_with_parsec/write_check
+contrib/build_with_parsec/write_check.c
+contrib/build_with_parsec/write_check.h
