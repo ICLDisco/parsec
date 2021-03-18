@@ -40,7 +40,7 @@ function(target_ptg_sources target mode)
     get_property(cflags     SOURCE ${infile} PROPERTY COMPILE_OPTIONS)
     get_property(includes   SOURCE ${infile} PROPERTY INCLUDE_DIRECTORIES)
     get_property(defs       SOURCE ${infile} PROPERTY COMPILE_DEFINITIONS)
-    list(APPEND includes "$<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDA_INCLUDE_DIRS}>")
+    list(APPEND includes "$<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDAToolkit_INCLUDE_DIRS}>")
     set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/${outname}.c" "${CMAKE_CURRENT_BINARY_DIR}/${outname}.h"
                                   TARGET_DIRECTORY ${target}
                                   PROPERTIES
@@ -56,6 +56,6 @@ function(target_ptg_sources target mode)
   endforeach()
   target_include_directories(${target} ${mode}
     ${CMAKE_CURRENT_BINARY_DIR} # set include dirs so that the target can find outname.h
-    $<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDA_INCLUDE_DIRS}> # any include of outname.h will also need cuda.h atm
+    $<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDAToolkit_INCLUDE_DIRS}> # any include of outname.h will also need cuda.h atm
   )
 endfunction(target_ptg_sources)

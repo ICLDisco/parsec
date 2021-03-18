@@ -157,8 +157,7 @@ if( BUILD_PARSEC )
     PUBLIC
     ${PARSEC_ATOMIC_SUPPORT_LIBS}
     Threads::Threads
-    $<$<BOOL:${PARSEC_HAVE_WS2_32}>:ws2_32>
-    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>)
+    $<$<BOOL:${PARSEC_HAVE_WS2_32}>:ws2_32>)
   set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
 
   if(NOT TARGET parsec-base)
@@ -202,8 +201,7 @@ if( BUILD_PARSEC )
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/parsec/include>
     PUBLIC
-    $<$<BOOL:${HWLOC_FOUND}>:${HWLOC_INCLUDE_DIR}>
-    $<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDA_INCLUDE_DIRS}>)
+    $<$<BOOL:${HWLOC_FOUND}>:${HWLOC_INCLUDE_DIR}>)
   target_link_libraries(parsec
     PRIVATE
     Threads::Threads
@@ -212,16 +210,13 @@ if( BUILD_PARSEC )
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
+    $<$<BOOL:${CUDAToolkit_FOUND}>:CUDA::cudart>
     ${EXTRA_LIBS}
     INTERFACE
     ${PARSEC_ATOMIC_SUPPORT_LIBS}
     )
 # How to correctly deal with ${CMAKE_DL_LIBS} on a multi-platform way ?
 
-  if( ${PARSEC_HAVE_CUDA} )
-    target_link_libraries(parsec
-                          PUBLIC ${CUDA_LIBRARIES})
-  endif( ${PARSEC_HAVE_CUDA} )
   set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
   # For now make sure that the installed shared libraries have the right
   # version (same version as the major of the build version). Thus, every
