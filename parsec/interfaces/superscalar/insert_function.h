@@ -293,7 +293,7 @@ parsec_dtd_taskpool_wait( parsec_taskpool_t  *tp );
  * must wait on the taskpool before inserting
  * new task using this data after the flush.
  */
-void
+int
 parsec_dtd_data_flush( parsec_taskpool_t   *tp,
                        parsec_dtd_tile_t *tile );
 
@@ -302,7 +302,7 @@ parsec_dtd_data_flush( parsec_taskpool_t   *tp,
  * This function must be called for all dc(s) before
  * parsec_context_wait() is called.
  */
-void
+int
 parsec_dtd_data_flush_all( parsec_taskpool_t *tp,
                            parsec_data_collection_t  *dc );
 

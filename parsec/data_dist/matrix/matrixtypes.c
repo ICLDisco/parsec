@@ -41,7 +41,7 @@ int parsec_matrix_define_contiguous( parsec_datatype_t oldtype,
     /* Check if the type is valid and supported by the MPI library */
     rc = parsec_type_size(oldtype, &oldsize);
     if( 0 == oldsize ) {
-        return PARSEC_NOT_SUPPORTED;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
     /**
      * Define the TILE type.
@@ -92,7 +92,7 @@ int parsec_matrix_define_rectangle( parsec_datatype_t oldtype,
     /* Check if the type is valid and supported by the MPI library */
     parsec_type_size(oldtype, &oldsize);
     if( 0 == oldsize ) {
-        return PARSEC_NOT_SUPPORTED;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
     /**
      * Define the TILE type.
@@ -235,7 +235,7 @@ int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t 
     *extent = oldsize * n * ld;
 #endif
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_matrix_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
@@ -248,7 +248,7 @@ int parsec_matrix_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldt
 
     rc = parsec_matrix_define_datatype(&adt->opaque_dtt, oldtype, uplo, diag,
                                        m, n, ld, resized, &extent);
-    if( 0 != rc ) {
+    if( PARSEC_SUCCESS != rc ) {
         return rc;
     }
 
@@ -258,7 +258,7 @@ int parsec_matrix_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldt
         return rc;
     }
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_matrix_del2arena( parsec_arena_datatype_t *adt )

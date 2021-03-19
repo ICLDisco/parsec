@@ -774,7 +774,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Load the default scheduler. User can change it afterward,
      * but we need to ensure that one is loadable and here.
      */
-    if( 0 == parsec_set_scheduler( context ) ) {
+    if( PARSEC_SUCCESS > parsec_set_scheduler( context ) ) {
         /* TODO: handle memory leak / thread leak here: this is a fatal
          * error for PaRSEC */
         parsec_fatal("Unable to load any scheduler in init function.");
@@ -1215,7 +1215,7 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_class_finalize();
     parsec_debug_fini();  /* Always last */
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 #define rop1          u_expr.range.op1
@@ -1690,7 +1690,7 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "  => Service %s not yet ready", tmp1);
     }
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 parsec_ontask_iterate_t
@@ -1923,9 +1923,9 @@ parsec_taskpool_set_complete_callback( parsec_taskpool_t* tp,
     if( NULL == tp->on_complete ) {
         tp->on_complete      = complete_cb;
         tp->on_complete_data = complete_cb_data;
-        return 0;
+        return PARSEC_SUCCESS;
     }
-    return -1;
+    return PARSEC_ERR_EXISTS;
 }
 
 int
@@ -1936,9 +1936,9 @@ parsec_taskpool_get_complete_callback( const parsec_taskpool_t* tp,
     if( NULL != tp->on_complete ) {
         *complete_cb      = tp->on_complete;
         *complete_cb_data = tp->on_complete_data;
-        return 0;
+        return PARSEC_SUCCESS;
     }
-    return -1;
+    return PARSEC_ERR_NOT_FOUND;
 }
 
 int
@@ -1949,9 +1949,9 @@ parsec_taskpool_set_enqueue_callback( parsec_taskpool_t* tp,
     if( NULL == tp->on_enqueue ) {
         tp->on_enqueue      = enqueue_cb;
         tp->on_enqueue_data = enqueue_cb_data;
-        return 0;
+        return PARSEC_SUCCESS;
     }
-    return -1;
+    return PARSEC_ERR_EXISTS;
 }
 
 int
@@ -1962,9 +1962,9 @@ parsec_taskpool_get_enqueue_callback( const parsec_taskpool_t* tp,
     if( NULL != tp->on_enqueue ) {
         *enqueue_cb      = tp->on_enqueue;
         *enqueue_cb_data = tp->on_enqueue_data;
-        return 0;
+        return PARSEC_SUCCESS;
     }
-    return -1;
+    return PARSEC_ERR_NOT_FOUND;
 }
 
 int32_t
@@ -2274,7 +2274,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
         f = fopen(filename, "r");
         if( NULL == f ) {
             parsec_warning("invalid binding file %s.", filename);
-            return -1;
+            return PARSEC_ERR_NOT_FOUND;
         }
 
         int rank = 0, line_num = 0;
@@ -2298,7 +2298,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
             free(line);
 
         fclose(f);
-        return -1;
+        return PARSEC_SUCCESS;
     }
 
     if( (option[0] == '+') && (context->comm_th_core == -1)) {
@@ -2435,13 +2435,13 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
     }
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
-    return 0;
+    return PARSEC_SUCCESS;
 #else
     (void)option;
     (void)context;
     (void)startup;
     parsec_warning("the binding defined by --parsec_bind has been ignored (requires a build with HWLOC with bitmap support).");
-    return -1;
+    return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
 }
 
@@ -2457,11 +2457,11 @@ static int parsec_parse_comm_binding_parameter(const char* option, parsec_contex
     } else {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "default binding for the communication thread");
     }
-    return 0;
+    return PARSEC_SUCCESS;
 #else
     (void)option; (void)context;
     parsec_warning("The binding defined by --parsec_bind_comm has been ignored (requires HWLOC use with bitmap support).");
-    return -1;
+    return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif  /* PARSEC_HAVE_HWLOC */
 }
 

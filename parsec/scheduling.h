@@ -32,9 +32,9 @@ BEGIN_C_DECLS
  *             further away the tasks will be pushed. This is a hint
  *             that the schedulers are free to ignore.
  *
- * @return  0 If the execution was succesful and all output dependencies
- *            has been correctly marked.
- * @return -1 If something went wrong.
+ * @return PARSEC_SUCCESS    If the execution was succesful and all output
+ *                           dependencies have been correctly marked.
+ * @return less than PARSEC_SUCCESS  If something went wrong.
  */
 int __parsec_schedule( parsec_execution_stream_t*,
                        parsec_task_t*,
@@ -54,7 +54,9 @@ int __parsec_schedule( parsec_execution_stream_t*,
  * @param [IN] es, the start execution_stream (normall it is the current one).
  * @param [IN] task, the task to be rescheduled.
  *
- * @return parsec scheduling return code
+ * @return PARSEC_SUCCESS    If the execution was succesful and all output
+ *                           dependencies have been correctly marked.
+ * @return less than PARSEC_SUCCESS  If something went wrong.
  */
 int __parsec_reschedule(parsec_execution_stream_t* es,
                         parsec_task_t* task);
@@ -77,8 +79,14 @@ int __parsec_context_wait(parsec_execution_stream_t* es);
 
 /**
  * Execute the body of the task associated to the context.
+ *
+ * @return PARSEC_HOOK_RETURN_DONE  Task completed.
+ * @return PARSEC_HOOK_RETURN_NEXT  Task not executed, try the next variant (if any).
+ * @return PARSEC_HOOK_RETURN_ASYNC Task is not yet completed, it will be completed asynchronously later.
+ * @return PARSEC_HOOK_RETURN_ERROR If something went wrong.
  */
 int __parsec_execute( parsec_execution_stream_t*, parsec_task_t*);
+
 /**
  * Signal the termination of the execution context to all dependencies of
  * its dependencies.
@@ -86,8 +94,8 @@ int __parsec_execute( parsec_execution_stream_t*, parsec_task_t*);
  * @param[in]  eu_context The execution context of the finished task.
  * @param[in]  exec_context The task to be completed
  *
- * @return 0    If the dependencies have successfully been signaled.
- * @return -1   If something went wrong.
+ * @return PARSEC_SUCCESS   If the dependencies have successfully been signaled.
+ * @return less than PARSEC_SUCCESS If something went wrong.
  */
 int __parsec_complete_execution( parsec_execution_stream_t *es,
                                  parsec_task_t *task);

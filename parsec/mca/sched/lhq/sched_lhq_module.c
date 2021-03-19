@@ -51,7 +51,7 @@ const parsec_sched_module_t parsec_sched_lhq_module = {
 static int sched_lhq_install( parsec_context_t *master )
 {
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t* barrier)
@@ -87,9 +87,10 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
             for(int level = 0; level < sched_obj->nb_hierarch_queues; level++) {
                 int idx = sched_obj->nb_hierarch_queues - 1 - level;
                 int m = parsec_hwloc_master_id(level, es->th_id);
-                assert(m >= 0);
+                if( 0 > m ) parsec_fatal("lhq scheduler requires a working hwloc");
                 if( es->th_id == m ) {
                     int nbcores = parsec_hwloc_nb_cores(level, m);
+                    if( 0 > nbcores ) parsec_fatal("lhq scheduler requires a working hwloc");
                     int queue_size = 96 * (level+1) / nbcores;
                     if( queue_size < nbcores ) queue_size = nbcores;
 
@@ -171,7 +172,7 @@ static int flow_lhq_init(parsec_execution_stream_t* ces, struct parsec_barrier_t
     /* All threads wait here until the main one has completed the build */
     parsec_barrier_wait(barrier);
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static parsec_task_t*
@@ -214,7 +215,7 @@ static int sched_lhq_schedule(parsec_execution_stream_t* es,
     parsec_hbbuffer_push_all( PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->task_queue,
                               (parsec_list_item_t*)new_context,
                               distance );
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void sched_lhq_remove( parsec_context_t *master )

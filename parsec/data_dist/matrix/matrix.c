@@ -143,7 +143,7 @@ void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
     parsec_datatype_t elem_dt = PARSEC_DATATYPE_NULL;
     ptrdiff_t extent;
     parsec_translate_matrix_type( tdesc->mtype, &elem_dt );
-    if( 0 != parsec_matrix_define_datatype(&o->default_dtt, elem_dt,
+    if( PARSEC_SUCCESS != parsec_matrix_define_datatype(&o->default_dtt, elem_dt,
                                               matrix_UpperLower, 1 /*diag*/,
                                               tdesc->mb, tdesc->nb, tdesc->mb /*ld*/,
                                               -1/*resized*/, &extent)){
@@ -273,7 +273,7 @@ int tiled_matrix_data_write(parsec_tiled_matrix_dc_t *tdesc, char *filename)
     tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
         parsec_warning("The file %s cannot be open", filename);
-        return -1;
+        return PARSEC_ERR_NOT_FOUND;
     }
 
     if ( tdesc->storage == matrix_Tile ) {
@@ -301,7 +301,7 @@ int tiled_matrix_data_write(parsec_tiled_matrix_dc_t *tdesc, char *filename)
 
 
     fclose(tmpf);
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /*
@@ -335,7 +335,7 @@ int tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename)
                         parsec_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                 i, j, ret, tdesc->bsiz);
                         fclose(tmpf);
-                        return -1;
+                        return PARSEC_ERR_TRUNCATE;
                     }
                 }
             }
@@ -351,7 +351,7 @@ int tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename)
                             parsec_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                     i, j, ret, tdesc->mb);
                             fclose(tmpf);
-                            return -1;
+                            return PARSEC_ERR_TRUNCATE;
                         }
                         buf += eltsize * tdesc->lm;
                     }
@@ -360,5 +360,5 @@ int tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename)
     }
 
     fclose(tmpf);
-    return 0;
+    return PARSEC_SUCCESS;
 }

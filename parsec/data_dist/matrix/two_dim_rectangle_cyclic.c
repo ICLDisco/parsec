@@ -95,7 +95,7 @@ void two_dim_block_cyclic_lapack_init(two_dim_block_cyclic_t * dc,
     parsec_translate_matrix_type( tdesc->mtype, &elem_dt );
     parsec_type_free(&o->default_dtt);
     /* Default type is MBxNB if we have enough rows&cols */
-    if( 0 != parsec_matrix_define_datatype(&o->default_dtt, elem_dt,
+    if( PARSEC_SUCCESS != parsec_matrix_define_datatype(&o->default_dtt, elem_dt,
                                               matrix_UpperLower, 1 /*diag*/,
                                               (tdesc->mb > tdesc->m ? tdesc->m : tdesc->mb),
                                               (tdesc->nb > tdesc->n ? tdesc->n : tdesc->nb),

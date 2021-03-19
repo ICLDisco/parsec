@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include "parsec/mca/pins/pins.h"
+#include "parsec/constants.h"
 #include "parsec/utils/debug.h"
 #include "parsec/execution_stream.h"
 
@@ -47,15 +48,15 @@ int parsec_pins_register_callback(struct parsec_execution_stream_s* es,
 {
     if( method_flag >= PARSEC_PINS_FLAG_COUNT ) {
         parsec_warning("PINS register MUST be called with a valid event flag.");
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
     }
     if( NULL == cb_data ) {
         parsec_warning("PINS registration MUST be called with non-NULL data. Discard PINS module");
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
     }
     if (registration_disabled) {
         parsec_inform("PINS has been disabled by command line argument, causing this registration to have no effect.");
-        return 0;
+        return PARSEC_SUCCESS;
     }
 
     parsec_pins_next_callback_t* cb_event = &es->pins_events_cb[method_flag];
@@ -65,7 +66,7 @@ int parsec_pins_register_callback(struct parsec_execution_stream_s* es,
     cb_event->cb_func = cb_func;
     cb_event->cb_data = cb_data;
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_pins_unregister_callback(struct parsec_execution_stream_s* es,
@@ -76,11 +77,11 @@ int parsec_pins_unregister_callback(struct parsec_execution_stream_s* es,
     *cb_data = NULL;
     if( method_flag >= PARSEC_PINS_FLAG_COUNT ) {
         parsec_warning("PINS unregister MUST be called with a valid event flag.");
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
     }
     if (registration_disabled) {
         parsec_inform("PINS has been disabled by command line argument, causing this UN-registration to have no effect.");
-        return 0;
+        return PARSEC_SUCCESS;
     }
 
     parsec_pins_next_callback_t* cb_event = &es->pins_events_cb[method_flag];
@@ -89,10 +90,10 @@ int parsec_pins_unregister_callback(struct parsec_execution_stream_s* es,
     }
     if( NULL == cb_event->cb_data ) {
         /* No matching event could be found in the list */
-        return -1;
+        return PARSEC_ERR_NOT_FOUND;
     }
     assert(cb_event->cb_func == cb);
     *cb_data = cb_event->cb_data;
     *cb_event = **cb_data;
-    return 0;
+    return PARSEC_SUCCESS;
 }

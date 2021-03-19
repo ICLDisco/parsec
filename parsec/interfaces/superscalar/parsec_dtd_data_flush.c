@@ -363,10 +363,11 @@ parsec_internal_dtd_data_flush(parsec_dtd_tile_t *tile, parsec_taskpool_t *tp)
  * must wait on the taskpool before inserting new tasks using this data.
  * This function is non-blocking.
  */
-void
+int
 parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
 {
     parsec_internal_dtd_data_flush(tile, tp);
+    return PARSEC_SUCCESS; /* TODO: internal_dtd_data_flush should care for error codepaths */
 }
 
 /**
@@ -377,7 +378,7 @@ parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
  * flush tasks are inserted. Users have to wait on the taskpool
  * before reusing this data collection.
  */
-void
+int
 parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
@@ -388,4 +389,5 @@ parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
     parsec_hash_table_for_all( hash_table, (parsec_hash_elem_fct_t)parsec_internal_dtd_data_flush, tp);
 
     PARSEC_PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_END, NULL);
+    return PARSEC_SUCCESS; /* TODO: internal_dtd_data_flush should care for error codepaths */
 }

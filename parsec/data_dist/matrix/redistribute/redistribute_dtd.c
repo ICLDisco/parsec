@@ -232,7 +232,7 @@ insert_task(parsec_execution_stream_t *es, parsec_task_t *this_task)
     parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)dcY );
     parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)dcT );
 
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 /*
@@ -325,7 +325,7 @@ insert_task_reshuffle(parsec_execution_stream_t *es, parsec_task_t *this_task)
  * @param [in] disi_T: row displacement in dcT
  * @param [in] disj_T: column displacement in dcT
  */
-int
+static int
 parsec_redistribute_New_dtd(parsec_context_t *parsec,
                             parsec_tiled_matrix_dc_t *dcY,
                             parsec_tiled_matrix_dc_t *dcT,
@@ -426,7 +426,7 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     parsec_dtd_data_collection_fini( (parsec_data_collection_t *)dcY );
     parsec_dtd_data_collection_fini( (parsec_data_collection_t *)dcT );
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /**
@@ -459,5 +459,5 @@ int parsec_redistribute_dtd(parsec_context_t *parsec,
     int rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    return 0;
+    return PARSEC_SUCCESS;
 }

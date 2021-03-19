@@ -100,7 +100,7 @@ const parsec_sched_module_t parsec_sched_spq_module = {
 static int sched_spq_install( parsec_context_t *master )
 {
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -127,7 +127,7 @@ static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     }
 #endif
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static parsec_task_t* sched_spq_select(parsec_execution_stream_t *es,
@@ -195,7 +195,7 @@ static int sched_spq_schedule(parsec_execution_stream_t* es,
                              (parsec_list_item_t*)new_context,
                              parsec_execution_context_priority_comparator);
     parsec_list_unlock(&task_list->super);
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void sched_spq_remove( parsec_context_t *master )

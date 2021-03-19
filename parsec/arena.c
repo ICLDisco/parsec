@@ -66,11 +66,11 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
                               the destructor to skip the lifo destruction. */
     /* alignment must be more than zero and power of two */
     if( (alignment <= 1) || (alignment & (alignment - 1)) )
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
 
     /* avoid dividing by zero */
     if( elem_size == 0 )
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
 
     assert(0 == (((uintptr_t)arena) % sizeof(uintptr_t))); /* is it aligned */
 
@@ -83,7 +83,7 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
     arena->max_released = (max_cached_memory / elem_size > (size_t)INT32_MAX)? INT32_MAX: max_cached_memory / elem_size;
     arena->data_malloc  = parsec_data_allocate;
     arena->data_free    = parsec_data_free;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_arena_construct(parsec_arena_t* arena,

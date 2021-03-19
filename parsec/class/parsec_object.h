@@ -399,7 +399,7 @@ PARSEC_DECLSPEC void parsec_class_initialize(parsec_class_t *cls);
  * tools like valgrind and purify don't report still-reachable memory
  * upon process termination.
  */
-PARSEC_DECLSPEC int parsec_class_finalize(void);
+PARSEC_DECLSPEC void parsec_class_finalize(void);
 
 /**
  * Run the hierarchy of class constructors for this object, in a

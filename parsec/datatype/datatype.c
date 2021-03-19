@@ -48,7 +48,7 @@ int parsec_type_size( parsec_datatype_t type,
     case parsec_datatype_double_complex_t:
         *size = 2 * sizeof( double ); break;
     default:
-        return PARSEC_NOT_SUPPORTED;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
     return PARSEC_SUCCESS;
 }

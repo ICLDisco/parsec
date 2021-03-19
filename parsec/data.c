@@ -124,7 +124,7 @@ int parsec_data_init(parsec_context_t* context)
         return PARSEC_ERROR;
     }
     parsec_data_t_class.cls_sizeof += sizeof(parsec_data_copy_t*) * parsec_nb_devices;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_data_fini(parsec_context_t* context)
@@ -132,7 +132,7 @@ int parsec_data_fini(parsec_context_t* context)
     PARSEC_OBJ_DESTRUCT(&parsec_data_lifo);
     PARSEC_OBJ_DESTRUCT(&parsec_data_copies_lifo);
     (void)context;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /**

@@ -16,7 +16,7 @@
  *
  * Scheduler framework component interface.
  *
- * This Modular Component provides an End-User API to 
+ * This Modular Component provides an End-User API to
  * implement a PaRSEC runtime scheduler.
  *
  * @section SchedGeneralPrinciple General Principle
@@ -25,7 +25,7 @@
  * process alternate between executing a task and scheduling tasks. Once
  * a task is executed, the task engine computes a set of tasks that become
  * ready. The main role of the scheduler is two-fold:
- *   - when new tasks become ready, it must dispatch this set of tasks 
+ *   - when new tasks become ready, it must dispatch this set of tasks
  *     into scheduler-specific data structures for later selection
  *     (this is the schedule step)
  *   - when requested, it must select a task for execution (this is
@@ -40,7 +40,7 @@
  * mechanism. It can change at runtime, between two execution activities
  * (e.g. once a parsec_context_t has been waited upon, and before any new
  * parsec_handle_t has been enqueued / started in that parsec_context_t).
- * 
+ *
  * When a scheduler is changed, the previous one is removed, and the new
  * one is installed. Initially, a first one is installed.
  *
@@ -66,7 +66,7 @@
  * To ensure fairness of execution, PaRSEC relies on a distance concept.
  *
  * Seeing the set of ready tasks as a (virtually ordered) list, a task
- * that is scheduled with a small distance can be early in the list, 
+ * that is scheduled with a small distance can be early in the list,
  * while a task that is scheduled with a large distance should be found
  * later in the list.
  *
@@ -97,7 +97,7 @@
  *     and from that list picking the highest priority task.
  *   - global locks (at the list of priority lists level) will be used to
  *     ensure a (rough) thread safety.
- * 
+ *
  * \dontinclude parsec/mca/sched/spq/sched_spq_module.c
  * \skip Example Starts Here
  * The Install function (@ref parsec_sched_base_module_install_fn_t) is defined so:
@@ -105,13 +105,13 @@
  * \until }
  * Nothing specific has to be done in this function.
  *
- * The flow_init function (@ref parsec_sched_base_module_flow_init_fn_t) 
- * is defined so: 
+ * The flow_init function (@ref parsec_sched_base_module_flow_init_fn_t)
+ * is defined so:
  * \skip flow_spq_init
  * \until }
  *
- * The execution unit for identifier 0 (see @ref parsec_execution_unit_t) 
- * creates a new list (@ref parsec_internal_classes_list), and stores it 
+ * The execution unit for identifier 0 (see @ref parsec_execution_unit_t)
+ * creates a new list (@ref parsec_internal_classes_list), and stores it
  * in the opaque pointer for scheduling, scheduler_object. All threads then
  * join the barrier (@ref parsec_internal_classes_barrier), and store in their
  * own scheduler_object the one that was created by the execution unit 0.
@@ -121,8 +121,8 @@
  * \skip sched_spq_select
  * \until return context
  * \until }
- * 
- * Here, the current thread will 
+ *
+ * Here, the current thread will
  *
  *  - lock the task list (preventing all other thread to modify it)
  *  - iterate over each element (this list being sorted, we consider
@@ -135,15 +135,15 @@
  *  - If there is no task, continue searching
  *  - Evenutally return the found task, or NULL, afte having released
  *    the lock on the lists.
- * 
+ *
  * The Scheduling function (@ref parsec_sched_base_module_schedule_fn_t) is
  * defined so:
  * \skip sched_spq_schedule
- * \until return 0;
+ * \until return PARSEC_SUCCESS;
  * \until }
  *
  * That function behaves similarly to the selection function:
- * 
+ *
  *  - it takes the lock on the lists
  *  - iterate over the distance-sorted list heads, finding one with
  *    the apprioriate priority (the distance provided by the runtime)
@@ -152,7 +152,7 @@
  *    position
  *  - if necessary, create a new list head to store tasks with this
  *    distance
- *  - then insert (sorted) the ready tasks (since new_context is a 
+ *  - then insert (sorted) the ready tasks (since new_context is a
  *    ring of tasks) into the list corresponding to that distance
  *  - and release the lock on the tasks lists.
  *
@@ -163,7 +163,7 @@
  * \until }
  * \until }
  * \until }
- * 
+ *
  * It frees the only list allocated by the flow_init function, and
  * set the scheduler_object to NULL for all execution units under this
  * @ref parsec_context_t
@@ -191,10 +191,10 @@ typedef struct parsec_sched_base_component_2_0_0 parsec_sched_base_component_t;
 /**
  * @brief Global Initialization for the scheduler module.
  *
- * @details 
+ * @details
  * This function is called once per parsec_context_t and
  * allows the scheduling module to setup any global data it
- * needs. This call will be followed by a call to init.  
+ * needs. This call will be followed by a call to init.
  * @param[inout] master a pointer to the PaRSEC context
  * @code{c}
  * For each vp in [0; master->nb_vp];
@@ -204,14 +204,14 @@ typedef struct parsec_sched_base_component_2_0_0 parsec_sched_base_component_t;
  * is a pointer to an opaque object that the install function can set
  * to serve as a scheduling data structure (e.g. a dequeue, or a
  * priority list).  Only the initializations that cannot be done in
- * parallel should happen at install call. 
- * @return 0 if the scheduler can continue its installation; an error code otherwise
+ * parallel should happen at install call.
+ * @return PARSEC_SUCCESS if the scheduler can continue its installation; an error code otherwise
  */
 typedef int  (*parsec_sched_base_module_install_fn_t)(parsec_context_t* master);
 
 /**
  * @brief Per-thread Initialization function
- * 
+ *
  * @details
  * This call follows the global_init call. It is called once per execution
  * unit, allowing the scheduler to setup any type of local information each stream
@@ -219,7 +219,7 @@ typedef int  (*parsec_sched_base_module_install_fn_t)(parsec_context_t* master);
  * based on the locality information available in the parsec_context_t.
  * eu_context->scheduler_object is a pointer to an opaque structure that
  * the scheduler can define and use to store scheduling information.
- * The barrier provided is global for all execution streams in the 
+ * The barrier provided is global for all execution streams in the
  * parsec_context_t to which eu_context belongs, and may be used to force
  * synchronizations and setup structures sharing between the different
  * execution streams.
@@ -227,7 +227,7 @@ typedef int  (*parsec_sched_base_module_install_fn_t)(parsec_context_t* master);
  *               function
  * @param[inout] barrier a barrier common to all execution units in the same
  *               parsec_context_t
- * @return 0 if the scheduler can be used; an error code otherwise
+ * @return PARSEC_SUCCESS if the scheduler can be used; an error code otherwise
  */
 typedef int  (*parsec_sched_base_module_flow_init_fn_t)(parsec_execution_stream_t* es,
                                                        struct parsec_barrier_t*);
@@ -253,14 +253,14 @@ typedef int  (*parsec_sched_base_module_flow_init_fn_t)(parsec_execution_stream_
  * accessible from that pointer, for a later selection.
  *
  * @param[inout] eu_context the current execution stream
- * @param[inout] new_context a double-linked ring of ready tasks. Each task has 
+ * @param[inout] new_context a double-linked ring of ready tasks. Each task has
  *               a priority field that should be considered as task-specific hints
  *               for the scheduler.
- * @param[in]    distance a (mandatory) hint for the scheduler that enables 
+ * @param[in]    distance a (mandatory) hint for the scheduler that enables
  *               fairness. A higher distance means that the tasks should be selected
  *               late, while a smaller distance means that the tasks can be selected
  *               soon.
- * @return 0 on success; an error code in case of error (which is fatal).
+ * @return PARSEC_SUCCESS on success; an error code in case of error (which is fatal).
  */
 typedef int  (*parsec_sched_base_module_schedule_fn_t)
                  (parsec_execution_stream_t* es,
@@ -269,7 +269,7 @@ typedef int  (*parsec_sched_base_module_schedule_fn_t)
 /**
  * @brief Selecting Function
  *
- * @details 
+ * @details
  * Select the best candidate to be executed next. This function returns the task to execute,
  * and set the distance where the returned candidate has been found (greater means further away).
  * The distance is more than a hint, if ignored live locks can happen.
@@ -310,7 +310,7 @@ typedef void (*parsec_sched_base_module_stats_fn_t)(parsec_execution_stream_t* e
  * torn down, and their data can be safely released.
  *
  * @param[inout] master the main parsec_context_t from which to remove the
- *                       scheduler. 
+ *                       scheduler.
  * @code{c}
  * For each vp in [0; master->nb_vp];
  *     For each eu in [0; master->virtual_process[vp]->nb_vp];

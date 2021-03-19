@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -14,7 +14,7 @@ int parsec_barrier_init(parsec_barrier_t* barrier, const void* attr, unsigned in
     int rc;
 
     if( 0 != (rc = pthread_mutex_init(&(barrier->mutex), attr)) ) {
-        return rc;
+        return rc; // Note how we return a posix error code, not a parsec one. This is mimicking pthreads API.
     }
 
     barrier->count      = count;

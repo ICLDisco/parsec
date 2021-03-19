@@ -200,7 +200,7 @@ int parsec_redistribute(parsec_context_t *parsec,
         parsec_redistribute_Destruct(parsec_redistribute_ptg);
     }
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /**
