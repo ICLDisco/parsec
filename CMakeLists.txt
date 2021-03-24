@@ -553,14 +553,6 @@ set(EXTRA_INCLUDES "")
 # Find optional packages
 #
 IF( BUILD_PARSEC )
-  find_package(HWLOC)
-  set(PARSEC_HAVE_HWLOC ${HWLOC_FOUND})
-  IF( HWLOC_FOUND )
-     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
-     list(APPEND EXTRA_INCLUDES ${HWLOC_INCLUDE_DIRS})
-     set (PARSEC_PKG_REQUIRE "hwloc")
-  ENDIF (HWLOC_FOUND)
-
   if (PARSEC_DIST_WITH_MPI)
     # Otherwise try to find MPI in the normal way
     find_package(MPI)
@@ -597,6 +589,50 @@ IF( BUILD_PARSEC )
     endif(PARSEC_HAVE_MPI_30)
     CMAKE_POP_CHECK_STATE()
   endif (MPI_C_FOUND)
+
+  find_package(HWLOC)
+  set(PARSEC_HAVE_HWLOC ${HWLOC_FOUND})
+  if( HWLOC_FOUND )
+    list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
+    list(APPEND EXTRA_INCLUDES ${HWLOC_INCLUDE_DIRS})
+    set (PARSEC_PKG_REQUIRE "hwloc")
+    if(MPI_C_FOUND AND NOT CMAKE_CROSSCOMPILING)
+        include(CheckCSourceRuns)
+        cmake_push_check_state()
+        # Some MPI libraries link with an external version of hwloc, and
+        # compiling/linking our own with a different, incompatible ABI hwloc
+        # will cause breakage. We try to capture this case ASAP during configure,
+        # except if we are cross-compiling: in this case the error will be
+        # mopped-up when runing the user program, late but safe.
+        #
+        # Note that we test the same link-order as in PaRSEC
+        # Dependent upon which one links first, either PaRSEC, or MPI will break.
+        set(CMAKE_REQUIRED_LIBRARIES MPI::MPI_C HWLOC::HWLOC)
+        check_c_source_runs("
+#include <mpi.h>
+#include <hwloc.h>
+#include <stdio.h>
+#include <stdlib.h>
+int main(int argc, char *argv[]) {
+    printf(\"HWLOC headers %x; lib %x.\\\\n\");
+#if HWLOC_API_VERSION >= 0x00020000
+    if (hwloc_get_api_version() < 0x20000) {
+#else
+    if (hwloc_get_api_version() >= 0x20000) {
+#endif
+        return 1;
+    }
+    MPI_Init(&argc, &argv);
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize();
+    return 0;
+    }" MPI_AND_HWLOC_COMPATIBLE)
+        if(NOT MPI_AND_HWLOC_COMPATIBLE)
+            message(FATAL_ERROR "The hwloc CMake found and the one used by MPI are incompatible!\n  Make sure you use the same hwloc used to compile your MPI library\n  The test failed with the following outputs:\n${RUN_OUTPUT}")
+        endif(NOT MPI_AND_HWLOC_COMPATIBLE)
+        cmake_pop_check_state()
+    endif(MPI_C_FOUND AND NOT CMAKE_CROSSCOMPILING)
+  endif( HWLOC_FOUND )
 
   if( PARSEC_GPU_WITH_CUDA )
     STRING(REGEX MATCH "PGI$" _match_pgi ${CMAKE_C_COMPILER_ID})
