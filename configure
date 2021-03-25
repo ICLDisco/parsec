@@ -87,8 +87,6 @@ cat <<EOF
                 use the TAU profiler package [installed in DIR]
 --with-papi[=DIR]
                 use the PAPI performance counter package [installed in DIR] (default=autodetect)
---with-gtg[=DIR]
-                use the GTG package [installed in DIR] (optional)
 --with-ayudame[=DIR]
                 use the Ayudame package [installed in DIR] (optional)
 
@@ -489,13 +487,6 @@ xno) CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=OFF"
 xyes) CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON";;
 x) ;;
 *) CMAKE_DEFINES+=" -DPAPI_DIR=$(printf %q "$with_papi")";;
-esac
-
-case x$with_gtg in
-xno) ;; # No CMAKE control to remove if available
-xyes) ;; # No CMAKE control to force using
-x) ;;
-*) CMAKE_DEFINES+=" -DGTG_DIR=$(printf %q "$with_gtg")";;
 esac
 
 case x$with_ayudame in

@@ -34,6 +34,9 @@ master
  - PTG supports reshaping data propagated between local tasks and
    the speficiation of two types on acccesses to data colletions.
 
+ - Removed obsolete dbp2paje tool; h5totrace is the replacement tool
+   to use. This removes the optional dependency on GTG.
+
 v20.12
  - PaRSEC API 3.0
 
