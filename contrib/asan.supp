@@ -3,3 +3,5 @@ interceptor_via_lib:open-pal
 interceptor_via_lib:open-mpi
 interceptor_via_lib:pmi
 interceptor_via_lib:slurm
+interceptor_via_lib:ibverbs
+interceptor_via_lib:rdmacm
