@@ -521,7 +521,7 @@ case x$with_cuda in
 xno) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=OFF";;
 xyes) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=ON";;
 x) ;;
-*) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=ON -DCUDA_TOOLKIT_ROOT_DIR=$(printf %q "$with_cuda") ${CC:+-DCUDA_HOST_COMPILER=$(printf %q "$(command -v $CC)")} ";;
+*) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=ON -DCUDAToolkit_ROOT=$(printf %q "$with_cuda") ";;
 esac
 
 case x$with_cuda_sm_targets in
