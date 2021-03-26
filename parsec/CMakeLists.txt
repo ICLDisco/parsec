@@ -210,7 +210,7 @@ if( BUILD_PARSEC )
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
-    $<$<BOOL:${CUDAToolkit_FOUND}>:CUDA::cudart>
+    $<$<BOOL:${PARSEC_HAVE_CUDA}>:CUDA::cudart>
     ${EXTRA_LIBS}
     INTERFACE
     ${PARSEC_ATOMIC_SUPPORT_LIBS}
