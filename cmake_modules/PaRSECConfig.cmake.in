@@ -39,7 +39,7 @@ if(@PARSEC_DIST_WITH_MPI@)
 endif(@PARSEC_DIST_WITH_MPI@)
 
 if(@PARSEC_HAVE_CUDA@)
-  find_package(CUDA REQUIRED)
+  find_package(CUDAToolkit REQUIRED)
   SET(PARSEC_HAVE_CUDA TRUE)
 endif(@PARSEC_HAVE_CUDA@)
 
