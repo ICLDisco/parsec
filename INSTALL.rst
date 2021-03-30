@@ -20,7 +20,6 @@ of this software package.
 4. For using PINS (instrumentation based on PAPI) PAPI_ is required
 5. For the profiling tools you need several libraries.
 
-   - GTG_ for the trace generation
    - Vite_ a visualization environment (only required for visualization)
    - GD_ usually available on most of the Linux distribution via GraphViz
      installation
@@ -28,7 +27,6 @@ of this software package.
 .. _CMake: http://www.cmake.org/
 .. _hwloc: http://www.open-mpi.org/projects/hwloc/
 .. _PAPI: http://icl.cs.utk.edu/papi/
-.. _GTG: https://gforge.inria.fr/projects/gtg/
 .. _Vite: https://gforge.inria.fr/projects/vite/
 .. _GD: http://www.graphviz.org/
 
@@ -104,7 +102,6 @@ how one sets some default options.
 .. code:: bash
 
   with_hwloc=${HWLOC_ROOT:="/spack/opt/spack/linux-scientific7-x86_64/gcc-7.3.0/hwloc-1.11.11-nu65xwuyodswr74llx3ymi67hgd6vmwe"}
-  with_gtg=${GTG_ROOT:="/sw/gtg/0.2-2"}
 
   # BLAS: use MKL
   [ -z "${MKLROOT}" ] || module load intel-mkl/2019.3.199/gcc-7.3.0-2pn4
