@@ -486,7 +486,7 @@ xno) CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=OFF"
     fi;;
 xyes) CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON";;
 x) ;;
-*) CMAKE_DEFINES+=" -DPAPI_DIR=$(printf %q "$with_papi")";;
+*) CMAKE_DEFINES+=" -DPAPI_ROOT=$(printf %q "$with_papi")";;
 esac
 
 case x$with_ayudame in
@@ -500,7 +500,7 @@ case x$with_hwloc in
 xno) ;; # No CMAKE control to remove if available
 xyes) ;; # No CMAKE control to force using
 x) ;;
-*) CMAKE_DEFINES+=" -DHWLOC_DIR=$(printf %q "$with_hwloc")";;
+*) CMAKE_DEFINES+=" -DHWLOC_ROOT=$(printf %q "$with_hwloc")";;
 esac
 
 case x$with_mpi in
