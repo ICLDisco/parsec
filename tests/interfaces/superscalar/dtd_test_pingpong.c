@@ -21,9 +21,8 @@
 double time_elapsed;
 double sync_time_elapsed;
 
-enum regions {
-               TILE_FULL,
-             };
+/* IDs for the Arena Datatypes */
+static int TILE_FULL;
 
 int
 task_for_timing_0( parsec_execution_stream_t *es,
@@ -109,7 +108,7 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-    adt = parsec_dtd_create_arena_datatype(parsec, TILE_FULL);
+    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
     parsec_matrix_add2arena_rect( adt,
                                   parsec_datatype_int32_t,
                                   nb, 1, nb );

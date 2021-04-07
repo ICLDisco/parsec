@@ -583,6 +583,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->taskpool_list       = NULL;
     parsec_hash_table_init(&context->dtd_arena_datatypes_hash_table, offsetof(parsec_arena_datatype_t, ht_item),
                            8, parsec_hash_table_generic_key_fn, NULL);
+    context->dtd_arena_datatypes_next_id = 0;
 #if defined(PARSEC_SIM)
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */

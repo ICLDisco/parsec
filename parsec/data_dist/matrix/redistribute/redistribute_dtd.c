@@ -14,8 +14,9 @@ static inline int parsec_imin(int a, int b)
     return (a <= b) ? a : b;
 };
 
-enum regions { SOURCE,
-               TARGET };
+/* IDs for the Arena Datatypes */
+static int TARGET;
+static int SOURCE;
 
 /**
  * @brief CORE function
@@ -371,13 +372,13 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
     /* Allocating data arrays to be used by comm engine */
-    adt = parsec_dtd_create_arena_datatype(parsec, TARGET);
+    adt = parsec_dtd_create_arena_datatype(parsec, &TARGET);
     parsec_matrix_add2arena(adt,
                             MY_TYPE, matrix_UpperLower,
                             1, dcT->mb, dcT->nb, dcT->mb,
                             PARSEC_ARENA_ALIGNMENT_SSE, -1);
 
-    adt = parsec_dtd_create_arena_datatype(parsec, SOURCE);
+    adt = parsec_dtd_create_arena_datatype(parsec, &SOURCE);
     parsec_matrix_add2arena(adt,
                             MY_TYPE, matrix_UpperLower,
                             1, dcY->mb, dcY->nb, dcY->mb,

@@ -15,10 +15,8 @@
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-enum regions
-   {
-    TILE_FULL,
-   };
+/* IDs for the Arena Datatypes */
+static int TILE_FULL;
 
 parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int mb, int mt) {
 
@@ -175,7 +173,7 @@ int main(int argc, char **argv) {
 
    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-   adt = parsec_dtd_create_arena_datatype(parsec_context, TILE_FULL);
+   adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
    parsec_matrix_add2arena_rect( adt,
          parsec_datatype_int32_t,
          nb, 1, nb);

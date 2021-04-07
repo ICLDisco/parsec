@@ -17,9 +17,8 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
-enum regions {
-               TILE_FULL,
-             };
+/* IDs for the Arena Datatypes */
+static int TILE_FULL;
 
 struct my_datatype {
     int a;
@@ -88,7 +87,7 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
-    adt = parsec_dtd_create_arena_datatype(parsec, TILE_FULL);
+    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
     parsec_arena_datatype_construct( adt,
                                      nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                                      MPI_INT );

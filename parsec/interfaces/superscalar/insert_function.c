@@ -3070,15 +3070,24 @@ parsec_dtd_get_taskpool(parsec_task_t *this_task)
     return this_task->taskpool;
 }
 
-parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx, int id)
+parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx, int *id)
 {
     parsec_arena_datatype_t *new_adt;
-    new_adt = parsec_hash_table_nolock_find(&ctx->dtd_arena_datatypes_hash_table, id);
+    int my_id = parsec_atomic_fetch_inc_int32(&ctx->dtd_arena_datatypes_next_id);
+    if( (my_id & PARSEC_GET_REGION_INFO) != my_id) {
+        return NULL;
+    }
+#if defined(PARSEC_DEBUG_PARANOID)
+    new_adt = parsec_hash_table_nolock_find(&ctx->dtd_arena_datatypes_hash_table, my_id);
     if(NULL != new_adt)
         return NULL;
+#endif
     new_adt = calloc(sizeof(parsec_arena_datatype_t), 1);
-    new_adt->ht_item.key = id;
+    if(NULL == new_adt)
+        return NULL;
+    new_adt->ht_item.key = my_id;
     parsec_hash_table_nolock_insert(&ctx->dtd_arena_datatypes_hash_table, &new_adt->ht_item);
+    *id = my_id;
     return new_adt;
 }
 
@@ -3093,4 +3102,5 @@ int parsec_dtd_destroy_arena_datatype(parsec_context_t *ctx, int id)
     if(NULL == adt)
         return PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
     free(adt);
+    return PARSEC_SUCCESS;
 }

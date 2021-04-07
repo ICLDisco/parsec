@@ -77,20 +77,20 @@ typedef enum { PASSED_BY_REF=-1,
 
 /**
  * @brief Create a new Arena Datatype for DTD
- * @details Associate the new Arena Datatype with the
- *    context @p ctx and the unique id @p id. The id must
- *    not be used before. This function is thread-safe
- *    per context, but not thread-safe if called in parallel
- *    on the same context.
+ * @details Create a new unique Arena Datatype identifier,
+ *    @id, and a new Arena Datatype; Associates the new Arena
+ *    Datatype with the context @p ctx and the unique id @p id.
+ *    This function is thread-safe per context, but not
+ *    thread-safe if called in parallel on the same context.
  *
  * @param ctx the context in which the arena datatype exists.
- * @param id the unique ID the user assigns to this new Arena
- *    Datatype. The function will return an error if an Arena
- *    Datatype with this ID already exists in this context.
+ * @param id Ignored as input. As output: the unique ID assigned
+ *    to this new Arena Datatype.
  * @return the new Arena Datatype, or NULL if there was an error
- *    (@p id already exists in @p ctx).
+ *    (e.g. no more memory or too many arena datatypes created
+ *    within this context.) id is untouched if NULL is returned.
  */
-parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx, int id);
+parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx, int *id);
 
 /**
  * @brief returns the Arena Datatype associated with this identifier

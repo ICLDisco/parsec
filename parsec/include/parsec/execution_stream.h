@@ -130,6 +130,7 @@ struct parsec_context_s {
 
     parsec_list_t       *taskpool_list;                  /**< list of dtd taskpools registered with this context */
     parsec_hash_table_t  dtd_arena_datatypes_hash_table; /**< Hash table that stores the arena datatypes used by DTD */
+    int                  dtd_arena_datatypes_next_id;    /**< Next ID to use for the next Arena Datatype by DTD */
 
 #if defined(PARSEC_SIM)
     int largest_simulation_date;
