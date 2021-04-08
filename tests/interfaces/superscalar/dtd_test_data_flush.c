@@ -18,6 +18,9 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
+/* IDs for the Arena Datatypes */
+static int TILE_FULL;
+
 int
 task_to_check_overhead_1(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
@@ -199,6 +202,7 @@ int main(int argc, char ** argv)
      ***************************************
      */
         /**** We send data from rank 0 to 1 and flush it back */
+        parsec_arena_datatype_t *adt;
 
         /* Registering the dtd_handle with PARSEC context */
         rc = parsec_context_start(parsec);
@@ -210,7 +214,8 @@ int main(int argc, char ** argv)
 
         dtd_tp = parsec_dtd_taskpool_new();
 
-        parsec_matrix_add2arena_rect( &parsec_dtd_arenas_datatypes[0],
+        adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
+        parsec_matrix_add2arena_rect( adt,
                                       parsec_datatype_int32_t,
                                       nb, 1, nb );
 
@@ -239,7 +244,7 @@ int main(int argc, char ** argv)
         int execute_in_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_1,  0,  "task_for_timing_overhead",
                                         sizeof(int),      &execute_in_rank,     PARSEC_VALUE | PARSEC_AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT | TILE_FULL,
                                         PARSEC_DTD_ARG_END);
 
         parsec_dtd_data_flush_all(dtd_tp, A);
@@ -300,17 +305,17 @@ int main(int argc, char ** argv)
         execute_in_rank = 0;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_for_test_2_dist_mem,  0,  "task_for_timing_overhead",
                                         sizeof(int),      &execute_in_rank,     PARSEC_VALUE | PARSEC_AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT | TILE_FULL,
                                         PARSEC_DTD_ARG_END);
         execute_in_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_for_test_2_dist_mem,  0,  "task_for_timing_overhead",
                                         sizeof(int),      &execute_in_rank,     PARSEC_VALUE | PARSEC_AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT | TILE_FULL,
                                         PARSEC_DTD_ARG_END);
         execute_in_rank = 0;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_for_test_2_dist_mem,  0,  "task_for_timing_overhead",
                                         sizeof(int),      &execute_in_rank,     PARSEC_VALUE | PARSEC_AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT | TILE_FULL,
                                         PARSEC_DTD_ARG_END);
 
         parsec_dtd_data_flush_all(dtd_tp, A);
@@ -335,12 +340,14 @@ int main(int argc, char ** argv)
         parsec_dtd_data_collection_fini(A);
         free_data(dcA);
 
-        parsec_matrix_del2arena(&parsec_dtd_arenas_datatypes[0]);
-        PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0].arena);
+        parsec_matrix_del2arena(adt);
+        PARSEC_OBJ_RELEASE(adt->arena);
+        parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
     } else if (world == 3) {
         /* We send data from rank 0 to 2 and flush it back
          * rank 1 does nothing.
          */
+        parsec_arena_datatype_t *adt;
 
         /* Registering the dtd_handle with PARSEC context */
         rc = parsec_context_start(parsec);
@@ -352,7 +359,8 @@ int main(int argc, char ** argv)
 
         dtd_tp = parsec_dtd_taskpool_new();
 
-        parsec_matrix_add2arena_rect( &parsec_dtd_arenas_datatypes[0],
+        adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
+        parsec_matrix_add2arena_rect( adt,
                                       parsec_datatype_int32_t,
                                       nb, 1, nb);
         parsec_data_copy_t *gdata;
@@ -381,7 +389,7 @@ int main(int argc, char ** argv)
         int execute_in_rank = 2;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_overhead_1,  0,  "task_for_timing_overhead",
                                         sizeof(int),      &execute_in_rank,     PARSEC_VALUE | PARSEC_AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),    PARSEC_INOUT | TILE_FULL,
                                         PARSEC_DTD_ARG_END);
 
         parsec_dtd_data_flush_all(dtd_tp, A);
@@ -406,8 +414,9 @@ int main(int argc, char ** argv)
         parsec_dtd_data_collection_fini(A);
         free_data(dcA);
 
-        parsec_matrix_del2arena(&parsec_dtd_arenas_datatypes[0]);
-        PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0].arena);
+        parsec_matrix_del2arena(adt);
+        PARSEC_OBJ_RELEASE(adt->arena);
+        parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
     }
 
     parsec_fini(&parsec);

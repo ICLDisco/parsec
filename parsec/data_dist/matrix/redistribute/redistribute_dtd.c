@@ -14,8 +14,9 @@ static inline int parsec_imin(int a, int b)
     return (a <= b) ? a : b;
 };
 
-enum regions { SOURCE,
-               TARGET };
+/* IDs for the Arena Datatypes */
+static int TARGET;
+static int SOURCE;
 
 /**
  * @brief CORE function
@@ -333,6 +334,7 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
                             int disi_Y, int disj_Y,
                             int disi_T, int disj_T)
 {
+    parsec_arena_datatype_t *adt;
     if( size_row < 1 || size_col < 1 ) {
         if( 0 == dcY->super.myrank )
             parsec_warning("ERROR: Submatrix size should be bigger than 1\n");
@@ -370,12 +372,14 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
     /* Allocating data arrays to be used by comm engine */
-    parsec_matrix_add2arena(&parsec_dtd_arenas_datatypes[TARGET],
+    adt = parsec_dtd_create_arena_datatype(parsec, &TARGET);
+    parsec_matrix_add2arena(adt,
                             MY_TYPE, matrix_UpperLower,
                             1, dcT->mb, dcT->nb, dcT->mb,
                             PARSEC_ARENA_ALIGNMENT_SSE, -1);
 
-    parsec_matrix_add2arena(&parsec_dtd_arenas_datatypes[SOURCE],
+    adt = parsec_dtd_create_arena_datatype(parsec, &SOURCE);
+    parsec_matrix_add2arena(adt,
                             MY_TYPE, matrix_UpperLower,
                             1, dcY->mb, dcY->nb, dcY->mb,
                             PARSEC_ARENA_ALIGNMENT_SSE, -1);
@@ -418,10 +422,14 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     parsec_taskpool_free( dtd_tp );
 
     /* Cleaning data arrays we allocated for communication */
-    parsec_type_free(&parsec_dtd_arenas_datatypes[SOURCE].opaque_dtt);
-    PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[SOURCE].arena);
-    parsec_type_free(&parsec_dtd_arenas_datatypes[TARGET].opaque_dtt);
-    PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[TARGET].arena);
+    adt = parsec_dtd_get_arena_datatype(parsec, SOURCE);
+    parsec_type_free(&adt->opaque_dtt);
+    PARSEC_OBJ_RELEASE(adt->arena);
+    parsec_dtd_destroy_arena_datatype(parsec, SOURCE);
+    adt = parsec_dtd_get_arena_datatype(parsec, TARGET);
+    parsec_type_free(&adt->opaque_dtt);
+    PARSEC_OBJ_RELEASE(adt->arena);
+    parsec_dtd_destroy_arena_datatype(parsec, TARGET);
 
     parsec_dtd_data_collection_fini( (parsec_data_collection_t *)dcY );
     parsec_dtd_data_collection_fini( (parsec_data_collection_t *)dcT );

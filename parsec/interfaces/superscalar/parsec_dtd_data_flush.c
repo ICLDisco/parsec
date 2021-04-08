@@ -33,6 +33,7 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
                              parsec_task_t *this_task)
 {
     (void)es;
+    parsec_arena_datatype_t *adt;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
     parsec_dtd_tile_t *tile = (FLOW_OF(current_task, 0))->tile;
 
@@ -44,8 +45,9 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
             int16_t index = (FLOW_OF(current_task, 0))->arena_index;
             parsec_dep_data_description_t data;
             data.data   = current_task->super.data[0].data_in;
-            data.local.arena  = parsec_dtd_arenas_datatypes[index].arena;
-            data.local.src_datatype = data.local.dst_datatype = parsec_dtd_arenas_datatypes[index].opaque_dtt;
+            adt = parsec_dtd_get_arena_datatype(this_task->taskpool->context, index);
+            data.local.arena = adt->arena;
+            data.local.src_datatype = data.local.dst_datatype = adt->opaque_dtt;
             data.local.src_count = data.local.dst_count = 1;
             data.local.src_displ = data.local.dst_displ = 0;
             parsec_remote_dep_memcpy(es, this_task->taskpool,
