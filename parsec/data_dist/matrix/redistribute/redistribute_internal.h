@@ -114,5 +114,10 @@ void CORE_redistribute_dtd(DTYPE* T, DTYPE* Y, int mb_Y, int nb_Y, int m_Y, int 
  * @param [in] T_LDA: LDA of T
  * @param [in] Y_LDA: LDA of Y
  */
-void CORE_redistribute_reshuffle_copy(DTYPE *T, DTYPE *Y, const int mb,
-                                      const int nb, const int T_LDA, const int Y_LDA);
+static inline void
+CORE_redistribute_reshuffle_copy(DTYPE *T, DTYPE *Y, const int mb,
+                                 const int nb, const int T_LDA, const int Y_LDA)
+{
+    MOVE_SUBMATRIX(mb, nb, Y, 0, 0, Y_LDA, T, 0, 0, T_LDA);
+}
+

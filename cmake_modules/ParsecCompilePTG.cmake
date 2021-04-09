@@ -133,7 +133,10 @@ endfunction(target_ptg_source_ex)
 # binary through the PTGPP_COMPILE_OPTIONS property.
 #
 function(target_ptg_sources target mode)
-
+  if( NOT TARGET PaRSEC::parsec-ptgpp )
+    MESSAGE(FATAL_ERROR "parsec-ptgpp target was not built but it is required for target ${target}")
+    return()
+  endif( NOT TARGET PaRSEC::parsec-ptgpp )
   foreach(infile ${ARGN})
     target_ptg_source_ex(SOURCE ${infile} MODE ${mode} TARGET ${target})
   endforeach()
