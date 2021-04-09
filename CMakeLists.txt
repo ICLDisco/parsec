@@ -660,9 +660,9 @@ int main(int argc, char *argv[]) {
           check_function_exists(cudaDeviceCanAccessPeer PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS)
       endif()
       CMAKE_POP_CHECK_STATE()
+      get_target_property(extra_cuda_libs CUDA::cudart INTERFACE_LINK_LIBRARIES)
+      list(APPEND EXTRA_LIBS ${extra_cuda_libs})
     endif (CUDAToolkit_FOUND)
-    get_target_property(extra_cuda_libs CUDA::cudart INTERFACE_LINK_LIBRARIES)
-    list(APPEND EXTRA_LIBS ${extra_cuda_libs})
   endif( PARSEC_GPU_WITH_CUDA )
 
   find_package(AYUDAME QUIET)
