@@ -7,7 +7,7 @@
 # CUDA (detected via nvcc), PAPI (detected via papi_avail), HWLOC (detected
 # via hwloc-ls) nor the PYTHON_EXECUTABLE
 # if you want the default detection to work.
-with_hwloc=${HWLOC_ROOT:="/spack/opt/spack/linux-scientific7-x86_64/gcc-7.3.0/hwloc-1.11.11-nu65xwuyodswr74llx3ymi67hgd6vmwe"}
+with_hwloc=${HWLOC_ROOT:="${ICL_HWLOC_ROOT}"}
 
 CMAKE_DEFINES="-DCTEST_MPI_LAUNCHER=\"srun -Ccauchy -N\" -DCTEST_SHM_LAUNCHER=\"srun -Ccauchy\" -DCTEST_GPU_LAUNCHER_OPTIONS=-Cgtx1060"
 
