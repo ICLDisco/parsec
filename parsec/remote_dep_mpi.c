@@ -323,6 +323,7 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
     pthread_attr_t thread_attr;
     int is_mpi_up = 0;
     int thread_level_support;
+    MPI_Comm comm;
 
     assert(mpi_initialized == 0);
 
@@ -353,12 +354,26 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
                       "\t* to guarantee correctness of the PaRSEC runtime.\n",
                 thread_level_support == MPI_THREAD_SINGLE ? "MPI_THREAD_SINGLE" : "MPI_THREAD_FUNNELED" );
     }
+
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
+    parsec_mca_param_reg_int_name("runtime", "comm_mpi_overtake", "Lets MPI allow overtaking of messages (if applicable). (0: no, 1: yes)",
+                                  false, false, parsec_param_enable_mpi_overtake, &parsec_param_enable_mpi_overtake);
     if( -1 == context->comm_ctx ) {
-        MPI_Comm comm;
-        MPI_Comm_dup(MPI_COMM_WORLD, &comm);
-        context->comm_ctx = (intptr_t)comm;
-        assert(-1 != context->comm_ctx /* -1 reserved for non-initialized */);
+        MPI_Info no_order;
+        MPI_Info_create(&no_order);
+        if( parsec_param_enable_mpi_overtake ) {
+            MPI_Info_set(no_order, "mpi_assert_allow_overtaking", "true");
+        }
+        MPI_Comm_dup_with_info(MPI_COMM_WORLD, no_order, &comm);
+        MPI_Info_free(&no_order);
     }
+#else // defined(PARSEC_HAVE_MPI_OVERTAKE)
+    if( -1 == context->comm_ctx ) {
+        MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+    }
+#endif // defined(PARSEC_HAVE_MPI_OVERTAKE)
+    context->comm_ctx = (intptr_t)comm;
+    assert(-1 != context->comm_ctx /* -1 reserved for non-initialized */);
     MPI_Comm_size( (MPI_Comm)context->comm_ctx, (int*)&(context->nb_nodes));
 
     if(parsec_param_comm_thread_multiple) {
@@ -370,10 +385,6 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
                         "\t* PaRSEC will continue with the funneled thread communication engine model.\n");
         }
     }
-#if defined(PARSEC_HAVE_MPI_OVERTAKE)
-    parsec_mca_param_reg_int_name("runtime", "comm_mpi_overtake", "Lets MPI allow overtaking of messages (if applicable). (0: no, 1: yes)",
-                                  false, false, parsec_param_enable_mpi_overtake, &parsec_param_enable_mpi_overtake);
-#endif
 
     /**
      * Finalize the initialization of the upper level structures
@@ -1595,16 +1606,6 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
     }
     assert(-1 != context->comm_ctx);
     dep_comm = (MPI_Comm) context->comm_ctx;
-
-#if defined(PARSEC_HAVE_MPI_OVERTAKE)
-    if( parsec_param_enable_mpi_overtake ) {
-        MPI_Info no_order;
-        MPI_Info_create(&no_order);
-        MPI_Info_set(no_order, "mpi_assert_allow_overtaking", "true");
-        MPI_Comm_set_info(dep_comm, no_order);
-        MPI_Info_free(&no_order);
-    }
-#endif
 
     MPI_Comm_size(dep_comm, &(context->nb_nodes));
     MPI_Comm_rank(dep_comm, &(context->my_rank));
