@@ -33,9 +33,6 @@ target_sources(parsec PRIVATE ${sources})
 
 add_subdirectory(redistribute)
 
-add_dependencies(parsec parsec-data-redistribute)
-target_sources(parsec PRIVATE $<TARGET_OBJECTS:parsec-data-redistribute>)
-
 install(FILES
   matrix.h
   two_dim_rectangle_cyclic.h

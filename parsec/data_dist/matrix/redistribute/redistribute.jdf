@@ -1,11 +1,11 @@
 extern "C" %{
 /*
- * Copyright (c) 2017-2020 The Universiy of Tennessee and The Universiy
+ * Copyright (c) 2017-2021 The Universiy of Tennessee and The Universiy
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  *
  */
-#include "redistribute_internal.h"
+#include "parsec/data_dist/matrix/redistribute/redistribute_internal.h"
 
 /**
  * @brief CORE function, used in task Send, to send data
