@@ -27,9 +27,7 @@ double sync_time_elapsed = 0.0;
 
 int count = 0;
 
-enum regions {
-               TILE_FULL,
-             };
+static int TILE_FULL = 0;
 
 int
 test_task( parsec_execution_stream_t *es,
@@ -133,7 +131,7 @@ int main(int argc, char ** argv)
     dcA = create_and_distribute_empty_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    adt = parsec_dtd_create_arena_datatype(parsec, TILE_FULL);
+    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
     parsec_matrix_add2arena_rect( adt,
                                   parsec_datatype_int32_t,
                                   nb, 1, nb );
