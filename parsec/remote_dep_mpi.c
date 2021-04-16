@@ -366,13 +366,14 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
         }
         MPI_Comm_dup_with_info(MPI_COMM_WORLD, no_order, &comm);
         MPI_Info_free(&no_order);
+        context->comm_ctx = (intptr_t)comm;
     }
 #else // defined(PARSEC_HAVE_MPI_OVERTAKE)
     if( -1 == context->comm_ctx ) {
         MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+        context->comm_ctx = (intptr_t)comm;
     }
 #endif // defined(PARSEC_HAVE_MPI_OVERTAKE)
-    context->comm_ctx = (intptr_t)comm;
     assert(-1 != context->comm_ctx /* -1 reserved for non-initialized */);
     MPI_Comm_size( (MPI_Comm)context->comm_ctx, (int*)&(context->nb_nodes));
 
