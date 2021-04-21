@@ -8,9 +8,7 @@ Copyright (c) 2015-2018 The University of Tennessee and The University
 This python script is the main script for the aggregator application.
 
 @author Damien Genet
-@email dgenet@icl.utk.edu
-@date 2017-02-09
-@version 0.1.0
+@email parsec-users@icl.utk.edu
 """
 
 import socket

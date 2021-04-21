@@ -1,6 +1,6 @@
 %{
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,7 +12,6 @@
 
 #include "parsec/parsec_config.h"
 #include "jdf.h"
-#include "parsec.y.h"
 
 extern char *yyfilename;
 extern int current_lineno;
@@ -52,7 +51,6 @@ static char *extern_code(char *base, int len, int line)
 
 char string_buf[MAX_STR_CONST];
 char *string_buf_ptr;
-extern YYSTYPE yylval;
 
 #if defined(PARSEC_HAVE_RECENT_LEX)
 #define YY_USER_ACTION yylloc->first_line = yylloc->last_line = yylineno; \
@@ -67,11 +65,18 @@ extern YYSTYPE yylval;
 #define YY_POP_STATE()        yy_pop_state()
 typedef void* yyscan_t;
 #endif  /* defined(PARSEC_HAVE_RECENT_LEX) */
+#if defined(YYPURE) && YYPURE
+#define YY_DECL int yylex(struct yyscan_t *yycontrol)
+#else
+#define YY_DECL int yylex(void)
+#endif
+#include "parsec.y.h"
 %}
 /*%option bison-bridge bison-locations*/
 /*%option reentrant*/
-%option noyywrap yylineno
-%option stack
+%option yylineno
+%option stack noyy_top_state
+%option nounput noinput noyywrap
 /*%option debug*/
 
 WHITE         [\f\t\v ]
@@ -83,7 +88,7 @@ WHITE         [\f\t\v ]
 %x body_init
 
 %%
-extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}                          {
+extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*[\r\n]+([^\%]|(\%[^\}]))*\%\}                          {
                           int lstart, lend, bstart, skip_line = 0;
                           /* This assumes that no extern language rightfully has a "
                            * in its name, which is also an assumption of the lexer anyway */
@@ -116,12 +121,12 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                       }
 SIMCOST               { ECHO; return SIMCOST; }
 <*>"/*"               { YY_PUSH_STATE(comment);                            }
-<comment>[^*\n]*      {  /* Eat up non '*'s */                             }
-<comment>"*"+[^*/\n]* {  /* Eat '*'s not followed by a '/' */              }
+<comment>[^*\n\r]*    {  /* Eat up non '*'s */                             }
+<comment>"*"+[^*/\n\r]* {  /* Eat '*'s not followed by a '/' */            }
 <comment>"*"+"/"      { YY_POP_STATE();  /* Done with the comment BLOCK */ }
 <*>{WHITE}+           {  /* Eat multiple white-spaces */                   }
 <*>[0-9]+             { YYLVAL(number) = atol(yytext);
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 CTL                   { YYLVAL(number) = JDF_FLOW_TYPE_CTL;
                         ECHO; return DEPENDENCY_TYPE;                      }
 RW                    { YYLVAL(number) = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE;
@@ -146,21 +151,21 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
 <properties>"\]"      { YY_POP_STATE();
                         ECHO; return PROPERTIES_OFF;                       }
 <properties>[oO][nN]  { YYLVAL(number) = 1;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 <properties>[tT][rR][uU][eE] {
                         YYLVAL(number) = 1;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 <properties>[yY][eE][sS] {
                         YYLVAL(number) = 1;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 <properties>[oO][fF][fF] {
                         YYLVAL(number) = 0;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 <properties>[fF][aA][lL][sS][eE] {
                         YYLVAL(number) = 0;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 <properties>[nN][oO] {  YYLVAL(number) = 0;
-                        ECHO; return INT;                                  }
+                        ECHO; return JDF_INT;                              }
 
 <INITIAL>^{WHITE}*(?i:body) {
                            YY_PUSH_STATE(body_init);
@@ -168,15 +173,15 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
 <body_init>{WHITE}*[\[] {
                            YY_PUSH_STATE(properties);
                            return PROPERTIES_ON;                           }
-<body_init>{WHITE}*\n {    current_lineno++;
+<body_init>{WHITE}*[\n\r] {    current_lineno++;
                            YY_POP_STATE();
                            YY_PUSH_STATE(body);                            }
 <body>^{WHITE}*(?i:end) { YY_POP_STATE();
                           YYLVAL(string) = extern_code(yytext, strlen(yytext) - 3, 1);
                           ECHO; return BODY_END;                           }
-<body>[^\n]*          { yymore();}
-<body>{WHITE}*\n      { yymore();}
-<body>"//".*\n        { yymore(); }
+<body>[^\n\r]*        { yymore();}
+<body>{WHITE}*[\n\r]  { yymore();}
+<body>"//".*[\n\r]    { yymore(); }
 ^%(?i:option)         { ECHO; return OPTION;                               }
 <*>"("                { ECHO; return OPEN_PAR;                             }
 <*>")"                { ECHO; return CLOSE_PAR;                            }
@@ -215,7 +220,7 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
 <*>\"                 { string_buf_ptr = string_buf;
                         YY_PUSH_STATE(dstr);                               }
 
-<dstr>\n              {
+<dstr>[\n\r]          {
                         /* error - unterminated string constant */
                         printf("Unterminated string constant at line %d\n", current_lineno);
                         exit(-1);                                          }
@@ -244,15 +249,15 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
 <dstr>\\b             { *string_buf_ptr++ = '\b';                          }
 <dstr>\\f             { *string_buf_ptr++ = '\f';                          }
 
-<dstr>\\(.|\n)        { *string_buf_ptr++ = yytext[1];                     }
+<dstr>\\(.|\n|\r)     { *string_buf_ptr++ = yytext[1];                     }
 
-<dstr>[^\\\n\"]+      {
+<dstr>[^\\\n\r\"]+    {
                         char *yptr = yytext;
                         while ( *yptr )
                             *string_buf_ptr++ = *yptr++;                   }
 
-<*>\n                 { current_lineno++;                                  }
-<*>"//".*\n           { current_lineno++;                                  }
+<*>[\n\r]             { current_lineno++;                                  }
+<*>"//".*[\n\r]       { current_lineno++;                                  }
 <*>[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)* {
                         YYLVAL(string) = strdup(yytext);
                         ECHO; return VAR;                                  }

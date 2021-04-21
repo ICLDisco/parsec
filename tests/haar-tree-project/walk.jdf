@@ -180,7 +180,7 @@ BODY
         fprintf(stderr, "CALLING DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
-    if( tree_dist_lookup_node(tree, n, l) == -1 ) {
+    if( !tree_dist_has_node(tree, n, l) ) {
         if( verbose ) {
             int rank = (((parsec_data_collection_t*)__parsec_tp->super._g_tree)->rank_of((parsec_data_collection_t*)__parsec_tp->super._g_tree, n, l));
             fprintf(stderr, "Node (%d, %d) does not exist on rank %d\n", n, l, rank);
@@ -350,11 +350,14 @@ static int my_walk_startup(parsec_execution_stream_t * es, __parsec_walk_DOWN_ta
   new_task->locals.l.value = 0;
   new_task->locals.node_exists.value = 1;
 
-  new_task->data._f_RL.data_repo = NULL;
+  new_task->priority = 1;
+  new_task->repo_entry = NULL;
+
+  new_task->data._f_RL.source_repo = NULL;
+  new_task->data._f_RL.source_repo_entry = NULL;
   new_task->data._f_RL.data_in = NULL;
   new_task->data._f_RL.data_out = NULL;
-
-  new_task->priority = 1;
+  new_task->data._f_RL.fulfill = 0;
 
   PARSEC_LIST_ITEM_SINGLETON(new_task);
   __parsec_schedule(es, (parsec_task_t *)new_task, 0);

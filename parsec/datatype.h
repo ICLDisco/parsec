@@ -22,6 +22,7 @@
  */
 
 #define PARSEC_DATATYPE_NULL  MPI_DATATYPE_NULL
+#define PARSEC_DATATYPE_PACKED  MPI_PACKED
 typedef MPI_Datatype parsec_datatype_t;
 
 #define parsec_datatype_int_t              MPI_INT
@@ -36,12 +37,13 @@ typedef MPI_Datatype parsec_datatype_t;
 #define parsec_datatype_float_t            MPI_FLOAT
 #define parsec_datatype_double_t           MPI_DOUBLE
 #define parsec_datatype_long_double_t      MPI_LONG_DOUBLE
-#define parsec_datatype_complex_t          MPI_COMPLEX
-#define parsec_datatype_double_complex_t   MPI_DOUBLE_COMPLEX
+#define parsec_datatype_complex_t          MPI_C_COMPLEX
+#define parsec_datatype_double_complex_t   MPI_C_DOUBLE_COMPLEX
 
 #else  /* !defined(PARSEC_HAVE_MPI) */
 
 #define PARSEC_DATATYPE_NULL  ((intptr_t)NULL)
+#define PARSEC_DATATYPE_PACKED  ((intptr_t)NULL)
 typedef intptr_t  parsec_datatype_t;
 
 #define parsec_datatype_int_t              1
@@ -60,7 +62,6 @@ typedef intptr_t  parsec_datatype_t;
 #define parsec_datatype_double_complex_t   14
 
 #endif  /* !defined(PARSEC_HAVE_MPI) */
-
 
 BEGIN_C_DECLS
 
@@ -107,6 +108,21 @@ int parsec_type_create_resized(parsec_datatype_t oldtype,
                                ptrdiff_t extent,
                                parsec_datatype_t *newtype);
 
+/**
+ * Routine to check if two datatypes represent the same data extraction.
+ * @param[in] parsec_datatype_t datatype
+ * @param[in] parsec_datatype_t datatype
+ * @return PARSEC_SUCCESS if the two datatypes matches, PARSEC_ERROR otherwise.
+ */
+int parsec_type_match(parsec_datatype_t dtt1,
+                      parsec_datatype_t dtt2);
+
+/**
+ * Routine to check if a datatype is contiguous.
+ * @param[in] parsec_datatype_t datatype
+ * @return PARSEC_SUCCESS if it was created with MPI_Type_contiguous, PARSEC_ERROR otherwise.
+ */
+int parsec_type_contiguous(parsec_datatype_t dtt);
 END_C_DECLS
 
 /** @} */

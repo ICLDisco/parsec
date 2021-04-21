@@ -1,0 +1,132 @@
+extern "C" %{
+
+/**
+ * This test that the code aborts when a NULL is forwarded in READ flow
+ */
+#include "parsec/runtime.h"
+#include "parsec/data_distribution.h"
+#include "parsec/datatype.h"
+
+%}
+
+/**
+ * Data descriptor used in the jdf can be declared manually as global to fix the
+ * parameters order of the _New function
+ */
+taskdist  [ type="parsec_data_collection_t*" ]
+NB        [ type="int" ]
+
+Task(k)
+
+k = 0 .. NB
+
+: taskdist( k )
+
+READ  A <- (k == 0) ? NULL : A Task( k-1 )
+        -> (k < NB) ? A Task( k+1 )
+
+BODY
+{
+    fprintf(stderr, "I'm the task %d\n", k);
+}
+END
+
+extern "C" %{
+
+static uint32_t
+rank_of(parsec_data_collection_t *desc, ...)
+{
+    int k;
+    va_list ap;
+
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+
+    return k % desc->nodes;
+}
+
+static int32_t
+vpid_of(parsec_data_collection_t *desc, ...)
+{
+    (void)desc;
+    return 0;
+}
+
+static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)
+{
+    int k;
+    va_list ap;
+
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+
+    return (parsec_data_key_t)k;
+}
+
+int main(int argc, char *argv[])
+{
+    parsec_context_t* parsec;
+    int rank, world, rc;
+    parsec_data_collection_t taskdist;
+    parsec_forward_READ_NULL_taskpool_t *tp;
+
+#if defined(PARSEC_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    world = 1;
+    rank = 0;
+#endif
+
+    parsec = parsec_init(-1, &argc, &argv);
+
+    /**
+     * Let's initialize the task distribution descriptor
+     * rank_of, and vpid_of will be explained later, but right now those two
+     * functions always return 0. A unique naming of data must also be provided
+     * for profiling, we just return the index of the data as the key.
+     */
+    parsec_data_collection_init(&taskdist, world, rank);
+    taskdist.rank_of  = rank_of;
+    taskdist.vpid_of  = vpid_of;
+    taskdist.data_key = data_key;
+
+    tp = parsec_forward_READ_NULL_new(&taskdist, 20);
+
+    /**
+     * The arena is now also used to describe the layout to the communication
+     * engine (MPI)
+     */
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_forward_READ_NULL_DEFAULT_ADT_IDX],
+                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                     parsec_datatype_int_t );
+    
+    rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
+
+    /**
+     * Cleanup the descriptor
+     */
+    parsec_data_collection_destroy(&taskdist);
+
+    parsec_fini(&parsec);
+#if defined(PARSEC_HAVE_MPI)
+    MPI_Finalize();
+#endif
+
+    return 0;
+}
+
+%}

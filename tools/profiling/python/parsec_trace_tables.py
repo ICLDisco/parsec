@@ -108,8 +108,11 @@ class ParsecTraceTables(object):
             return False
         store = pd.HDFStore(filename + '.tmp', 'w', complevel=complevel, complib=complib)
         for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
-            store.put(name, self.__dict__[name])
-        store.put('events', self.events, table=table, append=append)
+            store.put(name, self.__dict__[name], encoding='ascii')
+        if table:
+            store.put('events', self.events, format='t', append=append)
+        else:
+            store.put('events', self.events, format='f', append=append)
         store.close()
         # do atomic move once it's finished writing,
         # so as to allow Ctrl-Cs without secret breakage

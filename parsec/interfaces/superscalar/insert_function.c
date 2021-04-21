@@ -8,8 +8,6 @@
 /**
  * @file insert_function.c
  *
- * @version 2.0.0
- *
  */
 
 /* Define a group for Doxygen documentation */
@@ -64,7 +62,6 @@ int parsec_dtd_window_size             = 8000;   /**< Default window size */
 int parsec_dtd_threshold_size          = 4000;   /**< Default threshold size of tasks for master thread to wait on */
 static int parsec_dtd_task_hash_table_size = 1<<16; /**< Default task hash table size */
 static int parsec_dtd_tile_hash_table_size = 1<<16; /**< Default tile hash table size */
-static int parsec_dtd_no_of_arenas = 16;
 
 int parsec_dtd_dump_traversal_info = 60; /**< Level for printing traversal info */
 int parsec_dtd_dump_function_info  = 50; /**< Level for printing function_structure info */
@@ -72,8 +69,6 @@ int insert_task_trace_keyin = -1;
 int insert_task_trace_keyout = -1;
 int hashtable_trace_keyin = -1;
 int hashtable_trace_keyout = -1;
-
-parsec_arena_t **parsec_dtd_arenas;
 
 extern parsec_sched_module_t *parsec_current_scheduler;
 
@@ -126,36 +121,37 @@ static inline unsigned long exponential_backoff(uint64_t k)
     return r * TIME_STEP;
 }
 
-void
-parsec_detach_dtd_taskpool_from_context(parsec_taskpool_t *tp,
-                                        parsec_context_t  *context)
+static void
+parsec_detach_dtd_taskpool_from_context(parsec_taskpool_t *tp)
 {
     assert(tp != NULL);
-    assert(context != NULL);
-    parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-    (void)context;
-    (void)dtd_tp;
-    assert(dtd_tp->enqueue_flag);
+    assert(((parsec_dtd_taskpool_t*)tp)->enqueue_flag);
     parsec_taskpool_update_runtime_nbtask(tp, -1);
 }
 
 int
-parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp,
-                            parsec_context_t  *context)
+parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp)
 {
     int should_dequeue = 0;
-    parsec_list_lock(context->taskpool_list);
-    if(parsec_list_nolock_contains(context->taskpool_list,
+    if( NULL == tp->context ) {
+        return PARSEC_ERR_NOT_SUPPORTED;
+    }
+    /* If the taskpool is attached to a context then we better find it
+     * taskpool_list.
+     */
+    parsec_list_lock(tp->context->taskpool_list);
+    if(parsec_list_nolock_contains(tp->context->taskpool_list,
                                    (parsec_list_item_t *)tp)) {
         should_dequeue = 1;
-        parsec_list_nolock_remove(context->taskpool_list,
+        parsec_list_nolock_remove(tp->context->taskpool_list,
                                   (parsec_list_item_t *)tp);
     }
-    parsec_list_unlock(context->taskpool_list);
+    parsec_list_unlock(tp->context->taskpool_list);
     if(should_dequeue) {
-        parsec_detach_dtd_taskpool_from_context(tp, context);
+        parsec_detach_dtd_taskpool_from_context(tp);
+        return PARSEC_SUCCESS;
     }
-    return 1;
+    return PARSEC_ERR_NOT_FOUND;
 }
 
 void
@@ -164,7 +160,7 @@ parsec_detach_all_dtd_taskpool_from_context(parsec_context_t *context)
     if(NULL != context->taskpool_list) {
         parsec_taskpool_t *tp;
         while(NULL != (tp = (parsec_taskpool_t *)parsec_list_pop_front(context->taskpool_list))) {
-            parsec_detach_dtd_taskpool_from_context(tp, context);
+            parsec_detach_dtd_taskpool_from_context(tp);
         }
     }
 }
@@ -214,7 +210,7 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
     parsec_dtd_create_task_class(dtd_tp, parsec_dtd_data_flush_sndrcv, "parsec_dtd_data_flush",
                                  0, 0, 1);
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /* To create object of class parsec_dtd_task_t that inherits parsec_task_t
@@ -445,12 +441,6 @@ parsec_dtd_lazy_init(void)
                               PARSEC_OBJ_CLASS(parsec_dtd_tile_t), sizeof(parsec_dtd_tile_t),
                               offsetof(parsec_dtd_tile_t, mempool_owner),
                               1/* no. of threads*/ );
-
-    int i;
-    parsec_dtd_arenas = (parsec_arena_t **) malloc(parsec_dtd_no_of_arenas * sizeof(parsec_arena_t *));
-    for (i = 0; i < parsec_dtd_no_of_arenas; i++) {
-        parsec_dtd_arenas[i] = (parsec_arena_t *) calloc(1, sizeof(parsec_arena_t));
-    }
 }
 
 /* **************************************************************************** */
@@ -466,15 +456,6 @@ void parsec_dtd_fini(void)
 #if defined(PARSEC_DEBUG_PARANOID)
     assert(parsec_dtd_taskpool_mempool != NULL);
 #endif
-    int i;
-    for( i = 0; i < parsec_dtd_no_of_arenas; i++ ) {
-        if (parsec_dtd_arenas[i] != NULL) {
-            free(parsec_dtd_arenas[i]);
-            parsec_dtd_arenas[i] = NULL;
-        }
-    }
-    free(parsec_dtd_arenas);
-
     parsec_mempool_destruct( parsec_dtd_tile_mempool );
     free( parsec_dtd_tile_mempool );
 
@@ -503,22 +484,19 @@ extern int __parsec_task_progress( parsec_execution_stream_t* es,
  * once the number of pending tasks in the engine reaches the
  * threshold size.
  *
- * @param[in]   context
- *                  The PaRSEC context (pointer to the runtime instance)
  * @param[in]   tp
  *                  PaRSEC dtd taskpool
  *
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
 void
-parsec_execute_and_come_back( parsec_context_t *context,
-                              parsec_taskpool_t *tp,
+parsec_execute_and_come_back( parsec_taskpool_t *tp,
                               int task_threshold_count )
 {
     uint64_t misses_in_a_row;
-    parsec_execution_stream_t* es = context->virtual_processes[0]->execution_streams[0];
+    parsec_execution_stream_t* es = tp->context->virtual_processes[0]->execution_streams[0];
     parsec_task_t* task;
-    int rc, nbiterations = 0, distance;
+    int rc, distance;
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
@@ -528,15 +506,15 @@ parsec_execute_and_come_back( parsec_context_t *context,
     /* The master thread might not have to trigger the barrier if the other
      * threads have been activated by a previous start.
      */
-    if( !(PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags) ) {
-        (void)parsec_remote_dep_on(context);
+    if( !(PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & tp->context->flags) ) {
+        (void)parsec_remote_dep_on(tp->context);
         /* Mark the context so that we will skip the initial barrier during the _wait */
-        context->flags |= PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE;
+        tp->context->flags |= PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE;
         /* Wake up the other threads */
-        parsec_barrier_wait( &(context->barrier) );
+        parsec_barrier_wait( &(tp->context->barrier) );
     }
 
-    /* we wait for only all the tasks inserted in the taskpool and not for all the communication
+    /* we wait for all tasks inserted in the taskpool but not for the communication
      * invoked by those tasks.
      */
     while(tp->nb_tasks > task_threshold_count) {
@@ -553,17 +531,14 @@ parsec_execute_and_come_back( parsec_context_t *context,
 
             rc = __parsec_task_progress(es, task, distance);
             (void)rc;
-            nbiterations++;
         }
     }
 }
 
 /* Function to wait on all pending action of a taskpool */
 static int
-parsec_dtd_taskpool_wait_on_pending_action(parsec_context_t *parsec,
-                                           parsec_taskpool_t  *tp)
+parsec_dtd_taskpool_wait_on_pending_action(parsec_taskpool_t  *tp)
 {
-    (void)parsec;
     struct timespec rqtp;
     rqtp.tv_sec = 0;
 
@@ -590,31 +565,30 @@ parsec_dtd_taskpool_wait_on_pending_action(parsec_context_t *parsec,
  * Users should call this function everytime they insert a bunch of tasks.
  * Users can call this function once per taskpool.
  *
- * @param[in]       parsec
- *                      The PaRSEC context
- * @param[in,out]   tp
+ * @param[in]   tp
  *                      PaRSEC dtd taskpool
  *
  * @ingroup         DTD_INTERFACE
  */
 int
-parsec_dtd_taskpool_wait(parsec_context_t *parsec,
-                         parsec_taskpool_t  *tp)
+parsec_dtd_taskpool_wait(parsec_taskpool_t  *tp)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
+    if( NULL == tp->context ) {  /* the taskpool is not associated with any parsec_context
+                                    so it can't be waited upon */
+        return PARSEC_ERR_NOT_SUPPORTED;
+    }
     parsec_dtd_schedule_tasks(dtd_tp);
-    dtd_tp->wait_func(parsec, tp);
-    parsec_dtd_taskpool_wait_on_pending_action(parsec, tp);
-    return 0;
+    dtd_tp->wait_func(tp);
+    parsec_dtd_taskpool_wait_on_pending_action(tp);
+    return PARSEC_SUCCESS;
 }
 
 /* This function only waits until all local tasks are done */
 static void
-parsec_dtd_taskpool_wait_func(parsec_context_t *parsec,
-                              parsec_taskpool_t  *tp)
+parsec_dtd_taskpool_wait_func(parsec_taskpool_t  *tp)
 {
-    (void)parsec;
-    parsec_execute_and_come_back(tp->context, tp, 1);
+    parsec_execute_and_come_back(tp, 1);
 }
 
 /* **************************************************************************** */
@@ -644,16 +618,16 @@ parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
 
     va_start(arguments, this_task);
     while(current_param != NULL) {
-        if((current_param->op_type & GET_OP_TYPE) == VALUE) {
+        if((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE) {
             tmp_val = va_arg(arguments, void*);
             memcpy(tmp_val, current_param->pointer_to_tile, current_param->arg_size);
-        } else if((current_param->op_type & GET_OP_TYPE) == SCRATCH ||
-                  (current_param->op_type & GET_OP_TYPE) == REF) {
+        } else if((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_SCRATCH ||
+                  (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_REF) {
             tmp_ref = va_arg(arguments, void**);
             *tmp_ref = current_param->pointer_to_tile;
-        } else if((current_param->op_type & GET_OP_TYPE) == INPUT ||
-                  (current_param->op_type & GET_OP_TYPE) == INOUT ||
-                  (current_param->op_type & GET_OP_TYPE) == OUTPUT) {
+        } else if((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ||
+                  (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
+                  (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT) {
             tmp_ref = va_arg(arguments, void**);
             *tmp_ref = PARSEC_DATA_COPY_GET_PTR(this_task->data[i].data_in);
             i++;
@@ -717,8 +691,7 @@ parsec_dtd_add_profiling_info( parsec_taskpool_t *tp,
 {
     char *str = fill_color(task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
     parsec_profiling_add_dictionary_keyword(name, str,
-                                            sizeof(parsec_profile_data_collection_info_t),
-                                            PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                            sizeof(parsec_task_prof_info_t), PARSEC_TASK_PROF_INFO_CONVERTOR,
                                             (int *) &tp->profiling_array[0 +
                                                                          2 * task_class_id]  /* start key */,
                                             (int *) &tp->profiling_array[1 +
@@ -734,8 +707,7 @@ parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
     (void)tp;
     char *str = fill_color(*keyin, PARSEC_DTD_NB_TASK_CLASSES);
     parsec_profiling_add_dictionary_keyword(name, str,
-                                            sizeof(parsec_profile_data_collection_info_t),
-                                            PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                            sizeof(parsec_task_prof_info_t), PARSEC_TASK_PROF_INFO_CONVERTOR,
                                             keyin,
                                             keyout);
     free(str);
@@ -1055,9 +1027,10 @@ parsec_dtd_release_task_class( parsec_dtd_taskpool_t *tp,
 }
 
 void
-parsec_dtd_data_collection_init( parsec_data_collection_t *dc )
+parsec_dtd_data_collection_init( parsec_data_collection_t *dc)
 {
     int nb;
+
     dc->tile_h_table = PARSEC_OBJ_NEW(parsec_hash_table_t);
     for(nb = 1; nb < 16 && (1 << nb) < parsec_dtd_tile_hash_table_size; nb++) /* nothing */;
     parsec_hash_table_init( dc->tile_h_table,
@@ -1158,9 +1131,7 @@ hook_of_dtd_task( parsec_execution_stream_t *es,
                           this_task);
 
 #if !defined(PARSEC_PROF_DRY_BODY)
-#if !defined(PARSEC_DRY_RUN)
     rc = ((parsec_dtd_task_class_t *)(dtd_task->super.task_class))->fpointer(es, this_task);
-#endif /* !defined(PARSEC_DRY_RUN) */
 #endif
 
     return rc;
@@ -1296,7 +1267,10 @@ parsec_dtd_taskpool_new(void)
     __tp->enqueue_flag        = 0;
 
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *) __tp);
-    asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d", __tp->super.taskpool_id);
+    if( 0 < asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d",
+                     __tp->super.taskpool_id) ) {
+        __tp->super.taskpool_name = NULL;
+    }
 
 #if defined(PARSEC_PROF_TRACE) /* TODO: should not be per taskpool */
     if(parsec_dtd_profile_verbose) {
@@ -1447,9 +1421,11 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
                      const parsec_dep_t *dep,
                      parsec_dep_data_description_t *data,
                      int src_rank, int dst_rank, int dst_vpid,
+                     data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                      void *param )
 {
     (void)es; (void)data; (void)src_rank; (void)dst_rank; (void)oldcontext;
+    (void)successor_repo; (void) successor_repo_key;
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)param;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)newcontext;
     int32_t not_ready = 1;
@@ -1475,6 +1451,11 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
                 arg->remote_deps->root = src_rank;
                 /* both sides care about the dep_datatype_index which is the flow_index for DTD */
                 arg->remote_deps->outgoing_mask |= (1 << dep->dep_datatype_index);
+                output->data.data_future = NULL;
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+                output->data.repo = NULL;
+                output->data.repo_key = -1;
+#endif
                 if( !(output->rank_bits[_array_pos] & _array_mask) ) {
                     output->rank_bits[_array_pos] |= _array_mask;
                     /* For DTD this means nothing at this point */
@@ -1747,7 +1728,7 @@ complete_hook_of_dtd( parsec_execution_stream_t *es,
                                         PARSEC_ACTION_COMPLETE_LOCAL_TASK,
                                         NULL);
 
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 parsec_hook_return_t
@@ -1761,7 +1742,7 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
             parsec_dtd_tile_t *tile = (FLOW_OF(this_task, current_flow))->tile;
             if( tile == NULL ) continue;
             assert( NULL != this_task->super.data[current_flow].data_in );
-            if( !((FLOW_OF(this_task, current_flow))->op_type & DONT_TRACK) ) {
+            if( !((FLOW_OF(this_task, current_flow))->op_type & PARSEC_DONT_TRACK) ) {
                 if( !((FLOW_OF(this_task, current_flow))->flags & DATA_RELEASED) ) {
                     (FLOW_OF(this_task, current_flow))->flags |= DATA_RELEASED;
                     parsec_dtd_release_data_copy(this_task->super.data[current_flow].data_in);
@@ -1806,7 +1787,7 @@ parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task )
     if( 2 == parsec_atomic_fetch_dec_int32( &object->obj_reference_count ) ){
         int current_flow;
         for( current_flow = 0; current_flow < this_task->super.task_class->nb_flows; current_flow++ ) {
-            if( !((FLOW_OF(this_task, current_flow))->op_type & DONT_TRACK) ) {
+            if( !((FLOW_OF(this_task, current_flow))->op_type & PARSEC_DONT_TRACK) ) {
                 if( NULL != this_task->super.data[current_flow].data_out ) {
                     parsec_dtd_release_data_copy(this_task->super.data[current_flow].data_out);
                 }
@@ -1838,12 +1819,12 @@ data_lookup_of_dtd_task( parsec_execution_stream_t *es,
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
 
     for( current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++ ) {
-        op_type_on_current_flow = ((FLOW_OF(current_task, current_dep))->op_type & GET_OP_TYPE);
+        op_type_on_current_flow = ((FLOW_OF(current_task, current_dep))->op_type & PARSEC_GET_OP_TYPE);
 
         if( NULL == current_task->super.data[current_dep].data_in ) continue;
 
-        if( INOUT == op_type_on_current_flow ||
-            OUTPUT == op_type_on_current_flow ) {
+        if( PARSEC_INOUT == op_type_on_current_flow ||
+            PARSEC_OUTPUT == op_type_on_current_flow ) {
             if( current_task->super.data[current_dep].data_in->readers > 0 ) {
                 return PARSEC_HOOK_RETURN_AGAIN;
             }
@@ -1885,26 +1866,34 @@ static int datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
                                        const parsec_task_t *this_task,
                                        uint32_t *flow_mask, parsec_dep_data_description_t *data)
 {
+    parsec_arena_datatype_t *adt;
     (void)es;
-    data->count = 1;
-    data->displ = 0;
+    data->remote.src_count = data->remote.dst_count = 1;
+    data->remote.src_displ = data->remote.dst_displ = 0;
+    data->data_future = NULL;
+    data->local.arena  = NULL;
+    data->local.src_datatype = data->local.dst_datatype = PARSEC_DATATYPE_NULL;
+    data->local.src_count = data->local.dst_count = data->local.src_displ = data->local.dst_displ = 0;
 
     int i;
     for( i = 0; i < this_task->task_class->nb_flows; i++) {
         if((*flow_mask) & (1U<<i)) {
-            data->arena  = parsec_dtd_arenas[(FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index];
-            data->layout = data->arena->opaque_dtt;
+            adt = parsec_hash_table_nolock_find(&this_task->taskpool->context->dtd_arena_datatypes_hash_table,
+                                                (FLOW_OF(((parsec_dtd_task_t *)this_task), i))->arena_index);
+            data->remote.arena  = adt->arena;
+            data->remote.src_datatype = data->remote.dst_datatype = adt->opaque_dtt;
             (*flow_mask) &= ~(1U<<i);
             return PARSEC_HOOK_RETURN_NEXT;
         }
     }
 
-    data->arena  = NULL;
+    data->remote.arena  = NULL;
     data->data   = NULL;
-    data->layout = PARSEC_DATATYPE_NULL;
-    data->count  = 0;
-    data->displ  = 0;
-    (*flow_mask) = 0;		/* nothing left */
+    data->remote.src_datatype = data->remote.dst_datatype = PARSEC_DATATYPE_NULL;
+    data->remote.src_count = data->remote.dst_count = 0;
+    data->remote.src_displ = data->remote.dst_displ = 0;
+
+    (*flow_mask) = 0;           /* nothing left */
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -1991,7 +1980,6 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     dtd_tc->dep_in_index       = 0;
     dtd_tc->dep_out_index      = 0;
     dtd_tc->count_of_params    = count_of_params;
-    dtd_tc->size_of_param      = size_of_param;
     dtd_tc->fpointer           = fpointer;
     dtd_tc->ref_count          = 1;
 
@@ -2143,11 +2131,11 @@ parsec_dtd_set_flow_in_function(parsec_dtd_taskpool_t *dtd_tp,
         flow->dep_out[i] = NULL;
     }
 
-    if ((tile_op_type & GET_OP_TYPE) == INPUT) {
+    if ((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT) {
         flow->flow_flags = PARSEC_FLOW_ACCESS_READ;
-    } else if ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
+    } else if ((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT || (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_ATOMIC_WRITE) {
         flow->flow_flags = PARSEC_FLOW_ACCESS_WRITE;
-    } else if ((tile_op_type & GET_OP_TYPE) == INOUT) {
+    } else if ((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT) {
         flow->flow_flags = PARSEC_FLOW_ACCESS_RW;
     }
 
@@ -2377,15 +2365,16 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
                                int tile_op_type, int *flow_index, void **current_val,
                                parsec_dtd_task_param_t *current_param, int arg_size )
 {
-    if( (tile_op_type & GET_OP_TYPE) == INPUT  ||
-        (tile_op_type & GET_OP_TYPE) == OUTPUT ||
-        (tile_op_type & GET_OP_TYPE) == INOUT  ||
-        (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE)
+    if( (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT  ||
+        (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ||
+        (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT  ||
+        (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_ATOMIC_WRITE)
     {
         assert(PASSED_BY_REF == arg_size);
         this_task->super.data[*flow_index].data_in   = NULL;
         this_task->super.data[*flow_index].data_out  = NULL;
-        this_task->super.data[*flow_index].data_repo = NULL;
+        this_task->super.data[*flow_index].source_repo_entry = NULL;
+        this_task->super.data[*flow_index].source_repo = NULL;
 
         parsec_dtd_flow_info_t *flow = FLOW_OF(this_task, *flow_index);
         /* Saving tile pointer for each flow in a task */
@@ -2395,12 +2384,12 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
         flow->op_type = tile_op_type;
 
         *flow_index += 1;
-    } else if ((tile_op_type & GET_OP_TYPE) == REF) {
+    } else if ((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_REF) {
         assert(NULL != tile);
         assert(0 < arg_size);
         current_param->pointer_to_tile = (void *)tile;
        *current_val = ((char*)*current_val) + arg_size;
-    } else if ((tile_op_type & GET_OP_TYPE) == SCRATCH) {
+    } else if ((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_SCRATCH) {
         assert(0 < arg_size);
         assert(parsec_dtd_task_is_local(this_task));
         if(NULL == tile) {
@@ -2409,7 +2398,7 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
             current_param->pointer_to_tile = (void *)tile;
         }
        *current_val = ((char*)*current_val) + arg_size;
-    } else if((tile_op_type & GET_OP_TYPE) == VALUE) {
+    } else if((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE) {
         /* Once we get a value, we check the size,
          * and if the size is between 4 to 8 we treat
          * them as constant
@@ -2465,7 +2454,7 @@ parsec_dtd_block_if_threshold_reached(parsec_dtd_taskpool_t *dtd_tp, int task_th
         if( dtd_tp->task_window_size < parsec_dtd_window_size ) {
             dtd_tp->task_window_size *= 2;
         } else {
-            parsec_execute_and_come_back(dtd_tp->super.context, &dtd_tp->super,
+            parsec_execute_and_come_back(&dtd_tp->super,
                                          task_threshold);
             return 1; /* Indicating we blocked */
         }
@@ -2521,16 +2510,16 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         }
 
         /* User has instructed us not to track this data */
-        if( tile_op_type & DONT_TRACK ) {
+        if( tile_op_type & PARSEC_DONT_TRACK ) {
             this_task->super.data[flow_index].data_in = tile->data_copy;
             satisfied_flow++;
             continue;
         }
 
         if( tile->arena_index == -1 ) {
-            tile->arena_index = (tile_op_type & GET_REGION_INFO);
+            tile->arena_index = (tile_op_type & PARSEC_GET_REGION_INFO);
         }
-        (FLOW_OF(this_task, flow_index))->arena_index = (tile_op_type & GET_REGION_INFO);
+        (FLOW_OF(this_task, flow_index))->arena_index = (tile_op_type & PARSEC_GET_REGION_INFO);
 
         /* Locking the last_user of the tile */
         parsec_dtd_last_user_lock( &(tile->last_user) );
@@ -2538,14 +2527,14 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         READ_FROM_TILE(last_user, tile->last_user);
         READ_FROM_TILE(last_writer, tile->last_writer);
 
-        if( NULL == last_user.task && (this_task->rank != tile->rank || (tile_op_type & GET_OP_TYPE) == INPUT) ) {
+        if( NULL == last_user.task && (this_task->rank != tile->rank || (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT) ) {
             parsec_dtd_last_user_unlock( &(tile->last_user) );
 
             /* parentless */
             /* Create Fake output_task */
             parsec_dtd_taskpool_insert_task( this_task->super.taskpool,
                                              &fake_first_out_body, 0, "Fake_FIRST_OUT",
-                                             PASSED_BY_REF, tile, INOUT | (tile_op_type & GET_REGION_INFO) | AFFINITY,
+                                             PASSED_BY_REF, tile, PARSEC_INOUT | (tile_op_type & PARSEC_GET_REGION_INFO) | PARSEC_AFFINITY,
                                              PARSEC_DTD_ARG_END );
 
             parsec_dtd_last_user_lock( &(tile->last_user) );
@@ -2556,9 +2545,11 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
             assert( (last_user.task == NULL) || ((FLOW_OF(last_writer.task, last_writer.flow_index))->tile == tile) );
         }
 
-        if( INOUT == (tile_op_type & GET_OP_TYPE) || OUTPUT == (tile_op_type & GET_OP_TYPE) ) {
+        if( PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE) || PARSEC_OUTPUT == (tile_op_type & PARSEC_GET_OP_TYPE) ) {
 #if defined(PARSEC_PROF_TRACE)
-            this_task->super.prof_info.id = tile->key;
+            this_task->super.prof_info.desc = NULL;
+            this_task->super.prof_info.data_id = tile->key;
+            this_task->super.prof_info.task_class_id = tc->task_class_id;
 #endif
 
             /* Setting the last_user info with info of this_task */
@@ -2642,16 +2633,17 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                      * needs to release ownership and it is not released
                      * in the case where the last flow is a R.
                      */
-                    if( ( (last_user.op_type  & GET_OP_TYPE) == INOUT || (last_user.op_type  & GET_OP_TYPE) == OUTPUT ) && ((tile_op_type & GET_OP_TYPE) == INPUT) ) {
+                    if( ((last_user.op_type  & PARSEC_GET_OP_TYPE) == PARSEC_INOUT || (last_user.op_type  & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT )
+                         && ((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT)) {
                         FLOW_OF(this_task, flow_index)->flags |= RELEASE_OWNERSHIP_SPECIAL;
-                    } else if( (last_user.op_type  & GET_OP_TYPE) == INPUT && (tile_op_type & GET_OP_TYPE) == INPUT ) {
+                    } else if( (last_user.op_type  & PARSEC_GET_OP_TYPE) == PARSEC_INPUT && (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ) {
                         /* we unset flag for previous flow and set it for last one */
                         FLOW_OF(last_user.task, last_user.flow_index)->flags &= ~RELEASE_OWNERSHIP_SPECIAL;
                         FLOW_OF(this_task, flow_index)->flags |= RELEASE_OWNERSHIP_SPECIAL;
                     }
 
-                    if( ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT)
-                        && (last_user.op_type & GET_OP_TYPE) == INPUT ) {
+                    if( ((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT || (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT)
+                        && (last_user.op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ) {
 
                         /* clearing bit set to track special release of ownership */
                         FLOW_OF(last_user.task, last_user.flow_index)->flags &= ~RELEASE_OWNERSHIP_SPECIAL;
@@ -2663,7 +2655,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                 }
 
                 /* This will fail if a task has W -> R -> W on the same data */
-                if( ((last_user.op_type & GET_OP_TYPE) == OUTPUT || (last_user.op_type & GET_OP_TYPE) == INOUT) ) {
+                if( ((last_user.op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT || (last_user.op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT) ) {
                     if( parsec_dtd_task_is_local(this_task) ) {
                         parsec_dtd_release_local_task( this_task );
                     }
@@ -2690,7 +2682,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                  * cases.
                  */
                 if(last_user.task == this_task) {
-                    if( (last_user.op_type & GET_OP_TYPE) == INPUT ) {
+                    if( (last_user.op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ) {
                         if( this_task->super.data[last_user.flow_index].data_in != NULL ) {
                             (void)parsec_atomic_fetch_dec_int32( &this_task->super.data[last_user.flow_index].data_in->readers );
                         }
@@ -2727,7 +2719,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                             parsec_dtd_release_local_task( parent_task );
                         }
                     } else {
-                        if((tile_op_type & GET_OP_TYPE) == INPUT) {
+                        if((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT) {
                             parsec_dtd_last_user_lock( &(tile->last_user) );
                             tile->last_user.alive = TASK_IS_NOT_ALIVE;
                             parsec_dtd_last_user_unlock( &(tile->last_user) );
@@ -2735,7 +2727,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                     }
                 }
             } else {
-                if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT) {
+                if((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT || (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT) {
                     set_dependencies_for_function( (parsec_taskpool_t *)dtd_tp, NULL,
                                                    (parsec_task_class_t *)this_task->super.task_class,
                                                     0, flow_index );
@@ -2749,7 +2741,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
             }
         }
 
-        if( INOUT == (tile_op_type & GET_OP_TYPE) || OUTPUT == (tile_op_type & GET_OP_TYPE) ) {
+        if( PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE) || PARSEC_OUTPUT == (tile_op_type & PARSEC_GET_OP_TYPE) ) {
             if( NULL != last_writer.task ) {
                 if( parsec_dtd_task_is_remote( last_writer.task ) ) {
                     /* releasing last writer every time writer is changed */
@@ -2797,11 +2789,13 @@ parsec_dtd_iterator_arg_get_rank(int first_arg, void *tile,
     (void)first_arg;
     parsec_dtd_common_args_t *common_args = (parsec_dtd_common_args_t *)cb_data;
     if( NULL != tile ) {
-        if( (tile_op_type & AFFINITY) ) {
+        if( (tile_op_type & PARSEC_AFFINITY) ) {
             if(common_args->rank == -1) {
-                if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
+                if( (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ||
+                    (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
+                    (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ) {
                     common_args->rank = ((parsec_dtd_tile_t *)tile)->rank;
-                } else if((tile_op_type & GET_OP_TYPE) == VALUE) {
+                } else if((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE) {
                     common_args->rank = *(int *)tile;
                     /* Warn user if rank passed is negative or
                      * more than total no of mpi process.
@@ -2816,14 +2810,16 @@ parsec_dtd_iterator_arg_get_rank(int first_arg, void *tile,
         }
     }
 
-    if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
+    if( (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ||
+        (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
+        (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ) {
         /* We create a new task class if the kernel is different and
          * if the same kernel uses different number of data
          */
         common_args->flow_count_of_template++;
         if( NULL != tile ) {
-            if( !(tile_op_type & DONT_TRACK) ) {
-                if( INOUT == (tile_op_type & GET_OP_TYPE) || OUTPUT == (tile_op_type & GET_OP_TYPE) ) {
+            if( !(tile_op_type & PARSEC_DONT_TRACK) ) {
+                if( PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE) || PARSEC_OUTPUT == (tile_op_type & PARSEC_GET_OP_TYPE) ) {
                     common_args->write_flow_count++;
                 }
             }
@@ -2840,8 +2836,8 @@ parsec_dtd_iterator_arg_get_size(int first_arg, void *tile,
     parsec_dtd_common_args_t *common_args = (parsec_dtd_common_args_t *)cb_data;
     common_args->count_of_params_sent_by_user++;
 
-    if((tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH ||
-       (tile_op_type & GET_OP_TYPE) == REF ) {
+    if((tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE || (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_SCRATCH ||
+       (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_REF ) {
         common_args->size_of_params += first_arg;
     }
 
@@ -2859,7 +2855,7 @@ parsec_dtd_iterator_arg_set_param_local(int first_arg, void *tile,
                                   common_args->current_param, first_arg);
 
     common_args->current_param->arg_size = first_arg;
-    common_args->current_param->op_type  = tile_op_type;
+    common_args->current_param->op_type  = (parsec_dtd_op_t)tile_op_type;
     common_args->tmp_param               = common_args->current_param;
     common_args->current_param           = common_args->current_param + 1;
     common_args->tmp_param->next         = common_args->current_param;
@@ -2874,7 +2870,9 @@ parsec_dtd_iterator_arg_set_param_remote(int first_arg, void *tile,
     (void)tile;
     parsec_dtd_common_args_t *common_args = (parsec_dtd_common_args_t *)cb_data;
 
-    if( (tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == OUTPUT ) {
+    if( (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ||
+        (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
+        (tile_op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ) {
         parsec_dtd_set_params_of_task( common_args->task, tile, tile_op_type,
                                        &common_args->flow_index, NULL,
                                        NULL, first_arg );
@@ -2963,9 +2961,9 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t  *tp,
 #if defined(DISTRIBUTED)
     if( tp->context->nb_nodes > 1 ) {
         if( (-1 == common_args.rank) && (common_args.write_flow_count > 1) ) {
-            parsec_fatal( "You inserted a task with out indicating where the task should be executed(using AFFINITY flag)."
+            parsec_fatal( "You inserted a task with out indicating where the task should be executed(using PARSEC_AFFINITY flag)."
                           "This will result in executing this task on all nodes and the outcome might be not be what you want."
-                          "So we are exiting for now. Please see the usage of AFFINITY flag.\n" );
+                          "So we are exiting for now. Please see the usage of PARSEC_AFFINITY flag.\n" );
         } else if( common_args.rank == -1 && common_args.write_flow_count == 1 ) {
             /* we have tasks with no real data as parameter so we are safe to execute it in each mpi process */
             common_args.rank = tp->context->my_rank;
@@ -3070,4 +3068,39 @@ parsec_taskpool_t *
 parsec_dtd_get_taskpool(parsec_task_t *this_task)
 {
     return this_task->taskpool;
+}
+
+parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx, int *id)
+{
+    parsec_arena_datatype_t *new_adt;
+    int my_id = parsec_atomic_fetch_inc_int32(&ctx->dtd_arena_datatypes_next_id);
+    if( (my_id & PARSEC_GET_REGION_INFO) != my_id) {
+        return NULL;
+    }
+#if defined(PARSEC_DEBUG_PARANOID)
+    new_adt = parsec_hash_table_nolock_find(&ctx->dtd_arena_datatypes_hash_table, my_id);
+    if(NULL != new_adt)
+        return NULL;
+#endif
+    new_adt = calloc(sizeof(parsec_arena_datatype_t), 1);
+    if(NULL == new_adt)
+        return NULL;
+    new_adt->ht_item.key = my_id;
+    parsec_hash_table_nolock_insert(&ctx->dtd_arena_datatypes_hash_table, &new_adt->ht_item);
+    *id = my_id;
+    return new_adt;
+}
+
+parsec_arena_datatype_t *parsec_dtd_get_arena_datatype(parsec_context_t *ctx, int id)
+{
+    return parsec_hash_table_nolock_find(&ctx->dtd_arena_datatypes_hash_table, id);
+}
+
+int parsec_dtd_destroy_arena_datatype(parsec_context_t *ctx, int id)
+{
+    parsec_arena_datatype_t *adt = parsec_hash_table_nolock_remove(&ctx->dtd_arena_datatypes_hash_table, id);
+    if(NULL == adt)
+        return PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
+    free(adt);
+    return PARSEC_SUCCESS;
 }

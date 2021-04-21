@@ -49,13 +49,13 @@ const parsec_sched_module_t parsec_sched_ip_module = {
 static int sched_ip_install( parsec_context_t *master )
 {
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static int flow_ip_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
 {
     parsec_vp_t *vp = es->virtual_process;
-    
+
     if (es == vp->execution_streams[0]) {
         es->scheduler_object = parsec_mca_sched_allocate_list_local_counter(NULL);
     }
@@ -79,8 +79,8 @@ static int flow_ip_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
                                       "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=IP", PAPI_SDE_SUM);
     }
 #endif
-    
-    return 0;
+
+    return PARSEC_SUCCESS;
 }
 
 static parsec_task_t*
@@ -111,7 +111,7 @@ static int sched_ip_schedule(parsec_execution_stream_t* es,
     } else {
         parsec_mca_sched_list_local_counter_chain_back(sl, new_context);
     }
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void sched_ip_remove( parsec_context_t *master )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The University of Tennessee and The University
+ * Copyright (c) 2012-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -24,16 +24,31 @@
 #include "parsec/data.h"
 #include "parsec/utils/debug.h"
 #include "parsec/utils/output.h"
+#include "parsec/class/info.h"
+#include "parsec/mca/pins/pins.h"
 
 #if defined(PARSEC_PROF_GRAPHER)
 #include "parsec/parsec_prof_grapher.h"
 #endif  /* defined(PARSEC_PROF_GRAPHER) */
 #include "parsec/mca/device/device.h"
 
-
 #include <string.h>
 
 BEGIN_C_DECLS
+
+/**
+ * Arena-datatype management.
+ */
+struct parsec_arena_datatype_s {
+    parsec_arena_t           *arena;       /**< allocator for this datatype */
+    parsec_datatype_t         opaque_dtt;  /**< datatype */
+    parsec_hash_table_item_t  ht_item;     /**< sometimes, arena datatype are stored in hash tables */
+};
+
+int parsec_arena_datatype_construct(parsec_arena_datatype_t *adt,
+                                   size_t elem_size,
+                                   size_t alignment,
+                                   parsec_datatype_t opaque_dtt);
 
 /* NULL terminated local hostname of the current PaRSEC process */
 PARSEC_DECLSPEC extern const char* parsec_hostname;
@@ -66,10 +81,6 @@ typedef struct parsec_data_pair_s       parsec_data_pair_t;
  * @brief A dependency tracking structure
  */
 typedef struct parsec_dependencies_s    parsec_dependencies_t;
-/**
- * @brief A data repository entry
- */
-typedef struct data_repo_s             data_repo_t;
 /**
  * @brief A Virtual Process
  */
@@ -239,6 +250,7 @@ typedef parsec_ontask_iterate_t (parsec_ontask_function_t)(struct parsec_executi
                                                          const parsec_dep_t* dep,
                                                          parsec_dep_data_description_t *data,
                                                          int rank_src, int rank_dst, int vpid_dst,
+                                                         data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                                                          void *param);
 /**
  *
@@ -380,9 +392,15 @@ struct parsec_task_class_s {
 };
 
 struct parsec_data_pair_s {
-    struct data_repo_entry_s     *data_repo;
     struct parsec_data_copy_s    *data_in;
     struct parsec_data_copy_s    *data_out;
+    struct data_repo_entry_s     *source_repo_entry; /* Data repo entry from which the input data is consumed.
+                                                      * Setup on during data lookup and used during release deps. */
+    data_repo_t                  *source_repo;       /* Data repo from which the input data is consumed.
+                                                      * Setup on during data lookup and used during release deps. */
+    int                           fulfill;     /* flag used during data lookup to indicated that the input data of the task
+                                                * has already been reshaped.
+                                                * Necessary as data lookup can return ASYNC when reshaping each input flow. */
 };
 
 /**
@@ -423,12 +441,17 @@ PARSEC_DECLSPEC extern int parsec_want_rusage;
     int32_t                        priority;         \
     uint8_t                        status;           \
     uint8_t                        chore_id;         \
-    uint8_t                        unused[2];
+    uint8_t                        unused[2];        \
+    struct data_repo_entry_s      *repo_entry; /* The task contains its own data repo entry;
+                                                * It is created during datalookup if it hasn't
+                                                * been already created by a predecessor
+                                                */
+
 
 struct parsec_minimal_execution_context_s {
     PARSEC_MINIMAL_EXECUTION_CONTEXT
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profile_data_collection_info_t prof_info;
+    parsec_task_prof_info_t         prof_info;
 #endif /* defined(PARSEC_PROF_TRACE) */
     /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
      * prof_info so that the locals are part of the event specific infos */
@@ -438,7 +461,7 @@ struct parsec_minimal_execution_context_s {
 struct parsec_task_s {
     PARSEC_MINIMAL_EXECUTION_CONTEXT
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profile_data_collection_info_t prof_info;
+    parsec_task_prof_info_t    prof_info;
 #endif /* defined(PARSEC_PROF_TRACE) */
     /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
      * prof_info so that the locals are part of the event specific infos */
@@ -461,6 +484,7 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_task_t);
                 ((char*)(src)) + sizeof(parsec_list_item_t),            \
                 sizeof(struct parsec_minimal_execution_context_s) - sizeof(parsec_list_item_t) ); \
         (dest)->mempool_owner = _mpool;                                 \
+        (dest)->repo_entry = NULL;                                      \
     } while (0)
 
 /**
@@ -484,10 +508,10 @@ extern int device_delegate_begin, device_delegate_end;
                            (KEY),                                       \
                            (TASK)->task_class->key_functions->          \
                            key_hash((TASK)->task_class->make_key(       \
-                             (TASK)->taskpool, (TASK)->locals ), NULL), \
-                           (TASK)->taskpool->taskpool_id, (void*)&(TASK)->prof_info)
+                              (TASK)->taskpool, (TASK)->locals ), NULL), \
+                              (TASK)->taskpool->taskpool_id, (void*)&(TASK)->prof_info); 
 
-#define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \
+#define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)  \
     if(!!(COND)) {                                           \
         PARSEC_TASK_PROF_TRACE((PROFILE), (KEY), (TASK));     \
     }
@@ -496,15 +520,21 @@ extern int device_delegate_begin, device_delegate_end;
 #define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)
 #endif  /* defined(PARSEC_PROF_TRACE) */
 
-
 /**
  * Dependencies management.
  */
 typedef struct {
     uint32_t                     action_mask;
     uint32_t                     output_usage;
-    struct data_repo_entry_s    *output_entry;
-    parsec_task_t **ready_lists;
+    data_repo_entry_t           *output_entry; /* Current task repo entry */
+    data_repo_t                 *output_repo;  /* Current task repo */
+                                               /* Both entry and repo need to be passed to the callbacks
+                                                * of iterate successors during release deps of. The entry
+                                                * is set as input on the successor ready tasks during
+                                                * local release, and the repo also so the successors
+                                                * consume appropriately.
+                                                */
+    parsec_task_t              **ready_lists;
 #if defined(DISTRIBUTED)
     struct parsec_remote_deps_s *remote_deps;
 #endif
@@ -525,7 +555,42 @@ parsec_release_dep_fct(struct parsec_execution_stream_s *es,
                        const parsec_dep_t* dep,
                        parsec_dep_data_description_t* data,
                        int rank_src, int rank_dst, int vpid_dst,
+                       data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                        void *param);
+
+/**
+ * Function to create reshaping promises during iterate_succesors.
+ */
+parsec_ontask_iterate_t
+parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
+                              const parsec_task_t *newcontext,
+                              const parsec_task_t *oldcontext,
+                              const parsec_dep_t* dep,
+                              parsec_dep_data_description_t* data,
+                              int src_rank, int dst_rank, int dst_vpid,
+                              data_repo_t *successor_repo, parsec_key_t successor_repo_key,
+                              void *param);
+
+int
+parsec_get_copy_reshape_from_desc(parsec_execution_stream_t *es,
+                                  parsec_taskpool_t* tp,
+                                  parsec_task_t *task,
+                                  uint8_t dep_flow_index,
+                                  data_repo_t *reshape_repo,
+                                  parsec_key_t reshape_entry_key,
+                                  parsec_dep_data_description_t *data,
+                                  parsec_data_copy_t**reshape);
+
+int
+parsec_get_copy_reshape_from_dep(parsec_execution_stream_t *es,
+                                 parsec_taskpool_t* tp,
+                                 parsec_task_t *task,
+                                 uint8_t dep_flow_index,
+                                 data_repo_t *reshape_repo,
+                                 parsec_key_t reshape_entry_key,
+                                 parsec_dep_data_description_t *data,
+                                 parsec_data_copy_t**reshape);
+
 
 /** deps is an array of size MAX_PARAM_COUNT
  *  Returns the number of output deps on which there is a final output
@@ -543,15 +608,47 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
                                       const parsec_flow_t* origin_flow,
                                       const parsec_task_t* task,
                                       const parsec_flow_t* dest_flow,
-                                      struct data_repo_entry_s* dest_repo_entry,
                                       parsec_dep_data_description_t* data,
-                                      parsec_task_t** pready_list);
+                                      parsec_task_t** pready_ring,
+                                      data_repo_t* target_repo,
+                                      parsec_data_copy_t* target_dc,
+                                      data_repo_entry_t* target_repo_entry);
 
 #define parsec_execution_context_priority_comparator offsetof(parsec_task_t, priority)
 
 #if defined(PARSEC_SIM)
 int parsec_getsimulationdate( parsec_context_t *parsec_context );
 #endif
+
+/*********************** Global Info Handles *****************************/
+
+/**
+ * @brief Device-level info
+ *
+ * @details infos stored under this handle exist per device:
+ *      there is one info_array per device (as obtained by
+ *      parsec_mca_device_get), and this array is indexed
+ *      by the info IDs stored inside this global.
+ *
+ *      The info-specific object passed to the constructor
+ *      function for info objects is the corresponding
+ *      parsec_device_module_t*.
+ */
+extern parsec_info_t parsec_per_device_infos;
+
+/**
+ * @brief Stream-level info
+ *
+ * @details infos stored under this handle exist per device-stream:
+ *      some devices, like the CUDA device, define multiple streams
+ *      of execution; they define one info_array per such stream,
+ *      and this array is indexed by the info IDs stored inside this
+ *      global.
+ *
+ *      the info-specific object passed to the constructor function
+ *      for info objects is the corresponding parsec_gpu_exec_stream_t*
+ */
+extern parsec_info_t parsec_per_stream_infos;
 
 /** @} */
 

@@ -1,0 +1,7 @@
+# export ASAN_OPTIONS=suppressions=$PARSEC_DIR/contrib/asan.supp LSAN_OPTIONS=suppressions=$PARSEC_DIR/contrib/lsan.supp
+interceptor_via_lib:open-pal
+interceptor_via_lib:open-mpi
+interceptor_via_lib:pmi
+interceptor_via_lib:slurm
+interceptor_via_lib:ibverbs
+interceptor_via_lib:rdmacm

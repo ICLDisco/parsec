@@ -7,10 +7,6 @@
 
 find_package(PkgConfig)
 
-# This if statement is specific to TAU, and should not be copied into other
-# Find cmake scripts.
-set(TAU_ROOT /home/pgaultne/sw/ig.icl.utk.edu/tau/tau-2.22)
-# message(WARNING "TAU ROOT is ${TAU_ROOT}")
 if(NOT TAU_ROOT AND NOT $ENV{HOME_TAU} STREQUAL "")
   set(TAU_ROOT $ENV{HOME_TAU})
 endif()
@@ -24,6 +20,10 @@ set(TAU_DEFINITIONS ${PC_TAU_CFLAGS_OTHER})
 find_path(TAU_INCLUDE_DIR TAU.h
           HINTS ${TAU_ROOT}/include
           PATH_SUFFIXES TAU )
+if( NOT TAU_INCLUDE_DIR )
+  message(STATUS "TAU libraries not found")
+  return ()
+endif
 
 if (${APPLE})
   find_library(TAU_LIBRARY NAMES TAU
@@ -46,11 +46,11 @@ find_path(TAU_LIBRARY_DIR_2 NAMES libTauPthreadWrap.a
              HINTS ${TAU_LIBRARY_DIR}/static-papi-pthread)
 
 if (TAU_LIBRARY_DIR_2_FOUND)
-   message(ERROR "I don't think this is the one we want, because it's static...")
-    set(TAU_LIBRARIES ${TAU_LIBRARY} -lpthread -L${TAU_LIBRARY_DIR_2} -Wl,-wrap,pthread_create -Wl,-wrap,pthread_join -Wl,-wrap,pthread_exit -Wl,-wrap,pthread_barrier_wait -lTauPthreadWrap )
+  message(ERROR "I don't think this is the one we want, because it's static...")
+  set(TAU_LIBRARIES ${TAU_LIBRARY} -lpthread -L${TAU_LIBRARY_DIR_2} -Wl,-wrap,pthread_create -Wl,-wrap,pthread_join -Wl,-wrap,pthread_exit -Wl,-wrap,pthread_barrier_wait -lTauPthreadWrap )
 else()
-    set(TAU_LIBRARIES ${TAU_LIBRARY} ${TAU_ICPC_LIBRARY} -lpthread -ldl -lpapi)
-    message(STATUS "The TAU libraries are ${TAU_LIBRARIES}")
+  set(TAU_LIBRARIES ${TAU_LIBRARY} ${TAU_ICPC_LIBRARY} -lpthread -ldl -lpapi)
+  message(STATUS "The TAU libraries are ${TAU_LIBRARIES}")
 endif()
 
 set(TAU_INCLUDE_DIRS ${TAU_INCLUDE_DIR} )

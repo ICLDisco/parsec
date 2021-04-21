@@ -44,7 +44,7 @@ export SERVER_PORT=<demo_server is waiting on port P2>
 To start the demo server:
 
 ```{Bash}
-$(DPLASMA_BUILD)/demo_server <number of mpi processes N>
+$(PARSEC_BUILD)/demo_server <number of mpi processes N>
                              <port number to listen for connection, P2>
 ```
 To control the demo server, the format of commands is:

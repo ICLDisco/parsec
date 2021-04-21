@@ -1,0 +1,82 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ */
+
+#include "parsec/data_dist/matrix/matrix.h"
+#include <pthread.h>
+static pthread_cond_t  cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+static int set = 0;
+
+    /*******************************
+     * Reshape read multiple copies
+     * When reshaping on a input dep, a new datacopy is created with the correct shape,
+     * and it is shared by all the successors accessing the same data.
+     *******************************/
+
+%}
+
+descA  [type = "parsec_tiled_matrix_dc_t*"]
+nbthrd [type = "int"]
+
+/**************************************************
+ *                       READ_A                   *
+ **************************************************/
+READ_A(m, k)  [profile = off]
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+
+: descA(m, k)
+
+RW A <- descA(m, k)
+     -> A TASK_A(m, k, 0 .. nbthrd-1) [type = LOWER_TILE]
+
+CTL ctl <- ((m != 0) && (k == 0)) ? ctl TASK_A(m-1, descA->nt-1, 0)
+        <- ((m >= 0) && (k != 0)) ? ctl TASK_A(m,   k-1,         0)
+
+BODY
+{
+}
+END
+/**************************************************
+ *                       TASK_A                   *
+ **************************************************/
+TASK_A(m, k, t)  [profile = off]
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+t = 0 .. nbthrd-1
+
+: descA(m, k)
+
+RW A <- A READ_A(m, k) [type = LOWER_TILE]
+     -> descA(m, k) [type = LOWER_TILE type_data = LOWER_TILE]
+
+CTL ctl -> ((m <= descA->mt-1) && (k <  descA->nt-1) && (t == 0)) ? ctl READ_A(m,   k+1)
+        -> ((m <  descA->mt-1) && (k == descA->nt-1) && (t == 0)) ? ctl READ_A(m+1, 0)
+
+BODY
+{
+    //printf("%d TASK_A(%d, %d, %d) A %p\n", es->th_id, m, k, t, A );
+    if(t == 1){
+        do{ } while(set == 0);
+    }
+    pthread_mutex_lock(&lock);
+    if(t == 0){
+        memset( A, 0, sizeof(int)*descA->mb*descA->nb);
+        set = 1;
+        pthread_cond_wait(&cond, &lock);
+    } else {
+        pthread_cond_signal(&cond);
+    }
+    pthread_mutex_unlock(&lock);
+
+    assert( ((int*)A)[0] == 0 );
+    set = 0;
+
+}
+END

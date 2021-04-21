@@ -10,6 +10,7 @@
 
 #include "parsec/data.h"
 #include "parsec/class/parsec_hash_table.h"
+#include "parsec/datatype.h"
 
 BEGIN_C_DECLS
 
@@ -60,6 +61,8 @@ struct parsec_data_collection_s {
     int (*key_to_string)(parsec_data_collection_t *d, parsec_data_key_t key, char * buffer, uint32_t buffer_size);
     char      *key_dim;
     char      *key;
+
+    parsec_datatype_t       default_dtt; /**< default datatype for the datacopies of this data collection*/
 };
 
 /**
@@ -68,6 +71,7 @@ struct parsec_data_collection_s {
 void
 parsec_data_collection_init(parsec_data_collection_t *d,
                             int nodes, int myrank );
+
 void
 parsec_data_collection_destroy(parsec_data_collection_t *d);
 

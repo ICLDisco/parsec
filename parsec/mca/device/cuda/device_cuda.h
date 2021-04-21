@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2019 The University of Tennessee and The University
+ * Copyright (c) 2010-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,16 +23,17 @@ BEGIN_C_DECLS
 
 #define PARSEC_GPU_USE_PRIORITIES     1
 
-#define GPU_TASK_TYPE_D2HTRANSFER 111
-
 struct parsec_gpu_task_s;
 typedef struct parsec_gpu_task_s parsec_gpu_task_t;
 
-struct __parsec_gpu_exec_stream;
-typedef struct __parsec_gpu_exec_stream parsec_gpu_exec_stream_t;
+struct parsec_gpu_exec_stream_s;
+typedef struct parsec_gpu_exec_stream_s parsec_gpu_exec_stream_t;
 
 struct parsec_device_cuda_module_s;
 typedef struct parsec_device_cuda_module_s parsec_device_cuda_module_t;
+
+struct parsec_gpu_workspace_s;
+typedef struct parsec_gpu_workspace_s parsec_gpu_workspace_t;
 
 extern parsec_device_base_component_t parsec_device_cuda_component;
 
@@ -51,12 +52,41 @@ typedef int (*advance_task_function_t)(parsec_device_cuda_module_t *gpu_device,
                                        parsec_gpu_task_t           *gpu_task,
                                        parsec_gpu_exec_stream_t    *gpu_stream);
 
+/* Function type to transfer data to the GPU device.
+ * Transfer transfer the <count> contiguous bytes from
+ * task->data[i].data_in to task->data[i].data_out.
+ *
+ * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
+ * @param[in] flow_mask indicating task flows for which to transfer.
+ * @param[in] gpu_stream parsec_gpu_exec_stream_t used for the transfer.
+ *
+ */
+typedef int (parsec_stage_in_function_t)(parsec_gpu_task_t        *gtask,
+                                         uint32_t                  flow_mask,
+                                         parsec_gpu_exec_stream_t *gpu_stream);
+
+
+/* Function type to transfer data from the GPU device.
+ * Transfer transfer the <count> contiguous bytes from
+ * task->data[i].data_in to task->data[i].data_out.
+ *
+ * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
+ * @param[in] flow_mask indicating task flows for which to transfer.
+ * @param[in] gpu_stream parsec_gpu_exec_stream_t used for the transfer.
+ *
+ */
+typedef int (parsec_stage_out_function_t)(parsec_gpu_task_t        *gtask,
+                                          uint32_t                  flow_mask,
+                                          parsec_gpu_exec_stream_t *gpu_stream);
+
 struct parsec_gpu_task_s {
     parsec_list_item_t               list_item;
     int                              task_type;
     int32_t                          pushout;
     advance_task_function_t          submit;
     parsec_complete_stage_function_t complete_stage;
+    parsec_stage_in_function_t      *stage_in;
+    parsec_stage_out_function_t     *stage_out;
 #if defined(PARSEC_PROF_TRACE)
     int                              prof_key_end;
     uint64_t                         prof_event_id;
@@ -68,11 +98,72 @@ struct parsec_gpu_task_s {
             uint64_t                 last_data_check_epoch;
             double                   load;  /* computational load imposed on the device */
             const parsec_flow_t     *flow[MAX_PARAM_COUNT];
+            uint32_t                 flow_nb_elts[MAX_PARAM_COUNT]; /* for each flow, size of the data to be allocated
+                                                                     * on the GPU.
+                                                                     */
+            parsec_data_collection_t *flow_dc[MAX_PARAM_COUNT];     /* for each flow, data collection from which the data
+                                                                     * to be transfered logically belongs to.
+                                                                     * This gives the user the chance to indicate on the JDF
+                                                                     * a data collection to inspect during GPU transfer.
+                                                                     * User may want info from the DC (e.g. mtype),
+                                                                     * & otherwise remote copies don't have any info.
+                                                                     */
         };
         struct {
-          parsec_data_copy_t        *copy;
+            parsec_data_copy_t        *copy;
         };
     };
+};
+
+struct parsec_device_cuda_module_s {
+    parsec_device_module_t    super;
+    uint8_t                   cuda_index;
+    uint8_t                   major;
+    uint8_t                   minor;
+    uint8_t                   max_exec_streams;
+    int16_t                   peer_access_mask;  /**< A bit set to 1 represent the capability of
+                                                  *   the device to access directly the memory of
+                                                  *   the index of the set bit device.
+                                                  */
+    volatile int32_t          mutex;
+    uint64_t                  data_avail_epoch;  /**< Identifies the epoch of the data status on the devide. It
+                                                  *   is increased every time a new data is made available, so
+                                                  *   that we know which tasks can be evaluated for submission.
+                                                  */
+    parsec_gpu_exec_stream_t *exec_stream;
+    parsec_list_t             gpu_mem_lru;   /* Read-only blocks, and fresh blocks */
+    parsec_list_t             gpu_mem_owned_lru;  /* Dirty blocks */
+    parsec_fifo_t             pending;
+    struct zone_malloc_s     *memory;
+    parsec_list_item_t       *sort_starting_p;
+    size_t  mem_block_size;
+    int64_t mem_nb_blocks;
+};
+
+PARSEC_OBJ_CLASS_DECLARATION(parsec_device_cuda_module_t);
+
+struct parsec_gpu_exec_stream_s {
+    /* There is exactly one task per active event (max_events being the uppoer bound).
+     * Upon event completion the complete_stage function associated with the task is
+     * called, and this will decide what is going on next with the task. If the task
+     * remains in the system the function is supposed to update it.
+     */
+    struct parsec_gpu_task_s        **tasks;
+    cudaEvent_t                      *events;
+    cudaStream_t                      cuda_stream;
+    char                             *name;
+    int32_t                           max_events;  /* number of potential events, and tasks */
+    int32_t                           executed;    /* number of executed tasks */
+    int32_t                           start;  /* circular buffer management start and end positions */
+    int32_t                           end;
+    parsec_list_t                    *fifo_pending;
+    parsec_gpu_workspace_t           *workspace;
+    parsec_info_object_array_t        infos; /**< Per-stream info objects are stored here */
+
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_stream_t        *profiling;
+    int                               prof_event_track_enable;
+#endif  /* defined(PROFILING) */
 };
 
 /**
@@ -162,7 +253,46 @@ int
 parsec_gpu_kernel_cleanout( parsec_device_cuda_module_t *gpu_device,
                             parsec_gpu_task_t    *gpu_task );
 
+
+/* Default stage_in function to transfer data to the GPU device.
+ * Transfer transfer the <count> contiguous bytes from
+ * task->data[i].data_in to task->data[i].data_out.
+ *
+ * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
+ * @param[in] flow_mask indicating task flows for which to transfer.
+ * @param[in] gpu_stream parsec_gpu_exec_stream_t used for the transfer.
+ *
+ */
+int
+parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
+                            uint32_t                  flow_mask,
+                            parsec_gpu_exec_stream_t *gpu_stream);
+
+/* Default stage_out function to transfer data from the GPU device.
+ * Transfer transfer the <count> contiguous bytes from
+ * task->data[i].data_in to task->data[i].data_out.
+ *
+ * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
+ * @param[in] flow_mask indicating task flows for which to transfer.
+ * @param[in] gpu_stream parsec_gpu_exec_stream_t used for the transfer.
+ *
+ */
+int
+parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
+                             uint32_t                  flow_mask,
+                             parsec_gpu_exec_stream_t *gpu_stream);
+
 END_C_DECLS
+
+#define PARSEC_CUDA_CHECK_ERROR( STR, ERROR, CODE )                     \
+    do {                                                                \
+        cudaError_t __cuda_error = (cudaError_t) (ERROR);               \
+        if( cudaSuccess != __cuda_error ) {                             \
+            parsec_warning( "%s:%d %s%s", __FILE__, __LINE__,           \
+                            (STR), cudaGetErrorString(__cuda_error) );  \
+            CODE;                                                       \
+        }                                                               \
+    } while(0)
 
 #endif /* defined(PARSEC_HAVE_CUDA) */
 

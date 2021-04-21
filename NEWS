@@ -1,9 +1,51 @@
-Copyright (c) 2009-2019 The University of Tennessee and The University
+Copyright (c) 2009-2020 The University of Tennessee and The University
                         of Tennessee Research Foundation.  All rights
                         reserved.
 
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
+
+master
+ - PaRSEC API 4.0 (still changing)
+
+ - DTD interface change: the global array parsec_dtd_arena_datatypes
+   is replaced with functions to create, destroy, and get arena
+   datatypes for DTD, and these objects now live inside the
+   parsec context.
+
+ - PARSEC_SUCCESS changed to 0 (from -1), all values for PARSEC_ERR_XYZ changed.
+
+ - PaRSEC now requires CMake 3.18.
+
+ - PaRSEC profiling system does not require for local dicitonaries to
+   be identical between ranks anymore.
+
+ - Enable users to manage their own data copies without PaRSEC
+   interfering. Data copies are marked as being owned by PaRSEC or
+   not and managed by PaRSEC or not. A data copy owned by PaRSEC can
+   be reclaimed by PaRSEC when its reference count reaches 0, a data
+   copy managed by PaRSEC can be copied / moved onto a different
+   device, while a data copy not managed by PaRSEC will never be
+   moved by the runtime.
+
+ - Add an info system, and introduce two info hooks. See parsec/class/info.h
+   for details. The info system allows the user to register info objects
+   with different levels of structures and dynamic objects in the PaRSEC
+   runtime.
+
+ - PTG supports user-defined routines to move data between GPU and
+   CPU, and user-defined sizes for buffers allocated on the GPU.
+
+ - PTG supports reshaping data propagated between local tasks and
+   the speficiation of two types on acccesses to data colletions.
+
+ - Removed obsolete dbp2paje tool; h5totrace is the replacement tool
+   to use. This removes the optional dependency on GTG.
+
+v20.12
+ - PaRSEC API 3.0
+
+ - PaRSEC now requires CMake 3.16.
 
  - New configure system to ease the installation of PaRSEC. See
    INSTALL for details. This system automates installation on most DOE
@@ -26,6 +68,10 @@ bug fixes (and other actions) for each version of PaRSEC since v1.1.0
  - Add support for MPI out-of-order matching capabilities; Added capability
    for compute threads to send direct control messages to indicate completion
    of tasks to remote nodes (without delegation to the communication thread)
+
+ - Remove communication mode EAGER from the runtime. It had a rare
+   but hard to correct bug that would rarely deadlock, and the performance
+   benefit was small.
 
  - Add a Map operator on the Block Cyclic matrix data collection that
    performs in-place data transformation on the collection with a user provided
@@ -76,6 +122,7 @@ bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
  - DTD provides mca param (dtd_debug_verbose) to print information
    about traversal of DAG in a separate output stream from the default.
+
 
 v 2.0.0rc2
  - Rename all functions, files, directories from dague/DAGUE/DAGuE to

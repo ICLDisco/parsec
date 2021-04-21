@@ -336,8 +336,8 @@ int parsec_cmd_line_parse(parsec_cmd_line_t *cmd, bool ignore_unknown,
 
                     if (NULL != option) {
                         parsec_argv_delete(&cmd->lcl_argc,
-			                 &cmd->lcl_argv, i,
-                                         1 + num_args_used);
+                                           &cmd->lcl_argv, i,
+                                           1 + num_args_used);
                         parsec_argv_insert(&cmd->lcl_argv, i, shortsv);
                         cmd->lcl_argc = parsec_argv_count(cmd->lcl_argv);
                     } else {

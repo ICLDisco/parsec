@@ -66,7 +66,7 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
     assert( k < dat->size && k >= 0 );
     (void)k;
     if(NULL == dat->data) {
-        dat->data = parsec_data_copy_new(NULL, 0);
+        dat->data = parsec_data_copy_new(NULL, 0, desc->default_dtt, PARSEC_DATA_FLAG_PARSEC_MANAGED);
         dat->data->device_private = dat->ptr;
     }
     return (void*)(dat->data);
@@ -93,17 +93,22 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
 {
     my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
     parsec_data_collection_t *d = &(m->super);
-
+    
     d->myrank = rank;
     d->nodes  = world;
     d->rank_of = rank_of;
     d->data_of = data_of;
     d->vpid_of = vpid_of;
 #if defined(PARSEC_PROF_TRACE)
-    asprintf(&d->key_dim, "(%d)", size);
-    d->key_base = strdup("A");
-    d->data_key = data_key;
+    {
+      int len = asprintf(&d->key_dim, "(%d)", size);
+      if( -1 == len )
+	d->key_dim = NULL;
+      d->key_base = strdup("A");
+      d->data_key = data_key;
+    }
 #endif
+    parsec_type_create_contiguous(size, parsec_datatype_uint32_t, &d->default_dtt);
 
     m->size = size;
     m->seg  = seg;

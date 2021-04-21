@@ -22,8 +22,12 @@ _EOF
 export CC=cc CXX=CC FC=ftn #CFLAGS+=-mcx16
 ENVVARS+=" CC=$CC CXX=$CXX FC=$FC CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
 
+# Default Python is incomplete, load conda3 and run the venv
+module load miniconda-3/latest
+enable_python_venv=yes
+
 # Default CMake is too old, load a more recent from the modules
-cmake_version=$(module -t -S avail cmake/3.14 2>&1 | grep cmake)
+cmake_version=$(module -t -S avail cmake/3.18 2>&1 | grep cmake)
 module load $cmake_version
 
 enable_static=yes

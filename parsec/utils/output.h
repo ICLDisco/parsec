@@ -556,17 +556,30 @@ PARSEC_DECLSPEC void parsec_output_set_output_file_info(const char *dir,
  */
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_output_stream_t);
 
+#undef __PARSEC_OUTPUT_NEEDS_STDIO
+
 #if !defined(PARSEC_HAVE_VASPRINTF)
 int vasprintf(char **ptr, const char *fmt, va_list ap);
 #else
-#include <stdio.h>
+#define __PARSEC_OUTPUT_NEEDS_STDIO
 #endif  /* !defined(PARSEC_HAVE_VASPRINTF) */
 
 #if !defined(PARSEC_HAVE_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, ...);
 #else
-#include <stdio.h>
+#define __PARSEC_OUTPUT_NEEDS_STDIO
 #endif  /* !defined(PARSEC_HAVE_ASPRINTF) */
+
+#if defined(__PARSEC_OUTPUT_NEEDS_STDIO)
+/** We need _GNU_SOURCE to get access to many GNU goodies, so the early we
+ * add it the better.
+ */
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+#include <stdio.h>
+#undef __PARSEC_OUTPUT_NEEDS_STDIO
+#endif
 
 END_C_DECLS
 

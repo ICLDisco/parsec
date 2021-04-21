@@ -1,8 +1,11 @@
 /**
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+
+#include "parsec/parsec_config.h"
+#include "parsec/utils/output.h"
 
 #include <stdio.h>
 #include <errno.h>
@@ -20,6 +23,7 @@ extern int current_lineno;
 extern int yydebug;
 char *yyfilename;
 char** extra_argv;
+int jdfdebug = 0;
 
 static jdf_compiler_global_args_t DEFAULTS = {
     .input = "-",
@@ -37,8 +41,7 @@ static jdf_compiler_global_args_t DEFAULTS = {
 #endif
     .ignore_properties = NULL
 };
-jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { /* .input = */ NULL, /* .output_c = */ NULL, /* .output_h = */ NULL, /* .output_o = */ NULL,
-                                                        /* .funcid = */ NULL, /* .wmask = */ 0x0, /* .compile = */ 1, /* .noline = */ 0 };
+jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { 0, .compile = 1 };
 
 static void usage(void)
 {
@@ -49,7 +52,7 @@ static void usage(void)
             "  unrecognized options and COMPILER_OPTIONS are all added to the options\n"
             "  passed to the final compiler.\n"
             "  recognized OPTIONS are the following:\n"
-            "  --debug|-d         Enable bison debug output\n"
+            "  --debug|-d         Enable debug output\n"
             "  --input|-i         Input File (JDF) (default '%s')\n"
             "  --output|-o        Set the BASE name for .c, .h, .o and function name (no default).\n"
             "                     Changing this value has precendence over the defaults of\n"
@@ -101,30 +104,26 @@ static char** prepare_execv_arguments(void)
     char** include_argv = parsec_argv_split(CMAKE_PARSEC_C_INCLUDES, ';');
 
     /* Let's prepare the include_argv by prepending -I to each one */
-    int i, token_count = parsec_argv_count(include_argv);
-    for( i = 0; i < token_count; i++ ) {
-        char* temp = include_argv[i];
-        asprintf(&include_argv[i], "-I%s", temp);
-        free(temp);
-    }
-
-    token_count = 5 + (parsec_argv_count(flags_argv) +
-                       parsec_argv_count(include_argv) +
-                       parsec_argv_count(extra_argv));
+    int i, token_count = 0;
     char** exec_argv = NULL;
 
     /* Now let's join all arguments together */
-    token_count = 0;
     parsec_argv_append(&token_count, &exec_argv, CMAKE_PARSEC_C_COMPILER);
     for( i = 0; i < parsec_argv_count(flags_argv); ++i ) {
         parsec_argv_append(&token_count, &exec_argv, flags_argv[i]);
     }
-    free(flags_argv);
+    parsec_argv_free(flags_argv);
 
     for( i = 0; i < parsec_argv_count(include_argv); ++i ) {
-        parsec_argv_append(&token_count, &exec_argv, include_argv[i]);
+        char* temp;
+        int len;
+        len = asprintf(&temp, "-I%s", include_argv[i]);
+        if(len != -1) {
+            parsec_argv_append(&token_count, &exec_argv, temp);
+            free(temp);
+        }
     }
-    free(include_argv);
+    parsec_argv_free(include_argv);
 
     for( i = 0; i < parsec_argv_count(extra_argv); ++i ) {
         parsec_argv_append(&token_count, &exec_argv, extra_argv[i]);
@@ -141,8 +140,8 @@ static void add_to_ignore_properties(const char *optarg)
 {
     jdf_name_list_t *nl;
     char *arg = strdup(optarg);
-    char *l, *last;
-    
+    char *l, *last = NULL;
+
     while( (l = strtok_r(arg, ",", &last)) ) {
         nl = (jdf_name_list_t*)malloc(sizeof(jdf_name_list_t));
         nl->name = l;
@@ -154,7 +153,7 @@ static void add_to_ignore_properties(const char *optarg)
 
 static void parse_args(int argc, char *argv[])
 {
-    int ch, i;
+    int ch, i, print_compile_cmd = 0;
     int wmasked = 0;
     int wmutexinput = 0;
     int wremoteref = 0;
@@ -194,13 +193,14 @@ static void parse_args(int argc, char *argv[])
     JDF_COMPILER_GLOBAL_ARGS.wmask = JDF_ALL_WARNINGS;
     JDF_COMPILER_GLOBAL_ARGS.dep_management = DEFAULTS.dep_management;
     JDF_COMPILER_GLOBAL_ARGS.ignore_properties = NULL;
-    
+
     print_jdf_line = !DEFAULTS.noline;
 
     while( (ch = getopt_long(argc, argv, "di:C:H:o:f:hEsIO:M:I:", longopts, NULL)) != -1) {
         switch(ch) {
         case 'd':
             yydebug = 1;
+            jdfdebug = 1;
             break;
         case 'i':
             if( NULL != JDF_COMPILER_GLOBAL_ARGS.input )
@@ -244,15 +244,9 @@ static void parse_args(int argc, char *argv[])
             /* Don't compile the preprocessed file, instead stop after the preprocessing stage */
             JDF_COMPILER_GLOBAL_ARGS.compile = 0;
             break;
-        case 's': {
-            /* print the compilation options used to compile the preprocessed output */
-            char** exec_argv = prepare_execv_arguments();
-            for( int i = 0; i < parsec_argv_count(exec_argv); ++i )
-                fprintf(stderr, "%s ", exec_argv[i]);
-            fprintf(stderr, "\n");
-            free(exec_argv);
-            exit(0);
-        }
+        case 's':
+            print_compile_cmd = 1;
+            break;
         case 'M':
             if( strcmp(optarg, DEP_MANAGEMENT_DYNAMIC_HASH_TABLE_STRING) == 0 )
                 JDF_COMPILER_GLOBAL_ARGS.dep_management = DEP_MANAGEMENT_DYNAMIC_HASH_TABLE;
@@ -354,12 +348,24 @@ static void parse_args(int argc, char *argv[])
         free(h);
     if( NULL != o )
         free(o);
+
+    if( print_compile_cmd ) {
+        /* print the compilation options used to compile the preprocessed output */
+        char** exec_argv = prepare_execv_arguments();
+        for( int i = 0; i < parsec_argv_count(exec_argv); ++i )
+            fprintf(stderr, "%s ", exec_argv[i]);
+        fprintf(stderr, "\n");
+        parsec_argv_free(exec_argv);
+        exit(0);
+    }
 }
 
 int main(int argc, char *argv[])
 {
     int rc;
+#if defined(PARSEC_HAVE_RECENT_LEX)
     yyscan_t scanner = NULL;
+#endif
 
     parse_args(argc, argv);
 #if defined(PARSEC_HAVE_RECENT_LEX)
@@ -385,7 +391,11 @@ int main(int argc, char *argv[])
     jdf_prepare_parsing();
 
     /*yydebug = 5;*/
+#if defined(PARSEC_HAVE_RECENT_LEX)
     if( yyparse(scanner) > 0 ) {
+#else
+    if( yyparse() > 0 ) {
+#endif
         exit(1);
     }
 #if defined(PARSEC_HAVE_RECENT_LEX)
@@ -393,9 +403,6 @@ int main(int argc, char *argv[])
 #endif  /* defined(PARSEC_HAVE_RECENT_LEX) */
 
     rc = jdf_sanity_checks( JDF_COMPILER_GLOBAL_ARGS.wmask );
-    if(rc < 0)
-        return 1;
-
     if( (JDF_COMPILER_GLOBAL_ARGS.wmask & JDF_WARNINGS_ARE_ERROR) &&
         (rc != 0) ) {
         return 1;
@@ -420,7 +427,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "\n");
         execv(exec_argv[0], exec_argv);
         fprintf(stderr, "Compilation failed with error %d (%s)\n", errno, strerror(errno));
-        free(exec_argv);
+        parsec_argv_free(exec_argv);
         return -1;
     }
 

@@ -18,9 +18,8 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
-enum regions {
-               TILE_FULL,
-             };
+/* IDs for the Arena Datatypes */
+static int TILE_FULL;
 
 int
 task_rank_0( parsec_execution_stream_t    *es,
@@ -59,6 +58,7 @@ int main(int argc, char **argv)
     int rank, world, cores = -1;
     int nb, nt, rc;
     parsec_tiled_matrix_dc_t *dcA;
+    parsec_arena_datatype_t *adt;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -83,9 +83,10 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
-    parsec_matrix_add2arena_rect(parsec_dtd_arenas[0],
-                                 parsec_datatype_int32_t,
-                                 nb, 1, nb);
+    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
+    parsec_matrix_add2arena_rect( adt,
+                                  parsec_datatype_int32_t,
+                                  nb, 1, nb );
 
     /* Correctness checking */
     dcA = create_and_distribute_data(rank, world, nb, nt);
@@ -119,26 +120,28 @@ int main(int argc, char **argv)
     for( i = 0; i < world; i ++ ) {
         if( root != i ) {
             parsec_dtd_taskpool_insert_task(dtd_tp, task_rank_0,    0,  "task_rank_0",
-                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, i), INOUT | TILE_FULL | AFFINITY,
+                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, i), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                             PARSEC_DTD_ARG_END);
 
             parsec_dtd_taskpool_insert_task(dtd_tp, task_rank_1,    0,  "task_rank_0",
-                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, i),    INOUT | TILE_FULL,
-                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
+                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, i),    PARSEC_INOUT | TILE_FULL,
+                                            PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, root), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
                                             PARSEC_DTD_ARG_END);
         }
     }
     //******************
     parsec_dtd_data_flush_all( dtd_tp, A );
 
-    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free( dtd_tp );
 
-    parsec_arena_destruct(parsec_dtd_arenas[0]);
+    parsec_matrix_del2arena(adt);
+    PARSEC_OBJ_RELEASE(adt->arena);
+    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 

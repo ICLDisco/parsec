@@ -129,6 +129,7 @@ static int jdf_sanity_check_expr_bound_before_global(jdf_expr_t *e, jdf_global_e
 {
     jdf_global_entry_t *g2;
     char *vc, *dot;
+    jdf_expr_t *nr;
     int rc = 0;
     switch( e->op ) {
     case JDF_VAR:
@@ -144,9 +145,15 @@ static int jdf_sanity_check_expr_bound_before_global(jdf_expr_t *e, jdf_global_e
             }
         }
         if( g2 == g1 ) {
-            jdf_fatal(JDF_OBJECT_LINENO(g1), "Global %s is defined using variable %s (in %s) which is unbound at this time\n",
-                      g1->name, vc, e->jdf_var);
-            rc = -1;
+            for(nr = e->local_variables; NULL != nr; nr = nr->next) {
+                if( !strcmp(nr->alias, vc) )
+                    break;
+            }
+            if(NULL == nr) {
+                jdf_fatal(JDF_OBJECT_LINENO(g1), "Global %s is defined using variable %s (in %s) which is unbound at this time\n",
+                          g1->name, vc, e->jdf_var);
+                rc = -1;
+            }
         }
         free(vc);
         return rc;
@@ -267,9 +274,19 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
 {
     jdf_global_entry_t *g;
     jdf_def_list_t *d2;
+    jdf_expr_t *nr;
     char *vc, *dot;
     int rc = 0;
 
+    if(NULL != e->local_variables) {
+        /* Use the opportunity to update the number of local definitions
+         * that we may need to define this expression */
+        int nb = 0;
+        for(nr = e->local_variables; nr != NULL; nr = nr->next)
+            if(NULL != nr->alias)
+                nb++;
+    }
+    
     switch( e->op ) {
     case JDF_VAR:
         vc = strdup(e->jdf_var);
@@ -283,15 +300,21 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
             }
         }
         if( g == NULL ) {
-            for(d2 = f->locals; d2 != d; d2 = d2->next) {
-                if( !strcmp( vc, d2->name ) ) {
+            for(nr = e->local_variables; NULL != nr; nr = nr->next) {
+                if( !strcmp(nr->alias, vc) )
                     break;
-                }
             }
-            if( d2 == d ) {
-                jdf_fatal(JDF_OBJECT_LINENO(d), "Local %s is defined using variable %s (in %s) which is unbound at this time\n",
-                          d->name,  vc, e->jdf_var);
-                rc = -1;
+            if(NULL == nr) {
+                for(d2 = f->locals; d2 != d; d2 = d2->next) {
+                    if( !strcmp( vc, d2->name ) ) {
+                        break;
+                    }
+                }
+                if( d2 == d ) {
+                    jdf_fatal(JDF_OBJECT_LINENO(d), "Local %s is defined using variable %s (in %s) which is unbound at this time\n",
+                              d->name,  vc, e->jdf_var);
+                    rc = -1;
+                }
             }
         }
         free(vc);
@@ -340,9 +363,19 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
 {
     jdf_global_entry_t *g;
     jdf_def_list_t *d;
+    jdf_expr_t *nr;
     char *vc, *dot;
     int rc = 0;
-
+    
+    if(NULL != e->local_variables) {
+        /* Use the opportunity to update the number of local definitions
+         * that we may need to define this expression */
+        int nb = 0;
+        for(nr = e->local_variables; nr != NULL; nr = nr->next)
+            if(NULL != nr->alias)
+                nb++;
+    }
+    
     switch( e->op ) {
     case JDF_VAR:
         vc = strdup(e->jdf_var);
@@ -362,9 +395,15 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
                 }
             }
             if( d == NULL ) {
-                jdf_fatal(JDF_OBJECT_LINENO(f), "%s of function %s is defined using variable %s (in %s) which is unbound at this time\n",
-                          kind, f->fname, vc, e->jdf_var);
-                rc = -1;
+                for(nr = e->local_variables; NULL != nr; nr = nr->next) {
+                    if( !strcmp(nr->alias, vc) )
+                        break;
+                }
+                if(NULL == nr) {
+                    jdf_fatal(JDF_OBJECT_LINENO(f), "%s of function %s is defined using variable %s (in %s) which is unbound at this time\n",
+                              kind, f->fname, vc, e->jdf_var);
+                    rc = -1;
+                }
             }
         }
         free(vc);
@@ -525,12 +564,61 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
     return rc;
 }
 
+static int jdf_sanity_check_flows_and_deps_number(void)
+{
+    jdf_function_entry_t *f;
+    jdf_dataflow_t *flow;
+    jdf_dep_t *dep;
+    int rc = 0, flows_in, flows_out, deps_in, deps_out;
+
+    for(f = current_jdf.functions; f != NULL; f = f->next) {
+        flows_in = flows_out = 0;
+        for(flow = f->dataflow; flow != NULL; flow = flow->next) {
+
+            flows_out += !!(JDF_FLOW_TYPE_WRITE & flow->flow_flags);
+            flows_in  += !!(JDF_FLOW_TYPE_READ & flow->flow_flags);
+
+            deps_in = deps_out = 0;
+            for(dep = flow->deps; dep != NULL; dep = dep->next) {
+                deps_in += !!(JDF_DEP_FLOW_IN & dep->dep_flags);
+                deps_out += !!(JDF_DEP_FLOW_OUT & dep->dep_flags);
+            }
+            if( MAX_DEP_IN_COUNT < deps_in ) {
+                jdf_warn(JDF_OBJECT_LINENO(flow),
+                         "Function %s: flow %s has too many (%d) input dependencies (max allowed by this PaRSEC build is %d)\n",
+                         f->fname, flow->varname, deps_in, MAX_DEP_IN_COUNT);
+                rc--;
+            }
+            if( MAX_DEP_OUT_COUNT < deps_out ) {
+                jdf_warn(JDF_OBJECT_LINENO(flow),
+                         "Function %s: flow %s has too many (%d) output dependencies (max allowed by this PaRSEC build is %d)\n",
+                         f->fname, flow->varname, deps_out, MAX_DEP_OUT_COUNT);
+                rc--;
+            }
+        }
+        if( MAX_PARAM_COUNT < flows_in ) {
+            jdf_warn(JDF_OBJECT_LINENO(f),
+                     "Function %s: has too many (%d) input or READ flows (max allowed by this PaRSEC build is %d)\n",
+                     f->fname, flows_in, MAX_PARAM_COUNT);
+            rc--;
+        }
+        if( MAX_PARAM_COUNT < flows_out ) {
+            jdf_warn(JDF_OBJECT_LINENO(f),
+                     "Function %s: has too many (%d) output or WRITE flows (max allowed by this PaRSEC build is %d)\n",
+                     f->fname, flows_out, MAX_PARAM_COUNT);
+            rc--;
+        }
+    }
+    return rc;
+}
+
 static int jdf_sanity_check_dataflow_type_consistency(void)
 {
     int rc = 0, output_deps, input_deps, type_deps, met_complete_in_dep;
     jdf_function_entry_t *f;
     jdf_dataflow_t *flow;
     jdf_dep_t *dep;
+    jdf_expr_t *disable_warning = NULL;
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
         for(flow = f->dataflow; flow != NULL; flow = flow->next) {
@@ -545,16 +633,37 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
                  * then the count must be 1 and the displacement must be zero. Generate a warning
                  * and replace the default if it's not the case.
                  */
-                if( dep->datatype.type == dep->datatype.layout ) {
-                    if( (JDF_CST != dep->datatype.count->op) ||
-                        ((JDF_CST == dep->datatype.count->op) && (1 != dep->datatype.count->jdf_cst))) {
+                if( (disable_warning = jdf_find_property( dep->guard->properties, DISABLE_DEP_WARNING_PROPERTY_NAME, NULL)) != NULL ) {
+                    if( (JDF_VAR == disable_warning->op) && (0 == strcasecmp("disable", disable_warning->jdf_var)) ) {
+                        continue;
+                    }
+                }
+                if( dep->datatype_remote.type == dep->datatype_remote.layout ) {
+                    if( (JDF_CST != dep->datatype_remote.count->op) ||
+                        ((JDF_CST == dep->datatype_remote.count->op) && (1 != dep->datatype_remote.count->jdf_cst))) {
                         jdf_warn(JDF_OBJECT_LINENO(dep),
                                  "Function %s: flow %s has the same layout and type but the count is not the"
                                  " expected constant 1. The generated code will abide by the input code.\n",
                                  f->fname, flow->varname);
                     }
-                    if( (JDF_CST != dep->datatype.displ->op) ||
-                        ((JDF_CST == dep->datatype.displ->op) && (0 != dep->datatype.displ->jdf_cst))) {
+                    if( (JDF_CST != dep->datatype_remote.displ->op) ||
+                        ((JDF_CST == dep->datatype_remote.displ->op) && (0 != dep->datatype_remote.displ->jdf_cst))) {
+                        jdf_warn(JDF_OBJECT_LINENO(dep),
+                                 "Function %s: flow %s has the same layout and type but the displacement is not the"
+                                 " expected constant 0. The generated code will abide by the input code.\n",
+                                 f->fname, flow->varname);
+                    }
+                }
+                if( dep->datatype_local.type == dep->datatype_local.layout ) {
+                    if( (JDF_CST != dep->datatype_local.count->op) ||
+                        ((JDF_CST == dep->datatype_local.count->op) && (1 != dep->datatype_local.count->jdf_cst))) {
+                        jdf_warn(JDF_OBJECT_LINENO(dep),
+                                 "Function %s: flow %s has the same layout and type but the count is not the"
+                                 " expected constant 1. The generated code will abide by the input code.\n",
+                                 f->fname, flow->varname);
+                    }
+                    if( (JDF_CST != dep->datatype_local.displ->op) ||
+                        ((JDF_CST == dep->datatype_local.displ->op) && (0 != dep->datatype_local.displ->jdf_cst))) {
                         jdf_warn(JDF_OBJECT_LINENO(dep),
                                  "Function %s: flow %s has the same layout and type but the displacement is not the"
                                  " expected constant 0. The generated code will abide by the input code.\n",
@@ -591,7 +700,11 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
                     continue;
                 }
             }
-
+            if( (NULL != disable_warning) &&
+                (JDF_VAR == disable_warning->op) &&
+                (0 == strcasecmp("disable", disable_warning->jdf_var)) ) {
+                continue;
+            }
             if( JDF_FLOW_TYPE_WRITE & flow->flow_flags ) {
                 /* We should have no IN dependencies, except for the arena assignment
                  * and at least one OUT dep */
@@ -967,6 +1080,7 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
     DO_CHECK( jdf_sanity_check_predicates_unbound() );
     DO_CHECK( jdf_sanity_check_dataflow_expressions_unbound() );
 
+    DO_CHECK( jdf_sanity_check_flows_and_deps_number() );
     DO_CHECK( jdf_sanity_check_dataflow_naming_collisions() );
     DO_CHECK( jdf_sanity_check_dataflow_type_consistency() );
     DO_CHECK( jdf_sanity_check_dataflow_unexisting_data() );
@@ -1156,6 +1270,28 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
 #define COPY_INDEX(DST, SRC)                                    \
     (DST)->dep_datatype_index = (SRC)->dep_datatype_index
 
+
+/* Function to check the datatype specified on the dependency.
+ * Returns:
+ * - DEP_UNDEFINED_DATATYPE if no datatype has been set up by the user.
+ * - DEP_CUSTOM_DATATYPE otherwise. */
+int jdf_dep_undefined_type(jdf_datatransfer_type_t datatype ){
+    if( JDF_STRING == datatype.type->op ){
+        return DEP_UNDEFINED_DATATYPE;
+    }
+    //Otherwise datatype can be JDF_VAR or also JDF_C_CODE
+    return DEP_CUSTOM_DATATYPE;
+}
+
+#define APPEND(DEP)\
+    do {                                                                \
+        if(DEP->dep_flags & JDF_DEP_FLOW_IN){\
+            if(input_begin == NULL){  input_begin = input_end = DEP; }else{ input_end->next = DEP; input_end = DEP;}\
+        }else{\
+            if(output_begin == NULL){ output_begin = output_end = DEP; }else{ output_end->next = DEP; output_end = DEP; }\
+        }\
+    } while(0)
+
 /**
  * Reorder the output dependencies to group together the ones using
  * identical datatypes. They will share an identical dep_datatype_index
@@ -1172,6 +1308,12 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
 
     global_in_index  = *dep_in_index;
     global_out_index = saved_out_index = *dep_out_index;
+
+    jdf_dep_t *input_end = NULL;
+    jdf_dep_t *input_begin = NULL;
+    jdf_dep_t *output_end = NULL;
+    jdf_dep_t *output_begin = NULL;
+
     /**
      * Step 1: Transform the list of dependencies into an array, to facilitate
      *         the manipulation.
@@ -1190,26 +1332,105 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
     dep_array = (jdf_dep_t**)malloc(dep_count * sizeof(jdf_dep_t*));
     for( i = 0, dep = flow->deps; NULL != dep; dep_array[i++] = dep, dep = dep->next );
 
+    /* Step 2: Rearrange by local type. Order all those dependencies using the same datatype
+     *         together.
+     *         Build two sublists (one for input dependencies and another one for output
+     *         dependencies) ordered by local type.
+     */
+    for( i = 0; i < dep_count; i++ ) {
+        dep = dep_array[i];
+        if(dep == NULL) continue;
+        APPEND(dep);
+        int count = 0;
+        for( j = i+1; j < dep_count; j++ ) {
+            sdep = dep_array[j];
+            if(sdep == NULL) continue;
+            if( !((dep->dep_flags & sdep->dep_flags) & (JDF_DEP_FLOW_IN|JDF_DEP_FLOW_OUT)) ) break;
+            if( jdf_compare_datatype(&dep->datatype_local, &sdep->datatype_local) ) continue;
+            APPEND(sdep);
+            dep_array[j] = NULL;
+            count++;
+        }
+    }
+
+
+    /* Step 3: Move to the beginning of the output dependency list the group of
+     *         non-typed dependencies (local type).
+     * Note /!\ type = DEFAULT is different than dependency without explicit type,
+     * they will be two different groups of local type.
+     */
+
+    /* Terminate with NULL output dep list. */
+    if(output_end != NULL) {
+        output_end->next = NULL;
+    }
+
+    /* Locate non-typed group and put it at the begining. */
+    if( (NULL != output_begin) && (DEP_UNDEFINED_DATATYPE != jdf_dep_undefined_type(output_begin->datatype_local))) {
+        dep = output_begin;
+        jdf_dep_t *pre_first_default = dep;
+        jdf_dep_t *pre_last_default = NULL;
+        while(dep != NULL){
+            if( DEP_UNDEFINED_DATATYPE == jdf_dep_undefined_type(dep->datatype_local) ){/* No explicit type on dependency */
+                pre_last_default = dep;
+                while(pre_last_default->next != NULL){
+                    if( DEP_UNDEFINED_DATATYPE != jdf_dep_undefined_type(pre_last_default->next->datatype_local) ){/* Explicit type on dependency */
+                        break;
+                    }
+                    pre_last_default = pre_last_default->next;
+                }
+                sdep = output_begin;
+                output_begin = pre_first_default->next;
+                pre_first_default->next = pre_last_default->next;
+                pre_last_default->next = sdep;
+                break;
+            }
+            pre_first_default = dep;
+            dep = dep->next;
+        }
+    }
+    /* Build deps list. First the input dependencies, and then output ones.
+     * First put all inputs at the beginning followed by all the
+     * outputs.
+     */
+    if(input_begin != NULL) {
+        flow->deps = input_begin;
+        input_end->next = output_begin;
+    } else {
+        flow->deps = output_begin;
+    }
+
+    /* set up again array of */
+    for( i = 0, dep = flow->deps; NULL != dep; dep_array[i++] = dep, dep = dep->next );
+
     /**
-     * Step 2: Rearrange the entries to bring all those using the same datatype
-     *         together. First put all inputs at the begining followed by all the
-     *         outputs. Then order the outputs based on the output type (including
-     *         the CTL), so we can handle them easier when generating the code for
-     *         releasing the output dependencies.
+     * Step 4: For each group of local type, order the outputs based on the output type (including
+     *         the CTL).
+     *         Set up the dep_index and dep_datatype_index by remote type grouped by local type.
+     *         As a result, those dependencies with same local and remote type will shared the
+     *         same dep_datatype_index.
+     *
+     * Note, we are not actually reordering by remote type. The only implication of this is messier JDF
+     * generated code.
+     * The important thing is that we are rearranged by reshape type (we maximize reuse
+     * of futures on output dependencies, thus, minimal number of reshapings) and that
+     * dep_datatype_index is different when varying the combination <local type, remote type>
+     * (thus, enough space on output to pass to the communication engine when sending data).
      */
     for( i = 0; i < dep_count; i++ ) {
         dep = dep_array[i];
         MARK_FLOW_DEP_AND_UPDATE_INDEX(flow, dep, 0);
-
         for( j = i+1; j < dep_count; j++ ) {
             sdep = dep_array[j];
-            if( !((dep->dep_flags & sdep->dep_flags) & (JDF_DEP_FLOW_IN|JDF_DEP_FLOW_OUT)) )
-                break;
-            if( jdf_compare_datatype(&dep->datatype, &sdep->datatype) ) continue;
+            if(sdep == NULL) continue;
+            if( !((dep->dep_flags & sdep->dep_flags) & (JDF_DEP_FLOW_IN|JDF_DEP_FLOW_OUT)) ) break;
+            if( jdf_compare_datatype(&dep->datatype_local, &sdep->datatype_local) ) continue;
+            if( jdf_compare_datatype(&dep->datatype_remote, &sdep->datatype_remote) ) continue;
             COPY_INDEX(sdep, dep);
         }
         UPDATE_INDEX(dep);
     }
+
     free(dep_array);
 }
 
@@ -1238,34 +1459,58 @@ void jdf_dump_function_flows(jdf_function_entry_t* function, int expanded)
         for(dep = flow->deps; NULL != dep; dep = dep->next) {
             string_arena_init(sa2);
 
-            string_arena_add_string(sa2, "type = %p ", dep->datatype.type);
-            if( expanded ) dump_expr((void**)dep->datatype.type, &linfo);
+            /* Local type */
+            string_arena_add_string(sa2, "local_type = %p ", dep->datatype_local.type);
+            if( expanded ) dump_expr((void**)dep->datatype_local.type, &linfo);
             if( strlen(string_arena_get_string(sa1)) )
-                string_arena_add_string(sa2, "<%s>", string_arena_get_string(sa1));
+                string_arena_add_string(sa2, "<%s%s>", string_arena_get_string(sa1), (DEP_UNDEFINED_DATATYPE == jdf_dep_undefined_type(dep->datatype_local))?"-UNDEF":"");
 
-            if( dep->datatype.layout != dep->datatype.type ) {
-                string_arena_add_string(sa2, " layout = %p ", dep->datatype.layout);
-                if( expanded ) dump_expr((void**)dep->datatype.layout, &linfo);
+            if( dep->datatype_local.layout != dep->datatype_local.type ) {
+                string_arena_add_string(sa2, " layout = %p ", dep->datatype_local.layout);
+                if( expanded ) dump_expr((void**)dep->datatype_local.layout, &linfo);
                 if( strlen(string_arena_get_string(sa1)) )
                     string_arena_add_string(sa2, "<%s>", string_arena_get_string(sa1));
             }
 
-            string_arena_add_string(sa2, " count = %p ", dep->datatype.count);
-            if( expanded ) dump_expr((void**)dep->datatype.count, &linfo);
+            string_arena_add_string(sa2, " count = %p ", dep->datatype_local.count);
+            if( expanded ) dump_expr((void**)dep->datatype_local.count, &linfo);
             if( strlen(string_arena_get_string(sa1)) )
                 string_arena_add_string(sa2, "<%s>", string_arena_get_string(sa1));
 
-            string_arena_add_string(sa2, " displ = %p ", dep->datatype.displ);
-            if( expanded ) dump_expr((void**)dep->datatype.displ, &linfo);
+            string_arena_add_string(sa2, " displ = %p ", dep->datatype_local.displ);
+            if( expanded ) dump_expr((void**)dep->datatype_local.displ, &linfo);
             if( strlen(string_arena_get_string(sa1)) )
                 string_arena_add_string(sa2, "<%s>", string_arena_get_string(sa1));
 
-            printf("%s: %6s[%1s%1s idx %d, mask 0x%x/0x%x] %2s %8d %8d <%s %s>\n", function->fname,
+            /* Remote type */
+            string_arena_add_string(sa2, "remote_type = %p ", dep->datatype_remote.type);
+            if( expanded ) dump_expr((void**)dep->datatype_remote.type, &linfo);
+            if( strlen(string_arena_get_string(sa1)) )
+                string_arena_add_string(sa2, "<%s%s>", string_arena_get_string(sa1), (DEP_UNDEFINED_DATATYPE == jdf_dep_undefined_type(dep->datatype_remote))?"-UNDEF":"");
+
+            if( dep->datatype_remote.layout != dep->datatype_remote.type ) {
+                string_arena_add_string(sa2, " layout = %p ", dep->datatype_remote.layout);
+                if( expanded ) dump_expr((void**)dep->datatype_remote.layout, &linfo);
+                if( strlen(string_arena_get_string(sa1)) )
+                    string_arena_add_string(sa2, "<%s>", string_arena_get_string(sa1));
+            }
+
+            string_arena_add_string(sa2, " count = %p ", dep->datatype_remote.count);
+            if( expanded ) dump_expr((void**)dep->datatype_remote.count, &linfo);
+            if( strlen(string_arena_get_string(sa1)) )
+                string_arena_add_string(sa2, "<%s>", string_arena_get_string(sa1));
+
+            string_arena_add_string(sa2, " displ = %p ", dep->datatype_remote.displ);
+            if( expanded ) dump_expr((void**)dep->datatype_remote.displ, &linfo);
+            if( strlen(string_arena_get_string(sa1)) )
+                string_arena_add_string(sa2, "<%s>", string_arena_get_string(sa1));
+
+            printf("%s: %6s[%1s%1s idx %d, mask 0x%x/0x%x] %2s dep_index %8d dep_dt_index %8d %p <%s %s>\n", function->fname,
                    flow->varname, (flow->flow_flags & JDF_FLOW_IS_IN ? "R" : " "),
                    (flow->flow_flags & JDF_FLOW_IS_OUT ? "W" : " "),
                    flow->flow_index, flow->flow_dep_mask_in, flow->flow_dep_mask_out,
                    (JDF_DEP_FLOW_OUT & dep->dep_flags ? "->" : "<-"),
-                   dep->dep_index, dep->dep_datatype_index,
+                   dep->dep_index, dep->dep_datatype_index, dep,
                    dep->guard->calltrue->func_or_mem,
                    string_arena_get_string(sa2));
         }
@@ -1292,7 +1537,6 @@ int jdf_flatten_function(jdf_function_entry_t* function)
     jdf_dataflow_t* flow;
 
     for( flow = function->dataflow; NULL != flow; flow = flow->next) {
-
         flow->flow_index  = 0xFF;
         jdf_reorder_dep_list_by_type(flow, &dep_in_index, &dep_out_index);
         if( ((1U << dep_in_index) > 0x1FFFFFFF /* should be ~PARSEC_DEPENDENCIES_BITMASK */) ||
@@ -1358,7 +1602,7 @@ int jdf_flatten_function(jdf_function_entry_t* function)
                 if( sflow == flow ) dep2 = dep->next;
                 else dep2 = sflow->deps;
                 for( ; NULL != dep2; dep2 = dep2->next) {
-                    jdf_datatype_remove_redundancy(&dep->datatype, &dep2->datatype);
+                    jdf_datatype_remove_redundancy(&dep->datatype_remote, &dep2->datatype_remote);
                 }
             }
         }
@@ -1464,6 +1708,91 @@ int jdf_function_property_is_keyword(const char *name)
         if (strcmp( *p, name) == 0)
             return 1;
         p++;
+    }
+    return 0;
+}
+
+int jdf_assign_ldef_index(jdf_function_entry_t *f)
+{
+    int nb_ldef_for_locals, nb_ldef_for_deps, nb_ldef_for_calls = 0;
+    jdf_expr_t *ld;
+    jdf_def_list_t *dl;
+    jdf_dataflow_t *fl;
+    jdf_dep_t *dep;
+
+    f->nb_max_local_def = 0;
+    
+    /* Local definitions can appear either in the locals or in the deps/calls.
+     *  If they appear in the locals, they need to have a unique position
+     *  If they appear in the dataflow, each dep can re-use the locals of another dep
+     *                                  each call can re-use the locals of another call
+     */
+
+    DO_DEBUG_VERBOSE(2, ({fprintf(stderr, "Indexing task class %s\n", f->fname);}) );
+    
+    for(dl = f->locals; NULL != dl; dl = dl->next) {
+        for( ld = dl->expr->local_variables; ld != NULL; ld = ld->next ) {
+            assert(NULL != ld->alias);
+            if( ld->ldef_index == -1 ) {
+                ld->ldef_index = f->nb_max_local_def;
+                f->nb_max_local_def++;
+                DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  local %s, ldef %s is at %d\n", dl->name, ld->alias, ld->ldef_index); }) );
+            }
+        }
+    }
+
+    nb_ldef_for_locals = f->nb_max_local_def;
+    for(fl = f->dataflow; NULL != fl; fl = fl->next) {
+        int depi = 0;
+        for(dep = fl->deps; NULL != dep; dep = dep->next, depi++) {
+            nb_ldef_for_deps = nb_ldef_for_locals;
+            for(ld = dep->local_defs; NULL != ld; ld = ld->next) {
+                assert(NULL != ld->alias);
+                if( ld->ldef_index == -1 ) {
+                    ld->ldef_index = nb_ldef_for_deps;
+                    nb_ldef_for_deps++;
+                    DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  Flow for %s, dep %d: ldef %s is at %d\n", fl->varname, depi, ld->alias, ld->ldef_index); }) );
+                }
+            }
+            switch( dep->guard->guard_type ) {
+            case JDF_GUARD_UNCONDITIONAL:
+            case JDF_GUARD_BINARY:
+                nb_ldef_for_calls = nb_ldef_for_deps;
+                for(ld = dep->guard->calltrue->local_defs; NULL != ld; ld = ld->next) {
+                    assert(NULL != ld->alias);
+                    if( ld->ldef_index == -1 ) {
+                        ld->ldef_index = nb_ldef_for_calls;
+                        nb_ldef_for_calls++;
+                        DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  Flow for %s, dep %d, calltrue: ldef %s is at %d\n", fl->varname, depi, ld->alias, ld->ldef_index); }) );
+                    }
+                }
+                break;
+            case JDF_GUARD_TERNARY:
+                nb_ldef_for_calls = nb_ldef_for_deps;
+                for(ld = dep->guard->calltrue->local_defs; NULL != ld; ld = ld->next) {
+                    assert(NULL != ld->alias);
+                    if( ld->ldef_index == -1 ) {
+                        ld->ldef_index = nb_ldef_for_calls;
+                        nb_ldef_for_calls++;
+                        DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  Flow for %s, dep %d, calltrue: ldef %s is at %d\n", fl->varname, depi, ld->alias, ld->ldef_index); }) );
+                    }
+                }
+                nb_ldef_for_calls = nb_ldef_for_deps;
+                for(ld = dep->guard->callfalse->local_defs; NULL != ld; ld = ld->next) {
+                    assert(NULL != ld->alias);
+                    if( ld->ldef_index == -1 ) {
+                        ld->ldef_index = nb_ldef_for_calls;
+                        nb_ldef_for_calls++;
+                        DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  Flow for %s, dep %d, callfalse: ldef %s is at %d\n", fl->varname, depi, ld->alias, ld->ldef_index); }) );
+                    }
+                }
+                break;
+            }
+            if( nb_ldef_for_deps > f->nb_max_local_def )
+                f->nb_max_local_def = nb_ldef_for_deps;
+            if( nb_ldef_for_calls > f->nb_max_local_def )
+                f->nb_max_local_def = nb_ldef_for_calls;
+        }
     }
     return 0;
 }

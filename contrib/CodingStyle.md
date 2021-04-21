@@ -1,0 +1,103 @@
+# PaRSEC coding style
+
+## Indentation
+
+The Linux coding style, despite the fact that it declare
+the indentation equal to 8 chars, is a perfectly logical
+coding style. Read more at
+http://www.kernel.org/doc/Documentation/CodingStyle
+
+Here is the list of exception that applies on this project:
+- indentation is 4 chars
+- tabs are not allowed
+
+## Debugs
+
+The runtime should never use printf directly. All debug messages
+should flow through the functions defined in `parsec/utils/debug.h`.
+
+`PARSEC_DEBUG` is defined as soon as the build type is "Debug"
+(as inferred from CMake).
+
+`NDEBUG` controls the compilation of `assert` statements, and
+is defined by default in the "Release" build type.
+
+`PARSEC_DEBUG_NOISIER` compiles in all debug output using one
+of the all uppercase output functions (i.e. `PARSEC_DEBUG_VERBOSE`,
+`PARSEC_OUTPUT`, etc.) By default all uppercase output functions
+are stripped from the compilation. Lowercase ouput functions
+(i.e. `parsec_debug_verbose` are always compiled in (including
+in "Release" build type!)
+
+`PARSEC_DEBUG_HISTORY` compiles in a lightweight debugging
+circular buffer. All debug output are copied to this circular
+buffer. Additional entries can be added to the circular buffer
+with the `parsec_debug_history_add` function (usage seen in
+`debug_marks.c`). The content of the debug history buffer can
+be printed with `parsec_debug_history_dump` (including from
+`gdb`).
+
+### Printing information relevant to the type of users
+
+The runtime should never use `assert` to check for wrong input
+parameters from the user. It is ok to end the program with
+`assert` when checking for bugs.
+
+The 3 functions `parsec_abort`, `parsec_warning` and `parsec_info`
+print messages to the default runtime output stream.
+- `parsec_abort`: when a runtime condition happens and the program
+  needs to stop with an error.
+- `parsec_warning`: when an anomalous runtime condition needs
+  to be reported (user requested hardware not available, for
+  example), but the program can continue.
+- `parsec_inform`: when important (but not anomalous) information
+  needs to be reported to the user (as an example, when reporting
+  process placement, type of hardware, etc.)
+
+`parsec_debug_verbose` can output to a stream with a verbosity
+parameter. All messages with a verbosity of 3,4 are considered to
+be targetting end-users. Higher verbosity levels are targetting
+developers.
+
+### Per-topic output streams
+
+The output stream `parsec_debug_output` is always available to
+print debug messages. If you are developing a particular
+component/topic, you can serapate the outputs of this topic
+by creating your own output stream. That output stream can then
+be sent to a segregated output file, or have a different
+verbosity than the rest of the debugging framework.
+
+By default, you should use the `parsec_debug_output`, except if
+requested by mca parameters (mycomponent_verbose==-1: use the
+default; mycomponent_verbose>=0: create an output stream with
+given verbosity). An example can be seen in
+`parsec/devices/cuda/dev_cuda.c`
+
+### Verbosity guidelines
+
+The runtime parameter `debug_verbose` controls the maximum
+verbosity allowed to be printed out on the `parsec_debug_output`
+stream. The following guidelines are given to users, and all
+components should abide by them, in all debug output streams:
+0. Errors only
+1. Warnings
+2. Info (default)
+3-4. User Debug (i.e. process mapping details, loaded
+     components, etc.)
+5-9. Devel Debug (i.e. once per task action)
+10+. Chatterbox Debug (i.e. breakdown of the steps of an
+     action, actions that happen in loops, etc.)
+
+In addition, things like memory allocations, freelist status, etc.
+should use a level >=20.
+
+### Memory leaks and out-of-bound accesses
+
+One can track memory leaks, data races, and invalid pointer accesses
+with the ASAN compile options: `PARSEC_DEBUG_MEM_LEAK`, `PARSEC_DEBUG_MEM_ADDR`,
+and `PARSEC_DEBUG_MEM_RACE` (`--enable-debug=memleak,memaddr,memrace` in
+the configure script). More information on how to use the tool can be
+found at
+https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer
+

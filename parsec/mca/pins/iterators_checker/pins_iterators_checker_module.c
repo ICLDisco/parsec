@@ -64,8 +64,10 @@ static parsec_ontask_iterate_t print_link(parsec_execution_stream_t *es,
                                           const parsec_dep_t* dep,
                                           parsec_dep_data_description_t* data,
                                           int src_rank, int dst_rank, int dst_vpid,
+                                          data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                                           void *param)
 {
+    (void)successor_repo; (void) successor_repo_key;
     char  new_str[TASK_STR_LEN];
     char  old_str[TASK_STR_LEN];
     char *info = (char*)param;
@@ -108,7 +110,7 @@ iterators_checker_exec_count_begin(parsec_execution_stream_t* es,
     for(i = 0; i < nbfo; i++) {
         data = final_deps[i]->direct_data(task->taskpool, task->locals);
         if( NULL != data )
-            fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d key is %lu, on device %d. \n",
+            fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d key is %" PRIu64 ", on device %d. \n",
                     str, i, nbfo, data->key, data->owner_device);
         else
             fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d is remote\n",

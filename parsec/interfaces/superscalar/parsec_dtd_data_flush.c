@@ -8,8 +8,6 @@
 /**
  * @file parsec_dtd_data_flush.c
  *
- * @version 2.0.0
- *
  */
 
 #include "parsec/runtime.h"
@@ -35,6 +33,7 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
                              parsec_task_t *this_task)
 {
     (void)es;
+    parsec_arena_datatype_t *adt;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
     parsec_dtd_tile_t *tile = (FLOW_OF(current_task, 0))->tile;
 
@@ -43,13 +42,14 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
 #if defined(DISTRIBUTED)
     if(tile->rank == current_task->rank) { /* this is a receive task*/
         if( current_task->super.data[0].data_in != tile->data_copy ) {
-            int16_t arena_index = (FLOW_OF(current_task, 0))->arena_index;
+            int16_t index = (FLOW_OF(current_task, 0))->arena_index;
             parsec_dep_data_description_t data;
             data.data   = current_task->super.data[0].data_in;
-            data.arena  = parsec_dtd_arenas[arena_index];
-            data.layout = data.arena->opaque_dtt;
-            data.count  = 1;
-            data.displ  = 0;
+            adt = parsec_dtd_get_arena_datatype(this_task->taskpool->context, index);
+            data.local.arena = adt->arena;
+            data.local.src_datatype = data.local.dst_datatype = adt->opaque_dtt;
+            data.local.src_count = data.local.dst_count = 1;
+            data.local.src_displ = data.local.dst_displ = 0;
             parsec_remote_dep_memcpy(es, this_task->taskpool,
                          tile->data_copy, current_task->super.data[0].data_in, &data);
         }
@@ -119,7 +119,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)this_task->super.taskpool;
 
     int flow_index = 0;
-    int satisfied_flow = 0, tile_op_type = INOUT;
+    int satisfied_flow = 0, tile_op_type = PARSEC_INOUT;
     static int vpid = 0;
 
     if( NULL == tile ) {
@@ -149,7 +149,9 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
     READ_FROM_TILE(last_writer, tile->last_writer);
 
 #if defined(PARSEC_PROF_TRACE)
-    this_task->super.prof_info.id = tile->key;
+    this_task->super.prof_info.desc = NULL;
+    this_task->super.prof_info.data_id = tile->key;
+    this_task->super.prof_info.task_class_id = tc->task_class_id;
 #endif
 
     /* Setting the last_user info with info of this_task */
@@ -267,7 +269,7 @@ parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int
                                             (parsec_task_class_t *)tc, task_rank);
     this_task->super.priority = priority;
     int flow_index = 0;
-    parsec_dtd_set_params_of_task(this_task, tile, INOUT, &flow_index, NULL, NULL, PASSED_BY_REF);
+    parsec_dtd_set_params_of_task(this_task, tile, PARSEC_INOUT, &flow_index, NULL, NULL, PASSED_BY_REF);
 
     parsec_object_t *object = (parsec_object_t *)this_task;
     /* this task will vanish as we insert the next receive task */
@@ -363,10 +365,11 @@ parsec_internal_dtd_data_flush(parsec_dtd_tile_t *tile, parsec_taskpool_t *tp)
  * must wait on the taskpool before inserting new tasks using this data.
  * This function is non-blocking.
  */
-void
+int
 parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
 {
     parsec_internal_dtd_data_flush(tile, tp);
+    return PARSEC_SUCCESS; /* TODO: internal_dtd_data_flush should care for error codepaths */
 }
 
 /**
@@ -377,7 +380,7 @@ parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
  * flush tasks are inserted. Users have to wait on the taskpool
  * before reusing this data collection.
  */
-void
+int
 parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
@@ -388,4 +391,5 @@ parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
     parsec_hash_table_for_all( hash_table, (parsec_hash_elem_fct_t)parsec_internal_dtd_data_flush, tp);
 
     PARSEC_PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_END, NULL);
+    return PARSEC_SUCCESS; /* TODO: internal_dtd_data_flush should care for error codepaths */
 }

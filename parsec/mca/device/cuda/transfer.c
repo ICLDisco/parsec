@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The University of Tennessee and The University
+ * Copyright (c) 2016-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,7 +11,6 @@
 #include "parsec.h"
 #include "parsec/constants.h"
 #include "parsec/data_internal.h"
-#include "parsec/mca/device/cuda/device_cuda.h"
 #include "parsec/mca/device/cuda/device_cuda_internal.h"
 #include "parsec/profiling.h"
 #include "parsec/execution_stream.h"

@@ -33,6 +33,9 @@
 #ifdef PARSEC_HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
+#if defined(__WINDOWS__)
+#  include <windows.h>
+#endif  /* defined(__WINDOWS__) */
 
 #include "parsec/utils/parsec_environ.h"
 #include "parsec/utils/output.h"
@@ -622,6 +625,7 @@ static int do_open(int output_id, parsec_output_stream_t * lds)
                 info[i].ldi_syslog_ident = NULL;
                 openlog("opal", LOG_PID, LOG_USER);
             }
+            syslog_opened = true;
 #elif defined(__WINDOWS__)
             if (NULL == (info[i].ldi_syslog_ident =
                          RegisterEventSource(NULL, TEXT("opal: ")))) {
@@ -629,7 +633,6 @@ static int do_open(int output_id, parsec_output_stream_t * lds)
                 return PARSEC_ERROR;
             }
 #endif
-            syslog_opened = true;
             info[i].ldi_syslog_priority = lds->lds_syslog_priority;
         }
 

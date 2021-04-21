@@ -17,13 +17,13 @@
 #include "parsec/mempool.h"
 #include "parsec/profiling.h"
 #include "parsec/class/barrier.h"
-#include "parsec/class/list.h"
+#include "parsec/class/parsec_hash_table.h"
 
 #ifdef PARSEC_PROF_PINS
 #include "parsec/mca/pins/pins.h"
 #endif
 
-#if defined(PARSEC_HAVE_GETRUSAGE) || !defined(__bgp__)
+#if defined(PARSEC_HAVE_GETRUSAGE)
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
@@ -41,7 +41,7 @@ struct parsec_execution_stream_s {
     pthread_t pthread_id;     /**< POSIX thread identifier. */
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_thread_profiling_t *es_profile;
+    parsec_profiling_stream_t *es_profile;
 #endif /* PARSEC_PROF_TRACE */
 
     void *scheduler_object;
@@ -111,7 +111,7 @@ struct parsec_context_s {
     volatile int32_t active_taskpools;
     volatile int32_t flags;
 
-    void*   comm_ctx;    /**< opaque communication context */
+    intptr_t comm_ctx;   /**< opaque communication context */
     int32_t nb_nodes;    /**< nb of physical processes */
     int32_t my_rank;     /**< rank of this physical process */
 
@@ -128,7 +128,9 @@ struct parsec_context_s {
 
     int32_t nb_vp; /**< number of virtual processes in this physical process */
 
-    parsec_list_t     *taskpool_list; /**< list of dtd taskpools registered with this context */
+    parsec_list_t       *taskpool_list;                  /**< list of dtd taskpools registered with this context */
+    parsec_hash_table_t  dtd_arena_datatypes_hash_table; /**< Hash table that stores the arena datatypes used by DTD */
+    int                  dtd_arena_datatypes_next_id;    /**< Next ID to use for the next Arena Datatype by DTD */
 
 #if defined(PARSEC_SIM)
     int largest_simulation_date;

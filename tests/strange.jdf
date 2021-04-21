@@ -158,9 +158,10 @@ int main(int argc, char* argv[] )
     assert( NULL != parsec );
 
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                               1 /*nodes*/, 0 /*rank*/,
+                               0 /*rank*/,
                                1, 1, n, 1,
-                               0, 0, n, 1, 1, 1, 1);
+                               0, 0, n, 1,
+                               1, 1, 1, 1, 0, 0);
     descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
@@ -171,10 +172,10 @@ int main(int argc, char* argv[] )
     ((parsec_strange_taskpool_t*)tp)->_g_neworder = neworder;
 
     /* Datatype not needed for a single node test */
-    parsec_arena_construct( tp->arenas[PARSEC_strange_DEFAULT_ARENA],
-                           descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                           PARSEC_ARENA_ALIGNMENT_SSE,
-                           PARSEC_DATATYPE_NULL);  /* change for distributed cases */
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_strange_DEFAULT_ADT_IDX],
+                                     descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                                     PARSEC_ARENA_ALIGNMENT_SSE,
+                                     PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");

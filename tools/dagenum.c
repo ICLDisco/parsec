@@ -6,7 +6,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#if defined(PARSEC_PROFILING_USE_MMAP)
 #include <sys/mman.h>
+#endif
 #include <unistd.h>
 
 typedef struct {

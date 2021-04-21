@@ -7,8 +7,6 @@
  *
  * @file insert_function_internal.h
  *
- * @version 2.0.0
- *
  **/
 
 #ifndef INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED
@@ -86,7 +84,7 @@ struct parsec_dtd_task_param_s {
     parsec_dtd_task_param_t *next;
 };
 
-typedef void (parsec_taskpool_wait_t)( parsec_context_t *context, parsec_taskpool_t *tp );
+typedef void (parsec_taskpool_wait_t)( parsec_taskpool_t *tp );
 
 #define SUCCESSOR_ITERATED (1<<0)
 #define TASK_INSERTED (1<<1)
@@ -251,13 +249,11 @@ struct parsec_dtd_task_class_s {
     parsec_dtd_funcptr_t    *fpointer;
     parsec_mempool_t         context_mempool;
     parsec_mempool_t         remote_task_mempool;
-    int                      index_of_rank_info;
     int8_t                   dep_datatype_index;
     int8_t                   dep_out_index;
     int8_t                   dep_in_index;
     int8_t                   count_of_params;
     int                      ref_count;
-    long unsigned int        size_of_param;
 };
 
 typedef int (parsec_dtd_arg_cb)(int first_arg, void *second_arg, int third_arg, void *cb_data);
@@ -367,8 +363,7 @@ parsec_dtd_task_release( parsec_dtd_taskpool_t  *tp,
                          uint32_t             key );
 
 void
-parsec_execute_and_come_back( parsec_context_t *context,
-                              parsec_taskpool_t  *tp,
+parsec_execute_and_come_back( parsec_taskpool_t  *tp,
                               int task_threshold_count );
 
 parsec_dep_t *

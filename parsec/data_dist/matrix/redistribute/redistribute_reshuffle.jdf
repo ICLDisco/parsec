@@ -1,0 +1,126 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2021 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ *
+ */
+#include "parsec/data_dist/matrix/redistribute/redistribute_internal.h"
+
+%}
+
+/**
+ * @brief Redistribute from source dc to target dc
+ *
+ * @details
+ * Optimized version: tile sizes of source and target
+ * are the same, displacements in both source and
+ * target are at the start of tiles
+ *
+ */
+descY      [ type = "parsec_tiled_matrix_dc_t*" ]
+descT      [ type = "parsec_tiled_matrix_dc_t*" ]
+size_row   [ type = "int" ]
+size_col   [ type = "int" ]
+disi_Y     [ type = "int" ]
+disj_Y     [ type = "int" ]
+disi_T     [ type = "int" ]
+disj_T     [ type = "int" ]
+
+m_Y_START  [ type = "int" hidden=on default="disi_Y/descY->mb" ]
+n_Y_START  [ type = "int" hidden=on default="disj_Y/descY->nb" ]
+m_Y_END    [ type = "int" hidden=on default="(disi_Y+size_row-1)/descY->mb" ]
+n_Y_END    [ type = "int" hidden=on default="(disj_Y+size_col-1)/descY->nb" ]
+m_T_START  [ type = "int" hidden=on default="disi_T/descT->mb" ]
+n_T_START  [ type = "int" hidden=on default="disj_T/descT->nb" ]
+m_T_END    [ type = "int" hidden=on default="(disi_T+size_row-1)/descT->mb" ]
+n_T_END    [ type = "int" hidden=on default="(disj_T+size_col-1)/descT->nb" ]
+num_col    [ type = "int" hidden=on default="descT->lnt" ]
+NT         [type = "int" hidden=on default="(n_T_END-n_T_START)/num_col" ]
+
+/************************************************************
+ *                         Send                             *
+ ************************************************************
+ * @brief Task, to send data
+ * @param m_Y, n_Y: tile index of Y
+ ************************************************************/
+Send(m_Y, n_Y, batch)
+
+batch = 0 .. NT
+m_Y = m_Y_START .. m_Y_END
+n_Y = %{ return batch*num_col+n_Y_START; %} .. %{ return parsec_imin((batch+1)*num_col+n_Y_START-1, n_Y_END); %}
+
+m_T = m_Y - m_Y_START + m_T_START
+n_T = n_Y - n_Y_START + n_T_START
+
+rank_Y = %{ return descY->super.rank_of(&descY->super, m_Y, n_Y); %}
+rank_T = %{ return descT->super.rank_of(&descT->super, m_T, n_T); %}
+
+: descY(m_Y, n_Y)
+
+READ Y <- descY(m_Y, n_Y)
+       -> ( rank_Y == rank_T )? Y Receive(m_T, n_T, batch)
+
+RW R <- ( rank_Y != rank_T )? NEW: NULL
+     -> ( rank_Y != rank_T )? Y Receive(m_T, n_T, batch)
+
+CTL ctl <- (batch > 0)? ctl Receive(m_T, n_T-num_col, batch-1)
+
+BODY
+{
+    if( rank_Y != rank_T ){
+        if( (descT->storage == matrix_Lapack) || (descY->storage == matrix_Lapack)){
+            /* R is TILED */
+            const int R_lda = descT->mb;
+            /* Y is local, rely on storage */
+            const int Y_lda = ( descY->storage == matrix_Lapack )? descY->llm : descY->mb;
+            CORE_redistribute_reshuffle_copy(R, Y, descT->mb, descT->nb, R_lda, Y_lda);
+        }else{
+            memcpy(R, Y, sizeof(DTYPE)*descT->mb*descT->nb);
+        }
+    }
+}
+END
+
+/************************************************************
+ *                       Receive                            *
+ ************************************************************
+ * @brief Task, to receive data
+ * @param m_T, n_T: tile index of T
+ ************************************************************/
+Receive(m_T, n_T, batch)
+
+batch = 0 .. NT
+m_T = m_T_START .. m_T_END
+n_T = %{ return batch*num_col+n_T_START; %} .. %{ return parsec_imin((batch+1)*num_col+n_T_START-1, n_T_END); %}
+
+m_Y = m_T - m_T_START + m_Y_START
+n_Y = n_T - n_T_START + n_Y_START
+
+rank_Y = %{ return descY->super.rank_of(&descY->super, m_Y, n_Y); %}
+rank_T = %{ return descT->super.rank_of(&descT->super, m_T, n_T); %}
+
+: descT(m_T, n_T)
+
+READ Y <- ( rank_Y == rank_T )? Y Send(m_Y, n_Y, batch): R Send(m_Y, n_Y, batch)
+
+READ  T <- descT(m_T, n_T)
+
+CTL ctl -> (batch < NT)? ctl Send(m_Y, n_Y+num_col, batch+1)
+
+BODY
+{
+    const int mb = (m_T == m_T_END)? parsec_imin(descT->mb, size_row-(m_T_END-m_T_START)*descT->mb): descT->mb;
+    const int nb = (n_T == n_T_END)? parsec_imin(descT->nb, size_col-(n_T_END-n_T_START)*descT->nb): descT->nb;
+
+    if( (descT->storage != matrix_Lapack) && (descY->storage != matrix_Lapack)
+        && ( m_T != m_T_END )){
+        memcpy(T, Y, sizeof(DTYPE)*mb*nb);
+    }else{
+        /* T is local, rely on storage */
+        const int T_lda = ( descT->storage == matrix_Lapack )? descT->llm : descT->mb;
+        const int Y_lda = ( rank_Y == rank_T ) && ( descY->storage == matrix_Lapack )? descY->llm : descY->mb;
+        CORE_redistribute_reshuffle_copy(T, Y, mb, nb, T_lda, Y_lda);
+    }
+}
+END

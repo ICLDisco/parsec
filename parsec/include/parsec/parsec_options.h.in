@@ -14,7 +14,7 @@
 /** @brief Define the PaRSEC minor version number */
 #define PARSEC_VERSION_MINOR @PARSEC_VERSION_MINOR@
 /** @brief Define the PaRSEC patch version number */
-#define PARSEC_VERSION_PATCH @PARSEC_VERSION_PATCH@
+#define PARSEC_VERSION_RELEASE @PARSEC_VERSION_RELEASE@
 /** @brief Define the branch that was compiled */
 #define PARSEC_GIT_BRANCH "@GIT_COMMIT_BRANCH@"
 /** @brief Define the commit hash that was compiled */
@@ -30,6 +30,13 @@
 #cmakedefine PARSEC_HAVE_CLOCK_GETTIME
 #cmakedefine PARSEC_HAVE_ASPRINTF
 #cmakedefine PARSEC_HAVE_VASPRINTF
+#cmakedefine PARSEC_HAVE_RAND_R
+#cmakedefine PARSEC_HAVE_RANDOM
+#cmakedefine PARSEC_HAVE_ERAND48
+#cmakedefine PARSEC_HAVE_NRAND48
+#cmakedefine PARSEC_HAVE_LRAND48
+#cmakedefine PARSEC_HAVE_GETLINE
+#cmakedefine PARSEC_HAVE_SETENV
 #cmakedefine PARSEC_HAVE_STDARG_H
 #cmakedefine PARSEC_HAVE_UNISTD_H
 #cmakedefine PARSEC_HAVE_SYS_PARAM_H
@@ -49,6 +56,10 @@
 #cmakedefine PARSEC_HAVE_STRING_H
 #cmakedefine PARSEC_HAVE_GEN_H
 #cmakedefine PARSEC_HAVE_COMPLEX_H
+#cmakedefine PARSEC_HAVE_EXECINFO_H
+#cmakedefine PARSEC_HAVE_SYS_MMAN_H
+#cmakedefine PARSEC_HAVE_DLFCN_H
+#cmakedefine PARSEC_HAVE_SYSCONF
 
 /* Compiler Specific Options */
 #cmakedefine PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128
@@ -63,7 +74,6 @@
 #cmakedefine PARSEC_DIST_PRIORITIES
 #cmakedefine PARSEC_DIST_COLLECTIVES
 #define PARSEC_DIST_SHORT_LIMIT @PARSEC_DIST_SHORT_LIMIT@
-#define PARSEC_DIST_EAGER_LIMIT @PARSEC_DIST_EAGER_LIMIT@
 
 /* GPU Support */
 #cmakedefine PARSEC_GPU_WITH_CUDA
@@ -77,7 +87,6 @@
 #cmakedefine PARSEC_DEBUG_NOISIER
 #cmakedefine PARSEC_DEBUG_HISTORY
 #cmakedefine PARSEC_LIFO_USE_ATOMICS
-#cmakedefine PARSEC_CALL_TRACE
 
 /* profiling */
 #cmakedefine PARSEC_PROF_TRACE
@@ -113,12 +122,13 @@
 #cmakedefine PARSEC_HAVE_OPENCL
 #cmakedefine PARSEC_HAVE_MPI
 #cmakedefine PARSEC_HAVE_MPI_20
+#cmakedefine PARSEC_HAVE_MPI_30
 #cmakedefine PARSEC_HAVE_MPI_OVERTAKE
 #cmakedefine PARSEC_HAVE_AYUDAME
 
 #define PARSEC_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 /* Default PATH to look for the CUDA .so files */
-#define PARSEC_LIB_CUDA_PREFIX ".;@CMAKE_BINARY_DIR@/dplasma/cores"
+#define PARSEC_LIB_CUDA_PREFIX "."
 
 #define PARSEC_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@
 

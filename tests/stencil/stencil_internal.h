@@ -35,8 +35,8 @@
 
 /* Define shorthand for indexing a multi-dimensional array */
 #define WEIGHT_1D(jj) weight_1D[jj+R]
-#define IN(i,j) IN[(j)*lda+i]
-#define OUT(i,j) OUT[(j)*lda+i]
+#define IN_2D(i,j)    _IN[(j)*lda+i]
+#define OUT_2D(i,j)   _OUT[(j)*lda+i]
 
 /** @brief Macro, defined copy submatrix of S (Source) to submatrix of D (Destination) */
 #define MOVE_SUBMATRIX(m, n, S, S_i, S_j, S_lda, D, D_i, D_j, D_lda) \
@@ -45,7 +45,7 @@
                 D[(D_j+j)*(D_lda)+D_i+i] = S[(S_j+j)*(S_lda)+S_i+i]; 
 
 /* Global array of weight */
-DTYPE * restrict weight_1D;
+extern DTYPE * weight_1D;
 
 /* Print matrix: size mb * nb from displacement (disi, disj) */
 static inline void PRINT_MATRIX(DTYPE *A, int mb, int nb, int disi, int disj, int lda){
@@ -62,8 +62,7 @@ static inline int rank_neighbor(parsec_tiled_matrix_dc_t* descA,
                                 int m, int n, int m_max, int n_max){
     if( (m >= 0) && (n >= 0) && (m <= m_max) && (n <= n_max) )
         return descA->super.rank_of(&descA->super, m, n);
-    else
-        return -999;
+    return -999;
 }
 
 /**

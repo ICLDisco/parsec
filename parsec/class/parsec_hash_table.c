@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -83,7 +83,7 @@ int parsec_hash_tables_init(void)
     if( PARSEC_ERROR == parsec_hash_table_mca_param_mnb_index ) {
         return PARSEC_ERROR;
     }
-    
+
     return PARSEC_SUCCESS;
 }
 
@@ -639,3 +639,9 @@ uint64_t parsec_hash_table_generic_64bits_key_hash(parsec_key_t key, void *user_
     (void)user_data;
     return (uint64_t)key;
 }
+
+parsec_key_fn_t parsec_hash_table_generic_key_fn = {
+        .key_equal = parsec_hash_table_generic_64bits_key_equal,
+        .key_hash  = parsec_hash_table_generic_64bits_key_hash,
+        .key_print = parsec_hash_table_generic_64bits_key_print
+};

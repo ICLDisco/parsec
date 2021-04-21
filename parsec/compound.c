@@ -35,7 +35,7 @@ static int parsec_composed_taskpool_cb( parsec_taskpool_t* o, void* cbdata )
 {
     parsec_compound_taskpool_t* compound = (parsec_compound_taskpool_t*)cbdata;
     int completed_taskpools = compound->completed_taskpools++;
-    
+
     assert( o == compound->taskpool_array[completed_taskpools] ); (void)o;
     if( --compound->super.nb_pending_actions ) {
         assert( NULL != compound->taskpool_array[completed_taskpools+1] );
@@ -49,7 +49,7 @@ static int parsec_composed_taskpool_cb( parsec_taskpool_t* o, void* cbdata )
         parsec_check_complete_cb((parsec_taskpool_t*)compound,
                                  compound->ctx, 0 /* no tp left on this compound */);
     }
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void
@@ -104,7 +104,10 @@ parsec_compose( parsec_taskpool_t* start,
         compound->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_COMPOUND;
         compound->taskpool_array = malloc(16 * sizeof(parsec_taskpool_t*));
         assert(NULL == compound->super.taskpool_name);
-        asprintf(&compound->super.taskpool_name, "Compound Taskpool %d", next->taskpool_id);
+        if( asprintf(&compound->super.taskpool_name, "Compound Taskpool %d",
+                     next->taskpool_id) <= 0 ) {
+            compound->super.taskpool_name = NULL;
+        }
 
         compound->taskpool_array[0] = start;
         compound->taskpool_array[1] = next;

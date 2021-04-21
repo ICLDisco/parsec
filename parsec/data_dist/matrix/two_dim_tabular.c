@@ -14,6 +14,10 @@
 #include "parsec/runtime.h"
 #include "parsec/data.h"
 #include <string.h>
+#if defined(__WINDOWS__)
+#define _CRT_RAND_S  
+#include <stdlib.h>
+#endif
 
 static uint32_t      twoDTD_rank_of(    parsec_data_collection_t* dc, ... );
 static uint32_t      twoDTD_rank_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
@@ -215,6 +219,7 @@ void two_dim_tabular_set_table(two_dim_tabular_t *dc, two_dim_td_table_t *table)
     dc->super.data_map = (parsec_data_t**)calloc(dc->super.nb_local_tiles, sizeof(parsec_data_t*));
 }
 
+
 void two_dim_tabular_set_random_table(two_dim_tabular_t *dc,
                                       unsigned int seed)
 {
@@ -230,7 +235,24 @@ void two_dim_tabular_set_random_table(two_dim_tabular_t *dc,
     table->nbelem = nbtiles;
 
     nbvp = vpmap_get_nb_vp();
+#if defined(__WINDOWS__)
+    rand_s(&rankseed);
+    rand_s(&vpseed);
 
+    for(n = 0; n < dc->super.lnt; n++) {
+        for(m = 0; m < dc->super.lmt; m++) {
+            p = ((n * dc->super.lmt) + m);
+            rand_s(&rankseed);
+            table->elems[p].rank = (int)(((double)dc->super.super.nodes * (double)rankseed) / ((double) UINT_MAX + 1));
+
+            if( table->elems[p].rank == dc->super.super.myrank ) {
+                rand_s(&vpseed);
+                table->elems[p].vpid = (int)(((double)nbvp * (double)vpseed) / ((double) UINT_MAX + 1));
+            }
+        }
+    }
+    (void)seed;  /* stop the compiler from complaining about unused data */
+#elif defined(PARSEC_HAVE_RAND_R)
     rankseed = rand_r(&seed);
     vpseed   = rand_r(&seed);
 
@@ -244,7 +266,9 @@ void two_dim_tabular_set_random_table(two_dim_tabular_t *dc,
             }
         }
     }
-
+#else
+#error Missing support for the platform random number generator similar to POSIX rand_r
+#endif
     two_dim_tabular_set_table(dc, table);
 }
 

@@ -50,7 +50,7 @@ const parsec_sched_module_t parsec_sched_ap_module = {
 static int sched_ap_install( parsec_context_t *master )
 {
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static int flow_ap_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -62,14 +62,14 @@ static int flow_ap_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
         sl = parsec_mca_sched_allocate_list_local_counter( NULL );
         es->scheduler_object = sl;
     }
-    
+
     parsec_barrier_wait(barrier);
 
     if( es != vp->execution_streams[0] ) {
         sl = parsec_mca_sched_allocate_list_local_counter( LOCAL_SCHED_OBJECT(vp->execution_streams[0]) );
         es->scheduler_object = sl;
     }
-    
+
 #if defined(PARSEC_PAPI_SDE)
     if( es->th_id ) {
         char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
@@ -84,7 +84,7 @@ static int flow_ap_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
     }
 #endif
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static parsec_task_t*
@@ -113,7 +113,7 @@ static int sched_ap_schedule(parsec_execution_stream_t* es,
 #endif
     parsec_mca_sched_list_local_counter_chain_sorted(sl, new_context, parsec_execution_context_priority_comparator);
     (void)distance;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void sched_ap_remove( parsec_context_t *master )

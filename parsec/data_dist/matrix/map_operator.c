@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The University of Tennessee and The University
+ * Copyright (c) 2011-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,16 +20,6 @@
 
 #if defined(PARSEC_PROF_TRACE)
 int parsec_map_operator_profiling_array[2] = {-1};
-#define TAKE_TIME(context, key, eid, refdesc, refid) do {              \
-        parsec_profile_data_collection_info_t info;                    \
-        info.desc = (parsec_data_collection_t*)refdesc;                \
-        info.id = refid;                                               \
-        PARSEC_PROFILING_TRACE(context->es_profile,                    \
-                               __tp->super.profiling_array[(key)],      \
-                               eid, __tp->super.taskpool_id, (void*)&info); \
-    } while(0);
-#else
-#define TAKE_TIME(context, key, id, refdesc, refid)
 #endif
 
 typedef struct parsec_map_operator_taskpool {
@@ -57,7 +47,7 @@ static inline int minexpr_of_row_fct(const parsec_taskpool_t *tp, const parsec_a
 }
 static const parsec_expr_t minexpr_of_row = {
     .op = PARSEC_EXPR_OP_INLINE,
-    .u_expr.v_func = { .type = 0,
+    .u_expr.v_func = { .type = PARSEC_RETURN_TYPE_INT32,
                        .func = { .inline_func_int32 = minexpr_of_row_fct }
     }
 };
@@ -71,7 +61,7 @@ static inline int maxexpr_of_row_fct(const parsec_taskpool_t *tp, const parsec_a
 }
 static const parsec_expr_t maxexpr_of_row = {
     .op = PARSEC_EXPR_OP_INLINE,
-    .u_expr.v_func = { .type = 0,
+    .u_expr.v_func = { .type = PARSEC_RETURN_TYPE_INT32,
                        .func = { .inline_func_int32 = maxexpr_of_row_fct }
     }
 };
@@ -90,7 +80,7 @@ static inline int minexpr_of_column_fct(const parsec_taskpool_t *tp, const parse
 
 static const parsec_expr_t minexpr_of_column = {
     .op = PARSEC_EXPR_OP_INLINE,
-    .u_expr.v_func = { .type = 0,
+    .u_expr.v_func = { .type = PARSEC_RETURN_TYPE_INT32,
                        .func = { .inline_func_int32 = minexpr_of_column_fct }
     }
 };
@@ -105,7 +95,7 @@ static inline int maxexpr_of_column_fct(const parsec_taskpool_t *tp, const parse
 }
 static const parsec_expr_t maxexpr_of_column = {
     .op = PARSEC_EXPR_OP_INLINE,
-    .u_expr.v_func = { .type = 0,
+    .u_expr.v_func = { .type = PARSEC_RETURN_TYPE_INT32,
                        .func = { .inline_func_int32 = maxexpr_of_column_fct }
     }
 };
@@ -190,6 +180,7 @@ add_task_to_list(parsec_execution_stream_t *es,
                  parsec_dep_data_description_t* data,
                  int rank_src, int rank_dst,
                  int vpid_dst,
+                 data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                  void *_ready_lists)
 {
     parsec_task_t** pready_list = (parsec_task_t**)_ready_lists;
@@ -202,6 +193,7 @@ add_task_to_list(parsec_execution_stream_t *es,
                                                                                parsec_execution_context_priority_comparator );
 
     (void)oldcontext; (void)dep; (void)rank_src; (void)rank_dst; (void)vpid_dst; (void)data;
+    (void)successor_repo; (void)successor_repo_key;
     return PARSEC_ITERATE_STOP;
 }
 
@@ -218,8 +210,8 @@ static void iterate_successors(parsec_execution_stream_t *es,
 
     nt.priority = 0;
     nt.chore_id = 0;
-    nt.data[0].data_repo = NULL;  /* src  */
-    nt.data[1].data_repo = NULL;  /* dst */
+    nt.data[0].source_repo_entry = NULL;  /* src  */
+    nt.data[1].source_repo_entry = NULL;  /* dst */
     /* If this is the last n, try to move to the next k */
     for( ; n < (int)__tp->src->nt; m = 0) {
         for( ; m < (int)__tp->src->mt; m++ ) {
@@ -241,6 +233,7 @@ static void iterate_successors(parsec_execution_stream_t *es,
                    __tp->src->super.myrank,
                    __tp->src->super.myrank,
                    vpid,
+                   NULL, 0,
                    ontask_arg);
             return;
         }
@@ -285,7 +278,7 @@ static int release_deps(parsec_execution_stream_t *es,
          * There is no repo to be release in this instance, so instead just release the
          * reference of the data copy (if such a copy exists).
          *
-         * data_repo_entry_used_once( eu, this_task->data[0].data_repo, this_task->data[0].data_repo->key );
+         * data_repo_entry_used_once( this_task->data[0].data_repo, this_task->data[0].data_repo->key );
          */
         if( NULL != __tp->src ) {
             PARSEC_DATA_COPY_RELEASE(this_task->data[0].data_in);
@@ -296,7 +289,7 @@ static int release_deps(parsec_execution_stream_t *es,
     }
     PARSEC_PINS(es, RELEASE_DEPS_END, (parsec_task_t *) this_task);
     (void)deps;
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 static int data_lookup(parsec_execution_stream_t *es,
@@ -310,17 +303,17 @@ static int data_lookup(parsec_execution_stream_t *es,
 
     if( NULL != __tp->src ) {
         this_task->data[0].data_in   = parsec_data_get_copy(src(m,n), 0);
-        this_task->data[0].data_repo = NULL;
+        this_task->data[0].source_repo_entry = NULL;
         this_task->data[0].data_out  = NULL;
         PARSEC_OBJ_RETAIN(this_task->data[0].data_in);
     }
     if( NULL != __tp->dest ) {
         this_task->data[1].data_in   = parsec_data_get_copy(dest(m,n), 0);
-        this_task->data[1].data_repo = NULL;
+        this_task->data[1].source_repo_entry = NULL;
         this_task->data[1].data_out  = this_task->data[1].data_in;
         PARSEC_OBJ_RETAIN(this_task->data[1].data_in);
     }
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 static int hook_of(parsec_execution_stream_t *es,
@@ -341,13 +334,13 @@ static int hook_of(parsec_execution_stream_t *es,
     }
 
 #if !defined(PARSEC_PROF_DRY_BODY)
-    TAKE_TIME(es, 2*this_task->task_class->task_class_id,
-              parsec_hash_table_generic_64bits_key_hash( map_operator_make_key(this_task->taskpool, this_task->locals), NULL ), __tp->src,
-              ((parsec_data_collection_t*)(__tp->src))->data_key((parsec_data_collection_t*)__tp->src, m, n) );
+    PARSEC_TASK_PROF_TRACE(es->es_profile,
+                           this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id],
+                           (parsec_task_t *) this_task);
     rc = __tp->op( es, src_data, dest_data, __tp->op_data, m, n );
 #endif
     (void)es; (void)rc;
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 static int complete_hook(parsec_execution_stream_t *es,
@@ -358,9 +351,9 @@ static int complete_hook(parsec_execution_stream_t *es,
     int n = this_task->locals[1].value;
     (void)k; (void)n; (void)__tp;
 
-    TAKE_TIME(es, 2*this_task->task_class->task_class_id+1,
-              parsec_hash_table_generic_64bits_key_hash( map_operator_make_key(this_task->taskpool, this_task->locals), NULL ),
-              NULL, 0);
+    PARSEC_TASK_PROF_TRACE(es->es_profile,
+                           this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id+1],
+                           (parsec_task_t *) this_task);
 
 #if defined(PARSEC_PROF_GRAPHER)
     parsec_prof_grapher_task(this_task, es->th_id, es->virtual_process->vp_id, k+n);
@@ -373,7 +366,7 @@ static int complete_hook(parsec_execution_stream_t *es,
                   PARSEC_ACTION_DEPS_MASK),
                  NULL);
 
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 static __parsec_chore_t __parsec_map_operator_chores[] = {
@@ -446,10 +439,19 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     fake_context.taskpool = tp;
     fake_context.priority = 0;
     fake_context.chore_id = 0;
-    fake_context.data[0].data_repo = NULL;  /* src */
-    fake_context.data[0].data_in   = NULL;
-    fake_context.data[1].data_repo = NULL;  /* dst */
-    fake_context.data[1].data_in   = NULL;
+
+    fake_context.repo_entry = NULL;
+
+    fake_context.data[0].source_repo       = NULL;  /* src */
+    fake_context.data[0].source_repo_entry = NULL;  /* src */
+    fake_context.data[0].data_in           = NULL;
+    fake_context.data[0].data_out          = NULL;
+    fake_context.data[0].fulfill           = 0;
+    fake_context.data[1].source_repo       = NULL;  /* dst */
+    fake_context.data[1].source_repo_entry = NULL;  /* dst */
+    fake_context.data[1].data_in           = NULL;
+    fake_context.data[1].data_out          = NULL;
+    fake_context.data[1].fulfill           = 0;
 
     /**
      * Generate one local task per core. Each task will then take care of creating all
@@ -478,7 +480,8 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
                 fake_context.locals[1].value = n;
                 add_task_to_list(es, &fake_context, NULL, &flow_of_map_operator_dep_out, NULL,
                                  __tp->src->super.myrank, -1,
-                                 0 /* here this must always be zero due to ready_list */, (void*)&ready_list);
+                                 0 /* here this must always be zero due to ready_list */, 
+                                 NULL, 0, (void*)&ready_list);
                 __parsec_schedule( es, ready_list, 0 );
                 count++;
                 if( count == context->virtual_processes[vpid]->nb_cores )
@@ -494,6 +497,9 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
 
 static void parsec_map_operator_destructor( parsec_map_operator_taskpool_t* tp )
 {
+    free(tp->super.task_classes_array);
+    tp->super.task_classes_array = NULL;
+    tp->super.nb_task_classes = 0;
     PARSEC_OBJ_DESTRUCT((parsec_taskpool_t*)tp);
     free(tp);
 }
@@ -528,7 +534,7 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
     tp->super.profiling_array = parsec_map_operator_profiling_array;
     if( -1 == parsec_map_operator_profiling_array[0] ) {
         parsec_profiling_add_dictionary_keyword("operator", "fill:CC2828",
-                                                sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
+                                                sizeof(parsec_task_prof_info_t), PARSEC_TASK_PROF_INFO_CONVERTOR,
                                                 (int*)&tp->super.profiling_array[0 + 2 * parsec_map_operator.task_class_id],
                                                 (int*)&tp->super.profiling_array[1 + 2 * parsec_map_operator.task_class_id]);
     }
@@ -540,6 +546,9 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
     tp->super.startup_hook = parsec_map_operator_startup_fn;
     tp->super.destructor = (parsec_destruct_fn_t) parsec_map_operator_destructor;
     tp->super.nb_task_classes = 1;
+    tp->super.task_classes_array = (const parsec_task_class_t **)
+        malloc(tp->super.nb_task_classes * sizeof(parsec_task_class_t *));
+    tp->super.task_classes_array[0] = &parsec_map_operator;
     tp->super.devices_index_mask = PARSEC_DEVICES_ALL;
     tp->super.update_nb_runtime_task = parsec_add_fetch_runtime_task;
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)tp);

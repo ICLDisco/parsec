@@ -73,7 +73,7 @@ priority_of_generic_startup_as_expr_fct(const parsec_taskpool_t * __tp,
 
 static const parsec_expr_t priority_of_generic_startup_as_expr = {
     .op = PARSEC_EXPR_OP_INLINE,
-    .u_expr.v_func = {.type=0,
+    .u_expr.v_func = {.type=PARSEC_RETURN_TYPE_INT32,
                       .func = { .inline_func_int32 = (parsec_expr_op_int32_inline_func_t)priority_of_generic_startup_as_expr_fct}}
 };
 
@@ -107,7 +107,7 @@ static const __parsec_chore_t __parsec_generic_startup_chores[] = {
      .hook = (parsec_hook_t *) parsec_empty_function_without_arguments},  /* To be replaced at runtime with the correct point to the startup tasks */
     {.type = PARSEC_DEV_NONE,
      .evaluate = NULL,
-     .hook = (parsec_hook_t *) NULL},	/* End marker */
+     .hook = (parsec_hook_t *) NULL},                                     /* End marker */
 };
 
 static parsec_key_fn_t __parsec_generic_key_functions = {

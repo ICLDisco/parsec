@@ -1,13 +1,16 @@
 /*
- * Copyright (c) 2019 The University of Tennessee and The University
- *                    of Tennessee Research Foundation.  All rights
- *                    reserved.
+ * Copyright (c) 2019-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
  */
 #include "stencil_internal.h"
 #include "tests/interfaces/superscalar/common_timing.h"
 
 /* Timming */
 double sync_time_elapsed = 0.0;
+
+/* Global array of weight */
+DTYPE * weight_1D;
 
 int main(int argc, char *argv[])
 {
@@ -25,8 +28,8 @@ int main(int argc, char *argv[])
     int MB = 4;
     int NB = 4;
     int P = 1;
-    int SMB = 1;
-    int SNB = 1;
+    int KP = 1;
+    int KQ = 1;
     int cores = -1;
     int iter = 10;
     int R = 1;
@@ -38,8 +41,8 @@ int main(int argc, char *argv[])
             case 'N': N = atoi(optarg); break;
             case 't': MB = atoi(optarg); break;
             case 'T': NB = atoi(optarg); break;
-            case 's': SMB = atoi(optarg); break;
-            case 'S': SNB = atoi(optarg); break;
+            case 's': KP = atoi(optarg); break;
+            case 'S': KQ = atoi(optarg); break;
             case 'P': P = atoi(optarg); break;
             case 'c': cores = atoi(optarg); break;
             case 'I': iter = atoi(optarg); break;
@@ -51,10 +54,10 @@ int main(int argc, char *argv[])
                         "-N : column dimension (N) of the matrices (default: 8)\n"
                         "-t : row dimension (MB) of the tiles (default: 4)\n"
                         "-T : column dimension (NB) of the tiles (default: 4)\n"
-                        "-s : rows of tiles in a supertile (default: 1)\n"
-                        "-S : columns of tiles in a supertile (default: 1)\n"
+                        "-s : rows of tiles in a k-cyclic distribution (default: 1)\n"
+                        "-S : columns of tiles in a k-cyclic distribution (default: 1)\n"
                         "-P : rows (P) in the PxQ process grid (default: 1)\n"
-                        "-c : number of cores used (default: -1)\n"
+                        "-c : number of cores used (default: -1/all cores)\n"
                         "-I : iterations (default: 10)\n"
                         "-R : radius (default: 1)\n"
                         "\n");
@@ -84,6 +87,13 @@ int main(int argc, char *argv[])
         }
     }
 
+    if(0) {
+        volatile int loop = 1;
+        fprintf(stderr, "gdb -p %d\n", getpid());
+        while(loop)
+            sleep(1);
+    }
+
     /* Initialize PaRSEC */
     parsec = parsec_init(cores, &pargc, &pargv);
 
@@ -105,7 +115,15 @@ int main(int argc, char *argv[])
         cores = nb_total_comp_threads;
     }
 
-    assert(R > 0);
+    /* Make sure valid parameters are passed */
+    if( M < 1 || N < 1 || MB < 1 || NB < 1 || P < 1 || KP < 1 || KQ < 1 || iter < 1 || R < 1 ) {
+        if( 0 == rank ) {
+            fprintf(stderr, "Wrong value is passed !!! -h for help\n");
+            fprintf(stderr, "M %d N %d MB %d NB %d P %d KP %d KQ %d cores %d iteration %d R %d m %d\n",
+                    M, N, MB, NB, P, KP, KQ, cores, iter, R, m);
+        }
+        exit(1); 
+    }
 
     /* Used for ghost region */
     int NNB = (int)(ceil((double)N/NB));
@@ -113,22 +131,30 @@ int main(int argc, char *argv[])
     /* No. of buffers */
     int MMB = (int)(ceil((double)M/MB));
 
-    /* Flops */ 
+    /* Make sure at least two buffers are used, otherwise result is not correct */
+    if( MMB < 2 ) {
+        if( 0 == rank )
+            fprintf(stderr, "At least two buffers is needed, which is ceil(M/MB)= %d M= %d MB= %d\n", MMB, M, MB);
+        exit(1);
+    }
+
+    /* Flops */
     flops = FLOPS_STENCIL_1D(N*MB);
 
     /* initializing matrix structure */
     /* Y */
     two_dim_block_cyclic_t dcA;
     two_dim_block_cyclic_init(&dcA, matrix_RealDouble, matrix_Tile,
-                                nodes, rank, MB, NB+2*R, M, N+2*R*NNB, 0, 0,
-                                M, N+2*R*NNB, SMB, SNB, P);
+                                rank, MB, NB+2*R, M, N+2*R*NNB, 0, 0,
+                                M, N+2*R*NNB,
+                                P, nodes/P, KP, KQ, 0, 0);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
                                    (size_t)dcA.super.bsiz *
                                    (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcA, "dcA");
 
-    /* 
-     * Init dcA (not including ghost region) to i*1.0+j*1.0 
+    /*
+     * Init dcA (not including ghost region) to i*1.0+j*1.0
      * Init ghost region to 0.0
      */
     int *op_args = (int *)malloc(sizeof(int));
@@ -154,7 +180,7 @@ int main(int argc, char *argv[])
         int err = system(command);
 
         if( err ){
-            fprintf(stderr, "loog_gen_1D failed: %s\n", command); 
+            fprintf(stderr, "loog_gen_1D failed: %s\n", command);
             return(PARSEC_ERROR);
         }
     }
@@ -163,14 +189,14 @@ int main(int argc, char *argv[])
 #endif
 
     /* Stencil_1D */
-    SYNC_TIME_START(); 
+    SYNC_TIME_START();
     parsec_stencil_1D(parsec, (parsec_tiled_matrix_dc_t *)&dcA, iter, R);
     SYNC_TIME_PRINT(rank, ("Stencil" "\tN= %d NB= %d M= %d MB= %d "
-                           "PxQ= %d %d SMBxSNB= %d %d "
+                           "PxQ= %d %d KPxKQ= %d %d "
                            "Iteration= %d Radius= %d Kernel_type= %d "
                            "Number_of_buffers= %d cores= %d : %lf gflops\n",
-                           N, NB, M, MB, P, nodes/P, SMB, SNB, iter, R, LOOPGEN, 
-                           MMB, cores, gflops=(flops/1e9)/sync_time_elapsed)); 
+                           N, NB, M, MB, P, nodes/P, KP, KQ, iter, R, LOOPGEN,
+                           MMB, cores, gflops=(flops/1e9)/sync_time_elapsed));
 
     parsec_data_free(dcA.mat);
     parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA);

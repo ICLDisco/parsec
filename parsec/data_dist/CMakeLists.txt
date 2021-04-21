@@ -7,5 +7,5 @@ target_sources(parsec PRIVATE ${sources})
 
 install(FILES
   hash_datadist.h
-  DESTINATION include/parsec/data_dist )
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/data_dist )
 

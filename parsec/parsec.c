@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -27,6 +27,7 @@
 #include "parsec/mca/sched/sched.h"
 #include "parsec/mca/device/device.h"
 #include "parsec/utils/output.h"
+#include "parsec/utils/show_help.h"
 #include "parsec/data_internal.h"
 #include "parsec/class/list.h"
 #include "parsec/scheduling.h"
@@ -36,10 +37,12 @@
 #include "parsec/bindthread.h"
 #include "parsec/parsec_prof_grapher.h"
 #include "parsec/vpmap.h"
+#include "parsec/class/info.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/utils/installdirs.h"
 #include "parsec/utils/cmd_line.h"
 #include "parsec/utils/debug.h"
+#include "parsec/utils/parsec_environ.h"
 #include "parsec/utils/mca_param_cmd_line.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/interfaces/interface.h"
@@ -66,6 +69,10 @@
 /*
  * Global variables.
  */
+
+parsec_external_fini_t *external_fini_cbs = NULL;
+int                     n_external_fini_cbs = 0;
+
 char parsec_hostname_array[128] = "not yet initialized";
 const char* parsec_hostname = parsec_hostname_array;
 
@@ -90,37 +97,17 @@ int arena_memory_used_key, arena_memory_unused_key;
 int task_memory_alloc_key, task_memory_free_key;
 #endif  /* PARSEC_PROF_TRACE */
 
+parsec_info_t parsec_per_device_infos;
+parsec_info_t parsec_per_stream_infos;
+
+static int slow_bind_warning = 1;
+
 int parsec_want_rusage = 0;
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
 
 static struct rusage _parsec_rusage;
-
-static char *parsec_enable_dot = NULL;
-static char *parsec_app_name = NULL;
-
-static int parsec_runtime_max_number_of_cores = -1;
-static int parsec_runtime_bind_main_thread = 1;
-
-PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
-
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-static void parsec_mpi_exit(int status) {
-    MPI_Abort(MPI_COMM_WORLD, status);
-}
-#endif
-
-/* To create object of class parsec_taskpool_t that inherits parsec_list_t
- * class
- */
-PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
-                   NULL, NULL);
-
-/*
- * Taskpool based task definition (no specialized constructor and destructor) */
-PARSEC_OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
-                   NULL, NULL);
 
 static void parsec_rusage(bool print)
 {
@@ -156,12 +143,36 @@ static void parsec_rusage(bool print)
                      current.ru_maxrss);
     }
     _parsec_rusage = current;
-    return;
 }
 #define parsec_rusage(b) do { if(parsec_want_rusage > 0) parsec_rusage(b); } while(0)
 #else
 #define parsec_rusage(b) do {} while(0)
 #endif /* defined(PARSEC_HAVE_GETRUSAGE) */
+
+static char *parsec_enable_dot = NULL;
+static char *parsec_app_name = NULL;
+
+static int parsec_runtime_max_number_of_cores = -1;
+static int parsec_runtime_bind_main_thread = 1;
+
+PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
+
+#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
+static void parsec_mpi_exit(int status) {
+    MPI_Abort(MPI_COMM_WORLD, status);
+}
+#endif
+
+/* To create object of class parsec_taskpool_t that inherits parsec_list_t
+ * class
+ */
+PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
+                   NULL, NULL);
+
+/*
+ * Taskpool based task definition (no specialized constructor and destructor) */
+PARSEC_OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
+                   NULL, NULL);
 
 static void parsec_taskpool_release_resources(void);
 
@@ -182,7 +193,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 {
     parsec_execution_stream_t* es;
     int pi;
-    
+
     /* don't use PARSEC_THREAD_IS_MASTER, it is too early and we cannot yet allocate the es struct */
     if( (0 != startup->virtual_process->vp_id) || (0 != startup->th_id) || parsec_runtime_bind_main_thread ) {
         /* Bind to the specified CORE */
@@ -253,17 +264,18 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 #ifdef PARSEC_PROF_TRACE
     {
         char *binding = parsec_hwloc_get_binding();
-        es->es_profile = parsec_profiling_thread_init( 2*1024*1024,
-                                                      PARSEC_PROFILE_THREAD_STR,
-                                                      es->th_id,
-                                                      es->virtual_process->vp_id,
-                                                      NULL == binding ? "(No Binding Information)" : binding);
+        es->es_profile = parsec_profiling_stream_init( 2*1024*1024,
+                                                       PARSEC_PROFILE_THREAD_STR,
+                                                       es->th_id,
+                                                       es->virtual_process->vp_id,
+                                                       NULL == binding ? "(No Binding Information)" : binding);
+        parsec_profiling_set_default_thread( es->es_profile );
         if(NULL != binding) free(binding);
     }
     if( NULL != es->es_profile ) {
-        PROFILING_THREAD_SAVE_iINFO(es->es_profile, "boundto", startup->bindto);
-        PROFILING_THREAD_SAVE_iINFO(es->es_profile, "th_id", es->th_id);
-        PROFILING_THREAD_SAVE_iINFO(es->es_profile, "vp_id", es->virtual_process->vp_id );
+        PROFILING_STREAM_SAVE_iINFO(es->es_profile, "boundto", startup->bindto);
+        PROFILING_STREAM_SAVE_iINFO(es->es_profile, "th_id", es->th_id);
+        PROFILING_STREAM_SAVE_iINFO(es->es_profile, "vp_id", es->virtual_process->vp_id );
     }
 #endif /* PARSEC_PROF_TRACE */
 
@@ -339,10 +351,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     __parsec_temporary_thread_initialization_t *startup;
     parsec_context_t* context;
     parsec_cmd_line_t *cmd_line = NULL;
-    char **environ = NULL;
+    char **ctx_environ = NULL;
     char **env_variable, *env_name, *env_value;
     char *parsec_enable_profiling = NULL;  /* profiling file prefix when PARSEC_PROF_TRACE is on */
-    int slow_option_warning = 0;
+    int slow_option_used = 0;
+#if defined(PARSEC_PROF_TRACE)
+    int profiling_id = 0;
+#endif
+    int profiling_enabled = 0;
 
     gethostname(parsec_hostname_array, sizeof(parsec_hostname_array));
 
@@ -351,6 +367,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_installdirs_open();
     parsec_mca_param_init();
     parsec_output_init();
+    parsec_show_help_init();
 
     /* Extract what we can from the arguments */
     cmd_line = PARSEC_OBJ_NEW(parsec_cmd_line_t);
@@ -377,6 +394,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                              "Enable hyperthreading");
     parsec_mca_cmd_line_setup(cmd_line);
 
+
     if( (NULL != pargc) && (0 != *pargc) ) {
         parsec_app_name = strdup( (*pargv)[0] );
 
@@ -387,13 +405,13 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     } else {
         ret = asprintf( &parsec_app_name, DEFAULT_APPNAME, (int)getpid() );
         if (ret == -1) {
-            parsec_app_name = strdup( "app_name_XXXXXX" );
+            parsec_app_name = strdup( "app_name" );
         }
     }
 
-    ret = parsec_mca_cmd_line_process_args(cmd_line, &environ, &environ);
-    if( environ != NULL ) {
-        for(env_variable = environ;
+    ret = parsec_mca_cmd_line_process_args(cmd_line, &ctx_environ, &environ);
+    if( ctx_environ != NULL ) {
+        for(env_variable = ctx_environ;
             *env_variable != NULL;
             env_variable++) {
             env_name = *env_variable;
@@ -403,26 +421,34 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                 *env_value = '\0';
                 env_value++;
             }
-            setenv(env_name, env_value, 1);
+            parsec_setenv(env_name, env_value, true, &environ);
             free(*env_variable);
         }
-        free(environ);
+        free(ctx_environ);
     }
+
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
     int mpi_is_up;
     MPI_Initialized(&mpi_is_up);
     if( mpi_is_up ) {
         MPI_Comm_rank(MPI_COMM_WORLD, &parsec_debug_rank);
+#if defined(PARSEC_PROF_TRACE)
+        profiling_id = parsec_debug_rank;
+#endif
         parsec_weaksym_exit = parsec_mpi_exit;
     }
-#endif    
+#endif
     parsec_debug_init();
     mca_components_repository_init();
+
+    parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Disable warnings about the runtime detecting poorly performing binding configuration", false, false, slow_bind_warning, &slow_bind_warning);
 
 #if defined(PARSEC_HAVE_HWLOC)
     parsec_hwloc_init();
 #if defined(PARSEC_OSX)
-    parsec_warning("OS X < 10.13 does not support thread/process binding. Performance might be affected");
+    if( slow_bind_warning && 0 == parsec_debug_rank )
+        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                       "OS X < 10.13 does not support thread/process binding.\n");
 #endif  /* defined(PARSEC_OSX) */
 #endif  /* defined(HWLOC) */
 
@@ -432,7 +458,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         GET_INT_ARGV(cmd_line, "ht", hyperth);
         parsec_hwloc_allow_ht(hyperth);
 #else
-        parsec_warning("Option ht (hyper-threading) is only supported when HWLOC is enabled at compile time.");
+        if( 0 == parsec_debug_rank )
+            parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                           "Option ht (hyper-threading) is only supported when HWLOC is enabled at compile time.\n");
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
     }
 
@@ -448,7 +476,11 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         else {
             nb_cores = parsec_runtime_max_number_of_cores;
             if( parsec_runtime_max_number_of_cores > parsec_hwloc_nb_real_cores() ) {
-                parsec_warning("The runtime is running in an over-subscribe mode, usually unfit for performance.");
+                if( slow_bind_warning )
+                    parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                                   "Requested binding %d threads, which is more than the physical number of cores %d.\n"
+                                   "\tOversubscribing cores is often slow. You should change the value of the `runtime_num_cores` parameter.\n",
+                                   parsec_runtime_max_number_of_cores, parsec_hwloc_nb_real_cores());
             }
         }
     }
@@ -482,7 +514,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                 if( !strncmp(optarg, "display", 7 )) {
                     display_vpmap = 1;
                     if( ':' != optarg[strlen("display")] ) {
-                        parsec_warning("Display thread mapping requested but vpmar argument incorrect "
+                        parsec_warning("Display thread mapping requested but vpmap argument incorrect "
                                        "(must start with display: to print the mapping)");
                     } else {
                         optarg += strlen("display:");
@@ -515,17 +547,26 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     parsec_hash_tables_init();
 
+#if defined(PARSEC_PROF_GRAPHER)
+    char *parsec_mca_enable_dot = parsec_enable_dot;
+    parsec_mca_param_reg_string_name("parsec", "dot", "Create a DOT file from the DAGs executed by parsec (one file per rank)",
+                                     false, false, parsec_mca_enable_dot, &parsec_mca_enable_dot);
+    if( NULL != parsec_mca_enable_dot ) {
+        asprintf(&parsec_enable_dot, "%s-%d.dot", parsec_mca_enable_dot, parsec_debug_rank);
+    }
     if( parsec_cmd_line_is_taken(cmd_line, "dot") ) {
+        // command-line has priority over MCA parameter
         char* optarg = NULL;
         GET_STR_ARGV(cmd_line, "dot", optarg);
 
         if( parsec_enable_dot ) free( parsec_enable_dot );
         if( NULL == optarg ) {
-            parsec_enable_dot = strdup(parsec_app_name);
+            asprintf(&parsec_enable_dot, "%s-%d.dot", parsec_app_name, parsec_debug_rank);
         } else {
-            parsec_enable_dot = strdup(optarg);
+            asprintf(&parsec_enable_dot, "%s-%d.dot", optarg, parsec_debug_rank);
         }
     }
+#endif
 
     /* the extra allocation will pertain to the virtual_processes array */
     context = (parsec_context_t*)malloc(sizeof(parsec_context_t) + (nb_vp-1) * sizeof(parsec_vp_t*));
@@ -535,11 +576,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->active_taskpools      = 0;
     context->flags               = 0;
     context->nb_nodes            = 1;
-    context->comm_ctx            = NULL;
+    context->comm_ctx            = -1;
     context->my_rank             = 0;
     context->nb_vp               = nb_vp;
     /* initialize dtd taskpool list */
     context->taskpool_list       = NULL;
+    parsec_hash_table_init(&context->dtd_arena_datatypes_hash_table, offsetof(parsec_arena_datatype_t, ht_item),
+                           8, parsec_hash_table_generic_key_fn, NULL);
+    context->dtd_arena_datatypes_next_id = 0;
 #if defined(PARSEC_SIM)
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */
@@ -556,8 +600,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     if( nb_cores != nb_total_comp_threads ) {
-        parsec_warning("Your vpmap uses %d threads when %d cores where available",
-                     nb_total_comp_threads, nb_cores);
+        if( slow_bind_warning )
+            parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                           "Your vpmap uses %d threads when %d cores where available\n",
+                           nb_total_comp_threads, nb_cores);
         nb_cores = nb_total_comp_threads;
     }
 
@@ -611,7 +657,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* defined(PARSEC_PROF_TRACE) */
                                     "<none>", &parsec_enable_profiling);
 #if defined(PARSEC_PROF_TRACE)
-    if( (0 != strncasecmp(parsec_enable_profiling, "<none>", 6)) && (0 == parsec_profiling_init( )) ) {
+    if( (0 != strncasecmp(parsec_enable_profiling, "<none>", 6)) && (0 == parsec_profiling_init( profiling_id )) ) {
         int i, l;
         char *cmdline_info = basename(parsec_app_name);
 
@@ -623,6 +669,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
         if( ret != 0 ) {
             parsec_warning("Profiling framework deactivated because of error %s.", parsec_profiling_strerror());
+        } else {
+            profiling_enabled = 1;
         }
 
         l = strlen(parsec_app_name);  /* use the known application name */
@@ -695,22 +743,26 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Introduce communication engine */
     (void)parsec_remote_dep_init(context);
 
-    /* Initialize Performance Instrumentation (PARSEC_PINS) */
     PARSEC_PINS_INIT(context);
-
-    if(parsec_enable_dot) {
-#if defined(PARSEC_PROF_GRAPHER)
-        parsec_prof_grapher_init(context, parsec_enable_dot, nb_total_comp_threads);
-        slow_option_warning = 1;
-#else
-        parsec_warning("DOT generation requested, but PARSEC_PROF_GRAPHER was not selected during compilation: DOT generation ignored.");
-#endif  /* defined(PARSEC_PROF_GRAPHER) */
+    if(profiling_enabled && (0 == parsec_pins_nb_modules_enabled())) {
+        if(parsec_debug_rank == 0)
+            parsec_warning("*** PaRSEC Profiling warning: creating profile file as requested,\n"
+                           "*** but no PINS module is enabled, so the file will probably be empty\n"
+                           "*** Activate the MCA PINS Module task_profiler to get the previous behavior\n"
+                           "***   ( --mca mca_pins task_profiler )\n");
     }
 
+#if defined(PARSEC_PROF_GRAPHER)
+    if(parsec_enable_dot) {
+        parsec_prof_grapher_init(context, parsec_enable_dot);
+        slow_option_used = 1;
+    }
+#endif  /* defined(PARSEC_PROF_GRAPHER) */
+
 #if defined(PARSEC_DEBUG_NOISIER) || defined(PARSEC_DEBUG_PARANOID)
-    slow_option_warning = 1;
+    slow_option_used = 1;
 #endif
-    if( slow_option_warning && 0 == parsec_debug_rank ) {
+    if( slow_option_used && 0 == parsec_debug_rank ) {
         parsec_warning("/!\\ DEBUG LEVEL WILL PROBABLY REDUCE THE PERFORMANCE OF THIS RUN /!\\.\n");
         parsec_debug_verbose(4, parsec_debug_output, "--- compiled with DEBUG_NOISIER, DEBUG_PARANOID, or DOT generation requested.");
     }
@@ -739,7 +791,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Load the default scheduler. User can change it afterward,
      * but we need to ensure that one is loadable and here.
      */
-    if( 0 == parsec_set_scheduler( context ) ) {
+    if( PARSEC_SUCCESS > parsec_set_scheduler( context ) ) {
         /* TODO: handle memory leak / thread leak here: this is a fatal
          * error for PaRSEC */
         parsec_fatal("Unable to load any scheduler in init function.");
@@ -777,11 +829,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     /* Wait until all threads are done binding themselves */
     parsec_barrier_wait( &(context->barrier) );
     context->__parsec_internal_finalization_counter++;
-
-#if defined(PARSEC_PROF_TRACE)
-    /* Ready to rock! The profiling must be on by default */
-    parsec_profiling_start();
-#endif
 
     /* Release the temporary array used for starting up the threads */
     {
@@ -831,10 +878,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     return context;
 }
 
-int parsec_version( int* version_major, int* version_minor, int* version_patch) {
+int parsec_version( int* version_major, int* version_minor, int* version_release) {
     *version_major = PARSEC_VERSION_MAJOR;
     *version_minor = PARSEC_VERSION_MINOR;
-    *version_patch = PARSEC_VERSION_PATCH;
+    *version_release = PARSEC_VERSION_RELEASE;
     return PARSEC_SUCCESS;
 }
 
@@ -866,7 +913,7 @@ int parsec_version_ex( size_t len, char* version_string) {
         "c_flags\t\t= %s\n",
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
-        PARSEC_VERSION_PATCH,
+        PARSEC_VERSION_RELEASE,
         PARSEC_GIT_HASH,
         PARSEC_GIT_BRANCH,
         PARSEC_GIT_DIRTY,
@@ -918,6 +965,8 @@ int parsec_version_ex( size_t len, char* version_string) {
 #if defined(PARSEC_DIST_THREAD)
         "+thread_multiple"
 #endif
+#else  /* defined(PARSEC_HAVE_MPI) */
+        "single process only"
 #endif
         ,
         device_components,
@@ -1042,10 +1091,30 @@ static void parsec_vp_fini( parsec_vp_t *vp )
     }
 }
 
+void parsec_context_at_fini(parsec_external_fini_cb_t cb, void *data)
+{
+    n_external_fini_cbs++;
+    external_fini_cbs = (parsec_external_fini_t *)realloc(
+            external_fini_cbs, sizeof(parsec_external_fini_t)*n_external_fini_cbs);
+    external_fini_cbs[n_external_fini_cbs-1].cb = cb;
+    external_fini_cbs[n_external_fini_cbs-1].data = data;
+}
+
+static void parsec_clean_and_warn_dtd_arena_datatypes(void *elt, void *dta)
+{
+    void **params = (void **)dta;
+    parsec_hash_table_t *ht = (parsec_hash_table_t*)params[0];
+    parsec_arena_datatype_t *adt = (parsec_arena_datatype_t*)elt;
+    int *count = (int*)params[1];
+    (*count)++;
+    parsec_hash_table_remove(ht, adt->ht_item.key);
+}
+
 int parsec_fini( parsec_context_t** pcontext )
 {
     parsec_context_t* context = *pcontext;
-    int nb_total_comp_threads, p;
+    int nb_total_comp_threads, p, nb_items;
+    void *params[2] = {&context->dtd_arena_datatypes_hash_table, &nb_items};
 
     /* if dtd environment is set-up, we clean */
     if( __parsec_dtd_is_initialized ) {
@@ -1054,6 +1123,14 @@ int parsec_fini( parsec_context_t** pcontext )
         PARSEC_OBJ_RELEASE(context->taskpool_list);
         context->taskpool_list = NULL;
     }
+    nb_items = 0;
+    parsec_hash_table_for_all(&context->dtd_arena_datatypes_hash_table, parsec_clean_and_warn_dtd_arena_datatypes,
+                              params);
+    if(0 != nb_items) {
+        parsec_warning("/!\\ Warning: %d DTD arena datatypes are still registered with this parsec context at "
+                       "release time\n", nb_items);
+    }
+    parsec_hash_table_fini(&context->dtd_arena_datatypes_hash_table);
 
     /**
      * We need to force the main thread to drain all possible pending messages
@@ -1074,6 +1151,19 @@ int parsec_fini( parsec_context_t** pcontext )
     /* Now wait until every thread is back */
     context->__parsec_internal_finalization_in_progress = 1;
     parsec_barrier_wait( &(context->barrier) );
+
+    /**
+     * The registered at_fini callbacks should be called as early as possible in the
+     * context finalization, but not before any actions visible to the outside world
+     * has been completed (aka. not until the communication engine is up).
+     */
+    if( NULL != external_fini_cbs ) {
+        for(int i = 0; i < n_external_fini_cbs; i++){
+            external_fini_cbs[i].cb( external_fini_cbs[i].data ) ;
+        }
+        free(external_fini_cbs); external_fini_cbs = NULL;
+        n_external_fini_cbs = 0;
+    }
 
     parsec_rusage(true);
 
@@ -1143,7 +1233,7 @@ int parsec_fini( parsec_context_t** pcontext )
 #endif  /* PARSEC_HAVE_HWLOC_BITMAP */
 
     PARSEC_PAPI_SDE_FINI();
-    
+
     if (parsec_app_name != NULL ) {
         free(parsec_app_name);
         parsec_app_name = NULL;
@@ -1151,16 +1241,17 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_taskpool_release_resources();
 
+    parsec_show_help_finalize();
+    parsec_output_finalize();
     parsec_mca_param_finalize();
     parsec_installdirs_close();
-    parsec_output_finalize();
 
     free(context);
     *pcontext = NULL;
 
     parsec_class_finalize();
     parsec_debug_fini();  /* Always last */
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 #define rop1          u_expr.range.op1
@@ -1252,6 +1343,29 @@ parsec_check_IN_dependencies_with_mask(const parsec_taskpool_t *tp,
     return ret;
 }
 
+static parsec_ontask_iterate_t count_deps_fct(struct parsec_execution_stream_s* es,
+                                              const parsec_task_t *newcontext,
+                                              const parsec_task_t *oldcontext,
+                                              const parsec_dep_t* dep,
+                                              parsec_dep_data_description_t *data,
+                                              int rank_src, int rank_dst, int vpid_dst,
+                                              data_repo_t *successor_repo, parsec_key_t successor_repo_key,
+                                              void *param)
+{
+    int *pactive = (int*)param;
+    (void)es;
+    (void)newcontext;
+    (void)oldcontext;
+    (void)dep;
+    (void)data;
+    (void)rank_src;
+    (void)rank_dst;
+    (void)vpid_dst;
+    (void)successor_repo; (void) successor_repo_key;
+    *pactive = *pactive+1;
+    return PARSEC_ITERATE_CONTINUE;
+}
+
 static parsec_dependency_t
 parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
                                            const parsec_task_t* task )
@@ -1290,14 +1404,18 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
                 dep = flow->dep_in[j];
                 if( NULL != dep->cond ) {
                     /* Check if the condition apply on the current setting */
-                    assert( dep->cond->op == PARSEC_EXPR_OP_INLINE );
-                    if( dep->cond->inline_func32(tp, task->locals) ) {
-                        if( NULL == dep->ctl_gather_nb)
-                            active++;
-                        else {
-                            assert( dep->ctl_gather_nb->op == PARSEC_EXPR_OP_INLINE );
-                            active += dep->ctl_gather_nb->inline_func32(tp, task->locals);
+                    if( dep->cond->op == PARSEC_EXPR_OP_INLINE ) {
+                        if( dep->cond->inline_func32(tp, task->locals) ) {
+                            if( NULL == dep->ctl_gather_nb)
+                                active++;
+                            else {
+                                assert( dep->ctl_gather_nb->op == PARSEC_EXPR_OP_INLINE );
+                                active += dep->ctl_gather_nb->inline_func32(tp, task->locals);
+                            }
                         }
+                    } else {
+                        /* Complicated case: fall back to iterate_predecessors with a counter */
+                        task->task_class->iterate_predecessors(NULL, task, 1 << flow->flow_index,  count_deps_fct, &active);
                     }
                 } else {
                     if( NULL == dep->ctl_gather_nb)
@@ -1510,7 +1628,7 @@ void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
         *deps = PARSEC_DEPENDENCIES_STARTUP_TASK | tc->dependencies_goal;
     } else {
         *deps = 0;
-    }    
+    }
 }
 
 /*
@@ -1524,9 +1642,11 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
                                       const parsec_flow_t* restrict origin_flow,
                                       const parsec_task_t* restrict task,
                                       const parsec_flow_t* restrict dest_flow,
-                                      data_repo_entry_t* dest_repo_entry,
                                       parsec_dep_data_description_t* data,
-                                      parsec_task_t** pready_ring)
+                                      parsec_task_t** pready_ring,
+                                      data_repo_t* target_repo,
+                                      parsec_data_copy_t* target_dc,
+                                      data_repo_entry_t* target_repo_entry)
 {
     const parsec_task_class_t* tc = task->task_class;
     parsec_dependency_t *deps;
@@ -1556,6 +1676,7 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
          */
         {
             parsec_task_t *new_context = (parsec_task_t *) parsec_thread_mempool_allocate(es->context_mempool);
+
             PARSEC_COPY_EXECUTION_CONTEXT(new_context, task);
             new_context->status = PARSEC_TASK_STATUS_NONE;
             PARSEC_AYU_ADD_TASK(new_context);
@@ -1570,13 +1691,15 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
 
             assert( dest_flow->flow_index <= new_context->task_class->nb_flows);
             memset( new_context->data, 0, sizeof(parsec_data_pair_t) * new_context->task_class->nb_flows);
+            new_context->repo_entry = NULL;
             /*
              * Save the data_repo and the pointer to the data for later use. This will prevent the
              * engine from atomically locking the hash table for at least one of the flow
              * for each execution context.
              */
-            new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
-            new_context->data[(int)dest_flow->flow_index].data_in   = origin->data[origin_flow->flow_index].data_out;
+            new_context->data[(int)dest_flow->flow_index].source_repo = target_repo;
+            new_context->data[(int)dest_flow->flow_index].source_repo_entry = target_repo_entry;
+            new_context->data[(int)dest_flow->flow_index].data_in   = target_dc;
             (void)data;
             PARSEC_AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
@@ -1603,7 +1726,7 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "  => Service %s not yet ready", tmp1);
     }
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 parsec_ontask_iterate_t
@@ -1613,10 +1736,30 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
                       const parsec_dep_t* dep,
                       parsec_dep_data_description_t* data,
                       int src_rank, int dst_rank, int dst_vpid,
+                      data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                       void *param)
 {
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)param;
     const parsec_flow_t* src_flow = dep->belongs_to;
+    const parsec_flow_t* dst_flow = dep->flow;
+
+
+    data_repo_t        *target_repo = arg->output_repo;
+    data_repo_entry_t  *target_repo_entry = arg->output_entry;
+    parsec_data_copy_t *target_dc = target_repo_entry->data[src_flow->flow_index];
+    data_repo_entry_t  *entry_for_reshapping =
+            data_repo_lookup_entry(successor_repo, successor_repo_key);
+    /* If the successor repo has been advanced with a reshape promise,
+     * that one is selected for release_deps, otherwise the one on the
+     * predecessor repo is selected.
+     * (On the predecessor repo there may be a fulfilled or unfulfilled future,
+     * on the successor repo is always unfulfilled).
+     */
+    if( (entry_for_reshapping != NULL) && (entry_for_reshapping->data[dst_flow->flow_index] != NULL) ){
+        target_repo = successor_repo;
+        target_repo_entry = entry_for_reshapping;
+        target_dc = entry_for_reshapping->data[dst_flow->flow_index];
+    }
 
     /*
      * Check that we don't forward a NULL data to someone else. This
@@ -1638,7 +1781,6 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
-
         assert( 0 == (arg->action_mask & PARSEC_ACTION_RECV_INIT_REMOTE_DEPS) );
 
         if( arg->action_mask & PARSEC_ACTION_SEND_INIT_REMOTE_DEPS ){
@@ -1660,8 +1802,32 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
                 output->deps_mask |= (1 << dep->dep_index);
                 if( 0 == output->count_bits ) {
                     output->data = *data;
+                    assert(output->data.data_future == NULL);
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+                    /* Now everything is a reshaping entry */
+                    /* Check if we need to reshape before sending */
+                    if(parsec_is_CTL_dep(output->data)){ /* CTL DEP */
+                        output->data.data_future = NULL;
+                        output->data.repo = NULL;
+                        output->data.repo_key = -1;
+                    }else{
+                        /* Get reshape from whatever repo it has been set up into */
+                        output->data.data_future = (parsec_datacopy_future_t*)target_dc;
+                        output->data.repo = target_repo;
+                        output->data.repo_key = target_repo_entry->ht_item.key;
+                        PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
+                                         "th%d RESHAPE_PROMISE SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
+                                         es->th_id, output->data.data, (output->data.data)->dtt,
+                                         (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
+                                         output->data.data_future);
+                    }
+#endif
                 } else {
                     assert(output->data.data == data->data);
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+                    /* There's a reshape entry that is not being managed. */
+                    assert( !((entry_for_reshapping != NULL) && (entry_for_reshapping->data[dst_flow->flow_index] != NULL)) );
+#endif
                 }
                 output->count_bits++;
                 if(newcontext->priority > output->priority) {
@@ -1670,6 +1836,14 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
                         arg->remote_deps->max_priority = newcontext->priority;
                 }
             }  /* otherwise the bit is already flipped, the peer is already part of the propagation. */
+            else{
+                assert(output->data.data == data->data);
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+                /* There's a reshape entry that is not being managed. */
+                assert( !((entry_for_reshapping != NULL) && (entry_for_reshapping->data[dst_flow->flow_index] != NULL)) );
+#endif
+            }
+
         }
     }
 #else
@@ -1679,28 +1853,18 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 
     if( (arg->action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) &&
         (es->virtual_process->parsec_context->my_rank == dst_rank) ) {
-        /* Old condition */
-        /* if( PARSEC_FLOW_ACCESS_NONE != (src_flow->flow_flags & PARSEC_FLOW_ACCESS_MASK) ) { */
-
         /* Copying data in data-repo if there is data .
          * We are doing this in order for dtd to be able to track control dependences.
+         * Usage count of the repo is dealt with when setting up reshape promises.
          */
-        if( oldcontext->data[src_flow->flow_index].data_out != NULL ) {
-            arg->output_entry->data[src_flow->flow_index] = oldcontext->data[src_flow->flow_index].data_out;
-            arg->output_usage++;
-            /* BEWARE: This increment is required to be done here. As the target task
-             * bits are marked, another thread can now enable the task. Once schedulable
-             * the task will try to access its input data and decrement their ref count.
-             * Thus, if the ref count is not increased here, the data might dissapear
-             * before this task released it completely.
-             */
-            PARSEC_OBJ_RETAIN( arg->output_entry->data[src_flow->flow_index] );
-        }
-        parsec_release_local_OUT_dependencies(es, oldcontext, src_flow,
-                                              newcontext, dep->flow,
-                                              arg->output_entry,
+        parsec_release_local_OUT_dependencies(es,
+                                              oldcontext,
+                                              src_flow,
+                                              newcontext,
+                                              dep->flow,
                                               data,
-                                              &arg->ready_lists[dst_vpid]);
+                                              &arg->ready_lists[dst_vpid],
+                                              target_repo, target_dc, target_repo_entry);
     }
 
     return PARSEC_ITERATE_CONTINUE;
@@ -1795,9 +1959,9 @@ parsec_taskpool_set_complete_callback( parsec_taskpool_t* tp,
     if( NULL == tp->on_complete ) {
         tp->on_complete      = complete_cb;
         tp->on_complete_data = complete_cb_data;
-        return 0;
+        return PARSEC_SUCCESS;
     }
-    return -1;
+    return PARSEC_ERR_EXISTS;
 }
 
 int
@@ -1808,9 +1972,9 @@ parsec_taskpool_get_complete_callback( const parsec_taskpool_t* tp,
     if( NULL != tp->on_complete ) {
         *complete_cb      = tp->on_complete;
         *complete_cb_data = tp->on_complete_data;
-        return 0;
+        return PARSEC_SUCCESS;
     }
-    return -1;
+    return PARSEC_ERR_NOT_FOUND;
 }
 
 int
@@ -1821,9 +1985,9 @@ parsec_taskpool_set_enqueue_callback( parsec_taskpool_t* tp,
     if( NULL == tp->on_enqueue ) {
         tp->on_enqueue      = enqueue_cb;
         tp->on_enqueue_data = enqueue_cb_data;
-        return 0;
+        return PARSEC_SUCCESS;
     }
-    return -1;
+    return PARSEC_ERR_EXISTS;
 }
 
 int
@@ -1834,9 +1998,9 @@ parsec_taskpool_get_enqueue_callback( const parsec_taskpool_t* tp,
     if( NULL != tp->on_enqueue ) {
         *enqueue_cb      = tp->on_enqueue;
         *enqueue_cb_data = tp->on_enqueue_data;
-        return 0;
+        return PARSEC_SUCCESS;
     }
-    return -1;
+    return PARSEC_ERR_NOT_FOUND;
 }
 
 int32_t
@@ -1919,28 +2083,39 @@ int parsec_taskpool_register( parsec_taskpool_t* tp )
 }
 
 /* globally synchronize taskpool id's so that next register generates the same
- * id at all ranks. */
-void parsec_taskpool_sync_ids( void )
+ * id at all ranks on a given communicator. */
+void parsec_taskpool_sync_ids_context( intptr_t comm )
 {
-    uint32_t idx;
+    uint32_t idx,msz;
     parsec_atomic_lock( &taskpool_array_lock );
     idx = (int)taskpool_array_pos;
+    msz = (int)taskpool_array_size;
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
     int mpi_is_on;
     MPI_Initialized(&mpi_is_on);
     if( mpi_is_on ) {
-        MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
+        MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, (MPI_Comm)comm );
+        while (idx >= msz){
+            msz <<= 1;
+        }
     }
 #endif
-    if( idx >= taskpool_array_size ) {
-        taskpool_array_size <<= 1;
-        taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, taskpool_array_size * sizeof(parsec_taskpool_t*) );
+    if( msz > taskpool_array_size ) {
+        taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, msz * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
-        for( uint32_t i = (taskpool_array_size>>1); i < taskpool_array_size;
+        for( uint32_t i = taskpool_array_size; i < msz;
              taskpool_array[i++] = NOTASKPOOL );
     }
+    taskpool_array_size = msz;
     taskpool_array_pos = idx;
     parsec_atomic_unlock( &taskpool_array_lock );
+}
+
+/* globally synchronize taskpool id's so that next register generates the same
+ * id at all ranks. */
+void parsec_taskpool_sync_ids( void )
+{
+  parsec_taskpool_sync_ids_context( (intptr_t)MPI_COMM_WORLD );
 }
 
 /* Unregister the taskpool with the engine. This make the taskpool_id available for
@@ -2023,12 +2198,12 @@ void parsec_usage(void)
             "A PaRSEC argument sequence prefixed by \"--\" can end the command line\n\n"
             "     --parsec_bind_comm   : define the core the communication thread will be bound on\n"
             "\n"
-            "     Warning:: The binding options rely on hwloc. The core numerotation is defined between 0 and the number of cores.\n"
+            "     Warning:: The binding options rely on HWLOC. The core numbering is defined between 0 and the number of cores.\n"
             "     Be careful when used with cgroups.\n"
             "\n"
             "    --help         : this message\n"
             "\n"
-            " -c --cores        : number of concurent threads (default: number of physical hyper-threads)\n"
+            " -c --cores        : number of concurrent threads (default: number of physical hyper-threads)\n"
             " -g --gpus         : number of GPU (default: 0)\n"
             " -o --scheduler    : select the scheduler (default: LFQ)\n"
             "                     Accepted values:\n"
@@ -2053,14 +2228,14 @@ void parsec_usage(void)
             "                                   bound in a round-robin fashion on the number of cores c (overloads the -c flag)\n"
             "                       file:filename -- uses filename to load the virtual process map. Each entry details a virtual\n"
             "                                        process mapping using the semantic  [mpi_rank]:nb_thread:binding  with:\n"
-            "                                        - mpi_rank : the mpi process rank (empty if not relevant)\n"
+            "                                        - mpi_rank : the mpi process rank (in MPI_COMM_WORLD; empty if not relevant)\n"
             "                                        - nb_thread : the number of threads under the virtual process\n"
             "                                                      (overloads the -c flag)\n"
             "                                        - binding : a set of cores for the thread binding. Accepted values are:\n"
             "                                          -- a core list          (exp: 1,3,5-6)\n"
             "                                          -- a hexadecimal mask   (exp: 0xff012)\n"
             "                                          -- a binding range expression: [start];[end];[step] \n"
-            "                                             wich defines a round-robin one thread per core distribution from start\n"
+            "                                             which defines a round-robin one thread per core distribution from start\n"
             "                                             (default 0) to end (default physical core number) by step (default 1)\n"
             "\n"
             );
@@ -2135,18 +2310,10 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
         f = fopen(filename, "r");
         if( NULL == f ) {
             parsec_warning("invalid binding file %s.", filename);
-            return -1;
+            return PARSEC_ERR_NOT_FOUND;
         }
 
-        int rank = 0, line_num = 0;
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-        /* distributed version: set the rank to find the corresponding line in the rankfile */
-        int mpi_is_on;
-        MPI_Initialized(&mpi_is_on);
-        if(mpi_is_on) {
-            MPI_Comm_rank(*(MPI_Comm*)context->comm_ctx, &rank);
-        }
-#endif /* DISTRIBUTED && PARSEC_HAVE_MPI */
+        int rank = parsec_debug_rank, line_num = 0;
         while (getline(&line, &line_len, f) != -1) {
             if(line_num == rank) {
                 PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI_process %i uses the binding parameters: %s", rank, line);
@@ -2159,7 +2326,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
             free(line);
 
         fclose(f);
-        return -1;
+        return PARSEC_SUCCESS;
     }
 
     if( (option[0] == '+') && (context->comm_th_core == -1)) {
@@ -2296,13 +2463,65 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
     }
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
-    return 0;
+#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
+    MPI_Comm comml = MPI_COMM_NULL; int nl = 0, rl = MPI_PROC_NULL;
+    MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
+    MPI_Comm_size(comml, &nl);
+    if( 1 < nl && slow_bind_warning ) {
+        /* Hu-ho, double check that our binding is not conflicting with other
+         * local procs */
+        MPI_Comm_rank(comml, &rl);
+        char *myset, *allsets;
+
+        if( 0 != hwloc_bitmap_list_asprintf(&myset, context->cpuset_allowed_mask) ) {
+        }
+        int *setlen = calloc(nl, sizeof(int));
+        int *displ = calloc(nl, sizeof(int));
+        setlen[rl] = strlen(myset);
+        MPI_Gather(&setlen[rl], 1, MPI_INT, setlen, 1, MPI_INT, 0, comml);
+        displ[0] = 0;
+        for( i = 1; i < nl; i++ ) {
+            displ[i] = displ[i-1]+setlen[i-1];
+        }
+        allsets = calloc(displ[nl-1]+setlen[nl-1], sizeof(char));
+        MPI_Gatherv(myset, setlen[rl], MPI_CHAR, allsets, setlen, displ, MPI_CHAR, 0, comml);
+        free(myset);
+        free(setlen);
+
+        if( 0 == rl ) {
+            int notgood = false;
+            for( i = 1; i < nl; i++ ) {
+                hwloc_bitmap_t other = hwloc_bitmap_alloc();
+                hwloc_bitmap_list_sscanf(other, &allsets[displ[i]]);
+                if(hwloc_bitmap_intersects(context->cpuset_allowed_mask, other)) {
+                    notgood = true;
+                }
+                hwloc_bitmap_free(other);
+            }
+            if( notgood ) {
+                parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                               "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
+                               "\tThis is often unintentional, and will perform poorly.\n"
+                               "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
+                               "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
+                               "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
+            }
+        }
+        free(allsets);
+        free(displ);
+    }
+#endif
+
+    return PARSEC_SUCCESS;
 #else
     (void)option;
     (void)context;
     (void)startup;
-    parsec_warning("the binding defined by --parsec_bind has been ignored (requires a build with HWLOC with bitmap support).");
-    return -1;
+    if( 0 == parsec_debug_rank )
+        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                       "The binding defined by --parsec_bind has been ignored!\n"
+                       "\tThis option requires a build with HWLOC with bitmap support.");
+    return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
 }
 
@@ -2316,14 +2535,16 @@ static int parsec_parse_comm_binding_parameter(const char* option, parsec_contex
         else
             parsec_warning("the binding defined by --parsec_bind_comm has been ignored (illegal core number)");
     } else {
-        /* TODO:: Add binding NUIOA aware by default */
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "default binding for the communication thread");
     }
-    return 0;
+    return PARSEC_SUCCESS;
 #else
     (void)option; (void)context;
-    parsec_warning("The binding defined by --parsec_bind_comm has been ignored (requires HWLOC use with bitmap support).");
-    return -1;
+    if( 0 == parsec_debug_rank )
+        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                       "The binding defined by --parsec_bind_comm has been ignored!\n"
+                       "\tThis option requires a build with HWLOC with bitmap support.");
+    return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif  /* PARSEC_HAVE_HWLOC */
 }
 
@@ -2411,6 +2632,7 @@ parsec_debug_taskpool_count_local_tasks( parsec_taskpool_t *tp,
     parsec_data_ref_t ref;
     int li, init;
 
+    PARSEC_OBJ_CONSTRUCT(&task, parsec_task_t);
     PARSEC_LIST_ITEM_SINGLETON( &task.super );
     task.mempool_owner = NULL;
     task.taskpool = tp;

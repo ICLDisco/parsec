@@ -7,9 +7,9 @@
 #include "parsec/parsec_config.h"
 #include "parsec/utils/colors.h"
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <string.h>
 
 static unsigned int color_seed = 1789;
@@ -57,7 +57,7 @@ static void HSVtoRGB( double *r, double *g, double *b, double h, double s, doubl
         *g = 0;
         *b = c;
         break;
-    default:		// case 5:
+    default: // case 5:
         *r = c;
         *g = 0;
         *b = x;
@@ -70,7 +70,14 @@ static void HSVtoRGB( double *r, double *g, double *b, double h, double s, doubl
 
 static inline double get_rand_in_range(int m, int M)
 {
+#if defined(__WINDOWS__)
+    rand_s(&color_seed);
+    return (double)m + (double)color_seed / ((double)UINT_MAX / (M - m + 1) + 1);
+#elif defined(PARSEC_HAVE_RAND_R)
     return (double)m + (double)rand_r(&color_seed) / ((double)RAND_MAX / (M - m + 1) + 1);
+#else
+#error Missing support for the platform random number generator similar to POSIX rand_r
+#endif
 }
 
 char *parsec_unique_color(int index, int colorspace)

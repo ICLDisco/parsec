@@ -151,7 +151,7 @@ parsec_device_template_module_init( int deviceid, parsec_device_module_t** modul
     *module = NULL;
 
     device = (parsec_device_template_module_t*)calloc(1, sizeof(parsec_device_template_module_t));
-    PARSEC_OBJ_CONSTRUCT(device, parsec_list_item_t);
+    PARSEC_OBJ_CONSTRUCT(device, parsec_device_template_module_t);
     device->super.name = strdup("0");
 
     device->super.type                 = PARSEC_DEV_TEMPLATE;

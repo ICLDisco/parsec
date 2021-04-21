@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -19,8 +19,10 @@ typedef struct grid_2Dcyclic {
     int rank;       /**< Sequential rank of this processor */
     int rows;       /**< number of processes rows in the process grid */
     int cols;       /**< number of processes cols in the process grid - derived parameter */
-    int strows;     /**< max number of tile rows in a super-tile */
-    int stcols;     /**< max number of tile columns in a super tiles */
+    int ip;          /**< process row over which the first row of the array is distributed. */
+    int jq;          /**< process column over which the first column of the array is distributed. */
+    int krows;      /**< max number of tile rows in a k-cyclic distribution */
+    int kcols;      /**< max number of tile columns in a k-cyclic distribution */
     int crank;      /**< process column rank in the process grid - derived parameter */
     int rrank;      /**< process row rank in the process grid - derived parameter */
     int rloc;       /**< number of row of tiles  handled by this process - derived parameter */
@@ -44,10 +46,13 @@ typedef struct grid_2Dcyclic {
  * @param rank: sequential rank of the local node (as of mpi rank)
  * @param P: number of row of processes of the process grid
  * @param Q: number of colums of the processes of the process grid
- * @param nrst: number of consecutive tiles along rows held by the same processor
- * @param ncst: number of consecutive tiles along columns held by the same processor
+ * @param kp: number of consecutive tiles along rows held by the same processor
+ * @param kq: number of consecutive tiles along columns held by the same processor
+ * @param ip: process row over which the first row of the array is distributed.
+ * @param jq: process column over which the first column of the array is distributed
+ *
  */
-void grid_2Dcyclic_init(grid_2Dcyclic_t* grid, int rank, int P, int Q, int nrst, int ncst);
+void grid_2Dcyclic_init(grid_2Dcyclic_t* grid, int rank, int P, int Q, int kp, int kq, int ip, int jq);
 
 END_C_DECLS
 

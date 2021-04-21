@@ -1,0 +1,26 @@
+cmake_minimum_required (VERSION 3.16)
+project (parsec-test-external C)
+
+# CMake Policies Tuning
+if(POLICY CMP0074)
+  # CMP0074: Starting with CMake 3.12, all FIND_<something> use <something>_ROOT in the search path
+  #          in addition to the specified paths
+  cmake_policy(SET CMP0074 NEW)
+ENDIF(POLICY CMP0074)
+
+find_package(PaRSEC REQUIRED)
+if(NOT TARGET PaRSEC::parsec AND NOT TARGET PaRSEC::parsec_ptgpp)
+  message(FATAL_ERROR "User requested PaRSEC with PaRSEC_ROOT=${PaRSEC_ROOT} not found")
+endif()
+
+# Test if parsec can compile/link using the DTD interface
+add_executable(dtd_test_allreduce dtd_test_allreduce.c)
+target_link_libraries(dtd_test_allreduce PRIVATE PaRSEC::parsec)
+
+# Test if parsec can compile/link using the PTG interface
+include(ParsecCompilePTG)
+add_executable(write_check)
+target_ptg_sources(write_check PRIVATE write_check.jdf)
+target_link_libraries(write_check PRIVATE PaRSEC::parsec)
+
+

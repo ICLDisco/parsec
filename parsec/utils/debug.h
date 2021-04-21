@@ -163,9 +163,22 @@ extern void (*parsec_weaksym_exit)(int status);
 /** $brief To check if any parsec function returned error.
  */
 #define PARSEC_CHECK_ERROR(rc, MSG)                             \
-    if( rc < 0 ) {                                              \
-        parsec_fatal( "%s", MSG );                              \
+    if( rc < PARSEC_SUCCESS ) {                                 \
+        parsec_fatal( "%s (error %d)", MSG, rc );               \
     }                                                           \
+
+#if defined(PARSEC_HAVE_VALGRIND_API) && defined(PARSEC_DEBUG_NOISIER)
+#include "valgrind/valgrind.h"
+#define PARSEC_VALGRIND_CREATE_MEMPOOL(pool, tbz, is_init) VALGRIND_CREATE_MEMPOOL(pool, tbz, is_init)
+#define PARSEC_VALGRIND_MEMPOOL_ALLOC(pool, mem, size)     VALGRIND_MEMPOOL_ALLOC(pool, mem, size)
+#define PARSEC_VALGRIND_MEMPOOL_FREE(pool, mem)            VALGRIND_MEMPOOL_FREE(pool, mem)
+#define PARSEC_VALGRIND_DESTROY_MEMPOOL(pool)              VALGRIND_DESTROY_MEMPOOL(pool)
+#else
+#define PARSEC_VALGRIND_CREATE_MEMPOOL(pool, tbz, is_init) do {} while(0)
+#define PARSEC_VALGRIND_MEMPOOL_ALLOC(pool, mem, size)     do {} while(0)
+#define PARSEC_VALGRIND_MEMPOOL_FREE(pool, mem)            do {} while(0)
+#define PARSEC_VALGRIND_DESTROY_MEMPOOL(pool)              do {} while(0)
+#endif
 
 END_C_DECLS
 

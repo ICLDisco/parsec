@@ -47,10 +47,6 @@ BODY
     int  BNB = NB+2;
     int  BMB = MB+1;
 
-#ifdef PARSEC_CALL_TRACE
-    fprintf(stderr, "convert_diag( %d )\n", k);
-#endif
-
     assert(MB == NB);
     if(k == NT)
     {
@@ -108,9 +104,6 @@ RO  A <- descA(k,k)
       -> D convert_diag(k)
 
 BODY
-#ifdef PARSEC_CALL_TRACE
-    fprintf(stderr, "read_diag( %d )\n", k);
-#endif
     /*nothing*/
 END
 
@@ -124,9 +117,6 @@ RO  A <- descA(k+1,k)
       -> SD convert_diag(k)
 
 BODY
-#ifdef PARSEC_CALL_TRACE
-    fprintf(stderr, "read_subdiag( %d )\n", k);
-#endif
     /*nothing*/
 END
 

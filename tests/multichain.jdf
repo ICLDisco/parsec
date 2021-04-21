@@ -87,24 +87,25 @@ static void release_comms(void)
         MPI_Comm_free(&comms[i]);
     }
 }
-#define TIMER_START(TIMER)                      \
-    do {                                        \
-        struct timeval tv;                      \
-        gettimeofday(&tv,NULL);                 \
-        (TIMER) = tv.tv_sec * 1e6 + tv.tv_usec; \
+
+#define TIMER_START(_TIMER)                      \
+    do {                                         \
+        struct timeval tv;                       \
+        gettimeofday(&tv,NULL);                  \
+        (_TIMER) = tv.tv_sec * 1e6 + tv.tv_usec; \
     } while (0)
 
-#define TIMER_STOP(TIMER)                                   \
-    do {                                                    \
-        struct timeval tv;                                  \
-        gettimeofday(&tv,NULL);                             \
-        (TIMER) = (tv.tv_sec * 1e6 + tv.tv_usec) - (TIMER); \
+#define TIMER_STOP(_TIMER)                                    \
+    do {                                                      \
+        struct timeval tv;                                    \
+        gettimeofday(&tv,NULL);                               \
+        (_TIMER) = (tv.tv_sec * 1e6 + tv.tv_usec) - (_TIMER); \
     } while (0)
 
 int main(int argc, char* argv[])
 {
     two_dim_block_cyclic_t descA, descB;
-    parsec_arena_t arena;
+    parsec_arena_datatype_t adt;
     parsec_context_t *parsec;
     int ni = NN, nj = NN, loops = 5, i = 1, l, rc;
     int rank = 0, size = 1, mat_size;
@@ -168,20 +169,22 @@ int main(int argc, char* argv[])
         MPI_Comm_size(comm, &size);
         MPI_Comm_rank(comm, &rank);
         printf("Starting the test %d (%d/%d)\n", i, rank, size);
-        parsec_remote_dep_set_ctx(parsec, (void*)comm);
+        parsec_remote_dep_set_ctx(parsec, (intptr_t)comm);
 #endif  /* DISTRIBUTED */
         mat_size = 2*BLOCK*size*ni;
         two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                                   size /*nodes*/, rank /*rank*/,
+                                   rank /*rank*/,
                                    2*BLOCK, 1, mat_size, 1,
-                                   0, 0, mat_size, 1, 1, 1, 1);
+                                   0, 0, mat_size, 1,
+                                   1, size, 1, 1, 0, 0);
         descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                           descA.super.bsiz *
                                           parsec_datadist_getsizeoftype(TYPE) );
         two_dim_block_cyclic_init( &descB, TYPE, matrix_Tile,
-                                   size /*nodes*/, rank /*rank*/,
+                                   rank /*rank*/,
                                    2*BLOCK, 1, mat_size, 1,
-                                   0, 0, mat_size, 1, 1, 1, 1);
+                                   0, 0, mat_size, 1,
+                                   1, size, 1, 1, 0, 0);
         descB.mat = parsec_data_allocate( descB.super.nb_local_tiles *
                                           descB.super.bsiz *
                                           parsec_datadist_getsizeoftype(TYPE) );
@@ -189,16 +192,17 @@ int main(int argc, char* argv[])
         parsec_translate_matrix_type(TYPE, &baseType);
         parsec_type_create_contiguous(descA.super.mb * descA.super.nb,
                                       baseType, &newtype);
-        parsec_arena_construct(&arena,
-                               descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                               PARSEC_ARENA_ALIGNMENT_SSE, newtype);
+        parsec_arena_datatype_construct( &adt,
+                                         descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                                         PARSEC_ARENA_ALIGNMENT_SSE, newtype);
 
         for( l = loops; l > 0; l-- ) {
 
             printf("\n\n\n%d iterations remaining\n\n\n", l);
             tp = parsec_multichain_new( &descA, &descB, ni, nj );
             assert( NULL != tp );
-            tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
+            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ADT_IDX] = adt;
+            PARSEC_OBJ_RETAIN(adt.arena);
 
             rc = parsec_context_start(parsec);
             PARSEC_CHECK_ERROR(rc, "parsec_context_start");
@@ -211,6 +215,7 @@ int main(int argc, char* argv[])
 
             TIMER_START(time_elapsed);
             rc = parsec_context_wait(parsec);
+            parsec_taskpool_free(&tp->super);
             PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
             TIMER_STOP(time_elapsed);
 
@@ -230,8 +235,8 @@ int main(int argc, char* argv[])
             tp = parsec_multichain_new( &descA, &descB, ni, nj );
             assert( NULL != tp );
 
-            tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
-
+            tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ADT_IDX] = adt;
+            PARSEC_OBJ_RETAIN(adt.arena);
             TIMER_START(time_elapsed);
             rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
             PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
@@ -245,6 +250,7 @@ int main(int argc, char* argv[])
             /* By now most of the tasks should be completed */
             TIMER_START(time_elapsed);
             rc = parsec_context_wait(parsec);
+            parsec_taskpool_free(&tp->super);
             PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
             TIMER_STOP(time_elapsed);
 
@@ -252,7 +258,7 @@ int main(int argc, char* argv[])
         }
         free(descA.mat);
         free(descB.mat);
-
+        PARSEC_OBJ_RELEASE(adt.arena);
         parsec_type_free(&newtype);
     }  /* go to the next communicator */
 

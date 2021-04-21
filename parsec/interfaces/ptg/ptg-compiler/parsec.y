@@ -1,6 +1,6 @@
 %{
 /**
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -28,24 +28,37 @@
  */
 #define YYERROR_VERBOSE 1
 struct yyscan_t;
+#if defined(YYPURE) && YYPURE
+extern int yylex(struct yyscan_t *yycontrol);
+#else
+extern int yylex(void);
+#endif
 
 #include "parsec.y.h"
 
 extern int current_lineno;
 
 static jdf_expr_t *inline_c_functions = NULL;
+static jdf_expr_t *current_locally_bound_variables = NULL;
+static int current_locally_bound_variables_scope = 0;
 
 /**
  *
  * http://oreilly.com/linux/excerpts/9780596155971/error-reporting-recovery.html
  *
  */
-static void yyerror(YYLTYPE *locp,
+int yylex();
+
+static void yyerror(
 #if defined(YYPURE) && YYPURE
+                    YYLTYPE *locp,
                     struct yyscan_t* yyscanner,
 #endif  /* defined(YYPURE) && YYPURE */
                     char const *msg)
 {
+#if !defined(YYPURE) || !YYPURE
+    YYLTYPE *locp = &yylloc;
+#endif
     if(NULL != locp) {
         if(locp->first_line) {
             fprintf(stderr, "parse error at (%d) %d.%d-%d.%d: %s\n",
@@ -56,7 +69,9 @@ static void yyerror(YYLTYPE *locp,
                     current_lineno, msg);
         }
     } else {
+#if defined(YYPURE) && YYPURE
         fprintf(stderr, "parse error near line %d: %s\n ", yyget_lineno(), msg);
+#endif
     }
 }
 
@@ -144,6 +159,101 @@ static int key_from_type(char *type) {
     return 0;
 }
 
+static void named_expr_push_scope(void) {
+    current_locally_bound_variables_scope++;
+}
+
+static void named_expr_pop_scope(void) {
+    assert(current_locally_bound_variables_scope > 0);
+    while(NULL != current_locally_bound_variables && current_locally_bound_variables->scope == current_locally_bound_variables_scope) {
+        current_locally_bound_variables = current_locally_bound_variables->next;
+    }
+    current_locally_bound_variables_scope--;
+}
+
+static jdf_expr_t *named_expr_push_in_scope(char *var, jdf_expr_t *e) {
+    e->next = current_locally_bound_variables;
+    e->alias = var;
+    e->ldef_index = -1; /* Invalid index, used to capture mistakes and remember if an index was already assigned to this local definition */
+    e->scope = current_locally_bound_variables_scope;
+    current_locally_bound_variables = e;
+    return e;
+}
+
+static void process_datatype(jdf_datatransfer_type_t *datatype,
+                              jdf_dep_t *d,
+                              const jdf_def_list_t *properties,
+                              jdf_def_list_t *property,
+                              char *layout,
+                              char *count,
+                              char *displ){
+      struct jdf_name_list *g, *e, *prec;
+      jdf_expr_t *expr = datatype->type;
+      if( NULL != jdf_find_property( properties, "arena_index", &property ) ) {
+          jdf_fatal(current_lineno, "Old construct arena_index used. Please update the code to use type instead.\n");
+          yyerror("");
+      }
+      if( NULL != jdf_find_property( properties, "nb_elt", &property ) ) {
+          jdf_fatal(current_lineno, "Old construct nb_elt used. Please update the code to use count instead.\n");
+          yyerror("");
+      }
+
+      if (expr->op == JDF_C_CODE){ /* Correct the type of the JDF_C_CODE function */
+          expr->jdf_type = PARSEC_RETURN_TYPE_ARENA_DATATYPE_T;
+      }
+
+      if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
+          /* Special case: [type = SOMETHING] -> define the PARSEC_ARENA_SOMETHING arena index */
+          for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
+              if( 0 == strcmp(expr->jdf_var, g->name) ) {
+                  break;
+              }
+              prec = g;
+          }
+          if( NULL == g ) {
+              e = new(struct jdf_name_list);
+              e->name = strdup(expr->jdf_var);
+              e->next = NULL;
+              if( NULL != prec ) {
+                  prec->next = e;
+              } else {
+                  current_jdf.datatypes = e;
+              }
+          }
+      }
+
+      /**
+       * The memory layout used for the transfer. Works together with the
+       * count and the displacement. If not layout is specified it is assumed
+       * the default layout of the type (arena) will be used.
+       */
+      datatype->layout = jdf_find_property( d->guard->properties, layout, &property );
+
+      /**
+       * The number of types to transfer.
+       */
+      expr = jdf_find_property( d->guard->properties, count, &property );
+      if( NULL == expr ) {
+          expr          = new(jdf_expr_t);
+          expr->op      = JDF_CST;
+          expr->jdf_cst = 1;
+      }
+      datatype->count = expr;
+
+      /**
+       * The displacement from the begining of the type.
+       */
+      expr = jdf_find_property( d->guard->properties, displ, &property );
+      if( NULL == expr ) {
+          expr          = new(jdf_expr_t);
+          expr->op      = JDF_CST;
+          expr->jdf_cst = 0;
+      } else {
+          if( !((JDF_CST != expr->op) && (0 == expr->jdf_cst)) )
+              d->dep_flags |= JDF_DEP_HAS_DISPL;
+      }
+      datatype->displ = expr;
+}
 %}
 
 %union {
@@ -157,6 +267,7 @@ static int key_from_type(char *type) {
     jdf_name_list_t      *name_list;
     jdf_def_list_t       *def_list;
     jdf_dataflow_t       *dataflow;
+    jdf_expr_t           *named_expr;
     jdf_dep_t            *dep;
     jdf_dep_flags_t       dep_type;
     jdf_guarded_call_t   *guarded_call;
@@ -165,12 +276,17 @@ static int key_from_type(char *type) {
     jdf_body_t           *body;
 };
 
+%glr-parser
+%expect 5
+
 %type <function>function
 %type <name_list>varlist
 %type <def_list>execution_space
 %type <call>partitioning
 %type <dataflow>dataflow_list
 %type <dataflow>dataflow
+%type <named_expr>named_expr
+%type <named_expr>named_expr_list
 %type <dep>dependencies
 %type <dep>dependency
 %type <guarded_call>guarded_call
@@ -198,7 +314,7 @@ static int key_from_type(char *type) {
 %type <number>PROPERTIES_ON
 %type <number>PROPERTIES_OFF
 %type <string>STRING
-%type <number>INT
+%type <number>JDF_INT
 %type <number>DEPENDENCY_TYPE
 %type <number>DATA_NEW
 %type <number>DATA_NULL
@@ -206,7 +322,7 @@ static int key_from_type(char *type) {
 %token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY_START BODY_END STRING SIMCOST
 %token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF
 %token DATA_NEW DATA_NULL
-%token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
+%token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT JDF_INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE OPTION
 
 /* C99 operator precedence: http://en.cppreference.com/w/c/language/operator_precedence */
@@ -229,9 +345,9 @@ static int key_from_type(char *type) {
 %debug
 /*%pure-parser*/
 %locations
-%error-verbose
-%parse-param {struct yyscan_t *yycontrol}
-%lex-param   {struct yyscan_t *yycontrol}
+%define parse.error verbose
+/*%parse-param {struct yyscan_t *yycontrol}*/
+/*%lex-param   {struct yyscan_t *yycontrol}*/
 %%
 jdf_file:       prologue jdf epilogue
                 {
@@ -426,6 +542,8 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simula
                     e->priority          = $10;
                     e->bodies            = $11;
 
+                    jdf_assign_ldef_index(e);
+
                     rc = jdf_flatten_function(e);
                     if( rc < 0 )
                         YYERROR;
@@ -557,6 +675,29 @@ dataflow:       optional_flow_flags VAR dependencies
                 }
         ;
 
+named_expr: PROPERTIES_ON { named_expr_push_scope(); } named_expr_list PROPERTIES_OFF
+               {
+                   $$ = $3;
+               }
+        |
+               {
+                   $$ = NULL;
+                   /* We still create a new scope for the (inexisting) named range
+                    * as the scope will be popped unconditionally */
+                   named_expr_push_scope();
+               }
+        ;
+
+named_expr_list: VAR ASSIGNMENT expr_range
+               {
+                   $$ = named_expr_push_in_scope($1, $3);
+               }
+        |  named_expr_list COMMA VAR ASSIGNMENT expr_range
+           {
+               $$ = named_expr_push_in_scope($3, $5);
+           }
+       ;
+
 dependencies:  dependency dependencies
                {
                    $1->next = $2;
@@ -568,142 +709,120 @@ dependencies:  dependency dependencies
                }
        ;
 
-dependency:   ARROW guarded_call properties
+dependency:   ARROW named_expr guarded_call properties
               {
-                  struct jdf_name_list *g, *e, *prec;
                   jdf_dep_t *d = new(jdf_dep_t);
                   jdf_expr_t *expr;
-                  jdf_def_list_t* property = $3;
+                  jdf_expr_t *expr_remote;
+                  jdf_expr_t *expr_data;
+                  jdf_def_list_t* property = $4;
+                  jdf_def_list_t* property_remote = $4;
+                  jdf_def_list_t* property_data = $4;
+
+                  d->local_defs = $2;
+
+                  expr = jdf_find_property($4, "type", &property);
+                  expr_remote = jdf_find_property($4, "type_remote", &property_remote);
+                  expr_data = jdf_find_property($4, "type_data", &property_data);
+                  /* Warn when using type_remote & type_data on the same dep.
+                   * Here we should check if type|type_data on in/out desc.
+                   * And type|type_remote on task dependencies.
+                   */
+                  if((expr_remote != NULL) && (expr_data != NULL)){
+                      jdf_fatal(JDF_OBJECT_LINENO($4),
+                          " the simultaneous usage of type_remote and type_data is not supported. \n");
+                      YYERROR;
+                  }
 
                   /* If neither is defined, we define the old simple DEFAULT arena */
-                  if( NULL == (expr = jdf_find_property($3, "type", &property)) ) {
+                  if( NULL == expr ) {
                       property = jdf_create_properties_list( "type", 0, "DEFAULT", NULL );
                       expr = jdf_find_property( property, "type", &property );
-                      property->next = $3;
+                      property->next = $4;
+                  }
+                  if( NULL == expr_remote ) {
+                      property_remote = jdf_create_properties_list( "type_remote", 0, "DEFAULT", NULL );
+                      expr_remote = jdf_find_property( property_remote, "type_remote", &property_remote );
+                      property_remote->next = $4;
+                  }
+                  if( NULL == expr_data ) {
+                      property_data = jdf_create_properties_list( "type_data", 0, "DEFAULT", NULL );
+                      expr_data = jdf_find_property( property_data, "type_data", &property_data );
+                      property_data->next = $4;
                   }
 
                   /* Validate the datatype definition of WRITE only data */
-                  if( (JDF_GUARD_UNCONDITIONAL == $2->guard_type) &&
-                      (NULL == $2->guard) && (NULL == $2->callfalse) ) {
-                      if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $2->calltrue->func_or_mem) ) {
+                  if( (JDF_GUARD_UNCONDITIONAL == $3->guard_type) &&
+                      (NULL == $3->guard) && (NULL == $3->callfalse) ) {
+                      if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $3->calltrue->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2), PARSEC_ERR_NEW_AS_OUTPUT);
+                              jdf_fatal(JDF_OBJECT_LINENO($3), PARSEC_ERR_NEW_AS_OUTPUT);
                               YYERROR;
                           }
                       }
                   }
 
                   /* Validate the WRITE only data allocation, and the unused data */
-                  if( JDF_IS_CALL_WITH_NO_INPUT($2->calltrue) ) {
-                      if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $2->calltrue->func_or_mem) ) {
+                  if( JDF_IS_CALL_WITH_NO_INPUT($3->calltrue) ) {
+                      if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $3->calltrue->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2), PARSEC_ERR_NEW_AS_OUTPUT);
+                              jdf_fatal(JDF_OBJECT_LINENO($3), PARSEC_ERR_NEW_AS_OUTPUT);
                               YYERROR;
                           }
                       }
-                      else if( 0 == strcmp(PARSEC_NULL_MAGIC_NAME, $2->calltrue->func_or_mem) ) {
+                      else if( 0 == strcmp(PARSEC_NULL_MAGIC_NAME, $3->calltrue->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2), PARSEC_ERR_NULL_AS_OUTPUT);
+                              jdf_fatal(JDF_OBJECT_LINENO($3), PARSEC_ERR_NULL_AS_OUTPUT);
                               YYERROR;
                           }
                       } else {
-                          jdf_fatal(JDF_OBJECT_LINENO($2),
+                          jdf_fatal(JDF_OBJECT_LINENO($3),
                                     "%s is not a supported keyword to describe a data (Only NEW and NULL are supported by themselves)\n",
-                                    $2->calltrue->func_or_mem );
+                                    $3->calltrue->func_or_mem );
                           YYERROR;
                       }
                   }
 
                   /* Validate the WRITE only data allocation, and the unused data */
-                  if( $2->callfalse && JDF_IS_CALL_WITH_NO_INPUT($2->callfalse) ) {
-                      if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $2->callfalse->func_or_mem) ) {
+                  if( $3->callfalse && JDF_IS_CALL_WITH_NO_INPUT($3->callfalse) ) {
+                      if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $3->callfalse->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2), PARSEC_ERR_NEW_AS_OUTPUT);
+                              jdf_fatal(JDF_OBJECT_LINENO($3), PARSEC_ERR_NEW_AS_OUTPUT);
                               YYERROR;
                           }
                       }
-                      else if( 0 == strcmp(PARSEC_NULL_MAGIC_NAME, $2->callfalse->func_or_mem) ) {
+                      else if( 0 == strcmp(PARSEC_NULL_MAGIC_NAME, $3->callfalse->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2), PARSEC_ERR_NULL_AS_OUTPUT);
+                              jdf_fatal(JDF_OBJECT_LINENO($3), PARSEC_ERR_NULL_AS_OUTPUT);
                               YYERROR;
                           }
                       } else {
-                          jdf_fatal(JDF_OBJECT_LINENO($2),
+                          jdf_fatal(JDF_OBJECT_LINENO($3),
                                     "%s is not a supported keyword to describe a data (Only NEW and NULL are supported by themselves)\n",
-                                    $2->callfalse->func_or_mem );
+                                    $3->callfalse->func_or_mem );
                           YYERROR;
                       }
                   }
 
-                  $2->properties   = property;
+                  $3->properties   = property;
                   d->dep_flags     = $1;
-                  d->guard         = $2;
-                  d->datatype.type = expr;
-                  JDF_OBJECT_LINENO(&d->datatype) = current_lineno;
+                  d->guard         = $3;
+                  d->datatype_local.type = expr;
+                  d->datatype_remote.type = expr_remote;
+                  d->datatype_data.type = expr_data;
+                  JDF_OBJECT_LINENO(&d->datatype_local) = current_lineno;
+                  JDF_OBJECT_LINENO(&d->datatype_remote) = current_lineno;
+                  JDF_OBJECT_LINENO(&d->datatype_data) = current_lineno;
 
-                  if( NULL != jdf_find_property( $3, "arena_index", &property ) ) {
-                      jdf_fatal(current_lineno, "Old construct arena_index used. Please update the code to use type instead.\n");
-                      YYERROR;
-                  }
-                  if( NULL != jdf_find_property( $3, "nb_elt", &property ) ) {
-                      jdf_fatal(current_lineno, "Old construct nb_elt used. Please update the code to use count instead.\n");
-                      YYERROR;
-                  }
-                  if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
-                      /* Special case: [type = SOMETHING] -> define the PARSEC_ARENA_SOMETHING arena index */
-                      for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
-                          if( 0 == strcmp(expr->jdf_var, g->name) ) {
-                              break;
-                          }
-                          prec = g;
-                      }
-                      if( NULL == g ) {
-                          e = new(struct jdf_name_list);
-                          e->name = strdup(expr->jdf_var);
-                          e->next = NULL;
-                          if( NULL != prec ) {
-                              prec->next = e;
-                          } else {
-                              current_jdf.datatypes = e;
-                          }
-                      }
-                  }
+                  process_datatype(&d->datatype_local, d, $4, property, "layout", "count", "displ");
+                  process_datatype(&d->datatype_remote, d, $4, property_remote, "layout_remote", "count_remote", "displ_remote");
+                  process_datatype(&d->datatype_data, d, $4, property_data, "layout_data", "count_data", "displ_data");
 
-                  /**
-                   * The memory layout used for the transfer. Works together with the
-                   * count and the displacement. If not layout is specified it is assumed
-                   * the default layout of the type (arena) will be used.
-                   */
-                  d->datatype.layout = jdf_find_property( d->guard->properties, "layout", &property );
-
-                  /**
-                   * The number of types to transfer.
-                   */
-                  expr = jdf_find_property( d->guard->properties, "count", &property );
-                  if( NULL == expr ) {
-                      expr          = new(jdf_expr_t);
-                      expr->op      = JDF_CST;
-                      expr->jdf_cst = 1;
-                  }
-                  d->datatype.count = expr;
-
-                  /**
-                   * The displacement from the begining of the type.
-                   */
-                  expr = jdf_find_property( d->guard->properties, "displ", &property );
-                  if( NULL == expr ) {
-                      expr          = new(jdf_expr_t);
-                      expr->op      = JDF_CST;
-                      expr->jdf_cst = 0;
-                  } else {
-                      if( !((JDF_CST != expr->op) && (0 == expr->jdf_cst)) )
-                          d->dep_flags |= JDF_DEP_HAS_DISPL;
-                  }
-                  d->datatype.displ = expr;
-
-                  JDF_OBJECT_LINENO(d) = JDF_OBJECT_LINENO($2);
-                  assert( 0 != JDF_OBJECT_LINENO($2) );
+                  JDF_OBJECT_LINENO(d) = JDF_OBJECT_LINENO($3);
+                  assert( 0 != JDF_OBJECT_LINENO($3) );
                   $$ = d;
+
+                  named_expr_pop_scope();
               }
        ;
 
@@ -742,15 +861,17 @@ guarded_call: call
               }
        ;
 
-call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
+call:         named_expr VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
               {
                   jdf_call_t *c = new(jdf_call_t);
-                  c->var = $1;
-                  c->func_or_mem = $2;
-                  c->parameters = $4;
+                  c->var = $2;
+                  c->local_defs = $1;
+                  c->func_or_mem = $3;
+                  c->parameters = $5;
                   $$ = c;
-                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($4);
+                  JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($5);
                   assert( 0 != JDF_OBJECT_LINENO($$) );
+                  named_expr_pop_scope();
               }
        |      VAR OPEN_PAR expr_list_range CLOSE_PAR
               {
@@ -761,6 +882,7 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
                   c->var = NULL;
                   c->func_or_mem = $1;
                   c->parameters = $3;
+                  c->local_defs = NULL;
                   JDF_OBJECT_LINENO(c) = JDF_OBJECT_LINENO($3);
                   $$ = c;
                   assert( 0 != JDF_OBJECT_LINENO($$) );
@@ -781,6 +903,7 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
               {
                   jdf_call_t *c = new(jdf_call_t);
                   c->var = NULL;
+                  c->local_defs = NULL;
                   c->func_or_mem = strdup(PARSEC_WRITE_MAGIC_NAME);
                   c->parameters = NULL;
                   JDF_OBJECT_LINENO(c) = current_lineno;
@@ -788,12 +911,13 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
              }
        |     DATA_NULL
              {
-                 jdf_call_t *c = new(jdf_call_t);
-                 c->var = NULL;
-                 c->func_or_mem = strdup(PARSEC_NULL_MAGIC_NAME);
-                 c->parameters = NULL;
-                 JDF_OBJECT_LINENO(c) = current_lineno;
-                 $$ = c;
+                  jdf_call_t *c = new(jdf_call_t);
+                  c->var = NULL;
+                  c->local_defs = NULL;
+                  c->func_or_mem = strdup(PARSEC_NULL_MAGIC_NAME);
+                  c->parameters = NULL;
+                  JDF_OBJECT_LINENO(c) = current_lineno;
+                  $$ = c;
              }
        ;
 
@@ -838,9 +962,17 @@ expr_range: expr_simple RANGE expr_simple
                   e->op = JDF_RANGE;
                   e->jdf_ta1 = $1;               /* from */
                   e->jdf_ta2 = $3;               /* to */
+
                   e->jdf_ta3 = new(jdf_expr_t);  /* step */
                   e->jdf_ta3->op = JDF_CST;
                   e->jdf_ta3->jdf_cst = 1;
+                  e->jdf_ta3->local_variables = current_locally_bound_variables;
+                  e->jdf_ta3->scope = -1;
+                  e->jdf_ta3->alias = NULL;
+
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   $$ = e;
                   JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
                   assert( 0 != JDF_OBJECT_LINENO($$) );
@@ -852,6 +984,9 @@ expr_range: expr_simple RANGE expr_simple
                   e->jdf_ta1 = $1;  /* from */
                   e->jdf_ta2 = $3;  /* to */
                   e->jdf_ta3 = $5;  /* step */
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   $$ = e;
                   JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
                   assert( 0 != JDF_OBJECT_LINENO($$) );
@@ -861,12 +996,22 @@ expr_range: expr_simple RANGE expr_simple
                   $$ = $1;
                   assert( 0 != JDF_OBJECT_LINENO($$) );
             }
+          | PROPERTIES_ON { named_expr_push_scope(); } named_expr_list PROPERTIES_OFF expr_simple
+            {
+                   /* we cannot simply say it's 'named_expr expr_simple', or this creates a lot of
+                    * ambiguous shift-reduce conflicts because named_expr can be empty */
+                   $$ = $5;
+                   named_expr_pop_scope();
+            }
           ;
 
 variable: VAR
             {
                  jdf_expr_t *e = new(jdf_expr_t);
                  e->op = JDF_VAR;
+                 e->local_variables = current_locally_bound_variables;
+                 e->scope = -1;
+                 e->alias = NULL;
                  e->jdf_var = strdup($1);
                  $$ = e;
                  JDF_OBJECT_LINENO($$) = current_lineno;
@@ -874,7 +1019,8 @@ variable: VAR
         | variable ARROW VAR
             {
                  char* tmp = NULL;
-                 asprintf(&tmp, "%s->%s", $1->jdf_var, $3);
+                 if( asprintf(&tmp, "%s->%s", $1->jdf_var, $3) <= 0 )
+                     tmp = NULL;
                  free($1->jdf_var);
                  $1->jdf_var = tmp;
                  $$ = $1;
@@ -885,6 +1031,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_EQUAL;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -894,6 +1043,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_NOTEQUAL;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -903,6 +1055,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_LESS;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -912,6 +1067,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_LEQ;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -921,6 +1079,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_MORE;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -930,6 +1091,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_MEQ;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -939,6 +1103,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_AND;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -948,6 +1115,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_OR;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -957,6 +1127,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_XOR;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -966,6 +1139,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_NOT;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ua = $2;
                   $$ = e;
                   JDF_OBJECT_LINENO($$) = current_lineno;
@@ -979,6 +1155,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_PLUS;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -988,6 +1167,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_MINUS;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -997,6 +1179,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_TIMES;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -1006,6 +1191,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_DIV;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -1015,6 +1203,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_MODULO;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -1024,6 +1215,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_SHL;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -1033,6 +1227,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_SHR;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_ba1 = $1;
                   e->jdf_ba2 = $3;
                   $$ = e;
@@ -1042,6 +1239,9 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_TERNARY;
+                  e->local_variables = current_locally_bound_variables;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_tat = $1;
                   e->jdf_ta1 = $3;
                   e->jdf_ta2 = $5;
@@ -1052,19 +1252,25 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   $$ = $1;
               }
-       |      INT
+       |      JDF_INT
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_CST;
+                  e->local_variables = NULL;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_cst = $1;
                   e->jdf_type = 0;
                   $$ = e;
                   JDF_OBJECT_LINENO($$) = current_lineno;
               }
-       |      MINUS INT
+       |      MINUS JDF_INT
               {
                   jdf_expr_t *e = new(jdf_expr_t);
                   e->op = JDF_CST;
+                  e->local_variables = NULL;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->jdf_cst = -$2;
                   e->jdf_type = 0;
                   $$ = e;
@@ -1073,6 +1279,9 @@ expr_simple:  expr_simple EQUAL expr_simple
        |      STRING
               {
                   jdf_expr_t *e = new(jdf_expr_t);
+                  e->local_variables = NULL;
+                  e->scope = -1;
+                  e->alias = NULL;
                   e->op = JDF_STRING;
                   e->jdf_var = strdup($1);
                   $$ = e;
@@ -1080,11 +1289,13 @@ expr_simple:  expr_simple EQUAL expr_simple
               }
        |      EXTERN_DECL
               {
-                  jdf_expr_t *ne;
                   $$ = new(jdf_expr_t);
                   $$->op = JDF_C_CODE;
                   $$->jdf_c_code.code = $1;
-                  $$->jdf_type = 0;
+                  $$->jdf_type = PARSEC_RETURN_TYPE_INT32;
+                  $$->local_variables = current_locally_bound_variables;
+                  $$->scope = -1;
+                  $$->alias = NULL;
                   $$->jdf_c_code.lineno = current_lineno;
                   /* This will be set by the upper level parsing if necessary */
                   $$->jdf_c_code.function_context = NULL;

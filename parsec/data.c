@@ -13,9 +13,12 @@
 #include "parsec/arena.h"
 #include "parsec/parsec_description_structures.h"
 #include "parsec/sys/atomic.h"
+#include "parsec/remote_dep.h"
+#include "parsec/parsec_internal.h"
 
 static parsec_lifo_t parsec_data_lifo;
 static parsec_lifo_t parsec_data_copies_lifo;
+
 
 static void parsec_data_copy_construct(parsec_data_copy_t* obj)
 {
@@ -30,6 +33,7 @@ static void parsec_data_copy_construct(parsec_data_copy_t* obj)
     obj->arena_chunk          = NULL;
     obj->data_transfer_status = PARSEC_DATA_STATUS_NOT_TRANSFER;
     obj->push_task            = NULL;
+    obj->dtt                  = PARSEC_DATATYPE_NULL;
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Allocate data copy %p", obj);
 }
 
@@ -120,7 +124,7 @@ int parsec_data_init(parsec_context_t* context)
         return PARSEC_ERROR;
     }
     parsec_data_t_class.cls_sizeof += sizeof(parsec_data_copy_t*) * parsec_nb_devices;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_data_fini(parsec_context_t* context)
@@ -128,7 +132,7 @@ int parsec_data_fini(parsec_context_t* context)
     PARSEC_OBJ_DESTRUCT(&parsec_data_lifo);
     PARSEC_OBJ_DESTRUCT(&parsec_data_copies_lifo);
     (void)context;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /**
@@ -199,8 +203,10 @@ int parsec_data_copy_detach(parsec_data_t* data,
 /**
  * Allocate a data copy and attach it as a device specific copy. The data must
  * not be NULL in order for this operation to be relevant.
+ * Data copy type is set to the specified one.
  */
-parsec_data_copy_t* parsec_data_copy_new(parsec_data_t* data, uint8_t device)
+parsec_data_copy_t* parsec_data_copy_new(parsec_data_t* data, uint8_t device,
+                                         parsec_datatype_t dtt, parsec_data_flag_t flags)
 {
     parsec_data_copy_t* copy;
 
@@ -213,10 +219,12 @@ parsec_data_copy_t* parsec_data_copy_new(parsec_data_t* data, uint8_t device)
     } else {
         PARSEC_OBJ_CONSTRUCT(copy, parsec_data_copy_t);
     }
+    copy->flags = flags;
     if( PARSEC_SUCCESS != parsec_data_copy_attach(data, copy, device) ) {
         PARSEC_OBJ_RELEASE(copy);
         return NULL;
     }
+    copy->dtt = dtt;
     return copy;
 }
 
@@ -475,7 +483,8 @@ void* parsec_data_get_ptr(parsec_data_t* data, uint32_t device)
 parsec_data_t*
 parsec_data_create( parsec_data_t **holder,
                    parsec_data_collection_t *desc,
-                   parsec_data_key_t key, void *ptr, size_t size )
+                   parsec_data_key_t key,
+                   void *ptr, size_t size, parsec_data_flag_t flags )
 {
     parsec_data_t *data = *holder;
 
@@ -485,6 +494,8 @@ parsec_data_create( parsec_data_t **holder,
 
         data_copy->coherency_state = PARSEC_DATA_COHERENCY_OWNED;
         data_copy->device_private = ptr;
+        data_copy->dtt = desc->default_dtt;
+        data_copy->flags = flags;
 
         data->owner_device = 0;
         data->key = key;
@@ -500,12 +511,36 @@ parsec_data_create( parsec_data_t **holder,
     } else {
         /* Do we have a copy of this data */
         if( NULL == data->device_copies[0] ) {
-            parsec_data_copy_t* data_copy = parsec_data_copy_new(data, 0);
+            parsec_data_copy_t* data_copy = parsec_data_copy_new(data, 0, desc->default_dtt, flags);
             data_copy->device_private = ptr;
         }
     }
+
     assert( data->key == key );
     return data;
+}
+
+parsec_data_t*
+parsec_data_create_with_type( parsec_data_collection_t *desc,
+                              parsec_data_key_t key, void *ptr, size_t size,
+                              parsec_datatype_t dtt)
+{
+    parsec_data_t *clone;
+
+    parsec_data_copy_t* data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
+    clone = PARSEC_OBJ_NEW(parsec_data_t);
+
+    data_copy->coherency_state = PARSEC_DATA_COHERENCY_OWNED;
+    data_copy->device_private = ptr;
+    data_copy->dtt = dtt;
+
+    clone->owner_device = 0;
+    clone->key = key;
+    clone->dc = desc;
+    clone->nb_elts = size;
+    parsec_data_copy_attach(clone, data_copy, 0);
+
+    return clone;
 }
 
 void

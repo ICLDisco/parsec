@@ -90,11 +90,10 @@ int main(int argc, char ** argv)
     /* Registering the dtd_handle with PARSEC context */
     rc = parsec_context_add_taskpool(parsec, (parsec_taskpool_t *)dtd_tp);
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
-    
-    rc = parsec_context_start(parsec);
-    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     SYNC_TIME_START();
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     int total_tasks = 20;
     int increment   = 5;
@@ -102,20 +101,20 @@ int main(int argc, char ** argv)
 
     for( m = 0; m < no_of_tasks; m++ ) {
         parsec_dtd_taskpool_insert_task( dtd_tp, task_to_insert_task,    0,  "Task_inserting_Task",
-                           sizeof(int),      &total_tasks,        VALUE,
-                           sizeof(int),      &count,              REF,
-                           sizeof(int),      &increment,          VALUE,
+                           sizeof(int),      &total_tasks, PARSEC_VALUE,
+                           sizeof(int),      &count,       PARSEC_REF,
+                           sizeof(int),      &increment,   PARSEC_VALUE,
                            PARSEC_DTD_ARG_END );
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
-
-    SYNC_TIME_PRINT(rank, ("\n"));
 
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    SYNC_TIME_PRINT(rank, ("\n"));
 
     parsec_taskpool_free( dtd_tp );
 

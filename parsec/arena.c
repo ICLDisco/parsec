@@ -55,10 +55,10 @@ extern int arena_memory_used_key, arena_memory_unused_key;
 size_t parsec_arena_max_allocated_memory = SIZE_MAX;  /* unlimited */
 size_t parsec_arena_max_cached_memory    = 256*1024*1024; /* limited to 256MB */
 
+
 int parsec_arena_construct_ex(parsec_arena_t* arena,
                              size_t elem_size,
                              size_t alignment,
-                             parsec_datatype_t opaque_dtt,
                              size_t max_allocated_memory,
                              size_t max_cached_memory)
 {
@@ -66,39 +66,37 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
                               the destructor to skip the lifo destruction. */
     /* alignment must be more than zero and power of two */
     if( (alignment <= 1) || (alignment & (alignment - 1)) )
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
 
     /* avoid dividing by zero */
     if( elem_size == 0 )
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
 
     assert(0 == (((uintptr_t)arena) % sizeof(uintptr_t))); /* is it aligned */
 
     PARSEC_OBJ_CONSTRUCT(&arena->area_lifo, parsec_lifo_t);
     arena->alignment    = alignment;
     arena->elem_size    = elem_size;
-    arena->opaque_dtt   = opaque_dtt;
     arena->used         = 0;
     arena->max_used     = (max_allocated_memory / elem_size > (size_t)INT32_MAX)? INT32_MAX: max_allocated_memory / elem_size;
     arena->released     = 0;
     arena->max_released = (max_cached_memory / elem_size > (size_t)INT32_MAX)? INT32_MAX: max_cached_memory / elem_size;
     arena->data_malloc  = parsec_data_allocate;
     arena->data_free    = parsec_data_free;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_arena_construct(parsec_arena_t* arena,
                           size_t elem_size,
-                          size_t alignment,
-                          parsec_datatype_t opaque_dtt)
+                          size_t alignment)
 {
     return parsec_arena_construct_ex(arena, elem_size,
-                                    alignment, opaque_dtt,
+                                    alignment,
                                     parsec_arena_max_allocated_memory,
                                     parsec_arena_max_cached_memory);
 }
 
-void parsec_arena_destruct(parsec_arena_t* arena)
+static void parsec_arena_destructor(parsec_arena_t* arena)
 {
     parsec_list_item_t* item;
 
@@ -119,6 +117,8 @@ void parsec_arena_destruct(parsec_arena_t* arena)
         PARSEC_OBJ_DESTRUCT(&arena->area_lifo);
     }
 }
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_arena_t, parsec_object_t, NULL, parsec_arena_destructor);
 
 static inline parsec_list_item_t*
 parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate_t alloc )
@@ -145,6 +145,9 @@ parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate
         PARSEC_OBJ_CONSTRUCT(item, parsec_list_item_t);
         assert(NULL != item);
     }
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tpop a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
+                arena->elem_size, arena, arena->alignment, item, ((parsec_arena_chunk_t*)item)->data, sizeof(parsec_arena_chunk_t),
+                PARSEC_ARENA_MIN_ALIGNMENT(arena->alignment));
     return item;
 }
 
@@ -173,7 +176,9 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
     arena->data_free(chunk);
 }
 
-parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, int device)
+parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
+                                          size_t count, int device,
+                                          parsec_datatype_t dtt)
 {
     parsec_arena_chunk_t *chunk;
     parsec_data_t *data;
@@ -223,8 +228,10 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, i
 
     data->nb_elts = count * arena->elem_size;
 
-    copy = parsec_data_copy_new( data, device );
-    copy->flags |= PARSEC_DATA_FLAG_ARENA;
+    copy = parsec_data_copy_new( data, device, dtt,
+                                 PARSEC_DATA_FLAG_ARENA |
+                                 PARSEC_DATA_FLAG_PARSEC_OWNED |
+                                 PARSEC_DATA_FLAG_PARSEC_MANAGED);
     copy->device_private = chunk->data;
     copy->arena_chunk = chunk;
 

@@ -63,7 +63,7 @@ test_task_generator( parsec_execution_stream_t *es,
             return PARSEC_HOOK_RETURN_AGAIN;
         } else {
             parsec_dtd_taskpool_insert_task(dtd_tp, test_task,    0,  "Test_Task",
-                                            sizeof(int),      &amount_of_work,    VALUE,
+                                            sizeof(int),      &amount_of_work,    PARSEC_VALUE,
                                             PARSEC_DTD_ARG_END);
 
         }
@@ -105,8 +105,6 @@ int main(int argc, char ** argv)
     /* Registering the dtd_handle with PARSEC context */
     rc = parsec_context_add_taskpool( parsec, dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
-    rc = parsec_context_start( parsec );
-    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     if( rank == 0 ) {
         parsec_output( 0, "In all the tests we insert tasks "
@@ -129,6 +127,9 @@ int main(int argc, char ** argv)
                        "\n\n", no_of_tasks, cores-1 );
     }
 
+    rc = parsec_context_start( parsec );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
     for( n = 0; n < 3; n++ ) {
         count = 0;
 
@@ -136,12 +137,12 @@ int main(int argc, char ** argv)
 
         for( m = 0; m < no_of_tasks; m++ ) {
             parsec_dtd_taskpool_insert_task(dtd_tp, test_task,    0,  "Test_Task",
-                                            sizeof(int),      &amount_of_work[n], VALUE,
+                                            sizeof(int),      &amount_of_work[n], PARSEC_VALUE,
                                             PARSEC_DTD_ARG_END);
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
@@ -166,12 +167,12 @@ int main(int argc, char ** argv)
 
         for( m = 0; m < no_of_tasks; m++ ) {
             parsec_dtd_taskpool_insert_task(dtd_tp, test_task,    0,  "Test_Task",
-                                            sizeof(int),      &amount_of_work[n], VALUE,
+                                            sizeof(int),      &amount_of_work[n], PARSEC_VALUE,
                                             PARSEC_DTD_ARG_END);
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
     }
@@ -190,14 +191,14 @@ int main(int argc, char ** argv)
 
         int step = parsec_dtd_window_size, iteration = 0;
         parsec_dtd_taskpool_insert_task(dtd_tp, test_task_generator,    0,  "Test_Task",
-                                        sizeof(int),      &amount_of_work[n],     VALUE,
-                                        sizeof(int),      &no_of_tasks,           VALUE,
-                                        sizeof(int),      &step,                  VALUE,
-                                        sizeof(int),      &iteration,             REF,
+                                        sizeof(int),      &amount_of_work[n],     PARSEC_VALUE,
+                                        sizeof(int),      &no_of_tasks,           PARSEC_VALUE,
+                                        sizeof(int),      &step,                  PARSEC_VALUE,
+                                        sizeof(int),      &iteration,             PARSEC_REF,
                                         PARSEC_DTD_ARG_END);
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+        rc = parsec_dtd_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));

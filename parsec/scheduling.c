@@ -34,15 +34,9 @@
 #if defined(PARSEC_HAVE_ERRNO_H)
 #include <errno.h>
 #endif  /* defined(PARSEC_HAVE_ERRNO_H) */
-#if defined(PARSEC_HAVE_SCHED_SETAFFINITY)
-#include <linux/unistd.h>
-#endif  /* defined(PARSEC_HAVE_SCHED_SETAFFINITY) */
-#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_SCHEDULING_EVENTS)
-#define TAKE_TIME(ES_PROFILE, KEY, ID)  PARSEC_PROFILING_TRACE((ES_PROFILE), (KEY), (ID), NULL)
-#else
-#define TAKE_TIME(ES_PROFILE, KEY, ID) do {} while(0)
-#endif
-
+#if defined(PARSEC_HAVE_UNISTD_H)
+#include <unistd.h>
+#endif  /* defined(PARSEC_HAVE_UNISTD_H) */
 #if defined(PARSEC_PROF_RUSAGE_EU) && defined(PARSEC_HAVE_GETRUSAGE) && defined(PARSEC_HAVE_RUSAGE_THREAD) && !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -176,8 +170,11 @@ int __parsec_execute( parsec_execution_stream_t* es,
         parsec_hook_t *hook = tc->incarnations[task->chore_id].hook;
 
         rc = hook( es, task );
+#if defined(PARSEC_PROF_TRACE)
+        task->prof_info.task_return_code = rc;
+        PARSEC_PINS(es, EXEC_END, task);
+#endif
         if( PARSEC_HOOK_RETURN_NEXT != rc ) {
-            PARSEC_PINS(es, EXEC_END, task);
             if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
                 /* Let's assume everything goes just fine */
                 task->status = PARSEC_TASK_STATUS_COMPLETE;
@@ -260,7 +257,7 @@ int parsec_set_scheduler( parsec_context_t *parsec )
     mca_components_close(scheds);
 
     if( NULL == new_scheduler ) {
-        return 0;
+        return PARSEC_ERROR;
     }
 
     parsec_remove_scheduler( parsec );
@@ -271,12 +268,12 @@ int parsec_set_scheduler( parsec_context_t *parsec )
     PROFILING_SAVE_sINFO("sched", (char *)parsec_current_scheduler->component->base_version.mca_component_name);
 
     parsec_current_scheduler->module.install( parsec );
-    return 1;
+    return PARSEC_SUCCESS;
 }
 
 /*
  * This is where we end up after the release_dep_fct is called and generates a
- * readylist. the new_context IS the readylist.
+ * readylist.
  */
 int __parsec_schedule(parsec_execution_stream_t* es,
                       parsec_task_t* tasks_ring,
@@ -297,7 +294,7 @@ int __parsec_schedule(parsec_execution_stream_t* es,
             const struct parsec_flow_s* flow;
             for( int i = 0; NULL != (flow = task->task_class->in[i]); i++ ) {
                 if( PARSEC_FLOW_ACCESS_NONE == (flow->flow_flags & PARSEC_FLOW_ACCESS_MASK) ) continue;
-                if( NULL != task->data[flow->flow_index].data_repo ) {
+                if( NULL != task->data[flow->flow_index].source_repo_entry ) {
                     if( NULL == task->data[flow->flow_index].data_in ) {
                         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)",
                                              task_string,
@@ -317,13 +314,7 @@ int __parsec_schedule(parsec_execution_stream_t* es,
     len = 0;
     _LIST_ITEM_ITERATOR(task, &task->super, item, {len++; });
     PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_ENABLED, len);
-    /* Deactivate this measurement, until the MPI thread has its own execution unit
-     *  TAKE_TIME(es->es_profile, schedule_push_begin, 0);
-     */
     ret = parsec_current_scheduler->module.schedule(es, tasks_ring, distance);
-    /* Deactivate this measurement, until the MPI thread has its own execution unit
-     *  TAKE_TIME( es->es_profile, schedule_push_end, 0);
-     */
 
     return ret;
 }
@@ -367,10 +358,6 @@ int __parsec_reschedule(parsec_execution_stream_t* es, parsec_task_t* task)
     /* no luck so far, let's reschedule the task on the same execution unit */
     return __parsec_schedule(es, task, 0);
 }
-
-#ifdef  PARSEC_HAVE_SCHED_SETAFFINITY
-#define gettid() syscall(__NR_gettid)
-#endif /* PARSEC_HAVE_SCHED_SETAFFINITY */
 
 #define TIME_STEP 5410
 #define MIN(x, y) ( (x)<(y)?(x):(y) )
@@ -636,6 +623,11 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
         tp->on_enqueue(tp, tp->on_enqueue_data);
     }
 
+#if defined(PARSEC_PROF_TRACE)
+    if( parsec_profile_enabled )
+        parsec_profiling_add_taskpool_properties(tp);
+#endif
+
     if( NULL != tp->startup_hook ) {
         parsec_task_t **startup_list;
         int vpid;
@@ -658,11 +650,7 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
         parsec_check_complete_cb(tp, context, tp->nb_pending_actions);
     }
 
-#if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_add_taskpool_properties(tp);
-#endif
-
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static inline int
@@ -682,15 +670,15 @@ __parsec_context_cas_or_flag(parsec_context_t* context,
  * and then return. Mark the internal structures in such a way that we can't
  * start the context mutiple times without completions.
  *
- * @returns: 0 if the other threads in this context have been started, -1 if the
- * context was already active, -2 if there was nothing to do and no threads have
+ * @returns: 0 if the other threads in this context have been started, 1 if the
+ * context was already active, 2 if there was nothing to do and no threads have
  * been activated.
  */
 int parsec_context_start( parsec_context_t* context )
 {
     /* Context already active */
     if( PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags )
-        return -1;
+        return 1;
     /* Start up the context */
     if( __parsec_context_cas_or_flag(context, PARSEC_CONTEXT_FLAG_COMM_ACTIVE) ) {
         (void)parsec_remote_dep_on(context);
@@ -704,7 +692,7 @@ int parsec_context_start( parsec_context_t* context )
         (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );
         return 0;
     }
-    return -1;  /* Someone else start it up */
+    return 1;  /* Someone else start it up */
 }
 
 int parsec_context_test( parsec_context_t* context )
@@ -718,7 +706,7 @@ int parsec_context_wait( parsec_context_t* context )
 
     if( !(PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags) ) {
         parsec_warning("parsec_context_wait detected on a non started context\n");
-        return -1;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
 
     if( __parsec_context_cas_or_flag(context,
@@ -733,7 +721,7 @@ int parsec_context_wait( parsec_context_t* context )
         parsec_warning("parsec_context_wait detected on a non-started context\n");
         /* put the context back on it's original state */
         (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );
-        return -1;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
 
     ret = __parsec_context_wait( context->virtual_processes[0]->execution_streams[0] );
@@ -743,5 +731,5 @@ int parsec_context_wait( parsec_context_t* context )
     assert(context->flags & PARSEC_CONTEXT_FLAG_COMM_ACTIVE);
     assert(context->flags & PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE);
     context->flags ^= (PARSEC_CONTEXT_FLAG_COMM_ACTIVE | PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE);
-    return ret;
+    return (ret >= 0)? PARSEC_SUCCESS: ret;
 }

@@ -16,6 +16,8 @@ BEGIN_C_DECLS
 struct parsec_device_template_module_s;
 typedef struct parsec_device_template_module_s parsec_device_template_module_t;
 
+PARSEC_OBJ_CLASS_DECLARATION(parsec_device_template_module_t);
+
 extern parsec_device_base_component_t parsec_device_template_component;
 
 PARSEC_DECLSPEC extern int parsec_template_output_stream;

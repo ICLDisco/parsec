@@ -39,13 +39,14 @@ task(parsec_execution_stream_t *es, parsec_task_t *this_task)
 int parsec_complete_tp_callback(parsec_taskpool_t* tp, void* cb_data)
 {
     (void)tp;
-    int rc = PARSEC_HOOK_RETURN_DONE;
+    int rc = PARSEC_HOOK_RETURN_DONE, rc1;
     parsec_task_t *this_task = (parsec_task_t *)cb_data;
     rc = __parsec_complete_execution(this_task->taskpool->context->virtual_processes[0]->execution_streams[0],
                                      this_task);
 
     /* lets dequeue the taskpool of parent task */
-    parsec_dtd_dequeue_taskpool(this_task->taskpool, this_task->taskpool->context);
+    rc1 = parsec_dtd_dequeue_taskpool(this_task->taskpool);
+    PARSEC_CHECK_ERROR(rc1, "parsec_dtd_dequeue_taskpool");
     return rc;
 }
 
@@ -68,9 +69,19 @@ task_with_callback(parsec_execution_stream_t *es, parsec_task_t *this_task)
                                         PARSEC_DTD_ARG_END);
     }
 
+    /* We expect to complete this taskpool asynchronously, via the call to
+     * parsec_complete_tp_callback.
+     */
     parsec_taskpool_set_complete_callback(dtd_tp, parsec_complete_tp_callback,
                                           (void *)this_task);
-    parsec_dtd_dequeue_taskpool(dtd_tp, dtd_tp->context);
+    /* Let the runtime forget about the taskpool for now, which does not mean
+     * the taskpool does not progress, simply that the user returned the only
+     * reference to this taskpool it was supposed to store, and thus it will
+     * not be able to add more tasks to the taskpoll, such that now a call to
+     * parsec_context_wait can now complete.
+     */
+    rc = parsec_dtd_dequeue_taskpool(dtd_tp);
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_dequeue_taskpool");
     parsec_taskpool_free(dtd_tp);
 
     return PARSEC_HOOK_RETURN_ASYNC;

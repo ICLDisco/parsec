@@ -7,8 +7,6 @@
 /**
  * @file overlap_strategies.c
  *
- * @version 2.0.0
- *
  */
 
 #include "parsec/runtime.h"
@@ -123,7 +121,7 @@ release_ownership_of_data(parsec_dtd_task_t *current_task, int flow_index)
  * This function implements the iterate successors taking
  * anti dependence into consideration. At first we go through all
  * the descendant of a task for each flow and put them in a list.
- * This is helpful in terms of creating chains of INPUT tasks.
+ * This is helpful in terms of creating chains of PARSEC_INPUT tasks.
  * INPUT tasks are activated if they are found in successions,
  * and they are treated the same way.
  *
@@ -148,6 +146,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
     parsec_dtd_task_t *current_desc = NULL;
     int op_type_on_current_flow, desc_op_type, desc_flow_index;
     parsec_dtd_tile_t *tile;
+    parsec_arena_datatype_t *adt;
 
     parsec_dep_t deps;
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)ontask_arg;
@@ -161,20 +160,20 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
     for( current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++ ) {
         if( (flow_mask & (1<<current_dep)) ) {
             current_desc = (DESC_OF(current_task, current_dep))->task;
-            op_type_on_current_flow = (FLOW_OF(current_task, current_dep)->op_type & GET_OP_TYPE);
+            op_type_on_current_flow = (FLOW_OF(current_task, current_dep)->op_type & PARSEC_GET_OP_TYPE);
             tile = FLOW_OF(current_task, current_dep)->tile;
 
             if( NULL == tile ) {
                 continue;
             }
 
-            if( FLOW_OF(current_task, current_dep)->op_type & DONT_TRACK ) {
+            if( FLOW_OF(current_task, current_dep)->op_type & PARSEC_DONT_TRACK ) {
                 /* User has instructed us not to track this data */
                 continue;
             }
 
             if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-                if( INPUT == op_type_on_current_flow ) {
+                if( PARSEC_INPUT == op_type_on_current_flow ) {
                     if(parsec_dtd_task_is_local(current_task)){
                         (void)parsec_atomic_fetch_dec_int32( &current_task->super.data[current_dep].data_out->readers );
                     }
@@ -196,8 +195,8 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
             }
 
             if( NULL == current_desc ) {
-                if( INOUT == op_type_on_current_flow ||
-                    OUTPUT == op_type_on_current_flow ) {
+                if( PARSEC_INOUT == op_type_on_current_flow ||
+                    PARSEC_OUTPUT == op_type_on_current_flow ) {
                     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                         if(release_ownership_of_data(current_task, current_dep)) { /* trying to release ownership */
                             continue;  /* no descendent for this data */
@@ -221,12 +220,22 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
             /* setting data */
             data.data   = current_task->super.data[current_dep].data_out;
-            data.arena  = parsec_dtd_arenas[FLOW_OF(current_task, current_dep)->arena_index];
-            data.layout = data.arena->opaque_dtt;
-            data.count  = 1;
-            data.displ  = 0;
+            adt = parsec_dtd_get_arena_datatype(this_task->taskpool->context,
+                                                FLOW_OF(current_task, current_dep)->arena_index);
+            if( NULL != adt ) {
+                // Not all programs need to define types for each flow: they might not create a communication.
+                data.remote.arena = adt->arena;
+                data.remote.src_datatype = data.remote.dst_datatype = adt->opaque_dtt;
+            }
+            data.remote.src_count = data.remote.dst_count = 1;
+            data.remote.src_displ = data.remote.dst_displ = 0;
 
-            desc_op_type = ((DESC_OF(current_task, current_dep))->op_type & GET_OP_TYPE);
+            data.data_future = NULL;
+            data.local.arena  = NULL;
+            data.local.src_datatype = data.local.dst_datatype = PARSEC_DATATYPE_NULL;
+            data.local.src_count = data.local.dst_count = data.local.src_displ = data.local.dst_displ = 0;
+
+            desc_op_type = ((DESC_OF(current_task, current_dep))->op_type & PARSEC_GET_OP_TYPE);
             desc_flow_index = (DESC_OF(current_task, current_dep))->flow_index;
 
             int get_out = 0, tmp_desc_flow_index, release_parent = 0;
@@ -246,12 +255,12 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                 }
 
                 get_out = 1;  /* by default escape */
-                if( !(OUTPUT == desc_op_type || INOUT == desc_op_type) ) {
+                if( !(PARSEC_OUTPUT == desc_op_type || PARSEC_INOUT == desc_op_type) ) {
 
                   look_for_next:
                     nextinline = (DESC_OF(current_desc, desc_flow_index))->task;
                     if( NULL != nextinline ) {
-                        desc_op_type    = ((DESC_OF(current_desc, desc_flow_index))->op_type & GET_OP_TYPE);
+                        desc_op_type    = ((DESC_OF(current_desc, desc_flow_index))->op_type & PARSEC_GET_OP_TYPE);
                         desc_flow_index =  (DESC_OF(current_desc, desc_flow_index))->flow_index;
                         get_out = 0;  /* We have a successor, keep going */
                         if( nextinline == current_desc ) {
@@ -318,7 +327,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                 rank_dst = current_desc->rank;
 
                 ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
-                        &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
+                        &deps, &data, rank_src, rank_dst, vpid_dst, NULL, 0, ontask_arg );
                 vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
 
                 /* releasing remote tasks that is a descendant of a local task */

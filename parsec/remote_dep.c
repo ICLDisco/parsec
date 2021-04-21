@@ -36,6 +36,17 @@ static int comm_yield_ns = 5000;
 /* comm_thread_multiple: see values in the corresponding mca_register */
 static int parsec_param_comm_thread_multiple = -1;
 
+static int remote_dep_bcast_star_child(int me, int him);
+#ifdef PARSEC_DIST_COLLECTIVES
+/* comm_coll_bcast: see values in the corresponding mca_register */
+static int parsec_param_comm_coll_bcast = 1;
+static int remote_dep_bcast_chainpipeline_child(int me, int him);
+static int remote_dep_bcast_binomial_child(int me, int him);
+static int (*remote_dep_bcast_child)(int me, int him) = remote_dep_bcast_chainpipeline_child;
+#else
+#define remote_dep_bcast_child(me, him) remote_dep_bcast_start_child(me, him)
+#endif
+
 static int remote_dep_bind_thread(parsec_context_t* context);
 
 /* Clear the already forwarded remote dependency matrix */
@@ -139,6 +150,9 @@ inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
     if( NULL == remote_deps ) {
         char *ptr;
         remote_deps = (parsec_remote_deps_t*)parsec_lifo_item_alloc( lifo, parsec_remote_dep_context.elem_size );
+        PARSEC_VALGRIND_MEMPOOL_ALLOC(lifo,
+                                      ((unsigned char *)remote_deps)+sizeof(parsec_list_item_t),
+                                      parsec_remote_dep_context.elem_size - sizeof(parsec_list_item_t));
         remote_deps->origin = lifo;
         remote_deps->taskpool = NULL;
         ptr = (char*)(&(remote_deps->output[parsec_remote_dep_context.max_dep_count]));
@@ -157,6 +171,10 @@ inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
         assert( (int)(ptr - (char*)remote_deps) ==
                 (int)(parsec_remote_dep_context.elem_size - rank_bit_size));
+    } else {
+        PARSEC_VALGRIND_MEMPOOL_ALLOC(lifo,
+                                      ((unsigned char *)remote_deps)+sizeof(parsec_list_item_t),
+                                      parsec_remote_dep_context.elem_size - sizeof(parsec_list_item_t));
     }
     assert(NULL == remote_deps->taskpool);
     remote_deps->max_priority    = 0xffffffff;
@@ -181,10 +199,14 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
         deps->output[k].count_bits = 0;
 #if defined(PARSEC_DEBUG_PARANOID)
         deps->output[k].data.data   = NULL;
-        deps->output[k].data.arena  = NULL;
-        deps->output[k].data.layout = PARSEC_DATATYPE_NULL;
-        deps->output[k].data.count  = -1;
-        deps->output[k].data.displ  = 0xFFFFFFFF;
+        deps->output[k].data.local.arena  = NULL;
+        deps->output[k].data.local.src_displ = deps->output[k].data.local.dst_displ = 0xFFFFFFFF;
+        deps->output[k].data.local.src_datatype = deps->output[k].data.local.dst_datatype = PARSEC_DATATYPE_NULL;
+        deps->output[k].data.local.src_count = deps->output[k].data.local.dst_count = -1;
+        deps->output[k].data.remote.arena  = NULL;
+        deps->output[k].data.remote.src_displ = deps->output[k].data.remote.dst_displ = 0xFFFFFFFF;
+        deps->output[k].data.remote.src_datatype = deps->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
+        deps->output[k].data.remote.src_count = deps->output[k].data.remote.dst_count = -1;
 #endif
     }
     PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "remote_deps_free: %p mask %x", deps, deps->outgoing_mask);
@@ -193,6 +215,7 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
 #endif
     deps->taskpool      = NULL;
     parsec_lifo_push(deps->origin, (parsec_list_item_t*)deps);
+    PARSEC_VALGRIND_MEMPOOL_FREE(deps->origin, ((unsigned char *)deps)+sizeof(parsec_list_item_t));
 }
 
 #endif
@@ -211,9 +234,9 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
 int parsec_remote_dep_init(parsec_context_t* context)
 {
     parsec_mca_param_reg_int_name("runtime", "comm_thread_yield", "Controls the yielding behavior of the communication thread (if applicable).\n"
-                                                                 "  0: the communication thread never yield.\n"
-                                                                 "  1: the communication thread remain active when communication are pending.\n"
-                                                                 "  2: the communication thread yields as soon as it idles.",
+                                                                  "  0: the communication thread never yield.\n"
+                                                                  "  1: the communication thread remain active when communication are pending.\n"
+                                                                  "  2: the communication thread yields as soon as it idles.",
                                  false, false, comm_yield, &comm_yield);
     parsec_mca_param_reg_int_name("runtime", "comm_thread_yield_duration", "Controls how long (in nanoseconds) the communication thread yields (if applicable).",
                                   false, false, comm_yield_ns, &comm_yield_ns);
@@ -241,6 +264,29 @@ int parsec_remote_dep_init(parsec_context_t* context)
         parsec_comm_output_stream = parsec_debug_output;
     }
 
+#ifdef PARSEC_DIST_COLLECTIVES
+    parsec_mca_param_reg_int_name("runtime", "comm_coll_bcast", "Controls the default broadcast algorithm topology.\n"
+                                                                "  0: star topology (direct one to all).\n"
+                                                                "  1: chain topology.\n"
+                                                                "  2: binomial topology.\n",
+                                  false, false, parsec_param_comm_coll_bcast, &parsec_param_comm_coll_bcast);
+    switch(parsec_param_comm_coll_bcast) {
+    case 0:
+        remote_dep_bcast_child = remote_dep_bcast_star_child;
+        break;
+    case 1:
+        remote_dep_bcast_child = remote_dep_bcast_chainpipeline_child;
+        break;
+    case 2:
+        remote_dep_bcast_child = remote_dep_bcast_binomial_child;
+        break;
+    default:
+        parsec_warning("Invalid collective type requested %d; using star topology.", parsec_param_comm_coll_bcast);
+        remote_dep_bcast_child = remote_dep_bcast_star_child;
+        break;
+    }
+#endif
+
     (void)remote_dep_init(context);
 
     context->remote_dep_fw_mask_sizeof = 0;
@@ -267,7 +313,7 @@ int parsec_remote_dep_off(parsec_context_t* context)
     return remote_dep_off(context);
 }
 
-int parsec_remote_dep_set_ctx( parsec_context_t* context, void* opaque_comm_ctx )
+int parsec_remote_dep_set_ctx( parsec_context_t* context, intptr_t opaque_comm_ctx )
 {
     return remote_dep_set_ctx( context, opaque_comm_ctx );
 }
@@ -277,7 +323,20 @@ int parsec_remote_dep_progress(parsec_execution_stream_t* es)
     return remote_dep_progress(es, 1);
 }
 
-static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
+int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp) {
+    return remote_dep_new_taskpool(tp);
+}
+
+static int remote_dep_bcast_star_child(int me, int him)
+{
+    (void)him;
+    if(me == 0) return 1;
+    else return 0;
+}
+
+#ifdef PARSEC_DIST_COLLECTIVES
+
+static int remote_dep_bcast_chainpipeline_child(int me, int him)
 {
     assert(him >= 0);
     if(me == -1) return 0;
@@ -285,8 +344,7 @@ static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
     return 0;
 }
 
-#if defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL)
-static inline int remote_dep_bcast_binomial_child(int me, int him)
+static int remote_dep_bcast_binomial_child(int me, int him)
 {
     int k, mask;
 
@@ -308,34 +366,7 @@ static inline int remote_dep_bcast_binomial_child(int me, int him)
     /* is the remainder suffix "me" ? */
     return him == me;
 }
-#endif  /* defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL) */
 
-static inline int remote_dep_bcast_star_child(int me, int him)
-{
-    (void)him;
-    if(me == 0) return 1;
-    else return 0;
-}
-
-#ifdef PARSEC_DIST_COLLECTIVES
-#define PARSEC_DIST_COLLECTIVES_TYPE_CHAINPIPELINE
-#undef  PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL
-# ifdef PARSEC_DIST_COLLECTIVES_TYPE_CHAINPIPELINE
-#  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
-# elif defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL)
-#  define remote_dep_bcast_child(me, him) remote_dep_bcast_binomial_child(me, him)
-# else
-#  error "INVALID COLLECTIVE TYPE. YOU MUST DEFINE ONE COLLECTIVE TYPE WHEN ENABLING COLLECTIVES"
-# endif
-#else
-#  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
-#endif
-
-int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp) {
-    return remote_dep_new_taskpool(tp);
-}
-
-#ifdef PARSEC_DIST_COLLECTIVES
 /**
  * This function is called from the successor iterator in order to rebuilt
  * the information needed to propagate the collective in a meaningful way. In
@@ -351,8 +382,10 @@ parsec_gather_collective_pattern(parsec_execution_stream_t *es,
                                  const parsec_dep_t* dep,
                                  parsec_dep_data_description_t* data,
                                  int src_rank, int dst_rank, int dst_vpid,
+                                 data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                                  void *param)
 {
+    (void)successor_repo; (void) successor_repo_key;
     parsec_remote_deps_t* deps = (parsec_remote_deps_t*)param;
     struct remote_dep_output_param_s* output = &deps->output[dep->dep_datatype_index];
     const int _array_pos  = dst_rank / (8 * sizeof(uint32_t));
@@ -465,8 +498,9 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
          */
         if( (remote_deps->outgoing_mask & (1U<<i)) && (NULL != output->data.data) ) {
             /* if propagated and not a CONTROL */
-            assert(NULL != output->data.arena);
-            assert(NULL != (void*)(intptr_t)(output->data.layout));
+            /* This assert is not correct anymore, we don't need and arena to send to a remote
+             * assert(NULL != output->data.remote.arena);*/
+            assert( !parsec_is_CTL_dep(output->data) );
             PARSEC_OBJ_RETAIN(output->data.data);
         }
 
@@ -504,8 +538,10 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                 /* Right now DTD only supports a star broadcast topology */
                 if( PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type ) {
                     remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
+#ifdef PARSEC_DIST_COLLECTIVES
                 } else {
                     remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
+#endif  /* PARSEC_DIST_COLLECTIVES */
                 }
 
                 if(remote_dep_bcast_child_permits) {
@@ -576,6 +612,7 @@ void remote_deps_allocation_init(int np, int max_output_deps)
             /* One extra rankbit to track the delivery of Activates */
             rankbits_size;
         PARSEC_OBJ_CONSTRUCT(&parsec_remote_dep_context.freelist, parsec_lifo_t);
+        PARSEC_VALGRIND_CREATE_MEMPOOL(&parsec_remote_dep_context.freelist, 0, 1);
         parsec_remote_dep_inited = 1;
     }
 
@@ -592,6 +629,7 @@ void remote_deps_allocation_fini(void)
             free(rdeps);
         }
         PARSEC_OBJ_DESTRUCT(&parsec_remote_dep_context.freelist);
+        PARSEC_VALGRIND_DESTROY_MEMPOOL(&parsec_remote_dep_context.freelist);
     }
     parsec_remote_dep_inited = 0;
 }

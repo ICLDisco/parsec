@@ -35,7 +35,8 @@ parsec_matrix_create_data(parsec_tiled_matrix_dc_t* matrix,
     assert( pos <= matrix->nb_local_tiles );
     return parsec_data_create( matrix->data_map + pos,
                               &(matrix->super), key, ptr,
-                              matrix->bsiz * parsec_datadist_getsizeoftype(matrix->mtype) );
+                              matrix->bsiz * parsec_datadist_getsizeoftype(matrix->mtype),
+                              PARSEC_DATA_FLAG_PARSEC_MANAGED);
 }
 
 void
@@ -61,8 +62,9 @@ fake_data_of(parsec_data_collection_t *mat, ...)
                                      0, 0 );
 }
 
-/***************************************************************************//**
- *  Internal static descriptor initializer (PLASMA code)
+/***************************************************************************/
+/**
+ *  Internal static descriptor initializer
  **/
 void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
                              enum matrix_type    mtyp,
@@ -133,14 +135,32 @@ void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
 
     /* finish to update the main object properties */
     o->key_to_string = tiled_matrix_key_to_string;
-    asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
+    if( asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt) <= 0 ) {
+        o->key_dim = NULL;
+    }
+
+    /* Define the default datatye of the datacollection */
+    parsec_datatype_t elem_dt = PARSEC_DATATYPE_NULL;
+    ptrdiff_t extent;
+    parsec_translate_matrix_type( tdesc->mtype, &elem_dt );
+    if( PARSEC_SUCCESS != parsec_matrix_define_datatype(&o->default_dtt, elem_dt,
+                                              matrix_UpperLower, 1 /*diag*/,
+                                              tdesc->mb, tdesc->nb, tdesc->mb /*ld*/,
+                                              -1/*resized*/, &extent)){
+        parsec_fatal("Unable to create a datatype for the data collection.");
+    }
+
+
 }
 
 void
 parsec_tiled_matrix_dc_destroy( parsec_tiled_matrix_dc_t *tdesc )
 {
+    parsec_data_collection_t *dc = (parsec_data_collection_t*)tdesc;
+    parsec_type_free(&dc->default_dtt);
+
     parsec_matrix_destroy_data( tdesc );
-    parsec_data_collection_destroy( (parsec_data_collection_t*)tdesc );
+    parsec_data_collection_destroy( dc );
 }
 
 
@@ -253,7 +273,7 @@ int tiled_matrix_data_write(parsec_tiled_matrix_dc_t *tdesc, char *filename)
     tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
         parsec_warning("The file %s cannot be open", filename);
-        return -1;
+        return PARSEC_ERR_NOT_FOUND;
     }
 
     if ( tdesc->storage == matrix_Tile ) {
@@ -281,7 +301,7 @@ int tiled_matrix_data_write(parsec_tiled_matrix_dc_t *tdesc, char *filename)
 
 
     fclose(tmpf);
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 /*
@@ -315,7 +335,7 @@ int tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename)
                         parsec_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                 i, j, ret, tdesc->bsiz);
                         fclose(tmpf);
-                        return -1;
+                        return PARSEC_ERR_TRUNCATE;
                     }
                 }
             }
@@ -331,7 +351,7 @@ int tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename)
                             parsec_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                     i, j, ret, tdesc->mb);
                             fclose(tmpf);
-                            return -1;
+                            return PARSEC_ERR_TRUNCATE;
                         }
                         buf += eltsize * tdesc->lm;
                     }
@@ -340,5 +360,5 @@ int tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename)
     }
 
     fclose(tmpf);
-    return 0;
+    return PARSEC_SUCCESS;
 }

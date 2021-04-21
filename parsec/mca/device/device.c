@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2013-2019 The University of Tennessee and The University
+ * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -19,12 +19,16 @@
 #if defined(PARSEC_HAVE_ERRNO_H)
 #include <errno.h>
 #endif  /* PARSEC_HAVE_ERRNO_H */
+#if defined(PARSEC_HAVE_DLFCN_H)
 #include <dlfcn.h>
+#endif  /* PARSEC_HAVE_DLFCN_H */
 #include <sys/stat.h>
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
-
+#if defined(__WINDOWS__)
+#include <windows.h>
+#endif  /* defined(__WINDOWS__) */
 int parsec_device_output = 0;
 static int parsec_device_verbose = 0;
 uint32_t parsec_nb_devices = 0;
@@ -53,6 +57,9 @@ float *parsec_device_sweight = NULL;
 float *parsec_device_dweight = NULL;
 float *parsec_device_tweight = NULL;
 
+PARSEC_OBJ_CLASS_INSTANCE(parsec_device_module_t, parsec_object_t,
+                          NULL, NULL);
+
 int parsec_mca_device_init(void)
 {
     char** parsec_device_list = NULL;
@@ -61,6 +68,9 @@ int parsec_mca_device_init(void)
     char modules_activated_str[1024] = "";
 #endif  /* defined(PARSEC_PROF_TRACE) */
     int i, j, rc, priority;
+
+    PARSEC_OBJ_CONSTRUCT(&parsec_per_device_infos, parsec_info_t);
+    PARSEC_OBJ_CONSTRUCT(&parsec_per_stream_infos, parsec_info_t);
 
     (void)parsec_mca_param_reg_int_name("device", "show_capabilities",
                                         "Show the detailed devices capabilities",
@@ -112,6 +122,7 @@ int parsec_mca_device_init(void)
                     j++;
                 }
                 modules_activated[num_modules_activated++] = modules[0];
+
 #if defined(PARSEC_PROF_TRACE)
                 strncat(modules_activated_str, device_components[i]->mca_component_name, 1023);
                 strncat(modules_activated_str, ",", 1023);
@@ -314,6 +325,10 @@ int parsec_mca_device_fini(void)
         parsec_output_close(parsec_device_output);
         parsec_device_output = parsec_debug_output;
     }
+
+    PARSEC_OBJ_DESTRUCT(&parsec_per_device_infos);
+    PARSEC_OBJ_DESTRUCT(&parsec_per_stream_infos);
+
     return PARSEC_SUCCESS;
 }
 
@@ -324,7 +339,7 @@ parsec_device_find_function(const char* function_name,
 {
     char library_name[FILENAME_MAX];
     const char **target;
-    void *dlh, *fn = NULL;
+    void *fn = NULL;
 
     for( target = paths; (NULL != target) && (NULL != *target); target++ ) {
         struct stat status;
@@ -340,7 +355,20 @@ parsec_device_find_function(const char* function_name,
         } else {
             snprintf(library_name,  FILENAME_MAX, "%s", *target);
         }
-        dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
+#if defined(__WINDOWS__)
+        wchar_t wlibrary_name[FILENAME_MAX];
+        MultiByteToWideChar(CP_ACP, MB_COMPOSITE, library_name, strlen(library_name),
+                            wlibrary_name, FILENAME_MAX);
+        HMODULE dlh = LoadLibraryW(wlibrary_name);
+        if(NULL == dlh) {
+            parsec_debug_verbose(10, parsec_device_output,
+                                 "Could not find %s dynamic library (%s)", library_name, GetLastError());
+            continue;
+        }
+        fn = GetProcAddress(dlh, function_name);
+        FreeLibrary(dlh);
+#elif defined(PARSEC_HAVE_DLFCN_H)
+        void* dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
         if(NULL == dlh) {
             parsec_debug_verbose(10, parsec_device_output,
                                  "Could not find %s dynamic library (%s)", library_name, dlerror());
@@ -348,6 +376,9 @@ parsec_device_find_function(const char* function_name,
         }
         fn = dlsym(dlh, function_name);
         dlclose(dlh);
+#else
+#error Lacking dynamic loading capabilities.
+#endif
         if( NULL != fn ) {
             parsec_debug_verbose(4, parsec_device_output,
                                  "Function %s found in shared library %s",
@@ -360,16 +391,26 @@ parsec_device_find_function(const char* function_name,
         parsec_output_verbose(10, parsec_device_output,
                               "No dynamic function %s found, trying from compile time linked in\n",
                               function_name);
-        dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
+#if defined(__WINDOWS__)
+        HMODULE dlh = GetModuleHandleA(NULL);
+        if(NULL != dlh) {
+            fn = GetProcAddress(dlh, function_name);
+            FreeLibrary(dlh);
+        }
+#elif defined(PARSEC_HAVE_DLFCN_H)
+        void* dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
         if(NULL != dlh) {
             fn = dlsym(dlh, function_name);
+            dlclose(dlh);
+        }
+#else
+#error Lacking dynamic loading capabilities.
+#endif
             if(NULL != fn) {
                 parsec_debug_verbose(4, parsec_device_output,
                                      "Function %s found in the application symbols",
                                      function_name);
             }
-            dlclose(dlh);
-        }
     }
     if(NULL == fn) {
         parsec_debug_verbose(10, parsec_device_output,
@@ -384,7 +425,7 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
     (void)context;
 
     if(parsec_mca_device_are_freezed)
-        return -1;
+        return PARSEC_ERR_NOT_SUPPORTED;
 
     if(NULL != parsec_device_load) free(parsec_device_load);
     parsec_device_load = (float*)calloc(parsec_nb_devices, sizeof(float));
@@ -426,7 +467,7 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
     }
 
     parsec_mca_device_are_freezed = 1;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_mca_device_registration_completed(parsec_context_t* context)
@@ -439,14 +480,15 @@ int parsec_mca_device_registration_completed(parsec_context_t* context)
 #include <sys/sysctl.h>
 #endif
 
-static int cpu_weights(parsec_device_module_t* device, int nstreams) {
+static int cpu_weights(parsec_device_module_t* device, int nstreams)
+{
     /* This is default value when it cannot be computed */
     /* Crude estimate that holds for Nehalem era Xeon processors */
     float freq = 2.5f;
     float fp_ipc = 8.f;
     float dp_ipc = 4.f;
     char cpu_model[256]="Unkown";
-    char *cpu_flags;
+    char *cpu_flags = NULL;
 
 #if defined(__linux__)
     FILE* procinfo = fopen("/proc/cpuinfo", "r");
@@ -486,6 +528,8 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams) {
         parsec_warning("CPU Features cannot be autodetected on this machine (Detected OSX): %s", strerror(errno));
         goto notfound;
     }
+#else
+    goto notfound;
 #endif
     /* prefer base frequency from model name when available (avoids power
      * saving modes and dynamic frequency scaling issues) */
@@ -655,7 +699,7 @@ int parsec_mca_device_attach(parsec_context_t* context)
 int parsec_mca_device_add(parsec_context_t* context, parsec_device_module_t* device)
 {
     if( parsec_mca_device_are_freezed ) {
-        return PARSEC_ERROR;
+        return PARSEC_ERR_NOT_SUPPORTED;
     }
     if( NULL != device->context ) {
         /* This device already belong to a PaRSEC context */
@@ -674,6 +718,8 @@ int parsec_mca_device_add(parsec_context_t* context, parsec_device_module_t* dev
     parsec_nb_devices++;
     device->context = context;
     parsec_atomic_unlock(&parsec_devices_mutex);  /* CRITICAL SECTION: END */
+    PARSEC_OBJ_CONSTRUCT(&device->infos, parsec_info_object_array_t);
+    parsec_info_object_array_init(&device->infos, &parsec_per_device_infos, device);
     return device->device_index;
 }
 
@@ -688,6 +734,7 @@ int parsec_mca_device_remove(parsec_device_module_t* device)
 {
     int rc = PARSEC_SUCCESS;
 
+    PARSEC_OBJ_DESTRUCT(&device->infos);
     parsec_atomic_lock(&parsec_devices_mutex);  /* CRITICAL SECTION: BEGIN */
     if( NULL == device->context ) {
         rc = PARSEC_ERR_BAD_PARAM;

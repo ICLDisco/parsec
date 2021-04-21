@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -40,14 +40,14 @@ static inline int lcm(int a, int b) {
 void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
                                  enum matrix_type mtype,
                                  enum vector_distrib distrib,
-                                 int nodes, int myrank,
+                                 int myrank,
                                  int mb,   /* Segment size                                           */
                                  int lm,   /* Global vector size (what is stored)                    */
                                  int i,    /* Staring point in the global vector                     */
                                  int m,    /* Sub-vector size (the one concerned by the computation) */
-                                 int P )
+                                 int P, int Q )/* process process grid */
 {
-    int Q;
+    int nodes = P*Q;
     parsec_data_collection_t *o = &(dc->super.super);
 
     /* Initialize the tiled_matrix descriptor */
@@ -56,21 +56,13 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
                             mb, 1, lm, 1, i, 0, m, 1 );
     dc->mat = NULL;  /* No data associated with the vector yet */
 
-    if(nodes < P) {
-        parsec_warning("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
-        P = nodes;
-    }
-    Q = nodes / P;
-    if(nodes != P*Q)
-        parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
-
-    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1);
+    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1, 0, 0);
 
     dc->super.nb_local_tiles = 0;
     dc->distrib = distrib;
 
     switch ( distrib ) {
-    case PlasmaVectorDiag:
+    case matrix_VectorDiag:
     {
         int pmq   = dc->grid.crank - dc->grid.rrank;
         int gcdpq = gcd( P, Q );
@@ -99,7 +91,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
     }
     break;
 
-    case PlasmaVectorRow:
+    case matrix_VectorRow:
     {
         dc->lcm = Q;
 
@@ -112,7 +104,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
     }
     break;
 
-    case PlasmaVectorCol:
+    case matrix_VectorCol:
     default:
         dc->lcm = P;
 
@@ -139,26 +131,28 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
     o->key_to_string = vector_twoDBC_key_to_string;
     o->key_dim       = NULL;
     o->key           = NULL;
-    asprintf(&(o->key_dim), "(%d)", dc->super.lmt);
+    if( asprintf(&(o->key_dim), "(%d)", dc->super.lmt) <= 0 ) {
+        o->key_dim = NULL;
+    }
     dc->super.data_map = (parsec_data_t**)calloc(dc->super.nb_local_tiles, sizeof(parsec_data_t*));
 
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "vector_two_dim_cyclic_init: \n"
             "      dc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
             "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
-            "      nrst = %d, ncst = %d, P = %d, Q = %d",
+            "      kp = %d, kq = %d, P = %d, Q = %d",
             dc, dc->super.mtype, dc->super.super.nodes, dc->super.super.myrank,
             dc->super.mb, dc->super.nb,
             dc->super.lm, dc->super.ln,
             dc->super.i,  dc->super.j,
             dc->super.m,  dc->super.n,
-            dc->grid.strows, dc->grid.stcols,
+            dc->grid.krows, dc->grid.kcols,
             P, Q);
 }
 
 
 /*
  *
- * Set of functions with no super-tiles
+ * Set of functions do not support k-cycling
  *
  */
 static uint32_t vector_twoDBC_rank_of(parsec_data_collection_t * desc, ...)
@@ -180,10 +174,10 @@ static uint32_t vector_twoDBC_rank_of(parsec_data_collection_t * desc, ...)
     m += dc->super.i / dc->super.mb;
 
     /* P(rr, cr) has the tile, compute the rank*/
-    if ( dc->distrib != PlasmaVectorCol )
+    if ( dc->distrib != matrix_VectorCol )
         rr = m % dc->grid.rows;
 
-    if ( dc->distrib != PlasmaVectorRow )
+    if ( dc->distrib != matrix_VectorRow )
         cr = m % dc->grid.cols;
 
     res = rr * dc->grid.cols + cr;
@@ -223,10 +217,10 @@ static int32_t vector_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
 #endif
 
     /* Compute the local tile row */
-    if ( dc->distrib != PlasmaVectorCol )
+    if ( dc->distrib != matrix_VectorCol )
         local_m = (m / dc->grid.rows) % p;
 
-    if ( dc->distrib != PlasmaVectorRow )
+    if ( dc->distrib != matrix_VectorRow )
         local_n = (m / dc->grid.cols) % q;
 
     vpid = local_m * q + local_n;
@@ -238,7 +232,7 @@ static int32_t vector_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
 static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 {
     int m;
-    size_t pos;
+    size_t pos = 0;
     int local_m;
     va_list ap;
     vector_two_dim_cyclic_t * dc;
@@ -260,9 +254,13 @@ static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
     assert( dc->super.bsiz == dc->super.mb );
 
     local_m = m / dc->lcm;
-    pos = local_m * dc->super.mb;
 
-    pos *= parsec_datadist_getsizeoftype(dc->super.mtype);
+    /* If mat allocatd, set pos to the right position for each tile */
+    if( NULL != dc->mat ) {
+        pos = local_m * dc->super.mb;
+        pos *= parsec_datadist_getsizeoftype(dc->super.mtype);
+    }
+
     return parsec_matrix_create_data(&dc->super,
                                     (char*)dc->mat + pos,
                                     local_m, m);
@@ -293,15 +291,16 @@ static parsec_data_key_t vector_twoDBC_data_key(struct parsec_data_collection_s 
 #endif /* defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) */
 
 /* return a string meaningful for profiling about data */
-static int  vector_twoDBC_key_to_string(struct parsec_data_collection_s * desc, parsec_data_key_t datakey, char * buffer, uint32_t buffer_size)
+static int
+vector_twoDBC_key_to_string(struct parsec_data_collection_s* desc, parsec_data_key_t datakey,
+                            char * buffer, uint32_t buffer_size)
 {
     int res;
     (void)desc;
 
-    res = snprintf(buffer, buffer_size, "(%lu)", datakey);
-    if (res < 0)
-    {
-        printf("error in key_to_string for tile (%lu) key: %lu\n", datakey, datakey);
+    res = snprintf(buffer, buffer_size, "(%"PRIu64")", datakey);
+    if (res < 0) {
+        printf("error in key_to_string for data collection (%"PRIu64") key: %"PRIu64"\n", desc->dc_id, datakey);
     }
     return res;
 }

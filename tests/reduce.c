@@ -38,6 +38,9 @@ int main( int argc, char* argv[] )
     int nb = 100, ln = 900;
     int rows = 1;
     parsec_datatype_t newtype;
+    int pargc = 0, i;
+    char **pargv;
+
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -48,10 +51,20 @@ int main( int argc, char* argv[] )
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
-    parsec = parsec_init(cores, &argc, &argv);
+    pargc = 0; pargv = NULL;
+    for(i = 1; i < argc; i++) {
+        if( strcmp(argv[i], "--") == 0 ) {
+            pargc = argc - i;
+            pargv = &argv[i];
+            break;
+        }
+    }
+
+    parsec = parsec_init(cores, &pargc, &pargv);
 
     two_dim_block_cyclic_init( &dcA, matrix_RealFloat, matrix_Tile,
-                               world, rank, nb, 1, ln, 1, 0, 0, ln, 1, 1, 1, rows );
+                               rank, nb, 1, ln, 1, 0, 0, ln, 1,
+                               rows, world/rows, 1, 1, 0, 0);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
                                      (size_t)dcA.super.bsiz *
                                      (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
@@ -63,10 +76,10 @@ int main( int argc, char* argv[] )
                                                NULL);
     /* Prepare the arena for the reduction */
     parsec_type_create_contiguous(nb, parsec_datatype_float_t, &newtype);
-    parsec_arena_construct(((parsec_reduce_taskpool_t*)tp)->arenas[PARSEC_reduce_DEFAULT_ARENA],
-                          nb*sizeof(float),
-                          PARSEC_ARENA_ALIGNMENT_SSE,
-                          newtype);
+    parsec_arena_datatype_construct(&((parsec_reduce_taskpool_t*)tp)->arenas_datatypes[PARSEC_reduce_DEFAULT_ADT_IDX],
+                                    nb*sizeof(float),
+                                    PARSEC_ARENA_ALIGNMENT_SSE,
+                                    newtype);
 
     rc = parsec_context_add_taskpool(parsec, tp);
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");

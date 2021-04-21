@@ -119,9 +119,14 @@ jdf_def_list_t* jdf_create_properties_list( const char* name,
 typedef struct expr_info {
     struct string_arena* sa;
     const char* prefix;
-    char *assignments;
+    char*       assignments;
+    int         nb_bound_locals;
+    char**      bound_locals;
     const char* suffix;
 } expr_info_t;
+
+#define EMPTY_EXPR_INFO { .sa = NULL, .prefix = NULL, .assignments = NULL, .nb_bound_locals = 0, .bound_locals = NULL, .suffix = NULL }
+
 /* The elem should be a jdf_expr_t while the arg should be an expr_info_t */
 char * dump_expr(void **elem, void *arg);
 

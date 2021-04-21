@@ -17,9 +17,8 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
-enum regions {
-               TILE_FULL,
-             };
+/* IDs for the Arena Datatypes */
+static int TILE_FULL;
 
 struct my_datatype {
     int a;
@@ -61,6 +60,7 @@ int main(int argc, char ** argv)
     int rc, rank, world, cores = -1;
     int nb, nt, i, no_of_tasks, key;
     parsec_tiled_matrix_dc_t *dcA;
+    parsec_arena_datatype_t *adt;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -91,9 +91,10 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
-    parsec_matrix_add2arena_rect(parsec_dtd_arenas[TILE_FULL],
-                                 parsec_datatype_int32_t,
-                                 nb, 1, nb);
+    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
+    parsec_matrix_add2arena_rect( adt,
+                                  parsec_datatype_int32_t,
+                                  nb, 1, nb);
 
     dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
@@ -132,22 +133,27 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     parsec_dtd_taskpool_insert_task(dtd_tp, call_to_kernel_type_write,    0,  "Write_Task",
-                                    sizeof(int), &data1, VALUE,
-                                    sizeof(int), &data2, VALUE | AFFINITY,
-                                    sizeof(double),  &data3, VALUE,
-                                    sizeof(struct my_datatype), &data4, VALUE,
-                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),   INOUT | TILE_FULL,
-                                    sizeof(void *),  A, REF,
+                                    sizeof(int), &data1, PARSEC_VALUE,
+                                    sizeof(int), &data2, PARSEC_VALUE | PARSEC_AFFINITY,
+                                    sizeof(double),  &data3, PARSEC_VALUE,
+                                    sizeof(struct my_datatype), &data4, PARSEC_VALUE,
+                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),   PARSEC_INOUT | TILE_FULL,
+                                    sizeof(void *),  A, PARSEC_REF,
                                     PARSEC_DTD_ARG_END);
 
     parsec_dtd_data_flush_all( dtd_tp, A );
 
-    parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free( dtd_tp );
 
+    parsec_matrix_del2arena(adt);
+    PARSEC_OBJ_RELEASE(adt->arena);
+    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 

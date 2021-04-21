@@ -1,0 +1,126 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ */
+
+#include "parsec/data_dist/matrix/matrix.h"
+
+
+%}
+
+descM  [type = "parsec_tiled_matrix_dc_t*"]
+descV  [type = "parsec_tiled_matrix_dc_t*"]
+
+
+/**************************************************
+ *                       READ_A                   *
+ **************************************************/
+READ_A(k)  [profile = off]
+
+k = 0 .. descV->mt-1
+
+: descV(k, 0)
+
+RW A <- descV(k, 0)
+     -> A TASK_A(k, 0..descV->mt-1)   [type_remote=UPPER_TILE]
+     -> A EMPTY_B(k, 0..descV->mt-1)  [type_remote=UPPER_TILE]
+     -> A EMPTY_A(k, 0..descV->mt-1)  [type_remote=LOWER_TILE]
+     -> B TASK_A(k, 0..descV->mt-1)   [type_remote=LOWER_TILE]
+     -> B EMPTY_B(k, 0..descV->mt-1)  [type_remote=LOWER_TILE]
+     -> B EMPTY_A(k, 0..descV->mt-1)  [type_remote=UPPER_TILE]
+
+BODY
+{
+  /* Empty body */
+}
+END
+
+/**************************************************
+ *                       EMPTY_A                   *
+ **************************************************/
+EMPTY_A(m, k)  [profile = off]
+
+m = 0 .. descM->mt-1
+k = 0 .. descM->nt-1
+
+: descM(m, k)
+
+READ  A  <- A READ_A(m) [type_remote=LOWER_TILE]
+READ  B  <- A READ_A(m) [type_remote=UPPER_TILE]
+
+BODY
+{
+  /* Empty body */
+}
+END
+
+
+/**************************************************
+ *                       EMPTY_B                   *
+ **************************************************/
+EMPTY_B(m, k)  [profile = off]
+
+m = 0 .. descM->mt-1
+k = 0 .. descM->nt-1
+
+: descM(m, k)
+
+READ  A  <- A READ_A(m) [type_remote=UPPER_TILE]
+READ  B  <- A READ_A(m) [type_remote=LOWER_TILE]
+
+BODY
+{
+  /* Empty body */
+}
+END
+
+/**************************************************
+ *                       TASK_A                   *
+ **************************************************/
+TASK_A(m, k)  [profile = off]
+
+m = 0 .. descM->mt-1
+k = 0 .. descM->nt-1
+
+: descM(m, k)
+
+
+RW A <- A READ_A(m)        [type_remote=UPPER_TILE]
+     -> descM(m, k)        [type=DEFAULT type_data=DEFAULT] //Write back full tile, otherwises remote has UPPER_TILE
+
+READ B  <- A READ_A(m)     [type_remote=LOWER_TILE]
+
+BODY
+{
+#if 0
+    printf("%2d %10s (%2d, %2d) ", getpid(), "TASK_A - B", m, k);
+    for(int i = 0; i<descM->mb; i++){
+        for(int j = 0; j<descM->nb; j++){
+            printf("%3d ", ((int*)B)[j * descM->mb + i]);
+        }
+        printf("\n\t\t\t  ");
+    }
+    printf("\n");
+
+    printf("%2d %10s (%2d, %2d) ", getpid(), "TASK_A - A", m, k);
+    for(int i = 0; i<descM->mb; i++){
+        for(int j = 0; j<descM->nb; j++){
+            printf("%3d ", ((int*)A)[j * descM->mb + i]);
+        }
+        printf("\n\t\t\t  ");
+    }
+    printf("\n");
+#endif
+
+    /* Copy lower to A (which contains upper) and write back */
+    for(int i = 0; i < descM->mb; i++){
+        for(int j = 0; j < descM->nb; j++){
+            if(j < i) {
+                ((int*)A)[j*descM->mb + i] = ((int*)B)[j*descM->mb + i];
+            }
+        }
+    }
+}
+END

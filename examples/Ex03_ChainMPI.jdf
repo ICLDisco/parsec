@@ -4,6 +4,10 @@ extern "C" %{
  * This example shows how to distribute the tasks over different nodes
  *    descriptor as global
  *    rank_of() / possibility of playing with value in rank_of
+ *
+ * @version 3.0
+ * @email parsec-users@icl.utk.edu
+ *
  */
 
 #include "parsec.h"
@@ -135,9 +139,9 @@ int main(int argc, char *argv[])
      * The arena is now also used to describe the layout to the communication
      * engine (MPI)
      */
-    parsec_arena_construct(tp->arenas[PARSEC_Ex03_ChainMPI_DEFAULT_ARENA],
-                           sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                           parsec_datatype_int_t );
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_Ex03_ChainMPI_DEFAULT_ADT_IDX],
+                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                     parsec_datatype_int_t );
 
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");

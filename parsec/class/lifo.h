@@ -173,8 +173,10 @@ parsec_lifo_nolock_pop(parsec_lifo_t* lifo);
 
 /**
  * By default all LIFO will handle elements aligned to PARSEC_LIFO_ALIGNMENT_DEFAULT
- * bits. If a different type of alignment is needed, the trick is to manually allocate
- * the lifo and set the alignment by hand before calling PARSEC_OBJ_CONSTRUCT on it.
+ * bits. If a different type of alignment is needed, it should be manually set to the
+ * expected value after the call to PARSEC_OBJ_CONSTRUCT, but before the allocation.
+ * Beware: it is unsafe to change the alignment of a LIFO while items have already been
+ * allocated, as we risk to mix items from before and after the change.
  */
 #if !defined(PARSEC_LIFO_ALIGNMENT_DEFAULT)
 #define PARSEC_LIFO_ALIGNMENT_DEFAULT 3
@@ -694,12 +696,17 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_nolock_pop( parsec_lifo_t* li
  * @param[in] lifo the LIFO the element will be used with.
  * @return The element that was allocated.
  */
-LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* lifo, size_t truesize) {
+LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_item_alloc( parsec_lifo_t* lifo, size_t truesize)
+{
     void *elt = NULL;
+#if defined(WIN64)
+    elt = _aligned_malloc((truesize), PARSEC_LIFO_ALIGNMENT(lifo));
+#else
     int rc;
     rc = posix_memalign(&elt,
                         PARSEC_LIFO_ALIGNMENT(lifo), (truesize));
     assert( 0 == rc && NULL != elt ); (void)rc;
+#endif  /* WIN64 */
     PARSEC_OBJ_CONSTRUCT(elt, parsec_list_item_t);
     return (parsec_list_item_t*) elt;
 }

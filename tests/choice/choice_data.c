@@ -36,15 +36,17 @@ static inline parsec_data_t*
 get_or_create_data(my_datatype_t* dat, uint32_t pos)
 {
     parsec_data_t* data = dat->data_map[pos];
+    parsec_data_copy_t* data_copy;
     assert(pos <= dat->size);
 
     if( NULL == data ) {
-        parsec_data_copy_t* data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
+        data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
         data = PARSEC_OBJ_NEW(parsec_data_t);
 
         data_copy->coherency_state = PARSEC_DATA_COHERENCY_OWNED;
         data_copy->original = data;
         data_copy->device_private = &dat->data[pos];
+        data_copy->dtt = dat->super.default_dtt;
 
         data->owner_device = 0;
         data->key = pos;
@@ -59,7 +61,7 @@ get_or_create_data(my_datatype_t* dat, uint32_t pos)
     } else {
         /* Do we have a copy of this data */
         if( NULL == data->device_copies[0] ) {
-            parsec_data_copy_t* data_copy = parsec_data_copy_new(data, 0);
+            data_copy = parsec_data_copy_new(data, 0, dat->super.default_dtt, PARSEC_DATA_FLAG_PARSEC_MANAGED);
             data_copy->device_private = &dat->data[pos];
         }
     }
@@ -80,7 +82,7 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
     (void)k;
 
     return get_or_create_data(dat, k);
-} 
+}
 
 static int vpid_of(parsec_data_collection_t *desc, ...)
 {
@@ -115,17 +117,22 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
 {
     my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
     parsec_data_collection_t *d = &(m->super);
-
+    
     d->myrank  = rank;
     d->nodes   = world;
     d->rank_of = rank_of;
     d->data_of = data_of;
     d->vpid_of = vpid_of;
 #if defined(PARSEC_PROF_TRACE)
-    asprintf(&d->key_dim, "(%d)", size);
-    d->key = NULL;
-    d->data_key = data_key;
+    {
+      int len = asprintf(&d->key_dim, "(%d)", size);
+      if( -1 == len )
+	d->key_dim = NULL;
+      d->key = NULL;
+      d->data_key = data_key;
+    }
 #endif
+    parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &d->default_dtt);
 
     m->size     = size;
     m->data_map = (parsec_data_t**)calloc(size, sizeof(parsec_data_t*));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,6 +8,7 @@
 #define PARSEC_RUNTIME_H_HAS_BEEN_INCLUDED
 
 #include "parsec/parsec_config.h"
+#include "parsec/class/list.h"
 
 BEGIN_C_DECLS
 
@@ -21,6 +22,12 @@ BEGIN_C_DECLS
  *
  *  @{
  */
+
+
+/**
+ * Arena-datatype management.
+ */
+typedef struct parsec_arena_datatype_s parsec_arena_datatype_t;
 
 /**
  * @brief Define a weak symbol called by PaRSEC in case of fatal error.
@@ -58,6 +65,20 @@ typedef struct parsec_arena_s             parsec_arena_t;
  * @brief Opaque structure representing a Task Class
  */
 typedef struct parsec_task_class_s      parsec_task_class_t;
+
+
+/**
+ * @brief Prototype of a external fini function
+ */
+typedef void (*parsec_external_fini_cb_t)(void*);
+
+/**
+ * @brief External fini function & data
+ */
+typedef struct parsec_external_fini_s {
+    parsec_external_fini_cb_t  cb;   /**< external fini callback */
+    void                      *data; /**< external fini callback args */
+}parsec_external_fini_t;
 
 /**
  * @brief Prototype of the allocator function
@@ -97,9 +118,15 @@ typedef struct parsec_data_collection_s parsec_data_collection_t;
 typedef parsec_data_collection_t parsec_dc_t;
 
 /**
- * @brief A description of the content of each data mouvement/copy
+ * @brief A description of the content of each data movement/copy
  */
 typedef struct parsec_dep_data_description_s  parsec_dep_data_description_t;
+typedef struct parsec_dep_type_description_s  parsec_dep_type_description_t;
+
+/**
+ * @brief A description of the reshape promise
+ */
+typedef struct parsec_reshape_promise_description_s parsec_reshape_promise_description_t;
 
 /**
  * @brief A description of the thread private memory pool.
@@ -115,9 +142,15 @@ typedef enum parsec_hook_return_e {
     PARSEC_HOOK_RETURN_NEXT    = -2,  /* Try next variant [if any] */
     PARSEC_HOOK_RETURN_DISABLE = -3,  /* Disable the device, something went wrong */
     PARSEC_HOOK_RETURN_ASYNC   = -4,  /* The task is outside our reach, the completion will
-                                      * be triggered asynchronously. */
+                                       * be triggered asynchronously. */
     PARSEC_HOOK_RETURN_ERROR   = -5,  /* Some other major error happened */
 } parsec_hook_return_t;
+
+/* In order for the reshaping to work, retry codes should be negative
+ * completion ones positive. */
+#define PARSEC_HOOK_RETURN_RESHAPE_DONE 1
+#define PARSEC_HOOK_RETURN_DONE_NO_RESHAPE 0
+
 
 /**
  * @brief Create a new PaRSEC execution context
@@ -142,14 +175,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[]);
  * @details
  * Obtain the version number of the PaRSEC runtime
  *
- * @param[out]   version_major a pointer to the major version number (i.e., 19, in version 19.11.1)
- * @param[out]   version_minor a pointer to the minor version number (i.e., 11 in version 19.11.1)
- * @param[out]   version_patch a pointer to the patch version number (i.e., 1 in version 19.11.1)
+ * @param[out]   version_major a pointer to the major version number (i.e., 3, in version 3.0.1911)
+ * @param[out]   version_minor a pointer to the minor version number (i.e., 0 in version 3.0.1911)
+ * @param[out]   version_release a pointer to the patch version number (i.e., 1911 in version 3.0.1911)
  *               Unreleased (e.g., git master) versions will have patch=0
  *
  * @return PARSEC_SUCCESS on success
  */
-int parsec_version( int* version_major, int* version_minor, int* version_patch);
+int parsec_version( int* version_major, int* version_minor, int* version_release);
 
 /**
  * @brief Obtain the version string describing important options used when
@@ -185,7 +218,7 @@ int parsec_version_ex( size_t len, char* version_string);
  * @param[in] opaque_comm_ctx the new communicator object to use
  * @return PARSEC_SUCCESS on success
  */
-int parsec_remote_dep_set_ctx( parsec_context_t* context, void* opaque_comm_ctx );
+int parsec_remote_dep_set_ctx( parsec_context_t* context, intptr_t opaque_comm_ctx );
 
 
 /**
@@ -217,6 +250,11 @@ void parsec_abort( parsec_context_t* pcontext, int status);
 int parsec_fini( parsec_context_t** pcontext );
 
 /**
+ * Setup external finilize routine to be callback during parsec_fini
+ */
+void parsec_context_at_fini(parsec_external_fini_cb_t cb, void *data);
+
+/**
  * @brief Enqueue a PaRSEC taskpool into the PaRSEC context
  *
  * @details
@@ -230,7 +268,7 @@ int parsec_fini( parsec_context_t** pcontext );
  *                are to be executed.
  * @param[inout] tp The parsec taskpool with pending tasks.
  *
- * @return 0 If the enqueue operation succeeded.
+ * @return PARSEC_SUCCESS If the enqueue operation succeeded.
  */
 int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* tp);
 
@@ -242,7 +280,7 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
  * This call should be paired with one of the completion calls, test or wait.
  *
  * @param[inout] context the PaRSEC context
- * @returns: 0 if the other threads in this context have been started, -1 if the
+ * @return 0 if the other threads in this context have been started, -1 if the
  * context was already active, -2 if there was nothing to do and nothing has
  * been activated.
  */
@@ -278,9 +316,9 @@ int parsec_context_test( parsec_context_t* context );
  *
  * @param[inout] context The parsec context where the execution is taking place.
  *
- * @return * A negative number to signal an error raised by one of the enqueued
- *           taskpools. Any other value, aka. a positive number (including 0),
- *           to signal succesful completion of all work associated with the context.
+ * @return PARSEC_SUCCESS   The context has completed and all work associated
+ *                          with the context is done.
+ * @return less than PARSEC_SUCCESS If something went wrong.
  */
 int parsec_context_wait(parsec_context_t* context);
 
@@ -288,7 +326,7 @@ int parsec_context_wait(parsec_context_t* context);
  * @brief taskpool-callback type definition
  *
  * @details
- * The completion callback of a parsec_taskpool. Once the taskpoolhas been
+ * The completion callback of a parsec_taskpool. Once the taskpool has been
  * completed, i.e. all the local tasks associated with the taskpool have
  * been executed, and before the taskpool is marked as done, this callback
  * will be triggered. Inside the callback the taskpool should not be
@@ -429,6 +467,17 @@ int parsec_taskpool_register(parsec_taskpool_t* tp);
  * @return PARSEC_SUCCESS on success, an error otherwise
  */
 void parsec_taskpool_unregister(parsec_taskpool_t* tp);
+
+/**
+ * @brief Globally synchronize taskpool IDs.
+ *
+ * @details
+ *  Globally synchronize taskpool IDs so that next register generates the same
+ *  id at all ranks on a given communicator. This is a collective over the communication object
+ *  associated with PaRSEC, and can be used to resolve discrepancies introduced by
+ *  taskpools not registered over all ranks.
+*/
+void parsec_taskpool_sync_ids_context( intptr_t comm );
 
 /**
  * @brief Globally synchronize taskpool IDs.

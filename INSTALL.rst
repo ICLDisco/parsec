@@ -20,7 +20,6 @@ of this software package.
 4. For using PINS (instrumentation based on PAPI) PAPI_ is required
 5. For the profiling tools you need several libraries.
 
-   - GTG_ for the trace generation
    - Vite_ a visualization environment (only required for visualization)
    - GD_ usually available on most of the Linux distribution via GraphViz
      installation
@@ -28,7 +27,6 @@ of this software package.
 .. _CMake: http://www.cmake.org/
 .. _hwloc: http://www.open-mpi.org/projects/hwloc/
 .. _PAPI: http://icl.cs.utk.edu/papi/
-.. _GTG: https://gforge.inria.fr/projects/gtg/
 .. _Vite: https://gforge.inria.fr/projects/vite/
 .. _GD: http://www.graphviz.org/
 
@@ -74,7 +72,7 @@ will appear in the ``config.log``) by using the following form:
 
 .. code:: bash
 
-    configure CC=icc FC=ftn CXX=icpc -DPARSEC_EAGER_LIMIT=0
+    configure CC=icc FC=ftn CXX=icpc -DPARSEC_DIST_SHORT_LIMIT=0
 
 Plarform Files
 --------------
@@ -104,7 +102,6 @@ how one sets some default options.
 .. code:: bash
 
   with_hwloc=${HWLOC_ROOT:="/spack/opt/spack/linux-scientific7-x86_64/gcc-7.3.0/hwloc-1.11.11-nu65xwuyodswr74llx3ymi67hgd6vmwe"}
-  with_gtg=${GTG_ROOT:="/sw/gtg/0.2-2"}
 
   # BLAS: use MKL
   [ -z "${MKLROOT}" ] || module load intel-mkl/2019.3.199/gcc-7.3.0-2pn4
@@ -181,55 +178,57 @@ Hopefully, once the expected arguments are provided the output will look similar
 
 .. code:: console
 
-  -- The C compiler identification is GNU 7.4.0
-  -- Checking whether C compiler has -isysroot
-  -- Checking whether C compiler has -isysroot - yes
-  -- Checking whether C compiler supports OSX deployment target flag
-  -- Checking whether C compiler supports OSX deployment target flag - yes
-  -- Check for working C compiler: /opt/local/bin/gcc
-  -- Check for working C compiler: /opt/local/bin/gcc -- works
+  -- The C compiler identification is AppleClang 12.0.0.12000032
   -- Detecting C compiler ABI info
   -- Detecting C compiler ABI info - done
+  -- Check for working C compiler: /usr/bin/cc - skipped
   -- Detecting C compile features
   -- Detecting C compile features - done
-  -- The Fortran compiler identification is GNU 7.4.0
+  -- Looking for a Fortran compiler
+  -- Looking for a Fortran compiler - /opt/local/bin/gfortran
+  -- The Fortran compiler identification is GNU 10.2.0
   -- Checking whether Fortran compiler has -isysroot
   -- Checking whether Fortran compiler has -isysroot - yes
   -- Checking whether Fortran compiler supports OSX deployment target flag
   -- Checking whether Fortran compiler supports OSX deployment target flag - yes
-  -- Check for working Fortran compiler: /opt/local/bin/gfortran
-  -- Check for working Fortran compiler: /opt/local/bin/gfortran  -- works
   -- Detecting Fortran compiler ABI info
   -- Detecting Fortran compiler ABI info - done
+  -- Check for working Fortran compiler: /opt/local/bin/gfortran - skipped
   -- Checking whether /opt/local/bin/gfortran supports Fortran 90
-  -- Checking whether /opt/local/bin/gfortran supports Fortran 90 -- yes
-  -- The CXX compiler identification is GNU 7.4.0
+  -- Checking whether /opt/local/bin/gfortran supports Fortran 90 - yes
+  -- Looking for a CXX compiler
+  -- Looking for a CXX compiler - /opt/local/bin/c++
+  -- The CXX compiler identification is GNU 10.2.0
   -- Checking whether CXX compiler has -isysroot
   -- Checking whether CXX compiler has -isysroot - yes
   -- Checking whether CXX compiler supports OSX deployment target flag
   -- Checking whether CXX compiler supports OSX deployment target flag - yes
-  -- Check for working CXX compiler: /opt/local/bin/g++
-  -- Check for working CXX compiler: /opt/local/bin/g++ -- works
   -- Detecting CXX compiler ABI info
   -- Detecting CXX compiler ABI info - done
+  -- Check for working CXX compiler: /opt/local/bin/c++ - skipped
   -- Detecting CXX compile features
   -- Detecting CXX compile features - done
-  -- Found BISON: /opt/local/bin/bison (found version "3.4.1")
+  -- Compiler support for C11 detected and enabled
+  -- Found BISON: /opt/local/bin/bison (found version "3.7.3")
   -- Found FLEX: /opt/local/bin/flex (found version "2.6.4")
   -- Building for target x86_64
   -- Found target X86_64
   -- Performing Test C_M32or64
   -- Performing Test C_M32or64 - Success
-  -- Performing Test PARSEC_HAVE_STD_C1x
-  -- Performing Test PARSEC_HAVE_STD_C1x - Success
+  -- Performing Test F_M32or64
+  -- Performing Test F_M32or64 - Success
+  -- Performing Test CXX_M32or64
+  -- Performing Test CXX_M32or64 - Success
+  -- Performing Test PARSEC_HAVE_G3
+  -- Performing Test PARSEC_HAVE_G3 - Success
+  -- Performing Test PARSEC_HAVE_Og
+  -- Performing Test PARSEC_HAVE_Og - Success
   -- Performing Test PARSEC_HAVE_WALL
   -- Performing Test PARSEC_HAVE_WALL - Success
   -- Performing Test PARSEC_HAVE_WEXTRA
   -- Performing Test PARSEC_HAVE_WEXTRA - Success
-  -- Performing Test PARSEC_HAVE_PAR_EQUALITY
-  -- Performing Test PARSEC_HAVE_PAR_EQUALITY - Success
-  -- Performing Test PARSEC_HAVE_G3
-  -- Performing Test PARSEC_HAVE_G3 - Success
+  -- Performing Test PARSEC_CC_COLORS-fdiagnostics-color
+  -- Performing Test PARSEC_CC_COLORS-fdiagnostics-color - Success
   -- Looking for sys/types.h
   -- Looking for sys/types.h - found
   -- Looking for stdint.h
@@ -248,10 +247,6 @@ Hopefully, once the expected arguments are provided the output will look similar
   -- Performing Test PARSEC_ATOMIC_USE_C11_32 - Success
   -- Performing Test PARSEC_ATOMIC_USE_C11_64
   -- Performing Test PARSEC_ATOMIC_USE_C11_64 - Success
-  -- Performing Test PARSEC_ATOMIC_USE_C11_128
-  -- Performing Test PARSEC_ATOMIC_USE_C11_128 - Failed
-  -- Performing Test PARSEC_ATOMIC_USE_C11_128
-  -- Performing Test PARSEC_ATOMIC_USE_C11_128 - Failed
   -- Performing Test PARSEC_ATOMIC_USE_C11_128
   -- Performing Test PARSEC_ATOMIC_USE_C11_128 - Success
   -- 	 support for 32 bits atomics - found
@@ -284,16 +279,10 @@ Hopefully, once the expected arguments are provided the output will look similar
   -- Performing Test PARSEC_HAVE_ATTRIBUTE_FORMAT_PRINTF - Success
   -- Performing Test PARSEC_HAVE_THREAD_LOCAL
   -- Performing Test PARSEC_HAVE_THREAD_LOCAL - Success
-  -- Looking for asprintf
-  -- Looking for asprintf - found
-  -- Looking for vasprintf
-  -- Looking for vasprintf - found
   -- Looking for include file unistd.h
   -- Looking for include file unistd.h - found
   -- Looking for include file getopt.h
   -- Looking for include file getopt.h - found
-  -- Looking for getopt_long
-  -- Looking for getopt_long - found
   -- Looking for include file errno.h
   -- Looking for include file errno.h - found
   -- Looking for include file stddef.h
@@ -302,6 +291,26 @@ Hopefully, once the expected arguments are provided the output will look similar
   -- Looking for include file stdbool.h - found
   -- Looking for include file ctype.h
   -- Looking for include file ctype.h - found
+  -- Looking for include file execinfo.h
+  -- Looking for include file execinfo.h - found
+  -- Looking for include file sys/mman.h
+  -- Looking for include file sys/mman.h - found
+  -- Looking for include file dlfcn.h
+  -- Looking for include file dlfcn.h - found
+  -- Looking for asprintf
+  -- Looking for asprintf - found
+  -- Looking for vasprintf
+  -- Looking for vasprintf - found
+  -- Looking for getopt_long
+  -- Looking for getopt_long - found
+  -- Looking for rand_r
+  -- Looking for rand_r - found
+  -- Looking for getline
+  -- Looking for getline - found
+  -- Looking for setenv
+  -- Looking for setenv - found
+  -- Looking for sysconf
+  -- Looking for sysconf - found
   -- Performing Test PARSEC_HAVE_BUILTIN_CPU
   -- Performing Test PARSEC_HAVE_BUILTIN_CPU - Success
   -- Performing Test PARSEC_HAVE_BUILTIN_CPU512
@@ -326,14 +335,14 @@ Hopefully, once the expected arguments are provided the output will look similar
   -- Looking for include file sys/types.h - found
   -- Looking for include file syslog.h
   -- Looking for include file syslog.h - found
+  -- Looking for include file valgrind/valgrind.h
+  -- Looking for include file valgrind/valgrind.h - not found
   -- Performing Test PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE
   -- Performing Test PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE - Success
   -- Performing Test PARSEC_HAVE_ATTRIBUTE_VISIBILITY
   -- Performing Test PARSEC_HAVE_ATTRIBUTE_VISIBILITY - Success
   -- Performing Test PARSEC_HAVE_BUILTIN_EXPECT
   -- Performing Test PARSEC_HAVE_BUILTIN_EXPECT - Success
-  -- Looking for dlsym
-  -- Looking for dlsym - found
   -- Found HWLOC: /opt/local/lib/libhwloc.dylib
   -- Performing Test PARSEC_HAVE_HWLOC_PARENT_MEMBER
   -- Performing Test PARSEC_HAVE_HWLOC_PARENT_MEMBER - Success
@@ -343,48 +352,33 @@ Hopefully, once the expected arguments are provided the output will look similar
   -- Performing Test PARSEC_HAVE_HWLOC_OBJ_PU - Success
   -- Looking for hwloc_bitmap_free in /opt/local/lib/libhwloc.dylib
   -- Looking for hwloc_bitmap_free in /opt/local/lib/libhwloc.dylib - found
-  -- Performing Test MPI_WORKS_WITH_WRAPPER
-  -- Performing Test MPI_WORKS_WITH_WRAPPER - Failed
   -- Found MPI_C: /opt/ompi/master/debug/lib/libmpi.dylib (found version "3.1")
-  -- Found MPI_CXX: /opt/ompi/master/debug/lib/libmpi_cxx.dylib (found version "3.1")
+  -- Found MPI_CXX: /opt/ompi/master/debug/lib/libmpi.dylib (found version "3.1")
   -- Found MPI_Fortran: /opt/ompi/master/debug/lib/libmpi_usempif08.dylib (found version "3.1")
   -- Found MPI: TRUE (found version "3.1")
   -- Looking for MPI_Type_create_resized
   -- Looking for MPI_Type_create_resized - found
+  -- Looking for MPI_Comm_set_info
+  -- Looking for MPI_Comm_set_info - found
   -- Performing Test PARSEC_HAVE_MPI_OVERTAKE
   -- Performing Test PARSEC_HAVE_MPI_OVERTAKE - Success
+  CUDA_TOOLKIT_ROOT_DIR not found or specified
+  -- Could NOT find CUDA (missing: CUDA_TOOLKIT_ROOT_DIR CUDA_NVCC_EXECUTABLE CUDA_INCLUDE_DIRS CUDA_CUDART_LIBRARY)
   -- Looking for include file Ayudame.h
   -- Looking for include file Ayudame.h - not found
-  -- Fortran adds libraries path /opt/local/lib/gcc7/gcc/x86_64-apple-darwin18/7.4.0;/opt/local/lib/gcc7;/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/lib
-  -- Fortran adds libraries gfortran;gcc_ext.10.5;gcc;quadmath;m;gcc_ext.10.5;gcc
-  -- Found GTG: /opt/lib/libgtg.dylib
-  -- Checking for module 'libgvc'
-  --   Found libgvc, version 2.40.1
-  -- Found GRAPHVIZ: /opt/local/lib/libgvc.dylib;/opt/local/lib/libcgraph.dylib;/opt/local/lib/libcdt.dylib;/opt/local/lib/libpathplan.dylib
-  -- Looking for gdImagePng in /opt/local/lib/libgd.dylib
-  -- Looking for gdImagePng in /opt/local/lib/libgd.dylib - found
-  -- Found ZLIB: /opt/local/lib/libz.dylib (found version "1.2.11")
-  -- Found PNG: /opt/local/lib/libpng.dylib (found version "1.4.12")
-  -- Looking for gdImageJpeg in /opt/local/lib/libgd.dylib
-  -- Looking for gdImageJpeg in /opt/local/lib/libgd.dylib - found
-  -- Found JPEG: /opt/local/lib/libjpeg.dylib (found version "80")
-  -- Looking for gdImageGif in /opt/local/lib/libgd.dylib
-  -- Looking for gdImageGif in /opt/local/lib/libgd.dylib - found
-  -- Found PythonInterp: /opt/local/bin/python (found version "2.7.16")
-  -- Cython version 0.29.13 found
-  -- Found Cython: /opt/local/bin/cython (Required is at least version "0.21.2")
   -- Looking for shm_open
   -- Looking for shm_open - found
   -- PARSEC Modular Component Architecture (MCA) discovery:
+  -- -- Found Component `device'
+  -- Module cuda not selectable: does not have CUDA
+  -- ---- Module `device/template` is ignored (due to .ignore)
   -- -- Found Component `pins'
   -- Module alperf not selectable: PARSEC_PROF_TRACE disabled.
   -- ---- Module `iterators_checker' is ON
-  -- The PAPI Library is found at PAPI_LIBRARY-NOTFOUND
   -- Module papi not selectable: PARSEC_PROF_TRACE disabled.
   -- ---- Module `print_steals' is ON
   -- ---- Module `ptg_to_dtd' is ON
   -- Module task_profiler not selectable: PARSEC_PROF_TRACE disabled.
-  -- Component pins sources: mca/pins/pins.c;mca/pins/pins_init.c
   -- -- Found Component `sched'
   -- ---- Module `ap' is ON
   -- ---- Module `gd' is ON
@@ -396,22 +390,32 @@ Hopefully, once the expected arguments are provided the output will look similar
   -- ---- Module `pbq' is ON
   -- ---- Module `rnd' is ON
   -- ---- Module `spq' is ON
-  -- Component sched sources:
   -- PARSEC Modular Component Architecture (MCA) discovery done.
   -- Detecting Fortran/C Interface
   -- Detecting Fortran/C Interface - Found GLOBAL and MODULE mangling
+  -- Looking for erand48
+  -- Looking for erand48 - found
+  -- Looking for nrand48
+  -- Looking for nrand48 - found
+  -- Looking for lrand48
+  -- Looking for lrand48 - found
+  -- Looking for random
+  -- Looking for random - found
   -- Looking for PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128
   -- Looking for PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128 - found
-  -- Internal PaRSEC uses CAS 128B. Reconfiguring parsec_options.h
-
-
-  Configuration flags:
-    CMAKE_C_FLAGS          =  -m64 -std=c1x
-    CMAKE_EXE_LINKER_FLAGS =
-    EXTRA_LIBS             = -latomic;/opt/local/lib/libhwloc.dylib;-L/opt/local/lib/gcc7/gcc/x86_64-apple-darwin18/7.4.0;-L/opt/local/lib/gcc7;-L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/lib;gfortran;gcc_ext.10.5;gcc;quadmath;m
-
-
-
+  -- Check size of parsec_lifo_t
+  -- Check size of parsec_lifo_t - done
+  -- Check offset of field lifo_private in structure 'struct{parsec_object_t super;uint8_t alignment;parsec_list_item_t*lifo_ghost;char lifo_private;}'
+  -- Check offset of field lifo_private in structure struct{parsec_object_t super;uint8_t alignment;parsec_list_item_t*lifo_ghost;char lifo_private;} - done
+  -- Internal PaRSEC uses CAS on int128_t. Reconfiguring parsec_options.h
+  
+  
+  PkgConfig Configuration Flags:
+    EXTRA_CFLAGS           =
+    EXTRA_LDFLAGS          =
+    EXTRA_INCLUDES         = /opt/local/include;/opt/ompi/master/debug/include
+    EXTRA_LIBS             = -L/opt/local/lib/gcc10/gcc/x86_64-apple-darwin19/10.2.0;-L/opt/local/lib/gcc10;-L/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.0.sdk/usr/lib;gfortran;gcc_ext.10.5;gcc;quadmath;m;/opt/local/lib/libhwloc.dylib;/opt/ompi/master/debug/lib/libmpi.dylib
+  
   -- Configuring done
   -- Generating done
   -- Build files have been written to:

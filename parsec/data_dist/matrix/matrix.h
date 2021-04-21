@@ -15,11 +15,13 @@
 #include "parsec/data_distribution.h"
 #include "parsec/data.h"
 #include "parsec/datatype.h"
+#include "parsec/parsec_internal.h"
 
 BEGIN_C_DECLS
 
 struct parsec_execution_stream_s;
 struct parsec_taskpool_s;
+
 
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
@@ -82,9 +84,9 @@ static inline int parsec_translate_matrix_type( enum matrix_type mt, parsec_data
     case matrix_ComplexDouble: *dt = parsec_datatype_double_complex_t; break;
     default:
         fprintf(stderr, "%s:%d Unknown matrix_type (%d)\n", __func__, __LINE__, mt);
-        return -1;
+        return PARSEC_ERR_BAD_PARAM;
     }
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 #define parsec_tiled_matrix_dc_type   0x01
@@ -106,15 +108,17 @@ typedef struct parsec_tiled_matrix_dc_t {
     int ln;             /**< number of columns of the entire matrix */
     int lmt;            /**< number of tile rows of the entire matrix - derived parameter */
     int lnt;            /**< number of tile columns of the entire matrix - derived parameter */
-    int llm;            /**< number of rows of the matrix stored localy - derived parameter */
-    int lln;            /**< number of columns of the matrix stored localy - derived parameter */
+    int llm;            /**< number of rows of the matrix stored locally - derived parameter */
+    int lln;            /**< number of columns of the matrix stored locally - derived parameter */
     int i;              /**< row index to the beginning of the submatrix */
-    int j;              /**< column indes to the beginning of the submatrix */
+    int j;              /**< column index to the beginning of the submatrix */
     int m;              /**< number of rows of the submatrix */
     int n;              /**< number of columns of the submatrix */
     int mt;             /**< number of tile rows of the submatrix - derived parameter */
     int nt;             /**< number of tile columns of the submatrix - derived parameter */
     int nb_local_tiles; /**< number of tile handled locally */
+    int slm;            /**< number of local rows of the submatrix */
+    int sln;            /**< number of local columns of the submatrix */
 } parsec_tiled_matrix_dc_t;
 
 void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,
@@ -182,6 +186,100 @@ parsec_apply( parsec_context_t *parsec,
              parsec_tiled_matrix_dc_t *A,
              tiled_matrix_unary_op_t operation,
              void *op_args );
+/**
+ * @brief Non-blocking function of redistribute for PTG
+ *
+ * @param [in] source: source distribution, already distributed and allocated
+ * @param [out] target: target distribution, redistributed and allocated
+ * @param [in] size_row: row size to be redistributed
+ * @param [in] size_col: column size to be redistributed
+ * @param [in] disi_source: row displacement in source
+ * @param [in] disj_source: column displacement in source
+ * @param [in] disi_target: row displacement in target
+ * @param [in] disj_target: column displacement in target
+ * @return the parsec object to schedule.
+ */
+parsec_taskpool_t*
+parsec_redistribute_New(parsec_tiled_matrix_dc_t *source,
+                        parsec_tiled_matrix_dc_t *target,
+                        int size_row, int size_col,
+                        int disi_source, int disj_source,
+                        int disi_target, int disj_target);
+
+/**
+ * @brief Cases other than that of parsec_redistribute_ss_Destruct 
+ * @param [inout] the parsec object to destroy
+ */
+void parsec_redistribute_Destruct(parsec_taskpool_t *taskpool);
+
+/**
+ * @brief Redistribute source to target of PTG
+ *
+ * @details 
+ * Source and target could be ANY distribuiton with ANY displacement 
+ * in both source and target. 
+ *
+ * @param [in] source: source distribution, already distributed and allocated
+ * @param [out] target: target distribution, redistributed and allocated
+ * @param [in] size_row: row size to be redistributed
+ * @param [in] size_col: column size to be redistributed
+ * @param [in] disi_source: row displacement in source 
+ * @param [in] disj_source: column displacement in source 
+ * @param [in] disi_target: row displacement in target
+ * @param [in] disj_target: column displacement in target
+ */
+int parsec_redistribute(parsec_context_t *parsec,
+                        parsec_tiled_matrix_dc_t *source,
+                        parsec_tiled_matrix_dc_t *target,
+                        int size_row, int size_col,
+                        int disi_source, int disj_source,
+                        int disi_target, int disj_target);
+
+/**
+ * @brief Non-blocking function of redistribute for DTD 
+ * 
+ * @details 
+ * Source and target could be ANY distribuiton with ANY displacement 
+ * in both source and target. 
+ *
+ * @param [in] source: source distribution, already distributed and allocated
+ * @param [out] target: target distribution, redistributed and allocated
+ * @param [in] size_row: row size to be redistributed
+ * @param [in] size_col: column size to be redistributed
+ * @param [in] disi_source: row displacement in source 
+ * @param [in] disj_source: column displacement in source 
+ * @param [in] disi_target: row displacement in target
+ * @param [in] disj_target: column displacement in target
+ */
+int parsec_redistribute_dtd_New(parsec_context_t *parsec,
+                            parsec_tiled_matrix_dc_t *source,
+                            parsec_tiled_matrix_dc_t *target,
+                            int size_row, int size_col,
+                            int disi_source, int disj_source,
+                            int disi_target, int disj_target);
+
+/**
+ * @brief Redistribute source to target of DTD 
+ * 
+ * @details 
+ * Source and target could be ANY distribuiton with ANY displacement 
+ * in both source and target. 
+ * 
+ * @param [in] source: source distribution, already distributed and allocated
+ * @param [out] target: target distribution, redistributed and allocated
+ * @param [in] size_row: row size to be redistributed
+ * @param [in] size_col: column size to be redistributed
+ * @param [in] disi_source: row displacement in source 
+ * @param [in] disj_source: column displacement in source 
+ * @param [in] disi_target: row displacement in target
+ * @param [in] disj_target: column displacement in target
+ */
+int parsec_redistribute_dtd(parsec_context_t *parsec,
+                            parsec_tiled_matrix_dc_t *source,
+                            parsec_tiled_matrix_dc_t *target,
+                            int size_row, int size_col,
+                            int disi_source, int disj_source,
+                            int disi_target, int disj_target);
 
 /*
  * Macro to get the block leading dimension
@@ -206,34 +304,46 @@ parsec_data_t*
 fake_data_of(parsec_data_collection_t *mat, ...);
 
 /**
- * Helper functions to create arenas of matrices with different shapes. This generic
+ * Helper function to create datatypes for matrices with different shapes. This generic
  * function allow for the creation of vector of vector data, or a tile in a submatrice.
  * The m and n are the size of the tile, while the LDA is the size of the submatrix.
- * The alignment indicates the restrictions related to the alignment of the allocated
- * data. The resized parameter indicates the need to resize the resulting data. A negative
+ * The resized parameter indicates the need to resize the resulting data. A negative
  * resized indicates that no resize if necessary, while any positive value will resize
  * the resulting datatype to resized times the size of the oldtype. This allows for the
  * creation of column major data layouts in a row major storage.
+ * The extent of the output datatype is set on the extent argument.
  */
-int parsec_matrix_add2arena( parsec_arena_t *arena, parsec_datatype_t oldtype,
+int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t oldtype,
+                                  int uplo, int diag,
+                                  unsigned int m, unsigned int n, unsigned int ld,
+                                  int resized,
+                                  ptrdiff_t * extent);
+
+/**
+ * Helper functions to create both the datatype and the arena of matrices with different
+ * shapes. Datatypes are created as defined by parsec_matrix_define_datatype and the arena
+ * is created using the datatype extent. The alignment indicates the restrictions related
+ * to the alignment of the allocated data by the arena.
+ */
+int parsec_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
                              int uplo, int diag,
                              unsigned int m, unsigned int n, unsigned int ld,
                              size_t alignment, int resized );
 
-int parsec_matrix_del2arena( parsec_arena_t *arena );
+int parsec_matrix_del2arena( parsec_arena_datatype_t *adt );
 
 
-#define parsec_matrix_add2arena_tile( _arena_ , _oldtype_, _m_ ) \
-    parsec_matrix_add2arena( (_arena_), (_oldtype_), matrix_UpperLower, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_matrix_add2arena_tile( _adt_ , _oldtype_, _m_ ) \
+    parsec_matrix_add2arena( (_adt_), (_oldtype_), matrix_UpperLower, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
-#define parsec_matrix_add2arena_upper( _arena_ , _oldtype_, diag, _n_ ) \
-    parsec_matrix_add2arena( (_arena_), (_oldtype_), matrix_Upper, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_matrix_add2arena_upper( _adt_ , _oldtype_, diag, _n_ ) \
+    parsec_matrix_add2arena( (_adt_), (_oldtype_), matrix_Upper, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
-#define parsec_matrix_add2arena_lower( _arena_ , _oldtype_, diag, _n_ ) \
-    parsec_matrix_add2arena( (_arena_), (_oldtype_), matrix_Lower, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_matrix_add2arena_lower( _adt_ , _oldtype_, diag, _n_ ) \
+    parsec_matrix_add2arena( (_adt_), (_oldtype_), matrix_Lower, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
-#define parsec_matrix_add2arena_rect( _arena_ , _oldtype_, _m_, _n_, _ld_ ) \
-    parsec_matrix_add2arena( (_arena_), (_oldtype_), matrix_UpperLower, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_matrix_add2arena_rect( _adt_ , _oldtype_, _m_, _n_, _ld_ ) \
+    parsec_matrix_add2arena( (_adt_), (_oldtype_), matrix_UpperLower, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
 END_C_DECLS
 #endif /* _MATRIX_H_  */

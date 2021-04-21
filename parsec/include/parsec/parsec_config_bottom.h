@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2019 The University of Tennessee and The University
+ * Copyright (c) 2010-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -56,6 +56,54 @@
 #define PARSEC_UNLIKELY(x)     (x)
 #endif
 
+/***********************************************************************
+ *
+ * Windows library interface declaration code
+ *
+ **********************************************************************/
+#if !defined(__WINDOWS__)
+#  if defined(_WIN32) || defined(WIN32) || defined(WIN64)
+#    define __WINDOWS__
+#  endif
+#endif  /* !defined(__WINDOWS__) */
+
+#if defined(__WINDOWS__)
+
+#  if defined(_USRDLL)    /* building shared libraries (.DLL) */
+#    if defined(PARSEC_EXPORTS)
+#      define PARSEC_DECLSPEC        __declspec(dllexport)
+#      define PARSEC_MODULE_DECLSPEC
+#    else
+#      if defined(PARSEC_IMPORTS)
+#        define PARSEC_DECLSPEC      __declspec(dllimport)
+#      else
+#        define PARSEC_DECLSPEC
+#      endif  /*defined(PARSEC_IMPORTS)*/
+#      if defined(PARSEC_MODULE_EXPORTS)
+#        define PARSEC_MODULE_DECLSPEC __declspec(dllexport)
+#      else
+#        define PARSEC_MODULE_DECLSPEC __declspec(dllimport)
+#      endif  /* defined(PARSEC_MODULE_EXPORTS) */
+#    endif  /* defined(PARSEC_EXPORTS) */
+#  else          /* building static library */
+#    if defined(PARSEC_IMPORTS)
+#      define PARSEC_DECLSPEC        __declspec(dllimport)
+#    else
+#      define PARSEC_DECLSPEC
+#    endif  /* defined(PARSEC_IMPORTS) */
+#    define PARSEC_MODULE_DECLSPEC
+#  endif  /* defined(_USRDLL) */
+#include "parsec/utils/win_compat.h"
+#else
+#  if defined(PARSEC_C_PARSEC_HAVE_VISIBILITY)
+#    define PARSEC_DECLSPEC           __parsec_attribute_visibility__("default")
+#    define PARSEC_MODULE_DECLSPEC    __parsec_attribute_visibility__("default")
+#  else
+#    define PARSEC_DECLSPEC
+#    define PARSEC_MODULE_DECLSPEC
+#  endif
+#endif  /* defined(__WINDOWS__) */
+
 #if defined(PARSEC_HAVE_STDDEF_H)
 #include <stddef.h>
 #endif  /* PARSEC_HAVE_STDDEF_H */
@@ -70,7 +118,7 @@
 # undef DISTRIBUTED
 #endif
 
-/*#define PARSEC_HARD_SUPERTILE */
+/*#define PARSEC_KCYCLIC_WITH_VIEW */
 
 #if defined(PARSEC_PROF_DRY_RUN)
 # define PARSEC_PROF_DRY_BODY
@@ -81,12 +129,6 @@
 #define RDEP_MSG_SHORT_LIMIT    0
 #else
 #define RDEP_MSG_SHORT_LIMIT    ((PARSEC_DIST_SHORT_LIMIT)*1024)
-#endif
-
-#if PARSEC_DIST_EAGER_LIMIT == 0
-#define RDEP_MSG_EAGER_LIMIT    0
-#else
-#define RDEP_MSG_EAGER_LIMIT    ((PARSEC_DIST_EAGER_LIMIT)*1024)
 #endif
 
 #if defined(PARSEC_SCHED_DEPS_MASK)
@@ -131,54 +173,6 @@ typedef int32_t parsec_dependency_t;
 #else
 #define PARSEC_ATTRIBUTE_FORMAT_PRINTF(a, b)
 #endif
-
-/***********************************************************************
- *
- * Windows library interface declaration code
- *
- **********************************************************************/
-#if !defined(__WINDOWS__)
-#  if defined(_WIN32) || defined(WIN32) || defined(WIN64)
-#    define __WINDOWS__
-#  endif
-#endif  /* !defined(__WINDOWS__) */
-
-#if defined(__WINDOWS__)
-
-#  if defined(_USRDLL)    /* building shared libraries (.DLL) */
-#    if defined(PARSEC_EXPORTS)
-#      define PARSEC_DECLSPEC        __declspec(dllexport)
-#      define PARSEC_MODULE_DECLSPEC
-#    else
-#      if defined(PARSEC_IMPORTS)
-#        define PARSEC_DECLSPEC      __declspec(dllimport)
-#      else
-#        define PARSEC_DECLSPEC
-#      endif  /*defined(PARSEC_IMPORTS)*/
-#      if defined(PARSEC_MODULE_EXPORTS)
-#        define PARSEC_MODULE_DECLSPEC __declspec(dllexport)
-#      else
-#        define PARSEC_MODULE_DECLSPEC __declspec(dllimport)
-#      endif  /* defined(PARSEC_MODULE_EXPORTS) */
-#    endif  /* defined(PARSEC_EXPORTS) */
-#  else          /* building static library */
-#    if defined(PARSEC_IMPORTS)
-#      define PARSEC_DECLSPEC        __declspec(dllimport)
-#    else
-#      define PARSEC_DECLSPEC
-#    endif  /* defined(PARSEC_IMPORTS) */
-#    define PARSEC_MODULE_DECLSPEC
-#  endif  /* defined(_USRDLL) */
-#  include "parsec/win32/win_compat.h"
-#else
-#  if defined(PARSEC_C_PARSEC_HAVE_VISIBILITY)
-#    define PARSEC_DECLSPEC           __parsec_attribute_visibility__("default")
-#    define PARSEC_MODULE_DECLSPEC    __parsec_attribute_visibility__("default")
-#  else
-#    define PARSEC_DECLSPEC
-#    define PARSEC_MODULE_DECLSPEC
-#  endif
-#endif  /* defined(__WINDOWS__) */
 
 /*
  * Set the compile-time path-separator on this system and variable separator

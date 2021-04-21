@@ -1,0 +1,530 @@
+extern "C" %{
+/*
+ * Copyright (c) 2017-2021 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ *
+ */
+#include "parsec/data_dist/matrix/redistribute/redistribute_internal.h"
+
+/**
+ * @brief CORE function, used in task Send, to send data
+ *
+ * @details
+ * Send data from source data Y to the nine parts(NW/NE/SW/SE/N/S/W/E/I)
+ *
+ * @param [out] Y: source data
+ * @param [in] NW: North West part
+ * @param [in] NE: North East part
+ * @param [in] SW: South West part
+ * @param [in] SE: South East part
+ * @param [in] N: North part in T, but dimension based on Y
+ * @param [in] S: South part in T, but dimension based on Y
+ * @param [in] W: West part in T, but dimension based on Y
+ * @param [in] E: East part in T, but dimension based on Y
+ * @param [in] R: radius of ghost region
+ * @param [in] TL_row: row size of Top Left (NW)
+ * @param [in] TL_col: column size of Top Left (NW)
+ * @param [in] BR_row: row size of Bottom Right (SE)
+ * @param [in] BR_col: column size of Bottom Right (SE)
+ * @param [in] m_Y_start: row tile start index of Y
+ * @param [in] m_Y_end: row tile end index of Y
+ * @param [in] n_Y_start: column tile start index of Y
+ * @param [in] n_Y_end: column tile end index of Y
+ * @param [in] m_Y: row tile index of Y
+ * @param [in] n_Y: column tile index of Y
+ * @param [in] i_start: row start displacement of T in Y
+ * @param [in] j_start: column start displacement of T in Y
+ * @param [in] mb_Y_INNER: row tile size of Y, not including ghost region
+ * @param [in] nb_Y_INNER: column tile size of Y, not including ghost region
+ * @param [in] Y_LDA: LDA on Y
+ */
+static void
+CORE_redistribute_send(DTYPE *Y, DTYPE *NW, DTYPE *NE, DTYPE *SW, DTYPE *SE, DTYPE *N,
+                       DTYPE *S, DTYPE *W, DTYPE *E, int R, int TL_row, int TL_col,
+                       int BR_row, int BR_col, int m_Y_start, int m_Y_end, int n_Y_start,
+                       int n_Y_end, int m_Y, int n_Y, int i_start, int j_start,
+                       int mb_Y_INNER, int nb_Y_INNER, int Y_LDA)
+{
+    if( m_Y == m_Y_start ){
+        /* North west corner */
+        if( n_Y == n_Y_start ){
+            MOVE_SUBMATRIX_SEND(TL_row, TL_col, Y, i_start+R, j_start+R, Y_LDA, NW, 0, 0, TL_row);
+        }
+        /* North bar*/
+        else if( (n_Y > n_Y_start) && (n_Y < n_Y_end) ){
+            MOVE_SUBMATRIX_SEND(TL_row, nb_Y_INNER, Y, i_start+R, R, Y_LDA, N, 0, 0, TL_row);
+        }
+        /* North east corner */
+        else if( (n_Y == n_Y_end) && (n_Y_start != n_Y_end) ){
+            MOVE_SUBMATRIX_SEND(TL_row, BR_col, Y, i_start+R, R, Y_LDA, NE, 0, 0, TL_row);
+        }
+    }
+
+    else if( (m_Y > m_Y_start) && (m_Y < m_Y_end) ){
+        /* West bar*/
+        if( n_Y == n_Y_start ){
+            MOVE_SUBMATRIX_SEND(mb_Y_INNER, TL_col, Y, R, j_start+R, Y_LDA, W, 0, 0, mb_Y_INNER);
+        }
+        /* East bar*/
+        else if( (n_Y == n_Y_end) && (n_Y_start != n_Y_end) ){
+            MOVE_SUBMATRIX_SEND(mb_Y_INNER, BR_col, Y, R, R, Y_LDA, E, 0, 0, mb_Y_INNER);
+        }
+    }
+
+    else if( (m_Y == m_Y_end) && (m_Y_start != m_Y_end) ){
+        /* South west corner */
+        if( n_Y == n_Y_start ){
+            MOVE_SUBMATRIX_SEND(BR_row, TL_col, Y, R, j_start+R, Y_LDA, SW, 0, 0, BR_row);
+        }
+        /* South bar*/
+        else if( (n_Y > n_Y_start) && (n_Y < n_Y_end) ){
+            MOVE_SUBMATRIX_SEND(BR_row, nb_Y_INNER, Y, R, R, Y_LDA, S, 0, 0, BR_row);
+        }
+        /* South east corner */
+        else if( (n_Y == n_Y_end) && (n_Y_start != n_Y_end) ){
+            MOVE_SUBMATRIX_SEND(BR_row, BR_col, Y, R, R, Y_LDA, SE, 0, 0, BR_row);
+        }
+    }
+}
+
+/**
+ * @brief CORE function, update piece data to T
+ *
+ * @param [out] T: target data
+ * @param [in] NW: North West part
+ * @param [in] NE: North East part
+ * @param [in] SW: South West part
+ * @param [in] SE: South East part
+ * @param [in] N: North part in T, but dimension based on Y
+ * @param [in] S: South part in T, but dimension based on Y
+ * @param [in] W: West part in T, but dimension based on Y
+ * @param [in] E: East part in T, but dimension based on Y
+ * @param [in] I: Inner part in T, but dimension based on Y
+ * @param [in] R: radius of ghost region
+ * @param [in] TL_row: row size of Top Left (NW)
+ * @param [in] TL_col: column size of Top Left (NW)
+ * @param [in] BR_row: row size of Bottom Right (SE)
+ * @param [in] BR_col: column size of Bottom Right (SE)
+ * @param [in] m_Y_start: row tile start index of Y
+ * @param [in] m_Y_end: row tile end index of Y
+ * @param [in] n_Y_start: column tile start index of Y
+ * @param [in] n_Y_end: column tile end index of Y
+ * @param [in] m_Y: row tile index of Y
+ * @param [in] n_Y: column tile index of Y
+ * @param [in] i_start: row start displacement of T in Y
+ * @param [in] j_start: column start displacement of T in Y
+ * @param [in] mb_Y_INNER: row tile size of Y, not including ghost region
+ * @param [in] nb_Y_INNER: column tile size of Y, not including ghost region
+ * @param [in] offset_row: row offset in T
+ * @param [in] offset_col: col offset in T
+ * @param [in] rank_Y: rank of tile Y
+ * @param [in] rank_T: rank of tile T
+ * @param [in] Y_LDA: LDA on Y
+ * @param [in] T_LDA: LDA on T
+ */
+static void
+CORE_redistribute_update(DTYPE *T, DTYPE *NW, DTYPE *NE, DTYPE *SW, DTYPE *SE, DTYPE *N, DTYPE *S,
+                         DTYPE *W, DTYPE *E, DTYPE *I, int R, int TL_row, int TL_col, int BR_row,
+                         int BR_col, int m_Y_start, int m_Y_end, int n_Y_start, int n_Y_end, int m_Y,
+                         int n_Y, int i_start, int j_start, int mb_Y_INNER, int nb_Y_INNER,
+                         int offset_row, int offset_col, int rank_Y, int rank_T, int Y_LDA, int T_LDA)
+{
+    int i_start_T, j_start_T;
+    if( m_Y == m_Y_start ){
+        /* North west corner */
+        if( n_Y == n_Y_start ){
+            i_start_T = offset_row;
+            j_start_T = offset_col;
+            if( rank_Y == rank_T ){
+                MOVE_SUBMATRIX(TL_row, TL_col, NW, i_start+R, j_start+R, Y_LDA, T, i_start_T, j_start_T, T_LDA);
+            }
+            else{
+                MOVE_SUBMATRIX_RECEIVE(TL_row, TL_col, NW, 0, 0, TL_row, T, i_start_T, j_start_T, T_LDA);
+            }
+        }
+        /* North bar*/
+        else if( (n_Y > n_Y_start) && (n_Y < n_Y_end) ){
+            i_start_T = offset_row;
+            j_start_T = offset_col + TL_col + (n_Y - n_Y_start - 1) * nb_Y_INNER;
+            if( rank_Y == rank_T ){
+                MOVE_SUBMATRIX(TL_row, nb_Y_INNER, N, i_start+R, R, Y_LDA, T, i_start_T, j_start_T, T_LDA);
+            }
+            else{
+                MOVE_SUBMATRIX_RECEIVE(TL_row, nb_Y_INNER, N, 0, 0, TL_row, T, i_start_T, j_start_T, T_LDA);
+            }
+        }
+        /* North east corner */
+        else if( (n_Y == n_Y_end) && (n_Y_start != n_Y_end) ){
+            i_start_T = offset_row;
+            j_start_T = offset_col + TL_col + (n_Y_end - n_Y_start - 1) * nb_Y_INNER;
+            if( rank_Y == rank_T ){
+                MOVE_SUBMATRIX(TL_row, BR_col, NE, i_start+R, R, Y_LDA, T, i_start_T, j_start_T, T_LDA);
+            }
+            else{
+                MOVE_SUBMATRIX_RECEIVE(TL_row, BR_col, NE, 0, 0, TL_row, T, i_start_T, j_start_T, T_LDA);
+            }
+        }
+    }
+
+    else if( (m_Y > m_Y_start) && (m_Y < m_Y_end) ){
+        /* West bar*/
+        if( n_Y == n_Y_start ){
+            i_start_T = offset_row + TL_row + (m_Y - m_Y_start - 1) * mb_Y_INNER;
+            j_start_T = offset_col;
+            if( rank_Y == rank_T ){
+                MOVE_SUBMATRIX(mb_Y_INNER, TL_col, W, R, j_start+R, Y_LDA, T, i_start_T, j_start_T, T_LDA);
+            }
+            else{
+                MOVE_SUBMATRIX_RECEIVE(mb_Y_INNER, TL_col, W, 0, 0, mb_Y_INNER, T, i_start_T, j_start_T, T_LDA);
+            }
+        }
+        /* Inner tile*/
+        else if( (n_Y > n_Y_start) && (n_Y < n_Y_end) ){
+            i_start_T = offset_row + TL_row + (m_Y - m_Y_start - 1) * mb_Y_INNER;
+            j_start_T = offset_col + TL_col + (n_Y - n_Y_start - 1) * nb_Y_INNER;
+            if( rank_Y == rank_T ){
+                MOVE_SUBMATRIX(mb_Y_INNER, nb_Y_INNER, I, R, R, Y_LDA, T, i_start_T, j_start_T, T_LDA);
+            }
+            else{
+                MOVE_SUBMATRIX_RECEIVE(mb_Y_INNER, nb_Y_INNER, I, 0, 0, mb_Y_INNER, T, i_start_T, j_start_T, T_LDA);
+            }
+        }
+        /* East bar*/
+        else if( (n_Y == n_Y_end) && (n_Y_start != n_Y_end) ){
+            i_start_T = offset_row + TL_row + (m_Y - m_Y_start - 1) * mb_Y_INNER;
+            j_start_T = offset_col + TL_col + (n_Y_end - n_Y_start - 1) * nb_Y_INNER;
+            if( rank_Y == rank_T ){
+                MOVE_SUBMATRIX(mb_Y_INNER, BR_col, E, R, R, Y_LDA, T, i_start_T, j_start_T, T_LDA);
+            }
+            else{
+                MOVE_SUBMATRIX_RECEIVE(mb_Y_INNER, BR_col, E, 0, 0, mb_Y_INNER, T, i_start_T, j_start_T, T_LDA);
+            }
+        }
+    }
+
+    else if( (m_Y == m_Y_end) && (m_Y_start != m_Y_end) ){
+        /* South west corner */
+        if( n_Y == n_Y_start ){
+            i_start_T = offset_row + TL_row + (m_Y_end - m_Y_start - 1) * mb_Y_INNER;
+            j_start_T = offset_col;
+            if( rank_Y == rank_T ){
+                MOVE_SUBMATRIX(BR_row, TL_col, SW, R, j_start+R, Y_LDA, T, i_start_T, j_start_T, T_LDA);
+            }
+            else{
+                MOVE_SUBMATRIX_RECEIVE(BR_row, TL_col, SW, 0, 0, BR_row, T, i_start_T, j_start_T, T_LDA);
+            }
+        }
+        /* South bar*/
+        else if( (n_Y > n_Y_start) && (n_Y < n_Y_end) ){
+            i_start_T = offset_row + TL_row + (m_Y_end - m_Y_start - 1) * mb_Y_INNER;
+            j_start_T = offset_col + TL_col + (n_Y - n_Y_start - 1) * nb_Y_INNER;
+            if( rank_Y == rank_T ){
+                MOVE_SUBMATRIX(BR_row, nb_Y_INNER, S, R, R, Y_LDA, T, i_start_T, j_start_T, T_LDA);
+            }
+            else{
+                MOVE_SUBMATRIX_RECEIVE(BR_row, nb_Y_INNER, S, 0, 0, BR_row, T, i_start_T, j_start_T, T_LDA);
+            }
+        }
+        /* South east corner */
+        else if( (n_Y == n_Y_end) && (n_Y_start != n_Y_end) ){
+            i_start_T = offset_row + TL_row + (m_Y_end - m_Y_start - 1) * mb_Y_INNER;
+            j_start_T = offset_col + TL_col + (n_Y_end - n_Y_start - 1) * nb_Y_INNER;
+            if( rank_Y == rank_T ){
+                MOVE_SUBMATRIX(BR_row, BR_col, SE, R, R, Y_LDA, T, i_start_T, j_start_T, T_LDA);
+            }
+            else{
+                MOVE_SUBMATRIX_RECEIVE(BR_row, BR_col, SE, 0, 0, BR_row, T, i_start_T, j_start_T, T_LDA);
+            }
+        }
+    }
+}
+
+%}
+
+/**
+ * @brief Redistribute from source dc to target dc
+ *
+ * @details
+ * Split source data into nine parts: NW, NE, SW, SE, N, S, W, E, I
+ * Send NW, NE, SW and SE directly from task Send to task Receive
+ * Send N, S, W, E and I from task Send to task North, South, West
+ * East and Inner respectively, combine data and send data to task
+ * Receive and receive data to target dc
+ *
+ * Use layout and count to send/receive exact size of data.
+ * Use CTL to control flow
+ *
+ * @see https://github.com/ICLDisco/meeting_notes/blob/master/lei/redistribute.jpg
+ */
+descY    [ type = "parsec_tiled_matrix_dc_t*" ]
+descT    [ type = "parsec_tiled_matrix_dc_t*" ]
+size_row [ type = "int" ]
+size_col [ type = "int" ]
+disi_Y   [ type = "int" ]
+disj_Y   [ type = "int" ]
+disi_T   [ type = "int" ]
+disj_T   [ type = "int" ]
+R        [ type = "int" ]
+
+mb_Y_INNER [ type = "int" hidden=on default="descY->mb-2*R" ]
+nb_Y_INNER [ type = "int" hidden=on default="descY->nb-2*R" ]
+mb_T_INNER [ type = "int" hidden=on default="descT->mb-2*R" ]
+nb_T_INNER [ type = "int" hidden=on default="descT->nb-2*R" ]
+m_T_START  [ type = "int" hidden=on default="disi_T/mb_T_INNER" ]
+n_T_START  [ type = "int" hidden=on default="disj_T/nb_T_INNER" ]
+m_T_END    [ type = "int" hidden=on default="(size_row+disi_T-1)/mb_T_INNER" ]
+n_T_END    [ type = "int" hidden=on default="(size_col+disj_T-1)/nb_T_INNER" ]
+num_col    [ type = "int" hidden=on default="descT->lnt" ]
+NT         [ type = "int" hidden=on default="(n_T_END-n_T_START)/num_col" ]
+
+/************************************************************
+ *                         Init                             *
+ ************************************************************
+ * @brief Task, init
+ * @param m_T, n_T: tile index of T
+ * @param batch_col: control flow
+ ************************************************************/
+Init(m_T, n_T, batch_col)
+
+batch_col = 0 .. NT
+m_T = m_T_START .. m_T_END
+n_T = %{ return batch_col*num_col+n_T_START; %} .. %{ return parsec_imin((batch_col+1)*num_col+n_T_START-1, n_T_END); %}
+
+mb_T_inner = %{ return getsize(m_T, m_T_START, m_T_END, mb_T_INNER, size_row, disi_T%mb_T_INNER); %}
+nb_T_inner = %{ return getsize(n_T, n_T_START, n_T_END, nb_T_INNER, size_col, disj_T%nb_T_INNER); %}
+
+sizei_T = (m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER
+sizej_T = (n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER
+
+m_Y_start = %{ return ((m_T == m_T_START)? disi_Y/mb_Y_INNER: (sizei_T+disi_Y)/mb_Y_INNER); %}
+n_Y_start = %{ return ((n_T == n_T_START)? disj_Y/nb_Y_INNER: (sizej_T+disj_Y)/nb_Y_INNER); %}
+m_Y_end = %{ return ((m_T == m_T_START)? (disi_Y+mb_T_inner-1)/mb_Y_INNER: (sizei_T+disi_Y+mb_T_inner-1)/mb_Y_INNER); %}
+n_Y_end = %{ return ((n_T == n_T_START)? (disj_Y+nb_T_inner-1)/nb_Y_INNER: (sizej_T+disj_Y+nb_T_inner-1)/nb_Y_INNER); %}
+
+: descT(m_T, n_T)
+
+RW T <- descT(m_T, n_T) /*[ type = TARGET type_data = TARGET ]*/
+     -> T Update(m_Y_start .. m_Y_end, n_Y_start .. n_Y_end, m_T, n_T, batch_col) [ type_remote = TARGET ]
+     -> T Receive(m_T, n_T, batch_col) [ type_remote = TARGET ]
+
+BODY
+{
+
+}
+END
+
+/************************************************************
+ *                         Send                             *
+ ************************************************************
+ * @brief Task, to send data
+ * @param m_Y, n_Y, m_T, n_T: tile index of Y and T
+ * @param batch_col: control flow
+ ************************************************************/
+Send(m_Y, n_Y, m_T, n_T, batch_col)
+
+batch_col = 0 .. NT
+m_T = m_T_START .. m_T_END
+n_T = %{ return batch_col*num_col+n_T_START; %} .. %{ return parsec_imin((batch_col+1)*num_col+n_T_START-1, n_T_END); %}
+
+mb_T_inner = %{ return getsize(m_T, m_T_START, m_T_END, mb_T_INNER, size_row, disi_T%mb_T_INNER); %}
+nb_T_inner = %{ return getsize(n_T, n_T_START, n_T_END, nb_T_INNER, size_col, disj_T%nb_T_INNER); %}
+
+i_start = %{ return ((m_T == m_T_START)? disi_Y%mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y)%mb_Y_INNER); %}
+j_start = %{ return ((n_T == n_T_START)? disj_Y%nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y)%nb_Y_INNER); %}
+
+m_Y_start = %{ return ((m_T == m_T_START)? disi_Y/mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y)/mb_Y_INNER); %}
+n_Y_start = %{ return ((n_T == n_T_START)? disj_Y/nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y)/nb_Y_INNER); %}
+m_Y_end = %{ return ((m_T == m_T_START)? (disi_Y+mb_T_inner-1)/mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y+mb_T_inner-1)/mb_Y_INNER); %}
+n_Y_end = %{ return ((n_T == n_T_START)? (disj_Y+nb_T_inner-1)/nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y+nb_T_inner-1)/nb_Y_INNER); %}
+
+m_Y = m_Y_start .. m_Y_end
+n_Y = n_Y_start .. n_Y_end
+
+TL_row = %{ return parsec_imin(mb_T_inner, mb_Y_INNER-i_start); %}
+TL_col = %{ return parsec_imin(nb_T_inner, nb_Y_INNER-j_start); %}
+BR_row = (i_start + mb_T_inner - 1) % mb_Y_INNER + 1
+BR_col = (j_start + nb_T_inner - 1) % nb_Y_INNER + 1
+
+rank_Y = %{ return descY->super.rank_of(&descY->super, m_Y, n_Y); %}
+rank_T = %{ return descT->super.rank_of(&descT->super, m_T, n_T); %}
+
+: descY(m_Y, n_Y)
+
+READ Y <- descY(m_Y, n_Y) /*[ type = SOURCE type_data = SOURCE ]*/
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*TL_col; %} ]
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*BR_col; %} ]
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*TL_col; %} ]
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*BR_col; %} ]
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*nb_Y_INNER; %} ]
+       -> ((rank_Y == rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*nb_Y_INNER; %} ]
+       -> ((rank_Y == rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*TL_col; %} ]
+       -> ((rank_Y == rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*BR_col; %} ]
+       -> ((m_Y > m_Y_start) && (m_Y < m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? I Update(m_Y, n_Y, m_T, n_T, batch_col) [ type_remote = INNER displ_remote = %{ return 8*(descY->mb*R+R); %} ]
+
+RW NW <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NEW: NULL [ layout = MY_TYPE count = %{ return TL_row*TL_col; %} ]
+      -> ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*TL_col; %} ]
+
+RW NE <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return TL_row*BR_col; %} ]
+      -> ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*BR_col; %} ]
+
+RW SW <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return BR_row*TL_col; %} ]
+      -> ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*TL_col; %} ]
+
+RW SE <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return BR_row*BR_col; %} ]
+      -> ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*BR_col; %} ]
+
+RW N <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return TL_row*nb_Y_INNER; %} ]
+     -> ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*nb_Y_INNER; %} ]
+
+RW S <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return BR_row*nb_Y_INNER; %} ]
+     -> ((rank_Y != rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*nb_Y_INNER; %} ]
+
+RW W <- ((rank_Y != rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return mb_Y_INNER*TL_col; %} ]
+     -> ((rank_Y != rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*TL_col; %} ]
+
+RW E <- ((rank_Y != rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? NEW: NULL [ layout = MY_TYPE count = %{ return mb_Y_INNER*BR_col; %} ]
+     -> ((rank_Y != rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Update(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*BR_col; %} ]
+
+CTL ctl <- (batch_col > 0)? ctl2 Receive(m_T, n_T-num_col, batch_col-1)
+
+BODY
+{
+    if( rank_Y != rank_T ){
+        /* Y is local, rely on storage for LDA */
+        const int Y_LDA = ( descY->storage == matrix_Lapack )? descY->llm : descY->mb;
+        CORE_redistribute_send(Y, NW, NE, SW, SE, N, S, W, E, R, TL_row, TL_col, BR_row, BR_col,
+                               m_Y_start, m_Y_end, n_Y_start, n_Y_end, m_Y, n_Y, i_start, j_start,
+                               mb_Y_INNER, nb_Y_INNER, Y_LDA);
+    }
+}
+END
+
+/************************************************************
+ *                         Update                             *
+ ************************************************************
+ * @brief Task, to update data
+ * @param m_Y, n_Y, m_T, n_T: tile index of Y and T
+ * @param batch_col: control flow
+ ************************************************************/
+Update(m_Y, n_Y, m_T, n_T, batch_col)
+
+batch_col = 0 .. NT
+m_T = m_T_START .. m_T_END
+n_T = %{ return batch_col*num_col+n_T_START; %} .. %{ return parsec_imin((batch_col+1)*num_col+n_T_START-1, n_T_END); %}
+
+mb_T_inner = %{ return getsize(m_T, m_T_START, m_T_END, mb_T_INNER, size_row, disi_T%mb_T_INNER); %}
+nb_T_inner = %{ return getsize(n_T, n_T_START, n_T_END, nb_T_INNER, size_col, disj_T%nb_T_INNER); %}
+
+i_start = %{ return ((m_T == m_T_START)? disi_Y%mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y)%mb_Y_INNER); %}
+j_start = %{ return ((n_T == n_T_START)? disj_Y%nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y)%nb_Y_INNER); %}
+
+m_Y_start = %{ return ((m_T == m_T_START)? disi_Y/mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y)/mb_Y_INNER); %}
+n_Y_start = %{ return ((n_T == n_T_START)? disj_Y/nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y)/nb_Y_INNER); %}
+m_Y_end = %{ return ((m_T == m_T_START)? (disi_Y+mb_T_inner-1)/mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y+mb_T_inner-1)/mb_Y_INNER); %}
+n_Y_end = %{ return ((n_T == n_T_START)? (disj_Y+nb_T_inner-1)/nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y+nb_T_inner-1)/nb_Y_INNER); %}
+
+m_Y = m_Y_start .. m_Y_end
+n_Y = n_Y_start .. n_Y_end
+
+TL_row = %{ return parsec_imin(mb_T_inner, mb_Y_INNER-i_start); %}
+TL_col = %{ return parsec_imin(nb_T_inner, nb_Y_INNER-j_start); %}
+BR_row = (i_start + mb_T_inner - 1) % mb_Y_INNER + 1
+BR_col = (j_start + nb_T_inner - 1) % nb_Y_INNER + 1
+
+rank_Y = %{ return descY->super.rank_of(&descY->super, m_Y, n_Y); %}
+rank_T = %{ return descT->super.rank_of(&descT->super, m_T, n_T); %}
+
+: descT(m_T, n_T)
+
+READ T <- T Init(m_T, n_T, batch_col) [ type_remote = TARGET ]
+
+READ NW <- ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*TL_col; %} ]
+        <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return TL_row*TL_col; %} ]
+
+READ NE <- ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*BR_col; %} ]
+        <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return TL_row*BR_col; %} ]
+
+READ SW <- ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*TL_col; %} ]
+        <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return BR_row*TL_col; %} ]
+
+READ SE <- ((rank_Y == rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*BR_col; %} ]
+        <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return BR_row*BR_col; %} ]
+
+READ N <- ((rank_Y == rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return TL_row*nb_Y_INNER; %} ]
+       <- ((rank_Y != rank_T) && (m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return TL_row*nb_Y_INNER; %} ]
+
+READ S <- ((rank_Y == rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return BR_row*nb_Y_INNER; %} ]
+       <- ((rank_Y != rank_T) && (m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return BR_row*nb_Y_INNER; %} ]
+
+READ W <- ((rank_Y == rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*TL_col; %} ]
+       <- ((rank_Y != rank_T) && (n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*TL_col; %} ]
+
+READ E <- ((rank_Y == rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col) [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*BR_col; %} ]
+       <- ((rank_Y != rank_T) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*BR_col; %} ]
+
+READ I <- ((m_Y > m_Y_start) && (m_Y < m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ layout_remote = MY_TYPE count_remote = %{ return mb_Y_INNER*nb_Y_INNER; %} ]
+
+CTL ctl -> ctl1 Receive(m_T, n_T, batch_col)
+
+BODY
+{
+    int offset_row = (m_T == m_T_START)? disi_T % mb_T_INNER + R: R;
+    int offset_col = (n_T == n_T_START)? disj_T % nb_T_INNER + R: R;
+
+    /* T is local, rely on storage for LDA */
+    const int T_lda = ( descT->storage == matrix_Lapack )? descT->llm : descT->mb;
+    const int Y_lda = ( rank_Y == rank_T ) && ( descY->storage == matrix_Lapack )? descY->llm : mb_Y_INNER + 2 * R;
+    CORE_redistribute_update(T, NW, NE, SW, SE, N, S, W, E, I, R, TL_row, TL_col, BR_row, BR_col, m_Y_start, m_Y_end, n_Y_start,
+                             n_Y_end, m_Y, n_Y, i_start, j_start, mb_Y_INNER, nb_Y_INNER, offset_row, offset_col, rank_Y, rank_T,
+                             Y_lda, T_lda);
+
+}
+END
+
+/************************************************************
+ *                       Receive                            *
+ ************************************************************
+ * @brief Task, to receive data
+ * @param m_T, n_T: tile index of T
+ * @param batch_col: control flow
+ ************************************************************/
+Receive(m_T, n_T, batch_col)
+
+batch_col = 0 .. NT
+m_T = m_T_START .. m_T_END
+n_T = %{ return batch_col*num_col+n_T_START; %} .. %{ return parsec_imin((batch_col+1)*num_col+n_T_START-1, n_T_END); %}
+
+mb_T_inner = %{ return getsize(m_T, m_T_START, m_T_END, mb_T_INNER, size_row, disi_T%mb_T_INNER); %}
+nb_T_inner = %{ return getsize(n_T, n_T_START, n_T_END, nb_T_INNER, size_col, disj_T%nb_T_INNER); %}
+
+nb_T_inner_next = %{ return getsize(n_T+num_col, n_T_START, n_T_END, nb_T_INNER, size_col, disj_T%nb_T_INNER); %}
+
+sizei_T = (m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER
+sizej_T = (n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER
+
+i_start = %{ return ((m_T == m_T_START)? disi_Y%mb_Y_INNER: (sizei_T+disi_Y)%mb_Y_INNER); %}
+j_start = %{ return ((n_T == n_T_START)? disj_Y%nb_Y_INNER: (sizej_T+disj_Y)%nb_Y_INNER); %}
+
+m_Y_start = %{ return ((m_T == m_T_START)? disi_Y/mb_Y_INNER: (sizei_T+disi_Y)/mb_Y_INNER); %}
+n_Y_start = %{ return ((n_T == n_T_START)? disj_Y/nb_Y_INNER: (sizej_T+disj_Y)/nb_Y_INNER); %}
+m_Y_end = %{ return ((m_T == m_T_START)? (disi_Y+mb_T_inner-1)/mb_Y_INNER: (sizei_T+disi_Y+mb_T_inner-1)/mb_Y_INNER); %}
+n_Y_end = %{ return ((n_T == n_T_START)? (disj_Y+nb_T_inner-1)/nb_Y_INNER: (sizej_T+disj_Y+nb_T_inner-1)/nb_Y_INNER); %}
+
+n_Y_start_next = ((n_T-n_T_START+num_col)*nb_T_INNER-disj_T%nb_T_INNER+disj_Y) / nb_Y_INNER
+n_Y_end_next = ((n_T-n_T_START+num_col)*nb_T_INNER-disj_T%nb_T_INNER+disj_Y + nb_T_inner_next-1) / nb_Y_INNER
+
+: descT(m_T, n_T)
+
+RW T <- T Init(m_T, n_T, batch_col) [ type_remote = TARGET ]
+     -> descT(m_T, n_T) /*[ type = TARGET type_data = TARGET ]*/
+
+CTL ctl1 <- ctl Update(m_Y_start .. m_Y_end, n_Y_start .. n_Y_end, m_T, n_T, batch_col)
+
+CTL ctl2 -> (batch_col < NT)? ctl Send(m_Y_start .. m_Y_end, n_Y_start_next .. n_Y_end_next, m_T, n_T+num_col, batch_col+1)
+
+BODY
+{
+
+}
+END

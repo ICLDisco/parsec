@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2019 The University of Tennessee and The University
+ * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -22,12 +22,6 @@
 #include "parsec/mca/pins/pins.h"
 #include "parsec/parsec_hwloc.h"
 #include "parsec/papi_sde.h"
-
-#if defined(PARSEC_PROF_TRACE) && 0
-#define TAKE_TIME(ES_PROFILE, KEY, ID)  PARSEC_PROFILING_TRACE((ES_PROFILE), (KEY), (ID), NULL)
-#else
-#define TAKE_TIME(ES_PROFILE, KEY, ID) do {} while(0)
-#endif
 
 /**
  * Module functions
@@ -56,7 +50,7 @@ const parsec_sched_module_t parsec_sched_pbq_module = {
 static int sched_pbq_install( parsec_context_t *master )
 {
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static int flow_pbq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -163,7 +157,7 @@ static int flow_pbq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     }
 #endif
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static parsec_task_t*
@@ -204,7 +198,7 @@ static int sched_pbq_schedule(parsec_execution_stream_t* es,
     parsec_hbbuffer_push_all_by_priority( PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->task_queue,
                                           (parsec_list_item_t*)new_context,
                                           distance);
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void sched_pbq_remove( parsec_context_t *master )
@@ -234,7 +228,7 @@ static void sched_pbq_remove( parsec_context_t *master )
 
             free(es->scheduler_object);
             es->scheduler_object = NULL;
-            
+
             PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=PBQ", vp->vp_id, t);
         }
         PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=PBQ", p);

@@ -1,0 +1,6 @@
+# export ASAN_OPTIONS=suppressions=$PARSEC_DIR/contrib/asan.supp LSAN_OPTIONS=suppressions=$PARSEC_DIR/contrib/lsan.supp:exitcode=0
+leak:openmpi
+leak:slurm
+leak:cuda
+leak:ibverbs
+leak:rdmacm

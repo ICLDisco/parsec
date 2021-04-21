@@ -233,7 +233,6 @@ SUBROUTINE parsec_enqueue(ctx, tp, ierr)
     TYPE(parsec_context_t), INTENT(IN)          :: ctx
     TYPE(parsec_taskpool_t), INTENT(IN)         :: tp
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
-    INTEGER(KIND=C_INT)                         :: c_err
 
     call parsec_context_add_taskpool(ctx, tp, ierr)
 END SUBROUTINE parsec_enqueue

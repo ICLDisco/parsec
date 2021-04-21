@@ -53,7 +53,7 @@ const parsec_sched_module_t parsec_sched_ltq_module = {
 static int sched_ltq_install( parsec_context_t *master )
 {
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -159,8 +159,8 @@ static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
         }
     }
 #endif
-    
-    return 0;
+
+    return PARSEC_SUCCESS;
 }
 
 static parsec_task_t*
@@ -222,7 +222,7 @@ sched_ltq_select(parsec_execution_stream_t *es,
     heap = (parsec_heap_t *)parsec_dequeue_pop_front(PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->system_queue);
     task = heap_split_and_steal(&heap, &new_heap);
 #if defined(PARSEC_PAPI_SDE)
-    if( NULL != task ) {       
+    if( NULL != task ) {
         PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->local_system_queue_balance--;
     }
 #endif
@@ -289,7 +289,7 @@ static int sched_ltq_schedule(parsec_execution_stream_t* es,
     parsec_hbbuffer_push_all(PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->task_queue,
                              (parsec_list_item_t*)first_h, distance);
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void sched_ltq_remove( parsec_context_t *master )

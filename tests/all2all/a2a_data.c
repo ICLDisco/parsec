@@ -16,9 +16,9 @@ parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int si
     two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
 
     two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
-                              world, rank,
+                              rank,
                               size, 1, size, 1, rank, 1, world*size, 1,
-                              1, 1, world);
+                              world, 1, 1, 1, 0, 0);
     return (parsec_tiled_matrix_dc_t*)m;
 }
 

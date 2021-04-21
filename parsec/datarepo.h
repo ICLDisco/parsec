@@ -65,7 +65,7 @@ typedef struct data_repo_head_s  data_repo_head_t;
  *  a mempool manageable element must be a parsec_list_item_t,
  *  and it must have a pointer to it's own mempool_thread_t.
  * Thus, we use the parsec_list_item_t to point to the next fields,
- * althgough this is not done atomically at the datarepo level (not
+ * although this is not done atomically at the datarepo level (not
  * needed).
  */
 
@@ -111,10 +111,10 @@ data_repo_entry_t*
 __data_repo_lookup_entry_and_create(parsec_execution_stream_t *eu, data_repo_t *repo, parsec_key_t key,
                                     const char *tablename, const char *file, int line);
 
-# define data_repo_entry_used_once(eu, repo, key)                       \
-    __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
+# define data_repo_entry_used_once(repo, key)                       \
+    __data_repo_entry_used_once(repo, key, #repo, __FILE__, __LINE__)
 void
-__data_repo_entry_used_once(parsec_execution_stream_t *eu, data_repo_t *repo, parsec_key_t key,
+__data_repo_entry_used_once(data_repo_t *repo, parsec_key_t key,
                             const char *tablename, const char *file, int line);
 
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt)         \
@@ -130,9 +130,9 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, parsec_key_t key, uint32_
 data_repo_entry_t*
 __data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *repo, parsec_key_t key);
 
-# define data_repo_entry_used_once(eu, repo, key) __data_repo_entry_used_once(eu, repo, key)
+# define data_repo_entry_used_once(repo, key) __data_repo_entry_used_once(repo, key)
 void
-__data_repo_entry_used_once(parsec_execution_stream_t *es, data_repo_t *repo, parsec_key_t key);
+__data_repo_entry_used_once(data_repo_t *repo, parsec_key_t key);
 
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) \
     __data_repo_entry_addto_usage_limit(repo, key, usagelmt)

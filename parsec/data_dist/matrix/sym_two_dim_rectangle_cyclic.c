@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -122,9 +122,9 @@ static uint32_t sym_twoDBC_rank_of_key(parsec_data_collection_t *desc, parsec_da
 
 static parsec_data_t* sym_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 {
-    int m, n;
+    int m, n, position;
     sym_two_dim_block_cyclic_t * dc;
-    size_t pos;
+    size_t pos = 0;
     va_list ap;
 
     dc = (sym_two_dim_block_cyclic_t *)desc;
@@ -149,11 +149,15 @@ static parsec_data_t* sym_twoDBC_data_of(parsec_data_collection_t *desc, ...)
     assert( (dc->uplo == matrix_Lower && m>=n) ||
             (dc->uplo == matrix_Upper && n>=m) );
 
-    pos = sym_twoDBC_coordinates_to_position(dc, m, n);
+    position = sym_twoDBC_coordinates_to_position(dc, m, n);
+
+    /* If mat allocatd, set pos to the right position for each tile */
+    if( NULL != dc->mat )
+        pos = position;
 
     return parsec_matrix_create_data( &dc->super,
                                      (char*)dc->mat + pos * dc->super.bsiz * parsec_datadist_getsizeoftype(dc->super.mtype),
-                                     pos, (n * dc->super.lmt) + m );
+                                     position, (n * dc->super.lmt) + m );
 }
 
 static parsec_data_t* sym_twoDBC_data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
@@ -222,15 +226,16 @@ static int32_t sym_twoDBC_vpid_of_key(parsec_data_collection_t *desc, parsec_dat
 
 void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * dc,
                                    enum matrix_type mtype,
-                                   int nodes, int myrank,
+                                   int myrank,
                                    int mb,   int nb,   /* Tile size */
                                    int lm,   int ln,   /* Global matrix size (what is stored)*/
                                    int i,    int j,    /* Staring point in the global matrix */
                                    int m,    int n,    /* Submatrix size (the one concerned by the computation */
-                                   int P, int uplo )
+                                   int P,    int Q,    /* process process grid */
+                                   int uplo )
 {
     int nb_elem, total;
-    int Q;
+    int nodes = P*Q;
     /* Initialize the tiled_matrix descriptor */
     parsec_data_collection_t *o = &(dc->super.super);
 
@@ -254,10 +259,9 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * dc,
         parsec_warning("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
         P = nodes;
     }
-    Q = nodes / P;
     if(nodes != P*Q)
         parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
-    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1);
+    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1, 0, 0);
 
     /* Extra parameters */
     dc->uplo = uplo;

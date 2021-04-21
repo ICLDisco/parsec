@@ -1,11 +1,12 @@
 #!/bin/bash
 #
-# Copyright (c) 2018-2019 The University of Tennessee and The University
+# Copyright (c) 2018-2020 The University of Tennessee and The University
 #                         of Tennessee Research Foundation.  All rights
 #                         reserved.
 
 prefix=/usr/local
 srcdir=${0%/*}
+cmake_generator="Unix Makefiles"
 
 # Be paranoid about errors and abort asap
 set -e
@@ -30,6 +31,8 @@ cat <<EOF
                 Directly pass VAR=VALUE to the Cmake configure stage
 --
                 The remainder of the command line arguments are sent to the Cmake configure stage as-is
+--with-ninja[=DIR]
+                Use Ninja to build to project
 
 
 --with-platform=FILE
@@ -54,12 +57,15 @@ cat <<EOF
                 Enable Fortran bindings
 
 
---enable-debug=yes,paranoid,noisier|history|no
+--enable-debug=yes,paranoid,noisier|history,memaddr|memleak|memrace,no
                 turn on debugging information
                     yes:            normal debugging; some overhead
                     paranoid:       more thorough assertions; extra overhead
                     noisier:        more verbose debugging; heavy overhead
                     history:        keep an history of latest debugging messages in memory for gdb printing; light overhead
+                    memaddr:        use the memory sanitizer for out-of-bound detection
+                    memleak:        use the memory sanitizer for leak detection
+                    memrace:        use the memory sanitizer for thread-race detection
                     no (explicit):  remove all debugging symbols and assertions
 
 --enable-prof-trace
@@ -68,19 +74,19 @@ cat <<EOF
                 print a message when each task body is executed
 --enable-prof-dryrun=yes|dep|body|no
                 turn on 'dry-run' mode
-                    /dep:            communication is skipped (only task completion signaling messages are sent)
+                    dep:            communication is skipped (only task completion signaling messages are sent)
                     body:           computation is skipped (no task body execution)
                     yes:            both communication and computation are skipped
                     no:             normal execution
 --enable-prof-grapher
                 turn on grapher mode: generates the dependency graph instead of executing
+--enable-testing
+                enable the compilation of all PaRSEC tests
 
 --with-tau[=DIR]
                 use the TAU profiler package [installed in DIR]
 --with-papi[=DIR]
                 use the PAPI performance counter package [installed in DIR] (default=autodetect)
---with-gtg[=DIR]
-                use the GTG package [installed in DIR] (optional)
 --with-ayudame[=DIR]
                 use the Ayudame package [installed in DIR] (optional)
 
@@ -90,6 +96,8 @@ cat <<EOF
 
 --with-python[=DIR]
                 use the Python interpreter [installed in DIR] (default=autodetect)
+--enable-python-venv
+                create a Python virtualenv that contains the dependencies for Parsec profiling tools (default=false)
 
 --with-mpi[=DIR]
                 use the MPI communication library [installed in DIR] (default=autodetect)
@@ -187,6 +195,8 @@ while [ "x$1" != x ]; do
         --disable-fortran) enable_fortran=no; shift;;
         --enable-doc) enable_doc=yes; shift;;
         --disable-doc) enable_doc=no; shift;;
+        --enable-testing) enable_testing=yes; shift;;
+        --disable-testing) enable_testing=no; shift;;
 
 #debug/profiling
         --enable-debug=*) enable_debug="${1#*=}"; shift;;
@@ -201,6 +211,8 @@ while [ "x$1" != x ]; do
         --disable-prof-dryrun) enable_prof_dryrun=no; shift;;
         --enable-prof-grapher) enable_prof_grapher=yes; shift;;
         --disable-prof-grapher) enable_prof_grapher=no; shift;;
+        --enable-prof-pins) enable_prof_pins=yes; shift;;
+        --disable-prof-pins) enable_prof_pins=no; shift;;
 
         --with-tau=*) with_tau="${1#*=}"; shift;;
         --with-tau) with_tau=yes; shift;;
@@ -239,6 +251,13 @@ while [ "x$1" != x ]; do
         --with-python=*) with_python="${1#*=}"; shift;;
         --with-python) with_python=yes; shift;;
         --without-python) with_python=no; shift;;
+        --enable-python-venv) enable_python_venv=yes; shift;;
+        --disable-python-venv) enable_python_venv=no; shift;;
+
+# Ninja Generator
+        --with-ninja=*) with_ninja="${1#*=}"; shift;;
+        --with-ninja) with_ninja=yes; shift;;
+        --without-ninja) with_ninja=no; shift;;
 
 # Cmake passthrough
         -D*=*) CMAKE_DEFINES+=" $(printf %q "$1")"; shift;;
@@ -295,6 +314,16 @@ for i in "$@"; do
 done
 }
 
+function set_python_venv {
+    if [ -x "$(command -v virtualenv)" ]; then
+        virtualenv --prompt='pyparsec> ' ${PYTHON_EXECUTABLE:+-p ${PYTHON_EXECUTABLE}} venv
+        source venv/bin/activate
+        pip install Cython pandas matplotlib tables
+    else
+        echo >&2 "Could not prepare a Python venv because \`virtualenv\` was not found... Continue with native Python."
+    fi
+}
+
 #
 # Cross compilation support helpers
 #
@@ -323,8 +352,8 @@ _EOF
     local NATIVE_OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DCMAKE_INSTALL_PREFIX=$NATIVE_PREFIX $NATIVE_MPI $NATIVE_CUDA $NATIVE_HWLOC $NATIVE_COMPILERS"
 
     set_cmake_executable #may have been changed in the platform file
-    echo "CC=\"${NATIVE_CC}\" CFLAGS=\"${NATIVE_CFLAGS}\" CXX=\"${NATIVE_CXX}\" CXXFLAGS=\"${NATIVE_CXXFLAGS}\" LDFLAGS=\"${NATIVE_LDFLAGS}\" ${cmake_executable} -G \"Unix Makefiles\" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} $(for i in "$@"; do printf ' %q' "$i"; done) ${srcdir}"
-    CC="${NATIVE_CC}" CFLAGS="${NATIVE_CFLAGS}" CXX="${NATIVE_CXX}" CXXFLAGS="${NATIVE_CXXFLAGS}" LDFLAGS="${NATIVE_LDFLAGS}" ${cmake_executable} -G "Unix Makefiles" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} "$@" ${srcdir}
+    echo "CC=\"${NATIVE_CC}\" CFLAGS=\"${NATIVE_CFLAGS}\" CXX=\"${NATIVE_CXX}\" CXXFLAGS=\"${NATIVE_CXXFLAGS}\" LDFLAGS=\"${NATIVE_LDFLAGS}\" ${cmake_executable} -G\"${cmake_generator}\" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} $(for i in "$@"; do printf ' %q' "$i"; done) ${srcdir}"
+    CC="${NATIVE_CC}" CFLAGS="${NATIVE_CFLAGS}" CXX="${NATIVE_CXX}" CXXFLAGS="${NATIVE_CXXFLAGS}" LDFLAGS="${NATIVE_LDFLAGS}" ${cmake_executable} -G"${cmake_generator}" ${NATIVE_OPTS} ${PARSEC_TOOLCHAIN_OPTIONS} "$@" ${srcdir}
     popd
     [ -r "$TOOLCHAIN_FILE" ] || echo >&2 "Cross compiling Toolchain file TOOLCHAIN_FILE=$TOOLCHAIN_FILE is missing... This will probably cause an error."
     local TOOLCHAIN=" -DCMAKE_TOOLCHAIN_FILE=\"$TOOLCHAIN_FILE\" -DIMPORT_EXECUTABLES=\"$NATIVE_DIR/ImportExecutables.cmake\""
@@ -409,17 +438,22 @@ CMAKE_DEFINES+=" ${prefix:+-DCMAKE_INSTALL_PREFIX=$prefix}"
 [ x$enable_fortran = xyes ] && CMAKE_DEFINES+=" -DSUPPORT_FORTRAN=ON"
 [ x$enable_fortran = xno ] && CMAKE_DEFINES+=" -DSUPPORT_FORTRAN=OFF"
 [ x$enable_doc = xyes ] && CMAKE_DEFINES+=" -DBUILD_DOCUMENTATION=ON"
-[ x$enable_doc = xno ] && CMAKE_DEFINES+="-DBUILD_DOCUMENTATION=OFF "
+[ x$enable_doc = xno ] && CMAKE_DEFINES+=" -DBUILD_DOCUMENTATION=OFF"
+[ x$enable_testing = xyes ] && CMAKE_DEFINES+=" -DBUILD_TESTING=ON"
+[ x$enable_testing = xno ] && CMAKE_DEFINES+=" -DBUILD_TESTING=OFF"
 
 if [ -z "$enable_debug" ]; then CMAKE_DEFINES+=" -DCMAKE_BUILD_TYPE=RelWithDebInfo"
 elif [[ "$enable_debug" =~ ^no$ ]]; then
     CMAKE_DEFINES+=" -DCMAKE_BUILD_TYPE=Release"
-elif [[ $enable_debug =~ ^((yes|paranoid|noisier|history),?)+$ ]]; then
+elif [[ $enable_debug =~ ^((yes|paranoid|noisier|history|memrace|memaddr|memleak),?)+$ ]]; then
     CMAKE_DEFINES+=" -DCMAKE_BUILD_TYPE=Debug"
     [[ $enable_debug =~ paranoid ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_PARANOID=ON"
     [[ $enable_debug =~ noisier ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_NOISIER=ON"
     [[ $enable_debug =~ history ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_HISTORY=ON"
-else echo >&2 "Option $enable_debug is invalid (can be yes|paranoid|noisier|history|no)"; exit 1; fi
+    [[ $enable_debug =~ memrace ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_MEM_RACE=ON"
+    [[ $enable_debug =~ memaddr ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_MEM_ADDR=ON"
+    [[ $enable_debug =~ memleak ]] && CMAKE_DEFINES+=" -DPARSEC_DEBUG_MEM_LEAK=ON"
+else echo >&2 "Option $enable_debug is invalid (can be yes|paranoid|noisier|history|memrace|memaddr|memleak|no)"; exit 1; fi
 
 [ x$enable_prof_trace = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON"
 [ x$enable_prof_trace = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=OFF"
@@ -427,6 +461,8 @@ else echo >&2 "Option $enable_debug is invalid (can be yes|paranoid|noisier|hist
 [ x$enable_prof_calltrace = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_CALLTRACE=OFF"
 [ x$enable_prof_grapher = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_GRAPHER=ON"
 [ x$enable_prof_grapher = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_GRAPHER=OFF"
+[ x$enable_prof_pins = xyes ] && CMAKE_DEFINES+=" -DPARSEC_PROF_PINS=ON"
+[ x$enable_prof_pins = xno ] && CMAKE_DEFINES+=" -DPARSEC_PROF_PINS=OFF"
 
 if [[ x$enable_prof_dryrun =~ ^x((yes|no|body|dep),?)*$ ]]; then
     [[ $enable_prof_dryrun =~ yes ]] && CMAKE_DEFINES+=" -DPARSEC_PROF_DRY_RUN=ON"
@@ -450,14 +486,7 @@ xno) CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=OFF"
     fi;;
 xyes) CMAKE_DEFINES+=" -DPARSEC_PROF_TRACE=ON";;
 x) ;;
-*) CMAKE_DEFINES+=" -DPAPI_DIR=$(printf %q "$with_papi")";;
-esac
-
-case x$with_gtg in
-xno) ;; # No CMAKE control to remove if available
-xyes) ;; # No CMAKE control to force using
-x) ;;
-*) CMAKE_DEFINES+=" -DGTG_DIR=$(printf %q "$with_gtg")";;
+*) CMAKE_DEFINES+=" -DPAPI_ROOT=$(printf %q "$with_papi")";;
 esac
 
 case x$with_ayudame in
@@ -471,7 +500,7 @@ case x$with_hwloc in
 xno) ;; # No CMAKE control to remove if available
 xyes) ;; # No CMAKE control to force using
 x) ;;
-*) CMAKE_DEFINES+=" -DHWLOC_DIR=$(printf %q "$with_hwloc")";;
+*) CMAKE_DEFINES+=" -DHWLOC_ROOT=$(printf %q "$with_hwloc")";;
 esac
 
 case x$with_mpi in
@@ -492,7 +521,7 @@ case x$with_cuda in
 xno) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=OFF";;
 xyes) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=ON";;
 x) ;;
-*) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=ON -DCUDA_TOOLKIT_ROOT_DIR=$(printf %q "$with_cuda") ${CC:+-DCUDA_HOST_COMPILER=$(printf %q "$(command -v $CC)")} ";;
+*) CMAKE_DEFINES+=" -DPARSEC_GPU_WITH_CUDA=ON -DCUDAToolkit_ROOT=$(printf %q "$with_cuda") ";;
 esac
 
 case x$with_cuda_sm_targets in
@@ -507,15 +536,41 @@ case x$with_python in
 xno) echo >&2 "Python is required. Please provide a path to the python executable."; exit 3;;
 xyes) ;;
 x) ;;
-*)  PYTHON_EXECUTABLES=$(PATH=$with_python:$with_python/bin command -v $with_python python{,3,2})
-    for PYTHON_EXECUTABLE in $PYTHON_EXECUTABLES; do
-        [[ $PYTHON_EXECUTABLE =~ $with_python ]] && CMAKE_DEFINES+=" -DPYTHON_EXECUTABLE=$(printf %q "$PYTHON_EXECUTABLE")" && break
+*)  PYTHON_EXECUTABLES=$(PATH="$with_python:$with_python/bin:${PATH}" command -v $with_python python{,3,2})
+    for pe in $PYTHON_EXECUTABLES; do
+        [[ $pe =~ $with_python ]] && PYTHON_EXECUTABLE=$pe && break
     done
+esac
+
+case x$enable_python_venv in
+xyes) set_python_venv ;
+      pe=$(command -v $PWD/venv/bin/python)
+      [[ $pe ]] && PYTHON_EXECUTABLE=$pe;;
+*) ;;
+esac
+
+[[ x$PYTHON_EXECUTABLE != x ]] && CMAKE_DEFINES+=" -DPython_EXECUTABLE=$(printf %q "$PYTHON_EXECUTABLE")"
+
+
+case x$with_ninja in
+xno) ;;
+xyes) cmake_generator="Ninja";; # do as we are told no questions asked.
+*) if cmake --help | grep '^\s*Ninja\s*=' -q ; then
+    if [ x$with_ninja = x ]; then
+        # just probe, if nothing found that's ok.
+        NINJA_EXECUTABLES=$(command -v ninja) || true
+    else
+        NINJA_EXECUTABLES=$(PATH="$with_ninja:$with_ninja/bin:${PATH}" command -v $with_ninja ninja)
+    fi
+    if [ "$NINJA_EXECUTABLES" ]; then
+        cmake_generator="Ninja"
+    fi
+   fi
 esac
 
 # CMAKE INVOCATION
 
-CMAKE_COMMAND="$ENVVARS $cmake_executable -G 'Unix Makefiles' $srcdir $CMAKE_DEFINES $CMAKE_DEFINES_RAW"
+CMAKE_COMMAND="$ENVVARS $cmake_executable -G'$cmake_generator' $srcdir $CMAKE_DEFINES $CMAKE_DEFINES_RAW"
 
 cat <<EOF
 ### CMake generated invocation
@@ -527,5 +582,10 @@ EOF
 if [ x$nocreate != xyes ]; then
     [ x$_PARSEC_CONFIG_STATUS_OPT_NORECHECK != xyes ] && echo "Removing Cmake Cache..." && rm -rf CMakeCache.txt CMakeFiles
     eval $CMAKE_COMMAND
+    cat<<EOF
+#
+### CMake Generator: $cmake_generator
+#
+EOF
 fi
 

@@ -11,19 +11,22 @@
  */
 
 #include "parsec/class/lifo.h"
+#include "parsec/class/parsec_future.h"
 #include "parsec/parsec_description_structures.h"
 
 BEGIN_C_DECLS
 
-typedef unsigned long remote_dep_datakey_t;
+typedef ptrdiff_t remote_dep_datakey_t;
 
 #define PARSEC_ACTION_DEPS_MASK                  0x00FFFFFF
 #define PARSEC_ACTION_RELEASE_LOCAL_DEPS         0x01000000
 #define PARSEC_ACTION_RELEASE_LOCAL_REFS         0x02000000
 #define PARSEC_ACTION_GET_REPO_ENTRY             0x04000000
+#define PARSEC_ACTION_RESHAPE_ON_RELEASE         0x08000000
 #define PARSEC_ACTION_SEND_INIT_REMOTE_DEPS      0x10000000
 #define PARSEC_ACTION_SEND_REMOTE_DEPS           0x20000000
 #define PARSEC_ACTION_RECV_INIT_REMOTE_DEPS      0x40000000
+#define PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE  0x80000000
 #define PARSEC_ACTION_RELEASE_REMOTE_DEPS        (PARSEC_ACTION_SEND_INIT_REMOTE_DEPS | PARSEC_ACTION_SEND_REMOTE_DEPS)
 
 typedef struct remote_dep_wire_activate_s
@@ -53,13 +56,56 @@ typedef struct remote_dep_wire_get_s
  * from the data pointer where the operation will start. If the memory layout is NULL the
  * one attached to the arena must be used instead.
  */
-struct parsec_dep_data_description_s {
+struct parsec_dep_type_description_s {
     struct parsec_arena_s     *arena;
-    struct parsec_data_copy_s *data;
-    parsec_datatype_t          layout;
-    uint64_t                   count;
-    int64_t                    displ;
+    parsec_datatype_t          src_datatype;
+    uint64_t                   src_count;
+    int64_t                    src_displ;
+    parsec_datatype_t          dst_datatype;
+    uint64_t                   dst_count;
+    int64_t                    dst_displ;
 };
+
+struct parsec_dep_data_description_s {
+    struct parsec_data_copy_s *data;
+    struct parsec_dep_type_description_s local;
+    struct parsec_dep_type_description_s remote;
+
+    /* Keeping the datacopy future on the parsec description enables
+     * the reusing the same future to all successor instances that are
+     * doing the same reshape.
+     */
+    parsec_datacopy_future_t      *data_future;
+
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+    /* Keeping current repo & key to be able to consume when
+     * the "remote" successors (aka the communication engine)
+     * have done the reshaping before packing for sending
+     * the data to the remote.
+     */
+    struct data_repo_s            *repo;
+    parsec_key_t                   repo_key;
+#endif
+
+};
+
+#define PARSEC_AVOID_RESHAPE_AFTER_RECEPTION 0x0F
+struct parsec_reshape_promise_description_s {
+    struct parsec_data_copy_s            *data;         /* Data in consumed by reshape promise */
+    struct parsec_dep_type_description_s *local;        /* Description to performed reshape */
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+    uint32_t                              remote_send_guard; /* Use to prevent multiple remotes setting up
+                                                              * the same reshape promise (workaround comm engine) */
+#endif
+    uint32_t                              remote_recv_guard; /* Use to prevent re-reshaping after reception */
+    };
+
+/* Callback to do a local reshaping of a datacopy */
+void parsec_local_reshape(parsec_base_future_t *future,
+                          void **in_data,
+                          parsec_execution_stream_t *es,
+                          parsec_task_t *task);
+
 
 struct remote_dep_output_param_s {
     /** Never change this structure without understanding the
@@ -181,6 +227,16 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 #define parsec_remote_dep_new_taskpool(ctx)    0
 #define remote_dep_mpi_initialize_execution_stream(ctx) 0
 #endif /* DISTRIBUTED */
+
+/* check if this data description represents a CTL dependency */
+#define parsec_is_CTL_dep(dep_data_desc)\
+    ((dep_data_desc.data == NULL) \
+     && (dep_data_desc.remote.src_datatype == PARSEC_DATATYPE_NULL) \
+     && (0 == dep_data_desc.remote.src_count))
+
+/* set this data description to CTL dependency */
+#define parsec_set_CTL_dep(dep_data_desc)\
+    dep_data_desc.data = NULL; dep_data_desc.remote.src_datatype = PARSEC_DATATYPE_NULL; dep_data_desc.remote.src_count=0;
 
 END_C_DECLS
 

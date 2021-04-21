@@ -119,7 +119,7 @@ static int pins_taskpool_complete_callback(parsec_taskpool_t* ptg_tp, void* void
      * If there is any task with more than 9 flows it will get stuck in the
      * following function call.
      */
-    parsec_execute_and_come_back( dtd_tp->context, dtd_tp, 10);
+    parsec_execute_and_come_back( dtd_tp, 10);
 
     parsec_detach_all_dtd_taskpool_from_context( ptg_tp->context );
 
@@ -334,7 +334,7 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
         tile         = current_paramm->pointer_to_tile;
         tile_op_type = ((parsec_dtd_task_param_ptg_to_dtd_t *)current_paramm)->operation_type;
 
-        if( INOUT == (tile_op_type & GET_OP_TYPE) || OUTPUT == (tile_op_type & GET_OP_TYPE) ) {
+        if( PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE) || PARSEC_OUTPUT == (tile_op_type & PARSEC_GET_OP_TYPE) ) {
             write_flow_count++;
         }
 
@@ -414,9 +414,9 @@ fake_hook_for_testing(parsec_execution_stream_t *es,
             parsec_dtd_tile_t *tile = NULL;
 
             if ((tmp_op_type & PARSEC_FLOW_ACCESS_RW) == PARSEC_FLOW_ACCESS_RW) {
-                op_type = INOUT;
+                op_type = PARSEC_INOUT;
             } else if( (tmp_op_type & PARSEC_FLOW_ACCESS_RW) == PARSEC_FLOW_ACCESS_READ ) {
-                op_type = INPUT;
+                op_type = PARSEC_INPUT;
             } else {
                 continue;  /* next IN flow */
             }
@@ -448,7 +448,7 @@ fake_hook_for_testing(parsec_execution_stream_t *es,
             tmp_op_type = this_task->task_class->out[i]->flow_flags;
             parsec_dtd_tile_t *tile = NULL;
             if((tmp_op_type & PARSEC_FLOW_ACCESS_RW) == PARSEC_FLOW_ACCESS_WRITE) {
-                op_type = OUTPUT;
+                op_type = PARSEC_OUTPUT;
                 if( NULL != this_task->data[i].data_out ) {
                     data = this_task->data[i].data_out->original;
                     key = this_task->data[i].data_out->original->key;

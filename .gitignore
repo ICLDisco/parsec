@@ -1,14 +1,4 @@
 *~
-contrib/spack/packages/parsec/package.pyc
-dplasma/tools/PrecisionGenerator/Conversion.pyc
-dplasma/tools/PrecisionGenerator/subs.pyc
-tools/profiling/python/pbt2ptt.c
-tools/profiling/python/build/
-tools/profiling/python/pbt2ptt.so
-tools/profiling/python/setup.py
-tools/profiling/python/utilities/bash.env
-tools/profiling/python/utilities/csh.env
-tools/profiling/python/utilities/fish.env
 
 # Cmake and configure generated files
 config.log
@@ -61,3 +51,10 @@ tests/unit/Makefile
 tools/Makefile
 tools/profiling/Makefile
 tools/profiling/python/Makefile
+
+# contrib/build_with_parsec tests
+contrib/build_with_parsec/Makefile
+contrib/build_with_parsec/dtd_test_allreduce
+contrib/build_with_parsec/write_check
+contrib/build_with_parsec/write_check.c
+contrib/build_with_parsec/write_check.h

@@ -1,0 +1,314 @@
+extern "C" %{
+/*
+ * Copyright (c) 2019-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "parsec/parsec_config.h"
+#include "parsec/utils/mca_param.h"
+
+#include "parsec/data_distribution.h"
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+
+#include <assert.h>
+#include <stdarg.h>
+#include <sys/time.h>
+#include <mpi.h>
+#if defined(PARSEC_HAVE_CUDA)
+#include "parsec/mca/device/cuda/device_cuda_internal.h"
+#include <cublas.h>
+#endif  /* defined(PARSEC_HAVE_CUDA) */
+
+#include "stage_custom.h"
+
+
+static int
+stage_stride_in(parsec_gpu_task_t *gtask,
+                uint32_t flow_mask,
+                parsec_gpu_exec_stream_t *gpu_stream){
+    cudaError_t ret = 0;
+    parsec_data_copy_t * copy_in;
+    parsec_data_copy_t * copy_out;
+    parsec_task_t *task = gtask->ec;
+    parsec_device_cuda_module_t *in_elem_dev;
+    parsec_tiled_matrix_dc_t * dc;
+    int elem_sz;
+    int i;
+    for(i = 0; i < task->task_class->nb_flows; i++){
+        if(flow_mask & (1U << i)){
+            copy_in = task->data[i].data_in;
+            copy_out = task->data[i].data_out;
+            dc = (parsec_tiled_matrix_dc_t*)gtask->flow_dc[i];
+            elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
+            in_elem_dev = (parsec_device_cuda_module_t*)parsec_mca_device_get( copy_in->device_index);
+            if(in_elem_dev->super.type != PARSEC_DEV_CUDA ){
+                /* copy width bytes heigth times, skipping pitch - width bytes every time */
+                size_t dpitch = dc->mb * elem_sz;
+                size_t spitch = dc->llm * elem_sz;
+                size_t width  = dc->mb * elem_sz;
+                size_t height = dc->nb;
+                ret = (cudaError_t)cudaMemcpy2DAsync(  copy_out->device_private,
+                                                       dpitch, /*dst pitch bytes*/
+                                                       copy_in->device_private,
+                                                       spitch, /*src pitch bytes*/
+                                                       width, height,
+                                                       cudaMemcpyHostToDevice,
+                                                       gpu_stream->cuda_stream );
+                PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", ret, { return PARSEC_ERROR; } );
+            }else{
+                ret = (cudaError_t)cudaMemcpyAsync( copy_out->device_private,
+                                                    copy_in->device_private,
+                                                    copy_in->original->nb_elts,
+                                                    cudaMemcpyDeviceToDevice,
+                                                    gpu_stream->cuda_stream );
+                PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", ret, { return PARSEC_ERROR; } );
+            }
+
+        }
+    }
+    return PARSEC_SUCCESS;
+}
+
+static int
+stage_stride_out(parsec_gpu_task_t *gtask,
+                 uint32_t flow_mask,
+                 parsec_gpu_exec_stream_t *gpu_stream){
+    cudaError_t ret;
+    parsec_data_copy_t * copy_in;
+    parsec_data_copy_t * copy_out;
+    parsec_task_t *task = gtask->ec;
+    parsec_tiled_matrix_dc_t * dc;
+    int elem_sz;
+    int i;
+    for(i = 0; i < task->task_class->nb_flows; i++){
+        if(flow_mask & (1U << i)){
+            copy_in = task->data[i].data_out;
+            copy_out = copy_in->original->device_copies[0];
+            dc = (parsec_tiled_matrix_dc_t*)gtask->flow_dc[i];
+            elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
+            /* copy width bytes heigth times, skipping pitch - width bytes every time */
+            size_t dpitch = dc->llm * elem_sz;
+            size_t spitch = dc->mb * elem_sz;
+            size_t width  = dc->mb * elem_sz;
+            size_t height = dc->nb;
+            ret = (cudaError_t)cudaMemcpy2DAsync(  copy_out->device_private,
+                                                   dpitch, /*dst pitch bytes*/
+                                                   copy_in->device_private,
+                                                   spitch, /*src pitch bytes*/
+                                                   width, height,
+                                                   cudaMemcpyDeviceToHost,
+                                                   gpu_stream->cuda_stream );
+           PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", ret, { return PARSEC_ERROR; } );
+        }
+    }
+    return PARSEC_SUCCESS;
+}
+
+typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 double alpha, double *d_A, int lda,
+                                 double *d_B, int ldb,
+                                 double beta,  double *d_C, int ldc );
+
+%}
+
+/*
+ * Globals
+ */
+
+
+descA  [type = "parsec_tiled_matrix_dc_t*"]
+descB  [type = "parsec_tiled_matrix_dc_t*"]
+OUT    [type = "int*"]
+
+/**************************************************
+ *                       TASK_GPU                 *
+ **************************************************/
+TASK_GPU(m, k)
+
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+
+: descA(m, k)
+
+RW A <- descA(m, k)
+     -> descA(m, k)
+     -> A TASK_CHECK(m,k)
+
+BODY [type=CUDA
+      dyld=cublasDgemm dyldtype=cublas_dgemm_t]
+{
+    double lalpha = 1.0;
+    double lbeta  = 2.0;
+    int tempmm = descA->mb;
+    int ldam   = descA->mb;
+
+    cublasStatus_t status;
+    cublasSetKernelStream( parsec_body.stream );
+    parsec_body.dyld_fn(  'N', 'N',
+                         tempmm, tempmm, tempmm,
+                         lalpha, (double*)A, ldam,
+                                 (double*)A, ldam,
+                         lbeta,  (double*)A, ldam );
+    status = cublasGetError();
+    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm ", status,
+                            {return -1;} );
+}
+END
+
+/**************************************************
+ *                TASK_GPU_CUSTOM_STAGE                 *
+ **************************************************/
+TASK_GPU_CUSTOM_STAGE(m, k)
+
+
+m = 0 .. descB->mt-1
+k = 0 .. descB->nt-1
+
+: descB(m, k)
+
+RW B <- descB(m, k)
+     -> descB(m, k)
+     -> B TASK_CHECK(m,k)
+
+BODY [type=CUDA
+      stage_in=stage_stride_in
+      stage_out=stage_stride_out
+      /* B device default size will already be this one*/
+      B.size=%{return descB->mb*descB->nb*parsec_datadist_getsizeoftype(descB->mtype);%}
+      B.dc=descB
+      dyld=cublasDgemm dyldtype=cublas_dgemm_t]
+{
+    double lalpha = 1.0;
+    double lbeta  = 2.0;
+    int tempmm = descB->mb;
+    int ldbm   = descB->mb;
+
+    cublasStatus_t status;
+    cublasSetKernelStream( parsec_body.stream );
+    parsec_body.dyld_fn(  'N', 'N',
+                         tempmm, tempmm, tempmm,
+                         lalpha, (double*)B, ldbm,
+                                 (double*)B, ldbm,
+                         lbeta,  (double*)B, ldbm );
+    status = cublasGetError();
+    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm ", status,
+                            {return -1;} );
+
+}
+END
+
+/**************************************************
+ *                       TASK_CHECK                 *
+ **************************************************/
+TASK_CHECK(m, k)
+
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+
+: descA(m, k)
+
+READ A <- A TASK_GPU(m, k)
+READ B <- B TASK_GPU_CUSTOM_STAGE(m, k)
+
+BODY
+{
+    int i,j;
+    int ldam = descB->mb;
+    int ldbm = descB->llm;
+    for(j=0; j<descA->nb; j++) {
+        for(i=0; i<descA->mb; i++) {
+            /*printf("X(%d,%d) A %f B %f\n", j, i, ((double*)A)[j*ldam + i], ((double*)B)[j*ldbm + i]);*/
+            if( (((double*)A)[j*ldam + i] - ((double*)B)[j*ldbm + i]) > 10e-15 ){
+                (*OUT)++; break;
+            }
+        }
+    }
+}
+END
+
+
+
+extern "C" %{
+
+parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N, int MB, int NB, int P, int *ret)
+{
+    parsec_stage_custom_taskpool_t* testing_handle = NULL;
+    int KP = 1;
+    int KQ = 1;
+
+    two_dim_block_cyclic_t *descA;
+    descA = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
+    two_dim_block_cyclic_init(descA, matrix_RealDouble, matrix_Tile,
+                              ctx->my_rank, MB, NB, M, N, 0, 0,
+                              M, N, P, ctx->nb_nodes/P, KP, KQ, 0, 0);
+
+    int nelems = descA->super.nb_local_tiles * descA->super.bsiz;
+
+    descA->mat = parsec_data_allocate( (size_t) nelems *
+                                       (size_t)parsec_datadist_getsizeoftype(descA->super.mtype));
+    parsec_data_collection_set_key((parsec_data_collection_t*)descA, "descA");
+
+    two_dim_block_cyclic_t *descB;
+    descB = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
+    two_dim_block_cyclic_init(descB, matrix_RealDouble, matrix_Lapack,
+                              ctx->my_rank, MB, NB, M, N, 0, 0,
+                              M, N, P, ctx->nb_nodes/P, KP, KQ, 0, 0);
+    descB->mat = parsec_data_allocate( (size_t) nelems *
+                                       (size_t)parsec_datadist_getsizeoftype(descB->super.mtype));
+    assert(NULL != descB->mat);
+    parsec_data_collection_set_key((parsec_data_collection_t*)descB, "descB");
+
+    int ldam = descB->super.mb;
+    int ldbm = descB->super.llm;
+
+    int m, n;
+    int count = 1;
+    for(m=0; m< descB->nb_elem_r; m++){
+        for(n=0; n< descB->nb_elem_c; n++){
+            int start_block_lapack = m*descB->super.mb  + n*descB->super.nb*ldbm;
+            int start_block_tile   = m*descA->super.bsiz + n*descA->super.bsiz*descA->nb_elem_r;
+            int ii, jj;
+            for(jj=0; jj<descB->super.nb; jj++) {
+                for(ii=0; ii<descB->super.mb; ii++) {
+                    int ind_lapack = start_block_lapack + jj*ldbm + ii;
+                    int ind_tile   = start_block_tile   + jj*ldam + ii;
+                    ((double*)descB->mat)[ind_lapack] = ((double*)descA->mat)[ind_tile] = count;
+                    count++;
+                }
+            }
+        }
+    }
+
+//    int i;
+//    printf("INI B %p\n", descB->mat);
+//    for(i = 0; i < nelems ; i++){
+//        printf("INI(%d) A %p %f B %p %f\n", i,
+//            &((double*)descA->mat)[i], ((double*)descA->mat)[i],
+//            &((double*)descB->mat)[i], ((double*)descB->mat)[i]);
+//    }
+
+    testing_handle = parsec_stage_custom_new((parsec_tiled_matrix_dc_t*)descA, (parsec_tiled_matrix_dc_t*)descB, ret);
+
+    return &testing_handle->super;
+}
+
+void testing_stage_custom_Destruct( parsec_taskpool_t *tp )
+{
+    parsec_stage_custom_taskpool_t *stage_custom_taskpool = (parsec_stage_custom_taskpool_t *)tp;
+    two_dim_block_cyclic_t *descA = (two_dim_block_cyclic_t*)stage_custom_taskpool->_g_descA;
+    two_dim_block_cyclic_t *descB = (two_dim_block_cyclic_t*)stage_custom_taskpool->_g_descB;
+
+    parsec_data_free(descA->mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)stage_custom_taskpool->_g_descA );
+    parsec_data_free(descB->mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)stage_custom_taskpool->_g_descB );
+    parsec_taskpool_free(tp);
+    free(descA);
+    free(descB);
+}
+
+%}

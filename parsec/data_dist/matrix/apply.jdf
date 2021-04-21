@@ -32,10 +32,8 @@ APPLY_L(m, n)  [profile = off]
 
 BODY
 {
-#if !defined(PARSEC_DRY_RUN)
     operation( es, descA, A,
               matrix_UpperLower, m, n, op_args );
-#endif /* !defined(PARSEC_DRY_RUN) */
 
    
 }
@@ -55,11 +53,8 @@ APPLY_U(m, n)  [profile = off]
 
 BODY
 {
-#if !defined(PARSEC_DRY_RUN)
     operation( es, descA, A,
               matrix_UpperLower, m, n, op_args );
-#endif /* !defined(PARSEC_DRY_RUN) */
-
 }
 END
 
@@ -76,10 +71,7 @@ APPLY_DIAG(k) [profile = off]
 
 BODY
 {
-#if !defined(PARSEC_DRY_RUN)
     operation( es, descA, A,
               uplo, k, k, op_args );
-#endif /* !defined(PARSEC_DRY_RUN) */
-
 }
 END

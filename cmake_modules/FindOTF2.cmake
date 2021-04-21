@@ -9,11 +9,16 @@ IF(NOT OTF2_CONFIG)
 ELSE(NOT OTF2_CONFIG)
     message(STATUS "OTF2 library found. (using ${OTF2_CONFIG})")
     #
-    # Get the OTF2 version. The output of otf2-config follows the template "otf2-config: version x.y.z"
-    # and we need to extract x.y.z.
+    # Get the OTF2 version. The output of otf2-config depends on the version itself...
+    #   Newish versions follows the template "otf2-config: version x.y.z"
+    #   Oldish versions directly return the version number.
     execute_process(COMMAND ${OTF2_CONFIG} "--version" OUTPUT_VARIABLE OTF2_OUTPUT OUTPUT_STRIP_TRAILING_WHITESPACE)
-    string(REPLACE " " ";" OTF2_LIST ${OTF2_OUTPUT})
-    list(GET OTF2_LIST 2 OTF2_VERSION)
+    if(OTF2_OUTPUT MATCHES ".*version.*")
+      string(REPLACE " " ";" OTF2_LIST ${OTF2_OUTPUT})
+      list(GET OTF2_LIST 2 OTF2_VERSION)
+    else(OTF2_OUTPUT MATCHES ".*version.*")
+      set(OTF2_VERSION "${OTF2_OUTPUT}")
+    endif(OTF2_OUTPUT MATCHES ".*version.*")
     if(OTF2_VERSION VERSION_LESS ${OTF2_FIND_VERSION})
       MESSAGE(STATUS "OTF2 library is version ${OTF2_VERSION}; Version 2.1.1 or later is needed.")
       set(OTF2_FOUND false)
@@ -71,7 +76,7 @@ ENDIF(NOT OTF2_CONFIG)
 
 include (FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(
-    otf2 DEFAULT_MSG
+    OTF2 DEFAULT_MSG
     OTF2_CONFIG
     OTF2_LIBRARIES
     OTF2_INCLUDE_DIRS

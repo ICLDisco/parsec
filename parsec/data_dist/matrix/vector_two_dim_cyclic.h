@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,9 +15,9 @@ BEGIN_C_DECLS
  * distributed data vector and basic functionalities
  *******************************************************************/
 typedef enum vector_distrib {
-    PlasmaVectorRow,
-    PlasmaVectorCol,
-    PlasmaVectorDiag
+    matrix_VectorRow,
+    matrix_VectorCol,
+    matrix_VectorDiag
 } vector_distrib_t;
 
 /*
@@ -38,22 +38,24 @@ typedef struct vector_two_dim_cyclic_s {
  *
  * @param dc matrix description structure, already allocated, that will be initialize
  * @param mtype type of data used for this matrix
- * @param nodes number of nodes
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of elements in a segment
  * @param lm number of elements in the full vector
  * @param i starting element index for the computation on a subvector
  * @param m number of elements of the entire subvector
- * @param process_GridRows number of row of processes of in the process grid (has to divide nodes)
+ * @param p number of row of processes of the process grid the
+ *   resulting distribution will be made so that pxq=nodes
+ * @param q number of col of processes of the process grid the
+ *   resulting distribution will be made so that pxq=nodes
  */
 void vector_two_dim_cyclic_init(vector_two_dim_cyclic_t * vdesc,
                                 enum matrix_type    mtype,
                                 enum vector_distrib distrib,
-                                int nodes, int myrank,
+                                int myrank,
                                 int mb, int lm, int i, int m,
-                                int process_GridRows );
+                                int P, int Q );
 
-void vector_two_dim_cyclic_supertiled_view( vector_two_dim_cyclic_t* target,
+void vector_two_dim_cyclic_kview( vector_two_dim_cyclic_t* target,
                                             vector_two_dim_cyclic_t* origin,
                                             int rst );
 

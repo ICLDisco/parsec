@@ -14,6 +14,7 @@ extern "C" %{
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
@@ -97,10 +98,10 @@ parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
   taskpool = parsec_bandwidth_new(dcA, Disk, loops, frags, ws); 
   bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-  parsec_matrix_add2arena(taskpool->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
-                          parsec_datatype_double_t, matrix_UpperLower,
-                          1, 1, size, 1,
-                          PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+  parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
+                           parsec_datatype_double_t, matrix_UpperLower,
+                           1, 1, size, 1,
+                           PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
   return bandwidth_taskpool;
 }
@@ -111,7 +112,7 @@ parsec_bandwidth_New(parsec_tiled_matrix_dc_t *dcA,
 void parsec_bandwidth_Destruct(parsec_taskpool_t *taskpool)
 {
   parsec_bandwidth_taskpool_t *bandwidth_taskpool = (parsec_bandwidth_taskpool_t *)taskpool;
-  parsec_matrix_del2arena(bandwidth_taskpool->arenas[PARSEC_bandwidth_DEFAULT_ARENA]);
+  parsec_matrix_del2arena(&bandwidth_taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX]);
   parsec_taskpool_free(taskpool);
 }
 
@@ -196,17 +197,18 @@ int main(int argc, char *argv[])
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
             dashdash = i;
-            pargc = 0;
+            pargc = 1;
         } else if( dashdash != -1 ) {
             pargc++;
         }
     }
-    pargv = (char**)malloc( (pargc+1) * sizeof(char*));
+    pargv = (char**)malloc( (pargc+2) * sizeof(char*));
     if( dashdash != -1 ) {
+        pargv[0] = strdup(argv[0]);
         for(i = dashdash+1; i < argc; i++) {
-            pargv[i-dashdash-1] = strdup(argv[i]);
+            pargv[i-dashdash] = strdup(argv[i]);
         }
-        pargv[i-dashdash-1] = NULL;
+        pargv[i-dashdash] = NULL;
     } else {
         pargv[0] = NULL;
     }
@@ -236,8 +238,9 @@ int main(int argc, char *argv[])
     /* initializing matrix structure */
     two_dim_block_cyclic_t dcA;
     two_dim_block_cyclic_init(&dcA, matrix_RealDouble, matrix_Tile,
-                              nodes, rank, 1, size, frags, size, 0, 0,
-                              frags, size, 1, 1, 1);
+                              rank, 1, size, frags, size, 0, 0,
+                              frags, size,
+                              1, nodes, 1, 1, 0, 0);
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
                                    (size_t)dcA.super.bsiz *
                                    (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
@@ -245,8 +248,9 @@ int main(int argc, char *argv[])
 
     two_dim_block_cyclic_t Disk;
     two_dim_block_cyclic_init(&Disk, matrix_RealDouble, matrix_Tile,
-                              nodes, rank, 1, 1, 1, nodes, 0, 0,
-                              1, nodes, 1, 1, 1);
+                              rank, 1, 1, 1, nodes, 0, 0,
+                              1, nodes,
+                              1, nodes, 1, 1, 0, 0);
     parsec_data_collection_set_key((parsec_data_collection_t*)&Disk, "Disk");
 
     for(i = 0; i < nb_runs; i++) {
@@ -257,10 +261,10 @@ int main(int argc, char *argv[])
 
         bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-        parsec_matrix_add2arena(taskpool->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
-                                parsec_datatype_double_t, matrix_UpperLower,
-                                1, 1, size, 1,
-                                PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
+                                 parsec_datatype_double_t, matrix_UpperLower,
+                                 1, 1, size, 1,
+                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
         /* Time start */
 #if defined(PARSEC_HAVE_MPI)
@@ -281,7 +285,7 @@ int main(int argc, char *argv[])
         if( 0 == rank ) {
             t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
             bw = ((double)loops * (double)frags * (double)size) / t * 1000.0 * 1000.0 / (1000.0 * 1000.0 * 1000.0) * sizeof(double) * 8;
-            printf("%d %d %lu %08.4g %4.8g GB/s\n", loops, frags, size*sizeof(double), t / 1000000.0, bw);
+            printf("%d %d %zu %08.4g %4.8g GB/s\n", loops, frags, size*sizeof(double), t / 1000000.0, bw);
         }
 
         parsec_bandwidth_Destruct(bandwidth_taskpool);

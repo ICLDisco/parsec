@@ -100,7 +100,7 @@ const parsec_sched_module_t parsec_sched_spq_module = {
 static int sched_spq_install( parsec_context_t *master )
 {
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
@@ -127,13 +127,13 @@ static int flow_spq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     }
 #endif
 
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static parsec_task_t* sched_spq_select(parsec_execution_stream_t *es,
                                        int32_t* distance)
 {
-    parsec_task_t* context;
+    parsec_task_t* task = NULL;
     parsec_list_item_t *li;
     parsec_spq_priority_list_t *plist;
     parsec_list_with_size_t *task_list = (parsec_list_with_size_t*)es->scheduler_object;
@@ -143,7 +143,7 @@ static parsec_task_t* sched_spq_select(parsec_execution_stream_t *es,
          li != PARSEC_LIST_ITERATOR_END(&task_list->super);
          li = PARSEC_LIST_ITERATOR_NEXT(li) ) {
         plist = (parsec_spq_priority_list_t*)li;
-        if( (context = (parsec_task_t*)parsec_list_pop_front(&plist->tasks)) != NULL ) {
+        if( (task = (parsec_task_t*)parsec_list_pop_front(&plist->tasks)) != NULL ) {
             *distance = plist->prio;
 #if defined(PARSEC_PAPI_SDE)
             task_list->size--;
@@ -152,7 +152,7 @@ static parsec_task_t* sched_spq_select(parsec_execution_stream_t *es,
         }
     }
     parsec_list_unlock(&task_list->super);
-    return context;
+    return task;
 }
 
 static int sched_spq_schedule(parsec_execution_stream_t* es,
@@ -195,7 +195,7 @@ static int sched_spq_schedule(parsec_execution_stream_t* es,
                              (parsec_list_item_t*)new_context,
                              parsec_execution_context_priority_comparator);
     parsec_list_unlock(&task_list->super);
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void sched_spq_remove( parsec_context_t *master )

@@ -77,7 +77,7 @@ typedef struct {
     int64_t  first_events_buffer_offset; /* Offset of the first events buffer for this thread */
     int32_t  nb_infos;                   /* Number of infos that follow in this thread */
     parsec_profiling_info_buffer_t infos[1];/* First profiling_info_buffer for this thread */
-} parsec_profiling_thread_buffer_t;
+} parsec_profiling_stream_buffer_t;
 
 /**
  * Structure of a PaRSEC Binary Profile:
@@ -93,7 +93,6 @@ typedef struct {
     int32_t info_size;           /* Number of global info entries */
     int64_t info_offset;         /* Offset of the first info profiling_buffer */
     int32_t rank;                /* Rank of the process that generated this profile */
-    int32_t worldsize;           /* Worldsize of the MPI application that generated this profile */
     int32_t nb_threads;          /* Number of threads in this profile */
     int64_t thread_offset;       /* Offset of the first thread profiling_buffer */
     /* Padding to align on profile_buffer_size -- required to allow for mmaping of buffers */
@@ -129,18 +128,20 @@ typedef struct parsec_profiling_perf_s {
     uint32_t perf_number_calls;
 } parsec_profiling_perf_t;
 
-struct parsec_thread_profiling_s {
-    parsec_list_item_t        list;
-    int64_t                  next_event_position; /* When in write mode, points to the next available storage byte
-                                                   *   in current_events_buffer */
-    char                    *hr_id;
-    parsec_profiling_perf_t  thread_perf[PERF_MAX];
-    void                    *tls_storage;
-    uint64_t                 nb_events;
-    parsec_profiling_info_t  *infos;
-    off_t                    first_events_buffer_offset; /* Offset (in the file) of the first events buffer */
-    pthread_t                thread_owner;
-    off_t                     current_events_buffer_offset;
+struct tl_freelist_s;
+
+struct parsec_profiling_stream_s {
+    parsec_list_item_t         list;
+    int64_t                    next_event_position; /* When in write mode, points to the next available storage byte
+                                                     *   in current_events_buffer */
+    char                      *hr_id;
+    parsec_profiling_perf_t    thread_perf[PERF_MAX];
+    struct tl_freelist_s      *buffers_freelist;
+    uint64_t                   nb_events;
+    parsec_profiling_info_t   *infos;
+    off_t                      first_events_buffer_offset; /* Offset (in the file) of the first events buffer */
+    pthread_t                  thread_owner;
+    off_t                      current_events_buffer_offset;
     parsec_profiling_buffer_t *current_events_buffer;     /* points to the events buffer in which we are writing. */
 };
 

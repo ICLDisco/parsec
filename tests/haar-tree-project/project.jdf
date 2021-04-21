@@ -33,7 +33,7 @@ static uint64_t my_simple_hash_hash(parsec_key_t key, void *taskpool)
     (void)taskpool;
     return (uint64_t)key;
 }
- 
+
 static parsec_key_fn_t my_simple_hash_fns = {
     .key_equal = my_simple_hash_equal,
     .key_print = my_simple_hash_print,
@@ -156,7 +156,7 @@ CTL RL <- (n!=0) ? RL PROJECT(n-1, l/2)
        -> ((!larger_than_thresh) & ((l%2) == 0)) ? LEFT END_PROPAGATE(n-1, l/2)
        -> ((!larger_than_thresh) & ((l%2) == 1)) ? RIGHT END_PROPAGATE(n-1, l/2)
 
-WRITE NODE <- NEW [ type=DEFAULT ]
+WRITE NODE <- NEW [ type=DEFAULT warning=disable ]
 
 BODY
 {
@@ -323,12 +323,28 @@ static int my_project_startup(parsec_execution_stream_t * es, __parsec_project_P
   new_task->locals.n.value = 0;
   new_task->locals.l.value = 0;
   new_task->locals.larger_than_thresh.value = 1;
-  new_task->data._f_RL.data_repo = NULL;
+  new_task->data._f_RL.source_repo = NULL;
+  new_task->data._f_RL.source_repo_entry = NULL;
   new_task->data._f_RL.data_in = NULL;
   new_task->data._f_RL.data_out = NULL;
-  new_task->data._f_NODE.data_repo = NULL;
+  new_task->data._f_NODE.source_repo = NULL;
+  new_task->data._f_NODE.source_repo_entry = NULL;
   new_task->data._f_NODE.data_in = NULL;
   new_task->data._f_NODE.data_out = NULL;
+
+  new_task->repo_entry = NULL;
+
+  new_task->data._f_RL.source_repo = NULL;
+  new_task->data._f_RL.source_repo_entry = NULL;
+  new_task->data._f_RL.data_in = NULL;
+  new_task->data._f_RL.data_out = NULL;
+  new_task->data._f_RL.fulfill = 0;
+
+  new_task->data._f_NODE.source_repo = NULL;
+  new_task->data._f_NODE.source_repo_entry = NULL;
+  new_task->data._f_NODE.data_in = NULL;
+  new_task->data._f_NODE.data_out = NULL;
+  new_task->data._f_NODE.fulfill = 0;
 
   new_task->priority = 1;
   parsec_dependencies_mark_task_as_startup((parsec_task_t *) new_task, es);

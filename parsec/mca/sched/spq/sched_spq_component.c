@@ -52,7 +52,7 @@ const parsec_sched_base_component_t parsec_sched_spq_component = {
         sched_spq_component_query, 
         /*< specific query to return the module and add it to the list of available modules */
         sched_spq_component_register,
-	"", /*< no reserve */
+        "", /*< no reserve */
     },
     {
         /* The component has no metada */

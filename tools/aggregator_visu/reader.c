@@ -169,19 +169,19 @@ static void pretty_print_category(category_t *category, char *buffer)
 static void pretty_print(profiling_shmem_t *shmem)
 {
     fprintf(stdout, "Node %d/%d {\n", shmem->prank, shmem->psize);
-    pretty_print_category(shmem->per_nd, shmem->buffer+(shmem->nb_xml_pages*PAGE_SIZE));
+    pretty_print_category(shmem->per_nd, (char*)shmem->buffer+(shmem->nb_xml_pages*PAGE_SIZE));
 
     int vp;
     for (vp = 0; vp < shmem->nb_vp; ++vp) {
         fprintf(stdout, "  VP %d {\n", vp);
-        pretty_print_category(shmem->per_vp, shmem->buffer+(shmem->first_vp+vp)*PAGE_SIZE);
+        pretty_print_category(shmem->per_vp, (char*)shmem->buffer+(shmem->first_vp+vp)*PAGE_SIZE);
         fprintf(stdout, "  }\n");
     }
 
     int eu;
     for (eu = 0; eu < shmem->nb_eu; ++eu) {
         fprintf(stdout, "  EU %d {\n", eu);
-        pretty_print_category(shmem->per_eu, shmem->buffer+(shmem->first_eu+eu)*PAGE_SIZE);
+        pretty_print_category(shmem->per_eu, (char*)shmem->buffer+(shmem->first_eu+eu)*PAGE_SIZE);
         fprintf(stdout, "  }\n");
     }
     fprintf(stdout, "}\n");

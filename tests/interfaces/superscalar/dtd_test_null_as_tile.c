@@ -64,19 +64,20 @@ int main(int argc, char ** argv)
     /* Registering the dtd_handle with PARSEC context */
     rc = parsec_context_add_taskpool( parsec, dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+
+    SYNC_TIME_START();
     rc = parsec_context_start( parsec );
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
-    SYNC_TIME_START();
 
     for( m = 0; m < no_of_tasks; m++ ) {
         parsec_dtd_taskpool_insert_task(dtd_tp, call_to_kernel_type,    0,  "Test_Task",
-                                        PASSED_BY_REF,    NULL,                 INOUT,
+                                        PASSED_BY_REF,    NULL, PARSEC_INOUT,
                                         PARSEC_DTD_ARG_END);
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
     SYNC_TIME_PRINT(rank, ("\n"));

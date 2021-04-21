@@ -18,9 +18,8 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
-enum regions {
-               TILE_FULL,
-             };
+/* IDs for the Arena Datatypes */
+static int TILE_FULL;
 
 int
 task_task_placement(parsec_execution_stream_t *es,
@@ -82,6 +81,7 @@ int main(int argc, char **argv)
     int rank, world, cores = -1;
     int nb, nt, rc;
     parsec_tiled_matrix_dc_t *dcA;
+    parsec_arena_datatype_t *adt;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -107,9 +107,10 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-    parsec_matrix_add2arena_rect(parsec_dtd_arenas[TILE_FULL],
-                                 parsec_datatype_int32_t,
-                                 nb, 1, nb);
+    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
+    parsec_matrix_add2arena_rect( adt,
+                                  parsec_datatype_int32_t,
+                                  nb, 1, nb);
 
     /* Correctness checking */
     dcA = create_and_distribute_data(rank, world, nb, nt);
@@ -142,21 +143,21 @@ int main(int argc, char **argv)
         /* Testing AFFINITY flag with value */
         intended_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_task_placement,    0,  "task_task_placement",
-                                        sizeof(int),      &intended_rank,              VALUE | AFFINITY,
+                                        sizeof(int),      &intended_rank,              PARSEC_VALUE | PARSEC_AFFINITY,
                                         PARSEC_DTD_ARG_END);
 
         intended_rank = 2;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_task_placement,    0,  "task_task_placement",
-                                        sizeof(int),      &intended_rank,              VALUE | AFFINITY,
+                                        sizeof(int),      &intended_rank,              PARSEC_VALUE | PARSEC_AFFINITY,
                                         PARSEC_DTD_ARG_END);
 
 
         intended_rank = 1;
         printf("Using affinity with data residing in rank: %d\n", A->rank_of_key(A, 0));
         parsec_dtd_taskpool_insert_task(dtd_tp, task_precedence,    0,  "task_precedence",
-                                        sizeof(int),      &intended_rank,              VALUE | AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
-                                        sizeof(int),      &intended_rank,              VALUE | AFFINITY,
+                                        sizeof(int),      &intended_rank,               PARSEC_VALUE | PARSEC_AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
+                                        sizeof(int),      &intended_rank,               PARSEC_VALUE | PARSEC_AFFINITY,
                                         PARSEC_DTD_ARG_END);
 
         /* Data reside in rank 0 and we set the data to 20,
@@ -165,21 +166,23 @@ int main(int argc, char **argv)
          */
         intended_rank = 1;
         parsec_dtd_taskpool_insert_task(dtd_tp, task_moving_data,    0,  "task_moving",
-                                        sizeof(int),      &intended_rank,    VALUE | AFFINITY,
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
+                                        sizeof(int),      &intended_rank,    PARSEC_VALUE | PARSEC_AFFINITY,
+                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | TILE_FULL,
                                         PARSEC_DTD_ARG_END);
     }
 
     parsec_dtd_data_flush_all( dtd_tp, A );
 
-    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free( dtd_tp );
 
-    parsec_arena_destruct(parsec_dtd_arenas[0]);
+    parsec_matrix_del2arena(adt);
+    PARSEC_OBJ_RELEASE(adt->arena);
+    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 

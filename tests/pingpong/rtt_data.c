@@ -73,13 +73,13 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
     va_end(ap);
 
     assert( (unsigned int)k < dat->super.nodes && k >= 0 );
-    return parsec_data_create( &dat->data, desc, k, dat->ptr, dat->size );
+    return parsec_data_create( &dat->data, desc, k, dat->ptr, dat->size, PARSEC_DATA_FLAG_PARSEC_MANAGED );
 }
 
 static parsec_data_t* data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     my_datatype_t *dat = (my_datatype_t*)desc;
-    return parsec_data_create( &dat->data, desc, key, dat->ptr, dat->size );
+    return parsec_data_create( &dat->data, desc, key, dat->ptr, dat->size, PARSEC_DATA_FLAG_PARSEC_MANAGED );
 }
 
 static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)
@@ -113,8 +113,13 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
     d->vpid_of_key  = vpid_of_key;
     d->data_key     = data_key;
 #if defined(PARSEC_PROF_TRACE)
-    asprintf(&d->key_dim, "(%d)", world);
+    {
+      int len = asprintf(&d->key_dim, "(%d)", world);
+      if( -1 == len )
+	d->key_dim = NULL;
+    }
 #endif
+    parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &d->default_dtt);
 
     m->size = size;
     m->data = NULL;

@@ -27,9 +27,7 @@ double sync_time_elapsed = 0.0;
 
 int count = 0;
 
-enum regions {
-               TILE_FULL,
-             };
+static int TILE_FULL = 0;
 
 int
 test_task( parsec_execution_stream_t *es,
@@ -74,15 +72,16 @@ test_task_generator( parsec_execution_stream_t *es,
 
     for( i = 0; i < 100; i++ ) {
         parsec_dtd_taskpool_insert_task(dtd_tp, test_task,    0,  "Test_Task",
-                                        sizeof(int),       &amount,    VALUE,
-                                        PASSED_BY_REF,     PARSEC_DTD_TILE_OF_KEY(B, rank),      INOUT | AFFINITY,
+                                        sizeof(int),       &amount,    PARSEC_VALUE,
+                                        PASSED_BY_REF,     PARSEC_DTD_TILE_OF_KEY(B, rank), PARSEC_INOUT | PARSEC_AFFINITY,
                                         PARSEC_DTD_ARG_END);
     }
 
     parsec_dtd_data_flush(dtd_tp, PARSEC_DTD_TILE_OF_KEY(B, rank));
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_taskpool_wait( es->virtual_process->parsec_context, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
     parsec_dtd_data_collection_fini(B);
     free_data(dcB);
@@ -99,6 +98,7 @@ int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
     int rank, world, cores = -1, rc;
+    parsec_arena_datatype_t *adt;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -124,8 +124,6 @@ int main(int argc, char ** argv)
     /* Registering the dtd_handle with PARSEC context */
     rc = parsec_context_add_taskpool( parsec, dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
-    rc = parsec_context_start( parsec );
-    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     nb = 1; /* size of each tile */
     nt = world; /* total tiles */
@@ -133,27 +131,30 @@ int main(int argc, char ** argv)
     dcA = create_and_distribute_empty_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    parsec_matrix_add2arena_rect(parsec_dtd_arenas[TILE_FULL],
-                                 parsec_datatype_int32_t,
-                                 nb, 1, nb);
+    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
+    parsec_matrix_add2arena_rect( adt,
+                                  parsec_datatype_int32_t,
+                                  nb, 1, nb );
 
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
     parsec_dtd_data_collection_init(A);
 
     SYNC_TIME_START();
+    rc = parsec_context_start( parsec );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     for( m = 0; m < nt; m++ ) {
         parsec_dtd_taskpool_insert_task(dtd_tp, test_task_generator,    0,  "Test_Task_generator",
-                                        sizeof(int),       &nb,                 VALUE,
-                                        sizeof(int),       &nt,                 VALUE,
-                                        PASSED_BY_REF,     PARSEC_DTD_TILE_OF_KEY(A, m),   INOUT | AFFINITY,
+                                        sizeof(int),       &nb,                 PARSEC_VALUE,
+                                        sizeof(int),       &nt,                 PARSEC_VALUE,
+                                        PASSED_BY_REF,     PARSEC_DTD_TILE_OF_KEY(A, m),   PARSEC_INOUT | PARSEC_AFFINITY,
                                         PARSEC_DTD_ARG_END);
 
         parsec_dtd_data_flush(dtd_tp, PARSEC_DTD_TILE_OF_KEY(A, m));
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    rc = parsec_dtd_taskpool_wait( parsec, dtd_tp );
+    rc = parsec_dtd_taskpool_wait( dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
 
     parsec_output( 0, "Successfully executed %d tasks in rank %d\n", count, parsec->my_rank );
@@ -163,7 +164,9 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_arena_destruct(parsec_dtd_arenas[0]);
+    parsec_matrix_del2arena(adt);
+    PARSEC_OBJ_RELEASE(adt->arena);
+    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 

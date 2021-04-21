@@ -49,13 +49,13 @@ const parsec_sched_module_t parsec_sched_rnd_module = {
 static int sched_rnd_install( parsec_context_t *master )
 {
     (void)master;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static int flow_rnd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* barrier)
 {
     parsec_vp_t *vp = es->virtual_process;
-    
+
     if (es == vp->execution_streams[0]) {
         es->scheduler_object = parsec_mca_sched_allocate_list_local_counter(NULL);
     }
@@ -79,8 +79,8 @@ static int flow_rnd_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
                                       "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=RND", PAPI_SDE_SUM);
     }
 #endif
-    
-    return 0;
+
+    return PARSEC_SUCCESS;
 }
 
 static parsec_task_t*
@@ -117,13 +117,13 @@ static int sched_rnd_schedule(parsec_execution_stream_t* es,
     parsec_list_nolock_sort(&tmp, parsec_execution_context_priority_comparator);
     new_context = (parsec_task_t*)parsec_list_nolock_unchain(&tmp);
     PARSEC_OBJ_DESTRUCT(&tmp);
-    
+
     parsec_mca_sched_list_local_counter_chain_sorted(LOCAL_SCHED_OBJECT(es), new_context, parsec_execution_context_priority_comparator);
 
     /* We can ignore distance, the task will randomly get inserted in a place that
      * will prevent livelocks. */
     (void)distance;
-    return 0;
+    return PARSEC_SUCCESS;
 }
 
 static void sched_rnd_remove( parsec_context_t *master )

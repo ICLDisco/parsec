@@ -30,10 +30,10 @@ FCT1(i, k)
 
     READ A <- (0 == k) ? descA(i, 0) : A FCT1(i, k-1)
          -> (NK != k) ? A FCT1(i, k+1)
-         -> A FCT5(i, k)                         [displ = BLOCK]
+         -> A FCT5(i, k)                         [displ_remote = BLOCK]
          RW   B <- (0 == k) ? descA(i, 0) : B FCT1(i, k-1)
-         -> A FCT2(i, k, k .. NK)                [displ = 0]
-         -> A FCT3(i, k, k .. NK)                [displ = BLOCK]
+         -> A FCT2(i, k, k .. NK)                [displ_remote = 0]
+         -> A FCT3(i, k, k .. NK)                [displ_remote = BLOCK]
          -> A FCT4(i, k)
          -> (NK != k) ? B FCT1(i, k+1)
 
@@ -111,7 +111,7 @@ int main( int argc, char** argv )
 {
     parsec_complex_deps_taskpool_t* tp;
     two_dim_block_cyclic_t descA;
-    parsec_arena_t arena;
+    parsec_arena_datatype_t adt;
     parsec_datatype_t otype;
     parsec_context_t *parsec;
     int ni = NN, nk = NN, verbose = 0, i = 1, rc;
@@ -159,20 +159,23 @@ int main( int argc, char** argv )
      */
     mat_size = 2*BLOCK*size*NN;
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                               size /*nodes*/, rank /*rank*/,
+                               rank /*rank*/,
                                2*BLOCK, 1, mat_size, 1,
-                               0, 0, mat_size, 1, 1, 1, 1);
+                               0, 0, mat_size, 1, 1, size, 1, 1, 0, 0);
     descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
     parsec_translate_matrix_type(TYPE, &otype);
-    parsec_matrix_add2arena_rect(&arena, otype,
+    parsec_matrix_add2arena_rect(&adt, otype,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
+
 
     /* Heat up the engine: small tasks */
     tp = parsec_complex_deps_new( &descA, ni, nk );
     assert( NULL != tp );
-    tp->arenas[PARSEC_complex_deps_DEFAULT_ARENA] = &arena;
+    tp->arenas_datatypes[PARSEC_complex_deps_DEFAULT_ADT_IDX] = adt;
+    PARSEC_OBJ_RETAIN(adt.arena);
+
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
@@ -180,13 +183,14 @@ int main( int argc, char** argv )
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     rc = parsec_context_wait(parsec);
+    parsec_taskpool_free(&tp->super);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     /* No priority */
     tp = parsec_complex_deps_new( &descA, ni, nk );
     assert( NULL != tp );
     TIMER_START(time_elapsed);
-    tp->arenas[PARSEC_complex_deps_DEFAULT_ARENA] = &arena;
+    tp->arenas_datatypes[PARSEC_complex_deps_DEFAULT_ADT_IDX] = adt;
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     TIMER_STOP(time_elapsed);
@@ -203,9 +207,12 @@ int main( int argc, char** argv )
 
     TIMER_START(time_elapsed);
     rc = parsec_context_wait(parsec);
+    parsec_taskpool_free(&tp->super);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     TIMER_STOP(time_elapsed);
     printf("DAG execution in %ld micro-sec\n", time_elapsed);
+
+    parsec_matrix_del2arena( & adt );
 
     free(descA.mat);
 

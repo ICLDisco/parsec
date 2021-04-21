@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -76,6 +76,10 @@
  * These key/value pairs can be saved globally for the process, or per profiling
  * stream.
  *
+ * Note that on success, most of these functions return 0, NOT PARSEC_SUCCESS.
+ * PARSEC_SUCCESS may be lower than 0 (0 >= PARSEC_SUCCESS > error codes).
+ * This is done so that this file can be used without including
+ * parsec/constants.h.
  */
 
 /**
@@ -114,25 +118,57 @@ extern "C" {
  * Opaque structure used to keep thread-specific information about
  * the profiling.
  */
-typedef struct parsec_thread_profiling_s parsec_thread_profiling_t;
-
+typedef struct parsec_profiling_stream_s parsec_profiling_stream_t;
+    
 /**
  * @brief Initializes the profiling engine.
  *
  * @details Call this ONCE per process.
- * @return 0    if success, -1 otherwise
+ *   @param [IN] rank: the unique identifier of the process,
+ *      typically the rank of the process in an MPI application.
+ * @return 0    if success, negative otherwise
  *
  * @remark not thread safe
  */
-int parsec_profiling_init( void );
+int parsec_profiling_init( int rank );
 
 /**
  * @brief Set the reference time to now in the profiling system.
+ *   In case of a parallel (multi-processes) run, the calling
+ *   library should synchronize the processes before calling this,
+ *   to minimize the drift.
  *
  * @details Optionally called before any even is traced.
  * @remark Not thread safe.
  */
 void parsec_profiling_start(void);
+
+#if defined(PARSEC_HAVE_OTF2)
+/**
+ * @brief change the default communicator when using the OTF2
+ *   backend
+ *
+ * @details OTF2 relies on MPI to trace events types and collect
+ *   information. We also need to gather the dictionaries to build
+ *   a consistent list of events at the end, and profiling_otf2
+ *   does this using MPI_Gatherv, which is a collective on the
+ *   communicator that is passed here.
+ *
+ *  @param[IN] pcomm: a pointer to the communicator handle to
+ *       use.
+ *
+ *  @remark 
+ *     - this call is a collective on *pcomm. The process calls
+ *       MPI_Comm_dup on *pcomm during this call
+ *     - the duplicate of the communicator is MPI_Comm_free(d) when
+ *       parsec_profiling_fini is called. 
+ *     - If parsec_profiling_otf2_set_comm is not called before 
+ *       parsec_profiling_init, MPI_COMM_WORLD is used by default.
+ *     - Only local MPI calls are issued in all other functions, so
+ *       any MPI threading model should be supported.
+ */
+void parsec_profiling_otf2_set_comm( void *pcomm );
+#endif
 
 /**
  * @brief Releases all resources for the tracing.
@@ -140,7 +176,7 @@ void parsec_profiling_start(void);
  * @details Thread contexts become invalid after this call.
  *          Must be called after the dbp_dump if a dbp_start was called.
  *
- * @return 0    if success, -1 otherwise.
+ * @return 0    if success, negative otherwise.
  * @remark not thread safe
  */
 int parsec_profiling_fini( void );
@@ -152,7 +188,7 @@ int parsec_profiling_fini( void );
  * to do a new profiling with the same thread contexts. This does not
  * invalidate the current thread contexts.
  *
- * @return 0 if succes, -1 otherwise
+ * @return 0 if succes, negative otherwise
  * not thread safe
  */
 int parsec_profiling_reset( void );
@@ -170,29 +206,50 @@ void parsec_profiling_add_information( const char *key, const char *value );
 /**
  * @brief Add additional information about the current run, under the form key/value.
  *
- * @details This function adds key/value pairs PER THREAD, not globally.
- * @param[in] thread thread in which to store the key/value
+ * @details This function adds key/value pairs PER STREAM, not globally.
+ * @param[in] stream stream in which to store the key/value
  * @param[in] key key part of the key/value to store
  * @param[in] value value part of the key/value to store
  * @remark Not thread safe.
  */
-void parsec_profiling_thread_add_information(parsec_thread_profiling_t * thread,
-                                            const char *key, const char *value );
+void parsec_profiling_stream_add_information(parsec_profiling_stream_t* stream,
+                                             const char *key, const char *value );
 
 /**
- * @brief Initializes the buffer trace with the specified length.
+ * @brief Create a profiling stream that can be used to store events.
  *
- * @details This function must be called once per thread that will use the profiling
- * functions. This creates the profiling_thread_unit_t that must be passed to
- * the tracing function call. See note about thread safety.
+ * @details This function create a profiling stream that is not thread-safe, it
+ * must be carefully protected by the caller against concurrent accesses. Moreover,
+ * this stream is not associated with any runtime resources, it is free to use
+ * as necessary by the caller. The stream is however tracked by the runtime, and if
+ * not removed by use user before the profiling_fini it will be dumped and disposed
+ * as all other profiling streams.
  *
- * @param[in] length the length (in bytes) of the buffer queue to store events.
- * @param[in] format printf-like to associate a human-readable
- *                           definition of the calling thread
- * @return pointer to the new thread_profiling structure. NULL if an error.
- * @remark thread safe
+ * param[in] length the length (in bytes) of the buffer queue to store events.
+ * param[in] format the name of the stream, following the printf convention
+ * @return pointer to the new stream_profiling structure. NULL if an error.
+ * @remark the call to this function is thread safe, the resulting structure is not.
  */
-parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const char *format, ...);
+parsec_profiling_stream_t*
+parsec_profiling_stream_init( size_t length, const char *format, ...);
+
+/**
+ * @brief set the default profiling_stream to use on the calling thread
+ *
+ * @details When using parsec_profiling_trace_flags_ts to log an event,
+ * the default profiling_stream bound to the calling thread
+ * is used. By default no profiling_stream is bound to any thread. Using
+ * this function, the user decided what profiling_stream should be used
+ * for the calling thread. The function returns the old bound profiling_stream
+ * if any.
+ *
+ * @param[in] new: the new profiling_stream to bind on the calling thread
+ * @return         the old profiling_stream that was bound to the calling thread
+ *                 (NULL initially).
+ * @remark not thread safe
+ */
+parsec_profiling_stream_t *parsec_profiling_set_default_thread( parsec_profiling_stream_t *stream );
+
 
 /**
  * @brief Inserts a new keyword in the dictionnary
@@ -207,7 +264,7 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
  * @param[in] convertor_code php code to convert a info byte array into XML code.
  * @param[out] key_start the key to use to denote the start of an event of this type
  * @param[out] key_end the key to use to denote the end of an event of this type.
- * @return 0    if success, -1 otherwie.
+ * @return 0 if success, negative otherwise.
  * @remark not thread safe
  */
 int parsec_profiling_add_dictionary_keyword( const char* name, const char* attributes,
@@ -224,7 +281,7 @@ int parsec_profiling_add_dictionary_keyword( const char* name, const char* attri
  * @remark Emptying the dictionnary without reseting the profiling system will yield
  * undeterminate results
  *
- * @return 0 if success, -1 otherwise.
+ * @return 0 if success, negative otherwise.
  * @remark not thread safe
  */
 int parsec_profiling_dictionary_flush( void );
@@ -247,10 +304,10 @@ int parsec_profiling_dictionary_flush( void );
  * @param[in] info    a pointer to an area of size info_length for this key (see
  *                        parsec_profiling_add_dictionary_keyword)
  * @param[in] flags   flags related to the event
- * @return 0 if success, -1 otherwise.
+ * @return 0 if success, negative otherwise.
  * @remark not thread safe (if two threads share a same thread_context. Safe per thread_context)
  */
-int parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
+int parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
                                  uint64_t event_id, uint32_t taskpool_id,
                                  void *info, uint16_t flags );
 
@@ -278,7 +335,7 @@ int parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
  * @param[in] info    a pointer to an area of size info_length for this key (see
  *                        parsec_profiling_add_dictionary_keyword)
  * @param[in] flags   flags related to the event
- * @return 0 if success, -1 otherwise.
+ * @return 0 if success, negative otherwise.
  * @remark thread safe
  */
 int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t object_id,
@@ -307,7 +364,7 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t object_
  *                      profile. Used "uniquely" identify the experiment, and
  *                      check that all separate profile files correspond to a same
  *                      experiment.
- * @return 0 if success, -1 otherwise.
+ * @return 0 if success, negative otherwise.
  * @remark not thread safe.
  */
 int parsec_profiling_dbp_start( const char *basefile, const char *hr_info );
@@ -317,7 +374,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info );
  * @details Completes the file opened with dbp_start.
  * Every single dbp_start should have a matching dbp_dump.
  *
- * @return 0 if success, -1 otherwise
+ * @return 0 if success, negative otherwise
  * @remark not thread safe
  */
 int parsec_profiling_dbp_dump( void );
@@ -347,8 +404,8 @@ uint64_t parsec_profiling_get_time(void);
  *  appropriately the info profiling generation string below
  */
 typedef struct {
-    struct parsec_data_collection_s *desc; /**< The pointer to the data collection used as a key to identify the collection */
-    uint32_t              id;    /**< The id of each data defines a unique element in the collection */
+    struct parsec_data_collection_s *desc;      /**< The pointer to the data collection used as a key to identify the collection */
+    uint32_t                         data_id;   /**< The id of each data defines a unique element in the collection */
 } parsec_profile_data_collection_info_t;
 
 /**
@@ -356,7 +413,23 @@ typedef struct {
  * @details This macro is the character string to convert a parsec_profile_data_collection_info_t into
  * meaningful numbers from the binary profile format. To be used in parsec_profiling_add_dictionary_keyword.
  */
-#define PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR "data_collection_unique_key{uint64_t};data_collection_data_id{uint32_t};data_collection_padding{uint32_t}"
+#define PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR "dc_key{uint64_t};dc_dataid{uint32_t};dc_padding{uint32_t}"
+
+/**
+ * per-task profiling information.
+ * @remark we don't reuse parsec_profile_data_collection_info_t to avoid
+ * alignment issues, but we re-use the same keywords to avoid creating
+ * too many columns in the events dataframe.
+ */
+typedef struct {
+    struct parsec_data_collection_s *desc;
+    uint32_t                         data_id;
+    int16_t                          task_class_id;
+    int16_t                          task_return_code;
+} parsec_task_prof_info_t;    
+
+#define PARSEC_TASK_PROF_INFO_CONVERTOR "dc_key{uint64_t};dc_dataid{uint32_t};tcid{int16_t};trc{int16_t}"
+
 /**
  * @brief String used to identify GPU streams
  */
@@ -442,70 +515,72 @@ void profiling_save_uint64info(const char *key, unsigned long long int value);
 void profiling_save_sinfo(const char *key, char* svalue);
 
 /**
- * @brief Record a thread-specific key/value pair in the profile with a double value
+ * @brief Record a stream-specific key/value pair in the profile with a double value
  *
- * @param[in] thread the thread context to use
+ * @param[in] stream the stream context to use
  * @param[in] key the key to use in the key/value pair
  * @param[in] value the value to use in the key/value pair
  * @remark thread safe
  */
-void profiling_thread_save_dinfo(parsec_thread_profiling_t * thread,
+void profiling_stream_save_dinfo(parsec_profiling_stream_t* stream,
                                  const char *key, double value);
 
 /**
- * @brief Record a thread-specific key/value pair in the profile with an integer value
+ * @brief Record a stream-specific key/value pair in the profile with an integer value
  *
- * @param[in] thread the thread context to use
+ * @param[in] stream the stream context to use
  * @param[in] key the key to use in the key/value pair
  * @param[in] value the value to use in the key/value pair
  * @remark thread safe
  */
-void profiling_thread_save_iinfo(parsec_thread_profiling_t * thread,
+void profiling_stream_save_iinfo(parsec_profiling_stream_t* stream,
                                  const char *key, int value);
 
 /**
- * @brief Record a thread-specific key/value pair in the profile with a long long integer value
+ * @brief Record a stream-specific key/value pair in the profile with a long long integer value
  *
- * @param[in] thread the thread context to use
+ * @param[in] stream the stream context to use
  * @param[in] key the key to use in the key/value pair
  * @param[in] value the value to use in the key/value pair
  * @remark thread safe
  */
-void profiling_thread_save_uint64info(parsec_thread_profiling_t * thread,
+void profiling_stream_save_uint64info(parsec_profiling_stream_t* stream,
                                       const char *key, unsigned long long int value);
 
 /**
- * @brief Record a thread-specific key/value pair in the profile with a string value
+ * @brief Record a stream-specific key/value pair in the profile with a string value
  *
- * @param[in] thread the thread context to use
+ * @param[in] stream the stream context to use
  * @param[in] key the key to use in the key/value pair
  * @param[in] svalue the value to use in the key/value pair
  * @remark thread safe
  */
-void profiling_thread_save_sinfo(parsec_thread_profiling_t * thread,
+void profiling_stream_save_sinfo(parsec_profiling_stream_t* stream,
                                  const char *key, char* svalue);
 
 /** @cond DONT_DOCUMENT */
 #if defined(PARSEC_PROF_TRACE)
 #define PROFILING_SAVE_dINFO(key, double_value) profiling_save_dinfo(key, double_value)
 #define PROFILING_SAVE_iINFO(key, integer_value) profiling_save_iinfo(key, integer_value)
+#define PROFILING_SAVE_uint64INFO(key, integer_value) profiling_save_uint64info(key, integer_value)
 #define PROFILING_SAVE_sINFO(key, str_value) profiling_save_sinfo(key, str_value)
-#define PROFILING_THREAD_SAVE_dINFO(thread, key, double_value)  \
-    profiling_thread_save_dinfo(thread, key, double_value)
-#define PROFILING_THREAD_SAVE_iINFO(thread, key, integer_value) \
-    profiling_thread_save_iinfo(thread, key, integer_value)
-#define PROFILING_THREAD_SAVE_uint64INFO(thread, key, integer_value) \
-    profiling_thread_save_uint64info(thread, key, integer_value)
-#define PROFILING_THREAD_SAVE_sINFO(thread, key, str_value)     \
-    profiling_thread_save_sinfo(thread, key, str_value)
+#define PROFILING_STREAM_SAVE_dINFO(stream, key, double_value)  \
+    profiling_stream_save_dinfo(stream, key, double_value)
+#define PROFILING_STREAM_SAVE_iINFO(stream, key, integer_value) \
+    profiling_stream_save_iinfo(stream, key, integer_value)
+#define PROFILING_STREAM_SAVE_uint64INFO(stream, key, integer_value) \
+    profiling_stream_save_uint64info(stream, key, integer_value)
+#define PROFILING_STREAM_SAVE_sINFO(stream, key, str_value)     \
+    profiling_stream_save_sinfo(stream, key, str_value)
 #else
 #define PROFILING_SAVE_dINFO(key, double_value) do {} while(0)
 #define PROFILING_SAVE_iINFO(key, integer_value) do {} while(0)
+#define PROFILING_SAVE_uint64INFO(key, integer_value) do {} while(0)
 #define PROFILING_SAVE_sINFO(key, str_value) do {} while(0)
-#define PROFILING_THREAD_SAVE_dINFO(thread, key, double_value) do {} while(0)
-#define PROFILING_THREAD_SAVE_iINFO(thread, key, integer_value) do {} while(0)
-#define PROFILING_THREAD_SAVE_uint64INFO(thread, key, integer_value) do {} while(0)
-#define PROFILING_THREAD_SAVE_sINFO(thread, key, str_value) do {} while(0)
+#define PROFILING_STREAM_SAVE_dINFO(stream, key, double_value) do {} while(0)
+#define PROFILING_STREAM_SAVE_iINFO(stream, key, integer_value) do {} while(0)
+#define PROFILING_STREAM_SAVE_uint64INFO(stream, key, integer_value) do {} while(0)
+#define PROFILING_STREAM_SAVE_sINFO(stream, key, str_value) do {} while(0)
 #endif
 /** @endcond */
 
