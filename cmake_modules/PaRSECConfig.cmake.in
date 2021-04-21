@@ -34,8 +34,17 @@ if(@PARSEC_HAVE_PAPI@)
 endif(@PARSEC_HAVE_PAPI@)
 
 if(@PARSEC_DIST_WITH_MPI@)
-  # Otherwise try to find MPI in the normal way
-  find_package(MPI REQUIRED)
+  # Try to find MPI::MPI_C
+  if (NOT TARGET MPI::MPI_C)
+    # ensure that language C is enabled
+    check_language(C)
+    if(CMAKE_C_COMPILER)
+      enable_language(C)
+    else()
+      message(FATAL_ERROR "Cannot find package PaRSEC due to missing C language support; either enable_language(C) in your project or ensure that C compiler can be discovered")
+    endif()
+    find_package(MPI REQUIRED COMPONENTS C)
+  endif(NOT TARGET MPI::MPI_C)
 endif(@PARSEC_DIST_WITH_MPI@)
 
 if(@PARSEC_HAVE_CUDA@)
