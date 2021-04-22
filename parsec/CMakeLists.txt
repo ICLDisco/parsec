@@ -205,6 +205,7 @@ if( BUILD_PARSEC )
     Threads::Threads
     $<$<BOOL:${PARSEC_SHM_OPEN_IN_LIBRT}>:rt>
     PUBLIC
+    $<$<BOOL:${PARSEC_HAVE_DLFCN_H}>:${CMAKE_DL_LIBS}> # Add support for dlopen if necessary
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
@@ -213,7 +214,6 @@ if( BUILD_PARSEC )
     INTERFACE
     ${PARSEC_ATOMIC_SUPPORT_LIBS}
     )
-# How to correctly deal with ${CMAKE_DL_LIBS} on a multi-platform way ?
 
   set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
   # For now make sure that the installed shared libraries have the right
