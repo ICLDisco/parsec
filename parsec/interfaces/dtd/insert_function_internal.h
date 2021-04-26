@@ -17,7 +17,7 @@
 #include "parsec/data_internal.h"
 #include "parsec/datarepo.h"
 #include "parsec/data_distribution.h"
-#include "parsec/interfaces/superscalar/insert_function.h"
+#include "parsec/interfaces/dtd/insert_function.h"
 #include "parsec/execution_stream.h"
 
 BEGIN_C_DECLS

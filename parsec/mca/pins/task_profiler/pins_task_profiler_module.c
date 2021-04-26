@@ -11,7 +11,7 @@
 #include "pins_task_profiler.h"
 #include "parsec/profiling.h"
 #include "parsec/execution_stream.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 
 int release_deps_trace_keyin;
 int release_deps_trace_keyout;

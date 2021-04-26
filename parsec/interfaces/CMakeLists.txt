@@ -6,6 +6,6 @@ if( BUILD_PARSEC )
   LIST(APPEND EXTRA_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/interfaces/interface.c)
 
-  include(interfaces/superscalar/CMakeLists.txt)
+  include(interfaces/dtd/CMakeLists.txt)
 
 endif( BUILD_PARSEC )

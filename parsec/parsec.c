@@ -44,7 +44,7 @@
 #include "parsec/utils/debug.h"
 #include "parsec/utils/parsec_environ.h"
 #include "parsec/utils/mca_param_cmd_line.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/interfaces/interface.h"
 #include "parsec/sys/tls.h"
 #include "parsec/data_distribution.h"
@@ -2751,7 +2751,7 @@ void parsec_debug_taskpool_local_tasks( parsec_taskpool_t *tp,
  *
  *  This function prints on the debug output information on the current progress:
  *  it will show tasks that executed, tasks that are known to be ready, or that have
- *  been discovered. Depending on the interface used (e.g. PTG or superscalar), and the
+ *  been discovered. Depending on the interface used (e.g. PTG or dtd), and the
  *  dependency tracking mechanism (e.g. hash tables, multi dimensional arrays, user-defined
  *  dependency tracking), information printed might be complete or partial.
  *

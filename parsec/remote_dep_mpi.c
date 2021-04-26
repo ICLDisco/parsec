@@ -17,7 +17,7 @@
 #include "parsec/debug_marks.h"
 #include "parsec/data.h"
 #include "parsec/papi_sde.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/parsec_binary_profile.h"
 
 #include "parsec/parsec_internal.h"

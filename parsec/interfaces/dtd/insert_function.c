@@ -41,7 +41,7 @@
 #include "parsec/utils/mca_param.h"
 #include "parsec/mca/sched/sched.h"
 #include "parsec/interfaces/interface.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/parsec_prof_grapher.h"
 #include "parsec/utils/colors.h"
 #include "parsec/mca/pins/pins.h"

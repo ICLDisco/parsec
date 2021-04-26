@@ -20,7 +20,7 @@
 #include "parsec/debug_marks.h"
 #include "parsec/ayudame.h"
 #include "parsec/constants.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/class/list.h"
 #include "parsec/utils/debug.h"
 #include "parsec/dictionary.h"

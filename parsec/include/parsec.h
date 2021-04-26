@@ -16,6 +16,6 @@
 #include "parsec/utils/debug.h"
 
 #include "parsec/interfaces/interface.h"
-#include "parsec/interfaces/superscalar/insert_function.h"
+#include "parsec/interfaces/dtd/insert_function.h"
 
 #endif  /* PARSEC_H_HAS_BEEN_INCLUDED */

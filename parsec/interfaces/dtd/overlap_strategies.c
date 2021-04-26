@@ -15,7 +15,7 @@
 #include "parsec/data_distribution.h"
 #include "parsec/remote_dep.h"
 #include "parsec/execution_stream.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/utils/debug.h"
 
 /***************************************************************************//**
