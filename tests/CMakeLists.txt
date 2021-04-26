@@ -63,7 +63,7 @@ check_function_exists(nrand48 PARSEC_HAVE_NRAND48)
 check_function_exists(lrand48 PARSEC_HAVE_LRAND48)
 check_function_exists(random PARSEC_HAVE_RANDOM)
 
-add_Subdirectory(unit)
+add_Subdirectory(class)
 add_Subdirectory(interfaces/superscalar)
 add_Subdirectory(interfaces/ptg)
 add_Subdirectory(haar-tree-project)
