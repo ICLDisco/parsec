@@ -17,7 +17,7 @@
 #include "parsec.h"
 
 /* we need the DTD internals to get access to the context members. */
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 
 /* system and io */
 #include <stdlib.h>

@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "common_data.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "tests/tests_data.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/utils/debug.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 

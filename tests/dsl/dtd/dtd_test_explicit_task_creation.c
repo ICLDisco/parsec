@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "common_data.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "tests/tests_data.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/utils/debug.h"
 
 #if defined(PARSEC_HAVE_STRING_H)
@@ -32,9 +32,7 @@ int
 call_to_kernel_type_write( parsec_execution_stream_t    *es,
                            parsec_task_t *this_task )
 {
-    (void)es;
-    int data1;
-    int data2;
+    int data1, data2;
     double data3;
     struct my_datatype data4;
     int *data5;
@@ -51,13 +49,14 @@ call_to_kernel_type_write( parsec_execution_stream_t    *es,
     assert(*data5 == 30);
     assert(ref == ref_check);
 
+    (void)es;
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rc, rank, world, cores = -1;
+    int rc, rank = 0, world = 1, cores = -1;
     int nb, nt, i, no_of_tasks, key;
     parsec_tiled_matrix_dc_t *dcA;
     parsec_arena_datatype_t *adt;
@@ -69,9 +68,6 @@ int main(int argc, char ** argv)
     }
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#else
-    world = 1;
-    rank = 0;
 #endif
 
     if( world != 1 ) {
@@ -92,9 +88,9 @@ int main(int argc, char ** argv)
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
     adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_matrix_add2arena_rect( adt,
-                                  parsec_datatype_int32_t,
-                                  nb, 1, nb);
+    parsec_arena_datatype_construct( adt,
+                                     nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                     MPI_INT );
 
     dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
@@ -132,7 +128,8 @@ int main(int argc, char ** argv)
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
-    parsec_dtd_taskpool_insert_task(dtd_tp, call_to_kernel_type_write,    0,  "Write_Task",
+    parsec_task_t *task = parsec_dtd_taskpool_create_task(dtd_tp,
+                                    call_to_kernel_type_write,    0,  "Write_Task",
                                     sizeof(int), &data1, PARSEC_VALUE,
                                     sizeof(int), &data2, PARSEC_VALUE | PARSEC_AFFINITY,
                                     sizeof(double),  &data3, PARSEC_VALUE,
@@ -140,6 +137,7 @@ int main(int argc, char ** argv)
                                     PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),   PARSEC_INOUT | TILE_FULL,
                                     sizeof(void *),  A, PARSEC_REF,
                                     PARSEC_DTD_ARG_END);
+    parsec_insert_dtd_task(task);
 
     parsec_dtd_data_flush_all( dtd_tp, A );
 
@@ -150,10 +148,10 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free( dtd_tp );
-
     parsec_matrix_del2arena(adt);
     PARSEC_OBJ_RELEASE(adt->arena);
     parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
+
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 

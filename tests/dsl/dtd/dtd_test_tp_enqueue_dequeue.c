@@ -8,7 +8,7 @@
 #include "parsec.h"
 #include "parsec/profiling.h"
 
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/scheduling.h"
 
 #if defined(PARSEC_HAVE_STRING_H)

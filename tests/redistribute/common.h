@@ -11,7 +11,7 @@
 #include "parsec/profiling.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/parsec_config.h"
-#include "tests/interfaces/superscalar/common_timing.h"
+#include "tests/tests_timing.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

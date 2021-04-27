@@ -5,9 +5,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "common_data.h"
-#include "common_timing.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "tests/tests_data.h"
+#include "tests/tests_timing.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/utils/debug.h"
 
 #if defined(PARSEC_HAVE_STRING_H)

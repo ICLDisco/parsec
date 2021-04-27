@@ -4,7 +4,7 @@
  *                         reserved.
  */
 #include "stencil_internal.h"
-#include "tests/interfaces/superscalar/common_timing.h"
+#include "tests/tests_timing.h"
 
 /* Timming */
 double sync_time_elapsed = 0.0;

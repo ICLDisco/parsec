@@ -5,8 +5,8 @@
  */
 
 #include "parsec/runtime.h"
-#include "common_data.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "tests/tests_data.h"
 
 parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int mb, int mt)
 {
@@ -46,6 +46,10 @@ parsec_tiled_matrix_dc_t *create_and_distribute_empty_data(int rank, int world, 
 
 void free_data(parsec_tiled_matrix_dc_t *d)
 {
+    two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)d;
+    if(NULL != m->mat) {
+        parsec_data_free(m->mat);
+    }
     parsec_matrix_destroy_data(d);
     parsec_data_collection_destroy(&d->super);
     free(d);
