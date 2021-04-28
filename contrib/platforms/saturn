@@ -9,7 +9,7 @@
 # if you want the default detection to work.
 with_hwloc=${HWLOC_ROOT:="${ICL_HWLOC_ROOT}"}
 
-CMAKE_DEFINES="-DCTEST_MPI_LAUNCHER=\"srun -Ccauchy -N\" -DCTEST_SHM_LAUNCHER=\"srun -Ccauchy\" -DCTEST_GPU_LAUNCHER_OPTIONS=-Cgtx1060"
+CMAKE_DEFINES="-DCTEST_MPI_LAUNCHER=\"srun -Ccauchy -N\" -DCTEST_SHM_LAUNCHER=\"srun -Ccauchy\" -DCTEST_CUDA_LAUNCHER_OPTIONS=-Cgtx1060"
 
 
 

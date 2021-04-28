@@ -1,5 +1,5 @@
 add_custom_target(parsec_build_tests)
-add_test(parsec_build_tests_test "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target parsec_build_tests)
+add_test(parsec_build_tests "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target parsec_build_tests)
 
 #! parsec_addtest_executable : this function defines how to
 #    compile an executable that is used in the testings.
@@ -19,7 +19,7 @@ add_test(parsec_build_tests_test "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} 
 # \arg:second_arg target name for the executable
 # \param:SOURCES optional list of files Source files
 # \param:NODEFAULTBUILD option to not build this
-#     target when invoking parsec_build_tests_test
+#     target when invoking parsec_build_tests
 #     from CTest. This is needed for files that
 #     must fail compiling for example.
 #
@@ -67,75 +67,16 @@ add_library(tests_common OBJECT tests_data.c)
 
 
 add_subdirectory(class)
-add_subdirectory(dsl/dtd)
+add_subdirectory(api)
+add_subdirectory(runtime)
 add_subdirectory(dsl/ptg)
-add_subdirectory(haar-tree-project)
-add_subdirectory(pingpong)
-add_subdirectory(branching)
-add_subdirectory(choice)
-add_subdirectory(controlgather)
-add_subdirectory(scheduling)
-add_subdirectory(all2all)
-add_subdirectory(generalized_reduction)
-if(PARSEC_HAVE_RANDOM)
-add_subdirectory(merge_sort)
-endif(PARSEC_HAVE_RANDOM)
-add_subdirectory(two_dim_band)
-add_subdirectory(stencil)
-add_subdirectory(reshape)
-
+add_subdirectory(dsl/dtd)
+add_subdirectory(collections)
+add_subdirectory(apps)
 if(PARSEC_PROF_TRACE)
   add_subdirectory(profiling)
-  add_subdirectory(standalone-profiling)
+  add_subdirectory(profiling-standalone)
 endif(PARSEC_PROF_TRACE)
-add_subdirectory(redistribute)
-
-parsec_addtest_executable(C operator SOURCES operator.c)
-parsec_addtest_executable(C reduce SOURCES reduce.c)
-parsec_addtest_executable(C dtt_bug_replicator SOURCES dtt_bug_replicator_ex.c)
-target_ptg_sources(dtt_bug_replicator PRIVATE "dtt_bug_replicator.jdf")
-
-parsec_addtest_executable(C touch_ex SOURCES touch_ex.c)
-target_ptg_sources(touch_ex PRIVATE "touch.jdf")
-parsec_addtest_executable(C touch_ex_inline SOURCES touch_ex.c)
-target_ptg_sources(touch_ex_inline PRIVATE "touch.jdf")
-target_compile_definitions(touch_ex_inline PRIVATE BUILDING_PARSEC)
-target_compile_options(touch_ex_inline PRIVATE ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
-if(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
-  if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    parsec_addtest_executable(Fortran touch_exf SOURCES touch_exf.F90)
-    target_link_libraries(touch_exf PRIVATE $<$<BOOL:${MPI_Fortran_FOUND}>:MPI::MPI_Fortran>)
-    target_ptg_sources(touch_exf PRIVATE "touch.jdf")
-    # In some corner cases (using clang to compile the C parsec library
-    # but gfortran to compile touch_exf.F90), for a reason we did not
-    # understand, touch.c.o needs to be compiled with the option -fPIE
-    # when linking with touch_exf. As this does not seem to impact negatively
-    # in other cases, we decided to set this property here)
-    set_target_properties(touch_exf PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-  endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-endif(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
-
-parsec_addtest_executable(C kcyclic)
-target_ptg_sources(kcyclic PRIVATE "kcyclic.jdf")
-target_link_libraries(kcyclic PRIVATE m)
-
-parsec_addtest_executable(C strange)
-target_ptg_sources(strange PRIVATE "strange.jdf")
-
-if(PARSEC_HAVE_RANDOM)
-  parsec_addtest_executable(C startup)
-  target_ptg_sources(startup PRIVATE "startup.jdf")
-endif(PARSEC_HAVE_RANDOM)
-
-parsec_addtest_executable(C complex_deps)
-target_ptg_sources(complex_deps PRIVATE "complex_deps.jdf")
-
-if( MPI_C_FOUND )
-  parsec_addtest_executable(C multichain)
-  target_ptg_sources(multichain PRIVATE "multichain.jdf")
-endif( MPI_C_FOUND )
-
-parsec_addtest_executable(C compose SOURCES compose.c)
 
 # Define Testings
 include(Testings.cmake)

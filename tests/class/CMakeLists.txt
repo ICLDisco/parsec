@@ -26,4 +26,3 @@ set_property(TARGET rwlock_inline lifo_inline list_inline hash_inline
 set_property(TARGET rwlock_inline lifo_inline list_inline hash_inline
   APPEND PROPERTY COMPILE_OPTIONS ${PARSEC_ATOMIC_SUPPORT_OPTIONS})
 
-include(Testings.cmake)

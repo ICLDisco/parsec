@@ -22,22 +22,3 @@ parsec_addtest_executable(C dtd_test_explicit_task_creation SOURCES dtd_test_exp
 parsec_addtest_executable(C dtd_test_tp_enqueue_dequeue SOURCES dtd_test_tp_enqueue_dequeue.c)
 parsec_addtest_executable(C dtd_test_interleave_actions SOURCES dtd_test_interleave_actions.c)
 
-#
-# Shared Memory Testings
-#
-parsec_addtest_cmd(unit_dtd_task_generation_shm ${SHM_TEST_CMD_LIST} ./dtd_test_task_generation)
-parsec_addtest_cmd(unit_dtd_task_inserting_task_shm ${SHM_TEST_CMD_LIST} ./dtd_test_task_inserting_task)
-parsec_addtest_cmd(unit_dtd_task_insertion_shm ${SHM_TEST_CMD_LIST} ./dtd_test_task_insertion)
-parsec_addtest_cmd(unit_dtd_war_shm ${SHM_TEST_CMD_LIST} ./dtd_test_war)
-
-#
-# Distributed Memory Testings
-#
-if( MPI_C_FOUND )
-  parsec_addtest_cmd(unit_dtd_pingpong_mpi ${MPI_TEST_CMD_LIST} 2 ./dtd_test_pingpong)
-  parsec_addtest_cmd(unit_dtd_task_inserting_task_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_task_inserting_task)
-  parsec_addtest_cmd(unit_dtd_task_insertion_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_task_insertion)
-  parsec_addtest_cmd(unit_dtd_war_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_war)
-  parsec_addtest_cmd(unit_dtd_interleave_actions_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_interleave_actions)
-  parsec_addtest_cmd(unit_dtd_allreduce_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_allreduce)
-endif( MPI_C_FOUND )

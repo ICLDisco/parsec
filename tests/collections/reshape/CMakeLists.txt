@@ -14,6 +14,4 @@ set(JDF_SOURCES "avoidable_reshape.jdf;")
 parsec_addtest_executable(C avoidable_reshape SOURCES testing_avoidable_reshape.c common.c)
 target_ptg_sources(avoidable_reshape PRIVATE ${JDF_SOURCES})
 
-include(Testings.cmake)
-
 

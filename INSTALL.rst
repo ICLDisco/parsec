@@ -108,7 +108,7 @@ how one sets some default options.
   with_blas=Intel10_64lp_seq
 
   # Slurm test options
-  CMAKE_DEFINES+=" -DCTEST_MPI_LAUNCHER=\"srun -Ccauchy -N\" -DCTEST_SHM_LAUNCHER=\"srun -Ccauchy\" -DCTEST_GPU_LAUNCHER_OPTIONS=-Cgtx1060"
+  CMAKE_DEFINES+=" -DCTEST_MPI_LAUNCHER=\"srun -Ccauchy -N\" -DCTEST_SHM_LAUNCHER=\"srun -Ccauchy\" -DCTEST_CUDA_LAUNCHER_OPTIONS=-Cgtx1060"
 
 As you can see, the platform file may contain commands, shell scripts,
 load environment modules_, etc. Of note are the ``CMAKE_DEFINES`` and
