@@ -154,6 +154,7 @@ static char *parsec_app_name = NULL;
 
 static int parsec_runtime_max_number_of_cores = -1;
 static int parsec_runtime_bind_main_thread = 1;
+static int parsec_runtime_bind_threads     = 1;
 
 PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
 
@@ -195,14 +196,15 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     int pi;
 
     /* don't use PARSEC_THREAD_IS_MASTER, it is too early and we cannot yet allocate the es struct */
-    if( (0 != startup->virtual_process->vp_id) || (0 != startup->th_id) || parsec_runtime_bind_main_thread ) {
+    if( parsec_runtime_bind_threads &&
+        ((0 != startup->virtual_process->vp_id) || (0 != startup->th_id) || parsec_runtime_bind_main_thread) ) {
         /* Bind to the specified CORE */
         parsec_bindthread(startup->bindto, startup->bindto_ht);
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Bind thread %i.%i on core %i [HT %i]",
                             startup->virtual_process->vp_id, startup->th_id,
                             startup->bindto, startup->bindto_ht);
     } else {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Don't bind the main thread %i.%i",
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Binding disabled for thread %i.%i",
                             startup->virtual_process->vp_id, startup->th_id);
     }
 
@@ -486,6 +488,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
     parsec_mca_param_reg_int_name("runtime", "bind_main_thread", "Force the binding of the thread calling parsec_init",
                                  false, false, parsec_runtime_bind_main_thread, &parsec_runtime_bind_main_thread);
+
+    parsec_mca_param_reg_int_name("runtime", "bind_threads", "Bind main and worker threads", false, false,
+                                  parsec_runtime_bind_threads, &parsec_runtime_bind_threads);
 
     if( parsec_cmd_line_is_taken(cmd_line, "gpus") ) {
         parsec_warning("Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.");
