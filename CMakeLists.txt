@@ -167,6 +167,12 @@ option(PARSEC_GPU_CUDA_ALLOC_PER_TILE
   "Tile based allocation engine for GPU memory (instead of internal management
   of a complete allocation)" OFF)
 mark_as_advanced(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
+option(PARSEC_GPU_WITH_LEVEL_ZERO
+        "Enable GPU support using LEVEL_ZERO kernels" ON)
+option(PARSEC_GPU_LEVEL_ZERO_ALLOC_PER_TILE
+        "Tile based allocation engine for GPU memory (instead of internal management
+  of a complete allocation)" OFF)
+mark_as_advanced(PARSEC_GPU_LEVEL_ZERO_ALLOC_PER_TILE)
 option(PARSEC_GPU_WITH_OPENCL
   "Enable GPU support using OpenCL kernels" OFF)
 mark_as_advanced(PARSEC_GPU_WITH_OPENCL) # Hide this as it is not supported yet
@@ -709,6 +715,16 @@ int main(int argc, char *argv[]) {
     set(PARSEC_HAVE_CU_COMPILER ${CMAKE_CUDA_COMPILER} CACHE BOOL "True if PaRSEC provide support for compiling .cu files")
   endif( PARSEC_GPU_WITH_CUDA )
 
+  if( PARSEC_GPU_WITH_LEVEL_ZERO )
+    find_package(level-zero)
+    set(PARSEC_HAVE_LEVEL_ZERO ${LEVEL_ZERO_FOUND} CACHE BOOL "True if PaRSEC provide support for Intel level-zero")
+    if (LEVEL_ZERO_FOUND)
+      include_directories("${LEVEL_ZERO_INCLUDE_DIR}/level_zero/")
+      set(PARSEC_HAVE_LEVEL_ZERO ${LEVEL_ZERO_FOUND} CACHE BOOL "True if PaRSEC provide support for Intel Level Zero")
+      message(STATUS "Found Intel level-zero ${LEVEL_ZERO_VERSION} in -I${LEVEL_ZERO_INCLUDE_DIR} / -L${LEVEL_ZERO_LIBRARY_DIR}")
+    endif (LEVEL_ZERO_FOUND)
+  endif( PARSEC_GPU_WITH_LEVEL_ZERO )
+
   find_package(AYUDAME QUIET)
   set(PARSEC_HAVE_AYUDAME ${AYUDAME_FOUND})
 #
@@ -885,6 +901,13 @@ set(PARSEC_PTGPP_EXECUTABLE ${PARSEC_PTGPP_EXECUTABLE} CACHE STRING "Point to th
 include(AddDocumentedFiles)
 
 add_subdirectory(parsec)
+
+#
+# Add dependency to Level-Zero if it is enabled
+#
+if(PARSEC_HAVE_LEVEL_ZERO)
+    target_link_libraries(parsec PRIVATE level_zero::ze_loader)
+endif(PARSEC_HAVE_LEVEL_ZERO)
 
 #
 # Now continue with compiling the tests.

@@ -133,6 +133,11 @@ static const __parsec_chore_t __gpu_d2h_task_chores[] = {
      .evaluate = NULL,
      .hook = (parsec_hook_t *) hook_of_gpu_d2h_task},
 #endif
+#if defined(PARSEC_HAVE_LEVEL_ZERO)
+    {.type = PARSEC_DEV_LEVEL_ZERO,
+     .evaluate = NULL,
+     .hook = (parsec_hook_t *) hook_of_GPU_d2h_task},
+#endif
     {.type = PARSEC_DEV_NONE,
      .evaluate = NULL,
      .hook = (parsec_hook_t *) NULL},   /* End marker */
