@@ -41,6 +41,9 @@
 #if defined(PARSEC_HAVE_CUDA)
 #include "parsec/mca/device/cuda/device_cuda.h"
 #endif  /* defined(PARSEC_HAVE_CUDA) */
+#if defined(PARSEC_HAVE_LEVEL_ZERO)
+#include "parsec/mca/device/level_zero/device_level_zero.h"
+#endif /* defined(PARSEC_HAVE_LEVEL_ZERO) */
 
 #include "parsec/mca/mca_repository.h"
 #include "parsec/constants.h"
@@ -1494,6 +1497,9 @@ parsec_dtd_startup(parsec_context_t *context,
         // If CUDA is enabled, let the CUDA device activated for this
         // taskpool.
         if( PARSEC_DEV_CUDA == device->type ) continue;
+        // If LEVEL_ZERO is enabled, let the LEVEL_ZERO device activated for this
+        // taskpool.
+        if( PARSEC_DEV_LEVEL_ZERO == device->type ) continue;
         if( NULL != device->taskpool_register )
             if( PARSEC_SUCCESS !=
                 device->taskpool_register(device, (parsec_taskpool_t *)tp)) {
@@ -2335,6 +2341,12 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
         gpu_task->stage_out = parsec_default_cuda_stage_out;
         return parsec_cuda_kernel_scheduler(es, gpu_task, dev_index);
 #endif
+#if defined(PARSEC_HAVE_LEVEL_ZERO)
+    case PARSEC_DEV_LEVEL_ZERO:
+        gpu_task->stage_in = parsec_default_level_zero_stage_in;
+        gpu_task->stage_out = parsec_default_level_zero_stage_out;
+        return parsec_level_zero_kernel_scheduler(es, gpu_task, dev_index);
+#endif
     default:
         parsec_fatal("DTD scheduling on device type %d: this is not a valid GPU device type in this build", device->type);
     }
@@ -2404,8 +2416,10 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
     if(PARSEC_DEV_CUDA == device_type) {
         incarnations[i].hook = parsec_dtd_gpu_task_submit;
         dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)function;
-    }
-    else {
+    } else if(PARSEC_DEV_LEVEL_ZERO == device_type) {
+        incarnations[i].hook = parsec_dtd_gpu_task_submit;
+        dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)function;
+    } else {
         dtd_tc->cpu_func_ptr = function;
         incarnations[i].hook = parsec_dtd_cpu_task_submit;
     }
@@ -3289,8 +3303,11 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
                 /* Special case for CUDA: we need an intermediate */
                 (*incarnations)[0].hook = parsec_dtd_gpu_task_submit;
                 dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)fpointer;
-            }
-            else {
+            } if( device_type == PARSEC_DEV_LEVEL_ZERO ) {
+                /* Special case for LEVEL ZERO: we need an intermediate */
+                (*incarnations)[0].hook = parsec_dtd_gpu_task_submit;
+                dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)fpointer;
+            } else {
                 /* Default case: the user-provided function is directly the hook to call */
                 (*incarnations)[0].hook = fpointer; // We can directly call the CPU hook
                 dtd_tc->cpu_func_ptr = fpointer;

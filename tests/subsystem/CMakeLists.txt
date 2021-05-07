@@ -1,0 +1,5 @@
+if(PARSEC_HAVE_LEVEL_ZERO)
+    add_subdirectory(level_zero)
+else(PARSEC_HAVE_LEVEL_ZERO)
+    message(STATUS "PaRSEC doesn't have Level Zero support")
+endif(PARSEC_HAVE_LEVEL_ZERO)
