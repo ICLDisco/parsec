@@ -163,7 +163,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
 
     for( i = 0; i < use_cuda && NULL != (source_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[i]); i++ ) {
         int canAccessPeer;
-        source_gpu->peer_access_mask = 0;
+        source_gpu->super.peer_access_mask = 0;
 
         if( ! ( (1<<i) & cuda_nvlink_mask ) )
             continue; /* The user disabled NVLINK for that GPU */
@@ -183,7 +183,8 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
                 cudastatus = cudaDeviceEnablePeerAccess( target_gpu->cuda_index, 0 );
                 PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cuCtxEnablePeerAccess ", cudastatus,
                                          {continue;} );
-                source_gpu->peer_access_mask = (int16_t)(source_gpu->peer_access_mask | (int16_t)(1 << target_gpu->cuda_index));
+                source_gpu->super.peer_access_mask = (int16_t)(source_gpu->super.peer_access_mask | (int16_t)(1 <<
+                        target_gpu->cuda_index));
             }
         }
     }
@@ -339,7 +340,7 @@ static int device_cuda_component_close(void)
     /* Check that no CUDA devices are still registered with PaRSEC */
     for(i = 0; i < parsec_mca_device_enabled(); i++) {
         if( NULL == (cdev = (parsec_device_cuda_module_t*)parsec_mca_device_get(i)) ) continue;
-        if(PARSEC_DEV_CUDA != cdev->super.type) continue;
+        if(PARSEC_DEV_CUDA != cdev->super.super.type) continue;
 
         PARSEC_DEBUG_VERBOSE(0, parsec_cuda_output_stream,
                              "GPU[%d] CUDA device still registered with PaRSEC at the end of CUDA finalize.\n"

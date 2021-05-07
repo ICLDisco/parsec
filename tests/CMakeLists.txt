@@ -64,7 +64,7 @@ check_function_exists(lrand48 PARSEC_HAVE_LRAND48)
 check_function_exists(random PARSEC_HAVE_RANDOM)
 
 add_library(tests_common OBJECT tests_data.c)
-
+target_link_libraries(tests_common PRIVATE parsec)
 
 add_subdirectory(class)
 add_subdirectory(api)

@@ -13,10 +13,6 @@
 
 BEGIN_C_DECLS
 
-#define PARSEC_MAX_STREAMS            6
-#define PARSEC_MAX_EVENTS_PER_STREAM  4
-#define PARSEC_GPU_MAX_WORKSPACE      2
-
 #if defined(PARSEC_PROF_TRACE)
 #define PARSEC_PROFILE_CUDA_TRACK_DATA_IN  0x0001
 #define PARSEC_PROFILE_CUDA_TRACK_DATA_OUT 0x0002
@@ -56,13 +52,6 @@ extern int32_t parsec_CUDA_d2h_max_flows;
 extern int32_t parsec_CUDA_sort_pending_list;
 
 PARSEC_DECLSPEC extern const parsec_device_module_t parsec_device_cuda_module;
-
-typedef struct parsec_gpu_workspace_s {
-    void* workspace[PARSEC_GPU_MAX_WORKSPACE];
-    int stack_head;
-    int total_workspace;
-} parsec_gpu_workspace_t;
-
 
 /****************************************************
  ** GPU-DATA Specific Starts Here **
