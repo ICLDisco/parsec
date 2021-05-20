@@ -56,7 +56,7 @@ endif(PARSEC_FLEX_GENERATED_OPTIONS)
 #   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
 include(mca/CMakeLists.txt)
 
-# Import all the available interfaces
+# Import all the available Domain Specific Language interfaces
 include(interfaces/CMakeLists.txt)
 add_executable(PaRSEC::parsec-ptgpp ALIAS parsec-ptgpp)
 

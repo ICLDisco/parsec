@@ -841,7 +841,7 @@ if( "${CTEST_MPI_LAUNCHER}" STREQUAL "" )
     MESSAGE(WARNING "MPI tests will most likely not work: 'CTEST_MPI_LAUNCHER' is not set")
 endif()
 string(REPLACE " " ";" MPI_TEST_CMD_LIST "${CTEST_MPI_LAUNCHER}")
-set(CTEST_GPU_LAUNCHER_OPTIONS
+set(CTEST_CUDA_LAUNCHER_OPTIONS
       "" CACHE STRING
       "Options to pass to the CTEST_MPI_LAUNCHER to select GPU nodes")
 
@@ -849,12 +849,12 @@ if( BUILD_TESTING )
   find_program(HOSTNAME_EXE hostname)
   MARK_AS_ADVANCED(HOSTNAME_EXE)
   # Test that the launchers work
-  add_test(launcher_shm   ${SHM_TEST_CMD_LIST} ${HOSTNAME_EXE})
+  add_test(launcher:shm   ${SHM_TEST_CMD_LIST} ${HOSTNAME_EXE})
   if(PARSEC_HAVE_MPI)
-    add_test(launcher_mpi   ${MPI_TEST_CMD_LIST} 4 ${HOSTNAME_EXE})
+    add_test(launcher:mpi   ${MPI_TEST_CMD_LIST} 4 ${HOSTNAME_EXE})
   endif(PARSEC_HAVE_MPI)
   if(PARSEC_HAVE_CUDA)
-    add_test(launcher_gpu   ${MPI_TEST_CMD_LIST} 4 ${CTEST_GPU_LAUNCHER_OPTIONS} ${HOSTNAME_EXE})
+    add_test(launcher:cuda   ${MPI_TEST_CMD_LIST} 4 ${CTEST_CUDA_LAUNCHER_OPTIONS} ${HOSTNAME_EXE})
   endif(PARSEC_HAVE_CUDA)
   add_subdirectory(tests)
   add_subdirectory(examples)

@@ -4,7 +4,7 @@
  *                         reserved.
  */
 #include "redistribute_internal.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 
 #define TILE_OF_INSERT(DC, I, J) \
     parsec_dtd_tile_of(&(dc##DC->super.super), (&(dc##DC->super.super))->data_key(&(dc##DC->super.super), I, J))

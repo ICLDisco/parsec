@@ -24,4 +24,4 @@ target_ptg_sources(ex06 PRIVATE "Ex06_RAW.jdf")
 parsec_addexample(C ex07)
 target_ptg_sources(ex07 PRIVATE "Ex07_RAW_CTL.jdf")
 
-add_Subdirectory(interfaces/superscalar)
+add_subdirectory(interfaces/dtd)

@@ -21,7 +21,7 @@
 #include "parsec/scheduling.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/mca/device/device.h"
-#include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/dtd/insert_function_internal.h"
 
 #include <stdio.h>
 
