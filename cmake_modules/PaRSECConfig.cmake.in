@@ -1,5 +1,8 @@
 set(PARSEC_VERSION @PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@.@PARSEC_VERSION_RELEASE@)
 
+# Required for check_language
+include(CheckLanguage)
+
 @PACKAGE_INIT@
 
 set_and_check(PARSEC_DIR "${PACKAGE_PREFIX_DIR}")
