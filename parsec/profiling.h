@@ -309,7 +309,7 @@ int parsec_profiling_dictionary_flush( void );
  */
 int parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
                                  uint64_t event_id, uint32_t taskpool_id,
-                                 void *info, uint16_t flags );
+                                 const void *info, uint16_t flags );
 
 /**
  * @brief Convenience macro used to trace events without flags
@@ -339,7 +339,7 @@ int parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
  * @remark thread safe
  */
 int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t object_id,
-                                    void *info, uint16_t flags );
+                                    const void *info, uint16_t flags );
 
 /**
  * @brief Convenience macro when no flag needs to be passed
