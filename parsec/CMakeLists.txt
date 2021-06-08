@@ -83,16 +83,15 @@ if(PARSEC_PROF_TRACE)
     else(OTF2_FOUND AND MPI_C_FOUND)
       if(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
         MESSAGE(FATAL_ERROR "Requested OTF2 tracing system is not available because OTF2 was not found or MPI was not found")
-      else(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
-        list(APPEND EXTRA_SOURCES "profiling.c")
-        MESSAGE(STATUS "Profiling uses PaRSEC Binary Tracing Format")
       endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
     endif(OTF2_FOUND AND MPI_C_FOUND)
-  else(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
-    list(APPEND EXTRA_SOURCES "profiling.c")
-    MESSAGE(STATUS "Profiling uses PaRSEC Binary Tracing Format")
   endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
 endif(PARSEC_PROF_TRACE)
+
+if(NOT PARSEC_HAVE_OTF2)
+  list(APPEND EXTRA_SOURCES "profiling.c")
+  MESSAGE(STATUS "Profiling uses PaRSEC Binary Tracing Format")
+endif(NOT PARSEC_HAVE_OTF2)
 
 set(SOURCES
   arena.c
