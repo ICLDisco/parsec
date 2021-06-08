@@ -187,7 +187,7 @@ static int device_cuda_component_register(void)
                                         false, false, -1, &cuda_memory_number_of_blocks);
     (void)parsec_mca_param_reg_int_name("device_cuda", "max_number_of_ejected_data",
                                         "Sets up the maximum number of blocks that can be ejected from GPU memory",
-                                        false, false, MAX_PARAM_COUNT, &parsec_CUDA_d2h_max_flows);
+                                        false, false, MAX_PARAM_COUNT, &parsec_GPU_d2h_max_flows);
     (void)parsec_mca_param_reg_int_name("device_cuda", "sort_pending_tasks",
                                         "Boolean to let the GPU engine sort the first pending tasks stored in the list",
                                         false, false, 0, &parsec_CUDA_sort_pending_list);
