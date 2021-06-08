@@ -34,36 +34,12 @@ static int device_cuda_component_query(mca_base_module_2_0_0_t **module, int *pr
 static int device_cuda_component_register(void);
 
 int use_cuda_index, use_cuda;
-int cuda_mask, cuda_verbosity, cuda_nvlink_mask;
+int cuda_mask, cuda_nvlink_mask;
 int cuda_memory_block_size, cuda_memory_percentage, cuda_memory_number_of_blocks;
-int parsec_cuda_output_stream = -1;
 
 int32_t parsec_CUDA_sort_pending_list = 0;
 
 char* cuda_lib_path = NULL;
-
-#if defined(PARSEC_PROF_TRACE)
-/* Accepted values are: PARSEC_PROFILE_CUDA_TRACK_DATA_IN | PARSEC_PROFILE_CUDA_TRACK_DATA_OUT |
- *                      PARSEC_PROFILE_CUDA_TRACK_OWN | PARSEC_PROFILE_CUDA_TRACK_EXEC |
- *                      PARSEC_PROFILE_CUDA_TRACK_MEM_USE | PARSEC_PROFILE_CUDA_TRACK_PREFETCH
- */
-int parsec_cuda_trackable_events = PARSEC_PROFILE_CUDA_TRACK_EXEC | PARSEC_PROFILE_CUDA_TRACK_DATA_OUT
-    | PARSEC_PROFILE_CUDA_TRACK_DATA_IN | PARSEC_PROFILE_CUDA_TRACK_OWN | PARSEC_PROFILE_CUDA_TRACK_MEM_USE
-    | PARSEC_PROFILE_CUDA_TRACK_PREFETCH;
-int parsec_cuda_movein_key_start;
-int parsec_cuda_movein_key_end;
-int parsec_cuda_moveout_key_start;
-int parsec_cuda_moveout_key_end;
-int parsec_cuda_own_GPU_key_start;
-int parsec_cuda_own_GPU_key_end;
-int parsec_cuda_allocate_memory_key;
-int parsec_cuda_free_memory_key;
-int parsec_cuda_use_memory_key_start;
-int parsec_cuda_use_memory_key_end;
-int parsec_cuda_prefetch_key_start;
-int parsec_cuda_prefetch_key_end;
-int parsec_device_cuda_one_profiling_stream_per_cuda_stream = 0;
-#endif  /* defined(PROFILING) */
 
 /*
  * Instantiate the public struct with all of our public information
@@ -117,24 +93,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
         return MCA_SUCCESS;
     }
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_add_dictionary_keyword( "cuda", "fill:#66ff66",
-                                             0, NULL,
-                                             &parsec_cuda_own_GPU_key_start, &parsec_cuda_own_GPU_key_end);
-    parsec_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
-                                             sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                             &parsec_cuda_movein_key_start, &parsec_cuda_movein_key_end);
-    parsec_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
-                                             sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                             &parsec_cuda_moveout_key_start, &parsec_cuda_moveout_key_end);
-    parsec_profiling_add_dictionary_keyword( "prefetch", "fill:#66ff66",
-                                             sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
-                                             &parsec_cuda_prefetch_key_start, &parsec_cuda_prefetch_key_end);
-    parsec_profiling_add_dictionary_keyword( "cuda_mem_alloc", "fill:#FF66FF",
-                                             sizeof(int64_t), "size{int64_t}",
-                                             &parsec_cuda_allocate_memory_key, &parsec_cuda_free_memory_key);
-    parsec_profiling_add_dictionary_keyword( "cuda_mem_use", "fill:#FF66FF",
-                                             sizeof(parsec_device_cuda_memory_prof_info_t), PARSEC_DEVICE_CUDA_MEMORY_PROF_INFO_CONVERTER,
-                                             &parsec_cuda_use_memory_key_start, &parsec_cuda_use_memory_key_end);
+    parsec_gpu_init_profiling();
 #endif  /* defined(PROFILING) */
 
     if( use_cuda >= 1)
@@ -190,11 +149,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
     }
 #endif
 
-    parsec_cuda_output_stream = parsec_device_output;
-    if( cuda_verbosity >= 0 ) {
-        parsec_cuda_output_stream = parsec_output_open(NULL);
-        parsec_output_set_verbosity(parsec_cuda_output_stream, cuda_verbosity);
-    }
+    parsec_gpu_enable_debug();
 
     /* module type should be: const mca_base_module_t ** */
     void *ptr = parsec_device_cuda_component.modules;
@@ -217,7 +172,7 @@ static int device_cuda_component_register(void)
                                         false, false, 0xffffffff, &cuda_nvlink_mask);
     (void)parsec_mca_param_reg_int_name("device_cuda", "verbose",
                                         "Set the verbosity level of the CUDA device (negative value: use debug verbosity), higher is less verbose)\n",
-                                        false, false, -1, &cuda_verbosity);
+                                        false, false, -1, &parsec_gpu_verbosity);
     (void)parsec_mca_param_reg_string_name("device_cuda", "path",
                                            "Path to the shared library files containing the CUDA version of the hooks. It is a ;-separated list of either directories or .so files.\n",
                                            false, false, PARSEC_LIB_CUDA_PREFIX, &cuda_lib_path);
@@ -239,7 +194,7 @@ static int device_cuda_component_register(void)
 #if defined(PARSEC_PROF_TRACE)
     (void)parsec_mca_param_reg_int_name("device_cuda", "one_profiling_stream_per_cuda_stream",
                                         "Boolean to separate the profiling of each cuda stream into a single profiling stream",
-                                        false, false, 0, &parsec_device_cuda_one_profiling_stream_per_cuda_stream);
+                                        false, false, 0, &parsec_device_gpu_one_profiling_stream_per_gpu_stream);
 #endif
 
     /* If CUDA was not requested avoid initializing the devices */
@@ -320,7 +275,7 @@ static int device_cuda_component_close(void)
 
         rc = parsec_cuda_module_fini((parsec_device_module_t*)cdev);
         if( PARSEC_SUCCESS != rc ) {
-            PARSEC_DEBUG_VERBOSE(0, parsec_cuda_output_stream,
+            PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
                                  "GPU[%d] Failed to release resources on CUDA device\n", 
                                  cdev->cuda_index);
         }
@@ -328,7 +283,7 @@ static int device_cuda_component_close(void)
         /* unregister the device from PaRSEC */
         rc = parsec_mca_device_remove((parsec_device_module_t*)cdev);
         if( PARSEC_SUCCESS != rc ) {
-            PARSEC_DEBUG_VERBOSE(0, parsec_cuda_output_stream,
+            PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
                                  "GPU[%d] Failed to unregister CUDA device %d\n", 
                                  cdev->cuda_index, cdev->cuda_index);
         }
@@ -342,16 +297,16 @@ static int device_cuda_component_close(void)
         if( NULL == (cdev = (parsec_device_cuda_module_t*)parsec_mca_device_get(i)) ) continue;
         if(PARSEC_DEV_CUDA != cdev->super.super.type) continue;
 
-        PARSEC_DEBUG_VERBOSE(0, parsec_cuda_output_stream,
+        PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
                              "GPU[%d] CUDA device still registered with PaRSEC at the end of CUDA finalize.\n"
                              " Please contact the developers or fill an issue.\n", 
                              cdev->cuda_index);
     }
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
-    if( parsec_device_output != parsec_cuda_output_stream )
-        parsec_output_close(parsec_cuda_output_stream);
-    parsec_cuda_output_stream = parsec_device_output;
+    if( parsec_device_output != parsec_gpu_output_stream )
+        parsec_output_close(parsec_gpu_output_stream);
+    parsec_gpu_output_stream = parsec_device_output;
 
     if ( cuda_lib_path ) {
         free(cuda_lib_path);

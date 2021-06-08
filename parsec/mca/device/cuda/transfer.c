@@ -243,7 +243,7 @@ parsec_gpu_create_W2R_task(parsec_device_gpu_module_t *gpu_device,
             d2h_task->data[nb_cleaned].data_out = gpu_copy;
             gpu_copy->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;  /* mark the copy as in transfer */
             parsec_atomic_unlock( &gpu_copy->original->lock );
-            PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,  "D2H[%s] task %p:\tdata %d -> %p [%p] readers %d",
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "D2H[%s] task %p:\tdata %d -> %p [%p] readers %d",
                                  gpu_device->super.name, (void*)d2h_task,
                                  nb_cleaned, gpu_copy, gpu_copy->original, gpu_copy->readers);
             nb_cleaned++;
@@ -283,7 +283,7 @@ int parsec_gpu_W2R_task_fini(parsec_device_gpu_module_t *gpu_device,
     parsec_CUDA_d2h_task_t* task = (parsec_CUDA_d2h_task_t*)gpu_task->ec;
     parsec_data_t* original;
 
-    PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,  "D2H[%s] task %p: %d data transferred to host",
+    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "D2H[%s] task %p: %d data transferred to host",
                          gpu_device->super.name, (void*)task, task->locals[0].value);
     assert(gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER);
     for( int i = 0; i < task->locals[0].value; i++ ) {
@@ -300,19 +300,19 @@ int parsec_gpu_W2R_task_fini(parsec_device_gpu_module_t *gpu_device,
 
         if( cpu_copy->version < gpu_copy->version ) {
             /* the GPU version has been acquired by a new task that is waiting for submission */
-            PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                  "D2H[%s] task %p:%i GPU data copy %p [%p] has a backup in memory",
                                  gpu_device->super.name, (void*)task, i, gpu_copy, gpu_copy->original);
         } else {
             gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
             cpu_copy->coherency_state =  PARSEC_DATA_COHERENCY_SHARED;
             cpu_copy->version = gpu_copy->version;
-            PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                  "GPU[%s]: CPU copy %p gets the same version %d as GPU copy %p at %s:%d",
                                  gpu_device->super.name,
                                  cpu_copy, cpu_copy->version, gpu_copy,
                                  __FILE__, __LINE__);
-            PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                  "D2H[%s] task %p:%i GPU data copy %p [%p] now available",
                                  gpu_device->super.name, (void*)task, i, gpu_copy, gpu_copy->original);
             parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);

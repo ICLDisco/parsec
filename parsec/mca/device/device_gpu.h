@@ -35,7 +35,7 @@ struct parsec_gpu_workspace_s;
 typedef struct parsec_gpu_workspace_s parsec_gpu_workspace_t;
 
 /**
- * Callback from the engine upon CUDA event completion for each stage of a task.
+ * Callback from the engine upon GPU event completion for each stage of a task.
  * The same prototype is used for calling the user provided submission function.
  */
 typedef int (*parsec_complete_stage_function_t)(parsec_device_gpu_module_t  *gpu_device,
@@ -113,24 +113,25 @@ struct parsec_gpu_task_s {
 };
 
 struct parsec_device_gpu_module_s {
-    parsec_device_module_t    super;
-    uint8_t                   max_exec_streams;
-    int16_t                   peer_access_mask;  /**< A bit set to 1 represent the capability of
-                                                  *   the device to access directly the memory of
-                                                  *   the index of the set bit device.
-                                                  */
-    volatile int32_t          mutex;
-    uint64_t                  data_avail_epoch;  /**< Identifies the epoch of the data status on the devide. It
-                                                  *   is increased every time a new data is made available, so
-                                                  *   that we know which tasks can be evaluated for submission.
-                                                  */
-    parsec_list_t             gpu_mem_lru;   /* Read-only blocks, and fresh blocks */
-    parsec_list_t             gpu_mem_owned_lru;  /* Dirty blocks */
-    parsec_fifo_t             pending;
-    struct zone_malloc_s     *memory;
-    parsec_list_item_t       *sort_starting_p;
-    size_t  mem_block_size;
-    int64_t mem_nb_blocks;
+    parsec_device_module_t     super;
+    uint8_t                    max_exec_streams;
+    int16_t                    peer_access_mask;  /**< A bit set to 1 represent the capability of
+                                                   *   the device to access directly the memory of
+                                                   *   the index of the set bit device.
+                                                   */
+    volatile int32_t           mutex;
+    uint64_t                   data_avail_epoch;  /**< Identifies the epoch of the data status on the devide. It
+                                                   *   is increased every time a new data is made available, so
+                                                   *   that we know which tasks can be evaluated for submission.
+                                                   */
+    parsec_list_t              gpu_mem_lru;   /* Read-only blocks, and fresh blocks */
+    parsec_list_t              gpu_mem_owned_lru;  /* Dirty blocks */
+    parsec_fifo_t              pending;
+    struct zone_malloc_s      *memory;
+    parsec_list_item_t        *sort_starting_p;
+    parsec_gpu_exec_stream_t **exec_stream;
+    size_t                     mem_block_size;
+    int64_t                    mem_nb_blocks;
 };
 
 struct parsec_gpu_exec_stream_s {
@@ -155,6 +156,12 @@ typedef struct parsec_gpu_workspace_s {
     int stack_head;
     int total_workspace;
 } parsec_gpu_workspace_t;
+
+/****************************************************
+ ** GPU-DATA Specific Starts Here **
+ ****************************************************/
+PARSEC_DECLSPEC extern int parsec_gpu_output_stream;
+PARSEC_DECLSPEC extern int parsec_gpu_verbosity;
 
 /**
  * Debugging functions.
@@ -185,91 +192,54 @@ int parsec_gpu_sort_pending_list(parsec_device_gpu_module_t *gpu_device);
 parsec_gpu_task_t* parsec_gpu_create_W2R_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es);
 int parsec_gpu_W2R_task_fini(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
 
-/**
- * Progress
- */
-/**
- * This version is based on 4 streams: one for transfers from the memory to
- * the GPU, 2 for kernel executions and one for transfers from the GPU into
- * the main memory. The synchronization on each stream is based on CUDA events,
- * such an event indicate that a specific epoch of the lifetime of a task has
- * been completed. Each type of stream (in, exec and out) has a pending FIFO,
- * where tasks ready to jump to the respective step are waiting.
- */
-parsec_hook_return_t
-parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
-                             parsec_gpu_task_t    *gpu_task,
-                             int which_gpu );
+void parsec_gpu_enable_debug(void);
 
-/**
- * Predefined generic progress functions
- */
+#if defined(PARSEC_DEBUG_VERBOSE)
+char *parsec_gpu_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task );
+#endif
 
-/**
- *  This function schedule the move of all the data required for a
- *  specific task from the main memory into the GPU memory.
- *
- *  Returns:
- *     a positive number: the number of data to be moved.
- *     -1: data cannot be moved into the GPU.
- *     -2: No more room on the GPU to move this data.
- */
-int
-parsec_gpu_kernel_push( parsec_device_gpu_module_t *gpu_device,
-                        parsec_gpu_task_t          *gpu_task,
-                        parsec_gpu_exec_stream_t   *gpu_stream);
+#define GPU_TASK_TYPE_KERNEL       0x0000
+#define GPU_TASK_TYPE_D2HTRANSFER  0x1000
+#define GPU_TASK_TYPE_PREFETCH     0x2000
+#define GPU_TASK_TYPE_WARMUP       0x4000
+#define GPU_TASK_TYPE_D2D_COMPLETE 0x8000
 
-/**
- *  This function schedule the move of all the modified data for a
- *  specific task from the GPU memory into the main memory.
- *
- *  Returns: negative number if any error occured.
- *           positive: the number of data to be moved.
- */
-int
-parsec_gpu_kernel_pop( parsec_device_gpu_module_t *gpu_device,
-                       parsec_gpu_task_t          *gpu_task,
-                       parsec_gpu_exec_stream_t   *gpu_stream);
+#if defined(PARSEC_PROF_TRACE)
+#define PARSEC_PROFILE_GPU_TRACK_DATA_IN  0x0001
+#define PARSEC_PROFILE_GPU_TRACK_DATA_OUT 0x0002
+#define PARSEC_PROFILE_GPU_TRACK_OWN      0x0004
+#define PARSEC_PROFILE_GPU_TRACK_EXEC     0x0008
+#define PARSEC_PROFILE_GPU_TRACK_MEM_USE  0x0010
+#define PARSEC_PROFILE_GPU_TRACK_PREFETCH 0x0020
 
-/**
- * Make sure all data on the device is correctly put back into the queues.
- */
-int
-parsec_gpu_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
-                          parsec_gpu_task_t          *gpu_task );
+extern int parsec_gpu_trackable_events;
+extern int parsec_gpu_movein_key_start;
+extern int parsec_gpu_movein_key_end;
+extern int parsec_gpu_moveout_key_start;
+extern int parsec_gpu_moveout_key_end;
+extern int parsec_gpu_own_GPU_key_start;
+extern int parsec_gpu_own_GPU_key_end;
+extern int parsec_gpu_allocate_memory_key;
+extern int parsec_gpu_free_memory_key;
+extern int parsec_gpu_use_memory_key_start;
+extern int parsec_gpu_use_memory_key_end;
+extern int parsec_gpu_prefetch_key_start;
+extern int parsec_gpu_prefetch_key_end;
+extern int parsec_device_gpu_one_profiling_stream_per_gpu_stream;
 
-int
-parsec_gpu_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
-                            parsec_gpu_task_t          *gpu_task );
+void parsec_gpu_init_profiling(void);
 
+typedef struct {
+    uint64_t size;
+    uint64_t data_key;
+    uint64_t dc_id;
+} parsec_device_gpu_memory_prof_info_t;
+#define PARSEC_DEVICE_GPU_MEMORY_PROF_INFO_CONVERTER "size{int64_t};data_key{uint64_t};dc_id{uint64_t}"
 
-/* Default stage_in function to transfer data to the GPU device.
- * Transfer transfer the <count> contiguous bytes from
- * task->data[i].data_in to task->data[i].data_out.
- *
- * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
- * @param[in] flow_mask indicating task flows for which to transfer.
- * @param[in] gpu_stream parsec_gpu_exec_stream_t used for the transfer.
- *
- */
-int
-parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
-                            uint32_t                  flow_mask,
-                            parsec_gpu_exec_stream_t *gpu_stream);
+#endif  /* defined(PROFILING) */
 
-/* Default stage_out function to transfer data from the GPU device.
- * Transfer transfer the <count> contiguous bytes from
- * task->data[i].data_in to task->data[i].data_out.
- *
- * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
- * @param[in] flow_mask indicating task flows for which to transfer.
- * @param[in] gpu_stream parsec_gpu_exec_stream_t used for the transfer.
- *
- */
-int
-parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
-                             uint32_t                  flow_mask,
-                             parsec_gpu_exec_stream_t *gpu_stream);
+void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream);
+void dump_GPU_state(parsec_device_gpu_module_t* gpu_device);
 
 END_C_DECLS
 
