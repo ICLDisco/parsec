@@ -91,7 +91,7 @@ parsec_dc_t *
 parsec_dc_lookup(parsec_dc_key_t key);
 
 #if defined(PARSEC_PROF_TRACE)
-void parsec_data_collection_set_key( parsec_data_collection_t* d, char* name);
+void parsec_data_collection_set_key( parsec_data_collection_t* d, const char* name);
 #else
 #define parsec_data_collection_set_key(d, k) do {} while(0)
 #endif

@@ -106,7 +106,7 @@ parsec_data_collection_destroy(parsec_data_collection_t *d)
 #if defined(PARSEC_PROF_TRACE)
 #include "parsec/profiling.h"
 
-void parsec_data_collection_set_key( parsec_data_collection_t* d, char* name)
+void parsec_data_collection_set_key( parsec_data_collection_t* d, const char* name)
 {
     char *kdim = (NULL != d->key_dim)? d->key_dim: "";
     char dim[strlen(name) + strlen(kdim) + 4];
