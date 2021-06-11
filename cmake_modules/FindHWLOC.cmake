@@ -51,6 +51,15 @@ find_package_handle_standard_args(HWLOC
     HWLOC_LIBRARY HWLOC_INCLUDE_DIR )
 
 if(HWLOC_FOUND)
+  # to try using HWLOC ensure that language C is enabled
+  include(CheckLanguage)
+  check_language(C)
+  if(CMAKE_C_COMPILER)
+    enable_language(C)
+  else()
+    message(FATAL_ERROR "HWLOC found (HWLOC_LIBRARY=${HWLOC_LIBRARY}) but cannot test it due to missing C language support; either enable_language(C) in your project or ensure that C compiler can be discovered")
+  endif()
+
   set(HWLOC_SAVE_CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
   list(APPEND CMAKE_REQUIRED_INCLUDES ${HWLOC_INCLUDE_DIR})
   check_struct_has_member( "struct hwloc_obj" parent hwloc.h PARSEC_HAVE_HWLOC_PARENT_MEMBER )
@@ -59,6 +68,7 @@ if(HWLOC_FOUND)
     int main(void) { hwloc_obj_t o; o->type = HWLOC_OBJ_PU; return 0;}" PARSEC_HAVE_HWLOC_OBJ_PU)
   check_library_exists(${HWLOC_LIBRARY} hwloc_bitmap_free "" PARSEC_HAVE_HWLOC_BITMAP)
   set(CMAKE_REQUIRED_INCLUDES ${HWLOC_SAVE_CMAKE_REQUIRED_INCLUDES})
+
   #===============================================================================
   # Import Target ================================================================
   if(NOT TARGET HWLOC::HWLOC)
