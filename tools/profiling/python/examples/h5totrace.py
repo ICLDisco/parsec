@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
     if( None == args.output ):
         warning("Output file not specified, and --list not specified")
-        args.print_help()
+        parser.print_help()
         sys.exit(1)
 
     try:
