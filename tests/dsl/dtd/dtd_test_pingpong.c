@@ -1,4 +1,8 @@
-/* parsec things */
+/*
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "parsec/runtime.h"
 
 /* system and io */
@@ -240,6 +244,8 @@ int main(int argc, char **argv)
         PARSEC_OBJ_RELEASE(adt->arena);
         parsec_dtd_data_collection_fini( A );
         free_data(dcA);
+
+        parsec_taskpool_free(dtd_tp);
     }
 
     parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2019 The University of Tennessee and The University
+ * Copyright (c) 2014-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -50,11 +50,3 @@ parsec_taskpool_t *ep_new(parsec_data_collection_t *A, int nt, int level)
     return (parsec_taskpool_t*)tp;
 }
 
-/**
- * @param [INOUT] o the parsec object to destroy
- */
-void ep_destroy(parsec_taskpool_t *o)
-{
-
-    parsec_taskpool_free(o);
-}

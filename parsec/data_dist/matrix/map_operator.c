@@ -495,14 +495,39 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     }
 }
 
-static void parsec_map_operator_destructor( parsec_map_operator_taskpool_t* tp )
+static void
+__parsec_map_operator_constructor(parsec_map_operator_taskpool_t* tp )
 {
-    free(tp->super.task_classes_array);
-    tp->super.task_classes_array = NULL;
-    tp->super.nb_task_classes = 0;
-    PARSEC_OBJ_DESTRUCT((parsec_taskpool_t*)tp);
-    free(tp);
+    tp->super.taskpool_name = strdup("map_operator");
+    tp->super.taskpool_type = PARSEC_TASKPOOL_TYPE_PTG;
+    tp->super.nb_pending_actions = 1;  /* for all local tasks */
+    tp->super.startup_hook = parsec_map_operator_startup_fn;
+    tp->super.nb_task_classes = 1;
+    tp->super.devices_index_mask = PARSEC_DEVICES_ALL;
+    tp->super.update_nb_runtime_task = parsec_add_fetch_runtime_task;
+
+#if defined(PARSEC_PROF_TRACE)
+    tp->super.profiling_array = parsec_map_operator_profiling_array;
+    if( -1 == parsec_map_operator_profiling_array[0] ) {
+        parsec_profiling_add_dictionary_keyword("operator", "fill:CC2828",
+                                                sizeof(parsec_task_prof_info_t), PARSEC_TASK_PROF_INFO_CONVERTOR,
+                                                (int*)&tp->super.profiling_array[0 + 2 * parsec_map_operator.task_class_id],
+                                                (int*)&tp->super.profiling_array[1 + 2 * parsec_map_operator.task_class_id]);
+    }
+#endif /* defined(PARSEC_PROF_TRACE) */
 }
+
+static void
+__parsec_map_operator_destructor(parsec_map_operator_taskpool_t* tp)
+{
+    if( NULL != tp->super.taskpool_name ) {
+        free(tp->super.taskpool_name);
+        tp->super.taskpool_name = NULL;
+    }
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_map_operator_taskpool_t, parsec_taskpool_t,
+                          __parsec_map_operator_constructor, __parsec_map_operator_destructor);
 
 /**
  * Apply the operator op on all tiles of the src matrix. The src matrix is const, the
@@ -516,41 +541,19 @@ parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
                         parsec_operator_t op,
                         void* op_data)
 {
-    parsec_map_operator_taskpool_t *tp;
+    parsec_map_operator_taskpool_t *tp = PARSEC_OBJ_NEW(parsec_map_operator_taskpool_t);
 
-    /* src and dest should have similar distributions */
-
-    /* TODO */
-    tp =  (parsec_map_operator_taskpool_t*)calloc(1, sizeof(parsec_map_operator_taskpool_t));
-    PARSEC_OBJ_CONSTRUCT((parsec_taskpool_t*)tp, parsec_taskpool_t);
     tp->src     = src;
     tp->dest    = dest;
     tp->op      = op;
     tp->op_data = op_data;
-    tp->super.taskpool_name = strdup("map_operator");
-    tp->super.taskpool_type = PARSEC_TASKPOOL_TYPE_PTG;
-
-#  if defined(PARSEC_PROF_TRACE)
-    tp->super.profiling_array = parsec_map_operator_profiling_array;
-    if( -1 == parsec_map_operator_profiling_array[0] ) {
-        parsec_profiling_add_dictionary_keyword("operator", "fill:CC2828",
-                                                sizeof(parsec_task_prof_info_t), PARSEC_TASK_PROF_INFO_CONVERTOR,
-                                                (int*)&tp->super.profiling_array[0 + 2 * parsec_map_operator.task_class_id],
-                                                (int*)&tp->super.profiling_array[1 + 2 * parsec_map_operator.task_class_id]);
-    }
-#  endif /* defined(PARSEC_PROF_TRACE) */
-
     tp->super.taskpool_id = 1111;
     tp->super.nb_tasks = src->nb_local_tiles;
-    tp->super.nb_pending_actions = 1;  /* for all local tasks */
-    tp->super.startup_hook = parsec_map_operator_startup_fn;
-    tp->super.destructor = (parsec_destruct_fn_t) parsec_map_operator_destructor;
-    tp->super.nb_task_classes = 1;
     tp->super.task_classes_array = (const parsec_task_class_t **)
         malloc(tp->super.nb_task_classes * sizeof(parsec_task_class_t *));
     tp->super.task_classes_array[0] = &parsec_map_operator;
-    tp->super.devices_index_mask = PARSEC_DEVICES_ALL;
-    tp->super.update_nb_runtime_task = parsec_add_fetch_runtime_task;
+
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)tp);
     return (parsec_taskpool_t*)tp;
 }
+

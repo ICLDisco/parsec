@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -17,6 +17,18 @@
 #include "ctlgat_wrapper.h"
 
 static parsec_datatype_t block;
+
+static void
+__parsec_taskpool_ctlgat_destructor(parsec_ctlgat_taskpool_t *tp)
+{
+    /* We have created our own datatype, instead of using a predefined one
+     * so we need to clean up.
+     */
+    parsec_type_free(&(tp->arenas_datatypes[PARSEC_ctlgat_DEFAULT_ADT_IDX].opaque_dtt));
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_ctlgat_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_taskpool_ctlgat_destructor);
 
 /**
  * @param [IN] A    the data, already distributed and allocated
@@ -50,12 +62,3 @@ parsec_taskpool_t *ctlgat_new(parsec_data_collection_t *A, int size, int nb)
     return (parsec_taskpool_t*)tp;
 }
 
-/**
- * @param [INOUT] o the parsec object to destroy
- */
-void ctlgat_destroy(parsec_taskpool_t *tp)
-{
-    parsec_type_free( &block );
-
-    parsec_taskpool_free(tp);
-}

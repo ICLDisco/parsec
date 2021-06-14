@@ -5,7 +5,6 @@
 
 #include "stage_custom.h"
 parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N, int MB, int NB, int P, int *ret);
-void testing_stage_custom_Destruct( parsec_taskpool_t *tp );
 
 #if defined(DISTRIBUTED)
 #include <mpi.h>
@@ -64,7 +63,6 @@ int main(int argc, char *argv[])
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
-        testing_stage_custom_Destruct(tp);
     }
 
     MB = NB = 1;
@@ -74,7 +72,6 @@ int main(int argc, char *argv[])
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
-        testing_stage_custom_Destruct(tp);
     }
 
     MB = NB = 4;
@@ -84,7 +81,6 @@ int main(int argc, char *argv[])
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
-        testing_stage_custom_Destruct(tp);
     }
 
     MB = NB = 40;
@@ -94,7 +90,6 @@ int main(int argc, char *argv[])
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
-        testing_stage_custom_Destruct(tp);
     }
 
     if(ret!= 0){

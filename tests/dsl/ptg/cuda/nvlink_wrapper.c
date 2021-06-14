@@ -1,3 +1,4 @@
+
 /**
  * Copyright (c) 2019-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
@@ -55,6 +56,43 @@ static void destroy_cublas_handle(void *_h, void *_n)
     (void)_n;
     (void)_h;
 }
+
+static void
+__parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
+{
+    int g, dev;
+    two_dim_block_cyclic_t *userM;
+    two_dim_block_cyclic_t *dcA;
+    parsec_matrix_del2arena( & nvlink_taskpool->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX] );
+    parsec_data_free(nvlink_taskpool->_g_descA->mat);
+    parsec_info_unregister(&parsec_per_stream_infos, nvlink_taskpool->_g_CuHI, NULL);
+    dcA = nvlink_taskpool->_g_descA;
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)nvlink_taskpool->_g_descA );
+
+    userM = nvlink_taskpool->_g_userM;
+    for(g = 0, dev = 0; dev < (int)parsec_nb_devices; dev++) {
+        parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)parsec_mca_device_get(dev);
+        if( PARSEC_DEV_CUDA == cuda_device->super.type ) {
+            parsec_data_t *dta = ((parsec_dc_t*)userM)->data_of((parsec_dc_t*)userM, g, userM->super.super.myrank);
+            parsec_data_copy_t *gpu_copy = parsec_data_get_copy(dta, cuda_device->super.device_index);
+            cudaError_t status = cudaSetDevice( cuda_device->cuda_index );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaSetDevice ", status, {} );
+            status = (cudaError_t)cudaFree( gpu_copy->device_private );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaFree ", status, {} );
+            gpu_copy->device_private = NULL;
+            parsec_data_copy_detach(dta, gpu_copy, cuda_device->super.device_index);
+            PARSEC_OBJ_RELEASE(gpu_copy);
+            g++;
+        }
+    }
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)nvlink_taskpool->_g_userM );
+    
+    free(dcA);
+    free(userM);
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_nvlink_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_nvlink_destructor);
 
 parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb )
 {
@@ -178,39 +216,4 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
     
     return &testing_handle->super;
-}
-
-void testing_nvlink_Destruct( parsec_taskpool_t *tp )
-{
-    int g, dev;
-    two_dim_block_cyclic_t *userM;
-    parsec_nvlink_taskpool_t *nvlink_taskpool = (parsec_nvlink_taskpool_t *)tp;
-    two_dim_block_cyclic_t *dcA;
-    parsec_matrix_del2arena( & nvlink_taskpool->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX] );
-    parsec_data_free(nvlink_taskpool->_g_descA->mat);
-    parsec_info_unregister(&parsec_per_stream_infos, nvlink_taskpool->_g_CuHI, NULL);
-    dcA = nvlink_taskpool->_g_descA;
-    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)nvlink_taskpool->_g_descA );
-
-    userM = nvlink_taskpool->_g_userM;
-    for(g = 0, dev = 0; dev < (int)parsec_nb_devices; dev++) {
-        parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == cuda_device->super.type ) {
-            parsec_data_t *dta = ((parsec_dc_t*)userM)->data_of((parsec_dc_t*)userM, g, userM->super.super.myrank);
-            parsec_data_copy_t *gpu_copy = parsec_data_get_copy(dta, cuda_device->super.device_index);
-            cudaError_t status = cudaSetDevice( cuda_device->cuda_index );
-            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaSetDevice ", status, {} );
-            status = (cudaError_t)cudaFree( gpu_copy->device_private );
-            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaFree ", status, {} );
-            gpu_copy->device_private = NULL;
-            parsec_data_copy_detach(dta, gpu_copy, cuda_device->super.device_index);
-            PARSEC_OBJ_RELEASE(gpu_copy);
-            g++;
-        }
-    }
-    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)nvlink_taskpool->_g_userM );
-    
-    parsec_taskpool_free(tp);
-    free(dcA);
-    free(userM);
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2019 The University of Tennessee and The University
+ * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -259,7 +259,6 @@ void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
                            tp->function_h_table);
 
     tp->super.startup_hook    = parsec_dtd_startup;
-    tp->super.destructor      = (parsec_destruct_fn_t)parsec_dtd_taskpool_destruct;
     tp->super.task_classes_array = (const parsec_task_class_t **) malloc( PARSEC_DTD_NB_TASK_CLASSES * sizeof(parsec_task_class_t *));
 
     for( int i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++ ) {
@@ -294,12 +293,29 @@ void
 parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 {
     uint32_t i;
+
 #if defined(PARSEC_PROF_TRACE)
     free((void *)tp->super.profiling_array);
 #endif /* defined(PARSEC_PROF_TRACE) */
 
+    parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
+    parsec_thread_mempool_free( parsec_dtd_taskpool_mempool->thread_mempools, tp );
+
     /* Destroy the data repositories for this object */
     for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
+        const parsec_task_class_t *tc = tp->super.task_classes_array[i];
+        parsec_dtd_task_class_t   *dtd_tc = (parsec_dtd_task_class_t *)tc;
+
+        /* Have we reached the end of known functions for this taskpool? */
+        if( NULL == tc ) {
+            assert(tp->function_counter == i);
+            break;
+        }
+
+        uint64_t fkey = (uint64_t)(uintptr_t)dtd_tc->fpointer + tc->nb_flows;
+        parsec_dtd_release_task_class( tp, fkey );
+
+        parsec_dtd_template_release(tc);
         parsec_destruct_dependencies(tp->super.dependencies_array[i]);
         tp->super.dependencies_array[i] = NULL;
     }
@@ -1295,11 +1311,6 @@ parsec_dtd_taskpool_new(void)
  *
  * @ingroup         DTD_INTERFACE
  */
-void
-parsec_dtd_taskpool_destruct(parsec_taskpool_t *tp)
-{
-    parsec_dtd_taskpool_release( tp );
-}
 
 void
 parsec_dtd_taskpool_retain( parsec_taskpool_t *tp )
@@ -1310,29 +1321,7 @@ parsec_dtd_taskpool_retain( parsec_taskpool_t *tp )
 void
 parsec_dtd_taskpool_release( parsec_taskpool_t *tp )
 {
-    if( 2 == parsec_atomic_fetch_dec_int32( &tp->super.super.obj_reference_count ) ) {
-        parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-        int i;
-
-        for(i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
-            const parsec_task_class_t *tc = dtd_tp->super.task_classes_array[i];
-            parsec_dtd_task_class_t   *dtd_tc = (parsec_dtd_task_class_t *)tc;
-
-            /* Have we reached the end of known functions for this taskpool? */
-            if( NULL == tc ) {
-                assert(dtd_tp->function_counter == i);
-                break;
-            }
-
-            uint64_t fkey = (uint64_t)(uintptr_t)dtd_tc->fpointer + tc->nb_flows;
-            parsec_dtd_release_task_class( dtd_tp, fkey );
-
-            parsec_dtd_template_release(tc);
-        }
-
-        parsec_taskpool_unregister( tp );
-        parsec_thread_mempool_free( parsec_dtd_taskpool_mempool->thread_mempools, dtd_tp );
-    }
+    PARSEC_OBJ_RELEASE(tp);
 }
 
 /* **************************************************************************** */

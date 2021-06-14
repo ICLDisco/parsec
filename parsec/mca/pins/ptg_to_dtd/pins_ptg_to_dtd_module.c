@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The University of Tennessee and The University
+ * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -139,9 +139,6 @@ static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
     if( PARSEC_TASKPOOL_TYPE_PTG != ptg_tp->taskpool_type )
         return;
 
-    if( ptg_tp->destructor == (parsec_destruct_fn_t)parsec_dtd_taskpool_destruct ) {
-        return;
-    }
     /* Rebuild the local taskpool */
     if( __dtd_taskpool != NULL ) {
         parsec_taskpool_free((parsec_taskpool_t *)__dtd_taskpool);
@@ -166,9 +163,9 @@ static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
 
 static void pins_taskpool_fini_ptg_to_dtd(parsec_taskpool_t *tp)
 {
-    if(tp->destructor == (parsec_destruct_fn_t)parsec_dtd_taskpool_destruct) {
+    /* We only convert PTG taskpools */
+    if( PARSEC_TASKPOOL_TYPE_PTG != tp->taskpool_type )
         return;
-    }
 
     parsec_dtd_data_collection_fini( __dc );
     PARSEC_OBJ_RELEASE(dtd_global_deque);

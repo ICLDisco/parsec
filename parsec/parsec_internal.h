@@ -150,7 +150,6 @@ struct parsec_taskpool_s {
     parsec_event_cb_t           on_complete;     /**< Callback called when the taskpool is completed */
     void*                       on_complete_data;/**< Data to pass to on_complete when called */
     parsec_update_ref_t         update_nb_runtime_task;
-    parsec_destruct_fn_t        destructor;      /**< taskpool-specific destructor function */
     void**                      dependencies_array; /**< Array of multidimensional dependencies
                                                      *   Indexed on the same index as task_classes_array */
     data_repo_t**               repo_array; /**< Array of data repositories

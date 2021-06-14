@@ -10,6 +10,8 @@ extern "C" %{
 #include "parsec/data_dist/matrix/matrix.h"
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 depth      [type = int
             hidden = on
             default = "(int)ceil(log(src->mt) / log(2.0))"] // height of the reduction tree

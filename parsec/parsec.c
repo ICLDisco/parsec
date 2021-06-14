@@ -164,11 +164,43 @@ static void parsec_mpi_exit(int status) {
 }
 #endif
 
+/* Create the basic object of class parsec_taskpool_t that inherits parsec_list_t
+ * class
+ */
+static void __parsec_taskpool_constructor(parsec_taskpool_t* tp)
+{
+    tp->taskpool_id = -1;
+    tp->taskpool_name = NULL;
+    tp->nb_tasks = 0;
+    tp->taskpool_type = 0;
+    tp->devices_index_mask = 0;  /* no support for any device. Requires initialization */
+    tp->nb_task_classes = 0;
+    tp->priority = 0;
+    tp->nb_pending_actions = 0;
+    tp->context = NULL;  /* not atached to any context */
+    tp->startup_hook = NULL;
+    tp->task_classes_array = NULL;
+    tp->on_enqueue = NULL;
+    tp->on_enqueue_data = NULL;
+    tp->on_complete = NULL;
+    tp->on_complete_data = NULL;
+    tp->update_nb_runtime_task = NULL;
+    tp->dependencies_array = NULL;
+    tp->repo_array = NULL;
+}
+
+static void __parsec_taskpool_destructor(parsec_taskpool_t* tp)
+{
+    if( NULL != tp->taskpool_name ) {
+        free(tp->taskpool_name);
+    }
+}
+
 /* To create object of class parsec_taskpool_t that inherits parsec_list_t
  * class
  */
 PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
-                   NULL, NULL);
+                          __parsec_taskpool_constructor, __parsec_taskpool_destructor);
 
 /*
  * Taskpool based task definition (no specialized constructor and destructor) */
@@ -2141,12 +2173,7 @@ void parsec_taskpool_unregister( parsec_taskpool_t* tp )
 void parsec_taskpool_free(parsec_taskpool_t *tp)
 {
     assert(NULL != tp);
-    if( NULL == tp->destructor ) {
-        free(tp);
-        return;
-    }
-    /* the destructor calls the appropriate free on the taskpool*/
-    tp->destructor(tp);
+    PARSEC_OBJ_RELEASE(tp);
 }
 
 /*

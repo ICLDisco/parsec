@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2013-2019 The University of Tennessee and The University
+ * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -13,7 +13,6 @@ extern "C" %{
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-static parsec_datatype_t block;
 #endif
 #include <stdio.h>
 
@@ -134,18 +133,6 @@ parsec_taskpool_t *a2a_new(parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t
 
 
     return (parsec_taskpool_t*)tp;
-}
-
-/**
- * @param [INOUT] o the parsec taskpool to destroy
- */
-void a2a_destroy(parsec_taskpool_t *tp)
-{
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Type_free( &block );
-#endif
-
-    parsec_taskpool_free(tp);
 }
 
 %}

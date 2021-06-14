@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -19,9 +19,4 @@
  */
 parsec_taskpool_t *ctlgat_new(parsec_data_collection_t *A, int size, int nb);
 
-/**
- * @param [INOUT] o the parsec object to destroy
- */
-void ctlgat_destroy(parsec_taskpool_t *o);
-
-#endif 
+#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,7 +16,17 @@
 #include "choice.h"
 #include "choice_wrapper.h"
 
-static parsec_datatype_t newType;
+static void
+__parsec_taskpool_choice_destructor(parsec_choice_taskpool_t *tp)
+{
+    /* We have created our own datatype, instead of using a predefined one
+     * so we need to clean up.
+     */
+    parsec_type_free(&(tp->arenas_datatypes[PARSEC_choice_DEFAULT_ADT_IDX].opaque_dtt));
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_choice_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_taskpool_choice_destructor);
 
 /**
  * @param [IN] A    the data, already distributed and allocated
@@ -28,6 +38,7 @@ static parsec_datatype_t newType;
 parsec_taskpool_t *choice_new(parsec_data_collection_t *A, int size, int *decision, int nb, int world)
 {
     parsec_choice_taskpool_t *tp = NULL;
+    parsec_datatype_t newType;
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, CHOICE nb and size must be > 0\n");
@@ -44,15 +55,3 @@ parsec_taskpool_t *choice_new(parsec_data_collection_t *A, int size, int *decisi
     return (parsec_taskpool_t*)tp;
 }
 
-/**
- * @param [INOUT] o the parsec object to destroy
- */
-void choice_destroy(parsec_taskpool_t *tp)
-{
-    parsec_choice_taskpool_t *c = (parsec_choice_taskpool_t*)tp;
-    (void)c;
-
-    parsec_type_free(&newType);
-
-    parsec_taskpool_free(tp);
-}

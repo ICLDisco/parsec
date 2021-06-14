@@ -1,5 +1,6 @@
+
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,6 +16,18 @@
 
 #include "rtt.h"
 #include "rtt_wrapper.h"
+
+static void
+__parsec_rtt_taskpool_destructor(parsec_rtt_taskpool_t *rtt_tp)
+{
+    /* We have created our own datatype, instead of using a predefined one
+     * so we need to clean up.
+     */
+    parsec_type_free( &(rtt_tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX].opaque_dtt) );
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_rtt_taskpool_t, parsec_taskpool_t,
+                   NULL, __parsec_rtt_taskpool_destructor);
 
 /**
  * @param [IN] A    the data, already distributed and allocated
@@ -48,16 +61,4 @@ parsec_taskpool_t *rtt_new(parsec_data_collection_t *A, int size, int nb)
                                      extent, PARSEC_ARENA_ALIGNMENT_SSE,
                                      block );
     return (parsec_taskpool_t*)tp;
-}
-
-/**
- * @param [INOUT] o the parsec object to destroy
- */
-void rtt_destroy(parsec_taskpool_t *tp)
-{
-    parsec_rtt_taskpool_t *rtt_tp = (parsec_rtt_taskpool_t*)tp;
-
-    parsec_type_free( &(rtt_tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX].opaque_dtt) );
-
-    parsec_taskpool_free(tp);
 }
