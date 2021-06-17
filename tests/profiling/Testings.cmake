@@ -8,13 +8,13 @@ if(Python_FOUND AND PARSEC_PYTHON_TOOLS AND PARSEC_PROF_TRACE AND MPI_C_FOUND)
   parsec_addtest_cmd(profiling/generate_hdf5 ${SHM_TEST_CMD_LIST}
     ${Python_EXECUTABLE}
     ${PROJECT_BINARY_DIR}/tools/profiling/python/profile2h5.py --output=bw.h5 bw-0.prof bw-1.prof)
-  set_property(TEST profiling/generate_hdf5 APPEND PROPERTY DEPENDS profiling/generate_bw_profile:mp)
+  set_property(TEST profiling/generate_hdf5 APPEND PROPERTY DEPENDS profiling/generate_profile_bw:mp)
   set_property(TEST profiling/generate_hdf5 APPEND PROPERTY ENVIRONMENT
     LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/tools/profiling/python/build/temp.${SYSCONF}:$ENV{LD_LIBRARY_PATH})
   set_property(TEST profiling/generate_hdf5 APPEND PROPERTY ENVIRONMENT
     PYTHONPATH=${CMAKE_BINARY_DIR}/tools/profiling/python/build/lib.${SYSCONF}/:$ENV{PYTHONPATH})
 
-  parsec_addtest_cmd(profiling/check_hdf5 ${SHM_TEST_CMD_LIST} ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_comms.py)
+  parsec_addtest_cmd(profiling/check_hdf5 ${SHM_TEST_CMD_LIST} ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/profiling/check-comms.py)
   set_property(TEST profiling/check_hdf5 APPEND PROPERTY DEPENDS profiling/generate_hdf5)
 
   parsec_addtest_cmd(profiling/generate_profile_async ${SHM_TEST_CMD_LIST} profiling/async 100 -- --mca profile_filename async  --mca mca_pins task_profiler)
@@ -22,13 +22,13 @@ if(Python_FOUND AND PARSEC_PYTHON_TOOLS AND PARSEC_PROF_TRACE AND MPI_C_FOUND)
   parsec_addtest_cmd(profiling/generate_hdf5_async ${SHM_TEST_CMD_LIST}
                      ${Python_EXECUTABLE}
                      ${PROJECT_BINARY_DIR}/tools/profiling/python/profile2h5.py --output=async.h5 async-0.prof)
-  set_property(TEST profiling/generate_hdf5_async APPEND PROPERTY DEPENDS profiling/generate_async_profile)
+  set_property(TEST profiling/generate_hdf5_async APPEND PROPERTY DEPENDS profiling/generate_profile_async)
   set_property(TEST profiling/generate_hdf5_async APPEND PROPERTY ENVIRONMENT
                LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/tools/profiling/python/build/temp.${SYSCONF}:$ENV{LD_LIBRARY_PATH})
   set_property(TEST profiling/generate_hdf5_async APPEND PROPERTY ENVIRONMENT
                PYTHONPATH=${CMAKE_BINARY_DIR}/tools/profiling/python/build/lib.${SYSCONF}/:$ENV{PYTHONPATH})
 
-  parsec_addtest_cmd(profiling/check_hdf5_async ${SHM_TEST_CMD_LIST} ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check-profile.py async.h5)
+  parsec_addtest_cmd(profiling/check_hdf5_async ${SHM_TEST_CMD_LIST} ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/profiling/check-async.py async.h5)
     set_property(TEST profiling/check_hdf5_async APPEND PROPERTY DEPENDS profiling/generate_hdf5_async)
 
   parsec_addtest_cmd(profiling/cleanup_profile_files ${SHM_TEST_CMD_LIST} rm -f bw-0.prof bw-1.prof bw.h5 async-0.prof async.h5)
