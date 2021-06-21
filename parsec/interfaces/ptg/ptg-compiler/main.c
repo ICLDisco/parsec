@@ -29,6 +29,7 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .input = "-",
     .output_c = "a.c",
     .output_h = "a.h",
+    .output_driver_basename = "a",
     .output_o = "a.o",
     .funcid = "a",
     .wmask = JDF_ALL_WARNINGS,
@@ -55,10 +56,13 @@ static void usage(void)
             "  --debug|-d         Enable debug output\n"
             "  --input|-i         Input File (JDF) (default '%s')\n"
             "  --output|-o        Set the BASE name for .c, .h, .o and function name (no default).\n"
-            "                     Changing this value has precendence over the defaults of\n"
+            "                     Changing this value has precedence over the defaults of\n"
             "                     --output-c, --output-h, and --function-name\n"
             "  --output-c|-C      Set the name of the .c output file (default '%s' or BASE.c)\n"
             "  --output-h|-H      Set the name of the .h output file (default '%s' or BASE.h)\n"
+            "  --output-driver    Set the base name for additional driver files (e.g. DPC++ bodies).\n"
+            "                     (default '%s' or BASE). Changing this value has precedence over\n"
+            "                     the defaults of --output\n"
             "  --function-name|-f Set the unique identifier of the generated function\n"
             "                     The generated function will be called PaRSEC_<ID>_new\n"
             "                     (default %s)\n"
@@ -89,6 +93,7 @@ static void usage(void)
             DEFAULTS.input,
             DEFAULTS.output_c,
             DEFAULTS.output_h,
+            DEFAULTS.output_driver_basename,
             DEFAULTS.funcid,
             (DEFAULTS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ? DEP_MANAGEMENT_INDEX_ARRAY_STRING :
              (DEFAULTS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ? DEP_MANAGEMENT_DYNAMIC_HASH_TABLE_STRING :
@@ -164,6 +169,7 @@ static void parse_args(int argc, char *argv[])
     char *O = NULL;
     char *h = NULL;
     char *o = NULL;
+    char *d = NULL;
     char *f = NULL;
 
     struct option longopts[] = {
@@ -172,6 +178,7 @@ static void parse_args(int argc, char *argv[])
         { "output-c",      required_argument,       NULL,  'C' },
         { "output-h",      required_argument,       NULL,  'H' },
         { "output-o",      required_argument,       NULL,  'O' },
+        { "output-driver", required_argument,       NULL,  'D' },
         { "output",        required_argument,       NULL,  'o' },
         { "function-name", required_argument,       NULL,  'f' },
         { "Wmasked",       no_argument,         &wmasked,   1  },
@@ -196,7 +203,7 @@ static void parse_args(int argc, char *argv[])
 
     print_jdf_line = !DEFAULTS.noline;
 
-    while( (ch = getopt_long(argc, argv, "di:C:H:o:f:hEsIO:M:I:", longopts, NULL)) != -1) {
+    while( (ch = getopt_long(argc, argv, "di:C:H:o:D:f:hEsIO:M:I:", longopts, NULL)) != -1) {
         switch(ch) {
         case 'd':
             yydebug = 1;
@@ -226,6 +233,11 @@ static void parse_args(int argc, char *argv[])
             if( NULL != o)
                 free( o );
             o = strdup(optarg);
+            break;
+        case 'D':
+            if( NULL != d)
+                free( d );
+            d = strdup(optarg);
             break;
         case 'f':
             if( NULL != f )
@@ -306,6 +318,15 @@ static void parse_args(int argc, char *argv[])
             JDF_COMPILER_GLOBAL_ARGS.output_o = DEFAULTS.output_o;
     }
 
+    if( NULL != d ) {
+        JDF_COMPILER_GLOBAL_ARGS.output_driver_basename = d;
+    } else {
+        if(NULL != o) {
+            JDF_COMPILER_GLOBAL_ARGS.output_driver_basename = strdup(o);
+        } else
+            JDF_COMPILER_GLOBAL_ARGS.output_driver_basename = DEFAULTS.output_driver_basename;
+    }
+
     if( NULL == c) {
         if( NULL != o ) {
             JDF_COMPILER_GLOBAL_ARGS.output_c = (char*)malloc(strlen(o) + 3);
@@ -348,6 +369,8 @@ static void parse_args(int argc, char *argv[])
         free(h);
     if( NULL != o )
         free(o);
+    if( NULL != d )
+        free(d);
 
     if( print_compile_cmd ) {
         /* print the compilation options used to compile the preprocessed output */
@@ -413,6 +436,7 @@ int main(int argc, char *argv[])
 
     if( jdf2c(JDF_COMPILER_GLOBAL_ARGS.output_c,
               JDF_COMPILER_GLOBAL_ARGS.output_h,
+              JDF_COMPILER_GLOBAL_ARGS.output_driver_basename,
               JDF_COMPILER_GLOBAL_ARGS.funcid,
               &current_jdf) < 0 ) {
         return 1;

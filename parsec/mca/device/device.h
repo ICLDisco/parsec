@@ -66,6 +66,7 @@ typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t
 #define PARSEC_DEV_INTEL_PHI  ((uint8_t)(1 << 3))
 #define PARSEC_DEV_OPENCL     ((uint8_t)(1 << 4))
 #define PARSEC_DEV_LEVEL_ZERO ((uint8_t)(1 << 5))
+#define PARSEC_DEV_DPCPP      ((uint8_t)(1 << 5))
 #define PARSEC_DEV_TEMPLATE   ((uint8_t)(1 << 6))
 #define PARSEC_DEV_ALL        ((uint8_t)    0x1f)
 #define PARSEC_DEV_ANY_TYPE   ((uint8_t)    0x1f)

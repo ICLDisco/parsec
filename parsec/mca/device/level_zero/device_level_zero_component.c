@@ -23,7 +23,7 @@
 #include "parsec/utils/zone_malloc.h"
 #include "parsec/class/fifo.h"
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_device_level_zero_module_t, parsec_device_module_t, NULL, NULL);
 
@@ -33,6 +33,7 @@ static int device_level_zero_component_query(mca_base_module_2_0_0_t **module, i
 static int device_level_zero_component_register(void);
 
 int use_level_zero_index, use_level_zero;
+int parsec_cuda_sort_pending = 0, parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
 int level_zero_mask, level_zero_nvlink_mask;
 int level_zero_memory_block_size, level_zero_memory_percentage, level_zero_memory_number_of_blocks;
 
@@ -187,7 +188,7 @@ static int device_level_zero_component_register(void)
                                         false, false, -1, &level_zero_memory_number_of_blocks);
     (void)parsec_mca_param_reg_int_name("device_level_zero", "max_number_of_ejected_data",
                                         "Sets up the maximum number of blocks that can be ejected from GPU memory",
-                                        false, false, MAX_PARAM_COUNT, &parsec_GPU_d2h_max_flows);
+                                        false, false, MAX_PARAM_COUNT, &parsec_gpu_d2h_max_flows);
     (void)parsec_mca_param_reg_int_name("device_level_zero", "sort_pending_tasks",
                                         "Boolean to let the GPU engine sort the first pending tasks stored in the list",
                                         false, false, 0, &parsec_LEVEL_ZERO_sort_pending_list);
@@ -196,7 +197,12 @@ static int device_level_zero_component_register(void)
                                         "Boolean to separate the profiling of each level_zero stream into a single profiling stream",
                                         false, false, 0, &parsec_device_gpu_one_profiling_stream_per_gpu_stream);
 #endif
-
+    (void)parsec_mca_param_reg_int_name("device_level_zero", "max_streams",
+                                        "Maximum number of Streams to use for the GPU engine; 2 streams are used for communication between host and device, so the minimum is 3",
+                                        false, false, PARSEC_GPU_MAX_STREAMS, &parsec_level_zero_max_streams);
+    (void)parsec_mca_param_reg_int_name("device_level_zero", "sort_pending_tasks",
+                                        "Boolean to let the GPU engine sort the first pending tasks stored in the list",
+                                        false, false, 0, &parsec_level_zero_sort_pending);
     /* If LEVEL_ZERO was not requested avoid initializing the devices */
     return (0 == use_level_zero ? MCA_ERROR : MCA_SUCCESS);
 }

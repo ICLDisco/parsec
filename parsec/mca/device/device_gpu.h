@@ -227,8 +227,6 @@ extern int parsec_gpu_prefetch_key_start;
 extern int parsec_gpu_prefetch_key_end;
 extern int parsec_device_gpu_one_profiling_stream_per_gpu_stream;
 
-void parsec_gpu_init_profiling(void);
-
 typedef struct {
     uint64_t size;
     uint64_t data_key;
@@ -237,6 +235,7 @@ typedef struct {
 #define PARSEC_DEVICE_GPU_MEMORY_PROF_INFO_CONVERTER "size{int64_t};data_key{uint64_t};dc_id{uint64_t}"
 
 #endif  /* defined(PROFILING) */
+void parsec_gpu_init_profiling(void);
 
 void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream);
 void dump_GPU_state(parsec_device_gpu_module_t* gpu_device);

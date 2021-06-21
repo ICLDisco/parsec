@@ -38,6 +38,13 @@ typedef cublasStatus_t (*cublas_dgemm_v2_t) ( cublasHandle_t handle,
 
 %}
 
+extern "DPCPP" %{
+
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include <oneapi/mkl.hpp>
+
+%}
+
 %option no_taskpool_instance = true  /* can be anything */
 
 /*
@@ -147,6 +154,19 @@ BODY [type=CUDA
                                   &beta, (double*)C, descA->super.mb );
     PARSEC_CUDA_CHECK_ERROR( "cublasDgemm_v2 ", status,
                             {return -1;} );
+}
+END
+
+BODY [type=DPCPP
+      weight=(1)]
+{
+    double alpha=0.0;
+    double beta=1.0;
+    oneapi::mkl::blas::gemm(parsec_dpcpp->queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
+         descA->super.mb, descA->super.nb, descA->super.mb,
+         alpha, static_cast<const double*>(A), descA->super.mb,
+         static_cast<const double*>(A), descA->super.mb,
+         beta, static_cast<double*>(C), descA->super.mb);
 }
 END
 

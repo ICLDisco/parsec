@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021      The University of Tennessee and The University
+ * Copyright (c) 2021-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,8 +23,9 @@
 #include "parsec/utils/argv.h"
 #include "parsec/utils/zone_malloc.h"
 #include "parsec/class/fifo.h"
+#include "parsec/mca/device/level_zero/device_level_zero_dpcpp.h"
 
-#include <ze_api.h>
+#include <level_zero/ze_api.h>
 
 static int parsec_level_zero_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice);
 static int
@@ -199,7 +200,7 @@ int parsec_level_zero_module_init( int dev_id, ze_driver_handle_t ze_driver, ze_
         gpu_device->super.name = "";
     gpu_device->data_avail_epoch = 0;
 
-    gpu_device->max_exec_streams = PARSEC_MAX_STREAMS;
+    gpu_device->max_exec_streams = parsec_level_zero_max_streams;
     gpu_device->exec_stream =
         (parsec_gpu_exec_stream_t**)malloc(gpu_device->max_exec_streams * sizeof(parsec_gpu_exec_stream_t*));
     gpu_device->exec_stream[0] =
@@ -254,15 +255,35 @@ int parsec_level_zero_module_init( int dev_id, ze_driver_handle_t ze_driver, ze_
                 ZE_COMMAND_QUEUE_MODE_DEFAULT,
                 ZE_COMMAND_QUEUE_PRIORITY_NORMAL
         };
-        if( j < 2 )
+        if( j < 2 ) {
             commandQueueDesc.ordinal = copyQueueGroupOrdinal;
-        else
+            ze_rc = zeCommandListCreateImmediate(level_zero_device->ze_context, level_zero_device->ze_device,
+                                                 &commandQueueDesc,
+                                                 &level_zero_stream->level_zero_cl);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListCreateImmediate ", ze_rc,
+                                           {goto release_device;} );
+        } else {
             commandQueueDesc.ordinal = computeQueueGroupOrdinal;
-        ze_rc = zeCommandListCreateImmediate(level_zero_device->ze_context, level_zero_device->ze_device,
-                                             &commandQueueDesc,
-                                             &level_zero_stream->level_zero_cl);
-        PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListCreateImmediate ", ze_rc,
-                                 {goto release_device;} );
+            ze_rc = zeCommandQueueCreate(level_zero_device->ze_context, level_zero_device->ze_device,
+                                         &commandQueueDesc, &level_zero_stream->level_zero_cq);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandQueueCreate ", ze_rc,
+                                           {goto release_device;} );
+            ze_command_list_desc_t commandListDesc = {
+                    ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC,
+                    NULL,
+                    computeQueueGroupOrdinal,
+                    0 // flags
+            };
+            ze_rc = zeCommandListCreate(level_zero_device->ze_context, level_zero_device->ze_device,
+                                        &commandListDesc, &level_zero_stream->level_zero_cl);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListCreate ", ze_rc,
+                                           {goto release_device;} );
+            level_zero_stream->dpcpp_obj = parsec_dpcpp_queue_create(level_zero_device->ze_driver,
+                                                                       level_zero_device->ze_device,
+                                                                       level_zero_device->ze_context,
+                                                                       level_zero_stream->level_zero_cq);
+            assert(NULL != level_zero_stream->dpcpp_obj);
+        }
         exec_stream->workspace    = NULL;
         PARSEC_OBJ_CONSTRUCT(&exec_stream->infos, parsec_info_object_array_t);
         parsec_info_object_array_init(&exec_stream->infos, &parsec_per_stream_infos, exec_stream);
@@ -338,9 +359,9 @@ int parsec_level_zero_module_init( int dev_id, ze_driver_handle_t ze_driver, ze_
 
     device->type                 = PARSEC_DEV_LEVEL_ZERO;
     device->executed_tasks       = 0;
-    device->transferred_data_in  = 0;
-    device->d2d_transfer         = 0;
-    device->transferred_data_out = 0;
+    device->data_in_array_size   = 0;     // We'll let the modules_attach allocate the array of the right size for us
+    device->data_in_from_device  = NULL;
+    device->data_out_to_host     = 0;
     device->required_data_in     = 0;
     device->required_data_out    = 0;
 
@@ -475,7 +496,17 @@ parsec_level_zero_module_fini(parsec_device_module_t* device)
         free(exec_stream->tasks); exec_stream->tasks = NULL;
         free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
         /* Release the stream */
-        zeCommandListDestroy( level_zero_stream->level_zero_cl );
+        if(k < 2) {
+            ze_result_t ze_rc;
+            ze_rc = zeCommandListDestroy(level_zero_stream->level_zero_cl);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListDestroy ", ze_rc,
+                                           {continue;} );
+        } else {
+            int rc;
+            rc = parsec_dpcpp_queue_destroy(level_zero_stream->dpcpp_obj);
+            assert(PARSEC_SUCCESS == rc);
+            level_zero_stream->dpcpp_obj = NULL;
+        }
         free(exec_stream->name);
 
         /* Release Info object array */
@@ -1100,9 +1131,9 @@ parsec_gpu_data_reserve_device_space( parsec_device_level_zero_module_t* level_z
  *
  */
 int
-parsec_level_zero_stage_in(parsec_gpu_task_t        *gtask,
-                           uint32_t                  flow_mask,
-                           parsec_gpu_exec_stream_t *gpu_stream)
+parsec_default_level_zero_stage_in(parsec_gpu_task_t        *gtask,
+                                   uint32_t                  flow_mask,
+                                   parsec_gpu_exec_stream_t *gpu_stream)
 {
     ze_result_t ret;
     parsec_data_copy_t * copy_in;
@@ -1139,9 +1170,9 @@ parsec_level_zero_stage_in(parsec_gpu_task_t        *gtask,
  *
  */
 int
-parsec_level_zero_stage_out(parsec_gpu_task_t        *gtask,
-                            uint32_t                  flow_mask,
-                            parsec_gpu_exec_stream_t *gpu_stream)
+parsec_default_level_zero_stage_out(parsec_gpu_task_t        *gtask,
+                                    uint32_t                  flow_mask,
+                                    parsec_gpu_exec_stream_t *gpu_stream)
 {
     ze_result_t ret;
     parsec_data_copy_t * copy_in;
@@ -1394,12 +1425,9 @@ parsec_gpu_data_stage_in( parsec_device_level_zero_module_t* level_zero_device,
                 assert(0);
                 return -1;
             }
-
-            if( in_elem_dev->super.super.type != PARSEC_DEV_LEVEL_ZERO )
-                gpu_device->super.transferred_data_in += nb_elts;
-            else
-                gpu_device->super.d2d_transfer += nb_elts;
-            if( GPU_TASK_TYPE_KERNEL == gpu_task->task_type )
+            assert(in_elem_dev->super.super.device_index < gpu_device->super.data_in_array_size);
+            gpu_device->super.data_in_from_device[in_elem_dev->super.super.device_index] += nb_elts;
+            if( PARSEC_GPU_TASK_TYPE_KERNEL == gpu_task->task_type )
                 gpu_device->super.nb_data_faults += nb_elts;
 
             /* update the data version in GPU immediately, and mark the data under transfer */
@@ -1460,7 +1488,6 @@ static parsec_task_class_t parsec_level_zero_data_prefetch_tc = {
     .initial_data = NULL,
     .final_data = NULL,
     .data_affinity = NULL,
-    .key_generator = NULL,
     .key_functions = NULL,
     .make_key = NULL,
     .get_datatype = NULL,
@@ -1558,8 +1585,8 @@ parsec_level_zero_data_advise(parsec_device_module_t *dev, parsec_data_t *data, 
             gpu_task->ec->task_class = &parsec_level_zero_data_prefetch_tc;
             gpu_task->flow[0] = &parsec_level_zero_data_prefetch_flow;
             gpu_task->flow_nb_elts[0] = data->device_copies[ data->owner_device ]->original->nb_elts;
-            gpu_task->stage_in  = parsec_level_zero_stage_in;
-            gpu_task->stage_out = parsec_level_zero_stage_out;
+            gpu_task->stage_in  = parsec_default_level_zero_stage_in;
+            gpu_task->stage_out = parsec_default_level_zero_stage_out;
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Retain data copy %p [ref_count %d] at %s:%d",
                                  data->device_copies[ data->owner_device ],
                                  data->device_copies[ data->owner_device ]->super.super.obj_reference_count,
@@ -1652,8 +1679,8 @@ parsec_gpu_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
     gpu_task->ec->task_class = &parsec_level_zero_d2d_complete_tc;
     gpu_task->flow[0] = &parsec_level_zero_d2d_complete_flow;
     gpu_task->flow_nb_elts[0] = copy->original->nb_elts;
-    gpu_task->stage_in  = parsec_level_zero_stage_in;
-    gpu_task->stage_out = parsec_level_zero_stage_out;
+    gpu_task->stage_in  = parsec_default_level_zero_stage_in;
+    gpu_task->stage_out = parsec_default_level_zero_stage_out;
     gpu_task->ec->data[0].data_in = copy;  /* We need to set not-null in data_in, so that the fake flow is
                                             * not ignored when poping the data from the fake task */ 
     gpu_task->ec->data[0].data_out = copy; /* We "free" data[i].data_out if its readers reaches 0 */
@@ -1677,7 +1704,6 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                                   parsec_gpu_task_t           **gpu_task,
                                   parsec_gpu_exec_stream_t     *gpu_stream)
 {
-    parsec_device_level_zero_module_t* level_zero_device = (parsec_device_level_zero_module_t*)gpu_device;
     (void)gpu_stream;
 
     parsec_gpu_task_t *gtask = *gpu_task;
@@ -1869,11 +1895,11 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
 static inline int
 progress_stream( parsec_device_gpu_module_t* gpu_device,
                  parsec_gpu_exec_stream_t* stream,
-                 advance_task_function_t upstream_progress_fct,
+                 parsec_advance_task_function_t upstream_progress_fct,
                  parsec_gpu_task_t* task,
                  parsec_gpu_task_t** out_task )
 {
-    advance_task_function_t progress_fct;
+    parsec_advance_task_function_t progress_fct;
     int saved_rc = 0, rc;
 #if defined(PARSEC_DEBUG_NOISIER)
     char task_str[MAX_TASK_STRLEN];
@@ -1983,6 +2009,11 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
      */
     rc = zeCommandListAppendSignalEvent( level_zero_stream->level_zero_cl, level_zero_stream->events[stream->start] );
     assert(ZE_RESULT_SUCCESS == rc);
+    if( stream->start >= 2 ) {
+        ze_result_t ze_rc = zeCommandListClose(level_zero_stream->level_zero_cl);
+        PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListClose ", ze_rc,
+                                       { } );
+    }
     stream->tasks[stream->start]    = task;
     stream->start = (stream->start + 1) % stream->max_events;
     PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
@@ -2246,7 +2277,7 @@ parsec_gpu_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                     parsec_atomic_unlock(&original->lock);
                     goto release_and_return_error;
                 }
-                gpu_device->super.transferred_data_out += nb_elts; /* TODO: not hardcoded, use datatype size */
+                gpu_device->super.data_out_to_host += nb_elts; /* TODO: not hardcoded, use datatype size */
                 how_many++;
             } else {
                 assert( 0 == gpu_copy->readers );
@@ -2526,7 +2557,7 @@ parsec_level_zero_kernel_scheduler( parsec_execution_stream_t *es,
             progress_task = NULL;
         }
         /* If we can extract data go for it, otherwise try to drain the pending tasks */
-        gpu_task = parsec_gpu_create_W2R_task(gpu_device, es);
+        gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
         if( NULL != gpu_task )
             goto get_data_out_of_device;
     }
@@ -2593,7 +2624,7 @@ parsec_level_zero_kernel_scheduler( parsec_execution_stream_t *es,
 
  fetch_task_from_shared_queue:
     assert( NULL == gpu_task );
-    if (1 == parsec_LEVEL_ZERO_sort_pending_list && out_task_submit == NULL && out_task_pop == NULL) {
+    if (1 == parsec_level_zero_sort_pending && out_task_submit == NULL && out_task_pop == NULL) {
         parsec_gpu_sort_pending_list(gpu_device);
     }
     gpu_task = (parsec_gpu_task_t*)parsec_fifo_try_pop( &(gpu_device->pending) );
@@ -2623,7 +2654,7 @@ parsec_level_zero_kernel_scheduler( parsec_execution_stream_t *es,
     /* Everything went fine so far, the result is correct and back in the main memory */
     PARSEC_LIST_ITEM_SINGLETON(gpu_task);
     if (gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {
-        parsec_gpu_W2R_task_fini(gpu_device, gpu_task, es);
+        parsec_gpu_w2r_task_fini(gpu_device, gpu_task, es);
         gpu_task = progress_task;
         goto fetch_task_from_shared_queue;
     }

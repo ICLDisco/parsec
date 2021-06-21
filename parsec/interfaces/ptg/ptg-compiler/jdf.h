@@ -96,6 +96,7 @@ typedef struct jdf_compiler_global_args {
     char *input;
     char *output_c;
     char *output_h;
+    char *output_driver_basename;
     char *output_o;
     char *funcid;
     jdf_warning_mask_t wmask;
@@ -139,9 +140,16 @@ extern int   jdfdebug;
  *  We remember the line number in the JDF file where this external code was found
  */
 typedef struct jdf_external_entry {
-    struct jdf_object_t       super;
+    struct jdf_object_t        super;
+    struct jdf_external_entry *next;
+    char                      *language;
     char                      *external_code;
 } jdf_external_entry_t;
+
+typedef struct jdf_code_string {
+    char  *language;
+    char  *string;
+} jdf_code_string_t;
 
 /** A global is a variable name, optionally an expression to define it,
  *  and a line number associated with it for error printing purposes

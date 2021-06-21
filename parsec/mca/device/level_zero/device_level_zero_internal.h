@@ -46,6 +46,7 @@ extern int parsec_device_level_zero_one_profiling_stream_per_level_zero_stream;
 /* From MCA parameters */
 extern int use_level_zero_index, use_level_zero;
 extern int level_zero_mask, level_zero_verbosity;
+extern int parsec_level_zero_sort_pending, parsec_level_zero_max_streams;
 extern int level_zero_memory_block_size, level_zero_memory_percentage, level_zero_memory_number_of_blocks;
 extern char* level_zero_lib_path;
 extern int32_t parsec_LEVEL_ZERO_d2h_max_flows;

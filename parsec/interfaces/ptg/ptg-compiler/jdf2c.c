@@ -3,7 +3,6 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-
 #include "parsec/parsec_config.h"
 
 #include <stdlib.h>
@@ -31,10 +30,14 @@ extern const char *yyfilename;
 
 static FILE *cfile;
 static int   cfile_lineno;
+static FILE *dpcppfile = NULL;
+static int   dpcppfile_lineno = 0;
 static FILE *hfile;
 static int   hfile_lineno;
 static const char *jdf_basename;
 static const char *jdf_cfilename;
+static char *jdf_hfilename;
+static char *jdf_dpcppfilename;
 
 /* Optional declarations of local functions */
 static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *expr);
@@ -129,6 +132,43 @@ static void coutput(const char *format, ...)
         fwrite(res, len, 1, cfile);
 #endif  /* (defined(__WINDOWS__) || defined(__CYGWIN__)) && !defined(__MINGW64__) */
         cfile_lineno += nblines(res);
+        free(res);
+    }
+}
+
+#if defined(__GNUC__)
+static void dpcpp_output(const char *format, ...) __attribute__((format(printf,1,2)));
+#endif
+static void dpcpp_output(const char *format, ...)
+{
+    va_list ap;
+    char *res;
+    int len;
+
+    va_start(ap, format);
+    len = vasprintf(&res, format, ap);
+    va_end(ap);
+
+    if( len == -1 ) {
+        fprintf(stderr, "Unable to ouptut a string: %s\n", strerror(errno));
+    } else if( 0 < len ) {
+#if (defined(__WINDOWS__) || defined(__CYGWIN__)) && !defined(__MINGW64__)
+        char *start = res, *end;
+        while( NULL != (end = strchr(start, '\n'))) {
+            if( (end != start) && (end[-1] != '\r')) {
+                fwrite(start, (end - start), 1, dpcppfile);
+                fwrite("\r\n", 2, 1, dpcppfile);
+            } else {
+                fwrite(start, (end - start) + 1, 1, dpcppfile);
+            }
+            len -= (end - start) + 1;
+            start = end + 1;  /* skip the current \n */
+        }
+        fwrite(start, len, 1, dpcppfile);
+#else
+        fwrite(res, len, 1, dpcppfile);
+#endif  /* (defined(__WINDOWS__) || defined(__CYGWIN__)) && !defined(__MINGW64__) */
+        dpcppfile_lineno += nblines(res);
         free(res);
     }
 }
@@ -1499,6 +1539,9 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
             "#if defined(PARSEC_HAVE_CUDA)\n"
             "#include \"parsec/mca/device/cuda/device_cuda.h\"\n"
             "#endif  /* defined(PARSEC_HAVE_CUDA) */\n"
+            "#if defined(PARSEC_HAVE_LEVEL_ZERO)\n"
+            "#include \"parsec/mca/device/level_zero/device_level_zero.h\"\n"
+            "#endif  /* defined(PARSEC_HAVE_LEVEL_ZERO) */\n"
             "#if defined(_MSC_VER) || defined(__MINGW32__)\n"
             "#  include <malloc.h>\n"
             "#else\n"
@@ -1515,9 +1558,9 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
     jdf_generate_predeclarations(jdf);
 }
 
-static void jdf_generate_structure(jdf_t *jdf)
+static void jdf_dump_internal_structure(string_arena_t *sa, jdf_t *jdf)
 {
-    int nbfunctions, need_profile = 0;
+    int nbfunctions = 0, need_profile = 0;
     string_arena_t *sa1, *sa2;
     jdf_function_entry_t* f;
     jdf_param_list_t *pl;
@@ -1527,7 +1570,7 @@ static void jdf_generate_structure(jdf_t *jdf)
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("#include \"%s.h\"\n\n"
+    string_arena_add_string(sa, "#include \"%s.h\"\n\n"
             "struct __parsec_%s_internal_taskpool_s {\n"
             " parsec_%s_taskpool_t super;\n"
             " volatile int32_t sync_point;\n"
@@ -1535,30 +1578,46 @@ static void jdf_generate_structure(jdf_t *jdf)
             " parsec_task_t* startup_queue;\n",
             jdf_basename, jdf_basename, jdf_basename);
 
-    coutput("  /* The ranges to compute the hash key */\n");
+    string_arena_add_string(sa, "  /* The ranges to compute the hash key */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
         if( 0 == (f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY) ) {
             for(pl = f->parameters; pl != NULL; pl = pl->next) {
-                coutput("  int %s_%s_range;\n", f->fname, pl->name);
+                string_arena_add_string(sa, "  int %s_%s_range;\n", f->fname, pl->name);
             }
         } else {
-            coutput("  /* nothing for %s as it gets a user-defined make_key */\n",
+            string_arena_add_string(sa, "  /* nothing for %s as it gets a user-defined make_key */\n",
                     f->fname);
         }
     }
 
-    coutput("  /* The list of data repositories ");
+    string_arena_add_string(sa, "  /* The list of data repositories ");
     for(f = jdf->functions; NULL != f; f = f->next) {
         if( 0 != function_has_data_output(f) ) {
-            coutput(" %s ", f->fname);
+            string_arena_add_string(sa, " %s ", f->fname);
         }
     }
-    coutput("*/\n");
+    string_arena_add_string(sa, "*/\n");
     if(nbfunctions != 0 ) {
-        coutput("  data_repo_t* repositories[%d];\n", nbfunctions );
+        string_arena_add_string(sa, "  data_repo_t* repositories[%d];\n", nbfunctions );
     }
 
-    coutput("};\n\n");
+    string_arena_add_string(sa, "};\n\n");
+}
+
+static void jdf_generate_structure(jdf_t *jdf)
+{
+    int nbfunctions, need_profile = 0;
+    string_arena_t *sa1, *sa2;
+    jdf_function_entry_t* f;
+
+    JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
+
+    sa1 = string_arena_new(64);
+    sa2 = string_arena_new(64);
+
+    jdf_dump_internal_structure(sa1, jdf);
+    coutput("%s\n", string_arena_get_string(sa1));
+    string_arena_init(sa1);
 
     for( f = jdf->functions; need_profile == 0 && NULL != f; f = f->next ) {
         /* If the profile property is ON then enable the profiling array */
@@ -6554,6 +6613,25 @@ static int jdf_has_cuda_chore(const jdf_t *jdf, const char *fname)
     return 0;
 }
 
+static int jdf_has_dpcpp_chore(const jdf_t *jdf, const char *fname)
+{
+    jdf_function_entry_t *f;
+    jdf_body_t* body;
+    jdf_def_list_t *type_property;
+
+    for(f = jdf->functions; f != NULL; f = f->next) {
+        if( (NULL != fname) && strcmp(f->fname, fname) ) continue;
+        for(body = f->bodies; body != NULL; body = body->next) {
+            jdf_find_property(body->properties, "type", &type_property);
+            if( NULL != type_property && !strcmp(type_property->expr->jdf_var, "DPCPP"))
+                return 1;
+        }
+        if(NULL != fname) return 0;
+    }
+    return 0;
+}
+
+
 static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                                         const jdf_function_entry_t *f,
                                         const jdf_body_t* body,
@@ -6901,6 +6979,335 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     string_arena_free(sa3);
 }
 
+static void jdf_generate_code_hook_dpcpp(const jdf_t *jdf,
+                                         const jdf_function_entry_t *f,
+                                         const jdf_body_t* body,
+                                         const char *name)
+{
+    jdf_def_list_t *type_property;
+    jdf_def_list_t *stage_in_property;
+    jdf_def_list_t *stage_out_property;
+    jdf_def_list_t *size_property;
+    jdf_def_list_t *desc_property;
+    jdf_def_list_t *weight_property;
+    jdf_def_list_t *device_property;
+    const char *device;
+    const char *weight;
+    string_arena_t *sa, *sa2, *sa3;
+    assignment_info_t ai;
+    init_from_data_info_t ai2;
+    jdf_dataflow_t *fl;
+    expr_info_t info = EMPTY_EXPR_INFO;
+    int di;
+    int profile_on;
+    char* output;
+
+    profile_on = profile_enabled(f->properties) && profile_enabled(body->properties);
+
+    jdf_find_property(body->properties, "type", &type_property);
+
+    sa  = string_arena_new(64);
+    sa2 = string_arena_new(64);
+    sa3 = string_arena_new(64);
+
+    ai.sa = sa2;
+    ai.holder = "this_task->locals.";
+    ai.expr = NULL;
+
+    string_arena_add_string(sa3, "%s",
+                            UTIL_DUMP_LIST(sa, f->locals, next,
+                                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
+
+    string_arena_add_string(sa3, "%s",
+                            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
+                                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+
+    /* Generate the dpcpp_kernel_submit structure and function */
+    dpcpp_output("extern \"C\" {\n"
+                 "  int parsec_dpcpp_kernel_submit_%s_%s(parsec_device_gpu_module_t *gpu_device,\n"
+                 "                                       parsec_gpu_task_t          *gpu_task,\n"
+                 "                                       parsec_gpu_exec_stream_t   *gpu_stream);\n"
+                 "}\n"
+                 "\n"
+                 "int parsec_dpcpp_kernel_submit_%s_%s(parsec_device_gpu_module_t  *gpu_device,\n"
+                 "                                     parsec_gpu_task_t           *gpu_task,\n"
+                 "                                     parsec_gpu_exec_stream_t    *gpu_stream )\n"
+                 "{\n"
+                 "  %s *this_task = reinterpret_cast<%s *>(gpu_task->ec);\n"
+                 "  parsec_device_level_zero_module_t *level_zero_device = reinterpret_cast<parsec_device_level_zero_module_t*>(gpu_device);\n"
+                 "  parsec_level_zero_exec_stream_t *level_zero_stream = reinterpret_cast<parsec_level_zero_exec_stream_t*>(gpu_stream);\n"
+                 "  __parsec_%s_internal_taskpool_t *__parsec_tp = reinterpret_cast<__parsec_%s_internal_taskpool_t *>(this_task->taskpool);\n"
+                 "  parsec_dpcpp_object_t *parsec_dpcpp = reinterpret_cast<parsec_dpcpp_object_t *>(level_zero_stream->dpcpp_obj);\n"
+                 "\n"
+                 "%s\n"
+                 "  (void)gpu_device; (void)gpu_stream; (void)__parsec_tp; (void)level_zero_device; (void)level_zero_stream;\n",
+                 jdf_basename, f->fname,
+                 jdf_basename, f->fname,
+                 parsec_get_name(jdf, f, "task_t"), parsec_get_name(jdf, f, "task_t"),
+                 jdf_basename, jdf_basename,
+                 string_arena_get_string( sa3 ));
+
+    ai2.sa = sa2;
+    ai2.where = "out";
+    output = UTIL_DUMP_LIST(sa, f->dataflow, next,
+                            dump_data_initialization_from_data_array, &ai2, "", "", "", "");
+    if( 0 != strlen(output) ) {
+        dpcpp_output("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
+                     "%s\n",
+                     output);
+    }
+
+    /**
+     * Generate code for the simulation.
+     */
+    dpcpp_output("  /** Update starting simulation date */\n"
+                 "#if defined(PARSEC_SIM)\n"
+                 "  {\n"
+                 "    this_task->sim_exec_date = 0;\n");
+    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+
+        if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;  /* control flow, nothing to store */
+
+        dpcpp_output("    data_repo_entry_t *e%s = this_task->data._f_%s.source_repo_entry;\n"
+                     "    if( (NULL != e%s) && (e%s->sim_exec_date > this_task->sim_exec_date) )\n"
+                     "      this_task->sim_exec_date = e%s->sim_exec_date;\n",
+                     fl->varname, fl->varname,
+                     fl->varname, fl->varname,
+                     fl->varname);
+    }
+    dpcpp_output("    if( this_task->task_class->sim_cost_fct != NULL ) {\n"
+                 "      this_task->sim_exec_date += this_task->task_class->sim_cost_fct(this_task);\n"
+                 "    }\n"
+                 "    if( es->largest_simulation_date < this_task->sim_exec_date )\n"
+                 "      es->largest_simulation_date = this_task->sim_exec_date;\n"
+                 "  }\n"
+                 "#endif\n");
+
+    //TODO: jdf_generate_code_cache_awareness_update(jdf, f);
+
+    dpcpp_output("#if defined(PARSEC_DEBUG_NOISIER)\n"
+                 "  {\n"
+                 "    char tmp[MAX_TASK_STRLEN];\n"
+                 "    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream, \"GPU[%%s]:\\tEnqueue on device %%s priority %%d\", gpu_device->super.name, \n"
+                 "           parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t *)this_task),\n"
+                 "           this_task->priority );\n"
+                 "  }\n"
+                 "#endif /* defined(PARSEC_DEBUG_NOISIER) */\n" );
+
+    if( profile_on ) {
+        dpcpp_output("#if defined(PARSEC_PROF_TRACE)\n"
+                     "  if(gpu_stream->prof_event_track_enable) {\n"
+                     "    PARSEC_TASK_PROF_TRACE(gpu_stream->profiling,\n"
+                     "                           PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,\n"
+                     "                                     this_task->task_class->task_class_id),\n"
+                     "                           (parsec_task_t*)this_task);\n"
+                     "    gpu_task->prof_key_end = PARSEC_PROF_FUNC_KEY_END(this_task->taskpool,\n"
+                     "                                   this_task->task_class->task_class_id);\n"
+                     "    gpu_task->prof_event_id = this_task->task_class->key_functions->\n"
+                     "           key_hash(this_task->task_class->make_key(this_task->taskpool, ((parsec_task_t*)this_task)->locals), NULL);\n"
+                     "    gpu_task->prof_tp_id = this_task->taskpool->taskpool_id;\n"
+                     "  }\n"
+                     "#endif /* PARSEC_PROF_TRACE */\n");
+    }
+
+    dpcpp_output("%s\n", body->external_code);
+    if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
+        dpcpp_output("#line %d \"%s\"\n", dpcppfile_lineno+1, jdf_dpcppfilename);
+    }
+
+    // TODO:    jdf_generate_code_dry_run_after(jdf, f);
+    dpcpp_output("  return PARSEC_HOOK_RETURN_DONE;\n"
+                 "}\n\n");
+
+    /* Generate the hook_level_zero */
+    coutput("extern int parsec_dpcpp_kernel_submit_%s_%s(parsec_device_gpu_module_t  *gpu_device,\n"
+            "                              parsec_gpu_task_t           *gpu_task,\n"
+            "                              parsec_gpu_exec_stream_t    *gpu_stream );\n"
+            "\n"
+            "static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n"
+            "{\n"
+            "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
+            "  parsec_gpu_task_t *gpu_task;\n"
+            "  double ratio;\n"
+            "  int dev_index;\n"
+            "  %s\n"
+            "  (void)es; (void)__parsec_tp;\n"
+            "\n",
+            jdf_basename, f->fname,
+            name, type_property->expr->jdf_var, parsec_get_name(jdf, f, "task_t"),
+            jdf_basename, jdf_basename,
+            string_arena_get_string( sa3 ));
+
+    info.sa = string_arena_new(64);
+    info.prefix = "";
+    info.suffix = "";
+    info.assignments = "&this_task->locals";
+
+    /* Get the ratio to  apply on the weight for this task */
+    jdf_find_property( body->properties, "weight", &weight_property );
+    if ( NULL != weight_property ) {
+        weight = dump_expr((void**)weight_property->expr, &info);
+    } else {
+        weight = "1.";
+    }
+    coutput("  ratio = %s;\n", weight);
+
+    /* Get the hint for statix and/or external gpu scheduling */
+    jdf_find_property( body->properties, "device", &device_property );
+    if ( NULL != device_property ) {
+        device = dump_expr((void**)device_property->expr, &info);
+        coutput("  dev_index = %s;\n"
+                "  if (dev_index < -1) {\n"
+                "    return PARSEC_HOOK_RETURN_NEXT;\n"
+                "  } else if (dev_index == -1) {\n"
+                "    dev_index = parsec_gpu_get_best_device((parsec_task_t*)this_task, ratio);\n"
+                "  } else {\n"
+                "    dev_index = (dev_index %% (parsec_mca_device_enabled()-2)) + 2;\n"
+                "  }\n",
+                device);
+    } else {
+        coutput("  dev_index = parsec_gpu_get_best_device((parsec_task_t*)this_task, ratio);\n");
+    }
+    coutput("  assert(dev_index >= 0);\n"
+            "  if( dev_index < 2 ) {\n"
+            "    return PARSEC_HOOK_RETURN_NEXT;  /* Fall back */\n"
+            "  }\n"
+            "\n"
+            "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
+            "  PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
+            "  gpu_task->ec = (parsec_task_t*)this_task;\n"
+            "  gpu_task->submit = &parsec_dpcpp_kernel_submit_%s_%s;\n"
+            "  gpu_task->task_type = 0;\n"
+            "  gpu_task->load = ratio * parsec_device_sweight[dev_index];\n"
+            "  gpu_task->last_data_check_epoch = -1;  /* force at least one validation for the task */\n",
+            jdf_basename, f->fname);
+
+    /* Set up stage in/out callbacks */
+    jdf_find_property(body->properties, "stage_in", &stage_in_property);
+    jdf_find_property(body->properties, "stage_out", &stage_out_property);
+
+    if(stage_in_property == NULL) {
+        coutput("  gpu_task->stage_in  = parsec_default_level_zero_stage_in;\n");
+    }else{
+        coutput("  gpu_task->stage_in  = %s;\n", dump_expr((void**)stage_in_property->expr, &info));
+    }
+
+    if(stage_out_property == NULL) {
+        coutput("  gpu_task->stage_out = parsec_default_level_zero_stage_out;\n");
+    }else{
+        coutput("  gpu_task->stage_out = %s;\n", dump_expr((void**)stage_out_property->expr, &info));
+    }
+
+    /* Dump the dataflow */
+    coutput("  gpu_task->pushout = 0;\n");
+    for(fl = f->dataflow, di = 0; fl != NULL; fl = fl->next, di++) {
+        coutput("  gpu_task->flow[%d]         = &%s;\n",
+                di, JDF_OBJECT_ONAME( fl ));
+
+        sprintf(sa->ptr, "%s.dc", fl->varname);
+        jdf_find_property(body->properties, sa->ptr, &desc_property);
+        if(desc_property == NULL){
+            coutput("  gpu_task->flow_dc[%d] = NULL;\n", di);
+        }else{
+            coutput("  gpu_task->flow_dc[%d] = (parsec_data_collection_t *)%s;\n", di,
+                    dump_expr((void**)desc_property->expr, &info));
+        }
+
+        sprintf(sa->ptr, "%s.size", fl->varname);
+        jdf_find_property(body->properties, sa->ptr, &size_property);
+
+        if(fl->flow_flags & JDF_FLOW_TYPE_CTL) {
+            if(size_property != NULL){
+                fprintf(stderr, "Error: specifying GPU buffer size for CTL flow %s at line %d\n",
+                        fl->varname, JDF_OBJECT_LINENO(fl));
+                exit(-1);
+            }
+            coutput("  gpu_task->flow_nb_elts[%d] = 0;\n", di);
+        }else{
+            if(size_property == NULL){
+                coutput("  gpu_task->flow_nb_elts[%d] = gpu_task->ec->data[%d].data_in->original->nb_elts;\n", di, di);
+            }else{
+                coutput("  gpu_task->flow_nb_elts[%d] = %s;\n",
+                        di, dump_expr((void**)size_property->expr, &info));
+                if( (stage_in_property == NULL) || ( stage_out_property == NULL )){
+                    coutput("  assert(gpu_task->ec->data[%d].data_in->original->nb_elts <= %s);\n",
+                            di, dump_expr((void**)size_property->expr, &info));
+                }
+
+            }
+        }
+
+        if (fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
+            jdf_dep_t *dl;
+            int testtrue, testfalse;
+
+            /**
+             * We force the pushout for every data that is not only going to the
+             * same kind of kernel in the future.
+             * (TODO: could be avoided with different GPU compliant kernels)
+             */
+            for(dl = fl->deps; dl != NULL; dl = dl->next) {
+                if( dl->dep_flags & JDF_DEP_FLOW_IN )
+                    continue;
+
+                testtrue = (dl->guard->calltrue != NULL) &&
+                           ((dl->guard->calltrue->var == NULL ) ||
+                            (!jdf_has_dpcpp_chore(jdf, dl->guard->calltrue->func_or_mem)));
+
+                testfalse = (dl->guard->callfalse != NULL) &&
+                            ((dl->guard->callfalse->var == NULL ) ||
+                             (!jdf_has_dpcpp_chore(jdf, dl->guard->callfalse->func_or_mem)));
+
+                switch( dl->guard->guard_type ) {
+                    case JDF_GUARD_UNCONDITIONAL:
+                        if(testtrue) {
+                            coutput("  gpu_task->pushout |= (1 << %d);\n", di);
+                            goto nextflow;
+                        }
+                        break;
+                    case JDF_GUARD_BINARY:
+                        if(testtrue) {
+                            coutput("  if( %s ) {\n"
+                                    "    gpu_task->pushout |= (1 << %d);\n"
+                                    "  }",
+                                    dump_expr((void**)dl->guard->guard, &info), di);
+                        }
+                        break;
+                    case JDF_GUARD_TERNARY:
+                        if( testtrue ) {
+                            if( testfalse ) {
+                                coutput("  gpu_task->pushout |= (1 << %d);\n", di);
+                            } else {
+                                coutput("  if( %s ) {\n"
+                                        "    gpu_task->pushout |= (1 << %d);\n"
+                                        "  }\n",
+                                        dump_expr((void**)dl->guard->guard, &info), di);
+                            }
+                        } else if ( testfalse ) {
+                            coutput("  if( !(%s) ) {\n"
+                                    "    gpu_task->pushout |= (1 << %d);\n"
+                                    "  }\n",
+                                    dump_expr((void**)dl->guard->guard, &info), di);
+                        }
+                        break;
+                }
+            }
+            nextflow:
+            ;
+        }
+    }
+    string_arena_free(info.sa);
+
+    coutput("  parsec_device_load[dev_index] += gpu_task->load;\n"
+            "\n"
+            "  return parsec_level_zero_kernel_scheduler( es, gpu_task, dev_index );\n"
+            "}\n\n");
+
+    string_arena_free(sa);
+    string_arena_free(sa2);
+    string_arena_free(sa3);
+}
+
 static void jdf_generate_code_hook(const jdf_t *jdf,
                                    const jdf_function_entry_t *f,
                                    const jdf_body_t* body,
@@ -6938,6 +7345,11 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
 
         if (!strcmp(type_property->expr->jdf_var, "CUDA")) {
             jdf_generate_code_hook_cuda(jdf, f, body, name);
+            goto hook_end_block;
+        }
+
+        if(!strcmp(type_property->expr->jdf_var, "DPCPP")) {
+            jdf_generate_code_hook_dpcpp(jdf, f, body, name);
             goto hook_end_block;
         }
     }
@@ -7004,7 +7416,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     if ((NULL == type_property) ||
         (!strcmp(type_property->expr->jdf_var, "RECURSIVE"))) {
         coutput("  /** Transfer the ownership to the CPU */\n"
-                "#if defined(PARSEC_HAVE_CUDA)\n");
+                "#if defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_LEVEL_ZERO)\n");
 
         for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
             /* Update the ownership of read/write data */
@@ -7022,7 +7434,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                          ((fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? "PARSEC_FLOW_ACCESS_RW" : "PARSEC_FLOW_ACCESS_READ") : "PARSEC_FLOW_ACCESS_WRITE")));
             }
         }
-        coutput("#endif  /* defined(PARSEC_HAVE_CUDA) */\n");
+        coutput("#endif  /* defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_LEVEL_ZERO) */\n");
     }
     jdf_generate_code_cache_awareness_update(jdf, f);
 
@@ -8364,14 +8776,48 @@ int jdf_optimize( jdf_t* jdf )
 #include <sys/wait.h>
 #endif
 
-int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename, jdf_t *jdf)
+int jdf2c(const char *output_c, const char *output_h,
+          const char *driver_output_basename, const char *_jdf_basename, jdf_t *jdf)
 {
     int ret = 0;
 
     jdf_cfilename = output_c;
+    jdf_hfilename = strdup(output_h);
+    asprintf(&jdf_dpcppfilename, "%s.dpcpp.C", driver_output_basename);
     jdf_basename = _jdf_basename;
     cfile = NULL;
     hfile = NULL;
+    dpcppfile = NULL;
+
+    if( jdf_has_dpcpp_chore(jdf, NULL) ) {
+        string_arena_t *sa1, *sa2;
+        sa1 = string_arena_new(64);
+        sa2 = string_arena_new(64);
+        dpcppfile = fopen(jdf_dpcppfilename, "w");
+        if( dpcppfile == NULL ) {
+            fprintf(stderr, "unable to create %s: %s\n", jdf_dpcppfilename, strerror(errno));
+            ret = -1;
+            goto err;
+        }
+
+        UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                       dump_globals, sa2, "", "#define ", "\n", "\n");
+
+        dpcpp_output("#include \"parsec.h\"\n"
+                     "#include \"level_zero/ze_api.h\"\n"
+                     "#include \"sycl/backend/level_zero.hpp\"\n"
+                     "#include \"parsec/parsec_internal.h\"\n"
+                     "#include \"parsec/execution_stream.h\"\n"
+                     "#include \"parsec/mca/device/device.h\"\n"
+                     "#include \"parsec/mca/device/device_gpu.h\"\n"
+                     "#include \"parsec/mca/device/level_zero/device_level_zero.h\"\n"
+                     "#include \"parsec/mca/device/level_zero/device_level_zero_dpcpp.h\"\n"
+                     "\n"
+                     "%s\n",
+                     string_arena_get_string(sa1));
+        string_arena_free(sa1);
+        string_arena_free(sa2);
+    }
 
 #if defined(PARSEC_HAVE_INDENT) && !(defined(__WINDOWS__) || defined(__MING64__) || defined(__CYGWIN__))
     /* When we apply indent/awk to the output of jdf2c, we need to make 
@@ -8459,6 +8905,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
 
     cfile_lineno = 1;
     hfile_lineno = 1;
+    dpcppfile_lineno = 1;
 
     /**
      * Now generate the code.
@@ -8475,10 +8922,30 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     /**
      * Dump the prologue section
      */
-    if( NULL != jdf->prologue ) {
-        coutput("%s", jdf->prologue->external_code);
-        if( !JDF_COMPILER_GLOBAL_ARGS.noline )
-            coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
+    for( jdf_external_entry_t *ent = jdf->prologue; NULL != ent; ent = ent->next ) {
+        if( 0 == strcmp(ent->language, "C") ) {
+            coutput("%s", ent->external_code);
+            if( !JDF_COMPILER_GLOBAL_ARGS.noline )
+                coutput("#line %d \"%s\"\n", cfile_lineno + 1, jdf_cfilename);
+        } else if( 0 == strcmp(ent->language, "DPCPP") ) {
+            dpcpp_output("%s", ent->external_code);
+            if( !JDF_COMPILER_GLOBAL_ARGS.noline )
+                dpcpp_output("#line %d \"%s\"\n", dpcppfile_lineno + 1, jdf_dpcppfilename);
+        } else {
+            jdf_warn(ent->super.lineno, "Unknown language '%s' in prologue: code ignored", ent->language);
+        }
+    }
+
+    /* Now we can include the header generated to define the datatypes */
+    if( jdf_has_dpcpp_chore(jdf, NULL) ) {
+        string_arena_t *sa = string_arena_new(64);
+        jdf_dump_internal_structure(sa, jdf);
+        dpcpp_output("%s\n"
+                     "typedef struct __parsec_%s_internal_taskpool_s __parsec_%s_internal_taskpool_t;\n"
+                     "\n",
+                     string_arena_get_string(sa),
+                     jdf_basename, jdf_basename);
+        string_arena_free(sa);
     }
 
     /* Dump references to arenas_datatypes array */
@@ -8518,10 +8985,18 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     /**
      * Dump all the epilogue sections
      */
-    if( NULL != jdf->epilogue ) {
-        coutput("%s", jdf->epilogue->external_code);
-        if( !JDF_COMPILER_GLOBAL_ARGS.noline )
-            coutput("#line %d \"%s\"\n",cfile_lineno+1, jdf_cfilename);
+    for( jdf_external_entry_t *ent = jdf->epilogue; NULL != ent; ent = ent->next ) {
+        if( 0 == strcmp(ent->language, "C") ) {
+            coutput("%s", ent->external_code);
+            if( !JDF_COMPILER_GLOBAL_ARGS.noline )
+                coutput("#line %d \"%s\"\n", cfile_lineno + 1, jdf_cfilename);
+        } else if( 0 == strcmp(ent->language, "DPCPP") ) {
+            dpcpp_output("%s", ent->external_code);
+            if( !JDF_COMPILER_GLOBAL_ARGS.noline )
+                dpcpp_output("#line %d \"%s\"\n", dpcppfile_lineno + 1, jdf_dpcppfilename);
+        } else {
+            jdf_warn(ent->super.lineno, "Unknown language '%s' in epilogue: code ignored", ent->language);
+        }
     }
 
     /**
@@ -8535,10 +9010,22 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
  err:
     if( NULL != cfile ) {
         fclose(cfile);
+        cfile = NULL;
     }
 
     if( NULL != hfile ) {
         fclose(hfile);
+        hfile = NULL;
+    }
+
+    if( NULL != dpcppfile ) {
+        fclose(dpcppfile);
+        dpcppfile = NULL;
+    }
+
+    if(NULL != jdf_dpcppfilename) {
+        free(jdf_dpcppfilename);
+        jdf_dpcppfilename = NULL;
     }
 
 #if defined(PARSEC_HAVE_INDENT) && !(defined(__WINDOWS__) || defined(__MING64__) || defined(__CYGWIN__))

@@ -717,12 +717,16 @@ int main(int argc, char *argv[]) {
 
   if( PARSEC_GPU_WITH_LEVEL_ZERO )
     find_package(level-zero)
+    find_package(DPCPP)
     set(PARSEC_HAVE_LEVEL_ZERO ${LEVEL_ZERO_FOUND} CACHE BOOL "True if PaRSEC provide support for Intel level-zero")
-    if (LEVEL_ZERO_FOUND)
+    if (LEVEL_ZERO_FOUND AND PARSEC_HAVE_DPCPP)
       include_directories("${LEVEL_ZERO_INCLUDE_DIR}/level_zero/")
       set(PARSEC_HAVE_LEVEL_ZERO ${LEVEL_ZERO_FOUND} CACHE BOOL "True if PaRSEC provide support for Intel Level Zero")
       message(STATUS "Found Intel level-zero ${LEVEL_ZERO_VERSION} in -I${LEVEL_ZERO_INCLUDE_DIR} / -L${LEVEL_ZERO_LIBRARY_DIR}")
-    endif (LEVEL_ZERO_FOUND)
+      message(STATUS "Found dpcpp in ${DPCPP_EXECUTABLE}")
+    else(LEVEL_ZERO_FOUND AND PARSEC_HAVE_DPCPP)
+      message(STATUS "Could not find both level-zero and DPCPP: level-zero says ${LEVEL_ZERO_FOUND}, DPCPP says ${DPCPP_EXECUTABLE}")
+    endif (LEVEL_ZERO_FOUND AND PARSEC_HAVE_DPCPP)
   endif( PARSEC_GPU_WITH_LEVEL_ZERO )
 
   find_package(AYUDAME QUIET)
