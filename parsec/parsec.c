@@ -2503,28 +2503,34 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
         /* Hu-ho, double check that our binding is not conflicting with other
          * local procs */
         MPI_Comm_rank(comml, &rl);
-        char *myset, *allsets;
+        char *myset = NULL, *allsets = NULL;
 
         if( 0 != hwloc_bitmap_list_asprintf(&myset, context->cpuset_allowed_mask) ) {
         }
-        int *setlen = calloc(nl, sizeof(int));
-        int *displ = calloc(nl, sizeof(int));
-        setlen[rl] = strlen(myset);
-        MPI_Gather(&setlen[rl], 1, MPI_INT, setlen, 1, MPI_INT, 0, comml);
-        displ[0] = 0;
-        for( i = 1; i < nl; i++ ) {
-            displ[i] = displ[i-1]+setlen[i-1];
+        int setlen = strlen(myset);
+        int *setlens = NULL;
+        if( 0 == rl ) {
+            setlens = calloc(nl, sizeof(int));
         }
-        allsets = calloc(displ[nl-1]+setlen[nl-1], sizeof(char));
-        MPI_Gatherv(myset, setlen[rl], MPI_CHAR, allsets, setlen, displ, MPI_CHAR, 0, comml);
+        MPI_Gather(&setlen, 1, MPI_INT, setlens, 1, MPI_INT, 0, comml);
+
+        int *displs = NULL;
+        if( 0 == rl ) {
+            displs = calloc(nl, sizeof(int));
+            displs[0] = 0;
+            for( i = 1; i < nl; i++ ) {
+                displs[i] = displs[i-1]+setlens[i-1];
+            }
+            allsets = calloc(displs[nl-1]+setlens[nl-1], sizeof(char));
+        }
+        MPI_Gatherv(myset, setlen, MPI_CHAR, allsets, setlens, displs, MPI_CHAR, 0, comml);
         free(myset);
-        free(setlen);
 
         if( 0 == rl ) {
             int notgood = false;
             for( i = 1; i < nl; i++ ) {
                 hwloc_bitmap_t other = hwloc_bitmap_alloc();
-                hwloc_bitmap_list_sscanf(other, &allsets[displ[i]]);
+                hwloc_bitmap_list_sscanf(other, &allsets[displs[i]]);
                 if(hwloc_bitmap_intersects(context->cpuset_allowed_mask, other)) {
                     notgood = true;
                 }
@@ -2538,9 +2544,10 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
                                "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
                                "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
             }
+            free(setlens);
+            free(allsets);
+            free(displs);
         }
-        free(allsets);
-        free(displ);
     }
 #endif
 
