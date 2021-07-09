@@ -1614,6 +1614,12 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
     MPI_Comm_size(dep_comm, &(context->nb_nodes));
     MPI_Comm_rank(dep_comm, &(context->my_rank));
 
+    if (context->nb_nodes == 1) {
+        /* with only one node, we do not start a comm thread, so don't have threads
+         * calling in yield needlessly */
+        comm_yield = 0;
+    }
+
     parsec_mpi_same_pos_items_size = context->nb_nodes + (int)DEP_LAST;
     parsec_mpi_same_pos_items = (dep_cmd_item_t**)calloc(parsec_mpi_same_pos_items_size,
                                                          sizeof(dep_cmd_item_t*));
