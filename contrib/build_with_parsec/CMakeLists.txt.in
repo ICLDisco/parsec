@@ -8,6 +8,7 @@ if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 ENDIF(POLICY CMP0074)
 
+set(PaRSEC_ROOT "@CMAKE_INSTALL_PREFIX@" CACHE PATH "Location of the PaRSEC installation")
 find_package(PaRSEC REQUIRED)
 if(NOT TARGET PaRSEC::parsec AND NOT TARGET PaRSEC::parsec_ptgpp)
   message(FATAL_ERROR "User requested PaRSEC with PaRSEC_ROOT=${PaRSEC_ROOT} not found")
