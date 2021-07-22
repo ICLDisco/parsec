@@ -130,6 +130,9 @@ int main(int argc, char* argv[])
     tp = parsec_write_check_new( (parsec_data_collection_t*)&descA, (n / block) - 1, block );
     assert( NULL != tp );
 
+#if PARSEC_VERSION_MAJOR < 4
+#define PARSEC_write_check_DEFAULT_ADT_IDX PARSEC_write_check_DEFAULT_ARENA
+#endif
     /* This test generates no communications between processes, so the datatype
      * associated with the arena are insignificant. */
     parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_write_check_DEFAULT_ADT_IDX],
