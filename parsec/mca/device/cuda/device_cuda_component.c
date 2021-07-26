@@ -212,7 +212,7 @@ static int device_cuda_component_open(void)
     cudaError_t cudastatus;
     int ndevices;
 
-    if( 0 <= parsec_device_cuda_enabled ) {
+    if( 0 == parsec_device_cuda_enabled ) {
         return MCA_ERROR;  /* Nothing to do around here */
     }
 
