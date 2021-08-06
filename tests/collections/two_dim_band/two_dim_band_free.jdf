@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2017-2018 The Universiy of Tennessee and The Universiy
+ * Copyright (c) 2017-2020 The Universiy of Tennessee and The Universiy
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  */
@@ -65,7 +65,7 @@ m = 0 .. descY->lmt-1
 : descY(m, m)
 
 BODY
-{   
+{
    free(PARSEC_DATA_COPY_GET_PTR(parsec_data_get_copy(data_of_descY(m, m), 0)));
 }
 END
@@ -99,9 +99,9 @@ void parsec_two_dim_band_free_Destruct(parsec_taskpool_t *taskpool)
 
 /**
  * @brief Free dcY
- * 
+ *
  * @param [inout] dcY: the data, already distributed and allocated
- * @param [in] uplo: Upper / Lower / UpperLower 
+ * @param [in] uplo: Upper / Lower / UpperLower
  */
 int parsec_two_dim_band_free(parsec_context_t *parsec,
                         parsec_tiled_matrix_dc_t *dcY, int uplo)

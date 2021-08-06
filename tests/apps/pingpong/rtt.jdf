@@ -2,6 +2,8 @@ extern "C" %{
    /* This simple example does not need to include anything */
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 NT
 WS
 

@@ -36,6 +36,8 @@ typedef cublasStatus_t (*cublas_dgemm_v2_t) ( cublasHandle_t handle,
 
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 /*
  * Globals
  */

@@ -34,8 +34,6 @@ BODY
 {
     operation( es, descA, A,
               matrix_UpperLower, m, n, op_args );
-
-   
 }
 END
 

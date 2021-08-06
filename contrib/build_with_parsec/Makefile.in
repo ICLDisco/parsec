@@ -1,7 +1,7 @@
 PARSECDIR=@CMAKE_INSTALL_PREFIX@
 PARSEC_PKGCONFIG=@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_LIBDIR@/pkgconfig
 
-PKG_CONFIG_PATH += "${PARSEC_PKGCONFIG}"
+PKG_CONFIG_PATH += ":${PARSEC_PKGCONFIG}"
 
 CC = gcc
 
@@ -28,5 +28,5 @@ dtd_test_allreduce: dtd_test_allreduce.o
 	${CC} -o $@ ${LDFLAGS} $^
 
 clean:
-	rm -f *.o ${TESTS} write_check.h
+	rm -f *.o ${TESTS} write_check.c write_check.h
 

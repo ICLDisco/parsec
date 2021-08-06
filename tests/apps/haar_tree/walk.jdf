@@ -1,4 +1,9 @@
 extern "C" %{
+/*
+ * Copyright (c) 2014-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "tree_dist.h"
 #include "parsec/sys/atomic.h"
 
@@ -26,7 +31,7 @@ static parsec_key_fn_t my_simple_hash_fns = {
     .key_print = my_simple_hash_print,
     .key_hash  = my_simple_hash_hash
 };
-    
+
 struct __parsec_walk_internal_taskpool_s;
 struct __parsec_walk_UP_assignment_s;
 struct __parsec_walk_DOWN_assignment_s;
@@ -121,7 +126,7 @@ CTL RL    -> (((l%2) == 0) & (n>0)) ? LEFT UP(n-1, l/2)
           -> (n==0) ? RL BCAST_UP(0 .. (NP-1))
 
 READ NODE <- NODE DO_DOWN(n, l)
-     
+
 BODY
 {
     /* The root node has to delete all remaining tasks*/
@@ -220,6 +225,7 @@ BODY
 END
 
 extern "C" %{
+
 static uint64_t my_simple_tree_hash(int n, int l)
 {
     return (((uint64_t)n) << 32) | ((uint64_t)l);
@@ -246,7 +252,6 @@ static parsec_key_t do_down_make_key(const parsec_taskpool_t* __tp, const parsec
     return (parsec_key_t)my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
- 
 static uint32_t undetermined_nb_tasks(struct __parsec_walk_internal_taskpool_s *__tp)
 {
     (void)__tp;

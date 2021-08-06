@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019      The University of Tennessee and The University
+ * Copyright (c) 2019-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -21,15 +21,6 @@ typedef struct parsec_compound_taskpool_s {
     uint32_t completed_taskpools;
     parsec_taskpool_t** taskpool_array;
 } parsec_compound_taskpool_t;
-
-static void parsec_compound_taskpool_destructor( parsec_taskpool_t* tp )
-{
-    parsec_compound_taskpool_t* compound = (parsec_compound_taskpool_t*)tp;
-    assert(PARSEC_TASKPOOL_TYPE_COMPOUND == compound->super.taskpool_type);
-    PARSEC_DEBUG_VERBOSE(30, parsec_debug_output,
-                         "Compound taskpool destructor %p", compound);
-    free(compound->taskpool_array);
-}
 
 static int parsec_composed_taskpool_cb( parsec_taskpool_t* o, void* cbdata )
 {
@@ -73,6 +64,33 @@ parsec_compound_taskpool_startup( parsec_context_t *context,
     (void)startup_list;
 }
 
+static void
+__parsec_compound_taskpool_destructor( parsec_compound_taskpool_t* compound )
+{
+    assert(PARSEC_TASKPOOL_TYPE_COMPOUND == compound->super.taskpool_type);
+    PARSEC_DEBUG_VERBOSE(30, parsec_debug_output,
+                         "Compound taskpool destructor %p", compound);
+    free(compound->taskpool_array);
+    if( NULL == compound->super.taskpool_name ) {
+        free(compound->super.taskpool_name);
+        compound->super.taskpool_name = NULL;
+    }
+}
+
+static void
+__parsec_compound_taskpool_constructor( parsec_compound_taskpool_t* compound )
+{
+    compound->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_COMPOUND;
+    compound->taskpool_array = malloc(16 * sizeof(parsec_taskpool_t*));
+    assert(NULL == compound->super.taskpool_name);
+    compound->completed_taskpools = 0;
+    compound->nb_taskpools = 0;
+    compound->super.startup_hook = parsec_compound_taskpool_startup;
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_compound_taskpool_t, parsec_taskpool_t,
+                          __parsec_compound_taskpool_constructor, __parsec_compound_taskpool_destructor);
+
 parsec_taskpool_t*
 parsec_compose( parsec_taskpool_t* start,
                 parsec_taskpool_t* next )
@@ -99,25 +117,18 @@ parsec_compose( parsec_taskpool_t* start,
         PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "Compound taskpool %p add %d taskpool %p",
                              compound, compound->nb_taskpools, next );
     } else {
-        compound = calloc(1, sizeof(parsec_compound_taskpool_t));
-        PARSEC_OBJ_CONSTRUCT(compound, parsec_taskpool_t);
-        compound->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_COMPOUND;
-        compound->taskpool_array = malloc(16 * sizeof(parsec_taskpool_t*));
-        assert(NULL == compound->super.taskpool_name);
-        if( asprintf(&compound->super.taskpool_name, "Compound Taskpool %d",
-                     next->taskpool_id) <= 0 ) {
-            compound->super.taskpool_name = NULL;
-        }
+        compound = PARSEC_OBJ_NEW(parsec_compound_taskpool_t);
+
+        asprintf(&compound->super.taskpool_name, "Compound Taskpool %d", next->taskpool_id);
 
         compound->taskpool_array[0] = start;
         compound->taskpool_array[1] = next;
         compound->taskpool_array[2] = NULL;
-        compound->completed_taskpools = 0;
         compound->nb_taskpools = 2;
-        compound->super.startup_hook = parsec_compound_taskpool_startup;
-        compound->super.destructor = parsec_compound_taskpool_destructor;
+
         PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "Compound taskpool %p started with %p and %p taskpools",
                              compound, start, next );
     }
     return (parsec_taskpool_t*)compound;
 }
+

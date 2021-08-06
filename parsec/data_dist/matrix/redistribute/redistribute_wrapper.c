@@ -143,10 +143,9 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
 /**
  * @param [inout] the parsec object to destroy
  */
-void parsec_redistribute_Destruct(parsec_taskpool_t *taskpool)
+static void
+__parsec_redistribute_destructor(parsec_redistribute_taskpool_t *redistribute_taskpool)
 {
-    parsec_redistribute_taskpool_t *redistribute_taskpool = (parsec_redistribute_taskpool_t *)taskpool;
-
     /* Optimized version: tile sizes of source and target ar the same,
      * displacements in both source and target are at the start of tiles */
     if( (redistribute_taskpool->_g_descY->mb == redistribute_taskpool->_g_descT->mb)
@@ -156,7 +155,7 @@ void parsec_redistribute_Destruct(parsec_taskpool_t *taskpool)
         && (redistribute_taskpool->_g_disi_T % redistribute_taskpool->_g_descT->mb == 0)
         && (redistribute_taskpool->_g_disj_T % redistribute_taskpool->_g_descT->nb == 0) )
     {
-        parsec_redistribute_reshuffle_taskpool_t *redistribute_reshuffle_taskpool = (parsec_redistribute_reshuffle_taskpool_t *)taskpool;
+        parsec_redistribute_reshuffle_taskpool_t *redistribute_reshuffle_taskpool = (parsec_redistribute_reshuffle_taskpool_t *)redistribute_taskpool;
         parsec_matrix_del2arena(&redistribute_reshuffle_taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX]);
     } else {
         parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX]);
@@ -164,9 +163,12 @@ void parsec_redistribute_Destruct(parsec_taskpool_t *taskpool)
         // parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ADT_IDX]);
         parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX]);
     }
-
-    parsec_taskpool_free(taskpool);
 }
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_redistribute_destructor);
+PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_reshuffle_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_redistribute_destructor);
 
 /**
  * @brief Redistribute dcY to dcT in PTG
@@ -197,7 +199,6 @@ int parsec_redistribute(parsec_context_t *parsec,
         parsec_context_add_taskpool(parsec, parsec_redistribute_ptg);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
-        parsec_redistribute_Destruct(parsec_redistribute_ptg);
     }
 
     return PARSEC_SUCCESS;

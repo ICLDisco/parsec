@@ -115,6 +115,8 @@ typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
 
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 /*
  * Globals
  */
@@ -298,9 +300,9 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
     return &testing_handle->super;
 }
 
-void testing_stage_custom_Destruct( parsec_taskpool_t *tp )
+static void
+__parsec_taskpool_stage_custom_destructor(parsec_stage_custom_taskpool_t *stage_custom_taskpool)
 {
-    parsec_stage_custom_taskpool_t *stage_custom_taskpool = (parsec_stage_custom_taskpool_t *)tp;
     two_dim_block_cyclic_t *descA = (two_dim_block_cyclic_t*)stage_custom_taskpool->_g_descA;
     two_dim_block_cyclic_t *descB = (two_dim_block_cyclic_t*)stage_custom_taskpool->_g_descB;
 
@@ -308,9 +310,10 @@ void testing_stage_custom_Destruct( parsec_taskpool_t *tp )
     parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)stage_custom_taskpool->_g_descA );
     parsec_data_free(descB->mat);
     parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)stage_custom_taskpool->_g_descB );
-    parsec_taskpool_free(tp);
     free(descA);
     free(descB);
 }
 
+PARSEC_OBJ_CLASS_INSTANCE(parsec_stage_custom_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_taskpool_stage_custom_destructor);
 %}

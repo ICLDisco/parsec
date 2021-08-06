@@ -6,6 +6,20 @@
 
 #include "stress.h"
 
+static void __parsec_stress_destructor( parsec_taskpool_t *tp )
+{
+    parsec_stress_taskpool_t *stress_taskpool = (parsec_stress_taskpool_t *)tp;
+    two_dim_block_cyclic_t *dcA;
+    parsec_matrix_del2arena( & stress_taskpool->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX] );
+    parsec_data_free(stress_taskpool->_g_descA->mat);
+    dcA = stress_taskpool->_g_descA;
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)stress_taskpool->_g_descA );
+    free(dcA);
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_stress_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_stress_destructor);
+
 parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb )
 {
     parsec_stress_taskpool_t* testing_handle = NULL;
@@ -63,16 +77,4 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
                              matrix_UpperLower, 1, mb, mb, mb,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
     return &testing_handle->super;
-}
-
-void testing_stress_Destruct( parsec_taskpool_t *tp )
-{
-    parsec_stress_taskpool_t *stress_taskpool = (parsec_stress_taskpool_t *)tp;
-    two_dim_block_cyclic_t *dcA;
-    parsec_matrix_del2arena( & stress_taskpool->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX] );
-    parsec_data_free(stress_taskpool->_g_descA->mat);
-    dcA = stress_taskpool->_g_descA;
-    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)stress_taskpool->_g_descA );
-    parsec_taskpool_free(tp);
-    free(dcA);
 }

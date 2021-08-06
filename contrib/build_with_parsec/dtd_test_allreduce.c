@@ -13,7 +13,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#if PARSEC_VERSION_MAJOR < 4
+#include "parsec/interfaces/superscalar/insert_function.h"
+#else
 #include "parsec/interfaces/dtd/insert_function.h"
+#endif
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/arena.h"
 #include "parsec/data_internal.h"
@@ -30,9 +34,14 @@
 
 static int verbose = 0;
 
+#if PARSEC_VERSION_MAJOR < 4
 enum regions {
                TILE_FULL,
              };
+#else
+/* IDs for the Arena Datatypes */
+static int TILE_FULL;
+#endif
 
 int
 fill_data( parsec_execution_stream_t    *es,
@@ -135,8 +144,13 @@ int main(int argc, char **argv)
     }
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
-
+#if PARSEC_VERSION_MAJOR < 4
     parsec_matrix_add2arena_rect(&parsec_dtd_arenas_datatypes[TILE_FULL],
+#else
+    parsec_arena_datatype_t *adt;
+    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
+    parsec_matrix_add2arena_rect( adt,
+#endif
                                  parsec_datatype_int32_t,
                                  nb, 1, nb);
 
@@ -216,7 +230,13 @@ int main(int argc, char **argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     parsec_taskpool_free( dtd_tp );
 
+#if PARSEC_VERSION_MAJOR < 4
     PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0].arena);
+#else
+    parsec_matrix_del2arena(adt);
+    PARSEC_OBJ_RELEASE(adt->arena);
+    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
+#endif
     parsec_dtd_data_collection_fini( A );
     parsec_matrix_destroy_data(dcA);
     parsec_data_collection_destroy(&dcA->super);

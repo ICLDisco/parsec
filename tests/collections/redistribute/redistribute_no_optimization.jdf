@@ -115,6 +115,8 @@ CORE_redistribute_no_optimization_update(DTYPE *T, DTYPE *NW, DTYPE *NE, DTYPE *
 
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 /**
  * @brief Redistribute from source dc to target dc: no optimization of variable size 
  *
@@ -441,16 +443,15 @@ parsec_redistribute_no_optimization_New(parsec_tiled_matrix_dc_t *dcY,
 /**
  * @param [inout] the parsec object to destroy
  */
-void parsec_redistribute_no_optimization_Destruct(parsec_taskpool_t *taskpool)
-{   
-    parsec_redistribute_no_optimization_taskpool_t *redistribute_no_optimization_taskpool = (parsec_redistribute_no_optimization_taskpool_t *)taskpool;
-    
+static void
+__parsec_taskpool_redistribute_no_optimization_destructor(parsec_redistribute_no_optimization_taskpool_t *redistribute_no_optimization_taskpool)
+{
     parsec_matrix_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ADT_IDX]);
     parsec_matrix_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ADT_IDX]);
-    
-    parsec_taskpool_free(taskpool);
 }
 
+PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_no_optimization_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_taskpool_redistribute_no_optimization_destructor);
 
 /**
  * @brief Redistribute dcY to dcT in PTG: no optimization of varible size
@@ -481,7 +482,6 @@ int parsec_redistribute_no_optimization(parsec_context_t *parsec,
         parsec_context_add_taskpool(parsec, parsec_redistribute_no_optimization_ptg);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
-        parsec_redistribute_no_optimization_Destruct(parsec_redistribute_no_optimization_ptg);
     }
 
     return 0;

@@ -88,6 +88,8 @@ int global_to_local_index(int N, int idx){
 
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 dataA      [type = "struct parsec_tiled_matrix_dc_t *"]
 NB         [type = int]
 NT         [type = int]
@@ -160,7 +162,7 @@ LINEAR_REDUC(i)
   : dataA(offset,0)
 
   READ  B <- (tree_count==i) ? T LINE_TERMINATOR(0)
-          <- (tree_count<i)  ? C LINEAR_REDUC(i+1)
+          <- (tree_count>i)  ? C LINEAR_REDUC(i+1)
   RW    C <- (0==sz) ? A REDUCTION(offset) 
           <- (0<sz)  ? B BT_REDUC(i, sz, 0)
           -> (1<i)  ? B LINEAR_REDUC(i-1)

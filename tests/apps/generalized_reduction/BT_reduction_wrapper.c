@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -18,6 +18,15 @@ static parsec_datatype_t block;
 #include "BT_reduction.h"
 #include "BT_reduction_wrapper.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+
+static void
+__parsec_taskpool_BT_reduction_destruct(parsec_BT_reduction_taskpool_t *tp)
+{
+    parsec_type_free( &(tp->arenas_datatypes[PARSEC_BT_reduction_DEFAULT_ADT_IDX].opaque_dtt) );
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_BT_reduction_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_taskpool_BT_reduction_destruct);
 
 /**
  * @param [IN] A    the data, already distributed and allocated
@@ -43,14 +52,3 @@ parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
     return (parsec_taskpool_t*)tp;
 }
 
-/**
- * @param [INOUT] o the parsec object to destroy
- */
-void BT_reduction_destroy(parsec_taskpool_t *o)
-{
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Type_free( &block );
-#endif
-
-    parsec_taskpool_free(o);
-}

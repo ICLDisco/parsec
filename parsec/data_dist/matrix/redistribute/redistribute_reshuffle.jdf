@@ -9,6 +9,8 @@ extern "C" %{
 
 %}
 
+%option no_taskpool_instance = true  /* can be anything */
+
 /**
  * @brief Redistribute from source dc to target dc
  *

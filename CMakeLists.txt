@@ -1254,6 +1254,9 @@ configure_package_config_file(cmake_modules/PaRSECConfig.cmake.in
 configure_file (
   contrib/build_with_parsec/Makefile.in
   ${CMAKE_CURRENT_BINARY_DIR}/contrib/build_with_parsec/Makefile @ONLY)
+configure_file (
+  contrib/build_with_parsec/CMakeLists.txt.in
+  ${CMAKE_CURRENT_BINARY_DIR}/contrib/build_with_parsec/CMakeLists.txt @ONLY)
 
 file(GLOB_RECURSE pattern_files RELATIVE
      "${CMAKE_CURRENT_SOURCE_DIR}/" "contrib/build_with_parsec/*.[c|h]"

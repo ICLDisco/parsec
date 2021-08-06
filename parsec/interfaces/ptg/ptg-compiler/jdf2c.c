@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1411,12 +1411,25 @@ static void jdf_generate_header_file(const jdf_t* jdf)
                                 "", "  ", ";\n", ";\n"));
     }
     houtput("  /* The array of datatypes (%s and co.) */\n"
-            "  parsec_arena_datatype_t* arenas_datatypes;\n"
+            "  parsec_arena_datatype_t arenas_datatypes[PARSEC_%s_ADT_IDX_MAX];\n"
             "  uint32_t arenas_datatypes_size;\n",
             UTIL_DUMP_LIST_FIELD( sa1, jdf->datatypes, next, name,
-                                  dump_string, NULL, "", "", ",", ""));
+                                  dump_string, NULL, "", "", ",", ""),
+            jdf_basename);
 
     houtput("} parsec_%s_taskpool_t;\n\n", jdf_basename);
+
+    /* Generate the class declaration. Unlike in a normal class hierarchy the class in the
+     * wrapper is not a superset of the internal class but a subset. Thus, we should never
+     * directly call PARSEC_OBJ_NEW on the wrapper class or we might overwrite memory.
+     */
+    houtput("/** Beware that this object is not a superset of the internal object, and as a result\n"
+            " *  we should never create one directly. Instead we should rely on the creation of the\n"
+            " *  internal object (__parsec_%s_taskpool_t).\n"
+            " */\n"
+            "PARSEC_OBJ_CLASS_DECLARATION(parsec_%s_taskpool_t);\n",
+            jdf_basename,
+            jdf_basename);
 
     {
         typed_globals_info_t prop = { sa3, NULL, "hidden", .prefix = "_g_" };
@@ -4424,7 +4437,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     string_arena_t *sa1 = string_arena_new(64);
     jdf_function_entry_t* f;
 
-    coutput("static void %s_destructor( __parsec_%s_internal_taskpool_t *__parsec_tp )\n"
+    coutput("static void __parsec_%s_internal_destructor( __parsec_%s_internal_taskpool_t *__parsec_tp )\n"
             "{\n"
             "  uint32_t i;\n",
             jdf_basename, jdf_basename);
@@ -4446,9 +4459,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "    if( NULL != __parsec_tp->super.arenas_datatypes[i].arena ) {\n"
             "      PARSEC_OBJ_RELEASE(__parsec_tp->super.arenas_datatypes[i].arena);\n"
             "    }\n"
-            "  }\n"
-            "  free( __parsec_tp->super.arenas_datatypes ); __parsec_tp->super.arenas_datatypes = NULL;\n"
-            "  __parsec_tp->super.arenas_datatypes_size = 0;\n");
+            "  }\n");
 
     coutput("  /* Destroy the data repositories for this object */\n");
     for( f = jdf->functions; NULL != f; f = f->next ) {
@@ -4520,11 +4531,9 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "    if( PARSEC_SUCCESS != device->taskpool_unregister(device, &__parsec_tp->super.super) ) continue;\n"
             "  }\n");
 
-    coutput("  free(__parsec_tp->super.super.taskpool_name);\n"
-            "  free(__parsec_tp);\n");
+    coutput("  free(__parsec_tp->super.super.taskpool_name); __parsec_tp->super.super.taskpool_name = NULL;\n");
 
-    coutput("}\n"
-            "\n");
+    coutput("}\n\n");
 
     string_arena_free(sa);
     string_arena_free(sa1);
@@ -4532,37 +4541,19 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
 static void jdf_generate_constructor( const jdf_t* jdf )
 {
-    string_arena_t *sa1,*sa2, *sa3;
+    string_arena_t *sa1,*sa2;
     profiling_init_info_t pi;
     int idx = 0;
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
-    sa3 = string_arena_new(64);
 
-    coutput("%s\n",
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
-                                  dump_string, NULL, "", "#undef ", "\n", "\n"));
-
-    {
-        typed_globals_info_t prop = { sa2, NULL, "hidden", .prefix = "" };
-        coutput("parsec_%s_taskpool_t *parsec_%s_new(%s)\n{\n",
-                jdf_basename, jdf_basename,
-                UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, &prop,
-                                "", "", ", ", ""));
-    }
-
-    coutput("  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)calloc(1, sizeof(__parsec_%s_internal_taskpool_t));\n"
+    coutput("void __parsec_%s_internal_constructor(__parsec_%s_internal_taskpool_t* __parsec_tp)\n{\n"
             "  parsec_task_class_t* tc;\n"
-            "  uint32_t i, j;\n",
-            jdf_basename, jdf_basename, jdf_basename);
+            "  uint32_t i, j;\n\n",
+            jdf_basename, jdf_basename);
 
     string_arena_init(sa1);
-    coutput("  /* Dump the hidden parameters with default values */\n"
-            "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
-                                 dump_hidden_globals_init, sa2, "", "  ", "\n", "\n"));
-    string_arena_init(sa1);
-    string_arena_init(sa2);
 
     coutput("  __parsec_tp->super.super.nb_task_classes = PARSEC_%s_NB_TASK_CLASSES;\n"
             "  __parsec_tp->super.super.devices_index_mask = PARSEC_DEVICES_ALL;\n"
@@ -4649,14 +4640,9 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         } else {
             coutput("  __parsec_tp->super.arenas_datatypes_size = %d;\n", datatype_index);
         }
-
-        coutput("  __parsec_tp->super.arenas_datatypes = (parsec_arena_datatype_t *)calloc(__parsec_tp->super.arenas_datatypes_size, sizeof(parsec_arena_datatype_t));\n");
     }
 
-    coutput("  /* Now the Parameter-dependent structures: */\n"
-            "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
-                                 dump_globals_init, sa2, "", "  ", "\n", "\n"));
-
+    string_arena_init(sa2);
     pi.sa = sa2;
     pi.idx = 0;
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
@@ -4680,20 +4666,63 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         coutput("#  endif /* defined(PARSEC_PROF_TRACE) */\n");
     }
 
+    coutput("  __parsec_tp->super.super.repo_array = %s;\n",
+            (NULL != jdf->functions) ? "__parsec_tp->repositories" : "NULL");
+
+    coutput("  __parsec_tp->super.super.startup_hook = (parsec_startup_fn_t)%s_startup;\n"
+            "  (void)parsec_taskpool_reserve_id((parsec_taskpool_t*)__parsec_tp);\n"
+            "}\n\n",
+            jdf_basename);
+
+    string_arena_free(sa1);
+    string_arena_free(sa2);
+}
+
+static void jdf_generate_new_function( const jdf_t* jdf )
+{
+    string_arena_t *sa1,*sa2;
+
+    sa1 = string_arena_new(64);
+    sa2 = string_arena_new(64);
+
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD( sa1, jdf->globals, next, name,
+                                  dump_string, NULL, "", "#undef ", "\n", "\n"));
+
+    {
+        typed_globals_info_t prop = { sa2, NULL, "hidden", .prefix = "" };
+        coutput("parsec_%s_taskpool_t *parsec_%s_new(%s)\n{\n",
+                jdf_basename, jdf_basename,
+                UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, &prop,
+                                "", "", ", ", ""));
+    }
+
+    coutput("  __parsec_%s_internal_taskpool_t *__parsec_tp = PARSEC_OBJ_NEW(__parsec_%s_internal_taskpool_t);\n",
+            jdf_basename, jdf_basename);
+
+    string_arena_init(sa1);
+    string_arena_init(sa2);
+    coutput("  /* Dump the hidden parameters with default values */\n"
+            "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                                 dump_hidden_globals_init, sa2, "", "  ", "\n", "\n"));
+
+    string_arena_init(sa1);
+    string_arena_init(sa2);
+    coutput("  /* Now the Parameter-dependent structures: */\n"
+            "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                                 dump_globals_init, sa2, "", "  ", "\n", "\n"));
+
     for(jdf_function_entry_t *f = jdf->functions; f != NULL; f = f->next) {
         coutput("  PARSEC_AYU_REGISTER_TASK(&%s_%s);\n",
                 jdf_basename, f->fname);
     }
 
-    coutput("  __parsec_tp->super.super.repo_array = %s;\n",
-            (NULL != jdf->functions) ? "__parsec_tp->repositories" : "NULL");
-
     coutput("  __parsec_tp->super.super.startup_hook = (parsec_startup_fn_t)%s_startup;\n"
-            "  __parsec_tp->super.super.destructor   = (parsec_destruct_fn_t)%s_destructor;\n"
             "  (void)parsec_taskpool_reserve_id((parsec_taskpool_t*)__parsec_tp);\n",
-            jdf_basename, jdf_basename);
+            jdf_basename);
 
     string_arena_init(sa1);
+    string_arena_init(sa2);
     coutput("/* Prevent warnings related to not used hidden global variables */\n"
             "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
                                  dump_name_of_hidden_globals_without_default, sa2, "", "  (void)", ";", ";\n"));
@@ -4704,7 +4733,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     string_arena_free(sa1);
     string_arena_free(sa2);
-    string_arena_free(sa3);
 }
 
 static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_entry_t *f)
@@ -8393,8 +8421,17 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     /**
      * Generate the externally visible function.
      */
-    jdf_generate_destructor( jdf );
+    jdf_generate_destructor(jdf);
     jdf_generate_constructor(jdf);
+    coutput("  /** Generate class declaration and instance using the above constructor and destructor */\n"
+            "  PARSEC_OBJ_CLASS_DECLARATION(__parsec_%s_internal_taskpool_t);\n"
+            "  PARSEC_OBJ_CLASS_INSTANCE(__parsec_%s_internal_taskpool_t, parsec_%s_taskpool_t,\n"
+            "                            __parsec_%s_internal_constructor, __parsec_%s_internal_destructor);\n\n",
+            jdf_basename,
+            jdf_basename, jdf_basename,
+            jdf_basename, jdf_basename);
+    
+    jdf_generate_new_function(jdf);
 
     free_name_placeholders();
 
@@ -8405,6 +8442,14 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
         coutput("%s", jdf->epilogue->external_code);
         if( !JDF_COMPILER_GLOBAL_ARGS.noline )
             coutput("#line %d \"%s\"\n",cfile_lineno+1, jdf_cfilename);
+    }
+
+    /**
+     * Automatically generate the taskpool instance.
+     */
+    if( NULL == jdf_find_property(jdf->global_properties, JDF_PROP_NO_AUTOMATIC_TASKPOOL_INSTANCE, NULL) ) {
+        coutput("PARSEC_OBJ_CLASS_INSTANCE(parsec_%s_taskpool_t, parsec_taskpool_t, NULL, NULL);\n\n",
+                jdf_basename);
     }
 
  err:

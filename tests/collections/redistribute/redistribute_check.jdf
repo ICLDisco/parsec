@@ -11,6 +11,8 @@ extern DTYPE *Y_g, *T_g;
 
 %}
 
+%option no_taskpool_instance = true  /* can be aything */
+
 /**
  * @brief Check result: copy to a single node
  *
@@ -74,7 +76,7 @@ m_end = (disi_Y+size_row-1) / (descY->mb-2*R)
 n_start = disj_Y / (descY->nb-2*R)
 n_end = (disj_Y+size_col-1) / (descY->nb-2*R)
 
-m = m_start .. m_end       
+m = m_start .. m_end
 n = %{ return batch_col*num_col_Y+n_start; %} .. %{ return parsec_imin((batch_col+1)*num_col_Y+n_start-1, n_end); %}
 
 i_start = disi_Y % (descY->mb-2*R)
@@ -205,16 +207,15 @@ parsec_redistribute_check_New(parsec_tiled_matrix_dc_t *Y,
     return redistribute_check_taskpool;
 }
 
-/**
- * @param [inout] the parsec object to destroy
- */
-void parsec_redistribute_check_Destruct(parsec_taskpool_t *taskpool)
+static void
+__parsec_taskpool_redistribute_check_destructor(parsec_redistribute_check_taskpool_t *redistribute_check_taskpool)
 {
-    parsec_redistribute_check_taskpool_t *redistribute_check_taskpool = (parsec_redistribute_check_taskpool_t *)taskpool;
     parsec_matrix_del2arena(&redistribute_check_taskpool->arenas_datatypes[PARSEC_redistribute_check_ORIGIN_ADT_IDX]);
     parsec_matrix_del2arena(&redistribute_check_taskpool->arenas_datatypes[PARSEC_redistribute_check_TARGET_ADT_IDX]);
-    parsec_taskpool_free(taskpool);
 }
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_check_taskpool_t, parsec_taskpool_t,
+                          NULL, __parsec_taskpool_redistribute_check_destructor);
 
 /**
  * @brief Check result
@@ -222,7 +223,7 @@ void parsec_redistribute_check_Destruct(parsec_taskpool_t *taskpool)
  * @details
  * Check whether value of submatrix in dcY and in dcT are 
  * the same, not including the ghost region.
- *      
+ *
  * @param [in] dcY: the data, already distributed and allocated
  * @param [in] dcT: the data, already distributed and allocated
  * @param [in] size_row: row size of submatrix to be checked 
@@ -352,7 +353,6 @@ int parsec_redistribute_check(parsec_context_t *parsec,
     parsec_context_add_taskpool(parsec, parsec_redistribute_check);
     parsec_context_start(parsec);
     parsec_context_wait(parsec);
-    parsec_redistribute_check_Destruct(parsec_redistribute_check);
 
     /* Check result and print the first detected location where values are different */
     if( (unsigned int)dcY->super.myrank == dcY->super.rank_of(&dcY->super, 0, 0) ){
@@ -387,3 +387,4 @@ int parsec_redistribute_check(parsec_context_t *parsec,
 }
 
 %}
+

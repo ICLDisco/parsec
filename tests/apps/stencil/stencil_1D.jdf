@@ -1,8 +1,8 @@
 extern "C" %{
 /*
- * Copyright (c) 2019 The Universiy of Tennessee and The Universiy
- *                    of Tennessee Research Foundation. All rights
- *                    reserved.
+ * Copyright (c) 2019-2020 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
  */
 #include "stencil_internal.h"
 

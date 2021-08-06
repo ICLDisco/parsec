@@ -205,8 +205,8 @@ END
 extern "C" %{
 
 parsec_taskpool_t* kcyclic_taskpool(two_dim_block_cyclic_t* A,
-                                       two_dim_block_cyclic_t* VA,
-                                       two_dim_block_cyclic_t* CA)
+                                    two_dim_block_cyclic_t* VA,
+                                    two_dim_block_cyclic_t* CA)
 {
     parsec_kcyclic_taskpool_t* tp;
     parsec_datatype_t dt;

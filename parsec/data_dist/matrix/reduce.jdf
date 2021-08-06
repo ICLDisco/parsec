@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2011-2016 The University of Tennessee and The University
+ * Copyright (c) 2011-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -38,6 +38,4 @@ BODY
   printf( "reduce(level = %d, process = %d) %d %d (p [%d .. %d])\n",
           l, p, p * (1 << l), p * (1 << l) + (1 << (l-1)), 0, (MT / (1<<l)) );
 END
-extern "C" %{
 
-%}

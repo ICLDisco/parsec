@@ -315,12 +315,12 @@ done
 }
 
 function set_python_venv {
-    if [ -x "$(command -v virtualenv)" ]; then
-        virtualenv --prompt='pyparsec> ' ${PYTHON_EXECUTABLE:+-p ${PYTHON_EXECUTABLE}} venv
+    if ${PYTHON_EXECUTABLE:-python3} -m venv -h >/dev/null; then
+        ${PYTHON_EXECUTABLE:-python3} -m venv venv
         source venv/bin/activate
         pip install Cython pandas matplotlib tables
     else
-        echo >&2 "Could not prepare a Python venv because \`virtualenv\` was not found... Continue with native Python."
+        echo >&2 "Could not prepare a Python venv because \`-m venv\` is not supported by the selected python..." && exit 3
     fi
 }
 
