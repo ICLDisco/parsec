@@ -1460,7 +1460,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
             }
 #endif
             /* Push data into the GPU from the source device */
-            if(PARSEC_SUCCESS != gpu_task->stage_in(gpu_task, (1U << flow->flow_index), gpu_stream)){
+            if(PARSEC_SUCCESS != gpu_task->stage_in? gpu_task->stage_in(gpu_task, (1U << flow->flow_index), gpu_stream): PARSEC_SUCCESS){
                 parsec_warning( "%s:%d %s", __FILE__, __LINE__,
                                 "gpu_task->stage_in");
                 if( in_elem_dev->super.super.type != PARSEC_DEV_CUDA )
@@ -2206,7 +2206,7 @@ parsec_cuda_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
             /* If the gpu copy is not owned by parsec, we don't manage it at all */
             if( 0 == (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
             original = gpu_copy->original;
-            if(PARSEC_SUCCESS != gpu_task->stage_out(gpu_task, (1U << i), gpu_stream)){
+            if(PARSEC_SUCCESS != gpu_task->stage_out? gpu_task->stage_out(gpu_task, (1U << i), gpu_stream): PARSEC_SUCCESS){
                 parsec_warning( "%s:%d %s", __FILE__, __LINE__,
                                 "gpu_task->stage_out from device ");
                 parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->task_class->out[i]->name,
@@ -2320,7 +2320,7 @@ parsec_cuda_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                 }
 #endif
                 /* Move the data back into main memory */
-                if( PARSEC_SUCCESS != gpu_task->stage_out(gpu_task, (1U << flow->flow_index), gpu_stream)){
+                if( PARSEC_SUCCESS != gpu_task->stage_out? gpu_task->stage_out(gpu_task, (1U << flow->flow_index), gpu_stream): PARSEC_SUCCESS){
                     parsec_warning( "%s:%d %s", __FILE__, __LINE__,
                                     "gpu_task->stage_out from device ");
                     parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->task_class->out[i]->name,
