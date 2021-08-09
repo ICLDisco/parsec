@@ -24,7 +24,7 @@ int main( int argc, char** argv )
     int i = 1, rc, verbose;
 
 #ifdef PARSEC_HAVE_MPI
-    MPI_Init(NULL, NULL);
+    MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &rc);
 #endif
 
     while( NULL != argv[i] ) {
