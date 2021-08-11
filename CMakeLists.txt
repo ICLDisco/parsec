@@ -267,7 +267,7 @@ include (CheckCXXCompilerFlag)
 
 # Check for compiler tools
 find_package(BISON)
-find_package(FLEX)
+find_package(FLEX REQUIRED) # required because of utils/show_help and utils/keyval
 set(PARSEC_HAVE_RECENT_LEX 0)
 
 # check for the CPU we build for
