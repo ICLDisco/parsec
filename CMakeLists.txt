@@ -616,17 +616,22 @@ IF( BUILD_PARSEC )
 #include <stdio.h>
 #include <stdlib.h>
 int main(int argc, char *argv[]) {
-    printf(\"HWLOC headers %x; lib %x.\\\\n\");
+    printf(\"HWLOC headers version: %x.\\\\nCalling `hwloc_get_api_version()`...\\\\n\", HWLOC_API_VERSION); fflush(stdout);
+    unsigned int lib_api_version = hwloc_get_api_version();
+    printf(\"HWLOC library version: %x.\\\\n\", lib_api_version); fflush(stdout);
 #if HWLOC_API_VERSION >= 0x00020000
-    if (hwloc_get_api_version() < 0x20000) {
+    if (lib_api_version < 0x00020000) {
 #else
-    if (hwloc_get_api_version() >= 0x20000) {
+    if (lib_api_version >= 0x00020000) {
 #endif
+        printf(\"Header and library versions are incompatible.\"); fflush(stdout);
         return 1;
     }
+    printf(\"Calling `MPI_Init()`...\\\\n\"); fflush(stdout);
     MPI_Init(&argc, &argv);
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
+    printf(\"HWLOC+MPI worked.\\\\n\");
     return 0;
     }" MPI_AND_HWLOC_COMPATIBLE)
         if(NOT MPI_AND_HWLOC_COMPATIBLE)

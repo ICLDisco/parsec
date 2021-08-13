@@ -24,12 +24,18 @@ echo -e "Using CUDA\tfrom\t$OLCF_CUDA_ROOT"
 [ -n "$LMOD_MPI_NAME" ] || module load spectrum-mpi
 echo -e "Using MPI\tfrom\t$LMOD_MPI_NAME"
 
+[ -n "$OLCF_HWLOC_ROOT" ] || module load hwloc
+echo -e "Using HWLOC\tfrom\t$OLCF_HWLOC_ROOT"
+
 ENVVARS+=" CC=mpicc CXX=mpicxx FC=mpif90 CFLAGS='$CFLAGS' LDFLAGS='$LDFLAGS'"
 
 #enable_static=no
 with_cuda=$OLCF_CUDA_ROOT
 with_mpi=yes
-with_hwloc=yes # system default works fine
+with_hwloc=$OLCF_HWLOC_ROOT
+# system default works fine, yet the tryrun will fail running on a compile node, just let it know it works
+CMAKE_DEFINES+=" -DMPI_AND_HWLOC_COMPATIBLE=1"
+
 
 # Let's have configure do the rest as usual now
 
