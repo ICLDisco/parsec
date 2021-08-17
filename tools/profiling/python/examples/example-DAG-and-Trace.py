@@ -34,18 +34,30 @@ trace = pd.HDFStore(args.h5)
 # network-related events), and some from the user tasks of the
 # PaRSEC-enabled program.
 
+# This is the list of pre-defined task types, that do not correspond to user tasks
+predefined_tasks = ['N/A', 'TASK_MEMORY', 'Device delegate', 'RELEASE_DEPS', 'ACTIVATE_CB',
+                    'DATA_FLUSH', 'MPI_ACTIVATE', 'MPI_DATA_CTL', 'MPI_DATA_PLD_SND',
+                    'MPI_DATA_PLD_RCV', 'PUT_CB']
+not_predefined_types = list(trace.event_types)
+for t in predefined_tasks:
+    try:
+        not_predefined_types.remove( trace.event_types[t] )
+    except IndexError:
+        pass
+
 # To increase efficiency, we gather only the user-task events in a
 # separate dataframe.
 # Unfortunately, there is no perfect way of finding the first user-task
 # type in the dictionary. We use the heuristic that everything after PUT_CB
 # is a user-defined task.
-tasks = trace.events[trace.events.type >= trace.event_types['PUT_CB']+1]
+tasks = trace.events.loc[trace.events['type'].isin(not_predefined_types)]
+
 # And then, we re-index it on the 3-tuple (taskpool_id, type, id)
-tasks.set_index(['taskpool_id', 'type', 'id'], inplace=True)
+tasks.set_index(['taskpool_id', 'tcid', 'id'], inplace=True)
 
 # For the example, we select a single network event: the first
 # payload receive.
-network_event = trace.events[ trace.events.type == trace.event_types['MPI_DATA_PLD_RCV'] ].iloc[0]
+network_event = trace.events[trace.events.type == trace.event_types['MPI_DATA_PLD_RCV']].iloc[0]
 
 # Now, we can find the corresponding task in the events trace by
 # just providing the index
@@ -59,10 +71,10 @@ slist = dag.successors_from_id(network_event.tpid, network_event.tcid, network_e
 # Small caveat: tasks found from the DAG are dicts, not python classes, so one
 # needs to access the fields with the ['field'] notation, and not with the .field
 # notation
-print "Task %s( %s ) ran on node %d from %g (s) to %g (s)" %\
-    (task_node['label'], task_node['param'], task_event.node_id, task_event.begin/1e9, task_event.end/1e9)
-print "It generated a payload receive event on node %d from %g (s) to %g (s)" %\
-    (network_event.node_id, network_event.begin/1e9, network_event.end/1e9)
+print("Task {}( {} ) ran on node {} from {} (s) to {} (s)"
+      .format(task_node['label'], task_node['param'], task_event.node_id, task_event.begin/1e9, task_event.end/1e9))
+print("It generated a payload receive event on node {} from {} (s) to {} (s)"
+      .format(network_event.node_id, network_event.begin/1e9, network_event.end/1e9))
 
 # Let's iterate over the successors
 for n in slist.keys():
@@ -79,6 +91,5 @@ for n in slist.keys():
     if network_event.node_id == succ_event.node_id:
         # Lookup that task in the DAG to get access to its fields
         task_node = dag.node_from_name(n)
-        print "Then, its successor task %s ( %s ) ran on node %d from %g (s) to %g (s)" %\
-          ( task_node['label'], task_node['param'], succ_event.node_id, succ_event.begin/1e9, succ_event.end/1e9)
-
+        print("Then, its successor task {} ( {} ) ran on node {} from {} (s) to {} (s)"
+              .format(task_node['label'], task_node['param'], succ_event.node_id, succ_event.begin/1e9, succ_event.end/1e9))
