@@ -32,4 +32,22 @@ if(Python_FOUND AND PARSEC_PYTHON_TOOLS AND PARSEC_PROF_TRACE AND MPI_C_FOUND)
     set_property(TEST profiling/check_hdf5_async APPEND PROPERTY DEPENDS profiling/generate_hdf5_async)
 
   parsec_addtest_cmd(profiling/cleanup_profile_files ${SHM_TEST_CMD_LIST} rm -f bw-0.prof bw-1.prof bw.h5 async-0.prof async.h5)
+
+  if(PARSEC_PROF_GRAPHER)
+    parsec_addtest_cmd(profiling/generate_profile_and_dot_bw:mp ${MPI_TEST_CMD_LIST} 2 apps/pingpong/bw_test -n 3 -f 2 -l 2097152 -- --mca profile_filename bw  --mca mca_pins task_profiler --dot bw)
+
+    parsec_addtest_cmd(profiling/generate_hdf5_for_dag_and_dot ${SHM_TEST_CMD_LIST}
+            ${Python_EXECUTABLE}
+            ${PROJECT_BINARY_DIR}/tools/profiling/python/profile2h5.py --output=bw.h5 bw-0.prof bw-1.prof)
+    set_property(TEST profiling/generate_hdf5_for_dag_and_dot APPEND PROPERTY DEPENDS profiling/generate_profile_and_dot_bw:mp)
+    set_property(TEST profiling/generate_hdf5_for_dag_and_dot APPEND PROPERTY ENVIRONMENT
+            LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/tools/profiling/python/build/temp.${SYSCONF}:$ENV{LD_LIBRARY_PATH})
+    set_property(TEST profiling/generate_hdf5_for_dag_and_dot APPEND PROPERTY ENVIRONMENT
+            PYTHONPATH=${CMAKE_BINARY_DIR}/tools/profiling/python/build/lib.${SYSCONF}/:$ENV{PYTHONPATH})
+
+    parsec_addtest_cmd(profiling/check_DAG_and_Trace ${SHM_TEST_CMD_LIST} ${Python_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/profiling/python/examples/example-DAG-and-Trace.py --dot bw-0.dot --dot bw-1.dot --h5 bw.h5)
+    set_property(TEST profiling/check_DAG_and_Trace APPEND PROPERTY DEPENDS profiling/generate_hdf5_for_dag_and_dot)
+
+    parsec_addtest_cmd(profiling/cleanup_dot_files ${SHM_TEST_CMD_LIST} rm -f bw-0.prof bw-1.prof bw.h5 bw-0.dot bw-1.dot)
+  endif(PARSEC_PROF_GRAPHER)
 endif(Python_FOUND AND PARSEC_PYTHON_TOOLS AND PARSEC_PROF_TRACE AND MPI_C_FOUND)
