@@ -358,7 +358,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Warning: unable to find the hash table hint, tuning behavior will be disabled\n");
     }
     
-    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:n:#:r:hp?")) != -1 ) {
+    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:#:r:hnp?")) != -1 ) {
         switch(ch) {
         case 'c':
             ch = strtol(optarg, &m, 0);
