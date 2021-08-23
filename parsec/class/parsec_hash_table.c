@@ -419,11 +419,17 @@ static void *parsec_hash_table_nolock_remove_from_old_tables(parsec_hash_table_t
 #if !defined(HELPFIRST)
 static void *parsec_hash_table_nolock_find_in_old_tables(parsec_hash_table_t *ht, parsec_key_t key)
 {
-    parsec_hash_table_head_t *head;
-    parsec_hash_table_item_t *current_item;
+    parsec_hash_table_head_t *head, *prev_head = ht->rw_hash;
+    parsec_hash_table_item_t *current_item, *prev_item = NULL;
+    int res = 0;
     uint64_t hash, hash64 = ht->key_functions.key_hash(key, ht->hash_data);
     for(head = ht->rw_hash->next; NULL != head; head = head->next) {
+        prev_item = NULL;
         hash = parsec_hash_table_universal_rehash(hash64, head->nb_bits);
+        // We need the lock on the old tables, as some other thread might
+        // be removing elements in this bucket, through remove_from_old_tables
+        // and that thread relies on the lowlevel table locks
+        parsec_atomic_lock( &head->buckets[hash].lock );
         for(current_item = head->buckets[hash].first_item;
             NULL != current_item;
             current_item = current_item->next_item) {
@@ -433,9 +439,30 @@ static void *parsec_hash_table_nolock_find_in_old_tables(parsec_hash_table_t *ht
                 PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Found item %p/%s into (old) hash table %p/%p in bucket %d",
                                      BASEADDROF(current_item, ht), ht->key_functions.key_print(estr, 64, key, ht->hash_data), ht, head, hash);
 #endif
+                // We already have the lock on the toplevel table bucket,
+                // and we have the lock on the lowlevel table bucket... So
+                // use the opportunity to move the element in the toplevel
+                if(NULL == prev_item) {
+                    head->buckets[hash].first_item = current_item->next_item;
+                } else {
+                    prev_item->next_item = current_item->next_item;
+                }
+                current_item->next_item = NULL;
+                res = parsec_atomic_fetch_dec_int32(&head->buckets[hash].cur_len);
+                if( 1 == res ) {
+                    res = parsec_atomic_fetch_dec_int32(&head->used_buckets);
+                    if( 1 == res ) {
+                        parsec_atomic_cas_ptr(&prev_head->next, head, head->next);
+                    }
+                }
+                parsec_hash_table_nolock_insert(ht, current_item);
+                parsec_atomic_unlock( &head->buckets[hash].lock );
                 return BASEADDROF(current_item, ht);
             }
+            prev_item = current_item;
         }
+        parsec_atomic_unlock( &head->buckets[hash].lock );
+        prev_head = head;
     }
     return NULL;
 }
