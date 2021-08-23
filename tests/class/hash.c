@@ -11,16 +11,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/time.h>
 #include "parsec/class/barrier.h"
 #include "parsec/bindthread.h"
 #include "parsec/parsec_hwloc.h"
 #include "parsec/os-spec-timing.h"
 #include "parsec/utils/mca_param.h"
+#include "parsec/utils/debug.h"
 
 #include "parsec/class/parsec_hash_table.h"
 
-#define NB_TESTS 30000
-#define NB_LOOPS 300
 #define START_BASE 4
 #define START_MASK (0xFFFFFFFF >> (32-START_BASE))
 
@@ -30,8 +30,9 @@ static parsec_barrier_t barrier2;
 
 typedef struct {
     parsec_hash_table_item_t ht_item;
-    int               thread_id; /* The id of the thread that last inserted that item */
-    int               nbthreads; /* How many threads there were when this item was inserted */
+    int               thread_id;  /* The id of the thread that last inserted that item */
+    int               nbthreads;  /* How many threads there were when this item was inserted */
+    int               thread_key; /* which of the keys is that key */
 } empty_hash_item_t;
 
 static parsec_key_fn_t key_functions = {
@@ -40,12 +41,83 @@ static parsec_key_fn_t key_functions = {
     .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };
 
+typedef struct {
+    int id;
+    int nbthreads;
+    int new_table_each_time;
+    int nb_loops;
+    int nb_tests;
+    uint64_t *keys;
+} param_t;
+
+static void *do_perf_test(void *_param)
+{
+    param_t *param = (param_t*)_param;
+    int id = param->id;
+    int nbthreads = param->nbthreads;
+    int nbtests = param->nb_tests / nbthreads + (id < (param->nb_tests % nbthreads));
+    parsec_time_t t0, t1;
+    int l, t;
+    uint64_t duration, max_duration = 0;
+    empty_hash_item_t *item_array;
+
+    parsec_bindthread(id, 0);
+
+    item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
+    for(t = 0; t < nbtests; t++) {
+        assert(nbthreads * t + id < param->nb_tests);
+        item_array[t].ht_item.key = param->keys[nbthreads * t + id];
+        item_array[t].thread_id = id;
+        item_array[t].nbthreads = nbthreads;
+        item_array[t].thread_key = nbthreads * t + id;
+    }
+
+    for(l = 0; l < param->nb_loops; l++) {
+        if( id == 0 && (l == 0 || param->new_table_each_time)) {
+            parsec_hash_table_init(&hash_table, offsetof(empty_hash_item_t, ht_item), 3, key_functions, NULL);
+        }
+
+        parsec_barrier_wait(&barrier1);
+        t0 = take_time();
+        for(t = 0; t < nbtests; t++) {
+            assert(item_array[t].ht_item.key != 0);
+            parsec_hash_table_insert(&hash_table, &item_array[t].ht_item);
+        }
+        t1 = take_time();
+        duration = diff_time(t0, t1);
+        if(duration > max_duration)
+            max_duration = duration;
+        parsec_barrier_wait(&barrier1);
+        printf("Time to do %d insertions on thread %d: %lu ns\n", nbtests, id, duration);
+        if(0 == id)
+            parsec_hash_table_stat(&hash_table);
+        parsec_barrier_wait(&barrier1);
+        t0 = take_time();
+        for(t = 0; t < nbtests; t++) {
+            empty_hash_item_t *rc;
+            rc = parsec_hash_table_remove(&hash_table, item_array[t].ht_item.key);
+            assert(rc == &item_array[t]);
+        }
+        t1 = take_time();
+        duration = diff_time(t0, t1);
+        if(duration > max_duration)
+            max_duration = duration;
+        parsec_barrier_wait(&barrier1);
+        printf("Time to do %d removals on thread %d: %lu ns\n", nbtests, id, duration);
+
+        if( id == 0 && (l == param->nb_loops-1 || param->new_table_each_time) ) {
+            parsec_hash_table_fini(&hash_table);
+        }
+    }
+    return (void*)(uintptr_t)max_duration;
+}
+
 static void *do_test(void *_param)
 {
-    int *param = (int*)_param;
-    int id = param[0];
-    int nbthreads = param[1];
-    int nbtests = NB_TESTS / nbthreads + (id < (NB_TESTS % nbthreads));
+    param_t *param = (param_t*)_param;
+    int id = param->id;
+    int nbthreads = param->nbthreads;
+    int nbtests = param->nb_tests / nbthreads + (id < (param->nb_tests % nbthreads));
     int limit = (id*72 + 573) % nbtests;
     parsec_time_t t0, t1;
     int l, t;
@@ -55,21 +127,22 @@ static void *do_test(void *_param)
     
     parsec_bindthread(id, 0);
 
-    if( id == 0 ) {
-        parsec_hash_table_init(&hash_table, offsetof(empty_hash_item_t, ht_item), 3, key_functions, NULL);
-    }
-
     item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
     for(t = 0; t < nbtests; t++) {
-        item_array[t].ht_item.key = (parsec_key_t)((uint64_t)((nbthreads+1) * t + id));
+        item_array[t].ht_item.key = param->keys[nbthreads * t + id];
         item_array[t].thread_id = id;
         item_array[t].nbthreads = nbthreads;
+        item_array[t].thread_key = nbthreads * t + id;
     }
 
     parsec_barrier_wait(&barrier1);
     
     t0 = take_time();
-    for(l = 0; l < NB_LOOPS; l++) {
+    for(l = 0; l < param->nb_loops; l++) {
+        if( id == 0 && ( l==0 || param->new_table_each_time)) {
+            parsec_hash_table_init(&hash_table, offsetof(empty_hash_item_t, ht_item), 3, key_functions, NULL);
+        }
+
         for(t = 0; t < limit; t++) {
             parsec_hash_table_lock_bucket(&hash_table, item_array[t].ht_item.key);
             rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
@@ -90,7 +163,7 @@ static void *do_test(void *_param)
             rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
             if( rc != &item_array[t] ) {
                 if( NULL == rc ) {
-                    fprintf(stderr, "Error in implementation of the hash table: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
+                    fprintf(stderr, "Error in implementation of the hash table 3: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
                             (uint64_t)item_array[t].ht_item.key);
                 } else {
                     fprintf(stderr, "Error in implementation of the hash table: Should have found item with key %"PRIu64" as inserted by thread %d/%d, but found it as inserted from thread %d/%d\n",
@@ -101,11 +174,13 @@ static void *do_test(void *_param)
             }
             parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
         }
+        if(0 == id)
+            parsec_hash_table_stat(&hash_table);
         for(t = 0; t < limit; t++) {
             rc = parsec_hash_table_remove(&hash_table, item_array[t].ht_item.key);
             if( rc != &item_array[t] ) {
                 if( NULL == rc ) {
-                    fprintf(stderr, "Error in implementation of the hash table: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
+                    fprintf(stderr, "Error in implementation of the hash table 4: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
                             (uint64_t)item_array[t].ht_item.key);
                 } else {
                     fprintf(stderr, "Error in implementation of the hash table: Should have found item with key %"PRIu64" as inserted by thread %d/%d, but found it as inserted from thread %d/%d\n",
@@ -137,7 +212,7 @@ static void *do_test(void *_param)
             rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
             if( rc != &item_array[t] ) {
                 if( NULL == rc ) {
-                    fprintf(stderr, "Error in implementation of the hash table: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
+                    fprintf(stderr, "Error in implementation of the hash table 1: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
                             (uint64_t)item_array[t].ht_item.key);
                 } else {
                     fprintf(stderr, "Error in implementation of the hash table: Should have found item with key %"PRIu64" as inserted by thread %d/%d, but found it as inserted from thread %d/%d\n",
@@ -152,7 +227,7 @@ static void *do_test(void *_param)
             rc = parsec_hash_table_remove(&hash_table, item_array[t].ht_item.key);
             if( rc != &item_array[t] ) {
                 if( NULL == rc ) {
-                    fprintf(stderr, "Error in implementation of the hash table: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
+                    fprintf(stderr, "Error in implementation of the hash table 2: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
                             (uint64_t)item_array[t].ht_item.key);
                 } else {
                     fprintf(stderr, "Error in implementation of the hash table: Should have found item with key %"PRIu64" as inserted by thread %d/%d, but found it as inserted from thread %d/%d\n",
@@ -162,6 +237,10 @@ static void *do_test(void *_param)
                 }
                 //raise(SIGABRT);
             }
+        }
+
+        if( id == 0 && ( l==param->nb_loops-1 || param->new_table_each_time)) {
+            parsec_hash_table_init(&hash_table, offsetof(empty_hash_item_t, ht_item), 3, key_functions, NULL);
         }
     }
     t1 = take_time();
@@ -169,12 +248,77 @@ static void *do_test(void *_param)
     duration = diff_time(t0, t1);
 
     parsec_barrier_wait(&barrier2);
-    if( id == 0 ) {
-        parsec_hash_table_fini(&hash_table);
-    }
     free(item_array);
 
     return (void*)(uintptr_t)duration;
+}
+
+typedef struct node_s {
+    uint64_t value;
+    struct node_s *smaller;
+    struct node_s *bigger;
+} node_t;
+
+int node_add(node_t **tree, uint64_t value)
+{
+    node_t *temp = NULL;
+    if(!(*tree)) {
+        temp = (node_t *)malloc(sizeof(node_t));
+        temp->smaller = temp->bigger = NULL;
+        temp->value = value;
+        *tree = temp;
+        return 1;
+    }
+    if(value == (*tree)->value)
+        return 0;
+    if(value < (*tree)->value) {
+        return node_add(&(*tree)->smaller, value);
+    } else {
+        return node_add(&(*tree)->bigger, value);
+    }
+}
+
+void free_tree(node_t **tree)
+{
+    if(!(*tree)) return;
+    free_tree(&(*tree)->bigger);
+    free_tree(&(*tree)->smaller);
+    free(*tree);
+    *tree = NULL;
+}
+
+static  void init_keys(uint64_t *keys, int nbkeys)
+{
+    node_t *tree = NULL;
+    struct timeval start, end, delta;
+    int print_end = 0;
+    gettimeofday(&start, NULL);
+    srand(start.tv_sec * 1000000 + start.tv_usec);
+
+    int cur_sec = 0;
+    for(int t = 0; t < nbkeys; t++) {
+        uint64_t c;
+        do {
+            c = rand();
+        } while( !node_add(&tree, c));
+        keys[t] = c;
+        gettimeofday(&end, NULL);
+        timersub(&end, &start, &delta);
+        if(delta.tv_sec > cur_sec) {
+            if(cur_sec == 0) {
+                fprintf(stderr, "### Building an array with %d unique items %5.1f%% done", nbkeys, 100.0*t/(double)nbkeys); fflush(stderr);
+                print_end=1;
+            } else {
+                fprintf(stderr, "\r### Building an array with %d unique items %5.1f%% done", nbkeys, 100.0*t/(double)nbkeys); fflush(stderr);
+            }
+            cur_sec = delta.tv_sec;
+        }
+    }
+    free_tree(&tree);
+    gettimeofday(&end, NULL);
+    timersub(&end, &start, &delta);
+    if(print_end)
+        fprintf(stderr, "\r### Building an array with %d unique items. done in %d.%06ds\n", nbkeys, (int)delta.tv_sec, (int)delta.tv_usec);
 }
 
 int main(int argc, char *argv[])
@@ -185,7 +329,8 @@ int main(int argc, char *argv[])
     uintptr_t e, minthreads = 0, maxthreads = 0, nbthreads;
     uint64_t maxtime;
     void *retval;
-    int *params;
+    param_t *params;
+    uint64_t *keys;
     int mc_hint_index = -1;
     int mc_tuning_min = -1;
     int mc_tuning_max = -1;
@@ -196,7 +341,12 @@ int main(int argc, char *argv[])
     int md_tuning_max = -1;
     int md_tuning_inc = 1;
     int md_tuning;
+    int simple_perf = 0;
+    int nb_tests = 30000;
+    int nb_loops = 300;
+    int new_table_each_time = 0;
 
+    parsec_debug_init();
     parsec_hwloc_init();
     parsec_mca_param_init();
     parsec_hash_tables_init();
@@ -208,12 +358,12 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Warning: unable to find the hash table hint, tuning behavior will be disabled\n");
     }
     
-    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:h?")) != -1 ) {
+    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:n:#:r:hp?")) != -1 ) {
         switch(ch) {
         case 'c':
             ch = strtol(optarg, &m, 0);
             if( (ch < 0) || (m[0] != '\0') ) {
-                fprintf(stderr, argv[0], "invalid -c value");
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -c value");
             }
             minthreads  = (uintptr_t)ch;
             maxthreads = minthreads+1;
@@ -221,66 +371,87 @@ int main(int argc, char *argv[])
         case 'm':
             ch = strtol(optarg, &m, 0);
             if( (ch < 0) || (m[0] != '\0') ) {
-                fprintf(stderr, argv[0], "invalid -m value");
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -m value");
             }
             minthreads = (uintptr_t)ch;
             break;
         case 'M':
             ch = strtol(optarg, &m, 0);
             if( (ch < 0) || (m[0] != '\0') ) {
-                fprintf(stderr, argv[0], "invalid -M value");
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -M value");
             }
             maxthreads = (uintptr_t)ch;
             break;
         case 't':
             ch = strtol(optarg, &m, 0);
             if( (ch <= 0) || (m[0] != '\0') ) {
-                fprintf(stderr, argv[0], "invalid -t value");
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -t value");
             }
             mc_tuning_min = ch;
             break;
         case 'T':
             ch = strtol(optarg, &m, 0);
             if( (ch <= 0) || (m[0] != '\0') ) {
-                fprintf(stderr, argv[0], "invalid -T value");
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -T value");
             }
             mc_tuning_max = ch;
             break;
         case 'i':
             ch = strtol(optarg, &m, 0);
             if( (ch <= 0) || (m[0] != '\0') ) {
-                fprintf(stderr, argv[0], "invalid -i value");
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -i value");
             }
             mc_tuning_inc = ch;
             break;
         case 'd':
             ch = strtol(optarg, &m, 0);
             if( (ch <= 0) || (m[0] != '\0') ) {
-                fprintf(stderr, argv[0], "invalid -t value");
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -t value");
             }
             md_tuning_min = ch;
             break;
         case 'D':
             ch = strtol(optarg, &m, 0);
             if( (ch <= 0) || (m[0] != '\0') ) {
-                fprintf(stderr, argv[0], "invalid -T value");
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -T value");
             }
             md_tuning_max = ch;
             break;
         case 'I':
             ch = strtol(optarg, &m, 0);
             if( (ch <= 0) || (m[0] != '\0') ) {
-                fprintf(stderr, argv[0], "invalid -i value");
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -i value");
             }
             md_tuning_inc = ch;
+            break;
+        case 'n':
+            new_table_each_time = 1;
+            break;
+        case '#':
+            ch = strtol(optarg, &m, 0);
+            if( (ch <= 0) || (m[0] != '\0') ) {
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -# value");
+            }
+            nb_tests = ch;
+            break;
+        case 'r':
+            ch = strtol(optarg, &m, 0);
+            if( (ch <= 0) || (m[0] != '\0') ) {
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -r value");
+            }
+            nb_loops = ch;
+            break;
+        case 'p':
+            simple_perf = 1;
             break;
         case 'h':
         case '?':
         default:
             fprintf(stderr,
-                    "Usage: %s [-c nbthreads|-m minthreads -M maxthreads]\n"
-                    "          [-t max_coll_min -T max_coll_max -i max_coll_inc]\n"
-                    "          [-d max_table_depth_min -D max_table_depth_max -I max_table_depth_inc]\n", argv[0]);
+                    "Usage: %s [-p|-c nbthreads|-m minthreads -M maxthreads]\n"
+                    "          [-t max_ coll_min -T max_coll_max -i max_coll_inc]\n"
+                    "          [-d max_table_depth_min -D max_table_depth_max -I max_table_depth_inc]\n"
+                    "          [-# number of items to insert][-r number of loops of the test][-n use a new hash table for each test]\n", argv[0]);
             exit(1);
             break;
         }
@@ -334,7 +505,9 @@ int main(int argc, char *argv[])
     }
 
     threads = calloc(sizeof(pthread_t), maxthreads);
-    params = calloc(sizeof(int), 2*(maxthreads+1));
+    params = calloc(sizeof(param_t), maxthreads+1);
+    keys = calloc(sizeof(uint64_t), nb_tests);
+    init_keys(keys, nb_tests);
 
     for(md_tuning = md_tuning_min; md_tuning < md_tuning_max; md_tuning += md_tuning_inc) {
         for(mc_tuning = mc_tuning_min; mc_tuning < mc_tuning_max; mc_tuning += mc_tuning_inc) {
@@ -347,16 +520,28 @@ int main(int argc, char *argv[])
 
             for( nbthreads = minthreads; nbthreads < maxthreads; nbthreads++) {
                 for(e = 0; e < nbthreads+1; e++) {
-                    params[2*e] = e;
-                    params[2*e+1] = nbthreads+1;
+                    params[e].id = e;
+                    params[e].nbthreads = nbthreads+1;
+                    params[e].keys = keys;
+                    params[e].nb_tests = nb_tests;
+                    params[e].nb_loops = nb_loops;
+                    params[e].new_table_each_time = new_table_each_time;
                 }
 
                 parsec_barrier_init(&barrier1, NULL, nbthreads+1);    
-                parsec_barrier_init(&barrier2, NULL, nbthreads+1);    
-                for(e = 0; e < nbthreads; e++) {
-                    pthread_create(&threads[e], NULL, do_test, &params[2*e]);
+                parsec_barrier_init(&barrier2, NULL, nbthreads+1);
+
+                if( simple_perf ) {
+                    for(e = 0; e < nbthreads; e++) {
+                        pthread_create(&threads[e], NULL, do_perf_test, &params[e]);
+                    }
+                    maxtime = (uint64_t)do_perf_test(&params[nbthreads]);
+                } else {
+                    for(e = 0; e < nbthreads; e++) {
+                        pthread_create(&threads[e], NULL, do_test, &params[e]);
+                    }
+                    maxtime = (uint64_t)do_test(&params[nbthreads]);
                 }
-                maxtime = (uint64_t)do_test(&params[2*nbthreads]);
                 for(e = 0; e < nbthreads; e++) {
                     pthread_join(threads[e], &retval);
                     if( (uint64_t)retval > maxtime )
@@ -371,5 +556,6 @@ int main(int argc, char *argv[])
         }
     }
     free(threads);
+    free(keys);
     free(params);
 }
