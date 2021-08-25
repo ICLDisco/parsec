@@ -4640,6 +4640,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         } else {
             coutput("  __parsec_tp->super.arenas_datatypes_size = %d;\n", datatype_index);
         }
+        coutput("  memset(&__parsec_tp->super.arenas_datatypes[0], 0, __parsec_tp->super.arenas_datatypes_size*sizeof(parsec_arena_datatype_t));\n");
     }
 
     string_arena_init(sa2);
