@@ -357,6 +357,8 @@ static void parsec_vp_init( parsec_vp_t *vp,
     }
 }
 
+static int check_overlapping_binding(parsec_context_t *context);
+
 #define DEFAULT_APPNAME "app_name_%d"
 
 #define GET_INT_ARGV(CMD, ARGV, VALUE) \
@@ -779,6 +781,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     /* Introduce communication engine */
     (void)parsec_remote_dep_init(context);
+
+    (void)check_overlapping_binding(context);
 
     PARSEC_PINS_INIT(context);
     if(profiling_enabled && (0 == parsec_pins_nb_modules_enabled())) {
@@ -2495,9 +2499,25 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
     }
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-    MPI_Comm comml = MPI_COMM_NULL; int nl = 0, rl = MPI_PROC_NULL;
-    MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
+    return PARSEC_SUCCESS;
+#else
+    (void)option;
+    (void)context;
+    (void)startup;
+    if( 0 == parsec_debug_rank )
+        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                       "The binding defined by --parsec_bind has been ignored!\n"
+                       "\tThis option requires a build with HWLOC with bitmap support.");
+    return PARSEC_ERR_NOT_IMPLEMENTED;
+#endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
+}
+
+static int check_overlapping_binding(parsec_context_t *context) {
+#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI) && defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
+    MPI_Comm comml = MPI_COMM_NULL; int i, nl = 0, rl = MPI_PROC_NULL;
+    MPI_Comm commw = (MPI_Comm)context->comm_ctx;
+    assert(-1 != context->comm_ctx);
+    MPI_Comm_split_type(commw, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
     MPI_Comm_size(comml, &nl);
     if( 1 < nl && slow_bind_warning ) {
         /* Hu-ho, double check that our binding is not conflicting with other
@@ -2549,19 +2569,9 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
             free(displs);
         }
     }
-#endif
-
     return PARSEC_SUCCESS;
-#else
-    (void)option;
-    (void)context;
-    (void)startup;
-    if( 0 == parsec_debug_rank )
-        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                       "The binding defined by --parsec_bind has been ignored!\n"
-                       "\tThis option requires a build with HWLOC with bitmap support.");
+#endif
     return PARSEC_ERR_NOT_IMPLEMENTED;
-#endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
 }
 
 static int parsec_parse_comm_binding_parameter(const char* option, parsec_context_t* context)
