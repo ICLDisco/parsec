@@ -2537,6 +2537,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         if( PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE) || PARSEC_OUTPUT == (tile_op_type & PARSEC_GET_OP_TYPE) ) {
 #if defined(PARSEC_PROF_TRACE)
             this_task->super.prof_info.desc = NULL;
+            this_task->super.prof_info.priority = this_task->super.priority;
             this_task->super.prof_info.data_id = tile->key;
             this_task->super.prof_info.task_class_id = tc->task_class_id;
 #endif
