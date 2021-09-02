@@ -18,10 +18,10 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
-#define MAXNT   16384
-#define MAXLEVEL 1024
-#define MAXTRY    100
-#define MAX_RELATIVE_STDEV 0.1
+static int MAXNT              = 16384;
+static int MAXLEVEL           =  1024;
+static int MAXTRY             =   100;
+static int MAX_RELATIVE_STDEV =   0.1;
 
 double stdev(double sum, double sumsqr, double n)
 {
@@ -37,6 +37,8 @@ int main(int argc, char *argv[])
     parsec_taskpool_t *ep;
     parsec_time_t start, end;
     double sum, sumsqr, val;
+    int parsec_argc = 0;
+    char **parsec_argv = NULL;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -49,7 +51,37 @@ int main(int argc, char *argv[])
     world = 1;
     rank = 0;
 #endif
-    parsec = parsec_init(0, &argc, &argv);
+    for(int a = 1; a < argc; a++) {
+        if(strcmp(argv[a], "--") == 0) {
+            parsec_argc = argc - a;
+            parsec_argv = &argv[a];
+            break;
+        }
+        if(strcmp(argv[a], "-t") == 0) {
+            a++;
+            MAXTRY = atoi(argv[a]);
+            continue;
+        }
+        if(strcmp(argv[a], "-l") == 0) {
+            a++;
+            MAXLEVEL = atoi(argv[a]);
+            continue;
+        }
+        if(strcmp(argv[a], "-n") == 0) {
+            a++;
+            MAXNT = atoi(argv[a]);
+            continue;
+        }
+        if(strcmp(argv[a], "-s") == 0) {
+            a++;
+            MAX_RELATIVE_STDEV = atof(argv[a]);
+            continue;
+        }
+        fprintf(stderr, "Usage: %s [-t MAXTRY] [-l MAXLEVEL] [-n MAXNT] [-s MAX_RELATIVE_STDEV] [-- <parsec parameters]\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    parsec = parsec_init(0, &parsec_argc, &parsec_argv);
     if( NULL == parsec ) {
         exit(-1);
     }
