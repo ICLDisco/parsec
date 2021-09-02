@@ -60,11 +60,10 @@ static int flow_pbq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     parsec_vp_t *vp = es->virtual_process;
     uint32_t queue_size = 0;
 
+    /* Every flow creates its own local object */
     sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)calloc(sizeof(parsec_mca_sched_local_queues_scheduler_object_t), 1);
     es->scheduler_object = sched_obj;
-
-    if( es->th_id == 0 ) {
-        sched_obj->system_queue = (parsec_dequeue_t*)malloc(sizeof(parsec_dequeue_t));
+    if( es->th_id == 0 ) { /* And flow 0 creates the system_queue */
         sched_obj->system_queue = PARSEC_OBJ_NEW(parsec_dequeue_t);
     }
 
@@ -81,7 +80,7 @@ static int flow_pbq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
 
     /* Each thread creates its own "local" queue, connected to the shared dequeue */
     sched_obj->task_queue = parsec_hbbuffer_new( queue_size, 1, parsec_mca_sched_push_in_system_queue_wrapper,
-                                                (void*)sched_obj->system_queue);
+                                                (void*)sched_obj);
     sched_obj->hierarch_queues[0] = sched_obj->task_queue;
 
     /* All local allocations are now completed. Synchronize with the other
