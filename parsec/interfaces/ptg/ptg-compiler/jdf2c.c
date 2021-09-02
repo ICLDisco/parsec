@@ -6460,6 +6460,7 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
         coutput("  /** Generate profiling information */\n"
                 "#if defined(PARSEC_PROF_TRACE)\n"
                 "  this_task->prof_info.desc = (parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s;\n"
+                "  this_task->prof_info.priority = this_task->priority;\n"
                 "  this_task->prof_info.data_id   = ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->data_key((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
                 "  this_task->prof_info.task_class_id = this_task->task_class->task_class_id;\n"
                 "  this_task->prof_info.task_return_code = -1;\n"

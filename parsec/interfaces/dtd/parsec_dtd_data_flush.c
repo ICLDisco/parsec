@@ -150,6 +150,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
 
 #if defined(PARSEC_PROF_TRACE)
     this_task->super.prof_info.desc = NULL;
+    this_task->super.prof_info.priority = 0;
     this_task->super.prof_info.data_id = tile->key;
     this_task->super.prof_info.task_class_id = tc->task_class_id;
 #endif
