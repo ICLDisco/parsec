@@ -20,6 +20,7 @@ parsec_hbbuffer_new(size_t size,  size_t ideal_fill,
 {
     /** Must use calloc to ensure that all ites are set to NULL */
     parsec_hbbuffer_t *n = (parsec_hbbuffer_t*)calloc(1, sizeof(parsec_hbbuffer_t) + (size-1)*sizeof(parsec_list_item_t*));
+    assert(NULL != parent_store);
     n->size = size;
     n->ideal_fill = ideal_fill;
         /** n->nbelt = 0; <not needed because callc */
