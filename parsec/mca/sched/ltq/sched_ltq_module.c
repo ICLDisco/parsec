@@ -84,7 +84,7 @@ static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
 
     /* Each thread creates its own "local" queue, connected to the shared dequeue */
     sched_obj->task_queue = parsec_hbbuffer_new( queue_size, 1, parsec_mca_sched_push_in_system_queue_wrapper,
-                                                (void*)sched_obj->system_queue);
+                                                (void*)sched_obj);
     sched_obj->task_queue->assoc_core_num = -1; // broken since flow added
     sched_obj->hierarch_queues[0] = sched_obj->task_queue;
 
