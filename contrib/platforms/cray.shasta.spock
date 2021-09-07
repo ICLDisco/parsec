@@ -1,0 +1,46 @@
+# vim: set filetype=sh :
+#
+cat <<_EOF
+#################################################
+# Platform $with_platform
+# This file is for a compilation on OLCF Spock.
+#   configure --with-platform=cray.shasta.spock ...
+# Set preferences and dependencies for the
+# $with_platform system executables and libs
+#   CC=cc CXX=CC FC=ftn
+#
+_EOF
+
+export CC=cc CXX=CC FC=ftn
+ENVVARS+=" CC=$CC CXX=$CXX FC=$FC CFLAGS=$CFLAGS LDFLAGS=$LDFLAGS"
+
+[ -n "$SLURM_ACCOUNT" -a -n "$SLURM_PARTITION" -a -n "$SLURM_TIMELIMIT" ] || cat <<'_EOF'
+WARNING: variables SLURM_ACCOUNT, SLURM_PARTITION, or SLURM_TIMELIMIT are not set; `ctest` may not work
+_EOF
+
+function module { [ -n "$LMOD_CMD" ] && eval $($LMOD_CMD bash "$@"); }
+
+# The following unload has to be done externally as it modifies the internal 
+# behavior of mpicc, which cannot be cached by CMake
+#  module unload xalt
+#[ -n "$XALT_OLCF" ] && (echo "XALT module detected; this may cause 'ld' to misbehave: perform 'module unload xalt' before invoking configure."; exit 1)
+
+#enable_static=no
+enable_fortran=no
+
+[ -n "$OLCF_CMAKE_ROOT" ] || module load cmake
+echo -e "Using CMake\tfrom\t$OLCF_CMAKE_ROOT"
+
+[ -n "$OLCF_HWLOC_ROOT" ] || module load hwloc
+echo -e "Using Hwloc\tfrom\t$OLCF_HWLOC_ROOT"
+with_hwloc=yes
+
+# TODO: ROCM
+#[ -n "$OLCF_CUDA_ROOT" ] || module load cuda
+#echo -e "Using CUDA\tfrom\t$OLCF_CUDA_ROOT"
+#with_cuda=$OLCF_CUDA_ROOT
+
+with_mpi=yes # system default works fine
+
+# Let's have configure do the rest as usual now
+
