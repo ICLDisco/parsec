@@ -338,7 +338,7 @@ int parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
  * @return 0 if success, negative otherwise.
  * @remark thread safe
  */
-int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t object_id,
+int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpool_id,
                                     const void *info, uint16_t flags );
 
 /**

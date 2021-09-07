@@ -632,7 +632,7 @@ int parsec_profiling_dictionary_flush( void )
 
 
 int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpool_id,
-                                    void *info, uint16_t flags )
+                                    const void *info, uint16_t flags )
 {
     parsec_profiling_stream_t* ctx;
 
@@ -652,11 +652,11 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
 int
 parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
                              uint64_t event_id, uint32_t taskpool_id,
-                             void *info, uint16_t flags)
+                             const void *info, uint16_t flags )
 {
     parsec_time_t now;
     int region;
-    char *ptr;
+    const char *ptr;
     int rc = OTF2_SUCCESS;
     OTF2_AttributeList *attribute_list = NULL;
     uint64_t timestamp;
