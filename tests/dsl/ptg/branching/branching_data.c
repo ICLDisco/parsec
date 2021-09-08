@@ -12,8 +12,10 @@
 #include "parsec/utils/debug.h"
 
 typedef struct {
-    parsec_data_collection_t super;
-    struct parsec_data_copy_s* data;
+    parsec_data_collection_t  super;
+    parsec_data_t           **data;
+    int      nt;
+    size_t   size;
     int32_t* ptr;
 } my_datatype_t;
 
@@ -56,12 +58,9 @@ static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
     va_end(ap);
 
     (void)k;
-
-    if(NULL == dat->data) {
-        dat->data = parsec_data_copy_new(NULL, 0, desc->default_dtt, PARSEC_DATA_FLAG_PARSEC_MANAGED);
-        dat->data->device_private = dat->ptr;
-    }
-    return (void*)(dat->data);
+    assert(k >= 0);
+    assert(k < dat->nt);
+    return parsec_data_create(&dat->data[k], desc, k, &dat->ptr[k*dat->size*sizeof(int32_t)], dat->size * sizeof(int32_t), 0);
 }
 
 #if defined(PARSEC_PROF_TRACE)
@@ -78,7 +77,7 @@ static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)
 }
 #endif
 
-parsec_data_collection_t *create_and_distribute_data(int rank, int world, int size)
+parsec_data_collection_t *create_and_distribute_data(int rank, int world, int size, int nb)
 {
     my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
     parsec_data_collection_t *d = &(m->super);
@@ -92,15 +91,17 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
     {
       int len = asprintf(&d->key_dim, "(%d)", size);
       if( -1 == len )
-	d->key_dim = NULL;
+	    d->key_dim = NULL;
       d->key_base = NULL;
       d->data_key = data_key;
     }
 #endif
     parsec_type_create_contiguous(size, parsec_datatype_int32_t, &d->default_dtt);
 
-    m->data = NULL;
-    m->ptr = (int32_t*)malloc(size * sizeof(int32_t));
+    m->data = calloc(sizeof(parsec_data_t*), nb);
+    m->nt   = nb;
+    m->size = size;
+    m->ptr  = (int32_t*)malloc(nb * size * sizeof(int32_t));
 
     return d;
 }
@@ -108,10 +109,10 @@ parsec_data_collection_t *create_and_distribute_data(int rank, int world, int si
 void free_data(parsec_data_collection_t *d)
 {
     my_datatype_t *m = (my_datatype_t*)d;
-    if(NULL != m->data) {
-        PARSEC_DATA_COPY_RELEASE(m->data);
-    }
     free(m->ptr);
+    for(int i = 0; i < m->nt; i++)
+        if(NULL != m->data[i]) parsec_data_destroy(m->data[i]);
+    free(m->data);
     parsec_data_collection_destroy(d);
     free(d);
 }

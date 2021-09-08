@@ -10,7 +10,7 @@
 #include "parsec/runtime.h"
 #include "parsec/data.h"
 
-parsec_data_collection_t *create_and_distribute_data(int rank, int world, int size);
+parsec_data_collection_t *create_and_distribute_data(int rank, int world, int size, int nb);
 void free_data(parsec_data_collection_t *d);
 
 #endif
