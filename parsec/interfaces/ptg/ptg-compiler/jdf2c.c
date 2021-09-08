@@ -3639,7 +3639,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                  * to have any dependencies.
                  */
                 if( need_to_count_tasks ) {
-                    coutput("%s  if( saved_nb_tasks != nb_tasks ) {\n", indent(nesting++));
+                    coutput("%s  if( saved_nb_tasks != nb_tasks ) {\n", indent(nesting));
                     coutput("%s    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, \"Allocating dependencies array for %s (partial nb_tasks = %%d)\", nb_tasks);\n",
                             indent(nesting), f->fname);
                 }
@@ -3667,7 +3667,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 }
                 /* Save the current number of tasks for the optimization of the next iteration */
                 if( need_to_count_tasks ) {
-                    coutput("%s  saved_nb_tasks = nb_tasks;\n", indent(nesting));
+                    coutput("%s    saved_nb_tasks = nb_tasks;\n"
+                            "%s  }\n",
+                            indent(nesting),
+                            indent(nesting));
                 }
             }
         }
