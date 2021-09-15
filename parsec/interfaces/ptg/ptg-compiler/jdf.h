@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  */
@@ -199,12 +199,12 @@ typedef struct jdf_function_entry {
     struct jdf_object_t        super;
     struct jdf_function_entry *next;
     char                      *fname;
-    struct jdf_name_list      *parameters;
+    struct jdf_param_list     *parameters;
     jdf_flags_t                flags;
     jdf_flags_t                user_defines;
     int32_t                    task_class_id;
     int32_t                    nb_max_local_def;
-    struct jdf_def_list       *locals;
+    struct jdf_variable_list  *locals;
     struct jdf_call           *predicate;
     struct jdf_dataflow       *dataflow;
     struct jdf_expr           *priority;
@@ -225,6 +225,22 @@ typedef struct jdf_data_entry {
 /*******************************************************************/
 /*          Internal structures of the jdf_function                */
 /*******************************************************************/
+
+typedef struct jdf_param_list {
+    struct jdf_object_t         super;
+    struct jdf_param_list      *next;
+    char                       *name;
+    struct jdf_variable_list   *local;
+} jdf_param_list_t;
+
+typedef struct jdf_variable_list {
+    struct jdf_object_t       super;
+    struct jdf_variable_list *next;
+    char                     *name;
+    struct jdf_param_list    *param;
+    struct jdf_expr          *expr;
+    struct jdf_def_list      *properties;
+} jdf_variable_list_t;
 
 typedef struct jdf_name_list {
     struct jdf_object_t   super;
@@ -492,6 +508,12 @@ int jdf_function_property_is_keyword(const char *name);
  * compute the number of local definitions required
  */
 int jdf_assign_ldef_index(jdf_function_entry_t *f);
+
+/*
+ * Link the parameters and the local of a function. Don't check for correctness,
+ * just link each param with the first matching local.
+ */
+int jdf_link_params_and_locals(jdf_function_entry_t* f);
 
 /* Function to check the datatype specified on the dependency.
  * Returns:

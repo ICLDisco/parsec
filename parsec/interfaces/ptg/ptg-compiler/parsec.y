@@ -1,6 +1,6 @@
 %{
 /**
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -180,79 +180,81 @@ static jdf_expr_t *named_expr_push_in_scope(char *var, jdf_expr_t *e) {
     return e;
 }
 
-static void process_datatype(jdf_datatransfer_type_t *datatype,
-                              jdf_dep_t *d,
-                              const jdf_def_list_t *properties,
-                              jdf_def_list_t *property,
-                              char *layout,
-                              char *count,
-                              char *displ){
-      struct jdf_name_list *g, *e, *prec;
-      jdf_expr_t *expr = datatype->type;
-      if( NULL != jdf_find_property( properties, "arena_index", &property ) ) {
-          jdf_fatal(current_lineno, "Old construct arena_index used. Please update the code to use type instead.\n");
-          yyerror("");
-      }
-      if( NULL != jdf_find_property( properties, "nb_elt", &property ) ) {
-          jdf_fatal(current_lineno, "Old construct nb_elt used. Please update the code to use count instead.\n");
-          yyerror("");
-      }
+static void
+process_datatype(jdf_datatransfer_type_t *datatype,
+                 jdf_dep_t *d,
+                 const jdf_def_list_t *properties,
+                 jdf_def_list_t *property,
+                 char *layout,
+                 char *count,
+                 char *displ)
+{
+    struct jdf_name_list *g, *e, *prec;
+    jdf_expr_t *expr = datatype->type;
+    if( NULL != jdf_find_property( properties, "arena_index", &property ) ) {
+        jdf_fatal(current_lineno, "Old construct arena_index used. Please update the code to use type instead.\n");
+        yyerror("");
+    }
+    if( NULL != jdf_find_property( properties, "nb_elt", &property ) ) {
+        jdf_fatal(current_lineno, "Old construct nb_elt used. Please update the code to use count instead.\n");
+        yyerror("");
+    }
 
-      if (expr->op == JDF_C_CODE){ /* Correct the type of the JDF_C_CODE function */
-          expr->jdf_type = PARSEC_RETURN_TYPE_ARENA_DATATYPE_T;
-      }
+    if (expr->op == JDF_C_CODE){ /* Correct the type of the JDF_C_CODE function */
+        expr->jdf_type = PARSEC_RETURN_TYPE_ARENA_DATATYPE_T;
+    }
 
-      if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
-          /* Special case: [type = SOMETHING] -> define the PARSEC_ARENA_SOMETHING arena index */
-          for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
-              if( 0 == strcmp(expr->jdf_var, g->name) ) {
-                  break;
-              }
-              prec = g;
-          }
-          if( NULL == g ) {
-              e = new(struct jdf_name_list);
-              e->name = strdup(expr->jdf_var);
-              e->next = NULL;
-              if( NULL != prec ) {
-                  prec->next = e;
-              } else {
-                  current_jdf.datatypes = e;
-              }
-          }
-      }
+    if( (JDF_STRING == expr->op) || (JDF_VAR == expr->op) ) {
+        /* Special case: [type = SOMETHING] -> define the PARSEC_ARENA_SOMETHING arena index */
+        for(prec = NULL, g = current_jdf.datatypes; g != NULL; g = g->next) {
+            if( 0 == strcmp(expr->jdf_var, g->name) ) {
+                break;
+            }
+            prec = g;
+        }
+        if( NULL == g ) {
+            e = new(struct jdf_name_list);
+            e->name = strdup(expr->jdf_var);
+            e->next = NULL;
+            if( NULL != prec ) {
+                prec->next = e;
+            } else {
+                current_jdf.datatypes = e;
+            }
+        }
+    }
 
-      /**
-       * The memory layout used for the transfer. Works together with the
-       * count and the displacement. If not layout is specified it is assumed
-       * the default layout of the type (arena) will be used.
-       */
-      datatype->layout = jdf_find_property( d->guard->properties, layout, &property );
+    /**
+     * The memory layout used for the transfer. Works together with the
+     * count and the displacement. If not layout is specified it is assumed
+     * the default layout of the type (arena) will be used.
+     */
+    datatype->layout = jdf_find_property( d->guard->properties, layout, &property );
 
-      /**
-       * The number of types to transfer.
-       */
-      expr = jdf_find_property( d->guard->properties, count, &property );
-      if( NULL == expr ) {
-          expr          = new(jdf_expr_t);
-          expr->op      = JDF_CST;
-          expr->jdf_cst = 1;
-      }
-      datatype->count = expr;
+    /**
+     * The number of types to transfer.
+     */
+    expr = jdf_find_property( d->guard->properties, count, &property );
+    if( NULL == expr ) {
+        expr          = new(jdf_expr_t);
+        expr->op      = JDF_CST;
+        expr->jdf_cst = 1;
+    }
+    datatype->count = expr;
 
-      /**
-       * The displacement from the begining of the type.
-       */
-      expr = jdf_find_property( d->guard->properties, displ, &property );
-      if( NULL == expr ) {
-          expr          = new(jdf_expr_t);
-          expr->op      = JDF_CST;
-          expr->jdf_cst = 0;
-      } else {
-          if( !((JDF_CST != expr->op) && (0 == expr->jdf_cst)) )
-              d->dep_flags |= JDF_DEP_HAS_DISPL;
-      }
-      datatype->displ = expr;
+    /**
+     * The displacement from the begining of the type.
+     */
+    expr = jdf_find_property( d->guard->properties, displ, &property );
+    if( NULL == expr ) {
+        expr          = new(jdf_expr_t);
+        expr->op      = JDF_CST;
+        expr->jdf_cst = 0;
+    } else {
+        if( !((JDF_CST != expr->op) && (0 == expr->jdf_cst)) )
+            d->dep_flags |= JDF_DEP_HAS_DISPL;
+    }
+    datatype->displ = expr;
 }
 %}
 
@@ -263,9 +265,10 @@ static void process_datatype(jdf_datatransfer_type_t *datatype,
     jdf_external_entry_t *external_code;
     jdf_global_entry_t   *global;
     jdf_function_entry_t *function;
+    jdf_param_list_t     *param_list;
     jdf_def_list_t       *property;
     jdf_name_list_t      *name_list;
-    jdf_def_list_t       *def_list;
+    jdf_variable_list_t  *variable_list;
     jdf_dataflow_t       *dataflow;
     jdf_expr_t           *named_expr;
     jdf_dep_t            *dep;
@@ -280,8 +283,9 @@ static void process_datatype(jdf_datatransfer_type_t *datatype,
 %expect 5
 
 %type <function>function
-%type <name_list>varlist
-%type <def_list>execution_space
+%type <param_list>param_list
+%type <variable_list>local_variable
+%type <variable_list>local_variables
 %type <call>partitioning
 %type <dataflow>dataflow_list
 %type <dataflow>dataflow
@@ -528,7 +532,7 @@ bodies: body
                  $$ = $1;
              }
        ;
-function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simulation_cost partitioning dataflow_list priority bodies
+function:       VAR OPEN_PAR param_list CLOSE_PAR properties local_variables simulation_cost partitioning dataflow_list priority bodies
                 {
                     int rc;
                     jdf_function_entry_t *e = new(jdf_function_entry_t);
@@ -542,7 +546,8 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simula
                     e->priority          = $10;
                     e->bodies            = $11;
 
-                    jdf_assign_ldef_index(e);
+                    jdf_link_params_and_locals(e);  /* link params and locals */
+                    jdf_assign_ldef_index(e);       /* find the datatype indexes */
 
                     rc = jdf_flatten_function(e);
                     if( rc < 0 )
@@ -552,50 +557,50 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simula
                 }
         ;
 
-varlist:        VAR COMMA varlist
+param_list:        VAR COMMA param_list
                 {
-                    jdf_name_list_t *l = new(jdf_name_list_t);
+                    jdf_param_list_t *l = new(jdf_param_list_t);
                     l->next = $3;
                     l->name = $1;
+                    l->local = NULL;
                     JDF_OBJECT_LINENO(l) = current_lineno;
 
                     $$ = l;
                 }
          |      VAR
                 {
-                    jdf_name_list_t *l = new(jdf_name_list_t);
+                    jdf_param_list_t *l = new(jdf_param_list_t);
                     l->next = NULL;
                     l->name = $1;
+                    l->local = NULL;
                     JDF_OBJECT_LINENO(l) = current_lineno;
 
                     $$ = l;
                 }
-         |
-                {
-                    $$ = NULL;
-                }
          ;
 
-execution_space:
-                VAR ASSIGNMENT expr_range properties execution_space
+local_variable:
+                VAR ASSIGNMENT expr_range properties
                 {
-                    jdf_def_list_t *l = new(jdf_def_list_t);
-                    l->name               = $1;
-                    l->expr               = $3;
-                    l->properties         = $4;
-                    l->next               = $5;
-                    $$ = l;
-                    JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($3);
-                }
-         |      VAR ASSIGNMENT expr_range properties
-                {
-                    jdf_def_list_t *l = new(jdf_def_list_t);
+                    jdf_variable_list_t *l = new(jdf_variable_list_t);
                     l->name               = $1;
                     l->expr               = $3;
                     l->properties         = $4;
                     l->next               = NULL;
+                    l->param              = NULL;
                     $$ = l;
                     JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($3);
+                }
+         ;
+local_variables:
+                local_variable local_variables
+                {
+                    $1->next = $2;
+                    $$ = $1;
+                }
+         |      local_variable
+                {
+                    $$ = $1;
                 }
          ;
 
@@ -693,9 +698,9 @@ named_expr_list: VAR ASSIGNMENT expr_range
                    $$ = named_expr_push_in_scope($1, $3);
                }
         |  named_expr_list COMMA VAR ASSIGNMENT expr_range
-           {
-               $$ = named_expr_push_in_scope($3, $5);
-           }
+               {
+                   $$ = named_expr_push_in_scope($3, $5);
+               }
        ;
 
 dependencies:  dependency dependencies

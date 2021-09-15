@@ -859,7 +859,7 @@ static char *dump_profiling_init(void **elem, void *arg)
     get_unique_rgb_color((float)info->idx / (float)info->maxidx, &R, &G, &B);
     info->idx++;
 
-    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nb_locals);
+    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_variable_list_t, next, nb_locals);
     profiling_convertor_params = string_arena_new(64);
     UTIL_DUMP_LIST_FIELD(profiling_convertor_params, f->locals, next, name, dump_string, NULL,
                          PARSEC_TASK_PROF_INFO_CONVERTOR, ";", "{int32_t}", "{int32_t}");
@@ -1310,7 +1310,7 @@ static inline char* jdf_generate_task_typedef(void **elt, void* arg)
 
     sa_locals = string_arena_new(64);
     sa_data = string_arena_new(64);
-    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nb_locals);
+    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_variable_list_t, next, nb_locals);
     UTIL_DUMP_LIST_FIELD(sa_locals, f->locals, next, name, dump_string, NULL,
                          "", "  parsec_assignment_t ", ";\n", ";\n");
 
@@ -1519,7 +1519,7 @@ static void jdf_generate_structure(jdf_t *jdf)
     int nbfunctions, need_profile = 0;
     string_arena_t *sa1, *sa2;
     jdf_function_entry_t* f;
-    jdf_name_list_t *pl;
+    jdf_param_list_t *pl;
 
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
 
@@ -2227,47 +2227,46 @@ static int jdf_generate_initfinal_data( const jdf_t *jdf,
 
 static void jdf_generate_symbols( const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix )
 {
-    jdf_def_list_t *d;
-    char *exprname;
-    int id;
     string_arena_t *sa = string_arena_new(64);
-    int rc;
+    jdf_variable_list_t *v;
+    char *exprname;
+    int id, rc;
 
-    for(id = 0, d = f->locals; d != NULL; id++, d = d->next) {
-        rc = asprintf( &JDF_OBJECT_ONAME(d), "%s%s", prefix, d->name );
+    for(id = 0, v = f->locals; v != NULL; id++, v = v->next) {
+        rc = asprintf( &JDF_OBJECT_ONAME(v), "%s%s", prefix, v->name );
         assert( rc != -1 );
 
-        exprname = (char*)malloc(strlen(JDF_OBJECT_ONAME(d)) + 16);
+        exprname = (char*)malloc(strlen(JDF_OBJECT_ONAME(v)) + 16);
         string_arena_init(sa);
 
-        string_arena_add_string(sa, "static const parsec_symbol_t %s = { .name = \"%s\", .context_index = %d, ", JDF_OBJECT_ONAME(d), d->name, id);
+        string_arena_add_string(sa, "static const parsec_symbol_t %s = { .name = \"%s\", .context_index = %d, ", JDF_OBJECT_ONAME(v), v->name, id);
 
-        if( d->expr->op == JDF_RANGE ) {
-            sprintf(exprname, "minexpr_of_%s", JDF_OBJECT_ONAME(d));
+        if( v->expr->op == JDF_RANGE ) {
+            sprintf(exprname, "minexpr_of_%s", JDF_OBJECT_ONAME(v));
             string_arena_add_string(sa, ".min = &%s, ", exprname);
-            jdf_generate_expression(jdf, f, d->expr->jdf_ta1, exprname);
+            jdf_generate_expression(jdf, f, v->expr->jdf_ta1, exprname);
 
-            sprintf(exprname, "maxexpr_of_%s", JDF_OBJECT_ONAME(d));
+            sprintf(exprname, "maxexpr_of_%s", JDF_OBJECT_ONAME(v));
             string_arena_add_string(sa, ".max = &%s, ", exprname);
-            jdf_generate_expression(jdf, f, d->expr->jdf_ta2, exprname);
+            jdf_generate_expression(jdf, f, v->expr->jdf_ta2, exprname);
 
-            if( d->expr->jdf_ta3->op == JDF_CST ) {
-                string_arena_add_string(sa, ".cst_inc = %d, .expr_inc = NULL, ", d->expr->jdf_ta3->jdf_cst);
+            if( v->expr->jdf_ta3->op == JDF_CST ) {
+                string_arena_add_string(sa, ".cst_inc = %d, .expr_inc = NULL, ", v->expr->jdf_ta3->jdf_cst);
             } else {
-                sprintf(exprname, "incexpr_of_%s", JDF_OBJECT_ONAME(d));
+                sprintf(exprname, "incexpr_of_%s", JDF_OBJECT_ONAME(v));
                 string_arena_add_string(sa, ".cst_inc = 0, .expr_inc = &%s, ", exprname);
-                jdf_generate_expression(jdf, f, d->expr->jdf_ta3, exprname);
+                jdf_generate_expression(jdf, f, v->expr->jdf_ta3, exprname);
             }
         } else {
-            sprintf(exprname, "expr_of_%s", JDF_OBJECT_ONAME(d));
+            sprintf(exprname, "expr_of_%s", JDF_OBJECT_ONAME(v));
             string_arena_add_string(sa, ".min = &%s, ", exprname);
             string_arena_add_string(sa, ".max = &%s, .cst_inc = 0, .expr_inc = NULL, ", exprname);
-            jdf_generate_expression(jdf, f, d->expr, exprname);
+            jdf_generate_expression(jdf, f, v->expr, exprname);
         }
 
-        if( jdf_symbol_is_global(jdf->globals, d->name) ) {
+        if( jdf_symbol_is_global(jdf->globals, v->name) ) {
             string_arena_add_string(sa, " .flags = PARSEC_SYMBOL_IS_GLOBAL");
-        } else if ( jdf_symbol_is_standalone(d->name, jdf->globals, d->expr) ) {
+        } else if ( jdf_symbol_is_standalone(v->name, jdf->globals, v->expr) ) {
             string_arena_add_string(sa, " .flags = PARSEC_SYMBOL_IS_STANDALONE");
         } else {
             string_arena_add_string(sa, " .flags = 0x0");
@@ -2292,7 +2291,7 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function
     expr_info_t info1 = EMPTY_EXPR_INFO, info2 = EMPTY_EXPR_INFO, info3 = EMPTY_EXPR_INFO;
     const jdf_expr_t *le;
     const jdf_function_entry_t *targetf;
-    const jdf_name_list_t *pl;
+    const jdf_param_list_t *pl;
     int nbopen, depdone;
     assignment_info_t ai;
     jdf_expr_t *ld, *local_defs;
@@ -2974,8 +2973,8 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
 static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
     string_arena_t *sa1, *sa2, *sa_properties;
-    jdf_def_list_t *dl, *inner_dl = NULL;
-    int nesting = 0, idx, nbdefinitions;
+    jdf_variable_list_t *vl, *inner_vl = NULL;
+    int nesting = 0, idx, nb_locals;
     expr_info_t info1 = EMPTY_EXPR_INFO;
     jdf_expr_t *ld;
     int ctx_level = 0;
@@ -3002,8 +3001,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             parsec_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename);
 
-    for(dl = f->locals; dl != NULL; dl = dl->next)
-        coutput("  int %s = this_task->locals.%s.value;  /* retrieve value saved during the last iteration */\n", dl->name, dl->name);
+    for(vl = f->locals; vl != NULL; vl = vl->next)
+        coutput("  int %s = this_task->locals.%s.value;  /* retrieve value saved during the last iteration */\n", vl->name, vl->name);
 
     coutput("  for(int _i = 0; _i < context->nb_vp; pready_ring[_i++] = NULL );\n"
             "  if( 0 != this_task->locals.reserved[0].value ) {\n"
@@ -3022,17 +3021,17 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     info1.assignments = "&this_task->locals";
 
     idx = 0;
-    for(dl = f->locals; dl != NULL; dl = dl->next, idx++) {
-        if(dl->expr->op == JDF_RANGE) {
+    for(vl = f->locals; vl != NULL; vl = vl->next, idx++) {
+        if(vl->expr->op == JDF_RANGE) {
             coutput("%s  for(this_task->locals.%s.value = %s = %s;\n",
-                    indent(nesting), dl->name, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info1));
+                    indent(nesting), vl->name, vl->name, dump_expr((void**)vl->expr->jdf_ta1, &info1));
             coutput("%s      this_task->locals.%s.value <= %s;\n",
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info1));
+                    indent(nesting), vl->name, dump_expr((void**)vl->expr->jdf_ta2, &info1));
             coutput("%s      this_task->locals.%s.value += %s, %s = this_task->locals.%s.value) {\n",
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info1), dl->name, dl->name);
+                    indent(nesting), vl->name, dump_expr((void**)vl->expr->jdf_ta3, &info1), vl->name, vl->name);
             nesting++;
-        } else if( NULL != dl->expr->local_variables ) {
-            for(ld = jdf_expr_lv_first(dl->expr->local_variables); NULL != ld; ld = jdf_expr_lv_next(dl->expr->local_variables, ld)) {
+        } else if( NULL != vl->expr->local_variables ) {
+            for(ld = jdf_expr_lv_first(vl->expr->local_variables); NULL != ld; ld = jdf_expr_lv_next(vl->expr->local_variables, ld)) {
                 assert(-1 != ld->ldef_index);
                 assert(NULL != ld->alias);
                 if( ld->op == JDF_RANGE ) {
@@ -3072,12 +3071,12 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
                 }
             }
             coutput("%s    this_task->locals.%s.value = %s = %s;\n",
-                    indent(nesting), dl->name, dl->name, dump_expr((void**)dl->expr, &info1));
+                    indent(nesting), vl->name, vl->name, dump_expr((void**)vl->expr, &info1));
         } else {
             coutput("%s  this_task->locals.%s.value = %s = %s;\n",
-                    indent(nesting), dl->name, dl->name, dump_expr((void**)dl->expr, &info1));
+                    indent(nesting), vl->name, vl->name, dump_expr((void**)vl->expr, &info1));
         }
-        inner_dl = dl;
+        inner_vl = vl;
     }
     coutput("%s  if( !%s_pred(%s) ) continue;\n",
             indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
@@ -3105,7 +3104,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting), parsec_get_name(jdf, f, "task_t"),
             indent(nesting));
 
-    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nbdefinitions);
+    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_variable_list_t, next, nb_locals);
     coutput("%s  /* Copy only the valid elements from this_task to new_task one */\n"
             "%s  new_task->taskpool   = this_task->taskpool;\n"
             "%s  new_task->task_class = __parsec_tp->super.super.task_classes_array[%s_%s.task_class_id];\n"
@@ -3114,8 +3113,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting),
             indent(nesting), jdf_basename, f->fname,
             indent(nesting));
-    for(dl = f->locals; dl != NULL; dl = dl->next, idx++)
-        coutput("%s  new_task->locals.%s.value = this_task->locals.%s.value;\n", indent(nesting), dl->name, dl->name);
+    for(vl = f->locals; vl != NULL; vl = vl->next, idx++)
+        coutput("%s  new_task->locals.%s.value = this_task->locals.%s.value;\n", indent(nesting), vl->name, vl->name);
 
     coutput("%s  PARSEC_LIST_ITEM_SINGLETON(new_task);\n",
             indent(nesting));
@@ -3178,11 +3177,11 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 
     /* We close all variables, in reverse order to manage the local indices */
-    while( NULL != inner_dl ) {
-        if( inner_dl->expr->op == JDF_RANGE ) {
-            coutput("%s} /* Loop on normal range %s */\n", indent(nesting--), inner_dl->name);
-        } else if (NULL != inner_dl->expr->local_variables) {
-            for(ld = inner_dl->expr->local_variables; NULL != ld; ld = ld->next) {
+    while( NULL != inner_vl ) {
+        if( inner_vl->expr->op == JDF_RANGE ) {
+            coutput("%s} /* Loop on normal range %s */\n", indent(nesting--), inner_vl->name);
+        } else if (NULL != inner_vl->expr->local_variables) {
+            for(ld = inner_vl->expr->local_variables; NULL != ld; ld = ld->next) {
                 coutput("%s  %s = this_task->locals.ldef[%d].value; /* restore variable in its nesting level, if needed */\n", indent(nesting), ld->alias, ld->ldef_index);
                 if( JDF_RANGE == ld->op )
                     coutput("%s  } /* Arbitrary iterator on %s */ \n", indent(nesting--), ld->alias);
@@ -3190,10 +3189,10 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             }
         }
         /* Find previous local */
-        for(dl = f->locals; NULL != dl; dl = dl->next)
-            if( dl->next == inner_dl )
+        for(vl = f->locals; NULL != vl; vl = vl->next)
+            if( vl->next == inner_vl )
                 break;
-        inner_dl = dl;
+        inner_vl = vl;
     }
 
     string_arena_free(sa1);
@@ -3216,20 +3215,25 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
 /* structure to handle the correspondence between local variables and function parameters */
 typedef struct jdf_l2p_s {
-    const jdf_def_list_t   *dl;
-    const jdf_name_list_t  *pl;
-    struct jdf_l2p_s       *next;
+    const jdf_variable_list_t    *vl;
+    const jdf_param_list_t       *pl;
+    struct jdf_l2p_s             *next;
 } jdf_l2p_t;
 
+/**
+ * Return a list of all the local variables that are also parameters of the
+ * function, in the order in which they appear on the stack (sequential order
+ * in the source code).
+ */
 jdf_l2p_t* build_l2p( const jdf_function_entry_t *f )
 {
-    jdf_def_list_t   *dl;
-    jdf_name_list_t  *pl;
     jdf_l2p_t *l2p = NULL, *item = NULL;
+    jdf_variable_list_t   *vl;
+    jdf_param_list_t  *pl;
 
-    for(dl = f->locals; dl != NULL; dl = dl->next) {
+    for(vl = f->locals; vl != NULL; vl = vl->next) {
         for(pl = f->parameters; pl != NULL; pl = pl->next ) {
-            if(0 == strcmp(pl->name, dl->name)) {
+            if(0 == strcmp(pl->name, vl->name)) {
                 if( NULL == l2p ) {
                     /* we need to maintain the list in the same order as the arguments */
                     item = (jdf_l2p_t*)malloc(sizeof(jdf_l2p_t));
@@ -3238,9 +3242,10 @@ jdf_l2p_t* build_l2p( const jdf_function_entry_t *f )
                     item->next = (jdf_l2p_t*)malloc(sizeof(jdf_l2p_t));
                     item = item->next;
                 }
-                item->dl = dl;
+                item->vl = vl;
                 item->pl = pl;
                 item->next = NULL;
+                break;  /* move to the next local */
             }
         }
     }
@@ -3257,18 +3262,18 @@ void free_l2p( jdf_l2p_t* l2p )
     }
 }
 
-static jdf_name_list_t *definition_is_parameter(const jdf_function_entry_t *f, const jdf_def_list_t *dl)
+static jdf_param_list_t *local_is_parameter(const jdf_function_entry_t *f, const jdf_variable_list_t *vl)
 {
-    jdf_name_list_t *pl;
+    jdf_param_list_t *pl;
     for( pl = f->parameters; pl != NULL; pl = pl->next )
-        if( strcmp(pl->name, dl->name) == 0 )
+        if( strcmp(pl->name, vl->name) == 0 )
             return pl;
     return NULL;
 }
 
 static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_function_entry_t *f, const char *sname)
 {
-    jdf_def_list_t *dl;
+    jdf_variable_list_t *vl;
 
     (void)jdf;
     
@@ -3298,8 +3303,8 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
         info.suffix = "";
         info.assignments = "&"JDF2C_NAMESPACE"_assignments";
 
-        for(dl = f->locals; dl != NULL; dl = dl->next) {
-            if( expr_requires_assignment(dl->expr, 1) ) {
+        for(vl = f->locals; vl != NULL; vl = vl->next) {
+            if( expr_requires_assignment(vl->expr, 1) ) {
                 need_assignment = 1;
                 break;
             }
@@ -3314,37 +3319,37 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
         if(need_assignment)
             coutput("  %s "JDF2C_NAMESPACE"_assignments;\n", parsec_get_name(jdf, f, "parsec_assignment_t"));
         
-        for(dl = f->locals; dl != NULL; dl = dl->next) {
-            if( definition_is_parameter(f, dl) != NULL ) {
+        for(vl = f->locals; vl != NULL; vl = vl->next) {
+            if( local_is_parameter(f, vl) != NULL ) {
                 int have_min = 0;
-                if( dl->expr->op == JDF_RANGE ) {
-                    coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+                if( vl->expr->op == JDF_RANGE ) {
+                    coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr->jdf_ta1, &info));
                     have_min = 1;
                 } else {
-                    if( dl->expr->local_variables != NULL ) {
+                    if( vl->expr->local_variables != NULL ) {
                         char *vname;
-                        if( asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, dl->name) <= 0 ) {
+                        if( asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, vl->name) <= 0 ) {
                             fprintf(stderr, "Cannot allocate internal memory for the PTG compiler\n");
                             exit(-1);
                         }
                         coutput("  int %s;\n", vname);
-                        jdf_generate_range_min_without_fn(jdf, dl->expr, vname, "(&"JDF2C_NAMESPACE"_assignments)");
+                        jdf_generate_range_min_without_fn(jdf, vl->expr, vname, "(&"JDF2C_NAMESPACE"_assignments)");
                         free(vname);
                         have_min = 1;
                     }
                 }
                 if(have_min) {
                     coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range + %s%s_min;\n",
-                            dl->name, f->fname, dl->name, JDF2C_NAMESPACE, dl->name);
+                            vl->name, f->fname, vl->name, JDF2C_NAMESPACE, vl->name);
                 } else {
                     coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range;\n",
-                            dl->name, f->fname, dl->name);
+                            vl->name, f->fname, vl->name);
                 }
                 string_arena_add_string(sa_format, "%s%%d", first_param?"":", ");
-                string_arena_add_string(sa_params, "%s%s", first_param?"":", ", dl->name);
+                string_arena_add_string(sa_params, "%s%s", first_param?"":", ", vl->name);
                 first_param = 0;
                 coutput("  __parsec_key = __parsec_key / __parsec_tp->%s_%s_range;\n",
-                        f->fname, dl->name);
+                        f->fname, vl->name);
             } else {
                 /* IDs should depend only on the parameters of the
                  * function. However, we might need the other definitions because
@@ -3353,10 +3358,10 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
                  */
                 coutput("  int %s = %s;\n"
                         "  (void)%s;\n",
-                        dl->name, dump_expr((void**)dl->expr, &info), dl->name);
+                        vl->name, dump_expr((void**)vl->expr, &info), vl->name);
             }
             if(need_assignment)
-                coutput("  "JDF2C_NAMESPACE"_assignments.%s.value = %s;\n", dl->name, dl->name);
+                coutput("  "JDF2C_NAMESPACE"_assignments.%s.value = %s;\n", vl->name, vl->name);
         }
         if(need_assignment)
             coutput("  (void)"JDF2C_NAMESPACE"_assignments;\n");
@@ -3381,9 +3386,9 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
 static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
     string_arena_t *sa1, *sa2, *sa_end;
-    const jdf_def_list_t *dl, *inner_dl = NULL;
+    const jdf_variable_list_t *vl, *inner_vl = NULL;
     jdf_expr_t *ld;
-    const jdf_name_list_t *pl;
+    const jdf_param_list_t *pl;
     expr_info_t info = EMPTY_EXPR_INFO;
     int need_to_iterate, need_min_max, need_to_count_tasks;
     int nesting = 0, idx;
@@ -3430,17 +3435,17 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
     if( need_min_max ) {
         for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
-            dl = l2p_item->dl; assert(NULL != dl);
+            vl = l2p_item->vl; assert(NULL != vl);
             if( NULL == (pl = l2p_item->pl) )
                 continue;
-            if(dl->expr->op != JDF_RANGE && dl->expr->local_variables == NULL)
+            if(vl->expr->op != JDF_RANGE && vl->expr->local_variables == NULL)
                 continue;
-            coutput("int32_t __%s_min = 0x7fffffff, __%s_max = 0;", dl->name, dl->name);
+            coutput("int32_t __%s_min = 0x7fffffff, __%s_max = 0;", vl->name, vl->name);
             coutput("int32_t %s%s_min = 0x7fffffff, %s%s_max = 0;",
-                    JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name);
+                    JDF2C_NAMESPACE, vl->name, JDF2C_NAMESPACE, vl->name);
             /* prepare the epilog output to prevent compiler from complaining about initialized but unused data */
             string_arena_add_string(sa_end, "(void)__%s_min; (void)__%s_max;",
-                                    dl->name, dl->name);
+                                    vl->name, vl->name);
         }
     }
 
@@ -3453,15 +3458,15 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
                                      "  int32_t ", " ", ",", ";\n"));
         for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
-            dl = l2p_item->dl; assert(NULL != dl);
+            vl = l2p_item->vl; assert(NULL != vl);
 
-            if(dl->expr->op == JDF_RANGE || NULL != dl->expr->local_variables) {
-                coutput("  int32_t %s%s_start, %s%s_end, %s%s_inc;\n", JDF2C_NAMESPACE, dl->name,
-                        JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name );
+            if(vl->expr->op == JDF_RANGE || NULL != vl->expr->local_variables) {
+                coutput("  int32_t %s%s_start, %s%s_end, %s%s_inc;\n", JDF2C_NAMESPACE, vl->name,
+                        JDF2C_NAMESPACE, vl->name, JDF2C_NAMESPACE, vl->name );
                 /* prepare the epilog output to prevent compiler from complaining about initialized but unused data */
                 string_arena_add_string(sa_end, "  (void)%s%s_start; (void)%s%s_end; (void)%s%s_inc;",
-                                        JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE,
-                                        dl->name, JDF2C_NAMESPACE, dl->name);
+                                        JDF2C_NAMESPACE, vl->name, JDF2C_NAMESPACE,
+                                        vl->name, JDF2C_NAMESPACE, vl->name);
             }
         }
     }
@@ -3484,56 +3489,48 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     info.assignments = "&assignments";
 
     if( need_to_iterate || need_min_max ) {
-        for(dl = f->locals; dl != NULL; dl = dl->next) {
-            if(dl->expr->op == JDF_RANGE) {
+        for(vl = f->locals; vl != NULL; vl = vl->next) {
+            if(vl->expr->op == JDF_RANGE) {
                 coutput("%s    %s%s_start = %s;\n",
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+                        indent(nesting), JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr->jdf_ta1, &info));
                 coutput("%s    %s%s_end = %s;\n",
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info));
+                        indent(nesting), JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr->jdf_ta2, &info));
                 coutput("%s    %s%s_inc = %s;\n",
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info));
+                        indent(nesting), JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr->jdf_ta3, &info));
 
                 if( need_min_max ) {
                     coutput("%s    __%s_min = parsec_imin(%s%s_start, %s%s_end);\n",
-                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name);
+                            indent(nesting), vl->name, JDF2C_NAMESPACE, vl->name, JDF2C_NAMESPACE, vl->name);
                     coutput("%s    __%s_max = parsec_imax(%s%s_start, %s%s_end);\n",
-                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name);
-                    coutput("%s    __jdf2c_%s_min = parsec_imin(__jdf2c_%s_min, __%s_min);\n",
-                            indent(nesting), dl->name, dl->name, dl->name);
-                    coutput("%s    __jdf2c_%s_max = parsec_imax(__jdf2c_%s_max, __%s_max);\n",
-                            indent(nesting), dl->name, dl->name, dl->name);
+                            indent(nesting), vl->name, JDF2C_NAMESPACE, vl->name, JDF2C_NAMESPACE, vl->name);
+                    coutput("%s    %s%s_min = parsec_imin(%s%s_min, __%s_min);\n",
+                            indent(nesting), JDF2C_NAMESPACE, vl->name, JDF2C_NAMESPACE, vl->name, vl->name);
+                    coutput("%s    %s%s_max = parsec_imax(%s%s_max, __%s_max);\n",
+                            indent(nesting), JDF2C_NAMESPACE, vl->name, JDF2C_NAMESPACE, vl->name, vl->name);
                 }
 
                 /* Adapt the loop condition depending on the value of the increment. We can
                  * now handle both increasing and decreasing execution spaces. */
-                if( JDF_OP_IS_CST(dl->expr->jdf_ta3->op) ) {
-                    if( dl->expr->jdf_ta3->jdf_cst >= 0 ) {
-                        coutput("%s    for(%s =  %s%s_start;\n"
-                                "%s        %s <= %s%s_end;\n"
-                                "%s        %s += %s%s_inc) {\n",
-                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
-                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
-                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name);
+                coutput("%s    for(%s =  %s%s_start;\n",
+                    indent(nesting), vl->name, JDF2C_NAMESPACE, vl->name);
+                if( JDF_OP_IS_CST(vl->expr->jdf_ta3->op) ) {
+                    if( vl->expr->jdf_ta3->jdf_cst >= 0 ) {
+                        coutput("%s        %s <= %s%s_end;\n",
+                            indent(nesting), vl->name, JDF2C_NAMESPACE, vl->name);
                     } else {
-                        coutput("%s    for(%s =  %s%s_start;\n"
-                                "%s        %s >= %s%s_end;\n"
-                                "%s        %s += %s%s_inc) {\n",
-                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
-                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
-                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name);
+                        coutput("%s        %s >= %s%s_end;\n",
+                            indent(nesting), vl->name, JDF2C_NAMESPACE, vl->name);
                     }
                 } else {
-                    coutput("%s    for(%s = %s%s_start;\n"
-                            "%s        (((%s%s_inc >= 0) && (%s <= %s%s_end)) ||\n"
-                            "%s         ((%s%s_inc <  0) && (%s >= %s%s_end)));\n"
-                            "%s        %s+=%s%s_inc) {\n",
-                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
-                            indent(nesting), JDF2C_NAMESPACE, dl->name, dl->name, JDF2C_NAMESPACE, dl->name,
-                            indent(nesting), JDF2C_NAMESPACE, dl->name, dl->name, JDF2C_NAMESPACE, dl->name,
-                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name);
+                    coutput("%s        (((%s%s_inc >= 0) && (%s <= %s%s_end)) ||\n"
+                            "%s         ((%s%s_inc <  0) && (%s >= %s%s_end)));\n",
+                            indent(nesting), JDF2C_NAMESPACE, vl->name, vl->name, JDF2C_NAMESPACE, vl->name,
+                            indent(nesting), JDF2C_NAMESPACE, vl->name, vl->name, JDF2C_NAMESPACE, vl->name);
                 }
-            } else if ( NULL != dl->expr->local_variables) {
-                for(ld = jdf_expr_lv_first(dl->expr->local_variables); NULL != ld; ld = jdf_expr_lv_next(dl->expr->local_variables, ld)) {
+                coutput("%s        %s += %s%s_inc) {\n",
+                    indent(nesting), vl->name, JDF2C_NAMESPACE, vl->name);
+            } else if ( NULL != vl->expr->local_variables) {
+                for(ld = jdf_expr_lv_first(vl->expr->local_variables); NULL != ld; ld = jdf_expr_lv_next(vl->expr->local_variables, ld)) {
                     assert(NULL != ld->alias);
                     assert(-1 != ld->ldef_index);
                     if( ld->op == JDF_RANGE ) {
@@ -3558,28 +3555,28 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                         nesting++;
                     } 
                 }
-                coutput("%s    %s = %s;\n", indent(nesting), dl->name, dump_expr((void**)dl->expr, &info));
+                coutput("%s    %s = %s;\n", indent(nesting), vl->name, dump_expr((void**)vl->expr, &info));
             } else {
                 /* We need to start a new code block to have a similar layout as the cases above.
                  * Otherwise the } few lines below will match the wrong loop.
                  */
                 coutput("%s{  /* block for the non-range variable %s */\n",
-                        indent(nesting), dl->name);
-                coutput("%s    %s = %s;\n", indent(nesting), dl->name, dump_expr((void**)dl->expr, &info));
+                        indent(nesting), vl->name);
+                coutput("%s    %s = %s;\n", indent(nesting), vl->name, dump_expr((void**)vl->expr, &info));
             }
             coutput("%s    assignments.%s.value = %s;\n",
-                    indent(nesting), dl->name, dl->name);
+                    indent(nesting), vl->name, vl->name);
             nesting++;
-            inner_dl = dl; /* remember what is the last local seen */
+            inner_vl = vl; /* remember what is the last local seen */
         }
         
-        for(dl = f->locals; dl != NULL; dl = dl->next) {
-            if ( NULL != dl->expr->local_variables) {
-                if( need_min_max ) {
-                    coutput("%s    __jdf2c_%s_min = parsec_imin(__jdf2c_%s_min, %s);\n",
-                            indent(nesting), dl->name, dl->name, dl->name);
-                    coutput("%s    __jdf2c_%s_max = parsec_imax(__jdf2c_%s_max, %s);\n",
-                            indent(nesting), dl->name, dl->name, dl->name);
+        if( need_min_max ) {
+            for(vl = f->locals; vl != NULL; vl = vl->next) {
+                if ( NULL != vl->expr->local_variables) {
+                    coutput("%s    %s%s_min = parsec_imin(__jdf2c_%s_min, %s);\n",
+                            indent(nesting), JDF2C_NAMESPACE, vl->name, vl->name, vl->name);
+                    coutput("%s    %s%s_max = parsec_imax(__jdf2c_%s_max, %s);\n",
+                            indent(nesting), JDF2C_NAMESPACE, vl->name, vl->name, vl->name);
                 }
             }
         }
@@ -3596,36 +3593,36 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         }
 
         /* We close all non-range variables */
-        while( NULL != inner_dl &&
-               inner_dl->expr->op != JDF_RANGE &&
-               inner_dl->expr->local_variables == NULL ) {
-            coutput("%s} /* block for the non-range variable %s */ \n", indent(nesting--), inner_dl->name);
-            for(dl = f->locals; NULL != dl; dl = dl->next)
-                if( dl->next == inner_dl )
+        while( NULL != inner_vl &&
+               inner_vl->expr->op != JDF_RANGE &&
+               inner_vl->expr->local_variables == NULL ) {
+            coutput("%s} /* block for the non-range variable %s */ \n", indent(nesting--), inner_vl->name);
+            for(vl = f->locals; NULL != vl; vl = vl->next)
+                if( vl->next == inner_vl )
                     break;
-            inner_dl = dl;
+            inner_vl = vl;
         }
-        if( NULL != inner_dl ) {
+        if( NULL != inner_vl ) {
             /* and we close the most inner loop */
-            if( inner_dl->expr->op == JDF_RANGE ) {
-                coutput("%s} /* Loop on normal range %s */\n", indent(nesting--), inner_dl->name);
+            if( inner_vl->expr->op == JDF_RANGE ) {
+                coutput("%s} /* Loop on normal range %s */\n", indent(nesting--), inner_vl->name);
             } else {
-                assert(inner_dl->expr->local_variables != NULL);
-                for(ld = inner_dl->expr->local_variables; NULL != ld; ld = ld->next) {
+                assert(inner_vl->expr->local_variables != NULL);
+                for(ld = inner_vl->expr->local_variables; NULL != ld; ld = ld->next) {
                     if( JDF_RANGE == ld->op )
                         coutput("%s  } /* Arbitrary iterator on %s */ \n", indent(nesting--), ld->alias);
                     coutput("%s  } /* Block for local definition of %s */ \n", indent(nesting--), ld->alias);
                 }
             }
-            for(dl = f->locals; NULL != dl; dl = dl->next)
-                if( dl->next == inner_dl )
+            for(vl = f->locals; NULL != vl; vl = vl->next)
+                if( vl->next == inner_vl )
                     break;
-            inner_dl = dl;
-            if(NULL != inner_dl) {
+            inner_vl = vl;
+            if(NULL != inner_vl) {
                 /* As we can re-use a local definition alias for different deps or calls,
                  * and all that gets nested but stored in the same cell of the assignment,
                  * we need to restore last value left by the level above */
-                for(ld = inner_dl->expr->local_variables; NULL != ld; ld = ld->next) {
+                for(ld = inner_vl->expr->local_variables; NULL != ld; ld = ld->next) {
                     assert(NULL != ld->alias);
                     assert(-1 != ld->ldef_index);
                     coutput("%s  assignments.ldef[%d].value = %s;\n", indent(nesting), ld->ldef_index, ld->alias);
@@ -3633,7 +3630,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
         }
 
-        if( NULL != inner_dl ) {
+        if( NULL != inner_vl ) {
             if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
                 /* If no tasks have been generated during the last loop, there is no need
                  * to have any dependencies.
@@ -3646,24 +3643,24 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
                 string_arena_add_string(sa1, "dep");
                 for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
-                    dl = l2p_item->dl;
+                    vl = l2p_item->vl;
                     coutput("%s    if( %s == NULL ) {\n",
                             indent(nesting), string_arena_get_string(sa1));
-                    if(dl->expr->op == JDF_RANGE) {
+                    if(vl->expr->op == JDF_RANGE) {
                         coutput("%s      ALLOCATE_DEP_TRACKING(%s, __%s_min, __%s_max,\n",
-                                indent(nesting), string_arena_get_string(sa1), dl->name, dl->name);
+                                indent(nesting), string_arena_get_string(sa1), vl->name, vl->name);
                     } else {
                         coutput("%s      ALLOCATE_DEP_TRACKING(%s, %s, %s,\n",
-                                indent(nesting), string_arena_get_string(sa1), dl->name, dl->name);
+                                indent(nesting), string_arena_get_string(sa1), vl->name, vl->name);
                     }
                     coutput("%s                            \"%s\", %s);\n"
                             "%s    }\n",
-                            indent(nesting), dl->name,
+                            indent(nesting), vl->name,
                             NULL == l2p_item->next ? "PARSEC_DEPENDENCIES_FLAG_FINAL" : "PARSEC_DEPENDENCIES_FLAG_NEXT",  /* last item */
                             indent(nesting));
                     string_arena_init(sa2);
                     string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
-                    string_arena_add_string(sa1, "->u.next[%s-__%s_min]", dl->name, dl->name);
+                    string_arena_add_string(sa1, "->u.next[%s-__%s_min]", vl->name, vl->name);
                 }
                 /* Save the current number of tasks for the optimization of the next iteration */
                 if( need_to_count_tasks ) {
@@ -3675,31 +3672,31 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
         }
 
-        while( NULL != inner_dl ) {
+        while( NULL != inner_vl ) {
             /* We close all the other loops in reverse order */
-            if( inner_dl->expr->local_variables == NULL ) {
+            if( inner_vl->expr->local_variables == NULL ) {
                 /* If it is a range or a simple expression without local indices, it's easy */
-                if( dl->expr->op == JDF_RANGE ) {
-                    coutput("%s} /* For loop of %s */ \n", indent(nesting--), inner_dl->name);
+                if( vl->expr->op == JDF_RANGE ) {
+                    coutput("%s} /* For loop of %s */ \n", indent(nesting--), inner_vl->name);
                 } else {
-                    coutput("%s} /* Non-range variable %s */ \n", indent(nesting--), inner_dl->name);
+                    coutput("%s} /* Non-range variable %s */ \n", indent(nesting--), inner_vl->name);
                 }
             } else {
-                for(ld = inner_dl->expr->local_variables; NULL != ld; ld = ld->next) {
+                for(ld = inner_vl->expr->local_variables; NULL != ld; ld = ld->next) {
                     if( JDF_RANGE == ld->op )
                         coutput("%s  } /* Arbitrary iterator on %s */ \n", indent(nesting--), ld->alias);
                     coutput("%s  } /* Block for local definition of %s */ \n", indent(nesting--), ld->alias);
                 }
             }
-            for(dl = f->locals; NULL != dl; dl = dl->next)
-                if( dl->next == inner_dl )
+            for(vl = f->locals; NULL != vl; vl = vl->next)
+                if( vl->next == inner_vl )
                     break;
-            inner_dl = dl;
-            if(NULL != inner_dl) {
+            inner_vl = vl;
+            if(NULL != inner_vl) {
                 /* As we can re-use a local definition alias for different deps or calls,
                  * and all that gets nested but stored in the same cell of the assignment,
                  * we need to restore last value left by the level above */
-                for(ld = inner_dl->expr->local_variables; NULL != ld; ld = ld->next) {
+                for(ld = inner_vl->expr->local_variables; NULL != ld; ld = ld->next) {
                     assert(NULL != ld->alias);
                     assert(-1 != ld->ldef_index);
                     coutput("%s  assignments.ldef[%d].value = %s;\n", indent(nesting), ld->ldef_index, ld->alias);
@@ -3720,9 +3717,9 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         if( need_min_max ) {
             coutput("  /* Set the range variables for the collision-free hash-computation */\n");
             for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
-                dl = l2p_item->dl;
+                vl = l2p_item->vl;
                 if( NULL == (pl = l2p_item->pl) ) continue;
-                if(dl->expr->op == JDF_RANGE || NULL != dl->expr->local_variables) {
+                if(vl->expr->op == JDF_RANGE || NULL != vl->expr->local_variables) {
                     coutput("  __parsec_tp->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
                             f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
                 } else {
@@ -4014,8 +4011,8 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     sa = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    JDF_COUNT_LIST_ENTRIES(f->parameters, jdf_name_list_t, next, nbparameters);
-    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nbdefinitions);
+    JDF_COUNT_LIST_ENTRIES(f->parameters, jdf_param_list_t, next, nbparameters);
+    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_variable_list_t, next, nbdefinitions);
 
     inputmask = 0;
     nb_input = nb_output = 0;
@@ -4742,7 +4739,7 @@ static void jdf_generate_new_function( const jdf_t* jdf )
 static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_entry_t *f)
 {
     string_arena_t *sa_range_multiplier = string_arena_new(64);
-    jdf_def_list_t *dl;
+    jdf_variable_list_t *vl;
     expr_info_t info = EMPTY_EXPR_INFO;
     int idx;
 
@@ -4768,27 +4765,27 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
             info.assignments = "assignment";
 
             idx = 0;
-            for(dl = f->locals; dl != NULL; dl = dl->next) {
+            for(vl = f->locals; vl != NULL; vl = vl->next) {
                 string_arena_init(sa_range_multiplier);
                 
                 coutput("  const int %s = assignment->%s.value;\n",
-                        dl->name, dl->name);
+                        vl->name, vl->name);
                 
-                if( definition_is_parameter(f, dl) != NULL ) {
-                    if( dl->expr->op == JDF_RANGE ) {
-                        coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+                if( local_is_parameter(f, vl) != NULL ) {
+                    if( vl->expr->op == JDF_RANGE ) {
+                        coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr->jdf_ta1, &info));
                     } else {
-                        if( dl->expr->local_variables != NULL ) {
+                        if( vl->expr->local_variables != NULL ) {
                             char *vname;
-                            if( asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, dl->name) <= 0 ) {
+                            if( asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, vl->name) <= 0 ) {
                                 fprintf(stderr, "Cannot allocate internal memory for the PTG compiler\n");
                                 exit(-1);
                             }
                             coutput("  int %s;\n", vname);
-                            jdf_generate_range_min_without_fn(jdf, dl->expr, vname, "assignment");
+                            jdf_generate_range_min_without_fn(jdf, vl->expr, vname, "assignment");
                             free(vname);
                         } else {
-                            coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr, &info));
+                            coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr, &info));
                         }
                     }
                 } else {
@@ -4797,16 +4794,16 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
                      * the min expression of the parameters might depend on them. If
                      * this is not the case, a quick "(void)" removes the warning.
                      */
-                    coutput("  (void)%s;\n", dl->name);
+                    coutput("  (void)%s;\n", vl->name);
                 }
                 idx++;
             }
 
             string_arena_init(sa_range_multiplier);
-            for(dl = f->locals; dl != NULL; dl = dl->next) {
-                if( definition_is_parameter(f, dl) != NULL ) {
-                    coutput("  __parsec_id += (%s - %s%s_min)%s;\n", dl->name, JDF2C_NAMESPACE, dl->name, string_arena_get_string(sa_range_multiplier));
-                    string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, dl->name);
+            for(vl = f->locals; vl != NULL; vl = vl->next) {
+                if( local_is_parameter(f, vl) != NULL ) {
+                    coutput("  __parsec_id += (%s - %s%s_min)%s;\n", vl->name, JDF2C_NAMESPACE, vl->name, string_arena_get_string(sa_range_multiplier));
+                    string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, vl->name);
                 }
             }
 
@@ -4863,8 +4860,8 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   expr_info_t infodst = EMPTY_EXPR_INFO, infosrc = EMPTY_EXPR_INFO;
   string_arena_t *sa2;
   jdf_expr_t *params = call->parameters;
-  jdf_def_list_t *dl;
-  jdf_name_list_t *pl;
+  jdf_variable_list_t *vl;
+  jdf_param_list_t *pl;
   const jdf_function_entry_t *f;
 
   f = find_target_function(jdf, call->func_or_mem);
@@ -4883,7 +4880,7 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   infosrc.suffix = "";
   infosrc.assignments = "&this_task->locals";
 
-  for(dl = f->locals; dl != NULL; dl = dl->next) {
+  for(vl = f->locals; vl != NULL; vl = vl->next) {
       /* Is this definition a parameter or a value? */
       /* If it is a parameter, find the corresponding param in the call */
       for(el = params, pl = f->parameters; pl != NULL; el = el->next, pl = pl->next) {
@@ -4914,7 +4911,7 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
               exit(-1);
           }
           assert( el != NULL );
-          if(!strcmp(pl->name, dl->name))
+          if(!strcmp(pl->name, vl->name))
               break;
       }
       string_arena_init(sa2);
@@ -4929,13 +4926,13 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
           /* It is a value. Let's dump it's expression in the destination context */
           string_arena_add_string(sa,
                                   "%sconst int %s%s = %s->%s.value = %s; (void)%s%s;\n",
-                                  indent(spaces), f->fname, dl->name, name, dl->name, dump_expr((void**)dl->expr, &infodst), f->fname, dl->name);
+                                  indent(spaces), f->fname, vl->name, name, vl->name, dump_expr((void**)vl->expr, &infodst), f->fname, vl->name);
       } else {
           /* It is a parameter. Let's dump it's expression in the source context */
           assert(el != NULL);
           string_arena_add_string(sa,
                                   "%sconst int %s%s = %s->%s.value = %s; (void)%s%s;\n",
-                                  indent(spaces), f->fname, dl->name, name, dl->name, dump_expr((void**)el, &infosrc), f->fname, dl->name);
+                                  indent(spaces), f->fname, vl->name, name, vl->name, dump_expr((void**)el, &infosrc), f->fname, vl->name);
       }
   }
 
@@ -7223,14 +7220,13 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                          const char *prefix,
                                          const char *var)
 {
-    jdf_def_list_t *def;
-    const jdf_function_entry_t *targetf;
-    jdf_expr_t *el;
-    jdf_name_list_t *nl;
     expr_info_t local_info = EMPTY_EXPR_INFO, dest_info = EMPTY_EXPR_INFO;
+    int nbparam_given, nbparam_required, i, nbopen;
+    const jdf_function_entry_t *targetf;
     string_arena_t *sa2, *sa1, *sa_close;
-    int i, nbopen;
-    int nbparam_given, nbparam_required;
+    jdf_variable_list_t *vl;
+    jdf_param_list_t *nl;
+    jdf_expr_t *el;
 
     (void)sourcef;
     
@@ -7319,15 +7315,13 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
         }
     }
     
-    for(def = targetf->locals, i = 0;
-        def != NULL;
-        def = def->next, i++) {
+    for(vl = targetf->locals, i = 0; vl != NULL; vl = vl->next, i++) {
 
         for(el  = call->parameters, nl = targetf->parameters;
             nl != NULL;
             nl = nl->next, el = el->next) {
             assert(el != NULL);
-            if( !strcmp(nl->name, def->name) )
+            if( !strcmp(nl->name, vl->name) )
                 break;
         }
 
@@ -7340,12 +7334,12 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
             assert(el == NULL);
             string_arena_add_string(sa_open,
                                     "%s%s  const int %s_%s = %s;\n",
-                                    prefix, indent(nbopen), targetf->fname, def->name, dump_expr((void**)def->expr, &dest_info));
+                                    prefix, indent(nbopen), targetf->fname, vl->name, dump_expr((void**)vl->expr, &dest_info));
             string_arena_add_string(sa_open, "%s%s  assert(&%s.locals[%d].value == &ncc->locals.%s.value);\n",
-                                    prefix, indent(nbopen), var, i, def->name);
+                                    prefix, indent(nbopen), var, i, vl->name);
             string_arena_add_string(sa_open, "%s%s  ncc->locals.%s.value = %s_%s;\n",
-                                    prefix, indent(nbopen), def->name,
-                                    targetf->fname, def->name);
+                                    prefix, indent(nbopen), vl->name,
+                                    targetf->fname, vl->name);
         } else {
             /* This definition is a parameter */
             assert(el != NULL);
@@ -7417,24 +7411,24 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                                         prefix, indent(nbopen), targetf->fname, nl->name, dump_expr((void**)el, &local_info));
             }
 
-            if( def->expr->op == JDF_RANGE ) {
+            if( vl->expr->op == JDF_RANGE ) {
                 /* This is a place where we consider iterators must be from low to high */
                 string_arena_add_string(sa_open,
                                         "%s%s  if( (%s_%s >= (%s))",
                                         prefix, indent(nbopen), targetf->fname, nl->name,
-                                        dump_expr((void**)def->expr->jdf_ta1, &dest_info));
+                                        dump_expr((void**)vl->expr->jdf_ta1, &dest_info));
                 string_arena_add_string(sa_open, " && (%s_%s <= (%s)) ) {\n",
                                         targetf->fname, nl->name,
-                                        dump_expr((void**)def->expr->jdf_ta2, &dest_info));
+                                        dump_expr((void**)vl->expr->jdf_ta2, &dest_info));
                 nbopen++;
-            } else if( NULL != def->expr->local_variables ) {
+            } else if( NULL != vl->expr->local_variables ) {
                 string_arena_add_string(sa_open, "%s%s  /* We cannot check if %s_%s is within the iterator space, because that space is defined with local indices. We need to trust */\n",
                                         prefix, indent(nbopen), targetf->fname, nl->name);
             } else {
                 string_arena_add_string(sa_open,
                                         "%s%s  if( (%s_%s == (%s)) ) {\n",
                                         prefix, indent(nbopen), targetf->fname, nl->name,
-                                        dump_expr((void**)def->expr, &dest_info));
+                                        dump_expr((void**)vl->expr, &dest_info));
                 nbopen++;
             }
 
