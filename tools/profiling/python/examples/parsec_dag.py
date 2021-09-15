@@ -39,7 +39,7 @@ class ParsecDAG:
 
         Raises
         ------
-        All execeptions due to file errors
+        All exceptions due to file errors
         Additional exceptions when the file does not follow the format that PaRSEC is supposed to produce
         """
         node = re.compile(r'''
