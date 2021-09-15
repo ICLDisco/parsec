@@ -23,7 +23,6 @@ SET(MCA_${COMPONENT}_${MODULE}_CONSTRUCTOR "${COMPONENT}_${MODULE}_static_compon
 
 # add the list of files to be installed. This step can be conditional, and must
 # take in account the WITH_DEVEL_HEADER request.
-
-# install(FILES
-#   ${CMAKE_CURRENT_SOURCE_DIR}/${COMPONENT}/${MODULE}/file.h
-#   DESTINATION include/parsec/mca/${COMPONENT}/${MODULE}/ )
+#set_property(TARGET parsec
+#                    APPEND PROPERTY
+#                           PUBLIC_HEADER_H ${COMPONENT}/${MODULE}/file.h)

@@ -24,7 +24,6 @@ endif( )
 
 target_ptg_sources(parsec PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/redistribute.jdf;${CMAKE_CURRENT_SOURCE_DIR}/redistribute_reshuffle.jdf")
 
-
-install(FILES
-  redistribute_internal.h
-  DESTINATION include/parsec/data_dist/matrix/redistribute )
+set_property(TARGET parsec
+             APPEND PROPERTY
+                    PUBLIC_HEADER_H data_dist/matrix/redistribute/redistribute_internal.h)

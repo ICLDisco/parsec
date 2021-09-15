@@ -61,3 +61,6 @@ ENDFOREACH(COMPONENT)
 MESSAGE(STATUS "PARSEC Modular Component Architecture (MCA) discovery done.")
 
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mca/mca_static_components.h.in ${CMAKE_CURRENT_BINARY_DIR}/mca/mca_static_components.h)
+set_property(TARGET parsec
+             APPEND PROPERTY
+                    PUBLIC_HEADER_H mca/mca.h)

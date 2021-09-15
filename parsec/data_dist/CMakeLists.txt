@@ -5,7 +5,7 @@ add_subdirectory(matrix)
 
 target_sources(parsec PRIVATE ${sources})
 
-install(FILES
-  hash_datadist.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/data_dist )
+set_property(TARGET parsec
+             APPEND PROPERTY
+             PRIVATE_HEADER_H data_dist/hash_datadist.h)
 

@@ -51,15 +51,6 @@ if(PARSEC_FLEX_GENERATED_OPTIONS)
     PROPERTIES COMPILE_OPTIONS "${PARSEC_FLEX_GENERATED_OPTIONS}")
 endif(PARSEC_FLEX_GENERATED_OPTIONS)
 
-# Read the Modular Components
-#   This must be read using include and not add_subdirectory because
-#   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
-include(mca/CMakeLists.txt)
-
-# Import all the available Domain Specific Language interfaces
-include(interfaces/CMakeLists.txt)
-add_executable(PaRSEC::parsec-ptgpp ALIAS parsec-ptgpp)
-
 if( PARSEC_PAPI_SDE )
   list(APPEND EXTRA_SOURCES "papi_sde.c")
 endif( PARSEC_PAPI_SDE )
@@ -97,10 +88,7 @@ set(SOURCES
   vpmap.c
   maxheap.c
   hbbuffer.c
-  datarepo.c
-  ${EXTRA_SOURCES}
-  ${MCA_EXTRA_SOURCES}
-)
+  datarepo.c)
 if( PARSEC_PROF_TRACE )
   list(APPEND SOURCES dictionary.c)
 endif( PARSEC_PROF_TRACE )
@@ -120,6 +108,31 @@ endif( PARSEC_PROF_GRAPHER )
 # Setup targets
 #
 if( BUILD_PARSEC )
+  # As suggested @ https://crascit.com/2016/01/31/enhanced-source-file-handling-with-target_sources/
+  # create the target at the upper level and add sources to all directories below.
+  if(NOT TARGET parsec)
+    if( ${BUILD_SHARED_LIBS} )
+      add_library(parsec SHARED)
+    else( ${BUILD_SHARED_LIBS} )
+      add_library(parsec STATIC)
+    endif( ${BUILD_SHARED_LIBS} )
+  endif(NOT TARGET parsec)
+  add_library(PaRSEC::parsec ALIAS parsec)
+endif( BUILD_PARSEC )
+
+# Read the Modular Components
+#   This must be read using include and not add_subdirectory because
+#   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
+include(mca/CMakeLists.txt)
+
+# Import all the available Domain Specific Language interfaces
+include(interfaces/CMakeLists.txt)
+if(TARGET parsec-ptgpp)
+  add_executable(PaRSEC::parsec-ptgpp ALIAS parsec-ptgpp)
+endif(TARGET parsec-ptgpp)
+
+if( BUILD_PARSEC )
+
   # Build this as a collection of objects that can be easily either used to
   # create an interface library or imported into the main library.
   if(NOT TARGET parsec-base-obj)
@@ -150,19 +163,8 @@ if( BUILD_PARSEC )
     target_link_libraries(parsec-base PUBLIC parsec-base-obj)
   endif(NOT TARGET parsec-base)
 
-  # As suggested @ https://crascit.com/2016/01/31/enhanced-source-file-handling-with-target_sources/
-  # create the target at the upper level and add sources to all directories below.
-  if(NOT TARGET parsec)
-    if( ${BUILD_SHARED_LIBS} )
-      add_library(parsec SHARED)
-    else( ${BUILD_SHARED_LIBS} )
-      add_library(parsec STATIC mca/device/device_gpu.h mca/device/device_gpu.c)
-    endif( ${BUILD_SHARED_LIBS} )
-  endif(NOT TARGET parsec)
-  add_library(PaRSEC::parsec ALIAS parsec)
-
   target_sources(parsec PRIVATE $<IF:$<BOOL:PARSEC_SANITIZE_COMPILE_OPTIONS>,${BASE_SOURCES},$<TARGET_OBJECTS:parsec-base-obj>>)
-  target_sources(parsec PRIVATE ${SOURCES})
+  target_sources(parsec PRIVATE ${SOURCES} ${EXTRA_SOURCES} ${MCA_EXTRA_SOURCES})
   add_subdirectory(data_dist)
 
   target_compile_options(parsec
@@ -220,11 +222,17 @@ if( BUILD_PARSEC )
       PUBLIC parsec-papi-sde $<$<BOOL:${PAPI_FOUND}>:PAPI::PAPI>)
 
     # parsec-papi-sde has to be installed, to provide the default empty functions
+    set_property(TARGET parsec-papi-sde
+                 APPEND PROPERTY
+                        PUBLIC_HEADER_H papi_sde_interface.h)
     install(TARGETS parsec-papi-sde
       EXPORT parsec-targets
       DESTINATION ${PARSEC_INSTALL_LIBDIR})
-  #install(FILES papi_sde_interface.h DESTINATION ${PARSEC_INSTALL_LIBDIR}/parsec)
   endif( PARSEC_PAPI_SDE )
+
+  set_property(TARGET parsec
+               APPEND PROPERTY
+                      PUBLIC_HEADER include/parsec.h)
 
 #
 # If we have support for F90 build the PaRSEC module
@@ -234,11 +242,109 @@ if( BUILD_PARSEC )
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 
   install(TARGETS parsec
-    EXPORT parsec-targets
-    ARCHIVE DESTINATION ${PARSEC_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${PARSEC_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${PARSEC_INSTALL_INCLUDEDIR})
+          EXPORT parsec-targets
+          ARCHIVE DESTINATION ${PARSEC_INSTALL_LIBDIR}
+          LIBRARY DESTINATION ${PARSEC_INSTALL_LIBDIR})
+  # Cmake < 3.20 does not support hierarchical PUBLIC and PRIVATE _HEADER,
+  # so we need to provide our own support by crafting a similar property
+  # PUBLIC_HEADER_H and PRIVATE_HEADER_H
+  # Extract these properties and properly install the files respecting the
+  # defined hierarchy
+  get_target_property(_public_headers parsec PUBLIC_HEADER_H)
+  foreach(_FILE ${_public_headers})
+    get_filename_component(_DIR ${_FILE} DIRECTORY)
+    INSTALL(FILES ${_FILE} DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/${_DIR})
+  endforeach()
+  get_target_property(_private_headers parsec PRIVATE_HEADER_H)
+  foreach(_FILE ${_private_headers})
+    get_filename_component(_DIR ${_FILE} DIRECTORY)
+    INSTALL(FILES ${_FILE} DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/${_DIR})
+  endforeach()
 
-  install(FILES utils/help-mca-param.txt DESTINATION ${PARSEC_INSTALL_DATADIR}/parsec)
+  install(FILES utils/help-mca-param.txt
+          DESTINATION ${PARSEC_INSTALL_DATADIR}/parsec)
+  install(FILES
+          ${CMAKE_CURRENT_SOURCE_DIR}/runtime.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/ayudame.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/constants.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/parsec_config_bottom.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/data_distribution.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/datatype.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/profiling.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/dictionary.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/data.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/private_mempool.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/deprecated.h
+          DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec)
+
+install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/output.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/debug.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/mca_param.h
+        DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/utils)
+install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/parsec_object.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/parsec_hash_table.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/list_item.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/parsec_rwlock.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/fifo.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/barrier.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/list.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/info.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/class/parsec_future.h
+        DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class)
+install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/scheduling.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/recursive.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/remote_dep.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/parsec_description_structures.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/datarepo.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/mempool.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/data_internal.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/arena.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/execution_stream.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/parsec_internal.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/vpmap.h
+        DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec)
+if(PARSEC_PROF_GRAPHER)
+  install(FILES
+          ${CMAKE_CURRENT_SOURCE_DIR}/parsec_prof_grapher.h
+          DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec )
+endif(PARSEC_PROF_GRAPHER)
+# Install header files for jdf generated code
+if( PARSEC_WITH_DEVEL_HEADERS )
+  install(FILES
+          ${CMAKE_CURRENT_SOURCE_DIR}/parsec_binary_profile.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/hbbuffer.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/os-spec-timing.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/maxheap.h
+          DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec )
+
+  install(FILES
+          ${CMAKE_CURRENT_SOURCE_DIR}/mca/pins/pins_papi_utils.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/mca/pins/pins_tau_utils.h
+          DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/mca/pins )
+
+  install(FILES
+          ${CMAKE_CURRENT_SOURCE_DIR}/utils/argv.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/utils/cmd_line.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/utils/parsec_environ.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/utils/mca_param_cmd_line.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/utils/os_path.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/utils/output.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/utils/show_help.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/utils/zone_malloc.h
+          DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/utils )
+
+  install(FILES
+          ${CMAKE_CURRENT_SOURCE_DIR}/class/dequeue.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/class/fifo.h
+          DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class )
+
+endif(PARSEC_WITH_DEVEL_HEADERS)
+
+
+
 ENDIF( BUILD_PARSEC )
+
 

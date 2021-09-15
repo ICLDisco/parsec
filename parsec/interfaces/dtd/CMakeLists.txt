@@ -9,9 +9,9 @@ if( BUILD_PARSEC )
     DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/interfaces/dtd/)
 
   if( PARSEC_WITH_DEVEL_HEADERS )
-    install(FILES
-            ${CMAKE_CURRENT_SOURCE_DIR}/interfaces/dtd/insert_function_internal.h
-            DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/interfaces/dtd/)
+    set_property(TARGET parsec
+                 APPEND PROPERTY
+                        PUBLIC_HEADER_H interfaces/dtd/insert_function_internal.h)
   endif( PARSEC_WITH_DEVEL_HEADERS )
 
 endif( BUILD_PARSEC )

@@ -4,6 +4,7 @@ if( PARSEC_HAVE_CUDA )
   LIST(APPEND MCA_${COMPONENT}_SOURCES mca/device/device_gpu.c mca/device/transfer_gpu.c)
 endif( PARSEC_HAVE_CUDA )
 
-install(FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/mca/device/device.h ${CMAKE_CURRENT_SOURCE_DIR}/mca/device/device_gpu.h
-        DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/mca/device )
+set_property(TARGET parsec
+             APPEND PROPERTY
+                    PUBLIC_HEADER_H mca/device/device.h
+                                    mca/device/device_gpu.h)
