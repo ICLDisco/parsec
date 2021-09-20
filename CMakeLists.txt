@@ -710,22 +710,22 @@ int main(int argc, char *argv[]) {
   endif( PARSEC_GPU_WITH_CUDA )
 
   if( PARSEC_GPU_WITH_HIP )
-    if( PARSEC_HAVE_CUDA )
-    # the underlying reason is that the generated ptg code cannot include at the same time
-    # cuda_runtime.h and hip_runtime.h, so we need to modify the dev_cuda.h to not expose any
-    # structure that depends on these headers.
-    message(FATAL_ERROR "For the time being HIP and CUDA devices cannot be compiled at the same time. Choose one by setting explicitely the options PARSEC_GPU_WITH_{CUDA|HIP}")
-    endif()
     # This is kinda ugly but the PATH and HINTS don't get transmitted to sub-dependents
     set(CMAKE_SYSTEM_PREFIX_PATH_save ${CMAKE_SYSTEM_PREFIX_PATH})
     list(APPEND CMAKE_SYSTEM_PREFIX_PATH /opt/rocm)
-    find_package(HIP)
+    find_package(HIP QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
     set(CMAKE_SYSTEM_PREFIX_PATH ${CMAKE_SYSTEM_PREFIX_PATH_save})
     set(PARSEC_HAVE_HIP ${HIP_FOUND} CACHE BOOL "True if PaRSEC provide support for HIP")
     if(HIP_FOUND)
       message(STATUS "Found HIP ${HIP_VERSION} in ${HIP_LIB_INSTALL_DIR}")
       get_target_property(extra_hip_libs hip::host INTERFACE_LINK_LIBRARIES)
       list(APPEND EXTRA_LIBS ${extra_hip_libs})
+      if( PARSEC_HAVE_CUDA )
+        # the underlying reason is that the generated ptg code cannot include at the same time
+        # cuda_runtime.h and hip_runtime.h, so we need to modify the dev_cuda.h to not expose any
+        # structure that depends on these headers.
+        message(FATAL_ERROR "For the time being HIP and CUDA devices cannot be compiled at the same time. Choose one by setting explicitely the options PARSEC_GPU_WITH_{CUDA|HIP}")
+      endif( PARSEC_HAVE_CUDA )
     endif(HIP_FOUND)
   endif( PARSEC_GPU_WITH_HIP )
   find_package(AYUDAME QUIET)
