@@ -97,7 +97,7 @@ static size_t parsec_param_eager_limit = RDEP_MSG_EAGER_LIMIT;
 */
 static size_t parsec_param_eager_limit = 0;
 #endif  /* RDEP_MSG_EAGER_LIMIT != 0 */
-static int parsec_param_enable_aggregate = 1;
+static int parsec_param_enable_aggregate = 0;
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
 static int parsec_param_enable_mpi_overtake = 1;
 #endif

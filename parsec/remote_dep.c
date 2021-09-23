@@ -169,6 +169,8 @@ inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
         }
         /* fw_mask immediatly follows outputs */
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
+        remote_deps->bcast_flag = 0; /* default this dep is not for bcast */
+        memset(remote_deps->bcast_keys, 0, sizeof(uint32_t)*16);
         assert( (int)(ptr - (char*)remote_deps) ==
                 (int)(parsec_remote_dep_context.elem_size - rank_bit_size));
     } else {
@@ -530,6 +532,9 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                 int remote_dep_bcast_child_permits = 0;
                 /* Right now DTD only supports a star broadcast topology */
                 if( PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type ) {
+                    parsec_dtd_task_t *this_dtd_task = (parsec_dtd_task_t *) task;
+                    if(this_dtd_task->deps_out == NULL)
+                        remote_deps->msg.locals[0].value = remote_deps->bcast_keys[i]; /* p2p, update the key for this message */
                     remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
                 } else {
                     remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);

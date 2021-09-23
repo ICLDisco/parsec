@@ -144,7 +144,7 @@ if(PARSEC_DIST_WITH_MPI AND 0)
   message(FATAL_ERROR "PARSEC_DIST_WITH_MPI and PARSEC_DIST_WITH_OTHER are mutually exclusive, please select only one")
 endif()
 option(PARSEC_DIST_THREAD
-  "Use an extra thread to progress the data movements" ON)
+    "Use an extra thread to progress the data movements" OFF)
 option(PARSEC_DIST_PRIORITIES
   "Favor the communications that unlock the most prioritary tasks" ON)
 option(PARSEC_DIST_COLLECTIVES

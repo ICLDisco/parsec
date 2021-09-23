@@ -214,6 +214,9 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
     /* The first taskclass of every taskpool is the flush taskclass */
     parsec_dtd_create_task_class(dtd_tp, parsec_dtd_data_flush_sndrcv, "parsec_dtd_data_flush",
                                  0, 0, 1);
+    /* The second taskclass of every taskpool is the bcast key array propagation taskclass */
+    parsec_dtd_create_task_class(dtd_tp, parsec_dtd_bcast_key_fn, "parsec_dtd_bcast_key_fn",
+                                 1, sizeof(int), 1);
 
     return 0;
 }
@@ -1274,6 +1277,9 @@ parsec_dtd_taskpool_new(void)
     __tp->current_thread_id   = 0;
     __tp->function_counter    = 0;
     __tp->enqueue_flag        = 0;
+    __tp->bcast_id            = 0;
+    memset(__tp->send_task_id, 0, MAX_RANK_INFO*sizeof(int)*8*sizeof(int));
+    memset(__tp->recv_task_id, 0, MAX_RANK_INFO*sizeof(int)*8*sizeof(int));
 
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *) __tp);
     if( 0 < asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d",
@@ -1447,12 +1453,21 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
                 struct remote_dep_output_param_s* output;
                 int _array_pos, _array_mask;
 
+                /* On the sender side, update the key of the dep flow */
+                parsec_dtd_task_t * real_parent_task = (parsec_dtd_task_t *)oldcontext;
+                parsec_dtd_task_t * real_child_task = (parsec_dtd_task_t *)newcontext;
+
 #if !defined(PARSEC_DIST_COLLECTIVES)
                 assert(src_rank == es->virtual_process->parsec_context->my_rank);
 #endif
                 _array_pos = dst_rank / (8 * sizeof(uint32_t));
                 _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
                 PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
+                if(real_parent_task->deps_out == NULL) {
+                    arg->remote_deps->bcast_keys[dep->dep_datatype_index] = 0;
+                    arg->remote_deps->bcast_keys[dep->dep_datatype_index] |= src_rank<<18;
+                    arg->remote_deps->bcast_keys[dep->dep_datatype_index] |= (FLOW_OF(real_parent_task, dep->belongs_to->flow_index))->msg_keys[dst_rank];
+                }
                 output = &arg->remote_deps->output[dep->dep_datatype_index];
                 assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
                 arg->remote_deps->root = src_rank;
@@ -2016,9 +2031,16 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     tc->nb_flows              = flow_count;
     /* set to one so that prof_grpaher prints the task id properly */
     tc->nb_parameters         = 1;
-    tc->nb_locals             = 1;
+    tc->nb_locals             = 8;
     params[0]                 = &symb_dtd_taskid;
     locals[0]                 = &symb_dtd_taskid;
+    locals[1]                 = &symb_dtd_taskid;
+    locals[2]                 = &symb_dtd_taskid;
+    locals[3]                 = &symb_dtd_taskid;
+    locals[4]                 = &symb_dtd_taskid;
+    locals[5]                 = &symb_dtd_taskid;
+    locals[6]                 = &symb_dtd_taskid;
+    locals[7]                 = &symb_dtd_taskid;
     tc->data_affinity         = NULL;
     tc->initial_data          = NULL;
     tc->final_data            = (parsec_data_ref_fn_t *) NULL;
@@ -2224,6 +2246,18 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
             parsec_dtd_remote_task_retain( real_parent_task );
         }
 
+        /* On the receiver side, based on the previous parent key, update next recv key for dep flow */
+        if(real_parent_task->deps_out == NULL) {
+            if(real_parent_task->ht_item.key == 0xffffffff) {
+                real_parent_task->ht_item.key = 0;
+                real_parent_task->ht_item.key |= real_parent_task->rank<<18;
+                real_parent_task->ht_item.key |= tp->recv_task_id[real_parent_task->rank]++;
+                real_parent_task->super.locals[0].value = real_parent_task->ht_item.key;
+            }
+        } else {
+            /* parent is a collective, so ID is provided and we don't do anything here */
+        }
+
         uint64_t key = (((uint64_t)real_parent_task->ht_item.key)<<32) | (1U<<real_parent_flow_index);
         parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
         parsec_remote_deps_t *dep = parsec_dtd_find_remote_dep( tp, key );
@@ -2310,11 +2344,19 @@ parsec_dtd_create_and_initialize_task( parsec_dtd_taskpool_t *dtd_tp,
     assert(this_task->super.super.super.obj_reference_count == 1);
 
     this_task->orig_task = NULL;
+    /* DTD Collective */
+    this_task->deps_out = NULL;
+
     this_task->super.taskpool   = (parsec_taskpool_t*)dtd_tp;
-    this_task->ht_item.key      = (parsec_key_t)(uintptr_t)(dtd_tp->task_id++);
+    /* this_task->ht_item.key      = (parsec_key_t)(uintptr_t)(dtd_tp->task_id++); */
+    this_task->ht_item.key      = (uintptr_t)0xffffffff;
+    
     /* this is needed for grapher to work properly */
     this_task->super.locals[0].value = (int)(uintptr_t)this_task->ht_item.key;
-    assert( (uintptr_t)this_task->super.locals[0].value == (uintptr_t)this_task->ht_item.key );
+    //assert( (uintptr_t)this_task->super.locals[0].value == (uintptr_t)this_task->ht_item.key );
+    for(int idx = 0; idx < 8; idx++) {
+        this_task->super.locals[idx].value = 0;
+    }
     this_task->super.task_class      = tc;
     /**
      * +1 to make sure the task cannot be completed by the potential predecessors,
@@ -2327,6 +2369,7 @@ parsec_dtd_create_and_initialize_task( parsec_dtd_taskpool_t *dtd_tp,
     this_task->super.priority = 0;
     this_task->super.chore_id = 0;
     this_task->super.status   = PARSEC_TASK_STATUS_NONE;
+    memset(this_task->rank_bits, 0, MAX_RANK_INFO*sizeof(int));
 
     int j;
     parsec_dtd_flow_info_t *flow;
@@ -2416,6 +2459,38 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
  */
 int
 fake_first_out_body( parsec_execution_stream_t *es, parsec_task_t *this_task)
+{
+    (void)es; (void)this_task;
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+/* **************************************************************************** */
+/**
+ * Body of bcast key task we insert that will propagate the key array
+ * empty body!
+ *
+ * @param   context, this_task
+ *
+ * @ingroup DTD_INTERFACE_INTERNAL
+ */
+int
+parsec_dtd_bcast_key_fn( parsec_execution_stream_t *es, parsec_task_t *this_task)
+{
+    (void)es; (void)this_task;
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+/* **************************************************************************** */
+/**
+ * Body of bcast key receiver task we insert that will ensure propagation of the key array
+ * on the receiver side, empty body!
+ *
+ * @param   context, this_task
+ *
+ * @ingroup DTD_INTERFACE_INTERNAL
+ */
+int
+parsec_dtd_bcast_key_recv( parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es; (void)this_task;
     return PARSEC_HOOK_RETURN_DONE;
@@ -2607,6 +2682,27 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                                           tile_op_type, last_user.alive);
             }
 
+            if(last_writer.task->deps_out == NULL) {
+                /* local parent and we are inserting a remote task, indicates it needs to send data */
+                if(parsec_dtd_task_is_local(last_writer.task) && parsec_dtd_task_is_remote(this_task))
+                {
+                    int _array_pos, _array_mask;
+                    _array_pos = this_task->rank / (8 * sizeof(int));
+                    _array_mask = 1 << (this_task->rank % (8 * sizeof(int)));
+                    if(last_writer.task->rank_bits[_array_pos] & _array_mask)
+                    {
+                        FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = last_writer.task->super.locals[5+this_task->rank%5].value;
+                    } else
+                    {
+                        last_writer.task->rank_bits[_array_pos] |= _array_mask;
+                        FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = dtd_tp->send_task_id[this_task->rank]++;
+                        last_writer.task->super.locals[5+this_task->rank%5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
+                    }
+                }
+            } else {
+                /* do nothing */
+            }
+
             /* Are we using the same data multiple times for the same task? */
             if(last_user.task == this_task) {
                 satisfied_flow += 1;
@@ -2682,6 +2778,27 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                         }
                     }
 
+                }
+            
+                if(last_writer.task->deps_out == NULL) {
+                    /* local parent and we are inserting a remote task, indicates it needs to send data */
+                    if(parsec_dtd_task_is_local(last_writer.task) && parsec_dtd_task_is_remote(this_task))
+                    {
+                        int _array_pos, _array_mask;
+                        _array_pos = this_task->rank / (8 * sizeof(int));
+                        _array_mask = 1 << (this_task->rank % (8 * sizeof(int)));
+                        if(last_writer.task->rank_bits[_array_pos] & _array_mask)
+                        {
+                            FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = last_writer.task->super.locals[5+this_task->rank%5].value;
+                        } else
+                        {
+                            last_writer.task->rank_bits[_array_pos] |= _array_mask;
+                            FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = dtd_tp->send_task_id[this_task->rank]++;
+                            last_writer.task->super.locals[5+this_task->rank%5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
+                        }
+                    }
+                } else {
+                    /* do nothing */
                 }
 
                 /* we can avoid all the hash table crap if the last_writer is not alive */

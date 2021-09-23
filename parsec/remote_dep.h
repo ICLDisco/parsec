@@ -91,6 +91,8 @@ struct parsec_remote_deps_s {
     int32_t                          priority;
     uint32_t                        *remote_dep_fw_mask;  /**< list of peers already notified about
                                                             * the control sequence (only used for control messages) */
+    int32_t                          bcast_flag;
+    uint32_t                         bcast_keys[16];
     struct data_repo_entry_s        *repo_entry;
     struct remote_dep_output_param_s output[1];
 };

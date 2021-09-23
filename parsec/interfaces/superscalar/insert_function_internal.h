@@ -38,6 +38,7 @@ extern int parsec_dtd_debug_output;
 extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 
 #define PARSEC_DTD_FLUSH_TC_ID    ((uint8_t)0x00)
+#define PARSEC_DTD_BCAST_KEY_TC_ID    ((uint8_t)0x01)
 
 /* To flag the task we are trying to complete as a local one */
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
@@ -117,6 +118,7 @@ typedef struct parsec_dtd_min_flow_info_s {
     3 release remote data
     */
     parsec_dtd_tile_t *tile;
+    int msg_keys[MAX_RANK_INFO]; /* enable user trimming, store dest rank send ID for a flow */
 } parsec_dtd_min_flow_info_t;
 
 typedef struct parsec_dtd_flow_info_s {
@@ -131,6 +133,7 @@ typedef struct parsec_dtd_flow_info_s {
     4 release ownership even when the flow is of type R
     */
     parsec_dtd_tile_t *tile;
+    int msg_keys[MAX_RANK_INFO]; /* enable user trimming, store dest rank send ID for a flow */
     int rank_sent_to[MAX_RANK_INFO]; /* currently support 1024 nodes */
 } parsec_dtd_flow_info_t;
 
@@ -178,8 +181,10 @@ struct parsec_dtd_task_s {
     parsec_thread_mempool_t     *mempool_owner;
     int32_t                      rank;
     int32_t                      flow_count;
+    int32_t                      rank_bits[MAX_RANK_INFO];
     /* for testing PTG inserting task in DTD */
     parsec_task_t  *orig_task;
+    parsec_remote_deps_t *deps_out;
 };
 
 /* For creating objects of class parsec_dtd_task_t */
@@ -237,6 +242,9 @@ struct parsec_dtd_taskpool_s {
     parsec_hash_table_t         *function_h_table;
     /* ring of initial ready tasks */
     parsec_task_t              **startup_list;
+    int                          bcast_id;
+    int                          send_task_id[MAX_RANK_INFO*sizeof(int)*8];
+    int                          recv_task_id[MAX_RANK_INFO*sizeof(int)*8];
     /* from here to end is for the testing interface */
     struct hook_info             actual_hook[PARSEC_DTD_NB_TASK_CLASSES];
 };
@@ -279,6 +287,10 @@ typedef struct parsec_dtd_common_args_s {
 } parsec_dtd_common_args_t;
 
 /* Function prototypes */
+int parsec_dtd_bcast_key_fn( parsec_execution_stream_t *es, parsec_task_t *this_task);
+
+int parsec_dtd_bcast_key_recv( parsec_execution_stream_t *es, parsec_task_t *this_task);
+
 void
 parsec_detach_all_dtd_taskpool_from_context( parsec_context_t *context );
 
@@ -419,6 +431,9 @@ parsec_dtd_tile_retain( parsec_dtd_tile_t *tile );
 
 void
 parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
+
+int 
+parsec_dtd_rank_of_data(parsec_dc_t *dc, int i, int j);
 
 int
 parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,

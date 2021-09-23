@@ -20,6 +20,7 @@ parsec_addtest(C dtd_test_data_flush "dtd_test_data_flush.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_global_id_for_dc_assumed "dtd_test_global_id_for_dc_assumed.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_explicit_task_creation "dtd_test_explicit_task_creation.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_tp_enqueue_dequeue "dtd_test_tp_enqueue_dequeue.c")
+parsec_addtest(C dtd_test_broadcast_collective "dtd_test_broadcast_collective.c")
 
 #
 # Shared Memory Testings

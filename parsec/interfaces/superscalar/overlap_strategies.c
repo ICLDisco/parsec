@@ -153,6 +153,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)ontask_arg;
     parsec_dep_data_description_t data;
     int rank_src = 0, rank_dst = 0, vpid_dst=0;
+    parsec_dtd_flow_info_t* flow;
 
     /* finding for which flow we need to iterate successors of */
     int flow_mask = action_mask;
@@ -310,7 +311,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                 deps.ctl_gather_nb   = NULL;
                 deps.task_class_id   = current_desc->super.task_class->task_class_id;
                 deps.flow            = current_desc->super.task_class->in[tmp_desc_flow_index];
-                deps.dep_index       = 0; /* it will not be used anywhere for DTD, so whatever */
+                deps.dep_index       = tmp_desc_flow_index;
                 deps.belongs_to      = current_task->super.task_class->out[current_dep];
                 deps.direct_data     = NULL;
                 deps.dep_datatype_index = current_dep;
@@ -320,6 +321,14 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                 ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
                         &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
                 vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
+
+#if defined(DISTRIBUTED)
+                if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) && (NULL != arg->remote_deps) ) {
+                    (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
+                    parsec_remote_dep_activate(es, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
+                    arg->remote_deps = NULL;
+                }
+#endif
 
                 /* releasing remote tasks that is a descendant of a local task */
                 if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
@@ -333,14 +342,6 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                     }
                 }
             } while (0 == get_out);
-
-#if defined(DISTRIBUTED)
-            if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) && (NULL != arg->remote_deps) ) {
-                (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
-                parsec_remote_dep_activate(es, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
-                arg->remote_deps = NULL;
-            }
-#endif
         }
     }
 }
