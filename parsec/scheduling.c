@@ -703,6 +703,7 @@ int parsec_context_wait( parsec_context_t* context )
 {
     int ret = 0;
 
+    fprintf(stderr, "in parsec_context_wait on rank %d\n", context->my_rank);
     if( !(PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags) ) {
         parsec_warning("parsec_context_wait detected on a non started context\n");
         return -1;

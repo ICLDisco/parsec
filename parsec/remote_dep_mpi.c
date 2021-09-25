@@ -730,7 +730,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
         parsec_dtd_task_t *dtd_task = NULL;
 
         dtd_tp = (parsec_dtd_taskpool_t *)origin->taskpool;
-
+        fprintf(stderr, "working in get datatype\n");
         /* if( NULL == task.task_class ), this case will be taken care of automatically */
 
         /* We need to convert from a dep_datatype_index mask into a dep_index
@@ -932,6 +932,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     if(PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
         remote_dep_complete_and_cleanup(&origin, 1);
     } else {
+        //remote_dep_complete_and_cleanup(&origin, 1);
         remote_deps_free(origin);
     }
 #else

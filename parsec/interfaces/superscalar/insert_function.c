@@ -102,6 +102,11 @@ parsec_dtd_release_deps(parsec_execution_stream_t *,
                         parsec_task_t *,
                         uint32_t, parsec_remote_deps_t *);
 
+static int
+parsec_dtd_bcast_key_release_deps(parsec_execution_stream_t *,
+                        parsec_task_t *,
+                        uint32_t, parsec_remote_deps_t *);
+
 
 static parsec_hook_return_t
 complete_hook_of_dtd(parsec_execution_stream_t *,
@@ -216,7 +221,7 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
                                  0, 0, 1);
     /* The second taskclass of every taskpool is the bcast key array propagation taskclass */
     parsec_dtd_create_task_class(dtd_tp, parsec_dtd_bcast_key_fn, "parsec_dtd_bcast_key_fn",
-                                 1, sizeof(int), 1);
+                                 2, sizeof(int), 1);
 
     return 0;
 }
@@ -1689,6 +1694,126 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
     return 0;
 }
 
+static int
+parsec_dtd_bcast_key_release_deps(parsec_execution_stream_t *es,
+                        parsec_task_t *this_task,
+                        uint32_t action_mask,
+                        parsec_remote_deps_t *deps)
+{
+    (void)deps;
+    parsec_release_dep_fct_arg_t arg;
+    int __vp_id;
+
+    assert(NULL != es);
+
+    PARSEC_PINS(es, RELEASE_DEPS_BEGIN, this_task);
+#if defined(DISTRIBUTED)
+    arg.remote_deps = deps;
+#endif /* defined(DISTRIBUTED) */
+
+    arg.action_mask  = action_mask;
+    arg.output_usage = 0;
+    arg.output_entry = NULL;
+    arg.ready_lists  = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);
+
+    for (__vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++)
+        arg.ready_lists[__vp_id] = NULL;
+
+    parsec_dtd_task_t *this_dtd_task = NULL;
+    const parsec_task_class_t  *tc = this_task->task_class;
+    parsec_dtd_taskpool_t *tp = (parsec_dtd_taskpool_t *)this_task->taskpool;
+
+    if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) ) {
+        this_dtd_task = (parsec_dtd_task_t *)this_task;
+        int bcast_id = ( (1<<29)  | 0 );
+        this_dtd_task->ht_item.key =  bcast_id;
+        this_dtd_task->super.locals[0].value = this_dtd_task->ht_item.key;
+        (void)parsec_atomic_fetch_inc_int32(&this_dtd_task->super.data[0].data_out->readers);
+        //parsec_dtd_retain_data_copy(this_dtd_task->super.data[0].data_out);
+        parsec_remote_dep_activate(es, (parsec_task_t *)this_dtd_task, this_dtd_task->deps_out, this_dtd_task->deps_out->outgoing_mask);
+        parsec_dtd_remote_task_retain(this_dtd_task);
+        this_dtd_task->deps_out = NULL;
+        tc->iterate_successors(es, (parsec_task_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
+        fprintf(stderr, "bcast key release on rank %d\n", this_dtd_task->rank);
+        parsec_dtd_release_local_task(this_dtd_task);
+    } else {
+        int flow_index, track_flow = 0;
+        for(flow_index = 0; flow_index < tc->nb_flows; flow_index++) {
+            if((action_mask & (1 << flow_index))) {
+                if(!(track_flow & (1U << flow_index))) {
+                    uint64_t key = (((uint64_t)this_task->locals[0].value<<32) | (1U<<flow_index));
+                    parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
+                    this_dtd_task = parsec_dtd_find_task( tp, key );
+                    assert(this_dtd_task != NULL);
+
+                    if( this_task->data[flow_index].data_out != NULL ) {
+                        assert(this_task->data[flow_index].data_out != NULL);
+                        this_dtd_task->super.data[flow_index].data_in = this_task->data[flow_index].data_in;
+                        this_dtd_task->super.data[flow_index].data_out = this_task->data[flow_index].data_out;
+                        parsec_dtd_retain_data_copy(this_task->data[flow_index].data_out);
+
+                    }
+                    track_flow |= (1U<<flow_index); /* to make sure we are retaining the data only once */
+                    parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key);
+                }
+            }
+        }
+        assert(NULL != this_dtd_task);
+        tc->iterate_successors(es, (parsec_task_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
+    }
+
+    //fprintf(stderr, "this task locals[0] = %d\n", this_task->locals[0].value);
+    //int *data_ptr;
+    //data_ptr = (int*)parsec_data_copy_get_ptr(parsec_data_copy);
+    //assert(NULL != this_dtd_task);
+    //tc->iterate_successors(es, (parsec_task_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
+
+#if defined(DISTRIBUTED)
+    /* We perform this only for remote tasks that are being activated
+     * from the comm engine. We remove the task from the hash table
+     * for each flow a rank is concerned about.
+     */
+    if( parsec_dtd_task_is_remote(this_dtd_task) && !(action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) ) {
+        int flow_index, track_flow = 0;
+        for(flow_index = 0; flow_index < tc->nb_flows; flow_index++) {
+            if((action_mask & (1 << flow_index))) {
+                if(!(track_flow & (1U << flow_index))) {
+                    uint64_t key = (((uint64_t)this_task->locals[0].value<<32) | (1U<<flow_index));
+                    parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
+                    if( NULL != parsec_dtd_untrack_task( tp, key) ) {
+                        /* also releasing task */
+                        parsec_dtd_remote_task_release( this_dtd_task );
+                    }
+                    track_flow |= (1U<<flow_index); /* to make sure we are releasing the data only once */
+                    parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key);
+                }
+            }
+        }
+    }
+#else
+    (void)deps;
+#endif
+
+    /* Scheduling tasks */
+    if (action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
+        parsec_vp_t **vps = es->virtual_process->parsec_context->virtual_processes;
+        for (__vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++) {
+            if (NULL == arg.ready_lists[__vp_id]) {
+                continue;
+            }
+            if (__vp_id == es->virtual_process->vp_id) {
+                __parsec_schedule(es, arg.ready_lists[__vp_id], 0);
+            }else {
+                __parsec_schedule(vps[__vp_id]->execution_streams[0], arg.ready_lists[__vp_id], 0);
+            }
+            arg.ready_lists[__vp_id] = NULL;
+        }
+    }
+
+    PARSEC_PINS(es, RELEASE_DEPS_END, this_task);
+    return 0;
+}
+
 /* **************************************************************************** */
 /**
  * This function is called internally by PaRSEC once a task is done
@@ -2055,6 +2180,8 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     tc->iterate_successors    = parsec_dtd_iterate_successors;
     tc->iterate_predecessors  = NULL;
     tc->release_deps          = parsec_dtd_release_deps;
+    if(tc->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID)
+        tc->release_deps      = parsec_dtd_bcast_key_release_deps;
     tc->prepare_input         = data_lookup_of_dtd_task;
     tc->prepare_output        = output_data_of_dtd_task;
     tc->get_datatype          = (parsec_datatype_lookup_t *)datatype_lookup_of_dtd_task,
@@ -2477,6 +2604,8 @@ int
 parsec_dtd_bcast_key_fn( parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es; (void)this_task;
+
+    fprintf(stderr, "bcast_key_fn executed\n");
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -2493,6 +2622,8 @@ int
 parsec_dtd_bcast_key_recv( parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es; (void)this_task;
+    
+    fprintf(stderr, "bcast_key_recv executed\n");
     return PARSEC_HOOK_RETURN_DONE;
 }
 

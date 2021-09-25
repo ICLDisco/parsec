@@ -186,6 +186,7 @@ void parsec_dtd_broadcast(
             data_ptr[100+i+1] = dest_ranks[i];
         }
     }
+    fprintf(stderr, "finished bcast key packing\n");
     // Retrieve DTD tile's data_copy
     parsec_data_copy_t *data_copy = dtd_tile_root->data_copy;
     parsec_data_copy_t *key_copy = bcast_keys_root->data_copy;
@@ -225,7 +226,7 @@ void parsec_dtd_broadcast(
     //parsec_insert_dtd_task(dtd_bcast_task_root);
 
     parsec_task_t *bcast_key_root = parsec_dtd_taskpool_create_task(
-            taskpool, parsec_dtd_bcast_task_fn, 0, "bcast_task_root",
+            taskpool, parsec_dtd_bcast_key_fn, 0, "bcast_key_fn",
             PASSED_BY_REF, bcast_keys_root, PARSEC_INOUT | bcast_arena_index,
             sizeof(int), &root, PARSEC_VALUE | PARSEC_AFFINITY,
             PARSEC_DTD_ARG_END);
@@ -236,7 +237,8 @@ void parsec_dtd_broadcast(
         //dtd_bcast_task_root->ht_item.key = bcast_id;
         //dtd_bcast_task_root->super.locals[0].value = dtd_bcast_task_root->ht_item.key;
     }else{
-        bcast_id = ( (1<<29)  | (dtd_tp->recv_task_id[root] -1));
+        //bcast_id = ( (1<<29)  | (dtd_tp->recv_task_id[root] -1));
+        bcast_id = ( (1<<29)  | (dtd_tp->recv_task_id[root] ));
         dtd_bcast_key_root->ht_item.key =  bcast_id;
         dtd_bcast_key_root->super.locals[0].value = dtd_bcast_key_root->ht_item.key;
     }
@@ -255,7 +257,7 @@ void parsec_dtd_broadcast(
         //}
     }else {
         parsec_task_t *retrieve_task = parsec_dtd_taskpool_create_task(
-                dtd_tp, parsec_dtd_aux_fn, 0, "retrieve_task",
+                dtd_tp, parsec_dtd_bcast_key_recv, 0, "retrieve_task",
                 PASSED_BY_REF, bcast_keys_root, PARSEC_INPUT | bcast_arena_index,
                 sizeof(int), &myrank, PARSEC_VALUE | PARSEC_AFFINITY,
                 PARSEC_DTD_ARG_END);

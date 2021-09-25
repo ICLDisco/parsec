@@ -19,6 +19,11 @@
 
 BEGIN_C_DECLS
 
+#ifdef PARSEC_DIST_COLLECTIVES
+// Availability of collective operations with DTD interface.
+#define PARSEC_DTD_DIST_COLLECTIVES
+#endif
+
 /**
  * @addtogroup DTD_INTERFACE
  *  @{
@@ -320,6 +325,31 @@ parsec_dtd_get_taskpool(parsec_task_t *this_task);
  */
 int
 parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp);
+
+#ifdef PARSEC_DTD_DIST_COLLECTIVES
+/**
+ * Create and return `parsec_remote_deps_t` structure associated with
+ * the broadcast of the a data to all the nodes set in the
+ * `dest_ranks` array.
+ **/
+
+parsec_remote_deps_t* parsec_dtd_create_remote_deps(
+        int myrank, int root, parsec_data_copy_t *data_copy,
+        parsec_arena_datatype_t *arenas_datatype,
+        int* dest_ranks, int num_dest_ranks);
+
+/**
+  * Perform a broadcast for of the dtd tile `dtd_tile_root` from the
+  * root node associated with the rank `root` to the nodes with ranks
+  * set in the `dest_ranks` array.
+  **/
+
+void parsec_dtd_broadcast(
+        parsec_taskpool_t *taskpool, int myrank, int root,
+        parsec_dtd_tile_t* dtd_tile_root, int arena_index,
+        parsec_dtd_tile_t* bcast_keys_root, int bcast_arena_index,
+        int* dest_ranks, int num_dest_ranks);
+#endif
 
 /**
  * @}
