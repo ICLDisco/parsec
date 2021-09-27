@@ -1579,6 +1579,74 @@ parsec_dtd_iterate_successors(parsec_execution_stream_t *es,
                                    action_mask, ontask, ontask_arg );
 }
 
+/* when the comm_coll_bcast is 1 we use the chain topology, get the successor's rank */
+static int
+get_chain_successor(parsec_execution_stream_t*es, parsec_task_t* task, parsec_remote_deps_t* remote_deps)
+{
+    int my_idx, idx, current_mask;
+    unsigned int array_index, count, bit_index;
+    uint32_t boffset;
+    uint32_t dep_fw_mask[es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof];
+    memset(dep_fw_mask, 0, es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
+    memcpy(&dep_fw_mask, remote_deps->remote_dep_fw_mask, es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
+    struct remote_dep_output_param_s* output = &remote_deps->output[0];
+    boffset = remote_deps->root / (8 * sizeof(uint32_t));
+    dep_fw_mask[boffset] |= ((uint32_t)1) << (remote_deps->root % (8 * sizeof(uint32_t)));
+    my_idx = (remote_deps->root == es->virtual_process->parsec_context->my_rank) ? 0 : -1;
+    idx = 0;
+    for(array_index = count = 0; count < remote_deps->output[0].count_bits; array_index++) {
+        current_mask = output->rank_bits[array_index];
+        if( 0 == current_mask ) continue;
+        for( bit_index = 0; current_mask != 0; bit_index++ ) {
+            if( !(current_mask & (1 << bit_index)) ) continue;
+            int rank = (array_index * sizeof(uint32_t) * 8) + bit_index;
+            current_mask ^= (1 << bit_index);
+            count++;
+
+            boffset = rank / (8 * sizeof(uint32_t));
+            if(dep_fw_mask[boffset] & ((uint32_t)1) << (rank % (8 * sizeof(uint32_t))))
+                continue;
+            idx++;
+            if(my_idx == -1) {
+                if(rank == es->virtual_process->parsec_context->my_rank) {
+                    my_idx = idx;
+                }
+                boffset = rank / (8 * sizeof(uint32_t));
+                dep_fw_mask[boffset] |= ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
+                continue;
+            }
+            if(my_idx != -1){
+                if(idx == my_idx+1)
+                {
+                    return rank;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int
+populate_remote_deps(int* data_ptr, parsec_remote_deps_t* remote_deps)
+{
+    struct remote_dep_output_param_s* output = &remote_deps->output[0];
+    int _array_pos, _array_mask;
+    uint32_t dest_rank_idx;
+    /* TODO: don't assume the length of data_ptr */
+    int num_dest_ranks = data_ptr[100];
+
+    for(dest_rank_idx = 0; dest_rank_idx < (uint32_t)num_dest_ranks; ++dest_rank_idx) {
+        uint32_t dest_rank = data_ptr[100+dest_rank_idx+1];
+        _array_pos = dest_rank / (8 * sizeof(uint32_t));
+        _array_mask = 1 << (dest_rank % (8 * sizeof(uint32_t)));
+
+        if( !(output->rank_bits[_array_pos] & _array_mask) ) {
+            output->rank_bits[_array_pos] |= _array_mask;
+            output->count_bits++;
+        }
+    }
+}
+
 static void
 parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                               const parsec_task_t *this_task,
@@ -1601,17 +1669,23 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
     /* finding for which flow we need to iterate successors of */
     int flow_mask = action_mask;
     int my_rank = current_task->super.taskpool->context->my_rank;
+    int successor = -1;
 
     rank_src = current_task->rank;
+
+    int rc; /* retrive the mca number for comm_coll_bcast */
+    int comm_coll_bcast; /* retrive the value set for comm_coll_bcast */
+    if (0 < (rc = parsec_mca_param_find("runtime", NULL, "comm_coll_bcast")) ) {
+        parsec_mca_param_lookup_int(rc, &comm_coll_bcast);
+    }
     for( current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++ ) {
         if( (flow_mask & (1<<current_dep)) ) {
-            
             if (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) {
                 /* root of the bcast key */
-                //successor = get_chain_successor(es, current_task, current_task->deps_out);
-                //int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
+                successor = get_chain_successor(es, current_task, current_task->deps_out);
+                int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
                 current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | 0);
-                fprintf(stderr, "bcast root dep %d with chain successor %d\n", current_dep, 1);
+                fprintf(stderr, "bcast root dep %d with chain successor %d\n", current_dep, successor);
                 (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
                 parsec_remote_dep_activate(
                         es, (parsec_task_t *)current_task,
@@ -1619,7 +1693,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                         current_task->deps_out->outgoing_mask);
                 current_task->deps_out = NULL;
                 parsec_dtd_release_local_task( current_task );
-            } else {
+            } else if (action_mask == PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                 /* a node in the key array propagation */
                 int root = current_task->deps_out->root;
                 int my_rank = current_task->super.taskpool->context->my_rank;
@@ -1631,12 +1705,16 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 _array_mask = 1 << (my_rank % (8 * sizeof(uint32_t)));
 
                 if ((output->rank_bits[_array_pos] & _array_mask)) {
-                    // We are part of the broadcast, forward message
+                    /* We are part of the broadcast, forward message */
+                    int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
+                    populate_remote_deps(data_ptr, current_task->deps_out);
+                    successor = get_chain_successor(es, current_task, current_task->deps_out);
+                    fprintf(stderr, "continuation with chain successor %d\n", successor);
+
                 }
             }
+            // temp fix to ensure descendent exist
             sleep(1);
-            //if(my_rank == 0) 
-            //    goto skip_iterate;
             current_desc = (DESC_OF(current_task, current_dep))->task;
             op_type_on_current_flow = (FLOW_OF(current_task, current_dep)->op_type & PARSEC_GET_OP_TYPE);
             tile = FLOW_OF(current_task, current_dep)->tile;
@@ -1743,8 +1821,6 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
 
             } while (0 == get_out);
-      
-//skip_iterate:
         }
     }
 }
