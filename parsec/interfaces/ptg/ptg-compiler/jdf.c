@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -99,24 +99,24 @@ static int jdf_sanity_check_global_redefinitions(void)
 static int jdf_sanity_check_global_masked(void)
 {
     jdf_global_entry_t *g;
-    jdf_function_entry_t *f;
-    jdf_name_list_t *n;
-    jdf_def_list_t *d;
+    jdf_function_entry_t *func;
+    jdf_param_list_t *param;
+    jdf_variable_list_t *d;
     int rc = 0;
 
     for(g = current_jdf.globals; g != NULL; g = g->next) {
-        for(f = current_jdf.functions; f != NULL; f = f->next) {
-            for(n = f->parameters; n != NULL; n = n->next) {
-                if( !strcmp(n->name, g->name) ) {
-                    jdf_warn(JDF_OBJECT_LINENO(f), "Global %s defined line %d is masked by the local parameter %s of function %s\n",
-                             g->name, JDF_OBJECT_LINENO(g), n->name, f->fname);
+        for(func = current_jdf.functions; func != NULL; func = func->next) {
+            for(param = func->parameters; param != NULL; param = param->next) {
+                if( !strcmp(param->name, g->name) ) {
+                    jdf_warn(JDF_OBJECT_LINENO(func), "Global %s defined line %d is masked by the local parameter %s of function %s\n",
+                             g->name, JDF_OBJECT_LINENO(g), param->name, func->fname);
                     rc++;
                 }
             }
-            for(d = f->locals; d != NULL; d = d->next) {
+            for(d = func->locals; d != NULL; d = d->next) {
                 if( !strcmp(d->name, g->name) ) {
                     jdf_warn(JDF_OBJECT_LINENO(d), "Global %s defined line %d is masked by the local definition of %s in function %s\n",
-                             g->name, JDF_OBJECT_LINENO(g), d->name, f->fname);
+                             g->name, JDF_OBJECT_LINENO(g), d->name, func->fname);
                     rc++;
                 }
             }
@@ -212,68 +212,87 @@ static int jdf_sanity_check_function_redefinitions(void)
     return rc;
 }
 
+/*
+ * Link each parameter with the corresponding local for a function. Don't check for
+ * correctness, just link each param with the first matching local.
+ */
+int jdf_link_params_and_locals(jdf_function_entry_t* f)
+{
+    jdf_param_list_t *param;
+    jdf_variable_list_t *local;
+
+    for(param = f->parameters; param != NULL; param = param->next) {
+        for(local = f->locals; local != NULL; local = local->next) {
+            if( 0 != strcmp(local->name, param->name) )
+                continue;
+            param->local = local;
+            local->param = param;
+            break;
+        }
+    }
+    return 0;
+}
+
 static int jdf_sanity_check_parameters_are_consistent_with_definitions(void)
 {
     jdf_function_entry_t *f;
-    jdf_name_list_t *p;
-    jdf_def_list_t *d, *d2;
-    int rc = 0;
-    int pi, found_def;
+    jdf_param_list_t *param;
+    jdf_variable_list_t *local, *local2;
+    int pi, rc = 0;
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
         pi = 1;
-        for(p = f->parameters; p != NULL; p = p->next, pi++) {
-            found_def = 0;
-            for(d = f->locals; d != NULL; d = d->next) {
-                if( 0 == strcmp(d->name, p->name) ) {
-                    if( found_def ) {
-                        jdf_fatal(JDF_OBJECT_LINENO(f), "The definition of %s (%dth parameter of function %s) appears more than once.\n",
-                                  p->name, pi, f->fname);
-                        rc = -1;
-                    } else {
-                        found_def = 1;
+        for(param = f->parameters; param != NULL; param = param->next, pi++) {
+            for(local = f->locals; local != NULL; local = local->next) {
+                if( 0 != strcmp(local->name, param->name) ) {
+                    continue;
+                }
+
+                if( param->local != local ) {
+                    jdf_fatal(JDF_OBJECT_LINENO(f), "The definition of %s (%dth parameter of the %s function) appears more than once.\n",
+                              param->name, pi, f->fname);
+                    rc = -1;
+                } else if( local->param != param ) {
+                    jdf_fatal(JDF_OBJECT_LINENO(f), "The local %s:%d point to a different parameter than the %dth %s:%d.\n",
+                              local->name, JDF_OBJECT_LINENO(local), pi, param->name, JDF_OBJECT_LINENO(param));
+                    rc = -1;
+                } else {
+                    for(local2 = local->next; local2 != NULL; local2 = local2->next) {
+                        if( !strcmp(local->name, local2->name) ) {
+                            jdf_fatal(JDF_OBJECT_LINENO(f), "The definition of %s in function %s appears more than once (line %d).\n",
+                                      local->name, f->fname, JDF_OBJECT_LINENO(local2));
+                            rc = -1;
+                        }
                     }
                 }
             }
-            if( !found_def ) {
+            if( NULL == param->local ) {
                 jdf_fatal(JDF_OBJECT_LINENO(f), "Parameter %s of function %s is declared but no range is associated to it\n",
-                          p->name, f->fname);
+                          param->name, f->fname);
                 rc = -1;
             }
         }
 
         pi = 1;
-        for(d = f->locals; d!= NULL; d = d->next, pi++) {
-            found_def = 0;
-            for(p = f->parameters; p != NULL; p = p->next) {
-                if( strcmp(d->name, p->name) == 0 ) {
-                    found_def = 1;
-                    break;
-                }
-            }
-            if( found_def == 0 ) {
-                if( d->expr->op == JDF_RANGE ) {
+        for(local = f->locals; local != NULL; local = local->next, pi++) {
+            if( NULL == local->param ) {
+                if( local->expr->op == JDF_RANGE ) {
                     jdf_warn(JDF_OBJECT_LINENO(f), "Definition %d of function %s for %s is a range, but not a parameter of the function.\n"
                              "  If this range allows for more than one value, that would make multiple functions %s with the same name.\n",
-                             pi, f->fname, d->name, f->fname);
+                             pi, f->fname, local->name, f->fname);
                 }
-                for(d2 = d->next; d2!=NULL; d2=d2->next) {
-                    if( !strcmp(d->name, d2->name) ) {
-                        jdf_fatal(JDF_OBJECT_LINENO(f), "The definition of %s in function %s appears more than once.\n",
-                                  d->name, f->fname);
-                        rc = -1;
-                    }
-                }
+                continue;  /* this local is not linked to a parameter */
             }
+            param = local->param;
         }
     }
     return rc;
 }
 
-static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_function_entry_t *f, jdf_def_list_t *d)
+static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_function_entry_t *f, jdf_variable_list_t *v)
 {
     jdf_global_entry_t *g;
-    jdf_def_list_t *d2;
+    jdf_variable_list_t *v2;
     jdf_expr_t *nr;
     char *vc, *dot;
     int rc = 0;
@@ -305,14 +324,14 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
                     break;
             }
             if(NULL == nr) {
-                for(d2 = f->locals; d2 != d; d2 = d2->next) {
-                    if( !strcmp( vc, d2->name ) ) {
+                for(v2 = f->locals; v2 != v; v2 = v2->next) {
+                    if( !strcmp( vc, v2->name ) ) {
                         break;
                     }
                 }
-                if( d2 == d ) {
-                    jdf_fatal(JDF_OBJECT_LINENO(d), "Local %s is defined using variable %s (in %s) which is unbound at this time\n",
-                              d->name,  vc, e->jdf_var);
+                if( v2 == v ) {
+                    jdf_fatal(JDF_OBJECT_LINENO(v), "Local %s is defined using variable %s (in %s) which is unbound at this time\n",
+                              v->name,  vc, e->jdf_var);
                     rc = -1;
                 }
             }
@@ -322,23 +341,23 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
     case JDF_CST:
         return 0;
     case JDF_TERNARY:
-        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_tat, f, d) < 0 )
+        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_tat, f, v) < 0 )
             rc = -1;
-        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ta1, f, d) < 0 )
+        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ta1, f, v) < 0 )
             rc = -1;
-        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ta2, f, d) < 0 )
+        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ta2, f, v) < 0 )
             rc = -1;
         return rc;
     case JDF_NOT:
-        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ua, f, d) < 0 )
+        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ua, f, v) < 0 )
             rc = -1;
         return rc;
     case JDF_C_CODE:
         return 0;
     default:
-        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ba1, f, d) < 0 )
+        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ba1, f, v) < 0 )
             rc = -1;
-        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ba2, f, d) < 0 )
+        if( jdf_sanity_check_expr_bound_before_definition(e->jdf_ba2, f, v) < 0 )
             rc = -1;
         return rc;
     }
@@ -348,11 +367,11 @@ static int jdf_sanity_check_definition_unbound(void)
 {
     int rc = 0;
     jdf_function_entry_t *f;
-    jdf_def_list_t *d;
+    jdf_variable_list_t *v;
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
-        for(d = f->locals; d != NULL; d = d->next) {
-            if( jdf_sanity_check_expr_bound_before_definition(d->expr, f, d) < 0 )
+        for(v = f->locals; v != NULL; v = v->next) {
+            if( jdf_sanity_check_expr_bound_before_definition(v->expr, f, v) < 0 )
                 rc = -1;
         }
     }
@@ -362,7 +381,7 @@ static int jdf_sanity_check_definition_unbound(void)
 static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_function_entry_t *f)
 {
     jdf_global_entry_t *g;
-    jdf_def_list_t *d;
+    jdf_variable_list_t *v;
     jdf_expr_t *nr;
     char *vc, *dot;
     int rc = 0;
@@ -389,12 +408,12 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
             }
         }
         if( g == NULL ) {
-            for(d = f->locals; d != NULL; d = d->next) {
-                if( !strcmp( vc, d->name ) ) {
+            for(v = f->locals; v != NULL; v = v->next) {
+                if( !strcmp( vc, v->name ) ) {
                     break;
                 }
             }
-            if( d == NULL ) {
+            if( NULL == v ) {
                 for(nr = e->local_variables; NULL != nr; nr = nr->next) {
                     if( !strcmp(nr->alias, vc) )
                         break;
@@ -1716,7 +1735,7 @@ int jdf_assign_ldef_index(jdf_function_entry_t *f)
 {
     int nb_ldef_for_locals, nb_ldef_for_deps, nb_ldef_for_calls = 0;
     jdf_expr_t *ld;
-    jdf_def_list_t *dl;
+    jdf_variable_list_t *vl;
     jdf_dataflow_t *fl;
     jdf_dep_t *dep;
 
@@ -1730,13 +1749,13 @@ int jdf_assign_ldef_index(jdf_function_entry_t *f)
 
     DO_DEBUG_VERBOSE(2, ({fprintf(stderr, "Indexing task class %s\n", f->fname);}) );
     
-    for(dl = f->locals; NULL != dl; dl = dl->next) {
-        for( ld = dl->expr->local_variables; ld != NULL; ld = ld->next ) {
+    for(vl = f->locals; NULL != vl; vl = vl->next) {
+        for( ld = vl->expr->local_variables; ld != NULL; ld = ld->next ) {
             assert(NULL != ld->alias);
             if( ld->ldef_index == -1 ) {
                 ld->ldef_index = f->nb_max_local_def;
                 f->nb_max_local_def++;
-                DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  local %s, ldef %s is at %d\n", dl->name, ld->alias, ld->ldef_index); }) );
+                DO_DEBUG_VERBOSE(2, ({ fprintf(stderr, "  local %s, ldef %s is at %d\n", vl->name, ld->alias, ld->ldef_index); }) );
             }
         }
     }

@@ -144,6 +144,22 @@ static int jdf_expr_complete_unparse( const jdf_expr_t *e, FILE *out )
     return err;
 }
 
+static int jdf_variable_list_unparse( const jdf_variable_list_t *locals, FILE *out, const char *sep )
+{
+    const jdf_variable_list_t *local;
+    int err = 0;
+
+    for(local = locals; local != NULL; local = local->next) {
+        fprintf(out, "%s = ", local->name);
+        err = jdf_expr_complete_unparse(local->expr, out);
+        if( err < 0 )
+            return err;
+        if( local->next != NULL )
+            fprintf(out, "%s", sep);
+    }
+    return err;
+}
+
 static int jdf_def_list_unparse( const jdf_def_list_t *defs, FILE *out, const char *sep )
 {
     const jdf_def_list_t *dl;
@@ -194,16 +210,13 @@ static int jdf_global_entry_unparse( const jdf_global_entry_t *e, FILE *out )
     return err;
 }
 
-static int jdf_name_list_unparse(const jdf_name_list_t *nl, FILE *out)
+static int jdf_param_list_unparse(const jdf_param_list_t *pl, FILE *out)
 {
-    int err = 0;
-    const jdf_name_list_t *e;
-    for(e = nl; e != NULL; e = e->next) {
-        fprintf(out, "%s%s", e->name, e->next != NULL ? ", " : "");
+    for(; NULL != pl; pl = pl->next) {
+        fprintf(out, "%s%s", pl->name, NULL != pl->next ? ", " : "");
     }
-    return err;
+    return 0;
 }
-
 static int jdf_call_unparse(const jdf_call_t *call, FILE *out)
 {
     int err = 0;
@@ -364,7 +377,7 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
         NULL != f->bodies          ){
 
         fprintf(out, "%s(", f->fname);
-        err = jdf_name_list_unparse(f->parameters, out);
+        err = jdf_param_list_unparse(f->parameters, out);
         fprintf(out, ")");
         if( err < 0 )
             return err;
@@ -378,7 +391,7 @@ static int jdf_function_entry_unparse( const jdf_function_entry_t *f, FILE *out 
         fprintf(out, "\n");
 
         fprintf(out, "  /* Execution Space */\n  ");
-        err = jdf_def_list_unparse(f->locals, out, "\n  ");
+        err = jdf_variable_list_unparse(f->locals, out, "\n  ");
         fprintf(out, "\n");
         if( err < 0 )
             return err;
