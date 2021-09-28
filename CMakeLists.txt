@@ -668,7 +668,9 @@ int main(int argc, char *argv[]) {
       endif()
       CMAKE_POP_CHECK_STATE()
       get_target_property(extra_cuda_libs CUDA::cudart INTERFACE_LINK_LIBRARIES)
-      list(APPEND EXTRA_LIBS ${extra_cuda_libs})
+      if(extra_cuda_libs)
+          list(APPEND EXTRA_LIBS ${extra_cuda_libs})
+      endif(extra_cuda_libs)
     endif (CUDAToolkit_FOUND)
   endif( PARSEC_GPU_WITH_CUDA )
 
