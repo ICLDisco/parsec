@@ -1684,7 +1684,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 /* root of the bcast key */
                 successor = get_chain_successor(es, current_task, current_task->deps_out);
                 int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
-                current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | 0);
+                current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | *(data_ptr+1+successor));
                 fprintf(stderr, "bcast root dep %d with chain successor %d\n", current_dep, successor);
                 (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
                 parsec_remote_dep_activate(
@@ -1693,7 +1693,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                         current_task->deps_out->outgoing_mask);
                 current_task->deps_out = NULL;
                 parsec_dtd_release_local_task( current_task );
-            } else if (action_mask == PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
+            } else if (action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                 /* a node in the key array propagation */
                 int root = current_task->deps_out->root;
                 int my_rank = current_task->super.taskpool->context->my_rank;
@@ -1710,7 +1710,17 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                     populate_remote_deps(data_ptr, current_task->deps_out);
                     successor = get_chain_successor(es, current_task, current_task->deps_out);
                     fprintf(stderr, "continuation with chain successor %d\n", successor);
+                    current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | *(data_ptr+1+successor));
+                    assert(NULL != current_task->super.data[current_dep].data_out);
 
+                    current_task->deps_out->output[0].data.data = current_task->super.data[0].data_out;
+                    //parsec_atomic_fetch_inc_int32(&current_task->deps_out->pending_ack);
+                    parsec_remote_dep_activate(
+                            es, (parsec_task_t *)current_task,
+                            current_task->deps_out,
+                            current_task->deps_out->outgoing_mask);
+                    current_task->deps_out = NULL;
+                    //parsec_dtd_release_local_task( current_task );
                 }
             } else {
                 /* on the receiver side, get datatype to aquire datatype, arena etc info */

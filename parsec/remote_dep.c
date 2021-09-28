@@ -533,9 +533,12 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                 /* Right now DTD only supports a star broadcast topology */
                 if( PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type ) {
                     parsec_dtd_task_t *this_dtd_task = (parsec_dtd_task_t *) task;
-                    if(this_dtd_task->deps_out == NULL)
+                    if(this_dtd_task->deps_out == NULL) {
                         remote_deps->msg.locals[0].value = remote_deps->bcast_keys[i]; /* p2p, update the key for this message */
-                    remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
+                        remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
+                    } else {
+                        remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
+                    }
                 } else {
                     remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
                 }

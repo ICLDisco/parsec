@@ -341,7 +341,7 @@ for(int iter=1; iter <= 0; iter++) {
    }
 } 
    parsec_dtd_data_flush_all( dtd_tp, A );
-   parsec_dtd_data_flush_all( dtd_tp, B );
+   //parsec_dtd_data_flush_all( dtd_tp, B );
  
    // Wait for task completion
    perr = parsec_dtd_taskpool_wait( dtd_tp );
