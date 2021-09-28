@@ -9,7 +9,9 @@ NT
 
 TA(k)
 
-k = 0 .. NT-1
+zero = 0
+nt = NT
+k = zero .. nt-1
 : A(k)
 
 RW T <- A(k)

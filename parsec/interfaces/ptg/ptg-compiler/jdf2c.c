@@ -3633,45 +3633,43 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
         }
 
-        if( NULL != inner_dl ) {
-            if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
-                /* If no tasks have been generated during the last loop, there is no need
-                 * to have any dependencies.
-                 */
-                if( need_to_count_tasks ) {
-                    coutput("%s  if( saved_nb_tasks != nb_tasks ) {\n", indent(nesting));
-                    coutput("%s    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, \"Allocating dependencies array for %s (partial nb_tasks = %%d)\", nb_tasks);\n",
-                            indent(nesting), f->fname);
-                }
+        if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+            /* If no tasks have been generated during the last loop, there is no need
+             * to have any dependencies.
+             */
+            if( need_to_count_tasks ) {
+                coutput("%s  if( saved_nb_tasks != nb_tasks ) {\n", indent(nesting));
+                coutput("%s    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, \"Allocating dependencies array for %s (partial nb_tasks = %%d)\", nb_tasks);\n",
+                        indent(nesting), f->fname);
+            }
 
-                string_arena_add_string(sa1, "dep");
-                for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
-                    dl = l2p_item->dl;
-                    coutput("%s    if( %s == NULL ) {\n",
-                            indent(nesting), string_arena_get_string(sa1));
-                    if(dl->expr->op == JDF_RANGE) {
-                        coutput("%s      ALLOCATE_DEP_TRACKING(%s, __%s_min, __%s_max,\n",
-                                indent(nesting), string_arena_get_string(sa1), dl->name, dl->name);
-                    } else {
-                        coutput("%s      ALLOCATE_DEP_TRACKING(%s, %s, %s,\n",
-                                indent(nesting), string_arena_get_string(sa1), dl->name, dl->name);
-                    }
-                    coutput("%s                            \"%s\", %s);\n"
-                            "%s    }\n",
-                            indent(nesting), dl->name,
-                            NULL == l2p_item->next ? "PARSEC_DEPENDENCIES_FLAG_FINAL" : "PARSEC_DEPENDENCIES_FLAG_NEXT",  /* last item */
-                            indent(nesting));
-                    string_arena_init(sa2);
-                    string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
-                    string_arena_add_string(sa1, "->u.next[%s-__%s_min]", dl->name, dl->name);
+            string_arena_add_string(sa1, "dep");
+            for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
+                dl = l2p_item->dl;
+                coutput("%s    if( %s == NULL ) {\n",
+                        indent(nesting), string_arena_get_string(sa1));
+                if(dl->expr->op == JDF_RANGE) {
+                    coutput("%s      ALLOCATE_DEP_TRACKING(%s, __%s_min, __%s_max,\n",
+                            indent(nesting), string_arena_get_string(sa1), dl->name, dl->name);
+                } else {
+                    coutput("%s      ALLOCATE_DEP_TRACKING(%s, %s, %s,\n",
+                            indent(nesting), string_arena_get_string(sa1), dl->name, dl->name);
                 }
-                /* Save the current number of tasks for the optimization of the next iteration */
-                if( need_to_count_tasks ) {
-                    coutput("%s    saved_nb_tasks = nb_tasks;\n"
-                            "%s  }\n",
-                            indent(nesting),
-                            indent(nesting));
-                }
+                coutput("%s                            \"%s\", %s);\n"
+                        "%s    }\n",
+                        indent(nesting), dl->name,
+                        NULL == l2p_item->next ? "PARSEC_DEPENDENCIES_FLAG_FINAL" : "PARSEC_DEPENDENCIES_FLAG_NEXT",  /* last item */
+                        indent(nesting));
+                string_arena_init(sa2);
+                string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
+                string_arena_add_string(sa1, "->u.next[%s-__%s_min]", dl->name, dl->name);
+            }
+            /* Save the current number of tasks for the optimization of the next iteration */
+            if( need_to_count_tasks ) {
+                coutput("%s    saved_nb_tasks = nb_tasks;\n"
+                        "%s }\n",
+                        indent(nesting),
+                        indent(nesting));
             }
         }
 
