@@ -1712,115 +1712,49 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                     fprintf(stderr, "continuation with chain successor %d\n", successor);
 
                 }
+            } else {
+                /* on the receiver side, get datatype to aquire datatype, arena etc info */
+                data.data   = current_task->super.data[current_dep].data_out;
+                data.arena  = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].arena;
+                data.layout = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].opaque_dtt;
+                data.count  = 1;
+                data.displ  = 0;
+            deps.cond            = NULL;
+            deps.ctl_gather_nb   = NULL;
+            //deps.task_class_id   = current_desc->super.task_class->task_class_id;
+            deps.flow            = current_task->super.task_class->out[current_dep];
+            deps.dep_index       = desc_flow_index;
+            deps.belongs_to      = current_task->super.task_class->out[current_dep];
+            deps.direct_data     = NULL;
+            deps.dep_datatype_index = current_dep;
+                ontask( es, (parsec_task_t *)current_task, (parsec_task_t *)current_task,
+                        &deps, &data, current_task->rank, my_rank, vpid_dst, ontask_arg );
             }
             // temp fix to ensure descendent exist
-            sleep(1);
-            current_desc = (DESC_OF(current_task, current_dep))->task;
-            op_type_on_current_flow = (FLOW_OF(current_task, current_dep)->op_type & PARSEC_GET_OP_TYPE);
-            tile = FLOW_OF(current_task, current_dep)->tile;
+            //sleep(1);
+            //op_type_on_current_flow = (FLOW_OF(current_task, current_dep)->op_type & PARSEC_GET_OP_TYPE);
+            //tile = FLOW_OF(current_task, current_dep)->tile;
 
-            if( NULL == current_desc ) {
-                if( PARSEC_INOUT == op_type_on_current_flow ||
-                    PARSEC_OUTPUT == op_type_on_current_flow ) {
-                    if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-                        if(0) { /* trying to release ownership */
-                            continue;  /* no descendent for this data */
-                        } else {
-                            current_desc = (DESC_OF(current_task, current_dep))->task;
-                        } /* Current task has a descendant hence we must activate her */
-                    }
-                }
+
+
+
+            if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
+                //if(parsec_dtd_task_is_local(current_desc)){
+                    (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
+                //}
             }
+            /* Each reader increments the ref count of the data_copy
+             * We should have a function to retain data copies like
+             * PARSEC_DATA_COPY_RELEASE
+             */
 
-#if defined(PARSEC_DEBUG_ENABLE)
-            assert(current_desc != NULL);
-#endif
 
-            /* setting data */
-            data.data   = current_task->super.data[current_dep].data_out;
-            data.arena  = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].arena;
-            data.layout = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].opaque_dtt;
-            data.count  = 1;
-            data.displ  = 0;
+            //rank_dst = current_desc->rank;
 
-            desc_op_type = ((DESC_OF(current_task, current_dep))->op_type & PARSEC_GET_OP_TYPE);
-            desc_flow_index = (DESC_OF(current_task, current_dep))->flow_index;
+            //ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
+            //        &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
+            //vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
 
-            int get_out = 0, tmp_desc_flow_index, release_parent = 0;
-            parsec_dtd_task_t *nextinline = current_desc;
-
-            do {
-                tmp_desc_flow_index = desc_flow_index;
-                current_desc = nextinline;
-                assert(NULL != current_desc);
-                /* Forward the data to each successor */
-                if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-                    if(parsec_dtd_task_is_local(current_desc)) {
-                        current_desc->super.data[desc_flow_index].data_in = current_task->super.data[current_dep].data_out;
-                        /* We retain local, remote data for each successor */
-                        parsec_dtd_retain_data_copy(current_task->super.data[current_dep].data_out);
-                    }
-                }
-
-                get_out = 1;  /* by default escape */
-                if( !(PARSEC_OUTPUT == desc_op_type || PARSEC_INOUT == desc_op_type) ) {
-
-                  look_for_next:
-                    nextinline = (DESC_OF(current_desc, desc_flow_index))->task;
-                    if( NULL != nextinline ) {
-                        desc_op_type    = ((DESC_OF(current_desc, desc_flow_index))->op_type & PARSEC_GET_OP_TYPE);
-                        desc_flow_index =  (DESC_OF(current_desc, desc_flow_index))->flow_index;
-                        get_out = 0;  /* We have a successor, keep going */
-                        if( nextinline == current_desc ) {
-                            /* We have same descendant using same data in multiple flows
-                             * So we activate the successor once and skip the other times
-                             */
-                            if( parsec_dtd_task_is_remote(current_desc) ) {
-                                /* releasing remote read task that is in the chain */
-                                parsec_dtd_remote_task_release( current_desc );
-                            }
-                            continue;
-                        } else {
-                            if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS)
-                                (DESC_OF(current_desc, tmp_desc_flow_index))->task = NULL;
-                        }
-                    } else {
-                        if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-                            /* Make sure there is no nextinline */
-                            if( 1 ) {
-                            } else {
-                                goto look_for_next;
-                            }
-                        }
-                    }
-
-                    if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-                        if(parsec_dtd_task_is_local(current_desc)){
-                            (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
-                        }
-                    }
-                    /* Each reader increments the ref count of the data_copy
-                     * We should have a function to retain data copies like
-                     * PARSEC_DATA_COPY_RELEASE
-                     */
-                }
-
-                deps.cond            = NULL;
-                deps.ctl_gather_nb   = NULL;
-                deps.task_class_id   = current_desc->super.task_class->task_class_id;
-                deps.flow            = current_desc->super.task_class->in[tmp_desc_flow_index];
-                deps.dep_index       = tmp_desc_flow_index;
-                deps.belongs_to      = current_task->super.task_class->out[current_dep];
-                deps.direct_data     = NULL;
-                deps.dep_datatype_index = current_dep;
-
-                rank_dst = current_desc->rank;
-
-                ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
-                        &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
-                vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
-
-            } while (0 == get_out);
         }
     }
 }
@@ -2273,6 +2207,23 @@ static int datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
     return PARSEC_HOOK_RETURN_DONE;
 }
 
+static int bcast_key_datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
+                                       const parsec_task_t *this_task,
+                                       uint32_t *flow_mask, parsec_dep_data_description_t *data)
+{
+    (void)es;
+    data->count = 1;
+    data->displ = 0;
+    data->arena  = NULL;
+    data->data   = NULL;
+    data->layout = PARSEC_DATATYPE_NULL;
+    data->count  = 0;
+    data->displ  = 0;
+    (*flow_mask) = 0;		/* nothing left */
+
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
 /* This function creates relationship between two task function classes.
  * Arguments:   - parsec taskpool (parsec_taskpool_t *)
                 - parent master structure (parsec_task_class_t *)
@@ -2427,7 +2378,9 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
         tc->release_deps      = parsec_dtd_bcast_key_release_deps;
     tc->prepare_input         = data_lookup_of_dtd_task;
     tc->prepare_output        = output_data_of_dtd_task;
-    tc->get_datatype          = (parsec_datatype_lookup_t *)datatype_lookup_of_dtd_task,
+    tc->get_datatype          = (parsec_datatype_lookup_t *)datatype_lookup_of_dtd_task;
+    if(tc->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID)
+        tc->get_datatype      = (parsec_datatype_lookup_t *)bcast_key_datatype_lookup_of_dtd_task;
     tc->complete_execution    = complete_hook_of_dtd;
     tc->release_task          = parsec_release_dtd_task_to_mempool;
 

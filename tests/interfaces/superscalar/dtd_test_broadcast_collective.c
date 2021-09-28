@@ -403,7 +403,7 @@ int main(int argc, char **argv) {
 
    // Root node for the broadcast operation
 
-   //sleep(30);
+   sleep(30);
    //
    // Simple broadcast
    
