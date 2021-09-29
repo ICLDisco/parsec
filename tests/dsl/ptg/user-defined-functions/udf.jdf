@@ -129,10 +129,12 @@ static int ud_startup1(parsec_execution_stream_t * es, __parsec_udf_UD_STARTUP1_
           ((parsec_data_collection_t*)(__tp->super._g_A))->myrank)
         continue;
       new_task = (__parsec_udf_UD_STARTUP1_task_t *) parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);
-      new_task->status = PARSEC_TASK_STATUS_NONE;
       new_task->taskpool = this_task->taskpool;
       new_task->task_class = __tp->super.super.task_classes_array[udf_UD_STARTUP1.task_class_id];
+      new_task->priority = 0;
+      new_task->status = PARSEC_TASK_STATUS_NONE;
       new_task->chore_id = 0;
+      new_task->repo_entry = NULL;
 
       new_task->locals.m.value = i;
       new_task->locals.n.value = j;
@@ -166,10 +168,12 @@ static int ud_startup2(parsec_execution_stream_t * es, __parsec_udf_UD_STARTUP2_
           ((parsec_data_collection_t*)(__tp->super._g_A))->myrank)
         continue;
       new_task = (__parsec_udf_UD_STARTUP2_task_t *) parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);
-      new_task->status = PARSEC_TASK_STATUS_NONE;
       new_task->taskpool = this_task->taskpool;
       new_task->task_class = __tp->super.super.task_classes_array[udf_UD_STARTUP2.task_class_id];
+      new_task->priority = 0;
+      new_task->status = PARSEC_TASK_STATUS_NONE;
       new_task->chore_id = 0;
+      new_task->repo_entry = NULL;
 
       new_task->locals.m.value = i;
       new_task->locals.n.value = j;

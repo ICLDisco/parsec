@@ -19,10 +19,7 @@
 static void
 __parsec_taskpool_branching_destructor(parsec_branching_taskpool_t* tp)
 {
-    /* We have created our own datatype, instead of using a predefined one
-     * so we need to clean up.
-     */
-    parsec_type_free(&tp->arenas_datatypes[PARSEC_branching_DEFAULT_ADT_IDX].opaque_dtt);
+    (void)tp;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_branching_taskpool_t, parsec_taskpool_t,
@@ -38,7 +35,6 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_branching_taskpool_t, parsec_taskpool_t,
 parsec_taskpool_t *branching_new(parsec_data_collection_t *A, int size, int nb)
 {
     parsec_branching_taskpool_t *tp = NULL;
-    parsec_datatype_t block;
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, BRANCHING nb and size must be > 0\n");
@@ -46,13 +42,6 @@ parsec_taskpool_t *branching_new(parsec_data_collection_t *A, int size, int nb)
     }
 
     tp = parsec_branching_new(A, nb);
-
-    parsec_type_create_contiguous(size, parsec_datatype_int8_t, &block);
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_branching_DEFAULT_ADT_IDX],
-                                     size * sizeof(int8_t), size * sizeof(int8_t),
-                                     block );
-
-
 
     return (parsec_taskpool_t*)tp;
 }

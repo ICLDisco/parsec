@@ -15,10 +15,14 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
+volatile int32_t nb_taskA = 0;
+volatile int32_t nb_taskB = 0;
+volatile int32_t nb_taskC = 0;
+
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1;
+    int rank, world, cores = 1;
     int size, nb, rc;
     parsec_data_collection_t *dcA;
     parsec_taskpool_t *branching;
@@ -38,12 +42,12 @@ int main(int argc, char *argv[])
 
     size = 256;
     if(argc != 2) {
-        nb   = 2;
+        nb   = 10;
     } else {
         nb = atoi(argv[1]);
     }
 
-    dcA = create_and_distribute_data(rank, world, size);
+    dcA = create_and_distribute_data(rank, world, size, nb);
     parsec_data_collection_set_key(dcA, "A");
 
     branching = branching_new(dcA, size, nb);
@@ -62,9 +66,15 @@ int main(int argc, char *argv[])
 
     parsec_fini(&parsec);
 
+    printf("nb_taskA = %d, nb_taskB = %d, nb_taskC = %d\n", nb_taskA, nb_taskB, nb_taskC);
+
 #ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
 
-    return 0;
+    if( nb_taskA == nb &&
+        nb_taskB == 2*nb &&
+        nb_taskC == nb )
+        return EXIT_SUCCESS;
+    return EXIT_FAILURE;
 }
