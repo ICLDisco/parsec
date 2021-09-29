@@ -1687,12 +1687,16 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | *(data_ptr+1+successor));
                 fprintf(stderr, "bcast root dep %d with chain successor %d\n", current_dep, successor);
                 (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
+                tile = FLOW_OF(current_task, current_dep)->tile;
+                parsec_dtd_tile_retain(tile);
                 parsec_remote_dep_activate(
                         es, (parsec_task_t *)current_task,
                         current_task->deps_out,
                         current_task->deps_out->outgoing_mask);
                 current_task->deps_out = NULL;
-                parsec_dtd_release_local_task( current_task );
+                parsec_dtd_remote_task_release(this_task); /* decrease the count as in the data flush */
+                //parsec_dtd_release_local_task( current_task );
+
             } else if (action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                 /* a node in the key array propagation */
                 int root = current_task->deps_out->root;
@@ -1715,12 +1719,19 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
 
                     current_task->deps_out->output[0].data.data = current_task->super.data[0].data_out;
                     //parsec_atomic_fetch_inc_int32(&current_task->deps_out->pending_ack);
+                    (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
+                    (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
+                    parsec_dtd_retain_data_copy(current_task->super.data[current_dep].data_out);
                     parsec_remote_dep_activate(
                             es, (parsec_task_t *)current_task,
                             current_task->deps_out,
                             current_task->deps_out->outgoing_mask);
                     current_task->deps_out = NULL;
                     //parsec_dtd_release_local_task( current_task );
+                    /* releasing the receiver task as the only desc task */
+                    current_desc = (DESC_OF(current_task, current_dep))->task;
+                    ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
+                            &deps, &data, current_task->rank, my_rank, vpid_dst, ontask_arg );
                 }
             } else {
                 /* on the receiver side, get datatype to aquire datatype, arena etc info */
@@ -1729,14 +1740,14 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 data.layout = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].opaque_dtt;
                 data.count  = 1;
                 data.displ  = 0;
-            deps.cond            = NULL;
-            deps.ctl_gather_nb   = NULL;
-            //deps.task_class_id   = current_desc->super.task_class->task_class_id;
-            deps.flow            = current_task->super.task_class->out[current_dep];
-            deps.dep_index       = desc_flow_index;
-            deps.belongs_to      = current_task->super.task_class->out[current_dep];
-            deps.direct_data     = NULL;
-            deps.dep_datatype_index = current_dep;
+                deps.cond            = NULL;
+                deps.ctl_gather_nb   = NULL;
+                //deps.task_class_id   = current_desc->super.task_class->task_class_id;
+                deps.flow            = current_task->super.task_class->out[current_dep];
+                deps.dep_index       = desc_flow_index;
+                deps.belongs_to      = current_task->super.task_class->out[current_dep];
+                deps.direct_data     = NULL;
+                deps.dep_datatype_index = current_dep;
                 ontask( es, (parsec_task_t *)current_task, (parsec_task_t *)current_task,
                         &deps, &data, current_task->rank, my_rank, vpid_dst, ontask_arg );
             }
@@ -1750,7 +1761,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
 
             if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                 //if(parsec_dtd_task_is_local(current_desc)){
-                    (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
+                    //(void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
                 //}
             }
             /* Each reader increments the ref count of the data_copy
@@ -2077,6 +2088,12 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
             }
             if(PARSEC_DTD_FLUSH_TC_ID == this_task->super.task_class->task_class_id) {
                 assert( current_flow == 0 );
+                parsec_dtd_tile_release( tile );
+            } 
+            if(PARSEC_DTD_BCAST_KEY_TC_ID == this_task->super.task_class->task_class_id) {
+                assert( current_flow == 0 );
+                tile->flushed = FLUSHED;
+                parsec_dtd_tile_remove( tile->dc, tile->key );
                 parsec_dtd_tile_release( tile );
             }
         }
