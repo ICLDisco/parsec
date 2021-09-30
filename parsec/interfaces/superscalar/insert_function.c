@@ -1720,16 +1720,20 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                     current_task->deps_out->output[0].data.data = current_task->super.data[0].data_out;
                     //parsec_atomic_fetch_inc_int32(&current_task->deps_out->pending_ack);
                     (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
-                    (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
                     parsec_dtd_retain_data_copy(current_task->super.data[current_dep].data_out);
                     parsec_remote_dep_activate(
                             es, (parsec_task_t *)current_task,
                             current_task->deps_out,
                             current_task->deps_out->outgoing_mask);
                     current_task->deps_out = NULL;
+                    parsec_dtd_remote_task_release(this_task); /* decrease the count as in the data flush */
                     //parsec_dtd_release_local_task( current_task );
                     /* releasing the receiver task as the only desc task */
+                    tile = FLOW_OF(current_task, current_dep)->tile;
+                    parsec_dtd_tile_retain(tile);
                     current_desc = (DESC_OF(current_task, current_dep))->task;
+                    current_desc->super.data[0].data_in = current_task->super.data[current_dep].data_out;
+                    (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
                     ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
                             &deps, &data, current_task->rank, my_rank, vpid_dst, ontask_arg );
                 }
@@ -2141,6 +2145,12 @@ parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task )
             if( tile == NULL ) continue;
             if(PARSEC_DTD_FLUSH_TC_ID == this_task->super.task_class->task_class_id) {
                 assert( current_flow == 0 );
+                parsec_dtd_tile_release( tile );
+            }
+            if(PARSEC_DTD_BCAST_KEY_TC_ID == this_task->super.task_class->task_class_id) {
+                assert( current_flow == 0 );
+                tile->flushed = FLUSHED;
+                parsec_dtd_tile_remove( tile->dc, tile->key );
                 parsec_dtd_tile_release( tile );
             }
         }
