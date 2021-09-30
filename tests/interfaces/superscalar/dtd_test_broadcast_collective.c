@@ -227,13 +227,17 @@ int test_broadcast_mixed(
    perr = parsec_context_start(parsec_context);
    PARSEC_CHECK_ERROR(perr, "parsec_context_start");
    
-   fprintf(stderr, "parsec context started\n");
    // Key of tile associated with root node
-   int key_root = key = A->data_key(A, root, 0);
-   parsec_dtd_tile_t* dtd_tile_root = PARSEC_DTD_TILE_OF_KEY(A, key_root);
-   key_root = B->data_key(B, root, 0);
-   parsec_dtd_tile_t* bcast_keys_root = PARSEC_DTD_TILE_OF_KEY(B, key_root);
-   
+   int key_root;
+   parsec_dtd_tile_t* dtd_tile_root;
+   parsec_dtd_tile_t* bcast_keys_root;
+   if(myrank % 2 == 1 || myrank == root) {
+       key_root = key = A->data_key(A, root, 0);
+       dtd_tile_root = PARSEC_DTD_TILE_OF_KEY(A, key_root);
+       key_root = B->data_key(B, root, 0);
+       bcast_keys_root = PARSEC_DTD_TILE_OF_KEY(B, key_root);
+   }
+
    // Create array of destination ranks
    int num_dest_ranks = 0;
    int *dest_ranks = (int*)malloc(world*sizeof(int));
