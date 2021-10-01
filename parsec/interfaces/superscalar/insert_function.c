@@ -1686,7 +1686,6 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
                 current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | *(data_ptr+1+successor));
                 fprintf(stderr, "bcast root dep %d with chain successor %d\n", current_dep, successor);
-                (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
                 tile = FLOW_OF(current_task, current_dep)->tile;
                 parsec_dtd_tile_retain(tile);
                 parsec_remote_dep_activate(
@@ -1694,8 +1693,8 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                         current_task->deps_out,
                         current_task->deps_out->outgoing_mask);
                 current_task->deps_out = NULL;
-                parsec_dtd_remote_task_release(this_task); /* decrease the count as in the data flush */
-                //parsec_dtd_release_local_task( current_task );
+                /* decrease the count as in the data flush */
+                parsec_dtd_release_local_task( current_task );
 
             } else if (action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                 /* a node in the key array propagation */
@@ -1718,8 +1717,6 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                     assert(NULL != current_task->super.data[current_dep].data_out);
 
                     current_task->deps_out->output[0].data.data = current_task->super.data[0].data_out;
-                    //parsec_atomic_fetch_inc_int32(&current_task->deps_out->pending_ack);
-                    (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
                     parsec_dtd_retain_data_copy(current_task->super.data[current_dep].data_out);
                     parsec_remote_dep_activate(
                             es, (parsec_task_t *)current_task,
@@ -1727,7 +1724,6 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                             current_task->deps_out->outgoing_mask);
                     current_task->deps_out = NULL;
                     parsec_dtd_remote_task_release(this_task); /* decrease the count as in the data flush */
-                    //parsec_dtd_release_local_task( current_task );
                     /* releasing the receiver task as the only desc task */
                     tile = FLOW_OF(current_task, current_dep)->tile;
                     parsec_dtd_tile_retain(tile);
@@ -1755,31 +1751,6 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 ontask( es, (parsec_task_t *)current_task, (parsec_task_t *)current_task,
                         &deps, &data, current_task->rank, my_rank, vpid_dst, ontask_arg );
             }
-            // temp fix to ensure descendent exist
-            //sleep(1);
-            //op_type_on_current_flow = (FLOW_OF(current_task, current_dep)->op_type & PARSEC_GET_OP_TYPE);
-            //tile = FLOW_OF(current_task, current_dep)->tile;
-
-
-
-
-            if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-                //if(parsec_dtd_task_is_local(current_desc)){
-                    //(void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
-                //}
-            }
-            /* Each reader increments the ref count of the data_copy
-             * We should have a function to retain data copies like
-             * PARSEC_DATA_COPY_RELEASE
-             */
-
-
-            //rank_dst = current_desc->rank;
-
-            //ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
-            //        &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
-            //vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
-
         }
     }
 }
