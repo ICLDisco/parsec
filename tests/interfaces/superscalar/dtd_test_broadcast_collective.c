@@ -270,21 +270,22 @@ int test_broadcast_mixed(
    //
    // Retrieve value of broadcasted data
    //
-   if(myrank % 2 == 1 || myrank == root) {
-       for (int rank = 0; rank < world; ++rank) {
+   //if(myrank % 2 == 1 || myrank == root) {
+   if(myrank % 2 == 1) {
+       //for (int rank = 0; rank < world; ++rank) {
 
-           if (rank % 2 == 0 || rank == root) continue;
+           //if (rank % 2 == 0 || rank == root) continue;
 
            parsec_task_t *retrieve_task = parsec_dtd_taskpool_create_task(
                    dtd_tp, retrieve_task_fn, 0, "retrieve_task",
                    PASSED_BY_REF, dtd_tile_root, PARSEC_INPUT | TILE_FULL,
-                   sizeof(int), &rank, PARSEC_VALUE | PARSEC_AFFINITY,
+                   sizeof(int), &myrank, PARSEC_VALUE | PARSEC_AFFINITY,
                    sizeof(int*), &data_value_out, PARSEC_VALUE,
                    PARSEC_DTD_ARG_END);
-           //parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
-           //parsec_insert_dtd_task(retrieve_task);
+           parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
+           parsec_insert_dtd_task(retrieve_task);
 
-       }
+       //}
    }
 for(int iter=1; iter <= 0; iter++) {
    // Second round of broadcast, create another array of keys for this bcast
@@ -407,7 +408,7 @@ int main(int argc, char **argv) {
 
    // Root node for the broadcast operation
 
-   sleep(30);
+   //sleep(30);
    //
    // Simple broadcast
    

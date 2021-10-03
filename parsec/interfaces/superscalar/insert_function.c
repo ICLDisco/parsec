@@ -102,7 +102,6 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                               uint32_t action_mask,
                               parsec_ontask_function_t *ontask,
                               void *ontask_arg);
-
 static int
 parsec_dtd_release_deps(parsec_execution_stream_t *,
                         parsec_task_t *,
@@ -227,6 +226,9 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
                                  0, 0, 1);
     /* The second taskclass of every taskpool is the bcast key array propagation taskclass */
     parsec_dtd_create_task_class(dtd_tp, parsec_dtd_bcast_key_fn, "parsec_dtd_bcast_key_fn",
+                                 2, sizeof(int), 1);
+    /* The third taskclass of every taskpool is the bcast taskclass for tile data bcast */
+    parsec_dtd_create_task_class(dtd_tp, parsec_dtd_bcast_data_fn, "parsec_dtd_bcast_data_fn",
                                  2, sizeof(int), 1);
 
     return 0;
@@ -1724,6 +1726,31 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                             current_task->deps_out->outgoing_mask);
                     current_task->deps_out = NULL;
                     parsec_dtd_remote_task_release(this_task); /* decrease the count as in the data flush */
+                    
+                    /* update the BCAST DATA task or dep with the global ID that we know now */
+                    uint64_t key = ((uint64_t)(1<<28 | data_ptr[es->virtual_process->parsec_context->my_rank+1])<<32) | (1U<<0);
+                    uint64_t key2 = ((uint64_t)(data_ptr[0])<<32) | (1U<<0);
+                    parsec_dtd_taskpool_t *tp = (parsec_dtd_taskpool_t *)current_task->super.taskpool;
+                    parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
+                    parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key2);
+                    parsec_dtd_task_t * dtd_task = parsec_dtd_find_task(tp, key);
+                    parsec_remote_deps_t *dep = parsec_dtd_find_task(tp, key2);
+                    fprintf(stderr, "iterate successor on rank %d, key2 %d remote dep %p with task %p\n", es->virtual_process->parsec_context->my_rank, data_ptr[0], dep, dtd_task);
+                    populate_remote_deps(data_ptr, dtd_task->deps_out);
+                    parsec_dtd_untrack_task(tp, key);
+                    if(dep == NULL){
+                        dtd_task->super.locals[0].value = data_ptr[0];
+                        parsec_dtd_track_task(tp, key2, dtd_task);
+                    }else{
+
+                        dtd_task->super.locals[0].value = data_ptr[0];
+                        parsec_dtd_untrack_remote_dep(tp, key2);
+                        parsec_dtd_track_task(tp, key2, dtd_task);
+                        remote_dep_dequeue_delayed_dep_release(dep);
+                    }
+                    parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key2);
+                    parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key);
+
                     /* releasing the receiver task as the only desc task */
                     tile = FLOW_OF(current_task, current_dep)->tile;
                     parsec_dtd_tile_retain(tile);
@@ -2828,6 +2855,24 @@ parsec_dtd_bcast_key_recv( parsec_execution_stream_t *es, parsec_task_t *this_ta
     (void)es; (void)this_task;
     
     fprintf(stderr, "bcast_key_recv executed\n");
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+/* **************************************************************************** */
+/**
+ * Body of bcast task we insert that will propagate the data tile we are broadcasting
+ * empty body!
+ *
+ * @param   context, this_task
+ *
+ * @ingroup DTD_INTERFACE_INTERNAL
+ */
+int
+parsec_dtd_bcast_data_fn( parsec_execution_stream_t *es, parsec_task_t *this_task)
+{
+    (void)es; (void)this_task;
+
+    fprintf(stderr, "bcast_data_fn executed\n");
     return PARSEC_HOOK_RETURN_DONE;
 }
 

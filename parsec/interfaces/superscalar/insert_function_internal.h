@@ -39,6 +39,7 @@ extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 
 #define PARSEC_DTD_FLUSH_TC_ID    ((uint8_t)0x00)
 #define PARSEC_DTD_BCAST_KEY_TC_ID    ((uint8_t)0x01)
+#define PARSEC_DTD_BCAST_DATA_TC_ID    ((uint8_t)0x02)
 
 /* To flag the task we are trying to complete as a local one */
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
@@ -288,6 +289,8 @@ typedef struct parsec_dtd_common_args_s {
 
 /* Function prototypes */
 int parsec_dtd_bcast_key_fn( parsec_execution_stream_t *es, parsec_task_t *this_task);
+
+int parsec_dtd_bcast_data_fn( parsec_execution_stream_t *es, parsec_task_t *this_task);
 
 int parsec_dtd_bcast_key_recv( parsec_execution_stream_t *es, parsec_task_t *this_task);
 

@@ -192,38 +192,32 @@ void parsec_dtd_broadcast(
     parsec_data_copy_t *key_copy = bcast_keys_root->data_copy;
 
     // Create remote deps corresponding to the braodcast
-    //parsec_remote_deps_t *deps_0 = parsec_dtd_create_remote_deps(
-    //        myrank, root, data_copy, &parsec_dtd_arenas_datatypes[arena_index],
-    //        dest_ranks, num_dest_ranks);
+    parsec_remote_deps_t *deps_0 = parsec_dtd_create_remote_deps(
+            myrank, root, data_copy, &parsec_dtd_arenas_datatypes[arena_index],
+            dest_ranks, num_dest_ranks);
     parsec_remote_deps_t *deps_1 = parsec_dtd_create_remote_deps(
             myrank, root, key_copy, &parsec_dtd_arenas_datatypes[bcast_arena_index],
             dest_ranks, num_dest_ranks);
 
-    //parsec_task_t *bcast_task_root = parsec_dtd_taskpool_create_task(
-    //        taskpool, parsec_dtd_aux_fn2, 0, "bcast_task_root",
-    //        PASSED_BY_REF, dtd_tile_root, PARSEC_INOUT | arena_index,
-    //        sizeof(int), &root, PARSEC_VALUE | PARSEC_AFFINITY,
-    //        PARSEC_DTD_ARG_END);
+    parsec_task_t *bcast_task_root = parsec_dtd_taskpool_create_task(
+            taskpool, parsec_dtd_bcast_data_fn, 0, "bcast_data_fn",
+            PASSED_BY_REF, dtd_tile_root, PARSEC_INOUT | arena_index,
+            sizeof(int), &root, PARSEC_VALUE | PARSEC_AFFINITY,
+            PARSEC_DTD_ARG_END);
 
-    //parsec_dtd_task_t *dtd_bcast_task_root = (parsec_dtd_task_t *)bcast_task_root;
-    //dtd_bcast_task_root->super.locals[2].value = -1;
-    //dtd_bcast_task_root->super.locals[3].value = -1;
+    parsec_dtd_task_t *dtd_bcast_task_root = (parsec_dtd_task_t *)bcast_task_root;
 
     // Set broadcast topology info
-    //dtd_bcast_task_root->deps_out = NULL;
+    dtd_bcast_task_root->deps_out = deps_0;
 
-    //dtd_bcast_task_root->deps_out = deps_0;
-
-    //if(myrank == root) {
-    //    dtd_bcast_task_root->ht_item.key = bcast_id;
-    //    dtd_bcast_task_root->super.locals[0].value = dtd_bcast_task_root->ht_item.key;
-    //}else{
-    //    bcast_id = ( (1<<28)  | dtd_tp->recv_task_id[root]++);
-    //    dtd_bcast_task_root->ht_item.key =  bcast_id;
-    //    dtd_bcast_task_root->super.locals[0].value = dtd_bcast_task_root->ht_item.key;
-    //}
-    /* Post the bcast tasks for the actual data */
-    //parsec_insert_dtd_task(dtd_bcast_task_root);
+    if(myrank == root) {
+        dtd_bcast_task_root->ht_item.key = bcast_id;
+        dtd_bcast_task_root->super.locals[0].value = dtd_bcast_task_root->ht_item.key;
+    }else{
+        bcast_id = ( (1<<28)  | dtd_tp->recv_task_id[root]++);
+        dtd_bcast_task_root->ht_item.key =  bcast_id;
+        dtd_bcast_task_root->super.locals[0].value = dtd_bcast_task_root->ht_item.key;
+    }
 
     parsec_task_t *bcast_key_root = parsec_dtd_taskpool_create_task(
             taskpool, parsec_dtd_bcast_key_fn, 0, "bcast_key_fn",
@@ -234,16 +228,18 @@ void parsec_dtd_broadcast(
     dtd_bcast_key_root->deps_out = NULL;
     dtd_bcast_key_root->deps_out = deps_1;
     if(myrank == root) {
-        //dtd_bcast_task_root->ht_item.key = bcast_id;
-        //dtd_bcast_task_root->super.locals[0].value = dtd_bcast_task_root->ht_item.key;
+        /* nothing here since the key is stored in the key array and will be updated before remote_dep_activate */
     }else{
-        //bcast_id = ( (1<<29)  | (dtd_tp->recv_task_id[root] -1));
-        bcast_id = ( (1<<29)  | (dtd_tp->recv_task_id[root] ));
+        bcast_id = ( (1<<29)  | (dtd_tp->recv_task_id[root] -1));
+        //bcast_id = ( (1<<29)  | (dtd_tp->recv_task_id[root] ));
         dtd_bcast_key_root->ht_item.key =  bcast_id;
         dtd_bcast_key_root->super.locals[0].value = dtd_bcast_key_root->ht_item.key;
     }
     /* Post the bcast of keys and ranks array */
     parsec_insert_dtd_task(dtd_bcast_key_root);
+    
+    /* Post the bcast tasks for the actual data */
+    parsec_insert_dtd_task(dtd_bcast_task_root);
 
     if(myrank == root) {
         //for (int dest_rank = 0; dest_rank < num_dest_ranks; ++dest_rank) {
