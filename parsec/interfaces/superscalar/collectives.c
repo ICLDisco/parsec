@@ -109,52 +109,6 @@ int remote_deps_free_if_empty(parsec_remote_deps_t* deps) {
    return ret;
 }
 
-/*
-static
-int parsec_dtd_bcast_task_fn(
-      parsec_execution_stream_t *es,
-      parsec_task_t *this_task) {
-   (void)es;
-   
-   // parsec_dtd_task_t *this_dtd_task = (parsec_dtd_task_t *)this_task;
-
-   // INPUT or INOUT data
-   void *val_in;
-   // Root index
-   int root_in;
-   // Task rank
-   int dest_rank;
-
-   printf("[parsec_dtd_bcast_task_fn]\n"); 
-   
-   return PARSEC_HOOK_RETURN_DONE;   
-}
-
-int parsec_dtd_aux_fn(
-      parsec_execution_stream_t *es,
-      parsec_task_t *this_task) {
-   (void)es;
-   // INPUT data
-   int *val_in;
-   int *val_bcast;
-   // Task rank
-   int dest_rank;
-
-
-   parsec_dtd_unpack_args(this_task, &val_bcast, &dest_rank);
-   fprintf(stderr, "aux_fn on rank %d value %d\n", es->virtual_process->parsec_context->my_rank, *val_bcast); 
-   return PARSEC_HOOK_RETURN_DONE;
-}
-
-int parsec_dtd_aux_fn2(
-      parsec_execution_stream_t *es,
-      parsec_task_t *this_task) {
-   (void)es;
-
-   return PARSEC_HOOK_RETURN_DONE;
-}
-*/
-
 /**
  * Perform a broadcast for of the dtd tile `dtd_tile_root` from the
  * root node associated with the rank `root` to the nodes with ranks

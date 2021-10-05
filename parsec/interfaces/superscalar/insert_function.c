@@ -1730,10 +1730,13 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                     /* update the BCAST DATA task or dep with the global ID that we know now */
                     uint64_t key = ((uint64_t)(1<<28 | data_ptr[es->virtual_process->parsec_context->my_rank+1])<<32) | (1U<<0);
                     uint64_t key2 = ((uint64_t)(data_ptr[0])<<32) | (1U<<0);
+                    parsec_dtd_task_t* dtd_task = NULL;
                     parsec_dtd_taskpool_t *tp = (parsec_dtd_taskpool_t *)current_task->super.taskpool;
+                    while(dtd_task == NULL)
+                        dtd_task = parsec_dtd_find_task(tp, key);
                     parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
                     parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key2);
-                    parsec_dtd_task_t * dtd_task = parsec_dtd_find_task(tp, key);
+                    //parsec_dtd_task_t* dtd_task = parsec_dtd_find_task(tp, key);
                     parsec_remote_deps_t *dep = parsec_dtd_find_task(tp, key2);
                     fprintf(stderr, "iterate successor on rank %d, key2 %d remote dep %p with task %p\n", es->virtual_process->parsec_context->my_rank, data_ptr[0], dep, dtd_task);
                     populate_remote_deps(data_ptr, dtd_task->deps_out);
@@ -2626,7 +2629,7 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
             }
         } else {
             if( !(flow->flags & TASK_INSERTED) ) {
-                assert(dep->from == real_parent_task->rank);
+                //assert(dep->from == real_parent_task->rank);
                 flow->flags |= TASK_INSERTED;
                 parsec_dtd_untrack_remote_dep( tp, key );
 #if defined(PARSEC_PROF_TRACE)
