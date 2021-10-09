@@ -1686,7 +1686,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 /* root of the bcast key */
                 successor = get_chain_successor(es, current_task, current_task->deps_out);
                 int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
-                current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | *(data_ptr+1+successor));
+                current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) |(current_task->deps_out->root << 18) |  *(data_ptr+1+successor));
                 fprintf(stderr, "bcast root dep %d with chain successor %d\n", current_dep, successor);
                 tile = FLOW_OF(current_task, current_dep)->tile;
                 parsec_dtd_tile_retain(tile);
@@ -1715,7 +1715,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                     populate_remote_deps(data_ptr, current_task->deps_out);
                     successor = get_chain_successor(es, current_task, current_task->deps_out);
                     fprintf(stderr, "continuation with chain successor %d\n", successor);
-                    current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | *(data_ptr+1+successor));
+                    current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | (root << 18) | *(data_ptr+1+successor));
                     assert(NULL != current_task->super.data[current_dep].data_out);
 
                     current_task->deps_out->output[0].data.data = current_task->super.data[0].data_out;
@@ -1728,7 +1728,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                     parsec_dtd_remote_task_release(this_task); /* decrease the count as in the data flush */
                     
                     /* update the BCAST DATA task or dep with the global ID that we know now */
-                    uint64_t key = ((uint64_t)(1<<28 | data_ptr[es->virtual_process->parsec_context->my_rank+1])<<32) | (1U<<0);
+                    uint64_t key = ((uint64_t)(1<<28 | (root << 18 ) | data_ptr[es->virtual_process->parsec_context->my_rank+1])<<32) | (1U<<0);
                     uint64_t key2 = ((uint64_t)(data_ptr[0])<<32) | (1U<<0);
                     parsec_dtd_task_t* dtd_task = NULL;
                     parsec_dtd_taskpool_t *tp = (parsec_dtd_taskpool_t *)current_task->super.taskpool;
@@ -3562,4 +3562,11 @@ parsec_taskpool_t *
 parsec_dtd_get_taskpool(parsec_task_t *this_task)
 {
     return this_task->taskpool;
+}
+
+int
+parsec_dtd_rank_of_data(parsec_dc_t *dc, int i, int j)
+{
+    parsec_data_key_t key = dc->data_key(dc, i, j);
+    return dc->rank_of_key(dc, key);
 }

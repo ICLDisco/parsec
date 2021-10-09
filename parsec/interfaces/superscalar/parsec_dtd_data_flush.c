@@ -38,7 +38,6 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
     parsec_dtd_tile_t *tile = (FLOW_OF(current_task, 0))->tile;
 
-    fprintf(stderr, "Executed data flush body in rank %d\n", current_task->rank);
     assert(tile != NULL);
 
 #if defined(DISTRIBUTED)

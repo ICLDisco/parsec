@@ -17,6 +17,7 @@
 
 enum regions {
                 TILE_FULL,
+                TILE_BCAST
              };
 
 int
@@ -29,6 +30,7 @@ parsec_core_potrf(parsec_execution_stream_t *es, parsec_task_t *this_task)
 
     parsec_dtd_unpack_args(this_task, &uplo, &m, &A, &lda, &info);
 
+    fprintf(stderr, "core_potrf executed\n");
     CORE_zpotrf(uplo, m, A, lda, info);
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -45,7 +47,8 @@ parsec_core_trsm(parsec_execution_stream_t *es, parsec_task_t *this_task)
 
     parsec_dtd_unpack_args(this_task, &side, &uplo, &trans, &diag, &m, &n,
                            &alpha, &A, &lda, &C, &ldc);
-    //fprintf(stderr, "core_trsm executed\n");
+    int rank = this_task->taskpool->context->my_rank;
+    fprintf(stderr, "core_trsm executed on rank %d \n", rank);
 
     CORE_ztrsm(side, uplo, trans, diag,
                m, n, alpha,
@@ -68,6 +71,7 @@ parsec_core_herk(parsec_execution_stream_t *es, parsec_task_t *this_task)
 
     parsec_dtd_unpack_args(this_task, &uplo, &trans, &m, &n, &alpha, &A,
                            &lda, &beta, &C, &ldc);
+    fprintf(stderr, "core_herk executed\n");
 
     CORE_zherk(uplo, trans, m, n,
                alpha, A, lda,
@@ -89,6 +93,7 @@ parsec_core_gemm(parsec_execution_stream_t *es, parsec_task_t *this_task)
 
     parsec_dtd_unpack_args(this_task, &transA, &transB, &m, &n, &k, &alpha,
                            &A, &lda, &B, &ldb, &beta, &C, &ldc);
+    fprintf(stderr, "core_gemm executed\n");
 
     CORE_zgemm(transA, transB,
                m, n, k,
@@ -106,6 +111,8 @@ int main(int argc, char **argv)
     int uplo = dplasmaUpper;
     int info = 0;
     int ret = 0;
+
+    //sleep(30);
 
     int m, n, k, total; /* loop counter */
     /* Parameters passed on to Insert_task() */
@@ -132,10 +139,18 @@ int main(int argc, char **argv)
         sym_two_dim_block_cyclic, (&dcA, matrix_ComplexDouble,
                                    rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, nodes/P, uplo));
+    
+    PASTE_CODE_ALLOCATE_MATRIX(dcB, 1,
+        sym_two_dim_block_cyclic, (&dcB, matrix_Integer,
+                                   rank, 15, 15, 15*N/NB, 15*N/NB, 0, 0,
+                                   15*N/NB, 15*N/NB, P, nodes/P, uplo));
 
     /* Initializing dc for dtd */
     sym_two_dim_block_cyclic_t *__dcA = &dcA;
     parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcA);
+    
+    sym_two_dim_block_cyclic_t *__dcB = &dcB;
+    parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcB);
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
@@ -151,6 +166,11 @@ int main(int argc, char **argv)
                             dcA.super.mb*dcA.super.nb*sizeof(dplasma_complex64_t),
                             PARSEC_ARENA_ALIGNMENT_SSE,
                             parsec_datatype_double_complex_t, dcA.super.mb );
+    
+    dplasma_add2arena_tile( &parsec_dtd_arenas_datatypes[TILE_BCAST],
+                            dcB.super.mb*dcB.super.nb*sizeof(int),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_int32_t, dcB.super.mb );
 
     /* Registering the handle with parsec context */
     parsec_context_add_taskpool( parsec, dtd_tp );
@@ -269,7 +289,7 @@ int main(int argc, char **argv)
 			tempkm = k == dcA.super.nt-1 ? dcA.super.n-k*dcA.super.nb : dcA.super.nb;
 			ldak = BLKLDD(&dcA.super, k);
 			if(parsec_dtd_rank_of_data(&dcA.super.super, k, k) == rank) {
-				//fprintf(stderr, "Inserting and executing potrf[%d %d] in rank: %d\n", k, k, rank);
+				fprintf(stderr, "Inserting and executing potrf[%d %d] in rank: %d\n", k, k, rank);
 				parsec_dtd_taskpool_insert_task( dtd_tp, parsec_core_potrf,
 						(total - k) * (total-k) * (total - k)/*priority*/, "Potrf",
 						sizeof(int),      &uplo,              PARSEC_VALUE,
@@ -297,20 +317,21 @@ int main(int argc, char **argv)
 				if(dest_rank_idx == Q-1) break; /* this is to populate the destination ranks */
 			}
 
-			parsec_dtd_tile_t* dtd_tile_root = PARSEC_DTD_TILE_OF(A, k, k);
 			if( ( flag || (rank == root) ) && ( dest_rank_idx >= 1) ) {
+                parsec_dtd_tile_t* dtd_tile_root = PARSEC_DTD_TILE_OF(A, k, k);
+                parsec_dtd_tile_t* dtd_key_root = PARSEC_DTD_TILE_OF(B, k, k);
 				//fprintf(stderr, "Broadcasting PO tile to TRSM. k %d, rank %d, root %d\n", k, rank, root);
-                int bcast_id = (1<<29) | (k*total+k+k); /* m*nt+n+k */
-				parsec_dtd_broadcast_id(
-                        bcast_id,
+				parsec_dtd_broadcast(
 						dtd_tp, rank, root,
 						dtd_tile_root, TILE_FULL,
+						dtd_key_root, TILE_BCAST,
 						dest_ranks, dest_rank_idx);
 			}
 
 			for( m = k+1; m < total; m++ ) {
 				tempmm = m == dcA.super.nt-1 ? dcA.super.n-m*dcA.super.nb : dcA.super.nb;
-				if(  (parsec_dtd_rank_of_data(&dcA.super.super, k, m) == rank || parsec_dtd_rank_of_data(&dcA.super.super, k, k) == rank )) {
+				//if(  (parsec_dtd_rank_of_data(&dcA.super.super, k, m) == rank || parsec_dtd_rank_of_data(&dcA.super.super, k, k) == rank )) {
+				if(  (parsec_dtd_rank_of_data(&dcA.super.super, k, m) == rank )) {
 					//fprintf(stderr, "Inserting trsm[%d %d][%d %d] in rank: %d owned: %d\n", k, k, k, m, rank, parsec_dtd_rank_of_data(&dcA.super.super, k, m));
 					parsec_dtd_taskpool_insert_task( dtd_tp, parsec_core_trsm,
 							(total - m) * (total-m) * (total - m) + 3 * ((2 * total) - k - m - 1) * (m - k)/*priority*/, "Trsm",
@@ -353,23 +374,24 @@ int main(int argc, char **argv)
                     ++dest_rank_idx;
                 }
 
-                parsec_dtd_tile_t* dtd_tile_root = PARSEC_DTD_TILE_OF(A, k, m);
                 if( ( flag || (rank == root) ) && ( dest_rank_idx >= 1) ) {
+                    parsec_dtd_tile_t* dtd_tile_root = PARSEC_DTD_TILE_OF(A, k, m);
+                    parsec_dtd_tile_t* dtd_key_root = PARSEC_DTD_TILE_OF(B, k, m);
                     //fprintf(stderr, "Broadcasting TRSM tile to SYRK and GEMM. k %d, m %d, rank %d, root %d\n", k, m, rank, root);
-                    int bcast_id = (1<<29) | (k*total+m+k); /* m*nt+n+k */
-                    parsec_dtd_broadcast_id(
-                            bcast_id,
+                    parsec_dtd_broadcast(
                             dtd_tp, rank, root,
                             dtd_tile_root, TILE_FULL,
+                            dtd_key_root, TILE_BCAST,
                             dest_ranks, dest_rank_idx);
                 }
             }
-            parsec_dtd_data_flush( dtd_tp, PARSEC_DTD_TILE_OF(A, k, k) );
+            //parsec_dtd_data_flush( dtd_tp, PARSEC_DTD_TILE_OF(A, k, k) );
 
             for( m = k+1; m < dcA.super.mt; m++ ) {
                 tempmm = m == dcA.super.nt-1 ? dcA.super.n-m*dcA.super.nb : dcA.super.nb;
                 ldam = BLKLDD(&dcA.super, m);
-                if(parsec_dtd_rank_of_data(&dcA.super.super, m, m) == rank || parsec_dtd_rank_of_data(&dcA.super.super, k, m) == rank ) {
+                //if(parsec_dtd_rank_of_data(&dcA.super.super, m, m) == rank || parsec_dtd_rank_of_data(&dcA.super.super, k, m) == rank ) {
+                if(parsec_dtd_rank_of_data(&dcA.super.super, m, m) == rank ) {
                     parsec_dtd_taskpool_insert_task( dtd_tp, parsec_core_herk,
                             (total - m) * (total - m) * (total - m) + 3 * (m - k)/*priority*/, "Herk",
                             sizeof(int),       &uplo,               PARSEC_VALUE,
@@ -386,7 +408,8 @@ int main(int argc, char **argv)
                 }
                 for( n = m+1; n < total; n++ ) {
                     ldan = BLKLDD(&dcA.super, n);
-                    if(parsec_dtd_rank_of_data(&dcA.super.super, m, n) == rank || parsec_dtd_rank_of_data(&dcA.super.super, k, m) == rank || parsec_dtd_rank_of_data(&dcA.super.super, k, n) == rank) {
+                    //if(parsec_dtd_rank_of_data(&dcA.super.super, m, n) == rank || parsec_dtd_rank_of_data(&dcA.super.super, k, m) == rank || parsec_dtd_rank_of_data(&dcA.super.super, k, n) == rank) {
+                    if(parsec_dtd_rank_of_data(&dcA.super.super, m, n) == rank ) {
                         parsec_dtd_taskpool_insert_task( dtd_tp,  parsec_core_gemm,
                                 (total - m) * (total - m) * (total - m) + 3 * ((2 * total) - m - n - 3) * (m - n) + 6 * (m - k) /*priority*/, "Gemm",
                                 sizeof(int),        &transA_g,           PARSEC_VALUE,
@@ -478,10 +501,14 @@ int main(int argc, char **argv)
 
     /* Cleaning data arrays we allocated for communication */
     dplasma_matrix_del2arena( &parsec_dtd_arenas_datatypes[TILE_FULL] );
+    dplasma_matrix_del2arena( &parsec_dtd_arenas_datatypes[TILE_BCAST] );
     parsec_dtd_data_collection_fini( (parsec_data_collection_t *)&dcA );
+    parsec_dtd_data_collection_fini( (parsec_data_collection_t *)&dcB );
 
     parsec_data_free(dcA.mat); dcA.mat = NULL;
+    parsec_data_free(dcB.mat); dcB.mat = NULL;
     parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcB);
 
     cleanup_parsec(parsec, iparam);
     return ret;
