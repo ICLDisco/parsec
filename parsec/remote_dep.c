@@ -558,6 +558,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                         }
                     }
 #endif  /* PARSEC_DEBUG_NOISIER */
+                    //fprintf(stderr, "on node %d with locals[0].value %d my_idx %d, idx %d\n", es->virtual_process->parsec_context->my_rank, remote_deps->msg.locals[0].value, my_idx, idx);
                     assert(output->parent->taskpool == task->taskpool);
                     if( 0 == parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack) ) {
                         keeper = 1;

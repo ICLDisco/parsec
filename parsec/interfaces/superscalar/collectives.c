@@ -21,7 +21,7 @@ parsec_remote_deps_t* parsec_dtd_create_remote_deps(
       int myrank, int root, parsec_data_copy_t *data_copy,
       parsec_arena_datatype_t *arenas_datatype, 
       int* dest_ranks, int num_dest_ranks) {
-   
+
    parsec_remote_deps_t *deps = (parsec_remote_deps_t*)remote_deps_allocate(&parsec_remote_dep_context.freelist);
 
    assert(NULL != deps);
@@ -140,7 +140,7 @@ void parsec_dtd_broadcast(
             data_ptr[100+i+1] = dest_ranks[i];
         }
     }
-    fprintf(stderr, "finished bcast key packing\n");
+    //fprintf(stderr, "finished bcast key packing\n");
     // Retrieve DTD tile's data_copy
     parsec_data_copy_t *data_copy = dtd_tile_root->data_copy;
     parsec_data_copy_t *key_copy = bcast_keys_root->data_copy;
@@ -162,6 +162,7 @@ void parsec_dtd_broadcast(
     parsec_dtd_task_t *dtd_bcast_task_root = (parsec_dtd_task_t *)bcast_task_root;
 
     // Set broadcast topology info
+    deps_0->pending_ack = 1;
     dtd_bcast_task_root->deps_out = deps_0;
 
     if(myrank == root) {
@@ -179,7 +180,7 @@ void parsec_dtd_broadcast(
             sizeof(int), &root, PARSEC_VALUE | PARSEC_AFFINITY,
             PARSEC_DTD_ARG_END);
     parsec_dtd_task_t *dtd_bcast_key_root = (parsec_dtd_task_t *)bcast_key_root;
-    dtd_bcast_key_root->deps_out = NULL;
+    deps_1->pending_ack = 1;
     dtd_bcast_key_root->deps_out = deps_1;
     if(myrank == root) {
         /* nothing here since the key is stored in the key array and will be updated before remote_dep_activate */

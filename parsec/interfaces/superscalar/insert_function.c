@@ -1687,7 +1687,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 successor = get_chain_successor(es, current_task, current_task->deps_out);
                 int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
                 current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) |(current_task->deps_out->root << 18) |  *(data_ptr+1+successor));
-                fprintf(stderr, "bcast root dep %d with chain successor %d\n", current_dep, successor);
+                //fprintf(stderr, "bcast root dep %p with chain successor %d on rank %d\n", current_task->deps_out, successor, my_rank);
                 tile = FLOW_OF(current_task, current_dep)->tile;
                 parsec_dtd_tile_retain(tile);
                 parsec_remote_dep_activate(
@@ -1714,7 +1714,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                     int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
                     populate_remote_deps(data_ptr, current_task->deps_out);
                     successor = get_chain_successor(es, current_task, current_task->deps_out);
-                    fprintf(stderr, "continuation with chain successor %d\n", successor);
+                    //fprintf(stderr, "continuation with chain successor %d\n", successor);
                     current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | (root << 18) | *(data_ptr+1+successor));
                     assert(NULL != current_task->super.data[current_dep].data_out);
 
@@ -1730,15 +1730,25 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                     /* update the BCAST DATA task or dep with the global ID that we know now */
                     uint64_t key = ((uint64_t)(1<<28 | (root << 18 ) | data_ptr[es->virtual_process->parsec_context->my_rank+1])<<32) | (1U<<0);
                     uint64_t key2 = ((uint64_t)(data_ptr[0])<<32) | (1U<<0);
+                    struct timespec rqtp;
+                    uint64_t misses_in_a_row;
+                    rqtp.tv_sec = 0;
+                    misses_in_a_row = 2;
                     parsec_dtd_task_t* dtd_task = NULL;
                     parsec_dtd_taskpool_t *tp = (parsec_dtd_taskpool_t *)current_task->super.taskpool;
-                    while(dtd_task == NULL)
+                    while(dtd_task == NULL) {
+                        //rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
+                        //nanosleep(&rqtp, NULL);
+                        //sleep(1);
+                        misses_in_a_row++;
                         dtd_task = parsec_dtd_find_task(tp, key);
-                    parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
+                        //fprintf(stderr, "finding dtd task with iteration %d\n", misses_in_a_row);
+                    }
+                    //parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
                     parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key2);
                     //parsec_dtd_task_t* dtd_task = parsec_dtd_find_task(tp, key);
                     parsec_remote_deps_t *dep = parsec_dtd_find_task(tp, key2);
-                    fprintf(stderr, "iterate successor on rank %d, key2 %d remote dep %p with task %p\n", es->virtual_process->parsec_context->my_rank, data_ptr[0], dep, dtd_task);
+                    //fprintf(stderr, "iterate successor on rank %d, key2 %d remote dep %p with task %p\n", es->virtual_process->parsec_context->my_rank, data_ptr[0], dep, dtd_task);
                     populate_remote_deps(data_ptr, dtd_task->deps_out);
                     parsec_dtd_untrack_task(tp, key);
                     if(dep == NULL){
@@ -1752,7 +1762,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                         remote_dep_dequeue_delayed_dep_release(dep);
                     }
                     parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key2);
-                    parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key);
+                    //parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key);
 
                     /* releasing the receiver task as the only desc task */
                     tile = FLOW_OF(current_task, current_dep)->tile;
@@ -1938,7 +1948,7 @@ parsec_dtd_bcast_key_release_deps(parsec_execution_stream_t *es,
     if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) ) {
         /* root of the bcast key operation */
         this_dtd_task = (parsec_dtd_task_t *)this_task;
-        fprintf(stderr, "bcast key release on rank %d\n", this_dtd_task->rank);
+        //fprintf(stderr, "bcast key release on rank %d\n", this_dtd_task->rank);
         //parsec_dtd_remote_task_retain(this_dtd_task);
     } else {
         int flow_index, track_flow = 0;
@@ -2386,7 +2396,7 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     tc->nb_flows              = flow_count;
     /* set to one so that prof_grpaher prints the task id properly */
     tc->nb_parameters         = 1;
-    tc->nb_locals             = 8;
+    tc->nb_locals             = 9;
     params[0]                 = &symb_dtd_taskid;
     locals[0]                 = &symb_dtd_taskid;
     locals[1]                 = &symb_dtd_taskid;
@@ -2396,6 +2406,7 @@ parsec_dtd_create_task_class( parsec_dtd_taskpool_t *__tp, parsec_dtd_funcptr_t*
     locals[5]                 = &symb_dtd_taskid;
     locals[6]                 = &symb_dtd_taskid;
     locals[7]                 = &symb_dtd_taskid;
+    locals[8]                 = &symb_dtd_taskid;
     tc->data_affinity         = NULL;
     tc->initial_data          = NULL;
     tc->final_data            = (parsec_data_ref_fn_t *) NULL;
@@ -2715,7 +2726,7 @@ parsec_dtd_create_and_initialize_task( parsec_dtd_taskpool_t *dtd_tp,
     /* this is needed for grapher to work properly */
     this_task->super.locals[0].value = (int)(uintptr_t)this_task->ht_item.key;
     //assert( (uintptr_t)this_task->super.locals[0].value == (uintptr_t)this_task->ht_item.key );
-    for(int idx = 0; idx < 8; idx++) {
+    for(int idx = 0; idx < 9; idx++) {
         this_task->super.locals[idx].value = 0;
     }
     this_task->super.task_class      = tc;
@@ -2839,7 +2850,7 @@ parsec_dtd_bcast_key_fn( parsec_execution_stream_t *es, parsec_task_t *this_task
 {
     (void)es; (void)this_task;
 
-    fprintf(stderr, "bcast_key_fn executed\n");
+    //fprintf(stderr, "bcast_key_fn executed\n");
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -2857,7 +2868,7 @@ parsec_dtd_bcast_key_recv( parsec_execution_stream_t *es, parsec_task_t *this_ta
 {
     (void)es; (void)this_task;
     
-    fprintf(stderr, "bcast_key_recv executed\n");
+    //fprintf(stderr, "bcast_key_recv executed\n");
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -2875,7 +2886,7 @@ parsec_dtd_bcast_data_fn( parsec_execution_stream_t *es, parsec_task_t *this_tas
 {
     (void)es; (void)this_task;
 
-    fprintf(stderr, "bcast_data_fn executed\n");
+    //fprintf(stderr, "bcast_data_fn executed\n");
     return PARSEC_HOOK_RETURN_DONE;
 }
 

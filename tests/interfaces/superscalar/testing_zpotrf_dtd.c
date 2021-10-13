@@ -30,7 +30,8 @@ parsec_core_potrf(parsec_execution_stream_t *es, parsec_task_t *this_task)
 
     parsec_dtd_unpack_args(this_task, &uplo, &m, &A, &lda, &info);
 
-    fprintf(stderr, "core_potrf executed\n");
+    int rank = this_task->taskpool->context->my_rank;
+    fprintf(stderr, "core_potrf executed on rank %d\n", rank);
     CORE_zpotrf(uplo, m, A, lda, info);
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -71,7 +72,7 @@ parsec_core_herk(parsec_execution_stream_t *es, parsec_task_t *this_task)
 
     parsec_dtd_unpack_args(this_task, &uplo, &trans, &m, &n, &alpha, &A,
                            &lda, &beta, &C, &ldc);
-    fprintf(stderr, "core_herk executed\n");
+    //fprintf(stderr, "core_herk executed\n");
 
     CORE_zherk(uplo, trans, m, n,
                alpha, A, lda,
@@ -93,7 +94,8 @@ parsec_core_gemm(parsec_execution_stream_t *es, parsec_task_t *this_task)
 
     parsec_dtd_unpack_args(this_task, &transA, &transB, &m, &n, &k, &alpha,
                            &A, &lda, &B, &ldb, &beta, &C, &ldc);
-    fprintf(stderr, "core_gemm executed\n");
+    int rank = this_task->taskpool->context->my_rank;
+    fprintf(stderr, "core_gemm executed on rank %d\n", rank);
 
     CORE_zgemm(transA, transB,
                m, n, k,
@@ -289,7 +291,7 @@ int main(int argc, char **argv)
 			tempkm = k == dcA.super.nt-1 ? dcA.super.n-k*dcA.super.nb : dcA.super.nb;
 			ldak = BLKLDD(&dcA.super, k);
 			if(parsec_dtd_rank_of_data(&dcA.super.super, k, k) == rank) {
-				fprintf(stderr, "Inserting and executing potrf[%d %d] in rank: %d\n", k, k, rank);
+				//fprintf(stderr, "Inserting and executing potrf[%d %d] in rank: %d\n", k, k, rank);
 				parsec_dtd_taskpool_insert_task( dtd_tp, parsec_core_potrf,
 						(total - k) * (total-k) * (total - k)/*priority*/, "Potrf",
 						sizeof(int),      &uplo,              PARSEC_VALUE,
