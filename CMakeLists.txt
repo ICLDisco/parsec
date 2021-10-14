@@ -46,12 +46,19 @@ if(POLICY CMP0074)
   #          in addition to the specified paths
   cmake_policy(SET CMP0074 NEW)
 ENDIF(POLICY CMP0074)
+if(POLICY CMP0088)
+  # CMP0088: New in version 3.14: FindBISON runs bison in CMAKE_CURRENT_BINARY_DIR when executing.
+  cmake_policy(SET CMP0088 NEW)
+endif(POLICY CMP0088)
 if(POLICY CMP0094)
   # CMP0094: Starting with CMake 3.16, all FIND_Python will use the first matching version instead of
   #          of searching for the largest available version number (which defeats our selection logic)
   cmake_policy(SET CMP0094 NEW)
 ENDIF(POLICY CMP0094)
-
+if(POLICY CMP0098)
+  # CMP0098: New in version 3.17, FindFLEX runs flex in directory CMAKE_CURRENT_BINARY_DIR when executing.
+  cmake_policy(SET CMP0098 NEW)
+endif(POLICY CMP0098)
 
 set(CMAKE_NO_SYSTEM_FROM_IMPORTED True)
 # On OSX only find the Apple frameworks is nothing else is available.
@@ -267,8 +274,16 @@ include (CheckCXXCompilerFlag)
 
 # Check for compiler tools
 find_package(BISON 3)
-find_package(FLEX REQUIRED) # required because of utils/show_help and utils/keyval
+find_package(FLEX 2.6)
 set(PARSEC_HAVE_RECENT_LEX 0)
+set(PARSEC_PREGEN_FLEX_BISON_ARCHIVE ${PROJECT_SOURCE_DIR}/contrib/pregen_flex_bison.tar CACHE PATH "Where to store version-controlled archive of pregenerated .l.c and .y.[ch] files")
+if(FLEX_FOUND AND BISON_FOUND)
+  # add inactive rule to generate in the pregen_flex_bison dir
+  set(PARSEC_PREGEN_FLEX_BISON_DIR ${PROJECT_BINARY_DIR}/contrib/pregen_flex_bison CACHE PATH "Where to stage the pre-generated .l.c and .y.[ch] files")
+  add_custom_target(parsec_pregen_flex_bison
+    WORKING_DIRECTORY ${PARSEC_PREGEN_FLEX_BISON_DIR}
+    COMMAND cmake -Dsrcdir=${PROJECT_SOURCE_DIR} -Dbuilddir=${PROJECT_BINARY_DIR} -Darchive=${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake)
+endif()
 
 # check for the CPU we build for
 MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
