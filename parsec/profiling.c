@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -719,8 +719,8 @@ int parsec_profiling_fini( void )
 #endif
         fprintf(stderr,
                 "### Profiling Performance on process id %d\n"
-                "#   Buffer Size: %"PRIu64" bytes\n"
-                "#   File Resize Size: %"PRIu64" bytes (%d buffers)\n"
+                "#   Buffer Size: %zu bytes\n"
+                "#   File Resize Size: %zu bytes (%d buffers)\n"
 #if defined(PARSEC_PROFILING_USE_HELPER_THREAD)
                 "#   User Thread: Time spent waiting to append command to a queue: %"PRIu64" %s. Number of calls: %u\n"
 #endif
