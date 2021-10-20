@@ -158,7 +158,7 @@ static int device_template_component_close(void)
     int i, rc;
 
     if( NULL == parsec_device_template_component.modules ) {  /* No devices */
-        return PARSEC_SUCCESS;
+        return MCA_SUCCESS;
     }
 
     for( i = 0; NULL != (dev = (parsec_device_template_module_t*)parsec_device_template_component.modules[i]); i++ ) {
@@ -185,5 +185,5 @@ static int device_template_component_close(void)
         parsec_output_close(parsec_template_output_stream);
     parsec_template_output_stream = parsec_device_output;
 
-    return PARSEC_SUCCESS;
+    return MCA_SUCCESS;
 }
