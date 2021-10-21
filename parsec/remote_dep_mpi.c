@@ -750,6 +750,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
 
             if( NULL == dtd_task ) {
                 return_defer = 1;
+                fprintf(stderr, "defer receive\n");
 
                 /* AM buffers are reused by the comm engine once the activation
                  * has been conveyed to upper layer. In case of DTD we might receive msg to
@@ -932,7 +933,9 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
         remote_dep_complete_and_cleanup(&origin, 1);
     } else {
         //remote_dep_complete_and_cleanup(&origin, 1);
-        remote_deps_free(origin);
+        //remote_deps_free(origin);
+        //remote_dep_dec_flying_messages(task.taskpool);
+
     }
 #else
     remote_deps_free(origin);
@@ -1859,6 +1862,10 @@ remote_dep_mpi_save_put_cb(parsec_execution_stream_t* es,
     assert(0 != deps->pending_ack);
     assert(0 != deps->outgoing_mask);
     item->priority = deps->max_priority;
+    
+    PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: SAVE PUT CB for %s from %d tag %u which 0x%x (deps %p)",
+            remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN), item->cmd.activate.peer,
+            task->tag, task->output_mask, (void*)deps);
 
     /* Get the highest priority PUT operation */
     parsec_list_nolock_push_sorted(&dep_put_fifo, (parsec_list_item_t*)item, dep_cmd_prio);
@@ -1955,6 +1962,8 @@ remote_dep_mpi_put_end_cb(parsec_execution_stream_t* es,
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
     TAKE_TIME(MPIsnd_prof, MPI_Data_plds_ek, cb->idx);
     remote_dep_complete_and_cleanup(&deps, 1);
+    //if(deps != NULL) 
+    //    remote_dep_complete_and_cleanup(&deps, 1);
     parsec_comm_puts--;
     (void)es;
     return 0;
@@ -2296,6 +2305,8 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
     }
 #if !defined(PARSEC_PROF_DRY_DEP)
     if(msg.output_mask) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\t%d\tMPI SEND GET\t% -8s\tk=%d\twith datakey %lx ",
+                from, tmp, k, task->deps);
         TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Data_ctl_sk, get,
                             from, es->virtual_process->parsec_context->my_rank, (*task));
         MPI_Send(&msg, datakey_count, datakey_dtt, from,

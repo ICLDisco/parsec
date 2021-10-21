@@ -430,7 +430,7 @@ int main(int argc, char **argv)
                                 PARSEC_DTD_ARG_END );
                     }
                 }
-                parsec_dtd_data_flush( dtd_tp, PARSEC_DTD_TILE_OF(A, k, m) );
+                //parsec_dtd_data_flush( dtd_tp, PARSEC_DTD_TILE_OF(A, k, m) );
             }
 		}
 	}

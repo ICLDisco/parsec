@@ -212,7 +212,7 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
     deps->taskpool      = NULL;
-    parsec_lifo_push(deps->origin, (parsec_list_item_t*)deps);
+    //parsec_lifo_push(deps->origin, (parsec_list_item_t*)deps);
     PARSEC_VALGRIND_MEMPOOL_FREE(deps->origin, ((unsigned char *)deps)+sizeof(parsec_list_item_t));
 }
 
@@ -569,6 +569,8 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                          */
                         (void)parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack);
                     }
+                    //if(PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type && task->task_class->task_class_id == 2)
+                    //    remote_dep_inc_flying_messages(task->taskpool);
                     remote_dep_send(es, rank, remote_deps);
                 } else {
                     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)",

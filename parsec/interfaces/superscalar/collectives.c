@@ -71,11 +71,11 @@ parsec_remote_deps_t* parsec_dtd_create_remote_deps(
        _array_pos = myrank / (8 * sizeof(uint32_t));
        _array_mask = 1 << (myrank % (8 * sizeof(uint32_t)));
 
-       if( !(output->rank_bits[_array_pos] & _array_mask) ) {
+       //if( !(output->rank_bits[_array_pos] & _array_mask) ) {
            output->rank_bits[_array_pos] |= _array_mask;
            output->deps_mask |= (1 << 0); /* not used by DTD? */
            output->count_bits++;
-       }
+       //}
    }
     
    return deps;
@@ -162,14 +162,14 @@ void parsec_dtd_broadcast(
     parsec_dtd_task_t *dtd_bcast_task_root = (parsec_dtd_task_t *)bcast_task_root;
 
     // Set broadcast topology info
-    deps_0->pending_ack = 1;
+    deps_0->pending_ack = 0;
     dtd_bcast_task_root->deps_out = deps_0;
 
     if(myrank == root) {
         dtd_bcast_task_root->ht_item.key = bcast_id;
         dtd_bcast_task_root->super.locals[0].value = dtd_bcast_task_root->ht_item.key;
     }else{
-        bcast_id = ( (1<<28)  | (root << 18) | dtd_tp->recv_task_id[root]++);
+        bcast_id = ( (1<<28)  | (root << 18) | (myrank << 13) | dtd_tp->recv_task_id[root]++);
         dtd_bcast_task_root->ht_item.key =  bcast_id;
         dtd_bcast_task_root->super.locals[0].value = dtd_bcast_task_root->ht_item.key;
     }
@@ -180,12 +180,12 @@ void parsec_dtd_broadcast(
             sizeof(int), &root, PARSEC_VALUE | PARSEC_AFFINITY,
             PARSEC_DTD_ARG_END);
     parsec_dtd_task_t *dtd_bcast_key_root = (parsec_dtd_task_t *)bcast_key_root;
-    deps_1->pending_ack = 1;
+    deps_1->pending_ack = 0;
     dtd_bcast_key_root->deps_out = deps_1;
     if(myrank == root) {
         /* nothing here since the key is stored in the key array and will be updated before remote_dep_activate */
     }else{
-        bcast_id = ( (1<<29)  | (root << 18) | (dtd_tp->recv_task_id[root] -1));
+        bcast_id = ( (1<<29)  | (root << 18) | (myrank << 13) | (dtd_tp->recv_task_id[root] -1));
         //bcast_id = ( (1<<29)  | (dtd_tp->recv_task_id[root] ));
         dtd_bcast_key_root->ht_item.key =  bcast_id;
         dtd_bcast_key_root->super.locals[0].value = dtd_bcast_key_root->ht_item.key;
