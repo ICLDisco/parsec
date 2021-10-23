@@ -49,7 +49,7 @@ parsec_core_trsm(parsec_execution_stream_t *es, parsec_task_t *this_task)
     parsec_dtd_unpack_args(this_task, &side, &uplo, &trans, &diag, &m, &n,
                            &alpha, &A, &lda, &C, &ldc);
     int rank = this_task->taskpool->context->my_rank;
-    fprintf(stderr, "core_trsm executed on rank %d \n", rank);
+    //fprintf(stderr, "core_trsm executed on rank %d \n", rank);
 
     CORE_ztrsm(side, uplo, trans, diag,
                m, n, alpha,
@@ -95,7 +95,7 @@ parsec_core_gemm(parsec_execution_stream_t *es, parsec_task_t *this_task)
     parsec_dtd_unpack_args(this_task, &transA, &transB, &m, &n, &k, &alpha,
                            &A, &lda, &B, &ldb, &beta, &C, &ldc);
     int rank = this_task->taskpool->context->my_rank;
-    fprintf(stderr, "core_gemm executed on rank %d\n", rank);
+    //fprintf(stderr, "core_gemm executed on rank %d\n", rank);
 
     CORE_zgemm(transA, transB,
                m, n, k,
@@ -387,7 +387,7 @@ int main(int argc, char **argv)
                             dest_ranks, dest_rank_idx);
                 }
             }
-            //parsec_dtd_data_flush( dtd_tp, PARSEC_DTD_TILE_OF(A, k, k) );
+            parsec_dtd_data_flush( dtd_tp, PARSEC_DTD_TILE_OF(A, k, k) );
 
             for( m = k+1; m < dcA.super.mt; m++ ) {
                 tempmm = m == dcA.super.nt-1 ? dcA.super.n-m*dcA.super.nb : dcA.super.nb;
@@ -430,7 +430,7 @@ int main(int argc, char **argv)
                                 PARSEC_DTD_ARG_END );
                     }
                 }
-                //parsec_dtd_data_flush( dtd_tp, PARSEC_DTD_TILE_OF(A, k, m) );
+                parsec_dtd_data_flush( dtd_tp, PARSEC_DTD_TILE_OF(A, k, m) );
             }
 		}
 	}

@@ -127,7 +127,7 @@ void parsec_dtd_broadcast(
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)taskpool;
     
     if(myrank == root) {
-        bcast_id = ( (1<<30) | (root << 18) | dtd_tp->bcast_id);
+        bcast_id = ( (1<<29) | (root << 18) | dtd_tp->bcast_id);
         dtd_tp->bcast_id++;
         
         parsec_data_copy = bcast_keys_root->data_copy;
@@ -169,7 +169,7 @@ void parsec_dtd_broadcast(
         dtd_bcast_task_root->ht_item.key = bcast_id;
         dtd_bcast_task_root->super.locals[0].value = dtd_bcast_task_root->ht_item.key;
     }else{
-        bcast_id = ( (1<<28)  | (root << 18) | (myrank << 13) | dtd_tp->recv_task_id[root]++);
+        bcast_id = ( (1<<28)  | (root << 21) | (myrank << 16) | dtd_tp->recv_task_id[root]++);
         dtd_bcast_task_root->ht_item.key =  bcast_id;
         dtd_bcast_task_root->super.locals[0].value = dtd_bcast_task_root->ht_item.key;
     }
@@ -185,7 +185,7 @@ void parsec_dtd_broadcast(
     if(myrank == root) {
         /* nothing here since the key is stored in the key array and will be updated before remote_dep_activate */
     }else{
-        bcast_id = ( (1<<29)  | (root << 18) | (myrank << 13) | (dtd_tp->recv_task_id[root] -1));
+        bcast_id = ( (1<<27)  | (root << 21) | (myrank << 16) | (dtd_tp->recv_task_id[root] -1));
         //bcast_id = ( (1<<29)  | (dtd_tp->recv_task_id[root] ));
         dtd_bcast_key_root->ht_item.key =  bcast_id;
         dtd_bcast_key_root->super.locals[0].value = dtd_bcast_key_root->ht_item.key;
