@@ -1260,15 +1260,18 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
     }
     /* Extract the head of the list and point the array to the correct value */
     if(NULL == (item = (dep_cmd_item_t*)parsec_list_nolock_pop_front(&dep_cmd_fifo)) ) {
-        ret = remote_dep_mpi_progress(es);
-        if( 0 == ret
-            && ((comm_yield == 2)
-                || (comm_yield == 1  /* communication list is full, we need to forcefully drain the network */
-                    && parsec_list_nolock_is_empty(&dep_activates_fifo)
-                    && parsec_list_nolock_is_empty(&dep_put_fifo))) ) {
-            struct timespec ts;
-            ts.tv_sec = 0; ts.tv_nsec = comm_yield_ns;
-            nanosleep(&ts, NULL);
+        /* only progress MPI if necessary */
+        if (context->nb_nodes > 1) {
+            ret = remote_dep_mpi_progress(es);
+            if( 0 == ret
+                && ((comm_yield == 2)
+                    || (comm_yield == 1  /* communication list is full, we need to forcefully drain the network */
+                        && parsec_list_nolock_is_empty(&dep_activates_fifo)
+                        && parsec_list_nolock_is_empty(&dep_put_fifo))) ) {
+                struct timespec ts;
+                ts.tv_sec = 0; ts.tv_nsec = comm_yield_ns;
+                nanosleep(&ts, NULL);
+            }
         }
         goto check_pending_queues;
     }
@@ -1613,12 +1616,6 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
 
     MPI_Comm_size(dep_comm, &(context->nb_nodes));
     MPI_Comm_rank(dep_comm, &(context->my_rank));
-
-    if (context->nb_nodes == 1) {
-        /* with only one node, we do not start a comm thread, so don't have threads
-         * calling in yield needlessly */
-        comm_yield = 0;
-    }
 
     parsec_mpi_same_pos_items_size = context->nb_nodes + (int)DEP_LAST;
     parsec_mpi_same_pos_items = (dep_cmd_item_t**)calloc(parsec_mpi_same_pos_items_size,
