@@ -133,7 +133,7 @@ typedef struct parsec_dtd_flow_info_s {
     4 release ownership even when the flow is of type R
     */
     parsec_dtd_tile_t *tile;
-    int msg_keys[MAX_RANK_INFO]; /* enable user trimming, store dest rank send ID for a flow */
+    int msg_keys[MAX_RANK_INFO*sizeof(int)*8]; /* enable user trimming, store dest rank send ID for a flow */
     int rank_sent_to[MAX_RANK_INFO]; /* currently support 1024 nodes */
 } parsec_dtd_flow_info_t;
 

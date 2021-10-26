@@ -2305,8 +2305,6 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
     }
 #if !defined(PARSEC_PROF_DRY_DEP)
     if(msg.output_mask) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\t%d\tMPI SEND GET\t% -8s\tk=%d\twith datakey %lx ",
-                from, tmp, k, task->deps);
         TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Data_ctl_sk, get,
                             from, es->virtual_process->parsec_context->my_rank, (*task));
         MPI_Send(&msg, datakey_count, datakey_dtt, from,

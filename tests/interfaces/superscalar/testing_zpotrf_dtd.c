@@ -141,11 +141,11 @@ int main(int argc, char **argv)
         sym_two_dim_block_cyclic, (&dcA, matrix_ComplexDouble,
                                    rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, nodes/P, uplo));
-    
+    int bsize = 30; 
     PASTE_CODE_ALLOCATE_MATRIX(dcB, 1,
         sym_two_dim_block_cyclic, (&dcB, matrix_Integer,
-                                   rank, 15, 15, 15*N/NB, 15*N/NB, 0, 0,
-                                   15*N/NB, 15*N/NB, P, nodes/P, uplo));
+                                   rank, bsize, bsize, bsize*N/NB, bsize*N/NB, 0, 0,
+                                   bsize*N/NB, bsize*N/NB, P, nodes/P, uplo));
 
     /* Initializing dc for dtd */
     sym_two_dim_block_cyclic_t *__dcA = &dcA;
