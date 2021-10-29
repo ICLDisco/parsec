@@ -258,6 +258,12 @@ __int128_t parsec_atomic_fetch_dec_int128(volatile __int128_t* l)
 #  if !defined(PARSEC_ATOMIC_HAS_ATOMIC_LOCK)
 typedef volatile int32_t parsec_atomic_lock_t;
 #  define PARSEC_ATOMIC_UNLOCKED 0
+#  define PARSEC_ATOMIC_HAS_ATOMIC_INIT
+ATOMIC_STATIC_INLINE
+void parsec_atomic_init( parsec_atomic_lock_t* atomic_lock )
+{
+    *atomic_lock = PARSEC_ATOMIC_UNLOCKED;
+}
 #  define PARSEC_ATOMIC_HAS_ATOMIC_LOCK
 ATOMIC_STATIC_INLINE
 void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )

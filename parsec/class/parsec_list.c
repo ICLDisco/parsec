@@ -36,7 +36,7 @@ parsec_list_construct( parsec_list_t* list )
     PARSEC_ITEM_ATTACH(list, &list->ghost_element);
     list->ghost_element.list_next = &list->ghost_element;
     list->ghost_element.list_prev = &list->ghost_element;
-    parsec_atomic_unlock(&list->atomic_lock);
+    parsec_atomic_lock_init(&list->atomic_lock);
 }
 
 static inline void
