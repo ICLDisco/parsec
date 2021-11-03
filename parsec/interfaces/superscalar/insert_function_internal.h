@@ -240,6 +240,7 @@ struct parsec_dtd_taskpool_s {
     parsec_mempool_t            *hash_table_bucket_mempool;
     parsec_hash_table_t         *task_hash_table;
     parsec_hash_table_t         *function_h_table;
+    parsec_hash_table_t         *keys_hash_table;
     /* ring of initial ready tasks */
     parsec_task_t              **startup_list;
     int                          bcast_id;

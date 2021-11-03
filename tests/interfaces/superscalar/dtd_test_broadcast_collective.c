@@ -147,7 +147,7 @@ int test_broadcast_mixed(
    
    // Tile size
    int nb = 1;
-   int nb_bcast = 200;
+   int nb_bcast = 30;
    // Total number of tiles
    int nt = 1;
    int data_value = 0;
@@ -168,7 +168,7 @@ int test_broadcast_mixed(
    parsec_matrix_add2arena_rect(
          &parsec_dtd_arenas_datatypes[TILE_BCAST],
          parsec_datatype_int32_t,
-         nb_bcast, 1, nb_bcast);
+         nb_bcast, nb_bcast, nb_bcast);
    // Initial value on the root node. All node should have this value
    // at the end of the operation.
    int data_root = 55;
@@ -287,14 +287,16 @@ int test_broadcast_mixed(
 
        //}
    }
-for(int iter=1; iter <= 0; iter++) {
+for(int iter=1; iter <= 1; iter++) {
    // Second round of broadcast, create another array of keys for this bcast
-   key_root = B->data_key(B, root+iter*world, 0);
-   //key_root = B->data_key(B, root, 0);
+   //key_root = B->data_key(B, root+iter*world, 0);
+   key_root = B->data_key(B, root, 0);
    bcast_keys_root = PARSEC_DTD_TILE_OF_KEY(B, key_root);
  
-   //sleep(5);
+   sleep(5);
    int new_value = -1;
+   key_root = key = A->data_key(A, root+iter*world, 0);
+   dtd_tile_root = PARSEC_DTD_TILE_OF_KEY(A, key_root);
    if (root == myrank) {
       //*data_ptr = 1998;
        new_value = 1998+iter;
@@ -332,20 +334,20 @@ for(int iter=1; iter <= 0; iter++) {
    //
    // Retrieve value of broadcasted data
    //
-   for (int rank = 0; rank < world; ++rank) {
-       if ( rank == root) continue;
+   //for (int rank = 0; rank < world; ++rank) {
+   //if ( myrank != root) {
        parsec_task_t *retrieve_task = parsec_dtd_taskpool_create_task(
                dtd_tp, retrieve_task_fn, 0, "retrieve_task",
                PASSED_BY_REF, dtd_tile_root, PARSEC_INPUT | TILE_FULL,
-               sizeof(int), &rank, PARSEC_VALUE | PARSEC_AFFINITY,
+               sizeof(int), &myrank, PARSEC_VALUE | PARSEC_AFFINITY,
                sizeof(int*), &data_value_out, PARSEC_VALUE,
                PARSEC_DTD_ARG_END);
-       //parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
-       //parsec_insert_dtd_task(retrieve_task);
+       parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
+       parsec_insert_dtd_task(retrieve_task);
 
-   }
+   //}
 } 
-   //parsec_dtd_data_flush_all( dtd_tp, A );
+   parsec_dtd_data_flush_all( dtd_tp, A );
    //parsec_dtd_data_flush_all( dtd_tp, B );
  
    // Wait for task completion
