@@ -287,7 +287,7 @@ int test_broadcast_mixed(
 
        //}
    }
-for(int iter=1; iter <= 1; iter++) {
+for(int iter=1; iter <= 0; iter++) {
    // Second round of broadcast, create another array of keys for this bcast
    //key_root = B->data_key(B, root+iter*world, 0);
    key_root = B->data_key(B, root, 0);
@@ -410,7 +410,7 @@ int main(int argc, char **argv) {
 
    // Root node for the broadcast operation
 
-   //sleep(30);
+   sleep(30);
    //
    // Simple broadcast
    

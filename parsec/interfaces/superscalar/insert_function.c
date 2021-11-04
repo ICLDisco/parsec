@@ -1793,16 +1793,16 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                     //fprintf(stderr, "iterate successor on rank %d, key2 %d remote dep %p with task %p\n", es->virtual_process->parsec_context->my_rank, data_ptr[0], dep, dtd_task);
                     parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key);
                     
-                    parsec_dtd_remote_task_release(this_task); /* decrease the count as in the data flush */
+                    //parsec_dtd_remote_task_release(this_task); /* decrease the count as in the data flush */
 
                     /* releasing the receiver task as the only desc task */
                     tile = FLOW_OF(current_task, current_dep)->tile;
                     parsec_dtd_tile_retain(tile);
-                    current_desc = (DESC_OF(current_task, current_dep))->task;
-                    current_desc->super.data[0].data_in = current_task->super.data[current_dep].data_out;
-                    (void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
-                    ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
-                            &deps, &data, current_task->rank, my_rank, vpid_dst, ontask_arg );
+                    //current_desc = (DESC_OF(current_task, current_dep))->task;
+                    //current_desc->super.data[0].data_in = current_task->super.data[current_dep].data_out;
+                    //(void)parsec_atomic_fetch_inc_int32( &current_task->super.data[current_dep].data_out->readers );
+                    //ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
+                    //        &deps, &data, current_task->rank, my_rank, vpid_dst, ontask_arg );
                 }
             } else {
                 /* on the receiver side, get datatype to aquire datatype, arena etc info */
@@ -3005,13 +3005,6 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         parsec_dtd_remote_task_retain( this_task );
     }
 
-    //if(this_task->super.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID) {
-        //sleep(1);
-    //    uint64_t key = ((this_task->super.locals[0].value)<<32) | (1U<<0);
-    //    parsec_hash_table_t *hash_table = dtd_tp->keys_hash_table;
-    //    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, (parsec_key_t)key );
-    //    fprintf(stderr, "inserting bcast data task and finding in hashtable with key %d, result %p\n", this_task->super.locals[0].value, item);
-    //}
 
     /* In the next segment we resolve the dependencies of each flow */
     for( flow_index = 0, tile = NULL, tile_op_type = 0; flow_index < tc->nb_flows; flow_index ++ ) {
@@ -3334,6 +3327,28 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
     /* Increase the count of satisfied flows to counter-balance the increase in the
      * number of expected flows done during the task creation.  */
     satisfied_flow++;
+    
+    if(parsec_dtd_task_is_remote(this_task) && this_task->super.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID) {
+        parsec_dtd_flow_info_t *flow = FLOW_OF(this_task, 0);
+        uint64_t key = ((uint64_t)(this_task->super.locals[0].value)<<32) | (1U<<0);
+        parsec_hash_table_lock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
+        parsec_remote_deps_t *dep = parsec_dtd_find_remote_dep( dtd_tp, key );
+        if( NULL == dep ) {
+            if( !(flow->flags & TASK_INSERTED) ) {
+                flow->flags |= TASK_INSERTED;
+                parsec_dtd_track_task( dtd_tp, key, this_task );
+                fprintf(stderr, "tracking remote task of key %d on rank %d\n", this_task->super.locals[0].value, dtd_tp->super.context->my_rank);
+            }
+        } else {
+            if( !(flow->flags & TASK_INSERTED) ) {
+                flow->flags |= TASK_INSERTED;
+                parsec_dtd_untrack_remote_dep( dtd_tp, key );
+                parsec_dtd_track_task( dtd_tp, key, this_task );
+                remote_dep_dequeue_delayed_dep_release(dep);
+            }
+        }
+        parsec_hash_table_unlock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
+    }
 
 #if defined(PARSEC_PROF_TRACE)
     if(parsec_dtd_profile_verbose)

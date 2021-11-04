@@ -211,7 +211,7 @@ void parsec_dtd_broadcast(
                 sizeof(int), &myrank, PARSEC_VALUE | PARSEC_AFFINITY,
                 PARSEC_DTD_ARG_END);
         parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
-        parsec_insert_dtd_task(dtd_retrieve_task);
+        //parsec_insert_dtd_task(dtd_retrieve_task);
     }
     
     /* Post the bcast tasks for the actual data */
