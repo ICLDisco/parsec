@@ -54,7 +54,7 @@ parsec_hbbuffer_push_all(parsec_hbbuffer_t *b,
         PARSEC_LIST_ITEM_SINGLETON(elt);
         /* Try to find a room for elt */
         for(; (size_t)i < b->size; i++) {
-            if( 0 == parsec_atomic_cas_ptr(&b->items[i], NULL, elt) )
+            if( NULL != b->items[i] || 0 == parsec_atomic_cas_ptr(&b->items[i], NULL, elt) )
                 continue;
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output,  "HBB:\tPush elem %p in local queue %p at position %d", elt, b, i );
             /* Found an empty space to push the first element. */
