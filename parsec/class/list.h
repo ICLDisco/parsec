@@ -1154,6 +1154,9 @@ parsec_list_nolock_pop_front( parsec_list_t* list )
 static inline parsec_list_item_t*
 parsec_list_pop_front( parsec_list_t* list )
 {
+    if( parsec_list_nolock_is_empty(list) ) {
+        return NULL;
+    }
     parsec_atomic_lock(&list->atomic_lock);
     parsec_list_item_t* item = parsec_list_nolock_pop_front(list);
     parsec_atomic_unlock(&list->atomic_lock);
@@ -1163,6 +1166,9 @@ parsec_list_pop_front( parsec_list_t* list )
 static inline parsec_list_item_t*
 parsec_list_try_pop_front( parsec_list_t* list)
 {
+    if( parsec_list_nolock_is_empty(list) ) {
+        return NULL;
+    }
     if( !parsec_atomic_trylock(&list->atomic_lock) ) {
         return NULL;
     }
@@ -1184,6 +1190,9 @@ parsec_list_nolock_pop_back( parsec_list_t* list )
 static inline parsec_list_item_t*
 parsec_list_pop_back( parsec_list_t* list )
 {
+    if( parsec_list_nolock_is_empty(list) ) {
+        return NULL;
+    }
     parsec_atomic_lock(&list->atomic_lock);
     parsec_list_item_t* item = parsec_list_nolock_pop_back(list);
     parsec_atomic_unlock(&list->atomic_lock);
@@ -1193,6 +1202,9 @@ parsec_list_pop_back( parsec_list_t* list )
 static inline parsec_list_item_t*
 parsec_list_try_pop_back( parsec_list_t* list)
 {
+    if( parsec_list_nolock_is_empty(list) ) {
+        return NULL;
+    }
     if( !parsec_atomic_trylock(&list->atomic_lock) ) {
         return NULL;
     }
