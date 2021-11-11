@@ -750,7 +750,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
 
             if( NULL == dtd_task ) {
                 return_defer = 1;
-                fprintf(stderr, "defer receive for key %d k %d\n", origin->msg.locals[0].value, k);
+                fprintf(stderr, "defer receive for key %d k %d %llu\n", origin->msg.locals[0].value, k, key);
 
                 /* AM buffers are reused by the comm engine once the activation
                  * has been conveyed to upper layer. In case of DTD we might receive msg to
@@ -2127,6 +2127,9 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
                    &deps->msg, dep_count, dep_dtt, dep_comm);
         deps->from = status->MPI_SOURCE;
 
+        //if(es->virtual_process->parsec_context->my_rank == 1){
+        //    fprintf(stderr, "save activate cb with value %d\n", deps->msg.locals[0].value);
+        //}
         /* Retrieve the data arenas and update the msg.incoming_mask to reflect
          * the data we should be receiving from the predecessor.
          */
