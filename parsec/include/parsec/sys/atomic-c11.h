@@ -142,6 +142,13 @@ __int128_t parsec_atomic_fetch_add_int128(volatile __int128_t* l, __int128_t v)
 
 typedef volatile atomic_flag parsec_atomic_lock_t;
 
+#  define PARSEC_ATOMIC_HAS_ATOMIC_INIT
+ATOMIC_STATIC_INLINE
+void parsec_atomic_lock_init( parsec_atomic_lock_t* atomic_lock )
+{
+    atomic_flag_clear_explicit(atomic_lock, memory_order_relaxed);
+}
+
 #define PARSEC_ATOMIC_HAS_ATOMIC_LOCK
 ATOMIC_STATIC_INLINE
 void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )

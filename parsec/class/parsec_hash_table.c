@@ -89,7 +89,6 @@ int parsec_hash_tables_init(void)
 
 void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits, parsec_key_fn_t key_functions, void *data)
 {
-    parsec_atomic_lock_t unlocked = PARSEC_ATOMIC_UNLOCKED;
     parsec_atomic_rwlock_t unlock = { PARSEC_RWLOCK_UNLOCKED };
     parsec_hash_table_head_t *head;
     size_t i;
@@ -124,7 +123,7 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
     ht->rw_lock        = unlock;
 
     for( i = 0; i < (1ULL<<nb_bits); i++) {
-        head->buckets[i].lock = unlocked;
+        parsec_atomic_lock_init(&head->buckets[i].lock);
         head->buckets[i].cur_len = 0;
         head->buckets[i].first_item = NULL;
     }
