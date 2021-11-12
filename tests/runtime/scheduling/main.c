@@ -18,10 +18,10 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
-static int MAXNT              = 16384;
-static int MAXLEVEL           =  1024;
-static int MAXTRY             =   100;
-static int MAX_RELATIVE_STDEV =   0.1;
+static int   MAXNT              = 16384;
+static int   MAXLEVEL           =  1024;
+static int   MAXTRY             =   100;
+static float MAX_RELATIVE_STDEV =   0.1;
 
 double stdev(double sum, double sumsqr, double n)
 {
@@ -100,11 +100,12 @@ int main(int argc, char *argv[])
             sum = 0.0;
             sumsqr = 0.0;
             for(try = 0; try < MAXTRY; try++) {
+#if 0
                 if( try > 2 ) {
                     if( stdev(sum, sumsqr, (double)try) / (sum/(double)try) < MAX_RELATIVE_STDEV )
                         break;
                 }
-
+#endif
                 ep = ep_new(dcA, nt, level);
                 rc = parsec_context_add_taskpool(parsec, ep);
                 PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
