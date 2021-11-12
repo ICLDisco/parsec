@@ -60,8 +60,8 @@ static int parsec_dtd_profile_verbose = 0;
 static parsec_dc_key_t parsec_dtd_dc_id = 0;
 int32_t __parsec_dtd_is_initialized     = 0; /**< Indicates init of dtd environment is completed */
 
-int parsec_dtd_window_size             = 2;   /**< Default window size */
-int parsec_dtd_threshold_size          = 2;   /**< Default threshold size of tasks for master thread to wait on */
+int parsec_dtd_window_size             = 8000;   /**< Default window size */
+int parsec_dtd_threshold_size          = 4000;   /**< Default threshold size of tasks for master thread to wait on */
 static int parsec_dtd_task_hash_table_size = 1<<16; /**< Default task hash table size */
 static int parsec_dtd_tile_hash_table_size = 1<<16; /**< Default tile hash table size */
 static int parsec_dtd_no_of_arenas_datatypes = 16;
@@ -1790,7 +1790,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                         parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key2);
                     }
                     //parsec_dtd_task_t* dtd_task = parsec_dtd_find_task(tp, key);
-                    fprintf(stderr, "iterate successor on rank %d, key2 %d with task %p\n", es->virtual_process->parsec_context->my_rank, data_ptr[0], dtd_task);
+                    //fprintf(stderr, "iterate successor on rank %d, key2 %d with task %p\n", es->virtual_process->parsec_context->my_rank, data_ptr[0], dtd_task);
                     parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key);
                     
                     //parsec_dtd_remote_task_release(this_task); /* decrease the count as in the data flush */
@@ -2680,7 +2680,7 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
                 real_parent_task->super.locals[0].value = real_parent_task->ht_item.key =  data_ptr[0];
                 populate_remote_deps(data_ptr, real_parent_task->deps_out);
             }
-            fprintf(stderr, "inserting bcast data task and finding in hashtable with key %llu %d, result %p dep %p\n", key, real_parent_task->super.locals[0].value, item, dep);
+            //fprintf(stderr, "inserting bcast data task and finding in hashtable with key %llu %d, result %p dep %p\n", key, real_parent_task->super.locals[0].value, item, dep);
         }
         if( NULL == dep ) {
             if( !(flow->flags & TASK_INSERTED) ) {
@@ -2935,7 +2935,7 @@ parsec_dtd_bcast_data_fn( parsec_execution_stream_t *es, parsec_task_t *this_tas
 {
     (void)es; (void)this_task;
 
-    fprintf(stderr, "bcast_data_fn %p executed on rank %d\n", this_task, es->virtual_process->parsec_context->my_rank);
+    //fprintf(stderr, "bcast_data_fn %p executed on rank %d\n", this_task, es->virtual_process->parsec_context->my_rank);
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -2967,7 +2967,7 @@ parsec_dtd_block_if_threshold_reached(parsec_dtd_taskpool_t *dtd_tp, int task_th
             dtd_tp->task_window_size *= 2;
         } else {
             if(dtd_tp->local_task_inserted>0)
-                fprintf(stderr, "block function in rank %d with local task inserted %d\n", dtd_tp->super.context->my_rank, dtd_tp->local_task_inserted);
+                //fprintf(stderr, "block function in rank %d with local task inserted %d\n", dtd_tp->super.context->my_rank, dtd_tp->local_task_inserted);
             parsec_execute_and_come_back(&dtd_tp->super,
                                          task_threshold);
             return 1; /* Indicating we blocked */
@@ -3315,9 +3315,9 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         dtd_tp->local_task_inserted++;
         PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                              "Task generated -> %s %d rank %d\n", this_task->super.task_class->name, this_task->ht_item.key, this_task->rank);
-        if(this_task->rank == 1) {
-            fprintf(stderr, "Task generated -> %s %d rank %d\n", this_task->super.task_class->name, this_task->ht_item.key, this_task->rank);
-        }
+        //if(this_task->rank == 1) {
+            //fprintf(stderr, "Task generated -> %s %d rank %d\n", this_task->super.task_class->name, this_task->ht_item.key, this_task->rank);
+        //}
     }
 
     /* Releasing every remote_task */

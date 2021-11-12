@@ -750,7 +750,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
 
             if( NULL == dtd_task ) {
                 return_defer = 1;
-                fprintf(stderr, "defer receive for key %d k %d %llu\n", origin->msg.locals[0].value, k, key);
+                //fprintf(stderr, "defer receive for key %d k %d %llu\n", origin->msg.locals[0].value, k, key);
 
                 /* AM buffers are reused by the comm engine once the activation
                  * has been conveyed to upper layer. In case of DTD we might receive msg to

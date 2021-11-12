@@ -176,7 +176,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                     /* we have not propagate the remote deps yet, otherwise will be set to NULL */
                     if(action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) {
                         assert(NULL != current_task->super.data[current_dep].data_out);
-                        fprintf(stderr, "bcast root task %p data with global key %d\n", current_task, current_task->ht_item.key);
+                        //fprintf(stderr, "bcast root task %p data with global key %d\n", current_task, current_task->ht_item.key);
                         current_task->deps_out->output[0].data.data =
                             current_task->super.data[current_dep].data_out;
                         //(void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
