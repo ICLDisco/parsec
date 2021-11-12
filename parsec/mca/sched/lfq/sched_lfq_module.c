@@ -167,14 +167,13 @@ sched_lfq_select(parsec_execution_stream_t *es,
                  int32_t* distance)
 {
     parsec_task_t *task = NULL;
-    int i;
     task = (parsec_task_t*)parsec_hbbuffer_pop_best(PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->task_queue,
                                                                        parsec_execution_context_priority_comparator);
     if( NULL != task ) {
         *distance = 0;
         return task;
     }
-    for(i = 0; i <  PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->nb_hierarch_queues; i++ ) {
+    for(int i = 0; i <  PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->nb_hierarch_queues; i++ ) {
         task = (parsec_task_t*)parsec_hbbuffer_pop_best(PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(es)->hierarch_queues[i],
                                                                            parsec_execution_context_priority_comparator);
         if( NULL != task ) {

@@ -2570,8 +2570,10 @@ static int check_overlapping_binding(parsec_context_t *context) {
         }
     }
     return PARSEC_SUCCESS;
-#endif
+#else
+    (void)context;
     return PARSEC_ERR_NOT_IMPLEMENTED;
+#endif
 }
 
 static int parsec_parse_comm_binding_parameter(const char* option, parsec_context_t* context)
