@@ -230,8 +230,6 @@ struct parsec_dtd_taskpool_s {
     parsec_mempool_t            *hash_table_bucket_mempool;
     parsec_hash_table_t         *task_hash_table;
     parsec_hash_table_t         *function_h_table;
-    /* ring of initial ready tasks */
-    parsec_task_t              **startup_list;
     /* from here to end is for the testing interface */
     struct hook_info             actual_hook[PARSEC_DTD_NB_TASK_CLASSES];
 };
@@ -316,9 +314,6 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t * es,
                                uint32_t action_mask,
                                parsec_ontask_function_t * ontask,
                                void *ontask_arg );
-
-void
-parsec_dtd_schedule_tasks( parsec_dtd_taskpool_t *__tp );
 
 /* Function to remove tile from hash_table
  */
