@@ -680,34 +680,38 @@ parsec_list_nolock_unchain( parsec_list_t* list );
 #define _TAIL(LIST) ((LIST)->ghost_element.list_prev)
 #define _GHOST(LIST) (&((list)->ghost_element))
 
+#define _LIST_CHECK_CONSISTENCY(list)                                                 \
+    assert( ((_HEAD(list) != _GHOST(list)) && (_TAIL(list) != _GHOST(list))) || \
+            ((_HEAD(list) == _GHOST(list)) && (_TAIL(list) == _GHOST(list))) )
+
 static inline int
 parsec_list_nolock_is_empty( parsec_list_t* list )
 {
-    assert( ((_HEAD(list) != _GHOST(list)) && (_TAIL(list) != _GHOST(list))) ||
-            ((_HEAD(list) == _GHOST(list)) && (_TAIL(list) == _GHOST(list))) );
     return _HEAD(list) == _GHOST(list);
-}
-
-static inline int
-parsec_list_is_empty( parsec_list_t* list )
-{
-    int rc;
-    parsec_atomic_lock(&list->atomic_lock);
-    rc = parsec_list_nolock_is_empty(list);
-    parsec_atomic_unlock(&list->atomic_lock);
-    return rc;
 }
 
 static inline void
 parsec_list_lock( parsec_list_t* list )
 {
     parsec_atomic_lock(&list->atomic_lock);
+    _LIST_CHECK_CONSISTENCY(list);
 }
 
 static inline void
 parsec_list_unlock( parsec_list_t* list )
 {
+    _LIST_CHECK_CONSISTENCY(list);
     parsec_atomic_unlock(&list->atomic_lock);
+}
+
+static inline int
+parsec_list_is_empty( parsec_list_t* list )
+{
+    int rc;
+    parsec_list_lock(list);
+    rc = parsec_list_nolock_is_empty(list);
+    parsec_list_unlock(list);
+    return rc;
 }
 
 #define _OPAQUE_LIST_ITERATOR_FIRST_DEFINITION(list) ((parsec_list_item_t*)(list)->ghost_element.list_next)
@@ -1023,11 +1027,11 @@ parsec_list_push_front( parsec_list_t* list,
 {
     PARSEC_ITEM_ATTACH(list, item);
     item->list_prev = _GHOST(list);
-    parsec_atomic_lock(&list->atomic_lock);
+    parsec_list_lock(list);
     item->list_next = _HEAD(list);
     _HEAD(list)->list_prev = item;
     _HEAD(list) = item;
-    parsec_atomic_unlock(&list->atomic_lock);
+    parsec_list_unlock(list);
 }
 
 static inline void
@@ -1049,11 +1053,11 @@ parsec_list_chain_front( parsec_list_t* list,
     PARSEC_ITEMS_ATTACH(list, items);
     parsec_list_item_t* tail = (parsec_list_item_t*)items->list_prev;
     items->list_prev = _GHOST(list);
-    parsec_atomic_lock(&list->atomic_lock);
+    parsec_list_lock(list);
     tail->list_next = _HEAD(list);
     _HEAD(list)->list_prev = tail;
     _HEAD(list) = items;
-    parsec_atomic_unlock(&list->atomic_lock);
+    parsec_list_unlock(list);
 }
 
 
@@ -1074,11 +1078,11 @@ parsec_list_push_back( parsec_list_t* list,
 {
     PARSEC_ITEM_ATTACH(list, item);
     item->list_next = _GHOST(list);
-    parsec_atomic_lock(&list->atomic_lock);
+    parsec_list_lock(list);
     item->list_prev = _TAIL(list);
     _TAIL(list)->list_next = item;
     _TAIL(list) = item;
-    parsec_atomic_unlock(&list->atomic_lock);
+    parsec_list_unlock(list);
 }
 
 static inline void
@@ -1100,11 +1104,11 @@ parsec_list_chain_back( parsec_list_t* list,
     PARSEC_ITEMS_ATTACH(list, items);
     parsec_list_item_t* tail = (parsec_list_item_t*)items->list_prev;
     tail->list_next = _GHOST(list);
-    parsec_atomic_lock(&list->atomic_lock);
+    parsec_list_lock(list);
     items->list_prev = _TAIL(list);
     _TAIL(list)->list_next = items;
     _TAIL(list) = tail;
-    parsec_atomic_unlock(&list->atomic_lock);
+    parsec_list_unlock(list);
 }
 
 static inline parsec_list_item_t*
@@ -1127,9 +1131,9 @@ parsec_list_unchain( parsec_list_t* list )
 {
     parsec_list_item_t* head;
 
-    parsec_atomic_lock(&list->atomic_lock);
+    parsec_list_lock(list);
     head = parsec_list_nolock_unchain(list);
-    parsec_atomic_unlock(&list->atomic_lock);
+    parsec_list_unlock(list);
     return head;
 }
 
@@ -1157,9 +1161,9 @@ parsec_list_pop_front( parsec_list_t* list )
     if( parsec_list_nolock_is_empty(list) ) {
         return NULL;
     }
-    parsec_atomic_lock(&list->atomic_lock);
+    parsec_list_lock(list);
     parsec_list_item_t* item = parsec_list_nolock_pop_front(list);
-    parsec_atomic_unlock(&list->atomic_lock);
+    parsec_list_unlock(list);
     return item;
 }
 
@@ -1193,9 +1197,9 @@ parsec_list_pop_back( parsec_list_t* list )
     if( parsec_list_nolock_is_empty(list) ) {
         return NULL;
     }
-    parsec_atomic_lock(&list->atomic_lock);
+    parsec_list_lock(list);
     parsec_list_item_t* item = parsec_list_nolock_pop_back(list);
-    parsec_atomic_unlock(&list->atomic_lock);
+    parsec_list_unlock(list);
     return item;
 }
 
