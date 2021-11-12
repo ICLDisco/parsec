@@ -680,9 +680,13 @@ parsec_list_nolock_unchain( parsec_list_t* list );
 #define _TAIL(LIST) ((LIST)->ghost_element.list_prev)
 #define _GHOST(LIST) (&((list)->ghost_element))
 
+#if defined(PARSEC_DEBUG_PARANOID)
 #define _LIST_CHECK_CONSISTENCY(list)                                                 \
     assert( ((_HEAD(list) != _GHOST(list)) && (_TAIL(list) != _GHOST(list))) || \
             ((_HEAD(list) == _GHOST(list)) && (_TAIL(list) == _GHOST(list))) )
+#else
+#define _LIST_CHECK_CONSISTENCY(list)
+#endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
 static inline int
 parsec_list_nolock_is_empty( parsec_list_t* list )
