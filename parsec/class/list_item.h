@@ -199,6 +199,7 @@ parsec_list_item_ring_chop( parsec_list_item_t* item )
     assert( (parsec_list_item_t*)(void*)0xdeadbeefL != item->list_prev );
 #endif
     parsec_list_item_t* ring = (parsec_list_item_t*)item->list_next;
+    if(ring == item) return NULL;
     item->list_prev->list_next = item->list_next;
     item->list_next->list_prev = item->list_prev;
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -206,7 +207,6 @@ parsec_list_item_ring_chop( parsec_list_item_t* item )
     item->list_prev = (parsec_list_item_t*)(void*)0xdeadbeefL;
     item->list_next = (parsec_list_item_t*)(void*)0xdeadbeefL;
 #endif
-    if(ring == item) return NULL;
     return ring;
 }
 

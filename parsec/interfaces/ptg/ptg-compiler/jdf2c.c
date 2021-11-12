@@ -705,7 +705,7 @@ static char *dump_dataflow(void **elem, void *arg)
 /**
  * dump_data_declaration:
  *  Takes the pointer to a flow and produces the code
- *  needed for declaring the corresponding arena chunck and
+ *  needed for declaring the corresponding arena chunk and
  *  repo entry.
  * @return: the generated code or NULL if the flow is a control flow.
  */
@@ -1049,7 +1049,7 @@ static char *dump_name_of_hidden_globals_without_default(void **elem, void *_)
 
     if (NULL == prop) return NULL; /* Not a hidden global variable */
     if( NULL == global_var->expression )  /* No default expression */
-        if( NULL == jdf_find_property( global_var->properties, "default", NULL ) )  /* No default nitializer */
+        if( NULL == jdf_find_property( global_var->properties, "default", NULL ) )  /* No default initializer */
             return NULL;
     (void)_;
     return global_var->name;
@@ -3726,7 +3726,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
         }
     }
-    /* If this startup task belongs to a task class that has the pontetial to generate initial tasks,
+    /* If this startup task belongs to a task class that has the potential to generate initial tasks,
      * we should be careful to delay the generation of these tasks until all initializations tasks
      * have been completed (or we might face a race condition between creating the
      * dependencies arrays and accessing them). We synchronize the initial tasks via a sync. Until
