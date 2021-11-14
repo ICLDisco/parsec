@@ -350,9 +350,9 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
     if( thread_level_support == MPI_THREAD_SINGLE ||
         thread_level_support == MPI_THREAD_FUNNELED ) {
         parsec_warning("MPI was not initialized with the appropriate level of thread support.\n"
-                      "\t* Current level is %s, while MPI_THREAD_SERIALIZED or MPI_THREAD_MULTIPLE is needed\n"
-                      "\t* to guarantee correctness of the PaRSEC runtime.\n",
-                thread_level_support == MPI_THREAD_SINGLE ? "MPI_THREAD_SINGLE" : "MPI_THREAD_FUNNELED" );
+                       "\t* Current level is %s, while MPI_THREAD_SERIALIZED or MPI_THREAD_MULTIPLE is needed\n"
+                       "\t* to guarantee correctness of the PaRSEC runtime.\n",
+                       thread_level_support == MPI_THREAD_SINGLE ? "MPI_THREAD_SINGLE" : "MPI_THREAD_FUNNELED");
     }
 
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
@@ -383,7 +383,7 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
         }
         else if(parsec_param_comm_thread_multiple != -1) {
             parsec_warning("Requested multithreaded access to the communication engine, but MPI is not initialized with MPI_THREAD_MULTIPLE.\n"
-                        "\t* PaRSEC will continue with the funneled thread communication engine model.\n");
+                           "\t* PaRSEC will continue with the funneled thread communication engine model.\n");
         }
     }
 
@@ -447,7 +447,7 @@ static int remote_dep_dequeue_fini(parsec_context_t* context)
      * shutdown command in the MPI thread queue, and wake the MPI thread. Upon
      * processing of the pending command the MPI thread will exit, we will be
      * able to catch this by locking the mutex.  Once we know the MPI thread is
-     * gone, cleaning up will be straighforward.
+     * gone, cleaning up will be straightforward.
      */
     if( 1 < parsec_communication_engine_up ) {
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));

@@ -538,9 +538,11 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                 /* Right now DTD only supports a star broadcast topology */
                 if( PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type ) {
                     remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
-#ifdef PARSEC_DIST_COLLECTIVES
                 } else {
+#ifdef PARSEC_DIST_COLLECTIVES
                     remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
+#else
+                    remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
 #endif  /* PARSEC_DIST_COLLECTIVES */
                 }
 
