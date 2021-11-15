@@ -173,7 +173,8 @@ void parsec_profiling_add_information( const char *key, const char *value )
             *c = '_';
         }
     }
-    new_info->value = strdup(value);
+    /* OTF2 cannot handle empty property values so make them explicit */
+    new_info->value = (0 == strlen(value)) ? strdup("<empty>") : strdup(value);
     parsec_list_push_back(&global_informations, &new_info->super);
 }
 
