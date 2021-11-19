@@ -260,7 +260,7 @@ typedef volatile int32_t parsec_atomic_lock_t;
 #  define PARSEC_ATOMIC_UNLOCKED 0
 #  define PARSEC_ATOMIC_HAS_ATOMIC_INIT
 ATOMIC_STATIC_INLINE
-void parsec_atomic_init( parsec_atomic_lock_t* atomic_lock )
+void parsec_atomic_lock_init( parsec_atomic_lock_t* atomic_lock )
 {
     *atomic_lock = PARSEC_ATOMIC_UNLOCKED;
 }
