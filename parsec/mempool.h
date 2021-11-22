@@ -131,6 +131,27 @@ static inline void *parsec_thread_mempool_allocate( parsec_thread_mempool_t *thr
 }
 
 /**
+ * @brief return a mempool element to its thread-mempool
+ *
+ * @details
+ *     a shortcut to parsec_mempool_free( thread_mempool->parent, elt );
+ *     the thread-mempool must be the owner of the element
+ *
+ * @param[inout] thread_mempool the thread-mempool to which elt should be returned
+ * @param[inout] elt the element to free
+ */
+static inline void  parsec_thread_mempool_free( parsec_thread_mempool_t *thread_mempool, void *elt )
+{
+#if defined(PARSEC_DEBUG_ENABLE)
+    parsec_thread_mempool_t *owner = *(parsec_thread_mempool_t **)(_elt + mempool->pool_owner_offset);
+    assert(owner == thread_mempool);
+#endif // PARSEC_DEBUG_ENABLE
+
+    parsec_lifo_push( &(thread_mempool->mempool), (parsec_list_item_t*)elt );
+}
+
+
+/**
  * @brief return a mempool element to its mempool
  *
  * @details
@@ -143,22 +164,11 @@ static inline void  parsec_mempool_free( parsec_mempool_t *mempool, void *elt )
 {
     unsigned char *_elt = (unsigned char *)elt;
     parsec_thread_mempool_t *owner = *(parsec_thread_mempool_t **)(_elt + mempool->pool_owner_offset);
+#if defined(PARSEC_DEBUG_ENABLE)
+    assert(NULL != owner);
+#endif // PARSEC_DEBUG_ENABLE
     if(NULL != owner)
-        parsec_lifo_push( &(owner->mempool), (parsec_list_item_t*)elt );
-}
-
-/**
- * @brief return a mempool element to its thread-mempool
- *
- * @details
- *     a shortcut to parsec_mempool_free( thread_mempool->parent, elt );
- *
- * @param[inout] thread_mempool the thread-mempool to which elt should be returned
- * @param[inout] elt the element to free
- */
-static inline void  parsec_thread_mempool_free( parsec_thread_mempool_t *thread_mempool, void *elt )
-{
-    parsec_mempool_free( thread_mempool->parent, elt );
+        parsec_thread_mempool_free(owner, elt);
 }
 
 /**
