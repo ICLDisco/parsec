@@ -292,8 +292,6 @@ int parsec_dtd_bcast_key_fn( parsec_execution_stream_t *es, parsec_task_t *this_
 
 int parsec_dtd_bcast_data_fn( parsec_execution_stream_t *es, parsec_task_t *this_task);
 
-int parsec_dtd_bcast_key_recv( parsec_execution_stream_t *es, parsec_task_t *this_task);
-
 void
 parsec_detach_all_dtd_taskpool_from_context( parsec_context_t *context );
 
@@ -532,6 +530,15 @@ parsec_dtd_iterator_arg_get_rank(int first_arg, void *tile,
 int
 parsec_dtd_iterator_arg_get_size(int first_arg, void *tile,
                                  int tile_op_type, void *cb_data);
+
+void
+parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
+        const parsec_task_t *this_task,
+        uint32_t action_mask,
+        parsec_ontask_function_t *ontask,
+        void *ontask_arg);
+
+
 
 END_C_DECLS
 

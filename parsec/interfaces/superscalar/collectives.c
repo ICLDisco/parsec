@@ -10,8 +10,6 @@
 
 #ifdef PARSEC_DTD_DIST_COLLECTIVES
 
-/* static parsec_lifo_t parsec_dep_lifo; */
-
 /**
  * Create and return `parsec_remote_deps_t` structure associated with
  * the broadcast of the a data to all the nodes set in the
@@ -71,42 +69,12 @@ parsec_remote_deps_t* parsec_dtd_create_remote_deps(
        _array_pos = myrank / (8 * sizeof(uint32_t));
        _array_mask = 1 << (myrank % (8 * sizeof(uint32_t)));
 
-       //if( !(output->rank_bits[_array_pos] & _array_mask) ) {
-           output->rank_bits[_array_pos] |= _array_mask;
-           output->deps_mask |= (1 << 0); /* not used by DTD? */
-           output->count_bits++;
-       //}
+       output->rank_bits[_array_pos] |= _array_mask;
+       output->deps_mask |= (1 << 0); /* not used by DTD? */
+       output->count_bits++;
    }
     
    return deps;
-}
-
-/**
- * Free remote deps if it does not involve any participants.
- **/
-static
-int remote_deps_free_if_empty(parsec_remote_deps_t* deps) {
-
-   // Return 1 if the remote_deps has no participants, 0 otherwise.
-   int ret = 0;
-
-   struct remote_dep_output_param_s* output = &deps->output[0];
-
-   // TODO: loop through the whole output array are use max_priority
-   // instead
-   if (output->count_bits <= 0) {
-      // No participants
-
-      deps->pending_ack = 0;
-      deps->incoming_mask = 0;
-      deps->outgoing_mask = 0;
-      remote_deps_free(deps);
-      
-      // Indicate that remote deps is empty 
-      ret = 1;
-   }
-   
-   return ret;
 }
 
 /**
@@ -140,7 +108,6 @@ void parsec_dtd_broadcast(
             data_ptr[400+i+1] = dest_ranks[i];
         }
     }
-    //fprintf(stderr, "finished bcast key packing\n");
     // Retrieve DTD tile's data_copy
     parsec_data_copy_t *data_copy = dtd_tile_root->data_copy;
     parsec_data_copy_t *key_copy = bcast_keys_root->data_copy;
@@ -186,33 +153,11 @@ void parsec_dtd_broadcast(
         /* nothing here since the key is stored in the key array and will be updated before remote_dep_activate */
     }else{
         bcast_id = ( (1<<29)  | (root << 20) | (dtd_tp->recv_task_id[root] -1));
-        //bcast_id = ( (1<<29)  | (dtd_tp->recv_task_id[root] ));
         dtd_bcast_key_root->ht_item.key =  bcast_id;
         dtd_bcast_key_root->super.locals[0].value = dtd_bcast_key_root->ht_item.key;
     }
     /* Post the bcast of keys and ranks array */
     parsec_insert_dtd_task(dtd_bcast_key_root);
-    
-
-    if(myrank == root) {
-        //for (int dest_rank = 0; dest_rank < num_dest_ranks; ++dest_rank) {
-        //    parsec_task_t *retrieve_task = parsec_dtd_taskpool_create_task(
-        //            dtd_tp, parsec_dtd_aux_fn, 0, "retrieve_task",
-        //            PASSED_BY_REF, bcast_keys_root, PARSEC_INPUT | bcast_arena_index,
-        //            sizeof(int), &dest_ranks[dest_rank], PARSEC_VALUE | PARSEC_AFFINITY,
-        //            PARSEC_DTD_ARG_END);
-        //    parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
-        //    parsec_insert_dtd_task(dtd_retrieve_task);
-        //}
-    }else {
-        parsec_task_t *retrieve_task = parsec_dtd_taskpool_create_task(
-                dtd_tp, parsec_dtd_bcast_key_recv, 0, "retrieve_task",
-                PASSED_BY_REF, bcast_keys_root, PARSEC_INPUT | bcast_arena_index,
-                sizeof(int), &myrank, PARSEC_VALUE | PARSEC_AFFINITY,
-                PARSEC_DTD_ARG_END);
-        parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
-        //parsec_insert_dtd_task(dtd_retrieve_task);
-    }
     
     /* Post the bcast tasks for the actual data */
     parsec_insert_dtd_task(dtd_bcast_task_root);
