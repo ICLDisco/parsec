@@ -933,7 +933,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
         remote_dep_complete_and_cleanup(&origin, 1);
     } else {
         //remote_dep_complete_and_cleanup(&origin, 1);
-        //remote_deps_free(origin);
+        remote_deps_free(origin);
         //remote_dep_dec_flying_messages(task.taskpool);
 
     }
