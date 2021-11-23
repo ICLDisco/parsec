@@ -538,7 +538,8 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
         parsec_ontask_function_t *ontask,
         void *ontask_arg);
 
-
+void
+populate_remote_deps(int* data_ptr, parsec_remote_deps_t* remote_deps);
 
 END_C_DECLS
 

@@ -1464,7 +1464,6 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
 
                 /* On the sender side, update the key of the dep flow */
                 parsec_dtd_task_t * real_parent_task = (parsec_dtd_task_t *)oldcontext;
-                parsec_dtd_task_t * real_child_task = (parsec_dtd_task_t *)newcontext;
 
 #if !defined(PARSEC_DIST_COLLECTIVES)
                 assert(src_rank == es->virtual_process->parsec_context->my_rank);
@@ -1934,7 +1933,7 @@ static int bcast_key_datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
                                        const parsec_task_t *this_task,
                                        uint32_t *flow_mask, parsec_dep_data_description_t *data)
 {
-    (void)es;
+    (void)es;(void)this_task;
     data->count = 1;
     data->displ = 0;
     data->arena  = NULL;
@@ -2307,8 +2306,6 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
         parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
         parsec_remote_deps_t *dep = parsec_dtd_find_remote_dep( tp, key );
         if(real_parent_task->super.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID) {
-            //sleep(1);
-            //uint64_t key = ((this_task->super.locals[0].value)<<32) | (1U<<0);
             parsec_hash_table_t *hash_table = tp->keys_hash_table;
             dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, (parsec_key_t)key );
             if(item) {
@@ -2523,42 +2520,6 @@ int
 fake_first_out_body( parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es; (void)this_task;
-    return PARSEC_HOOK_RETURN_DONE;
-}
-
-/* **************************************************************************** */
-/**
- * Body of bcast key task we insert that will propagate the key array
- * empty body!
- *
- * @param   context, this_task
- *
- * @ingroup DTD_INTERFACE_INTERNAL
- */
-int
-parsec_dtd_bcast_key_fn( parsec_execution_stream_t *es, parsec_task_t *this_task)
-{
-    (void)es; (void)this_task;
-
-    //fprintf(stderr, "bcast_key_fn executed\n");
-    return PARSEC_HOOK_RETURN_DONE;
-}
-
-/* **************************************************************************** */
-/**
- * Body of bcast task we insert that will propagate the data tile we are broadcasting
- * empty body!
- *
- * @param   context, this_task
- *
- * @ingroup DTD_INTERFACE_INTERNAL
- */
-int
-parsec_dtd_bcast_data_fn( parsec_execution_stream_t *es, parsec_task_t *this_task)
-{
-    (void)es; (void)this_task;
-
-    //fprintf(stderr, "bcast_data_fn %p executed on rank %d\n", this_task, es->virtual_process->parsec_context->my_rank);
     return PARSEC_HOOK_RETURN_DONE;
 }
 
