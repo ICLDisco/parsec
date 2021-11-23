@@ -154,7 +154,7 @@ ATOMIC_STATIC_INLINE
 void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )
 {
     struct timespec ts = { .tv_sec = 0, .tv_nsec = 100 };
-    while( atomic_flag_test_and_set(atomic_lock) )
+    while( atomic_flag_test_and_set_explicit(atomic_lock, memory_order_acquire) )
         nanosleep( &ts, NULL ); /* less bandwidth consuming */
 }
 
@@ -162,14 +162,14 @@ void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )
 ATOMIC_STATIC_INLINE
 void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock )
 {
-    atomic_flag_clear(atomic_lock);
+    atomic_flag_clear_explicit(atomic_lock, memory_order_release);
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_TRYLOCK
 ATOMIC_STATIC_INLINE
 int parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 {
-    return !atomic_flag_test_and_set(atomic_lock);
+    return !atomic_flag_test_and_set_explicit(atomic_lock, memory_order_acquire);
 }
 
 #define PARSEC_ATOMIC_UNLOCKED ATOMIC_FLAG_INIT
