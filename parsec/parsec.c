@@ -1231,7 +1231,6 @@ int parsec_fini( parsec_context_t** pcontext )
 
 #ifdef PARSEC_PROF_TRACE
     parsec_mempool_stats(context);
-    parsec_profiling_dbp_dump();
 #endif  /* PARSEC_PROF_TRACE */
 
     (void) parsec_remote_dep_fini(context);
@@ -1252,6 +1251,7 @@ int parsec_fini( parsec_context_t** pcontext )
 
     PARSEC_AYU_FINI();
 #ifdef PARSEC_PROF_TRACE
+    parsec_profiling_dbp_dump();
     (void)parsec_profiling_fini( );  /* we're leaving, ignore errors */
 #endif  /* PARSEC_PROF_TRACE */
 
