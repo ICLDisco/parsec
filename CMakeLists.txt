@@ -734,6 +734,7 @@ int main(int argc, char *argv[]) {
       endif( PARSEC_HAVE_CUDA )
     endif(HIP_FOUND)
   endif( PARSEC_GPU_WITH_HIP )
+
   find_package(AYUDAME QUIET)
   set(PARSEC_HAVE_AYUDAME ${AYUDAME_FOUND})
 #
