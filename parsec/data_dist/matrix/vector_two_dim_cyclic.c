@@ -15,9 +15,9 @@ static uint32_t vector_twoDBC_rank_of(parsec_data_collection_t* dc, ...);
 static int32_t  vector_twoDBC_vpid_of(parsec_data_collection_t* dc, ...);
 static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t* dc, ...);
 
-#if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP)
 static parsec_data_key_t vector_twoDBC_data_key(struct parsec_data_collection_s *desc, ...);
-#endif /* defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) */
+#endif /* defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP) */
 
 static int      vector_twoDBC_key_to_string(struct parsec_data_collection_s * desc, parsec_data_key_t datakey, char * buffer, uint32_t buffer_size);
 
@@ -125,7 +125,7 @@ void parsec_vector_two_dim_cyclic_init( parsec_vector_two_dim_cyclic_t * dc,
     o->vpid_of = vector_twoDBC_vpid_of;
     o->data_of = vector_twoDBC_data_of;
 
-#if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP)
     o->data_key      = vector_twoDBC_data_key;
 #endif
     o->key_to_string = vector_twoDBC_key_to_string;
@@ -269,7 +269,7 @@ static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 /*
  * Common functions
  */
-#if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP)
 /* return a unique key (unique only for the specified parsec_dc) associated to a data */
 static parsec_data_key_t vector_twoDBC_data_key(struct parsec_data_collection_s *desc, ...)
 {
@@ -288,7 +288,7 @@ static parsec_data_key_t vector_twoDBC_data_key(struct parsec_data_collection_s 
 
     return m;
 }
-#endif /* defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) */
+#endif /* defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP) */
 
 /* return a string meaningful for profiling about data */
 static int
