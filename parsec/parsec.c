@@ -225,6 +225,7 @@ static int parsec_parse_comm_binding_parameter(const char* option, parsec_contex
 static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* startup )
 {
     parsec_execution_stream_t* es;
+    struct timeval tv_now;
     int pi;
 
     /* don't use PARSEC_THREAD_IS_MASTER, it is too early and we cannot yet allocate the es struct */
@@ -246,11 +247,13 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     if( NULL == es ) {
         return NULL;
     }
+    gettimeofday(&tv_now, NULL);
 
     PARSEC_TLS_SET_SPECIFIC(parsec_tls_execution_stream, es);
 
     es->th_id            = startup->th_id;
     es->virtual_process  = startup->virtual_process;
+    es->rand_seed        = tv_now.tv_usec + startup->th_id;
     es->scheduler_object = NULL;
     startup->virtual_process->execution_streams[startup->th_id] = es;
     es->core_id          = startup->bindto;
