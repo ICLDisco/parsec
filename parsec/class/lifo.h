@@ -524,7 +524,7 @@ LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_try_pop(parsec_lifo_t* lifo)
         PARSEC_ITEM_DETACH(item);
     }
     parsec_atomic_unlock(&lifo->lifo_head.data.guard.lock);
-    return item; 
+    return item;
 }
 
 #endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR) */
@@ -566,7 +566,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_nolock_pop( parsec_lifo_t* li
 /**
  * @brief Allocate a lifo item.
  *
- * @details Allocate an element that is correctly aligned to be 
+ * @details Allocate an element that is correctly aligned to be
  * used in the lifo. One may change the alignment of elements before
  * allocating the first item in the lifo by changing lifo->alignment.
  *
