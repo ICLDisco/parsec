@@ -40,6 +40,8 @@ typedef struct parsec_matrix_sym_block_cyclic {
     parsec_matrix_uplo_t uplo;
 } parsec_matrix_sym_block_cyclic_t;
 
+typedef parsec_matrix_sym_block_cyclic_t sym_two_dim_block_cyclic_t __parsec_attribute_deprecated__("Use parsec_matrix_sym_block_cyclic_t");
+
 /************************************************
  *   mpi ranks distribution in the process grid
  *   -----------------
@@ -76,6 +78,15 @@ void parsec_matrix_sym_block_cyclic_init( parsec_matrix_sym_block_cyclic_t * dc,
                                     int i, int j, int m, int n,
                                     int P, int Q, /* process process grid */
                                     parsec_matrix_uplo_t uplo );
+
+void sym_two_dim_block_cyclic_init( parsec_matrix_sym_block_cyclic_t * dc,
+                                    parsec_matrix_type_t mtype,
+                                    int myrank,
+                                    int mb, int nb, int lm, int ln,
+                                    int i, int j, int m, int n,
+                                    int P, int Q, /* process process grid */
+                                    parsec_matrix_uplo_t uplo )
+    __parsec_attribute_deprecated__("Use parsec_matrix_sym_block_cyclic_init");
 END_C_DECLS
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

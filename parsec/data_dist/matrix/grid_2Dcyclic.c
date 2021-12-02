@@ -42,6 +42,13 @@ void parsec_grid_2Dcyclic_init(parsec_grid_2Dcyclic_t *grid, int myrank, int P, 
     grid->vp_p = vpmap_get_nb_vp()/default_vp_data_dist();
 }
 
+
+/* deprecated */
+void grid_2Dcyclic_init(parsec_grid_2Dcyclic_t* grid, int rank, int P, int Q, int kp, int kq, int ip, int jq)
+{
+    parsec_grid_2Dcyclic_init(grid, rank, P, Q, kp, kq, ip, jq);
+}
+
 static
 int default_vp_data_dist()
 {

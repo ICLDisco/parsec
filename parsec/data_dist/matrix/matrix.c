@@ -39,6 +39,16 @@ parsec_tiled_matrix_create_data(parsec_tiled_matrix_t* matrix,
                               PARSEC_DATA_FLAG_PARSEC_MANAGED);
 }
 
+/* deprecated */
+parsec_data_t*
+parsec_matrix_create_data(parsec_tiled_matrix_t* matrix,
+                         void* ptr,
+                         int pos,
+                         parsec_data_key_t key)
+{
+    return parsec_tiled_matrix_create_data(matrix, ptr, pos, key);
+}
+
 void
 parsec_tiled_matrix_destroy_data( parsec_tiled_matrix_t* matrix )
 {
@@ -53,6 +63,13 @@ parsec_tiled_matrix_destroy_data( parsec_tiled_matrix_t* matrix )
         free( matrix->data_map );
         matrix->data_map = NULL;
     }
+}
+
+/* deprecated */
+void
+parsec_matrix_destroy_data( parsec_tiled_matrix_t* matrix )
+{
+    parsec_tiled_matrix_destroy_data(matrix);
 }
 
 /***************************************************************************/
@@ -142,8 +159,16 @@ void parsec_tiled_matrix_init( parsec_tiled_matrix_t *tdesc,
                                               -1/*resized*/, &extent)){
         parsec_fatal("Unable to create a datatype for the data collection.");
     }
+}
 
-
+/* deprecated */
+void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_t *tdesc, parsec_matrix_type_t dtyp, parsec_matrix_storage_t storage,
+                             int matrix_distribution_type, int nodes, int myrank,
+                             int mb, int nb, int lm, int ln, int i,  int j, int m,  int n)
+{
+    parsec_tiled_matrix_init(tdesc, dtyp, storage, matrix_distribution_type,
+                             nodes, myrank, mb, nb,
+                             lm, ln, i, j, m, n);
 }
 
 void
@@ -156,6 +181,10 @@ parsec_tiled_matrix_destroy( parsec_tiled_matrix_t *tdesc )
     parsec_data_collection_destroy( dc );
 }
 
+/* deprecated */
+void parsec_tiled_matrix_dc_destroy( parsec_tiled_matrix_t *tdesc ) {
+    parsec_tiled_matrix_destroy(tdesc);
+}
 
 parsec_tiled_matrix_t *
 parsec_tiled_matrix_submatrix( parsec_tiled_matrix_t *tdesc,
@@ -209,6 +238,12 @@ parsec_tiled_matrix_submatrix( parsec_tiled_matrix_t *tdesc,
     newdesc->mt = (i+m-1)/mb - i/mb + 1;
     newdesc->nt = (j+n-1)/nb - j/nb + 1;
     return newdesc;
+}
+
+/* deprecated */
+parsec_tiled_matrix_t *tiled_matrix_submatrix( parsec_tiled_matrix_t *tdesc, int i, int j, int m, int n)
+{
+    return parsec_tiled_matrix_submatrix(tdesc, i, j, m, n);
 }
 
 /* return a unique key (unique only for the specified parsec_dc) associated to a data */
@@ -297,6 +332,13 @@ int parsec_tiled_matrix_data_write(parsec_tiled_matrix_t *tdesc, char *filename)
     return PARSEC_SUCCESS;
 }
 
+
+/* deprecated */
+int tiled_matrix_data_write(parsec_tiled_matrix_t *tdesc, char *filename)
+{
+    return parsec_tiled_matrix_data_write(tdesc, filename);
+}
+
 /*
  * Read the data from the file filename
  * Sequential function per node
@@ -354,4 +396,11 @@ int parsec_tiled_matrix_data_read(parsec_tiled_matrix_t *tdesc, char *filename)
 
     fclose(tmpf);
     return PARSEC_SUCCESS;
+}
+
+
+/* deprecated */
+int tiled_matrix_data_read(parsec_tiled_matrix_t *tdesc, char *filename)
+{
+    parsec_tiled_matrix_data_read(tdesc, filename);
 }

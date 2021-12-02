@@ -60,6 +60,7 @@
 #cmakedefine PARSEC_HAVE_SYS_MMAN_H
 #cmakedefine PARSEC_HAVE_DLFCN_H
 #cmakedefine PARSEC_HAVE_SYSCONF
+#cmakedefine PARSEC_HAVE_ATTRIBUTE_DEPRECATED
 
 /* Compiler Specific Options */
 #cmakedefine PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128

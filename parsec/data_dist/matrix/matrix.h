@@ -22,6 +22,17 @@ BEGIN_C_DECLS
 struct parsec_execution_stream_s;
 struct parsec_taskpool_s;
 
+enum
+__parsec_attribute_deprecated__("Use parsec_matrix_type_t instead")
+matrix_type {
+    matrix_Byte          __parsec_attribute_deprecated__("Use PARSEC_MATRIX_BYTE instead") = 0, /**< unsigned char  */
+    matrix_Integer       __parsec_attribute_deprecated__("Use PARSEC_MATRIX_INTEGER instead") = 1, /**< signed int     */
+    matrix_RealFloat     __parsec_attribute_deprecated__("Use PARSEC_MATRIX_FLOAT instead") = 2, /**< float          */
+    matrix_RealDouble    __parsec_attribute_deprecated__("Use PARSEC_MATRIX_DOUBLE instead") = 3, /**< double         */
+    matrix_ComplexFloat  __parsec_attribute_deprecated__("Use PARSEC_MATRIX_COMPLEX_FLOAT instead") = 4, /**< complex float  */
+    matrix_ComplexDouble __parsec_attribute_deprecated__("Use PARSEC_MATRIX_COMPLEX_DOUBLE instead") = 5  /**< complex double */
+};
+
 typedef enum parsec_matrix_type_e {
     PARSEC_MATRIX_BYTE          = 0, /**< unsigned char  */
     PARSEC_MATRIX_INTEGER       = 1, /**< signed int     */
@@ -31,10 +42,25 @@ typedef enum parsec_matrix_type_e {
     PARSEC_MATRIX_COMPLEX_DOUBLE = 5  /**< complex double */
 } parsec_matrix_type_t;
 
+enum
+__parsec_attribute_deprecated__("Use parsec_matrix_storage_t instead")
+matrix_storage {
+    matrix_Lapack __parsec_attribute_deprecated__("Use PARSEC_MATRIX_LAPACK instead") = 0, /**< LAPACK Layout or Column Major  */
+    matrix_Tile   __parsec_attribute_deprecated__("Use PARSEC_MATRIX_TILE instead") = 1, /**< Tile Layout or Column-Column Rectangular Block (CCRB) */
+};
+
 typedef enum parsec_matrix_storage_e {
     PARSEC_MATRIX_LAPACK        = 0, /**< LAPACK Layout or Column Major  */
     PARSEC_MATRIX_TILE          = 1, /**< Tile Layout or Column-Column Rectangular Block (CCRB) */
 } parsec_matrix_storage_t;
+
+enum
+__parsec_attribute_deprecated__("Use parsec_matrix_uplo_t instead")
+matrix_uplo {
+    matrix_Upper      __parsec_attribute_deprecated__("Use PARSEC_MATRIX_UPPER instead") = 121,
+    matrix_Lower      __parsec_attribute_deprecated__("Use PARSEC_MATRIX_LOWER instead") = 122,
+    matrix_UpperLower __parsec_attribute_deprecated__("Use PARSEC_MATRIX_FULL instead")  = 123
+};
 
 /**
  * Put our own definition of Upper/Lower/General values mathing the
@@ -43,7 +69,7 @@ typedef enum parsec_matrix_storage_e {
 typedef enum parsec_matrix_uplo_e {
     PARSEC_MATRIX_UPPER      = 121,
     PARSEC_MATRIX_LOWER      = 122,
-    PARSEC_MATRIX_FULL = 123
+    PARSEC_MATRIX_FULL       = 123
 } parsec_matrix_uplo_t;
 
 /**
@@ -89,6 +115,12 @@ static inline int parsec_translate_matrix_type( parsec_matrix_type_t mt, parsec_
 }
 
 enum {
+    parsec_tiled_matrix_dc_type    __parsec_attribute_deprecated__("Use parsec_matrix_type instead") = 0x01,
+    two_dim_block_cyclic_type      __parsec_attribute_deprecated__("Use parsec_matrix_block_cyclic_type instead") = 0x02,
+    sym_two_dim_block_cyclic_type  __parsec_attribute_deprecated__("Use parsec_matrix_sym_block_cyclic_type instead") = 0x04,
+    two_dim_tabular_type           __parsec_attribute_deprecated__("Use parsec_matrix_tabular_type instead") = 0x08
+};
+enum {
   parsec_matrix_type = 0x01,
   parsec_matrix_block_cyclic_type = 0x2,
   parsec_matrix_sym_block_cyclic_type = 0x4,
@@ -122,16 +154,36 @@ typedef struct parsec_tiled_matrix_s {
     int sln;            /**< number of local columns of the submatrix */
 } parsec_tiled_matrix_t;
 
+typedef parsec_tiled_matrix_t parsec_tiled_matrix_dc_t __parsec_attribute_deprecated__("Use parsec_tiled_matrix_t instead");
+
 void parsec_tiled_matrix_init( parsec_tiled_matrix_t *tdesc, parsec_matrix_type_t dtyp, parsec_matrix_storage_t storage,
                              int matrix_distribution_type, int nodes, int myrank,
                              int mb, int nb, int lm, int ln, int i,  int j, int m,  int n);
 
+void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_t *tdesc, parsec_matrix_type_t dtyp, parsec_matrix_storage_t storage,
+                             int matrix_distribution_type, int nodes, int myrank,
+                             int mb, int nb, int lm, int ln, int i,  int j, int m,  int n)
+    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_init");
+
 void parsec_tiled_matrix_destroy( parsec_tiled_matrix_t *tdesc );
+
+void parsec_tiled_matrix_dc_destroy( parsec_tiled_matrix_t *tdesc )
+    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_destroy");
 
 parsec_tiled_matrix_t *parsec_tiled_matrix_submatrix( parsec_tiled_matrix_t *tdesc, int i, int j, int m, int n);
 
+parsec_tiled_matrix_t *tiled_matrix_submatrix( parsec_tiled_matrix_t *tdesc, int i, int j, int m, int n)
+    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_submatrix");
+
 int  parsec_tiled_matrix_data_write(parsec_tiled_matrix_t *tdesc, char *filename);
+
+int  tiled_matrix_data_write(parsec_tiled_matrix_t *tdesc, char *filename)
+    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_data_write");
+
 int  parsec_tiled_matrix_data_read(parsec_tiled_matrix_t *tdesc, char *filename);
+
+int  tiled_matrix_data_read(parsec_tiled_matrix_t *tdesc, char *filename)
+    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_data_read");
 
 typedef int (*parsec_operator_t)( struct parsec_execution_stream_s *es,
                                   const void* src,
@@ -145,12 +197,16 @@ typedef int (*parsec_tiled_matrix_unary_op_t )( struct parsec_execution_stream_s
                                          int uplo, int m, int n,
                                          void *args );
 
+typedef parsec_tiled_matrix_unary_op_t tiled_matrix_unary_op_t __parsec_attribute_deprecated__("Use parsec_tiled_matrix_unary_op_t instead");
+
 typedef int (*parsec_tiled_matrix_binary_op_t)( struct parsec_execution_stream_s *es,
                                          const parsec_tiled_matrix_t *desc1,
                                          const parsec_tiled_matrix_t *desc2,
                                          const void *data1, void *data2,
                                          int uplo, int m, int n,
                                          void *args );
+
+typedef parsec_tiled_matrix_binary_op_t tiled_matrix_binary_op_t __parsec_attribute_deprecated__("Use parsec_tiled_matrix_binary_op_t instead");
 
 extern struct parsec_taskpool_s*
 parsec_map_operator_New(const parsec_tiled_matrix_t* src,
@@ -298,8 +354,19 @@ parsec_tiled_matrix_create_data(parsec_tiled_matrix_t* matrix,
                          int pos,
                          parsec_data_key_t key);
 
+parsec_data_t*
+parsec_matrix_create_data(parsec_tiled_matrix_t* matrix,
+                         void* ptr,
+                         int pos,
+                         parsec_data_key_t key)
+    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_create_data");
+
 void
 parsec_tiled_matrix_destroy_data( parsec_tiled_matrix_t* matrix );
+
+void
+parsec_matrix_destroy_data( parsec_tiled_matrix_t* matrix )
+    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_destroy_data");
 
 /**
  * Helper function to create datatypes for matrices with different shapes. This generic
@@ -328,7 +395,16 @@ int parsec_tiled_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype
                              unsigned int m, unsigned int n, unsigned int ld,
                              size_t alignment, int resized );
 
+int parsec_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
+                             parsec_matrix_uplo_t uplo, int diag,
+                             unsigned int m, unsigned int n, unsigned int ld,
+                             size_t alignment, int resized )
+    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_add2arena");
+
 int parsec_tiled_matrix_del2arena( parsec_arena_datatype_t *adt );
+
+int parsec_matrix_del2arena( parsec_arena_datatype_t *adt )
+    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_del2arena");
 
 
 #define parsec_tiled_matrix_add2arena_tile( _adt_ , _oldtype_, _m_ ) \
@@ -342,6 +418,19 @@ int parsec_tiled_matrix_del2arena( parsec_arena_datatype_t *adt );
 
 #define parsec_tiled_matrix_add2arena_rect( _adt_ , _oldtype_, _m_, _n_, _ld_ ) \
     parsec_tiled_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+
+/* deprecated */
+#define parsec_matrix_add2arena_tile( _adt_ , _oldtype_, _m_ ) \
+    parsec_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+
+#define parsec_matrix_add2arena_upper( _adt_ , _oldtype_, diag, _n_ ) \
+    parsec_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_UPPER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+
+#define parsec_matrix_add2arena_lower( _adt_ , _oldtype_, diag, _n_ ) \
+    parsec_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_LOWER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+
+#define parsec_matrix_add2arena_rect( _adt_ , _oldtype_, _m_, _n_, _ld_ ) \
+    parsec_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
 END_C_DECLS
 #endif /* _MATRIX_H_  */

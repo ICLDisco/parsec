@@ -29,6 +29,8 @@ typedef struct parsec_matrix_block_cyclic {
     int nb_elem_c;  /**< number of column of tiles handled by this process - derived parameter */
 } parsec_matrix_block_cyclic_t;
 
+typedef parsec_matrix_block_cyclic_t two_dim_block_cyclic_t __parsec_attribute_deprecated__("Use parsec_matrix_block_cyclic_t");
+
 /************************************************
  *   mpi ranks distribution in the process grid PxQ=2x4
  *   -----------------
@@ -82,6 +84,19 @@ void parsec_matrix_block_cyclic_init(parsec_matrix_block_cyclic_t * twoDBCdesc,
                                int kp,    int kq,   /* k-cyclicity */
                                int ip,    int jq);   /* starting point on the process grid*/
 
+void two_dim_block_cyclic_init(parsec_matrix_block_cyclic_t * twoDBCdesc,
+                               parsec_matrix_type_t mtype,
+                               parsec_matrix_storage_t storage,
+                               int myrank,
+                               int mb,    int nb,   /* Tile size */
+                               int lm,    int ln,   /* Global matrix size (what is stored)*/
+                               int i,     int j,    /* Staring point in the global matrix */
+                               int m,     int n,    /* Submatrix size (the one concerned by the computation */
+                               int p,     int q,    /* process process grid*/
+                               int kp,    int kq,   /* k-cyclicity */
+                               int ip,    int jq)   /* starting point on the process grid*/
+    __parsec_attribute_deprecated__("Use parsec_matrix_block_cyclic_init");
+
 
 void parsec_matrix_block_cyclic_lapack_init(parsec_matrix_block_cyclic_t * twoDBCdesc,
                                       parsec_matrix_type_t mtype,
@@ -95,6 +110,21 @@ void parsec_matrix_block_cyclic_lapack_init(parsec_matrix_block_cyclic_t * twoDB
                                       int kp,    int kq,  /* k-cyclicity */
                                       int ip,    int jq,  /* starting point on the process grid*/
                                       int mloc, int nloc);/* number of local rows and cols of the matrix */
+
+void two_dim_block_cyclic_lapack_init(parsec_matrix_block_cyclic_t * twoDBCdesc,
+                                      parsec_matrix_type_t mtype,
+                                      parsec_matrix_storage_t storage,
+                                      int myrank,
+                                      int mb,   int nb,   /* Tile size */
+                                      int lm,   int ln,   /* Global matrix size (what is stored)*/
+                                      int i,    int j,    /* Staring point in the global matrix */
+                                      int m,    int n,    /* Submatrix size (the one concerned by the computation */
+                                      int p,     int q,   /* process process grid*/
+                                      int kp,    int kq,  /* k-cyclicity */
+                                      int ip,    int jq,  /* starting point on the process grid*/
+                                      int mloc, int nloc) /* number of local rows and cols of the matrix */
+    __parsec_attribute_deprecated__("Use parsec_matrix_block_cyclic_lapack_init");
+
 /**
  * kcyclic _view_ of the 2-D Block cyclic distributed matrix. The goal is to
  * improve access locality by changing access order without incurring the cost of a physical
@@ -128,6 +158,12 @@ void parsec_matrix_block_cyclic_lapack_init(parsec_matrix_block_cyclic_t * twoDB
 void parsec_matrix_block_cyclic_kview( parsec_matrix_block_cyclic_t* target,
                                  parsec_matrix_block_cyclic_t* origin,
                                  int kp, int kq );
+
+void two_dim_block_cyclic_kview( parsec_matrix_block_cyclic_t* target,
+                                 parsec_matrix_block_cyclic_t* origin,
+                                 int kp, int kq )
+    __parsec_attribute_deprecated__("Use parsec_matrix_block_cyclic_kview");
+
 END_C_DECLS
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

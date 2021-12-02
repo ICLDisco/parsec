@@ -296,3 +296,47 @@ void parsec_matrix_tabular_clone_table_structure(parsec_matrix_tabular_t *Src, p
 
     parsec_matrix_tabular_set_table(Dst, table);
 }
+
+
+/* deprecated */
+void two_dim_tabular_init(parsec_matrix_tabular_t * dc,
+                          parsec_matrix_type_t mtype,
+                          unsigned int nodes, unsigned int myrank,
+                          unsigned int mb, unsigned int nb,
+                          unsigned int lm, unsigned int ln,
+                          unsigned int i, unsigned int j,
+                          unsigned int m, unsigned int n,
+                          parsec_two_dim_td_table_t *table )
+{
+    parsec_matrix_tabular_init(dc, mtype, nodes, myrank, mb, nb, lm, ln, i, j, m, n, table);
+}
+
+/* deprecated */
+void two_dim_tabular_destroy(parsec_matrix_tabular_t *tdc)
+{
+    parsec_matrix_tabular_destroy(tdc);
+}
+
+/* deprecated */
+void two_dim_tabular_set_table(parsec_matrix_tabular_t *dc, parsec_two_dim_td_table_t *table)
+{
+    parsec_matrix_tabular_set_table(dc, table);
+}
+
+/* deprecated */
+void two_dim_tabular_set_user_table(parsec_matrix_tabular_t *dc, parsec_two_dim_td_table_t *table)
+{
+    parsec_matrix_tabular_set_user_table(dc, table);
+}
+
+/* deprecated */
+void two_dim_tabular_set_random_table(parsec_matrix_tabular_t *dc, unsigned int seed)
+{
+    parsec_matrix_tabular_set_random_table(dc, seed);
+}
+
+/* deprecated */
+void two_dim_td_table_clone_table_structure(parsec_matrix_tabular_t *Src, parsec_matrix_tabular_t *Dst)
+{
+    parsec_matrix_tabular_clone_table_structure(Src, Dst);
+}

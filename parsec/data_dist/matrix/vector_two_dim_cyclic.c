@@ -304,3 +304,15 @@ vector_twoDBC_key_to_string(struct parsec_data_collection_s* desc, parsec_data_k
     }
     return res;
 }
+
+
+/* deprecated */
+void vector_two_dim_cyclic_init(parsec_matrix_vector_t * vdesc,
+                                parsec_matrix_type_t    mtype,
+                                enum parsec_matrix_vector_distrib distrib,
+                                int myrank,
+                                int mb, int lm, int i, int m,
+                                int P, int Q )
+{
+    parsec_matrix_vector_init(vdesc, mtype, distrib, myrank, mb, lm, i, m, P, Q);
+}

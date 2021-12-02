@@ -31,6 +31,8 @@ typedef struct parsec_grid_2Dcyclic {
     int vp_q;       /**< number of cols used for data distribution by the VP */
 } parsec_grid_2Dcyclic_t;
 
+typedef parsec_grid_2Dcyclic_t grid_2Dcyclic_t __parsec_attribute_deprecated__("Use parsec_grid_2Dcyclic_t");
+
 /************************************************
  *   sequential ranks distribution
  *   in a 2x4 process grid
@@ -53,6 +55,9 @@ typedef struct parsec_grid_2Dcyclic {
  *
  */
 void parsec_grid_2Dcyclic_init(parsec_grid_2Dcyclic_t* grid, int rank, int P, int Q, int kp, int kq, int ip, int jq);
+
+void grid_2Dcyclic_init(parsec_grid_2Dcyclic_t* grid, int rank, int P, int Q, int kp, int kq, int ip, int jq)
+    __parsec_attribute_deprecated__("Use parsec_grid_2Dcyclic_init");
 
 END_C_DECLS
 
