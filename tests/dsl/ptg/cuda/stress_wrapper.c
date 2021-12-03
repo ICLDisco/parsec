@@ -72,7 +72,7 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
 
     testing_handle = parsec_stress_new(dcA, ctx->nb_nodes, nb, dev_index);
 
-    parsec_tiled_matrix_add2arena( &testing_handle->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX],
+    parsec_add2arena( &testing_handle->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX],
                              parsec_datatype_double_complex_t,
                              PARSEC_MATRIX_FULL, 1, mb, mb, mb,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );

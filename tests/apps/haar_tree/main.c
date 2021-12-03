@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
                               0, 0, world, world,
                               1, world, 1, 1, 0, 0);
 
-    parsec_tiled_matrix_add2arena( &adt, parsec_datatype_float_t,
+    parsec_add2arena( &adt, parsec_datatype_float_t,
                              PARSEC_MATRIX_FULL, 0,
                              2, 1, 2,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
     }
 #endif  /* defined(HAVE_MPI) */
 
-    parsec_tiled_matrix_del2arena( & adt );
+    parsec_del2arena( & adt );
 
     parsec_taskpool_free(&project->super);
     parsec_taskpool_free(&walker->super);

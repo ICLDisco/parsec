@@ -194,12 +194,12 @@ parsec_redistribute_check_New(parsec_tiled_matrix_t *Y,
     taskpool = parsec_redistribute_check_new(Y, T, size_row, size_col, disi_Y, disj_Y, disi_T, disj_T, R);
     redistribute_check_taskpool = (parsec_taskpool_t*)taskpool;
 
-    parsec_tiled_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_check_ORIGIN_ADT_IDX],
+    parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_check_ORIGIN_ADT_IDX],
                             MY_TYPE, PARSEC_MATRIX_FULL,
                             1, Y->mb, Y->nb, Y->mb,
                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-    parsec_tiled_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_check_TARGET_ADT_IDX],
+    parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_check_TARGET_ADT_IDX],
                             MY_TYPE, PARSEC_MATRIX_FULL,
                             1, T->mb, T->nb, T->mb,
                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );
@@ -210,8 +210,8 @@ parsec_redistribute_check_New(parsec_tiled_matrix_t *Y,
 static void
 __parsec_taskpool_redistribute_check_destructor(parsec_redistribute_check_taskpool_t *redistribute_check_taskpool)
 {
-    parsec_tiled_matrix_del2arena(&redistribute_check_taskpool->arenas_datatypes[PARSEC_redistribute_check_ORIGIN_ADT_IDX]);
-    parsec_tiled_matrix_del2arena(&redistribute_check_taskpool->arenas_datatypes[PARSEC_redistribute_check_TARGET_ADT_IDX]);
+    parsec_del2arena(&redistribute_check_taskpool->arenas_datatypes[PARSEC_redistribute_check_ORIGIN_ADT_IDX]);
+    parsec_del2arena(&redistribute_check_taskpool->arenas_datatypes[PARSEC_redistribute_check_TARGET_ADT_IDX]);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_check_taskpool_t, parsec_taskpool_t,

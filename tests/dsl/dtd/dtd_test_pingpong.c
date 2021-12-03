@@ -113,7 +113,7 @@ int main(int argc, char **argv)
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
     adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_tiled_matrix_add2arena_rect( adt,
+    parsec_add2arena_rect( adt,
                                   parsec_datatype_int32_t,
                                   nb, 1, nb );
 
@@ -173,7 +173,7 @@ int main(int argc, char **argv)
         assert( *real_data == 1);
     }
 
-    parsec_tiled_matrix_del2arena(adt);
+    parsec_del2arena(adt);
     PARSEC_OBJ_RELEASE(adt->arena);
 
     parsec_dtd_data_collection_fini( A );
@@ -211,7 +211,7 @@ int main(int argc, char **argv)
         nb = sizes[i];
         nt = 2;
 
-        parsec_tiled_matrix_add2arena_rect( adt,
+        parsec_add2arena_rect( adt,
                                       parsec_datatype_int32_t,
                                       nb, 1, nb);
 
@@ -240,7 +240,7 @@ int main(int argc, char **argv)
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
         SYNC_TIME_PRINT(rank, ("\tSize of message : %zu bytes\tTime for each pingpong : %12.5f\n", sizes[i]*sizeof(int), sync_time_elapsed/repeat_pingpong));
 
-        parsec_tiled_matrix_del2arena(adt);
+        parsec_del2arena(adt);
         PARSEC_OBJ_RELEASE(adt->arena);
         parsec_dtd_data_collection_fini( A );
         free_data(dcA);

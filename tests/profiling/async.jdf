@@ -236,7 +236,7 @@ int main( int argc, char** argv )
     parsec_data_collection_set_key(&descA.super.super, "A");
 
     parsec_translate_matrix_type(PARSEC_MATRIX_DOUBLE, &dt);
-    parsec_tiled_matrix_add2arena_rect(&adt, dt,
+    parsec_add2arena_rect(&adt, dt,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
     /* Start the PaRSEC engine */
@@ -253,7 +253,7 @@ int main( int argc, char** argv )
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     free(descA.mat);
-    parsec_tiled_matrix_del2arena( & adt );
+    parsec_del2arena( & adt );
 
     parsec_fini( &parsec);
 

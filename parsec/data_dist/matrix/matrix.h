@@ -390,7 +390,7 @@ int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t 
  * is created using the datatype extent. The alignment indicates the restrictions related
  * to the alignment of the allocated data by the arena.
  */
-int parsec_tiled_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
+int parsec_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
                              parsec_matrix_uplo_t uplo, int diag,
                              unsigned int m, unsigned int n, unsigned int ld,
                              size_t alignment, int resized );
@@ -399,25 +399,25 @@ int parsec_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t old
                              parsec_matrix_uplo_t uplo, int diag,
                              unsigned int m, unsigned int n, unsigned int ld,
                              size_t alignment, int resized )
-    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_add2arena");
+    __parsec_attribute_deprecated__("Use parsec_add2arena");
 
-int parsec_tiled_matrix_del2arena( parsec_arena_datatype_t *adt );
+int parsec_del2arena( parsec_arena_datatype_t *adt );
 
 int parsec_matrix_del2arena( parsec_arena_datatype_t *adt )
-    __parsec_attribute_deprecated__("Use parsec_tiled_matrix_del2arena");
+    __parsec_attribute_deprecated__("Use parsec_del2arena");
 
 
-#define parsec_tiled_matrix_add2arena_tile( _adt_ , _oldtype_, _m_ ) \
-    parsec_tiled_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_add2arena_tile( _adt_ , _oldtype_, _m_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
-#define parsec_tiled_matrix_add2arena_upper( _adt_ , _oldtype_, diag, _n_ ) \
-    parsec_tiled_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_UPPER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_add2arena_upper( _adt_ , _oldtype_, diag, _n_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_UPPER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
-#define parsec_tiled_matrix_add2arena_lower( _adt_ , _oldtype_, diag, _n_ ) \
-    parsec_tiled_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_LOWER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_add2arena_lower( _adt_ , _oldtype_, diag, _n_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_LOWER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
-#define parsec_tiled_matrix_add2arena_rect( _adt_ , _oldtype_, _m_, _n_, _ld_ ) \
-    parsec_tiled_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_add2arena_rect( _adt_ , _oldtype_, _m_, _n_, _ld_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
 /* deprecated */
 #define parsec_matrix_add2arena_tile( _adt_ , _oldtype_, _m_ ) \

@@ -238,10 +238,10 @@ int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t 
     return PARSEC_SUCCESS;
 }
 
-int parsec_tiled_matrix_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
-                            parsec_matrix_uplo_t uplo, int diag,
-                            unsigned int m, unsigned int n, unsigned int ld,
-                            size_t alignment, int resized )
+int parsec_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
+                     parsec_matrix_uplo_t uplo, int diag,
+                     unsigned int m, unsigned int n, unsigned int ld,
+                     size_t alignment, int resized )
 {
     ptrdiff_t extent = 0;
     int rc;
@@ -267,11 +267,11 @@ int parsec_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t old
                              unsigned int m, unsigned int n, unsigned int ld,
                              size_t alignment, int resized )
 {
-    return parsec_tiled_matrix_add2arena(adt, oldtype, uplo, diag, m, n, ld, alignment, resized);
+    return parsec_add2arena(adt, oldtype, uplo, diag, m, n, ld, alignment, resized);
 }
 
 /* deprecated */
-int parsec_tiled_matrix_del2arena( parsec_arena_datatype_t *adt )
+int parsec_del2arena( parsec_arena_datatype_t *adt )
 {
     return parsec_type_free( &adt->opaque_dtt );
 }
@@ -279,5 +279,5 @@ int parsec_tiled_matrix_del2arena( parsec_arena_datatype_t *adt )
 /* deprecated */
 int parsec_matrix_del2arena( parsec_arena_datatype_t *adt )
 {
-    return parsec_tiled_matrix_del2arena( adt );
+    return parsec_del2arena( adt );
 }

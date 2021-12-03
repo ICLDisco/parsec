@@ -33,8 +33,8 @@ s/two_dim_td_table_clone_table_structure/parsec_matrix_tabular_clone_table_struc
 # symbols in matrix.h
 s/tiled_matrix_submatrix/parsec_tiled_matrix_submatrix/g
 s/parsec_matrix_create_data/parsec_tiled_matrix_create_data/g
-s/parsec_matrix_add2arena/parsec_tiled_matrix_add2arena/g
-s/parsec_matrix_del2arena/parsec_tiled_matrix_del2arena/g
+s/parsec_matrix_add2arena/parsec_add2arena/g
+s/parsec_matrix_del2arena/parsec_del2arena/g
 s/parsec_matrix_data_/parsec_tiled_matrix_data_/g
 
 # vector

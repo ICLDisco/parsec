@@ -131,27 +131,27 @@ int reshape_print(parsec_execution_stream_t *es,
     parsec_arena_datatype_t adt_default;                                  \
     parsec_arena_datatype_t adt_lower;                                    \
     parsec_arena_datatype_t adt_upper;                                    \
-    parsec_tiled_matrix_add2arena( &adt_default,                                \
+    parsec_add2arena( &adt_default,                                \
                             parsec_datatype_int_t,                        \
                             PARSEC_MATRIX_FULL,                     \
                             1, MB, NB, MB,                                \
                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );             \
                                                                           \
-    parsec_tiled_matrix_add2arena( &adt_lower,                                  \
+    parsec_add2arena( &adt_lower,                                  \
                              parsec_datatype_int_t,                       \
                              PARSEC_MATRIX_LOWER, 1, MB, NB, MB,          \
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );            \
                                                                           \
-    parsec_tiled_matrix_add2arena( &adt_upper,                                  \
+    parsec_add2arena( &adt_upper,                                  \
                              parsec_datatype_int_t,                       \
                              PARSEC_MATRIX_UPPER, 1, MB, NB, MB,          \
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );            \
     (void)adt_default; (void)adt_lower; (void)adt_upper;
 
 #define DO_FINI_DATATYPES()                                              \
-    parsec_tiled_matrix_del2arena(&adt_default);                               \
-    parsec_tiled_matrix_del2arena(&adt_lower);                                 \
-    parsec_tiled_matrix_del2arena(&adt_upper);
+    parsec_del2arena(&adt_default);                               \
+    parsec_del2arena(&adt_lower);                                 \
+    parsec_del2arena(&adt_upper);
 
 
 #define DO_RUN(ctp) do {                                                 \

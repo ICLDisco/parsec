@@ -132,7 +132,7 @@ int main(int argc, char ** argv)
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
     adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_tiled_matrix_add2arena_rect( adt,
+    parsec_add2arena_rect( adt,
                                   parsec_datatype_int32_t,
                                   nb, 1, nb );
 
@@ -164,7 +164,7 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_tiled_matrix_del2arena(adt);
+    parsec_del2arena(adt);
     PARSEC_OBJ_RELEASE(adt->arena);
     parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );

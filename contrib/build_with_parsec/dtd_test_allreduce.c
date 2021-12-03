@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 #if PARSEC_VERSION_MAJOR < 4
-    parsec_tiled_matrix_add2arena_rect(&parsec_dtd_arenas_datatypes[TILE_FULL],
+    parsec_add2arena_rect(&parsec_dtd_arenas_datatypes[TILE_FULL],
 #else
     parsec_arena_datatype_t *adt;
     adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
