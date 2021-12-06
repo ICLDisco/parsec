@@ -65,6 +65,7 @@ int parsec_dtd_threshold_size          = 4000;   /**< Default threshold size of 
 static int parsec_dtd_task_hash_table_size = 1<<16; /**< Default task hash table size */
 static int parsec_dtd_tile_hash_table_size = 1<<16; /**< Default tile hash table size */
 static int parsec_dtd_no_of_arenas_datatypes = 16;
+static int parsec_dtd_bcast_tile_size = 50;
 
 int parsec_dtd_dump_traversal_info = 60; /**< Level for printing traversal info */
 int parsec_dtd_dump_function_info  = 50; /**< Level for printing function_structure info */
@@ -83,6 +84,8 @@ parsec_mempool_t *parsec_dtd_taskpool_mempool = NULL;
 /* Global mempool for all tiles */
 parsec_mempool_t *parsec_dtd_tile_mempool = NULL;
 
+parsec_hash_table_t* parsec_bcast_keys_hash;
+parsec_mempool_t* parsec_bcast_keys_tile_mempool;
 /**
  * All the static functions should be declared before being defined.
  */
@@ -460,6 +463,23 @@ parsec_dtd_lazy_init(void)
                               1/* no. of threads*/ );
 
     parsec_dtd_arenas_datatypes = (parsec_arena_datatype_t *) calloc(parsec_dtd_no_of_arenas_datatypes, sizeof(parsec_arena_datatype_t));
+    
+    parsec_bcast_keys_hash = PARSEC_OBJ_NEW(parsec_hash_table_t);
+    int nb;
+    for(nb = 1; nb < 16 && (1 << nb) < parsec_dtd_tile_hash_table_size; nb++) /* nothing */;
+    parsec_hash_table_init( parsec_bcast_keys_hash,
+                            offsetof(parsec_dtd_tile_t, ht_item),
+                            nb,
+                            DTD_key_fns,
+                            parsec_bcast_keys_hash);
+    parsec_bcast_keys_tile_mempool = (parsec_mempool_t*) malloc (sizeof(parsec_mempool_t));
+    parsec_mempool_construct( parsec_bcast_keys_tile_mempool,
+                              PARSEC_OBJ_CLASS(parsec_dtd_tile_t), sizeof(parsec_dtd_tile_t),
+                              offsetof(parsec_dtd_tile_t, mempool_owner),
+                              1/* no. of threads*/ );
+    parsec_matrix_add2arena_rect(&parsec_dtd_arenas_datatypes[15],
+            parsec_datatype_int32_t,
+            parsec_dtd_bcast_tile_size, parsec_dtd_bcast_tile_size, parsec_dtd_bcast_tile_size);
 }
 
 /* **************************************************************************** */
@@ -961,6 +981,8 @@ parsec_dtd_tile_insert( uint64_t key,
 void
 parsec_dtd_tile_remove( parsec_data_collection_t *dc, uint64_t key )
 {
+    if(dc == NULL)
+        return;
     parsec_hash_table_t *hash_table = (parsec_hash_table_t *)dc->tile_h_table;
 
     parsec_hash_table_remove( hash_table, (parsec_key_t)key );
@@ -1065,7 +1087,7 @@ parsec_dtd_data_collection_init( parsec_data_collection_t *dc )
 void
 parsec_dtd_data_collection_fini( parsec_data_collection_t *dc )
 {
-    parsec_hash_table_fini(dc->tile_h_table);
+    //parsec_hash_table_fini(dc->tile_h_table);
     PARSEC_OBJ_RELEASE(dc->tile_h_table);
     parsec_dc_unregister_id(dc->dc_id);
 }

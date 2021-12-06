@@ -15,6 +15,7 @@
 #define PARSEC_INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
 
 #include "parsec/runtime.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/data_distribution.h"
 
 BEGIN_C_DECLS
@@ -101,6 +102,8 @@ extern parsec_arena_datatype_t *parsec_dtd_arenas_datatypes;
 extern int parsec_dtd_window_size;
 extern int parsec_dtd_threshold_size;
 
+extern parsec_hash_table_t* parsec_bcast_keys_hash;
+extern parsec_mempool_t* parsec_bcast_keys_tile_mempool;
 
 typedef struct parsec_dtd_tile_s         parsec_dtd_tile_t;
 typedef struct parsec_dtd_task_s         parsec_dtd_task_t;
@@ -345,9 +348,8 @@ parsec_remote_deps_t* parsec_dtd_create_remote_deps(
   **/
 
 void parsec_dtd_broadcast(
-        parsec_taskpool_t *taskpool, int myrank, int root,
+        parsec_taskpool_t *taskpool, int root,
         parsec_dtd_tile_t* dtd_tile_root, int arena_index,
-        parsec_dtd_tile_t* bcast_keys_root, int bcast_arena_index,
         int* dest_ranks, int num_dest_ranks);
 #endif
 

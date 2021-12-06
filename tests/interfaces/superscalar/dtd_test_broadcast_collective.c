@@ -261,9 +261,9 @@ int test_broadcast_mixed(
    if(myrank % 2 == 1 || myrank == root) {
        fprintf(stderr, "perform bcast from rank %d\n", myrank);
        parsec_dtd_broadcast(
-               dtd_tp, myrank, root,
+               dtd_tp, root,
                dtd_tile_root, TILE_FULL,
-               bcast_keys_root, TILE_BCAST,
+               //bcast_keys_root, TILE_BCAST,
                dest_ranks, num_dest_ranks);
    }
 
@@ -326,9 +326,9 @@ for(int iter=1; iter <= 0; iter++) {
    // Perform Broadcast AGAIN
    //
    parsec_dtd_broadcast(
-           dtd_tp, myrank, root,
+           dtd_tp, root,
            dtd_tile_root, TILE_FULL,
-           bcast_keys_root, TILE_BCAST,
+           //bcast_keys_root, TILE_BCAST,
            dest_ranks, num_dest_ranks);
 
    //

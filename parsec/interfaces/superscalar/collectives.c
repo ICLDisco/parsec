@@ -5,8 +5,10 @@
  */
 
 #include "parsec/class/lifo.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/parsec_config.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/superscalar/insert_function.h"
 
 #ifdef PARSEC_DTD_DIST_COLLECTIVES
 
@@ -83,20 +85,40 @@ parsec_remote_deps_t* parsec_dtd_create_remote_deps(
  * set in the `dest_ranks` array.
  **/
 void parsec_dtd_broadcast(
-      parsec_taskpool_t *taskpool, int myrank, int root,
+      parsec_taskpool_t *taskpool, int root,
       parsec_dtd_tile_t* dtd_tile_root, int arena_index,
-      parsec_dtd_tile_t* bcast_keys_root, int bcast_arena_index,
+      //parsec_dtd_tile_t* bcast_keys_root, int bcast_arena_index,
       int* dest_ranks, int num_dest_ranks) {
-  
+ 
+    parsec_dtd_tile_t* bcast_keys_root = NULL;
+    int bcast_arena_index = 15;
+
+
     parsec_data_copy_t *parsec_data_copy;
     int *data_ptr;
     int key;
     int bcast_id;
+    int myrank = taskpool->context->my_rank;
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)taskpool;
+    
+    bcast_keys_root = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate( parsec_bcast_keys_tile_mempool->thread_mempools );
+    bcast_keys_root->dc = NULL;
+    bcast_keys_root->arena_index = -1;
+    bcast_keys_root->key = (uint64_t) bcast_id;
+    bcast_keys_root->rank = root;
+    bcast_keys_root->flushed = NOT_FLUSHED;
+    parsec_data_copy_t* new_data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
+
+    new_data_copy->coherency_state = PARSEC_DATA_COHERENCY_OWNED;
+    new_data_copy->device_private = malloc(sizeof(int)*2500);
+    bcast_keys_root->data_copy = new_data_copy;
+    bcast_keys_root->ht_item.key = (parsec_key_t)key;
+    parsec_hash_table_insert(parsec_bcast_keys_hash, &bcast_keys_root->ht_item);
     
     if(myrank == root) {
         bcast_id = ( (1<<30) | (root << 18) | dtd_tp->bcast_id);
         dtd_tp->bcast_id++;
+        
         
         parsec_data_copy = bcast_keys_root->data_copy;
         data_ptr = (int*)parsec_data_copy_get_ptr(parsec_data_copy);
@@ -108,6 +130,7 @@ void parsec_dtd_broadcast(
             data_ptr[400+i+1] = dest_ranks[i];
         }
     }
+
     // Retrieve DTD tile's data_copy
     parsec_data_copy_t *data_copy = dtd_tile_root->data_copy;
     parsec_data_copy_t *key_copy = bcast_keys_root->data_copy;

@@ -9,6 +9,7 @@
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 
 #ifdef PARSEC_DTD_DIST_COLLECTIVES
+
 void
 populate_remote_deps(int* data_ptr, parsec_remote_deps_t* remote_deps)
 {
