@@ -249,7 +249,7 @@ static int device_cuda_component_open(void)
     /* Update the number of GPU for the upper layer */
     parsec_device_cuda_enabled = ndevices;
     if( 0 == ndevices ) {
-        return -1;
+        return MCA_ERROR;
     }
 
     return MCA_SUCCESS;
@@ -268,7 +268,7 @@ static int device_cuda_component_close(void)
     int i, rc;
 
     if( NULL == parsec_device_cuda_component.modules ) {  /* No devices */
-        return PARSEC_SUCCESS;
+        return MCA_SUCCESS;
     }
 
     for( i = 0; NULL != (cdev = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[i]); i++ ) {
@@ -313,5 +313,5 @@ static int device_cuda_component_close(void)
         free(parsec_cuda_lib_path);
     }
 
-    return PARSEC_SUCCESS;
+    return MCA_SUCCESS;
 }
