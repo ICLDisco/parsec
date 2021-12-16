@@ -23,4 +23,8 @@ parsec_addtest_executable(C dtd_test_tp_enqueue_dequeue SOURCES dtd_test_tp_enqu
 parsec_addtest_executable(C dtd_test_interleave_actions SOURCES dtd_test_interleave_actions.c)
 if( PARSEC_GPU_WITH_CUDA )
   parsec_addtest_executable(C dtd_test_cuda_task_insert SOURCES dtd_test_cuda_task_insert.c)
+  if( TARGET CUDA::cublas )
+    parsec_addtest_executable(C dtd_bench_simple_gemm SOURCES dtd_bench_simple_gemm.c)
+    target_link_libraries(dtd_bench_simple_gemm PRIVATE CUDA::cublas)
+  endif( TARGET CUDA::cublas )
 endif()
