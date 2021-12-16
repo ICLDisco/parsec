@@ -70,7 +70,7 @@ static void parsec_hwloc_print_cpuset(int verb, char* msg, hwloc_cpuset_t cpuset
     else parsec_debug_verbose(verb, parsec_debug_output, "%s %s", msg, str);
     free(str);
 #else
-    (void)cpuset;
+    (void)cpuset;(void)verb;
     parsec_debug_verbose(3, parsec_debug_output, "%s compiled without HWLOC support", msg);
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 }

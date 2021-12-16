@@ -39,9 +39,7 @@
 #include "parsec/mca/device/device.h"
 
 #if defined(PARSEC_HAVE_CUDA)
-
 #include "parsec/mca/device/cuda/device_cuda.h"
-
 #endif  /* defined(PARSEC_HAVE_CUDA) */
 
 #include "parsec/constants.h"
@@ -273,7 +271,7 @@ void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
                            DTD_key_fns,
                            tp->function_h_table);
 
-    tp->super.startup_hook    = parsec_dtd_startup;
+    tp->super.startup_hook       = parsec_dtd_startup;
     tp->super.task_classes_array = (const parsec_task_class_t **)malloc( PARSEC_DTD_NB_TASK_CLASSES * sizeof(parsec_task_class_t *));
 
     for( int i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++ ) {

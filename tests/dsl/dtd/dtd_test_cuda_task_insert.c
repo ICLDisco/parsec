@@ -9,6 +9,8 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
+#include "parsec/mca/device/cuda/device_cuda.h"
+
 static int TILE_FULL;
 
 static volatile int32_t error_count;
@@ -38,7 +40,7 @@ int print_cuda_info_task(parsec_device_cuda_module_t *cuda_device,
 {
     int i;
     parsec_task_t *this_task = gpu_task->ec;
-	parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
+    parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
 
     parsec_dtd_unpack_args(this_task, &i);
 
@@ -127,7 +129,7 @@ int cuda_memset_task_fn(parsec_device_cuda_module_t *cuda_device,
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
     assert(cudaSuccess == err);
-	(void)err;
+    (void)err;
 
     cudaMemsetAsync((void *)dev_data, 0xFF, nb * sizeof(int), cuda_stream->cuda_stream);
     cudaStreamSynchronize(cuda_stream->cuda_stream);
@@ -251,7 +253,7 @@ int test_cuda_memset(int world, int myrank, parsec_context_t *parsec_context, in
 
     perr = 0;
     for( int i = 0; i < mt; i++ ) {
-      key = A->data_key(A, i*nt + myrank, 0);
+        key = A->data_key(A, i*nt + myrank, 0);
         parsec_data = A->data_of_key(A, key);
         parsec_data_copy = parsec_data_get_copy(parsec_data, 0);
         data_ptr = (unsigned int *)parsec_data_copy_get_ptr(parsec_data_copy);
@@ -380,7 +382,7 @@ int test_cuda_memset_and_read(int world, int myrank, parsec_context_t *parsec_co
         int prio = 1;
         int expect_memset = 1;
         for(int i = 0; i < mt; i++) {
-  	    key = A->data_key(A, i*nt+myrank, 0);
+            key = A->data_key(A, i*nt+myrank, 0);
             parsec_dtd_insert_task_with_task_class(tp, memset_tc, prio, PARSEC_DEV_ALL,
                                                    PARSEC_PUSHOUT, PARSEC_DTD_TILE_OF_KEY(A, key),
                                                    PARSEC_DTD_EMPTY_FLAG, &nb,
@@ -388,7 +390,7 @@ int test_cuda_memset_and_read(int world, int myrank, parsec_context_t *parsec_co
                                                    PARSEC_DTD_ARG_END);
         }
         for(int i = 0; i < mt; i++) {
-	    key = A->data_key(A, i*nt+myrank, 0);
+            key = A->data_key(A, i*nt+myrank, 0);
             parsec_dtd_insert_task(tp, read_task_fn, prio, PARSEC_DEV_CPU, "Read",
                                    PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, key), PARSEC_INPUT | TILE_FULL,
                                    sizeof(int), &rank, PARSEC_VALUE | PARSEC_AFFINITY,
@@ -450,7 +452,7 @@ int cuda_read_task_fn(parsec_device_cuda_module_t *cuda_device,
     void *dev_data;
     int rank;
     int nb;
-	parsec_cuda_exec_stream_t* cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
+    parsec_cuda_exec_stream_t* cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
 
     parsec_task_t *this_task = gpu_task->ec;
 
@@ -463,7 +465,7 @@ int cuda_read_task_fn(parsec_device_cuda_module_t *cuda_device,
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
     assert(cudaSuccess == err);
-	(void)err;
+    (void)err;
 
     int *data_cpy = (int *)malloc(nb * sizeof(int));
 
@@ -524,8 +526,8 @@ int test_cuda_memset_write_read(int world, int myrank, parsec_context_t *parsec_
 
     printf("[dtd_test_cuda][memset] A(%d) = %p, A(%d)[0] = %d .. A(%d)[nb-1] = %d\n",
            (mt-1)*nt+myrank, data_ptr,
-	   (mt-1)*nt+myrank, data_ptr[0],
-	   (mt-1)*nt+myrank, data_ptr[nb-1]);
+           (mt-1)*nt+myrank, data_ptr[0],
+           (mt-1)*nt+myrank, data_ptr[nb-1]);
 
     perr = parsec_context_start(parsec_context);
     PARSEC_CHECK_ERROR(perr, "parsec_context_start");
@@ -556,7 +558,7 @@ int test_cuda_memset_write_read(int world, int myrank, parsec_context_t *parsec_
         int expect_memset = 0;
 
         for(int i = 0; i < mt; i++) {
-	    key = A->data_key(A, i*nt+myrank, 0);
+            key = A->data_key(A, i*nt+myrank, 0);
 
             parsec_dtd_insert_task(tp, read_task_fn, prio, PARSEC_DEV_CPU, "Read",
                                    PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, key), PARSEC_INPUT | TILE_FULL,
@@ -655,7 +657,7 @@ int cuda_cpy_task_fn(parsec_device_cuda_module_t *cuda_device,
     void *dev_data_0, *dev_data_1;
     int rank;
     int nb;
-	parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
+    parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
 
     (void)cuda_device;
 
@@ -669,7 +671,7 @@ int cuda_cpy_task_fn(parsec_device_cuda_module_t *cuda_device,
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
     assert(cudaSuccess == err);
-	(void)err;
+    (void)err;
 
     printf("[cuda_cpy_task_fn] devid = %d, data_0_cpu = %p, data_0_gpu = %p\n", devid, data_0, (void *)dev_data_0);
 
@@ -756,25 +758,25 @@ int test_cuda_multiple_devices(int world, int myrank, parsec_context_t *parsec_c
     parsec_dtd_task_class_add_chore(tp, cudaread_tc, PARSEC_DEV_CUDA, cuda_read_task_fn);
 
     cudacpy_tc = parsec_dtd_create_task_class(tp, "cudacpy",
-                    PASSED_BY_REF, PARSEC_INPUT | TILE_FULL,
-                    PASSED_BY_REF, PARSEC_INOUT | TILE_FULL | PARSEC_PUSHOUT,
-                    sizeof(int), PARSEC_VALUE,
-                    sizeof(int), PARSEC_VALUE | PARSEC_AFFINITY,
-                    PARSEC_DTD_ARG_END);
+                                              PASSED_BY_REF, PARSEC_INPUT | TILE_FULL,
+                                              PASSED_BY_REF, PARSEC_INOUT | TILE_FULL | PARSEC_PUSHOUT,
+                                              sizeof(int), PARSEC_VALUE,
+                                              sizeof(int), PARSEC_VALUE | PARSEC_AFFINITY,
+                                              PARSEC_DTD_ARG_END);
     parsec_dtd_task_class_add_chore(tp, cudacpy_tc, PARSEC_DEV_CUDA, cuda_cpy_task_fn);
 
     for( int rank = 0; rank < world; ++rank ) {
         int prio = 1;
 
         for(int i = 0; i < mt; i+=3) {
-	    parsec_data_key_t key_0 = A->data_key(A, i*nt+myrank, 0);
+            parsec_data_key_t key_0 = A->data_key(A, i*nt+myrank, 0);
             uint32_t rank_of_key_0 = A->rank_of_key(A, key_0);
             printf("[dtd_test_cuda][multiple_devices] key_0 = %lu, rank_of_key_0 = %d\n", key_0, rank_of_key_0);
             parsec_dtd_tile_t *tile_0 = parsec_dtd_tile_of(A, key_0);
 
             parsec_advise_data_on_device(
-                    tile_0->data_copy->original, cuda_dev_index[0],
-                    PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
+                                         tile_0->data_copy->original, cuda_dev_index[0],
+                                         PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
 
             parsec_data_key_t key_1 = A->data_key(A, (i + 1)*nt+myrank, 0);
             uint32_t rank_of_key_1 = A->rank_of_key(A, key_1);
@@ -782,8 +784,8 @@ int test_cuda_multiple_devices(int world, int myrank, parsec_context_t *parsec_c
             parsec_dtd_tile_t *tile_1 = parsec_dtd_tile_of(A, key_1);
 
             parsec_advise_data_on_device(
-                    tile_1->data_copy->original, cuda_dev_index[1],
-                    PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
+                                         tile_1->data_copy->original, cuda_dev_index[1],
+                                         PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
 
             parsec_data_key_t key_2 = A->data_key(A, (i + 2)*nt+myrank, 0);
             uint32_t rank_of_key_2 = A->rank_of_key(A, key_2);
@@ -791,32 +793,32 @@ int test_cuda_multiple_devices(int world, int myrank, parsec_context_t *parsec_c
             parsec_dtd_tile_t *tile_2 = parsec_dtd_tile_of(A, key_2);
 
             parsec_advise_data_on_device(
-                    tile_2->data_copy->original, cuda_dev_index[0],
-                    PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
+                                         tile_2->data_copy->original, cuda_dev_index[0],
+                                         PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
 
             parsec_dtd_insert_task(
-                    tp, write_task_fn, prio, PARSEC_DEV_CPU, "Write",
-                    PASSED_BY_REF, tile_0, /* INPUT */ PARSEC_INOUT | TILE_FULL /*| PULLIN*/,
-                    sizeof(int), &nb, PARSEC_VALUE,
-                    sizeof(int), &rank, PARSEC_VALUE | PARSEC_AFFINITY,
-                    sizeof(int), &i, PARSEC_VALUE,
-                    sizeof(int), &mt, PARSEC_VALUE,
-                    PARSEC_DTD_ARG_END);
+                                   tp, write_task_fn, prio, PARSEC_DEV_CPU, "Write",
+                                   PASSED_BY_REF, tile_0, /* INPUT */ PARSEC_INOUT | TILE_FULL /*| PULLIN*/,
+                                   sizeof(int), &nb, PARSEC_VALUE,
+                                   sizeof(int), &rank, PARSEC_VALUE | PARSEC_AFFINITY,
+                                   sizeof(int), &i, PARSEC_VALUE,
+                                   sizeof(int), &mt, PARSEC_VALUE,
+                                   PARSEC_DTD_ARG_END);
 
             parsec_dtd_insert_task_with_task_class(
-                    tp, cudaread_tc, prio, PARSEC_DEV_ALL,
-                    PARSEC_INPUT, tile_0,
-                    PARSEC_DTD_EMPTY_FLAG, &nb,
-                    PARSEC_DTD_EMPTY_FLAG, &rank,
-                    PARSEC_DTD_ARG_END);
+                                                   tp, cudaread_tc, prio, PARSEC_DEV_ALL,
+                                                   PARSEC_INPUT, tile_0,
+                                                   PARSEC_DTD_EMPTY_FLAG, &nb,
+                                                   PARSEC_DTD_EMPTY_FLAG, &rank,
+                                                   PARSEC_DTD_ARG_END);
 
             parsec_dtd_insert_task_with_task_class(
-                    tp, cudacpy_tc, prio, PARSEC_DEV_ALL,
-                    PARSEC_INPUT, tile_0,
-                    PARSEC_PUSHOUT, tile_2,
-                    PARSEC_DTD_EMPTY_FLAG, &nb,
-                    PARSEC_DTD_EMPTY_FLAG, &rank,
-                    PARSEC_DTD_ARG_END);
+                                                   tp, cudacpy_tc, prio, PARSEC_DEV_ALL,
+                                                   PARSEC_INPUT, tile_0,
+                                                   PARSEC_PUSHOUT, tile_2,
+                                                   PARSEC_DTD_EMPTY_FLAG, &nb,
+                                                   PARSEC_DTD_EMPTY_FLAG, &rank,
+                                                   PARSEC_DTD_ARG_END);
         }
     }
 
@@ -855,6 +857,7 @@ static int print_test_result(const char *testname, int rc)
     const char *blue;
     const char *red;
     const char *normal;
+
     if(isatty(1)) {
         green = "\e[32m";
         blue = "\e[36m";
