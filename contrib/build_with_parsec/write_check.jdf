@@ -6,6 +6,9 @@ extern "C" %{
  */
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
+int task1_cuda(int n, int *A1, int *A2, int *A3);
+int task2_cuda(int n, int *A1, int *A2);
+
 static int verbose = 0;
 
 %}
@@ -43,14 +46,22 @@ TASK1(p, k)
            -> A2 TASK2(p, k)    /* upon return the content will be increased by 1 */
   READ  A2 <- A1 STARTUP(p, k)  /* A2 is set to their index position */
 
+BODY [type=CUDA]
+  assert(NULL != A3);
+  if(verbose) printf("TASK1(%d, %d) on GPU\n", p, k);
+  task1_cuda(BLOCK, A1, A2, A3);
+END
+
 BODY
   assert(NULL != A3);
-  if(verbose) printf("TASKS1(%d, %d)\n", p, k);
+  if(verbose) printf("TASK1(%d, %d)\n", p, k);
   for( int i = 0; i < BLOCK; i++ ) {
     ((int*)A1)[i] += 1;
     ((int*)A3)[i] = ((int*)A2)[i];
   }
 END
+
+
 
 TASK2(p, k)
   k = 0 .. NT
@@ -61,8 +72,13 @@ TASK2(p, k)
   RW   A2 <- A1 TASK1(p, k)   /* each element should be set to 2 */
           -> A(p, k)
 
+BODY [type=CUDA]
+  if(verbose) printf("TASK2(%d, %d) on GPU\n", p, k);
+  task2_cuda(BLOCK, A1, A2);
+END
+
 BODY
-  if(verbose) printf("TASKS2(%d, %d)\n", p, k);
+  if(verbose) printf("TASK2(%d, %d)\n", p, k);
   for( int i = 0; i < BLOCK; i++ ) {
     ((int*)A2)[i] += ((int*)A1)[i];
   }
@@ -75,7 +91,8 @@ static two_dim_block_cyclic_t descA;
 
 int main(int argc, char* argv[])
 {
-    parsec_write_check_taskpool_t* tp;
+    parsec_write_check_taskpool_t* wc_tp;
+    parsec_taskpool_t* tp;
     parsec_context_t *parsec;
     int i = 0, block = 10, n = 1000, rc;
     int rank = 0, np = 1;
@@ -127,7 +144,8 @@ int main(int argc, char* argv[])
      * The original data is consistently initialized to 1. Upon completion it should
      * start with 2 and increase monotonically.
      */
-    tp = parsec_write_check_new( (parsec_data_collection_t*)&descA, (n / block) - 1, block );
+    wc_tp = parsec_write_check_new( (parsec_data_collection_t*)&descA, (n / block) - 1, block );
+    tp = (parsec_taskpool_t*) wc_tp;
     assert( NULL != tp );
 
 #if PARSEC_VERSION_MAJOR < 4
@@ -135,7 +153,7 @@ int main(int argc, char* argv[])
 #endif
     /* This test generates no communications between processes, so the datatype
      * associated with the arena are insignificant. */
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_write_check_DEFAULT_ADT_IDX],
+    parsec_arena_datatype_construct( &wc_tp->arenas_datatypes[PARSEC_write_check_DEFAULT_ADT_IDX],
                                      descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
                                      PARSEC_ARENA_ALIGNMENT_SSE,
                                      PARSEC_DATATYPE_NULL);  /* change for distributed cases */
@@ -143,21 +161,25 @@ int main(int argc, char* argv[])
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
-    rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp);
+    rc = parsec_context_add_taskpool(parsec, tp);
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    parsec_taskpool_free(tp);
+
+    rc = parsec_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_fini");
 
     int error_found = -1;
     for( int i = 0; i < n; i++ ) {
         if( (2+i) != ((int*)descA.mat)[i] ) {
             error_found = i;
             printf("position %d extected %d found %d\n",
-                   i, (1+i), ((int*)descA.mat)[i]);
+                   i, (2+i), ((int*)descA.mat)[i]);
         }
     }
-
     free(descA.mat);
 
 #ifdef PARSEC_HAVE_MPI
