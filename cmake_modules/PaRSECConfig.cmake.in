@@ -28,6 +28,16 @@ endif(@PARSEC_HAVE_HWLOC@)
 
 if(@PARSEC_HAVE_OTF2@)
   # Nothing exportable here, if this test succeed then PaRSEC supports OTF2 output.
+  if( "@OTF2_CONFIG_PATH@" )
+    set_and_check(OTF2_CONFIG_PATH "@OTF2_CONFIG_PATH@")
+  elseif("@OTF2_DIR@")
+    set_and_check(OTF2_DIR "@OTF2_DIR@")
+  elseif( "@OTF2_CONFIG@" )
+    cmake_path(GET "@OTF2_CONFIG@" PARENT_PATH OTF2_CONFIG_PATH_tmp)
+    set_and_check(OTF2_CONFIG_PATH "${OTF2_CONFIG_PATH_tmp}")
+    unset(OTF2_CONFIG_PATH_tmp)
+  endif( "@OTF2_CONFIG_PATH@" )
+  find_package(OTF2 @OTF2_VERSION@ REQUIRED)
 endif(@PARSEC_HAVE_OTF2@)
 
 if(@PARSEC_HAVE_PAPI@)

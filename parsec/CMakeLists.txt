@@ -70,27 +70,13 @@ endif( PARSEC_PAPI_SDE )
 # list(APPEND EXTRA_LIBS ${TAU_LIBRARIES})
 # set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" ${TAU_LIBRARY_DIR})
 
-# Assume no support for OTF2
-set(PARSEC_HAVE_OTF2 FALSE CACHE INTERNAL "Has support for the OTF2 format")
-if(PARSEC_PROF_TRACE)
-  if(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
-    find_package(OTF2 2.1.1)
-    if(OTF2_FOUND AND MPI_C_FOUND)
-      list(APPEND EXTRA_SOURCES "profiling_otf2.c")
-      list(APPEND EXTRA_LIBS "otf2")
-      MESSAGE(STATUS "Profiling uses OTF2")
-      set(PARSEC_HAVE_OTF2 ${OTF2_FOUND})
-    else(OTF2_FOUND AND MPI_C_FOUND)
-      if(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
-        MESSAGE(FATAL_ERROR "Requested OTF2 tracing system is not available because OTF2 was not found or MPI was not found")
-      endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
-    endif(OTF2_FOUND AND MPI_C_FOUND)
-  endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
-endif(PARSEC_PROF_TRACE)
-
 if(NOT PARSEC_HAVE_OTF2)
   list(APPEND EXTRA_SOURCES "profiling.c")
   MESSAGE(STATUS "Profiling uses PaRSEC Binary Tracing Format")
+else(NOT PARSEC_HAVE_OTF2)
+  list(APPEND EXTRA_SOURCES "profiling_otf2.c")
+  list(APPEND EXTRA_LIBS "otf2")
+  MESSAGE(STATUS "Profiling uses OTF2")
 endif(NOT PARSEC_HAVE_OTF2)
 
 set(SOURCES
@@ -206,7 +192,7 @@ if( BUILD_PARSEC )
     PUBLIC
     $<$<BOOL:${PARSEC_HAVE_DLFCN_H}>:${CMAKE_DL_LIBS}> # Add support for dlopen if necessary
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
-    $<$<BOOL:${PARSEC_HAVE_OTF2}>:otf2>
+    $<$<BOOL:${PARSEC_HAVE_OTF2}>:OTF2::OTF2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     $<$<BOOL:${PARSEC_HAVE_CUDA}>:CUDA::cudart>
     ${EXTRA_LIBS}
