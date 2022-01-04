@@ -107,11 +107,12 @@ datatype_lookup_of_gpu_d2h_task( parsec_execution_stream_t * es,
 }
 
 static int32_t parsec_gpu_d2h_counter = 0;
-static uint64_t key_of_gpu_d2h_task(const parsec_taskpool_t *tp,
-                                     const parsec_assignment_t *assignments)
+static parsec_key_t
+key_of_gpu_d2h_task(const parsec_taskpool_t *tp,
+                    const parsec_assignment_t *assignments)
 {
     (void)tp; (void)assignments;
-    return (uint64_t)(1 + parsec_atomic_fetch_inc_int32(&parsec_gpu_d2h_counter));
+    return (parsec_key_t)(uint64_t)(1 + parsec_atomic_fetch_inc_int32(&parsec_gpu_d2h_counter));
 }
 
 static parsec_data_t*
@@ -184,7 +185,7 @@ static const parsec_task_class_t parsec_gpu_d2h_task_class = {
     .out = {&flow_of_gpu_d2h_task, NULL},
     .flags = 0x0 | PARSEC_HAS_IN_IN_DEPENDENCIES | PARSEC_USE_DEPS_MASK,
     .dependencies_goal = 0x1,  /* we generate then when needed so the dependencies_goal is useless */
-    .make_key = (parsec_functionkey_fn_t *) key_of_gpu_d2h_task,
+    .make_key = key_of_gpu_d2h_task,
     .fini = (parsec_hook_t *) NULL,
     .incarnations = __gpu_d2h_task_chores,
     .find_deps = parsec_hash_find_deps,
