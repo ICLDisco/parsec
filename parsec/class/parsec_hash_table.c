@@ -89,7 +89,6 @@ int parsec_hash_tables_init(void)
 
 void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits, parsec_key_fn_t key_functions, void *data)
 {
-    parsec_atomic_rwlock_t unlock = { PARSEC_RWLOCK_UNLOCKED };
     parsec_hash_table_head_t *head;
     size_t i;
     int v;
@@ -120,7 +119,7 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
     head->next         = NULL;
     head->next_to_free = NULL;
     ht->rw_hash        = head;
-    ht->rw_lock        = unlock;
+    parsec_biased_rwlock_init(&ht->rw_lock);
 
     for( i = 0; i < (1ULL<<nb_bits); i++) {
         parsec_atomic_lock_init(&head->buckets[i].lock);
@@ -242,7 +241,7 @@ void parsec_hash_table_lock_bucket(parsec_hash_table_t *ht, parsec_key_t key )
 {
     uint64_t hash;
 
-    parsec_atomic_rwlock_rdlock(&ht->rw_lock);
+    parsec_biased_rwlock_rdlock(ht->rw_lock);
     hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
     parsec_atomic_lock(&ht->rw_hash->buckets[hash].lock);
@@ -290,17 +289,17 @@ void parsec_hash_table_unlock_bucket_impl(parsec_hash_table_t *ht, parsec_key_t 
     }
     cur_head = ht->rw_hash;
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
-    parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
+    parsec_biased_rwlock_rdunlock(ht->rw_lock);
 
     if( resize ) {
-        parsec_atomic_rwlock_wrlock(&ht->rw_lock);
+        parsec_biased_rwlock_wrlock(ht->rw_lock);
         if( cur_head == ht->rw_hash ) {
             /* Barring ABA problems, nobody resized the hash table;
              * Good enough hint that it's our role to do so */
             parsec_hash_table_resize(ht);
         }
         /* Otherwise, let's asssume somebody resized already */
-        parsec_atomic_rwlock_wrunlock(&ht->rw_lock);
+        parsec_biased_rwlock_wrunlock(ht->rw_lock);
     }
 }
 
@@ -535,7 +534,7 @@ void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_it
     uint64_t hash;
     parsec_hash_table_head_t *cur_head;
     int resize = 0;
-    parsec_atomic_rwlock_rdlock(&ht->rw_lock);
+    parsec_biased_rwlock_rdlock(ht->rw_lock);
     cur_head = ht->rw_hash;
     hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(item->key, ht->hash_data), ht->rw_hash->nb_bits);
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
@@ -553,17 +552,17 @@ void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_it
         }
     }
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
-    parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
+    parsec_biased_rwlock_rdunlock(ht->rw_lock);
 
     if( resize ) {
-        parsec_atomic_rwlock_wrlock(&ht->rw_lock);
+        parsec_biased_rwlock_wrlock(ht->rw_lock);
         if( cur_head == ht->rw_hash ) {
             /* Barring ABA problems, nobody resized the hash table;
              * Good enough hint that it's our role to do so */
             parsec_hash_table_resize(ht);
         }
         /* Otherwise, let's asssume somebody resized already */
-        parsec_atomic_rwlock_wrunlock(&ht->rw_lock);
+        parsec_biased_rwlock_wrunlock(ht->rw_lock);
     }
 }
 
@@ -571,13 +570,13 @@ void *parsec_hash_table_find(parsec_hash_table_t *ht, parsec_key_t key)
 {
     uint64_t hash;
     void *ret;
-    parsec_atomic_rwlock_rdlock(&ht->rw_lock);
+    parsec_biased_rwlock_rdlock(ht->rw_lock);
     hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
     parsec_atomic_lock(&ht->rw_hash->buckets[hash].lock);
     ret = parsec_hash_table_nolock_find(ht, key);
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
-    parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
+    parsec_biased_rwlock_rdunlock(ht->rw_lock);
     return ret;
 }
 
@@ -585,13 +584,13 @@ void *parsec_hash_table_remove(parsec_hash_table_t *ht, parsec_key_t key)
 {
     uint64_t hash;
     void *ret;
-    parsec_atomic_rwlock_rdlock(&ht->rw_lock);
+    parsec_biased_rwlock_rdlock(ht->rw_lock);
     hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
     parsec_atomic_lock(&ht->rw_hash->buckets[hash].lock);
     ret = parsec_hash_table_nolock_remove(ht, key);
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
-    parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
+    parsec_biased_rwlock_rdunlock(ht->rw_lock);
     return ret;
 }
 
