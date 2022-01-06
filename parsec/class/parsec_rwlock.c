@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 The University of Tennessee and The University
+ * Copyright (c) 2017-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -43,8 +43,10 @@ void parsec_atomic_rwlock_rdlock( parsec_atomic_rwlock_t* atomic_rwlock )
         if( (old_state & PARSEC_ATOMIC_RWLOCK_WRITER_BITS) == 0 ) {
             /* We don't need to care for preserving the high bits: they are 0 */
             new_state = old_state + 1;
-            if( parsec_atomic_cas_int32(atomic_rwlock, old_state, new_state) )
+            if( parsec_atomic_cas_int32(atomic_rwlock, old_state, new_state) ) {
+                parsec_atomic_rmb(); // acquire
                 return;
+            }
         }
     } while(1);
 }
@@ -52,6 +54,7 @@ void parsec_atomic_rwlock_rdlock( parsec_atomic_rwlock_t* atomic_rwlock )
 void parsec_atomic_rwlock_rdunlock( parsec_atomic_rwlock_t* atomic_rwlock )
 {
     parsec_atomic_rwlock_t old_state, new_state;
+    parsec_atomic_wmb(); // release
     do {
         old_state = *atomic_rwlock;
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -71,8 +74,10 @@ void parsec_atomic_rwlock_wrlock( parsec_atomic_rwlock_t* atomic_rwlock )
         old_state = *atomic_rwlock;
         if( ((old_state == 0) || (old_state == PARSEC_ATOMIC_RWLOCK_WRITER_WAITING_BIT)) ) {
             new_state = PARSEC_ATOMIC_RWLOCK_WRITER_BIT;
-            if( parsec_atomic_cas_int32( atomic_rwlock, old_state, new_state) )
+            if( parsec_atomic_cas_int32( atomic_rwlock, old_state, new_state) ) {
+                parsec_atomic_rmb(); // acquire
                 return;
+            }
         }
 
         /* Just try once to set the writer waiting; we're going to loop here anyway */
@@ -86,6 +91,7 @@ void parsec_atomic_rwlock_wrlock( parsec_atomic_rwlock_t* atomic_rwlock )
 void parsec_atomic_rwlock_wrunlock( parsec_atomic_rwlock_t* atomic_rwlock )
 {
     parsec_atomic_rwlock_t old_state, new_state;
+    parsec_atomic_wmb(); // release
     do {
         old_state = *atomic_rwlock;
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -122,15 +128,17 @@ void parsec_atomic_rwlock_rdlock(parsec_atomic_rwlock_t *L)
     int count = 0;
     struct timespec ts = { .tv_sec = 0, .tv_nsec = 100 };
     w = parsec_atomic_fetch_add_int32(&L->rin, RINC) & WBITS;
-    if( w == 0 )
-        return;
-    while( w == (L->rin & WBITS) )
-        if( count++ > 1000 )
-            nanosleep( &ts, NULL );
+    if( w != 0 ) {
+        while( w == (L->rin & WBITS) )
+            if( count++ > 1000 )
+              nanosleep( &ts, NULL );
+    }
+    parsec_atomic_rmb(); // acquire
 }
 
 void parsec_atomic_rwlock_rdunlock(parsec_atomic_rwlock_t *L)
 {
+    parsec_atomic_wmb(); // release
     parsec_atomic_fetch_add_int32(&L->rout, RINC);
 }
 
@@ -149,6 +157,7 @@ void parsec_atomic_rwlock_wrlock(parsec_atomic_rwlock_t *L)
     while( L->rout != ticket )
         if( count++ > 1000 )
             nanosleep( &ts, NULL );
+    parsec_atomic_rmb(); // acquire
 }
 
 void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L)
@@ -162,6 +171,7 @@ void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L)
      * Per mutual exclusion of the writes, we should be the only thread that
      * changes wout at this time, so no atomic is needed here.
      */
+    parsec_atomic_wmb(); // release
     parsec_atomic_fetch_and_int32(&L->rin, 0xFFFFFF00);
     L->wout = L->wout+1;
 }
@@ -284,11 +294,15 @@ void parsec_atomic_rwlock_rdlock(parsec_atomic_rwlock_t *L)
         old = *L;
     }  while( old.fields.current_ticket != my_ticket );
 
+    parsec_atomic_rmb(); // acquire
+
 }
 
 void parsec_atomic_rwlock_rdunlock(parsec_atomic_rwlock_t *L)
 {
     parsec_atomic_rwlock_t old, new;
+
+    parsec_atomic_wmb(); // release
 
     do {
         old = *L;
@@ -327,12 +341,15 @@ void parsec_atomic_rwlock_wrlock(parsec_atomic_rwlock_t *L)
         nanosleep( &ts, NULL );
         old = *L;
     }  while( old.fields.current_ticket != my_ticket );
+
+    parsec_atomic_rmb(); // acquire
 }
 
 void parsec_atomic_rwlock_wrunlock(parsec_atomic_rwlock_t *L)
 {
     parsec_atomic_rwlock_t old, new;
 
+    parsec_atomic_wmb(); // release
     do {
         old = *L;
         /* The new state will not be that different from the old one */
