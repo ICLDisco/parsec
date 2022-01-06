@@ -1261,8 +1261,8 @@ static inline uint64_t remote_dep_mpi_profiling_event_id(void)
 static int remote_dep_mpi_pack_dep(int peer,
                                    dep_cmd_item_t* item,
                                    char* packed_buffer,
-                                   int length,
-                                   int* position)
+                                   uint32_t length,
+                                   int32_t* position)
 {
     parsec_remote_deps_t *deps = (parsec_remote_deps_t*)item->cmd.activate.task.source_deps;
     remote_dep_wire_activate_t* msg = &deps->msg;
@@ -1280,15 +1280,19 @@ static int remote_dep_mpi_pack_dep(int peer,
     parsec_ce.pack_size(&parsec_ce, dep_count, dep_dtt, &dsize);
     /* reserve space for the termination detection piggybacked message */
     dsize += deps->taskpool->tdm.module->outgoing_message_piggyback_size;
+    if( (length - (*position)) < dsize ) {  /* no room. bail out */
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Can't pack termination detection piggyback data at %d/%d. Bail out!", *position, length);
+        return 1;
+    }
     /* count the number of data to prepare the space for their length */
     for(k = 0, data_idx = 0; deps->outgoing_mask >> k; k++) {
         if( !((1U << k) & deps->outgoing_mask )) continue;
         if( !(deps->output[k].rank_bits[peer_bank] & peer_mask) ) continue;
         data_idx++;
     }
-    if( (length - (*position)) < (dsize + (data_idx + 1) * (int)sizeof(uint32_t)) ) {  /* no room. bail out */
+    if( (length - (*position)) < (dsize + (data_idx + 1) * (uint32_t)sizeof(uint32_t)) ) {  /* no room. bail out */
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "Can't pack at %d/%d. Bail out!", *position, length);
-        if( length < (dsize + (data_idx + 1) * (int)sizeof(uint32_t)) ) {
+        if( length < (dsize + (data_idx + 1) * (uint32_t)sizeof(uint32_t)) ) {
             parsec_fatal("The header plus data cannot be sent on a single message "
                          "(need %zd but have %zd)\n",
                          length, dsize + data_idx * sizeof(uint32_t));
@@ -1302,9 +1306,10 @@ static int remote_dep_mpi_pack_dep(int peer,
     data_sizes[0] = data_idx;  /* save the total number of data */
     assert((0 != msg->output_mask) &&   /* this should be preset */
            (msg->output_mask & deps->outgoing_mask) == deps->outgoing_mask);
-    msg->length = (data_idx + 1) * (uint32_t)sizeof(uint32_t);
+    /* update the length of the message */
+    msg->length  = deps->taskpool->tdm.module->outgoing_message_piggyback_size;
+    msg->length += (data_idx + 1) * (uint32_t)sizeof(uint32_t);
     *position += msg->length;
-    msg->length += deps->taskpool->tdm.module->outgoing_message_piggyback_size;
     item->cmd.activate.task.output_mask = 0;  /* clean start */
     /* Treat for special cases: CTL, Short, etc... */
     for(k = 0, data_idx = 1; deps->outgoing_mask >> k; k++) {
@@ -1332,11 +1337,16 @@ static int remote_dep_mpi_pack_dep(int peer,
         /* Embed data (up to short size) with the activate msg */
         parsec_ce.pack_size( &parsec_ce, type_desc->src_count, type_desc->src_datatype, &dsize);
         data_sizes[data_idx++] = dsize;
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+        /* If we want to reshape before sending, we don't do short messages. */
+        if( (deps->output[k].data.data_future == NULL) && (parsec_param_short_limit) ) {
+#else
         if( parsec_param_short_limit ) {
+#endif
             if((length - (*position)) >= dsize) {
                 parsec_ce.pack(&parsec_ce, ((char*)PARSEC_DATA_COPY_GET_PTR(data_desc->data)) + type_desc->src_displ,
                                type_desc->src_count, type_desc->src_datatype,
-                         packed_buffer, length, position);
+                               packed_buffer, length, position);
                 PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, " EGR\t%s\tparam %d\tshort piggyback in the activate msg (%d/%d)",
                                      tmp, k, *position, length);
                 msg->length += dsize;
@@ -1855,9 +1865,8 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
                 continue;
             }
         }
-
-        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tGet DATA\t% -8s\tk=%d\twith datakey %lx (to be posted)",
-                             deps->from, tmp, k, deps->msg.deps);
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tGet DATA\t% -8s\tk=%d\twith datakey %lx tag=%d (to be posted)",
+                             deps->from, tmp, k, deps->msg.deps, tag+k);
     }
 
     assert(length == *position);
@@ -1867,8 +1876,8 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
 #if defined(PARSEC_DEBUG_NOISIER)
         for(int k = 0; complete_mask>>k; k++)
             if((1U<<k) & complete_mask)
-                PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t",
-                                     deps->from, tmp, k, deps->msg.deps, deps->output[k].data.data);
+                PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)",
+                                     deps->from, tmp, k, deps->msg.deps, deps->output[k].data.data, tag+k );
 #endif
         /* If this is the only call then force the remote deps propagation */
         deps = remote_dep_release_incoming(es, deps, complete_mask);
