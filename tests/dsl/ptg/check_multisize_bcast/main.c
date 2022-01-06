@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     parsec_context_t* parsec;
     int rank = 0, world = 1, cores = -1;
     int nt = 2, nb = 16, rc;
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_matrix_block_cyclic_t *dcA;
     parsec_taskpool_t *bcast;
 
 #if defined(PARSEC_HAVE_MPI)

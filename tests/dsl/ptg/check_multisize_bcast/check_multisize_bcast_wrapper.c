@@ -13,8 +13,8 @@
 #endif
 #include <stdio.h>
 
-#include "check_multisize_bcast.h"
 #include "check_multisize_bcast_wrapper.h"
+#include "check_multisize_bcast.h"
 
 /**
  * @param [IN] A    the data, already distributed and allocated
@@ -23,7 +23,7 @@
  *
  * @return the parsec object to schedule.
  */
-parsec_taskpool_t* check_multisize_bcast_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
+parsec_taskpool_t* check_multisize_bcast_new(parsec_matrix_block_cyclic_t *A, int nb, int nt)
 {
     parsec_check_multisize_bcast_taskpool_t *tp = NULL;
 
@@ -45,7 +45,7 @@ parsec_taskpool_t* check_multisize_bcast_new(parsec_tiled_matrix_dc_t *A, int nb
 static void
 check_multisize_bcast_destructor(parsec_check_multisize_bcast_taskpool_t *tp)
 {
-    parsec_matrix_del2arena(&tp->arenas_datatypes[PARSEC_check_multisize_bcast_DEFAULT_ADT_IDX]);
+    parsec_del2arena(&tp->arenas_datatypes[PARSEC_check_multisize_bcast_DEFAULT_ADT_IDX]);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_check_multisize_bcast_taskpool_t, parsec_taskpool_t,
