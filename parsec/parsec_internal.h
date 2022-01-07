@@ -368,9 +368,8 @@ struct parsec_task_class_s {
     parsec_data_ref_fn_t        *initial_data;   /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
     parsec_data_ref_fn_t        *final_data;     /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
     parsec_data_ref_fn_t        *data_affinity;  /**< Populates an array of data references, of size 1 */
-    parsec_functionkey_fn_t     *key_generator;
     parsec_key_fn_t             *key_functions;
-    parsec_key_t               (*make_key)(const parsec_taskpool_t *, const parsec_assignment_t *);
+    parsec_functionkey_fn_t     *make_key;
 #if defined(PARSEC_SIM)
     parsec_sim_cost_fct_t       *sim_cost_fct;
 #endif
