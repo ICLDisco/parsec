@@ -1,7 +1,3 @@
-if ( NOT PARSEC_PYTHON_TOOLS )
-  return()
-endif ( NOT PARSEC_PYTHON_TOOLS )
-
 if( NOT BUILD_SHARED_LIBS )
   message(WARNING "Python support requires the building of shared libraries, but this PaRSEC installation only supports static builds. Python profiling will be disabled.")
   set(PARSEC_PYTHON_TOOLS OFF CACHE BOOL "True iff Python tools are enabled in PaRSEC")
@@ -72,7 +68,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${SETUP_PY}.in
 # Start preparing the python building target
 add_custom_command(OUTPUT ${OUTPUT}
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd ${PYTHON_TOOLS_BIN_DIR}
-                   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd ${PYTHON_TOOLS_BIN_DIR}
+                   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd
                    APPEND)
 
 # and compile the python module
@@ -82,8 +78,6 @@ add_custom_command(OUTPUT ${OUTPUT}
                    DEPENDS parsec-base
                    APPEND)
 add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
-
-
 
 # Call python distutils to install all python support in the right location
 # (aka. according to the OS demands). Prepare to reconfigure the shell

@@ -777,6 +777,23 @@ if(AWK_EXECUTABLE)
   set(PARSEC_HAVE_AWK 1)
 endif(AWK_EXECUTABLE)
 
+# Check for OTF2 support.
+set(PARSEC_HAVE_OTF2 FALSE CACHE INTERNAL "Has support for the OTF2 format")
+# OTF2 integration currently depends on MPI being available
+if(PARSEC_PROF_TRACE AND PARSEC_DIST_WITH_MPI)
+  if(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
+    find_package(OTF2 2.1.1)
+    if(OTF2_FOUND AND MPI_C_FOUND)
+      set(PARSEC_HAVE_OTF2 ${OTF2_FOUND})
+      set(PARSEC_PROF_TRACE_SYSTEM "OTF2")
+    else(OTF2_FOUND AND MPI_C_FOUND)
+      if(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
+        MESSAGE(FATAL_ERROR "Requested OTF2 tracing system is not available because OTF2 was not found or MPI was not found")
+      endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
+    endif(OTF2_FOUND AND MPI_C_FOUND)
+  endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
+endif(PARSEC_PROF_TRACE AND PARSEC_DIST_WITH_MPI)
+
 #
 # First go for the tools.
 #
