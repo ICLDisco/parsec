@@ -33,10 +33,10 @@ matrix_Upper -> PARSEC_MATRIX_UPPER
 matrix_Lower -> PARSEC_MATRIX_LOWER
 
 # vector shapes
-enum vector_distrib -> parsec_matrix_vector_distrib_t
-matrix_VectorRow -> PARSEC_MATRIX_VECTOR_DISTRIB_ROW
-matrix_VectorCol -> PARSEC_MATRIX_VECTOR_DISTRIB_COL
-matrix_VectorDiag -> PARSEC_MATRIX_VECTOR_DISTRIB_DIAG
+enum vector_distrib -> parsec_vector_two_dim_cyclic_distrib_t
+matrix_VectorRow -> PARSEC_VECTOR_DISTRIB_ROW
+matrix_VectorCol -> PARSEC_VECTOR_DISTRIB_COL
+matrix_VectorDiag -> PARSEC_VECTOR_DISTRIB_DIAG
 
 # matrix implementations
 parsec_tiled_matrix_dc* -> parsec_tiled_matrix*
@@ -54,7 +54,7 @@ parsec_matrix_data_* -> parsec_tiled_matrix_data_*
 
 
 # vector
-vector_two_dim_cyclic_* -> parsec_matrix_vector_*
+vector_two_dim_cyclic_* -> parsec_vector_two_dim_cyclic*
 
 # 2D grid
 grid_2Dcyclic_* -> parsec_grid_2Dcyclic_*

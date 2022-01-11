@@ -19,9 +19,9 @@ s/matrix_Upper/PARSEC_MATRIX_UPPER/g
 s/matrix_Lower/PARSEC_MATRIX_LOWER/g
 
 # vector shapes
-s/matrix_VectorRow/PARSEC_MATRIX_VECTOR_DISTRIB_ROW/g
-s/matrix_VectorCol/PARSEC_MATRIX_VECTOR_DISTRIB_COL/g
-s/matrix_VectorDiag/PARSEC_MATRIX_VECTOR_DISTRIB_DIAG/g
+s/matrix_VectorRow/PARSEC_VECTOR_DISTRIB_ROW/g
+s/matrix_VectorCol/PARSEC_VECTOR_DISTRIB_COL/g
+s/matrix_VectorDiag/PARSEC_VECTOR_DISTRIB_DIAG/g
 
 # matrix implementations
 s/parsec_tiled_matrix_dc/parsec_tiled_matrix/g
@@ -38,7 +38,8 @@ s/parsec_matrix_del2arena/parsec_del2arena/g
 s/parsec_matrix_data_/parsec_tiled_matrix_data_/g
 
 # vector
-s/vector_two_dim_cyclic_/parsec_matrix_vector_/g
+s/vector_distrib_t/parsec_vector_two_dim_cyclic_distrib_t/g
+s/vector_two_dim_cyclic_/parsec_vector_two_dim_cyclic/g
 
 # 2D grid
 s/grid_2Dcyclic_/parsec_grid_2Dcyclic_/g

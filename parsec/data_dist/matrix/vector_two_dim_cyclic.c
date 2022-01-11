@@ -37,9 +37,9 @@ static inline int lcm(int a, int b) {
     return (a / gcd(a, b)) * b;
 }
 
-void parsec_matrix_vector_init( parsec_matrix_vector_t * dc,
+void parsec_vector_two_dim_cyclic_init( parsec_vector_two_dim_cyclic_t * dc,
                                  parsec_matrix_type_t mtype,
-                                 enum parsec_matrix_vector_distrib distrib,
+                                 enum parsec_vector_two_dim_cyclic_distrib_t distrib,
                                  int myrank,
                                  int mb,   /* Segment size                                           */
                                  int lm,   /* Global vector size (what is stored)                    */
@@ -62,7 +62,7 @@ void parsec_matrix_vector_init( parsec_matrix_vector_t * dc,
     dc->distrib = distrib;
 
     switch ( distrib ) {
-    case PARSEC_MATRIX_VECTOR_DISTRIB_DIAG:
+    case PARSEC_VECTOR_DISTRIB_DIAG:
     {
         int pmq   = dc->grid.crank - dc->grid.rrank;
         int gcdpq = gcd( P, Q );
@@ -91,7 +91,7 @@ void parsec_matrix_vector_init( parsec_matrix_vector_t * dc,
     }
     break;
 
-    case PARSEC_MATRIX_VECTOR_DISTRIB_ROW:
+    case PARSEC_VECTOR_DISTRIB_ROW:
     {
         dc->lcm = Q;
 
@@ -104,7 +104,7 @@ void parsec_matrix_vector_init( parsec_matrix_vector_t * dc,
     }
     break;
 
-    case PARSEC_MATRIX_VECTOR_DISTRIB_COL:
+    case PARSEC_VECTOR_DISTRIB_COL:
     default:
         dc->lcm = P;
 
@@ -136,7 +136,7 @@ void parsec_matrix_vector_init( parsec_matrix_vector_t * dc,
     }
     dc->super.data_map = (parsec_data_t**)calloc(dc->super.nb_local_tiles, sizeof(parsec_data_t*));
 
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "matrix_vector_init: \n"
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "parsec_vector_two_dim_cyclic_init: \n"
             "      dc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
             "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
             "      kp = %d, kq = %d, P = %d, Q = %d",
@@ -162,8 +162,8 @@ static uint32_t vector_twoDBC_rank_of(parsec_data_collection_t * desc, ...)
     unsigned int cr = 0;
     unsigned int res;
     va_list ap;
-    parsec_matrix_vector_t * dc;
-    dc = (parsec_matrix_vector_t *)desc;
+    parsec_vector_two_dim_cyclic_t * dc;
+    dc = (parsec_vector_two_dim_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -174,10 +174,10 @@ static uint32_t vector_twoDBC_rank_of(parsec_data_collection_t * desc, ...)
     m += dc->super.i / dc->super.mb;
 
     /* P(rr, cr) has the tile, compute the rank*/
-    if ( dc->distrib != PARSEC_MATRIX_VECTOR_DISTRIB_COL )
+    if ( dc->distrib != PARSEC_VECTOR_DISTRIB_COL )
         rr = m % dc->grid.rows;
 
-    if ( dc->distrib != PARSEC_MATRIX_VECTOR_DISTRIB_ROW )
+    if ( dc->distrib != PARSEC_VECTOR_DISTRIB_ROW )
         cr = m % dc->grid.cols;
 
     res = rr * dc->grid.cols + cr;
@@ -190,10 +190,10 @@ static int32_t vector_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
     int m, p, q, pq;
     int local_m = 0;
     int local_n = 0;
-    parsec_matrix_vector_t * dc;
+    parsec_vector_two_dim_cyclic_t * dc;
     va_list ap;
     int32_t vpid;
-    dc = (parsec_matrix_vector_t *)desc;
+    dc = (parsec_vector_two_dim_cyclic_t *)desc;
 
     /* If 1 VP, always return 0 */
     pq = vpmap_get_nb_vp();
@@ -217,10 +217,10 @@ static int32_t vector_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
 #endif
 
     /* Compute the local tile row */
-    if ( dc->distrib != PARSEC_MATRIX_VECTOR_DISTRIB_COL )
+    if ( dc->distrib != PARSEC_VECTOR_DISTRIB_COL )
         local_m = (m / dc->grid.rows) % p;
 
-    if ( dc->distrib != PARSEC_MATRIX_VECTOR_DISTRIB_ROW )
+    if ( dc->distrib != PARSEC_VECTOR_DISTRIB_ROW )
         local_n = (m / dc->grid.cols) % q;
 
     vpid = local_m * q + local_n;
@@ -235,8 +235,8 @@ static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
     size_t pos = 0;
     int local_m;
     va_list ap;
-    parsec_matrix_vector_t * dc;
-    dc = (parsec_matrix_vector_t *)desc;
+    parsec_vector_two_dim_cyclic_t * dc;
+    dc = (parsec_vector_two_dim_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -274,9 +274,9 @@ static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 static parsec_data_key_t vector_twoDBC_data_key(struct parsec_data_collection_s *desc, ...)
 {
     unsigned int m;
-    matrix_vector_t * dc;
+    parsec_vector_two_dim_cyclic_t * dc;
     va_list ap;
-    dc = (matrix_vector_t *)desc;
+    dc = (parsec_vector_two_dim_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -307,12 +307,12 @@ vector_twoDBC_key_to_string(struct parsec_data_collection_s* desc, parsec_data_k
 
 
 /* deprecated */
-void vector_two_dim_cyclic_init(parsec_matrix_vector_t * vdesc,
+void vector_two_dim_cyclic_init(parsec_vector_two_dim_cyclic_t * vdesc,
                                 parsec_matrix_type_t    mtype,
-                                enum parsec_matrix_vector_distrib distrib,
+                                enum parsec_vector_two_dim_cyclic_distrib_t distrib,
                                 int myrank,
                                 int mb, int lm, int i, int m,
                                 int P, int Q )
 {
-    parsec_matrix_vector_init(vdesc, mtype, distrib, myrank, mb, lm, i, m, P, Q);
+    parsec_vector_two_dim_cyclic_init(vdesc, mtype, distrib, myrank, mb, lm, i, m, P, Q);
 }
