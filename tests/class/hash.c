@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -88,7 +88,7 @@ static void *do_perf_test(void *_param)
         if(duration > max_duration)
             max_duration = duration;
         parsec_barrier_wait(&barrier1);
-        printf("Time to do %d insertions on thread %d: %lu ns\n", nbtests, id, duration);
+        printf("Time to do %d insertions on thread %d: %"PRIu64" ns\n", nbtests, id, duration);
         if(0 == id)
             parsec_hash_table_stat(&hash_table);
         parsec_barrier_wait(&barrier1);
@@ -103,7 +103,7 @@ static void *do_perf_test(void *_param)
         if(duration > max_duration)
             max_duration = duration;
         parsec_barrier_wait(&barrier1);
-        printf("Time to do %d removals on thread %d: %lu ns\n", nbtests, id, duration);
+        printf("Time to do %d removals on thread %d: %"PRIu64" ns\n", nbtests, id, duration);
 
         if( id == 0 && (l == param->nb_loops-1 || param->new_table_each_time) ) {
             parsec_hash_table_fini(&hash_table);

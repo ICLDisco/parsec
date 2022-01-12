@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -167,7 +167,6 @@ static struct option long_options[] =
 
 static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dparam)
 {
-    extern char **environ;
     int opt = 0;
     int c;
     int argc = *_argc;
