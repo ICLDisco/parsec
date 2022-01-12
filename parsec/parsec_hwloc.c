@@ -57,6 +57,7 @@ static int hyperth_per_core = 1;
 #endif  /* defined(PARSEC_HAVE_HWLOC_BITMAP) */
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 
+#if !defined(PARSEC_OSX)
 /**
  * Print the cpuset as a string prefaced with the provided message.
  */
@@ -74,6 +75,7 @@ static void parsec_hwloc_print_cpuset(int verb, char* msg, hwloc_cpuset_t cpuset
     parsec_debug_verbose(3, parsec_debug_output, "%s compiled without HWLOC support", msg);
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 }
+#endif  /* !defined(PARSEC_OSX) */
 
 int parsec_hwloc_init(void)
 {
