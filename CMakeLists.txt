@@ -1284,7 +1284,8 @@ configure_file (
 
 file(GLOB_RECURSE pattern_files RELATIVE
      "${CMAKE_CURRENT_SOURCE_DIR}/" "contrib/build_with_parsec/*.[c|h]"
-                                    "contrib/build_with_parsec/*.jdf")
+                                    "contrib/build_with_parsec/*.jdf"
+                                    "contrib/build_with_parsec/*.cu")
 foreach( pattern_file ${pattern_files} )
   if(NOT PARSEC_BUILD_INPLACE)
     add_custom_command(
