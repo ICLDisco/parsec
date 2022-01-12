@@ -99,9 +99,9 @@ int main(int argc, char ** argv)
 
     for( i = 0; i < total_tasks; i++ ) {
         /* This task does not have any data associated with it, so it will be inserted in all mpi processes */
-        parsec_dtd_taskpool_insert_task(dtd_tp, task_to_check_dont_track,    0,  "sample_task",
-                                        PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | PARSEC_DONT_TRACK | PARSEC_AFFINITY,
-                                        PARSEC_DTD_ARG_END);
+        parsec_dtd_insert_task(dtd_tp, task_to_check_dont_track, 0, PARSEC_DEV_CPU, "sample_task",
+                               PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INOUT | PARSEC_DONT_TRACK | PARSEC_AFFINITY,
+                               PARSEC_DTD_ARG_END);
     }
 
     parsec_dtd_data_flush_all( dtd_tp, A );

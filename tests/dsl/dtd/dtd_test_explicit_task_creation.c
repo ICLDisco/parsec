@@ -128,15 +128,15 @@ int main(int argc, char ** argv)
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
-    parsec_task_t *task = parsec_dtd_taskpool_create_task(dtd_tp,
-                                    call_to_kernel_type_write,    0,  "Write_Task",
-                                    sizeof(int), &data1, PARSEC_VALUE,
-                                    sizeof(int), &data2, PARSEC_VALUE | PARSEC_AFFINITY,
-                                    sizeof(double),  &data3, PARSEC_VALUE,
-                                    sizeof(struct my_datatype), &data4, PARSEC_VALUE,
-                                    PASSED_BY_REF,    PARSEC_DTD_TILE_OF_KEY(A, 0),   PARSEC_INOUT | TILE_FULL,
-                                    sizeof(void *),  A, PARSEC_REF,
-                                    PARSEC_DTD_ARG_END);
+    parsec_task_t *task = parsec_dtd_create_task(dtd_tp,
+                                                 call_to_kernel_type_write, 0, PARSEC_DEV_CPU, "Write_Task",
+                                                 sizeof(int), &data1, PARSEC_VALUE,
+                                                 sizeof(int), &data2, PARSEC_VALUE | PARSEC_AFFINITY,
+                                                 sizeof(double), &data3, PARSEC_VALUE,
+                                                 sizeof(struct my_datatype), &data4, PARSEC_VALUE,
+                                                 PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0),   PARSEC_INOUT | TILE_FULL,
+                                                 sizeof(void *), A, PARSEC_REF,
+                                                 PARSEC_DTD_ARG_END);
     parsec_insert_dtd_task(task);
 
     parsec_dtd_data_flush_all( dtd_tp, A );

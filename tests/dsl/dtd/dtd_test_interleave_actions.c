@@ -28,7 +28,7 @@ int recv_data_kernel(
    
    parsec_dtd_unpack_args(this_task, &data_in, &rank);
 
-   printf("[recv_data_kernel] rank = %d, data_in = %d", rank, *data_in);
+   printf("[recv_data_kernel] rank = %d, data_in = %d\n", rank, *data_in);
     
    return PARSEC_HOOK_RETURN_DONE;
 }
@@ -186,8 +186,8 @@ int main(int argc, char **argv) {
    }
 
    for (int i = 1; i < world; ++i) {
-      parsec_dtd_taskpool_insert_task(
-            dtd_tp, recv_data_kernel, 0, "RecvData",
+      parsec_dtd_insert_task(
+            dtd_tp, recv_data_kernel, 0, PARSEC_DEV_CPU, "RecvData",
             PASSED_BY_REF, PARSEC_DTD_TILE_OF_KEY(A, 0), PARSEC_INPUT | TILE_FULL,
             sizeof(int), &i, PARSEC_VALUE | PARSEC_AFFINITY,
             PARSEC_DTD_ARG_END);

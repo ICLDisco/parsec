@@ -16,7 +16,7 @@ static inline double get_cur_time(void)
     struct timeval tv;
     double t;
 
-    gettimeofday(&tv,NULL);
+    gettimeofday(&tv, NULL);
     t = tv.tv_sec + tv.tv_usec / 1e6;
     return t;
 }

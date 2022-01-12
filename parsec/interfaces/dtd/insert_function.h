@@ -14,6 +14,9 @@
 
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
+#if defined(PARSEC_HAVE_CUDA)
+#include "parsec/mca/device/cuda/device_cuda.h"
+#endif  /* defined(PARSEC_HAVE_CUDA) */
 
 BEGIN_C_DECLS
 
@@ -30,7 +33,7 @@ BEGIN_C_DECLS
  **/
 
 /**
- * The following is a definition of the flags, for usage please check usage of parsec_dtd_taskpool_insert_task() below.
+ * The following is a definition of the flags, for usage please check usage of parsec_dtd_insert_task() below.
  *
  *   **  Details of Flags **
  *
@@ -57,23 +60,34 @@ BEGIN_C_DECLS
  *  Lower 16 bits:       Index (arbitrary value) for different REGIONS to express more specific dependency.
  *                       Regions indices are user provided and must be mutually exclusive for the tile.
  */
-typedef enum { PARSEC_INPUT=0x100000,
-               PARSEC_OUTPUT=0x200000,
-               PARSEC_INOUT=0x300000,
+typedef enum { PARSEC_INPUT =      0x100000,
+               PARSEC_OUTPUT =     0x200000,
+               PARSEC_INOUT =      0x300000,
                PARSEC_ATOMIC_WRITE=0x400000, /* DO NOT USE ,Iterate_successors do not support this at this point */
-               PARSEC_SCRATCH=0x500000,
-               PARSEC_VALUE=0x600000,
-               PARSEC_REF=0x700000,
-               PARSEC_GET_OP_TYPE=0xf00000, /* MASK: not an actual value, used to filter the relevant enum values */
-               PARSEC_AFFINITY=1<<16, /* Data affinity */
-               PARSEC_DONT_TRACK=1<<17, /* Drop dependency tracking */
+               PARSEC_SCRATCH =    0x500000,
+               PARSEC_VALUE =      0x600000,
+               PARSEC_REF =        0x700000,
+               PARSEC_GET_OP_TYPE =0xf00000, /* MASK: not an actual value, used to filter the relevant enum values */
+               PARSEC_AFFINITY    =1<<16, /* Data affinity */
+               PARSEC_DONT_TRACK  =1<<17, /* Drop dependency tracking */
+#if defined(PARSEC_HAVE_CUDA)
+               PARSEC_PUSHOUT     =1<<18, /* Push GPU data back to CPU */
+               PARSEC_PULLIN      =1<<19, /* Pull data on the CPU */
+#endif
                PARSEC_GET_OTHER_FLAG_INFO=0xf0000, /* MASK: not an actual value, used to filter the relevant enum values */
                PARSEC_GET_REGION_INFO=0xffff /* MASK: not an actual value, used to filter the relevant enum values */
              } parsec_dtd_op_t;
-
-typedef enum { PASSED_BY_REF=-1,
-               PARSEC_DTD_ARG_END=0
+typedef enum { PASSED_BY_REF=-2,
+               PARSEC_DTD_ARG_END=-1,
+               PARSEC_DTD_EMPTY_FLAG=0
              } parsec_dtd_size_t;
+
+typedef struct {
+    parsec_dtd_op_t op;
+    long            size;
+} parsec_dtd_param_t;
+
+typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;
 
 /**
  * @brief Create a new Arena Datatype for DTD
@@ -138,6 +152,12 @@ typedef struct parsec_dtd_task_s         parsec_dtd_task_t;
 typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
 
 /**
+ * Hard limit on the number of parameters a task inserted with DTD
+ * can take
+ */
+#define PARSEC_DTD_MAX_PARAMS 64
+
+/**
  * Function pointer typeof  kernel pointer pased as parameter to insert_function().
  * This is the prototype of the function in which the actual operations of each task
  * is implemented by the User. The actual computation will be performed in functions
@@ -155,7 +175,15 @@ typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
  *  PARSEC_HOOK_RETURN_ERROR   : Some other major error happened
  *
  */
-typedef int (parsec_dtd_funcptr_t)(parsec_execution_stream_t *, parsec_task_t *);
+typedef parsec_hook_return_t (parsec_dtd_funcptr_t)(parsec_execution_stream_t *, parsec_task_t *);
+
+#if defined(PARSEC_HAVE_CUDA)
+// FIXME: The following macro should be removed and is only useful
+// during the development of the cuda DTD feature.
+#define PARSEC_DTD_HAVE_CUDA
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#endif /*  defined(PARSEC_HAVE_CUDA) */
 
 /**
  * This function is used to retrieve the parameters passed during insertion of a task.
@@ -261,19 +289,30 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
  *
  */
 void
-parsec_dtd_taskpool_insert_task(parsec_taskpool_t  *tp,
-                                parsec_dtd_funcptr_t *fpointer, int priority,
-                                const char *name_of_kernel, ...);
+parsec_dtd_insert_task(parsec_taskpool_t  *tp,
+                       parsec_dtd_funcptr_t *fpointer, int priority,
+                       int device_type,
+                       const char *name_of_kernel, ...);
 
+#if defined(PARSEC_HAVE_CUDA)
 /**
- * This function behaves exactly like parsec_dtd_taskpool_insert_task()
+ * Return pointer on the device pointer associated with the i-th flow
+ * of `this_task`.
+ **/
+void*
+parsec_dtd_get_dev_ptr(parsec_task_t *this_task, int i);
+#endif
+   
+/**
+ * This function behaves exactly like parsec_dtd_insert_task()
  * except it does not insert the task in PaRSEC and just returns it.
  * Users will need to use parsec_insert_dtd_task() to insert the task
  */
 parsec_task_t *
-parsec_dtd_taskpool_create_task(parsec_taskpool_t  *tp,
-                                parsec_dtd_funcptr_t *fpointer, int priority,
-                                const char *name_of_kernel, ...);
+parsec_dtd_create_task(parsec_taskpool_t  *tp,
+                       parsec_dtd_funcptr_t *fpointer, int priority,
+                       int device_type,
+                       const char *name_of_kernel, ...);
 
 /**
  * This function allows users to insert a properly formed DTD task in
@@ -356,6 +395,36 @@ parsec_dtd_get_taskpool(parsec_task_t *this_task);
  */
 int
 parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp);
+
+parsec_task_class_t*
+parsec_dtd_create_task_class( parsec_taskpool_t *__tp,
+                              const char* name,
+                              ... );
+
+parsec_dtd_task_class_t *
+parsec_dtd_create_task_classv(parsec_dtd_taskpool_t *dtd_tp,
+                              const char *name,
+                              int nb_params,
+                              const parsec_dtd_param_t *params);
+
+void
+parsec_dtd_task_class_release(parsec_taskpool_t *tp, parsec_task_class_t *tc );
+
+int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
+                                    parsec_task_class_t *tc,
+                                    int device_type,
+                                    void *function);
+
+void
+parsec_dtd_insert_task_with_task_class(parsec_taskpool_t *tp,
+                                       parsec_task_class_t *tc, int priority,
+                                       int device_type,
+                                       ...);
+
+void
+parsec_dtd_register_task_class(parsec_taskpool_t *tp,
+                               uint64_t key,
+                               parsec_task_class_t *value);
 
 /**
  * @}

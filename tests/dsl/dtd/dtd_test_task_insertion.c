@@ -62,9 +62,9 @@ test_task_generator( parsec_execution_stream_t *es,
         if( i > step ) {
             return PARSEC_HOOK_RETURN_AGAIN;
         } else {
-            parsec_dtd_taskpool_insert_task(dtd_tp, test_task,    0,  "Test_Task",
-                                            sizeof(int),      &amount_of_work,    PARSEC_VALUE,
-                                            PARSEC_DTD_ARG_END);
+            parsec_dtd_insert_task(dtd_tp, test_task, 0, PARSEC_DEV_CPU, "Test_Task",
+                                   sizeof(int), &amount_of_work, PARSEC_VALUE,
+                                   PARSEC_DTD_ARG_END);
 
         }
     }
@@ -136,9 +136,9 @@ int main(int argc, char ** argv)
         TIME_START();
 
         for( m = 0; m < no_of_tasks; m++ ) {
-            parsec_dtd_taskpool_insert_task(dtd_tp, test_task,    0,  "Test_Task",
-                                            sizeof(int),      &amount_of_work[n], PARSEC_VALUE,
-                                            PARSEC_DTD_ARG_END);
+            parsec_dtd_insert_task(dtd_tp, test_task, 0, PARSEC_DEV_CPU, "Test_Task",
+                                   sizeof(int), &amount_of_work[n], PARSEC_VALUE,
+                                   PARSEC_DTD_ARG_END);
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
@@ -166,9 +166,9 @@ int main(int argc, char ** argv)
         TIME_START();
 
         for( m = 0; m < no_of_tasks; m++ ) {
-            parsec_dtd_taskpool_insert_task(dtd_tp, test_task,    0,  "Test_Task",
-                                            sizeof(int),      &amount_of_work[n], PARSEC_VALUE,
-                                            PARSEC_DTD_ARG_END);
+            parsec_dtd_insert_task(dtd_tp, test_task, 0, PARSEC_DEV_CPU, "Test_Task",
+                                   sizeof(int), &amount_of_work[n], PARSEC_VALUE,
+                                   PARSEC_DTD_ARG_END);
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
@@ -190,12 +190,12 @@ int main(int argc, char ** argv)
         TIME_START();
 
         int step = parsec_dtd_window_size, iteration = 0;
-        parsec_dtd_taskpool_insert_task(dtd_tp, test_task_generator,    0,  "Test_Task",
-                                        sizeof(int),      &amount_of_work[n],     PARSEC_VALUE,
-                                        sizeof(int),      &no_of_tasks,           PARSEC_VALUE,
-                                        sizeof(int),      &step,                  PARSEC_VALUE,
-                                        sizeof(int),      &iteration,             PARSEC_REF,
-                                        PARSEC_DTD_ARG_END);
+        parsec_dtd_insert_task(dtd_tp, test_task_generator, 0, PARSEC_DEV_CPU, "Test_Task",
+                               sizeof(int), &amount_of_work[n], PARSEC_VALUE,
+                               sizeof(int), &no_of_tasks, PARSEC_VALUE,
+                               sizeof(int), &step, PARSEC_VALUE,
+                               sizeof(int), &iteration, PARSEC_REF,
+                               PARSEC_DTD_ARG_END);
 
         /* finishing all the tasks inserted, but not finishing the handle */
         rc = parsec_dtd_taskpool_wait( dtd_tp );

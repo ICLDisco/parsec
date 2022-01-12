@@ -3108,7 +3108,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     coutput("%s  /* Copy only the valid elements from this_task to new_task one */\n"
             "%s  new_task->taskpool   = this_task->taskpool;\n"
             "%s  new_task->task_class = __parsec_tp->super.super.task_classes_array[%s_%s.task_class_id];\n"
-            "%s  new_task->chore_id   = 0;\n",
+            "%s  new_task->chore_mask   = PARSEC_DEV_ALL;\n",
             indent(nesting),
             indent(nesting),
             indent(nesting), jdf_basename, f->fname,
@@ -4070,7 +4070,8 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
                             "  .task_class_id = %d,\n"
                             "  .nb_flows = %d,\n"
                             "  .nb_parameters = %d,\n"
-                            "  .nb_locals = %d,\n",
+                            "  .nb_locals = %d,\n"
+                            "  .task_class_type = PARSEC_TASK_CLASS_TYPE_PTG,\n",
                             JDF_OBJECT_ONAME(f),
                             f->fname,
                             f->task_class_id,
@@ -4407,7 +4408,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    chores[idx].hook     = NULL;\n"
             "    parsec_task_t* task = (parsec_task_t*)parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);\n"
             "    task->taskpool = (parsec_taskpool_t *)__parsec_tp;\n"
-            "    task->chore_id = 0;\n"
+            "    task->chore_mask = PARSEC_DEV_ALL;\n"
             "    task->status = PARSEC_TASK_STATUS_NONE;\n"
             "    memset(&task->locals, 0, sizeof(parsec_assignment_t) * MAX_LOCAL_COUNT);\n"
             "    PARSEC_LIST_ITEM_SINGLETON(task);\n"
@@ -7630,7 +7631,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
 
     coutput("  nc.taskpool  = this_task->taskpool;\n"
             "  nc.priority  = this_task->priority;\n"
-            "  nc.chore_id  = 0;\n");
+            "  nc.chore_mask  = PARSEC_DEV_ALL;\n");
     coutput("#if defined(DISTRIBUTED)\n"
             "  rank_src = rank_of_%s(%s);\n"
             "#endif\n",

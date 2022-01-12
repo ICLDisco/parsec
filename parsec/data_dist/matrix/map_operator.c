@@ -209,7 +209,7 @@ static void iterate_successors(parsec_execution_stream_t *es,
     parsec_task_t nt;
 
     nt.priority = 0;
-    nt.chore_id = 0;
+    nt.chore_mask = PARSEC_DEV_ANY_TYPE;
     nt.data[0].source_repo_entry = NULL;  /* src  */
     nt.data[1].source_repo_entry = NULL;  /* dst */
     /* If this is the last n, try to move to the next k */
@@ -438,7 +438,7 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     fake_context.task_class = &parsec_map_operator;
     fake_context.taskpool = tp;
     fake_context.priority = 0;
-    fake_context.chore_id = 0;
+    fake_context.chore_mask = PARSEC_DEV_ANY_TYPE;
 
     fake_context.repo_entry = NULL;
 

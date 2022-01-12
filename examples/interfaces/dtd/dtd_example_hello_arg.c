@@ -15,6 +15,7 @@
 
 /* PaRSEC headers */
 #include "parsec.h"
+#include "parsec/mca/device/device.h"
 
 /* system and io */
 #include <stdlib.h>
@@ -81,10 +82,10 @@ int main(int argc, char ** argv)
      * and the rank of the process
      */
     for( int i = 0; i < 10; i++ ) {
-        parsec_dtd_taskpool_insert_task(dtd_tp, task_hello_world,
-                                        0,   "Hello_World_task",
-                                        sizeof(int), &i, PARSEC_VALUE,
-                                        PARSEC_DTD_ARG_END);
+        parsec_dtd_insert_task(dtd_tp, task_hello_world,
+                               0, PARSEC_DEV_CPU, "Hello_World_task",
+                               sizeof(int), &i, PARSEC_VALUE,
+                               PARSEC_DTD_ARG_END);
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */

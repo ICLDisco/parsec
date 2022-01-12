@@ -52,8 +52,8 @@ task_to_insert_task( parsec_execution_stream_t *es,
             return PARSEC_HOOK_RETURN_AGAIN;
         }
         /* Inserting real task */
-        parsec_dtd_taskpool_insert_task( dtd_tp, real_task,    0,  "Real_Task",
-                           PARSEC_DTD_ARG_END );
+        parsec_dtd_insert_task(dtd_tp, real_task, 0, PARSEC_DEV_CPU, "Real_Task",
+                               PARSEC_DTD_ARG_END );
     }
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -100,11 +100,11 @@ int main(int argc, char ** argv)
     int count       = 0;
 
     for( m = 0; m < no_of_tasks; m++ ) {
-        parsec_dtd_taskpool_insert_task( dtd_tp, task_to_insert_task,    0,  "Task_inserting_Task",
-                           sizeof(int),      &total_tasks, PARSEC_VALUE,
-                           sizeof(int),      &count,       PARSEC_REF,
-                           sizeof(int),      &increment,   PARSEC_VALUE,
-                           PARSEC_DTD_ARG_END );
+        parsec_dtd_insert_task(dtd_tp, task_to_insert_task, 0, PARSEC_DEV_CPU, "Task_inserting_Task",
+                               sizeof(int), &total_tasks, PARSEC_VALUE,
+                               sizeof(int), &count, PARSEC_REF,
+                               sizeof(int), &increment, PARSEC_VALUE,
+                               PARSEC_DTD_ARG_END );
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
