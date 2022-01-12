@@ -1391,7 +1391,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
 
     /* If data is from NEW, as we skip NULL */
     if( NULL == task_data->source_repo_entry )
-	    transfer_from = -1;
+        transfer_from = -1;
 
     /* Do not need to be tranferred */
     if( -1 == transfer_from ) {

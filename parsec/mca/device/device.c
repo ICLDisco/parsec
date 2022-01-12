@@ -70,56 +70,44 @@ float *parsec_device_tweight = NULL;
 
 int parsec_get_best_device( parsec_task_t* this_task, double ratio )
 {
-    int i, dev_index = -1, data_index = 0, all_write_flows_unbound = 1;
+    int i, dev_index = -1, data_index;
     parsec_taskpool_t* tp = this_task->taskpool;
 
-    /* Step one: Find the first data in WRITE mode stored on a GPU */
+    /* Select the location of the first data that is used in READ/WRITE or pick the
+     * location of one of the READ data. For now use the last one.
+     */
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
         /* Make sure data_in is not NULL */
         if( NULL == this_task->data[i].data_in ) continue;
+        /* And that we have a data (aka it is not NEW) */
+        if( NULL == this_task->data[i].source_repo_entry ) continue;
 
+        /* Data is updated by the task, and we try to minimize the data movements */
         if( (NULL != this_task->task_class->out[i]) &&
             (this_task->task_class->out[i]->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
-            if( NULL != this_task->data[i].source_repo_entry )
-                all_write_flows_unbound = 0;
+
             data_index = this_task->task_class->out[i]->flow_index;
-            if( this_task->data[data_index].data_in->original->preferred_device != -1 )
+            /* If the data has a preferred device, try to obey it. */
+            if( this_task->data[data_index].data_in->original->preferred_device > 1 ) {  /* no CPU or recursive */
                 dev_index = this_task->data[data_index].data_in->original->preferred_device;
-            if (dev_index > 1) {
                 break;
             }
+            /* Data is located on a device */
+            if( this_task->data[data_index].data_in->original->owner_device > 1 ) {  /* no CPU or recursive */
+                dev_index = this_task->data[data_index].data_in->original->owner_device;
+                break;
+            }
+            /* If we reach here, we cannot yet decide which device to run on based on the WRITE
+             * constraints, so let's pick the data for a READ flow.
+             */
+        }
+        data_index = this_task->task_class->in[i]->flow_index;
+        if( this_task->data[data_index].data_in->original->preferred_device > 1 ) {
+            dev_index = this_task->data[data_index].data_in->original->preferred_device;
+        } else if( this_task->data[data_index].data_in->original->owner_device > 1 ) {
             dev_index  = this_task->data[data_index].data_in->original->owner_device;
-            if (dev_index > 1) {
-                break;
-            }
         }
     }
-
-    /* TODO needs to re-address for dtd */
-    if( all_write_flows_unbound ) {
-        /* Step two: Find the first data in READ mode stored on a GPU
-         * if data repos of all WRITE flows are NULL
-         */
-        for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
-            /* Skip flow when data_in is NULL */
-            if( NULL == this_task->data[i].data_in ) continue;
-
-            if( (NULL != this_task->data[i].source_repo_entry) ) {
-                data_index = this_task->task_class->in[i]->flow_index;
-                if( this_task->data[data_index].data_in->original->preferred_device != -1 )
-                    dev_index = this_task->data[data_index].data_in->original->preferred_device;
-                if (dev_index > 1) {
-                    break;
-                }
-                dev_index  = this_task->data[data_index].data_in->original->owner_device;
-                if (dev_index > 1) {
-                    break;
-                }
-            }
-        }
-    }
-
-    assert(dev_index >= 0);
 
     /* 0 is CPU, and 1 is recursive device */
     if( dev_index <= 1 ) {  /* This is the first time we see this data for a GPU.
