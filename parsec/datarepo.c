@@ -75,7 +75,7 @@ __data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *
      */
     e2 = (data_repo_entry_t*)parsec_hash_table_nolock_find(&repo->table, key);
     if( NULL != e2 ) {
-        parsec_thread_mempool_free( es->datarepo_mempools[repo->nbdata], (void*) e );
+        parsec_thread_mempool_free( e->data_repo_mempool_owner, (void*) e );
         e2->retained++; /* Until we update the usage limit */
         parsec_hash_table_unlock_bucket(&repo->table, key);
         return e2;

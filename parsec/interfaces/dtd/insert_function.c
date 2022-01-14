@@ -312,7 +312,7 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 #endif /* defined(PARSEC_PROF_TRACE) */
 
     parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
-    parsec_thread_mempool_free( parsec_dtd_taskpool_mempool->thread_mempools, tp );
+    parsec_mempool_free( parsec_dtd_taskpool_mempool, tp );
 
     /* Destroy the data repositories for this object */
     for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
@@ -464,7 +464,7 @@ parsec_dtd_lazy_init(void)
                              1/* no. of threads*/ );
 
     tp = (parsec_dtd_taskpool_t *)parsec_thread_mempool_allocate(parsec_dtd_taskpool_mempool->thread_mempools);
-    parsec_thread_mempool_free(parsec_dtd_taskpool_mempool->thread_mempools, tp);
+    parsec_mempool_free(parsec_dtd_taskpool_mempool, tp);
 
     /* Initializing the tile mempool and attaching it to the tp */
     parsec_dtd_tile_mempool = (parsec_mempool_t*) malloc (sizeof(parsec_mempool_t));
@@ -790,7 +790,7 @@ parsec_dtd_untrack_task(parsec_dtd_taskpool_t *tp,
 
     parsec_hash_table_nolock_remove(hash_table, (parsec_key_t)key);
     value = item->value;
-    parsec_thread_mempool_free(tp->hash_table_bucket_mempool->thread_mempools, item);
+    parsec_mempool_free(tp->hash_table_bucket_mempool, item);
     return value;
 }
 
@@ -1060,7 +1060,7 @@ parsec_dtd_tile_release(parsec_dtd_tile_t *tile)
     assert(tile->super.super.obj_reference_count > 1);
     if( 2 == parsec_atomic_fetch_dec_int32(&tile->super.super.obj_reference_count)) {
         assert(tile->flushed == FLUSHED);
-        parsec_thread_mempool_free(parsec_dtd_tile_mempool->thread_mempools, tile);
+        parsec_mempool_free(parsec_dtd_tile_mempool, tile);
     }
 }
 
@@ -1090,7 +1090,7 @@ parsec_dtd_release_task_class(parsec_dtd_taskpool_t *tp,
     if (NULL == item)
         return;
     parsec_dtd_remove_task_class(tp, key);
-    parsec_thread_mempool_free(tp->hash_table_bucket_mempool->thread_mempools, item);
+    parsec_mempool_free(tp->hash_table_bucket_mempool, item);
 }
 
 void
