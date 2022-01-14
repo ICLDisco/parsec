@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -19,7 +19,7 @@
  *        should only be used in this file.
  */
 struct parsec_hash_table_bucket_s {
-    parsec_atomic_lock_t      lock;             /**< Buckets are lockable for multithread access 
+    parsec_atomic_lock_t      lock;             /**< Buckets are lockable for multithread access
                                                  *   We also use this lock to atomically update the
                                                  *   list of elements when needed. */
     int32_t                   cur_len;          /**< Number of elements currently in this bucket */
@@ -112,7 +112,7 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
     ht->hash_data = data;
     ht->elt_hashitem_offset = offset;
     ht->warning_issued = 0;
-    
+
     head = malloc(sizeof(parsec_hash_table_head_t));
     head->buckets      = malloc( (1ULL<<nb_bits) * sizeof(parsec_hash_table_bucket_t));
     head->nb_bits      = nb_bits;
@@ -254,7 +254,7 @@ static void parsec_hash_table_resize(parsec_hash_table_t *ht)
     parsec_hash_table_head_t *head;
     int nb_bits = ht->rw_hash->nb_bits + 1;
     assert(nb_bits < 32);
-    
+
     head = malloc(sizeof(parsec_hash_table_head_t));
     head->buckets      = malloc((1ULL<<nb_bits) * sizeof(parsec_hash_table_bucket_t));
     head->nb_bits      = nb_bits;
@@ -328,7 +328,7 @@ void parsec_hash_table_nolock_insert(parsec_hash_table_t *ht, parsec_hash_table_
     item->next_item = ht->rw_hash->buckets[hash].first_item;
     item->hash64 = ht->key_functions.key_hash(key, ht->hash_data);
     ht->rw_hash->buckets[hash].first_item = item;
-    res = parsec_atomic_fetch_inc_int32(&ht->rw_hash->buckets[hash].cur_len);
+    res = ht->rw_hash->buckets[hash].cur_len++;
     if( 0 == res ) {
         parsec_atomic_fetch_inc_int32(&ht->rw_hash->used_buckets);
     }
@@ -369,8 +369,8 @@ static void *parsec_hash_table_nolock_remove_from_old_tables(parsec_hash_table_t
                 } else {
                     prev_item->next_item = current_item->next_item;
                 }
-                res = parsec_atomic_fetch_dec_int32(&head->buckets[hash].cur_len);
-                if( 1 == res ) {
+                res = --(head->buckets[hash].cur_len);
+                if( 0 == res ) {
                     res = parsec_atomic_fetch_dec_int32(&head->used_buckets);
                     if( 1 == res ) {
                         parsec_atomic_cas_ptr(&prev_head->next, head, head->next);
@@ -390,8 +390,8 @@ static void *parsec_hash_table_nolock_remove_from_old_tables(parsec_hash_table_t
                  } else {
                      prev_item->next_item = current_item->next_item;
                  }
-                 res = parsec_atomic_fetch_dec_int32(&head->buckets[hash].cur_len);
-                 if( 1 == res ) {
+                 res = --(head->buckets[hash].cur_len);
+                 if( 0 == res ) {
                      res = parsec_atomic_fetch_dec_int32(&head->used_buckets);
                      if( 1 == res ) {
                          parsec_atomic_cas_ptr(&prev_head->next, head, head->next);
@@ -447,8 +447,8 @@ static void *parsec_hash_table_nolock_find_in_old_tables(parsec_hash_table_t *ht
                     prev_item->next_item = current_item->next_item;
                 }
                 current_item->next_item = NULL;
-                res = parsec_atomic_fetch_dec_int32(&head->buckets[hash].cur_len);
-                if( 1 == res ) {
+                res = --(head->buckets[hash].cur_len);
+                if( 0 == res ) {
                     res = parsec_atomic_fetch_dec_int32(&head->used_buckets);
                     if( 1 == res ) {
                         parsec_atomic_cas_ptr(&prev_head->next, head, head->next);
@@ -514,8 +514,8 @@ void *parsec_hash_table_nolock_remove(parsec_hash_table_t *ht, parsec_key_t key)
             } else {
                 prev_item->next_item = current_item->next_item;
             }
-            res = parsec_atomic_fetch_dec_int32(&ht->rw_hash->buckets[hash].cur_len);
-            if( 1 == res ) {
+            res = --(ht->rw_hash->buckets[hash].cur_len);
+            if( 0 == res ) {
                 res = parsec_atomic_fetch_dec_int32(&ht->rw_hash->used_buckets);
             }
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -554,7 +554,7 @@ void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_it
     }
     parsec_atomic_unlock(&ht->rw_hash->buckets[hash].lock);
     parsec_atomic_rwlock_rdunlock(&ht->rw_lock);
-    
+
     if( resize ) {
         parsec_atomic_rwlock_wrlock(&ht->rw_lock);
         if( cur_head == ht->rw_hash ) {
