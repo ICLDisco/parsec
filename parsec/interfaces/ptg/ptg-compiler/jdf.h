@@ -112,16 +112,16 @@ extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
  */
 typedef struct jdf {
     struct jdf_object_t        super;
-    struct jdf_external_entry *prologue;
-    struct jdf_external_entry *epilogue;
-    struct jdf_global_entry   *globals;
-    struct jdf_def_list       *global_properties;
-    struct jdf_function_entry *functions;
-    struct jdf_data_entry     *data;
-    struct jdf_name_list      *datatypes;
-    struct jdf_expr           *inline_c_functions;
-    const char                *nb_local_tasks_fn_name;
-    string_arena_t            *termdet_init_line;
+    struct jdf_external_entry *prologue;                  /**< Piece of code copied without processing in the generated file before generation */
+    struct jdf_external_entry *epilogue;                  /**< Piece of code copied without processing in the generated file after generation */
+    struct jdf_global_entry   *globals;                   /**< List of global variables (and their definition) */
+    struct jdf_def_list       *global_properties;         /**< List of global properties */
+    struct jdf_function_entry *functions;                 /**< List of task classes */
+    struct jdf_data_entry     *data;                      /**< List of defined data collections */
+    struct jdf_name_list      *datatypes;                 /**< List of datatypes found during parsing */
+    struct jdf_expr           *inline_c_functions;        /**< List of inline functions found during parsing */
+    const char                *nb_local_tasks_fn_name;    /**< In case one is defined, what is the name of the user-defined function to compute the number of tasks */
+    string_arena_t            *termdet_init_line;         /**< Computed during the initial phase of generation, and used in the end: how should the termination detector be initialized for this JDF */
 } jdf_t;
 
 /**
@@ -183,6 +183,7 @@ typedef unsigned int jdf_flags_t;
 #define JDF_PROP_TERMDET_DYNAMIC               "dynamic"
 
 #define JDF_HAS_UD_NB_LOCAL_TASKS              ((jdf_flags_t)(1 << 0))
+#define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"
 
 #define JDF_FUNCTION_HAS_UD_HASH_STRUCT        ((jdf_flags_t)(1 << 1))
 #define JDF_PROP_UD_HASH_STRUCT_NAME           "hash_struct"
@@ -200,7 +201,6 @@ typedef unsigned int jdf_flags_t;
 
 #define JDF_HAS_DYNAMIC_TERMDET                ((jdf_flags_t)(1 << 6))
 
-#define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"
 #define JDF_PROP_UD_FIND_DEPS_FN_NAME          "find_deps_fn"
 #define JDF_PROP_UD_ALLOC_DEPS_FN_NAME         "alloc_deps_fn"
 #define JDF_PROP_UD_FREE_DEPS_FN_NAME          "free_deps_fn"

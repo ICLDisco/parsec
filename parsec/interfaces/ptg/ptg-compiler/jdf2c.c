@@ -1531,7 +1531,7 @@ static void jdf_generate_structure(jdf_t *jdf)
             "struct __parsec_%s_internal_taskpool_s {\n"
             " parsec_%s_taskpool_t super;\n"
             " volatile int32_t sync_point;\n"
-            " volatile int32_t  initial_number_tasks;\n"
+            " volatile int32_t initial_number_tasks;\n"
             " parsec_task_t* startup_queue;\n",
             jdf_basename, jdf_basename, jdf_basename);
 
