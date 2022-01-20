@@ -1,0 +1,30 @@
+extern "C" %{
+/*
+ * Copyright (c) 2019-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+%}
+
+descA  [type = "parsec_matrix_block_cyclic_t *"]
+delta  [type = "int"]
+
+T(m, n)
+ m = 0 .. descA->super.mt-1
+ n = 0 .. descA->super.nt-1
+
+:descA(m, n)
+
+RW A <- descA(m, n)
+     -> descA(m, n)
+
+BODY
+  printf( "Rank: %d, core %d: entering PTG task (%d, %d) of TP %s (%d/%p), sleeping for %d seconds\n",
+          this_task->taskpool->context->my_rank, es->core_id,
+          m, n, this_task->taskpool->taskpool_name, this_task->taskpool->taskpool_id, this_task->taskpool, delta );
+  sleep(delta);
+  printf( "Rank: %d, core %d: leaving PTG task (%d, %d) of TP %s (%d/%p), slept %d seconds\n",
+          this_task->taskpool->context->my_rank, es->core_id,
+          m, n, this_task->taskpool->taskpool_name, this_task->taskpool->taskpool_id, this_task->taskpool, delta );
+END

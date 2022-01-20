@@ -53,7 +53,25 @@ parsec_data_dist_fini(void)
 int
 parsec_dc_register_id(parsec_dc_t* dc, parsec_dc_key_t key)
 {
-    assert(NULL != parsec_dc_hash_table);
+    if( NULL == parsec_dc_hash_table ) {
+        /* Do not call this function before initializing the runtime */
+        return PARSEC_ERROR;
+    }
+#if defined(PARSEC_DEBUG_PARANOID)
+    parsec_dc_t* registered_dc = (parsec_dc_t*)parsec_hash_table_find(parsec_dc_hash_table, key);
+    if( dc == registered_dc ) {
+        /* complain but allow the code to continue */
+        parsec_inform("Re-registering a data collection (%p) with the same key (%lld). This operation "
+                      "is unnecessary and can lead to unexpected consequences. Please correct "
+                      "the code", dc, (long long)key);
+    } else if( NULL != registered_dc ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
+                             "Registering a data collection with an already existing key ID (%lld). "
+                             "The ID keys must be unique to avoid collisions between different "
+                             "data collections.", (long long)key);
+        return PARSEC_ERROR;
+    }
+#endif  /* defined(PARSEC_DEBUG_PARANOID) */
     dc->ht_item.key = key;
     dc->dc_id = key;
     parsec_hash_table_insert(parsec_dc_hash_table, &dc->ht_item);
@@ -61,14 +79,20 @@ parsec_dc_register_id(parsec_dc_t* dc, parsec_dc_key_t key)
      * so for now we replace the old entry if there is request for
      * a new registration with same id.
      */
+    parsec_inform("register dc_t %p with key %lld", dc, (long long)key);
     return 1;
 }
 
 int
 parsec_dc_unregister_id(parsec_dc_key_t key)
 {
-    parsec_hash_table_remove(parsec_dc_hash_table, key);
-    return 1;
+    if( NULL == parsec_dc_hash_table ) {
+        /* Do not call this function before initializing the runtime */
+        return PARSEC_ERROR;
+    }
+    parsec_dc_t* registered_dc = parsec_hash_table_remove(parsec_dc_hash_table, key);
+    parsec_inform("unregister dc_t %p with key %lld", registered_dc, (long long)key);
+    return (NULL != registered_dc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
 /* Retrieve the local DC attached to a unique dc id */
