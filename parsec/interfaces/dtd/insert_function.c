@@ -651,27 +651,6 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
     }
 }
 
-/* Function to wait on all pending action of a taskpool */
-static int
-parsec_dtd_taskpool_wait_on_pending_action(parsec_taskpool_t *tp)
-{
-    parsec_execution_stream_t *es = parsec_my_execution_stream();
-    struct timespec rqtp;
-    rqtp.tv_sec = 0;
-
-    int unit_waited = 0;
-    while( tp->nb_pending_actions > 1 ) {
-        unit_waited++;
-        if( 100 == unit_waited ) {
-            rqtp.tv_nsec = parsec_exponential_backoff(es, unit_waited);
-            nanosleep(&rqtp, NULL);
-            unit_waited = 0;
-        }
-    }
-    return 0;
-}
-
-
 /* **************************************************************************** */
 /**
  * Function to call when PaRSEC context should wait on a specific taskpool.
@@ -699,6 +678,7 @@ parsec_dtd_taskpool_wait(parsec_taskpool_t *tp)
     dtd_tp->wait_func(tp);
     parsec_dtd_taskpool_wait_on_pending_action(tp);
     return PARSEC_SUCCESS;
+    // return parsec_taskpool_wait(tp);
 }
 
 /* This function only waits until all local tasks are done */
@@ -1384,14 +1364,14 @@ int parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
     int remaining = tp->tdm.module->taskpool_addto_runtime_actions( tp, count );
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
 
-    if( 0 == remaining && 1 == tp->nb_tasks ) {
+    if( 1 == remaining && 1 == tp->nb_tasks ) {
         remaining = tp->tdm.module->taskpool_addto_nb_tasks( tp, -1 );
         assert( 0 == remaining );
         dtd_tp->enqueue_flag = 0;
-        tp->tdm.module->taskpool_set_nb_tasks( tp, PARSEC_RUNTIME_RESERVED_NB_TASKS );
     }
 
-    parsec_dtd_taskpool_release( tp ); /* we're done in all cases */
+    if(tp->tdm.module->taskpool_state(tp) == PARSEC_TERM_TP_TERMINATED)
+        parsec_dtd_taskpool_release( tp ); /* we're done in all cases */
     return remaining;
 }
 
@@ -1475,7 +1455,7 @@ parsec_dtd_taskpool_new(void)
 
     __tp->super.tdm.module->taskpool_ready(&__tp->super);
 
-#if defined(PARSEC_PROF_TRACE) /* TODO: should not be per taskpool */
+#if defined(PARSEC_PROF_TRACE)
     if( parsec_dtd_profile_verbose ) {
         parsec_dtd_add_profiling_info_generic(&__tp->super, "Insert_task",
                                               &insert_task_trace_keyin, &insert_task_trace_keyout);
@@ -1522,8 +1502,9 @@ parsec_dtd_taskpool_release(parsec_taskpool_t *tp)
 
 /* **************************************************************************** */
 /**
- * This is the hook that connects the function to start initial ready
- * tasks with the context. Called internally by PaRSEC.
+ * This function only registers the taskpool with the different devices, and
+ * attaches the context to the taskpool. Called internally by PaRSEC.
+ * ready tasks are scheduled as they are discovered, during task insertion.
  *
  * @param[in]   context
  *                  PARSEC context
