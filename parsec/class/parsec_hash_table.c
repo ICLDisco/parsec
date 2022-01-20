@@ -42,7 +42,7 @@ void *parsec_hash_table_item_lookup(parsec_hash_table_t *ht, parsec_hash_table_i
 }
 
 /* To create object of class parsec_hash_table that inherits parsec_object_t class */
-PARSEC_OBJ_CLASS_INSTANCE(parsec_hash_table_t, parsec_object_t, NULL, NULL);
+PARSEC_OBJ_CLASS_INSTANCE(parsec_hash_table_t, parsec_object_t, NULL, parsec_hash_table_fini);
 
 /* If the keys are equal in value, then the item is the right one.
  * This will work for all keys that fit directly in the 64 bits of the
@@ -319,14 +319,19 @@ void parsec_hash_table_fini(parsec_hash_table_t *ht)
     parsec_hash_table_head_t *head, *next;
     head = ht->rw_hash;
     while( NULL != head ) {
-        for(size_t i = 0; i < (1ULL<<head->nb_bits); i++) {
-            assert(NULL == head->buckets[i].first_item);
+        if(NULL != head->buckets) {
+            for(size_t i = 0; i < (1ULL<<head->nb_bits); i++) {
+                assert(NULL == head->buckets[i].first_item);
+            }
+            free(head->buckets);
+            head->buckets = NULL;
         }
         next = head->next_to_free;
-        free(head->buckets);
+        head->next_to_free = NULL;
         free(head);
         head = next;
     }
+    ht->rw_hash = NULL;
 }
 
 void parsec_hash_table_nolock_insert(parsec_hash_table_t *ht, parsec_hash_table_item_t *item)

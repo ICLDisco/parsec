@@ -554,11 +554,13 @@ int main(int argc, char **argv)
             case '?':
                 fprintf(stderr,
                         "Usage %s [flags] [-- <parsec options>]\n"
+                        " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
+                        "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
+                        "\n"
                         " Compute pdgemm on a process grid of PxQ, using all available GPUs on each\n"
                         " node (modulo parsec options), using DTD. Compute C += AxB, where A is MxK\n"
                         " tiled in mb x kb, B is KxN tiled in kb x nb, and C is MxN tiled in mb x nb\n"
-                        " Executes nruns+1 executions of the GEMM operation, and display the last\n"
-                        " nruns timing and performance.\n"
+                        " Executes nruns iterations of the GEMM operation.\n"
                         " flags:\n"
                         "   --M|-M  / --K|-K  / --N|-N:   set M, K and N (resp.)\n"
                         "   --mb|-m / --kb/-k / --nb|-n:  set mb, kb and nb (resp.)\n"
@@ -573,6 +575,9 @@ int main(int argc, char **argv)
                         "                                 single GPU (kills the process if it takes longer\n"
                         "                                 than the time corresponding to the expected\n"
                         "                                 performance to complete the product)\n"
+                        "\n"
+                        " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
+                        "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
                         "\n",
                         argv[0]);
                 break;
@@ -657,9 +662,11 @@ int main(int argc, char **argv)
         timersub(&end, &start, &diff);
         double t = (double)diff.tv_sec + (double)diff.tv_usec / 1e6;
         double gflops = gflop / t;
+        (void)t;
+        (void)gflops;
         if( 0 == rank && r > 0 ) {
-            fprintf(stderr, "DTD_GEMM PxQxg: %d %d %d M: %d N: %d K: %d mb: %d nb: %d kb: %d Time(s): %g gflops: %10g\n",
-                    P, Q, nbgpus, M, N, K, mb, nb, kb, t, gflops);
+            fprintf(stderr, "DTD_GEMM PxQxg: %d %d %d M: %d N: %d K: %d mb: %d nb: %d kb: %d -- done\n",
+                    P, Q, nbgpus, M, N, K, mb, nb, kb);
         }
     }
     // deactivate the alarm if it was set

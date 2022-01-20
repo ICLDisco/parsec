@@ -11,6 +11,8 @@ Unreleased (master)
 
 ### Added
 
+ - Add DTD CUDA support including NEW tiles in DTD
+
  - PaRSEC API 4.0 (still changing)
 
  - Enable users to manage their own data copies without PaRSEC

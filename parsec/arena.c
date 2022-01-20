@@ -176,18 +176,21 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
     arena->data_free(chunk);
 }
 
-parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
+int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
+                                          parsec_arena_t *arena,
                                           size_t count, int device,
                                           parsec_datatype_t dtt)
 {
     parsec_arena_chunk_t *chunk;
-    parsec_data_t *data;
-    parsec_data_copy_t *copy;
+    parsec_data_t *data = copy->original;
     size_t size;
+
+    assert(device == copy->device_index);
+    (void)device;
 
     if( count == 1 ) {
         size = PARSEC_ALIGN(arena->elem_size + arena->alignment + sizeof(parsec_arena_chunk_t),
-                           arena->alignment, size_t);
+                            arena->alignment, size_t);
         chunk = (parsec_arena_chunk_t *)parsec_arena_get_chunk( arena, size, arena->data_malloc );
     } else {
         assert(count > 1);
@@ -195,17 +198,17 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
             int32_t current = parsec_atomic_fetch_add_int32(&arena->used, count) + count;
             if(current > arena->max_used) {
                 (void)parsec_atomic_fetch_sub_int32(&arena->used, count);
-                return NULL;
+                return PARSEC_ERR_OUT_OF_RESOURCE;
             }
         }
         size = PARSEC_ALIGN(arena->elem_size * count + arena->alignment + sizeof(parsec_arena_chunk_t),
-                           arena->alignment, size_t);
+                            arena->alignment, size_t);
         chunk = (parsec_arena_chunk_t*)arena->data_malloc(size);
         PARSEC_OBJ_CONSTRUCT(&chunk->item, parsec_list_item_t);
 
         TRACE_MALLOC(arena_memory_alloc_key, size, chunk);
     }
-    if(NULL == chunk) return NULL;  /* no more */
+    if(NULL == chunk) return PARSEC_ERR_OUT_OF_RESOURCE;  /* no more */
 
 #if defined(PARSEC_DEBUG_PARANOID)
     PARSEC_LIST_ITEM_SINGLETON( &chunk->item );
@@ -215,31 +218,59 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
     chunk->origin = arena;
     chunk->count = count;
     chunk->data = PARSEC_ALIGN_PTR( ((ptrdiff_t)chunk + sizeof(parsec_arena_chunk_t)),
-                                   arena->alignment, void* );
+                                    arena->alignment, void* );
 
     assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
     assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)chunk));
 
+    data->nb_elts = count * arena->elem_size;
+
+    copy->flags = PARSEC_DATA_FLAG_ARENA |
+                  PARSEC_DATA_FLAG_PARSEC_OWNED |
+                  PARSEC_DATA_FLAG_PARSEC_MANAGED;
+    copy->dtt = dtt;
+    copy->device_private = chunk->data;
+    copy->arena_chunk = chunk;
+
+    return PARSEC_SUCCESS;
+}
+
+parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
+                                          size_t count, int device,
+                                          parsec_datatype_t dtt)
+{
+    parsec_data_t *data;
+    parsec_data_copy_t *copy;
+    int rc;
+
+    
     data = parsec_data_new();
     if( NULL == data ) {
-        parsec_arena_release_chunk(arena, chunk);
         return NULL;
     }
-
-    data->nb_elts = count * arena->elem_size;
 
     copy = parsec_data_copy_new( data, device, dtt,
                                  PARSEC_DATA_FLAG_ARENA |
                                  PARSEC_DATA_FLAG_PARSEC_OWNED |
                                  PARSEC_DATA_FLAG_PARSEC_MANAGED);
-    copy->device_private = chunk->data;
-    copy->arena_chunk = chunk;
+
+    if(NULL == copy) {
+        PARSEC_OBJ_RELEASE(data);
+        return NULL;
+    }
+
+    rc = parsec_arena_allocate_device_private(copy, arena, count, device, dtt);
 
     /* This data is going to be released once all copies are released
      * It does not exist without at least a copy, and we don't give the
      * pointer to the user, so we must remove our retain from it
      */
     PARSEC_OBJ_RELEASE(data);
+
+    if( PARSEC_SUCCESS != rc ) {
+        PARSEC_OBJ_RELEASE(copy);
+        return NULL;
+    }
 
     return copy;
 }
