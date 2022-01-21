@@ -20,12 +20,6 @@ typedef enum parsec_vector_two_dim_cyclic_distrib_t {
     PARSEC_VECTOR_DISTRIB_DIAG
 } parsec_vector_two_dim_cyclic_distrib_t;
 
-typedef enum vector_distrib {
-    matrix_VectorRow  __parsec_attribute_deprecated__("Use PARSEC_VECTOR_DISTRIB_ROW"),
-    matrix_VectorCol  __parsec_attribute_deprecated__("Use PARSEC_VECTOR_DISTRIB_COL"),
-    matrix_VectorDiag __parsec_attribute_deprecated__("Use PARSEC_VECTOR_DISTRIB_DIAG")
-} vector_distrib_t __parsec_attribute_deprecated__("Use parsec_vector_two_dim_cyclic_t_distrib_t");
-
 /*
  * Vector structure inheriting from parsec_matrix_t
  * Follows the same distribution than the diagonal tiles of the
@@ -38,8 +32,6 @@ typedef struct parsec_vector_two_dim_cyclic_t_s {
     int   lcm;                   /**< number of processors present on diagonal */
     void *mat;                   /**< pointer to the beginning of the matrix   */
 } parsec_vector_two_dim_cyclic_t;
-
-typedef parsec_vector_two_dim_cyclic_t vector_two_dim_cyclic_t __parsec_attribute_deprecated__("Use parsec_vector_two_dim_cyclic_t");
 
 /**
  * Initialize the description of a 2-D block cyclic distributed vector.
@@ -56,20 +48,15 @@ typedef parsec_vector_two_dim_cyclic_t vector_two_dim_cyclic_t __parsec_attribut
  * @param q number of col of processes of the process grid the
  *   resulting distribution will be made so that pxq=nodes
  */
-void parsec_vector_two_dim_cyclic_t_init(parsec_vector_two_dim_cyclic_t * vdesc,
+void parsec_vector_two_dim_cyclic_init(parsec_vector_two_dim_cyclic_t * vdesc,
                                          parsec_matrix_type_t    mtype,
                                          enum parsec_vector_two_dim_cyclic_distrib_t distrib,
                                          int myrank,
                                          int mb, int lm, int i, int m,
                                          int P, int Q );
 
-void vector_two_dim_cyclic_init(parsec_vector_two_dim_cyclic_t * vdesc,
-                                parsec_matrix_type_t    mtype,
-                                enum parsec_vector_two_dim_cyclic_distrib_t distrib,
-                                int myrank,
-                                int mb, int lm, int i, int m,
-                                int P, int Q )
-    __parsec_attribute_deprecated__("Use parsec_vector_two_dim_cyclic_t_init");
+/* include deprecated symbols */
+#include "parsec/data_dist/matrix/deprecated/vector_two_dim_cyclic.h"
 
 END_C_DECLS
 

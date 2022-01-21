@@ -39,7 +39,7 @@ s/parsec_matrix_data_/parsec_tiled_matrix_data_/g
 
 # vector
 s/vector_distrib_t/parsec_vector_two_dim_cyclic_distrib_t/g
-s/vector_two_dim_cyclic_/parsec_vector_two_dim_cyclic/g
+s/vector_two_dim_cyclic_/parsec_vector_two_dim_cyclic_/g
 
 # 2D grid
 s/grid_2Dcyclic_/parsec_grid_2Dcyclic_/g

@@ -106,25 +106,6 @@ void parsec_matrix_block_cyclic_lapack_init(parsec_matrix_block_cyclic_t * dc,
     }
 }
 
-/* deprecated */
-void two_dim_block_cyclic_lapack_init(parsec_matrix_block_cyclic_t * twoDBCdesc,
-                                      parsec_matrix_type_t mtype,
-                                      parsec_matrix_storage_t storage,
-                                      int myrank,
-                                      int mb,   int nb,
-                                      int lm,   int ln,
-                                      int i,    int j,
-                                      int m,    int n,
-                                      int p,     int q,
-                                      int kp,    int kq,
-                                      int ip,    int jq,
-                                      int mloc, int nloc)
-{
-    parsec_matrix_block_cyclic_lapack_init(twoDBCdesc, mtype, storage, myrank,
-                                           mb, nb, lm, ln, i, j, m, n, p, q,
-                                           kp, kq, ip, jq, mloc, nloc);
-}
-
 void parsec_matrix_block_cyclic_init(parsec_matrix_block_cyclic_t * dc,
                                parsec_matrix_type_t mtype,
                                parsec_matrix_storage_t storage,
@@ -252,24 +233,6 @@ void parsec_matrix_block_cyclic_init(parsec_matrix_block_cyclic_t * dc,
            dc->grid.ip, dc->grid.jq,
            dc->grid.rows, dc->grid.cols,
            dc->grid.rrank, dc->grid.crank);
-}
-
-
-/* deprecated */
-void two_dim_block_cyclic_init(parsec_matrix_block_cyclic_t * dc,
-                               parsec_matrix_type_t mtype,
-                               parsec_matrix_storage_t storage,
-                               int myrank,
-                               int mb,    int nb,
-                               int lm,    int ln,
-                               int i,     int j,
-                               int m,     int n,
-                               int P,     int Q,
-                               int kp,    int kq,
-                               int ip,    int jq)
-{
-    parsec_matrix_block_cyclic_init(dc, mtype, storage, myrank, mb, nb, lm, ln,
-                                    i, j, m, n, P, Q, kp, kq, ip, jq);
 }
 
 void parsec_matrix_block_cyclic_key2coords(parsec_data_collection_t *desc,
@@ -473,14 +436,6 @@ void parsec_matrix_block_cyclic_kview( parsec_matrix_block_cyclic_t* target,
     target->super.super.rank_of_key = twoDBC_kview_rank_of_key;
     target->super.super.data_of_key = twoDBC_kview_data_of_key;
     target->super.super.vpid_of_key = twoDBC_kview_vpid_of_key;
-}
-
-/* deprecated */
-void two_dim_block_cyclic_kview( parsec_matrix_block_cyclic_t* target,
-                                 parsec_matrix_block_cyclic_t* origin,
-                                 int kp, int kq )
-{
-    parsec_matrix_block_cyclic_kview(target, origin, kp, kq);
 }
 
 static inline unsigned int kview_compute_m(parsec_matrix_block_cyclic_t* desc, unsigned int m)

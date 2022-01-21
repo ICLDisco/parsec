@@ -1,15 +1,12 @@
 /*
- * Copyright (c) 2009-2021 The University of Tennessee and The University
+ * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+
 #ifndef __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
-#define __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
-
-#include "parsec/data_dist/matrix/matrix.h"
-#include "parsec/data_dist/matrix/grid_2Dcyclic.h"
-
-BEGIN_C_DECLS
+#error "Deprecated headers must not be included directly!"
+#endif // __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__
 
 /*
  * Symmetrical matrix. 2D block cyclic distribution, lower tiles distributed only
@@ -26,19 +23,7 @@ BEGIN_C_DECLS
  *
  */
 
-/*******************************************************************
- * distributed data structure and basic functionalities
- *******************************************************************/
-
-/* structure equivalent to PLASMA_desc, but for distributed matrix data
- */
-
-typedef struct parsec_matrix_sym_block_cyclic {
-    parsec_tiled_matrix_t super;
-    parsec_grid_2Dcyclic_t grid;
-    void *mat;              /**< pointer to the beginning of the matrix */
-    parsec_matrix_uplo_t uplo;
-} parsec_matrix_sym_block_cyclic_t;
+typedef parsec_matrix_sym_block_cyclic_t sym_two_dim_block_cyclic_t __parsec_attribute_deprecated__("Use parsec_matrix_sym_block_cyclic_t");
 
 /************************************************
  *   mpi ranks distribution in the process grid
@@ -69,17 +54,24 @@ typedef struct parsec_matrix_sym_block_cyclic {
  *   resulting distribution will be made so that pxq=nodes
  * @param uplo upper or lower triangular part of the matrix is kept
  */
-void parsec_matrix_sym_block_cyclic_init( parsec_matrix_sym_block_cyclic_t * dc,
+static inline
+void sym_two_dim_block_cyclic_init( parsec_matrix_sym_block_cyclic_t * dc,
                                     parsec_matrix_type_t mtype,
                                     int myrank,
                                     int mb, int nb, int lm, int ln,
                                     int i, int j, int m, int n,
                                     int P, int Q, /* process process grid */
-                                    parsec_matrix_uplo_t uplo );
+                                    parsec_matrix_uplo_t uplo )
+    __parsec_attribute_deprecated__("Use parsec_matrix_sym_block_cyclic_init");
 
-/* include deprecated symbols */
-#include "parsec/data_dist/matrix/deprecated/sym_two_dim_rectangle_cyclic.h"
-
-END_C_DECLS
-
-#endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/
+static inline
+void sym_two_dim_block_cyclic_init( parsec_matrix_sym_block_cyclic_t * dc,
+                                    parsec_matrix_type_t mtype,
+                                    int myrank,
+                                    int mb, int nb, int lm, int ln,
+                                    int i, int j, int m, int n,
+                                    int P, int Q, /* process process grid */
+                                    parsec_matrix_uplo_t uplo )
+{
+    parsec_matrix_sym_block_cyclic_init(dc, mtype, myrank, mb, nb, lm, ln, i, j, m, n, P, Q, uplo);
+}

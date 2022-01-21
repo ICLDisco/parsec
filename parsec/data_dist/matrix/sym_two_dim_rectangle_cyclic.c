@@ -307,20 +307,6 @@ void parsec_matrix_sym_block_cyclic_init(parsec_matrix_sym_block_cyclic_t * dc,
     dc->super.data_map = (parsec_data_t**)calloc(dc->super.nb_local_tiles, sizeof(parsec_data_t*));
 }
 
-
-/* deprecated */
-void sym_two_dim_block_cyclic_init( parsec_matrix_sym_block_cyclic_t * dc,
-                                    parsec_matrix_type_t mtype,
-                                    int myrank,
-                                    int mb, int nb, int lm, int ln,
-                                    int i, int j, int m, int n,
-                                    int P, int Q, /* process process grid */
-                                    parsec_matrix_uplo_t uplo )
-{
-    parsec_matrix_sym_block_cyclic_init(dc, mtype, myrank, mb, nb, lm, ln,
-                                        i, j, m, n, P, Q, uplo);
-}
-
 size_t parsec_matrix_sym_block_cyclic_coord2pos(
     parsec_matrix_sym_block_cyclic_t *dc,
     int m,

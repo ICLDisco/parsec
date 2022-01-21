@@ -129,11 +129,3 @@ void parsec_matrix_block_cyclic_band_init( parsec_matrix_block_cyclic_band_t *de
     dc->vpid_of_key  = twoDBC_band_vpid_of_key;
     dc->data_of_key  = twoDBC_band_data_of_key;
 }
-
-/* deprecated */
-void two_dim_block_cyclic_band_init(
-    parsec_matrix_block_cyclic_band_t *desc,
-    int nodes, int myrank, int band_size )
-{
-    parsec_matrix_block_cyclic_band_init(desc, nodes, myrank, band_size);
-}

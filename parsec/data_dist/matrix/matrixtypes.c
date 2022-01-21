@@ -261,23 +261,7 @@ int parsec_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
     return PARSEC_SUCCESS;
 }
 
-/* deprecated */
-int parsec_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
-                             parsec_matrix_uplo_t uplo, int diag,
-                             unsigned int m, unsigned int n, unsigned int ld,
-                             size_t alignment, int resized )
-{
-    return parsec_add2arena(adt, oldtype, uplo, diag, m, n, ld, alignment, resized);
-}
-
-/* deprecated */
 int parsec_del2arena( parsec_arena_datatype_t *adt )
 {
     return parsec_type_free( &adt->opaque_dtt );
-}
-
-/* deprecated */
-int parsec_matrix_del2arena( parsec_arena_datatype_t *adt )
-{
-    return parsec_del2arena( adt );
 }

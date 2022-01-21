@@ -26,8 +26,6 @@ typedef struct parsec_matrix_sym_block_cyclic_band_s {
     unsigned int band_size;     /** Number of band rows = band_size */
 } parsec_matrix_sym_block_cyclic_band_t;
 
-typedef parsec_matrix_sym_block_cyclic_band_t sym_two_dim_block_cyclic_band_t __parsec_attribute_deprecated__("Use parsec_matrix_sym_block_cyclic_band_t");
-
 /*
  * sym_two_dim_block_cyclic_band_t structure init
  * It inherits from off-band, so should be called after initialization of off_band
@@ -35,8 +33,8 @@ typedef parsec_matrix_sym_block_cyclic_band_t sym_two_dim_block_cyclic_band_t __
 void parsec_matrix_sym_block_cyclic_band_init( parsec_matrix_sym_block_cyclic_band_t *desc,
                                      int nodes, int myrank, int band_size );
 
-void sym_two_dim_block_cyclic_band_init( parsec_matrix_sym_block_cyclic_band_t *desc,
-                                     int nodes, int myrank, int band_size )
-    __parsec_attribute_deprecated__("Use parsec_matrix_sym_block_cyclic_band_init");
+
+/* include deprecated symbols */
+#include "parsec/data_dist/matrix/deprecated/sym_two_dim_rectangle_cyclic_band.h"
 
 #endif // __SYM_TWO_DIM_RECTANGLE_CYCLIC_BAND_H__
