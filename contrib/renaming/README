@@ -4,7 +4,7 @@ To help with this effort, the sed script `contrib/renaming/rename.sed` is provid
 To apply the changes, users can execute the following command:
 
 ```
-find -name *.c -o -name *.h -o -name *.cc | xargs sed -i -f $PARSEC_SOURCE_DIR/contrib/renaming/rename.sed
+find -name *.c -or -name *.h -or -name *.cc -or -name *.jdf -print0 | xargs -0 sed -i -f $PARSEC_SOURCE_DIR/contrib/renaming/rename.sed
 ```
 
 Depending on your source code, your may have to adapt the above line to apply to all relevant files.
