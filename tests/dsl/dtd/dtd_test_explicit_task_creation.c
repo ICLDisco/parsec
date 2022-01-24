@@ -58,7 +58,7 @@ int main(int argc, char ** argv)
     parsec_context_t* parsec;
     int rc, rank = 0, world = 1, cores = -1;
     int nb, nt, i, no_of_tasks, key;
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_tiled_matrix_t *dcA;
     parsec_arena_datatype_t *adt;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -148,7 +148,7 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free( dtd_tp );
-    parsec_matrix_del2arena(adt);
+    parsec_del2arena(adt);
     PARSEC_OBJ_RELEASE(adt->arena);
     parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
 

@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,7 +15,7 @@
 #include "parsec/data.h"
 #include <string.h>
 #if defined(__WINDOWS__)
-#define _CRT_RAND_S  
+#define _CRT_RAND_S
 #include <stdlib.h>
 #endif
 
@@ -33,9 +33,9 @@ static uint32_t twoDTD_rank_of(parsec_data_collection_t * desc, ...)
 {
     int m, n, res;
     va_list ap;
-    two_dim_tabular_t   * dc;
+    parsec_matrix_tabular_t   * dc;
 
-    dc = (two_dim_tabular_t*)desc;
+    dc = (parsec_matrix_tabular_t*)desc;
 
     va_start(ap, desc);
     m = va_arg(ap, int);
@@ -53,18 +53,18 @@ static uint32_t twoDTD_rank_of(parsec_data_collection_t * desc, ...)
 
 static uint32_t twoDTD_rank_of_key(parsec_data_collection_t *dc, parsec_data_key_t key)
 {
-    assert( key < (parsec_data_key_t)(((two_dim_tabular_t*)dc)->tiles_table->nbelem) );
+    assert( key < (parsec_data_key_t)(((parsec_matrix_tabular_t*)dc)->tiles_table->nbelem) );
 
-    return ((two_dim_tabular_t*)dc)->tiles_table->elems[key].rank;
+    return ((parsec_matrix_tabular_t*)dc)->tiles_table->elems[key].rank;
 }
 
 static int32_t twoDTD_vpid_of(parsec_data_collection_t * desc, ...)
 {
     int m, n, res;
     va_list ap;
-    two_dim_tabular_t   * dc;
+    parsec_matrix_tabular_t   * dc;
 
-    dc = (two_dim_tabular_t*)desc;
+    dc = (parsec_matrix_tabular_t*)desc;
 
     va_start(ap, desc);
     m = va_arg(ap, int);
@@ -82,9 +82,9 @@ static int32_t twoDTD_vpid_of(parsec_data_collection_t * desc, ...)
 
 static int32_t twoDTD_vpid_of_key(parsec_data_collection_t *dc, parsec_data_key_t key)
 {
-    assert( key < (parsec_data_key_t)(((two_dim_tabular_t*)dc)->tiles_table->nbelem) );
+    assert( key < (parsec_data_key_t)(((parsec_matrix_tabular_t*)dc)->tiles_table->nbelem) );
 
-    return ((two_dim_tabular_t*)dc)->tiles_table->elems[key].vpid;
+    return ((parsec_matrix_tabular_t*)dc)->tiles_table->elems[key].vpid;
 }
 
 
@@ -92,9 +92,9 @@ static parsec_data_t* twoDTD_data_of(parsec_data_collection_t* dc, ...)
 {
     int m, n, res;
     va_list ap;
-    two_dim_tabular_t * tdc;
-    two_dim_td_table_elem_t *elem;
-    tdc = (two_dim_tabular_t *)dc;
+    parsec_matrix_tabular_t * tdc;
+    parsec_two_dim_td_table_elem_t *elem;
+    tdc = (parsec_matrix_tabular_t *)dc;
 
     va_start(ap, dc);
     m = va_arg(ap, int);
@@ -110,31 +110,31 @@ static parsec_data_t* twoDTD_data_of(parsec_data_collection_t* dc, ...)
     elem = &(tdc->tiles_table->elems[res]);
     assert(elem->pos >= 0);
 
-    return parsec_matrix_create_data( &tdc->super, elem->data, elem->pos, res );
+    return parsec_tiled_matrix_create_data( &tdc->super, elem->data, elem->pos, res );
 }
 
 static parsec_data_t* twoDTD_data_of_key(parsec_data_collection_t *dc, parsec_data_key_t key)
 {
-    two_dim_tabular_t       *tdc = (two_dim_tabular_t*)dc;
-    two_dim_td_table_elem_t *elem;
+    parsec_matrix_tabular_t       *tdc = (parsec_matrix_tabular_t*)dc;
+    parsec_two_dim_td_table_elem_t *elem;
     assert( key < (parsec_data_key_t)( tdc->tiles_table->nbelem ) );
 
     elem = &(tdc->tiles_table->elems[key]);
-    return parsec_matrix_create_data( &tdc->super, elem->data, elem->pos, key );
+    return parsec_tiled_matrix_create_data( &tdc->super, elem->data, elem->pos, key );
 }
 
-void two_dim_tabular_init(two_dim_tabular_t * dc,
-                          enum matrix_type mtype,
+void parsec_matrix_tabular_init(parsec_matrix_tabular_t * dc,
+                          parsec_matrix_type_t mtype,
                           unsigned int nodes, unsigned int myrank,
                           unsigned int mb, unsigned int nb,
                           unsigned int lm, unsigned int ln,
                           unsigned int i, unsigned int j,
                           unsigned int m, unsigned int n,
-                          two_dim_td_table_t *table )
+                          parsec_two_dim_td_table_t *table )
 {
     // Filling matrix description with user parameter
-    parsec_tiled_matrix_dc_init(&dc->super,
-                           mtype, matrix_Tile, two_dim_tabular_type,
+    parsec_tiled_matrix_init(&dc->super,
+                           mtype, PARSEC_MATRIX_TILE, parsec_matrix_tabular_type,
                            nodes, myrank,
                            mb, nb, lm, ln, i, j, m, n);
     dc->tiles_table = NULL;
@@ -148,14 +148,14 @@ void two_dim_tabular_init(two_dim_tabular_t * dc,
     dc->super.super.data_of_key = twoDTD_data_of_key;
 
     if( NULL != table ) {
-        two_dim_tabular_set_table( dc, table );
+        parsec_matrix_tabular_set_table( dc, table );
     }
 }
 
-void two_dim_tabular_destroy(two_dim_tabular_t *tdc)
+void parsec_matrix_tabular_destroy(parsec_matrix_tabular_t *tdc)
 {
-    two_dim_td_table_elem_t *elem;
-    two_dim_td_table_t *table = tdc->tiles_table;
+    parsec_two_dim_td_table_elem_t *elem;
+    parsec_two_dim_td_table_t *table = tdc->tiles_table;
     int i;
 
     for(i = 0, elem = &(table->elems[0]);
@@ -170,10 +170,10 @@ void two_dim_tabular_destroy(two_dim_tabular_t *tdc)
     }
     free(tdc->tiles_table);
 
-    parsec_tiled_matrix_dc_destroy( &(tdc->super) );
+    parsec_tiled_matrix_destroy( &(tdc->super) );
 }
 
-void two_dim_tabular_set_user_table(two_dim_tabular_t *dc, two_dim_td_table_t *table)
+void parsec_matrix_tabular_set_user_table(parsec_matrix_tabular_t *dc, parsec_two_dim_td_table_t *table)
 {
     int i;
     assert( dc->tiles_table == NULL );
@@ -192,7 +192,7 @@ void two_dim_tabular_set_user_table(two_dim_tabular_t *dc, two_dim_td_table_t *t
     dc->super.data_map = (parsec_data_t**)calloc(dc->super.nb_local_tiles, sizeof(parsec_data_t*));
 }
 
-void two_dim_tabular_set_table(two_dim_tabular_t *dc, two_dim_td_table_t *table)
+void parsec_matrix_tabular_set_table(parsec_matrix_tabular_t *dc, parsec_two_dim_td_table_t *table)
 {
     int i;
     assert( dc->tiles_table == NULL );
@@ -220,18 +220,19 @@ void two_dim_tabular_set_table(two_dim_tabular_t *dc, two_dim_td_table_t *table)
 }
 
 
-void two_dim_tabular_set_random_table(two_dim_tabular_t *dc,
+void parsec_matrix_tabular_set_random_table(parsec_matrix_tabular_t *dc,
                                       unsigned int seed)
 {
     int nbvp;
     unsigned int rankseed, vpseed;
     uint32_t nbtiles;
-    two_dim_td_table_t *table;
+    parsec_two_dim_td_table_t *table;
     int m, n, p;
 
     nbtiles = dc->super.lmt * dc->super.lnt;
 
-    table = (two_dim_td_table_t*)malloc( sizeof(two_dim_td_table_t) + (nbtiles-1)*sizeof(two_dim_td_table_elem_t) );
+    table = (parsec_two_dim_td_table_t*)malloc( sizeof(parsec_two_dim_td_table_t)
+                                                + (nbtiles-1)*sizeof(parsec_two_dim_td_table_elem_t) );
     table->nbelem = nbtiles;
 
     nbvp = vpmap_get_nb_vp();
@@ -269,13 +270,13 @@ void two_dim_tabular_set_random_table(two_dim_tabular_t *dc,
 #else
 #error Missing support for the platform random number generator similar to POSIX rand_r
 #endif
-    two_dim_tabular_set_table(dc, table);
+    parsec_matrix_tabular_set_table(dc, table);
 }
 
-void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabular_t *Dst)
+void parsec_matrix_tabular_clone_table_structure(parsec_matrix_tabular_t *Src, parsec_matrix_tabular_t *Dst)
 {
     size_t tablesize;
-    two_dim_td_table_t *table;
+    parsec_two_dim_td_table_t *table;
 
     /* Safety check: check that we can indeed clone the structure */
     assert( Src->super.lmt == Dst->super.lmt );
@@ -287,11 +288,11 @@ void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabu
 
     assert( Src->super.super.nodes == Dst->super.super.nodes );
 
-    tablesize = (Dst->super.lmt * Dst->super.lnt - 1) * sizeof(two_dim_td_table_elem_t)
-        + sizeof(two_dim_td_table_t);
+    tablesize = (Dst->super.lmt * Dst->super.lnt - 1) * sizeof(parsec_two_dim_td_table_elem_t)
+        + sizeof(parsec_two_dim_td_table_t);
 
-    table = (two_dim_td_table_t*)malloc( tablesize );
+    table = (parsec_two_dim_td_table_t*)malloc( tablesize );
     memcpy( table, Src->tiles_table, tablesize );
 
-    two_dim_tabular_set_table(Dst, table);
+    parsec_matrix_tabular_set_table(Dst, table);
 }

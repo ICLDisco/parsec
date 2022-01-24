@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2019      The University of Tennessee and The University
+ * Copyright (c) 2019-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -26,7 +26,7 @@ static parsec_key_fn_t ud_hash_struct = {
 
 %option nb_local_tasks_fn = ud_nbtasks_nb_local_tasks
 
-A        [ type = "two_dim_block_cyclic_t *" ]
+A        [ type = "parsec_matrix_block_cyclic_t *" ]
 logger   [ type = "udf_logger_fn_t" ]
 
 NOUD(m, n)
@@ -105,7 +105,7 @@ extern "C" %{
 static int ud_nbtasks_nb_local_tasks(struct __parsec_udf_internal_taskpool_s *tp)
 {
   parsec_udf_taskpool_t *utp = (parsec_udf_taskpool_t*)tp;
-  two_dim_block_cyclic_t *a = utp->_g_A;
+  parsec_matrix_block_cyclic_t *a = utp->_g_A;
   return a->super.nb_local_tiles * 5;
 }
 

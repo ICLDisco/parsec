@@ -102,7 +102,7 @@ int main(int argc, char **argv)
     int rc, nb, nt;
     int rank, world, cores = -1, root = 0;
     int i;
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_tiled_matrix_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 #if PARSEC_VERSION_MAJOR < 4
-    parsec_matrix_add2arena_rect(&parsec_dtd_arenas_datatypes[TILE_FULL],
+    parsec_add2arena_rect(&parsec_dtd_arenas_datatypes[TILE_FULL],
 #else
     parsec_arena_datatype_t *adt;
     adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
@@ -154,8 +154,8 @@ int main(int argc, char **argv)
                                  parsec_datatype_int32_t,
                                  nb, 1, nb);
 
-    two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
-    two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_t *m = (parsec_matrix_block_cyclic_t*)malloc(sizeof(parsec_matrix_block_cyclic_t));
+    parsec_matrix_block_cyclic_init(m, PARSEC_MATRIX_COMPLEX_DOUBLE, PARSEC_MATRIX_TILE,
                               rank,
                               nb, 1,
                               nt*nb, 1,
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
     m->mat = parsec_data_allocate((size_t)m->super.nb_local_tiles *
                                   (size_t)m->super.bsiz *
                                   (size_t)parsec_datadist_getsizeoftype(m->super.mtype));
-    dcA = (parsec_tiled_matrix_dc_t*)m;
+    dcA = (parsec_tiled_matrix_t*)m;
 
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
@@ -238,7 +238,7 @@ int main(int argc, char **argv)
     parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
 #endif
     parsec_dtd_data_collection_fini( A );
-    parsec_matrix_destroy_data(dcA);
+    parsec_tiled_matrix_destroy_data(dcA);
     parsec_data_collection_destroy(&dcA->super);
     free(dcA);
 

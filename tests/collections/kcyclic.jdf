@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2020 The University of Tennessee and The University
+ * Copyright (c) 2019-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,10 +16,10 @@ extern "C" %{
 #include <mpi.h>
 #endif
 
-#define TYPE  matrix_Integer
-parsec_taskpool_t* kcyclic_taskpool(two_dim_block_cyclic_t* A,
-                                    two_dim_block_cyclic_t* VA,
-                                    two_dim_block_cyclic_t* CA);
+#define TYPE  PARSEC_MATRIX_INTEGER
+parsec_taskpool_t* kcyclic_taskpool(parsec_matrix_block_cyclic_t* A,
+                                    parsec_matrix_block_cyclic_t* VA,
+                                    parsec_matrix_block_cyclic_t* CA);
 
 int main( int argc, char** argv )
 {
@@ -27,9 +27,9 @@ int main( int argc, char** argv )
     parsec_taskpool_t* tp;
     int nodes = 1, rank = 0, p = 1,
         n = 9, mb = 3, nb = 1, kp = 2, kq = 2;
-    two_dim_block_cyclic_t descA;
-    two_dim_block_cyclic_t viewA;
-    two_dim_block_cyclic_t descCA;
+    parsec_matrix_block_cyclic_t descA;
+    parsec_matrix_block_cyclic_t viewA;
+    parsec_matrix_block_cyclic_t descCA;
     int rc;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -47,7 +47,7 @@ int main( int argc, char** argv )
     p = sqrt(nodes);
 
     /* Create a copy of A with (standard) 2D-cyclic */
-    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+    parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,
                                rank,
                                mb, nb , n, n,
                                0, 0, n, n,
@@ -57,7 +57,7 @@ int main( int argc, char** argv )
                                      parsec_datadist_getsizeoftype(TYPE) );
 
     /* Create a copy of A with physical 2D-k-cyclic distribution */
-    two_dim_block_cyclic_init( &descCA, TYPE, matrix_Tile,
+    parsec_matrix_block_cyclic_init( &descCA, TYPE, PARSEC_MATRIX_TILE,
                                rank,
                                mb, nb, n, n,
                                0, 0, n, n,
@@ -69,7 +69,7 @@ int main( int argc, char** argv )
     /* Create a view of A in (pseudo) k-cyclic order;
      * This is not a copy of A! It uses the same descA.mat.
      * This is not in the same order as the physical k-cyclic descCA! */
-    two_dim_block_cyclic_kview( &viewA, &descA, kp, kq);
+    parsec_matrix_block_cyclic_kview( &viewA, &descA, kp, kq);
 
     /* Now, run the test... */
     if(rank == 0) {
@@ -105,9 +105,9 @@ int main( int argc, char** argv )
 
 %}
 
-dA          [type = "two_dim_block_cyclic_t*"]
-dVA         [type = "two_dim_block_cyclic_t*"]
-dCA         [type = "two_dim_block_cyclic_t*"]
+dA          [type = "parsec_matrix_block_cyclic_t*"]
+dVA         [type = "parsec_matrix_block_cyclic_t*"]
+dCA         [type = "parsec_matrix_block_cyclic_t*"]
 MT          [type = int hidden = on default = "dA->super.mt-1"]
 NT          [type = int hidden = on default = "dA->super.nt-1"]
 
@@ -204,9 +204,9 @@ END
 
 extern "C" %{
 
-parsec_taskpool_t* kcyclic_taskpool(two_dim_block_cyclic_t* A,
-                                    two_dim_block_cyclic_t* VA,
-                                    two_dim_block_cyclic_t* CA)
+parsec_taskpool_t* kcyclic_taskpool(parsec_matrix_block_cyclic_t* A,
+                                    parsec_matrix_block_cyclic_t* VA,
+                                    parsec_matrix_block_cyclic_t* CA)
 {
     parsec_kcyclic_taskpool_t* tp;
     parsec_datatype_t dt;
@@ -215,7 +215,7 @@ parsec_taskpool_t* kcyclic_taskpool(two_dim_block_cyclic_t* A,
     assert( NULL != tp );
 
     parsec_translate_matrix_type(TYPE, &dt);
-    parsec_matrix_add2arena_rect( &tp->arenas_datatypes[PARSEC_kcyclic_DEFAULT_ADT_IDX],
+    parsec_add2arena_rect( &tp->arenas_datatypes[PARSEC_kcyclic_DEFAULT_ADT_IDX],
                                   dt, A->super.mb, A->super.nb, A->super.mb);
 
     return &tp->super;

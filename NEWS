@@ -8,6 +8,11 @@ bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 master
  - PaRSEC API 4.0 (still changing)
 
+ - Renamed symbols related to data distribution to properly prefix them with
+   the `parsec_` prefix. The old symbols have been deprecated and will be
+   removed in a future version. Further documentation (including a sed script)
+   can be found in contrib/renaming.
+
  - DTD interface change: the global array parsec_dtd_arena_datatypes
    is replaced with functions to create, destroy, and get arena
    datatypes for DTD, and these objects now live inside the

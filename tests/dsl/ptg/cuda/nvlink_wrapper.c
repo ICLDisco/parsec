@@ -1,6 +1,6 @@
 
 /**
- * Copyright (c) 2019-2020 The University of Tennessee and The University
+ * Copyright (c) 2019-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -98,8 +98,8 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
 {
     parsec_nvlink_taskpool_t* testing_handle = NULL;
     int *dev_index, nb, dev, i;
-    two_dim_block_cyclic_t *dcA;
-    two_dim_block_cyclic_t *userM;
+    parsec_matrix_block_cyclic_t *dcA;
+    parsec_matrix_block_cyclic_t *userM;
 
     /** Find all CUDA devices */
     nb = 0;
@@ -136,8 +136,8 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
 #endif
 
     /* A is used READ-ONLY by both GEMM1 and GEMM2 */
-    dcA = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
-    two_dim_block_cyclic_init(dcA, matrix_RealDouble, matrix_Tile,
+    dcA = (parsec_matrix_block_cyclic_t*)calloc(1, sizeof(parsec_matrix_block_cyclic_t));
+    parsec_matrix_block_cyclic_init(dcA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                               ctx->my_rank,
                               mb, mb,
                               depth*mb, ctx->nb_nodes*mb,
@@ -160,8 +160,8 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
      * only on the GPU they want the GEMM2 to run. To simplify the code,
      * we use two_dim_block_cyclic that requires to also have a CPU data
      * copy, then for each data, we allocate a GPU data copy */
-    userM = (two_dim_block_cyclic_t*)calloc(1, sizeof(two_dim_block_cyclic_t));
-    two_dim_block_cyclic_init(userM, matrix_RealDouble, matrix_Tile,
+    userM = (parsec_matrix_block_cyclic_t*)calloc(1, sizeof(parsec_matrix_block_cyclic_t));
+    parsec_matrix_block_cyclic_init(userM, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                               ctx->my_rank,
                               mb, mb,
                               nb*mb, ctx->nb_nodes*mb,
@@ -191,7 +191,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
             cudaError_t status = cudaSetDevice( cuda_device->cuda_index );
             PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaSetDevice ", status, {return NULL;} );
             /* Allocate memory on it, for one tile */
-            status = (cudaError_t)cudaMalloc( &gpu_copy->device_private, mb*mb*parsec_datadist_getsizeoftype(matrix_RealDouble) );
+            status = (cudaError_t)cudaMalloc( &gpu_copy->device_private, mb*mb*parsec_datadist_getsizeoftype(PARSEC_MATRIX_DOUBLE) );
             PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMalloc ", status, {return NULL;} );
             /* Attach this copy to the data, on the corresponding device */
             parsec_data_copy_attach(dta, gpu_copy, cuda_device->super.super.device_index);
@@ -210,10 +210,11 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     
     testing_handle = parsec_nvlink_new(dcA, userM, ctx->nb_nodes, CuHI, nb, dev_index);
 
-    parsec_matrix_add2arena( &testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX],
+    parsec_add2arena( &testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX],
                              parsec_datatype_double_complex_t,
-                             matrix_UpperLower, 1, mb, mb, mb,
+                             PARSEC_MATRIX_FULL, 1, mb, mb, mb,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
     
     return &testing_handle->super;
 }
+

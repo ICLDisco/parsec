@@ -259,8 +259,8 @@ CORE_redistribute_update(DTYPE *T, DTYPE *NW, DTYPE *NE, DTYPE *SW, DTYPE *SE, D
  *
  * @see https://github.com/ICLDisco/meeting_notes/blob/master/lei/redistribute.jpg
  */
-descY    [ type = "parsec_tiled_matrix_dc_t*" ]
-descT    [ type = "parsec_tiled_matrix_dc_t*" ]
+descY    [ type = "parsec_tiled_matrix_t*" ]
+descT    [ type = "parsec_tiled_matrix_t*" ]
 size_row [ type = "int" ]
 size_col [ type = "int" ]
 disi_Y   [ type = "int" ]
@@ -394,7 +394,7 @@ BODY
 {
     if( rank_Y != rank_T ){
         /* Y is local, rely on storage for LDA */
-        const int Y_LDA = ( descY->storage == matrix_Lapack )? descY->llm : descY->mb;
+        const int Y_LDA = ( descY->storage == PARSEC_MATRIX_LAPACK )? descY->llm : descY->mb;
         CORE_redistribute_send(Y, NW, NE, SW, SE, N, S, W, E, R, TL_row, TL_col, BR_row, BR_col,
                                m_Y_start, m_Y_end, n_Y_start, n_Y_end, m_Y, n_Y, i_start, j_start,
                                mb_Y_INNER, nb_Y_INNER, Y_LDA);
@@ -475,8 +475,8 @@ BODY
     int offset_col = (n_T == n_T_START)? disj_T % nb_T_INNER + R: R;
 
     /* T is local, rely on storage for LDA */
-    const int T_lda = ( descT->storage == matrix_Lapack )? descT->llm : descT->mb;
-    const int Y_lda = ( rank_Y == rank_T ) && ( descY->storage == matrix_Lapack )? descY->llm : mb_Y_INNER + 2 * R;
+    const int T_lda = ( descT->storage == PARSEC_MATRIX_LAPACK )? descT->llm : descT->mb;
+    const int Y_lda = ( rank_Y == rank_T ) && ( descY->storage == PARSEC_MATRIX_LAPACK )? descY->llm : mb_Y_INNER + 2 * R;
     CORE_redistribute_update(T, NW, NE, SW, SE, N, S, W, E, I, R, TL_row, TL_col, BR_row, BR_col, m_Y_start, m_Y_end, n_Y_start,
                              n_Y_end, m_Y, n_Y, i_start, j_start, mb_Y_INNER, nb_Y_INNER, offset_row, offset_col, rank_Y, rank_T,
                              Y_lda, T_lda);

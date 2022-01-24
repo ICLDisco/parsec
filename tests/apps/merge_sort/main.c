@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     parsec_context_t* parsec;
     int rank = 0, world = 1, cores = -1;
     int nt = 1234, nb = 5, rc;
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_tiled_matrix_t *dcA;
     parsec_taskpool_t *msort;
 
 #if defined(PARSEC_HAVE_MPI)

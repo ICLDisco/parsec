@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -21,13 +21,13 @@ BEGIN_C_DECLS
 
 /* structure equivalent to PLASMA_desc, but for distributed matrix data
  */
-typedef struct two_dim_block_cyclic {
-    parsec_tiled_matrix_dc_t super;
-    grid_2Dcyclic_t     grid;
+typedef struct parsec_matrix_block_cyclic {
+    parsec_tiled_matrix_t super;
+    parsec_grid_2Dcyclic_t   grid;
     void *mat;      /**< pointer to the beginning of the matrix */
     int nb_elem_r;  /**< number of row of tiles  handled by this process - derived parameter */
     int nb_elem_c;  /**< number of column of tiles handled by this process - derived parameter */
-} two_dim_block_cyclic_t;
+} parsec_matrix_block_cyclic_t;
 
 /************************************************
  *   mpi ranks distribution in the process grid PxQ=2x4
@@ -70,9 +70,9 @@ typedef struct two_dim_block_cyclic {
  * @param ip starting point on the process grid rows
  * @param jq starting point on the process grid cols
   */
-void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
-                               enum matrix_type mtype,
-                               enum matrix_storage storage,
+void parsec_matrix_block_cyclic_init(parsec_matrix_block_cyclic_t * twoDBCdesc,
+                               parsec_matrix_type_t mtype,
+                               parsec_matrix_storage_t storage,
                                int myrank,
                                int mb,    int nb,   /* Tile size */
                                int lm,    int ln,   /* Global matrix size (what is stored)*/
@@ -82,10 +82,9 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
                                int kp,    int kq,   /* k-cyclicity */
                                int ip,    int jq);   /* starting point on the process grid*/
 
-
-void two_dim_block_cyclic_lapack_init(two_dim_block_cyclic_t * twoDBCdesc,
-                                      enum matrix_type mtype,
-                                      enum matrix_storage storage,
+void parsec_matrix_block_cyclic_lapack_init(parsec_matrix_block_cyclic_t * twoDBCdesc,
+                                      parsec_matrix_type_t mtype,
+                                      parsec_matrix_storage_t storage,
                                       int myrank,
                                       int mb,   int nb,   /* Tile size */
                                       int lm,   int ln,   /* Global matrix size (what is stored)*/
@@ -95,6 +94,7 @@ void two_dim_block_cyclic_lapack_init(two_dim_block_cyclic_t * twoDBCdesc,
                                       int kp,    int kq,  /* k-cyclicity */
                                       int ip,    int jq,  /* starting point on the process grid*/
                                       int mloc, int nloc);/* number of local rows and cols of the matrix */
+
 /**
  * kcyclic _view_ of the 2-D Block cyclic distributed matrix. The goal is to
  * improve access locality by changing access order without incurring the cost of a physical
@@ -125,12 +125,12 @@ void two_dim_block_cyclic_lapack_init(two_dim_block_cyclic_t * twoDBCdesc,
  * a compatible view on the right-hand side as well).
  *
  */
-void two_dim_block_cyclic_kview( two_dim_block_cyclic_t* target,
-                                 two_dim_block_cyclic_t* origin,
+void parsec_matrix_block_cyclic_kview( parsec_matrix_block_cyclic_t* target,
+                                 parsec_matrix_block_cyclic_t* origin,
                                  int kp, int kq );
 
-/* Also used in *band* structure */
-void twoDBC_key_to_coordinates(parsec_data_collection_t *desc, parsec_data_key_t key, int *m, int *n);
+/* include deprecated symbols */
+#include "parsec/data_dist/matrix/deprecated/two_dim_rectangle_cyclic.h"
 
 END_C_DECLS
 

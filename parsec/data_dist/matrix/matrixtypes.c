@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 The University of Tennessee and The University
+ * Copyright (c) 2010-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -143,7 +143,7 @@ int parsec_matrix_define_triangle( parsec_datatype_t oldtype,
     blocklens = (int*)malloc( n * sizeof(int) );
     indices   = (int*)malloc( n * sizeof(int) );
 
-    if ( uplo == matrix_Upper ) {
+    if ( uplo == PARSEC_MATRIX_UPPER ) {
         nmax = n-diag;
 
         for( i = diag; i < n; i++ ) {
@@ -151,7 +151,7 @@ int parsec_matrix_define_triangle( parsec_datatype_t oldtype,
             blocklens[i] = mm < m ? mm : m ;
             indices[i]   = i * ld;
         }
-    } else if ( uplo == matrix_Lower ) {
+    } else if ( uplo == PARSEC_MATRIX_LOWER ) {
         nmax = n >= (m-diag) ? m-diag : n;
 
         for( i = 0; i < nmax; i++ ) {
@@ -180,7 +180,7 @@ int parsec_matrix_define_triangle( parsec_datatype_t oldtype,
         MPI_Initialized(&mpi_is_on);
         if(mpi_is_on) {
             MPI_Type_get_name(oldtype, oldtype_name, &len);
-            len = snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "%s %s*%4u*%4u", (uplo==matrix_Upper)?"UPPER":"LOWER", oldtype_name, m, n);
+            len = snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "%s %s*%4u*%4u", (uplo==PARSEC_MATRIX_UPPER)?"UPPER":"LOWER", oldtype_name, m, n);
             if(len >= MPI_MAX_OBJECT_NAME) {
                 parsec_debug_verbose(50, parsec_debug_output, "Type name %s truncated when deriving from %s", newtype_name, oldtype_name);
             }
@@ -195,7 +195,7 @@ int parsec_matrix_define_triangle( parsec_datatype_t oldtype,
 }
 
 int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t oldtype,
-                                  int uplo, int diag,
+                                  parsec_matrix_uplo_t uplo, int diag,
                                   unsigned int m, unsigned int n, unsigned int ld,
                                   int resized,
                                   ptrdiff_t * extent)
@@ -207,11 +207,11 @@ int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t 
     *newtype = PARSEC_DATATYPE_NULL;
 #if defined(PARSEC_HAVE_MPI)
     switch( uplo ) {
-    case matrix_Lower:
-    case matrix_Upper:
+    case PARSEC_MATRIX_LOWER:
+    case PARSEC_MATRIX_UPPER:
         rc = parsec_matrix_define_triangle( oldtype, uplo, diag, m, n, ld, newtype );
         break;
-    case matrix_UpperLower:
+    case PARSEC_MATRIX_FULL:
     default:
         if ( m == ld ) {
             rc = parsec_matrix_define_contiguous( oldtype, ld * n, resized, newtype );
@@ -238,10 +238,10 @@ int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t 
     return PARSEC_SUCCESS;
 }
 
-int parsec_matrix_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
-                            int uplo, int diag,
-                            unsigned int m, unsigned int n, unsigned int ld,
-                            size_t alignment, int resized )
+int parsec_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
+                     parsec_matrix_uplo_t uplo, int diag,
+                     unsigned int m, unsigned int n, unsigned int ld,
+                     size_t alignment, int resized )
 {
     ptrdiff_t extent = 0;
     int rc;
@@ -261,7 +261,7 @@ int parsec_matrix_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldt
     return PARSEC_SUCCESS;
 }
 
-int parsec_matrix_del2arena( parsec_arena_datatype_t *adt )
+int parsec_del2arena( parsec_arena_datatype_t *adt )
 {
     return parsec_type_free( &adt->opaque_dtt );
 }

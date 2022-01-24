@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2019     The Universiy of Tennessee and The Universiy
- *                        of Tennessee Research Foundation. All rights
- *                        reserved.
+ * Copyright (c) 2019-2021 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
  */
 #include "stencil_internal.h"
 
@@ -17,8 +17,8 @@
  * @param [in] args: R
  */
 int stencil_1D_init_ops(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args)
 {
     DTYPE *A = (DTYPE *)_A;

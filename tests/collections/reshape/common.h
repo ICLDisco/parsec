@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,41 +20,41 @@
 #endif
 
 int reshape_set_matrix_value(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args);
 
 int reshape_set_matrix_value_count(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args);
 
 int reshape_set_matrix_value_count_lower2upper_matrix(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args);
 
 int reshape_set_matrix_value_lower_tile(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args);
 
 
 int reshape_set_matrix_value_position(parsec_execution_stream_t *es,
-                                      const parsec_tiled_matrix_dc_t *descA,
-                                      void *_A, enum matrix_uplo uplo,
+                                      const parsec_tiled_matrix_t *descA,
+                                      void *_A, parsec_matrix_uplo_t uplo,
                                       int m, int n, void *args);
 
 int reshape_set_matrix_value_position_swap(parsec_execution_stream_t *es,
-                                      const parsec_tiled_matrix_dc_t *descA,
-                                      void *_A, enum matrix_uplo uplo,
+                                      const parsec_tiled_matrix_t *descA,
+                                      void *_A, parsec_matrix_uplo_t uplo,
                                       int m, int n, void *args);
 
-int check_matrix_equal(two_dim_block_cyclic_t dcA, two_dim_block_cyclic_t dcA_check);
+int check_matrix_equal(parsec_matrix_block_cyclic_t dcA, parsec_matrix_block_cyclic_t dcA_check);
 
 int reshape_print(parsec_execution_stream_t *es,
-                  const parsec_tiled_matrix_dc_t *descA,
-                  void *_A, enum matrix_uplo uplo,
+                  const parsec_tiled_matrix_t *descA,
+                  void *_A, parsec_matrix_uplo_t uplo,
                   int m, int n, void *args);
 
 #if defined(PARSEC_HAVE_MPI)
@@ -131,27 +131,27 @@ int reshape_print(parsec_execution_stream_t *es,
     parsec_arena_datatype_t adt_default;                                  \
     parsec_arena_datatype_t adt_lower;                                    \
     parsec_arena_datatype_t adt_upper;                                    \
-    parsec_matrix_add2arena( &adt_default,                                \
+    parsec_add2arena( &adt_default,                                \
                             parsec_datatype_int_t,                        \
-                            matrix_UpperLower,                            \
+                            PARSEC_MATRIX_FULL,                     \
                             1, MB, NB, MB,                                \
                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );             \
                                                                           \
-    parsec_matrix_add2arena( &adt_lower,                                  \
+    parsec_add2arena( &adt_lower,                                  \
                              parsec_datatype_int_t,                       \
-                             matrix_Lower, 1, MB, NB, MB,                 \
+                             PARSEC_MATRIX_LOWER, 1, MB, NB, MB,          \
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );            \
                                                                           \
-    parsec_matrix_add2arena( &adt_upper,                                  \
+    parsec_add2arena( &adt_upper,                                  \
                              parsec_datatype_int_t,                       \
-                             matrix_Upper, 1, MB, NB, MB,                 \
+                             PARSEC_MATRIX_UPPER, 1, MB, NB, MB,          \
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );            \
     (void)adt_default; (void)adt_lower; (void)adt_upper;
 
 #define DO_FINI_DATATYPES()                                              \
-    parsec_matrix_del2arena(&adt_default);                               \
-    parsec_matrix_del2arena(&adt_lower);                                 \
-    parsec_matrix_del2arena(&adt_upper);
+    parsec_del2arena(&adt_default);                               \
+    parsec_del2arena(&adt_lower);                                 \
+    parsec_del2arena(&adt_upper);
 
 
 #define DO_RUN(ctp) do {                                                 \

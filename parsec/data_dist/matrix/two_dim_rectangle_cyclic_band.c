@@ -1,17 +1,18 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#include "two_dim_rectangle_cyclic_band.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic_band.h"
+#include "parsec/data_dist/matrix/matrix_internal.h"
 
 /* New rank_of for two dim block cyclic band */
 static uint32_t twoDBC_band_rank_of(parsec_data_collection_t * desc, ...)
 {
     unsigned int m, n;
     va_list ap;
-    two_dim_block_cyclic_band_t * dc = (two_dim_block_cyclic_band_t *)desc;
+    parsec_matrix_block_cyclic_band_t * dc = (parsec_matrix_block_cyclic_band_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -35,7 +36,7 @@ static int32_t twoDBC_band_vpid_of(parsec_data_collection_t * desc, ...)
 {
     unsigned int m, n;
     va_list ap;
-    two_dim_block_cyclic_band_t * dc = (two_dim_block_cyclic_band_t *)desc;
+    parsec_matrix_block_cyclic_band_t * dc = (parsec_matrix_block_cyclic_band_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -59,8 +60,8 @@ static parsec_data_t* twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
 {
     unsigned int m, n;
     va_list ap;
-    two_dim_block_cyclic_band_t * dc;
-    dc = (two_dim_block_cyclic_band_t *)desc;
+    parsec_matrix_block_cyclic_band_t * dc;
+    dc = (parsec_matrix_block_cyclic_band_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -87,7 +88,7 @@ static parsec_data_t* twoDBC_band_data_of(parsec_data_collection_t *desc, ...)
 static uint32_t twoDBC_band_rank_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
-    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    parsec_matrix_block_cyclic_key2coords(desc, key, &m, &n);
     return twoDBC_band_rank_of(desc, m, n);
 }
 
@@ -95,28 +96,28 @@ static uint32_t twoDBC_band_rank_of_key(parsec_data_collection_t *desc, parsec_d
 static int32_t twoDBC_band_vpid_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
-    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    parsec_matrix_block_cyclic_key2coords(desc, key, &m, &n);
     return twoDBC_band_vpid_of(desc, m, n);
 }
 
 /* New data_of_key for two dim block cyclic band */
 parsec_data_t* twoDBC_band_data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
-{   
+{
     int m, n;
-    twoDBC_key_to_coordinates(desc, key, &m, &n);
+    parsec_matrix_block_cyclic_key2coords(desc, key, &m, &n);
     return twoDBC_band_data_of(desc, m, n);
 }
 
-/* 
- * two_dim_block_cyclic_band_t structure init 
- * It inherits from off-band, so should be called after initialization of off_band 
+/*
+ * parsec_matrix_block_cyclic_band_t structure init
+ * It inherits from off-band, so should be called after initialization of off_band
  */
-void two_dim_block_cyclic_band_init( two_dim_block_cyclic_band_t *desc, 
+void parsec_matrix_block_cyclic_band_init( parsec_matrix_block_cyclic_band_t *desc,
                                      int nodes, int myrank, int band_size ) {
-    parsec_tiled_matrix_dc_t *off_band = &desc->off_band.super;
+    parsec_tiled_matrix_t *off_band = &desc->off_band.super;
     parsec_data_collection_t *dc = (parsec_data_collection_t*)desc;
 
-    parsec_tiled_matrix_dc_init( &desc->super, off_band->mtype, off_band->storage, off_band->dtype,
+    parsec_tiled_matrix_init( &desc->super, off_band->mtype, off_band->storage, off_band->dtype,
                                  nodes, myrank, off_band->mb, off_band->nb, off_band->lm, off_band->ln,
                                  off_band->i, off_band->j, off_band->m, off_band->n );
 

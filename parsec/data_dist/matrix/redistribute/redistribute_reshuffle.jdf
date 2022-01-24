@@ -20,8 +20,8 @@ extern "C" %{
  * target are at the start of tiles
  *
  */
-descY      [ type = "parsec_tiled_matrix_dc_t*" ]
-descT      [ type = "parsec_tiled_matrix_dc_t*" ]
+descY      [ type = "parsec_tiled_matrix_t*" ]
+descT      [ type = "parsec_tiled_matrix_t*" ]
 size_row   [ type = "int" ]
 size_col   [ type = "int" ]
 disi_Y     [ type = "int" ]
@@ -71,11 +71,11 @@ CTL ctl <- (batch > 0)? ctl Receive(m_T, n_T-num_col, batch-1)
 BODY
 {
     if( rank_Y != rank_T ){
-        if( (descT->storage == matrix_Lapack) || (descY->storage == matrix_Lapack)){
+        if( (descT->storage == PARSEC_MATRIX_LAPACK) || (descY->storage == PARSEC_MATRIX_LAPACK)){
             /* R is TILED */
             const int R_lda = descT->mb;
             /* Y is local, rely on storage */
-            const int Y_lda = ( descY->storage == matrix_Lapack )? descY->llm : descY->mb;
+            const int Y_lda = ( descY->storage == PARSEC_MATRIX_LAPACK )? descY->llm : descY->mb;
             CORE_redistribute_reshuffle_copy(R, Y, descT->mb, descT->nb, R_lda, Y_lda);
         }else{
             memcpy(R, Y, sizeof(DTYPE)*descT->mb*descT->nb);
@@ -115,13 +115,13 @@ BODY
     const int mb = (m_T == m_T_END)? parsec_imin(descT->mb, size_row-(m_T_END-m_T_START)*descT->mb): descT->mb;
     const int nb = (n_T == n_T_END)? parsec_imin(descT->nb, size_col-(n_T_END-n_T_START)*descT->nb): descT->nb;
 
-    if( (descT->storage != matrix_Lapack) && (descY->storage != matrix_Lapack)
+    if( (descT->storage != PARSEC_MATRIX_LAPACK) && (descY->storage != PARSEC_MATRIX_LAPACK)
         && ( m_T != m_T_END )){
         memcpy(T, Y, sizeof(DTYPE)*mb*nb);
     }else{
         /* T is local, rely on storage */
-        const int T_lda = ( descT->storage == matrix_Lapack )? descT->llm : descT->mb;
-        const int Y_lda = ( rank_Y == rank_T ) && ( descY->storage == matrix_Lapack )? descY->llm : descY->mb;
+        const int T_lda = ( descT->storage == PARSEC_MATRIX_LAPACK )? descT->llm : descT->mb;
+        const int Y_lda = ( rank_Y == rank_T ) && ( descY->storage == PARSEC_MATRIX_LAPACK )? descY->llm : descY->mb;
         CORE_redistribute_reshuffle_copy(T, Y, mb, nb, T_lda, Y_lda);
     }
 }

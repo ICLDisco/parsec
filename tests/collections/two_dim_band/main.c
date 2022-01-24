@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -21,8 +21,8 @@ int main(int argc, char *argv[])
     int rank, nodes, ch;
     int pargc = 0, i, dashdash = -1;
     char **pargv;
-    enum matrix_uplo uplo = matrix_Upper; //matrix_Lower
-    enum matrix_uplo full = matrix_UpperLower;
+    parsec_matrix_uplo_t uplo = PARSEC_MATRIX_UPPER; //PARSEC_MATRIX_LOWER
+    parsec_matrix_uplo_t full = PARSEC_MATRIX_FULL;
     /* Super */
     int N = 16, NB = 4, P = 1, KP = 1, KQ = 1;
     /* Band */
@@ -92,41 +92,41 @@ int main(int argc, char *argv[])
 
     /* dcY initializing matrix structure */
     /* Init Off_band */
-    two_dim_block_cyclic_band_t dcY;
-    two_dim_block_cyclic_init(&dcY.off_band, matrix_RealDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_band_t dcY;
+    parsec_matrix_block_cyclic_init(&dcY.off_band, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                                 rank, NB, NB, N, N, 0, 0,
                                 N, N,
                                 P, nodes/P, KP, KQ, 0, 0);
     /* Init band */
-    two_dim_block_cyclic_init(&dcY.band, matrix_RealDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_init(&dcY.band, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                                 rank, NB, NB, NB*(2*BAND_SIZE-1), N, 0, 0,
                                 NB*(2*BAND_SIZE-1), N,
                                 P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, 0, 0);
     /* Init two_dim_block_cyclic_band_t structure */
-    two_dim_block_cyclic_band_init( &dcY, nodes, rank, BAND_SIZE );
+    parsec_matrix_block_cyclic_band_init( &dcY, nodes, rank, BAND_SIZE );
     /* set key needs dcY to be initialized already */
     parsec_data_collection_set_key(&dcY.off_band.super.super, "dcY off_band");
     parsec_data_collection_set_key(&dcY.band.super.super, "dcY band");
 
     /* YP */
-    sym_two_dim_block_cyclic_band_t dcYP;
+    parsec_matrix_sym_block_cyclic_band_t dcYP;
     /* Init Off_band */
-    sym_two_dim_block_cyclic_init(&dcYP.off_band, matrix_RealDouble,
+    parsec_matrix_sym_block_cyclic_init(&dcYP.off_band, PARSEC_MATRIX_DOUBLE,
                                 rank, NB, NB, N, N, 0, 0,
                                 N, N, P, nodes/P, uplo);
     /* Init band */
-    two_dim_block_cyclic_init(&dcYP.band, matrix_RealDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_init(&dcYP.band, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                                 rank, NB, NB, NB*BAND_SIZE, N, 0, 0,
                                 NB*BAND_SIZE, N,
                                 P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, 0, 0);
     /* Init two_dim_block_cyclic_band_t structure */
-    sym_two_dim_block_cyclic_band_init( &dcYP, nodes, rank, BAND_SIZE );
+    parsec_matrix_sym_block_cyclic_band_init( &dcYP, nodes, rank, BAND_SIZE );
     /* set key needs dcYP to be initialized already */
     parsec_data_collection_set_key(&dcYP.off_band.super.super, "dcYP off_band");
     parsec_data_collection_set_key(&dcYP.band.super.super, "dcYP band");
 
     /* Allocate memory and set value */
-    parsec_two_dim_band_test(parsec, (parsec_tiled_matrix_dc_t *)&dcY, full);
+    parsec_two_dim_band_test(parsec, (parsec_tiled_matrix_t *)&dcY, full);
 
     if( 0 == rank )
         printf("Y  Init \tSUPER: PxQ= %3d %-3d, KPxKQ=%3d %-3d, N= %7d, NB= %4d; BAND: PxQ= %3d %-3d KPxKQ=%3d %-3d, BAND_SIZE=%3d, M= %7d, N= %4d\n",
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
 
 
     /* Allocate memory and set value */
-    parsec_two_dim_band_test(parsec, (parsec_tiled_matrix_dc_t *)&dcYP, uplo);
+    parsec_two_dim_band_test(parsec, (parsec_tiled_matrix_t *)&dcYP, uplo);
 
     if( 0 == rank )
         printf("YP Init \tSUPER: PxQ= %3d %-3d, KPxKQ=%3d %-3d, N= %7d, NB= %4d; BAND: PxQ= %3d %-3d KPxKQ=%3d %-3d, BAND_SIZE=%3d, M= %7d, N= %4d\n",
@@ -143,10 +143,10 @@ int main(int argc, char *argv[])
                P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, BAND_SIZE, NB*BAND_SIZE, N);
 
     /* Free memory */
-    parsec_two_dim_band_free(parsec, (parsec_tiled_matrix_dc_t *)&dcY, full);
-    parsec_two_dim_band_free(parsec, (parsec_tiled_matrix_dc_t *)&dcYP, uplo);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcY);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcYP);
+    parsec_two_dim_band_free(parsec, (parsec_tiled_matrix_t *)&dcY, full);
+    parsec_two_dim_band_free(parsec, (parsec_tiled_matrix_t *)&dcYP, uplo);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcY);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcYP);
 
     /* Clean up parsec*/
     parsec_fini(&parsec);

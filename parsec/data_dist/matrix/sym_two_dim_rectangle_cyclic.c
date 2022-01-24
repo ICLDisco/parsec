@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -30,6 +30,7 @@
 #include <assert.h>
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/matrix_internal.h"
 #include "parsec/mca/device/device.h"
 #include "parsec/vpmap.h"
 #include "parsec/data.h"
@@ -40,7 +41,7 @@
 
 static int sym_twoDBC_memory_register(parsec_data_collection_t* desc, parsec_device_module_t* device)
 {
-    sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
+    parsec_matrix_sym_block_cyclic_t * sym_twodbc = (parsec_matrix_sym_block_cyclic_t *)desc;
     if( NULL == sym_twodbc->mat ) {
         return PARSEC_SUCCESS;
     }
@@ -52,7 +53,7 @@ static int sym_twoDBC_memory_register(parsec_data_collection_t* desc, parsec_dev
 
 static int sym_twoDBC_memory_unregister(parsec_data_collection_t* desc, parsec_device_module_t* device)
 {
-    sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
+    parsec_matrix_sym_block_cyclic_t * sym_twodbc = (parsec_matrix_sym_block_cyclic_t *)desc;
     if( NULL == sym_twodbc->mat ) {
         return PARSEC_SUCCESS;
     }
@@ -65,8 +66,8 @@ static uint32_t sym_twoDBC_rank_of(parsec_data_collection_t * desc, ...)
     int rr;
     int res;
     va_list ap;
-    sym_two_dim_block_cyclic_t * dc;
-    dc = (sym_two_dim_block_cyclic_t *)desc;
+    parsec_matrix_sym_block_cyclic_t * dc;
+    dc = (parsec_matrix_sym_block_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -81,10 +82,10 @@ static uint32_t sym_twoDBC_rank_of(parsec_data_collection_t * desc, ...)
     assert( m < dc->super.mt );
     assert( n < dc->super.nt );
 
-    assert( (dc->uplo == matrix_Lower && m>=n) ||
-            (dc->uplo == matrix_Upper && n>=m) );
-    if ( ((dc->uplo == matrix_Lower) && (m < n)) ||
-         ((dc->uplo == matrix_Upper) && (m > n)) )
+    assert( (dc->uplo == PARSEC_MATRIX_LOWER && m>=n) ||
+            (dc->uplo == PARSEC_MATRIX_UPPER && n>=m) );
+    if ( ((dc->uplo == PARSEC_MATRIX_LOWER) && (m < n)) ||
+         ((dc->uplo == PARSEC_MATRIX_UPPER) && (m > n)) )
     {
         return UINT_MAX;
     }
@@ -103,9 +104,9 @@ static uint32_t sym_twoDBC_rank_of(parsec_data_collection_t * desc, ...)
 static void sym_twoDBC_key_to_coordinates(parsec_data_collection_t *desc, parsec_data_key_t key, int *m, int *n)
 {
     int _m, _n;
-    parsec_tiled_matrix_dc_t * dc;
+    parsec_tiled_matrix_t * dc;
 
-    dc = (parsec_tiled_matrix_dc_t *)desc;
+    dc = (parsec_tiled_matrix_t *)desc;
 
     _m = key % dc->lmt;
     _n = key / dc->lmt;
@@ -123,11 +124,11 @@ static uint32_t sym_twoDBC_rank_of_key(parsec_data_collection_t *desc, parsec_da
 static parsec_data_t* sym_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 {
     int m, n, position;
-    sym_two_dim_block_cyclic_t * dc;
+    parsec_matrix_sym_block_cyclic_t * dc;
     size_t pos = 0;
     va_list ap;
 
-    dc = (sym_two_dim_block_cyclic_t *)desc;
+    dc = (parsec_matrix_sym_block_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -145,17 +146,17 @@ static parsec_data_t* sym_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 #if defined(DISTRIBUTED)
     assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
 #endif
-    assert( dc->super.storage == matrix_Tile );
-    assert( (dc->uplo == matrix_Lower && m>=n) ||
-            (dc->uplo == matrix_Upper && n>=m) );
+    assert( dc->super.storage == PARSEC_MATRIX_TILE );
+    assert( (dc->uplo == PARSEC_MATRIX_LOWER && m>=n) ||
+            (dc->uplo == PARSEC_MATRIX_UPPER && n>=m) );
 
-    position = sym_twoDBC_coordinates_to_position(dc, m, n);
+    position = parsec_matrix_sym_block_cyclic_coord2pos(dc, m, n);
 
     /* If mat allocatd, set pos to the right position for each tile */
     if( NULL != dc->mat )
         pos = position;
 
-    return parsec_matrix_create_data( &dc->super,
+    return parsec_tiled_matrix_create_data( &dc->super,
                                      (char*)dc->mat + pos * dc->super.bsiz * parsec_datadist_getsizeoftype(dc->super.mtype),
                                      position, (n * dc->super.lmt) + m );
 }
@@ -171,10 +172,10 @@ static int32_t sym_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
 {
     int m, n, p, q, pq;
     int local_m, local_n;
-    sym_two_dim_block_cyclic_t * dc;
+    parsec_matrix_sym_block_cyclic_t * dc;
     va_list ap;
     int32_t vpid;
-    dc = (sym_two_dim_block_cyclic_t *)desc;
+    dc = (parsec_matrix_sym_block_cyclic_t *)desc;
 
     pq = vpmap_get_nb_vp();
     if ( pq == 1 )
@@ -201,8 +202,8 @@ static int32_t sym_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
 #if defined(DISTRIBUTED)
     assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
 #endif
-    assert( (dc->uplo == matrix_Lower && m>=n) ||
-            (dc->uplo == matrix_Upper && n>=m) );
+    assert( (dc->uplo == PARSEC_MATRIX_LOWER && m>=n) ||
+            (dc->uplo == PARSEC_MATRIX_UPPER && n>=m) );
 
     /* Compute the local tile row */
     local_m = m / dc->grid.rows;
@@ -224,23 +225,23 @@ static int32_t sym_twoDBC_vpid_of_key(parsec_data_collection_t *desc, parsec_dat
     return sym_twoDBC_vpid_of(desc, m, n);
 }
 
-void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * dc,
-                                   enum matrix_type mtype,
+void parsec_matrix_sym_block_cyclic_init(parsec_matrix_sym_block_cyclic_t * dc,
+                                   parsec_matrix_type_t mtype,
                                    int myrank,
                                    int mb,   int nb,   /* Tile size */
                                    int lm,   int ln,   /* Global matrix size (what is stored)*/
                                    int i,    int j,    /* Staring point in the global matrix */
                                    int m,    int n,    /* Submatrix size (the one concerned by the computation */
                                    int P,    int Q,    /* process process grid */
-                                   int uplo )
+                                   parsec_matrix_uplo_t uplo )
 {
     int nb_elem, total;
     int nodes = P*Q;
     /* Initialize the tiled_matrix descriptor */
     parsec_data_collection_t *o = &(dc->super.super);
 
-    parsec_tiled_matrix_dc_init( &(dc->super), mtype, matrix_Tile,
-                            sym_two_dim_block_cyclic_type,
+    parsec_tiled_matrix_init( &(dc->super), mtype, PARSEC_MATRIX_TILE,
+                            parsec_matrix_sym_block_cyclic_type,
                             nodes, myrank,
                             mb, nb, lm, ln, i, j, m, n );
     dc->mat = NULL;  /* No data associated with the matrix yet */
@@ -261,14 +262,14 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * dc,
     }
     if(nodes != P*Q)
         parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
-    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1, 0, 0);
+    parsec_grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1, 0, 0);
 
     /* Extra parameters */
     dc->uplo = uplo;
 
     /* find the number of tiles this process will handle */
     total = 0; /* number of tiles handled by the process */
-    if ( uplo == matrix_Lower ) {
+    if ( uplo == PARSEC_MATRIX_LOWER ) {
         int column = dc->grid.crank; /* tile column considered */
         int nb_elem_col = (dc->super.lmt) / (dc->grid.rows); //nb of tile associated to that proc in a full column
         if( (dc->super.lmt) % (dc->grid.rows) > dc->grid.rrank )
@@ -305,3 +306,48 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * dc,
     dc->super.nb_local_tiles = total;
     dc->super.data_map = (parsec_data_t**)calloc(dc->super.nb_local_tiles, sizeof(parsec_data_t*));
 }
+
+size_t parsec_matrix_sym_block_cyclic_coord2pos(
+    parsec_matrix_sym_block_cyclic_t *dc,
+    int m,
+    int n)
+{
+    size_t pos;
+    int nb_elem, nb_elem_col, column;
+
+    pos = 0; /* current position (as number of tile) in the buffer */
+    column = dc->grid.crank; /* tile column considered */
+
+    /**********************************/
+    if(dc->uplo == PARSEC_MATRIX_LOWER ) {
+        nb_elem_col = (dc->super.lmt) / (dc->grid.rows); //nb of tile associated to that proc in a full column
+        if( (dc->super.lmt) % (dc->grid.rows) > dc->grid.rrank )
+            nb_elem_col++;
+
+        while(column != n) {
+            /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
+            nb_elem = column / (dc->grid.rows);
+            if ( (column % (dc->grid.rows)) > dc->grid.rrank)
+                nb_elem++;
+
+            pos += (nb_elem_col - nb_elem);
+            column += dc->grid.cols;
+        }
+
+        pos += ((m - n) / (dc->grid.rows));
+    } else {
+        while(column != n) {
+            /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
+            nb_elem = (column + 1) / (dc->grid.rows);
+            if ( ( (column + 1) % (dc->grid.rows)) > dc->grid.rrank)
+                nb_elem++;
+
+            pos += nb_elem;
+            column += dc->grid.cols;
+        }
+
+        pos += (m / (dc->grid.rows));
+    }
+    return pos;
+}
+

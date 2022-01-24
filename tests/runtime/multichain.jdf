@@ -1,6 +1,6 @@
 extern "C" %{
 /**
- * Copyright (c) 2014-2016 The University of Tennessee and The University
+ * Copyright (c) 2014-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,7 +13,7 @@ extern "C" %{
 
 #define BLOCK 10
 #define NN    4
-#define TYPE  matrix_RealFloat
+#define TYPE  PARSEC_MATRIX_FLOAT
 
 #include "multichain.h"
 static parsec_multichain_taskpool_t* tp;
@@ -29,8 +29,8 @@ static int verbose = 0;
                              MPI_COMM_NULL,  MPI_COMM_NULL, MPI_COMM_WORLD};
 %}
 
-descA      [type = "two_dim_block_cyclic_t*"]
-descB      [type = "two_dim_block_cyclic_t*" aligned=descA]
+descA      [type = "parsec_matrix_block_cyclic_t*"]
+descB      [type = "parsec_matrix_block_cyclic_t*" aligned=descA]
 NI         [type = int]
 NJ         [type = int]
 
@@ -104,7 +104,7 @@ static void release_comms(void)
 
 int main(int argc, char* argv[])
 {
-    two_dim_block_cyclic_t descA, descB;
+    parsec_matrix_block_cyclic_t descA, descB;
     parsec_arena_datatype_t adt;
     parsec_context_t *parsec;
     int ni = NN, nj = NN, loops = 5, i = 1, l, rc;
@@ -172,7 +172,7 @@ int main(int argc, char* argv[])
         parsec_remote_dep_set_ctx(parsec, (intptr_t)comm);
 #endif  /* DISTRIBUTED */
         mat_size = 2*BLOCK*size*ni;
-        two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+        parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,
                                    rank /*rank*/,
                                    2*BLOCK, 1, mat_size, 1,
                                    0, 0, mat_size, 1,
@@ -180,7 +180,7 @@ int main(int argc, char* argv[])
         descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                           descA.super.bsiz *
                                           parsec_datadist_getsizeoftype(TYPE) );
-        two_dim_block_cyclic_init( &descB, TYPE, matrix_Tile,
+        parsec_matrix_block_cyclic_init( &descB, TYPE, PARSEC_MATRIX_TILE,
                                    rank /*rank*/,
                                    2*BLOCK, 1, mat_size, 1,
                                    0, 0, mat_size, 1,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2018 The University of Tennessee and The University
+ * Copyright (c) 2010-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -22,45 +22,44 @@ BEGIN_C_DECLS
 struct parsec_execution_stream_s;
 struct parsec_taskpool_s;
 
+typedef enum parsec_matrix_type_e {
+    PARSEC_MATRIX_BYTE          = 0, /**< unsigned char  */
+    PARSEC_MATRIX_INTEGER       = 1, /**< signed int     */
+    PARSEC_MATRIX_FLOAT     = 2, /**< float          */
+    PARSEC_MATRIX_DOUBLE    = 3, /**< double         */
+    PARSEC_MATRIX_COMPLEX_FLOAT  = 4, /**< complex float  */
+    PARSEC_MATRIX_COMPLEX_DOUBLE = 5  /**< complex double */
+} parsec_matrix_type_t;
 
-enum matrix_type {
-    matrix_Byte          = 0, /**< unsigned char  */
-    matrix_Integer       = 1, /**< signed int     */
-    matrix_RealFloat     = 2, /**< float          */
-    matrix_RealDouble    = 3, /**< double         */
-    matrix_ComplexFloat  = 4, /**< complex float  */
-    matrix_ComplexDouble = 5  /**< complex double */
-};
-
-enum matrix_storage {
-    matrix_Lapack        = 0, /**< LAPACK Layout or Column Major  */
-    matrix_Tile          = 1, /**< Tile Layout or Column-Column Rectangular Block (CCRB) */
-};
+typedef enum parsec_matrix_storage_e {
+    PARSEC_MATRIX_LAPACK        = 0, /**< LAPACK Layout or Column Major  */
+    PARSEC_MATRIX_TILE          = 1, /**< Tile Layout or Column-Column Rectangular Block (CCRB) */
+} parsec_matrix_storage_t;
 
 /**
  * Put our own definition of Upper/Lower/General values mathing the
  * Cblas/Plasma/... ones to avoid the dependency
  */
-enum matrix_uplo {
-    matrix_Upper      = 121,
-    matrix_Lower      = 122,
-    matrix_UpperLower = 123
-};
+typedef enum parsec_matrix_uplo_e {
+    PARSEC_MATRIX_UPPER      = 121,
+    PARSEC_MATRIX_LOWER      = 122,
+    PARSEC_MATRIX_FULL       = 123
+} parsec_matrix_uplo_t;
 
 /**
  * Obtain the size in bytes of a matrix type.
  */
-static inline int parsec_datadist_getsizeoftype(enum matrix_type type)
+static inline int parsec_datadist_getsizeoftype(parsec_matrix_type_t type)
 {
     int size = -1;
     switch( type ) {
-    case matrix_Byte          : parsec_type_size(parsec_datatype_int8_t, &size); break;
-    case matrix_Integer       : parsec_type_size(parsec_datatype_int32_t, &size); break;
-    case matrix_RealFloat     : parsec_type_size(parsec_datatype_float_t, &size); break;
-    case matrix_RealDouble    : parsec_type_size(parsec_datatype_double_t, &size); break;
-    case matrix_ComplexFloat  : parsec_type_size(parsec_datatype_complex_t, &size); break;
-    case matrix_ComplexDouble : parsec_type_size(parsec_datatype_double_complex_t, &size); break;
-    /* If you want to add more types, note that size=extent is true only for predefined datatypes. 
+    case PARSEC_MATRIX_BYTE          : parsec_type_size(parsec_datatype_int8_t, &size); break;
+    case PARSEC_MATRIX_INTEGER       : parsec_type_size(parsec_datatype_int32_t, &size); break;
+    case PARSEC_MATRIX_FLOAT     : parsec_type_size(parsec_datatype_float_t, &size); break;
+    case PARSEC_MATRIX_DOUBLE    : parsec_type_size(parsec_datatype_double_t, &size); break;
+    case PARSEC_MATRIX_COMPLEX_FLOAT  : parsec_type_size(parsec_datatype_complex_t, &size); break;
+    case PARSEC_MATRIX_COMPLEX_DOUBLE : parsec_type_size(parsec_datatype_double_complex_t, &size); break;
+    /* If you want to add more types, note that size=extent is true only for predefined datatypes.
      * also, for non-predefined datatypes, you'd want to check for errors from
      * parsec_type_size() */
     default:
@@ -73,15 +72,15 @@ static inline int parsec_datadist_getsizeoftype(enum matrix_type type)
  * Convert from a matrix type to a more traditional PaRSEC type usable for
  * creating arenas.
  */
-static inline int parsec_translate_matrix_type( enum matrix_type mt, parsec_datatype_t* dt )
+static inline int parsec_translate_matrix_type( parsec_matrix_type_t mt, parsec_datatype_t* dt )
 {
     switch(mt) {
-    case matrix_Byte:          *dt = parsec_datatype_int8_t; break;
-    case matrix_Integer:       *dt = parsec_datatype_int32_t; break;
-    case matrix_RealFloat:     *dt = parsec_datatype_float_t; break;
-    case matrix_RealDouble:    *dt = parsec_datatype_double_t; break;
-    case matrix_ComplexFloat:  *dt = parsec_datatype_complex_t; break;
-    case matrix_ComplexDouble: *dt = parsec_datatype_double_complex_t; break;
+    case PARSEC_MATRIX_BYTE:          *dt = parsec_datatype_int8_t; break;
+    case PARSEC_MATRIX_INTEGER:       *dt = parsec_datatype_int32_t; break;
+    case PARSEC_MATRIX_FLOAT:     *dt = parsec_datatype_float_t; break;
+    case PARSEC_MATRIX_DOUBLE:    *dt = parsec_datatype_double_t; break;
+    case PARSEC_MATRIX_COMPLEX_FLOAT:  *dt = parsec_datatype_complex_t; break;
+    case PARSEC_MATRIX_COMPLEX_DOUBLE: *dt = parsec_datatype_double_complex_t; break;
     default:
         fprintf(stderr, "%s:%d Unknown matrix_type (%d)\n", __func__, __LINE__, mt);
         return PARSEC_ERR_BAD_PARAM;
@@ -89,16 +88,18 @@ static inline int parsec_translate_matrix_type( enum matrix_type mt, parsec_data
     return PARSEC_SUCCESS;
 }
 
-#define parsec_tiled_matrix_dc_type   0x01
-#define two_dim_block_cyclic_type     0x02
-#define sym_two_dim_block_cyclic_type 0x04
-#define two_dim_tabular_type          0x08
+enum {
+  parsec_matrix_type = 0x01,
+  parsec_matrix_block_cyclic_type = 0x2,
+  parsec_matrix_sym_block_cyclic_type = 0x4,
+  parsec_matrix_tabular_type = 0x8
+};
 
-typedef struct parsec_tiled_matrix_dc_t {
+typedef struct parsec_tiled_matrix_s {
     parsec_data_collection_t super;
     parsec_data_t**       data_map;   /**< map of the data */
-    enum matrix_type     mtype;      /**< precision of the matrix */
-    enum matrix_storage  storage;    /**< storage of the matrix   */
+    parsec_matrix_type_t     mtype;      /**< precision of the matrix */
+    parsec_matrix_storage_t  storage;    /**< storage of the matrix   */
     int dtype;          /**< Distribution type of descriptor      */
     int tileld;         /**< leading dimension of each tile (Should be a function depending on the row) */
     int mb;             /**< number of rows in a tile */
@@ -119,18 +120,19 @@ typedef struct parsec_tiled_matrix_dc_t {
     int nb_local_tiles; /**< number of tile handled locally */
     int slm;            /**< number of local rows of the submatrix */
     int sln;            /**< number of local columns of the submatrix */
-} parsec_tiled_matrix_dc_t;
+} parsec_tiled_matrix_t;
 
-void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,
+void parsec_tiled_matrix_init( parsec_tiled_matrix_t *tdesc, parsec_matrix_type_t dtyp, parsec_matrix_storage_t storage,
                              int matrix_distribution_type, int nodes, int myrank,
                              int mb, int nb, int lm, int ln, int i,  int j, int m,  int n);
 
-void parsec_tiled_matrix_dc_destroy( parsec_tiled_matrix_dc_t *tdesc );
+void parsec_tiled_matrix_destroy( parsec_tiled_matrix_t *tdesc );
 
-parsec_tiled_matrix_dc_t *tiled_matrix_submatrix( parsec_tiled_matrix_dc_t *tdesc, int i, int j, int m, int n);
+parsec_tiled_matrix_t *parsec_tiled_matrix_submatrix( parsec_tiled_matrix_t *tdesc, int i, int j, int m, int n);
 
-int  tiled_matrix_data_write(parsec_tiled_matrix_dc_t *tdesc, char *filename);
-int  tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename);
+int  parsec_tiled_matrix_data_write(parsec_tiled_matrix_t *tdesc, char *filename);
+
+int  parsec_tiled_matrix_data_read(parsec_tiled_matrix_t *tdesc, char *filename);
 
 typedef int (*parsec_operator_t)( struct parsec_execution_stream_s *es,
                                   const void* src,
@@ -138,53 +140,53 @@ typedef int (*parsec_operator_t)( struct parsec_execution_stream_s *es,
                                   void* op_data,
                                   ... );
 
-typedef int (*tiled_matrix_unary_op_t )( struct parsec_execution_stream_s *es,
-                                         const parsec_tiled_matrix_dc_t *desc1,
+typedef int (*parsec_tiled_matrix_unary_op_t )( struct parsec_execution_stream_s *es,
+                                         const parsec_tiled_matrix_t *desc1,
                                          void *data1,
                                          int uplo, int m, int n,
                                          void *args );
 
-typedef int (*tiled_matrix_binary_op_t)( struct parsec_execution_stream_s *es,
-                                         const parsec_tiled_matrix_dc_t *desc1,
-                                         const parsec_tiled_matrix_dc_t *desc2,
+typedef int (*parsec_tiled_matrix_binary_op_t)( struct parsec_execution_stream_s *es,
+                                         const parsec_tiled_matrix_t *desc1,
+                                         const parsec_tiled_matrix_t *desc2,
                                          const void *data1, void *data2,
                                          int uplo, int m, int n,
                                          void *args );
 
 extern struct parsec_taskpool_s*
-parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
-                       parsec_tiled_matrix_dc_t* dest,
+parsec_map_operator_New(const parsec_tiled_matrix_t* src,
+                       parsec_tiled_matrix_t* dest,
                        parsec_operator_t op,
                        void* op_data);
 
 extern struct parsec_taskpool_s*
-parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
-                      parsec_tiled_matrix_dc_t* dest,
+parsec_reduce_col_New( const parsec_tiled_matrix_t* src,
+                      parsec_tiled_matrix_t* dest,
                       parsec_operator_t op,
                       void* op_data );
 
 extern void parsec_reduce_col_Destruct( struct parsec_taskpool_s *o );
 
 extern struct parsec_taskpool_s*
-parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
-                      parsec_tiled_matrix_dc_t* dest,
+parsec_reduce_row_New( const parsec_tiled_matrix_t* src,
+                      parsec_tiled_matrix_t* dest,
                       parsec_operator_t op,
                       void* op_data );
 extern void parsec_reduce_row_Destruct( struct parsec_taskpool_s *o );
 
 extern struct parsec_taskpool_s*
-parsec_apply_New(     int uplo,
-                      parsec_tiled_matrix_dc_t* A,
-                      tiled_matrix_unary_op_t operation,
+parsec_apply_New(     parsec_matrix_uplo_t uplo,
+                      parsec_tiled_matrix_t* A,
+                      parsec_tiled_matrix_unary_op_t operation,
                       void* op_args );
 
 extern void parsec_apply_Destruct( struct parsec_taskpool_s *o );
 
 extern int
 parsec_apply( parsec_context_t *parsec,
-             int uplo,
-             parsec_tiled_matrix_dc_t *A,
-             tiled_matrix_unary_op_t operation,
+             parsec_matrix_uplo_t uplo,
+             parsec_tiled_matrix_t *A,
+             parsec_tiled_matrix_unary_op_t operation,
              void *op_args );
 /**
  * @brief Non-blocking function of redistribute for PTG
@@ -200,14 +202,14 @@ parsec_apply( parsec_context_t *parsec,
  * @return the parsec object to schedule.
  */
 parsec_taskpool_t*
-parsec_redistribute_New(parsec_tiled_matrix_dc_t *source,
-                        parsec_tiled_matrix_dc_t *target,
+parsec_redistribute_New(parsec_tiled_matrix_t *source,
+                        parsec_tiled_matrix_t *target,
                         int size_row, int size_col,
                         int disi_source, int disj_source,
                         int disi_target, int disj_target);
 
 /**
- * @brief Cases other than that of parsec_redistribute_ss_Destruct 
+ * @brief Cases other than that of parsec_redistribute_ss_Destruct
  * @param [inout] the parsec object to destroy
  */
 void parsec_redistribute_Destruct(parsec_taskpool_t *taskpool);
@@ -215,68 +217,68 @@ void parsec_redistribute_Destruct(parsec_taskpool_t *taskpool);
 /**
  * @brief Redistribute source to target of PTG
  *
- * @details 
- * Source and target could be ANY distribuiton with ANY displacement 
- * in both source and target. 
+ * @details
+ * Source and target could be ANY distribuiton with ANY displacement
+ * in both source and target.
  *
  * @param [in] source: source distribution, already distributed and allocated
  * @param [out] target: target distribution, redistributed and allocated
  * @param [in] size_row: row size to be redistributed
  * @param [in] size_col: column size to be redistributed
- * @param [in] disi_source: row displacement in source 
- * @param [in] disj_source: column displacement in source 
+ * @param [in] disi_source: row displacement in source
+ * @param [in] disj_source: column displacement in source
  * @param [in] disi_target: row displacement in target
  * @param [in] disj_target: column displacement in target
  */
 int parsec_redistribute(parsec_context_t *parsec,
-                        parsec_tiled_matrix_dc_t *source,
-                        parsec_tiled_matrix_dc_t *target,
+                        parsec_tiled_matrix_t *source,
+                        parsec_tiled_matrix_t *target,
                         int size_row, int size_col,
                         int disi_source, int disj_source,
                         int disi_target, int disj_target);
 
 /**
- * @brief Non-blocking function of redistribute for DTD 
- * 
- * @details 
- * Source and target could be ANY distribuiton with ANY displacement 
- * in both source and target. 
+ * @brief Non-blocking function of redistribute for DTD
+ *
+ * @details
+ * Source and target could be ANY distribuiton with ANY displacement
+ * in both source and target.
  *
  * @param [in] source: source distribution, already distributed and allocated
  * @param [out] target: target distribution, redistributed and allocated
  * @param [in] size_row: row size to be redistributed
  * @param [in] size_col: column size to be redistributed
- * @param [in] disi_source: row displacement in source 
- * @param [in] disj_source: column displacement in source 
+ * @param [in] disi_source: row displacement in source
+ * @param [in] disj_source: column displacement in source
  * @param [in] disi_target: row displacement in target
  * @param [in] disj_target: column displacement in target
  */
 int parsec_redistribute_dtd_New(parsec_context_t *parsec,
-                            parsec_tiled_matrix_dc_t *source,
-                            parsec_tiled_matrix_dc_t *target,
+                            parsec_tiled_matrix_t *source,
+                            parsec_tiled_matrix_t *target,
                             int size_row, int size_col,
                             int disi_source, int disj_source,
                             int disi_target, int disj_target);
 
 /**
- * @brief Redistribute source to target of DTD 
- * 
- * @details 
- * Source and target could be ANY distribuiton with ANY displacement 
- * in both source and target. 
- * 
+ * @brief Redistribute source to target of DTD
+ *
+ * @details
+ * Source and target could be ANY distribuiton with ANY displacement
+ * in both source and target.
+ *
  * @param [in] source: source distribution, already distributed and allocated
  * @param [out] target: target distribution, redistributed and allocated
  * @param [in] size_row: row size to be redistributed
  * @param [in] size_col: column size to be redistributed
- * @param [in] disi_source: row displacement in source 
- * @param [in] disj_source: column displacement in source 
+ * @param [in] disi_source: row displacement in source
+ * @param [in] disj_source: column displacement in source
  * @param [in] disi_target: row displacement in target
  * @param [in] disj_target: column displacement in target
  */
 int parsec_redistribute_dtd(parsec_context_t *parsec,
-                            parsec_tiled_matrix_dc_t *source,
-                            parsec_tiled_matrix_dc_t *target,
+                            parsec_tiled_matrix_t *source,
+                            parsec_tiled_matrix_t *target,
                             int size_row, int size_col,
                             int disi_source, int disj_source,
                             int disi_target, int disj_target);
@@ -284,7 +286,7 @@ int parsec_redistribute_dtd(parsec_context_t *parsec,
 /*
  * Macro to get the block leading dimension
  */
-#define BLKLDD( _desc_, _m_ ) ( (_desc_)->storage == matrix_Tile ? (_desc_)->mb : (_desc_)->llm )
+#define BLKLDD( _desc_, _m_ ) ( (_desc_)->storage == PARSEC_MATRIX_TILE ? (_desc_)->mb : (_desc_)->llm )
 #define TILED_MATRIX_KEY( _desc_, _m_, _n_ ) ( ((parsec_data_collection_t*)(_desc_))->data_key( ((parsec_data_collection_t*)(_desc_)), (_m_), (_n_) ) )
 
 /**
@@ -292,16 +294,13 @@ int parsec_redistribute_dtd(parsec_context_t *parsec,
  * the corresponding copies.
  */
 parsec_data_t*
-parsec_matrix_create_data(parsec_tiled_matrix_dc_t* matrix,
+parsec_tiled_matrix_create_data(parsec_tiled_matrix_t* matrix,
                          void* ptr,
                          int pos,
                          parsec_data_key_t key);
 
 void
-parsec_matrix_destroy_data( parsec_tiled_matrix_dc_t* matrix );
-
-parsec_data_t*
-fake_data_of(parsec_data_collection_t *mat, ...);
+parsec_tiled_matrix_destroy_data( parsec_tiled_matrix_t* matrix );
 
 /**
  * Helper function to create datatypes for matrices with different shapes. This generic
@@ -314,7 +313,7 @@ fake_data_of(parsec_data_collection_t *mat, ...);
  * The extent of the output datatype is set on the extent argument.
  */
 int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t oldtype,
-                                  int uplo, int diag,
+                                  parsec_matrix_uplo_t uplo, int diag,
                                   unsigned int m, unsigned int n, unsigned int ld,
                                   int resized,
                                   ptrdiff_t * extent);
@@ -325,25 +324,27 @@ int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t 
  * is created using the datatype extent. The alignment indicates the restrictions related
  * to the alignment of the allocated data by the arena.
  */
-int parsec_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
-                             int uplo, int diag,
+int parsec_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
+                             parsec_matrix_uplo_t uplo, int diag,
                              unsigned int m, unsigned int n, unsigned int ld,
                              size_t alignment, int resized );
 
-int parsec_matrix_del2arena( parsec_arena_datatype_t *adt );
+int parsec_del2arena( parsec_arena_datatype_t *adt );
 
+#define parsec_add2arena_tile( _adt_ , _oldtype_, _m_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
-#define parsec_matrix_add2arena_tile( _adt_ , _oldtype_, _m_ ) \
-    parsec_matrix_add2arena( (_adt_), (_oldtype_), matrix_UpperLower, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_add2arena_upper( _adt_ , _oldtype_, diag, _n_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_UPPER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
-#define parsec_matrix_add2arena_upper( _adt_ , _oldtype_, diag, _n_ ) \
-    parsec_matrix_add2arena( (_adt_), (_oldtype_), matrix_Upper, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_add2arena_lower( _adt_ , _oldtype_, diag, _n_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_LOWER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
-#define parsec_matrix_add2arena_lower( _adt_ , _oldtype_, diag, _n_ ) \
-    parsec_matrix_add2arena( (_adt_), (_oldtype_), matrix_Lower, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+#define parsec_add2arena_rect( _adt_ , _oldtype_, _m_, _n_, _ld_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
-#define parsec_matrix_add2arena_rect( _adt_ , _oldtype_, _m_, _n_, _ld_ ) \
-    parsec_matrix_add2arena( (_adt_), (_oldtype_), matrix_UpperLower, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+/* include deprecated symbols */
+#include "parsec/data_dist/matrix/deprecated/matrix.h"
 
 END_C_DECLS
 #endif /* _MATRIX_H_  */

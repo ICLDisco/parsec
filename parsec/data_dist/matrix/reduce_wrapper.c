@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2020 The University of Tennessee and The University
+ * Copyright (c) 2011-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -22,8 +22,8 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_reduce_col_taskpool_t, parsec_taskpool_t,
                           NULL, __parsec_reduce_col_destructor);
 
 parsec_taskpool_t*
-parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
-                      parsec_tiled_matrix_dc_t* dest,
+parsec_reduce_col_New( const parsec_tiled_matrix_t* src,
+                      parsec_tiled_matrix_t* dest,
                       parsec_operator_t operation,
                       void* op_data )
 {
@@ -59,8 +59,8 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_reduce_row_taskpool_t, parsec_taskpool_t,
                           NULL, __parsec_reduce_row_destructor);
 
 parsec_taskpool_t*
-parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
-                      parsec_tiled_matrix_dc_t* dest,
+parsec_reduce_row_New( const parsec_tiled_matrix_t* src,
+                      parsec_tiled_matrix_t* dest,
                       parsec_operator_t operation,
                       void* op_data )
 {

@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2013-2016 The University of Tennessee and The University
+ * Copyright (c) 2013-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -90,7 +90,7 @@ int global_to_local_index(int N, int idx){
 
 %option no_taskpool_instance = true  /* can be anything */
 
-dataA      [type = "struct parsec_tiled_matrix_dc_t *"]
+dataA      [type = "parsec_tiled_matrix_t *"]
 NB         [type = int]
 NT         [type = int]
 

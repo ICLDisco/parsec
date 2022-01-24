@@ -56,6 +56,12 @@
 #define PARSEC_UNLIKELY(x)     (x)
 #endif
 
+#if defined(PARSEC_HAVE_ATTRIBUTE_DEPRECATED)
+#   define __parsec_attribute_deprecated__(msg) __attribute__((deprecated(msg)))
+#else // PARSEC_HAVE_ATTRIBUTE_DEPRECATED
+#   define __parsec_attribute_deprecated__(a)
+#endif
+
 /***********************************************************************
  *
  * Windows library interface declaration code

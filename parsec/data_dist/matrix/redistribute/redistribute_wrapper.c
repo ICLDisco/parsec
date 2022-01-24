@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 The University of Tennessee and The University
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -31,8 +31,8 @@ static inline int parsec_imax(int a, int b)
  * @return the parsec object to schedule.
  */
 parsec_taskpool_t*
-parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
-                        parsec_tiled_matrix_dc_t *dcT,
+parsec_redistribute_New(parsec_tiled_matrix_t *dcY,
+                        parsec_tiled_matrix_t *dcT,
                         int size_row, int size_col,
                         int disi_Y, int disj_Y,
                         int disi_T, int disj_T)
@@ -68,15 +68,15 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
     }
 
     /* Check distribution, and determine batch size: num_col */
-    if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_tabular_type) ) {
+    if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
         num_cols = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
-    } else if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_block_cyclic_type) ) {
-        num_cols = ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols;
-    } else if( (dcY->dtype & two_dim_block_cyclic_type) && (dcT->dtype & two_dim_tabular_type) ) {
-        num_cols = ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols;
-    } else if( (dcY->dtype & two_dim_block_cyclic_type) && (dcT->dtype & two_dim_block_cyclic_type) ) {
-        num_cols = parsec_imax( ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols,
-                                ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols );
+    } else if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
+        num_cols = ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols;
+    } else if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
+        num_cols = ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols;
+    } else if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
+        num_cols = parsec_imax( ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols,
+                                ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols );
     } else {
         parsec_warning("This version of data redistribution only supports two_dim_block_cyclic_type and two_dim_tabular_type");
         return NULL;
@@ -97,10 +97,10 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
         int n_T_END = (size_col+disj_T-1) / dcT->nb;
         taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
 
-        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX],
-                                MY_TYPE, matrix_UpperLower,
-                                1, dcY->mb, dcY->nb, dcY->mb,
-                                PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX],
+                         MY_TYPE, PARSEC_MATRIX_FULL,
+                         1, dcY->mb, dcY->nb, dcY->mb,
+                         PARSEC_ARENA_ALIGNMENT_SSE, -1 );
         /* General version */
     } else {
         parsec_redistribute_taskpool_t* taskpool = NULL;
@@ -118,23 +118,23 @@ parsec_redistribute_New(parsec_tiled_matrix_dc_t *dcY,
         int n_T_END = (size_col+disj_T-1) / (dcT->nb-2*R);
         taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
 
-        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX],
-                                MY_TYPE, matrix_UpperLower,
-                                1, 1, 1, 1,
-                                PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX],
+                         MY_TYPE, PARSEC_MATRIX_FULL,
+                         1, 1, 1, 1,
+                         PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-        int Y_LDA = dcY->storage == matrix_Lapack ? dcY->llm : dcY->mb;
-        int T_LDA = dcT->storage == matrix_Lapack ? dcT->llm : dcT->mb;
+        int Y_LDA = dcY->storage == PARSEC_MATRIX_LAPACK ? dcY->llm : dcY->mb;
+        int T_LDA = dcT->storage == PARSEC_MATRIX_LAPACK ? dcT->llm : dcT->mb;
 
-        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ADT_IDX],
-                                MY_TYPE, matrix_UpperLower,
-                                1, dcT->mb, dcT->nb, T_LDA,
-                                PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ADT_IDX],
+                         MY_TYPE, PARSEC_MATRIX_FULL,
+                         1, dcT->mb, dcT->nb, T_LDA,
+                         PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-        parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX],
-                                MY_TYPE, matrix_UpperLower,
-                                1, dcY->mb-2*R, dcY->nb-2*R, Y_LDA,
-                                PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX],
+                         MY_TYPE, PARSEC_MATRIX_FULL,
+                         1, dcY->mb-2*R, dcY->nb-2*R, Y_LDA,
+                         PARSEC_ARENA_ALIGNMENT_SSE, -1 );
     }
 
     return redistribute_taskpool;
@@ -156,12 +156,12 @@ __parsec_redistribute_destructor(parsec_redistribute_taskpool_t *redistribute_ta
         && (redistribute_taskpool->_g_disj_T % redistribute_taskpool->_g_descT->nb == 0) )
     {
         parsec_redistribute_reshuffle_taskpool_t *redistribute_reshuffle_taskpool = (parsec_redistribute_reshuffle_taskpool_t *)redistribute_taskpool;
-        parsec_matrix_del2arena(&redistribute_reshuffle_taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX]);
+        parsec_del2arena(&redistribute_reshuffle_taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX]);
     } else {
-        parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX]);
-        parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ADT_IDX]);
-        // parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ADT_IDX]);
-        parsec_matrix_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX]);
+        parsec_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX]);
+        parsec_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ADT_IDX]);
+        // parsec_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ADT_IDX]);
+        parsec_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX]);
     }
 }
 
@@ -183,8 +183,8 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_reshuffle_taskpool_t, parsec_taskp
  * @param [in] disj_T: column displacement in dcT
  */
 int parsec_redistribute(parsec_context_t *parsec,
-                        parsec_tiled_matrix_dc_t *dcY,
-                        parsec_tiled_matrix_dc_t *dcT,
+                        parsec_tiled_matrix_t *dcY,
+                        parsec_tiled_matrix_t *dcT,
                         int size_row, int size_col,
                         int disi_Y, int disj_Y,
                         int disi_T, int disj_T)

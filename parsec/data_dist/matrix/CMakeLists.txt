@@ -45,3 +45,16 @@ install(FILES
   subtile.h
   ${CMAKE_CURRENT_BINARY_DIR}/diag_band_to_rect.h
   DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/data_dist/matrix )
+
+
+install(FILES
+  deprecated/grid_2Dcyclic.h
+  deprecated/matrix.h
+  deprecated/two_dim_rectangle_cyclic.h
+  deprecated/two_dim_rectangle_cyclic_band.h
+  deprecated/sym_two_dim_rectangle_cyclic.h
+  deprecated/sym_two_dim_rectangle_cyclic_band.h
+  deprecated/vector_two_dim_cyclic.h
+  deprecated/two_dim_tabular.h
+  deprecated/grid_2Dcyclic.h
+  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/data_dist/matrix/deprecated )

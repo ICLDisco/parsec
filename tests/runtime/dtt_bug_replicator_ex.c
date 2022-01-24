@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -49,7 +49,7 @@ int main( int argc, char** argv )
     assert( NULL != parsec );
 
     PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
-        two_dim_block_cyclic, (&dcA, matrix_RealDouble, matrix_Tile,
+        parsec_matrix_block_cyclic, (&dcA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                                rank, NB, NB, N, N, 0, 0,
                                N, N, 1, nodes, 1, 1, 0, 0));
 

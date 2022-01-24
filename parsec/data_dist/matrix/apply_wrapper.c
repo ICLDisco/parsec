@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018      The University of Tennessee and The University
+ * Copyright (c) 2018-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -19,9 +19,9 @@
  * @param[in] uplo
  *          Specifies on which part of matrix A, the operator must be
  *          applied
- *          = matrix_UpperLower: All matrix is referenced.
- *          = matrix_Upper:      Only upper part is refrenced.
- *          = matrix_Lower:      Only lower part is referenced.
+ *          = PARSEC_MATRIX_FULL:  All matrix is referenced.
+ *          = PARSEC_MATRIX_UPPER: Only upper part is refrenced.
+ *          = PARSEC_MATRIX_LOWER: Only lower part is referenced.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A on which operator is applied.
@@ -49,16 +49,16 @@
  */
 
 parsec_taskpool_t *
-parsec_apply_New( int uplo,
-                 parsec_tiled_matrix_dc_t *A,
-                 tiled_matrix_unary_op_t operation,
+parsec_apply_New( parsec_matrix_uplo_t uplo,
+                 parsec_tiled_matrix_t *A,
+                 parsec_tiled_matrix_unary_op_t operation,
                  void *op_args )
 {
     parsec_apply_taskpool_t *parsec_app = NULL;
 
-    if ((uplo != matrix_UpperLower) &&
-        (uplo != matrix_Upper)      &&
-        (uplo != matrix_Lower))
+    if ((uplo != PARSEC_MATRIX_FULL) &&
+        (uplo != PARSEC_MATRIX_UPPER)      &&
+        (uplo != PARSEC_MATRIX_LOWER))
     {
         return NULL;
     }
@@ -68,28 +68,28 @@ parsec_apply_New( int uplo,
                                      operation, op_args);
 
     switch( A->mtype ) {
-    case matrix_ComplexDouble    :
-        parsec_matrix_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], 
-                                 parsec_datatype_double_complex_t,
-                                 matrix_UpperLower, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+    case PARSEC_MATRIX_COMPLEX_DOUBLE    :
+        parsec_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+                          parsec_datatype_double_complex_t,
+                          PARSEC_MATRIX_FULL, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
         break;
-    case matrix_ComplexFloat     :
-        parsec_matrix_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], 
-                                 parsec_datatype_complex_t,
-                                 matrix_UpperLower, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+    case PARSEC_MATRIX_COMPLEX_FLOAT     :
+        parsec_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+                          parsec_datatype_complex_t,
+                          PARSEC_MATRIX_FULL, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
         break;
-    case matrix_RealDouble       :
-        parsec_matrix_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], parsec_datatype_double_t,
-                                 matrix_UpperLower, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+    case PARSEC_MATRIX_DOUBLE       :
+        parsec_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], parsec_datatype_double_t,
+                          PARSEC_MATRIX_FULL, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
         break;
-    case matrix_RealFloat        :
-        parsec_matrix_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], parsec_datatype_float_t,
-                                 matrix_UpperLower, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+    case PARSEC_MATRIX_FLOAT        :
+        parsec_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], parsec_datatype_float_t,
+                          PARSEC_MATRIX_FULL, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
         break;
-    case matrix_Integer          :
+    case PARSEC_MATRIX_INTEGER          :
     default:
-        parsec_matrix_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], parsec_datatype_int_t,
-                                 matrix_UpperLower, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+        parsec_add2arena( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX], parsec_datatype_int_t,
+                          PARSEC_MATRIX_FULL, 1, A->mb, A->mb, A->mb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
     }
     return (parsec_taskpool_t*)parsec_app;
 }
@@ -116,7 +116,7 @@ parsec_apply_Destruct( parsec_taskpool_t *tp )
         free( omap->_g_op_args );
     }
 
-    parsec_matrix_del2arena( &omap->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX] );
+    parsec_del2arena( &omap->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX] );
 
     parsec_taskpool_free(tp);
 }
@@ -135,9 +135,9 @@ parsec_apply_Destruct( parsec_taskpool_t *tp )
  * @param[in] uplo
  *          Specifies on which part of matrix A, the operator must be
  *          applied
- *          = matrix_UpperLower: All matrix is referenced.
- *          = matrix_Upper:      Only upper part is refrenced.
- *          = matrix_Lower:      Only lower part is referenced.
+ *          = PARSEC_MATRIX_FULL:  All matrix is referenced.
+ *          = PARSEC_MATRIX_UPPER: Only upper part is refrenced.
+ *          = PARSEC_MATRIX_LOWER: Only lower part is referenced.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A on which operator is applied.
@@ -164,16 +164,16 @@ parsec_apply_Destruct( parsec_taskpool_t *tp )
  ******************************************************************************/
 int
 parsec_apply( parsec_context_t *parsec,
-             int uplo,
-             parsec_tiled_matrix_dc_t *A,
-             tiled_matrix_unary_op_t operation,
+             parsec_matrix_uplo_t uplo,
+             parsec_tiled_matrix_t *A,
+             parsec_tiled_matrix_unary_op_t operation,
              void *op_args )
 {
     parsec_taskpool_t *parsec_app = NULL;
 
-    if ((uplo != matrix_UpperLower) &&
-        (uplo != matrix_Upper)      &&
-        (uplo != matrix_Lower))
+    if ((uplo != PARSEC_MATRIX_FULL) &&
+        (uplo != PARSEC_MATRIX_UPPER)      &&
+        (uplo != PARSEC_MATRIX_LOWER))
     {
         return PARSEC_ERR_BAD_PARAM;
     }

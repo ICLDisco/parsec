@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2017-2020 The Universiy of Tennessee and The Universiy
+ * Copyright (c) 2017-2021 The Universiy of Tennessee and The Universiy
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  *
@@ -36,8 +36,8 @@ extern "C" %{
  * @param [in] mb_T: row tile size of T, always be descT->mb
  * @param [in] mb_Y_INNER: row tile size of Y, not including ghost region
  * @param [in] nb_Y_INNER: column tile size of Y, not including ghost region
- * @param [in] offset_row: row offset in T 
- * @param [in] offset_col: col offset in T 
+ * @param [in] offset_row: row offset in T
+ * @param [in] offset_col: col offset in T
  */
 static void
 CORE_redistribute_no_optimization_update(DTYPE *T, DTYPE *NW, DTYPE *NE, DTYPE *SW, DTYPE *SE, DTYPE *N, DTYPE *S,
@@ -118,21 +118,21 @@ CORE_redistribute_no_optimization_update(DTYPE *T, DTYPE *NW, DTYPE *NE, DTYPE *
 %option no_taskpool_instance = true  /* can be anything */
 
 /**
- * @brief Redistribute from source dc to target dc: no optimization of variable size 
+ * @brief Redistribute from source dc to target dc: no optimization of variable size
  *
- * @details 
+ * @details
  * Split source data into nine parts: NW, NE, SW, SE, N, S, W, E, I
  * Send NW, NE, SW and SE directly from task Send to task Receive
  * Send N, S, W, E and I from task Send to task North, South, West
- * East and Inner respectively, combine data and send data to task 
+ * East and Inner respectively, combine data and send data to task
  * Receive and receive data to target dc
  *
  * Use layout and count to send/receive exact size of data.
  * Use CTL to control flow
  *
  */
-descY    [ type = "parsec_tiled_matrix_dc_t*" ]
-descT    [ type = "parsec_tiled_matrix_dc_t*" ]
+descY    [ type = "parsec_tiled_matrix_t*" ]
+descT    [ type = "parsec_tiled_matrix_t*" ]
 size_row [ type = "int" ]
 size_col [ type = "int" ]
 disi_Y   [ type = "int" ]
@@ -193,7 +193,7 @@ END
  ************************************************************
  * @brief Task, to send data
  * @param m_Y, n_Y, m_T, n_T: tile index of Y and T
- * @param batch_col: control flow 
+ * @param batch_col: control flow
  ************************************************************/
 Send(m_Y, n_Y, m_T, n_T, batch_col)
 
@@ -212,20 +212,20 @@ n_Y_start = %{ return ((n_T == n_T_START)? disj_Y/nb_Y_INNER: (((n_T-n_T_START)*
 m_Y_end = %{ return ((m_T == m_T_START)? (disi_Y+mb_T_inner-1)/mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y+mb_T_inner-1)/mb_Y_INNER); %}
 n_Y_end = %{ return ((n_T == n_T_START)? (disj_Y+nb_T_inner-1)/nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y+nb_T_inner-1)/nb_Y_INNER); %}
 
-m_Y = m_Y_start .. m_Y_end 
-n_Y = n_Y_start .. n_Y_end 
+m_Y = m_Y_start .. m_Y_end
+n_Y = n_Y_start .. n_Y_end
 
 : descY(m_Y, n_Y)
 
 READ Y <- descY(m_Y, n_Y) [ type = SOURCE ]
-       -> ((m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ] 
-       -> ((m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ] 
-       -> ((m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ] 
-       -> ((m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ] 
-       -> ((m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ] 
-       -> ((m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ] 
-       -> ((n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ] 
-       -> ((n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ] 
+       -> ((m_Y == m_Y_start) && (n_Y == n_Y_start))? NW Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ]
+       -> ((m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? NE Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ]
+       -> ((m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? SW Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ]
+       -> ((m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? SE Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ]
+       -> ((m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? N Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ]
+       -> ((m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? S Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ]
+       -> ((n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? W Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ]
+       -> ((n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? E Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ]
        -> ((m_Y > m_Y_start) && (m_Y < m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? I Update(m_Y, n_Y, m_T, n_T, batch_col) [ type = SOURCE ]
 
 CTL ctl <- (batch_col > 0)? ctl2 Receive(m_T, n_T-num_col, batch_col-1)
@@ -239,8 +239,8 @@ END
  *                         Update                             *
  ************************************************************
  * @brief Task, to update data
- * @param m_Y, n_Y, m_T, n_T: tile index of Y and T 
- * @param batch_col: control flow 
+ * @param m_Y, n_Y, m_T, n_T: tile index of Y and T
+ * @param batch_col: control flow
  ************************************************************/
 Update(m_Y, n_Y, m_T, n_T, batch_col)
 
@@ -250,7 +250,7 @@ n_T = %{ return batch_col*num_col+n_T_START; %} .. %{ return parsec_imin((batch_
 
 mb_T_inner = %{ return getsize(m_T, m_T_START, m_T_END, mb_T_INNER, size_row, disi_T%mb_T_INNER); %}
 nb_T_inner = %{ return getsize(n_T, n_T_START, n_T_END, nb_T_INNER, size_col, disj_T%nb_T_INNER); %}
- 
+
 i_start = %{ return ((m_T == m_T_START)? disi_Y%mb_Y_INNER: (((m_T-m_T_START)*mb_T_INNER-disi_T%mb_T_INNER)+disi_Y)%mb_Y_INNER); %}
 j_start = %{ return ((n_T == n_T_START)? disj_Y%nb_Y_INNER: (((n_T-n_T_START)*nb_T_INNER-disj_T%nb_T_INNER)+disj_Y)%nb_Y_INNER); %}
 
@@ -271,23 +271,23 @@ BR_col = (j_start + nb_T_inner - 1) % nb_Y_INNER + 1
 
 READ T <- T Init(m_T, n_T, batch_col) [ type = TARGET ]
 
-READ NW <- ((m_Y == m_Y_start) && (n_Y == n_Y_start))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ] 
+READ NW <- ((m_Y == m_Y_start) && (n_Y == n_Y_start))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ]
 
-READ NE <- ((m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ] 
+READ NE <- ((m_Y == m_Y_start) && (n_Y == n_Y_end) && (n_Y_start != n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ]
 
-READ SW <- ((m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ] 
+READ SW <- ((m_Y == m_Y_end) && (n_Y == n_Y_start) && (m_Y_start != m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ]
 
-READ SE <- ((m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ] 
+READ SE <- ((m_Y == m_Y_end) && (n_Y == n_Y_end) && (m_Y_start != m_Y_end) && (n_Y_start != n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ]
 
-READ N <- ((m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ] 
+READ N <- ((m_Y == m_Y_start) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ]
 
-READ S <- ((m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ] 
+READ S <- ((m_Y == m_Y_end) && (m_Y_start != m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ]
 
-READ W <- ((n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ] 
+READ W <- ((n_Y == n_Y_start) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ]
 
-READ E <- ((n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ] 
+READ E <- ((n_Y == n_Y_end) && (n_Y_start != n_Y_end) && (m_Y > m_Y_start) && (m_Y < m_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ]
 
-READ I <- ((m_Y > m_Y_start) && (m_Y < m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ] 
+READ I <- ((m_Y > m_Y_start) && (m_Y < m_Y_end) && (n_Y > n_Y_start) && (n_Y < n_Y_end))? Y Send(m_Y, n_Y, m_T, n_T, batch_col): NULL [ type = SOURCE ]
 
 CTL ctl -> ctl1 Receive(m_T, n_T, batch_col)
 
@@ -351,7 +351,7 @@ END
 extern "C" %{
 
 /**
- * @brief New function for redistribute_no_optimization 
+ * @brief New function for redistribute_no_optimization
  *
  * @param [in] dcY: the data, already distributed and allocated
  * @param [out] dcT: the data, redistribute_no_optimizationd and allocated
@@ -364,8 +364,8 @@ extern "C" %{
  * @return the parsec object to schedule.
  */
 parsec_taskpool_t*
-parsec_redistribute_no_optimization_New(parsec_tiled_matrix_dc_t *dcY,
-                        parsec_tiled_matrix_dc_t *dcT,
+parsec_redistribute_no_optimization_New(parsec_tiled_matrix_t *dcY,
+                        parsec_tiled_matrix_t *dcT,
                         int size_row, int size_col,
                         int disi_Y, int disj_Y,
                         int disi_T, int disj_T)
@@ -410,16 +410,16 @@ parsec_redistribute_no_optimization_New(parsec_tiled_matrix_dc_t *dcY,
     redistribute_no_optimization_taskpool = (parsec_taskpool_t*)taskpool;
 
     /* Check distribution, and detarmine batch size: num_col */
-    if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_tabular_type) ) {
+    if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
         taskpool->_g_num_col = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
-    } else if( (dcY->dtype & two_dim_tabular_type) && (dcT->dtype & two_dim_block_cyclic_type) ) {
-        taskpool->_g_num_col = ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols;
-    } else if( (dcY->dtype & two_dim_block_cyclic_type) && (dcT->dtype & two_dim_tabular_type) ) {
-        taskpool->_g_num_col = ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols;
-    } else if( (dcY->dtype & two_dim_block_cyclic_type) && (dcT->dtype & two_dim_block_cyclic_type) ) {
-        taskpool->_g_num_col = parsec_imax( ((two_dim_block_cyclic_t *)dcY)->grid.cols * ((two_dim_block_cyclic_t *)dcY)->grid.kcols, ((two_dim_block_cyclic_t *)dcT)->grid.cols * ((two_dim_block_cyclic_t *)dcT)->grid.kcols );
+    } else if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_block_cyclic_type) ) {
+        taskpool->_g_num_col = ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols;
+    } else if( (dcY->dtype & parsec_matrix_block_cyclic_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
+        taskpool->_g_num_col = ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols;
+    } else if( (dcY->dtype & parsec_matrix_block_cyclic_type) && (dcT->dtype & parsec_matrix_block_cyclic_type) ) {
+        taskpool->_g_num_col = parsec_imax( ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols, ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols );
     } else {
-        fprintf(stderr, "Only support two_dim_block_cyclic_type and two_dim_tabular_type\n");
+        fprintf(stderr, "Only support parsec_matrix_block_cyclic_type and parsec_matrix_tabular_type\n");
     }
 
     /* Calculate NT, need to update !!! */
@@ -427,13 +427,13 @@ parsec_redistribute_no_optimization_New(parsec_tiled_matrix_dc_t *dcY,
     int n_T_END = (size_col+disj_T-1) / dcT->nb;
     taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
 
-    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ADT_IDX],
-                                MY_TYPE, matrix_UpperLower,
+    parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ADT_IDX],
+                                MY_TYPE, PARSEC_MATRIX_FULL,
                                 1, dcT->mb, dcT->nb, dcT->mb,
                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-    parsec_matrix_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ADT_IDX],
-		    MY_TYPE, matrix_UpperLower,
+    parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ADT_IDX],
+		    MY_TYPE, PARSEC_MATRIX_FULL,
 		    1, dcY->mb, dcY->nb, dcY->mb,
 		    PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
@@ -446,8 +446,8 @@ parsec_redistribute_no_optimization_New(parsec_tiled_matrix_dc_t *dcY,
 static void
 __parsec_taskpool_redistribute_no_optimization_destructor(parsec_redistribute_no_optimization_taskpool_t *redistribute_no_optimization_taskpool)
 {
-    parsec_matrix_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ADT_IDX]);
-    parsec_matrix_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ADT_IDX]);
+    parsec_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ADT_IDX]);
+    parsec_del2arena(&redistribute_no_optimization_taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ADT_IDX]);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_no_optimization_taskpool_t, parsec_taskpool_t,
@@ -455,7 +455,7 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_no_optimization_taskpool_t, parsec
 
 /**
  * @brief Redistribute dcY to dcT in PTG: no optimization of varible size
- * 
+ *
  * @param [in] dcY: source distribution, already distributed and allocated
  * @param [out] dcT: target distribution, redistribute_no_optimizationd and allocated
  * @param [in] size_row: row size to be redistribute_no_optimizationd
@@ -466,8 +466,8 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_redistribute_no_optimization_taskpool_t, parsec
  * @param [in] disj_T: column displacement in dcT
  */
 int parsec_redistribute_no_optimization(parsec_context_t *parsec,
-                        parsec_tiled_matrix_dc_t *dcY,
-                        parsec_tiled_matrix_dc_t *dcT,
+                        parsec_tiled_matrix_t *dcY,
+                        parsec_tiled_matrix_t *dcT,
                         int size_row, int size_col,
                         int disi_Y, int disj_Y,
                         int disi_T, int disj_T)

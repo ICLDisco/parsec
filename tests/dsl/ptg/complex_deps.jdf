@@ -1,6 +1,6 @@
 extern "C" %{
 /**
- * Copyright (c) 2013      The University of Tennessee and The University
+ * Copyright (c) 2013-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,11 +13,11 @@ extern "C" %{
 
 #define BLOCK 10
 #define NN    10
-#define TYPE  matrix_RealFloat
+#define TYPE  PARSEC_MATRIX_FLOAT
 
 %}
 
-descA      [type = "two_dim_block_cyclic_t*"]
+descA      [type = "parsec_matrix_block_cyclic_t*"]
 NI         [type = int]
 NK         [type = int]
 
@@ -110,7 +110,7 @@ extern "C" %{
 int main( int argc, char** argv )
 {
     parsec_complex_deps_taskpool_t* tp;
-    two_dim_block_cyclic_t descA;
+    parsec_matrix_block_cyclic_t descA;
     parsec_arena_datatype_t adt;
     parsec_datatype_t otype;
     parsec_context_t *parsec;
@@ -158,7 +158,7 @@ int main( int argc, char** argv )
      * Build the data and the arena to hold it up.
      */
     mat_size = 2*BLOCK*size*NN;
-    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+    parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,
                                rank /*rank*/,
                                2*BLOCK, 1, mat_size, 1,
                                0, 0, mat_size, 1, 1, size, 1, 1, 0, 0);
@@ -166,7 +166,7 @@ int main( int argc, char** argv )
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
     parsec_translate_matrix_type(TYPE, &otype);
-    parsec_matrix_add2arena_rect(&adt, otype,
+    parsec_add2arena_rect(&adt, otype,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
 
@@ -212,7 +212,7 @@ int main( int argc, char** argv )
     TIMER_STOP(time_elapsed);
     printf("DAG execution in %ld micro-sec\n", time_elapsed);
 
-    parsec_matrix_del2arena( & adt );
+    parsec_del2arena( & adt );
 
     free(descA.mat);
 

@@ -22,7 +22,7 @@ int main(int argc, char **argv)
     /*int rc;*/
     int rank, world, cores;
     int nb, nt;
-    parsec_tiled_matrix_dc_t *dcA, *dcB, *dcC;
+    parsec_tiled_matrix_t *dcA, *dcB, *dcC;
 
     uint32_t id = 0;
 

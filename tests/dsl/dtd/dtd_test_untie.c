@@ -53,7 +53,7 @@ test_task_generator( parsec_execution_stream_t *es,
 {
     (void)es;
 
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_tiled_matrix_t *dcA;
     parsec_taskpool_t *dtd_tp = this_task->taskpool;
     int total, step, *iteration, n;
     int amount_of_work;
@@ -112,7 +112,7 @@ int main(int argc, char ** argv)
     int m, n;
     int no_of_chain;
     int nb, nt;
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_tiled_matrix_t *dcA;
     int amount_of_work[3] = {1000, 10000, 100000};
     parsec_taskpool_t *dtd_tp;
     parsec_arena_datatype_t *adt;
@@ -137,7 +137,7 @@ int main(int argc, char ** argv)
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
     adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_matrix_add2arena_rect( adt,
+    parsec_add2arena_rect( adt,
                                   parsec_datatype_int32_t,
                                   nb, 1, nb);
 
@@ -177,7 +177,7 @@ int main(int argc, char ** argv)
                                    sizeof(int), &tasks_in_each_chain[i], PARSEC_VALUE,
                                    sizeof(int), &step, PARSEC_VALUE,
                                    sizeof(int), &iteration, PARSEC_REF,
-                                   sizeof(parsec_tiled_matrix_dc_t*), dcA, PARSEC_REF,
+                                   sizeof(parsec_tiled_matrix_t*), dcA, PARSEC_REF,
                                    PARSEC_DTD_ARG_END );
         }
 
@@ -190,7 +190,7 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_matrix_del2arena(adt);
+    parsec_del2arena(adt);
     PARSEC_OBJ_RELEASE(adt->arena);
     parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );

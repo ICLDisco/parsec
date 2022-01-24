@@ -550,6 +550,12 @@ check_c_source_compiles("
       }
       " PARSEC_HAVE_BUILTIN_EXPECT)
 
+check_c_source_compiles("
+int toto(int c) __attribute__ ((deprecated(\"deprecated\")));
+int main() {
+  return 0;
+}" PARSEC_HAVE_ATTRIBUTE_DEPRECATED)
+
 set(EXTRA_INCLUDES "")
 #
 # Find optional packages

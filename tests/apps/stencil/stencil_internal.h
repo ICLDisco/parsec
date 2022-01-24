@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2019 The Universiy of Tennessee and The Universiy
- *                    of Tennessee Research Foundation. All rights
- *                    reserved.
+ * Copyright (c) 2019-2021 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
  */
 /* includes parsec headers */
 #include "parsec.h"
@@ -58,7 +58,7 @@ static inline void PRINT_MATRIX(DTYPE *A, int mb, int nb, int disi, int disj, in
 }
 
 /* get the rank of its neighbors */
-static inline int rank_neighbor(parsec_tiled_matrix_dc_t* descA,
+static inline int rank_neighbor(parsec_tiled_matrix_t* descA,
                                 int m, int n, int m_max, int n_max){
     if( (m >= 0) && (n >= 0) && (m <= m_max) && (n <= n_max) )
         return descA->super.rank_of(&descA->super, m, n);
@@ -73,7 +73,7 @@ static inline int rank_neighbor(parsec_tiled_matrix_dc_t* descA,
  * @param [in] R: radius
  */
 int parsec_stencil_1D(parsec_context_t *parsec,
-                      parsec_tiled_matrix_dc_t *A,
+                      parsec_tiled_matrix_t *A,
                       int iter, int R);
 
 /**
@@ -83,7 +83,7 @@ int parsec_stencil_1D(parsec_context_t *parsec,
  * @param [in] R: radius of ghost region
  */
 int parsec_stencil_init_1D(parsec_context_t *parsec,
-                        parsec_tiled_matrix_dc_t *dcA, int R);
+                        parsec_tiled_matrix_t *dcA, int R);
 
 /**
  * @brief CORE Kernel of Stencil 1D 
@@ -112,6 +112,6 @@ void CORE_stencil_1D(DTYPE *restrict OUT, const DTYPE *restrict IN,
  * @param [in] args: R 
  */
 int stencil_1D_init_ops(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args);

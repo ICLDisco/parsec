@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2020 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -35,7 +35,7 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_BT_reduction_taskpool_t, parsec_taskpool_t,
  *
  * @return the parsec object to schedule.
  */
-parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
+parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_t *A, int nb, int nt)
 {
     parsec_BT_reduction_taskpool_t *tp = NULL;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,6 +11,6 @@
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/matrix.h"
 
-parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_dc_t *A, int size, int nt);
+parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_t *A, int size, int nt);
 
 #endif
