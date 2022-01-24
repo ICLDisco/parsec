@@ -105,87 +105,100 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
         if( (flow_mask & (1<<current_dep)) ) {
             if (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) {
                 /* root of the bcast key */
-                successor = get_chain_successor(es, (parsec_task_t*)current_task, current_task->deps_out);
+                parsec_remote_deps_t *deps;
+                PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(deps, this_task, MAX_PARAM_COUNT);
+                deps->root = my_rank;
+                deps->outgoing_mask |= (1 << 0); /* only 1 flow */
+                deps->max_priority  = 0;
+
+                struct remote_dep_output_param_s* output = &deps->output[0];
+                output->data.data   = current_task->super.data[0].data_out;//NULL;
+                output->data.arena  = parsec_dtd_arenas_datatypes[15].arena;
+                output->data.layout = parsec_dtd_arenas_datatypes[15].opaque_dtt;
+                output->data.count  = 1;
+                output->data.displ  = 0;
+                output->priority    = 0;
                 int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
-                current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) |(current_task->deps_out->root << 20) | *(data_ptr+1+successor));
+                //successor = get_chain_successor(es, (parsec_task_t*)current_task, deps);
+                //current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) |(my_rank << 20) | *(data_ptr+1+successor));
                 tile = FLOW_OF(current_task, current_dep)->tile;
                 parsec_dtd_tile_retain(tile);
+                populate_remote_deps(data_ptr, deps);
                 parsec_remote_dep_activate(
                         es, (parsec_task_t *)current_task,
-                        current_task->deps_out,
-                        current_task->deps_out->outgoing_mask);
-                current_task->deps_out = NULL;
+                        deps,
+                        deps->outgoing_mask);
+                //current_task->deps_out = NULL;
                 /* decrease the count as in the data flush */
                 parsec_dtd_release_local_task( current_task );
-
             } else if (action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                 /* a node in the key array propagation */
-                int root = current_task->deps_out->root;
+                parsec_release_dep_fct_arg_t* arg = (parsec_release_dep_fct_arg_t*)ontask_arg;
+                parsec_remote_deps_t* deps = arg->remote_deps;
+                int root = deps->root;
                 int my_rank = current_task->super.taskpool->context->my_rank;
 
                 int _array_pos, _array_mask;
                 struct remote_dep_output_param_s* output;
-                output = &current_task->deps_out->output[0];
+                output = &deps->output[0];
                 _array_pos = my_rank / (8 * sizeof(uint32_t));
                 _array_mask = 1 << (my_rank % (8 * sizeof(uint32_t)));
 
-                if ((output->rank_bits[_array_pos] & _array_mask)) {
-                    /* We are part of the broadcast, forward message */
-                    int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
-                    populate_remote_deps(data_ptr, current_task->deps_out);
-                    successor = get_chain_successor(es, (parsec_task_t*)current_task, current_task->deps_out);
-                    if(successor == -1) {
-                        current_task->deps_out->outgoing_mask = 0;
-                    }
-                    current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | (root << 20) | *(data_ptr+1+successor));
-                    assert(NULL != current_task->super.data[current_dep].data_out);
-
-                    current_task->deps_out->output[0].data.data = current_task->super.data[0].data_out;
-                    parsec_dtd_retain_data_copy(current_task->super.data[current_dep].data_out);
-                    parsec_remote_dep_activate(
-                            es, (parsec_task_t *)current_task,
-                            current_task->deps_out,
-                            current_task->deps_out->outgoing_mask);
-                    current_task->deps_out = NULL;
-                    /* update the BCAST DATA task or dep with the global ID that we know now */
-                    uint64_t key = ((uint64_t)(1<<28 | (root << 20 ) | data_ptr[es->virtual_process->parsec_context->my_rank+1])<<32) | (1U<<0);
-                    uint64_t key2 = ((uint64_t)(data_ptr[0])<<32) | (1U<<0);
-                    
-                    parsec_dtd_task_t* dtd_task = NULL;
-                    parsec_dtd_taskpool_t *tp = (parsec_dtd_taskpool_t *)current_task->super.taskpool;
-                    parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
-                    dtd_task = parsec_dtd_find_task(tp, key);
-                    if(dtd_task == NULL) {
-                        int* buffer = malloc(sizeof(int)*30*30);
-                        memcpy(buffer, data_ptr, sizeof(int)*30*30);
-                        dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_thread_mempool_allocate(tp->hash_table_bucket_mempool->thread_mempools);
-                        parsec_hash_table_t *hash_table = tp->keys_hash_table;
-                        item->ht_item.key   = (parsec_key_t)key;
-                        item->mempool_owner = tp->hash_table_bucket_mempool->thread_mempools;
-                        item->value         = (void *)buffer;
-                        parsec_hash_table_nolock_insert( hash_table, &item->ht_item );
-                    } else {
-                        parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key2);
-                        parsec_remote_deps_t *dep = parsec_dtd_find_task(tp, key2);
-
-                        populate_remote_deps(data_ptr, dtd_task->deps_out);
-                        parsec_dtd_untrack_task(tp, key);
-                        if(dep == NULL){
-                            dtd_task->super.locals[0].value = data_ptr[0];
-                            parsec_dtd_track_task(tp, key2, dtd_task);
-                        }else{
-
-                            dtd_task->super.locals[0].value = data_ptr[0];
-                            parsec_dtd_untrack_remote_dep(tp, key2);
-                            parsec_dtd_track_task(tp, key2, dtd_task);
-                            remote_dep_dequeue_delayed_dep_release(dep);
-                        }
-                        parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key2);
-                    }
-                    parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key);
-                    tile = FLOW_OF(current_task, current_dep)->tile;
-                    parsec_dtd_tile_retain(tile);
+                /* We are part of the broadcast, forward message */
+                int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
+                populate_remote_deps(data_ptr, deps);
+                //successor = get_chain_successor(es, (parsec_task_t*)current_task, current_task->deps_out);
+                if(successor == -1) {
+                    //current_task->deps_out->outgoing_mask = 0;
                 }
+                //current_task->super.locals[0].value = current_task->ht_item.key = ((1<<29) | (root << 20) | *(data_ptr+1+successor));
+                assert(NULL != current_task->super.data[current_dep].data_out);
+
+                //current_task->deps_out->output[0].data.data = current_task->super.data[0].data_out;
+                //parsec_dtd_retain_data_copy(current_task->super.data[current_dep].data_out);
+                parsec_remote_dep_activate(
+                        es, (parsec_task_t *)current_task,
+                        deps,
+                        deps->outgoing_mask);
+                //current_task->deps_out = NULL;
+                /* update the BCAST DATA task or dep with the global ID that we know now */
+                uint64_t key = ((uint64_t)(1<<28 | (root << 20 ) | data_ptr[es->virtual_process->parsec_context->my_rank+1])<<32) | (1U<<0);
+                uint64_t key2 = ((uint64_t)(data_ptr[0])<<32) | (1U<<0);
+
+                parsec_dtd_task_t* dtd_task = NULL;
+                parsec_dtd_taskpool_t *tp = (parsec_dtd_taskpool_t *)current_task->super.taskpool;
+                parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
+                dtd_task = parsec_dtd_find_task(tp, key);
+                if(dtd_task == NULL) {
+                    int* buffer = malloc(sizeof(int)*30*30);
+                    memcpy(buffer, data_ptr, sizeof(int)*30*30);
+                    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_thread_mempool_allocate(tp->hash_table_bucket_mempool->thread_mempools);
+                    parsec_hash_table_t *hash_table = tp->keys_hash_table;
+                    item->ht_item.key   = (parsec_key_t)key;
+                    item->mempool_owner = tp->hash_table_bucket_mempool->thread_mempools;
+                    item->value         = (void *)buffer;
+                    parsec_hash_table_nolock_insert( hash_table, &item->ht_item );
+                } else {
+                    parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key2);
+                    parsec_remote_deps_t *dep = parsec_dtd_find_task(tp, key2);
+
+                    //populate_remote_deps(data_ptr, dtd_task->deps_out);
+                    parsec_dtd_untrack_task(tp, key);
+                    if(dep == NULL){
+                        dtd_task->super.locals[0].value = data_ptr[0];
+                        parsec_dtd_track_task(tp, key2, dtd_task);
+                    }else{
+
+                        dtd_task->super.locals[0].value = data_ptr[0];
+                        parsec_dtd_untrack_remote_dep(tp, key2);
+                        parsec_dtd_track_task(tp, key2, dtd_task);
+                        remote_dep_dequeue_delayed_dep_release(dep);
+                    }
+                    parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key2);
+                }
+                parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key);
+                tile = FLOW_OF(current_task, current_dep)->tile;
+                parsec_dtd_tile_retain(tile);
             } else {
                 /* on the receiver side, get datatype to aquire datatype, arena etc info */
                 data.data   = current_task->super.data[current_dep].data_out;
@@ -220,6 +233,7 @@ int
 parsec_dtd_bcast_key_fn( parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es; (void)this_task;
+    fprintf(stderr, "executed the body of bcast key fn\n");
     return PARSEC_HOOK_RETURN_DONE;
 }
 

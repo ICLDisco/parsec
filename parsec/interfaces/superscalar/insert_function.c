@@ -1493,7 +1493,8 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
                 _array_pos = dst_rank / (8 * sizeof(uint32_t));
                 _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
                 PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
-                if(real_parent_task->deps_out == NULL) {
+                if(real_parent_task->super.task_class->task_class_id != PARSEC_DTD_BCAST_KEY_TC_ID && 
+                        real_parent_task->super.task_class->task_class_id != PARSEC_DTD_BCAST_DATA_TC_ID) {
                     arg->remote_deps->bcast_keys[dep->dep_datatype_index] = 0;
                     arg->remote_deps->bcast_keys[dep->dep_datatype_index] |= src_rank<<18;
                     arg->remote_deps->bcast_keys[dep->dep_datatype_index] |= (FLOW_OF(real_parent_task, dep->belongs_to->flow_index))->msg_keys[dst_rank];
@@ -2313,7 +2314,8 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
         }
 
         /* On the receiver side, based on the previous parent key, update next recv key for dep flow */
-        if(real_parent_task->deps_out == NULL) {
+        if(real_parent_task->super.task_class->task_class_id != PARSEC_DTD_BCAST_KEY_TC_ID && 
+                real_parent_task->super.task_class->task_class_id != PARSEC_DTD_BCAST_DATA_TC_ID) {
             if(real_parent_task->ht_item.key == 0xffffffff) {
                 real_parent_task->ht_item.key = 0;
                 real_parent_task->ht_item.key |= real_parent_task->rank<<18;
@@ -2338,7 +2340,7 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
                 parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
                 dep = parsec_dtd_find_task(tp, key);
                 real_parent_task->super.locals[0].value = real_parent_task->ht_item.key =  data_ptr[0];
-                populate_remote_deps(data_ptr, real_parent_task->deps_out);
+                //populate_remote_deps(data_ptr, real_parent_task->deps_out);
             }
             //fprintf(stderr, "inserting bcast data task and finding in hashtable with key %llu %d, result %p dep %p\n", key, real_parent_task->super.locals[0].value, item, dep);
         }
@@ -2425,8 +2427,6 @@ parsec_dtd_create_and_initialize_task( parsec_dtd_taskpool_t *dtd_tp,
     assert(this_task->super.super.super.obj_reference_count == 1);
 
     this_task->orig_task = NULL;
-    /* DTD Collective */
-    this_task->deps_out = NULL;
 
     this_task->super.taskpool   = (parsec_taskpool_t*)dtd_tp;
     /* this_task->ht_item.key      = (parsec_key_t)(uintptr_t)(dtd_tp->task_id++); */
@@ -2734,7 +2734,8 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                                           tile_op_type, last_user.alive);
             }
 
-            if(last_writer.task->deps_out == NULL) {
+            if(last_writer.task->super.task_class->task_class_id != PARSEC_DTD_BCAST_KEY_TC_ID && 
+                    last_writer.task->super.task_class->task_class_id != PARSEC_DTD_BCAST_DATA_TC_ID) {
                 /* local parent and we are inserting a remote task, indicates it needs to send data */
                 if(parsec_dtd_task_is_local(last_writer.task) && parsec_dtd_task_is_remote(this_task))
                 {
@@ -2832,7 +2833,8 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
 
                 }
             
-                if(last_writer.task->deps_out == NULL) {
+                if(last_writer.task->super.task_class->task_class_id != PARSEC_DTD_BCAST_KEY_TC_ID && 
+                        last_writer.task->super.task_class->task_class_id != PARSEC_DTD_BCAST_DATA_TC_ID) {
                     /* local parent and we are inserting a remote task, indicates it needs to send data */
                     if(parsec_dtd_task_is_local(last_writer.task) && parsec_dtd_task_is_remote(this_task))
                     {
@@ -2928,7 +2930,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
 
     /* Releasing every remote_task */
     if( parsec_dtd_task_is_remote( this_task ) ) {
-        parsec_dtd_remote_task_release( this_task );
+    //    parsec_dtd_remote_task_release( this_task );
     }
 
     /* Increase the count of satisfied flows to counter-balance the increase in the
@@ -2940,11 +2942,11 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         uint64_t key = ((uint64_t)(this_task->super.locals[0].value)<<32) | (1U<<0);
         parsec_hash_table_lock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
         parsec_remote_deps_t *dep = parsec_dtd_find_remote_dep( dtd_tp, key );
+        fprintf(stderr, "tracking remote task of key %d on rank %d\n", this_task->super.locals[0].value, dtd_tp->super.context->my_rank);
         if( NULL == dep ) {
             if( !(flow->flags & TASK_INSERTED) ) {
                 flow->flags |= TASK_INSERTED;
                 parsec_dtd_track_task( dtd_tp, key, this_task );
-                //fprintf(stderr, "tracking remote task of key %d on rank %d\n", this_task->super.locals[0].value, dtd_tp->super.context->my_rank);
             }
         } else {
             if( !(flow->flags & TASK_INSERTED) ) {

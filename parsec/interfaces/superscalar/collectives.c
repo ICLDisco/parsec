@@ -102,6 +102,7 @@ void parsec_dtd_broadcast(
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)taskpool;
     
     bcast_keys_root = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate( parsec_bcast_keys_tile_mempool->thread_mempools );
+    SET_LAST_ACCESSOR(bcast_keys_root);
     bcast_keys_root->dc = NULL;
     bcast_keys_root->arena_index = -1;
     bcast_keys_root->key = (uint64_t) bcast_id;
@@ -132,17 +133,18 @@ void parsec_dtd_broadcast(
     }
 
     // Retrieve DTD tile's data_copy
-    parsec_data_copy_t *data_copy = dtd_tile_root->data_copy;
-    parsec_data_copy_t *key_copy = bcast_keys_root->data_copy;
+    //parsec_data_copy_t *data_copy = dtd_tile_root->data_copy;
+    //parsec_data_copy_t *key_copy = bcast_keys_root->data_copy;
 
     // Create remote deps corresponding to the braodcast
+    /*
     parsec_remote_deps_t *deps_0 = parsec_dtd_create_remote_deps(
             myrank, root, data_copy, &parsec_dtd_arenas_datatypes[arena_index],
             dest_ranks, num_dest_ranks);
     parsec_remote_deps_t *deps_1 = parsec_dtd_create_remote_deps(
             myrank, root, key_copy, &parsec_dtd_arenas_datatypes[bcast_arena_index],
             dest_ranks, num_dest_ranks);
-
+    */
     parsec_task_t *bcast_task_root = parsec_dtd_taskpool_create_task(
             taskpool, parsec_dtd_bcast_data_fn, 0, "bcast_data_fn",
             PASSED_BY_REF, dtd_tile_root, PARSEC_INOUT | arena_index,
@@ -152,8 +154,8 @@ void parsec_dtd_broadcast(
     parsec_dtd_task_t *dtd_bcast_task_root = (parsec_dtd_task_t *)bcast_task_root;
 
     // Set broadcast topology info
-    deps_0->pending_ack = 0;
-    dtd_bcast_task_root->deps_out = deps_0;
+    //deps_0->pending_ack = 0;
+    //dtd_bcast_task_root->deps_out = deps_0;
 
     if(myrank == root) {
         dtd_bcast_task_root->ht_item.key = bcast_id;
@@ -170,8 +172,8 @@ void parsec_dtd_broadcast(
             sizeof(int), &root, PARSEC_VALUE | PARSEC_AFFINITY,
             PARSEC_DTD_ARG_END);
     parsec_dtd_task_t *dtd_bcast_key_root = (parsec_dtd_task_t *)bcast_key_root;
-    deps_1->pending_ack = 0;
-    dtd_bcast_key_root->deps_out = deps_1;
+    //deps_1->pending_ack = 0;
+    //dtd_bcast_key_root->deps_out = deps_1;
     if(myrank == root) {
         /* nothing here since the key is stored in the key array and will be updated before remote_dep_activate */
     }else{
@@ -183,7 +185,7 @@ void parsec_dtd_broadcast(
     parsec_insert_dtd_task(dtd_bcast_key_root);
     
     /* Post the bcast tasks for the actual data */
-    parsec_insert_dtd_task(dtd_bcast_task_root);
+    //parsec_insert_dtd_task(dtd_bcast_task_root);
 }
 
 #endif

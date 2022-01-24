@@ -172,26 +172,26 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
             if(PARSEC_DTD_BCAST_DATA_TC_ID == current_task->super.task_class->task_class_id) {
                /* for the bcast data class, in addition to release the data to local deps tasks that will read the data 
                 * propagate the data down to descendants as well */
-                if(current_task->deps_out != NULL) {
+                //if(current_task->deps_out != NULL) {
                     /* we have not propagate the remote deps yet, otherwise will be set to NULL */
                     if(action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) {
                         assert(NULL != current_task->super.data[current_dep].data_out);
                         //fprintf(stderr, "bcast root task %p data with global key %d\n", current_task, current_task->ht_item.key);
-                        current_task->deps_out->output[0].data.data =
-                            current_task->super.data[current_dep].data_out;
+                        //current_task->deps_out->output[0].data.data =
+                        //    current_task->super.data[current_dep].data_out;
                         //(void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
-                        parsec_remote_dep_activate(
-                                es, (parsec_task_t *)current_task,
-                                current_task->deps_out,
-                                current_task->deps_out->outgoing_mask);
-                        current_task->deps_out = NULL;
+                        //parsec_remote_dep_activate(
+                        //        es, (parsec_task_t *)current_task,
+                        //        current_task->deps_out,
+                        //        current_task->deps_out->outgoing_mask);
+                        //current_task->deps_out = NULL;
                     } else if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                         /* current node is part of the broadcast operation, propagate downstream */
-                        int root = current_task->deps_out->root;
+                        //int root = current_task->deps_out->root;
                         int my_rank = current_task->super.taskpool->context->my_rank;
                         int _array_pos, _array_mask;
                         struct remote_dep_output_param_s* output;
-                        output = &current_task->deps_out->output[0];
+                        //output = &current_task->deps_out->output[0];
                         _array_pos = my_rank / (8 * sizeof(uint32_t));
                         _array_mask = 1 << (my_rank % (8 * sizeof(uint32_t)));
                         //fprintf(stderr, "bcast data continue on rank %d, from root %d, for task %p\n", my_rank, root, current_task);
@@ -199,17 +199,17 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                         if ((output->rank_bits[_array_pos] & _array_mask)) {
                             assert(NULL != current_task->super.data[current_dep].data_out);
 
-                            current_task->deps_out->output[0].data.data =
-                                current_task->super.data[0].data_out;
+                            //current_task->deps_out->output[0].data.data =
+                            //    current_task->super.data[0].data_out;
                             //(void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
-                            parsec_remote_dep_activate(
-                                    es, (parsec_task_t *)current_task,
-                                    current_task->deps_out,
-                                    current_task->deps_out->outgoing_mask);
-                            current_task->deps_out = NULL;
+                            //parsec_remote_dep_activate(
+                            //        es, (parsec_task_t *)current_task,
+                            //        current_task->deps_out,
+                            //        current_task->deps_out->outgoing_mask);
+                            //current_task->deps_out = NULL;
                         }
                     }
-                }
+                //}
             } /* BCAST DATA propagation */
 
             if( FLOW_OF(current_task, current_dep)->op_type & PARSEC_DONT_TRACK ) {

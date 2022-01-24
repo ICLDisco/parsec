@@ -750,7 +750,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
 
             if( NULL == dtd_task ) {
                 return_defer = 1;
-                //fprintf(stderr, "defer receive for key %d k %d %llu\n", origin->msg.locals[0].value, k, key);
+                fprintf(stderr, "defer receive for key %d k %d %llu\n", origin->msg.locals[0].value, k, key);
 
                 /* AM buffers are reused by the comm engine once the activation
                  * has been conveyed to upper layer. In case of DTD we might receive msg to
@@ -896,9 +896,15 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     }
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)",
             complete_mask, action_mask);
-    (void)task.task_class->release_deps(es, &task,
-                                        action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
-                                        NULL);
+    if(task.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID) { 
+        (void)task.task_class->release_deps(es, &task,
+                action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
+                origin);
+    } else {
+        (void)task.task_class->release_deps(es, &task,
+                action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
+                NULL);
+    }
     assert(0 == (origin->incoming_mask & complete_mask));
 
     if(0 != origin->incoming_mask)  /* not done receiving */
@@ -912,7 +918,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
      * references on the allocated data and on the dependency.
      */
     uint32_t mask = origin->outgoing_mask;
-    origin->outgoing_mask = 0;
+    //origin->outgoing_mask = 0;
 
 #if defined(PARSEC_DIST_COLLECTIVES)
     if( PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type ) /* indicates it is a PTG taskpool */
@@ -933,7 +939,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
         remote_dep_complete_and_cleanup(&origin, 1);
     } else {
         //remote_dep_complete_and_cleanup(&origin, 1);
-        remote_deps_free(origin);
+        //remote_deps_free(origin);
         //remote_dep_dec_flying_messages(task.taskpool);
 
     }
@@ -2127,9 +2133,9 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
                    &deps->msg, dep_count, dep_dtt, dep_comm);
         deps->from = status->MPI_SOURCE;
 
-        //if(es->virtual_process->parsec_context->my_rank == 1){
-        //    fprintf(stderr, "save activate cb with value %d\n", deps->msg.locals[0].value);
-        //}
+        if(es->virtual_process->parsec_context->my_rank == 1){
+            fprintf(stderr, "save activate cb with value %d\n", deps->msg.locals[0].value);
+        }
         /* Retrieve the data arenas and update the msg.incoming_mask to reflect
          * the data we should be receiving from the predecessor.
          */

@@ -40,6 +40,7 @@ extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 #define PARSEC_DTD_FLUSH_TC_ID    ((uint8_t)0x00)
 #define PARSEC_DTD_BCAST_KEY_TC_ID    ((uint8_t)0x01)
 #define PARSEC_DTD_BCAST_DATA_TC_ID    ((uint8_t)0x02)
+#define PARSEC_DTD_BCAST_TC_ID = ((PARSEC_DTD_BCAST_KEY_TC_ID) | (PARSEC_DTD_BCAST_DATA_TC_ID))
 
 /* To flag the task we are trying to complete as a local one */
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
@@ -184,7 +185,6 @@ struct parsec_dtd_task_s {
     int32_t                      rank_bits[MAX_RANK_INFO];
     /* for testing PTG inserting task in DTD */
     parsec_task_t  *orig_task;
-    parsec_remote_deps_t *deps_out;
 };
 
 /* For creating objects of class parsec_dtd_task_t */

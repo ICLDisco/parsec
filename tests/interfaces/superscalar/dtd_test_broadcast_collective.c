@@ -231,7 +231,8 @@ int test_broadcast_mixed(
    int key_root;
    parsec_dtd_tile_t* dtd_tile_root;
    parsec_dtd_tile_t* bcast_keys_root;
-   if(myrank % 2 == 1 || myrank == root) {
+   //if(myrank % 2 == 1 || myrank == root) {
+   if(1) {
        key_root = key = A->data_key(A, root, 0);
        dtd_tile_root = PARSEC_DTD_TILE_OF_KEY(A, key_root);
        key_root = B->data_key(B, root, 0);
@@ -248,7 +249,8 @@ int test_broadcast_mixed(
    // Put odd rank indexes into `dest_ranks` array except for the root
    // node. VALID ONLY ON THE ROOT NODE
    for (int rank = 0; rank < world; ++rank) {
-      if (rank % 2 == 0 || rank == root) continue;
+      //if (rank % 2 == 0 || rank == root) continue;
+      if (rank == root) continue;
       
       dest_ranks[dest_rank_idx] = rank;
       ++dest_rank_idx;
@@ -258,7 +260,8 @@ int test_broadcast_mixed(
    //
    // Perform Broadcast
    //
-   if(myrank % 2 == 1 || myrank == root) {
+   //if(myrank % 2 == 1 || myrank == root) {
+   if(1) {
        fprintf(stderr, "perform bcast from rank %d\n", myrank);
        parsec_dtd_broadcast(
                dtd_tp, root,
@@ -271,7 +274,8 @@ int test_broadcast_mixed(
    // Retrieve value of broadcasted data
    //
    //if(myrank % 2 == 1 || myrank == root) {
-   if(myrank % 2 == 1) {
+   //if(myrank % 2 == 1) {
+   if(1) {
        //for (int rank = 0; rank < world; ++rank) {
 
            //if (rank % 2 == 0 || rank == root) continue;
@@ -283,7 +287,7 @@ int test_broadcast_mixed(
                    sizeof(int*), &data_value_out, PARSEC_VALUE,
                    PARSEC_DTD_ARG_END);
            parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
-           parsec_insert_dtd_task(retrieve_task);
+           //parsec_insert_dtd_task(retrieve_task);
 
        //}
    }
