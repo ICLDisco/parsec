@@ -61,13 +61,13 @@ static void
 __parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
 {
     int g, dev;
-    two_dim_block_cyclic_t *userM;
-    two_dim_block_cyclic_t *dcA;
-    parsec_matrix_del2arena( & nvlink_taskpool->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX] );
+    parsec_matrix_block_cyclic_t *userM;
+    parsec_matrix_block_cyclic_t *dcA;
+    parsec_del2arena( & nvlink_taskpool->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX] );
     parsec_data_free(nvlink_taskpool->_g_descA->mat);
     parsec_info_unregister(&parsec_per_stream_infos, nvlink_taskpool->_g_CuHI, NULL);
     dcA = nvlink_taskpool->_g_descA;
-    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)nvlink_taskpool->_g_descA );
+    parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)nvlink_taskpool->_g_descA );
 
     userM = nvlink_taskpool->_g_userM;
     for(g = 0, dev = 0; dev < (int)parsec_nb_devices; dev++) {
@@ -85,7 +85,7 @@ __parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
             g++;
         }
     }
-    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)nvlink_taskpool->_g_userM );
+    parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)nvlink_taskpool->_g_userM );
     
     free(dcA);
     free(userM);
@@ -158,7 +158,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     
     /* userM is a user-managed matrix: the user creates the data copies
      * only on the GPU they want the GEMM2 to run. To simplify the code,
-     * we use two_dim_block_cyclic that requires to also have a CPU data
+     * we use parsec_matrix_block_cyclic that requires to also have a CPU data
      * copy, then for each data, we allocate a GPU data copy */
     userM = (parsec_matrix_block_cyclic_t*)calloc(1, sizeof(parsec_matrix_block_cyclic_t));
     parsec_matrix_block_cyclic_init(userM, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,

@@ -172,9 +172,9 @@ int test_cuda_memset(int world, int myrank, parsec_context_t *parsec_context, in
 
     parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
     // unless `parsec_dtd_taskpool_new()` is called first.
-    parsec_matrix_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
+    parsec_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
 
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_tiled_matrix_t *dcA;
     dcA = create_and_distribute_data(myrank, world, nb, nt*mt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
@@ -334,9 +334,9 @@ int test_cuda_memset_and_read(int world, int myrank, parsec_context_t *parsec_co
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
     parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-    parsec_matrix_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
+    parsec_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
 
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_tiled_matrix_t *dcA;
     dcA = create_and_distribute_data(myrank, world, nb, nt*mt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
@@ -498,9 +498,9 @@ int test_cuda_memset_write_read(int world, int myrank, parsec_context_t *parsec_
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
     parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-    parsec_matrix_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
+    parsec_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
 
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_tiled_matrix_t *dcA;
     dcA = create_and_distribute_data(myrank, world, nb, nt*mt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
@@ -708,9 +708,9 @@ int test_cuda_multiple_devices(int world, int myrank, parsec_context_t *parsec_c
     parsec_task_class_t *cudaread_tc, *cudacpy_tc;
 
     parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-    parsec_matrix_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
+    parsec_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
 
-    parsec_tiled_matrix_dc_t *dcA;
+    parsec_tiled_matrix_t *dcA;
     dcA = create_and_distribute_data(myrank, world, nb, 3*nt*mt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 

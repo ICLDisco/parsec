@@ -9,11 +9,11 @@
 static void __parsec_stress_destructor( parsec_taskpool_t *tp )
 {
     parsec_stress_taskpool_t *stress_taskpool = (parsec_stress_taskpool_t *)tp;
-    two_dim_block_cyclic_t *dcA;
-    parsec_matrix_del2arena( & stress_taskpool->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX] );
+    parsec_matrix_block_cyclic_t *dcA;
+    parsec_del2arena( & stress_taskpool->arenas_datatypes[PARSEC_stress_DEFAULT_ADT_IDX] );
     parsec_data_free(stress_taskpool->_g_descA->mat);
     dcA = stress_taskpool->_g_descA;
-    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)stress_taskpool->_g_descA );
+    parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)stress_taskpool->_g_descA );
     free(dcA);
 }
 

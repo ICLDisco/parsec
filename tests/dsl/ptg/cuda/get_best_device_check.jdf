@@ -10,7 +10,7 @@ extern "C" %{
 
 %option no_taskpool_instance = true  /* can be aything */
 
-descA                [ type = "parsec_tiled_matrix_dc_t*" ]
+descA                [ type = "parsec_tiled_matrix_t*" ]
 info                 [ type = "int*" ]
 
 nb_cuda_devices      [ type = "int"   hidden = on default = 0 ]
@@ -125,7 +125,7 @@ extern "C" %{
  * @param [inout] dcA: the data, already distributed and allocated
  */
 static parsec_taskpool_t*
-parsec_get_best_device_check_New(parsec_tiled_matrix_dc_t *dcA, int *info)
+parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
 {
     parsec_taskpool_t* get_best_device_check_taskpool;
     parsec_get_best_device_check_taskpool_t* taskpool = NULL;
@@ -159,8 +159,8 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_dc_t *dcA, int *info)
     taskpool->_g_cuda_device_index = dev_index;
 #endif
 
-    parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX],
-            parsec_datatype_double_t, matrix_UpperLower,
+    parsec_add2arena( &taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX],
+            parsec_datatype_double_t, PARSEC_MATRIX_FULL,
             1, dcA->mb, dcA->nb, dcA->mb,
             PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
@@ -173,7 +173,7 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_dc_t *dcA, int *info)
 static void
 __parsec_taskpool_get_best_device_check_destructor(parsec_get_best_device_check_taskpool_t *get_best_device_check_taskpool)
 {
-    parsec_matrix_del2arena(&get_best_device_check_taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX]);
+    parsec_del2arena(&get_best_device_check_taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX]);
 #if defined(PARSEC_HAVE_CUDA)
     if( NULL != get_best_device_check_taskpool->_g_cuda_device_index )
         free(get_best_device_check_taskpool->_g_cuda_device_index);
@@ -187,7 +187,7 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_get_best_device_check_taskpool_t, parsec_taskpo
  * @param [inout] dcA: the data, already distributed and allocated
  */
 int parsec_get_best_device_check(parsec_context_t *parsec,
-		parsec_tiled_matrix_dc_t *A)
+		parsec_tiled_matrix_t *A)
 {
     /* Only for 1 vp */
     assert( parsec->nb_vp == 1 );

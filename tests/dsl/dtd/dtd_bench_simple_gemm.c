@@ -79,7 +79,7 @@ int initialize_tile(parsec_execution_stream_t *es, parsec_task_t *this_task)
     return PARSEC_HOOK_RETURN_DONE;
 }
 
-int initialize_matrix(parsec_context_t *parsec_context, int rank, two_dim_block_cyclic_t *mat, unsigned int seed,
+int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_block_cyclic_t *mat, unsigned int seed,
                       const char *name, int *cuda_device_index, int nb_gpus)
 {
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
@@ -239,7 +239,7 @@ int gemm_kernel_cpu(parsec_execution_stream_t *es,
 }
 #endif
 
-int simple_gemm(parsec_context_t *parsec_context, two_dim_block_cyclic_t *A, two_dim_block_cyclic_t *B, two_dim_block_cyclic_t *C)
+int simple_gemm(parsec_context_t *parsec_context, parsec_matrix_block_cyclic_t *A, parsec_matrix_block_cyclic_t *B, parsec_matrix_block_cyclic_t *C)
 {
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
@@ -403,11 +403,11 @@ static void *allocate_one_on_device(void *obj, void *p)
 #endif
 }
 
-static two_dim_block_cyclic_t *create_initialize_matrix(parsec_context_t *parsec_context, int rank, unsigned int seed, const char *name, int mb, int nb, int M, int N, int *cuda_device_index, int nbgpus)
+static parsec_matrix_block_cyclic_t *create_initialize_matrix(parsec_context_t *parsec_context, int rank, unsigned int seed, const char *name, int mb, int nb, int M, int N, int *cuda_device_index, int nbgpus)
 {
-    two_dim_block_cyclic_t *dc;
-    dc = calloc(1, sizeof(two_dim_block_cyclic_t));
-    two_dim_block_cyclic_init(dc, matrix_RealDouble, matrix_Tile, rank,
+    parsec_matrix_block_cyclic_t *dc;
+    dc = calloc(1, sizeof(parsec_matrix_block_cyclic_t));
+    parsec_matrix_block_cyclic_init(dc, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE, rank,
                               mb, nb,
                               M, N,
                               0, 0,
@@ -426,7 +426,7 @@ static two_dim_block_cyclic_t *create_initialize_matrix(parsec_context_t *parsec
     return dc;
 }
 
-static void destroy_matrix(two_dim_block_cyclic_t *dc)
+static void destroy_matrix(parsec_matrix_block_cyclic_t *dc)
 {
     parsec_data_collection_t *A = &dc->super.super;
     parsec_dtd_data_collection_fini(A);
@@ -621,14 +621,14 @@ int main(int argc, char **argv)
 
     // Create datatypes
     parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-    parsec_matrix_add2arena_rect(adt, parsec_datatype_double_t, mb, nb, mb);
+    parsec_add2arena_rect(adt, parsec_datatype_double_t, mb, nb, mb);
 
     // Create and initialize the data
-    two_dim_block_cyclic_t *dcA = create_initialize_matrix(parsec_context, rank, 1789, "A", mb, kb, M, K,
+    parsec_matrix_block_cyclic_t *dcA = create_initialize_matrix(parsec_context, rank, 1789, "A", mb, kb, M, K,
                                                            cuda_device_index, nbgpus);
-    two_dim_block_cyclic_t *dcB = create_initialize_matrix(parsec_context, rank, 1805, "B", kb, nb, K, N,
+    parsec_matrix_block_cyclic_t *dcB = create_initialize_matrix(parsec_context, rank, 1805, "B", kb, nb, K, N,
                                                            cuda_device_index, nbgpus);
-    two_dim_block_cyclic_t *dcC = create_initialize_matrix(parsec_context, rank, 1901, "C", mb, nb, M, N,
+    parsec_matrix_block_cyclic_t *dcC = create_initialize_matrix(parsec_context, rank, 1901, "C", mb, nb, M, N,
                                                            cuda_device_index, nbgpus);
 
     for( int r = 0; r < runs + 1; r++ ) {

@@ -21,8 +21,8 @@ double sync_time_elapsed = 0.0;
  * @param [in] args: NULL 
  */
 static int matrix_init_ops(parsec_execution_stream_t *es,
-                        const parsec_tiled_matrix_dc_t *descA,
-                        void *_A, enum matrix_uplo uplo,
+                        const parsec_tiled_matrix_t *descA,
+                        void *_A, parsec_matrix_uplo_t uplo,
                         int m, int n, void *args)
 {
     double *A = (double *)_A;
@@ -135,8 +135,8 @@ int main(int argc, char *argv[])
     }
 
     /* initializing matrix structure */
-    two_dim_block_cyclic_t dcA;
-    two_dim_block_cyclic_init(&dcA, matrix_RealDouble, matrix_Tile,
+    parsec_matrix_block_cyclic_t dcA;
+    parsec_matrix_block_cyclic_init(&dcA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
                                 rank, NB, NB, N, N, 0, 0,
                                 N, N, P, nodes/P, KP, KQ, 0, 0); 
     dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
@@ -145,13 +145,13 @@ int main(int argc, char *argv[])
     parsec_data_collection_set_key((parsec_data_collection_t*)&dcA, "dcA");
 
     /* Init dcA to symmetric positive definite */ 
-    parsec_apply( parsec, matrix_UpperLower,
-                  (parsec_tiled_matrix_dc_t *)&dcA,
-                  (tiled_matrix_unary_op_t)matrix_init_ops, NULL);
+    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+                  (parsec_tiled_matrix_t *)&dcA,
+                  (parsec_tiled_matrix_unary_op_t)matrix_init_ops, NULL);
 
     /* Main routines */
     SYNC_TIME_START(); 
-    info = parsec_get_best_device_check(parsec, (parsec_tiled_matrix_dc_t *)&dcA);
+    info = parsec_get_best_device_check(parsec, (parsec_tiled_matrix_t *)&dcA);
     SYNC_TIME_PRINT(rank, ("Get_best_device" "\tN= %d NB= %d "
                            "PxQ= %d %d KPxKQ= %d %d cores= %d nb_gpus= %d\n",
                            N, NB, P, nodes/P, KP, KQ, cores, parsec_nb_devices-2)); 
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
     }
 
     parsec_data_free(dcA.mat);
-    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
 
     /* Clean up parsec*/
     parsec_fini(&parsec);
