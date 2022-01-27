@@ -248,6 +248,22 @@ void parsec_hash_table_lock_bucket(parsec_hash_table_t *ht, parsec_key_t key )
     parsec_atomic_lock(&ht->rw_hash->buckets[hash].lock);
 }
 
+void parsec_hash_table_lock_bucket_handle(parsec_hash_table_t *ht,
+                                          parsec_key_t key,
+                                          parsec_key_handle_t* handle)
+{
+    uint64_t hash64, hash;
+
+    parsec_atomic_rwlock_rdlock(&ht->rw_lock);
+    hash64 = ht->key_functions.key_hash(key, ht->hash_data);
+    hash = parsec_hash_table_universal_rehash(hash64, ht->rw_hash->nb_bits);
+    assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
+    parsec_atomic_lock(&ht->rw_hash->buckets[hash].lock);
+    handle->key = key;
+    handle->hash64 = hash64;
+    handle->hash = hash;
+}
+
 static void parsec_hash_table_resize(parsec_hash_table_t *ht)
 {
     parsec_atomic_lock_t unlocked = PARSEC_ATOMIC_UNLOCKED;
@@ -282,9 +298,20 @@ static void parsec_hash_table_resize(parsec_hash_table_t *ht)
 
 void parsec_hash_table_unlock_bucket_impl(parsec_hash_table_t *ht, parsec_key_t key, const char *file, int line)
 {
+    uint64_t hash64 = ht->key_functions.key_hash(key, ht->hash_data);
+    uint64_t hash = parsec_hash_table_universal_rehash(hash64, ht->rw_hash->nb_bits);
+    parsec_key_handle_t handle = {.key = key, .hash64 = hash64, .hash = hash};
+    parsec_hash_table_unlock_bucket_handle_impl(ht, &handle, file, line);
+}
+
+
+void parsec_hash_table_unlock_bucket_handle_impl(parsec_hash_table_t *ht,
+                                                 const parsec_key_handle_t* handle,
+                                                 const char *file, int line)
+{
     int resize = 0;
     parsec_hash_table_head_t *cur_head;
-    uint64_t hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
+    uint64_t hash = handle->hash;
 
     assert( hash < (1ULL<<ht->rw_hash->nb_bits) );
     if( ht->rw_hash->buckets[hash].cur_len > ht->max_collisions_hint ) {
@@ -314,6 +341,7 @@ void parsec_hash_table_unlock_bucket_impl(parsec_hash_table_t *ht, parsec_key_t 
     }
 }
 
+
 void parsec_hash_table_fini(parsec_hash_table_t *ht)
 {
     parsec_hash_table_head_t *head, *next;
@@ -336,11 +364,24 @@ void parsec_hash_table_fini(parsec_hash_table_t *ht)
 
 void parsec_hash_table_nolock_insert(parsec_hash_table_t *ht, parsec_hash_table_item_t *item)
 {
-    uint64_t hash;
+    uint64_t hash, hash64;
     parsec_key_t key = item->key;
-    hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
+    hash64 = ht->key_functions.key_hash(key, ht->hash_data);
+    hash = parsec_hash_table_universal_rehash(hash64, ht->rw_hash->nb_bits);
+    parsec_key_handle_t handle = {.key = key, .hash64 = hash64, .hash = hash};
+    parsec_hash_table_nolock_insert_handle(ht, &handle, item);
+}
+
+
+void parsec_hash_table_nolock_insert_handle(parsec_hash_table_t *ht,
+                                            const parsec_key_handle_t *handle,
+                                            parsec_hash_table_item_t *item)
+{
+    uint64_t hash;
+    int res;
+    hash = handle->hash;
     item->next_item = ht->rw_hash->buckets[hash].first_item;
-    item->hash64 = ht->key_functions.key_hash(key, ht->hash_data);
+    item->hash64 = handle->hash64;
     ht->rw_hash->buckets[hash].first_item = item;
     ht->rw_hash->buckets[hash].cur_len++;
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -351,6 +392,7 @@ void parsec_hash_table_nolock_insert(parsec_hash_table_t *ht, parsec_hash_table_
     }
 #endif
 }
+
 
 static void *parsec_hash_table_nolock_remove_from_old_tables(parsec_hash_table_t *ht, parsec_key_t key)
 {
@@ -480,19 +522,31 @@ static void *parsec_hash_table_nolock_find_in_old_tables(parsec_hash_table_t *ht
 
 void *parsec_hash_table_nolock_find(parsec_hash_table_t *ht, parsec_key_t key)
 {
+    uint64_t hash;
+    uint64_t hash64 = ht->key_functions.key_hash(key, ht->hash_data);
+    hash = parsec_hash_table_universal_rehash(hash64, ht->rw_hash->nb_bits);
+    parsec_key_handle_t handle = {.key = key, .hash64 = hash64, .hash = hash};
+    return parsec_hash_table_nolock_find_handle(ht, &handle);
+}
+
+
+void *parsec_hash_table_nolock_find_handle(parsec_hash_table_t *ht,
+                                           const parsec_key_handle_t* handle)
+{
     parsec_hash_table_item_t *current_item;
     uint64_t hash;
     void *item;
-    uint64_t hash64 = ht->key_functions.key_hash(key, ht->hash_data);
-    hash = parsec_hash_table_universal_rehash(hash64, ht->rw_hash->nb_bits);
+    uint64_t hash64 = handle->hash64;
+    hash = handle->hash;
     for(current_item = ht->rw_hash->buckets[hash].first_item;
         NULL != current_item;
         current_item = current_item->next_item) {
-        if( OPTIMIZED_EQUAL_TEST(current_item, key, hash64, ht) ) {
+        if( OPTIMIZED_EQUAL_TEST(current_item, handle->key, hash64, ht) ) {
 #if defined(PARSEC_DEBUG_NOISIER)
             char estr[64];
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Found item %p/%s into hash table %p in bucket %d",
-                                 BASEADDROF(current_item, ht), ht->key_functions.key_print(estr, 64, key, ht->hash_data), ht, hash);
+                                 BASEADDROF(current_item, ht),
+                                 ht->key_functions.key_print(estr, 64, handle->key, ht->hash_data), ht, hash);
 #endif
             return BASEADDROF(current_item, ht);
         }
@@ -504,21 +558,32 @@ void *parsec_hash_table_nolock_find(parsec_hash_table_t *ht, parsec_key_t key)
         parsec_hash_table_nolock_insert(ht, current_item);
     }
 #else
-    item = parsec_hash_table_nolock_find_in_old_tables(ht, key);
+    item = parsec_hash_table_nolock_find_in_old_tables(ht, handle->key);
 #endif
     return item;
 }
 
 void *parsec_hash_table_nolock_remove(parsec_hash_table_t *ht, parsec_key_t key)
 {
-    parsec_hash_table_item_t *current_item, *prev_item;
     uint64_t hash64 = ht->key_functions.key_hash(key, ht->hash_data);
     uint64_t hash = parsec_hash_table_universal_rehash(hash64, ht->rw_hash->nb_bits);
+    parsec_key_handle_t handle = {.key = key, .hash64 = hash64, .hash = hash};
+    return parsec_hash_table_nolock_remove_handle(ht, &handle);
+}
+
+
+void *parsec_hash_table_nolock_remove_handle(parsec_hash_table_t *ht,
+                                             const parsec_key_handle_t* handle)
+{
+    parsec_hash_table_item_t *current_item, *prev_item;
+    uint64_t hash64 = handle->hash64;
+    uint64_t hash = handle->hash;
+    int32_t res;
     prev_item = NULL;
     for(current_item = ht->rw_hash->buckets[hash].first_item;
         NULL != current_item;
         current_item = prev_item->next_item) {
-        if( OPTIMIZED_EQUAL_TEST(current_item, key, hash64, ht) ) {
+        if( OPTIMIZED_EQUAL_TEST(current_item, handle->key, hash64, ht) ) {
             if( NULL == prev_item ) {
                 ht->rw_hash->buckets[hash].first_item = current_item->next_item;
             } else {
@@ -528,14 +593,16 @@ void *parsec_hash_table_nolock_remove(parsec_hash_table_t *ht, parsec_key_t key)
 #if defined(PARSEC_DEBUG_NOISIER)
             char estr[64];
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Removed item %p/%s from hash table %p in bucket %d",
-                                 BASEADDROF(current_item, ht), ht->key_functions.key_print(estr, 64, key, ht->hash_data), ht, hash);
+                                 BASEADDROF(current_item, ht),
+                                 ht->key_functions.key_print(estr, 64, handle->key, ht->hash_data), ht, hash);
 #endif
             return BASEADDROF(current_item, ht);
         }
         prev_item = current_item;
     }
-    return parsec_hash_table_nolock_remove_from_old_tables(ht, key);
+    return parsec_hash_table_nolock_remove_from_old_tables(ht, handle->key);
 }
+
 
 void parsec_hash_table_insert_impl(parsec_hash_table_t *ht, parsec_hash_table_item_t *item, const char *file, int line)
 {

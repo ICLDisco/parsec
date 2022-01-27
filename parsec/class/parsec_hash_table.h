@@ -44,7 +44,7 @@ typedef struct parsec_key_fn_s {
     /** Returns a == b
      *  user_data is the pointer passed to hash_table_create */
     int          (*key_equal)(parsec_key_t a, parsec_key_t b, void *user_data);
-    /** Writes up to buffer_size-1 bytes into buffer, creating a human-readable version of k 
+    /** Writes up to buffer_size-1 bytes into buffer, creating a human-readable version of k
      *  user_data is the pointer passed to hash_table_create*/
     char *       (*key_print)(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data);
     /** Returns a hash of k, between 0 and 1ULL<<64
@@ -54,12 +54,30 @@ typedef struct parsec_key_fn_s {
     uint64_t     (*key_hash)(parsec_key_t k, void *user_data);
 } parsec_key_fn_t;
 
+/**
+ * @brief Hashtable key handle
+ *
+ * @details
+ *   When locking a bucket, a handle is provided that can be used for finding,
+ *   inserting, and removing an element corresponding to the key provided
+ *   when the bucket was locked. The handle is valid until the bucket is unlocked.
+ */
+struct parsec_key_handle_s {
+    uint64_t                  hash64;           /**< Is a 64-bits hash of the key */
+    uint64_t                  hash;             /**< Is a 64-bits hash of the key,
+                                                     trimmed to the current size of the table */
+    parsec_key_t              key;              /**< Items are identified with this key */
+};
+
+typedef struct parsec_key_handle_s parsec_key_handle_t;
+
 typedef struct parsec_hash_table_s        parsec_hash_table_t;       /**< A Hash Table */
 typedef struct parsec_hash_table_item_s   parsec_hash_table_item_t;  /**< Items stored in a Hash Table */
 typedef struct parsec_hash_table_bucket_s parsec_hash_table_bucket_t;/**< Buckets of a Hash Table */
 
+
 /**
- * @brief 
+ * @brief
  */
 typedef struct parsec_hash_table_head_s {
     struct parsec_hash_table_head_s *next;                 /**< Table of smaller size that is not empty */
@@ -70,14 +88,14 @@ typedef struct parsec_hash_table_head_s {
 } parsec_hash_table_head_t;
 
 /**
- * @brief One type of hash table for task, tiles and functions 
+ * @brief One type of hash table for task, tiles and functions
  */
 struct parsec_hash_table_s {
     parsec_object_t           super;                /**< A Hash Table is a PaRSEC object */
     parsec_atomic_rwlock_t    rw_lock;              /**< 'readers' are threads that manipulate rw_hash (add, delete, find)
                                                      *   but do not resize it; 'writers' are threads that resize
                                                      *   rw_hash */
-    int64_t                   elt_hashitem_offset;  /**< Elements belonging to this hash table have a parsec_hash_table_item_t 
+    int64_t                   elt_hashitem_offset;  /**< Elements belonging to this hash table have a parsec_hash_table_item_t
                                                      *   at this offset */
     parsec_key_fn_t           key_functions;        /**< How to acccess and modify the keys */
     void                     *hash_data;            /**< This is the last parameter of the hashing function */
@@ -137,6 +155,20 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
  */
 void parsec_hash_table_lock_bucket(parsec_hash_table_t *ht, parsec_key_t key );
 
+
+/**
+ * @brief locks the bucket corresponding to this key and sets the bucket handle
+ *
+ * @details Waits until the bucket corresponding to the key can be locked
+ *  and locks it preventing other threads to update this bucket.
+ *  The table cannot be resized as long as any bucket is locked.
+ *  @arg[inout] ht  the parsec_hash_table
+ *  @arg[in]    key the key for which to lock the bucket
+ *  @arg[out]   handle the handle identifying the locked bucket
+ */
+void parsec_hash_table_lock_bucket_handle(parsec_hash_table_t *ht, parsec_key_t key,
+                                          parsec_key_handle_t *handle);
+
 /**
  * @brief unlocks the bucket corresponding to this key.
  *
@@ -153,6 +185,25 @@ void parsec_hash_table_unlock_bucket_impl(parsec_hash_table_t *ht, parsec_key_t 
 #define parsec_hash_table_unlock_bucket(ht, key) parsec_hash_table_unlock_bucket_impl(ht, key, __FILE__, __LINE__)
 
 /**
+ * @brief unlocks the bucket identified by the handle.
+ *
+ * @details allow other threads to update this bucket.
+ *  This operation might block and resize the table, if non-locking
+ *  insertions during the critical section added too many elements.
+ *  Use it through the parsec_hash_table_unlock_bucket_handle macro.
+ *  The handle becomes invalid after this call.
+ *  @arg[inout] ht  the parsec_hash_table
+ *  @arg[in]    handle the handle to the bucket to unlock
+ *  @arg[in]    file the file where the caller of the function is
+ *  @arg[in]    line the line at which this function is called
+ */
+void parsec_hash_table_unlock_bucket_handle_impl(parsec_hash_table_t *ht,
+                                                 const parsec_key_handle_t *handle,
+                                                 const char *file, int line);
+#define parsec_hash_table_unlock_bucket_handle(ht, handle) \
+  parsec_hash_table_unlock_bucket_handle_impl(ht, handle, __FILE__, __LINE__)
+
+/**
  * @brief Destroy a hash table
  *
  * @details
@@ -164,17 +215,36 @@ void parsec_hash_table_fini(parsec_hash_table_t *ht);
 
 /**
  * @brief Insert element in a hash table without
- *  locking the bucket. 
+ *  locking the bucket.
  *
  *
  * @details
  *  This is not thread safe, and might make this bucket to exceed
  *  the hint provided by the parsec_hash_table_max_collisions MCA parameter
- *  
+ *
  *  @arg[inout] ht   the hash table
  *  @arg[inout] item the item to insert. Its key must be initialized.
  */
 void parsec_hash_table_nolock_insert(parsec_hash_table_t *ht, parsec_hash_table_item_t *item);
+
+/**
+ * @brief Insert element identified by handle in a hash table without
+ *  locking the bucket.
+ *
+ *
+ * @details
+ *  This is not thread safe, and might make this bucket to exceed
+ *  the hint provided by the parsec_hash_table_max_collisions MCA parameter.
+ *  The item is inserted into the bucket identified by handle, the item's key is
+ *  ignored.
+ *
+ *  @arg[inout] ht   the hash table
+ *  @arg[in]    handle the handle identifying the bucket to insert into
+ *  @arg[inout] item the item to insert. Its key must be initialized.
+ */
+void parsec_hash_table_nolock_insert_handle(parsec_hash_table_t *ht,
+                                            const parsec_key_handle_t *handle,
+                                            parsec_hash_table_item_t *item);
 
 /**
  * @brief Find elements in the hash table
@@ -188,6 +258,18 @@ void parsec_hash_table_nolock_insert(parsec_hash_table_t *ht, parsec_hash_table_
 void *parsec_hash_table_nolock_find(parsec_hash_table_t *ht, parsec_key_t key);
 
 /**
+ * @brief Find elements in the hash table using the handle
+ *
+ * @details
+ *  This does lock the bucket while searching for the item.
+ *  @arg[in] ht the hash table
+ *  @arg[in] handle the handle for the bucket to find
+ *  @return NULL if the element is not in the table, the element otherwise.
+ */
+void *parsec_hash_table_nolock_find_handle(parsec_hash_table_t *ht,
+                                           const parsec_key_handle_t *handle);
+
+/**
  * @brief Remove element from the hash table without locking the
  *  bucket.
  *
@@ -199,6 +281,20 @@ void *parsec_hash_table_nolock_find(parsec_hash_table_t *ht, parsec_key_t key);
  *    that was removed from the table otherwise.
  */
 void *parsec_hash_table_nolock_remove(parsec_hash_table_t *ht, parsec_key_t key);
+
+/**
+ * @brief Remove element identified by handle from the hash table without locking the
+ *  bucket.
+ *
+ * @details
+ *  function is not thread-safe.
+ *  @arg[inout] ht the hash table
+ *  @arg[inout] handle the handle of the item to remove
+ *  @return NULL if the element was not in the table, the element
+ *    that was removed from the table otherwise.
+ */
+void *parsec_hash_table_nolock_remove_handle(parsec_hash_table_t *ht,
+                                             const parsec_key_handle_t *handle);
 
 /**
  * @brief Insert element in the hash table

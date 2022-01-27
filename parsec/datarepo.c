@@ -23,7 +23,7 @@ data_repo_create_nothreadsafe(unsigned int hashsize_hint, parsec_key_fn_t key_fu
     parsec_hash_table_init(&res->table, offsetof(data_repo_entry_t, ht_item),
                            base,
                            key_functions, key_hash_data);
-    
+
     res->nbdata = nbdata;
     return res;
 }
@@ -46,14 +46,16 @@ __data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *
 #if defined(PARSEC_DEBUG_NOISIER)
     char estr[64];
 #endif
-    parsec_hash_table_lock_bucket(&repo->table, key);
-    e = (data_repo_entry_t*)parsec_hash_table_nolock_find(&repo->table, key);
+
+    parsec_key_handle_t kh;
+    parsec_hash_table_lock_bucket_handle(&repo->table, key, &kh);
+    e = (data_repo_entry_t*)parsec_hash_table_nolock_find_handle(&repo->table, &kh);
     if( NULL != e ) {
         e->retained++; /* Until we update the usage limit */
-        parsec_hash_table_unlock_bucket(&repo->table, key);
+        parsec_hash_table_unlock_bucket_handle(&repo->table, &kh);
         return e;
     }
-    parsec_hash_table_unlock_bucket(&repo->table, key);
+    parsec_hash_table_unlock_bucket_handle(&repo->table, &kh);
 
     e = (data_repo_entry_t*)parsec_thread_mempool_allocate( es->datarepo_mempools[repo->nbdata] );
     for(i = 0; i < repo->nbdata; e->data[i] = NULL, i++);
@@ -67,22 +69,22 @@ __data_repo_lookup_entry_and_create(parsec_execution_stream_t *es, data_repo_t *
     e->usagecnt = 0;
     e->retained = 1; /* Until we update the usage limit */
 
-    parsec_hash_table_lock_bucket(&repo->table, key);
+    parsec_hash_table_lock_bucket_handle(&repo->table, key, &kh);
     /* When setting up future reshape promises the creation of repos for successors
      * tasks is advanced. Multiple threads may try to create the repo of the same
      * successor task at a given moment (each one targeting the reshape of a
      * different succesor's flow). Thus, we need to re-check before inserting.
      */
-    e2 = (data_repo_entry_t*)parsec_hash_table_nolock_find(&repo->table, key);
+    e2 = (data_repo_entry_t*)parsec_hash_table_nolock_find_handle(&repo->table, &kh);
     if( NULL != e2 ) {
         parsec_thread_mempool_free( e->data_repo_mempool_owner, (void*) e );
         e2->retained++; /* Until we update the usage limit */
-        parsec_hash_table_unlock_bucket(&repo->table, key);
+        parsec_hash_table_unlock_bucket_handle(&repo->table, &kh);
         return e2;
     }
 
-    parsec_hash_table_nolock_insert(&repo->table, &e->ht_item);
-    parsec_hash_table_unlock_bucket(&repo->table, key);
+    parsec_hash_table_nolock_insert_handle(&repo->table, &kh, &e->ht_item);
+    parsec_hash_table_unlock_bucket_handle(&repo->table, &kh);
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "entry %p/%s of hash table %s has been allocated with an usage count of %u/%u and is retained %d at %s:%d",
                          e, repo->table.key_functions.key_print(estr, 64, e->ht_item.key, repo->table.hash_data), tablename, e->usagecnt, e->usagelmt, e->retained, file, line);
 
@@ -102,8 +104,9 @@ __data_repo_entry_used_once(data_repo_t *repo, parsec_key_t key
     char estr[64];
 #endif
 
-    parsec_hash_table_lock_bucket(&repo->table, key);
-    e = (data_repo_entry_t*)parsec_hash_table_nolock_find(&repo->table, key);
+    parsec_key_handle_t kh;
+    parsec_hash_table_lock_bucket_handle(&repo->table, key, &kh);
+    e = (data_repo_entry_t*)parsec_hash_table_nolock_find_handle(&repo->table, &kh);
 #if defined(PARSEC_DEBUG_NOISIER)
     if( NULL == e ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "entry %s of hash table %s could not be found at %s:%d",
@@ -116,14 +119,14 @@ __data_repo_entry_used_once(data_repo_t *repo, parsec_key_t key
     if( (e->usagelmt == r) && (0 == e->retained) ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "entry %p/%s of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d",
                              e, repo->table.key_functions.key_print(estr, 64, e->ht_item.key, repo->table.hash_data), tablename, r, r, file, line);
-        parsec_hash_table_nolock_remove(&repo->table, key);
-        parsec_hash_table_unlock_bucket(&repo->table, key);
-        
+        parsec_hash_table_nolock_remove_handle(&repo->table, &kh);
+        parsec_hash_table_unlock_bucket_handle(&repo->table, &kh);
+
         parsec_thread_mempool_free(e->data_repo_mempool_owner, e );
     } else {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "entry %p/%s of hash table %s has %u/%u usage count and %s retained: not freeing it at %s:%d",
                              e, repo->table.key_functions.key_print(estr, 64, e->ht_item.key, repo->table.hash_data), tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line);
-        parsec_hash_table_unlock_bucket(&repo->table, key);
+        parsec_hash_table_unlock_bucket_handle(&repo->table, &kh);
     }
 }
 
@@ -140,8 +143,9 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, parsec_key_t key, uint32_
     char estr[64];
 #endif
 
-    parsec_hash_table_lock_bucket(&repo->table, key);
-    e = parsec_hash_table_nolock_find(&repo->table, key);
+    parsec_key_handle_t kh;
+    parsec_hash_table_lock_bucket_handle(&repo->table, key, &kh);
+    e = parsec_hash_table_nolock_find_handle(&repo->table, &kh);
     assert( NULL != e );
     assert(e->retained > 0);
     do {
@@ -155,14 +159,14 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, parsec_key_t key, uint32_
                              "entry %p/%s of hash table %s has a usage count of %u/%u and is"
                              " not retained: freeing it at %s:%d",
                              e, repo->table.key_functions.key_print(estr, 64, e->ht_item.key, repo->table.hash_data),tablename, e->usagecnt, e->usagelmt, file, line);
-        parsec_hash_table_nolock_remove(&repo->table, key);
-        parsec_hash_table_unlock_bucket(&repo->table, key);
+        parsec_hash_table_nolock_remove_handle(&repo->table, &kh);
+        parsec_hash_table_unlock_bucket_handle(&repo->table, &kh);
         parsec_thread_mempool_free(e->data_repo_mempool_owner, e );
     } else {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output,
                              "entry %p/%s of hash table %s has a usage count of %u/%u and is %s retained at %s:%d",
                              e, repo->table.key_functions.key_print(estr, 64, e->ht_item.key, repo->table.hash_data), tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line);
-        parsec_hash_table_unlock_bucket(&repo->table, key);
+        parsec_hash_table_unlock_bucket_handle(&repo->table, &kh);
     }
 }
 
