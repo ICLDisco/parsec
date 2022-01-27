@@ -173,6 +173,7 @@ static void parsec_prof_grapher_dataid(const parsec_data_t *dta, char *did, int 
     parsec_grapher_data_identifier_t id;
     parsec_key_t key;
     parsec_grapher_data_identifier_hash_table_item_t *it;
+    parsec_key_handle_t* kh;
 
     assert(NULL != dta);
     assert(NULL != grapher_file);
@@ -181,8 +182,8 @@ static void parsec_prof_grapher_dataid(const parsec_data_t *dta, char *did, int 
     id.dc = dta->dc;
     id.data_key = dta->key;
     key = (parsec_key_t)(uintptr_t)&id;
-    parsec_hash_table_lock_bucket(data_ht, key);
-    if( NULL == (it = parsec_hash_table_nolock_find(data_ht, key)) ) {
+    parsec_hash_table_lock_bucket_handle(data_ht, key, &kh);
+    if( NULL == (it = parsec_hash_table_nolock_find_handle(data_ht, &kh)) ) {
         char data_name[MAX_TASK_STRLEN];
         it = (parsec_grapher_data_identifier_hash_table_item_t*)malloc(sizeof(parsec_grapher_data_identifier_hash_table_item_t));
         it->id = id;
@@ -191,8 +192,8 @@ static void parsec_prof_grapher_dataid(const parsec_data_t *dta, char *did, int 
             asprintf(&it->did, "dc%p_%"PRIuPTR, it->id.dc, (uintptr_t)it->id.data_key);
         else
             asprintf(&it->did, "dta%p_%"PRIuPTR, dta, (uintptr_t)it->id.data_key);
-        parsec_hash_table_nolock_insert(data_ht, &it->ht_item);
-        parsec_hash_table_unlock_bucket(data_ht, key);
+        parsec_hash_table_nolock_insert_handle(data_ht, &kh, &it->ht_item);
+        parsec_hash_table_unlock_bucket_handle(data_ht, &kh);
 
         if(NULL != dta->dc && NULL != dta->dc->key_to_string) {
             dta->dc->key_to_string(dta->dc, dta->key, data_name, MAX_TASK_STRLEN);
@@ -201,7 +202,7 @@ static void parsec_prof_grapher_dataid(const parsec_data_t *dta, char *did, int 
         }
         fprintf(grapher_file, "%s [label=\"%s%s\",shape=\"circle\"]\n", it->did, NULL != dta->dc->key_base ? dta->dc->key_base : "", data_name);
     } else
-        parsec_hash_table_unlock_bucket(data_ht, key);
+        parsec_hash_table_unlock_bucket_handle(data_ht, &kh);
     strncpy(did, it->did, size);
 }
 
