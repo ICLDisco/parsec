@@ -2596,7 +2596,7 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
 #endif  /* defined(PARSEC_PROF_TRACE) */
 
     status = cudaSetDevice( cuda_device->cuda_index );
-    PARSEC_CUDA_CHECK_ERROR( "(parsec_gpu_kernel_scheduler) cudaSetDevice ", status,
+    PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_kernel_scheduler) cudaSetDevice ", status,
                              {return PARSEC_HOOK_RETURN_DISABLE;} );
 
  check_in_deps:
