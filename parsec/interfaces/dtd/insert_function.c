@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2020 The University of Tennessee and The University
+ * Copyright (c) 2013-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1316,15 +1316,6 @@ parsec_dtd_taskpool_retain(parsec_taskpool_t *tp)
 {
     PARSEC_OBJ_RETAIN(tp);
 }
-
-#if defined(PARSEC_DEBUG_NOISIER)
-static void check_hash_table_is_empty(void *item, void*cb_data)
-{
-    (void)item;
-    (void)cb_data;
-    assert(0);
-}
-#endif
 
 void
 parsec_dtd_taskpool_release(parsec_taskpool_t *tp)
