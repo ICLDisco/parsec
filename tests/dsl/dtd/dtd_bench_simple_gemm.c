@@ -200,7 +200,7 @@ int gemm_kernel_cuda(parsec_device_cuda_module_t *cuda_device,
 
     PARSEC_CUDA_CHECK_ERROR("cublasDgemm_v2 ", status,
                             { return PARSEC_HOOK_RETURN_ERROR; });
-    
+
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -226,7 +226,7 @@ int gemm_kernel_cpu(parsec_execution_stream_t *es,
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, mb, nb, kb, alpha, A, mb, B, kb, beta, C, mb);
     gettimeofday(&end, NULL);
     timersub(&end, &start, &diff);
-    
+
     delta = (double)diff.tv_sec + (double)diff.tv_usec/1e6;
     if( verbose )
         fprintf(stderr, "GEMM(%d, %d, %d) with tiles of %dx%d, %dx%d, %dx%d on node %d, on core %d: %g s\n",
