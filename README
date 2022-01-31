@@ -17,9 +17,9 @@ help application developers tackle the difficult task of porting their
 applications to highly heterogeneous and diverse environment.
 
 Please read the INSTALL file for the software dependencies and the installation
-instructions. Also, our
-[wiki](https://bitbucket.org/icldistcomp/parsec/wiki/Home) might contain
-additional information, check it out.
+instructions. Also, check out our
+[wiki](https://bitbucket.org/icldistcomp/parsec/wiki/Home) for additional
+documentation.
 
 If you are interested in this project and want to join the users community, our
 mailman will be happy to accept you on the project user (moderated) mailing list
