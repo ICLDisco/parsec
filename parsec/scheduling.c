@@ -24,6 +24,7 @@
 #include "parsec/class/list.h"
 #include "parsec/utils/debug.h"
 #include "parsec/dictionary.h"
+#include "parsec/utils/backoff.h"
 
 #include <signal.h>
 #if defined(PARSEC_HAVE_STRING_H)
@@ -369,15 +370,6 @@ int __parsec_reschedule(parsec_execution_stream_t* es, parsec_task_t* task)
     return __parsec_schedule(es, task, 0);
 }
 
-#define TIME_STEP 5410
-#define MIN(x, y) ( (x)<(y)?(x):(y) )
-static inline unsigned long exponential_backoff(parsec_execution_stream_t *es, uint64_t k)
-{
-    unsigned int n = MIN( 64, k );
-    unsigned int r = (unsigned int) ((double)n * ((double)rand_r(&es->rand_seed)/(double)RAND_MAX));
-    return r * TIME_STEP;
-}
-
 int __parsec_complete_execution( parsec_execution_stream_t *es,
                                  parsec_task_t *task )
 {
@@ -557,7 +549,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
 #endif /* defined(DISTRIBUTED) */
 
         if( misses_in_a_row > 1 ) {
-            rqtp.tv_nsec = exponential_backoff(es, misses_in_a_row);
+            rqtp.tv_nsec = parsec_exponential_backoff(es, misses_in_a_row);
             nanosleep(&rqtp, NULL);
         }
         misses_in_a_row++;  /* assume we fail to extract a task */

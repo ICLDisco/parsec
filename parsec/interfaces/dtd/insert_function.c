@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2020 The University of Tennessee and The University
+ * Copyright (c) 2013-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -54,6 +54,7 @@
 #include "parsec/mca/pins/pins.h"
 #include "parsec/utils/debug.h"
 #include "parsec/data_distribution.h"
+#include "parsec/utils/backoff.h"
 
 /* This allows DTD to have a separate stream for debug verbose output */
 int parsec_dtd_debug_output;
@@ -120,17 +121,6 @@ inline int parsec_dtd_task_is_local(parsec_dtd_task_t *task)
 
 inline int parsec_dtd_task_is_remote(parsec_dtd_task_t *task)
 { return !parsec_dtd_task_is_local(task); }
-
-/* Copied from parsec/scheduling.c, will need to be exposed */
-#define TIME_STEP 5410
-#define MIN(x, y) ( (x)<(y)?(x):(y) )
-
-static inline unsigned long exponential_backoff(uint64_t k)
-{
-    unsigned int n = MIN(64, k);
-    unsigned int r = (unsigned int)((double)n * ((double)rand() / (double)RAND_MAX));
-    return r * TIME_STEP;
-}
 
 static void
 parsec_detach_dtd_taskpool_from_context(parsec_taskpool_t *tp)
@@ -525,7 +515,7 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
                              int task_threshold_count)
 {
     uint64_t misses_in_a_row;
-    parsec_execution_stream_t *es = tp->context->virtual_processes[0]->execution_streams[0];
+    parsec_execution_stream_t *es = parsec_my_execution_stream();
     parsec_task_t *task;
     int rc, distance;
     struct timespec rqtp;
@@ -550,7 +540,7 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
      */
     while( tp->nb_tasks > task_threshold_count ) {
         if( misses_in_a_row > 1 ) {
-            rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
+            rqtp.tv_nsec = parsec_exponential_backoff(es, misses_in_a_row);
             nanosleep(&rqtp, NULL);
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
@@ -570,6 +560,7 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
 static int
 parsec_dtd_taskpool_wait_on_pending_action(parsec_taskpool_t *tp)
 {
+    parsec_execution_stream_t *es = parsec_my_execution_stream();
     struct timespec rqtp;
     rqtp.tv_sec = 0;
 
@@ -577,7 +568,7 @@ parsec_dtd_taskpool_wait_on_pending_action(parsec_taskpool_t *tp)
     while( tp->nb_pending_actions > 1 ) {
         unit_waited++;
         if( 100 == unit_waited ) {
-            rqtp.tv_nsec = exponential_backoff(unit_waited);
+            rqtp.tv_nsec = parsec_exponential_backoff(es, unit_waited);
             nanosleep(&rqtp, NULL);
             unit_waited = 0;
         }
@@ -610,6 +601,7 @@ parsec_dtd_taskpool_wait(parsec_taskpool_t *tp)
         return PARSEC_ERR_NOT_SUPPORTED;
     }
     parsec_dtd_schedule_tasks(dtd_tp);
+    /* Wait until all local tasks are done. The only thing left will then be, communications */
     dtd_tp->wait_func(tp);
     parsec_dtd_taskpool_wait_on_pending_action(tp);
     return PARSEC_SUCCESS;
@@ -1324,15 +1316,6 @@ parsec_dtd_taskpool_retain(parsec_taskpool_t *tp)
 {
     PARSEC_OBJ_RETAIN(tp);
 }
-
-#if defined(PARSEC_DEBUG_NOISIER)
-static void check_hash_table_is_empty(void *item, void*cb_data)
-{
-    (void)item;
-    (void)cb_data;
-    assert(0);
-}
-#endif
 
 void
 parsec_dtd_taskpool_release(parsec_taskpool_t *tp)

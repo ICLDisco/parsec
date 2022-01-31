@@ -392,7 +392,7 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     if( (dcY->mb == dcT->mb) && (dcY->nb == dcT->nb) && (disi_Y % dcY->mb == 0)
         && (disj_Y % dcY->nb == 0) && (disi_T % dcT->mb == 0) && (disj_T % dcT->nb == 0) ) {
         /* When tile sizes are the same and displacements are at start of tiles */
-        parsec_dtd_insert_task( dtd_tp,       insert_task_reshuffle, 0, "insert_task_reshuffle",
+        parsec_dtd_insert_task( dtd_tp,       insert_task_reshuffle, 0, PARSEC_DEV_CPU, "insert_task_reshuffle",
                        sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcY,  PARSEC_REF,
                        sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcT,  PARSEC_REF,
                        sizeof(int),                &size_row,           PARSEC_VALUE,
@@ -403,7 +403,7 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
                        sizeof(int),                &disj_T,             PARSEC_VALUE,
                        PARSEC_DTD_ARG_END );
     } else {
-        parsec_dtd_insert_task( dtd_tp,       insert_task, 0, "insert_task",
+        parsec_dtd_insert_task( dtd_tp,       insert_task, 0, PARSEC_DEV_CPU, "insert_task",
                        sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcY,  PARSEC_REF,
                        sizeof(parsec_matrix_block_cyclic_t *), (parsec_matrix_block_cyclic_t *)dcT,  PARSEC_REF,
                        sizeof(int),                      &size_row,                      PARSEC_VALUE,

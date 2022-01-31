@@ -490,17 +490,8 @@ endif( NOT PARSEC_HAVE_SYS_MMAN_H AND PARSEC_PROFILING_USE_MMAP )
 check_c_source_compiles("
 int main(int argc, char* argv[]) {
     __builtin_cpu_init();
-    __builtin_cpu_supports(\"avx2\");
     return 0;
 }" PARSEC_HAVE_BUILTIN_CPU)
-if(PARSEC_HAVE_BUILTIN_CPU)
-    check_c_source_compiles("
-int main(int argc, char* argv[]) {
-    __builtin_cpu_init();
-    __builtin_cpu_supports(\"avx512f\");
-    return 0;
-}" PARSEC_HAVE_BUILTIN_CPU512)
-endif(PARSEC_HAVE_BUILTIN_CPU)
 check_function_exists(getrusage PARSEC_HAVE_GETRUSAGE)
 check_symbol_exists(RUSAGE_THREAD sys/resource.h PARSEC_HAVE_RUSAGE_THREAD)
 if( NOT PARSEC_HAVE_RUSAGE_THREAD )

@@ -649,25 +649,21 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
      * saving modes and dynamic frequency scaling issues) */
     sscanf(cpu_model, "%*[^@] @ %fGHz", &freq);
 
+    fp_ipc = 8;
+    dp_ipc = 4;
 #if defined(PARSEC_HAVE_BUILTIN_CPU)
     __builtin_cpu_init();
-#if defined(PARSEC_HAVE_BUILTIN_CPU512)
     if(__builtin_cpu_supports("avx512f")) {
         fp_ipc = 64;
         dp_ipc = 32;
-    } else
-#endif /* PARSEC_HAVE_BUILTIN_CPU512; */
-         if(__builtin_cpu_supports("avx2")) {
+    }
+    else if(__builtin_cpu_supports("avx2")) {
         fp_ipc = 32;
         dp_ipc = 16;
     }
     else if(__builtin_cpu_supports("avx")) {
         fp_ipc = 16;
         dp_ipc = 8;
-    }
-    else {
-        fp_ipc = 8;
-        dp_ipc = 4;
     }
 #else
     if( strstr(cpu_flags, " avx512f") ) {
@@ -681,10 +677,6 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
     else if( strstr(cpu_flags, " avx") ) {
         fp_ipc = 16;
         dp_ipc = 8;
-    }
-    else {
-        fp_ipc = 8;
-        dp_ipc = 4;
     }
 #endif
     free(cpu_flags);

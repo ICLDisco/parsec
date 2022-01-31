@@ -313,8 +313,6 @@ Hopefully, once the expected arguments are provided the output will look similar
   -- Looking for sysconf - found
   -- Performing Test PARSEC_HAVE_BUILTIN_CPU
   -- Performing Test PARSEC_HAVE_BUILTIN_CPU - Success
-  -- Performing Test PARSEC_HAVE_BUILTIN_CPU512
-  -- Performing Test PARSEC_HAVE_BUILTIN_CPU512 - Success
   -- Looking for getrusage
   -- Looking for getrusage - found
   -- Looking for RUSAGE_THREAD

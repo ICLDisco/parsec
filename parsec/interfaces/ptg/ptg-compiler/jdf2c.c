@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2021 The University of Tennessee and The University
+ * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -4499,7 +4499,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
         coutput("#if defined(PARSEC_PROF_TRACE)\n"
                 "  {\n"
                 "    char meminfo[128];\n"
-                "    snprintf(meminfo, 128, \"INDEX_ARRAY - Taskpool %%d - Dependencies - %%llu bytes\",\n"
+                "    snprintf(meminfo, 128, \"INDEX_ARRAY - Taskpool %%d - Dependencies - %%zu bytes\",\n"
                 "             __parsec_tp->super.super.taskpool_id, dependencies_size);\n"
                 "    parsec_profiling_add_information(\"MEMORY_USAGE\", meminfo);\n"
                 "  }\n"
