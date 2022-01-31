@@ -547,8 +547,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                 if(remote_dep_bcast_child_permits) {
                     if( PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type ) {
                         parsec_dtd_task_t *this_dtd_task = (parsec_dtd_task_t *) task;
-                        if(this_dtd_task->super.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID || 
-                                this_dtd_task->super.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID) {
+                        if(this_dtd_task->super.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID) {
                             int* data_ptr = (int*)parsec_data_copy_get_ptr(this_dtd_task->super.data[0].data_out);
                             this_dtd_task->super.locals[0].value = this_dtd_task->ht_item.key = ((1<<29) |(remote_deps->root << 20) | *(data_ptr+1+rank));
                             remote_deps->msg.locals[0].value = this_dtd_task->super.locals[0].value;

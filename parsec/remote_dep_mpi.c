@@ -896,7 +896,8 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     }
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)",
             complete_mask, action_mask);
-    if(task.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID) { 
+    if(task.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID || 
+            task.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID) { 
         (void)task.task_class->release_deps(es, &task,
                 action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
                 origin);

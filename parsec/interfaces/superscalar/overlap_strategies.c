@@ -175,39 +175,57 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                 //if(current_task->deps_out != NULL) {
                     /* we have not propagate the remote deps yet, otherwise will be set to NULL */
                     if(action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) {
+                        parsec_remote_deps_t *deps = NULL;
+                        PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(deps, this_task, MAX_PARAM_COUNT);
+                        deps->root = rank_src;
+                        deps->outgoing_mask |= (1 << 0); /* only 1 flow */
+                        deps->max_priority  = 0;
+
+                        struct remote_dep_output_param_s* output = &deps->output[0];
+                        output->data.data   = current_task->super.data[0].data_out;
+                        output->data.arena  = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].arena;
+                        output->data.layout = parsec_dtd_arenas_datatypes[FLOW_OF(current_task, current_dep)->arena_index].opaque_dtt;
+                        output->data.count  = 1;
+                        output->data.displ  = 0;
+                        output->priority    = 0;
+
                         assert(NULL != current_task->super.data[current_dep].data_out);
-                        //fprintf(stderr, "bcast root task %p data with global key %d\n", current_task, current_task->ht_item.key);
+                        parsec_dtd_tile_t *tile = NULL;
+                        tile = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find(parsec_bcast_keys_hash, (parsec_key_t)current_task->super.locals[0].value);
+                        fprintf(stderr, "bcast root task %p data with global key %d tile %p\n", current_task, current_task->ht_item.key, tile);
+                        int* data_ptr = (int*)parsec_data_copy_get_ptr(tile->data_copy);
+                        populate_remote_deps(data_ptr, deps);
                         //current_task->deps_out->output[0].data.data =
                         //    current_task->super.data[current_dep].data_out;
                         //(void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
-                        //parsec_remote_dep_activate(
-                        //        es, (parsec_task_t *)current_task,
-                        //        current_task->deps_out,
-                        //        current_task->deps_out->outgoing_mask);
+                        parsec_remote_dep_activate(
+                                es, (parsec_task_t *)current_task,
+                                deps,
+                                deps->outgoing_mask);
                         //current_task->deps_out = NULL;
                     } else if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                         /* current node is part of the broadcast operation, propagate downstream */
                         //int root = current_task->deps_out->root;
+                        parsec_release_dep_fct_arg_t* arg = (parsec_release_dep_fct_arg_t*)ontask_arg;
+                        parsec_remote_deps_t* deps = arg->remote_deps;
+                        int root = deps->root;
                         int my_rank = current_task->super.taskpool->context->my_rank;
-                        int _array_pos, _array_mask;
-                        struct remote_dep_output_param_s* output;
-                        //output = &current_task->deps_out->output[0];
-                        _array_pos = my_rank / (8 * sizeof(uint32_t));
-                        _array_mask = 1 << (my_rank % (8 * sizeof(uint32_t)));
-                        //fprintf(stderr, "bcast data continue on rank %d, from root %d, for task %p\n", my_rank, root, current_task);
+                       
+                        parsec_dtd_tile_t* item = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find( parsec_bcast_keys_hash, (parsec_key_t)current_task->super.locals[0].value );
+                        int* data_ptr = (int*)item->data_copy->device_private;
+                        populate_remote_deps(data_ptr, deps);
+                        fprintf(stderr, "bcast data continue on rank %d, from root %d, for task %p with item %p value0 %d\n", my_rank, root, current_task, item, data_ptr[0]);
 
-                        if ((output->rank_bits[_array_pos] & _array_mask)) {
-                            assert(NULL != current_task->super.data[current_dep].data_out);
+                        assert(NULL != current_task->super.data[current_dep].data_out);
 
-                            //current_task->deps_out->output[0].data.data =
-                            //    current_task->super.data[0].data_out;
-                            //(void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
-                            //parsec_remote_dep_activate(
-                            //        es, (parsec_task_t *)current_task,
-                            //        current_task->deps_out,
-                            //        current_task->deps_out->outgoing_mask);
-                            //current_task->deps_out = NULL;
-                        }
+                        //current_task->deps_out->output[0].data.data =
+                        //    current_task->super.data[0].data_out;
+                        //(void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
+                        parsec_remote_dep_activate(
+                                es, (parsec_task_t *)current_task,
+                                deps,
+                                deps->outgoing_mask);
+                        //current_task->deps_out = NULL;
                     }
                 //}
             } /* BCAST DATA propagation */

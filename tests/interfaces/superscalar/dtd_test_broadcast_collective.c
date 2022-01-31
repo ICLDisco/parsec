@@ -287,7 +287,7 @@ int test_broadcast_mixed(
                    sizeof(int*), &data_value_out, PARSEC_VALUE,
                    PARSEC_DTD_ARG_END);
            parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
-           //parsec_insert_dtd_task(retrieve_task);
+           parsec_insert_dtd_task(retrieve_task);
 
        //}
    }

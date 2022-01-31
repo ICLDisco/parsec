@@ -113,13 +113,13 @@ void parsec_dtd_broadcast(
     new_data_copy->coherency_state = PARSEC_DATA_COHERENCY_OWNED;
     new_data_copy->device_private = malloc(sizeof(int)*2500);
     bcast_keys_root->data_copy = new_data_copy;
-    bcast_keys_root->ht_item.key = (parsec_key_t)key;
-    parsec_hash_table_insert(parsec_bcast_keys_hash, &bcast_keys_root->ht_item);
     
     if(myrank == root) {
         bcast_id = ( (1<<30) | (root << 18) | dtd_tp->bcast_id);
         dtd_tp->bcast_id++;
         
+        bcast_keys_root->ht_item.key = (parsec_key_t)bcast_id;
+        parsec_hash_table_insert(parsec_bcast_keys_hash, &bcast_keys_root->ht_item);
         
         parsec_data_copy = bcast_keys_root->data_copy;
         data_ptr = (int*)parsec_data_copy_get_ptr(parsec_data_copy);
@@ -185,7 +185,7 @@ void parsec_dtd_broadcast(
     parsec_insert_dtd_task(dtd_bcast_key_root);
     
     /* Post the bcast tasks for the actual data */
-    //parsec_insert_dtd_task(dtd_bcast_task_root);
+    parsec_insert_dtd_task(dtd_bcast_task_root);
 }
 
 #endif
