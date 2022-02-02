@@ -129,6 +129,13 @@ int main(int argc, char **argv)
         argc -= 1;
     }
 
+    MPI_Comm comm;
+    MPI_Comm_split(MPI_COMM_WORLD, rank%2, 0, &comm);
+    parsec_param_set_intptr("runtime_comm_ctx", comm);
+    if(rank%2) goto end;
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &world);
+
     parsec = parsec_init( &argc, &argv );
     if( NULL == parsec ) {
         return -1;
@@ -236,6 +243,7 @@ int main(int argc, char **argv)
 
     parsec_fini(&parsec);
 
+end:
 #ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif

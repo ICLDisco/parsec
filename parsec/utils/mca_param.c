@@ -277,6 +277,33 @@ int parsec_mca_param_reg_sizet_name(const char *type,
 }
 
 /*
+ * Register a intptr_t MCA parameter that is not associated with a
+ * component
+ */
+int parsec_mca_param_reg_intptrt_name(const char *type,
+                                   const char *param_name,
+                                   const char *help_msg,
+                                   bool internal,
+                                   bool read_only,
+                                   intptr_t default_value,
+                                   intptr_t *current_value)
+{
+    int ret;
+    parsec_mca_param_storage_t storage;
+    parsec_mca_param_storage_t lookup;
+
+    storage.intptrtval = default_value;
+    ret = param_register(type, NULL, param_name, help_msg,
+                         PARSEC_MCA_PARAM_TYPE_INTPTRT, internal, read_only,
+                         &storage, NULL, NULL, &lookup);
+    if (ret >= 0 && NULL != current_value) {
+        *current_value = lookup.intptrtval;
+    }
+    return ret;
+}
+
+
+/*
  * Register a string MCA parameter that is not associated with a
  * component
  */
@@ -693,6 +720,14 @@ int parsec_mca_param_build_env(char ***env, int *num_env, bool internal)
                 if (PARSEC_MCA_PARAM_TYPE_INT == array[i].mbp_type) {
                     rc = asprintf(&str, "%s=%d", array[i].mbp_env_var_name,
                                   storage.intval);
+                    if (-1 == rc) {
+                        return PARSEC_ERR_OUT_OF_RESOURCE;
+                    }
+                    parsec_argv_append(num_env, env, str);
+                    free(str);
+                } else if (PARSEC_MCA_PARAM_TYPE_INTPTRT == array[i].mbp_type) {
+                    rc = asprintf(&str, "%s=%p", array[i].mbp_env_var_name,
+                                  (void*)storage.intptrtval);
                     if (-1 == rc) {
                         return PARSEC_ERR_OUT_OF_RESOURCE;
                     }
@@ -1137,6 +1172,25 @@ static int param_register(const char *type_name,
                 }
             }
 
+            /* Both are INTPTR_T */
+            else if (PARSEC_MCA_PARAM_TYPE_INTPTRT == array[i].mbp_type &&
+                PARSEC_MCA_PARAM_TYPE_INTPTRT == param.mbp_type) {
+                if (NULL != default_value) {
+                    array[i].mbp_default_value.intptrtval =
+                        param.mbp_default_value.intptrtval;
+                }
+                if (NULL != file_value) {
+                    array[i].mbp_file_value.intptrtval =
+                        param.mbp_file_value.intptrtval;
+                    array[i].mbp_file_value_set = true;
+                }
+                if (NULL != override_value) {
+                    array[i].mbp_override_value.intptrtval =
+                        param.mbp_override_value.intptrtval;
+                    array[i].mbp_override_value_set = true;
+                }
+            }
+
             /* Both are SIZE_T */
 
             else if (PARSEC_MCA_PARAM_TYPE_SIZET == array[i].mbp_type &&
@@ -1402,6 +1456,8 @@ static bool param_set_override(size_t index,
     array = PARSEC_VALUE_ARRAY_GET_BASE(&mca_params, parsec_mca_param_t);
     if (PARSEC_MCA_PARAM_TYPE_INT == type) {
         array[index].mbp_override_value.intval = storage->intval;
+    } else if (PARSEC_MCA_PARAM_TYPE_INTPTRT == type) {
+        array[index].mbp_override_value.intptrtval = storage->intptrtval;
     } else if (PARSEC_MCA_PARAM_TYPE_SIZET == type) {
         array[index].mbp_override_value.sizetval = storage->sizetval;
     } else if (PARSEC_MCA_PARAM_TYPE_STRING == type) {
@@ -1474,6 +1530,7 @@ static bool param_lookup(size_t index, parsec_mca_param_storage_t *storage,
     /* Ensure that MCA param has a good type */
 
     if (PARSEC_MCA_PARAM_TYPE_INT != array[index].mbp_type &&
+        PARSEC_MCA_PARAM_TYPE_INTPTRT != array[index].mbp_type &&
         PARSEC_MCA_PARAM_TYPE_SIZET != array[index].mbp_type &&
         PARSEC_MCA_PARAM_TYPE_STRING != array[index].mbp_type) {
         return false;
@@ -1561,6 +1618,8 @@ static bool lookup_override(parsec_mca_param_t *param,
     if (param->mbp_override_value_set) {
         if (PARSEC_MCA_PARAM_TYPE_INT == param->mbp_type) {
             storage->intval = param->mbp_override_value.intval;
+        } else if (PARSEC_MCA_PARAM_TYPE_INTPTRT == param->mbp_type) {
+            storage->intptrtval = param->mbp_override_value.intptrtval;
         } else if (PARSEC_MCA_PARAM_TYPE_SIZET == param->mbp_type) {
             storage->sizetval = param->mbp_override_value.sizetval;
         } else if (PARSEC_MCA_PARAM_TYPE_STRING == param->mbp_type) {
@@ -1625,6 +1684,10 @@ static bool lookup_env(parsec_mca_param_t *param,
     if (NULL != env) {
         if (PARSEC_MCA_PARAM_TYPE_INT == param->mbp_type) {
             storage->intval = (int)strtol(env,(char**)NULL,0);
+        } else if (PARSEC_MCA_PARAM_TYPE_INTPTRT == param->mbp_type) {
+            void *p;
+            sscanf(env, "%p", &p);
+            storage->intptrtval = (intptr_t)p;
         } else if (PARSEC_MCA_PARAM_TYPE_SIZET == param->mbp_type) {
             storage->sizetval = (size_t)strtoll(env,(char**)NULL,0);
         } else if (PARSEC_MCA_PARAM_TYPE_STRING == param->mbp_type) {
@@ -1718,6 +1781,14 @@ static bool lookup_file(parsec_mca_param_t *param,
                 } else {
                     param->mbp_file_value.intval = 0;
                 }
+            } else if (PARSEC_MCA_PARAM_TYPE_INTPTRT == param->mbp_type) {
+                if (NULL != fv->mbpfv_value) {
+                    void *p;
+                    sscanf(fv->mbpfv_value, "%p", &p);
+                    param->mbp_file_value.intptrtval = (intptr_t)p;
+                } else {
+                    param->mbp_file_value.intptrtval = 0;
+                }
             } else if (PARSEC_MCA_PARAM_TYPE_SIZET == param->mbp_type) {
                 if (NULL != fv->mbpfv_value) {
                     param->mbp_file_value.sizetval =
@@ -1779,6 +1850,10 @@ static bool set(parsec_mca_param_type_t type,
     switch (type) {
     case PARSEC_MCA_PARAM_TYPE_INT:
         dest->intval = src->intval;
+        break;
+
+    case PARSEC_MCA_PARAM_TYPE_INTPTRT:
+        dest->intptrtval = src->intptrtval;
         break;
 
     case PARSEC_MCA_PARAM_TYPE_SIZET:
@@ -2617,6 +2692,22 @@ void parsec_param_set_int( char *param, int ivalue ) {
 
     (void)parsec_mca_var_env_name(param, &name);
     (void)asprintf(&value, "%d", ivalue);
+    parsec_setenv(name, value, true, &environ);
+    free(name);
+    free(value);
+}
+
+/*
+ * Set a pointer type MCA parameter in the global environment so
+ * it can be accessed when the parameter is actually registered.
+ */
+void parsec_param_set_intptr( char *param, intptr_t pvalue ) {
+    char *name;
+    char *value;
+    extern char **environ;
+
+    (void)parsec_mca_var_env_name(param, &name);
+    (void)asprintf(&value, "%p", (void*)pvalue);
     parsec_setenv(name, value, true, &environ);
     free(name);
     free(value);

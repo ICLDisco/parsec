@@ -488,6 +488,9 @@ parsec_context_t* parsec_init( int* pargc, char** pargv[] )
     parsec_debug_init();
     mca_components_repository_init();
 
+    intptr_t comm_ctx = -1;
+    parsec_mca_param_reg_intptrt_name("runtime", "comm_ctx", "Change the communication context used by the parsec engine (e.g., substitute MPI_COMM_WORLD with an user-created communicator)", false, false, comm_ctx, &comm_ctx);
+
     parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Disable warnings about the runtime detecting poorly performing binding configuration", false, false, slow_bind_warning, &slow_bind_warning);
 
 #if defined(PARSEC_HAVE_HWLOC)
@@ -625,7 +628,7 @@ parsec_context_t* parsec_init( int* pargc, char** pargv[] )
     context->active_taskpools      = 0;
     context->flags               = 0;
     context->nb_nodes            = 1;
-    context->comm_ctx            = -1;
+    context->comm_ctx            = comm_ctx;
     context->my_rank             = 0;
     context->nb_vp               = nb_vp;
     /* initialize dtd taskpool list */
