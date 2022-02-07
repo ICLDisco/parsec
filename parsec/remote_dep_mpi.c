@@ -898,6 +898,8 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
             complete_mask, action_mask);
     if(task.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID || 
             task.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID) { 
+        //remote_dep_inc_flying_messages(origin->taskpool);
+        (void)parsec_atomic_fetch_inc_int32(&origin->pending_ack);
         (void)task.task_class->release_deps(es, &task,
                 action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
                 origin);
@@ -939,7 +941,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     if(PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
         remote_dep_complete_and_cleanup(&origin, 1);
     } else {
-        //remote_dep_complete_and_cleanup(&origin, 1);
+        remote_dep_complete_and_cleanup(&origin, 1);
         //remote_deps_free(origin);
         //remote_dep_dec_flying_messages(task.taskpool);
 

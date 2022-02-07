@@ -135,7 +135,7 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
         (*deps)->outgoing_mask = 0;
         if(ncompleted)
             remote_dep_dec_flying_messages((*deps)->taskpool);
-        //remote_deps_free(*deps);
+        remote_deps_free(*deps);
         *deps = NULL;
         return 1;
     }
@@ -579,8 +579,8 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                         (void)parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack);
                     }
                     //if(PARSEC_TASKPOOL_TYPE_DTD == task->taskpool->taskpool_type && task->task_class->task_class_id == 2)
-                        remote_dep_inc_flying_messages(task->taskpool);
-                        (void)parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack);
+                        //remote_dep_inc_flying_messages(task->taskpool);
+                        //(void)parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack);
                     remote_dep_send(es, rank, remote_deps);
                 } else {
                     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)",
@@ -591,7 +591,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
             }
         }
     }
-    //remote_dep_complete_and_cleanup(&remote_deps, (keeper ? 1 : 0));
+    remote_dep_complete_and_cleanup(&remote_deps, (keeper ? 1 : 0));
     return 0;
 }
 

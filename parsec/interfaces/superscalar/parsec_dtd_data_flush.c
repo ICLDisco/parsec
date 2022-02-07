@@ -40,6 +40,7 @@ parsec_dtd_data_flush_sndrcv(parsec_execution_stream_t *es,
 
     assert(tile != NULL);
 
+    fprintf(stderr, "completed data flush task on rank %d\n", current_task->rank);
 #if defined(DISTRIBUTED)
     if(tile->rank == current_task->rank) { /* this is a receive task*/
         if( current_task->super.data[0].data_in != tile->data_copy ) {
