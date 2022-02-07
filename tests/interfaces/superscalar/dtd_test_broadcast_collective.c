@@ -291,40 +291,38 @@ int test_broadcast_mixed(
 
        //}
    }
-for(int iter=1; iter <= 0; iter++) {
-   // Second round of broadcast, create another array of keys for this bcast
-   //key_root = B->data_key(B, root+iter*world, 0);
-   key_root = B->data_key(B, root, 0);
-   bcast_keys_root = PARSEC_DTD_TILE_OF_KEY(B, key_root);
+for(int iter=1; iter <= 1; iter++) {
  
-   sleep(5);
    int new_value = -1;
    key_root = key = A->data_key(A, root+iter*world, 0);
    dtd_tile_root = PARSEC_DTD_TILE_OF_KEY(A, key_root);
    if (root == myrank) {
-      //*data_ptr = 1998;
+       //*data_ptr = 1998;
        new_value = 1998+iter;
+       parsec_dtd_taskpool_insert_task(dtd_tp, 
+               write_task_fn, 0, "write_task",
+               PASSED_BY_REF, dtd_tile_root, PARSEC_INOUT | TILE_FULL,
+               sizeof(int), &new_value, PARSEC_VALUE,
+               sizeof(int), &root, PARSEC_VALUE | PARSEC_AFFINITY,
+               PARSEC_DTD_ARG_END);
    }
    else {
       //data_value_out = data_ptr;
    }
    
-   parsec_dtd_taskpool_insert_task(dtd_tp, 
-           write_task_fn, 0, "write_task",
-           PASSED_BY_REF, dtd_tile_root, PARSEC_INOUT | TILE_FULL,
-           sizeof(int), &new_value, PARSEC_VALUE,
-           sizeof(int), &root, PARSEC_VALUE | PARSEC_AFFINITY,
-           PARSEC_DTD_ARG_END);
    
    // Put all rank indexes into `dest_ranks` array except for the root
    // node.
-   dest_rank_idx = 0;
+
+   int dest_rank_idx = 0;
+   int *dest_ranks = (int*)malloc(world*sizeof(int));
+
    for (int rank = 0; rank < world; ++rank) {
       if (rank == root) continue;
       dest_ranks[dest_rank_idx] = rank;
       ++dest_rank_idx;
    }
-   num_dest_ranks = dest_rank_idx;
+   int num_dest_ranks = dest_rank_idx;
    
    //
    // Perform Broadcast AGAIN
@@ -338,7 +336,6 @@ for(int iter=1; iter <= 0; iter++) {
    //
    // Retrieve value of broadcasted data
    //
-   //for (int rank = 0; rank < world; ++rank) {
    //if ( myrank != root) {
        parsec_task_t *retrieve_task = parsec_dtd_taskpool_create_task(
                dtd_tp, retrieve_task_fn, 0, "retrieve_task",

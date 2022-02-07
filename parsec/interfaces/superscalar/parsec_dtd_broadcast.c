@@ -105,7 +105,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
         if( (flow_mask & (1<<current_dep)) ) {
             if (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) {
                 /* root of the bcast key */
-                parsec_remote_deps_t *deps;
+                parsec_remote_deps_t *deps = NULL;
                 PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(deps, this_task, MAX_PARAM_COUNT);
                 deps->root = my_rank;
                 deps->outgoing_mask |= (1 << 0); /* only 1 flow */
