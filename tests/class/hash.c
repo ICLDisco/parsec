@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
     pthread_t *threads;
     int ch;
     char *m;
-    uintptr_t e, minthreads = 0, maxthreads = 0, nbthreads;
+    int e, minthreads = 0, maxthreads = 0, nbthreads, nbcores;
     uint64_t maxtime;
     void *retval;
     param_t *params;
@@ -357,6 +357,11 @@ int main(int argc, char *argv[])
     parsec_mca_param_init();
     parsec_hash_tables_init();
 
+    /* set some default for the hardware */
+    nbcores = parsec_hwloc_nb_real_cores();
+    minthreads = nbcores - 1;
+    maxthreads = minthreads + 1;
+
     mc_hint_index = parsec_mca_param_find("parsec", NULL, "hash_table_max_collisions_hint");
     md_hint_index = parsec_mca_param_find("parsec", NULL, "hash_table_max_table_nb_bits");
     if( mc_hint_index == PARSEC_ERROR ||
@@ -371,22 +376,22 @@ int main(int argc, char *argv[])
             if( (ch < 0) || (m[0] != '\0') ) {
                 fprintf(stderr, "%s: %s\n", argv[0], "invalid -c value");
             }
-            minthreads  = (uintptr_t)ch;
-            maxthreads = minthreads+1;
+            minthreads  = ch - 1;
+            maxthreads = minthreads + 1;
             break;
         case 'm':
             ch = strtol(optarg, &m, 0);
             if( (ch < 0) || (m[0] != '\0') ) {
                 fprintf(stderr, "%s: %s\n", argv[0], "invalid -m value");
             }
-            minthreads = (uintptr_t)ch;
+            minthreads = ch - 1;
             break;
         case 'M':
             ch = strtol(optarg, &m, 0);
             if( (ch < 0) || (m[0] != '\0') ) {
                 fprintf(stderr, "%s: %s\n", argv[0], "invalid -M value");
             }
-            maxthreads = (uintptr_t)ch;
+            maxthreads = ch;
             break;
         case 't':
             ch = strtol(optarg, &m, 0);
@@ -467,6 +472,14 @@ int main(int argc, char *argv[])
         fprintf(stderr,
                 "Error: max threads < min threads.\n"
                 "Usage: %s [-c nbthreads|-m minthreads -M maxthreads]\n", argv[0]);
+        exit(1);
+    }
+    if( maxthreads > nbcores ) {
+        fprintf(stderr,
+                "Error: max threads (%d) > #physical cores (%d).\n"
+                "Usage: %s [-c nbthreads|-m minthreads -M maxthreads]\n",
+                maxthreads, nbcores,
+                argv[0]);
         exit(1);
     }
 
