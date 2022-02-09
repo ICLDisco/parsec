@@ -109,10 +109,15 @@ function(target_ptg_source_ex)
   # add to the target
   target_sources(${target} ${PARSEC_PTGPP_MODE} "${CMAKE_CURRENT_BINARY_DIR}/${outname_h};${CMAKE_CURRENT_BINARY_DIR}/${outname_c}")
 
-  target_include_directories(${target} ${PARSEC_PTGPP_MODE}
-          ${CMAKE_CURRENT_BINARY_DIR} # set include dirs so that the target can find outname.h
-          $<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDAToolkit_INCLUDE_DIRS}> # any include of outname.h will also need cuda.h atm
-          )
+  get_target_property(_includes ${target} INCLUDE_DIRECTORIES)
+  list(FIND _includes "${CMAKE_CURRENT_BINARY_DIR}" _i1)
+  list(FIND _includes "$<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDAToolkit_INCLUDE_DIRS}>" _i2)
+  if( "${_i1}" EQUAL "-1" OR "${_i2}" EQUAL "-1" )
+    target_include_directories(${target} ${PARSEC_PTGPP_MODE}
+      ${CMAKE_CURRENT_BINARY_DIR} # set include dirs so that the target can find outname.h
+      $<$<BOOL:${PARSEC_HAVE_CUDA}>:${CUDAToolkit_INCLUDE_DIRS}> # any include of outname.h will also need cuda.h atm
+      )
+  endif()
 endfunction(target_ptg_source_ex)
 
 #
