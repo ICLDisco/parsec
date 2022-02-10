@@ -139,8 +139,11 @@ static void *do_test(void *_param)
     
     t0 = take_time();
     for(l = 0; l < param->nb_loops; l++) {
-        if( id == 0 && ( l==0 || param->new_table_each_time)) {
-            parsec_hash_table_init(&hash_table, offsetof(empty_hash_item_t, ht_item), 3, key_functions, NULL);
+        if( l==0 || param->new_table_each_time ) {
+            if(0 == id) {
+                parsec_hash_table_init(&hash_table, offsetof(empty_hash_item_t, ht_item), 3, key_functions, NULL);
+            }
+            parsec_barrier_wait(&barrier2);
         }
 
         for(t = 0; t < limit; t++) {
@@ -239,8 +242,11 @@ static void *do_test(void *_param)
             }
         }
 
-        if( id == 0 && ( l==param->nb_loops-1 || param->new_table_each_time)) {
-            parsec_hash_table_init(&hash_table, offsetof(empty_hash_item_t, ht_item), 3, key_functions, NULL);
+        if( l==param->nb_loops-1 || param->new_table_each_time ) {
+            parsec_barrier_wait(&barrier1);
+            if(0 == id) {
+                parsec_hash_table_fini(&hash_table);
+            }
         }
     }
     t1 = take_time();
