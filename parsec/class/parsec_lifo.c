@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019 The University of Tennessee and The University
+ * Copyright (c) 2013-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,7 +23,7 @@ static inline void parsec_lifo_construct( parsec_lifo_t* lifo )
 {
     /* Don't allow strange alignemnts */
     lifo->alignment = PARSEC_LIFO_ALIGNMENT_DEFAULT;
-    lifo->lifo_head.data.item = (parsec_list_item_t*)&lifo->lifo_head;
+    lifo->lifo_head.data.item = NULL;
     lifo->lifo_head.data.guard.counter = 0;
     parsec_atomic_lock_init(&lifo->lifo_head.data.guard.lock);
 }
