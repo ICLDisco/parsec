@@ -27,6 +27,7 @@
 static parsec_hash_table_t hash_table;
 static parsec_barrier_t barrier1;
 static parsec_barrier_t barrier2;
+static int nbcores;
 
 typedef struct {
     parsec_hash_table_item_t ht_item;
@@ -61,7 +62,7 @@ static void *do_perf_test(void *_param)
     uint64_t duration, max_duration = 0;
     empty_hash_item_t *item_array;
 
-    parsec_bindthread(id, 0);
+    parsec_bindthread(id%nbcores, 0);
 
     item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
     for(t = 0; t < nbtests; t++) {
@@ -125,7 +126,7 @@ static void *do_test(void *_param)
     uint64_t duration;
     empty_hash_item_t *item_array;
     
-    parsec_bindthread(id, 0);
+    parsec_bindthread(id%nbcores, 0);
 
     item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
     for(t = 0; t < nbtests; t++) {
@@ -332,7 +333,7 @@ int main(int argc, char *argv[])
     pthread_t *threads;
     int ch;
     char *m;
-    int e, minthreads = 0, maxthreads = 0, nbthreads, nbcores;
+    int e, minthreads = 0, maxthreads = 0, nbthreads;
     uint64_t maxtime;
     void *retval;
     param_t *params;
@@ -476,11 +477,8 @@ int main(int argc, char *argv[])
     }
     if( maxthreads > nbcores ) {
         fprintf(stderr,
-                "Error: max threads (%d) > #physical cores (%d).\n"
-                "Usage: %s [-c nbthreads|-m minthreads -M maxthreads]\n",
-                maxthreads, nbcores,
-                argv[0]);
-        exit(1);
+                "Warning: max threads (%d) > #physical cores (%d).\n",
+                maxthreads, nbcores);
     }
 
     if( mc_tuning_min > 0 ) {
