@@ -59,25 +59,25 @@ typedef void  (*parsec_future_init_t)           ();
 /*
  * @brief future functions structure that includes the future API functions
  */
-typedef struct parsec_future_fn_t {
+struct parsec_future_fn_t {
     parsec_future_is_ready_t       is_ready;        /**< check whether the future is ready */
     parsec_future_set_t            set;             /**< set value on a specific future */
     parsec_future_get_or_trigger_t get_or_trigger;  /**< trigger data generation on a specific future */
     parsec_future_get_t            get;             /**< get the value from a future, blocking */
     parsec_future_init_t           future_init;     /**< initialize the future with callback, count etc */
-} parsec_future_fn_t;
+};
 
 /*
  * @brief Base future structure
  */
-typedef struct parsec_base_future_t {
+struct parsec_base_future_t {
     parsec_list_item_t       item;          /**< a base future type is list item (also a PaRSEC object) */
     parsec_future_fn_t      *future_class;  /**< struct that holds all the common function pointers */
     uint8_t                  status;        /**< status of the future */
     void                    *tracked_data;  /**< a pointer to the data this future is tracking */
     parsec_future_cb_fulfill cb_fulfill;    /**< callback function */
     parsec_atomic_lock_t     future_lock;   /**< lockable for multithread access */
-} parsec_base_future_t;
+};
 
 /*
  * @brief Countable future structure

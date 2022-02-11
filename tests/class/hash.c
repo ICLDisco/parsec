@@ -27,6 +27,7 @@
 static parsec_hash_table_t hash_table;
 static parsec_barrier_t barrier1;
 static parsec_barrier_t barrier2;
+static int nbcores;
 
 typedef struct {
     parsec_hash_table_item_t ht_item;
@@ -61,7 +62,7 @@ static void *do_perf_test(void *_param)
     uint64_t duration, max_duration = 0;
     empty_hash_item_t *item_array;
 
-    parsec_bindthread(id, 0);
+    parsec_bindthread(id%nbcores, 0);
 
     item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
     for(t = 0; t < nbtests; t++) {
@@ -125,7 +126,7 @@ static void *do_test(void *_param)
     uint64_t duration;
     empty_hash_item_t *item_array;
     
-    parsec_bindthread(id, 0);
+    parsec_bindthread(id%nbcores, 0);
 
     item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
     for(t = 0; t < nbtests; t++) {
@@ -332,7 +333,7 @@ int main(int argc, char *argv[])
     pthread_t *threads;
     int ch;
     char *m;
-    uintptr_t e, minthreads = 0, maxthreads = 0, nbthreads;
+    int e, minthreads = 0, maxthreads = 0, nbthreads;
     uint64_t maxtime;
     void *retval;
     param_t *params;
@@ -357,6 +358,11 @@ int main(int argc, char *argv[])
     parsec_mca_param_init();
     parsec_hash_tables_init();
 
+    /* set some default for the hardware */
+    nbcores = parsec_hwloc_nb_real_cores();
+    minthreads = nbcores - 1;
+    maxthreads = minthreads + 1;
+
     mc_hint_index = parsec_mca_param_find("parsec", NULL, "hash_table_max_collisions_hint");
     md_hint_index = parsec_mca_param_find("parsec", NULL, "hash_table_max_table_nb_bits");
     if( mc_hint_index == PARSEC_ERROR ||
@@ -371,22 +377,22 @@ int main(int argc, char *argv[])
             if( (ch < 0) || (m[0] != '\0') ) {
                 fprintf(stderr, "%s: %s\n", argv[0], "invalid -c value");
             }
-            minthreads  = (uintptr_t)ch;
-            maxthreads = minthreads+1;
+            minthreads  = ch - 1;
+            maxthreads = minthreads + 1;
             break;
         case 'm':
             ch = strtol(optarg, &m, 0);
             if( (ch < 0) || (m[0] != '\0') ) {
                 fprintf(stderr, "%s: %s\n", argv[0], "invalid -m value");
             }
-            minthreads = (uintptr_t)ch;
+            minthreads = ch - 1;
             break;
         case 'M':
             ch = strtol(optarg, &m, 0);
             if( (ch < 0) || (m[0] != '\0') ) {
                 fprintf(stderr, "%s: %s\n", argv[0], "invalid -M value");
             }
-            maxthreads = (uintptr_t)ch;
+            maxthreads = ch;
             break;
         case 't':
             ch = strtol(optarg, &m, 0);
@@ -468,6 +474,11 @@ int main(int argc, char *argv[])
                 "Error: max threads < min threads.\n"
                 "Usage: %s [-c nbthreads|-m minthreads -M maxthreads]\n", argv[0]);
         exit(1);
+    }
+    if( maxthreads > nbcores ) {
+        fprintf(stderr,
+                "Warning: max threads (%d) > #physical cores (%d).\n",
+                maxthreads, nbcores);
     }
 
     if( mc_tuning_min > 0 ) {

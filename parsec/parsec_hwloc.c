@@ -441,8 +441,10 @@ int parsec_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
         return PARSEC_ERROR;
     }
 
+#if !defined(PARSEC_OSX)
     parsec_hwloc_print_cpuset(9, "Thread binding: cpuset binding [LOGICAL ]: ", cpuset);
     parsec_hwloc_print_cpuset(4, "Thread binding: cpuset binding [PHYSICAL]: ", binding_mask);
+#endif  /* !defined(PARSEC_OSX) */
 
     first_free = hwloc_bitmap_first(binding_mask);
     hwloc_bitmap_free(binding_mask);
