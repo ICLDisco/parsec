@@ -1008,7 +1008,7 @@ check_type_size("parsec_lifo_t" PARSEC_LIFO_OPAQUE_SIZEOF)
 include(CheckStructureFieldOffset)
 # NB: the structure below *needs* to be kept in sync with the structure
 # in lifo-external.h
-check_structure_field_offset("lifo_private" "struct{parsec_object_t super;uint8_t alignment;parsec_list_item_t*lifo_ghost;char lifo_private;}" PARSEC_LIFO_HEAD_OFFSET)
+check_structure_field_offset("lifo_private" "struct{parsec_object_t super;uint8_t alignment;char lifo_private;}" PARSEC_LIFO_HEAD_OFFSET)
 cmake_pop_check_state()
 
 if( PARSEC_LIFO_HEAD_OFFSET )

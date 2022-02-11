@@ -23,7 +23,6 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_lifo_t);
 struct parsec_lifo_opaque_s {
     parsec_object_t           super;
     uint8_t                   alignment;
-    parsec_list_item_t       *lifo_ghost;
     union {
 #if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
         __int128_t            int128_private;
