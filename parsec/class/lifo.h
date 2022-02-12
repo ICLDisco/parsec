@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -216,21 +216,20 @@ typedef union parsec_counted_pointer_u {
 struct parsec_lifo_s {
     parsec_object_t           super;
     uint8_t                   alignment;
-    parsec_list_item_t       *lifo_ghost;
     parsec_counted_pointer_t  lifo_head;
 };
 
-/* The ghost pointer will never change. The head will change via an
+/* The head will change via an
  * atomic compare-and-swap. On most architectures the reading of a
  * pointer is an atomic operation so we don't have to protect it. */
 LIFO_STATIC_INLINE int parsec_lifo_is_empty( parsec_lifo_t* lifo )
 {
-    return ((parsec_list_item_t *)lifo->lifo_head.data.item == lifo->lifo_ghost);
+    return (NULL == lifo->lifo_head.data.item);
 }
 
 /* Same as above, we need an actual function in the external case */
 LIFO_STATIC_INLINE int parsec_lifo_nolock_is_empty( parsec_lifo_t* lifo ) {
-    return ((parsec_list_item_t *)lifo->lifo_head.data.item == lifo->lifo_ghost);
+    return (NULL == lifo->lifo_head.data.item);
 }
 
 #if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
@@ -300,7 +299,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_pop( parsec_lifo_t* lifo )
         parsec_atomic_rmb ();
         item = old_head.data.item = lifo->lifo_head.data.item;
 
-        if (item == lifo->lifo_ghost) {
+        if (item == NULL) {
             return NULL;
         }
 
@@ -323,7 +322,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo 
     parsec_atomic_rmb();
     item = old_head.data.item = lifo->lifo_head.data.item;
 
-    if (item == lifo->lifo_ghost) {
+    if (item == NULL) {
         return NULL;
     }
 
@@ -398,7 +397,7 @@ LIFO_STATIC_INLINE void parsec_lifo_chain( parsec_lifo_t* lifo,
     } while( !parsec_atomic_sc_ptr((long*)&lifo->lifo_head.data.item, (intptr_t)ring) );
 }
 
-/* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
+/* Retrieve one element from the LIFO. If we reach the NULL item then the LIFO
  * is empty so we return NULL.
  */
 LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
@@ -415,7 +414,7 @@ LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
         }
 
         item = (parsec_list_item_t *) parsec_atomic_ll_ptr((long*)&(lifo->lifo_head.data.item));
-        if (lifo->lifo_ghost == item) {
+        if (NULL == item) {
             return NULL;
         }
 
@@ -434,7 +433,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo 
     parsec_list_item_t *item, *next;
 
     item = (parsec_list_item_t *) parsec_atomic_ll_ptr((long*)&lifo->lifo_head.data.item);
-    if (lifo->lifo_ghost == item) {
+    if (NULL == item) {
         return NULL;
     }
 
@@ -499,14 +498,14 @@ LIFO_STATIC_INLINE void parsec_lifo_chain(parsec_lifo_t* lifo,
     } while (1);
 }
 
-/* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
+/* Retrieve one element from the LIFO. If we reach the NULL item then the LIFO
  * is empty so we return NULL.
  */
 LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
 {
     parsec_list_item_t *item;
 
-    while ((item = lifo->lifo_head.data.item) != lifo->lifo_ghost) {
+    while ((item = lifo->lifo_head.data.item) != NULL) {
         /* ensure it is safe to pop the head */
         if (!parsec_atomic_cas_int32(&item->aba_key, 0UL, 1UL)) {
             continue;
@@ -526,7 +525,7 @@ LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
         /* Do some kind of pause to release the bus */
     }
 
-    if (item == lifo->lifo_ghost) {
+    if (NULL == item) {
         return NULL;
     }
 
@@ -541,7 +540,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo 
 {
     parsec_list_item_t *item;
 
-    if( (item = lifo->lifo_head.data.item) != lifo->lifo_ghost ) {
+    if( (item = lifo->lifo_head.data.item) != NULL ) {
         /* ensure it is safe to pop the head */
         if (!parsec_atomic_cas_int32(&item->aba_key, 0UL, 1UL)) {
             return NULL;
@@ -564,7 +563,7 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo 
         PARSEC_ITEM_DETACH(item);
     }
 
-    return item == lifo->lifo_ghost ? NULL : item;
+    return item;
 }
 
 #else /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
@@ -601,7 +600,7 @@ LIFO_STATIC_INLINE void parsec_lifo_chain(parsec_lifo_t* lifo,
     parsec_atomic_unlock(&lifo->lifo_head.data.guard.lock);
 }
 
-/* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
+/* Retrieve one element from the LIFO. If we reach the NULL item then the LIFO
  * is empty so we return NULL.
  */
 LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
@@ -609,17 +608,15 @@ LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
     parsec_list_item_t *item;
 
     /* Short-cut if empty to avoid lock-thrashing */
-    if (lifo->lifo_head.data.item == lifo->lifo_ghost) {
+    if (NULL == lifo->lifo_head.data.item) {
         return NULL;
     }
 
     parsec_atomic_lock(&lifo->lifo_head.data.guard.lock);
-    if ((item = lifo->lifo_head.data.item) != lifo->lifo_ghost) {
+    if ((item = lifo->lifo_head.data.item) != NULL) {
         lifo->lifo_head.data.item = (parsec_list_item_t*)item->list_next;
         item->list_next = NULL;
         PARSEC_ITEM_DETACH(item);
-    } else {
-        item = NULL;
     }
     parsec_atomic_unlock(&lifo->lifo_head.data.guard.lock);
     return item;
@@ -630,7 +627,7 @@ LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_try_pop(parsec_lifo_t* lifo)
     parsec_list_item_t *item;
 
     /* Short-cut if empty to avoid lock-thrashing */
-    if (lifo->lifo_head.data.item == lifo->lifo_ghost) {
+    if (NULL == lifo->lifo_head.data.item) {
         return NULL;
     }
 
@@ -638,16 +635,13 @@ LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_try_pop(parsec_lifo_t* lifo)
         return NULL;
     }
 
-    if ((item = lifo->lifo_head.data.item) != lifo->lifo_ghost) {
+    if ((item = lifo->lifo_head.data.item) != NULL) {
         lifo->lifo_head.data.item = (parsec_list_item_t*)item->list_next;
         item->list_next = NULL;
         PARSEC_ITEM_DETACH(item);
-    } else {
-        item = NULL;
     }
     parsec_atomic_unlock(&lifo->lifo_head.data.guard.lock);
     return item; 
-
 }
 
 #endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
