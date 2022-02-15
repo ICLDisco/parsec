@@ -16,6 +16,6 @@
 #endif
 
 int parsec_get_best_device_check(parsec_context_t *parsec,
-                parsec_tiled_matrix_dc_t *A);
+                parsec_tiled_matrix_t *A);
 
 #endif /* CUDA_TEST_GET_BEST_DEVICE_H */

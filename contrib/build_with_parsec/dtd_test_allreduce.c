@@ -149,7 +149,7 @@ int main(int argc, char **argv)
 #else
     parsec_arena_datatype_t *adt;
     adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_matrix_add2arena_rect( adt,
+    parsec_add2arena_rect( adt,
 #endif
                                  parsec_datatype_int32_t,
                                  nb, 1, nb);
@@ -233,7 +233,7 @@ int main(int argc, char **argv)
 #if PARSEC_VERSION_MAJOR < 4
     PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0].arena);
 #else
-    parsec_matrix_del2arena(adt);
+    parsec_del2arena(adt);
     PARSEC_OBJ_RELEASE(adt->arena);
     parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
 #endif

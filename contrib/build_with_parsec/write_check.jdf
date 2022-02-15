@@ -16,7 +16,7 @@ static int verbose = 0;
 A          [type = "parsec_data_collection_t*"]
 NT         [type = int]
 BLOCK      [type = int]
-P          [type = int hidden=true default="((two_dim_block_cyclic_t*)A)->grid.rows-1"]
+P          [type = int hidden=true default="((parsec_matrix_block_cyclic_t*)A)->grid.rows-1"]
 
 STARTUP(p, k)
   k = 0 .. NT

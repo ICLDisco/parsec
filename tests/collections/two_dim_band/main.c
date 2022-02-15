@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
                                 rank, NB, NB, NB*(2*BAND_SIZE-1), N, 0, 0,
                                 NB*(2*BAND_SIZE-1), N,
                                 P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, 0, 0);
-    /* Init two_dim_block_cyclic_band_t structure */
+    /* Init parsec_matrix_block_cyclic_band_t structure */
     parsec_matrix_block_cyclic_band_init( &dcY, nodes, rank, BAND_SIZE );
     /* set key needs dcY to be initialized already */
     parsec_data_collection_set_key(&dcY.off_band.super.super, "dcY off_band");
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
                                 rank, NB, NB, NB*BAND_SIZE, N, 0, 0,
                                 NB*BAND_SIZE, N,
                                 P_BAND, nodes/P_BAND, KP_BAND, KQ_BAND, 0, 0);
-    /* Init two_dim_block_cyclic_band_t structure */
+    /* Init parsec_matrix_block_cyclic_band_t structure */
     parsec_matrix_sym_block_cyclic_band_init( &dcYP, nodes, rank, BAND_SIZE );
     /* set key needs dcYP to be initialized already */
     parsec_data_collection_set_key(&dcYP.off_band.super.super, "dcYP off_band");
