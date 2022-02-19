@@ -1,0 +1,62 @@
+name: Linux/MacOS Build
+
+on: [push, pull_request]
+
+#env:
+
+jobs:
+  build:
+    runs-on: [self-hosted, Linux]
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type : [ Debug ]
+        shared_type : [ OFF ]
+
+    name: "${{ matrix.build_type }} shared=${{ matrix.shared_type }}"
+    env:
+      BUILD_DIRECTORY : "${{github.workspace}}/build/${{ matrix.build_type }}/shared_${{matrix.shared_type}}"
+      INSTALL_DIRECTORY : "${{github.workspace}}/install/${{ matrix.build_type }}/shared_${{matrix.shared_type}}"
+      BUILD_CONFIG : >
+        -G Ninja
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -DBUILD_SHARED_LIBS=${{ matrix.shared_type }}
+        -DMPIEXEC_PREFLAGS='--bind-to;none;--oversubscribe'
+        -DCMAKE_INSTALL_PREFIX=$INSTALL_DIRECTORY
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Create Build Environment ${{ runner.os }}
+      # Create a separate build directory and use it for all subsequent commands
+      run: cmake -E make_directory ${{ env.BUILD_DIRECTORY }}
+
+    - name: Configure CMake
+      # Use a bash shell so we can use the same syntax for environment variable
+      # access regardless of the host operating system
+      shell: bash
+      working-directory: ${{ env.BUILD_DIRECTORY }}
+      # Note the current convention is to use the -S and -B options here to specify source 
+      # and build directories, but this is only available with CMake 3.13 and higher.  
+      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE $BUILD_CONFIG
+
+    - name: Build
+      working-directory: ${{ env.BUILD_DIRECTORY }}
+      shell: bash
+      # Execute the build.  You can specify a specific target with "--target <NAME>"
+      run: cmake --build .
+
+    - name: Test
+      working-directory: ${{ env.BUILD_DIRECTORY }}
+      shell: bash
+      # Execute tests defined by the CMake configuration.  
+      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+      # run: ctest -C $BUILD_TYPE
+      run: cmake --build . --target test
+
+    - name: Install
+      working-directory: ${{ env.BUILD_DIRECTORY }}
+      shell: bash
+      run: cmake --build . --target install
+
