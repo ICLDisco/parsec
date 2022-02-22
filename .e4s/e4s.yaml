@@ -4,5 +4,5 @@
   area: PMR
   MemberProduct: False
   website: https://icl.utk.edu/dte
-  docs: [{doc:README,type:readme},{doc:NEWS,type=changelog},{doc:License.txt,type=license}]
+  docs: [{"doc":"README","type":"readme"},{"doc":"NEWS","type":"changelog"},{"doc":"License.txt","type":"license"}]
   subrepo_urls: ["https://bitbucket.org/icldistcomp/parsec.git"]
