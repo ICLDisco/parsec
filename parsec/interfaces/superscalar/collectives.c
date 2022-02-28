@@ -101,7 +101,8 @@ void parsec_dtd_broadcast(
     int myrank = taskpool->context->my_rank;
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)taskpool;
     
-    bcast_keys_root = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate( parsec_bcast_keys_tile_mempool->thread_mempools );
+    //bcast_keys_root = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate( parsec_bcast_keys_tile_mempool->thread_mempools );
+    bcast_keys_root = (parsec_dtd_tile_t *) malloc(sizeof(parsec_dtd_tile_t));
     SET_LAST_ACCESSOR(bcast_keys_root);
     bcast_keys_root->dc = NULL;
     bcast_keys_root->arena_index = -1;
@@ -115,11 +116,10 @@ void parsec_dtd_broadcast(
     bcast_keys_root->data_copy = new_data_copy;
     
     if(myrank == root) {
-        bcast_id = ( (1<<30) | (root << 18) | dtd_tp->bcast_id);
+        bcast_id = ( (1<<27) | (root << 18) | dtd_tp->bcast_id);
         dtd_tp->bcast_id++;
-        
-        bcast_keys_root->ht_item.key = (parsec_key_t)bcast_id;
-        parsec_hash_table_insert(parsec_bcast_keys_hash, &bcast_keys_root->ht_item);
+       
+        bcast_keys_root->ht_item.key = ((uintptr_t)bcast_id)<<32;
         
         parsec_data_copy = bcast_keys_root->data_copy;
         data_ptr = (int*)parsec_data_copy_get_ptr(parsec_data_copy);
@@ -130,6 +130,9 @@ void parsec_dtd_broadcast(
             //pack the ranks at the end of the tiles as well
             data_ptr[400+i+1] = dest_ranks[i];
         }
+        
+        fprintf(stderr, "on rank %d inserting key tile into bcast_keys_hash with key %ld num dest ranks %d\n", myrank, bcast_keys_root->ht_item.key, data_ptr[400]); 
+        parsec_hash_table_insert(parsec_bcast_keys_hash, &bcast_keys_root->ht_item);
     }
 
     // Retrieve DTD tile's data_copy

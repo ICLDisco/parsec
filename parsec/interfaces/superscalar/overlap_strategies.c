@@ -191,8 +191,12 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
                         assert(NULL != current_task->super.data[current_dep].data_out);
                         parsec_dtd_tile_t *tile = NULL;
-                        tile = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find(parsec_bcast_keys_hash, (parsec_key_t)current_task->super.locals[0].value);
-                        fprintf(stderr, "bcast root task %p data with global key %d tile %p\n", current_task, current_task->ht_item.key, tile);
+                        parsec_key_t key = ((uintptr_t)current_task->super.locals[0].value)<<32;
+                        while(tile == NULL){
+                        tile = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find(parsec_bcast_keys_hash, key);
+                        //fprintf(stderr, "bcast root task %p data with global key %d tile %p on rank %d\n", current_task, current_task->ht_item.key, tile, current_task->super.taskpool->context->my_rank);
+                        fprintf(stderr, "bcast root task %p data with global key %ld tile %p on rank %d\n", current_task, key, tile, current_task->super.taskpool->context->my_rank);
+                        }
                         int* data_ptr = (int*)parsec_data_copy_get_ptr(tile->data_copy);
                         populate_remote_deps(data_ptr, deps);
                         //current_task->deps_out->output[0].data.data =
@@ -211,7 +215,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                         int root = deps->root;
                         int my_rank = current_task->super.taskpool->context->my_rank;
                        
-                        parsec_dtd_tile_t* item = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find( parsec_bcast_keys_hash, (parsec_key_t)current_task->super.locals[0].value );
+                        parsec_dtd_tile_t* item = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find( parsec_bcast_keys_hash, (parsec_key_t)((uintptr_t)current_task->super.locals[0].value));
                         int* data_ptr = (int*)item->data_copy->device_private;
                         populate_remote_deps(data_ptr, deps);
                         fprintf(stderr, "bcast data continue on rank %d, from root %d, for task %p with item %p value0 %d\n", my_rank, root, current_task, item, data_ptr[0]);

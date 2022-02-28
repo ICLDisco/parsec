@@ -792,6 +792,7 @@ parsec_dtd_untrack_task( parsec_dtd_taskpool_t *tp,
     parsec_hash_table_t *hash_table = tp->task_hash_table;
     void *value;
 
+    fprintf(stderr, "untracking task with key value %ld on rank %d\n", key, tp->super.context->my_rank);
     dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, (parsec_key_t)key );
     if( NULL == item ) return NULL;
 
@@ -1087,7 +1088,7 @@ parsec_dtd_data_collection_init( parsec_data_collection_t *dc )
 void
 parsec_dtd_data_collection_fini( parsec_data_collection_t *dc )
 {
-    //parsec_hash_table_fini(dc->tile_h_table);
+    parsec_hash_table_fini(dc->tile_h_table);
     PARSEC_OBJ_RELEASE(dc->tile_h_table);
     parsec_dc_unregister_id(dc->dc_id);
 }
@@ -1654,6 +1655,7 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
             if((action_mask & (1 << flow_index))) {
                 if(!(track_flow & (1U << flow_index))) {
                     uint64_t key = (((uint64_t)this_task->locals[0].value<<32) | (1U<<flow_index));
+                    fprintf(stderr, "release_deps with key value %ld local 0 value %d on rank %d\n", key, this_task->locals[0].value, tp->super.context->my_rank);
                     parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
                     this_dtd_task = parsec_dtd_find_task( tp, key );
                     assert(this_dtd_task != NULL);
@@ -2930,7 +2932,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
 
     /* Releasing every remote_task */
     if( parsec_dtd_task_is_remote( this_task ) ) {
-    //    parsec_dtd_remote_task_release( this_task );
+        parsec_dtd_remote_task_release( this_task );
     }
 
     /* Increase the count of satisfied flows to counter-balance the increase in the

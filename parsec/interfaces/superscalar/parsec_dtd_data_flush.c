@@ -186,6 +186,27 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
                                       this_task, flow_index, last_user.op_type,
                                       tile_op_type, last_user.alive);
 
+            if(last_writer.task->super.task_class->task_class_id != PARSEC_DTD_BCAST_KEY_TC_ID &&
+                    last_writer.task->super.task_class->task_class_id != PARSEC_DTD_BCAST_DATA_TC_ID) {
+                /* local parent and we are inserting a remote task, indicates it needs to send data */
+                if(parsec_dtd_task_is_local(last_writer.task) && parsec_dtd_task_is_remote(this_task))
+                {
+                    int _array_pos, _array_mask;
+                    _array_pos = this_task->rank / (8 * sizeof(int));
+                    _array_mask = 1 << (this_task->rank % (8 * sizeof(int)));
+                    if(last_writer.task->rank_bits[_array_pos] & _array_mask)
+                    {
+                        FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = last_writer.task->super.locals[5+this_task->rank%5].value;
+                    } else
+                    {
+                        last_writer.task->rank_bits[_array_pos] |= _array_mask;
+                        FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = dtd_tp->send_task_id[this_task->rank]++;
+                        last_writer.task->super.locals[5+this_task->rank%5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
+                    }
+                }
+            } else {
+                /* do nothing */
+            }
     } else {
         parsec_dtd_set_parent(last_writer.task, last_writer.flow_index,
                               this_task, flow_index, last_writer.op_type,
@@ -194,6 +215,27 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
                                   this_task, flow_index, (PARENT_OF(this_task, flow_index))->op_type,
                                   tile_op_type, last_user.alive);
 
+        if(last_writer.task->super.task_class->task_class_id != PARSEC_DTD_BCAST_KEY_TC_ID &&
+                last_writer.task->super.task_class->task_class_id != PARSEC_DTD_BCAST_DATA_TC_ID) {
+            /* local parent and we are inserting a remote task, indicates it needs to send data */
+            if(parsec_dtd_task_is_local(last_writer.task) && parsec_dtd_task_is_remote(this_task))
+            {
+                int _array_pos, _array_mask;
+                _array_pos = this_task->rank / (8 * sizeof(int));
+                _array_mask = 1 << (this_task->rank % (8 * sizeof(int)));
+                if(last_writer.task->rank_bits[_array_pos] & _array_mask)
+                {
+                    FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = last_writer.task->super.locals[5+this_task->rank%5].value;
+                } else
+                {
+                    last_writer.task->rank_bits[_array_pos] |= _array_mask;
+                    FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = dtd_tp->send_task_id[this_task->rank]++;
+                    last_writer.task->super.locals[5+this_task->rank%5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
+                }
+            }
+        } else {
+            /* do nothing */
+        }
 
         parsec_dtd_task_t *parent_task = (PARENT_OF(this_task, flow_index))->task;
         if( parsec_dtd_task_is_local(parent_task) || parsec_dtd_task_is_local(this_task) ) {

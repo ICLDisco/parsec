@@ -180,12 +180,13 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 item->value         = (void *)buffer;
                 parsec_hash_table_nolock_insert( hash_table, &item->ht_item );
                
-                parsec_dtd_tile_t* bcast_keys = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate( parsec_bcast_keys_tile_mempool->thread_mempools );
-                bcast_keys->ht_item.key   = (parsec_key_t)(data_ptr[0]);
+                //parsec_dtd_tile_t* bcast_keys = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate( parsec_bcast_keys_tile_mempool->thread_mempools );
+                parsec_dtd_tile_t* bcast_keys = (parsec_dtd_tile_t *)malloc(sizeof(parsec_dtd_tile_t));
+                bcast_keys->ht_item.key   = (parsec_key_t)((uintptr_t)data_ptr[0]);
                 bcast_keys->data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
                 bcast_keys->data_copy->device_private = (void *)buffer;
                 parsec_hash_table_nolock_insert( parsec_bcast_keys_hash, &bcast_keys->ht_item );
-                fprintf(stderr, "insert into parsec_bcast_keys_hash the item %p with value pointer %p on rank %d\n", bcast_keys, buffer, es->virtual_process->parsec_context->my_rank);
+                fprintf(stderr, "insert into parsec_bcast_keys_hash the item %p key %d with value pointer %p on rank %d\n", bcast_keys, data_ptr[0], buffer, es->virtual_process->parsec_context->my_rank);
 
                 if(dtd_task != NULL) {
                     parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key2);

@@ -744,6 +744,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             uint64_t key = (uint64_t)origin->msg.locals[0].value<<32 | (1U<<k);
             local_mask = 0;
             local_mask |= (1U<<k);
+            fprintf(stderr, "get datatype for key %d k %d %llu\n", origin->msg.locals[0].value, k, key);
 
             parsec_hash_table_lock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
             dtd_task = parsec_dtd_find_task( dtd_tp, key );
@@ -896,13 +897,19 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     }
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)",
             complete_mask, action_mask);
-    if(task.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID || 
-            task.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID) { 
-        //remote_dep_inc_flying_messages(origin->taskpool);
-        (void)parsec_atomic_fetch_inc_int32(&origin->pending_ack);
-        (void)task.task_class->release_deps(es, &task,
-                action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
-                origin);
+    if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
+        if(task.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID || 
+                task.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID) { 
+            //remote_dep_inc_flying_messages(origin->taskpool);
+            (void)parsec_atomic_fetch_inc_int32(&origin->pending_ack);
+            (void)task.task_class->release_deps(es, &task,
+                    action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
+                    origin);
+        } else {
+            (void)task.task_class->release_deps(es, &task,
+                    action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
+                    NULL);
+        }
     } else {
         (void)task.task_class->release_deps(es, &task,
                 action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
@@ -925,7 +932,10 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
 
 #if defined(PARSEC_DIST_COLLECTIVES)
     if( PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type ) /* indicates it is a PTG taskpool */
+    {
+        origin->outgoing_mask = 0;
         parsec_remote_dep_propagate(es, &task, origin);
+    }
 #endif  /* PARSEC_DIST_COLLECTIVES */
     /**
      * Release the dependency owned by the communication engine for all data
@@ -2136,9 +2146,10 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
                    &deps->msg, dep_count, dep_dtt, dep_comm);
         deps->from = status->MPI_SOURCE;
 
-        if(es->virtual_process->parsec_context->my_rank == 1){
-            fprintf(stderr, "save activate cb with value %d\n", deps->msg.locals[0].value);
-        }
+        //if(es->virtual_process->parsec_context->my_rank == 1){
+        //    fprintf(stderr, "save activate cb with value %d\n", deps->msg.locals[0].value);
+        //}
+
         /* Retrieve the data arenas and update the msg.incoming_mask to reflect
          * the data we should be receiving from the predecessor.
          */
