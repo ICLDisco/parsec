@@ -789,15 +789,18 @@ int parsec_profiling_reset( void )
     return 0;
 }
 
+static pthread_mutex_t profiling_keyword_lock = PTHREAD_MUTEX_INITIALIZER;
 int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
                                             size_t info_length,
                                             const char* convertor_code,
                                             int* key_start, int* key_end )
 {
+    int ret = 0;
     unsigned int i;
     int pos = -1;
 
     if( !__profile_initialized ) return 0;
+    pthread_mutex_lock(&profiling_keyword_lock);
     for( i = 0; i < parsec_prof_keys_count; i++ ) {
         if( NULL == parsec_prof_keys[i].name ) {
             if( -1 == pos ) {
@@ -808,13 +811,14 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
         if( 0 == strcmp(parsec_prof_keys[i].name, key_name) ) {
             *key_start = START_KEY(i);
             *key_end = END_KEY(i);
-            return 0;
+            goto profiling_keyword_out;
         }
     }
     if( -1 == pos ) {
         if( parsec_prof_keys_count == parsec_prof_keys_number ) {
             set_last_error("Profiling system: error: parsec_profiling_add_dictionary_keyword: Number of keyword limits reached");
-            return PARSEC_ERR_OUT_OF_RESOURCE;
+            ret = PARSEC_ERR_OUT_OF_RESOURCE;
+            goto profiling_keyword_out;
         }
         pos = parsec_prof_keys_count;
         parsec_prof_keys_count++;
@@ -830,7 +834,9 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
 
     *key_start = START_KEY(pos);
     *key_end = END_KEY(pos);
-    return 0;
+profiling_keyword_out:
+    pthread_mutex_unlock(&profiling_keyword_lock);
+    return ret;
 }
 
 
