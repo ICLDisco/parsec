@@ -389,8 +389,6 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
              * the units used by this system.
              */
             if((0 == frequency_set) && token[0] == 'F') {
-                event->frequency = 1;
-                frequency_set = 1;
                 /* the remaining of this field must contain a number, which can be either
                  * a frequency or a time interval, and a unit. If the unit is missing then
                  * we have a frequency, otherwise we assume a timer.
@@ -405,8 +403,19 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 if( value < 0 ) {
                     parsec_debug_verbose(3, parsec_debug_output, "Obtained a negative value [%ld:%s] for the frequency of the PINS event %s. Assume frequency of 1.",
                                  value, &token[1], token);
-                    continue;
+                    value = 1.0;
                 }
+                const struct pins_papi_units_s* unit = find_unit_by_name(remaining);
+                if( NULL != unit ) {
+                    event->frequency = -1;
+                    event->time = value;
+                    convert_units(&event->time, unit->unit_type, system_units);
+                } else {
+                    event->frequency = (int)value;
+                    parsec_debug_verbose(3, parsec_debug_output, "No units found.  Assuming task-based frequency: %d", event->frequency);
+                }
+                frequency_set = 1;
+                continue;
             }
 
         find_event:
