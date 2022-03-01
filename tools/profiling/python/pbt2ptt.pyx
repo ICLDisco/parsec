@@ -606,8 +606,8 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
 
                             if None != event_info:
                                 if 'PINS_PAPI' in builder.event_names[event_type]:
-                                   for keyNum in range(0,len(event_info.keys())):
-                                       event[event_info.keys()[keyNum] + '_start'] = event_info.values()[keyNum]
+                                    for key, value in event_info.items():
+                                        event[key + '_start'] = value
                                 event.update(event_info)
                         except Exception as e:
                             traceback.print_exc()
