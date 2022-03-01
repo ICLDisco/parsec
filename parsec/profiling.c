@@ -489,6 +489,9 @@ int parsec_profiling_init( int process_id )
 
     parsec_prof_keys_count = 0;
     parsec_prof_keys_number = 128;
+    parsec_mca_param_reg_int_name("profile", "keys", "Number of profiling keys"
+                                  " (default is 128, must be enough for number of events profiled)",
+                                  false, false, parsec_prof_keys_number, &parsec_prof_keys_number);
     parsec_prof_keys = (parsec_profiling_key_t*)calloc(parsec_prof_keys_number, sizeof(parsec_profiling_key_t));
 
     file_backend_extendable = 1;
