@@ -499,13 +499,13 @@ int parsec_profiling_init( int process_id )
     parsec_profiling_process_id   = process_id;
     parsec_profiling_minimal_ebs = 1;
     parsec_mca_param_reg_int_name("profile", "buffer_pages", "Number of pages per profiling buffer"
-                                 "(default is 1, must be at least large enough to hold the binary file header)",
+                                 " (default is 1, must be at least large enough to hold the binary file header)",
                                  false, false, parsec_profiling_minimal_ebs, &parsec_profiling_minimal_ebs);
     parsec_mca_param_reg_int_name("profile", "file_resize", "Number of buffers per file resize"
-                                 "(default is 1)",
+                                 " (default is 1)",
                                  false, false, parsec_profiling_file_multiplier, &parsec_profiling_file_multiplier);
     parsec_mca_param_reg_int_name("profile", "show_profiling_performance", "Print profiling performance at the end of the execution"
-                                      "(default is no/0)",
+                                      " (default is no/0)",
                                       false, false, parsec_profiling_show_profiling_performance, &parsec_profiling_show_profiling_performance);
     if( parsec_profiling_minimal_ebs <= 0 )
         parsec_profiling_minimal_ebs = 10;
