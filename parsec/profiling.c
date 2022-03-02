@@ -489,6 +489,9 @@ int parsec_profiling_init( int process_id )
 
     parsec_prof_keys_count = 0;
     parsec_prof_keys_number = 128;
+    parsec_mca_param_reg_int_name("profile", "keys", "Number of profiling keys"
+                                  " (default is 128, must be enough for number of events profiled)",
+                                  false, false, parsec_prof_keys_number, &parsec_prof_keys_number);
     parsec_prof_keys = (parsec_profiling_key_t*)calloc(parsec_prof_keys_number, sizeof(parsec_profiling_key_t));
 
     file_backend_extendable = 1;
@@ -499,13 +502,13 @@ int parsec_profiling_init( int process_id )
     parsec_profiling_process_id   = process_id;
     parsec_profiling_minimal_ebs = 1;
     parsec_mca_param_reg_int_name("profile", "buffer_pages", "Number of pages per profiling buffer"
-                                 "(default is 1, must be at least large enough to hold the binary file header)",
+                                 " (default is 1, must be at least large enough to hold the binary file header)",
                                  false, false, parsec_profiling_minimal_ebs, &parsec_profiling_minimal_ebs);
     parsec_mca_param_reg_int_name("profile", "file_resize", "Number of buffers per file resize"
-                                 "(default is 1)",
+                                 " (default is 1)",
                                  false, false, parsec_profiling_file_multiplier, &parsec_profiling_file_multiplier);
     parsec_mca_param_reg_int_name("profile", "show_profiling_performance", "Print profiling performance at the end of the execution"
-                                      "(default is no/0)",
+                                      " (default is no/0)",
                                       false, false, parsec_profiling_show_profiling_performance, &parsec_profiling_show_profiling_performance);
     if( parsec_profiling_minimal_ebs <= 0 )
         parsec_profiling_minimal_ebs = 10;
@@ -789,15 +792,18 @@ int parsec_profiling_reset( void )
     return 0;
 }
 
+static pthread_mutex_t profiling_keyword_lock = PTHREAD_MUTEX_INITIALIZER;
 int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* attributes,
                                             size_t info_length,
                                             const char* convertor_code,
                                             int* key_start, int* key_end )
 {
+    int ret = 0;
     unsigned int i;
     int pos = -1;
 
     if( !__profile_initialized ) return 0;
+    pthread_mutex_lock(&profiling_keyword_lock);
     for( i = 0; i < parsec_prof_keys_count; i++ ) {
         if( NULL == parsec_prof_keys[i].name ) {
             if( -1 == pos ) {
@@ -808,13 +814,14 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
         if( 0 == strcmp(parsec_prof_keys[i].name, key_name) ) {
             *key_start = START_KEY(i);
             *key_end = END_KEY(i);
-            return 0;
+            goto profiling_keyword_out;
         }
     }
     if( -1 == pos ) {
         if( parsec_prof_keys_count == parsec_prof_keys_number ) {
             set_last_error("Profiling system: error: parsec_profiling_add_dictionary_keyword: Number of keyword limits reached");
-            return PARSEC_ERR_OUT_OF_RESOURCE;
+            ret = PARSEC_ERR_OUT_OF_RESOURCE;
+            goto profiling_keyword_out;
         }
         pos = parsec_prof_keys_count;
         parsec_prof_keys_count++;
@@ -830,7 +837,9 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
 
     *key_start = START_KEY(pos);
     *key_end = END_KEY(pos);
-    return 0;
+profiling_keyword_out:
+    pthread_mutex_unlock(&profiling_keyword_lock);
+    return ret;
 }
 
 
