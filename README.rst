@@ -1,3 +1,13 @@
+PaRSEC
+======
+
+PaRSEC: the Parallel Runtime Scheduler and Execution Controller for
+micro-tasks on distributed heterogeneous systems.
+
+
+Features
+--------
+
 PaRSEC_ is a generic framework for architecture aware scheduling and
 management of micro-tasks on distributed many-core heterogeneous
 architectures. Applications are expressed as a Direct Acyclic Graph of tasks
