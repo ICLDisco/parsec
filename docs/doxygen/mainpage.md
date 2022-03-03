@@ -11,9 +11,10 @@ B. [Developer and Advanced Usage Documentation](#parsecdev)
 
 This document introduces the programing interfaces of PaRSEC. For more
 general information, see the
-[PaRSEC bitbucket wiki page](https://bitbucket.org/icldistcomp/parsec/wiki/Home)
-for information on how to compile and run PaRSEC. Also see the
-[PaRSEC bitbucket wiki page](https://bitbucket.org/icldistcomp/parsec/wiki/Home)
+[PaRSEC github wiki page](https://github.com/icldisco/parsec/wiki/Home).
+For information on how to compile and run PaRSEC, refer to the
+[Install.rst](https://github.com/ICLDisco/parsec/blob/master/INSTALL.rst). Also see the
+[PaRSEC github wiki page](https://github.com/ICLDisco/parsec/wiki#understanding-the-compilation-and-runtime-process-of-parsec)
 for more general information on how to develop applications over
 PaRSEC.
 

@@ -4,6 +4,18 @@ INSTALLING PaRSEC
 
 .. contents:: Table of Contents
 
+
+TL;DR
+=====
+
+.. code:: bash
+
+  mkdir builddir && cd builddir
+  ${srcdir}/configure --with-hwloc --with-mpi --disable-debug --prefix=$PWD/install
+  make install
+  mpiexec -n 8 examples/ex00
+
+
 Software Dependencies
 =====================
 
@@ -30,6 +42,7 @@ of this software package.
 .. _Vite: https://gforge.inria.fr/projects/vite/
 .. _GD: http://www.graphviz.org/
 
+
 Configuring PaRSEC for a new platform
 =====================================
 
@@ -43,6 +56,7 @@ CMake keeps everything it found hitherto in a cache file named
 remove the ``CMakeCache.txt`` file each time you run ``cmake``.
 
 .. _configure: https://www.gnu.org/software/autoconf/
+
 
 The configure script
 --------------------
@@ -73,6 +87,7 @@ will appear in the ``config.log``) by using the following form:
 .. code:: bash
 
     configure CC=icc FC=ftn CXX=icpc -DPARSEC_DIST_SHORT_LIMIT=0
+
 
 Platform Files
 --------------
@@ -116,6 +131,7 @@ load environment modules_, etc. Of note are the ``CMAKE_DEFINES`` and
 , and ``A=B`` environment are prepended to the ``cmake`` invocation,
 respectively.
 
+
 Cross Compiling
 ---------------
 
@@ -149,6 +165,7 @@ CMake cross-compilation file. More information can be found about them
 on the cmake-toolchain_ web page.
 
 .. _cmake-toolchain: https://cmake.org/cmake/help/v3.14/manual/cmake-toolchains.7.html?highlight=cross
+
 
 Legacy Configurations
 ---------------------
@@ -421,6 +438,7 @@ Hopefully, once the expected arguments are provided the output will look similar
 If this is done, congratulations, PaRSEC is configured and you're ready for
 building and testing the system.
 
+
 Troubleshooting
 ---------------
 
@@ -480,6 +498,7 @@ XXX_ROOT
 
 .. _modules: https://www.nersc.gov/users/software/user-environment/modules/
 
+
 Tuning the configuration: ccmake
 --------------------------------
 
@@ -516,6 +535,7 @@ all the options you want in ccmake, type 'c' to configure again, and 'g' to
 generate the files. If you entered wrong values in some fields, ccmake will
 complain at 'c' time.
 
+
 Building PaRSEC
 ===============
 
@@ -531,22 +551,13 @@ Some DOE sites are exploring the use of Spack_ to install software. You
 can integrate PaRSEC in a Spack environment by using the provided
 configurations in ``contrib/spack``. See the Readme there for more details.
 
+
 Running with PaRSEC
 ===================
 
 .. code:: bash
 
   mpiexec -n 8 ./some_parsec_app
-
-TL;DR
-=====
-
-.. code:: bash
-
-  mkdir builddir && cd builddir
-  ${srcdir}/configure --with-hwloc --with-mpi --disable-debug --prefix=$PWD/install
-  make install
-  mpiexec -n 8 examples/ex00
 
 ______
 
