@@ -1,6 +1,71 @@
 include (CheckCCompilerFlag)
 
 #
+# This is a convenience function that will check a given option
+# for a list of target languages, and add this option in the
+# compile options (for that language) if it exists, optionally
+# via a user-overwritable cache option
+#
+# Parameters:
+#   OPTION:                mandatory, compile option to check
+#   NAME:                  mandatory, name of the test and name of the
+#                          user-overwritable cache option to be defined
+#                          if a comment is provided.
+#   COMMENT:               optional, if a comment is provided after this
+#                          parameter, a user-overwritable CMake cache option
+#                          with name NAME is defined, and COMMENT is used as
+#                          a comment for this option.
+#                          That CMake option is marked as masked.
+#   LANGUAGES              optional, the list of languages to test.
+#                          If empty, all enabled languages are tested.
+#   CONFIG                 optional, restricts this flag to a specific
+#                          configuration (e.g. RelWithDebInfo)
+function(check_and_set_compiler_option)
+  set(options "")
+  set(oneValueArgs NAME COMMENT OPTION CONFIG)
+  set(multipleValueArgs LANGUAGES)
+  cmake_parse_arguments(parsec_cas_co "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+  if(NOT DEFINED parsec_cas_co_OPTION)
+    foreach(v NAME COMMENT LANGUAGES OPTION)
+      message(STATUS "parsec_cas_co_${v} = ${parsec_cas_co_${v}}")
+    endforeach()
+    message(FATAL_ERROR "OPTION not defined in call to check_and_set_compiler_option")
+  endif()
+
+  if(NOT DEFINED parsec_cas_co_NAME)
+    message(FATAL_ERROR "NAME not defined in call to check_and_set_compiler_option")
+  endif()
+
+  if(NOT DEFINED parsec_cas_co_LANGUAGES)
+    set(parsec_cas_co_LANGUAGES C CXX Fortran)
+  endif()
+
+  foreach(parsec_cas_co_LANGUAGE ${parsec_cas_co_LANGUAGES})
+    if(CMAKE_${parsec_cas_co_LANGUAGE}_COMPILER_WORKS)
+      cmake_language(CALL "check_${parsec_cas_co_LANGUAGE}_compiler_flag" "${parsec_cas_co_OPTION}" "${parsec_cas_co_NAME}_" )
+      if( "${${parsec_cas_co_NAME}_}" )
+        if(DEFINED parsec_cas_co_CONFIG)
+          list(APPEND parsec_cas_co_defined_options "$<$<CONFIG:${parsec_cas_co_CONFIG}>:$<$<COMPILE_LANGUAGE:${parsec_cas_co_LANGUAGE}>:${parsec_cas_co_OPTION}>>")
+        else()
+          list(APPEND parsec_cas_co_defined_options "$<$<COMPILE_LANGUAGE:${parsec_cas_co_LANGUAGE}>:${parsec_cas_co_OPTION}>")
+        endif()
+      endif()
+    endif()
+  endforeach()
+
+  if(DEFINED parsec_cas_co_COMMENT)
+    set(${parsec_cas_co_NAME} "${parsec_cas_co_defined_options}" CACHE STRING "${parsec_cas_co_COMMENT}")
+    mark_as_advanced(${parsec_cas_co_NAME})
+  else()
+    set(${parsec_cas_co_NAME} "${parsec_cas_co_defined_options}")
+  endif()
+  if(DEFINED ${parsec_cas_co_NAME})
+    add_compile_options("${${parsec_cas_co_NAME}}")
+  endif()
+endfunction(check_and_set_compiler_option)
+
+#
 # Fix the building system for 32 or 64 bits.
 #
 # On MAC OS X there is a easy solution, by setting the
@@ -40,27 +105,7 @@ if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
     endif(_match_xlc)
   endif (BUILD_64bits)
 
-  check_c_compiler_flag( ${arch_build} C_M32or64 )
-  if( C_M32or64 )
-    # Try the same for Fortran and CXX:
-    # Use the same 64bit flag as the C compiler if possible
-    if(CMAKE_Fortran_COMPILER_WORKS)
-      check_fortran_compiler_flag( ${arch_build} F_M32or64 )
-    endif()
-    if(CMAKE_CXX_COMPILER_WORKS)
-      check_cxx_compiler_flag( ${arch_build} CXX_M32or64 )
-    endif()
-    set(arch_build_lang "$<$<COMPILE_LANGUAGE:C>:${arch_build}>")
-    if( F_M32or64 )
-      list(APPEND arch_build_lang "$<$<COMPILE_LANGUAGE:Fortran>:${arch_build}>")
-    endif( F_M32or64 )
-    if( CXX_M32or64 )
-      list(APPEND arch_build_lang "$<$<COMPILE_LANGUAGE:CXX>:${arch_build}>")
-    endif( CXX_M32or64 )
-    set(PARSEC_ARCH_OPTIONS "${arch_build_lang}" CACHE STRING "List of compile options used to select the target architecture (e.g., -m64, -mtune=haswell, etc.)")
-    mark_as_advanced(PARSEC_ARCH_OPTIONS)
-    add_compile_options("${PARSEC_ARCH_OPTIONS}")
-  endif( C_M32or64 )
+  check_and_set_compiler_option(OPTION ${arch_build} NAME PARSEC_ARCH_OPTIONS COMMENT "List of compile options used to select the target architecture (e.g., -m64, -mtune=haswell, etc.)")
 endif(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
 
 #
@@ -68,30 +113,15 @@ endif(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
 #
 
 # add gdb symbols in debug and relwithdebinfo, g3 for macro support when available
-check_c_compiler_flag( "-g3" PARSEC_HAVE_G3 )
-if( PARSEC_HAVE_G3 )
-  set(wflags "-g3")
-else()
-  set(wflags "-g")
-endif()
+check_and_set_compiler_option(OPTION "-g3" NAME PARSEC_HAVE_G3 COMMENT "List of compile options used to enable highest level of debugging (e.g. -g3)")
 
 # Some compilers produce better debugging outputs with Og vs O0
 # but this should only be used in RelWithDebInfo mode.
-set(ogflag "")
-check_c_compiler_flag( "-Og" PARSEC_HAVE_Og )
-if( PARSEC_HAVE_Og )
-  set(ogflag "-Og")
-endif()
+check_and_set_compiler_option(OPTION "-Og" NAME PARSEC_HAVE_Og CONFIG RELWITHDEBINFO)
 
 # Set warnings for debug builds
-check_c_compiler_flag( "-Wall" PARSEC_HAVE_WALL )
-if( PARSEC_HAVE_WALL )
-  list(APPEND wflags "$<$<NOT:$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-Wall>" )
-endif( PARSEC_HAVE_WALL )
-check_c_compiler_flag( "-Wextra" PARSEC_HAVE_WEXTRA )
-if( PARSEC_HAVE_WEXTRA )
-  list(APPEND wflags "$<$<NOT:$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-Wextra>" )
-endif( PARSEC_HAVE_WEXTRA )
+check_and_set_compiler_option(OPTION "-Wall" NAME PARSEC_HAVE_WALL )
+check_and_set_compiler_option(OPTION "-Wextra" NAME PARSEC_HAVE_WEXTRA )
 
 # Flex-generated files make some compilers generate a significant
 # amount of warnings. We define here warning silent options
@@ -99,10 +129,10 @@ endif( PARSEC_HAVE_WEXTRA )
 # supported by the compilers.
 SET(PARSEC_FLEX_GENERATED_OPTIONS)
 foreach(_flag "-Wno-misleading-indentation" "-Wno-sign-compare")
-  check_c_compiler_flag("${_flag}" _has_flag)
-  if( _has_flag )
+  check_c_compiler_flag("${_flag}" _has${_flag})
+  if( _has${_flag} )
     list(APPEND PARSEC_FLEX_GENERATED_OPTIONS "${_flag}")
-  endif( _has_flag )
+  endif( _has${_flag} )
 endforeach()
 
 #
@@ -111,32 +141,16 @@ endforeach()
 string(REGEX MATCH ".*icc$" _match_icc ${CMAKE_C_COMPILER})
 if(_match_icc)
   # Silence annoying warnings
-  check_c_compiler_flag( "-wd424" PARSEC_HAVE_WD )
-  if( PARSEC_HAVE_WD )
-    # 424: checks for duplicate ";"
-    # 981: every volatile triggers a "unspecified evaluation order", obnoxious
-    #      but might be useful for some debugging sessions.
-    # 1419: warning about extern functions being declared in .c
-    #       files
-    # 1572: cuda compares floats with 0.0f.
-    # 11074: obnoxious about not inlining long functions.
-    list(APPEND wflags "-wd424,981,1419,1572,10237,11074,11076")
-  endif( PARSEC_HAVE_WD )
-else(_match_icc)
-  # At best this function checks if the compiler issue an error if the flags are
-  # not understood. Unfortunately most compilers fail to do so, and we end up with
-  # warnings during compilation. Until we figure out a better way, I will comment
-  # out all unnecessary flags.
-  #check_c_compiler_flag( "-Wno-parentheses-equality" PARSEC_HAVE_PAR_EQUALITY )
-  #if( PARSEC_HAVE_PAR_EQUALITY )
-  #  list(APPEND wflags "-Wno-parentheses-equality")
-  #endif( PARSEC_HAVE_PAR_EQUALITY )
+  # 424: checks for duplicate ";"
+  # 981: every volatile triggers a "unspecified evaluation order", obnoxious
+  #      but might be useful for some debugging sessions.
+  # 1419: warning about extern functions being declared in .c
+  #       files
+  # 1572: cuda compares floats with 0.0f.
+  # 11074: obnoxious about not inlining long functions.
+  check_and_set_compiler_option(OPTION "-wd424,981,1419,1572,10237,11074,11076" NAME PARSEC_HAVE_WD LANGUAGES C)
 endif(_match_icc)
 
-# verbose compilation in debug
-add_compile_options(
-  "$<$<CONFIG:RELWITHDEBINFO>:${ogflag};${wflags}>"
-  "$<$<CONFIG:DEBUG>:${wflags}>")
 # remove asserts in release
 add_compile_definitions(
   $<$<CONFIG:RELEASE>:NDEBUG>)
@@ -146,11 +160,7 @@ if(CMAKE_GENERATOR STREQUAL "Ninja")
   # colors get disabled by default), but if colors are forced upon it, it 
   # will do the right thing and print colors only on terminals.
   foreach(colorflag -fdiagnostics-color -fcolor-diagnostics)
-    check_c_compiler_flag(${colorflag} PARSEC_CC_COLORS${colorflag})
-    if(${PARSEC_CC_COLORS${colorflag}})
-      add_compile_options(${colorflag})
-      break()
-    endif()
+    check_and_set_compiler_option(OPTION ${colorflag} NAME PARSEC_CC_COLORS${colorflag})
   endforeach()
 endif()
 
