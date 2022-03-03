@@ -1,29 +1,17 @@
-Copyright (c) 2009-2020 The University of Tennessee and The University
-                        of Tennessee Research Foundation.  All rights
-                        reserved.
-
 This file contains the main features as well as overviews of specific
-bug fixes (and other actions) for each version of PaRSEC since v1.1.0
+changes to this project (since v1.1.0).
 
-master
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+
+Unreleased (master)
+-------------------
+
+
+### Added
+
  - PaRSEC API 4.0 (still changing)
-
- - Renamed symbols related to data distribution to properly prefix them with
-   the `parsec_` prefix. The old symbols have been deprecated and will be
-   removed in a future version. Further documentation (including a sed script)
-   can be found in contrib/renaming.
-
- - DTD interface change: the global array parsec_dtd_arena_datatypes
-   is replaced with functions to create, destroy, and get arena
-   datatypes for DTD, and these objects now live inside the
-   parsec context.
-
- - PARSEC_SUCCESS changed to 0 (from -1), all values for PARSEC_ERR_XYZ changed.
-
- - PaRSEC now requires CMake 3.18.
-
- - PaRSEC profiling system does not require for local dicitonaries to
-   be identical between ranks anymore.
 
  - Enable users to manage their own data copies without PaRSEC
    interfering. Data copies are marked as being owned by PaRSEC or
@@ -44,10 +32,43 @@ master
  - PTG supports reshaping data propagated between local tasks and
    the speficiation of two types on acccesses to data colletions.
 
+### Changed
+ 
+ - Renamed symbols related to data distribution to properly prefix them with
+   the `parsec_` prefix. The old symbols have been deprecated.
+ 
+ - DTD interface change: the global array parsec_dtd_arena_datatypes
+   is replaced with functions to create, destroy, and get arena
+   datatypes for DTD, and these objects now live inside the
+   parsec context.
+ 
+ - PARSEC_SUCCESS changed to 0 (from -1), all values for PARSEC_ERR_XYZ changed.
+
+ - PaRSEC now requires CMake 3.18.
+
+ - PaRSEC profiling system does not require for local dicitonaries to
+   be identical between ranks anymore.
+
+### Deprecated
+ 
+ - PaRSEC API 3.0
+
+ - data distribution w/o the `parsec_` prefix. Further documentation (including a
+   sed script) can be found in contrib/renaming.
+
+### Removed
+
  - Removed obsolete dbp2paje tool; h5totrace is the replacement tool
    to use. This removes the optional dependency on GTG.
 
-v20.12
+### Fixed
+
+### Security
+
+
+v3.0.2012
+---------
+
  - PaRSEC API 3.0
 
  - PaRSEC now requires CMake 3.16.
@@ -129,11 +150,16 @@ v20.12
    about traversal of DAG in a separate output stream from the default.
 
 
-v 2.0.0rc2
+v2.0.0rc2
+---------
+
  - Rename all functions, files, directories from dague/DAGUE/DAGuE to
    parsec/PARSEC/PaRSEC.
 
-v 2.0.0rc1
+
+v2.0.0rc1
+---------
+
  - .so support. Dynamic Library Build has been succesfully tested on
    Linux platforms, reducing significantly the size of the compiled
    dplasma/testing directory. Note that on modern architectures,
@@ -143,7 +169,10 @@ v 2.0.0rc1
  - The "inline_c %{ ... %}" block syntax has been simplified to either
    "%c{ ... %}" or "%{ ... %}". The change is backward compatible.
 
-v 1.2.0
+
+v1.2.0
+------
+
  - The support for C is required from MPI.
  - Revert to an older LEX syntax (not (?i:xxx))
  - Don't recursively call the MPI communication engine progress function.
