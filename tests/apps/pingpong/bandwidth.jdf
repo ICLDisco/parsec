@@ -159,9 +159,10 @@ int main(int argc, char *argv[])
     /* Default */
     int loops = 100;
     int frags = 60;
-    int size = 1024;
+    int size, inc, nq, idx;
     int cores = 1;
     int nb_runs = 1;
+    int start_length = 1, end_length = 8*1024*1024;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -175,24 +176,28 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
 
-    while ((ch = getopt(argc, argv, "n:f:l:c:h:e:")) != -1) {
+    while ((ch = getopt(argc, argv, "n:f:l:c:h:e:u:")) != -1) {
         switch (ch) {
             case 'n': loops = atoi(optarg); break;
             case 'f': frags = atoi(optarg); break;
-            case 'l': size = atoi(optarg) / sizeof(double); break;
+            case 'l': start_length = atoi(optarg); break;
+            case 'u': end_length = atoi(optarg); break;
             case 'e': nb_runs = atoi(optarg); break;
             case 'c': cores = atoi(optarg); break;
             case '?': case 'h': default:
                 fprintf(stderr,
                         "-n : loops of bandwidth(default: 100)\n"
                         "-f : frags, number of fragments (default: 60)\n"
-                        "-l : size, size of message (default: 1024 * sizeof(double))\n"
+                        "-l : min size of message (default: 1 * sizeof(float))\n"
                         "-c : number of cores used (default: 1)\n"
                         "-e : number of runs (default: 1)\n"
+                        "-u : max size of message (default: 8MB)\n"
                         "\n");
                  exit(1);
         }
     }
+    if( start_length > end_length )
+        end_length = start_length;
 
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
@@ -226,8 +231,7 @@ int main(int argc, char *argv[])
 
     /* If the number of cores has not been defined as a parameter earlier
      * update it with the default parameter computed in parsec_init. */
-    if(cores <= 0)
-    {
+    if(cores <= 0) {
         int p, nb_total_comp_threads = 0;
         for(p = 0; p < parsec->nb_vp; p++) {
             nb_total_comp_threads += parsec->virtual_processes[p]->nb_cores;
@@ -259,36 +263,38 @@ int main(int argc, char *argv[])
                                        (parsec_tiled_matrix_t *)&Disk,
                                        loops, frags, nodes);
 
-        bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
+            bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-        parsec_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
-                                 parsec_datatype_double_t, PARSEC_MATRIX_FULL,
-                                 1, 1, size, 1,
-                                 PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+            parsec_add2arena( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
+                              parsec_datatype_double_t, PARSEC_MATRIX_FULL,
+                              1, 1, size, 1,
+                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-        /* Time start */
+            parsec_context_add_taskpool(parsec, bandwidth_taskpool);
+
+            /* Time start */
 #if defined(PARSEC_HAVE_MPI)
-        MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(MPI_COMM_WORLD);
 #endif  /* defined(PARSEC_HAVE_MPI) */
-        gettimeofday(&tstart, NULL);
+            gettimeofday(&tstart, NULL);
 
-        parsec_context_add_taskpool(parsec, bandwidth_taskpool);
-        parsec_context_start(parsec);
-        parsec_context_wait(parsec);
+            parsec_context_start(parsec);
+            parsec_context_wait(parsec);
 
-        /* Time end */
+            /* Time end */
 #if defined(PARSEC_HAVE_MPI)
-        MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier(MPI_COMM_WORLD);
 #endif  /* defined(PARSEC_HAVE_MPI) */
-        gettimeofday(&tend, NULL);
+            gettimeofday(&tend, NULL);
 
-        if( 0 == rank ) {
-            t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
-            bw = ((double)loops * (double)frags * (double)size) / t * 1000.0 * 1000.0 / (1000.0 * 1000.0 * 1000.0) * sizeof(double) * 8;
-            printf("%d %d %zu %08.4g %4.8g GB/s\n", loops, frags, size*sizeof(double), t / 1000000.0, bw);
+            if( 0 == rank ) {
+                t = (tend.tv_sec - tstart.tv_sec) * 1000000.0 + (tend.tv_usec - tstart.tv_usec);
+                bw = ((double)loops * (double)frags * (double)size * 8) / t * 1000.0 * 1000.0 / (1024.0 * 1024.0);
+                printf("%3u: %8u bytes %d times --> %10.2f Mbps in %10.2f usec\n", idx, size, loops * frags, bw, t / ((double)loops * (double)frags));
+            }
+
+            parsec_bandwidth_Destruct(bandwidth_taskpool);
         }
-
-        parsec_bandwidth_Destruct(bandwidth_taskpool);
     }
 
     parsec_tiled_matrix_destroy((parsec_tiled_matrix_t*)&dcA);
