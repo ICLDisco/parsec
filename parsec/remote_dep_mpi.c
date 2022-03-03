@@ -744,14 +744,14 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             uint64_t key = (uint64_t)origin->msg.locals[0].value<<32 | (1U<<k);
             local_mask = 0;
             local_mask |= (1U<<k);
-            fprintf(stderr, "get datatype for key %d k %d %llu\n", origin->msg.locals[0].value, k, key);
+            //fprintf(stderr, "get datatype for key %d k %d %llu\n", origin->msg.locals[0].value, k, key);
 
             parsec_hash_table_lock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
             dtd_task = parsec_dtd_find_task( dtd_tp, key );
 
             if( NULL == dtd_task ) {
                 return_defer = 1;
-                fprintf(stderr, "defer receive for key %d k %d %llu\n", origin->msg.locals[0].value, k, key);
+                //fprintf(stderr, "defer receive for key %d k %d %llu\n", origin->msg.locals[0].value, k, key);
 
                 /* AM buffers are reused by the comm engine once the activation
                  * has been conveyed to upper layer. In case of DTD we might receive msg to
@@ -900,7 +900,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
         if(task.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID || 
                 task.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID) { 
-            //remote_dep_inc_flying_messages(origin->taskpool);
+            remote_dep_inc_flying_messages(origin->taskpool);
             (void)parsec_atomic_fetch_inc_int32(&origin->pending_ack);
             (void)task.task_class->release_deps(es, &task,
                     action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,

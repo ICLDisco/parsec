@@ -184,12 +184,12 @@ int test_broadcast_mixed(
       data_value = -10-myrank;
    }
 
-   parsec_tiled_matrix_dc_t *dcB;
-   dcB = create_and_distribute_data(myrank, world, nb_bcast, nt);
-   parsec_data_collection_set_key((parsec_data_collection_t *)dcB, "B");
+   //parsec_tiled_matrix_dc_t *dcB;
+   //dcB = create_and_distribute_data(myrank, world, nb_bcast, nt);
+   //parsec_data_collection_set_key((parsec_data_collection_t *)dcB, "B");
 
-   parsec_data_collection_t *B = (parsec_data_collection_t *)dcB;
-   parsec_dtd_data_collection_init(B);
+   //parsec_data_collection_t *B = (parsec_data_collection_t *)dcB;
+   //parsec_dtd_data_collection_init(B);
 
    parsec_tiled_matrix_dc_t *dcA;
    dcA = create_and_distribute_data(myrank, world, nb, nt);
@@ -235,8 +235,8 @@ int test_broadcast_mixed(
    if(1) {
        key_root = key = A->data_key(A, root, 0);
        dtd_tile_root = PARSEC_DTD_TILE_OF_KEY(A, key_root);
-       key_root = B->data_key(B, root, 0);
-       bcast_keys_root = PARSEC_DTD_TILE_OF_KEY(B, key_root);
+       //key_root = B->data_key(B, root, 0);
+       //bcast_keys_root = PARSEC_DTD_TILE_OF_KEY(B, key_root);
    }
 
    // Create array of destination ranks
@@ -291,7 +291,7 @@ int test_broadcast_mixed(
 
        //}
    }
-for(int iter=1; iter <= 1; iter++) {
+for(int iter=1; iter <= 0; iter++) {
  
    int new_value = -1;
    key_root = key = A->data_key(A, root+iter*world, 0);
@@ -381,9 +381,9 @@ for(int iter=1; iter <= 1; iter++) {
    parsec_type_free(&parsec_dtd_arenas_datatypes[TILE_BCAST].opaque_dtt);
    PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[TILE_BCAST].arena);
    parsec_dtd_data_collection_fini( A );
-   parsec_dtd_data_collection_fini( B );
+   //parsec_dtd_data_collection_fini( B );
    free_data(dcA);
-   free_data(dcB);
+   //free_data(dcB);
 
    parsec_taskpool_free( dtd_tp );
    

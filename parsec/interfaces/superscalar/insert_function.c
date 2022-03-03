@@ -1807,7 +1807,7 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
                 assert( current_flow == 0 );
                 tile->flushed = FLUSHED;
                 parsec_dtd_tile_remove( tile->dc, tile->key );
-                parsec_dtd_tile_release( tile );
+                //parsec_dtd_tile_release( tile );
             }
         }
         assert(this_task->super.super.super.obj_reference_count == 1);
@@ -1861,7 +1861,7 @@ parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task )
                 assert( current_flow == 0 );
                 tile->flushed = FLUSHED;
                 parsec_dtd_tile_remove( tile->dc, tile->key );
-                parsec_dtd_tile_release( tile );
+                //parsec_dtd_tile_release( tile );
             }
         }
         assert(this_task->super.super.super.obj_reference_count == 1);

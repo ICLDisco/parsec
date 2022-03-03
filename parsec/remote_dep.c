@@ -551,7 +551,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                             int* data_ptr = (int*)parsec_data_copy_get_ptr(this_dtd_task->super.data[0].data_out);
                             this_dtd_task->super.locals[0].value = this_dtd_task->ht_item.key = ((1<<29) |(remote_deps->root << 20) | *(data_ptr+1+rank));
                             remote_deps->msg.locals[0].value = this_dtd_task->super.locals[0].value;
-                            fprintf(stderr, "for remote_dep %p update key in activate to %d\n", remote_deps, this_dtd_task->super.locals[0].value);
+                            //fprintf(stderr, "for remote_dep %p update key in activate to %d\n", remote_deps, this_dtd_task->super.locals[0].value);
                         }
                     }
                     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)",

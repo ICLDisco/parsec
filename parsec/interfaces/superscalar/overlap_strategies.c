@@ -201,7 +201,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                         populate_remote_deps(data_ptr, deps);
                         //current_task->deps_out->output[0].data.data =
                         //    current_task->super.data[current_dep].data_out;
-                        //(void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
+                        (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
                         parsec_remote_dep_activate(
                                 es, (parsec_task_t *)current_task,
                                 deps,
