@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+message: "Please cite this software using the metadata from 'preferred-citation'."
+authors:
+- family-names: "Bosilca"
+  given-names: "George"
+  orcid: "https://orcid.org/0000-0003-2411-8495"
+- family-names: "Bouteiller"
+  given-names: "Aurelien"
+  orcid: "https://orcid.org/0000-0001-5108-509X"
+- family-names: "Herault"
+  given-names: "Thomas"
+  orcid: "https://orcid.org/0000-0001-6756-6189"
+title: "PaRSEC: Parallel Runtime Scheduler "
+url: "https://github.com/icldisco/parsec"
+license: BSD-3-Clause-Open-MPI
+preferred-citation:
+  type: article
+  title: "DAGuE: A generic distributed DAG engine for High Performance Computing"
+  authors:
+  - family-names: "Bosilca"
+    given-names: "George"
+    orcid: "https://orcid.org/0000-0003-2411-8495"
+  - family-names: "Bouteiller"
+    given-names: "Aurelien"
+    orcid: "https://orcid.org/0000-0001-5108-509X"
+  - family-names: "Danalis"
+    given-names: "Anthony"
+  - family-names: "Herault"
+    given-names: "Thomas"
+    orcid: "https://orcid.org/0000-0001-6756-6189"
+  - family-names: "Lemarinier"
+    given-names: "Pierre"
+  - family-names: "Dongarra"
+    given-names: "Jack"
+  doi: "10.1016/j.parco.2011.10.003"
+  month: 2
+  year: 2012
+  volume: 38
+  issue: 1 
+  start: 37 # First page number
+  end: 51 # Last page number
+  issn: "0167-8191"
+
+
+
+
+
