@@ -33,28 +33,27 @@ target_sources(parsec PRIVATE ${sources})
 
 add_subdirectory(redistribute)
 
-install(FILES
-  matrix.h
-  two_dim_rectangle_cyclic.h
-  two_dim_rectangle_cyclic_band.h
-  sym_two_dim_rectangle_cyclic.h
-  sym_two_dim_rectangle_cyclic_band.h
-  vector_two_dim_cyclic.h
-  two_dim_tabular.h
-  grid_2Dcyclic.h
-  subtile.h
-  ${CMAKE_CURRENT_BINARY_DIR}/diag_band_to_rect.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/data_dist/matrix )
+set_property(TARGET parsec
+             APPEND PROPERTY
+                    PRIVATE_HEADER_H data_dist/matrix/matrix.h
+                                     data_dist/matrix/two_dim_rectangle_cyclic.h
+                                     data_dist/matrix/two_dim_rectangle_cyclic_band.h
+                                     data_dist/matrix/sym_two_dim_rectangle_cyclic.h
+                                     data_dist/matrix/sym_two_dim_rectangle_cyclic_band.h
+                                     data_dist/matrix/vector_two_dim_cyclic.h
+                                     data_dist/matrix/two_dim_tabular.h
+                                     data_dist/matrix/grid_2Dcyclic.h
+                                     data_dist/matrix/subtile.h
+                                     ${CMAKE_CURRENT_BINARY_DIR}/diag_band_to_rect.h)
 
-
-install(FILES
-  deprecated/grid_2Dcyclic.h
-  deprecated/matrix.h
-  deprecated/two_dim_rectangle_cyclic.h
-  deprecated/two_dim_rectangle_cyclic_band.h
-  deprecated/sym_two_dim_rectangle_cyclic.h
-  deprecated/sym_two_dim_rectangle_cyclic_band.h
-  deprecated/vector_two_dim_cyclic.h
-  deprecated/two_dim_tabular.h
-  deprecated/grid_2Dcyclic.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/data_dist/matrix/deprecated )
+set_property(TARGET parsec
+             APPEND PROPERTY
+                    PRIVATE_HEADER_H data_dist/matrix/deprecated/grid_2Dcyclic.h
+                                     data_dist/matrix/deprecated/matrix.h
+                                     data_dist/matrix/deprecated/two_dim_rectangle_cyclic.h
+                                     data_dist/matrix/deprecated/two_dim_rectangle_cyclic_band.h
+                                     data_dist/matrix/deprecated/sym_two_dim_rectangle_cyclic.h
+                                     data_dist/matrix/deprecated/sym_two_dim_rectangle_cyclic_band.h
+                                     data_dist/matrix/deprecated/vector_two_dim_cyclic.h
+                                     data_dist/matrix/deprecated/two_dim_tabular.h
+                                     data_dist/matrix/deprecated/grid_2Dcyclic.h)

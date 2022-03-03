@@ -9,3 +9,7 @@ if( BUILD_PARSEC )
   include(interfaces/dtd/CMakeLists.txt)
 
 endif( BUILD_PARSEC )
+
+set_property(TARGET parsec
+             APPEND PROPERTY
+                    PUBLIC_HEADER_H interfaces/interface.h)

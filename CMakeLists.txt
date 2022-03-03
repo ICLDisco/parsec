@@ -1038,33 +1038,9 @@ else()
 endif()
 
 install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR})
-
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/runtime.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/ayudame.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/constants.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_config_bottom.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/data_distribution.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datatype.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/profiling.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/dictionary.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/private_mempool.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/deprecated.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec)
-
-install(FILES
   ${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h
   DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec
   RENAME parsec_config.h)
-
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/debug.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/utils)
 #
 # Never install directly the parsec/class/lifo.h header.
 # Instead replace it with the lifo-external.h during the installation.
@@ -1073,76 +1049,6 @@ install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/parsec/class/lifo-external.h
   DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class
   RENAME lifo.h)
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_object.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_hash_table.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list_item.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_rwlock.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/info.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_future.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class)
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/recursive.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/remote_dep.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_description_structures.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datarepo.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mempool.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data_internal.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/arena.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/execution_stream.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_internal.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/vpmap.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec)
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/mca/pins)
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/mca.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/mca)
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/interfaces/interface.h
-  DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/interfaces/ )
-if(PARSEC_PROF_GRAPHER)
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_prof_grapher.h
-    DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec )
-endif(PARSEC_PROF_GRAPHER)
-# Install header files for jdf generated code
-if( PARSEC_WITH_DEVEL_HEADERS )
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_binary_profile.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/hbbuffer.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/os-spec-timing.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/maxheap.h
-    DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec )
-
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins_papi_utils.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins_tau_utils.h
-    DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/mca/pins )
-
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/argv.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/cmd_line.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/parsec_environ.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param_cmd_line.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/os_path.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/show_help.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/zone_malloc.h
-    DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/utils )
-
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/dequeue.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
-    DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/class )
-
-endif(PARSEC_WITH_DEVEL_HEADERS)
-
 #
 # Never install directly the parsec/include/parsec/sys/atomic.h header.
 # Instead replace it with the atomic-external.h during the installation.

@@ -18,10 +18,10 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
-static int   MAXNT              = 16384;
-static int   MAXLEVEL           =  1024;
-static int   MAXTRY             =   100;
-static float MAX_RELATIVE_STDEV =   0.1;
+static int MAXNT                 = 16384;
+static int MAXLEVEL              =  1024;
+static int MAXTRY                =   100;
+static double MAX_RELATIVE_STDEV =   0.1;
 
 double stdev(double sum, double sumsqr, double n)
 {

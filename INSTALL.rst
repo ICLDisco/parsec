@@ -74,20 +74,20 @@ will appear in the ``config.log``) by using the following form:
 
     configure CC=icc FC=ftn CXX=icpc -DPARSEC_DIST_SHORT_LIMIT=0
 
-Plarform Files
+Platform Files
 --------------
 
 Platform files, found in ``contrib/platforms`` let us distribute recipes
 for well known systems that may be similar to a supercomputer near you.
 For example, the ``ibm.ac922.summit`` file is intended to compile on the
-eponyme Oak Ridge Leadership Computing Facility system.
+eponym Oak Ridge Leadership Computing Facility system.
 
 .. code:: bash
 
   configure --prefix=$INSTALL_DIR --with-platform=ibm.ac922.summit --disable-debug
 
 This call should get you running in no time on that machine, and you
-may still customize and overide the platform file with command line
+may still customize and override the platform file with command line
 arguments.
 
 We also provide a ``macosx`` platform file that helps dealing with the
@@ -134,7 +134,7 @@ calling
 In this case, the configuration stage will also include a build stage
 to produce some of the utilities needed to compile PaRSEC. After
 the configure state has completed, you will find in your build directory
-a subdirectory named ``native`` that contains profiling and devellopper
+a subdirectory named ``native`` that contains profiling and developer
 tools that can be used on the frontend system.
 
 After the configure step has completed, the build step is carried out
