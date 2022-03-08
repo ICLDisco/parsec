@@ -24,9 +24,11 @@ static int verbose = 0;
  * the runtime about the change all data should be correctly
  * created.
  */
- static const int max_comms = 6;
+ static int max_comms = 6;
  static MPI_Comm comms[6] = {MPI_COMM_WORLD, MPI_COMM_SELF, MPI_COMM_NULL,
                              MPI_COMM_NULL,  MPI_COMM_NULL, MPI_COMM_WORLD};
+static const char *comm_name[6] = {"MPI_COMM_WORLD", "MPI_COMM_SELF", "MPI_COMM_NULL", 
+                                   "MPI_COMM_NULL", "MPI_COMM_NULL", "MPI_COMM_WORLD"};
 %}
 
 descA      [type = "parsec_matrix_block_cyclic_t*"]
@@ -107,7 +109,7 @@ int main(int argc, char* argv[])
     parsec_matrix_block_cyclic_t descA, descB;
     parsec_arena_datatype_t adt;
     parsec_context_t *parsec;
-    int ni = NN, nj = NN, loops = 5, i = 1, l, rc;
+    int ni = NN, nj = NN, loops = 5, sleep_between_comms = 1, i = 1, l, rc;
     int rank = 0, size = 1, mat_size;
     long time_elapsed;
     parsec_datatype_t baseType, newtype;
@@ -129,6 +131,16 @@ int main(int argc, char* argv[])
             if( 0 > verbose ) verbose = 0;
             goto move_and_continue;
         }
+        if( 0 == strncmp(argv[i], "-s=", 3) ) {
+            sleep_between_comms = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        if( 0 == strncmp(argv[i], "-c=", 3) ) {
+            max_comms = strtol(argv[i]+3, NULL, 10);
+            if(max_comms > 6) max_comms = 6;
+            if(max_comms < 1) max_comms = 1;
+            goto move_and_continue;
+        }
         if( 0 == strncmp(argv[i], "-l=", 3) ) {
             loops = strtol(argv[i]+3, NULL, 10);
             if( 0 >= loops ) loops = 5;
@@ -139,6 +151,8 @@ int main(int argc, char* argv[])
                    "-i=<nb> the number of horizontal tasks\n"
                    "-j=<nb> the number of vertical tasks for each horizontal task\n"
                    "-l=<nb> the number of repetition\n"
+                   "-s=<nb> the number of seconds to sleep between two new communicator test\n"
+                   "-c=<nb> the number of communicators to test (between 1 and 6)\n"
                    "-v=<nb> the verbosity level\n");
             exit(0);
         }
@@ -168,7 +182,7 @@ int main(int argc, char* argv[])
         if( MPI_COMM_NULL == comm ) continue;
         MPI_Comm_size(comm, &size);
         MPI_Comm_rank(comm, &rank);
-        printf("Starting the test %d (%d/%d)\n", i, rank, size);
+        if(verbose>0) printf("Starting the test %d (using communicator %s) (%d/%d)\n", i, comm_name[i], rank, size);
         parsec_remote_dep_set_ctx(parsec, (intptr_t)comm);
 #endif  /* DISTRIBUTED */
         mat_size = 2*BLOCK*size*ni;
@@ -198,7 +212,7 @@ int main(int argc, char* argv[])
 
         for( l = loops; l > 0; l-- ) {
 
-            printf("\n\n\n%d iterations remaining\n\n\n", l);
+            if(verbose>0) printf("\n\n\n%d iterations remaining\n\n\n", l);
             tp = parsec_multichain_new( &descA, &descB, ni, nj );
             assert( NULL != tp );
             tp->arenas_datatypes[PARSEC_multichain_DEFAULT_ADT_IDX] = adt;
@@ -211,7 +225,7 @@ int main(int argc, char* argv[])
             rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
             PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
             TIMER_STOP(time_elapsed);
-            printf("DAG construction in %ld micro-sec\n", time_elapsed);
+            printf("Comm %s (test %d) Loop %d DAG construction in %ld micro-sec\n", comm_name[i], i, l, time_elapsed);
 
             TIMER_START(time_elapsed);
             rc = parsec_context_wait(parsec);
@@ -219,7 +233,7 @@ int main(int argc, char* argv[])
             PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
             TIMER_STOP(time_elapsed);
 
-            printf("DAG execution in %ld micro-sec\n", time_elapsed);
+            printf("Comm %s (test %d) Loop %d DAG execution in %ld micro-sec\n", comm_name[i], i, l, time_elapsed);
             if( verbose >= 5 ) {
                 printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
                        "                 encoding=\"none\" compression=\"none\">\n"
@@ -231,7 +245,7 @@ int main(int argc, char* argv[])
             /**
              * Validate the parsec_context_start / parsec_context_wait functionality.
              */
-            printf("\n\nChecking the parsec_context_start / parsec_context_wait (sleep 1)\n\n");
+            if(verbose>0) printf("\n\nChecking the parsec_context_start / parsec_context_wait (sleep %d)\n\n", sleep_between_comms);
             tp = parsec_multichain_new( &descA, &descB, ni, nj );
             assert( NULL != tp );
 
@@ -245,8 +259,8 @@ int main(int argc, char* argv[])
             rc = parsec_context_start(parsec);
             PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
-            sleep(1);
-            printf("Main thread going for the wait (remaining tasks %d)\n", tp->super.nb_tasks);
+            if(sleep_between_comms>0) sleep(sleep_between_comms);
+            if(verbose>0) printf("Main thread going for the wait (remaining tasks %d)\n", tp->super.nb_tasks);
             /* By now most of the tasks should be completed */
             TIMER_START(time_elapsed);
             rc = parsec_context_wait(parsec);
@@ -254,7 +268,7 @@ int main(int argc, char* argv[])
             PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
             TIMER_STOP(time_elapsed);
 
-            printf("DAG execution in %ld micro-sec\n", time_elapsed);
+            printf("Comm %s (test %d) Loop %d DAG execution in %ld micro-sec\n", comm_name[i], i, l, time_elapsed);
         }
         free(descA.mat);
         free(descB.mat);
