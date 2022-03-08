@@ -1,4 +1,6 @@
 include (CheckCCompilerFlag)
+include (CheckFortranCompilerFlag)
+include (CheckCXXCompilerFlag)
 
 #
 # This is a convenience function that will check a given option
@@ -40,19 +42,40 @@ function(check_and_set_compiler_option)
   if(NOT DEFINED parsec_cas_co_LANGUAGES)
     set(parsec_cas_co_LANGUAGES C CXX Fortran)
   endif()
+  
+  # Sanitize variable name
+  string(REPLACE "-" "_" SAFE_flag_ "${parsec_cas_co_NAME}")
+
+  # Tell try_compile() called from check_*_compiler_flag to be silent
+  set(cmake_required_quiet_before ${CMAKE_REQUIRED_QUIET})
+  set(CMAKE_REQUIRED_QUIET TRUE)
+
+  message(CHECK_START "Checking which compiler supports flag '${parsec_cas_co_OPTION}'")
+  unset(pass_languages_)
 
   foreach(parsec_cas_co_LANGUAGE ${parsec_cas_co_LANGUAGES})
     if(CMAKE_${parsec_cas_co_LANGUAGE}_COMPILER_WORKS)
-      cmake_language(CALL "check_${parsec_cas_co_LANGUAGE}_compiler_flag" "${parsec_cas_co_OPTION}" "${parsec_cas_co_NAME}_" )
-      if( "${${parsec_cas_co_NAME}_}" )
+      cmake_language(CALL "check_${parsec_cas_co_LANGUAGE}_compiler_flag" "${parsec_cas_co_OPTION}" "${SAFE_flag_}_${parsec_cas_co_LANGUAGE}" )
+      if( "${${SAFE_flag_}_${parsec_cas_co_LANGUAGE}}" )
+        list(APPEND pass_languages_ ${parsec_cas_co_LANGUAGE})
         if(DEFINED parsec_cas_co_CONFIG)
           list(APPEND parsec_cas_co_defined_options "$<$<CONFIG:${parsec_cas_co_CONFIG}>:$<$<COMPILE_LANGUAGE:${parsec_cas_co_LANGUAGE}>:${parsec_cas_co_OPTION}>>")
         else()
           list(APPEND parsec_cas_co_defined_options "$<$<COMPILE_LANGUAGE:${parsec_cas_co_LANGUAGE}>:${parsec_cas_co_OPTION}>")
         endif()
+      else()
       endif()
     endif()
   endforeach()
+
+  if(NOT pass_languages_)
+    message(CHECK_FAIL "No compiler supports this flag")
+  else()
+    message(CHECK_PASS "${pass_languages_}")
+  endif()
+
+  # Restore verbosity as before
+  set(CMAKE_REQUIRED_QUIET ${cmake_required_quiet_before})
 
   if(DEFINED parsec_cas_co_COMMENT)
     set(${parsec_cas_co_NAME} "${parsec_cas_co_defined_options}" CACHE STRING "${parsec_cas_co_COMMENT}")
@@ -61,6 +84,7 @@ function(check_and_set_compiler_option)
     set(${parsec_cas_co_NAME} "${parsec_cas_co_defined_options}")
   endif()
   if(DEFINED ${parsec_cas_co_NAME})
+    # Variable ${parsec_cas_co_NAME} holds a generator expression that will reduce the flag to specific languages
     add_compile_options("${${parsec_cas_co_NAME}}")
   endif()
 endfunction(check_and_set_compiler_option)
