@@ -362,7 +362,7 @@ static void parsec_vp_init( parsec_vp_t *vp,
 
 static int check_overlapping_binding(parsec_context_t *context);
 
-#define DEFAULT_APPNAME "app_name_%d"
+#define DEFAULT_APP_NAME "app_name"
 
 #define GET_INT_ARGV(CMD, ARGV, VALUE) \
 do { \
@@ -442,10 +442,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             fprintf(stderr, "%s: command line error (%d)\n", (*pargv)[0], ret);
         }
     } else {
-        ret = asprintf( &parsec_app_name, DEFAULT_APPNAME, (int)getpid() );
-        if (ret == -1) {
-            parsec_app_name = strdup( "app_name" );
-        }
+        parsec_app_name = strdup( DEFAULT_APP_NAME );
     }
 
     ret = parsec_mca_cmd_line_process_args(cmd_line, &ctx_environ, &environ);
@@ -696,11 +693,17 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(PARSEC_PROF_TRACE)
     if( (0 != strncasecmp(parsec_enable_profiling, "<none>", 6)) && (0 == parsec_profiling_init( profiling_id )) ) {
         int i, l;
-        char *cmdline_info = basename(parsec_app_name);
+        char *cmdline_info = NULL;
 
         /* Use either the app name (argv[0]) or the user provided filename */
         if( 0 == strncmp(parsec_enable_profiling, "<app>", 5) ) {
+            /* Specialize the profiling filename to avoid collision with other instances */
+            ret = asprintf( &cmdline_info, "%s_%d", basename(parsec_app_name), (int)getpid() );
+            if (ret < 0) {
+                cmdline_info = strdup(DEFAULT_APPNAME);
+            }
             ret = parsec_profiling_dbp_start( cmdline_info, parsec_app_name );
+            free(cmdline_info);
         } else {
             ret = parsec_profiling_dbp_start( parsec_enable_profiling, parsec_app_name );
         }
