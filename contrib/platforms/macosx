@@ -18,11 +18,18 @@ if [ "x$enable_fortran" != xno -a ! -x "$(command -v "$CC")" ]; then
   done
 fi
 
-# Per-user personalizations
-if [ "x$USER" == "xbosilca" ]; then
-    with_hwloc=${HWLOC_ROOT:=/Users/bosilca/opt}
-    #with_cuda=${CUDA_ROOT:=/Developer/NVIDIA/CUDA-9.1/}
-    with_ayudame=${AYUDAME_ROOT:="/Users/bosilca/opt/temanejo"}
+# OS-X 12.2 provides Bison 2.3, we need Bison 3 or better
+# Try to get the 'brew' Bison if installed
+if [ -d /usr/local/opt/bison ]; then
+  ENVVARS+=" BISON_ROOT=${BISON_ROOT:-/usr/local/opt/bison}"
 fi
-
+# Try to get the 'MacPort' Bison if installed
+if [ -x /opt/local/bin/bison ]; then
+  ENVVARS+=" BISON_ROOT=${BISON_ROOT:-/opt/local}"
+fi
+# Try to get the 'Fink' Bison if installed
+if [ -x /sw/bin/bison ]; then
+  ENVVARS+=" BISON_ROOT=${BISON_ROOT:-/sw}"
+fi
+# If Bison still not found, please set BISON_ROOT by hand
 
