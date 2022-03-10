@@ -732,9 +732,9 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}" isSystemDir)
 #MESSAGE(STATUS "LINK_DIRECTORIES = ${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
 #MESSAGE(STATUS "INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}")
-IF("${isSystemDir}" STREQUAL "-1")
+IF(isSystemDir STREQUAL "-1")
   SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}")
-ENDIF("${isSystemDir}" STREQUAL "-1")
+ENDIF(isSystemDir STREQUAL "-1")
 
 # Prepare the list of include directories. From the source directory we need 2 the source
 # itself and then the specialized headers from parsec/include. If we compile with VPATH
@@ -858,7 +858,7 @@ string(REPLACE " " ";" SHM_TEST_CMD_LIST "${CTEST_SHM_LAUNCHER}")
 set(CTEST_MPI_LAUNCHER
     "${MPIEXEC} ${MPIEXEC_PREFLAGS} ${MPIEXEC_NUMPROC_FLAG}" CACHE STRING
       "A command to run distributed memory testings")
-if( "${CTEST_MPI_LAUNCHER}" STREQUAL "" )
+if( CTEST_MPI_LAUNCHER STREQUAL "" )
     MESSAGE(WARNING "MPI tests will most likely not work: 'CTEST_MPI_LAUNCHER' is not set")
 endif()
 string(REPLACE " " ";" MPI_TEST_CMD_LIST "${CTEST_MPI_LAUNCHER}")

@@ -47,7 +47,7 @@ if( CYTHON_EXECUTABLE )
                     OUTPUT_QUIET
                     ERROR_STRIP_TRAILING_WHITESPACE)
     string(REPLACE "Cython version " "" CYTHON_VERSION "${CYTHON_OUTPUT}")
-    if( "${CYTHON_VERSION}" VERSION_LESS "0.19.1" )
+    if( CYTHON_VERSION VERSION_LESS "0.19.1" )
         MESSAGE(STATUS "Cython version ${CYTHON_VERSION} found -- too old for current code")
         unset(CYTHON_EXECUTABLE CACHE)
     else()
