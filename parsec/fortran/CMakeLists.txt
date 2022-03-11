@@ -1,8 +1,7 @@
 include(FortranCInterface)
 FortranCInterface_HEADER(f2c_mangle.h
                              MACRO_NAMESPACE "PARSEC_F2C_"
-                             SYMBOL_NAMESPACE "parsec_f2c_"
-                             SYMBOLS my_sub parsecf:my_sub)
+                             SYMBOL_NAMESPACE "parsec_f2c_")
 
 set(sources
     parsecf.F90 parsecf.c)
