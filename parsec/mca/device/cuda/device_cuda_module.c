@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2021 The University of Tennessee and The University
+ * Copyright (c) 2010-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1468,18 +1468,19 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
             }
 #endif
             /* Push data into the GPU from the source device */
-            if(PARSEC_SUCCESS != gpu_task->stage_in? gpu_task->stage_in(gpu_task, (1U << flow->flow_index), gpu_stream): PARSEC_SUCCESS){
+            if(PARSEC_SUCCESS != (gpu_task->stage_in ? gpu_task->stage_in(gpu_task, (1U << flow->flow_index), gpu_stream): PARSEC_SUCCESS)) {
                 parsec_warning( "%s:%d %s", __FILE__, __LINE__,
                                 "gpu_task->stage_in");
-                if( in_elem_dev->super.super.type != PARSEC_DEV_CUDA )
+                if( in_elem_dev->super.super.type != PARSEC_DEV_CUDA ) {
                     parsec_warning("<<%p>> -> <<%p on CUDA device %d>> [%d, H2D]",
                                    in_elem->device_private, gpu_elem->device_private, cuda_device->cuda_index,
                                    nb_elts);
-                else
+                } else {
                     parsec_warning("<<%p on CUDA device %d>> -> <<%p on CUDA device %d>> [%d, D2D]",
                                    in_elem->device_private, in_elem_dev->cuda_index,
                                    gpu_elem->device_private, cuda_device->cuda_index,
                                    nb_elts);
+                }
                 parsec_atomic_unlock( &original->lock );
                 if( NULL != release_after_data_in_is_attached )
                     PARSEC_OBJ_RELEASE(release_after_data_in_is_attached);

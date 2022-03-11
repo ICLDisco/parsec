@@ -1110,12 +1110,12 @@ if(EXTRA_LIBS)
 endif()
 
 MESSAGE("\n\nPkgConfig Configuration Flags:")
-MESSAGE("  EXTRA_CFLAGS           = ${EXTRA_CFLAGS}")
-MESSAGE("  EXTRA_LDFLAGS          = ${EXTRA_LDFLAGS}")
-MESSAGE("  EXTRA_INCLUDES         = ${EXTRA_INCLUDES}")
-MESSAGE("  EXTRA_LIBS             = ${EXTRA_LIBS}")
+MESSAGE("  EXTRA_CFLAGS   = ${EXTRA_CFLAGS}")
+MESSAGE("  EXTRA_LDFLAGS  = ${EXTRA_LDFLAGS}")
+MESSAGE("  EXTRA_INCLUDES = ${EXTRA_INCLUDES}")
+MESSAGE("  EXTRA_LIBS     = ${EXTRA_LIBS}")
+MESSAGE("  FEATURES       = ${MCA_ENABLED_FEATURES}")
 MESSAGE("\n\n")
-
 # Generate configure files to help other software detect and integrate with
 # PaRSEC. This generates the pkg-config files to slurp in all needed dependencies
 # but also generates the CMake package files.

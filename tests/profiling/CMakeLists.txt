@@ -1,7 +1,9 @@
 include(ParsecCompilePTG)
 
-parsec_addtest_executable(C async)
-target_ptg_sources(async PRIVATE "async.jdf")
+if(TARGET parsec-ptgpp)
+  parsec_addtest_executable(C async)
+  target_ptg_sources(async PRIVATE "async.jdf")
+endif(TARGET parsec-ptgpp)
 
 if(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)

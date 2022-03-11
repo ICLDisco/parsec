@@ -123,6 +123,7 @@ endif( BUILD_PARSEC )
 # Read the Modular Components
 #   This must be read using include and not add_subdirectory because
 #   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
+SET(MCA_ENABLED_FEATURES "" CACHE INTERNAL "List of enabled components in PaRSEC" FORCE)
 include(mca/CMakeLists.txt)
 
 # Import all the available Domain Specific Language interfaces
