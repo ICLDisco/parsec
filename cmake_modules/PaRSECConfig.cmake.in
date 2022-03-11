@@ -21,7 +21,7 @@ find_package(Threads)
 if(@PARSEC_HAVE_HWLOC@)
   # If HWLOC is found on the system directories the HWLOC_DIR is set to ""
   if("@HWLOC_DIR@")
-    set_and_check(HWLOC_DIR "@HWLOC_DIR@")
+    set_and_check(HWLOC_ROOT "@HWLOC_DIR@")
   endif("@HWLOC_DIR@")
   find_package(HWLOC REQUIRED)
 endif(@PARSEC_HAVE_HWLOC@)

@@ -24,23 +24,22 @@ include(CheckStructHasMember)
 
 mark_as_advanced(FORCE HWLOC_DIR HWLOC_INCLUDE_DIR HWLOC_LIBRARY)
 
-set(HWLOC_DIR "" CACHE PATH "Root directory containing HWLOC")
-
 find_package(PkgConfig QUIET)
-if( HWLOC_DIR )
-  set(ENV{PKG_CONFIG_PATH} "${HWLOC_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+if( HWLOC_ROOT )
+  set(HWLOC_DIR "${HWLOC_ROOT}")
 endif()
+set(ENV{PKG_CONFIG_PATH} "${HWLOC_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
 pkg_check_modules(PC_HWLOC QUIET hwloc)
 set(HWLOC_DEFINITIONS ${PC_HWLOC_CFLAGS_OTHER} )
 
 find_path(HWLOC_INCLUDE_DIR hwloc.h
-          HINTS ${HWLOC_DIR} ${PC_HWLOC_INCLUDEDIR} ${PC_HWLOC_INCLUDE_DIRS}
+          HINTS ${HWLOC_ROOT} ${HWLOC_DIR} ${PC_HWLOC_INCLUDEDIR} ${PC_HWLOC_INCLUDE_DIRS}
           PATH_SUFFIXES include
           DOC "HWLOC includes" )
 set(HWLOC_INCLUDE_DIRS ${HWLOC_INCLUDE_DIR})
 
 find_library(HWLOC_LIBRARY hwloc
-             HINTS ${HWLOC_DIR} ${PC_HWLOC_LIBDIR} ${PC_HWLOC_LIBRARY_DIRS}
+             HINTS ${HWLOC_ROOT} ${HWLOC_DIR} ${PC_HWLOC_LIBDIR} ${PC_HWLOC_LIBRARY_DIRS}
              PATH_SUFFIXES lib
              DOC "Where the HWLOC libraries are")
 set(HWLOC_LIBRARIES ${HWLOC_LIBRARY})
@@ -59,6 +58,8 @@ if(HWLOC_FOUND)
   else()
     message(FATAL_ERROR "HWLOC found (HWLOC_LIBRARY=${HWLOC_LIBRARY}) but cannot test it due to missing C language support; either enable_language(C) in your project or ensure that C compiler can be discovered")
   endif()
+
+  set(HWLOC_DIR "${HWLOC_DIR}" CACHE PATH "Root directory containing HWLOC" FORCE)
 
   set(HWLOC_SAVE_CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
   list(APPEND CMAKE_REQUIRED_INCLUDES ${HWLOC_INCLUDE_DIR})
@@ -83,4 +84,5 @@ else(HWLOC_FOUND)
   unset(PARSEC_HAVE_HWLOC_CACHE_ATTR CACHE)
   unset(PARSEC_HAVE_HWLOC_OBJ_PU CACHE)
   unset(PARSEC_HAVE_HWLOC_BITMAP CACHE)
+  unset(HWLOC_DIR CACHE)
 endif(HWLOC_FOUND)

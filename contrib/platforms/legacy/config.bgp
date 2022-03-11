@@ -40,7 +40,7 @@ export CC CXX FC LDFLAGS
  
 MPI="-DPARSEC_DIST_WITH_MPI=OFF"
 CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
-HWLOC="-DHWLOC_DIR=/home/bosilca/opt/"
+HWLOC="-DHWLOC_ROOT=/home/bosilca/opt/"
 OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DBUILD_DPLASMA=OFF"
 
 cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${USER_OPTIONS} ../${LOCATION}
@@ -80,7 +80,7 @@ FC=mpixlf77_r
 LDFLAGS="${SAVE_LDFLAGS} -L/opt/ibmcmp/xlf/bg/11.1/bglib/ -qsmp=omp"
 
 MPI="-DPARSEC_DIST_WITH_MPI=ON"
-HWLOC="-DHWLOC_DIR=/home/bosilca/opt/bluegene"
+HWLOC="-DHWLOC_ROOT=/home/bosilca/opt/bluegene"
 CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
 OPTS="-DBUILD_64bits=OFF -DBUILD_TOOLS=OFF"
 

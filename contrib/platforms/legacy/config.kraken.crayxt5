@@ -13,7 +13,7 @@ USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF" #remove for XK6/7
 # A default source for supplementary software on Kraken. 
 # This links to software I compiled myself, customize to your needs
 OPT_DIR="/nics/c/home/bouteill/.opt.kraken"
-HWLOC_DIR=${HWLOC_DIR:="$OPT_DIR/hwloc"}
+HWLOC_ROOT=${HWLOC_ROOT:="$OPT_DIR/hwloc"}
 #CUDA_DIR=${CUDA_DIR:="$OPT_DIR/cuda"}
 
 #GTG_DIR=${GTG_DIR:="$OPT_DIR/gtg"}
