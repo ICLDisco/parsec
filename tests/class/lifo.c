@@ -340,7 +340,7 @@ int main(int argc, char *argv[])
     printf(" - all tests passed\n");
 
 #if defined(PARSEC_HAVE_MPI)
-    MPI_Finalized(&ch);
+    MPI_Finalize();
 #endif
     return 0;
 }

@@ -46,8 +46,18 @@ void parsec_atomic_wmb(void)
 ATOMIC_STATIC_INLINE
 void parsec_atomic_rmb(void)
 {
+    /* Earlier GCC versions ignored the acquire thread fence.
+     * It seems to be resolved in 8.3 so play it safe by
+     * falling back to mfence for anything earlier than 8.3.
+     */
+#if !defined(__clang__) \
+   && defined(__GNUC__) \
+   && (__GNUC__ > 8 || (__GNUC__ == 8 && __GNUC_MINOR__ >= 3))
     atomic_thread_fence(memory_order_acquire);
-}
+#else
+    parsec_mfence();
+#endif
+ }
 
 /* Compare and Swap */
 
