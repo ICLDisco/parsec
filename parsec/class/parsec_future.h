@@ -73,7 +73,7 @@ struct parsec_future_fn_t {
 struct parsec_base_future_t {
     parsec_list_item_t       item;          /**< a base future type is list item (also a PaRSEC object) */
     parsec_future_fn_t      *future_class;  /**< struct that holds all the common function pointers */
-    uint8_t                  status;        /**< status of the future */
+    volatile uint8_t         status;        /**< status of the future */
     void                    *tracked_data;  /**< a pointer to the data this future is tracking */
     parsec_future_cb_fulfill cb_fulfill;    /**< callback function */
     parsec_atomic_lock_t     future_lock;   /**< lockable for multithread access */

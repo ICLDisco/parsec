@@ -29,6 +29,7 @@ static int parsec_base_future_is_ready(parsec_base_future_t* future)
 static void parsec_base_future_set(parsec_base_future_t* future, void* data)
 {
     if(parsec_atomic_cas_ptr(&(future->tracked_data), NULL, data)) {
+        parsec_atomic_wmb();
         /* increment flag to indicate data is ready */
         future->status |= PARSEC_DATA_FUTURE_STATUS_COMPLETED;
         if(future->cb_fulfill != NULL){
@@ -51,6 +52,7 @@ static void* parsec_base_future_get(parsec_base_future_t* future)
      * */
     while(1){
         if(parsec_base_future_is_ready(future)){
+            parsec_atomic_rmb();
             return future->tracked_data;
         }
     }
