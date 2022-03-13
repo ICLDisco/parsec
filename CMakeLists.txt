@@ -593,22 +593,14 @@ IF( BUILD_PARSEC )
   # installation try to use one that is compatible with MPI, by finding if MPI
   # provide HWLOC and use it.
   if(MPI_C_FOUND AND NOT HWLOC_ROOT)
-    cmake_push_check_state()
-    list(APPEND CMAKE_REQUIRED_INCLUDES MPI_C_INCLUDE_PATH)
-    check_include_file("hwloc.h" PARSEC_FOUND_IMPLICIT_HWLOC)
-    if(PARSEC_FOUND_IMPLICIT_HWLOC)
-      get_filename_component(PARSEC_FOUND_IMPLICIT_HWLOC_ROOT
-                             ${MPI_C_INCLUDE_PATH} DIRECTORY)
-      find_path(PARSEC_FOUND_IMPLICIT_HWLOC_ROOT "hwloc.h"
-                HINTS PARSEC_FOUND_IMPLICIT_HWLOC_ROOT
-                NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH
-                NO_CACHE)
-              if(PARSEC_FOUND_IMPLICIT_HWLOC_ROOT)
-        message(STATUS "Use HWLOC from ${PARSEC_FOUND_IMPLICIT_HWLOC_ROOT}")
-        set(HWLOC_ROOT "${PARSEC_FOUND_IMPLICIT_HWLOC_ROOT}")
-      endif(PARSEC_FOUND_IMPLICIT_HWLOC_ROOT)
-    endif(PARSEC_FOUND_IMPLICIT_HWLOC)
-    cmake_pop_check_state()
+    find_path(PARSEC_MPI_HWLOC_INCLUDE_DIR "hwloc.h"
+      HINTS ${MPI_C_INCLUDE_PATH}
+      NO_CMAKE_ENVIRONMENT_PATH NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
+    if(PARSEC_MPI_HWLOC_INCLUDE_DIR)
+      get_filename_component(PARSEC_MPI_HWLOC_ROOT ${PARSEC_MPI_HWLOC_INCLUDE_DIR} DIRECTORY)
+      message(STATUS "Force HWLOC to match collocated MPI ${PARSEC_MPI_HWLOC_ROOT}; you can override this by setting HWLOC_ROOT")
+      set(HWLOC_ROOT ${PARSEC_MPI_HWLOC_ROOT})
+    endif(PARSEC_MPI_HWLOC_INCLUDE_DIR)
   endif(MPI_C_FOUND AND NOT HWLOC_ROOT)
 
   find_package(HWLOC)
@@ -634,7 +626,7 @@ IF( BUILD_PARSEC )
         # priority during header search) will use -isystem (which does not and
         # might allow to find the header in the standard path).
         list(APPEND CMAKE_REQUIRED_LIBRARIES ${HWLOC_LIBRARIES} ${MPI_C_LIBRARIES})
-        list(PREPEND CMAKE_REQUIRED_INCLUDES ${HWLOC_INCLUDE_DIRS} ${MPI_C_LIBRARIES})
+        list(PREPEND CMAKE_REQUIRED_INCLUDES ${HWLOC_INCLUDE_DIRS} ${MPI_C_INCLUDE_DIRS})
         message(TRACE "CMAKE_REQUIRED_LIBRARIES = ${CMAKE_REQUIRED_LIBRARIES}")
         message(TRACE "CMAKE_REQUIRED_INCLUDES = ${CMAKE_REQUIRED_INCLUDES}")
         check_c_source_runs("
