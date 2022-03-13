@@ -7,32 +7,26 @@
 #    is found
 #  PAPI_LIBRARIES - uncached list of libraries (using full path name) to
 #    link against to use PAPI
-#  PAPI_INCLUDE_DIR - directory where the PAPI header files are
+#  PAPI_INCLUDE_DIRS - directory where the PAPI header files are
 #
 #  PAPI::PAPI interface library target for linking
 ##########
 
 find_package(PkgConfig QUIET)
 
-if( PAPI_DIR )
-  set(ENV{PKG_CONFIG_PATH} "${PAPI_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+if( PAPI_ROOT )
+  set(ENV{PKG_CONFIG_PATH} "${PAPI_ROOT}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
 endif()
 pkg_check_modules(PC_PAPI QUIET papi)
 set(PAPI_DEFINITIONS ${PC_PAPI_CFLAGS_OTHER} )
 
 find_path(PAPI_INCLUDE_DIR papi.h
-          PATHS ${PAPI_DIR}/include ENV PAPI_INCLUDE_DIR
-          HINTS ${PC_PAPI_INCLUDEDIR} ${PC_PAPI_INCLUDE_DIRS} ${PAPI_DIR}/include
+          PATHS ${PAPI_ROOT}/include ENV PAPI_INCLUDE_DIR
+          HINTS ${PC_PAPI_INCLUDEDIR} ${PC_PAPI_INCLUDE_DIRS}
           DOC "Include path for PAPI")
 
-#get_cmake_property(_variableNames VARIABLES)
-#foreach (_variableName ${_variableNames})
-#    message(STATUS "${_variableName}=${${_variableName}}")
-#endforeach()
-
 find_library(PAPI_LIBRARY NAMES papi
-             PATHS ${PAPI_DIR}/lib
-             HINTS ${PC_PAPI_LIBDIR} ${PC_PAPI_LIBRARY_DIRS} ${PAPI_DIR}/lib
+             HINTS ${PC_PAPI_LIBDIR} ${PC_PAPI_LIBRARY_DIRS}
              DOC "Library path for PAPI")
 
 include(FindPackageHandleStandardArgs)
@@ -49,10 +43,10 @@ if( PAPI_FOUND )
 
     set_property(TARGET PAPI::PAPI APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${PAPI_LIBRARY}")
     set_property(TARGET PAPI::PAPI PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PAPI_INCLUDE_DIR}")
-    #===============================================================================
+  #===============================================================================
 
   set(PAPI_LIBRARIES ${PAPI_LIBRARY} )
   set(PAPI_INCLUDE_DIRS ${PAPI_INCLUDE_DIR} )
-  mark_as_advanced(FORCE PAPI_DIR PAPI_INCLUDE_DIR PAPI_LIBRARY)
+  mark_as_advanced(FORCE PAPI_INCLUDE_DIR PAPI_LIBRARY)
 
 endif( PAPI_FOUND )

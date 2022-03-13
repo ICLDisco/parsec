@@ -7,35 +7,28 @@
 #    is found
 #  AYUDAME_LIBRARIES - uncached list of libraries (using full path name) to
 #    link against to use Ayudame
-#  AYUDAME_INCLUDE_DIR - directory where the Ayudame header files are
+#  AYUDAME_INCLUDE_DIRS - directory where the Ayudame header files are
 #
 ##########
-mark_as_advanced(FORCE AYUDAME_DIR AYUDAME_INCLUDE_DIR AYUDAME_LIBRARY)
-set(AYUDAME_DIR "" CACHE PATH "Root directory containing the Ayudame library")
 
-if( AYUDAME_DIR )
-  if( NOT AYUDAME_INCLUDE_DIR )
-    set(AYUDAME_INCLUDE_DIR "${AYUDAME_DIR}/include")
-  endif( NOT AYUDAME_INCLUDE_DIR )
-  if( NOT AYUDAME_LIBRARY_DIR )
-    set(AYUDAME_LIBRARY_DIR "${AYUDAME_DIR}/lib")
-  endif( NOT AYUDAME_LIBRARY_DIR )
-endif( AYUDAME_DIR )
+find_library(AYUDAME_LIBRARY ayudame
+  DOC "Library path for Ayudame")
+find_path(AYUDAME_INCLUDE_DIR "Ayudame.h"
+  DOC "Include path for Ayudame")
 
-CMAKE_PUSH_CHECK_STATE()
-if(AYUDAME_INCLUDE_DIR)
-  list(APPEND CMAKE_REQUIRED_INCLUDES ${AYUDAME_INCLUDE_DIR})
-endif(AYUDAME_INCLUDE_DIR)
+cmake_push_check_state()
+list(APPEND CMAKE_REQUIRED_INCLUDES ${AYUDAME_INCLUDE_DIR})
 check_include_files("Ayudame.h" FOUND_AYUDAME_INCLUDE)
-if(FOUND_AYUDAME_INCLUDE)
-  check_library_exists("ayudame" AYU_event ${AYUDAME_LIBRARY_DIR} FOUND_AYUDAME_LIB)
-  if( FOUND_AYUDAME_LIB )
-    set(AYUDAME_LIBRARIES "-L${AYUDAME_LIBRARY_DIR} -layudame")
-  endif( FOUND_AYUDAME_LIB )
-endif(FOUND_AYUDAME_INCLUDE)
-CMAKE_POP_CHECK_STATE()
+check_library_exists("ayudame" AYU_event ${AYUDAME_LIBRARY_DIR} FOUND_AYUDAME_LIB)
+cmake_pop_check_state()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(AYUDAME DEFAULT_MSG
-                                  FOUND_AYUDAME_INCLUDE AYUDAME_LIBRARIES AYUDAME_INCLUDE_DIR )
+  AYUDAME_LIBRARY AYUDAME_INCLUDE_DIR FOUND_AYUDAME_INCLUDE FOUND_AYUDAME_LIB)
+mark_as_advanced(FORCE AYUDAME_INCLUDE_DIR AYUDAME_LIBRARY)
+
+if(AYUDAME_FOUND)
+  set(AYUDAME_INCLUDE_DIRS ${AYUDAME_INCLUDE_DIR})
+  set(AYUDAME_LIBRARIES ${AYUDAME_LIBRARY})
+endif(AYUDAME_FOUND)
 

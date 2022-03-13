@@ -18,7 +18,6 @@ pkg_check_modules(PC_TAU QUIET TAU)
 set(TAU_DEFINITIONS ${PC_TAU_CFLAGS_OTHER})
 
 find_path(TAU_INCLUDE_DIR TAU.h
-          HINTS ${TAU_ROOT}/include
           PATH_SUFFIXES TAU )
 if( NOT TAU_INCLUDE_DIR )
   message(STATUS "TAU libraries not found")
@@ -27,23 +26,23 @@ endif
 
 if (${APPLE})
   find_library(TAU_LIBRARY NAMES TAU
-             HINTS ${TAU_ROOT}/x86_64/lib/shared-icpc-papi-pthread-pdt )
+    PATH_SUFFIXES x86_64/lib/shared-icpc-papi-pthread-pdt )
   find_path(TAU_LIBRARY_DIR NAMES libTAU.dylib
-             HINTS ${TAU_ROOT}/x86_64/lib/shared-icpc-papi-pthread-pdt )
+    PATH_SUFFIXES x86_64/lib/shared-icpc-papi-pthread-pdt )
 else()
   find_library(TAU_LIBRARY NAMES TAU
-             HINTS ${TAU_ROOT}/x86_64/lib/shared-icpc-papi-pthread-pdt )
+    PATH_SUFFIXES x86_64/lib/shared-icpc-papi-pthread-pdt )
   # find_library(TAU_ICPC_LIBRARY NAMES TAUsh-icpc-papi-pthread
   #            HINTS ${TAU_ROOT}/src/Profile)
   find_path(TAU_LIBRARY_DIR NAMES libTAU.so libTAU.a libTAU.dylib
-             HINTS ${TAU_ROOT}/x86_64/lib/shared-icpc-papi-pthread-pdt )
+    PATH_SUFFIXES x86_64/lib/shared-icpc-papi-pthread-pdt )
 #   find_path(TAU_ICPC_LIBRARY_DIR NAMES libTAUsh-icpc-papi-pthread.so
 #              HINTS ${TAU_ROOT}/src/Profile)
 # #             HINTS ${TAU_ROOT}/${CMAKE_SYSTEM_PROCESSOR}/lib  ${TAU_ROOT}/*/lib )
 endif()
 
 find_path(TAU_LIBRARY_DIR_2 NAMES libTauPthreadWrap.a
-             HINTS ${TAU_LIBRARY_DIR}/static-papi-pthread)
+  PATH_SUFFIXES static-papi-pthread)
 
 if (TAU_LIBRARY_DIR_2_FOUND)
   message(ERROR "I don't think this is the one we want, because it's static...")
@@ -62,4 +61,3 @@ find_package_handle_standard_args(TAU  DEFAULT_MSG
                                   TAU_LIBRARY TAU_INCLUDE_DIR TAU_LIBRARIES )
 
 mark_as_advanced(TAU_INCLUDE_DIR TAU_LIBRARY TAU_LIBRARIES )
-set(TAU_DIR ${TAU_ROOT})

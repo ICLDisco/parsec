@@ -681,7 +681,7 @@ int main(int argc, char *argv[]) {
   if(AYUDAME_FOUND)
     target_include_directories(parsec
         PRIVATE
-        ${AYUDAME_INCLUDE_DIR})
+        ${AYUDAME_INCLUDE_DIRS})
     if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
       message(STATUS "Add '-undefined dynamic_lookup' to the linking flags")
       target_link_libraries(parsec
