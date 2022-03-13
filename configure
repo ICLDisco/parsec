@@ -508,10 +508,7 @@ xno) echo >&2 "WARNING: MPI is required to build this version of PaRSEC -- --wit
 xyes) ;;
 x) ;;
 *)
-    #TODO: deal with icc/spectrum and other variants
-    CMAKE_DEFINES+=" -DMPI_C_COMPILER=$(printf %q "$(PATH=$with_mpi:$with_mpi/bin64:$with_mpi/bin command -v mpicc)")"
-    CMAKE_DEFINES+=" -DMPI_CXX_COMPILER=$(printf %q "$(PATH=$with_mpi:$with_mpi/bin64:$with_mpi/bin command -v mpicxx)")"
-    CMAKE_DEFINES+=" -DMPI_Fortran_COMPILER=$(printf %q "$(PATH=$with_mpi:$with_mpi/bin64:$with_mpi/bin command -v mpif90)")"
+    CMAKE_DEFINES+=" -DMPI_ROOT=$(printf %q "$with_mpi")";;
 esac
 [ x$enable_collectives = xyes ] && CMAKE_DEFINES+=" -DPARSEC_DIST_COLLECTIVES=ON"
 [ x$enable_collectives = xno ] && CMAKE_DEFINES+=" -DPARSEC_DIST_COLLECTIVES=OFF"
