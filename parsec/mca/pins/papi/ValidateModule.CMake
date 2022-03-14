@@ -15,7 +15,7 @@ if (PARSEC_PROF_PINS)
       SET(MCA_${COMPONENT}_${MODULE}_CONSTRUCTOR "${COMPONENT}_${MODULE}_static_component")
 
       list(APPEND EXTRA_LIBS ${PAPI_LIBRARIES})
-      include_directories( ${PAPI_INCLUDE_DIR} )
+      include_directories( ${PAPI_INCLUDE_DIRS} )
     else (PARSEC_HAVE_PAPI)
       MESSAGE(STATUS "Module ${MODULE} not selectable: does not have PAPI")
       SET(MCA_${COMPONENT}_${MODULE} OFF)

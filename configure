@@ -493,7 +493,7 @@ case x$with_ayudame in
 xno) ;; # No CMAKE control to remove if available
 xyes) ;; # No CMAKE control to force using
 x) ;;
-*) CMAKE_DEFINES+=" -DAYUDAME_DIR=$(printf %q "$with_ayudame")";;
+*) CMAKE_DEFINES+=" -DAYUDAME_ROOT=$(printf %q "$with_ayudame")";;
 esac
 
 case x$with_hwloc in
