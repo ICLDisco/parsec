@@ -589,6 +589,20 @@ IF( BUILD_PARSEC )
     CMAKE_POP_CHECK_STATE()
   endif (MPI_C_FOUND)
 
+  # If MPI enabled and the user did not requested a specific HWLOC
+  # installation try to use one that is compatible with MPI, by finding if MPI
+  # provide HWLOC and use it.
+  if(MPI_C_FOUND AND NOT HWLOC_ROOT)
+    find_path(PARSEC_MPI_HWLOC_INCLUDE_DIR "hwloc.h"
+      HINTS ${MPI_C_INCLUDE_PATH}
+      NO_CMAKE_ENVIRONMENT_PATH NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
+    if(PARSEC_MPI_HWLOC_INCLUDE_DIR)
+      get_filename_component(PARSEC_MPI_HWLOC_ROOT ${PARSEC_MPI_HWLOC_INCLUDE_DIR} DIRECTORY)
+      message(STATUS "Force HWLOC to match collocated MPI ${PARSEC_MPI_HWLOC_ROOT}; you can override this by setting HWLOC_ROOT")
+      set(HWLOC_ROOT ${PARSEC_MPI_HWLOC_ROOT})
+    endif(PARSEC_MPI_HWLOC_INCLUDE_DIR)
+  endif(MPI_C_FOUND AND NOT HWLOC_ROOT)
+
   find_package(HWLOC)
   set(PARSEC_HAVE_HWLOC ${HWLOC_FOUND})
   if( HWLOC_FOUND )
@@ -606,7 +620,15 @@ IF( BUILD_PARSEC )
         #
         # Note that we test the same link-order as in PaRSEC
         # Dependent upon which one links first, either PaRSEC, or MPI will break.
-        set(CMAKE_REQUIRED_LIBRARIES MPI::MPI_C HWLOC::HWLOC)
+        #
+        # Do not use use targets here becuase CMake consider all imported
+        # interfaces as system headers, and instead of using -I (which provide
+        # priority during header search) will use -isystem (which does not and
+        # might allow to find the header in the standard path).
+        list(APPEND CMAKE_REQUIRED_LIBRARIES ${HWLOC_LIBRARIES} ${MPI_C_LIBRARIES})
+        list(PREPEND CMAKE_REQUIRED_INCLUDES ${HWLOC_INCLUDE_DIRS} ${MPI_C_INCLUDE_DIRS})
+        message(TRACE "CMAKE_REQUIRED_LIBRARIES = ${CMAKE_REQUIRED_LIBRARIES}")
+        message(TRACE "CMAKE_REQUIRED_INCLUDES = ${CMAKE_REQUIRED_INCLUDES}")
         check_c_source_runs("
 #include <mpi.h>
 #include <hwloc.h>
@@ -621,7 +643,7 @@ int main(int argc, char *argv[]) {
 #else
     if (lib_api_version >= 0x00020000) {
 #endif
-        printf(\"Header and library versions are incompatible.\"); fflush(stdout);
+        printf(\"Header and library versions are incompatible.\\\\n\"); fflush(stdout);
         return 1;
     }
     printf(\"Calling `MPI_Init()`...\\\\n\"); fflush(stdout);

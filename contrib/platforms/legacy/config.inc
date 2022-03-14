@@ -31,7 +31,7 @@ function guess_defaults {
     FC=${FC:=$(which ifort 2>/dev/null)}
     FC=${FC:=$(which gfortran 2>/dev/null)}
     MPI_DIR=${MPI_DIR:=$(dirname_bin mpicc)}
-    HWLOC_DIR=${HWLOC_DIR:=$(dirname_bin hwloc-ls)}
+    HWLOC_ROOT=${HWLOC_ROOT:=$(dirname_bin hwloc-ls)}
     GTG_DIR=${GTG_DIR:=$(pkg-config gtg --variable=prefix)}
     CUDA_DIR=${CUDA_DIR:=$(dirname_bin nvcc)}
 
@@ -79,8 +79,8 @@ if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_DIST_WITH_MPI=OFF.*")
 fi
 
 # Make sure to always set all three compilers at the same time. The name of the wrapper may vary on your system
-if [ -n "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_WITH_HWLOC=OFF.*") -eq 0 ]; then
-    HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
+if [ -n "$HWLOC_ROOT" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_WITH_HWLOC=OFF.*") -eq 0 ]; then
+    HWLOC="-DHWLOC_ROOT=${HWLOC_ROOT}"
 fi
 
 if [ -f "$GTG_DIR/include/GTG.h" -a -f "$GTG_DIR/lib/libgtg.so" ]; then

@@ -11,7 +11,7 @@ CC=${CC:="icc"}
 CXX=${CXX:="icpc"}
 FC=${FC:="ifort"}
 #MPI_DIR=${MPI_DIR:="/opt/ompi"}
-HWLOC_DIR=${HWLOC_DIR:="/nics/c/home/bouteill/KEENELAND/hwloc/1.9"}
+HWLOC_ROOT=${HWLOC_ROOT:="/nics/c/home/bouteill/KEENELAND/hwloc/1.9"}
 #GTG_DIR=${GTG_DIR:="/opt/gtg"}
 #CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
 

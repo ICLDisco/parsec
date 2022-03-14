@@ -12,8 +12,8 @@ set -e
 
 
 # General variables
-: ${HWLOC_DIR:=$HOME/parsec/titan/hwloc-1.11.2}
-[ -d "$HWLOC_DIR" ] || echo "HWLOC_DIR='$HWLOC_DIR' does not point to a valid hwloc install. PaRSEC may use unoptimized schedulers." 1>&2
+: ${HWLOC_ROOT:=$HOME/parsec/titan/hwloc-1.11.2}
+[ -d "$HWLOC_ROOT" ] || echo "HWLOC_ROOT='$HWLOC_ROOT' does not point to a valid hwloc install. PaRSEC may use unoptimized schedulers." 1>&2
 
 : ${TOOLCHAIN_DIR:=ToolchainX-native}
 : ${COMPUTE_DIR:=$PWD}
@@ -99,7 +99,7 @@ export CC CXX FC CFLAGS LDFLAGS
 
 MPI="-DPARSEC_DIST_WITH_MPI=ON -DMPI_C_COMPILER=$CC -DMPI_CXX_COMPILER=$CXX -DMPI_Fortran_COMPILER=$FC"
 CUDA="-DPARSEC_GPU_WITH_CUDA=ON -DCUDA_TOOLKIT_ROOT_DIR=$CRAY_CUDATOOLKIT_DIR"
-HWLOC="-DHWLOC_DIR=$HWLOC_DIR"
+HWLOC="-DHWLOC_ROOT=$HWLOC_ROOT"
 OPTS="-DBUILD_TOOLS=OFF -DBUILD_SHARED_LIBS=OFF"
 
 # Done with variable allocation, do the thing with Cmake

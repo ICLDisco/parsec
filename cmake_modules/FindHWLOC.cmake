@@ -11,7 +11,7 @@
 #    link against to use HWLOC
 #  HWLOC_INCLUDE_DIRS - uncached list of required include directories to
 #    access HWLOC headers
-#  HWLOC_STATIC  if set on this determines what kind of linkage we do (static)
+#  HWLOC_DEFINITIONS - uncached list of required compile flags
 #
 #  PARSEC_HAVE_HWLOC_PARENT_MEMBER - new API, older versions don't have it
 #  PARSEC_HAVE_HWLOC_CACHE_ATTR - new API, older versions don't have it
@@ -21,26 +21,27 @@
 ##########
 
 include(CheckStructHasMember)
+include(CMakePushCheckState)
 
-mark_as_advanced(FORCE HWLOC_DIR HWLOC_INCLUDE_DIR HWLOC_LIBRARY)
-
-set(HWLOC_DIR "" CACHE PATH "Root directory containing HWLOC")
+mark_as_advanced(FORCE HWLOC_INCLUDE_DIR HWLOC_LIBRARY)
 
 find_package(PkgConfig QUIET)
-if( HWLOC_DIR )
-  set(ENV{PKG_CONFIG_PATH} "${HWLOC_DIR}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
+if( HWLOC_ROOT )
+  # We don't use HWLOC_DIR as this is supposed to be used when finding hwloc-config.cmake only
+  set(ENV{PKG_CONFIG_PATH} "${HWLOC_ROOT}/lib/pkgconfig:$ENV{PKG_CONFIG_PATH}")
 endif()
+
 pkg_check_modules(PC_HWLOC QUIET hwloc)
 set(HWLOC_DEFINITIONS ${PC_HWLOC_CFLAGS_OTHER} )
 
 find_path(HWLOC_INCLUDE_DIR hwloc.h
-          HINTS ${HWLOC_DIR} ${PC_HWLOC_INCLUDEDIR} ${PC_HWLOC_INCLUDE_DIRS}
+          HINTS ${PC_HWLOC_INCLUDEDIR} ${PC_HWLOC_INCLUDE_DIRS}
           PATH_SUFFIXES include
           DOC "HWLOC includes" )
 set(HWLOC_INCLUDE_DIRS ${HWLOC_INCLUDE_DIR})
 
 find_library(HWLOC_LIBRARY hwloc
-             HINTS ${HWLOC_DIR} ${PC_HWLOC_LIBDIR} ${PC_HWLOC_LIBRARY_DIRS}
+             HINTS ${PC_HWLOC_LIBDIR} ${PC_HWLOC_LIBRARY_DIRS}
              PATH_SUFFIXES lib
              DOC "Where the HWLOC libraries are")
 set(HWLOC_LIBRARIES ${HWLOC_LIBRARY})
@@ -60,14 +61,14 @@ if(HWLOC_FOUND)
     message(FATAL_ERROR "HWLOC found (HWLOC_LIBRARY=${HWLOC_LIBRARY}) but cannot test it due to missing C language support; either enable_language(C) in your project or ensure that C compiler can be discovered")
   endif()
 
-  set(HWLOC_SAVE_CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
+  cmake_push_check_state()
   list(APPEND CMAKE_REQUIRED_INCLUDES ${HWLOC_INCLUDE_DIR})
   check_struct_has_member( "struct hwloc_obj" parent hwloc.h PARSEC_HAVE_HWLOC_PARENT_MEMBER )
   check_struct_has_member( "struct hwloc_cache_attr_s" size hwloc.h PARSEC_HAVE_HWLOC_CACHE_ATTR )
   check_c_source_compiles( "#include <hwloc.h>
     int main(void) { hwloc_obj_t o; o->type = HWLOC_OBJ_PU; return 0;}" PARSEC_HAVE_HWLOC_OBJ_PU)
   check_library_exists(${HWLOC_LIBRARY} hwloc_bitmap_free "" PARSEC_HAVE_HWLOC_BITMAP)
-  set(CMAKE_REQUIRED_INCLUDES ${HWLOC_SAVE_CMAKE_REQUIRED_INCLUDES})
+  cmake_pop_check_state()
 
   #===============================================================================
   # Import Target ================================================================
@@ -77,7 +78,9 @@ if(HWLOC_FOUND)
 
   set_property(TARGET HWLOC::HWLOC PROPERTY INTERFACE_LINK_LIBRARIES "${HWLOC_LIBRARY}")
   set_property(TARGET HWLOC::HWLOC PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${HWLOC_INCLUDE_DIR}")
+  set_property(TARGET HWLOC::HWLOC PROPERTY INTERFACE_COMPILE_OPTIONS "${HWLOC_DEFINITIONS}")
   #===============================================================================
+
 else(HWLOC_FOUND)
   unset(PARSEC_HAVE_HWLOC_PARENT_MEMBER CACHE)
   unset(PARSEC_HAVE_HWLOC_CACHE_ATTR CACHE)

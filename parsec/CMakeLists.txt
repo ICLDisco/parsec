@@ -245,7 +245,8 @@ if( BUILD_PARSEC )
   install(TARGETS parsec
           EXPORT parsec-targets
           ARCHIVE DESTINATION ${PARSEC_INSTALL_LIBDIR}
-          LIBRARY DESTINATION ${PARSEC_INSTALL_LIBDIR})
+          LIBRARY DESTINATION ${PARSEC_INSTALL_LIBDIR}
+          PUBLIC_HEADER DESTINATION ${PARSEC_INSTALL_INCLUDEDIR})
   # Cmake < 3.20 does not support hierarchical PUBLIC and PRIVATE _HEADER,
   # so we need to provide our own support by crafting a similar property
   # PUBLIC_HEADER_H and PRIVATE_HEADER_H
