@@ -16,16 +16,18 @@ find_library(AYUDAME_LIBRARY ayudame
 find_path(AYUDAME_INCLUDE_DIR "Ayudame.h"
   DOC "Include path for Ayudame")
 
-cmake_push_check_state()
-list(APPEND CMAKE_REQUIRED_INCLUDES ${AYUDAME_INCLUDE_DIR})
-check_include_files("Ayudame.h" FOUND_AYUDAME_INCLUDE)
-check_library_exists("ayudame" AYU_event ${AYUDAME_LIBRARY_DIR} FOUND_AYUDAME_LIB)
-cmake_pop_check_state()
+if(AYUDAME_LIBRARY)
+  cmake_push_check_state()
+  list(APPEND CMAKE_REQUIRED_INCLUDES ${AYUDAME_INCLUDE_DIR})
+  check_include_files("Ayudame.h" AYUDAME_INCLUDE_WORKS)
+  check_library_exists("ayudame" AYU_event ${AYUDAME_LIBRARY} AYUDAME_LIB_WORKS)
+  cmake_pop_check_state()
+endif(AYUDAME_LIBRARY)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(AYUDAME DEFAULT_MSG
-  AYUDAME_LIBRARY AYUDAME_INCLUDE_DIR FOUND_AYUDAME_INCLUDE FOUND_AYUDAME_LIB)
-mark_as_advanced(FORCE AYUDAME_INCLUDE_DIR AYUDAME_LIBRARY)
+  AYUDAME_LIBRARY AYUDAME_INCLUDE_DIR AYUDAME_INCLUDE_WORKS AYUDAME_LIB_WORKS)
+mark_as_advanced(FORCE AYUDAME_INCLUDE_DIR AYUDAME_LIBRARY AYUDAME_INCLUDE_WORKS AYUDAME_LIB_WORKS)
 
 if(AYUDAME_FOUND)
   set(AYUDAME_INCLUDE_DIRS ${AYUDAME_INCLUDE_DIR})
