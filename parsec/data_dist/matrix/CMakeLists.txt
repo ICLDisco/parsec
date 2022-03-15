@@ -30,6 +30,9 @@ if( TARGET parsec-ptgpp )
                APPEND PROPERTY PTGPP_COMPILE_OPTIONS "--Wremoteref")
 
   target_ptg_sources(parsec PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf;${CMAKE_CURRENT_SOURCE_DIR}/diag_band_to_rect.jdf;${CMAKE_CURRENT_SOURCE_DIR}/apply.jdf")
+  set_property(TARGET parsec
+               APPEND PROPERTY
+                      PRIVATE_HEADER_H ${CMAKE_CURRENT_BINARY_DIR}/diag_band_to_rect.h)
 endif( TARGET parsec-ptgpp )
 
 target_sources(parsec PRIVATE ${sources})
@@ -46,17 +49,5 @@ set_property(TARGET parsec
                                      data_dist/matrix/vector_two_dim_cyclic.h
                                      data_dist/matrix/two_dim_tabular.h
                                      data_dist/matrix/grid_2Dcyclic.h
-                                     data_dist/matrix/subtile.h
-                                     ${CMAKE_CURRENT_BINARY_DIR}/diag_band_to_rect.h)
+                                     data_dist/matrix/subtile.h)
 
-set_property(TARGET parsec
-             APPEND PROPERTY
-                    PRIVATE_HEADER_H data_dist/matrix/deprecated/grid_2Dcyclic.h
-                                     data_dist/matrix/deprecated/matrix.h
-                                     data_dist/matrix/deprecated/two_dim_rectangle_cyclic.h
-                                     data_dist/matrix/deprecated/two_dim_rectangle_cyclic_band.h
-                                     data_dist/matrix/deprecated/sym_two_dim_rectangle_cyclic.h
-                                     data_dist/matrix/deprecated/sym_two_dim_rectangle_cyclic_band.h
-                                     data_dist/matrix/deprecated/vector_two_dim_cyclic.h
-                                     data_dist/matrix/deprecated/two_dim_tabular.h
-                                     data_dist/matrix/deprecated/grid_2Dcyclic.h)
