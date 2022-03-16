@@ -363,24 +363,28 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     cuda_device->minor      = (uint8_t)minor;
     len = asprintf(&gpu_device->super.name, "%s (%d)", szName, dev_id);
     if(-1 == len)
-        gpu_device->super.name = "";
+        gpu_device->super.name = strdup("");
     gpu_device->data_avail_epoch = 0;
 
-    gpu_device->max_exec_streams = PARSEC_MAX_STREAMS;
+    gpu_device->max_exec_streams = 0; // We will increment this as streams are succesfully initialized
     gpu_device->exec_stream =
-        (parsec_gpu_exec_stream_t**)malloc(gpu_device->max_exec_streams * sizeof(parsec_gpu_exec_stream_t*));
+        (parsec_gpu_exec_stream_t**)malloc(PARSEC_MAX_STREAMS * sizeof(parsec_gpu_exec_stream_t*));
     // To reduce the number of separate malloc, we allocate all the streams in a single block, stored in exec_stream[0]
     // Because the gpu_device structure does not know the size of cuda_stream or other GPU streams, it needs to keep
     // separate pointers for the beginning of each exec_stream
-    gpu_device->exec_stream[0] = (parsec_gpu_exec_stream_t*)malloc(gpu_device->max_exec_streams * sizeof
-            (parsec_cuda_exec_stream_t));
-    for( j = 1; j < gpu_device->max_exec_streams; j++ ) {
+    // We use calloc because we need some fields to be zero-initialized to ensure graceful handling of errors
+    gpu_device->exec_stream[0] = (parsec_gpu_exec_stream_t*)calloc(PARSEC_MAX_STREAMS,
+								   sizeof(parsec_cuda_exec_stream_t));
+    for( j = 1; j < PARSEC_MAX_STREAMS; j++ ) {
         gpu_device->exec_stream[j] = (parsec_gpu_exec_stream_t*)(
                 (parsec_cuda_exec_stream_t*)gpu_device->exec_stream[0] + j);
     }
-    for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
+    for( j = 0; j < PARSEC_MAX_STREAMS; j++ ) {
         parsec_cuda_exec_stream_t* cuda_stream = (parsec_cuda_exec_stream_t*)gpu_device->exec_stream[j];
         parsec_gpu_exec_stream_t* exec_stream = &cuda_stream->super;
+
+	/* We will have to release up to this stream in case of error */
+	gpu_device->max_exec_streams++;
 
         /* Allocate the stream */
         cudastatus = cudaStreamCreate( &(cuda_stream->cuda_stream) );
@@ -410,15 +414,15 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
         if(j == 0) {
             len = asprintf(&exec_stream->name, "h2d(%d)", j);
             if(-1 == len)
-                exec_stream->name = "h2d";
+	      exec_stream->name = strdup("h2d");
         } else if(j == 1) {
             len = asprintf(&exec_stream->name, "d2h(%d)", j);
             if(-1 == len)
-                exec_stream->name = "d2h";
+	      exec_stream->name = strdup("d2h");
         } else {
             len = asprintf(&exec_stream->name, "cuda(%d)", j);
             if(-1 == len)
-                exec_stream->name = "cuda";
+	      exec_stream->name = strdup("cuda");
         }
 #if defined(PARSEC_PROF_TRACE)
         /* Each 'exec' stream gets its own profiling stream, except IN and OUT stream that share it.
