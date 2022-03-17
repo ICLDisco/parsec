@@ -79,7 +79,7 @@ static tl_freelist_t *default_freelist = NULL;
 static parsec_profiling_buffer_t *allocate_empty_buffer(tl_freelist_t *fl, off_t *offset, char type);
 
 /* Process-global dictionary */
-static unsigned int parsec_prof_keys_count, parsec_prof_keys_number;
+static int parsec_prof_keys_count, parsec_prof_keys_number;
 static parsec_profiling_key_t* parsec_prof_keys;
 
 static int         __already_called = 0;
@@ -799,7 +799,7 @@ int parsec_profiling_add_dictionary_keyword( const char* key_name, const char* a
                                             int* key_start, int* key_end )
 {
     int ret = 0;
-    unsigned int i;
+    int i;
     int pos = -1;
 
     if( !__profile_initialized ) return 0;
@@ -845,7 +845,7 @@ profiling_keyword_out:
 
 int parsec_profiling_dictionary_flush( void )
 {
-    unsigned int i;
+    int i;
 
     for( i = 0; i < parsec_prof_keys_count; i++ ) {
         if( NULL != parsec_prof_keys[i].name ) {
@@ -1126,7 +1126,7 @@ static int64_t dump_dictionary(int *nbdico)
     parsec_profiling_buffer_t *b, *n;
     parsec_profiling_key_buffer_t *kb;
     parsec_profiling_key_t *k;
-    unsigned int i;
+    int i;
     int nb, nbthis, cs, pos;
     off_t first_off;
 
