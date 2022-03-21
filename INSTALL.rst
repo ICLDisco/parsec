@@ -24,7 +24,7 @@ below. From 1 to 2 (included) they are mandatory. Everything else is
 optional, they provide nice features not critical to the normal usage
 of this software package.
 
-1. cmake version 3.12 or above. cmake can be found in the debian
+1. cmake version 3.18 or above. cmake can be found in the debian
    package cmake, or as sources at the CMake_ download page
 2. Any MPI library Open MPI, MPICH2, MVAPICH or any vendor blessed
    implementation.
@@ -491,10 +491,8 @@ LDFLAGS
   to change your C linking flags
 FC
   to choose your Fortran compiler
-XXX_DIR
-  CMake FindXXX will try this directory as a priority
 XXX_ROOT
-  CMake FindXXX will include this directory in the search
+  CMake FindXXX will include this directory in the search for XXX
 
 .. _modules: https://www.nersc.gov/users/software/user-environment/modules/
 
@@ -547,9 +545,14 @@ your compilation lines, and adapt your configuration options accordingly.
 Spack
 -----
 
-Some DOE sites are exploring the use of Spack_ to install software. You
-can integrate PaRSEC in a Spack environment by using the provided
-configurations in ``contrib/spack``. See the Readme there for more details.
+Some DOE sites are using Spack_ to install software. You can integrate PaRSEC
+in a Spack environment by simply installing PaRSEC with `spack install parsec`,
+since PaRSEC install recipe is part of the main Spack distribution.
+You can see what options are available when building PaRSEC with spack using
+`spack info parsec`, and you can select a particular PaRSEC API version by
+installing `spack install parsec@V` where `V` (e.g., 4) is the API version
+you want to target. See the Spack Readme for more details about selecting
+versions and customizing the installation spec.
 
 
 Running with PaRSEC
