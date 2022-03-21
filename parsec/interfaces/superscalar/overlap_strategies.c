@@ -146,7 +146,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
     int current_dep;
     parsec_dtd_task_t *current_desc = NULL;
-    int op_type_on_current_flow, desc_op_type, desc_flow_index;
+    int op_type_on_current_flow, desc_op_type, desc_flow_index, cur_desc_op_type;
     parsec_dtd_tile_t *tile;
 
     parsec_dep_t deps;
@@ -294,6 +294,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
             data.displ  = 0;
 
             desc_op_type = ((DESC_OF(current_task, current_dep))->op_type & PARSEC_GET_OP_TYPE);
+            cur_desc_op_type = ((DESC_OF(current_task, current_dep))->op_type & PARSEC_GET_OP_TYPE);
             desc_flow_index = (DESC_OF(current_task, current_dep))->flow_index;
 
             int get_out = 0, tmp_desc_flow_index, release_parent = 0;
@@ -384,15 +385,19 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
                 rank_dst = current_desc->rank;
 
-                ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
-                        &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
+                //if((PARSEC_DTD_BCAST_DATA_TC_ID != current_task->super.task_class->task_class_id) || (PARSEC_OUTPUT == ((DESC_OF(current_task, current_dep))->op_type & PARSEC_GET_OP_TYPE) || PARSEC_INOUT == ((DESC_OF(current_task, current_dep))->op_type & PARSEC_GET_OP_TYPE))) {
+                    ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
+                            &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
+                //}
                 vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
 
 #if defined(DISTRIBUTED)
                 if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) && (NULL != arg->remote_deps) ) {
-                    (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
-                    parsec_remote_dep_activate(es, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
-                    arg->remote_deps = NULL;
+                    //if((PARSEC_DTD_BCAST_DATA_TC_ID != current_task->super.task_class->task_class_id) || (PARSEC_OUTPUT == (cur_desc_op_type & PARSEC_GET_OP_TYPE) || PARSEC_INOUT == (cur_desc_op_type & PARSEC_GET_OP_TYPE))) {
+                        (void)parsec_atomic_fetch_inc_int32(&current_task->super.data[current_dep].data_out->readers);
+                        parsec_remote_dep_activate(es, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
+                        arg->remote_deps = NULL;
+                    //}
                 }
 #endif
 
@@ -407,6 +412,8 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                         }
                     }
                 }
+
+                cur_desc_op_type = desc_op_type;
             } while (0 == get_out);
 
         }

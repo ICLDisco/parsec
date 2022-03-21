@@ -538,7 +538,13 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                         remote_deps->msg.locals[0].value = remote_deps->bcast_keys[i]; /* p2p, update the key for this message */
                         remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
                     } else {
-                        remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
+                        /* TODO: when the parent is BCAST_DATA tc, but we need to do a p2p to remote write */
+                        if(this_dtd_task->super.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID && remote_deps->bcast_keys[15]) {
+                            remote_deps->msg.locals[0].value = remote_deps->bcast_keys[i]; /* p2p, update the key for this message */
+                            remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
+                        } else {
+                            remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
+                        }
                     }
                 } else {
                     remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);

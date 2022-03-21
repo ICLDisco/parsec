@@ -1474,11 +1474,17 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)param;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)newcontext;
     int32_t not_ready = 1;
-
+    
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank && src_rank == oldcontext->taskpool->context->my_rank) {
         assert( 0 == (arg->action_mask & PARSEC_ACTION_RECV_INIT_REMOTE_DEPS) );
 
+        /* TODO: check that the desc task is a read task, then it should skip here, now 4 is unmqr */
+        if(PARSEC_DTD_BCAST_DATA_TC_ID == oldcontext->task_class->task_class_id) {
+            if(4 == current_task->super.task_class->task_class_id) {
+                return PARSEC_ITERATE_CONTINUE;
+            }   
+        }
         if( arg->action_mask & PARSEC_ACTION_SEND_INIT_REMOTE_DEPS ) {
             if( parsec_dtd_not_sent_to_rank((parsec_dtd_task_t *)oldcontext,
                                             dep->belongs_to->flow_index, dst_rank) ) {
@@ -1499,6 +1505,11 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
                     arg->remote_deps->bcast_keys[dep->dep_datatype_index] = 0;
                     arg->remote_deps->bcast_keys[dep->dep_datatype_index] |= src_rank<<18;
                     arg->remote_deps->bcast_keys[dep->dep_datatype_index] |= (FLOW_OF(real_parent_task, dep->belongs_to->flow_index))->msg_keys[dst_rank];
+                } else {
+                    arg->remote_deps->bcast_keys[dep->dep_datatype_index] = 0;
+                    arg->remote_deps->bcast_keys[dep->dep_datatype_index] |= src_rank<<18;
+                    arg->remote_deps->bcast_keys[dep->dep_datatype_index] |= (FLOW_OF(real_parent_task, dep->belongs_to->flow_index))->msg_keys[dst_rank];
+                    arg->remote_deps->bcast_keys[15] = 1; /* a flag to indicate bcast_keys has been set */
                 }
                 output = &arg->remote_deps->output[dep->dep_datatype_index];
                 assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
@@ -2755,7 +2766,15 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                     }
                 }
             } else {
-                /* do nothing */
+                /* For bcast data task, if we have a remote write descendant, generate the p2p key for send */
+                if(last_writer.task->super.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID && parsec_dtd_task_is_remote(this_task) 
+                        && parsec_dtd_task_is_local(last_writer.task)) {
+                    if(PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE)) {
+                        FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = dtd_tp->send_task_id[this_task->rank]++;
+                        last_writer.task->super.locals[5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
+                        fprintf(stderr, "BCAST_DATA %p last_writer.task on root %d with send ID to rank %d task %p as %d\n", last_writer.task, last_writer.task->rank, this_task->rank, this_task, last_writer.task->super.locals[5].value);
+                    }
+                }
             }
 
             /* Are we using the same data multiple times for the same task? */
