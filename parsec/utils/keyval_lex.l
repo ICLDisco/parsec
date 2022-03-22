@@ -5,7 +5,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2020 The University of Tennessee and The University
+ * Copyright (c) 2004-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -19,6 +19,17 @@
  * Additional copyrights may follow
  *
  * $HEADER$
+ */
+
+/* When FLEX_FOUND is set, normal dependency tracking will generate the
+ * .l.c in the build directory from the .l in the source directory (this file).
+ * In addition, one shall invoke by hand the rule to update the pregen
+ * .l.c files, before committing any changes to the .l files, e.g.,
+ * `make parsec_pregen_flex_bison`.
+ *
+ * When FLEX_FOUND is not set, the .l.c version of this file is copied
+ * from the pregenerated .l.c file in `contrib/pregen_flex_bison`, and
+ * modifying this file will result in a compilation error.
  */
 
 #include "parsec/parsec_config.h"

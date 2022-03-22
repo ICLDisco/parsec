@@ -27,6 +27,13 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Check PR updates Flex/Bison Archive iff .y/.l modified
+      if: ${{ github.event_name == 'pull_request' }}
+      shell: bash
+      run: |
+        # Check if .l/.y files have been modified without corresponding update with `cmake --build . --target parsec_pregen_flex_bison`
+        git diff --name-only --diff-filter=AMRD origin/${{ github.base_ref }} -- contrib/pregen_flex_bison.tar '*.[ly]' | awk '/pregen_flex_bison.tar/{t=1} /.[ly]/{s=1} END{if(t-s) exit 1}'
+
     - name: Create Build Environment ${{ runner.os }}
       # Create a separate build directory and use it for all subsequent commands
       run: cmake -E make_directory ${{ env.BUILD_DIRECTORY }}

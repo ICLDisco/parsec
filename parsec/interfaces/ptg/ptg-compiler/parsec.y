@@ -1,8 +1,19 @@
 %{
 /**
- * Copyright (c) 2009-2021 The University of Tennessee and The University
+ * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ */
+
+/* When BISON_FOUND is set, normal dependency tracking will generate the
+ * .y.[ch] in the build directory from the .y in the source directory (this file).
+ * In addition, one shall invoke by hand the rule to update the pregen
+ * .y.[ch] files, before committing any changes to the .y files, e.g.,
+ * `make parsec_pregen_flex_bison`.
+ *
+ * When BISON_FOUND is not set, the .y.[ch] version of this file is copied
+ * from the pregenerated .y.[ch] file in `contrib/pregen_flex_bison`, and
+ * modifying this file will result in a compilation error.
  */
 
 #include "parsec/parsec_config.h"
