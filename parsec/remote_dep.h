@@ -48,7 +48,7 @@ typedef struct remote_dep_wire_get_s
 } remote_dep_wire_get_t;
 
 /**
- * This structure holds the key information for any data mouvement. It contains the arena
+ * This structure holds the key information for any data movement. It contains the arena
  * where the data is allocated from, or will be allocated from. It also contains the
  * pointer to the buffer involved in the communication (or NULL if the data will be
  * allocated before the reception). Finally, it contains the triplet allowing a correct send

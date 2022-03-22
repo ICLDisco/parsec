@@ -21,18 +21,18 @@ typedef struct subtile_desc_s {
 } subtile_desc_t;
 
 /**
- * Initialize a descriptor to apply a recursive call on a single tile of a more
- * general tile descriptor.
+ * Initialize a data descriptor based on an already existing tile. This can be
+ * useful to apply a recursive call on a single tile of a larger data collection.
  *
  * @param[in] tdesc
  *        tiled_matrix_descriptor which owns the tile that will be split into
  *        smaller tiles.
  *
  * @param[in] mt
- *        Row coordinate of the tile to split int the larger matrix.
+ *        Row coordinate in the parent matrix of the tile to be split.
  *
  * @param[in] nt
- *        Column coordinate of the tile to split int the larger matrix.
+ *        Column coordinate in the parent matrix of the tile to be split.
  *
  * @param[in] mb
  *        Number of rows in each subtiles
