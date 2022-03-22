@@ -12,11 +12,6 @@
 #warning This file is only for PowerPC
 #endif  /* __ PPC */
 
-#if defined(PARSEC_HAVE_INT128)
-/* INT128 support was detected, yet there is no 128 atomics on this architecture */
-#error CMake Logic Error. INT128 support should be deactivated when using these atomics
-#endif
-
 /* Memory Barriers */
 
 ATOMIC_STATIC_INLINE

@@ -8,11 +8,6 @@
 #error This file should only be included on MAC OS X > Snow Leopard
 #endif
 
-#if defined(PARSEC_HAVE_INT128)
-/* INT128 support was detected, yet there is no 128 atomics on this architecture */
-#error CMake Logic Error. INT128 support should be deactivated when using these atomics
-#endif
-
 #include <libkern/OSAtomic.h>
 
 /* Memory Barriers */
@@ -43,17 +38,6 @@ int parsec_atomic_cas_int64( volatile int64_t* location,
 {
     return OSAtomicCompareAndSwap64( old_value, new_value, location );
 }
-
-#if defined(PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
-#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128
-ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_int128( volatile __int128_t* location,
-                              __int128_t old_value,
-                              __int128_t new_value )
-{
-    return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
-}
-#endif
 
 /* Mask */
 

@@ -18,7 +18,7 @@ typedef struct {
     int32_t      padding1;
     int64_t      i64;
 
-#if defined(PARSEC_HAVE_INT128)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
     __int128_t   i128;
     __int128_t   mo128;
     __int128_t   ma128;
@@ -42,7 +42,7 @@ static void *pfunction(void *_param)
     int r;
     int32_t l16_32, l32;
     int64_t l32_64, l64;
-#if defined(PARSEC_HAVE_INT128)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
     __int128_t l64_128, l128;
     int nb_cases = 18;
 #else
@@ -60,7 +60,7 @@ static void *pfunction(void *_param)
         l16_32 = l32 & 0xFFFF;
         l64 = (((int64_t)nrand48(param->xsubi)) << 32) | l32;
         l32_64 = l64 & 0xFFFFFFFF;
-#if defined(PARSEC_HAVE_INT128)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
         l128 = nrand48(param->xsubi);
         l128 = (l128 << 32) | nrand48(param->xsubi);
         l128 = (l128 << 32) | nrand48(param->xsubi);
@@ -116,7 +116,7 @@ static void *pfunction(void *_param)
             param->lv->i64--;
             parsec_atomic_fetch_dec_int64(&param->gv->i64);
             break;
-#if defined(PARSEC_HAVE_INT128)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
         case 12:
             param->lv->mo128 |= l128;
             parsec_atomic_fetch_or_int128(&param->gv->mo128, l128);
@@ -150,7 +150,7 @@ static void *pfunction(void *_param)
     return NULL;
 }
 
-#if defined(PARSEC_HAVE_INT128)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
 static void positive_int128_tostr_rec(__uint128_t n, char *out, int offset, int base) {
     if (n == 0) {
         out[offset] = '\0';
@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
     unsigned short xsubi[3];
     int i, ret = 0;
     struct timeval now;
-#if defined(PARSEC_HAVE_INT128)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
     char v128a[128];
     char v128b[128];
 #endif
@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
     values[nb_threads].ma64 = (values[nb_threads].ma64 << 32) | nrand48(xsubi);
     values[nb_threads].i32 = nrand48(xsubi) & 0xFFFF;
     values[nb_threads].i64 = nrand48(xsubi);
-#if defined(PARSEC_HAVE_INT128)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
     values[nb_threads].i128 = nrand48(xsubi);
     values[nb_threads].i128 = (values[nb_threads].i128 << 32) | nrand48(xsubi);
     values[nb_threads].mo128 = nrand48(xsubi);
@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
         values[i].ma64 = 0; values[i].ma64 = ~values[i].ma64;
         values[i].i32  = 0;
         values[i].i64  = 0;
-#if defined(PARSEC_HAVE_INT128)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
         values[i].i128 = 0;
         values[i].mo128 = 0;
         values[i].ma128 = 0; values[i].ma128 = ~values[i].ma128;
@@ -309,7 +309,7 @@ int main(int argc, char *argv[])
         values[nb_threads+1].ma64 &= values[i].ma64;
         values[nb_threads+1].i32  += values[i].i32;
         values[nb_threads+1].i64  += values[i].i64;
-#if defined(PARSEC_HAVE_INT128)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
         values[nb_threads+1].i128 += values[i].i128;
         values[nb_threads+1].mo128 |= values[i].mo128;
         values[nb_threads+1].ma128 &= values[i].ma128;
@@ -364,7 +364,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "No error in integer operation on 64 bits: got %"PRId64"\n",
                 values[nb_threads+1].i64);
     }
-#if defined(PARSEC_HAVE_INT128)
+#if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
     if( values[nb_threads+1].i128 != values[i].i128 ) {
         fprintf(stderr, "Error in integer operations on 128 bits: expected %s, got %s\n",
                 int128_to_str_base10(values[nb_threads+1].i128, v128a),
