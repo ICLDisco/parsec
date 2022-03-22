@@ -3291,6 +3291,7 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
                 "\n",
                 sname);
     } else {
+        string_arena_t *sa1 = string_arena_new(64);
         string_arena_t *sa_format = string_arena_new(64);
         string_arena_t *sa_params = string_arena_new(64);
         string_arena_t *sa_info = string_arena_new(64);
@@ -3317,7 +3318,11 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
                 sname,
                 jdf_basename, jdf_basename);
         if(need_assignment)
-            coutput("  %s "JDF2C_NAMESPACE"_assignments;\n", parsec_get_name(jdf, f, "parsec_assignment_t"));
+            coutput("  %s "JDF2C_NAMESPACE"_assignments = {%s};\n",
+                parsec_get_name(jdf, f, "parsec_assignment_t"),
+                UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
+                                     "  ", ".", ".value = 0, ", ".value = 0 "));
+        string_arena_free(sa1);
         
         for(vl = f->locals; vl != NULL; vl = vl->next) {
             if( local_is_parameter(f, vl) != NULL ) {
@@ -3450,13 +3455,16 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
 
     if( need_to_iterate ) {
-        coutput("  %s assignments;\n", parsec_get_name(jdf, f, "parsec_assignment_t"));
+        coutput("  %s assignments = {%s};\n",
+            parsec_get_name(jdf, f, "parsec_assignment_t"),
+            UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
+                                     "  ", ".", ".value = 0, ", ".value = 0 "));
         if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
             coutput("  parsec_dependencies_t *dep = NULL;\n");
         }
         coutput("%s",
                 UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
-                                     "  int32_t ", " ", ",", ";\n"));
+                                     "  int32_t ", " ", ", ", ";\n"));
         for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
             vl = l2p_item->vl; assert(NULL != vl);
 
