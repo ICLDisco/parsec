@@ -128,15 +128,15 @@ endif(NOT CMAKE_SYSTEM_NAME MATCHES "Windows")
 #
 
 # add gdb symbols in debug and relwithdebinfo, g3 for macro support when available
-check_and_set_compiler_option(OPTION "-g3" NAME PARSEC_HAVE_G3 COMMENT "List of compile options used to enable highest level of debugging (e.g. -g3)")
+check_and_set_compiler_option(OPTION "-g3" NAME PARSEC_HAVE_G3 COMMENT "List of compile options used to enable highest level of debugging (e.g. -g3)" CONFIG DEBUG)
 
 # Some compilers produce better debugging outputs with Og vs O0
 # but this should only be used in RelWithDebInfo mode.
 check_and_set_compiler_option(OPTION "-Og" NAME PARSEC_HAVE_Og CONFIG RELWITHDEBINFO)
 
 # Set warnings for debug builds
-check_and_set_compiler_option(OPTION "-Wall" NAME PARSEC_HAVE_WALL )
-check_and_set_compiler_option(OPTION "-Wextra" NAME PARSEC_HAVE_WEXTRA )
+check_and_set_compiler_option(OPTION "-Wall" NAME PARSEC_HAVE_WALL)
+check_and_set_compiler_option(OPTION "-Wextra" NAME PARSEC_HAVE_WEXTRA)
 
 # Flex-generated files make some compilers generate a significant
 # amount of warnings. We define here warning silent options
