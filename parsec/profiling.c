@@ -180,7 +180,10 @@ profiling_allocate_new_buffer(void)
 
 #if defined(PARSEC_PROFILING_USE_MMAP)
     do_and_measure_perf(PERF_MMAP,
-      res = mmap(NULL, event_buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_backend_fd, my_offset));
+        res = mmap(NULL, event_buffer_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_backend_fd, my_offset));
+    if(MAP_FAILED == res) {
+        fprintf(stderr, "## Profiling: Unable to mmap a new segment in the backend file: %s\n", strerror(errno));
+    }
     res = (res == MAP_FAILED) ? NULL : res;
 #else
     do_and_measure_perf(PERF_MALLOC,
@@ -1336,6 +1339,9 @@ int parsec_profiling_dbp_dump( void )
     profile_head->thread_offset = dump_thread(&nb_threads);
     profile_head->nb_threads = nb_threads;
 
+    /* Now commit the file as OK. If we fail before we unmap the rest, it's fine, it's excess bytes in the file */
+    memcpy(profile_head->magick, PARSEC_PROFILING_MAGICK, strlen(PARSEC_PROFILING_MAGICK) + 1);
+
     /* The head is now complete. Last flush. */
     write_down_existing_buffer(default_freelist,
                                (parsec_profiling_buffer_t *)profile_head,
@@ -1456,7 +1462,9 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
     if( NULL == profile_head )
         return PARSEC_ERR_OUT_OF_RESOURCE;
 
-    memcpy(profile_head->magick, PARSEC_PROFILING_MAGICK, strlen(PARSEC_PROFILING_MAGICK) + 1);
+    /* We set the magick to 0 for now. Only when the profile is complete and dumped we will overwrite
+     * this with the bytes that mark a valid file */
+    memset(profile_head->magick, 0, strlen(PARSEC_PROFILING_MAGICK) + 1);
     profile_head->byte_order = 0x0123456789ABCDEF;
     profile_head->profile_buffer_size = event_buffer_size;
     strncpy(profile_head->hr_id, hr_info, 127); /* We copy only up to 127 bytes to leave room for the '\0' */
