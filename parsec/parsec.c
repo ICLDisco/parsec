@@ -484,11 +484,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
 #if defined(PARSEC_HAVE_HWLOC)
     parsec_hwloc_init();
-#if defined(PARSEC_OSX)
-    if( slow_bind_warning && 0 == parsec_debug_rank )
-        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                       "OS X < 10.13 does not support thread/process binding.\n");
-#endif  /* defined(PARSEC_OSX) */
 #endif  /* defined(HWLOC) */
 
     if( parsec_cmd_line_is_taken(cmd_line, "ht") ) {

@@ -309,9 +309,6 @@ include (ParsecCompilerFlags)
 
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set( PARSEC_OSX 1 CACHE INTERNAL "Compile on MAC OS X")
-endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
 if(PARSEC_DEBUG_MEM_RACE OR PARSEC_DEBUG_MEM_ADDR OR PARSEC_DEBUG_MEM_LEAK)
   # Don't redetect cached values

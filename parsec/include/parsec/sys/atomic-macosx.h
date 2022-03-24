@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#ifndef PARSEC_OSX
+#ifndef __APPLE__
 #error This file should only be included on MAC OS X > Snow Leopard
 #endif
 

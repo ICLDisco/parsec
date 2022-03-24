@@ -38,7 +38,7 @@ BEGIN_C_DECLS
  * If the compiler provides atomic primitives we prefer to use
  * them instead of our own atomic assembly.
  */
-#    if defined(PARSEC_OSX)
+#    if defined(__APPLE__)
 #       include <AvailabilityMacros.h>
 #    endif
 #    if defined(__FUJITSU)
@@ -46,7 +46,7 @@ BEGIN_C_DECLS
 #    endif
 #    if defined(PARSEC_ATOMIC_USE_XLC_32_BUILTINS)
 #      include "atomic-xlc.h"
-#    elif defined(PARSEC_OSX) && ((MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12) || (__clang_major__ >= 12))
+#    elif defined(__APPLE__) && ((MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12) || (__clang_major__ >= 12))
 /* Intel compiler on OSX defined __clang__ but do not support the pragmas */
 #        if defined(__clang__) && !defined(__ICC)
 #          pragma clang diagnostic push

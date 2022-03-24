@@ -644,21 +644,19 @@ static int remote_dep_bind_thread(parsec_context_t* context)
     if( context->comm_th_core >= 0 ) {
         /* Bind to the specified core */
         if(parsec_bindthread(context->comm_th_core, -1) == context->comm_th_core) {
-            parsec_debug_verbose(4, parsec_comm_output_stream, "Communication thread bound to physical core %d",  context->comm_th_core);
 
             /* Check if this core is not used by a computation thread */
             if( hwloc_bitmap_isset(context->cpuset_free_mask, context->comm_th_core) ) {
                 /* The thread enjoys an exclusive core. Force disable comm_yield. */
+                parsec_debug_verbose(4, parsec_comm_output_stream, "Communication thread bound to physical core %d (without yield back-off)",  context->comm_th_core);
                 comm_yield = 0;
             } else {
                 /* The thread shares the core. Let comm_yield as user-set. */
-                parsec_debug_verbose(4, parsec_comm_output_stream, "Communication thread is bound to core %d which is also hosting a compute execution unit", context->comm_th_core);
+                parsec_debug_verbose(4, parsec_comm_output_stream, "Communication thread is bound to core %d (with%s yield back-off); This core is also hosting a compute execution unit", context->comm_th_core, comm_yield? "": "out");
             }
         } else {
-#if !defined(PARSEC_OSX)
             /* There is no guarantee the thread doesn't share the core. Let comm_yield as user-set. */
             parsec_warning("Request to bind the communication thread on core %d failed.", context->comm_th_core);
-#endif  /* !defined(PARSEC_OSX) */
         }
     } else {
         /* bind the communication thread to any available core (which means described by the
@@ -679,8 +677,8 @@ static int remote_dep_bind_thread(parsec_context_t* context)
         }
         parsec_debug_verbose(4, parsec_comm_output_stream,
                             "Communication thread bound on the cpu mask %s (with%s yield back-off)",
-                            str, (comm_yield ? "" : "out"));
-        free(str);
+                            str? str: "NOT BOUND", (comm_yield ? "" : "out"));
+        if(str) free(str);
     }
 #else /* NO PARSEC_HAVE_HWLOC */
     /* If we don't have hwloc, try to bind the thread on the core #nbcore as the

@@ -57,7 +57,6 @@ static int hyperth_per_core = 1;
 #endif  /* defined(PARSEC_HAVE_HWLOC_BITMAP) */
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 
-#if !defined(PARSEC_OSX)
 /**
  * Print the cpuset as a string prefaced with the provided message.
  */
@@ -75,7 +74,6 @@ static void parsec_hwloc_print_cpuset(int verb, char* msg, hwloc_cpuset_t cpuset
     parsec_debug_verbose(3, parsec_debug_output, "%s compiled without HWLOC support", msg);
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 }
-#endif  /* !defined(PARSEC_OSX) */
 
 int parsec_hwloc_init(void)
 {
@@ -389,9 +387,7 @@ int parsec_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 
     /* And try to bind ourself there.  */
     if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
-#if !defined(PARSEC_OSX)
         parsec_hwloc_print_cpuset(1, "parsec_hwloc: couldn't bind to cpuset", obj->cpuset );
-#endif  /* !defined(PARSEC_OSX) */
         cpu_index = PARSEC_ERR_NOT_FOUND;
         goto free_and_return;
     }
@@ -435,16 +431,12 @@ int parsec_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     } hwloc_bitmap_foreach_end();
 
     if (hwloc_set_cpubind(topology, binding_mask, HWLOC_CPUBIND_THREAD)) {
-#if !defined(PARSEC_OSX)
-        parsec_hwloc_print_cpuset(1, "Couldn't bind to cpuset ", binding_mask);
-#endif  /* !defined(PARSEC_OSX) */
+        parsec_hwloc_print_cpuset(1, "parsec_hwloc: couldn't bind to mask cpuset ", binding_mask);
         return PARSEC_ERROR;
     }
 
-#if !defined(PARSEC_OSX)
     parsec_hwloc_print_cpuset(9, "Thread binding: cpuset binding [LOGICAL ]: ", cpuset);
     parsec_hwloc_print_cpuset(4, "Thread binding: cpuset binding [PHYSICAL]: ", binding_mask);
-#endif  /* !defined(PARSEC_OSX) */
 
     first_free = hwloc_bitmap_first(binding_mask);
     hwloc_bitmap_free(binding_mask);
