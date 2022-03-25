@@ -77,11 +77,9 @@ static int sched_ap_component_query(mca_base_module_t **module, int *priority)
 
 static int sched_ap_component_register(void)
 {
-#if defined(PARSEC_PAPI_SDE)
-    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=AP",
-                              "the number of pending tasks for the AP scheduler");
-    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=AP",
-                              "the number of pending tasks for the AP scheduler on virtual process <VPID>");
-#endif
+    PARSEC_PAPI_SDE_DESCRIBE_COUNTER("SCHEDULER::PENDING_TASKS::SCHED=AP",
+                                     "the number of pending tasks for the AP scheduler");
+    PARSEC_PAPI_SDE_DESCRIBE_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=AP",
+                                     "the number of pending tasks for the AP scheduler on virtual process <VPID>");
     return MCA_SUCCESS;
 }

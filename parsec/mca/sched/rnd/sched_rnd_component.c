@@ -77,12 +77,10 @@ static int sched_rnd_component_query(mca_base_module_t **module, int *priority)
 
 static int sched_rnd_component_register(void)
 {
-    #if defined(PARSEC_PAPI_SDE)
-    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=RND",
+    PARSEC_PAPI_SDE_DESCRIBE_COUNTER("SCHEDULER::PENDING_TASKS::SCHED=RND",
                               "the number of pending tasks for the RND scheduler");
-    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=RND",
+    PARSEC_PAPI_SDE_DESCRIBE_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=RND",
                               "the number of pending tasks for the RND scheduler on virtual process <VPID>");
-#endif
     return MCA_SUCCESS;
 }
 

@@ -3,15 +3,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "parsec/papi_sde.h"
 #include "parsec/sys/tls.h"
-#include "parsec/papi_sde_interface.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/utils/debug.h"
 #include "parsec/class/list.h"
 #include "parsec/class/parsec_rwlock.h"
 
-papi_handle_t parsec_papi_sde_handle = NULL;
+#define PAPI_SDE_IMPLEMENTATION
+#include "parsec/sde_lib.h"
+#include "parsec/papi_sde.h"
+
+#include "parsec/utils/mca_param.h"
+#include "parsec/mca/mca_repository.h"
+
+static papi_handle_t parsec_papi_sde_handle = NULL;
 
 typedef struct {
     parsec_list_item_t super;
@@ -35,22 +40,22 @@ typedef struct {
 } hl_counter_type_t;
 
 hl_counter_type_t hl_counters[PARSEC_PAPI_SDE_NB_HL_COUNTERS] = {
-    { "PARSEC::MEM_ALLOC",
+    { "MEM_ALLOC",
       "the amount of temporary memory allocated by PaRSEC to communicate "
       " user's data (typically to receive a data sent by a remote task)",
       1, 1 },
-    { "PARSEC::MEM_USED",
+    { "MEM_USED",
       "the amount of temporary memory currently used by PaRSEC to communicate"
       " user's data (typically how much bytes have been allocated to host"
       " data sent by a remote task that are currently needed by active or pending tasks)",
       1, 1 },
-    { "PARSEC::TASKS_ENABLED",
+    { "TASKS_ENABLED",
       "the number of tasks that became ready at this time",
       1, 0 },
-    { "PARSEC::TASKS_RETIRED",
+    { "TASKS_RETIRED",
       "the numbre of tasks that completed at this time",
       1, 0},
-    { "PARSEC::SCHEDULER::PENDING_TASKS",
+    { "SCHEDULER::PENDING_TASKS",
       "the number of pending tasks. A task is said pending if it is "
       "ready to execute but waits for execution in one of the scheduler queues.",
       0, 1 }
@@ -58,7 +63,7 @@ hl_counter_type_t hl_counters[PARSEC_PAPI_SDE_NB_HL_COUNTERS] = {
 
 static long long int parsec_papi_sde_base_counter_cb(void *arg);
 
-void PARSEC_PAPI_SDE_INIT(void)
+void parsec_papi_sde_init(void)
 {
     parsec_papi_sde_hl_counters_t cnt;
 
@@ -69,7 +74,6 @@ void PARSEC_PAPI_SDE_INIT(void)
     parsec_atomic_rwlock_init( &sde_threads_lock );
 
     for(cnt = PARSEC_PAPI_SDE_FIRST_BASIC_COUNTER; cnt <= PARSEC_PAPI_SDE_LAST_BASIC_COUNTER; cnt++) {
-        papi_sde_describe_counter(parsec_papi_sde_handle, hl_counters[cnt].name, hl_counters[cnt].description);
         if( hl_counters[cnt].basic ) {
             if( hl_counters[cnt].instant ) {
                 papi_sde_register_fp_counter(parsec_papi_sde_handle, hl_counters[cnt].name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
@@ -78,11 +82,48 @@ void PARSEC_PAPI_SDE_INIT(void)
                 papi_sde_register_fp_counter(parsec_papi_sde_handle, hl_counters[cnt].name, PAPI_SDE_RO,
                                              PAPI_SDE_int, (papi_sde_fptr_t)parsec_papi_sde_base_counter_cb, (void*)cnt);
             }
+            papi_sde_describe_counter(parsec_papi_sde_handle, hl_counters[cnt].name, hl_counters[cnt].description);
         }
     }
 }
 
-void PARSEC_PAPI_SDE_FINI(void)
+static papi_sde_fptr_struct_t *parsec_papi_sde_fptr = NULL;
+
+papi_handle_t papi_sde_hook_list_events(papi_sde_fptr_struct_t *fptr_struct){
+    parsec_papi_sde_hl_counters_t cnt;
+
+    parsec_papi_sde_handle = fptr_struct->init("PARSEC");
+    for(cnt = PARSEC_PAPI_SDE_FIRST_BASIC_COUNTER; cnt <= PARSEC_PAPI_SDE_LAST_BASIC_COUNTER; cnt++) {
+        if( hl_counters[cnt].basic ) {
+            if( hl_counters[cnt].instant ) {
+                fptr_struct->register_fp_counter(parsec_papi_sde_handle, hl_counters[cnt].name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                                 PAPI_SDE_int, (papi_sde_fptr_t)parsec_papi_sde_base_counter_cb, (void*)cnt);
+            } else {
+                fptr_struct->register_fp_counter(parsec_papi_sde_handle, hl_counters[cnt].name, PAPI_SDE_RO,
+                                                 PAPI_SDE_int, (papi_sde_fptr_t)parsec_papi_sde_base_counter_cb, (void*)cnt);
+            }
+            fptr_struct->describe_counter(parsec_papi_sde_handle, hl_counters[cnt].name, hl_counters[cnt].description);
+        }
+    }
+    parsec_papi_sde_fptr = fptr_struct;
+    parsec_mca_param_init();
+    mca_components_repository_init();
+
+    mca_base_component_t **scheds;
+    mca_base_module_t    *new_scheduler = NULL;
+    mca_base_component_t *new_component = NULL;
+
+    scheds = mca_components_open_bytype( "sched" );
+    mca_components_query(scheds,
+                         &new_scheduler,
+                         &new_component);
+    mca_components_close(scheds);
+
+    parsec_papi_sde_fptr = NULL;
+    return parsec_papi_sde_handle;
+}
+
+void parsec_papi_sde_fini(void)
 {
     parsec_list_item_t *it;
     parsec_papi_sde_hl_counters_t cnt;
@@ -100,7 +141,7 @@ void PARSEC_PAPI_SDE_FINI(void)
     parsec_papi_sde_handle = NULL;    
 }
 
-void PARSEC_PAPI_SDE_THREAD_INIT(void)
+void parsec_papi_sde_thread_init(void)
 {
     parsec_thread_sde_counters_t *new_counters;
     
@@ -120,7 +161,7 @@ void PARSEC_PAPI_SDE_THREAD_INIT(void)
     parsec_atomic_rwlock_wrunlock( &sde_threads_lock );
 }
 
-void PARSEC_PAPI_SDE_THREAD_FINI(void)
+void parsec_papi_sde_thread_fini(void)
 {
     parsec_thread_sde_counters_t *my_counters;
 
@@ -135,7 +176,7 @@ void PARSEC_PAPI_SDE_THREAD_FINI(void)
     PARSEC_OBJ_RELEASE(my_counters);
 }
 
-void PARSEC_PAPI_SDE_COUNTER_SET(parsec_papi_sde_hl_counters_t cnt, long long int value)
+void parsec_papi_sde_counter_set(parsec_papi_sde_hl_counters_t cnt, long long int value)
 {
     parsec_thread_sde_counters_t *tls_counters;
 
@@ -149,7 +190,7 @@ void PARSEC_PAPI_SDE_COUNTER_SET(parsec_papi_sde_hl_counters_t cnt, long long in
     parsec_atomic_rwlock_rdunlock( &sde_threads_lock );
 }
 
-void PARSEC_PAPI_SDE_COUNTER_ADD(parsec_papi_sde_hl_counters_t cnt, long long int value)
+void parsec_papi_sde_counter_add(parsec_papi_sde_hl_counters_t cnt, long long int value)
 {
     parsec_thread_sde_counters_t *tls_counters;
 
@@ -167,7 +208,7 @@ static long long int parsec_papi_sde_base_counter_cb(void *arg)
 {
     parsec_papi_sde_hl_counters_t cnt = (parsec_papi_sde_hl_counters_t)(uintptr_t)arg;
     long long int sum = 0;
-
+    
     parsec_atomic_rwlock_rdlock( &sde_threads_lock );
     for(parsec_list_item_t *it = PARSEC_LIST_ITERATOR_FIRST(&sde_threads);
         it != PARSEC_LIST_ITERATOR_LAST(&sde_threads);
@@ -179,7 +220,7 @@ static long long int parsec_papi_sde_base_counter_cb(void *arg)
     return sum;
 }
 
-void PARSEC_PAPI_SDE_UNREGISTER_COUNTER(const char *format, ...)
+void parsec_papi_sde_unregister_counter(const char *format, ...)
 {
     va_list ap;
     char name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
@@ -188,4 +229,30 @@ void PARSEC_PAPI_SDE_UNREGISTER_COUNTER(const char *format, ...)
     va_end(ap);
 
     papi_sde_unregister_counter(parsec_papi_sde_handle, name);
+}
+
+void parsec_papi_sde_register_fp_counter(const char *event_name, int flags, int type, papi_sde_fptr_t fn, void *data)
+{
+    papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, (flags), (type), fn, data);
+}
+
+void parsec_papi_sde_register_counter(const char *event_name, int flags, int type, long long int *ptr)
+{
+    papi_sde_register_counter(parsec_papi_sde_handle, event_name, (flags), (type), ptr);
+}
+
+void parsec_papi_sde_add_counter_to_group(const char *event_name, const char *group_name, int operand)
+{
+    papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name, group_name, (operand));
+}
+
+void parsec_papi_sde_describe_counter(const char *event_name, const char *description)
+{
+    if(NULL == parsec_papi_sde_fptr)
+        papi_sde_describe_counter(parsec_papi_sde_handle, event_name, description);
+    else {
+        parsec_papi_sde_fptr->register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT, PAPI_SDE_int, 
+                                                  (papi_sde_fptr_t)NULL, NULL);
+        parsec_papi_sde_fptr->describe_counter(parsec_papi_sde_handle, event_name, description);
+    }
 }
