@@ -51,3 +51,14 @@ set_property(TARGET parsec
                                      data_dist/matrix/grid_2Dcyclic.h
                                      data_dist/matrix/subtile.h)
 
+# Install the deprecated headers.
+set_property(TARGET parsec
+             APPEND PROPERTY
+                    PRIVATE_HEADER_H data_dist/matrix/deprecated/grid_2Dcyclic.h
+                                     data_dist/matrix/deprecated/sym_two_dim_rectangle_cyclic_band.h
+                                     data_dist/matrix/deprecated/two_dim_rectangle_cyclic_band.h
+                                     data_dist/matrix/deprecated/two_dim_tabular.h
+                                     data_dist/matrix/deprecated/matrix.h
+                                     data_dist/matrix/deprecated/sym_two_dim_rectangle_cyclic.h
+                                     data_dist/matrix/deprecated/two_dim_rectangle_cyclic.h
+                                     data_dist/matrix/deprecated/vector_two_dim_cyclic.h)
