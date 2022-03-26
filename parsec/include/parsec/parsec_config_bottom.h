@@ -62,6 +62,12 @@
 #   define __parsec_attribute_deprecated__(a)
 #endif
 
+#if defined(PARSEC_HAVE_ENUM_ATTRIBUTE_DEPRECATED)
+#   define __parsec_enum_attribute_deprecated__(msg) __attribute__((deprecated(msg)))
+#else // PARSEC_HAVE_ENUM_ATTRIBUTE_DEPRECATED
+#   define __parsec_enum_attribute_deprecated__(a)
+#endif
+
 /***********************************************************************
  *
  * Windows library interface declaration code

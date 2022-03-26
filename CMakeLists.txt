@@ -562,6 +562,15 @@ int main() {
   return 0;
 }" PARSEC_HAVE_ATTRIBUTE_DEPRECATED)
 
+check_c_source_compiles("
+enum matrix_type {
+   matrix_Byte __parsec_attribute_deprecated__(\"Use PARSEC_MATRIX_BYTE instead\") =  1, /**< unsigned char  */
+   matrix_Integer __parsec_attribute_deprecated__(\"Use PARSEC_MATRIX_INTEGER instead\") = 2, /**< signed int */
+};
+int main() {
+  return 0;
+  }" PARSEC_HAVE_ENUM_ATTRIBUTE_DEPRECATED)
+
 set(EXTRA_INCLUDES "")
 #
 # Find optional packages
