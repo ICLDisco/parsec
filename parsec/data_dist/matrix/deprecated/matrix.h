@@ -13,34 +13,34 @@
 enum
 __parsec_attribute_deprecated__("Use parsec_matrix_type_t instead")
 matrix_type {
-    matrix_Byte          __parsec_attribute_deprecated__("Use PARSEC_MATRIX_BYTE instead") =  PARSEC_MATRIX_BYTE, /**< unsigned char  */
-    matrix_Integer       __parsec_attribute_deprecated__("Use PARSEC_MATRIX_INTEGER instead") = PARSEC_MATRIX_INTEGER, /**< signed int     */
-    matrix_RealFloat     __parsec_attribute_deprecated__("Use PARSEC_MATRIX_FLOAT instead") = PARSEC_MATRIX_FLOAT, /**< float          */
-    matrix_RealDouble    __parsec_attribute_deprecated__("Use PARSEC_MATRIX_DOUBLE instead") = PARSEC_MATRIX_DOUBLE, /**< double         */
-    matrix_ComplexFloat  __parsec_attribute_deprecated__("Use PARSEC_MATRIX_COMPLEX_FLOAT instead") = PARSEC_MATRIX_COMPLEX_FLOAT, /**< complex float  */
-    matrix_ComplexDouble __parsec_attribute_deprecated__("Use PARSEC_MATRIX_COMPLEX_DOUBLE instead") = PARSEC_MATRIX_COMPLEX_DOUBLE  /**< complex double */
+    matrix_Byte          __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_BYTE instead") =  PARSEC_MATRIX_BYTE, /**< unsigned char  */
+    matrix_Integer       __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_INTEGER instead") = PARSEC_MATRIX_INTEGER, /**< signed int     */
+    matrix_RealFloat     __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_FLOAT instead") = PARSEC_MATRIX_FLOAT, /**< float          */
+    matrix_RealDouble    __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_DOUBLE instead") = PARSEC_MATRIX_DOUBLE, /**< double         */
+    matrix_ComplexFloat  __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_COMPLEX_FLOAT instead") = PARSEC_MATRIX_COMPLEX_FLOAT, /**< complex float  */
+    matrix_ComplexDouble __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_COMPLEX_DOUBLE instead") = PARSEC_MATRIX_COMPLEX_DOUBLE  /**< complex double */
 };
 
 enum
 __parsec_attribute_deprecated__("Use parsec_matrix_storage_t instead")
 matrix_storage {
-    matrix_Lapack __parsec_attribute_deprecated__("Use PARSEC_MATRIX_LAPACK instead") = PARSEC_MATRIX_LAPACK, /**< LAPACK Layout or Column Major  */
-    matrix_Tile   __parsec_attribute_deprecated__("Use PARSEC_MATRIX_TILE instead") = PARSEC_MATRIX_TILE, /**< Tile Layout or Column-Column Rectangular Block (CCRB) */
+    matrix_Lapack __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_LAPACK instead") = PARSEC_MATRIX_LAPACK, /**< LAPACK Layout or Column Major  */
+    matrix_Tile   __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_TILE instead") = PARSEC_MATRIX_TILE, /**< Tile Layout or Column-Column Rectangular Block (CCRB) */
 };
 
 enum
 __parsec_attribute_deprecated__("Use parsec_matrix_uplo_t instead")
 matrix_uplo {
-    matrix_Upper      __parsec_attribute_deprecated__("Use PARSEC_MATRIX_UPPER instead") = PARSEC_MATRIX_UPPER,
-    matrix_Lower      __parsec_attribute_deprecated__("Use PARSEC_MATRIX_LOWER instead") = PARSEC_MATRIX_LOWER,
-    matrix_UpperLower __parsec_attribute_deprecated__("Use PARSEC_MATRIX_FULL instead")  = PARSEC_MATRIX_FULL
+    matrix_Upper      __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_UPPER instead") = PARSEC_MATRIX_UPPER,
+    matrix_Lower      __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_LOWER instead") = PARSEC_MATRIX_LOWER,
+    matrix_UpperLower __parsec_enum_attribute_deprecated__("Use PARSEC_MATRIX_FULL instead")  = PARSEC_MATRIX_FULL
 };
 
 enum {
-    parsec_tiled_matrix_dc_type    __parsec_attribute_deprecated__("Use parsec_matrix_type instead") = parsec_matrix_type,
-    two_dim_block_cyclic_type      __parsec_attribute_deprecated__("Use parsec_matrix_block_cyclic_type instead") = parsec_matrix_block_cyclic_type,
-    sym_two_dim_block_cyclic_type  __parsec_attribute_deprecated__("Use parsec_matrix_sym_block_cyclic_type instead") = parsec_matrix_sym_block_cyclic_type,
-    two_dim_tabular_type           __parsec_attribute_deprecated__("Use parsec_matrix_tabular_type instead") = parsec_matrix_tabular_type
+    parsec_tiled_matrix_dc_type    __parsec_enum_attribute_deprecated__("Use parsec_matrix_type instead") = parsec_matrix_type,
+    two_dim_block_cyclic_type      __parsec_enum_attribute_deprecated__("Use parsec_matrix_block_cyclic_type instead") = parsec_matrix_block_cyclic_type,
+    sym_two_dim_block_cyclic_type  __parsec_enum_attribute_deprecated__("Use parsec_matrix_sym_block_cyclic_type instead") = parsec_matrix_sym_block_cyclic_type,
+    two_dim_tabular_type           __parsec_enum_attribute_deprecated__("Use parsec_matrix_tabular_type instead") = parsec_matrix_tabular_type
 };
 
 typedef parsec_tiled_matrix_t parsec_tiled_matrix_dc_t __parsec_attribute_deprecated__("Use parsec_tiled_matrix_t instead");
