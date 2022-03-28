@@ -866,22 +866,22 @@ static char *dump_profiling_init(void **elem, void *arg)
 
     string_arena_add_string(info->sa,
                             "#if defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
-                            "parsec_profiling_add_dictionary_keyword(\"%s (internal init)\", \"fill:%02X%02X%02X\",\n"
+                            "parsec_profiling_add_dictionary_keyword(\"%s::%s::internal init\", \"fill:%02X%02X%02X\",\n"
                             "                                       0,\n"
                             "                                       NULL,\n"
                             "                                       (int*)&__parsec_tp->super.super.profiling_array[0 + 2 * %s_%s.task_class_id  + 2 * PARSEC_%s_NB_TASK_CLASSES/* %s (internal init) start key */],\n"
                             "                                       (int*)&__parsec_tp->super.super.profiling_array[1 + 2 * %s_%s.task_class_id  + 2 * PARSEC_%s_NB_TASK_CLASSES/* %s (internal init) end key */]);\n"
                             "#endif /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n",
-                            fname, 256-R, 256-G, 256-B,
+                            jdf_basename, fname, 256-R, 256-G, 256-B,
                             jdf_basename, fname, jdf_basename, fname,
                             jdf_basename, fname, jdf_basename, fname);
     string_arena_add_string(info->sa,
-                            "parsec_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
+                            "parsec_profiling_add_dictionary_keyword(\"%s::%s\", \"fill:%02X%02X%02X\",\n"
                             "                                       sizeof(parsec_task_prof_info_t)+%d*sizeof(parsec_assignment_t),\n"
                             "                                       \"%s\",\n"
                             "                                       (int*)&__parsec_tp->super.super.profiling_array[0 + 2 * %s_%s.task_class_id /* %s start key */],\n"
                             "                                       (int*)&__parsec_tp->super.super.profiling_array[1 + 2 * %s_%s.task_class_id /* %s end key */]);\n",
-                            fname, R, G, B,
+                            jdf_basename, fname, R, G, B,
                             nb_locals,
                             string_arena_get_string(profiling_convertor_params),
                             jdf_basename, fname, fname,
@@ -6198,7 +6198,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
     string_arena_t *sa_temp       = string_arena_new(256);
 
     int last_datatype_idx, continue_dependencies, type, skip_condition, generate_exit_label = 0;
-    uint32_t mask_in = 0, mask_out = 0, current_mask = 0;
+    uint32_t current_mask = 0;
     expr_info_t info = EMPTY_EXPR_INFO;
 
     sa  = string_arena_new(64);
@@ -6228,12 +6228,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
             "  data->local.src_count     = data->local.dst_count = 0;\n"
             "  data->local.src_displ     = data->local.dst_displ = 0;\n"
             "  data->data_future  = NULL;\n");
-
-    for( fl = f->dataflow; fl != NULL; fl = fl->next ) {
-        if( JDF_FLOW_TYPE_CTL & fl->flow_flags ) continue;
-        mask_in  |= (1UL << fl->flow_index);
-        mask_out |= fl->flow_dep_mask_out;
-    }
+    /* First time we generate the IN flows and then we do a second pass and generate the rest of the flows */
     type = JDF_DEP_FLOW_IN;
 
  redo:  /* we come back here to iterate over the output flows (depending on the variable type) */
