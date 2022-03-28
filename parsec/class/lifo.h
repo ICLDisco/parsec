@@ -448,125 +448,8 @@ LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo 
     return item;
 }
 
-#elif defined(PARSEC_USE_64BIT_LOCKFREE_LIST)
 
-/* Add one element to the LIFO. We will return the last head of the list
- * to allow the upper level to detect if this element is the first one in the
- * list (if the list was empty before this operation).
- */
-LIFO_STATIC_INLINE void parsec_lifo_push(parsec_lifo_t *lifo,
-                                    parsec_list_item_t *item)
-{
-    PARSEC_ITEM_ATTACH(lifo, item);
-    /* item free acts as a mini lock to avoid ABA problems */
-    item->aba_key = 1;
-    do {
-        parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
-        item->list_next = next;
-        parsec_atomic_wmb();
-        if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, item) ) {
-            /* now safe to pop this item */
-            item->aba_key = 0;
-            return;
-        }
-        /* DO some kind of pause to release the bus */
-    } while (1);
-}
-
-LIFO_STATIC_INLINE void parsec_lifo_chain(parsec_lifo_t* lifo,
-                                     parsec_list_item_t* ring)
-{
-#if defined(PARSEC_DEBUG_PARANOID)
-    assert( (uintptr_t)ring % PARSEC_LIFO_ALIGNMENT(lifo) == 0 );
-#endif
-    PARSEC_ITEMS_ATTACH(lifo, ring);
-
-    /* item free acts as a mini lock to avoid ABA problems */
-    ring->aba_key = 1;
-    parsec_list_item_t* tail = (parsec_list_item_t*)ring->list_prev;
-
-     do {
-        parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
-        tail->list_next = next;
-        parsec_atomic_wmb();
-         if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, ring) ) {
-            /* now safe to pop this item */
-            ring->aba_key = 0;
-            return;
-        }
-        /* DO some kind of pause to release the bus */
-    } while (1);
-}
-
-/* Retrieve one element from the LIFO. If we reach the NULL item then the LIFO
- * is empty so we return NULL.
- */
-LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
-{
-    parsec_list_item_t *item;
-
-    while ((item = lifo->lifo_head.data.item) != NULL) {
-        /* ensure it is safe to pop the head */
-        if (!parsec_atomic_cas_int32(&item->aba_key, 0UL, 1UL)) {
-            continue;
-        }
-
-        parsec_atomic_wmb ();
-
-        /* try to swap out the head pointer */
-        if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item,
-                                  item, (void*)item->list_next) ) {
-            break;
-        }
-
-        /* NTH: don't need another atomic here */
-        item->aba_key = 0;
-
-        /* Do some kind of pause to release the bus */
-    }
-
-    if (NULL == item) {
-        return NULL;
-    }
-
-    parsec_atomic_wmb ();
-
-    item->list_next = NULL;
-    PARSEC_ITEM_DETACH(item);
-    return item;
-}
-
-LIFO_STATIC_INLINE parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
-{
-    parsec_list_item_t *item;
-
-    if( (item = lifo->lifo_head.data.item) != NULL ) {
-        /* ensure it is safe to pop the head */
-        if (!parsec_atomic_cas_int32(&item->aba_key, 0UL, 1UL)) {
-            return NULL;
-        }
-
-        parsec_atomic_wmb ();
-
-        /* try to swap out the head pointer */
-        if( !parsec_atomic_cas_ptr(&lifo->lifo_head.data.item,
-                                   item, (void *)item->list_next) ) {
-            item->aba_key = 0UL;
-            return NULL;
-        }
-
-        /* NTH: don't need another atomic here */
-        item->aba_key = 0UL;
-        parsec_atomic_wmb ();
-
-        item->list_next = NULL;
-        PARSEC_ITEM_DETACH(item);
-    }
-
-    return item;
-}
-
-#else /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
+#else /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR) */
 
 /* Add one element to the LIFO. We will return the last head of the list
  * to allow the upper level to detect if this element is the first one in the
@@ -644,7 +527,7 @@ LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_try_pop(parsec_lifo_t* lifo)
     return item; 
 }
 
-#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR) || defined(PARSEC_USE_64BIT_LOCKFREE_LIST) */
+#endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128) || defined(PARSEC_ATOMIC_HAS_ATOMIC_LLSC_PTR) */
 
 LIFO_STATIC_INLINE void parsec_lifo_nolock_push( parsec_lifo_t* lifo,
                                             parsec_list_item_t* item )
