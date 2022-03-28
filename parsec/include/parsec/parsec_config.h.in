@@ -18,7 +18,6 @@
 #cmakedefine PARSEC_ARCH_X86
 #cmakedefine PARSEC_ARCH_X86_64
 #cmakedefine PARSEC_ARCH_PPC
-#cmakedefine PARSEC_OSX
 
 #cmakedefine PARSEC_HAVE_BUILTIN_EXPECT
 #cmakedefine PARSEC_HAVE_BUILTIN_CPU

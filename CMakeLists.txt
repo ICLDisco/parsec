@@ -309,20 +309,6 @@ include (ParsecCompilerFlags)
 
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set( PARSEC_OSX 1 CACHE INTERNAL "Compile on MAC OS X")
-  if( NOT PARSEC_ATOMIC_USE_C11_ATOMICS )
-    # Without C11 support, atomic-macosx.h is used;
-    # the old API of Mac OS X does not support 128 atomic operations
-    unset( PARSEC_HAVE_INT128 CACHE )
-    unset( PARSEC_HAVE_INT128 )
-  endif( NOT PARSEC_ATOMIC_USE_C11_ATOMICS )
-endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-if(PARSEC_ARCH_PPC)
-  # PPC Architecture have Int128 type, but no atomics support for this type
-  unset( PARSEC_HAVE_INT128 CACHE )
-  unset( PARSEC_HAVE_INT128 )
-endif(PARSEC_ARCH_PPC)
 
 if(PARSEC_DEBUG_MEM_RACE OR PARSEC_DEBUG_MEM_ADDR OR PARSEC_DEBUG_MEM_LEAK)
   # Don't redetect cached values

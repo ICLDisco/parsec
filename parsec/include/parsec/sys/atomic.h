@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -43,18 +43,6 @@ BEGIN_C_DECLS
 #    endif
 #    if defined(PARSEC_ATOMIC_USE_XLC_32_BUILTINS)
 #      include "atomic-xlc.h"
-#    elif defined(PARSEC_OSX)
-#      if (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12) || (__clang_major__ >= 12)
-/* Intel compiler on OSX defined __clang__ but do not support the pragmas */
-#        if defined(__clang__) && !defined(__ICC)
-#          pragma clang diagnostic push
-#          pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#        endif  /* defined(__clang__) && !defined(__ICC) */
-#        include "atomic-macosx.h"
-#        if defined(__clang__) && !defined(__ICC)
-#          pragma clang diagnostic pop
-#        endif  /* defined(__clang__) && !defined(__ICC) */
-#      endif  /* MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 */
 #    elif defined(PARSEC_ARCH_PPC)
 #      if defined(__bgp__)
 #        define PARSEC_ATOMIC_USE_PPC_BGP 1
@@ -212,7 +200,8 @@ int64_t parsec_atomic_fetch_dec_int64(volatile int64_t* l)
 /* No error: 32 bits architectures do not need to define add/inc/sub/dec on 64 bits */
 #  endif
 
-#  if defined(PARSEC_HAVE_INT128)
+#  if defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_INT128)
+        /* if you define one, you need to define them all */
 #    if !defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_INC_INT128)
 #      if defined(PARSEC_ATOMIC_HAS_ATOMIC_FETCH_ADD_INT128)
 #        define PARSEC_ATOMIC_HAS_ATOMIC_FETCH_INC_INT128
