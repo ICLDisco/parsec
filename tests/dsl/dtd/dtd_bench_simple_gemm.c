@@ -433,7 +433,7 @@ static void destroy_matrix(parsec_matrix_block_cyclic_t *dc)
     if( NULL != dc->mat ) {
         parsec_data_free(dc->mat);
     }
-    parsec_matrix_destroy_data(&dc->super);
+    parsec_tiled_matrix_destroy_data(&dc->super);
     parsec_data_collection_destroy(&dc->super.super);
 
     free(dc);

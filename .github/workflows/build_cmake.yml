@@ -32,7 +32,9 @@ jobs:
       shell: bash
       run: |
         # Check if .l/.y files have been modified without corresponding update with `cmake --build . --target parsec_pregen_flex_bison`
-        git diff --name-only --diff-filter=AMRD origin/${{ github.base_ref }} -- contrib/pregen_flex_bison.tar '*.[ly]' | awk '/pregen_flex_bison.tar/{t=1} /.[ly]/{s=1} END{if(t-s) exit 1}'
+        if [[ `git --version | cut -d " " -f 3` > "2.0" ]]; then
+          git diff --name-only --diff-filter=AMRD origin/${{ github.base_ref }} -- contrib/pregen_flex_bison.tar '*.[ly]' | awk '/pregen_flex_bison.tar/{t=1} /.[ly]/{s=1} END{if(t-s) exit 1}'
+        fi
 
     - name: Create Build Environment ${{ runner.os }}
       # Create a separate build directory and use it for all subsequent commands

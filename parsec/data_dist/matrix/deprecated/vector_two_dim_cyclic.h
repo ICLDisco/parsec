@@ -9,9 +9,9 @@
 
 
 typedef enum vector_distrib {
-    matrix_VectorRow  __parsec_attribute_deprecated__("Use PARSEC_VECTOR_DISTRIB_ROW"),
-    matrix_VectorCol  __parsec_attribute_deprecated__("Use PARSEC_VECTOR_DISTRIB_COL"),
-    matrix_VectorDiag __parsec_attribute_deprecated__("Use PARSEC_VECTOR_DISTRIB_DIAG")
+    matrix_VectorRow  __parsec_enum_attribute_deprecated__("Use PARSEC_VECTOR_DISTRIB_ROW"),
+    matrix_VectorCol  __parsec_enum_attribute_deprecated__("Use PARSEC_VECTOR_DISTRIB_COL"),
+    matrix_VectorDiag __parsec_enum_attribute_deprecated__("Use PARSEC_VECTOR_DISTRIB_DIAG")
 } vector_distrib_t __parsec_attribute_deprecated__("Use parsec_vector_two_dim_cyclic_t_distrib_t");
 
 typedef parsec_vector_two_dim_cyclic_t vector_two_dim_cyclic_t __parsec_attribute_deprecated__("Use parsec_vector_two_dim_cyclic_t");

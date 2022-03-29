@@ -802,9 +802,15 @@ cdef class ExtendedEvent:
 
         if event_len != len(self):
             c_string = self.fmt
-            logger.warning('Event %s discarded: expected length differs from provided length (%d != %d)\n'
-                           'Check the conversion format <%s>\n',
-                           event_name, len(self), event_len, c_string)
+            if event_len < len(self):
+                logger.warning('Event %s: expected length greater that the reported length (%d != %d)\n'
+                               'The output might get corrupted. Check the conversion format <%s>\n',
+                               event_name, len(self), event_len, c_string)
+            else:
+                logger.info('Event %s padded: expected length differs from the reported length (%d != %d)\n'
+                            'Check the conversion format <%s>\n',
+                            event_name, len(self), event_len, c_string)
+                self.fmt += b"{}x".format(event_len - len(self))
             event_len = event_len if event_len < len(self) else len(self)
         self.event_len = event_len
     def __len__(self):
