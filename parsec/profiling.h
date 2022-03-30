@@ -350,24 +350,21 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
 /**
  * @brief Creates the profile file given as a parameter to store the
  * next events.
- * @details
- * Globally decide on a filename for the profiling file based on the requested
- * basefile, followed by the rank and then by a 6 letter unique key (generated
- * by mkstemp). The 6 letter key is used by all participants to create profiling
- * files that can be matched together.
  *
+ * @details
  * The basename is always respected, even in the case where it points to another
  * directory.
  * @param[in] basefile the base name of the target file to create
- *                       the file actually created will be "basefile"-%d.profile
- * @param[in] hr_info human readable global information associated with this
- *                      profile. Used "uniquely" identify the experiment, and
- *                      check that all separate profile files correspond to a same
- *                      experiment.
+ *                      the files actually created will be <basefile>-<process_id>.prof
+ *                      with one file per process that calls this function. The
+ *                      process_id is the one passed to @ref parsec_proflinig_init().
+ * @param[in] hr_id   human readable global identifier associated with this
+ *                      profile. This string is used to uniquely identify the experiment, 
+ *                      and all processes calling this function must use the same string.
  * @return 0 if success, negative otherwise.
  * @remark not thread safe.
  */
-int parsec_profiling_dbp_start( const char *basefile, const char *hr_info );
+int parsec_profiling_dbp_start( const char *basefile, const char *hr_id );
 
 /**
  * @brief Dump the current profile
