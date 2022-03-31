@@ -20,8 +20,10 @@ find_package(Threads)
 
 if(@PARSEC_HAVE_HWLOC@)
   set_and_check(HWLOC_INCLUDE_DIR "@HWLOC_INCLUDE_DIR@")
+  set(HWLOC_INCLUDE_DIR ${HWLOC_INCLUDE_DIR} CACHE PATH "Imported by PaRSECConfig.cmake" FORCE)
   set_and_check(HWLOC_LIBRARY "@HWLOC_LIBRARY@")
-  find_package(HWLOC REQUIRED)
+  set(HWLOC_LIBRARY ${HWLOC_LIBRARY} CACHE PATH "Imported by PaRSECConfig.cmake" FORCE)
+  find_package(HWLOC REQUIRED MODULE)
 endif(@PARSEC_HAVE_HWLOC@)
 
 if(@PARSEC_HAVE_OTF2@)
@@ -40,8 +42,10 @@ endif(@PARSEC_HAVE_OTF2@)
 
 if(@PARSEC_HAVE_PAPI@)
   set_and_check(PAPI_INCLUDE_DIR "@PAPI_INCLUDE_DIR@")
+  set(PAPI_INCLUDE_DIR ${PAPI_INCLUDE_DIR} CACHE PATH "Imported by PaRSECConfig.cmake" FORCE)
   set_and_check(PAPI_LIBRARY "@PAPI_LIBRARY@")
-  find_package(PAPI REQUIRED)
+  set(PAPI_LIBRARY ${PAPI_LIBRARY} CACHE PATH "Imported by PaRSECConfig.cmake" FORCE)
+  find_package(PAPI REQUIRED MODULE)
 endif(@PARSEC_HAVE_PAPI@)
 
 if(@PARSEC_DIST_WITH_MPI@)
