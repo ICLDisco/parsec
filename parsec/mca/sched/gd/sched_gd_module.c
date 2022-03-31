@@ -109,13 +109,11 @@ static int flow_gd_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
 #if defined(PARSEC_PAPI_SDE)
     if( es->th_id ) {
         char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
-        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=GD", es->virtual_process->vp_id);
-        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+        snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN, "SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=GD", es->virtual_process->vp_id);
+        parsec_papi_sde_register_fp_counter(event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
                                      PAPI_SDE_int, (papi_sde_fptr_t)parsec_shared_dequeue_length, es->virtual_process);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=GD", PAPI_SDE_SUM);
+        parsec_papi_sde_add_counter_to_group(event_name, "SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+        parsec_papi_sde_add_counter_to_group(event_name, "SCHEDULER::PENDING_TASKS::SCHED=GD", PAPI_SDE_SUM);
     }
 #endif
 
@@ -185,7 +183,7 @@ static void sched_gd_remove( parsec_context_t *master )
 #endif
             es->scheduler_object = NULL;
         }
-        PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=GD", p);
+        PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=GD", p);
     }
-    PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=GD");
+    PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::SCHED=GD");
 }

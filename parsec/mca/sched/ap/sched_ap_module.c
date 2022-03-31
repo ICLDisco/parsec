@@ -74,13 +74,11 @@ static int flow_ap_init(parsec_execution_stream_t* es, struct parsec_barrier_t* 
     if( es->th_id ) {
         char event_name[PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN];
         snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN,
-                 "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=AP", es->virtual_process->vp_id);
-        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                     PAPI_SDE_int, (papi_sde_fptr_t)parsec_mca_sched_list_local_counter_length, es->virtual_process);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=AP", PAPI_SDE_SUM);
+                 "SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=AP", es->virtual_process->vp_id);
+        parsec_papi_sde_register_fp_counter(event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT, PAPI_SDE_int, 
+                                            (papi_sde_fptr_t)parsec_mca_sched_list_local_counter_length, es->virtual_process);
+        parsec_papi_sde_add_counter_to_group(event_name, "SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+        parsec_papi_sde_add_counter_to_group(event_name, "SCHEDULER::PENDING_TASKS::SCHED=AP", PAPI_SDE_SUM);
     }
 #endif
 
@@ -130,7 +128,7 @@ static void sched_ap_remove( parsec_context_t *master )
             parsec_mca_sched_free_list_local_counter(sl);
             es->scheduler_object = NULL;
         }
-        PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=AP", p);
+        PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=%d::SCHED=AP", p);
     }
-    PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=AP");
+    PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::SCHED=AP");
 }

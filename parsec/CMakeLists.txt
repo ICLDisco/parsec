@@ -242,26 +242,6 @@ if( BUILD_PARSEC )
   set_target_properties(parsec PROPERTIES VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_RELEASE}
     SOVERSION ${PARSEC_VERSION_MAJOR})
 
-  if( PARSEC_PAPI_SDE )
-    # This file is in fact provided by PAPI SDE, to serve as a fallback in case PAPI
-    # is not selected / loaded. It should be dynamic library that comes after PAPI
-    if(NOT TARGET parsec-papi-sde)
-      add_library(parsec-papi-sde SHARED papi_sde_interface.c)
-    endif(NOT TARGET parsec-papi-sde)
-    # parsec-papi-sde must come last in EXTRA_LIBS: it is to be preceded by papi if
-    # PAPI is loaded so that the weak symbols in it are overcome by PAPI
-    target_link_libraries(parsec
-      PUBLIC parsec-papi-sde $<$<BOOL:${PAPI_FOUND}>:PAPI::PAPI>)
-
-    # parsec-papi-sde has to be installed, to provide the default empty functions
-    set_property(TARGET parsec-papi-sde
-                 APPEND PROPERTY
-                        PUBLIC_HEADER_H papi_sde_interface.h)
-    install(TARGETS parsec-papi-sde
-      EXPORT parsec-targets
-      DESTINATION ${PARSEC_INSTALL_LIBDIR})
-  endif( PARSEC_PAPI_SDE )
-
   set_property(TARGET parsec
                APPEND PROPERTY
                       PUBLIC_HEADER include/parsec.h)

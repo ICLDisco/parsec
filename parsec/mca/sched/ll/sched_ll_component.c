@@ -76,11 +76,9 @@ static int sched_ll_component_query(mca_base_module_t **module, int *priority)
 
 static int sched_ll_component_register(void)
 {
-#if defined(PARSEC_PAPI_SDE)
-    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=LL",
+    PARSEC_PAPI_SDE_DESCRIBE_COUNTER("SCHEDULER::PENDING_TASKS::SCHED=LL",
                               "the number of pending tasks for the LL scheduler");
-    papi_sde_describe_counter(parsec_papi_sde_handle, "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=LL",
+    PARSEC_PAPI_SDE_DESCRIBE_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=<VPID>::SCHED=LL",
                               "the number of pending tasks that end up in the virtual process <VPID> for the LFQ scheduler");
-#endif
     return MCA_SUCCESS;
 }

@@ -134,24 +134,20 @@ static int flow_pbq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
         int thid;
         parsec_vp_t *vp;
         snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN,
-                 "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=PBQ", es->virtual_process->vp_id);
-        papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                 "SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=PBQ", es->virtual_process->vp_id);
+        parsec_papi_sde_register_fp_counter(event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
                                      PAPI_SDE_int, (papi_sde_fptr_t)parsec_mca_sched_system_queue_length, es->virtual_process);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
-        papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                      "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=PBQ", PAPI_SDE_SUM);
+        parsec_papi_sde_add_counter_to_group(event_name, "SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+        parsec_papi_sde_add_counter_to_group(event_name, "SCHEDULER::PENDING_TASKS::SCHED=PBQ", PAPI_SDE_SUM);
         vp = es->virtual_process;
         for(thid = 0; thid < vp->nb_cores; thid++) {
             snprintf(event_name, PARSEC_PAPI_SDE_MAX_COUNTER_NAME_LEN,
-                     "PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=PBQ", vp->vp_id, thid);
-            papi_sde_register_fp_counter(parsec_papi_sde_handle, event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                     "SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=PBQ", vp->vp_id, thid);
+            parsec_papi_sde_register_fp_counter(event_name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
                                          PAPI_SDE_int, (papi_sde_fptr_t)parsec_hbbuffer_approx_occupency,
                                          PARSEC_MCA_SCHED_LOCAL_QUEUES_OBJECT(vp->execution_streams[thid])->task_queue);
-            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                          "PARSEC::SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
-            papi_sde_add_counter_to_group(parsec_papi_sde_handle, event_name,
-                                          "PARSEC::SCHEDULER::PENDING_TASKS::SCHED=PBQ", PAPI_SDE_SUM);
+            parsec_papi_sde_add_counter_to_group(event_name, "SCHEDULER::PENDING_TASKS", PAPI_SDE_SUM);
+            parsec_papi_sde_add_counter_to_group(event_name, "SCHEDULER::PENDING_TASKS::SCHED=PBQ", PAPI_SDE_SUM);
         }
     }
 #endif
@@ -228,9 +224,9 @@ static void sched_pbq_remove( parsec_context_t *master )
             free(es->scheduler_object);
             es->scheduler_object = NULL;
 
-            PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=PBQ", vp->vp_id, t);
+            PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=%d/%d::SCHED=PBQ", vp->vp_id, t);
         }
-        PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=PBQ", p);
+        PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::QUEUE=%d/overflow::SCHED=PBQ", p);
     }
-    PARSEC_PAPI_SDE_UNREGISTER_COUNTER("PARSEC::SCHEDULER::PENDING_TASKS::SCHED=PBQ");
+    PARSEC_PAPI_SDE_UNREGISTER_COUNTER("SCHEDULER::PENDING_TASKS::SCHED=PBQ");
 }
