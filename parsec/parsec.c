@@ -700,7 +700,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             /* Specialize the profiling filename to avoid collision with other instances */
             ret = asprintf( &cmdline_info, "%s_%d", basename(parsec_app_name), (int)getpid() );
             if (ret < 0) {
-                cmdline_info = strdup(DEFAULT_APPNAME);
+                cmdline_info = strdup(DEFAULT_APP_NAME);
             }
             ret = parsec_profiling_dbp_start( cmdline_info, parsec_app_name );
             free(cmdline_info);
