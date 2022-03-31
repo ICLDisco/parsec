@@ -16,7 +16,9 @@
 #define PAPI_SDE_LIB_H
 
 // Enable the following line if you want to use PAPI_overflow()
+#if !defined(__APPLE__)
 #define SDE_HAVE_OVERFLOW
+#endif  /* !defined(__APPLE__) */
 
 #include <stdio.h>
 #include <string.h>
