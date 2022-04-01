@@ -452,7 +452,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                                uint32_t propagation_mask)
 {
     const parsec_task_class_t* tc = task->task_class;
-    int i, my_idx, idx, current_mask, keeper = 0;
+    int i, my_idx, idx, current_mask, keeper = 0, child_count = 0;
     unsigned int array_index, count, bit_index;
     struct remote_dep_output_param_s* output;
 
@@ -558,8 +558,11 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                         parsec_dtd_task_t *this_dtd_task = (parsec_dtd_task_t *) task;
                         if(this_dtd_task->super.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID) {
                             int* data_ptr = (int*)parsec_data_copy_get_ptr(this_dtd_task->super.data[0].data_out);
-                            this_dtd_task->super.locals[rank].value = this_dtd_task->ht_item.key = ((1<<29) |(remote_deps->root << 20) | *(data_ptr+1+rank));
-                            remote_deps->msg.locals[rank].value = this_dtd_task->super.locals[rank].value;
+                            this_dtd_task->super.locals[4+child_count*2].value = rank;
+                            this_dtd_task->super.locals[4+child_count*2+1].value = this_dtd_task->ht_item.key = ((1<<29) |(remote_deps->root << 20) | *(data_ptr+1+rank));
+                            remote_deps->msg.locals[4+child_count*2].value = this_dtd_task->super.locals[4+child_count*2].value;
+                            remote_deps->msg.locals[4+child_count*2+1].value = this_dtd_task->super.locals[4+child_count*2+1].value;
+                            child_count += 1;
                             //fprintf(stderr, "for remote_dep %p update key in activate to %d\n", remote_deps, this_dtd_task->super.locals[rank].value);
                         }
                     }
