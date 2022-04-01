@@ -744,7 +744,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             uint64_t key = 0;
             if(origin->msg.task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID) {
                 key = (uint64_t)origin->msg.locals[es->virtual_process->parsec_context->my_rank].value<<32 | (1U<<k);
-                fprintf(stderr, "get datatype for key %d k %d %llu\n", origin->msg.locals[es->virtual_process->parsec_context->my_rank].value, k, key);
+                //fprintf(stderr, "get datatype for key %d k %d %llu\n", origin->msg.locals[es->virtual_process->parsec_context->my_rank].value, k, key);
                 origin->msg.locals[0].value = origin->msg.locals[es->virtual_process->parsec_context->my_rank].value;
             } else {
                 key = (uint64_t)origin->msg.locals[0].value<<32 | (1U<<k);

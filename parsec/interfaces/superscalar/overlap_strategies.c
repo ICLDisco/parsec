@@ -195,7 +195,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                         while(tile == NULL){
                         tile = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find(parsec_bcast_keys_hash, key);
                         //fprintf(stderr, "bcast root task %p data with global key %d tile %p on rank %d\n", current_task, current_task->ht_item.key, tile, current_task->super.taskpool->context->my_rank);
-                        fprintf(stderr, "bcast root task %p data with global key %ld tile %p on rank %d\n", current_task, key, tile, current_task->super.taskpool->context->my_rank);
+                        //fprintf(stderr, "bcast root task %p data with global key %ld tile %p on rank %d\n", current_task, key, tile, current_task->super.taskpool->context->my_rank);
                         }
                         int* data_ptr = (int*)parsec_data_copy_get_ptr(tile->data_copy);
                         populate_remote_deps(data_ptr, deps);

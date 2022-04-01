@@ -2772,7 +2772,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                     if(PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE)) {
                         FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = dtd_tp->send_task_id[this_task->rank]++;
                         last_writer.task->super.locals[5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
-                        fprintf(stderr, "BCAST_DATA %p last_writer.task on root %d with send ID to rank %d task %p as %d\n", last_writer.task, last_writer.task->rank, this_task->rank, this_task, last_writer.task->super.locals[5].value);
+                        //fprintf(stderr, "BCAST_DATA %p last_writer.task on root %d with send ID to rank %d task %p as %d\n", last_writer.task, last_writer.task->rank, this_task->rank, this_task, last_writer.task->super.locals[5].value);
                     }
                 }
             }
@@ -2879,7 +2879,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                         if(PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE)) {
                             FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = dtd_tp->send_task_id[this_task->rank]++;
                             last_writer.task->super.locals[5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
-                            fprintf(stderr, "BCAST_DATA2222 %p last_writer.task on root %d with send ID to rank %d task %p as %d\n", last_writer.task, last_writer.task->rank, this_task->rank, this_task, last_writer.task->super.locals[5].value);
+                            //fprintf(stderr, "BCAST_DATA2222 %p last_writer.task on root %d with send ID to rank %d task %p as %d\n", last_writer.task, last_writer.task->rank, this_task->rank, this_task, last_writer.task->super.locals[5].value);
                         }
                     }
                 }
