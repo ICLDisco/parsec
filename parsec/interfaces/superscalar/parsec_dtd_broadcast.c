@@ -186,7 +186,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 bcast_keys->data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
                 bcast_keys->data_copy->device_private = (void *)buffer;
                 parsec_hash_table_nolock_insert( parsec_bcast_keys_hash, &bcast_keys->ht_item );
-                fprintf(stderr, "insert into parsec_bcast_keys_hash the item %p key %d with value pointer %p on rank %d\n", bcast_keys, data_ptr[0], buffer, es->virtual_process->parsec_context->my_rank);
+                //fprintf(stderr, "insert into parsec_bcast_keys_hash the item %p key %d with value pointer %p on rank %d\n", bcast_keys, data_ptr[0], buffer, es->virtual_process->parsec_context->my_rank);
 
                 if(dtd_task != NULL) {
                     parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key2);
@@ -243,7 +243,7 @@ int
 parsec_dtd_bcast_key_fn( parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es; (void)this_task;
-    fprintf(stderr, "executed the body of bcast key fn\n");
+    //fprintf(stderr, "executed the body of bcast key fn\n");
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -260,7 +260,7 @@ int
 parsec_dtd_bcast_data_fn( parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void)es; (void)this_task;
-    fprintf(stderr, "executed the body of bcast data fn\n");
+    //fprintf(stderr, "executed the body of bcast data fn\n");
     return PARSEC_HOOK_RETURN_DONE;
 }
 

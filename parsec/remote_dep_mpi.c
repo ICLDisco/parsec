@@ -957,10 +957,13 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     if(PARSEC_TASKPOOL_TYPE_PTG == origin->taskpool->taskpool_type) {
         remote_dep_complete_and_cleanup(&origin, 1);
     } else {
-        remote_dep_complete_and_cleanup(&origin, 1);
-        //remote_deps_free(origin);
-        //remote_dep_dec_flying_messages(task.taskpool);
-
+        /* if it is bcast keys or bcast data */
+        if(origin->msg.task_class_id == 1 || origin->msg.task_class_id == 2) {
+            remote_dep_complete_and_cleanup(&origin, 1);
+        } else {
+            origin->outgoing_mask = 0;
+            remote_deps_free(origin);
+        }
     }
 #else
     remote_deps_free(origin);

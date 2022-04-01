@@ -212,6 +212,9 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
     deps->taskpool      = NULL;
+    //memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
+    deps->bcast_flag = 0; /* default this dep is not for bcast */
+    memset(deps->bcast_keys, 0, sizeof(uint32_t)*16);
     parsec_lifo_push(deps->origin, (parsec_list_item_t*)deps);
     PARSEC_VALGRIND_MEMPOOL_FREE(deps->origin, ((unsigned char *)deps)+sizeof(parsec_list_item_t));
 }

@@ -131,7 +131,7 @@ void parsec_dtd_broadcast(
             data_ptr[400+i+1] = dest_ranks[i];
         }
         
-        fprintf(stderr, "on rank %d inserting key tile into bcast_keys_hash with key %ld num dest ranks %d\n", myrank, bcast_keys_root->ht_item.key, data_ptr[400]); 
+        //fprintf(stderr, "on rank %d inserting key tile into bcast_keys_hash with key %ld num dest ranks %d\n", myrank, bcast_keys_root->ht_item.key, data_ptr[400]); 
         parsec_hash_table_insert(parsec_bcast_keys_hash, &bcast_keys_root->ht_item);
     }
 

@@ -792,7 +792,7 @@ parsec_dtd_untrack_task( parsec_dtd_taskpool_t *tp,
     parsec_hash_table_t *hash_table = tp->task_hash_table;
     void *value;
 
-    fprintf(stderr, "untracking task with key value %ld on rank %d\n", key, tp->super.context->my_rank);
+    //fprintf(stderr, "untracking task with key value %ld on rank %d\n", key, tp->super.context->my_rank);
     dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, (parsec_key_t)key );
     if( NULL == item ) return NULL;
 
@@ -1479,9 +1479,9 @@ dtd_release_dep_fct( parsec_execution_stream_t *es,
     if( dst_rank != src_rank && src_rank == oldcontext->taskpool->context->my_rank) {
         assert( 0 == (arg->action_mask & PARSEC_ACTION_RECV_INIT_REMOTE_DEPS) );
 
-        /* TODO: check that the desc task is a read task, then it should skip here, now 4 is unmqr */
+        /* check that the desc task is a read task, then it should skip here */
         if(PARSEC_DTD_BCAST_DATA_TC_ID == oldcontext->task_class->task_class_id) {
-            if(4 == current_task->super.task_class->task_class_id) {
+            if(PARSEC_INPUT == ((FLOW_OF(current_task, dep->dep_index))->op_type & PARSEC_GET_OP_TYPE)) {
                 return PARSEC_ITERATE_CONTINUE;
             }   
         }
@@ -1666,7 +1666,7 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
             if((action_mask & (1 << flow_index))) {
                 if(!(track_flow & (1U << flow_index))) {
                     uint64_t key = (((uint64_t)this_task->locals[0].value<<32) | (1U<<flow_index));
-                    fprintf(stderr, "release_deps with key value %ld local 0 value %d on rank %d\n", key, this_task->locals[0].value, tp->super.context->my_rank);
+                    //fprintf(stderr, "release_deps with key value %ld local 0 value %d on rank %d\n", key, this_task->locals[0].value, tp->super.context->my_rank);
                     parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key);
                     this_dtd_task = parsec_dtd_find_task( tp, key );
                     assert(this_dtd_task != NULL);
@@ -2873,7 +2873,15 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                         }
                     }
                 } else {
-                    /* do nothing */
+                    /* For bcast data task, if we have a remote write descendant, generate the p2p key for send */
+                    if(last_writer.task->super.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID && parsec_dtd_task_is_remote(this_task) 
+                            && parsec_dtd_task_is_local(last_writer.task)) {
+                        if(PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE)) {
+                            FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = dtd_tp->send_task_id[this_task->rank]++;
+                            last_writer.task->super.locals[5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
+                            fprintf(stderr, "BCAST_DATA2222 %p last_writer.task on root %d with send ID to rank %d task %p as %d\n", last_writer.task, last_writer.task->rank, this_task->rank, this_task, last_writer.task->super.locals[5].value);
+                        }
+                    }
                 }
 
                 /* we can avoid all the hash table crap if the last_writer is not alive */
@@ -2963,7 +2971,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
         uint64_t key = ((uint64_t)(this_task->super.locals[0].value)<<32) | (1U<<0);
         parsec_hash_table_lock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
         parsec_remote_deps_t *dep = parsec_dtd_find_remote_dep( dtd_tp, key );
-        fprintf(stderr, "tracking remote task of key %d on rank %d\n", this_task->super.locals[0].value, dtd_tp->super.context->my_rank);
+        //fprintf(stderr, "tracking remote task of key %d on rank %d\n", this_task->super.locals[0].value, dtd_tp->super.context->my_rank);
         if( NULL == dep ) {
             if( !(flow->flags & TASK_INSERTED) ) {
                 flow->flags |= TASK_INSERTED;
