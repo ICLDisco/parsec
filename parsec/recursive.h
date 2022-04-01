@@ -13,7 +13,7 @@
 #include "parsec/data_dist/matrix/matrix.h"
 
 typedef struct parsec_recursive_callback_s parsec_recursive_callback_t;
-typedef void (*parsec_recursive_callback_f)(parsec_taskpool_t*, const parsec_recursive_cb_data_t* );
+typedef void (*parsec_recursive_callback_f)(parsec_taskpool_t*, const parsec_recursive_callback_t* );
 
 struct parsec_recursive_callback_s {
     parsec_execution_stream_t    *es;
