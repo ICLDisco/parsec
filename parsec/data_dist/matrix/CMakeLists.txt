@@ -32,7 +32,7 @@ if( TARGET parsec-ptgpp )
   target_ptg_sources(parsec PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf;${CMAKE_CURRENT_SOURCE_DIR}/diag_band_to_rect.jdf;${CMAKE_CURRENT_SOURCE_DIR}/apply.jdf")
   set_property(TARGET parsec
                APPEND PROPERTY
-                      PRIVATE_HEADER_H ${CMAKE_CURRENT_BINARY_DIR}/diag_band_to_rect.h)
+                      PRIVATE_HEADER_H data_dist/matrix/diag_band_to_rect.h)
 endif( TARGET parsec-ptgpp )
 
 target_sources(parsec PRIVATE ${sources})
