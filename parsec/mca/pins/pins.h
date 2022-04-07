@@ -38,6 +38,8 @@ typedef enum PARSEC_PINS_FLAG {
     EXEC_END,            // called after thread executes a task
     COMPLETE_EXEC_BEGIN, // called before scheduler adds a newly-enabled task
     COMPLETE_EXEC_END,   // called after scheduler adds a newly-enabled task
+    SCHEDULE_BEGIN,      // called before scheduling a ring of tasks
+    SCHEDULE_END,        // called after scheduling a ring of tasks
     /* what follows are Special Events. They do not necessarily
      * obey the 'exec unit, exec context' contract.
      */

@@ -290,6 +290,8 @@ __parsec_schedule(parsec_execution_stream_t* es,
 {
     int ret;
 
+    PARSEC_PINS(es, SCHEDULE_BEGIN, tasks_ring);
+
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
     {
         parsec_task_t* task = tasks_ring;
@@ -328,6 +330,8 @@ __parsec_schedule(parsec_execution_stream_t* es,
 #endif  /* defined(PARSEC_PAPI_SDE) */
 
     ret = parsec_current_scheduler->module.schedule(es, tasks_ring, distance);
+
+    PARSEC_PINS(es, SCHEDULE_END, tasks_ring);
 
     return ret;
 }
@@ -458,7 +462,6 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
         rc = task->task_class->complete_execution( es, task );
 
     PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_RETIRED, 1);
-    PARSEC_PINS(es, COMPLETE_EXEC_END, task);
     PARSEC_AYU_TASK_COMPLETE(task);
 
     /* Succesfull execution. The context is ready to be released, all
@@ -469,6 +472,8 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
     /* Release the execution context */
     (void)task->task_class->release_task( es, task );
     
+    PARSEC_PINS(es, COMPLETE_EXEC_END, task);
+
     return rc;
 }
 
@@ -477,8 +482,6 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
                             int distance)
 {
     int rc = PARSEC_HOOK_RETURN_DONE;
-
-    PARSEC_PINS(es, SELECT_END, task);
 
     if(task->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
         PARSEC_PINS(es, PREPARE_INPUT_BEGIN, task);
@@ -532,8 +535,6 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
         assert( 0 ); /* Internal error: invalid return value for data_lookup function */
     }
 
-    // subsequent select begins
-    PARSEC_PINS(es, SELECT_BEGIN, NULL);
     return rc;
 }
 
@@ -773,7 +774,9 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         if( NULL != task ) {
             misses_in_a_row = 0;  /* reset the misses counter */
 
+            PARSEC_PINS(es, SELECT_END, task);
             rc = __parsec_task_progress(es, task, distance);
+            PARSEC_PINS(es, SELECT_BEGIN, task);
             (void)rc;  /* for now ignore the return value */
 
             nbiterations++;
