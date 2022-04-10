@@ -398,26 +398,26 @@ void dbp_iterator_delete(dbp_event_iterator_t *it)
     free(it);
 }
 
+static inline int dbp_events_match(const dbp_event_t *s, const dbp_event_t *e)
+{
+    int s_key = dbp_event_get_key(s);
+    int e_key = dbp_event_get_key(e  );
+    return ( (KEY_IS_START(s_key)          && KEY_IS_END(e_key))            &&
+             (BASE_KEY(    s_key)          == BASE_KEY(  e_key))            &&
+             (dbp_event_get_event_id(   s) == dbp_event_get_event_id(   e)) &&
+             (dbp_event_get_taskpool_id(s) == dbp_event_get_taskpool_id(e)) &&
+             (dbp_event_get_timestamp(  s) <= dbp_event_get_timestamp(  e)) );
+}
+
 int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
                                         const dbp_event_t *ref)
 {
     const dbp_event_t *e;
-    uint64_t ref_eid = dbp_event_get_event_id(ref);
-    uint32_t ref_hid = dbp_event_get_taskpool_id(ref);
-    int      ref_key = END_KEY(BASE_KEY(dbp_event_get_key(ref)));
 
     e = dbp_iterator_current( pos );
     while( NULL != e ) {
-        if( (dbp_event_get_taskpool_id(e) == ref_hid) &&
-            (dbp_event_get_event_id(e)  == ref_eid) &&
-            (dbp_event_get_key(e)       == ref_key) ) {
-            if( dbp_event_get_event_id(e) != 0 ||
-                (dbp_event_get_timestamp(ref) <= dbp_event_get_timestamp(e)) ) {
-                return 1;
-            } else if ( dbp_event_get_event_id(e) != 0 ) {
-                WARNING("Event with ID %d appear in reverse order\n",
-                         dbp_event_get_event_id(e));
-            }
+        if( dbp_events_match(ref, e) ) {
+            return 1;
         }
         e = dbp_iterator_next( pos );
     }
