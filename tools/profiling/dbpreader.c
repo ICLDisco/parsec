@@ -16,6 +16,7 @@
 #include <sys/mman.h>
 #endif
 #include <sys/types.h>
+#include <pthread.h>
 #include <fcntl.h>
 #include <stdarg.h>
 
@@ -214,10 +215,28 @@ int dbp_file_translate_local_dico_to_global(const dbp_file_t *file, int lid)
    (EVENT_HAS_INFO((dbp_event)->native) ?                   \
     (dbp_object)->parent->dico_keys[(dbp_object)->dico_map[BASE_KEY((dbp_event)->native->event.key)]].keylen : 0))
 
+typedef struct {
+    uint64_t timestamp;
+    off_t    offset;
+} event_cache_item_t;
+
+typedef struct {
+    event_cache_item_t *items;
+    size_t              len;
+    size_t              size;
+} event_cache_key_t;
+
+typedef struct {
+    pthread_mutex_t    mtx;
+    event_cache_key_t *keys;
+    int                done;
+} event_cache_t;
+
 struct dbp_thread {
     const parsec_profiling_stream_t *profile;
     dbp_file_t                      *file;
     dbp_info_t                      *infos;
+    event_cache_t                    cache;
     int                              nb_infos;
 };
 
@@ -361,7 +380,7 @@ static const dbp_event_t *dbp_iterator_next_buffer(dbp_event_iterator_t *it)
     return dbp_iterator_current(it);
 }
 
-const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
+static const dbp_event_t *dbp_iterator_next_in_buffer(dbp_event_iterator_t *it)
 {
     size_t elen;
 
@@ -370,7 +389,8 @@ const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
     assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
 
     if( it->current_event_index+1 >= it->current_events_buffer->this_buffer.nb_events ) {
-        return dbp_iterator_next_buffer(it);
+        it->current_event.native = NULL;
+        return NULL;
     }
 
     elen = DBP_EVENT_LENGTH(&it->current_event, it->thread->file);
@@ -384,6 +404,21 @@ const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
            (it->current_event.native->event.timestamp != 0));
 
     return dbp_iterator_current(it);
+}
+
+const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
+{
+    size_t elen;
+
+    if( NULL == it->current_event.native )
+        return NULL;
+    assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
+
+    if( it->current_event_index+1 >= it->current_events_buffer->this_buffer.nb_events ) {
+        return dbp_iterator_next_buffer(it);
+    }
+
+    return dbp_iterator_next_in_buffer(it);
 }
 
 const dbp_thread_t *dbp_iterator_thread(const dbp_event_iterator_t *it)
@@ -409,40 +444,199 @@ static inline int dbp_events_match(const dbp_event_t *s, const dbp_event_t *e)
              (dbp_event_get_timestamp(  s) <= dbp_event_get_timestamp(  e)) );
 }
 
+/* minimum allocation count for cache */
+#define EVENT_CACHE_MIN_ALLOC 64
+/* build a "cache" of events where the end event
+ * does not immediately follow the start event */
+static void build_unmatched_events_in_thread(dbp_thread_t *thr)
+{
+    const dbp_event_t      *e1,  *e2;
+    dbp_event_iterator_t   *i1,  *i2;
+    int key2;
+    uint64_t timestamp2;
+
+    event_cache_key_t  *cache_key;
+    event_cache_item_t *cache_item;
+    size_t              cache_index;
+
+    /* lock cache; we're modifying volatile state! */
+    pthread_mutex_lock(&thr->cache.mtx);
+    if( thr->cache.done ) {
+        /* cache already built, we don't need to do anything */
+        goto build_events_done;
+    }
+
+    /* iterator 1 points to current event */
+    i1 = dbp_iterator_new_from_thread( thr );
+    e1 = dbp_iterator_current( i1 );
+
+    /* iterator 2 points to next event */
+    i2 = dbp_iterator_new_from_thread( thr );
+    e2 = dbp_iterator_next( i2 );
+
+    while( NULL != e2 ) {
+        key2 = dbp_event_get_key(e2);
+
+        /* if e2 is end event, but e1 doesn't match, e2 not in expected order
+         * store e2 position in cache to lookup later for potential match */
+        if( KEY_IS_END(key2) && !dbp_events_match(e1, e2) ) {
+            cache_key = &thr->cache.keys[BASE_KEY(key2)];
+
+            /* if len == 0, this is first mismatched event with this key */
+            if( cache_key->len == 0 ) {
+                cache_key->items = malloc(sizeof(event_cache_item_t[EVENT_CACHE_MIN_ALLOC]));
+                cache_key->size = EVENT_CACHE_MIN_ALLOC;
+            } else {
+                /* if buffer offset of prior mismatched event is same as this,
+                 * we don't need to store the same buffer offset, just update
+                 * the timestamp; we iterate over the entire buffer anyway */
+                cache_item = &cache_key->items[cache_key->len - 1];
+                if( cache_item->offset == i2->current_buffer_position ) {
+                    timestamp2 = dbp_event_get_timestamp(e2);
+                    if( cache_item->timestamp < timestamp2 )
+                        cache_item->timestamp = timestamp2;
+                    goto next_iteration;
+                }
+            }
+
+            cache_index = cache_key->len++;
+            /* if index == size, we need to grow the array */
+            if( cache_index == cache_key->size ) {
+                cache_key->size *= 2;
+                cache_key->items = realloc(cache_key->items, sizeof(event_cache_item_t[cache_key->size]));
+            }
+
+            /* cache timestamp and buffer offset for this event
+             * note that we don't store the exact index of the event,
+             * so a consumer should make sure to search through the buffer */
+            cache_item = &cache_key->items[cache_index];
+            cache_item->timestamp = dbp_event_get_timestamp(e2);
+            cache_item->offset    = i2->current_buffer_position;
+        }
+
+    next_iteration:
+        /* advance both iterators */
+        e1 = dbp_iterator_next( i1 );
+        e2 = dbp_iterator_next( i2 );
+    }
+
+    dbp_iterator_delete( i1 );
+    dbp_iterator_delete( i2 );
+
+    /* set cache to done - it doesn't need to be rebuilt */
+    thr->cache.done = 1;
+
+build_events_done:
+    pthread_mutex_unlock(&thr->cache.mtx);
+}
+
+typedef struct {
+    const dbp_event_t        *ref;
+    const event_cache_item_t *last;
+} bsearch_key_t;
+
+static int bsearch_compare(const void *key, const void *el)
+{
+    /* technically does Bad Thing (shouldn't modify key), but probably works */
+    bsearch_key_t      *bsearch_key = (bsearch_key_t *)key;
+    const event_cache_item_t *cache_item  = (const event_cache_item_t *)el;
+    bsearch_key->last = cache_item;
+    if( dbp_event_get_timestamp(bsearch_key->ref) < cache_item->timestamp )
+        return -1;
+    if( dbp_event_get_timestamp(bsearch_key->ref) > cache_item->timestamp )
+        return 1;
+    return 0;
+}
+
+static const event_cache_item_t *dbp_event_find_in_cache(dbp_thread_t *thr,
+                                                         const dbp_event_t *ref)
+{
+    event_cache_key_t *cache_key;
+    bsearch_key_t      bsearch_key = { ref, NULL };
+
+    /* ensure we have an unmatched event cache */
+    build_unmatched_events_in_thread(thr);
+
+    /* do binary search in cache of key for events at ref timestamp
+     * we throw away the results of the search, because it's very unlikely to
+     * find this EXACT timestamp; however, we use a side-effect of the search
+     * in the comparison function (bsearch_compare) to store the last item in
+     * the cache array that was considered; this is the "insertion point" for
+     * ref's timestamp and is the timestamp closest to ref's we could find, so
+     * we return it as the starting point for the subsequent search */
+    cache_key = &thr->cache.keys[BASE_KEY(dbp_event_get_key(ref))];
+    bsearch(&bsearch_key, cache_key->items, cache_key->len,
+            sizeof(event_cache_item_t), bsearch_compare);
+
+    return bsearch_key.last;
+}
+
 int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
                                         const dbp_event_t *ref)
 {
-    const dbp_event_t *e;
+    const event_cache_item_t *cache_item;
+    const event_cache_key_t  *cache_key;
+    const dbp_event_t        *e;
 
-    e = dbp_iterator_current( pos );
-    while( NULL != e ) {
-        if( dbp_events_match(ref, e) ) {
-            return 1;
+    cache_item = dbp_event_find_in_cache( pos->thread, ref );
+    cache_key  = &thr->cache.keys[BASE_KEY(dbp_event_get_key(ref))];
+
+    assert(&cache_key->items[0]              <= cache_item)
+    assert(&cache_key->items[cache_key->len] >  cache_item)
+
+    /* iterate over all cached buffers containing possible matches */
+    while( cache_item < &cache_key->items[cache_key->len] ) {
+        /* set iterator for  current cached buffer */
+        e = dbp_iterator_set_offset(pos, cache_item->offset);
+        /* iterate over all events in buffer */
+        while( NULL != e) {
+            if( dbp_events_match(ref, e) ) {
+                return 1;
+            }
+            e = dbp_iterator_next_in_buffer(pos);
         }
-        e = dbp_iterator_next( pos );
+        cache_item++;
     }
+
+    /* set iterator to past-the-end */
+    dbp_iterator_set_offset(pos, (off_t)-1);
     return 0;
 }
 
 dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_event_iterator_t *pos)
 {
     dbp_event_iterator_t *it;
+    dbp_thread_t *thr;
     const dbp_event_t *ref;
+    const dbp_event_t *e;
     dbp_file_t *dbp_file;
-    int th;
+    int tid;
 
+    dbp_file = pos->thread->file;
     ref = dbp_iterator_current((dbp_event_iterator_t *)pos);
+
+    /* most start events are immediately followed by their end event */
     it = dbp_iterator_new_from_iterator(pos);
+    e = dbp_iterator_next(it);
+    /* e can be NULL if pos is last event in stream; there is no next event */
+    if( (NULL != e) && dbp_events_match(ref, e) )
+        return it;
+    dbp_iterator_delete(it);
+
+    /* search through possibly matching events in this thread */
+    it = dbp_iterator_new_from_thread( pos->thread );
     if( dbp_iterator_move_to_matching_event(it, ref) )
         return it;
     dbp_iterator_delete(it);
 
-    dbp_file = pos->thread->file;
-
-    for(th = dbp_file_nb_threads(dbp_file)-1; th>=0; th--) {
-        if( pos->thread == dbp_file_get_thread(dbp_file, th) )
+    /* try other threads */
+    for( tid = 0; tid < dbp_file_nb_threads(dbp_file); tid++) {
+        thr = dbp_file_get_thread(dbp_file, tid);
+        /* skip same thread */
+        if( pos->thread == thr )
             continue;
-        it = dbp_iterator_new_from_thread( dbp_file_get_thread(dbp_file, th) );
+        /* same logic as above */
+        it = dbp_iterator_new_from_thread( thr );
         if( dbp_iterator_move_to_matching_event(it, ref) )
             return it;
         dbp_iterator_delete(it);
@@ -791,6 +985,10 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
         thr = &dbp->threads[head->nb_threads - nb];
         thr->file        = dbp;
         thr->profile     = res;
+        pthread_mutex_init(&thr->cache.mtx, NULL);
+        thr->cache.keys = (event_cache_key_t*)calloc(
+               dbp_file_nb_dictionary_entries(dbp), sizeof(event_cache_key_t));
+        thr->cache.done  = 0;
 
         pos += sizeof(parsec_profiling_stream_buffer_t) - sizeof(parsec_profiling_info_buffer_t);
         pos += read_thread_infos( res, thr, br->nb_infos, (char*)br->infos );
