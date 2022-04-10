@@ -876,14 +876,6 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             }
         }
 
-        if( head.profile_buffer_size != event_buffer_size ) {
-            fprintf(stderr, "The profile in file %s has a buffer size of %d, which is not compatible with the buffer size %d of file %s. File ignored.\n",
-                    dbp->files[n].filename, head.profile_buffer_size,
-                    event_buffer_size, dbp->files[0].filename);
-            dbp->files[n].error = -DIFF_BUFFER_SIZE;
-            goto close_and_continue;
-        }
-
         dbp->files[n].hr_id = strdup(head.hr_id);
         dbp->files[n].rank = head.rank;
 
