@@ -232,10 +232,10 @@ static void release_events_buffer(parsec_profiling_buffer_t *buffer)
     }
 }
 
-static parsec_profiling_buffer_t *refer_events_buffer( int fd, int64_t offset )
+static parsec_profiling_buffer_t *refer_events_buffer( const dbp_file_t *file, int64_t offset )
 {
     parsec_profiling_buffer_t *res;
-    res = mmap(NULL, event_buffer_size, PROT_READ, MAP_SHARED, fd, offset);
+    res = mmap(NULL, event_buffer_size, PROT_READ, MAP_SHARED, file->fd, offset);
     if( MAP_FAILED == res )
         return NULL;
     return res;
@@ -248,14 +248,14 @@ static void release_events_buffer(parsec_profiling_buffer_t *buffer)
     free(buffer);
 }
 
-static parsec_profiling_buffer_t *refer_events_buffer( int fd, int64_t offset )
+static parsec_profiling_buffer_t *refer_events_buffer( const dbp_file_t *file, int64_t offset )
 {
-    off_t pos = lseek(fd, offset, SEEK_SET);
+    off_t pos = lseek(file->fd, offset, SEEK_SET);
     if( -1 == pos ) {
         return NULL;
     }
     parsec_profiling_buffer_t *res = (parsec_profiling_buffer_t*)malloc(event_buffer_size);
-    pos = read(fd, res, event_buffer_size);
+    pos = read(file->fd, res, event_buffer_size);
     if( pos <= 0 ) {
         free(res);
         res = NULL;
@@ -289,7 +289,7 @@ dbp_event_iterator_t *dbp_iterator_new_from_iterator(const dbp_event_iterator_t 
     res->current_event_position = it->current_event_position;
     res->current_event_index = it->current_event_index;
     res->current_buffer_position = it->current_buffer_position;
-    res->current_events_buffer = refer_events_buffer( it->thread->file->fd, res->current_buffer_position );
+    res->current_events_buffer = refer_events_buffer( it->thread->file, res->current_buffer_position );
 #ifndef _NDEBUG
     res->last_event_date = it->last_event_date;
 #endif
@@ -316,7 +316,7 @@ const dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
         it->current_event.native = NULL;
     }
 
-    it->current_events_buffer = refer_events_buffer( it->thread->file->fd, it->thread->profile->first_events_buffer_offset );
+    it->current_events_buffer = refer_events_buffer( it->thread->file, it->thread->profile->first_events_buffer_offset );
     it->current_buffer_position = it->thread->profile->first_events_buffer_offset;
     it->current_event_position = 0;
     if( it->current_events_buffer != NULL )
@@ -342,7 +342,7 @@ const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
         release_events_buffer( it->current_events_buffer );
         it->current_event_position = 0;
         it->current_event_index = 0;
-        it->current_events_buffer = refer_events_buffer( it->thread->file->fd, next_off );
+        it->current_events_buffer = refer_events_buffer( it->thread->file, next_off );
         it->current_buffer_position = next_off;
 
         if( NULL == it->current_events_buffer ) {
@@ -559,7 +559,7 @@ static void read_infos(dbp_file_t *dbp, parsec_profiling_binary_file_header_t *h
 
     dbp->infos = (dbp_info_t**)malloc(sizeof(dbp_info_t*) * dbp->nb_infos);
 
-    info = refer_events_buffer(dbp->fd, head->info_offset );
+    info = refer_events_buffer(dbp, head->info_offset );
     if( NULL == info ) {
         fprintf(stderr, "Unable to read first info at offset %"PRId64": %d general file info in '%s' lost\n",
                 head->info_offset, dbp->nb_infos, dbp->filename);
@@ -596,7 +596,7 @@ static void read_infos(dbp_file_t *dbp, parsec_profiling_binary_file_header_t *h
             pos += tr;
             vpos += tr;
             if( pos == event_avail_space ) {
-                next = refer_events_buffer( dbp->fd, info->next_buffer_file_offset );
+                next = refer_events_buffer( dbp, info->next_buffer_file_offset );
                 if( NULL == next ) {
                     fprintf(stderr, "Info entry %d is broken. Only %d entries read from '%s'\n",
                             dbp->nb_infos - nb, nb, dbp->filename);
@@ -620,7 +620,7 @@ static void read_infos(dbp_file_t *dbp, parsec_profiling_binary_file_header_t *h
         nb++;
 
         if( (nb < dbp->nb_infos) && (nbthis == info->this_buffer.nb_infos) ) {
-            next = refer_events_buffer( dbp->fd, info->next_buffer_file_offset );
+            next = refer_events_buffer( dbp, info->next_buffer_file_offset );
             if( NULL == next ) {
                 fprintf(stderr, "Info entry %d is broken. Only %d entries read from '%s'\n",
                         dbp->nb_infos - nb, nb, dbp->filename);
@@ -639,7 +639,7 @@ static void read_infos(dbp_file_t *dbp, parsec_profiling_binary_file_header_t *h
     release_events_buffer( info );
 }
 
-static int read_dictionary(dbp_file_t *file, int fd, const parsec_profiling_binary_file_header_t *head)
+static int read_dictionary(dbp_file_t *file, const parsec_profiling_binary_file_header_t *head)
 {
     parsec_profiling_buffer_t *dico, *next;
     parsec_profiling_key_buffer_t *a;
@@ -647,7 +647,7 @@ static int read_dictionary(dbp_file_t *file, int fd, const parsec_profiling_bina
     dbp_multifile_reader_t *dbp = file->parent;
 
     /* Dictionaries match: take the first in memory */
-    dico = refer_events_buffer( fd, head->dictionary_offset );
+    dico = refer_events_buffer( file, head->dictionary_offset );
     if( NULL == dico ) {
         fprintf(stderr, "Unable to read entire dictionary entry at offset %"PRId64"\n",
                 head->dictionary_offset);
@@ -695,7 +695,7 @@ static int read_dictionary(dbp_file_t *file, int fd, const parsec_profiling_bina
         nbthis--;
 
         if( nb < file->nb_dico_map && nbthis == 0 ) {
-            next = refer_events_buffer( fd, dico->next_buffer_file_offset );
+            next = refer_events_buffer( file, dico->next_buffer_file_offset );
             if( NULL == next ) {
                 fprintf(stderr, "Dictionary entry %d is broken. Dictionary broken.\n", nb);
                 release_events_buffer( dico );
@@ -750,7 +750,7 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
 
     pos = 0;
     nb = head->nb_threads;
-    b = refer_events_buffer(dbp->fd, head->thread_offset);
+    b = refer_events_buffer(dbp, head->thread_offset);
     nbthis = b->this_buffer.nb_threads;
     while( nb > 0 ) {
         assert(PROFILING_BUFFER_TYPE_THREAD == b->buffer_type);
@@ -763,7 +763,7 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
         res->hr_id = (char*)malloc(128);
         strncpy(res->hr_id, br->hr_id, 128);
         res->first_events_buffer_offset = br->first_events_buffer_offset;
-        res->current_events_buffer = refer_events_buffer(dbp->fd, br->first_events_buffer_offset);
+        res->current_events_buffer = refer_events_buffer(dbp, br->first_events_buffer_offset);
 
         PARSEC_OBJ_CONSTRUCT( res, parsec_list_item_t );
 
@@ -780,7 +780,7 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
 
         if( nbthis == 0 && nb > 0 ) {
             assert( b->next_buffer_file_offset != -1 );
-            next = refer_events_buffer(dbp->fd, b->next_buffer_file_offset);
+            next = refer_events_buffer(dbp, b->next_buffer_file_offset);
             if( NULL == next ) {
                 fprintf(stderr, "Unable to read thread entry %d/%d at offset %lx: Profile file broken\n",
                         head->nb_threads-nb, head->nb_threads, (unsigned long)b->next_buffer_file_offset);
@@ -881,7 +881,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
 
         read_infos(&dbp->files[n], &head /*dbp->header*/);
 
-        if( read_dictionary(&dbp->files[n], fd, &head) != 0 ) {
+        if( read_dictionary(&dbp->files[n], &head) != 0 ) {
             fprintf(stderr, "The profile in file %s has a broken dictionary. Trying to use the dictionary of next file. Ignoring the file.\n",
                     dbp->files[n].filename);
             dbp->files[n].error = -DICT_BROKEN;
