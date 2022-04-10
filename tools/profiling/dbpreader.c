@@ -308,7 +308,7 @@ const dbp_event_t *dbp_iterator_current(dbp_event_iterator_t *it)
     return &it->current_event;
 }
 
-const dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
+static const dbp_event_t *dbp_iterator_set_offset(dbp_event_iterator_t *it, off_t offset)
 {
     if( it->current_events_buffer != NULL ) {
         release_events_buffer( it->current_events_buffer );
@@ -316,9 +316,10 @@ const dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
         it->current_event.native = NULL;
     }
 
-    it->current_events_buffer = refer_events_buffer( it->thread->file, it->thread->profile->first_events_buffer_offset );
-    it->current_buffer_position = it->thread->profile->first_events_buffer_offset;
+    it->current_events_buffer = refer_events_buffer( it->thread->file, offset );
+    it->current_buffer_position = offset;
     it->current_event_position = 0;
+    it->current_event_index = 0;
     if( it->current_events_buffer != NULL )
         it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
     else
@@ -326,42 +327,61 @@ const dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
     return dbp_iterator_current(it);
 }
 
+const dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
+{
+    return dbp_iterator_set_offset(it, it->thread->profile->first_events_buffer_offset);
+}
+
+static const dbp_event_t *dbp_iterator_next_buffer(dbp_event_iterator_t *it)
+{
+    off_t next_off;
+
+    if( NULL == it->current_event.native )
+        return NULL;
+    assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
+
+    next_off = it->current_events_buffer->next_buffer_file_offset;
+    release_events_buffer( it->current_events_buffer );
+    it->current_event_position = 0;
+    it->current_event_index = 0;
+    it->current_events_buffer = refer_events_buffer( it->thread->file, next_off );
+    it->current_buffer_position = next_off;
+
+    if( NULL == it->current_events_buffer ) {
+        it->current_event.native = NULL;
+    } else {
+        it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
+    }
+
+    assert( it->current_event_position <= event_avail_space );
+    assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
+    assert((it->current_event.native == NULL) ||
+           (it->current_event.native->event.timestamp != 0));
+
+    return dbp_iterator_current(it);
+}
+
 const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
 {
     size_t elen;
-    parsec_profiling_output_t *current;
-    off_t next_off;
 
-    current = it->current_event.native;
-    if( NULL == current )
+    if( NULL == it->current_event.native )
         return NULL;
-    elen = DBP_EVENT_LENGTH(&it->current_event, it->thread->file);
     assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
-    if( it->current_event_index+1 >= it->current_events_buffer->this_buffer.nb_events ) {
-        next_off = it->current_events_buffer->next_buffer_file_offset;
-        release_events_buffer( it->current_events_buffer );
-        it->current_event_position = 0;
-        it->current_event_index = 0;
-        it->current_events_buffer = refer_events_buffer( it->thread->file, next_off );
-        it->current_buffer_position = next_off;
 
-        if( NULL == it->current_events_buffer ) {
-            it->current_event.native = NULL;
-            return NULL;
-        } else {
-            it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
-        }
-    } else {
-        it->current_event_position += elen;
-        it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
-        it->current_event_index++;
+    if( it->current_event_index+1 >= it->current_events_buffer->this_buffer.nb_events ) {
+        return dbp_iterator_next_buffer(it);
     }
+
+    elen = DBP_EVENT_LENGTH(&it->current_event, it->thread->file);
+    it->current_event_position += elen;
+    it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
+    it->current_event_index++;
+
     assert( it->current_event_position <= event_avail_space );
     assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
-
-    current = it->current_event.native;
-    assert((current == NULL) ||
-           (current->event.timestamp != 0));
+    assert((it->current_event.native == NULL) ||
+           (it->current_event.native->event.timestamp != 0));
 
     return dbp_iterator_current(it);
 }
