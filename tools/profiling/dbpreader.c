@@ -69,8 +69,8 @@ typedef enum {
 struct dbp_file {
     struct dbp_multifile_reader *parent;
     char  *hr_id;
-    int    fd;
     char  *filename;
+    int    fd;
     int    rank;
     int    nb_infos;
     int    nb_threads;
@@ -217,8 +217,8 @@ int dbp_file_translate_local_dico_to_global(const dbp_file_t *file, int lid)
 struct dbp_thread {
     const parsec_profiling_stream_t *profile;
     dbp_file_t                      *file;
-    int                              nb_infos;
     dbp_info_t                      *infos;
+    int                              nb_infos;
 };
 
 #if defined(PARSEC_PROFILING_USE_MMAP)
@@ -763,6 +763,7 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
     parsec_profiling_stream_t *res;
     parsec_profiling_stream_buffer_t *br;
     parsec_profiling_buffer_t *b, *next;
+    dbp_thread_t *thr;
     int nb, nbthis, pos;
 
     dbp->nb_threads = head->nb_threads;
@@ -787,12 +788,12 @@ static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_head
 
         PARSEC_OBJ_CONSTRUCT( res, parsec_list_item_t );
 
-        dbp->threads[head->nb_threads - nb].file = dbp;
-        dbp->threads[head->nb_threads - nb].profile = res;
+        thr = &dbp->threads[head->nb_threads - nb];
+        thr->file        = dbp;
+        thr->profile     = res;
 
         pos += sizeof(parsec_profiling_stream_buffer_t) - sizeof(parsec_profiling_info_buffer_t);
-        pos += read_thread_infos( res, &dbp->threads[head->nb_threads-nb],
-                                  br->nb_infos, (char*)br->infos );
+        pos += read_thread_infos( res, thr, br->nb_infos, (char*)br->infos );
 
         nbthis--;
         nb--;
@@ -847,6 +848,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             dbp->files[n].error = -UNABLE_TO_OPEN;
             continue;
         }
+
         dbp->files[n].filename = strdup(filenames[i]);
         dbp->files[n].parent = dbp;
         dbp->files[n].fd = fd;
