@@ -613,7 +613,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                             traceback.print_exc()
                             print('Failed to extract info from the start event (taskpool_id {0} event_id {1})'.format(taskpool_id, event_id))
 
-                it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
+                it_e = dbp_iterator_find_matching_event_all_threads(it_s)
                 if it_e != NULL:
 
                     event_e = dbp_iterator_current(it_e)
