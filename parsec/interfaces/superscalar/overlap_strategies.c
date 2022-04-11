@@ -20,6 +20,13 @@
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include "parsec/utils/debug.h"
 
+#define MIN(x, y) ( (x)<(y)?(x):(y) )
+static inline unsigned long exponential_backoff(uint64_t k)
+{
+        unsigned int n = MIN( 64, k );
+            unsigned int r = (unsigned int) ((double)n * ((double)rand()/(double)RAND_MAX));
+                return r * 5410;
+}
 /***************************************************************************//**
  *
  * This function makes sure that nextinline descendant is really NULL
@@ -174,7 +181,9 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                 * propagate the data down to descendants as well */
                 //if(current_task->deps_out != NULL) {
                     /* we have not propagate the remote deps yet, otherwise will be set to NULL */
-                    if(action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) {
+                    if(action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) { 
+                        if (parsec_dtd_task_is_local(current_task)) {
+                            if(current_task->super.locals[3].value != 10086) {
                         parsec_remote_deps_t *deps = NULL;
                         PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(deps, this_task, MAX_PARAM_COUNT);
                         deps->root = rank_src;
@@ -191,11 +200,23 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
                         assert(NULL != current_task->super.data[current_dep].data_out);
                         parsec_dtd_tile_t *tile = NULL;
-                        parsec_key_t key = ((uintptr_t)current_task->super.locals[0].value)<<32;
+                        parsec_key_t key = (parsec_key_t)((uintptr_t)current_task->super.locals[0].value);
+                        int count = 1;
+                        struct timespec rqtp;
+                        rqtp.tv_sec = 0;
+
                         while(tile == NULL){
-                        tile = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find(parsec_bcast_keys_hash, key);
-                        //fprintf(stderr, "bcast root task %p data with global key %d tile %p on rank %d\n", current_task, current_task->ht_item.key, tile, current_task->super.taskpool->context->my_rank);
-                        //fprintf(stderr, "bcast root task %p data with global key %ld tile %p on rank %d\n", current_task, key, tile, current_task->super.taskpool->context->my_rank);
+                            count += 1;
+                            tile = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find(parsec_bcast_keys_hash, key);
+                            //if(count %1000 == 0)fprintf(stderr, "bcast root task %p data with global key %d tile %p on rank %d\n", current_task, current_task->ht_item.key, tile, current_task->super.taskpool->context->my_rank);
+                        //sleep(1);
+                            if(count == 100) {
+                                rqtp.tv_nsec = exponential_backoff(count);
+                                nanosleep(&rqtp, NULL);
+                                count = 0;
+                                fprintf(stderr, "bcast root task %p data with global key %ld tile %p on rank %d\n", current_task, key, tile, current_task->super.taskpool->context->my_rank);
+                                sleep(1);
+                            }
                         }
                         int* data_ptr = (int*)parsec_data_copy_get_ptr(tile->data_copy);
                         populate_remote_deps(data_ptr, deps);
@@ -207,18 +228,36 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                                 deps,
                                 deps->outgoing_mask);
                         //current_task->deps_out = NULL;
+                            current_task->super.locals[3].value = 10086;
+                            }
+                        }
                     } else if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                         /* current node is part of the broadcast operation, propagate downstream */
                         //int root = current_task->deps_out->root;
+                            if(current_task->super.locals[3].value != 10086) {
                         parsec_release_dep_fct_arg_t* arg = (parsec_release_dep_fct_arg_t*)ontask_arg;
                         parsec_remote_deps_t* deps = arg->remote_deps;
                         int root = deps->root;
                         int my_rank = current_task->super.taskpool->context->my_rank;
-                       
-                        parsec_dtd_tile_t* item = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find( parsec_bcast_keys_hash, (parsec_key_t)((uintptr_t)current_task->super.locals[0].value));
+                        parsec_dtd_tile_t* item = NULL; 
+                        int count = 1;
+                        struct timespec rqtp;
+                        rqtp.tv_sec = 0;
+                        
+                        while(item == NULL) {
+                            count += 1;
+                            item = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find( parsec_bcast_keys_hash, (parsec_key_t)((uintptr_t)current_task->super.locals[0].value));
+                            if(count == 100){
+                                fprintf(stderr, "bcast data continue on rank %d, from root %d, for task %p with key %d \n", my_rank, root, current_task, current_task->super.locals[0].value);
+                                sleep(1);
+                                rqtp.tv_nsec = exponential_backoff(count);
+                                nanosleep(&rqtp, NULL);
+                                count = 0;
+                            }
+                        }
                         int* data_ptr = (int*)item->data_copy->device_private;
                         populate_remote_deps(data_ptr, deps);
-                        //fprintf(stderr, "bcast data continue on rank %d, from root %d, for task %p with item %p value0 %d\n", my_rank, root, current_task, item, data_ptr[0]);
+                        parsec_hash_table_nolock_remove( parsec_bcast_keys_hash, (parsec_key_t)((uintptr_t)current_task->super.locals[0].value));
 
                         assert(NULL != current_task->super.data[current_dep].data_out);
 
@@ -230,6 +269,8 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                                 deps,
                                 deps->outgoing_mask);
                         //current_task->deps_out = NULL;
+                            current_task->super.locals[3].value = 10086;
+                            }
                     }
                 //}
             } /* BCAST DATA propagation */

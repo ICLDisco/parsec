@@ -119,7 +119,6 @@ void parsec_dtd_broadcast(
         bcast_id = ( (1<<27) | (root << 18) | dtd_tp->bcast_id);
         dtd_tp->bcast_id++;
        
-        bcast_keys_root->ht_item.key = ((uintptr_t)bcast_id)<<32;
         
         parsec_data_copy = bcast_keys_root->data_copy;
         data_ptr = (int*)parsec_data_copy_get_ptr(parsec_data_copy);
@@ -130,9 +129,11 @@ void parsec_dtd_broadcast(
             //pack the ranks at the end of the tiles as well
             data_ptr[400+i+1] = dest_ranks[i];
         }
+        bcast_keys_root->ht_item.key = (parsec_key_t)((uintptr_t)data_ptr[0]);
         
         //fprintf(stderr, "on rank %d inserting key tile into bcast_keys_hash with key %ld num dest ranks %d\n", myrank, bcast_keys_root->ht_item.key, data_ptr[400]); 
         parsec_hash_table_insert(parsec_bcast_keys_hash, &bcast_keys_root->ht_item);
+        parsec_mfence(); /* Write */
     }
 
     // Retrieve DTD tile's data_copy
@@ -185,10 +186,10 @@ void parsec_dtd_broadcast(
         dtd_bcast_key_root->super.locals[0].value = dtd_bcast_key_root->ht_item.key;
     }
     /* Post the bcast of keys and ranks array */
-    parsec_insert_dtd_task(dtd_bcast_key_root);
-    
     /* Post the bcast tasks for the actual data */
     parsec_insert_dtd_task(dtd_bcast_task_root);
+    //sleep(1);
+    parsec_insert_dtd_task(dtd_bcast_key_root);
 }
 
 #endif

@@ -146,6 +146,8 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
 
                 /* We are part of the broadcast, forward message */
                 int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
+                int* buffer = malloc(sizeof(int)*30*30);
+                memcpy(buffer, data_ptr, sizeof(int)*30*30);
                 populate_remote_deps(data_ptr, deps);
                 //successor = get_chain_successor(es, (parsec_task_t*)current_task, current_task->deps_out);
                 if(successor == -1) {
@@ -171,22 +173,21 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                 dtd_task = parsec_dtd_find_task(tp, key);
                
                 // store the meta data info into the key hash table
-                int* buffer = malloc(sizeof(int)*30*30);
-                memcpy(buffer, data_ptr, sizeof(int)*30*30);
                 dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_thread_mempool_allocate(tp->hash_table_bucket_mempool->thread_mempools);
                 parsec_hash_table_t *hash_table = tp->keys_hash_table;
                 item->ht_item.key   = (parsec_key_t)key;
                 item->mempool_owner = tp->hash_table_bucket_mempool->thread_mempools;
                 item->value         = (void *)buffer;
-                parsec_hash_table_nolock_insert( hash_table, &item->ht_item );
+                parsec_hash_table_insert( hash_table, &item->ht_item );
                
                 //parsec_dtd_tile_t* bcast_keys = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate( parsec_bcast_keys_tile_mempool->thread_mempools );
                 parsec_dtd_tile_t* bcast_keys = (parsec_dtd_tile_t *)malloc(sizeof(parsec_dtd_tile_t));
-                bcast_keys->ht_item.key   = (parsec_key_t)((uintptr_t)data_ptr[0]);
+                bcast_keys->ht_item.key   = (parsec_key_t)((uintptr_t)buffer[0]);
                 bcast_keys->data_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
                 bcast_keys->data_copy->device_private = (void *)buffer;
-                parsec_hash_table_nolock_insert( parsec_bcast_keys_hash, &bcast_keys->ht_item );
-                //fprintf(stderr, "insert into parsec_bcast_keys_hash the item %p key %d with value pointer %p on rank %d\n", bcast_keys, data_ptr[0], buffer, es->virtual_process->parsec_context->my_rank);
+                parsec_hash_table_insert( parsec_bcast_keys_hash, &bcast_keys->ht_item );
+                parsec_mfence(); /* Write */
+                //fprintf(stderr, "insert into parsec_bcast_keys_hash the item %p key %d with value pointer %p on rank %d\n", bcast_keys, buffer[0], buffer, es->virtual_process->parsec_context->my_rank);
 
                 if(dtd_task != NULL) {
                     parsec_hash_table_lock_bucket(tp->task_hash_table, (parsec_key_t)key2);

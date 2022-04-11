@@ -766,6 +766,7 @@ parsec_dtd_track_task( parsec_dtd_taskpool_t *tp,
 {
     dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_thread_mempool_allocate(tp->hash_table_bucket_mempool->thread_mempools);
 
+    //fprintf(stderr, "tracking task with key value %ld on rank %d\n", key, tp->super.context->my_rank);
     parsec_hash_table_t *hash_table = tp->task_hash_table;
 
     item->ht_item.key   = (parsec_key_t)key;
@@ -1851,7 +1852,6 @@ void
 parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task )
 {
     parsec_object_t *object = (parsec_object_t *)this_task;
-    //parsec_atomic_fetch_inc_int32( &object->obj_reference_count);
     assert(object->obj_reference_count > 1);
     if( 2 == parsec_atomic_fetch_dec_int32( &object->obj_reference_count ) ){
         int current_flow;
