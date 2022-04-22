@@ -257,7 +257,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                         }
                         int* data_ptr = (int*)item->data_copy->device_private;
                         populate_remote_deps(data_ptr, deps);
-                        parsec_hash_table_nolock_remove( parsec_bcast_keys_hash, (parsec_key_t)((uintptr_t)current_task->super.locals[0].value));
+                        //parsec_hash_table_nolock_remove( parsec_bcast_keys_hash, (parsec_key_t)((uintptr_t)current_task->super.locals[0].value));
 
                         assert(NULL != current_task->super.data[current_dep].data_out);
 

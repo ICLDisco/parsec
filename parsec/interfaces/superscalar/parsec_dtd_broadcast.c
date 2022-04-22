@@ -17,9 +17,9 @@ populate_remote_deps(int* data_ptr, parsec_remote_deps_t* remote_deps)
     int _array_pos, _array_mask;
     uint32_t dest_rank_idx;
     /* TODO: don't assume the length of data_ptr */
-    int num_dest_ranks = data_ptr[400];
+    int num_dest_ranks = data_ptr[600];
     for(dest_rank_idx = 0; dest_rank_idx < (uint32_t)num_dest_ranks; ++dest_rank_idx) {
-        uint32_t dest_rank = data_ptr[400+dest_rank_idx+1];
+        uint32_t dest_rank = data_ptr[600+dest_rank_idx+1];
         _array_pos = dest_rank / (8 * sizeof(uint32_t));
         _array_mask = 1 << (dest_rank % (8 * sizeof(uint32_t)));
 
@@ -146,8 +146,8 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
 
                 /* We are part of the broadcast, forward message */
                 int* data_ptr = (int*)parsec_data_copy_get_ptr(current_task->super.data[0].data_out);
-                int* buffer = malloc(sizeof(int)*30*30);
-                memcpy(buffer, data_ptr, sizeof(int)*30*30);
+                int* buffer = malloc(sizeof(int)*50*50);
+                memcpy(buffer, data_ptr, sizeof(int)*50*50);
                 populate_remote_deps(data_ptr, deps);
                 //successor = get_chain_successor(es, (parsec_task_t*)current_task, current_task->deps_out);
                 if(successor == -1) {
@@ -164,7 +164,7 @@ parsec_dtd_bcast_key_iterate_successors(parsec_execution_stream_t *es,
                         deps->outgoing_mask);
                 //current_task->deps_out = NULL;
                 /* update the BCAST DATA task or dep with the global ID that we know now */
-                uint64_t key = ((uint64_t)(1<<28 | (root << 20 ) | data_ptr[es->virtual_process->parsec_context->my_rank+1])<<32) | (1U<<0);
+                uint64_t key = ((uint64_t)(1<<28 | (root << 18 ) | data_ptr[es->virtual_process->parsec_context->my_rank+1])<<32) | (1U<<0);
                 uint64_t key2 = ((uint64_t)(data_ptr[0])<<32) | (1U<<0);
 
                 parsec_dtd_task_t* dtd_task = NULL;

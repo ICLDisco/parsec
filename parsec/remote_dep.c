@@ -559,7 +559,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                         if(this_dtd_task->super.task_class->task_class_id == PARSEC_DTD_BCAST_KEY_TC_ID) {
                             int* data_ptr = (int*)parsec_data_copy_get_ptr(this_dtd_task->super.data[0].data_out);
                             this_dtd_task->super.locals[4+child_count*2].value = rank;
-                            this_dtd_task->super.locals[4+child_count*2+1].value = this_dtd_task->ht_item.key = ((1<<29) |(remote_deps->root << 20) | *(data_ptr+1+rank));
+                            this_dtd_task->super.locals[4+child_count*2+1].value = this_dtd_task->ht_item.key = ((1<<29) |(remote_deps->root << 18) | *(data_ptr+1+rank));
                             remote_deps->msg.locals[4+child_count*2].value = this_dtd_task->super.locals[4+child_count*2].value;
                             remote_deps->msg.locals[4+child_count*2+1].value = this_dtd_task->super.locals[4+child_count*2+1].value;
                             child_count += 1;
