@@ -111,6 +111,9 @@ set(SOURCES
   mempool.c
   private_mempool.c
   remote_dep.c
+  parsec_comm_engine.c
+  parsec_mpi_funnelled.c
+  parsec_remote_dep.c
   scheduling.c
   compound.c
   vpmap.c
