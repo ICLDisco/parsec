@@ -2344,7 +2344,7 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
         parsec_remote_deps_t *dep = parsec_dtd_find_remote_dep( tp, key );
         if(real_parent_task->super.task_class->task_class_id == PARSEC_DTD_BCAST_DATA_TC_ID) {
             parsec_hash_table_t *hash_table = tp->keys_hash_table;
-            dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_nolock_find( hash_table, (parsec_key_t)key );
+            dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_hash_table_find( hash_table, (parsec_key_t)key );
             if(item) {
                 int* data_ptr = (int*)item->value;
                 parsec_dtd_untrack_task(tp, key);

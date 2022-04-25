@@ -207,7 +207,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
 
                         while(tile == NULL){
                             count += 1;
-                            tile = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find(parsec_bcast_keys_hash, key);
+                            tile = (parsec_dtd_tile_t *)parsec_hash_table_find(parsec_bcast_keys_hash, key);
                             //if(count %1000 == 0)fprintf(stderr, "bcast root task %p data with global key %d tile %p on rank %d\n", current_task, current_task->ht_item.key, tile, current_task->super.taskpool->context->my_rank);
                         //sleep(1);
                             if(count == 100) {
@@ -246,7 +246,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                         
                         while(item == NULL) {
                             count += 1;
-                            item = (parsec_dtd_tile_t *)parsec_hash_table_nolock_find( parsec_bcast_keys_hash, (parsec_key_t)((uintptr_t)current_task->super.locals[0].value));
+                            item = (parsec_dtd_tile_t *)parsec_hash_table_find( parsec_bcast_keys_hash, (parsec_key_t)((uintptr_t)current_task->super.locals[0].value));
                             if(count == 100){
                                 fprintf(stderr, "bcast data continue on rank %d, from root %d, for task %p with key %d \n", my_rank, root, current_task, current_task->super.locals[0].value);
                                 sleep(1);
