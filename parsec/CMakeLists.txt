@@ -42,10 +42,12 @@ set(BASE_SOURCES
 
 if(FLEX_FOUND AND BISON_FOUND)
   # generate in the build dir
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/utils")
   FLEX_TARGET(keyval_flex utils/keyval_lex.l utils/keyval_lex.l.c)
   FLEX_TARGET(show_help_flex utils/show_help_lex.l utils/show_help_lex.l.c)
 
   # Generate in the pregen dir, add to the non-automated rule
+  file(MAKE_DIRECTORY "${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/utils")
   FLEX_TARGET(pregen_keyval_flex utils/keyval_lex.l ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/utils/keyval_lex.l.c COMPILE_FLAGS --noline)
   FLEX_TARGET(pregen_show_help_flex utils/show_help_lex.l ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/utils/show_help_lex.l.c COMPILE_FLAGS --noline)
   add_custom_target(parsec_pregen_flex_utils SOURCES ${FLEX_pregen_keyval_flex_OUTPUTS} ${FLEX_pregen_show_help_flex_OUTPUTS})

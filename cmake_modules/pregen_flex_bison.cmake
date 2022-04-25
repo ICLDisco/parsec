@@ -49,6 +49,7 @@ if(archive)
     # Check for problems: stray files in build directory
     execute_process(
       COMMAND git ls-files --error-unmatch ${srcdir}/${source}
+      WORKING_DIRECTORY ${srcdir}
       RESULT_VARIABLE ret
       OUTPUT_VARIABLE stdout
       ERROR_VARIABLE stderr
@@ -61,6 +62,7 @@ if(archive)
     # Check for modifications
     execute_process(
       COMMAND git status --porcelain -- ${srcdir}/${source}
+      WORKING_DIRECTORY ${srcdir}
       RESULT_VARIABLE ret
       OUTPUT_VARIABLE stdout
       ERROR_VARIABLE stderr

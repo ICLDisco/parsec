@@ -9,6 +9,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
     ADD_FLEX_BISON_DEPENDENCY(parsec_flex parsec_yacc)
 
     # Generate in the pregen dir, add to the non-automated rule to update the archive
+    file(MAKE_DIRECTORY "${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/interfaces/ptg/ptg-compiler")
     BISON_TARGET(pregen_parsec_yacc parsec.y ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/interfaces/ptg/ptg-compiler/parsec.y.c COMPILE_FLAGS -l)
     FLEX_TARGET(pregen_parsec_flex parsec.l ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/interfaces/ptg/ptg-compiler/parsec.l.c COMPILE_FLAGS --noline)
     add_custom_target(parsec_pregen_ptg SOURCES ${BISON_pregen_parsec_yacc_OUTPUTS} ${FLEX_pregen_parsec_flex_OUTPUTS})
