@@ -645,7 +645,7 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
 
     if(NULL != parsec_hash_table_nolock_find(tag_hash_table, (parsec_key_t)tag)) {
         parsec_warning("Tag: %d is already registered\n", (int)tag);
-        return PARSEC_EXISTS;
+        return PARSEC_ERR_EXISTS;
     }
 
     size_of_total_reqs += EACH_STATIC_REQ_RANGE;
