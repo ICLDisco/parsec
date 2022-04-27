@@ -28,14 +28,19 @@ save_dir=`pwd`
 #
 echo "::group::Spack environment setup"
 if [ -r ${SPACK_DIR}/.git/FETCH_HEAD ]; then
+  # We should never allow spack to update it's packages, it increases the
+  # opportunity for mishandling of the runner environment. Instead, when
+  # there is a need for update, the entire runner should be flushed, such
+  # that a fresh spack install is created.
   last_update=`stat -c %Y ${SPACK_DIR}/.git/FETCH_HEAD`
   current=`date -d now "+%s"`
-  if [ $(((current - last_update) / 86400)) -gt 1 ]; then
-    echo "Last update ${last_update}, current ${current}: Do git pull spack"
-    cd $SPACK_DIR && git pull
-  else
-    echo "git pull was less than one day ago"
-  fi
+  echo "spack is $(((current - last_update) / 86400)) days old"
+  # if [ $(((current - last_update) / 86400)) -gt 1 ]; then
+  #   echo "Last update ${last_update}, current ${current}: Do git pull spack"
+  #   cd $SPACK_DIR && git pull
+  # else
+  #   echo "git pull was less than one day ago"
+  # fi
 else
   echo "git clone spack"
   git clone https://github.com/spack/spack $SPACK_DIR || true
@@ -44,14 +49,15 @@ else
   cd $SPACK_DIR && git pull && git status
 fi
 
+rm -rf ${HOME}/.spack
+
 echo "Load spack environment"
 source $SPACK_DIR/share/spack/setup-env.sh
 
-spack external find
 spack compiler find
 
 # Start with a fresh env every time
-spack env remove -y ${RUNNER_ENV}
+spack env remove -y ${RUNNER_ENV} || true
 
 cd ${save_dir}
 mkdir ${RUNNER_ENV} || true
