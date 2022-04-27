@@ -49,6 +49,9 @@ typedef struct remote_dep_cb_data_s {
     parsec_thread_mempool_t *mempool_owner;
     parsec_remote_deps_t *deps; /* always local */
     parsec_ce_mem_reg_handle_t memory_handle;
+#if defined(PARSEC_PROF_TRACE)
+    uint64_t event_id;
+#endif /* PARSEC_PROF_TRACE */
     int k;
 } remote_dep_cb_data_t;
 
@@ -1200,12 +1203,10 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
 
 
 #ifdef PARSEC_PROF_TRACE
-int MPI_Activate_sk, MPI_Activate_ek;
-int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
-int MPI_Data_plds_sk, MPI_Data_plds_ek;
-int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
-int activate_cb_trace_sk, activate_cb_trace_ek;
-int put_cb_trace_sk, put_cb_trace_ek;
+static int MPI_Activate_sk, MPI_Activate_ek;
+static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
+static int MPI_Data_plds_sk, MPI_Data_plds_ek;
+static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
 
 /**
  * The structure describe the MPI events saves into the profiling stream. The following
@@ -1213,13 +1214,13 @@ int put_cb_trace_sk, put_cb_trace_ek;
  * binary format of the stream.
  */
 
-static char parsec_profile_remote_dep_mpi_info_to_string[] = "src{int32_t};"
-                                                             "dst{int32_t};"
-                                                             "tid{int64_t};"
-                                                             "tpid{int32_t};"
-                                                             "tcid{int32_t};"
-                                                             "msg_size{int32_t};"
-                                                             "##padding{int32_t}";
+static const char *parsec_profile_remote_dep_mpi_info_to_string = "src{int};"
+                                                                  "dst{int};"
+                                                                  "tid{uint64_t};"
+                                                                  "tpid{uint32_t};"
+                                                                  "tcid{uint32_t};"
+                                                                  "msg_size{int};"
+                                                                  "dep{int}";
 
 static void remote_dep_mpi_profiling_init(void)
 {
@@ -1240,16 +1241,7 @@ static void remote_dep_mpi_profiling_init(void)
                                             parsec_profile_remote_dep_mpi_info_to_string,
                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
 
-    parsec_profiling_add_dictionary_keyword( "ACTIVATE_CB", "fill:#FF0000",
-                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
-                                            parsec_profile_remote_dep_mpi_info_to_string,
-                                            &activate_cb_trace_sk, &activate_cb_trace_ek);
-    parsec_profiling_add_dictionary_keyword( "PUT_CB", "fill:#FF0000",
-                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
-                                            parsec_profile_remote_dep_mpi_info_to_string,
-                                            &put_cb_trace_sk, &put_cb_trace_ek);
-
-    parsec_comm_es.es_profile = parsec_profiling_stream_init( 2*1024*1024, "MPI thread");
+    parsec_comm_es.es_profile = parsec_profiling_stream_init( 2*1024*1024, "Comm thread");
     parsec_profiling_set_default_thread(parsec_comm_es.es_profile);
 }
 
@@ -1259,10 +1251,20 @@ static void remote_dep_mpi_profiling_fini(void)
      * released when the master profiling system is shut down.
      */
 }
+
+static inline uint64_t remote_dep_mpi_profiling_event_id(void)
+{
+    static uint64_t event_id = 0;
+    /* we only need distinct event ids for events triggered by the comm thread,
+     * so I think this doesn't need to be atomic
+     * return parsec_atomic_fetch_inc_int64(&event_id); */
+    return event_id++;
+}
 #else
 
 #define remote_dep_mpi_profiling_init() do {} while(0)
 #define remote_dep_mpi_profiling_fini() do {} while(0)
+#define remote_dep_mpi_profiling_event_id() (0UL)
 
 #endif  /* PARSEC_PROF_TRACE */
 
@@ -1452,10 +1454,6 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
     parsec_list_item_t* ring = NULL;
     char packed_buffer[DEP_SHORT_BUFFER_SIZE];
     int peer, position = 0;
-#ifdef PARSEC_PROF_TRACE
-    static int save_act = 0;
-    int event_id = parsec_atomic_fetch_inc_int32(&save_act);
-#endif  /* PARSEC_PROF_TRACE */
 
     peer = item->cmd.activate.peer;  /* this doesn't change */
     deps = (parsec_remote_deps_t*)item->cmd.activate.task.source_deps;
@@ -1481,11 +1479,12 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
     *head_item = item;
     assert(NULL != ring);
 
-    TAKE_TIME_WITH_INFO(es->es_profile, MPI_Activate_sk, 0,
-                        es->virtual_process->parsec_context->my_rank,
-                        peer, deps->msg, position, MPI_PACKED, MPI_COMM_WORLD);
+    /* dep index is meaningless in this context, set to -1 */
+    TAKE_TIME_WITH_INFO(es->es_profile, MPI_Activate_sk, 0, -1,
+                        es->virtual_process->parsec_context->my_rank, peer,
+                        deps->msg, position, PARSEC_DATATYPE_PACKED);
     parsec_ce.send_am(&parsec_ce, PARSEC_CE_REMOTE_DEP_ACTIVATE_TAG, peer, packed_buffer, position);
-    TAKE_TIME(es->es_profile, MPI_Activate_ek, event_id);
+    TAKE_TIME(es->es_profile, MPI_Activate_ek, 0);
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(peer, (void*)&deps->msg, &deps->msg);
 
     do {
@@ -1698,9 +1697,13 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
         cb_data->deps  = deps;
         cb_data->k     = k;
 
-        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_plds_sk, k,
+        uint64_t event_id = remote_dep_mpi_profiling_event_id();
+#if defined(PARSEC_PROF_TRACE)
+        cb_data->event_id = event_id;
+#endif /* PARSEC_PROF_TRACE */
+        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_plds_sk, event_id, k,
                             es->virtual_process->parsec_context->my_rank,
-                            item->cmd.activate.peer, deps->msg, nbdtt, dtt, MPI_COMM_WORLD);
+                            item->cmd.activate.peer, deps->msg, nbdtt, dtt);
 
         /* the remote side should send us 8 bytes as the callback data to be passed back to them */
         parsec_ce.put(&parsec_ce, source_memory_handle, 0,
@@ -1739,8 +1742,9 @@ remote_dep_mpi_put_end_cb(parsec_comm_engine_t *ce,
             ((remote_dep_cb_data_t *)cb_data)->k, deps, lreg, rreg);
 
 #if defined(PARSEC_PROF_TRACE)
-    TAKE_TIME(parsec_comm_es.es_profile, MPI_Data_plds_ek, ((remote_dep_cb_data_t *)cb_data)->k);
-#endif
+    TAKE_TIME(parsec_comm_es.es_profile, MPI_Data_plds_ek,
+              ((remote_dep_cb_data_t *)cb_data)->event_id);
+#endif /* PARSEC_PROF_TRACE */
 
     remote_dep_complete_and_cleanup(&deps, 1);
 
@@ -1968,10 +1972,6 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
     int len;
     remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN);
 #endif
-#ifdef PARSEC_PROF_TRACE
-    int32_t save_get = 0;
-    int32_t event_id = parsec_atomic_fetch_inc_int32(&save_get);
-#endif  /* PARSEC_PROF_TRACE */
     for(k = count = 0; deps->incoming_mask >> k; k++)
         if( ((1U<<k) & deps->incoming_mask) ) count++;
 
@@ -2057,7 +2057,18 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
                 receiver_memory_handle,
                 receiver_memory_handle_size );
 
+        uint64_t event_id = remote_dep_mpi_profiling_event_id();
+#if defined(PARSEC_PROF_TRACE)
+        callback_data->event_id = event_id;
+#endif /* PARSEC_PROF_TRACE */
+
         /* Send AM */
+        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_pldr_sk, event_id, k,
+                            from, es->virtual_process->parsec_context->my_rank,
+                            *task, nbdtt, dtt);
+        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_ctl_sk, event_id, k,
+                            from, es->virtual_process->parsec_context->my_rank,
+                            *task, nbdtt, dtt);
         parsec_ce.send_am(&parsec_ce, PARSEC_CE_REMOTE_DEP_GET_DATA_TAG, from, buf, buf_size);
         TAKE_TIME(es->es_profile, MPI_Data_ctl_ek, event_id);
 
@@ -2102,7 +2113,9 @@ remote_dep_mpi_get_end_cb(parsec_comm_engine_t *ce,
             callback_data->k, deps->incoming_mask, src);
 
 
-    TAKE_TIME(es->es_profile, MPI_Data_pldr_ek, callback_data->k);
+#if defined(PARSEC_PROF_TRACE)
+    TAKE_TIME(es->es_profile, MPI_Data_pldr_ek, callback_data->event_id);
+#endif /* PARSEC_PROF_TRACE */
     remote_dep_mpi_get_end(es, callback_data->k, deps);
 
     parsec_ce.mem_unregister(&callback_data->memory_handle);
