@@ -1434,6 +1434,7 @@ struct parsec_comm_callback_s {
     parsec_comm_callback_f fct;
     void*                  cb_data;
     int                    idx;  /* index of the MPI request in the array of request */
+    int                    tag;  /* tag of the associated MPI communication */
 };
 
 static parsec_comm_callback_t *array_of_callbacks;
@@ -1647,6 +1648,7 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
         cb->fct      = remote_dep_mpi_save_activate_cb;
         cb->cb_data  = (void*)(uintptr_t)parsec_comm_last_active_req;
         cb->idx      = i;
+        cb->tag      = REMOTE_DEP_ACTIVATE_TAG;
         MPI_Start(&array_of_requests[parsec_comm_last_active_req]);
         parsec_comm_last_active_req++;
     }
@@ -1660,6 +1662,7 @@ static int remote_dep_mpi_setup(parsec_context_t* context)
         cb->fct      = remote_dep_mpi_save_put_cb;
         cb->cb_data  = (void*)(uintptr_t)parsec_comm_last_active_req;
         cb->idx      = i;
+        cb->tag      = REMOTE_DEP_GET_DATA_TAG;
         MPI_Start(&array_of_requests[parsec_comm_last_active_req]);
         parsec_comm_last_active_req++;
     }
@@ -2091,6 +2094,7 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
     parsec_comm_callback_t* cb;
     void* dataptr;
     MPI_Datatype dtt;
+    uint64_t event_id; (void)event_id;
 #endif  /* !defined(PARSEC_PROF_DRY_DEP) */
 #if defined(PARSEC_DEBUG_NOISIER)
     char type_name[MPI_MAX_OBJECT_NAME];
@@ -2168,7 +2172,8 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
                item->cmd.activate.peer, k, task->deps, dataptr, type_name, dtt, tag+k, deps->output[k].data.remote.src_displ);
 #endif
 
-        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_plds_sk, k,
+        event_id = (((uint64_t)(es->virtual_process->parsec_context->my_rank) << 32) | (uint64_t)(tag + k));
+        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_plds_sk, event_id,
                             es->virtual_process->parsec_context->my_rank,
                             item->cmd.activate.peer, deps->msg, nbdtt, dtt, dep_comm);
         task->output_mask ^= (1U<<k);
@@ -2179,6 +2184,7 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
         cb->fct      = remote_dep_mpi_put_end_cb;
         cb->cb_data  = (void*)deps;
         cb->idx      = k;
+        cb->tag      = tag;
         parsec_comm_last_active_req++;
         parsec_comm_puts++;
         assert(parsec_comm_last_active_req <= DEP_NB_REQ);
@@ -2197,12 +2203,15 @@ remote_dep_mpi_put_end_cb(parsec_execution_stream_t* es,
                           MPI_Status* status)
 {
     parsec_remote_deps_t* deps = (parsec_remote_deps_t*)cb->cb_data;
+    int tag = cb->tag + cb->idx;
+    uint64_t event_id; (void)event_id;
 
     PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\tna\tPut END  \tunknown \tk=%d\twith deps %p\tparams %lx\t(tag=%d) data ptr %p",
-            cb->idx, deps, (long)cb->idx, status->MPI_TAG,
+            cb->idx, deps, (long)cb->idx, tag,
             deps->output[cb->idx].data.data); (void)status;
-    DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
-    TAKE_TIME(es->es_profile, MPI_Data_plds_ek, cb->idx);
+    DEBUG_MARK_DTA_MSG_END_SEND(tag);
+    event_id = (((uint64_t)(es->virtual_process->parsec_context->my_rank) << 32) | (uint64_t)tag);
+    TAKE_TIME(es->es_profile, MPI_Data_plds_ek, event_id);
     remote_dep_complete_and_cleanup(&deps, 1);
     parsec_comm_puts--;
     (void)es;
@@ -2434,6 +2443,7 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
     int from = deps->from, k, count, nbdtt;
     remote_dep_wire_get_t msg;
     MPI_Datatype dtt;
+    uint64_t event_id; (void)event_id;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN], type_name[MPI_MAX_OBJECT_NAME];
     int len;
@@ -2477,7 +2487,8 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
                 from, tmp, k, task->deps, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, dtt, nbdtt,
                 deps->output[k].data.remote.dst_displ, deps->output[k].data.remote.arena->elem_size * nbdtt, msg.tag+k);
 #  endif
-        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_pldr_sk, k, from,
+        event_id = (((uint64_t)from << 32) | (uint64_t)(msg.tag + k));
+        TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_pldr_sk, event_id, from,
                             es->virtual_process->parsec_context->my_rank, deps->msg,
                             nbdtt, dtt, dep_comm);
         DEBUG_MARK_DTA_MSG_START_RECV(from, deps->output[k].data.data, msg.tag+k);
@@ -2488,6 +2499,7 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
         cb->fct      = remote_dep_mpi_get_end_cb;
         cb->cb_data  = (void*)deps;
         cb->idx      = k;
+        cb->tag      = msg.tag;
         parsec_comm_last_active_req++;
         parsec_comm_gets++;
         assert(parsec_comm_last_active_req <= DEP_NB_REQ);
@@ -2520,15 +2532,18 @@ remote_dep_mpi_get_end_cb(parsec_execution_stream_t* es,
                           MPI_Status* status)
 {
     parsec_remote_deps_t* deps = (parsec_remote_deps_t*)cb->cb_data;
+    int tag = cb->tag + cb->idx;
+    uint64_t event_id; (void)event_id;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
 
     PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tGet END  \t% -8s\tk=%d\twith datakey na        \tparams %lx\t(tag=%d)",
             status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
-            cb->idx, deps->incoming_mask, status->MPI_TAG); (void)status;
-    DEBUG_MARK_DTA_MSG_END_RECV(status->MPI_TAG);
-    TAKE_TIME(es->es_profile, MPI_Data_pldr_ek, cb->idx);
+            cb->idx, deps->incoming_mask, tag); (void)status;
+    DEBUG_MARK_DTA_MSG_END_RECV(tag);
+    event_id = (((uint64_t)(status->MPI_SOURCE) << 32) | (uint64_t)tag);
+    TAKE_TIME(es->es_profile, MPI_Data_pldr_ek, event_id);
     remote_dep_mpi_get_end(es, cb->idx, deps);
     parsec_comm_gets--;
     return 0;
