@@ -41,5 +41,42 @@ if(Graphviz_FOUND)
 
 endif(Graphviz_FOUND)
 
-Add_Subdirectory(python)
+if(CMAKE_CXX_COMPILER)
+  include(FetchContent)
+  FetchContent_Declare(perfetto_source
+                       URL https://android.googlesource.com/platform/external/perfetto/+archive/refs/heads/releases/v23.x/sdk.tar.gz
+                       CONFIGURE_COMMAND ""
+                       UPDATE_COMMAND ""
+                       BUILD_COMMAND ""
+                       INSTALL_COMMAND ""
+                       BUILD_BYPRODUCTS perfetto.h perfetto.cc)
+  FetchContent_MakeAvailable(perfetto_source)
+  FetchContent_GetProperties(perfetto_source SOURCE_DIR PERFETTO_SOURCE_DIR)
 
+  if( EXISTS ${PERFETTO_SOURCE_DIR}/perfetto.h AND EXISTS ${PERFETTO_SOURCE_DIR}/perfetto.cc )
+    message(STATUS "Found Perfetto library sources in ${PERFETTO_SOURCE_DIR}")
+
+    add_executable(dbp2pftrace dbp2pftrace.cc "${PERFETTO_SOURCE_DIR}/perfetto.cc" "${PROJECT_SOURCE_DIR}/tools/profiling/dbpreader.c")
+    target_include_directories(dbp2pftrace PRIVATE ${PERFETTO_SOURCE_DIR})
+    target_link_libraries(dbp2pftrace parsec-base)
+
+    if (WIN32)
+      # The perfetto library contains many symbols, so it needs the big object
+      # format.
+      target_compile_options(dbp2pftrace PRIVATE "/bigobj")
+      # Disable legacy features in windows.h.
+      target_compile_definitions(dbp2pftrace PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+      # On Windows we should link to WinSock2.
+      target_link_libraries(dbp2pftrace ws2_32)
+    endif (WIN32)
+
+    # Enable standards-compliant mode when using the Visual Studio compiler.
+    if (MSVC)
+      target_compile_options(dbp2pftrace PRIVATE "/permissive-")
+    endif (MSVC)
+  else()
+    message(WARNING "Unable to download the Perfetto library source from the Android website in '${PERFETTO_SOURCE_DIR}'; Perfetto is disabled")
+  endif()
+endif(CMAKE_CXX_COMPILER)
+
+Add_Subdirectory(python)
