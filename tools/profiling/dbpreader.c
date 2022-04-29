@@ -791,9 +791,51 @@ int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
 
 void dbp_reader_close_files(dbp_multifile_reader_t *dbp)
 {
-    for( int i = 0; i < dbp->nb_files; i++ ) {
-        dbp_reader_close_file(&dbp->files[i]);
+    for(int i = 0; i < dbp->nb_files; i++) {
+        dbp_reader_close_file(dbp->files[i]);
+        free(dbp->files[i].hr_id);
+        free(dbp->files[i].filename);
+        for(int ld = 0 ; ld < dbp->files[i].nb_dico_map; ld++) {
+            int d = dbp->files[i].dico_map[ld];
+            if( dbp->dico_keys[d].name != NULL) {
+                free(dbp->dico_keys[d].name);
+                dbp->dico_keys[d].name = NULL;
+            }
+            if( dbp->dico_keys[d].convertor != NULL) {
+                free(dbp->dico_keys[d].convertor);
+                dbp->dico_keys[d].convertor = NULL;
+            }
+            if( dbp->dico_keys[d].attributes != NULL) {
+                free(dbp->dico_keys[d].attributes);
+                dbp->dico_keys[d].attributes = NULL;
+            }
+        }
+        free(dbp->files[i].dico_map);
+        for(int t = 0; t < dbp->files[i].nb_threads; t++) {
+            for(int ii = 0; ii < dbp->files[i].threads[t].nb_infos; ii++) {
+                free(dbp->files[i].threads[t].infos[ii].key);
+                free(dbp->files[i].threads[t].infos[ii].value);
+            }
+            free(dbp->files[i].threads[t].infos);
+            free(dbp->files[i].threads[t].profile->hr_id);
+            free((char*)dbp->files[i].threads[t].profile);
+        }
+        free(dbp->files[i].threads);
+        for(int ii = 0; ii < dbp->files[i].nb_infos; ii++) {
+            free(dbp->files[i].infos[ii]->key);
+            free(dbp->files[i].infos[ii]->value);
+            free(dbp->files[i].infos[ii]);
+        }
+        free(dbp->files[i].infos);
     }
+    for(int i = 0; i < dbp->nb_infos; i++) {
+        free(dbp->infos[i].key);
+        free(dbp->infos[i].value);
+    }
+    free(dbp->files);
+    free(dbp->dico_keys);
+    free(dbp);
+    (void)dbp;
 }
 
 static void read_infos(dbp_file_t *dbp, parsec_profiling_binary_file_header_t *head)
@@ -1070,6 +1112,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
     dbp->files = (dbp_file_t*)malloc(nbfiles * sizeof(dbp_file_t));
     dbp->last_error = SUCCESS;
     dbp->dico_size = 0;
+    dbp->nb_infos = 0;
     dbp->dico_allocated = 8;
     dbp->dico_keys = calloc(sizeof(dbp_dictionary_t), dbp->dico_allocated);
 
