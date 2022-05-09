@@ -134,6 +134,10 @@ parsec_execution_stream_t parsec_comm_es = {
 static void remote_dep_mpi_put_start(parsec_execution_stream_t* es, dep_cmd_item_t* item);
 static void remote_dep_mpi_get_start(parsec_execution_stream_t* es, parsec_remote_deps_t* deps);
 
+static void remote_dep_mpi_get_end(parsec_execution_stream_t* es,
+                                   int idx,
+                                   parsec_remote_deps_t* deps);
+
 static int
 remote_dep_mpi_get_end_cb(parsec_comm_engine_t *ce,
                           parsec_ce_tag_t tag,
@@ -173,11 +177,16 @@ static void remote_dep_mpi_initialize_execution_stream(parsec_context_t *context
 
 static int remote_dep_mpi_progress(parsec_execution_stream_t* es);
 
-void remote_dep_mpi_new_taskpool(parsec_execution_stream_t* es,
-                                 dep_cmd_item_t *dep_cmd_item);
+static void remote_dep_mpi_new_taskpool(parsec_execution_stream_t* es,
+                                        dep_cmd_item_t *dep_cmd_item);
 
-void remote_dep_mpi_release_delayed_deps(parsec_execution_stream_t* es,
-                                         dep_cmd_item_t *item);
+static void remote_dep_mpi_release_delayed_deps(parsec_execution_stream_t* es,
+                                                dep_cmd_item_t *item);
+
+/* Perform a memcpy with datatypes by doing a local sendrecv */
+static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
+                                      dep_cmd_item_t *item);
+
 
 /**
  * Store the user provided communicator in the PaRSEC context. We need to make a
@@ -1200,10 +1209,10 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
         }
         goto check_pending_queues;
     }
-    position = (DEP_ACTIVATE == item->action) ? item->cmd.activate.peer : (context->nb_nodes + item->action);
     assert(DEP_CTL != item->action);
     executed_tasks++;  /* count all the tasks executed during this call */
   handle_now:
+    position = (DEP_ACTIVATE == item->action) ? item->cmd.activate.peer : (context->nb_nodes + item->action);
     switch(item->action) {
     case DEP_CTL:
         ret = item->cmd.ctl.enable;
@@ -1327,16 +1336,14 @@ static int remote_dep_mpi_on(parsec_context_t* context)
      * calls, so it's the best current place to decide of
      * a common starting time. */
     parsec_profiling_start();
- #endif
-
+#endif
     (void)context;
     return 0;
 }
 
-
 /**
  * Given a remote_dep_wire_activate message it packs as much as possible
- * into the provided buffer. If possible (eager allowed and enough room
+ * into the provided buffer. If possible (short allowed and enough room
  * in the buffer) some of the arguments will also be packed. Beware, the
  * remote_dep_wire_activate message itself must be updated with the
  * correct length before packing.
@@ -1374,7 +1381,7 @@ static int remote_dep_mpi_pack_dep(int peer,
            (msg->output_mask & deps->outgoing_mask) == deps->outgoing_mask);
     msg->length = 0;
     item->cmd.activate.task.output_mask = 0;  /* clean start */
-    /* Treat for special cases: CTL, Eager, etc... */
+    /* Treat for special cases: CTL, Short, etc... */
     for(k = 0; deps->outgoing_mask >> k; k++) {
         if( !((1U << k) & deps->outgoing_mask )) continue;
         if( !(deps->output[k].rank_bits[peer_bank] & peer_mask) ) continue;
@@ -1422,9 +1429,8 @@ static int remote_dep_mpi_pack_dep(int peer,
 /**
  * Perform a memcopy with datatypes by doing a local sendrecv.
  */
-int
-remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
-                           dep_cmd_item_t *item)
+static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
+                                      dep_cmd_item_t *item)
 {
     dep_cmd_t* cmd = &item->cmd;
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
@@ -1499,9 +1505,8 @@ static int local_dep_nothread_reshape(parsec_execution_stream_t* es,
  * remote peer, the completed messages are released and the header is updated to
  * the next unsent message.
  */
-static int
-remote_dep_nothread_send(parsec_execution_stream_t* es,
-                         dep_cmd_item_t **head_item)
+static int remote_dep_nothread_send(parsec_execution_stream_t* es,
+                                    dep_cmd_item_t **head_item)
 {
     (void)es;
     parsec_remote_deps_t *deps;
@@ -1541,9 +1546,7 @@ remote_dep_nothread_send(parsec_execution_stream_t* es,
     TAKE_TIME_WITH_INFO(es->es_profile, MPI_Activate_sk, 0,
                         es->virtual_process->parsec_context->my_rank,
                         peer, deps->msg, position, MPI_PACKED, dep_comm);
-
     parsec_ce.send_am(&parsec_ce, REMOTE_DEP_ACTIVATE_TAG, peer, packed_buffer, position);
-
     TAKE_TIME(MPIctl_prof, MPI_Activate_ek, event_id);
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(peer, (void*)&deps->msg, &deps->msg);
 
@@ -1987,7 +1990,7 @@ remote_dep_mpi_new_taskpool(parsec_execution_stream_t* es,
  * dep, This function does the necessary steps to continue the activation of
  * the remote task.
  */
-void
+static void
 remote_dep_mpi_release_delayed_deps(parsec_execution_stream_t* es,
                                     dep_cmd_item_t *item)
 {
@@ -2008,9 +2011,8 @@ remote_dep_mpi_release_delayed_deps(parsec_execution_stream_t* es,
     PARSEC_PINS(es, ACTIVATE_CB_END, NULL);
 }
 
-static void
-remote_dep_mpi_get_start(parsec_execution_stream_t* es,
-                         parsec_remote_deps_t* deps)
+static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
+                                     parsec_remote_deps_t* deps)
 {
     remote_dep_wire_activate_t* task = &(deps->msg);
     int from = deps->from, k, count, nbdtt;
@@ -2120,10 +2122,9 @@ remote_dep_mpi_get_start(parsec_execution_stream_t* es,
     }
 }
 
-
-void remote_dep_mpi_get_end(parsec_execution_stream_t* es,
-                            int idx,
-                            parsec_remote_deps_t* deps)
+static void remote_dep_mpi_get_end(parsec_execution_stream_t* es,
+                                   int idx,
+                                   parsec_remote_deps_t* deps)
 {
     /* The ref on the data will be released below */
     remote_dep_release_incoming(es, deps, (1U<<idx));

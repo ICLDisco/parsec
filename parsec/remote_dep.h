@@ -201,6 +201,7 @@ int parsec_remote_dep_fini(parsec_context_t* context);
 int parsec_remote_dep_on(parsec_context_t* context);
 int parsec_remote_dep_off(parsec_context_t* context);
 
+
 /* Poll for remote completion of tasks that would enable some work locally */
 int parsec_remote_dep_progress(parsec_execution_stream_t* es);
 
@@ -215,20 +216,15 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
 
 /* Memcopy a particular data using datatype specification */
 void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
-                             parsec_taskpool_t* tp,
-                             parsec_data_copy_t *dst,
-                             parsec_data_copy_t *src,
-                             parsec_dep_data_description_t* data);
+                              parsec_taskpool_t* tp,
+                              parsec_data_copy_t *dst,
+                              parsec_data_copy_t *src,
+                              parsec_dep_data_description_t* data);
 
-/* Perform a memcpy with datatypes by doing a local sendrecv */
-int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
-                                      dep_cmd_item_t *item);
 /* This function adds a command in the command queue to activate
  * release_deps of dep we had to delay in DTD runs.
  */
-int
-remote_dep_dequeue_delayed_dep_release(parsec_remote_deps_t *deps);
-
+int remote_dep_dequeue_delayed_dep_release(parsec_remote_deps_t *deps);
 
 #if defined(PARSEC_DIST_COLLECTIVES)
 /* Propagate an activation order from the current node down the original tree */
@@ -383,10 +379,6 @@ int remote_dep_set_ctx(parsec_context_t* context, intptr_t opaque_comm_ctx );
 parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo );
 
 void remote_deps_allocation_init(int np, int max_output_deps);
-
-void remote_dep_mpi_get_end(parsec_execution_stream_t* es,
-                            int idx,
-                            parsec_remote_deps_t* deps);
 
 typedef struct {
     int rank_src;  // 0
