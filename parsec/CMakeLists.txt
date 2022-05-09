@@ -113,7 +113,7 @@ set(SOURCES
   remote_dep.c
   parsec_comm_engine.c
   parsec_mpi_funnelled.c
-  parsec_remote_dep.c
+  remote_dep_mpi.c
   scheduling.c
   compound.c
   vpmap.c
