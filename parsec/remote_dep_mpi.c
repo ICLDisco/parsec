@@ -482,35 +482,6 @@ remote_dep_dequeue_off(parsec_context_t* context)
     return 0;
 }
 
-static int remote_dep_mpi_on(parsec_context_t* context)
-{
-#if 0
-#ifdef PARSEC_PROF_TRACE
-    /* put a start marker for each type of event */
-    TAKE_TIME(MPIctl_prof, MPI_Activate_sk, 0);
-    TAKE_TIME(MPIsnd_prof, MPI_Activate_sk, 0);
-    TAKE_TIME(MPIrcv_prof, MPI_Activate_sk, 0);
-    parsec_ce.sync(&parsec_ce);   /* TODO GB: do we still need this here ? */
-    TAKE_TIME(MPIctl_prof, MPI_Activate_ek, 0);
-    TAKE_TIME(MPIsnd_prof, MPI_Activate_ek, 0);
-    TAKE_TIME(MPIrcv_prof, MPI_Activate_ek, 0);
-#endif
-#endif // 0
-    // TODO: make sure this is correct with revamp
-#if defined(PARSEC_PROF_TRACE)
-    /* This is less than ideal, but remote_dep_mpi_setup
-     * holds a mpi_comm_dup() which is often implemented
-     * as a synchronizing routine between the ranks, and
-     * parsec_profiling_start() protects against multiple
-     * calls, so it's the best current place to decide of
-     * a common starting time. */
-    parsec_profiling_start();
- #endif
-
-    (void)context;
-    return 0;
-}
-
 void* remote_dep_dequeue_main(parsec_context_t* context)
 {
     int whatsup;
@@ -1345,6 +1316,24 @@ static void remote_dep_mpi_profiling_fini(void)
 #endif  /* PARSEC_PROF_TRACE */
 
 
+static int remote_dep_mpi_on(parsec_context_t* context)
+{
+    // TODO: make sure this is correct with revamp
+#if defined(PARSEC_PROF_TRACE)
+    /* This is less than ideal, but remote_dep_mpi_setup
+     * holds a mpi_comm_dup() which is often implemented
+     * as a synchronizing routine between the ranks, and
+     * parsec_profiling_start() protects against multiple
+     * calls, so it's the best current place to decide of
+     * a common starting time. */
+    parsec_profiling_start();
+ #endif
+
+    (void)context;
+    return 0;
+}
+
+
 /**
  * Given a remote_dep_wire_activate message it packs as much as possible
  * into the provided buffer. If possible (eager allowed and enough room
@@ -1458,6 +1447,52 @@ remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
 }
 
 /**
+ *
+ * Routine to fulfill a reshape promise by the communication thread.
+ *
+ * @param[in] es parsec_execution_stream_t
+ * @param[in] item dep_cmd_item_t
+ */
+static int local_dep_nothread_reshape(parsec_execution_stream_t* es,
+                                      dep_cmd_item_t *item)
+{
+
+    dep_cmd_t* cmd = &item->cmd;
+    cmd->memcpy.destination = reshape_copy_allocate(item->cmd.memcpy_reshape.dt->local);
+
+#if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
+    char task_string[MAX_TASK_STRLEN]="NULL TASK";
+    if(item->cmd.memcpy_reshape.task != NULL)
+        (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, item->cmd.memcpy_reshape.task);
+#endif
+    PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
+                         "th%d RESHAPE_PROMISE COMPLETED COMM-THREAD to [%p:%p -> %p:%p] for %s fut %p",
+                         es->th_id, item->cmd.memcpy_reshape.dt->data, item->cmd.memcpy_reshape.dt->data->dtt,
+                         cmd->memcpy.destination, item->cmd.memcpy_reshape.dt->local->dst_datatype, task_string, item->cmd.memcpy_reshape.future);
+
+    /* Source datacopy needs to be retained again, it will only be release
+     * once all successors have consumed the future, in case it is needed
+     * as an input for nested futures.
+     */
+    PARSEC_OBJ_RETAIN(cmd->memcpy.source);
+
+    int rc = remote_dep_nothread_memcpy(es, item);
+    assert(MPI_SUCCESS == rc);
+
+    parsec_future_set(item->cmd.memcpy_reshape.future, cmd->memcpy.destination);
+
+    /*Not working if rescheduled by commthread, thus future trigger routines return ASYNC */
+    /*__parsec_schedule(es, item->cmd.memcpy_reshape.task, 0);*/
+
+#if defined(PARSEC_DEBUG)
+    parsec_atomic_fetch_add_int64(&count_reshaping,1);
+#endif
+
+    (void)es;
+    return (MPI_SUCCESS == rc ? 0 : -1);
+}
+
+/**
  * Starting with a particular item pack as many remote_dep_wire_activate
  * messages with the same destination (from the item ring associated with
  * pos_list) into a buffer. Upon completion the entire buffer is send to the
@@ -1530,8 +1565,7 @@ remote_dep_nothread_send(parsec_execution_stream_t* es,
  * target) before draining the network and pushing out the highest priority
  * actions.
  */
-static int
-remote_dep_mpi_progress(parsec_execution_stream_t* es)
+static int remote_dep_mpi_progress(parsec_execution_stream_t* es)
 {
     int ret = 0;
 
@@ -1775,52 +1809,6 @@ remote_dep_mpi_put_end_cb(parsec_comm_engine_t *ce,
     return 1;
 }
 
-
-/**
- *
- * Routine to fulfill a reshape promise by the communication thread.
- *
- * @param[in] es parsec_execution_stream_t
- * @param[in] item dep_cmd_item_t
- */
-static int local_dep_nothread_reshape(parsec_execution_stream_t* es,
-                                      dep_cmd_item_t *item)
-{
-
-    dep_cmd_t* cmd = &item->cmd;
-    cmd->memcpy.destination = reshape_copy_allocate(item->cmd.memcpy_reshape.dt->local);
-
-#if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
-    char task_string[MAX_TASK_STRLEN]="NULL TASK";
-    if(item->cmd.memcpy_reshape.task != NULL)
-        (void)parsec_task_snprintf(task_string, MAX_TASK_STRLEN, item->cmd.memcpy_reshape.task);
-#endif
-    PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                         "th%d RESHAPE_PROMISE COMPLETED COMM-THREAD to [%p:%p -> %p:%p] for %s fut %p",
-                         es->th_id, item->cmd.memcpy_reshape.dt->data, item->cmd.memcpy_reshape.dt->data->dtt,
-                         cmd->memcpy.destination, item->cmd.memcpy_reshape.dt->local->dst_datatype, task_string, item->cmd.memcpy_reshape.future);
-
-    /* Source datacopy needs to be retained again, it will only be release
-     * once all successors have consumed the future, in case it is needed
-     * as an input for nested futures.
-     */
-    PARSEC_OBJ_RETAIN(cmd->memcpy.source);
-
-    int rc = remote_dep_nothread_memcpy(es, item);
-    assert(MPI_SUCCESS == rc);
-
-    parsec_future_set(item->cmd.memcpy_reshape.future, cmd->memcpy.destination);
-
-    /*Not working if rescheduled by commthread, thus future trigger routines return ASYNC */
-    /*__parsec_schedule(es, item->cmd.memcpy_reshape.task, 0);*/
-
-#if defined(PARSEC_DEBUG)
-    parsec_atomic_fetch_add_int64(&count_reshaping,1);
-#endif
-
-    (void)es;
-    return (MPI_SUCCESS == rc ? 0 : -1);
-}
 
 /**
  * An activation message has been received, and the remote_dep_wire_activate_t
