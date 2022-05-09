@@ -113,6 +113,7 @@ typedef int (*parsec_ce_can_serve_fn_t)(parsec_comm_engine_t *comm_engine);
 /**
  * This function realize a data reshaping, by conceptually packing the dst
  * into src.
+ * TODO: need to distinguish between src_layout and dst_layout
  */
 typedef int (*parsec_ce_reshape_fn_t)(parsec_comm_engine_t* ce,
                                       parsec_execution_stream_t* es,

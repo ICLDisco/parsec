@@ -31,9 +31,11 @@ typedef unsigned long remote_dep_datakey_t;
 #define PARSEC_ACTION_RELEASE_LOCAL_DEPS         0x01000000
 #define PARSEC_ACTION_RELEASE_LOCAL_REFS         0x02000000
 #define PARSEC_ACTION_GET_REPO_ENTRY             0x04000000
+#define PARSEC_ACTION_RESHAPE_ON_RELEASE         0x08000000
 #define PARSEC_ACTION_SEND_INIT_REMOTE_DEPS      0x10000000
 #define PARSEC_ACTION_SEND_REMOTE_DEPS           0x20000000
 #define PARSEC_ACTION_RECV_INIT_REMOTE_DEPS      0x40000000
+#define PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE  0x80000000
 #define PARSEC_ACTION_RELEASE_REMOTE_DEPS        (PARSEC_ACTION_SEND_INIT_REMOTE_DEPS | PARSEC_ACTION_SEND_REMOTE_DEPS)
 
 enum {
@@ -60,6 +62,16 @@ typedef struct remote_dep_wire_get_s {
     parsec_ce_mem_reg_handle_t remote_memory_handle;
 } remote_dep_wire_get_t;
 
+struct parsec_dep_type_description_s {
+    struct parsec_arena_s     *arena;
+    parsec_datatype_t          src_datatype;
+    uint64_t                   src_count;
+    int64_t                    src_displ;
+    parsec_datatype_t          dst_datatype;
+    uint64_t                   dst_count;
+    int64_t                    dst_displ;
+};
+
 /**
  * This structure holds the key information for any data mouvement. It contains the arena
  * where the data is allocated from, or will be allocated from. It also contains the
@@ -70,12 +82,45 @@ typedef struct remote_dep_wire_get_s {
  * one attached to the arena must be used instead.
  */
 struct parsec_dep_data_description_s {
-    struct parsec_arena_s     *arena;
     struct parsec_data_copy_s *data;
-    parsec_datatype_t          layout;
-    uint64_t                   count;
-    int64_t                    displ;
+    struct parsec_dep_type_description_s local;
+    struct parsec_dep_type_description_s remote;
+
+    /* Keeping the datacopy future on the parsec description enables
+     * the reusing the same future to all successor instances that are
+     * doing the same reshape.
+     */
+    parsec_datacopy_future_t      *data_future;
+
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+    /* Keeping current repo & key to be able to consume when
+     * the "remote" successors (aka the communication engine)
+     * have done the reshaping before packing for sending
+     * the data to the remote.
+     */
+    struct data_repo_s            *repo;
+    parsec_key_t                   repo_key;
+#endif
 };
+
+#define PARSEC_AVOID_RESHAPE_AFTER_RECEPTION 0x0F
+struct parsec_reshape_promise_description_s {
+    struct parsec_data_copy_s            *data;         /* Data in consumed by reshape promise */
+    struct parsec_dep_type_description_s *local;        /* Description to performed reshape */
+#ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
+    uint32_t                              remote_send_guard; /* Use to prevent multiple remotes setting up
+                                                              * the same reshape promise (workaround comm engine) */
+#endif
+    uint32_t                              remote_recv_guard; /* Use to prevent re-reshaping after reception */
+};
+
+/* Callback to do a local reshaping of a datacopy */
+void parsec_local_reshape(parsec_base_future_t *future,
+                          void **in_data,
+                          parsec_execution_stream_t *es,
+                          parsec_task_t *task);
+
+
 
 struct remote_dep_output_param_s {
     /** Never change this structure without understanding the
@@ -219,6 +264,7 @@ typedef enum dep_cmd_action_t {
     DEP_ACTIVATE      = -1,
     DEP_NEW_TASKPOOL  =  0,
     DEP_MEMCPY,
+    DEP_MEMCPY_RESHAPE,
     DEP_RELEASE,
     DEP_DTD_DELAYED_RELEASE,
     DEP_PUT_DATA,
@@ -246,11 +292,18 @@ union dep_cmd_u {
         parsec_taskpool_t             *taskpool;
         parsec_data_copy_t            *source;
         parsec_data_copy_t            *destination;
-        parsec_datatype_t              layout;
-        int64_t                        displ_src;
-        int64_t                        displ_dst;
-        uint64_t                       count;
+        parsec_dep_type_description_t layout;
     } memcpy;
+    struct {
+        parsec_taskpool_t    *taskpool;
+        parsec_data_copy_t   *source;
+        parsec_data_copy_t   *destination;
+        parsec_dep_type_description_t layout;
+        parsec_task_t        *task;
+        parsec_datacopy_future_t *future;
+        parsec_reshape_promise_description_t *dt;
+    } memcpy_reshape;
+
 };
 
 struct dep_cmd_item_s {
@@ -323,8 +376,13 @@ typedef struct {
     int rank_dst;  // 4
     uint64_t tid;  // 8
     uint32_t tpid;  // 16
-    uint32_t tcid;  // 20
-} parsec_profile_remote_dep_mpi_info_t; // 24 bytes
+    uint32_t tcid;  // 20-
+    int32_t msg_size; // 24
+    int32_t padding;  // 28 -- this field is not necessary, but the structure will be padded
+                      //       by the compiler due to the uint64_t field. It is declared here
+                      //       just to be consistent with the conversion string.
+} parsec_profile_remote_dep_mpi_info_t; // 32 bytes
+
 
 #ifdef PARSEC_PROF_TRACE
 extern parsec_thread_profiling_t* MPIctl_prof;
@@ -337,7 +395,8 @@ extern int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
 extern int activate_cb_trace_sk, activate_cb_trace_ek;
 extern int put_cb_trace_sk, put_cb_trace_ek;
 
-#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw)                \
+// TODO: how to replace call to MPI_Pack_size?
+#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw, nbdtt, dtt, comm) \
     if( parsec_profile_enabled ) {                                      \
         parsec_profile_remote_dep_mpi_info_t __info;                    \
         parsec_taskpool_t *__tp = parsec_taskpool_lookup( (rdw).taskpool_id ); \
@@ -348,6 +407,7 @@ extern int put_cb_trace_sk, put_cb_trace_ek;
         __info.tcid = (rdw).task_class_id;                              \
         __info.tid  = __tc->key_functions->key_hash(                    \
                              __tc->make_key(__tp, (rdw).locals), NULL); \
+        MPI_Pack_size(nbdtt, dtt, comm, &__info.msg_size);              \
         PARSEC_PROFILING_TRACE((PROF), (KEY), (I),                      \
                                PROFILE_OBJECT_ID_NULL, &__info);        \
     }
@@ -355,7 +415,7 @@ extern int put_cb_trace_sk, put_cb_trace_ek;
 #define TAKE_TIME(PROF, KEY, I) PARSEC_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, NULL)
 
 #else
-#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw) do {} while(0)
+#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw, count, dtt, comm) do {} while(0)
 #define TAKE_TIME(PROF, KEY, I) do {} while(0)
 #endif  /* PARSEC_PROF_TRACE */
 
