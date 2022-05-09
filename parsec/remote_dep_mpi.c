@@ -80,8 +80,12 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
 #define dep_dtt MPI_BYTE
 #define dep_count sizeof(remote_dep_wire_activate_t)
 #define dep_extent dep_count
-#define DEP_EAGER_BUFFER_SIZE (dep_extent+RDEP_MSG_EAGER_LIMIT)
+#define DEP_SHORT_BUFFER_SIZE (dep_extent+RDEP_MSG_SHORT_LIMIT)
+#if ULONG_MAX == UINTPTR_MAX
 #define datakey_dtt MPI_LONG
+#else
+#define datakey_dtt MPI_LONG_LONG
+#endif
 #define datakey_count 3
 
 static pthread_t dep_thread_id;
@@ -153,8 +157,6 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
                             parsec_remote_deps_t* origin,
                             remote_dep_datakey_t complete_mask);
 
-
-
 static int remote_dep_nothread_send(parsec_execution_stream_t* es,
                                     dep_cmd_item_t **head_item);
 static int remote_dep_ce_init(parsec_context_t* context);
@@ -163,6 +165,19 @@ static int remote_dep_ce_fini(parsec_context_t* context);
 static int local_dep_nothread_reshape(parsec_execution_stream_t* es,
                                       dep_cmd_item_t *item);
 
+
+static int remote_dep_mpi_on(parsec_context_t* context);
+
+
+static void remote_dep_mpi_initialize_execution_stream(parsec_context_t *context);
+
+static int remote_dep_mpi_progress(parsec_execution_stream_t* es);
+
+void remote_dep_mpi_new_taskpool(parsec_execution_stream_t* es,
+                                 dep_cmd_item_t *dep_cmd_item);
+
+void remote_dep_mpi_release_delayed_deps(parsec_execution_stream_t* es,
+                                         dep_cmd_item_t *item);
 
 /**
  * Store the user provided communicator in the PaRSEC context. We need to make a
@@ -749,11 +764,11 @@ void parsec_local_reshape(parsec_base_future_t *future,
                              es->th_id, dt->data, dt->data->dtt, type_name_src,
                              reshape_data, dt->local->dst_datatype, type_name_dst, task_string, future);
 
-        MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(dt->data) + dt->local->src_displ, dt->local->src_count, dt->local->src_datatype,
-                     0, es->th_id,
-                     (char*)PARSEC_DATA_COPY_GET_PTR(reshape_data)  + dt->local->dst_displ, dt->local->dst_count, dt->local->dst_datatype,
-                     0, es->th_id,
-                     dep_self, MPI_STATUS_IGNORE);
+        parsec_ce.reshape(&parsec_ce, es, PARSEC_DATA_COPY_GET_PTR(reshape_data), PARSEC_DATA_COPY_GET_PTR(dt->data),
+                          dt->local->src_datatype, // TODO JS: distinguish src_datatype and dst_datatype
+                          dt->local->src_displ,
+                          dt->local->dst_displ,
+                          dt->local->dst_count);
 
         parsec_future_set(future, reshape_data);
 
@@ -865,9 +880,10 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
         PARSEC_DEBUG_VERBOSE(30, parsec_comm_output_stream, "MPI: retrieve dtt for %s [dep_datatype_index %x] DTT: old %s new %s (%p) --> PACKED",
                 newcontext->task_class->name, dep->dep_datatype_index, type_name_src, type_name_dst, output->data.remote.dst_datatype);
 #endif
-            int dsize;
-            MPI_Pack_size(output->data.remote.dst_count, output->data.remote.dst_datatype, dep_comm, &dsize);
-            output->data.remote.src_count = output->data.remote.dst_count = dsize;
+            // TODO JS: implement MPI_Pack_size
+            //int dsize;
+            //MPI_Pack_size(output->data.remote.dst_count, output->data.remote.dst_datatype, dep_comm, &dsize);
+            output->data.remote.src_count = output->data.remote.dst_count /* = dsize */;
             output->data.remote.src_datatype = output->data.remote.dst_datatype = PARSEC_DATATYPE_PACKED;
 
             return PARSEC_ITERATE_STOP;
@@ -1456,7 +1472,7 @@ remote_dep_nothread_send(parsec_execution_stream_t* es,
     parsec_remote_deps_t *deps;
     dep_cmd_item_t *item = *head_item;
     parsec_list_item_t* ring = NULL;
-    char packed_buffer[DEP_EAGER_BUFFER_SIZE];
+    char packed_buffer[DEP_SHORT_BUFFER_SIZE];
     int peer, position = 0;
 #ifdef PARSEC_PROF_TRACE
     static int save_act = 0;
@@ -1472,7 +1488,7 @@ remote_dep_nothread_send(parsec_execution_stream_t* es,
 
     parsec_list_item_singleton((parsec_list_item_t*)item);
     if( 0 == remote_dep_mpi_pack_dep(peer, item, packed_buffer,
-                                     DEP_EAGER_BUFFER_SIZE, &position) ) {
+                                     DEP_SHORT_BUFFER_SIZE, &position) ) {
         /* space left on the buffer. Move to the next item with the same destination */
         dep_cmd_item_t* next = (dep_cmd_item_t*)parsec_list_item_ring_chop(&item->pos_list);
         if( NULL == ring ) ring = (parsec_list_item_t*)item;
@@ -2186,7 +2202,7 @@ remote_dep_ce_init(parsec_context_t* context)
 
     /* Register Persistant requests */
     rc = parsec_ce.tag_register(REMOTE_DEP_ACTIVATE_TAG, remote_dep_mpi_save_activate_cb, context,
-                                DEP_EAGER_BUFFER_SIZE * sizeof(char));
+                                DEP_SHORT_BUFFER_SIZE * sizeof(char));
     if( PARSEC_SUCCESS != rc ) {
         parsec_warning("[CE] Failed to register communication tag REMOTE_DEP_ACTIVATE_TAG (error %d)\n", rc);
         parsec_comm_engine_fini(&parsec_ce);

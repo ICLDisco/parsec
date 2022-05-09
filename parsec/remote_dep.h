@@ -247,6 +247,17 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 #define parsec_remote_dep_new_taskpool(ctx)    0
 #endif /* DISTRIBUTED */
 
+/* check if this data description represents a CTL dependency */
+#define parsec_is_CTL_dep(dep_data_desc)\
+    ((dep_data_desc.data == NULL) \
+     && (dep_data_desc.remote.src_datatype == PARSEC_DATATYPE_NULL) \
+     && (0 == dep_data_desc.remote.src_count))
+
+/* set this data description to CTL dependency */
+#define parsec_set_CTL_dep(dep_data_desc)\
+    dep_data_desc.data = NULL; dep_data_desc.remote.src_datatype = PARSEC_DATATYPE_NULL; dep_data_desc.remote.src_count=0;
+
+
 /** @} */
 
 #define DEP_NB_CONCURENT 3
@@ -324,6 +335,12 @@ struct dep_cmd_item_s {
  */
 void* remote_dep_dequeue_main(parsec_context_t* context);
 int remote_dep_dequeue_new_taskpool(parsec_taskpool_t* tp);
+
+int remote_dep_dequeue_init(parsec_context_t* context);
+int remote_dep_dequeue_fini(parsec_context_t* context);
+
+int remote_dep_dequeue_send(parsec_execution_stream_t* es, int rank,
+                            parsec_remote_deps_t* deps);
 
 int remote_dep_dequeue_on(parsec_context_t* context);
 int remote_dep_dequeue_off(parsec_context_t* context);
