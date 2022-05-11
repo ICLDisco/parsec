@@ -145,7 +145,7 @@ notify_about_get(parsec_comm_engine_t *ce,
                          &rank_1_memory_handle, &rank_1_memory_handle_size);
     } else {
          ce->mem_register(receive_buf, PARSEC_MEM_TYPE_CONTIGUOUS,
-                          -1, -1,
+                          -1, PARSEC_DATATYPE_NULL,
                           sizeof(int) * GET_activation_message->buf_size,
                           &rank_1_memory_handle, &rank_1_memory_handle_size);
     }
@@ -278,7 +278,7 @@ notify_about_put(parsec_comm_engine_t *ce,
                          &rank_1_memory_handle, &rank_1_memory_handle_size);
     } else {
          ce->mem_register(receive_buf, PARSEC_MEM_TYPE_CONTIGUOUS,
-                          -1, -1,
+                          -1, PARSEC_DATATYPE_NULL,
                           sizeof(int) * PUT_activation_message->buf_size,
                           &rank_1_memory_handle, &rank_1_memory_handle_size);
     }
@@ -546,7 +546,7 @@ int main(int argc, char **argv)
                                  &rank_0_memory_handle, &rank_0_memory_handle_size);
             } else {
                  ce->mem_register(send_buf, PARSEC_MEM_TYPE_CONTIGUOUS,
-                                  -1, -1,
+                                  -1, PARSEC_DATATYPE_NULL,
                                   buf_size,
                                   &rank_0_memory_handle, &rank_0_memory_handle_size);
             }
@@ -620,7 +620,7 @@ int main(int argc, char **argv)
                                  &rank_0_memory_handle, &rank_0_memory_handle_size);
             } else {
                  ce->mem_register(send_buf, PARSEC_MEM_TYPE_CONTIGUOUS,
-                                  -1, -1,
+                                  -1, PARSEC_DATATYPE_NULL,
                                   buf_size,
                                   &rank_0_memory_handle, &rank_0_memory_handle_size);
             }
