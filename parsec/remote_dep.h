@@ -435,9 +435,4 @@ extern int parsec_comm_gets;
 extern int parsec_comm_puts_max;
 extern int parsec_comm_puts;
 
-#define MIN_MPI_TAG (REMOTE_DEP_MAX_CTRL_TAG+1)
-#if defined(PARSEC_HAVE_MPI_OVERTAKE)
-extern int parsec_param_enable_mpi_overtake;
-#endif
-
 #endif /* __USE_PARSEC_REMOTE_DEP_H__ */

@@ -69,6 +69,7 @@ PARSEC_OBJ_CLASS_INSTANCE(mpi_funnelled_mem_reg_handle_t, parsec_list_item_t,
  * max tag to be positive, initializing it to a negative value allows us to check
  * if the layer has been initialized or not.
  */
+#define MIN_MPI_TAG (REMOTE_DEP_MAX_CTRL_TAG+1)
 static int MAX_MPI_TAG = -1, mca_tag_ub = -1;
 static volatile int __VAL_NEXT_TAG = MIN_MPI_TAG;
 #if INT_MAX == INT32_MAX
@@ -191,6 +192,10 @@ static int mpi_funnelled_static_req_idx = 0;
 
 static int nb_internal_tag = 0;
 static int count_internal_tag = 0;
+
+#if defined(PARSEC_HAVE_MPI_OVERTAKE)
+static int parsec_param_enable_mpi_overtake;
+#endif
 
 /* List to hold pending requests */
 parsec_list_t mpi_funnelled_dynamic_req_fifo; /* ordered non threaded fifo */
