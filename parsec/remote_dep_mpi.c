@@ -957,10 +957,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             if(return_defer) {
                 return -2;
             }
-            for(i = 0; i < task.task_class->nb_flows;
-                task.data[i].data_in = task.data[i].data_out = NULL,
-                task.data[i].source_repo_entry = NULL,
-                task.data[i].source_repo = NULL, i++);
+
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
             task.locals[k] = origin->msg.locals[k];
             task.task_class = dtd_task->super.task_class;
