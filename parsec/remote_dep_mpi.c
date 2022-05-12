@@ -1307,6 +1307,7 @@ static void remote_dep_mpi_profiling_init(void)
                                             &put_cb_trace_sk, &put_cb_trace_ek);
 
     parsec_comm_es.es_profile = parsec_profiling_stream_init( 2*1024*1024, "MPI thread");
+    parsec_profiling_set_default_thread(parsec_comm_es.es_profile);
 }
 
 static void remote_dep_mpi_profiling_fini(void)
@@ -1540,9 +1541,9 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
 
     TAKE_TIME_WITH_INFO(es->es_profile, MPI_Activate_sk, 0,
                         es->virtual_process->parsec_context->my_rank,
-                        peer, deps->msg, position, MPI_PACKED, dep_comm);
+                        peer, deps->msg, position, MPI_PACKED, MPI_COMM_WORLD);
     parsec_ce.send_am(&parsec_ce, REMOTE_DEP_ACTIVATE_TAG, peer, packed_buffer, position);
-    TAKE_TIME(MPIctl_prof, MPI_Activate_ek, event_id);
+    TAKE_TIME(es->es_profile, MPI_Activate_ek, event_id);
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(peer, (void*)&deps->msg, &deps->msg);
 
     do {
@@ -1746,8 +1747,8 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
 
 #if defined(PARSEC_DEBUG_NOISIER)
         MPI_Type_get_name(dtt, type_name, &len);
-        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\t%d\tPut START\tunknown \tk=%d\twith deps 0x%lx at %p type %s (%p)\t(tag=%d displ = %ld)",
-               item->cmd.activate.peer, k, task->deps, dataptr, type_name, dtt, tag+k, deps->output[k].data.remote.src_displ);
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tTO\t%d\tPut START\tunknown \tk=%d\twith deps 0x%lx at %p type %s (%p)\t(src_mem_handle = %p, dst_mem_handle = %p)",
+               item->cmd.activate.peer, k, task->source_deps, dataptr, type_name, dtt, source_memory_handle, remote_memory_handle);
 #endif
 
         remote_dep_cb_data_t *cb_data = (remote_dep_cb_data_t *) parsec_thread_mempool_allocate
@@ -1757,7 +1758,7 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
 
         TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_plds_sk, k,
                             es->virtual_process->parsec_context->my_rank,
-                            item->cmd.activate.peer, deps->msg, nbdtt, dtt, dep_comm);
+                            item->cmd.activate.peer, deps->msg, nbdtt, dtt, MPI_COMM_WORLD);
 
         /* the remote side should send us 8 bytes as the callback data to be passed back to them */
         parsec_ce.put(&parsec_ce, source_memory_handle, 0,
@@ -1792,11 +1793,12 @@ remote_dep_mpi_put_end_cb(parsec_comm_engine_t *ce,
     /* Retreive deps from callback_data */
     parsec_remote_deps_t* deps = ((remote_dep_cb_data_t *)cb_data)->deps;
 
-    PARSEC_DEBUG_VERBOSE(6, parsec_debug_output, "MPI:\tTO\tna\tPut END  \tunknown \tk=%d\twith deps %p\tparams bla\t(tag=bla) data ptr bla",
-            ((remote_dep_cb_data_t *)cb_data)->k, deps);
+    PARSEC_DEBUG_VERBOSE(6, parsec_debug_output, "MPI:\tTO\tna\tPut END  \tunknown \tk=%d\twith deps %p\tparams bla\t(src_mem_hanlde = %p, dst_mem_handle=%p",
+            ((remote_dep_cb_data_t *)cb_data)->k, deps, lreg, rreg);
 
-
-    TAKE_TIME(es->es_profile, MPI_Data_plds_ek, ((remote_dep_cb_data_t *)cb_data)->k);
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_ts_trace(MPI_Data_plds_ek, ((remote_dep_cb_data_t *)cb_data)->k, PROFILE_OBJECT_ID_NULL, NULL);
+#endif
 
     remote_dep_complete_and_cleanup(&deps, 1);
 
@@ -2056,15 +2058,6 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
         dtt   = deps->output[k].data.remote.dst_datatype;
         nbdtt = deps->output[k].data.remote.dst_count;
 
-#  if defined(PARSEC_DEBUG_NOISIER)
-        MPI_Type_get_name(dtt, type_name, &len);
-        int _size;
-        MPI_Type_size(dtt, &_size);
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s count %d displ %ld extent %d\t(tag=%d)",
-                from, tmp, k, task->deps, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, dtt, nbdtt,
-                deps->output[k].data.remote.dst_displ, deps->output[k].data.arena->elem_size * nbdtt, k);
-#  endif
-
         /* We have the remote mem_handle.
          * Let's allocate our mem_reg_handle
          * and let the source know.
@@ -2087,6 +2080,15 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
                                    &receiver_memory_handle, &receiver_memory_handle_size);
 
         }
+
+#  if defined(PARSEC_DEBUG_NOISIER)
+        MPI_Type_get_name(dtt, type_name, &len);
+        int _size;
+        MPI_Type_size(dtt, &_size);
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s count %d displ %ld \t(k=%d, dst_mem_handle=%p)",
+                from, tmp, k, task->deps, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, dtt, nbdtt,
+                deps->output[k].data.remote.dst_displ, k, receiver_memory_handle);
+#  endif
 
         callback_data->memory_handle = receiver_memory_handle;
 

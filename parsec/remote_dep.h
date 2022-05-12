@@ -394,9 +394,6 @@ typedef struct {
 
 
 #ifdef PARSEC_PROF_TRACE
-extern parsec_thread_profiling_t* MPIctl_prof;
-extern parsec_thread_profiling_t* MPIsnd_prof;
-extern parsec_thread_profiling_t* MPIrcv_prof;
 extern int MPI_Activate_sk, MPI_Activate_ek;
 extern int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
 extern int MPI_Data_plds_sk, MPI_Data_plds_ek;
