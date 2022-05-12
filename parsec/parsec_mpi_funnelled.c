@@ -396,22 +396,23 @@ mpi_funnelled_internal_put_am_callback(parsec_comm_engine_t *ce,
 int parsec_mpi_sendrecv(parsec_comm_engine_t *ce,
                         parsec_execution_stream_t* es,
                         parsec_data_copy_t *dst,
-                        parsec_data_copy_t *src,
-                        parsec_datatype_t layout,
-                        int64_t displ_src,
                         int64_t displ_dst,
-                        uint64_t count)
+                        parsec_datatype_t layout_dst,
+                        uint64_t count_dst,
+                        parsec_data_copy_t *src,
+                        int64_t displ_src,
+                        parsec_datatype_t layout_src,
+                        uint64_t count_src)
 {
     int rc;
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
-                         "COPY LOCAL DATA from %p to %p count %d",
-                         PARSEC_DATA_COPY_GET_PTR(src) + displ_src,
-                         PARSEC_DATA_COPY_GET_PTR(dst) + displ_dst,
-                         count);
+                         "COPY LOCAL DATA from %p (%d elements of dtt %p) to %p (%d elements of dtt %p)",
+                         PARSEC_DATA_COPY_GET_PTR(src) + displ_src, count_src, layout_src,
+                         PARSEC_DATA_COPY_GET_PTR(dst) + displ_dst, count_dst, layout_dst);
     rc = MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(src) + displ_src,
-                      count, layout, 0, es->th_id,
+                      count_src, layout_src, 0, es->th_id,
                       (char*)PARSEC_DATA_COPY_GET_PTR(dst) + displ_dst,
-                      count, layout, 0, es->th_id,
+                      count_dst, layout_dst, 0, es->th_id,
                       dep_self, MPI_STATUS_IGNORE);
     (void)ce;
     return (MPI_SUCCESS == rc ? 0 : -1);

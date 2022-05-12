@@ -118,11 +118,13 @@ typedef int (*parsec_ce_can_serve_fn_t)(parsec_comm_engine_t *comm_engine);
 typedef int (*parsec_ce_reshape_fn_t)(parsec_comm_engine_t* ce,
                                       parsec_execution_stream_t* es,
                                       parsec_data_copy_t *dst,
-                                      parsec_data_copy_t *src,
-                                      parsec_datatype_t layout,
-                                      int64_t displ_src,
                                       int64_t displ_dst,
-                                      uint64_t count);
+                                      parsec_datatype_t layout_dst,
+                                      uint64_t count_dst,
+                                      parsec_data_copy_t *src,
+                                      int64_t displ_src,
+                                      parsec_datatype_t layout_src,
+                                      uint64_t count_src);
 
 struct parsec_comm_engine_capabilites_s {
     unsigned int sided : 2; /* Valid values are 1 and 2 */

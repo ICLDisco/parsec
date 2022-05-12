@@ -619,11 +619,9 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
     assert( dst );
     /* if the communication engine supports multithreads do the reshaping in place */
     if( parsec_ce.parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
-        if( parsec_ce.reshape(&parsec_ce, es, dst, src,
-                              data->local.src_datatype, // TODO: add dst_datatype parameter to reshape call
-                              data->local.src_displ,
-                              data->local.dst_displ,
-                              data->local.src_count) ) {
+        if( parsec_ce.reshape(&parsec_ce, es, 
+                              dst, data->local.dst_displ, data->local.dst_datatype, data->local.dst_count,
+                              src, data->local.src_displ, data->local.src_datatype, data->local.src_count) ) {
             return;
         }
     }
@@ -744,11 +742,9 @@ void parsec_local_reshape(parsec_base_future_t *future,
                              es->th_id, dt->data, dt->data->dtt, type_name_src,
                              reshape_data, dt->local->dst_datatype, type_name_dst, task_string, future);
 
-        parsec_ce.reshape(&parsec_ce, es, reshape_data, dt->data,
-                          dt->local->src_datatype, // TODO JS: distinguish src_datatype and dst_datatype
-                          dt->local->src_displ,
-                          dt->local->dst_displ,
-                          dt->local->dst_count);
+        parsec_ce.reshape(&parsec_ce, es, 
+                          reshape_data, dt->local->dst_displ, dt->local->dst_datatype, dt->local->dst_count,
+                          dt->data, dt->local->src_displ, dt->local->src_datatype, dt->local->src_count);
 
         parsec_future_set(future, reshape_data);
 
@@ -1440,11 +1436,9 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
                          cmd->memcpy.layout.dst_count);
 
     // TODO JS: add dst_datatype parameter
-    int rc = parsec_ce.reshape(&parsec_ce, es, cmd->memcpy.destination, cmd->memcpy.source,
-                               cmd->memcpy.layout.src_datatype,
-                               cmd->memcpy.layout.src_displ,
-                               cmd->memcpy.layout.dst_displ,
-                               cmd->memcpy.layout.src_count);
+    int rc = parsec_ce.reshape(&parsec_ce, es, 
+                               cmd->memcpy.destination, cmd->memcpy.layout.dst_displ, cmd->memcpy.layout.dst_datatype, cmd->memcpy.layout.dst_count,
+                               cmd->memcpy.source, cmd->memcpy.layout.src_displ, cmd->memcpy.layout.src_datatype, cmd->memcpy.layout.src_count);
 
     PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
     remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);
