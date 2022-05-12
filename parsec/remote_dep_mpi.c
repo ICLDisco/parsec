@@ -619,7 +619,7 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
     assert( dst );
     /* if the communication engine supports multithreads do the reshaping in place */
     if( parsec_ce.parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
-        if( parsec_ce.reshape(&parsec_ce, es, 
+        if( parsec_ce.reshape(&parsec_ce, es,
                               dst, data->local.dst_displ, data->local.dst_datatype, data->local.dst_count,
                               src, data->local.src_displ, data->local.src_datatype, data->local.src_count) ) {
             return;
@@ -742,7 +742,7 @@ void parsec_local_reshape(parsec_base_future_t *future,
                              es->th_id, dt->data, dt->data->dtt, type_name_src,
                              reshape_data, dt->local->dst_datatype, type_name_dst, task_string, future);
 
-        parsec_ce.reshape(&parsec_ce, es, 
+        parsec_ce.reshape(&parsec_ce, es,
                           reshape_data, dt->local->dst_displ, dt->local->dst_datatype, dt->local->dst_count,
                           dt->data, dt->local->src_displ, dt->local->src_datatype, dt->local->src_count);
 
@@ -957,11 +957,15 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             if(return_defer) {
                 return -2;
             }
-
+            for(i = 0; i < task.task_class->nb_flows;
+                task.data[i].data_in = task.data[i].data_out = NULL,
+                task.data[i].source_repo_entry = NULL,
+                task.data[i].source_repo = NULL, i++);
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
             task.locals[k] = origin->msg.locals[k];
             task.task_class = dtd_task->super.task_class;
             origin->msg.task_class_id = dtd_task->super.task_class->task_class_id;
+            origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
             task.task_class->iterate_successors(es, (parsec_task_t *)dtd_task,
                                                local_mask,
                                                remote_dep_mpi_retrieve_datatype,
@@ -969,6 +973,10 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
         }
     } else {
         task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
+        for(i = 0; i < task.task_class->nb_flows;
+            task.data[i].data_in = task.data[i].data_out = NULL,
+            task.data[i].source_repo_entry = NULL,
+            task.data[i].source_repo = NULL, i++);
 
         for(i = 0; i < task.task_class->nb_locals; i++)
             task.locals[i] = origin->msg.locals[i];
@@ -1436,7 +1444,7 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
                          cmd->memcpy.layout.dst_count);
 
     // TODO JS: add dst_datatype parameter
-    int rc = parsec_ce.reshape(&parsec_ce, es, 
+    int rc = parsec_ce.reshape(&parsec_ce, es,
                                cmd->memcpy.destination, cmd->memcpy.layout.dst_displ, cmd->memcpy.layout.dst_datatype, cmd->memcpy.layout.dst_count,
                                cmd->memcpy.source, cmd->memcpy.layout.src_displ, cmd->memcpy.layout.src_datatype, cmd->memcpy.layout.src_count);
 
