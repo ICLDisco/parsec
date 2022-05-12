@@ -861,9 +861,9 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
                 newcontext->task_class->name, dep->dep_datatype_index, type_name_src, type_name_dst, output->data.remote.dst_datatype);
 #endif
             // TODO JS: implement MPI_Pack_size
-            //int dsize;
-            //MPI_Pack_size(output->data.remote.dst_count, output->data.remote.dst_datatype, dep_comm, &dsize);
-            output->data.remote.src_count = output->data.remote.dst_count /* = dsize */;
+            int dsize;
+            MPI_Pack_size(output->data.remote.dst_count, output->data.remote.dst_datatype, MPI_COMM_WORLD, &dsize);
+            output->data.remote.src_count = output->data.remote.dst_count = dsize;
             output->data.remote.src_datatype = output->data.remote.dst_datatype = PARSEC_DATATYPE_PACKED;
 
             return PARSEC_ITERATE_STOP;
