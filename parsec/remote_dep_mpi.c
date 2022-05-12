@@ -744,7 +744,7 @@ void parsec_local_reshape(parsec_base_future_t *future,
                              es->th_id, dt->data, dt->data->dtt, type_name_src,
                              reshape_data, dt->local->dst_datatype, type_name_dst, task_string, future);
 
-        parsec_ce.reshape(&parsec_ce, es, PARSEC_DATA_COPY_GET_PTR(reshape_data), PARSEC_DATA_COPY_GET_PTR(dt->data),
+        parsec_ce.reshape(&parsec_ce, es, reshape_data, dt->data,
                           dt->local->src_datatype, // TODO JS: distinguish src_datatype and dst_datatype
                           dt->local->src_displ,
                           dt->local->dst_displ,
