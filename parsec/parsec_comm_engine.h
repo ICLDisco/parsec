@@ -99,13 +99,17 @@ typedef int (*parsec_ce_enable_fn_t)(parsec_comm_engine_t *comm_engine);
 typedef int (*parsec_ce_disable_fn_t)(parsec_comm_engine_t *comm_engine);
 
 typedef int (*parsec_ce_pack_fn_t)(parsec_comm_engine_t *ce,
-                                   void *inbuf, int incount,
+                                   void *inbuf, int incount, parsec_datatype_t type,
                                    void *outbuf, int outsize,
                                    int *positionA);
 
+typedef int (*parsec_ce_pack_size_fn_t)(parsec_comm_engine_t *ce,
+                                        int incount, parsec_datatype_t type,
+                                        int *size);
+
 typedef int (*parsec_ce_unpack_fn_t)(parsec_comm_engine_t *ce,
                                      void *inbuf, int insize, int *position,
-                                     void *outbuf, int outcount);
+                                     void *outbuf, int outcount, parsec_datatype_t type);
 
 typedef int (*parsec_ce_sync_fn_t)(parsec_comm_engine_t *comm_engine);
 typedef int (*parsec_ce_can_serve_fn_t)(parsec_comm_engine_t *comm_engine);
@@ -147,6 +151,7 @@ struct parsec_comm_engine_s {
     parsec_ce_enable_fn_t                  enable;
     parsec_ce_disable_fn_t                 disable;
     parsec_ce_pack_fn_t                    pack;
+    parsec_ce_pack_size_fn_t               pack_size;
     parsec_ce_unpack_fn_t                  unpack;
     parsec_ce_reshape_fn_t                 reshape;
     parsec_ce_sync_fn_t                    sync;

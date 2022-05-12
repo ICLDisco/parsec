@@ -63,13 +63,17 @@ int mpi_no_thread_enable(parsec_comm_engine_t *comm_engine);
 int mpi_no_thread_disable(parsec_comm_engine_t *comm_engine);
 
 int mpi_no_thread_pack(parsec_comm_engine_t *ce,
-                       void *inbuf, int incount,
+                       void *inbuf, int incount, parsec_datatype_t type,
                        void *outbuf, int outsize,
                        int *positionA);
 
+int mpi_no_thread_pack_size(parsec_comm_engine_t *ce,
+                            int incount, parsec_datatype_t type,
+                            int *size);
+
 int mpi_no_thread_unpack(parsec_comm_engine_t *ce,
                          void *inbuf, int insize, int *position,
-                         void *outbuf, int outcount);
+                         void *outbuf, int outcount, parsec_datatype_t type);
 
 int mpi_no_thread_sync(parsec_comm_engine_t *comm_engine);
 
