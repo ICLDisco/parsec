@@ -619,9 +619,9 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
     assert( dst );
     /* if the communication engine supports multithreads do the reshaping in place */
     if( parsec_ce.parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
-        if( parsec_ce.reshape(&parsec_ce, es,
-                              dst, data->local.dst_displ, data->local.dst_datatype, data->local.dst_count,
-                              src, data->local.src_displ, data->local.src_datatype, data->local.src_count) ) {
+        if( 0 == parsec_ce.reshape(&parsec_ce, es,
+                                   dst, data->local.dst_displ, data->local.dst_datatype, data->local.dst_count,
+                                   src, data->local.src_displ, data->local.src_datatype, data->local.src_count) ) {
             return;
         }
     }
@@ -1437,7 +1437,6 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
                          (char*)PARSEC_DATA_COPY_GET_PTR(cmd->memcpy.destination) + cmd->memcpy.layout.dst_displ, cmd->memcpy.layout.dst_datatype,
                          cmd->memcpy.layout.dst_count);
 
-    // TODO JS: add dst_datatype parameter
     int rc = parsec_ce.reshape(&parsec_ce, es,
                                cmd->memcpy.destination, cmd->memcpy.layout.dst_displ, cmd->memcpy.layout.dst_datatype, cmd->memcpy.layout.dst_count,
                                cmd->memcpy.source, cmd->memcpy.layout.src_displ, cmd->memcpy.layout.src_datatype, cmd->memcpy.layout.src_count);
@@ -1445,7 +1444,7 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
     PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
     remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);
     (void)es;
-    return (MPI_SUCCESS == rc ? 0 : -1);
+    return rc;
 }
 
 /**
