@@ -889,18 +889,12 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                          parsec_remote_deps_t* origin,
                          int storage_id, int *position)
 {
-    parsec_task_t task;
     uint32_t i, j, k, local_mask = 0;
 
     assert(NULL == origin->taskpool);
     origin->taskpool = parsec_taskpool_lookup(origin->msg.taskpool_id);
     if( NULL == origin->taskpool )
         return -1; /* the parsec taskpool doesn't exist yet */
-
-    task.taskpool   = origin->taskpool;
-    /* Do not set the task.task_class here, because it might trigger a race condition in DTD */
-
-    task.priority = 0;  /* unknown yet */
 
     /* This function is divided into DTD and PTG's logic */
     if( PARSEC_TASKPOOL_TYPE_DTD == origin->taskpool->taskpool_type ) {
@@ -957,21 +951,21 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             if(return_defer) {
                 return -2;
             }
-            for(i = 0; i < task.task_class->nb_flows;
-                task.data[i].data_in = task.data[i].data_out = NULL,
-                task.data[i].source_repo_entry = NULL,
-                task.data[i].source_repo = NULL, i++);
             PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
-            task.locals[k] = origin->msg.locals[k];
-            task.task_class = dtd_task->super.task_class;
             origin->msg.task_class_id = dtd_task->super.task_class->task_class_id;
             origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
-            task.task_class->iterate_successors(es, (parsec_task_t *)dtd_task,
+            dtd_task->super.task_class->iterate_successors(es, (parsec_task_t *)dtd_task,
                                                local_mask,
                                                remote_dep_mpi_retrieve_datatype,
                                                origin);
         }
     } else {
+        parsec_task_t task;
+        task.taskpool   = origin->taskpool;
+        /* Do not set the task.task_class here, because it might trigger a race condition in DTD */
+
+        task.priority = 0;  /* unknown yet */
+
         task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
         for(i = 0; i < task.task_class->nb_flows;
             task.data[i].data_in = task.data[i].data_out = NULL,
