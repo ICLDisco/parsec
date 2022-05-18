@@ -2757,12 +2757,14 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                     _array_mask = 1 << (this_task->rank % (8 * sizeof(int)));
                     if(last_writer.task->rank_bits[_array_pos] & _array_mask)
                     {
-                        FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = last_writer.task->super.locals[5+this_task->rank%5].value;
+                        //FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = last_writer.task->super.locals[5+this_task->rank%5].value;
+                        FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = last_writer.task->send_id_storage[this_task->rank];
                     } else
                     {
                         last_writer.task->rank_bits[_array_pos] |= _array_mask;
                         FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = dtd_tp->send_task_id[this_task->rank]++;
-                        last_writer.task->super.locals[5+this_task->rank%5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
+                        //last_writer.task->super.locals[5+this_task->rank%5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
+                        last_writer.task->send_id_storage[this_task->rank] = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
                     }
                 }
             } else {
@@ -2864,12 +2866,12 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                         _array_mask = 1 << (this_task->rank % (8 * sizeof(int)));
                         if(last_writer.task->rank_bits[_array_pos] & _array_mask)
                         {
-                            FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = last_writer.task->super.locals[5+this_task->rank%5].value;
+                            FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = last_writer.task->send_id_storage[this_task->rank];
                         } else
                         {
                             last_writer.task->rank_bits[_array_pos] |= _array_mask;
                             FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank] = dtd_tp->send_task_id[this_task->rank]++;
-                            last_writer.task->super.locals[5+this_task->rank%5].value = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
+                            last_writer.task->send_id_storage[this_task->rank] = FLOW_OF(last_writer.task, last_writer.flow_index)->msg_keys[this_task->rank];
                         }
                     }
                 } else {

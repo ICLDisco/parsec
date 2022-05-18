@@ -71,6 +71,8 @@ target_ptg_sources(complex_deps PRIVATE "complex_deps.jdf")
 if( MPI_C_FOUND )
   parsec_addtest(C multichain)
   target_ptg_sources(multichain PRIVATE "multichain.jdf")
+  parsec_addtest(C ptg_bcast)
+  target_ptg_sources(ptg_bcast PRIVATE "ptg_bcast.jdf")
 endif( MPI_C_FOUND )
 
 parsec_addtest(C compose "compose.c")

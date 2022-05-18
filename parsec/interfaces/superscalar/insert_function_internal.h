@@ -183,6 +183,7 @@ struct parsec_dtd_task_s {
     int32_t                      rank;
     int32_t                      flow_count;
     int32_t                      rank_bits[MAX_RANK_INFO];
+    int send_id_storage[MAX_RANK_INFO*sizeof(int)*8]; /* enable user trimming, store dest rank send ID for a task, same for all the flows in that task */
     /* for testing PTG inserting task in DTD */
     parsec_task_t  *orig_task;
 };

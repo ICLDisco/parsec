@@ -1,0 +1,160 @@
+extern "C" %{
+/**
+ *  PTG_BCAST BENCHMARK
+ **/
+
+#include <sys/time.h>
+#include <inttypes.h>
+#include <string.h>
+#include <stdlib.h>
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+
+#include "ptg_bcast.h"
+static parsec_ptg_bcast_taskpool_t* tp;
+static int verbose = 0;
+
+%}
+
+descA      [type = "two_dim_block_cyclic_t*"]
+descB      [type = "two_dim_block_cyclic_t*" aligned=descA]
+
+
+
+
+WRITER(i)
+
+    i = 0..0
+
+: descA(0, 0)
+
+RW A <- descA(i, 0)
+      -> A READERS(0..descA->super.mt-1)
+BODY
+    if(verbose)
+        printf("Executed WRITE TASK ON ROOT\n");
+END
+
+
+READERS(i)
+i = 0 .. descA->super.mt-1
+
+: descA(i, 0)
+
+READ A <- A WRITER(0)
+RW   B <- descB(i, 0) 
+       -> descB(i, 0)
+BODY
+    if(verbose)
+        printf("Executed READ OF A and UPDATE of B\n");
+END
+
+extern "C" %{
+parsec_taskpool_t*
+parsec_ptg_bcast_New(parsec_tiled_matrix_dc_t *dcA, parsec_tiled_matrix_dc_t *dcB)
+{
+    parsec_taskpool_t* ptg_bcast_taskpool;
+    parsec_ptg_bcast_taskpool_t* taskpool = NULL;
+
+    taskpool = parsec_ptg_bcast_new(dcA, dcB);
+    ptg_bcast_taskpool = (parsec_taskpool_t*)taskpool;
+
+    parsec_matrix_add2arena( &taskpool->arenas_datatypes[PARSEC_ptg_bcast_DEFAULT_ARENA],
+            parsec_datatype_double_t, matrix_UpperLower,
+            1, dcA->mb, dcA->nb, dcA->mb,
+            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+
+    return ptg_bcast_taskpool;
+}
+
+void parsec_ptg_bcast_Destruct(parsec_taskpool_t *taskpool)
+{
+    parsec_ptg_bcast_taskpool_t *ptg_bcast_taskpool = (parsec_ptg_bcast_taskpool_t *)taskpool;
+    parsec_matrix_del2arena(&ptg_bcast_taskpool->arenas_datatypes[PARSEC_ptg_bcast_DEFAULT_ARENA]);
+    parsec_taskpool_free(taskpool);
+}
+
+int parsec_ptg_bcast(parsec_context_t *parsec,
+        parsec_tiled_matrix_dc_t *A,
+        parsec_tiled_matrix_dc_t *B)
+{
+    parsec_taskpool_t *parsec_ptg_bcast = NULL;
+
+    parsec_ptg_bcast = parsec_ptg_bcast_New(A, B);
+
+    if( parsec_ptg_bcast != NULL ){
+        parsec_enqueue(parsec, parsec_ptg_bcast);
+        parsec_context_start(parsec);
+        parsec_context_wait(parsec);
+        parsec_ptg_bcast_Destruct(parsec_ptg_bcast);
+    }
+
+    return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    two_dim_block_cyclic_t descA, descB;
+    parsec_arena_datatype_t adt;
+    parsec_context_t *parsec;
+    int rank = 0, size = 1, mat_size;
+    long time_elapsed;
+    int nt;
+    nt = strtol(argv[1], NULL, 10);
+#ifdef DISTRIBUTED
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+    }
+    int world;
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif  /* DISTRIBUTED */
+    parsec = parsec_init(2, &argc, &argv);
+    assert( NULL != parsec );
+
+    //MPI_Barrier(MPI_COMM_WORLD);
+    two_dim_block_cyclic_init( &descA, matrix_RealDouble, matrix_Tile,
+            rank /*rank*/,
+            nt*nt, 1, 
+            world*nt*nt, 1,
+            0, 0, 
+            world*nt*nt, 1,
+            world, 1, 
+            1, 1, 
+            0, 0);
+    descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
+            descA.super.bsiz *
+            parsec_datadist_getsizeoftype(descA.super.mtype) );
+    two_dim_block_cyclic_init( &descB, matrix_RealDouble, matrix_Tile,
+            rank /*rank*/,
+            nt*nt, 1, 
+            world*nt*nt, 1,
+            0, 0, 
+            world*nt*nt, 1,
+            world, 1, 
+            1, 1, 
+            0, 0);
+    descB.mat = parsec_data_allocate( descB.super.nb_local_tiles *
+            descB.super.bsiz *
+            parsec_datadist_getsizeoftype(descA.super.mtype) );
+
+    //SYNC_TIME_START();
+    double starttime, endtime;
+    starttime = MPI_Wtime();
+    parsec_ptg_bcast(parsec, (parsec_tiled_matrix_dc_t *)&descA, (parsec_tiled_matrix_dc_t *)&descB);
+    MPI_Barrier(MPI_COMM_WORLD);
+    endtime = MPI_Wtime();
+    if(rank==0)printf("That took %f seconds\n",endtime-starttime);
+    parsec_data_free(descA.mat);
+    parsec_data_free(descB.mat);
+    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&descA);
+    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&descB);
+
+    parsec_fini(&parsec);
+#ifdef DISTRIBUTED
+    MPI_Finalize();
+#endif  /* DISTRIBUTED */
+    return 0;
+}
+
+%}

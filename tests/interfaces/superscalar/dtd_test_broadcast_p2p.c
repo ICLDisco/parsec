@@ -61,7 +61,7 @@ int read_task_fn(
    int myrank;
    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
-   printf("[read_task] rank = %d, val_in = %d\n", myrank, *val_in);
+   //printf("[read_task] rank = %d, val_in = %d\n", myrank, *val_in);
 
    return PARSEC_HOOK_RETURN_DONE;
 }
@@ -81,6 +81,7 @@ int write_task_fn(
    
    parsec_dtd_unpack_args(this_task, &val_in, &dest_rank, &data_value);
 
+   //sleep(1);
    int myrank;
    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
@@ -189,13 +190,13 @@ int test_broadcast_mixed(
    
    perr = parsec_context_start(parsec_context);
    PARSEC_CHECK_ERROR(perr, "parsec_context_start");
-   
+   MPI_Barrier(MPI_COMM_WORLD); 
    // Initialize tiles
-   if( root == myrank ) {
+   if( 1 ) {
        parsec_task_t *root_task = parsec_dtd_taskpool_create_task(
                dtd_tp, write_task_fn, 0, "root_task",
-               PASSED_BY_REF, PARSEC_DTD_TILE_OF(A, myrank, 0), PARSEC_INOUT | TILE_FULL,
-               sizeof(int), &myrank, PARSEC_VALUE | PARSEC_AFFINITY,
+               PASSED_BY_REF, PARSEC_DTD_TILE_OF(A, root, 0), PARSEC_INOUT | TILE_FULL,
+               sizeof(int), &root, PARSEC_VALUE | PARSEC_AFFINITY,
                sizeof(double*), &data_root, PARSEC_VALUE,
                PARSEC_DTD_ARG_END);
        parsec_dtd_task_t *dtd_root_task = (parsec_dtd_task_t *)root_task;
@@ -209,43 +210,20 @@ int test_broadcast_mixed(
    key_root = key = A->data_key(A, root, 0);
    dtd_tile_root = PARSEC_DTD_TILE_OF_KEY(A, key_root);
 
-   // Create array of destination ranks
-   int num_dest_ranks = 0;
-   int *dest_ranks = (int*)malloc(world*sizeof(int));
-
-   // Destination rank index
-   int dest_rank_idx = 0 ;
-
-   // VALID ONLY ON THE ROOT NODE
-   for (int rank = 0; rank < world; ++rank) {
-      if (rank == root) continue;
-      dest_ranks[dest_rank_idx] = rank;
-      ++dest_rank_idx;
-   }
-   num_dest_ranks = dest_rank_idx;
-
-   //
-   // Perform Broadcast
-   //
-   //fprintf(stderr, "perform bcast from rank %d\n", myrank);
-   parsec_dtd_broadcast(
-           dtd_tp, root,
-           dtd_tile_root, TILE_FULL,
-           dest_ranks, num_dest_ranks);
-
    //
    // Retrieve value of broadcasted data
    //
    double* data_value_out = -1;
-   if(1) {
-       parsec_task_t *retrieve_task = parsec_dtd_taskpool_create_task(
+   for(int irank = 0; irank < world; irank++) {
+       //parsec_task_t *retrieve_task = parsec_dtd_taskpool_create_task(
+       parsec_dtd_taskpool_insert_task(
                dtd_tp, retrieve_task_fn, 0, "retrieve_task",
-               PASSED_BY_REF, dtd_tile_root, PARSEC_INPUT | TILE_FULL,
-               sizeof(int), &myrank, PARSEC_VALUE | PARSEC_AFFINITY,
+               PASSED_BY_REF, PARSEC_DTD_TILE_OF(A, root, 0), PARSEC_INPUT | TILE_FULL,
+               sizeof(int), &irank, PARSEC_VALUE | PARSEC_AFFINITY,
                sizeof(double*), &data_value_out, PARSEC_VALUE,
                PARSEC_DTD_ARG_END);
-       parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
-       parsec_insert_dtd_task(retrieve_task);
+       //parsec_dtd_task_t *dtd_retrieve_task = (parsec_dtd_task_t *)retrieve_task;
+       //parsec_insert_dtd_task(retrieve_task);
    }
    parsec_dtd_data_flush_all( dtd_tp, A );
  
