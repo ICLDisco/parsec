@@ -135,6 +135,7 @@ int test_broadcast_mixed(
    // - Failure otherwise
    int ret = 0;
 
+   double starttime, endtime;
    // Error code return by parsec routines
    int perr;
    
@@ -191,6 +192,7 @@ int test_broadcast_mixed(
    perr = parsec_context_start(parsec_context);
    PARSEC_CHECK_ERROR(perr, "parsec_context_start");
    MPI_Barrier(MPI_COMM_WORLD); 
+   starttime = MPI_Wtime();
    // Initialize tiles
    if( 1 ) {
        parsec_task_t *root_task = parsec_dtd_taskpool_create_task(
@@ -230,6 +232,9 @@ int test_broadcast_mixed(
    // Wait for task completion
    perr = parsec_dtd_taskpool_wait( dtd_tp );
    PARSEC_CHECK_ERROR(perr, "parsec_dtd_taskpool_wait");
+   MPI_Barrier(MPI_COMM_WORLD);
+   endtime   = MPI_Wtime();
+   if(myrank==0)printf("That took %f seconds\n",endtime-starttime);
 
    perr = parsec_context_wait(parsec_context);
    PARSEC_CHECK_ERROR(perr, "parsec_context_wait");
@@ -267,11 +272,11 @@ int main(int argc, char **argv) {
    
    // Testing trimming with a mixed destinations of receivers for broadcast
    //MPI_Barrier(MPI_COMM_WORLD);
-   starttime = MPI_Wtime();
+   //starttime = MPI_Wtime();
    ret = test_broadcast_mixed(world, rank, parsec_context, 0, nt);
-   MPI_Barrier(MPI_COMM_WORLD);
-   endtime   = MPI_Wtime();
-   if(rank==0)printf("That took %f seconds\n",endtime-starttime);
+   //MPI_Barrier(MPI_COMM_WORLD);
+   //endtime   = MPI_Wtime();
+   //if(rank==0)printf("That took %f seconds\n",endtime-starttime);
 
    parsec_fini(&parsec_context);
 

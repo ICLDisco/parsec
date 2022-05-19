@@ -81,10 +81,17 @@ int parsec_ptg_bcast(parsec_context_t *parsec,
 
     parsec_ptg_bcast = parsec_ptg_bcast_New(A, B);
 
+    double starttime, endtime;
+
+MPI_Barrier (MPI_COMM_WORLD);
+    starttime = MPI_Wtime();
     if( parsec_ptg_bcast != NULL ){
         parsec_enqueue(parsec, parsec_ptg_bcast);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
+MPI_Barrier(MPI_COMM_WORLD);
+endtime = MPI_Wtime ();
+    if(parsec->my_rank==0)printf("That took %f seconds\n",endtime-starttime);
         parsec_ptg_bcast_Destruct(parsec_ptg_bcast);
     }
 
@@ -140,11 +147,12 @@ int main(int argc, char* argv[])
 
     //SYNC_TIME_START();
     double starttime, endtime;
-    starttime = MPI_Wtime();
-    parsec_ptg_bcast(parsec, (parsec_tiled_matrix_dc_t *)&descA, (parsec_tiled_matrix_dc_t *)&descB);
     MPI_Barrier(MPI_COMM_WORLD);
-    endtime = MPI_Wtime();
-    if(rank==0)printf("That took %f seconds\n",endtime-starttime);
+    //starttime = MPI_Wtime();
+    parsec_ptg_bcast(parsec, (parsec_tiled_matrix_dc_t *)&descA, (parsec_tiled_matrix_dc_t *)&descB);
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //endtime = MPI_Wtime();
+    //if(rank==0)printf("That took %f seconds\n",endtime-starttime);
     parsec_data_free(descA.mat);
     parsec_data_free(descB.mat);
     parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)&descA);

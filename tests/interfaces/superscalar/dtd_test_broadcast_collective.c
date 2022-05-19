@@ -84,6 +84,7 @@ int write_task_fn(
    int myrank;
    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
 
+   //sleep(1);
    //printf("[write_task] rank = %d, data_value = %f\n", myrank, data_value);
 
    *val_in = data_value;
@@ -149,6 +150,7 @@ int test_broadcast_mixed(
    nb = num_elem;
    // few tiles per node 
    nt = world; 
+   double starttime, endtime;
    
    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
@@ -190,6 +192,8 @@ int test_broadcast_mixed(
    perr = parsec_context_start(parsec_context);
    PARSEC_CHECK_ERROR(perr, "parsec_context_start");
    
+   MPI_Barrier(MPI_COMM_WORLD);
+   starttime = MPI_Wtime();
    // Initialize tiles
    if( root == myrank ) {
        parsec_task_t *root_task = parsec_dtd_taskpool_create_task(
@@ -255,6 +259,9 @@ int test_broadcast_mixed(
 
    perr = parsec_context_wait(parsec_context);
    PARSEC_CHECK_ERROR(perr, "parsec_context_wait");
+   MPI_Barrier(MPI_COMM_WORLD);
+   endtime   = MPI_Wtime();
+   if(myrank==0)printf("That took %f seconds\n",endtime-starttime);
    
    // Cleanup data and parsec data structures
    parsec_type_free(&parsec_dtd_arenas_datatypes[TILE_FULL].opaque_dtt);
@@ -270,7 +277,6 @@ int main(int argc, char **argv) {
 
    int ret;
    parsec_context_t* parsec_context = NULL;
-   double starttime, endtime;
    int rank, world;
 
    char *p;
@@ -289,11 +295,11 @@ int main(int argc, char **argv) {
    
    // Testing trimming with a mixed destinations of receivers for broadcast
    //MPI_Barrier(MPI_COMM_WORLD);
-   starttime = MPI_Wtime();
+   //starttime = MPI_Wtime();
    ret = test_broadcast_mixed(world, rank, parsec_context, 0, nt);
-   MPI_Barrier(MPI_COMM_WORLD);
-   endtime   = MPI_Wtime();
-   if(rank==0)printf("That took %f seconds\n",endtime-starttime);
+   //MPI_Barrier(MPI_COMM_WORLD);
+   //endtime   = MPI_Wtime();
+   //if(rank==0)printf("That took %f seconds\n",endtime-starttime);
 
    parsec_fini(&parsec_context);
 
