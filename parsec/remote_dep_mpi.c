@@ -74,14 +74,14 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
 }
 
 /* TODO: fix heterogeneous restriction by using proper mpi datatypes */
-#define dep_dtt MPI_BYTE
+#define dep_dtt parsec_datatype_int8_t
 #define dep_count sizeof(remote_dep_wire_activate_t)
 #define dep_extent dep_count
 #define DEP_SHORT_BUFFER_SIZE (dep_extent+RDEP_MSG_SHORT_LIMIT)
-#if ULONG_MAX == UINTPTR_MAX
-#define datakey_dtt MPI_LONG
+#if PARSEC_SIZEOF_VOID_P == 4
+#define datakey_dtt parsec_datatype_int32_t
 #else
-#define datakey_dtt MPI_LONG_LONG
+#define datakey_dtt parsec_datatype_int64_t
 #endif
 #define datakey_count 3
 
