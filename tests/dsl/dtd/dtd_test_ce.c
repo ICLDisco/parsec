@@ -55,7 +55,7 @@ callback_tag_2(parsec_comm_engine_t *ce,
                void *cb_data)
 {
     (void) ce; (void) cb_data;
-    printf("[%d] In callback for tag %llu, message sent from %d size: %ld message: ", my_rank, tag, src, msg_size);
+    printf("[%d] In callback for tag %"PRIu64", message sent from %d size: %zu message: ", my_rank, tag, src, msg_size);
 
     int i, total = msg_size/sizeof(int);
 
@@ -84,7 +84,7 @@ callback_tag_3(parsec_comm_engine_t *ce,
                void *cb_data)
 {
     (void) ce; (void) cb_data;
-    printf("[%d] In callback for tag %llu, message sent from %d size: %ld message: ", my_rank, tag, src, msg_size);
+    printf("[%d] In callback for tag %"PRIu64", message sent from %d size: %zu message: ", my_rank, tag, src, msg_size);
 
     int i, total = msg_size/sizeof(float);
 
