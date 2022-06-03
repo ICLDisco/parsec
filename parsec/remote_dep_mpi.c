@@ -1347,8 +1347,7 @@ static int remote_dep_mpi_pack_dep(int peer,
     peer_bank = peer / (sizeof(uint32_t) * 8);
     peer_mask = 1U << (peer % (sizeof(uint32_t) * 8));
 
-    //MPI_Pack_size(dep_count, dep_dtt, dep_comm, &dsize);
-    dsize = dep_count;
+    parsec_ce.pack_size(&parsec_ce, dep_count, dep_dtt, &dsize);
     if( (length - (*position)) < dsize ) {  /* no room. bail out */
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Can't pack at %d/%d. Bail out!", *position, length);
         return 1;
@@ -1398,8 +1397,7 @@ static int remote_dep_mpi_pack_dep(int peer,
           msg->output_mask ^ item->cmd.activate.task.output_mask, msg->length);
 #endif
     /* And now pack the updated message (msg->length and msg->output_mask) itself. */
-    //MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, length, &saved_position, dep_comm);
-    parsec_ce.pack(&parsec_ce, msg, dep_count, packed_buffer, length, &saved_position);
+    parsec_ce.pack(&parsec_ce, msg, dep_count, dep_dtt, packed_buffer, length, &saved_position);
     msg->length = dsize;
     return 0;
 }
@@ -1874,7 +1872,7 @@ remote_dep_mpi_save_activate_cb(parsec_comm_engine_t *ce, parsec_ce_tag_t tag,
     while(position < length) {
         deps = remote_deps_allocate(&parsec_remote_dep_context.freelist);
 
-        ce->unpack(ce, msg, length, &position, &deps->msg, dep_count);
+        ce->unpack(ce, msg, length, &position, &deps->msg, dep_count, dep_dtt);
         deps->from = src;
         deps->eager_msg = msg;
 

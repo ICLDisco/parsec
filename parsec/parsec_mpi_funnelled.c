@@ -543,6 +543,7 @@ mpi_funnelled_init(parsec_context_t *context)
     parsec_ce.enable              = mpi_no_thread_enable;
     parsec_ce.disable             = mpi_no_thread_disable;
     parsec_ce.pack                = mpi_no_thread_pack;
+    parsec_ce.pack_size           = mpi_no_thread_pack_size;
     parsec_ce.unpack              = mpi_no_thread_unpack;
     parsec_ce.sync                = mpi_no_thread_sync;
     parsec_ce.reshape             = parsec_mpi_sendrecv;
@@ -1194,22 +1195,30 @@ mpi_no_thread_disable(parsec_comm_engine_t *ce)
 
 int
 mpi_no_thread_pack(parsec_comm_engine_t *ce,
-                   void *inbuf, int incount,
+                   void *inbuf, int incount, parsec_datatype_t type,
                    void *outbuf, int outsize,
                    int *positionA)
 {
     (void) ce;
-    return MPI_Pack(inbuf, incount, MPI_BYTE, outbuf, outsize, positionA, dep_comm);
+    return MPI_Pack(inbuf, incount, type, outbuf, outsize, positionA, dep_comm);
 
 }
 
 int
-mpi_no_thread_unpack(parsec_comm_engine_t *ce,
-                     void *inbuf, int insize, int *position,
-                     void *outbuf, int outcount)
+mpi_no_thread_pack_size(parsec_comm_engine_t *ce,
+                        int incount, parsec_datatype_t type,
+                        int* size)
 {
     (void) ce;
-    return MPI_Unpack(inbuf, insize, position, outbuf, outcount, MPI_BYTE, dep_comm);
+    return MPI_Pack_size(incount, type, dep_comm, size);
+}
+int
+mpi_no_thread_unpack(parsec_comm_engine_t *ce,
+                     void *inbuf, int insize, int *position,
+                     void *outbuf, int outcount, parsec_datatype_t type)
+{
+    (void) ce;
+    return MPI_Unpack(inbuf, insize, position, outbuf, outcount, type, dep_comm);
 }
 
 /* Mechanism to post global synchronization from upper layer */
