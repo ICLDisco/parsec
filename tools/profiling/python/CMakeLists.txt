@@ -82,7 +82,7 @@ add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
 # Call python distutils to install all python support in the right location
 # (aka. according to the OS demands). Prepare to reconfigure the shell
 # helper scripts to point to the right location
-install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} ${SETUP_PY} install --skip-build --prefix=${CMAKE_INSTALL_PREFIX}
+install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} ${SETUP_PY} install --skip-build --prefix=\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}
         WORKING_DIRECTORY ${PYTHON_TOOLS_BIN_DIR})")
 
 # Create bash environment PaRSEC python support
@@ -104,7 +104,7 @@ foreach(file ${pyfiles})
            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
   get_filename_component(filenoext "${file}" NAME_WE)
   get_filename_component(filenodir "${file}" NAME)
-  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBEXECDIR}/parsec/${filenodir} ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_BINDIR}/${filenoext})")
+  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink \$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBEXECDIR}/parsec/${filenodir} \$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_BINDIR}/${filenoext})")
 endforeach()
 
 set(PARSEC_PYTHON_TOOLS ON CACHE BOOL "True if Python tools are enabled in PaRSEC")
