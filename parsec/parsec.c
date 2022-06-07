@@ -866,8 +866,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     __parsec_thread_init( &startup[0] );
 
-    remote_dep_mpi_initialize_execution_stream(context);
-
     /* Wait until all threads are done binding themselves */
     parsec_barrier_wait( &(context->barrier) );
     context->__parsec_internal_finalization_counter++;

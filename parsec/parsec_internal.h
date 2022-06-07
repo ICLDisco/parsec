@@ -19,7 +19,6 @@
 #include "parsec/profiling.h"
 #include "parsec/mempool.h"
 #include "parsec/arena.h"
-#include "parsec/remote_dep.h"
 #include "parsec/datarepo.h"
 #include "parsec/data.h"
 #include "parsec/utils/debug.h"

@@ -113,6 +113,9 @@ set(SOURCES
   mempool.c
   private_mempool.c
   remote_dep.c
+  parsec_comm_engine.c
+  parsec_mpi_funnelled.c
+  remote_dep_mpi.c
   scheduling.c
   compound.c
   vpmap.c
@@ -295,6 +298,8 @@ if( BUILD_PARSEC )
           ${CMAKE_CURRENT_SOURCE_DIR}/dictionary.h
           ${CMAKE_CURRENT_SOURCE_DIR}/data.h
           ${CMAKE_CURRENT_SOURCE_DIR}/private_mempool.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/bindthread.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/parsec_comm_engine.h
           ${CMAKE_CURRENT_SOURCE_DIR}/include/parsec/deprecated.h
           DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec)
 
