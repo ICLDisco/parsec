@@ -166,11 +166,7 @@ static int remote_dep_ce_fini(parsec_context_t* context);
 static int local_dep_nothread_reshape(parsec_execution_stream_t* es,
                                       dep_cmd_item_t *item);
 
-
 static int remote_dep_mpi_on(parsec_context_t* context);
-
-
-static void remote_dep_mpi_initialize_execution_stream(parsec_context_t *context);
 
 static int remote_dep_mpi_progress(parsec_execution_stream_t* es);
 
@@ -470,6 +466,12 @@ remote_dep_dequeue_off(parsec_context_t* context)
     return 0;
 }
 
+static void
+remote_dep_mpi_initialize_execution_stream(parsec_context_t *context)
+{
+    memcpy(&parsec_comm_es, context->virtual_processes[0]->execution_streams[0], sizeof(parsec_execution_stream_t));
+}
+
 void* remote_dep_dequeue_main(parsec_context_t* context)
 {
     int whatsup;
@@ -528,13 +530,6 @@ void* remote_dep_dequeue_main(parsec_context_t* context)
     PARSEC_PAPI_SDE_THREAD_FINI();
 
     return (void*)context;
-}
-
-
-void
-remote_dep_mpi_initialize_execution_stream(parsec_context_t *context)
-{
-    memcpy(&parsec_comm_es, context->virtual_processes[0]->execution_streams[0], sizeof(parsec_execution_stream_t));
 }
 
 int remote_dep_dequeue_new_taskpool(parsec_taskpool_t* tp)

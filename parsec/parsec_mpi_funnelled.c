@@ -124,7 +124,7 @@ static parsec_key_fn_t tag_key_fns = {
 typedef struct mpi_funnelled_tag_s {
     parsec_hash_table_item_t  ht_item;
     parsec_ce_tag_t tag; /* tag user wants to register */
-    char **buf; /* Buffer where we will recive msg for each TAG
+    char **buf; /* Buffer where we will receive msg for each TAG
                  * there will be EACH_STATIC_REQ_RANGE buffers
                  * each of size msg_length.
                  */
@@ -143,7 +143,7 @@ typedef enum {
 } mpi_funnelled_callback_type;
 
 /* Structure to hold information about callbacks,
- * since we have multiple type of callbacks (active message and onesided,
+ * since we have multiple type of callbacks (active message and one-sided,
  * we store a type to know which to call.
  */
 typedef struct mpi_funnelled_callback_s {
@@ -241,7 +241,7 @@ typedef struct mpi_funnelled_handshake_info_s {
 } mpi_funnelled_handshake_info_t;
 
 /* This is the callback that is triggered on the sender side for a
- * GET. In this function we get the TAG on which the reciver has
+ * GET. In this function we get the TAG on which the receiver has
  * posted an Irecv and using which the sender should post an Isend
  */
 static int
@@ -374,7 +374,7 @@ mpi_funnelled_internal_put_am_callback(parsec_comm_engine_t *ce,
 
     /* We sent the pointer to the call back function for PUT over notification.
      * For a TRUE one sided this would be accomplished by an active message at
-     * the tag of the integer value of the functionpointer we trigger as callback.
+     * the tag of the integer value of the function pointer we trigger as callback.
      */
     cb->cb_type.onesided_mimic_am.fct = (parsec_ce_am_callback_t) handshake_info->cb_fn;
     cb->cb_type.onesided_mimic_am.msg = callback_data;
@@ -530,7 +530,7 @@ mpi_funnelled_init(parsec_context_t *context)
 
     nb_internal_tag = 2;
 
-    /* Make all the fn pointers point to this compnent's function */
+    /* Make all the fn pointers point to this component's function */
     parsec_ce.tag_register        = mpi_no_thread_tag_register;
     parsec_ce.tag_unregister      = mpi_no_thread_tag_unregister;
     parsec_ce.mem_register        = mpi_no_thread_mem_register;
@@ -660,12 +660,12 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
     array_of_indices = realloc(array_of_indices, size_of_total_reqs * sizeof(int));
     array_of_statuses = realloc(array_of_statuses, size_of_total_reqs * sizeof(MPI_Status));
 
-    /* Packing persistant tags in the beginning of the array */
+    /* Packing persistent tags in the beginning of the array */
     /* Allocate a new array that is "EACH_STATIC_REQ_RANGE" size bigger
      * than the previous allocation.
      */
     mpi_funnelled_callback_t *tmp_array_cb = malloc(sizeof(mpi_funnelled_callback_t) * size_of_total_reqs);
-    /* Copy any previous persistent messgae info in the beginning */
+    /* Copy any previous persistent message info in the beginning */
     memcpy(tmp_array_cb, array_of_callbacks, sizeof(mpi_funnelled_callback_t) * mpi_funnelled_static_req_idx);
     /* Leaving "EACH_STATIC_REQ_RANGE" number elements in the middle and copying
      * the rest for the dynamic tag messages.
@@ -1231,15 +1231,16 @@ mpi_no_thread_sync(parsec_comm_engine_t *ce)
 }
 
 /* The upper layer will query the bottom layer before pushing
- * more work through this function.
- * Here we first push pending work before we decide and let the
- * upper layer know if they should push more work or not
+ * additional one-sided messages.
  */
 int
 mpi_no_thread_can_push_more(parsec_comm_engine_t *ce)
 {
     (void) ce;
 #if 0
+    /* Here we first push pending work before we decide and let the
+     * upper layer know if they should push more work or not
+     */
     /* Push saved requests first */
     while(mpi_funnelled_last_active_req < size_of_total_reqs &&
           !parsec_list_nolock_is_empty(&mpi_funnelled_dynamic_req_fifo)) {
@@ -1248,12 +1249,6 @@ mpi_no_thread_can_push_more(parsec_comm_engine_t *ce)
     }
 #endif
 
-    if(mpi_funnelled_last_active_req < size_of_total_reqs) {
-        /* We have room to post one more request
-         * upper layer can push more work
-         */
-        return 1;
-    } else {
-        return 0;
-    }
+    /* Do we have room to post more requests? */
+    return mpi_funnelled_last_active_req < size_of_total_reqs;
 }
