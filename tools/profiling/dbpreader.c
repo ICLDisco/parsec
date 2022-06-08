@@ -408,8 +408,6 @@ static const dbp_event_t *dbp_iterator_next_in_buffer(dbp_event_iterator_t *it)
 
 const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
 {
-    size_t elen;
-
     if( NULL == it->current_event.native )
         return NULL;
     assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
@@ -548,8 +546,9 @@ static int bsearch_compare(const void *key, const void *el)
     return 0;
 }
 
-static const event_cache_item_t *dbp_event_find_in_cache(dbp_thread_t *thr,
-                                                         const dbp_event_t *ref)
+static const event_cache_item_t*
+dbp_event_find_in_cache(const dbp_thread_t *thr,
+                        const dbp_event_t *ref)
 {
     event_cache_key_t *cache_key;
     bsearch_key_t      bsearch_key = { ref, NULL };
@@ -577,12 +576,13 @@ int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
     const event_cache_item_t *cache_item;
     const event_cache_key_t  *cache_key;
     const dbp_event_t        *e;
+    const dbp_thread_t *thr = pos->thread;
 
-    cache_item = dbp_event_find_in_cache( pos->thread, ref );
+    cache_item = dbp_event_find_in_cache( thr, ref );
     cache_key  = &thr->cache.keys[BASE_KEY(dbp_event_get_key(ref))];
 
-    assert(&cache_key->items[0]              <= cache_item)
-    assert(&cache_key->items[cache_key->len] >  cache_item)
+    assert(&cache_key->items[0]              <= cache_item);
+    assert(&cache_key->items[cache_key->len] >  cache_item);
 
     /* iterate over all cached buffers containing possible matches */
     while( cache_item < &cache_key->items[cache_key->len] ) {
