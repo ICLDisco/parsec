@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2020 The University of Tennessee and The University
+ * Copyright (c) 2010-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,7 +15,7 @@ BEGIN_C_DECLS
 
 /* From MCA parameters */
 extern int parsec_device_cuda_enabled_index, parsec_device_cuda_enabled;
-extern int parsec_cuda_sort_pending;
+extern int parsec_cuda_sort_pending, parsec_cuda_max_streams;
 extern int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_memory_number_of_blocks;
 extern char* parsec_cuda_lib_path;
 

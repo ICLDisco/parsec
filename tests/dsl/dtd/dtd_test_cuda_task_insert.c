@@ -56,8 +56,8 @@ int print_cuda_info_task(parsec_device_cuda_module_t *cuda_device,
     printf("  CUDA device compute capability: %d.%d\n",
            cuda_device->major, cuda_device->minor);
     printf( "  CUDA Stream: %p\n", (void*)(uintptr_t)cuda_stream->cuda_stream);
-    printf("  CUDA device max exec stream: %d\n",
-           cuda_device->super.max_exec_streams);
+    printf("  CUDA device num exec stream: %d\n",
+           cuda_device->super.num_exec_streams);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
