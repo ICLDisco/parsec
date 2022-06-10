@@ -252,15 +252,25 @@ static void parsec_hash_table_resize(parsec_hash_table_t *ht)
 {
     parsec_atomic_lock_t unlocked = PARSEC_ATOMIC_UNLOCKED;
     parsec_hash_table_head_t *head;
-    int nb_bits = ht->rw_hash->nb_bits + 1;
+    parsec_hash_table_head_t *old_head = ht->rw_hash;
+    int nb_bits = old_head->nb_bits + 1;
     assert(nb_bits < 32);
+
+    /* count the number of used buckets */
+    int32_t used_buckets = 0;
+    for (size_t i = 0; i < (1ULL << old_head->nb_bits); ++i) {
+        if (NULL != old_head->buckets[i].first_item) {
+            ++used_buckets;
+        }
+    }
+    old_head->used_buckets = used_buckets;
 
     head = malloc(sizeof(parsec_hash_table_head_t));
     head->buckets      = malloc((1ULL<<nb_bits) * sizeof(parsec_hash_table_bucket_t));
     head->nb_bits      = nb_bits;
     head->used_buckets = 0;
-    head->next         = ht->rw_hash;
-    head->next_to_free = ht->rw_hash;
+    head->next         = old_head;
+    head->next_to_free = old_head;
     ht->rw_hash        = head;
 
     for( size_t i = 0; i < (1ULL<<nb_bits); i++) {
@@ -323,15 +333,11 @@ void parsec_hash_table_nolock_insert(parsec_hash_table_t *ht, parsec_hash_table_
 {
     uint64_t hash;
     parsec_key_t key = item->key;
-    int res;
     hash = parsec_hash_table_universal_rehash(ht->key_functions.key_hash(key, ht->hash_data), ht->rw_hash->nb_bits);
     item->next_item = ht->rw_hash->buckets[hash].first_item;
     item->hash64 = ht->key_functions.key_hash(key, ht->hash_data);
     ht->rw_hash->buckets[hash].first_item = item;
-    res = ht->rw_hash->buckets[hash].cur_len++;
-    if( 0 == res ) {
-        parsec_atomic_fetch_inc_int32(&ht->rw_hash->used_buckets);
-    }
+    ht->rw_hash->buckets[hash].cur_len++;
 #if defined(PARSEC_DEBUG_NOISIER)
     {
         char estr[64];
@@ -503,7 +509,6 @@ void *parsec_hash_table_nolock_remove(parsec_hash_table_t *ht, parsec_key_t key)
     parsec_hash_table_item_t *current_item, *prev_item;
     uint64_t hash64 = ht->key_functions.key_hash(key, ht->hash_data);
     uint64_t hash = parsec_hash_table_universal_rehash(hash64, ht->rw_hash->nb_bits);
-    int32_t res;
     prev_item = NULL;
     for(current_item = ht->rw_hash->buckets[hash].first_item;
         NULL != current_item;
@@ -514,10 +519,7 @@ void *parsec_hash_table_nolock_remove(parsec_hash_table_t *ht, parsec_key_t key)
             } else {
                 prev_item->next_item = current_item->next_item;
             }
-            res = --(ht->rw_hash->buckets[hash].cur_len);
-            if( 0 == res ) {
-                res = parsec_atomic_fetch_dec_int32(&ht->rw_hash->used_buckets);
-            }
+            --(ht->rw_hash->buckets[hash].cur_len);
 #if defined(PARSEC_DEBUG_NOISIER)
             char estr[64];
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Removed item %p/%s from hash table %p in bucket %d",
