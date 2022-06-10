@@ -19,6 +19,7 @@
 #include "parsec/data_distribution.h"
 #include "parsec/interfaces/dtd/insert_function.h"
 #include "parsec/execution_stream.h"
+#include "parsec/mca/device/device_gpu.h"
 
 BEGIN_C_DECLS
 
@@ -252,9 +253,7 @@ struct parsec_dtd_task_class_s {
     int                        ref_count;
     parsec_dtd_param_t        *params;
     parsec_hook_t             *cpu_func_ptr;
-#if defined(PARSEC_HAVE_CUDA)
-    parsec_advance_task_function_t cuda_func_ptr;
-#endif
+    parsec_advance_task_function_t gpu_func_ptr;
 };
 
 typedef int (parsec_dtd_arg_cb)(int first_arg, void *second_arg, int third_arg, void *cb_data);

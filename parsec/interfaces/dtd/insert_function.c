@@ -1140,10 +1140,8 @@ parsec_dtd_tile_of(parsec_data_collection_t *dc, parsec_data_key_t key)
         tile->flushed = NOT_FLUSHED;
         if( tile->rank == (int)dc->myrank ) {
             tile->data_copy = (dc->data_of_key(dc, tile->key))->device_copies[0];
-#if defined(PARSEC_HAVE_CUDA)
             assert(NULL != tile->data_copy);
             tile->data_copy->readers = 0;
-#endif
         } else {
             tile->data_copy = NULL;
         }
@@ -1354,11 +1352,9 @@ parsec_dtd_startup(parsec_context_t *context,
         parsec_device_module_t *device = parsec_mca_device_get(_i);
         if( NULL == device ) continue;
         if( !(tp->devices_index_mask & (1 << device->device_index))) continue;  /* not supported */
-#if defined(PARSEC_HAVE_CUDA)
         // If CUDA is enabled, let the CUDA device activated for this
         // taskpool.
         if( PARSEC_DEV_CUDA == device->type ) continue;
-#endif /* defined(PARSEC_HAVE_CUDA) */
         if( NULL != device->taskpool_register )
             if( PARSEC_SUCCESS !=
                 device->taskpool_register(device, (parsec_taskpool_t *)tp)) {
@@ -1721,7 +1717,6 @@ complete_hook_of_dtd(parsec_execution_stream_t *es,
     for( current_dep = 0; current_dep < this_dtd_task->super.task_class->nb_flows; current_dep++ ) {
         action_mask |= (1 << current_dep);
 
-#if defined(PARSEC_HAVE_CUDA)
         // Retrieve data access mode for current flow
         int op_type_on_current_flow = FLOW_OF(this_dtd_task, current_dep)->op_type;
 
@@ -1746,7 +1741,6 @@ complete_hook_of_dtd(parsec_execution_stream_t *es,
             /* printf("[complete_hook_of_dtd] %s, data_in readers = %d, data_out readers = %d\n", this_task->task_class->name, data_in->original->device_copies[0]->readers, data_out->original->device_copies[0]->readers); */
 
         }
-#endif
     }
 
     this_task->task_class->release_deps(es, this_task, action_mask |
@@ -2177,8 +2171,7 @@ parsec_dtd_template_release( const parsec_task_class_t *tc )
     }
 }
 
-#if defined(PARSEC_HAVE_CUDA)
-static parsec_hook_return_t parsec_dtd_cuda_task_submit(parsec_execution_stream_t *es, parsec_task_t *this_task)
+static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void) es;
     int dev_index;
@@ -2197,12 +2190,10 @@ static parsec_hook_return_t parsec_dtd_cuda_task_submit(parsec_execution_stream_
     PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);
 
     gpu_task->ec = (parsec_task_t *) this_task;
-    gpu_task->submit = dtd_tc->cuda_func_ptr;
+    gpu_task->submit = dtd_tc->gpu_func_ptr;
     gpu_task->task_type = 0;
     gpu_task->load = ratio * parsec_device_sweight[dev_index];
     gpu_task->last_data_check_epoch = -1;       /* force at least one validation for the task */
-    gpu_task->stage_in  = parsec_default_cuda_stage_in;
-    gpu_task->stage_out = parsec_default_cuda_stage_out;
     gpu_task->pushout = 0;
     for(int i = 0; i < dtd_tc->super.nb_flows; i++) {
         parsec_dtd_flow_info_t *flow = FLOW_OF(dtd_task, i);
@@ -2213,9 +2204,20 @@ static parsec_hook_return_t parsec_dtd_cuda_task_submit(parsec_execution_stream_
     }
     parsec_device_load[dev_index] += (float)gpu_task->load;
 
-    return parsec_cuda_kernel_scheduler(es, gpu_task, dev_index);
-}
+    parsec_device_module_t *device = parsec_mca_device_get(dev_index);
+    assert(NULL != device);
+    switch(device->type) {
+#if defined(PARSEC_HAVE_CUDA)
+    case PARSEC_DEV_CUDA:
+        gpu_task->stage_in  = parsec_default_cuda_stage_in;
+        gpu_task->stage_out = parsec_default_cuda_stage_out;
+        return parsec_cuda_kernel_scheduler(es, gpu_task, dev_index);
 #endif
+    default:
+        parsec_fatal("DTD scheduling on device type %d: this is not a valid GPU device type in this build", device->type);
+    }
+    return PARSEC_HOOK_RETURN_ERROR;
+}
 
 int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
                                     parsec_task_class_t *tc,
@@ -2251,13 +2253,11 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
     }
 
     (*pincarnations)[i].type = device_type;
-#if defined(PARSEC_HAVE_CUDA)
     if(PARSEC_DEV_CUDA == device_type) {
-        (*pincarnations)[i].hook = parsec_dtd_cuda_task_submit;
-        dtd_tc->cuda_func_ptr = (parsec_advance_task_function_t)function;
-    } else
-#endif
-    {
+        (*pincarnations)[i].hook = parsec_dtd_gpu_task_submit;
+        dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)function;
+    }
+    else {
         dtd_tc->cpu_func_ptr = function;
         (*pincarnations)[i].hook = function; // We can directly call the CPU hook, as there is nothing else to do
     }
@@ -3167,14 +3167,12 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
 
             incarnations = (__parsec_chore_t **)&tc->incarnations;
             (*incarnations)[0].type = device_type;
-#if defined(PARSEC_HAVE_CUDA)
             if( device_type == PARSEC_DEV_CUDA ) {
                 /* Special case for CUDA: we need an intermediate */
-                (*incarnations)[0].hook = parsec_dtd_cuda_task_submit;
-                dtd_tc->cuda_func_ptr = (parsec_advance_task_function_t)fpointer;
-            } else
-#endif
-                {
+                (*incarnations)[0].hook = parsec_dtd_gpu_task_submit;
+                dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)fpointer;
+            }
+            else {
                 /* Default case: the user-provided function is directly the hook to call */
                 (*incarnations)[0].hook = fpointer; // We can directly call the CPU hook
                 dtd_tc->cpu_func_ptr = fpointer;
@@ -3413,8 +3411,6 @@ int parsec_dtd_destroy_arena_datatype(parsec_context_t *ctx, int id)
     return PARSEC_SUCCESS;
 }
 
-#if defined(PARSEC_HAVE_CUDA)
-
 /**
  * Return pointer on the device pointer associated with the i-th flow
  * of `this_task`.
@@ -3433,5 +3429,3 @@ parsec_dtd_get_dev_ptr(parsec_task_t *this_task, int i)
 
     return dev_ptr;
 }
-
-#endif
