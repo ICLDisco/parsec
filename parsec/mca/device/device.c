@@ -338,7 +338,7 @@ void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_contex
     printf("--------------------------------------------------------------------------------------------------\n");
     printf("|         |                    |         Data In                |         Data Out               |\n");
     printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transfered(%%)   |  Required  |   Transfered(%%)   |\n",
-           (NULL == parsec_context ? -1 : parsec_context->my_rank));
+           (NULL == parsec_context ? parsec_debug_rank : parsec_context->my_rank));
     printf("|---------|-----------|--------|------------|-------------------|------------|-------------------|\n");
     for( i = 0; i < parsec_nb_devices; i++ ) {
         if( NULL == (device = parsec_devices[i]) ) continue;
