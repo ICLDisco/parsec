@@ -630,7 +630,7 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
     /* we wait for all tasks inserted in the taskpool but not for the communication
      * invoked by those tasks.
      */
-    while(tp->nb_tasks > (unsigned int)task_threshold_count) {
+    while(tp->nb_tasks > task_threshold_count) {
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = parsec_exponential_backoff(es, misses_in_a_row);
             nanosleep(&rqtp, NULL);

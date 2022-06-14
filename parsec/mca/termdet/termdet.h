@@ -12,7 +12,6 @@
 #ifndef _parsec_term_detect_h
 #define _parsec_term_detect_h
 
-#include "parsec.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/mca/mca.h"
 

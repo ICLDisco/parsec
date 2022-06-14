@@ -17,7 +17,7 @@ static double func(double alpha, double x) {
 
 struct __parsec_project_dyn_PROJECT_task_s;
 
-static parsec_key_t project_dyn_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as);
+static parsec_key_t project_dyn_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as);
 
 static int my_project_dyn_startup(parsec_execution_stream_t * es,
                               struct __parsec_project_dyn_PROJECT_task_s * this_task);
@@ -46,6 +46,7 @@ CTL RL <- (n!=0) ? RL PROJECT(n-1, l/2)
        -> larger_than_thresh ? RL PROJECT(n+1, (l*2) .. ((l*2)+1))
 
 WRITE NODE <- NEW [ type=DEFAULT ]
+           -> treeA(n, l)
 
 BODY
 {
@@ -63,7 +64,6 @@ BODY
     if ((n >= 8) && (err <= thresh)) {
         this_task->locals.larger_than_thresh.value = 0;
     } else {
-#if 0
       node_t *node = (node_t*)NODE;
 
       double sl, sr;
@@ -79,9 +79,8 @@ BODY
       node->s = 0.5 * (sl + sr);
       node->d = 0.5 * (sl - sr);
       // To tell parsec to keep the reference of these two data, so it shouldn't delete them
-      OBJ_RETAIN(_f_NODE);
+      PARSEC_OBJ_RETAIN(_f_NODE);
       tree_dist_insert_data(treeA, _f_NODE->original, n, l);
-#endif
     }   
 
     if( verbose > 0 ) {
@@ -94,7 +93,7 @@ END
 
 extern "C" %{
 
-static parsec_key_t project_dyn_make_key(const parsec_taskpool_t* __tp, const assignment_t *_as)
+static parsec_key_t project_dyn_make_key(const parsec_taskpool_t* __tp, const parsec_assignment_t *_as)
 {
     (void)__tp;
     const struct __parsec_project_dyn_PROJECT_assignment_s * assignments = (const struct __parsec_project_dyn_PROJECT_assignment_s *)_as;
@@ -119,20 +118,23 @@ static int my_project_dyn_startup(parsec_execution_stream_t * es, __parsec_proje
   new_task->status = PARSEC_TASK_STATUS_NONE;
   new_task->taskpool = this_task->taskpool;
   new_task->task_class = __tp->super.super.task_classes_array[project_dyn_PROJECT.task_class_id];
-  new_task->chore_id = 0;
+  new_task->chore_mask = 1<<0;
 
   new_task->locals.n.value = 0;
   new_task->locals.l.value = 0;
   new_task->locals.larger_than_thresh.value = 1;
-  new_task->data._f_RL.data_repo = NULL;
+  new_task->data._f_RL.source_repo = NULL;
+  new_task->data._f_RL.source_repo_entry = NULL;
   new_task->data._f_RL.data_in = NULL;
   new_task->data._f_RL.data_out = NULL;
-  new_task->data._f_NODE.data_repo = NULL;
-  chunk = parsec_arena_get_copy(__tp->super.arenas[PARSEC_project_dyn_DEFAULT_ARENA], 1, 0);
+  new_task->data._f_NODE.source_repo = NULL;
+  new_task->data._f_NODE.source_repo_entry = NULL;
+  chunk = parsec_arena_get_copy(__tp->super.arenas_datatypes[PARSEC_project_dyn_DEFAULT_ADT_IDX].arena, 1, 0, __tp->super.arenas_datatypes[PARSEC_project_dyn_DEFAULT_ADT_IDX].opaque_dtt);
   chunk->original->owner_device = 0;
   new_task->data._f_NODE.data_out = chunk;
   new_task->data._f_NODE.data_in = chunk;
-  new_task->data._f_NODE.data_repo = NULL;
+  new_task->data._f_NODE.source_repo = NULL;
+  new_task->data._f_NODE.source_repo_entry = NULL;
 
   new_task->priority = 1;
 

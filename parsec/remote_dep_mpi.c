@@ -1113,6 +1113,8 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
 
     PARSEC_OBJ_CONSTRUCT(&temp_list, parsec_list_t);
  check_pending_queues:
+    if( cycles >= 0 )
+        if( 0 == cycles--) return executed_tasks;  /* report how many events were progressed */
 
     /* Move a number of transfers from the shared dequeue into our ordered lifo. */
     how_many = 0;

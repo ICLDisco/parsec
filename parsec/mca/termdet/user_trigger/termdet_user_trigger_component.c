@@ -21,7 +21,7 @@
 
 #include "parsec/mca/termdet/termdet.h"
 #include "parsec/mca/termdet/user_trigger/termdet_user_trigger.h"
-
+#include "parsec/remote_dep.h"
 /*
  * Local function
  */

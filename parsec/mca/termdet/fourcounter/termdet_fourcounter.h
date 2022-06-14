@@ -24,8 +24,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 #include "parsec/mca/termdet/termdet.h"
-
-#include "parsec/parsec_remote_dep.h"
+#include "parsec/parsec_comm_engine.h"
 
 BEGIN_C_DECLS
 
