@@ -64,8 +64,6 @@ int parsec_termdet_init(void)
 int parsec_termdet_open_module(parsec_taskpool_t *tp, char *name)
 {
     parsec_termdet_opened_module_t *omod;
-    mca_base_component_t *tds;
-    mca_base_module_t *mod;
 
     assert(NULL == tp->tdm.module);
 
@@ -109,7 +107,7 @@ int parsec_termdet_open_dyn_module(parsec_taskpool_t *tp)
     return parsec_termdet_open_module(tp, "fourcounter");
 }
 
-static int parsec_termdet_close_module(void *item, void *data)
+static void parsec_termdet_close_module(void *item, void *data)
 {
     parsec_hash_table_t *ht = (parsec_hash_table_t*)data;
     parsec_termdet_opened_module_t *omod = (parsec_termdet_opened_module_t *)item;

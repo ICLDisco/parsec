@@ -3440,8 +3440,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  int32_t nb_tasks = 0, saved_nb_tasks = 0;\n");
         /* prepare the epilog output to prevent compiler from complaining about initialized but unused data */
         string_arena_add_string(sa_end, "(void)saved_nb_tasks;\n");
-    } else {
-        coutput("  int32_t nb_tasks = 0;\n");
     }
     if( need_min_max ) {
         for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
@@ -4611,7 +4609,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     }
 
     coutput("void __parsec_%s_internal_constructor(__parsec_%s_internal_taskpool_t* __parsec_tp)\n{\n"
-            "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)calloc(1, sizeof(__parsec_%s_internal_taskpool_t));\n"
             "  parsec_task_class_t* tc;\n"
             "  uint32_t i, j;\n\n",
             jdf_basename, jdf_basename);

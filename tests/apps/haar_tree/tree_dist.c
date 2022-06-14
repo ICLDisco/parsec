@@ -41,21 +41,6 @@ static tree_dist_node_t *lookup_or_create_node(tree_dist_t *tree, parsec_data_ke
     return node;
 }
 
-static uint32_t tree_dist(int n, int l, int nodes)
-{
-    int pn, pl;
-    if( (1<<n) < nodes ) {
-        return (n + 741*l) % nodes;
-    }
-    pn = n;
-    pl = l;
-    while( (pn % 5) != 0 ) {
-        pn = pn-1;
-        pl = pl/2;
-    }
-    return pl % nodes;
-}
-
 static uint32_t tree_dist_rank_of_key(parsec_data_collection_t *desc, parsec_data_key_t k)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;

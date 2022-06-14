@@ -21,6 +21,7 @@
 
 #include "parsec/mca/termdet/termdet.h"
 #include "parsec/mca/termdet/fourcounter/termdet_fourcounter.h"
+#include "parsec/remote_dep.h"
 
 /*
  * Local function

@@ -42,7 +42,9 @@ typedef enum {
     REMOTE_DEP_ACTIVATE_TAG = 2,
     REMOTE_DEP_GET_DATA_TAG,
     REMOTE_DEP_PUT_END_TAG,
-    REMOTE_DEP_MAX_CTRL_TAG
+    REMOTE_DEP_MAX_CTRL_TAG,
+    PARSEC_TERMDET_FOURCOUNTER_MSG_TAG,
+    PARSEC_TERMDET_USER_TRIGGER_MSG_TAG
 } parsec_remote_dep_tag_t;
 
 typedef struct remote_dep_wire_activate_s {

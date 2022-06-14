@@ -187,6 +187,9 @@ static void __parsec_taskpool_constructor(parsec_taskpool_t* tp)
     tp->update_nb_runtime_task = NULL;
     tp->dependencies_array = NULL;
     tp->repo_array = NULL;
+    tp->tdm.callback = NULL;
+    tp->tdm.monitor = NULL;
+    tp->tdm.module = NULL;
 }
 
 static void __parsec_taskpool_destructor(parsec_taskpool_t* tp)
