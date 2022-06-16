@@ -218,6 +218,7 @@ int dbp_file_translate_local_dico_to_global(const dbp_file_t *file, int lid)
 typedef struct {
     uint64_t timestamp;
     off_t    offset;
+    int64_t  event_idx;
 } event_cache_item_t;
 
 typedef struct {
@@ -327,7 +328,32 @@ const dbp_event_t *dbp_iterator_current(dbp_event_iterator_t *it)
     return &it->current_event;
 }
 
-static const dbp_event_t *dbp_iterator_set_offset(dbp_event_iterator_t *it, off_t offset)
+/* move iterator to position event_pos in current buffer and index event_idx */
+static inline const dbp_event_t *
+dbp_iterator_move_to_event(dbp_event_iterator_t *it,
+                           int64_t event_pos, int64_t event_idx)
+{
+    assert( event_pos >= 0 && event_pos < event_avail_space );
+    assert( event_idx >= 0 );
+
+    it->current_event_position = event_pos;
+    it->current_event_index = event_idx;
+
+    if( it->current_events_buffer != NULL ) {
+        assert( it->current_event_index < it->current_events_buffer->this_buffer.nb_events );
+        it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
+    } else {
+        it->current_event.native = NULL;
+    }
+
+    assert((it->current_event.native == NULL) ||
+           (it->current_event.native->event.timestamp != 0));
+    return dbp_iterator_current(it);
+}
+
+/* move iterator to first event in buffer with offset */
+static inline const dbp_event_t *
+dbp_iterator_set_offset(dbp_event_iterator_t *it, off_t offset)
 {
     if( it->current_events_buffer != NULL ) {
         release_events_buffer( it->current_events_buffer );
@@ -337,13 +363,9 @@ static const dbp_event_t *dbp_iterator_set_offset(dbp_event_iterator_t *it, off_
 
     it->current_events_buffer = refer_events_buffer( it->thread->file, offset );
     it->current_buffer_position = offset;
-    it->current_event_position = 0;
-    it->current_event_index = 0;
-    if( it->current_events_buffer != NULL )
-        it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
-    else
-        it->current_event.native = NULL;
-    return dbp_iterator_current(it);
+
+    assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
+    return dbp_iterator_move_to_event(it, 0, 0);
 }
 
 const dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
@@ -360,24 +382,7 @@ static const dbp_event_t *dbp_iterator_next_buffer(dbp_event_iterator_t *it)
     assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
 
     next_off = it->current_events_buffer->next_buffer_file_offset;
-    release_events_buffer( it->current_events_buffer );
-    it->current_event_position = 0;
-    it->current_event_index = 0;
-    it->current_events_buffer = refer_events_buffer( it->thread->file, next_off );
-    it->current_buffer_position = next_off;
-
-    if( NULL == it->current_events_buffer ) {
-        it->current_event.native = NULL;
-    } else {
-        it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
-    }
-
-    assert( it->current_event_position <= event_avail_space );
-    assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
-    assert((it->current_event.native == NULL) ||
-           (it->current_event.native->event.timestamp != 0));
-
-    return dbp_iterator_current(it);
+    return dbp_iterator_set_offset(it, next_off);
 }
 
 static const dbp_event_t *dbp_iterator_next_in_buffer(dbp_event_iterator_t *it)
@@ -394,16 +399,8 @@ static const dbp_event_t *dbp_iterator_next_in_buffer(dbp_event_iterator_t *it)
     }
 
     elen = DBP_EVENT_LENGTH(&it->current_event, it->thread->file);
-    it->current_event_position += elen;
-    it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
-    it->current_event_index++;
-
-    assert( it->current_event_position <= event_avail_space );
-    assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
-    assert((it->current_event.native == NULL) ||
-           (it->current_event.native->event.timestamp != 0));
-
-    return dbp_iterator_current(it);
+    return dbp_iterator_move_to_event(it, it->current_event_position + elen,
+                                          it->current_event_index + 1);
 }
 
 const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
@@ -456,6 +453,7 @@ static void build_unmatched_events_in_thread(dbp_thread_t *thr)
     event_cache_key_t  *cache_key;
     event_cache_item_t *cache_item;
     size_t              cache_index;
+    off_t               offset;
 
     /* lock cache; we're modifying volatile state! */
     pthread_mutex_lock(&thr->cache.mtx);
@@ -480,27 +478,12 @@ static void build_unmatched_events_in_thread(dbp_thread_t *thr)
         if( KEY_IS_END(key2) && !dbp_events_match(e1, e2) ) {
             cache_key = &thr->cache.keys[BASE_KEY(key2)];
 
-            /* if len == 0, this is first mismatched event with this key */
-            if( cache_key->len == 0 ) {
-                cache_key->items = malloc(sizeof(event_cache_item_t[EVENT_CACHE_MIN_ALLOC]));
-                cache_key->size = EVENT_CACHE_MIN_ALLOC;
-            } else {
-                /* if buffer offset of prior mismatched event is same as this,
-                 * we don't need to store the same buffer offset, just update
-                 * the timestamp; we iterate over the entire buffer anyway */
-                cache_item = &cache_key->items[cache_key->len - 1];
-                if( cache_item->offset == i2->current_buffer_position ) {
-                    timestamp2 = dbp_event_get_timestamp(e2);
-                    if( cache_item->timestamp < timestamp2 )
-                        cache_item->timestamp = timestamp2;
-                    goto next_iteration;
-                }
-            }
-
             cache_index = cache_key->len++;
             /* if index == size, we need to grow the array */
             if( cache_index == cache_key->size ) {
-                cache_key->size *= 2;
+                /* if size == 0, this is the first mismatched event with this key */
+                cache_key->size = cache_key->size ? cache_key->size * 2 :
+                                                    EVENT_CACHE_MIN_ALLOC;
                 cache_key->items = realloc(cache_key->items, sizeof(event_cache_item_t[cache_key->size]));
             }
 
@@ -508,11 +491,22 @@ static void build_unmatched_events_in_thread(dbp_thread_t *thr)
              * note that we don't store the exact index of the event,
              * so a consumer should make sure to search through the buffer */
             cache_item = &cache_key->items[cache_index];
+
+            /* event pos it always less than event_avail_space
+             * and buffer offset is always a multiple of event_buffer_size
+             * so these can be combined together and recovered */
+            assert( i2->current_event_position >= 0 );
+            assert( i2->current_event_position < event_avail_space );
+            assert( (i2->current_buffer_position % event_buffer_size) == 0 );
+
+            offset = i2->current_buffer_position + i2->current_event_position;
             cache_item->timestamp = dbp_event_get_timestamp(e2);
-            cache_item->offset    = i2->current_buffer_position;
+            cache_item->offset    = offset;
+            cache_item->event_idx = i2->current_event_index;
+
+            assert( (offset % event_buffer_size) == i2->current_event_position);
         }
 
-    next_iteration:
         /* advance both iterators */
         e1 = dbp_iterator_next( i1 );
         e2 = dbp_iterator_next( i2 );
@@ -553,8 +547,11 @@ dbp_event_find_in_cache(const dbp_thread_t *thr,
     event_cache_key_t *cache_key;
     bsearch_key_t      bsearch_key = { ref, NULL };
 
-    /* ensure we have an unmatched event cache */
-    build_unmatched_events_in_thread(thr);
+    /* ensure we have an unmatched event cache
+     * casts away const because build_unmatched_events_in_thread modifies thr
+     * thr should be memory we allocated anyway though, so this should be safe
+     * ... right? */
+    build_unmatched_events_in_thread((dbp_thread_t*)thr);
 
     /* do binary search in cache of key for events at ref timestamp
      * we throw away the results of the search, because it's very unlikely to
@@ -576,25 +573,38 @@ int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
     const event_cache_item_t *cache_item;
     const event_cache_key_t  *cache_key;
     const dbp_event_t        *e;
-    const dbp_thread_t *thr = pos->thread;
+    const dbp_thread_t       *thr = pos->thread;
+    off_t                     offset;
+    int64_t                   event_pos;
 
     cache_item = dbp_event_find_in_cache( thr, ref );
     cache_key  = &thr->cache.keys[BASE_KEY(dbp_event_get_key(ref))];
 
+    /* dbp_event_find_in_cache can return NULL
+     * if the thread doesn't have a matching event */
+    if( NULL == cache_item ) {
+        /* set iterator to past-the-end */
+        dbp_iterator_set_offset(pos, (off_t)-1);
+        return 0;
+    }
+
     assert(&cache_key->items[0]              <= cache_item);
     assert(&cache_key->items[cache_key->len] >  cache_item);
 
-    /* iterate over all cached buffers containing possible matches */
+    /* iterate over all cached events containing possible matches */
     while( cache_item < &cache_key->items[cache_key->len] ) {
-        /* set iterator for  current cached buffer */
-        e = dbp_iterator_set_offset(pos, cache_item->offset);
-        /* iterate over all events in buffer */
-        while( NULL != e) {
-            if( dbp_events_match(ref, e) ) {
-                return 1;
-            }
-            e = dbp_iterator_next_in_buffer(pos);
-        }
+        /* we computed cache_item->offset as buffer_position + event_position,
+         * so we must recover these values */
+        event_pos = cache_item->offset % event_buffer_size;
+        offset = cache_item->offset - event_pos;
+        /* change buffer if necessary */
+        if( pos->current_buffer_position != offset )
+            dbp_iterator_set_offset(pos, offset);
+        /* set iterator to current cached event */
+        e = dbp_iterator_move_to_event(pos, event_pos, cache_item->event_idx);
+        /* check if event matches */
+        if( (NULL != e) && dbp_events_match(ref, e) )
+            return 1;
         cache_item++;
     }
 
