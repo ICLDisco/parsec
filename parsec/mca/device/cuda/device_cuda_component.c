@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2020 The University of Tennessee and The University
+ * Copyright (c) 2010-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -35,7 +35,7 @@ static int device_cuda_component_register(void);
 
 /* mca params */
 int parsec_device_cuda_enabled_index, parsec_device_cuda_enabled;
-int parsec_cuda_sort_pending = 0;
+int parsec_cuda_sort_pending = 0, parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
 int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_memory_number_of_blocks;
 char* parsec_cuda_lib_path = NULL;
 
@@ -189,6 +189,9 @@ static int device_cuda_component_register(void)
     (void)parsec_mca_param_reg_int_name("device_cuda", "max_number_of_ejected_data",
                                         "Sets up the maximum number of blocks that can be ejected from GPU memory",
                                         false, false, MAX_PARAM_COUNT, &parsec_gpu_d2h_max_flows);
+    (void)parsec_mca_param_reg_int_name("device_cuda", "max_streams",
+                                        "Maximum number of Streams to use for the GPU engine; 2 streams are used for communication between host and device, so the minimum is 3",
+                                        false, false, PARSEC_GPU_MAX_STREAMS, &parsec_cuda_max_streams);
     (void)parsec_mca_param_reg_int_name("device_cuda", "sort_pending_tasks",
                                         "Boolean to let the GPU engine sort the first pending tasks stored in the list",
                                         false, false, 0, &parsec_cuda_sort_pending);

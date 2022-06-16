@@ -18,7 +18,7 @@
 BEGIN_C_DECLS
 
 #define PARSEC_GPU_USE_PRIORITIES     1
-#define PARSEC_MAX_STREAMS            6
+#define PARSEC_GPU_MAX_STREAMS        6
 #define PARSEC_MAX_EVENTS_PER_STREAM  4
 #define PARSEC_GPU_MAX_WORKSPACE      2
 
@@ -115,6 +115,7 @@ struct parsec_gpu_task_s {
 struct parsec_device_gpu_module_s {
     parsec_device_module_t     super;
     uint8_t                    max_exec_streams;
+    uint8_t                    num_exec_streams;
     int16_t                    peer_access_mask;  /**< A bit set to 1 represent the capability of
                                                    *   the device to access directly the memory of
                                                    *   the index of the set bit device.

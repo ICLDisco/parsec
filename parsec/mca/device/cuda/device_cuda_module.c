@@ -354,6 +354,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     streaming_multiprocessor = prop.multiProcessorCount;
     computemode = prop.computeMode;
 
+    // We use calloc because we need some fields to be zero-initialized to ensure graceful handling of errors
     cuda_device = (parsec_device_cuda_module_t*)calloc(1, sizeof(parsec_device_cuda_module_t));
     gpu_device = &cuda_device->super;
     device = &gpu_device->super;
@@ -361,19 +362,19 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     cuda_device->cuda_index = (uint8_t)dev_id;
     cuda_device->major      = (uint8_t)major;
     cuda_device->minor      = (uint8_t)minor;
-    len = asprintf(&gpu_device->super.name, "%s (%d)", szName, dev_id);
-    if(-1 == len)
-        gpu_device->super.name = "";
+    len = asprintf(&gpu_device->super.name, "%s: cuda(%d)", szName, dev_id);
+    if(-1 == len) { gpu_device->super.name = NULL; goto release_device; }
     gpu_device->data_avail_epoch = 0;
 
-    gpu_device->max_exec_streams = PARSEC_MAX_STREAMS;
+    gpu_device->max_exec_streams = parsec_cuda_max_streams;
     gpu_device->exec_stream =
         (parsec_gpu_exec_stream_t**)malloc(gpu_device->max_exec_streams * sizeof(parsec_gpu_exec_stream_t*));
     // To reduce the number of separate malloc, we allocate all the streams in a single block, stored in exec_stream[0]
     // Because the gpu_device structure does not know the size of cuda_stream or other GPU streams, it needs to keep
     // separate pointers for the beginning of each exec_stream
-    gpu_device->exec_stream[0] = (parsec_gpu_exec_stream_t*)malloc(gpu_device->max_exec_streams * sizeof
-            (parsec_cuda_exec_stream_t));
+    // We use calloc because we need some fields to be zero-initialized to ensure graceful handling of errors
+    gpu_device->exec_stream[0] = (parsec_gpu_exec_stream_t*)calloc(gpu_device->max_exec_streams,
+                                                                   sizeof(parsec_cuda_exec_stream_t));
     for( j = 1; j < gpu_device->max_exec_streams; j++ ) {
         gpu_device->exec_stream[j] = (parsec_gpu_exec_stream_t*)(
                 (parsec_cuda_exec_stream_t*)gpu_device->exec_stream[0] + j);
@@ -381,6 +382,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
         parsec_cuda_exec_stream_t* cuda_stream = (parsec_cuda_exec_stream_t*)gpu_device->exec_stream[j];
         parsec_gpu_exec_stream_t* exec_stream = &cuda_stream->super;
+
+        /* We will have to release up to this stream in case of error */
+        gpu_device->num_exec_streams++;
 
         /* Allocate the stream */
         cudastatus = cudaStreamCreate( &(cuda_stream->cuda_stream) );
@@ -408,18 +412,13 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                                      {goto release_device;} );
         }
         if(j == 0) {
-            len = asprintf(&exec_stream->name, "h2d(%d)", j);
-            if(-1 == len)
-                exec_stream->name = "h2d";
+            len = asprintf(&exec_stream->name, "h2d_cuda(%d)", j);
         } else if(j == 1) {
-            len = asprintf(&exec_stream->name, "d2h(%d)", j);
-            if(-1 == len)
-                exec_stream->name = "d2h";
+            len = asprintf(&exec_stream->name, "d2h_cuda(%d)", j);
         } else {
             len = asprintf(&exec_stream->name, "cuda(%d)", j);
-            if(-1 == len)
-                exec_stream->name = "cuda";
         }
+        if(-1 == len) { exec_stream->name = NULL; goto release_device; }
 #if defined(PARSEC_PROF_TRACE)
         /* Each 'exec' stream gets its own profiling stream, except IN and OUT stream that share it.
          * It's good to separate the exec streams to know what was submitted to what stream
@@ -509,6 +508,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     if( NULL != gpu_device->exec_stream) {
         for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
             parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_device->exec_stream[j];
+            if(NULL == cuda_stream) continue;
             parsec_gpu_exec_stream_t* exec_stream = &cuda_stream->super;
 
             if( NULL != exec_stream->fifo_pending ) {
@@ -565,7 +565,7 @@ parsec_cuda_module_fini(parsec_device_module_t* device)
     PARSEC_OBJ_DESTRUCT(&gpu_device->pending);
 
     /* Release all streams */
-    for( j = 0; j < gpu_device->max_exec_streams; j++ ) {
+    for( j = 0; j < gpu_device->num_exec_streams; j++ ) {
         parsec_cuda_exec_stream_t* cuda_stream = (parsec_cuda_exec_stream_t*)gpu_device->exec_stream[j];
         parsec_gpu_exec_stream_t* exec_stream = &cuda_stream->super;
 
@@ -2631,7 +2631,7 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
     gpu_task = progress_task;
 
     /* Stage-in completed for this task: it is ready to be executed */
-    exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
+    exec_stream = (exec_stream + 1) % (gpu_device->num_exec_streams - 2);  /* Choose an exec_stream */
     if( NULL != gpu_task ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]:\tExecute %s priority %d", gpu_device->super.name,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),

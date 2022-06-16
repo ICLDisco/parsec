@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2021      The University of Tennessee and The University
+ * Copyright (c) 2021-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,8 +9,6 @@
 #include "parsec/mca/device/device.h"
 #include "parsec/mca/device/device_gpu.h"
 #include "parsec/utils/zone_malloc.h"
-#include "parsec/utils/mca_param.h"
-#include "parsec/mca/mca_repository.h"
 #include "parsec/constants.h"
 #include "parsec/utils/debug.h"
 #include "parsec/execution_stream.h"
@@ -219,7 +217,7 @@ int parsec_gpu_free_workspace(parsec_device_gpu_module_t * gpu_device)
     (void)gpu_device;
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
     int i, j;
-    for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
+    for( i = 0; i < gpu_device->num_exec_streams; i++ ) {
         parsec_gpu_exec_stream_t *gpu_stream = gpu_device->exec_stream[i];
         if (gpu_stream->workspace != NULL) {
             for (j = 0; j < gpu_stream->workspace->total_workspace; j++) {
@@ -310,13 +308,13 @@ void dump_GPU_state(parsec_device_gpu_module_t* gpu_device)
     parsec_output(parsec_gpu_output_stream, "\n\n");
     parsec_output(parsec_gpu_output_stream, "Device %d:%d (%p) epoch\n", gpu_device->super.device_index,
                   gpu_device->super.device_index, gpu_device, gpu_device->data_avail_epoch);
-    parsec_output(parsec_gpu_output_stream, "\tpeer mask %x executed tasks %llu max streams %d\n",
-                  gpu_device->peer_access_mask, (unsigned long long)gpu_device->super.executed_tasks, gpu_device->max_exec_streams);
+    parsec_output(parsec_gpu_output_stream, "\tpeer mask %x executed tasks with %llu streams %d\n",
+                  gpu_device->peer_access_mask, (unsigned long long)gpu_device->super.executed_tasks, gpu_device->num_exec_streams);
     parsec_output(parsec_gpu_output_stream, "\tstats transferred [in: %llu from host %llu from other device out: %llu] required [in: %llu out: %llu]\n",
                   (unsigned long long)gpu_device->super.transferred_data_in, (unsigned long long)gpu_device->super.d2d_transfer,
                   (unsigned long long)gpu_device->super.transferred_data_out,
                   (unsigned long long)gpu_device->super.required_data_in, (unsigned long long)gpu_device->super.required_data_out);
-    for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
+    for( i = 0; i < gpu_device->num_exec_streams; i++ ) {
         dump_exec_stream(gpu_device->exec_stream[i]);
     }
     if( !parsec_list_is_empty(&gpu_device->gpu_mem_lru) ) {
