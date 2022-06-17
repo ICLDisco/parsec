@@ -3,6 +3,10 @@
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
+#if defined(PARSEC_HAVE_CUDA)
+#include "parsec/mca/device/cuda/device_cuda.h"
+#endif
+
 #include "cublas_v2.h"
 #if HAVE_BLAS
 #if BLAS_WITH_ESSL
@@ -80,7 +84,7 @@ int initialize_tile(parsec_execution_stream_t *es, parsec_task_t *this_task)
 }
 
 int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_block_cyclic_t *mat, unsigned int seed,
-                      const char *name, int *cuda_device_index, int nb_gpus)
+                      const char *name, int *gpu_device_index, int nb_gpus)
 {
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
@@ -125,11 +129,11 @@ int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_
             if(PARSEC_DEV_CUDA == device &&
                (int)mat->super.super.rank_of_key(&mat->super.super, key) == rank ) {
                 if( verbose ) {
-                    fprintf(stderr, "Advice %s(%d, %d) to prefer CUDA device %d (parsec device %d) of rank %d\n",
-                            name, i, j, g, cuda_device_index[g], (int)mat->super.super.rank_of_key(&mat->super.super, key));
+                    fprintf(stderr, "Advice %s(%d, %d) to prefer GPU device %d (parsec device %d) of rank %d\n",
+                            name, i, j, g, gpu_device_index[g], (int)mat->super.super.rank_of_key(&mat->super.super, key));
                 }
                 parsec_advise_data_on_device(mat->super.super.data_of_key(&mat->super.super, key),
-                                             cuda_device_index[g],
+                                             gpu_device_index[g],
                                              PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
             }
             g = (g + 1) % nb_gpus;
@@ -151,7 +155,7 @@ int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_
     return 0;
 }
 
-int gemm_kernel_cuda(parsec_device_cuda_module_t *cuda_device,
+int gemm_kernel_cuda(parsec_device_gpu_module_t *gpu_device,
                      parsec_gpu_task_t *gpu_task,
                      parsec_gpu_exec_stream_t *gpu_stream)
 {
@@ -166,7 +170,7 @@ int gemm_kernel_cuda(parsec_device_cuda_module_t *cuda_device,
     double *a_gpu, *b_gpu, *c_gpu;
 
     (void)gpu_stream;
-    (void)cuda_device;
+    (void)gpu_device;
 
     parsec_dtd_unpack_args(this_task,
                            &A, &B, &C,
@@ -179,7 +183,7 @@ int gemm_kernel_cuda(parsec_device_cuda_module_t *cuda_device,
 
     handle = parsec_info_get(&gpu_stream->infos, CuHI);
     assert(NULL != handle);
-    one_device = parsec_info_get(&cuda_device->super.super.infos, Cu1);
+    one_device = parsec_info_get(&gpu_device->super.infos, Cu1);
     assert(NULL != one_device);
     gettimeofday(&start, NULL);
 
@@ -310,7 +314,7 @@ int simple_gemm(parsec_context_t *parsec_context, parsec_matrix_block_cyclic_t *
     return 0;
 }
 
-int get_nb_cuda_devices()
+int get_nb_gpu_devices()
 {
     int nb = 0;
 
@@ -324,7 +328,7 @@ int get_nb_cuda_devices()
     return nb;
 }
 
-int *get_cuda_device_index()
+int *get_gpu_device_index()
 {
     int *dev_index = NULL;
 
@@ -403,7 +407,7 @@ static void *allocate_one_on_device(void *obj, void *p)
 #endif
 }
 
-static parsec_matrix_block_cyclic_t *create_initialize_matrix(parsec_context_t *parsec_context, int rank, unsigned int seed, const char *name, int mb, int nb, int M, int N, int *cuda_device_index, int nbgpus)
+static parsec_matrix_block_cyclic_t *create_initialize_matrix(parsec_context_t *parsec_context, int rank, unsigned int seed, const char *name, int mb, int nb, int M, int N, int *gpu_device_index, int nbgpus)
 {
     parsec_matrix_block_cyclic_t *dc;
     dc = calloc(1, sizeof(parsec_matrix_block_cyclic_t));
@@ -421,7 +425,7 @@ static parsec_matrix_block_cyclic_t *create_initialize_matrix(parsec_context_t *
                                    (size_t)dc->super.bsiz *
                                    (size_t)parsec_datadist_getsizeoftype(dc->super.mtype));
     parsec_dtd_data_collection_init(A);
-    initialize_matrix(parsec_context, rank, dc, seed, name, cuda_device_index, nbgpus);
+    initialize_matrix(parsec_context, rank, dc, seed, name, gpu_device_index, nbgpus);
 
     return dc;
 }
@@ -595,16 +599,16 @@ int main(int argc, char **argv)
     int ncores = -1; // Use all available cores
     parsec_context = parsec_init(ncores, &pargc, &pargv);
 
-    int *cuda_device_index = NULL;
+    int *gpu_device_index = NULL;
     if( PARSEC_DEV_CUDA == device ) {
-        nbgpus = get_nb_cuda_devices();
+        nbgpus = get_nb_gpu_devices();
         rc = !(nbgpus >= 1);
         if( rc != 0 ) {
             fprintf(stderr, "Rank %d doesn't have CUDA accelerators\n", rank);
             MPI_Abort(MPI_COMM_WORLD, 0);
             return -1;
         }
-        cuda_device_index = get_cuda_device_index();
+        gpu_device_index = get_gpu_device_index();
 
         // Prepare CUBLAS Handle marshaller
         CuHI = parsec_info_register(&parsec_per_stream_infos, "CUBLAS::HANDLE",
@@ -625,21 +629,21 @@ int main(int argc, char **argv)
 
     // Create and initialize the data
     parsec_matrix_block_cyclic_t *dcA = create_initialize_matrix(parsec_context, rank, 1789, "A", mb, kb, M, K,
-                                                           cuda_device_index, nbgpus);
+                                                           gpu_device_index, nbgpus);
     parsec_matrix_block_cyclic_t *dcB = create_initialize_matrix(parsec_context, rank, 1805, "B", kb, nb, K, N,
-                                                           cuda_device_index, nbgpus);
+                                                           gpu_device_index, nbgpus);
     parsec_matrix_block_cyclic_t *dcC = create_initialize_matrix(parsec_context, rank, 1901, "C", mb, nb, M, N,
-                                                           cuda_device_index, nbgpus);
+                                                           gpu_device_index, nbgpus);
 
     for( int r = 0; r < runs + 1; r++ ) {
-	double gflop = 2.0 * M * N * K / 1e9;
-	double maxtime = 0.0;
+        double gflop = 2.0 * M * N * K / 1e9;
+        double maxtime = 0.0;
         if(min_perf > 0.0)
             maxtime = gflop/world/nbgpus/min_perf;
         struct timeval start, end, diff;
-	if(maxtime > 0.0 && maxtime < 60.0) maxtime=60.0;
-	if(rank == 0 && maxtime > 0.0) fprintf(stderr, "watchdog: %d seconds\n", (int)maxtime);
-	if(maxtime > 0.0) alarm((int)maxtime);
+        if(maxtime > 0.0 && maxtime < 60.0) maxtime=60.0;
+        if(rank == 0 && maxtime > 0.0) fprintf(stderr, "watchdog: %d seconds\n", (int)maxtime);
+        if(maxtime > 0.0) alarm((int)maxtime);
         gettimeofday(&start, NULL);
         simple_gemm(parsec_context, dcA, dcB, dcC);
         gettimeofday(&end, NULL);

@@ -14,9 +14,6 @@
 
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"
-#if defined(PARSEC_HAVE_CUDA)
-#include "parsec/mca/device/cuda/device_cuda.h"
-#endif  /* defined(PARSEC_HAVE_CUDA) */
 
 BEGIN_C_DECLS
 
@@ -70,10 +67,8 @@ typedef enum { PARSEC_INPUT =      0x100000,
                PARSEC_GET_OP_TYPE =0xf00000, /* MASK: not an actual value, used to filter the relevant enum values */
                PARSEC_AFFINITY    =1<<16, /* Data affinity */
                PARSEC_DONT_TRACK  =1<<17, /* Drop dependency tracking */
-#if defined(PARSEC_HAVE_CUDA)
                PARSEC_PUSHOUT     =1<<18, /* Push GPU data back to CPU */
                PARSEC_PULLIN      =1<<19, /* Pull data on the CPU */
-#endif
                PARSEC_GET_OTHER_FLAG_INFO=0xf0000, /* MASK: not an actual value, used to filter the relevant enum values */
                PARSEC_GET_REGION_INFO=0xffff /* MASK: not an actual value, used to filter the relevant enum values */
              } parsec_dtd_op_t;
@@ -176,14 +171,6 @@ typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
  *
  */
 typedef parsec_hook_return_t (parsec_dtd_funcptr_t)(parsec_execution_stream_t *, parsec_task_t *);
-
-#if defined(PARSEC_HAVE_CUDA)
-// FIXME: The following macro should be removed and is only useful
-// during the development of the cuda DTD feature.
-#define PARSEC_DTD_HAVE_CUDA
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-#endif /*  defined(PARSEC_HAVE_CUDA) */
 
 /**
  * This function is used to retrieve the parameters passed during insertion of a task.
@@ -294,14 +281,12 @@ parsec_dtd_insert_task(parsec_taskpool_t  *tp,
                        int device_type,
                        const char *name_of_kernel, ...);
 
-#if defined(PARSEC_HAVE_CUDA)
 /**
  * Return pointer on the device pointer associated with the i-th flow
  * of `this_task`.
  **/
 void*
 parsec_dtd_get_dev_ptr(parsec_task_t *this_task, int i);
-#endif
    
 /**
  * This function behaves exactly like parsec_dtd_insert_task()
