@@ -60,7 +60,8 @@ jobs:
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: |
         source ${{github.workspace}}/.github/CI/spack_setup.sh
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE $BUILD_CONFIG CC=gcc CXX=g++
+        echo CC=gcc CXX=g++ FC=gfortran cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE $BUILD_CONFIG
+        CC=gcc CXX=g++ FC=gfortran cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE $BUILD_CONFIG
 
     - name: Build
       working-directory: ${{ env.BUILD_DIRECTORY }}

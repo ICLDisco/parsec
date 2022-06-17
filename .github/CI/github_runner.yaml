@@ -1,7 +1,7 @@
 spack:
   definitions:
   - pkgs:
-    - gcc@11.2.0
+    - gcc@12.1.0
     - git
     - patch
     - flex
@@ -11,7 +11,7 @@ spack:
     - py-cython
     - cmake
     - ninja
-    - otf2
+    - otf2@2.3
     - openmpi
 
   view: true
