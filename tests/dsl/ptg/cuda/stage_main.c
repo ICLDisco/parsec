@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2020-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "parsec.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/matrix.h"
@@ -43,7 +49,7 @@ int main(int argc, char *argv[])
         }
     }
     /* Initialize PaRSEC */
-    parsec = parsec_init(-1, &pargc, &pargv);
+    parsec = parsec_init(&pargc, &pargv);
     if( NULL == parsec ) {
         /* Failed to correctly initialize. In a correct scenario report*/
          /* upstream, but in this particular case bail out.*/

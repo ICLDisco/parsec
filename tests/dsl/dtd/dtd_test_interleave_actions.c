@@ -129,8 +129,7 @@ int main(int argc, char **argv) {
    nb = 1;
    nt = 1;
 
-   int ncores = -1;
-   parsec_context = parsec_init(ncores, &pargc, &pargv);
+   parsec_context = parsec_init(&pargc, &pargv);
 
    if(world == 1) {
        parsec_warning("*** This test only makes sense with at least two nodes");

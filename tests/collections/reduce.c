@@ -34,7 +34,7 @@ int main( int argc, char* argv[] )
     int rc;
     parsec_taskpool_t* tp;
     parsec_matrix_block_cyclic_t dcA;
-    int cores = -1, world = 1, rank = 0;
+    int world = 1, rank = 0;
     int nb = 100, ln = 900;
     int rows = 1;
     parsec_datatype_t newtype;
@@ -60,7 +60,7 @@ int main( int argc, char* argv[] )
         }
     }
 
-    parsec = parsec_init(cores, &pargc, &pargv);
+    parsec = parsec_init(&pargc, &pargv);
 
     parsec_matrix_block_cyclic_init( &dcA, PARSEC_MATRIX_FLOAT, PARSEC_MATRIX_TILE,
                                rank, nb, 1, ln, 1, 0, 0, ln, 1,

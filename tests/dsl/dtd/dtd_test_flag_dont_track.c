@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 /* parsec things */
 #include "parsec/runtime.h"
 
@@ -35,7 +40,7 @@ task_to_check_dont_track(parsec_execution_stream_t *es, parsec_task_t *this_task
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1;
+    int rank, world;
     int nb, nt, rc;
     parsec_tiled_matrix_t *dcA;
 
@@ -56,12 +61,8 @@ int main(int argc, char ** argv)
                       "Try with \"mpirun -np 1 .....\"\n" );
     }
 
-    if(argv[1] != NULL){
-        cores = atoi(argv[1]);
-    }
-
     /* Creating parsec context and initializing dtd environment */
-    parsec = parsec_init( cores, &argc, &argv );
+    parsec = parsec_init( &argc, &argv );
 
     /****** Checking Dont track flag ******/
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );

@@ -7,7 +7,7 @@
  *
  * [mpicc|cc] -o Ex00_StartStop Ex00_StartStop.c `pkg-config --cflags --libs parsec` -lpthread -lm -lrt [-ldl -lcudart]
  *
- * @version 3.0
+ * @version 4.0
  * @email parsec-users@icl.utk.edu
  *
  */
@@ -38,13 +38,12 @@ int main(int argc, char *argv[])
 #endif
 
     /**
-     * Then, we can initialize the engine by giving the number of threads on the
-     * current process, and the arguments.
-     * If -1, is given for the number of threads, the number of physical core on
-     * the architecture will be detected and used as the default for the number
-     * of threads.
+     * Then, we can initialize the engine.
+     * The behavior of PaRSEC can be further configured by passing command line
+     * arguments, as forwarded here, or environment variables of the form 
+     * PARSEC_MCA_xyz=value
      */
-    parsec = parsec_init(-1, &argc, &argv);
+    parsec = parsec_init(&argc, &argv);
 
     /**
      * Let's do some computation with the runtime, and wait for the end.

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 /* parsec things */
 #include "parsec/runtime.h"
 
@@ -97,7 +102,7 @@ test_task_generator( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1, rc;
+    int rank, world, rc;
     parsec_arena_datatype_t *adt;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -117,7 +122,7 @@ int main(int argc, char ** argv)
     parsec_tiled_matrix_t *dcA;
     parsec_taskpool_t *dtd_tp;
 
-    parsec = parsec_init( cores, &argc, &argv );
+    parsec = parsec_init( &argc, &argv );
 
     dtd_tp = parsec_dtd_taskpool_new();
 

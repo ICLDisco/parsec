@@ -1,10 +1,9 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2020 The Universiy of Tennessee and The Universiy
- *                         of Tennessee Research Foundation. All rights
+ * Copyright (c) 2013-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-
 #include <sys/time.h>
 #include <inttypes.h>
 #include <string.h>
@@ -127,7 +126,7 @@ int main( int argc, char** argv )
         argc -= 1;
     }
 
-    parsec = parsec_init(-1, &argc, &argv);
+    parsec = parsec_init(&argc, &argv);
     if( NULL == parsec ) {
        exit(-1);
     }

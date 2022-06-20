@@ -95,7 +95,8 @@ int main(int argc, char *argv[])
     }
 
     /* Initialize PaRSEC */
-    parsec = parsec_init(cores, &pargc, &pargv);
+    parsec_param_set_int("runtime_num_cores", cores);
+    parsec = parsec_init(&pargc, &pargv);
 
     if( NULL == parsec ) {
         /* Failed to correctly initialize. In a correct scenario report
@@ -104,15 +105,9 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    /* If the number of cores has not been defined as a parameter earlier
-     * update it with the default parameter computed in parsec_init. */
-    if(cores <= 0)
-    {
-        int p, nb_total_comp_threads = 0;
-        for(p = 0; p < parsec->nb_vp; p++) {
-            nb_total_comp_threads += parsec->virtual_processes[p]->nb_cores;
-        }
-        cores = nb_total_comp_threads;
+    /* compute the number of cores as detected from parsec */
+    for(int p = 0, cores = 0; p < parsec->nb_vp; p++) {
+        cores += parsec->virtual_processes[p]->nb_cores;
     }
 
     /* Make sure valid parameters are passed */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -18,7 +18,7 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1;
+    int rank, world;
     int size, nb, rc;
     parsec_data_collection_t *dcA;
     parsec_taskpool_t *ctlgat;
@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     world = 1;
     rank = 0;
 #endif
-    parsec = parsec_init(cores, &argc, &argv);
+    parsec = parsec_init(&argc, &argv);
 
     size = 256;
     nb   = 4 * world;

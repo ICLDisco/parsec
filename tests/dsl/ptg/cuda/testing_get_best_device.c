@@ -103,18 +103,16 @@ int main(int argc, char *argv[])
     }
 
 #if defined(PARSEC_HAVE_CUDA)
-    extern char **environ;
-    char *value;
     if( nb_gpus < 1 && 0 == rank ) {
 	    fprintf(stderr, "Warnning: if run on GPUs, please set --gpus=value bigger than 0\n");
     }
-    asprintf(&value, "%d", nb_gpus);
-    parsec_setenv_mca_param( "device_cuda_enabled", value, &environ );
-    free(value);
+    parsec_param_set_int( "device_cuda_enabled", nb_gpus );
 #endif
+    if( -1 != cores )
+        parsec_param_set_int( "runtime_num_cores", cores );
 
     /* Initialize PaRSEC */
-    parsec = parsec_init(cores, &pargc, &pargv);
+    parsec = parsec_init(&pargc, &pargv);
 
     if( NULL == parsec ) {
         /* Failed to correctly initialize. In a correct scenario report
@@ -125,7 +123,6 @@ int main(int argc, char *argv[])
 
     /* If the number of cores has not been defined as a parameter earlier
      * update it with the default parameter computed in parsec_init. */
-    if(cores <= 0)
     {
         int p, nb_total_comp_threads = 0;
         for(p = 0; p < parsec->nb_vp; p++) {

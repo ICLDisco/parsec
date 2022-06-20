@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2021 The University of Tennessee and The University
+ * Copyright (c) 2011-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -38,7 +38,7 @@ int main( int argc, char* argv[] )
     parsec_context_t* parsec;
     parsec_taskpool_t* op;
     parsec_matrix_block_cyclic_t dcA;
-    int cores = -1, world = 1, rank = 0;
+    int world = 1, rank = 0;
     int mb = 100, nb = 100;
     int lm = 1000, ln = 1000;
     int rows = 1, rc;
@@ -52,7 +52,7 @@ int main( int argc, char* argv[] )
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
-    parsec = parsec_init(cores, &argc, &argv);
+    parsec = parsec_init(&argc, &argv);
 
     parsec_matrix_block_cyclic_init( &dcA, PARSEC_MATRIX_FLOAT, PARSEC_MATRIX_TILE,
                                rank, mb, nb, lm, ln, 0, 0, lm, ln,

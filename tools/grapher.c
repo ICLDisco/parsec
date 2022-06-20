@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2017 The University of Tennessee and The University
+ * Copyright (c) 2009-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -176,6 +176,8 @@ static int dump_graph(const char *filename)
     return 0;
 }
 
+extern char **environ;
+
 int main(int argc, char *argv[])
 {
     int i;
@@ -185,7 +187,8 @@ int main(int argc, char *argv[])
     parsec_context_t *parsec;
 
     o = NULL;
-    parsec = parsec_init( 1, &argc, &argv, 1 );
+    parsec_param_set_int("runtime_num_cores", 1);
+    parsec = parsec_init(&argc, &argv);
     for(i = 0; i < NB_CREATE_FUNCTIONS; i++) {
         if( !strcmp( create_functions[i].command_name, argv[1]) ) {
             o = create_functions[i].create_function(argc-2, argv+2);

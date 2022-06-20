@@ -17,7 +17,7 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank = 0, world = 1, cores = -1;
+    int rank = 0, world = 1;
     int nt = 1234, nb = 5, rc;
     parsec_tiled_matrix_t *dcA;
     parsec_taskpool_t *msort;
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    parsec = parsec_init(cores, &argc, &argv);
+    parsec = parsec_init(&argc, &argv);
     if( NULL == parsec ) {
         exit(1);
     }

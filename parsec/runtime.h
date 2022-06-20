@@ -153,6 +153,40 @@ typedef enum parsec_hook_return_e {
 
 
 /**
+ * Set an MCA environment parameter with a string value
+ *
+ * @param param Name of the type containing the variable.
+ * @param value Value of the mca parameter to set.
+ *
+ * This function sets an MCA environment parameter in the global environment
+ * of the application (i.e., environ) so that it cane be used as the default
+ * value for the parameter when it is accessed by the PaRSEC engine. Thus, an
+ * external application can register some parameters that will later be used by
+ * the initialization in the engine.
+ *
+ */
+PARSEC_DECLSPEC void
+parsec_param_set_string( char *param,
+                         char *value);
+
+/**
+ * Set an MCA environment parameter with an integer value
+ *
+ * @param param Name of the type containing the variable.
+ * @param value Value of the mca parameter to set.
+ *
+ * This function sets an MCA environment parameter in the global environment
+ * of the application (i.e., environ) so that it cane be used as the default
+ * value for the parameter when it is accessed by the PaRSEC engine. Thus, an
+ * external application can register some parameters that will later be used by
+ * the initialization in the engine.
+ *
+ */
+PARSEC_DECLSPEC void
+parsec_param_set_int( char *param,
+                      int ivalue);
+
+/**
  * @brief Create a new PaRSEC execution context
  *
  * @details
@@ -161,13 +195,12 @@ typedef enum parsec_hook_return_e {
  * execution context. Several contextes can cohexist on disjoint resources
  * in same time.
  *
- * @param[in]    nb_cores the number of cores to use
  * @param[inout] pargc a pointer to the number of arguments passed in pargv
  * @param[inout] pargv an argv-like NULL terminated array of arguments to pass to
  *        the PaRSEC engine.
  * @return the newly created PaRSEC context
  */
-parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[]);
+parsec_context_t* parsec_init(int* pargc, char** pargv[]);
 
 /**
  * @brief Obtain the version number of the PaRSEC runtime

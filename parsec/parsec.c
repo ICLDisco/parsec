@@ -382,9 +382,19 @@ do { \
     } \
 } while (0)
 
-parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
+static int *pargc = NULL;
+static char *** pargv = NULL;
+
+int parsec_set_argv( int *pargc_param, char** pargv_param[] ) {
+    pargc = pargc_param;
+    pargv = pargv_param;
+    return 0;
+}
+
+
+parsec_context_t* parsec_init( int* pargc, char** pargv[] )
 {
-    int ret, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
+    int ret, nb_vp, p, t, nb_total_comp_threads, nb_cores = -1, display_vpmap = 0;
     char *comm_binding_parameter = NULL;
     char *binding_parameter = NULL;
     __parsec_temporary_thread_initialization_t *startup;
@@ -425,8 +435,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                              "Communication thread binding");
     parsec_cmd_line_make_opt3(cmd_line, 'c', "cores", "cores", 1,
                              "Number of cores to used");
-    parsec_cmd_line_make_opt3(cmd_line, 'g', "gpus", "gpus", 1,
-                             "Number of GPU to used (deprecated use MCA instead)");
     parsec_cmd_line_make_opt3(cmd_line, 'V', "vpmap", "vpmap", 1,
                              "Virtual process map");
     parsec_cmd_line_make_opt3(cmd_line, 'H', "ht", "ht", 1,
@@ -477,6 +485,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_debug_init();
     mca_components_repository_init();
 
+    intptr_t comm_ctx = -1;
+    parsec_mca_param_reg_intptrt_name("runtime", "comm_ctx", "Change the communication context used by the parsec engine (e.g., substitute MPI_COMM_WORLD with an user-created communicator)", false, false, comm_ctx, &comm_ctx);
+
     parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Disable warnings about the runtime detecting poorly performing binding configuration", false, false, slow_bind_warning, &slow_bind_warning);
 
 #if defined(PARSEC_HAVE_HWLOC)
@@ -501,19 +512,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
      */
     parsec_mca_param_reg_int_name("runtime", "num_cores", "The total number of cores to be used by the runtime (-1 for all available)",
                                  false, false, parsec_runtime_max_number_of_cores, &parsec_runtime_max_number_of_cores);
-    if( nb_cores <= 0 ) {
-        if( -1 == parsec_runtime_max_number_of_cores )
-            nb_cores = parsec_hwloc_nb_real_cores();
-        else {
-            nb_cores = parsec_runtime_max_number_of_cores;
-            if( parsec_runtime_max_number_of_cores > parsec_hwloc_nb_real_cores() ) {
-                if( slow_bind_warning )
-                    parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                                   "Requested binding %d threads, which is more than the physical number of cores %d.\n"
-                                   "\tOversubscribing cores is often slow. You should change the value of the `runtime_num_cores` parameter.\n",
-                                   parsec_runtime_max_number_of_cores, parsec_hwloc_nb_real_cores());
-            }
-        }
+    if( 0 > parsec_runtime_max_number_of_cores )
+        nb_cores = parsec_hwloc_nb_real_cores();
+    else {
+        nb_cores = parsec_runtime_max_number_of_cores;
     }
     parsec_mca_param_reg_int_name("runtime", "bind_main_thread", "Force the binding of the thread calling parsec_init",
                                  false, false, parsec_runtime_bind_main_thread, &parsec_runtime_bind_main_thread);
@@ -522,13 +524,21 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                                   parsec_runtime_bind_threads, &parsec_runtime_bind_threads);
 
     if( parsec_cmd_line_is_taken(cmd_line, "gpus") ) {
-        parsec_warning("Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.");
+        parsec_warning("Option g (for accelerators) has been removed as an argument. Use the MCA parameter instead.");
     }
 
     /* Allow the parsec_init arguments to overwrite all the previous behaviors */
     GET_INT_ARGV(cmd_line, "cores", nb_cores);
     GET_STR_ARGV(cmd_line, "parsec_bind_comm", comm_binding_parameter);
     GET_STR_ARGV(cmd_line, "parsec_bind", binding_parameter);
+
+    if( nb_cores > parsec_hwloc_nb_real_cores() ) {
+        if( slow_bind_warning )
+            parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                           "Requested binding %d threads, which is more than the physical number of cores %d.\n"
+                           "\tOversubscribing cores is often slow. You should change the value of the `runtime_num_cores` parameter.\n",
+                           parsec_runtime_max_number_of_cores, parsec_hwloc_nb_real_cores());
+    }
 
     /*
      * Initialize the VPMAP, the discrete domains hosting
@@ -610,7 +620,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->active_taskpools      = 0;
     context->flags               = 0;
     context->nb_nodes            = 1;
-    context->comm_ctx            = -1;
+    context->comm_ctx            = comm_ctx;
     context->my_rank             = 0;
     context->nb_vp               = nb_vp;
     /* initialize dtd taskpool list */
@@ -2239,7 +2249,6 @@ void parsec_usage(void)
             "    --help         : this message\n"
             "\n"
             " -c --cores        : number of concurrent threads (default: number of physical hyper-threads)\n"
-            " -g --gpus         : number of GPU (default: 0)\n"
             " -o --scheduler    : select the scheduler (default: LFQ)\n"
             "                     Accepted values:\n"
             "                       LFQ -- Local Flat Queues\n"

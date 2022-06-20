@@ -896,9 +896,7 @@ int main(int argc, char **argv)
     rank = 0;
 #endif
 
-    // Number of CPU cores involved
-    int ncores = -1; // Use all available cores
-    parsec_context = parsec_init(ncores, &argc, &argv);
+    parsec_context = parsec_init(&argc, &argv);
 
     rc = !(get_nb_cuda_devices() >= 1);
     print_test_result("Have CUDA accelerators", rc);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 The University of Tennessee and The University
+ * Copyright (c) 2013-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    parsec = parsec_init(0, &parsec_argc, &parsec_argv);
+    parsec = parsec_init(&parsec_argc, &parsec_argv);
     if( NULL == parsec ) {
         exit(-1);
     }

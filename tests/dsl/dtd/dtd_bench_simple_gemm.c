@@ -595,9 +595,7 @@ int main(int argc, char **argv)
         while(loop) { sleep(1); }
     }
 
-    // Number of CPU cores involved
-    int ncores = -1; // Use all available cores
-    parsec_context = parsec_init(ncores, &pargc, &pargv);
+    parsec_context = parsec_init(&pargc, &pargv);
 
     int *gpu_device_index = NULL;
     if( PARSEC_DEV_CUDA == device ) {

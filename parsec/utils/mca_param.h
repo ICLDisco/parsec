@@ -3,7 +3,7 @@
  * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2019 The University of Tennessee and The University
+ * Copyright (c) 2004-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -55,6 +55,7 @@
 #if defined(PARSEC_HAVE_STDBOOL_H)
 #include <stdbool.h>
 #endif  /* defined(PARSEC_HAVE_STDBOOL_H) */
+#include <stdint.h>
 #include "parsec/class/list.h"
 
 #include "parsec/constants.h"
@@ -67,6 +68,8 @@ typedef enum {
     PARSEC_MCA_PARAM_ERROR = -1,
     /** The parameter is of type signed integer. */
     PARSEC_MCA_PARAM_TYPE_INT,
+    /** The parameter is of type intptr_t. */
+    PARSEC_MCA_PARAM_TYPE_INTPTRT,
     /** The parameter is of type size_t. */
     PARSEC_MCA_PARAM_TYPE_SIZET,
     /** The parameter is of type string. */
@@ -218,6 +221,55 @@ PARSEC_DECLSPEC int parsec_mca_param_recache_files(void);
                               bool read_only,
                               int default_value,
                               int *current_value);
+
+/**
+ * Register a intptr_t MCA parameter that is not associated with a
+ * component.
+ *
+ * @param type [in] Although this parameter is not associated with
+ * a component, it still must have a string type name that will
+ * act as a prefix (string).
+ * @param param_name [in] The name of the parameter being
+ * registered (string).
+ * @param help_msg [in] A string describing the use and valid
+ * values of the parameter (string).
+ * @param internal [in] Indicates whether the parameter is internal
+ * (i.e., not to be shown to users) or not (bool).
+ * @param read_only [in] Indicates whether the parameter value can
+ * ever change (bool).
+ * @param default_value [in] The value that is used for this
+ * parameter if the user does not supply one.
+ * @param current_value [out] After registering the parameter, look
+ * up its current value and return it unless current_value is
+ * NULL.
+ *
+ * @retval PARSEC_ERROR Upon failure to register the parameter.
+ * @retval index Index value that can be used with
+ * parsec_mca_param_lookup_intptr_t() to retrieve the value of the
+ * parameter.
+ *
+ * Note that the type should always be a framework or a level name
+ * (e.g., "btl" or "mpi") -- it should not include the component
+ * name, even if the component is the base of a framework.  Hence,
+ * "btl_base" is not a valid type name.  Specifically, registering
+ * a parameter with an unrecognized type is not an error, but
+ * ompi_info has a hard-coded list of frameworks and levels;
+ * parameters that have recongized types, although they can be
+ * used by the user, will not be displayed by ompi_info.
+ *
+ * Note that if you use parsec_mca_param_find() to lookup the index
+ * of the registered parameter, the "component" argument should be
+ * NULL (because it is not specified in this registration
+ * function, and is therefore registered with a NULL value).
+ */
+ PARSEC_DECLSPEC int
+ parsec_mca_param_reg_intptrt_name(const char *type,
+                                const char *param_name,
+                                const char *help_msg,
+                                bool internal,
+                                bool read_only,
+                                intptr_t default_value,
+                                intptr_t *current_value);
 
 /**
  * Register a size_t MCA parameter that is not associated with a
@@ -787,26 +839,55 @@ parsec_mca_show_mca_params(parsec_list_t *info,
                           bool pretty_print);
 
 /**
- * Set an MCA environment parameter.
+ * Set an MCA environment parameter with a string value
  *
  * @param param Name of the type containing the variable.
  * @param value Value of the mca parameter to set.
- * @param env   Environment in which to store the MCA parameter.
  *
- * This function sets an MCA environment parameter. If env = environ,
- * then the variable is set into the global environment of the application and
- * is used as the default value for the parameter when it is accessed by the
- * PaRSEC engine. Thus, an external application can register some parameters that
- * will later be used by the initialization in the engine.
- * If env != environ, the value is just added to the given environment. This is
- * used internally by PaRSEC.
+ * This function sets an MCA environment parameter in the global environment
+ * of the application (i.e., environ) so that it cane be used as the default
+ * value for the parameter when it is accessed by the PaRSEC engine. Thus, an
+ * external application can register some parameters that will later be used by
+ * the initialization in the engine.
  *
  */
 PARSEC_DECLSPEC void
-parsec_setenv_mca_param( char *param,
-                        char *value,
-                        char ***env );
+parsec_param_set_string( char *param,
+                         char *value);
 
+/**
+ * Set an MCA environment parameter with an integer value
+ *
+ * @param param Name of the type containing the variable.
+ * @param value Value of the mca parameter to set.
+ *
+ * This function sets an MCA environment parameter in the global environment
+ * of the application (i.e., environ) so that it cane be used as the default
+ * value for the parameter when it is accessed by the PaRSEC engine. Thus, an
+ * external application can register some parameters that will later be used by
+ * the initialization in the engine.
+ *
+ */
+PARSEC_DECLSPEC void
+parsec_param_set_int( char *param,
+                      int ivalue);
+
+/**
+ * Set an MCA environment parameter with an pointer value
+ *
+ * @param param Name of the type containing the variable.
+ * @param value Value of the mca parameter to set.
+ *
+ * This function sets an MCA environment parameter in the global environment
+ * of the application (i.e., environ) so that it cane be used as the default
+ * value for the parameter when it is accessed by the PaRSEC engine. Thus, an
+ * external application can register some parameters that will later be used by
+ * the initialization in the engine.
+ *
+ */
+PARSEC_DECLSPEC void
+parsec_param_set_intptr( char *param,
+                      intptr_t pvalue);
 END_C_DECLS
 
 #endif /* PARSEC_MCA_PARAM_H */

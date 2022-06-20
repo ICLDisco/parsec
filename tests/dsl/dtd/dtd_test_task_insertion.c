@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 /* parsec things */
 #include "parsec/runtime.h"
 
@@ -75,11 +81,7 @@ test_task_generator( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1, rc;
-
-    if(argv[1] != NULL){
-        cores = atoi(argv[1]);
-    }
+    int cores = 0, rank, world, rc;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -98,7 +100,11 @@ int main(int argc, char ** argv)
     int amount_of_work[3] = {100, 1000, 10000};
     parsec_taskpool_t *dtd_tp;
 
-    parsec = parsec_init( cores, &argc, &argv );
+    parsec = parsec_init( &argc, &argv );
+    /* compute the number of cores as detected from parsec */
+    for(int p = 0; p < parsec->nb_vp; p++) {
+        cores += parsec->virtual_processes[p]->nb_cores;
+    }
 
     dtd_tp = parsec_dtd_taskpool_new();
 

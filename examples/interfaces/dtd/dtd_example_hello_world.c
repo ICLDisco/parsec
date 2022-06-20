@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015-2018 The University of Tennessee and The University
+ * Copyright (c) 2015-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,7 +8,7 @@
 /**
  * @file dtd_example_hello_world.c
  *
- * @version 3.0
+ * @version 4.0
  * @email parsec-users@icl.utk.edu
  *
  */
@@ -47,7 +47,7 @@ task_hello_world( parsec_execution_stream_t *es,
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rc, rank, world, cores = 1;
+    int rc, rank, world;
 
     /* Initializing MPI */
 #if defined(PARSEC_HAVE_MPI)
@@ -63,7 +63,9 @@ int main(int argc, char ** argv)
 #endif
 
     /* Initializing parsec context */
-    parsec = parsec_init( cores, &argc, &argv );
+    /* Let's PaRSEC know we'd like to use only one core */
+    parsec_param_set_int("runtime_num_cores", 1);
+    parsec = parsec_init( &argc, &argv );
     if( NULL == parsec ) {
         printf("Cannot initialize PaRSEC\n");
         exit(-1);

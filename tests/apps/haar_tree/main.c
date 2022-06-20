@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2016-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "parsec/runtime.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/arena.h"
@@ -172,7 +178,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    parsec = parsec_init(-1, &pargc, &pargv);
+    parsec = parsec_init(&pargc, &pargv);
 
 
     while ((ch = getopt(argc, argv, "xvd:")) != -1) {

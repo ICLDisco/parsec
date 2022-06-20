@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 /* parsec things */
 #include "parsec/runtime.h"
 
@@ -32,9 +37,7 @@ task_to_check_generation(parsec_execution_stream_t *es, parsec_task_t *this_task
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1, rc;
-    int parsec_argc;
-    char** parsec_argv;
+    int rank, world, rc;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -48,16 +51,8 @@ int main(int argc, char ** argv)
     rank = 0;
 #endif
 
-    parsec_argv = &argv[1];
-    parsec_argc = argc - 1;
-    if(argv[1] != NULL) {
-        cores = atoi(argv[1]);
-        parsec_argv++;
-        parsec_argc--;
-    }
-
     /* Creating parsec context and initializing dtd environment */
-    parsec = parsec_init( cores, &parsec_argc, &parsec_argv );
+    parsec = parsec_init( &argc, &argv );
     if( NULL == parsec ) {
         exit(-1);
     }

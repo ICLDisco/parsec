@@ -39,7 +39,8 @@ int main( int argc, char** argv )
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
-    parsec = parsec_init(1, &argc, &argv);
+    parsec_param_set_int("runtime_num_cores", 1);
+    parsec = parsec_init(&argc, &argv);
     if( NULL == parsec ) {
         exit(-2);
     }

@@ -45,7 +45,8 @@ int main( int argc, char** argv )
     rank = 0;
 #endif
 
-    parsec = parsec_init(1, &argc, &argv);
+    parsec_param_set_int("runtime_num_cores", 1);
+    parsec = parsec_init(&argc, &argv);
     assert( NULL != parsec );
 
     PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,

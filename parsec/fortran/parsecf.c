@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 The University of Tennessee and The University
+ * Copyright (c) 2013-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,14 +11,13 @@
 /**
  * @brief A function callable from Fortran allowing to initialize the PaRSEC runtime
  * 
- * @param nbcores 
  * @param context 
  * @param ierr 
  * 
  * As there is no standard way to find the arg[cv] in Fortran, we build them using
  * the PARSEC_ARGS environment variable.
  */
-void parsec_init_f08(int nbcores, parsec_context_t** context, int* ierr)
+void parsec_init_f08(parsec_context_t** context, int* ierr)
 {
     char *args = NULL, *token, **argv = NULL;
     int argc = 0;
@@ -38,7 +37,7 @@ void parsec_init_f08(int nbcores, parsec_context_t** context, int* ierr)
         }
         argv[argc] = NULL;
     }
-    *context = parsec_init(nbcores, &argc, &argv);
+    *context = parsec_init(&argc, &argv);
     /* Cleanup the locals used to initialize parsec */
     free(argv);
     if( NULL != args )

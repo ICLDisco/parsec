@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The University of Tennessee and The University
+ * Copyright (c) 2013-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -39,7 +39,8 @@ int main( int argc, char** argv )
         argc -= 1;
     }
 
-    parsec = parsec_init(1, &argc, &argv);
+    parsec_param_set_int("runtime_num_cores", 1);
+    parsec = parsec_init(&argc, &argv);
     if( NULL == parsec ) {
         exit(-2);
     }

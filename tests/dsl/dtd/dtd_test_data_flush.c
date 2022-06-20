@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2017-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 /* parsec things */
 #include "parsec/runtime.h"
 
@@ -84,7 +89,7 @@ task_to_check_overhead_15(parsec_execution_stream_t *es, parsec_task_t *this_tas
 int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
-    int rank, world, cores = -1;
+    int rank, world;
     int nb, nt, rc;
     parsec_tiled_matrix_t *dcA;
 
@@ -100,14 +105,10 @@ int main(int argc, char ** argv)
     rank = 0;
 #endif
 
-    if(argv[1] != NULL){
-        cores = atoi(argv[1]);
-    }
-
     int i, j, total_tasks = 10000;
 
     /* Creating parsec context and initializing dtd environment */
-    parsec = parsec_init(cores, &argc, &argv);
+    parsec = parsec_init(&argc, &argv);
     parsec_taskpool_t *dtd_tp;
 
     /*

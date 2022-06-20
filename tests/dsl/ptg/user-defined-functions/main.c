@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2019-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include <unistd.h>
 #include <getopt.h>
 
@@ -102,7 +107,8 @@ int main(int argc, char *argv[])
 
     largc = argc - optind;
     largv = argv + optind;
-    parsec = parsec_init(cores, &largc, &largv);
+    parsec_param_set_int("runtime_num_cores", cores);
+    parsec = parsec_init(&largc, &largv);
     if( NULL == parsec ) {
         exit(-1);
     }
