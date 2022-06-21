@@ -63,7 +63,7 @@ float *parsec_device_tweight = NULL;
  * GPU except if it is loaded 1.2 times as much as the best load balance option
  */
 static int parsec_device_load_balance_skew = 20;
-static float load_balance_skew = 1.2f; // don't forget to change me if you change the default above!
+static float load_balance_skew;
 
 /**
  * Try to find the best device to execute the kernel based on the compute
@@ -210,12 +210,12 @@ int parsec_mca_device_init(void)
                                         "Show the detailed devices statistics upon exit",
                                         false, false, 0, NULL);
     (void)parsec_mca_param_reg_int_name("device", "load_balance_skew",
-                                        "Allow load balancing to skew by x\% to favor data reuse",
+                                        "Allow load balancing to skew by x%% to favor data reuse",
                                         false, false, 0, NULL);
     if( 0 < (rc = parsec_mca_param_find("device", NULL, "load_balance_skew")) ) {
         parsec_mca_param_lookup_int(rc, &parsec_device_load_balance_skew);
-        load_balance_skew = 1.f/(parsec_device_load_balance_skew/100.f+1.f);
     }
+    load_balance_skew = 1.f/(parsec_device_load_balance_skew/100.f+1.f);
     if( 0 < (rc = parsec_mca_param_find("device", NULL, "verbose")) ) {
         parsec_mca_param_lookup_int(rc, &parsec_device_verbose);
     }
