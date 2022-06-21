@@ -164,7 +164,7 @@ static inline parsec_task_t *parsec_mca_sched_list_local_counter_pop_front(parse
 static inline parsec_task_t *parsec_mca_sched_list_local_counter_pop_back(parsec_mca_sched_list_local_counter_t *sl)
 {
     parsec_task_t * context =
-        (parsec_task_t*)parsec_list_pop_front(sl->list);
+        (parsec_task_t*)parsec_list_pop_back(sl->list);
     if(NULL != context)
         sl->local_counter--;
     return context;
