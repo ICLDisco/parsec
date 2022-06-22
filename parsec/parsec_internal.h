@@ -111,9 +111,6 @@ typedef void (*parsec_destruct_fn_t)(parsec_taskpool_t* tp);
 #define PARSEC_TASKPOOL_TYPE_PTG       0x0001
 #define PARSEC_TASKPOOL_TYPE_COMPOUND  0x0002
 #define PARSEC_TASKPOOL_TYPE_DTD       0x0004
-
-#define PARSEC_TASKPOOL_NOID           (~(uint32_t)0)
-
     
 /**
  * @brief a PaRSEC taskpool represents an a collection of tasks (with or without their dependencies).

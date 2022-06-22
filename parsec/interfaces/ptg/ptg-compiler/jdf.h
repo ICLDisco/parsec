@@ -179,14 +179,9 @@ typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_FLAG_NO_PREDECESSORS   ((jdf_flags_t)(1 << 6))
 
 #define JDF_PROP_TERMDET_NAME                  "termdet"
-#define JDF_PROP_TERMDET_USER_TRIGGERED        "user-triggered"
-#define JDF_HAS_USER_TRIGGERED_TERMDET         ((jdf_flags_t)(1 << 5))
-#define JDF_PROP_TERMDET_DYNAMIC               "dynamic"
-#define JDF_HAS_DYNAMIC_TERMDET                ((jdf_flags_t)(1 << 6))
 #define JDF_PROP_TERMDET_LOCAL                 "local"
 
 #define JDF_HAS_UD_NB_LOCAL_TASKS              ((jdf_flags_t)(1 << 0))
-#define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"
 #define JDF_PROP_DYNAMIC_JDF                   "dynamic"
 
 #define JDF_FUNCTION_HAS_UD_HASH_STRUCT        ((jdf_flags_t)(1 << 1))
@@ -199,6 +194,14 @@ typedef unsigned int jdf_flags_t;
 #define JDF_PROP_UD_STARTUP_TASKS_FN_NAME      "startup_fn"
 
 #define JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS  ((jdf_flags_t)(1 << 4))
+
+#define JDF_PROP_TERMDET_USER_TRIGGERED        "user-triggered"
+#define JDF_HAS_USER_TRIGGERED_TERMDET         ((jdf_flags_t)(1 << 5))
+
+#define JDF_PROP_TERMDET_DYNAMIC               "dynamic"
+#define JDF_HAS_DYNAMIC_TERMDET                ((jdf_flags_t)(1 << 6))
+
+#define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"
 #define JDF_PROP_UD_FIND_DEPS_FN_NAME          "find_deps_fn"
 #define JDF_PROP_UD_ALLOC_DEPS_FN_NAME         "alloc_deps_fn"
 #define JDF_PROP_UD_FREE_DEPS_FN_NAME          "free_deps_fn"

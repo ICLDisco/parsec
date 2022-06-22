@@ -1237,7 +1237,6 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_mempool_stats(context);
 #endif  /* PARSEC_PROF_TRACE */
 
-    (void) parsec_termdet_close_modules();
     (void) parsec_termdet_fini();
 
     (void) parsec_remote_dep_fini(context);

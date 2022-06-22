@@ -67,31 +67,6 @@ typedef enum {
 } parsec_termdet_taskpool_state_t ;
 
 /**
- * For some termination detectors, we provide two versions of the concept of IDLE:
- *  - if nb_tasks==0, then the runtime actions are for pending messages to be sent.
- *    Once the operation of the termination detector has noted that some work is
- *    potentially located in these outgoing messages (e.g. for the Credit Distribution
- *    Algorithm, once part of the credit has been assigned to each message), these
- *    actions have no impact on the idleness of the process. So we can declare
- *    idleness just after nb_tasks==0 and all outgoing messages have been taken
- *    into account.
- *  - if nb_tasks==0 && nb_pending_actions == 0, the process is clearly idle for
- *    the taskpool, so this is a more generic approach.
- *
- *  Which version we use needs to be known globally, because the generated code is
- *  not the same: in one case (undef TERMDET_XP_IDLE_ON_NBTASKS), we count a fake task 
- *  to prevent the processes to detect termination before all the startup tasks are
- *  discovered; in the other case (define TERMDET_XP_IDLE_ON_NBTASKS), we count
- *  a fake pending action to prevent the processes to detect termination before
- *  all the startup tasks are discovered.
- *
- *  The credit distribution algorithm is slightly better with 
- *  define TERMDET_XP_IDLE_ON_NBTASKS, but this is still experimental and being
- *  evaluated.
- */
-#define TERMDET_XP_IDLE_ON_NBTASKS
-
-/**
  * @brief Type of callbacks when termination is detected
  *
  * @details This is the prototype of functions called when the
@@ -180,7 +155,6 @@ typedef int (*parsec_termdet_taskpool_load_fn_t)(parsec_taskpool_t *tp, int v);
  *                pack informaiton; position is updated by the call to reflect
  *                the next available byte in packed_buffer
  *  @param[IN] buffer_size the amount of bytes available from packed_buffer
- *  @param[INOUT] comm the object used to determine the current set of processes
  *  @return PARSEC_SUCCESS except if a fatal error occurs.
  */
 typedef int (*parsec_termdet_outgoing_message_pack_fn_t)(parsec_taskpool_t *tp,
@@ -233,8 +207,6 @@ typedef int (*parsec_termdet_outgoing_message_start_fn_t)(parsec_taskpool_t *tp,
  *                     byte in packed_buffer
  *       @param[IN] buffer_size the amount of bytes available after packed_buffer
  *       @param[IN] msg the message descriptor
- *       @param[INOUT] comm the communication object used to define the group
- *                     of processes
  *                  
  *       @return PARSEC_SUCCESS except if a fatal error occurs.
  */
@@ -270,6 +242,8 @@ typedef int (*parsec_termdet_incoming_message_end_fn_t)(parsec_taskpool_t *tp,
  *           local termination detection module can be loaded, a warning
  *           will be issued, as it is assumed that a global termination
  *           detection is expected by the user.
+ *
+ *   @note any opened module is closed during parsec_termdet_fini
  */
 int parsec_termdet_open_dyn_module(parsec_taskpool_t *tp);
 
@@ -284,22 +258,24 @@ int parsec_termdet_open_dyn_module(parsec_taskpool_t *tp);
  *           local termination detection module can be loaded, a warning
  *           will be issued, as it is assumed that a global termination
  *           detection is expected by the user.
+ * 
+ *   @note any opened module is closed during parsec_termdet_fini
  */
 int parsec_termdet_open_module(parsec_taskpool_t *tp, char *name);
 
 /**
- * @brief convenience function to close the termination detection component
- *        that were selected by open_dyn_module or open_module.
- *
- * @details this functions uses the MCA mechanism to close the components that
- *          were opened by open_dyn_module or open_module; it unregisters the callback messages
- *          and makes the module opened by open_dyn_module un-operable. It needs
- *          only to be called at cleaning time once.
- *   @return PARSEC_SUCCESS except if a fatal error occurs.
+ * @brief Initialize the termination detection component
+ * 
+ * @return PARSEC_SUCCESS
  */
-int parsec_termdet_close_modules(void);
-
 int parsec_termdet_init(void);
+
+/**
+ * @brief Terminates the termination detection component, and close
+ *   all opened termination detection modules.
+ * 
+ * @return PARSEC_SUCCESS
+ */
 int parsec_termdet_fini(void);
 
 /**

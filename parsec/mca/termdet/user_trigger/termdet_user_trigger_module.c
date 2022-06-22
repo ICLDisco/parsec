@@ -103,6 +103,7 @@ static int parsec_termdet_user_trigger_msg_dispatch_taskpool(parsec_taskpool_t *
     (void)tag;
     (void)module;
     (void)ce;
+    (void)src;
 
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-4C:\tReceived %d bytes from %d relative to taskpool %d",
                          size, src, tp->taskpool_id);
