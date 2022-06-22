@@ -118,15 +118,10 @@ static void parsec_termdet_close_module(void *item, void *data)
     free(omod);
 }
 
-int parsec_termdet_close_modules(void)
+int parsec_termdet_fini(void)
 {
     parsec_hash_table_for_all(&parsec_termdet_opened_modules, parsec_termdet_close_module,
                               &parsec_termdet_opened_modules);
-    return PARSEC_SUCCESS;
-}
-
-int parsec_termdet_fini(void)
-{
     parsec_hash_table_fini(&parsec_termdet_opened_modules);
     return PARSEC_SUCCESS;
 }

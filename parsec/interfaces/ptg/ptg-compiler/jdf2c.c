@@ -27,8 +27,6 @@
 #include "jdf2c.h"
 #include "parsec/profiling.h"
 
-#define TERMDET_XP_IDLE_ON_NBTASKS
-
 extern const char *yyfilename;
 
 static FILE *cfile;
@@ -3812,11 +3810,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
              * For now, we lock the idleness by creating a runtime pending action, and
              * we use sync_point to find when all the startup tasks are done. */
             coutput("    __parsec_tp->sync_point = PARSEC_%s_NB_TASK_CLASSES\n;"
-#ifdef TERMDET_XP_IDLE_ON_NBTASKS
                     "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, 1);\n",
-#else
-                    "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_pa(&__parsec_tp->super.super, 1);\n",
-#endif
                     jdf_basename);
         }
     } else {
@@ -4597,12 +4591,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
                 "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)task->taskpool;\n"
                 "  int remaining = parsec_atomic_fetch_dec_int32(&__parsec_tp->sync_point) - 1;\n"
                 "  if( 0 == remaining ) {\n"
-                #ifdef TERMDET_XP_IDLE_ON_NBTASKS
                 "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, __parsec_tp->initial_number_tasks-1);\n"
-                #else
-                "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, __parsec_tp->initial_number_tasks);\n"
-                "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_pa(&__parsec_tp->super.super, -1);\n"
-                #endif
                 "  }\n"
                 "  return PARSEC_HOOK_RETURN_DONE;\n"
                 "}\n\n", jdf_basename, jdf_basename);

@@ -183,6 +183,7 @@ int main(int argc, char *argv[])
         pargv[0] = NULL;
     }
     parsec = parsec_init(1, &pargc, &pargv);
+    free(pargv);
     
     while ((ch = getopt(argc, argv, "xvd:m:M:f:")) != -1) {
         switch (ch) {

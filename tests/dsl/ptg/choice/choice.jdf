@@ -83,6 +83,6 @@ BODY
         printf("Execute TA(%d); decision[%d] = %d\n", k, k, decision[k]);
 
         /* Decrease counter for the task B not done */
-	this_task->taskpool->tdm.module->taskpool_addto_nb_tasks(this_task->taskpool, -1);
+        this_task->taskpool->tdm.module->taskpool_addto_nb_tasks(this_task->taskpool, -1);
 }
 END

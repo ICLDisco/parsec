@@ -13,8 +13,11 @@
 /**
  * @file
  *
- * Dijsktra-Matter Termination Detection Algorithm, four-counters variant
- *   (see TBD)
+ * Local Counter Termination Detection Algorithm.
+ * This type of termination detector assumes that nb_tasks is
+ * precomputed to the number of local tasks and cannot grow because
+ * of newly discovered work (coming remotely or locally). Termination
+ * is decided as soon as nb_tasks and nb_pending_actions both reach 0.
  *
  */
 
