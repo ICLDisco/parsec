@@ -3,23 +3,30 @@
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
-#if defined(PARSEC_HAVE_CUDA)
-#include "parsec/mca/device/cuda/device_cuda.h"
-#endif
 
+// The file is not compiled if CUDA is not present or CUBLAS is not found
+#include "parsec/mca/device/cuda/device_cuda.h"
 #include "cublas_v2.h"
-#if HAVE_BLAS
-#if BLAS_WITH_ESSL
-#include "essl.h"
-#else
-#include "cblas.h"
-#endif
+
+#if defined(HAVE_BLAS)
+// If our CMake finds a BLAS library, it defines HAVE_BLAS
+// BLAS does not guarantee there is a cblas.h, we define our own prototype
+typedef enum CBLAS_LAYOUT {CblasRowMajor=101, CblasColMajor=102} CBLAS_LAYOUT;
+typedef enum CBLAS_TRANSPOSE {CblasNoTrans=111, CblasTrans=112, CblasConjTrans=113} CBLAS_TRANSPOSE;
+typedef enum CBLAS_UPLO {CblasUpper=121, CblasLower=122} CBLAS_UPLO;
+typedef enum CBLAS_DIAG {CblasNonUnit=131, CblasUnit=132} CBLAS_DIAG;
+typedef enum CBLAS_SIDE {CblasLeft=141, CblasRight=142} CBLAS_SIDE;
+#define CBLAS_INDEX int
+
+extern void cblas_dgemm(const CBLAS_LAYOUT layout, const CBLAS_TRANSPOSE TransA,
+                        const CBLAS_TRANSPOSE TransB, const CBLAS_INDEX M, const CBLAS_INDEX N,
+                        const CBLAS_INDEX K, const double alpha, const double  *A,
+                        const CBLAS_INDEX lda, const double  *B, const CBLAS_INDEX ldb,
+                        const double beta, double  *C, const CBLAS_INDEX ldc);
 #endif
 
 #if defined(PARSEC_HAVE_MPI)
-
 #include <mpi.h>
-
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
 #include <unistd.h>
