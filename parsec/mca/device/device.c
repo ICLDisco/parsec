@@ -58,6 +58,14 @@ float *parsec_device_dweight = NULL;
 float *parsec_device_tweight = NULL;
 
 /**
+ * Load balance skew we are willing to accept to favor RO data reuse
+ * on GPU: a value of 20% means that we will schedule tasks on the preferred
+ * GPU except if it is loaded 1.2 times as much as the best load balance option
+ */
+static int parsec_device_load_balance_skew = 20;
+static float load_balance_skew;
+
+/**
  * Try to find the best device to execute the kernel based on the compute
  * capability of the device.
  *
@@ -70,7 +78,7 @@ float *parsec_device_tweight = NULL;
 
 int parsec_get_best_device( parsec_task_t* this_task, double ratio )
 {
-    int i, dev_index = -1, data_index;
+    int i, dev_index = -1, data_index, prefer_index = -1;
     parsec_taskpool_t* tp = this_task->taskpool;
 
     /* Select the location of the first data that is used in READ/WRITE or pick the
@@ -97,25 +105,24 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
                 dev_index = this_task->data[data_index].data_in->original->owner_device;
                 break;
             }
-            /* If we reach here, we cannot yet decide which device to run on based on the WRITE
-             * constraints, so let's pick the data for a READ flow.
-             */
         }
+        /* If we reach here, we cannot yet decide which device to run on based on the WRITE
+         * constraints, so let's pick the data for a READ flow.
+         */
         data_index = this_task->task_class->in[i]->flow_index;
         if( this_task->data[data_index].data_in->original->preferred_device > 1 ) {
-            dev_index = this_task->data[data_index].data_in->original->preferred_device;
+            prefer_index = this_task->data[data_index].data_in->original->preferred_device;
         } else if( this_task->data[data_index].data_in->original->owner_device > 1 ) {
-            dev_index  = this_task->data[data_index].data_in->original->owner_device;
+            prefer_index  = this_task->data[data_index].data_in->original->owner_device;
         }
     }
 
     /* 0 is CPU, and 1 is recursive device */
-    if( dev_index <= 1 ) {  /* This is the first time we see this data for a GPU.
-                             * Let's decide which GPU will work on it. */
+    if( dev_index <= 1 ) {  /* This is the first time we see this data for a GPU, let's decide which GPU will work on it. */
         int best_index;
         float weight, best_weight = parsec_device_load[0] + ratio * parsec_device_sweight[0];
 
-        /* Start with a valid device for this task */
+        /* Warn if there is no valid device for this task */
         for(best_index = 0; best_index < parsec_mca_device_enabled(); best_index++) {
             parsec_device_module_t *dev = parsec_mca_device_get(best_index);
 
@@ -128,7 +135,6 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
             if((NULL != this_task->task_class->incarnations[i].hook) && (this_task->chore_mask & (1 << i)))
                 break;
         }
-
         if(parsec_mca_device_enabled() == best_index) {
             /* We tried all possible devices, and none of them have an implementation
              * for this task! */
@@ -137,6 +143,17 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
             return -1;
         }
 
+        /* If we have a preferred device, start with it, but still consider
+         * other options to have some load balance */
+        if( -1 != prefer_index ) {
+            best_index = prefer_index;
+            /* we still prefer this device, until it is twice as loaded as the
+             * real best load balance device */
+            best_weight = load_balance_skew * (parsec_device_load[prefer_index] + ratio * parsec_device_sweight[prefer_index]);
+        }
+
+        /* Consider how adding the current task would change load balancing
+         * betwen devices */
         /* Start at 2, to skip the recursive body */
         for( dev_index = 2; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
             /* Skip the device if it is not configured */
@@ -192,6 +209,13 @@ int parsec_mca_device_init(void)
     (void)parsec_mca_param_reg_int_name("device", "show_statistics",
                                         "Show the detailed devices statistics upon exit",
                                         false, false, 0, NULL);
+    (void)parsec_mca_param_reg_int_name("device", "load_balance_skew",
+                                        "Allow load balancing to skew by x%% to favor data reuse",
+                                        false, false, 0, NULL);
+    if( 0 < (rc = parsec_mca_param_find("device", NULL, "load_balance_skew")) ) {
+        parsec_mca_param_lookup_int(rc, &parsec_device_load_balance_skew);
+    }
+    load_balance_skew = 1.f/(parsec_device_load_balance_skew/100.f+1.f);
     if( 0 < (rc = parsec_mca_param_find("device", NULL, "verbose")) ) {
         parsec_mca_param_lookup_int(rc, &parsec_device_verbose);
     }
