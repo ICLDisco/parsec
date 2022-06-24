@@ -366,8 +366,7 @@ extern int comm_yield_ns;
 static inline void
 remote_dep_inc_flying_messages(parsec_taskpool_t* handle)
 {
-    assert( handle->nb_pending_actions > 0 );
-    (void)parsec_atomic_fetch_inc_int32( &(handle->nb_pending_actions) );
+    (void)parsec_taskpool_update_runtime_nbtask(handle, 1);
 }
 
 /* allow for termination when all deps have been served */
