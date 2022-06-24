@@ -147,7 +147,7 @@ static int parsec_termdet_fourcounter_msg_dispatch_taskpool(parsec_taskpool_t *t
     return PARSEC_ERROR;
 }
 
-int parsec_termdet_fourcounter_msg_dispatch(parsec_comm_engine_t *ce, unsigned long long tag,  void *msg, unsigned long size, int src,  void *module)
+int parsec_termdet_fourcounter_msg_dispatch(parsec_comm_engine_t *ce, unsigned long tag,  void *msg, unsigned long size, int src,  void *module)
 {
     parsec_termdet_fourcounter_delayed_msg_t *delayed_msg;
     parsec_termdet_fourcounter_msg_down_t *down_msg = (parsec_termdet_fourcounter_msg_down_t*)msg;
