@@ -133,8 +133,8 @@ option(PARSEC_WANT_HOME_CONFIG_FILES
        "Should the runtime check for the parameter configuration file in the user home (\$HOME/.parsec/mca-params.conf)" ON)
 
 ### PaRSEC PP options
-set(PARSEC_PTGFLAGS "--noline" CACHE STRING "Additional parsec-ptgpp precompiling flags (separate flags with ';')" )
-mark_as_advanced(PARSEC_PTGFLAGS)
+set(PARSEC_PTGPP_FLAGS "--noline" CACHE STRING "Additional parsec-ptgpp precompiling flags (separate flags with ';')" )
+mark_as_advanced(PARSEC_PTGPP_FLAGS)
 
 option(PARSEC_WITH_DEVEL_HEADERS "Install additional headers in include/parsec allowing external compilation." ON)
 

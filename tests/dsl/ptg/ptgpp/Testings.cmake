@@ -4,13 +4,13 @@ include(ParsecCompilePTG)
 # Test that NULL as output returns an error
 #
 parsec_addtest_cmd(dsl/ptg/ptgpp/output_NULL
-  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NULL.jdf -o output_NULL -f output_NULL)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGPP_FLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NULL.jdf -o output_NULL -f output_NULL)
 
 parsec_addtest_cmd(dsl/ptg/ptgpp/output_NULL_true
-  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NULL_true.jdf -o output_NULL_true -f output_NULL_true)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGPP_FLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NULL_true.jdf -o output_NULL_true -f output_NULL_true)
 
 parsec_addtest_cmd(dsl/ptg/ptgpp/output_NULL_false
-  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NULL_false.jdf -o output_NULL_false -f output_NULL_false)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGPP_FLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NULL_false.jdf -o output_NULL_false -f output_NULL_false)
 
 set_tests_properties(dsl/ptg/ptgpp/output_NULL dsl/ptg/ptgpp/output_NULL_true dsl/ptg/ptgpp/output_NULL_false
   PROPERTIES
@@ -21,13 +21,13 @@ set_tests_properties(dsl/ptg/ptgpp/output_NULL dsl/ptg/ptgpp/output_NULL_true ds
 # Test that NEW as output returns an error
 #
 parsec_addtest_cmd(dsl/ptg/ptgpp/output_NEW
-  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NEW.jdf -o output_NEW -f output_NEW)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGPP_FLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NEW.jdf -o output_NEW -f output_NEW)
 
 parsec_addtest_cmd(dsl/ptg/ptgpp/output_NEW_true
-  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NEW_true.jdf -o output_NEW_true -f output_NEW_true)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGPP_FLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NEW_true.jdf -o output_NEW_true -f output_NEW_true)
 
 parsec_addtest_cmd(dsl/ptg/ptgpp/output_NEW_false
-  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGFLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NEW_false.jdf -o output_NEW_false -f output_NEW_false)
+  COMMAND ${PARSEC_PTGPP_EXECUTABLE} ${PARSEC_PTGPP_FLAGS} -E -i ${CMAKE_CURRENT_SOURCE_DIR}/dsl/ptg/ptgpp/output_NEW_false.jdf -o output_NEW_false -f output_NEW_false)
 
 set_tests_properties(dsl/ptg/ptgpp/output_NEW dsl/ptg/ptgpp/output_NEW_true dsl/ptg/ptgpp/output_NEW_false
   PROPERTIES

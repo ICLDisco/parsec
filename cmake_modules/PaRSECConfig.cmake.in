@@ -78,6 +78,6 @@ endif(NOT TARGET PaRSEC::parsec)
 
 # Populate the variables
 
-set(PARSEC_PTGFLAGS "$ENV{PTGFLAGS}" CACHE STRING "Flags to pass to the parsec-ptgpp executable")
+set(PARSEC_PTGPP_FLAGS "$ENV{PTGPPFLAGS}" CACHE STRING "Flags to pass to the parsec-ptgpp executable")
 set(PARSEC_PTGPP_EXECUTABLE ${PARSEC_BINARY_DIRS}/parsec-ptgpp CACHE STRING "Point to the parsec-ptgpp executable")
 set(PARSEC_LIBRARIES PaRSEC::parsec CACHE STRING "List of libraries suitable for use in target_link_libraries") # for compatibility with older (non-target based) clients
