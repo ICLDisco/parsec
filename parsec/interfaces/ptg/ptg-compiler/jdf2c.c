@@ -3816,7 +3816,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     } else {
         coutput("    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, __parsec_tp->initial_number_tasks);\n");
     }
-    coutput("    parsec_mfence();\n"
+    coutput("    parsec_mfence();  /* write memory barrier to guarantee that the scheduler gets the correct number of tasks */\n"
             "    parsec_taskpool_enable((parsec_taskpool_t*)__parsec_tp, &__parsec_tp->startup_queue,\n"
             "                           (parsec_task_t*)this_task, es, __parsec_tp->super.super.nb_pending_actions);\n"
 	    "    __parsec_tp->super.super.tdm.module->taskpool_ready(&__parsec_tp->super.super);\n");

@@ -162,7 +162,7 @@ int parsec_termdet_fourcounter_msg_dispatch(parsec_comm_engine_t *ce, long unsig
         if ((NULL == tp) || (NULL == tp->tdm.monitor) ||
             (((parsec_termdet_fourcounter_monitor_t *) tp->tdm.monitor)->state ==
              PARSEC_TERMDET_FOURCOUNTER_NOT_READY)) {
-            delayed_msg = (parsec_termdet_fourcounter_delayed_msg_t *) malloc(
+            delayed_msg = (parsec_termdet_fourcounter_delayed_msg_t *) calloc(1,
                     sizeof(parsec_termdet_fourcounter_delayed_msg_t));
             PARSEC_LIST_ITEM_SINGLETON(delayed_msg);
             assert(size <= PARSEC_TERMDET_FOURCOUNTER_MAX_MSG_SIZE);

@@ -233,7 +233,9 @@ int main(int argc, char *argv[])
                              2, 1, 2,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
+#if defined(HAVE_MPI)
     MPI_Barrier(MPI_COMM_WORLD);
+#endif
 
     project = parsec_project_new(treeA, world, (parsec_data_collection_t*)&fakeDesc, 1e-3, be_verbose, 1.0);
     project->arenas_datatypes[PARSEC_project_DEFAULT_ADT_IDX] = adt;
