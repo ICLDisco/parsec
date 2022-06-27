@@ -70,15 +70,15 @@ parsec_redistribute_New(parsec_tiled_matrix_t *dcY,
     /* Check distribution, and determine batch size: num_col */
     if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
         num_cols = parsec_imin( ceil(size_col/dcY->nb), dcY->super.nodes );
-    } else if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
+    } else if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_block_cyclic_type) ) {
         num_cols = ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols;
-    } else if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
+    } else if( (dcY->dtype & parsec_matrix_block_cyclic_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
         num_cols = ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols;
-    } else if( (dcY->dtype & parsec_matrix_tabular_type) && (dcT->dtype & parsec_matrix_tabular_type) ) {
+    } else if( (dcY->dtype & parsec_matrix_block_cyclic_type) && (dcT->dtype & parsec_matrix_block_cyclic_type) ) {
         num_cols = parsec_imax( ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols,
                                 ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols );
     } else {
-        parsec_warning("This version of data redistribution only supports two_dim_block_cyclic_type and two_dim_tabular_type");
+        parsec_warning("This version of data redistribution only supports parsec_matrix_block_cyclic_type and parsec_matrix_tabular_type");
         return NULL;
     }
 
@@ -199,8 +199,9 @@ int parsec_redistribute(parsec_context_t *parsec,
         parsec_context_add_taskpool(parsec, parsec_redistribute_ptg);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
+        return PARSEC_SUCCESS;
     }
 
-    return PARSEC_SUCCESS;
+    return PARSEC_ERR_NOT_SUPPORTED;
 }
 
