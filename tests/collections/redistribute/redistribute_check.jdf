@@ -280,6 +280,7 @@ int parsec_redistribute_check(parsec_context_t *parsec,
         num_col_Y = ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols;
     } else {
         fprintf(stderr, "Only support parsec_matrix_block_cyclic_type and parsec_matrix_tabular_type\n");
+        exit(1);
     }
 
     if( dcT->dtype & parsec_matrix_tabular_type ) {
@@ -288,6 +289,7 @@ int parsec_redistribute_check(parsec_context_t *parsec,
         num_col_T = ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols;
     } else {
         fprintf(stderr, "Only support parsec_matrix_block_cyclic_type and parsec_matrix_tabular_type\n");
+        exit(1);
     }
 
     int NY = ceil((double)lnt_Y/num_col_Y);

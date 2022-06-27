@@ -420,6 +420,7 @@ parsec_redistribute_no_optimization_New(parsec_tiled_matrix_t *dcY,
         taskpool->_g_num_col = parsec_imax( ((parsec_matrix_block_cyclic_t *)dcY)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcY)->grid.kcols, ((parsec_matrix_block_cyclic_t *)dcT)->grid.cols * ((parsec_matrix_block_cyclic_t *)dcT)->grid.kcols );
     } else {
         fprintf(stderr, "Only support parsec_matrix_block_cyclic_type and parsec_matrix_tabular_type\n");
+        exit(1);
     }
 
     /* Calculate NT, need to update !!! */
