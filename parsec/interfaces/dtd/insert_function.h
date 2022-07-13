@@ -219,6 +219,11 @@ parsec_dtd_tile_t *
 parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
 
 /**
+ * Returns a new (empty) tile ...
+ */
+parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
+
+/**
  * Using this function users can insert task in PaRSEC
  * 1. The parsec taskpool (parsec_dtd_taskpool_t *)
  * 2. The function pointer which will be executed as the "real computation task" being inserted.

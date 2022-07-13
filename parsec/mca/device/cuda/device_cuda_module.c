@@ -1389,7 +1389,9 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
                              __FILE__, __LINE__);
     }
 
-    if( NULL == task_data->source_repo_entry && NULL == task_data->data_in->original->dc )
+    /* If data is from NEW (it doesn't have a source_repo_entry and is not a direct data collection reference), 
+     * and nobody has touched it yet, then we don't need to pull it in, we have created it already, that's enough. */
+    if( NULL == task_data->source_repo_entry && NULL == task_data->data_in->original->dc && in_elem->version == 0 )
         transfer_from = -1;
 
     /* Do not need to be tranferred */
@@ -1513,7 +1515,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
     }
     if( undo_readers_inc_if_no_transfer )
         parsec_atomic_fetch_dec_int32( &in_elem->readers );
-    assert( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_COMPLETE_TRANSFER );
+    assert( transfer_from == -1 || gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_COMPLETE_TRANSFER );
 
     parsec_data_end_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
 
@@ -1896,10 +1898,12 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                              gpu_device->super.name, parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task),
                              i, task->data[i].data_out, task->data[i].data_out->super.super.obj_reference_count,
                              (NULL != task->data[i].data_out->push_task) ? parsec_task_snprintf(task_str2, MAX_TASK_STRLEN, task->data[i].data_out->push_task) : "(null)",
-                             (task->data[i].data_out->data_transfer_status == PARSEC_DATA_STATUS_COMPLETE_TRANSFER) ? "all is good" : "Assertion",
+                             (task->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER) ?
+                             "all is good" : "Assertion",
                              task->data[i].data_out->data_transfer_status);
-        assert(task->data[i].data_out->data_transfer_status == PARSEC_DATA_STATUS_COMPLETE_TRANSFER);
-        if( task->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_COMPLETE_TRANSFER ) {  /* data is not ready */
+        assert(task->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
+        if( task->data[i].data_out->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {  /* data is not
+ * ready */
             /**
              * As long as we have only one stream to push the data on the GPU we should never
              * end up in this case. Remove previous assert if changed.
@@ -2040,7 +2044,7 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
             flow = task->flow[i];
             if(PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & flow->flow_flags)) continue;
             if( 0 == (task->ec->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
-            assert(task->ec->data[i].data_out->data_transfer_status == PARSEC_DATA_STATUS_COMPLETE_TRANSFER);
+            assert(task->ec->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
         }
 #endif /* defined(PARSEC_DEBUG_PARANOID) */
     }

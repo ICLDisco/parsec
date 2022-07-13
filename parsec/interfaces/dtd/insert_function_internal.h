@@ -21,6 +21,10 @@
 #include "parsec/execution_stream.h"
 #include "parsec/mca/device/device_gpu.h"
 
+#if defined(PARSEC_HAVE_CUDA)
+#include "parsec/mca/device/cuda/device_cuda.h"
+#endif /* PARSEC_HAVE_CUDA */
+
 BEGIN_C_DECLS
 
 #define PARSEC_DTD_NB_TASK_CLASSES  25 /*< Max number of task classes allowed */
@@ -227,6 +231,8 @@ struct parsec_dtd_taskpool_s {
     uint32_t                     local_task_inserted;
     uint8_t                      function_counter;
     uint8_t                      flow_set_flag[PARSEC_DTD_NB_TASK_CLASSES];
+    int64_t                      new_tile_keys;
+    parsec_data_collection_t     new_tile_dc;
     parsec_taskpool_wait_t      *wait_func;
     parsec_mempool_t            *hash_table_bucket_mempool;
     parsec_hash_table_t         *task_hash_table;

@@ -95,6 +95,10 @@ struct parsec_arena_chunk_s {
  * allows however for flexibility, but then the application should carefully
  * use the arena when communicating (in general using a count and
  * displacement).
+ * 
+ * @note:  There is no explicit call to release an arena. Arenas being PaRSEC objects
+ * they will be automatically released when their refcount reaches 0. They
+ * should therefore be manipulated using PARSEC_OBJ_RELEASE.
  */
 int parsec_arena_construct(parsec_arena_t* arena,
                            size_t elem_size,
@@ -104,6 +108,10 @@ int parsec_arena_construct(parsec_arena_t* arena,
  * caching support up to max_released number of elements,
  * and prevents the freelist to handle more than max_used
  * active elements at the same time.
+ * 
+ * @note:  There is no explicit call to release an arena. Arenas being PaRSEC objects
+ * they will be automatically released when their refcount reaches 0. They
+ * should therefore be manipulated using PARSEC_OBJ_RELEASE.
  */
 int parsec_arena_construct_ex(parsec_arena_t* arena,
                               size_t elem_size,
@@ -111,14 +119,45 @@ int parsec_arena_construct_ex(parsec_arena_t* arena,
                               size_t max_used,
                               size_t max_released);
 /**
- * There is no explicit call to release an arena. Arenas being PaRSEC objects
- * they will be automatically released when their refcount reaches 0. They
- * should therefore be manipulated using PARSEC_OBJ_RELEASE.
+ * @brief Create a new data copy on device @p device using arena @p arena with
+ *   @p count elements of type @p dtt. This also creates a new data_t that
+ *   points to the returned data copy. When this data copy is released (using
+ *   PARSEC_OBJ_RELEASE), the corresponding data_t is also released.
+ * 
+ * @param arena the arena to use for allocation
+ * @param count the number of elements to allocate
+ * @param device the device of the data_copy. Note: the current implementation
+ *   of arenas only work for CPU memory, and that device must be a CPU device.
+ * @param dtt the datatype associated with the data copy created.
+ * @return parsec_data_copy_t* the new data copy, or NULL if there is not
+ *   enough resource to allocate a new data copy of this type.
  */
 
 parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
                                           size_t count, int device,
                                           parsec_datatype_t dtt);
+
+/**
+ * @brief Allocates memory for a given data copy. This is a function used by
+ *  DSLs to set the memory associated with a data copy they have created.
+ *  It is also used by parsec_arena_get_copy.
+ * 
+ * @param copy the (empty) data copy to allocate memory for. NB: the @p original
+ *  field of this data copy must be set. The operation overwrites the device
+ *  dtt and count of this data copy, as well as the device_private pointer.
+ * @param arena the arena used for the allocation
+ * @param count the number of elements to allocate
+ * @param device the device of the data copy. Note: the current implementation
+ *   of arenas only work for CPU mmeory, and that device must be a CPU device.
+ * @param dtt the datatype associated with each element of the memory allocated
+ * @return int PARSEC_SUCCESS in case of success, or an error code if there
+ *   was not enough resource to satisfy the allocation request.
+ */
+int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
+                                          parsec_arena_t *arena,
+                                          size_t count, int device,
+                                          parsec_datatype_t dtt);
+
 void parsec_arena_release(parsec_data_copy_t* ptr);
 
 END_C_DECLS

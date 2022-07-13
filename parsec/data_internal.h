@@ -80,6 +80,8 @@ struct parsec_data_copy_s {
     parsec_datatype_t         dtt;                   /**< the appropriate type for the network engine to send an element */
 };
 
+#define PARSEC_DATA_CREATE_ON_DEMAND ((parsec_data_copy_t*)(intptr_t)(-1))
+
 PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_data_copy_t);
 
 #define PARSEC_DATA_GET_COPY(DATA, DEVID) \
