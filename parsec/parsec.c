@@ -1521,6 +1521,7 @@ parsec_hash_find_deps(const parsec_taskpool_t *tp,
                       const parsec_task_t* restrict task)
 {
     parsec_hashable_dependency_t *hd;
+    parsec_key_handle_t kh;
     parsec_hash_table_t *ht = (parsec_hash_table_t*)tp->dependencies_array[task->task_class->task_class_id];
 
     if( NULL == es ) {
@@ -1530,16 +1531,16 @@ parsec_hash_find_deps(const parsec_taskpool_t *tp,
     }
     parsec_key_t key = task->task_class->make_key(tp, task->locals);
     assert(NULL != ht);
-    parsec_hash_table_lock_bucket(ht, key);
-    hd = parsec_hash_table_nolock_find(ht, key);
+    parsec_hash_table_lock_bucket_handle(ht, key, &kh);
+    hd = parsec_hash_table_nolock_find_handle(ht, &kh);
     if( NULL == hd ) {
         hd = (parsec_hashable_dependency_t *) parsec_thread_mempool_allocate(es->dependencies_mempool);
         hd->dependency = (parsec_dependency_t)0;
         hd->mempool_owner = es->dependencies_mempool;
         hd->ht_item.key = task->task_class->make_key(tp, task->locals);
-        parsec_hash_table_nolock_insert(ht, &hd->ht_item);
+        parsec_hash_table_nolock_insert_handle(ht, &kh, &hd->ht_item);
     }
-    parsec_hash_table_unlock_bucket(ht, key);
+    parsec_hash_table_unlock_bucket_handle(ht, &kh);
     return &hd->dependency;
 }
 

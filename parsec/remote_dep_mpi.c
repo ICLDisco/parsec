@@ -892,7 +892,8 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             local_mask = 0;
             local_mask |= (1U<<k);
 
-            parsec_hash_table_lock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
+            parsec_key_handle_t kh;
+            parsec_hash_table_lock_bucket_handle(dtd_tp->task_hash_table, (parsec_key_t)key, &kh);
             dtd_task = parsec_dtd_find_task( dtd_tp, key );
 
             if( NULL == dtd_task ) {
@@ -920,7 +921,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                 parsec_dtd_track_remote_dep( dtd_tp, key, origin );
             }
 
-            parsec_hash_table_unlock_bucket(dtd_tp->task_hash_table, (parsec_key_t)key);
+            parsec_hash_table_unlock_bucket_handle(dtd_tp->task_hash_table, &kh);
 
             if(return_defer) {
                 return -2;
