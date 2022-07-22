@@ -637,7 +637,12 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
 
-        task = parsec_current_scheduler->module.select(es, &distance);
+        if( NULL == (task = es->next_task) ) {
+            task = parsec_current_scheduler->module.select(es, &distance);
+        } else {
+            es->next_task = NULL;
+            distance = 1;
+        }
 
         if( task != NULL) {
             misses_in_a_row = 0;  /* reset the misses counter */
@@ -1799,18 +1804,7 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
 
     /* Scheduling tasks */
     if( action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS ) {
-        parsec_vp_t **vps = es->virtual_process->parsec_context->virtual_processes;
-        for( __vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++ ) {
-            if( NULL == arg.ready_lists[__vp_id] ) {
-                continue;
-            }
-            if( __vp_id == es->virtual_process->vp_id ) {
-                __parsec_schedule(es, arg.ready_lists[__vp_id], 0);
-            } else {
-                __parsec_schedule(vps[__vp_id]->execution_streams[0], arg.ready_lists[__vp_id], 0);
-            }
-            arg.ready_lists[__vp_id] = NULL;
-        }
+        __parsec_schedule_vp(es, arg.ready_lists, 0);
     }
 
     PARSEC_PINS(es, RELEASE_DEPS_END, this_task);
@@ -2675,11 +2669,11 @@ parsec_dtd_schedule_tasks(parsec_dtd_taskpool_t *__tp)
         parsec_list_chain_sorted(&temp, (parsec_list_item_t *)startup_list[p],
                                  parsec_execution_context_priority_comparator);
         startup_list[p] = (parsec_task_t *)parsec_list_nolock_unchain(&temp);
-        /* We should add these tasks on the system queue when there is one */
-        __parsec_schedule(__tp->super.context->virtual_processes[p]->execution_streams[0],
-                          startup_list[p], 0);
-        startup_list[p] = NULL;
     }
+    /* We should add these tasks on the system queue when there is one */
+    __parsec_schedule_vp(parsec_my_execution_stream(),
+                         startup_list, 0);
+
     PARSEC_OBJ_DESTRUCT(&temp);
 }
 

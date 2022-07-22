@@ -48,6 +48,11 @@ struct parsec_execution_stream_s {
 
     void *scheduler_object;
 
+    /* The task to be executed next by this execution_stream. Beware as this bypasses
+     * the scheduler decision.
+     */
+    struct parsec_task_s* next_task;
+
 #if defined(PARSEC_SIM)
     int largest_simulation_date;
 #endif

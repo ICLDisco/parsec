@@ -255,6 +255,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     es->virtual_process  = startup->virtual_process;
     es->rand_seed        = tv_now.tv_usec + startup->th_id;
     es->scheduler_object = NULL;
+    es->next_task        = NULL;
     startup->virtual_process->execution_streams[startup->th_id] = es;
     es->core_id          = startup->bindto;
 #if defined(PARSEC_HAVE_HWLOC)
@@ -2201,6 +2202,10 @@ int parsec_taskpool_enable(parsec_taskpool_t* tp,
                            parsec_execution_stream_t * es,
                            int distributed)
 {
+    /* Always register the taskpool. This allows the taskpool destructor to unregister it in all cases. */
+    parsec_taskpool_register(tp);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d", tp, tp->taskpool_id);
+
     if( NULL != startup_queue ) {
         parsec_list_item_t *ring = NULL;
         parsec_task_t* ttask = (parsec_task_t*)*startup_queue;
@@ -2217,9 +2222,7 @@ int parsec_taskpool_enable(parsec_taskpool_t* tp,
         }
         if( NULL != ring ) __parsec_schedule(es, (parsec_task_t *)ring, 0);
     }
-    /* Always register the taskpool. This allows the taskpool destructor to unregister it in all cases. */
-    parsec_taskpool_register(tp);
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d", tp, tp->taskpool_id);
+
     if( 0 != distributed ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d with the comm engine", tp, tp->taskpool_id);
         (void)parsec_remote_dep_new_taskpool(tp);

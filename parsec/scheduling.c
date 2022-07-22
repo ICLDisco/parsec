@@ -283,15 +283,20 @@ int parsec_set_scheduler( parsec_context_t *parsec )
 }
 
 /*
- * This is where we end up after the release_dep_fct is called and generates a
- * readylist.
+ * Dispatch a ring of tasks to the requested execution stream, using the provided
+ * distance. This function provides little benefit by itself, but it allows to
+ * have a common place where tasks can be seen before being delivered to the
+ * scheduler.
+ *
+ * In general, this is where we end up after the release_dep_fct is called and
+ * generates a readylist.
  */
-int __parsec_schedule(parsec_execution_stream_t* es,
-                      parsec_task_t* tasks_ring,
-                      int32_t distance)
+inline int
+__parsec_schedule(parsec_execution_stream_t* es,
+                  parsec_task_t* tasks_ring,
+                  int32_t distance)
 {
     int ret;
-    int len;
     parsec_task_t *task = tasks_ring;
 
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
@@ -322,11 +327,83 @@ int __parsec_schedule(parsec_execution_stream_t* es,
     }
 #endif  /* defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER) */
 
-    len = 0;
+#if defined(PARSEC_PAPI_SDE)
+    int len = 0;
     _LIST_ITEM_ITERATOR(task, &task->super, item, {len++; });
     PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_ENABLED, len);
+#endif  /* defined(PARSEC_PAPI_SDE) */
+
     ret = parsec_current_scheduler->module.schedule(es, tasks_ring, distance);
 
+    return ret;
+}
+
+/*
+ * Schedule an array of rings of tasks with one entry per virtual process.
+ * If an execution stream is provided, this function will save the highest
+ * priority task (assuming the ring is ordered or the first task in the ring
+ * otherwise) on the current execution stream virtual process as the next
+ * task to be executed on the provided execution stream. Everything else gets
+ * pushed into the execution stream 0 of the corresponding virtual process.
+ * If the provided execution stream is NULL, all tasks are delivered to their
+ * respective vp.
+ *
+ * Beware, as the manipulation of next_task is not protected, an exeuction
+ * stream should never be used concurrently in two call to this function (or
+ * a thread should never `borrow` an execution stream for this call).
+ */
+int __parsec_schedule_vp(parsec_execution_stream_t* es,
+                         parsec_task_t** task_rings,
+                         int32_t distance)
+{
+    parsec_execution_stream_t* target_es;
+    const parsec_vp_t** vps = (const parsec_vp_t**)es->virtual_process->parsec_context->virtual_processes;
+    int ret = 0;
+
+#if  defined(PARSEC_DEBUG_PARANOID)
+    /* As the setting of the next_task is not protected no thread should call
+     * this function with a stream other than its own. */
+    assert( (NULL == es) || (parsec_my_execution_stream() == es) );
+#endif  /* defined(PARSEC_DEBUG_PARANOID) */
+
+    if( NULL == es ) {
+        for(int vp = 0; vp < es->virtual_process->parsec_context->nb_vp; vp++ ) {
+            parsec_task_t* ring = task_rings[vp];
+            if( NULL == ring ) continue;
+
+            target_es = vps[vp]->execution_streams[0];
+
+            ret = __parsec_schedule(target_es, ring, distance);
+            if( 0 != ret )
+                return ret;
+
+            task_rings[vp] = NULL;  /* remove the tasks already scheduled */
+        }
+        return ret;
+    }
+    for(int vp = 0; vp < es->virtual_process->parsec_context->nb_vp; vp++ ) {
+        parsec_task_t* ring = task_rings[vp];
+        if( NULL == ring ) continue;
+
+        target_es = vps[vp]->execution_streams[0];
+
+        if( vp == es->virtual_process->vp_id ) {
+            if( NULL == es->next_task ) {
+                es->next_task = ring;
+                ring = (parsec_task_t*)parsec_list_item_ring_chop(&ring->super);
+                if( NULL == ring ) {
+                    task_rings[vp] = NULL;  /* remove the tasks already scheduled */
+                    continue;
+                }
+            }
+            target_es = es;
+        }
+        ret = __parsec_schedule(target_es, ring, distance);
+        if( 0 != ret )
+            return ret;
+
+        task_rings[vp] = NULL;  /* remove the tasks already scheduled */
+    }
     return ret;
 }
 
@@ -484,7 +561,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     uint64_t misses_in_a_row;
     parsec_context_t* parsec_context = es->virtual_process->parsec_context;
     int32_t my_barrier_counter = parsec_context->__parsec_internal_finalization_counter;
-    parsec_task_t* task;
+    parsec_task_t* task, *last_local_task = NULL /* for debug purposes */;
     int nbiterations = 0, distance, rc;
     struct timespec rqtp;
 
@@ -554,7 +631,14 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
 
-        task = parsec_current_scheduler->module.select(es, &distance);
+        if( NULL == (task = es->next_task) ) {
+            task = parsec_current_scheduler->module.select(es, &distance);
+            last_local_task = NULL;
+        } else {
+            es->next_task = NULL;
+            distance = 1;
+            last_local_task = task;
+        }
 
         if( task != NULL ) {
             misses_in_a_row = 0;  /* reset the misses counter */
@@ -640,14 +724,8 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
 
         tp->startup_hook(context, tp, startup_list);
 
-        for(vpid = 0; vpid < context->nb_vp; vpid++) {
-            if( NULL == startup_list[vpid] )
-                continue;
-
-            /* The tasks are ordered by priority, so just make them available */
-            __parsec_schedule(context->virtual_processes[vpid]->execution_streams[0],
-                              startup_list[vpid], 0);
-        }
+        __parsec_schedule_vp(parsec_my_execution_stream(),
+                             startup_list, 0);
     } else {
         parsec_check_complete_cb(tp, context, tp->nb_pending_actions);
     }
