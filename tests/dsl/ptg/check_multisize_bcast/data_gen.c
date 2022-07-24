@@ -14,7 +14,7 @@
 /*
  *  mb, whole matrix row/column number, mt, each tile row/column number
  */
-parsec_matrix_block_cyclic_t *create_and_distribute_data(int rank, int world, int mb, int mt, int typesize)
+parsec_matrix_block_cyclic_t *create_and_distribute_data(int rank, int world, int mb, int mt)
 {
     parsec_matrix_block_cyclic_t *m = (parsec_matrix_block_cyclic_t*)malloc(sizeof(parsec_matrix_block_cyclic_t));
 
@@ -36,6 +36,6 @@ parsec_matrix_block_cyclic_t *create_and_distribute_data(int rank, int world, in
 
 void free_data(parsec_matrix_block_cyclic_t *d)
 {
-    parsec_data_collection_destroy(&d->super);
+    parsec_data_collection_destroy(&d->super.super);
     free(d);
 }

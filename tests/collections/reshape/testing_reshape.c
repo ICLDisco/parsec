@@ -22,7 +22,7 @@
 #include "local_input_LU_LL.h"
 
 /* Program to test the different reshaping functionalities
- * Each different test is comented on the main program.
+ * Each different test is commented on the main program.
  */
 
 int main(int argc, char *argv[])
@@ -70,8 +70,8 @@ int main(int argc, char *argv[])
 
     /*******************
      * No local reshape
-     * When only type_remote is used on the dependencies, the pointer to the origianl
-     * matrix tiles is passed to the succesors tasks. Thus, the full original tiles are
+     * When only type_remote is used on the dependencies, the pointer to the origianal
+     * matrix tiles is passed to the successors tasks. Thus, the full original tiles are
      * set to 0.
      *******************/
     op_args = (int *)malloc(sizeof(int));

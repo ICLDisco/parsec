@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)stencil_1D_init_ops, op_args);
 
-    /* intialize weight_1D */
+    /* initialize weight_1D */
     weight_1D = (DTYPE *)malloc(sizeof(DTYPE) * (2*R+1));
 
     for(jj = 1; jj <= R; jj++) {
@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
     }
     WEIGHT_1D(0) = (DTYPE)1.0;
 
-    /* Generete LOOPGEN Kernel */
+    /* Generate LOOPGEN Kernel */
 #if LOOPGEN
     if( 0 == rank ){
         char command[50];

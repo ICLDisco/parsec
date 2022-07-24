@@ -11,7 +11,7 @@ extern "C" %{
 
 %}
 
-%option no_taskpool_instance = true  /* can be aything */
+%option no_taskpool_instance = true  /* can be anything */
 
 descA      [type = "parsec_matrix_block_cyclic_t*"]
 NB         [type = int]

@@ -1,19 +1,19 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2021 The Universiy of Tennessee and The Universiy
+ * Copyright (c) 2019-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  */
 #include "stencil_internal.h"
 
-/* Automatically check datetype */
+/* Automatically check datatype */
 const int sizeof_datatype = sizeof(DTYPE);
 
 /**
  * @brief stencil_1D copy data to ghost region 
  *
  * @param [out] A0: output data 
- * @param [in] AL: letf input data 
+ * @param [in] AL: left input data 
  * @param [in] AR: right input data 
  * @param [in] MB: row tile size 
  * @param [in] NB: column tile size 
