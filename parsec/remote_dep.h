@@ -140,7 +140,7 @@ struct remote_dep_output_param_s {
 
 struct parsec_remote_deps_s {
     parsec_list_item_t               super;
-    parsec_lifo_t                   *origin;    /**< The memory arena where the data pointer is comming from */
+    parsec_lifo_t                   *origin;    /**< The memory arena where the data pointer is coming from */
     struct parsec_taskpool_s        *taskpool;  /**< parsec taskpool generating this data transfer */
     int32_t                          pending_ack;  /**< Number of releases before completion */
     int32_t                          from;    /**< From whom we received the control */
@@ -148,7 +148,7 @@ struct parsec_remote_deps_s {
     uint32_t                         incoming_mask;  /**< track all incoming actions (receives) */
     uint32_t                         outgoing_mask;  /**< track all outgoing actions (send) */
     remote_dep_wire_activate_t       msg;     /**< A copy of the message control */
-    void                            *eager_msg; /**< A pointer to the eager buffer if this is an eager msg, otherwise NULL */
+    void                            *eager_msg; /**< A temporary pointer to the eager buffer if this is an eager msg, otherwise NULL */
     int32_t                          max_priority;
     int32_t                          priority;
     uint32_t                        *remote_dep_fw_mask;  /**< list of peers already notified about
