@@ -103,8 +103,10 @@ release_task_of_gpu_d2h_task(parsec_execution_stream_t* es,
 
 static int
 datatype_lookup_of_gpu_d2h_task( parsec_execution_stream_t * es,
-                                  const parsec_gpu_d2h_task_t* this_task,
-                                  uint32_t * flow_mask, parsec_dep_data_description_t * data)
+                                 const parsec_gpu_d2h_task_t* this_task,
+                                 const parsec_task_t * parent_task,
+                                 uint32_t * flow_mask,
+                                 parsec_dep_data_description_t * data)
 {
     (void)es; (void)this_task; (void)flow_mask; (void)data;
     return PARSEC_SUCCESS;

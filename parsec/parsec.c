@@ -2785,19 +2785,23 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
             return context->my_rank;
 
         case PARSEC_CONTEXT_QUERY_DEVICES:
-            int device_type = va_arg(args, int), count = 0;
-            for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
-                dev = parsec_mca_device_get(i);
-                if( dev->type & device_type ) count++;
+            {
+                int device_type = va_arg(args, int), count = 0;
+                for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
+                    dev = parsec_mca_device_get(i);
+                    if( dev->type & device_type ) count++;
+                }
+                return count;
             }
-            return count;
 
         case PARSEC_CONTEXT_QUERY_CORES:
-            int nb_total_comp_threads = 0;
-            for (int idx = 0; idx < context->nb_vp; idx++) {
-                nb_total_comp_threads += context->virtual_processes[idx]->nb_cores;
+            {
+                int nb_total_comp_threads = 0;
+                for (int idx = 0; idx < context->nb_vp; idx++) {
+                    nb_total_comp_threads += context->virtual_processes[idx]->nb_cores;
+                }
+                return nb_total_comp_threads;
             }
-            return nb_total_comp_threads;
 
         case PARSEC_CONTEXT_QUERY_ACTIVE_TASKPOOLS:
             return context->active_taskpools;

@@ -39,14 +39,5 @@ parsec_taskpool_t* check_multisize_bcast_new(parsec_matrix_block_cyclic_t *A, in
     return (parsec_taskpool_t*)tp;
 }
 
-/**
- * @param [INOUT] o the parsec object to destroy
- */
-static void
-check_multisize_bcast_destructor(parsec_check_multisize_bcast_taskpool_t *tp)
-{
-    parsec_del2arena(&tp->arenas_datatypes[PARSEC_check_multisize_bcast_DEFAULT_ADT_IDX]);
-}
-
 PARSEC_OBJ_CLASS_INSTANCE(parsec_check_multisize_bcast_taskpool_t, parsec_taskpool_t,
-                          NULL, check_multisize_bcast_destructor);
+                          NULL, NULL);

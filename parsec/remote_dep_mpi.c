@@ -336,7 +336,7 @@ remote_dep_dequeue_fini(parsec_context_t* context)
     mpi_initialized = 0;
 
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Process has reshaped %zu tiles.", count_reshaping);
-
+    (void)context;
     return 0;
 }
 
@@ -1280,10 +1280,6 @@ static int remote_dep_mpi_pack_dep(int peer,
     parsec_ce.pack_size(&parsec_ce, dep_count, dep_dtt, &dsize);
     /* reserve space for the termination detection piggybacked message */
     dsize += deps->taskpool->tdm.module->outgoing_message_piggyback_size;
-    if( (length - (*position)) < dsize ) {  /* no room. bail out */
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Can't pack termination detection piggyback data at %d/%d. Bail out!", *position, length);
-        return 1;
-    }
     /* count the number of data to prepare the space for their length */
     for(k = 0, data_idx = 0; deps->outgoing_mask >> k; k++) {
         if( !((1U << k) & deps->outgoing_mask )) continue;
@@ -1865,8 +1861,8 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
                 continue;
             }
         }
-        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tGet DATA\t% -8s\tk=%d\twith datakey %lx tag=%d (to be posted)",
-                             deps->from, tmp, k, deps->msg.deps, tag+k);
+        PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tFROM\t%d\tGet DATA\t% -8s\tk=%d\twith datakey %lx (to be posted)",
+                             deps->from, tmp, k, deps->msg.deps);
     }
 
     assert(length == *position);
@@ -1876,8 +1872,8 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
 #if defined(PARSEC_DEBUG_NOISIER)
         for(int k = 0; complete_mask>>k; k++)
             if((1U<<k) & complete_mask)
-                PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)",
-                                     deps->from, tmp, k, deps->msg.deps, deps->output[k].data.data, tag+k );
+                PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t",
+                                     deps->from, tmp, k, deps->msg.deps, deps->output[k].data.data);
 #endif
         /* If this is the only call then force the remote deps propagation */
         deps = remote_dep_release_incoming(es, deps, complete_mask);

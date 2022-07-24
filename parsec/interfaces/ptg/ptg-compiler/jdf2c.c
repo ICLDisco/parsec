@@ -4590,6 +4590,8 @@ static void jdf_generate_destructor( const jdf_t *jdf )
                 "             __parsec_tp->super.super.taskpool_id, dependencies_size);\n"
                 "    parsec_profiling_add_information(\"MEMORY_USAGE\", meminfo);\n"
                 "  }\n"
+                "#else\n"
+                "  (void)dependencies_size;\n"
                 "#endif\n");
     }
 
