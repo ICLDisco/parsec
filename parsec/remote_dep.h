@@ -185,9 +185,6 @@ typedef struct {
 
 extern parsec_remote_dep_context_t parsec_remote_dep_context;
 
-void remote_deps_allocation_init(int np, int max_deps);
-void remote_deps_allocation_fini(void);
-
 parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo );
 
 #define PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, TASK, COUNT) \
@@ -216,7 +213,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                                parsec_remote_deps_t* remote_deps,
                                uint32_t propagation_mask);
 
-/* Memcopy a particular data using datatype specification */
+/* Memcpy a particular data using datatype specification */
 void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
                               parsec_taskpool_t* tp,
                               parsec_data_copy_t *dst,
@@ -381,6 +378,7 @@ int remote_dep_set_ctx(parsec_context_t* context, intptr_t opaque_comm_ctx );
 parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo );
 
 void remote_deps_allocation_init(int np, int max_output_deps);
+void remote_deps_allocation_fini(void);
 
 typedef struct {
     int rank_src;  // 0

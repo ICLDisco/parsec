@@ -659,6 +659,12 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
 /* Set internal TLS variable parsec_tls_execution_stream */
 void parsec_set_my_execution_stream(parsec_execution_stream_t *es);
 
+/* Validate the process binding when multiple processes are running
+ * on the same node.
+ */
+int parsec_check_overlapping_binding(parsec_context_t *context);
+int remote_dep_mpi_on(parsec_context_t* context);
+
 #define parsec_execution_context_priority_comparator offsetof(parsec_task_t, priority)
 
 #if defined(PARSEC_SIM)
