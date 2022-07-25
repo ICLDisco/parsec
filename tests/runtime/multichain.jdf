@@ -27,8 +27,7 @@ static int verbose = 0;
  static int max_comms = 6;
  static MPI_Comm comms[6] = {MPI_COMM_WORLD, MPI_COMM_SELF, MPI_COMM_NULL,
                              MPI_COMM_NULL,  MPI_COMM_NULL, MPI_COMM_WORLD};
-static const char *comm_name[6] = {"MPI_COMM_WORLD", "MPI_COMM_SELF", "MPI_COMM_NULL", 
-                                   "MPI_COMM_NULL", "MPI_COMM_NULL", "MPI_COMM_WORLD"};
+ static char *comm_name[6] = {NULL};
 %}
 
 descA      [type = "parsec_matrix_block_cyclic_t*"]
@@ -74,14 +73,27 @@ static void create_communicators(void)
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    comm_name[0] = strdup("MPI_COMM_WORLD");
+    comm_name[1] = strdup("MPI_COMM_SELF");
+
     MPI_Comm_split(MPI_COMM_WORLD, 0, size-1-rank, &comms[2]);
+    asprintf(&comm_name[2], "WORLD.split(0, size-1-rank): same comm reorder ranks");
+
     MPI_Comm_split(MPI_COMM_WORLD, (rank < (size-1) ? 0 : MPI_UNDEFINED), rank, &comms[3]);
+    asprintf(&comm_name[3], "WORLD.split((rank < (size-1) ? 0 : MPI_UNDEFINED), rank): all but last same ranks");
+
     MPI_Comm_split(MPI_COMM_WORLD, rank % 2, rank, &comms[4]);
+    asprintf(&comm_name[4], "WORLD.split(rank %% 2, rank): split comm in 2 same ranks");
+
+    comm_name[5] = strdup("MPI_COMM_WORLD");
 }
+
 static void release_comms(void)
 {
     int i;
     for( i = 0; i < (int)(sizeof(comms) / sizeof(MPI_Comm)); i++ ) {
+        free(comm_name[i]);
         if( (MPI_COMM_WORLD == comms[i]) ||
             (MPI_COMM_SELF == comms[i]) ||
             (MPI_COMM_NULL == comms[i]) )
@@ -111,6 +123,7 @@ int main(int argc, char* argv[])
     parsec_context_t *parsec;
     int ni = NN, nj = NN, loops = 5, sleep_between_comms = 1, i = 1, l, rc;
     int rank = 0, size = 1, mat_size;
+    int world_rank = 0, world_size = 1;
     long time_elapsed;
     parsec_datatype_t baseType, newtype;
     MPI_Comm comm;
@@ -166,6 +179,8 @@ int main(int argc, char* argv[])
     {
         int provided;
         MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+        MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+        MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
     }
     create_communicators();
 #endif  /* DISTRIBUTED */
@@ -190,7 +205,8 @@ int main(int argc, char* argv[])
                                    rank /*rank*/,
                                    2*BLOCK, 1, mat_size, 1,
                                    0, 0, mat_size, 1,
-                                   1, size, 1, 1, 0, 0);
+                                   size, 1, 1, 1, 0, 0);
+        printf("Rank %d/%d has %d tiles locally\n", rank, size, descA.super.nb_local_tiles);
         descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                           descA.super.bsiz *
                                           parsec_datadist_getsizeoftype(TYPE) );
@@ -198,7 +214,7 @@ int main(int argc, char* argv[])
                                    rank /*rank*/,
                                    2*BLOCK, 1, mat_size, 1,
                                    0, 0, mat_size, 1,
-                                   1, size, 1, 1, 0, 0);
+                                   size, 1, 1, 1, 0, 0);
         descB.mat = parsec_data_allocate( descB.super.nb_local_tiles *
                                           descB.super.bsiz *
                                           parsec_datadist_getsizeoftype(TYPE) );
@@ -233,7 +249,8 @@ int main(int argc, char* argv[])
             PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
             TIMER_STOP(time_elapsed);
 
-            printf("Comm %s (test %d) Loop %d DAG execution in %ld micro-sec\n", comm_name[i], i, l, time_elapsed);
+            printf("Comm %s (test %d) Loop %d DAG execution in %ld micro-sec [world %d/%d]\n",
+                   comm_name[i], i, l, time_elapsed, world_rank, world_size);
             if( verbose >= 5 ) {
                 printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
                        "                 encoding=\"none\" compression=\"none\">\n"
@@ -268,7 +285,8 @@ int main(int argc, char* argv[])
             PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
             TIMER_STOP(time_elapsed);
 
-            printf("Comm %s (test %d) Loop %d DAG execution in %ld micro-sec\n", comm_name[i], i, l, time_elapsed);
+            printf("Comm %s (test %d) Loop %d DAG execution in %ld micro-sec [world %d/%d]\n",
+                   comm_name[i], i, l, time_elapsed, world_rank, world_size);
         }
         free(descA.mat);
         free(descB.mat);

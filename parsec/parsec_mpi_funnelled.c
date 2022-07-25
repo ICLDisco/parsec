@@ -113,7 +113,7 @@ reread:
  * using this structure.
  */
 static int tag_hash_table_size = 1<<MPI_FUNNELLED_MAX_TAG; /**< Default tag hash table size */
-static parsec_hash_table_t *tag_hash_table;
+static parsec_hash_table_t *tag_hash_table = NULL;
 
 static parsec_key_fn_t tag_key_fns = {
     .key_equal = parsec_hash_table_generic_64bits_key_equal,
@@ -182,9 +182,9 @@ static MPI_Comm dep_comm = MPI_COMM_NULL;
 static MPI_Comm dep_self = MPI_COMM_NULL;
 
 static mpi_funnelled_callback_t *array_of_callbacks;
-static MPI_Request           *array_of_requests;
-static int                   *array_of_indices;
-static MPI_Status            *array_of_statuses;
+static MPI_Request              *array_of_requests;
+static int                      *array_of_indices;
+static MPI_Status               *array_of_statuses;
 
 static int size_of_total_reqs = 0;
 static int mpi_funnelled_last_active_req = 0;
@@ -488,8 +488,11 @@ mpi_funnelled_init(parsec_context_t *context)
     }
     PARSEC_DEBUG_VERBOSE(10, parsec_comm_output_stream, "rank %d ENABLE MPI communication engine",
                          parsec_debug_rank);
+    /* Replace the provided communicator with a pointer to the PaRSEC duplicate */
+    MPI_Comm_dup((MPI_Comm) context->comm_ctx, &dep_comm);
+    context->comm_ctx = (uintptr_t)dep_comm;
 
-    dep_comm = (MPI_Comm) context->comm_ctx;
+    parsec_check_overlapping_binding(context);
 
 #if defined(PARSEC_HAVE_MPI_OVERTAKE)
     if( parsec_param_enable_mpi_overtake ) {
@@ -609,21 +612,27 @@ mpi_funnelled_fini(parsec_comm_engine_t *ce)
     PARSEC_OBJ_DESTRUCT(&mpi_funnelled_dynamic_req_fifo);
 
     parsec_mempool_destruct(mpi_funnelled_mem_reg_handle_mempool);
-    free(mpi_funnelled_mem_reg_handle_mempool);
+    free(mpi_funnelled_mem_reg_handle_mempool); mpi_funnelled_mem_reg_handle_mempool = NULL;
 
     parsec_mempool_destruct(mpi_funnelled_dynamic_req_mempool);
-    free(mpi_funnelled_dynamic_req_mempool);
+    free(mpi_funnelled_dynamic_req_mempool); mpi_funnelled_dynamic_req_mempool = NULL;
 
     /* Remove the static handles */
     MPI_Comm_free(&dep_self); /* dep_self becomes MPI_COMM_NULL */
 
     /* Release the context communicators if any */
-    if( -1 != ce->parsec_context->comm_ctx) {
-        MPI_Comm_free((MPI_Comm*)&ce->parsec_context->comm_ctx);
+    if( MPI_COMM_NULL != dep_comm) {
+        MPI_Comm_free(&dep_comm);
         ce->parsec_context->comm_ctx = -1; /* We use -1 for the opaque comm_ctx, rather than the MPI specific MPI_COMM_NULL */
     }
-
+    dep_comm = MPI_COMM_NULL;  /* no communicator */
     MAX_MPI_TAG = -1;  /* mark the layer as uninitialized */
+    size_of_total_reqs = 0;
+    mpi_funnelled_last_active_req = 0;
+    mpi_funnelled_static_req_idx = 0;
+
+    nb_internal_tag = 0;
+    count_internal_tag = 0;
 
     return 1;
 }
