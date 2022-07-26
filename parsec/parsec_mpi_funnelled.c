@@ -109,32 +109,22 @@ reread:
 #define MAX_DYNAMIC_REQ_RANGE 30 /* according to current implementation */
 #define EACH_STATIC_REQ_RANGE 5 /* for each registered tag */
 
-/* Hash table for tag_structure. Each registered tags will be book-kept
- * using this structure.
- */
-static int tag_hash_table_size = 1<<MPI_FUNNELLED_MAX_TAG; /**< Default tag hash table size */
-static parsec_hash_table_t *tag_hash_table = NULL;
-
-static parsec_key_fn_t tag_key_fns = {
-    .key_equal = parsec_hash_table_generic_64bits_key_equal,
-    .key_print = parsec_hash_table_generic_64bits_key_print,
-    .key_hash  = parsec_hash_table_generic_64bits_key_hash
-};
-
 typedef struct mpi_funnelled_tag_s {
-    parsec_hash_table_item_t  ht_item;
     parsec_ce_tag_t tag; /* tag user wants to register */
-    char **buf; /* Buffer where we will receive msg for each TAG
-                 * there will be EACH_STATIC_REQ_RANGE buffers
-                 * each of size msg_length.
-                 */
     int start_idx; /* Records the starting index for every TAG
                     * to unregister from the array_of_[requests/indices/statuses]
                     */
     size_t msg_length; /* Maximum length allowed to send for each
                         * registered TAG.
                         */
+    char **buf; /* Buffer where we will receive msg for each TAG
+                 * there will be EACH_STATIC_REQ_RANGE buffers
+                 * each of size msg_length.
+                 */
 } mpi_funnelled_tag_t;
+
+#define PARSEC_MAX_REGISTERED_TAGS  16
+static struct mpi_funnelled_tag_s parsec_mpi_funnelled_array_of_registered_tags[PARSEC_MAX_REGISTERED_TAGS];
 
 typedef enum {
     MPI_FUNNELLED_TYPE_AM       = 0, /* indicating active message */
@@ -507,14 +497,9 @@ mpi_funnelled_init(parsec_context_t *context)
     MPI_Comm_size(dep_comm, &(context->nb_nodes));
     MPI_Comm_rank(dep_comm, &(context->my_rank));
 
-    /* init hash table for registered tags */
-    tag_hash_table = PARSEC_OBJ_NEW(parsec_hash_table_t);
-    for(i = 1; i < 16 && (1 << i) < tag_hash_table_size; i++) /* do nothing */;
-    parsec_hash_table_init(tag_hash_table,
-                           offsetof(mpi_funnelled_tag_t, ht_item),
-                           i,
-                           tag_key_fns,
-                           tag_hash_table);
+    for(i = 0; i < PARSEC_MAX_REGISTERED_TAGS; i++) {
+        parsec_mpi_funnelled_array_of_registered_tags[i].buf = NULL;
+    }
 
     /* Initialize the arrays */
     array_of_callbacks = (mpi_funnelled_callback_t *) calloc(MAX_DYNAMIC_REQ_RANGE,
@@ -606,9 +591,6 @@ mpi_funnelled_fini(parsec_comm_engine_t *ce)
     free(array_of_indices);   array_of_indices   = NULL;
     free(array_of_statuses);  array_of_statuses  = NULL;
 
-    parsec_hash_table_fini(tag_hash_table);
-    PARSEC_OBJ_RELEASE(tag_hash_table);
-
     PARSEC_OBJ_DESTRUCT(&mpi_funnelled_dynamic_req_fifo);
 
     parsec_mempool_destruct(mpi_funnelled_mem_reg_handle_mempool);
@@ -650,16 +632,15 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
 {
     mpi_funnelled_callback_t *cb;
 
-    /* All internal tags has been registered */
+    /* All internal tags have been registered */
     if(nb_internal_tag == count_internal_tag) {
-        if(tag < MPI_FUNNELLED_MIN_TAG || tag >= MPI_FUNNELLED_MAX_TAG) {
-            parsec_warning("Tag is out of range, it has to be between %d - %d\n", MPI_FUNNELLED_MIN_TAG, MPI_FUNNELLED_MAX_TAG);
+        if(tag < 0 || tag >= PARSEC_MAX_REGISTERED_TAGS) {
+            parsec_warning("Tag is out of range, it has to be between %d - %d\n", 0, PARSEC_MAX_REGISTERED_TAGS);
             return PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
         }
-        assert( (tag >= MPI_FUNNELLED_MIN_TAG) && (tag < MPI_FUNNELLED_MAX_TAG) );
     }
-
-    if(NULL != parsec_hash_table_nolock_find(tag_hash_table, (parsec_key_t)tag)) {
+    mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
+    if(NULL != parsec_mpi_funnelled_array_of_registered_tags[tag].buf ) {
         parsec_warning("Tag: %d is already registered\n", (int)tag);
         return PARSEC_ERR_EXISTS;
     }
@@ -693,7 +674,6 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
     char **buf = (char **) calloc(EACH_STATIC_REQ_RANGE, sizeof(char *));
     buf[0] = (char*)calloc(EACH_STATIC_REQ_RANGE, msg_length * sizeof(char));
 
-    mpi_funnelled_tag_t *tag_struct = malloc(sizeof(mpi_funnelled_tag_t));
     tag_struct->tag = tag;
     tag_struct->buf = buf;
     tag_struct->start_idx  = mpi_funnelled_static_req_idx;
@@ -717,13 +697,10 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
         cb->cb_data  = cb_data;
         cb->tag      = tag_struct;
         cb->type     = MPI_FUNNELLED_TYPE_AM;
-        MPI_Start(&array_of_requests[mpi_funnelled_static_req_idx]);
         mpi_funnelled_static_req_idx++;
     }
-
-    /* insert in ht for bookkeeping */
-    tag_struct->ht_item.key = (parsec_key_t)tag;
-    parsec_hash_table_nolock_insert(tag_hash_table, &tag_struct->ht_item );
+    /* Tag ready to receive data, start all persistent receives */
+    MPI_Startall(EACH_STATIC_REQ_RANGE, &array_of_requests[mpi_funnelled_static_req_idx - EACH_STATIC_REQ_RANGE]);
 
     assert((mpi_funnelled_static_req_idx + MAX_DYNAMIC_REQ_RANGE) == size_of_total_reqs);
 
@@ -735,8 +712,8 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
 int
 mpi_no_thread_tag_unregister(parsec_ce_tag_t tag)
 {
-    mpi_funnelled_tag_t *tag_struct = parsec_hash_table_nolock_find(tag_hash_table, (parsec_key_t)tag);
-    if(NULL == tag_struct) {
+    mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
+    if(NULL == tag_struct->buf) {
         parsec_inform("Tag %ld is not registered\n", (int)tag);
         return 0;
     }
@@ -755,12 +732,8 @@ mpi_no_thread_tag_unregister(parsec_ce_tag_t tag)
         assert( MPI_REQUEST_NULL == array_of_requests[i] );
     }
 
-    parsec_hash_table_remove(tag_hash_table, (parsec_key_t)tag);
-
     free(tag_struct->buf[0]);
     free(tag_struct->buf);
-
-    free(tag_struct);
 
     return 1;
 }
@@ -1031,8 +1004,7 @@ mpi_no_thread_send_active_message(parsec_comm_engine_t *ce,
                                   void *addr, size_t size)
 {
     (void) ce;
-    parsec_key_t key = 0 | tag ;
-    mpi_funnelled_tag_t *tag_struct = parsec_hash_table_nolock_find(tag_hash_table, key);
+    mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
     assert(tag_struct->msg_length >= size);
     (void) tag_struct;
 
