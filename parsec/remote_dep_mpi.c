@@ -312,7 +312,6 @@ remote_dep_dequeue_init(parsec_context_t* context)
     /* From now on the communication capabilities are enabled */
     parsec_communication_engine_up = 1;
     if(context->nb_nodes == 1) {
-
         goto up_and_running;
     }
 
