@@ -23,9 +23,9 @@ static int64_t count_reshaping = 0;
 
 #define PARSEC_DTD_SKIP_SAVING -1
 
-int parsec_comm_gets_max  = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
+int parsec_comm_gets_max  = DEP_NB_CONCURRENT * MAX_PARAM_COUNT;
 int parsec_comm_gets      = 0;
-int parsec_comm_puts_max  = DEP_NB_CONCURENT * MAX_PARAM_COUNT;
+int parsec_comm_puts_max  = DEP_NB_CONCURRENT * MAX_PARAM_COUNT;
 int parsec_comm_puts      = 0;
 
 /**
@@ -553,7 +553,7 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
                               parsec_dep_data_description_t* data)
 {
     assert( dst );
-    /* if the communication engine supports multithreads do the reshaping in place */
+    /* if the communication engine supports multithread do the reshaping in place */
     if( parsec_ce.parsec_context->flags & PARSEC_CONTEXT_FLAG_COMM_MT ) {
         if( 0 == parsec_ce.reshape(&parsec_ce, es,
                                    dst, data->local.dst_displ, data->local.dst_datatype, data->local.dst_count,
@@ -718,7 +718,7 @@ void parsec_local_reshape(parsec_base_future_t *future,
 /**
  * This function is called from the task successors iterator. It exists for a
  * single purpose: to retrieve the datatype involved with the operation. Thus,
- * once a datatype has been succesfully retrieved it must cancel the iterator
+ * once a datatype has been successfully retrieved it must cancel the iterator
  * progress in order to return ASAP the datatype to the communication engine.
  */
 parsec_ontask_iterate_t
@@ -869,7 +869,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                  * time or not. Since, this function is called from other places (when
                  * we later try to activate a task for which we have already received
                  * an activation for) we do not need to store the buffer and we send
-                 * PARSEC_DTD_SKIP_SAVING as an indicaton of that.
+                 * PARSEC_DTD_SKIP_SAVING as an indication of that.
                  */
                 if( storage_id != PARSEC_DTD_SKIP_SAVING) {
                     char* packed_buffer;
@@ -1475,7 +1475,7 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
     TAKE_TIME_WITH_INFO(es->es_profile, MPI_Activate_sk, 0,
                         es->virtual_process->parsec_context->my_rank,
                         peer, deps->msg, position, MPI_PACKED, MPI_COMM_WORLD);
-    parsec_ce.send_am(&parsec_ce, REMOTE_DEP_ACTIVATE_TAG, peer, packed_buffer, position);
+    parsec_ce.send_am(&parsec_ce, PARSEC_CE_REMOTE_DEP_ACTIVATE_TAG, peer, packed_buffer, position);
     TAKE_TIME(es->es_profile, MPI_Activate_ek, event_id);
     DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(peer, (void*)&deps->msg, &deps->msg);
 
@@ -2043,7 +2043,7 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
                 receiver_memory_handle_size );
 
         /* Send AM */
-        parsec_ce.send_am(&parsec_ce, REMOTE_DEP_GET_DATA_TAG, from, buf, buf_size);
+        parsec_ce.send_am(&parsec_ce, PARSEC_CE_REMOTE_DEP_GET_DATA_TAG, from, buf, buf_size);
         TAKE_TIME(es->es_profile, MPI_Data_ctl_ek, event_id);
 
         free(buf);
@@ -2132,18 +2132,18 @@ remote_dep_ce_init(parsec_context_t* context)
                                                         sizeof(dep_cmd_item_t*));
 
     /* Register Persistant requests */
-    rc = parsec_ce.tag_register(REMOTE_DEP_ACTIVATE_TAG, remote_dep_mpi_save_activate_cb, context,
+    rc = parsec_ce.tag_register(PARSEC_CE_REMOTE_DEP_ACTIVATE_TAG, remote_dep_mpi_save_activate_cb, context,
                                 DEP_SHORT_BUFFER_SIZE * sizeof(char));
     if( PARSEC_SUCCESS != rc ) {
-        parsec_warning("[CE] Failed to register communication tag REMOTE_DEP_ACTIVATE_TAG (error %d)\n", rc);
+        parsec_warning("[CE] Failed to register communication tag PARSEC_CE_REMOTE_DEP_ACTIVATE_TAG (error %d)\n", rc);
         parsec_comm_engine_fini(&parsec_ce);
         return rc;
     }
-    rc = parsec_ce.tag_register(REMOTE_DEP_GET_DATA_TAG, remote_dep_mpi_save_put_cb, context,
+    rc = parsec_ce.tag_register(PARSEC_CE_REMOTE_DEP_GET_DATA_TAG, remote_dep_mpi_save_put_cb, context,
                                 4096);
     if( PARSEC_SUCCESS != rc ) {
-        parsec_warning("[CE] Failed to register communication tag REMOTE_DEP_GET_DATA_TAG (error %d)\n", rc);
-        parsec_ce.tag_unregister(REMOTE_DEP_ACTIVATE_TAG);
+        parsec_warning("[CE] Failed to register communication tag PARSEC_CE_REMOTE_DEP_GET_DATA_TAG (error %d)\n", rc);
+        parsec_ce.tag_unregister(PARSEC_CE_REMOTE_DEP_ACTIVATE_TAG);
         parsec_comm_engine_fini(&parsec_ce);
         return rc;
     }
@@ -2166,9 +2166,9 @@ remote_dep_ce_fini(parsec_context_t* context)
     remote_dep_mpi_profiling_fini();
 
     // Unregister tags
-    parsec_ce.tag_unregister(REMOTE_DEP_ACTIVATE_TAG);
-    parsec_ce.tag_unregister(REMOTE_DEP_GET_DATA_TAG);
-    //parsec_ce.tag_unregister(REMOTE_DEP_PUT_END_TAG);
+    parsec_ce.tag_unregister(PARSEC_CE_REMOTE_DEP_ACTIVATE_TAG);
+    parsec_ce.tag_unregister(PARSEC_CE_REMOTE_DEP_GET_DATA_TAG);
+    //parsec_ce.tag_unregister(PARSEC_CE_REMOTE_DEP_PUT_END_TAG);
 
     parsec_mempool_destruct(parsec_remote_dep_cb_data_mempool);
     free(parsec_remote_dep_cb_data_mempool); parsec_remote_dep_cb_data_mempool = NULL;
