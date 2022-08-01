@@ -437,7 +437,7 @@ struct parsec_data_pair_s {
 };
 
 /**
- * Global configuration variables controling the startup mechanism
+ * Global configuration variables controlling the startup mechanism
  * and directly the startup speed.
  */
 PARSEC_DECLSPEC extern size_t parsec_task_startup_iter;
@@ -601,7 +601,7 @@ parsec_release_dep_fct(struct parsec_execution_stream_s *es,
                        void *param);
 
 /**
- * Function to create reshaping promises during iterate_succesors.
+ * Function to create reshaping promises during iterate_successors.
  */
 parsec_ontask_iterate_t
 parsec_set_up_reshape_promise(parsec_execution_stream_t *es,

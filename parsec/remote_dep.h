@@ -38,15 +38,6 @@ typedef unsigned long remote_dep_datakey_t;
 #define PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE  0x80000000
 #define PARSEC_ACTION_RELEASE_REMOTE_DEPS        (PARSEC_ACTION_SEND_INIT_REMOTE_DEPS | PARSEC_ACTION_SEND_REMOTE_DEPS)
 
-typedef enum {
-    REMOTE_DEP_ACTIVATE_TAG = 2,
-    REMOTE_DEP_GET_DATA_TAG,
-    REMOTE_DEP_PUT_END_TAG,
-    PARSEC_TERMDET_FOURCOUNTER_MSG_TAG,
-    PARSEC_TERMDET_USER_TRIGGER_MSG_TAG,
-    REMOTE_DEP_MAX_CTRL_TAG
-} parsec_remote_dep_tag_t;
-
 typedef struct remote_dep_wire_activate_s {
     remote_dep_datakey_t deps;         /**< a pointer to the dep structure on the source */
     remote_dep_datakey_t output_mask;  /**< the mask of the output dependencies satisfied by this activation message */
@@ -256,7 +247,7 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 
 /** @} */
 
-#define DEP_NB_CONCURENT 3
+#define DEP_NB_CONCURRENT 3
 
 extern int parsec_comm_gets_max;
 extern int parsec_comm_gets;

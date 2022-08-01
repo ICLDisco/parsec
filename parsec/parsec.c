@@ -265,7 +265,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 
     /*
-     * A single thread per VP has a little bit more responsability: allocating
+     * A single thread per VP has a little bit more responsibility: allocating
      * the memory pools.
      */
     if( startup->th_id == (startup->virtual_process->nb_cores - 1) ) {
@@ -1227,8 +1227,8 @@ int parsec_fini( parsec_context_t** pcontext )
         free(context->pthreads);
         context->pthreads = NULL;
     }
-    /* From now on all the thrteads have been shut-off, and they are supposed to
-     * have cleaned all their provate memory. Unleash the global cleaning process.
+    /* From now on all the threads have been shut-off, and they are supposed to
+     * have cleaned all their private memory. Unleash the global cleaning process.
      */
 
     PARSEC_PINS_FINI(context);

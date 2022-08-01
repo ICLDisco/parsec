@@ -23,12 +23,6 @@
 #define MPI_FUNNELLED_MIN_TAG 2
 #define MPI_FUNNELLED_MAX_TAG (MPI_FUNNELLED_MIN_TAG + 10)
 
-/* Internal TAG for GET and PUT activation message,
- * for two sides to agree on a "TAG" to post Irecv and Isend on
- */
-#define MPI_FUNNELLED_GET_TAG_INTERNAL 0
-#define MPI_FUNNELLED_PUT_TAG_INTERNAL 1
-
 static int
 mpi_no_thread_push_posted_req(parsec_comm_engine_t *ce);
 
@@ -69,7 +63,7 @@ PARSEC_OBJ_CLASS_INSTANCE(mpi_funnelled_mem_reg_handle_t, parsec_list_item_t,
  * max tag to be positive, initializing it to a negative value allows us to check
  * if the layer has been initialized or not.
  */
-#define MIN_MPI_TAG (REMOTE_DEP_MAX_CTRL_TAG+1)
+#define MIN_MPI_TAG (PARSEC_CE_REMOTE_DEP_MAX_CTRL_TAG+1)
 static int MAX_MPI_TAG = -1, mca_tag_ub = -1;
 static volatile int __VAL_NEXT_TAG = MIN_MPI_TAG;
 #if INT_MAX == INT32_MAX
@@ -123,7 +117,6 @@ typedef struct mpi_funnelled_tag_s {
                  */
 } mpi_funnelled_tag_t;
 
-#define PARSEC_MAX_REGISTERED_TAGS  16
 static struct mpi_funnelled_tag_s parsec_mpi_funnelled_array_of_registered_tags[PARSEC_MAX_REGISTERED_TAGS];
 
 typedef enum {
@@ -543,13 +536,13 @@ mpi_funnelled_init(parsec_context_t *context)
     parsec_ce.capabilites.supports_noncontiguous_datatype = 1;
 
     /* Register for internal GET and PUT AMs */
-    parsec_ce.tag_register(MPI_FUNNELLED_GET_TAG_INTERNAL,
+    parsec_ce.tag_register(PARSEC_CE_MPI_FUNNELLED_GET_TAG_INTERNAL,
                            mpi_funnelled_internal_get_am_callback,
                            context,
                            4096);
     count_internal_tag++;
 
-    parsec_ce.tag_register(MPI_FUNNELLED_PUT_TAG_INTERNAL,
+    parsec_ce.tag_register(PARSEC_CE_MPI_FUNNELLED_PUT_TAG_INTERNAL,
                            mpi_funnelled_internal_put_am_callback,
                            context,
                            4096);
@@ -583,8 +576,8 @@ mpi_funnelled_fini(parsec_comm_engine_t *ce)
     assert( -1 != MAX_MPI_TAG );
 
     /* TODO: GO through all registered tags and unregister them */
-    ce->tag_unregister(MPI_FUNNELLED_GET_TAG_INTERNAL);
-    ce->tag_unregister(MPI_FUNNELLED_PUT_TAG_INTERNAL);
+    ce->tag_unregister(PARSEC_CE_MPI_FUNNELLED_GET_TAG_INTERNAL);
+    ce->tag_unregister(PARSEC_CE_MPI_FUNNELLED_PUT_TAG_INTERNAL);
 
     free(array_of_callbacks); array_of_callbacks = NULL;
     free(array_of_requests);  array_of_requests  = NULL;
@@ -844,7 +837,7 @@ mpi_no_thread_put(parsec_comm_engine_t *ce,
 
     /* Send AM to src to post Isend on this tag */
     /* this is blocking, so using data on stack is not a problem */
-    ce->send_am(ce, MPI_FUNNELLED_PUT_TAG_INTERNAL, remote, buf, buf_size);
+    ce->send_am(ce, PARSEC_CE_MPI_FUNNELLED_PUT_TAG_INTERNAL, remote, buf, buf_size);
 
     free(buf);
 
@@ -943,7 +936,7 @@ mpi_no_thread_get(parsec_comm_engine_t *ce,
 
     /* Send AM to src to post Isend on this tag */
     /* this is blocking, so using data on stack is not a problem */
-    ce->send_am(ce, MPI_FUNNELLED_GET_TAG_INTERNAL, remote, buf, buf_size);
+    ce->send_am(ce, PARSEC_CE_MPI_FUNNELLED_GET_TAG_INTERNAL, remote, buf, buf_size);
 
     free(buf);
 

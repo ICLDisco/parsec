@@ -424,7 +424,7 @@ typedef struct {
     uint32_t                         data_id;
     int32_t                          task_class_id;
     int32_t                          task_return_code;
-} parsec_task_prof_info_t;    
+} parsec_task_prof_info_t;
 
 #define PARSEC_TASK_PROF_INFO_CONVERTOR "dc_key{uint64_t};priority{int32_t};dc_dataid{uint32_t};tcid{int32_t};trc{int32_t}"
 
