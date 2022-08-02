@@ -131,6 +131,8 @@ jobs:
       run: |
         # Check if .l/.y files have been modified without corresponding update with `cmake --build . --target parsec_pregen_flex_bison`
         if [[ `git --version | cut -d " " -f 3` > "2.0" ]]; then
+          # Make sure we fetch the branch we want to compare with
+          git fetch origin ${{ github.base_ref }}
           git diff --name-only --diff-filter=AMRD origin/${{ github.base_ref }} -- contrib/pregen_flex_bison.tar '*.[ly]' | awk '/pregen_flex_bison.tar/{t=1} /.[ly]/{s=1} END{if(t-s) exit 1}'
         fi
 

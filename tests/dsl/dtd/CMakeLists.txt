@@ -23,6 +23,7 @@ parsec_addtest_executable(C dtd_test_tp_enqueue_dequeue SOURCES dtd_test_tp_enqu
 parsec_addtest_executable(C dtd_test_interleave_actions SOURCES dtd_test_interleave_actions.c)
 parsec_addtest_executable(C dtd_test_ce SOURCES dtd_test_ce.c)
 
+parsec_addtest_executable(C dtd_test_new_tile SOURCES dtd_test_new_tile.c)
 if( PARSEC_HAVE_CUDA )
   parsec_addtest_executable(C dtd_test_cuda_task_insert SOURCES dtd_test_cuda_task_insert.c)
   if( TARGET CUDA::cublas )
@@ -39,5 +40,4 @@ if( PARSEC_HAVE_CUDA )
     parsec_addtest_executable(C dtd_test_new_tile SOURCES dtd_test_new_tile.c dtd_test_new_tile_cuda_kernels.cu)
   endif( TARGET CUDA::cublas )
 else()
-    parsec_addtest_executable(C dtd_test_new_tile SOURCES dtd_test_new_tile.c)
 endif()
