@@ -79,6 +79,7 @@
 /* GPU Support */
 #cmakedefine PARSEC_GPU_WITH_CUDA
 #cmakedefine PARSEC_GPU_CUDA_ALLOC_PER_TILE
+#cmakedefine PARSEC_HAVE_CU_COMPILER
 #cmakedefine PARSEC_GPU_WITH_OPENCL
 #cmakedefine PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS
 
