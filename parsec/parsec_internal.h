@@ -406,7 +406,7 @@ struct parsec_data_pair_s {
 };
 
 /**
- * Global configuration variables controling the startup mechanism
+ * Global configuration variables controlling the startup mechanism
  * and directly the startup speed.
  */
 PARSEC_DECLSPEC extern size_t parsec_task_startup_iter;
@@ -561,7 +561,7 @@ parsec_release_dep_fct(struct parsec_execution_stream_s *es,
                        void *param);
 
 /**
- * Function to create reshaping promises during iterate_succesors.
+ * Function to create reshaping promises during iterate_successors.
  */
 parsec_ontask_iterate_t
 parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
@@ -615,6 +615,9 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
                                       data_repo_t* target_repo,
                                       parsec_data_copy_t* target_dc,
                                       data_repo_entry_t* target_repo_entry);
+
+int parsec_check_overlapping_binding(parsec_context_t *context);
+int remote_dep_mpi_on(parsec_context_t* context);
 
 #define parsec_execution_context_priority_comparator offsetof(parsec_task_t, priority)
 
