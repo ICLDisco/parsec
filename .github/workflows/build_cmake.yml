@@ -174,6 +174,13 @@ jobs:
         source ${{github.workspace}}/.github/CI/spack_setup.sh
         cmake --build . --target install
 
+    - name: Save Build Artifact
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: CMake-error-log
+        path: ${{ env.BUILD_DIRECTORY }}/CMakeFiles/CMakeError.log
+
     - name: Test
       # Disable the tests for now
       if: ${{ startsWith(matrix.build_type, 'Release') }}
@@ -187,4 +194,10 @@ jobs:
         source ${{github.workspace}}/.github/CI/spack_setup.sh
         cmake --build . --target test
 
+    - name: Save Testing Artifact
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: LastTest_log
+        path: ${{ env.BUILD_DIRECTORY }}/Testing/Temporary/LastTest.log
 
