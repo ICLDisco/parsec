@@ -687,7 +687,7 @@ int main(int argc, char *argv[]) {
     find_package(CUDAToolkit)
     set(PARSEC_HAVE_CUDA ${CUDAToolkit_FOUND} CACHE BOOL "True if PaRSEC provide support for CUDA")
     if (CUDAToolkit_FOUND)
-        message(STATUS "Found CUDA ${CUDAToolkit_VERSION} in ${CUDAToolkit_LIBRARY_DIR}")
+      message(STATUS "Found CUDA ${CUDAToolkit_VERSION} in ${CUDAToolkit_LIBRARY_DIR}")
       CMAKE_PUSH_CHECK_STATE()
       list(APPEND CMAKE_REQUIRED_LIBRARIES CUDA::cudart)
       if(CUDAToolkit_VERSION VERSION_LESS "4.0")
@@ -700,7 +700,13 @@ int main(int argc, char *argv[]) {
       if(extra_cuda_libs)
           list(APPEND EXTRA_LIBS ${extra_cuda_libs})
       endif(extra_cuda_libs)
+      # Check if PaRSEC can provide automatic compilation of .cu files.
+      check_language(CUDA)
+      if(CMAKE_CUDA_COMPILER)
+        enable_language(CUDA)
+      endif(CMAKE_CUDA_COMPILER)
     endif (CUDAToolkit_FOUND)
+    set(PARSEC_HAVE_CU_COMPILER ${CMAKE_CUDA_COMPILER} CACHE BOOL "True if PaRSEC provide support for compiling .cu files")
   endif( PARSEC_GPU_WITH_CUDA )
 
   find_package(AYUDAME QUIET)

@@ -187,7 +187,7 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_get_best_device_check_taskpool_t, parsec_taskpo
  * @param [inout] dcA: the data, already distributed and allocated
  */
 int parsec_get_best_device_check(parsec_context_t *parsec,
-		parsec_tiled_matrix_t *A)
+                                 parsec_tiled_matrix_t *A)
 {
     /* Only for 1 vp */
     assert( parsec->nb_vp == 1 );
@@ -199,9 +199,9 @@ int parsec_get_best_device_check(parsec_context_t *parsec,
     parsec_get_best_device_check = parsec_get_best_device_check_New(A, info_tmp); 
 
     if( parsec_get_best_device_check != NULL ){
-	    parsec_enqueue(parsec, parsec_get_best_device_check);
-	    parsec_context_start(parsec);
-	    parsec_context_wait(parsec);
+        parsec_enqueue(parsec, parsec_get_best_device_check);
+        parsec_context_start(parsec);
+        parsec_context_wait(parsec);
     }
 
     /* Gather info */

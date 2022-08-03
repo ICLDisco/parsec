@@ -99,14 +99,14 @@ int main(int argc, char *argv[])
             pargc = argc - i;
             pargv = &argv[i];
             break;
-	}
+        }
     }
 
 #if defined(PARSEC_HAVE_CUDA)
     extern char **environ;
     char *value;
     if( nb_gpus < 1 && 0 == rank ) {
-	    fprintf(stderr, "Warnning: if run on GPUs, please set --gpus=value bigger than 0\n");
+        fprintf(stderr, "Warning: if run on GPUs, please set --gpus=value bigger than 0\n");
     }
     asprintf(&value, "%d", nb_gpus);
     parsec_setenv_mca_param( "device_cuda_enabled", value, &environ );
