@@ -922,10 +922,11 @@ parsec_dtd_register_task_class(parsec_taskpool_t *tp,
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     parsec_hash_table_t *hash_table = dtd_tp->function_h_table;
+    parsec_key_handle_t kh;
 
-    parsec_hash_table_lock_bucket(hash_table, key);
-    if( parsec_hash_table_nolock_find(hash_table, key) != NULL ) {
-        parsec_hash_table_unlock_bucket(hash_table, key);
+    parsec_hash_table_lock_bucket_handle(hash_table, key, &kh);
+    if( parsec_hash_table_nolock_find_handle(hash_table, &kh) != NULL ) {
+        parsec_hash_table_unlock_bucket_handle(hash_table, &kh);
         return;
     }
 
@@ -936,8 +937,8 @@ parsec_dtd_register_task_class(parsec_taskpool_t *tp,
     item->mempool_owner = dtd_tp->hash_table_bucket_mempool->thread_mempools;
     item->value = (void *)value;
 
-    parsec_hash_table_nolock_insert(hash_table, &item->ht_item);
-    parsec_hash_table_unlock_bucket(hash_table, key);
+    parsec_hash_table_nolock_insert_handle(hash_table, &kh, &item->ht_item);
+    parsec_hash_table_unlock_bucket_handle(hash_table, &kh);
 }
 
 /**

@@ -48,6 +48,7 @@ typedef struct {
     int new_table_each_time;
     int nb_loops;
     int nb_tests;
+    bool use_handle;
     uint64_t *keys;
 } param_t;
 
@@ -120,6 +121,8 @@ static void *do_test(void *_param)
     int nbthreads = param->nbthreads;
     int nbtests = param->nb_tests / nbthreads + (id < (param->nb_tests % nbthreads));
     int limit = (id*72 + 573) % nbtests;
+    bool use_handle = param->use_handle;
+    parsec_key_handle_t kh;
     parsec_time_t t0, t1;
     int l, t;
     void *rc;
@@ -148,8 +151,13 @@ static void *do_test(void *_param)
         }
 
         for(t = 0; t < limit; t++) {
-            parsec_hash_table_lock_bucket(&hash_table, item_array[t].ht_item.key);
-            rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
+            if (use_handle) {
+                parsec_hash_table_lock_bucket_handle(&hash_table, item_array[t].ht_item.key, &kh);
+                rc = parsec_hash_table_nolock_find_handle(&hash_table, &kh);
+            } else {
+                parsec_hash_table_lock_bucket(&hash_table, item_array[t].ht_item.key);
+                rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
+            }
             if( NULL != rc ) {
                 fprintf(stderr,
                         "Error in implementation of the hash table: item with key %"PRIu64" has not been inserted yet, but it is found in the hash table\n"
@@ -159,12 +167,24 @@ static void *do_test(void *_param)
                         id, nbthreads);
                 //raise(SIGABRT);
             }
-            parsec_hash_table_nolock_insert(&hash_table, &item_array[t].ht_item);
-            parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
+            if (use_handle) {
+                parsec_hash_table_nolock_insert_handle(&hash_table, &kh, &item_array[t].ht_item);
+                parsec_hash_table_unlock_bucket_handle(&hash_table, &kh);
+            } else {
+                parsec_hash_table_nolock_insert(&hash_table, &item_array[t].ht_item);
+                parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
+            }
         }
         for(t = 0; t < limit; t++) {
-            parsec_hash_table_lock_bucket(&hash_table, item_array[t].ht_item.key);
-            rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
+            if (use_handle) {
+                parsec_hash_table_lock_bucket_handle(&hash_table, item_array[t].ht_item.key, &kh);
+                rc = parsec_hash_table_nolock_find_handle(&hash_table, &kh);
+                parsec_hash_table_unlock_bucket_handle(&hash_table, &kh);
+            } else {
+                parsec_hash_table_lock_bucket(&hash_table, item_array[t].ht_item.key);
+                rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
+                parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
+            }
             if( rc != &item_array[t] ) {
                 if( NULL == rc ) {
                     fprintf(stderr, "Error in implementation of the hash table 3: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
@@ -176,7 +196,6 @@ static void *do_test(void *_param)
                             ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads);
                 }
             }
-            parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
         }
         if(0 == id)
             parsec_hash_table_stat(&hash_table);
@@ -197,8 +216,13 @@ static void *do_test(void *_param)
         }
 
         for(t = limit; t < nbtests; t++) {
-            parsec_hash_table_lock_bucket(&hash_table, item_array[t].ht_item.key);
-            rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
+            if (use_handle) {
+                parsec_hash_table_lock_bucket_handle(&hash_table, item_array[t].ht_item.key, &kh);
+                rc = parsec_hash_table_nolock_find_handle(&hash_table, &kh);
+            } else {
+                parsec_hash_table_lock_bucket(&hash_table, item_array[t].ht_item.key);
+                rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
+            }
             if( NULL != rc ) {
                 fprintf(stderr,
                         "Error in implementation of the hash table: item with key %"PRIu64" has not been inserted yet, but it is found in the hash table\n"
@@ -208,12 +232,24 @@ static void *do_test(void *_param)
                         id, nbthreads);
                 //raise(SIGABRT);
             }
-            parsec_hash_table_nolock_insert(&hash_table, &item_array[t].ht_item);
-            parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
+            if (use_handle) {
+                parsec_hash_table_nolock_insert_handle(&hash_table, &kh, &item_array[t].ht_item);
+                parsec_hash_table_unlock_bucket_handle(&hash_table, &kh);
+            } else {
+                parsec_hash_table_nolock_insert(&hash_table, &item_array[t].ht_item);
+                parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
+            }
         }
         for(t = limit; t < nbtests; t++) {
-            parsec_hash_table_lock_bucket(&hash_table, item_array[t].ht_item.key);
-            rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
+            if (use_handle) {
+                parsec_hash_table_lock_bucket_handle(&hash_table, item_array[t].ht_item.key, &kh);
+                rc = parsec_hash_table_nolock_find_handle(&hash_table, &kh);
+                parsec_hash_table_unlock_bucket_handle(&hash_table, &kh);
+            } else {
+                parsec_hash_table_lock_bucket(&hash_table, item_array[t].ht_item.key);
+                rc = parsec_hash_table_nolock_find(&hash_table, item_array[t].ht_item.key);
+                parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
+            }
             if( rc != &item_array[t] ) {
                 if( NULL == rc ) {
                     fprintf(stderr, "Error in implementation of the hash table 1: item with key %"PRIu64" is not to be found in the hash table, but it was not removed yet\n",
@@ -225,7 +261,6 @@ static void *do_test(void *_param)
                             ((empty_hash_item_t*)rc)->thread_id, ((empty_hash_item_t*)rc)->nbthreads);
                 }
             }
-            parsec_hash_table_unlock_bucket(&hash_table, item_array[t].ht_item.key);
         }
         for(t = limit; t < nbtests; t++) {
             rc = parsec_hash_table_remove(&hash_table, item_array[t].ht_item.key);
@@ -349,6 +384,7 @@ int main(int argc, char *argv[])
     int md_tuning_inc = 1;
     int md_tuning;
     int simple_perf = 0;
+    bool use_handle = 0;
     int nb_tests = 30000;
     int nb_loops = 300;
     int new_table_each_time = 0;
@@ -370,7 +406,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Warning: unable to find the hash table hint, tuning behavior will be disabled\n");
     }
     
-    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:#:r:hnp?")) != -1 ) {
+    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:#:r:hnpH?")) != -1 ) {
         switch(ch) {
         case 'c':
             ch = strtol(optarg, &m, 0);
@@ -456,14 +492,19 @@ int main(int argc, char *argv[])
         case 'p':
             simple_perf = 1;
             break;
+        case 'H':
+            use_handle = true;
+            break;
         case 'h':
         case '?':
         default:
             fprintf(stderr,
-                    "Usage: %s [-p|-c nbthreads|-m minthreads -M maxthreads]\n"
+                    "Usage: %s [-c nbthreads|-m minthreads -M maxthreads]\n"
                     "          [-t max_ coll_min -T max_coll_max -i max_coll_inc]\n"
                     "          [-d max_table_depth_min -D max_table_depth_max -I max_table_depth_inc]\n"
-                    "          [-# number of items to insert][-r number of loops of the test][-n use a new hash table for each test]\n", argv[0]);
+                    "          [-# number of items to insert][-r number of loops of the test][-n use a new hash table for each test]\n"
+                    "          [-p (run simple performance test)]\n"
+                    "          [-H (use key handles for locking buckets)]\n", argv[0]);
             exit(1);
             break;
         }
@@ -543,6 +584,7 @@ int main(int argc, char *argv[])
                     params[e].nb_tests = nb_tests;
                     params[e].nb_loops = nb_loops;
                     params[e].new_table_each_time = new_table_each_time;
+                    params[e].use_handle = use_handle;
                 }
 
                 parsec_barrier_init(&barrier1, NULL, nbthreads+1);    
