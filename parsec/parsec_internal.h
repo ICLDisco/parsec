@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2020 The University of Tennessee and The University
+ * Copyright (c) 2012-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -416,6 +416,15 @@ PARSEC_DECLSPEC extern size_t parsec_task_startup_chunk;
  * Global configuration variable controlling the getrusage report.
  */
 PARSEC_DECLSPEC extern int parsec_want_rusage;
+
+/**
+ * Global configuration variable controlling what tasks are given to the
+ * scheduler. If this is enabled (the default) then the highest priority task
+ * created as a successor of a completed task, will be retained by the
+ * current execution thread as the next task to be executed. This bypasses
+ * the scheduler, but can provide a better cache reuse.
+ */
+PARSEC_DECLSPEC extern int parsec_runtime_keep_highest_priority_task;
 
 /**
  * Description of the state of the task. It indicates what will be the next

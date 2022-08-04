@@ -156,6 +156,8 @@ static int parsec_runtime_max_number_of_cores = -1;
 static int parsec_runtime_bind_main_thread = 1;
 static int parsec_runtime_bind_threads     = 1;
 
+int parsec_runtime_keep_highest_priority_task = 1;
+
 PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
 
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
@@ -521,6 +523,12 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     parsec_mca_param_reg_int_name("runtime", "bind_threads", "Bind main and worker threads", false, false,
                                   parsec_runtime_bind_threads, &parsec_runtime_bind_threads);
+    /* MCA param for retaining the highest priority task to be executed on the
+     * same core as the one that made the task active (aka at least one of the
+     * data is expected to be in the cache).
+     */
+    parsec_mca_param_reg_int_name("runtime", "keep_highest_priority_task", "Allow a compute thread to retain the highest priority task to be executed locally. This change makes the scheduling decision non-deterministic because some tasks will never be handled to the scheduler.", false, false,
+                                  parsec_runtime_keep_highest_priority_task, &parsec_runtime_keep_highest_priority_task);
 
     if( parsec_cmd_line_is_taken(cmd_line, "gpus") ) {
         parsec_warning("Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.");

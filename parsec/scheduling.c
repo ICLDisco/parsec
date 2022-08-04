@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -366,7 +366,7 @@ int __parsec_schedule_vp(parsec_execution_stream_t* es,
     assert( (NULL == es) || (parsec_my_execution_stream() == es) );
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
-    if( NULL == es ) {
+    if( NULL == es || !parsec_runtime_keep_highest_priority_task ) {
         for(int vp = 0; vp < es->virtual_process->parsec_context->nb_vp; vp++ ) {
             parsec_task_t* ring = task_rings[vp];
             if( NULL == ring ) continue;
@@ -561,7 +561,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     uint64_t misses_in_a_row;
     parsec_context_t* parsec_context = es->virtual_process->parsec_context;
     int32_t my_barrier_counter = parsec_context->__parsec_internal_finalization_counter;
-    parsec_task_t* task, *last_local_task = NULL /* for debug purposes */;
+    parsec_task_t* task;
     int nbiterations = 0, distance, rc;
     struct timespec rqtp;
 
@@ -633,11 +633,9 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
 
         if( NULL == (task = es->next_task) ) {
             task = parsec_current_scheduler->module.select(es, &distance);
-            last_local_task = NULL;
         } else {
             es->next_task = NULL;
             distance = 1;
-            last_local_task = task;
         }
 
         if( task != NULL ) {
