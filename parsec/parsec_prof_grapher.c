@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <ctype.h>
 
 #if defined(PARSEC_PROF_GRAPHER)
 
@@ -111,6 +112,10 @@ char *parsec_prof_grapher_taskid(const parsec_task_t *task, char *tmp, int lengt
 
     assert( NULL!= task->taskpool );
     index += snprintf( tmp + index, length - index, "%s_%u", tc->name, task->taskpool->taskpool_id );
+    if(!isalpha(tmp[0])) tmp[0] = '_';
+    for( i = 1; i < index; i++ ) {
+        if(!isalnum(tmp[i])) tmp[i] = '_';
+    }
     for( i = 0; i < tc->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "_%d",
                            task->locals[tc->params[i]->context_index].value );
@@ -125,7 +130,11 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
     if( NULL != grapher_file ) {
         char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
         char sim_date[64];
-        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context);
+        if(NULL != context->task_class->task_snprintf) {
+            context->task_class->task_snprintf(tmp, MAX_TASK_STRLEN, context);
+        } else {
+            parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context);
+        }
         parsec_prof_grapher_taskid(context, nmp, MAX_TASK_STRLEN);
 #if defined(PARSEC_SIM)
         snprintf(sim_date, 64, " [%d]", context->sim_exec_date);
