@@ -442,10 +442,12 @@ repeat:
                 }
                 /* form a ring of popped items */
                 parsec_list_item_t *last = next;
+				parsec_list_item_t *prev_last = last;
                 while (last != NULL) {
+					prev_last = last;
                     last = PARSEC_LIST_ITEM_NEXT(last);
                 }
-                new_ring = parsec_list_item_ring(next, last);
+                new_ring = parsec_list_item_ring(next, prev_last);
                 break;
             }
         } while (1);
