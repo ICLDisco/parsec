@@ -16,7 +16,6 @@ typedef struct parsec_recursive_callback_s parsec_recursive_callback_t;
 typedef void (*parsec_recursive_callback_f)(parsec_taskpool_t*, const parsec_recursive_callback_t* );
 
 struct parsec_recursive_callback_s {
-    parsec_execution_stream_t    *es;
     parsec_task_t                *task;
     parsec_recursive_callback_f   callback;
     int nbdesc;
@@ -26,12 +25,13 @@ struct parsec_recursive_callback_s {
 static inline int parsec_recursivecall_callback(parsec_taskpool_t* tp, void* cb_data)
 {
     parsec_recursive_callback_t* data = (parsec_recursive_callback_t*)cb_data;
+    parsec_execution_stream_t *es = parsec_my_execution_stream();
     int i, rc = 0;
 
     /* first trigger the internal taskpool completion callback */
     data->callback( tp, data );
     /* then complete the generator task */
-    rc = __parsec_complete_execution(data->es, data->task);
+    rc = __parsec_complete_execution(es, data->task);
     /* and finally release the data associated with the inner taskpool */
     for( i = 0; i < data->nbdesc; i++ ) {
         parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)(data->desc[i]) );
@@ -42,8 +42,7 @@ static inline int parsec_recursivecall_callback(parsec_taskpool_t* tp, void* cb_
 }
 
 static inline int
-parsec_recursivecall( parsec_execution_stream_t    *es,
-                      parsec_task_t                *task,
+parsec_recursivecall( parsec_task_t                *task,
                       parsec_taskpool_t            *tp,
                       parsec_recursive_callback_f   callback,
                       int nbdesc,
@@ -57,7 +56,6 @@ parsec_recursivecall( parsec_execution_stream_t    *es,
 
     /* Callback */
     cbdata = (parsec_recursive_callback_t *) malloc( sizeof(parsec_recursive_callback_t) + (nbdesc-1)*sizeof(parsec_data_collection_t*));
-    cbdata->es       = es;
     cbdata->task     = task;
     cbdata->callback = callback;
     cbdata->nbdesc   = nbdesc;
