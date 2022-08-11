@@ -182,7 +182,7 @@ static void parsec_prof_grapher_dataid(const parsec_data_t *dta, char *did, int 
     parsec_grapher_data_identifier_t id;
     parsec_key_t key;
     parsec_grapher_data_identifier_hash_table_item_t *it;
-    parsec_key_handle_t* kh;
+    parsec_key_handle_t kh;
 
     assert(NULL != dta);
     assert(NULL != grapher_file);
