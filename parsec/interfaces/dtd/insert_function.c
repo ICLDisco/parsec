@@ -266,7 +266,7 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
 
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     parsec_dtd_param_t flush_param;
-    tp->tdm.module->taskpool_set_nb_pa(tp, 1);    /* For the future tasks that will be inserted */
+    tp->tdm.module->taskpool_set_runtime_actions(tp, 1);    /* For the future tasks that will be inserted */
     tp->tdm.module->taskpool_set_nb_tasks(tp, 1); /* For the bounded window, starting with +1 task */
     dtd_tp->enqueue_flag    = 1;
 
@@ -1323,7 +1323,7 @@ static inline parsec_key_t DTD_make_key_identity(const parsec_taskpool_t *tp, co
 
 int parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
 {
-    int remaining = tp->tdm.module->taskpool_addto_nb_pa( tp, count );
+    int remaining = tp->tdm.module->taskpool_addto_runtime_actions( tp, count );
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
 
     if( 0 == remaining && 1 == tp->nb_tasks ) {
@@ -1413,7 +1413,7 @@ parsec_dtd_taskpool_new(void)
     parsec_termdet_open_module(&__tp->super, "local");
     __tp->super.tdm.module->monitor_taskpool(&__tp->super, parsec_taskpool_termination_detected);
     __tp->super.tdm.module->taskpool_set_nb_tasks(&__tp->super, PARSEC_RUNTIME_RESERVED_NB_TASKS);
-    __tp->super.tdm.module->taskpool_set_nb_pa(&__tp->super, 0);
+    __tp->super.tdm.module->taskpool_set_runtime_actions(&__tp->super, 0);
 
     (void)parsec_taskpool_enable((parsec_taskpool_t *)__tp, NULL, NULL, NULL,
                                   __tp->super.nb_pending_actions);

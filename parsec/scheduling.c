@@ -211,7 +211,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
  */
 int parsec_taskpool_update_runtime_nbtask(parsec_taskpool_t *tp, int32_t nb_tasks)
 {
-    tp->tdm.module->taskpool_addto_nb_pa(tp, nb_tasks);
+    tp->tdm.module->taskpool_addto_runtime_actions(tp, nb_tasks);
     return 0;
 }
 

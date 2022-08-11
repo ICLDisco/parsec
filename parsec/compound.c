@@ -29,7 +29,7 @@ static int parsec_composed_taskpool_cb( parsec_taskpool_t* o, void* cbdata )
     int remaining;
 
     assert( o == compound->taskpool_array[completed_taskpools] ); (void)o;
-    remaining = compound->super.tdm.module->taskpool_addto_nb_pa(&compound->super, -1);
+    remaining = compound->super.tdm.module->taskpool_addto_runtime_actions(&compound->super, -1);
     if( remaining > 0 ) {
         assert( NULL != compound->taskpool_array[completed_taskpools+1] );
         PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "Compound taskpool %p enable taskpool %p",
@@ -51,7 +51,7 @@ parsec_compound_taskpool_startup( parsec_context_t *context,
     parsec_compound_taskpool_t* compound = (parsec_compound_taskpool_t*)tp;
 
     compound->ctx = context;
-    compound->super.tdm.module->taskpool_set_nb_pa(&compound->super, compound->nb_taskpools);
+    compound->super.tdm.module->taskpool_set_runtime_actions(&compound->super, compound->nb_taskpools);
     PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "Compound taskpool %p starting with %d taskpools",
                          compound, compound->nb_taskpools);
     for( int i = 0; i < compound->nb_taskpools; i++ ) {

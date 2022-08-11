@@ -27,9 +27,9 @@ static void parsec_termdet_fourcounter_monitor_taskpool(parsec_taskpool_t *tp,
 static parsec_termdet_taskpool_state_t parsec_termdet_fourcounter_taskpool_state(parsec_taskpool_t *tp);
 static int parsec_termdet_fourcounter_taskpool_ready(parsec_taskpool_t *tp);
 static int parsec_termdet_fourcounter_taskpool_addto_nb_tasks(parsec_taskpool_t *tp, int v);
-static int parsec_termdet_fourcounter_taskpool_addto_nb_pa(parsec_taskpool_t *tp, int v);
+static int parsec_termdet_fourcounter_taskpool_addto_runtime_actions(parsec_taskpool_t *tp, int v);
 static int parsec_termdet_fourcounter_taskpool_set_nb_tasks(parsec_taskpool_t *tp, int v);
-static int parsec_termdet_fourcounter_taskpool_set_nb_pa(parsec_taskpool_t *tp, int v);
+static int parsec_termdet_fourcounter_taskpool_set_runtime_actions(parsec_taskpool_t *tp, int v);
 
 static int parsec_termdet_fourcounter_outgoing_message_pack(parsec_taskpool_t *tp,
                                                             int dst_rank,
@@ -56,9 +56,9 @@ const parsec_termdet_module_t parsec_termdet_fourcounter_module = {
         parsec_termdet_fourcounter_taskpool_state,
         parsec_termdet_fourcounter_taskpool_ready,
         parsec_termdet_fourcounter_taskpool_addto_nb_tasks,
-        parsec_termdet_fourcounter_taskpool_addto_nb_pa,
+        parsec_termdet_fourcounter_taskpool_addto_runtime_actions,
         parsec_termdet_fourcounter_taskpool_set_nb_tasks,
-        parsec_termdet_fourcounter_taskpool_set_nb_pa,
+        parsec_termdet_fourcounter_taskpool_set_runtime_actions,
         0,
         parsec_termdet_fourcounter_outgoing_message_start,
         parsec_termdet_fourcounter_outgoing_message_pack,
@@ -443,7 +443,7 @@ static int parsec_termdet_fourcounter_taskpool_set_nb_tasks(parsec_taskpool_t *t
     return v;
 }
 
-static int parsec_termdet_fourcounter_taskpool_set_nb_pa(parsec_taskpool_t *tp, int v)
+static int parsec_termdet_fourcounter_taskpool_set_runtime_actions(parsec_taskpool_t *tp, int v)
 {
     parsec_termdet_fourcounter_monitor_t *tpm;
     assert( tp->tdm.module != NULL );
@@ -484,7 +484,7 @@ static int parsec_termdet_fourcounter_taskpool_addto_nb_tasks(parsec_taskpool_t 
     return ret;
 }
 
-static int parsec_termdet_fourcounter_taskpool_addto_nb_pa(parsec_taskpool_t *tp, int v)
+static int parsec_termdet_fourcounter_taskpool_addto_runtime_actions(parsec_taskpool_t *tp, int v)
 {
     int ret;
     assert( tp->tdm.module != NULL );

@@ -27,9 +27,9 @@ static void parsec_termdet_user_trigger_monitor_taskpool(parsec_taskpool_t *tp,
 static parsec_termdet_taskpool_state_t parsec_termdet_user_trigger_taskpool_state(parsec_taskpool_t *tp);
 static int parsec_termdet_user_trigger_taskpool_ready(parsec_taskpool_t *tp);
 static int parsec_termdet_user_trigger_taskpool_set_nb_tasks(parsec_taskpool_t *tp, int v);
-static int parsec_termdet_user_trigger_taskpool_set_nb_pa(parsec_taskpool_t *tp, int v);
+static int parsec_termdet_user_trigger_taskpool_set_runtime_actions(parsec_taskpool_t *tp, int v);
 static int parsec_termdet_user_trigger_taskpool_addto_nb_tasks(parsec_taskpool_t *tp, int v);
-static int parsec_termdet_user_trigger_taskpool_addto_nb_pa(parsec_taskpool_t *tp, int v);
+static int parsec_termdet_user_trigger_taskpool_addto_runtime_actions(parsec_taskpool_t *tp, int v);
 static int parsec_termdet_user_trigger_outgoing_message_pack(parsec_taskpool_t *tp,
                                                              int dst_rank,
                                                              char *packed_buffer,
@@ -54,9 +54,9 @@ const parsec_termdet_module_t parsec_termdet_user_trigger_module = {
         parsec_termdet_user_trigger_taskpool_state,
         parsec_termdet_user_trigger_taskpool_ready,
         parsec_termdet_user_trigger_taskpool_addto_nb_tasks,
-        parsec_termdet_user_trigger_taskpool_addto_nb_pa,
+        parsec_termdet_user_trigger_taskpool_addto_runtime_actions,
         parsec_termdet_user_trigger_taskpool_set_nb_tasks,
-        parsec_termdet_user_trigger_taskpool_set_nb_pa,
+        parsec_termdet_user_trigger_taskpool_set_runtime_actions,
         0,
         parsec_termdet_user_trigger_outgoing_message_start,
         parsec_termdet_user_trigger_outgoing_message_pack,
@@ -226,7 +226,7 @@ static int32_t parsec_termdet_user_trigger_taskpool_set_nb_tasks(parsec_taskpool
         monitor->root = tp->context->my_rank;
     }
     tp->nb_tasks = 0;
-    parsec_termdet_user_trigger_taskpool_addto_nb_pa(tp, -1);
+    parsec_termdet_user_trigger_taskpool_addto_runtime_actions(tp, -1);
     return tp->nb_tasks;
 }
 
@@ -258,7 +258,7 @@ static void parsec_termdet_signal_termination(parsec_taskpool_t *tp)
 }
 
 
-static int32_t parsec_termdet_user_trigger_taskpool_set_nb_pa(parsec_taskpool_t *tp, int32_t v)
+static int32_t parsec_termdet_user_trigger_taskpool_set_runtime_actions(parsec_taskpool_t *tp, int32_t v)
 {
     int32_t ov;
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-USER_TRIGGER:\tNB_PA -> %d", v);
@@ -279,7 +279,7 @@ static int32_t parsec_termdet_user_trigger_taskpool_addto_nb_tasks(parsec_taskpo
     return tp->nb_tasks;
 }
 
-static int32_t parsec_termdet_user_trigger_taskpool_addto_nb_pa(parsec_taskpool_t *tp, int32_t v)
+static int32_t parsec_termdet_user_trigger_taskpool_addto_runtime_actions(parsec_taskpool_t *tp, int32_t v)
 {
     int32_t ov;
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-USER_TRIGGER:\tNB_PA %d -> %d", tp->nb_pending_actions,

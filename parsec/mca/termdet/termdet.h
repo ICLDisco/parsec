@@ -296,9 +296,9 @@ struct parsec_termdet_base_module_1_0_0_t {
     parsec_termdet_taskpool_state_fn_t         taskpool_state;
     parsec_termdet_taskpool_ready_fn_t         taskpool_ready;
     parsec_termdet_taskpool_load_fn_t          taskpool_addto_nb_tasks;
-    parsec_termdet_taskpool_load_fn_t          taskpool_addto_nb_pa;
+    parsec_termdet_taskpool_load_fn_t          taskpool_addto_runtime_actions;
     parsec_termdet_taskpool_load_fn_t          taskpool_set_nb_tasks;
-    parsec_termdet_taskpool_load_fn_t          taskpool_set_nb_pa;
+    parsec_termdet_taskpool_load_fn_t          taskpool_set_runtime_actions;
     size_t                                     outgoing_message_piggyback_size;
     parsec_termdet_outgoing_message_start_fn_t outgoing_message_start;
     parsec_termdet_outgoing_message_pack_fn_t  outgoing_message_pack;

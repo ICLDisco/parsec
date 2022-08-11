@@ -2994,7 +2994,7 @@ int parsec_task_deps_with_final_output(const parsec_task_t *task,
 
 int parsec_add_fetch_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks )
 {
-    return tp->tdm.module->taskpool_addto_nb_pa(tp, nb_tasks);
+    return tp->tdm.module->taskpool_addto_runtime_actions(tp, nb_tasks);
 }
 
 parsec_execution_stream_t *parsec_my_execution_stream(void)

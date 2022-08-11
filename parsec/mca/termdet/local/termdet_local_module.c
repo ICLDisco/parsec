@@ -26,9 +26,9 @@ static void parsec_termdet_local_monitor_taskpool(parsec_taskpool_t *tp,
 static parsec_termdet_taskpool_state_t parsec_termdet_local_taskpool_state(parsec_taskpool_t *tp);
 static int parsec_termdet_local_taskpool_ready(parsec_taskpool_t *tp);
 static int parsec_termdet_local_taskpool_set_nb_tasks(parsec_taskpool_t *tp, int v);
-static int parsec_termdet_local_taskpool_set_nb_pa(parsec_taskpool_t *tp, int v);
+static int parsec_termdet_local_taskpool_set_runtime_actions(parsec_taskpool_t *tp, int v);
 static int parsec_termdet_local_taskpool_addto_nb_tasks(parsec_taskpool_t *tp, int v);
-static int parsec_termdet_local_taskpool_addto_nb_pa(parsec_taskpool_t *tp, int v);
+static int parsec_termdet_local_taskpool_addto_runtime_actions(parsec_taskpool_t *tp, int v);
 static int parsec_termdet_local_outgoing_message_pack(parsec_taskpool_t *tp,
                                                       int dst_rank,
                                                       char *packed_buffer,
@@ -53,9 +53,9 @@ const parsec_termdet_module_t parsec_termdet_local_module = {
         parsec_termdet_local_taskpool_state,
         parsec_termdet_local_taskpool_ready,
         parsec_termdet_local_taskpool_addto_nb_tasks,
-        parsec_termdet_local_taskpool_addto_nb_pa,
+        parsec_termdet_local_taskpool_addto_runtime_actions,
         parsec_termdet_local_taskpool_set_nb_tasks,
-        parsec_termdet_local_taskpool_set_nb_pa,
+        parsec_termdet_local_taskpool_set_runtime_actions,
         0,
         parsec_termdet_local_outgoing_message_start, 
         parsec_termdet_local_outgoing_message_pack,
@@ -129,7 +129,7 @@ static int32_t parsec_termdet_local_taskpool_set_nb_tasks(parsec_taskpool_t *tp,
     return tp->nb_tasks;
 }
 
-static int32_t parsec_termdet_local_taskpool_set_nb_pa(parsec_taskpool_t *tp, int32_t v)
+static int32_t parsec_termdet_local_taskpool_set_runtime_actions(parsec_taskpool_t *tp, int32_t v)
 {
     int32_t ov;
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tNB_PA -> %d", v);
@@ -165,7 +165,7 @@ static int32_t parsec_termdet_local_taskpool_addto_nb_tasks(parsec_taskpool_t *t
     return ov+v;
 }
 
-static int32_t parsec_termdet_local_taskpool_addto_nb_pa(parsec_taskpool_t *tp, int32_t v)
+static int32_t parsec_termdet_local_taskpool_addto_runtime_actions(parsec_taskpool_t *tp, int32_t v)
 {
     int32_t ov;
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tNB_PA %d -> %d", tp->nb_pending_actions,

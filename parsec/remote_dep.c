@@ -96,7 +96,7 @@ static inline void
 remote_dep_inc_flying_messages(parsec_taskpool_t* handle)
 {
     assert( handle->tdm.module->taskpool_state(handle) != PARSEC_TERM_TP_TERMINATED );
-    handle->tdm.module->taskpool_addto_nb_pa(handle, 1);
+    handle->tdm.module->taskpool_addto_runtime_actions(handle, 1);
 }
 
 /* allow for termination when all deps have been served */
@@ -104,7 +104,7 @@ static inline void
 remote_dep_dec_flying_messages(parsec_taskpool_t *handle)
 {
     assert( handle->tdm.module->taskpool_state(handle) != PARSEC_TERM_TP_TERMINATED );
-    handle->tdm.module->taskpool_addto_nb_pa(handle, -1);
+    handle->tdm.module->taskpool_addto_runtime_actions(handle, -1);
 }
 #endif
 

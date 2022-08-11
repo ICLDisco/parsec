@@ -25,8 +25,6 @@
 parsec_profiling_dictionary_t *parsec_profiling_dictionary;
 #define PROFILING_HASH_SIZE 4096
 
-parsec_profiling_dictionary_t *parsec_profiling_dictionary;
-
 static size_t     sizeof_for_type(parsec_profiling_datatype_t dt);
 static char       code_for_type(  parsec_profiling_datatype_t dt);
 

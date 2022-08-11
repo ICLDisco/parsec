@@ -4616,7 +4616,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "  /* Twice the size to hold the startup tasks function_t */\n"
             "  __parsec_tp->super.super.task_classes_array = (const parsec_task_class_t**)\n"
             "              calloc((2 * PARSEC_%s_NB_TASK_CLASSES + 1), sizeof(parsec_task_class_t*));\n"
-            "  __parsec_tp->super.super.tdm.module->taskpool_addto_nb_pa(&__parsec_tp->super.super, PARSEC_%s_NB_TASK_CLASSES);  /* for the startup tasks */\n"
+            "  __parsec_tp->super.super.tdm.module->taskpool_addto_runtime_actions(&__parsec_tp->super.super, PARSEC_%s_NB_TASK_CLASSES);  /* for the startup tasks */\n"
             "  __parsec_tp->super.super.taskpool_type = PARSEC_TASKPOOL_TYPE_PTG;\n"
             "  __parsec_tp->sync_point = __parsec_tp->super.super.nb_task_classes;\n"
             "  __parsec_tp->initial_number_tasks = 0;\n"
