@@ -130,11 +130,8 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
     if( NULL != grapher_file ) {
         char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
         char sim_date[64];
-        if(NULL != context->task_class->task_snprintf) {
-            context->task_class->task_snprintf(tmp, MAX_TASK_STRLEN, context);
-        } else {
-            parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context);
-        }
+        assert(NULL != context->task_class->task_snprintf);
+        context->task_class->task_snprintf(tmp, MAX_TASK_STRLEN, context);
         parsec_prof_grapher_taskid(context, nmp, MAX_TASK_STRLEN);
 #if defined(PARSEC_SIM)
         snprintf(sim_date, 64, " [%d]", context->sim_exec_date);
