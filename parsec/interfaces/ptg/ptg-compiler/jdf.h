@@ -180,9 +180,9 @@ typedef unsigned int jdf_flags_t;
 
 #define JDF_PROP_TERMDET_NAME                  "termdet"
 #define JDF_PROP_TERMDET_LOCAL                 "local"
+#define JDF_PROP_TERMDET_DYNAMIC               "dynamic"
 
 #define JDF_HAS_UD_NB_LOCAL_TASKS              ((jdf_flags_t)(1 << 0))
-#define JDF_PROP_DYNAMIC_JDF                   "dynamic"
 
 #define JDF_FUNCTION_HAS_UD_HASH_STRUCT        ((jdf_flags_t)(1 << 1))
 #define JDF_PROP_UD_HASH_STRUCT_NAME           "hash_struct"
@@ -198,7 +198,6 @@ typedef unsigned int jdf_flags_t;
 #define JDF_PROP_TERMDET_USER_TRIGGERED        "user-triggered"
 #define JDF_HAS_USER_TRIGGERED_TERMDET         ((jdf_flags_t)(1 << 5))
 
-#define JDF_PROP_TERMDET_DYNAMIC               "dynamic"
 #define JDF_HAS_DYNAMIC_TERMDET                ((jdf_flags_t)(1 << 6))
 
 #define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"

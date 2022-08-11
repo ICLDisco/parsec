@@ -3805,7 +3805,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     expr->jdf_c_code.fname);
         } else {
             assert((f->user_defines & JDF_HAS_USER_TRIGGERED_TERMDET) ||
-                   (NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL)));
+                   (NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL)));
             /* The startup tasks are going to count the real number of tasks as they discover them.
              * For now, we lock the idleness by creating a runtime pending action, and
              * we use sync_point to find when all the startup tasks are done. */
@@ -4242,13 +4242,13 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     string_arena_add_string(sa, "  .find_deps = %s,\n", jdf_property_get_function(f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, NULL));
 
     if( use_mask ) {
-        if( NULL == jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL)) {
+        if( NULL == jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL)) {
             string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_mask,\n");
         } else {
             string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_mask_count_task,\n");
         }
     } else {
-        if( NULL == jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL)) {
+        if( NULL == jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL)) {
             string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter,\n");
         } else {
             string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter_count_task,\n");
@@ -4585,7 +4585,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL)) {
+    if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL)) {
         coutput("static parsec_hook_return_t tp_ready_when_synced(struct parsec_execution_stream_s *es, parsec_task_t *task) {\n"
                 "  (void)es;\n"
                 "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)task->taskpool;\n"
@@ -4663,7 +4663,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             coutput("  ((__parsec_chore_t*)&tc->incarnations[0])->hook = (parsec_hook_t *)%s;\n",
                     jdf_property_get_function(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, NULL));
         }
-        if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL) ) {
+        if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL) ) {
             coutput("  assert(NULL == tc->complete_execution);\n"
                     "  tc->complete_execution = (parsec_hook_t*)tp_ready_when_synced;\n");
         }
@@ -4782,7 +4782,7 @@ static void jdf_generate_new_function( const jdf_t* jdf )
             "  (void)parsec_taskpool_reserve_id((parsec_taskpool_t*)__parsec_tp);\n",
             jdf_basename);
 
-    if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_DYNAMIC_JDF, NULL) ) {
+    if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL) ) {
         coutput("  __parsec_tp->initial_number_tasks = 0;\n");
     }
     

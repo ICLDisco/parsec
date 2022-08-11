@@ -13,8 +13,9 @@
 /**
  * @file
  *
- * Dijsktra-Matter Termination Detection Algorithm, four-counters variant
- *   (see TBD)
+ * Dijsktra/Mattern Termination Detection Algorithm, four-counters variant
+ *   (see https://www.cs.utexas.edu/users/EWD/transcriptions/EWD06xx/EWD687a.html
+ *    and https://www.vs.inf.ethz.ch/publ/papers/mattern-dc-1987.pdf)
  *
  */
 
