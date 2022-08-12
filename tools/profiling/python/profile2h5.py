@@ -14,6 +14,9 @@ if __name__ == '__main__':
     parser.add_argument('--single-process', dest='multiprocess', action='store_const',
                         const=False, default=True,
                         help='Deactivate multiprocess parallelism')
+    parser.add_argument('--ptt-version', dest='pttversion', action='store',
+                        default=1, type=int, choices=[1, 2],
+                        help='PTT format version')
     parser.add_argument('inputs', metavar='INPUT', type=str, nargs='+',
                         help='PaRSEC Binary Profile Input files')
     args = parser.parse_args()
@@ -22,12 +25,14 @@ if __name__ == '__main__':
         groups = ptt_utils.group_trace_filenames(args.inputs)
         for f in groups:
             print("Processing {}".format(f))
-            name = pbt2ptt.convert(f, multiprocess=args.multiprocess, report_progress=args.report_progress)
+            name = pbt2ptt.convert(f, multiprocess=args.multiprocess, report_progress=args.report_progress,
+                                   version=args.pttversion)
             print("Generated: {}".format(name))
     else:
         f = args.inputs
         print("Processing {}".format(f))
         name = pbt2ptt.convert(f, multiprocess=args.multiprocess, report_progress=args.report_progress,
-                               out=args.output)
+                               out=args.output,
+                               version=args.pttversion)
         print("Generated {}".format(name))
     sys.exit(0)
