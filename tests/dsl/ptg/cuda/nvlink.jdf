@@ -21,7 +21,6 @@ extern "C" %{
 #if defined(PARSEC_HAVE_CUDA)
 #include "parsec/mca/device/device.h"
 #include <cublas_v2.h>
-#endif  /* defined(PARSEC_HAVE_CUDA) */
 
 /**
  *
@@ -35,6 +34,7 @@ typedef cublasStatus_t (*cublas_dgemm_v2_t) ( cublasHandle_t handle,
                                               const double *B, int ldb,
                                               const double *beta,
                                               double       *C, int ldc);
+#endif  /* defined(PARSEC_HAVE_CUDA) */
 
 %}
 
