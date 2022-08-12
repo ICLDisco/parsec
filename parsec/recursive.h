@@ -70,7 +70,7 @@ parsec_recursivecall( parsec_task_t                *task,
     parsec_taskpool_set_complete_callback( tp, &parsec_recursivecall_callback,
                                            (void *)cbdata );
 
-    parsec_context_add_taskpool( es->virtual_process->parsec_context, tp);
+    parsec_context_add_taskpool( task->taskpool->context, tp);
 
     return -1;
 }
