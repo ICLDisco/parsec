@@ -393,6 +393,7 @@ typedef struct jdf_expr {
     struct jdf_expr              *local_variables; /**< the list of named local variables that are defined with
                                                     *   a named range and are used to define this expression */
     jdf_expr_operand_t            op;
+    char                         *protected_by;    /**< if non NULL the function definition if protected by this #define */
     char                         *alias;           /**< if alias != NULL, this expression defines a local variable named alias */
     int                      ldef_index;           /**< if alias != NULL, the local variable is stored in ldef[ldef_index] */
     int                           scope;           /**< if alias != NULL, scope is the scope of that definition

@@ -526,7 +526,24 @@ body:         BODY_START properties BODY_END
              {
                  jdf_body_t* body = new(jdf_body_t);
                  body->properties = $2;
+                 /**
+                  * Go over the list of properties and tag them with the type of the BODY. This
+                  * allows us to protect the generated code to avoid compiler warnings.
+                  */
+                 jdf_expr_t* type_str = jdf_find_property( body->properties, "type", NULL );
+                 if( NULL != type_str ) {
+                     char* protected_by;
+                     asprintf(&protected_by, "PARSEC_HAVE_%s", type_str->jdf_var);
+                     jdf_def_list_t* property = body->properties;
+                     while( NULL != property ) {
+                         assert(NULL == property->expr->protected_by);
+                         property->expr->protected_by = strdup(protected_by);
+                         property = property->next;
+                     }
+                     free(protected_by);
+                 }
                  body->next = NULL;
+                 /* The body of the function is stored as a string in BODY_END */
                  body->external_code = $3;
                  JDF_OBJECT_LINENO(body) = current_lineno;
                  $$ = body;
@@ -619,6 +636,7 @@ simulation_cost:
                 SIMCOST expr_simple
                 {
                     $$ = $2;
+                    $$->protected_by = strdup("PARSEC_SIM");
                 }
              |  {   $$ = NULL; }
              ;
