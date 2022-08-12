@@ -378,7 +378,6 @@ void parsec_hash_table_nolock_insert_handle(parsec_hash_table_t *ht,
                                             parsec_hash_table_item_t *item)
 {
     uint64_t hash;
-    int res;
     hash = handle->hash;
     item->next_item = ht->rw_hash->buckets[hash].first_item;
     item->hash64 = handle->hash64;
@@ -578,7 +577,6 @@ void *parsec_hash_table_nolock_remove_handle(parsec_hash_table_t *ht,
     parsec_hash_table_item_t *current_item, *prev_item;
     uint64_t hash64 = handle->hash64;
     uint64_t hash = handle->hash;
-    int32_t res;
     prev_item = NULL;
     for(current_item = ht->rw_hash->buckets[hash].first_item;
         NULL != current_item;
