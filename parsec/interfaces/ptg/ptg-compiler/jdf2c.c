@@ -53,8 +53,8 @@ static void jdf_generate_inline_c_functions(jdf_t* jdf);
 /* local constants */
 
 /* Define datatypes that JDF_C_CODE functions can return. */
-static const char *full_type[]  = { "int32_t", "int64_t", "float", "double", "parsec_arena_datatype_t*" };
-static const char *short_type[] = {   "int32",   "int64", "float", "double", "parsec_arena_datatype_t*" };
+static const char *full_type[]  = { "int32_t", "int64_t", "float", "double", "const parsec_arena_datatype_t*" };
+static const char *short_type[] = {   "int32",   "int64", "float", "double", "const parsec_arena_datatype_t*" };
 
 /* C99 doesn't help us initialize a structure to zero easily */
 static const jdf_expr_t jdf_empty_expr;
@@ -1714,7 +1714,7 @@ jdf_generate_function_without_expression(const jdf_t *jdf,
     info.prefix = "";
     info.suffix = "";
     info.assignments = "locals";
-    
+
     coutput("  (void)__parsec_tp; (void)locals;\n"
             "  return %s;\n"
             "}\n",
@@ -1731,7 +1731,7 @@ static void jdf_generate_range_min_without_fn(const jdf_t *jdf, const jdf_expr_t
     jdf_expr_t *ld;
 
     (void)jdf;
-    
+
     info.sa = sa;
     info.prefix = "";
     info.suffix = "";
@@ -6642,8 +6642,6 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "#endif /* PARSEC_PROF_TRACE */\n");
     }
 
-    dyld = jdf_property_get_string(body->properties, "dyld", NULL);
-    dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
     if ( NULL != dyld ) {
         coutput("  /* Pointer to dynamic gpu function */\n"
                 "  {\n"
@@ -8006,6 +8004,9 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     if( NULL != expr->jdf_c_code.fname )
         return;
 
+    if( NULL != expr->protected_by ) {
+        coutput("#if defined(%s) // specialized inline function\n", expr->protected_by);
+    }
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
     assert(JDF_OP_IS_C_CODE(expr->op));
@@ -8023,7 +8024,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
                     expr->jdf_c_code.fname, jdf_basename,
                     parsec_get_name(NULL, expr->jdf_c_code.function_context, "parsec_assignment_t"),
                     jdf_basename, expr->jdf_c_code.function_context->fname);
-        }else{
+        } else {
             coutput("static inline %s %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *assignments)\n"
                     "{\n"
                     "  (void)__parsec_tp;\n",
@@ -8085,6 +8086,9 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
         coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
     coutput("}\n"
             "\n");
+    if( NULL != expr->protected_by ) {
+        coutput("#endif  /* defined(%s) */\n", expr->protected_by);
+    }
     (void)rc;
 }
 
