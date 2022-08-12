@@ -448,7 +448,6 @@ static void build_unmatched_events_in_thread(dbp_thread_t *thr)
     const dbp_event_t      *e1,  *e2;
     dbp_event_iterator_t   *i1,  *i2;
     int key2;
-    uint64_t timestamp2;
 
     event_cache_key_t  *cache_key;
     event_cache_item_t *cache_item;
