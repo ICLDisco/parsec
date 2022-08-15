@@ -833,6 +833,62 @@ parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp,
 
 /* **************************************************************************** */
 
+static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const parsec_task_t *task)
+{
+    const parsec_task_class_t *tc = (const parsec_task_class_t*)task->task_class;
+    const parsec_dtd_task_t* dtd_task = (const parsec_dtd_task_t *)task;
+
+    char *b = buffer;
+    int ret, remaining = buffer_size;
+    
+    ret = snprintf(b, remaining, "%s(", tc->name);
+    if(ret < 0) {
+        *b = '\0';
+        return buffer;
+    }
+    if(ret >= remaining)
+        return buffer;
+    remaining -= ret;
+    b += ret;
+
+    parsec_dtd_task_param_t *current_param = GET_HEAD_OF_PARAM_LIST(dtd_task);
+    bool first = true;
+
+    while( current_param != NULL) {
+      if((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE ) {
+        if(current_param->arg_size == sizeof(int)) {
+          ret = snprintf(b, remaining, "%s%d", first ? "" : ", ", *(int*)current_param->pointer_to_tile);
+        } else {
+          ret = snprintf(b, remaining, "%s_", first ? "" : ", ");
+        }
+      } else {
+        ret = snprintf(b, remaining, "%s_", first ? "" : ", ");
+      }
+      first = false;
+      if(ret < 0) {
+        *b = '\0';
+        return buffer;
+      }
+      if(ret >= remaining)
+        return buffer;
+      remaining -= ret;
+      b += ret;
+      current_param = current_param->next;
+    }
+    ret = snprintf(b, remaining, ")");
+    if(ret < 0) {
+      *b = '\0';
+      return buffer;
+    }
+    if(ret >= remaining)
+      return buffer;
+    remaining -= ret;
+    b += ret;
+
+    return buffer;
+}
+
+
 void
 parsec_dtd_track_task(parsec_dtd_taskpool_t *tp,
                       uint64_t key,
@@ -2197,6 +2253,7 @@ parsec_dtd_create_task_classv(parsec_dtd_taskpool_t *dtd_tp,
     tc->flags = 0x0 | PARSEC_HAS_IN_IN_DEPENDENCIES | PARSEC_USE_DEPS_MASK;
     tc->dependencies_goal = 0;
     tc->make_key = DTD_make_key_identity;
+    tc->task_snprintf = parsec_dtd_task_snprintf;
     tc->key_functions = &DTD_key_fns;
     tc->fini = NULL;
     tc->incarnations = *incarnations = (__parsec_chore_t *)calloc(PARSEC_DEV_MAX_NB_TYPE+1, sizeof(__parsec_chore_t));
