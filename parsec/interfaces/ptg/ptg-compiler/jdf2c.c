@@ -3092,6 +3092,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     coutput("%s  if( NULL != ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of ) {\n"
             "%s    vpid = ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
             "%s    assert(context->nb_vp >= vpid);\n"
+            "%s  } else {\n"
+            "%s    vpid = (vpid + 1) %% context->nb_vp;  /* spread the initial joy */\n"
             "%s  }\n"
             "%s  new_task = (%s*)parsec_thread_mempool_allocate( context->virtual_processes[vpid]->execution_streams[0]->context_mempool );\n"
             "%s  new_task->status = PARSEC_TASK_STATUS_NONE;\n",
@@ -3100,6 +3102,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             UTIL_DUMP_LIST(sa2, f->predicate->parameters, next,
                            dump_expr, (void*)&info1,
                            "", "", ", ", ""),
+            indent(nesting),
+            indent(nesting),
             indent(nesting),
             indent(nesting),
             indent(nesting), parsec_get_name(jdf, f, "task_t"),
@@ -3156,26 +3160,22 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  pready_ring[vpid] = parsec_list_item_ring_push_sorted(pready_ring[vpid],\n"
             "%s                                                        (parsec_list_item_t*)new_task,\n"
             "%s                                                        parsec_execution_context_priority_comparator);\n"
-            "%s  nb_tasks++;\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));    
+            "%s  nb_tasks++;\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
     coutput("%s restore_context_%d:  /* we jump here just so that we have code after the label */\n", indent(nesting), ctx_level);
     coutput("%s  restore_context = 0;\n"
             "%s  (void)restore_context;\n"
             "%s  if( nb_tasks > this_task->locals.reserved[0].value ) {\n"
             "%s    if( (size_t)this_task->locals.reserved[0].value < parsec_task_startup_iter ) this_task->locals.reserved[0].value <<= 1;\n"
-            "%s    for(int _i = 0; _i < context->nb_vp; _i++ ) {\n"
-            "%s      if( NULL == pready_ring[_i] ) continue;\n"
-            "%s      __parsec_schedule(context->virtual_processes[_i]->execution_streams[0], (parsec_task_t*)pready_ring[_i], 0);\n"
-            "%s      pready_ring[_i] = NULL;\n"
-            "%s    }\n"
+            "%s    __parsec_schedule_vp(es, (parsec_task_t**)pready_ring, 0);\n"
             "%s    total_nb_tasks += nb_tasks;\n"
             "%s    nb_tasks = 0;\n"
             "%s    if( total_nb_tasks > parsec_task_startup_chunk ) {  /* stop here and request to be rescheduled */\n"
             "%s      return PARSEC_HOOK_RETURN_AGAIN;\n"
             "%s    }\n"
             "%s  }\n",
-            indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting),
-            indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting),
-            indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
+            indent(nesting), indent(nesting), indent(nesting), indent(nesting),
+            indent(nesting), indent(nesting), indent(nesting), indent(nesting),
+            indent(nesting), indent(nesting), indent(nesting));
 
     /* We close all variables, in reverse order to manage the local indices */
     while( NULL != inner_vl ) {
@@ -3202,12 +3202,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     coutput("  (void)vpid;\n"
             "  if( 0 != nb_tasks ) {\n"
-            "    for(int _i = 0; _i < context->nb_vp; _i++ ) {\n"
-            "      if( NULL == pready_ring[_i] ) continue;\n"
-            "      __parsec_schedule(context->virtual_processes[_i]->execution_streams[0],\n"
-            "                        (parsec_task_t*)pready_ring[_i], 0);\n"
-            "      pready_ring[_i] = NULL;\n"
-            "    }\n"
+            "    __parsec_schedule_vp(es, (parsec_task_t**)pready_ring, 0);\n"
             "    nb_tasks = 0;\n"
             "  }\n"
             "  return PARSEC_HOOK_RETURN_DONE;\n"
@@ -4409,16 +4404,17 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "      if( !(supported_dev & chores[j].type) ) continue;\n"
             "      if( j != idx ) {\n"
             "        chores[idx] = chores[j];\n"
-            "        parsec_debug_verbose(20, parsec_debug_output, \"Device type %%i disabledfor function %%s\"\n, chores[j].type, tc->name);\n"
+            "        parsec_debug_verbose(20, parsec_debug_output, \"Device type %%i disabled for function %%s\"\n, chores[j].type, tc->name);\n"
             "      }\n"
             "      idx++;\n"
             "    }\n"
             "    chores[idx].type     = PARSEC_DEV_NONE;\n"
             "    chores[idx].evaluate = NULL;\n"
             "    chores[idx].hook     = NULL;\n"
+            "    /* Create the initialization tasks for each taskclass */\n"
             "    parsec_task_t* task = (parsec_task_t*)parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);\n"
             "    task->taskpool = (parsec_taskpool_t *)__parsec_tp;\n"
-            "    task->chore_mask = PARSEC_DEV_ALL;\n"
+            "    task->chore_mask = PARSEC_DEV_CPU;\n"
             "    task->status = PARSEC_TASK_STATUS_NONE;\n"
             "    memset(&task->locals, 0, sizeof(parsec_assignment_t) * MAX_LOCAL_COUNT);\n"
             "    PARSEC_LIST_ITEM_SINGLETON(task);\n"
@@ -7169,20 +7165,11 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 "#endif\n"
                 "\n");
         coutput("  if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {\n"
-                "    struct parsec_vp_s** vps = es->virtual_process->parsec_context->virtual_processes;\n");
-        coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->ht_item.key, arg.output_usage);\n",
+                "    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->ht_item.key, arg.output_usage);\n"
+                "    __parsec_schedule_vp(es, arg.ready_lists, 0);\n"
+                "  }\n",
                 f->fname);
 
-        coutput("    for(__vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++) {\n"
-                "      if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
-                "      if(__vp_id == es->virtual_process->vp_id) {\n"
-                "        __parsec_schedule(es, arg.ready_lists[__vp_id], 0);\n"
-                "      } else {\n"
-                "        __parsec_schedule(vps[__vp_id]->execution_streams[0], arg.ready_lists[__vp_id], 0);\n"
-                "      }\n"
-                "      arg.ready_lists[__vp_id] = NULL;\n"
-                "    }\n"
-                "  }\n");
     } else {
         coutput("  /* No successors, don't call iterate_successors and don't release any local deps */\n");
     }

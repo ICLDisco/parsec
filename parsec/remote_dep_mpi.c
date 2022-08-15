@@ -112,6 +112,7 @@ parsec_execution_stream_t parsec_comm_es = {
     .es_profile = NULL,
 #endif /* PARSEC_PROF_TRACE */
     .scheduler_object = NULL,
+    .next_task = NULL,
 #if defined(PARSEC_SIM)
     .largest_simulation_date = 0,
 #endif
@@ -469,7 +470,9 @@ remote_dep_dequeue_off(parsec_context_t* context)
 static void
 remote_dep_mpi_initialize_execution_stream(parsec_context_t *context)
 {
-    memcpy(&parsec_comm_es, context->virtual_processes[0]->execution_streams[0], sizeof(parsec_execution_stream_t));
+    memcpy(&parsec_comm_es, context->virtual_processes[0]->execution_streams[0],
+           sizeof(parsec_execution_stream_t));
+    parsec_comm_es.next_task = (parsec_task_t*)0xdeadbeef;  /* should not be NULL, but it should also never be used */
 }
 
 void* remote_dep_dequeue_main(parsec_context_t* context)
