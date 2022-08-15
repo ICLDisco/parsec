@@ -156,6 +156,8 @@ static int parsec_runtime_max_number_of_cores = -1;
 static int parsec_runtime_bind_main_thread = 1;
 static int parsec_runtime_bind_threads     = 1;
 
+int parsec_runtime_keep_highest_priority_task = 1;
+
 PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
 
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
@@ -258,6 +260,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     es->virtual_process  = startup->virtual_process;
     es->rand_seed        = tv_now.tv_usec + startup->th_id;
     es->scheduler_object = NULL;
+    es->next_task        = NULL;
     startup->virtual_process->execution_streams[startup->th_id] = es;
     es->core_id          = startup->bindto;
 #if defined(PARSEC_HAVE_HWLOC)
@@ -523,6 +526,12 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     parsec_mca_param_reg_int_name("runtime", "bind_threads", "Bind main and worker threads", false, false,
                                   parsec_runtime_bind_threads, &parsec_runtime_bind_threads);
+    /* MCA param for retaining the highest priority task to be executed on the
+     * same core as the one that made the task active (aka at least one of the
+     * data is expected to be in the cache).
+     */
+    parsec_mca_param_reg_int_name("runtime", "keep_highest_priority_task", "Allow a compute thread to retain the highest priority task to be executed locally. This change makes the scheduling decision non-deterministic because some tasks will never be handled to the scheduler.", false, false,
+                                  parsec_runtime_keep_highest_priority_task, &parsec_runtime_keep_highest_priority_task);
 
     if( parsec_cmd_line_is_taken(cmd_line, "gpus") ) {
         parsec_warning("Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.");
@@ -2330,6 +2339,10 @@ int parsec_taskpool_enable(parsec_taskpool_t* tp,
                            parsec_execution_stream_t * es,
                            int distributed)
 {
+    /* Always register the taskpool. This allows the taskpool destructor to unregister it in all cases. */
+    parsec_taskpool_register(tp);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d", tp, tp->taskpool_id);
+
     if( NULL != startup_queue ) {
         parsec_list_item_t *ring = NULL;
         parsec_task_t* ttask = (parsec_task_t*)*startup_queue;
@@ -2346,9 +2359,7 @@ int parsec_taskpool_enable(parsec_taskpool_t* tp,
         }
         if( NULL != ring ) __parsec_schedule(es, (parsec_task_t *)ring, 0);
     }
-    /* Always register the taskpool. This allows the taskpool destructor to unregister it in all cases. */
-    parsec_taskpool_register(tp);
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d", tp, tp->taskpool_id);
+
     if( 0 != distributed ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d with the comm engine", tp, tp->taskpool_id);
         (void)parsec_remote_dep_new_taskpool(tp);

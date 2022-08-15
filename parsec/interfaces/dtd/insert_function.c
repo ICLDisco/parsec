@@ -637,7 +637,12 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
 
-        task = parsec_current_scheduler->module.select(es, &distance);
+        if( NULL == (task = es->next_task) ) {
+            task = parsec_current_scheduler->module.select(es, &distance);
+        } else {
+            es->next_task = NULL;
+            distance = 1;
+        }
 
         if( task != NULL) {
             misses_in_a_row = 0;  /* reset the misses counter */
@@ -832,6 +837,62 @@ parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp,
 #endif /* defined(PARSEC_PROF_TRACE) */
 
 /* **************************************************************************** */
+
+static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const parsec_task_t *task)
+{
+    const parsec_task_class_t *tc = (const parsec_task_class_t*)task->task_class;
+    const parsec_dtd_task_t* dtd_task = (const parsec_dtd_task_t *)task;
+
+    char *b = buffer;
+    int ret, remaining = buffer_size;
+    
+    ret = snprintf(b, remaining, "%s(", tc->name);
+    if(ret < 0) {
+        *b = '\0';
+        return buffer;
+    }
+    if(ret >= remaining)
+        return buffer;
+    remaining -= ret;
+    b += ret;
+
+    parsec_dtd_task_param_t *current_param = GET_HEAD_OF_PARAM_LIST(dtd_task);
+    bool first = true;
+
+    while( current_param != NULL) {
+      if((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE ) {
+        if(current_param->arg_size == sizeof(int)) {
+          ret = snprintf(b, remaining, "%s%d", first ? "" : ", ", *(int*)current_param->pointer_to_tile);
+        } else {
+          ret = snprintf(b, remaining, "%s_", first ? "" : ", ");
+        }
+      } else {
+        ret = snprintf(b, remaining, "%s_", first ? "" : ", ");
+      }
+      first = false;
+      if(ret < 0) {
+        *b = '\0';
+        return buffer;
+      }
+      if(ret >= remaining)
+        return buffer;
+      remaining -= ret;
+      b += ret;
+      current_param = current_param->next;
+    }
+    ret = snprintf(b, remaining, ")");
+    if(ret < 0) {
+      *b = '\0';
+      return buffer;
+    }
+    if(ret >= remaining)
+      return buffer;
+    remaining -= ret;
+    b += ret;
+
+    return buffer;
+}
+
 
 void
 parsec_dtd_track_task(parsec_dtd_taskpool_t *tp,
@@ -1796,18 +1857,7 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
 
     /* Scheduling tasks */
     if( action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS ) {
-        parsec_vp_t **vps = es->virtual_process->parsec_context->virtual_processes;
-        for( __vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++ ) {
-            if( NULL == arg.ready_lists[__vp_id] ) {
-                continue;
-            }
-            if( __vp_id == es->virtual_process->vp_id ) {
-                __parsec_schedule(es, arg.ready_lists[__vp_id], 0);
-            } else {
-                __parsec_schedule(vps[__vp_id]->execution_streams[0], arg.ready_lists[__vp_id], 0);
-            }
-            arg.ready_lists[__vp_id] = NULL;
-        }
+        __parsec_schedule_vp(es, arg.ready_lists, 0);
     }
 
     PARSEC_PINS(es, RELEASE_DEPS_END, this_task);
@@ -2194,6 +2244,7 @@ parsec_dtd_create_task_classv(parsec_dtd_taskpool_t *dtd_tp,
     tc->flags = 0x0 | PARSEC_HAS_IN_IN_DEPENDENCIES | PARSEC_USE_DEPS_MASK;
     tc->dependencies_goal = 0;
     tc->make_key = DTD_make_key_identity;
+    tc->task_snprintf = parsec_dtd_task_snprintf;
     tc->key_functions = &DTD_key_fns;
     tc->fini = NULL;
     tc->incarnations = *incarnations = (__parsec_chore_t *)calloc(PARSEC_DEV_MAX_NB_TYPE+1, sizeof(__parsec_chore_t));
@@ -2672,11 +2723,11 @@ parsec_dtd_schedule_tasks(parsec_dtd_taskpool_t *__tp)
         parsec_list_chain_sorted(&temp, (parsec_list_item_t *)startup_list[p],
                                  parsec_execution_context_priority_comparator);
         startup_list[p] = (parsec_task_t *)parsec_list_nolock_unchain(&temp);
-        /* We should add these tasks on the system queue when there is one */
-        __parsec_schedule(__tp->super.context->virtual_processes[p]->execution_streams[0],
-                          startup_list[p], 0);
-        startup_list[p] = NULL;
     }
+    /* We should add these tasks on the system queue when there is one */
+    __parsec_schedule_vp(parsec_my_execution_stream(),
+                         startup_list, 0);
+
     PARSEC_OBJ_DESTRUCT(&temp);
 }
 

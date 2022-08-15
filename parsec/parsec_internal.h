@@ -269,6 +269,12 @@ typedef void (parsec_traverse_function_t)(struct parsec_execution_stream_s *,
  */
 typedef parsec_key_t (parsec_functionkey_fn_t)(const parsec_taskpool_t *tp,
                                                const parsec_assignment_t *assignments);
+
+/**
+ * Provide a character string representation of the task.
+ * Write max buffer_size characters into buffer and return buffer.
+ */
+typedef char* (parsec_printtask_fn_t)(char *buffer, size_t buffer_size, const parsec_task_t *task);
 /**
  *
  */
@@ -409,6 +415,7 @@ struct parsec_task_class_s {
     parsec_data_ref_fn_t        *data_affinity;  /**< Populates an array of data references, of size 1 */
     parsec_key_fn_t             *key_functions;
     parsec_functionkey_fn_t     *make_key;
+    parsec_printtask_fn_t       *task_snprintf;
 #if defined(PARSEC_SIM)
     parsec_sim_cost_fct_t       *sim_cost_fct;
 #endif
@@ -452,6 +459,15 @@ PARSEC_DECLSPEC extern size_t parsec_task_startup_chunk;
  * Global configuration variable controlling the getrusage report.
  */
 PARSEC_DECLSPEC extern int parsec_want_rusage;
+
+/**
+ * Global configuration variable controlling what tasks are given to the
+ * scheduler. If this is enabled (the default) then the highest priority task
+ * created as a successor of a completed task, will be retained by the
+ * current execution thread as the next task to be executed. This bypasses
+ * the scheduler, but can provide a better cache reuse.
+ */
+PARSEC_DECLSPEC extern int parsec_runtime_keep_highest_priority_task;
 
 /**
  * Description of the state of the task. It indicates what will be the next
