@@ -179,13 +179,14 @@ int __parsec_execute( parsec_execution_stream_t* es,
         rc = hook( es, task );
 #if defined(PARSEC_PROF_TRACE)
         task->prof_info.task_return_code = rc;
-        PARSEC_PINS(es, EXEC_END, task);
 #endif
         if( PARSEC_HOOK_RETURN_NEXT != rc ) {
             if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
                 /* Let's assume everything goes just fine */
                 task->status = PARSEC_TASK_STATUS_COMPLETE;
             }
+            /* Record EXEC_END event only for incarnation that succeeds */
+            PARSEC_PINS(es, EXEC_END, task);
             return rc;
         }
     next_chore:
@@ -197,8 +198,10 @@ int __parsec_execute( parsec_execution_stream_t* es,
                 break;
     } while(NULL != tc->incarnations[chore_id].hook);
     assert(task->status == PARSEC_TASK_STATUS_HOOK);
-    /* We're out of luck, no more chores */
+    /* Record EXEC_END event to ensure the EXEC_BEGIN is completed
+     * return code was stored in task_return_code */
     PARSEC_PINS(es, EXEC_END, task);
+    /* We're out of luck, no more chores */
     return PARSEC_HOOK_RETURN_ERROR;
 }
 
