@@ -53,6 +53,7 @@ typedef struct remote_dep_wire_activate_s {
     uint32_t             taskpool_id;
     uint32_t             task_class_id;
     uint32_t             length;
+    uintptr_t            callback_fn;  /**< Only used for GET protocol */
     parsec_assignment_t  locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
@@ -155,6 +156,8 @@ struct parsec_remote_deps_s {
     int32_t                          priority;
     uint32_t                        *remote_dep_fw_mask;  /**< list of peers already notified about
                                                            * the control sequence (only used for control messages) */
+    void                            *memhandles;     /**< used for the GET protocol to store the provided memory handles */
+    uintptr_t                        remote_cb_data; /**< used for the GET protocol to store the provided cb data */
     struct data_repo_entry_s        *repo_entry;
     struct remote_dep_output_param_s output[1];
 };
