@@ -165,7 +165,7 @@ static const parsec_symbol_t symb_CUDA_d2h_task_param = {
     .flags = 0x0
 };
 
-int32_t parsec_CUDA_d2h_max_flows = 0;
+extern int32_t parsec_CUDA_d2h_max_flows;
 
 static const parsec_task_class_t parsec_CUDA_d2h_task_class = {
     .name = "CUDA D2H data transfer",

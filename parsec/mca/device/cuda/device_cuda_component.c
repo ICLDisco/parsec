@@ -40,7 +40,7 @@ int parsec_cuda_output_stream = -1;
 
 int32_t parsec_CUDA_sort_pending_list = 0;
 
-int32_t parsec_CUDA_d2h_max_flows;
+int32_t parsec_CUDA_d2h_max_flows = 0;
 char* cuda_lib_path = NULL;
 
 #if defined(PARSEC_PROF_TRACE)
