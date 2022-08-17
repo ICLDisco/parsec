@@ -632,6 +632,9 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
                                       parsec_data_copy_t* target_dc,
                                       data_repo_entry_t* target_repo_entry);
 
+/* Set internal TLS variable parsec_tls_execution_stream */
+void parsec_set_my_execution_stream(parsec_execution_stream_t *es);
+
 #define parsec_execution_context_priority_comparator offsetof(parsec_task_t, priority)
 
 #if defined(PARSEC_SIM)
