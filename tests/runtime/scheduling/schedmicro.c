@@ -8,7 +8,7 @@
 #include "parsec/runtime.h"
 #include "parsec/utils/debug.h"
 #include "ep_wrapper.h"
-#include "schedmicro_data.h"
+#include "rt_data.h"
 #include "parsec/os-spec-timing.h"
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
