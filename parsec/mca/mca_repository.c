@@ -140,6 +140,34 @@ mca_base_component_t **mca_components_open_bytype(char *type)
     return opened_components;
 }
 
+mca_base_component_t *mca_component_open_byname(char *type, char *name)
+{
+    int i;
+    mca_base_component_t *component = NULL;
+    char **list;
+
+    list = mca_components_get_user_selection(type);
+
+    for(i = 0; mca_static_components[i] != NULL; i++) {
+        if( !strcmp( mca_static_components[i]->mca_type_name, type ) &&
+            !strcmp( mca_static_components[i]->mca_component_name, name) &&
+            mca_components_belongs_to_user_list(list, mca_static_components[i]->mca_component_name) ) {
+            component = mca_static_components[i];
+            break;
+        }
+    }
+    mca_components_free_user_list(list);
+
+    if( NULL == component )
+        return NULL;
+    if( (NULL !=  component->mca_open_component) && !component->mca_open_component() )
+        return NULL;
+    if( NULL != component->mca_register_component_params )
+        component->mca_register_component_params();
+    
+    return component;
+}
+
 void mca_components_query(mca_base_component_t **opened_components,
                           mca_base_module_t **selected_module,
                           mca_base_component_t **selected_component)
@@ -164,6 +192,18 @@ void mca_components_query(mca_base_component_t **opened_components,
         opened_components[s] = opened_components[i-1];
         opened_components[i-1] = NULL;
     }
+}
+
+mca_base_module_t *mca_component_query(mca_base_component_t *opened_component)
+{
+    mca_base_module_t *m = NULL;
+    int p;
+
+    if( opened_component->mca_query_component != NULL ) {
+        opened_component->mca_query_component(&m, &p);
+        return m;
+    }
+    return NULL;
 }
 
 void mca_component_close(mca_base_component_t *opened_component)

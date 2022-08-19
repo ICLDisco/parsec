@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
     parsec_walk_taskpool_t *walker;
     parsec_arena_datatype_t adt;
     int do_checks = 0, be_verbose = 0;
-    int pargc = 0, i;
+    int pargc = 0, i, dashdash = -1;
     char **pargv;
     int ret, ch;
     uint64_t cksum = 0;
@@ -171,11 +171,21 @@ int main(int argc, char *argv[])
             break;
         }
     }
-
-    parsec = parsec_init(-1, &pargc, &pargv);
-
-
-    while ((ch = getopt(argc, argv, "xvd:")) != -1) {
+    pargv = malloc( (pargc+1) * sizeof(char*));
+    if( dashdash != -1 ) {
+        if( strcmp(argv[i], "--") == 0 ) {
+            dashdash = i;
+            pargc = 0;
+        } else if( dashdash != -1 ) {
+            pargc++;
+        }
+    } else {
+        pargv[0] = NULL;
+    }
+    parsec = parsec_init(1, &pargc, &pargv);
+    free(pargv);
+    
+    while ((ch = getopt(argc, argv, "xvd:m:M:f:")) != -1) {
         switch (ch) {
         case 'x':
             do_checks = 1;
@@ -200,8 +210,8 @@ int main(int argc, char *argv[])
         default:
             fprintf(stderr,
                     "Usage: %s [-x] [-v] [-d rank -d rank -d rank] -- <parsec arguments>\n"
-                    "   Implement the Project operation to build a Haar tree using PaRSEC JDFs\n"
-                    "   if -x, create a haar-tree, and check that the tree correspond to a pre-computed checksum\n"
+                    "   Implement the Project operation to build a Hartree-Fock function using PaRSEC JDFs\n"
+                    "   if -x, create a function, and check that the tree correspond to a pre-computed checksum\n"
                     "   otherwise, output A.dot, a DOT file of the created tree\n"
                     "   if -v, print some information on what task is executed by what rank\n"
                     "   -d rank will make rank d wait for a debugger to attach\n",
@@ -223,7 +233,11 @@ int main(int argc, char *argv[])
                              2, 1, 2,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
 
-    project = parsec_project_new(treeA, world, (parsec_data_collection_t*)&fakeDesc, 1e-3, be_verbose);
+#if defined(HAVE_MPI)
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+
+    project = parsec_project_new(treeA, world, (parsec_data_collection_t*)&fakeDesc, 1e-3, be_verbose, 1.0);
     project->arenas_datatypes[PARSEC_project_DEFAULT_ADT_IDX] = adt;
     PARSEC_OBJ_RETAIN(adt.arena);
     rc = parsec_context_add_taskpool(parsec, &project->super);
@@ -232,6 +246,10 @@ int main(int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+        
+    project->arenas_datatypes[PARSEC_project_DEFAULT_ADT_IDX].arena = NULL;
+    parsec_taskpool_free(&project->super);
+    ret = 0;
 
     if( do_checks ) {
         walker = parsec_walk_new(treeA, world, (parsec_data_collection_t*)&fakeDesc,
@@ -251,7 +269,6 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    ret = 0;
 #if defined(HAVE_MPI)
     if( do_checks ) {
         uint64_t sum = 0;
@@ -288,10 +305,9 @@ int main(int argc, char *argv[])
         }
     }
 #endif  /* defined(HAVE_MPI) */
-
     parsec_del2arena( & adt );
 
-    parsec_taskpool_free(&project->super);
+    walker->arenas_datatypes[PARSEC_walk_DEFAULT_ADT_IDX].arena = NULL;
     parsec_taskpool_free(&walker->super);
 
     tree_dist_free(treeA);

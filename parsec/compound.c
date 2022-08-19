@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 The University of Tennessee and The University
+ * Copyright (c) 2019-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -26,9 +26,11 @@ static int parsec_composed_taskpool_cb( parsec_taskpool_t* o, void* cbdata )
 {
     parsec_compound_taskpool_t* compound = (parsec_compound_taskpool_t*)cbdata;
     int completed_taskpools = compound->completed_taskpools++;
+    int remaining;
 
     assert( o == compound->taskpool_array[completed_taskpools] ); (void)o;
-    if( --compound->super.nb_pending_actions ) {
+    remaining = compound->super.tdm.module->taskpool_addto_runtime_actions(&compound->super, -1);
+    if( remaining > 0 ) {
         assert( NULL != compound->taskpool_array[completed_taskpools+1] );
         PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "Compound taskpool %p enable taskpool %p",
                              compound, compound->taskpool_array[completed_taskpools+1]);
@@ -37,8 +39,6 @@ static int parsec_composed_taskpool_cb( parsec_taskpool_t* o, void* cbdata )
     } else {
         PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "Compound taskpool completed %p",
                              compound);
-        parsec_check_complete_cb((parsec_taskpool_t*)compound,
-                                 compound->ctx, 0 /* no tp left on this compound */);
     }
     return PARSEC_SUCCESS;
 }
@@ -51,9 +51,9 @@ parsec_compound_taskpool_startup( parsec_context_t *context,
     parsec_compound_taskpool_t* compound = (parsec_compound_taskpool_t*)tp;
 
     compound->ctx = context;
-    compound->super.nb_pending_actions = compound->nb_taskpools;
+    compound->super.tdm.module->taskpool_set_runtime_actions(&compound->super, compound->nb_taskpools);
     PARSEC_DEBUG_VERBOSE(30, parsec_debug_output, "Compound taskpool %p starting with %d taskpools",
-                         compound, compound->super.nb_pending_actions);
+                         compound, compound->nb_taskpools);
     for( int i = 0; i < compound->nb_taskpools; i++ ) {
         parsec_taskpool_t* o = compound->taskpool_array[i];
         assert( NULL != o );

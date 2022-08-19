@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2021 The University of Tennessee and The University
+ * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  */
@@ -8,6 +8,7 @@
 #define jdf_h
 
 #include "parsec/parsec_config.h"
+#include "string_arena.h"
 
 #include <stdint.h>
 
@@ -120,6 +121,7 @@ typedef struct jdf {
     struct jdf_name_list      *datatypes;
     struct jdf_expr           *inline_c_functions;
     const char                *nb_local_tasks_fn_name;
+    string_arena_t            *termdet_init_line;
 } jdf_t;
 
 /**
@@ -176,8 +178,11 @@ typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_FLAG_HAS_DATA_OUTPUT   ((jdf_flags_t)(1 << 5))
 #define JDF_FUNCTION_FLAG_NO_PREDECESSORS   ((jdf_flags_t)(1 << 6))
 
+#define JDF_PROP_TERMDET_NAME                  "termdet"
+#define JDF_PROP_TERMDET_LOCAL                 "local"
+#define JDF_PROP_TERMDET_DYNAMIC               "dynamic"
+
 #define JDF_HAS_UD_NB_LOCAL_TASKS              ((jdf_flags_t)(1 << 0))
-#define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"
 
 #define JDF_FUNCTION_HAS_UD_HASH_STRUCT        ((jdf_flags_t)(1 << 1))
 #define JDF_PROP_UD_HASH_STRUCT_NAME           "hash_struct"
@@ -189,6 +194,13 @@ typedef unsigned int jdf_flags_t;
 #define JDF_PROP_UD_STARTUP_TASKS_FN_NAME      "startup_fn"
 
 #define JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS  ((jdf_flags_t)(1 << 4))
+
+#define JDF_PROP_TERMDET_USER_TRIGGERED        "user-triggered"
+#define JDF_HAS_USER_TRIGGERED_TERMDET         ((jdf_flags_t)(1 << 5))
+
+#define JDF_HAS_DYNAMIC_TERMDET                ((jdf_flags_t)(1 << 6))
+
+#define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"
 #define JDF_PROP_UD_FIND_DEPS_FN_NAME          "find_deps_fn"
 #define JDF_PROP_UD_ALLOC_DEPS_FN_NAME         "alloc_deps_fn"
 #define JDF_PROP_UD_FREE_DEPS_FN_NAME          "free_deps_fn"

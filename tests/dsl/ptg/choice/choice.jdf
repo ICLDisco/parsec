@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2014-2016 The University of Tennessee and The University
+ * Copyright (c) 2014-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -64,7 +64,7 @@ BODY
         printf("Execute TB(%d); decision[%d] = %d\n", k, k, decision[k]);
 
         /* Decrease counter for the task A not done */
-        (void)parsec_atomic_fetch_dec_int32(&this_task->taskpool->nb_tasks);
+        this_task->taskpool->tdm.module->taskpool_addto_nb_tasks(this_task->taskpool, -1);
 }
 END
 
@@ -83,6 +83,6 @@ BODY
         printf("Execute TA(%d); decision[%d] = %d\n", k, k, decision[k]);
 
         /* Decrease counter for the task B not done */
-        (void)parsec_atomic_fetch_dec_int32(&this_task->taskpool->nb_tasks);
+        this_task->taskpool->tdm.module->taskpool_addto_nb_tasks(this_task->taskpool, -1);
 }
 END

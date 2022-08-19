@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016-2019 The University of Tennessee and The University
+ * Copyright (c) 2016-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -34,7 +34,7 @@ parsec_release_task_to_mempool_update_nbtasks(parsec_execution_stream_t *es,
     parsec_taskpool_t *tp = this_task->taskpool;
     (void)es;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
-    (void)parsec_atomic_fetch_dec_int32( &tp->nb_tasks );
+    tp->tdm.module->taskpool_addto_nb_tasks(tp, -1);
     return PARSEC_HOOK_RETURN_DONE;
 }
 
