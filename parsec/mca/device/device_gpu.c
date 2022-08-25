@@ -304,6 +304,15 @@ void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream)
 void dump_GPU_state(parsec_device_gpu_module_t* gpu_device)
 {
     int i;
+    uint64_t data_in = 0, data_in_host = 0, data_in_dev = 0;
+
+    for(int i = 0; i < gpu_device->super.data_in_array_size; i++) {
+        data_in += gpu_device->super.data_in_from_device[i];
+        if(i == 0)
+            data_in_host += gpu_device->super.data_in_from_device[i];
+        else
+            data_in_dev += gpu_device->super.data_in_from_device[i];
+    }
 
     parsec_output(parsec_gpu_output_stream, "\n\n");
     parsec_output(parsec_gpu_output_stream, "Device %d:%d (%p) epoch\n", gpu_device->super.device_index,
@@ -311,8 +320,8 @@ void dump_GPU_state(parsec_device_gpu_module_t* gpu_device)
     parsec_output(parsec_gpu_output_stream, "\tpeer mask %x executed tasks with %llu streams %d\n",
                   gpu_device->peer_access_mask, (unsigned long long)gpu_device->super.executed_tasks, gpu_device->num_exec_streams);
     parsec_output(parsec_gpu_output_stream, "\tstats transferred [in: %llu from host %llu from other device out: %llu] required [in: %llu out: %llu]\n",
-                  (unsigned long long)gpu_device->super.transferred_data_in, (unsigned long long)gpu_device->super.d2d_transfer,
-                  (unsigned long long)gpu_device->super.transferred_data_out,
+                  (unsigned long long)data_in_host, (unsigned long long)data_in_dev,
+                  (unsigned long long)gpu_device->super.data_out_to_host,
                   (unsigned long long)gpu_device->super.required_data_in, (unsigned long long)gpu_device->super.required_data_out);
     for( i = 0; i < gpu_device->num_exec_streams; i++ ) {
         dump_exec_stream(gpu_device->exec_stream[i]);

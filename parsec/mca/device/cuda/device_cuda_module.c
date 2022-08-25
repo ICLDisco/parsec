@@ -442,9 +442,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
 
     device->type                 = PARSEC_DEV_CUDA;
     device->executed_tasks       = 0;
-    device->transferred_data_in  = 0;
-    device->d2d_transfer         = 0;
-    device->transferred_data_out = 0;
+    device->data_in_array_size   = parsec_device_cuda_enabled + 16;
+    device->data_in_from_device  = (uint64_t*)calloc(device->data_in_array_size, sizeof(uint64_t));
+    device->data_out_to_host     = 0;
     device->required_data_in     = 0;
     device->required_data_out    = 0;
 
@@ -596,6 +596,10 @@ parsec_cuda_module_fini(parsec_device_module_t* device)
     gpu_device->exec_stream = NULL;
 
     cuda_device->cuda_index = -1;
+
+    free(cuda_device->super.super.data_in_from_device);
+    cuda_device->super.super.data_in_from_device = NULL;
+    cuda_device->super.super.data_in_array_size = 0;
 
     /* Cleanup the GPU memory. */
     PARSEC_OBJ_DESTRUCT(&gpu_device->gpu_mem_lru);
@@ -1488,11 +1492,8 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
                 assert(0);
                 return -1;
             }
-
-            if( in_elem_dev->super.super.type != PARSEC_DEV_CUDA )
-                gpu_device->super.transferred_data_in += nb_elts;
-            else
-                gpu_device->super.d2d_transfer += nb_elts;
+            parsec_device_check_statistic_array_size(&gpu_device->super, in_elem_dev->super.super.device_index);
+            gpu_device->super.data_in_from_device[in_elem_dev->super.super.device_index] += nb_elts;
             if( PARSEC_GPU_TASK_TYPE_KERNEL == gpu_task->task_type )
                 gpu_device->super.nb_data_faults += nb_elts;
 
@@ -2340,7 +2341,7 @@ parsec_cuda_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                     parsec_atomic_unlock(&original->lock);
                     goto release_and_return_error;
                 }
-                gpu_device->super.transferred_data_out += nb_elts; /* TODO: not hardcoded, use datatype size */
+                gpu_device->super.data_out_to_host += nb_elts; /* TODO: not hardcoded, use datatype size */
                 how_many++;
             } else {
                 assert( 0 == gpu_copy->readers );
