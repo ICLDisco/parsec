@@ -141,7 +141,7 @@ struct parsec_device_module_s {
 #if defined(PARSEC_PROF_TRACE)
     parsec_profiling_stream_t *profiling;
 #endif  /* defined(PROFILING) */
-    uint8_t data_in_array_size; /**< Current size of the data_in_from_device array. */
+    uint8_t data_in_array_size; /**< Current size of the data_in_from_device array. Used for safety checking */
     uint8_t device_index;
     uint8_t type;
 };
@@ -284,38 +284,6 @@ parsec_device_find_function(const char* function_name,
 #define PARSEC_DEVICE_BASE_VERSION_2_0_0 \
     MCA_BASE_VERSION_2_0_0, \
         "device", 2, 0, 0
-
-/**
- * @brief Ensures that the data_in_from_device, which is used to collect statistics on
- *    the amount of data transferred between devices, is large enough to store this device.
- * 
- * @remark index should always be < device->data_in_array_size. However, since devices are
- *    discovered dynamically, it's possible we initialized some structures too small. When this
- *    happens, this function ensures that we don't segfault because of a statistics array.
- * 
- * @details 
- *     @p device: the device holding the statistics array
- *     @p index: the index in this statistics array that will be updated
- * 
- */
-static inline void parsec_device_check_statistic_array_size(parsec_device_module_t *device, uint8_t index)
-{
-    assert( index < 255 );
-    while(index >= device->data_in_array_size) {
-        uint8_t os = device->data_in_array_size;
-        uint8_t ns = index+1;
-        uint64_t *o = device->data_in_from_device;
-        uint64_t *n = (uint64_t*)calloc(ns, sizeof(uint64_t));
-        memcpy(n, o, os*sizeof(uint64_t));
-        if( parsec_atomic_cas_ptr(&device->data_in_from_device, o, n) ) {
-            device->data_in_array_size = ns;
-            free(o);
-            break;
-        } else {
-            free(n);
-        }
-    }
-}
 
 /** @} */
 
