@@ -306,12 +306,11 @@ void dump_GPU_state(parsec_device_gpu_module_t* gpu_device)
     int i;
     uint64_t data_in = 0, data_in_host = 0, data_in_dev = 0;
 
-    for(int i = 0; i < gpu_device->super.data_in_array_size; i++) {
+    data_in = gpu_device->super.data_in_from_device[0];
+    data_in_host = gpu_device->super.data_in_from_device[0];
+    for(int i = 1; i < gpu_device->super.data_in_array_size; i++) {
         data_in += gpu_device->super.data_in_from_device[i];
-        if(i == 0)
-            data_in_host += gpu_device->super.data_in_from_device[i];
-        else
-            data_in_dev += gpu_device->super.data_in_from_device[i];
+        data_in_dev += gpu_device->super.data_in_from_device[i];
     }
 
     parsec_output(parsec_gpu_output_stream, "\n\n");
