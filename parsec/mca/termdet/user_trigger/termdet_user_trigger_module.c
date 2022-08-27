@@ -156,7 +156,7 @@ static void parsec_termdet_user_trigger_monitor_taskpool(parsec_taskpool_t *tp,
 {
     parsec_termdet_user_trigger_monitor_t *monitor;
     assert(&parsec_termdet_user_trigger_module.module == tp->tdm.module);
-    assert(NULL == tp->tdm.monitor);
+    //assert(NULL == tp->tdm.monitor);
     monitor = malloc(sizeof(parsec_termdet_user_trigger_monitor_t));
     monitor->root = PARSEC_TERMDET_USER_TRIGGER_UNKNOWN_RANK;
     monitor->state = PARSEC_TERMDET_USER_TRIGGER_NOT_READY;
