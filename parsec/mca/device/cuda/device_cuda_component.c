@@ -242,9 +242,14 @@ static int device_cuda_component_open(void)
         }
     } else if (ndevices < parsec_device_cuda_enabled ) {
         if( 0 < parsec_device_cuda_enabled_index ) {
-            parsec_warning("User requested %d CUDA devices, but only %d are available on %s\n."
-                           " PaRSEC will enable all %d of them.",
-                           parsec_device_cuda_enabled, ndevices, parsec_hostname, ndevices);
+            if( 0 == ndevices ) {
+                parsec_warning("User requested %d CUDA devices, but none are available on %s."
+                               " CUDA support will be therefore disabled.",
+                               parsec_device_cuda_enabled, parsec_hostname);
+            } else {
+                parsec_warning("User requested %d CUDA devices, but only %d are available on %s.",
+                               parsec_device_cuda_enabled, ndevices, parsec_hostname);
+            }
             parsec_mca_param_set_int(parsec_device_cuda_enabled_index, ndevices);
         }
     }

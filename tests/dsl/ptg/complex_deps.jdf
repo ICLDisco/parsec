@@ -31,7 +31,7 @@ FCT1(i, k)
     READ A <- (0 == k) ? descA(i, 0) : A FCT1(i, k-1)
          -> (NK != k) ? A FCT1(i, k+1)
          -> A FCT5(i, k)                         [displ_remote = BLOCK]
-         RW   B <- (0 == k) ? descA(i, 0) : B FCT1(i, k-1)
+    RW   B <- (0 == k) ? descA(i, 0) : B FCT1(i, k-1)
          -> A FCT2(i, k, k .. NK)                [displ_remote = 0]
          -> A FCT3(i, k, k .. NK)                [displ_remote = BLOCK]
          -> A FCT4(i, k)

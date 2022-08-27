@@ -1777,7 +1777,7 @@ remote_dep_mpi_put_end_cb(parsec_comm_engine_t *ce,
             ((remote_dep_cb_data_t *)cb_data)->k, deps, lreg, rreg);
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_ts_trace(MPI_Data_plds_ek, ((remote_dep_cb_data_t *)cb_data)->k, PROFILE_OBJECT_ID_NULL, NULL);
+    TAKE_TIME(parsec_comm_es.es_profile, MPI_Data_plds_ek, ((remote_dep_cb_data_t *)cb_data)->k);
 #endif
 
     remote_dep_complete_and_cleanup(&deps, 1);
