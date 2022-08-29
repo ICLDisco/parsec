@@ -180,8 +180,6 @@ struct parsec_dtd_task_s {
     parsec_thread_mempool_t     *mempool_owner;
     int32_t                      rank;
     int32_t                      flow_count;
-    /* for testing PTG inserting task in DTD */
-    parsec_task_t  *orig_task;
 };
 
 /* For creating objects of class parsec_dtd_task_t */
