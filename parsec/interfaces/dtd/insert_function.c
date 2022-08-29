@@ -2447,16 +2447,16 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)tc;
 
     /* We assume that incarnations is big enough, because it has been pre-allocated
-     * with 7 chores, as this is a DTD task class */
+     * with PARSEC_DEV_MAX_NB_TYPE+1 chores, as this is a DTD task class */
     pincarnations = (__parsec_chore_t **)&dtd_tc->super.incarnations;
-    for(i = 0; i < 8 && (*pincarnations)[i].type != PARSEC_DEV_NONE; i++) {
+    for(i = 0; i < PARSEC_DEV_MAX_NB_TYPE && (*pincarnations)[i].type != PARSEC_DEV_NONE; i++) {
         if( (*pincarnations)[i].type == device_type ) {
             parsec_warning("A chore for this device type has already been added to task class '%s'\n",
                            tc->name);
             return PARSEC_ERROR;
         }
     }
-    if(i == 8) {
+    if(i == PARSEC_DEV_MAX_NB_TYPE) {
         parsec_warning("Number of device type exceeded: not enough memory in task class '%s' to add another chore\n",
                        tc->name);
         return PARSEC_ERR_OUT_OF_RESOURCE;
