@@ -35,7 +35,7 @@ BEGIN_C_DECLS
 PARSEC_DECLSPEC extern const parsec_termdet_base_component_t parsec_termdet_fourcounter_component;
 PARSEC_DECLSPEC extern const parsec_termdet_module_t parsec_termdet_fourcounter_module;
 
-int parsec_termdet_fourcounter_msg_dispatch(parsec_comm_engine_t *ce, long unsigned int tag,  void *msg, long unsigned int size, int src,  void *module);
+int parsec_termdet_fourcounter_msg_dispatch(parsec_comm_engine_t *ce, unsigned long long tag,  void *msg, unsigned long size, int src,  void *module);
 
 typedef enum {
     PARSEC_TERMDET_FOURCOUNTER_MSG_TYPE_DOWN,

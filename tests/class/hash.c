@@ -98,7 +98,7 @@ static void *do_perf_test(void *_param)
         for(t = 0; t < nbtests; t++) {
             empty_hash_item_t *rc;
             rc = parsec_hash_table_remove(&hash_table, item_array[t].ht_item.key);
-            assert(rc == &item_array[t]);
+            assert(rc == &item_array[t]); (void)rc;
         }
         t1 = take_time();
         duration = diff_time(t0, t1);

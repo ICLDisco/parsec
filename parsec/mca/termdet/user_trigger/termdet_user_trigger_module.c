@@ -114,8 +114,8 @@ static int parsec_termdet_user_trigger_msg_dispatch_taskpool(parsec_taskpool_t *
     return PARSEC_SUCCESS;
 }
 
-int parsec_termdet_user_trigger_msg_dispatch(parsec_comm_engine_t *ce, long unsigned int tag,  void *msg,
-                                             long unsigned int size, int src,  void *module)
+int parsec_termdet_user_trigger_msg_dispatch(parsec_comm_engine_t *ce, unsigned long long tag,  void *msg,
+                                             unsigned long size, int src,  void *module)
 {
     parsec_termdet_user_trigger_delayed_msg_t *delayed_msg;
     parsec_termdet_user_trigger_msg_t *ut_msg = (parsec_termdet_user_trigger_msg_t*)msg;
@@ -305,6 +305,7 @@ static int parsec_termdet_user_trigger_outgoing_message_start(parsec_taskpool_t 
     /* Nothing to do with the message */
     (void)dst_rank;
     (void)remote_deps;
+    (void)tp;
     return 1; /* The message can go right away */
 }
 static int parsec_termdet_user_trigger_outgoing_message_pack(parsec_taskpool_t *tp,
@@ -321,6 +322,7 @@ static int parsec_termdet_user_trigger_outgoing_message_pack(parsec_taskpool_t *
     (void)packed_buffer;
     (void)position;
     (void)buffer_size;
+    (void)tp;
     return PARSEC_SUCCESS;
 }
 
@@ -340,7 +342,7 @@ static int parsec_termdet_user_trigger_incoming_message_start(parsec_taskpool_t 
     (void)position;
     (void)buffer_size;
     (void)msg;
-    
+    (void)tp;
     return PARSEC_SUCCESS;
 }
 
