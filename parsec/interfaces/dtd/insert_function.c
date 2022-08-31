@@ -2434,7 +2434,7 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
                                     int device_type,
                                     void *function)
 {
-    __parsec_chore_t **pincarnations;
+    __parsec_chore_t *incarnations;
     int i;
 
     if( tc->task_class_type != PARSEC_TASK_CLASS_TYPE_DTD ) {
@@ -2447,32 +2447,32 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)tc;
 
     /* We assume that incarnations is big enough, because it has been pre-allocated
-     * with 7 chores, as this is a DTD task class */
-    pincarnations = (__parsec_chore_t **)&dtd_tc->super.incarnations;
-    for(i = 0; i < 8 && (*pincarnations)[i].type != PARSEC_DEV_NONE; i++) {
-        if( (*pincarnations)[i].type == device_type ) {
+     * with PARSEC_DEV_MAX_NB_TYPE+1 chores, as this is a DTD task class */
+    incarnations = (__parsec_chore_t*)dtd_tc->super.incarnations;
+    for(i = 0; i < PARSEC_DEV_MAX_NB_TYPE && incarnations[i].type != PARSEC_DEV_NONE; i++) {
+        if( incarnations[i].type == device_type ) {
             parsec_warning("A chore for this device type has already been added to task class '%s'\n",
                            tc->name);
             return PARSEC_ERROR;
         }
     }
-    if(i == 8) {
+    if(i == PARSEC_DEV_MAX_NB_TYPE) {
         parsec_warning("Number of device type exceeded: not enough memory in task class '%s' to add another chore\n",
                        tc->name);
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
 
-    (*pincarnations)[i].type = device_type;
+    incarnations[i].type = device_type;
     if(PARSEC_DEV_CUDA == device_type) {
-        (*pincarnations)[i].hook = parsec_dtd_gpu_task_submit;
+        incarnations[i].hook = parsec_dtd_gpu_task_submit;
         dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)function;
     }
     else {
         dtd_tc->cpu_func_ptr = function;
-        (*pincarnations)[i].hook = parsec_dtd_cpu_task_submit;
+        incarnations[i].hook = parsec_dtd_cpu_task_submit;
     }
-    (*pincarnations)[i+1].type = PARSEC_DEV_NONE;
-    (*pincarnations)[i+1].hook = NULL;
+    incarnations[i+1].type = PARSEC_DEV_NONE;
+    incarnations[i+1].hook = NULL;
 
     parsec_dtd_insert_task_class(dtd_tp, (parsec_dtd_task_class_t*)dtd_tc);
 
