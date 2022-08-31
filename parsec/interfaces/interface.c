@@ -147,3 +147,11 @@ const parsec_task_class_t __parsec_generic_startup = {
     .sim_cost_fct = (parsec_sim_cost_fct_t *) NULL,
 #endif
 };
+
+#if defined(PARSEC_PROF_TRACE)
+void *parsec_task_profile_info(void *dst, const void *task_, size_t size)
+{
+    parsec_task_t *task = (parsec_task_t *)task_;
+    return memcpy(dst, &task->prof_info, size);
+}
+#endif

@@ -59,6 +59,10 @@ parsec_hook_return_t
 parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_stream_t *es,
                                                           parsec_task_t *this_task);
 
+
+#if defined(PARSEC_PROF_TRACE)
+void *parsec_task_profile_info(void *dst, const void *task, size_t size);
+#endif
 /**
  * @}
  */

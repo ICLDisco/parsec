@@ -4218,6 +4218,9 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     string_arena_add_string(sa,
                             "  .make_key = %s,\n"
                             "  .task_snprintf = parsec_task_snprintf,\n"
+                            "#if defined(PARSEC_PROF_TRACE)\n"
+                            "  .profile_info = &parsec_task_profile_info,\n"
+                            "#endif\n"
                             "  .key_functions = &%s,\n",
                             jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL),
                             jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL));
