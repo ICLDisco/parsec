@@ -416,6 +416,9 @@ struct parsec_task_class_s {
     parsec_key_fn_t             *key_functions;
     parsec_functionkey_fn_t     *make_key;
     parsec_printtask_fn_t       *task_snprintf;
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_info_fn_t  *profile_info;
+#endif
 #if defined(PARSEC_SIM)
     parsec_sim_cost_fct_t       *sim_cost_fct;
 #endif
@@ -558,12 +561,14 @@ extern int device_delegate_begin, device_delegate_end;
     (tp)->profiling_array[1 + 2 * (tc_index)]
 
 #define PARSEC_TASK_PROF_TRACE(PROFILE, KEY, TASK)                      \
-    PARSEC_PROFILING_TRACE((PROFILE),                                   \
+    PARSEC_PROFILING_TRACE_INFO_FN((PROFILE),                           \
                            (KEY),                                       \
                            (TASK)->task_class->key_functions->          \
                            key_hash((TASK)->task_class->make_key(       \
-                              (TASK)->taskpool, (TASK)->locals ), NULL), \
-                              (TASK)->taskpool->taskpool_id, (void*)&(TASK)->prof_info); 
+                             (TASK)->taskpool, (TASK)->locals ), NULL), \
+                           (TASK)->taskpool->taskpool_id,               \
+                           (TASK)->task_class->profile_info,            \
+                           (void*)(TASK)); 
 
 #define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)  \
     if(!!(COND)) {                                           \
