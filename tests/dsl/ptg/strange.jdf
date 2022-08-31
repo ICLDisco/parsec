@@ -158,6 +158,10 @@ int main(int argc, char* argv[] )
     parsec = parsec_init(-1, &pargc, &pargv);
     assert( NULL != parsec );
 
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_start();
+#endif
+
     parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,
                                0 /*rank*/,
                                1, 1, n, 1,
