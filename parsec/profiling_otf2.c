@@ -689,9 +689,14 @@ int parsec_profiling_dictionary_flush( void )
     return 0;
 }
 
-
 int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpool_id,
                                     const void *info, uint16_t flags )
+{
+    return parsec_profiling_ts_trace_flags_info_fn(key, event_id, taskpool_id, memcpy, info, flags);
+}
+
+int parsec_profiling_ts_trace_flags_info_fn(int key, uint64_t event_id, uint32_t taskpool_id,
+                                            parsec_profiling_info_fn_t *info_fn, const void *info_data, uint16_t flags )
 {
     parsec_profiling_stream_t* ctx;
 
@@ -701,7 +706,7 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
 
     ctx = PARSEC_TLS_GET_SPECIFIC(tls_profiling);
     if( NULL != ctx )
-        return parsec_profiling_trace_flags(ctx, key, event_id, taskpool_id, info, flags);
+        return parsec_profiling_trace_flags_info_fn(ctx, key, event_id, taskpool_id, info_fn, info_data, flags);
 
     set_last_error("Profiling system: error: called parsec_profiling_ts_trace_flags"
                    " from a thread that did not call parsec_profiling_stream_init\n");
@@ -710,8 +715,16 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
 
 int
 parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
-                             uint64_t event_id, uint32_t taskpool_id,
-                             const void *info, uint16_t flags )
+                            uint64_t event_id, uint32_t taskpool_id,
+                            const void *info, uint16_t flags)
+{
+    return parsec_profiling_trace_flags_info_fn(context, key, event_id, taskpool_id, memcpy, info, flags);
+}
+
+int
+parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key,
+                                     uint64_t event_id, uint32_t taskpool_id,
+                                     parsec_profiling_info_fn_t *info_fn, const void *info_data, uint16_t flags)
 {
     parsec_time_t now;
     int region;
@@ -740,9 +753,11 @@ parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
     timestamp = diff_time(parsec_start_time, now);
 
     region = key < 0 ? -key : key;
-    region -= REGION_ID_OFFSET;
 
-    if( NULL != info ) {
+    if( NULL != info_data ) {
+        size_t info_length = regions[region].info_length;
+        char *info = alloca(info_length);
+        info_fn(info, info_data, info_length);
         attribute_list = OTF2_AttributeList_New();
         const char *ptr = info;
         for(int t = 0; t < regions[region].otf2_nb_attributes; t++) {
@@ -798,6 +813,7 @@ parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
         }
     }
 
+    region -= REGION_ID_OFFSET;
     if( key > 0 )
         rc = OTF2_EvtWriter_Enter( context->evt_writer,
                                    attribute_list,
