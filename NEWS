@@ -5,6 +5,11 @@ Copyright (c) 2009-2020 The University of Tennessee and The University
 This file contains the main features as well as overviews of specific
 bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
+v22.09
+ - PaRSEC API 3.0
+
+ - Fix PaRSEC not compiling with gcc 11
+
 v20.12
  - PaRSEC API 3.0
 

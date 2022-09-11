@@ -27,10 +27,10 @@ include(GNUInstallDirs)
 set (PARSEC_VERSION_MAJOR   3)
 set (PARSEC_VERSION_MINOR   0)
 set (PARSEC_VERSION_RELEASE 0) # Devel master have no release number
-set (PARSEC_VERSION_RELEASE 2012) # Set and uncomment for a release
+set (PARSEC_VERSION_RELEASE 2209) # Set and uncomment for a release
 
 # Set the following values for a release
-set(GIT_COMMIT_TAG parsec-3.0.2012)
+set(GIT_COMMIT_TAG parsec-${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_RELEASE})
 
 # Configure the installation paths
 set(PARSEC_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR})
@@ -1186,5 +1186,5 @@ foreach( pattern_file ${pattern_files} )
 endforeach( pattern_file )
 add_custom_target(build_with_parsec ALL DEPENDS ${pattern_files_dest})
 
-message(WARNING "PaRSEC API 3.x is entering legacy mode! PaRSEC ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_RELEASE} is the final version for API 3.x; there will be no further updates. You should consider upgrading to PaRSEC API 4.x.")
+message(WARNING "PaRSEC API 3.x is entering legacy mode! PaRSEC ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.${PARSEC_VERSION_RELEASE} is the final version for API 3.x; there will be only hotfix updates. You should consider upgrading to PaRSEC API 4.x for new features.")
 
