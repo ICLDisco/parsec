@@ -358,24 +358,12 @@ int parsec_update_deps_with_mask(parsec_taskpool_t *tp,
                                  const parsec_task_t* restrict origin,
                                  const parsec_flow_t* restrict origin_flow,
                                  const parsec_flow_t* restrict dest_flow);
-int parsec_update_deps_with_mask_count_task(parsec_taskpool_t *tp,
-                                            const parsec_task_t* restrict task,
-                                            parsec_dependency_t *deps,
-                                            const parsec_task_t* restrict origin,
-                                            const parsec_flow_t* restrict origin_flow,
-                                            const parsec_flow_t* restrict dest_flow);
 int parsec_update_deps_with_counter(parsec_taskpool_t *tp,
                                     const parsec_task_t* restrict task,
                                     parsec_dependency_t *deps,
                                     const parsec_task_t* restrict origin,
                                     const parsec_flow_t* restrict origin_flow,
                                     const parsec_flow_t* restrict dest_flow);
-int parsec_update_deps_with_counter_count_task(parsec_taskpool_t *tp,
-                                               const parsec_task_t* restrict task,
-                                               parsec_dependency_t *deps,
-                                               const parsec_task_t* restrict origin,
-                                               const parsec_flow_t* restrict origin_flow,
-                                               const parsec_flow_t* restrict dest_flow);
     
 typedef struct __parsec_internal_incarnation_s {
     int32_t                     type;
