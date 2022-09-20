@@ -114,8 +114,8 @@ static int parsec_termdet_user_trigger_msg_dispatch_taskpool(parsec_taskpool_t *
     return PARSEC_SUCCESS;
 }
 
-int parsec_termdet_user_trigger_msg_dispatch(parsec_comm_engine_t *ce, unsigned long tag,  void *msg,
-                                             unsigned long size, int src,  void *module)
+int parsec_termdet_user_trigger_msg_dispatch(parsec_comm_engine_t *ce, parsec_ce_tag_t tag,  void *msg,
+                                             size_t size, int src,  void *module)
 {
     parsec_termdet_user_trigger_delayed_msg_t *delayed_msg;
     parsec_termdet_user_trigger_msg_t *ut_msg = (parsec_termdet_user_trigger_msg_t*)msg;
