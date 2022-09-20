@@ -68,7 +68,7 @@ static void usage(void)
             "                      are '"DEP_MANAGEMENT_INDEX_ARRAY_STRING"' or '"DEP_MANAGEMENT_DYNAMIC_HASH_TABLE_STRING"'\n"
             "                      (default '%s')\n"
             "\n"
-            "  --dynamic-termdet  Use dynamic termination detection, even for PTGs that can use\n"
+            "  --dynamic-termdet|-D  Use dynamic termination detection, even for PTGs that can use\n"
             "                     local (i.e. pre-counted number of tasks) termination detection\n"
             "                     NB. PTGs that are defined to use user-trigger termination\n"
             "                     detection continue to rely on user-trigger termination detection.\n"
