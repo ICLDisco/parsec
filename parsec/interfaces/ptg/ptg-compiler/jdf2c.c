@@ -4259,15 +4259,15 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
 
     if( use_mask ) {
         if( f->user_defines & JDF_HAS_DYNAMIC_TERMDET ) {
-            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_mask,\n");
-        } else {
             string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_mask_count_task,\n");
+        } else {
+            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_mask,\n");
         }
     } else {
         if( f->user_defines & JDF_HAS_DYNAMIC_TERMDET ) {
-            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter,\n");
-        } else {
             string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter_count_task,\n");
+        } else {
+            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter,\n");
         }
     }
     
