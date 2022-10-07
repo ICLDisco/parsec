@@ -254,6 +254,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
 
     if isinstance(builder.events, pd.DataFrame):
         events = builder.events
+        event_infos = dict()
     else:
         if len(builder.events) > 0:
             cond_print('Then we concatenate the event DataFrames....', report_progress)
