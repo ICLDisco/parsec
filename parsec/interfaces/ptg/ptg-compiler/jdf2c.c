@@ -183,6 +183,12 @@ static void var_to_c_code(jdf_expr_t* expr)
     expr->jdf_c_code.function_context = NULL;
 }
 
+static int jdf_uses_dynamic_termdet( const jdf_t *jdf )
+{
+    const char *pname = jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_NAME, NULL);
+    if(NULL == pname) return 0;
+    return strcmp(pname, JDF_PROP_TERMDET_DYNAMIC) == 0;
+}
 
 /**
  * Generate a semi-persistent string (kept in a circular buffer that will be reused after
@@ -3166,15 +3172,19 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     coutput("%s  restore_context = 0;\n"
             "%s  (void)restore_context;\n"
             "%s  if( nb_tasks > this_task->locals.reserved[0].value ) {\n"
-            "%s    if( (size_t)this_task->locals.reserved[0].value < parsec_task_startup_iter ) this_task->locals.reserved[0].value <<= 1;\n"
-            "%s    __parsec_schedule_vp(es, (parsec_task_t**)pready_ring, 0);\n"
+            "%s    if( (size_t)this_task->locals.reserved[0].value < parsec_task_startup_iter ) this_task->locals.reserved[0].value <<= 1;\n",
+            indent(nesting), indent(nesting), indent(nesting), indent(nesting));
+    if(jdf_uses_dynamic_termdet(jdf)) {
+        coutput("%s      __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, nb_tasks);\n",
+                indent(nesting));
+    }
+    coutput("%s    __parsec_schedule_vp(es, (parsec_task_t**)pready_ring, 0);\n"
             "%s    total_nb_tasks += nb_tasks;\n"
             "%s    nb_tasks = 0;\n"
             "%s    if( total_nb_tasks > parsec_task_startup_chunk ) {  /* stop here and request to be rescheduled */\n"
             "%s      return PARSEC_HOOK_RETURN_AGAIN;\n"
             "%s    }\n"
             "%s  }\n",
-            indent(nesting), indent(nesting), indent(nesting), indent(nesting),
             indent(nesting), indent(nesting), indent(nesting), indent(nesting),
             indent(nesting), indent(nesting), indent(nesting));
 
@@ -3202,8 +3212,11 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa_properties);
 
     coutput("  (void)vpid;\n"
-            "  if( 0 != nb_tasks ) {\n"
-            "    __parsec_schedule_vp(es, (parsec_task_t**)pready_ring, 0);\n"
+            "  if( 0 != nb_tasks ) {\n");
+    if(jdf_uses_dynamic_termdet(jdf)) {
+        coutput("    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, nb_tasks);\n");
+    }
+    coutput("    __parsec_schedule_vp(es, (parsec_task_t**)pready_ring, 0);\n"
             "    nb_tasks = 0;\n"
             "  }\n"
             "  return PARSEC_HOOK_RETURN_DONE;\n"
@@ -3796,16 +3809,29 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         jdf_expr_t *expr;
         jdf_def_list_t* property;
         if( NULL != (expr = jdf_find_property(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, &property) ) ) {
-            coutput("    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, %s(__parsec_tp));\n",
-                    expr->jdf_c_code.fname);
+            if(JDF_C_CODE == expr->op) {
+                assert(NULL != expr->jdf_c_code.fname);
+                coutput("    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, %s(__parsec_tp));\n",
+                        expr->jdf_c_code.fname);
+            } else if(JDF_VAR == expr->op || JDF_STRING == expr->op) {
+                assert(NULL != expr->jdf_var);
+                coutput("    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, %s(__parsec_tp));\n",
+                        expr->jdf_var);
+            } else {
+                jdf_fatal(JDF_OBJECT_LINENO(expr),
+                          "During code generation: the expression that defines the property '%s' is neither a function, a string nor a variable name (op code: %d).\n"
+                          "Unable to generate user-defined task counting operation in the internal_init of %s\n",
+                          JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, expr->op,
+                          f->fname);
+            }
         } else {
             assert((f->user_defines & JDF_HAS_USER_TRIGGERED_TERMDET) ||
-                   (NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL)));
+                   (f->user_defines & JDF_HAS_DYNAMIC_TERMDET));
             /* The startup tasks are going to count the real number of tasks as they discover them.
              * For now, we lock the idleness by creating a runtime pending action, and
              * we use sync_point to find when all the startup tasks are done. */
-            coutput("    __parsec_tp->sync_point = PARSEC_%s_NB_TASK_CLASSES\n;"
-                    "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, 1);\n",
+            coutput("    __parsec_tp->sync_point = PARSEC_%s_NB_TASK_CLASSES;\n"
+                    "    //__parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, 1);\n",
                     jdf_basename);
         }
     } else {
@@ -4236,19 +4262,10 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
         }
     }
     string_arena_add_string(sa, "  .find_deps = %s,\n", jdf_property_get_function(f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, NULL));
-
     if( use_mask ) {
-        if( NULL == jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL)) {
-            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_mask,\n");
-        } else {
-            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_mask_count_task,\n");
-        }
+        string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_mask,\n");
     } else {
-        if( NULL == jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL)) {
-            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter,\n");
-        } else {
-            string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter_count_task,\n");
-        }
+        string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter,\n");
     }
     
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
@@ -4582,18 +4599,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL)) {
-        coutput("static parsec_hook_return_t tp_ready_when_synced(struct parsec_execution_stream_s *es, parsec_task_t *task) {\n"
-                "  (void)es;\n"
-                "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)task->taskpool;\n"
-                "  int remaining = parsec_atomic_fetch_dec_int32(&__parsec_tp->sync_point) - 1;\n"
-                "  if( 0 == remaining ) {\n"
-                "    __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks(&__parsec_tp->super.super, __parsec_tp->initial_number_tasks-1);\n"
-                "  }\n"
-                "  return PARSEC_HOOK_RETURN_DONE;\n"
-                "}\n\n", jdf_basename, jdf_basename);
-    }
-
     coutput("void __parsec_%s_internal_constructor(__parsec_%s_internal_taskpool_t* __parsec_tp)\n{\n"
             "  parsec_task_class_t* tc;\n"
             "  uint32_t i, j;\n\n",
@@ -4659,10 +4664,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
             coutput("  ((__parsec_chore_t*)&tc->incarnations[0])->hook = (parsec_hook_t *)%s;\n",
                     jdf_property_get_function(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, NULL));
-        }
-        if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL) ) {
-            coutput("  assert(NULL == tc->complete_execution);\n"
-                    "  tc->complete_execution = (parsec_hook_t*)tp_ready_when_synced;\n");
         }
     }
 
@@ -4779,7 +4780,7 @@ static void jdf_generate_new_function( const jdf_t* jdf )
             "  (void)parsec_taskpool_reserve_id((parsec_taskpool_t*)__parsec_tp);\n",
             jdf_basename);
 
-    if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_TERMDET_DYNAMIC, NULL) ) {
+    if( jdf_uses_dynamic_termdet(jdf) ) {
         coutput("  __parsec_tp->initial_number_tasks = 0;\n");
     }
     
@@ -7221,11 +7222,21 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 "#endif\n"
                 "\n");
         coutput("  if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {\n"
-                "    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->ht_item.key, arg.output_usage);\n"
-                "    __parsec_schedule_vp(es, arg.ready_lists, 0);\n"
-                "  }\n",
+                "    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->ht_item.key, arg.output_usage);\n",
                 f->fname);
-
+        if(jdf_uses_dynamic_termdet(jdf)) {
+            coutput("    {\n"
+                    "      /* Using Dynamic Termination Detection, the DSL is reponsible of counting the number of tasks scheduled before scheduling them */\n"
+                    "      int __nb_tasks = 0;\n"
+                    "      for(__vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++) {\n"
+                    "        if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
+                    "        _LIST_ITEM_ITERATOR(arg.ready_lists[__vp_id], &arg.ready_lists[__vp_id]->super, __item, __nb_tasks++);"
+                    "      }\n"
+                    "      __parsec_tp->super.super.tdm.module->taskpool_addto_nb_tasks((parsec_taskpool_t*)__parsec_tp, __nb_tasks);\n"
+                    "    }\n");
+        }
+        coutput("    __parsec_schedule_vp(es, arg.ready_lists, 0);\n"
+                "  }\n");
     } else {
         coutput("  /* No successors, don't call iterate_successors and don't release any local deps */\n");
     }
@@ -8356,6 +8367,46 @@ int jdf_optimize( jdf_t* jdf )
     }
     string_arena_free(sa);
     return 0;
+}
+
+/** Force the PTG to use a dynamic termination detection **/
+int jdf_force_termdet_dynamic(jdf_t* jdf)
+{
+    jdf_def_list_t* property;
+    jdf_expr_t *termdet_expr;
+    int rc = 0;
+
+    termdet_expr = jdf_find_property(jdf->global_properties, JDF_PROP_TERMDET_NAME, &property);
+    if( NULL != termdet_expr && strcmp(termdet_expr->jdf_var, JDF_PROP_TERMDET_USER_TRIGGERED) == 0 ) {
+        return rc; // We don't override a user-trigger termination detection selection
+    } 
+    if( NULL != termdet_expr && strcmp(termdet_expr->jdf_var, JDF_PROP_TERMDET_DYNAMIC) == 0 ) {
+        return rc; // The PTG developer already asked for dynamic termination detection
+    } 
+    if(NULL != termdet_expr) {
+        if(strcmp(termdet_expr->jdf_var, JDF_PROP_TERMDET_LOCAL) != 0) {
+            jdf_warn(termdet_expr->super.lineno, "'%s' is not a recognized value for option '%s' -- option overwritten to '%s' because --termdet-dynamic is requested\n",
+                     termdet_expr->jdf_var, JDF_PROP_TERMDET_NAME, JDF_PROP_TERMDET_DYNAMIC);
+        }
+        free(termdet_expr->jdf_var);
+        termdet_expr->jdf_var = strdup(JDF_PROP_TERMDET_DYNAMIC);
+        return rc;
+    }
+
+    termdet_expr = (jdf_expr_t *)calloc(sizeof(jdf_expr_t), 1);
+    termdet_expr->op = JDF_STRING;
+    termdet_expr->local_variables = NULL;
+    termdet_expr->scope = -1;
+    termdet_expr->alias = NULL;
+    termdet_expr->jdf_var = strdup(JDF_PROP_TERMDET_DYNAMIC);
+
+    property = (jdf_def_list_t*)calloc(sizeof(jdf_def_list_t), 1);
+    property->expr = termdet_expr;
+    property->name = strdup(JDF_PROP_TERMDET_NAME);
+    property->next = jdf->global_properties;
+    jdf->global_properties = property;
+
+    return rc;
 }
 
 /** Main Function */

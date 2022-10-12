@@ -39,8 +39,8 @@ PARSEC_DECLSPEC extern const parsec_termdet_module_t parsec_termdet_user_trigger
 /* static accessor */
 mca_base_component_t *termdet_user_trigger_static_component(void);
 
-int parsec_termdet_user_trigger_msg_dispatch(parsec_comm_engine_t *ce, unsigned long long tag,  void *msg,
-                                             unsigned long size, int src,  void *module);
+int parsec_termdet_user_trigger_msg_dispatch(parsec_comm_engine_t *ce, parsec_ce_tag_t tag,  void *msg,
+                                             size_t size, int src,  void *module);
 
 typedef struct {
     uint32_t tp_id;
