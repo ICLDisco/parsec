@@ -2,7 +2,7 @@
 #define PARSEC_DEVICE_LEVEL_ZERO_DPCPP_H
 
 #if defined(c_plusplus) || defined(__cplusplus)
-#include "sycl/backend/level_zero.hpp"
+#include "sycl/ext/oneapi/backend/level_zero.hpp"
 
 typedef struct {
     sycl::platform platform;

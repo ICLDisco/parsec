@@ -334,6 +334,10 @@ typedef int (parsec_data_ref_fn_t)(parsec_task_t *task,
 #define PARSEC_TASK_CLASS_TYPE_PTG        0x01
 #define PARSEC_TASK_CLASS_TYPE_DTD        0x02
 
+#if defined(__cplusplus)
+#define restrict
+#endif
+
 /**
  * Find the dependency corresponding to a given execution context.
  */
