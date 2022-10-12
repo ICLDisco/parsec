@@ -286,7 +286,6 @@ __parsec_schedule(parsec_execution_stream_t* es,
                   int32_t distance)
 {
     int ret;
-    parsec_task_t *task = tasks_ring;
 
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
     {
@@ -318,7 +317,7 @@ __parsec_schedule(parsec_execution_stream_t* es,
 
 #if defined(PARSEC_PAPI_SDE)
     int len = 0;
-    _LIST_ITEM_ITERATOR(task, &task->super, item, {len++; });
+    _LIST_ITEM_ITERATOR(tasks_ring, &tasks_ring->super, item, {len++; });
     PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_ENABLED, len);
 #endif  /* defined(PARSEC_PAPI_SDE) */
 
@@ -888,7 +887,7 @@ int parsec_context_wait( parsec_context_t* context )
         return PARSEC_ERR_NOT_SUPPORTED;
     }
 
-    ret = __parsec_context_wait( context->virtual_processes[0]->execution_streams[0] );
+    ret = __parsec_context_wait( parsec_my_execution_stream() );
 
     context->__parsec_internal_finalization_counter++;
     (void)parsec_remote_dep_off(context);
@@ -918,7 +917,7 @@ int parsec_taskpool_wait( parsec_taskpool_t* tp )
         (void)parsec_remote_dep_on(context);
     }
 
-    ret = __parsec_taskpool_wait( tp, context->virtual_processes[0]->execution_streams[0] );
+    ret = __parsec_taskpool_wait( tp, parsec_my_execution_stream() );
 
     return ret;
 }
@@ -943,7 +942,7 @@ int parsec_taskpool_test( parsec_taskpool_t* tp )
         (void)parsec_remote_dep_on(context);
     }
 
-    ret = __parsec_taskpool_test( tp, context->virtual_processes[0]->execution_streams[0] );
+    ret = __parsec_taskpool_test( tp, parsec_my_execution_stream() );
 
     return ret;
 }
