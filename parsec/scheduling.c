@@ -898,7 +898,7 @@ int parsec_context_wait( parsec_context_t* context )
         return PARSEC_ERR_NOT_SUPPORTED;
     }
 
-    ret = __parsec_context_wait( context->virtual_processes[0]->execution_streams[0] );
+    ret = __parsec_context_wait( parsec_my_execution_stream() );
 
     context->__parsec_internal_finalization_counter++;
     (void)parsec_remote_dep_off(context);
@@ -928,7 +928,7 @@ int parsec_taskpool_wait( parsec_taskpool_t* tp )
         (void)parsec_remote_dep_on(context);
     }
 
-    ret = __parsec_taskpool_wait( tp, context->virtual_processes[0]->execution_streams[0] );
+    ret = __parsec_taskpool_wait( tp, parsec_my_execution_stream() );
 
     return ret;
 }
@@ -953,7 +953,7 @@ int parsec_taskpool_test( parsec_taskpool_t* tp )
         (void)parsec_remote_dep_on(context);
     }
 
-    ret = __parsec_taskpool_test( tp, context->virtual_processes[0]->execution_streams[0] );
+    ret = __parsec_taskpool_test( tp, parsec_my_execution_stream() );
 
     return ret;
 }

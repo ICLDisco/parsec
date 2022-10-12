@@ -20,6 +20,7 @@ if(TARGET parsec-ptgpp)
       set_target_properties(touch_exf PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
     endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
   endif(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
+  add_subdirectory(taskpool_wait)
 endif(TARGET parsec-ptgpp)
 
 parsec_addtest_executable(C operator SOURCES operator.c)
