@@ -332,8 +332,6 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_dtd_tile_t, parsec_list_item_t,
 void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
 {
     int nb;
-    tp->startup_list = (parsec_task_t **)calloc(vpmap_get_nb_vp(), sizeof(parsec_task_t *));
-
     tp->function_counter = 0;
 
     tp->task_hash_table = PARSEC_OBJ_NEW(parsec_hash_table_t);
@@ -435,7 +433,6 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     /* dtd_taskpool specific */
     parsec_mempool_destruct(tp->hash_table_bucket_mempool);
     free(tp->hash_table_bucket_mempool);
-    free(tp->startup_list);
 
     parsec_hash_table_fini(tp->task_hash_table);
     PARSEC_OBJ_RELEASE(tp->task_hash_table);
@@ -1416,9 +1413,6 @@ parsec_dtd_taskpool_new(void)
         if( NULL == device ) continue;
         __tp->super.devices_index_mask |= (1 << device->device_index);
     }
-    for( i = 0; i < vpmap_get_nb_vp(); i++ ) {
-        __tp->startup_list[i] = NULL;
-    }
 
     /* Keeping track of total tasks to be executed per taskpool for the window */
     for( i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++ ) {
@@ -1539,8 +1533,6 @@ parsec_dtd_startup(parsec_context_t *context,
             }
     }
     (void)pready_list;
-
-    parsec_dtd_schedule_tasks(dtd_tp);
 }
 
 static inline int
@@ -2414,7 +2406,7 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
                                     int device_type,
                                     void *function)
 {
-    __parsec_chore_t **pincarnations;
+    __parsec_chore_t *incarnations;
     int i;
 
     if( tc->task_class_type != PARSEC_TASK_CLASS_TYPE_DTD ) {
@@ -2427,32 +2419,32 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)tc;
 
     /* We assume that incarnations is big enough, because it has been pre-allocated
-     * with 7 chores, as this is a DTD task class */
-    pincarnations = (__parsec_chore_t **)&dtd_tc->super.incarnations;
-    for(i = 0; i < 8 && (*pincarnations)[i].type != PARSEC_DEV_NONE; i++) {
-        if( (*pincarnations)[i].type == device_type ) {
+     * with PARSEC_DEV_MAX_NB_TYPE+1 chores, as this is a DTD task class */
+    incarnations = (__parsec_chore_t*)dtd_tc->super.incarnations;
+    for(i = 0; i < PARSEC_DEV_MAX_NB_TYPE && incarnations[i].type != PARSEC_DEV_NONE; i++) {
+        if( incarnations[i].type == device_type ) {
             parsec_warning("A chore for this device type has already been added to task class '%s'\n",
                            tc->name);
             return PARSEC_ERROR;
         }
     }
-    if(i == 8) {
+    if(i == PARSEC_DEV_MAX_NB_TYPE) {
         parsec_warning("Number of device type exceeded: not enough memory in task class '%s' to add another chore\n",
                        tc->name);
         return PARSEC_ERR_OUT_OF_RESOURCE;
     }
 
-    (*pincarnations)[i].type = device_type;
+    incarnations[i].type = device_type;
     if(PARSEC_DEV_CUDA == device_type) {
-        (*pincarnations)[i].hook = parsec_dtd_gpu_task_submit;
+        incarnations[i].hook = parsec_dtd_gpu_task_submit;
         dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)function;
     }
     else {
         dtd_tc->cpu_func_ptr = function;
-        (*pincarnations)[i].hook = parsec_dtd_cpu_task_submit;
+        incarnations[i].hook = parsec_dtd_cpu_task_submit;
     }
-    (*pincarnations)[i+1].type = PARSEC_DEV_NONE;
-    (*pincarnations)[i+1].hook = NULL;
+    incarnations[i+1].type = PARSEC_DEV_NONE;
+    incarnations[i+1].hook = NULL;
 
     parsec_dtd_insert_task_class(dtd_tp, (parsec_dtd_task_class_t*)dtd_tc);
 
@@ -2669,37 +2661,6 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
         parsec_hash_table_unlock_bucket(tp->task_hash_table, (parsec_key_t)key);
     }
 #endif
-}
-
-/* **************************************************************************** */
-/**
- * Function to push ready task in PaRSEC's scheduler
- *
- * @param[in,out]   __tp
- *                      DTD taskpool
- *
- * @ingroup         DTD_INTERFACE_INTERNAL
- */
-void
-parsec_dtd_schedule_tasks(parsec_dtd_taskpool_t *__tp)
-{
-    parsec_task_t **startup_list = __tp->startup_list;
-    parsec_list_t temp;
-
-    PARSEC_OBJ_CONSTRUCT(&temp, parsec_list_t);
-    for( int p = 0; p < vpmap_get_nb_vp(); p++ ) {
-        if( NULL == startup_list[p] ) continue;
-
-        /* Order the tasks by priority */
-        parsec_list_chain_sorted(&temp, (parsec_list_item_t *)startup_list[p],
-                                 parsec_execution_context_priority_comparator);
-        startup_list[p] = (parsec_task_t *)parsec_list_nolock_unchain(&temp);
-    }
-    /* We should add these tasks on the system queue when there is one */
-    __parsec_schedule_vp(parsec_my_execution_stream(),
-                         startup_list, 0);
-
-    PARSEC_OBJ_DESTRUCT(&temp);
 }
 
 /* **************************************************************************** */

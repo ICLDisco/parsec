@@ -34,6 +34,7 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .wmask = JDF_ALL_WARNINGS,
     .compile = 1,  /* by default the file must be compiled */
     .dep_management = DEP_MANAGEMENT_DYNAMIC_HASH_TABLE,
+    .termdet = TERMDET_DEFAULT,
 #if defined(PARSEC_HAVE_INDENT) && !defined(PARSEC_HAVE_AWK)
     .noline = 1, /*< By default, don't print the #line per default if can't fix the line numbers with awk */
 #else
@@ -66,6 +67,12 @@ static void usage(void)
             "  --dep-management|-M Select how dependencies tracking is managed. Possible choices\n"
             "                      are '"DEP_MANAGEMENT_INDEX_ARRAY_STRING"' or '"DEP_MANAGEMENT_DYNAMIC_HASH_TABLE_STRING"'\n"
             "                      (default '%s')\n"
+            "\n"
+            "  --dynamic-termdet|-D  Use dynamic termination detection, even for PTGs that can use\n"
+            "                     local (i.e. pre-counted number of tasks) termination detection\n"
+            "                     NB. PTGs that are defined to use user-trigger termination\n"
+            "                     detection continue to rely on user-trigger termination detection.\n"
+            "                     (default: use local termination detection)\n"
             "\n"
             "  --noline           Do not dump the JDF line number in the .c output file\n"
             "  --line             Force dumping the JDF line number in the .c output file\n"
@@ -187,6 +194,7 @@ static void parse_args(int argc, char *argv[])
         { "dep-management",required_argument,       NULL,  'M' },
         { "force-profile", no_argument,             NULL,   2  },
         { "ignore-properties", required_argument,   NULL,  'I' },
+        { "dynamic-termdet", no_argument,           NULL,  'D' },
         { NULL,            0,                       NULL,   0  }
     };
 
@@ -196,11 +204,14 @@ static void parse_args(int argc, char *argv[])
 
     print_jdf_line = !DEFAULTS.noline;
 
-    while( (ch = getopt_long(argc, argv, "di:C:H:o:f:hEsIO:M:I:", longopts, NULL)) != -1) {
+    while( (ch = getopt_long(argc, argv, "dDi:C:H:o:f:hEsIO:M:I:", longopts, NULL)) != -1) {
         switch(ch) {
         case 'd':
             yydebug = 1;
             jdfdebug = 1;
+            break;
+        case 'D':
+            JDF_COMPILER_GLOBAL_ARGS.termdet = TERMDET_DYNAMIC;
             break;
         case 'i':
             if( NULL != JDF_COMPILER_GLOBAL_ARGS.input )
@@ -265,8 +276,10 @@ static void parse_args(int argc, char *argv[])
             usage();
             exit(0);
         default:
-            /* save the option for later */
-            parsec_argv_append(&token_count, &extra_argv, optarg);
+            if(NULL != optarg) {
+                /* save the option for later, if there was one */
+                parsec_argv_append(&token_count, &extra_argv, optarg);
+            }
         }
     }
 
@@ -406,6 +419,13 @@ int main(int argc, char *argv[])
     if( (JDF_COMPILER_GLOBAL_ARGS.wmask & JDF_WARNINGS_ARE_ERROR) &&
         (rc != 0) ) {
         return 1;
+    }
+
+    if( JDF_COMPILER_GLOBAL_ARGS.termdet == TERMDET_DYNAMIC ) {
+        rc = jdf_force_termdet_dynamic(&current_jdf);
+        if(rc != 0) {
+            return 1;
+        }
     }
 
     /* Lets try to optimize the jdf */

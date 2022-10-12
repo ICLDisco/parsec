@@ -192,8 +192,10 @@ static int parsec_termdet_local_outgoing_message_start(parsec_taskpool_t *tp,
     /* Nothing to do with the message */
     (void)dst_rank;
     (void)remote_deps;
+    (void)tp;
     return 1; /* The message can go right away */
 }
+
 static int parsec_termdet_local_outgoing_message_pack(parsec_taskpool_t *tp,
                                                       int dst_rank,
                                                       char *packed_buffer,
@@ -208,6 +210,7 @@ static int parsec_termdet_local_outgoing_message_pack(parsec_taskpool_t *tp,
     (void)packed_buffer;
     (void)position;
     (void)buffer_size;
+    (void)tp;
     return PARSEC_SUCCESS;
 }
 
@@ -227,7 +230,7 @@ static int parsec_termdet_local_incoming_message_start(parsec_taskpool_t *tp,
     (void)position;
     (void)buffer_size;
     (void)msg;
-    
+    (void)tp;
     return PARSEC_SUCCESS;
 }
 

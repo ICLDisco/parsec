@@ -25,7 +25,11 @@ function(target_ptg_source_ex)
   set(target "${PARSEC_PTGPP_TARGET}")
 
   set(_ptgpp_flags "")
-  if(DEFINED PARSEC_PTGPP_PTGPP_FLAGS)
+  if(DEFINED PARSEC_PTGPP_FLAGS) #Those are the global flags set at the top level CMakeLists.txt
+    list(APPEND _ptgpp_flags ${PARSEC_PTGPP_FLAGS})
+  endif()
+
+  if(DEFINED PARSEC_PTGPP_PTGPP_FLAGS) #Those are optional flags passed to this function
     list(APPEND _ptgpp_flags ${PARSEC_PTGPP_PTGPP_FLAGS})
   endif()
 
@@ -53,7 +57,7 @@ function(target_ptg_source_ex)
   endif()
 
   get_property(compile_options SOURCE ${PARSEC_PTGPP_SOURCE} PROPERTY PTGPP_COMPILE_OPTIONS)
-  list(APPEND _ptgpp_flags "${compile_options}")
+  list(APPEND _ptgpp_flags "${compile_options}") #In case the user has set compile options specific to this source
 
   if(PARSEC_PTGPP_DEBUG)
     list(APPEND _ptgpp_flags "--debug")
@@ -63,6 +67,9 @@ function(target_ptg_source_ex)
   endif()
   if(PARSEC_PTGPP_FORCE_PROFILE)
     list(APPEND _ptgpp_flags "--force-profile")
+  endif()
+  if(PARSEC_PTGPP_DYNAMIC_TERMDET)
+    list(APPEND -ptgpp_flags "--dynmic-termdet")
   endif()
 
   if(DEFINED PARSEC_PTGPP_DEP_MANAGEMENT)

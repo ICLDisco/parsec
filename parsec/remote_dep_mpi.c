@@ -1777,7 +1777,7 @@ remote_dep_mpi_put_end_cb(parsec_comm_engine_t *ce,
             ((remote_dep_cb_data_t *)cb_data)->k, deps, lreg, rreg);
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_ts_trace(MPI_Data_plds_ek, ((remote_dep_cb_data_t *)cb_data)->k, PROFILE_OBJECT_ID_NULL, NULL);
+    TAKE_TIME(parsec_comm_es.es_profile, MPI_Data_plds_ek, ((remote_dep_cb_data_t *)cb_data)->k);
 #endif
 
     remote_dep_complete_and_cleanup(&deps, 1);
@@ -2072,7 +2072,7 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
         int _size;
         MPI_Type_size(dtt, &_size);
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s count %d displ %ld \t(k=%d, dst_mem_handle=%p)",
-                from, tmp, k, task->deps, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, dtt, nbdtt,
+                from, tmp, k, task->deps, PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, nbdtt,
                 deps->output[k].data.remote.dst_displ, k, receiver_memory_handle);
 #  endif
 

@@ -88,11 +88,12 @@ class ParsecTraceTables(object):
 
     # the init function should not ordinarily be used
     # it is better to use from_hdf(), from_native(), or autoload()
-    def __init__(self, events, event_types, event_names, event_attributes, event_convertors,
+    def __init__(self, events, event_infos, event_types, event_names, event_attributes, event_convertors,
                  nodes, streams, information, errors):
         self.__version__ = self.__class__.class_version
         # core data
         self.events = events
+        self.event_infos = event_infos
         self.event_types = event_types
         self.event_names = event_names
         self.event_attributes = event_attributes
@@ -106,13 +107,15 @@ class ParsecTraceTables(object):
                complevel=0, complib='blosc'):
         if not overwrite and os.path.exists(filename):
             return False
+        table_format = 't' if table else 'f'
         store = pd.HDFStore(filename + '.tmp', 'w', complevel=complevel, complib=complib)
         for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
             store.put(name, self.__dict__[name], encoding='ascii')
-        if table:
-            store.put('events', self.events, format='t', append=append)
-        else:
-            store.put('events', self.events, format='f', append=append)
+        store.put('events', self.events, format=table_format, append=append)
+        for event_type, event_info in self.event_infos.items():
+            # store each event info into events::{event_type}
+            key = 'event_infos_{}'.format(event_type)
+            store.put(key, event_info, format=table_format, append=append)
         store.close()
         # do atomic move once it's finished writing,
         # so as to allow Ctrl-Cs without secret breakage
@@ -176,10 +179,22 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
     """ Loads a PaRSEC trace from an existing HDF5 format file."""
     store = pd.HDFStore(filename, 'r')
     top_level = list()
+    base_eventkey = '/event_infos_'
     if not skeleton_only:
         events = store['events']
+        event_infos = dict()
+        for key in store.keys():
+            if key.startswith(base_eventkey):
+                event_type = int(key[len(base_eventkey):])
+                event_infos[event_type] = store[key]
+
     else:
         events = pd.DataFrame()
+        event_infos = dict()
+        for key in store.keys():
+            if key.startswith(base_eventkey):
+                event_type = int(key[len(base_eventkey):])
+                event_infos[event_type] = pd.DataFrame()
     for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
         try:
             top_level.append(store[name])
@@ -187,7 +202,7 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
             print('Failed to find column named {} in file {}. Adding an empty column.'.format(name, filename))
             top_level.append(name)
 
-    trace = ParsecTraceTables(events, *top_level)
+    trace = ParsecTraceTables(events, event_infos, *top_level)
     if keep_store:
         trace._store = store
     else:

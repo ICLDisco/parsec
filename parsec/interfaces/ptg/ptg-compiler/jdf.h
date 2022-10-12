@@ -90,6 +90,9 @@ int jdf_sanity_checks( jdf_warning_mask_t mask );
 #define DEP_MANAGEMENT_INDEX_ARRAY_STRING        "index-array"
 #define DEP_MANAGEMENT_INDEX_ARRAY        2
 
+#define TERMDET_DEFAULT                   0
+#define TERMDET_DYNAMIC                   1
+
 #define DISABLE_DEP_WARNING_PROPERTY_NAME        "warning"
 
 typedef struct jdf_compiler_global_args {
@@ -104,6 +107,7 @@ typedef struct jdf_compiler_global_args {
     int   dep_management;
     int   noline;  /**< Don't dump the jdf line number in the generate .c file */
     struct jdf_name_list *ignore_properties; /**< Properties to ignore */
+    int   termdet; /**< What termination detection to use (one of TERMDET_*) */
 } jdf_compiler_global_args_t;
 extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
 
@@ -206,6 +210,13 @@ typedef unsigned int jdf_flags_t;
 #define JDF_PROP_UD_FREE_DEPS_FN_NAME          "free_deps_fn"
 
 #define JDF_PROP_NO_AUTOMATIC_TASKPOOL_INSTANCE "no_taskpool_instance"
+
+#define JDF_PROP_TERMDET_NAME                  "termdet"
+#define JDF_HAS_USER_TRIGGERED_TERMDET         ((jdf_flags_t)(1 << 5))
+#define JDF_HAS_DYNAMIC_TERMDET                ((jdf_flags_t)(1 << 6))
+#define JDF_PROP_TERMDET_LOCAL                 "local"
+#define JDF_PROP_TERMDET_DYNAMIC               "dynamic"
+#define JDF_PROP_TERMDET_USER_TRIGGERED        "user-triggered"
 
 typedef struct jdf_function_entry {
     struct jdf_object_t        super;

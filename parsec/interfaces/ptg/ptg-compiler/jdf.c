@@ -1662,7 +1662,7 @@ const char*jdf_property_get_string( const jdf_def_list_t* properties,
     jdf_expr_t* expr = jdf_find_property(properties, prop_name, &property);
 
     if( NULL != expr ) {
-        if( JDF_OP_IS_VAR(expr->op) )
+        if( JDF_OP_IS_VAR(expr->op) || JDF_OP_IS_STRING(expr->op) )
             return expr->jdf_var;
         printf("Warning: property %s defined at line %d only support ON/OFF\n",
                prop_name, JDF_OBJECT_LINENO(property));

@@ -42,6 +42,8 @@
 #include "parsec/mca/mca.h"
 #include "parsec/class/info.h"
 
+ #include <string.h>
+
 BEGIN_C_DECLS
 
 typedef struct parsec_device_module_s parsec_device_module_t;
@@ -126,13 +128,12 @@ struct parsec_device_module_s {
     parsec_info_object_array_t             infos; /**< Per-device info objects are stored here */
     struct parsec_context_s* context;  /**< The PaRSEC context this device belongs too */
     char* name;  /**< Simple identified for the device */
-    uint64_t transferred_data_in;
-    uint64_t transferred_data_out;
-    uint64_t d2d_transfer;
-    uint64_t required_data_in;
-    uint64_t required_data_out;
-    uint64_t executed_tasks;
-    uint64_t nb_data_faults;
+    uint64_t *data_in_from_device; /**< One counter per device: how many bytes have been copied from this device */
+    uint64_t  data_out_to_host;    /**< When a device writes back to the host, it counts it here, to avoid the need for an atomic operation on the data_in_from_device of the host device */
+    uint64_t  required_data_in;
+    uint64_t  required_data_out;
+    uint64_t  executed_tasks;
+    uint64_t  nb_data_faults;
     float device_hweight;  /**< Number of half precision operations per second */
     float device_sweight;  /**< Number of single precision operations per second */
     float device_dweight;  /**< Number of double precision operations per second */
@@ -140,6 +141,7 @@ struct parsec_device_module_s {
 #if defined(PARSEC_PROF_TRACE)
     parsec_profiling_stream_t *profiling;
 #endif  /* defined(PROFILING) */
+    uint8_t data_in_array_size; /**< Current size of the data_in_from_device array. Used for safety checking */
     uint8_t device_index;
     uint8_t type;
 };
