@@ -146,6 +146,12 @@ int main(int argc, char ** argv)
         PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
+
+        dtd_tp->tdm.module->taskpool_set_nb_tasks(dtd_tp, PARSEC_RUNTIME_RESERVED_NB_TASKS);
+        dtd_tp->tdm.module->taskpool_set_runtime_actions(dtd_tp, 0);
+        dtd_tp->tdm.monitor = ((void*)(0x1));
+        dtd_tp->tdm.module->taskpool_ready(dtd_tp);
+
     }
     /****** END ******/
 
@@ -208,6 +214,7 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
+    parsec_dtd_taskpool_release(dtd_tp);
     parsec_taskpool_free( dtd_tp );
 
     parsec_fini(&parsec);
