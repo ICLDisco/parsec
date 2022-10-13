@@ -108,7 +108,7 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  * @brief List iterator macro
  *
  * @details Paste code to iterate on all items in the LIST (front to back)
- *    the CODE_BLOCK code is applied to each item, which can be refered
+ *    the CODE_BLOCK code is applied to each item, which can be referred
  *    to as ITEM_NAME in CODE_BLOCK
  *    the entire loop iteration takes the list mutex, hence
  *      CODE_BLOCK must not jump outside the block; although, break
@@ -206,7 +206,7 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
  * @param[inout] newel the element the add to list before position
  *
  * @remark position item must be in list
- * @remark this function is not thred safe
+ * @remark this function is not thread safe
  * @remark if position is the Ghost Element, item is added back
  */
 static inline void
@@ -227,11 +227,11 @@ parsec_list_nolock_add_before( parsec_list_t* list,
  *
  * @param[inout] list the list in which position belongs and in which newel must
  *                be added
- * @param[inout] position the element that must preceed newel
+ * @param[inout] position the element that must precede newel
  * @param[inout] item the element the add to list after position
  *
  * @remark position item must be in list
- * @remark this function is not thred safe
+ * @remark this function is not thread safe
  * @remark if position is the Ghost Element, item is added front
  */
 static inline void
@@ -253,7 +253,7 @@ parsec_list_add_after( parsec_list_t* list,
  * @return the predecessor of item in list
  *
  * @remark item must be in list
- * @remark this function is not thred safe
+ * @remark this function is not thread safe
  */
 static inline parsec_list_item_t*
 parsec_list_nolock_remove( parsec_list_t* list,
@@ -429,9 +429,9 @@ static inline parsec_list_item_t*
 parsec_list_pop_back( parsec_list_t* list );
 
 /**
- * @brief Try poping the head of the dequeue
+ * @brief Try popping the head of the dequeue
  *
- * @details consider the list as a dequeue, and try poping its head.
+ * @details consider the list as a dequeue, and try popping its head.
  *
  * @param[inout] list the dequeue from which to pop the front element
  * @return the element, if one was removed from the dequeue (NULL if
@@ -446,9 +446,9 @@ static inline parsec_list_item_t*
 parsec_list_try_pop_front( parsec_list_t* list );
 
 /**
- * @brief Try poping the tail of the dequeue
+ * @brief Try popping the tail of the dequeue
  *
- * @details consider the list as a dequeue, and try poping its tail.
+ * @details consider the list as a dequeue, and try popping its tail.
  *
  * @param[inout] list the dequeue from which to pop the tail element
  * @return the element, if one was removed from the dequeue (NULL if

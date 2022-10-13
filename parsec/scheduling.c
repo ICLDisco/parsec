@@ -577,7 +577,6 @@ static int __parsec_taskpool_test( parsec_taskpool_t* tp, parsec_execution_strea
 static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_stream_t *es )
 {
     uint64_t misses_in_a_row;
-    parsec_context_t* parsec_context = es->virtual_process->parsec_context;
     parsec_task_t* task;
     int nbiterations = 0, distance, rc;
     struct timespec rqtp;
@@ -595,9 +594,11 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
         return -1;
     }
 
+    /* Detach the current taskpool from the associated context */
+    parsec_dtd_dequeue_taskpool(tp);
+    PARSEC_LIST_ITEM_SINGLETON(tp);
+
     while( tp->tdm.module->taskpool_state(tp) != PARSEC_TERM_TP_TERMINATED ) {
-        /* Here we detach all dtd taskpools registered with us */
-        parsec_detach_all_dtd_taskpool_from_context(parsec_context);
 
 #if defined(DISTRIBUTED)
         if( (1 == parsec_communication_engine_up) &&
@@ -666,7 +667,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
 
     /* The main loop where all the threads will spend their time */
   wait_for_the_next_round:
-    /* Wait until all threads are here and the main thread signal the begining of the work */
+    /* Wait until all threads are here and the main thread signal the beginning of the work */
     parsec_barrier_wait( &(parsec_context->barrier) );
 
     if( parsec_context->__parsec_internal_finalization_in_progress ) {

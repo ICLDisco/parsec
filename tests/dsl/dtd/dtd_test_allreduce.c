@@ -201,8 +201,8 @@ int main(int argc, char **argv)
 //*********************
     rc = parsec_dtd_data_flush_all( dtd_tp, A );
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_data_flush_all(A)");
-    rc = parsec_dtd_taskpool_wait( dtd_tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+    rc = parsec_taskpool_wait( dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
     if( rank == root) {
         printf("Root: %d; value=%d\n\n", root, ((int*)m->mat)[0] );
     }

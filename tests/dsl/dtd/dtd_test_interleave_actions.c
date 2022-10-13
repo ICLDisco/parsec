@@ -210,8 +210,8 @@ int main(int argc, char **argv) {
     }
 
     // Wait for task completion
-   ret = parsec_dtd_taskpool_wait(dtd_tp);
-   PARSEC_CHECK_ERROR(ret, "parsec_dtd_taskpool_wait");
+   ret = parsec_taskpool_wait(dtd_tp);
+   PARSEC_CHECK_ERROR(ret, "parsec_taskpool_wait");
    // return 0;
 
    ret = parsec_context_wait(parsec_context);

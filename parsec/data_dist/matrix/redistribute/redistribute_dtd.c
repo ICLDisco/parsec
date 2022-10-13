@@ -416,8 +416,8 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     }
 
     /* Finishing all the tasks inserted, but not finishing the handle */
-    int rc = parsec_dtd_taskpool_wait( dtd_tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+    int rc = parsec_taskpool_wait( dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
     /* Cleaning up the parsec handle */
     parsec_taskpool_free( dtd_tp );
