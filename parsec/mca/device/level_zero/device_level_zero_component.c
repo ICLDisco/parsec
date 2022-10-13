@@ -91,12 +91,12 @@ static int device_level_zero_component_query(mca_base_module_t **module, int *pr
 
     *module = NULL;
     *priority = 0;
-    if( 0 == use_level_zero ) {
+    if( 0 == parsec_device_level_zero_enabled ) {
         return MCA_SUCCESS;
     }
     parsec_gpu_init_profiling();
 
-    if( use_level_zero >= 1) {
+    if( parsec_device_level_zero_enabled >= 1) {
         uint32_t driverCount = 0;
         uint32_t totalDeviceCount = 0, maxDeviceCount = 0;
 
@@ -114,19 +114,19 @@ static int device_level_zero_component_query(mca_base_module_t **module, int *pr
                 maxDeviceCount = deviceCount;
         }
 
-        use_level_zero = totalDeviceCount < (uint32_t)use_level_zero ? (int)totalDeviceCount : use_level_zero;
+        parsec_device_level_zero_enabled = totalDeviceCount < (uint32_t)parsec_device_level_zero_enabled ? (int)totalDeviceCount : parsec_device_level_zero_enabled;
 
-        if(use_level_zero > 0) {
+        if(parsec_device_level_zero_enabled > 0) {
             parsec_device_level_zero_component.modules =
-                    (parsec_device_module_t **)calloc(use_level_zero + 1,
+                    (parsec_device_module_t **)calloc(parsec_device_level_zero_enabled + 1,
                                                       sizeof(parsec_device_module_t *));
             devices = (ze_device_handle_t *)malloc(maxDeviceCount * sizeof(ze_device_handle_t));
 
             i = j = 0;
-            for(uint32_t did = 0; i < use_level_zero && did < driverCount; ++did ) {
+            for(uint32_t did = 0; i < parsec_device_level_zero_enabled && did < driverCount; ++did ) {
                 uint32_t deviceCount = maxDeviceCount;
                 zeDeviceGet(allDrivers[did], &deviceCount, devices);
-                for(uint32_t devid = 0; i < use_level_zero && devid < deviceCount; devid++) {
+                for(uint32_t devid = 0; i < parsec_device_level_zero_enabled && devid < deviceCount; devid++) {
                     ze_device_properties_t device_properties;
                     zeDeviceGetProperties(devices[devid], &device_properties);
                     if( ZE_DEVICE_TYPE_GPU != device_properties.type) { continue; }
@@ -165,9 +165,9 @@ static int device_level_zero_component_query(mca_base_module_t **module, int *pr
 
 static int device_level_zero_component_register(void)
 {
-    use_level_zero_index = parsec_mca_param_reg_int_name("device_level_zero", "enabled",
+    parsec_device_level_zero_index = parsec_mca_param_reg_int_name("device_level_zero", "enabled",
                                                    "The number of LEVEL_ZERO device to enable for the next PaRSEC context (-1 for all available)",
-                                                   false, false, -1, &use_level_zero);
+                                                   false, false, -1, &parsec_device_level_zero_enabled);
     (void)parsec_mca_param_reg_int_name("device_level_zero", "mask",
                                         "The bitwise mask of LEVEL_ZERO devices to be enabled (default all)",
                                         false, false, 0xffffffff, &level_zero_mask);
@@ -204,7 +204,7 @@ static int device_level_zero_component_register(void)
                                         "Boolean to let the GPU engine sort the first pending tasks stored in the list",
                                         false, false, 0, &parsec_level_zero_sort_pending);
     /* If LEVEL_ZERO was not requested avoid initializing the devices */
-    return (0 == use_level_zero ? MCA_ERROR : MCA_SUCCESS);
+    return (0 == parsec_device_level_zero_enabled ? MCA_ERROR : MCA_SUCCESS);
 }
 
 /**
@@ -219,14 +219,14 @@ static int device_level_zero_component_open(void)
     int ndevices = 0;
     uint32_t driverCount = 0;
 
-    if( 0 <= use_level_zero ) {
+    if( 0 == parsec_device_level_zero_enabled ) {
         return MCA_ERROR;  /* Nothing to do around here */
     }
 
     ze_rc = zeInit( 0 );
     PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeInit ", ze_rc,
                                    {
-                                       parsec_mca_param_set_int(use_level_zero_index, 0);
+                                       parsec_mca_param_set_int(parsec_device_level_zero_index, 0);
                                        return MCA_ERROR;
                                    } );
 
@@ -234,7 +234,7 @@ static int device_level_zero_component_open(void)
     ze_rc = zeDriverGet(&driverCount, NULL);
     PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeDriverGet ", ze_rc,
                                    {
-                                       parsec_mca_param_set_int(use_level_zero_index, 0);
+                                       parsec_mca_param_set_int(parsec_device_level_zero_index, 0);
                                        return MCA_ERROR;
                                    } );
     if(driverCount > 0) {
@@ -243,7 +243,7 @@ static int device_level_zero_component_open(void)
         PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeDriverGet ", ze_rc,
                                        {
                                            free(allDrivers);
-                                           parsec_mca_param_set_int(use_level_zero_index, 0);
+                                           parsec_mca_param_set_int(parsec_device_level_zero_index, 0);
                                            return MCA_ERROR;
                                        } );
 
@@ -253,7 +253,7 @@ static int device_level_zero_component_open(void)
             PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeDeviceGet ", ze_rc,
                                            {
                                                free(allDrivers);
-                                               parsec_mca_param_set_int(use_level_zero_index, 0);
+                                               parsec_mca_param_set_int(parsec_device_level_zero_index, 0);
                                                return MCA_ERROR;
                                            } );
             ndevices += (int)deviceCount;
@@ -263,21 +263,21 @@ static int device_level_zero_component_open(void)
     }
 
 
-    if( ndevices > use_level_zero ) {
-        if( 0 < use_level_zero_index ) {
-            ndevices = use_level_zero;
+    if( ndevices > parsec_device_level_zero_enabled ) {
+        if( 0 < parsec_device_level_zero_index ) {
+            ndevices = parsec_device_level_zero_enabled;
         }
-    } else if (ndevices < use_level_zero ) {
-        if( 0 < use_level_zero_index ) {
+    } else if (ndevices < parsec_device_level_zero_enabled ) {
+        if( 0 < parsec_device_level_zero_index ) {
             parsec_warning("User requested %d LEVEL_ZERO devices, but only %d are available on %s\n."
                            " PaRSEC will enable all %d of them.",
-                           use_level_zero, ndevices, parsec_hostname, ndevices);
-            parsec_mca_param_set_int(use_level_zero_index, ndevices);
+                           parsec_device_level_zero_enabled, ndevices, parsec_hostname, ndevices);
+            parsec_mca_param_set_int(parsec_device_level_zero_index, ndevices);
         }
     }
 
     /* Update the number of GPU for the upper layer */
-    use_level_zero = ndevices;
+    parsec_device_level_zero_enabled = ndevices;
     if( 0 == ndevices ) {
         return -1;
     }
