@@ -11,6 +11,7 @@
 #include "parsec/sys/atomic.h"
 #include "parsec/class/list_item.h"
 #include "parsec/class/parsec_rwlock.h"
+#include "parsec/class/parsec_biased_rwlock.h"
 
 /**
  * @defgroup parsec_internal_classes_hashtable Hash Tables
@@ -92,7 +93,7 @@ typedef struct parsec_hash_table_head_s {
  */
 struct parsec_hash_table_s {
     parsec_object_t           super;                /**< A Hash Table is a PaRSEC object */
-    parsec_atomic_rwlock_t    rw_lock;              /**< 'readers' are threads that manipulate rw_hash (add, delete, find)
+    parsec_biased_rwlock_t   *rw_lock;              /**< 'readers' are threads that manipulate rw_hash (add, delete, find)
                                                      *   but do not resize it; 'writers' are threads that resize
                                                      *   rw_hash */
     int64_t                   elt_hashitem_offset;  /**< Elements belonging to this hash table have a parsec_hash_table_item_t

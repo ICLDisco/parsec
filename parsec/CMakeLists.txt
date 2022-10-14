@@ -9,6 +9,7 @@ add_compile_options("$<$<NOT:$<COMPILE_LANGUAGE:Fortran>>:${PARSEC_ATOMIC_SUPPOR
 #  Settings for targets
 #
 set(BASE_SOURCES
+  class/parsec_biased_rwlock.c
   class/parsec_dequeue.c
   class/parsec_fifo.c
   class/parsec_lifo.c
