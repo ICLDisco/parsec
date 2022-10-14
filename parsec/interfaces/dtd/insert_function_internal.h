@@ -228,8 +228,10 @@ struct parsec_dtd_taskpool_s {
     int                          task_window_size;
     int32_t                      task_threshold_size;
     int                          total_tasks_to_be_exec;
-    uint32_t                     local_task_inserted;
-    uint8_t                      function_counter;
+    uint32_t                     local_task_inserted;  /* don't waste an atomic operation
+                                                          on this, it can be loosely connected
+                                                          to the number of locally inserted
+                                                          tasks. */
     uint8_t                      flow_set_flag[PARSEC_DTD_NB_TASK_CLASSES];
     int64_t                      new_tile_keys;
     parsec_data_collection_t     new_tile_dc;

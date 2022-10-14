@@ -249,17 +249,6 @@ parsec_detach_all_dtd_taskpool_from_context(parsec_context_t *context)
     }
 }
 
-void
-parsec_dtd_attach_taskpool_to_context(parsec_taskpool_t *tp,
-                                      parsec_context_t *context)
-{
-    if( context->taskpool_list == NULL) {
-        context->taskpool_list = PARSEC_OBJ_NEW(parsec_list_t);
-    }
-
-    parsec_list_push_back(context->taskpool_list, (parsec_list_item_t *)tp);
-}
-
 /* enqueue wrapper for dtd */
 int
 parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
@@ -278,7 +267,10 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
                            !!(tp->context->nb_nodes > 1));
 
     /* Attaching the reference of this taskpool to the parsec context */
-    parsec_dtd_attach_taskpool_to_context(tp, tp->context);
+    if( NULL == tp->context->taskpool_list ) {
+        tp->context->taskpool_list = PARSEC_OBJ_NEW(parsec_list_t);
+    }
+    parsec_list_push_back(tp->context->taskpool_list, (parsec_list_item_t *)tp);
 
     /* The first taskclass of every taskpool is the flush taskclass */
     parsec_dtd_task_class_t *data_flush_tc;
@@ -302,7 +294,7 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
     dtd_tp->new_tile_dc.vpid_of_key = parsec_dtd_tile_new_dc_vpid_of_key;
     parsec_dtd_data_collection_init(&dtd_tp->new_tile_dc);
 
-    /* Inserting Function structure in the hash table to keep track for each class of task */
+    /* Bookkeeping of the task class */
     uint64_t fkey = (uint64_t)(uintptr_t)parsec_dtd_data_flush_sndrcv + 1;
     parsec_dtd_register_task_class(&dtd_tp->super, fkey, (parsec_task_class_t*)data_flush_tc);
     parsec_dtd_insert_task_class(dtd_tp, (parsec_dtd_task_class_t*)data_flush_tc);
@@ -334,7 +326,6 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_dtd_tile_t, parsec_list_item_t,
 void parsec_dtd_taskpool_constructor(parsec_dtd_taskpool_t *tp)
 {
     int nb;
-    tp->function_counter = 0;
 
     tp->task_hash_table = PARSEC_OBJ_NEW(parsec_hash_table_t);
     for( nb = 1; nb < 16 && (1 << nb) < parsec_dtd_task_hash_table_size; nb++ ) /* nothing */;
@@ -399,13 +390,11 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     /* Destroy the data repositories for this object */
     for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
         const parsec_task_class_t *tc = tp->super.task_classes_array[i];
-        parsec_dtd_task_class_t   *dtd_tc = (parsec_dtd_task_class_t *)tc;
-
         /* Have we reached the end of known functions for this taskpool? */
         if( NULL == tc ) {
-            assert(tp->function_counter == i);
-            break;
+            continue;
         }
+        parsec_dtd_task_class_t   *dtd_tc = (parsec_dtd_task_class_t *)tc;
 
         uint64_t fkey = (uint64_t)(uintptr_t)dtd_tc->cpu_func_ptr + tc->nb_flows;
         parsec_dtd_release_task_class( tp, fkey );
@@ -906,23 +895,23 @@ parsec_dtd_untrack_remote_dep(parsec_dtd_taskpool_t *tp,
 
 /* **************************************************************************** */
 /**
- * This function registers master structure in hash table
+ * This function registers a task class into the taskpool hash table
  *
  * @param[in,out]   tp
  *                      Pointer to DTD taskpool, the hash table
  *                      is attached to the taskpool
  * @param[in]       key
- *                      The function-pointer to the body of task-class
- *                      is treated as the key
- * @param[in]       value
- *                      The pointer to the master structure
+ *                      The key to be used for the registration. A task class should not
+ *                      be registered multiple times under different keys.
+ * @param[in]       tc
+ *                      The pointer to the task class to be registered
  *
  * @ingroup         DTD_INTERFACE_INTERNAL
  */
 void
 parsec_dtd_register_task_class(parsec_taskpool_t *tp,
                                uint64_t key,
-                               parsec_task_class_t *value)
+                               parsec_task_class_t *tc)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     parsec_hash_table_t *hash_table = dtd_tp->function_h_table;
@@ -939,7 +928,7 @@ parsec_dtd_register_task_class(parsec_taskpool_t *tp,
 
     item->ht_item.key = (parsec_key_t)key;
     item->mempool_owner = dtd_tp->hash_table_bucket_mempool->thread_mempools;
-    item->value = (void *)value;
+    item->value = (void *)tc;
 
     parsec_hash_table_nolock_insert_handle(hash_table, &kh, &item->ht_item);
     parsec_hash_table_unlock_bucket_handle(hash_table, &kh);
@@ -959,14 +948,16 @@ parsec_dtd_register_task_class(parsec_taskpool_t *tp,
  */
 void
 parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
-                             parsec_dtd_task_class_t *value)
+                             parsec_dtd_task_class_t *tc)
 {
-    if(tp->super.task_classes_array[value->super.task_class_id] == &value->super)
+    if(tc->super.task_class_id != UINT8_MAX) {
+        parsec_warning("Task class %s (%p) has invalid or already defined task_class_id",
+                        (void*)tc, tc->super.name);
         return;
-    assert(NULL == tp->super.task_classes_array[value->super.task_class_id]);
-    tp->super.task_classes_array[value->super.task_class_id] = &value->super;
-    tp->super.task_classes_array[value->super.task_class_id + 1] = NULL;
-    tp->super.nb_task_classes++;
+    }
+    tc->super.task_class_id = tp->super.nb_task_classes++;
+    assert(NULL == tp->super.task_classes_array[tc->super.task_class_id]);
+    tp->super.task_classes_array[tc->super.task_class_id] = &tc->super;
 }
 
 /* **************************************************************************** */
@@ -1401,7 +1392,6 @@ parsec_dtd_taskpool_new(void)
     __tp->task_window_size = 1;
     __tp->task_threshold_size = parsec_dtd_threshold_size;
     __tp->local_task_inserted = 0;
-    __tp->function_counter = 0;
     __tp->enqueue_flag = 0;
     __tp->new_tile_keys = 0;
 
@@ -2169,9 +2159,9 @@ parsec_dtd_create_task_classv(parsec_dtd_taskpool_t *dtd_tp,
 
     *name_not_const = name;
     tc->task_class_type = PARSEC_TASK_CLASS_TYPE_DTD;
-    tc->task_class_id = dtd_tp->function_counter++;
+    tc->task_class_id = UINT8_MAX;
     tc->nb_flows = flow_count;
-    /* set to one so that prof_grpaher prints the task id properly */
+    /* set to one so that prof_grapher prints the task id properly */
     tc->nb_parameters = 1;
     tc->nb_locals = 1;
     task_params[0] = &symb_dtd_taskid;
@@ -3178,13 +3168,13 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
     parsec_dtd_param_t params[PARSEC_DTD_MAX_PARAMS];
 
     if( dtd_tp == NULL) {
-        parsec_fatal("Wait! You need to pass a correct parsec taskpool in order to insert task. "
+        parsec_fatal("You need to pass a correct parsec taskpool in order to insert task. "
                      "Please use \"parsec_dtd_taskpool_new()\" to create new taskpool"
                      "and then try to insert task. Thank you\n");
     }
 
     if( tp->context == NULL) {
-        parsec_fatal("Sorry! You can not insert task wihtout enqueuing the taskpool to parsec_context"
+        parsec_fatal("Sorry! You can not insert task without enqueuing the taskpool to parsec_context"
                      " first. Please make sure you call parsec_context_add_taskpool(parsec_context, taskpool) before"
                      " you try inserting task in PaRSEC\n");
     }
@@ -3252,8 +3242,8 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
         params[nb_params].op = tile_op_type;
         if(NULL != dtd_tc) {
             if(dtd_tc->count_of_params <= nb_params) {
-                parsec_fatal("Task class of '%s' is only defined to use %d parameters, yet it is called with more.\n"
-                             "Error in task insertion.\n", tc->name, dtd_tc->count_of_params);
+                parsec_fatal("Task class of '%s' is defined to use %d parameters, yet it is called with %d parameters.\n"
+                             "Error in task insertion.\n", tc->name, dtd_tc->count_of_params, nb_params);
             }
             params[nb_params].op |= dtd_tc->params[nb_params].op;
         }
@@ -3288,12 +3278,10 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
         tc = (parsec_task_class_t *)parsec_dtd_find_task_class(dtd_tp, fkey);
 
         if( NULL == tc ) {
-            __parsec_chore_t **incarnations;
-
             dtd_tc = parsec_dtd_create_task_classv(dtd_tp, name_of_kernel, nb_params, params);
             tc = &dtd_tc->super;
 
-            incarnations = (__parsec_chore_t **)&tc->incarnations;
+            __parsec_chore_t **incarnations = (__parsec_chore_t **)&tc->incarnations;
             (*incarnations)[0].type = device_type;
             if( device_type == PARSEC_DEV_CUDA ) {
                 /* Special case for CUDA: we need an intermediate */
@@ -3307,16 +3295,9 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
             }
             (*incarnations)[1].type = PARSEC_DEV_NONE;
 
-            if( PARSEC_DEV_CPU == device_type ) {
-                /* Inserting Function structure in the hash table to keep track for each class of task.
-                 * We only keep track of the CPU device functions in this hash table. */
-                uint64_t key = (uint64_t)(uintptr_t)fpointer + tc->nb_flows;
-                parsec_dtd_register_task_class(&dtd_tp->super, key, tc);
-            }
-            assert(NULL == dtd_tp->super.task_classes_array[tc->task_class_id]);
-            dtd_tp->super.task_classes_array[tc->task_class_id] = (parsec_task_class_t *)tc;
-            dtd_tp->super.task_classes_array[tc->task_class_id + 1] = NULL;
-            dtd_tp->super.nb_task_classes++;
+            /* Bookkeeping of the task class */
+            parsec_dtd_register_task_class(&dtd_tp->super, fkey, tc);
+            parsec_dtd_insert_task_class(dtd_tp, dtd_tc);
         }
     }
 
@@ -3438,12 +3419,7 @@ parsec_dtd_insert_task(parsec_taskpool_t *tp,
                        const char *name_of_kernel, ...)
 {
     va_list args;
-    unsigned int i, n;
-    for(i = 0, n=0; i < sizeof(device_type)*8; i++) {
-        if( 0!= (device_type & (1<<i) ) )
-            n++;
-    }
-    if(n != 1) {
+    if( 0 == (tp->devices_index_mask & device_type)) {
         parsec_fatal("parsec_dtd_insert_task called with an unspecified device: a single bit in device_type should "
                        "be set\n");
         return;

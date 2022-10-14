@@ -151,7 +151,7 @@ int main(int argc, char ** argv)
         dtd_tp->tdm.module->taskpool_set_runtime_actions(dtd_tp, 0);
         dtd_tp->tdm.monitor = ((void*)(0x1));
         dtd_tp->tdm.module->taskpool_ready(dtd_tp);
-
+        (void)parsec_atomic_fetch_inc_int32( &dtd_tp->context->active_taskpools );
     }
     /****** END ******/
 
