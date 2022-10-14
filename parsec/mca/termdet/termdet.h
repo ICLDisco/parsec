@@ -298,7 +298,7 @@ int parsec_termdet_fini(void);
  *
  *    @param[IN] tp the taskpool that was monitored
  *    @param[INOUT] fp the FILE * in which to print the statistics
- *    @return PARSEC_SUCCESS unless a fatal error occured
+ *    @return PARSEC_SUCCESS unless a fatal error occurred
  */
 typedef int (*parsec_termdet_write_stats_fn_t)(parsec_taskpool_t *tp, FILE *fp);
 
