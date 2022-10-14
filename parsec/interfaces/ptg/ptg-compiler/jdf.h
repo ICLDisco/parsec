@@ -96,7 +96,7 @@ typedef struct jdf_compiler_global_args {
     char *input;
     char *output_c;
     char *output_h;
-    char *output_driver_basename;
+    char *output_dpcpp;
     char *output_o;
     char *funcid;
     jdf_warning_mask_t wmask;

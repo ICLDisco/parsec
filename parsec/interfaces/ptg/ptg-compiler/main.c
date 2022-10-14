@@ -29,7 +29,7 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .input = "-",
     .output_c = "a.c",
     .output_h = "a.h",
-    .output_driver_basename = "a",
+    .output_dpcpp = "a.dpcpp",
     .output_o = "a.o",
     .funcid = "a",
     .wmask = JDF_ALL_WARNINGS,
@@ -60,9 +60,7 @@ static void usage(void)
             "                     --output-c, --output-h, and --function-name\n"
             "  --output-c|-C      Set the name of the .c output file (default '%s' or BASE.c)\n"
             "  --output-h|-H      Set the name of the .h output file (default '%s' or BASE.h)\n"
-            "  --output-driver    Set the base name for additional driver files (e.g. DPC++ bodies).\n"
-            "                     (default '%s' or BASE). Changing this value has precedence over\n"
-            "                     the defaults of --output\n"
+            "  --output-dpcpp|-D  Set the based name of the .dpcpp.* output files (default '%s' or BASE.dpcpp)\n"
             "  --function-name|-f Set the unique identifier of the generated function\n"
             "                     The generated function will be called PaRSEC_<ID>_new\n"
             "                     (default %s)\n"
@@ -93,7 +91,7 @@ static void usage(void)
             DEFAULTS.input,
             DEFAULTS.output_c,
             DEFAULTS.output_h,
-            DEFAULTS.output_driver_basename,
+            DEFAULTS.output_dpcpp,
             DEFAULTS.funcid,
             (DEFAULTS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ? DEP_MANAGEMENT_INDEX_ARRAY_STRING :
              (DEFAULTS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ? DEP_MANAGEMENT_DYNAMIC_HASH_TABLE_STRING :
@@ -178,7 +176,7 @@ static void parse_args(int argc, char *argv[])
         { "output-c",      required_argument,       NULL,  'C' },
         { "output-h",      required_argument,       NULL,  'H' },
         { "output-o",      required_argument,       NULL,  'O' },
-        { "output-driver", required_argument,       NULL,  'D' },
+        { "output-dpcpp",  required_argument,       NULL,  'D' },
         { "output",        required_argument,       NULL,  'o' },
         { "function-name", required_argument,       NULL,  'f' },
         { "Wmasked",       no_argument,         &wmasked,   1  },
@@ -319,12 +317,12 @@ static void parse_args(int argc, char *argv[])
     }
 
     if( NULL != d ) {
-        JDF_COMPILER_GLOBAL_ARGS.output_driver_basename = d;
+        JDF_COMPILER_GLOBAL_ARGS.output_dpcpp = d;
     } else {
         if(NULL != o) {
-            JDF_COMPILER_GLOBAL_ARGS.output_driver_basename = strdup(o);
+            JDF_COMPILER_GLOBAL_ARGS.output_dpcpp = strdup(o);
         } else
-            JDF_COMPILER_GLOBAL_ARGS.output_driver_basename = DEFAULTS.output_driver_basename;
+            JDF_COMPILER_GLOBAL_ARGS.output_dpcpp = DEFAULTS.output_dpcpp;
     }
 
     if( NULL == c) {
@@ -436,7 +434,7 @@ int main(int argc, char *argv[])
 
     if( jdf2c(JDF_COMPILER_GLOBAL_ARGS.output_c,
               JDF_COMPILER_GLOBAL_ARGS.output_h,
-              JDF_COMPILER_GLOBAL_ARGS.output_driver_basename,
+              JDF_COMPILER_GLOBAL_ARGS.output_dpcpp,
               JDF_COMPILER_GLOBAL_ARGS.funcid,
               &current_jdf) < 0 ) {
         return 1;
