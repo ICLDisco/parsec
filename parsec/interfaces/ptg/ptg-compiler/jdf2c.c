@@ -8777,13 +8777,13 @@ int jdf_optimize( jdf_t* jdf )
 #endif
 
 int jdf2c(const char *output_c, const char *output_h,
-          const char *dpcpp_output_basename, const char *_jdf_basename, jdf_t *jdf)
+          const char *output_dpcpp, const char *_jdf_basename, jdf_t *jdf)
 {
     int ret = 0;
 
     jdf_cfilename = output_c;
     jdf_hfilename = strdup(output_h);
-    asprintf(&jdf_dpcppfilename, "%s.C", dpcpp_output_basename);
+    jdf_dpcppfilename = strdup(output_dpcpp);
     jdf_basename = _jdf_basename;
     cfile = NULL;
     hfile = NULL;

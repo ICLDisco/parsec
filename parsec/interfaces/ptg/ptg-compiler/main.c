@@ -29,7 +29,7 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .input = "-",
     .output_c = "a.c",
     .output_h = "a.h",
-    .output_dpcpp = "a.dpcpp",
+    .output_dpcpp = "a",
     .output_o = "a.o",
     .funcid = "a",
     .wmask = JDF_ALL_WARNINGS,
@@ -317,7 +317,7 @@ static void parse_args(int argc, char *argv[])
     }
 
     if( NULL != d ) {
-        JDF_COMPILER_GLOBAL_ARGS.output_dpcpp = d;
+        JDF_COMPILER_GLOBAL_ARGS.output_dpcpp = strdup(d);
     } else {
         if(NULL != o) {
             JDF_COMPILER_GLOBAL_ARGS.output_dpcpp = strdup(o);

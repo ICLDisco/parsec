@@ -5,6 +5,9 @@ include(CMakeDependentOption)
 include(CMakePushCheckState)
 include(GNUInstallDirs)
 
+# Help debug dependencies with custom targets that PTG uses a lot
+SET(GRAPHVIZ_CUSTOM_TARGETS TRUE)
+
 # The current version number
 #   This uses the numbering scheme from libtool -version_number c:r:a
 #      see http://www.sourceware.org/autobook/autobook/autobook_61.html
