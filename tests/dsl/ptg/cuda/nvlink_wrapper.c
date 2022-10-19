@@ -89,11 +89,11 @@ __parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
             status = (cudaError_t)cudaFree( gpu_copy->device_private );
             PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaFree ", status, {} );
 #elif defined(PARSEC_HAVE_LEVEL_ZERO)
-	    parsec_device_level_zero_module_t *level_zero_device = (parsec_device_level_zero_module_t *)device;
+            parsec_device_level_zero_module_t *level_zero_device = (parsec_device_level_zero_module_t *)device;
             ze_result_t status = zeMemFree(level_zero_device->ze_context, gpu_copy->device_private);
             PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeMemFree ", status, {} );
 #else
-	    free(gpu_copy->device_private);
+            free(gpu_copy->device_private);
 #endif
             gpu_copy->device_private = NULL;
             parsec_data_copy_detach(dta, gpu_copy, device->device_index);
@@ -204,8 +204,8 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
             /* And we create a new data copy on GPU */
             parsec_data_copy_t *gpu_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
 #if defined(PARSEC_HAVE_CUDA)
-	    /* We chose the GPU */
-	        parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t *)device;
+            /* We chose the GPU */
+            parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t *)device;
             cudaError_t status = cudaSetDevice( cuda_device->cuda_index );
             PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaSetDevice ", status, {return NULL;} );
             /* Allocate memory on it, for one tile */
@@ -213,7 +213,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
             PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMalloc ", status, {return NULL;} );
 #elif defined(PARSEC_HAVE_LEVEL_ZERO)
             parsec_device_level_zero_module_t *level_zero_device = (parsec_device_level_zero_module_t *)device;
-	        ze_device_memory_properties_t devMemProperties;
+            ze_device_memory_properties_t devMemProperties;
             uint32_t count = 1;
             /* Safety: we check that there is one memory segment available on this device (ordinal 0), and 
              * that this segment is big enough to store what we need to allocate */
@@ -222,10 +222,10 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
             assert(count >= 1);
             assert(mb*mb*parsec_datadist_getsizeoftype(PARSEC_MATRIX_DOUBLE) + 128 <= devMemProperties.totalSize);
             ze_device_mem_alloc_desc_t memAllocDesc = {
-            	.stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC,
-            	.pNext = NULL,
-            	.flags = ZE_DEVICE_MEM_ALLOC_FLAG_BIAS_UNCACHED,
-            	.ordinal = 0
+                .stype = ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC,
+                .pNext = NULL,
+                .flags = ZE_DEVICE_MEM_ALLOC_FLAG_BIAS_UNCACHED,
+                .ordinal = 0
             };
             /* Allocate memory on it, for one tile */
             status =  zeMemAllocDevice(level_zero_device->ze_context, &memAllocDesc, mb*mb*parsec_datadist_getsizeoftype(PARSEC_MATRIX_DOUBLE), 128,
@@ -248,19 +248,19 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
             PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMemcpy ", status, {return NULL;} );
 #elif defined(PARSEC_HAVE_LEVEL_ZERO)
             parsec_level_zero_exec_stream_t* level_zero_stream = (parsec_level_zero_exec_stream_t*)level_zero_device->super.exec_stream[0];
-    	    ze_event_handle_t copySignalEvent = level_zero_stream->events[0];
-    	    status = zeCommandListAppendMemoryCopy(level_zero_stream->level_zero_cl, gpu_copy->device_private, cpu_copy->device_private, dta->nb_elts, copySignalEvent, 0, NULL);
-	        PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListAppendMemoryCopy ", status, { return NULL; } );
-	        while(1) {
-	            status = zeEventQueryStatus(copySignalEvent);
-		        if(status == ZE_RESULT_SUCCESS)
-		            break;
-		        if(status != ZE_RESULT_NOT_READY)
-	                PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeEventHostSynchronize ", status, { break; } );
-		        usleep(1000);
-	        }
+            ze_event_handle_t copySignalEvent = level_zero_stream->events[0];
+            status = zeCommandListAppendMemoryCopy(level_zero_stream->level_zero_cl, gpu_copy->device_private, cpu_copy->device_private, dta->nb_elts, copySignalEvent, 0, NULL);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListAppendMemoryCopy ", status, { return NULL; } );
+            while(1) {
+                status = zeEventQueryStatus(copySignalEvent);
+                if(status == ZE_RESULT_SUCCESS)
+                    break;
+                if(status != ZE_RESULT_NOT_READY)
+                    PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeEventHostSynchronize ", status, { break; } );
+                    usleep(1000);
+            }
 #else
-    	    memcpy(gpu_copy->device_private, cpu_copy->device_private, dta->nb_elts);
+            memcpy(gpu_copy->device_private, cpu_copy->device_private, dta->nb_elts);
 #endif
             g++;
         }

@@ -68,6 +68,7 @@ target_link_libraries(tests_common PRIVATE parsec)
 
 add_subdirectory(class)
 add_subdirectory(api)
+add_subdirectory(subsystem)
 if( TARGET parsec-ptgpp )
   add_subdirectory(runtime)
   add_subdirectory(dsl/ptg)

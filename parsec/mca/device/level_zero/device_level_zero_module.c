@@ -2013,10 +2013,10 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
         ze_result_t ze_rc = zeCommandListClose(level_zero_stream->level_zero_cl);
         PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListClose ", ze_rc,
                                        { } );
-        ze_rc = zeCommandQueueExecuteCommandLists(level_zero_stream->level_zero_cq, 1, &level_zero-stream->level_zero_cl, NULL);
+        ze_rc = zeCommandQueueExecuteCommandLists(level_zero_stream->level_zero_cq, 1, &level_zero_stream->level_zero_cl, NULL);
         PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandQueueExecuteCommandLists ", ze_rc,
                                        { } );
-        ze_rc = zeCommandListReset(level_zero-stream->level_zero_cl);
+        ze_rc = zeCommandListReset(level_zero_stream->level_zero_cl);
         PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListReset ", ze_rc,
                                        { } );
     }

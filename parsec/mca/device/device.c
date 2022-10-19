@@ -88,7 +88,7 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
         /* Make sure data_in is not NULL */
         if( NULL == this_task->data[i].data_in ) continue;
         /* And that we have a data (aka it is not NEW) */
-        if( NULL == this_task->data[i].source_repo_entry ) continue;
+        if( 0 && NULL == this_task->data[i].source_repo_entry ) continue;
 
         /* Data is updated by the task, and we try to minimize the data movements */
         if( (NULL != this_task->task_class->out[i]) &&
