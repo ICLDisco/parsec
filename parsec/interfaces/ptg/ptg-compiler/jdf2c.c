@@ -4493,8 +4493,8 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
         coutput("  size_t dependencies_size = 0;\n");
     }
-
-    coutput("  parsec_taskpool_unregister( &__parsec_tp->super.super );\n");
+    coutput("  parsec_taskpool_unregister( &__parsec_tp->super.super );\n"
+            "  if(NULL != __parsec_tp->super.super.tdm.module) __parsec_tp->super.super.tdm.module->unmonitor_taskpool(&__parsec_tp->super.super);\n");
 
     coutput("  for( i = 0; i < (uint32_t)(2 * __parsec_tp->super.super.nb_task_classes); i++ ) {  /* Extra startup function added at the end */\n"
             "    parsec_task_class_t* tc = (parsec_task_class_t*)__parsec_tp->super.super.task_classes_array[i];\n"

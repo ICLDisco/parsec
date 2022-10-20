@@ -100,6 +100,17 @@ typedef void (*parsec_termdet_monitor_taskpool_fn_t)(parsec_taskpool_t *tp,
                                                      parsec_termdet_termination_detected_function_t cb);
 
 /**
+ * @brief stops monitoring the termination of a taskpool
+ *
+ * @details this function should only be called once the taskpool has been
+ *    detected as terminated, and no other thread may change or read the
+ *    state of this monitor. It frees the resources associated with the monitor.
+ *
+ *    @param[INOUT] tp the taskpool on which the termination is monitored
+ */
+typedef void (*parsec_termdet_unmonitor_taskpool_fn_t)(parsec_taskpool_t *tp);
+
+/**
  * @brief gives the current state of a monitored taskpool
  *
  * @brief as an alternative to callback mechanism, the user may poll
@@ -293,6 +304,7 @@ typedef int (*parsec_termdet_write_stats_fn_t)(parsec_taskpool_t *tp, FILE *fp);
 
 struct parsec_termdet_base_module_1_0_0_t {
     parsec_termdet_monitor_taskpool_fn_t       monitor_taskpool;
+    parsec_termdet_unmonitor_taskpool_fn_t     unmonitor_taskpool;
     parsec_termdet_taskpool_state_fn_t         taskpool_state;
     parsec_termdet_taskpool_ready_fn_t         taskpool_ready;
     parsec_termdet_taskpool_load_fn_t          taskpool_addto_nb_tasks;

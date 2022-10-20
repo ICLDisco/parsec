@@ -24,6 +24,7 @@
 
 static void parsec_termdet_fourcounter_monitor_taskpool(parsec_taskpool_t *tp,
                                                         parsec_termdet_termination_detected_function_t cb);
+static void parsec_termdet_fourcounter_unmonitor_taskpool(parsec_taskpool_t *tp);
 static parsec_termdet_taskpool_state_t parsec_termdet_fourcounter_taskpool_state(parsec_taskpool_t *tp);
 static int parsec_termdet_fourcounter_taskpool_ready(parsec_taskpool_t *tp);
 static int parsec_termdet_fourcounter_taskpool_addto_nb_tasks(parsec_taskpool_t *tp, int v);
@@ -53,6 +54,7 @@ const parsec_termdet_module_t parsec_termdet_fourcounter_module = {
     &parsec_termdet_fourcounter_component,
     {
         parsec_termdet_fourcounter_monitor_taskpool,
+        parsec_termdet_fourcounter_unmonitor_taskpool,
         parsec_termdet_fourcounter_taskpool_state,
         parsec_termdet_fourcounter_taskpool_ready,
         parsec_termdet_fourcounter_taskpool_addto_nb_tasks,
@@ -74,12 +76,8 @@ typedef enum {
     PARSEC_TERMDET_FOURCOUNTER_BUSY_WAITING_FOR_PARENT,
     PARSEC_TERMDET_FOURCOUNTER_IDLE_WAITING_FOR_CHILDREN,
     PARSEC_TERMDET_FOURCOUNTER_IDLE_WAITING_FOR_PARENT,
+    PARSEC_TERMDET_FOURCOUNTER_TERMINATED
 } parsec_termdet_fourcounter_state_t;
-
-/* In order to garbage collect when completing, and still differentiate between
- * terminated and not_monitored, we set the taskpool monitor to this constant after
- * detecting the termination. */
-#define PARSEC_TERMDET_FOURCOUNTER_TERMINATED ((void*)(0x1))
 
 typedef struct parsec_termdet_fourcounter_monitor_s {
     parsec_atomic_rwlock_t rw_lock;             /**< Operations that change the state take the write lock, operations that
@@ -258,6 +256,19 @@ static void parsec_termdet_fourcounter_monitor_taskpool(parsec_taskpool_t *tp,
     gettimeofday(&tpm->stats_time_start, NULL);
 }
 
+static void parsec_termdet_fourcounter_unmonitor_taskpool(parsec_taskpool_t *tp)
+{
+    assert(tp->tdm.module == &parsec_termdet_fourcounter_module.module);
+    parsec_termdet_fourcounter_monitor_t *tpm;
+    tpm = tp->tdm.monitor;
+    assert(NULL != tpm);
+    assert(tpm->state == PARSEC_TERMDET_FOURCOUNTER_TERMINATED);
+    free(tpm);
+    tp->tdm.monitor  = NULL;
+    tp->tdm.module   = NULL;
+    tp->tdm.callback = NULL;
+}
+
 static parsec_termdet_taskpool_state_t parsec_termdet_fourcounter_taskpool_state(parsec_taskpool_t *tp)
 {
     parsec_termdet_fourcounter_monitor_t *tpm;
@@ -265,8 +276,6 @@ static parsec_termdet_taskpool_state_t parsec_termdet_fourcounter_taskpool_state
     if( tp->tdm.module == NULL )
         return PARSEC_TERM_TP_NOT_MONITORED;
     assert(tp->tdm.module == &parsec_termdet_fourcounter_module.module);
-    if( tp->tdm.monitor == PARSEC_TERMDET_FOURCOUNTER_TERMINATED )
-        return PARSEC_TERM_TP_TERMINATED;
     tpm = tp->tdm.monitor;
     parsec_atomic_rwlock_rdlock(&tpm->rw_lock);
     state = tpm->state;
@@ -280,6 +289,8 @@ static parsec_termdet_taskpool_state_t parsec_termdet_fourcounter_taskpool_state
     case PARSEC_TERMDET_FOURCOUNTER_IDLE_WAITING_FOR_CHILDREN:
     case PARSEC_TERMDET_FOURCOUNTER_IDLE_WAITING_FOR_PARENT:
         return PARSEC_TERM_TP_IDLE;
+    case PARSEC_TERMDET_FOURCOUNTER_TERMINATED:
+        return PARSEC_TERM_TP_TERMINATED;
     }
     assert(0);
     return (parsec_termdet_taskpool_state_t)-1;
@@ -294,7 +305,6 @@ static int parsec_termdet_fourcounter_taskpool_ready(parsec_taskpool_t *tp)
 
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_fourcounter_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     tpm = (parsec_termdet_fourcounter_monitor_t*)tp->tdm.monitor;
     assert( tpm->state == PARSEC_TERMDET_FOURCOUNTER_NOT_READY );
     parsec_atomic_rwlock_wrlock(&tpm->rw_lock);
@@ -361,9 +371,8 @@ static void parsec_termdet_fourcounter_send_up_messages(parsec_termdet_fourcount
         if( msg_down.result ) {
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-4C:\tTermination detected on root decision");
             gettimeofday(&tpm->stats_time_end, NULL);
-            tp->tdm.monitor = PARSEC_TERMDET_FOURCOUNTER_TERMINATED;
+            tpm->state = PARSEC_TERMDET_FOURCOUNTER_TERMINATED;
             tp->tdm.callback(tp);
-            free(tpm);
         } else {
             tpm->acc_sent = 0;
             tpm->acc_received = 0;
@@ -431,16 +440,15 @@ static int parsec_termdet_fourcounter_taskpool_set_nb_tasks(parsec_taskpool_t *t
     parsec_termdet_fourcounter_monitor_t *tpm;
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_fourcounter_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     assert( v >= 0 );
     tpm = (parsec_termdet_fourcounter_monitor_t *)tp->tdm.monitor;
+    assert( tpm->state != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     parsec_atomic_rwlock_wrlock(&tpm->rw_lock);
     if( (int)tp->nb_tasks != v) {
         tp->nb_tasks = v;
         parsec_termdet_fourcounter_check_state_workload_changed(tpm, tp);
     }
-    if( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED )
-        parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
+    parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
     return v;
 }
 
@@ -449,16 +457,15 @@ static int parsec_termdet_fourcounter_taskpool_set_runtime_actions(parsec_taskpo
     parsec_termdet_fourcounter_monitor_t *tpm;
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_fourcounter_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     assert( v >= 0 );
     tpm = (parsec_termdet_fourcounter_monitor_t *)tp->tdm.monitor;
+    assert( tpm->state != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     parsec_atomic_rwlock_wrlock(&tpm->rw_lock);
     if( (int)tp->nb_pending_actions != v) {
         tp->nb_pending_actions = v;
         parsec_termdet_fourcounter_check_state_workload_changed(tpm, tp);
     }
-    if( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED )
-        parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
+    parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
     return v;
 }
 
@@ -467,11 +474,11 @@ static int parsec_termdet_fourcounter_taskpool_addto_nb_tasks(parsec_taskpool_t 
     int ret;
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_fourcounter_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     if(v == 0)
         return tp->nb_tasks;
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-4C:\tNB_TASKS %d -> %d", tp->nb_tasks, tp->nb_tasks + v);
     int tmp = parsec_atomic_fetch_add_int32(&tp->nb_tasks, v);
+    assert( ((parsec_termdet_fourcounter_monitor_t *)tp->tdm.monitor)->state != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     ret = tmp + v;
     if (tmp == 0 || ret == 0) {
         parsec_termdet_fourcounter_monitor_t *tpm;
@@ -479,8 +486,7 @@ static int parsec_termdet_fourcounter_taskpool_addto_nb_tasks(parsec_taskpool_t 
         /* Slow path: our changes might cause a state change so take a lock and check */
         parsec_atomic_rwlock_wrlock(&tpm->rw_lock);
         parsec_termdet_fourcounter_check_state_workload_changed(tpm, tp);
-        if( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED )
-            parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
+        parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
     }
     return ret;
 }
@@ -490,7 +496,7 @@ static int parsec_termdet_fourcounter_taskpool_addto_runtime_actions(parsec_task
     int ret;
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_fourcounter_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
+    assert( ((parsec_termdet_fourcounter_monitor_t *)tp->tdm.monitor)->state != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     if(v == 0)
         return tp->nb_pending_actions;
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-4C:\tNB_PA %d -> %d", tp->nb_pending_actions, tp->nb_pending_actions + v);
@@ -502,8 +508,7 @@ static int parsec_termdet_fourcounter_taskpool_addto_runtime_actions(parsec_task
         /* Slow path: our changes might cause a state change so take a lock and check */
         parsec_atomic_rwlock_wrlock(&tpm->rw_lock);
         parsec_termdet_fourcounter_check_state_workload_changed(tpm, tp);
-        if( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED )
-          parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
+        parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
     }
     return ret;
 }
@@ -515,10 +520,10 @@ static int parsec_termdet_fourcounter_outgoing_message_start(parsec_taskpool_t *
     parsec_termdet_fourcounter_monitor_t *tpm;
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_fourcounter_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     (void)dst_rank;
     (void)remote_deps;
     tpm = tp->tdm.monitor;
+    assert( tpm->state != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     parsec_atomic_rwlock_wrlock(&tpm->rw_lock);
     tpm->messages_sent++;
     parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
@@ -534,7 +539,6 @@ static int parsec_termdet_fourcounter_outgoing_message_pack(parsec_taskpool_t *t
 {
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_fourcounter_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
     /* No piggybacking */
     (void)dst_rank;
     (void)packed_buffer;
@@ -554,10 +558,10 @@ static int parsec_termdet_fourcounter_incoming_message_start(parsec_taskpool_t *
     parsec_termdet_fourcounter_monitor_t *tpm;
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_fourcounter_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
 
     tpm = tp->tdm.monitor;
     assert( tpm->state > PARSEC_TERMDET_FOURCOUNTER_NOT_READY);
+    assert( tpm->state != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
 
     parsec_atomic_rwlock_wrlock(&tpm->rw_lock);
     /* If we were ready or more, we become busy */
@@ -590,9 +594,9 @@ static int parsec_termdet_fourcounter_incoming_message_end(parsec_taskpool_t *tp
 
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_fourcounter_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
 
     tpm = tp->tdm.monitor;
+    assert( tpm->state != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
 
     parsec_atomic_rwlock_wrlock(&tpm->rw_lock);
     assert( tpm->state > PARSEC_TERMDET_FOURCOUNTER_NOT_READY);
@@ -611,8 +615,8 @@ static void parsec_termdet_fourcounter_msg_down(parsec_termdet_fourcounter_msg_d
 
     assert(NULL != tp->tdm.module);
     assert(&parsec_termdet_fourcounter_module.module == tp->tdm.module);
-    assert(PARSEC_TERMDET_FOURCOUNTER_TERMINATED != tp->tdm.monitor);
     tpm = (parsec_termdet_fourcounter_monitor_t *)tp->tdm.monitor;
+    assert( tpm->state != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
 
     parsec_atomic_rwlock_wrlock(&tpm->rw_lock);
     tpm->stats_nb_recv_msg++;
@@ -632,11 +636,10 @@ static void parsec_termdet_fourcounter_msg_down(parsec_termdet_fourcounter_msg_d
     if(msg->result) {
         assert(tpm->state == PARSEC_TERMDET_FOURCOUNTER_IDLE_WAITING_FOR_PARENT);
         gettimeofday(&tpm->stats_time_end, NULL);
-        tp->tdm.monitor = PARSEC_TERMDET_FOURCOUNTER_TERMINATED;
+        tpm->state = PARSEC_TERMDET_FOURCOUNTER_TERMINATED;
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-4C:\tTermination detected on DOWN(true) message");
         parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
         tp->tdm.callback(tp);
-        free(tpm);
     } else {
         tpm->acc_sent = 0;
         tpm->acc_received = 0;
@@ -649,8 +652,7 @@ static void parsec_termdet_fourcounter_msg_down(parsec_termdet_fourcounter_msg_d
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-4C:\tChange state to BUSY_WAITING_FOR_CHILDREN on DOWN(false) message");
             tpm->state = PARSEC_TERMDET_FOURCOUNTER_BUSY_WAITING_FOR_CHILDREN;
         }
-        if( PARSEC_TERMDET_FOURCOUNTER_TERMINATED != tp->tdm.monitor )
-            parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
+        parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
     }
 }
 
@@ -662,8 +664,8 @@ static void parsec_termdet_fourcounter_msg_up(parsec_termdet_fourcounter_msg_up_
 
     assert(NULL != tp->tdm.module);
     assert(&parsec_termdet_fourcounter_module.module == tp->tdm.module);
-    assert(PARSEC_TERMDET_FOURCOUNTER_TERMINATED != tp->tdm.monitor);
     tpm = (parsec_termdet_fourcounter_monitor_t *)tp->tdm.monitor;
+    assert( tpm->state != PARSEC_TERMDET_FOURCOUNTER_TERMINATED );
 
     parsec_atomic_rwlock_wrlock(&tpm->rw_lock);
     tpm->stats_nb_recv_msg++;
@@ -675,8 +677,7 @@ static void parsec_termdet_fourcounter_msg_up(parsec_termdet_fourcounter_msg_up_
     tpm->nb_child_left--;
 
     parsec_termdet_fourcounter_check_state_message_received(tpm, tp);
-    if(PARSEC_TERMDET_FOURCOUNTER_TERMINATED != tp->tdm.monitor)
-        parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
+    parsec_atomic_rwlock_wrunlock(&tpm->rw_lock);
 }
 
 static int parsec_termdet_fourcounter_write_stats(parsec_taskpool_t *tp, FILE *fp)
