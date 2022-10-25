@@ -7037,10 +7037,12 @@ static void jdf_generate_code_hook_dpcpp(const jdf_t *jdf,
                  "  parsec_device_level_zero_module_t *level_zero_device = reinterpret_cast<parsec_device_level_zero_module_t*>(gpu_device);\n"
                  "  parsec_level_zero_exec_stream_t *level_zero_stream = reinterpret_cast<parsec_level_zero_exec_stream_t*>(gpu_stream);\n"
                  "  __parsec_%s_internal_taskpool_t *__parsec_tp = reinterpret_cast<__parsec_%s_internal_taskpool_t *>(this_task->taskpool);\n"
-                 "  parsec_dpcpp_object_t *parsec_dpcpp = reinterpret_cast<parsec_dpcpp_object_t *>(level_zero_stream->dpcpp_obj);\n"
+                 "  parsec_sycl_wrapper_platform_t *parsec_sycl_platform = level_zero_device->driver->swp;\n"
+                 "  parsec_sycl_wrapper_device_t *parsec_sycl_device = level_zero_device->swd;\n"
+                 "  parsec_sycl_wrapper_queue_t *parsec_sycl_queue = level_zero_stream->swq;\n"
                  "\n"
                  "%s\n"
-                 "  (void)gpu_device; (void)gpu_stream; (void)__parsec_tp; (void)level_zero_device; (void)level_zero_stream;\n",
+                 "  (void)gpu_device; (void)gpu_stream; (void)__parsec_tp; (void)level_zero_device; (void)level_zero_stream; (void)parsec_sycl_platform; (void)parsec_sycl_device; (void)parsec_sycl_queue;\n",
                  jdf_basename, f->fname,
                  jdf_basename, f->fname,
                  parsec_get_name(jdf, f, "task_t"), parsec_get_name(jdf, f, "task_t"),

@@ -86,6 +86,7 @@ mca_base_component_t * device_level_zero_static_component(void)
 static int device_level_zero_component_query(mca_base_module_t **module, int *priority)
 {
     int i, j, rc;
+    ze_result_t ze_rc;
     ze_device_handle_t *devices = NULL;
     ze_driver_handle_t *allDrivers = NULL;
 
@@ -101,10 +102,12 @@ static int device_level_zero_component_query(mca_base_module_t **module, int *pr
         uint32_t totalDeviceCount = 0, maxDeviceCount = 0;
 
         // Discover all the driver instances
-        zeDriverGet(&driverCount, NULL);
+        ze_rc = zeDriverGet(&driverCount, NULL);
+        PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeDriverGet ", ze_rc, { return MCA_ERR_NOT_AVAILABLE; } );
 
         allDrivers = malloc(driverCount * sizeof(ze_driver_handle_t));
-        zeDriverGet(&driverCount, allDrivers);
+        ze_rc = zeDriverGet(&driverCount, allDrivers);
+        PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeDriverGet ", ze_rc, { free(allDrivers); return MCA_ERR_NOT_AVAILABLE; } );
 
         for(uint32_t did = 0; did < driverCount; ++did ) {
             uint32_t deviceCount = 0;
@@ -125,33 +128,103 @@ static int device_level_zero_component_query(mca_base_module_t **module, int *pr
             i = j = 0;
             for(uint32_t did = 0; i < parsec_device_level_zero_enabled && did < driverCount; ++did ) {
                 uint32_t deviceCount = maxDeviceCount;
-                zeDeviceGet(allDrivers[did], &deviceCount, devices);
+                parsec_device_level_zero_driver_t *driver = malloc(sizeof(parsec_device_level_zero_driver_t));
+                
+                driver->ze_driver = allDrivers[did];
+                driver->ref_count = 0;
+                driver->swp = NULL;
+
+                // Create context
+                ze_context_desc_t ctxtDesc = {
+                    ZE_STRUCTURE_TYPE_CONTEXT_DESC,
+                    NULL,
+                    0
+                };
+                ze_result_t ze_rc = zeContextCreate(driver->ze_driver, &ctxtDesc, &driver->ze_context);
+                PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeContextCreate ", ze_rc, { free(driver); continue; } );
+
+                ze_rc = zeDeviceGet(allDrivers[did], &deviceCount, devices);
+                PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeDeviceGet ", ze_rc, { zeContextDestroy(driver->ze_context); free(driver); continue; } );
+
                 for(uint32_t devid = 0; i < parsec_device_level_zero_enabled && devid < deviceCount; devid++) {
                     ze_device_properties_t device_properties;
-                    zeDeviceGetProperties(devices[devid], &device_properties);
+                    ze_rc = zeDeviceGetProperties(devices[devid], &device_properties);
+                    PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeDeviceGetProperties ", ze_rc, { continue; } );
                     if( ZE_DEVICE_TYPE_GPU != device_properties.type) { continue; }
                     if( !((1 << i) & level_zero_mask) ) { i++; continue; }
-                    rc = parsec_level_zero_module_init(i, allDrivers[did], devices[devid], &device_properties,
+                    rc = parsec_level_zero_module_init(i, driver, devices[devid], &device_properties,
                                                        &parsec_device_level_zero_component.modules[j]);
                     if( PARSEC_SUCCESS != rc ) {
                         assert( NULL == parsec_device_level_zero_component.modules[j] );
                         continue;
                     }
+                    driver->ref_count++;
                     parsec_device_level_zero_component.modules[j]->component = &parsec_device_level_zero_component;
                     j++;  /* next available spot */
                     parsec_device_level_zero_component.modules[j] = NULL;
                     i++;
                 }
+
+                if( driver->ref_count == 0 ) {
+                    zeContextDestroy(driver->ze_context);
+                    free(driver);
+                }
             }
-        } else
-            parsec_device_level_zero_component.modules = NULL;
-    } else
+            parsec_device_level_zero_enabled = j;
+            if(0 == parsec_device_level_zero_enabled) {
+                free( parsec_device_level_zero_component.modules ); 
+            }
+        }
+    } 
+    
+    if(0 == parsec_device_level_zero_enabled )
         parsec_device_level_zero_component.modules = NULL;
 
     if(NULL != devices)
         free(devices);
     if(NULL != allDrivers)
         free(allDrivers);
+
+    /* SYCL wrappers must be built once all devices and queues and contexts and drivers are up,
+     * and they must be built in the following order: driver wrapper, then device wrappers for this
+     * driver, then context wrapper for this driver, then queue wrappers for each queue.
+     * Also, it MUST be one to one: a single device wrapper per device, a single context wrapper
+     * per context etc... */
+    for(int did = 0; did < parsec_device_level_zero_enabled; did++) {
+        if(NULL == parsec_device_level_zero_component.modules[did])
+            continue;
+        parsec_device_level_zero_module_t *module = (parsec_device_level_zero_module_t *)parsec_device_level_zero_component.modules[did];
+        if(NULL != module->driver->swp) 
+            continue;
+
+        module->driver->swp = parsec_sycl_wrapper_platform_create(module->driver->ze_driver);
+        int nbdev = 1;
+        for(int i = 1; did + i < parsec_device_level_zero_enabled; i++) {
+            if( ((parsec_device_level_zero_module_t *)parsec_device_level_zero_component.modules[did+i])->driver == module->driver )
+                nbdev++;
+        }
+        parsec_sycl_wrapper_device_t **devices = (parsec_sycl_wrapper_device_t **)malloc(nbdev*sizeof(parsec_sycl_wrapper_device_t*));
+        for(int i = 0, j = 0; j < nbdev; i++) {
+            parsec_device_level_zero_module_t *mod2 = (parsec_device_level_zero_module_t *)parsec_device_level_zero_component.modules[did+i];
+            if( mod2->driver == module->driver ) {
+                mod2->swd = parsec_sycl_wrapper_device_create(mod2->ze_device);
+                devices[j++] = mod2->swd;
+            }
+        }
+        parsec_sycl_wrapper_platform_add_context(module->driver->swp, module->driver->ze_context, devices, nbdev);
+	    free(devices);
+        for(int i = 0, j = 0; j < nbdev; i++) {
+            parsec_device_level_zero_module_t *mod2 = (parsec_device_level_zero_module_t *)parsec_device_level_zero_component.modules[did+i];
+            if( mod2->driver == module->driver ) {
+                j++;
+                for(int s = 0; s < mod2->super.max_exec_streams; s++) {
+                    parsec_level_zero_exec_stream_t *exec_stream = (parsec_level_zero_exec_stream_t *)mod2->super.exec_stream[s];
+		            if(NULL != exec_stream->level_zero_cq)
+                        exec_stream->swq = parsec_sycl_wrapper_queue_create(module->driver->swp, mod2->swd, exec_stream->level_zero_cq);
+                }
+            }
+        }
+    }
 
     parsec_gpu_enable_debug();
 
@@ -309,6 +382,11 @@ static int device_level_zero_component_close(void)
             PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
                                  "GPU[%d] Failed to release resources on LEVEL_ZERO device\n", 
                                  cdev->level_zero_index);
+        }
+        if(0 == --cdev->driver->ref_count) {
+            ze_result_t ze_rc = zeContextDestroy(cdev->driver->ze_context);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeContextDestroy ", ze_rc, {});
+            parsec_sycl_wrapper_platform_destroy(cdev->driver->swp);
         }
 
         /* unregister the device from PaRSEC */

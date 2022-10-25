@@ -11,6 +11,7 @@
 #if defined(PARSEC_HAVE_LEVEL_ZERO)
 #include "parsec/mca/device/device.h"
 #include "parsec/mca/device/device_gpu.h"
+#include "parsec/mca/device/level_zero/device_level_zero_dpcpp.h"
 
 #include <level_zero/ze_api.h>
 
@@ -25,6 +26,9 @@ typedef struct parsec_level_zero_exec_stream_s parsec_level_zero_exec_stream_t;
 struct parsec_device_level_zero_module_s;
 typedef struct parsec_device_level_zero_module_s parsec_device_level_zero_module_t;
 
+struct parsec_device_level_zero_driver_s;
+typedef struct parsec_device_level_zero_driver_s parsec_device_level_zero_driver_t;
+
 struct parsec_level_zero_workspace_s;
 typedef struct parsec_level_zero_workspace_s parsec_level_zero_workspace_t;
 
@@ -34,12 +38,19 @@ struct parsec_level_zero_task_s {
     parsec_gpu_task_t   super;
 };
 
-struct parsec_device_level_zero_module_s {
-    parsec_device_gpu_module_t       super;
-    uint8_t                          level_zero_index;
+struct parsec_device_level_zero_driver_s {
     ze_driver_handle_t               ze_driver;
-    ze_device_handle_t               ze_device;
     ze_context_handle_t              ze_context;
+    uint32_t                         ref_count;
+    parsec_sycl_wrapper_platform_t  *swp;
+};
+
+struct parsec_device_level_zero_module_s {
+    parsec_device_gpu_module_t         super;
+    uint8_t                            level_zero_index;
+    parsec_device_level_zero_driver_t *driver;
+    ze_device_handle_t                 ze_device;
+    parsec_sycl_wrapper_device_t      *swd;
 };
 
 PARSEC_OBJ_CLASS_DECLARATION(parsec_device_level_zero_module_t);
@@ -55,7 +66,7 @@ struct parsec_level_zero_exec_stream_s {
     ze_event_pool_handle_t           ze_event_pool;
     ze_command_list_handle_t         level_zero_cl;
     ze_command_queue_handle_t        level_zero_cq;
-    void                            *dpcpp_obj;
+    parsec_sycl_wrapper_queue_t     *swq;
 };
 
 

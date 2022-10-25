@@ -163,7 +163,7 @@ BODY [type=DPCPP
     double alpha=0.0;
     double beta=1.0;
     try {
-      oneapi::mkl::blas::gemm(parsec_dpcpp->queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
+      oneapi::mkl::blas::gemm(parsec_sycl_queue->queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
          descA->super.mb, descA->super.nb, descA->super.mb,
          alpha, static_cast<const double*>(A), descA->super.mb,
          static_cast<const double*>(A), descA->super.mb,
@@ -238,7 +238,7 @@ BODY [type=DPCPP
     double alpha=0.0;
     double beta=1.0;
     try {
-      oneapi::mkl::blas::gemm(parsec_dpcpp->queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
+      oneapi::mkl::blas::gemm(parsec_sycl_queue->queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
          descA->super.mb, descA->super.nb, descA->super.mb,
          alpha, static_cast<const double*>(A), descA->super.mb,
          static_cast<const double*>(A), descA->super.mb,

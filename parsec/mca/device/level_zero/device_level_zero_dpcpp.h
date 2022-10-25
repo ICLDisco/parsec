@@ -1,24 +1,39 @@
 #ifndef PARSEC_DEVICE_LEVEL_ZERO_DPCPP_H
 #define PARSEC_DEVICE_LEVEL_ZERO_DPCPP_H
 
-#if defined(c_plusplus) || defined(__cplusplus)
-#include "sycl/ext/oneapi/backend/level_zero.hpp"
+typedef struct parsec_sycl_wrapper_platform_s parsec_sycl_wrapper_platform_t;
+typedef struct parsec_sycl_wrapper_device_s parsec_sycl_wrapper_device_t;
+typedef struct parsec_sycl_wrapper_queue_s  parsec_sycl_wrapper_queue_t;
 
-typedef struct {
+#include <level_zero/ze_api.h>
+
+#if defined(c_plusplus) || defined(__cplusplus)
+#include <sycl/ext/oneapi/backend/level_zero.hpp>
+
+struct parsec_sycl_wrapper_platform_s {
     sycl::platform platform;
-    sycl::device   device;
     sycl::context  context;
-    sycl::queue    queue;
-} parsec_dpcpp_object_t;
+};
+
+struct parsec_sycl_wrapper_device_s {
+    sycl::device device;
+};
+
+struct parsec_sycl_wrapper_queue_s {
+    sycl::queue queue;
+};
 
 extern "C" {
 #endif
 
-void * parsec_dpcpp_queue_create(ze_driver_handle_t ze_driver,
-                                 ze_device_handle_t ze_device,
-                                 ze_context_handle_t ze_context,
-                                 ze_command_queue_handle_t ze_queue);
-int parsec_dpcpp_queue_destroy(void *_dpcpp_obj);
+parsec_sycl_wrapper_platform_t *parsec_sycl_wrapper_platform_create(ze_driver_handle_t ze_driver);
+void parsec_sycl_wrapper_platform_add_context(parsec_sycl_wrapper_platform_t *swp, ze_context_handle_t ze_context, parsec_sycl_wrapper_device_t **swd, uint32_t num_device);
+parsec_sycl_wrapper_device_t *parsec_sycl_wrapper_device_create(ze_device_handle_t ze_device);
+parsec_sycl_wrapper_queue_t  *parsec_sycl_wrapper_queue_create(parsec_sycl_wrapper_platform_t *swp, parsec_sycl_wrapper_device_t *swd, ze_command_queue_handle_t ze_queue);
+
+int parsec_sycl_wrapper_platform_destroy(parsec_sycl_wrapper_platform_t *swp);
+int parsec_sycl_wrapper_device_destroy(parsec_sycl_wrapper_device_t *swd);
+int parsec_sycl_wrapper_queue_destroy(parsec_sycl_wrapper_queue_t *swq);
 
 #if defined(c_plusplus) || defined(__cplusplus)
 }

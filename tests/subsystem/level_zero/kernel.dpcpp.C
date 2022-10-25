@@ -20,18 +20,18 @@ int dpcpp_kernel_GEMM(void *_sw,
 
     double alpha=0.0;
     double beta=1.0;
-    sycl::backend_input_t<sycl::backend::ext_oneapi_level_zero, sycl::buffer<double, 1>> hBufferInteropInputA = { (void*)A, sycl::ext::oneapi::level_zero::ownership::keep };
+/*    sycl::backend_input_t<sycl::backend::ext_oneapi_level_zero, sycl::buffer<double, 1>> hBufferInteropInputA = { (void*)A, sycl::ext::oneapi::level_zero::ownership::keep };
     sycl::buffer<double, 1> bA = sycl::make_buffer<sycl::backend::ext_oneapi_level_zero, double, 1>(hBufferInteropInputA, swp->context);
     auto bbA = bA.reinterpret<double, 1>(sycl::range<1>(mb*mb));
     sycl::backend_input_t<sycl::backend::ext_oneapi_level_zero, sycl::buffer<double, 1>> hBufferInteropInputC = { (void*)C, sycl::ext::oneapi::level_zero::ownership::keep };
     sycl::buffer<double, 1> bC = sycl::make_buffer<sycl::backend::ext_oneapi_level_zero, double, 1>(hBufferInteropInputC, swp->context);
-    auto bbC = bC.reinterpret<double, 1>(sycl::range<1>(mb*mb));
+    auto bbC = bC.reinterpret<double, 1>(sycl::range<1>(mb*mb));*/
     try {
       oneapi::mkl::blas::gemm(swq->queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
          mb, mb, mb,
-         alpha, bbA, mb,
-         bbA, mb,
-         beta, bbC, mb);
+         alpha, A, mb,
+         A, mb,
+         beta, C, mb);
     } catch (const oneapi::mkl::invalid_argument &e) {
       fprintf(stderr, "OneAPI MKL BLAS GEMM throws invalid argument exception");
     } catch (const oneapi::mkl::unsupported_device &e) {

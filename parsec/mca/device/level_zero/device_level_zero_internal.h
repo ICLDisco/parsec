@@ -58,7 +58,7 @@ PARSEC_DECLSPEC extern const parsec_device_module_t parsec_device_level_zero_mod
  ** GPU-DATA Specific Starts Here **
  ****************************************************/
 
-int parsec_level_zero_module_init( int device_id, ze_driver_handle_t ze_driver, ze_device_handle_t ze_device,
+int parsec_level_zero_module_init( int device_id, parsec_device_level_zero_driver_t *driver, ze_device_handle_t ze_device,
                                    ze_device_properties_t *device_properties, parsec_device_module_t** module );
 int parsec_level_zero_module_fini(parsec_device_module_t* device);
 

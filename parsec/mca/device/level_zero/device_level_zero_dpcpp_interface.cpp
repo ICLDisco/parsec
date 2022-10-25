@@ -1,28 +1,59 @@
-#include "level_zero/ze_api.h"
-#include "device_level_zero_dpcpp.h"
+#include <level_zero/ze_api.h>
+#include "parsec/mca/device/level_zero/device_level_zero_dpcpp.h"
+#include "parsec/mca/device/level_zero/device_level_zero_internal.h"
 
-void * parsec_dpcpp_queue_create(ze_driver_handle_t ze_driver,
-                                 ze_device_handle_t ze_device,
-                                 ze_context_handle_t ze_context,
-                                 ze_command_queue_handle_t ze_queue)
+parsec_sycl_wrapper_platform_t *parsec_sycl_wrapper_platform_create(ze_driver_handle_t ze_driver)
 {
-    parsec_dpcpp_object_t *dpcpp_obj;
-    std::vector<sycl::device>devices;
-
-    dpcpp_obj = new parsec_dpcpp_object_t;
-    dpcpp_obj->platform = sycl::level_zero::make<sycl::platform>(ze_driver);
-    dpcpp_obj->device = sycl::level_zero::make<sycl::device>(dpcpp_obj->platform, ze_device);
-    devices.push_back(dpcpp_obj->device);
-    dpcpp_obj->context = sycl::level_zero::make<sycl::context>(devices, ze_context);
-    dpcpp_obj->queue = sycl::level_zero::make<sycl::queue>(dpcpp_obj->context, ze_queue);
-
-    return static_cast<void*>(dpcpp_obj);
+    parsec_sycl_wrapper_platform_t *res = new parsec_sycl_wrapper_platform_t;
+    res->platform = sycl::make_platform<sycl::backend::ext_oneapi_level_zero>(ze_driver);
+    return res;
 }
 
-int parsec_dpcpp_queue_destroy(void *_dpcpp_obj)
+void parsec_sycl_wrapper_platform_add_context(parsec_sycl_wrapper_platform_t *swp, ze_context_handle_t ze_context, parsec_sycl_wrapper_device_t **swd, uint32_t num_device)
 {
-    parsec_dpcpp_object_t *dpcpp_obj = reinterpret_cast<parsec_dpcpp_object_t*>(_dpcpp_obj);
-    delete dpcpp_obj;
+    std::vector<sycl::device>devices;
 
+    for(uint32_t i = 0; i < num_device; i++) {
+        devices.push_back(swd[i]->device);
+    }
+    sycl::backend_input_t<sycl::backend::ext_oneapi_level_zero, sycl::context> hContextInteropInput = {ze_context, devices};
+    swp->context = sycl::make_context<sycl::backend::ext_oneapi_level_zero>(hContextInteropInput);
+}
+
+parsec_sycl_wrapper_device_t *parsec_sycl_wrapper_device_create(ze_device_handle_t ze_device)
+{
+    parsec_sycl_wrapper_device_t *res = new parsec_sycl_wrapper_device_t;
+
+    res->device = sycl::make_device<sycl::backend::ext_oneapi_level_zero>(ze_device);
+
+    return res;
+}
+
+parsec_sycl_wrapper_queue_t *parsec_sycl_wrapper_queue_create(parsec_sycl_wrapper_platform_t *swp, parsec_sycl_wrapper_device_t *swd, ze_command_queue_handle_t ze_queue)
+{
+    parsec_sycl_wrapper_queue_t *swq = new parsec_sycl_wrapper_queue_t;
+    sycl::backend_input_t<sycl::backend::ext_oneapi_level_zero, sycl::queue> hQueueInteropInput = { ze_queue, swd->device };
+    swq->queue = sycl::make_queue<sycl::backend::ext_oneapi_level_zero>(hQueueInteropInput, swp->context);
+    return swq;
+}
+
+int parsec_sycl_wrapper_platform_destroy(parsec_sycl_wrapper_platform_t *swp)
+{
+    if(nullptr != swp)
+        delete swp;
+    return 0;
+}
+
+int parsec_sycl_wrapper_device_destroy(parsec_sycl_wrapper_device_t *swd)
+{
+    if(nullptr != swd)
+        delete swd;
+    return 0;
+}
+
+int parsec_sycl_wrapper_queue_destroy(parsec_sycl_wrapper_queue_t *swq)
+{
+    if(nullptr != swq)
+        delete swq;
     return 0;
 }
