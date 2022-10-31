@@ -76,6 +76,7 @@ PARSEC_DECLSPEC __int128_t parsec_atomic_fetch_dec_int128( volatile __int128_t *
 /* Locks */
 
 typedef volatile int parsec_atomic_lock_t;
+PARSEC_DECLSPEC void parsec_atomic_lock_init( parsec_atomic_lock_t* atomic_lock );
 PARSEC_DECLSPEC void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock );
 PARSEC_DECLSPEC void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock );
 PARSEC_DECLSPEC int parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock );

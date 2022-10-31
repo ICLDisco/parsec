@@ -11,7 +11,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
-#include "parsec/sys/atomic.h"
 #include "parsec/class/parsec_rwlock.h"
 #include "parsec/class/barrier.h"
 #include "parsec/bindthread.h"
@@ -22,7 +21,19 @@
 #define NB_LOOPS 300000
 #define ARRAY_SIZE 12
 
-static parsec_atomic_rwlock_t rwlock = { PARSEC_RWLOCK_UNLOCKED };
+/*
+ * When we build outside PaRSEC, we do not have access to the atomic define for
+ * the unlocked state (because the #define is implementation specific and resides
+ * in the atomic implementation header. Thus, we cannot support static initialization
+ * of atomic locks. Instead, we need to use the atomic_init functionality, which
+ * initialized the atomic lock into an unlocked state.
+ */
+#if defined(BUILDING_PARSEC)
+static parsec_atomic_rwlock_t rwlock = PARSEC_RWLOCK_UNLOCKED;
+#else
+static parsec_atomic_rwlock_t rwlock;
+#endif  /* defined(BUILDING_PARSEC) */
+
 static int large_array[ARRAY_SIZE] = {0};
 
 static parsec_barrier_t barrier;
