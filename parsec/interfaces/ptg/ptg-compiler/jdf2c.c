@@ -3044,22 +3044,22 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
                 assert(NULL != ld->alias);
                 if( ld->op == JDF_RANGE ) {
                     coutput("%s  { /* block for the local variable '%s' */\n"
-                            "%s    int %s_loop_%s = 1;\n"
                             "%s    int %s;\n"
-                            "%s    for(this_task->locals.ldef[%d].value = %s; %s_loop_%s == 1;",
+                            "%s    for( %s = %s;",
                             indent(nesting), ld->alias,
-                            indent(nesting), JDF2C_NAMESPACE, ld->alias,
                             indent(nesting), ld->alias,
-                            indent(nesting), ld->ldef_index, dump_expr((void**)ld->jdf_ta1, &info1), JDF2C_NAMESPACE, ld->alias);
-                    coutput(" this_task->locals.ldef[%d].value += %s ) { /* Arbitrary iterator on %s */ \n",
-                            ld->ldef_index, dump_expr((void**)ld->jdf_ta3, &info1), ld->alias);
+                            indent(nesting), ld->alias, dump_expr((void**)ld->jdf_ta1, &info1));
+                    coutput("%s <= %s;",
+                            ld->alias, dump_expr((void**)ld->jdf_ta2, &info1));
+                    coutput("%s += %s) {\n",
+                            ld->alias, dump_expr((void**)ld->jdf_ta3, &info1));
+                    coutput("%s      this_task->locals.ldef[%d].value = %s;\n",
+                            indent(nesting), ld->ldef_index, ld->alias);
                     coutput("%s    restore_context_%d:\n"
                             "%s      %s = this_task->locals.ldef[%d].value;\n"
-                            "%s      %s_loop_%s = (%s != %s); /* Execute once only when reaching the end; recompute every time in case we are restoring the context */\n"
                             "%s      if( restore_context ) goto restore_context_%d;\n",
                             indent(nesting), ctx_level,
                             indent(nesting), ld->alias, ld->ldef_index,
-                            indent(nesting), JDF2C_NAMESPACE, ld->alias, ld->alias, dump_expr((void**)ld->jdf_ta2, &info1),
                             indent(nesting), ctx_level+1);
                     ctx_level++;
                     nesting+=2;
@@ -3194,9 +3194,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             coutput("%s} /* Loop on normal range %s */\n", indent(nesting--), inner_vl->name);
         } else if (NULL != inner_vl->expr->local_variables) {
             for(ld = inner_vl->expr->local_variables; NULL != ld; ld = ld->next) {
-                coutput("%s  %s = this_task->locals.ldef[%d].value; /* restore variable in its nesting level, if needed */\n", indent(nesting), ld->alias, ld->ldef_index);
                 if( JDF_RANGE == ld->op )
-                    coutput("%s  } /* Arbitrary iterator on %s */ \n", indent(nesting--), ld->alias);
+                    coutput("%s  } /* Iterator on %s */ \n", indent(nesting--), ld->alias);
                 coutput("%s  } /* Block for local definition of %s */ \n", indent(nesting--), ld->alias);
             }
         }
@@ -3552,17 +3551,14 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     assert(-1 != ld->ldef_index);
                     if( ld->op == JDF_RANGE ) {
                         coutput("%s  { /* block for the local variable '%s' */\n"
-                                "%s    int %s_loop_%s = 1;\n"
                                 "%s    int %s;\n"
-                                "%s    for(assignments.ldef[%d].value = %s = %s; %s_loop_%s == 1;",
+                                "%s    for(assignments.ldef[%d].value = %s = %s;",
                                 indent(nesting), ld->alias,
-                                indent(nesting), JDF2C_NAMESPACE, ld->alias,
                                 indent(nesting), ld->alias,
-                                indent(nesting), ld->ldef_index, ld->alias, dump_expr((void**)ld->jdf_ta1, &info), JDF2C_NAMESPACE, ld->alias);
-                        coutput(" assignments.ldef[%d].value = %s += %s ) { /* Arbitrary iterator on %s */ \n",
+                                indent(nesting), ld->ldef_index, ld->alias, dump_expr((void**)ld->jdf_ta1, &info));
+                        coutput(" %s <= %s;", ld->alias, dump_expr((void**)ld->jdf_ta2, &info));
+                        coutput(" assignments.ldef[%d].value = %s += %s ) { /* Iterator on %s */ \n",
                                 ld->ldef_index, ld->alias, dump_expr((void**)ld->jdf_ta3, &info), ld->alias);
-                        coutput("%s      if( %s == %s ) %s_loop_%s = 0; /* Execute once only when reaching the end */\n",
-                                indent(nesting), ld->alias, dump_expr((void**)ld->jdf_ta2, &info), JDF2C_NAMESPACE, ld->alias);
                         nesting+=2;
                     } else {
                         coutput("%s  { /* block for the local variable '%s' */\n"
@@ -3627,7 +3623,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 assert(inner_vl->expr->local_variables != NULL);
                 for(ld = inner_vl->expr->local_variables; NULL != ld; ld = ld->next) {
                     if( JDF_RANGE == ld->op )
-                        coutput("%s  } /* Arbitrary iterator on %s */ \n", indent(nesting--), ld->alias);
+                        coutput("%s  } /* Iterator on %s */ \n", indent(nesting--), ld->alias);
                     coutput("%s  } /* Block for local definition of %s */ \n", indent(nesting--), ld->alias);
                 }
             }
@@ -3635,16 +3631,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 if( vl->next == inner_vl )
                     break;
             inner_vl = vl;
-            if(NULL != inner_vl) {
-                /* As we can re-use a local definition alias for different deps or calls,
-                 * and all that gets nested but stored in the same cell of the assignment,
-                 * we need to restore last value left by the level above */
-                for(ld = inner_vl->expr->local_variables; NULL != ld; ld = ld->next) {
-                    assert(NULL != ld->alias);
-                    assert(-1 != ld->ldef_index);
-                    coutput("%s  assignments.ldef[%d].value = %s;\n", indent(nesting), ld->ldef_index, ld->alias);
-                }
-            }
         }
 
         if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
@@ -3699,7 +3685,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             } else {
                 for(ld = inner_vl->expr->local_variables; NULL != ld; ld = ld->next) {
                     if( JDF_RANGE == ld->op )
-                        coutput("%s  } /* Arbitrary iterator on %s */ \n", indent(nesting--), ld->alias);
+                        coutput("%s  } /* Iterator on %s */ \n", indent(nesting--), ld->alias);
                     coutput("%s  } /* Block for local definition of %s */ \n", indent(nesting--), ld->alias);
                 }
             }
