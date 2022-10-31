@@ -67,6 +67,12 @@ if(@PARSEC_HAVE_CUDA@)
   SET(PARSEC_HAVE_CUDA TRUE)
 endif(@PARSEC_HAVE_CUDA@)
 
+if(@PARSEC_HAVE_HIP@)
+  enable_language(CXX)
+  find_package(HIP REQUIRED)
+  SET(PARSEC_HAVE_HIP TRUE)
+endif(@PARSEC_HAVE_HIP@)
+
 if(@PARSEC_PROF_TRACE@)
   # Nothing exportable here, if this test succeed then PaRSEC supports tracing
 endif(@PARSEC_PROF_TRACE@)

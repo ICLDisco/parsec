@@ -235,11 +235,11 @@ if( BUILD_PARSEC )
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:OTF2::OTF2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     $<$<BOOL:${PARSEC_HAVE_CUDA}>:CUDA::cudart>
+    $<$<BOOL:${PARSEC_HAVE_HIP}>:hip::host>
     ${EXTRA_LIBS}
     INTERFACE
     ${PARSEC_ATOMIC_SUPPORT_LIBS}
     )
-
   set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
   # For now make sure that the installed shared libraries have the right
   # version (same version as the major of the build version). Thus, every

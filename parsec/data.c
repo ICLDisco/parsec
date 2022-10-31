@@ -94,7 +94,8 @@ static void parsec_data_destruct(parsec_data_t* obj )
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
             assert(obj->super.obj_reference_count > 1);
             parsec_data_copy_detach( obj, copy, i );
-            if ( !(device->type & PARSEC_DEV_CUDA) ){
+            if ( !(device->type & PARSEC_DEV_CUDA)
+              && !(device->type & PARSEC_DEV_HIP) ) {
                 /**
                  * GPU copies are normally stored in LRU lists, and must be
                  * destroyed by the release list to free the memory on the device
