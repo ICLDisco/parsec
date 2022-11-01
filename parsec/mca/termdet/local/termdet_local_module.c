@@ -23,6 +23,7 @@
 
 static void parsec_termdet_local_monitor_taskpool(parsec_taskpool_t *tp,
                                                   parsec_termdet_termination_detected_function_t cb);
+static void parsec_termdet_local_unmonitor_taskpool(parsec_taskpool_t *tp);
 static parsec_termdet_taskpool_state_t parsec_termdet_local_taskpool_state(parsec_taskpool_t *tp);
 static int parsec_termdet_local_taskpool_ready(parsec_taskpool_t *tp);
 static int parsec_termdet_local_taskpool_set_nb_tasks(parsec_taskpool_t *tp, int v);
@@ -50,6 +51,7 @@ const parsec_termdet_module_t parsec_termdet_local_module = {
     &parsec_termdet_local_component,
     {
         parsec_termdet_local_monitor_taskpool,
+        parsec_termdet_local_unmonitor_taskpool,
         parsec_termdet_local_taskpool_state,
         parsec_termdet_local_taskpool_ready,
         parsec_termdet_local_taskpool_addto_nb_tasks,
@@ -80,6 +82,14 @@ static void parsec_termdet_local_monitor_taskpool(parsec_taskpool_t *tp,
     assert(&parsec_termdet_local_module.module == tp->tdm.module);
     tp->tdm.callback = cb;
     tp->tdm.monitor = PARSEC_TERMDET_LOCAL_NOT_READY;
+}
+
+static void parsec_termdet_local_unmonitor_taskpool(parsec_taskpool_t *tp)
+{
+    assert(&parsec_termdet_local_module.module == tp->tdm.module);
+    assert(tp->tdm.monitor == PARSEC_TERMDET_LOCAL_TERMINATED);
+    tp->tdm.module   = NULL;
+    tp->tdm.callback = NULL;
 }
 
 static parsec_termdet_taskpool_state_t parsec_termdet_local_taskpool_state(parsec_taskpool_t *tp)

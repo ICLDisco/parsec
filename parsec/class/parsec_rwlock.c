@@ -239,8 +239,8 @@ void parsec_atomic_rwlock_rdlock(parsec_atomic_rwlock_t *L)
         parsec_atomic_lock(&L->w);
 #if defined(PARSEC_DEBUG_PARANOID)
     assert(L->writer == 0);
+    assert(L->nbreaders < MAX_READERS_TO_CHECK);
     L->readers[L->nbreaders] = (int)pthread_self();
-    assert(L->nbreaders < MAX_READERS);
 #endif
     L->nbreaders++;
     parsec_atomic_unlock(&L->r);

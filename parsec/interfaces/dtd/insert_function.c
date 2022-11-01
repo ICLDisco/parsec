@@ -391,6 +391,7 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     free((void *)tp->super.profiling_array);
 #endif /* defined(PARSEC_PROF_TRACE) */
 
+    if(NULL != tp->super.tdm.module) { tp->super.tdm.module->unmonitor_taskpool(&tp->super); }
     parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
     parsec_mempool_free( parsec_dtd_taskpool_mempool, tp );
 
