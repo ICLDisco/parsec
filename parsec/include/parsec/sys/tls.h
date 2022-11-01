@@ -33,7 +33,7 @@
  *
  *  @param[INOUT] var the handle to use for the thread specific pointer
  */
-#define PARSEC_TLS_DECLARE(var)              static __thread void *var
+#define PARSEC_TLS_DECLARE(var)              __thread void *var
 
 /**
  * Create the key associated with a handle.
@@ -78,7 +78,7 @@
 
 #include <pthread.h>
 
-#define PARSEC_TLS_DECLARE(key)              static pthread_key_t key
+#define PARSEC_TLS_DECLARE(key)              pthread_key_t key
 #define PARSEC_TLS_KEY_CREATE(key)           pthread_key_create(&key, NULL)
 #define PARSEC_TLS_GET_SPECIFIC(key)         pthread_getspecific(key)
 #define PARSEC_TLS_SET_SPECIFIC(key, value)  pthread_setspecific(key, value)

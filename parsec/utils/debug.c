@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -226,7 +226,7 @@ typedef struct mark_double_buffer_s {
 /**
  * Thread Local Storage key / variable so each thread finds its own buffers
  */
-PARSEC_TLS_DECLARE(tls_debug);
+static PARSEC_TLS_DECLARE(tls_debug);
 
 /**
  * This global stores a linked list of all mark buffers (one per thread that

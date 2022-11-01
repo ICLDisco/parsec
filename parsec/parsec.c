@@ -153,7 +153,7 @@ static int parsec_runtime_bind_threads     = 1;
 
 int parsec_runtime_keep_highest_priority_task = 1;
 
-PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
+static PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
 
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
 static void parsec_mpi_exit(int status) {
@@ -2882,6 +2882,11 @@ int parsec_add_fetch_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks )
     return tp->tdm.module->taskpool_addto_runtime_actions(tp, nb_tasks);
 }
 
+/**
+ * The following two accessors are necessary to provide access to the
+ * static TLS parsec_tls_execution_stream outside this file. This access
+ * includes user code (which should however not be allowed to change it).
+ */
 parsec_execution_stream_t *parsec_my_execution_stream(void)
 {
     return (parsec_execution_stream_t*)PARSEC_TLS_GET_SPECIFIC(parsec_tls_execution_stream);
