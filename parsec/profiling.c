@@ -102,7 +102,7 @@ static int file_backend_extendable;
 
 static parsec_profiling_binary_file_header_t *profile_head = NULL;
 static char *bpf_filename = NULL;
-PARSEC_TLS_DECLARE(tls_profiling);
+static PARSEC_TLS_DECLARE(tls_profiling);
 
 static int parsec_profiling_show_profiling_performance = 0;
 static parsec_profiling_perf_t parsec_profiling_global_perf[PERF_MAX];

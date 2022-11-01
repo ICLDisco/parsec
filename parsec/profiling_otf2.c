@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The University of Tennessee and The University
+ * Copyright (c) 2018-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -80,7 +80,7 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_profiling_info_t, parsec_list_item_t,
 
 int parsec_profile_enabled = 0;
 
-PARSEC_TLS_DECLARE(tls_profiling);
+static PARSEC_TLS_DECLARE(tls_profiling);
 static parsec_list_t threads;
 static int __profile_initialized = 0;  /* not initialized */
 static int __already_called = 0;
