@@ -2010,12 +2010,9 @@ parsec_taskpool_set_complete_callback( parsec_taskpool_t* tp,
                                        parsec_event_cb_t complete_cb,
                                        void* complete_cb_data )
 {
-    if( NULL == tp->on_complete ) {
-        tp->on_complete      = complete_cb;
-        tp->on_complete_data = complete_cb_data;
-        return PARSEC_SUCCESS;
-    }
-    return PARSEC_ERR_EXISTS;
+    tp->on_complete      = complete_cb;
+    tp->on_complete_data = complete_cb_data;
+    return PARSEC_SUCCESS;
 }
 
 int
@@ -2023,12 +2020,9 @@ parsec_taskpool_get_complete_callback( const parsec_taskpool_t* tp,
                                        parsec_event_cb_t* complete_cb,
                                        void** complete_cb_data )
 {
-    if( NULL != tp->on_complete ) {
-        *complete_cb      = tp->on_complete;
-        *complete_cb_data = tp->on_complete_data;
-        return PARSEC_SUCCESS;
-    }
-    return PARSEC_ERR_NOT_FOUND;
+    *complete_cb      = tp->on_complete;
+    *complete_cb_data = tp->on_complete_data;
+    return PARSEC_SUCCESS;
 }
 
 int
@@ -2036,12 +2030,9 @@ parsec_taskpool_set_enqueue_callback( parsec_taskpool_t* tp,
                                       parsec_event_cb_t enqueue_cb,
                                       void* enqueue_cb_data )
 {
-    if( NULL == tp->on_enqueue ) {
-        tp->on_enqueue      = enqueue_cb;
-        tp->on_enqueue_data = enqueue_cb_data;
-        return PARSEC_SUCCESS;
-    }
-    return PARSEC_ERR_EXISTS;
+    tp->on_enqueue      = enqueue_cb;
+    tp->on_enqueue_data = enqueue_cb_data;
+    return PARSEC_SUCCESS;
 }
 
 int
@@ -2049,12 +2040,9 @@ parsec_taskpool_get_enqueue_callback( const parsec_taskpool_t* tp,
                                       parsec_event_cb_t* enqueue_cb,
                                       void** enqueue_cb_data )
 {
-    if( NULL != tp->on_enqueue ) {
-        *enqueue_cb      = tp->on_enqueue;
-        *enqueue_cb_data = tp->on_enqueue_data;
-        return PARSEC_SUCCESS;
-    }
-    return PARSEC_ERR_NOT_FOUND;
+    *enqueue_cb      = tp->on_enqueue;
+    *enqueue_cb_data = tp->on_enqueue_data;
+    return PARSEC_SUCCESS;
 }
 
 int32_t
