@@ -346,7 +346,9 @@ typedef int (*parsec_event_cb_t)(parsec_taskpool_t* parsec_tp, void*);
 typedef int (*parsec_update_ref_t)(parsec_taskpool_t *parsec_tp, int32_t);
 
 /**
- * @brief Setter for the completion callback and data
+ * @brief Overwrite the completion callback and callback data for the
+ *        taskpool. This action replaces the old callback, it must be
+ *        explicitly saved if necessary.
  *
  * @details
  * Sets the complete callback of a PaRSEC taskpool
@@ -375,7 +377,7 @@ parsec_taskpool_set_complete_callback(parsec_taskpool_t* parsec_tp,
  * @param[in] parsec_taskpool the PaRSEC taskpool on which a callback is set
  * @param[out] complete_cb a function pointer to the corresponding callback
  * @param[out] complete_data a pointer to the data called with the callback
- * @return PARSEC_SUCCESS on success
+ * @return PARSEC_SUCCESS
  */
 int
 parsec_taskpool_get_complete_callback(const parsec_taskpool_t* parsec_tp,
@@ -384,7 +386,9 @@ parsec_taskpool_get_complete_callback(const parsec_taskpool_t* parsec_tp,
 
 
 /**
- * @brief Setter for the enqueuing callback and data
+ * @brief Overwrite the enqueue callback and callback data for the
+ *        taskpool. This action replaces the old callback, it must be
+ *        explicitly saved if necessary.
  *
  * @details
  * Sets the enqueuing callback of a PaRSEC taskpool
@@ -412,7 +416,7 @@ parsec_taskpool_set_enqueue_callback(parsec_taskpool_t* parsec_tp,
  * @param[in] parsec_taskpool the PaRSEC taskpool on which a callback is set
  * @param[out] enqueue_cb a function pointer to the corresponding callback
  * @param[out] enqueue_data a pointer to the data called with the callback
- * @return PARSEC_SUCCESS on success
+ * @return PARSEC_SUCCESS
  */
 int
 parsec_taskpool_get_enqueue_callback(const parsec_taskpool_t* parsec_tp,
