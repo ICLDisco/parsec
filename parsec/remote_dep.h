@@ -38,15 +38,6 @@ typedef unsigned long remote_dep_datakey_t;
 #define PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE  0x80000000
 #define PARSEC_ACTION_RELEASE_REMOTE_DEPS        (PARSEC_ACTION_SEND_INIT_REMOTE_DEPS | PARSEC_ACTION_SEND_REMOTE_DEPS)
 
-typedef enum {
-    REMOTE_DEP_ACTIVATE_TAG = 2,
-    REMOTE_DEP_GET_DATA_TAG,
-    REMOTE_DEP_PUT_END_TAG,
-    PARSEC_TERMDET_FOURCOUNTER_MSG_TAG,
-    PARSEC_TERMDET_USER_TRIGGER_MSG_TAG,
-    REMOTE_DEP_MAX_CTRL_TAG
-} parsec_remote_dep_tag_t;
-
 typedef struct remote_dep_wire_activate_s {
     remote_dep_datakey_t deps;         /**< a pointer to the dep structure on the source */
     remote_dep_datakey_t output_mask;  /**< the mask of the output dependencies satisfied by this activation message */
@@ -185,9 +176,6 @@ typedef struct {
 
 extern parsec_remote_dep_context_t parsec_remote_dep_context;
 
-void remote_deps_allocation_init(int np, int max_deps);
-void remote_deps_allocation_fini(void);
-
 parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo );
 
 #define PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, TASK, COUNT) \
@@ -216,7 +204,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                                parsec_remote_deps_t* remote_deps,
                                uint32_t propagation_mask);
 
-/* Memcopy a particular data using datatype specification */
+/* Memcpy a particular data using datatype specification */
 void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
                               parsec_taskpool_t* tp,
                               parsec_data_copy_t *dst,
@@ -259,7 +247,7 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 
 /** @} */
 
-#define DEP_NB_CONCURENT 3
+#define DEP_NB_CONCURRENT 3
 
 extern int parsec_comm_gets_max;
 extern int parsec_comm_gets;
@@ -280,7 +268,7 @@ typedef enum dep_cmd_action_t {
     DEP_PUT_DATA,
     DEP_GET_DATA,
     DEP_CTL,
-    DEP_LAST  /* always the last element. it shoud not be used */
+    DEP_LAST  /* always the last element. it should not be used */
 } dep_cmd_action_t;
 
 union dep_cmd_u {
@@ -381,6 +369,7 @@ int remote_dep_set_ctx(parsec_context_t* context, intptr_t opaque_comm_ctx );
 parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo );
 
 void remote_deps_allocation_init(int np, int max_output_deps);
+void remote_deps_allocation_fini(void);
 
 typedef struct {
     int rank_src;  // 0

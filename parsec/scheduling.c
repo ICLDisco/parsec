@@ -550,6 +550,15 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         parsec_barrier_wait( &(parsec_context->barrier) );
         my_barrier_counter = 1;
     } else {
+#if defined(DISTRIBUTED)
+        if( (1 == parsec_communication_engine_up) &&
+            (es->virtual_process[0].parsec_context->nb_nodes == 1) ) {
+            /* If there is a single process run and the main thread is in charge of
+             * progressing the communications we need to make sure the comm engine
+             * is ready for primetime. */
+            remote_dep_mpi_on(parsec_context);
+        }
+#endif /* defined(DISTRIBUTED) */
         /* The master thread might not have to trigger the barrier if the other
          * threads have been activated by a previous start.
          */
@@ -566,7 +575,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
 
     /* The main loop where all the threads will spend their time */
   wait_for_the_next_round:
-    /* Wait until all threads are here and the main thread signal the begining of the work */
+    /* Wait until all threads are here and the main thread signal the beginning of the work */
     parsec_barrier_wait( &(parsec_context->barrier) );
 
     if( parsec_context->__parsec_internal_finalization_in_progress ) {
@@ -581,7 +590,6 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         parsec_fatal("Main thread entered parsec_context_wait, while a scheduler is not selected yet!");
         return -1;
     }
-
   skip_first_barrier:
     while( !all_tasks_done(parsec_context) ) {
 

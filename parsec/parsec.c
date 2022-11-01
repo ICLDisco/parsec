@@ -265,7 +265,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 
     /*
-     * A single thread per VP has a little bit more responsability: allocating
+     * A single thread per VP has a little bit more responsibility: allocating
      * the memory pools.
      */
     if( startup->th_id == (startup->virtual_process->nb_cores - 1) ) {
@@ -360,8 +360,6 @@ static void parsec_vp_init( parsec_vp_t *vp,
             parsec_warning("multiple core to bind on... for now, do nothing"); //TODO: what does that mean?
     }
 }
-
-static int check_overlapping_binding(parsec_context_t *context);
 
 #define DEFAULT_APP_NAME "app_name"
 
@@ -789,8 +787,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     /* Introduce communication engine */
     (void)parsec_remote_dep_init(context);
-
-    (void)check_overlapping_binding(context);
 
     PARSEC_PINS_INIT(context);
     if(profiling_enabled && (0 == parsec_pins_nb_modules_enabled())) {
@@ -1231,8 +1227,8 @@ int parsec_fini( parsec_context_t** pcontext )
         free(context->pthreads);
         context->pthreads = NULL;
     }
-    /* From now on all the thrteads have been shut-off, and they are supposed to
-     * have cleaned all their provate memory. Unleash the global cleaning process.
+    /* From now on all the threads have been shut-off, and they are supposed to
+     * have cleaned all their private memory. Unleash the global cleaning process.
      */
 
     PARSEC_PINS_FINI(context);
@@ -2514,61 +2510,76 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
 #endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
 }
 
-static int check_overlapping_binding(parsec_context_t *context) {
+/**
+ * @brief Check that the binding is correct. However, this operation is extremely expensive
+ *        and highly unscalable so we should only do this operation when really necessary.
+ * 
+ * @param context 
+ * @return int SUCCESS if the global bindings are OK, error otherwise.
+ */
+int parsec_check_overlapping_binding(parsec_context_t *context)
+{
+    if( 1024 < context->nb_nodes ) {  /* At some point we need to assume the users are doing the right thing,
+                                       * especially when they run at scale.
+                                       */
+        return PARSEC_SUCCESS;
+    }
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI) && defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
-    MPI_Comm comml = MPI_COMM_NULL; int i, nl = 0, rl = MPI_PROC_NULL;
-    MPI_Comm commw = (MPI_Comm)context->comm_ctx;
-    assert(-1 != context->comm_ctx);
-    MPI_Comm_split_type(commw, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
-    MPI_Comm_size(comml, &nl);
-    if( 1 < nl && slow_bind_warning ) {
-        /* Hu-ho, double check that our binding is not conflicting with other
-         * local procs */
-        MPI_Comm_rank(comml, &rl);
-        char *myset = NULL, *allsets = NULL;
+    if( slow_bind_warning ) {
+        MPI_Comm comml = MPI_COMM_NULL; int i, nl = 0, rl = MPI_PROC_NULL;
+        MPI_Comm commw = (MPI_Comm)context->comm_ctx;
+        assert(-1 != context->comm_ctx);
+        MPI_Comm_split_type(commw, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
+        MPI_Comm_size(comml, &nl);
+        if( 1 < nl ) {
+            /* Hu-ho, double check that our binding is not conflicting with other
+             * local procs */
+            MPI_Comm_rank(comml, &rl);
+            char *myset = NULL, *allsets = NULL;
 
-        if( 0 != hwloc_bitmap_list_asprintf(&myset, context->cpuset_allowed_mask) ) {
-        }
-        int setlen = strlen(myset);
-        int *setlens = NULL;
-        if( 0 == rl ) {
-            setlens = calloc(nl, sizeof(int));
-        }
-        MPI_Gather(&setlen, 1, MPI_INT, setlens, 1, MPI_INT, 0, comml);
-
-        int *displs = NULL;
-        if( 0 == rl ) {
-            displs = calloc(nl, sizeof(int));
-            displs[0] = 0;
-            for( i = 1; i < nl; i++ ) {
-                displs[i] = displs[i-1]+setlens[i-1];
+            if( 0 != hwloc_bitmap_list_asprintf(&myset, context->cpuset_allowed_mask) ) {
             }
-            allsets = calloc(displs[nl-1]+setlens[nl-1], sizeof(char));
-        }
-        MPI_Gatherv(myset, setlen, MPI_CHAR, allsets, setlens, displs, MPI_CHAR, 0, comml);
-        free(myset);
+            int setlen = strlen(myset);
+            int *setlens = NULL;
+            if( 0 == rl ) {
+                setlens = calloc(nl, sizeof(int));
+            }
+            MPI_Gather(&setlen, 1, MPI_INT, setlens, 1, MPI_INT, 0, comml);
 
-        if( 0 == rl ) {
-            int notgood = false;
-            for( i = 1; i < nl; i++ ) {
-                hwloc_bitmap_t other = hwloc_bitmap_alloc();
-                hwloc_bitmap_list_sscanf(other, &allsets[displs[i]]);
-                if(hwloc_bitmap_intersects(context->cpuset_allowed_mask, other)) {
-                    notgood = true;
+            int *displs = NULL;
+            if( 0 == rl ) {
+                displs = calloc(nl, sizeof(int));
+                displs[0] = 0;
+                for( i = 1; i < nl; i++ ) {
+                    displs[i] = displs[i-1]+setlens[i-1];
                 }
-                hwloc_bitmap_free(other);
+                allsets = calloc(displs[nl-1]+setlens[nl-1], sizeof(char));
             }
-            if( notgood ) {
-                parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                               "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
-                               "\tThis is often unintentional, and will perform poorly.\n"
-                               "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
-                               "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
-                               "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
+            MPI_Gatherv(myset, setlen, MPI_CHAR, allsets, setlens, displs, MPI_CHAR, 0, comml);
+            free(myset);
+
+            if( 0 == rl ) {
+                int notgood = false;
+                for( i = 1; i < nl; i++ ) {
+                    hwloc_bitmap_t other = hwloc_bitmap_alloc();
+                    hwloc_bitmap_list_sscanf(other, &allsets[displs[i]]);
+                    if(hwloc_bitmap_intersects(context->cpuset_allowed_mask, other)) {
+                        notgood = true;
+                    }
+                    hwloc_bitmap_free(other);
+                }
+                if( notgood ) {
+                    parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                                   "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
+                                    "\tThis is often unintentional, and will perform poorly.\n"
+                                   "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
+                                   "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
+                                   "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
+                }
+                free(setlens);
+                free(allsets);
+                free(displs);
             }
-            free(setlens);
-            free(allsets);
-            free(displs);
         }
     }
     return PARSEC_SUCCESS;
