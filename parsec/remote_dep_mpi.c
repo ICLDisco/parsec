@@ -451,7 +451,11 @@ remote_dep_mpi_initialize_execution_stream(parsec_context_t *context)
     memcpy(&parsec_comm_es, context->virtual_processes[0]->execution_streams[0],
            sizeof(parsec_execution_stream_t));
     parsec_comm_es.next_task = (parsec_task_t*)0xdeadbeef;  /* should not be NULL, but it should also never be used */
-    parsec_set_my_execution_stream(&parsec_comm_es);
+    if(1 < context->nb_nodes) {
+        /* if nb_nodes==1, the parsec comm engine does not run with its own thread, so don't change the thread
+         * execution stream to parsec_comm_es. */
+        parsec_set_my_execution_stream(&parsec_comm_es);
+    }
 }
 
 void* remote_dep_dequeue_main(parsec_context_t* context)

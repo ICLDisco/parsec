@@ -286,7 +286,6 @@ __parsec_schedule(parsec_execution_stream_t* es,
                   int32_t distance)
 {
     int ret;
-    parsec_task_t *task = tasks_ring;
 
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
     {
@@ -317,9 +316,12 @@ __parsec_schedule(parsec_execution_stream_t* es,
 #endif  /* defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER) */
 
 #if defined(PARSEC_PAPI_SDE)
-    int len = 0;
-    _LIST_ITEM_ITERATOR(task, &task->super, item, {len++; });
-    PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_ENABLED, len);
+    {
+        int len = 0;
+        parsec_task_t *task = tasks_ring;
+        _LIST_ITEM_ITERATOR(task, &task->super, item, {len++; });
+        PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_ENABLED, len);
+    }
 #endif  /* defined(PARSEC_PAPI_SDE) */
 
     ret = parsec_current_scheduler->module.schedule(es, tasks_ring, distance);
