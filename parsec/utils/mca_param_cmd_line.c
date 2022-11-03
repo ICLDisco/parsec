@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2005 The University of Tennessee and The University
+ * Copyright (c) 2004-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -41,30 +41,23 @@ static void add_to_env(char **params, char **values, char ***env);
 
 
 /*
- * Add -mca to the possible command line options list
+ * Add -parsec to the possible command line options list
  */
 int parsec_mca_cmd_line_setup(parsec_cmd_line_t *cmd)
 {
     int ret = PARSEC_SUCCESS;
 
-    ret = parsec_cmd_line_make_opt3(cmd, '\0', "mca", "mca", 2,
-                                  "Pass context-specific MCA parameters; they are considered global if --gmca is not used and only one context is specified (arg0 is the parameter name; arg1 is the parameter value)");
-    if (PARSEC_SUCCESS != ret) {
-        return ret;
-    }
-
-    ret = parsec_cmd_line_make_opt3(cmd, '\0', "gmca", "gmca", 2,
-                                  "Pass global MCA parameters that are applicable to all contexts (arg0 is the parameter name; arg1 is the parameter value)");
-
+    ret = parsec_cmd_line_make_opt3(cmd, '\0', NULL, "parsec", 2,
+                                  "Pass MCA parameters to parsec (arg0 is the parameter name; arg1 is the parameter value)");
     if (PARSEC_SUCCESS != ret) {
         return ret;
     }
 
     {
         parsec_cmd_line_init_t entry =
-            {"parsec_mca_param_file_prefix", '\0', "am", NULL, 1,
+            {"parsec_mca_param_file_prefix", '\0', NULL, "parsec-config", 1,
              NULL, PARSEC_CMD_LINE_TYPE_STRING,
-             "Aggregate MCA parameter set file list"
+             "Pass MCA parameters to parsec using an aggregate MCA parameter set files (list of filenames)"
             };
         ret = parsec_cmd_line_make_opt_mca(cmd, entry);
         if (PARSEC_SUCCESS != ret) {
@@ -77,10 +70,10 @@ int parsec_mca_cmd_line_setup(parsec_cmd_line_t *cmd)
 
 
 /*
- * Look for and handle any -mca options on the command line
+ * Look for and handle any -parsec options on the command line
  */
 int parsec_mca_cmd_line_process_args(parsec_cmd_line_t *cmd,
-                                    char ***context_env, char ***global_env)
+                                    char ***context_env)
 {
   int i, num_insts;
   char **params;
@@ -88,37 +81,21 @@ int parsec_mca_cmd_line_process_args(parsec_cmd_line_t *cmd,
 
   /* If no relevant parameters were given, just return */
 
-  if (!parsec_cmd_line_is_taken(cmd, "mca") &&
-      !parsec_cmd_line_is_taken(cmd, "gmca")) {
+  if (!parsec_cmd_line_is_taken(cmd, "parsec") ) {
       return PARSEC_SUCCESS;
   }
 
   /* Handle app context-specific parameters */
 
-  num_insts = parsec_cmd_line_get_ninsts(cmd, "mca");
+  num_insts = parsec_cmd_line_get_ninsts(cmd, "parsec");
   params = values = NULL;
   for (i = 0; i < num_insts; ++i) {
-      process_arg(parsec_cmd_line_get_param(cmd, "mca", i, 0),
-                  parsec_cmd_line_get_param(cmd, "mca", i, 1),
+      process_arg(parsec_cmd_line_get_param(cmd, "parsec", i, 0),
+                  parsec_cmd_line_get_param(cmd, "parsec", i, 1),
                   &params, &values);
   }
   if (NULL != params) {
       add_to_env(params, values, context_env);
-      parsec_argv_free(params);
-      parsec_argv_free(values);
-  }
-
-  /* Handle global parameters */
-
-  num_insts = parsec_cmd_line_get_ninsts(cmd, "gmca");
-  params = values = NULL;
-  for (i = 0; i < num_insts; ++i) {
-      process_arg(parsec_cmd_line_get_param(cmd, "gmca", i, 0),
-                  parsec_cmd_line_get_param(cmd, "gmca", i, 1),
-                  &params, &values);
-  }
-  if (NULL != params) {
-      add_to_env(params, values, global_env);
       parsec_argv_free(params);
       parsec_argv_free(values);
   }
@@ -138,7 +115,7 @@ static int process_arg(const char *param, const char *value,
     int i, rc;
     char *new_str;
 
-    /* Look to see if we've already got an -mca argument for the same
+    /* Look to see if we've already got an -parsec argument for the same
        param.  Check against the list of MCA param's that we've
        already saved arguments for. */
 
@@ -168,7 +145,7 @@ static void add_to_env(char **params, char **values, char ***env)
     int i;
 
     /* Loop through all the args that we've gotten and make env
-       vars of the form OMPI_MCA_*=value. */
+       vars of the form PARSEC_*=value. */
 
     for (i = 0; NULL != params && NULL != params[i]; ++i) {
         parsec_setenv_mca_param( params[i], values[i], env );

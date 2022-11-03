@@ -201,7 +201,7 @@ int main( int argc, char** argv )
         NB = atoi(argv[1]);
     }
     if(NB <= 0) {
-        fprintf(stderr, "Usage: async [-v] NB [--mca profile_filename /path/to/profile --mca mca_pins task_profiler\n");
+        fprintf(stderr, "Usage: async [-v] NB [--parsec profile_filename /path/to/profile --parsec mca_pins task_profiler\n");
         return 1;
     }
 
