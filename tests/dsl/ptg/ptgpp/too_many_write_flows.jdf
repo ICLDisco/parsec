@@ -12,7 +12,7 @@ extern "C" %{
  * This test has been conceived for issue 247.
  * https://bitbucket.org/icldistcomp/parsec/issues/247
  */
-#include "tests/interfaces/ptg/compiler_checks/vector.h"
+#include "tests/dsl/ptg/ptgpp/vector.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #if MAX_PARAM_COUNT > 20
@@ -62,7 +62,7 @@ static parsec_matrix_block_cyclic_t descA;
 
 int main(int argc, char* argv[])
 {
-    parsec_output_deps_check_taskpool_t* tp;
+    parsec_too_many_write_flows_taskpool_t* tp;
     parsec_context_t *parsec;
     int block = 10, n = 1000, rc;
 
@@ -90,12 +90,12 @@ int main(int argc, char* argv[])
      * The original data is consistently initialized to 1. Upon completion it should
      * start with 2 and increase monotonically.
      */
-    tp = parsec_output_deps_check_new( (parsec_data_collection_t*)&descA, (n / block) - 1 );
+    tp = parsec_too_many_write_flows_new( (parsec_data_collection_t*)&descA, (n / block) - 1 );
     assert( NULL != tp );
 
     /* This test generates no communications between processes, so the datatype
      * associated with the arena are insignificant. */
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_output_deps_check_DEFAULT_ADT_IDX],
+    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_too_many_write_flows_DEFAULT_ADT_IDX],
                                      descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
                                      PARSEC_ARENA_ALIGNMENT_SSE,
                                      PARSEC_DATATYPE_NULL);  /* change for distributed cases */

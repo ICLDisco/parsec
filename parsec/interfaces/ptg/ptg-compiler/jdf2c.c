@@ -8310,7 +8310,7 @@ jdf_generate_code_find_deps(const jdf_t *jdf,
     coutput("parsec_dependency_t*\n"
             "%s(const parsec_taskpool_t*__tp,\n"
             "   parsec_execution_stream_t *es,\n"
-            "   const parsec_task_t* restrict __task)\n"
+            "   const parsec_task_t* PARSEC_RESTRICT __task)\n"
             "{\n"
             "  parsec_dependencies_t *deps;\n"
             "  (void)es;\n"

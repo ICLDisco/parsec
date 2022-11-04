@@ -191,7 +191,7 @@ if( BUILD_PARSEC )
     ${PARSEC_ATOMIC_SUPPORT_LIBS}
     Threads::Threads
     $<$<BOOL:${PARSEC_HAVE_WS2_32}>:ws2_32>)
-  set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
+  set_target_properties(parsec-base-obj PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
   # Include the parsec-base objects into the parsec-base library (for tools)
   if(NOT TARGET parsec-base)
@@ -231,7 +231,7 @@ if( BUILD_PARSEC )
     $<$<BOOL:${PARSEC_SHM_OPEN_IN_LIBRT}>:rt>
     PUBLIC
     $<$<BOOL:${PARSEC_HAVE_DLFCN_H}>:${CMAKE_DL_LIBS}> # Add support for dlopen if necessary
-    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::HWLOC>
+    $<$<BOOL:${HWLOC_FOUND}>:hwloc>
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:OTF2::OTF2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     $<$<BOOL:${PARSEC_HAVE_CUDA}>:CUDA::cudart>
@@ -240,7 +240,8 @@ if( BUILD_PARSEC )
     INTERFACE
     ${PARSEC_ATOMIC_SUPPORT_LIBS}
     )
-  set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE ${BUILD_SHARED_LIBS})
+
+  set_target_properties(parsec PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
   # For now make sure that the installed shared libraries have the right
   # version (same version as the major of the build version). Thus, every
   # change in the high-level API (and ABI) should be reflected on the
