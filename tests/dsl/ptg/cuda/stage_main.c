@@ -13,7 +13,7 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
 int main(int argc, char *argv[])
 {
     int pargc = 0;
-    char **pargv;
+    char **pargv = NULL;
     parsec_context_t *parsec = NULL;
     parsec_taskpool_t *tp;
     int i;
@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
             pargc = argc - i;
-            pargv = &argv[i];
+            pargv = argv + i;
             break;
         }
     }

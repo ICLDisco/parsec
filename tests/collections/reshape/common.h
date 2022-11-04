@@ -114,7 +114,7 @@ int reshape_print(parsec_execution_stream_t *es,
     for(int i = 1; i < argc; i++) {                                                      \
         if( strcmp(argv[i], "--") == 0 ) {                                               \
             pargc = argc - i;                                                            \
-            pargv = &argv[i];                                                            \
+            pargv = argv + i;                                                            \
             break;                                                                       \
         }                                                                                \
     }                                                                                    \

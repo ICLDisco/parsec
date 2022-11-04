@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
     parsec_walk_taskpool_t *walker;
     parsec_arena_datatype_t adt;
     int do_checks = 0, be_verbose = 0;
-    int pargc = 0, i, dashdash = -1;
+    int pargc = 0, i;
     char **pargv;
     int ret, ch;
     uint64_t cksum = 0;
@@ -167,24 +167,12 @@ int main(int argc, char *argv[])
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
             pargc = argc - i;
-            pargv = &argv[i];
+            pargv = argv + i;
             break;
         }
     }
-    pargv = malloc( (pargc+1) * sizeof(char*));
-    if( dashdash != -1 ) {
-        if( strcmp(argv[i], "--") == 0 ) {
-            dashdash = i;
-            pargc = 0;
-        } else if( dashdash != -1 ) {
-            pargc++;
-        }
-    } else {
-        pargv[0] = NULL;
-    }
     parsec = parsec_init(1, &pargc, &pargv);
-    free(pargv);
-    
+
     while ((ch = getopt(argc, argv, "xvd:m:M:f:")) != -1) {
         switch (ch) {
         case 'x':

@@ -104,12 +104,8 @@ int main(int argc, char **argv) {
                 break;
         }
     }
-    pargc = argc - optind + 1;
-    pargv = (char **)malloc((pargc + 1)*sizeof(char *));
-    pargv[0] = argv[0];
-    for(int i = 0; i < argc-optind; i++)
-        pargv[i+1] = argv[optind+i];
-    pargv[pargc] = NULL;
+    pargc = argc - optind;
+    pargv = argv + optind;
 
     #if defined(PARSEC_HAVE_MPI)
    {

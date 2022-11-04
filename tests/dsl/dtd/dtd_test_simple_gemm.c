@@ -583,12 +583,8 @@ int main(int argc, char **argv)
                 break;
         }
     }
-    int pargc = argc - optind + 1;
-    char **pargv = (char **)malloc((pargc + 1) * sizeof(char *));
-    pargv[0] = argv[0];
-    for( int i = 0; i < argc - optind; i++ )
-        pargv[i + 1] = argv[optind + i];
-    pargv[pargc] = NULL;
+    int pargc = argc - optind;
+    char **pargv = argv + optind;
 
     if( -1 == P )
         P = (int)sqrt(world);
