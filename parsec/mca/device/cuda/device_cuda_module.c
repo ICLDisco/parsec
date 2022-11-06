@@ -45,6 +45,8 @@ parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
 static int parsec_cuda_memory_release( parsec_device_cuda_module_t* gpu_device );
 static int parsec_cuda_flush_lru( parsec_device_module_t *device );
 
+extern int parsec_cuda_delegate_task_completion; 
+
 /* look up how many FMA per cycle in single/double, per cuda MP
  * precision.
  * The following table provides updated values for future archs
@@ -2730,9 +2732,20 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
         gpu_task->ec = NULL;
         goto remove_gpu_task;
     }
+    
     parsec_cuda_kernel_epilog( gpu_device, gpu_task );
-    __parsec_complete_execution( es, gpu_task->ec );
     gpu_device->super.executed_tasks++;
+
+    if( parsec_cuda_delegate_task_completion == 0 )
+        __parsec_complete_execution( es, gpu_task->ec );
+    else
+    {
+        gpu_task->ec->priority = INT32_MAX;  /* Assign maximum priority */
+        gpu_task->ec->status = PARSEC_TASK_STATUS_COMPLETE;
+        PARSEC_LIST_ITEM_SINGLETON(gpu_task->ec);
+        __parsec_schedule(es, (parsec_task_t *)gpu_task->ec, 0);
+    }
+
  remove_gpu_task:
     // Load problem: was parsec_device_load[gpu_device->super.device_index] -= gpu_task->load;
     parsec_device_load[gpu_device->super.device_index] -= parsec_device_sweight[gpu_device->super.device_index];

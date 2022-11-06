@@ -487,6 +487,9 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
         if(task->status <= PARSEC_TASK_STATUS_HOOK) {
             rc = __parsec_execute( es, task );
         }
+        else if(task->status == PARSEC_TASK_STATUS_COMPLETE) { // To deal with task completion of the GPU tasks
+            rc = PARSEC_HOOK_RETURN_DONE;
+        }
         /* We're good to go ... */
         switch(rc) {
         case PARSEC_HOOK_RETURN_DONE:    /* This execution succeeded */

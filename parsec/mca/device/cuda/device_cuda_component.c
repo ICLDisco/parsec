@@ -41,6 +41,7 @@ char* parsec_cuda_lib_path = NULL;
 
 static int cuda_mask, cuda_nvlink_mask;
 
+int parsec_cuda_delegate_task_completion = 0;
 
 /*
  * Instantiate the public struct with all of our public information
@@ -200,6 +201,10 @@ static int device_cuda_component_register(void)
                                         "Boolean to separate the profiling of each cuda stream into a single profiling stream",
                                         false, false, 0, &parsec_device_gpu_one_profiling_stream_per_gpu_stream);
 #endif
+
+    (void)parsec_mca_param_reg_int_name("device_cuda", "delegate_task_completion",
+                                        "Integer to choose the whether task completion should be done by a manager thread (default is no)",
+                                        false, false, 0, &parsec_cuda_delegate_task_completion);
 
     /* If CUDA was not requested avoid initializing the devices */
     return (0 == parsec_device_cuda_enabled ? MCA_ERROR : MCA_SUCCESS);
