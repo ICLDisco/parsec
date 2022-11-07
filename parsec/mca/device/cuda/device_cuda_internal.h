@@ -19,6 +19,8 @@ extern int parsec_cuda_sort_pending, parsec_cuda_max_streams;
 extern int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_memory_number_of_blocks;
 extern char* parsec_cuda_lib_path;
 
+extern int parsec_cuda_delegate_task_completion; 
+
 PARSEC_DECLSPEC extern const parsec_device_module_t parsec_device_cuda_module;
 
 int parsec_cuda_module_init( int device, parsec_device_module_t** module );

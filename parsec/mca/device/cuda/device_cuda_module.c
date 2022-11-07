@@ -45,8 +45,6 @@ parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
 static int parsec_cuda_memory_release( parsec_device_cuda_module_t* gpu_device );
 static int parsec_cuda_flush_lru( parsec_device_module_t *device );
 
-extern int parsec_cuda_delegate_task_completion; 
-
 /* look up how many FMA per cycle in single/double, per cuda MP
  * precision.
  * The following table provides updated values for future archs
@@ -2737,7 +2735,9 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
     gpu_device->super.executed_tasks++;
 
     if( parsec_cuda_delegate_task_completion == 0 )
+    {
         __parsec_complete_execution( es, gpu_task->ec );
+    }
     else
     {
         gpu_task->ec->priority = INT32_MAX;  /* Assign maximum priority */
