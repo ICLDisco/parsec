@@ -38,15 +38,6 @@ typedef unsigned long remote_dep_datakey_t;
 #define PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE  0x80000000
 #define PARSEC_ACTION_RELEASE_REMOTE_DEPS        (PARSEC_ACTION_SEND_INIT_REMOTE_DEPS | PARSEC_ACTION_SEND_REMOTE_DEPS)
 
-typedef enum {
-    REMOTE_DEP_ACTIVATE_TAG = 2,
-    REMOTE_DEP_GET_DATA_TAG,
-    REMOTE_DEP_PUT_END_TAG,
-    PARSEC_TERMDET_FOURCOUNTER_MSG_TAG,
-    PARSEC_TERMDET_USER_TRIGGER_MSG_TAG,
-    REMOTE_DEP_MAX_CTRL_TAG
-} parsec_remote_dep_tag_t;
-
 typedef struct remote_dep_wire_activate_s {
     remote_dep_datakey_t deps;         /**< a pointer to the dep structure on the source */
     remote_dep_datakey_t output_mask;  /**< the mask of the output dependencies satisfied by this activation message */
@@ -185,9 +176,6 @@ typedef struct {
 
 extern parsec_remote_dep_context_t parsec_remote_dep_context;
 
-void remote_deps_allocation_init(int np, int max_deps);
-void remote_deps_allocation_fini(void);
-
 parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo );
 
 #define PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, TASK, COUNT) \
@@ -216,7 +204,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                                parsec_remote_deps_t* remote_deps,
                                uint32_t propagation_mask);
 
-/* Memcopy a particular data using datatype specification */
+/* Memcpy a particular data using datatype specification */
 void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
                               parsec_taskpool_t* tp,
                               parsec_data_copy_t *dst,
@@ -259,7 +247,7 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 
 /** @} */
 
-#define DEP_NB_CONCURENT 3
+#define DEP_NB_CONCURRENT 3
 
 extern int parsec_comm_gets_max;
 extern int parsec_comm_gets;
@@ -280,7 +268,7 @@ typedef enum dep_cmd_action_t {
     DEP_PUT_DATA,
     DEP_GET_DATA,
     DEP_CTL,
-    DEP_LAST  /* always the last element. it shoud not be used */
+    DEP_LAST  /* always the last element. it should not be used */
 } dep_cmd_action_t;
 
 union dep_cmd_u {
@@ -381,30 +369,21 @@ int remote_dep_set_ctx(parsec_context_t* context, intptr_t opaque_comm_ctx );
 parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo );
 
 void remote_deps_allocation_init(int np, int max_output_deps);
+void remote_deps_allocation_fini(void);
 
 typedef struct {
-    int rank_src;  // 0
-    int rank_dst;  // 4
-    uint64_t tid;  // 8
-    uint32_t tpid;  // 16
-    uint32_t tcid;  // 20-
-    int32_t msg_size; // 24
-    int32_t padding;  // 28 -- this field is not necessary, but the structure will be padded
-                      //       by the compiler due to the uint64_t field. It is declared here
-                      //       just to be consistent with the conversion string.
+    int rank_src;  //  0
+    int rank_dst;  //  4
+    uint64_t tid;  //  8
+    uint32_t tpid; // 16
+    uint32_t tcid; // 20
+    int msg_size;  // 24
+    int dep;       // 28
 } parsec_profile_remote_dep_mpi_info_t; // 32 bytes
 
-
 #ifdef PARSEC_PROF_TRACE
-extern int MPI_Activate_sk, MPI_Activate_ek;
-extern int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
-extern int MPI_Data_plds_sk, MPI_Data_plds_ek;
-extern int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
-extern int activate_cb_trace_sk, activate_cb_trace_ek;
-extern int put_cb_trace_sk, put_cb_trace_ek;
-
-// TODO: how to replace call to MPI_Pack_size?
-#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw, nbdtt, dtt, comm) \
+#define TAKE_TIME_WITH_INFO(PROF, KEY, I, k, src, dst, rdw, nbdtt, dtt) \
+  do {                                                                  \
     if( parsec_profile_enabled ) {                                      \
         parsec_profile_remote_dep_mpi_info_t __info;                    \
         parsec_taskpool_t *__tp = parsec_taskpool_lookup( (rdw).taskpool_id ); \
@@ -415,15 +394,17 @@ extern int put_cb_trace_sk, put_cb_trace_ek;
         __info.tcid = (rdw).task_class_id;                              \
         __info.tid  = __tc->key_functions->key_hash(                    \
                              __tc->make_key(__tp, (rdw).locals), NULL); \
-        MPI_Pack_size(nbdtt, dtt, comm, &__info.msg_size);              \
+        parsec_ce.pack_size(&parsec_ce, nbdtt, dtt, &__info.msg_size);  \
+        __info.dep = (k);                                               \
         PARSEC_PROFILING_TRACE((PROF), (KEY), (I),                      \
                                PROFILE_OBJECT_ID_NULL, &__info);        \
-    }
+    }                                                                   \
+  } while (0)
 
 #define TAKE_TIME(PROF, KEY, I) PARSEC_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, NULL)
 
 #else
-#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw, count, dtt, comm) do {} while(0)
+#define TAKE_TIME_WITH_INFO(PROF, KEY, I, k, src, dst, rdw, nbdtt, dtt) do {} while(0)
 #define TAKE_TIME(PROF, KEY, I) do {} while(0)
 #endif  /* PARSEC_PROF_TRACE */
 

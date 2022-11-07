@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2018-2022 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "parsec/parsec_config.h"
 
 #include <stdlib.h>
@@ -26,11 +32,11 @@ typedef struct {
 PARSEC_OBJ_CLASS_DECLARATION(parsec_thread_sde_counters_t);
 PARSEC_OBJ_CLASS_INSTANCE(parsec_thread_sde_counters_t, parsec_list_item_t, NULL, NULL);
 
-PARSEC_TLS_DECLARE(parsec_papi_sde_basic_counters_tls);
+static PARSEC_TLS_DECLARE(parsec_papi_sde_basic_counters_tls);
 /* We protect the sde_threads list with an external rwlock,
    because most operations do not modify the list and can be done in parallel */
 static parsec_list_t sde_threads;
-static parsec_atomic_rwlock_t sde_threads_lock = {PARSEC_RWLOCK_UNLOCKED};
+static parsec_atomic_rwlock_t sde_threads_lock = PARSEC_RWLOCK_UNLOCKED;
 
 typedef struct {
     char                          *name;

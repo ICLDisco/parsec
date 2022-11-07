@@ -68,7 +68,7 @@ static void parsec_rusage_per_es(parsec_execution_stream_t* es, bool print)
                       "Block Input Operations      : %10ld\n"
                       "Block Output Operations     : %10ld\n"
                       "Maximum Resident Memory     : %10ld\n"
-                      "=============================================================\n"
+                      "-------------------------------------------------------------\n"
                       , es->virtual_process->vp_id, es->th_id, es->core_id, es->socket_id,
                       usr, sys, usr + sys,
                       (current.ru_minflt  - es->_es_rusage.ru_minflt), (current.ru_majflt  - es->_es_rusage.ru_majflt),
@@ -316,9 +316,12 @@ __parsec_schedule(parsec_execution_stream_t* es,
 #endif  /* defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER) */
 
 #if defined(PARSEC_PAPI_SDE)
-    int len = 0;
-    _LIST_ITEM_ITERATOR(tasks_ring, &tasks_ring->super, item, {len++; });
-    PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_ENABLED, len);
+    {
+        int len = 0;
+        parsec_task_t *task = tasks_ring;
+        _LIST_ITEM_ITERATOR(task, &task->super, item, {len++; });
+        PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_ENABLED, len);
+    }
 #endif  /* defined(PARSEC_PAPI_SDE) */
 
     ret = parsec_current_scheduler->module.schedule(es, tasks_ring, distance);
@@ -651,6 +654,15 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         parsec_barrier_wait( &(parsec_context->barrier) );
         my_barrier_counter = 1;
     } else {
+#if defined(DISTRIBUTED)
+        if( (1 == parsec_communication_engine_up) &&
+            (es->virtual_process[0].parsec_context->nb_nodes == 1) ) {
+            /* If there is a single process run and the main thread is in charge of
+             * progressing the communications we need to make sure the comm engine
+             * is ready for primetime. */
+            remote_dep_mpi_on(parsec_context);
+        }
+#endif /* defined(DISTRIBUTED) */
         /* The master thread might not have to trigger the barrier if the other
          * threads have been activated by a previous start.
          */
@@ -682,7 +694,6 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         parsec_fatal("Main thread entered parsec_context_wait, while a scheduler is not selected yet!");
         return -1;
     }
-
   skip_first_barrier:
     while( !all_tasks_done(parsec_context) ) {
 

@@ -16,6 +16,28 @@ typedef enum {
     PARSEC_MEM_TYPE_NONCONTIGUOUS = 1
 } parsec_mem_type_t;
 
+/**
+ * The maximum number of AM tags supported by this PaRSEC build.
+ * To avoid runtime conflicts, the AM tags must be manually reserved
+ * in the section below.
+ */
+#define PARSEC_MAX_REGISTERED_TAGS  32
+
+/* Internal TAG for GET and PUT activation message,
+ * for two sides to agree on a "TAG" to post Irecv and Isend on
+ */
+typedef enum {
+    PARSEC_CE_MPI_FUNNELLED_GET_TAG_INTERNAL = 0,
+    PARSEC_CE_MPI_FUNNELLED_PUT_TAG_INTERNAL = 1,
+    PARSEC_CE_REMOTE_DEP_ACTIVATE_TAG = 2,
+    PARSEC_CE_REMOTE_DEP_GET_DATA_TAG,
+    PARSEC_CE_REMOTE_DEP_PUT_END_TAG,
+    PARSEC_TERMDET_FOURCOUNTER_MSG_TAG,
+    PARSEC_TERMDET_USER_TRIGGER_MSG_TAG,
+    PARSEC_CE_REMOTE_DEP_MAX_CTRL_TAG
+} parsec_remote_dep_tag_t;
+
+
 typedef void* parsec_ce_mem_reg_handle_t;
 
 typedef struct parsec_comm_engine_capabilites_s parsec_comm_engine_capabilites_t;

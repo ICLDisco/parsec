@@ -61,11 +61,6 @@
 #include "parsec/hbbuffer.h"
 #endif
 
-#ifdef PARSEC_HAVE_CUDA
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-#endif
-
 /*
  * Global variables.
  */
@@ -158,7 +153,7 @@ static int parsec_runtime_bind_threads     = 1;
 
 int parsec_runtime_keep_highest_priority_task = 1;
 
-PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
+static PARSEC_TLS_DECLARE(parsec_tls_execution_stream);
 
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
 static void parsec_mpi_exit(int status) {
@@ -270,7 +265,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 
     /*
-     * A single thread per VP has a little bit more responsability: allocating
+     * A single thread per VP has a little bit more responsibility: allocating
      * the memory pools.
      */
     if( startup->th_id == (startup->virtual_process->nb_cores - 1) ) {
@@ -365,8 +360,6 @@ static void parsec_vp_init( parsec_vp_t *vp,
             parsec_warning("multiple core to bind on... for now, do nothing"); //TODO: what does that mean?
     }
 }
-
-static int check_overlapping_binding(parsec_context_t *context);
 
 #define DEFAULT_APP_NAME "app_name"
 
@@ -794,8 +787,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     /* Introduce communication engine */
     (void)parsec_remote_dep_init(context);
-
-    (void)check_overlapping_binding(context);
 
     PARSEC_PINS_INIT(context);
     if(profiling_enabled && (0 == parsec_pins_nb_modules_enabled())) {
@@ -1236,8 +1227,8 @@ int parsec_fini( parsec_context_t** pcontext )
         free(context->pthreads);
         context->pthreads = NULL;
     }
-    /* From now on all the thrteads have been shut-off, and they are supposed to
-     * have cleaned all their provate memory. Unleash the global cleaning process.
+    /* From now on all the threads have been shut-off, and they are supposed to
+     * have cleaned all their private memory. Unleash the global cleaning process.
      */
 
     PARSEC_PINS_FINI(context);
@@ -1511,7 +1502,7 @@ parsec_check_IN_dependencies_with_counter( const parsec_taskpool_t *tp,
 parsec_dependency_t*
 parsec_default_find_deps(const parsec_taskpool_t *tp,
                          parsec_execution_stream_t *es,
-                         const parsec_task_t* restrict task)
+                         const parsec_task_t* PARSEC_RESTRICT task)
 {
     parsec_dependencies_t *deps;
     int p;
@@ -1533,7 +1524,7 @@ parsec_default_find_deps(const parsec_taskpool_t *tp,
 parsec_dependency_t*
 parsec_hash_find_deps(const parsec_taskpool_t *tp,
                       parsec_execution_stream_t *es,
-                      const parsec_task_t* restrict task)
+                      const parsec_task_t* PARSEC_RESTRICT task)
 {
     parsec_hashable_dependency_t *hd;
     parsec_key_handle_t kh;
@@ -1561,11 +1552,11 @@ parsec_hash_find_deps(const parsec_taskpool_t *tp,
 
 int
 parsec_update_deps_with_counter(parsec_taskpool_t *tp,
-                                const parsec_task_t* restrict task,
+                                const parsec_task_t* PARSEC_RESTRICT task,
                                 parsec_dependency_t *deps,
-                                const parsec_task_t* restrict origin,
-                                const parsec_flow_t* restrict origin_flow,
-                                const parsec_flow_t* restrict dest_flow)
+                                const parsec_task_t* PARSEC_RESTRICT origin,
+                                const parsec_flow_t* PARSEC_RESTRICT origin_flow,
+                                const parsec_flow_t* PARSEC_RESTRICT dest_flow)
 {
     parsec_dependency_t dep_new_value, dep_cur_value;
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
@@ -1608,11 +1599,11 @@ parsec_update_deps_with_counter(parsec_taskpool_t *tp,
 
 int
 parsec_update_deps_with_mask(parsec_taskpool_t *tp,
-                             const parsec_task_t* restrict task,
+                             const parsec_task_t* PARSEC_RESTRICT task,
                              parsec_dependency_t *deps,
-                             const parsec_task_t* restrict origin,
-                             const parsec_flow_t* restrict origin_flow,
-                             const parsec_flow_t* restrict dest_flow)
+                             const parsec_task_t* PARSEC_RESTRICT origin,
+                             const parsec_flow_t* PARSEC_RESTRICT origin_flow,
+                             const parsec_flow_t* PARSEC_RESTRICT dest_flow)
 {
     parsec_dependency_t dep_new_value, dep_cur_value;
     const parsec_task_class_t* tc = task->task_class;
@@ -1680,7 +1671,7 @@ parsec_update_deps_with_mask(parsec_taskpool_t *tp,
  * Since data -> task grapher logging is detected during dependency resolving,
  * and startup tasks don't have an input dependency, we also resolve this here.
  */
-void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
+void parsec_dependencies_mark_task_as_startup(parsec_task_t* PARSEC_RESTRICT task,
                                               parsec_execution_stream_t *es)
 {
     const parsec_task_class_t* tc = task->task_class;
@@ -1701,10 +1692,10 @@ void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict task,
  */
 int
 parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
-                                      const parsec_task_t* restrict origin,
-                                      const parsec_flow_t* restrict origin_flow,
-                                      const parsec_task_t* restrict task,
-                                      const parsec_flow_t* restrict dest_flow,
+                                      const parsec_task_t* PARSEC_RESTRICT origin,
+                                      const parsec_flow_t* PARSEC_RESTRICT origin_flow,
+                                      const parsec_task_t* PARSEC_RESTRICT task,
+                                      const parsec_flow_t* PARSEC_RESTRICT dest_flow,
                                       parsec_dep_data_description_t* data,
                                       parsec_task_t** pready_ring,
                                       data_repo_t* target_repo,
@@ -2015,12 +2006,9 @@ parsec_taskpool_set_complete_callback( parsec_taskpool_t* tp,
                                        parsec_event_cb_t complete_cb,
                                        void* complete_cb_data )
 {
-    if( NULL == tp->on_complete ) {
-        tp->on_complete      = complete_cb;
-        tp->on_complete_data = complete_cb_data;
-        return PARSEC_SUCCESS;
-    }
-    return PARSEC_ERR_EXISTS;
+    tp->on_complete      = complete_cb;
+    tp->on_complete_data = complete_cb_data;
+    return PARSEC_SUCCESS;
 }
 
 int
@@ -2028,12 +2016,9 @@ parsec_taskpool_get_complete_callback( const parsec_taskpool_t* tp,
                                        parsec_event_cb_t* complete_cb,
                                        void** complete_cb_data )
 {
-    if( NULL != tp->on_complete ) {
-        *complete_cb      = tp->on_complete;
-        *complete_cb_data = tp->on_complete_data;
-        return PARSEC_SUCCESS;
-    }
-    return PARSEC_ERR_NOT_FOUND;
+    *complete_cb      = tp->on_complete;
+    *complete_cb_data = tp->on_complete_data;
+    return PARSEC_SUCCESS;
 }
 
 int
@@ -2041,12 +2026,9 @@ parsec_taskpool_set_enqueue_callback( parsec_taskpool_t* tp,
                                       parsec_event_cb_t enqueue_cb,
                                       void* enqueue_cb_data )
 {
-    if( NULL == tp->on_enqueue ) {
-        tp->on_enqueue      = enqueue_cb;
-        tp->on_enqueue_data = enqueue_cb_data;
-        return PARSEC_SUCCESS;
-    }
-    return PARSEC_ERR_EXISTS;
+    tp->on_enqueue      = enqueue_cb;
+    tp->on_enqueue_data = enqueue_cb_data;
+    return PARSEC_SUCCESS;
 }
 
 int
@@ -2054,12 +2036,9 @@ parsec_taskpool_get_enqueue_callback( const parsec_taskpool_t* tp,
                                       parsec_event_cb_t* enqueue_cb,
                                       void** enqueue_cb_data )
 {
-    if( NULL != tp->on_enqueue ) {
-        *enqueue_cb      = tp->on_enqueue;
-        *enqueue_cb_data = tp->on_enqueue_data;
-        return PARSEC_SUCCESS;
-    }
-    return PARSEC_ERR_NOT_FOUND;
+    *enqueue_cb      = tp->on_enqueue;
+    *enqueue_cb_data = tp->on_enqueue_data;
+    return PARSEC_SUCCESS;
 }
 
 int32_t
@@ -2531,61 +2510,76 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
 #endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
 }
 
-static int check_overlapping_binding(parsec_context_t *context) {
+/**
+ * @brief Check that the binding is correct. However, this operation is extremely expensive
+ *        and highly unscalable so we should only do this operation when really necessary.
+ * 
+ * @param context 
+ * @return int SUCCESS if the global bindings are OK, error otherwise.
+ */
+int parsec_check_overlapping_binding(parsec_context_t *context)
+{
+    if( 1024 < context->nb_nodes ) {  /* At some point we need to assume the users are doing the right thing,
+                                       * especially when they run at scale.
+                                       */
+        return PARSEC_SUCCESS;
+    }
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI) && defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
-    MPI_Comm comml = MPI_COMM_NULL; int i, nl = 0, rl = MPI_PROC_NULL;
-    MPI_Comm commw = (MPI_Comm)context->comm_ctx;
-    assert(-1 != context->comm_ctx);
-    MPI_Comm_split_type(commw, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
-    MPI_Comm_size(comml, &nl);
-    if( 1 < nl && slow_bind_warning ) {
-        /* Hu-ho, double check that our binding is not conflicting with other
-         * local procs */
-        MPI_Comm_rank(comml, &rl);
-        char *myset = NULL, *allsets = NULL;
+    if( slow_bind_warning ) {
+        MPI_Comm comml = MPI_COMM_NULL; int i, nl = 0, rl = MPI_PROC_NULL;
+        MPI_Comm commw = (MPI_Comm)context->comm_ctx;
+        assert(-1 != context->comm_ctx);
+        MPI_Comm_split_type(commw, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
+        MPI_Comm_size(comml, &nl);
+        if( 1 < nl ) {
+            /* Hu-ho, double check that our binding is not conflicting with other
+             * local procs */
+            MPI_Comm_rank(comml, &rl);
+            char *myset = NULL, *allsets = NULL;
 
-        if( 0 != hwloc_bitmap_list_asprintf(&myset, context->cpuset_allowed_mask) ) {
-        }
-        int setlen = strlen(myset);
-        int *setlens = NULL;
-        if( 0 == rl ) {
-            setlens = calloc(nl, sizeof(int));
-        }
-        MPI_Gather(&setlen, 1, MPI_INT, setlens, 1, MPI_INT, 0, comml);
-
-        int *displs = NULL;
-        if( 0 == rl ) {
-            displs = calloc(nl, sizeof(int));
-            displs[0] = 0;
-            for( i = 1; i < nl; i++ ) {
-                displs[i] = displs[i-1]+setlens[i-1];
+            if( 0 != hwloc_bitmap_list_asprintf(&myset, context->cpuset_allowed_mask) ) {
             }
-            allsets = calloc(displs[nl-1]+setlens[nl-1], sizeof(char));
-        }
-        MPI_Gatherv(myset, setlen, MPI_CHAR, allsets, setlens, displs, MPI_CHAR, 0, comml);
-        free(myset);
+            int setlen = strlen(myset);
+            int *setlens = NULL;
+            if( 0 == rl ) {
+                setlens = calloc(nl, sizeof(int));
+            }
+            MPI_Gather(&setlen, 1, MPI_INT, setlens, 1, MPI_INT, 0, comml);
 
-        if( 0 == rl ) {
-            int notgood = false;
-            for( i = 1; i < nl; i++ ) {
-                hwloc_bitmap_t other = hwloc_bitmap_alloc();
-                hwloc_bitmap_list_sscanf(other, &allsets[displs[i]]);
-                if(hwloc_bitmap_intersects(context->cpuset_allowed_mask, other)) {
-                    notgood = true;
+            int *displs = NULL;
+            if( 0 == rl ) {
+                displs = calloc(nl, sizeof(int));
+                displs[0] = 0;
+                for( i = 1; i < nl; i++ ) {
+                    displs[i] = displs[i-1]+setlens[i-1];
                 }
-                hwloc_bitmap_free(other);
+                allsets = calloc(displs[nl-1]+setlens[nl-1], sizeof(char));
             }
-            if( notgood ) {
-                parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                               "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
-                               "\tThis is often unintentional, and will perform poorly.\n"
-                               "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
-                               "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
-                               "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
+            MPI_Gatherv(myset, setlen, MPI_CHAR, allsets, setlens, displs, MPI_CHAR, 0, comml);
+            free(myset);
+
+            if( 0 == rl ) {
+                int notgood = false;
+                for( i = 1; i < nl; i++ ) {
+                    hwloc_bitmap_t other = hwloc_bitmap_alloc();
+                    hwloc_bitmap_list_sscanf(other, &allsets[displs[i]]);
+                    if(hwloc_bitmap_intersects(context->cpuset_allowed_mask, other)) {
+                        notgood = true;
+                    }
+                    hwloc_bitmap_free(other);
+                }
+                if( notgood ) {
+                    parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                                   "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
+                                    "\tThis is often unintentional, and will perform poorly.\n"
+                                   "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
+                                   "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
+                                   "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
+                }
+                free(setlens);
+                free(allsets);
+                free(displs);
             }
-            free(setlens);
-            free(allsets);
-            free(displs);
         }
     }
     return PARSEC_SUCCESS;
@@ -2887,7 +2881,17 @@ int parsec_add_fetch_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks )
     return tp->tdm.module->taskpool_addto_runtime_actions(tp, nb_tasks);
 }
 
+/**
+ * The following two accessors are necessary to provide access to the
+ * static TLS parsec_tls_execution_stream outside this file. This access
+ * includes user code (which should however not be allowed to change it).
+ */
 parsec_execution_stream_t *parsec_my_execution_stream(void)
 {
     return (parsec_execution_stream_t*)PARSEC_TLS_GET_SPECIFIC(parsec_tls_execution_stream);
+}
+
+void parsec_set_my_execution_stream(parsec_execution_stream_t *es)
+{
+    PARSEC_TLS_SET_SPECIFIC(parsec_tls_execution_stream, es);
 }

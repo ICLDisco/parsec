@@ -39,7 +39,7 @@ BEGIN_C_DECLS
  */
 typedef volatile uint32_t parsec_atomic_rwlock_t;
 
-#define PARSEC_RWLOCK_UNLOCKED 0
+#define PARSEC_RWLOCK_UNLOCKED { 0 }
 
 #elif PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_TICKET
 
@@ -54,7 +54,7 @@ typedef volatile struct parsec_atomic_rwlock_s {
     int32_t wout;   /**< How many writers left (compared only to rin read values with equal) */
 } parsec_atomic_rwlock_t;
 
-#define PARSEC_RWLOCK_UNLOCKED 0, 0, 0, 0
+#define PARSEC_RWLOCK_UNLOCKED { 0, 0, 0, 0 }
 
 #elif PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_2LOCKS
 
@@ -82,9 +82,9 @@ typedef struct parsec_atomic_rwlock_s {
 } parsec_atomic_rwlock_t;
 
 #if defined(PARSEC_DEBUG_PARANOID)
-#define PARSEC_RWLOCK_UNLOCKED {PARSEC_ATOMIC_UNLOCKED}, {PARSEC_LOCK_UNLOCK}, 0, 0,
+#define PARSEC_RWLOCK_UNLOCKED { PARSEC_ATOMIC_UNLOCKED, PARSEC_ATOMIC_UNLOCKED, 0, 0 }
 #else
-#define PARSEC_RWLOCK_UNLOCKED {PARSEC_ATOMIC_UNLOCKED}, {PARSEC_LOCK_UNLOCK}, 0
+#define PARSEC_RWLOCK_UNLOCKED { PARSEC_ATOMIC_UNLOCKED, PARSEC_ATOMIC_UNLOCKED, 0 }
 #endif
 
 #elif PARSEC_RWLOCK_IMPL == PARSEC_RWLOCK_IMPL_MYTICKET
@@ -107,7 +107,7 @@ typedef volatile union parsec_atomic_rwlock_u {
     } fields;
 } parsec_atomic_rwlock_t;
 
-#define PARSEC_RWLOCK_UNLOCKED 0, {0, 0, 0, 0}
+#define PARSEC_RWLOCK_UNLOCKED { .atomic_word = 0 }
 
 #else
 #error "NO RWLOCK"

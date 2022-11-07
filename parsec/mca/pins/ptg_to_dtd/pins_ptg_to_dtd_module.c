@@ -152,6 +152,7 @@ static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
     parsec_dtd_data_collection_init( __dc );
     dtd_global_deque = PARSEC_OBJ_NEW(parsec_list_t);
     copy_chores(ptg_tp, __dtd_taskpool);
+    /* Transfer the completion callback from the PTG taskpool to the DTD taskpool */
     {
         parsec_event_cb_t lfct = NULL;
         void* ldata = NULL;

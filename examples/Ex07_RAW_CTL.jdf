@@ -4,7 +4,7 @@ extern "C" %{
  * This example illustrates the Read After Write problem that might happen when anti-dependencies are present in the code
  * Each process broadcast an information to NB/2 tasks, and to a local task that updates the information.
  *
- * @version 3.0
+ * @version 4.0
  * @email parsec-users@icl.utk.edu
  *
  */

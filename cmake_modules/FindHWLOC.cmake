@@ -17,7 +17,7 @@
 #  PARSEC_HAVE_HWLOC_CACHE_ATTR - new API, older versions don't have it
 #  PARSEC_HAVE_HWLOC_OBJ_PU - new API, older versions don't have it
 #
-#  HWLOC::HWLOC interface library target
+#  hwloc interface library target
 ##########
 
 include(CheckStructHasMember)
@@ -72,13 +72,14 @@ if(HWLOC_FOUND)
 
   #===============================================================================
   # Import Target ================================================================
-  if(NOT TARGET HWLOC::HWLOC)
-    add_library(HWLOC::HWLOC INTERFACE IMPORTED)
-  endif(NOT TARGET HWLOC::HWLOC)
+  if(NOT TARGET hwloc)
+    add_library(hwloc INTERFACE IMPORTED)
+  endif(NOT TARGET hwloc)
 
-  set_property(TARGET HWLOC::HWLOC PROPERTY INTERFACE_LINK_LIBRARIES "${HWLOC_LIBRARY}")
-  set_property(TARGET HWLOC::HWLOC PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${HWLOC_INCLUDE_DIR}")
-  set_property(TARGET HWLOC::HWLOC PROPERTY INTERFACE_COMPILE_OPTIONS "${HWLOC_DEFINITIONS}")
+  set_property(TARGET hwloc PROPERTY INTERFACE_LINK_LIBRARIES "${PC_HWLOC_LIB}")
+  set_property(TARGET hwloc APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${HWLOC_LIBRARY}")
+  set_property(TARGET hwloc PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${HWLOC_INCLUDE_DIR}")
+  set_property(TARGET hwloc PROPERTY INTERFACE_COMPILE_OPTIONS "${HWLOC_DEFINITIONS}")
   #===============================================================================
 
 else(HWLOC_FOUND)

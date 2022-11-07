@@ -24,6 +24,7 @@
 
 static void parsec_termdet_user_trigger_monitor_taskpool(parsec_taskpool_t *tp,
                                                          parsec_termdet_termination_detected_function_t cb);
+static void parsec_termdet_user_trigger_unmonitor_taskpool(parsec_taskpool_t *tp);
 static parsec_termdet_taskpool_state_t parsec_termdet_user_trigger_taskpool_state(parsec_taskpool_t *tp);
 static int parsec_termdet_user_trigger_taskpool_ready(parsec_taskpool_t *tp);
 static int parsec_termdet_user_trigger_taskpool_set_nb_tasks(parsec_taskpool_t *tp, int v);
@@ -51,6 +52,7 @@ const parsec_termdet_module_t parsec_termdet_user_trigger_module = {
     &parsec_termdet_user_trigger_component,
     {
         parsec_termdet_user_trigger_monitor_taskpool,
+        parsec_termdet_user_trigger_unmonitor_taskpool,
         parsec_termdet_user_trigger_taskpool_state,
         parsec_termdet_user_trigger_taskpool_ready,
         parsec_termdet_user_trigger_taskpool_addto_nb_tasks,
@@ -71,13 +73,10 @@ const parsec_termdet_module_t parsec_termdet_user_trigger_module = {
  * until they know the root */
 #define PARSEC_TERMDET_USER_TRIGGER_UNKNOWN_RANK (-1)
 
-/* In order to garbage collect when completing, and still differentiate between
- * terminated and not_monitored, we set the taskpool monitor to this constant after
- * detecting the termination. */
-#define PARSEC_TERMDET_USER_TRIGGER_TERMINATED ((void*)(0x1))
 typedef enum {
     PARSEC_TERMDET_USER_TRIGGER_NOT_READY,
-    PARSEC_TERMDET_USER_TRIGGER_BUSY
+    PARSEC_TERMDET_USER_TRIGGER_BUSY,
+    PARSEC_TERMDET_USER_TRIGGER_TERMINATED
 } parsec_termdet_user_trigger_state_t;
 
 typedef struct parsec_termdet_user_trigger_monitor_s {
@@ -95,8 +94,9 @@ static int parsec_termdet_user_trigger_msg_dispatch_taskpool(parsec_taskpool_t *
     parsec_termdet_user_trigger_msg_t *ut_msg = (parsec_termdet_user_trigger_msg_t *)msg;
     parsec_termdet_user_trigger_monitor_t *monitor;
 
-    assert((NULL != tp->tdm.monitor) && (PARSEC_TERMDET_USER_TRIGGER_TERMINATED != tp->tdm.monitor));
+    assert(NULL != tp->tdm.monitor);
     monitor = (parsec_termdet_user_trigger_monitor_t*)tp->tdm.monitor;
+    assert(PARSEC_TERMDET_USER_TRIGGER_TERMINATED != monitor->state);
     assert(PARSEC_TERMDET_USER_TRIGGER_UNKNOWN_RANK == monitor->root);
 
     (void)size;
@@ -121,7 +121,7 @@ int parsec_termdet_user_trigger_msg_dispatch(parsec_comm_engine_t *ce, parsec_ce
     parsec_termdet_user_trigger_msg_t *ut_msg = (parsec_termdet_user_trigger_msg_t*)msg;
     parsec_taskpool_t *tp = parsec_taskpool_lookup(ut_msg->tp_id);
 
-    assert((NULL == tp) || (PARSEC_TERMDET_USER_TRIGGER_TERMINATED != tp->tdm.monitor));
+    assert((NULL == tp) || (PARSEC_TERMDET_USER_TRIGGER_TERMINATED != ((parsec_termdet_user_trigger_monitor_t *)tp->tdm.monitor)->state));
 
     if( (NULL == tp) || (NULL == tp->tdm.monitor) ||
         (((parsec_termdet_user_trigger_monitor_t*)tp->tdm.monitor)->state == PARSEC_TERMDET_USER_TRIGGER_NOT_READY) ) {
@@ -165,17 +165,31 @@ static void parsec_termdet_user_trigger_monitor_taskpool(parsec_taskpool_t *tp,
     tp->nb_tasks     = PARSEC_UNDETERMINED_NB_TASKS;
 }
 
+static void parsec_termdet_user_trigger_unmonitor_taskpool(parsec_taskpool_t *tp)
+{
+    parsec_termdet_user_trigger_monitor_t *monitor;
+    assert(&parsec_termdet_user_trigger_module.module == tp->tdm.module);
+    monitor = (parsec_termdet_user_trigger_monitor_t *)tp->tdm.monitor;
+    assert(NULL != monitor);
+    assert(monitor->state == PARSEC_TERMDET_USER_TRIGGER_TERMINATED);
+    free(tp->tdm.monitor);
+    tp->tdm.monitor = NULL;
+    tp->tdm.module   = NULL;
+    tp->tdm.callback = NULL;
+}
+
+
 static parsec_termdet_taskpool_state_t parsec_termdet_user_trigger_taskpool_state(parsec_taskpool_t *tp)
 {
     if( tp->tdm.module == NULL )
         return PARSEC_TERM_TP_NOT_MONITORED;
     assert(tp->tdm.module == &parsec_termdet_user_trigger_module.module);
-    if( tp->tdm.monitor == PARSEC_TERMDET_USER_TRIGGER_TERMINATED )
-        return PARSEC_TERM_TP_TERMINATED;
     if( ((parsec_termdet_user_trigger_monitor_t *)tp->tdm.monitor)->state == PARSEC_TERMDET_USER_TRIGGER_BUSY )
         return PARSEC_TERM_TP_BUSY;
     if( ((parsec_termdet_user_trigger_monitor_t *)tp->tdm.monitor)->state == PARSEC_TERMDET_USER_TRIGGER_NOT_READY )
         return PARSEC_TERM_TP_NOT_READY;
+    if( ((parsec_termdet_user_trigger_monitor_t *)tp->tdm.monitor)->state == PARSEC_TERMDET_USER_TRIGGER_TERMINATED )
+        return PARSEC_TERM_TP_TERMINATED;
     assert(0);
     return -1;
 }
@@ -234,7 +248,8 @@ static void parsec_termdet_signal_termination(parsec_taskpool_t *tp)
 {
     parsec_termdet_user_trigger_monitor_t *monitor = (parsec_termdet_user_trigger_monitor_t *)tp->tdm.monitor;
     parsec_termdet_user_trigger_msg_t msg;
-    tp->tdm.monitor = PARSEC_TERMDET_USER_TRIGGER_TERMINATED;
+
+    monitor->state = PARSEC_TERMDET_USER_TRIGGER_TERMINATED;
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-USER_TRIGGER:\tBUSY -> TERMINATED. Broadcast detection");
 
     msg.tp_id = tp->taskpool_id;
@@ -252,7 +267,6 @@ static void parsec_termdet_signal_termination(parsec_taskpool_t *tp)
                           sizeof(parsec_termdet_user_trigger_msg_t));
     }
 
-    free(monitor);
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-USER_TRIGGER:\tcall callback");
     tp->tdm.callback(tp);
 }
@@ -301,7 +315,6 @@ static int parsec_termdet_user_trigger_outgoing_message_start(parsec_taskpool_t 
 {
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_user_trigger_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_USER_TRIGGER_TERMINATED );
     /* Nothing to do with the message */
     (void)dst_rank;
     (void)remote_deps;
@@ -316,7 +329,6 @@ static int parsec_termdet_user_trigger_outgoing_message_pack(parsec_taskpool_t *
 {
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_user_trigger_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_USER_TRIGGER_TERMINATED );
     /* No piggybacking */
     (void)dst_rank;
     (void)packed_buffer;
@@ -335,7 +347,6 @@ static int parsec_termdet_user_trigger_incoming_message_start(parsec_taskpool_t 
 {
     assert( tp->tdm.module != NULL );
     assert( tp->tdm.module == &parsec_termdet_user_trigger_module.module );
-    assert( tp->tdm.monitor != PARSEC_TERMDET_USER_TRIGGER_TERMINATED );
     /* No piggybacking */
     (void)src_rank;
     (void)packed_buffer;

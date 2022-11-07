@@ -111,7 +111,8 @@ typedef void (*parsec_destruct_fn_t)(parsec_taskpool_t* tp);
 #define PARSEC_TASKPOOL_TYPE_PTG       0x0001
 #define PARSEC_TASKPOOL_TYPE_COMPOUND  0x0002
 #define PARSEC_TASKPOOL_TYPE_DTD       0x0004
-    
+#define PARSEC_TASKPOOL_TYPE_TTG       0x0008
+
 /**
  * @brief a PaRSEC taskpool represents an a collection of tasks (with or without their dependencies).
  *        as provided by the Domain Specific Language.
@@ -346,24 +347,36 @@ parsec_dependency_t *parsec_default_find_deps(const parsec_taskpool_t *tp,
 parsec_dependency_t *parsec_hash_find_deps(const parsec_taskpool_t *tp,
                                            parsec_execution_stream_t *es,
                                            const parsec_task_t* task);
-typedef int (parsec_update_dependency_fn_t)(parsec_taskpool_t *tp,
-                                            const parsec_task_t* restrict task,
+typedef int (parsec_update_dependency_fn_t)(parsec_taskpool_t* tp,
+                                            const parsec_task_t* PARSEC_RESTRICT task,
                                             parsec_dependency_t *deps,
-                                            const parsec_task_t* restrict origin,
-                                            const parsec_flow_t* restrict origin_flow,
-                                            const parsec_flow_t* restrict dest_flow);
+                                            const parsec_task_t* PARSEC_RESTRICT origin,
+                                            const parsec_flow_t* PARSEC_RESTRICT origin_flow,
+                                            const parsec_flow_t* PARSEC_RESTRICT dest_flow);
 int parsec_update_deps_with_mask(parsec_taskpool_t *tp,
-                                 const parsec_task_t* restrict task,
+                                 const parsec_task_t* PARSEC_RESTRICT task,
                                  parsec_dependency_t *deps,
-                                 const parsec_task_t* restrict origin,
-                                 const parsec_flow_t* restrict origin_flow,
-                                 const parsec_flow_t* restrict dest_flow);
+                                 const parsec_task_t* PARSEC_RESTRICT origin,
+                                 const parsec_flow_t* PARSEC_RESTRICT origin_flow,
+                                 const parsec_flow_t* PARSEC_RESTRICT dest_flow);
+int parsec_update_deps_with_mask_count_task(parsec_taskpool_t *tp,
+                                            const parsec_task_t* task,
+                                            parsec_dependency_t *deps,
+                                            const parsec_task_t* origin,
+                                            const parsec_flow_t* origin_flow,
+                                            const parsec_flow_t* dest_flow);
 int parsec_update_deps_with_counter(parsec_taskpool_t *tp,
-                                    const parsec_task_t* restrict task,
+                                    const parsec_task_t* PARSEC_RESTRICT task,
                                     parsec_dependency_t *deps,
-                                    const parsec_task_t* restrict origin,
-                                    const parsec_flow_t* restrict origin_flow,
-                                    const parsec_flow_t* restrict dest_flow);
+                                    const parsec_task_t* PARSEC_RESTRICT origin,
+                                    const parsec_flow_t* PARSEC_RESTRICT origin_flow,
+                                    const parsec_flow_t* PARSEC_RESTRICT dest_flow);
+int parsec_update_deps_with_counter_count_task(parsec_taskpool_t *tp,
+                                               const parsec_task_t* PARSEC_RESTRICT task,
+                                               parsec_dependency_t *deps,
+                                               const parsec_task_t* PARSEC_RESTRICT origin,
+                                               const parsec_flow_t* PARSEC_RESTRICT origin_flow,
+                                               const parsec_flow_t* PARSEC_RESTRICT dest_flow);
     
 typedef struct __parsec_internal_incarnation_s {
     int32_t                     type;
@@ -437,7 +450,7 @@ struct parsec_data_pair_s {
 };
 
 /**
- * Global configuration variables controling the startup mechanism
+ * Global configuration variables controlling the startup mechanism
  * and directly the startup speed.
  */
 PARSEC_DECLSPEC extern size_t parsec_task_startup_iter;
@@ -601,7 +614,7 @@ parsec_release_dep_fct(struct parsec_execution_stream_s *es,
                        void *param);
 
 /**
- * Function to create reshaping promises during iterate_succesors.
+ * Function to create reshaping promises during iterate_successors.
  */
 parsec_ontask_iterate_t
 parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
@@ -655,6 +668,15 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
                                       data_repo_t* target_repo,
                                       parsec_data_copy_t* target_dc,
                                       data_repo_entry_t* target_repo_entry);
+
+/* Set internal TLS variable parsec_tls_execution_stream */
+void parsec_set_my_execution_stream(parsec_execution_stream_t *es);
+
+/* Validate the process binding when multiple processes are running
+ * on the same node.
+ */
+int parsec_check_overlapping_binding(parsec_context_t *context);
+int remote_dep_mpi_on(parsec_context_t* context);
 
 #define parsec_execution_context_priority_comparator offsetof(parsec_task_t, priority)
 

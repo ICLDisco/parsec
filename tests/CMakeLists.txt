@@ -14,6 +14,12 @@ add_test(parsec_build_tests "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --tar
 # Unless the option NODEFAULTBUILD is specified, it
 # adds this target in the parsec_build_tests target.
 #
+# Nota Bene: the target defined is added to the generic
+#  'all' target only if PaRSEC is the root project, otherwise
+#  the tests are defined, but not added to 'all'. Tests
+#  that are not NODEFAULTBUILD are still added to the 
+#  parsec_build_tests target.
+#
 # \argn: a list of optional arguments
 # \arg:first_arg language used to link this executable
 # \arg:second_arg target name for the executable
@@ -27,7 +33,11 @@ function(parsec_addtest_executable lang target)
   set(options NODEFAULTBUILD)
   set(multiValueArgs SOURCES)
   cmake_parse_arguments(PARSEC_ADDTEST "${options}" "" "${multiValueArgs}" ${ARGN})
-  add_executable(${target} ${PARSEC_ADDTEST_SOURCES})
+  if("${CMAKE_SOURCE_DIR}" STREQUAL "${PROJECT_SOURCE_DIR}")
+    add_executable(${target} ${PARSEC_ADDTEST_SOURCES})
+  else()
+    add_executable(${target} EXCLUDE_FROM_ALL ${PARSEC_ADDTEST_SOURCES})
+  endif()
   set_target_properties(${target} PROPERTIES LINKER_LANGUAGE ${lang})
   target_link_libraries(${target} PRIVATE parsec)
   if(NOT ${PARSEC_ADDTEST_NODEFAULTBUILD})
