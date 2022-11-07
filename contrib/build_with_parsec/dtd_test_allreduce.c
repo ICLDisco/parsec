@@ -120,25 +120,27 @@ int main(int argc, char **argv)
     nt = world*10; /* total no. of tiles */
     verbose = 0;
 
-    i = 0;
-    while(NULL != argv[i]) {
+    int pargc = 0; char **pargv = NULL;
+    for( i = 1; i < argc; i++) {
+        if( 0 == strncmp(argv[i], "--", 3) ) {
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
+        }
         if( 0 == strncmp(argv[i], "-n=", 3) ) {
             nt = strtol(argv[i]+3, NULL, 10);
             if( 0 >= nt ) nt = world*10;  /* set to default value */
-            goto move_and_continue;
+            continue;
         }
         if( 0 == strncmp(argv[i], "-v", 2) ) {
             verbose = 1;
-            goto move_and_continue;
+            continue;
         }
         i++;  /* skip this one */
         continue;
-    move_and_continue:
-        memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
-        argc -= 1;
     }
 
-    parsec = parsec_init( cores, &argc, &argv );
+    parsec = parsec_init( cores, &pargc, &pargv );
     if( NULL == parsec ) {
         return -1;
     }
