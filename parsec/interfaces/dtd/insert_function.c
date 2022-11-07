@@ -227,7 +227,7 @@ parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp)
         should_dequeue = 1;
         parsec_list_nolock_remove(tp->context->taskpool_list,
                                   (parsec_list_item_t *)tp);
-        parsec_list_item_singleton((parsec_list_item_t*)tp);
+        PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t*)tp);
     }
     parsec_list_unlock(tp->context->taskpool_list);
     if( should_dequeue ) {
