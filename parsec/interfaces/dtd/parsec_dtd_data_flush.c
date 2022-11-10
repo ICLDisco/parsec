@@ -126,9 +126,6 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
         assert(0);
     }
 
-    /* Retaining runtime_task */
-    parsec_taskpool_update_runtime_nbtask( this_task->super.taskpool, 1 );
-
     /* Retaining every remote_task */
     if( parsec_dtd_task_is_remote( this_task ) ) {
         parsec_dtd_remote_task_retain( this_task );

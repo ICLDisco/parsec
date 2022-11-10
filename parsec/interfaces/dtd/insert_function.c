@@ -79,9 +79,6 @@ int hashtable_trace_keyout = -1;
 
 extern parsec_sched_module_t *parsec_current_scheduler;
 
-/* Global mempool for all the parsec DTD taskpools that will be created for a run */
-parsec_mempool_t *parsec_dtd_taskpool_mempool = NULL;
-
 /* Global mempool for all tiles */
 parsec_mempool_t *parsec_dtd_tile_mempool = NULL;
 
@@ -203,50 +200,40 @@ inline int parsec_dtd_task_is_local(parsec_dtd_task_t *task)
 inline int parsec_dtd_task_is_remote(parsec_dtd_task_t *task)
 { return !parsec_dtd_task_is_local(task); }
 
-static void
-parsec_detach_dtd_taskpool_from_context(parsec_taskpool_t *tp)
+
+
+static int parsec_dtd_taskpool_enter_wait(parsec_taskpool_t* tp, void*_)
 {
     assert(tp != NULL);
-    assert(((parsec_dtd_taskpool_t *)tp)->enqueue_flag);
-    parsec_taskpool_update_runtime_nbtask(tp, -1);
+    assert(NULL != tp->tdm.module);
+    (void)_;
+    tp->tdm.module->taskpool_ready(tp);
+    return PARSEC_SUCCESS;
 }
 
-int
-parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp)
+static int parsec_dtd_taskpool_leave_wait(parsec_taskpool_t* tp, void*_)
 {
-    int should_dequeue = 0;
-    if( NULL == tp->context ) {
-        return PARSEC_ERR_NOT_SUPPORTED;
-    }
-    /* If the taskpool is attached to a context then we better find it
-     * taskpool_list.
-     */
-    parsec_list_lock(tp->context->taskpool_list);
-    if( parsec_list_nolock_contains(tp->context->taskpool_list,
-                                    (parsec_list_item_t *)tp)) {
-        should_dequeue = 1;
-        parsec_list_nolock_remove(tp->context->taskpool_list,
-                                  (parsec_list_item_t *)tp);
-        parsec_list_item_singleton((parsec_list_item_t*)tp);
-    }
-    parsec_list_unlock(tp->context->taskpool_list);
-    if( should_dequeue ) {
-        parsec_detach_dtd_taskpool_from_context(tp);
-        return PARSEC_SUCCESS;
-    }
-    return PARSEC_ERR_NOT_FOUND;
+    assert(tp != NULL);
+    assert(NULL != tp->tdm.module);
+    (void)_;
+
+    assert(tp->taskpool_type == PARSEC_TASKPOOL_TYPE_DTD);
+
+    /* Reset termination detector, so we can start adding tasks again */
+    tp->tdm.module->unmonitor_taskpool(tp);
+    parsec_termdet_open_module(tp, "local");
+    tp->tdm.module->monitor_taskpool(tp, parsec_taskpool_termination_detected);
+    tp->tdm.module->taskpool_set_nb_tasks(tp, 0);
+    tp->tdm.module->taskpool_set_runtime_actions(tp, 0); 
+    
+    /* We are re-attached to the context */
+    parsec_atomic_fetch_inc_int32(&tp->context->active_taskpools);
+    return PARSEC_SUCCESS;
 }
 
-void
-parsec_detach_all_dtd_taskpool_from_context(parsec_context_t *context)
+int parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp)
 {
-    if( NULL != context->taskpool_list ) {
-        parsec_taskpool_t *tp;
-        while( NULL != (tp = (parsec_taskpool_t *)parsec_list_pop_front(context->taskpool_list))) {
-            parsec_detach_dtd_taskpool_from_context(tp);
-            PARSEC_LIST_ITEM_SINGLETON(tp);
-        }
-    }
+    return parsec_dtd_taskpool_enter_wait(tp, NULL);
 }
 
 /* enqueue wrapper for dtd */
@@ -257,20 +244,9 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
 
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     parsec_dtd_param_t flush_param;
-    tp->tdm.module->taskpool_set_runtime_actions(tp, 1);    /* For the future tasks that will be inserted */
-    tp->tdm.module->taskpool_set_nb_tasks(tp, 1); /* For the bounded window, starting with +1 task */
-    dtd_tp->enqueue_flag    = 1;
-
-    parsec_dtd_taskpool_retain(tp);
 
     parsec_taskpool_enable(tp, NULL, NULL, NULL,
                            !!(tp->context->nb_nodes > 1));
-
-    /* Attaching the reference of this taskpool to the parsec context */
-    if( NULL == tp->context->taskpool_list ) {
-        tp->context->taskpool_list = PARSEC_OBJ_NEW(parsec_list_t);
-    }
-    parsec_list_push_back(tp->context->taskpool_list, (parsec_list_item_t *)tp);
 
     /* The first taskclass of every taskpool is the flush taskclass */
     parsec_dtd_task_class_t *data_flush_tc;
@@ -380,13 +356,25 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 {
     uint32_t i;
 
+    parsec_dtd_data_collection_fini(&tp->new_tile_dc);
+    parsec_data_collection_destroy(&tp->new_tile_dc);
+
 #if defined(PARSEC_PROF_TRACE)
     free((void *)tp->super.profiling_array);
 #endif /* defined(PARSEC_PROF_TRACE) */
 
-    if(NULL != tp->super.tdm.module) { tp->super.tdm.module->unmonitor_taskpool(&tp->super); }
+    parsec_context_remove_taskpool(&tp->super);
+
+    /* The taskpool is just out of a wait and is ready to receive new tasks at this time, so it has a termination detector */
+    assert(NULL != tp->super.tdm.module);
+    /* The taskpool is NOT READY, because every time we leave wait(), we reinitialize the termination detector. */
+    assert( tp->super.tdm.module->taskpool_state(&tp->super) == PARSEC_TERM_TP_NOT_READY );
+    /* But there should be 0 event on this taskpool at this time */
+    assert( tp->super.nb_pending_actions == 0 && tp->super.nb_tasks == 0);
+    /* So, we can terminate this termination detector by stating we are ready */
+    tp->super.tdm.module->taskpool_ready(&tp->super);
+    /* taskpool_unregister will unmonitor this taskpool */
     parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
-    parsec_mempool_free( parsec_dtd_taskpool_mempool, tp );
 
     /* Destroy the data repositories for this object */
     for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
@@ -473,8 +461,6 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_dtd_taskpool_t, parsec_taskpool_t,
 static void
 parsec_dtd_lazy_init(void)
 {
-    parsec_dtd_taskpool_t *tp;
-
     (void)parsec_mca_param_reg_int_name("dtd", "debug_verbose",
                                         "This param indicates the verbosity level of separate dtd output stream and "
                                         "also determines if we will be using a separate output stream for DTD or not\n"
@@ -528,15 +514,6 @@ parsec_dtd_lazy_init(void)
         parsec_dtd_debug_output = parsec_debug_output;
     }
 
-    parsec_dtd_taskpool_mempool = (parsec_mempool_t *)malloc(sizeof(parsec_mempool_t));
-    parsec_mempool_construct(parsec_dtd_taskpool_mempool,
-                             PARSEC_OBJ_CLASS(parsec_dtd_taskpool_t), sizeof(parsec_dtd_taskpool_t),
-                             offsetof(parsec_dtd_taskpool_t, mempool_owner),
-                             1/* no. of threads*/ );
-
-    tp = (parsec_dtd_taskpool_t *)parsec_thread_mempool_allocate(parsec_dtd_taskpool_mempool->thread_mempools);
-    parsec_mempool_free(parsec_dtd_taskpool_mempool, tp);
-
     /* Initializing the tile mempool and attaching it to the tp */
     parsec_dtd_tile_mempool = (parsec_mempool_t*) malloc (sizeof(parsec_mempool_t));
     parsec_mempool_construct( parsec_dtd_tile_mempool,
@@ -555,14 +532,8 @@ parsec_dtd_lazy_init(void)
  */
 void parsec_dtd_fini(void)
 {
-#if defined(PARSEC_DEBUG_PARANOID)
-    assert(parsec_dtd_taskpool_mempool != NULL);
-#endif
     parsec_mempool_destruct( parsec_dtd_tile_mempool );
     free( parsec_dtd_tile_mempool );
-
-    parsec_mempool_destruct(parsec_dtd_taskpool_mempool);
-    free(parsec_dtd_taskpool_mempool);
 
     if( -1 != parsec_dtd_debug_verbose ) {
         parsec_output_close(parsec_dtd_debug_output);
@@ -640,13 +611,6 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
             (void)rc;
         }
     }
-}
-
-/* This function only waits until all local tasks are done */
-static void
-parsec_taskpool_wait_func(parsec_taskpool_t *tp)
-{
-    parsec_execute_and_come_back(tp, 1);
 }
 
 /* **************************************************************************** */
@@ -1317,22 +1281,6 @@ static inline parsec_key_t DTD_make_key_identity(const parsec_taskpool_t *tp, co
     return (parsec_key_t)(uintptr_t)t[0].value;
 }
 
-int parsec_dtd_update_runtime_task( parsec_taskpool_t *tp, int32_t count )
-{
-    int remaining = tp->tdm.module->taskpool_addto_runtime_actions( tp, count );
-    parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-
-    if( 1 == remaining && 1 == tp->nb_tasks ) {
-        remaining = tp->tdm.module->taskpool_addto_nb_tasks( tp, -1 );
-        assert( 0 == remaining );
-        dtd_tp->enqueue_flag = 0;
-    }
-
-    if(tp->tdm.module->taskpool_state(tp) == PARSEC_TERM_TP_TERMINATED)
-        parsec_dtd_taskpool_release( tp ); /* we're done in all cases */
-    return remaining;
-}
-
 /* **************************************************************************** */
 /**
  * Initializes all the needed members and returns the DTD taskpool
@@ -1356,24 +1304,23 @@ parsec_dtd_taskpool_new(void)
     parsec_dtd_taskpool_t *__tp;
     int i;
 
-#if defined(PARSEC_DEBUG_PARANOID)
-    assert(parsec_dtd_taskpool_mempool != NULL);
-#endif
-    __tp = (parsec_dtd_taskpool_t *)parsec_thread_mempool_allocate(parsec_dtd_taskpool_mempool->thread_mempools);
+    __tp = PARSEC_OBJ_NEW(parsec_dtd_taskpool_t);
 
     PARSEC_DEBUG_VERBOSE(parsec_dtd_dump_traversal_info, parsec_dtd_debug_output,
                          "\n\n------ New Taskpool (%p)-----\n\n\n", __tp);
-
-    parsec_dtd_taskpool_retain((parsec_taskpool_t *)__tp);
 
     __tp->super.context            = NULL;
     __tp->super.on_enqueue         = parsec_dtd_enqueue_taskpool;
     __tp->super.on_enqueue_data    = NULL;
     __tp->super.on_complete        = NULL;
     __tp->super.on_complete_data   = NULL;
+    __tp->super.on_enter_wait      = parsec_dtd_taskpool_enter_wait;
+    __tp->super.on_enter_wait_data = NULL;
+    __tp->super.on_leave_wait      = parsec_dtd_taskpool_leave_wait;
+    __tp->super.on_leave_wait_data = NULL;
     __tp->super.taskpool_type      = PARSEC_TASKPOOL_TYPE_DTD;  /* Indicating this is a taskpool for dtd tasks */
     __tp->super.nb_task_classes    = 0;
-    __tp->super.update_nb_runtime_task = parsec_dtd_update_runtime_task;
+    __tp->super.update_nb_runtime_task = parsec_add_fetch_runtime_task;
 
     __tp->super.devices_index_mask = 0;
     for( i = 0; i < (int)parsec_nb_devices; i++ ) {
@@ -1388,7 +1335,6 @@ parsec_dtd_taskpool_new(void)
         __tp->super.task_classes_array[i] = NULL;
     }
 
-    __tp->wait_func = parsec_taskpool_wait_func;
     __tp->task_id = 0;
     __tp->task_window_size = 1;
     __tp->task_threshold_size = parsec_dtd_threshold_size;
@@ -1404,13 +1350,11 @@ parsec_dtd_taskpool_new(void)
 
     parsec_termdet_open_module(&__tp->super, "local");
     __tp->super.tdm.module->monitor_taskpool(&__tp->super, parsec_taskpool_termination_detected);
-    __tp->super.tdm.module->taskpool_set_nb_tasks(&__tp->super, PARSEC_RUNTIME_RESERVED_NB_TASKS);
+    __tp->super.tdm.module->taskpool_set_nb_tasks(&__tp->super, 0);
     __tp->super.tdm.module->taskpool_set_runtime_actions(&__tp->super, 0);
 
     (void)parsec_taskpool_enable((parsec_taskpool_t *)__tp, NULL, NULL, NULL,
                                   __tp->super.nb_pending_actions);
-
-    __tp->super.tdm.module->taskpool_ready(&__tp->super);
 
 #if defined(PARSEC_PROF_TRACE)
     if( parsec_dtd_profile_verbose ) {
@@ -1425,36 +1369,6 @@ parsec_dtd_taskpool_new(void)
 #endif
 
     return (parsec_taskpool_t *)__tp;
-}
-
-/* **************************************************************************** */
-/**
- * Clean up function to clean memory allocated dynamically for the run
- *
- * @param[in,out]   tp
- *                      Pointer to the DTD taskpool
- *
- * @ingroup         DTD_INTERFACE
- */
-void
-parsec_dtd_taskpool_destruct(parsec_taskpool_t *tp)
-{
-    parsec_dtd_taskpool_release(tp);
-}
-
-void
-parsec_dtd_taskpool_retain(parsec_taskpool_t *tp)
-{
-    PARSEC_OBJ_RETAIN(tp);
-}
-
-void
-parsec_dtd_taskpool_release(parsec_taskpool_t *tp)
-{
-    parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-    parsec_dtd_data_collection_fini(&dtd_tp->new_tile_dc);
-    parsec_data_collection_destroy(&dtd_tp->new_tile_dc);
-    PARSEC_OBJ_RELEASE(tp);
 }
 
 /* **************************************************************************** */
@@ -1894,10 +1808,8 @@ parsec_dtd_release_local_task(parsec_dtd_task_t *this_task)
             }
         }
         assert(this_task->super.super.super.obj_reference_count == 1);
-        parsec_taskpool_t *tp = this_task->super.taskpool;
-
         parsec_thread_mempool_free(this_task->mempool_owner, this_task);
-        parsec_taskpool_update_runtime_nbtask(tp, -1);
+// REAZUL        parsec_taskpool_update_runtime_nbtask(tp, -1);
     }
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -1917,6 +1829,7 @@ parsec_dtd_remote_task_retain(parsec_dtd_task_t *this_task)
 {
     parsec_object_t *object = (parsec_object_t *)this_task;
     (void)parsec_atomic_fetch_inc_int32(&object->obj_reference_count);
+    parsec_taskpool_update_runtime_nbtask(this_task->super.taskpool, 1);
 }
 
 void
@@ -2828,7 +2741,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
     parsec_dtd_tile_t *tile = NULL;
 
     /* Retaining runtime_task */
-    parsec_taskpool_update_runtime_nbtask(this_task->super.taskpool, 1);
+//REAZUL    parsec_taskpool_update_runtime_nbtask(this_task->super.taskpool, 1);
 
     /* Retaining every remote_task */
     if( parsec_dtd_task_is_remote(this_task)) {

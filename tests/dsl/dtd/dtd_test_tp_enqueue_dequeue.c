@@ -44,9 +44,6 @@ int parsec_complete_tp_callback(parsec_taskpool_t* tp, void* cb_data)
     rc = __parsec_complete_execution(this_task->taskpool->context->virtual_processes[0]->execution_streams[0],
                                      this_task);
 
-    /* lets dequeue the taskpool of parent task */
-    rc1 = parsec_dtd_dequeue_taskpool(this_task->taskpool);
-    PARSEC_CHECK_ERROR(rc1, "parsec_dtd_dequeue_taskpool");
     return rc;
 }
 
