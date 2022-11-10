@@ -71,7 +71,7 @@ int cuda_set_to_i(parsec_device_gpu_module_t *gpu_device,
 
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
-    assert(cudaSuccess == err);
+    assert(cudaSuccess == err); (void)err;
 
     dtd_test_new_tile_init(dev_data, nb, idx);
 
