@@ -850,25 +850,25 @@ int parsec_mca_device_attach(parsec_context_t* context)
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
     }
 
-    /* By now let's add one device for the CPUs */
+    /* Add the predefined devices: one device for the CPUs */
     {
         parsec_device_cpus = (parsec_device_module_t*)calloc(1, sizeof(parsec_device_module_t));
         parsec_device_cpus->name = "default";
         parsec_device_cpus->type = PARSEC_DEV_CPU;
-        parsec_device_cpus->data_in_array_size = parsec_nb_devices;
-        parsec_device_cpus->data_in_from_device = (uint64_t*)calloc(parsec_device_cpus->data_in_array_size, sizeof(uint64_t));
+        parsec_device_cpus->data_in_array_size = 0;
+        parsec_device_cpus->data_in_from_device = NULL;
         cpu_weights(parsec_device_cpus, nb_total_comp_threads);
         parsec_device_cpus->taskpool_register = device_taskpool_register_static;
         parsec_mca_device_add(context, parsec_device_cpus);
-   }
+    }
 
-    /* By now let's add one device for the recursive kernels */
+    /* and one for the recursive kernels */
     {
         parsec_device_recursive = (parsec_device_module_t*)calloc(1, sizeof(parsec_device_module_t));
         parsec_device_recursive->name = "recursive";
         parsec_device_recursive->type = PARSEC_DEV_RECURSIVE;
-        parsec_device_recursive->data_in_array_size = parsec_nb_devices;
-        parsec_device_recursive->data_in_from_device = (uint64_t*)calloc(parsec_device_recursive->data_in_array_size, sizeof(uint64_t));
+        parsec_device_recursive->data_in_array_size = 0;
+        parsec_device_recursive->data_in_from_device = NULL;
         parsec_device_recursive->device_hweight = parsec_device_cpus->device_hweight;
         parsec_device_recursive->device_tweight = parsec_device_cpus->device_tweight;
         parsec_device_recursive->device_sweight = parsec_device_cpus->device_sweight;
@@ -880,8 +880,6 @@ int parsec_mca_device_attach(parsec_context_t* context)
     for( int i = 0; NULL != (component = (parsec_device_base_component_t*)device_components[i]); i++ ) {
         for( int j = 0; NULL != (module = component->modules[j]); j++ ) {
             if (NULL == module->attach) {
-                module->data_in_array_size = parsec_nb_devices;
-                module->data_in_from_device = (uint64_t*)calloc(module->data_in_array_size, sizeof(uint64_t));
                 parsec_debug_verbose(10, parsec_debug_output, "A device module MUST contain an attach function. Disqualifying %s:%s module",
                                      component->base_version.mca_component_name, module->name);
                 continue;
@@ -892,13 +890,19 @@ int parsec_mca_device_attach(parsec_context_t* context)
                                      component->base_version.mca_component_name, module->name, context);
                 continue;
             }
-            if(0 == module->data_in_array_size) {
-                module->data_in_array_size = parsec_nb_devices;
-                module->data_in_from_device = (uint64_t*)calloc(module->data_in_array_size, sizeof(uint64_t));
-            }
+            module->data_in_array_size = 0;
+            module->data_in_from_device = NULL;
             parsec_debug_verbose(5, parsec_debug_output, "Activated DEVICE module %s:%s on context %p.",
                                  component->base_version.mca_component_name, module->name, context);
         }
+    }
+    /* Now that all the devices have been correctly attached, we can prepare the memory for
+     * the transfer statistics.
+     */
+    for( int i = 0; i < (int)parsec_nb_devices; i++ ) {
+        module = parsec_devices[i];
+        module->data_in_array_size = parsec_nb_devices;
+        module->data_in_from_device = (uint64_t*)calloc(module->data_in_array_size, sizeof(uint64_t));
     }
     return PARSEC_SUCCESS;
 }

@@ -304,7 +304,7 @@ void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream)
 void dump_GPU_state(parsec_device_gpu_module_t* gpu_device)
 {
     int i;
-    uint64_t data_in = 0, data_in_host = 0, data_in_dev = 0;
+    uint64_t data_in, data_in_host, data_in_dev = 0;
 
     data_in = gpu_device->super.data_in_from_device[0];
     data_in_host = gpu_device->super.data_in_from_device[0];
