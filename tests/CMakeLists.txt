@@ -1,5 +1,5 @@
 add_custom_target(parsec_build_tests)
-add_test(parsec_build_tests "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target parsec_build_tests)
+add_test(parsec/build_tests "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target parsec_build_tests)
 
 #! parsec_addtest_executable : this function defines how to
 #    compile an executable that is used in the testings.
@@ -50,7 +50,7 @@ endfunction(parsec_addtest_executable)
 #
 # This function works similarly to add_test, except
 # it will introduce a dependency between the test
-# defined and the parsec_build_tests_test test,
+# defined and the parsec_build_tests test,
 # ensuring (with caveats...) that the executable
 # it depends on is compiled before the test is run.
 #
@@ -65,7 +65,7 @@ function(parsec_addtest_cmd target)
     list(PREPEND ARGV "NAME")
   endif()
   add_test(${ARGV})
-  SET_TESTS_PROPERTIES(${target} PROPERTIES DEPENDS parsec_build_tests_test)
+  SET_TESTS_PROPERTIES(${target} PROPERTIES DEPENDS parsec_build_tests)
 endfunction(parsec_addtest_cmd)
 
 check_function_exists(erand48 PARSEC_HAVE_ERAND48)
