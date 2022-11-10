@@ -273,6 +273,20 @@ void parsec_context_at_fini(parsec_external_fini_cb_t cb, void *data);
 int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* tp);
 
 /**
+ * @brief Detaches a PaRSEC taskpool from the PaRSEC context
+ *
+ * @details
+ * Detaches an execution taskpool from the context it was attached to. The taskpool must be terminated
+ * (i.e. waited upon), and no pending tasks or internal runtime actions can be
+ * pending on the taskpool.
+ *
+ * @param[inout] tp The parsec taskpool to be detached.
+ *
+ * @return PARSEC_SUCCESS If the dequeue operation succeeded.
+ */
+int parsec_context_remove_taskpool( parsec_taskpool_t* tp );
+
+/**
  * @brief Start taskpool that were enqueued into the PaRSEC context
  *
  * @details

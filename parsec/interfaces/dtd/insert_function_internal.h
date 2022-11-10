@@ -235,7 +235,6 @@ struct parsec_dtd_taskpool_s {
     uint8_t                      flow_set_flag[PARSEC_DTD_NB_TASK_CLASSES];
     int64_t                      new_tile_keys;
     parsec_data_collection_t     new_tile_dc;
-    parsec_taskpool_wait_t      *wait_func;
     parsec_mempool_t            *hash_table_bucket_mempool;
     parsec_hash_table_t         *task_hash_table;
     parsec_hash_table_t         *function_h_table;
@@ -281,18 +280,6 @@ typedef struct parsec_dtd_common_args_s {
 } parsec_dtd_common_args_t;
 
 /* Function prototypes */
-void
-parsec_detach_all_dtd_taskpool_from_context( parsec_context_t *context );
-
-void
-parsec_dtd_taskpool_release( parsec_taskpool_t *tp );
-
-void
-parsec_dtd_taskpool_retain( parsec_taskpool_t *tp );
-
-void
-parsec_dtd_taskpool_destruct( parsec_taskpool_t *tp );
-
 int
 parsec_dtd_enqueue( parsec_taskpool_t *tp, void * );
 

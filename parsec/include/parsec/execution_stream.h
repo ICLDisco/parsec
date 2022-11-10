@@ -107,6 +107,8 @@ struct parsec_vp_s {
 #define PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE 0x0002
 /* The communication substrate supports multithreaded operations. */
 #define PARSEC_CONTEXT_FLAG_COMM_MT        0x0004
+/* The parsec context is being waited upon */
+#define PARSEC_CONTEXT_FLAG_WAITING        0x0008
 
 /**
  * All virtual processes belong to a single physical
