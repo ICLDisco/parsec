@@ -1701,8 +1701,8 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
         cb_data->deps  = deps;
         cb_data->k     = k;
 
-        uint64_t event_id = remote_dep_mpi_profiling_event_id();
 #if defined(PARSEC_PROF_TRACE)
+        uint64_t event_id = remote_dep_mpi_profiling_event_id();
         cb_data->event_id = event_id;
 #endif /* PARSEC_PROF_TRACE */
         TAKE_TIME_WITH_INFO(es->es_profile, MPI_Data_plds_sk, event_id, k,
@@ -2061,8 +2061,8 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
                 receiver_memory_handle,
                 receiver_memory_handle_size );
 
-        uint64_t event_id = remote_dep_mpi_profiling_event_id();
 #if defined(PARSEC_PROF_TRACE)
+        uint64_t event_id = remote_dep_mpi_profiling_event_id();
         callback_data->event_id = event_id;
 #endif /* PARSEC_PROF_TRACE */
 

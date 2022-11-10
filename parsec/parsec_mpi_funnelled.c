@@ -627,7 +627,7 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
 
     /* All internal tags have been registered */
     if(nb_internal_tag == count_internal_tag) {
-        if(tag < 0 || tag >= PARSEC_MAX_REGISTERED_TAGS) {
+        if(tag >= PARSEC_MAX_REGISTERED_TAGS) {
             parsec_warning("Tag is out of range, it has to be between %d - %d\n", 0, PARSEC_MAX_REGISTERED_TAGS);
             return PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
         }

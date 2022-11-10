@@ -172,7 +172,7 @@ static void parsec_termdet_user_trigger_unmonitor_taskpool(parsec_taskpool_t *tp
     monitor = (parsec_termdet_user_trigger_monitor_t *)tp->tdm.monitor;
     assert(NULL != monitor);
     assert(monitor->state == PARSEC_TERMDET_USER_TRIGGER_TERMINATED);
-    free(tp->tdm.monitor);
+    free(monitor);
     tp->tdm.monitor = NULL;
     tp->tdm.module   = NULL;
     tp->tdm.callback = NULL;

@@ -127,7 +127,7 @@ int cuda_memset_task_fn(parsec_device_gpu_module_t *gpu_device,
 
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
-    assert(cudaSuccess == err);
+    assert(cudaSuccess == err); (void)err;
 
     cudaMemsetAsync((void *)dev_data, 0xFF, nb * sizeof(int), cuda_stream->cuda_stream);
     cudaStreamSynchronize(cuda_stream->cuda_stream);
@@ -344,7 +344,7 @@ int test_cuda_memset_and_read(int world, int myrank, parsec_context_t *parsec_co
     parsec_data_key_t key;
     parsec_data_copy_t *parsec_data_copy;
     parsec_data_t *parsec_data;
-    unsigned int *data_ptr;
+    unsigned int *data_ptr = NULL;
 
     for(int i = 0; i < mt; i++) {
         key = A->data_key(A, i, myrank);
@@ -462,7 +462,7 @@ int cuda_read_task_fn(parsec_device_gpu_module_t *gpu_device,
 
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
-    assert(cudaSuccess == err);
+    assert(cudaSuccess == err); (void)err;
 
     int *data_cpy = (int *)malloc(nb * sizeof(int));
 
@@ -507,7 +507,7 @@ int test_cuda_memset_write_read(int world, int myrank, parsec_context_t *parsec_
     parsec_data_key_t key;
     parsec_data_copy_t *parsec_data_copy;
     parsec_data_t *parsec_data;
-    unsigned int *data_ptr;
+    unsigned int *data_ptr = NULL;
 
     parsec_task_class_t *memset_tc, *cudaread_tc;
 
@@ -667,7 +667,7 @@ int cuda_cpy_task_fn(parsec_device_gpu_module_t *gpu_device,
 
     int devid;
     cudaError_t err = cudaGetDevice(&devid);
-    assert(cudaSuccess == err);
+    assert(cudaSuccess == err); (void)err;
 
     printf("[cuda_cpy_task_fn] devid = %d, data_0_cpu = %p, data_0_gpu = %p\n", devid, data_0, (void *)dev_data_0);
 
