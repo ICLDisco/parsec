@@ -94,24 +94,25 @@ int main(int argc, char* argv[] )
     /* We want a non-deterministic behavior unless requested via args */
     srand(time(NULL));
 
-    while( NULL != argv[i] ) {
+    int pargc = 0; char **pargv = NULL;
+    for( i = 1; i < argc; i++) {
+        if( 0 == strncmp(argv[i], "--", 3) ) {
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
+        }
         if( 0 == strncmp(argv[i], "-deterministic", 7) ) {
             srand(n);
-            goto move_and_continue;
+            continue;
         }
         if( 0 == strncmp(argv[i], "-n=", 3) ) {
             n = strtol(argv[i]+3, NULL, 10);
-            goto move_and_continue;
+            continue;
         }
         if( 0 == strncmp(argv[i], "-v", 2) ) {
             verbose++;
-            goto move_and_continue;
+            continue;
         }
-        i++;
-        continue;
-    move_and_continue:
-        memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
-        argc -= 1;
     }
     neworder = calloc(n, sizeof(struct prev_next_s));
     for( i = 0; i < n; i++ ) {
@@ -154,7 +155,7 @@ int main(int argc, char* argv[] )
     }
 #endif
 
-    parsec = parsec_init(-1, &argc, &argv);
+    parsec = parsec_init(-1, &pargc, &pargv);
     assert( NULL != parsec );
 
     parsec_matrix_block_cyclic_init( &descA, TYPE, PARSEC_MATRIX_TILE,

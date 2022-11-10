@@ -23,6 +23,7 @@ set(BASE_SOURCES
   class/parsec_future.c
   class/parsec_datacopy_future.c
   utils/argv.c
+  utils/process_name.c
   utils/cmd_line.c
   utils/colors.c
   utils/parsec_environ.c
@@ -359,6 +360,7 @@ if( PARSEC_WITH_DEVEL_HEADERS )
           ${CMAKE_CURRENT_SOURCE_DIR}/utils/parsec_environ.h
           ${CMAKE_CURRENT_SOURCE_DIR}/utils/mca_param_cmd_line.h
           ${CMAKE_CURRENT_SOURCE_DIR}/utils/os_path.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/utils/process_name.h
           ${CMAKE_CURRENT_SOURCE_DIR}/utils/output.h
           ${CMAKE_CURRENT_SOURCE_DIR}/utils/show_help.h
           ${CMAKE_CURRENT_SOURCE_DIR}/utils/zone_malloc.h

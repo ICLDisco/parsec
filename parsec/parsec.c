@@ -41,6 +41,7 @@
 #include "parsec/utils/mca_param.h"
 #include "parsec/utils/installdirs.h"
 #include "parsec/utils/cmd_line.h"
+#include "parsec/utils/process_name.h"
 #include "parsec/utils/debug.h"
 #include "parsec/utils/parsec_environ.h"
 #include "parsec/utils/mca_param_cmd_line.h"
@@ -361,8 +362,6 @@ static void parsec_vp_init( parsec_vp_t *vp,
     }
 }
 
-#define DEFAULT_APP_NAME "app_name"
-
 #define GET_INT_ARGV(CMD, ARGV, VALUE) \
 do { \
     int __nb_elems = parsec_cmd_line_get_ninsts((CMD), (ARGV)); \
@@ -399,6 +398,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     int profiling_enabled = 0;
 
     gethostname(parsec_hostname_array, sizeof(parsec_hostname_array));
+    parsec_app_name = parsec_process_name();
 
     PARSEC_PAPI_SDE_INIT();
 
@@ -434,14 +434,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
 
     if( (NULL != pargc) && (0 != *pargc) ) {
-        parsec_app_name = strdup( (*pargv)[0] );
-
         ret = parsec_cmd_line_parse(cmd_line, true, *pargc, *pargv);
         if (PARSEC_SUCCESS != ret) {
-            fprintf(stderr, "%s: command line error (%d)\n", (*pargv)[0], ret);
+            fprintf(stderr, "%s: command line error (%d)\n", parsec_app_name, ret);
         }
-    } else {
-        parsec_app_name = strdup( DEFAULT_APP_NAME );
     }
 
     ret = parsec_mca_cmd_line_process_args(cmd_line, &ctx_environ, &environ);
@@ -703,9 +699,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         /* Use either the app name (argv[0]) or the user provided filename */
         if( 0 == strncmp(parsec_enable_profiling, "<app>", 5) ) {
             /* Specialize the profiling filename to avoid collision with other instances */
-            ret = asprintf( &cmdline_info, "%s_%d", basename(parsec_app_name), (int)getpid() );
+            ret = asprintf( &cmdline_info, "%s_%d", parsec_app_name, (int)getpid() );
             if (ret < 0) {
-                cmdline_info = strdup(DEFAULT_APP_NAME);
+                cmdline_info = strdup(parsec_app_name);
             }
             ret = parsec_profiling_dbp_start( cmdline_info, parsec_app_name );
             free(cmdline_info);

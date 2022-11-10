@@ -27,19 +27,20 @@ int main( int argc, char** argv )
     MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &rc);
 #endif
 
-    while( NULL != argv[i] ) {
+    int pargc = 0; char **pargv = NULL;
+    for( i = 1; i < argc; i++) {
+        if( 0 == strncmp(argv[i], "--", 3) ) {
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
+        }
         if( 0 == strncmp(argv[i], "-v=", 3) ) {
             verbose = strtol(argv[i]+3, NULL, 10);
-            goto move_and_continue;
+            continue;
         }
-        i++;  /* skip this one */
-        continue;
-    move_and_continue:
-        memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
-        argc -= 1;
     }
 
-    parsec = parsec_init(1, &argc, &argv);
+    parsec = parsec_init(1, &pargc, &pargv);
     if( NULL == parsec ) {
         exit(-2);
     }

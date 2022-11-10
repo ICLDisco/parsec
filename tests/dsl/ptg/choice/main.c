@@ -22,11 +22,10 @@ int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
     int rank, world, cores = -1;
-    int size, nb, i, j, c, rc;
+    int size, nb, i, c, rc;
     parsec_data_collection_t *dcA;
     int *decision;
     parsec_taskpool_t *choice;
-    char **dargv, ***pargv;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -41,25 +40,18 @@ int main(int argc, char *argv[])
 #endif
 
     size = 256;
-    dargv = NULL;
-    j = 0;
+    int pargc = 0;
+    char **pargv = NULL;
     for(i = 0; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
-            dargv = (char**)calloc( (argc-i+2), sizeof(char *));
-            dargv[j++] = strdup(argv[0]);
-            continue;
-        }
-        if( NULL != dargv ) {
-            dargv[j++] = argv[i];
+            pargc = argc - i;
+            pargv = argv + i;
+            argc = i;
+            break;
         }
     }
-    if( NULL == dargv ) {
-        dargv = (char**)calloc( 2, sizeof(char *));
-        dargv[j++] = strdup(argv[0]);
-    }
-    dargv[j] = NULL;
 
-    if(argc - j <= 1) {
+    if(argc <= 1) {
         nb = 2;
     } else {
         nb = atoi(argv[1]);
@@ -69,8 +61,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    pargv = &dargv;
-    parsec = parsec_init(cores, &j, pargv);
+    parsec = parsec_init(cores, &pargc, &pargv);
     if( NULL == parsec ) {
         exit(-1);
     }

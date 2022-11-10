@@ -53,16 +53,22 @@ int main(int argc, char* argv[])
     rank = 0;
 #endif
 
-    while( NULL != argv[i] ) {
+    int pargc = 0; char **pargv = NULL;
+    for( i = 1; i < argc; i++) {
+        if( 0 == strncmp(argv[i], "--", 3) ) {
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
+        }
         if( 0 == strncmp(argv[i], "-b=", 3) ) {
             block = strtol(argv[i]+3, NULL, 10);
             if( 0 >= block ) block = 10;
-            goto move_and_continue;
+            continue;
         }
         if( 0 == strncmp(argv[i], "-n=", 3) ) {
             N = strtol(argv[i]+3, NULL, 10);
             if( 0 >= N ) N = 100;
-            goto move_and_continue;
+            continue;
         }
         if( 0 == strncmp(argv[i], "-h", 2) ) {
             printf("-h: help\n"
@@ -71,14 +77,9 @@ int main(int argc, char* argv[])
                    "-v=<nb> the verbosity level\n");
             exit(0);
         }
-        i++;  /* skip this one */
-        continue;
-    move_and_continue:
-        memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
-        argc -= 1;
     }
 
-    parsec = parsec_init(1, &argc, &argv);
+    parsec = parsec_init(1, &pargc, &pargv);
     assert( NULL != parsec );
 
     parsec_matrix_block_cyclic_init( &dcA, TYPE, PARSEC_MATRIX_TILE,

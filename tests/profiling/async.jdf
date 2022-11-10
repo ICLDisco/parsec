@@ -177,18 +177,12 @@ int main( int argc, char** argv )
     exit(1);
 #endif
 
-    parsec_argv = (char **)malloc(parsec_argc * sizeof(char*));
-    parsec_argv[0] = argv[0];
-    parsec_argc = 1;
     for(arg = 1; arg < argc; arg++) {
         if(strcmp(argv[arg], "--") == 0)
             break;
     }
-    if( arg < argc ) {
-        for(arg = arg+1; arg < argc; arg++)
-            parsec_argv[parsec_argc++] = argv[arg];
-    }
-    parsec_argv[parsec_argc] = NULL;
+    parsec_argc = argc - arg;
+    parsec_argv = argv + arg;
 
     if( argc > 1 &&
         ( (strcmp(argv[1], "-v") == 0 ) ||

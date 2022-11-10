@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     for(int a = 1; a < argc; a++) {
         if(strcmp(argv[a], "--") == 0) {
             parsec_argc = argc - a;
-            parsec_argv = &argv[a];
+            parsec_argv = argv + a;
             break;
         }
         if(strcmp(argv[a], "-t") == 0) {

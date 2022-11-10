@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
     for(int i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
             pargc = argc - i;
-            pargv = &argv[i];
+            pargv = argv + i;
             break;
         }
     }

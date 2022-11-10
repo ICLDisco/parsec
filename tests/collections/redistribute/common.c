@@ -257,7 +257,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam, double *dpar
             case '?': /* getopt_long already printed an error message. */
                 exit(1);
                 break;
-                
+
             default:
                 break; /* Assume anything else is parsec/mpi stuff */
         }
@@ -393,18 +393,10 @@ parsec_context_t* setup_parsec(int argc, char **argv, int *iparam, double *dpara
     SYNC_TIME_START();
 
     /* Once we got out arguments, we should pass whatever is left down */
-    int parsec_argc, idx;
-    char** parsec_argv = (char**)calloc(argc, sizeof(char*));
-    parsec_argv[0] = argv[0];  /* the app name */
-    for( idx = parsec_argc = 1;
-         (idx < argc) && (0 != strcmp(argv[idx], "--")); idx++);
-    if( idx != argc ) {
-        for( parsec_argc = 1, idx++; idx < argc;
-             parsec_argv[parsec_argc] = argv[idx], parsec_argc++, idx++);
-    }
+    int parsec_argc = argc - optind;
+    char** parsec_argv = argv + optind;
     parsec_context_t* ctx = parsec_init(iparam[IPARAM_NCORES],
                                       &parsec_argc, &parsec_argv);
-    free(parsec_argv);
     if( NULL == ctx ) {
         /* Failed to correctly initialize. In a correct scenario report
          * upstream, but in this particular case bail out.

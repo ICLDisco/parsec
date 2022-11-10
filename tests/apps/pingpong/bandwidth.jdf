@@ -151,8 +151,8 @@ int main(int argc, char *argv[])
     parsec_taskpool_t* bandwidth_taskpool;
     parsec_bandwidth_taskpool_t* taskpool = NULL;
     int rank, nodes, ch, i;
-    int pargc = 0, dashdash = -1;
-    char **pargv;
+    int pargc = 0;
+    char **pargv = NULL;
     struct timeval tstart, tend;
     double t, bw;
 
@@ -196,27 +196,14 @@ int main(int argc, char *argv[])
 
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
-            dashdash = i;
-            pargc = 1;
-        } else if( dashdash != -1 ) {
-            pargc++;
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
         }
     }
-    pargv = (char**)malloc( (pargc+2) * sizeof(char*));
-    if( dashdash != -1 ) {
-        pargv[0] = strdup(argv[0]);
-        for(i = dashdash+1; i < argc; i++) {
-            pargv[i-dashdash] = strdup(argv[i]);
-        }
-        pargv[i-dashdash] = NULL;
-    } else {
-        pargv[0] = NULL;
-    }
-
     /* Initialize PaRSEC */
     parsec = parsec_init(cores, &pargc, &pargv);
 
-    free(pargv);
     if( NULL == parsec ) {
         /* Failed to correctly initialize. In a correct scenario report
          * upstream, but in this particular case bail out.

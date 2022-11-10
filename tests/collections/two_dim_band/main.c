@@ -19,8 +19,8 @@ int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
     int rank, nodes, ch;
-    int pargc = 0, i, dashdash = -1;
-    char **pargv;
+    int pargc = 0, i;
+    char **pargv = NULL;
     parsec_matrix_uplo_t uplo = PARSEC_MATRIX_UPPER; //PARSEC_MATRIX_LOWER
     parsec_matrix_uplo_t full = PARSEC_MATRIX_FULL;
     /* Super */
@@ -42,20 +42,10 @@ int main(int argc, char *argv[])
 
     for(i = 1; i < argc; i++) {
         if( strcmp(argv[i], "--") == 0 ) {
-            dashdash = i;
-            pargc = 0;
-        } else if( dashdash != -1 ) {
-            pargc++;
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
         }
-    }
-    pargv = malloc( (pargc+1) * sizeof(char*));
-    if( dashdash != -1 ) {
-        for(i = dashdash+1; i < argc; i++) {
-            pargv[i-dashdash-1] = strdup(argv[i]);
-        }
-        pargv[i-dashdash-1] = NULL;
-    } else {
-        pargv[0] = NULL;
     }
 
     /* Initialize PaRSEC */
