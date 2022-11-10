@@ -96,7 +96,7 @@ int task_memory_alloc_key, task_memory_free_key;
 parsec_info_t parsec_per_device_infos;
 parsec_info_t parsec_per_stream_infos;
 
-static int slow_bind_warning = 1;
+static int slow_bind_warning = 128;
 
 int parsec_want_rusage = 0;
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)
@@ -472,7 +472,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_debug_init();
     mca_components_repository_init();
 
-    parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Disable warnings about the runtime detecting poorly performing binding configuration", false, false, slow_bind_warning, &slow_bind_warning);
+    parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Warn when the runtime detects poorly performing binding configuration, check distributed binding iff the number of nodes is lower than the parameter (0 to silence all warnings)", false, false, slow_bind_warning, &slow_bind_warning);
 
 #if defined(PARSEC_HAVE_HWLOC)
     parsec_hwloc_init();
@@ -2515,13 +2515,8 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
  */
 int parsec_check_overlapping_binding(parsec_context_t *context)
 {
-    if( 1024 < context->nb_nodes ) {  /* At some point we need to assume the users are doing the right thing,
-                                       * especially when they run at scale.
-                                       */
-        return PARSEC_SUCCESS;
-    }
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI) && defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
-    if( slow_bind_warning ) {
+    if( context->nb_nodes <= slow_bind_warning ) {
         MPI_Comm comml = MPI_COMM_NULL; int i, nl = 0, rl = MPI_PROC_NULL;
         MPI_Comm commw = (MPI_Comm)context->comm_ctx;
         assert(-1 != context->comm_ctx);
