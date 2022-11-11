@@ -82,7 +82,7 @@ static void parsec_termdet_local_monitor_taskpool(parsec_taskpool_t *tp,
 {
     assert(&parsec_termdet_local_module.module == tp->tdm.module);
     tp->tdm.callback = cb;
-    tp->tdm.monitor = PARSEC_TERMDET_LOCAL_NOT_READY;
+    parsec_atomic_cas_ptr(&tp->tdm.monitor, tp->tdm.monitor, PARSEC_TERMDET_LOCAL_NOT_READY);
 }
 
 static void parsec_termdet_local_unmonitor_taskpool(parsec_taskpool_t *tp)
