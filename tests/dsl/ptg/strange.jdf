@@ -187,6 +187,8 @@ int main(int argc, char* argv[] )
     parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
+    parsec_taskpool_free(&tp->super);
+
     free(descA.mat);
     parsec_fini( &parsec);
 

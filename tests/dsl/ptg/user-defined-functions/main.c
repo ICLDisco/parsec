@@ -141,6 +141,7 @@ int main(int argc, char *argv[])
     parsec_context_add_taskpool(parsec, &udf_tp->super);
     parsec_context_start(parsec);
     parsec_context_wait(parsec);
+    parsec_taskpool_free(&udf_tp->super);
 
     printf("Rank %d - %d local tiles\n", rank, A.super.nb_local_tiles);
     for(int i = 0; i < UDF_TT_MAX; i++) {

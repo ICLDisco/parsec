@@ -60,6 +60,8 @@ int main(int argc, char *argv[])
 
         rc = parsec_context_wait(parsec);
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+        parsec_taskpool_free(branching);
     }
 
     free_data(dcA);
