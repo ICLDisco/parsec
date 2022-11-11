@@ -208,6 +208,7 @@ parsec_detach_dtd_taskpool_from_context(parsec_taskpool_t *tp)
 {
     assert(tp != NULL);
     assert(((parsec_dtd_taskpool_t *)tp)->enqueue_flag);
+    tp->tdm.module->taskpool_ready(tp);
     parsec_taskpool_update_runtime_nbtask(tp, -1);
 }
 
@@ -249,6 +250,22 @@ parsec_detach_all_dtd_taskpool_from_context(parsec_context_t *context)
     }
 }
 
+void
+parsec_dtd_attach_taskpool_to_context(parsec_taskpool_t *tp,
+                                      parsec_context_t *context)
+{
+    if( context->taskpool_list == NULL) {
+        context->taskpool_list = PARSEC_OBJ_NEW(parsec_list_t);
+    }
+
+    parsec_list_push_back(context->taskpool_list, (parsec_list_item_t *)tp);
+
+    parsec_termdet_open_module(tp, "local");
+    tp->tdm.module->monitor_taskpool(tp, parsec_taskpool_termination_detected);
+    tp->tdm.module->taskpool_set_nb_tasks(tp, PARSEC_RUNTIME_RESERVED_NB_TASKS);
+    tp->tdm.module->taskpool_set_runtime_actions(tp, 0);
+}
+
 /* enqueue wrapper for dtd */
 int
 parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
@@ -257,8 +274,6 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
 
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     parsec_dtd_param_t flush_param;
-    tp->tdm.module->taskpool_set_runtime_actions(tp, 1);    /* For the future tasks that will be inserted */
-    tp->tdm.module->taskpool_set_nb_tasks(tp, 1); /* For the bounded window, starting with +1 task */
     dtd_tp->enqueue_flag    = 1;
 
     parsec_dtd_taskpool_retain(tp);
@@ -271,6 +286,9 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
         tp->context->taskpool_list = PARSEC_OBJ_NEW(parsec_list_t);
     }
     parsec_list_push_back(tp->context->taskpool_list, (parsec_list_item_t *)tp);
+
+    tp->tdm.module->taskpool_set_runtime_actions(tp, 1);    /* For the future tasks that will be inserted */
+    tp->tdm.module->taskpool_set_nb_tasks(tp, 1); /* For the bounded window, starting with +1 task */
 
     /* The first taskclass of every taskpool is the flush taskclass */
     parsec_dtd_task_class_t *data_flush_tc;
@@ -387,6 +405,8 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     if(NULL != tp->super.tdm.module) { tp->super.tdm.module->unmonitor_taskpool(&tp->super); }
     parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
     parsec_mempool_free( parsec_dtd_taskpool_mempool, tp );
+
+    tp->super.tdm.module->unmonitor_taskpool(&tp->super);
 
     /* Destroy the data repositories for this object */
     for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
@@ -1402,17 +1422,10 @@ parsec_dtd_taskpool_new(void)
         __tp->super.taskpool_name = NULL;
     }
 
-    parsec_termdet_open_module(&__tp->super, "local");
-    __tp->super.tdm.module->monitor_taskpool(&__tp->super, parsec_taskpool_termination_detected);
-    __tp->super.tdm.module->taskpool_set_nb_tasks(&__tp->super, PARSEC_RUNTIME_RESERVED_NB_TASKS);
-    __tp->super.tdm.module->taskpool_set_runtime_actions(&__tp->super, 0);
-
     (void)parsec_taskpool_enable((parsec_taskpool_t *)__tp, NULL, NULL, NULL,
                                   __tp->super.nb_pending_actions);
 
-    __tp->super.tdm.module->taskpool_ready(&__tp->super);
-
-#if defined(PARSEC_PROF_TRACE)
+#if defined(PARSEC_PROF_TRACE) /* TODO: should not be per taskpool */
     if( parsec_dtd_profile_verbose ) {
         parsec_dtd_add_profiling_info_generic(&__tp->super, "Insert_task",
                                               &insert_task_trace_keyin, &insert_task_trace_keyout);
