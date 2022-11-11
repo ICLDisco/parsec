@@ -787,6 +787,13 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
 
     PARSEC_PINS_TASKPOOL_INIT(tp);  /* PINS taskpool initialization */
 
+    /* If necessary trigger the on_enqueue callback
+     * on_enqueue callback needs to be called before the fallback for the termination detection
+     * below, because on_enqueue might be initializing the termination detector (e.g. DTD) */
+    if( NULL != tp->on_enqueue ) {
+        tp->on_enqueue(tp, tp->on_enqueue_data);
+    }
+
     /* If the DSL did not install a termination detection module,
      * assume that the old behavior (local detection when local 
      * number of tasks is 0) is expected: install the local termination
@@ -800,11 +807,6 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     
     /* Update the number of pending taskpools */
     (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );
-
-    /* If necessary trigger the on_enqueue callback */
-    if( NULL != tp->on_enqueue ) {
-        tp->on_enqueue(tp, tp->on_enqueue_data);
-    }
 
 #if defined(PARSEC_PROF_TRACE)
     if( parsec_profile_enabled )
