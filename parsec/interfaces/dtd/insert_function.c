@@ -209,7 +209,6 @@ parsec_detach_dtd_taskpool_from_context(parsec_taskpool_t *tp)
     assert(tp != NULL);
     assert(((parsec_dtd_taskpool_t *)tp)->enqueue_flag);
     tp->tdm.module->taskpool_ready(tp);
-    parsec_taskpool_update_runtime_nbtask(tp, -1);
 }
 
 int
@@ -250,20 +249,24 @@ parsec_detach_all_dtd_taskpool_from_context(parsec_context_t *context)
     }
 }
 
-void
-parsec_dtd_attach_taskpool_to_context(parsec_taskpool_t *tp,
-                                      parsec_context_t *context)
+int parsec_dtd_taskpool_reset(parsec_taskpool_t *tp)
 {
-    if( context->taskpool_list == NULL) {
-        context->taskpool_list = PARSEC_OBJ_NEW(parsec_list_t);
-    }
-
-    parsec_list_push_back(context->taskpool_list, (parsec_list_item_t *)tp);
-
+    if(NULL != tp->tdm.module) tp->tdm.module->unmonitor_taskpool(tp);
     parsec_termdet_open_module(tp, "local");
     tp->tdm.module->monitor_taskpool(tp, parsec_taskpool_termination_detected);
-    tp->tdm.module->taskpool_set_nb_tasks(tp, PARSEC_RUNTIME_RESERVED_NB_TASKS);
+    tp->tdm.module->taskpool_set_nb_tasks(tp, 0);
     tp->tdm.module->taskpool_set_runtime_actions(tp, 0);
+
+    /* Attaching the reference of this taskpool to the parsec context */
+    if( NULL == tp->context->taskpool_list ) {
+        tp->context->taskpool_list = PARSEC_OBJ_NEW(parsec_list_t);
+    }
+    parsec_list_push_back(tp->context->taskpool_list, (parsec_list_item_t *)tp);
+
+    assert(NULL != tp->context);
+    parsec_atomic_fetch_inc_int32(&tp->context->active_taskpools);
+
+    return PARSEC_SUCCESS;
 }
 
 /* enqueue wrapper for dtd */
@@ -278,8 +281,11 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
 
     parsec_dtd_taskpool_retain(tp);
 
-    parsec_taskpool_enable(tp, NULL, NULL, NULL,
-                           !!(tp->context->nb_nodes > 1));
+    if(NULL != tp->tdm.module) tp->tdm.module->unmonitor_taskpool(tp);
+    parsec_termdet_open_module(tp, "local");
+    tp->tdm.module->monitor_taskpool(tp, parsec_taskpool_termination_detected);
+    tp->tdm.module->taskpool_set_nb_tasks(tp, 0);
+    tp->tdm.module->taskpool_set_runtime_actions(tp, 0);
 
     /* Attaching the reference of this taskpool to the parsec context */
     if( NULL == tp->context->taskpool_list ) {
@@ -287,8 +293,8 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
     }
     parsec_list_push_back(tp->context->taskpool_list, (parsec_list_item_t *)tp);
 
-    tp->tdm.module->taskpool_set_runtime_actions(tp, 1);    /* For the future tasks that will be inserted */
-    tp->tdm.module->taskpool_set_nb_tasks(tp, 1); /* For the bounded window, starting with +1 task */
+    parsec_taskpool_enable(tp, NULL, NULL, NULL,
+                           !!(tp->context->nb_nodes > 1));
 
     /* The first taskclass of every taskpool is the flush taskclass */
     parsec_dtd_task_class_t *data_flush_tc;
@@ -1468,6 +1474,7 @@ parsec_dtd_taskpool_release(parsec_taskpool_t *tp)
     parsec_dtd_data_collection_fini(&dtd_tp->new_tile_dc);
     parsec_data_collection_destroy(&dtd_tp->new_tile_dc);
     PARSEC_OBJ_RELEASE(tp);
+    parsec_taskpool_free(tp);
 }
 
 /* **************************************************************************** */

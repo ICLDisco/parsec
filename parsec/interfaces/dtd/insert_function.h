@@ -376,6 +376,11 @@ parsec_dtd_get_taskpool(parsec_task_t *this_task);
 int
 parsec_dtd_dequeue_taskpool(parsec_taskpool_t *tp);
 
+/**
+ * @brief Call this function before waiting on the taskpool again
+ */
+int parsec_dtd_taskpool_reset(parsec_taskpool_t *tp);
+
 parsec_task_class_t*
 parsec_dtd_create_task_class( parsec_taskpool_t *__tp,
                               const char* name,
