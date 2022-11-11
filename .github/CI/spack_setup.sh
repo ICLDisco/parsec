@@ -74,7 +74,6 @@ else
   spack env create ${RUNNER_ENV} ${GITHUB_WORKSPACE}/.github/CI/${RUNNER_ENV}.yaml
 fi
 spack env activate ${RUNNER_ENV}
-spack concretize --force
 spack install --reuse
 
 echo "::endgroup::"
