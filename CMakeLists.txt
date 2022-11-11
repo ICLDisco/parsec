@@ -735,7 +735,6 @@ int main(int argc, char *argv[]) {
     else()
       set(HIP_NOT_CUDA_FOUND FALSE)
     endif()
-    message(STATUS "HIPNOTCUDA=${HIP_NOT_CUDA_FOUND}")
     set(PARSEC_HAVE_HIP ${HIP_NOT_CUDA_FOUND} CACHE BOOL "True if PaRSEC provide support for HIP")
   endif( PARSEC_GPU_WITH_HIP )
 
