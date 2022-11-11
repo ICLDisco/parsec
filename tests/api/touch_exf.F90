@@ -37,6 +37,8 @@ end interface
 
   call parsec_context_wait(context, ret)
 
+  call parsec_taskpool_free(tp)
+
   call parsec_fini(context)
 
   ret = touch_finalize_f08()
