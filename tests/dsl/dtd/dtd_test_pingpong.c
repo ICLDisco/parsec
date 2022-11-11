@@ -183,7 +183,7 @@ int main(int argc, char **argv)
         parsec_output( 0, "\nPingpong is behaving correctly.\n" );
     }
 
-    parsec_taskpool_free( dtd_tp );
+    parsec_dtd_taskpool_release( dtd_tp );
 
     /* End of correctness checking */
 
@@ -245,7 +245,7 @@ int main(int argc, char **argv)
         parsec_dtd_data_collection_fini( A );
         free_data(dcA);
 
-        parsec_taskpool_free(dtd_tp);
+        parsec_dtd_taskpool_release(dtd_tp);
     }
 
     parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);

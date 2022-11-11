@@ -91,7 +91,7 @@ int main(int argc, char ** argv)
         SYNC_TIME_PRINT(rank, ("\n"));
     }
 
-    parsec_taskpool_free( dtd_tp );
+    parsec_dtd_taskpool_release( dtd_tp );
 
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");

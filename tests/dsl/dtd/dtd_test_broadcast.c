@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-    parsec_taskpool_free( dtd_tp );
+    parsec_dtd_taskpool_release( dtd_tp );
 
     parsec_del2arena(adt);
     PARSEC_OBJ_RELEASE(adt->arena);

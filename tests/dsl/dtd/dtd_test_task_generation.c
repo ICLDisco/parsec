@@ -178,7 +178,6 @@ int main(int argc, char ** argv)
     }
 
     parsec_dtd_taskpool_release(dtd_tp);
-    parsec_taskpool_free( dtd_tp );
     /****** End of checking task generation ******/
 
 
@@ -293,7 +292,6 @@ int main(int argc, char ** argv)
         SYNC_TIME_PRINT(rank, ("\tNo of flows : %d \tTime for each task : %lf\n\n", total_flows[i], sync_time_elapsed/total_tasks));
 
         parsec_dtd_taskpool_release(dtd_tp);
-        parsec_taskpool_free( dtd_tp );
         parsec_dtd_data_collection_fini( A );
         free_data(dcA);
     }

@@ -185,7 +185,7 @@ int main(int argc, char ** argv)
             rc = parsec_taskpool_wait( dtd_tp );
             PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
-            parsec_taskpool_free( dtd_tp );
+            parsec_dtd_taskpool_release( dtd_tp );
             parsec_dtd_data_collection_fini( A );
             free_data(dcA);
         }
@@ -253,7 +253,7 @@ int main(int argc, char ** argv)
         rc = parsec_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
-        parsec_taskpool_free(dtd_tp);
+        parsec_dtd_taskpool_release(dtd_tp);
 
         rc = parsec_context_wait(parsec);
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
@@ -324,7 +324,7 @@ int main(int argc, char ** argv)
         rc = parsec_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
-        parsec_taskpool_free(dtd_tp);
+        parsec_dtd_taskpool_release(dtd_tp);
 
         rc = parsec_context_wait(parsec);
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
@@ -398,7 +398,7 @@ int main(int argc, char ** argv)
         rc = parsec_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
-        parsec_taskpool_free(dtd_tp);
+        parsec_dtd_taskpool_release(dtd_tp);
 
         rc = parsec_context_wait(parsec);
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");

@@ -145,7 +145,6 @@ int main(int argc, char ** argv)
     }
 
     parsec_dtd_taskpool_release(dtd_tp);
-    parsec_taskpool_free( dtd_tp );
 
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);

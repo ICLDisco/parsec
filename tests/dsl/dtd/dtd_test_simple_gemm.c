@@ -157,7 +157,7 @@ int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_
 
     parsec_dtd_task_class_release(tp, init_tc);
 
-    parsec_taskpool_free(tp);
+    parsec_dtd_taskpool_release(tp);
 
     return 0;
 }
@@ -316,7 +316,7 @@ int simple_gemm(parsec_context_t *parsec_context, parsec_matrix_block_cyclic_t *
 
     parsec_dtd_task_class_release(tp, gemm_tc);
 
-    parsec_taskpool_free(tp);
+    parsec_dtd_taskpool_release(tp);
 
     return 0;
 }

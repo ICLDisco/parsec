@@ -102,7 +102,7 @@ int test_cuda_print_info(int world, int rank, parsec_context_t *parsec_context)
 
     parsec_dtd_task_class_release(tp, print_info_tc);
 
-    parsec_taskpool_free(tp);
+    parsec_dtd_taskpool_release(tp);
 
     return error_count;
 }
@@ -279,7 +279,7 @@ int test_cuda_memset(int world, int myrank, parsec_context_t *parsec_context, in
 
     parsec_dtd_task_class_release(tp, memset_tc );
 
-    parsec_taskpool_free(tp);
+    parsec_dtd_taskpool_release(tp);
 
     return error_count;
 }
@@ -421,7 +421,7 @@ int test_cuda_memset_and_read(int world, int myrank, parsec_context_t *parsec_co
 
     parsec_dtd_task_class_release(tp, memset_tc);
 
-    parsec_taskpool_free(tp);
+    parsec_dtd_taskpool_release(tp);
 
     return error_count;
 
@@ -611,7 +611,7 @@ int test_cuda_memset_write_read(int world, int myrank, parsec_context_t *parsec_
     parsec_dtd_data_collection_fini(A);
     free_data(dcA);
 
-    parsec_taskpool_free(tp);
+    parsec_dtd_taskpool_release(tp);
 
     return error_count;
 }
@@ -842,7 +842,7 @@ int test_cuda_multiple_devices(int world, int myrank, parsec_context_t *parsec_c
     parsec_dtd_data_collection_fini(A);
     free_data(dcA);
 
-    parsec_taskpool_free(tp);
+    parsec_dtd_taskpool_release(tp);
 
     return 0;
 }

@@ -146,6 +146,7 @@ int main(int argc, char ** argv)
         PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
+        assert(count == no_of_tasks);
     }
     /****** END ******/
 
@@ -174,6 +175,7 @@ int main(int argc, char ** argv)
         rc = parsec_taskpool_wait( dtd_tp );
         PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
+        assert(count == no_of_tasks);
     }
     /****** END ******/
 
@@ -201,7 +203,7 @@ int main(int argc, char ** argv)
         PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
-
+        assert(count == no_of_tasks);
     }
     /****** END ******/
 
@@ -209,7 +211,6 @@ int main(int argc, char ** argv)
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_dtd_taskpool_release(dtd_tp);
-    parsec_taskpool_free( dtd_tp );
 
     parsec_fini(&parsec);
 

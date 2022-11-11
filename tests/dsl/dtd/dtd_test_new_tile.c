@@ -476,7 +476,7 @@ int main(int argc, char **argv)
     PARSEC_OBJ_RELEASE(adt->arena);
     parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
 
-    parsec_taskpool_free( dtd_tp );
+    parsec_dtd_taskpool_release( dtd_tp );
     parsec_fini(&parsec);
 
 #ifdef PARSEC_HAVE_MPI

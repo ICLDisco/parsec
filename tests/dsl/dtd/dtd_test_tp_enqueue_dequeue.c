@@ -31,7 +31,7 @@ task(parsec_execution_stream_t *es, parsec_task_t *this_task)
     rc = parsec_context_add_taskpool(this_task->taskpool->context, dtd_tp);
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
-    parsec_taskpool_free(dtd_tp);
+    parsec_dtd_taskpool_release(dtd_tp);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -82,7 +82,7 @@ task_with_callback(parsec_execution_stream_t *es, parsec_task_t *this_task)
      */
     rc = parsec_dtd_dequeue_taskpool(dtd_tp);
     PARSEC_CHECK_ERROR(rc, "parsec_dtd_dequeue_taskpool");
-    parsec_taskpool_free(dtd_tp);
+    parsec_dtd_taskpool_release(dtd_tp);
 
     return PARSEC_HOOK_RETURN_ASYNC;
 }
@@ -132,7 +132,7 @@ int main(int argc, char **argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_taskpool_free(dtd_tp);
+    parsec_dtd_taskpool_release(dtd_tp);
 
     dtd_tp = parsec_dtd_taskpool_new();
 
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_taskpool_free(dtd_tp);
+    parsec_dtd_taskpool_release(dtd_tp);
 
     parsec_fini(&parsec);
 

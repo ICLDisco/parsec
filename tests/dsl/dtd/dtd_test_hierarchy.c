@@ -86,7 +86,7 @@ test_task_generator( parsec_execution_stream_t *es,
     parsec_dtd_data_collection_fini(B);
     free_data(dcB);
 
-    parsec_taskpool_free( dtd_tp );
+    parsec_dtd_taskpool_release( dtd_tp );
 
     count++;
 
@@ -170,7 +170,7 @@ int main(int argc, char ** argv)
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 
-    parsec_taskpool_free( dtd_tp );
+    parsec_dtd_taskpool_release( dtd_tp );
 
     parsec_fini(&parsec);
 
