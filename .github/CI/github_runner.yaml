@@ -15,7 +15,6 @@ spack:
     - openmpi
 
   view: true
-  concretization: together
   specs:
     - matrix:
       - [$pkgs]
