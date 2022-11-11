@@ -631,6 +631,8 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
         }
     }
 
+    if(tp->taskpool_type == PARSEC_TASKPOOL_TYPE_DTD) parsec_dtd_taskpool_reset(tp);
+
     PARSEC_PINS(es, SELECT_END, NULL);
 
     return nbiterations;
