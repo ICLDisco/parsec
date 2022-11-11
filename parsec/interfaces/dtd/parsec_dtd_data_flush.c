@@ -282,12 +282,6 @@ parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int
 
     parsec_insert_dtd_flush_task(this_task, tile);
 
-    if(this_task->rank == tile->rank) {
-        /* this is the receive task, and it can vanish
-         * as soon as we are done inserting it */
-        parsec_dtd_remote_task_release(this_task);
-    }
-
     return 1;
 }
 

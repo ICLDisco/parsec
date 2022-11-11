@@ -1828,8 +1828,9 @@ void
 parsec_dtd_remote_task_retain(parsec_dtd_task_t *this_task)
 {
     parsec_object_t *object = (parsec_object_t *)this_task;
-    (void)parsec_atomic_fetch_inc_int32(&object->obj_reference_count);
-    parsec_taskpool_update_runtime_nbtask(this_task->super.taskpool, 1);
+    int32_t orc = parsec_atomic_fetch_inc_int32(&object->obj_reference_count);
+    if(1 == orc)
+        parsec_taskpool_update_runtime_nbtask(this_task->super.taskpool, 1);
 }
 
 void
