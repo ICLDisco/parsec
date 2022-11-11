@@ -232,7 +232,7 @@ if( BUILD_PARSEC )
     $<$<BOOL:${PARSEC_SHM_OPEN_IN_LIBRT}>:rt>
     PUBLIC
     $<$<BOOL:${PARSEC_HAVE_DLFCN_H}>:${CMAKE_DL_LIBS}> # Add support for dlopen if necessary
-    $<$<BOOL:${HWLOC_FOUND}>:hwloc>
+    $<$<BOOL:${HWLOC_FOUND}>:HWLOC::hwloc>
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:OTF2::OTF2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     $<$<BOOL:${PARSEC_HAVE_CUDA}>:CUDA::cudart>
