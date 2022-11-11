@@ -802,7 +802,9 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         PARSEC_PINS_THREAD_FINI(es);
     }
 
-    parsec_context_leave_wait(parsec_context);
+    if( PARSEC_THREAD_IS_MASTER(es) ) {
+        parsec_context_leave_wait(parsec_context);
+    }
 
     return nbiterations;
 }
