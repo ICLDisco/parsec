@@ -200,7 +200,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
             int action_mask = 0;
             action_mask |= (1<<(PARENT_OF(this_task, flow_index))->flow_index);
 
-            parsec_execution_stream_t *es = dtd_tp->super.context->virtual_processes[0]->execution_streams[0];
+            parsec_execution_stream_t *es = parsec_my_execution_stream();
 
             if( parsec_dtd_task_is_local(parent_task) && parsec_dtd_task_is_remote(this_task) ) {
                 /* To make sure we do not release any remote data held by this task */
