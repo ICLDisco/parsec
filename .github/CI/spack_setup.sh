@@ -62,9 +62,6 @@ spack env remove -y ${RUNNER_ENV} || true
 cd ${save_dir}
 mkdir ${RUNNER_ENV} || true
 
-echo "Force update spack environment"
-cp ${GITHUB_WORKSPACE}/.github/CI/${RUNNER_ENV}.yaml ${SPACK_DIR}/var/spack/environments/${RUNNER_ENV}/spack.yaml
-
 # Show the known envs
 if spack env list | grep ${RUNNER_ENV}; then
   if diff ${GITHUB_WORKSPACE}/.github/CI/${RUNNER_ENV}.yaml ${SPACK_DIR}/var/spack/environments/${RUNNER_ENV}/spack.yaml > /dev/null; then
