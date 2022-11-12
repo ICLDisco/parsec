@@ -420,7 +420,7 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
     /* Cleaning up the parsec handle */
-    parsec_taskpool_free( dtd_tp );
+    parsec_dtd_taskpool_release( dtd_tp );
 
     /* Cleaning data arrays we allocated for communication */
     adt = parsec_dtd_get_arena_datatype(parsec, SOURCE);
