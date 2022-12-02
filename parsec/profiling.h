@@ -99,20 +99,25 @@
  *          etc. */
 #define PARSEC_PROFILING_EVENT_COUNTER          (1<<2)
 /**
+ * @brief time at the beginning of exeuction.
+ * @details Flag used to indicate to `parsec_profiling_trace_flags` that
+ *          it should call `take_time` at the beginning of its execution
+ *          rather than at the end. Immediately after, there is a flag
+ *          (the same bit set to zero) defined for readability.
+ */
+#define PARSEC_PROFILING_EVENT_TIME_AT_START    (1<<3)
+/**
+ * @brief time at end of execution (default)
+ * @details for more details, see `PARSEC_PROFILING_EVENT_TIME_AT_START`.
+ */
+#define PARSEC_PROFILING_EVENT_TIME_AT_END      (0<<3)
+/**
  * @brief Constant to use when no handle/object ID can be associated
  *        with an event
  * @details Some functions take a handle/object ID as a parameter.
  *          When such ID is not applicable, this constant should be
  *          passed to the parameter.
  */
-#define PARSEC_PROFILING_EVENT_TIME_AT_START    (1<<3)
-/**
- * @brief time at the beginning of exeuction.
- * @details Flag used to indicate to `parsec_profiling_trace_flags` that
- *          it should call `take_time` at the beginning of its execution
- *          rather than at the end.
- */
-
 #define PROFILE_OBJECT_ID_NULL ((uint32_t)-1)
 
 /* We are not using the traditional BEGIN_C_DECL in this file

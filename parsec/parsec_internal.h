@@ -582,7 +582,7 @@ extern int device_delegate_begin, device_delegate_end;
 #else
 #define PARSEC_TASK_PROF_TRACE(PROFILE, KEY, TASK)
 #define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)
-#define PARSEC_TASK_PROF_TRACE_FLAGS(PROFILE, KEY, TASK)
+#define PARSEC_TASK_PROF_TRACE_FLAGS(PROFILE, KEY, TASK, FLAGS)
 #endif  /* defined(PARSEC_PROF_TRACE) */
 
 /**
