@@ -559,7 +559,12 @@ static int __parsec_taskpool_test( parsec_taskpool_t* tp, parsec_execution_strea
         }
 #endif /* defined(DISTRIBUTED) */
 
-        task = parsec_current_scheduler->module.select(es, &distance);
+        if( NULL == (task = es->next_task) ) {
+            task = parsec_current_scheduler->module.select(es, &distance);
+        } else {
+            es->next_task = NULL;
+            distance = 1;
+        }
 
         if( task != NULL ) {
             rc = __parsec_task_progress(es, task, distance);
@@ -624,7 +629,12 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
 
-        task = parsec_current_scheduler->module.select(es, &distance);
+        if( NULL == (task = es->next_task) ) {
+            task = parsec_current_scheduler->module.select(es, &distance);
+        } else {
+            es->next_task = NULL;
+            distance = 1;
+        }
 
         if( task != NULL ) {
             misses_in_a_row = 0;  /* reset the misses counter */
