@@ -124,6 +124,7 @@ static int pins_taskpool_complete_callback(parsec_taskpool_t* ptg_tp, void* void
      */
     parsec_execute_and_come_back( dtd_tp, 10);
 
+    (void)ptg_tp;
     return PARSEC_HOOK_RETURN_DONE;
 }
 

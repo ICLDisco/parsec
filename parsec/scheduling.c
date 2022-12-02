@@ -534,6 +534,27 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
     return rc;
 }
 
+/**
+ * Get the next task to execute, either from local storage or from the scheduler.
+ * Update the distance accordingly.
+ *
+ * @return either a valid task or NULL if no ready tasks exists.
+ */
+static inline parsec_task_t*
+__parsec_get_next_task( parsec_execution_stream_t *es,
+                        int* distance )
+{
+    parsec_task_t* task;
+
+    if( NULL == (task = es->next_task) ) {
+        task = parsec_current_scheduler->module.select(es, distance);
+    } else {
+        es->next_task = NULL;
+        *distance = 1;
+    }
+    return task;
+}
+
 static int __parsec_taskpool_test( parsec_taskpool_t* tp, parsec_execution_stream_t *es )
 {
     parsec_context_t* parsec_context = es->virtual_process->parsec_context;
@@ -553,15 +574,14 @@ static int __parsec_taskpool_test( parsec_taskpool_t* tp, parsec_execution_strea
     if( tp->tdm.module->taskpool_state(tp) != PARSEC_TERM_TP_TERMINATED ) {
 #if defined(DISTRIBUTED)
         if( (1 == parsec_communication_engine_up) &&
-            (es->virtual_process[0].parsec_context->nb_nodes == 1)  ) {
+            (parsec_context->nb_nodes == 1)  ) {
             /* check for remote deps completion */
             while(parsec_remote_dep_progress(es) > 0) /* nothing */;
         }
 #endif /* defined(DISTRIBUTED) */
 
-        task = parsec_current_scheduler->module.select(es, &distance);
-
-        if( task != NULL ) {
+        task = __parsec_get_next_task(es, &distance);
+        if( NULL != task ) {
             rc = __parsec_task_progress(es, task, distance);
             (void)rc;  /* for now ignore the return value */
 
@@ -624,9 +644,8 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
 
-        task = parsec_current_scheduler->module.select(es, &distance);
-
-        if( task != NULL ) {
+        task = __parsec_get_next_task(es, &distance);
+        if( NULL != task ) {
             misses_in_a_row = 0;  /* reset the misses counter */
 
             rc = __parsec_task_progress(es, task, distance);
@@ -747,14 +766,8 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
 
-        if( NULL == (task = es->next_task) ) {
-            task = parsec_current_scheduler->module.select(es, &distance);
-        } else {
-            es->next_task = NULL;
-            distance = 1;
-        }
-
-        if( task != NULL ) {
+        task = __parsec_get_next_task(es, &distance);
+        if( NULL != task ) {
             misses_in_a_row = 0;  /* reset the misses counter */
 
             rc = __parsec_task_progress(es, task, distance);
