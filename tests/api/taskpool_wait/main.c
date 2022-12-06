@@ -11,6 +11,8 @@ int main(int argc, char *argv[]) {
     parsec_taskpool_t *dtd_tp1;
     parsec_arena_datatype_t *adt;
     parsec_matrix_block_cyclic_t A;
+    int deltamin = 10000;
+    int deltamax = 40000;
     int nb = 4;
     int rc;
 
@@ -39,14 +41,14 @@ int main(int argc, char *argv[]) {
     parsec_add2arena(adt, parsec_datatype_int32_t, PARSEC_MATRIX_FULL, 0, nb, 1, nb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
 
     printf("Single PTG taskpool, waited with parsec_context_wait\n");
-    ptg_tp1 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, 1);
+    ptg_tp1 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, deltamin, deltamax);
     parsec_enqueue(parsec, ptg_tp1);
     parsec_context_start(parsec);
     parsec_context_wait(parsec);
     parsec_taskpool_free(ptg_tp1);
 
     printf("Single PTG taskpool, waited with parsec_taskpool_wait then the context is put to sleep with parsec_context_wait\n");
-    ptg_tp1 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, 1);
+    ptg_tp1 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, deltamin, deltamax);
     parsec_enqueue(parsec, ptg_tp1);
     parsec_context_start(parsec);
     parsec_taskpool_wait(ptg_tp1);
@@ -54,8 +56,8 @@ int main(int argc, char *argv[]) {
     parsec_taskpool_free(ptg_tp1);
 
     printf("Two PTG taskpools, both waited with parsec_context_wait\n");
-    ptg_tp1 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, 1);
-    ptg_tp2 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, 5);
+    ptg_tp1 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, deltamin, deltamax);
+    ptg_tp2 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, 5*deltamin, 5*deltamax);
     parsec_enqueue(parsec, ptg_tp1);
     parsec_enqueue(parsec, ptg_tp2);
     parsec_context_start(parsec);
@@ -64,8 +66,8 @@ int main(int argc, char *argv[]) {
     parsec_taskpool_free(ptg_tp2);
 
     printf("Two PTG taskpools, waited (in reverse order of completion) with parsec_taskpool_wait then the context is waited upon\n");
-    ptg_tp1 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, 1);
-    ptg_tp2 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, 5);
+    ptg_tp1 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A,  deltamin, deltamax);
+    ptg_tp2 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, 5*deltamin, 5*deltamax);
     parsec_enqueue(parsec, ptg_tp1);
     parsec_enqueue(parsec, ptg_tp2);
     parsec_context_start(parsec);
@@ -84,7 +86,7 @@ int main(int argc, char *argv[]) {
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
-    new_dtd_taskpool(dtd_tp1, TILE_FULL, &A, 1);
+    new_dtd_taskpool(dtd_tp1, TILE_FULL, &A,  deltamin, deltamax);
 
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");

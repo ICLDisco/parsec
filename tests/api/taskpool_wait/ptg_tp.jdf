@@ -8,7 +8,8 @@ extern "C" %{
 %}
 
 descA  [type = "parsec_matrix_block_cyclic_t *"]
-delta  [type = "int"]
+deltamin  [type = "int"]
+deltamax  [type = "int"]
 
 T(m, n)
  m = 0 .. descA->super.mt-1
@@ -20,11 +21,13 @@ RW A <- descA(m, n)
      -> descA(m, n)
 
 BODY
-  printf( "Rank: %d, core %d: entering PTG task (%d, %d) of TP %s (%d/%p), sleeping for %d seconds\n",
+  double r = (double)rand() / (double)RAND_MAX;
+  int delta = deltamin + (deltamax-deltamin)*r;
+  printf( "Rank: %d, core %d: entering PTG task (%d, %d) of TP %s (%d/%p), sleeping for %g seconds\n",
           this_task->taskpool->context->my_rank, es->core_id,
-          m, n, this_task->taskpool->taskpool_name, this_task->taskpool->taskpool_id, this_task->taskpool, delta );
-  sleep(delta);
-  printf( "Rank: %d, core %d: leaving PTG task (%d, %d) of TP %s (%d/%p), slept %d seconds\n",
+          m, n, this_task->taskpool->taskpool_name, this_task->taskpool->taskpool_id, this_task->taskpool, delta / 1.0e6 );
+  usleep(delta);
+  printf( "Rank: %d, core %d: leaving PTG task (%d, %d) of TP %s (%d/%p), slept %g seconds\n",
           this_task->taskpool->context->my_rank, es->core_id,
-          m, n, this_task->taskpool->taskpool_name, this_task->taskpool->taskpool_id, this_task->taskpool, delta );
+          m, n, this_task->taskpool->taskpool_name, this_task->taskpool->taskpool_id, this_task->taskpool, delta / 1.0e6 );
 END
