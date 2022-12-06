@@ -257,7 +257,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
  */
 int
 parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int task_rank,
-                             int priority)
+                             int priority, bool is_first_flush_task)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
 
@@ -278,6 +278,11 @@ parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int
         (void)parsec_atomic_fetch_add_int32(&object->obj_reference_count, 2);
     } else {
         (void)parsec_atomic_fetch_inc_int32(&object->obj_reference_count);
+        if (is_first_flush_task) {
+            /* add another reference to prevent a release of the task
+             * as the last_writer, it will be released once the dependency is released */
+            parsec_dtd_remote_task_retain(this_task);
+        }
     }
 
     parsec_insert_dtd_flush_task(this_task, tile);
@@ -317,7 +322,7 @@ parsec_dtd_insert_flush_task_pair(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile
         if(last_writer.task->rank != tile->rank) {
             /* We only need a pair if these ranks are not same */
             parsec_dtd_tile_retain(tile);
-            parsec_dtd_insert_flush_task(tp, tile, last_writer.task->rank, 0);
+            parsec_dtd_insert_flush_task(tp, tile, last_writer.task->rank, 0, true);
         }
 
 
@@ -325,7 +330,7 @@ parsec_dtd_insert_flush_task_pair(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile
          * this task will be used to receive the data.
          */
         parsec_dtd_tile_retain(tile);
-        parsec_dtd_insert_flush_task(tp, tile, tile->rank, 0);
+        parsec_dtd_insert_flush_task(tp, tile, tile->rank, 0, false);
     }
 
     return 1;
