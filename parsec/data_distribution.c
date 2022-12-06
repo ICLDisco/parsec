@@ -73,11 +73,12 @@ parsec_dc_register_id(parsec_dc_t* dc, parsec_dc_key_t key)
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
     dc->ht_item.key = key;
     dc->dc_id = key;
-    parsec_hash_table_insert(parsec_dc_hash_table, &dc->ht_item);
-    /* We do not have any function to check if there is a collision
+    /* We do not have any function to check atomically if there is a collision
      * so for now we replace the old entry if there is request for
      * a new registration with same id.
      */
+    parsec_hash_table_insert(parsec_dc_hash_table, &dc->ht_item);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "register dc_t %p with key %lld", dc, (long long)key);
     return 1;
 }
 
@@ -89,7 +90,7 @@ parsec_dc_unregister_id(parsec_dc_key_t key)
         return PARSEC_ERROR;
     }
     parsec_dc_t* registered_dc = parsec_hash_table_remove(parsec_dc_hash_table, key);
-    parsec_inform("unregister dc_t %p with key %lld", registered_dc, (long long)key);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "unregister dc_t %p with key %lld", registered_dc, (long long)key);
     return (NULL != registered_dc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
