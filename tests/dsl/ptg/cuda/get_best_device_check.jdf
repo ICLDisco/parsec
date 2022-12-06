@@ -209,6 +209,8 @@ int parsec_get_best_device_check(parsec_context_t *parsec,
         info_tmp[0] += info_tmp[i];
     }
 
+    parsec_taskpool_free(parsec_get_best_device_check);
+
     MPI_Allreduce(&info_tmp[0], &info, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
     return info;

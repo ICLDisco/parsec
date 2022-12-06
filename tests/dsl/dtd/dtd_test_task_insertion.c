@@ -208,7 +208,6 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_dtd_taskpool_release(dtd_tp);
     parsec_taskpool_free( dtd_tp );
 
     parsec_fini(&parsec);
