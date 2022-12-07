@@ -199,7 +199,6 @@ int parsec_redistribute(parsec_context_t *parsec,
         parsec_context_add_taskpool(parsec, parsec_redistribute_ptg);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
-        parsec_context_remove_taskpool(parsec_redistribute_ptg);
         parsec_taskpool_free(parsec_redistribute_ptg);
         return PARSEC_SUCCESS;
     }
