@@ -2696,8 +2696,7 @@ parsec_dtd_schedule_task_if_ready(int satisfied_flow, parsec_dtd_task_t *this_ta
                              this_task->super.task_class->nb_flows, this_task->flow_count);
 
         PARSEC_LIST_ITEM_SINGLETON(this_task);
-        __parsec_schedule(dtd_tp->super.context->virtual_processes[*vpid]->execution_streams[0],
-                          (parsec_task_t *)this_task, 0);
+        __parsec_schedule(parsec_my_execution_stream(), (parsec_task_t *)this_task, 0);
         *vpid = (*vpid + 1) % dtd_tp->super.context->nb_vp;
         return 1; /* Indicating local task was ready */
     }
@@ -2983,7 +2982,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                         int action_mask = 0;
                         action_mask |= (1 << (PARENT_OF(this_task, flow_index))->flow_index);
 
-                        parsec_execution_stream_t *es = dtd_tp->super.context->virtual_processes[0]->execution_streams[0];
+                        parsec_execution_stream_t *es = parsec_my_execution_stream();
 
                         if( parsec_dtd_task_is_local(parent_task) && parsec_dtd_task_is_remote(this_task)) {
                             /* To make sure we do not release any remote data held by this task */
