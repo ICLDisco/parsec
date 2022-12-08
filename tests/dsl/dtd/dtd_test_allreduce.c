@@ -108,7 +108,7 @@ int main(int argc, char **argv)
 #endif
 
     nb = 1; /* tile_size */
-    nt = world*1; /* total no. of tiles */
+    nt = world*10; /* total no. of tiles */
     verbose = 0;
 
     int pargc = 0; char **pargv = NULL;

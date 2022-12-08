@@ -116,7 +116,6 @@ int main(int argc, char ** argv)
 
     SYNC_TIME_PRINT(rank, ("\n"));
 
-    parsec_dtd_taskpool_release(dtd_tp);
     parsec_taskpool_free( dtd_tp );
 
     parsec_fini(&parsec);
