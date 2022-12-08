@@ -149,7 +149,7 @@ extern void (*parsec_weaksym_exit)(int status);
 #else
 #define PARSEC_DEBUG_VERBOSE(LVL, OUT, FMT, ...) do {                \
     parsec_output_verbose(LVL, OUT,                                  \
-        "%.*sd@%05d%.*s " FMT " %.*s@%.30s:%-5d%.*s",                \
+        "%.*sd@%05d%.*s " FMT " %.*s@%.64s:%-5d%.*s",                \
         parsec_debug_colorize, "\x1B[0;37;44m", parsec_debug_rank,   \
         parsec_debug_colorize, "\033[0m", ##__VA_ARGS__,             \
         parsec_debug_colorize, "\x1B[36m", __func__, __LINE__,       \
