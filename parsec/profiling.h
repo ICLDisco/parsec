@@ -85,11 +85,11 @@
 /**
  * @brief  Flag used when an info object is attached to the event
  */
-#define PARSEC_PROFILING_EVENT_HAS_INFO     (1<<0)
+#define PARSEC_PROFILING_EVENT_HAS_INFO         (1<<0)
 /**
  * @brief Flag used when the event is a reschedule of a previous event
  */
-#define PARSEC_PROFILING_EVENT_RESCHEDULED  (1<<1)
+#define PARSEC_PROFILING_EVENT_RESCHEDULED      (1<<1)
 /**
  * @brief Flag used when the event's info is a counter
  * @details The event's info (if present) is an integer that
@@ -97,7 +97,20 @@
  *          This might be useful to represent countable entities,
  *          like amount of tasks pending, amount of memory allocated,
  *          etc. */
-#define PARSEC_PROFILING_EVENT_COUNTER      (1<<2)
+#define PARSEC_PROFILING_EVENT_COUNTER          (1<<2)
+/**
+ * @brief time at the beginning of exeuction.
+ * @details Flag used to indicate to `parsec_profiling_trace_flags` that
+ *          it should call `take_time` at the beginning of its execution
+ *          rather than at the end. Immediately after, there is a flag
+ *          (the same bit set to zero) defined for readability.
+ */
+#define PARSEC_PROFILING_EVENT_TIME_AT_START    (1<<3)
+/**
+ * @brief time at end of execution (default)
+ * @details for more details, see `PARSEC_PROFILING_EVENT_TIME_AT_START`.
+ */
+#define PARSEC_PROFILING_EVENT_TIME_AT_END      (0<<3)
 /**
  * @brief Constant to use when no handle/object ID can be associated
  *        with an event
