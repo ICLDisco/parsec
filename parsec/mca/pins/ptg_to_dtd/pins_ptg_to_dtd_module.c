@@ -307,7 +307,7 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
             else
                 assert(0);
         }
-        tc = (parsec_task_class_t*)parsec_dtd_create_task_classv( dtd_tp, name_of_kernel,
+        tc = (parsec_task_class_t*)parsec_dtd_create_task_classv( name_of_kernel,
                                                                   count_of_params, params);
         parsec_dtd_task_class_add_chore(&dtd_tp->super, tc, PARSEC_DEV_CPU, fpointer);
         free(params);
