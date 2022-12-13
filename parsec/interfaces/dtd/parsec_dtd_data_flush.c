@@ -381,7 +381,6 @@ parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
 int
 parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
 {
-    parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     parsec_hash_table_t *hash_table   = (parsec_hash_table_t *)dc->tile_h_table;
     parsec_execution_stream_t *es = parsec_my_execution_stream();
 

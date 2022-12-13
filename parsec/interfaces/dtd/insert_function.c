@@ -2149,7 +2149,6 @@ parsec_dtd_create_task_class(parsec_taskpool_t *tp,
         parsec_warning("Calling parsec_dtd_create_task_class on a taskpool that is not DTD\n");
         return NULL;
     }
-    parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
 
     /* We parse arguments a first time (mostly skipping the tile),
      * to compute how the task needs to be created */
