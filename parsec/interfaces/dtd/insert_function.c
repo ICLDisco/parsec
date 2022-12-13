@@ -1813,7 +1813,6 @@ parsec_dtd_release_local_task(parsec_dtd_task_t *this_task)
         }
         assert(this_task->super.super.super.obj_reference_count == 1);
         parsec_thread_mempool_free(this_task->mempool_owner, this_task);
-// REAZUL        parsec_taskpool_update_runtime_nbtask(tp, -1);
     }
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -2737,9 +2736,6 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
     int flow_index, satisfied_flow = 0, tile_op_type = 0, put_in_chain = 1;
     static int vpid = 0;
     parsec_dtd_tile_t *tile = NULL;
-
-    /* Retaining runtime_task */
-//REAZUL    parsec_taskpool_update_runtime_nbtask(this_task->super.taskpool, 1);
 
     /* Retaining every remote_task */
     if( parsec_dtd_task_is_remote(this_task)) {
