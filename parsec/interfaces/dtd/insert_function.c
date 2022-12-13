@@ -252,7 +252,7 @@ parsec_dtd_enqueue_taskpool(parsec_taskpool_t *tp, void *data)
     parsec_dtd_task_class_t *data_flush_tc;
     flush_param.op = PARSEC_AFFINITY | PARSEC_INOUT;
     flush_param.size = PASSED_BY_REF;
-    data_flush_tc = parsec_dtd_create_task_classv(dtd_tp, "parsec_dtd_data_flush", 1, &flush_param);
+    data_flush_tc = parsec_dtd_create_task_classv("parsec_dtd_data_flush", 1, &flush_param);
     __parsec_chore_t **incarnations = (__parsec_chore_t**)&data_flush_tc->super.incarnations;
     (*incarnations)[0].type = PARSEC_DEV_CPU;
     (*incarnations)[0].hook = parsec_dtd_data_flush_sndrcv;
@@ -923,6 +923,10 @@ parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
     tc->super.task_class_id = tp->super.nb_task_classes++;
     assert(NULL == tp->super.task_classes_array[tc->super.task_class_id]);
     tp->super.task_classes_array[tc->super.task_class_id] = &tc->super;
+
+#if defined(PARSEC_PROF_TRACE)
+    parsec_dtd_add_profiling_info(&tp->super, tc->super.task_class_id, tc->super.name);
+#endif /* defined(PARSEC_PROF_TRACE) */
 }
 
 /* **************************************************************************** */
@@ -2007,8 +2011,7 @@ set_dependencies_for_function(parsec_taskpool_t *tp,
 /* **************************************************************************** */
 
 parsec_dtd_task_class_t *
-parsec_dtd_create_task_classv(parsec_dtd_taskpool_t *dtd_tp,
-                              const char *name,
+parsec_dtd_create_task_classv(const char *name,
                               int nb_params,
                               const parsec_dtd_param_t *params)
 {
@@ -2103,10 +2106,6 @@ parsec_dtd_create_task_classv(parsec_dtd_taskpool_t *dtd_tp,
     tc->complete_execution = complete_hook_of_dtd;
     tc->release_task = parsec_release_dtd_task_to_mempool;
 
-#if defined(PARSEC_PROF_TRACE)
-    parsec_dtd_add_profiling_info((parsec_taskpool_t *)dtd_tp, tc->task_class_id, name);
-#endif /* defined(PARSEC_PROF_TRACE) */
-
     return dtd_tc;
 }
 
@@ -2164,7 +2163,7 @@ parsec_dtd_create_task_class(parsec_taskpool_t *tp,
     }
     va_end(args);
 
-    dtd_tc = parsec_dtd_create_task_classv(dtd_tp, name, nb_params, params);
+    dtd_tc = parsec_dtd_create_task_classv(name, nb_params, params);
 
     return &dtd_tc->super;
 }
@@ -3192,7 +3191,7 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
         tc = (parsec_task_class_t *)parsec_dtd_find_task_class(dtd_tp, fkey);
 
         if( NULL == tc ) {
-            dtd_tc = parsec_dtd_create_task_classv(dtd_tp, name_of_kernel, nb_params, params);
+            dtd_tc = parsec_dtd_create_task_classv(name_of_kernel, nb_params, params);
             tc = &dtd_tc->super;
 
             __parsec_chore_t **incarnations = (__parsec_chore_t **)&tc->incarnations;

@@ -382,8 +382,7 @@ parsec_dtd_create_task_class( parsec_taskpool_t *__tp,
                               ... );
 
 parsec_dtd_task_class_t *
-parsec_dtd_create_task_classv(parsec_dtd_taskpool_t *dtd_tp,
-                              const char *name,
+parsec_dtd_create_task_classv(const char *name,
                               int nb_params,
                               const parsec_dtd_param_t *params);
 
