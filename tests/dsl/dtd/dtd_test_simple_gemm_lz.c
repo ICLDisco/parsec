@@ -44,6 +44,8 @@ static int Q = -1;
 #define RndD_Mul 5.4210108624275222e-20
 #define NBELEM 1
 
+#define EPSILON 1e-10
+
 static unsigned long long int Rnd64_jump(unsigned long long int n, unsigned long long int seed)
 {
     unsigned long long int a_k, c_k, ran;
@@ -131,7 +133,7 @@ int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_
                                                    PARSEC_DTD_EMPTY_FLAG, &mat->super.mb,
                                                    PARSEC_DTD_EMPTY_FLAG, &seed,
                                                    PARSEC_DTD_ARG_END);
-            if(PARSEC_DEV_CUDA == device &&
+            if(PARSEC_DEV_LEVEL_ZERO == device &&
                (int)mat->super.super.rank_of_key(&mat->super.super, key) == rank ) {
                 if( gemm_lz_verbose ) {
                     fprintf(stderr, "Advice %s(%d, %d) to prefer GPU device %d (parsec device %d) of rank %d\n",
@@ -140,8 +142,8 @@ int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_
                 parsec_advise_data_on_device(mat->super.super.data_of_key(&mat->super.super, key),
                                              gpu_device_index[g],
                                              PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE);
+                g = (g + 1) % nb_gpus;
             }
-            g = (g + 1) % nb_gpus;
         }
     }
     parsec_dtd_data_flush_all(tp, &mat->super.super);
@@ -336,6 +338,25 @@ static void destroy_matrix(parsec_matrix_block_cyclic_t *dc)
     free(dc);
 }
 
+static void print_matrix(parsec_matrix_block_cyclic_t *dc, parsec_context_t *parsec_context, const char *info)
+{
+    for( int i = 0; i < dc->super.mt; i++ ) {
+        for( int j = 0; j < dc->super.nt; j++ ) {
+            if( (int)dc->super.super.rank_of(&dc->super.super, i, j) == parsec_context->my_rank ) {
+                fprintf(stderr, "%-5s(%2d, %2d): ", info, i, j);
+                parsec_data_t *tile = dc->super.super.data_of(&dc->super.super, i, j);
+                double *mat = PARSEC_DATA_COPY_GET_PTR(parsec_data_get_copy(tile, 0));
+                for( int ii = 0; ii < dc->super.mb; ii++) {
+                    for(int jj = 0; jj < dc->super.nb; jj++) {
+                        fprintf(stderr, "%5.2g ", mat[ii*dc->super.nb + jj]);
+                    }
+                    fprintf(stderr, "\n               ");
+                }
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     int ret = 0, rc, nbgpus = 0;
@@ -346,6 +367,7 @@ int main(int argc, char **argv)
     double min_perf=0.0;
     int runs = 5;
     int debug=-1;
+    int check = 0;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -375,11 +397,12 @@ int main(int argc, char **argv)
                 {"verbose", no_argument,       0, 'v'},
                 {"Debug",   required_argument, 0, 'D'},
                 {"Alarm",   required_argument, 0, 'A'},
+                {"Check",   no_argument,       0, 'x'},
                 {"help",    no_argument,       0, 'h'},
                 {0, 0,                         0, 0}
         };
 
-        int c = getopt_long(argc, argv, "M:N:K:m:n:k:P:Q:t:d:D:A:vh",
+        int c = getopt_long(argc, argv, "M:N:K:m:n:k:P:Q:t:d:D:A:xvh",
                             long_options, &option_index);
         if( c == -1 )
             break;
@@ -417,7 +440,7 @@ int main(int argc, char **argv)
                 break;
             case 'd':
                 if(strcmp(optarg, "GPU") == 0) {
-                    device=PARSEC_DEV_CUDA;
+                    device=PARSEC_DEV_LEVEL_ZERO;
                 } else if(strcmp(optarg, "CPU") == 0) {
 #if defined(HAVE_BLAS)
                     device=PARSEC_DEV_CPU;
@@ -435,6 +458,14 @@ int main(int argc, char **argv)
                 break;
             case 'A':
                 min_perf = strtod(optarg, NULL);
+                break;
+            case 'x':
+#if defined(HAVE_BLAS)
+                check = 1;
+                runs=1;
+#else
+                fprintf(stderr, "Error: requested to run with checks, but CPU BLAS not available\n");
+#endif
                 break;
             case 'h':
             case '?':
@@ -461,6 +492,9 @@ int main(int argc, char **argv)
                         "                                 single GPU (kills the process if it takes longer\n"
                         "                                 than the time corresponding to the expected\n"
                         "                                 performance to complete the product)\n"
+                        "   --Check|-x:                   perform numerical check of the solution by comparing\n"
+                        "                                 the output of the GPU computation with the output of the\n"
+                        "                                 CPU BLAS computation\n"
                         "\n"
                         " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
                         "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
@@ -513,6 +547,53 @@ int main(int argc, char **argv)
     parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
     parsec_add2arena_rect(adt, parsec_datatype_double_t, mb, nb, mb);
 
+    if(check) {
+        fprintf(stderr, "Computing target GEMM\n");
+        parsec_matrix_block_cyclic_t *dcA = create_initialize_matrix(parsec_context, rank, 1789, "A", mb, kb, M, K,
+                                                                     gpu_device_index, nbgpus);
+        parsec_matrix_block_cyclic_t *dcB = create_initialize_matrix(parsec_context, rank, 1805, "B", kb, nb, K, N,
+                                                                     gpu_device_index, nbgpus);
+        parsec_matrix_block_cyclic_t *dcC = create_initialize_matrix(parsec_context, rank, 1901, "C", mb, nb, M, N,
+                                                                     gpu_device_index, nbgpus);
+        print_matrix(dcC, parsec_context, "C0");
+        simple_gemm(parsec_context, dcA, dcB, dcC);
+        print_matrix(dcC, parsec_context, "C1");
+
+        device = PARSEC_DEV_CPU;
+        fprintf(stderr, "Computing CPU BLAS GEMM\n");
+        parsec_matrix_block_cyclic_t *dcAcheck = create_initialize_matrix(parsec_context, rank, 1789, "Acheck", mb, kb, M, K,
+                                                                          gpu_device_index, nbgpus);
+        parsec_matrix_block_cyclic_t *dcBcheck = create_initialize_matrix(parsec_context, rank, 1805, "Bcheck", kb, nb, K, N,
+                                                                          gpu_device_index, nbgpus);
+        parsec_matrix_block_cyclic_t *dcCcheck = create_initialize_matrix(parsec_context, rank, 1901, "Ccheck", mb, nb, M, N,
+                                                                          gpu_device_index, nbgpus);
+        print_matrix(dcCcheck, parsec_context, "C'0");
+        simple_gemm(parsec_context, dcAcheck, dcBcheck, dcCcheck);
+        print_matrix(dcCcheck, parsec_context, "C'1");
+
+        for( int i = 0; i < 0*dcC->super.mt; i++ ) {
+            for( int j = 0; j < dcC->super.nt; j++ ) {
+                if( (int)dcC->super.super.rank_of(&dcC->super.super, i, j) == parsec_context->my_rank ) {
+                    parsec_data_t *CTile = dcC->super.super.data_of(&dcC->super.super, i, j);
+                    parsec_data_t *DTile = dcCcheck->super.super.data_of(&dcCcheck->super.super, i, j);
+                    double *c = PARSEC_DATA_COPY_GET_PTR(parsec_data_get_copy(CTile, 0));
+                    double *d = PARSEC_DATA_COPY_GET_PTR(parsec_data_get_copy(DTile, 0));
+                    for( int x = 0; x < mb*nb; x++) {
+                        if( fabs(c[x] - d[x]) > EPSILON ) {
+                            fprintf(stderr, "Tile (%d, %d), double %d is %g/%g -- differ by %g > %g\n", i, j, x, c[x], d[x], fabs(c[x]-d[x]), EPSILON );
+                        }
+                    }
+                }
+            }
+        }
+
+        destroy_matrix(dcA);
+        destroy_matrix(dcB);
+        destroy_matrix(dcC);
+        destroy_matrix(dcAcheck);
+        destroy_matrix(dcBcheck);
+        destroy_matrix(dcCcheck);
+    } else {
     // Create and initialize the data
     parsec_matrix_block_cyclic_t *dcA = create_initialize_matrix(parsec_context, rank, 1789, "A", mb, kb, M, K,
                                                            gpu_device_index, nbgpus);
@@ -539,8 +620,8 @@ int main(int argc, char **argv)
         (void)t;
         (void)gflops;
         if( 0 == rank && r > 0 ) {
-            fprintf(stderr, "DTD_GEMM PxQxg: %d %d %d M: %d N: %d K: %d mb: %d nb: %d kb: %d -- done\n",
-                    P, Q, nbgpus, M, N, K, mb, nb, kb);
+            fprintf(stderr, "DTD_GEMM PxQxg: %d %d %d M: %d N: %d K: %d mb: %d nb: %d kb: %d -- %g s, %g GFLop => %g GFLop/s\n",
+                    P, Q, nbgpus, M, N, K, mb, nb, kb, t, gflop, gflops);
         }
     }
     // deactivate the alarm if it was set
@@ -553,6 +634,7 @@ int main(int argc, char **argv)
     destroy_matrix(dcA);
     destroy_matrix(dcB);
     destroy_matrix(dcC);
+    }
 
     parsec_fini(&parsec_context);
 

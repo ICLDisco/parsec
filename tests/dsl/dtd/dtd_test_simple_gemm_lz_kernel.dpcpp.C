@@ -25,6 +25,7 @@ int gemm_kernel_lz(parsec_device_gpu_module_t *gpu_device,
     double delta;
     double *a_gpu, *b_gpu, *c_gpu;
     parsec_level_zero_exec_stream_t *lz_stream = (parsec_level_zero_exec_stream_t *)gpu_stream;
+    cl::sycl::event gemm_event;
 
     (void)gpu_device;
 
@@ -42,11 +43,12 @@ int gemm_kernel_lz(parsec_device_gpu_module_t *gpu_device,
     double alpha=0.0;
     double beta=1.0;
     try {
-      oneapi::mkl::blas::gemm(lz_stream->swq->queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
+      gemm_event = oneapi::mkl::blas::gemm(lz_stream->swq->queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
          mb, kb, nb,
          alpha, static_cast<const double*>(a_gpu), mb,
          static_cast<const double*>(b_gpu), kb,
          beta, static_cast<double*>(c_gpu), nb);
+      gemm_event.wait();
     } catch (const oneapi::mkl::invalid_argument &e) {
       parsec_warning("OneAPI MKL BLAS GEMM throws invalid argument exception");
     } catch (const oneapi::mkl::unsupported_device &e) {
@@ -66,10 +68,10 @@ int gemm_kernel_lz(parsec_device_gpu_module_t *gpu_device,
     timersub(&end, &start, &diff);
     delta = (double)diff.tv_sec + (double)diff.tv_usec/1e6;
     if(gemm_lz_verbose)
-        fprintf(stderr, "GEMM(%d, %d, %d) with tiles of %dx%d, %dx%d, %dx%d on node %d, GPU %s submitted in %g s\n",
-                m, n, k, mb, kb, kb, nb, mb, kb,
+        fprintf(stderr, "GEMM(%d, %d, %d) with tiles of %dx%d [%p], %dx%d [%p], %dx%d [%p] on node %d, Stream %s of GPU %s submitted in %g s\n",
+                m, n, k, mb, kb, a_gpu, kb, nb, b_gpu, mb, kb, c_gpu,
                 this_task->taskpool->context->my_rank,
-                gpu_stream->name, delta);
+                gpu_device->super.name, gpu_stream->name, delta);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
