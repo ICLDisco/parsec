@@ -6779,6 +6779,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "    int chore_idx = 0;\n"
                 "    for ( ; PARSEC_DEV_NONE != this_task->task_class->incarnations[chore_idx].type; ++chore_idx) {\n"
                 "      if (this_task->task_class->incarnations[chore_idx].type == PARSEC_DEV_CUDA) break;\n"
+                "      if (this_task->task_class->incarnations[chore_idx].type == PARSEC_DEV_LEVEL_ZERO) break;\n"
                 "    }\n"
                 "    /* The void* cast prevents the compiler from complaining about the type change */\n"
                 "    parsec_body.dyld_fn = (%s)(void*)this_task->task_class->incarnations[chore_idx].dyld_fn;\n"

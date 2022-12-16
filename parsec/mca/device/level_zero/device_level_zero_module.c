@@ -247,15 +247,6 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
         ze_rc = zeCommandQueueCreate(level_zero_device->driver->ze_context, level_zero_device->ze_device,
                                      &commandQueueDesc, &level_zero_stream->level_zero_cq);
         PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandQueueCreate ", ze_rc, {goto release_device;} );
-        ze_command_list_desc_t commandListDesc = {
-                    ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC,
-                    NULL,
-                    computeQueueGroupOrdinal,
-                    0 // flags
-        };
-        ze_rc = zeCommandListCreate(level_zero_device->driver->ze_context, level_zero_device->ze_device,
-                                    &commandListDesc, &level_zero_stream->level_zero_cl);
-        PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListCreate ", ze_rc, {goto release_device;} );
         exec_stream->workspace    = NULL;
         PARSEC_OBJ_CONSTRUCT(&exec_stream->infos, parsec_info_object_array_t);
         parsec_info_object_array_init(&exec_stream->infos, &parsec_per_stream_infos, exec_stream);
@@ -269,6 +260,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
         exec_stream->tasks    = (parsec_gpu_task_t**)malloc(exec_stream->max_events
                                                             * sizeof(parsec_gpu_task_t*));
         level_zero_stream->events   = (ze_event_handle_t*)malloc(exec_stream->max_events * sizeof(ze_event_handle_t));
+        level_zero_stream->command_lists = (ze_command_list_handle_t*)malloc(exec_stream->max_events*sizeof(ze_command_list_handle_t));
 
         // Create event pool
         ze_event_pool_desc_t eventPoolDesc = {
@@ -282,6 +274,12 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
 
         /* and the corresponding events */
         for( k = 0; k < exec_stream->max_events; k++ ) {
+            ze_command_list_desc_t commandListDesc = {
+                    ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC,
+                    NULL,
+                    computeQueueGroupOrdinal,
+                    0 // flags
+            };
             ze_event_desc_t eventDesc = {
                     ZE_STRUCTURE_TYPE_EVENT_DESC,
                     NULL,
@@ -291,9 +289,11 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
             };
             level_zero_stream->events[k]   = NULL;
             exec_stream->tasks[k]    = NULL;
+            ze_rc = zeCommandListCreate(level_zero_device->driver->ze_context, level_zero_device->ze_device,
+                                        &commandListDesc, &level_zero_stream->command_lists[k]);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListCreate ", ze_rc, {goto release_device;} );
             ze_rc = zeEventCreate(level_zero_stream->ze_event_pool, &eventDesc, &(level_zero_stream->events[k]));
-            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeEventCreate ", ze_rc,
-                                     {goto release_device;} );
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeEventCreate ", ze_rc, {goto release_device;} );
         }
         if(j == 0) {
             len = asprintf(&exec_stream->name, "h2d(%d)", j);
@@ -460,6 +460,8 @@ parsec_level_zero_module_fini(parsec_device_module_t* device)
             assert( NULL == exec_stream->tasks[k] );
             status = zeEventDestroy(level_zero_stream->events[k]);
             PARSEC_LEVEL_ZERO_CHECK_ERROR( "(parsec_level_zero_device_fini) level_zeroEventDestroy ", status, {} );
+            status = zeCommandListDestroy(level_zero_stream->command_lists[k]);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListDestroy ", status, {} );
         }
         zeEventPoolDestroy(level_zero_stream->ze_event_pool);
         exec_stream->max_events = 0;
@@ -468,8 +470,6 @@ parsec_level_zero_module_fini(parsec_device_module_t* device)
         free(exec_stream->fifo_pending); exec_stream->fifo_pending = NULL;
         /* Release the stream */
         ze_result_t ze_rc;
-        ze_rc = zeCommandListDestroy(level_zero_stream->level_zero_cl);
-        PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListDestroy ", ze_rc, {} );
         /* Deleting the sycl queue wrapper and/or the command queue conflicts with the
          *   cleaning procedure of the Level Zero runtime... Didn't find a way to do it
          *   cleanly. Don't cleanup for now... */
@@ -550,10 +550,9 @@ parsec_level_zero_memory_reserve( parsec_device_level_zero_module_t* level_zero_
     }
     initial_free_mem = devProperties.maxMemAllocSize < devMemProperties[memIndex].totalSize ?
             devProperties.maxMemAllocSize : devMemProperties[memIndex].totalSize;
-    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                         "level-zero device %s: initial_free_mem is %lu (device max alloc size is %lu, device memory "
-                         "property total size for memory bank %d is %lu)", gpu_device->super.name, initial_free_mem,
-                        devProperties.maxMemAllocSize, memIndex, devMemProperties[memIndex].totalSize);
+    fprintf(stderr, "level-zero device %s: initial_free_mem is %lu (device max alloc size is %lu, device memory "
+                    "property total size for memory bank %d is %lu)", gpu_device->super.name, initial_free_mem,
+                    devProperties.maxMemAllocSize, memIndex, devMemProperties[memIndex].totalSize);
     free(devMemProperties); devMemProperties = NULL;
 
     if( number_blocks != -1 ) {
@@ -1118,7 +1117,7 @@ parsec_default_level_zero_stage_in(parsec_gpu_task_t        *gtask,
             copy_out = task->data[i].data_out;
             count = (copy_in->original->nb_elts <= copy_out->original->nb_elts) ?
                           copy_in->original->nb_elts : copy_out->original->nb_elts;
-            ret = (ze_result_t)zeCommandListAppendMemoryCopy(level_zero_stream->level_zero_cl,
+            ret = (ze_result_t)zeCommandListAppendMemoryCopy(level_zero_stream->command_lists[gpu_stream->start],
                                                              copy_out->device_private,
                                                              copy_in->device_private,
                                                              count,
@@ -1157,7 +1156,7 @@ parsec_default_level_zero_stage_out(parsec_gpu_task_t        *gtask,
             copy_out = copy_in->original->device_copies[0];
             count = (copy_in->original->nb_elts <= copy_out->original->nb_elts) ? copy_in->original->nb_elts :
                         copy_out->original->nb_elts;
-            ret = (ze_result_t)zeCommandListAppendMemoryCopy(level_zero_stream->level_zero_cl,
+            ret = (ze_result_t)zeCommandListAppendMemoryCopy(level_zero_stream->command_lists[gpu_stream->start],
                                                              copy_out->device_private,
                                                              copy_in->device_private,
                                                              count,
@@ -1897,6 +1896,8 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
                                  parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task->ec),
                                  task->ec->priority, stream->name, (void*)stream);
             stream->tasks[stream->end]    = NULL;
+            rc = zeCommandListReset(level_zero_stream->command_lists[stream->end]);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListReset ", rc, {} );
             stream->end = (stream->end + 1) % stream->max_events;
 
 #if defined(PARSEC_PROF_TRACE)
@@ -1977,14 +1978,15 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
      * too early, it might get executed before the data is available on the GPU.
      * Obviously, this lead to incorrect results.
      */
-    rc = zeCommandListAppendSignalEvent( level_zero_stream->level_zero_cl, level_zero_stream->events[stream->start] );
+    rc = zeCommandListAppendSignalEvent( level_zero_stream->command_lists[stream->start], level_zero_stream->events[stream->start] );
     assert(ZE_RESULT_SUCCESS == rc);
-    ze_result_t ze_rc = zeCommandListClose(level_zero_stream->level_zero_cl);
+    ze_result_t ze_rc = zeCommandListClose(level_zero_stream->command_lists[stream->start]);
     PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListClose ", ze_rc, { } );
-    ze_rc = zeCommandQueueExecuteCommandLists(level_zero_stream->level_zero_cq, 1, &level_zero_stream->level_zero_cl, NULL);
+    ze_rc = zeCommandQueueExecuteCommandLists(level_zero_stream->level_zero_cq, 1, &level_zero_stream->command_lists[stream->start], NULL);
     PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandQueueExecuteCommandLists ", ze_rc, { } );
-    ze_rc = zeCommandListReset(level_zero_stream->level_zero_cl);
-    PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListReset ", ze_rc, { } );
+
+    ze_rc = zeCommandQueueSynchronize( level_zero_stream->level_zero_cq, 5000000 );
+    PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandQueueSynchronize ", ze_rc, { } );
 
     stream->tasks[stream->start]    = task;
     stream->start = (stream->start + 1) % stream->max_events;

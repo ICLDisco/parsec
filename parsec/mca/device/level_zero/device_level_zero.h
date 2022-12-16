@@ -63,8 +63,8 @@ struct parsec_level_zero_exec_stream_s {
      * remains in the system the function is supposed to update it.
      */
     ze_event_handle_t               *events;
+    ze_command_list_handle_t        *command_lists;
     ze_event_pool_handle_t           ze_event_pool;
-    ze_command_list_handle_t         level_zero_cl;
     ze_command_queue_handle_t        level_zero_cq;
     parsec_sycl_wrapper_queue_t     *swq;
 };
