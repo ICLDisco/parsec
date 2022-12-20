@@ -248,23 +248,25 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
             PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMemcpy ", status, {return NULL;} );
 #elif defined(PARSEC_HAVE_LEVEL_ZERO)
             parsec_level_zero_exec_stream_t* level_zero_stream = (parsec_level_zero_exec_stream_t*)level_zero_device->super.exec_stream[0];
-            ze_event_handle_t copySignalEvent = level_zero_stream->events[0];
-            status = zeCommandListAppendMemoryCopy(level_zero_stream->command_lists[0], gpu_copy->device_private, cpu_copy->device_private, dta->nb_elts, copySignalEvent, 0, NULL);
+            ze_fence_handle_t copySignalFence = level_zero_stream->fences[0];
+            status = zeFenceReset(copySignalFence);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeFenceReset ", status, { return NULL; } );
+            status = zeCommandListReset(level_zero_stream->command_lists[0]);
+            PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListReset ", status, { return NULL; } );
+            status = zeCommandListAppendMemoryCopy(level_zero_stream->command_lists[0], gpu_copy->device_private, cpu_copy->device_private, dta->nb_elts, NULL, 0, NULL);
             PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListAppendMemoryCopy ", status, { return NULL; } );
             status = zeCommandListClose(level_zero_stream->command_lists[0]);
 	        PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListClose ", status, { return NULL; } );
-            status = zeCommandQueueExecuteCommandLists(level_zero_stream->command_lists[0], 1, &level_zero_stream->command_lists[0], NULL);
+            status = zeCommandQueueExecuteCommandLists(level_zero_stream->level_zero_cq, 1, &level_zero_stream->command_lists[0], copySignalFence);
 	        PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandQueueExecuteCommandLists ", status, { return NULL; } );
             while(1) {
-                status = zeEventQueryStatus(copySignalEvent);
+                status = zeFenceQueryStatus(copySignalFence);
                 if(status == ZE_RESULT_SUCCESS)
                     break;
                 if(status != ZE_RESULT_NOT_READY)
-                    PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeEventHostSynchronize ", status, { break; } );
+                    PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeFenceQueryStatus ", status, { break; } );
                     usleep(1000);
             }
-            status = zeCommandListReset(level_zero_stream->command_lists[0]);
-	        PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListReset ", status, { return NULL; } );
 #else
             memcpy(gpu_copy->device_private, cpu_copy->device_private, dta->nb_elts);
 #endif

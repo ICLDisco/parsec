@@ -57,14 +57,13 @@ PARSEC_OBJ_CLASS_DECLARATION(parsec_device_level_zero_module_t);
 
 struct parsec_level_zero_exec_stream_s {
     parsec_gpu_exec_stream_t super;
-    /* There is exactly one task per active event (max_events being the uppoer bound).
-     * Upon event completion the complete_stage function associated with the task is
+    /* There is exactly one task per active fence (max_fences being the uppoer bound).
+     * Upon fence completion the complete_stage function associated with the task is
      * called, and this will decide what is going on next with the task. If the task
      * remains in the system the function is supposed to update it.
      */
-    ze_event_handle_t               *events;
+    ze_fence_handle_t               *fences;
     ze_command_list_handle_t        *command_lists;
-    ze_event_pool_handle_t           ze_event_pool;
     ze_command_queue_handle_t        level_zero_cq;
     parsec_sycl_wrapper_queue_t     *swq;
 };
@@ -76,8 +75,8 @@ struct parsec_level_zero_exec_stream_s {
 /**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for transfers from the GPU into
- * the main memory. The synchronization on each stream is based on GPU events,
- * such an event indicate that a specific epoch of the lifetime of a task has
+ * the main memory. The synchronization on each stream is based on GPU fences,
+ * such a fence indicates that a specific epoch of the lifetime of a task has
  * been completed. Each type of stream (in, exec and out) has a pending FIFO,
  * where tasks ready to jump to the respective step are waiting.
  */

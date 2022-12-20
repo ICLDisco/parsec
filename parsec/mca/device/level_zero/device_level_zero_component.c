@@ -362,7 +362,7 @@ static int device_level_zero_component_open(void)
  * Remove all LEVEL_ZERO devices from the PaRSEC available devices, and turn them off.
  * At the end of this function all LEVEL_ZERO initialization in the context of PaRSEC
  * should be undone, and pending tasks either completed or transferred to another
- * chore (if available), and all LEVEL_ZERO resources (events, streams and memory)
+ * chore (if available), and all LEVEL_ZERO resources (fences, streams and memory)
  * released.
  */
 static int device_level_zero_component_close(void)

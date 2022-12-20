@@ -183,7 +183,6 @@ BODY [type=DPCPP
     } catch (...) {
       parsec_warning("OneAPI MKL BLAS GEMM throws unexpected exception that is also badly formatted...");
     }
-    fprintf(stderr, "GEMM1(%d, %d, %d) has been scheduled on OneAPI MKL BLAS using the DPC++ driver\n", m, g, r);
 }
 END
 
@@ -258,7 +257,6 @@ BODY [type=DPCPP
     } catch (...) {
       parsec_warning("OneAPI MKL BLAS GEMM2 throws unexpected exception that is also badly formatted...");
     }
-    fprintf(stderr, "GEMM2(%d, %d, %d) has been scheduled on OneAPI MKL BLAS using the DPC++ driver\n", m, g, r);
 }
 END
 
