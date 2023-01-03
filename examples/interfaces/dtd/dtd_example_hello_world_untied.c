@@ -123,8 +123,8 @@ int main(int argc, char ** argv)
                            PARSEC_DTD_ARG_END);
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    rc = parsec_dtd_taskpool_wait( dtd_tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+    rc = parsec_taskpool_wait( dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
     /* Waiting on the context */
     rc = parsec_context_wait(parsec);

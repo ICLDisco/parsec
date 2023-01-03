@@ -73,8 +73,9 @@ const parsec_termdet_module_t parsec_termdet_local_module = {
  * transitions directly from busy to terminated.
  */
 #define PARSEC_TERMDET_LOCAL_TERMINATED NULL
-#define PARSEC_TERMDET_LOCAL_NOT_READY  ((void*)(0x1))
-#define PARSEC_TERMDET_LOCAL_BUSY       ((void*)(0x2))
+#define PARSEC_TERMDET_LOCAL_NOT_READY   ((void*)(0x1))
+#define PARSEC_TERMDET_LOCAL_BUSY        ((void*)(0x2))
+#define PARSEC_TERMDET_LOCAL_TERMINATING ((void*)(0x3))
 
 static void parsec_termdet_local_monitor_taskpool(parsec_taskpool_t *tp,
                                                   parsec_termdet_termination_detected_function_t cb)
@@ -99,12 +100,28 @@ static parsec_termdet_taskpool_state_t parsec_termdet_local_taskpool_state(parse
     assert(tp->tdm.module == &parsec_termdet_local_module.module);
     if( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_TERMINATED )
         return PARSEC_TERM_TP_TERMINATED;
-    if( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_BUSY )
+    if( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_BUSY || tp->tdm.monitor == PARSEC_TERMDET_LOCAL_TERMINATING )
         return PARSEC_TERM_TP_BUSY;
     if( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_NOT_READY )
         return PARSEC_TERM_TP_NOT_READY;
     assert(0);
     return -1;
+}
+
+static void parsec_termdet_local_termination_detected(parsec_taskpool_t *tp)
+{
+    assert( tp->tdm.module != NULL);
+    assert( tp->tdm.module == &parsec_termdet_local_module.module );
+    assert( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_TERMINATING );
+
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL\tTASKPOOL %p: termination detected", tp);
+    if(NULL != tp->tdm.callback) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL\tTASKPOOL %p: calling callback", tp);
+        tp->tdm.callback(tp);
+    }
+
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL\tTASKPOOL %p: entering terminated state", tp);
+    parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_TERMINATING, PARSEC_TERMDET_LOCAL_TERMINATED);
 }
 
 static int parsec_termdet_local_taskpool_ready(parsec_taskpool_t *tp)
@@ -113,27 +130,39 @@ static int parsec_termdet_local_taskpool_ready(parsec_taskpool_t *tp)
     assert( tp->tdm.module == &parsec_termdet_local_module.module );
     assert( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_NOT_READY );
     parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_NOT_READY, PARSEC_TERMDET_LOCAL_BUSY);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p READY", tp);
+
+    if( tp->nb_pending_actions == 0) {
+        /* It's possible another thread sees nb_pending_actions == 0 and BUSY before me, so call the callback
+         * only if I'm the one setting to terminated */
+        if( parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_BUSY, PARSEC_TERMDET_LOCAL_TERMINATING) ) {
+            parsec_termdet_local_termination_detected(tp);
+        }
+    }
     return PARSEC_SUCCESS;
 }
 
 static int32_t parsec_termdet_local_taskpool_set_nb_tasks(parsec_taskpool_t *tp, int32_t v)
 {
     int32_t ov, nbpa = 1; // By default we are not the one to discover nbpa gets to 0
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tNB_TASKS -> %d", v);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p NB_TASKS -> %d", tp, v);
+    assert(v >= 0 || v == PARSEC_RUNTIME_RESERVED_NB_TASKS);
     if(tp->nb_tasks != v) {
         do {
             ov = tp->nb_tasks;
         } while(! parsec_atomic_cas_int32(&tp->nb_tasks, ov, v));
         if( ov == 0 && v > 0 ) {
             nbpa = parsec_atomic_fetch_inc_int32(&tp->nb_pending_actions) + 1;
+            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p  NB_PA %d -> %d", tp, nbpa-1, nbpa);
         } else if( ov > 0 && v == 0 ) {
             nbpa = parsec_atomic_fetch_dec_int32(&tp->nb_pending_actions) - 1;
+            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p  NB_PA %d -> %d", tp, nbpa+1, nbpa);
         }
-    }
-    if( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_BUSY && nbpa == 0 ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tnbpa == 0, Call callback");
-        if( parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_BUSY, PARSEC_TERMDET_LOCAL_TERMINATED) ) {
-            tp->tdm.callback(tp);
+        if( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_BUSY && nbpa == 0 ) {
+            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p nbpa == 0", tp);
+            if( parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_BUSY, PARSEC_TERMDET_LOCAL_TERMINATING) ) {
+                parsec_termdet_local_termination_detected(tp);
+            }
         }
     }
     return tp->nb_tasks;
@@ -142,14 +171,14 @@ static int32_t parsec_termdet_local_taskpool_set_nb_tasks(parsec_taskpool_t *tp,
 static int32_t parsec_termdet_local_taskpool_set_runtime_actions(parsec_taskpool_t *tp, int32_t v)
 {
     int32_t ov;
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tNB_PA -> %d", v);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p NB_PA -> %d", tp, v);
+    assert(v >= 0);
     do {
         ov = tp->nb_pending_actions;
     } while(!parsec_atomic_cas_int32(&tp->nb_pending_actions, ov, v));
     if( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_BUSY && v == 0 ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tnbpa == 0, Call callback");
-        if( parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_BUSY, PARSEC_TERMDET_LOCAL_TERMINATED) ) {
-            tp->tdm.callback(tp);
+        if( parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_BUSY, PARSEC_TERMDET_LOCAL_TERMINATING) ) {
+            parsec_termdet_local_termination_detected(tp);
         }
     }
     return v;
@@ -158,18 +187,23 @@ static int32_t parsec_termdet_local_taskpool_set_runtime_actions(parsec_taskpool
 static int32_t parsec_termdet_local_taskpool_addto_nb_tasks(parsec_taskpool_t *tp, int32_t v)
 {
     int32_t ov, nbpa = 1; // By default we are not the one to discover that nbpa is 0
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tNB_TASKS %d -> %d", tp->nb_tasks, tp->nb_tasks + v);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p NB_TASKS %d -> %d", tp, tp->nb_tasks, tp->nb_tasks + v);
     if(v == 0)
         return tp->nb_tasks;
     ov = parsec_atomic_fetch_add_int32(&tp->nb_tasks, v);
-    if(ov == 0 && v > 0)
+    assert(ov + v >= 0);
+    if(ov == 0 && v > 0) {
         nbpa = parsec_atomic_fetch_inc_int32(&tp->nb_pending_actions) + 1;
-    else if(ov + v == 0)
+        assert(nbpa >= 0);
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p  NB_PA %d -> %d", tp, nbpa-1, nbpa);
+    } else if(ov + v == 0 && ov > 0) {
         nbpa = parsec_atomic_fetch_dec_int32(&tp->nb_pending_actions) - 1;
+        assert(nbpa >= 0);
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p  NB_PA %d -> %d", tp, nbpa+1, nbpa);
+    }
     if( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_BUSY && nbpa == 0 ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tnbpa == 0, Call callback");
-        if( parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_BUSY, PARSEC_TERMDET_LOCAL_TERMINATED) ) {
-            tp->tdm.callback(tp);
+        if( parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_BUSY, PARSEC_TERMDET_LOCAL_TERMINATING) ) {
+            parsec_termdet_local_termination_detected(tp);
         }
     }
     return ov+v;
@@ -178,15 +212,15 @@ static int32_t parsec_termdet_local_taskpool_addto_nb_tasks(parsec_taskpool_t *t
 static int32_t parsec_termdet_local_taskpool_addto_runtime_actions(parsec_taskpool_t *tp, int32_t v)
 {
     int32_t ov;
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tNB_PA %d -> %d", tp->nb_pending_actions,
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tTASKPOOL %p NB_PA %d -> %d", tp, tp->nb_pending_actions,
                          tp->nb_pending_actions + v);
     if(v == 0)
         return tp->nb_pending_actions;
     ov = parsec_atomic_fetch_add_int32(&tp->nb_pending_actions, v);
+    assert(ov+v >= 0);
     if( tp->tdm.monitor == PARSEC_TERMDET_LOCAL_BUSY && ov+v == 0 ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "TERMDET-LOCAL:\tnbpa == 0, Call callback");
-        if( parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_BUSY, PARSEC_TERMDET_LOCAL_TERMINATED) ) {
-            tp->tdm.callback(tp);
+        if( parsec_atomic_cas_ptr(&tp->tdm.monitor, PARSEC_TERMDET_LOCAL_BUSY, PARSEC_TERMDET_LOCAL_TERMINATING) ) {
+            parsec_termdet_local_termination_detected(tp);
         }
     }
     return ov+v;

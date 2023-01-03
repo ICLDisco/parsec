@@ -110,6 +110,7 @@ static otf2_convertor_t otf2_convertor[] = {
     { "int8_t", OTF2_TYPE_INT8 },
     { "int16_t", OTF2_TYPE_INT16 },
     { "int32_t", OTF2_TYPE_INT32 },
+    { "int", OTF2_TYPE_INT32 },
     { "int64_t", OTF2_TYPE_INT64 },
     { "float", OTF2_TYPE_FLOAT },
     { "double", OTF2_TYPE_DOUBLE },

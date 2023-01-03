@@ -55,6 +55,8 @@ int main( int argc, char** argv )
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
+    parsec_taskpool_free(tp);
+
     parsec_fini( &parsec);
 
     touch_finalize();

@@ -86,8 +86,8 @@ int main(int argc, char ** argv)
                                    PARSEC_DTD_ARG_END);
         }
 
-        rc = parsec_dtd_taskpool_wait( dtd_tp );
-        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+        rc = parsec_taskpool_wait( dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
         SYNC_TIME_PRINT(rank, ("\n"));
     }
 

@@ -143,8 +143,8 @@ int main(int argc, char **argv)
     //******************
     parsec_dtd_data_flush_all( dtd_tp, A );
 
-    rc = parsec_dtd_taskpool_wait( dtd_tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+    rc = parsec_taskpool_wait( dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     parsec_taskpool_free( dtd_tp );

@@ -124,8 +124,7 @@ static int pins_taskpool_complete_callback(parsec_taskpool_t* ptg_tp, void* void
      */
     parsec_execute_and_come_back( dtd_tp, 10);
 
-    parsec_detach_all_dtd_taskpool_from_context( ptg_tp->context );
-
+    (void)ptg_tp;
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -309,7 +308,7 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
             else
                 assert(0);
         }
-        tc = (parsec_task_class_t*)parsec_dtd_create_task_classv( dtd_tp, name_of_kernel,
+        tc = (parsec_task_class_t*)parsec_dtd_create_task_classv( name_of_kernel,
                                                                   count_of_params, params);
         parsec_dtd_task_class_add_chore(&dtd_tp->super, tc, PARSEC_DEV_CPU, fpointer);
         free(params);

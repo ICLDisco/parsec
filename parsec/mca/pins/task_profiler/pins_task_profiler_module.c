@@ -71,7 +71,7 @@ static void pins_init_task_profiler(parsec_context_t *master_context)
     (void)master_context;
     parsec_profiling_add_dictionary_keyword("RELEASE_DEPS", "fill:#FF0000",
                                            sizeof(int32_t),
-                                           "tcid{int32_t}",
+                                           "tcid{uint32_t}",
                                            &release_deps_trace_keyin,
                                            &release_deps_trace_keyout);
 

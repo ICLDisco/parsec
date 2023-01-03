@@ -182,6 +182,8 @@ static void __parsec_taskpool_constructor(parsec_taskpool_t* tp)
     tp->on_enqueue_data = NULL;
     tp->on_complete = NULL;
     tp->on_complete_data = NULL;
+    tp->on_enter_wait = NULL;
+    tp->on_leave_wait = NULL;
     tp->update_nb_runtime_task = NULL;
     tp->dependencies_array = NULL;
     tp->repo_array = NULL;
@@ -194,6 +196,9 @@ static void __parsec_taskpool_destructor(parsec_taskpool_t* tp)
 {
     if( NULL != tp->taskpool_name ) {
         free(tp->taskpool_name);
+    }
+    if( NULL != tp->context ) {
+        parsec_context_remove_taskpool(tp);
     }
 }
 
@@ -614,8 +619,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->comm_ctx            = -1;
     context->my_rank             = 0;
     context->nb_vp               = nb_vp;
-    /* initialize dtd taskpool list */
-    context->taskpool_list       = NULL;
+    context->taskpool_list       = PARSEC_OBJ_NEW(parsec_list_t);
     parsec_hash_table_init(&context->dtd_arena_datatypes_hash_table, offsetof(parsec_arena_datatype_t, ht_item),
                            8, parsec_hash_table_generic_key_fn, NULL);
     context->dtd_arena_datatypes_next_id = 0;
@@ -1160,10 +1164,10 @@ int parsec_fini( parsec_context_t** pcontext )
     /* if dtd environment is set-up, we clean */
     if( __parsec_dtd_is_initialized ) {
         parsec_dtd_fini();
-        /* clean dtd taskpool array */
-        PARSEC_OBJ_RELEASE(context->taskpool_list);
-        context->taskpool_list = NULL;
     }
+    //TODO: check that the list is empty in debug mode
+    PARSEC_OBJ_RELEASE(context->taskpool_list);
+    context->taskpool_list = NULL;
     nb_items = 0;
     parsec_hash_table_for_all(&context->dtd_arena_datatypes_hash_table, parsec_clean_and_warn_dtd_arena_datatypes,
                               params);

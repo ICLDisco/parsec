@@ -534,6 +534,160 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
     return rc;
 }
 
+/**
+ * Get the next task to execute, either from local storage or from the scheduler.
+ * Update the distance accordingly.
+ *
+ * @return either a valid task or NULL if no ready tasks exists.
+ */
+static inline parsec_task_t*
+__parsec_get_next_task( parsec_execution_stream_t *es,
+                        int* distance )
+{
+    parsec_task_t* task;
+
+    if( NULL == (task = es->next_task) ) {
+        task = parsec_current_scheduler->module.select(es, distance);
+    } else {
+        es->next_task = NULL;
+        *distance = 1;
+    }
+    return task;
+}
+
+static int __parsec_taskpool_test( parsec_taskpool_t* tp, parsec_execution_stream_t *es )
+{
+    parsec_context_t* parsec_context = es->virtual_process->parsec_context;
+    parsec_task_t* task;
+    int nbiterations = 0, distance, rc;
+
+    assert(PARSEC_THREAD_IS_MASTER(es));
+
+    /* first select begin, right before the wait_for_the... goto label */
+    PARSEC_PINS(es, SELECT_BEGIN, NULL);
+
+    if( NULL == parsec_current_scheduler ) {
+        parsec_fatal("Main thread entered parsec_taskpool_test, while a scheduler is not selected yet!");
+        return -1;
+    }
+
+    if( tp->tdm.module->taskpool_state(tp) != PARSEC_TERM_TP_TERMINATED ) {
+#if defined(DISTRIBUTED)
+        if( (1 == parsec_communication_engine_up) &&
+            (parsec_context->nb_nodes == 1)  ) {
+            /* check for remote deps completion */
+            while(parsec_remote_dep_progress(es) > 0) /* nothing */;
+        }
+#endif /* defined(DISTRIBUTED) */
+
+        task = __parsec_get_next_task(es, &distance);
+        if( NULL != task ) {
+            rc = __parsec_task_progress(es, task, distance);
+            (void)rc;  /* for now ignore the return value */
+
+            nbiterations++;
+        }
+    }
+
+    PARSEC_PINS(es, SELECT_END, NULL);
+
+    return nbiterations;
+}
+
+static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_stream_t *es )
+{
+    uint64_t misses_in_a_row;
+    parsec_task_t* task;
+    int nbiterations = 0, distance, rc;
+    struct timespec rqtp;
+
+    rqtp.tv_sec = 0;
+    misses_in_a_row = 1;
+
+    assert(PARSEC_THREAD_IS_MASTER(es));
+
+    /* first select begin, right before the wait_for_the... goto label */
+    PARSEC_PINS(es, SELECT_BEGIN, NULL);
+
+    if( NULL == parsec_current_scheduler ) {
+        parsec_fatal("Main thread entered parsec_taskpool_wait, while a scheduler is not selected yet!");
+        return -1;
+    }
+
+#if defined(DISTRIBUTED)
+    if( (1 == parsec_communication_engine_up) &&
+        (es->virtual_process[0].parsec_context->nb_nodes == 1) ) {
+        /* If there is a single process run and the main thread is in charge of
+         * progressing the communications we need to make sure the comm engine
+         * is ready for primetime. */
+        remote_dep_mpi_on(tp->context);
+    }
+#endif /* defined(DISTRIBUTED) */
+
+    if( NULL != tp->on_enter_wait ) tp->on_enter_wait(tp, tp->on_enter_wait_data);
+
+    while( tp->tdm.module->taskpool_state(tp) != PARSEC_TERM_TP_TERMINATED ) {
+
+#if defined(DISTRIBUTED)
+        if( (1 == parsec_communication_engine_up) &&
+            (es->virtual_process[0].parsec_context->nb_nodes == 1) ) {
+            /* check for remote deps completion */
+            while(parsec_remote_dep_progress(es) > 0)  {
+                misses_in_a_row = 0;
+            }
+        }
+#endif /* defined(DISTRIBUTED) */
+
+        if( misses_in_a_row > 1 ) {
+            rqtp.tv_nsec = parsec_exponential_backoff(es, misses_in_a_row);
+            nanosleep(&rqtp, NULL);
+        }
+        misses_in_a_row++;  /* assume we fail to extract a task */
+
+        task = __parsec_get_next_task(es, &distance);
+        if( NULL != task ) {
+            misses_in_a_row = 0;  /* reset the misses counter */
+
+            rc = __parsec_task_progress(es, task, distance);
+            (void)rc;  /* for now ignore the return value */
+
+            nbiterations++;
+        }
+    }
+
+    if( NULL != tp->on_leave_wait ) tp->on_leave_wait(tp, tp->on_leave_wait_data);
+
+    PARSEC_PINS(es, SELECT_END, NULL);
+
+    return nbiterations;
+}
+
+static void parsec_context_enter_wait(parsec_context_t *parsec)
+{
+    parsec_list_lock(parsec->taskpool_list);
+    for(parsec_list_item_t *tp_it = PARSEC_LIST_ITERATOR_FIRST(parsec->taskpool_list);
+        tp_it != PARSEC_LIST_ITERATOR_END(parsec->taskpool_list);
+        tp_it =  PARSEC_LIST_ITERATOR_NEXT(tp_it)) {
+            parsec_taskpool_t *tp = (parsec_taskpool_t*)tp_it;
+            if(NULL != tp->on_enter_wait) tp->on_enter_wait(tp, tp->on_enter_wait_data);
+        }
+    parsec->flags |= PARSEC_CONTEXT_FLAG_WAITING;
+    parsec_list_unlock(parsec->taskpool_list);
+}
+
+static void parsec_context_leave_wait(parsec_context_t *parsec)
+{
+    parsec_list_lock(parsec->taskpool_list);
+    for(parsec_list_item_t *tp_it = PARSEC_LIST_ITERATOR_FIRST(parsec->taskpool_list);
+        tp_it != PARSEC_LIST_ITERATOR_END(parsec->taskpool_list);
+        tp_it =  PARSEC_LIST_ITERATOR_NEXT(tp_it)) {
+            parsec_taskpool_t *tp = (parsec_taskpool_t*)tp_it;
+            if(NULL != tp->on_leave_wait) tp->on_leave_wait(tp, tp->on_leave_wait_data);
+        }
+    parsec->flags &= ~PARSEC_CONTEXT_FLAG_WAITING;
+    parsec_list_unlock(parsec->taskpool_list);
+}
+
 int __parsec_context_wait( parsec_execution_stream_t* es )
 {
     uint64_t misses_in_a_row;
@@ -561,6 +715,7 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
             remote_dep_mpi_on(parsec_context);
         }
 #endif /* defined(DISTRIBUTED) */
+        parsec_context_enter_wait(parsec_context);
         /* The master thread might not have to trigger the barrier if the other
          * threads have been activated by a previous start.
          */
@@ -594,12 +749,6 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
     }
   skip_first_barrier:
     while( !all_tasks_done(parsec_context) ) {
-
-        if(PARSEC_THREAD_IS_MASTER(es)) {
-            /* Here we detach all dtd taskpools registered with us */
-            parsec_detach_all_dtd_taskpool_from_context(parsec_context);
-        }
-
 #if defined(DISTRIBUTED)
         if( (1 == parsec_communication_engine_up) &&
             (es->virtual_process[0].parsec_context->nb_nodes == 1) &&
@@ -617,14 +766,8 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         }
         misses_in_a_row++;  /* assume we fail to extract a task */
 
-        if( NULL == (task = es->next_task) ) {
-            task = parsec_current_scheduler->module.select(es, &distance);
-        } else {
-            es->next_task = NULL;
-            distance = 1;
-        }
-
-        if( task != NULL ) {
+        task = __parsec_get_next_task(es, &distance);
+        if( NULL != task ) {
             misses_in_a_row = 0;  /* reset the misses counter */
 
             rc = __parsec_task_progress(es, task, distance);
@@ -672,6 +815,10 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         PARSEC_PINS_THREAD_FINI(es);
     }
 
+    if( PARSEC_THREAD_IS_MASTER(es) ) {
+        parsec_context_leave_wait(parsec_context);
+    }
+
     return nbiterations;
 }
 
@@ -704,6 +851,15 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
         tp->on_enqueue(tp, tp->on_enqueue_data);
     }
 
+    /* Save the taskpool in the context's list, and if necessary trigger the on enter callback */
+    parsec_list_lock(context->taskpool_list);
+    parsec_list_nolock_push_back(context->taskpool_list, &tp->super);
+    if( context->flags & PARSEC_CONTEXT_FLAG_WAITING ) {
+        if(NULL != tp->on_enter_wait)
+            tp->on_enter_wait(tp, tp->on_enter_wait_data);
+    }
+    parsec_list_unlock(context->taskpool_list);
+
 #if defined(PARSEC_PROF_TRACE)
     if( parsec_profile_enabled )
         parsec_profiling_add_taskpool_properties(tp);
@@ -723,6 +879,24 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
                              startup_list, 0);
     }
 
+    return PARSEC_SUCCESS;
+}
+
+int parsec_context_remove_taskpool( parsec_taskpool_t* tp )
+{
+    if(NULL == tp->context ) {
+        return PARSEC_ERR_NOT_FOUND;
+    }
+    parsec_list_lock(tp->context->taskpool_list);
+    for(parsec_list_item_t *tp_it = PARSEC_LIST_ITERATOR_FIRST(tp->context->taskpool_list);
+        tp_it != PARSEC_LIST_ITERATOR_END(tp->context->taskpool_list);
+        tp_it =  PARSEC_LIST_ITERATOR_NEXT(tp_it)) {
+        if(tp_it == &tp->super) {
+            parsec_list_nolock_remove(tp->context->taskpool_list, tp_it);
+            break;
+        }
+    }
+    parsec_list_unlock(tp->context->taskpool_list);
     return PARSEC_SUCCESS;
 }
 
@@ -797,7 +971,7 @@ int parsec_context_wait( parsec_context_t* context )
         return PARSEC_ERR_NOT_SUPPORTED;
     }
 
-    ret = __parsec_context_wait( context->virtual_processes[0]->execution_streams[0] );
+    ret = __parsec_context_wait( parsec_my_execution_stream() );
 
     context->__parsec_internal_finalization_counter++;
     (void)parsec_remote_dep_off(context);
@@ -805,4 +979,54 @@ int parsec_context_wait( parsec_context_t* context )
     assert(context->flags & PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE);
     context->flags ^= (PARSEC_CONTEXT_FLAG_COMM_ACTIVE | PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE);
     return (ret >= 0)? PARSEC_SUCCESS: ret;
+}
+
+int parsec_taskpool_wait( parsec_taskpool_t* tp )
+{
+    int ret = 0;
+    parsec_context_t *context = tp->context;
+
+    if( NULL == context ) {
+        parsec_warning("taskpool is not registered with any context in parsec_taskpool_wait\n");
+        return -1;
+    }
+
+    if( !(PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags) ) {
+        parsec_warning("taskpool is registered to non-started context in parsec_taskpool_wait\n");
+        return -1;
+    }
+
+    if( __parsec_context_cas_or_flag(context,
+                                     PARSEC_CONTEXT_FLAG_COMM_ACTIVE) ) {
+        (void)parsec_remote_dep_on(context);
+    }
+
+    ret = __parsec_taskpool_wait( tp, parsec_my_execution_stream() );
+
+    return ret;
+}
+
+int parsec_taskpool_test( parsec_taskpool_t* tp )
+{
+    int ret = 0;
+    parsec_context_t *context = tp->context;
+
+    if( NULL == context ) {
+        parsec_warning("taskpool is not registered with any context in parsec_taskpool_wait\n");
+        return -1;
+    }
+
+    if( !(PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags) ) {
+        parsec_warning("taskpool is registered to non-started context in parsec_taskpool_wait\n");
+        return -1;
+    }
+
+    if( __parsec_context_cas_or_flag(context,
+                                     PARSEC_CONTEXT_FLAG_COMM_ACTIVE) ) {
+        (void)parsec_remote_dep_on(context);
+    }
+
+    ret = __parsec_taskpool_test( tp, parsec_my_execution_stream() );
+
+    return ret;
 }

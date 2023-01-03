@@ -126,9 +126,6 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
         assert(0);
     }
 
-    /* Retaining runtime_task */
-    parsec_taskpool_update_runtime_nbtask( this_task->super.taskpool, 1 );
-
     /* Retaining every remote_task */
     if( parsec_dtd_task_is_remote( this_task ) ) {
         parsec_dtd_remote_task_retain( this_task );
@@ -200,7 +197,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
             int action_mask = 0;
             action_mask |= (1<<(PARENT_OF(this_task, flow_index))->flow_index);
 
-            parsec_execution_stream_t *es = dtd_tp->super.context->virtual_processes[0]->execution_streams[0];
+            parsec_execution_stream_t *es = parsec_my_execution_stream();
 
             if( parsec_dtd_task_is_local(parent_task) && parsec_dtd_task_is_remote(this_task) ) {
                 /* To make sure we do not release any remote data held by this task */
@@ -260,7 +257,7 @@ parsec_insert_dtd_flush_task(parsec_dtd_task_t *this_task, parsec_dtd_tile_t *ti
  */
 int
 parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int task_rank,
-                             int priority)
+                             int priority, bool is_first_flush_task)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
 
@@ -281,15 +278,14 @@ parsec_dtd_insert_flush_task(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile, int
         (void)parsec_atomic_fetch_add_int32(&object->obj_reference_count, 2);
     } else {
         (void)parsec_atomic_fetch_inc_int32(&object->obj_reference_count);
+        if (is_first_flush_task) {
+            /* add another reference to prevent a release of the task
+             * as the last_writer, it will be released once the dependency is released */
+            parsec_dtd_remote_task_retain(this_task);
+        }
     }
 
     parsec_insert_dtd_flush_task(this_task, tile);
-
-    if(this_task->rank == tile->rank) {
-        /* this is the receive task, and it can vanish
-         * as soon as we are done inserting it */
-        parsec_dtd_remote_task_release(this_task);
-    }
 
     return 1;
 }
@@ -326,7 +322,7 @@ parsec_dtd_insert_flush_task_pair(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile
         if(last_writer.task->rank != tile->rank) {
             /* We only need a pair if these ranks are not same */
             parsec_dtd_tile_retain(tile);
-            parsec_dtd_insert_flush_task(tp, tile, last_writer.task->rank, 0);
+            parsec_dtd_insert_flush_task(tp, tile, last_writer.task->rank, 0, true);
         }
 
 
@@ -334,7 +330,7 @@ parsec_dtd_insert_flush_task_pair(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile
          * this task will be used to receive the data.
          */
         parsec_dtd_tile_retain(tile);
-        parsec_dtd_insert_flush_task(tp, tile, tile->rank, 0);
+        parsec_dtd_insert_flush_task(tp, tile, tile->rank, 0, false);
     }
 
     return 1;
@@ -385,13 +381,13 @@ parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
 int
 parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
 {
-    parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     parsec_hash_table_t *hash_table   = (parsec_hash_table_t *)dc->tile_h_table;
+    parsec_execution_stream_t *es = parsec_my_execution_stream();
 
-    PARSEC_PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_BEGIN, NULL);
+    PARSEC_PINS(es, DATA_FLUSH_BEGIN, NULL);
 
     parsec_hash_table_for_all( hash_table, (parsec_hash_elem_fct_t)parsec_internal_dtd_data_flush, tp);
 
-    PARSEC_PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_END, NULL);
+    PARSEC_PINS(es, DATA_FLUSH_END, NULL);
     return PARSEC_SUCCESS; /* TODO: internal_dtd_data_flush should care for error codepaths */
 }

@@ -142,14 +142,13 @@ int main(int argc, char ** argv)
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        rc = parsec_dtd_taskpool_wait( dtd_tp );
-        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+        rc = parsec_taskpool_wait( dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
     }
     /****** END ******/
 
-    count = 0;
     parsec_dtd_window_size    = tmp_window_size;
     parsec_dtd_threshold_size = tmp_threshold_size;
 
@@ -172,16 +171,16 @@ int main(int argc, char ** argv)
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        rc = parsec_dtd_taskpool_wait( dtd_tp );
-        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+        rc = parsec_taskpool_wait( dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
     }
     /****** END ******/
 
     /****** All threads insert and all threads execute ******/
     if( rank == 0 ) {
-        parsec_output( 0, "\nWe now insert %d tasks using all threads and is also executed "
-                       "by the all of them\n\n", no_of_tasks, cores-1 );
+        parsec_output( 0, "\nWe now insert and execute %d tasks using all threads\n\n",
+                       no_of_tasks );
     }
 
     for( n = 0; n < 3; n++ ) {
@@ -198,8 +197,8 @@ int main(int argc, char ** argv)
                                PARSEC_DTD_ARG_END);
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        rc = parsec_dtd_taskpool_wait( dtd_tp );
-        PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+        rc = parsec_taskpool_wait( dtd_tp );
+        PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
 

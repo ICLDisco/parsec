@@ -149,8 +149,8 @@ int initialize_matrix(parsec_context_t *parsec_context, int rank, parsec_matrix_
     parsec_dtd_data_flush_all(tp, &mat->super.super);
 
     // Wait for task completion
-    perr = parsec_dtd_taskpool_wait(tp);
-    PARSEC_CHECK_ERROR(perr, "parsec_dtd_taskpool_wait");
+    perr = parsec_taskpool_wait(tp);
+    PARSEC_CHECK_ERROR(perr, "parsec_taskpool_wait");
 
     perr = parsec_context_wait(parsec_context);
     PARSEC_CHECK_ERROR(perr, "parsec_context_wait");
@@ -308,8 +308,8 @@ int simple_gemm(parsec_context_t *parsec_context, parsec_matrix_block_cyclic_t *
     parsec_dtd_data_flush_all(tp, &C->super.super);
 
     // Wait for task completion
-    perr = parsec_dtd_taskpool_wait(tp);
-    PARSEC_CHECK_ERROR(perr, "parsec_dtd_taskpool_wait");
+    perr = parsec_taskpool_wait(tp);
+    PARSEC_CHECK_ERROR(perr, "parsec_taskpool_wait");
 
     perr = parsec_context_wait(parsec_context);
     PARSEC_CHECK_ERROR(perr, "parsec_context_wait");

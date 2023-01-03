@@ -335,16 +335,6 @@ parsec_taskpool_t*
 parsec_dtd_taskpool_new(void);
 
 /**
- * This function will block until all the tasks inserted
- * so far is completed.
- * User can call this function multiple times
- * between a parsec_dtd_taskpool_new() and parsec_taskpool_free()
- * Takes a parsec context and a parsec taskpool as input.
- */
-int
-parsec_dtd_taskpool_wait( parsec_taskpool_t  *tp );
-
-/**
  * This function flushes a specific data,
  * it indicates to the engine that this data
  * will no longer be used by any further tasks.
@@ -392,8 +382,7 @@ parsec_dtd_create_task_class( parsec_taskpool_t *__tp,
                               ... );
 
 parsec_dtd_task_class_t *
-parsec_dtd_create_task_classv(parsec_dtd_taskpool_t *dtd_tp,
-                              const char *name,
+parsec_dtd_create_task_classv(const char *name,
                               int nb_params,
                               const parsec_dtd_param_t *params);
 

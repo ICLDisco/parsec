@@ -108,8 +108,8 @@ int main(int argc, char ** argv)
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    rc = parsec_dtd_taskpool_wait( dtd_tp );
-    PARSEC_CHECK_ERROR(rc, "parsec_dtd_taskpool_wait");
+    rc = parsec_taskpool_wait( dtd_tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_taskpool_wait");
 
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");

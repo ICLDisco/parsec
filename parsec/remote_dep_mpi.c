@@ -1216,13 +1216,13 @@ static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
  * binary format of the stream.
  */
 
-static const char *parsec_profile_remote_dep_mpi_info_to_string = "src{int};"
-                                                                  "dst{int};"
+static const char *parsec_profile_remote_dep_mpi_info_to_string = "src{int32_t};"
+                                                                  "dst{int32_t};"
                                                                   "tid{uint64_t};"
                                                                   "tpid{uint32_t};"
                                                                   "tcid{uint32_t};"
-                                                                  "msg_size{int};"
-                                                                  "dep{int}";
+                                                                  "msg_size{int32_t};"
+                                                                  "dep{int32_t}";
 
 static void remote_dep_mpi_profiling_init(void)
 {

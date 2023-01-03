@@ -273,6 +273,20 @@ void parsec_context_at_fini(parsec_external_fini_cb_t cb, void *data);
 int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* tp);
 
 /**
+ * @brief Detaches a PaRSEC taskpool from the PaRSEC context
+ *
+ * @details
+ * Detaches an execution taskpool from the context it was attached to. The taskpool must be terminated
+ * (i.e. waited upon), and no pending tasks or internal runtime actions can be
+ * pending on the taskpool.
+ *
+ * @param[inout] tp The parsec taskpool to be detached.
+ *
+ * @return PARSEC_SUCCESS If the dequeue operation succeeded.
+ */
+int parsec_context_remove_taskpool( parsec_taskpool_t* tp );
+
+/**
  * @brief Start taskpool that were enqueued into the PaRSEC context
  *
  * @details
@@ -321,6 +335,41 @@ int parsec_context_test( parsec_context_t* context );
  * @return less than PARSEC_SUCCESS If something went wrong.
  */
 int parsec_context_wait(parsec_context_t* context);
+
+/**
+ * @brief Complete the execution of a given PaRSEC taskpool
+ *
+ * @details
+ * Progress the execution context until the given taskpool reaches termination.
+ * Upon return from this function, all resources (threads and accelerators)
+ * associated with the corresponding context are left in a mode where they are
+ * active iff more taskpools are still active. The taskpool must be ready and
+ * registered with a started context.
+ *
+ * @param[inout] tp the taskpool to complete.
+ *
+ * @return * A negative number to signal an error. Any other value, aka. a positive
+ *           number (including 0), to signal successful completion of all work
+ *           associated with the taskpool.
+ */
+int parsec_taskpool_wait(parsec_taskpool_t* tp);
+
+/**
+ * @brief Allow the main thread to temporarily join the computation
+ *    by executing one (or less) task
+ *
+ * @details
+ * Try to progress the execution context until the given taskpool reaches termination.
+ * Upon return from this function, all resources (threads and accelerators)
+ * associated with the corresponding context are left in a mode where they are
+ * active. The taskpool must be ready and registered with a started context.
+ *
+ * @param[inout] tp the taskpool to complete.
+ *
+ * @return * A negative number to signal an error. 0 if the taskpool is completed.
+ *    a strictly positive value if some task was executed.
+ */
+int parsec_taskpool_test(parsec_taskpool_t* tp);
 
 /**
  * @brief taskpool-callback type definition

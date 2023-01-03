@@ -94,8 +94,8 @@ int test_cuda_print_info(int world, int rank, parsec_context_t *parsec_context)
     }
 
     // Wait for task completion
-    ret = parsec_dtd_taskpool_wait(tp);
-    PARSEC_CHECK_ERROR(ret, "parsec_dtd_taskpool_wait");
+    ret = parsec_taskpool_wait(tp);
+    PARSEC_CHECK_ERROR(ret, "parsec_taskpool_wait");
 
     ret = parsec_context_wait(parsec_context);
     PARSEC_CHECK_ERROR(ret, "parsec_context_wait");
@@ -243,8 +243,8 @@ int test_cuda_memset(int world, int myrank, parsec_context_t *parsec_context, in
     parsec_dtd_data_flush_all(tp, A);
 
     // Wait for task completion
-    perr = parsec_dtd_taskpool_wait(tp);
-    PARSEC_CHECK_ERROR(perr, "parsec_dtd_taskpool_wait");
+    perr = parsec_taskpool_wait(tp);
+    PARSEC_CHECK_ERROR(perr, "parsec_taskpool_wait");
 
     perr = parsec_context_wait(parsec_context);
     PARSEC_CHECK_ERROR(perr, "parsec_context_wait");
@@ -403,8 +403,8 @@ int test_cuda_memset_and_read(int world, int myrank, parsec_context_t *parsec_co
     parsec_dtd_data_flush_all(tp, A);
 
     // Wait for task completion
-    perr = parsec_dtd_taskpool_wait(tp);
-    PARSEC_CHECK_ERROR(perr, "parsec_dtd_taskpool_wait");
+    perr = parsec_taskpool_wait(tp);
+    PARSEC_CHECK_ERROR(perr, "parsec_taskpool_wait");
 
     perr = parsec_context_wait(parsec_context);
     PARSEC_CHECK_ERROR(perr, "parsec_context_wait");
@@ -592,8 +592,8 @@ int test_cuda_memset_write_read(int world, int myrank, parsec_context_t *parsec_
     parsec_dtd_data_flush_all(tp, A);
 
     // Wait for task completion
-    perr = parsec_dtd_taskpool_wait(tp);
-    PARSEC_CHECK_ERROR(perr, "parsec_dtd_taskpool_wait");
+    perr = parsec_taskpool_wait(tp);
+    PARSEC_CHECK_ERROR(perr, "parsec_taskpool_wait");
 
     perr = parsec_context_wait(parsec_context);
     PARSEC_CHECK_ERROR(perr, "parsec_context_wait");
@@ -823,8 +823,8 @@ int test_cuda_multiple_devices(int world, int myrank, parsec_context_t *parsec_c
     parsec_dtd_data_flush_all(tp, A);
 
     // Wait for task completion
-    perr = parsec_dtd_taskpool_wait(tp);
-    PARSEC_CHECK_ERROR(perr, "parsec_dtd_taskpool_wait");
+    perr = parsec_taskpool_wait(tp);
+    PARSEC_CHECK_ERROR(perr, "parsec_taskpool_wait");
 
     perr = parsec_context_wait(parsec_context);
     PARSEC_CHECK_ERROR(perr, "parsec_context_wait");

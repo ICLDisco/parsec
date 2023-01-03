@@ -154,6 +154,10 @@ struct parsec_taskpool_s {
     void*                       on_enqueue_data; /**< Data to pass to on_enqueue when called */
     parsec_event_cb_t           on_complete;     /**< Callback called when the taskpool is completed */
     void*                       on_complete_data;/**< Data to pass to on_complete when called */
+    parsec_event_cb_t           on_enter_wait;   /**< Callback called when the taskpool enters blocking wait */
+    void*                       on_enter_wait_data;
+    parsec_event_cb_t           on_leave_wait;   /**< Callback called when the taskpool leaves blocking wait */
+    void*                       on_leave_wait_data;
     parsec_update_ref_t         update_nb_runtime_task;
     void**                      dependencies_array; /**< Array of multidimensional dependencies
                                                      *   Indexed on the same index as task_classes_array */
