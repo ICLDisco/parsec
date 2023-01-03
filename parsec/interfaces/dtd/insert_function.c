@@ -935,6 +935,11 @@ void
 parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
                              parsec_dtd_task_class_t *tc)
 {
+#if defined(PARSEC_PROF_TRACE)
+    char *info_str = NULL;
+    int info_size = 0;
+#endif
+    
     if(tc->super.task_class_id != UINT8_MAX) {
         parsec_warning("Task class %s (%p) has invalid or already defined task_class_id",
                         (void*)tc, tc->super.name);
@@ -945,7 +950,66 @@ parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
     tp->super.task_classes_array[tc->super.task_class_id] = &tc->super;
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_dtd_add_profiling_info(&tp->super, tc->super.task_class_id, tc->super.name);
+    for(int i = 0; i < tc->count_of_params; i++) {
+        if( tc->params[i].size != PASSED_BY_REF ) {
+            if( tc->params[i].op & PARSEC_PROFILE_INFO ) {
+                char typename[64];
+                assert(NULL != tc->params[i].profile_info);
+                info_size += tc->params[i].size;
+                // Unfortunately, we don't have the type... And we can only work with
+                // a small subset of types at the conversion level. So we use a very
+                // simple heuristic for the most common types (no good solution to
+                // define signedness, so we always take the signed version), and fallback
+                // to an array of chars in the other cases.
+                switch(tc->params[i].size) {
+                    case sizeof(int8_t):
+                        snprintf(typename, 64, "int8_t");
+                        break;
+                    case sizeof(int16_t):
+                        snprintf(typename, 64, "int16_t");
+                        break;
+                    case sizeof(int32_t):
+                        snprintf(typename, 64, "int32_t");
+                        break;
+                    case sizeof(int64_t):
+                        snprintf(typename, 64, "int64_t");
+                        break;
+#if defined(PARSEC_HAVE_INT128)
+                    case sizeof(__int128_t):
+                        snprintf(typename, 64, "int128_t");
+                        break;
+#endif
+                    default:
+                        snprintf(typename, 64, "char[%d]", (int)tc->params[i].size);
+                }
+
+                if(NULL == info_str) {
+                    int rc = asprintf(&info_str, PARSEC_TASK_PROF_INFO_CONVERTOR";%s{%s}", tc->params[i].profile_info, typename);
+                    if(-1 == rc) { info_str = ""; break; }
+                } else {
+                    char *tmp = info_str;
+                    int rc = asprintf(&info_str, "%s;%s{%s}", tmp, tc->params[i].profile_info, typename);
+                    if(-1 == rc) { info_str = tmp; info_size -= tc->params[i].size; break; }
+                    free(tmp);
+                }
+            }
+        }
+    }
+ 
+    if(NULL == info_str) {
+        tc->super.profile_info = parsec_task_profile_info;
+        parsec_dtd_add_profiling_info(&tp->super, tc->super.task_class_id, tc->super.name);
+    } else {
+        char *fc = fill_color(tc->super.task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
+        parsec_profiling_add_dictionary_keyword(tc->super.name, fc,
+                                                sizeof(parsec_task_prof_info_t)+info_size, 
+                                                info_str,
+                                                (int *)&PARSEC_PROF_FUNC_KEY_START(&tp->super, tc->super.task_class_id),
+                                                (int *)&PARSEC_PROF_FUNC_KEY_END(&tp->super, tc->super.task_class_id));
+        tc->super.profile_info = parsec_dtd_task_profile_info;
+        free(fc);
+        free(info_str);
+    }
 #endif /* defined(PARSEC_PROF_TRACE) */
 }
 
@@ -2038,10 +2102,6 @@ parsec_dtd_create_task_classv(const char *name,
     parsec_task_class_t *tc = (parsec_task_class_t *)dtd_tc;
     unsigned long total_size_of_param = 0;
     int flow_count = 0;
-#if defined(PARSEC_PROF_TRACE)
-    size_t info_size = 0;
-    char *info_str = NULL;
-#endif
 
     dtd_tc->dep_datatype_index = 0;
     dtd_tc->dep_in_index = 0;
@@ -2061,47 +2121,6 @@ parsec_dtd_create_task_classv(const char *name,
             flow_count++;
         } else {
             total_size_of_param += params[i].size;
-#if defined(PARSEC_PROF_TRACE)
-            if( params[i].op & PARSEC_PROFILE_INFO ) {
-                char typename[64];
-                assert(NULL != params[i].profile_info);
-                info_size += params[i].size;
-                // Unfortunately, we don't have the type... And we can only work with
-                // a small subset of types at the conversion level. So we use a very
-                // simple heuristic for the most common types (no good solution to
-                // define signedness, so we always take the signed version), and fallback
-                // to an array of chars in the other cases.
-                switch(params[i].size) {
-                    case sizeof(int8_t):
-                        snprintf(typename, 64, "int8_t");
-                        break;
-                    case sizeof(int16_t):
-                        snprintf(typename, 64, "int16_t");
-                        break;
-                    case sizeof(int32_t):
-                        snprintf(typename, 64, "int32_t");
-                        break;
-                    case sizeof(int64_t):
-                        snprintf(typename, 64, "int64_t");
-                        break;
-#if defined(PARSEC_HAVE_INT128)
-                    case sizeof(__int128_t):
-                        snprintf(typename, 64, "int128_t");
-                        break;
-#endif
-                    default:
-                        snprintf(typename, 64, "char[%d]", (int)params[i].size);
-                }
-
-                if(NULL == info_str) {
-                    asprintf(&info_str, PARSEC_TASK_PROF_INFO_CONVERTOR";%s{%s}", params[i].profile_info, typename);
-                } else {
-                    char *tmp = info_str;
-                    asprintf(&info_str, "%s;%s{%s}", tmp, params[i].profile_info, typename);
-                    free(tmp);
-                }
-            }
-#endif
         }
     }
     dtd_tc->ref_count = 1;
@@ -2169,22 +2188,6 @@ parsec_dtd_create_task_classv(const char *name,
     tc->get_datatype = (parsec_datatype_lookup_t *)datatype_lookup_of_dtd_task;
     tc->complete_execution = complete_hook_of_dtd;
     tc->release_task = parsec_release_dtd_task_to_mempool;
-
-#if defined(PARSEC_PROF_TRACE)
-    if(NULL == info_str) {
-        parsec_dtd_add_profiling_info((parsec_taskpool_t *)dtd_tp, tc->task_class_id, name);
-        tc->profile_info = parsec_task_profile_info;
-    } else {
-        char *fc = fill_color(tc->task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
-        parsec_profiling_add_dictionary_keyword(name, fc,
-                                                sizeof(parsec_task_prof_info_t)+info_size, 
-                                                info_str,
-                                                (int *)&PARSEC_PROF_FUNC_KEY_START(&dtd_tp->super, tc->task_class_id),
-                                                (int *)&PARSEC_PROF_FUNC_KEY_END(&dtd_tp->super, tc->task_class_id));
-        tc->profile_info = parsec_dtd_task_profile_info;
-        free(fc);
-    }
-#endif /* defined(PARSEC_PROF_TRACE) */
 
     return dtd_tc;
 }
