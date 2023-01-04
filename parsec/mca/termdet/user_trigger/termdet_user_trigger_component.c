@@ -65,6 +65,23 @@ mca_base_component_t *termdet_user_trigger_static_component(void)
 
 /* set to 1 when the callback is registered -- workaround current MCA interface limitation */
 static int parsec_termdet_user_trigger_msg_cb_registered = 0;
+static int parsec_termdet_user_trigger_msg_cb_id = 0;
+
+static void parsec_termdet_user_trigger_ce_up(parsec_comm_engine_t *ce, void *user_data)
+{
+    int rc = ce->tag_register(PARSEC_TERMDET_USER_TRIGGER_MSG_TAG,
+                              parsec_termdet_user_trigger_msg_dispatch,
+                              user_data,
+                              PARSEC_TERMDET_USER_TRIGGER_MAX_MSG_SIZE);
+    (void)rc;
+}
+
+static void parsec_termdet_user_trigger_ce_down(parsec_comm_engine_t *ce, void *user_data)
+{
+    (void)user_data;
+    ce->tag_unregister(PARSEC_TERMDET_USER_TRIGGER_MSG_TAG);
+}
+
 
 static int termdet_user_trigger_component_query(mca_base_module_t **module, int *priority)
 {
@@ -74,14 +91,13 @@ static int termdet_user_trigger_component_query(mca_base_module_t **module, int 
     *module = (mca_base_module_t *)ptr;
 
     if( 0 == parsec_termdet_user_trigger_msg_cb_registered ) {
-        int rc = parsec_ce.tag_register(PARSEC_TERMDET_USER_TRIGGER_MSG_TAG,
-                                        parsec_termdet_user_trigger_msg_dispatch,
-                                        ptr,
-                                        PARSEC_TERMDET_USER_TRIGGER_MAX_MSG_SIZE);
-        (void)rc;
+        assert(0 == parsec_termdet_user_trigger_msg_cb_id);
+        parsec_termdet_user_trigger_msg_cb_id = 
+            parsec_comm_engine_register_callback(parsec_termdet_user_trigger_ce_up, ptr,
+                                                 parsec_termdet_user_trigger_ce_down, ptr);
         PARSEC_OBJ_CONSTRUCT(&parsec_termdet_user_trigger_delayed_messages, parsec_list_t);
-        parsec_termdet_user_trigger_msg_cb_registered++;
     }
+    parsec_termdet_user_trigger_msg_cb_registered++;
 
     return MCA_SUCCESS;
 }
@@ -90,7 +106,8 @@ static int termdet_user_trigger_component_close()
 {
     parsec_termdet_user_trigger_msg_cb_registered--;
     if( 0 == parsec_termdet_user_trigger_msg_cb_registered ) {
-        parsec_ce.tag_unregister(PARSEC_TERMDET_USER_TRIGGER_MSG_TAG);
+        parsec_comm_engine_unregister_callback(parsec_termdet_user_trigger_msg_cb_id);
+        parsec_termdet_user_trigger_msg_cb_id = 0;
         PARSEC_OBJ_DESTRUCT(&parsec_termdet_user_trigger_delayed_messages);
     }
     return MCA_SUCCESS;
