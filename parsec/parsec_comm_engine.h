@@ -187,4 +187,39 @@ PARSEC_DECLSPEC extern parsec_comm_engine_t parsec_ce;
 parsec_comm_engine_t * parsec_comm_engine_init(parsec_context_t *parsec_context);
 int parsec_comm_engine_fini(parsec_comm_engine_t *comm_engine);
 
+/**
+ * @brief parsec_ce up or down callback function prototype
+ */
+typedef void (parsec_comm_engine_updown_fn_t)(parsec_comm_engine_t *comm_engine, void *user_data);
+
+/**
+ * @brief Registers a couple of callbacks to call when a communication engine is turning 
+ *   up or down. Those callbacks are appropriate places for DSLs or other modules to 
+ *   register and de-register tags. 
+ * 
+ * @param up: what function to call when the comm engine is turned on (can be NULL if 
+ *   no function is to be called)
+ * @param up_data: a user-defined object that will be passed to the up callback 
+ * @param down: what function to call when the comm engine is turned off (can be NULL if 
+ *   no function is to be called)
+ * @param down_data: a user-defined object that will be passed to the down callback 
+ * @return int32_t: a callback identifier to unregister the callbacks, or an error (negative
+ *   value) if there was an issue.
+ * @note will call the up callback if there is an active parsec comm engine
+ */
+int32_t parsec_comm_engine_register_callback(parsec_comm_engine_updown_fn_t *up,
+                                             void *up_data,
+                                             parsec_comm_engine_updown_fn_t *down,
+                                             void *down_data);
+
+/**
+ * @brief Unregisters communication engine callbacks that were registered before
+ * 
+ * @param callback_id: the identifier of the callback as returned by 
+ *    @fn parsec_comm_engine_register_callback
+ * @return int PARSEC_SUCCESS on success, or a parsec error code on failure
+ * @note will call the down callback if there is an active parsec comm engine
+ */
+int parsec_comm_engine_unregister_callback(int32_t callback_id);
+
 #endif /* __USE_PARSEC_COMM_ENGINE_H__ */
