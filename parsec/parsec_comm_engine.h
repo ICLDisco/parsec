@@ -11,6 +11,8 @@
 #include "parsec/runtime.h"
 #include "parsec/datatype.h"
 
+BEGIN_C_DECLS
+
 typedef enum {
     PARSEC_MEM_TYPE_CONTIGUOUS = 0,
     PARSEC_MEM_TYPE_NONCONTIGUOUS = 1
@@ -34,6 +36,8 @@ typedef enum {
     PARSEC_CE_REMOTE_DEP_PUT_END_TAG,
     PARSEC_TERMDET_FOURCOUNTER_MSG_TAG,
     PARSEC_TERMDET_USER_TRIGGER_MSG_TAG,
+    PARSEC_DSL_TTG_TAG,
+    PARSEC_DSL_TTG_RMA_TAG,
     PARSEC_CE_REMOTE_DEP_MAX_CTRL_TAG
 } parsec_remote_dep_tag_t;
 
@@ -221,5 +225,21 @@ int32_t parsec_comm_engine_register_callback(parsec_comm_engine_updown_fn_t *up,
  * @note will call the down callback if there is an active parsec comm engine
  */
 int parsec_comm_engine_unregister_callback(int32_t callback_id);
+
+/**
+ * @brief The comm engine implementation calls this function after the 
+ *    pre-defined tags are registered. This function iterates over the
+ *    registered callbacks to call the 'up' one.
+ */
+void parsec_comm_engine_callbacks_up(void);
+
+/**
+ * @brief The comm engine implementation calls this function before the
+ *     pre-defined tags are unregistered. This function iterates over the
+ *     registered callback to call the 'down' one.
+ */
+void parsec_comm_engine_callbacks_down(void);
+
+END_C_DECLS
 
 #endif /* __USE_PARSEC_COMM_ENGINE_H__ */

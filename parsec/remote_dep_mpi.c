@@ -457,6 +457,8 @@ remote_dep_mpi_initialize_execution_stream(parsec_context_t *context)
          * execution stream to parsec_comm_es. */
         parsec_set_my_execution_stream(&parsec_comm_es);
     }
+
+    parsec_comm_engine_callbacks_up();
 }
 
 void* remote_dep_dequeue_main(parsec_context_t* context)
@@ -2195,6 +2197,8 @@ remote_dep_ce_fini(parsec_context_t* context)
 {
     remote_dep_mpi_profiling_fini();
 
+    parsec_comm_engine_callbacks_down();
+    
     // Unregister tags
     parsec_ce.tag_unregister(PARSEC_CE_REMOTE_DEP_ACTIVATE_TAG);
     parsec_ce.tag_unregister(PARSEC_CE_REMOTE_DEP_GET_DATA_TAG);

@@ -28,36 +28,12 @@ parsec_comm_engine_init(parsec_context_t *parsec_context)
     parsec_comm_engine_t *ce = mpi_funnelled_init(parsec_context);
 
     assert(ce->capabilites.sided > 0 && ce->capabilites.sided < 3);
-
-    if(NULL == parsec_ce_callback_list)
-        parsec_ce_callback_list = PARSEC_OBJ_NEW(parsec_list_t);
-
-    for(parsec_list_item_t *item = PARSEC_LIST_ITERATOR_FIRST(parsec_ce_callback_list);
-        item != PARSEC_LIST_ITERATOR_END(parsec_ce_callback_list);
-        item = PARSEC_LIST_ITERATOR_NEXT(item)) {
-        parsec_comm_engine_callback_item_t *ce_item = (parsec_comm_engine_callback_item_t*)item;
-        if(NULL != ce_item->up) {
-            ce_item->up(ce, ce_item->up_data);
-        }
-    }
-
     return ce;
 }
 
 int
 parsec_comm_engine_fini(parsec_comm_engine_t *comm_engine)
 {
-    if(NULL != parsec_ce_callback_list) {
-        for(parsec_list_item_t *item = PARSEC_LIST_ITERATOR_FIRST(parsec_ce_callback_list);
-            item != PARSEC_LIST_ITERATOR_END(parsec_ce_callback_list);
-            item = PARSEC_LIST_ITERATOR_NEXT(item)) {
-            parsec_comm_engine_callback_item_t *ce_item = (parsec_comm_engine_callback_item_t*)item;
-            if(NULL != ce_item->down) {
-                ce_item->down(comm_engine, ce_item->down_data);
-            }
-        }
-    }
-
     /* call the selected module fini */
     return mpi_funnelled_fini(comm_engine);
 }
@@ -117,4 +93,33 @@ int parsec_comm_engine_unregister_callback(int32_t callback_id)
         ce_item->down(&parsec_ce, ce_item->down_data);
     }
     return PARSEC_SUCCESS;
+}
+
+void parsec_comm_engine_callbacks_up(void)
+{
+    if(NULL == parsec_ce_callback_list)
+        return;
+
+    for(parsec_list_item_t *item = PARSEC_LIST_ITERATOR_FIRST(parsec_ce_callback_list);
+        item != PARSEC_LIST_ITERATOR_END(parsec_ce_callback_list);
+        item = PARSEC_LIST_ITERATOR_NEXT(item)) {
+        parsec_comm_engine_callback_item_t *ce_item = (parsec_comm_engine_callback_item_t*)item;
+        if(NULL != ce_item->up) {
+            ce_item->up(&parsec_ce, ce_item->up_data);
+        }
+    }
+}
+
+void parsec_comm_engine_callbacks_down(void)
+{
+    if(NULL != parsec_ce_callback_list) {
+        for(parsec_list_item_t *item = PARSEC_LIST_ITERATOR_FIRST(parsec_ce_callback_list);
+            item != PARSEC_LIST_ITERATOR_END(parsec_ce_callback_list);
+            item = PARSEC_LIST_ITERATOR_NEXT(item)) {
+            parsec_comm_engine_callback_item_t *ce_item = (parsec_comm_engine_callback_item_t*)item;
+            if(NULL != ce_item->down) {
+                ce_item->down(&parsec_ce, ce_item->down_data);
+            }
+        }
+    }
 }
