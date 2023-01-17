@@ -18,9 +18,9 @@
 #include "parsec/utils/output.h"
 #include "parsec/scheduling.h"
 
-#if !defined(PARSEC_HAVE_CUDA)
-#error This file should not be included in a non-CUDA build
-#endif  /* !defined(PARSEC_HAVE_CUDA) */
+#if !defined(PARSEC_HAVE_CUDA) && !defined(PARSEC_HAVE_LEVEL_ZERO)
+#error This file should not be included if no GPU device is supported
+#endif  /* !defined(PARSEC_HAVE_CUDA) && !defined(PARSEC_HAVE_LEVEL_ZERO) */
 
 /**
  * Entirely local tasks that should only be used to move data between a device and the main memory. Such
@@ -136,7 +136,7 @@ static const __parsec_chore_t __gpu_d2h_task_chores[] = {
 #if defined(PARSEC_HAVE_LEVEL_ZERO)
     {.type = PARSEC_DEV_LEVEL_ZERO,
      .evaluate = NULL,
-     .hook = (parsec_hook_t *) hook_of_GPU_d2h_task},
+     .hook = (parsec_hook_t *) hook_of_gpu_d2h_task},
 #endif
     {.type = PARSEC_DEV_NONE,
      .evaluate = NULL,

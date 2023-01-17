@@ -32,8 +32,8 @@ static int device_level_zero_component_close(void);
 static int device_level_zero_component_query(mca_base_module_2_0_0_t **module, int *priority);
 static int device_level_zero_component_register(void);
 
-int use_level_zero_index, use_level_zero;
-int parsec_cuda_sort_pending = 0, parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
+int parsec_device_level_zero_index, parsec_device_level_zero_enabled;
+int parsec_level_zero_sort_pending = 0, parsec_level_zero_max_streams = PARSEC_GPU_MAX_STREAMS;
 int level_zero_mask, level_zero_nvlink_mask;
 int level_zero_memory_block_size, level_zero_memory_percentage, level_zero_memory_number_of_blocks;
 

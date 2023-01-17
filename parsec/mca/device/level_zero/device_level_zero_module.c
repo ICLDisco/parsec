@@ -1599,7 +1599,6 @@ static parsec_task_class_t parsec_level_zero_d2d_complete_tc = {
     .initial_data = NULL,
     .final_data = NULL,
     .data_affinity = NULL,
-    .key_generator = NULL,
     .key_functions = NULL,
     .make_key = NULL,
     .get_datatype = NULL,
@@ -2612,7 +2611,7 @@ parsec_level_zero_kernel_scheduler( parsec_execution_stream_t *es,
     /* Everything went fine so far, the result is correct and back in the main memory */
     PARSEC_LIST_ITEM_SINGLETON(gpu_task);
     if (gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {
-        parsec_gpu_w2r_task_fini(gpu_device, gpu_task, es);
+        parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es);
         gpu_task = progress_task;
         goto fetch_task_from_shared_queue;
     }

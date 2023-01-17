@@ -1232,6 +1232,8 @@ install(FILES
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindPAPI.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindOTF2.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/Findlevel-zero.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/FindDPCPP.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/ParsecCompilePTG.cmake
   DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
 
