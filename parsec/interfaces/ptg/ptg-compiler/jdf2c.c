@@ -1561,14 +1561,10 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
 static void jdf_dump_internal_structure(string_arena_t *sa, jdf_t *jdf)
 {
     int nbfunctions = 0, need_profile = 0;
-    string_arena_t *sa1, *sa2;
     jdf_function_entry_t* f;
     jdf_param_list_t *pl;
 
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
-
-    sa1 = string_arena_new(64);
-    sa2 = string_arena_new(64);
 
     string_arena_add_string(sa, "#include \"%s.h\"\n\n"
             "struct __parsec_%s_internal_taskpool_s {\n"
@@ -1602,6 +1598,24 @@ static void jdf_dump_internal_structure(string_arena_t *sa, jdf_t *jdf)
     }
 
     string_arena_add_string(sa, "};\n\n");
+}
+
+static int jdf_has_dpcpp_chore(const jdf_t *jdf, const char *fname)
+{
+    jdf_function_entry_t *f;
+    jdf_body_t* body;
+    jdf_def_list_t *type_property;
+
+    for(f = jdf->functions; f != NULL; f = f->next) {
+        if( (NULL != fname) && strcmp(f->fname, fname) ) continue;
+        for(body = f->bodies; body != NULL; body = body->next) {
+            jdf_find_property(body->properties, "type", &type_property);
+            if( NULL != type_property && !strcmp(type_property->expr->jdf_var, "DPCPP"))
+                return 1;
+        }
+        if(NULL != fname) return 0;
+    }
+    return 0;
 }
 
 static void jdf_generate_structure(jdf_t *jdf)
@@ -1638,6 +1652,9 @@ static void jdf_generate_structure(jdf_t *jdf)
                    dump_globals, sa2, "", "#define ", "\n", "\n");
     if( 1 < strlen(string_arena_get_string(sa1)) ) {
         coutput("/* Globals */\n%s\n", string_arena_get_string(sa1));
+    }
+    if( 1 < strlen(string_arena_get_string(sa1)) && jdf_has_dpcpp_chore(jdf, NULL) ) {
+        dpcpp_output("/* Globals */\n%s\n", string_arena_get_string(sa1));
     }
 
     coutput("static inline int parsec_imin(int a, int b) { return (a <= b) ? a : b; };\n\n"
@@ -4861,7 +4878,6 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     string_arena_t *sa_range_multiplier = string_arena_new(64);
     jdf_variable_list_t *vl;
     expr_info_t info = EMPTY_EXPR_INFO;
-    int idx;
 
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY) ) {
         coutput("static inline parsec_key_t %s(const parsec_taskpool_t *tp, const parsec_assignment_t *as)\n"
@@ -4884,7 +4900,6 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
             info.sa = sa_range_multiplier;
             info.assignments = "assignment";
 
-            idx = 0;
             for(vl = f->locals; vl != NULL; vl = vl->next) {
                 string_arena_init(sa_range_multiplier);
                 
@@ -4916,7 +4931,6 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
                      */
                     coutput("  (void)%s;\n", vl->name);
                 }
-                idx++;
             }
 
             string_arena_init(sa_range_multiplier);
@@ -6613,25 +6627,6 @@ static int jdf_has_cuda_chore(const jdf_t *jdf, const char *fname)
     return 0;
 }
 
-static int jdf_has_dpcpp_chore(const jdf_t *jdf, const char *fname)
-{
-    jdf_function_entry_t *f;
-    jdf_body_t* body;
-    jdf_def_list_t *type_property;
-
-    for(f = jdf->functions; f != NULL; f = f->next) {
-        if( (NULL != fname) && strcmp(f->fname, fname) ) continue;
-        for(body = f->bodies; body != NULL; body = body->next) {
-            jdf_find_property(body->properties, "type", &type_property);
-            if( NULL != type_property && !strcmp(type_property->expr->jdf_var, "DPCPP"))
-                return 1;
-        }
-        if(NULL != fname) return 0;
-    }
-    return 0;
-}
-
-
 static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                                         const jdf_function_entry_t *f,
                                         const jdf_body_t* body,
@@ -8054,7 +8049,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
     string_arena_t *sa_tmp_type_r = string_arena_new(256);
     string_arena_t *sa_temp_r       = string_arena_new(1024);
 
-    int depnb, last_datatype_idx;
+    int last_datatype_idx;
     assignment_info_t ai;
     expr_info_t info = EMPTY_EXPR_INFO;
     int nb_open_ldef;
@@ -8104,7 +8099,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
         flowempty = 1;
         flowtomem = 0;
-        depnb = 0;
         last_datatype_idx = -1;
         string_arena_init(sa_coutput);
         string_arena_init(sa_deps);
@@ -8338,8 +8332,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                                             jdf_dump_context_assignment(sa1, jdf, f, fl, string_arena_get_string(sa_ontask),
                                                                         dl->guard->calltrue, dl, JDF_OBJECT_LINENO(dl),
                                                                         "      ", "nc"));
-                    depnb++;
-
                     string_arena_init(sa_ontask);
                     string_arena_add_string(sa_ontask,
                                             "if( PARSEC_ITERATE_STOP == ontask(es, &nc, (const parsec_task_t *)this_task, &%s, &data, rank_src, rank_dst, vpid_dst,"
@@ -8360,7 +8352,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                                                 "\n");
                     }
                 } else {
-                    depnb++;
                     string_arena_init(sa_ontask);
                     string_arena_add_string(sa_ontask,
                                             "if( PARSEC_ITERATE_STOP == ontask(es, &nc, (const parsec_task_t *)this_task, &%s, &data, rank_src, rank_dst, vpid_dst,"
@@ -8391,7 +8382,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                 }
                 break;
             }
-            depnb++;
             /* Dump the previous dependencies */
             OUTPUT_PREV_DEPS((1U << dl->dep_index), sa_datatype, sa_deps);
 
@@ -8793,8 +8783,7 @@ int jdf2c(const char *output_c, const char *output_h,
     dpcppfile = NULL;
 
     if( jdf_has_dpcpp_chore(jdf, NULL) ) {
-        string_arena_t *sa1, *sa2;
-        sa1 = string_arena_new(64);
+        string_arena_t *sa2;
         sa2 = string_arena_new(64);
         dpcppfile = fopen(jdf_dpcppfilename, "w");
         if( dpcppfile == NULL ) {
@@ -8802,9 +8791,6 @@ int jdf2c(const char *output_c, const char *output_h,
             ret = -1;
             goto err;
         }
-
-        UTIL_DUMP_LIST(sa1, jdf->globals, next,
-                       dump_globals, sa2, "", "#define ", "\n", "\n");
 
         dpcpp_output("#include \"parsec.h\"\n"
                      "#include \"level_zero/ze_api.h\"\n"
@@ -8815,10 +8801,7 @@ int jdf2c(const char *output_c, const char *output_h,
                      "#include \"parsec/mca/device/device_gpu.h\"\n"
                      "#include \"parsec/mca/device/level_zero/device_level_zero.h\"\n"
                      "#include \"parsec/mca/device/level_zero/device_level_zero_dpcpp.h\"\n"
-                     "\n"
-                     "%s\n",
-                     string_arena_get_string(sa1));
-        string_arena_free(sa1);
+                     "\n");
         string_arena_free(sa2);
     }
 
@@ -8953,12 +8936,10 @@ int jdf2c(const char *output_c, const char *output_h,
 
     /* Dump references to arenas_datatypes array */
     struct jdf_name_list* g;
-    int datatype_index = 0;
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
         coutput("#define PARSEC_%s_%s_ADT    (&__parsec_tp->super.arenas_datatypes[PARSEC_%s_%s_ADT_IDX])\n",
                 jdf_basename, g->name,
                 jdf_basename, g->name);
-        datatype_index++;
     }
 
     jdf_generate_structure(jdf);
@@ -8984,6 +8965,20 @@ int jdf2c(const char *output_c, const char *output_h,
     jdf_generate_new_function(jdf);
 
     free_name_placeholders();
+
+    /* Sometimes (typically because of a try {} catch block), sycl re-includes some definitions at the end of the file
+     * these definitions can be polluted by macros. Undefine the macros. */
+    if( jdf_has_dpcpp_chore(jdf, NULL) ) {
+        string_arena_t *sa1;
+        sa1 = string_arena_new(64);
+
+        UTIL_DUMP_LIST_FIELD(sa1, jdf->globals, next, name,
+                             dump_string, NULL,
+                             "", "#undef ", "\n", "\n");
+
+        dpcpp_output("%s\n", string_arena_get_string(sa1));
+        string_arena_free(sa1);
+    }
 
     /**
      * Dump all the epilogue sections
