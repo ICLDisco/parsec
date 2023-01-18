@@ -1,5 +1,5 @@
 add_custom_target(parsec_build_tests)
-add_test(parsec/build_tests "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target parsec_build_tests)
+add_test(${parsec/}build_tests "${CMAKE_COMMAND}" --build ${CMAKE_BINARY_DIR} --target parsec_build_tests)
 
 #! parsec_addtest_executable : this function defines how to
 #    compile an executable that is used in the testings.
