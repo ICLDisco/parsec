@@ -331,7 +331,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
 
 
 cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
-              force_reconvert=False, validate_existing=False,
+              force_reconvert=True, validate_existing=False,
               table=False, append=False, report_progress=False,
               add_info=dict(), compress=('blosc', 0), skeleton_only=False,
               version=1):
@@ -345,11 +345,13 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
 
     skeleton_only, multiprocess, report_progress, add_info -- see docs for "read()"
 
-    force_reconvert (False) -- causes conversion to happen even if a converted trace is determined to already exist.
+    force_reconvert (True) -- causes conversion to happen even if a converted trace is determined to already exist.
     This is usually determined by a simple match of the default generated output filename.
-    This (hopefully) simplifies significantly the mental/organiziational workload of the user,
-    as traces can simply be "re-converted" each time from the binary trace without performing the
-    actual conversion, while still allowing for a manual override in cases where that is necessary.
+    This was supposed to simplify the mental/organiziational workload of the user,
+    as traces could simply be "re-converted" each time from the binary trace without performing the
+    actual conversion, but it proved completely counter-intuitive with experience. We keep the possibility
+    of reconverting by letting the user pass force_reconvert=False if they want it, but it is now enabled
+    by default (meaning each target trace will be created from scratch at each invokation of the tool).
 
     validate_existing (False) -- requires a successful load of an existing converted trace, instead of just a filename match.
 
