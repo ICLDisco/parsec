@@ -12,6 +12,7 @@
 #include "parsec/profiling.h"
 #include "parsec/execution_stream.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
+#include "parsec/parsec_binary_profile.h"
 
 int release_deps_trace_keyin;
 int release_deps_trace_keyout;
