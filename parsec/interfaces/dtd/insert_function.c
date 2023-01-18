@@ -50,7 +50,7 @@
 #include "parsec/interfaces/interface.h"
 #include "parsec/interfaces/dtd/insert_function.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
-#include "parsec/parsec_prof_grapher.h"
+#include "parsec/parsec_binary_profile.h"
 #include "parsec/utils/colors.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec/utils/debug.h"
@@ -715,10 +715,8 @@ parsec_dtd_add_profiling_info(parsec_taskpool_t *tp,
     char *str = fill_color(task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
     parsec_profiling_add_dictionary_keyword(name, str,
                                             sizeof(parsec_task_prof_info_t), PARSEC_TASK_PROF_INFO_CONVERTOR,
-                                            (int *)&tp->profiling_array[0 +
-                                                                        2 * task_class_id]  /* start key */,
-                                            (int *)&tp->profiling_array[1 +
-                                                                        2 * task_class_id]  /*  end key */ );
+                                            (int *)&tp->profiling_array[START_KEY(task_class_id)]  /* start key */,
+                                            (int *)&tp->profiling_array[END_KEY(task_class_id)]  /*  end key */ );
     free(str);
 }
 
@@ -1751,7 +1749,7 @@ complete_hook_of_dtd(parsec_execution_stream_t *es,
 #endif /* defined(PARSEC_PROF_GRAPHER) */
 
     PARSEC_TASK_PROF_TRACE(es->es_profile,
-                           this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id + 1],
+                           this_task->taskpool->profiling_array[END_KEY(this_task->task_class->task_class_id)],
                            this_task);
 
     /* constructing action_mask for all flows of local task */

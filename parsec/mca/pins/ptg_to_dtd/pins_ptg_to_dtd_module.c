@@ -19,6 +19,7 @@
 #include "parsec/mca/pins/pins.h"
 #include "pins_ptg_to_dtd.h"
 #include "parsec/profiling.h"
+#include "parsec/parsec_binary_profile.h"
 #include "parsec/scheduling.h"
 #include "parsec/utils/mca_param.h"
 #include "parsec/mca/device/device.h"
@@ -191,7 +192,7 @@ testing_hook_of_dtd_task(parsec_execution_stream_t *es,
     int rc = 0;
 
     PARSEC_TASK_PROF_TRACE(es->es_profile,
-                          dtd_task->super.taskpool->profiling_array[2 * dtd_task->super.task_class->task_class_id],
+                          dtd_task->super.taskpool->profiling_array[START_KEY(dtd_task->super.task_class->task_class_id)],
                           &(dtd_task->super));
 
     /**

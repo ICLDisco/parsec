@@ -10,6 +10,7 @@
 #include "parsec/remote_dep.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/parsec_prof_grapher.h"
+#include "parsec/parsec_binary_profile.h"
 #include "parsec/scheduling.h"
 #include "parsec/datarepo.h"
 #include "parsec/mca/device/device.h"
@@ -326,7 +327,7 @@ static int hook_of(parsec_execution_stream_t *es,
 
 #if !defined(PARSEC_PROF_DRY_BODY)
     PARSEC_TASK_PROF_TRACE(es->es_profile,
-                           this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id],
+                           this_task->taskpool->profiling_array[START_KEY(this_task->task_class->task_class_id)],
                            (parsec_task_t *) this_task);
     rc = __tp->op( es, src_data, dest_data, __tp->op_data, m, n );
 #endif
@@ -343,7 +344,7 @@ static int complete_hook(parsec_execution_stream_t *es,
     (void)k; (void)n; (void)__tp;
 
     PARSEC_TASK_PROF_TRACE(es->es_profile,
-                           this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id+1],
+                           this_task->taskpool->profiling_array[END_KEY(this_task->task_class->task_class_id)],
                            (parsec_task_t *) this_task);
 
 #if defined(PARSEC_PROF_GRAPHER)
@@ -502,8 +503,8 @@ __parsec_map_operator_constructor(parsec_map_operator_taskpool_t* tp )
     if( -1 == parsec_map_operator_profiling_array[0] ) {
         parsec_profiling_add_dictionary_keyword("operator", "fill:CC2828",
                                                 sizeof(parsec_task_prof_info_t), PARSEC_TASK_PROF_INFO_CONVERTOR,
-                                                (int*)&tp->super.profiling_array[0 + 2 * parsec_map_operator.task_class_id],
-                                                (int*)&tp->super.profiling_array[1 + 2 * parsec_map_operator.task_class_id]);
+                                                (int*)&tp->super.profiling_array[START_KEY(parsec_map_operator.task_class_id)],
+                                                (int*)&tp->super.profiling_array[END_KEY(parsec_map_operator.task_class_id)]);
     }
 #endif /* defined(PARSEC_PROF_TRACE) */
 }
