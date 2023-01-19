@@ -66,11 +66,6 @@ set(CMAKE_NO_SYSTEM_FROM_IMPORTED True)
 # completely disregarding the versions installed by Mac Ports or Brew.
 set(CMAKE_FIND_FRAMEWORK LAST)
 
-# CTest system
-SET(DART_TESTING_TIMEOUT 120)
-enable_testing()
-include(CTest)
-
 #####
 # ccmake tunable parameters
 #####
@@ -857,6 +852,13 @@ if(PARSEC_PROF_TRACE AND PARSEC_DIST_WITH_MPI)
     endif(OTF2_FOUND AND MPI_C_FOUND)
   endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
 endif(PARSEC_PROF_TRACE AND PARSEC_DIST_WITH_MPI)
+
+# CTest system
+SET(DART_TESTING_TIMEOUT 120)
+if( BUILD_TESTING AND NOT PARSEC_IS_TOP_LEVEL )
+  enable_testing()
+endif( BUILD_TESTING AND NOT PARSEC_IS_TOP_LEVEL )
+include(CTest)
 
 #
 # First go for the tools.
