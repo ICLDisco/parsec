@@ -1,23 +1,23 @@
-# - Find HWLOC library
+# - Find the hwloc library
 # This module finds an installed library that implements the HWLOC
 # interface (see http://www.open-mpi.org/projects/hwloc/).
 #
 # This module sets the following variables:
-#  HWLOC_FOUND - set to true if a library implementing the HWLOC interface
+#  HWLOC_FOUND - set to true if a library implementing the hwloc interface
 #    is found
 #  HWLOC_LINKER_FLAGS - uncached list of required linker flags (excluding -l
 #    and -L).
 #  HWLOC_LIBRARIES - uncached list of libraries (using full path name) to
-#    link against to use HWLOC
+#    link against to use hwloc
 #  HWLOC_INCLUDE_DIRS - uncached list of required include directories to
-#    access HWLOC headers
+#    access hwloc headers
 #  HWLOC_DEFINITIONS - uncached list of required compile flags
 #
 #  PARSEC_HAVE_HWLOC_PARENT_MEMBER - new API, older versions don't have it
 #  PARSEC_HAVE_HWLOC_CACHE_ATTR - new API, older versions don't have it
 #  PARSEC_HAVE_HWLOC_OBJ_PU - new API, older versions don't have it
 #
-#  hwloc interface library target
+#  HWLOC::hwloc interface library target
 ##########
 
 include(CheckStructHasMember)
@@ -72,14 +72,14 @@ if(HWLOC_FOUND)
 
   #===============================================================================
   # Import Target ================================================================
-  if(NOT TARGET hwloc)
-    add_library(hwloc INTERFACE IMPORTED)
-  endif(NOT TARGET hwloc)
+  if(NOT TARGET HWLOC::hwloc)
+    add_library(HWLOC::hwloc INTERFACE IMPORTED)
+  endif(NOT TARGET HWLOC::hwloc)
 
-  set_property(TARGET hwloc PROPERTY INTERFACE_LINK_LIBRARIES "${PC_HWLOC_LIB}")
-  set_property(TARGET hwloc APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${HWLOC_LIBRARY}")
-  set_property(TARGET hwloc PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${HWLOC_INCLUDE_DIR}")
-  set_property(TARGET hwloc PROPERTY INTERFACE_COMPILE_OPTIONS "${HWLOC_DEFINITIONS}")
+  set_property(TARGET HWLOC::hwloc PROPERTY INTERFACE_LINK_LIBRARIES "${PC_HWLOC_LIB}")
+  set_property(TARGET HWLOC::hwloc APPEND PROPERTY INTERFACE_LINK_LIBRARIES "${HWLOC_LIBRARY}")
+  set_property(TARGET HWLOC::hwloc PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${HWLOC_INCLUDE_DIR}")
+  set_property(TARGET HWLOC::hwloc PROPERTY INTERFACE_COMPILE_OPTIONS "${HWLOC_DEFINITIONS}")
   #===============================================================================
 
 else(HWLOC_FOUND)
