@@ -879,8 +879,8 @@ static char *dump_profiling_init(void **elem, void *arg)
                             "parsec_profiling_add_dictionary_keyword(\"%s::%s::internal init\", \"fill:%02X%02X%02X\",\n"
                             "                                       0,\n"
                             "                                       NULL,\n"
-                            "                                       (int*)&__parsec_tp->super.super.profiling_array[0 + 2 * %s_%s.task_class_id  + 2 * PARSEC_%s_NB_TASK_CLASSES/* %s (internal init) start key */],\n"
-                            "                                       (int*)&__parsec_tp->super.super.profiling_array[1 + 2 * %s_%s.task_class_id  + 2 * PARSEC_%s_NB_TASK_CLASSES/* %s (internal init) end key */]);\n"
+                            "                                       (int*)&__parsec_tp->super.super.profiling_array[START_KEY(%s_%s.task_class_id  + PARSEC_%s_NB_TASK_CLASSES)/* %s (internal init) start key */],\n"
+                            "                                       (int*)&__parsec_tp->super.super.profiling_array[END_KEY(%s_%s.task_class_id  + PARSEC_%s_NB_TASK_CLASSES)/* %s (internal init) end key */]);\n"
                             "#endif /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n",
                             jdf_basename, fname, 256-R, 256-G, 256-B,
                             jdf_basename, fname, jdf_basename, fname,
@@ -889,8 +889,8 @@ static char *dump_profiling_init(void **elem, void *arg)
                             "parsec_profiling_add_dictionary_keyword(\"%s::%s\", \"fill:%02X%02X%02X\",\n"
                             "                                       sizeof(parsec_task_prof_info_t)+%d*sizeof(parsec_assignment_t),\n"
                             "                                       \"%s\",\n"
-                            "                                       (int*)&__parsec_tp->super.super.profiling_array[0 + 2 * %s_%s.task_class_id /* %s start key */],\n"
-                            "                                       (int*)&__parsec_tp->super.super.profiling_array[1 + 2 * %s_%s.task_class_id /* %s end key */]);\n",
+                            "                                       (int*)&__parsec_tp->super.super.profiling_array[START_KEY(%s_%s.task_class_id) /* %s start key */],\n"
+                            "                                       (int*)&__parsec_tp->super.super.profiling_array[END_KEY(%s_%s.task_class_id) /* %s end key */]);\n",
                             jdf_basename, fname, R, G, B,
                             nb_locals,
                             string_arena_get_string(profiling_convertor_params),
@@ -1506,6 +1506,7 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
             "#include \"parsec/parsec_internal.h\"\n"
             "#include \"parsec/ayudame.h\"\n"
             "#include \"parsec/execution_stream.h\"\n"
+            "#include \"parsec/parsec_binary_profile.h\"\n"
             "#include \"parsec/mca/device/device_gpu.h\"\n"
             "#if defined(PARSEC_HAVE_CUDA)\n"
             "#include \"parsec/mca/device/cuda/device_cuda.h\"\n"
@@ -3501,7 +3502,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     if( profile_enabled(f->properties) ) {
         coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
                 "  PARSEC_PROFILING_TRACE(es->es_profile,\n"
-                "                         this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id],\n"
+                "                         this_task->taskpool->profiling_array[START_KEY(this_task->task_class->task_class_id)],\n"
                 "                         0,\n"
                 "                         this_task->taskpool->taskpool_id, NULL);\n"
                 "#endif /* defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n");
