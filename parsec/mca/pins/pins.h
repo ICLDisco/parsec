@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -53,6 +53,12 @@ typedef enum PARSEC_PINS_FLAG {
     /* PARSEC_PINS_FLAG_COUNT is not an event at all */
     PARSEC_PINS_FLAG_COUNT
 } PARSEC_PINS_FLAG;
+
+extern uint64_t parsec_pins_enable_mask;
+extern const char *parsec_pins_enable_default_names;
+
+#define PARSEC_PINS_FLAG_MASK(_flag) ((_flag)>>1)
+#define PARSEC_PINS_FLAG_ENABLED(_flag) (parsec_pins_enable_mask & PARSEC_PINS_FLAG_MASK(_flag))
 
 BEGIN_C_DECLS
 
@@ -151,10 +157,17 @@ int parsec_pins_unregister_callback(struct parsec_execution_stream_s* es,
                              parsec_pins_callback cb,
                              parsec_pins_next_callback_t** cb_data);
 
+
+PARSEC_PINS_FLAG parsec_pins_name_to_begin_flag(const char *name);
+
 #ifdef PARSEC_PROF_PINS
 
-#define PARSEC_PINS(unit, method_flag, task)         \
-    parsec_pins_instrument(unit, method_flag, task)
+#define PARSEC_PINS(unit, method_flag, task)                 \
+    do {                                                     \
+        if (PARSEC_PINS_FLAG_ENABLED(method_flag)) {         \
+            parsec_pins_instrument(unit, method_flag, task); \
+        }                                                    \
+    } while (0)
 #define PARSEC_PINS_DISABLE_REGISTRATION(boolean)      \
     parsec_pins_disable_registration(boolean)
 #define PARSEC_PINS_REGISTER(unit, method_flag, cb, data)       \

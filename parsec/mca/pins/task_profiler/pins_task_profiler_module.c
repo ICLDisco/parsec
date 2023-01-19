@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The University of Tennessee and The University
+ * Copyright (c) 2012-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,6 +13,8 @@
 #include "parsec/execution_stream.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/parsec_binary_profile.h"
+#include "parsec/utils/argv.h"
+#include "parsec/utils/mca_param.h"
 
 int prepare_input_trace_keyin;
 int prepare_input_trace_keyout;
@@ -28,6 +30,8 @@ int schedule_trace_keyin;
 int schedule_trace_keyout;
 int complete_exec_trace_keyin;
 int complete_exec_trace_keyout;
+
+static char *mca_param_string;
 
 /* init functions */
 static void pins_init_task_profiler(parsec_context_t *master_context);
@@ -143,6 +147,23 @@ static void pins_init_task_profiler(parsec_context_t *master_context)
                                            "",
                                            &complete_exec_trace_keyin,
                                            &complete_exec_trace_keyout);
+
+    parsec_mca_param_reg_string_name("pins", "task_profiler_event",
+                                     "Comma-separated list of task profiler events to be gathered.\n",
+                                     false, false,
+                                     parsec_pins_enable_default_names, &mca_param_string);
+
+    char **events = parsec_argv_split(mca_param_string, ',');
+    int i = 0;
+    while (events[i] != NULL) {
+        char *event = events[i];
+        PARSEC_PINS_FLAG flag = parsec_pins_name_to_begin_flag(event);
+        if (flag < PARSEC_PINS_FLAG_COUNT) {
+            parsec_pins_enable_mask |= flag;
+        }
+        free(event);
+    }
+    free(events);
 }
 
 static void pins_fini_task_profiler(parsec_context_t *master_context)
