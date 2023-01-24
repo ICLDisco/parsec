@@ -16,20 +16,7 @@
 #include "parsec/utils/argv.h"
 #include "parsec/utils/mca_param.h"
 
-int prepare_input_trace_keyin;
-int prepare_input_trace_keyout;
-int release_deps_trace_keyin;
-int release_deps_trace_keyout;
-int activate_cb_trace_keyin;
-int activate_cb_trace_keyout;
-int data_flush_trace_keyin;
-int data_flush_trace_keyout;
-int select_trace_keyin;
-int select_trace_keyout;
-int schedule_trace_keyin;
-int schedule_trace_keyout;
-int complete_exec_trace_keyin;
-int complete_exec_trace_keyout;
+static int trace_keys[PARSEC_PINS_FLAG_COUNT] = {0};
 
 static char *mca_param_string;
 
@@ -127,56 +114,56 @@ static void pins_init_task_profiler(parsec_context_t *master_context)
         parsec_profiling_add_dictionary_keyword("PARSEC RUNTIME::PREPARE_INPUT", "fill:#FF0000",
                                                 0,
                                                 "",
-                                                &prepare_input_trace_keyin,
-                                                &prepare_input_trace_keyout);
+                                                &trace_keys[PREPARE_INPUT_BEGIN],
+                                                &trace_keys[PREPARE_INPUT_END]);
     }
 
     if (PARSEC_PINS_FLAG_ENABLED(RELEASE_DEPS_BEGIN)) {
         parsec_profiling_add_dictionary_keyword("PARSEC RUNTIME::RELEASE_DEPS", "fill:#FF0000",
                                                 sizeof(int32_t),
                                                 "tcid{uint32_t}",
-                                                &release_deps_trace_keyin,
-                                                &release_deps_trace_keyout);
+                                                &trace_keys[RELEASE_DEPS_BEGIN],
+                                                &trace_keys[RELEASE_DEPS_END]);
     }
 
     if (PARSEC_PINS_FLAG_ENABLED(ACTIVATE_CB_BEGIN)) {
         parsec_profiling_add_dictionary_keyword("PARSEC RUNTIME::ACTIVATE_CB", "fill:#FFF000",
                                                 0,
                                                 "",
-                                                &activate_cb_trace_keyin,
-                                                &activate_cb_trace_keyout);
+                                                &trace_keys[ACTIVATE_CB_BEGIN],
+                                                &trace_keys[ACTIVATE_CB_END]);
     }
 
     if (PARSEC_PINS_FLAG_ENABLED(DATA_FLUSH_BEGIN)) {
         parsec_profiling_add_dictionary_keyword("PARSEC RUNTIME::DATA_FLUSH", "fill:#FFF000",
                                                 0,
                                                 "",
-                                                &data_flush_trace_keyin,
-                                                &data_flush_trace_keyout);
+                                                &trace_keys[DATA_FLUSH_BEGIN],
+                                                &trace_keys[DATA_FLUSH_END]);
     }
 
     if (PARSEC_PINS_FLAG_ENABLED(SELECT_BEGIN)) {
         parsec_profiling_add_dictionary_keyword("PARSEC RUNTIME::SELECT_TASK", "fill:#EFEFEF",
                                                 0,
                                                 "",
-                                                &select_trace_keyin,
-                                                &select_trace_keyout);
+                                                &trace_keys[SELECT_BEGIN],
+                                                &trace_keys[SELECT_END]);
     }
 
     if (PARSEC_PINS_FLAG_ENABLED(SCHEDULE_BEGIN)) {
         parsec_profiling_add_dictionary_keyword("PARSEC RUNTIME::SCHEDULE_TASKS", "fill:#EFEFEF",
                                                 0,
                                                 "",
-                                                &schedule_trace_keyin,
-                                                &schedule_trace_keyout);
+                                                &trace_keys[SCHEDULE_BEGIN],
+                                                &trace_keys[SCHEDULE_END]);
     }
 
     if (PARSEC_PINS_FLAG_ENABLED(COMPLETE_EXEC_BEGIN)) {
         parsec_profiling_add_dictionary_keyword("PARSEC RUNTIME::COMPLETE_EXEC", "fill:#EFEFEF",
                                                 0,
                                                 "",
-                                                &complete_exec_trace_keyin,
-                                                &complete_exec_trace_keyout);
+                                                &trace_keys[COMPLETE_EXEC_BEGIN],
+                                                &trace_keys[COMPLETE_EXEC_END]);
     }
 }
 
@@ -316,7 +303,7 @@ task_profiler_prepare_input_begin(struct parsec_execution_stream_s*   es,
                                  struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           prepare_input_trace_keyin,
+                           trace_keys[PREPARE_INPUT_BEGIN],
                            0,
                            -1,
                            NULL);
@@ -330,7 +317,7 @@ task_profiler_prepare_input_end(struct parsec_execution_stream_s*   es,
                                struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           prepare_input_trace_keyout,
+                           trace_keys[PREPARE_INPUT_END],
                            0,
                            -1,
                            NULL);
@@ -346,7 +333,7 @@ task_profiler_release_deps_begin(struct parsec_execution_stream_s*   es,
     int32_t tcid = task->task_class->task_class_id;
 
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           release_deps_trace_keyin,
+                           trace_keys[RELEASE_DEPS_BEGIN],
                            task->task_class->key_functions->key_hash(task->task_class->make_key(task->taskpool, task->locals), NULL),
                            task->taskpool->taskpool_id,
                            (void *)&tcid);
@@ -362,7 +349,7 @@ task_profiler_release_deps_end(struct parsec_execution_stream_s*   es,
     int32_t tcid = task->task_class->task_class_id;
 
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           release_deps_trace_keyout,
+                           trace_keys[RELEASE_DEPS_END],
                            task->task_class->key_functions->key_hash(task->task_class->make_key(task->taskpool, task->locals), NULL),
                            task->taskpool->taskpool_id,
                            (void*)&tcid);
@@ -375,7 +362,7 @@ task_profiler_activate_cb_begin(struct parsec_execution_stream_s*   es,
                                 struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           activate_cb_trace_keyin,
+                           trace_keys[ACTIVATE_CB_BEGIN],
                            0,
                            -1,
                            NULL);
@@ -389,7 +376,7 @@ task_profiler_activate_cb_end(struct parsec_execution_stream_s*   es,
                               struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           activate_cb_trace_keyout,
+                           trace_keys[ACTIVATE_CB_END],
                            0,
                            -1,
                            NULL);
@@ -402,7 +389,7 @@ task_profiler_data_flush_begin(struct parsec_execution_stream_s*   es,
                                struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           data_flush_trace_keyin,
+                           trace_keys[DATA_FLUSH_BEGIN],
                            0,
                            -1,
                            NULL);
@@ -416,7 +403,7 @@ task_profiler_data_flush_end(struct parsec_execution_stream_s*   es,
                              struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           data_flush_trace_keyout,
+                           trace_keys[DATA_FLUSH_END],
                            0,
                            -1,
                            NULL);
@@ -429,7 +416,7 @@ task_profiler_select_begin(struct parsec_execution_stream_s*   es,
                            struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           select_trace_keyin,
+                           trace_keys[SELECT_BEGIN],
                            0,
                            -1,
                            NULL);
@@ -443,7 +430,7 @@ task_profiler_select_end(struct parsec_execution_stream_s*   es,
                          struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           select_trace_keyout,
+                           trace_keys[SELECT_END],
                            0,
                            -1,
                            NULL);
@@ -456,7 +443,7 @@ task_profiler_schedule_begin(struct parsec_execution_stream_s*   es,
                             struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           schedule_trace_keyin,
+                           trace_keys[SCHEDULE_BEGIN],
                            0,
                            -1,
                            NULL);
@@ -470,7 +457,7 @@ task_profiler_schedule_end(struct parsec_execution_stream_s*   es,
                            struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           schedule_trace_keyout,
+                           trace_keys[SCHEDULE_END],
                            0,
                            -1,
                            NULL);
@@ -483,7 +470,7 @@ task_profiler_complete_exec_begin(struct parsec_execution_stream_s*   es,
                                   struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           complete_exec_trace_keyin,
+                           trace_keys[COMPLETE_EXEC_BEGIN],
                            0,
                            -1,
                            NULL);
@@ -497,7 +484,7 @@ task_profiler_complete_exec_end(struct parsec_execution_stream_s*   es,
                                 struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(es->es_profile,
-                           complete_exec_trace_keyout,
+                           trace_keys[COMPLETE_EXEC_END],
                            0,
                            -1,
                            NULL);
