@@ -2621,7 +2621,7 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
                 parsec_dtd_untrack_remote_dep(tp, key);
 #if defined(PARSEC_PROF_TRACE)
                 if( parsec_dtd_profile_verbose )
-                    parsec_profiling_ts_trace(hashtable_trace_keyin, 0, tp->super.taskpool_id, NULL);
+                    parsec_profiling_ts_trace_flags_info_fn(hashtable_trace_keyin, 0, tp->super.taskpool_id, NULL, NULL, 0);
 #endif
                 parsec_dtd_track_task(tp, key, real_parent_task);
                 remote_dep_dequeue_delayed_dep_release(dep);
@@ -3142,7 +3142,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
 
 #if defined(PARSEC_PROF_TRACE)
     if( parsec_dtd_profile_verbose )
-        parsec_profiling_ts_trace(insert_task_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL);
+        parsec_profiling_ts_trace_flags_info_fn(insert_task_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL, NULL, 0);
 #endif
 
     if( parsec_dtd_task_is_local(this_task)) {
@@ -3181,7 +3181,7 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
 
 #if defined(PARSEC_PROF_TRACE)
     if( parsec_dtd_profile_verbose )
-        parsec_profiling_ts_trace(insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL);
+        parsec_profiling_ts_trace_flags_info_fn(insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL, NULL, 0);
 #endif
 
     /* We parse arguments a first time (mostly skipping the tile),

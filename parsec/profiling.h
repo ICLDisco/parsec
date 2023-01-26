@@ -390,7 +390,7 @@ int parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int
  * @return 0 if success, negative otherwise.
  * @remark thread safe
  */
-int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpool_id,
+int a(int key, uint64_t event_id, uint32_t taskpool_id,
                                     const void *info, uint16_t flags );
 
 /**
@@ -415,14 +415,6 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpoo
  */
 int parsec_profiling_ts_trace_flags_info_fn(int key, uint64_t event_id, uint32_t taskpool_id,
                                             parsec_profiling_info_fn_t *info_fn, const void *info_data, uint16_t flags );
-
-/**
- * @brief Convenience macro when no flag needs to be passed
- */
-#define parsec_profiling_ts_trace(key, event_id, object_id, info) \
-    parsec_profiling_ts_trace_flags((key), (event_id), (object_id), (info), 0)
-#define parsec_profiling_ts_trace_info_fn(key, event_id, object_id, info_fn, info_fn_data) \
-    parsec_profiling_ts_trace_flags_info_fn((key), (event_id), (object_id), (info_fn), (info_fn_data), 0)
 
 /**
  * @brief Creates the profile file given as a parameter to store the

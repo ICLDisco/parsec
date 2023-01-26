@@ -956,12 +956,6 @@ static int switch_event_buffer( parsec_profiling_stream_t *context )
     return 0;
 }
 
-int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpool_id,
-                                    const void *info, uint16_t flags )
-{
-    return parsec_profiling_ts_trace_flags_info_fn(key, event_id, taskpool_id, memcpy, info, flags);
-}
-
 int parsec_profiling_ts_trace_flags_info_fn(int key, uint64_t event_id, uint32_t taskpool_id,
                                             parsec_profiling_info_fn_t *info_fn, const void *info_data, uint16_t flags )
 {
@@ -975,7 +969,7 @@ int parsec_profiling_ts_trace_flags_info_fn(int key, uint64_t event_id, uint32_t
     if( NULL != ctx )
         return parsec_profiling_trace_flags_info_fn(ctx, key, event_id, taskpool_id, info_fn, info_data, flags);
 
-    set_last_error("Profiling system: error: called parsec_profiling_ts_trace_flags"
+    set_last_error("Profiling system: error: called parsec_profiling_ts_trace_flags_info_fn"
                    " from a thread that did not call parsec_profiling_stream_init\n");
     return PARSEC_ERR_NOT_SUPPORTED;
 }
