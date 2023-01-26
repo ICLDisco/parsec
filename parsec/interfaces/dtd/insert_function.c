@@ -1834,10 +1834,6 @@ complete_hook_of_dtd(parsec_execution_stream_t *es,
                              this_task->task_class->key_functions->key_hash(this_task->task_class->make_key( this_task->taskpool, this_task->locals ), NULL));
 #endif /* defined(PARSEC_PROF_GRAPHER) */
 
-    PARSEC_TASK_PROF_TRACE(es->es_profile,
-                           this_task->taskpool->profiling_array[END_KEY(this_task->task_class->task_class_id)],
-                           this_task);
-
     /* constructing action_mask for all flows of local task */
     int current_dep;
     for( current_dep = 0; current_dep < this_dtd_task->super.task_class->nb_flows; current_dep++ ) {
