@@ -1233,7 +1233,9 @@ int parsec_fini( parsec_context_t** pcontext )
 
     PARSEC_PINS_FINI(context);
 
+    PARSEC_AYU_FINI();
 #ifdef PARSEC_PROF_TRACE
+    (void)parsec_profiling_fini( );  /* we're leaving, ignore errors */
     parsec_mempool_stats(context);
 #endif  /* PARSEC_PROF_TRACE */
 
@@ -1254,11 +1256,6 @@ int parsec_fini( parsec_context_t** pcontext )
         free(context->virtual_processes[p]);
         context->virtual_processes[p] = NULL;
     }
-
-    PARSEC_AYU_FINI();
-#ifdef PARSEC_PROF_TRACE
-    (void)parsec_profiling_fini( );  /* we're leaving, ignore errors */
-#endif  /* PARSEC_PROF_TRACE */
 
     if(parsec_enable_dot) {
 #if defined(PARSEC_PROF_GRAPHER)

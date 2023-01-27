@@ -69,7 +69,10 @@ typedef enum { PARSEC_INPUT =      0x100000,
                PARSEC_DONT_TRACK  =1<<17, /* Drop dependency tracking */
                PARSEC_PUSHOUT     =1<<18, /* Push GPU data back to CPU */
                PARSEC_PULLIN      =1<<19, /* Pull data on the CPU */
-               PARSEC_GET_OTHER_FLAG_INFO=0xf0000, /* MASK: not an actual value, used to filter the relevant enum values */
+               PARSEC_PROFILE_INFO=1<<24, /* Mark this VALUE (error if not value) to be saved as info in the profile of this task --
+                                           * !! Warning: a string with the info name is expected as the next argument,
+                                                and this parameter is not allowed in the insert_task without task class */
+               PARSEC_GET_OTHER_FLAG_INFO=0x10f0000, /* MASK: not an actual value, used to filter the relevant enum values */
                PARSEC_GET_REGION_INFO=0xffff /* MASK: not an actual value, used to filter the relevant enum values */
              } parsec_dtd_op_t;
 typedef enum { PASSED_BY_REF=-2,
@@ -80,6 +83,7 @@ typedef enum { PASSED_BY_REF=-2,
 typedef struct {
     parsec_dtd_op_t op;
     long            size;
+    char *          profile_info;
 } parsec_dtd_param_t;
 
 typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;

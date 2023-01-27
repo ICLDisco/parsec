@@ -734,6 +734,28 @@ parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp,
     free(str);
 }
 
+void *parsec_dtd_task_profile_info(void *dst, const void *task_, size_t size)
+{
+    void *ptr;
+    parsec_dtd_task_t *task = (parsec_dtd_task_t *)task_;
+    parsec_dtd_task_param_t *param = GET_HEAD_OF_PARAM_LIST(task);
+
+    assert( task->super.task_class->task_class_type == PARSEC_TASK_CLASS_TYPE_DTD );
+    
+    memcpy(dst, &task->super.prof_info, sizeof(parsec_task_prof_info_t));
+    ptr = dst + sizeof(parsec_task_prof_info_t);
+
+    while( param != NULL) {
+        if(param->op_type & PARSEC_PROFILE_INFO) {
+            assert( ptr-dst < (intptr_t)size ); (void)size;
+            memcpy(ptr, param->pointer_to_tile, param->arg_size);
+            ptr += param->arg_size;
+        } 
+        param = param->next;
+    }
+
+    return dst;
+}
 #endif /* defined(PARSEC_PROF_TRACE) */
 
 /* **************************************************************************** */
@@ -913,6 +935,11 @@ void
 parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
                              parsec_dtd_task_class_t *tc)
 {
+#if defined(PARSEC_PROF_TRACE)
+    char *info_str = NULL;
+    int info_size = 0;
+#endif
+    
     if(tc->super.task_class_id != UINT8_MAX) {
         parsec_warning("Task class %s (%p) has invalid or already defined task_class_id",
                         (void*)tc, tc->super.name);
@@ -923,7 +950,66 @@ parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
     tp->super.task_classes_array[tc->super.task_class_id] = &tc->super;
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_dtd_add_profiling_info(&tp->super, tc->super.task_class_id, tc->super.name);
+    for(int i = 0; i < tc->count_of_params; i++) {
+        if( tc->params[i].size != PASSED_BY_REF ) {
+            if( tc->params[i].op & PARSEC_PROFILE_INFO ) {
+                char typename[64];
+                assert(NULL != tc->params[i].profile_info);
+                info_size += tc->params[i].size;
+                // Unfortunately, we don't have the type... And we can only work with
+                // a small subset of types at the conversion level. So we use a very
+                // simple heuristic for the most common types (no good solution to
+                // define signedness, so we always take the signed version), and fallback
+                // to an array of chars in the other cases.
+                switch(tc->params[i].size) {
+                    case sizeof(int8_t):
+                        snprintf(typename, 64, "int8_t");
+                        break;
+                    case sizeof(int16_t):
+                        snprintf(typename, 64, "int16_t");
+                        break;
+                    case sizeof(int32_t):
+                        snprintf(typename, 64, "int32_t");
+                        break;
+                    case sizeof(int64_t):
+                        snprintf(typename, 64, "int64_t");
+                        break;
+#if defined(PARSEC_HAVE_INT128)
+                    case sizeof(__int128_t):
+                        snprintf(typename, 64, "int128_t");
+                        break;
+#endif
+                    default:
+                        snprintf(typename, 64, "char[%d]", (int)tc->params[i].size);
+                }
+
+                if(NULL == info_str) {
+                    int rc = asprintf(&info_str, PARSEC_TASK_PROF_INFO_CONVERTOR";%s{%s}", tc->params[i].profile_info, typename);
+                    if(-1 == rc) { info_str = ""; break; }
+                } else {
+                    char *tmp = info_str;
+                    int rc = asprintf(&info_str, "%s;%s{%s}", tmp, tc->params[i].profile_info, typename);
+                    if(-1 == rc) { info_str = tmp; info_size -= tc->params[i].size; break; }
+                    free(tmp);
+                }
+            }
+        }
+    }
+ 
+    if(NULL == info_str) {
+        tc->super.profile_info = parsec_task_profile_info;
+        parsec_dtd_add_profiling_info(&tp->super, tc->super.task_class_id, tc->super.name);
+    } else {
+        char *fc = fill_color(tc->super.task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
+        parsec_profiling_add_dictionary_keyword(tc->super.name, fc,
+                                                sizeof(parsec_task_prof_info_t)+info_size, 
+                                                info_str,
+                                                (int *)&PARSEC_PROF_FUNC_KEY_START(&tp->super, tc->super.task_class_id),
+                                                (int *)&PARSEC_PROF_FUNC_KEY_END(&tp->super, tc->super.task_class_id));
+        tc->super.profile_info = parsec_dtd_task_profile_info;
+        free(fc);
+        free(info_str);
+    }
 #endif /* defined(PARSEC_PROF_TRACE) */
 }
 
@@ -1748,10 +1834,6 @@ complete_hook_of_dtd(parsec_execution_stream_t *es,
                              this_task->task_class->key_functions->key_hash(this_task->task_class->make_key( this_task->taskpool, this_task->locals ), NULL));
 #endif /* defined(PARSEC_PROF_GRAPHER) */
 
-    PARSEC_TASK_PROF_TRACE(es->es_profile,
-                           this_task->taskpool->profiling_array[END_KEY(this_task->task_class->task_class_id)],
-                           this_task);
-
     /* constructing action_mask for all flows of local task */
     int current_dep;
     for( current_dep = 0; current_dep < this_dtd_task->super.task_class->nb_flows; current_dep++ ) {
@@ -2153,6 +2235,14 @@ parsec_dtd_create_task_class(parsec_taskpool_t *tp,
     va_start(args, name);
     while( PARSEC_DTD_ARG_END != (arg_size = va_arg(args, int))) {
         tile_op_type = va_arg(args, int);
+        params[nb_params].profile_info = NULL;
+        if( tile_op_type & PARSEC_PROFILE_INFO ) {
+            if( !(tile_op_type & PARSEC_VALUE) ) {
+                parsec_fatal("Argument %d of DTD task '%s' is a profile info but not a PARSEC_VALUE. Only PARSEC_VALUEs can be saved as PROFILE INFOs.\n",
+                             nb_params+1, name);
+            }
+            params[nb_params].profile_info = va_arg(args, char *); /* We need to parse it every time to move the va_arg pointer */
+        }
         params[nb_params].op = tile_op_type;
         params[nb_params].size = arg_size;
         nb_params++;
@@ -2527,7 +2617,7 @@ parsec_dtd_set_descendant(parsec_dtd_task_t *parent_task, uint8_t parent_flow_in
                 parsec_dtd_untrack_remote_dep(tp, key);
 #if defined(PARSEC_PROF_TRACE)
                 if( parsec_dtd_profile_verbose )
-                    parsec_profiling_ts_trace(hashtable_trace_keyin, 0, tp->super.taskpool_id, NULL);
+                    parsec_profiling_ts_trace_flags_info_fn(hashtable_trace_keyin, 0, tp->super.taskpool_id, NULL, NULL, 0);
 #endif
                 parsec_dtd_track_task(tp, key, real_parent_task);
                 remote_dep_dequeue_delayed_dep_release(dep);
@@ -3048,7 +3138,7 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
 
 #if defined(PARSEC_PROF_TRACE)
     if( parsec_dtd_profile_verbose )
-        parsec_profiling_ts_trace(insert_task_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL);
+        parsec_profiling_ts_trace_flags_info_fn(insert_task_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL, NULL, 0);
 #endif
 
     if( parsec_dtd_task_is_local(this_task)) {
@@ -3087,7 +3177,7 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
 
 #if defined(PARSEC_PROF_TRACE)
     if( parsec_dtd_profile_verbose )
-        parsec_profiling_ts_trace(insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL);
+        parsec_profiling_ts_trace_flags_info_fn(insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL, NULL, 0);
 #endif
 
     /* We parse arguments a first time (mostly skipping the tile),
@@ -3102,6 +3192,10 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
             assert(NULL == tc);
             tile_op_type = va_arg(arg_chk, int);
             arg_size = first_arg;
+            if( (NULL == tc) && (tile_op_type & PARSEC_PROFILE_INFO) ) {
+                parsec_fatal("Argument %d of DTD task '%s' tries to define a PROFILE_INFO without providing a task class.\n",
+                             nb_params+1, name_of_kernel);
+            }
         } else {
             assert(NULL != tc);
             tile_op_type = first_arg | (int)dtd_tc->params[nb_params].op;
@@ -3146,12 +3240,14 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
         }
 
         params[nb_params].op = tile_op_type;
+        params[nb_params].profile_info = NULL;
         if(NULL != dtd_tc) {
             if(dtd_tc->count_of_params <= nb_params) {
                 parsec_fatal("Task class of '%s' is defined to use %d parameters, yet it is called with %d parameters.\n"
                              "Error in task insertion.\n", tc->name, dtd_tc->count_of_params, nb_params);
             }
             params[nb_params].op |= dtd_tc->params[nb_params].op;
+            params[nb_params].profile_info = dtd_tc->params[nb_params].profile_info;
         }
         params[nb_params].size = arg_size;
         nb_params++;

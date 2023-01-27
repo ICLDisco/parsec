@@ -4243,6 +4243,9 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     string_arena_add_string(sa,
                             "  .make_key = %s,\n"
                             "  .task_snprintf = parsec_task_snprintf,\n"
+                            "#if defined(PARSEC_PROF_TRACE)\n"
+                            "  .profile_info = &parsec_task_profile_info,\n"
+                            "#endif\n"
                             "  .key_functions = &%s,\n",
                             jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL),
                             jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL));
@@ -6691,7 +6694,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
                 "    PARSEC_TASK_PROF_TRACE(gpu_stream->profiling,\n"
                 "                           PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,\n"
                 "                                     this_task->task_class->task_class_id),\n"
-                "                           (parsec_task_t*)this_task);\n"
+                "                           (parsec_task_t*)this_task, 1);\n"
                 "    gpu_task->prof_key_end = PARSEC_PROF_FUNC_KEY_END(this_task->taskpool,\n"
                 "                                   this_task->task_class->task_class_id);\n"
                 "    gpu_task->prof_event_id = this_task->task_class->key_functions->\n"

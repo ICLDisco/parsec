@@ -326,9 +326,6 @@ static int hook_of(parsec_execution_stream_t *es,
     }
 
 #if !defined(PARSEC_PROF_DRY_BODY)
-    PARSEC_TASK_PROF_TRACE(es->es_profile,
-                           this_task->taskpool->profiling_array[START_KEY(this_task->task_class->task_class_id)],
-                           (parsec_task_t *) this_task);
     rc = __tp->op( es, src_data, dest_data, __tp->op_data, m, n );
 #endif
     (void)es; (void)rc;
@@ -342,10 +339,6 @@ static int complete_hook(parsec_execution_stream_t *es,
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
     (void)k; (void)n; (void)__tp;
-
-    PARSEC_TASK_PROF_TRACE(es->es_profile,
-                           this_task->taskpool->profiling_array[END_KEY(this_task->task_class->task_class_id)],
-                           (parsec_task_t *) this_task);
 
 #if defined(PARSEC_PROF_GRAPHER)
     parsec_prof_grapher_task(this_task, es->th_id, es->virtual_process->vp_id, k+n);

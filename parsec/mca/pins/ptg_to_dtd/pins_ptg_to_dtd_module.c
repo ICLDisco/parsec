@@ -191,10 +191,6 @@ testing_hook_of_dtd_task(parsec_execution_stream_t *es,
     parsec_task_t *orig_task = dtd_task->orig_task;
     int rc = 0;
 
-    PARSEC_TASK_PROF_TRACE(es->es_profile,
-                          dtd_task->super.taskpool->profiling_array[START_KEY(dtd_task->super.task_class->task_class_id)],
-                          &(dtd_task->super));
-
     /**
      * Check to see which interface, if it is the PTG inserting task in DTD then
      * this condition will be true

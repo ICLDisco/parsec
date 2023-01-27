@@ -24,13 +24,13 @@
 extern int arena_memory_alloc_key, arena_memory_free_key;
 extern int arena_memory_used_key, arena_memory_unused_key;
 #define TRACE_MALLOC(key, size, ptr) do {                               \
-        parsec_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, \
-                                        &size, PARSEC_PROFILING_EVENT_COUNTER|PARSEC_PROFILING_EVENT_HAS_INFO); \
+        parsec_profiling_ts_trace_flags_info_fn(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, \
+                                                memcpy, &size, PARSEC_PROFILING_EVENT_COUNTER|PARSEC_PROFILING_EVENT_HAS_INFO); \
         PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_MEM_ALLOC, size);   \
     } while(0)
 #define TRACE_FREE(key, size, ptr) do {                                 \
-        parsec_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, \
-                                        NULL, PARSEC_PROFILING_EVENT_COUNTER); \
+        parsec_profiling_ts_trace_flags_info_fn(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, \
+                                                NULL, NULL, PARSEC_PROFILING_EVENT_COUNTER); \
         PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_MEM_ALLOC, -size);  \
     } while(0)
 

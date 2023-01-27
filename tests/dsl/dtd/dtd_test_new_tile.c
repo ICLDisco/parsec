@@ -242,6 +242,9 @@ int main(int argc, char **argv)
     nb = NB; /* tile_size */
 
     parsec = parsec_init( cores, &argc, &argv );
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_start();
+#endif
 
 #if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
     for(unsigned int i = 0; i < parsec_nb_devices; i++) {
@@ -303,8 +306,8 @@ int main(int argc, char **argv)
     parsec_task_class_t *first_tc = parsec_dtd_create_task_class(dtd_tp, "set_to_i",
                                                                  sizeof(int), PARSEC_VALUE,
                                                                  PASSED_BY_REF, PARSEC_OUTPUT | TILE_FULL,
-                                                                 sizeof(int), PARSEC_VALUE,
-                                                                 sizeof(int), PARSEC_VALUE,
+                                                                 sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "nb",
+                                                                 sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "idx",
                                                                  PARSEC_DTD_ARG_END);
 #if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
     parsec_dtd_task_class_add_chore(dtd_tp, first_tc, PARSEC_DEV_CUDA, cuda_set_to_i);
@@ -313,8 +316,8 @@ int main(int argc, char **argv)
 
     parsec_task_class_t *second_tc = parsec_dtd_create_task_class(dtd_tp, "multiply_by_2",
                                                                   PASSED_BY_REF, PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
-                                                                  sizeof(int), PARSEC_VALUE,
-                                                                  sizeof(int), PARSEC_VALUE,
+                                                                  sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "nb",
+                                                                  sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "idx",
                                                                   PARSEC_DTD_ARG_END);
 #if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
     parsec_dtd_task_class_add_chore(dtd_tp, second_tc, PARSEC_DEV_CUDA, cuda_multiply_by_2);
@@ -323,8 +326,8 @@ int main(int argc, char **argv)
 
     parsec_task_class_t *third_tc = parsec_dtd_create_task_class(dtd_tp, "accumulate",
                                                                   PASSED_BY_REF, PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
-                                                                  sizeof(int), PARSEC_VALUE,
-                                                                  sizeof(int), PARSEC_VALUE,
+                                                                  sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "nb",
+                                                                  sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "idx",
                                                                   sizeof(int), PARSEC_REF,
                                                                   sizeof(int*), PARSEC_REF,
                                                                   PARSEC_DTD_ARG_END);
@@ -336,9 +339,9 @@ int main(int argc, char **argv)
     parsec_task_class_t *fourth_tc = parsec_dtd_create_task_class(dtd_tp, "reduce",
                                                                  PASSED_BY_REF, PARSEC_OUTPUT | TILE_FULL | PARSEC_AFFINITY,
                                                                  PASSED_BY_REF, PARSEC_INPUT | TILE_FULL,
+                                                                 sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "nb",
                                                                  sizeof(int), PARSEC_VALUE,
-                                                                 sizeof(int), PARSEC_VALUE,
-                                                                 sizeof(int), PARSEC_VALUE,
+                                                                 sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "t",
                                                                  sizeof(int), PARSEC_REF,
                                                                  PARSEC_DTD_ARG_END);
     parsec_dtd_task_class_add_chore(dtd_tp, fourth_tc, PARSEC_DEV_CPU, cpu_reduce);

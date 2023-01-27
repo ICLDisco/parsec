@@ -421,6 +421,9 @@ struct parsec_task_class_s {
     parsec_key_fn_t             *key_functions;
     parsec_functionkey_fn_t     *make_key;
     parsec_printtask_fn_t       *task_snprintf;
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_info_fn_t  *profile_info;
+#endif
 #if defined(PARSEC_SIM)
     parsec_sim_cost_fct_t       *sim_cost_fct;
 #endif
@@ -562,31 +565,33 @@ extern int device_delegate_begin, device_delegate_end;
 #define PARSEC_PROF_FUNC_KEY_END(tp, tc_index) \
     (tp)->profiling_array[1 + 2 * (tc_index)]
 
-#define PARSEC_TASK_PROF_TRACE(PROFILE, KEY, TASK)                      \
-    PARSEC_PROFILING_TRACE((PROFILE),                                   \
+#define PARSEC_TASK_PROF_TRACE(PROFILE, KEY, TASK, TRACE_INFO)          \
+    PARSEC_PROFILING_TRACE_INFO_FN((PROFILE),                           \
                            (KEY),                                       \
                            (TASK)->task_class->key_functions->          \
                            key_hash((TASK)->task_class->make_key(       \
-                              (TASK)->taskpool, (TASK)->locals ), NULL), \
-                              (TASK)->taskpool->taskpool_id, (void*)&(TASK)->prof_info); 
-
-#define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)  \
-    if(!!(COND)) {                                           \
-        PARSEC_TASK_PROF_TRACE((PROFILE), (KEY), (TASK));     \
-    }
-#define PARSEC_TASK_PROF_TRACE_FLAGS(PROFILE, KEY, TASK, FLAGS)         \
-    PARSEC_PROFILING_TRACE_FLAGS((PROFILE),                             \
-                           (KEY),                                       \
-                           (TASK)->task_class->key_functions->          \
-                           key_hash((TASK)->task_class->make_key(       \
-                              (TASK)->taskpool, (TASK)->locals ), NULL), \
+                             (TASK)->taskpool, (TASK)->locals ), NULL), \
                            (TASK)->taskpool->taskpool_id,               \
-                           (void*)&(TASK)->prof_info,                   \
+                           (TASK)->task_class->profile_info,            \
+                           (TRACE_INFO) ? (void*)&(TASK)->prof_info : NULL); 
+
+#define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK, TRACE_INFO)  \
+    if(!!(COND)) {                                                       \
+        PARSEC_TASK_PROF_TRACE((PROFILE), (KEY), (TASK), (TRACE_INFO));  \
+    }
+#define PARSEC_TASK_PROF_TRACE_FLAGS(PROFILE, KEY, TASK, FLAGS, TRACE_INFO) \
+    PARSEC_PROFILING_TRACE_FLAGS((PROFILE),                                 \
+                           (KEY),                                           \
+                           (TASK)->task_class->key_functions->              \
+                           key_hash((TASK)->task_class->make_key(           \
+                              (TASK)->taskpool, (TASK)->locals ), NULL),    \
+                           (TASK)->taskpool->taskpool_id,                   \
+                           (TRACE_INFO) ? (void*)&(TASK)->prof_info : NULL, \
                            (FLAGS)); 
 #else
-#define PARSEC_TASK_PROF_TRACE(PROFILE, KEY, TASK)
-#define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)
-#define PARSEC_TASK_PROF_TRACE_FLAGS(PROFILE, KEY, TASK, FLAGS)
+#define PARSEC_TASK_PROF_TRACE(PROFILE, KEY, TASK, PROF_INFO)
+#define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK, PROF_INFO)
+#define PARSEC_TASK_PROF_TRACE_FLAGS(PROFILE, KEY, TASK, FLAGS, PROF_INFO)
 #endif  /* defined(PARSEC_PROF_TRACE) */
 
 /**

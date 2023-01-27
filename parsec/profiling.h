@@ -325,10 +325,49 @@ int parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
                                  const void *info, uint16_t flags );
 
 /**
+ * @brief Type of user functions to write info in pre-allocated event
+ * 
+ * @details
+ *    @param[out] dst  address into which to write the info
+ *    @param[in] data  pointer passed to parsec_profiling_trace_flags_fn_info
+ *    @param[in] size  number of bytes that can be written at this address
+ *    @return dst
+ */
+typedef void *(parsec_profiling_info_fn_t)(void *dst, const void *data, size_t size);
+
+/**
+ * @brief Trace one event
+ *
+ * @details Event is added to the series of events related to the context passed as argument.
+ *
+ * @param[in] context a thread profiling context (should be the thread profiling context of the
+ *                      calling thread).
+ * @param[in] key     the key (as returned by add_dictionary_keyword) of the event to log
+ * @param[in] event_id a (possibly unique) event identifier. Events are coupled together: start/end.
+ *                      a couple (start, end) has
+ *                        - the same key
+ *                        - end is the next "end" event with the same key and the same non-null event_id and
+ *                          non OBJECT_ID_NULL taskpool_id as start in the event buffer of the thread context
+ *                        - if no matching end is found, this is an error
+ * @param[in] taskpool_id unique object/handle identifier (use PROFILE_OBJECT_ID_NULL if N/A)
+ * @param[in] info_fn a pointer to a function that will write the info of the event in the allocated event
+ *                    that memory is of size defined during the creation of the event
+ * @param[in] info_data an opaque pointer passed back to info_fn when it is called.
+ * @param[in] flags   flags related to the event
+ * @return 0 if success, negative otherwise.
+ * @remark not thread safe (if two threads share a same thread_context. Safe per thread_context)
+ */
+int parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key,
+                                         uint64_t event_id, uint32_t taskpool_id,
+                                         parsec_profiling_info_fn_t *info_fn, const void *info_data, uint16_t flags );
+
+/**
  * @brief Convenience macro used to trace events without flags
  */
 #define parsec_profiling_trace(CTX, KEY, EVENT_ID, TASKPOOL_ID, INFO)     \
     parsec_profiling_trace_flags( (CTX), (KEY), (EVENT_ID), (TASKPOOL_ID), (INFO), 0 )
+#define parsec_profiling_trace_info_fn(CTX, KEY, EVENT_ID, TASKPOOL_ID, INFO_FN, INFO_FN_DATA) \
+    parsec_profiling_trace_flags_info_fn( (CTX), (KEY), (EVENT_ID), (TASKPOOL_ID), (INFO_FN), (INFO_FN_DATA), 0)
 
 /**
  * @brief Trace one event on the implicit thread context.
@@ -351,14 +390,31 @@ int parsec_profiling_trace_flags(parsec_profiling_stream_t* context, int key,
  * @return 0 if success, negative otherwise.
  * @remark thread safe
  */
-int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t taskpool_id,
+int a(int key, uint64_t event_id, uint32_t taskpool_id,
                                     const void *info, uint16_t flags );
 
 /**
- * @brief Convenience macro when no flag needs to be passed
+ * @brief Trace one event on the implicit thread context.
+ *
+ * @details Event is added to the series of events related to the context passed as argument.
+ *
+ * @param[in] key     the key (as returned by add_dictionary_keyword) of the event to log
+ * @param[in] event_id a (possibly unique) event identifier. Events are coupled together: start/end.
+ *                      a couple (start, end) has
+ *                        - the same key
+ *                        - end is the next "end" event with the same key and the same non-null event_id and
+ *                          non OBJECT_ID_NULL taskpool_id as start in the event buffer of the thread context
+ *                        - if no matching end is found, this is an error
+ * @param[in] taskpool_id unique object/handle identifier (use PROFILE_OBJECT_ID_NULL if N/A)
+ * @param[in] info_fn a pointer to a function that will write the info of the event in the allocated event
+ *                    that memory is of size defined during the creation of the event
+ * @param[in] info_data an opaque pointer passed back to info_fn when it is called.
+ * @param[in] flags   flags related to the event
+ * @return 0 if success, negative otherwise.
+ * @remark not thread safe (if two threads share a same thread_context. Safe per thread_context)
  */
-#define parsec_profiling_ts_trace(key, event_id, object_id, info) \
-    parsec_profiling_ts_trace_flags((key), (event_id), (object_id), (info), 0)
+int parsec_profiling_ts_trace_flags_info_fn(int key, uint64_t event_id, uint32_t taskpool_id,
+                                            parsec_profiling_info_fn_t *info_fn, const void *info_data, uint16_t flags );
 
 /**
  * @brief Creates the profile file given as a parameter to store the
@@ -478,7 +534,7 @@ void parsec_profiling_disable(void);
  */
 #define PARSEC_PROFILING_TRACE(context, key, event_id, object_id, info ) \
     if( parsec_profile_enabled ) {                                       \
-        parsec_profiling_trace(context, key, event_id, object_id, info ); \
+        parsec_profiling_trace((context), (key), (event_id), (object_id), (info) ); \
     }
 
 /**
@@ -486,7 +542,23 @@ void parsec_profiling_disable(void);
  */
 #define PARSEC_PROFILING_TRACE_FLAGS(context, key, event_id, object_id, info, flags ) \
     if( parsec_profile_enabled ) {                                       \
-        parsec_profiling_trace_flags(context, key, event_id, object_id, info, flags ); \
+        parsec_profiling_trace_flags((context), (key), (event_id), (object_id), (info), (flags) ); \
+    }
+
+/**
+ * @brief Convenience macro to trace events only if profiling is enabled
+ */
+#define PARSEC_PROFILING_TRACE_INFO_FN(context, key, event_id, object_id, info_fn, info_data ) \
+    if( parsec_profile_enabled ) {                                       \
+        parsec_profiling_trace_info_fn((context), (key), (event_id), (object_id), (info_fn), (info_data) ); \
+    }
+
+/**
+ * @brief Convenience macro to trace events with flags only if profiling is enabled
+ */
+#define PARSEC_PROFILING_TRACE_FLAGS_INFO_FN(context, key, event_id, object_id, info_fn, info_data, flags ) \
+    if( parsec_profile_enabled ) {                                       \
+        parsec_profiling_trace_flags_info_fn((context), (key), (event_id), (object_id), (info_fn), (info_data), (flags) ); \
     }
 
 /**

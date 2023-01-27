@@ -382,6 +382,12 @@ static const dbp_event_t *dbp_iterator_next_buffer(dbp_event_iterator_t *it)
     assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
 
     next_off = it->current_events_buffer->next_buffer_file_offset;
+    if(next_off == -1) {
+        it->current_event.native = NULL;
+        it->current_events_buffer = NULL;
+        return NULL;
+    }
+
     return dbp_iterator_set_offset(it, next_off);
 }
 
