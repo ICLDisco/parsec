@@ -2015,10 +2015,11 @@ output_data_of_dtd_task(parsec_execution_stream_t *es,
 
 static int datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
                                        const parsec_task_t *this_task,
+                                       const parsec_task_t *parent_task,
                                        uint32_t *flow_mask, parsec_dep_data_description_t *data)
 {
     parsec_arena_datatype_t *adt;
-    (void)es;
+    (void)es; (void)parent_task;
     data->remote.src_count = data->remote.dst_count = 1;
     data->remote.src_displ = data->remote.dst_displ = 0;
     data->data_future = NULL;
@@ -2181,7 +2182,7 @@ parsec_dtd_create_task_classv(const char *name,
     tc->release_deps = parsec_dtd_release_deps;
     tc->prepare_input = data_lookup_of_dtd_task;
     tc->prepare_output = output_data_of_dtd_task;
-    tc->get_datatype = (parsec_datatype_lookup_t *)datatype_lookup_of_dtd_task;
+    tc->get_datatype = datatype_lookup_of_dtd_task;
     tc->complete_execution = complete_hook_of_dtd;
     tc->release_task = parsec_release_dtd_task_to_mempool;
 

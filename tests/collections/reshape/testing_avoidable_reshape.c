@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 
 
     /*******************
-     * Doing avoidable reshape becasue dc datatype differs from default ADT.
+     * Doing avoidable reshape because dc datatype differs from default ADT.
      *******************/
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 0;
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
       ctp->arenas_datatypes[PARSEC_avoidable_reshape_DEFAULT_ADT_IDX]    = adt_default;
 
 #ifdef AVOID_UNNECESSARY_RESHAPING
-      /* Can be avoided by setting the datacollection type as the default adt*/
+      /* Can be avoided by setting the data collection type as the default adt*/
       parsec_datatype_t tmp = adt_default.opaque_dtt;
       ctp->arenas_datatypes[PARSEC_avoidable_reshape_DEFAULT_ADT_IDX].opaque_dtt = dcA.super.super.default_dtt;
 #endif
