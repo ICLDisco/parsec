@@ -18,8 +18,8 @@ int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
     int rank = 0, world = 1, cores = -1;
-    int nt = 2, nb = 16, rc;
-    parsec_tiled_matrix_dc_t *dcA;
+    int nt = 2, nb = 1, rc;
+    parsec_matrix_block_cyclic_t *dcA;
     parsec_taskpool_t *bcast;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
         }
         nt = (int)val;
         if( 0 == nt ) {
-            printf("Bad value for nt (it canot be zero) !!!\n");
+            printf("Bad value for nt (cannot be zero) !!!\n");
             exit(-1);
         }
     }
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    dcA = create_and_distribute_data(rank, world, nb, nt, sizeof(int));
+    dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
     bcast = check_multisize_bcast_new(dcA, nb, nt);

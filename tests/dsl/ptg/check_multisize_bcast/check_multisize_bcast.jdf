@@ -4,20 +4,16 @@ extern "C" %{
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "parsec/data_distribution.h"
-#include "parsec/data_dist/matrix/matrix.h"
-#include "parsec/data.h"
-#include "parsec/utils/mca_param.h"
-#include "parsec/arena.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 %}
 
-%option no_taskpool_instance = true  /* can be aything */
+%option no_taskpool_instance = true  /* can be anything */
 
-descA      [type = "struct parsec_tiled_matrix_dc_t *"]
+descA      [type = "parsec_matrix_block_cyclic_t*"]
 NB         [type = int]
 NT         [type = int]
 
@@ -25,19 +21,19 @@ NT         [type = int]
 /**************************************************
  *               potrf_dpotrf                     *
  **************************************************/
-potrf_dpotrf(k) 
+potrf_dpotrf(k)
 
 // Execution space
-k = 0 .. descA->mt-1
+k = 0 .. NT-1
 
 // Parallel partitioning
 :descA(k, k)
 
 // Parameters
 RW T <- (k == 0) ? descA(k, k) : A potrf_diag(k, k-1)
-     -> T potrf_diag(k+1..descA->mt-1, k)
-     -> T potrf_col(k+1..descA->mt-1..2, k) [layout = MPI_DOUBLE count = 2]
-     -> T potrf_col(k+2..descA->mt-1..2, k) [layout = MPI_DOUBLE count = 3]
+     -> T potrf_diag(k+1..NT-1, k)
+     -> T potrf_col(k+1..NT-1..2, k) [layout = MPI_DOUBLE count = 2]
+     -> T potrf_col(k+2..NT-1..2, k) [layout = MPI_DOUBLE count = 3]
      -> descA(k, k)
 
 BODY
@@ -50,11 +46,11 @@ END
 /**************************************************
  *               potrf_col                        *
  **************************************************/
-potrf_col(m, k) 
+potrf_col(m, k)
 
 // Execution space
-k = 0   .. descA->mt-2
-m = k+1 .. descA->mt-1
+k = 0   .. NT-2
+m = k+1 .. NT-1
 
 // Parallel partitioning
 : descA(m, k)
@@ -77,8 +73,8 @@ END
 potrf_diag(k, i)
 
 // Execution space
-i = 0   .. descA->mt-2
-k = i+1 .. descA->mt-1
+i = 0   .. NT-2
+k = i+1 .. NT-1
 
 // Parallel partitioning
 : descA(k, k)

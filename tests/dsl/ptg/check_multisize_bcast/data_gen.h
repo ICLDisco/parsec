@@ -2,9 +2,9 @@
 #define _DATA_GEN_H_
 
 #include "parsec/runtime.h"
-#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int nb, int nt, int typesize);
-void free_data(parsec_tiled_matrix_dc_t *d);
+parsec_matrix_block_cyclic_t *create_and_distribute_data(int rank, int world, int nb, int nt);
+void free_data(parsec_matrix_block_cyclic_t *d);
 
 #endif

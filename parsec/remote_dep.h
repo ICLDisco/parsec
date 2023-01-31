@@ -66,7 +66,7 @@ struct parsec_dep_type_description_s {
 };
 
 /**
- * This structure holds the key information for any data mouvement. It contains the arena
+ * This structure holds the key information for any data movement. It contains the arena
  * where the data is allocated from, or will be allocated from. It also contains the
  * pointer to the buffer involved in the communication (or NULL if the data will be
  * allocated before the reception). Finally, it contains the triplet allowing a correct send
@@ -235,14 +235,14 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 #endif /* DISTRIBUTED */
 
 /* check if this data description represents a CTL dependency */
-#define parsec_is_CTL_dep(dep_data_desc)\
-    ((dep_data_desc.data == NULL) \
-     && (dep_data_desc.remote.src_datatype == PARSEC_DATATYPE_NULL) \
-     && (0 == dep_data_desc.remote.src_count))
+#define parsec_is_CTL_dep(PDEP_DATA_DESC)\
+    ((NULL == (PDEP_DATA_DESC)->data) \
+     && (PARSEC_DATATYPE_NULL == (PDEP_DATA_DESC)->remote.src_datatype) \
+     && (0 == (PDEP_DATA_DESC)->remote.src_count))
 
 /* set this data description to CTL dependency */
-#define parsec_set_CTL_dep(dep_data_desc)\
-    dep_data_desc.data = NULL; dep_data_desc.remote.src_datatype = PARSEC_DATATYPE_NULL; dep_data_desc.remote.src_count=0;
+#define parsec_set_CTL_dep(PDEP_DATA_DESC)\
+    { (PDEP_DATA_DESC)->data = NULL; (PDEP_DATA_DESC)->remote.src_datatype = PARSEC_DATATYPE_NULL; (PDEP_DATA_DESC)->remote.src_count=0; }
 
 
 /** @} */
