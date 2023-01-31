@@ -153,7 +153,7 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
         }
 
         /* Consider how adding the current task would change load balancing
-         * betwen devices */
+         * between devices */
         /* Start at 2, to skip the recursive body */
         for( dev_index = 2; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
             /* Skip the device if it is not configured */

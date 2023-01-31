@@ -35,7 +35,7 @@ static int parsec_cuda_data_advise(parsec_device_module_t *dev, parsec_data_t *d
  * https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#virtual-architecture-feature-list
  * we should limit the list of supported architectures to more recent setups.
  */
-static int cuda_legal_compute_capabilitites[] = {35, 37, 50, 52, 53, 60, 61, 62, 70, 72, 75, 80};
+static int cuda_legal_compute_capabilities[] = {35, 37, 50, 52, 53, 60, 61, 62, 70, 72, 75, 80};
 
 static int
 parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
@@ -158,10 +158,10 @@ static int parsec_cuda_memory_unregister(parsec_device_module_t* device, parsec_
 
     /*
      * We rely on the thread-safety of the CUDA interface to unregister the memory
-     * as another thread might be submiting tasks at the same time (cuda_scheduling.h)
+     * as another thread might be submitting tasks at the same time (cuda_scheduling.h)
      */
     status = cudaHostUnregister(ptr);
-    PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_memory_ununregister) cudaHostUnregister ", status,
+    PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_memory_unregister) cudaHostUnregister ", status,
                             {continue;} );
 
     rc = PARSEC_SUCCESS;
@@ -185,8 +185,8 @@ static void* cuda_find_incarnation(parsec_device_cuda_module_t* cuda_device,
     status = cudaSetDevice( cuda_device->cuda_index );
     PARSEC_CUDA_CHECK_ERROR( "(cuda_find_incarnation) cudaSetDevice ", status, {continue;} );
 
-    for( index = 0; index < (int)(sizeof(cuda_legal_compute_capabilitites)/sizeof(int)); index++ ) {
-        if(cuda_legal_compute_capabilitites[index] >= capability) {
+    for( index = 0; index < (int)(sizeof(cuda_legal_compute_capabilities)/sizeof(int)); index++ ) {
+        if(cuda_legal_compute_capabilities[index] >= capability) {
             break;
         }
     }
@@ -225,7 +225,7 @@ static void* cuda_find_incarnation(parsec_device_cuda_module_t* cuda_device,
             if( -1 == index ) {
                 snprintf(function_name, FILENAME_MAX, "%s", fname);
             } else {
-               capability = cuda_legal_compute_capabilitites[index];
+               capability = cuda_legal_compute_capabilities[index];
                snprintf(function_name, FILENAME_MAX, "%s_sm%2d", fname, capability);
             }
             index--;
@@ -242,7 +242,7 @@ static void* cuda_find_incarnation(parsec_device_cuda_module_t* cuda_device,
 /**
  * Register a taskpool with a device by checking that the device
  * supports the dynamic function required by the different incarnations.
- * If multiple devices of the same type exists we assume thay all have
+ * If multiple devices of the same type exists we assume that all have
  * the same capabilities.
  */
 static int
@@ -606,7 +606,7 @@ parsec_cuda_module_fini(parsec_device_module_t* device)
 
 /**
  * This function reserve the memory_percentage of the total device memory for PaRSEC.
- * This memory will be managed in chuncks of size eltsize. However, multiple chuncks
+ * This memory will be managed in chunks of size eltsize. However, multiple chunks
  * can be reserved in a single allocation.
  */
 static int
@@ -789,7 +789,7 @@ static void parsec_cuda_memory_release_list(parsec_device_cuda_module_t* cuda_de
 #endif
         gpu_copy->device_private = NULL;
 
-        /* At this point the data copies should have no attachement to a data_t. Thus,
+        /* At this point the data copies should have no attachment to a data_t. Thus,
          * before we get here (aka below parsec_fini), the destructor of the data
          * collection must have been called, releasing all the copies.
          */
@@ -1361,7 +1361,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
         if( potential_alt_src ) {
             /* We found a potential alternative source, but it's not ready now,
              * we delay the scheduling of this task. */
-            /** TODO: when considering RW acccesses, don't forget to unchop gpu_elem
+            /** TODO: when considering RW accesses, don't forget to chop gpu_elem
              *        from its queue... */
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                  "GPU[%s]:\tThere is a potential alternative source for in_elem %p [ref_count %d] in original %p to go in copy %p [ref_count %d], but it is not ready, falling back on CPU source",
@@ -1394,7 +1394,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
     if( NULL == task_data->source_repo_entry && NULL == task_data->data_in->original->dc && in_elem->version == 0 )
         transfer_from = -1;
 
-    /* Do not need to be tranferred */
+    /* Do not need to be transferred */
     if( -1 == transfer_from ) {
         gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
     } else {
@@ -2025,7 +2025,7 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
 
     assert( NULL == stream->tasks[stream->start] );
     /**
-     * In case the task is succesfully progressed, the corresponding profiling
+     * In case the task is successfully progressed, the corresponding profiling
      * event is triggered.
      */
     if ( NULL == upstream_progress_fct ) {
@@ -2190,7 +2190,7 @@ parsec_cuda_kernel_push( parsec_device_gpu_module_t      *gpu_device,
  *  This function schedule the move of all the modified data for a
  *  specific task from the GPU memory into the main memory.
  *
- *  Returns: negative number if any error occured.
+ *  Returns: negative number if any error occurred.
  *           positive: the number of data to be moved.
  */
 static int
@@ -2678,7 +2678,7 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
             goto disable_gpu;
     }
     if( NULL != progress_task ) {
-        /* We have a succesfully completed task. However, it is not gpu_task, as
+        /* We have a successfully completed task. However, it is not gpu_task, as
          * it was just submitted into the data retrieval system. Instead, the task
          * ready to move into the next level is the progress_task.
          */

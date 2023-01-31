@@ -201,8 +201,8 @@ PARSEC_DECLSPEC void parsec_devices_reset_load(parsec_context_t *context);
  * capabilities, and will later be checked to see it's compatibility with the
  * needs of each taskpool.
  *
- * Returns a positive value to signal the device was succesfully registeres with
- * theat index, or a negative value to signal an error during the process.
+ * Returns a positive value to signal the device was successfully registered under
+ * that index, or a negative value to signal an error during the process.
  */
 PARSEC_DECLSPEC int parsec_mca_device_add(parsec_context_t*, parsec_device_module_t*);
 

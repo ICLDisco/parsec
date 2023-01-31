@@ -51,7 +51,7 @@ PARSEC_OBJ_CLASS_DECLARATION(parsec_device_cuda_module_t);
 
 struct parsec_cuda_exec_stream_s {
     parsec_gpu_exec_stream_t super;
-    /* There is exactly one task per active event (max_events being the uppoer bound).
+    /* There is exactly one task per active event (max_events being the upper bound).
      * Upon event completion the complete_stage function associated with the task is
      * called, and this will decide what is going on next with the task. If the task
      * remains in the system the function is supposed to update it.

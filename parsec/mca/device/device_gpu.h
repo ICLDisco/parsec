@@ -99,7 +99,7 @@ struct parsec_gpu_task_s {
                                                                      * on the GPU.
                                                                      */
             parsec_data_collection_t *flow_dc[MAX_PARAM_COUNT];     /* for each flow, data collection from which the data
-                                                                     * to be transfered logically belongs to.
+                                                                     * to be transferred logically belongs to.
                                                                      * This gives the user the chance to indicate on the JDF
                                                                      * a data collection to inspect during GPU transfer.
                                                                      * User may want info from the DC (e.g. mtype),
@@ -121,7 +121,7 @@ struct parsec_device_gpu_module_s {
                                                    *   the index of the set bit device.
                                                    */
     volatile int32_t           mutex;
-    uint64_t                   data_avail_epoch;  /**< Identifies the epoch of the data status on the devide. It
+    uint64_t                   data_avail_epoch;  /**< Identifies the epoch of the data status on the device. It
                                                    *   is increased every time a new data is made available, so
                                                    *   that we know which tasks can be evaluated for submission.
                                                    */
