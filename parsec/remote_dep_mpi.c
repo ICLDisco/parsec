@@ -1307,14 +1307,15 @@ static int remote_dep_mpi_pack_dep(int peer,
     parsec_remote_deps_t *deps = (parsec_remote_deps_t*)item->cmd.activate.task.source_deps;
     remote_dep_wire_activate_t* msg = &deps->msg;
     int k, dsize, saved_position = *position;
-    uint32_t peer_bank, peer_mask, expected = 0;
+    int peer_bank, peer_bit;
+    uint32_t peer_mask, expected = 0;
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, 128);
 #endif
 
-    peer_bank = peer / (sizeof(uint32_t) * 8);
-    peer_mask = 1U << (peer % (sizeof(uint32_t) * 8));
+    remote_dep_rank_to_bit(peer, &peer_bank, &peer_bit, deps->root);
+    peer_mask = 1U << peer_bit;
 
     parsec_ce.pack_size(&parsec_ce, dep_count, dep_dtt, &dsize);
     dsize += deps->taskpool->tdm.module->outgoing_message_piggyback_size;

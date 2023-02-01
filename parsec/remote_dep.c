@@ -65,13 +65,13 @@ remote_dep_mark_forwarded(parsec_execution_stream_t* es,
                           parsec_remote_deps_t* rdeps,
                           int rank)
 {
-    uint32_t boffset;
+    int boffset, bit;
 
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "fw mark\tREMOTE rank %d", rank);
-    boffset = rank / (8 * sizeof(uint32_t));
+    remote_dep_rank_to_bit(rank, &boffset, &bit, rdeps->root);
     assert(boffset <= es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
     (void)es;
-    rdeps->remote_dep_fw_mask[boffset] |= ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
+    rdeps->remote_dep_fw_mask[boffset] |= ((uint32_t)1) << bit;
 }
 
 /* Check if rank has already been forwarded the termination of the current task */
@@ -80,10 +80,11 @@ remote_dep_is_forwarded(parsec_execution_stream_t* es,
                         parsec_remote_deps_t* rdeps,
                         int rank)
 {
-    uint32_t boffset, mask;
+    int boffset, bit;
+    uint32_t mask;
 
-    boffset = rank / (8 * sizeof(uint32_t));
-    mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
+    remote_dep_rank_to_bit(rank, &boffset, &bit, rdeps->root);
+    mask = ((uint32_t)1) << bit;
     assert(boffset <= es->virtual_process->parsec_context->remote_dep_fw_mask_sizeof);
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "fw test\tREMOTE rank %d (value=%x)", rank, (int) (rdeps->remote_dep_fw_mask[boffset] & mask));
     (void)es;
@@ -389,11 +390,13 @@ parsec_gather_collective_pattern(parsec_execution_stream_t *es,
                                  data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                                  void *param)
 {
+    int _array_pos, _array_bit;
+    uint32_t _array_mask;
     (void)successor_repo; (void) successor_repo_key;
     parsec_remote_deps_t* deps = (parsec_remote_deps_t*)param;
     struct remote_dep_output_param_s* output = &deps->output[dep->dep_datatype_index];
-    const int _array_pos  = dst_rank / (8 * sizeof(uint32_t));
-    const int _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
+    remote_dep_rank_to_bit(dst_rank, &_array_pos, &_array_bit, src_rank);
+    _array_mask = 1 << _array_bit;
 
     if( dst_rank == es->virtual_process->parsec_context->my_rank )
         deps->outgoing_mask |= (1 << dep->dep_datatype_index);
@@ -514,7 +517,8 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
             for( bit_index = 0; current_mask != 0; bit_index++ ) {
                 if( !(current_mask & (1 << bit_index)) ) continue;
 
-                int rank = (array_index * sizeof(uint32_t) * 8) + bit_index;
+                int rank;
+                remote_dep_bit_to_rank(&rank, array_index, bit_index, remote_deps->root);
                 assert((rank >= 0) && (rank < es->virtual_process->parsec_context->nb_nodes));
 
                 current_mask ^= (1 << bit_index);
