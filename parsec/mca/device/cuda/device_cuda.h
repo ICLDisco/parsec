@@ -65,8 +65,6 @@ struct parsec_cuda_exec_stream_s {
  */
 typedef parsec_data_copy_t parsec_gpu_data_copy_t;
 
-END_C_DECLS
-
 #define PARSEC_CUDA_CHECK_ERROR( STR, ERROR, CODE )                     \
     do {                                                                \
         cudaError_t __cuda_error = (cudaError_t) (ERROR);               \
@@ -120,6 +118,8 @@ int
 parsec_default_cuda_stage_out(parsec_gpu_task_t        *gtask,
                               uint32_t                  flow_mask,
                               parsec_gpu_exec_stream_t *gpu_stream);
+
+END_C_DECLS
 
 #endif /* defined(PARSEC_HAVE_CUDA) */
 
