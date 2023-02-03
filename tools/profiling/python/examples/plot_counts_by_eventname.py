@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+
 import os
 import parsec_trace_tables as ptt
 import pbt2ptt
@@ -107,7 +107,7 @@ def scatter_papi(filenames, units, unit_modify, args):
             available.append(col_name)
             i += 1
         if args.counters == None:
-            selection = raw_input('Counter(s) to measure: ')
+            selection = input('Counter(s) to measure: ')
             selection = selection.replace(' ', '')
         else:
             selection = args.counters
@@ -152,7 +152,7 @@ def scatter_papi(filenames, units, unit_modify, args):
             for i in range(0,len(trace.event_names)-1):
                 if not trace.event_names[i].startswith('PINS_PAPI'):
                     print(str(i) + '\t' + trace.event_names[i])
-            selection = raw_input('Event(s) to Measure: ')
+            selection = input('Event(s) to Measure: ')
             selection = selection.replace(' ', '')
         else:
             selection = args.events

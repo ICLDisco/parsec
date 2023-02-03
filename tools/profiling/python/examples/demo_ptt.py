@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+
 import os
 import parsec_trace_tables as ptt
 import pbt2ptt
@@ -140,7 +140,7 @@ def do_demo(filenames, translate=False):
 
         print('Now, we will select only the PINS_PAPI* events via a simple operation (only the first will be printed).')
         print('###################################################\n')
-        for event_name in trace.event_types.keys():
+        for event_name in list(trace.event_types.keys()):
             if event_name.startswith('PINS_PAPI'):
                 print('\nFound: ' + event_name)
                 print('---------------------------------------------------\n')

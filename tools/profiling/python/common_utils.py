@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import print_function
+
 import os
 import sys
 import time
@@ -68,7 +68,7 @@ def smart_parse(arg, conv=int):
             step = 1
         elif len(splits) == 3:
             start, stop, step = splits
-        lst = xrange(int(start), int(stop), int(step))
+        lst = range(int(start), int(stop), int(step))
     else:
         lst = [conv(arg)]
     return lst
@@ -89,7 +89,7 @@ def match_dicts(dicts):
     matched_info = dicts[0]
     mult = 1.0 / len(dicts)
     for dict_ in dicts[1:]:
-        for key, value in dict_.iteritems():
+        for key, value in dict_.items():
             if key not in matched_info: # not present
                 matched_info.drop(key)
             elif value != matched_info[key]:

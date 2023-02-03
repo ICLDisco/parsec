@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import pandas as pd
 import sys
 
@@ -13,7 +13,7 @@ result = {
 
 cmdline = 'mpirun -np 2 bw_test -n 10 -f 10 -l 2097152'
 
-for mt in result.keys():
+for mt in list(result.keys()):
     try:
         evs = t.events[ t.events.type == t.event_types[mt] ]
         if len(evs) != result[mt]['nb']:

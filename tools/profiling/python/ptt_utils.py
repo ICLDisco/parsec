@@ -76,7 +76,7 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
     # and either turns them into filenames or notes that they have
     # already been marked as grouped.
     for filename in filenames[:]:
-        if not isinstance(filename, basestring):
+        if not isinstance(filename, str):
             filenames.remove(filename)
             if hasattr(filename, '__grouped_marker__'):
                 finished_groups.append(filename)
@@ -104,19 +104,19 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
                 return [filenames]  # we must return a list of lists
 
     # now that we've done the initial grouping, check for conflicts
-    for key, unfinished_group in unfinished_groups.iteritems():
+    for key, unfinished_group in unfinished_groups.items():
         import pbt2ptt
         # set up grouper
         comparers = dict()
         for key in group_by:
             comparers[key] = None
-        for key in comparers.keys():
+        for key in list(comparers.keys()):
             if key not in unfinished_group[0].trace.information:
                 del comparers[key]  # eliminate things they don't have
             else:
                 comparers[key] = unfinished_group[0].trace.information[key]
         for trace_and_name in unfinished_group[:1]:
-            for key, value in comparers.iteritems():
+            for key, value in comparers.items():
                 if trace_and_name.trace.information[key] != value:
                     print('We seem to have found a conflict.')
                     print('   the value {} of key {} '.format(value, key) +
@@ -421,7 +421,7 @@ if __name__ == '__main__':
         args.remove('--revert')
         print('Filename reversion is currently not supported.')
         sys.exit(-1)
-        response = raw_input('Attempt to revert filenames to original names? [Y/n]: ')
+        response = input('Attempt to revert filenames to original names? [Y/n]: ')
         if 'n' not in response.lower():
             revert_trace_filenames(filenames, dry_run=dry_run)
         else:

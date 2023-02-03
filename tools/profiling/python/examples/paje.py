@@ -132,14 +132,14 @@ class PajeDef:
         if TraceFile is None:
             raise PajeException("Trace not started")
 
-        if event_type not in MinimalPajeEventDefs.keys():
+        if event_type not in list(MinimalPajeEventDefs.keys()):
             raise PajeException("'%s' is not a possible PajeEvent Definition" % (event_type))
 
         self.paje_fields = collections.OrderedDict()
 
         minimal_keys = MinimalPajeEventDefs[event_type]
-        for k, v in kwarg.items():
-            if k in minimal_keys.keys():
+        for k, v in list(kwarg.items()):
+            if k in list(minimal_keys.keys()):
                 if isinstance(minimal_keys[k], list):
                     if v not in minimal_keys[k]:
                         raise PajeException("Field %s of %s must be one of %s" % (k, event_type, minimal_keys[k]))
@@ -150,8 +150,8 @@ class PajeDef:
                 if v not in ['date', 'int', 'double', 'hex', 'string', 'color']:
                     raise PajeException("Field %s of %s is declared of type %s which is not a valid Paje type" % (k, event_type, v))
             self.paje_fields[k] = v
-        for k, v in minimal_keys.items():
-            if k not in kwarg.keys():
+        for k, v in list(minimal_keys.items()):
+            if k not in list(kwarg.keys()):
                 if isinstance(v, list):
                     self.paje_fields[k] = v[0]
                 else:
@@ -162,13 +162,13 @@ class PajeDef:
         self.event_type = event_type
 
         TraceFile.write('%%EventDef %s %d\n' % (self.event_type, self.def_key))
-        for k, v in self.paje_fields.items():
+        for k, v in list(self.paje_fields.items()):
             TraceFile.write('%% %s %s\n' % (k, v))
         TraceFile.write('%EndEventDef\n')
 
     def checkString(self, obj):
         try:
-            return isinstance(obj, basestring)
+            return isinstance(obj, str)
         except NameError:
             return isinstance(obj, str)
 
@@ -182,12 +182,12 @@ class PajeDef:
         global next_alias
         alias = None
         TraceFile.write("%d " % (self.def_key))
-        for k, v in self.paje_fields.items():
-            if k=="Alias" and k not in kwarg.keys():
+        for k, v in list(self.paje_fields.items()):
+            if k=="Alias" and k not in list(kwarg.keys()):
                 val = "A%d" % next_alias
                 alias = val
                 next_alias = next_alias+1
-            elif k not in kwarg.keys():
+            elif k not in list(kwarg.keys()):
                 raise PajeException("PajeEventDef %s requires the field %s to be defined" % (self.event_type, k))
             else:
                 val = kwarg[k]
