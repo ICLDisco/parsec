@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+
 import sys
 import os
 import re
@@ -9,7 +9,7 @@ import time
 import shutil
 import select
 from random import randint
-import cPickle
+import pickle
 import glob
 import subprocess
 from multiprocessing import Process, Pipe
@@ -53,11 +53,11 @@ class ParsecTrial(list):
     __unloaded_trace_token__ = 'not loaded' # old
     @staticmethod
     def unpickle(_file, load_trace=True):
-        trial = cPickle.load(_file)
+        trial = pickle.load(_file)
         return trial
     # object members
-    def pickle(self, _file, protocol=cPickle.HIGHEST_PROTOCOL):
-        cPickle.dump(self, _file, protocol)
+    def pickle(self, _file, protocol=pickle.HIGHEST_PROTOCOL):
+        pickle.dump(self, _file, protocol)
     def __init__(self, ident, exe, N, cores=0, NB=0, IB=0, sched='LFQ', extra_args=[]):
         self.__version__ = self.__class__.class_version
         # basic parameters (always present)
@@ -503,7 +503,7 @@ def generate_trials(out_dir, print_only=True, Ns=None, min_N=min_N, max_N=max_N,
                             trials.append(trial)
     gen = 'yes'
     if print_only:
-        gen = raw_input('Would you like to go ahead and generate the trial files [y/N]? ') or 'no'
+        gen = input('Would you like to go ahead and generate the trial files [y/N]? ') or 'no'
     if 'y' in gen or 'Y' in gen:
         for trial in trials:
             file_ = open(out_dir + os.sep + 'pending.' +
@@ -553,7 +553,7 @@ def run_main():
     if len(old_profs) > 0:
         unlink = 'y'
         if not args.unlink_existing:
-            unlink = raw_input('Found {} existing traces'.format(len(old_profs)) +
+            unlink = input('Found {} existing traces'.format(len(old_profs)) +
                                ' in the current working directory.\n' +
                                'These may confuse the program. Remove? [Y/n]: ') or 'y'
         if 'y' in unlink or 'Y' in unlink:

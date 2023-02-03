@@ -98,7 +98,7 @@ for fn in sys.argv:
                 print("There are " + str(len(allocations)) + " allocations that have not been freed. Their history follows:\n")
                 ## iterator on each history entry
                 i=0
-                for key, value in allocations.iteritems():
+                for key, value in list(allocations.items()):
                     print(str(i) + ":")
                     i+=1
                     if key in history:

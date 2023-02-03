@@ -3,7 +3,7 @@
 import sys
 import os
 import copy
-import cPickle
+import pickle
 print('this script is broken with the current (better!) PaRSEC tracing system.')
 print('I plan to update it soon. -- pgaultne@utk.edu, 2013-10-29')
 from parsec_trials import *
@@ -39,9 +39,9 @@ if __name__ == '__main__':
             printer.append(ItemPrinter(trial.ex, 'EXEC', length=14))
             printer.append(ItemPrinter(trial.N, 'N', length=7))
             printer.append(ItemPrinter(trial.sched, 'SCHD', length=5))
-            for key, event_type in trial.trace.event_types.iteritems():
+            for key, event_type in trial.trace.event_types.items():
                 if key == 'PINS_EXEC': # or key == 'PINS_SELECT':
-                    for pkey, pstats in event_type.stats.exec_stats.iteritems():
+                    for pkey, pstats in event_type.stats.exec_stats.items():
                         if pkey in task_focus or 'all' in task_focus:
                             new_printer = copy.deepcopy(printer)
                             new_printer.append(pstats)
@@ -82,12 +82,12 @@ if __name__ == '__main__':
             printer.append(ItemPrinter(trial.ex, 'EXEC', length=14))
             printer.append(ItemPrinter(trial.N, 'N', length=7))
             printer.append(ItemPrinter(trial.sched, 'SCHD', length=5))
-            for key, event_type in trial.trace.event_types.iteritems():
+            for key, event_type in trial.trace.event_types.items():
                 if key != 'PINS_EXEC' and key != 'PINS_SELECT':
                     total_count += event_type.stats.count
-            for key, stats in trial.trace.event_types.iteritems():
+            for key, stats in trial.trace.event_types.items():
                 if key == 'PINS_SOCKET':
-                    for pkey, pstats in event_type.stats.socket_stats.iteritems():
+                    for pkey, pstats in event_type.stats.socket_stats.items():
                         pstats.count = total_count
                         # no need to print individual trials - just get total
                         # new_printer = copy.deepcopy(printer)

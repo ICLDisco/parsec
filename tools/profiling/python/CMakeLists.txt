@@ -27,56 +27,22 @@ set(SETUP_PY setup.py)
 set(PYTHON_TOOLS_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(OUTPUT ${PYTHON_TOOLS_BIN_DIR}/build/timestamp)
 
-if(Python_VERSION_MAJOR GREATER 2)
-  # If we are using python 3.x we need to convert our scripts from
-  # python 2 to python 3. Look for the 2to3 helper script
-  get_filename_component(PYTHON_EXE_DIR ${Python_EXECUTABLE} PATH)
-  find_program(PYTHON_2TO3_EXECUTABLE
-               NAMES 2to3 2to3-${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}
-               HINTS ${PYTHON_EXE_DIR})
-
-  if(NOT PYTHON_2TO3_EXECUTABLE)
-    message(WARNING "2to3 python utility not found. The profiling scripts will not be converted for use with selected Python version ${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}")
-  else()
-    # We need to be careful not to overwrite the upstream files if we are building in place.
-    # create copies of all needed files into a temporary directory.
-    if( PARSEC_BUILD_INPLACE )
-      set(PYTHON_TOOLS_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/2to3)
-      set(OUTPUT ${PYTHON_TOOLS_BIN_DIR}/build/timestamp)
-    endif( PARSEC_BUILD_INPLACE )
-    add_custom_command(OUTPUT ${OUTPUT}
-                       COMMAND ${PYTHON_2TO3_EXECUTABLE} --no-diffs -W -n ${CMAKE_CURRENT_SOURCE_DIR}/examples -o ${PYTHON_TOOLS_BIN_DIR}/examples
-                       WORKING_DIRECTORY ${PYTHON_TOOLS_BIN_DIR})
-    # Convert the python module supporting files of necessary
-    add_custom_command(OUTPUT ${OUTPUT}
-                       COMMAND ${PYTHON_2TO3_EXECUTABLE} --no-diffs -W -n ${SRC_PYTHON_SUPPORT} -o ${PYTHON_TOOLS_BIN_DIR}
-                       DEPENDS ${SRC_PYTHON_SUPPORT}
-                       APPEND)
-  endif(NOT PYTHON_2TO3_EXECUTABLE)
-else(Python_VERSION_MAJOR GREATER 2)
-    # Copy the python module supporting files
-    add_custom_command(OUTPUT ${OUTPUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC_PYTHON_SUPPORT} ${PYTHON_TOOLS_BIN_DIR}
-                       DEPENDS ${SRC_PYTHON_SUPPORT})
-endif(Python_VERSION_MAJOR GREATER 2)
+if(Python_VERSION_MAJOR EQUAL 2)
+  # We do not support python 2 anymore. If you really need it you can go back
+  # to an older version of parsec
+  message(WARNING "The profiling scripts will not be installed for use with selected Python version ${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}. Update to python3.")
+endif(Python_VERSION_MAJOR EQUAL 2)
 
 # Always generate the setup.py first, to include it in the 2to3 conversion
 # if necessary
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${SETUP_PY}.in
                ${PYTHON_TOOLS_BIN_DIR}/${SETUP_PY} @ONLY )
 
-# Start preparing the python building target
-add_custom_command(OUTPUT ${OUTPUT}
-                   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd ${PYTHON_TOOLS_BIN_DIR}
-                   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd
-                   APPEND)
-
 # and compile the python module
 add_custom_command(OUTPUT ${OUTPUT}
                    COMMAND ${Python_EXECUTABLE} ${SETUP_PY} build --quiet
                    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
-                   DEPENDS parsec-base
-                   APPEND)
+                   DEPENDS parsec-base)
 add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
 
 # Call python distutils to install all python support in the right location

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+
 
 import numpy as np
 import pandas as pd
@@ -316,7 +316,7 @@ if __name__ == '__main__':
                 if args.DAG:
                     dag_info[key] = { 'container': paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                       'start': float(ev.begin), 'end': float(ev.end), 'rank': ev.node_id }
-                if key in task_names.keys():
+                if key in list(task_names.keys()):
                     PajeSetState.PajeEvent(Time=float(begin_date), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                            Value=state_aliases[ev.type], task_name=task_names[key])
                 else:
@@ -353,7 +353,7 @@ if __name__ == '__main__':
 
     if args.DAG:
         nblink = 0
-        for src, dstlist in dot_links.items():
+        for src, dstlist in list(dot_links.items()):
             for dst in dstlist:
                 try:
                     src_uid = task_dot_id[src]
@@ -375,7 +375,7 @@ if __name__ == '__main__':
                 PajeEndLink.PajeEvent(Time=dst_info['start'], Type=link_type, Container=paje_c_appli, EndContainer=dst_info['container'], Value="", Key="%d"%(nblink))
                 nblink = nblink+1
 
-    for name,cer in counter_events.items():
+    for name,cer in list(counter_events.items()):
         if not cer['error']:
             ce = cer['events']
             ce.sort(cmp = lambda x, y: cmp(x['time'], y['time']) )

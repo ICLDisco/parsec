@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+
 import os
 import parsec_trace_tables as ptt
 import pbt2ptt

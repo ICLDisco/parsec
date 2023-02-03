@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import print_function
+
 import sys
 import ptt_utils
 import pbt2ptt
@@ -23,7 +23,7 @@ if __name__ == '__main__':
                                  'blosc:snappy', 'blosc:zlib', 'blosc:zstd'],
                         help='Compression library')
     parser.add_argument('--complevel', dest='complevel', action='store',
-                        default=0, type=int, choices=range(0, 10),
+                        default=0, type=int, choices=list(range(0, 10)),
                         help='Compression level')
     parser.add_argument('inputs', metavar='INPUT', type=str, nargs='+',
                         help='PaRSEC Binary Profile Input files')
