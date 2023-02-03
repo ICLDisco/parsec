@@ -54,6 +54,7 @@ cdef extern from "dbpreader.h":
    int dbp_dictionary_keylen(dbp_dictionary_t * dico)
 
    dbp_file_t *dbp_reader_get_file(dbp_multifile_reader_t *dbp, int fid)
+   void dbp_reader_close_file(dbp_file_t *dbp)
 
    char *dbp_file_hr_id(dbp_file_t *file)
    char *dbp_file_get_name(dbp_file_t *file)

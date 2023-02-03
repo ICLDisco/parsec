@@ -742,7 +742,18 @@ dbp_info_t *dbp_file_get_info(const dbp_file_t *file, int iid)
 dbp_file_t *dbp_reader_get_file(const dbp_multifile_reader_t *dbp, int fid)
 {
     assert(fid >= 0 && fid < dbp->nb_files );
+    if( -1 == dbp->files[fid].fd ) {
+      dbp->files[fid].fd = open(dbp->files[fid].filename, O_RDONLY);
+    }
     return &dbp->files[fid];
+}
+
+void dbp_reader_close_file(dbp_file_t *dbp)
+{
+    if( -1 != dbp->fd ) {
+        close(dbp->fd);
+        dbp->fd = -1;
+    }
 }
 
 int dbp_reader_nb_files(const dbp_multifile_reader_t *dbp)
@@ -769,7 +780,9 @@ int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
 
 void dbp_reader_close_files(dbp_multifile_reader_t *dbp)
 {
-    (void)dbp;
+    for( int i = 0; i < dbp->nb_files; i++ ) {
+        dbp_reader_close_file(&dbp->files[i]);
+    }
 }
 
 static void read_infos(dbp_file_t *dbp, parsec_profiling_binary_file_header_t *head)
@@ -1129,11 +1142,11 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             dbp->files[n].error = -THREADS_BROKEN;
             goto close_and_continue;
         }
-
       close_and_continue:
+        /* Close the file to keep the number of open fds low */
+        close(fd);
+        dbp->files[n].fd = -1;
         if( SUCCESS != dbp->files[n].error ) {
-            close(fd);
-            dbp->files[n].fd = -1;  /* not opened anymore */
             dbp->last_error = dbp->files[n].error;  /* record last error */
         }
         n++;
