@@ -737,7 +737,7 @@ parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp,
 void *parsec_dtd_task_profile_info(void *dst, const void *task_, size_t size)
 {
     void *ptr;
-    parsec_dtd_task_t *task = (parsec_dtd_task_t *)task_;
+    const parsec_dtd_task_t *task = (const parsec_dtd_task_t *)task_;
     parsec_dtd_task_param_t *param = GET_HEAD_OF_PARAM_LIST(task);
 
     assert( task->super.task_class->task_class_type == PARSEC_TASK_CLASS_TYPE_DTD );
@@ -2412,7 +2412,10 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
     incarnations[i+1].type = PARSEC_DEV_NONE;
     incarnations[i+1].hook = NULL;
 
-    parsec_dtd_insert_task_class(dtd_tp, (parsec_dtd_task_class_t*)dtd_tc);
+    if( dtd_tc->super.task_class_id == UINT8_MAX ) {
+        /* If this is the first time we create a chore for this task, we need to insert it, otherwise we shouldn't insert it again */
+        parsec_dtd_insert_task_class(dtd_tp, (parsec_dtd_task_class_t*)dtd_tc);
+    }
 
     return PARSEC_SUCCESS;
 }
