@@ -1,8 +1,8 @@
 set(MCA_${COMPONENT}_SOURCES mca/device/device.c)
 
-if(PARSEC_HAVE_CUDA OR PARSEC_HAVE_HIP)
+if(PARSEC_HAVE_CUDA OR PARSEC_HAVE_LEVEL_ZERO OR PARSEC_HAVE_HIP)
   list(APPEND MCA_${COMPONENT}_SOURCES mca/device/device_gpu.c mca/device/transfer_gpu.c)
-endif()
+endif(PARSEC_HAVE_CUDA OR PARSEC_HAVE_LEVEL_ZERO OR PARSEC_HAVE_HIP )
 
 set_property(TARGET parsec
              APPEND PROPERTY

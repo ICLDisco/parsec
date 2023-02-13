@@ -38,6 +38,13 @@ typedef cublasStatus_t (*cublas_dgemm_v2_t) ( cublasHandle_t handle,
 
 %}
 
+extern "DPCPP" %{
+
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include <oneapi/mkl.hpp>
+
+%}
+
 %option no_taskpool_instance = true  /* can be anything */
 
 /*
@@ -150,6 +157,35 @@ BODY [type=CUDA
 }
 END
 
+BODY [type=DPCPP
+      weight=(1)]
+{
+    double alpha=0.0;
+    double beta=1.0;
+    try {
+      oneapi::mkl::blas::gemm(parsec_sycl_queue->queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
+         descA->super.mb, descA->super.nb, descA->super.mb,
+         alpha, static_cast<const double*>(A), descA->super.mb,
+         static_cast<const double*>(A), descA->super.mb,
+         beta, static_cast<double*>(C), descA->super.mb);
+    } catch (const oneapi::mkl::invalid_argument &e) {
+      parsec_warning("OneAPI MKL BLAS GEMM throws invalid argument exception");
+    } catch (const oneapi::mkl::unsupported_device &e) {
+      parsec_warning("OneAPI MKL BLAS GEMM throws unsuported device exception");
+    } catch (const oneapi::mkl::host_bad_alloc &e) {
+      parsec_warning("OneAPI MKL BLAS GEMM throws host bad allocation exception");
+    } catch (const oneapi::mkl::device_bad_alloc &e) {
+      parsec_warning("OneAPI MKL BLAS GEMM throws device bad allocation exception");
+    } catch (const oneapi::mkl::unimplemented &e) {
+      parsec_warning("OneAPI MKL BLAS GEMM throws unimplemented exception");
+    } catch (const std::exception& e) {
+      parsec_warning("OneAPI MKL BLAS GEMM throws unexpected exception");
+    } catch (...) {
+      parsec_warning("OneAPI MKL BLAS GEMM throws unexpected exception that is also badly formatted...");
+    }
+}
+END
+
 BODY
 {
     fprintf(stderr, "Kernel GEMM(%d, %d, %d) in nvlink test is running on a CPU, which is not the intended behavior\n",
@@ -194,6 +230,36 @@ BODY [type=CUDA
                             {return -1;} );
 }
 END
+
+BODY [type=DPCPP
+      weight=(1)]
+{
+    double alpha=0.0;
+    double beta=1.0;
+    try {
+      oneapi::mkl::blas::gemm(parsec_sycl_queue->queue, oneapi::mkl::transpose::N, oneapi::mkl::transpose::N,
+         descA->super.mb, descA->super.nb, descA->super.mb,
+         alpha, static_cast<const double*>(A), descA->super.mb,
+         static_cast<const double*>(A), descA->super.mb,
+         beta, static_cast<double*>(C), descA->super.mb);
+    } catch (const oneapi::mkl::invalid_argument &e) {
+      parsec_warning("OneAPI MKL BLAS GEMM2 throws invalid argument exception");
+    } catch (const oneapi::mkl::unsupported_device &e) {
+      parsec_warning("OneAPI MKL BLAS GEMM2 throws unsuported device exception");
+    } catch (const oneapi::mkl::host_bad_alloc &e) {
+      parsec_warning("OneAPI MKL BLAS GEMM2 throws host bad allocation exception");
+    } catch (const oneapi::mkl::device_bad_alloc &e) {
+      parsec_warning("OneAPI MKL BLAS GEMM2 throws device bad allocation exception");
+    } catch (const oneapi::mkl::unimplemented &e) {
+      parsec_warning("OneAPI MKL BLAS GEMM2 throws unimplemented exception");
+    } catch (const std::exception& e) {
+      parsec_warning("OneAPI MKL BLAS GEMM2 throws unexpected exception");
+    } catch (...) {
+      parsec_warning("OneAPI MKL BLAS GEMM2 throws unexpected exception that is also badly formatted...");
+    }
+}
+END
+
 
 BODY
 {

@@ -7,7 +7,7 @@
 #
 function(target_ptg_source_ex)
   set(options DEBUG LINE FORCE_PROFILE)
-  set(oneValueArgs TARGET MODE SOURCE DESTINATION DESTINATION_C DESTINATION_H FUNCTION_NAME DEP_MANAGEMENT)
+  set(oneValueArgs TARGET MODE SOURCE DESTINATION DESTINATION_C DESTINATION_H DESTINATION_DPCPP FUNCTION_NAME DEP_MANAGEMENT)
   set(multipleValueArgs WARNINGS IGNORE_PROPERTIES PTGPP_FLAGS)
   cmake_parse_arguments(PARSEC_PTGPP "${options}" "${oneValueArgs}"
           "${multiValueArgs}" ${ARGN} )
@@ -51,6 +51,9 @@ function(target_ptg_source_ex)
   else()
     set(outname_h "${outname}.h")
   endif()
+  if(DEFINED PARSEC_PTGPP_DESTINATION_DPCPP)
+      set(outname_dpcpp "${PARSEC_PTGPP_DESTINATION_DPCPP}")
+  endif()
 
   if(DEFINED PARSEC_PTGPP_FUNCTION_NAME)
     set(fnname "${PARSEC_PTGPP_FUNCTION_NAME}")
@@ -91,12 +94,21 @@ function(target_ptg_source_ex)
   # its cmake source_file name, yet we depend on the source_file name as it is how cmake tracks it
   get_property(location SOURCE ${PARSEC_PTGPP_SOURCE} PROPERTY LOCATION)
 
-  add_custom_command(
+  if(DEFINED outname_dpcpp)
+    add_custom_command(
+          OUTPUT ${outname_h} ${outname_c} ${outname_dpcpp}
+          COMMAND $<TARGET_FILE:PaRSEC::parsec-ptgpp> ${_ptgpp_flags} -E -i ${location} -C ${outname_c} -H ${outname_h} -S ${outname_dpcpp} -f ${fnname}
+          MAIN_DEPENDENCY ${PARSEC_PTGPP_SOURCE}
+          DEPENDS ${PARSEC_PTGPP_SOURCE} PaRSEC::parsec-ptgpp)
+    add_custom_target(ptgpp_${target}.${outname} DEPENDS ${outname_h} ${outname_c} ${outname_dpcpp})
+  else(DEFINED outname_dpcpp)
+    add_custom_command(
           OUTPUT ${outname_h} ${outname_c}
           COMMAND $<TARGET_FILE:PaRSEC::parsec-ptgpp> ${_ptgpp_flags} -E -i ${location} -C ${outname_c} -H ${outname_h} -f ${fnname}
           MAIN_DEPENDENCY ${PARSEC_PTGPP_SOURCE}
           DEPENDS ${PARSEC_PTGPP_SOURCE} PaRSEC::parsec-ptgpp)
-  add_custom_target(ptgpp_${target}.${outname} DEPENDS ${outname_h} ${outname_c})
+    add_custom_target(ptgpp_${target}.${outname} DEPENDS ${outname_h} ${outname_c})
+  endif(DEFINED outname_dpcpp)
 
   # Copy the properties to the generated files
   get_property(cflags     SOURCE ${PARSEC_PTGPP_SOURCE} PROPERTY COMPILE_OPTIONS)
@@ -110,11 +122,24 @@ function(target_ptg_source_ex)
           COMPILE_OPTIONS "${cflags}"
           INCLUDE_DIRECTORIES "${includes}"
           COMPILE_DEFINITIONS "${defs}")
+  if(DEFINED outname_dpcpp)
+    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/${outname_dpcpp}"
+            TARGET_DIRECTORY ${target}
+            PROPERTIES
+            GENERATED 1
+            COMPILE_OPTIONS "${cflags}"
+            INCLUDE_DIRECTORIES "${includes}"
+            COMPILE_DEFINITIONS "${defs}")
+  endif(DEFINED outname_dpcpp)
 
   # make sure we produce .h before we build other .c in the target
   add_dependencies(${target} ptgpp_${target}.${outname})
   # add to the target
-  target_sources(${target} ${PARSEC_PTGPP_MODE} "${CMAKE_CURRENT_BINARY_DIR}/${outname_h};${CMAKE_CURRENT_BINARY_DIR}/${outname_c}")
+  if(DEFINED outname_dpcpp)
+    target_sources(${target} ${PARSEC_PTGPP_MODE} "${CMAKE_CURRENT_BINARY_DIR}/${outname_h};${CMAKE_CURRENT_BINARY_DIR}/${outname_c};${CMAKE_CURRENT_BINARY_DIR}/${outname_dpcpp}")
+  else(DEFINED outname_dpcpp)
+    target_sources(${target} ${PARSEC_PTGPP_MODE} "${CMAKE_CURRENT_BINARY_DIR}/${outname_h};${CMAKE_CURRENT_BINARY_DIR}/${outname_c}")
+  endif(DEFINED outname_dpcpp)
 
   get_target_property(_includes ${target} INCLUDE_DIRECTORIES)
   list(FIND _includes "${CMAKE_CURRENT_BINARY_DIR}" _i1)

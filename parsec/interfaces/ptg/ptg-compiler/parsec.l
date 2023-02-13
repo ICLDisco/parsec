@@ -110,7 +110,8 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*[\r\n]+([^\%]|(\%[^\}]))*\%\}       
 
                           /* find the end of the language */
                           for(lend = lstart + 1; yytext[lend] != '"'; lend++) /* nothing */;
-                          assert( (yytext[lstart] == 'C') && ((lend-lstart) == 1) );
+                          YYLVAL(code).language = (char*)calloc(lend-lstart+1, 1);
+                          memcpy(YYLVAL(code).language, &yytext[lstart], lend-lstart);
 
                           /* Search for the start of the body */
                           for(bstart = lend + 1; yytext[bstart] != '{'; bstart++ ) /* nothing */;
@@ -120,14 +121,15 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*[\r\n]+([^\%]|(\%[^\}]))*\%\}       
                           for( lend = 0; lend <= bstart; lend++ )
                               if( yytext[lend] == '\n' ) skip_line++;
                           current_lineno += skip_line;
-                          YYLVAL(string) = extern_code( yytext + bstart, strlen(yytext)-bstart-2, 1 );
+                          YYLVAL(code).string = extern_code( yytext + bstart, strlen(yytext)-bstart-2, 1 );
                           ECHO; return EXTERN_DECL;
                       }
 <INITIAL,properties>(inline_c)?{WHITE}*\%c?\{([^\%]|(\%[^\}]))+\%\}        {
                           int start;
                           for(start = 0; yytext[start] != '{'; start++) /* nothing */ ;
                           start++;
-                          YYLVAL(string) = extern_code( yytext + start, strlen(yytext)-start-2, 0 );
+                          YYLVAL(code).string = extern_code( yytext + start, strlen(yytext)-start-2, 0 );
+                          YYLVAL(code).language = strdup("C");
                           ECHO; return EXTERN_DECL;
                       }
 SIMCOST               { ECHO; return SIMCOST; }

@@ -72,9 +72,9 @@ parsec_gpu_check_space_needed(parsec_device_gpu_module_t *gpu_device,
     return space_needed;
 }
 
-#if defined(PARSEC_PROF_TRACE)
 void parsec_gpu_init_profiling(void)
 {
+#if defined(PARSEC_PROF_TRACE)
     if(parsec_gpu_profiling_initiated == 0) {
         parsec_profiling_add_dictionary_keyword("cuda", "fill:#66ff66",
                                                 0, NULL,
@@ -100,8 +100,8 @@ void parsec_gpu_init_profiling(void)
                                                 &parsec_gpu_use_memory_key_start, &parsec_gpu_use_memory_key_end);
         parsec_gpu_profiling_initiated = 1;
     }
-}
 #endif
+}
 
 void parsec_gpu_enable_debug(void)
 {

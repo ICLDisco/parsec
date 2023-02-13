@@ -123,6 +123,8 @@
 #cmakedefine PARSEC_HAVE_HWLOC
 #cmakedefine PARSEC_HAVE_PAPI
 #cmakedefine PARSEC_HAVE_CUDA
+#cmakedefine PARSEC_HAVE_LEVEL_ZERO
+#cmakedefine PARSEC_HAVE_DPCPP
 #cmakedefine PARSEC_HAVE_HIP
 #cmakedefine PARSEC_HAVE_OPENCL
 #cmakedefine PARSEC_HAVE_MPI

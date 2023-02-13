@@ -271,6 +271,7 @@ process_datatype(jdf_datatransfer_type_t *datatype,
 
 %union {
     int                   number;
+    jdf_code_string_t     code;
     char*                 string;
     jdf_expr_operand_t    expr_op;
     jdf_external_entry_t *external_code;
@@ -291,7 +292,7 @@ process_datatype(jdf_datatransfer_type_t *datatype,
 };
 
 %glr-parser
-%expect 5
+%expect 6
 
 %type <function>function
 %type <param_list>param_list
@@ -323,7 +324,7 @@ process_datatype(jdf_datatransfer_type_t *datatype,
 %type <body>bodies
 
 %type <string>VAR
-%type <string>EXTERN_DECL
+%type <code>EXTERN_DECL
 %type <string>BODY_END
 %type <dep_type>ARROW
 %type <number>PROPERTIES_ON
@@ -372,23 +373,28 @@ jdf_file:       prologue jdf epilogue
                     current_jdf.epilogue = $3;
                 }
         ;
-prologue:       EXTERN_DECL
+prologue:       EXTERN_DECL prologue
                 {
-                    $$ = new(jdf_external_entry_t);
-                    $$->external_code = $1;
-                    JDF_OBJECT_LINENO($$) = current_lineno;
+                    jdf_external_entry_t *ent = new(jdf_external_entry_t);
+                    ent->language = $1.language;
+                    ent->external_code = $1.string;
+                    ent->next = $2;
+                    JDF_OBJECT_LINENO(ent) = current_lineno;
+                    $$ = ent;
                 }
         |
                 {
                     $$ = NULL;
                 }
         ;
-epilogue:       EXTERN_DECL
+epilogue:       EXTERN_DECL epilogue
                 {
-                    $$ = new(jdf_external_entry_t);
-                    $$->external_code = $1;
-                    JDF_OBJECT_LINENO($$) = current_lineno;
-                }
+                    jdf_external_entry_t *ent = new(jdf_external_entry_t);
+                    ent->language = $1.language;
+                    ent->external_code = $1.string;
+                    ent->next = $2;
+                    JDF_OBJECT_LINENO(ent) = current_lineno;
+                    $$ = ent;                }
         |
                 {
                     $$ = NULL;
@@ -1325,7 +1331,7 @@ expr_simple:  expr_simple EQUAL expr_simple
               {
                   $$ = new(jdf_expr_t);
                   $$->op = JDF_C_CODE;
-                  $$->jdf_c_code.code = $1;
+                  $$->jdf_c_code.code = $1.string;
                   $$->jdf_type = PARSEC_RETURN_TYPE_INT32;
                   $$->local_variables = current_locally_bound_variables;
                   $$->scope = -1;
