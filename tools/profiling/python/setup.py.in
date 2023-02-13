@@ -44,7 +44,7 @@ if 'Debug' == build_type or 'RelWithDebInfo' == build_type:
 
 # Cython does not support VPATH, so the generated files will always reside on the
 # SOURCE_DIR, except if we explicitly move them to the build directory.
-extensions = [Extension('pbt2ptt', ['pbt2ptt.pyx',
+extensions = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
                                     os.path.realpath('@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c')],
                          include_dirs=['@PROJECT_SOURCE_DIR@/parsec/include',
                                        '@PROJECT_SOURCE_DIR@',
