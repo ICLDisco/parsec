@@ -7,8 +7,7 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
-import os.path
-import sys
+import os, sys
 import socket
 
 c_compiler = '@CMAKE_C_COMPILER@'.replace('FILEPATH=', '')
@@ -44,7 +43,7 @@ if 'Debug' == build_type or 'RelWithDebInfo' == build_type:
 
 # Cython does not support VPATH, so the generated files will always reside on the
 # SOURCE_DIR, except if we explicitly move them to the build directory.
-extensions = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
+extensions = [Extension('pbt2ptt', ['pbt2ptt.pyx',
                                     os.path.realpath('@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c')],
                          include_dirs=['@PROJECT_SOURCE_DIR@/parsec/include',
                                        '@PROJECT_SOURCE_DIR@',
@@ -128,9 +127,9 @@ setup(
     name = 'pbt2ptt',
     version='@PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@.@PARSEC_VERSION_RELEASE@',
     description='PaRSEC Binary Trace Interface parses and converts the PaRSEC Binary Trace format into a pandas-based Python tabular format',
-    url='http://icl.cs.utk.edu/parsec/',
-    package_dir={ '': '@PYTHON_TOOLS_BIN_DIR@'},
+    url='http://icl.utk.edu/parsec/',
     py_modules=['ptt_utils', 'parsec_trace_tables', 'common_utils'],
+    package_dir={ '': '@CMAKE_CURRENT_BINARY_DIR@'},
     cmdclass = {'build_ext': local_compiler_build_ext},
     ext_modules = cythonize(extensions,
                             compiler_directives={'language_level' : @Python_VERSION_MAJOR@},
