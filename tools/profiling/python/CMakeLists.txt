@@ -21,7 +21,7 @@ if( NOT CYTHON_EXECUTABLE )
   return()
 endif( NOT CYTHON_EXECUTABLE )
 
-set(SRC_PYTHON_SUPPORT ${CMAKE_CURRENT_SOURCE_DIR}/common_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_SOURCE_DIR}/ptt_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/profile2h5.py)
+set(SRC_PYTHON_SUPPORT ${CMAKE_CURRENT_SOURCE_DIR}/common_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_SOURCE_DIR}/ptt_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/profile2h5.py ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd)
 set(SETUP_PY setup.py)
 
 set(PYTHON_TOOLS_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -38,17 +38,22 @@ endif(Python_VERSION_MAJOR EQUAL 2)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${SETUP_PY}.in
                ${PYTHON_TOOLS_BIN_DIR}/${SETUP_PY} @ONLY )
 
-# and compile the python module
+# Move the files into the build directory (to prevent the pollution of the source directory
+# due to cython compilation) and compile the python module
+# Also fake a local installation of the python module to be able to use it
+# for testing purposes. With this we can simply set the PYTHONPATH to the correct
+# location and import the pbt2ptt module.
 add_custom_command(OUTPUT ${OUTPUT}
-                   COMMAND ${Python_EXECUTABLE} ${SETUP_PY} build --quiet
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC_PYTHON_SUPPORT} ${CMAKE_CURRENT_BINARY_DIR}
+                   COMMAND ${Python_EXECUTABLE} -m pip install --quiet --prefix=${CMAKE_CURRENT_BINARY_DIR}/python.test .
                    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
-                   DEPENDS parsec-base)
+                   DEPENDS parsec-base ${SRC_PYTHON_SUPPORT})
 add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
 
 # Call python distutils to install all python support in the right location
 # (aka. according to the OS demands). Prepare to reconfigure the shell
 # helper scripts to point to the right location
-install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} ${SETUP_PY} install --skip-build --prefix=\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}
+install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install --quiet --prefix=\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX} .
         WORKING_DIRECTORY ${PYTHON_TOOLS_BIN_DIR})")
 
 # Create bash environment PaRSEC python support
@@ -61,8 +66,6 @@ install( FILES ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.sh ${PYTHON_TOOLS_BI
          DESTINATION ${PARSEC_INSTALL_BINDIR}
          PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
-# Install the files from the binary directory after being translated
-# by the 2to3 tool.
 file(GLOB pyfiles RELATIVE ${PYTHON_TOOLS_BIN_DIR} "examples/*.py" "profile2h5.py")
 foreach(file ${pyfiles})
   install( FILES ${PYTHON_TOOLS_BIN_DIR}/${file}
