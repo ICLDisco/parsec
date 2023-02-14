@@ -8,9 +8,9 @@ t = pd.HDFStore(sys.argv[1])
 try:
     FULL_ASYNC = t.event_types['FULL_ASYNC']
     FULL_RESCHED = t.event_types['FULL_RESCHED']
-    ASYNC = t.event_types['ASYNC']
-    RESCHED = t.event_types['RESCHED']
-    STARTUP = t.event_types['STARTUP']
+    ASYNC = t.event_types['async::ASYNC']
+    RESCHED = t.event_types['async::RESCHED']
+    STARTUP = t.event_types['async::STARTUP']
 except KeyError:
     print("One of keys FULL_ASYNC, FULL_RESCHED, ASYNC, RESCHED, or STARTUP is not defined in the trace",
           file=sys.stderr)
