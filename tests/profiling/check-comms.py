@@ -5,8 +5,8 @@ import sys
 t = pd.HDFStore('bw.h5')
 
 result = {
-    'MPI_ACTIVATE': { 'nb': 100, 'lensum': 12000 },
-    'MPI_DATA_CTL': { 'nb': 100, 'lensum': 2400 },
+    'MPI_ACTIVATE': { 'nb': 100, 'lensum': 11200 },
+    'MPI_DATA_CTL': { 'nb': 100, 'lensum': 209715200 },
     'MPI_DATA_PLD_SND': { 'nb': 100, 'lensum': 209715200 },
     'MPI_DATA_PLD_RCV': { 'nb': 100, 'lensum': 209715200 }
 }
