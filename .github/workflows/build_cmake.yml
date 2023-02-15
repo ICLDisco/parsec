@@ -106,7 +106,7 @@ jobs:
       matrix:
         build_type : [ Release ]
         shared_type : [ ON ]
-        profiling : [ OFF ]
+        profiling : [ OFF, ON ]
 
     name: "Type = ${{ matrix.build_type }} shared=${{ matrix.shared_type }} profiling=${{matrix.profiling}}"
     env:
