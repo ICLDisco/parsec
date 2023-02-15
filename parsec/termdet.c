@@ -85,8 +85,8 @@ int parsec_termdet_open_module(parsec_taskpool_t *tp, char *name)
         omod->module = mca_component_query(omod->component);
         if(NULL == omod->module) {
             free(omod->name);
-            free(omod);
             mca_component_close(omod->component);
+            free(omod);
             parsec_fatal("Component of name '%s' of type termdet exists, but could not load (query failed)",
                          name);
             parsec_hash_table_unlock_bucket(&parsec_termdet_opened_modules, (parsec_key_t)name);
