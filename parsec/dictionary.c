@@ -296,6 +296,10 @@ static void parsec_profiling_tree_reload_buckets(parsec_profiling_tree_t *tree, 
 {
     if (!strcmp(name, dict->tree->first_nodes[pos]->str)) return;
 
+    /* TODO: we cannot do sprintf into the str pointer, we do not know its length,
+     *       and there is no reason to assume we are not overwriting outside the
+     *       legitimate boundaries.
+    */
     sprintf(dict->tree->first_nodes[pos]->str, "%s", name);
 
     parsec_profiling_node_t *node = tree->first_nodes[pos];
@@ -375,11 +379,11 @@ static void parsec_profiling_tree_delete(parsec_profiling_tree_t *tree)
 }
 
 /**
- * @brief High level method to update a dictionnary
+ * @brief High level method to update a dictionary
  * @details Will start by recomputing the XML header and its size.
  *          Will reshape the shared memory region if necessary.
  *          Will export the new metadata in the shared memory region.
- *          Will implicitely see its version incremented by 1
+ *          Will implicitly see its version incremented by 1
  */
 static int parsec_profiling_dictionary_update()
 {
@@ -808,7 +812,7 @@ int parsec_profiling_dictionary_init(parsec_context_t *master_context,
 #endif
     }
 
-    /* Dictionary and shmem are intialized, let's see if modules have something to say */
+    /* Dictionary and shmem are initalized, let's see if modules have something to say */
     /* int m; */
     /* for (m = 0; m < num_modules; ++m) */
     /*     if (modules[m]->init_profiling.register_properties) */
@@ -832,19 +836,18 @@ void print_dict_content(parsec_hash_table_t *ht)
     parsec_hash_table_for_all(ht, namespace_print, NULL);
 }
 
-parsec_profiling_namespace_t *find_namespace(const char *ns)
+const parsec_profiling_task_class_t*
+parsec_profiling_find_profiling_task_class(const char *ns_name, const char *tc_name)
 {
-    return parsec_hash_table_nolock_find(&dict->properties, (parsec_key_t)ns);
+    parsec_profiling_namespace_t* ns =  parsec_hash_table_nolock_find(&dict->properties, (parsec_key_t)ns_name);
+    if( NULL == ns ) return NULL;
+    return parsec_hash_table_nolock_find(&ns->task_classes, (parsec_key_t)tc_name);
 }
 
-parsec_profiling_task_class_t *find_task_class(parsec_profiling_namespace_t *ns, const char *tc)
+const parsec_profiling_property_t*
+parsec_profiling_find_property(const parsec_profiling_task_class_t* tc, const char *pr)
 {
-    return parsec_hash_table_nolock_find(&ns->task_classes, (parsec_key_t)tc);
-}
-
-parsec_profiling_property_t *find_property(parsec_profiling_task_class_t* tc, const char *pr)
-{
-    return parsec_hash_table_nolock_find(&tc->properties, (parsec_key_t)pr);
+    return parsec_hash_table_nolock_find((parsec_hash_table_t*)&tc->properties, (parsec_key_t)pr);
 }
 
 int parsec_profiling_add_taskpool_properties(parsec_taskpool_t *h)
@@ -876,7 +879,7 @@ int parsec_profiling_add_taskpool_properties(parsec_taskpool_t *h)
         while (p && NULL != p->expr) {
             parsec_profiling_tree_reload_buckets(dict->tree, PROF_PROPERTY, p->name);
 
-            /* check if anyone requested ns:tc:pr or the wilcard combinations */
+            /* check if anyone requested ns:tc:pr or the wildcard combinations */
             int exists = parsec_profiling_tree_look_for_path(dict->tree);
 
             parsec_profiling_property_t* pr_bucket = (parsec_profiling_property_t*) parsec_profiling_tree_add_missing_buckets(dict->tree);

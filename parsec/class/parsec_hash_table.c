@@ -479,7 +479,7 @@ static void *parsec_hash_table_nolock_find_in_old_tables(parsec_hash_table_t *ht
         hash = parsec_hash_table_universal_rehash(hash64, head->nb_bits);
         // We need the lock on the old tables, as some other thread might
         // be removing elements in this bucket, through remove_from_old_tables
-        // and that thread relies on the lowlevel table locks
+        // and that thread relies on the low-level table locks
         parsec_atomic_lock( &head->buckets[hash].lock );
         for(current_item = head->buckets[hash].first_item;
             NULL != current_item;
@@ -491,7 +491,7 @@ static void *parsec_hash_table_nolock_find_in_old_tables(parsec_hash_table_t *ht
                                      BASEADDROF(current_item, ht), ht->key_functions.key_print(estr, 64, key, ht->hash_data), ht, head, hash);
 #endif
                 // We already have the lock on the toplevel table bucket,
-                // and we have the lock on the lowlevel table bucket... So
+                // and we have the lock on the low-level table bucket... So
                 // use the opportunity to move the element in the toplevel
                 if(NULL == prev_item) {
                     head->buckets[hash].first_item = current_item->next_item;
