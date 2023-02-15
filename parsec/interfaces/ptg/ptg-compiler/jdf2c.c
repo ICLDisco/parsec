@@ -3941,7 +3941,11 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
                 string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
             }
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
-            string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_lower);
+            if (!strcmp(dev_upper, "RECURSIVE")) {
+                string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_upper);
+            } else {
+                string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_lower);
+            }
             string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_%s) */\n", dev_upper);
             free(dev_upper); free(dev_lower);
         }
