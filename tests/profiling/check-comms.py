@@ -1,8 +1,10 @@
 
 import pandas as pd
-import sys
+import os, sys
 
-t = pd.HDFStore('bw.h5')
+filename = 'bw.h5'
+assert os.path.isfile(filename)
+t = pd.HDFStore(filename)
 
 result = {
     'MPI_ACTIVATE': { 'nb': 100, 'lensum': 11200 },
@@ -36,7 +38,11 @@ for mt in list(result.keys()):
             else:
                 print(f"Sum of msg_size of events of type {mt} is {result[mt]['lensum']} -- correct")
         except KeyError:
-            fatal_error("Column 'msg_size' is not defined in this trace, something went wrong.")
+            print("Column 'msg_size' is not defined in this trace, something went wrong.")
+            sys.exit(1)
+    except AttributeError:
+        print("HDF5 file {} does not contains the events or event_types attribute. The file might be empty, corrupted or it was incorrectly generated".format(filename), file=sys.stderr)
+        sys.exit(2)
     except KeyError:
         fatal_error(f"Key {mt} is not present in the trace. You are using a different communication system or something went wrong")
 
