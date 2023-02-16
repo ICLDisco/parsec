@@ -1,0 +1,180 @@
+extern "C" %{
+/*
+ * Copyright (c) 2023      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ */
+
+#include <sys/time.h>
+#include <inttypes.h>
+#include <string.h>
+#include <stdlib.h>
+#include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/data_dist/matrix/subtile.h"
+
+#include "recursive.h" /* generated header */
+
+/**
+ * This test stresses the recursive capability of the runtime. The JDF describes
+ * a sequential process going from 0 to X, and on each task starting again a
+ * recursive process going from 0 to X-1
+ */
+
+ #if defined(PARSEC_HAVE_DEV_RECURSIVE_SUPPORT)
+ #include "parsec/recursive.h"
+/*
+ * A function to recursively complete a recursive taskpool.
+ */
+static void parsec_recursive_callback(parsec_taskpool_t* _tp, const parsec_recursive_callback_t* data)
+{
+    parsec_recursive_taskpool_t* tp = (parsec_recursive_taskpool_t*)_tp;
+    __parsec_recursive_DO_SOMETHING_task_t* task = (__parsec_recursive_DO_SOMETHING_task_t*)data->task;
+
+    /*parsec_taskpool_free(tp);*/
+    PARSEC_OBJ_RELEASE(_tp);
+ }
+ #endif  /* defined(PARSEC_HAVE_DEV_RECURSIVE_SUPPORT) */
+
+%}
+
+descA      [type = "parsec_matrix_block_cyclic_t*"]
+level      [type = int]
+NI         [type = int]
+pri        [type = int default = 0 hidden = on]
+
+DO_SOMETHING(i)
+
+  i = 0 .. NI-1
+
+  prio = %{ return pri == 2 ? (int)(random()) : ((i + NI*level)*pri); %}
+
+  : descA(i,0)
+
+  READ A <- descA(i, 0)
+         -> descA(i, 0)
+
+  ; prio
+
+BODY  [type=RECURSIVE]
+{
+    /* Last level, we're done no more recursion. Fall back onto the CPU kernel */
+    if( 0 == level )
+      return PARSEC_HOOK_RETURN_NEXT;
+
+    parsec_taskpool_t *recursive_tp;
+    subtile_desc_t *small_descT;
+
+    small_descT = subtile_desc_create( descA, level-1, 1, 5, 5, 0, 0, 1, 1 );
+
+    small_descT->mat = A;
+
+    recursive_tp = parsec_recursive_new((parsec_tiled_matrix_t *)small_descT, level-1, NI );
+
+    parsec_recursivecall((parsec_task_t*)this_task,
+                         recursive_tp, parsec_recursive_callback,
+                         1, small_descT);
+
+    return PARSEC_HOOK_RETURN_ASYNC;
+}
+END
+
+BODY  [type=CPU]
+{
+    fprintf(stderr, "do_something(level=%d, i=%d): prio=%d\n", level, i, prio );
+}
+END
+
+extern "C" %{
+
+#define NN    3
+#define TYPE  PARSEC_MATRIX_FLOAT
+
+int main( int argc, char** argv )
+{
+    parsec_recursive_taskpool_t* tp;
+    parsec_matrix_block_cyclic_t descA;
+    parsec_arena_datatype_t adt;
+    parsec_datatype_t dt;
+    parsec_context_t *parsec;
+    int ni = NN, level = 3, verbose = 0, i = 1, rc;
+    long time_elapsed;
+
+#ifdef PARSEC_HAVE_MPI
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+    }
+#endif
+
+    int pargc = 0; char **pargv = NULL;
+    for( i = 1; i < argc; i++) {
+        if( 0 == strncmp(argv[i], "--", 3) ) {
+            pargc = argc - i;
+            pargv = argv + i;
+            break;
+        }
+        if( 0 == strncmp(argv[i], "-i=", 3) ) {
+            ni = strtol(argv[i]+3, NULL, 10);
+            continue;
+        }
+        if( 0 == strncmp(argv[i], "-l=", 3) ) {
+            level = strtol(argv[i]+3, NULL, 10);
+            continue;
+        }
+        if( 0 == strncmp(argv[i], "-v=", 3) ) {
+            verbose = strtol(argv[i]+3, NULL, 10);
+            continue;
+        }
+    }
+
+    parsec = parsec_init(-1, &pargc, &pargv);
+    if( NULL == parsec ) {
+       exit(-1);
+    }
+
+    /**
+     * Build the data and the arena to hold it up.
+     */
+    parsec_matrix_block_cyclic_init(&descA, TYPE, PARSEC_MATRIX_TILE,
+                                    0 /*rank*/,
+                                    NN, NN, ni * NN, NN,
+                                    0, 0, ni * NN, NN, 1, 1, 1, 1, 0, 0);
+    descA.mat = parsec_data_allocate(descA.super.nb_local_tiles *
+                                     descA.super.bsiz *
+                                     parsec_datadist_getsizeoftype(TYPE));
+
+    parsec_translate_matrix_type(TYPE, &dt);
+    parsec_add2arena_rect(&adt, dt,
+                                 descA.super.mb, descA.super.nb, descA.super.mb);
+
+    /* Start the PaRSEC engine */
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    /* Heat up the engine: small tasks no priority */
+    tp = parsec_recursive_new( &descA, level, ni );
+    assert( NULL != tp );
+    tp->arenas_datatypes[PARSEC_recursive_DEFAULT_ADT_IDX] = adt;
+    PARSEC_OBJ_RETAIN(adt.arena);
+
+    tp->_g_pri = 0;
+    rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
+    PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
+    rc = parsec_context_wait(parsec);
+    parsec_taskpool_free(&tp->super);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
+
+    free(descA.mat);
+    PARSEC_OBJ_RELEASE(adt.arena);
+    parsec_del2arena( & adt );
+
+    parsec_fini( &parsec);
+
+#ifdef PARSEC_HAVE_MPI
+    MPI_Finalize();
+#endif
+
+    return 0;
+}
+
+%}
