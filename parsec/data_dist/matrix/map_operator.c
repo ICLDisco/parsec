@@ -532,6 +532,7 @@ parsec_map_operator_New(const parsec_tiled_matrix_t* src,
     tp->dest    = dest;
     tp->op      = op;
     tp->op_data = op_data;
+    tp->next_n  = 0;
     tp->super.taskpool_id = 1111;
     tp->super.nb_tasks = src->nb_local_tiles;
     tp->super.task_classes_array = (const parsec_task_class_t **)
