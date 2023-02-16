@@ -33,7 +33,7 @@ READ A <- descA(m, n)
 
 BODY
 {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     if( nb_cuda_devices > 0 ) {
         int g = (n * descA->nt + m) % nb_cuda_devices; 
         parsec_advise_data_on_device( _f_A->original,
@@ -63,7 +63,7 @@ WRITE B <- NEW
 
 BODY [type=CUDA weight=m+n+1]
 {   
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     if( nb_cuda_devices > 0 ) { 
         int g = (n * descA->nt + m) % nb_cuda_devices;
         int my_device =  cuda_device->cuda_index;
@@ -133,7 +133,7 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
     taskpool = parsec_get_best_device_check_new(dcA, info); 
     get_best_device_check_taskpool = (parsec_taskpool_t*)taskpool;
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     /** Find all CUDA devices */
     int nb = 0;
     for(int i = 0; i < (int)parsec_nb_devices; i++) {
@@ -174,7 +174,7 @@ static void
 __parsec_taskpool_get_best_device_check_destructor(parsec_get_best_device_check_taskpool_t *get_best_device_check_taskpool)
 {
     parsec_del2arena(&get_best_device_check_taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX]);
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     if( NULL != get_best_device_check_taskpool->_g_cuda_device_index )
         free(get_best_device_check_taskpool->_g_cuda_device_index);
 #endif

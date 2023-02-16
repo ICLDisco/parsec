@@ -11,7 +11,7 @@
 #include "parsec/utils/mca_param.h"
 #include "parsec/constants.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/runtime.h"
 #include "parsec/data_internal.h"
 #include "parsec/mca/device/cuda/device_cuda_internal.h"
@@ -2762,4 +2762,4 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
     return PARSEC_HOOK_RETURN_DISABLE;
 }
 
-#endif /* PARSEC_HAVE_CUDA */
+#endif /* PARSEC_HAVE_DEV_CUDA_SUPPORT */

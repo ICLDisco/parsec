@@ -353,7 +353,7 @@ int *get_gpu_device_index()
 
 static void destroy_cublas_handle(void *_h, void *_n)
 {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     cublasHandle_t cublas_handle = (cublasHandle_t)_h;
     cublasDestroy_v2(cublas_handle);
 #endif
@@ -363,7 +363,7 @@ static void destroy_cublas_handle(void *_h, void *_n)
 
 static void *create_cublas_handle(void *obj, void *p)
 {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     cublasHandle_t handle;
     cublasStatus_t status;
     parsec_cuda_exec_stream_t *stream = (parsec_cuda_exec_stream_t *)obj;
@@ -384,7 +384,7 @@ static void *create_cublas_handle(void *obj, void *p)
 
 static void destroy_one_on_device(void *_h, void *_n)
 {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     cudaFree(_h);
 #endif
     (void)_h;
@@ -395,7 +395,7 @@ static void *allocate_one_on_device(void *obj, void *p)
 {
      (void)obj;
      (void)p;
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
      void *one_device;
      double one_host = 1.0;
      cudaError_t cr;

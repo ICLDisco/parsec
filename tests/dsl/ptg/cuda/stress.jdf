@@ -18,10 +18,10 @@ extern "C" %{
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/mca/device/cuda/device_cuda_internal.h"
 #include <cublas.h>
-#endif  /* defined(PARSEC_HAVE_CUDA) */
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 
 #include "stress.h"
 

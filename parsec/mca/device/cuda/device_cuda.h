@@ -11,7 +11,7 @@
 #include "parsec/class/parsec_object.h"
 #include "parsec/mca/device/device.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/class/list_item.h"
 #include "parsec/class/list.h"
 #include "parsec/class/fifo.h"
@@ -121,6 +121,6 @@ parsec_default_cuda_stage_out(parsec_gpu_task_t        *gtask,
 
 END_C_DECLS
 
-#endif /* defined(PARSEC_HAVE_CUDA) */
+#endif /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 
 #endif  /* PARSEC_DEVICE_CUDA_H_HAS_BEEN_INCLUDED */

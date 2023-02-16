@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
         }
     }
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     extern char **environ;
     char *value;
     if( nb_gpus < 1 && 0 == rank ) {

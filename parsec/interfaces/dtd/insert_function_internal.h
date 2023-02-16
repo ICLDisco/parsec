@@ -21,9 +21,9 @@
 #include "parsec/execution_stream.h"
 #include "parsec/mca/device/device_gpu.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/mca/device/cuda/device_cuda.h"
-#endif /* PARSEC_HAVE_CUDA */
+#endif /* PARSEC_HAVE_DEV_CUDA_SUPPORT */
 
 BEGIN_C_DECLS
 

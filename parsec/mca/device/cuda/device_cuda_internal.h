@@ -9,7 +9,7 @@
 
 #include "parsec/mca/device/cuda/device_cuda.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 
 BEGIN_C_DECLS
 
@@ -26,6 +26,6 @@ int parsec_cuda_module_fini(parsec_device_module_t* device);
 
 END_C_DECLS
 
-#endif /* defined(PARSEC_HAVE_CUDA) */
+#endif /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 
 #endif  /* PARSEC_DEVICE_CUDA_INTERNAL_H_HAS_BEEN_INCLUDED */

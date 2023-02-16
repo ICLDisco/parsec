@@ -23,7 +23,7 @@ static int TILE_FULL;
 static int32_t nb_errors = 0;
 static int verbose=0;
 
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
 extern void dtd_test_new_tile_init(int *dev_data, int nb, int idx);
 extern void dtd_test_new_tile_sum_add(int *dev_data, int nb, int idx, int *acc, int verbose);
 extern void dtd_test_new_tile_multiply_by_two(int *dev_data, int nb, int idx);
@@ -49,7 +49,7 @@ int cpu_set_to_i( parsec_execution_stream_t *es,
     return PARSEC_HOOK_RETURN_DONE;
 }
 
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
 int cuda_set_to_i(parsec_device_gpu_module_t *gpu_device,
                   parsec_gpu_task_t *gpu_task,
                   parsec_gpu_exec_stream_t *gpu_stream)
@@ -102,7 +102,7 @@ int cpu_multiply_by_2( parsec_execution_stream_t *es,
     return PARSEC_HOOK_RETURN_DONE;
 }
 
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
 int cuda_multiply_by_2(parsec_device_gpu_module_t *gpu_device,
                        parsec_gpu_task_t *gpu_task,
                        parsec_gpu_exec_stream_t *gpu_stream)
@@ -157,7 +157,7 @@ int cpu_accumulate( parsec_execution_stream_t *es,
     return PARSEC_HOOK_RETURN_DONE;
 }
 
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
 int cuda_accumulate(parsec_device_gpu_module_t *gpu_device,
                     parsec_gpu_task_t *gpu_task,
                     parsec_gpu_exec_stream_t *gpu_stream)
@@ -220,7 +220,7 @@ int main(int argc, char **argv)
     int nb, rc, nb_gpus = 0;
     int32_t acc, expected = 0, *pacc = &acc, **gpu_accs = NULL;
     parsec_arena_datatype_t *adt;
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
     parsec_device_cuda_module_t **gpu_devices = NULL;
 #endif
 
@@ -246,7 +246,7 @@ int main(int argc, char **argv)
     parsec_profiling_start();
 #endif
 
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
     for(unsigned int i = 0; i < parsec_nb_devices; i++) {
         parsec_device_module_t *dev = parsec_mca_device_get(i);
         if( dev->type == PARSEC_DEV_CUDA )
@@ -309,7 +309,7 @@ int main(int argc, char **argv)
                                                                  sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "nb",
                                                                  sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "idx",
                                                                  PARSEC_DTD_ARG_END);
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
     parsec_dtd_task_class_add_chore(dtd_tp, first_tc, PARSEC_DEV_CUDA, cuda_set_to_i);
 #endif
     parsec_dtd_task_class_add_chore(dtd_tp, first_tc, PARSEC_DEV_CPU, cpu_set_to_i);
@@ -319,7 +319,7 @@ int main(int argc, char **argv)
                                                                   sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "nb",
                                                                   sizeof(int), PARSEC_VALUE | PARSEC_PROFILE_INFO, "idx",
                                                                   PARSEC_DTD_ARG_END);
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
     parsec_dtd_task_class_add_chore(dtd_tp, second_tc, PARSEC_DEV_CUDA, cuda_multiply_by_2);
 #endif
     parsec_dtd_task_class_add_chore(dtd_tp, second_tc, PARSEC_DEV_CPU, cpu_multiply_by_2);
@@ -331,7 +331,7 @@ int main(int argc, char **argv)
                                                                   sizeof(int), PARSEC_REF,
                                                                   sizeof(int*), PARSEC_REF,
                                                                   PARSEC_DTD_ARG_END);
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
     parsec_dtd_task_class_add_chore(dtd_tp, third_tc, PARSEC_DEV_CUDA, cuda_accumulate);
 #endif
     parsec_dtd_task_class_add_chore(dtd_tp, third_tc, PARSEC_DEV_CPU, cpu_accumulate);
@@ -369,7 +369,7 @@ int main(int argc, char **argv)
         int first_pushout = PARSEC_DTD_EMPTY_FLAG;
         int second_pushout = PARSEC_DTD_EMPTY_FLAG;
         int third_pushout = PARSEC_DTD_EMPTY_FLAG;
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
         if(first_on_gpu && !second_on_gpu) first_pushout = PARSEC_PUSHOUT;
         if(second_on_gpu && !third_on_gpu) second_pushout = PARSEC_PUSHOUT;
         if(third_on_gpu) third_pushout = PARSEC_PUSHOUT;
@@ -426,7 +426,7 @@ int main(int argc, char **argv)
 
     free(new_tiles);
 
-#if defined(PARSEC_HAVE_CUDA) && defined(PARSEC_HAVE_CU_COMPILER)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
     for(int i = 0; i < nb_gpus; i++) {
         cudaError_t status;
         parsec_device_cuda_module_t *gpu_device = gpu_devices[i];
