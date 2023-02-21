@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019 The University of Tennessee and The University
+ * Copyright (c) 2018-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,14 +16,14 @@
 #include "parsec/class/parsec_hash_table.h"
 
 /**
- * @defgroup parsec_dictionnary_profiling Profiling: Dictionary
+ * @defgroup parsec_dictionary_profiling Profiling: Dictionary
  * @ingroup parsec_public_profiling
  * @{
  *
  * @brief The PaRSEC dictionary profiling system allows to expose properties
  *    at runtime through a shared memory region.
  * @details
- *    The dictionnary system explores the submitted taskpools and the PINS modules,
+ *    The dictionary system explores the submitted taskpools and the PINS modules,
  *    collects properties exposed by those entities.
  *    It then compare this list with the list of requested properties submitted
  *    by the user through mca parameters:
@@ -39,9 +39,9 @@
  *
  * One shared memory region is opened per node on the node. The memory region
  * starts with 3 integers specifying the number of pages of the memory region,
- * the running state of the memory region, and the dictionnary version.
+ * the running state of the memory region, and the dictionary version.
  *
- * Dictionnary version increases when the producers adds or removes properties. It
+ * Dictionary version increases when the producers adds or removes properties. It
  * also increases when the consumers change their list of requested properties.
  *
  * After reading the three integers, it is advised to re-open the shared memory region
@@ -108,13 +108,14 @@
 #define DICT_PAGE_SIZE 4096
 
 /**
- *  Profiling shmem is a container with a list of reference to the properties requested by the user, a buffer to write into, sizes, nb of prop, offset array, etc
- *  Page is
+ *  Profiling shmem is a container with a list of reference to the properties
+ *  requested by the user, a buffer to write into, sizes, nb of prop, offset array, etc
  **/
 typedef struct parsec_profiling_shmem_s parsec_profiling_shmem_t;
 
 /**
- *  Dictionary is the hashtable container for the properties defined by the taskpools or the platform and exposed to the user for dump
+ *  Dictionary is the hashtable container for the properties defined by the
+ *  taskpools or the platform and exposed to the user for dump
  *  Each entry, a property, expose a type and a function pointer.
  **/
 
@@ -123,15 +124,15 @@ typedef struct parsec_property_function_s parsec_property_function_t;
 
 /* Item from the properties hashtable */
 typedef struct parsec_profiling_property_s parsec_profiling_property_t;
-/* Item from the namespace hashtable, contains a hastable for properties */
+/* Item from the namespace hashtable, contains a hashtable for properties */
 typedef struct parsec_profiling_task_class_s parsec_profiling_task_class_t;
-/* Item from the dictionary hashtable, contains a hastable for task_classes */
+/* Item from the dictionary hashtable, contains a hashtable for task_classes */
 typedef struct parsec_profiling_namespace_s parsec_profiling_namespace_t;
 /* at the intersection between consumers and producers */
 typedef struct parsec_profiling_dictionary_s parsec_profiling_dictionary_t;
 /* a node in a tree */
 typedef struct parsec_profiling_node_s parsec_profiling_node_t;
-/* the tree to map on top of namespace, task_class, and property to determineif a property is available and/or requested */
+/* the tree to map on top of namespace, task_class, and property to determine if a property is available and/or requested */
 typedef struct parsec_profiling_tree_s parsec_profiling_tree_t;
 /* special function pointer to request the creation of a bucket in each node */
 typedef parsec_hash_table_item_t *(*create_bucket_fn)(char *);
@@ -171,7 +172,7 @@ typedef enum {
 
 /**
  * @brief Structure description of the Shared Memory Region
- * @details Gives sizes for each section, and offset for quick dispacement in it
+ * @details Gives sizes for each section, and offset for quick displacement in it
  */
 struct parsec_profiling_shmem_s {
     int                                 nb_xml_pages;  /**< Number of pages for the XML header */
@@ -251,10 +252,10 @@ struct parsec_profiling_namespace_s {
 };
 
 /**
- * @brief Dictionnary is a hashtable of namespaces
- * @details Dictionnary is versioned to signal to observers that the XML
+ * @brief Dictionary is a hashtable of namespaces
+ * @details Dictionary is versioned to signal to observers that the XML
  *        description changed and has to be reloaded.
- *        running depicts if the dictionnary is ready, in initialization,
+ *        running depicts if the dictionary is ready, in initialization,
  *        or disabled.
  */
 struct parsec_profiling_dictionary_s {
@@ -296,7 +297,7 @@ struct parsec_profiling_tree_s {
 extern parsec_profiling_dictionary_t *parsec_profiling_dictionary;
 
 /**
- * @brief Initialize the dictionnary by exploring the context.
+ * @brief Initialize the dictionary by exploring the context.
  * @details Exploring the PINS modules is not yet supported.
  */
 int parsec_profiling_dictionary_init(parsec_context_t *master_context,
@@ -309,24 +310,22 @@ int parsec_profiling_dictionary_init(parsec_context_t *master_context,
 int parsec_profiling_dictionary_free(void);
 
 /**
- * @brief Explore the dictionnary to find a namespace
+ * @brief Find the profiling task_class, a first step before iterating over the
+ *        task_class properties.
  */
-parsec_profiling_namespace_t *find_namespace(const char *ns);
-
-/**
- * @brief Explore the namespace to find a task_class
- */
-parsec_profiling_task_class_t  *find_task_class(parsec_profiling_namespace_t *ns, const char *tc);
+const parsec_profiling_task_class_t*
+parsec_profiling_find_profiling_task_class(const char *ns_name, const char *tc_name);
 
 /**
  * @brief Explore the task_class to find a property
  */
-parsec_profiling_property_t  *find_property(parsec_profiling_task_class_t* tc, const char *pr);
+const parsec_profiling_property_t*
+parsec_profiling_find_property(const parsec_profiling_task_class_t* tc, const char *pr);
 
 /**
  * @brief Extract the provided properties from the taskpool
  *
- * @details Call this ONCE per per taskpool. Will increase the version of the dictionnary
+ * @details Call this ONCE per per taskpool. Will increase the version of the dictionary
  * @return PARSEC_SUCCESS    if success, never fails!
  *
  * @remark not thread safe
@@ -334,9 +333,9 @@ parsec_profiling_property_t  *find_property(parsec_profiling_task_class_t* tc, c
 int parsec_profiling_add_taskpool_properties(parsec_taskpool_t *h);
 
 /**
- * @brief Manually forge a property and add it to the dictionnary
+ * @brief Manually forge a property and add it to the dictionary
  *
- * @details Modules can use this function to add their own property to the dictionnary
+ * @details Modules can use this function to add their own property to the dictionary
  * @return PARSEC_SUCCESS    if success, never fails!
  *
  * @remark not thread safe

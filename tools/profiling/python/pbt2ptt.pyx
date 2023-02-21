@@ -44,7 +44,7 @@ import traceback
 from parsec_trace_tables import * # the pure Python classes
 from common_utils import *
 
-multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
+multiprocess_io_cap = 1 # this seems to be a good default on ICL machines
 microsleep = 0.05
 
 logging.basicConfig(level=10, format='%(message)s')
@@ -90,7 +90,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     cdef char ** c_filenames = string_list_to_c_strings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
 
-    if dbp == NULL:
+    if (dbp == NULL) or (0 == dbp_reader_nb_files(dbp)):
         print("None of the following files can be opened {0}".format(filenames))
         return None
 

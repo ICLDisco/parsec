@@ -845,7 +845,7 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
         tp->tdm.module->monitor_taskpool(tp, parsec_taskpool_termination_detected);
         tp->tdm.module->taskpool_ready(tp);
     }
-    
+
     /* Update the number of pending taskpools */
     (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );
 
@@ -858,6 +858,10 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     parsec_list_lock(context->taskpool_list);
     parsec_list_nolock_push_back(context->taskpool_list, &tp->super);
     if( context->flags & PARSEC_CONTEXT_FLAG_WAITING ) {
+        /* TODO: Why is this called here ? According to the callback name
+         * it should be called upon entry in the taskpool_wait, which is
+         * which is clearly not what is happening here.
+         */
         if(NULL != tp->on_enter_wait)
             tp->on_enter_wait(tp, tp->on_enter_wait_data);
     }

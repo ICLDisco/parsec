@@ -383,6 +383,12 @@ static parsec_key_fn_t __parsec_map_operator_key_functions = {
     .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };
 
+static char* parsec_map_operator_printtask(char *buffer, size_t buffer_size, const parsec_task_t *task)
+{
+    snprintf(buffer, buffer_size, "MapOperator(%d, %d)", task->locals[0].value, task->locals[1].value);
+    return buffer;
+}
+
 static const parsec_task_class_t parsec_map_operator = {
     .name = "map_operator",
     .flags = 0x0,
@@ -399,6 +405,10 @@ static const parsec_task_class_t parsec_map_operator = {
     .in = { &flow_of_map_operator },
     .out = { &flow_of_map_operator },
     .make_key = map_operator_make_key,
+    .task_snprintf = &parsec_map_operator_printtask,
+#if defined(PARSEC_PROF_TRACE)
+    .profile_info = &parsec_task_profile_info,
+#endif
     .key_functions = &__parsec_map_operator_key_functions,
     .prepare_input = data_lookup,
     .incarnations = __parsec_map_operator_chores,

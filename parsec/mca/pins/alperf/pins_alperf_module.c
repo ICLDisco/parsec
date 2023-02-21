@@ -94,17 +94,16 @@ static void alperf_exec_count_end(struct parsec_execution_stream_s *es,
     (void)es;
 
     if (parsec_profiling_dictionary->shmem) {
-      /* Identify the calling task_class */
-      parsec_taskpool_t *taskpool = task->taskpool; /* taskpool_name */
-      parsec_profiling_namespace_t *ns = find_namespace(taskpool->taskpool_name);
-      if (!ns) return; /* It would be weird if we exited here. Meaning that we got an event for an undiscovered taskpool */
+        /* Identify the calling task_class */
+        const parsec_profiling_task_class_t *fc
+            = parsec_profiling_find_profiling_task_class(task->taskpool->taskpool_name,
+                                                         task->task_class->name);
+        if (!fc) return; /* Unknown task_class for the profiling subsystem. This should not happen,
+                          * however it is safe to just return.
+                          */
 
-      const parsec_task_class_t *task_class = task->task_class; /* name */
-      parsec_profiling_task_class_t *fc = find_task_class(ns, task_class->name);
-      if (!fc) return; /* Same for an undiscovered task_class */
-
-      /* Let's explore all the properties and evaluate them */
-      void *tmp[2] = { (void*)es, (void*)task };
-      parsec_hash_table_for_all(&fc->properties, parsec_profiling_evaluate_property, tmp);
+        /* Let's explore all the properties and evaluate them */
+        void *tmp[2] = { (void*)es, (void*)task };
+        parsec_hash_table_for_all((parsec_hash_table_t*)&fc->properties, parsec_profiling_evaluate_property, tmp);
     }
 }
