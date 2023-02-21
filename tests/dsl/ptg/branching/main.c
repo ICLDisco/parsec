@@ -67,16 +67,27 @@ int main(int argc, char *argv[])
     free_data(dcA);
 
     parsec_fini(&parsec);
-
-    printf("nb_taskA = %d, nb_taskB = %d, nb_taskC = %d\n", nb_taskA, nb_taskB, nb_taskC);
+#if defined(PARSEC_HAVE_MPI)
+    int gnbA, gnbB, gnbC;
+    MPI_Allreduce(&nb_taskA, &gnbA, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&nb_taskB, &gnbB, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&nb_taskC, &gnbC, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+#else
+    int gnbA = nb_taskA;
+    int gnbB = nb_taskB;
+    int gnbC = nb_taskC;
+#endif
+    printf("nb = %d, nb_taskA = %d, nb_taskB = %d, nb_taskC = %d -- %s\n", nb, 
+           gnbA, gnbB, gnbC,
+           gnbA == nb && gnbB == 2*nb && gnbC == nb ? "SUCCESS" : "FAILURE!");
 
 #ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
 
-    if( nb_taskA == nb &&
-        nb_taskB == 2*nb &&
-        nb_taskC == nb )
+    if( gnbA == nb &&
+        gnbB == 2*nb &&
+        gnbC == nb )
         return EXIT_SUCCESS;
     return EXIT_FAILURE;
 }
