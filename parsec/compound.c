@@ -57,6 +57,7 @@ parsec_compound_taskpool_startup( parsec_context_t *context,
     for( int i = 0; i < compound->nb_taskpools; i++ ) {
         parsec_taskpool_t* o = compound->taskpool_array[i];
         assert( NULL != o );
+        assert( NULL == o->on_complete );
         o->on_complete      = parsec_composed_taskpool_cb;
         o->on_complete_data = compound;
     }
