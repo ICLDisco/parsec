@@ -107,6 +107,7 @@ static void pins_init_task_profiler(parsec_context_t *master_context)
             parsec_pins_enable_mask |= flag;
         }
         free(event);
+        ++i;
     }
     free(events);
 
