@@ -21,13 +21,6 @@
 #include "parsec/class/parsec_future.h"
 
 /**
- * This is a variable changed only once, and contains the total number of
- * devices allowed to keep copies of a data. It is updated during the
- * initialization of the system and never changed after (!)
- */
-extern uint32_t parsec_supported_number_of_devices;
-
-/**
  * This structure is the keeper of all the information regarding
  * each unique data that can be handled by the system. It contains
  * pointers to the versions managed by each supported devices.
@@ -45,7 +38,7 @@ struct parsec_data_s {
     struct parsec_data_collection_s*     dc;
     uint32_t                   nb_elts;          /* size in bytes of the memory layout */
     struct parsec_data_copy_s *device_copies[1]; /* this array allocated according to the number of devices
-                                                  * (parsec_supported_number_of_devices). It points to the most recent
+                                                  * (parsec_nb_devices). It points to the most recent
                                                   * version of the data.
                                                   */
 };
