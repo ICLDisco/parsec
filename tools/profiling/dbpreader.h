@@ -41,6 +41,7 @@ int dbp_dictionary_keylen(const dbp_dictionary_t *dico);
 
 //typedef struct dbp_file dbp_file_t;
 dbp_file_t *dbp_reader_get_file(const dbp_multifile_reader_t *dbp, int fid);
+void dbp_reader_close_file(dbp_file_t *dbp);
 
 char * dbp_file_hr_id(const dbp_file_t *file);
 char * dbp_file_get_name(const dbp_file_t *file);
