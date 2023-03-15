@@ -78,8 +78,9 @@ typedef int (parsec_stage_out_function_t)(parsec_gpu_task_t        *gtask,
 
 struct parsec_gpu_task_s {
     parsec_list_item_t               list_item;
-    int                              task_type;
-    int32_t                          pushout;
+    uint16_t                         task_type;
+    uint16_t                         pushout;
+    int32_t                          last_status;
     parsec_advance_task_function_t   submit;
     parsec_complete_stage_function_t complete_stage;
     parsec_stage_in_function_t      *stage_in;

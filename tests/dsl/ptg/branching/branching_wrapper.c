@@ -43,7 +43,7 @@ parsec_taskpool_t *branching_new(parsec_data_collection_t *A, int size, int nb)
     }
 
     tp = parsec_branching_new(A, nb);
-    
+
     ptrdiff_t lb, extent;
     parsec_type_create_contiguous(size, parsec_datatype_int_t, &block);
     parsec_type_extent(block, &lb, &extent);

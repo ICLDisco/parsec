@@ -874,10 +874,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
     } else {
         parsec_task_t task;
         task.taskpool   = origin->taskpool;
-        /* Do not set the task.task_class here, because it might trigger a race condition in DTD */
-
-        task.priority = 0;  /* unknown yet */
-
+        task.priority   = 0;  /* unknown yet */
         task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
         for(i = 0; i < task.task_class->nb_flows;
             task.data[i].data_in = task.data[i].data_out = NULL,
@@ -1407,7 +1404,6 @@ static int remote_dep_nothread_send(parsec_execution_stream_t* es,
     int peer, position = 0;
 
     peer = item->cmd.activate.peer;  /* this doesn't change */
-    deps = (parsec_remote_deps_t*)item->cmd.activate.task.source_deps;
 
   pack_more:
     assert(peer == item->cmd.activate.peer);

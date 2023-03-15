@@ -625,7 +625,7 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
  * @param[in]   this_task
  *                  The task we are trying to unpack the parameters for
  * @param[out]  ...
- *                  The variables where the paramters will be unpacked
+ *                  The variables where the parameters will be unpacked
  *
  * @ingroup DTD_INTERFACE
  */
@@ -741,7 +741,7 @@ void *parsec_dtd_task_profile_info(void *dst, const void *task_, size_t size)
     parsec_dtd_task_param_t *param = GET_HEAD_OF_PARAM_LIST(task);
 
     assert( task->super.task_class->task_class_type == PARSEC_TASK_CLASS_TYPE_DTD );
-    
+
     memcpy(dst, &task->super.prof_info, sizeof(parsec_task_prof_info_t));
     ptr = dst + sizeof(parsec_task_prof_info_t);
 
@@ -750,7 +750,7 @@ void *parsec_dtd_task_profile_info(void *dst, const void *task_, size_t size)
             assert( ptr-dst < (intptr_t)size ); (void)size;
             memcpy(ptr, param->pointer_to_tile, param->arg_size);
             ptr += param->arg_size;
-        } 
+        }
         param = param->next;
     }
 
@@ -767,7 +767,7 @@ static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const pa
 
     char *b = buffer;
     int ret, remaining = buffer_size;
-    
+
     ret = snprintf(b, remaining, "%s(", tc->name);
     if(ret < 0) {
         *b = '\0';
@@ -939,7 +939,7 @@ parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
     char *info_str = NULL;
     int info_size = 0;
 #endif
-    
+
     if(tc->super.task_class_id != UINT8_MAX) {
         parsec_warning("Task class %s (%p) has invalid or already defined task_class_id",
                         (void*)tc, tc->super.name);
@@ -995,7 +995,7 @@ parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
             }
         }
     }
- 
+
     if(NULL == info_str) {
         tc->super.profile_info = parsec_task_profile_info;
         parsec_dtd_add_profiling_info(&tp->super, tc->super.task_class_id, tc->super.name);
@@ -3260,12 +3260,12 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
     /* Safeguard: check that the rank has been set by affinity if it is needed */
     if( tp->context->nb_nodes > 1 ) {
         if((-1 == rank) && (write_flow_count > 1)) {
-            parsec_fatal("You inserted a task without indicating where the task should be executed(using\n"
+            parsec_fatal("You inserted a task without indicating where the task should be executed (using\n"
                          "PARSEC_AFFINITY flag). This will result in executing this task on all nodes and the outcome\n"
                          "might be not be what you want. So we are exiting for now. Please see the usage of\n"
                          "PARSEC_AFFINITY flag.\n");
         } else if( rank == -1 && write_flow_count == 1 ) {
-            /* we have tasks with no real data as parameter so we are safe to execute it in each mpi process */
+            /* we have tasks with no real data as parameter so we are safe to execute it in each process */
             rank = tp->context->my_rank;
         }
     } else {
