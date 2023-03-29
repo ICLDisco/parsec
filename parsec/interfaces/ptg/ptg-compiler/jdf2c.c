@@ -2876,9 +2876,12 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
                 /* We cannot be a control flow, or has_ready_input_dependency would have returned false */
                 assert( 0 == (JDF_FLOW_TYPE_CTL & flow->flow_flags) );
                 /* We are necessarily depending on a direct memory, for the same reason */
-                assert( NULL == dep->guard->calltrue->var );
-                coutput("  /* Flow for %s is always a memory reference */\n", flow->varname);
-                skip_continue = 1;  /* no need to complete the flow with a continue */
+                if( NULL == dep->guard->calltrue->var ) {
+                    coutput("  /* Flow for %s is always a memory reference */\n", flow->varname);
+                    skip_continue = 1;  /* no need to complete the flow with a continue */
+                } else {
+                    coutput("  /* Flow for %s is a task dependency and cannot be taken in account for startup tasks */\n", flow->varname);
+                }
                 break; /* No need to go check other cases, no need to print the flow label, or the continue */
             } else if( dep->guard->guard_type == JDF_GUARD_BINARY ) {
                 if(NULL != dep->guard->calltrue->var) {
@@ -2903,9 +2906,15 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
                     if( NULL == dep->guard->calltrue->var ) {
                         assert( NULL != dep->guard->callfalse->var );
                         goto_if_true = 1;
-                    } else {
-                        assert( NULL == dep->guard->callfalse->var );
+                    } else if( NULL == dep->guard->callfalse->var ) {
                         goto_if_false = 1;
+                    } else {
+                        /* We found a tertiary where both sides describe dependencies from tasks.
+                         * There is no way we can reach any other dependency after this one.
+                         */
+                        coutput("  /* Flow for %s dep line %d has a tertiary where both sides depend on predecessor tasks. This is the end of all possible cases where this task could have been a startup task */\n", flow->varname, JDF_OBJECT_LINENO(dep));
+                        assert( NULL != dep->guard->callfalse->var );
+                        goto force_continue_generation;
                     }
                 }
             }
@@ -2959,6 +2968,7 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
         }
 
         if(write_next_label && !skip_continue) {
+force_continue_generation:
             coutput("  continue; /* All other cases are not startup tasks */\n");
         }
     }
