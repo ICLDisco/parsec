@@ -45,6 +45,9 @@ parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
 static int parsec_cuda_memory_release( parsec_device_cuda_module_t* gpu_device );
 static int parsec_cuda_flush_lru( parsec_device_module_t *device );
 
+/** MCA parameter that decides task delegation */
+extern int parsec_cuda_delegate_task_completion;
+
 /* look up how many FMA per cycle in single/double, per cuda MP
  * precision.
  * The following table provides updated values for future archs
@@ -365,6 +368,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     len = asprintf(&gpu_device->super.name, "%s: cuda(%d)", szName, dev_id);
     if(-1 == len) { gpu_device->super.name = NULL; goto release_device; }
     gpu_device->data_avail_epoch = 0;
+    gpu_device->mutex = 0;
+    gpu_device->complete_mutex = 0;
+    gpu_device->co_manager_mutex = 0;
 
     gpu_device->max_exec_streams = parsec_cuda_max_streams;
     gpu_device->exec_stream =
@@ -471,6 +477,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     PARSEC_OBJ_CONSTRUCT(&gpu_device->gpu_mem_lru,       parsec_list_t);
     PARSEC_OBJ_CONSTRUCT(&gpu_device->gpu_mem_owned_lru, parsec_list_t);
     PARSEC_OBJ_CONSTRUCT(&gpu_device->pending,           parsec_fifo_t);
+    PARSEC_OBJ_CONSTRUCT(&gpu_device->to_complete,       parsec_fifo_t);
 
     gpu_device->sort_starting_p = NULL;
     gpu_device->peer_access_mask = 0;  /* No GPU to GPU direct transfer by default */
@@ -563,6 +570,7 @@ parsec_cuda_module_fini(parsec_device_module_t* device)
 
     /* Release pending queue */
     PARSEC_OBJ_DESTRUCT(&gpu_device->pending);
+    PARSEC_OBJ_DESTRUCT(&gpu_device->to_complete);
 
     /* Release all streams */
     for( j = 0; j < gpu_device->num_exec_streams; j++ ) {
