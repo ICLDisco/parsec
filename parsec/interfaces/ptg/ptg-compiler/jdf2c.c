@@ -6827,6 +6827,8 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             }
             coutput("  gpu_task->flow_nb_elts[%d] = 0;\n", di);
         }else{
+            coutput("  // A shortcut to check if the flow exists\n");
+            coutput("  if (gpu_task->ec->data[%d].data_in != NULL) {\n", di);
             if(size_property == NULL){
                 coutput("  gpu_task->flow_nb_elts[%d] = gpu_task->ec->data[%d].data_in->original->nb_elts;\n", di, di);
             }else{
@@ -6838,6 +6840,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
                 }
 
             }
+            coutput("}\n");
         }
 
         if (fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
