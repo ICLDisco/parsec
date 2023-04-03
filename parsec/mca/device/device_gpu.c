@@ -195,7 +195,10 @@ void* parsec_gpu_pop_workspace(parsec_device_gpu_module_t* gpu_device,
 #endif
         }
     }
-    assert (gpu_stream->workspace->stack_head >= 0);
+    if (gpu_stream->workspace->stack_head < 0) {
+        parsec_fatal("parsec_gpu_pop_workspace: user requested more than %d GPU workspaces which is the current hard-coded limit per GPU stream\n", PARSEC_GPU_MAX_WORKSPACE);
+        return NULL;
+    }
     work = gpu_stream->workspace->workspace[gpu_stream->workspace->stack_head];
     gpu_stream->workspace->stack_head --;
 #endif /* !defined(PARSEC_GPU_ALLOC_PER_TILE) */
