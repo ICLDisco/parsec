@@ -475,11 +475,13 @@ PARSEC_DECLSPEC extern size_t parsec_task_startup_chunk;
  * @brief Global configuration variable controlling the getrusage report.
  */
 PARSEC_DECLSPEC extern int parsec_want_rusage;
-/**
- * @brief Report issues with the bindings (such as overlapping bindings on
- *        processes located on the same physical node)
- */
-PARSEC_DECLSPEC extern int parsec_slow_bind_warning;
+PARSEC_DECLSPEC extern int parsec_runtime_ignore_bindings;
+PARSEC_DECLSPEC extern int parsec_runtime_allow_ht;
+/* Control the display of the thread bindings */
+PARSEC_DECLSPEC extern int parsec_report_bindings;
+PARSEC_DECLSPEC extern int parsec_report_binding_issues;
+PARSEC_DECLSPEC extern int parsec_runtime_singlify_bindings;
+
 /**
  * Global configuration variable controlling what tasks are given to the
  * scheduler. If this is enabled (the default) then the highest priority task

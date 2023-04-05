@@ -39,7 +39,7 @@ void parsec_grid_2Dcyclic_init(parsec_grid_2Dcyclic_t *grid, int myrank, int P, 
     /* VPMAP data distribution */
     /* TODO:: Users should be able to define it through parameters */
     grid->vp_q = default_vp_data_dist();
-    grid->vp_p = vpmap_get_nb_vp()/default_vp_data_dist();
+    grid->vp_p = parsec_vpmap_get_nb_vp()/default_vp_data_dist();
 }
 
 static
@@ -47,7 +47,7 @@ int default_vp_data_dist()
 {
     int p, q, pq;
     /* default: q >= p, worst case p=1 */
-    pq = vpmap_get_nb_vp();
+    pq = parsec_vpmap_get_nb_vp();
     q = (int)ceilf(sqrtf( (float)pq));
 
     assert(q > 0);

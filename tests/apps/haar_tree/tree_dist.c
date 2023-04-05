@@ -39,7 +39,7 @@ static tree_dist_node_t *lookup_or_create_node(tree_dist_t *tree, parsec_data_ke
         node->ht_item.key = key;
         node->data = NULL;
         node->rank = node->n % tree->super.nodes;
-        node->vpid = node->n / tree->super.nodes % vpmap_get_nb_vp();
+        node->vpid = node->n / tree->super.nodes % parsec_vpmap_get_nb_vp();
         parsec_hash_table_nolock_insert_handle(&tree->nodes, &kh, &node->ht_item);
     }
     parsec_hash_table_unlock_bucket_handle(&tree->nodes, &kh);
