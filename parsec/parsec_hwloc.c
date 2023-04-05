@@ -23,9 +23,10 @@
 #endif  /* defined(__WINDOWS__) */
 #if defined(PARSEC_HAVE_HWLOC)
 static hwloc_topology_t topology;
-static int first_init = 1;
+static int parsec_hwloc_first_init = 1;
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 static int hyperth_per_core = 1;
+static int parsec_available_binding_resources = 1;
 
 #if defined(PARSEC_HAVE_HWLOC_PARENT_MEMBER)
 #define HWLOC_GET_PARENT(OBJ)  (OBJ)->parent
@@ -35,36 +36,47 @@ static int hyperth_per_core = 1;
 
 #define MAX(x, y) ( (x)>(y)?(x):(y) )
 
-#if defined(PARSEC_HAVE_HWLOC)
-#if defined(PARSEC_HAVE_HWLOC_BITMAP)
-#define HWLOC_ASPRINTF hwloc_bitmap_asprintf
-#define HWLOC_ISSET    hwloc_bitmap_isset
-#define HWLOC_FIRST    hwloc_bitmap_first
-#define HWLOC_WEIGHT   hwloc_bitmap_weight
-#define HWLOC_ALLOC    hwloc_bitmap_alloc
-#define HWLOC_DUP      hwloc_bitmap_dup
-#define HWLOC_SINGLIFY hwloc_bitmap_singlify
-#define HWLOC_FREE     hwloc_bitmap_free
-#else
-#define HWLOC_ASPRINTF hwloc_cpuset_asprintf
-#define HWLOC_ISSET    hwloc_cpuset_isset
-#define HWLOC_FIRST    hwloc_cpuset_first
-#define HWLOC_WEIGHT   hwloc_cpuset_weight
-#define HWLOC_ALLOC    hwloc_cpuset_alloc
-#define HWLOC_DUP      hwloc_cpuset_dup
-#define HWLOC_SINGLIFY hwloc_cpuset_singlify
-#define HWLOC_FREE     hwloc_cpuset_free
-#endif  /* defined(PARSEC_HAVE_HWLOC_BITMAP) */
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
+/**
+ * @brief The original cpuset as provide by the program manager. This cpuset will
+ * not be altered (such that we always have the original bindings) but it will be
+ * used as a base to reflect the additional restrictions from the PaRSEC binding
+ * parameter, and become parsec_cpuset_restricted.
+ */
+hwloc_cpuset_t parsec_cpuset_original;
+/**
+ * @brief The set of resources we are allowed to bind onto. If the MCA parameter for
+ * ignoring the binding is provided this cpuset will then contain all possible cores
+ * on the node.
+ */
+hwloc_cpuset_t parsec_cpuset_restricted;
+
+static hwloc_cpuset_t parsec_hwloc_cpuset_convert_to_system(hwloc_cpuset_t cpuset);
+
+char* parsec_hwloc_convert_cpuset(int convert_to_system, hwloc_cpuset_t cpuset)
+{
+    char *str = NULL;
+
+    if( convert_to_system ) {
+        hwloc_cpuset_t binding_mask;
+        binding_mask = parsec_hwloc_cpuset_convert_to_system(cpuset);
+        HWLOC_ASPRINTF(&str, binding_mask);
+        hwloc_bitmap_free(binding_mask);
+    } else {
+        HWLOC_ASPRINTF(&str, cpuset);
+    }
+    return str;
+}
 
 /**
  * Print the cpuset as a string prefaced with the provided message.
  */
-static void parsec_hwloc_print_cpuset(int verb, char* msg, hwloc_cpuset_t cpuset)
+static void parsec_hwloc_print_cpuset(int verb, int convert_to_system, char* msg, hwloc_cpuset_t cpuset)
 {
 #if defined(PARSEC_HAVE_HWLOC)
     char *str = NULL;
-    HWLOC_ASPRINTF(&str, cpuset);
+
+    str = parsec_hwloc_convert_cpuset(convert_to_system, cpuset);
+
     if( 1 == verb ) parsec_warning("%s %s", msg, str);
     else if( 2 == verb ) parsec_inform("%s %s", msg, str);
     else parsec_debug_verbose(verb, parsec_debug_output, "%s %s", msg, str);
@@ -78,31 +90,82 @@ static void parsec_hwloc_print_cpuset(int verb, char* msg, hwloc_cpuset_t cpuset
 int parsec_hwloc_init(void)
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    if ( first_init ) {
-#if HWLOC_API_VERSION >= 0x00020000
-        /* headers are recent */
-        if (hwloc_get_api_version() < 0x20000) {
-            parsec_fatal("Compile headers and runtime hwloc libraries are not compatible (headers %x ; lib %x)", HWLOC_API_VERSION, hwloc_get_api_version());
-        }
-#else
-        /* headers are pre-2.0 */
-        if (hwloc_get_api_version() >= 0x20000) {
-            parsec_fatal("Compile headers and runtime hwloc libraries are not compatible (headers %x ; lib %x)", HWLOC_API_VERSION, hwloc_get_api_version());
-        }
-#endif
-        hwloc_topology_init(&topology);
-        hwloc_topology_load(topology);
-        first_init = 0;
+    if ( !parsec_hwloc_first_init ) {
+        return PARSEC_SUCCESS;
     }
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
+#if HWLOC_API_VERSION >= 0x00020000
+    /* headers are recent */
+    if (hwloc_get_api_version() < 0x20000) {
+        parsec_fatal("Compile headers and runtime hwloc libraries are not compatible (headers %x ; lib %x)", HWLOC_API_VERSION, hwloc_get_api_version());
+    }
+#else
+    /* headers are pre-2.0 */
+    if (hwloc_get_api_version() >= 0x20000) {
+        parsec_fatal("Compile headers and runtime hwloc libraries are not compatible (headers %x ; lib %x)", HWLOC_API_VERSION, hwloc_get_api_version());
+    }
+#endif
+    hwloc_topology_init(&topology);
+    hwloc_topology_load(topology);
+
+    int binding_unit = (parsec_runtime_allow_ht ? HWLOC_OBJ_PU : HWLOC_OBJ_CORE);
+
+    parsec_cpuset_original = HWLOC_ALLOC();
+    parsec_cpuset_restricted = HWLOC_ALLOC();
+    /* save the original process binding */
+    int rc = hwloc_get_cpubind(topology, parsec_cpuset_original, HWLOC_CPUBIND_PROCESS );
+    if( 0 != rc ) {
+        /* We are on a system without support for process/thread binding. */
+        parsec_available_binding_resources = hwloc_get_nbobjs_by_type(topology, binding_unit);
+        hwloc_bitmap_set_range(parsec_cpuset_original, 0, parsec_available_binding_resources-1);
+        parsec_runtime_ignore_bindings = 1;  /* ignore all bindings provided by the user */
+    }
+
+    if( parsec_runtime_ignore_bindings ) {
+        /* We are running unrestricted, so we need to build the cpuset that reflects this.
+         * Keep in mind that this remains subject to the batch scheduler restrictions, the
+         * loaded topology might not be the real hardware topology, but restricted to what
+         * this process can access.
+         */
+        parsec_available_binding_resources = hwloc_get_nbobjs_by_type(topology, binding_unit);
+        hwloc_bitmap_set_range(parsec_cpuset_restricted, 0, parsec_available_binding_resources-1);
+    } else {
+        hwloc_bitmap_copy(parsec_cpuset_restricted, parsec_cpuset_original);
+        /** No need to check for return code: the set will be unchanged (0x0)
+         *  if get_cpubind fails */
+        hwloc_topology_dup(&parsec_hwloc_restricted_topology, parsec_hwloc_loaded_topology);
+        hwloc_topology_restrict(parsec_hwloc_restricted_topology, parsec_cpuset_restricted, 0);
+        parsec_available_binding_resources = hwloc_get_nbobjs_inside_cpuset_by_type(parsec_hwloc_restricted_topology,
+                                                                                    parsec_cpuset_original, binding_unit);
+    }
+
+    if( 0 == parsec_available_binding_resources ) {  /* bozo case: something wrong let's just assume single core */
+        parsec_warning("Could not identify the CPU sets to be used. Fall back on safety more, single core");
+        parsec_available_binding_resources = 1;
+        parsec_runtime_allow_ht = 1;
+    }
+
+    if( parsec_runtime_allow_ht > 1 ) {
+        int hyperth_per_core = (hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU) /
+                                hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE));
+        if( parsec_runtime_allow_ht > hyperth_per_core) {
+            parsec_warning("HyperThreading:: There not enough logical processors to consider %i HyperThreads "
+                           "per core (set up to %i)", parsec_runtime_allow_ht,  hyperth_per_core);
+            parsec_runtime_allow_ht = hyperth_per_core;
+        }
+    }
+
+    parsec_hwloc_first_init = 0;
     return PARSEC_SUCCESS;
+#else
+    return PARSEC_ERR_NOT_IMPLEMENTED;
+#endif  /* defined(PARSEC_HAVE_HWLOC) */
 }
 
 int parsec_hwloc_fini(void)
 {
 #if defined(PARSEC_HAVE_HWLOC)
     hwloc_topology_destroy(topology);
-    first_init = 1;
+    parsec_hwloc_first_init = 1;
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
     return PARSEC_SUCCESS;
 }
@@ -110,7 +173,7 @@ int parsec_hwloc_fini(void)
 int parsec_hwloc_export_topology(int *buflen, char **xmlbuffer)
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    if( first_init == 0 ) {
+    if( parsec_hwloc_first_init == 0 ) {
 #if HWLOC_API_VERSION >= 0x20000
         return hwloc_topology_export_xmlbuffer(topology, xmlbuffer, buflen, 0 /*HWLOC_TOPOLOGY_EXPORT_XML_FLAG_V1*/);
 #else
@@ -129,7 +192,7 @@ void parsec_hwloc_free_xml_buffer(char *xmlbuffer)
         return;
 
 #if defined(PARSEC_HAVE_HWLOC)
-    if( first_init == 0 ) {
+    if( parsec_hwloc_first_init == 0 ) {
         hwloc_free_xmlbuffer(topology, xmlbuffer);
     }
 #endif
@@ -237,7 +300,7 @@ size_t parsec_hwloc_cache_size( unsigned int level, int master_id )
 int parsec_hwloc_nb_real_cores(void)
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    return hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
+    return parsec_available_binding_resources;
 #elif defined(__WINDOWS__)
     SYSTEM_INFO systemInfo;
     GetSystemInfo(&systemInfo);
@@ -319,6 +382,13 @@ unsigned int parsec_hwloc_nb_cores_per_obj( int level, int index )
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 }
 
+hwloc_cpuset_t parsec_hwloc_cpuset_per_obj(int level, int index)
+{
+    hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, index);
+    if(NULL == obj) return NULL;
+    return HWLOC_DUP(obj->cpuset);
+}
+
 int parsec_hwloc_nb_levels(void)
 {
 #if defined(PARSEC_HAVE_HWLOC)
@@ -328,21 +398,28 @@ int parsec_hwloc_nb_levels(void)
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 }
 
-char *parsec_hwloc_get_binding(void)
+char *parsec_hwloc_get_binding(hwloc_cpuset_t* cpuset, int flag)
 {
 #if defined(PARSEC_HAVE_HWLOC)
     char *binding;
-    hwloc_cpuset_t cpuset;
+    hwloc_cpuset_t stack_cpuset;
 
-    cpuset = HWLOC_ALLOC();
-    HWLOC_SINGLIFY(cpuset);
+    if ((flag != HWLOC_CPUBIND_PROCESS) && (flag != HWLOC_CPUBIND_THREAD)) {
+        return NULL;
+    }
+    if( NULL == cpuset ) {
+        stack_cpuset = HWLOC_ALLOC();
+        HWLOC_SINGLIFY(stack_cpuset);
 
-    /** No need to check for return code: the set will be unchanged (0x0)
-     *  if get_cpubind fails */
-    hwloc_get_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD);
-
-    HWLOC_ASPRINTF(&binding, cpuset);
-    HWLOC_FREE(cpuset);
+        /** No need to check for return code: the set will be unchanged (0x0)
+         *  if get_cpubind fails */
+        hwloc_get_cpubind(topology, stack_cpuset, flag );
+        HWLOC_ASPRINTF(&binding, stack_cpuset);
+        HWLOC_FREE(stack_cpuset);
+    } else {
+        hwloc_get_cpubind(topology, *cpuset, flag );
+        HWLOC_ASPRINTF(&binding, *cpuset);
+    }
     return binding;
 #else
     return NULL;
@@ -359,7 +436,7 @@ int parsec_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
     hwloc_cpuset_t   cpuset;         /* HWLOC cpuset */
 
     /* If we were not initialized first, let's initialize */
-    if( first_init == 1 ) {
+    if( parsec_hwloc_first_init == 1 ) {
         parsec_hwloc_init();
     }
 
@@ -386,8 +463,8 @@ int parsec_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
     HWLOC_SINGLIFY(cpuset);
 
     /* And try to bind ourself there.  */
-    if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
-        parsec_hwloc_print_cpuset(1, "parsec_hwloc: couldn't bind to cpuset", obj->cpuset );
+    if (hwloc_set_cpubind(parsec_hwloc_loaded_topology, cpuset, HWLOC_CPUBIND_THREAD)) {
+        parsec_hwloc_print_cpuset(1, 0, "parsec_hwloc: couldn't bind to cpuset", obj->cpuset );
         cpu_index = PARSEC_ERR_NOT_FOUND;
         goto free_and_return;
     }
@@ -404,16 +481,14 @@ int parsec_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 #endif  /* !defined(PARSEC_HAVE_HWLOC) */
 }
 
-int parsec_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
+static hwloc_cpuset_t parsec_hwloc_cpuset_convert_to_system(hwloc_cpuset_t cpuset)
 {
-#if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
     unsigned cpu_index;
-    int first_free;
     hwloc_obj_t obj;
     hwloc_cpuset_t binding_mask;
 
     /* If we were not initialized first, let's initialize */
-    if( first_init == 1 ) {
+    if( parsec_hwloc_first_init == 1 ) {
         parsec_hwloc_init();
     }
 
@@ -430,13 +505,23 @@ int parsec_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
         }
     } hwloc_bitmap_foreach_end();
 
-    if (hwloc_set_cpubind(topology, binding_mask, HWLOC_CPUBIND_THREAD)) {
-        parsec_hwloc_print_cpuset(1, "parsec_hwloc: couldn't bind to mask cpuset ", binding_mask);
-        return PARSEC_ERROR;
+    return binding_mask;
+}
+int parsec_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
+{
+#if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
+    int first_free;
+    hwloc_cpuset_t binding_mask;
+
+    /* If we were not initialized first, let's initialize */
+    if( parsec_hwloc_first_init == 1 ) {
+        parsec_hwloc_init();
     }
 
-    parsec_hwloc_print_cpuset(9, "Thread binding: cpuset binding [LOGICAL ]: ", cpuset);
-    parsec_hwloc_print_cpuset(4, "Thread binding: cpuset binding [PHYSICAL]: ", binding_mask);
+    binding_mask = parsec_hwloc_cpuset_convert_to_system(cpuset);
+
+    parsec_hwloc_print_cpuset(9, 0, "Thread binding: cpuset binding [LOGICAL ]: ", cpuset);
+    parsec_hwloc_print_cpuset(4, 0, "Thread binding: cpuset binding [PHYSICAL]: ", binding_mask);
 
     first_free = hwloc_bitmap_first(binding_mask);
     hwloc_bitmap_free(binding_mask);
@@ -447,33 +532,6 @@ int parsec_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
 #endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
 }
 
-/*
- * Define the number of hyper-threads accepted per core.
- */
-int parsec_hwloc_allow_ht(int htnb)
-{
-    assert( htnb > 0 );
-
-#if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
-    /* If we were not initialized first, let's initialize */
-    if( first_init == 1 ) {
-        parsec_hwloc_init();
-    }
-
-    /* Check the validity of the parameter. Correct otherwise  */
-    if (htnb > 1) {
-        int pu_per_core = (hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU) /
-                           hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE));
-        if( htnb > pu_per_core){
-            parsec_warning("HyperThreading:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)", htnb,  pu_per_core);
-            htnb = pu_per_core;
-        }
-    }
-#endif
-    /* Without hwloc, trust your user to give a correct parameter */
-    hyperth_per_core = htnb;
-    return hyperth_per_core;
-}
 
 int parsec_hwloc_get_ht(void)
 {

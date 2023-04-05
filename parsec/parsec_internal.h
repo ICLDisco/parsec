@@ -467,6 +467,11 @@ PARSEC_DECLSPEC extern size_t parsec_task_startup_chunk;
  * Global configuration variable controlling the getrusage report.
  */
 PARSEC_DECLSPEC extern int parsec_want_rusage;
+PARSEC_DECLSPEC extern int parsec_runtime_ignore_bindings;
+PARSEC_DECLSPEC extern int parsec_runtime_allow_ht;
+/* Control the display of the thread bindings */
+PARSEC_DECLSPEC extern int parsec_report_bindings;
+PARSEC_DECLSPEC extern int parsec_report_binding_issues;
 
 /**
  * Global configuration variable controlling what tasks are given to the

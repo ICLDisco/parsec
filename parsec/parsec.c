@@ -96,7 +96,10 @@ int task_memory_alloc_key, task_memory_free_key;
 parsec_info_t parsec_per_device_infos;
 parsec_info_t parsec_per_stream_infos;
 
-static int slow_bind_warning = 128;
+int parsec_report_binding_issues = 128;
+int parsec_report_bindings = 0;  /* dont show the bindings by default */
+int parsec_runtime_ignore_bindings = 0;  /* ignore the bindings provided by the process manager */
+int parsec_runtime_allow_ht = 0;  /* bind to cores by default */
 
 int parsec_want_rusage = 0;
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)
@@ -148,7 +151,7 @@ static void parsec_rusage(bool print)
 static char *parsec_enable_dot = NULL;
 static char *parsec_app_name = NULL;
 
-static int parsec_runtime_max_number_of_cores = -1;
+int parsec_runtime_max_number_of_cores = -1;
 static int parsec_runtime_bind_main_thread = 1;
 static int parsec_runtime_bind_threads     = 1;
 
@@ -221,7 +224,7 @@ typedef struct __parsec_temporary_thread_initialization_t {
     int bindto;
     int bindto_ht;
     parsec_barrier_t*  barrier;       /*< the barrier used to synchronize for the
-                                       *   local VP data construction. */
+                                       *  local VP data construction. */
 } __parsec_temporary_thread_initialization_t;
 
 static int parsec_parse_binding_parameter(const char* option, parsec_context_t* context,
@@ -307,7 +310,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 
 #ifdef PARSEC_PROF_TRACE
     {
-        char *binding = parsec_hwloc_get_binding();
+        char *binding = parsec_hwloc_get_binding(NULL, HWLOC_CPUBIND_PROCESS);
         es->es_profile = parsec_profiling_stream_init( 2*1024*1024,
                                                        PARSEC_PROFILE_THREAD_STR,
                                                        es->th_id,
@@ -341,9 +344,8 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 
 static void parsec_vp_init( parsec_vp_t *vp,
                             int32_t vp_cores,
-                           __parsec_temporary_thread_initialization_t *startup)
+                            __parsec_temporary_thread_initialization_t *startup)
 {
-    int t, pi;
     parsec_barrier_t*  barrier;
 
     assert(vp_cores > 0);
@@ -353,17 +355,13 @@ static void parsec_vp_init( parsec_vp_t *vp,
     parsec_barrier_init(barrier, NULL, vp->nb_cores);
 
     /* Prepare the temporary storage for each thread startup */
-    for( t = 0; t < vp->nb_cores; t++ ) {
+    for( int t = 0; t < vp->nb_cores; t++ ) {
         startup[t].th_id = t;
         startup[t].virtual_process = vp;
         startup[t].bindto = -1;
         startup[t].bindto_ht = -1;
         startup[t].barrier = barrier;
-        pi = vpmap_get_nb_cores_affinity(vp->vp_id, t);
-        if( 1 == pi )
-            vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto, &startup[t].bindto_ht);
-        else if( 1 < pi )
-            parsec_warning("multiple core to bind on... for now, do nothing"); //TODO: what does that mean?
+        parsec_vpmap_get_vp_thread_affinity(vp->vp_id, t, &startup[t].bindto_ht);
     }
 }
 
@@ -387,7 +385,7 @@ do { \
 
 parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 {
-    int ret, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
+    int ret, nb_vp, p, t, nb_total_comp_threads;
     char *comm_binding_parameter = NULL;
     char *binding_parameter = NULL;
     __parsec_temporary_thread_initialization_t *startup;
@@ -477,17 +475,25 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_debug_init();
     mca_components_repository_init();
 
-    parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Warn when the runtime detects poorly performing binding configuration, check distributed binding iff the number of nodes is lower than the parameter (0 to silence all warnings)", false, false, slow_bind_warning, &slow_bind_warning);
-
-#if defined(PARSEC_HAVE_HWLOC)
-    parsec_hwloc_init();
-#endif  /* defined(HWLOC) */
-
+    parsec_mca_param_reg_int_name("runtime", "warn_slow_binding",
+                                  "Warn when the runtime detects poorly performing binding configuration, check distributed binding iff the number of nodes is lower than the parameter (0 to silence all warnings)",
+                                  false, false, parsec_report_binding_issues, &parsec_report_binding_issues);
+    parsec_mca_param_reg_int_name("runtime", "report_bindings",
+                                  "Show the binding of all PaRSEC resources (main thread, threads and communication thread",
+                                  false, false, parsec_report_bindings, &parsec_report_bindings);
+    parsec_mca_param_reg_int_name("runtime", "ignore_bindings",
+                                  "Ignore the bindings provided by the process manager (batch scheduler or mpirun) and use all available resources on the node",
+                                  false, false, parsec_runtime_ignore_bindings, &parsec_runtime_ignore_bindings);
+    parsec_mca_param_reg_int_name("runtime", "num_cores", "The total number of cores to be used by the runtime (-1 for all available)",
+                                  false, false, parsec_runtime_max_number_of_cores, &parsec_runtime_max_number_of_cores);
+    parsec_mca_param_reg_int_name("runtime", "allow_pu",
+                                  "Allow threads to bind to PU (processing unit) instead of cores.",
+                                  false, false, parsec_runtime_allow_ht, &parsec_runtime_allow_ht);
     if( parsec_cmd_line_is_taken(cmd_line, "ht") ) {
+        parsec_warning("Option ht (hyper-threading) is now deprecated as a command line argument. Use the MCA "
+                       "parsec_runtime_allow_pu instead.\n");
 #if defined(PARSEC_HAVE_HWLOC)
-        int hyperth = 0;
-        GET_INT_ARGV(cmd_line, "ht", hyperth);
-        parsec_hwloc_allow_ht(hyperth);
+        GET_INT_ARGV(cmd_line, "ht", parsec_runtime_allow_ht);
 #else
         if( 0 == parsec_debug_rank )
             parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
@@ -495,26 +501,28 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
     }
 
-    /* Set a default the number of cores if not defined by parameters
-     * - with hwloc if available
-     * - with sysconf otherwise (hyperthreaded core number)
-     */
-    parsec_mca_param_reg_int_name("runtime", "num_cores", "The total number of cores to be used by the runtime (-1 for all available)",
-                                 false, false, parsec_runtime_max_number_of_cores, &parsec_runtime_max_number_of_cores);
-    if( nb_cores <= 0 ) {
-        if( -1 == parsec_runtime_max_number_of_cores )
-            nb_cores = parsec_hwloc_nb_real_cores();
-        else {
-            nb_cores = parsec_runtime_max_number_of_cores;
-            if( parsec_runtime_max_number_of_cores > parsec_hwloc_nb_real_cores() ) {
-                if( slow_bind_warning )
-                    parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                                   "Requested binding %d threads, which is more than the physical number of cores %d.\n"
-                                   "\tOversubscribing cores is often slow. You should change the value of the `runtime_num_cores` parameter.\n",
-                                   parsec_runtime_max_number_of_cores, parsec_hwloc_nb_real_cores());
-            }
-        }
+#if defined(PARSEC_HAVE_HWLOC)
+    parsec_hwloc_init();
+    if( parsec_runtime_max_number_of_cores <= 0 ) {
+        parsec_runtime_max_number_of_cores = parsec_hwloc_nb_real_cores();
     }
+#endif  /* defined(HWLOC) */
+
+    if( -1 == nb_cores ) {  /* Allow command line argument to overwrite unspecified function parameters */
+        GET_INT_ARGV(cmd_line, "cores", nb_cores);
+    }
+    /* fix the number of used cores if necessary. Do not allow oversubscription. */
+    nb_cores = (nb_cores <= 0) ? parsec_runtime_max_number_of_cores : nb_cores;
+    if( nb_cores >= parsec_runtime_max_number_of_cores ) {
+        nb_cores = parsec_runtime_max_number_of_cores;
+    }
+    if( (nb_cores > parsec_hwloc_nb_real_cores()) && parsec_report_binding_issues ) {
+        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                       "Requested binding %d threads, which is more than the physical number of cores %d.\n"
+                       "\tOversubscribing cores is often slow. You should change the value of the `runtime_num_cores` parameter.\n",
+                       parsec_runtime_max_number_of_cores, parsec_hwloc_nb_real_cores());
+    }
+
     parsec_mca_param_reg_int_name("runtime", "bind_main_thread", "Force the binding of the thread calling parsec_init",
                                  false, false, parsec_runtime_bind_main_thread, &parsec_runtime_bind_main_thread);
 
@@ -532,7 +540,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     /* Allow the parsec_init arguments to overwrite all the previous behaviors */
-    GET_INT_ARGV(cmd_line, "cores", nb_cores);
     GET_STR_ARGV(cmd_line, "parsec_bind_comm", comm_binding_parameter);
     GET_STR_ARGV(cmd_line, "parsec_bind", binding_parameter);
 
@@ -542,47 +549,16 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
      */
     {
         /* Change the vpmap choice: first cancel the previous one if any */
-        vpmap_fini();
+        parsec_vpmap_fini();
 
+        char* optarg = NULL;
         if( parsec_cmd_line_is_taken(cmd_line, "vpmap") ) {
-            char* optarg = NULL;
             GET_STR_ARGV(cmd_line, "vpmap", optarg);
             if(NULL == optarg) {
                 parsec_warning("VPMAP choice (-V argument): expected argument. Falling back to default!");
-            } else {
-                /* We accept a vpmap that starts with "display" as a mean to show the mapping */
-                if( !strncmp(optarg, "display", 7 )) {
-                    display_vpmap = 1;
-                    if( ':' != optarg[strlen("display")] ) {
-                        parsec_warning("Display thread mapping requested but vpmap argument incorrect "
-                                       "(must start with display: to print the mapping)");
-                    } else {
-                        optarg += strlen("display:");
-                    }
-                }
-                if( !strncmp(optarg, "flat", 4) ) {
-                    /* default case (handled in parsec_init) */
-                } else if( !strncmp(optarg, "hwloc", 5) ) {
-                    vpmap_init_from_hardware_affinity(nb_cores);
-                } else if( !strncmp(optarg, "file:", 5) ) {
-                    vpmap_init_from_file(optarg + 5);
-                } else if( !strncmp(optarg, "rr:", 3) ) {
-                    int n, p, co;
-                    if( sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co) == 3 ) {
-                        vpmap_init_from_parameters(n, p, co);
-                    } else {
-                        parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
-                    }
-                } else {
-                    parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
-                }
             }
         }
-        nb_vp = vpmap_get_nb_vp();
-        if( -1 == nb_vp ) {
-            vpmap_init_from_flat(nb_cores);
-            nb_vp = vpmap_get_nb_vp();
-        }
+        parsec_vpmap_init(optarg, nb_cores);
     }
 
     parsec_hash_tables_init();
@@ -607,13 +583,14 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
     }
 #endif
+    nb_vp = parsec_vpmap_get_nb_vp();
 
     /* the extra allocation will pertain to the virtual_processes array */
     context = (parsec_context_t*)malloc(sizeof(parsec_context_t) + (nb_vp-1) * sizeof(parsec_vp_t*));
 
     context->__parsec_internal_finalization_in_progress = 0;
     context->__parsec_internal_finalization_counter = 0;
-    context->active_taskpools      = 0;
+    context->active_taskpools    = 0;
     context->flags               = 0;
     context->nb_nodes            = 1;
     context->comm_ctx            = -1;
@@ -627,19 +604,19 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */
 #if defined(PARSEC_HAVE_HWLOC)
-    context->cpuset_allowed_mask = NULL;
-    context->cpuset_free_mask    = NULL;
+    context->cpuset_allowed_mask = hwloc_bitmap_alloc();
+    hwloc_bitmap_copy(context->cpuset_allowed_mask, parsec_cpuset_restricted);
     context->comm_th_core        = -1;
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 
     /* TODO: nb_cores should depend on the vp_id */
     nb_total_comp_threads = 0;
     for(p = 0; p < nb_vp; p++) {
-        nb_total_comp_threads += vpmap_get_nb_threads_in_vp(p);
+        nb_total_comp_threads += parsec_vpmap_get_vp_threads(p);
     }
 
     if( nb_cores != nb_total_comp_threads ) {
-        if( slow_bind_warning )
+        if( parsec_report_binding_issues )
             parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
                            "Your vpmap uses %d threads when %d cores where available\n",
                            nb_total_comp_threads, nb_cores);
@@ -652,7 +629,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     t = 0;
     for( p = 0; p < nb_vp; p++ ) {
         parsec_vp_t *vp;
-        vp = (parsec_vp_t *)malloc(sizeof(parsec_vp_t) + (vpmap_get_nb_threads_in_vp(p)-1) * sizeof(parsec_execution_stream_t*));
+        vp = (parsec_vp_t *)malloc(sizeof(parsec_vp_t) + (parsec_vpmap_get_vp_threads(p)-1) * sizeof(parsec_execution_stream_t*));
         vp->parsec_context = context;
         vp->vp_id = p;
         context->virtual_processes[p] = vp;
@@ -661,7 +638,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
          * Do not create or initialize any memory yet, or it will be automatically
          * bound to the allocation context of this thread.
          */
-        parsec_vp_init(vp, vpmap_get_nb_threads_in_vp(p), &(startup[t]));
+        parsec_vp_init(vp, parsec_vpmap_get_vp_threads(p), &(startup[t]));
         t += vp->nb_cores;
     }
 
@@ -674,7 +651,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_mca_param_reg_sizet_name("arena", "max_used", "The maximum amount of memory each arena can"
                                    " allocate (default unlimited)",
                                    false, false, parsec_arena_max_allocated_memory, &parsec_arena_max_allocated_memory);
-    parsec_mca_param_reg_sizet_name("arena", "max_cached", "The maxmimum amount of memory each arena can"
+    parsec_mca_param_reg_sizet_name("arena", "max_cached", "The maximum amount of memory each arena can"
                                    " cache in a freelist (0=no caching)",
                                    false, false, parsec_arena_max_cached_memory, &parsec_arena_max_cached_memory);
 
@@ -785,6 +762,19 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_parse_comm_binding_parameter(comm_binding_parameter, context);
     parsec_parse_binding_parameter(binding_parameter, context, startup);
 
+    if( parsec_report_bindings) {
+        char *str;
+        hwloc_bitmap_asprintf(&str, context->cpuset_allowed_mask);
+        printf("Process binding [rank %d]: cpuset [ALLOWED  ]: %s\n", context->my_rank, str);
+        free(str);
+        hwloc_bitmap_asprintf(&str, context->cpuset_used_mask);
+        printf("Process binding [rank %d]: cpuset [USED     ]: %s\n", context->my_rank, str);
+        free(str);
+        hwloc_bitmap_asprintf(&str, context->cpuset_free_mask);
+        printf("Process binding [rank %d]: cpuset [FREE     ]: %s\n", context->my_rank, str);
+        free(str);
+    }
+
     /* Introduce communication engine */
     (void)parsec_remote_dep_init(context);
 
@@ -888,10 +878,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
     free(startup);
 
-    if( display_vpmap )
-        vpmap_display_map();
+    if( parsec_report_bindings )
+        parsec_vpmap_display_map();
 
-    parsec_mca_param_reg_int_name("profile", "rusage", "Report 'getrusage' satistics.\n"
+    parsec_mca_param_reg_int_name("profile", "rusage", "Report 'getrusage' statistics.\n"
             "0: no report, 1: per process report, 2: per thread report (if available).\n",
             false, false, parsec_want_rusage, &parsec_want_rusage);
     parsec_rusage(false);
@@ -1270,6 +1260,7 @@ int parsec_fini( parsec_context_t** pcontext )
 #if defined(PARSEC_HAVE_HWLOC_BITMAP)
     /* Release thread binding masks */
     hwloc_bitmap_free(context->cpuset_allowed_mask);
+    hwloc_bitmap_free(context->cpuset_used_mask);
     hwloc_bitmap_free(context->cpuset_free_mask);
 
     parsec_hwloc_fini();
@@ -2293,17 +2284,32 @@ void parsec_usage(void)
  */
 
 #if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
-#define PARSEC_BIND_THREAD(THR, WHERE)                                   \
+
+/* Return the logical core id of the desired binding based on the context allowed
+ * resources (as defined by the execution environment (batch scheduler or process manager).
+ */
+static inline int
+parsec_find_core_by_idx(parsec_context_t* context, int idx)
+{
+    int pos = -1;
+    do {
+        pos = hwloc_bitmap_next(context->cpuset_allowed_mask, pos);
+        if(pos >= 0 ) {
+            if( 0 == idx ) 
+                return pos;
+            idx--;
+        }
+    } while(1);
+}
+
+#define PARSEC_SET_THREAD_LOCATION(THR, WHERE)                          \
     do {                                                                \
-        int __where = (WHERE);                                          \
-        if( (THR) < nb_total_comp_threads ) {                           \
-            startup[(THR)].bindto = __where;  /* set the thread binding if legit */ \
-            (THR)++;                                                    \
-            if( hwloc_bitmap_isset(context->cpuset_allowed_mask, __where) ) { \
-                parsec_warning("Oversubscription on core %d detected\n", __where); \
-            }                                                           \
+        int idx = parsec_find_core_by_idx(context, WHERE);              \
+        startup[(THR)].bindto = idx;                                    \
+        if( hwloc_bitmap_isset(context->cpuset_used_mask, idx) ) {      \
+            parsec_warning("Local oversubscription for thread %d on core %d detected\n", (THR), idx); \
         }                                                               \
-        hwloc_bitmap_set(context->cpuset_allowed_mask, __where);  /* update the mask */ \
+        hwloc_bitmap_set(context->cpuset_used_mask, idx);  /* update the mask */ \
     } while (0)
 #endif  /* defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP) */
 
@@ -2314,18 +2320,14 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
     char *position, *endptr;
     int i, thr_idx = 0, nb_total_comp_threads = 0, where;
     int nb_real_cores = parsec_hwloc_nb_real_cores();
-
-    if( NULL == context->cpuset_allowed_mask )
-        context->cpuset_allowed_mask = hwloc_bitmap_alloc();
+    context->cpuset_used_mask = hwloc_bitmap_alloc();
 
     for(i = 0; i < context->nb_vp; i++)
         nb_total_comp_threads += context->virtual_processes[i]->nb_cores;
     if( NULL == option ) {
-        for( thr_idx = 0; thr_idx < nb_total_comp_threads; ) {
-            PARSEC_BIND_THREAD(thr_idx, (thr_idx % nb_real_cores));
+        for( thr_idx = 0; thr_idx < nb_total_comp_threads; thr_idx++ ) {
+            PARSEC_SET_THREAD_LOCATION(thr_idx, (thr_idx % nb_real_cores));
         }
-        if( nb_total_comp_threads < nb_real_cores )
-            hwloc_bitmap_set_range(context->cpuset_allowed_mask, nb_total_comp_threads, nb_real_cores-1);
         goto compute_free_mask;
     }
     /* The parameter is a file */
@@ -2368,8 +2370,6 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
         option++;  /* skip the + */
     }
 
-    if( NULL == context->cpuset_allowed_mask )
-        context->cpuset_allowed_mask = hwloc_bitmap_alloc();
     /* From now on the option is a comma separated list of entities that can be
      * either single numbers, hexadecimal masks or [::] ranges with steps.
      */
@@ -2393,7 +2393,8 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
                 }
                 for( i = 0; i < 4; i++ ) {
                     if( mask & (1<<i) ) {  /* bit is set */
-                        PARSEC_BIND_THREAD(thr_idx, where);
+                        PARSEC_SET_THREAD_LOCATION(thr_idx, where);
+                        thr_idx++;
                     }
                     where++;
                 }
@@ -2447,7 +2448,8 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
             /* redefine the core according to the trio start/end/step */
             where = start;
             while( ((step > 0) && (where <= end)) || ((step < 0) && (where >= end)) ) {
-                PARSEC_BIND_THREAD(thr_idx, where);
+                PARSEC_SET_THREAD_LOCATION(thr_idx, where);
+                thr_idx++;
                 where += step;
             }
         }
@@ -2459,7 +2461,8 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
                               where, nb_real_cores-1);
                 goto next_iteration;
             }
-            PARSEC_BIND_THREAD(thr_idx, where);
+            PARSEC_SET_THREAD_LOCATION(thr_idx, where);
+            thr_idx++;
         }
       next_iteration:
         option = strchr(option, ',');  /* skip to the next comma */
@@ -2470,29 +2473,18 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
         startup[thr_idx].bindto = -1;
 
   compute_free_mask:
+    if(!hwloc_bitmap_isincluded(context->cpuset_used_mask,
+                                context->cpuset_allowed_mask)) {
+        parsec_warning("Incorrect computation of the thread binding in parsec resulted in a used mask outside the allowed cores\n");
+    }
     /*
      * Compute the cpuset_free_mask bitmap, by excluding all the cores with
      * bound threads from the cpuset_allowed_mask.
      */
-    context->cpuset_free_mask = hwloc_bitmap_dup(context->cpuset_allowed_mask);
-    /* update the cpuset_free_mask according to the thread binding defined */
-    for(thr_idx = 0; thr_idx < nb_total_comp_threads; thr_idx++)
-        if( -1 != startup[thr_idx].bindto )
-            hwloc_bitmap_clr(context->cpuset_free_mask, startup[thr_idx].bindto);
-
-#if defined(PARSEC_DEBUG_NOISIER)
-    {
-        char *str = NULL;
-        hwloc_bitmap_asprintf(&str, context->cpuset_allowed_mask);
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
-                            "Thread binding: cpuset [ALLOWED  ]: %s", str);
-        free(str);
-        hwloc_bitmap_asprintf(&str, context->cpuset_free_mask);
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
-                            "Thread binding: cpuset [AVAILABLE]: %s", str);
-        free(str);
-    }
-#endif  /* defined(PARSEC_DEBUG_NOISIER) */
+    context->cpuset_free_mask = hwloc_bitmap_alloc();
+    hwloc_bitmap_xor(context->cpuset_free_mask,
+                     context->cpuset_allowed_mask,
+                     context->cpuset_used_mask);
 
     return PARSEC_SUCCESS;
 #else
@@ -2517,7 +2509,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
 int parsec_check_overlapping_binding(parsec_context_t *context)
 {
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI) && defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
-    if( context->nb_nodes <= slow_bind_warning ) {
+    if( context->nb_nodes <= parsec_report_binding_issues ) {
         MPI_Comm comml = MPI_COMM_NULL; int i, nl = 0, rl = MPI_PROC_NULL;
         MPI_Comm commw = (MPI_Comm)context->comm_ctx;
         assert(-1 != context->comm_ctx);
@@ -2584,10 +2576,11 @@ int parsec_check_overlapping_binding(parsec_context_t *context)
 static int parsec_parse_comm_binding_parameter(const char* option, parsec_context_t* context)
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    if( option[0]!='\0' ) {
+    if( option[0] != '\0' ) {
         int core = atoi(option);
-        if( (core > -1) && (core < parsec_hwloc_nb_real_cores()) )
-            context->comm_th_core = core;
+        /* negative core allowed to force an absolute core selection */
+        if( core < parsec_hwloc_nb_real_cores() )
+            context->comm_th_core = parsec_find_core_by_idx(context, core);
         else
             parsec_warning("the binding defined by --parsec_bind_comm has been ignored (illegal core number)");
     } else {
