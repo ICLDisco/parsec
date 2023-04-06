@@ -100,6 +100,7 @@ int parsec_report_binding_issues = 128;
 int parsec_report_bindings = 0;  /* dont show the bindings by default */
 int parsec_runtime_ignore_bindings = 0;  /* ignore the bindings provided by the process manager */
 int parsec_runtime_allow_ht = 0;  /* bind to cores by default */
+int parsec_runtime_singlify_bindings = 0;
 
 int parsec_want_rusage = 0;
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)
@@ -489,6 +490,12 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_mca_param_reg_int_name("runtime", "allow_pu",
                                   "Allow threads to bind to PU (processing unit) instead of cores.",
                                   false, false, parsec_runtime_allow_ht, &parsec_runtime_allow_ht);
+    parsec_mca_param_reg_int_name("runtime", "singlify_bindings",
+                                  "Force threads to be bound on a single physical resource (negative indicated "
+                                  "a early singlificationm 0 no singlification, and any positive value a late "
+                                  "singlification). With a negative value threads will be packed, while with a "
+                                  "positive value they will be spread across the available resources",
+                                  false, false, parsec_runtime_singlify_bindings, &parsec_runtime_singlify_bindings);
     if( parsec_cmd_line_is_taken(cmd_line, "ht") ) {
         parsec_warning("Option ht (hyper-threading) is now deprecated as a command line argument. Use the MCA "
                        "parsec_runtime_allow_pu instead.\n");

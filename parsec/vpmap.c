@@ -132,6 +132,8 @@ build_flat_topology:
     for( int i = 0; i < parsec_nbvp; i++ ) {
         parsec_vpmap[i].cpuset = HWLOC_ALLOC();
         for( int j = 0; j < parsec_vpmap[i].nbthreads; j++ ) {
+            if( parsec_runtime_singlify_bindings > 0 )  /* late singlify */
+                hwloc_bitmap_singlify(parsec_vpmap[i].threads[j].cpuset);
             if( HWLOC_INTERSECTS(parsec_vpmap[i].cpuset, parsec_vpmap[i].threads[j].cpuset) ) {
                 /* overlap detected, show it to the user */
                 if(parsec_report_binding_issues) {
@@ -381,6 +383,8 @@ int parsec_vpmap_init_from_flat(int nbthreads)
     parsec_vpmap[0].threads = (vpmap_thread_t*)calloc(parsec_vpmap[0].nbthreads, sizeof(vpmap_thread_t));
 
     int step = nbcores / nbthreads;
+    if( -1 == parsec_runtime_singlify_bindings )  /* early singlify */
+        step = 1;
     for( int id = 0; id < parsec_vpmap[0].nbthreads; id++ ) {
         parsec_vpmap[0].threads[id].nbcores = step;
         parsec_vpmap[0].threads[id].cpuset = HWLOC_ALLOC();

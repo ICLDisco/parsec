@@ -472,6 +472,7 @@ PARSEC_DECLSPEC extern int parsec_runtime_allow_ht;
 /* Control the display of the thread bindings */
 PARSEC_DECLSPEC extern int parsec_report_bindings;
 PARSEC_DECLSPEC extern int parsec_report_binding_issues;
+PARSEC_DECLSPEC extern int parsec_runtime_singlify_bindings;
 
 /**
  * Global configuration variable controlling what tasks are given to the

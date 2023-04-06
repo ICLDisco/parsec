@@ -22,7 +22,8 @@
 #include <windows.h>
 #endif  /* defined(__WINDOWS__) */
 #if defined(PARSEC_HAVE_HWLOC)
-static hwloc_topology_t topology;
+static hwloc_topology_t parsec_hwloc_loaded_topology;
+static hwloc_topology_t parsec_hwloc_restricted_topology;
 static int parsec_hwloc_first_init = 1;
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 static int hyperth_per_core = 1;
@@ -104,18 +105,18 @@ int parsec_hwloc_init(void)
         parsec_fatal("Compile headers and runtime hwloc libraries are not compatible (headers %x ; lib %x)", HWLOC_API_VERSION, hwloc_get_api_version());
     }
 #endif
-    hwloc_topology_init(&topology);
-    hwloc_topology_load(topology);
+    hwloc_topology_init(&parsec_hwloc_loaded_topology);
+    hwloc_topology_load(parsec_hwloc_loaded_topology);
 
     int binding_unit = (parsec_runtime_allow_ht ? HWLOC_OBJ_PU : HWLOC_OBJ_CORE);
 
     parsec_cpuset_original = HWLOC_ALLOC();
     parsec_cpuset_restricted = HWLOC_ALLOC();
     /* save the original process binding */
-    int rc = hwloc_get_cpubind(topology, parsec_cpuset_original, HWLOC_CPUBIND_PROCESS );
+    int rc = hwloc_get_cpubind(parsec_hwloc_loaded_topology, parsec_cpuset_original, HWLOC_CPUBIND_PROCESS );
     if( 0 != rc ) {
         /* We are on a system without support for process/thread binding. */
-        parsec_available_binding_resources = hwloc_get_nbobjs_by_type(topology, binding_unit);
+        parsec_available_binding_resources = hwloc_get_nbobjs_by_type(parsec_hwloc_loaded_topology, binding_unit);
         hwloc_bitmap_set_range(parsec_cpuset_original, 0, parsec_available_binding_resources-1);
         parsec_runtime_ignore_bindings = 1;  /* ignore all bindings provided by the user */
     }
@@ -126,7 +127,7 @@ int parsec_hwloc_init(void)
          * loaded topology might not be the real hardware topology, but restricted to what
          * this process can access.
          */
-        parsec_available_binding_resources = hwloc_get_nbobjs_by_type(topology, binding_unit);
+        parsec_available_binding_resources = hwloc_get_nbobjs_by_type(parsec_hwloc_loaded_topology, binding_unit);
         hwloc_bitmap_set_range(parsec_cpuset_restricted, 0, parsec_available_binding_resources-1);
     } else {
         hwloc_bitmap_copy(parsec_cpuset_restricted, parsec_cpuset_original);
@@ -145,8 +146,8 @@ int parsec_hwloc_init(void)
     }
 
     if( parsec_runtime_allow_ht > 1 ) {
-        int hyperth_per_core = (hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU) /
-                                hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE));
+        int hyperth_per_core = (hwloc_get_nbobjs_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_PU) /
+                                hwloc_get_nbobjs_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE));
         if( parsec_runtime_allow_ht > hyperth_per_core) {
             parsec_warning("HyperThreading:: There not enough logical processors to consider %i HyperThreads "
                            "per core (set up to %i)", parsec_runtime_allow_ht,  hyperth_per_core);
@@ -164,7 +165,7 @@ int parsec_hwloc_init(void)
 int parsec_hwloc_fini(void)
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    hwloc_topology_destroy(topology);
+    hwloc_topology_destroy(parsec_hwloc_loaded_topology);
     parsec_hwloc_first_init = 1;
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
     return PARSEC_SUCCESS;
@@ -175,9 +176,9 @@ int parsec_hwloc_export_topology(int *buflen, char **xmlbuffer)
 #if defined(PARSEC_HAVE_HWLOC)
     if( parsec_hwloc_first_init == 0 ) {
 #if HWLOC_API_VERSION >= 0x20000
-        return hwloc_topology_export_xmlbuffer(topology, xmlbuffer, buflen, 0 /*HWLOC_TOPOLOGY_EXPORT_XML_FLAG_V1*/);
+        return hwloc_topology_export_xmlbuffer(parsec_hwloc_loaded_topology, xmlbuffer, buflen, 0 /*HWLOC_TOPOLOGY_EXPORT_XML_FLAG_V1*/);
 #else
-        return hwloc_topology_export_xmlbuffer(topology, xmlbuffer, buflen);
+        return hwloc_topology_export_xmlbuffer(parsec_hwloc_loaded_topology, xmlbuffer, buflen);
 #endif
     }
 #endif
@@ -193,7 +194,7 @@ void parsec_hwloc_free_xml_buffer(char *xmlbuffer)
 
 #if defined(PARSEC_HAVE_HWLOC)
     if( parsec_hwloc_first_init == 0 ) {
-        hwloc_free_xmlbuffer(topology, xmlbuffer);
+        hwloc_free_xmlbuffer(parsec_hwloc_loaded_topology, xmlbuffer);
     }
 #endif
 }
@@ -203,8 +204,8 @@ int parsec_hwloc_distance( int id1, int id2 )
 #if defined(PARSEC_HAVE_HWLOC)
     int count = 0;
 
-    hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, id1);
-    hwloc_obj_t obj2 = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, id2);
+    hwloc_obj_t obj = hwloc_get_obj_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE, id1);
+    hwloc_obj_t obj2 = hwloc_get_obj_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE, id2);
 
     while( obj && obj2) {
         if(obj == obj2 ) {
@@ -228,13 +229,13 @@ int parsec_hwloc_master_id( int level, int processor_id )
     unsigned int i;
     int ncores;
 
-    ncores = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
+    ncores = hwloc_get_nbobjs_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE);
 
     /* If we are using hyper-threads */
     processor_id = processor_id % ncores;
 
-    for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++) {
-        hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
+    for(i = 0; i < hwloc_get_nbobjs_by_depth(parsec_hwloc_loaded_topology, level); i++) {
+        hwloc_obj_t obj = hwloc_get_obj_by_depth(parsec_hwloc_loaded_topology, level, i);
 
         if(HWLOC_ISSET(obj->cpuset, processor_id)) {
             return HWLOC_FIRST(obj->cpuset);
@@ -253,8 +254,8 @@ unsigned int parsec_hwloc_nb_cores( int level, int master_id )
 #if defined(PARSEC_HAVE_HWLOC)
     unsigned int i;
 
-    for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++){
-        hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
+    for(i = 0; i < hwloc_get_nbobjs_by_depth(parsec_hwloc_loaded_topology, level); i++){
+        hwloc_obj_t obj = hwloc_get_obj_by_depth(parsec_hwloc_loaded_topology, level, i);
         if(HWLOC_ISSET(obj->cpuset, master_id)){
             return HWLOC_WEIGHT(obj->cpuset);
         }
@@ -269,14 +270,14 @@ size_t parsec_hwloc_cache_size( unsigned int level, int master_id )
 {
 #if defined(PARSEC_HAVE_HWLOC)
 #if defined(PARSEC_HAVE_HWLOC_OBJ_PU) || 1
-    hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PU, master_id);
+    hwloc_obj_t obj = hwloc_get_obj_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_PU, master_id);
 #else
-    hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_PROC, master_id);
+    hwloc_obj_t obj = hwloc_get_obj_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_PROC, master_id);
 #endif  /* defined(PARSEC_HAVE_HWLOC_OBJ_PU) */
 
     while (obj) {
 #if HWLOC_API_VERSION >= 0x00020000
-        if((int)level == hwloc_get_type_depth(topology, obj->type)) {
+        if((int)level == hwloc_get_type_depth(parsec_hwloc_loaded_topology, obj->type)) {
             if(hwloc_obj_type_is_cache(obj->type)) {
 #else
         if(obj->depth == level){
@@ -319,9 +320,9 @@ int parsec_hwloc_nb_real_cores(void)
 int parsec_hwloc_core_first_hrwd_ancestor_depth(void)
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    int level = MAX( hwloc_get_type_depth(topology, HWLOC_OBJ_NODE),
-                     hwloc_get_type_depth(topology, HWLOC_OBJ_SOCKET) );
-    assert(level < hwloc_get_type_depth(topology, HWLOC_OBJ_CORE));
+    int level = MAX( hwloc_get_type_depth(parsec_hwloc_loaded_topology, HWLOC_OBJ_NODE),
+                     hwloc_get_type_depth(parsec_hwloc_loaded_topology, HWLOC_OBJ_SOCKET) );
+    assert(level < hwloc_get_type_depth(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE));
     return level;
 #else
     return PARSEC_ERR_NOT_IMPLEMENTED;
@@ -331,7 +332,7 @@ int parsec_hwloc_core_first_hrwd_ancestor_depth(void)
 int parsec_hwloc_get_nb_objects(int level)
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    return hwloc_get_nbobjs_by_depth(topology, level);
+    return hwloc_get_nbobjs_by_depth(parsec_hwloc_loaded_topology, level);
 #else
     (void)level;
     return PARSEC_ERR_NOT_IMPLEMENTED;
@@ -342,10 +343,10 @@ int parsec_hwloc_get_nb_objects(int level)
 int parsec_hwloc_socket_id(int core_id )
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
+    hwloc_obj_t core =  hwloc_get_obj_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE, core_id);
     hwloc_obj_t socket = NULL;
     if( NULL == core ) return PARSEC_ERR_NOT_FOUND;  /* protect against NULL objects */
-    if( NULL != (socket = hwloc_get_ancestor_obj_by_type(topology,
+    if( NULL != (socket = hwloc_get_ancestor_obj_by_type(parsec_hwloc_loaded_topology,
                                                          HWLOC_OBJ_SOCKET, core)) ) {
         return socket->logical_index;
     }
@@ -358,10 +359,10 @@ int parsec_hwloc_socket_id(int core_id )
 int parsec_hwloc_numa_id(int core_id )
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
+    hwloc_obj_t core =  hwloc_get_obj_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE, core_id);
     hwloc_obj_t node = NULL;
     if( NULL == core ) return PARSEC_ERR_NOT_FOUND;  /* protect against NULL objects */
-    if( NULL != (node = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_NODE, core)) ) {
+    if( NULL != (node = hwloc_get_ancestor_obj_by_type(parsec_hwloc_loaded_topology , HWLOC_OBJ_NODE, core)) ) {
         return node->logical_index;
     }
 #else
@@ -373,9 +374,9 @@ int parsec_hwloc_numa_id(int core_id )
 unsigned int parsec_hwloc_nb_cores_per_obj( int level, int index )
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, index);
+    hwloc_obj_t obj = hwloc_get_obj_by_depth(parsec_hwloc_loaded_topology, level, index);
     if(NULL == obj) return PARSEC_ERR_NOT_FOUND;
-    return hwloc_get_nbobjs_inside_cpuset_by_type(topology, obj->cpuset, HWLOC_OBJ_CORE);
+    return hwloc_get_nbobjs_inside_cpuset_by_type(parsec_hwloc_loaded_topology, obj->cpuset, HWLOC_OBJ_CORE);
 #else
     (void)level; (void)index;
     return PARSEC_ERR_NOT_IMPLEMENTED;
@@ -384,7 +385,7 @@ unsigned int parsec_hwloc_nb_cores_per_obj( int level, int index )
 
 hwloc_cpuset_t parsec_hwloc_cpuset_per_obj(int level, int index)
 {
-    hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, index);
+    hwloc_obj_t obj = hwloc_get_obj_by_depth(parsec_hwloc_loaded_topology, level, index);
     if(NULL == obj) return NULL;
     return HWLOC_DUP(obj->cpuset);
 }
@@ -392,7 +393,7 @@ hwloc_cpuset_t parsec_hwloc_cpuset_per_obj(int level, int index)
 int parsec_hwloc_nb_levels(void)
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    return hwloc_get_type_depth(topology, HWLOC_OBJ_CORE);
+    return hwloc_get_type_depth(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE);
 #else
     return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
@@ -413,11 +414,11 @@ char *parsec_hwloc_get_binding(hwloc_cpuset_t* cpuset, int flag)
 
         /** No need to check for return code: the set will be unchanged (0x0)
          *  if get_cpubind fails */
-        hwloc_get_cpubind(topology, stack_cpuset, flag );
+        hwloc_get_cpubind(parsec_hwloc_loaded_topology, stack_cpuset, flag );
         HWLOC_ASPRINTF(&binding, stack_cpuset);
         HWLOC_FREE(stack_cpuset);
     } else {
-        hwloc_get_cpubind(topology, *cpuset, flag );
+        hwloc_get_cpubind(parsec_hwloc_loaded_topology, *cpuset, flag );
         HWLOC_ASPRINTF(&binding, *cpuset);
     }
     return binding;
@@ -441,7 +442,7 @@ int parsec_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
     }
 
     /* Get the core of index cpu_index */
-    obj = core = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
+    obj = core = hwloc_get_obj_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE, cpu_index);
     if (!core) {
         parsec_warning("parsec_hwloc: unable to get the core of index %i (nb physical cores = %i )",
                  cpu_index,  parsec_hwloc_nb_real_cores());
@@ -497,7 +498,7 @@ static hwloc_cpuset_t parsec_hwloc_cpuset_convert_to_system(hwloc_cpuset_t cpuse
     /* For each index in the mask, get the associated cpu object and use its cpuset to add it to the binding mask */
     hwloc_bitmap_foreach_begin(cpu_index, cpuset) {
         /* Get the core of index cpu */
-        obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
+        obj = hwloc_get_obj_by_type(parsec_hwloc_loaded_topology, HWLOC_OBJ_CORE, cpu_index);
         if (!obj) {
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "parsec_hwloc_bind_on_mask_index: unable to get the core of index %i", cpu_index);
         } else {
