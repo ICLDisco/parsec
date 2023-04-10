@@ -6,6 +6,8 @@ extern "C" %{
  */
 #include "cuda_test_internal.h"
 
+static int64_t task_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev);
+
 %}
 
 %option no_taskpool_instance = true  /* can be aything */
@@ -47,7 +49,7 @@ END
 /**************************************************
  *                    task                        *
  **************************************************/
-task(m, n)
+task(m, n) [ time_estimate = task_time_estimate ]
 
 // Execution space
 m = 0 .. descA->nt-1
@@ -61,7 +63,7 @@ READ A <- A gpu_bind_A(m, n)
 WRITE B <- NEW
         -> B fake_task(m, n)
 
-BODY [type=CUDA weight=m+n+1]
+BODY [type=CUDA]
 {   
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     if( nb_cuda_devices > 0 ) { 
@@ -120,6 +122,14 @@ END
 
 
 extern "C" %{
+
+static int64_t task_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev)
+{
+    /* There is no actual computation in the task kernel... But it will take at least 1 flop / initialization in the memset */
+    parsec_get_best_device_check_taskpool_t *tp = (parsec_get_best_device_check_taskpool_t *)task->taskpool;
+    int64_t flops = (int64_t)tp->_g_descA->mb * (int64_t)tp->_g_descA->nb;
+    return flops / dev->device_dweight;
+}
 
 /**
  * @param [inout] dcA: the data, already distributed and allocated

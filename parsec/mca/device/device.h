@@ -135,10 +135,11 @@ struct parsec_device_module_s {
     uint64_t  required_data_out;
     uint64_t  executed_tasks;
     uint64_t  nb_data_faults;
-    float device_hweight;  /**< Number of half precision operations per second */
-    float device_sweight;  /**< Number of single precision operations per second */
-    float device_dweight;  /**< Number of double precision operations per second */
-    float device_tweight;  /**< Number of tensor operations per second */
+    int64_t   device_hweight;  /**< Number of half precision operations per nanosecond */
+    int64_t   device_sweight;  /**< Number of single precision operations per nanosecond */
+    int64_t   device_dweight;  /**< Number of double precision operations per nanosecond */
+    int64_t   device_tweight;  /**< Number of tensor operations per nanosecond */
+    int64_t   device_load;     /**< Number of nanoseconds of work submitted to the device, and not completed now */
 #if defined(PARSEC_PROF_TRACE)
     parsec_profiling_stream_t *profiling;
 #endif  /* defined(PROFILING) */
@@ -154,12 +155,12 @@ extern int parsec_device_output;
 extern parsec_atomic_lock_t parsec_devices_mutex;
 
 /**
- * Temporary variables used for load-balancing purposes.
+ * @brief Returns the parsec device index selected to run @p this_task,
+ *    using this_task->task_class->time_estimate function to compute
+ *    the load (estimate of number of ns @p this_task will take on this
+ *    device). Also returns the load on the selected device in @p load.
  */
-extern float *parsec_device_load;
-extern float *parsec_device_sweight;
-extern float *parsec_device_dweight;
-PARSEC_DECLSPEC extern int parsec_get_best_device( parsec_task_t* this_task, double ratio );
+PARSEC_DECLSPEC extern int parsec_get_best_device( parsec_task_t* this_task, int64_t *load );
 
 /**
  * Initialize the internal structures for managing external devices such as

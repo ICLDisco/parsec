@@ -332,7 +332,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     cudaError_t cudastatus;
     int show_caps_index, show_caps = 0, j, k;
     char *szName;
-    float clockRate;
+    uint64_t freqHz;
     struct cudaDeviceProp prop;
 
     show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities"); 
@@ -349,7 +349,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     szName    = prop.name;
     major     = prop.major;
     minor     = prop.minor;
-    clockRate = prop.clockRate/1e3f;
+    freqHz = prop.clockRate * 1000;  /* clockRate is in KHz */
     concurrency = prop.concurrentKernels;
     streaming_multiprocessor = prop.multiProcessorCount;
     computemode = prop.computeMode;
@@ -462,10 +462,16 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                         "Load balancing and performance might be negatively impacted. Please contact"
                         "the PaRSEC runtime developers", gpu_device->super.name, major, minor );
     }
-    device->device_hweight = (float)streaming_multiprocessor * (float)hrate * (float)clockRate * 2e-3f;
-    device->device_tweight = (float)streaming_multiprocessor * (float)trate * (float)clockRate * 2e-3f;
-    device->device_sweight = (float)streaming_multiprocessor * (float)srate * (float)clockRate * 2e-3f;
-    device->device_dweight = (float)streaming_multiprocessor * (float)drate * (float)clockRate * 2e-3f;
+	/* We use 2 * hrate * #streaming * freq because of FMA and we compute in GFlop/s so that conversion to #nanosec is straightforward */
+    device->device_hweight = 2 * (hrate * streaming_multiprocessor) * freqHz / 1e9;
+    device->device_tweight = 2 * (trate * streaming_multiprocessor) * freqHz / 1e9;
+    device->device_sweight = 2 * (srate * streaming_multiprocessor) * freqHz / 1e9;
+    device->device_dweight = 2 * (drate * streaming_multiprocessor) * freqHz / 1e9;
+    assert(device->device_hweight > 0);
+    assert(device->device_tweight > 0);
+    assert(device->device_sweight > 0);
+    assert(device->device_dweight > 0);
+    device->device_load = 0;
 
     /* Initialize internal lists */
     PARSEC_OBJ_CONSTRUCT(&gpu_device->gpu_mem_lru,       parsec_list_t);
@@ -486,7 +492,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
         parsec_inform("GPU Device %d (capability %d.%d): %s\n"
                       "\tLocation (PCI Bus/Device/Domain): %x:%x.%x\n"
                       "\tSM                 : %d\n"
-                      "\tclockRate (GHz)    : %2.2f\n"
+                      "\tFrequency (Hz)     : %" PRId64 "\n"
                       "\tconcurrency        : %s\n"
                       "\tcomputeMode        : %d\n"
                       "\tPeak Memory Bandwidth (GB/s): %.2f [Clock Rate (Khz) %d | Bus Width (bits) %d]\n"
@@ -494,11 +500,12 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                       cuda_device->cuda_index, cuda_device->major, cuda_device->minor, device->name,
                       prop.pciBusID, prop.pciDeviceID, prop.pciDomainID,
                       streaming_multiprocessor,
-                      clockRate*1e-3,
+                      freqHz,
                       (concurrency == 1)? "yes": "no",
                       computemode,
                       2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6, prop.memoryClockRate, prop.memoryBusWidth,
-                      device->device_dweight, device->device_sweight, device->device_tweight, device->device_hweight);
+				      (double)device->device_dweight, (double)device->device_sweight,
+                      (double)device->device_tweight, (double)device->device_hweight);
     }
 
     *module = device;
@@ -2552,6 +2559,8 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
     gpu_device = (parsec_device_gpu_module_t*)parsec_mca_device_get(which_gpu);
     cuda_device = (parsec_device_cuda_module_t *)gpu_device;
 
+    parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, gpu_task->load);
+
 #if defined(PARSEC_PROF_TRACE)
     PARSEC_PROFILING_TRACE_FLAGS( es->es_profile,
                                   PARSEC_PROF_FUNC_KEY_END(gpu_task->ec->taskpool,
@@ -2735,8 +2744,7 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
     __parsec_complete_execution( es, gpu_task->ec );
     gpu_device->super.executed_tasks++;
  remove_gpu_task:
-    // Load problem: was parsec_device_load[gpu_device->super.device_index] -= gpu_task->load;
-    parsec_device_load[gpu_device->super.device_index] -= parsec_device_sweight[gpu_device->super.device_index];
+    parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, -gpu_task->load);
     PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,"GPU[%s]: gpu_task %p freed at %s:%d", gpu_device->super.name, 
                          gpu_task, __FILE__, __LINE__);
     free( gpu_task );

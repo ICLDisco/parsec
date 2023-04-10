@@ -34,6 +34,9 @@ typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                  double alpha, double *d_A, int lda,
                                  double *d_B, int ldb,
                                  double beta,  double *d_C, int ldc );
+
+static int64_t time_estimate_gemm(const parsec_task_t *task, parsec_device_module_t *dev);
+
 %}
 
 %option no_taskpool_instance = true  /* can be anything */
@@ -108,7 +111,7 @@ END
 /**************************************************
  *                       GEMM                     *
  **************************************************/
-GEMM(m, g, r)
+GEMM(m, g, r) [ time_estimate = time_estimate_gemm ]
 
 // Execution space
 m = 0 .. descA->super.mt-1
@@ -127,8 +130,7 @@ RW   C <- (m == 0) ? C MAKE_C(g, r) : C GEMM(m-1, g, r)
                                     : C DISCARD_C(g, r)
 
 BODY [type=CUDA
-      dyld=cublasDgemm dyldtype=cublas_dgemm_t
-      weight=(1)]
+      dyld=cublasDgemm dyldtype=cublas_dgemm_t]
 {
     cublasStatus_t status;
     cublasSetKernelStream( parsec_body.stream );
@@ -151,3 +153,13 @@ BODY
 END
 
 
+extern "C" %{
+
+static int64_t time_estimate_gemm(const parsec_task_t *task, parsec_device_module_t *dev)
+{
+    const parsec_stress_taskpool_t *tp = (const parsec_stress_taskpool_t *)task->taskpool;
+    int64_t flops = (int64_t)2 * (int64_t)tp->_g_descA->super.nb * (int64_t)tp->_g_descA->super.mb * (int64_t)tp->_g_descA->super.mb;
+    return flops / (int64_t)dev->device_dweight;
+}
+
+%}

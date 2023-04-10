@@ -46,24 +46,29 @@ static parsec_device_module_t **modules_activated = NULL;
 static mca_base_component_t **device_components = NULL;
 
 /**
- * Temporary solution: Use the following two arrays to taskpool the weight and
- * the load on different devices. These arrays are not available before the
- * call to parsec_mca_device_registration_complete(). This is just a first step,
- * a smarter approach should take this spot.
- */
-float *parsec_device_load = NULL;
-float *parsec_device_hweight = NULL;
-float *parsec_device_sweight = NULL;
-float *parsec_device_dweight = NULL;
-float *parsec_device_tweight = NULL;
-
-/**
  * Load balance skew we are willing to accept to favor RO data reuse
  * on GPU: a value of 20% means that we will schedule tasks on the preferred
  * GPU except if it is loaded 1.2 times as much as the best load balance option
  */
 static int parsec_device_load_balance_skew = 20;
 static float load_balance_skew;
+
+/**
+ * @brief Estimates how many nanoseconds this_task will run on devid
+ *
+ * @param this_task the task to run
+ * @param dev the device that might run @p this_task
+ * @return uint64_t an estimate of the number of nanoseconds @p this_task
+ *   might run on the device @p dev
+ */
+static int64_t time_estimate(const parsec_task_t *this_task, parsec_device_module_t *dev)
+{
+    if( NULL != this_task->task_class->time_estimate ) {
+        return this_task->task_class->time_estimate(this_task, dev);
+    }
+    /* For now, we just return an arbitrary number based on 1 double-precision flop to do */
+    return dev->device_dweight;
+}
 
 /**
  * Try to find the best device to execute the kernel based on the compute
@@ -76,10 +81,11 @@ static float load_balance_skew;
  * -1      - if the kernel is scheduled to be executed on a GPU.
  */
 
-int parsec_get_best_device( parsec_task_t* this_task, double ratio )
+int parsec_get_best_device( parsec_task_t* this_task, int64_t *load )
 {
     int i, dev_index = -1, data_index, prefer_index = -1;
     parsec_taskpool_t* tp = this_task->taskpool;
+    parsec_device_module_t *dev;
 
     /* Select the location of the first data that is used in READ/WRITE or pick the
      * location of one of the READ data. For now use the last one.
@@ -120,11 +126,12 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
     /* 0 is CPU, and 1 is recursive device */
     if( dev_index <= 1 ) {  /* This is the first time we see this data for a GPU, let's decide which GPU will work on it. */
         int best_index;
-        float weight, best_weight = parsec_device_load[0] + ratio * parsec_device_sweight[0];
+        parsec_device_module_t *dev = parsec_mca_device_get(0);
+        uint64_t duration, best_duration = time_estimate(this_task, dev);
 
         /* Warn if there is no valid device for this task */
         for(best_index = 0; best_index < parsec_mca_device_enabled(); best_index++) {
-            parsec_device_module_t *dev = parsec_mca_device_get(best_index);
+            dev = parsec_mca_device_get(best_index);
 
             /* Skip the device if it is not configured */
             if(!(tp->devices_index_mask & (1 << best_index))) continue;
@@ -147,9 +154,10 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
          * other options to have some load balance */
         if( -1 != prefer_index ) {
             best_index = prefer_index;
-            /* we still prefer this device, until it is twice as loaded as the
+            /* we still prefer this device, until it is load_balance_skew as loaded as the
              * real best load balance device */
-            best_weight = load_balance_skew * (parsec_device_load[prefer_index] + ratio * parsec_device_sweight[prefer_index]);
+            dev = parsec_mca_device_get(best_index);
+            best_duration = (uint64_t)(load_balance_skew * time_estimate(this_task, dev));
         }
 
         /* Consider how adding the current task would change load balancing
@@ -158,17 +166,18 @@ int parsec_get_best_device( parsec_task_t* this_task, double ratio )
         for( dev_index = 2; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
             /* Skip the device if it is not configured */
             if(!(tp->devices_index_mask & (1 << dev_index))) continue;
-            weight = parsec_device_load[dev_index] + ratio * parsec_device_sweight[dev_index];
-            if( best_weight > weight ) {
+            dev = parsec_mca_device_get(dev_index);
+            duration = time_estimate(this_task, dev);
+            if( best_duration > duration ) {
                 best_index = dev_index;
-                best_weight = weight;
+                best_duration = duration;
             }
         }
-        // Load problem: was nothing to do here
-        parsec_device_load[best_index] += ratio * parsec_device_sweight[best_index];
         assert( best_index != 1 );
         dev_index = best_index;
     }
+    dev = parsec_mca_device_get(dev_index);
+    *load = time_estimate(this_task, dev);
 
     /* Sanity check: if at least one of the data copies is not parsec
      * managed, check that all the non-parsec-managed data copies
@@ -481,18 +490,6 @@ int parsec_mca_device_fini(void)
         parsec_mca_device_dump_and_reset_statistics(NULL);
     }
 
-    /* Free the local memory */
-    if(NULL != parsec_device_load) free(parsec_device_load);
-    parsec_device_load = NULL;
-    if(NULL != parsec_device_hweight) free(parsec_device_hweight);
-    parsec_device_hweight = NULL;
-    if(NULL != parsec_device_sweight) free(parsec_device_sweight);
-    parsec_device_sweight = NULL;
-    if(NULL != parsec_device_dweight) free(parsec_device_dweight);
-    parsec_device_dweight = NULL;
-    if(NULL != parsec_device_tweight) free(parsec_device_tweight);
-    parsec_device_tweight = NULL;
-
     parsec_device_module_t *module;
     mca_base_component_t *component;
     for(int i = 0; i < num_modules_activated; i++ ) {
@@ -616,29 +613,15 @@ parsec_device_find_function(const char* function_name,
 
 int parsec_mca_device_registration_complete(parsec_context_t* context)
 {
-    float total_hperf = 0.0, total_sperf = 0.0, total_dperf = 0.0, total_tperf = 0.0;
+    uint64_t total_hperf = 0, total_sperf = 0, total_dperf = 0, total_tperf = 0;
     (void)context;
 
     if(parsec_mca_device_are_freezed)
         return PARSEC_ERR_NOT_SUPPORTED;
 
-    if(NULL != parsec_device_load) free(parsec_device_load);
-    parsec_device_load = (float*)calloc(parsec_nb_devices, sizeof(float));
-    if(NULL != parsec_device_hweight) free(parsec_device_hweight);
-    parsec_device_hweight = (float*)calloc(parsec_nb_devices, sizeof(float));
-    if(NULL != parsec_device_sweight) free(parsec_device_sweight);
-    parsec_device_sweight = (float*)calloc(parsec_nb_devices, sizeof(float));
-    if(NULL != parsec_device_dweight) free(parsec_device_dweight);
-    parsec_device_dweight = (float*)calloc(parsec_nb_devices, sizeof(float));
-    if(NULL != parsec_device_tweight) free(parsec_device_tweight);
-    parsec_device_tweight = (float*)calloc(parsec_nb_devices, sizeof(float));
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_device_module_t* device = parsec_devices[i];
         if( NULL == device ) continue;
-        parsec_device_hweight[i] = device->device_hweight;
-        parsec_device_sweight[i] = device->device_sweight;
-        parsec_device_dweight[i] = device->device_dweight;
-        parsec_device_tweight[i] = device->device_tweight;
         if( PARSEC_DEV_RECURSIVE == device->type ) continue;
         total_hperf += device->device_hweight;
         total_tperf += device->device_tweight;
@@ -649,16 +632,14 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
     /* Compute the weight of each device including the cores */
     parsec_debug_verbose(6, parsec_device_output, "Global Theoretical performance: double %2.4f single %2.4f tensor %2.4f half %2.4f", total_dperf, total_sperf, total_tperf, total_hperf);
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
+        parsec_device_module_t* device = parsec_devices[i];
+        if( NULL == device ) continue;
+        if( PARSEC_DEV_RECURSIVE == device->type ) continue;
         parsec_debug_verbose(6, parsec_device_output, "  Dev[%d]             ->flops double %2.4f single %2.4f tensor %2.4f half %2.4f",
-                             i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
-
-        parsec_device_hweight[i] = (total_hperf / parsec_device_hweight[i]);
-        parsec_device_tweight[i] = (total_tperf / parsec_device_tweight[i]);
-        parsec_device_sweight[i] = (total_sperf / parsec_device_sweight[i]);
-        parsec_device_dweight[i] = (total_dperf / parsec_device_dweight[i]);
-        /* after the weighting */
+                             i, device->device_dweight*1e9, device->device_sweight*1e9, device->device_tweight*1e9, device->device_hweight*1e9);
         parsec_debug_verbose(6, parsec_device_output, "  Dev[%d]             ->ratio double %2.4e single %2.4e tensor %2.4e half %2.4e",
-                             i, parsec_device_dweight[i], parsec_device_sweight[i], parsec_device_tweight[i], parsec_device_hweight[i]);
+                             i, device->device_dweight/(double)total_hperf, device->device_sweight/(double)total_sperf, 
+                             device->device_tweight/(double)total_tperf, device->device_hweight/(double)total_dperf);
     }
 
     parsec_mca_device_are_freezed = 1;
@@ -1005,10 +986,9 @@ int parsec_advise_data_on_device(parsec_data_t *data, int device, int advice)
 
 void parsec_devices_reset_load(parsec_context_t *context)
 {
-    if( NULL == parsec_device_load )
-        return;
     for(int i = 0; i < (int)parsec_nb_devices; i++) {
-        parsec_device_load[i] = 0;
+        parsec_device_module_t *dev = parsec_mca_device_get(i);
+        dev->device_load = 0;
     }
     (void)context;
 }
