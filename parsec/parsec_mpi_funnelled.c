@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2018 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -726,8 +726,11 @@ mpi_no_thread_tag_unregister(parsec_ce_tag_t tag)
     MPI_Status status;
 
     for(i = tag_struct->start_idx; i < tag_struct->start_idx + EACH_STATIC_REQ_RANGE; i++) {
+#if !defined(CRAY_MPICH_VERSION)
+        // MPI Cancel broken on Cray
         MPI_Cancel(&array_of_requests[i]);
         MPI_Test(&array_of_requests[i], &flag, &status);
+#endif
         MPI_Request_free(&array_of_requests[i]);
         assert( MPI_REQUEST_NULL == array_of_requests[i] );
     }
