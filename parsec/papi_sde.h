@@ -5,7 +5,7 @@
 
 #if defined(PARSEC_PAPI_SDE)
 
-#include "parsec/sde_lib.h"
+#include "sde_lib.h"
 
 typedef enum parsec_papi_sde_hl_counters_e {
     PARSEC_PAPI_SDE_MEM_ALLOC,               /**< How much memory is currently allocated by arenas */

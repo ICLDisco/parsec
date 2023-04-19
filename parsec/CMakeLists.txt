@@ -84,6 +84,7 @@ endif(PARSEC_FLEX_GENERATED_OPTIONS)
 
 if( PARSEC_PAPI_SDE )
   list(APPEND EXTRA_SOURCES "papi_sde.c")
+  list(APPEND EXTRA_LIBS PAPI::SDE)
 endif( PARSEC_PAPI_SDE )
 
 # find_package(TAU REQUIRED)
