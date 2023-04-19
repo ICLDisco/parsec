@@ -326,7 +326,8 @@ function set_python_venv {
     if ${PYTHON_EXECUTABLE:-python3} -m venv -h >/dev/null; then
         ${PYTHON_EXECUTABLE:-python3} -m venv venv
         source venv/bin/activate
-        pip install Cython pandas matplotlib tables
+        python -m pip install --upgrade pip
+        pip install Cython pandas matplotlib tables networkx wheel
     else
         echo >&2 "Could not prepare a Python venv because \`-m venv\` is not supported by the selected python..." && exit 3
     fi
