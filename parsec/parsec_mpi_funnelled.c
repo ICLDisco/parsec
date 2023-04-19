@@ -94,6 +94,10 @@ reread:
     return __tag;
 }
 
+/* Set to true when the progress should rebuild the working arrays */
+static bool parsec_ce_rebuild_array_of_requests = true;
+static int mpi_no_thread_tag_unregister_internal(parsec_ce_tag_t tag);
+
 /* Range of index allowed for each type of request.
  * For registered tags, each will get 5 spots in the array of requests.
  * For dynamic tags, there will be a total of MAX_DYNAMIC_REQ_RANGE
@@ -102,15 +106,25 @@ reread:
 #define MAX_DYNAMIC_REQ_RANGE 30 /* according to current implementation */
 #define EACH_STATIC_REQ_RANGE 5 /* for each registered tag */
 
+typedef enum parsec_ce_tag_status_e {
+    PARSEC_CE_TAG_STATUS_INACTIVE = 1,
+    PARSEC_CE_TAG_STATUS_ENABLE,
+    PARSEC_CE_TAG_STATUS_ACTIVE,
+    PARSEC_CE_TAG_STATUS_DISABLE
+} parsec_ce_tag_status_t;
 typedef struct mpi_funnelled_tag_s {
     parsec_ce_tag_t tag; /* tag user wants to register */
-    int start_idx; /* Records the starting index for every TAG
+    int16_t start_idx; /* Records the starting index for every TAG
                     * to unregister from the array_of_[requests/indices/statuses]
                     */
-    size_t msg_length; /* Maximum length allowed to send for each
+    int     status;  /* The current status of this tag (inactive/active, enable/disable) */
+    size_t  msg_length; /* Maximum length allowed to send for each
                         * registered TAG.
                         */
-    char **buf; /* Buffer where we will receive msg for each TAG
+    parsec_ce_am_callback_t callback;  /* callback to call upon reception of the
+                                          associated AM */
+    void*  cb_data;  /* upper-level data to pass back to the callback */
+    char** buf; /* Buffer where we will receive msg for each TAG
                  * there will be EACH_STATIC_REQ_RANGE buffers
                  * each of size msg_length.
                  */
@@ -171,7 +185,10 @@ static MPI_Request              *array_of_requests;
 static int                      *array_of_indices;
 static MPI_Status               *array_of_statuses;
 
+/** The expected size of the next version of the arrays of requests */
 static int size_of_total_reqs = 0;
+/** The current size of the arrays of requests. */
+static int current_size_of_total_reqs = 0;
 static int mpi_funnelled_last_active_req = 0;
 static int mpi_funnelled_static_req_idx = 0;
 
@@ -237,8 +254,8 @@ mpi_funnelled_internal_get_am_callback(parsec_comm_engine_t *ce,
                                        int src,
                                        void *cb_data)
 {
-    (void) ce; (void) tag; (void) msg_size; (void) cb_data;
-    assert(mpi_funnelled_last_active_req < size_of_total_reqs);
+    (void) ce; (void) tag; (void) cb_data;
+    assert(mpi_funnelled_last_active_req < current_size_of_total_reqs);
 
     mpi_funnelled_callback_t *cb;
     MPI_Request *request;
@@ -252,7 +269,7 @@ mpi_funnelled_internal_get_am_callback(parsec_comm_engine_t *ce,
 
     assert(mpi_funnelled_last_active_req >= mpi_funnelled_static_req_idx);
 
-    int post_in_static_array = mpi_funnelled_last_active_req < size_of_total_reqs;
+    int post_in_static_array = mpi_funnelled_last_active_req < current_size_of_total_reqs;
     mpi_funnelled_dynamic_req_t *item;
 
     if(post_in_static_array) {
@@ -321,14 +338,8 @@ mpi_funnelled_internal_put_am_callback(parsec_comm_engine_t *ce,
 
     assert(mpi_funnelled_last_active_req >= mpi_funnelled_static_req_idx);
 
-    int _size;
-    MPI_Type_size(remote_memory_handle->datatype, &_size);
-
-    int post_in_static_array = 1;
-    mpi_funnelled_dynamic_req_t *item;
-    if(!(mpi_funnelled_last_active_req < size_of_total_reqs)) {
-        post_in_static_array = 0;
-    }
+    mpi_funnelled_dynamic_req_t *item = NULL;
+    int post_in_static_array = mpi_funnelled_last_active_req < current_size_of_total_reqs;
 
     if(post_in_static_array) {
         request = &array_of_requests[mpi_funnelled_last_active_req];
@@ -497,16 +508,16 @@ mpi_funnelled_init(parsec_context_t *context)
 
     for(i = 0; i < PARSEC_MAX_REGISTERED_TAGS; i++) {
         parsec_mpi_funnelled_array_of_registered_tags[i].buf = NULL;
+        parsec_mpi_funnelled_array_of_registered_tags[i].callback = NULL;
+        parsec_mpi_funnelled_array_of_registered_tags[i].status = PARSEC_CE_TAG_STATUS_INACTIVE;
     }
 
     /* Initialize the arrays */
     array_of_callbacks = (mpi_funnelled_callback_t *) calloc(MAX_DYNAMIC_REQ_RANGE,
                             sizeof(mpi_funnelled_callback_t));
-    array_of_requests  = (MPI_Request *) calloc(MAX_DYNAMIC_REQ_RANGE,
-                            sizeof(MPI_Request));
+    array_of_requests  = (MPI_Request *) calloc(MAX_DYNAMIC_REQ_RANGE, sizeof(MPI_Request));
     array_of_indices   = (int *) calloc(MAX_DYNAMIC_REQ_RANGE, sizeof(int));
-    array_of_statuses  = (MPI_Status *) calloc(MAX_DYNAMIC_REQ_RANGE,
-                            sizeof(MPI_Status));
+    array_of_statuses  = (MPI_Status *) calloc(MAX_DYNAMIC_REQ_RANGE, sizeof(MPI_Status));
 
     for(i = 0; i < MAX_DYNAMIC_REQ_RANGE; i++) {
         array_of_requests[i] = MPI_REQUEST_NULL;
@@ -619,10 +630,17 @@ mpi_funnelled_fini(parsec_comm_engine_t *ce)
     return 1;
 }
 
-/* Users need to register all tags before finalizing the comm
- * engine init.
- * The requested tags should be from 0 up to MPI_FUNNELLED_MAX_TAG,
- * dynamic tags will start from MPI_FUNNELLED_MAX_TAG.
+/**
+ * @brief Register AM tags. Classical API, a tag a callback function and a callback data
+ *        for the message arrival and a maximum length of the AM message for preallocating
+ *        all necessary buffers. The registration can happen at any moment, before or after
+ *        the communication engine was started. If the communication engine is inactive,
+ *        the tags will be stored but anything related to the communication registration of
+ *        such AM will be delayed until the engine starts. If the engine is running, we
+ *        notify it that the AM infrastructure needs to be rebuilt, and it will do it at
+ *        the next progress cycle.
+ *        The requested tags should be from 0 up to MPI_FUNNELLED_MAX_TAG,
+ *        dynamic tags will start from MPI_FUNNELLED_MAX_TAG, but they are not handled here.
  */
 int
 mpi_no_thread_tag_register(parsec_ce_tag_t tag,
@@ -630,8 +648,6 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
                            void *cb_data,
                            size_t msg_length)
 {
-    mpi_funnelled_callback_t *cb;
-
     /* All internal tags have been registered */
     if(nb_internal_tag == count_internal_tag) {
         if(tag >= PARSEC_MAX_REGISTERED_TAGS) {
@@ -640,71 +656,135 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
         }
     }
     mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
-    if(NULL != parsec_mpi_funnelled_array_of_registered_tags[tag].buf ) {
-        parsec_warning("Tag: %d is already registered\n", (int)tag);
+    if(NULL != parsec_mpi_funnelled_array_of_registered_tags[tag].callback ) {
+        parsec_warning("Tag: %d is already registered (callback %p, callback data %p, msg length %d)\n",
+                       (int)tag, tag_struct->callback, tag_struct->cb_data, (int)tag_struct->msg_length);
         return PARSEC_ERR_EXISTS;
     }
+    tag_struct->tag = tag;
+    tag_struct->msg_length = msg_length;
+    tag_struct->callback = callback;
+    tag_struct->cb_data = cb_data;
+    tag_struct->status = PARSEC_CE_TAG_STATUS_ENABLE;
 
+    /* Update the total number of requests we know about */
     size_of_total_reqs += EACH_STATIC_REQ_RANGE;
+    /* Make sure the AM infrastructure is rebuilt at the next progress cycle */
+    parsec_ce_rebuild_array_of_requests = true;
+    return PARSEC_SUCCESS;
+}
 
+static int parsec_ce_rebuild_am_requests(void)
+{
+    mpi_funnelled_callback_t* cb;
+
+    if( size_of_total_reqs == current_size_of_total_reqs ) {
+        /* There is nothing to update, the engine is ready to rock */
+        return PARSEC_SUCCESS;
+    }
+
+    /* Reallocate the management arrays. Indices and statuses can be simply shifted around,
+     * while the array of callbacks and statuses need a little extra work.
+     */
     array_of_indices = realloc(array_of_indices, size_of_total_reqs * sizeof(int));
     array_of_statuses = realloc(array_of_statuses, size_of_total_reqs * sizeof(MPI_Status));
-
-    /* Packing persistent tags in the beginning of the array */
-    /* Allocate a new array that is "EACH_STATIC_REQ_RANGE" size bigger
-     * than the previous allocation.
-     */
     mpi_funnelled_callback_t *tmp_array_cb = malloc(sizeof(mpi_funnelled_callback_t) * size_of_total_reqs);
-    /* Copy any previous persistent message info in the beginning */
-    memcpy(tmp_array_cb, array_of_callbacks, sizeof(mpi_funnelled_callback_t) * mpi_funnelled_static_req_idx);
-    /* Leaving "EACH_STATIC_REQ_RANGE" number elements in the middle and copying
-     * the rest for the dynamic tag messages.
-     */
-    memcpy(tmp_array_cb + mpi_funnelled_static_req_idx + EACH_STATIC_REQ_RANGE, array_of_callbacks + mpi_funnelled_static_req_idx, sizeof(mpi_funnelled_callback_t) * MAX_DYNAMIC_REQ_RANGE);
+    MPI_Request *tmp_array_req = malloc(sizeof(MPI_Request) * size_of_total_reqs);
+
+    int idx = 0, old_idx = 0;
+    for( int tag = 0; tag < PARSEC_MAX_REGISTERED_TAGS; tag++ ) {
+        mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
+        if( (NULL == tag_struct->callback) ||
+            (tag_struct->status == PARSEC_CE_TAG_STATUS_INACTIVE) )  /* No changes for this tag */
+            continue;
+        if( tag_struct->status == PARSEC_CE_TAG_STATUS_DISABLE ) {
+            mpi_no_thread_tag_unregister_internal(tag);
+            old_idx += EACH_STATIC_REQ_RANGE;
+            continue;
+        }
+        if( tag_struct->status == PARSEC_CE_TAG_STATUS_ACTIVE ) {
+            memcpy(tmp_array_cb + idx * sizeof(mpi_funnelled_callback_t),
+                   array_of_callbacks + old_idx * sizeof(mpi_funnelled_callback_t),
+                   sizeof(mpi_funnelled_callback_t) * EACH_STATIC_REQ_RANGE);
+            memcpy(tmp_array_req + idx * sizeof(MPI_Request),
+                   array_of_requests + old_idx * sizeof(MPI_Request),
+                   sizeof(MPI_Request) * EACH_STATIC_REQ_RANGE);
+            idx     += EACH_STATIC_REQ_RANGE;
+            old_idx += EACH_STATIC_REQ_RANGE;
+            continue;
+        }
+        assert(PARSEC_CE_TAG_STATUS_ENABLE == tag_struct->status);
+
+        char **buf = (char **) calloc(EACH_STATIC_REQ_RANGE, sizeof(char *));
+        buf[0] = (char*)calloc(EACH_STATIC_REQ_RANGE, tag_struct->msg_length * sizeof(char));
+
+        tag_struct->buf = buf;
+        tag_struct->start_idx  = idx;
+        tag_struct->status = PARSEC_CE_TAG_STATUS_ACTIVE;
+
+        for(int i = 0; i < EACH_STATIC_REQ_RANGE; i++) {
+            buf[i] = buf[0] + i * tag_struct->msg_length * sizeof(char);
+
+            /* Even though the address of array_of_requests changes after every
+             * new registration of tags, the initialization of the requests will
+             * still work as the memory is copied after initialization.
+             */
+            MPI_Recv_init(buf[i], tag_struct->msg_length, MPI_BYTE,
+                          MPI_ANY_SOURCE, tag, parsec_ce_mpi_am_comm,
+                          &tmp_array_req[idx]);
+
+            cb = &tmp_array_cb[idx];
+            cb->cb_type.am.fct = tag_struct->callback;
+            cb->cb_data        = tag_struct->cb_data;
+            cb->storage1       = idx;
+            cb->storage2       = i;
+            cb->tag            = tag_struct;
+            cb->type           = MPI_FUNNELLED_TYPE_AM;
+            idx++;
+        }
+        /* Tag ready to receive data, start all persistent receives */
+        MPI_Startall(EACH_STATIC_REQ_RANGE, &tmp_array_req[idx - EACH_STATIC_REQ_RANGE]);
+    }
+    /* Replace the arrays of callbacks and requests with the newly populated ones */
     free(array_of_callbacks);
     array_of_callbacks = tmp_array_cb;
-
-    /* Same procedure followed as array_of_callbacks. */
-    MPI_Request *tmp_array_req = malloc(sizeof(MPI_Request) * size_of_total_reqs);
-    memcpy(tmp_array_req, array_of_requests, sizeof(MPI_Request) * mpi_funnelled_static_req_idx);
-    memcpy(tmp_array_req + mpi_funnelled_static_req_idx +  EACH_STATIC_REQ_RANGE, array_of_requests + mpi_funnelled_static_req_idx, sizeof(MPI_Request) * MAX_DYNAMIC_REQ_RANGE);
     free(array_of_requests);
     array_of_requests = tmp_array_req;
 
-    char **buf = (char **) calloc(EACH_STATIC_REQ_RANGE, sizeof(char *));
-    buf[0] = (char*)calloc(EACH_STATIC_REQ_RANGE, msg_length * sizeof(char));
+    mpi_funnelled_last_active_req = idx;
 
-    tag_struct->tag = tag;
-    tag_struct->buf = buf;
-    tag_struct->start_idx  = mpi_funnelled_static_req_idx;
-    tag_struct->msg_length = msg_length;
+    current_size_of_total_reqs = size_of_total_reqs;
+    assert((idx + MAX_DYNAMIC_REQ_RANGE) == current_size_of_total_reqs);
+    return PARSEC_SUCCESS;
+}
 
-    for(int i = 0; i < EACH_STATIC_REQ_RANGE; i++) {
-        buf[i] = buf[0] + i * msg_length * sizeof(char);
+static int
+mpi_no_thread_tag_unregister_internal(parsec_ce_tag_t tag)
+{
+    /* remove this tag from the arrays */
+    mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
 
-        /* Even though the address of array_of_requests changes after every
-         * new registration of tags, the initialization of the requests will
-         * still work as the memory is copied after initialization.
-         */
-        MPI_Recv_init(buf[i], msg_length, MPI_BYTE,
-                      MPI_ANY_SOURCE, tag, parsec_ce_mpi_am_comm,
-                      &array_of_requests[mpi_funnelled_static_req_idx]);
+    if( (PARSEC_CE_TAG_STATUS_ACTIVE == tag_struct->status) ||
+        (PARSEC_CE_TAG_STATUS_DISABLE == tag_struct->status) ) {
+        MPI_Status status;
 
-        cb = &array_of_callbacks[mpi_funnelled_static_req_idx];
-        cb->cb_type.am.fct = callback;
-        cb->storage1 = mpi_funnelled_static_req_idx;
-        cb->storage2 = i;
-        cb->cb_data  = cb_data;
-        cb->tag      = tag_struct;
-        cb->type     = MPI_FUNNELLED_TYPE_AM;
-        mpi_funnelled_static_req_idx++;
+        for(int flag, i = tag_struct->start_idx; i < tag_struct->start_idx + EACH_STATIC_REQ_RANGE; i++) {
+#if !defined(CRAY_MPICH_VERSION)
+            // MPI Cancel broken on Cray
+            MPI_Cancel(&array_of_requests[i]);
+            MPI_Test(&array_of_requests[i], &flag, &status);
+#endif
+            MPI_Request_free(&array_of_requests[i]);
+            assert( MPI_REQUEST_NULL == array_of_requests[i] );
+        }
+        free(tag_struct->buf[0]);
+        free(tag_struct->buf);
     }
-    /* Tag ready to receive data, start all persistent receives */
-    MPI_Startall(EACH_STATIC_REQ_RANGE, &array_of_requests[mpi_funnelled_static_req_idx - EACH_STATIC_REQ_RANGE]);
-
-    assert((mpi_funnelled_static_req_idx + MAX_DYNAMIC_REQ_RANGE) == size_of_total_reqs);
-
-    mpi_funnelled_last_active_req += EACH_STATIC_REQ_RANGE;
+    tag_struct->buf = NULL;
+    tag_struct->callback = NULL;
+    tag_struct->cb_data = NULL;
+    tag_struct->start_idx = -1;
+    tag_struct->status = PARSEC_CE_TAG_STATUS_INACTIVE;
 
     return PARSEC_SUCCESS;
 }
@@ -713,32 +793,22 @@ int
 mpi_no_thread_tag_unregister(parsec_ce_tag_t tag)
 {
     mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
-    if(NULL == tag_struct->buf) {
+    if( (PARSEC_CE_TAG_STATUS_INACTIVE == tag_struct->status) ||
+        (PARSEC_CE_TAG_STATUS_DISABLE == tag_struct->status) ) {
         parsec_inform("Tag %ld is not registered\n", (int)tag);
-        return 0;
+        return PARSEC_SUCCESS;
     }
-
-    /* remove this tag from the arrays */
-    /* WARNING: Assumed after this no wait or test will be called on
-     * array_of_requests
-     */
-    int i, flag;
-    MPI_Status status;
-
-    for(i = tag_struct->start_idx; i < tag_struct->start_idx + EACH_STATIC_REQ_RANGE; i++) {
-#if !defined(CRAY_MPICH_VERSION)
-        // MPI Cancel broken on Cray
-        MPI_Cancel(&array_of_requests[i]);
-        MPI_Test(&array_of_requests[i], &flag, &status);
-#endif
-        MPI_Request_free(&array_of_requests[i]);
-        assert( MPI_REQUEST_NULL == array_of_requests[i] );
+    if( PARSEC_CE_TAG_STATUS_ENABLE == tag_struct->status ) {
+        /* requests not yet create, change the status and return */
+        tag_struct->status = PARSEC_CE_TAG_STATUS_INACTIVE;
+        return PARSEC_SUCCESS;
     }
+    tag_struct->status = PARSEC_CE_TAG_STATUS_DISABLE;
+    /* if the engine is active, notify it to rebuild the arrays of requests at the next cycle */
+    parsec_ce_rebuild_array_of_requests = true;
+    mpi_no_thread_tag_unregister_internal(tag);
 
-    free(tag_struct->buf[0]);
-    free(tag_struct->buf);
-
-    return 1;
+    return PARSEC_SUCCESS;
 }
 
 int
@@ -810,7 +880,7 @@ mpi_no_thread_put(parsec_comm_engine_t *ce,
                   parsec_ce_onesided_callback_t l_cb, void *l_cb_data,
                   parsec_ce_tag_t r_tag, void *r_cb_data, size_t r_cb_data_size)
 {
-    assert(mpi_funnelled_last_active_req < size_of_total_reqs);
+    assert(mpi_funnelled_last_active_req < current_size_of_total_reqs);
 
     (void)r_cb_data; (void) size;
 
@@ -855,11 +925,8 @@ mpi_no_thread_put(parsec_comm_engine_t *ce,
     /*MPI_Isend((char *)ldata->mem + ldispl, ldata->size, MPI_BYTE, remote, tag, comm,
               &array_of_requests[mpi_funnelled_last_active_req]);*/
 
-    int post_in_static_array = 1;
+    int post_in_static_array = mpi_funnelled_last_active_req < current_size_of_total_reqs;
     mpi_funnelled_dynamic_req_t *item;
-    if(!(mpi_funnelled_last_active_req < size_of_total_reqs)) {
-        post_in_static_array = 0;
-    }
 
     if(post_in_static_array) {
         request = &array_of_requests[mpi_funnelled_last_active_req];
@@ -952,11 +1019,8 @@ mpi_no_thread_get(parsec_comm_engine_t *ce,
 
     assert(mpi_funnelled_last_active_req >= mpi_funnelled_static_req_idx);
 
-    int post_in_static_array = 1;
+    int post_in_static_array = mpi_funnelled_last_active_req < current_size_of_total_reqs;
     mpi_funnelled_dynamic_req_t *item;
-    if(!(mpi_funnelled_last_active_req < size_of_total_reqs)) {
-        post_in_static_array = 0;
-    }
 
     if(post_in_static_array) {
         request = &array_of_requests[mpi_funnelled_last_active_req];
@@ -1060,7 +1124,7 @@ static int
 mpi_no_thread_push_posted_req(parsec_comm_engine_t *ce)
 {
     (void) ce;
-    assert(mpi_funnelled_last_active_req < size_of_total_reqs);
+    assert(mpi_funnelled_last_active_req < current_size_of_total_reqs);
 
     mpi_funnelled_dynamic_req_t *item;
     item = (mpi_funnelled_dynamic_req_t *) parsec_list_nolock_pop_front(&mpi_funnelled_dynamic_req_fifo);
@@ -1117,6 +1181,10 @@ mpi_no_thread_progress(parsec_comm_engine_t *ce)
     int length;
 
     do {
+        if(parsec_ce_rebuild_array_of_requests) {
+            parsec_ce_rebuild_am_requests();
+            parsec_ce_rebuild_array_of_requests = false;
+        }
         MPI_Testsome(mpi_funnelled_last_active_req, array_of_requests,
                      &outcount, array_of_indices, array_of_statuses);
 
@@ -1153,9 +1221,9 @@ mpi_no_thread_progress(parsec_comm_engine_t *ce)
 
       feed_more_work:
         /* check completion of posted requests */
-        while(mpi_funnelled_last_active_req < size_of_total_reqs &&
+        while(mpi_funnelled_last_active_req < current_size_of_total_reqs &&
               !parsec_list_nolock_is_empty(&mpi_funnelled_dynamic_req_fifo)) {
-            assert(mpi_funnelled_last_active_req < size_of_total_reqs);
+            assert(mpi_funnelled_last_active_req < current_size_of_total_reqs);
             mpi_no_thread_push_posted_req(ce);
         }
         if(0 == outcount) return ret;
@@ -1225,13 +1293,13 @@ mpi_no_thread_can_push_more(parsec_comm_engine_t *ce)
      * upper layer know if they should push more work or not
      */
     /* Push saved requests first */
-    while(mpi_funnelled_last_active_req < size_of_total_reqs &&
+    while(mpi_funnelled_last_active_req < current_size_of_total_reqs &&
           !parsec_list_nolock_is_empty(&mpi_funnelled_dynamic_req_fifo)) {
-        assert(mpi_funnelled_last_active_req < size_of_total_reqs);
+        assert(mpi_funnelled_last_active_req < current_size_of_total_reqs);
         mpi_no_thread_progress_saved_req(ce);
     }
 #endif
 
     /* Do we have room to post more requests? */
-    return mpi_funnelled_last_active_req < size_of_total_reqs;
+    return mpi_funnelled_last_active_req < current_size_of_total_reqs;
 }
