@@ -24,11 +24,11 @@ if( MPI_C_FOUND )
 endif( MPI_C_FOUND)
 
 #These tests will fail with runtime_comm_short_limit != 0. Explanation on testing_remote_multiple_outs_same_pred_flow.c
-parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow ${SHM_TEST_CMD_LIST} collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --parsec runtime_comm_short_limit 0)
-parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow:mt ${SHM_TEST_CMD_LIST} collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --parsec runtime_comm_short_limit 0)
+parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow ${SHM_TEST_CMD_LIST} collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0)
+parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow:mt ${SHM_TEST_CMD_LIST} collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0)
 if( MPI_C_FOUND )
-  parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow:mp ${MPI_TEST_CMD_LIST} 4 collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10  -- --parsec runtime_comm_short_limit 0)
-  parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt ${MPI_TEST_CMD_LIST} 4 collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1  -- --parsec runtime_comm_short_limit 0)
+  parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow:mp ${MPI_TEST_CMD_LIST} 4 collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10  -- --mca runtime_comm_short_limit 0)
+  parsec_addtest_cmd(collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt ${MPI_TEST_CMD_LIST} 4 collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1  -- --mca runtime_comm_short_limit 0)
 endif( MPI_C_FOUND)
 
 parsec_addtest_cmd(collections/reshape/avoidable ${SHM_TEST_CMD_LIST} collections/reshape/avoidable_reshape -N 100 -t 2 -c 10)

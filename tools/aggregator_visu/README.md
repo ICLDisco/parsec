@@ -67,7 +67,7 @@ Start your favorite application running on top of PaRSEC (+argobots).
 ```{Bash}
 [mpirun -np N]
   ./app [application specific parameters]
-        -- --parsec mca_pins alperf --parsec pins_alperf_events task,flops
+        -- --mca mca_pins alperf --mca pins_alperf_events task,flops
 ```
 
 After starting the application, the aggregator should list the available keys {K} to plot.

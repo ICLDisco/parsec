@@ -135,7 +135,7 @@ int parsec_dtd_destroy_arena_datatype(parsec_context_t *ctx, int id);
  * Users can use this two variables to control the sliding window of task insertion.
  * This is set using a default number or the number set by the mca_param.
  * The command line to set the value of window size and threshold size are:
- * "-- --parsec parsec_dtd_window_size 4000 --parsec parsec_dtd_threshold_size 2000"
+ * "-- --mca parsec_dtd_window_size 4000 --mca parsec_dtd_threshold_size 2000"
  * This will set the window size to be 4000 tasks. This means the main thread
  * will insert 4000 tasks and then retire from it and join the workers.
  * The parsec_dtd_threshold_size indicates the number of tasks, reaching which

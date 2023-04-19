@@ -416,8 +416,23 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             fprintf(stderr, "%s: command line error (%d)\n", parsec_app_name, ret);
         }
     }
-
-    ret = parsec_mca_cmd_line_process_args(cmd_line, &environ);
+    ret = parsec_mca_cmd_line_process_args(cmd_line, &ctx_environ, &environ);
+    if( ctx_environ != NULL ) {
+        for(env_variable = ctx_environ;
+            *env_variable != NULL;
+            env_variable++) {
+            env_name = *env_variable;
+            for(env_value = env_name; *env_value != '\0' && *env_value != '='; env_value++)
+                /* nothing */;
+            if(*env_value == '=') {
+                *env_value = '\0';
+                env_value++;
+            }
+            parsec_setenv(env_name, env_value, true, &environ);
+            free(*env_variable);
+        }
+        free(ctx_environ);
+    }
 
     /* direct command line overrides */
     if( parsec_cmd_line_is_taken(cmd_line, "parsec-help") ) show_help = true;
@@ -542,10 +557,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             if( sscanf(vpmap_parameter, "rr:%d:%d:%d", &n, &p, &co) == 3 ) {
                 vpmap_init_from_parameters(n, p, co);
             } else {
-                parsec_warning("VPMAP choice (--parsec runtime_vpmap): %s is invalid. Falling back to default!", vpmap_parameter);
+                parsec_warning("VPMAP choice (--mca runtime_vpmap): %s is invalid. Falling back to default!", vpmap_parameter);
             }
         } else {
-            parsec_warning("VPMAP choice (--parsec runtime_vpmap): %s is invalid. Falling back to default!", vpmap_parameter);
+            parsec_warning("VPMAP choice (--mca runtime_vpmap): %s is invalid. Falling back to default!", vpmap_parameter);
         }
     }
     nb_vp = vpmap_get_nb_vp();
@@ -752,7 +767,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             parsec_warning("*** PaRSEC Profiling warning: creating profile file as requested,\n"
                            "*** but no PINS module is enabled, so the file will probably be empty\n"
                            "*** Activate the MCA PINS Module task_profiler to get the previous behavior\n"
-                           "***   ( --parsec mca_pins task_profiler )\n");
+                           "***   ( --mca mca_pins task_profiler )\n");
     }
 
 #if defined(PARSEC_PROF_GRAPHER)
@@ -2193,7 +2208,7 @@ void parsec_usage(void)
 
 
 
-/* Parse --parsec bind_map parameter (define a set of cores for the thread binding)
+/* Parse --mca bind_map parameter (define a set of cores for the thread binding)
  * The parameter can be
  * - a file containing the parameters (list, mask or expression) for each processes
  * - or a comma separated list of
@@ -2419,7 +2434,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
     (void)startup;
     if( 0 == parsec_debug_rank )
         parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                       "The binding defined by --parsec bind_map has been ignored!\n"
+                       "The binding defined by --mca bind_map has been ignored!\n"
                        "\tThis option requires a build with HWLOC with bitmap support.");
     return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
@@ -2511,14 +2526,14 @@ static int parsec_parse_comm_binding_parameter(int core, parsec_context_t* conte
         context->comm_th_core = core;
     }
     else {
-        parsec_warning("the binding defined by --parsec bind_comm has been ignored (illegal core number %d)", core);
+        parsec_warning("the binding defined by --mca bind_comm has been ignored (illegal core number %d)", core);
     }
     return PARSEC_SUCCESS;
 #else
     (void)core; (void)context;
     if( 0 == parsec_debug_rank )
         parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                       "The binding defined by --parsec bind_comm has been ignored!\n"
+                       "The binding defined by --mca bind_comm has been ignored!\n"
                        "\tThis option requires a build with HWLOC with bitmap support.");
     return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif  /* PARSEC_HAVE_HWLOC */
