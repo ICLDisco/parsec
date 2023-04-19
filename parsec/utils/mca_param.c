@@ -92,7 +92,7 @@ parsec_list_t parsec_mca_param_file_values;
  * local variables
  */
 static parsec_value_array_t mca_params;
-static const char *mca_prefix = "PARSEC_";
+static const char *mca_prefix = "PARSEC_MCA_";
 static char *home = NULL;
 static bool initialized = false;
 

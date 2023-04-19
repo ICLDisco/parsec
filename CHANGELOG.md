@@ -37,8 +37,7 @@ Unreleased (master)
 ### Changed
  
  - Single letter command line options have been replaced with --mca parameters.
-   --help is now --parsec-help. Environment variables corresponding to options are
-   now prefixed by PARSEC_ (instead of PARSEC_MCA).
+   --help is now --parsec-help.
 
  - Renamed symbols related to data distribution to properly prefix them with
    the `parsec_` prefix. The old symbols have been deprecated.
