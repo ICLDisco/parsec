@@ -98,7 +98,7 @@ reread:
 static int parsec_ce_am_design_version = 0;
 static int parsec_ce_am_build_version = 0;
 static parsec_atomic_lock_t parsec_ce_am_build_lock = PARSEC_ATOMIC_UNLOCKED;
-static int mpi_no_thread_tag_unregister_internal(parsec_ce_tag_t tag);
+static int mpi_funnelled_tag_unregister_unsafe_internal(parsec_ce_tag_t tag);
 
 /* Range of index allowed for each type of request.
  * For registered tags, each will get 5 spots in the array of requests.
@@ -127,10 +127,11 @@ typedef struct mpi_funnelled_tag_s {
     parsec_ce_am_callback_t callback;  /* callback to call upon reception of the
                                           associated AM */
     void*  cb_data;  /* upper-level data to pass back to the callback */
-    char** buf; /* Buffer where we will receive msg for each TAG
-                 * there will be EACH_STATIC_REQ_RANGE buffers
-                 * each of size msg_length.
-                 */
+    char*  am_backend_memory; /* Buffer where we will receive msg for each TAG. This area is
+                               * allocated to host the number of AM messages for this tag times
+                               * the msg_length. It is better if the msg_length is a multiple of the
+                               * cache lines size.
+                               */
 } mpi_funnelled_tag_t;
 
 static struct mpi_funnelled_tag_s parsec_mpi_funnelled_array_of_registered_tags[PARSEC_MAX_REGISTERED_TAGS];
@@ -510,7 +511,7 @@ mpi_funnelled_init(parsec_context_t *context)
     MPI_Comm_rank(parsec_ce_mpi_am_comm, &(context->my_rank));
 
     for(i = 0; i < PARSEC_MAX_REGISTERED_TAGS; i++) {
-        parsec_mpi_funnelled_array_of_registered_tags[i].buf = NULL;
+        parsec_mpi_funnelled_array_of_registered_tags[i].am_backend_memory = NULL;
         parsec_mpi_funnelled_array_of_registered_tags[i].callback = NULL;
         parsec_mpi_funnelled_array_of_registered_tags[i].status = PARSEC_CE_TAG_STATUS_INACTIVE;
     }
@@ -597,6 +598,16 @@ mpi_funnelled_fini(parsec_comm_engine_t *ce)
     /* TODO: GO through all registered tags and unregister them */
     ce->tag_unregister(PARSEC_CE_MPI_FUNNELLED_GET_TAG_INTERNAL);
     ce->tag_unregister(PARSEC_CE_MPI_FUNNELLED_PUT_TAG_INTERNAL);
+    parsec_atomic_lock(&parsec_ce_am_build_lock);
+    for(int tag = 0; tag < PARSEC_MAX_REGISTERED_TAGS; tag++) {
+        mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
+        if( tag_struct->status != PARSEC_CE_TAG_STATUS_INACTIVE)
+            mpi_funnelled_tag_unregister_unsafe_internal(tag);
+    }
+    /* By now the entire AM management is clean, reset the design and build versions.*/
+    parsec_ce_am_design_version = 0;
+    parsec_ce_am_build_version = 0;
+    parsec_atomic_unlock(&parsec_ce_am_build_lock);
 
     free(array_of_callbacks); array_of_callbacks = NULL;
     free(array_of_requests);  array_of_requests  = NULL;
@@ -658,13 +669,13 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
             return PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
         }
     }
-    parsec_atomic_lock(&parsec_ce_am_build_lock);
     mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
     if(NULL != parsec_mpi_funnelled_array_of_registered_tags[tag].callback ) {
         parsec_warning("Tag: %d is already registered (callback %p, callback data %p, msg length %d)\n",
                        (int)tag, tag_struct->callback, tag_struct->cb_data, (int)tag_struct->msg_length);
         return PARSEC_ERR_EXISTS;
     }
+    parsec_atomic_lock(&parsec_ce_am_build_lock);
     tag_struct->tag = tag;
     tag_struct->msg_length = msg_length;
     tag_struct->callback = callback;
@@ -705,7 +716,7 @@ static int parsec_ce_rebuild_am_requests(void)
             (tag_struct->status == PARSEC_CE_TAG_STATUS_INACTIVE) )  /* No changes for this tag */
             continue;
         if( tag_struct->status == PARSEC_CE_TAG_STATUS_DISABLE ) {
-            mpi_no_thread_tag_unregister_internal(tag);
+            mpi_funnelled_tag_unregister_unsafe_internal(tag);
             old_idx += EACH_STATIC_REQ_RANGE;
             continue;
         }
@@ -722,21 +733,20 @@ static int parsec_ce_rebuild_am_requests(void)
         }
         assert(PARSEC_CE_TAG_STATUS_ENABLE == tag_struct->status);
 
-        char **buf = (char **) calloc(EACH_STATIC_REQ_RANGE, sizeof(char *));
-        buf[0] = (char*)calloc(EACH_STATIC_REQ_RANGE, tag_struct->msg_length * sizeof(char));
+        char *buf = (char *) calloc(EACH_STATIC_REQ_RANGE, tag_struct->msg_length * sizeof(char));
 
-        tag_struct->buf = buf;
+        tag_struct->am_backend_memory = buf;
         tag_struct->start_idx  = idx;
         tag_struct->status = PARSEC_CE_TAG_STATUS_ACTIVE;
 
         for(int i = 0; i < EACH_STATIC_REQ_RANGE; i++) {
-            buf[i] = buf[0] + i * tag_struct->msg_length * sizeof(char);
+            buf = tag_struct->am_backend_memory + i * tag_struct->msg_length * sizeof(char);
 
             /* Even though the address of array_of_requests changes after every
              * new registration of tags, the initialization of the requests will
              * still work as the memory is copied after initialization.
              */
-            MPI_Recv_init(buf[i], tag_struct->msg_length, MPI_BYTE,
+            MPI_Recv_init(buf, tag_struct->msg_length, MPI_BYTE,
                           MPI_ANY_SOURCE, tag, parsec_ce_mpi_am_comm,
                           &tmp_array_req[idx]);
 
@@ -767,7 +777,7 @@ static int parsec_ce_rebuild_am_requests(void)
 }
 
 static int
-mpi_no_thread_tag_unregister_internal(parsec_ce_tag_t tag)
+mpi_funnelled_tag_unregister_unsafe_internal(parsec_ce_tag_t tag)
 {
     /* remove this tag from the arrays */
     mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
@@ -785,10 +795,9 @@ mpi_no_thread_tag_unregister_internal(parsec_ce_tag_t tag)
             MPI_Request_free(&array_of_requests[i]);
             assert( MPI_REQUEST_NULL == array_of_requests[i] );
         }
-        free(tag_struct->buf[0]);
-        free(tag_struct->buf);
+        free(tag_struct->am_backend_memory);
+        tag_struct->am_backend_memory = NULL;
     }
-    tag_struct->buf = NULL;
     tag_struct->callback = NULL;
     tag_struct->cb_data = NULL;
     tag_struct->start_idx = -1;
@@ -810,15 +819,13 @@ mpi_no_thread_tag_unregister(parsec_ce_tag_t tag)
     if( PARSEC_CE_TAG_STATUS_ENABLE == tag_struct->status ) {
         /* requests not yet create, change the status and return */
         tag_struct->status = PARSEC_CE_TAG_STATUS_INACTIVE;
+        parsec_atomic_unlock(&parsec_ce_am_build_lock);
         return PARSEC_SUCCESS;
     }
     tag_struct->status = PARSEC_CE_TAG_STATUS_DISABLE;
     /* if the engine is active, notify it to rebuild the arrays of requests at the next cycle */
     parsec_ce_am_design_version++;
     parsec_atomic_unlock(&parsec_ce_am_build_lock);
-
-    /* TODO: This part is not yet safe, we need to know if the engine is up or not */
-    mpi_no_thread_tag_unregister_internal(tag);
 
     return PARSEC_SUCCESS;
 }
@@ -1211,7 +1218,7 @@ mpi_no_thread_progress(parsec_comm_engine_t *ce)
             /* Serve the callback and comeback */
             mpi_no_thread_serve_cb(ce, cb, status->MPI_TAG,
                                    status->MPI_SOURCE, length,
-                                   MPI_FUNNELLED_TYPE_AM == cb->type ? (void *)cb->tag->buf[cb->storage2] : NULL,
+                                   MPI_FUNNELLED_TYPE_AM == cb->type ? (cb->tag->am_backend_memory + cb->tag->msg_length * cb->storage2) : NULL,
                                    1);
             ret++;
         }
