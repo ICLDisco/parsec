@@ -17,12 +17,6 @@
 #include "parsec/utils/debug.h"
 #include "parsec/utils/mca_param.h"
 
-/* Range between which tags are allowed to be registered.
- * For now we allow 10 tags to be registered
- */
-#define MPI_FUNNELLED_MIN_TAG 2
-#define MPI_FUNNELLED_MAX_TAG (MPI_FUNNELLED_MIN_TAG + 10)
-
 static int
 mpi_no_thread_push_posted_req(parsec_comm_engine_t *ce);
 
@@ -179,7 +173,7 @@ typedef struct mpi_funnelled_callback_s {
  * use two communicators one for handling the AM and the other dedicated
  * to moving data around.
  */
-static MPI_Comm parsec_ce_mpi_am_comm = MPI_COMM_NULL;  /* Active message communicator */
+static MPI_Comm parsec_ce_mpi_am_comm[PARSEC_MAX_REGISTERED_TAGS] = {MPI_COMM_NULL};  /* Active message communicator */
 static MPI_Comm parsec_ce_mpi_comm = MPI_COMM_NULL;     /* Data moving communicator */
 /* The internal communicator for all intra-node communications */
 static MPI_Comm parsec_ce_mpi_self_comm = MPI_COMM_NULL;
@@ -436,7 +430,7 @@ static int mpi_funneled_init_once(parsec_context_t* context)
     assert(MPI_COMM_NULL == parsec_ce_mpi_self_comm);
     MPI_Comm_dup(MPI_COMM_SELF, &parsec_ce_mpi_self_comm);
     assert(MPI_COMM_NULL == parsec_ce_mpi_comm);
-    assert(MPI_COMM_NULL == parsec_ce_mpi_am_comm);
+    assert(MPI_COMM_NULL == parsec_ce_mpi_am_comm[0]);
 
     /*
      * Based on MPI 1.1 the MPI_TAG_UB should only be defined
@@ -490,7 +484,9 @@ mpi_funnelled_init(parsec_context_t *context)
                          parsec_debug_rank);
 
     MPI_Comm_dup((MPI_Comm) context->comm_ctx, &parsec_ce_mpi_comm);
-    MPI_Comm_dup((MPI_Comm) context->comm_ctx, &parsec_ce_mpi_am_comm);
+    for(i = 0; i < PARSEC_MAX_REGISTERED_TAGS; i++) {
+        MPI_Comm_dup((MPI_Comm) context->comm_ctx, &parsec_ce_mpi_am_comm[i]);
+    }
     /* Replace the provided communicator with a pointer to the PaRSEC duplicate */
     context->comm_ctx = (uintptr_t)parsec_ce_mpi_comm;
 
@@ -507,8 +503,8 @@ mpi_funnelled_init(parsec_context_t *context)
     /* There is no need to enable overtake for the AM communicator */
 #endif
 
-    MPI_Comm_size(parsec_ce_mpi_am_comm, &(context->nb_nodes));
-    MPI_Comm_rank(parsec_ce_mpi_am_comm, &(context->my_rank));
+    MPI_Comm_size(parsec_ce_mpi_comm, &(context->nb_nodes));
+    MPI_Comm_rank(parsec_ce_mpi_comm, &(context->my_rank));
 
     for(i = 0; i < PARSEC_MAX_REGISTERED_TAGS; i++) {
         parsec_mpi_funnelled_array_of_registered_tags[i].am_backend_memory = NULL;
@@ -628,11 +624,13 @@ mpi_funnelled_fini(parsec_comm_engine_t *ce)
     /* Release the context communicators if any */
     if( MPI_COMM_NULL != parsec_ce_mpi_comm) {
         MPI_Comm_free(&parsec_ce_mpi_comm);
-        MPI_Comm_free(&parsec_ce_mpi_am_comm);
+        for(int i = 0; i < PARSEC_MAX_REGISTERED_TAGS; i++) {
+            MPI_Comm_free(&parsec_ce_mpi_am_comm[i]);
+        }
         ce->parsec_context->comm_ctx = -1; /* We use -1 for the opaque comm_ctx, rather than the MPI specific MPI_COMM_NULL */
     }
     assert(MPI_COMM_NULL == parsec_ce_mpi_comm );  /* no communicator */
-    assert(MPI_COMM_NULL == parsec_ce_mpi_am_comm );  /* no communicator */
+    assert(MPI_COMM_NULL == parsec_ce_mpi_am_comm[0] );  /* no communicator */
     MAX_MPI_TAG = -1;  /* mark the layer as uninitialized */
     size_of_total_reqs = 0;
     mpi_funnelled_last_active_req = 0;
@@ -653,8 +651,6 @@ mpi_funnelled_fini(parsec_comm_engine_t *ce)
  *        such AM will be delayed until the engine starts. If the engine is running, we
  *        notify it that the AM infrastructure needs to be rebuilt, and it will do it at
  *        the next progress cycle.
- *        The requested tags should be from 0 up to MPI_FUNNELLED_MAX_TAG,
- *        dynamic tags will start from MPI_FUNNELLED_MAX_TAG, but they are not handled here.
  */
 int
 mpi_no_thread_tag_register(parsec_ce_tag_t tag,
@@ -747,7 +743,7 @@ static int parsec_ce_rebuild_am_requests(void)
              * still work as the memory is copied after initialization.
              */
             MPI_Recv_init(buf, tag_struct->msg_length, MPI_BYTE,
-                          MPI_ANY_SOURCE, tag, parsec_ce_mpi_am_comm,
+                          MPI_ANY_SOURCE, tag, parsec_ce_mpi_am_comm[tag],
                           &tmp_array_req[idx]);
 
             cb = &tmp_array_cb[idx];
@@ -1093,7 +1089,7 @@ mpi_no_thread_send_active_message(parsec_comm_engine_t *ce,
     assert(tag_struct->msg_length >= size);
     (void) tag_struct;
 
-    MPI_Send(addr, size, MPI_BYTE, remote, tag, parsec_ce_mpi_am_comm);
+    MPI_Send(addr, size, MPI_BYTE, remote, tag, parsec_ce_mpi_am_comm[tag]);
 
     return 1;
 }
@@ -1269,7 +1265,7 @@ mpi_no_thread_pack(parsec_comm_engine_t *ce,
                    int *positionA)
 {
     (void) ce;
-    return MPI_Pack(inbuf, incount, type, outbuf, outsize, positionA, parsec_ce_mpi_am_comm);
+    return MPI_Pack(inbuf, incount, type, outbuf, outsize, positionA, parsec_ce_mpi_comm);
 
 }
 
@@ -1279,7 +1275,7 @@ mpi_no_thread_pack_size(parsec_comm_engine_t *ce,
                         int* size)
 {
     (void) ce;
-    return MPI_Pack_size(incount, type, parsec_ce_mpi_am_comm, size);
+    return MPI_Pack_size(incount, type, parsec_ce_mpi_comm, size);
 }
 int
 mpi_no_thread_unpack(parsec_comm_engine_t *ce,
@@ -1287,7 +1283,7 @@ mpi_no_thread_unpack(parsec_comm_engine_t *ce,
                      void *outbuf, int outcount, parsec_datatype_t type)
 {
     (void) ce;
-    return MPI_Unpack(inbuf, insize, position, outbuf, outcount, type, parsec_ce_mpi_am_comm);
+    return MPI_Unpack(inbuf, insize, position, outbuf, outcount, type, parsec_ce_mpi_comm);
 }
 
 /* Mechanism to post global synchronization from upper layer */
@@ -1295,7 +1291,7 @@ int
 mpi_no_thread_sync(parsec_comm_engine_t *ce)
 {
     (void) ce;
-    MPI_Barrier(parsec_ce_mpi_am_comm);
+    MPI_Barrier(parsec_ce_mpi_comm);
     return 0;
 }
 

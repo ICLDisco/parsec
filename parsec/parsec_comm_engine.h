@@ -21,7 +21,7 @@ typedef enum {
  * To avoid runtime conflicts, the AM tags must be manually reserved
  * in the section below.
  */
-#define PARSEC_MAX_REGISTERED_TAGS  32
+#define PARSEC_MAX_REGISTERED_TAGS  12
 
 /* Internal TAG for GET and PUT activation message,
  * for two sides to agree on a "TAG" to post Irecv and Isend on
