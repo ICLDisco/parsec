@@ -378,7 +378,9 @@ remote_dep_dequeue_fini(parsec_context_t* context)
     PARSEC_OBJ_DESTRUCT(&dep_cmd_fifo);
     mpi_initialized = 0;
 
+#if defined(PARSEC_DEBUG)
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Process has reshaped %zu tiles.", count_reshaping);
+#endif
 
     return 0;
 }
