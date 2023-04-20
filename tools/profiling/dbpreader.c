@@ -780,7 +780,8 @@ int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
 
 void dbp_reader_close_files(dbp_multifile_reader_t *dbp)
 {
-    for( int i = 0; i < dbp->nb_files; i++ ) {
+	int i = 0;
+    for( i = 0; i < dbp->nb_files; i++ ) {
         dbp_reader_close_file(&dbp->files[i]);
     }
 }
