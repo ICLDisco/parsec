@@ -97,7 +97,7 @@ int __parsec_context_wait_task( parsec_execution_stream_t* es,
     case PARSEC_TASK_STATUS_NONE:
 #if defined(PARSEC_DEBUG)
         char tmp[MAX_TASK_STRLEN];
-        parsec_degug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
+        parsec_debug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task));
 #endif
         return -1;
@@ -464,7 +464,7 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
     PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_RETIRED, 1);
     PARSEC_AYU_TASK_COMPLETE(task);
 
-    /* Succesfull execution. The context is ready to be released, all
+    /* Successful execution. The context is ready to be released, all
      * dependencies have been marked as completed.
      */
     DEBUG_MARK_EXE( es->th_id, es->virtual_process->vp_id, task );

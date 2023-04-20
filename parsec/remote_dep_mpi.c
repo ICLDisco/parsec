@@ -1745,10 +1745,10 @@ remote_dep_mpi_put_end_cb(parsec_comm_engine_t *ce,
                        void *cb_data)
 {
     (void) ldispl; (void) rdispl; (void) size; (void) remote; (void) rreg;
-    /* Retreive deps from callback_data */
+    /* Retrieve deps from callback_data */
     parsec_remote_deps_t* deps = ((remote_dep_cb_data_t *)cb_data)->deps;
 
-    PARSEC_DEBUG_VERBOSE(6, parsec_debug_output, "MPI:\tTO\tna\tPut END  \tunknown \tk=%d\twith deps %p\tparams bla\t(src_mem_hanlde = %p, dst_mem_handle=%p",
+    PARSEC_DEBUG_VERBOSE(6, parsec_debug_output, "MPI:\tTO\tna\tPut END  \tunknown \tk=%d\twith deps %p\tparams bla\t(src_mem_handle = %p, dst_mem_handle=%p",
             ((remote_dep_cb_data_t *)cb_data)->k, deps, lreg, rreg);
 
 #if defined(PARSEC_PROF_TRACE)

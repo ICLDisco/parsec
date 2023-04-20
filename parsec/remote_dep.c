@@ -169,7 +169,7 @@ parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
             remote_deps->output[i].priority   = 0xffffffff;
             ptr += rank_bit_size;
         }
-        /* fw_mask immediatly follows outputs */
+        /* fw_mask immediately follows outputs */
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
         assert( (int)(ptr - (char*)remote_deps) ==
                 (int)(parsec_remote_dep_context.elem_size - rank_bit_size));
@@ -570,7 +570,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                         keeper = 1;
                         /* Let the engine know we're working to activate the dependencies remotely */
                         remote_dep_inc_flying_messages(task->taskpool);
-                        /* We need to increase the pending_ack to make the deps persistant until the
+                        /* We need to increase the pending_ack to make the deps persistent until the
                          * end of this function.
                          */
                         (void)parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack);
