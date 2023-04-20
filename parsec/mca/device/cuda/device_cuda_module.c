@@ -45,6 +45,11 @@ parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
 static int parsec_cuda_memory_release( parsec_device_cuda_module_t* gpu_device );
 static int parsec_cuda_flush_lru( parsec_device_module_t *device );
 
+/** MCA parameter that decides task delegation */
+extern int parsec_cuda_delegate_task_completion;
+parsec_hook_return_t
+parsec_cuda_co_manager( parsec_execution_stream_t *es, parsec_device_gpu_module_t* gpu_device );
+
 /* look up how many FMA per cycle in single/double, per cuda MP
  * precision.
  * The following table provides updated values for future archs
@@ -365,6 +370,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     len = asprintf(&gpu_device->super.name, "%s: cuda(%d)", szName, dev_id);
     if(-1 == len) { gpu_device->super.name = NULL; goto release_device; }
     gpu_device->data_avail_epoch = 0;
+    gpu_device->mutex = 0;
+    gpu_device->complete_mutex = 0;
+    gpu_device->co_manager_mutex = 0;
 
     gpu_device->max_exec_streams = parsec_cuda_max_streams;
     gpu_device->exec_stream =
@@ -471,6 +479,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     PARSEC_OBJ_CONSTRUCT(&gpu_device->gpu_mem_lru,       parsec_list_t);
     PARSEC_OBJ_CONSTRUCT(&gpu_device->gpu_mem_owned_lru, parsec_list_t);
     PARSEC_OBJ_CONSTRUCT(&gpu_device->pending,           parsec_fifo_t);
+    PARSEC_OBJ_CONSTRUCT(&gpu_device->to_complete,       parsec_fifo_t);
 
     gpu_device->sort_starting_p = NULL;
     gpu_device->peer_access_mask = 0;  /* No GPU to GPU direct transfer by default */
@@ -563,6 +572,7 @@ parsec_cuda_module_fini(parsec_device_module_t* device)
 
     /* Release pending queue */
     PARSEC_OBJ_DESTRUCT(&gpu_device->pending);
+    PARSEC_OBJ_DESTRUCT(&gpu_device->to_complete);
 
     /* Release all streams */
     for( j = 0; j < gpu_device->num_exec_streams; j++ ) {
@@ -2541,8 +2551,9 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
     parsec_device_gpu_module_t* gpu_device;
     parsec_device_cuda_module_t *cuda_device;
     cudaError_t status;
-    int rc, exec_stream = 0;
+    int rc, rc1, exec_stream = 0;
     parsec_gpu_task_t *progress_task, *out_task_submit = NULL, *out_task_pop = NULL;
+    int manager_completing_task  = 0;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -2571,7 +2582,7 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
      *             not in the queue yet.
      */
     while(1) {
-        rc = gpu_device->mutex;
+        rc = rc1 = gpu_device->mutex;
         struct timespec delay;
         if( rc >= 0 ) {
             if( parsec_atomic_cas_int32( &gpu_device->mutex, rc, rc+1 ) ) {
@@ -2585,6 +2596,24 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
     }
     if( 0 < rc ) {
         parsec_fifo_push( &(gpu_device->pending), (parsec_list_item_t*)gpu_task );
+
+        if( 1 == parsec_cuda_delegate_task_completion ) 
+        {
+            /**
+             * @brief 
+             * The second thread that push the task to device transitions to
+             * a co-manager.
+             * 
+             * 'rc1 == 1' is important or the manager thread will transition
+             * to co-manager. 'co_manager_mutex == 0' will ensure that there 
+             * is only one co-manager per device.
+             */
+            if( rc1 == 1 && gpu_device->co_manager_mutex == 0 )
+            {
+                parsec_cuda_co_manager(es, gpu_device);
+            }
+        }
+
         return PARSEC_HOOK_RETURN_ASYNC;
     }
     PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,"GPU[%s]: Entering GPU management at %s:%d",
@@ -2652,6 +2681,7 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
                 __parsec_reschedule(es, progress_task->ec);
                 gpu_task = progress_task;
                 progress_task = NULL;
+                manager_completing_task = 1;
                 goto remove_gpu_task;
             }
             gpu_task = NULL;
@@ -2728,17 +2758,44 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
     if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) {
         free( gpu_task->ec );
         gpu_task->ec = NULL;
+        manager_completing_task = 1;
         goto remove_gpu_task;
     }
     parsec_cuda_kernel_epilog( gpu_device, gpu_task );
-    __parsec_complete_execution( es, gpu_task->ec );
     gpu_device->super.executed_tasks++;
+
+    /** The manager will complete the tasks */
+    if( parsec_cuda_delegate_task_completion == 0 )
+    {
+        __parsec_complete_execution( es, gpu_task->ec );
+        manager_completing_task = 1;
+    }
+    /** The co-manager will complete the task. But first check if such a manager is active */
+    else if ( gpu_device->co_manager_mutex > 0 ) 
+    {
+        parsec_atomic_fetch_inc_int32( &(gpu_device->complete_mutex) );
+        parsec_fifo_push( &(gpu_device->to_complete), (parsec_list_item_t*)gpu_task );
+        manager_completing_task = 0;
+    }
+    /** If the co-manager is not yet ready */
+    else
+    {
+        __parsec_complete_execution( es, gpu_task->ec );
+        manager_completing_task = 1;
+    }
+
  remove_gpu_task:
     // Load problem: was parsec_device_load[gpu_device->super.device_index] -= gpu_task->load;
     parsec_device_load[gpu_device->super.device_index] -= parsec_device_sweight[gpu_device->super.device_index];
     PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,"GPU[%s]: gpu_task %p freed at %s:%d", gpu_device->super.name, 
                          gpu_task, __FILE__, __LINE__);
-    free( gpu_task );
+
+    /* free the task here only if the manager is completing the task*/
+    if(manager_completing_task == 1)
+    {
+        free( gpu_task );
+    }
+
     rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
     if( 1 == rc ) {  /* I was the last one */
 #if defined(PARSEC_PROF_TRACE)
@@ -2760,6 +2817,70 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
      */
     parsec_warning("Critical issue related to the GPU discovered. Giving up\n");
     return PARSEC_HOOK_RETURN_DISABLE;
+}
+
+
+
+parsec_hook_return_t
+parsec_cuda_co_manager( parsec_execution_stream_t *es, parsec_device_gpu_module_t* gpu_device )
+{
+    int rc = 0;
+    parsec_task_t* task = NULL;
+    parsec_gpu_task_t *gpu_task = NULL;
+    parsec_list_t *gpu_tasks_to_free = NULL; 
+    (void)es;
+
+    if( gpu_device->co_manager_mutex > 0 ) 
+    {
+        return PARSEC_HOOK_RETURN_ASYNC;
+    }
+    else 
+    {
+        rc = gpu_device->co_manager_mutex;
+        if( !parsec_atomic_cas_int32( &gpu_device->co_manager_mutex, rc, rc+1 ) ) 
+        {
+            return PARSEC_HOOK_RETURN_ASYNC;
+        }
+    }
+
+    gpu_tasks_to_free = PARSEC_OBJ_NEW(parsec_list_t);
+
+    /**
+     * @brief The migrate_manager thread exits when there are no more
+     * work to be done.
+     */
+    while( gpu_device->mutex > 0 || gpu_device->complete_mutex > 0)
+    {
+        if(gpu_device->complete_mutex > 0)
+        {
+            gpu_task = NULL;
+            task = NULL;
+
+            gpu_task = (parsec_gpu_task_t*)parsec_fifo_pop( &(gpu_device->to_complete) );
+            if( gpu_task != NULL)
+            {
+                task = gpu_task->ec;
+            
+                __parsec_complete_execution( es, task );
+                parsec_atomic_fetch_dec_int32( &(gpu_device->complete_mutex) );
+                parsec_list_push_back(gpu_tasks_to_free, (parsec_list_item_t*)gpu_task);
+            }                                  
+        }
+        
+    }
+    
+    rc = parsec_atomic_fetch_dec_int32( &(gpu_device->co_manager_mutex) );
+
+    /** We free the task delegated to the co-manager only at the end. Or else it may
+     * interfere with some operations in the manager.
+    */
+    while(NULL != (gpu_task = (parsec_gpu_task_t*)parsec_list_pop_front(gpu_tasks_to_free)) ) 
+    {
+        free(gpu_task);
+    }
+    PARSEC_OBJ_RELEASE(gpu_tasks_to_free);
+
+    return PARSEC_HOOK_RETURN_ASYNC;
 }
 
 #endif /* PARSEC_HAVE_CUDA */
