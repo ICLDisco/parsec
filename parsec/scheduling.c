@@ -624,7 +624,7 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
         /* If there is a single process run and the main thread is in charge of
          * progressing the communications we need to make sure the comm engine
          * is ready for primetime. */
-        remote_dep_mpi_on(tp->context);
+        parsec_ce.enable(&parsec_ce);
     }
 #endif /* defined(DISTRIBUTED) */
 
@@ -692,6 +692,8 @@ static void parsec_context_leave_wait(parsec_context_t *parsec)
     parsec_list_unlock(parsec->taskpool_list);
 }
 
+int remote_dep_ce_reconfigure(parsec_context_t* context);
+
 int __parsec_context_wait( parsec_execution_stream_t* es )
 {
     uint64_t misses_in_a_row;
@@ -716,7 +718,9 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
             /* If there is a single process run and the main thread is in charge of
              * progressing the communications we need to make sure the comm engine
              * is ready for primetime. */
-            remote_dep_mpi_on(parsec_context);
+            parsec_ce.enable(&parsec_ce);
+            remote_dep_ce_reconfigure(parsec_context);
+            parsec_remote_dep_reconfigure(parsec_context);
         }
 #endif /* defined(DISTRIBUTED) */
         parsec_context_enter_wait(parsec_context);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2022 The University of Tennessee and The University
+ * Copyright (c) 2012-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -464,10 +464,14 @@ PARSEC_DECLSPEC extern size_t parsec_task_startup_iter;
 PARSEC_DECLSPEC extern size_t parsec_task_startup_chunk;
 
 /**
- * Global configuration variable controlling the getrusage report.
+ * @brief Global configuration variable controlling the getrusage report.
  */
 PARSEC_DECLSPEC extern int parsec_want_rusage;
-
+/**
+ * @brief Report issues with the bindings (such as overlapping bindings on
+ *        processes located on the same physical node)
+ */
+PARSEC_DECLSPEC extern int parsec_slow_bind_warning;
 /**
  * Global configuration variable controlling what tasks are given to the
  * scheduler. If this is enabled (the default) then the highest priority task
@@ -691,12 +695,6 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
 
 /* Set internal TLS variable parsec_tls_execution_stream */
 void parsec_set_my_execution_stream(parsec_execution_stream_t *es);
-
-/* Validate the process binding when multiple processes are running
- * on the same node.
- */
-int parsec_check_overlapping_binding(parsec_context_t *context);
-int remote_dep_mpi_on(parsec_context_t* context);
 
 #define parsec_execution_context_priority_comparator offsetof(parsec_task_t, priority)
 

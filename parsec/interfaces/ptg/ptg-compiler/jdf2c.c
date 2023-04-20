@@ -7246,7 +7246,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
          * setup before it is consumed by any local successor.
          */
         coutput("  if(action_mask & ( PARSEC_ACTION_RESHAPE_ON_RELEASE | PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE ) ){\n");
-        coutput("    /* Generate the reshape promise for thet outputs that need it */\n");
+        coutput("    /* Generate the reshape promise for the outputs that need it */\n");
         coutput("    iterate_successors_of_%s_%s(es, this_task, action_mask, parsec_set_up_reshape_promise, &arg);\n"
                 "   }\n",
                 jdf_basename, f->fname);

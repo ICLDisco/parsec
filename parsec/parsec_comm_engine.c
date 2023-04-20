@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include "parsec/parsec_mpi_funnelled.h"
+#include "parsec/remote_dep.h"
 
 parsec_comm_engine_t parsec_ce;
 
@@ -20,9 +21,15 @@ parsec_comm_engine_init(parsec_context_t *parsec_context)
     return ce;
 }
 
+extern int remote_dep_ce_fini(parsec_context_t* context);
+
 int
 parsec_comm_engine_fini(parsec_comm_engine_t *comm_engine)
 {
     /* call the selected module fini */
-    return mpi_funnelled_fini(comm_engine);
+    parsec_ce.fini(&parsec_ce);
+    remote_dep_ce_fini(comm_engine->parsec_context);
+    (void) parsec_remote_dep_fini(comm_engine->parsec_context);
+
+    return PARSEC_SUCCESS;
 }

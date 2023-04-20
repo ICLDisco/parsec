@@ -20,7 +20,7 @@
 
 static int MAXNT                 = 16384;
 static int MAXLEVEL              =  1024;
-static int MAXTRY                =   100;
+static int MAXTRY                =   1;
 static double MAX_RELATIVE_STDEV =   0.1;
 
 double stdev(double sum, double sumsqr, double n)
