@@ -67,15 +67,11 @@ int main(int argc, char *argv[])
     free_data(dcA);
 
     parsec_fini(&parsec);
+    int gnbA = nb_taskA, gnbB = nb_taskB, gnbC = nb_taskC;
 #if defined(PARSEC_HAVE_MPI)
-    int gnbA, gnbB, gnbC;
-    MPI_Allreduce(&nb_taskA, &gnbA, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nb_taskB, &gnbB, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(&nb_taskC, &gnbC, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-#else
-    int gnbA = nb_taskA;
-    int gnbB = nb_taskB;
-    int gnbC = nb_taskC;
+    MPI_Allreduce(MPI_IN_PLACE, &gnbA, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &gnbB, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &gnbC, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 #endif
     printf("nb = %d, nb_taskA = %d, nb_taskB = %d, nb_taskC = %d -- %s\n", nb, 
            gnbA, gnbB, gnbC,
