@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2005 The University of Tennessee and The University
+ * Copyright (c) 2004-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -41,7 +41,7 @@ static void add_to_env(char **params, char **values, char ***env);
 
 
 /*
- * Add -mca to the possible command line options list
+ * Add --mca to the possible command line options list
  */
 int parsec_mca_cmd_line_setup(parsec_cmd_line_t *cmd)
 {
@@ -77,7 +77,7 @@ int parsec_mca_cmd_line_setup(parsec_cmd_line_t *cmd)
 
 
 /*
- * Look for and handle any -mca options on the command line
+ * Look for and handle any --mca options on the command line
  */
 int parsec_mca_cmd_line_process_args(parsec_cmd_line_t *cmd,
                                     char ***context_env, char ***global_env)
@@ -138,7 +138,7 @@ static int process_arg(const char *param, const char *value,
     int i, rc;
     char *new_str;
 
-    /* Look to see if we've already got an -mca argument for the same
+    /* Look to see if we've already got an --mca argument for the same
        param.  Check against the list of MCA param's that we've
        already saved arguments for. */
 
@@ -168,7 +168,7 @@ static void add_to_env(char **params, char **values, char ***env)
     int i;
 
     /* Loop through all the args that we've gotten and make env
-       vars of the form OMPI_MCA_*=value. */
+       vars of the form PARSEC_MCA_*=value. */
 
     for (i = 0; NULL != params && NULL != params[i]; ++i) {
         parsec_setenv_mca_param( params[i], values[i], env );

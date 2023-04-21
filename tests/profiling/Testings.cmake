@@ -43,9 +43,9 @@ if(Python_FOUND AND PARSEC_PYTHON_TOOLS AND PARSEC_PROF_TRACE AND MPI_C_FOUND)
   #  parsec_addtest_cmd(profiling/cleanup_profile_files ${SHM_TEST_CMD_LIST} rm -f bw-0.prof bw-1.prof bw.h5 async-0.prof async.h5)
 
   if(PARSEC_PROF_GRAPHER)
-    parsec_addtest_cmd(profiling/generate_profile_and_dot_bw:mp ${MPI_TEST_CMD_LIST} 2 apps/pingpong/bw_test -n 3 -f 2 -l 2097152 -- --mca profile_filename bw  --mca mca_pins task_profiler --dot bw)
-  set_property(TEST profiling/generate_profile_and_dot_bw:mp PROPERTY RESOURCE_LOCK bw_file_and_dot)
-  set_property(TEST profiling/generate_profile_and_dot_bw:mp PROPERTY FIXTURES_SETUP bw_file_base_and_dot)
+    parsec_addtest_cmd(profiling/generate_profile_and_dot_bw:mp ${MPI_TEST_CMD_LIST} 2 apps/pingpong/bw_test -n 3 -f 2 -l 2097152 -- --mca profile_filename bw  --mca mca_pins task_profiler --mca profile_dot bw)
+    set_property(TEST profiling/generate_profile_and_dot_bw:mp PROPERTY RESOURCE_LOCK bw_file_and_dot)
+    set_property(TEST profiling/generate_profile_and_dot_bw:mp PROPERTY FIXTURES_SETUP bw_file_base_and_dot)
 
     parsec_addtest_cmd(profiling/generate_hdf5_for_dag_and_dot ${SHM_TEST_CMD_LIST}
             ${Python_EXECUTABLE}
