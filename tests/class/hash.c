@@ -329,13 +329,16 @@ void free_tree(node_t **tree)
     *tree = NULL;
 }
 
-static  void init_keys(uint64_t *keys, int nbkeys)
+static  void init_keys(uint64_t *keys, int nbkeys, int64_t seed)
 {
     node_t *tree = NULL;
     struct timeval start, end, delta;
     int print_end = 0;
     gettimeofday(&start, NULL);
-    srand(start.tv_sec * 1000000 + start.tv_usec);
+    if (seed == -1) {
+        seed = start.tv_sec * 1000000 + start.tv_usec;
+    }
+    srand(seed);
 
     int cur_sec = 0;
     for(int t = 0; t < nbkeys; t++) {
@@ -373,6 +376,7 @@ int main(int argc, char *argv[])
     void *retval;
     param_t *params;
     uint64_t *keys;
+    int64_t seed = -1;
     int mc_hint_index = -1;
     int mc_tuning_min = -1;
     int mc_tuning_max = -1;
@@ -405,8 +409,8 @@ int main(int argc, char *argv[])
         md_hint_index == PARSEC_ERROR ) {
         fprintf(stderr, "Warning: unable to find the hash table hint, tuning behavior will be disabled\n");
     }
-    
-    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:#:r:hnpH?")) != -1 ) {
+
+    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:#:s:r:hnpH?")) != -1 ) {
         switch(ch) {
         case 'c':
             ch = strtol(optarg, &m, 0);
@@ -482,6 +486,14 @@ int main(int argc, char *argv[])
             }
             nb_tests = ch;
             break;
+        case 's':
+            seed = strtoll(optarg, &m, 0);
+            if( (seed < -1) || (m[0] != '\0') ) {
+                fprintf(stderr, "%s: %s\n", argv[0], "invalid -s value");
+                seed = -1;
+            }
+            break;
+
         case 'r':
             ch = strtol(optarg, &m, 0);
             if( (ch <= 0) || (m[0] != '\0') ) {
@@ -500,10 +512,11 @@ int main(int argc, char *argv[])
         default:
             fprintf(stderr,
                     "Usage: %s [-c nbthreads|-m minthreads -M maxthreads]\n"
-                    "          [-t max_ coll_min -T max_coll_max -i max_coll_inc]\n"
+                    "          [-t max_coll_min -T max_coll_max -i max_coll_inc]\n"
                     "          [-d max_table_depth_min -D max_table_depth_max -I max_table_depth_inc]\n"
                     "          [-# number of items to insert][-r number of loops of the test][-n use a new hash table for each test]\n"
                     "          [-p (run simple performance test)]\n"
+                    "          [-s key generator seed (default: -1, random)]\n"
                     "          [-H (use key handles for locking buckets)]\n", argv[0]);
             exit(1);
             break;
@@ -565,7 +578,7 @@ int main(int argc, char *argv[])
     threads = calloc(sizeof(pthread_t), maxthreads);
     params = calloc(sizeof(param_t), maxthreads+1);
     keys = calloc(sizeof(uint64_t), nb_tests);
-    init_keys(keys, nb_tests);
+    init_keys(keys, nb_tests, seed);
 
     for(md_tuning = md_tuning_min; md_tuning < md_tuning_max; md_tuning += md_tuning_inc) {
         for(mc_tuning = mc_tuning_min; mc_tuning < mc_tuning_max; mc_tuning += mc_tuning_inc) {
