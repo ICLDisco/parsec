@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <math.h>
 #include "parsec/class/barrier.h"
 #include "parsec/bindthread.h"
 #include "parsec/parsec_hwloc.h"
@@ -128,7 +129,7 @@ static void *do_test(void *_param)
     void *rc;
     uint64_t duration;
     empty_hash_item_t *item_array;
-    
+
     parsec_bindthread(id%nbcores, 0);
 
     item_array = malloc(sizeof(empty_hash_item_t)*nbtests);
@@ -140,7 +141,7 @@ static void *do_test(void *_param)
     }
 
     parsec_barrier_wait(&barrier1);
-    
+
     t0 = take_time();
     for(l = 0; l < param->nb_loops; l++) {
         if( l==0 || param->new_table_each_time ) {
@@ -329,37 +330,54 @@ void free_tree(node_t **tree)
     *tree = NULL;
 }
 
-static  void init_keys(uint64_t *keys, int nbkeys, int64_t seed)
+static  void init_keys(uint64_t *keys, int nbkeys, int64_t seed, int structured_keys)
 {
-    node_t *tree = NULL;
     struct timeval start, end, delta;
     int print_end = 0;
     gettimeofday(&start, NULL);
-    if (seed == -1) {
-        seed = start.tv_sec * 1000000 + start.tv_usec;
-    }
-    srand(seed);
 
     int cur_sec = 0;
-    for(int t = 0; t < nbkeys; t++) {
-        uint64_t c;
-        do {
-            c = rand();
-        } while( !node_add(&tree, c));
-        keys[t] = c;
-        gettimeofday(&end, NULL);
-        timersub(&end, &start, &delta);
-        if(delta.tv_sec > cur_sec) {
-            if(cur_sec == 0) {
-                fprintf(stderr, "### Building an array with %d unique items %5.1f%% done", nbkeys, 100.0*t/(double)nbkeys); fflush(stderr);
-                print_end=1;
-            } else {
-                fprintf(stderr, "\r### Building an array with %d unique items %5.1f%% done", nbkeys, 100.0*t/(double)nbkeys); fflush(stderr);
+    if (!structured_keys) {
+        node_t *tree = NULL;
+        if (seed == 0) {
+            seed = start.tv_sec * 1000000 + start.tv_usec;
+        }
+        srand(seed);
+        for(int t = 0; t < nbkeys; t++) {
+            uint64_t c;
+            do {
+                c = rand();
+            } while( !node_add(&tree, c));
+            keys[t] = c;
+            gettimeofday(&end, NULL);
+            timersub(&end, &start, &delta);
+            if(delta.tv_sec > cur_sec) {
+                if(cur_sec == 0) {
+                    fprintf(stderr, "### Building an array with %d unique items %5.1f%% done", nbkeys, 100.0*t/(double)nbkeys); fflush(stderr);
+                    print_end=1;
+                } else {
+                    fprintf(stderr, "\r### Building an array with %d unique items %5.1f%% done", nbkeys, 100.0*t/(double)nbkeys); fflush(stderr);
+                }
+                cur_sec = delta.tv_sec;
             }
-            cur_sec = delta.tv_sec;
+        }
+        free_tree(&tree);
+    } else {
+        uint64_t l0, l1, l2;
+        int count = 0;
+        l0 = l1 = 1 + (int)cbrt(nbkeys);
+        l2 = (nbkeys + (l1*l0) -1) / (l1*l0);
+        for (uint64_t i = 0; i < l0; ++i) {
+            for (uint64_t j = 0; j < l1; ++j) {
+                for (uint64_t k = 0; k < l2; ++k) {
+                    if (count == nbkeys) goto gen_done;
+                    keys[count] = (i << 42) + (j << 21) + k;
+                    count++;
+                }
+            }
         }
     }
-    free_tree(&tree);
+gen_done:
     gettimeofday(&end, NULL);
     timersub(&end, &start, &delta);
     if(print_end)
@@ -392,6 +410,7 @@ int main(int argc, char *argv[])
     int nb_tests = 30000;
     int nb_loops = 300;
     int new_table_each_time = 0;
+    int structured_keys = 0;
 
     parsec_debug_init();
     parsec_hwloc_init();
@@ -410,7 +429,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Warning: unable to find the hash table hint, tuning behavior will be disabled\n");
     }
 
-    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:#:s:r:hnpH?")) != -1 ) {
+    while( (ch = getopt(argc, argv, "c:m:M:t:T:i:d:D:I:#:s:r:3hnpH?")) != -1 ) {
         switch(ch) {
         case 'c':
             ch = strtol(optarg, &m, 0);
@@ -493,7 +512,6 @@ int main(int argc, char *argv[])
                 seed = -1;
             }
             break;
-
         case 'r':
             ch = strtol(optarg, &m, 0);
             if( (ch <= 0) || (m[0] != '\0') ) {
@@ -507,6 +525,9 @@ int main(int argc, char *argv[])
         case 'H':
             use_handle = true;
             break;
+        case '3':
+            structured_keys = 1;
+            break;
         case 'h':
         case '?':
         default:
@@ -517,6 +538,7 @@ int main(int argc, char *argv[])
                     "          [-# number of items to insert][-r number of loops of the test][-n use a new hash table for each test]\n"
                     "          [-p (run simple performance test)]\n"
                     "          [-s key generator seed (default: -1, random)]\n"
+                    "          [-3 use structured 3D key space instead of random keys (false)]\n"
                     "          [-H (use key handles for locking buckets)]\n", argv[0]);
             exit(1);
             break;
@@ -554,7 +576,7 @@ int main(int argc, char *argv[])
             mc_tuning_max = mc_tuning+1;
         }
     }
-    
+
     if( md_tuning_min > 0 ) {
         if( md_tuning_max < md_tuning_min ||
             md_hint_index < 0 ||
@@ -578,7 +600,7 @@ int main(int argc, char *argv[])
     threads = calloc(sizeof(pthread_t), maxthreads);
     params = calloc(sizeof(param_t), maxthreads+1);
     keys = calloc(sizeof(uint64_t), nb_tests);
-    init_keys(keys, nb_tests, seed);
+    init_keys(keys, nb_tests, seed, structured_keys);
 
     for(md_tuning = md_tuning_min; md_tuning < md_tuning_max; md_tuning += md_tuning_inc) {
         for(mc_tuning = mc_tuning_min; mc_tuning < mc_tuning_max; mc_tuning += mc_tuning_inc) {
@@ -600,7 +622,7 @@ int main(int argc, char *argv[])
                     params[e].use_handle = use_handle;
                 }
 
-                parsec_barrier_init(&barrier1, NULL, nbthreads+1);    
+                parsec_barrier_init(&barrier1, NULL, nbthreads+1);
                 parsec_barrier_init(&barrier2, NULL, nbthreads+1);
 
                 if( simple_perf ) {
