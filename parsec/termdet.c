@@ -26,7 +26,7 @@ static int string_key_equal(parsec_key_t a, parsec_key_t b, void *user_data)
     char *stra = (char*)a;
     char *strb = (char*)b;
     (void)user_data;
-    return strcmp(stra, strb);
+    return !strcmp(stra, strb);
 }
 
 static char *string_key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)
