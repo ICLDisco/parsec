@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "parsec/parsec_config.h"
 
 #include <mpi.h>
@@ -1676,12 +1682,14 @@ remote_dep_mpi_put_start(parsec_execution_stream_t* es,
                                    -1,
                                    &source_memory_handle, &source_memory_handle_size);
         } else {
-            /* TODO: Implement converter to pack and unpack */
-            int dtt_size;
-            parsec_type_size(dtt, &dtt_size);
+            /* TODO: Implement converter to pack and unpack
+             * register the whole region including the holes because we don't support sparse
+             * registration. */
+            ptrdiff_t extent, lb;
+            parsec_type_extent(dtt, &lb, &extent); (void)lb;
             parsec_ce.mem_register(dataptr, PARSEC_MEM_TYPE_CONTIGUOUS,
-                                   -1, NULL, // TODO JS: this interface is so broken, fix it!
-                                   dtt_size, // TODO JS: what about nbdtt? Is it ok to ignore it?!
+                                   -1, parsec_datatype_uint8_t,
+                                   nbdtt * extent,
                                    &source_memory_handle, &source_memory_handle_size);
 
         }
@@ -2021,12 +2029,14 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
                                    -1,
                                    &receiver_memory_handle, &receiver_memory_handle_size);
         } else {
-            /* TODO: Implement converter to pack and unpack */
-            int dtt_size;
-            parsec_type_size(dtt, &dtt_size);
+            /* TODO: Implement converter to pack and unpack
+             * register the whole region including the holes because we don't support sparse
+             * registration. */
+            ptrdiff_t extent, lb;
+            parsec_type_extent(dtt, &lb, &extent); (void)lb;
             parsec_ce.mem_register(PARSEC_DATA_COPY_GET_PTR(deps->output[k].data.data), PARSEC_MEM_TYPE_CONTIGUOUS,
-                                   -1, NULL,
-                                   dtt_size,
+                                   -1, parsec_datatype_uint8_t,
+                                   nbdtt * extent,
                                    &receiver_memory_handle, &receiver_memory_handle_size);
 
         }
