@@ -213,7 +213,7 @@ static int32_t vector_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
     m += dc->super.i / dc->super.mb;
 
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == vector_twoDBC_rank_of(desc, m));
+    assert(desc->myrank == desc->rank_of(desc, m));
 #endif
 
     /* Compute the local tile row */
@@ -247,7 +247,7 @@ static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
     m += dc->super.i / dc->super.mb;
 
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == vector_twoDBC_rank_of(desc, m));
+    assert(desc->myrank == desc->rank_of(desc, m));
 #endif
 
     /* Compute the local tile row */

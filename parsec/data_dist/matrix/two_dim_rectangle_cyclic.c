@@ -321,7 +321,7 @@ static int32_t twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
     assert( n < dc->super.nt );
 
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == twoDBC_rank_of(desc, m, n));
+    assert(desc->myrank == desc->rank_of(desc, m, n));
 #endif
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
@@ -384,7 +384,7 @@ static parsec_data_t* twoDBC_data_of(parsec_data_collection_t *desc, ...)
     assert( n < dc->super.nt );
 
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == twoDBC_rank_of(desc, m, n));
+    assert(desc->myrank == desc->rank_of(desc, m, n));
 #endif
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
@@ -599,7 +599,7 @@ static int32_t twoDBC_kcyclic_vpid_of(parsec_data_collection_t *desc, ...)
 
     /* Assert using local info */
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == twoDBC_kcyclic_rank_of(desc, m, n));
+    assert(desc->myrank == desc->rank_of(desc, m, n));
 #endif
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
@@ -646,7 +646,7 @@ static parsec_data_t* twoDBC_kcyclic_data_of(parsec_data_collection_t *desc, ...
 
     /* Assert using local info */
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == twoDBC_kcyclic_rank_of(desc, m, n));
+    assert(desc->myrank == desc->rank_of(desc, m, n));
 #endif
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
