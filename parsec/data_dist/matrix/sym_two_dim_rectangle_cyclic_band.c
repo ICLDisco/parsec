@@ -68,7 +68,7 @@ static parsec_data_t* sym_twoDBC_band_data_of(parsec_data_collection_t *desc, ..
     va_end(ap);
 
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == sym_twoDBC_band_rank_of(desc, m, n));
+    assert(desc->myrank == desc->rank_of(desc, m, n));
 #endif
 
     /* Check tile location within band_size */
