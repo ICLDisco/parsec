@@ -96,7 +96,7 @@ static int nbregions                      = 0;
 static int next_region                    = 0;
 static int next_attr_id                   = 0;
 
-static int  thread_profiling_id = 0;
+static int32_t  thread_profiling_id = 0;
 
 typedef struct {
     char *type_name;
@@ -884,7 +884,7 @@ int parsec_profiling_dbp_dump( void )
             parsec_warning("PaRSEC Profiling System: OTF2 Error -- %s (%s)", OTF2_Error_GetName(rc), OTF2_Error_GetDescription(rc));
         }
     }
-    assert(thread_profiling_id == nb_local_threads);
+    assert((uint64_t)thread_profiling_id == nb_local_threads);
     parsec_list_unlock( &threads );
 
 
