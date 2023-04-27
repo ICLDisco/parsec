@@ -25,7 +25,7 @@ set(SRC_PYTHON_SUPPORT ${CMAKE_CURRENT_SOURCE_DIR}/common_utils.py ${CMAKE_CURRE
 set(SETUP_PY setup.py)
 
 set(PYTHON_TOOLS_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR})
-set(OUTPUT ${PYTHON_TOOLS_BIN_DIR}/build/timestamp)
+set(OUTPUT ${PYTHON_TOOLS_BIN_DIR}/build/pbt2ptt.timestamp)
 
 if(Python_VERSION_MAJOR EQUAL 2)
   # We do not support python 2 anymore. If you really need it you can go back
