@@ -15,8 +15,6 @@
 #include "parsec/class/list.h"
 #include "parsec/class/parsec_rwlock.h"
 
-#define PAPI_SDE_IMPLEMENTATION
-#include "parsec/sde_lib.h"
 #include "parsec/papi_sde.h"
 
 #include "parsec/utils/mca_param.h"

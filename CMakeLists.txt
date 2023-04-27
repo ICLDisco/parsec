@@ -217,18 +217,6 @@ set_property(CACHE PARSEC_PROF_TRACE_SYSTEM PROPERTY STRINGS "Auto" "OTF2" "PaRS
 option(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT
   "Generate Profiling traces for the internal_init tasks in the PTG interface (expert mode only)" OFF)
 mark_as_advanced(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) #This is available in export mode only
-if( PARSEC_PROF_TRACE )
-  if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR
-     CMAKE_SYSTEM_NAME MATCHES "MSYS" OR
-     CMAKE_SYSTEM_NAME MATCHES "MINGW64")
-    SET(PARSEC_PAPI_SDE OFF)
-  else()
-    SET(PARSEC_PAPI_SDE ON)
-  endif()
-else( PARSEC_PROF_TRACE )
-  UNSET(PARSEC_PAPI_SDE)
-  UNSET(PARSEC_PAPI_SDE CACHE)
-endif( PARSEC_PROF_TRACE )
 
 option(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET
   "Enable the profiling of active arena set to track memory usage of parsec handles" OFF)
@@ -277,6 +265,25 @@ include (CheckCXXCompilerFlag)
 #
 # check the capabilities of the system we are building for
 #
+
+# Check for PAPI::SDE
+if( PARSEC_PROF_TRACE )
+  if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR
+     CMAKE_SYSTEM_NAME MATCHES "MSYS" OR
+     CMAKE_SYSTEM_NAME MATCHES "MINGW64")
+    SET(PARSEC_PAPI_SDE OFF)
+  else()
+    find_package(SDE)
+    if( TARGET PAPI::SDE )
+      set(PARSEC_PAPI_SDE ON)
+    else( TARGET PAPI::SDE )
+      set(PARSEC_PAPI_SDE OFF)
+    endif( TARGET PAPI::SDE )
+  endif()
+else( PARSEC_PROF_TRACE )
+  UNSET(PARSEC_PAPI_SDE)
+  UNSET(PARSEC_PAPI_SDE CACHE)
+endif( PARSEC_PROF_TRACE )
 
 # Check for compiler tools
 find_package(BISON 3)
