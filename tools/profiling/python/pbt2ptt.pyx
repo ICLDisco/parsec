@@ -6,7 +6,7 @@ The preferred nomenclature for the Python Binary Trace is "PBT",
 REQUIREMENTS:
 # Cython 0.19+ required.
 # pandas 0.13+ (and numpy, etc.) required.
-# Python 2.7.3 recommended.
+# Python 3.5+  recommended.
 
 BUILD NOTES:
 # Be SURE to build this against the same version of Python as you have built Cython itself.
@@ -519,6 +519,7 @@ cpdef construct_dataframe_v1(builder):
             event.setdefault(k, None)
     # Build a DataFrame with dtype object
     builder.events = pd.DataFrame(builder.events, dtype=object)
+    builder.infos = dict()
 
 
 cpdef construct_dataframe_v2(builder):
