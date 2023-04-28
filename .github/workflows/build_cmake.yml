@@ -119,7 +119,6 @@ jobs:
         -DPARSEC_DEBUG_NOISIER=OFF
         -DBUILD_SHARED_LIBS=${{ matrix.shared_type }}
         -DPARSEC_PROF_TRACE=${{ matrix.profiling }}
-        -DPARSEC_PROF_TRACE_SYSTEM='PaRSEC Binary Tracing Format'
         -DMPIEXEC_PREFLAGS='--bind-to;none;--oversubscribe'
         -DCMAKE_INSTALL_PREFIX=$INSTALL_DIRECTORY
 
