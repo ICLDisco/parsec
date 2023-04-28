@@ -34,7 +34,13 @@ void parsec_pins_instrument(struct parsec_execution_stream_s* es,
                             parsec_task_t* task)
 {
     assert( method_flag < PARSEC_PINS_FLAG_COUNT );
-    if((NULL != task) && (-1 == task->taskpool->profiling_array[START_KEY(task->task_class->task_class_id)])) {
+    /**
+     * profiling array only generated if at least one task requires profiling,
+     * so must check it.
+     */
+    if((NULL != task) && 
+       (NULL != task->taskpool->profiling_array) &&
+       (-1 == task->taskpool->profiling_array[START_KEY(task->task_class->task_class_id)])) {
         return;
     }
 
