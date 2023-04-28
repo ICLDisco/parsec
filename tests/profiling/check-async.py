@@ -31,8 +31,9 @@ except KeyError:
 error = 0
 
 try:
-    if len(t.events[t.events.type == STARTUP]) != 1:
-        print("Error: there should be exactly one STARTUP task.",
+    if len(t.events[t.events.type == STARTUP]) != 0:
+        print("Error: there should be no STARTUP tasks." +
+              "because they were marked with property \"[profiling=off]\"",
               file=sys.stderr)
         error += 1
     else:

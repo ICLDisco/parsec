@@ -13,6 +13,8 @@
 #include "parsec/constants.h"
 #include "parsec/utils/debug.h"
 #include "parsec/execution_stream.h"
+#include "parsec/parsec_internal.h"
+#include "parsec/parsec_binary_profile.h"
 
 /**
  * Mask for PINS events that are enabled by default.
@@ -32,6 +34,10 @@ void parsec_pins_instrument(struct parsec_execution_stream_s* es,
                             parsec_task_t* task)
 {
     assert( method_flag < PARSEC_PINS_FLAG_COUNT );
+    if((NULL != task) && (-1 == task->taskpool->profiling_array[START_KEY(task->task_class->task_class_id)])) {
+        return;
+    }
+
 
     parsec_pins_next_callback_t* cb_event = &es->pins_events_cb[method_flag];
     while( NULL != cb_event->cb_func ) {
