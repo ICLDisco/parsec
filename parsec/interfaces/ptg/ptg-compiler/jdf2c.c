@@ -2876,9 +2876,12 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
                 /* We cannot be a control flow, or has_ready_input_dependency would have returned false */
                 assert( 0 == (JDF_FLOW_TYPE_CTL & flow->flow_flags) );
                 /* We are necessarily depending on a direct memory, for the same reason */
-                assert( NULL == dep->guard->calltrue->var );
-                coutput("  /* Flow for %s is always a memory reference */\n", flow->varname);
-                skip_continue = 1;  /* no need to complete the flow with a continue */
+                if( NULL == dep->guard->calltrue->var ) {
+                    coutput("  /* Flow for %s is always a memory reference */\n", flow->varname);
+                    skip_continue = 1;  /* no need to complete the flow with a continue */
+                } else {
+                    coutput("  /* Flow for %s is a task dependency and cannot be taken in account for startup tasks */\n", flow->varname);
+                }
                 break; /* No need to go check other cases, no need to print the flow label, or the continue */
             } else if( dep->guard->guard_type == JDF_GUARD_BINARY ) {
                 if(NULL != dep->guard->calltrue->var) {
@@ -2903,32 +2906,42 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
                     if( NULL == dep->guard->calltrue->var ) {
                         assert( NULL != dep->guard->callfalse->var );
                         goto_if_true = 1;
-                    } else {
-                        assert( NULL == dep->guard->callfalse->var );
+                    } else if( NULL == dep->guard->callfalse->var ) {
                         goto_if_false = 1;
+                    } else {
+                        /* We found a tertiary where both sides describe dependencies from tasks.
+                         * There is no way we can reach any other dependency after this one.
+                         */
+                        coutput("  /* Flow for %s dep line %d has a tertiary where both sides depend on predecessor tasks. This is the end of all possible cases where this task could have been a startup task */\n", flow->varname, JDF_OBJECT_LINENO(dep));
+                        assert( NULL != dep->guard->callfalse->var );
+                        goto force_continue_generation;
                     }
                 }
             }
 
             assert( continue_if_true || goto_if_false || goto_if_true );
             jdf_expr_t *ld;
+            int inside_lv_loop = 0;
             if( NULL != dep->guard->guard->local_variables ) {
+                coutput("  {\n"
+                        "    int __active_dep_found = 0;\n");
+                inside_lv_loop = 1;
                 for(ld = jdf_expr_lv_first(dep->guard->guard->local_variables);
                     ld != NULL; ld = jdf_expr_lv_next(dep->guard->guard->local_variables, ld)) {
                     assert(NULL != ld->alias);
                     assert(-1 != ld->ldef_index);
-                    coutput("  int %s;\n", ld->alias);
+                    coutput("    int %s;\n", ld->alias);
                     if(JDF_RANGE == ld->op) {
-                        coutput("  for( %s = %s;",
+                        coutput("    for( %s = %s;",
                                 ld->alias, dump_expr((void**)ld->jdf_ta1, &info));
-                        coutput("%s <= %s; %s+=",
+                        coutput("(!__active_dep_found) && (%s <= %s); %s+=",
                                 ld->alias, dump_expr((void**)ld->jdf_ta2, &info), ld->alias);
                         coutput("%s) {\n"
-                                "     "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s;\n",
+                                "       "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s;\n",
                                 dump_expr((void**)ld->jdf_ta3, &info),
                                 ld->ldef_index, ld->alias);
                     } else {
-                        coutput("  "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s = %s;\n",
+                        coutput("    "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s = %s;\n",
                                 ld->ldef_index, ld->alias, dump_expr((void**)ld, &info));
                     }
                 }
@@ -2943,22 +2956,32 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
                         nextname);
                 write_next_label = 1;
             } if( continue_if_true) {
-                coutput("  if( %s ) continue; /* %s %s() is not a memory reference for flow %s */\n",
-                        dump_expr((void**)dep->guard->guard, &info),
-                        dep->guard->calltrue->var, dep->guard->calltrue->func_or_mem,
-                        flow->varname);
+                if(inside_lv_loop) {
+                    coutput("  if( %s ) { __active_dep_found = 1; break; /* %s %s() is not a memory reference for flow %s */ }\n",
+                            dump_expr((void**)dep->guard->guard, &info),
+                            dep->guard->calltrue->var, dep->guard->calltrue->func_or_mem,
+                            flow->varname);
+                } else {
+                    coutput("  if( %s ) continue; /* %s %s() is not a memory reference for flow %s */\n",
+                            dump_expr((void**)dep->guard->guard, &info),
+                            dep->guard->calltrue->var, dep->guard->calltrue->func_or_mem,
+                            flow->varname);
+                }
             }
-            if( NULL != dep->guard->guard->local_variables ) {
+            if( inside_lv_loop ) {
                 for(ld = jdf_expr_lv_first(dep->guard->guard->local_variables);
                     ld != NULL; ld = jdf_expr_lv_next(dep->guard->guard->local_variables, ld)) {
                     if(JDF_RANGE == ld->op) {
                         coutput("  }\n");
                     }
                 }
+                coutput("    if(__active_dep_found) continue;\n"
+                        "  }\n");
             }
         }
 
         if(write_next_label && !skip_continue) {
+force_continue_generation:
             coutput("  continue; /* All other cases are not startup tasks */\n");
         }
     }
