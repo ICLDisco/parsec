@@ -8,7 +8,13 @@ spack:
     - bison
     - hwloc
     - python@3
+    - py-pip
+    - py-pandas
+    - py-matplotlib
+    - py-tables
+    - py-networkx
     - py-cython
+    - py-wheel
     - cmake
     - ninja
     - otf2@2.3

@@ -90,7 +90,7 @@ jobs:
       # run: ctest -C $BUILD_TYPE
       run: |
         source ${{github.workspace}}/.github/CI/spack_setup.sh
-        cmake --build . --target test
+        ctest --output-on-failure
 
     - name: Save Artifact
       if: failure()
@@ -192,7 +192,7 @@ jobs:
       # run: ctest -C $BUILD_TYPE
       run: |
         source ${{github.workspace}}/.github/CI/spack_setup.sh
-        cmake --build . --target test
+        ctest --output-on-failure
 
     - name: Save Testing Artifact
       if: failure()
