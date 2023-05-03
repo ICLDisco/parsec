@@ -448,6 +448,15 @@ void* remote_dep_dequeue_main(parsec_context_t* context)
         /* acknowledge the activation */
         parsec_communication_engine_up = 3;
 
+        /* Check that we have the right memory pool pointers and update them if needed */
+        if( parsec_comm_es.context_mempool != &(parsec_comm_es.virtual_process->context_mempool.thread_mempools[0]) ) {
+            parsec_comm_es.context_mempool = &(parsec_comm_es.virtual_process->context_mempool.thread_mempools[0]);
+            for(int pi = 0; pi <= MAX_PARAM_COUNT; pi++) {
+                parsec_comm_es.datarepo_mempools[pi] = &(parsec_comm_es.virtual_process->datarepo_mempools[pi].thread_mempools[0]);
+            }
+            parsec_comm_es.dependencies_mempool = &(parsec_comm_es.virtual_process->dependencies_mempool.thread_mempools[0]);
+        }
+
         whatsup = remote_dep_dequeue_nothread_progress(&parsec_comm_es, -1 /* loop till explicitly asked to return */);
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI: comm engine OFF on process %d/%d",
                              context->my_rank, context->nb_nodes);
