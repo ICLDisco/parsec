@@ -45,7 +45,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${SETUP_PY}.in
 # location and import the pbt2ptt module.
 add_custom_command(OUTPUT ${OUTPUT}
                    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC_PYTHON_SUPPORT} ${CMAKE_CURRENT_BINARY_DIR}
-                   COMMAND ${Python_EXECUTABLE} -m pip install --quiet --prefix=${CMAKE_CURRENT_BINARY_DIR}/python.test .
+                   COMMAND ${Python_EXECUTABLE} -m pip install --quiet --upgrade --target=${CMAKE_CURRENT_BINARY_DIR}/python.test .
                    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
                    DEPENDS parsec-base ${SRC_PYTHON_SUPPORT})
 add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})

@@ -4,7 +4,7 @@ if(Python_FOUND AND PARSEC_PYTHON_TOOLS AND PARSEC_PROF_TRACE AND MPI_C_FOUND)
   parsec_addtest_cmd(profiling/bw_generate_prof:mp ${MPI_TEST_CMD_LIST} 2 apps/pingpong/bw_test -n 10 -f 10 -l 2097152 -- --mca profile_filename bw  --mca mca_pins task_profiler)
   set_property(TEST profiling/bw_generate_prof:mp PROPERTY FIXTURES_SETUP bw_prof_files)
 
-  set(TMPPYTHONPATH "${PROJECT_BINARY_DIR}/tools/profiling/python/python.test/lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
+  set(TMPPYTHONPATH "${PROJECT_BINARY_DIR}/tools/profiling/python/python.test/")
   parsec_addtest_cmd(profiling/bw_generate_hdf5 ${SHM_TEST_CMD_LIST}
     ${Python_EXECUTABLE}
     ${PROJECT_BINARY_DIR}/tools/profiling/python/profile2h5.py --output=bw.h5 bw-0.prof bw-1.prof)
