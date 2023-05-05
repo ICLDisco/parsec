@@ -809,6 +809,7 @@ parsec_cuda_flush_lru( parsec_device_module_t *device )
     /* Free all memory on GPU */
     parsec_cuda_memory_release_list(cuda_device, &gpu_device->gpu_mem_lru);
     parsec_cuda_memory_release_list(cuda_device, &gpu_device->gpu_mem_owned_lru);
+    parsec_gpu_free_workspace(gpu_device);
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE) && !defined(_NDEBUG)
     if( (in_use = zone_in_use(gpu_device->memory)) != 0 ) {
         parsec_warning("GPU[%s] memory leak detected: %lu bytes still allocated on GPU",
