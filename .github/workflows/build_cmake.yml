@@ -136,15 +136,16 @@ jobs:
           git diff --name-only --diff-filter=AMRD origin/${{ github.base_ref }} -- contrib/pregen_flex_bison.tar '*.[ly]' | awk '/pregen_flex_bison.tar/{t=1} /.[ly]/{s=1} END{if(t-s) exit 1}'
         fi
 
-    - name: Create Build Environment ${{ runner.os }}
+    - name: Setup Build Environment ${{ runner.os }}
+      id: setup
       # Create a separate build directory and use it for all subsequent commands
       run: |
           source ${{github.workspace}}/.github/CI/spack_setup.sh
           spack compiler list
-          spack find
           cmake -E make_directory ${{ env.BUILD_DIRECTORY }}
 
     - name: Configure CMake
+      id: configure
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
       working-directory: ${{ env.BUILD_DIRECTORY }}

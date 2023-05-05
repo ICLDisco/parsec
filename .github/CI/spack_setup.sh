@@ -17,8 +17,10 @@ slocation () {
 
 # Only do the heavy lifting once per github_action invocation
 if [ ${GITHUB_ACTION} != "setup" ]; then
+  echo "::group::Loading spack ${RUNNER_ENV} env"
   source $SPACK_DIR/share/spack/setup-env.sh
   spack env activate ${RUNNER_ENV}
+  echo "::endgroup::"
   return
 fi
 
