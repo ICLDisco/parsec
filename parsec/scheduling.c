@@ -289,8 +289,15 @@ __parsec_schedule(parsec_execution_stream_t* es,
                   int32_t distance)
 {
     int ret;
+#ifdef PARSEC_PROF_PINS
+    parsec_execution_stream_t* local_es = parsec_my_execution_stream();
+#endif  /* PARSEC_PROF_PINS */
 
-    PARSEC_PINS(es, SCHEDULE_BEGIN, tasks_ring);
+    /* We should be careful which es we put the PINS event into, as the profiling streams
+     * are not thread-safe. Here we really want the profiling to be generated into the
+     * local stream and not into the stream where we try to enqueue the task into (operation
+     * which is thread safe)*/
+    PARSEC_PINS(local_es, SCHEDULE_BEGIN, tasks_ring);
 
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
     {
@@ -331,7 +338,7 @@ __parsec_schedule(parsec_execution_stream_t* es,
 
     ret = parsec_current_scheduler->module.schedule(es, tasks_ring, distance);
 
-    PARSEC_PINS(es, SCHEDULE_END, tasks_ring);
+    PARSEC_PINS(local_es, SCHEDULE_END, tasks_ring);
 
     return ret;
 }
@@ -364,7 +371,7 @@ int __parsec_schedule_vp(parsec_execution_stream_t* es,
     assert( (NULL == es) || (parsec_my_execution_stream() == es) );
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
-    if( NULL == es || !parsec_runtime_keep_highest_priority_task ) {
+    if( NULL == es || !parsec_runtime_keep_highest_priority_task || NULL == es->scheduler_object) {
         for(int vp = 0; vp < es->virtual_process->parsec_context->nb_vp; vp++ ) {
             parsec_task_t* ring = task_rings[vp];
             if( NULL == ring ) continue;
