@@ -13,13 +13,13 @@
 #include "parsec/execution_stream.h"
 #include "parsec/class/info.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include <cublas_v2.h>
 #endif
 
 #include "nvlink.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 static void destruct_cublas_handle(void *p)
 {
     cublasHandle_t handle = (cublasHandle_t)p;
@@ -49,7 +49,7 @@ static void *create_cublas_handle(void *obj, void *p)
 
 static void destroy_cublas_handle(void *_h, void *_n)
 {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     cublasHandle_t cublas_handle = (cublasHandle_t)_h;
     cublasDestroy_v2(cublas_handle);
 #endif
@@ -125,7 +125,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
         }
     }
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     parsec_info_id_t CuHI = parsec_info_register(&parsec_per_stream_infos, "CUBLAS::HANDLE",
                                                  destroy_cublas_handle, NULL,
                                                  create_cublas_handle, NULL,

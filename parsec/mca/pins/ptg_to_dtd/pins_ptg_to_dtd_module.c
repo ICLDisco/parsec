@@ -238,7 +238,7 @@ tile_manage_for_testing(parsec_data_t *data, parsec_data_key_t key, int arena_in
         tile->rank                  = 0;
         tile->flushed               = NOT_FLUSHED;
         tile->data_copy             = data->device_copies[0];
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
         tile->data_copy->readers    = 0;
 #endif
         tile->arena_index           = arena_index;

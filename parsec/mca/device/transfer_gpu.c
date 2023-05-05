@@ -18,9 +18,9 @@
 #include "parsec/utils/output.h"
 #include "parsec/scheduling.h"
 
-#if !defined(PARSEC_HAVE_CUDA) && !defined(PARSEC_HAVE_HIP)
+#if !defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && !defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
 #error This file should not be included in a non-CUDA/HIP build
-#endif  /* !defined(PARSEC_HAVE_CUDA) && !defined(PARSEC_HAVE_HIP) */
+#endif  /* !defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && !defined(PARSEC_HAVE_DEV_HIP_SUPPORT) */
 
 /**
  * Entirely local tasks that should only be used to move data between a device and the main memory. Such
@@ -128,12 +128,12 @@ flow_of_gpu_d2h_task_direct_access( const parsec_gpu_d2h_task_t* this_task,
 }
 
 static const __parsec_chore_t __gpu_d2h_task_chores[] = {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     {.type = PARSEC_DEV_CUDA,
      .evaluate = NULL,
      .hook = (parsec_hook_t *) hook_of_gpu_d2h_task},
 #endif
-#if defined(PARSEC_HAVE_HIP)
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
     {.type = PARSEC_DEV_HIP,
      .evaluate = NULL,
      .hook = (parsec_hook_t *) hook_of_gpu_d2h_task},

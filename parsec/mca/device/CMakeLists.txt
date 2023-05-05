@@ -8,3 +8,12 @@ set_property(TARGET parsec
              APPEND PROPERTY
                     PUBLIC_HEADER_H mca/device/device.h
                                     mca/device/device_gpu.h)
+
+set(PARSEC_HAVE_DEV_CPU_SUPPORT 1 CACHE BOOL "PaRSEC has support for CPU kernels")
+set(PARSEC_HAVE_DEV_RECURSIVE_SUPPORT 1 CACHE BOOL  "PaRSEC has support for CPU kernels")
+if(PARSEC_HAVE_CUDA)
+  set(PARSEC_HAVE_DEV_CUDA_SUPPORT 1 CACHE BOOL "PaRSEC support for CUDA")
+endif(PARSEC_HAVE_CUDA)
+if(PARSEC_HAVE_HIP)
+  set(PARSEC_HAVE_DEV_HIP_SUPPORT 1 CACHE BOOL "PaRSEC support for HIP")
+endif(PARSEC_HAVE_HIP)

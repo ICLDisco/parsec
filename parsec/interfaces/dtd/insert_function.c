@@ -38,9 +38,9 @@
 #include "parsec/runtime.h"
 #include "parsec/mca/device/device.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/mca/device/cuda/device_cuda.h"
-#endif  /* defined(PARSEC_HAVE_CUDA) */
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 
 #include "parsec/mca/mca_repository.h"
 #include "parsec/constants.h"
@@ -2329,12 +2329,12 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     parsec_device_module_t *device = parsec_mca_device_get(dev_index);
     assert(NULL != device);
     switch(device->type) {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     case PARSEC_DEV_CUDA:
         gpu_task->stage_in  = parsec_default_cuda_stage_in;
         gpu_task->stage_out = parsec_default_cuda_stage_out;
         return parsec_cuda_kernel_scheduler(es, gpu_task, dev_index);
-#endif
+#endif  /* PARSEC_HAVE_DEV_CUDA_SUPPORT */
     default:
         parsec_fatal("DTD scheduling on device type %d: this is not a valid GPU device type in this build", device->type);
     }
@@ -2999,11 +2999,11 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                         FLOW_OF(last_user.task, last_user.flow_index)->flags &= ~RELEASE_OWNERSHIP_SPECIAL;
 
                         if( this_task->super.data[flow_index].data_in != NULL) {
-/* #if defined(PARSEC_HAVE_CUDA) */
+/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 /*                            parsec_atomic_lock(&this_task->super.data[flow_index].data_in->original->lock); */
 /* #endif */
                             (void)parsec_atomic_fetch_dec_int32(&this_task->super.data[flow_index].data_in->readers);
-/* #if defined(PARSEC_HAVE_CUDA) */
+/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 /*                            parsec_atomic_unlock(&this_task->super.data[flow_index].data_in->original->lock); */
 /* #endif */
                         }
@@ -3042,12 +3042,12 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                 if( last_user.task == this_task ) {
                     if((last_user.op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ) {
                         if( this_task->super.data[last_user.flow_index].data_in != NULL) {
-/* #if defined(PARSEC_HAVE_CUDA) */
+/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 /*                            parsec_atomic_lock(&this_task->super.data[last_user.flow_index].data_in->original->lock); */
 /* #endif */
                             (void)parsec_atomic_fetch_dec_int32(
                                     &this_task->super.data[last_user.flow_index].data_in->readers);
-/* #if defined(PARSEC_HAVE_CUDA) */
+/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 /*                            parsec_atomic_unlock(&this_task->super.data[last_user.flow_index].data_in->original->lock); */
 /* #endif */
                         }

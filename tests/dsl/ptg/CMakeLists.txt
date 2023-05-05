@@ -3,6 +3,9 @@ add_Subdirectory(ptgpp)
 parsec_addtest_executable(C strange)
 target_ptg_sources(strange PRIVATE "strange.jdf")
 
+parsec_addtest_executable(C recursive)
+target_ptg_sources(recursive PRIVATE "recursive.jdf")
+
 if(PARSEC_HAVE_RANDOM)
   parsec_addtest_executable(C startup)
   target_ptg_sources(startup PRIVATE "startup.jdf")

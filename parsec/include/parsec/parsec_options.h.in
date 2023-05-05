@@ -120,16 +120,24 @@
 #define CMAKE_PARSEC_C_FLAGS      "@CMAKE_C_FLAGS@"
 #define CMAKE_PARSEC_C_INCLUDES   "@PARSEC_C_INCLUDES@"
 
+/**
+ * The following 3 defines are deprecated. Instead users should
+ * rely on the corresponding PARSEC_HAVE_DEV_XXX_SUPPORT
+ */
+
 #cmakedefine PARSEC_HAVE_HWLOC
 #cmakedefine PARSEC_HAVE_PAPI
-#cmakedefine PARSEC_HAVE_CUDA
-#cmakedefine PARSEC_HAVE_HIP
-#cmakedefine PARSEC_HAVE_OPENCL
 #cmakedefine PARSEC_HAVE_MPI
 #cmakedefine PARSEC_HAVE_MPI_20
 #cmakedefine PARSEC_HAVE_MPI_30
 #cmakedefine PARSEC_HAVE_MPI_OVERTAKE
 #cmakedefine PARSEC_HAVE_AYUDAME
+
+#cmakedefine PARSEC_HAVE_DEV_CPU_SUPPORT
+#cmakedefine PARSEC_HAVE_DEV_RECURSIVE_SUPPORT
+#cmakedefine PARSEC_HAVE_DEV_CUDA_SUPPORT
+#cmakedefine PARSEC_HAVE_DEV_HIP_SUPPORT
+#cmakedefine PARSEC_HAVE_DEV_OPENCL_SUPPORT
 
 #define PARSEC_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 /* Default PATH to look for the CUDA .so files */

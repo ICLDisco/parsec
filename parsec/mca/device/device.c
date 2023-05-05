@@ -850,6 +850,7 @@ int parsec_mca_device_attach(parsec_context_t* context)
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
     }
 
+ #if defined(PARSEC_HAVE_DEV_CPU_SUPPORT)
     /* Add the predefined devices: one device for the CPUs */
     {
         parsec_device_cpus = (parsec_device_module_t*)calloc(1, sizeof(parsec_device_module_t));
@@ -861,7 +862,9 @@ int parsec_mca_device_attach(parsec_context_t* context)
         parsec_device_cpus->taskpool_register = device_taskpool_register_static;
         parsec_mca_device_add(context, parsec_device_cpus);
     }
+ #endif  /* defined(PARSEC_HAVE_DEV_CPU_SUPPORT) */
 
+#if defined(PARSEC_HAVE_DEV_RECURSIVE_SUPPORT)
     /* and one for the recursive kernels */
     {
         parsec_device_recursive = (parsec_device_module_t*)calloc(1, sizeof(parsec_device_module_t));
@@ -876,6 +879,7 @@ int parsec_mca_device_attach(parsec_context_t* context)
         parsec_device_recursive->taskpool_register = device_taskpool_register_static;
         parsec_mca_device_add(context, parsec_device_recursive);
     }
+#endif  /* defined(PARSEC_HAVE_DEV_RECURSIVE_SUPPORT) */
 
     for( int i = 0; NULL != (component = (parsec_device_base_component_t*)device_components[i]); i++ ) {
         for( int j = 0; NULL != (module = component->modules[j]); j++ ) {
@@ -981,7 +985,7 @@ void parsec_mca_device_taskpool_restrict(parsec_taskpool_t *tp,
             continue;
 
         /* Force unregistration for this type of device. This is not correct, as some of
-         * the memory related to the taskpoool might still be registered with the
+         * the memory related to the taskpool might still be registered with the
          * devices we drop support. */
         tp->devices_index_mask &= ~(1 << device->device_index);
     }
