@@ -144,13 +144,13 @@ check_and_set_compiler_option(OPTION "-Wextra" NAME PARSEC_HAVE_WEXTRA)
 # amount of warnings. We define here warning silent options
 # that are passed only to Flex-generated files if they are
 # supported by the compilers.
-SET(PARSEC_FLEX_GENERATED_OPTIONS)
+set(PARSEC_FLEX_GENERATED_OPTIONS)
 foreach(_flag "-Wno-misleading-indentation" "-Wno-sign-compare")
   string(REPLACE "-" "_" SAFE_flag ${_flag})
   check_c_compiler_flag("${_flag}" _has${SAFE_flag})
-  if( _has${_flag} )
+  if( _has${SAFE_flag} )
     list(APPEND PARSEC_FLEX_GENERATED_OPTIONS "${_flag}")
-  endif( _has${_flag} )
+  endif( _has${SAFE_flag} )
 endforeach()
 
 #
