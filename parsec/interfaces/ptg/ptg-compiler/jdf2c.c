@@ -4828,7 +4828,6 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     string_arena_t *sa_range_multiplier = string_arena_new(64);
     jdf_variable_list_t *vl;
     expr_info_t info = EMPTY_EXPR_INFO;
-    int idx;
 
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY) ) {
         coutput("static inline parsec_key_t %s(const parsec_taskpool_t *tp, const parsec_assignment_t *as)\n"
@@ -4851,7 +4850,6 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
             info.sa = sa_range_multiplier;
             info.assignments = "assignment";
 
-            idx = 0;
             for(vl = f->locals; vl != NULL; vl = vl->next) {
                 string_arena_init(sa_range_multiplier);
                 
@@ -4883,7 +4881,6 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
                      */
                     coutput("  (void)%s;\n", vl->name);
                 }
-                idx++;
             }
 
             string_arena_init(sa_range_multiplier);
@@ -6778,7 +6775,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     }
     coutput("  ratio = %s;\n", weight);
 
-    /* Get the hint for statix and/or external gpu scheduling */
+    /* Get the hint for static and/or external gpu scheduling */
     jdf_find_property( body->properties, "device", &device_property );
     if ( NULL != device_property ) {
         device = dump_expr((void**)device_property->expr, &info);
@@ -7249,7 +7246,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
          * setup before it is consumed by any local successor.
          */
         coutput("  if(action_mask & ( PARSEC_ACTION_RESHAPE_ON_RELEASE | PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE ) ){\n");
-        coutput("    /* Generate the reshape promise for thet outputs that need it */\n");
+        coutput("    /* Generate the reshape promise for the outputs that need it */\n");
         coutput("    iterate_successors_of_%s_%s(es, this_task, action_mask, parsec_set_up_reshape_promise, &arg);\n"
                 "   }\n",
                 jdf_basename, f->fname);
@@ -7693,7 +7690,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
     string_arena_t *sa_tmp_type_r = string_arena_new(256);
     string_arena_t *sa_temp_r       = string_arena_new(1024);
 
-    int depnb, last_datatype_idx;
+    int last_datatype_idx;
     assignment_info_t ai;
     expr_info_t info = EMPTY_EXPR_INFO;
     int nb_open_ldef;
@@ -7743,7 +7740,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
         flowempty = 1;
         flowtomem = 0;
-        depnb = 0;
         last_datatype_idx = -1;
         string_arena_init(sa_coutput);
         string_arena_init(sa_deps);
@@ -7977,7 +7973,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                                             jdf_dump_context_assignment(sa1, jdf, f, fl, string_arena_get_string(sa_ontask),
                                                                         dl->guard->calltrue, dl, JDF_OBJECT_LINENO(dl),
                                                                         "      ", "nc"));
-                    depnb++;
 
                     string_arena_init(sa_ontask);
                     string_arena_add_string(sa_ontask,
@@ -7999,7 +7994,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                                                 "\n");
                     }
                 } else {
-                    depnb++;
                     string_arena_init(sa_ontask);
                     string_arena_add_string(sa_ontask,
                                             "if( PARSEC_ITERATE_STOP == ontask(es, &nc, (const parsec_task_t *)this_task, &%s, &data, rank_src, rank_dst, vpid_dst,"
@@ -8030,7 +8024,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                 }
                 break;
             }
-            depnb++;
             /* Dump the previous dependencies */
             OUTPUT_PREV_DEPS((1U << dl->dep_index), sa_datatype, sa_deps);
 
@@ -8577,12 +8570,10 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
 
     /* Dump references to arenas_datatypes array */
     struct jdf_name_list* g;
-    int datatype_index = 0;
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
         coutput("#define PARSEC_%s_%s_ADT    (&__parsec_tp->super.arenas_datatypes[PARSEC_%s_%s_ADT_IDX])\n",
                 jdf_basename, g->name,
                 jdf_basename, g->name);
-        datatype_index++;
     }
 
     jdf_generate_structure(jdf);

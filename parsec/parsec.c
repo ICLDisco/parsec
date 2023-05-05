@@ -96,7 +96,7 @@ int task_memory_alloc_key, task_memory_free_key;
 parsec_info_t parsec_per_device_infos;
 parsec_info_t parsec_per_stream_infos;
 
-static int slow_bind_warning = 128;
+int parsec_slow_bind_warning = 128;
 
 int parsec_want_rusage = 0;
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)
@@ -194,11 +194,11 @@ static void __parsec_taskpool_constructor(parsec_taskpool_t* tp)
 
 static void __parsec_taskpool_destructor(parsec_taskpool_t* tp)
 {
-    if( NULL != tp->taskpool_name ) {
-        free(tp->taskpool_name);
-    }
     if( NULL != tp->context ) {
         parsec_context_remove_taskpool(tp);
+    }
+    if( NULL != tp->taskpool_name ) {
+        free(tp->taskpool_name);
     }
 }
 
@@ -452,7 +452,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_debug_init();
     mca_components_repository_init();
 
-    parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Warn when the runtime detects poorly performing binding configuration, check distributed binding iff the number of nodes is lower than the parameter (0 to silence all warnings)", false, false, slow_bind_warning, &slow_bind_warning);
+    parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Warn when the runtime detects poorly performing binding "
+                                  "configuration, check distributed binding iff the number of nodes is lower than the parameter "
+                                  "(0 to silence all warnings)", false, false, parsec_slow_bind_warning, &parsec_slow_bind_warning);
 
 #if defined(PARSEC_HAVE_HWLOC)
     parsec_hwloc_init();
@@ -464,17 +466,18 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
      */
     parsec_mca_param_reg_int_name("runtime", "num_cores", "The total number of cores to be used by the runtime (-1 for all available PU)",
                                  false, false, parsec_runtime_max_number_of_cores, &parsec_runtime_max_number_of_cores);
-    if( parsec_runtime_max_number_of_cores > 0 )
-        nb_cores = parsec_runtime_max_number_of_cores;
-    else if( 0 >= nb_cores )
-        nb_cores = parsec_hwloc_nb_real_cores();
-    /* else use parsec_init param */
+    if( nb_cores <= 0 ) {
+        if( -1 == parsec_runtime_max_number_of_cores )
+            nb_cores = parsec_hwloc_nb_real_cores();
+        else
+            nb_cores = parsec_runtime_max_number_of_cores;
+    }
     if( nb_cores > parsec_hwloc_nb_real_cores() ) {
-        if( slow_bind_warning )
+        if( parsec_slow_bind_warning )
             parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
                            "Requested binding %d threads, which is more than the physical number of cores %d.\n"
                            "\tOversubscribing cores is often slow. You should change the value of the `runtime_num_cores` parameter.\n",
-                           parsec_runtime_max_number_of_cores, parsec_hwloc_nb_real_cores());
+                           nb_cores, parsec_hwloc_nb_real_cores());
     }
     /* hyperthreads per core */
     int hyperth = 1;
@@ -613,7 +616,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     if( nb_cores != nb_total_comp_threads ) {
-        if( slow_bind_warning )
+        if( parsec_slow_bind_warning )
             parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
                            "Your vpmap uses %d threads when %d cores where available\n",
                            nb_total_comp_threads, nb_cores);
@@ -648,7 +651,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_mca_param_reg_sizet_name("arena", "max_used", "The maximum amount of memory each arena can"
                                    " allocate (default unlimited)",
                                    false, false, parsec_arena_max_allocated_memory, &parsec_arena_max_allocated_memory);
-    parsec_mca_param_reg_sizet_name("arena", "max_cached", "The maxmimum amount of memory each arena can"
+    parsec_mca_param_reg_sizet_name("arena", "max_cached", "The maximum amount of memory each arena can"
                                    " cache in a freelist (0=no caching)",
                                    false, false, parsec_arena_max_cached_memory, &parsec_arena_max_cached_memory);
 
@@ -864,7 +867,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     if( display_vpmap )
         vpmap_display_map();
 
-    parsec_mca_param_reg_int_name("profile", "rusage", "Report 'getrusage' satistics.\n"
+    parsec_mca_param_reg_int_name("profile", "rusage", "Report 'getrusage' statistics.\n"
             "0: no report, 1: per process report, 2: per thread report (if available).\n",
             false, false, parsec_want_rusage, &parsec_want_rusage);
     parsec_rusage(false);
@@ -891,7 +894,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     if( NULL != cmd_line )
         PARSEC_OBJ_RELEASE(cmd_line);
-
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_start();
+#endif
     return context;
 }
 
@@ -1137,7 +1142,6 @@ int parsec_fini( parsec_context_t** pcontext )
     if( __parsec_dtd_is_initialized ) {
         parsec_dtd_fini();
     }
-    //TODO: check that the list is empty in debug mode
     PARSEC_OBJ_RELEASE(context->taskpool_list);
     context->taskpool_list = NULL;
     nb_items = 0;
@@ -1213,9 +1217,9 @@ int parsec_fini( parsec_context_t** pcontext )
 
     (void) parsec_termdet_fini();
 
-    (void) parsec_remote_dep_fini(context);
+    (void)parsec_comm_engine_fini(&parsec_ce);
 
-    parsec_remove_scheduler( context );
+    parsec_remove_scheduler(context);
 
     parsec_data_fini(context);
 
@@ -2438,80 +2442,6 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
                        "\tThis option requires a build with HWLOC with bitmap support.");
     return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
-}
-
-/**
- * @brief Check that the binding is correct. However, this operation is extremely expensive
- *        and highly unscalable so we should only do this operation when really necessary.
- * 
- * @param context 
- * @return int SUCCESS if the global bindings are OK, error otherwise.
- */
-int parsec_check_overlapping_binding(parsec_context_t *context)
-{
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI) && defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
-    if( context->nb_nodes <= slow_bind_warning ) {
-        MPI_Comm comml = MPI_COMM_NULL; int i, nl = 0, rl = MPI_PROC_NULL;
-        MPI_Comm commw = (MPI_Comm)context->comm_ctx;
-        assert(-1 != context->comm_ctx);
-        MPI_Comm_split_type(commw, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
-        MPI_Comm_size(comml, &nl);
-        if( 1 < nl ) {
-            /* Hu-ho, double check that our binding is not conflicting with other
-             * local procs */
-            MPI_Comm_rank(comml, &rl);
-            char *myset = NULL, *allsets = NULL;
-
-            if( 0 != hwloc_bitmap_list_asprintf(&myset, context->cpuset_allowed_mask) ) {
-            }
-            int setlen = strlen(myset);
-            int *setlens = NULL;
-            if( 0 == rl ) {
-                setlens = calloc(nl, sizeof(int));
-            }
-            MPI_Gather(&setlen, 1, MPI_INT, setlens, 1, MPI_INT, 0, comml);
-
-            int *displs = NULL;
-            if( 0 == rl ) {
-                displs = calloc(nl, sizeof(int));
-                displs[0] = 0;
-                for( i = 1; i < nl; i++ ) {
-                    displs[i] = displs[i-1]+setlens[i-1];
-                }
-                allsets = calloc(displs[nl-1]+setlens[nl-1], sizeof(char));
-            }
-            MPI_Gatherv(myset, setlen, MPI_CHAR, allsets, setlens, displs, MPI_CHAR, 0, comml);
-            free(myset);
-
-            if( 0 == rl ) {
-                int notgood = false;
-                for( i = 1; i < nl; i++ ) {
-                    hwloc_bitmap_t other = hwloc_bitmap_alloc();
-                    hwloc_bitmap_list_sscanf(other, &allsets[displs[i]]);
-                    if(hwloc_bitmap_intersects(context->cpuset_allowed_mask, other)) {
-                        notgood = true;
-                    }
-                    hwloc_bitmap_free(other);
-                }
-                if( notgood ) {
-                    parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                                   "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
-                                    "\tThis is often unintentional, and will perform poorly.\n"
-                                   "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
-                                   "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
-                                   "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
-                }
-                free(setlens);
-                free(allsets);
-                free(displs);
-            }
-        }
-    }
-    return PARSEC_SUCCESS;
-#else
-    (void)context;
-    return PARSEC_ERR_NOT_IMPLEMENTED;
-#endif
 }
 
 static int parsec_parse_comm_binding_parameter(int core, parsec_context_t* context)

@@ -183,20 +183,39 @@ parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo );
         (REMOTE_DEPS) = (parsec_remote_deps_t*)remote_deps_allocate(&parsec_remote_dep_context.freelist); \
     }
 
+int remote_dep_dequeue_on(parsec_context_t* context);
+int remote_dep_dequeue_off(parsec_context_t* context);
+
+int remote_dep_dequeue_new_taskpool(parsec_taskpool_t* tp);
+int remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es, int cycles);
+
 /* This returns the deps to the freelist, no use counter */
 void remote_deps_free(parsec_remote_deps_t* deps);
 
 int parsec_remote_dep_init(parsec_context_t* context);
 int parsec_remote_dep_fini(parsec_context_t* context);
-int parsec_remote_dep_on(parsec_context_t* context);
-int parsec_remote_dep_off(parsec_context_t* context);
+static inline int parsec_remote_dep_on(parsec_context_t* context)
+{
+    return remote_dep_dequeue_on(context);
+}
+
+static inline int parsec_remote_dep_off(parsec_context_t* context)
+{
+    return remote_dep_dequeue_off(context);
+}
 
 
 /* Poll for remote completion of tasks that would enable some work locally */
-int parsec_remote_dep_progress(parsec_execution_stream_t* es);
+static inline int parsec_remote_dep_progress(parsec_execution_stream_t* es)
+{
+    return remote_dep_dequeue_nothread_progress(es, 1);
+}
 
 /* Inform the communication engine from the creation of new taskpools */
-int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp);
+static inline int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp)
+{
+    return remote_dep_dequeue_new_taskpool(tp);
+}
 
 /* Send remote dependencies to target processes */
 int parsec_remote_dep_activate(parsec_execution_stream_t* es,
@@ -216,6 +235,9 @@ void parsec_remote_dep_memcpy(parsec_execution_stream_t* es,
  */
 int remote_dep_dequeue_delayed_dep_release(parsec_remote_deps_t *deps);
 
+/* Reconfigure the remote_dep part of the communication engine */
+int parsec_remote_dep_reconfigure(parsec_context_t* context);
+
 #if defined(PARSEC_DIST_COLLECTIVES)
 /* Propagate an activation order from the current node down the original tree */
 int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
@@ -224,7 +246,7 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 #endif
 
 #else
-#define parsec_remote_dep_init(ctx)            1
+#define parsec_remote_dep_init(ctx)            0
 #define parsec_remote_dep_fini(ctx)            0
 #define parsec_remote_dep_on(ctx)              0
 #define parsec_remote_dep_off(ctx)             0
@@ -321,25 +343,12 @@ struct dep_cmd_item_s {
  * and for the time being will remain in there.
  */
 void* remote_dep_dequeue_main(parsec_context_t* context);
-int remote_dep_dequeue_new_taskpool(parsec_taskpool_t* tp);
 
 int remote_dep_dequeue_init(parsec_context_t* context);
 int remote_dep_dequeue_fini(parsec_context_t* context);
 
 int remote_dep_dequeue_send(parsec_execution_stream_t* es, int rank,
                             parsec_remote_deps_t* deps);
-
-int remote_dep_dequeue_on(parsec_context_t* context);
-int remote_dep_dequeue_off(parsec_context_t* context);
-#   define remote_dep_init(ctx) remote_dep_dequeue_init(ctx)
-#   define remote_dep_fini(ctx) remote_dep_dequeue_fini(ctx)
-#   define remote_dep_on(ctx)   remote_dep_dequeue_on(ctx)
-#   define remote_dep_off(ctx)  remote_dep_dequeue_off(ctx)
-#   define remote_dep_new_taskpool(tp) remote_dep_dequeue_new_taskpool(tp)
-#   define remote_dep_send(es, rank, deps) remote_dep_dequeue_send(es, rank, deps)
-#   define remote_dep_progress(es, cycles) remote_dep_dequeue_nothread_progress(es, cycles)
-
-int remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es, int cycles);
 
 int remote_dep_bind_thread(parsec_context_t* context);
 int remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
@@ -363,8 +372,6 @@ remote_dep_dec_flying_messages(parsec_taskpool_t *handle)
 {
     (void)parsec_taskpool_update_runtime_nbtask(handle, -1);
 }
-
-int remote_dep_set_ctx(parsec_context_t* context, intptr_t opaque_comm_ctx );
 
 parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo );
 

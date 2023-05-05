@@ -169,7 +169,7 @@ parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
             remote_deps->output[i].priority   = 0xffffffff;
             ptr += rank_bit_size;
         }
-        /* fw_mask immediatly follows outputs */
+        /* fw_mask immediately follows outputs */
         remote_deps->remote_dep_fw_mask = (uint32_t*) ptr;
         assert( (int)(ptr - (char*)remote_deps) ==
                 (int)(parsec_remote_dep_context.elem_size - rank_bit_size));
@@ -219,15 +219,6 @@ inline void remote_deps_free(parsec_remote_deps_t* deps)
     parsec_lifo_push(deps->origin, (parsec_list_item_t*)deps);
     PARSEC_VALGRIND_MEMPOOL_FREE(deps->origin, ((unsigned char *)deps)+sizeof(parsec_list_item_t));
 }
-
-#endif
-
-#if 0
-#ifdef PARSEC_HAVE_MPI
-#include "remote_dep_mpi.c"
-
-#else
-#endif /* NO TRANSPORT */
 
 #endif
 
@@ -291,44 +282,38 @@ int parsec_remote_dep_init(parsec_context_t* context)
     }
 #endif
 
-    (void)remote_dep_init(context);
+    (void)remote_dep_dequeue_init(context);
 
     context->remote_dep_fw_mask_sizeof = 0;
+
+    return PARSEC_SUCCESS;
+}
+
+/**
+ * @brief This function is called by the progress thread every time a change in
+ * the execution context is noticed. As an example when the user change the
+ * distributed context via parsec_remote_dep_set_ctx.
+ * 
+ * @param context The updated context where the change has been noted.
+ * @return int mostly PARSEC_SUCCESS
+ */
+int parsec_remote_dep_reconfigure(parsec_context_t* context)
+{
     if(context->nb_nodes > 1)
         context->remote_dep_fw_mask_sizeof = ((context->nb_nodes + 31) / 32) * sizeof(uint32_t);
-
-    return context->nb_nodes;
+    return PARSEC_SUCCESS;
 }
 
 int parsec_remote_dep_fini(parsec_context_t* context)
 {
-    int rc = remote_dep_fini(context);
+    int rc = remote_dep_dequeue_fini(context);
     remote_deps_allocation_fini();
     return rc;
 }
 
-int parsec_remote_dep_on(parsec_context_t* context)
-{
-    return remote_dep_on(context);
-}
-
-int parsec_remote_dep_off(parsec_context_t* context)
-{
-    return remote_dep_off(context);
-}
-
 int parsec_remote_dep_set_ctx( parsec_context_t* context, intptr_t opaque_comm_ctx )
 {
-    return remote_dep_set_ctx( context, opaque_comm_ctx );
-}
-
-int parsec_remote_dep_progress(parsec_execution_stream_t* es)
-{
-    return remote_dep_progress(es, 1);
-}
-
-int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp) {
-    return remote_dep_new_taskpool(tp);
+    return parsec_ce.set_ctx(&parsec_ce, opaque_comm_ctx);
 }
 
 static int remote_dep_bcast_star_child(int me, int him)
@@ -570,13 +555,13 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
                         keeper = 1;
                         /* Let the engine know we're working to activate the dependencies remotely */
                         remote_dep_inc_flying_messages(task->taskpool);
-                        /* We need to increase the pending_ack to make the deps persistant until the
+                        /* We need to increase the pending_ack to make the deps persistent until the
                          * end of this function.
                          */
                         (void)parsec_atomic_fetch_inc_int32(&remote_deps->pending_ack);
                     }
                     if( task->taskpool->tdm.module->outgoing_message_start(task->taskpool, rank, remote_deps) )
-                        remote_dep_send(es, rank, remote_deps);
+                        remote_dep_dequeue_send(es, rank, remote_deps);
                 } else {
                     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)",
                             remote_deps->root, i, tmp, my_idx, idx, rank);
@@ -687,7 +672,7 @@ int remote_dep_bind_thread(parsec_context_t* context)
     }
 #else /* NO PARSEC_HAVE_HWLOC */
     /* If we don't have hwloc, try to bind the thread on the core #nbcore as the
-     * default strategy disributed the computation threads from core 0 to nbcore-1 */
+     * default strategy distributes the computation threads from core 0 to nbcore-1 */
     int p, nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
@@ -705,4 +690,3 @@ int remote_dep_bind_thread(parsec_context_t* context)
 }
 
 #endif /* DISTRIBUTED */
-

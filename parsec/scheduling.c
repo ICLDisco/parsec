@@ -97,7 +97,7 @@ int __parsec_context_wait_task( parsec_execution_stream_t* es,
     case PARSEC_TASK_STATUS_NONE:
 #if defined(PARSEC_DEBUG)
         char tmp[MAX_TASK_STRLEN];
-        parsec_degug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
+        parsec_debug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task));
 #endif
         return -1;
@@ -289,8 +289,15 @@ __parsec_schedule(parsec_execution_stream_t* es,
                   int32_t distance)
 {
     int ret;
+#ifdef PARSEC_PROF_PINS
+    parsec_execution_stream_t* local_es = parsec_my_execution_stream();
+#endif  /* PARSEC_PROF_PINS */
 
-    PARSEC_PINS(es, SCHEDULE_BEGIN, tasks_ring);
+    /* We should be careful which es we put the PINS event into, as the profiling streams
+     * are not thread-safe. Here we really want the profiling to be generated into the
+     * local stream and not into the stream where we try to enqueue the task into (operation
+     * which is thread safe)*/
+    PARSEC_PINS(local_es, SCHEDULE_BEGIN, tasks_ring);
 
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
     {
@@ -331,7 +338,7 @@ __parsec_schedule(parsec_execution_stream_t* es,
 
     ret = parsec_current_scheduler->module.schedule(es, tasks_ring, distance);
 
-    PARSEC_PINS(es, SCHEDULE_END, tasks_ring);
+    PARSEC_PINS(local_es, SCHEDULE_END, tasks_ring);
 
     return ret;
 }
@@ -364,7 +371,7 @@ int __parsec_schedule_vp(parsec_execution_stream_t* es,
     assert( (NULL == es) || (parsec_my_execution_stream() == es) );
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
-    if( NULL == es || !parsec_runtime_keep_highest_priority_task ) {
+    if( NULL == es || !parsec_runtime_keep_highest_priority_task || NULL == es->scheduler_object) {
         for(int vp = 0; vp < es->virtual_process->parsec_context->nb_vp; vp++ ) {
             parsec_task_t* ring = task_rings[vp];
             if( NULL == ring ) continue;
@@ -464,7 +471,7 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
     PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_RETIRED, 1);
     PARSEC_AYU_TASK_COMPLETE(task);
 
-    /* Succesfull execution. The context is ready to be released, all
+    /* Successful execution. The context is ready to be released, all
      * dependencies have been marked as completed.
      */
     DEBUG_MARK_EXE( es->th_id, es->virtual_process->vp_id, task );
@@ -624,7 +631,7 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
         /* If there is a single process run and the main thread is in charge of
          * progressing the communications we need to make sure the comm engine
          * is ready for primetime. */
-        remote_dep_mpi_on(tp->context);
+        parsec_ce.enable(&parsec_ce);
     }
 #endif /* defined(DISTRIBUTED) */
 
@@ -692,6 +699,8 @@ static void parsec_context_leave_wait(parsec_context_t *parsec)
     parsec_list_unlock(parsec->taskpool_list);
 }
 
+int remote_dep_ce_reconfigure(parsec_context_t* context);
+
 int __parsec_context_wait( parsec_execution_stream_t* es )
 {
     uint64_t misses_in_a_row;
@@ -716,7 +725,9 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
             /* If there is a single process run and the main thread is in charge of
              * progressing the communications we need to make sure the comm engine
              * is ready for primetime. */
-            remote_dep_mpi_on(parsec_context);
+            parsec_ce.enable(&parsec_ce);
+            remote_dep_ce_reconfigure(parsec_context);
+            parsec_remote_dep_reconfigure(parsec_context);
         }
 #endif /* defined(DISTRIBUTED) */
         parsec_context_enter_wait(parsec_context);

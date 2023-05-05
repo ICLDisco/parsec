@@ -135,9 +135,9 @@ parsec_new_reshape_promise(parsec_dep_data_description_t* data,
     parsec_future_init(data_future, parsec_local_reshape, future_in_data,
                        parsec_reshape_check_match_datatypes, match_data,
                        parsec_cleanup_reshape_promise);
-    /* We have to retain the data to count the fastest successor who is
-     * going to consumed it and reshape it.
-     * Every other successor won't consume the original data->data.
+    /* We have to retain the data to count the first successor who is
+     * going to consume the original data->data in order to reshape it, and
+     * all other successors will use directly the reshaped data instead.
      */
     PARSEC_OBJ_RETAIN( future_in_data->data );
 
