@@ -231,6 +231,7 @@ if( BUILD_PARSEC )
     PRIVATE
     Threads::Threads
     $<$<BOOL:${PARSEC_SHM_OPEN_IN_LIBRT}>:rt>
+    m
     PUBLIC
     $<$<BOOL:${PARSEC_HAVE_DLFCN_H}>:${CMAKE_DL_LIBS}> # Add support for dlopen if necessary
     $<$<BOOL:${HWLOC_FOUND}>:HWLOC::hwloc>
