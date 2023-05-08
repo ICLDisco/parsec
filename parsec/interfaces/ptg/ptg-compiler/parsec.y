@@ -533,7 +533,7 @@ body:         BODY_START properties BODY_END
                  jdf_expr_t* type_str = jdf_find_property( body->properties, "type", NULL );
                  if( NULL != type_str ) {
                      char* protected_by;
-                     asprintf(&protected_by, "PARSEC_HAVE_%s", type_str->jdf_var);
+                     asprintf(&protected_by, "PARSEC_HAVE_DEV_%s_SUPPORT", type_str->jdf_var);
                      jdf_def_list_t* property = body->properties;
                      while( NULL != property ) {
                          assert(NULL == property->expr->protected_by);
