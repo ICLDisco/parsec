@@ -748,7 +748,7 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
 
     region = key < 0 ? -key : key;
 
-    if( NULL != info_data ) {
+    if( (NULL != info_fn) && (NULL != info_data) ) {
         size_t info_length = regions[region].info_length;
         char *info = alloca(info_length);
         info_fn(info, info_data, info_length);

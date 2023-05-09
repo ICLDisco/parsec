@@ -590,7 +590,7 @@ extern int device_delegate_begin, device_delegate_end;
                            key_hash((TASK)->task_class->make_key(           \
                               (TASK)->taskpool, (TASK)->locals ), NULL),    \
                            (TASK)->taskpool->taskpool_id,                   \
-                           (TASK)->task_class->profile_info,                \
+                           (TRACE_INFO) ? (TASK)->task_class->profile_info : NULL, \
                            (TRACE_INFO) ? (void*)(TASK) : NULL,             \
                            (FLAGS)); 
 #else

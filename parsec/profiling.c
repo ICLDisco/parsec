@@ -1001,7 +1001,7 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
 
     assert( key >= 2 );
 
-    this_event_length = EVENT_LENGTH( key, (NULL != info_data) );
+    this_event_length = EVENT_LENGTH( key, ((NULL != info_fn) && (NULL != info_data)) );
     assert( this_event_length < event_avail_space );
     if( context->next_event_position + this_event_length > event_avail_space ) {
         int rc = switch_event_buffer(context);
@@ -1021,7 +1021,7 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
     this_event->event.taskpool_id = taskpool_id;
     this_event->event.flags = 0;
 
-    if( NULL != info_data ) {
+    if( (NULL != info_fn) && (NULL != info_data) ) {
         info_fn(this_event->info, info_data, parsec_prof_keys[ BASE_KEY(key) ].info_length);
         this_event->event.flags = PARSEC_PROFILING_EVENT_HAS_INFO;
     }
