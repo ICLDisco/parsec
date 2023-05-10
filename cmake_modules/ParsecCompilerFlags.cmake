@@ -43,18 +43,18 @@ function(check_and_set_compiler_option)
     set(parsec_cas_co_LANGUAGES C CXX Fortran)
   endif()
 
-  message(CHECK_START "Performing Test for flag ${parsec_cas_co_OPTION}    ")
+  message(TRACE "Performing Test Flag ${parsec_cas_co_OPTION} supported by languages")
+  set(_supported_languages "")
+  set(parsec_cas_co_defined_options "")
   set(save_CMAKE_REQUIRED_QUIET ${CMAKE_REQUIRED_QUIET})
   set(CMAKE_REQUIRED_QUIET true)
-  set(_supported_languages "")
-
   foreach(parsec_cas_co_LANGUAGE ${parsec_cas_co_LANGUAGES})
     if(CMAKE_${parsec_cas_co_LANGUAGE}_COMPILER_WORKS)
-      message(TRACE "Checking flag ${parsec_cas_co_OPTION} for language ${parsec_cas_co_LANGUAGE}")
+      message(TRACE "  Checking flag ${parsec_cas_co_OPTION} for language ${parsec_cas_co_LANGUAGE}")
       cmake_language(CALL "check_${parsec_cas_co_LANGUAGE}_compiler_flag" "${parsec_cas_co_OPTION}" "${parsec_cas_co_NAME}_${parsec_cas_co_LANGUAGE}" )
       if( "${${parsec_cas_co_NAME}_${parsec_cas_co_LANGUAGE}}" )
         set(_supported_languages "${parsec_cas_co_LANGUAGE};${_supported_languages}")
-        message(TRACE "Flag ${parsec_cas_co_OPTION} supported by ${parsec_cas_co_LANGUAGE}")
+        message(TRACE "  Checking flag ${parsec_cas_co_OPTION} for language ${parsec_cas_co_LANGUAGE} - Supported")
         if(DEFINED parsec_cas_co_CONFIG)
           list(APPEND parsec_cas_co_defined_options "$<$<CONFIG:${parsec_cas_co_CONFIG}>:$<$<COMPILE_LANGUAGE:${parsec_cas_co_LANGUAGE}>:${parsec_cas_co_OPTION}>>")
         else()
@@ -64,19 +64,23 @@ function(check_and_set_compiler_option)
     endif()
   endforeach()
   set(CMAKE_REQUIRED_QUIET ${save_CMAKE_REQUIRED_QUIET})
-  if( _supported_languages STREQUAL "" )
-    message(CHECK_FAIL "[none]")
-  else( _supported_languages STREQUAL "" )
-    message(CHECK_PASS "[${_supported_languages}]")
-  endif( _supported_languages STREQUAL "" )
+
+  if(NOT DEFINED ${parsec_cas_co_NAME} OR NOT ${parsec_cas_co_NAME} STREQUAL parsec_cas_co_defined_options)
+    # Something new found, output result
+    if( _supported_languages STREQUAL "" )
+      message(STATUS "Performing Test Flag ${parsec_cas_co_OPTION} supported by languages -\t[None]")
+    else( _supported_languages STREQUAL "" )
+      message(STATUS "Performing Test Flag ${parsec_cas_co_OPTION} supported by languages -\t[${_supported_languages}]")
+    endif( _supported_languages STREQUAL "" )
+  endif()
 
   if(DEFINED parsec_cas_co_COMMENT)
-    set(${parsec_cas_co_NAME} "${parsec_cas_co_defined_options}" CACHE STRING "${parsec_cas_co_COMMENT}")
-    mark_as_advanced(${parsec_cas_co_NAME})
+    set(${parsec_cas_co_NAME} "${parsec_cas_co_defined_options}" CACHE INTERNAL "${parsec_cas_co_COMMENT}")
   else()
-    set(${parsec_cas_co_NAME} "${parsec_cas_co_defined_options}")
+    set(${parsec_cas_co_NAME} "${parsec_cas_co_defined_options}" CACHE INTERNAL "List of compile options for compiler flag ${parsec_cas_co_OPTION}")
   endif()
-  if(DEFINED ${parsec_cas_co_NAME})
+
+  if(${parsec_cas_co_NAME})
     message(TRACE "Add compile option ${${parsec_cas_co_NAME}}")
     add_compile_options("${${parsec_cas_co_NAME}}")
   endif()
@@ -140,19 +144,6 @@ check_and_set_compiler_option(OPTION "-Og" NAME PARSEC_HAVE_Og CONFIG RELWITHDEB
 check_and_set_compiler_option(OPTION "-Wall" NAME PARSEC_HAVE_WALL)
 check_and_set_compiler_option(OPTION "-Wextra" NAME PARSEC_HAVE_WEXTRA)
 
-# Flex-generated files make some compilers generate a significant
-# amount of warnings. We define here warning silent options
-# that are passed only to Flex-generated files if they are
-# supported by the compilers.
-set(PARSEC_FLEX_GENERATED_OPTIONS)
-foreach(_flag "-Wno-misleading-indentation" "-Wno-sign-compare")
-  string(REPLACE "-" "_" SAFE_flag ${_flag})
-  check_c_compiler_flag("${_flag}" _has${SAFE_flag})
-  if( _has${SAFE_flag} )
-    list(APPEND PARSEC_FLEX_GENERATED_OPTIONS "${_flag}")
-  endif( _has${SAFE_flag} )
-endforeach()
-
 #
 # flags for Intel icc
 #
@@ -173,8 +164,8 @@ endif(_match_icc)
 add_compile_definitions($<$<CONFIG:RELEASE>:NDEBUG>)
 
 if(CMAKE_GENERATOR STREQUAL "Ninja")
-  # Ninja is weird with colors. It does not present a pty to cc (hence 
-  # colors get disabled by default), but if colors are forced upon it, it 
+  # Ninja is weird with colors. It does not present a pty to cc (hence
+  # colors get disabled by default), but if colors are forced upon it, it
   # will do the right thing and print colors only on terminals.
   foreach(colorflag -fdiagnostics-color -fcolor-diagnostics)
     string(REPLACE "-" "_" SAFE_colorflag ${colorflag})
@@ -208,4 +199,17 @@ if(CMAKE_Fortran_COMPILER_WORKS)
     string (REPLACE "-i_dynamic" "" CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS}")
   endif (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
 endif(CMAKE_Fortran_COMPILER_WORKS)
+
+# Flex-generated files make some compilers generate a significant
+# amount of warnings. We define here warning silent options
+# that are passed only to Flex-generated files if they are
+# supported by the compilers.
+set(PARSEC_FLEX_GENERATED_OPTIONS)
+foreach(_flag "-Wno-misleading-indentation" "-Wno-sign-compare")
+  string(REPLACE "-" "_" SAFE_flag ${_flag})
+  check_c_compiler_flag("${_flag}" PARSEC_FLEX_FLAG${SAFE_flag})
+  if( PARSEC_FLEX_FLAG${SAFE_flag} )
+    list(APPEND PARSEC_FLEX_GENERATED_OPTIONS "${_flag}")
+  endif( PARSEC_FLEX_FLAG${SAFE_flag} )
+endforeach()
 
