@@ -1,3 +1,11 @@
+# This file sets a number of compiler flags depending on the detected compiler
+# and build target (e.g., Release, Debug, ...). This should be included after
+# all required languages have been enabled.
+#
+# If you make changes to this file, please also propagate them to the similar
+# file in DPLASMA (cmake_modules/DplasmaCompilerFlags.cmake, in DPLASMA github).
+#
+
 include (CheckCCompilerFlag)
 include (CheckCXXCompilerFlag)
 include (CheckFortranCompilerFlag)
@@ -7,6 +15,12 @@ include (CheckFortranCompilerFlag)
 # for a list of target languages, and add this option in the
 # compile options (for that language) if it exists, optionally
 # via a user-overwritable cache option
+#
+# This function exists to simplify the writting of this file and is not intended
+# for use outside of this file. If you insist on calling it from outside, it
+# must be called after all required languages are enabled, otherwise it may not
+# detect some flags for the not-yet enabled languages, and calling it a second
+# time will not update the results.
 #
 # Parameters:
 #   OPTION:                mandatory, compile option to check
