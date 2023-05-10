@@ -869,7 +869,8 @@ cdef class ExtendedEvent:
                 if m is None:
                     logger.warning('Unknown format %s', ev_type)
                 else:
-                    self.fmt += <bytes>(b"%ss"%(m.group(1)))
+                    t = f"{m.group(1)}s"
+                    self.fmt += t.encode()
         logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, self.fmt)
         self.ev_struct = struct.Struct(self.fmt)
         if self.ev_struct is None:
