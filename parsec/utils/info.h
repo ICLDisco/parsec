@@ -130,9 +130,13 @@ parsec_info_clear(parserc_info_t *info);
  * associated with any keys), but is always returns a reference to a
  * valid info object.
  *
- * Key-values added to the info object will be implicitly applied to
- * the context, that is, the info is a reference to the info object
- * internally held by the context.
+ * Key-values added, modified, or removed to/from the info object will
+ * be implicitly applied to the context, that is, behavior for calls
+ * using that context may be altered accordingly to the set key-values.
+ *
+ * The returned info is a reference to the info object internally held
+ * by the context. The Info object should never be freed, and it ceases
+ * to be a valid reference when the concext has been freed.
  */
 parsec_context_get_info(parsec_context_t *ctx, parsec_info_t **info);
 
@@ -149,9 +153,13 @@ parsec_context_get_info(parsec_context_t *ctx, parsec_info_t **info);
  * associated with any keys), but is always returns a reference to a
  * valid info object.
  *
- * Key-values added to the info object will be implicitly applied to
- * the taskpool, that is, the info is a reference to the info object
- * internally held by the taskpool.
+ * Key-values added, modified, or removed to/from the info object will
+ * be implicitly applied to the taskpool, that is, behavior for calls
+ * using that taskpool may be altered accordingly to the set key-values.
+ *
+ * The returned info is a reference to the info object internally held
+ * by the taskpool. The Info object should never be freed, and it ceases
+ * to be a valid reference when the taskpool has been freed.
  */
 parsec_taskpool_get_info(parsec_taskpool_t *tp, parsec_info_t **info);
 
