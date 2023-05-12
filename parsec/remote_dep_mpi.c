@@ -1850,8 +1850,8 @@ remote_dep_mpi_new_taskpool(parsec_execution_stream_t* es,
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
-    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "OPAQUE_MPI: ThreadID %d\tNew taskpool %d registered",
-                         (int)pthread_self(), obj->taskpool_id);
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "OPAQUE_MPI: ThreadID %"PRIxPTR"\tNew taskpool %d registered",
+                         (intptr_t)pthread_self(), obj->taskpool_id);
     for(item = PARSEC_LIST_ITERATOR_FIRST(&dep_activates_noobj_fifo);
         item != PARSEC_LIST_ITERATOR_END(&dep_activates_noobj_fifo);
         item = PARSEC_LIST_ITERATOR_NEXT(item) ) {
@@ -2157,6 +2157,7 @@ remote_dep_ce_init(parsec_context_t* context)
 
 int remote_dep_ce_fini(parsec_context_t* context)
 {
+    (void)context;
     remote_dep_mpi_profiling_fini();
 
     // Unregister tags

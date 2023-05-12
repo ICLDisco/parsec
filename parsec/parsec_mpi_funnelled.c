@@ -802,7 +802,9 @@ mpi_no_thread_tag_unregister(parsec_ce_tag_t tag)
     mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
     if( (PARSEC_CE_TAG_STATUS_INACTIVE == tag_struct->status) ||
         (PARSEC_CE_TAG_STATUS_DISABLE == tag_struct->status) ) {
-        parsec_inform("Tag %ld is not registered\n", (int)tag);
+        if(parsec_ce.parsec_context->nb_nodes > 1) {
+            parsec_inform("Tag %ld is not registered\n", (int)tag);
+        }
         return PARSEC_SUCCESS;
     }
     parsec_atomic_lock(&parsec_ce_am_build_lock);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2022 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -313,6 +313,7 @@ int parsec_remote_dep_fini(parsec_context_t* context)
 
 int parsec_remote_dep_set_ctx( parsec_context_t* context, intptr_t opaque_comm_ctx )
 {
+    (void)context;
     return parsec_ce.set_ctx(&parsec_ce, opaque_comm_ctx);
 }
 
