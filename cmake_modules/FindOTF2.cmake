@@ -1,12 +1,12 @@
-FIND_PROGRAM(OTF2_CONFIG NAMES otf2-config
+find_program(OTF2_CONFIG NAMES otf2-config
              PATHS "${OTF2_DIR}/bin"
                    "${OTF2_CONFIG_PATH}"
                    "/opt/scorep/bin")
 
-IF(NOT OTF2_CONFIG)
+if(NOT OTF2_CONFIG)
     message(STATUS "no otf2-config found")
     set(OTF2_FOUND false)
-ELSE(NOT OTF2_CONFIG)
+else(NOT OTF2_CONFIG)
     message(STATUS "OTF2 library found. (using ${OTF2_CONFIG})")
     #
     # Get the OTF2 version. The output of otf2-config depends on the version itself...
@@ -20,7 +20,7 @@ ELSE(NOT OTF2_CONFIG)
       set(OTF2_VERSION "${OTF2_OUTPUT}")
     endif(OTF2_OUTPUT MATCHES ".*version.*")
     if(OTF2_VERSION VERSION_LESS ${OTF2_FIND_VERSION})
-      MESSAGE(STATUS "OTF2 library is version ${OTF2_VERSION}; Version 2.1.1 or later is needed.")
+      message(STATUS "OTF2 library is version ${OTF2_VERSION}; Version 2.1.1 or later is needed.")
       set(OTF2_FOUND false)
     else(OTF2_VERSION VERSION_LESS ${OTF2_FIND_VERSION})
       execute_process(COMMAND ${OTF2_CONFIG} "--cflags" OUTPUT_VARIABLE OTF2_CONFIG_FLAGS OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -42,42 +42,42 @@ ELSE(NOT OTF2_CONFIG)
       unset(OTF2_CONFIG_CXXFLAGS)
 
       execute_process(COMMAND ${OTF2_CONFIG} "--ldflags" OUTPUT_VARIABLE _LINK_LD_ARGS OUTPUT_STRIP_TRAILING_WHITESPACE)
-      STRING( REPLACE " " ";" _LINK_LD_ARGS ${_LINK_LD_ARGS} )
-      FOREACH( _ARG ${_LINK_LD_ARGS} )
-        IF(${_ARG} MATCHES "^-L")
-          STRING(REGEX REPLACE "^-L" "" _ARG ${_ARG})
-          SET(OTF2_LINK_DIRS ${OTF2_LINK_DIRS} ${_ARG})
-        ELSE(${_ARG} MATCHES "^-L")
-          SET(OTF2_LINK_OPTIONS ${OTF2_LINK_OPTIONS} ${_ARG})
-        ENDIF(${_ARG} MATCHES "^-L")
-      ENDFOREACH(_ARG)
+      string( REPLACE " " ";" _LINK_LD_ARGS ${_LINK_LD_ARGS} )
+      foreach( _ARG ${_LINK_LD_ARGS} )
+        if(${_ARG} MATCHES "^-L")
+          string(REGEX REPLACE "^-L" "" _ARG ${_ARG})
+          set(OTF2_LINK_DIRS ${OTF2_LINK_DIRS} ${_ARG})
+        else(${_ARG} MATCHES "^-L")
+          set(OTF2_LINK_OPTIONS ${OTF2_LINK_OPTIONS} ${_ARG})
+        endif(${_ARG} MATCHES "^-L")
+      endforeach(_ARG)
 
       execute_process(COMMAND ${OTF2_CONFIG} "--libs" OUTPUT_VARIABLE _LINK_LD_ARGS OUTPUT_STRIP_TRAILING_WHITESPACE)
-      STRING( REPLACE " " ";" _LINK_LD_ARGS ${_LINK_LD_ARGS} )
-      FOREACH( _ARG ${_LINK_LD_ARGS} )
-        IF(${_ARG} MATCHES "^-l")
-          STRING(REGEX MATCH "otf2" _OTF2_LIBRARY_TEST ${_ARG})
-          STRING(REGEX REPLACE "^-l" "" _ARG ${_ARG})
-          FIND_LIBRARY(_OTF2_LIB_FROM_ARG NAMES ${_ARG}
+      string( REPLACE " " ";" _LINK_LD_ARGS ${_LINK_LD_ARGS} )
+      foreach( _ARG ${_LINK_LD_ARGS} )
+        if(${_ARG} MATCHES "^-l")
+          string(REGEX MATCH "otf2" _OTF2_LIBRARY_TEST ${_ARG})
+          string(REGEX REPLACE "^-l" "" _ARG ${_ARG})
+          find_library(_OTF2_LIB_FROM_ARG NAMES ${_ARG}
             PATHS
             ${OTF2_LINK_DIRS}
             )
-          IF(_OTF2_LIB_FROM_ARG)
-            IF(_OTF2_LIBRARY_TEST)
-              SET(OTF2_LIBRARY ${_OTF2_LIB_FROM_ARG})
-            ENDIF(_OTF2_LIBRARY_TEST)
-            SET(OTF2_LIBRARIES ${OTF2_LIBRARIES} ${_OTF2_LIB_FROM_ARG})
-          ENDIF(_OTF2_LIB_FROM_ARG)
-          UNSET(_OTF2_LIB_FROM_ARG CACHE)
-        ENDIF(${_ARG} MATCHES "^-l")
-      ENDFOREACH(_ARG)
+          if(_OTF2_LIB_FROM_ARG)
+            if(_OTF2_LIBRARY_TEST)
+              set(OTF2_LIBRARY ${_OTF2_LIB_FROM_ARG})
+            endif(_OTF2_LIBRARY_TEST)
+            set(OTF2_LIBRARIES ${OTF2_LIBRARIES} ${_OTF2_LIB_FROM_ARG})
+          endif(_OTF2_LIB_FROM_ARG)
+          unset(_OTF2_LIB_FROM_ARG CACHE)
+        endif(${_ARG} MATCHES "^-l")
+      endforeach(_ARG)
 
       set(OTF2_FOUND true)
     endif(OTF2_VERSION VERSION_LESS ${OTF2_FIND_VERSION})
-ENDIF(NOT OTF2_CONFIG)
+endif(NOT OTF2_CONFIG)
 
 include (FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(
+find_package_handle_standard_args(
     OTF2 DEFAULT_MSG
     OTF2_CONFIG
     OTF2_LIBRARIES

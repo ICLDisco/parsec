@@ -1,17 +1,17 @@
 # when crosscompiling the executable is imported from the
 # export file.
-IF(NOT CMAKE_CROSSCOMPILING)
+if(NOT CMAKE_CROSSCOMPILING)
 
   if(FLEX_FOUND AND BISON_FOUND)
     # generate in the build dir
-    BISON_TARGET(parsec_yacc parsec.y ${CMAKE_CURRENT_BINARY_DIR}/parsec.y.c)
-    FLEX_TARGET(parsec_flex parsec.l  ${CMAKE_CURRENT_BINARY_DIR}/parsec.l.c)
-    ADD_FLEX_BISON_DEPENDENCY(parsec_flex parsec_yacc)
+    bison_target(parsec_yacc parsec.y ${CMAKE_CURRENT_BINARY_DIR}/parsec.y.c)
+    flex_target(parsec_flex parsec.l  ${CMAKE_CURRENT_BINARY_DIR}/parsec.l.c)
+    add_flex_bison_dependency(parsec_flex parsec_yacc)
 
     # Generate in the pregen dir, add to the non-automated rule to update the archive
     file(MAKE_DIRECTORY "${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/interfaces/ptg/ptg-compiler")
-    BISON_TARGET(pregen_parsec_yacc parsec.y ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/interfaces/ptg/ptg-compiler/parsec.y.c COMPILE_FLAGS -l)
-    FLEX_TARGET(pregen_parsec_flex parsec.l ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/interfaces/ptg/ptg-compiler/parsec.l.c COMPILE_FLAGS --noline)
+    bison_target(pregen_parsec_yacc parsec.y ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/interfaces/ptg/ptg-compiler/parsec.y.c COMPILE_FLAGS -l)
+    flex_target(pregen_parsec_flex parsec.l ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/interfaces/ptg/ptg-compiler/parsec.l.c COMPILE_FLAGS --noline)
     add_custom_target(parsec_pregen_ptg SOURCES ${BISON_pregen_parsec_yacc_OUTPUTS} ${FLEX_pregen_parsec_flex_OUTPUTS})
     add_dependencies(parsec_pregen_flex_bison parsec_pregen_ptg)
 
@@ -52,11 +52,11 @@ IF(NOT CMAKE_CROSSCOMPILING)
     EXPORT parsec-targets
     RUNTIME DESTINATION ${PARSEC_INSTALL_BINDIR})
 
-  LIST(APPEND MCA_ENABLED_FEATURES "interface::ptg")
-  SET( MCA_ENABLED_FEATURES ${MCA_ENABLED_FEATURES} CACHE INTERNAL "" FORCE)
+  list(APPEND MCA_ENABLED_FEATURES "interface::ptg")
+  set( MCA_ENABLED_FEATURES ${MCA_ENABLED_FEATURES} CACHE INTERNAL "" FORCE)
   #
   # Generate the EXPORT file for external projects.
   #
-  EXPORT(TARGETS parsec-ptgpp FILE "${CMAKE_BINARY_DIR}/ImportExecutables.cmake")
-ENDIF(NOT CMAKE_CROSSCOMPILING)
+  export(TARGETS parsec-ptgpp FILE "${CMAKE_BINARY_DIR}/ImportExecutables.cmake")
+endif(NOT CMAKE_CROSSCOMPILING)
 

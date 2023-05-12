@@ -1,5 +1,5 @@
 # - Find the Ayudame library
-# This module finds an installed  lirary that implements the 
+# This module finds an installed  lirary that implements the
 # Ayudame http://www.hlrs.de/organization/av/spmt/research/temanejo/
 #
 # This module sets the following variables:

@@ -8,9 +8,9 @@ if(HAVE_INT128 AND PARSEC_ENABLE_INT128 )
   set(PARSEC_HAVE_INT128 1)
 else(HAVE_INT128 AND PARSEC_ENABLE_INT128 )
   if( NOT PARSEC_ENABLE_INT128 )
-    MESSAGE(STATUS "Support for __int128 disabled at user request")
+    message(STATUS "Support for __int128 disabled at user request")
   else( NOT PARSEC_ENABLE_INT128 )
-    MESSAGE(STATUS "Support for __int128 unavailable")
+    message(STATUS "Support for __int128 unavailable")
   endif( NOT PARSEC_ENABLE_INT128 )
 endif(HAVE_INT128 AND PARSEC_ENABLE_INT128 )
 
@@ -76,7 +76,7 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
   # libraries we need to execute the checks every configuration, so we have to remove the
   # state from the cache.
   #
-  UNSET( PARSEC_ATOMIC_USE_C11_128 CACHE )
+  unset( PARSEC_ATOMIC_USE_C11_128 CACHE )
   if( PARSEC_HAVE_INT128 AND PARSEC_ATOMIC_USE_C11_32 AND PARSEC_ATOMIC_USE_C11_64 )
     CHECK_C_SOURCE_COMPILES("
         #include <stdatomic.h>
@@ -89,9 +89,9 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
          " PARSEC_ATOMIC_USE_C11_128)
     if( NOT PARSEC_ATOMIC_USE_C11_128 ) # try again with -mcx16
       include(CMakePushCheckState)
-      CMAKE_PUSH_CHECK_STATE()
-      SET( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
-      UNSET( PARSEC_ATOMIC_USE_C11_128 CACHE )
+      cmake_push_check_state()
+      set( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
+      unset( PARSEC_ATOMIC_USE_C11_128 CACHE )
       CHECK_C_SOURCE_COMPILES("
           #include <stdatomic.h>
           int main(void) {
@@ -101,16 +101,16 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
               return 0;
           }
           " PARSEC_ATOMIC_USE_C11_128)
-      CMAKE_POP_CHECK_STATE()
+      cmake_pop_check_state()
       if( PARSEC_ATOMIC_USE_C11_128 )
-        LIST(APPEND _PARSEC_ATOMIC_SUPPORT_OPTIONS "-mcx16")
+        list(APPEND _PARSEC_ATOMIC_SUPPORT_OPTIONS "-mcx16")
       endif( PARSEC_ATOMIC_USE_C11_128 )
     endif( NOT PARSEC_ATOMIC_USE_C11_128 )
     if( NOT PARSEC_ATOMIC_USE_C11_128 ) # try again with -latomic
       include(CMakePushCheckState)
-      CMAKE_PUSH_CHECK_STATE()
+      cmake_push_check_state()
       list(APPEND CMAKE_REQUIRED_LIBRARIES atomic)
-      UNSET( PARSEC_ATOMIC_USE_C11_128 CACHE )
+      unset( PARSEC_ATOMIC_USE_C11_128 CACHE )
       CHECK_C_SOURCE_COMPILES("
           #include <stdatomic.h>
           int main(void) {
@@ -120,12 +120,12 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
               return 0;
           }
           " PARSEC_ATOMIC_USE_C11_128)
-      CMAKE_POP_CHECK_STATE()
+      cmake_pop_check_state()
       if( PARSEC_ATOMIC_USE_C11_128 )
         set(PARSEC_ATOMIC_C11_128_EXTRA_LIBS "-latomic" CACHE STRING
             "Additional libraries required to support 128 bits atomic operations" FORCE)
-        MARK_AS_ADVANCED(FORCE PARSEC_ATOMIC_C11_128_EXTRA_LIBS)
-        LIST(APPEND _PARSEC_ATOMIC_SUPPORT_LIBS "atomic")
+        mark_as_advanced(FORCE PARSEC_ATOMIC_C11_128_EXTRA_LIBS)
+        list(APPEND _PARSEC_ATOMIC_SUPPORT_LIBS "atomic")
       endif( PARSEC_ATOMIC_USE_C11_128 )
     endif( NOT PARSEC_ATOMIC_USE_C11_128 )
     list(APPEND EXTRA_LIBS ${PARSEC_ATOMIC_C11_128_EXTRA_LIBS})
@@ -137,7 +137,7 @@ endif( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
 #
 if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_ATOMIC_USE_C11_128)
   # Dont rely on the compiler support for C11 atomics
-  UNSET(PARSEC_ATOMIC_USE_C11_ATOMICS CACHE)
+  unset(PARSEC_ATOMIC_USE_C11_ATOMICS CACHE)
   include(CheckCSourceRuns)
 
   # Gcc style atomics?
@@ -176,9 +176,9 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
         " PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
       if( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS ) # try again with -mcx16
         include(CMakePushCheckState)
-        CMAKE_PUSH_CHECK_STATE()
-        SET( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
-        UNSET( PARSEC_ATOMIC_USE_GCC_128_BUILTINS CACHE )
+        cmake_push_check_state()
+        set( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
+        unset( PARSEC_ATOMIC_USE_GCC_128_BUILTINS CACHE )
         CHECK_C_SOURCE_COMPILES("
             #include <stdint.h>
             int main(void) {
@@ -188,9 +188,9 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
                 return 0;
             }
             " PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
-        CMAKE_POP_CHECK_STATE()
+        cmake_pop_check_state()
         if( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
-          LIST(APPEND _PARSEC_ATOMIC_SUPPORT_OPTIONS "-mcx16")
+          list(APPEND _PARSEC_ATOMIC_SUPPORT_OPTIONS "-mcx16")
         endif( PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
       endif( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
       if( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
@@ -203,8 +203,8 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
         # that have support for 16 bytes swap but no other operation (and
         # lie about by setting __has_builtin(__sync_fetch_and_and_16)
         include(CMakePushCheckState)
-        CMAKE_PUSH_CHECK_STATE()
-        SET( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${_PARSEC_ATOMIC_SUPPORT_OPTIONS}" )
+        cmake_push_check_state()
+        set( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${_PARSEC_ATOMIC_SUPPORT_OPTIONS}" )
         CHECK_C_SOURCE_COMPILES("
             #include <stdint.h>
             int main(void) {
@@ -218,7 +218,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
                 return 0;
              }
              " PARSEC_ATOMIC_USE_GCC_128_OTHER_BUILTINS)
-        CMAKE_POP_CHECK_STATE()
+        cmake_pop_check_state()
       endif( NOT PARSEC_ATOMIC_USE_GCC_128_BUILTINS )
     endif(PARSEC_HAVE_INT128)
   endif( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
@@ -250,7 +250,7 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
 
            return 0;
         }
-        " PARSEC_ATOMIC_USE_XLC_64_BUILTINS) 
+        " PARSEC_ATOMIC_USE_XLC_64_BUILTINS)
       CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
 
@@ -363,7 +363,7 @@ endif( PARSEC_ATOMIC_USE_SUN_64 OR PARSEC_ATOMIC_USE_MIPOSPRO_64_BUILTINS OR PAR
 # Validation for __sync builtins on int128_t
 if( PARSEC_ATOMIC_USE_GCC_128_BUILTINS AND
     NOT PARSEC_ATOMIC_USE_C11_128 AND NOT PARSEC_ATOMIC_USE_GCC_128_OTHER_BUILTINS )
-  MESSAGE(STATUS "Support for atomic compare-and-swap (CAS) on int128_t found but support for some other atomic operations on int128_t (any combination of AND, OR and ADD) is missing. Replacements based on CAS will be provided.\n")
+  message(STATUS "Support for atomic compare-and-swap (CAS) on int128_t found but support for some other atomic operations on int128_t (any combination of AND, OR and ADD) is missing. Replacements based on CAS will be provided.\n")
 endif()
 
 if( PARSEC_ATOMIC_USE_GCC_128_BUILTINS OR PARSEC_ATOMIC_USE_C11_128)
@@ -378,9 +378,9 @@ endif()
 
 
 set(PARSEC_ATOMIC_SUPPORT_LIBS ${_PARSEC_ATOMIC_SUPPORT_LIBS} CACHE STRING "Libraries needed for atomic support")
-MARK_AS_ADVANCED(PARSEC_ATOMIC_SUPPORT_LIBS)
+mark_as_advanced(PARSEC_ATOMIC_SUPPORT_LIBS)
 set(PARSEC_ATOMIC_SUPPORT_OPTIONS ${_PARSEC_ATOMIC_SUPPORT_OPTIONS} CACHE STRING "Flags needed for atomic support")
-MARK_AS_ADVANCED(PARSEC_ATOMIC_SUPPORT_OPTIONS)
+mark_as_advanced(PARSEC_ATOMIC_SUPPORT_OPTIONS)
 
 if( PARSEC_HAVE_COMPARE_AND_SWAP_32 )
   message( STATUS "\t support for 32 bits atomics - found")
