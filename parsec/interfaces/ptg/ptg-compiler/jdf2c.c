@@ -1554,6 +1554,7 @@ static void jdf_generate_structure(jdf_t *jdf)
     for(f = jdf->functions; f != NULL; f = f->next) {
         if( 0 == (f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY) ) {
             for(pl = f->parameters; pl != NULL; pl = pl->next) {
+                coutput("  int %s_%s_min;\n", f->fname, pl->name);
                 coutput("  int %s_%s_range;\n", f->fname, pl->name);
             }
         } else {
@@ -3367,30 +3368,8 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
         
         for(vl = f->locals; vl != NULL; vl = vl->next) {
             if( local_is_parameter(f, vl) != NULL ) {
-                int have_min = 0;
-                if( vl->expr->op == JDF_RANGE ) {
-                    coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr->jdf_ta1, &info));
-                    have_min = 1;
-                } else {
-                    if( vl->expr->local_variables != NULL ) {
-                        char *vname;
-                        if( asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, vl->name) <= 0 ) {
-                            fprintf(stderr, "Cannot allocate internal memory for the PTG compiler\n");
-                            exit(-1);
-                        }
-                        coutput("  int %s;\n", vname);
-                        jdf_generate_range_min_without_fn(jdf, vl->expr, vname, "(&"JDF2C_NAMESPACE"_assignments)");
-                        free(vname);
-                        have_min = 1;
-                    }
-                }
-                if(have_min) {
-                    coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range + %s%s_min;\n",
-                            vl->name, f->fname, vl->name, JDF2C_NAMESPACE, vl->name);
-                } else {
-                    coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range;\n",
-                            vl->name, f->fname, vl->name);
-                }
+                coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range + __parsec_tp->%s_%s_min;\n",
+                            vl->name, f->fname, vl->name, f->fname, vl->name);
                 string_arena_add_string(sa_format, "%s%%d", first_param?"":", ");
                 string_arena_add_string(sa_params, "%s%s", first_param?"":", ", vl->name);
                 first_param = 0;
@@ -3751,9 +3730,11 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 vl = l2p_item->vl;
                 if( NULL == (pl = l2p_item->pl) ) continue;
                 if(vl->expr->op == JDF_RANGE || NULL != vl->expr->local_variables) {
+                    coutput("  __parsec_tp->%s_%s_min   = %s%s_min;\n", f->fname, pl->name, JDF2C_NAMESPACE, pl->name);
                     coutput("  __parsec_tp->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
                             f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
                 } else {
+                    coutput("  __parsec_tp->%s_%s_min   = 0;\n", f->fname, pl->name);
                     coutput("  __parsec_tp->%s_%s_range = 1;  /* single value, not a range */\n", f->fname, pl->name);
                 }
             }
@@ -4828,72 +4809,32 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
 {
     string_arena_t *sa_range_multiplier = string_arena_new(64);
     jdf_variable_list_t *vl;
-    expr_info_t info = EMPTY_EXPR_INFO;
 
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY) ) {
         coutput("static inline parsec_key_t %s(const parsec_taskpool_t *tp, const parsec_assignment_t *as)\n"
                 "{\n",
                 jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
         if( f->parameters == NULL ) {
-            coutput("  return (parsec_key_t)0;\n"
+            coutput("  (void)tp; (void)assignment;\n"
+                    "  return (parsec_key_t)0;\n"
                     "}\n");
         } else {
-            coutput( "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)tp;\n"
-                     "  %s ascopy, *assignment = &ascopy;\n"
-                     "  uintptr_t __parsec_id = 0;\n"
-                     "  memcpy(assignment, as, sizeof(%s));\n",
-                     jdf_basename, jdf_basename,
-                     parsec_get_name(jdf, f, "parsec_assignment_t"),
-                     parsec_get_name(jdf, f, "parsec_assignment_t"));
-            
-            info.prefix = "";
-            info.suffix = "";
-            info.sa = sa_range_multiplier;
-            info.assignments = "assignment";
-
-            for(vl = f->locals; vl != NULL; vl = vl->next) {
-                string_arena_init(sa_range_multiplier);
-                
-                coutput("  const int %s = assignment->%s.value;\n",
-                        vl->name, vl->name);
-                
-                if( local_is_parameter(f, vl) != NULL ) {
-                    if( vl->expr->op == JDF_RANGE ) {
-                        coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr->jdf_ta1, &info));
-                    } else {
-                        if( vl->expr->local_variables != NULL ) {
-                            char *vname;
-                            if( asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, vl->name) <= 0 ) {
-                                fprintf(stderr, "Cannot allocate internal memory for the PTG compiler\n");
-                                exit(-1);
-                            }
-                            coutput("  int %s;\n", vname);
-                            jdf_generate_range_min_without_fn(jdf, vl->expr, vname, "assignment");
-                            free(vname);
-                        } else {
-                            coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr, &info));
-                        }
-                    }
-                } else {
-                    /* IDs should depend only on the parameters of the
-                     * function. However, we might need the other definitions because
-                     * the min expression of the parameters might depend on them. If
-                     * this is not the case, a quick "(void)" removes the warning.
-                     */
-                    coutput("  (void)%s;\n", vl->name);
-                }
-            }
-
+            coutput("  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)tp;\n"
+                    "  const %s *assignment = (const %s*)as;\n"
+                    "  uint64_t __parsec_id = 0;\n", 
+                    jdf_basename, jdf_basename,
+                    parsec_get_name(jdf, f, "parsec_assignment_t"),
+                    parsec_get_name(jdf, f, "parsec_assignment_t"));
             string_arena_init(sa_range_multiplier);
             for(vl = f->locals; vl != NULL; vl = vl->next) {
                 if( local_is_parameter(f, vl) != NULL ) {
-                    coutput("  __parsec_id += (%s - %s%s_min)%s;\n", vl->name, JDF2C_NAMESPACE, vl->name, string_arena_get_string(sa_range_multiplier));
+                    coutput("  __parsec_id += (assignment->%s.value - __parsec_tp->%s_%s_min)%s;\n", vl->name, f->fname, vl->name, 
+                            string_arena_get_string(sa_range_multiplier));
                     string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, vl->name);
                 }
             }
 
-            coutput("  (void)__parsec_tp;\n"
-                    "  return (parsec_key_t)__parsec_id;\n"
+            coutput("  return (parsec_key_t)__parsec_id;\n"
                     "}\n");
         }
     }
