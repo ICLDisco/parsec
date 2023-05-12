@@ -1,10 +1,10 @@
 if( BUILD_PARSEC )
-  LIST(APPEND EXTRA_SOURCES
+  list(APPEND EXTRA_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/interfaces/dtd/parsec_dtd_data_flush.c
     ${CMAKE_CURRENT_SOURCE_DIR}/interfaces/dtd/overlap_strategies.c
     ${CMAKE_CURRENT_SOURCE_DIR}/interfaces/dtd/insert_function.c)
 
-  INSTALL(FILES
+  install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/interfaces/dtd/insert_function.h
     DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/interfaces/dtd/)
 

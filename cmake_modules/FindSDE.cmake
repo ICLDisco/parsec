@@ -1,6 +1,6 @@
 # - Find the SDE library (part of PAPI)
 # This module finds an installed  lirary that implements the
-# Softward Defined Events interface, part of the PAPI Project 
+# Softward Defined Events interface, part of the PAPI Project
 # (see http://icl.cs.utk.edu/papi/).
 #
 # This module defines the PAPI::SDE target.

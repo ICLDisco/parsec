@@ -44,13 +44,13 @@ set(BASE_SOURCES
 if(FLEX_FOUND AND BISON_FOUND)
   # generate in the build dir
   file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/utils")
-  FLEX_TARGET(keyval_flex utils/keyval_lex.l utils/keyval_lex.l.c)
-  FLEX_TARGET(show_help_flex utils/show_help_lex.l utils/show_help_lex.l.c)
+  flex_target(keyval_flex utils/keyval_lex.l utils/keyval_lex.l.c)
+  flex_target(show_help_flex utils/show_help_lex.l utils/show_help_lex.l.c)
 
   # Generate in the pregen dir, add to the non-automated rule
   file(MAKE_DIRECTORY "${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/utils")
-  FLEX_TARGET(pregen_keyval_flex utils/keyval_lex.l ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/utils/keyval_lex.l.c COMPILE_FLAGS --noline)
-  FLEX_TARGET(pregen_show_help_flex utils/show_help_lex.l ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/utils/show_help_lex.l.c COMPILE_FLAGS --noline)
+  flex_target(pregen_keyval_flex utils/keyval_lex.l ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/utils/keyval_lex.l.c COMPILE_FLAGS --noline)
+  flex_target(pregen_show_help_flex utils/show_help_lex.l ${PARSEC_PREGEN_FLEX_BISON_DIR}/parsec/utils/show_help_lex.l.c COMPILE_FLAGS --noline)
   add_custom_target(parsec_pregen_flex_utils SOURCES ${FLEX_pregen_keyval_flex_OUTPUTS} ${FLEX_pregen_show_help_flex_OUTPUTS})
   add_dependencies(parsec_pregen_flex_bison parsec_pregen_flex_utils)
 
@@ -95,11 +95,11 @@ endif( PARSEC_PAPI_SDE )
 
 if(NOT PARSEC_HAVE_OTF2)
   list(APPEND EXTRA_SOURCES "profiling.c")
-  MESSAGE(STATUS "Profiling uses PaRSEC Binary Tracing Format")
+  message(STATUS "Profiling uses PaRSEC Binary Tracing Format")
 else(NOT PARSEC_HAVE_OTF2)
   list(APPEND EXTRA_SOURCES "profiling_otf2.c")
   list(APPEND EXTRA_LIBS "otf2")
-  MESSAGE(STATUS "Profiling uses OTF2")
+  message(STATUS "Profiling uses OTF2")
 endif(NOT PARSEC_HAVE_OTF2)
 
 set(SOURCES
@@ -159,7 +159,7 @@ endif( BUILD_PARSEC )
 # Read the Modular Components
 #   This must be read using include and not add_subdirectory because
 #   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
-SET(MCA_ENABLED_FEATURES "" CACHE INTERNAL "List of enabled components in PaRSEC" FORCE)
+set(MCA_ENABLED_FEATURES "" CACHE INTERNAL "List of enabled components in PaRSEC" FORCE)
 include(mca/CMakeLists.txt)
 
 # Import all the available Domain Specific Language interfaces
@@ -279,7 +279,7 @@ if( BUILD_PARSEC )
     if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_FILE}")
       set(_FILE "${CMAKE_CURRENT_BINARY_DIR}/${_FILE}")
     endif()
-    INSTALL(FILES ${_FILE} DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/${_DIR})
+    install(FILES ${_FILE} DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/${_DIR})
   endforeach()
   get_target_property(_private_headers parsec PRIVATE_HEADER_H)
   foreach(_FILE ${_private_headers})
@@ -287,7 +287,7 @@ if( BUILD_PARSEC )
     if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_FILE}")
       set(_FILE "${CMAKE_CURRENT_BINARY_DIR}/${_FILE}")
     endif()
-    INSTALL(FILES ${_FILE} DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/${_DIR})
+    install(FILES ${_FILE} DESTINATION ${PARSEC_INSTALL_INCLUDEDIR}/parsec/${_DIR})
   endforeach()
 
   install(FILES utils/help-mca-param.txt
@@ -377,6 +377,6 @@ endif(PARSEC_WITH_DEVEL_HEADERS)
 
 
 
-ENDIF( BUILD_PARSEC )
+endif( BUILD_PARSEC )
 
 
