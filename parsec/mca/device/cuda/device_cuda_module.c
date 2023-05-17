@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2022 The University of Tennessee and The University
+ * Copyright (c) 2010-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -333,6 +333,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     int show_caps_index, show_caps = 0, j, k;
     char *szName;
     uint64_t freqHz;
+    double fp16, fp32, fp64, tf32;
     struct cudaDeviceProp prop;
 
     show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities"); 
@@ -349,7 +350,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     szName    = prop.name;
     major     = prop.major;
     minor     = prop.minor;
-    freqHz = prop.clockRate * 1000;  /* clockRate is in KHz */
+    freqHz    = prop.clockRate * 1000;  /* clockRate is in KHz */
     concurrency = prop.concurrentKernels;
     streaming_multiprocessor = prop.multiProcessorCount;
     computemode = prop.computeMode;
@@ -462,15 +463,14 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                         "Load balancing and performance might be negatively impacted. Please contact"
                         "the PaRSEC runtime developers", gpu_device->super.name, major, minor );
     }
-	/* We use 2 * hrate * #streaming * freq because of FMA and we compute in GFlop/s so that conversion to #nanosec is straightforward */
-    device->device_hweight = 2 * (hrate * streaming_multiprocessor) * freqHz / 1e9;
-    device->device_tweight = 2 * (trate * streaming_multiprocessor) * freqHz / 1e9;
-    device->device_sweight = 2 * (srate * streaming_multiprocessor) * freqHz / 1e9;
-    device->device_dweight = 2 * (drate * streaming_multiprocessor) * freqHz / 1e9;
-    assert(device->device_hweight > 0);
-    assert(device->device_tweight > 0);
-    assert(device->device_sweight > 0);
-    assert(device->device_dweight > 0);
+    /* We compute gflops based on FMA rate */
+    device->gflops_fp16 = fp16 = 2.f * hrate * streaming_multiprocessor * freqHz * 1e-9f;
+    device->gflops_tf32 = tf32 = 2.f * trate * streaming_multiprocessor * freqHz * 1e-9f;
+    device->gflops_fp32 = fp32 = 2.f * srate * streaming_multiprocessor * freqHz * 1e-9f;
+    device->gflops_fp64 = fp64 = 2.f * drate * streaming_multiprocessor * freqHz * 1e-9f;
+    /* don't assert fp16, tf32, maybe they actually do not exist on the architecture */
+    assert(device->gflops_fp32 > 0);
+    assert(device->gflops_fp64 > 0);
     device->device_load = 0;
 
     /* Initialize internal lists */
@@ -492,20 +492,19 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
         parsec_inform("GPU Device %d (capability %d.%d): %s\n"
                       "\tLocation (PCI Bus/Device/Domain): %x:%x.%x\n"
                       "\tSM                 : %d\n"
-                      "\tFrequency (Hz)     : %" PRId64 "\n"
+                      "\tFrequency (GHz)    : %f\n"
+                      "\tpeak Gflops        : double %2.1f, single %2.1f, tensor, %2.1f, half %2.1f\n"
+                      "\tPeak Mem Bw (GB/s) : %.2f [Clock Rate (Ghz) %.2f | Bus Width (bits) %d]\n"
                       "\tconcurrency        : %s\n"
-                      "\tcomputeMode        : %d\n"
-                      "\tPeak Memory Bandwidth (GB/s): %.2f [Clock Rate (Khz) %d | Bus Width (bits) %d]\n"
-                      "\tpeak Gflops         : double %2.3f, single %2.3f tensor %2.3f half %2.3f\n",
+                      "\tcomputeMode        : %d\n",
                       cuda_device->cuda_index, cuda_device->major, cuda_device->minor, device->name,
                       prop.pciBusID, prop.pciDeviceID, prop.pciDomainID,
                       streaming_multiprocessor,
-                      freqHz,
+                      freqHz*1e-9f,
+                      fp64, fp32, tf32, fp16,
+                      2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6, prop.memoryClockRate*1e-6, prop.memoryBusWidth,
                       (concurrency == 1)? "yes": "no",
-                      computemode,
-                      2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6, prop.memoryClockRate, prop.memoryBusWidth,
-				      (double)device->device_dweight, (double)device->device_sweight,
-                      (double)device->device_tweight, (double)device->device_hweight);
+                      computemode);
     }
 
     *module = device;

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2022 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -6400,7 +6400,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
 static void
 jdf_generate_code_time_estimate(const jdf_t *jdf,
                                 const jdf_function_entry_t *f,
-                                char *name) 
+                                char *name)
 {
     jdf_def_list_t *prop = NULL;
 
@@ -6573,7 +6573,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
 
     jdf_find_property(body->properties, "weight", &prop);
     if(NULL != prop) {
-        jdf_warn(JDF_OBJECT_LINENO(body), 
+        jdf_warn(JDF_OBJECT_LINENO(body),
                 "Parameterized Task '%s' defines the obsolete property 'weight' in its %s body to guide the selection of devices.\n"
                 "This has been superseded by the more flexible property 'time_estimate'. Please fix your JDF file.\n"
                 "-- Property 'weight' ignored.",

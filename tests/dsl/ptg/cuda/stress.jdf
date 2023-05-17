@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2021 The University of Tennessee and The University
+ * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -158,8 +158,8 @@ extern "C" %{
 static int64_t time_estimate_gemm(const parsec_task_t *task, parsec_device_module_t *dev)
 {
     const parsec_stress_taskpool_t *tp = (const parsec_stress_taskpool_t *)task->taskpool;
-    int64_t flops = (int64_t)2 * (int64_t)tp->_g_descA->super.nb * (int64_t)tp->_g_descA->super.mb * (int64_t)tp->_g_descA->super.mb;
-    return flops / (int64_t)dev->device_dweight;
+    int64_t flops = (int64_t)2 * tp->_g_descA->super.nb * tp->_g_descA->super.mb * tp->_g_descA->super.mb;
+    return flops / dev->gflops_fp64;
 }
 
 %}

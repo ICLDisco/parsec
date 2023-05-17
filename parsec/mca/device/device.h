@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 The University of Tennessee and The University
+ * Copyright (c) 2013-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -135,11 +135,16 @@ struct parsec_device_module_s {
     uint64_t  required_data_out;
     uint64_t  executed_tasks;
     uint64_t  nb_data_faults;
-    int64_t   device_hweight;  /**< Number of half precision operations per nanosecond */
-    int64_t   device_sweight;  /**< Number of single precision operations per nanosecond */
-    int64_t   device_dweight;  /**< Number of double precision operations per nanosecond */
-    int64_t   device_tweight;  /**< Number of tensor operations per nanosecond */
-    int64_t   device_load;     /**< Number of nanoseconds of work submitted to the device, and not completed now */
+    /* We provide the compute capacity of the device in GFlop/s so that conversion to #nanosec in load estimates is straightforward */
+    /* These compute capacities can be useful for users when providing their own
+     * time_estimate functions: the user can divide the number of flops for the
+     * operation with the device execution rate to produce the time estimate. */
+    int64_t   gflops_fp16;  /**< Number of half precision operations per nanosecond (or gflops/s) */
+    int64_t   gflops_fp32;  /**< Number of single precision operations per nanosecond (or gflops/s) */
+    int64_t   gflops_fp64;  /**< Number of double precision operations per nanosecond (or gflops/s) */
+    int64_t   gflops_tf32;  /**< Number of tensor operations per nanosecond (or gflops/s) */
+    int64_t   time_estimate_default; /**< An estimate of the time to execute on that device a task that would take 1ns using the aggregate power of all devices. This is the default time_estimate if none is user-set. */
+    int64_t   device_load;     /**< Number of nanoseconds of work submitted to the device, and not completed now. This variable is adjusted by the runtime using the time_estimate loads from the tasks. */
 #if defined(PARSEC_PROF_TRACE)
     parsec_profiling_stream_t *profiling;
 #endif  /* defined(PROFILING) */
@@ -157,10 +162,10 @@ extern parsec_atomic_lock_t parsec_devices_mutex;
 /**
  * @brief Returns the parsec device index selected to run @p this_task,
  *    using this_task->task_class->time_estimate function to compute
- *    the load (estimate of number of ns @p this_task will take on this
- *    device). Also returns the load on the selected device in @p load.
+ *    the task load (estimate of number of ns @p this_task will take on this
+ *    device). Also returns the load on the selected device in @p task_load.
  */
-PARSEC_DECLSPEC extern int parsec_get_best_device( parsec_task_t* this_task, int64_t *load );
+PARSEC_DECLSPEC extern int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load );
 
 /**
  * Initialize the internal structures for managing external devices such as

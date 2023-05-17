@@ -38,7 +38,7 @@ static int64_t first_tc_time_estimate(const parsec_task_t *task, parsec_device_m
     int *data;
     parsec_task_t *this_task = (parsec_task_t *)task;
     parsec_dtd_unpack_args(this_task, &rank, &data, &nb, &idx);
-    return ( (int64_t)nb + dev->device_sweight - (int64_t)1 ) / dev->device_sweight;
+    return (nb + dev->gflops_fp32 - 1) / dev->gflops_fp32;
 }
 
 int cpu_set_to_i( parsec_execution_stream_t *es,
@@ -94,7 +94,7 @@ static int64_t second_tc_time_estimate(const parsec_task_t *task, parsec_device_
     int *data;
     parsec_task_t *this_task = (parsec_task_t *)task;
     parsec_dtd_unpack_args(this_task, &data, &nb, &idx);
-    return ( (int64_t)nb + dev->device_sweight - (int64_t)1 ) / dev->device_sweight;
+    return (nb + dev->gflops_fp32 - 1) / dev->gflops_fp32;
 }
 
 int cpu_multiply_by_2( parsec_execution_stream_t *es,
@@ -154,7 +154,7 @@ static int64_t third_tc_time_estimate(const parsec_task_t *task, parsec_device_m
     int32_t *acc, **gpu_accs;
     parsec_task_t *this_task = (parsec_task_t *)task;
     parsec_dtd_unpack_args(this_task, &data, &nb, &idx, &acc, &gpu_accs);
-    return ( (int64_t)nb + dev->device_sweight - (int64_t)1 ) / dev->device_sweight;
+    return (nb + dev->gflops_fp32 - 1) / dev->gflops_fp32;
 }
 
 int cpu_accumulate( parsec_execution_stream_t *es,

@@ -1,8 +1,8 @@
 extern "C" %{
 /*
- * Copyright (c) 2021 The Universiy of Tennessee and The Universiy
- *                    of Tennessee Research Foundation. All rights
- *                    reserved.
+ * Copyright (c) 2021-2023 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
  */
 #include "cuda_test_internal.h"
 
@@ -127,8 +127,8 @@ static int64_t task_time_estimate(const parsec_task_t *task, parsec_device_modul
 {
     /* There is no actual computation in the task kernel... But it will take at least 1 flop / initialization in the memset */
     parsec_get_best_device_check_taskpool_t *tp = (parsec_get_best_device_check_taskpool_t *)task->taskpool;
-    int64_t flops = (int64_t)tp->_g_descA->mb * (int64_t)tp->_g_descA->nb;
-    return flops / dev->device_dweight;
+    int64_t flops = (int64_t)tp->_g_descA->mb * tp->_g_descA->nb;
+    return flops / dev->gflops_fp64;
 }
 
 /**
