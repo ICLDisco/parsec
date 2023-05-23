@@ -623,7 +623,7 @@ parsec_device_find_function(const char* function_name,
 
 int parsec_mca_device_registration_complete(parsec_context_t* context)
 {
-    int64_t total_gflops_fp16 = 0, total_gflops_fp32 = 0, total_gflops_fp64 = 0, total_gflops_tf32 = 0;
+    int64_t total_gflops_fp16 = 0, total_gflops_fp32 = 0, total_gflops_fp64 = 0, total_gflops_tf32 = 0, c;
     (void)context;
 
     if(parsec_mca_device_are_freezed)
@@ -633,20 +633,28 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
         parsec_device_module_t* device = parsec_devices[i];
         if( NULL == device ) continue;
         if( PARSEC_DEV_RECURSIVE == device->type ) continue;
-        total_gflops_fp16 += device->gflops_fp16;
-        total_gflops_tf32 += device->gflops_tf32;
-        total_gflops_fp32 += device->gflops_fp32;
-        total_gflops_fp64 += device->gflops_fp64;
+        if( PARSEC_DEV_CPU == device->type ) {
+            c = 0;
+            for(int p = 0; p < context->nb_vp; p++)
+                c += context->virtual_processes[p]->nb_cores;
+        }
+        else {
+            c = 1;
+        }
+        total_gflops_fp16 += c * device->gflops_fp16;
+        total_gflops_tf32 += c * device->gflops_tf32;
+        total_gflops_fp32 += c * device->gflops_fp32;
+        total_gflops_fp64 += c * device->gflops_fp64;
     }
 
     /* Compute the weight of each device including the cores */
-    parsec_debug_verbose(6, parsec_device_output, "Global Theoretical performance:        double %"PRId64"\tsingle %"PRId64"\ttensor %"PRId64"\thalf %"PRId64, total_gflops_fp64, total_gflops_fp32, total_gflops_tf32, total_gflops_fp16);
+    parsec_debug_verbose(6, parsec_device_output, "Global Theoretical performance:        double %-8"PRId64" single %-8"PRId64" tensor %-8"PRId64" half %-8"PRId64, total_gflops_fp64, total_gflops_fp32, total_gflops_tf32, total_gflops_fp16);
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_device_module_t* device = parsec_devices[i];
         if( NULL == device ) continue;
         if( PARSEC_DEV_RECURSIVE == device->type ) continue;
         device->time_estimate_default = total_gflops_fp64/(double)device->gflops_fp64;
-        parsec_debug_verbose(6, parsec_device_output, "  Dev[%d] default-time-estimate %-4"PRId64" <- double %"PRId64"\tsingle %"PRId64"\ttensor %"PRId64"\thalf %"PRId64,
+        parsec_debug_verbose(6, parsec_device_output, "  Dev[%d] default-time-estimate %-4"PRId64" <- double %-8"PRId64" single %-8"PRId64" tensor %-8"PRId64" half %-8"PRId64,
                              i, device->time_estimate_default, device->gflops_fp64, device->gflops_fp32, device->gflops_tf32, device->gflops_fp16);
     }
 
@@ -777,10 +785,14 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
     }
  notfound:
 
-    device->gflops_fp16 = nstreams * fp_ipc * freq; /* No processor have half precision for now */
-    device->gflops_tf32 = nstreams * fp_ipc * freq; /* No processor support tensor operations for now */
-    device->gflops_fp32 = nstreams * fp_ipc * freq;
-    device->gflops_fp64 = nstreams * dp_ipc * freq;
+    /* compute capacity is per-core, not per-device, so as to account for the
+     * prevalent model where we use sequential, single threaded tasks on CPU devices.
+     * Advanced users can use the time_estimate property to override if using
+     * multi-core parallel tasks. */
+    device->gflops_fp16 = fp_ipc * freq; /* No processor have half precision for now */
+    device->gflops_tf32 = fp_ipc * freq; /* No processor support tensor operations for now */
+    device->gflops_fp32 = fp_ipc * freq;
+    device->gflops_fp64 = dp_ipc * freq;
 
     return PARSEC_SUCCESS;
 }
