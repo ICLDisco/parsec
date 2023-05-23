@@ -317,6 +317,21 @@ void parsec_compute_best_unit( uint64_t length, float* updated_value, char** bes
     return;
 }
 
+void parsec_mca_device_reset_statistics(parsec_context_t *parsec_context) {
+    parsec_device_module_t *device;
+
+    (void)parsec_context;
+    for(uint32_t i = 0; i < parsec_nb_devices; i++) {
+        if( NULL == (device = parsec_devices[i]) ) continue;
+        assert( i == device->device_index );
+        device->executed_tasks       = 0;
+        memset(device->data_in_from_device, 0, sizeof(uint64_t)*device->data_in_array_size);
+        device->data_out_to_host     = 0;
+        device->required_data_in     = 0;
+        device->required_data_out    = 0;
+    }
+}
+
 void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_context)
 {
     int *device_counter, total = 0;
@@ -470,15 +485,7 @@ void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_contex
     /**
      * Reset the statistics for next turn if there is one.
      */
-    for(i = 0; i < parsec_nb_devices; i++) {
-        if( NULL == (device = parsec_devices[i]) ) continue;
-        assert( i == device->device_index );
-        device->executed_tasks       = 0;
-        memset(device->data_in_from_device, 0, sizeof(uint64_t)*device->data_in_array_size);
-        device->data_out_to_host     = 0;
-        device->required_data_in     = 0;
-        device->required_data_out    = 0;
-    }
+    parsec_mca_device_reset_statistics(parsec_context);
 }
 
 int parsec_mca_device_fini(void)
@@ -639,7 +646,7 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
         if( NULL == device ) continue;
         if( PARSEC_DEV_RECURSIVE == device->type ) continue;
         device->time_estimate_default = total_gflops_fp64/(double)device->gflops_fp64;
-        parsec_debug_verbose(6, parsec_device_output, "  Dev[%d] default-time-estimate % 4"PRId64" <- double %"PRId64"\tsingle %"PRId64"\ttensor %"PRId64"\thalf %"PRId64,
+        parsec_debug_verbose(6, parsec_device_output, "  Dev[%d] default-time-estimate %-4"PRId64" <- double %"PRId64"\tsingle %"PRId64"\ttensor %"PRId64"\thalf %"PRId64,
                              i, device->time_estimate_default, device->gflops_fp64, device->gflops_fp32, device->gflops_tf32, device->gflops_fp16);
     }
 
@@ -836,7 +843,7 @@ int parsec_mca_device_attach(parsec_context_t* context)
     /* Add the predefined devices: one device for the CPUs */
     {
         parsec_device_cpus = (parsec_device_module_t*)calloc(1, sizeof(parsec_device_module_t));
-        parsec_device_cpus->name = "default";
+        parsec_device_cpus->name = "cpu-cores";
         parsec_device_cpus->type = PARSEC_DEV_CPU;
         parsec_device_cpus->data_in_array_size = 0;
         parsec_device_cpus->data_in_from_device = NULL;
@@ -850,7 +857,7 @@ int parsec_mca_device_attach(parsec_context_t* context)
     /* and one for the recursive kernels */
     {
         parsec_device_recursive = (parsec_device_module_t*)calloc(1, sizeof(parsec_device_module_t));
-        parsec_device_recursive->name = "recursive";
+        parsec_device_recursive->name = "cpu-recursive";
         parsec_device_recursive->type = PARSEC_DEV_RECURSIVE;
         parsec_device_recursive->data_in_array_size = 0;
         parsec_device_recursive->data_in_from_device = NULL;

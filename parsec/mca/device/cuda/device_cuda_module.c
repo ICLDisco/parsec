@@ -363,7 +363,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     cuda_device->cuda_index = (uint8_t)dev_id;
     cuda_device->major      = (uint8_t)major;
     cuda_device->minor      = (uint8_t)minor;
-    len = asprintf(&gpu_device->super.name, "%s: cuda(%d)", szName, dev_id);
+    len = asprintf(&gpu_device->super.name, "cuda(%d)", dev_id);
     if(-1 == len) { gpu_device->super.name = NULL; goto release_device; }
     gpu_device->data_avail_epoch = 0;
 
@@ -489,7 +489,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     }
 
     if( show_caps ) {
-        parsec_inform("GPU Device %d (capability %d.%d): %s\n"
+        parsec_inform("GPU Device %-8s: %s (capability %d.%d)\n"
                       "\tLocation (PCI Bus/Device/Domain): %x:%x.%x\n"
                       "\tSM                 : %d\n"
                       "\tFrequency (GHz)    : %f\n"
@@ -497,7 +497,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                       "\tPeak Mem Bw (GB/s) : %.2f [Clock Rate (Ghz) %.2f | Bus Width (bits) %d]\n"
                       "\tconcurrency        : %s\n"
                       "\tcomputeMode        : %d\n",
-                      cuda_device->cuda_index, cuda_device->major, cuda_device->minor, device->name,
+                      device->name, szName, cuda_device->major, cuda_device->minor,
                       prop.pciBusID, prop.pciDeviceID, prop.pciDomainID,
                       streaming_multiprocessor,
                       freqHz*1e-9f,
@@ -931,7 +931,7 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* cuda_device,
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
         gpu_elem = PARSEC_OBJ_NEW(parsec_data_copy_t);
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                             "GPU[%s]:%s: Allocate CUDA copy %p sz %d[ref_count %d] for data %p",
+                             "GPU[%s]:%s: Allocate CUDA copy %p sz %d [ref_count %d] for data %p",
                              gpu_device->super.name, task_name,
                              gpu_elem, gpu_task->flow_nb_elts[i], gpu_elem->super.super.obj_reference_count, master);
         gpu_elem->flags = PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED;

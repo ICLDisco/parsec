@@ -226,6 +226,11 @@ PARSEC_DECLSPEC parsec_device_module_t* parsec_mca_device_get(uint32_t);
 PARSEC_DECLSPEC int parsec_mca_device_remove(parsec_device_module_t* device);
 
 /**
+ * Reset the current device statistics.
+ */
+PARSEC_DECLSPEC void parsec_mca_device_reset_statistics(parsec_context_t* parsec_context);
+
+/**
  * Dump and reset the current device statistics.
  */
 PARSEC_DECLSPEC void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_context);
