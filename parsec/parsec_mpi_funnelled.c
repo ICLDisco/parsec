@@ -609,15 +609,16 @@ mpi_funnelled_fini(parsec_comm_engine_t *ce)
     free(array_of_indices);   array_of_indices   = NULL;
     free(array_of_statuses);  array_of_statuses  = NULL;
 
-    PARSEC_OBJ_DESTRUCT(&mpi_funnelled_dynamic_sendreq_fifo);
-    PARSEC_OBJ_DESTRUCT(&mpi_funnelled_dynamic_recvreq_fifo);
+    if( NULL != mpi_funnelled_mem_reg_handle_mempool ) {
+        PARSEC_OBJ_DESTRUCT(&mpi_funnelled_dynamic_sendreq_fifo);
+        PARSEC_OBJ_DESTRUCT(&mpi_funnelled_dynamic_recvreq_fifo);
 
-    parsec_mempool_destruct(mpi_funnelled_mem_reg_handle_mempool);
-    free(mpi_funnelled_mem_reg_handle_mempool); mpi_funnelled_mem_reg_handle_mempool = NULL;
+        parsec_mempool_destruct(mpi_funnelled_mem_reg_handle_mempool);
+        free(mpi_funnelled_mem_reg_handle_mempool); mpi_funnelled_mem_reg_handle_mempool = NULL;
 
-    parsec_mempool_destruct(mpi_funnelled_dynamic_req_mempool);
-    free(mpi_funnelled_dynamic_req_mempool); mpi_funnelled_dynamic_req_mempool = NULL;
-
+        parsec_mempool_destruct(mpi_funnelled_dynamic_req_mempool);
+        free(mpi_funnelled_dynamic_req_mempool); mpi_funnelled_dynamic_req_mempool = NULL;
+    }
     /* Remove the static handles */
     MPI_Comm_free(&parsec_ce_mpi_self_comm); /* parsec_ce_mpi_self_comm becomes MPI_COMM_NULL */
 

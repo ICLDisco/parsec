@@ -9,10 +9,11 @@ if(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
 endif(MPI_Fortran_FOUND AND CMAKE_Fortran_COMPILER_WORKS)
 
 parsec_addtest_cmd(api/compose ${SHM_TEST_CMD_LIST} api/compose)
+parsec_addtest_cmd(api/simple_test ${SHM_TEST_CMD_LIST} api/compose)
 
 if( MPI_C_FOUND )
   parsec_addtest_cmd(api/compose:mp ${MPI_TEST_CMD_LIST} 4 api/compose)
-  # Test temporarily disabled to allow #309 to be merged.
-  #parsec_addtest_cmd(api/operator:mp ${MPI_TEST_CMD_LIST} 4 api/operator)
+  parsec_addtest_cmd(api/operator:mp ${MPI_TEST_CMD_LIST} 4 api/operator)
+  parsec_addtest_cmd(api/simple_test:mp ${MPI_TEST_CMD_LIST} 4 api/simple_test)
 endif( MPI_C_FOUND )
 
