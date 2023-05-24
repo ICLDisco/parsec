@@ -12,12 +12,11 @@ try:
     FULL_RESCHED = t.event_types['FULL_RESCHED']
     ASYNC = t.event_types['async::ASYNC']
     RESCHED = t.event_types['async::RESCHED']
-    STARTUP = t.event_types['async::STARTUP']
 except AttributeError:
         print("HDF5 file {} does not contains the event_types attribute. The file might be empty, corrupted or it was incorrectly generated".format(filename), file=sys.stderr)
         sys.exit(2)
 except KeyError:
-    print("One of keys FULL_ASYNC, FULL_RESCHED, ASYNC, RESCHED, or STARTUP is not defined in the trace",
+    print("One of keys FULL_ASYNC, FULL_RESCHED, ASYNC, or RESCHED is not defined in the trace",
           file=sys.stderr)
     sys.exit(1)
 
@@ -29,16 +28,17 @@ except KeyError:
     sys.exit(1)
 
 error = 0
+try:
+    STARTUP = t.event_types['async::STARTUP']
+    print("Error: there should be no STARTUP tasks." +
+          "because they were marked with property \"[profiling=off]\"",
+          file=sys.stderr)
+    error += 1
+except KeyError:
+    print("There are no STARTUP tasks (they were marked off).")
+
 
 try:
-    if len(t.events[t.events.type == STARTUP]) != 1:
-        print("Error: there should be exactly one STARTUP task.",
-              file=sys.stderr)
-        error += 1
-    else:
-        startup = t.events[t.events.type == STARTUP].iloc[0]
-        print("There is one STARTUP task.")
-
     if len(t.events[t.events.type == FULL_RESCHED]) != 1:
         print("Error: there should be exactly one FULL_RESCHED event.",
               file=sys.stderr)
@@ -73,7 +73,7 @@ except AttributeError:
         print("HDF5 file {} does not contains the events attribute. The file might be empty, corrupted or it was incorrectly generated".format(filename), file=sys.stderr)
         sys.exit(2)
 except KeyError:
-    print("One of keys FULL_ASYNC, FULL_RESCHED, ASYNC, RESCHED, or STARTUP is not defined in the trace",
+    print("One of keys FULL_ASYNC, FULL_RESCHED, ASYNC, or RESCHED is not defined in the trace",
           file=sys.stderr)
     sys.exit(1)
 

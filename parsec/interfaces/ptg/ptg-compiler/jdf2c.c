@@ -861,6 +861,15 @@ static char *dump_profiling_init(void **elem, void *arg)
     string_arena_t *profiling_convertor_params;
 
     if( !profile_enabled(f->properties) ) {
+        /**
+         * We have to set the `profiling_array` elements to -1
+         * then we will return NULL
+         */
+        string_arena_add_string(info->sa,
+                                "%s_profiling_array[START_KEY(%s_%s.task_class_id + PARSEC_%s_NB_TASK_CLASSES) /* %s (internal init) start key */] = -1;\n"
+                                "%s_profiling_array[END_KEY(%s_%s.task_class_id + PARSEC_%s_NB_TASK_CLASSES)   /* %s (internal init) end   key */] = -1;\n",
+                                jdf_basename, jdf_basename, fname, jdf_basename, fname,
+                                jdf_basename, jdf_basename, fname, jdf_basename, fname);
         return NULL;
     }
 
@@ -885,6 +894,15 @@ static char *dump_profiling_init(void **elem, void *arg)
                             jdf_basename, fname, 256-R, 256-G, 256-B,
                             jdf_basename, fname, jdf_basename, fname,
                             jdf_basename, fname, jdf_basename, fname);
+    // string_arena_add_string(info->sa,
+                            // "%s_profiling_array_counter = 0; /* initialize profiling array to -1 */\n"
+                            // "for(; %s_profiling_array_counter < %s_profiling_array_counter_limit; %s_profiling_array_counter++)\n"
+                            // "{\n"
+                            // "    %s_profiling_array[%s_profiling_array_counter] = -1;\n"
+                            // "}\n",
+                            // jdf_basename,
+                            // jdf_basename, jdf_basename, jdf_basename, 
+                            // jdf_basename, jdf_basename);
     string_arena_add_string(info->sa,
                             "parsec_profiling_add_dictionary_keyword(\"%s::%s\", \"fill:%02X%02X%02X\",\n"
                             "                                       sizeof(parsec_task_prof_info_t)+%d*sizeof(parsec_assignment_t),\n"
@@ -1579,6 +1597,10 @@ static void jdf_generate_structure(jdf_t *jdf)
         /* If the profile property is ON then enable the profiling array */
         need_profile = profile_enabled(f->properties);
     }
+    /**
+     * not all elements are set to {-1} in this initialization,
+     * but later they will be initialized
+     */
     if( need_profile )
         coutput("#if defined(PARSEC_PROF_TRACE)\n"
                 "#  if defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"

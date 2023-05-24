@@ -41,7 +41,7 @@ verbose          [ type = "int" ]
 taskqueue        [ type = "parsec_task_t **" ]
 NB               [ type = "int" ]
 
-STARTUP(s)
+STARTUP(s)  [profile=off]
 
 s = 0 .. 0
 
