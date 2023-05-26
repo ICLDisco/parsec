@@ -663,8 +663,8 @@ mpi_no_thread_tag_register(parsec_ce_tag_t tag,
     }
     mpi_funnelled_tag_t *tag_struct = &parsec_mpi_funnelled_array_of_registered_tags[tag];
     if(NULL != parsec_mpi_funnelled_array_of_registered_tags[tag].callback ) {
-        parsec_warning("Tag: %d is already registered (callback %p, callback data %p, msg length %d)\n",
-                       (int)tag, tag_struct->callback, tag_struct->cb_data, (int)tag_struct->msg_length);
+        parsec_warning("Tag: %ld is already registered (callback %p, callback data %p, msg length %d)\n",
+                       tag, tag_struct->callback, tag_struct->cb_data, (int)tag_struct->msg_length);
         return PARSEC_ERR_EXISTS;
     }
     parsec_atomic_lock(&parsec_ce_am_build_lock);
@@ -804,7 +804,7 @@ mpi_no_thread_tag_unregister(parsec_ce_tag_t tag)
     if( (PARSEC_CE_TAG_STATUS_INACTIVE == tag_struct->status) ||
         (PARSEC_CE_TAG_STATUS_DISABLE == tag_struct->status) ) {
         if(parsec_ce.parsec_context->nb_nodes > 1) {
-            parsec_inform("Tag %ld is not registered\n", (int)tag);
+            parsec_inform("Tag %ld is not registered\n", tag);
         }
         return PARSEC_SUCCESS;
     }
