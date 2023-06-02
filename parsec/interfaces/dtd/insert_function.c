@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2022 The University of Tennessee and The University
+ * Copyright (c) 2013-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -2297,12 +2297,12 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
 {
     (void) es;
     int dev_index;
-    double ratio = 1.0;
+    int64_t load;
     parsec_gpu_task_t *gpu_task;
     parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t *)this_task;
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)this_task->task_class;
 
-    dev_index = parsec_get_best_device(this_task, ratio);
+    dev_index = parsec_get_best_device(this_task, &load);
     assert(dev_index >= 0);
     if (dev_index < 2) {
         return PARSEC_HOOK_RETURN_NEXT; /* Fall back */
@@ -2314,7 +2314,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     gpu_task->ec = (parsec_task_t *) this_task;
     gpu_task->submit = dtd_tc->gpu_func_ptr;
     gpu_task->task_type = 0;
-    gpu_task->load = ratio * parsec_device_sweight[dev_index];
+    gpu_task->load = load;
     gpu_task->last_data_check_epoch = -1;       /* force at least one validation for the task */
     gpu_task->pushout = 0;
     for(int i = 0; i < dtd_tc->super.nb_flows; i++) {
@@ -2324,7 +2324,6 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
         gpu_task->flow[i] = dtd_tc->super.in[i];
         gpu_task->flow_nb_elts[i] = this_task->data[i].data_in->original->nb_elts;
     }
-    parsec_device_load[dev_index] += (float)gpu_task->load;
 
     parsec_device_module_t *device = parsec_mca_device_get(dev_index);
     assert(NULL != device);

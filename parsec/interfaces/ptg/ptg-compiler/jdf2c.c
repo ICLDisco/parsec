@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2022 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -40,6 +40,7 @@ static const char *jdf_cfilename;
 /* Optional declarations of local functions */
 static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *expr);
 static void jdf_generate_code_hooks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
+static void jdf_generate_code_time_estimate(const jdf_t *jdf, const jdf_function_entry_t *f, char *name);
 static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf, const jdf_function_entry_t *f,
@@ -4299,6 +4300,9 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     jdf_generate_code_data_lookup(jdf, f, prefix);
     string_arena_add_string(sa, "  .prepare_output = (parsec_hook_t*)%s,\n", "NULL");
     string_arena_add_string(sa, "  .prepare_input = (parsec_hook_t*)%s,\n", prefix);
+    sprintf(prefix, "time_estimate_of_%s_%s", jdf_basename, f->fname);
+    jdf_generate_code_time_estimate(jdf, f, prefix);
+    string_arena_add_string(sa, "  .time_estimate = %s,\n", prefix);
     sprintf(prefix, "datatype_lookup_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_datatype_lookup(jdf, f, prefix);
     string_arena_add_string(sa, "  .get_datatype = (parsec_datatype_lookup_t*)%s,\n", prefix);
@@ -6394,6 +6398,24 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
 }
 
 static void
+jdf_generate_code_time_estimate(const jdf_t *jdf,
+                                const jdf_function_entry_t *f,
+                                char *name)
+{
+    jdf_def_list_t *prop = NULL;
+
+    (void)jdf;
+
+    jdf_find_property(f->properties, "time_estimate", &prop);
+    if(NULL != prop) {
+        sprintf(name, "%s", prop->expr->jdf_var);
+        return;
+    }
+
+    sprintf(name, "NULL");
+}
+
+static void
 jdf_generate_code_data_lookup(const jdf_t *jdf,
                               const jdf_function_entry_t *f,
                               const char *name)
@@ -6529,12 +6551,11 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     jdf_def_list_t *stage_out_property;
     jdf_def_list_t *size_property;
     jdf_def_list_t *desc_property;
-    jdf_def_list_t *weight_property;
     jdf_def_list_t *device_property;
+    jdf_def_list_t *prop;
     const char *dyld;
     const char *dyldtype;
     const char *device;
-    const char *weight;
     string_arena_t *sa, *sa2, *sa3;
     assignment_info_t ai;
     init_from_data_info_t ai2;
@@ -6549,6 +6570,15 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     jdf_find_property(body->properties, "type", &type_property);
     char* dev_upper = strdup_upper(type_property->expr->jdf_var);
     char* dev_lower = strdup_lower(type_property->expr->jdf_var);
+
+    jdf_find_property(body->properties, "weight", &prop);
+    if(NULL != prop) {
+        jdf_warn(JDF_OBJECT_LINENO(body),
+                "Parameterized Task '%s' defines the obsolete property 'weight' in its %s body to guide the selection of devices.\n"
+                "This has been superseded by the more flexible property 'time_estimate'. Please fix your JDF file.\n"
+                "-- Property 'weight' ignored.",
+                f->fname, dev_upper);
+    }
 
     /* Get the dynamic function properties */
     dyld = jdf_property_get_string(body->properties, "dyld", NULL);
@@ -6694,7 +6724,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             "{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
             "  parsec_gpu_task_t *gpu_task;\n"
-            "  double ratio;\n"
+            "  int64_t __load;\n"
             "  int dev_index;\n"
             "  %s\n"
             "  (void)es; (void)__parsec_tp;\n"
@@ -6708,15 +6738,6 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     info.suffix = "";
     info.assignments = "&this_task->locals";
 
-    /* Get the ratio to  apply on the weight for this task */
-    jdf_find_property( body->properties, "weight", &weight_property );
-    if ( NULL != weight_property ) {
-        weight = dump_expr((void**)weight_property->expr, &info);
-    } else {
-        weight = "1.";
-    }
-    coutput("  ratio = %s;\n", weight);
-
     /* Get the hint for static and/or external gpu scheduling */
     jdf_find_property( body->properties, "device", &device_property );
     if ( NULL != device_property ) {
@@ -6725,13 +6746,13 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
                 "  if (dev_index < -1) {\n"
                 "    return PARSEC_HOOK_RETURN_NEXT;\n"
                 "  } else if (dev_index == -1) {\n"
-                "    dev_index = parsec_get_best_device((parsec_task_t*)this_task, ratio);\n"
+                "    dev_index = parsec_get_best_device((parsec_task_t*)this_task, &__load);\n"
                 "  } else {\n"
                 "    dev_index = (dev_index %% (parsec_mca_device_enabled()-2)) + 2;\n"
                 "  }\n",
                 device);
     } else {
-        coutput("  dev_index = parsec_get_best_device((parsec_task_t*)this_task, ratio);\n");
+        coutput("  dev_index = parsec_get_best_device((parsec_task_t*)this_task, &__load);\n");
     }
     coutput("  assert(dev_index >= 0);\n"
             "  if( dev_index < 2 ) {\n"
@@ -6743,7 +6764,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
             "  gpu_task->submit = &%s_kernel_submit_%s_%s;\n"
             "  gpu_task->task_type = 0;\n"
-            "  gpu_task->load = ratio * parsec_device_sweight[dev_index];\n"
+            "  gpu_task->load = __load;\n"
             "  gpu_task->last_data_check_epoch = -1;  /* force at least one validation for the task */\n",
             dev_lower, jdf_basename, f->fname);
 
@@ -6866,8 +6887,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     }
     string_arena_free(info.sa);
 
-    coutput("  parsec_device_load[dev_index] += gpu_task->load;\n"
-            "\n"
+    coutput("\n"
             "  return parsec_%s_kernel_scheduler( es, gpu_task, dev_index );\n"
             "}\n\n",
             dev_lower);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2021 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -31,6 +31,7 @@ static char *FUNCTION_PROPERTY_KEYWORDS[] = {
     JDF_PROP_UD_FIND_DEPS_FN_NAME,
     JDF_PROP_UD_ALLOC_DEPS_FN_NAME,
     JDF_PROP_UD_FREE_DEPS_FN_NAME,
+    "time_estimate",
     NULL
 };
 

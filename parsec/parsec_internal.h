@@ -276,6 +276,12 @@ typedef parsec_key_t (parsec_functionkey_fn_t)(const parsec_taskpool_t *tp,
                                                const parsec_assignment_t *assignments);
 
 /**
+ * @brief Estimates the number of nanoseconds the task might run on the given device
+ *
+ */
+typedef int64_t (parsec_time_estimate_fct_t)(const parsec_task_t *this_task, parsec_device_module_t *dev);
+
+/**
  * Provide a character string representation of the task.
  * Write max buffer_size characters into buffer and return buffer.
  */
@@ -427,6 +433,7 @@ struct parsec_task_class_s {
 #if defined(PARSEC_SIM)
     parsec_sim_cost_fct_t       *sim_cost_fct;
 #endif
+    parsec_time_estimate_fct_t  *time_estimate;
     parsec_datatype_lookup_t    *get_datatype;
     parsec_hook_t               *prepare_input;
     const __parsec_chore_t      *incarnations;

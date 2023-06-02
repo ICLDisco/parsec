@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2022 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,6 +7,7 @@
 #include "parsec/runtime.h"
 #include "parsec/mca/mca_repository.h"
 #include "parsec/mca/sched/sched.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/profiling.h"
 #include "datarepo.h"
 #include "parsec/execution_stream.h"
@@ -184,6 +185,15 @@ int __parsec_execute( parsec_execution_stream_t* es,
             if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
                 /* Let's assume everything goes just fine */
                 task->status = PARSEC_TASK_STATUS_COMPLETE;
+                parsec_device_module_t *dev = NULL;
+                if(PARSEC_DEV_CPU == tc->incarnations[chore_id].type) {
+                    dev = parsec_mca_device_get(0);
+                    parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
+                }
+                else if(PARSEC_DEV_RECURSIVE == tc->incarnations[chore_id].type) {
+                    dev = parsec_mca_device_get(1);
+                    parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
+                }
             }
             /* Record EXEC_END event only for incarnation that succeeds */
             PARSEC_PINS(es, EXEC_END, task);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021      The University of Tennessee and The University
+ * Copyright (c) 2021-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -93,7 +93,7 @@ struct parsec_gpu_task_s {
         struct {
             parsec_task_t           *ec;
             uint64_t                 last_data_check_epoch;
-            double                   load;  /* computational load imposed on the device */
+            uint64_t                 load;  /* computational load imposed on the device */
             const parsec_flow_t     *flow[MAX_PARAM_COUNT];
             uint32_t                 flow_nb_elts[MAX_PARAM_COUNT]; /* for each flow, size of the data to be allocated
                                                                      * on the GPU.

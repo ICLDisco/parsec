@@ -32,6 +32,15 @@ extern void dtd_test_new_tile_multiply_by_two(int *dev_data, int nb, int idx);
 #define NCASE 8
 #define NB    8
 
+static int64_t first_tc_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev)
+{
+    int rank, idx, nb;
+    int *data;
+    parsec_task_t *this_task = (parsec_task_t *)task;
+    parsec_dtd_unpack_args(this_task, &rank, &data, &nb, &idx);
+    return (nb + dev->gflops_fp32 - 1) / dev->gflops_fp32;
+}
+
 int cpu_set_to_i( parsec_execution_stream_t *es,
                   parsec_task_t *this_task )
 {
@@ -78,6 +87,15 @@ int cuda_set_to_i(parsec_device_gpu_module_t *gpu_device,
     return PARSEC_HOOK_RETURN_DONE;
 }
 #endif
+
+static int64_t second_tc_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev)
+{
+    int idx, nb;
+    int *data;
+    parsec_task_t *this_task = (parsec_task_t *)task;
+    parsec_dtd_unpack_args(this_task, &data, &nb, &idx);
+    return (nb + dev->gflops_fp32 - 1) / dev->gflops_fp32;
+}
 
 int cpu_multiply_by_2( parsec_execution_stream_t *es,
                        parsec_task_t *this_task )
@@ -128,6 +146,16 @@ int cuda_multiply_by_2(parsec_device_gpu_module_t *gpu_device,
     return PARSEC_HOOK_RETURN_DONE;
 }
 #endif
+
+static int64_t third_tc_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev)
+{
+    int *data;
+    int nb, idx;
+    int32_t *acc, **gpu_accs;
+    parsec_task_t *this_task = (parsec_task_t *)task;
+    parsec_dtd_unpack_args(this_task, &data, &nb, &idx, &acc, &gpu_accs);
+    return (nb + dev->gflops_fp32 - 1) / dev->gflops_fp32;
+}
 
 int cpu_accumulate( parsec_execution_stream_t *es,
                     parsec_task_t *this_task )
@@ -313,6 +341,7 @@ int main(int argc, char **argv)
     parsec_dtd_task_class_add_chore(dtd_tp, first_tc, PARSEC_DEV_CUDA, cuda_set_to_i);
 #endif
     parsec_dtd_task_class_add_chore(dtd_tp, first_tc, PARSEC_DEV_CPU, cpu_set_to_i);
+    first_tc->time_estimate = first_tc_time_estimate;
 
     parsec_task_class_t *second_tc = parsec_dtd_create_task_class(dtd_tp, "multiply_by_2",
                                                                   PASSED_BY_REF, PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
@@ -323,6 +352,7 @@ int main(int argc, char **argv)
     parsec_dtd_task_class_add_chore(dtd_tp, second_tc, PARSEC_DEV_CUDA, cuda_multiply_by_2);
 #endif
     parsec_dtd_task_class_add_chore(dtd_tp, second_tc, PARSEC_DEV_CPU, cpu_multiply_by_2);
+    second_tc->time_estimate = second_tc_time_estimate;
 
     parsec_task_class_t *third_tc = parsec_dtd_create_task_class(dtd_tp, "accumulate",
                                                                   PASSED_BY_REF, PARSEC_INOUT | TILE_FULL | PARSEC_AFFINITY,
@@ -335,6 +365,7 @@ int main(int argc, char **argv)
     parsec_dtd_task_class_add_chore(dtd_tp, third_tc, PARSEC_DEV_CUDA, cuda_accumulate);
 #endif
     parsec_dtd_task_class_add_chore(dtd_tp, third_tc, PARSEC_DEV_CPU, cpu_accumulate);
+    third_tc->time_estimate = third_tc_time_estimate;
 
     parsec_task_class_t *fourth_tc = parsec_dtd_create_task_class(dtd_tp, "reduce",
                                                                  PASSED_BY_REF, PARSEC_OUTPUT | TILE_FULL | PARSEC_AFFINITY,
