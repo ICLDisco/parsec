@@ -178,7 +178,7 @@ typedef parsec_hook_return_t (parsec_dtd_funcptr_t)(parsec_execution_stream_t *,
  *                                     - UNPACK_VALUE
  *                                     - UNPACK_SCRATCH
  *                                     - UNPACK_DATA
- *                                     Following each FLAG the pointer to the memory location where the paramater
+ *                                     Following each FLAG the pointer to the memory location where the parameter
  *                                     will be copied needs to be given.
  *
  * There is no way to unpack individual parameters. e.g. If user wants to unpack the 3rd parameter only, they have to
