@@ -26,10 +26,9 @@ extern int remote_dep_ce_fini(parsec_context_t* context);
 int
 parsec_comm_engine_fini(parsec_comm_engine_t *comm_engine)
 {
+    (void) parsec_remote_dep_fini(comm_engine->parsec_context);
+    remote_dep_ce_fini(comm_engine->parsec_context);
     /* call the selected module fini */
     parsec_ce.fini(&parsec_ce);
-    remote_dep_ce_fini(comm_engine->parsec_context);
-    (void) parsec_remote_dep_fini(comm_engine->parsec_context);
-
     return PARSEC_SUCCESS;
 }
