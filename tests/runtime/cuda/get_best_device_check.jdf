@@ -37,7 +37,7 @@ BODY
 {
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     if( nb_cuda_devices > 0 ) {
-        int g = (n * descA->nt + m) % nb_cuda_devices; 
+        int g = (n * descA->nt + m) % nb_cuda_devices;
         parsec_advise_data_on_device( _f_A->original,
                                     cuda_device_index[g],
                                     PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE );
@@ -64,9 +64,9 @@ WRITE B <- NEW
         -> B fake_task(m, n)
 
 BODY [type=CUDA]
-{   
+{
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
-    if( nb_cuda_devices > 0 ) { 
+    if( nb_cuda_devices > 0 ) {
         int g = (n * descA->nt + m) % nb_cuda_devices;
         int my_device =  cuda_device->cuda_index;
         if( g != my_device )
@@ -78,7 +78,7 @@ BODY [type=CUDA]
         }
         else
             /* Set value for B of each byte */
-            cudaMemset( B, 1, descA->mb * descA->nb * sizeof(double) ); 
+            cudaMemset( B, 1, descA->mb * descA->nb * sizeof(double) );
     }
 #endif
 }
@@ -140,7 +140,7 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
     parsec_taskpool_t* get_best_device_check_taskpool;
     parsec_get_best_device_check_taskpool_t* taskpool = NULL;
 
-    taskpool = parsec_get_best_device_check_new(dcA, info); 
+    taskpool = parsec_get_best_device_check_new(dcA, info);
     get_best_device_check_taskpool = (parsec_taskpool_t*)taskpool;
 
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
@@ -206,7 +206,7 @@ int parsec_get_best_device_check(parsec_context_t *parsec,
     int info = 0;
 
     parsec_taskpool_t *parsec_get_best_device_check = NULL;
-    parsec_get_best_device_check = parsec_get_best_device_check_New(A, info_tmp); 
+    parsec_get_best_device_check = parsec_get_best_device_check_New(A, info_tmp);
 
     if( parsec_get_best_device_check != NULL ){
         parsec_enqueue(parsec, parsec_get_best_device_check);
