@@ -7,6 +7,7 @@ spack:
     - flex
     - bison
     - hwloc
+    - unzip
     - python@3
     - py-pip
     - py-pandas
