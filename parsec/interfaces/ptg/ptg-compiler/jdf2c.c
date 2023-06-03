@@ -1132,7 +1132,7 @@ static int jdf_expr_depends_on_symbol(const char *name, const jdf_expr_t *e)
 }
 
 /**
- * Helpers to manipulate object properties (i.e. typed attributed assciated with
+ * Helpers to manipulate object properties (i.e. typed attributed associated with
  * different concepts such as tasks, flows, dependencies and functions). The
  * existence of some of these properties will change the way the code is
  * generated, and allows for increased flexibility on driving the code

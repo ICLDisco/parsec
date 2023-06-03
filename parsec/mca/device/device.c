@@ -223,7 +223,7 @@ int parsec_mca_device_init(void)
                                         false, false, 0, NULL);
     (void)parsec_mca_param_reg_int_name("device", "load_balance_skew",
                                         "Allow load balancing to skew by x%% to favor data reuse",
-                                        false, false, 0, NULL);
+                                        false, false, parsec_device_load_balance_skew, NULL);
     if( 0 < (rc = parsec_mca_param_find("device", NULL, "load_balance_skew")) ) {
         parsec_mca_param_lookup_int(rc, &parsec_device_load_balance_skew);
     }
