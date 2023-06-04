@@ -894,15 +894,6 @@ static char *dump_profiling_init(void **elem, void *arg)
                             jdf_basename, fname, 256-R, 256-G, 256-B,
                             jdf_basename, fname, jdf_basename, fname,
                             jdf_basename, fname, jdf_basename, fname);
-    // string_arena_add_string(info->sa,
-                            // "%s_profiling_array_counter = 0; /* initialize profiling array to -1 */\n"
-                            // "for(; %s_profiling_array_counter < %s_profiling_array_counter_limit; %s_profiling_array_counter++)\n"
-                            // "{\n"
-                            // "    %s_profiling_array[%s_profiling_array_counter] = -1;\n"
-                            // "}\n",
-                            // jdf_basename,
-                            // jdf_basename, jdf_basename, jdf_basename, 
-                            // jdf_basename, jdf_basename);
     string_arena_add_string(info->sa,
                             "parsec_profiling_add_dictionary_keyword(\"%s::%s\", \"fill:%02X%02X%02X\",\n"
                             "                                       sizeof(parsec_task_prof_info_t)+%d*sizeof(parsec_assignment_t),\n"
