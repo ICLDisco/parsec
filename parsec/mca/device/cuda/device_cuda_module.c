@@ -368,6 +368,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     gpu_device->data_avail_epoch = 0;
 
     gpu_device->max_exec_streams = parsec_cuda_max_streams;
+    gpu_device->last_exec_stream_index = 2; /** starting index of the execution stream */
     gpu_device->exec_stream =
         (parsec_gpu_exec_stream_t**)malloc(gpu_device->max_exec_streams * sizeof(parsec_gpu_exec_stream_t*));
     // To reduce the number of separate malloc, we allocate all the streams in a single block, stored in exec_stream[0]
@@ -399,6 +400,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
         exec_stream->start        = 0;
         exec_stream->end          = 0;
         exec_stream->name         = NULL;
+        exec_stream->active_event_count = 0; 
         exec_stream->fifo_pending = (parsec_list_t*)PARSEC_OBJ_NEW(parsec_list_t);
         PARSEC_OBJ_CONSTRUCT(exec_stream->fifo_pending, parsec_list_t);
         exec_stream->tasks    = (parsec_gpu_task_t**)malloc(exec_stream->max_events
@@ -1948,6 +1950,51 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
     return 0;
 }
 
+void stream_cb_fn(void *data)
+{
+    int rc = 0, last_exec_stream_index = 0;
+    stream_cb_data_t *stream_cb_data = (stream_cb_data_t *)data;
+
+#if defined(PARSEC_DEBUG_NOISIER)
+    char task_str[MAX_TASK_STRLEN];
+#endif
+
+    parsec_device_gpu_module_t* gpu_device = stream_cb_data->gpu_device;
+    parsec_gpu_task_t* gpu_task = stream_cb_data->gpu_task;
+    parsec_gpu_exec_stream_t* current_stream = stream_cb_data->current_stream;
+
+    if (gpu_task->complete_stage) {
+        rc = gpu_task->complete_stage(gpu_device, gpu_task, current_stream);
+        //TODO: What happens if complete fails
+    }
+
+    /** stage-in complete */
+    if( current_stream == gpu_device->exec_stream[0]) {
+        /** move the task to the execution queues in a round robin fashion */
+        last_exec_stream_index = 2 + (gpu_device->last_exec_stream_index + 1) % (gpu_device->num_exec_streams - 2);
+        gpu_device->last_exec_stream_index = last_exec_stream_index;
+        PARSEC_PUSH_TASK(gpu_device->exec_stream[last_exec_stream_index]->fifo_pending, (parsec_list_item_t*)gpu_task);
+    }
+    /** stage-out complete */
+    else if( current_stream == gpu_device->exec_stream[1]) {
+    }
+    /** execution complete */  
+    else {
+        /** move the task to the stage-out queue */
+        PARSEC_PUSH_TASK(gpu_device->exec_stream[1]->fifo_pending, (parsec_list_item_t*)gpu_task);
+    }
+
+    PARSEC_DEBUG_VERBOSE(19, parsec_gpu_output_stream,
+        "GPU[%s]: Completed %s priority %d on stream %s{%p}",
+        gpu_device->super.name,
+        parsec_task_snprintf(task_str, MAX_TASK_STRLEN, gpu_task->ec),
+        gpu_task->ec->priority, current_stream->name, (void*)current_stream);
+
+    /** update the number of pending active events on the stream */
+    current_stream->active_event_count--;
+    free(data);
+} 
+
 /**
  * This function tries to progress a stream, by picking up a ready task
  * and applying the progress function. The task to be progresses is
@@ -1978,59 +2025,27 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
 #endif
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t *)stream;
 
-    /* We always handle the tasks in order. Thus if we got a new task, add it to the
-     * local list (possibly by reordering the list). Also, as we can return a single
-     * task first try to see if anything completed. */
-    if( NULL != task ) {
+    /** Push the task to the stage-in queue*/
+    if( NULL != task && stream == gpu_device->exec_stream[0]) {
         PARSEC_PUSH_TASK(stream->fifo_pending, (parsec_list_item_t*)task);
         task = NULL;
     }
     *out_task = NULL;
     progress_fct = upstream_progress_fct;
 
-    if( NULL != stream->tasks[stream->end] ) {
-        rc = cudaEventQuery(cuda_stream->events[stream->end]);
-        if( cudaSuccess == rc ) {
-            /* Save the task for the next step */
-            task = *out_task = stream->tasks[stream->end];
-            PARSEC_DEBUG_VERBOSE(19, parsec_gpu_output_stream,
-                                 "GPU[%s]: Completed %s priority %d on stream %s{%p}",
-                                 gpu_device->super.name,
-                                 parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task->ec),
-                                 task->ec->priority, stream->name, (void*)stream);
-            stream->tasks[stream->end]    = NULL;
-            stream->end = (stream->end + 1) % stream->max_events;
-
-#if defined(PARSEC_PROF_TRACE)
-            if( stream->prof_event_track_enable ) {
-                if( task->prof_key_end != -1 ) {
-                    PARSEC_PROFILING_TRACE(stream->profiling, task->prof_key_end, task->prof_event_id, task->prof_tp_id, NULL);
-                } 
-            } 
-#endif /* (PARSEC_PROF_TRACE) */
-
-            rc = PARSEC_HOOK_RETURN_DONE;
-            if (task->complete_stage)
-                rc = task->complete_stage(gpu_device, out_task, stream);
-            /* the task can be withdrawn by the system */
-            return rc;
-        }
-        if( cudaErrorNotReady != rc ) {
-            PARSEC_CUDA_CHECK_ERROR( "(progress_stream) cudaEventQuery ", rc,
-                                     {return PARSEC_HOOK_RETURN_AGAIN;} );
-        }
-    }
-
  grab_a_task:
-    if( NULL == stream->tasks[stream->start] ) {  /* there is room on the stream */
+
+    if( stream->active_event_count < stream->max_events) {  /* there is room on the stream */
         task = (parsec_gpu_task_t*)parsec_list_pop_front(stream->fifo_pending);  /* get the best task */
+        /** update the number of active events in the stream */
+        stream->active_event_count++;
     }
+
     if( NULL == task ) {  /* No tasks, we're done */
         return saved_rc;
     }
     PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t*)task);
 
-    assert( NULL == stream->tasks[stream->start] );
     /**
      * In case the task is successfully progressed, the corresponding profiling
      * event is triggered.
@@ -2073,21 +2088,18 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
         *out_task = NULL;
         return PARSEC_HOOK_RETURN_DONE;
     }
-    /**
-     * Do not skip the cuda event generation. The problem is that some of the inputs
-     * might be in the pipe of being transferred to the GPU. If we activate this task
-     * too early, it might get executed before the data is available on the GPU.
-     * Obviously, this lead to incorrect results.
-     */
-    rc = cudaEventRecord( cuda_stream->events[stream->start], cuda_stream->cuda_stream );
-    assert(cudaSuccess == rc);
-    stream->tasks[stream->start]    = task;
-    stream->start = (stream->start + 1) % stream->max_events;
-    PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                         "GPU[%s]: Submitted %s(task %p) priority %d on stream %s{%p}",
-                         gpu_device->super.name,
-                         task->ec->task_class->name, (void*)task->ec, task->ec->priority,
-                         stream->name, (void*)stream);
+
+    /** make sure out is populated only in case something fails */
+    *out_task = NULL;
+    /** create the callback data for stream to invoke once the task is complete */
+    stream_cb_data_t *stream_cb_data = malloc(sizeof(stream_cb_data_t));
+    stream_cb_data->gpu_device = gpu_device;
+    stream_cb_data->gpu_task = task;
+    stream_cb_data->current_stream = stream;
+    task->stream_cb_data = stream_cb_data;
+    /** The stream_cb_fn function is called with parameter stream_cb_data
+     * once preceding stream operation is complete */
+    cudaLaunchHostFunc(cuda_stream->cuda_stream , stream_cb_fn, stream_cb_data);
 
     task = NULL;
     goto grab_a_task;
