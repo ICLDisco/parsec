@@ -368,6 +368,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     gpu_device->data_avail_epoch = 0;
 
     gpu_device->max_exec_streams = parsec_cuda_max_streams;
+    gpu_device->last_exec_stream_index = 2; /** starting index of the execution stream */
     gpu_device->exec_stream =
         (parsec_gpu_exec_stream_t**)malloc(gpu_device->max_exec_streams * sizeof(parsec_gpu_exec_stream_t*));
     // To reduce the number of separate malloc, we allocate all the streams in a single block, stored in exec_stream[0]
@@ -399,6 +400,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
         exec_stream->start        = 0;
         exec_stream->end          = 0;
         exec_stream->name         = NULL;
+        exec_stream->active_event_count = 0; 
         exec_stream->fifo_pending = (parsec_list_t*)PARSEC_OBJ_NEW(parsec_list_t);
         PARSEC_OBJ_CONSTRUCT(exec_stream->fifo_pending, parsec_list_t);
         exec_stream->tasks    = (parsec_gpu_task_t**)malloc(exec_stream->max_events
@@ -477,6 +479,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     PARSEC_OBJ_CONSTRUCT(&gpu_device->gpu_mem_lru,       parsec_list_t);
     PARSEC_OBJ_CONSTRUCT(&gpu_device->gpu_mem_owned_lru, parsec_list_t);
     PARSEC_OBJ_CONSTRUCT(&gpu_device->pending,           parsec_fifo_t);
+    PARSEC_OBJ_CONSTRUCT(&gpu_device->complete_queue,    parsec_fifo_t);
 
     gpu_device->sort_starting_p = NULL;
     gpu_device->peer_access_mask = 0;  /* No GPU to GPU direct transfer by default */
@@ -569,6 +572,7 @@ parsec_cuda_module_fini(parsec_device_module_t* device)
 
     /* Release pending queue */
     PARSEC_OBJ_DESTRUCT(&gpu_device->pending);
+    PARSEC_OBJ_DESTRUCT(&gpu_device->complete_queue);
 
     /* Release all streams */
     for( j = 0; j < gpu_device->num_exec_streams; j++ ) {
@@ -1948,6 +1952,56 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
     return 0;
 }
 
+void stream_cb_fn(void *data)
+{
+    int rc = 0, last_exec_stream_index = 0;
+    stream_cb_data_t *stream_cb_data = (stream_cb_data_t *)data;
+
+#if defined(PARSEC_DEBUG_NOISIER)
+    char task_str[MAX_TASK_STRLEN];
+#endif
+
+    parsec_device_gpu_module_t* gpu_device = stream_cb_data->gpu_device;
+    parsec_gpu_task_t* gpu_task = stream_cb_data->gpu_task;
+    parsec_gpu_exec_stream_t* current_stream = stream_cb_data->current_stream;
+
+    rc = PARSEC_HOOK_RETURN_DONE;
+    if (gpu_task->complete_stage) {
+        rc = gpu_task->complete_stage(gpu_device, &gpu_task, current_stream);
+        //TODO: What happens if complete fails
+    }
+    assert(rc == PARSEC_HOOK_RETURN_DONE);
+
+    /** stage-in complete */
+    if( current_stream == gpu_device->exec_stream[0]) {
+        /** move the task to the execution queues in a round robin fashion */
+        last_exec_stream_index = 2 + (gpu_device->last_exec_stream_index + 1) % (gpu_device->num_exec_streams - 2);
+        gpu_device->last_exec_stream_index = last_exec_stream_index;
+        PARSEC_PUSH_TASK(gpu_device->exec_stream[last_exec_stream_index]->fifo_pending, (parsec_list_item_t*)gpu_task);
+    }
+    /** stage-out complete */
+    else if( current_stream == gpu_device->exec_stream[1]) {
+
+        /** move the task to complete queue */
+        parsec_fifo_push( &(gpu_device->complete_queue), (parsec_list_item_t*)gpu_task );
+    }
+    /** execution complete */  
+    else {
+        /** move the task to the stage-out queue */
+        PARSEC_PUSH_TASK(gpu_device->exec_stream[1]->fifo_pending, (parsec_list_item_t*)gpu_task);
+    }
+
+    PARSEC_DEBUG_VERBOSE(19, parsec_gpu_output_stream,
+        "GPU[%s]: Completed %s priority %d on stream %s{%p}",
+        gpu_device->super.name,
+        parsec_task_snprintf(task_str, MAX_TASK_STRLEN, gpu_task->ec),
+        gpu_task->ec->priority, current_stream->name, (void*)current_stream);
+
+    /** update the number of pending active events on the stream */
+    current_stream->active_event_count--;
+    free(data);
+} 
+
 /**
  * This function tries to progress a stream, by picking up a ready task
  * and applying the progress function. The task to be progresses is
@@ -1968,129 +2022,83 @@ static inline int
 progress_stream( parsec_device_gpu_module_t* gpu_device,
                  parsec_gpu_exec_stream_t* stream,
                  parsec_advance_task_function_t upstream_progress_fct,
-                 parsec_gpu_task_t* task,
                  parsec_gpu_task_t** out_task )
 {
     parsec_advance_task_function_t progress_fct;
+    parsec_gpu_task_t* task = NULL;
     int saved_rc = 0, rc;
 #if defined(PARSEC_DEBUG_NOISIER)
     char task_str[MAX_TASK_STRLEN];
 #endif
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t *)stream;
 
-    /* We always handle the tasks in order. Thus if we got a new task, add it to the
-     * local list (possibly by reordering the list). Also, as we can return a single
-     * task first try to see if anything completed. */
-    if( NULL != task ) {
-        PARSEC_PUSH_TASK(stream->fifo_pending, (parsec_list_item_t*)task);
-        task = NULL;
-    }
+    /** make sure out_task is populated only in case something fails */
     *out_task = NULL;
     progress_fct = upstream_progress_fct;
 
-    if( NULL != stream->tasks[stream->end] ) {
-        rc = cudaEventQuery(cuda_stream->events[stream->end]);
-        if( cudaSuccess == rc ) {
-            /* Save the task for the next step */
-            task = *out_task = stream->tasks[stream->end];
-            PARSEC_DEBUG_VERBOSE(19, parsec_gpu_output_stream,
-                                 "GPU[%s]: Completed %s priority %d on stream %s{%p}",
-                                 gpu_device->super.name,
-                                 parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task->ec),
-                                 task->ec->priority, stream->name, (void*)stream);
-            stream->tasks[stream->end]    = NULL;
-            stream->end = (stream->end + 1) % stream->max_events;
-
-#if defined(PARSEC_PROF_TRACE)
-            if( stream->prof_event_track_enable ) {
-                if( task->prof_key_end != -1 ) {
-                    PARSEC_PROFILING_TRACE(stream->profiling, task->prof_key_end, task->prof_event_id, task->prof_tp_id, NULL);
-                } 
-            } 
-#endif /* (PARSEC_PROF_TRACE) */
-
-            rc = PARSEC_HOOK_RETURN_DONE;
-            if (task->complete_stage)
-                rc = task->complete_stage(gpu_device, out_task, stream);
-            /* the task can be withdrawn by the system */
-            return rc;
-        }
-        if( cudaErrorNotReady != rc ) {
-            PARSEC_CUDA_CHECK_ERROR( "(progress_stream) cudaEventQuery ", rc,
-                                     {return PARSEC_HOOK_RETURN_AGAIN;} );
-        }
-    }
-
- grab_a_task:
-    if( NULL == stream->tasks[stream->start] ) {  /* there is room on the stream */
+    while(stream->active_event_count < stream->max_events)
+    {
         task = (parsec_gpu_task_t*)parsec_list_pop_front(stream->fifo_pending);  /* get the best task */
-    }
-    if( NULL == task ) {  /* No tasks, we're done */
-        return saved_rc;
-    }
-    PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t*)task);
 
-    assert( NULL == stream->tasks[stream->start] );
-    /**
-     * In case the task is successfully progressed, the corresponding profiling
-     * event is triggered.
-     */
-    if ( NULL == upstream_progress_fct ) {
-        /* Grab the submit function */
-        progress_fct = task->submit;
-#if defined(PARSEC_DEBUG_PARANOID)
-        int i;
-        const parsec_flow_t *flow;
-        for( i = 0; i < task->ec->task_class->nb_flows; i++ ) {
-            /* Make sure data_in is not NULL */
-            if( NULL == task->ec->data[i].data_in ) continue;
-
-            flow = task->flow[i];
-            if(PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & flow->flow_flags)) continue;
-            if( 0 == (task->ec->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
-            assert(task->ec->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
-        }
-#endif /* defined(PARSEC_DEBUG_PARANOID) */
-    }
-    rc = progress_fct( gpu_device, task, stream );
-    if( 0 > rc ) {
-        if( PARSEC_HOOK_RETURN_AGAIN != rc &&
-            PARSEC_HOOK_RETURN_ASYNC != rc ) {
-            *out_task = task;
-            return rc;
+        if( NULL == task ) {  /* No tasks, we're done */
+            return saved_rc;
         }
 
-        if( PARSEC_HOOK_RETURN_ASYNC == rc ) {
-            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "GPU[%s]: GPU task %p has been removed by the progress function",
-                                 gpu_device->super.name, (void*)task);
-        } else {
-            parsec_fifo_push(stream->fifo_pending, (parsec_list_item_t*)task);
-            PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
-                                 "GPU[%s]: Reschedule task %p: no room available on the GPU for data",
-                                 gpu_device->super.name, (void*)task->ec);
-        }
-        *out_task = NULL;
-        return PARSEC_HOOK_RETURN_DONE;
-    }
-    /**
-     * Do not skip the cuda event generation. The problem is that some of the inputs
-     * might be in the pipe of being transferred to the GPU. If we activate this task
-     * too early, it might get executed before the data is available on the GPU.
-     * Obviously, this lead to incorrect results.
-     */
-    rc = cudaEventRecord( cuda_stream->events[stream->start], cuda_stream->cuda_stream );
-    assert(cudaSuccess == rc);
-    stream->tasks[stream->start]    = task;
-    stream->start = (stream->start + 1) % stream->max_events;
-    PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                         "GPU[%s]: Submitted %s(task %p) priority %d on stream %s{%p}",
-                         gpu_device->super.name,
-                         task->ec->task_class->name, (void*)task->ec, task->ec->priority,
-                         stream->name, (void*)stream);
+        stream->active_event_count++;
+        PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t*)task);
 
-    task = NULL;
-    goto grab_a_task;
+        if ( NULL == upstream_progress_fct ) {
+            /* Grab the submit function */
+            progress_fct = task->submit;
+        #if defined(PARSEC_DEBUG_PARANOID)
+            int i;
+            const parsec_flow_t *flow;
+            for( i = 0; i < task->ec->task_class->nb_flows; i++ ) {
+                /* Make sure data_in is not NULL */
+                if( NULL == task->ec->data[i].data_in ) continue;
+
+                flow = task->flow[i];
+                if(PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & flow->flow_flags)) continue;
+                if( 0 == (task->ec->data[i].data_out->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
+                assert(task->ec->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
+            }
+        #endif /* defined(PARSEC_DEBUG_PARANOID) */
+        }
+
+        rc = progress_fct( gpu_device, task, stream );
+        if( 0 > rc ) {
+            if( PARSEC_HOOK_RETURN_AGAIN != rc &&
+                PARSEC_HOOK_RETURN_ASYNC != rc ) {
+                *out_task = task;
+                return rc;
+            }
+
+            if( PARSEC_HOOK_RETURN_ASYNC == rc ) {
+                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                     "GPU[%s]: GPU task %p has been removed by the progress function",
+                                     gpu_device->super.name, (void*)task);
+            } else {
+                parsec_fifo_push(stream->fifo_pending, (parsec_list_item_t*)task);
+                PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
+                                     "GPU[%s]: Reschedule task %p: no room available on the GPU for data",
+                                     gpu_device->super.name, (void*)task->ec);
+            }
+            *out_task = NULL;
+            return PARSEC_HOOK_RETURN_DONE;
+        }
+
+        /** create the callback data for stream to invoke once the task is complete */
+        stream_cb_data_t *stream_cb_data = malloc(sizeof(stream_cb_data_t));
+        stream_cb_data->gpu_device = gpu_device;
+        stream_cb_data->gpu_task = task;
+        stream_cb_data->current_stream = stream;
+        task->stream_cb_data = stream_cb_data;
+        /** The stream_cb_fn function is called with parameter stream_cb_data
+         * once preceding progress_fct() operation is completed by the stream */
+        cudaLaunchHostFunc(cuda_stream->cuda_stream , stream_cb_fn, stream_cb_data);
+
+        task = NULL;
+    }
 }
 
 /**
@@ -2533,6 +2541,60 @@ parsec_cuda_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
 }
 
 /**
+ * Remove the task from the device count. 
+ * Return value 0 no more task in the device
+*/
+int remove_gpu_task(parsec_execution_stream_t *es, parsec_device_gpu_module_t *gpu_device, 
+    parsec_gpu_task_t *gpu_task)
+{
+    int rc = -1;
+
+    parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, -gpu_task->load);
+    rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
+
+    if( 1 == rc ) {  /* I was the last one */
+
+    #if defined(PARSEC_PROF_TRACE)
+        if( parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_OWN )
+            PARSEC_PROFILING_TRACE( es->es_profile, parsec_gpu_own_GPU_key_end,
+            (unsigned long)es, PROFILE_OBJECT_ID_NULL, NULL );
+    #endif  /* defined(PARSEC_PROF_TRACE) */
+
+        PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,"GPU[%s]: Leaving GPU management at %s:%d", 
+            gpu_device->super.name, __FILE__, __LINE__);
+           
+        return 0;
+    }
+
+    return 1;
+
+}
+
+/** Forcibly move the data item of the task from the GPU */
+int get_data_out_of_device(parsec_execution_stream_t *es, parsec_device_gpu_module_t *gpu_device, 
+    parsec_gpu_task_t *gpu_task)
+{
+
+#if defined(PARSEC_DEBUG_NOISIER)
+    char tmp[MAX_TASK_STRLEN];
+#endif
+
+    if( NULL != gpu_task) {
+
+        /** move the task to stage-out queue */
+        PARSEC_PUSH_TASK(gpu_device->exec_stream[1]->fifo_pending, (parsec_list_item_t*)gpu_task);
+
+        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]:\tRetrieve data (if any) for %s priority %d", gpu_device->super.name,
+            parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
+            gpu_task->ec->priority );
+
+        return 1;
+    }
+    return 0;
+}
+
+
+/**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for transfers from the GPU into
  * the main memory. The synchronization on each stream is based on CUDA events,
@@ -2540,6 +2602,7 @@ parsec_cuda_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
  * been completed. Each type of stream (in, exec and out) has a pending FIFO,
  * where tasks ready to jump to the respective step are waiting.
  */
+
 parsec_hook_return_t
 parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
                               parsec_gpu_task_t         *gpu_task,
@@ -2549,7 +2612,7 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
     parsec_device_cuda_module_t *cuda_device;
     cudaError_t status;
     int rc, exec_stream = 0;
-    parsec_gpu_task_t *progress_task, *out_task_submit = NULL, *out_task_pop = NULL;
+    parsec_gpu_task_t *error_task, *out_task_submit = NULL, *out_task_pop = NULL;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -2592,8 +2655,11 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
             nanosleep(&delay, NULL);
         }
     }
+
+    /** always push the task to the pending queue */
+    parsec_fifo_push( &(gpu_device->pending), (parsec_list_item_t*)gpu_task );
     if( 0 < rc ) {
-        parsec_fifo_push( &(gpu_device->pending), (parsec_list_item_t*)gpu_task );
+        /** return if you are not the manager */
         return PARSEC_HOOK_RETURN_ASYNC;
     }
     PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,"GPU[%s]: Entering GPU management at %s:%d",
@@ -2609,165 +2675,146 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
     PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_kernel_scheduler) cudaSetDevice ", status,
                              {return PARSEC_HOOK_RETURN_DISABLE;} );
 
- check_in_deps:
-    if( NULL != gpu_task ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                             "GPU[%s]:\tUpload data (if any) for %s priority %d",
-                             gpu_device->super.name,
-                             parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
-                             gpu_task->ec->priority );
-    }
-    rc = progress_stream( gpu_device,
-                          gpu_device->exec_stream[0],
-                          parsec_cuda_kernel_push,
-                          gpu_task, &progress_task );
-    if( rc < 0 ) {  /* In case of error progress_task is the task that raised it */
-        if( -1 == rc )
-            goto disable_gpu;
-        /* We are in the early stages, and if there no room on the GPU for a task we need to
-         * delay all retries for the same task for a little while. Meanwhile, put the task back
-         * trigger a device flush, and keep executing tasks that have their data on the device.
-         */
-        if( NULL != progress_task ) {
-            PARSEC_PUSH_TASK(gpu_device->exec_stream[0]->fifo_pending, (parsec_list_item_t*)progress_task);
-            progress_task = NULL;
-        }
-        /* If we can extract data go for it, otherwise try to drain the pending tasks */
-        gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
-        if( NULL != gpu_task )
-            goto get_data_out_of_device;
-    }
-    gpu_task = progress_task;
-
-    /* Stage-in completed for this task: it is ready to be executed */
-    exec_stream = (exec_stream + 1) % (gpu_device->num_exec_streams - 2);  /* Choose an exec_stream */
-    if( NULL != gpu_task ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]:\tExecute %s priority %d", gpu_device->super.name,
-                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
-                             gpu_task->ec->priority );
-    }
-    rc = progress_stream( gpu_device,
-                          gpu_device->exec_stream[2+exec_stream],
-                          NULL,
-                          gpu_task, &progress_task );
-    if( rc < 0 ) {
-        if( PARSEC_HOOK_RETURN_DISABLE == rc )
-            goto disable_gpu;
-        if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
-            /* Reschedule the task. As the chore_id has been modified,
-               another incarnation of the task will be executed. */
-            if( NULL != progress_task ) {
-                parsec_cuda_kernel_cleanout(gpu_device, progress_task);
-                __parsec_reschedule(es, progress_task->ec);
-                gpu_task = progress_task;
-                progress_task = NULL;
-                goto remove_gpu_task;
+    do
+    {
+        parsec_gpu_task_t *progress_task = NULL;
+        
+        progress_task = (parsec_gpu_task_t*)parsec_fifo_try_pop( &(gpu_device->pending) );
+        if( NULL != progress_task) {
+            if( PARSEC_GPU_TASK_TYPE_D2D_COMPLETE == progress_task->task_type ) {
+                get_data_out_of_device(es, gpu_device, progress_task);
             }
-            gpu_task = NULL;
-            goto fetch_task_from_shared_queue;
+            else {
+                PARSEC_PUSH_TASK(gpu_device->exec_stream[0]->fifo_pending, (parsec_list_item_t*)progress_task);
+            }
+
+            pop_null = 0;
+            progress_task->last_data_check_epoch = gpu_device->data_avail_epoch - 1;  /* force at least one tour */
+
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]:\tGet from shared queue %s priority %d", gpu_device->super.name,
+                parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, progress_task), progress_task->ec->priority);
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                "GPU[%s]:\tUpload data (if any) for %s priority %d",
+                gpu_device->super.name,
+                parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, progress_task),
+                progress_task->ec->priority );
         }
-        progress_task = NULL;
-    }
-    gpu_task = progress_task;
-    out_task_submit = progress_task;
-
- get_data_out_of_device:
-    if( NULL != gpu_task ) {  /* This task has completed its execution */
-        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]:\tRetrieve data (if any) for %s priority %d", gpu_device->super.name,
-                            parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
-                            gpu_task->ec->priority );
-    }
-    /* Task is ready to move the data back to main memory */
-    rc = progress_stream( gpu_device,
-                          gpu_device->exec_stream[1],
-                          parsec_cuda_kernel_pop,
-                          gpu_task, &progress_task );
-    if( rc < 0 ) {
-        if( -1 == rc )
-            goto disable_gpu;
-    }
-    if( NULL != progress_task ) {
-        /* We have a successfully completed task. However, it is not gpu_task, as
-         * it was just submitted into the data retrieval system. Instead, the task
-         * ready to move into the next level is the progress_task.
-         */
-        gpu_task = progress_task;
-        progress_task = NULL;
-        goto complete_task;
-    }
-    gpu_task = progress_task;
-    out_task_pop = progress_task;
-
- fetch_task_from_shared_queue:
-    assert( NULL == gpu_task );
-    if (1 == parsec_cuda_sort_pending && out_task_submit == NULL && out_task_pop == NULL) {
-        parsec_gpu_sort_pending_list(gpu_device);
-    }
-    gpu_task = (parsec_gpu_task_t*)parsec_fifo_try_pop( &(gpu_device->pending) );
-    if( NULL != gpu_task ) {
-        pop_null = 0;
-        gpu_task->last_data_check_epoch = gpu_device->data_avail_epoch - 1;  /* force at least one tour */
-        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]:\tGet from shared queue %s priority %d", gpu_device->super.name,
-                             parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
-                             gpu_task->ec->priority);
-        if( PARSEC_GPU_TASK_TYPE_D2D_COMPLETE == gpu_task->task_type ) {
-            goto get_data_out_of_device;
+        else {
+            pop_null++;
+            if( pop_null % 1024 == 1023 ) {
+                PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,  "GPU[%s]:\tStill waiting for %d tasks to execute, but poped NULL the last %d times I tried to pop something...",
+                gpu_device->super.name, gpu_device->mutex, pop_null);
+            }
         }
-    } else {
-        pop_null++;
-        if( pop_null % 1024 == 1023 ) {
-            PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,  "GPU[%s]:\tStill waiting for %d tasks to execute, but poped NULL the last %d times I tried to pop something...",
-                                 gpu_device->super.name, gpu_device->mutex, pop_null);
+
+        /** Progress tasks in stage-in queue */
+        rc = progress_stream( gpu_device, gpu_device->exec_stream[0],
+                parsec_cuda_kernel_push, &error_task );
+
+        if( rc < 0 ) {  /* In case of error error_task is the task that raised it */
+            if( -1 == rc ) {
+                /* Something wrong happened. Push all the pending tasks back on the
+                * cores, and disable the gpu.
+                */
+                parsec_warning("Critical issue related to the GPU discovered. Giving up\n");
+                return PARSEC_HOOK_RETURN_DISABLE;
+            }
+
+            /* We are in the early stages, and if there no room on the GPU for a task we need to
+             * delay all retries for the same task for a little while. Meanwhile, put the task back
+             * trigger a device flush, and keep executing tasks that have their data on the device.
+             */
+            if( NULL != error_task ) {
+                PARSEC_PUSH_TASK(gpu_device->exec_stream[0]->fifo_pending, (parsec_list_item_t*)error_task);
+                error_task = NULL;
+            }
+
+            /* If we can extract data go for it, otherwise try to drain the pending tasks */
+            parsec_gpu_task_t *dummy_task = parsec_gpu_create_w2r_task(gpu_device, es);
+            if( NULL != dummy_task ) {
+                get_data_out_of_device(es, gpu_device, dummy_task);
+            }
         }
-    }
-    goto check_in_deps;
 
- complete_task:
-    assert( NULL != gpu_task );
-    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]:\tComplete %s",
-                         gpu_device->super.name,
-                         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec));
-    /* Everything went fine so far, the result is correct and back in the main memory */
-    PARSEC_LIST_ITEM_SINGLETON(gpu_task);
-    if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
-        parsec_gpu_complete_w2r_task(gpu_device, gpu_task, es);
-        gpu_task = progress_task;
-        goto fetch_task_from_shared_queue;
-    }
-    if (gpu_task->task_type == PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) {
-        free( gpu_task->ec );
-        gpu_task->ec = NULL;
-        goto remove_gpu_task;
-    }
-    parsec_cuda_kernel_epilog( gpu_device, gpu_task );
-    __parsec_complete_execution( es, gpu_task->ec );
-    gpu_device->super.executed_tasks++;
- remove_gpu_task:
-    parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, -gpu_task->load);
-    PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,"GPU[%s]: gpu_task %p freed at %s:%d", gpu_device->super.name, 
-                         gpu_task, __FILE__, __LINE__);
-    free( gpu_task );
-    rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
-    if( 1 == rc ) {  /* I was the last one */
-#if defined(PARSEC_PROF_TRACE)
-        if( parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_OWN )
-            PARSEC_PROFILING_TRACE( es->es_profile, parsec_gpu_own_GPU_key_end,
-                                    (unsigned long)es, PROFILE_OBJECT_ID_NULL, NULL );
-#endif  /* defined(PARSEC_PROF_TRACE) */
-        PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,"GPU[%s]: Leaving GPU management at %s:%d", 
-                             gpu_device->super.name, __FILE__, __LINE__);
+        /** Progress tasks in the execution queue */
+        for( exec_stream = 2; exec_stream < gpu_device->num_exec_streams;  exec_stream++) {
+            rc = progress_stream( gpu_device, gpu_device->exec_stream[exec_stream],
+                    NULL, &error_task );
 
-        return PARSEC_HOOK_RETURN_ASYNC;
-    }
-    gpu_task = progress_task;
-    goto fetch_task_from_shared_queue;
 
- disable_gpu:
-    /* Something wrong happened. Push all the pending tasks back on the
-     * cores, and disable the gpu.
-     */
-    parsec_warning("Critical issue related to the GPU discovered. Giving up\n");
-    return PARSEC_HOOK_RETURN_DISABLE;
+            if( rc < 0 ) {
+                if( PARSEC_HOOK_RETURN_DISABLE == rc )
+                {
+                    /* Something wrong happened. Push all the pending tasks back on the
+                    * cores, and disable the gpu.
+                    */
+                    parsec_warning("Critical issue related to the GPU discovered. Giving up\n");
+                    return PARSEC_HOOK_RETURN_DISABLE;
+                }
+
+                if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
+                    /* Reschedule the task. As the chore_id has been modified,
+                    another incarnation of the task will be executed. */
+                    if( NULL != error_task ) {
+                        parsec_cuda_kernel_cleanout(gpu_device, error_task);
+                        __parsec_reschedule(es, error_task->ec);
+
+                        rc = remove_gpu_task(es, gpu_device, error_task);
+                        free( error_task );
+                        if(0 == rc) { /** all tasks completed */
+                            return PARSEC_HOOK_RETURN_ASYNC;   
+                        }
+                    }
+                }
+
+                break;
+            }
+        }
+
+        /** Progress tasks in the stage-out queue */
+        rc = progress_stream( gpu_device, gpu_device->exec_stream[1],
+                parsec_cuda_kernel_pop, &error_task );
+
+        if( rc < 0 ) {
+            if( -1 == rc ) {
+                /* Something wrong happened. Push all the pending tasks back on the
+                 * cores, and disable the gpu.
+                 */
+                parsec_warning("Critical issue related to the GPU discovered. Giving up\n");
+                return PARSEC_HOOK_RETURN_DISABLE;
+            }
+        }
+
+        parsec_gpu_task_t  *gpu_task_to_complete = NULL;
+        gpu_task_to_complete = (parsec_gpu_task_t*)parsec_fifo_try_pop( &(gpu_device->complete_queue));
+
+        if(NULL != gpu_task_to_complete) {
+            PARSEC_LIST_ITEM_SINGLETON(gpu_task_to_complete);
+
+            if (gpu_task_to_complete->task_type == PARSEC_GPU_TASK_TYPE_D2HTRANSFER) {
+                parsec_gpu_complete_w2r_task(gpu_device, gpu_task_to_complete, es);
+            }
+            else {
+
+                if (gpu_task_to_complete->task_type == PARSEC_GPU_TASK_TYPE_D2D_COMPLETE)  {
+                    free( gpu_task_to_complete->ec );
+                    gpu_task_to_complete->ec = NULL;
+                }
+                else /** compute task*/
+                {
+                    parsec_cuda_kernel_epilog( gpu_device, gpu_task_to_complete );
+                    __parsec_complete_execution( es, gpu_task_to_complete->ec );
+                    gpu_device->super.executed_tasks++;
+                }
+
+                rc = remove_gpu_task(es, gpu_device, gpu_task_to_complete);
+                free( gpu_task_to_complete );
+                if(0 == rc) { /** all tasks completed */
+                    return PARSEC_HOOK_RETURN_ASYNC;   
+                }
+            }
+        }
+    } while(1);
 }
 
 #endif /* PARSEC_HAVE_DEV_CUDA_SUPPORT */
