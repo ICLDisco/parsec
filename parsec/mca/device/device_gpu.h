@@ -76,6 +76,12 @@ typedef int (parsec_stage_out_function_t)(parsec_gpu_task_t        *gtask,
                                           uint32_t                  flow_mask,
                                           parsec_gpu_exec_stream_t *gpu_stream);
 
+typedef struct stream_cb_data_s {
+    parsec_device_gpu_module_t* gpu_device;
+    parsec_gpu_task_t* gpu_task;
+    parsec_gpu_exec_stream_t* current_stream;
+} stream_cb_data_t;
+
 struct parsec_gpu_task_s {
     parsec_list_item_t               list_item;
     int                              task_type;
@@ -84,6 +90,7 @@ struct parsec_gpu_task_s {
     parsec_complete_stage_function_t complete_stage;
     parsec_stage_in_function_t      *stage_in;
     parsec_stage_out_function_t     *stage_out;
+    stream_cb_data_t                *stream_cb_data;
 #if defined(PARSEC_PROF_TRACE)
     int                              prof_key_end;
     uint64_t                         prof_event_id;
@@ -128,17 +135,20 @@ struct parsec_device_gpu_module_s {
     parsec_list_t              gpu_mem_lru;   /* Read-only blocks, and fresh blocks */
     parsec_list_t              gpu_mem_owned_lru;  /* Dirty blocks */
     parsec_fifo_t              pending;
+    parsec_fifo_t              complete_queue;
     struct zone_malloc_s      *memory;
     parsec_list_item_t        *sort_starting_p;
     parsec_gpu_exec_stream_t **exec_stream;
     size_t                     mem_block_size;
     int64_t                    mem_nb_blocks;
+    int                        last_exec_stream_index;
 };
 
 struct parsec_gpu_exec_stream_s {
     struct parsec_gpu_task_s        **tasks;
     char                             *name;
     int32_t                           max_events;  /* number of potential events, and tasks */
+    int32_t                           active_event_count;  /** events currently active*/
     int32_t                           executed;    /* number of executed tasks */
     int32_t                           start;  /* circular buffer management start and end positions */
     int32_t                           end;
