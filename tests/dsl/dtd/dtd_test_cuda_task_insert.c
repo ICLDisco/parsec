@@ -4,6 +4,7 @@
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "tests/tests_data.h"
+#include "parsec/mca/device/cuda/device_cuda_internal.h"
 
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>

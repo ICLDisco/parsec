@@ -1,0 +1,29 @@
+spack:
+  definitions:
+  - pkgs:
+    - gcc@11.3.0
+    - git
+    - hip
+    - patch
+    - flex
+    - bison
+    - libxml2
+    - hwloc
+    - unzip
+    - python@3
+    - py-pip
+    - py-pandas
+    - py-matplotlib
+    - py-tables
+    - py-networkx
+    - py-cython
+    - py-wheel
+    - cmake
+    - ninja
+    - otf2@2.3
+    - openmpi
+
+  view: true
+  specs:
+    - matrix:
+      - [$pkgs]

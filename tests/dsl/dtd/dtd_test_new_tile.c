@@ -9,6 +9,9 @@
 #include "tests/tests_timing.h"
 #include "parsec/interfaces/dtd/insert_function_internal.h"
 #include "parsec/utils/debug.h"
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+#include "parsec/mca/device/cuda/device_cuda_internal.h"
+#endif
 
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>

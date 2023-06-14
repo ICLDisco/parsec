@@ -1,8 +1,9 @@
 spack:
   definitions:
   - pkgs:
-    - gcc@12.1.0
+    - gcc@11.3.0
     - git
+    - cuda@12
     - patch
     - flex
     - bison
