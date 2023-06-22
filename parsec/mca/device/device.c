@@ -330,29 +330,46 @@ void parsec_compute_best_unit( uint64_t length, float* updated_value, char** bes
     return;
 }
 
-void parsec_mca_device_reset_statistics(parsec_context_t *parsec_context) {
-    parsec_device_module_t *device;
+void parsec_devices_save_statistics(uint64_t **pstats) {
+    if(NULL == *pstats) {
+        *pstats = (uint64_t*)calloc(sizeof(uint64_t), parsec_nb_devices * 6 /* see below for the number of arrays */);
+    }
+    else {
+        memset(*pstats, 0, parsec_nb_devices * sizeof(uint64_t) * 6);
+    }
+    uint64_t *stats = *pstats;
+    uint64_t *executed_tasks = stats;
+    uint64_t *transfer_in    = stats +   parsec_nb_devices;
+    uint64_t *transfer_out   = stats + 2*parsec_nb_devices;
+    uint64_t *req_in         = stats + 3*parsec_nb_devices;
+    uint64_t *req_out        = stats + 4*parsec_nb_devices;
+    uint64_t *transfer_d2d   = stats + 5*parsec_nb_devices;
 
-    (void)parsec_context;
     for(uint32_t i = 0; i < parsec_nb_devices; i++) {
-        if( NULL == (device = parsec_devices[i]) ) continue;
+        parsec_device_module_t *device = parsec_devices[i];
+        if(NULL == device) continue;
         assert( i == device->device_index );
-        device->executed_tasks       = 0;
-        memset(device->data_in_from_device, 0, sizeof(uint64_t)*device->data_in_array_size);
-        device->data_out_to_host     = 0;
-        device->required_data_in     = 0;
-        device->required_data_out    = 0;
+        executed_tasks[i] = device->executed_tasks;
+        transfer_in[i]    = device->data_in_from_device[0]; /* cpu-core device */
+        transfer_out[i]   = device->data_out_to_host;
+        req_in[i]         = device->required_data_in;
+        req_out[i]        = device->required_data_out;
+        for(unsigned int j = 1; j < device->data_in_array_size; j++) /* d2d */
+            transfer_d2d[i] += device->data_in_from_device[j];
+        /* don't compute global stats yet, do it during print */
     }
 }
 
-void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_context)
-{
-    int *device_counter, total = 0;
-    uint64_t total_data_in = 0,     total_data_out = 0;
+void parsec_devices_free_statistics(uint64_t **pstats) {
+    assert(NULL != pstats && NULL != *pstats);
+    free(*pstats);
+    *pstats = NULL;
+}
+
+void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t *start_stats) {
+    uint64_t *end_stats = NULL;
+    uint64_t total_tasks = 0, total_data_in = 0, total_data_out = 0;
     uint64_t total_required_in = 0, total_required_out = 0, total_d2d = 0;
-    uint64_t *transferred_in, *transferred_out;
-    uint64_t *required_in,    *required_out;
-    uint64_t *d2d, d2dtmp;
     float gtotal = 0.0;
     float best_data_in, best_data_out, best_d2d;
     float best_required_in, best_required_out;
@@ -362,45 +379,37 @@ void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_contex
     parsec_device_module_t *device;
     uint32_t i;
 
-    /* GPU counter for GEMM / each */
-    device_counter  = (int*)     calloc(parsec_nb_devices, sizeof(int)     );
-    transferred_in  = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
-    transferred_out = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
-    required_in     = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
-    required_out    = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
-    d2d             = (uint64_t*)calloc(parsec_nb_devices, sizeof(uint64_t));
+    /* initialize the arrays */
+    parsec_devices_save_statistics(&end_stats);
+    if(NULL != start_stats) {
+        for(i = 0; i < parsec_nb_devices * 6; i++) {
+            assert(end_stats[i] >= start_stats[i]);
+            end_stats[i] -= start_stats[i];
+        }
+    }
+    uint64_t *executed_tasks    = end_stats;
+    uint64_t *transferred_in    = end_stats +   parsec_nb_devices;
+    uint64_t *transferred_out   = end_stats + 2*parsec_nb_devices;
+    uint64_t *required_in       = end_stats + 3*parsec_nb_devices;
+    uint64_t *required_out      = end_stats + 4*parsec_nb_devices;
+    uint64_t *transferred_d2d   = end_stats + 5*parsec_nb_devices;
 
-    /**
-     * Save the statistics locally.
-     */
+    /* Compute total statistics */
     for(i = 0; i < parsec_nb_devices; i++) {
         if( NULL == (device = parsec_devices[i]) ) continue;
         assert( i == device->device_index );
-        /* Save the statistics */
-        device_counter[device->device_index]  += device->executed_tasks;
-        transferred_in[device->device_index]  += device->data_in_from_device[0];
-        total_data_in                         += device->data_in_from_device[0];
-        transferred_out[device->device_index] += device->data_out_to_host;
-        required_in[device->device_index]     += device->required_data_in;
-        required_out[device->device_index]    += device->required_data_out;
-        d2dtmp = 0;
-        for(unsigned int j = 1; j < device->data_in_array_size; j++) {
-            d2dtmp                            += device->data_in_from_device[j];
-        }
-        d2d[device->device_index]             += d2dtmp;
-        /* Update the context-level statistics */
-        total              += device->executed_tasks;
-        total_data_in      += d2dtmp;
-        total_data_out     += device->data_out_to_host;
-        total_required_in  += device->required_data_in;
-        total_required_out += device->required_data_out;
-        total_d2d          += d2dtmp;
+        total_tasks        += executed_tasks[i];
+        total_data_in      += transferred_in[i] + transferred_d2d[i];
+        total_data_out     += transferred_out[i];
+        total_required_in  += required_in[i];
+        total_required_out += required_out[i];
+        total_d2d          += transferred_d2d[i];
     }
 
     /* Print statistics */
     if( 0 == total_data_in )  total_data_in  = 1;
     if( 0 == total_data_out ) total_data_out = 1;
-    gtotal = (float)total;
+    gtotal = (float)total_tasks;
 
     printf("+----------------------------------------------------------------------------------------------------------------------------+\n");
     printf("|         |                    |                       Data In                              |         Data Out               |\n");
@@ -414,14 +423,14 @@ void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_contex
         parsec_compute_best_unit( required_out[i],    &best_required_out, &required_out_unit );
         parsec_compute_best_unit( transferred_in[i],  &best_data_in,      &data_in_unit      );
         parsec_compute_best_unit( transferred_out[i], &best_data_out,     &data_out_unit     );
-        parsec_compute_best_unit( d2d[i],             &best_d2d,          &d2d_unit          );
+        parsec_compute_best_unit( transferred_d2d[i], &best_d2d,          &d2d_unit          );
 
-        printf("|  Dev %2d |%10d | %6.2f | %8.2f%2s |   %8.2f%2s(%5.2f)   |   %8.2f%2s(%5.2f)   | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
-               device->device_index, device_counter[i], (device_counter[i]/gtotal)*100.00,
+        printf("|  Dev %2d |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%5.2f)   |   %8.2f%2s(%5.2f)   | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
+               device->device_index, executed_tasks[i], (executed_tasks[i]/gtotal)*100.00,
                best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
                (((double)transferred_in[i])  / (double)required_in[i] ) * 100.0,
                best_d2d, d2d_unit,
-               (((double)d2d[i])/ (double)required_in[i]) * 100.0,
+               (((double)transferred_d2d[i])/ (double)required_in[i]) * 100.0,
                best_required_out, required_out_unit, best_data_out, data_out_unit,
                (((double)transferred_out[i]) / (double)required_out[i]) * 100.0, device->name );
     }
@@ -446,14 +455,39 @@ void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_contex
     } else {
         snprintf(percent3, 64, "%5.2f", ((double)total_data_out / (double)total_required_out) * 100.0);
     }
-    printf("|All Devs |%10d | %5.2f | %8.2f%2s |   %8.2f%2s(%s)   |   %8.2f%2s(%s)   | %8.2f%2s | %8.2f%2s(%s) |\n",
-           total, (total/gtotal)*100.00,
+    printf("|All Devs |%10"PRIu64" | %5.2f | %8.2f%2s |   %8.2f%2s(%s)   |   %8.2f%2s(%s)   | %8.2f%2s | %8.2f%2s(%s) |\n",
+           total_tasks, (total_tasks/gtotal)*100.00,
            best_required_in,  required_in_unit,  best_data_in,  data_in_unit, percent1,
            best_d2d, d2d_unit, percent2,
            best_required_out, required_out_unit, best_data_out, data_out_unit, percent3);
     printf("+----------------------------------------------------------------------------------------------------------------------------+\n");
 
 
+    parsec_devices_free_statistics(&end_stats);
+}
+
+void parsec_mca_device_reset_statistics(parsec_context_t *parsec_context) {
+    parsec_device_module_t *device;
+
+    (void)parsec_context;
+    for(uint32_t i = 0; i < parsec_nb_devices; i++) {
+        if( NULL == (device = parsec_devices[i]) ) continue;
+        assert( i == device->device_index );
+        device->executed_tasks       = 0;
+        memset(device->data_in_from_device, 0, sizeof(uint64_t)*device->data_in_array_size);
+        device->data_out_to_host     = 0;
+        device->required_data_in     = 0;
+        device->required_data_out    = 0;
+    }
+}
+
+void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_context)
+{
+    parsec_devices_print_statistics(parsec_context, NULL);
+
+    uint64_t d2dtmp; float best_d2d; char *d2d_unit;
+    uint32_t i;
+    parsec_device_module_t *device;
     printf("\n"
            "Full transfer matrix:\n"
            "dst\\src ");
@@ -489,12 +523,6 @@ void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_contex
         printf("\n");
     }
 
-    free(device_counter);
-    free(transferred_in);
-    free(transferred_out);
-    free(required_in);
-    free(required_out);
-
     /**
      * Reset the statistics for next turn if there is one.
      */
@@ -517,7 +545,6 @@ int parsec_mca_device_fini(void)
     mca_base_component_t *component;
     for(int i = 0; i < num_modules_activated; i++ ) {
         module = modules_activated[i];
-
         component = (mca_base_component_t*)module->component;
         component->mca_close_component();
         modules_activated[i] = NULL;
