@@ -6755,7 +6755,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
         coutput("  dev_index = parsec_get_best_device((parsec_task_t*)this_task, &__load);\n");
     }
     coutput("  assert(dev_index >= 0);\n"
-            "  if( parsec_mca_device_get(dev_index)->type <= PARSEC_DEV_RECURSIVE ) {\n"
+            "  if( !parsec_mca_device_is_gpu(dev_index) ) {\n"
             "    return PARSEC_HOOK_RETURN_NEXT;  /* Fall back */\n"
             "  }\n"
             "\n"

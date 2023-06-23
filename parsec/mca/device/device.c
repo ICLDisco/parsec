@@ -108,12 +108,12 @@ int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
             data_owner_dev = this_task->data[data_index].data_in->original->owner_device;
             assert(data_prefer_dev < parsec_mca_device_enabled() && data_owner_dev < parsec_mca_device_enabled());
             /* If the data has a preferred device, try to obey it. */
-            if( data_prefer_dev > 0 && parsec_mca_device_get(data_prefer_dev)->type > PARSEC_DEV_RECURSIVE ) {  /* no CPU or recursive */
+            if( data_prefer_dev > 0 && parsec_mca_device_is_gpu(data_prefer_dev) ) {  /* no CPU or recursive */
                 dev_index = data_prefer_dev;
                 break;
             }
             /* Data is located on a device */
-            if( data_owner_dev > 0 && parsec_mca_device_get(data_owner_dev)->type > PARSEC_DEV_RECURSIVE) {  /* no CPU or recursive */
+            if( data_owner_dev > 0 && parsec_mca_device_is_gpu(data_owner_dev) ) {  /* no CPU or recursive */
                 dev_index = data_owner_dev;
                 break;
             }
@@ -125,9 +125,9 @@ int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
         data_prefer_dev = this_task->data[data_index].data_in->original->preferred_device;
         data_owner_dev = this_task->data[data_index].data_in->original->owner_device;
         assert(data_prefer_dev < parsec_mca_device_enabled() && data_owner_dev < parsec_mca_device_enabled());
-        if( data_prefer_dev > 0 && parsec_mca_device_get(data_prefer_dev)->type > PARSEC_DEV_RECURSIVE ) { /* no CPU or recursive */
+        if( data_prefer_dev > 0 && parsec_mca_device_is_gpu(data_prefer_dev) ) { /* no CPU or recursive */
             prefer_index = data_prefer_dev;
-        } else if( data_owner_dev > 0 && parsec_mca_device_get(data_owner_dev)->type > PARSEC_DEV_RECURSIVE) { /* no CPU or recursive */
+        } else if( data_owner_dev > 0 && parsec_mca_device_is_gpu(data_owner_dev) ) { /* no CPU or recursive */
             prefer_index = data_owner_dev;
         }
     }
@@ -135,7 +135,7 @@ int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
     assert(dev_index < parsec_mca_device_enabled());
     dev = parsec_mca_device_get(dev_index >= 0? dev_index: 0);
     /* 0 is CPU, and 1 is recursive device */
-    if( PARSEC_DEV_RECURSIVE >= dev->type ) {  /* This is the first time we see this data for a GPU, let's decide which GPU will work on it. */
+    if( !parsec_mca_device_is_gpu(dev->device_index) ) {  /* This is the first time we see this data for a GPU, let's decide which GPU will work on it. */
         int best_index;
         int64_t eta, best_eta = INT64_MAX; /* dev->device_load + time_estimate(this_task, dev); this commented out because we don't count cpu loads */
 
@@ -176,7 +176,7 @@ int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
         for( dev_index = 0; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
             dev = parsec_mca_device_get(dev_index);
             /* Skip cores/recursive devices */
-            if(PARSEC_DEV_RECURSIVE >= dev->type) continue;
+            if(!parsec_mca_device_is_gpu(dev_index)) continue;
             /* Skip the device if it is not configured */
             if(!(tp->devices_index_mask & (1 << dev_index))) continue;
             eta = dev->device_load + time_estimate(this_task, dev);
@@ -188,8 +188,8 @@ int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
         }
         assert( parsec_mca_device_get(best_index)->type != PARSEC_DEV_RECURSIVE );
         dev_index = best_index;
+        dev = parsec_mca_device_get(dev_index);
     }
-    dev = parsec_mca_device_get(dev_index);
     *task_load = time_estimate(this_task, dev);
     PARSEC_DEBUG_VERBOSE(20, parsec_device_output, "get_best_device selected %d (%s) with prior load %"PRIu64", new task load would add %"PRIu64, dev_index, dev->name, dev->device_load, *task_load);
 
@@ -957,6 +957,12 @@ parsec_device_module_t* parsec_mca_device_get(uint32_t device_index)
     if( device_index >= parsec_nb_devices )
         return NULL;
     return parsec_devices[device_index];
+}
+
+int parsec_mca_device_is_gpu(uint32_t devindex) {
+    parsec_device_module_t *dev = parsec_mca_device_get(devindex);
+    if(NULL == dev) return false;
+    return PARSEC_DEV_RECURSIVE < dev->type;
 }
 
 int parsec_mca_device_remove(parsec_device_module_t* device)

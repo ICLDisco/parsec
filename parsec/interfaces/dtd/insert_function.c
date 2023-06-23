@@ -2304,7 +2304,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
 
     dev_index = parsec_get_best_device(this_task, &load);
     assert(dev_index >= 0 && dev_index < parsec_mca_device_enabled());
-    if (parsec_mca_device_get(dev_index)->type <= PARSEC_DEV_RECURSIVE) {
+    if (!parsec_mca_device_is_gpu(dev_index)) {
         return PARSEC_HOOK_RETURN_NEXT; /* Fall back */
     }
 
@@ -2352,7 +2352,7 @@ static parsec_hook_return_t parsec_dtd_cpu_task_submit(parsec_execution_stream_t
              PARSEC_OUTPUT == (flow->op_type & PARSEC_GET_OP_TYPE)) {
             int8_t data_owner_dev = this_task->data[i].data_in->original->owner_device;
             assert(data_owner_dev < parsec_mca_device_enabled());
-            if( data_owner_dev >= 0 && parsec_mca_device_get(data_owner_dev)->type > PARSEC_DEV_RECURSIVE) {
+            if( data_owner_dev >= 0 && parsec_mca_device_is_gpu(data_owner_dev) ) {
                 uint8_t access = 0;
                 if( PARSEC_INOUT == (flow->op_type & PARSEC_GET_OP_TYPE) )
                     access = PARSEC_FLOW_ACCESS_RW;
