@@ -423,17 +423,17 @@ int __parsec_schedule_vp(parsec_execution_stream_t* es,
 }
 
 /**
- * @brief Reschedule a task on the most appropriate resource.
+ * @brief Reschedule a task on some resource.
  *
  * @details The function reschedules a task, by trying to locate it as closer
- *          as possible to the current execution unit. If not available
+ *          as possible to the current execution unit. If no available
  *          execution unit was found, the task is rescheduled on the same
  *          execution unit. To find the most appropriate execution unit
  *          we start from the next execution unit after the current one, and
  *          iterate over all existing execution units (in the current VP,
  *          then on the next VP and so on).
  *
- * @param [IN] es, the start execution_stream (normall it is the current one).
+ * @param [IN] es, the start execution_stream (normal it is the current one).
  * @param [IN] task, the task to be rescheduled.
  *
  * @return parsec scheduling return code
@@ -443,12 +443,11 @@ int __parsec_reschedule(parsec_execution_stream_t* es, parsec_task_t* task)
     parsec_context_t* context = es->virtual_process->parsec_context;
     parsec_vp_t* vp_context = es->virtual_process;
 
-    int vp, start_vp = vp_context->vp_id, next_vp;
+    int vp, start_vp = vp_context->vp_id;
     int start_eu = (es->th_id + 1) % context->virtual_processes[start_vp]->nb_cores;
 
-    for( vp = start_vp, next_vp = (start_vp + 1) % context->nb_vp;
-         next_vp != vp_context->vp_id;
-         ++vp) {
+    vp = start_vp;
+    do {
         if( 1 != context->virtual_processes[vp]->nb_cores ) {
             return __parsec_schedule(context->virtual_processes[vp]->execution_streams[start_eu], task, 0);
         }
@@ -457,7 +456,8 @@ int __parsec_reschedule(parsec_execution_stream_t* es, parsec_task_t* task)
             return __parsec_schedule(context->virtual_processes[vp]->execution_streams[0], task, 0);
         }
         start_eu = 0;  /* with the exception of the first es, we always iterate from 0 */
-    }
+        vp = (vp + 1) % context->nb_vp;
+    } while( vp != start_vp );
     /* no luck so far, let's reschedule the task on the same execution unit */
     return __parsec_schedule(es, task, 0);
 }

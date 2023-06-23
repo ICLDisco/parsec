@@ -28,6 +28,7 @@ if( PARSEC_HAVE_CUDA )
   target_sources(dtd_test_new_tile PRIVATE dtd_test_new_tile_cuda_kernels.cu)
 
   parsec_addtest_executable(C dtd_test_cuda_task_insert SOURCES dtd_test_cuda_task_insert.c)
+  parsec_addtest_executable(C dtd_test_cuda_again_async SOURCES dtd_test_cuda_again_async.c)
   if( TARGET CUDA::cublas )
     parsec_addtest_executable(C dtd_test_simple_gemm SOURCES dtd_test_simple_gemm.c)
     target_link_libraries(dtd_test_simple_gemm PRIVATE CUDA::cublas m)

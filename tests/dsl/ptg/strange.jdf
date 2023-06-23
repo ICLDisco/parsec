@@ -17,7 +17,7 @@ struct prev_next_s {
 /**
  * This test build a chain using different different local variables
  * and inlined functions. The local variable m is not necessary for the
- * functionning of the test,it is there for validation purposes.
+ * functioning of the test, it is there for validation purposes.
  */
 %}
 
@@ -36,7 +36,7 @@ neworder  [type = "struct prev_next_s*" hidden = on default = "NULL"]
 START(k)
  k = %{return *VAL;%} .. %{return *VAL;%}
 
- // Parallel partitionning
+ // Parallel partitioning
 : descA(%{return neworder[0].next;%}, 0)
 
 RW A <- descA(%{return neworder[0].next;%}, 0)

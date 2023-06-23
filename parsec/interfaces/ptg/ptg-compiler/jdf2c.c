@@ -7163,8 +7163,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 {
     coutput("static int %s(parsec_execution_stream_t *es, %s *this_task, uint32_t action_mask, parsec_remote_deps_t *deps)\n"
             "{\n"
-            "PARSEC_PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *)this_task);"
-            "{\n"
+            "  PARSEC_PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *)this_task);"
             "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
             "  parsec_release_dep_fct_arg_t arg;\n"
             "  int __vp_id;\n"
@@ -7176,7 +7175,10 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  arg.remote_deps = deps;\n"
             "#endif  /* defined(DISTRIBUTED) */\n"
             "  assert(NULL != es);\n"
-            "  arg.ready_lists = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);\n"
+            "  if( action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS )"
+            "    arg.ready_lists = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);\n"
+            "  else\n"
+            "    arg.ready_lists = NULL;\n"
             "  for( __vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
             "  (void)__parsec_tp; (void)deps;\n",
             name, parsec_get_name(jdf, f, "task_t"),
@@ -7193,14 +7195,14 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
         coutput("  arg.output_usage = 0;\n");
 
         coutput("  if( action_mask & (PARSEC_ACTION_RELEASE_LOCAL_DEPS | PARSEC_ACTION_GET_REPO_ENTRY) ) {\n"
-                 "    arg.output_entry = data_repo_lookup_entry_and_create( es, arg.output_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals));\n"
-                 "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
-                 "#if defined(PARSEC_SIM)\n"
-                 "    assert(arg.output_entry->sim_exec_date == 0);\n"
-                 "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
-                 "#endif\n"
-                 "  }\n",
-                 jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
+                "    arg.output_entry = data_repo_lookup_entry_and_create( es, arg.output_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals));\n"
+                "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
+                "#if defined(PARSEC_SIM)\n"
+                "    assert(arg.output_entry->sim_exec_date == 0);\n"
+                "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
+                "#endif\n"
+                "  }\n",
+                jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
 
         /* We need 2 iterate_successors calls so that all reshapping info is
          * setup before it is consumed by any local successor.
@@ -7261,8 +7263,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     jdf_generate_code_free_hash_table_entry(jdf, f, 0/*consume_repo*/, 1/*release_inputs*/);
 
     coutput(
-        "PARSEC_PINS(es, RELEASE_DEPS_END, (parsec_task_t *)this_task);"
-        "}\n"
+        "  PARSEC_PINS(es, RELEASE_DEPS_END, (parsec_task_t *)this_task);"
         "  return 0;\n"
         "}\n"
         "\n");

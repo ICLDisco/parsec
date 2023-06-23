@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015-2019 The University of Tennessee and The University
+ * Copyright (c) 2015-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  **/
@@ -21,13 +21,6 @@ BEGIN_C_DECLS
  * @addtogroup DTD_INTERFACE
  *  @{
  */
-
-/**
- * To see examples please look at testing_zpotrf_dtd.c, testing_zgeqrf_dtd.c,
- * testing_zgetrf_incpiv_dtd.c files in the directory "root_of_DPLASMA/tests/testing/".
- * Very simple example of inserting just one task can be found in
- * "root_of_PaRSEC/example/interfaces/dtd/"
- **/
 
 /**
  * The following is a definition of the flags, for usage please check usage of parsec_dtd_insert_task() below.
@@ -157,7 +150,7 @@ typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
 #define PARSEC_DTD_MAX_PARAMS 64
 
 /**
- * Function pointer typeof  kernel pointer pased as parameter to insert_function().
+ * Function pointer typeof  kernel pointer passed as parameter to insert_function().
  * This is the prototype of the function in which the actual operations of each task
  * is implemented by the User. The actual computation will be performed in functions
  * having this prototype.
@@ -185,7 +178,7 @@ typedef parsec_hook_return_t (parsec_dtd_funcptr_t)(parsec_execution_stream_t *,
  *                                     - UNPACK_VALUE
  *                                     - UNPACK_SCRATCH
  *                                     - UNPACK_DATA
- *                                     Following each FLAG the pointer to the memory location where the paramter
+ *                                     Following each FLAG the pointer to the memory location where the parameter
  *                                     will be copied needs to be given.
  *
  * There is no way to unpack individual parameters. e.g. If user wants to unpack the 3rd parameter only, they have to
@@ -234,10 +227,10 @@ parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
  *    This function should include the actual computation the user wants to perform on the data.
  * 3. The priority of the task, if not sure user should provide 0.
  * 4. The name of the task.
- * 5. Variadic type parameter. User can pass any number of paramters. The runtime will pack the
- *    parameters and attach them to the task they belong to. User can later use unpakcing
- *    fuction provided to get access to the parametrs.
- *    Each paramter to pass to a task should be expressed in the form of a triplet. e.g
+ * 5. Variadic type parameter. User can pass any number of parameters. The runtime will pack the
+ *    parameters and attach them to the task they belong to. User can later use unpacking
+ *    fuction provided to get access to the parameters.
+ *    Each paramater to pass to a task should be expressed in the form of a triplet. e.g
  *
  *    1.      sizeof(int),             &uplo,                           VALUE,
  *
@@ -255,7 +248,7 @@ parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
  *         sizeof(double *),           &pointer_to_double,             SCRATCH,
  *
  *          (size in bytes),    (the pointer of the pointer       (runtime will copy the address of
- *                               vairable we want to pass to the   the pointer which the task can later
+ *                               variable we want to pass to the   the pointer which the task can later
  *                               task. This pointer will be        retrieve)
  *                               copied),
  *
@@ -281,7 +274,7 @@ parsec_dtd_tile_t * parsec_dtd_tile_new(parsec_taskpool_t *dtd_tp, int rank);
  *                                                                  in order is situated)
  *
  *      *******  THIS PARAMETER MUST BE PROVIDED *******
- *      4. "0" indicates the end of paramter list. This should always be the last parameter.
+ *      4. "0" indicates the end of parameter list. This should always be the last parameter.
  *
  */
 void
@@ -318,7 +311,7 @@ parsec_insert_dtd_task(parsec_task_t *this_task);
 /**
  * This function should be called anytime users
  * are using data in their parsec-dtd runs.
- * This functions intializes/cleans necessary
+ * This functions initializes/cleans necessary
  * structures in a data-descriptor(dc). The
  * init should be called after a valid dc
  * has been acquired, and the fini before
@@ -348,7 +341,7 @@ parsec_dtd_taskpool_new(void);
  * data from the rank that last edited it
  * to the rank that owns it. So we end up with the
  * same data distribution as we started with.
- * The tile of a data can be acqiured using the
+ * The tile of a data can be acquired using the
  * PARSEC_DTD_TILE_OF or PARSEC_DTD_TILE_OF_KEY macro.
  * To ensure consistent and correct behavior, user
  * must wait on the taskpool before inserting
@@ -368,7 +361,7 @@ parsec_dtd_data_flush_all( parsec_taskpool_t *tp,
                            parsec_data_collection_t  *dc );
 
 /**
- * This function returns the taskpool a task bekongs to.
+ * This function returns the taskpool a task belongs to.
  */
 parsec_taskpool_t *
 parsec_dtd_get_taskpool(parsec_task_t *this_task);

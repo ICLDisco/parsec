@@ -433,7 +433,7 @@ void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_contex
     } else {
         snprintf(percent3, 64, "%5.2f", ((double)total_data_out / (double)total_required_out) * 100.0);
     }
-    printf("|All Devs |%10d | %5.2f | %8.2f%2s |   %8.2f%2s(%s)   |   %8.2f%2s(%s)   | %8.2f%2s | %8.2f%2s(%s) |\n",
+    printf("|All Devs |%10d | %5.2f | %8.2f%2s |   %8.2f%2s(%s)     |   %8.2f%2s(%s)     | %8.2f%2s | %8.2f%2s(%s)   |\n",
            total, (total/gtotal)*100.00,
            best_required_in,  required_in_unit,  best_data_in,  data_in_unit, percent1,
            best_d2d, d2d_unit, percent2,

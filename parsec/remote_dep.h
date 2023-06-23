@@ -42,8 +42,9 @@ typedef struct remote_dep_wire_activate_s {
     remote_dep_datakey_t deps;         /**< a pointer to the dep structure on the source */
     remote_dep_datakey_t output_mask;  /**< the mask of the output dependencies satisfied by this activation message */
     uint32_t             taskpool_id;
-    uint32_t             task_class_id;
-    uint32_t             length;
+    uint16_t             task_class_id;
+    uint16_t             length;
+    uint32_t             root;
     parsec_assignment_t  locals[MAX_LOCAL_COUNT];
 } remote_dep_wire_activate_t;
 
@@ -66,7 +67,7 @@ struct parsec_dep_type_description_s {
 };
 
 /**
- * This structure holds the key information for any data mouvement. It contains the arena
+ * This structure holds the key information for any data movement. It contains the arena
  * where the data is allocated from, or will be allocated from. It also contains the
  * pointer to the buffer involved in the communication (or NULL if the data will be
  * allocated before the reception). Finally, it contains the triplet allowing a correct send
@@ -125,7 +126,7 @@ struct remote_dep_output_param_s {
     struct parsec_dep_data_description_s  data;        /**< The data propagated by this message. */
     uint32_t                             deps_mask;   /**< A bitmask of all the output dependencies
                                                        propagated by this message. The bitmask uses
-                                                       depedencies indexes not flow indexes. */
+                                                       dependencies indexes not flow indexes. */
     int32_t                              priority;    /**< the priority of the message */
     uint32_t                             count_bits;  /**< The number of participants */
     uint32_t*                            rank_bits;   /**< The array of bits representing the propagation path */
@@ -133,7 +134,7 @@ struct remote_dep_output_param_s {
 
 struct parsec_remote_deps_s {
     parsec_list_item_t               super;
-    parsec_lifo_t                   *origin;        /**< The memory arena where the data pointer is comming from */
+    parsec_lifo_t                   *origin;        /**< The memory arena where the data pointer is coming from */
     struct parsec_taskpool_s        *taskpool;      /**< parsec taskpool generating this data transfer */
     int32_t                          pending_ack;   /**< Number of releases before completion */
     int32_t                          from;          /**< From whom we received the control */
