@@ -65,7 +65,7 @@ cd ${save_dir}
 mkdir ${RUNNER_ENV} || true
 
 # Show the known envs
-if spack env list | grep ${RUNNER_ENV}; then
+if spack env activate "${RUNNER_ENV}"; then
   if diff ${GITHUB_WORKSPACE}/.github/CI/${RUNNER_ENV}.yaml ${SPACK_DIR}/var/spack/environments/${RUNNER_ENV}/spack.yaml > /dev/null; then
     echo "Update spack env ${RUNNER_ENV}"
     cp ${GITHUB_WORKSPACE}/.github/CI/${RUNNER_ENV}.yaml ${SPACK_DIR}/var/spack/environments/${RUNNER_ENV}/spack.yaml
