@@ -860,20 +860,26 @@ static char *dump_profiling_init(void **elem, void *arg)
     int nb_locals;
     string_arena_t *profiling_convertor_params;
 
+    string_arena_init(info->sa);
     if( !profile_enabled(f->properties) ) {
         /**
          * We have to set the `profiling_array` elements to -1
          * then we will return NULL
          */
         string_arena_add_string(info->sa,
-                                "%s_profiling_array[START_KEY(%s_%s.task_class_id + PARSEC_%s_NB_TASK_CLASSES) /* %s (internal init) start key */] = -1;\n"
-                                "%s_profiling_array[END_KEY(%s_%s.task_class_id + PARSEC_%s_NB_TASK_CLASSES)   /* %s (internal init) end   key */] = -1;\n",
-                                jdf_basename, jdf_basename, fname, jdf_basename, fname,
-                                jdf_basename, jdf_basename, fname, jdf_basename, fname);
-        return NULL;
+                                "#if defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
+                                "  *(int*)&(__parsec_tp->super.super.profiling_array[START_KEY(%s_%s.task_class_id + PARSEC_%s_NB_TASK_CLASSES) /* %s (internal init) start key */]) = -1;\n"
+                                "  *(int*)&(__parsec_tp->super.super.profiling_array[END_KEY(%s_%s.task_class_id + PARSEC_%s_NB_TASK_CLASSES)   /* %s (internal init) end   key */]) = -1;\n"
+                                "#endif /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n",
+                                jdf_basename, jdf_basename, fname, jdf_basename,
+                                jdf_basename, jdf_basename, fname, jdf_basename);
+        string_arena_add_string(info->sa,
+                                "  *(int*)&(__parsec_tp->super.super.profiling_array[START_KEY(%s_%s.task_class_id) /* %s start key */]) = -1;\n"
+                                "  *(int*)&(__parsec_tp->super.super.profiling_array[END_KEY(%s_%s.task_class_id) /* %s end key */]) = -1;\n",
+                                jdf_basename, fname, fname,
+                                jdf_basename, fname, fname);
+        return string_arena_get_string(info->sa);
     }
-
-    string_arena_init(info->sa);
 
     get_unique_rgb_color((float)info->idx / (float)info->maxidx, &R, &G, &B);
     info->idx++;
@@ -4721,12 +4727,17 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     pi.idx = 0;
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
     {
-        char* prof = UTIL_DUMP_LIST(sa1, jdf->functions, next,
-                                    dump_profiling_init, &pi, "", "    ", "\n", "\n");
+        int need_profile = 0;
+        for( jdf_function_entry_t *f = jdf->functions; need_profile == 0 && NULL != f; f = f->next ) {
+            /* If the profile property is ON then enable the profiling array */
+            need_profile = profile_enabled(f->properties);
+        }
+
         coutput("  /* If profiling is enabled, the keys for profiling */\n"
                 "#  if defined(PARSEC_PROF_TRACE)\n");
-
-        if( strcmp(prof, "\n") ) {
+        if(need_profile) {
+            char* prof = UTIL_DUMP_LIST(sa1, jdf->functions, next,
+                                        dump_profiling_init, &pi, "", "    ", "\n", "\n");
             coutput("  __parsec_tp->super.super.profiling_array = %s_profiling_array;\n"
                     "  if( -1 == %s_profiling_array[0] ) {\n"
                     "%s"
