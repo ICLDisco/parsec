@@ -4,6 +4,8 @@
  *                         reserved.
  */
 
+#include <errno.h>
+#include <string.h>
 #include "parsec/parsec_config.h"
 #include "parsec/constants.h"
 #include <papi.h>

@@ -6,6 +6,7 @@
 
 /* PaRSEC Performance Instrumentation Callback System */
 #include "parsec/parsec_config.h"
+#include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 #include "parsec/mca/pins/pins.h"
