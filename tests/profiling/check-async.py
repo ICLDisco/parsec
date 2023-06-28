@@ -48,8 +48,8 @@ try:
         full_resched = t.events[t.events.type == FULL_RESCHED].iloc[0]
 
     if len(t.events[t.events.type == FULL_ASYNC]) != NB:
-        print("Error: there should be exactly {} FULL_ASYNC events, there are {}"
-              .format(NB, t.events[t.events.type == FULL_ASYNC]),
+        print("Error: there should be exactly {} FULL_ASYNC events, I find {} of them"
+              .format(NB, len(t.events[t.events.type == FULL_ASYNC])),
               file=sys.stderr)
         error += 1
     else:
