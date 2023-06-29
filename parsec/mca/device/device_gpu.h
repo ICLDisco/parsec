@@ -99,6 +99,7 @@ struct parsec_gpu_task_s {
             uint32_t                 flow_nb_elts[MAX_PARAM_COUNT]; /* for each flow, size of the data to be allocated
                                                                      * on the GPU.
                                                                      */
+            parsec_data_copy_t       *sources[MAX_PARAM_COUNT];
             parsec_data_collection_t *flow_dc[MAX_PARAM_COUNT];     /* for each flow, data collection from which the data
                                                                      * to be transferred logically belongs to.
                                                                      * This gives the user the chance to indicate on the JDF

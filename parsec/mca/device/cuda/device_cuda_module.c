@@ -762,8 +762,7 @@ static void parsec_cuda_memory_release_list(parsec_device_cuda_module_t* cuda_de
 
         PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
                             "GPU[%s] Release CUDA copy %p (device_ptr %p) [ref_count %d: must be 1], attached to %p, in map %p",
-                             gpu_device->super.name, gpu_copy, gpu_copy->device_private, gpu_copy->super.super
-                             .obj_reference_count,
+                             gpu_device->super.name, gpu_copy, gpu_copy->device_private, gpu_copy->super.super.obj_reference_count,
                              original, (NULL != original ? original->dc : NULL));
         assert( gpu_copy->device_index == cuda_device->super.super.device_index );
 
@@ -903,6 +902,7 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* cuda_device,
         if (this_task->data[i].data_in == NULL)
             continue;
 
+	/* BEWARE: here we are using the CPU copy as an input */
         master   = this_task->data[i].data_in->original;
         parsec_atomic_lock(&master->lock);
         gpu_elem = PARSEC_DATA_GET_COPY(master, gpu_device->super.device_index);
@@ -916,13 +916,10 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* cuda_device,
                                  flow->name, i, gpu_elem,
                                  gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ? " [in transfer]" : "");
             if ( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {
-                PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                                     "GPU[%s]:%s: Copy %p [ref_count %d] is still in transfer, descheduling...",
-                                     gpu_device->super.name, task_name,
-                                     gpu_elem, gpu_elem->super.super.obj_reference_count);
-                SET_HIGHEST_PRIORITY(gpu_task->ec, parsec_execution_context_priority_comparator);
-                parsec_atomic_unlock(&master->lock);
-                return PARSEC_HOOK_RETURN_AGAIN;
+	      /* We might want to do something special if the data is under transfer, but in the current
+	       * version we don't need to because an event is always generated for the push_in of each
+	       * task on the unique push_in stream.
+	       */
             }
             parsec_atomic_unlock(&master->lock);
             continue;
@@ -948,6 +945,7 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* cuda_device,
                 /* We can't find enough room on the GPU. Insert the tiles in the begining of
                  * the LRU (in order to be reused asap) and return without scheduling the task.
                  */
+	    release_temp_and_return:
 #if defined(PARSEC_DEBUG_NOISIER)
                 PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
                                      "GPU[%s]:%s:\tRequest space on GPU failed for flow %s index %d/%d for task %s",
@@ -970,7 +968,7 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* cuda_device,
                 PARSEC_OBJ_RELEASE(gpu_elem);
 #endif
                 parsec_atomic_unlock(&master->lock);
-                return PARSEC_HOOK_RETURN_NEXT;
+                return PARSEC_HOOK_RETURN_AGAIN;
             }
 
             PARSEC_LIST_ITEM_SINGLETON(lru_gpu_elem);
@@ -998,31 +996,28 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* cuda_device,
             if( lru_gpu_elem->super.super.obj_reference_count > 1 ) {
                 /* It's also possible (although unlikely) that we livelock here:
                  * if gpu_mem_lru has *only* elements with readers == 0 but
-                 * ref_count > 1, then we might pop/push forever, and we need
-                 * to make progress on something else to get ref_count == 1 && readers == 0.
-                 * So, we return that there is no more free to do.
-                 * To detect that, we use the first one we push back: if we see it
-                 * again, we're cycling. */
+                 * ref_count > 1, then we might pop/push forever. We save the
+		 * earliest element found and if we see it again it means we
+		 * run over the entire list without finding a suitable replacement.
+		 * We need to make progress on something else. This remains safe for as long as the
+		 * LRU is only modified by a single thread (in this case the current thread).
+		 */
                 PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                      "GPU[%s]:%s: Push back LRU-retrieved CUDA copy %p [readers %d, ref_count %d] original %p",
                                      gpu_device->super.name, task_name,
                                      lru_gpu_elem, lru_gpu_elem->readers, lru_gpu_elem->super.super.obj_reference_count, lru_gpu_elem->original);
                 assert(0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
                 parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
+		if( gpu_mem_lru_cycling == lru_gpu_elem ) {
+		    PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
+					 "GPU[%s]: Cycle detected on allocating memory for %s",
+					 gpu_device->super.name, task_name);
+		    goto release_temp_and_return;
+		}
                 if( NULL == gpu_mem_lru_cycling ) {
                     gpu_mem_lru_cycling = lru_gpu_elem;
-                    goto find_another_data;
-                } else {
-                    if( gpu_mem_lru_cycling == lru_gpu_elem ) {
-                        PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
-                                             "GPU[%s]: Cycle detected on allocating memory for %s",
-                                             gpu_device->super.name, task_name);
-                        parsec_atomic_unlock(&master->lock);
-                        return PARSEC_HOOK_RETURN_NEXT;
-                    } else {
-                        goto find_another_data;
-                    }
                 }
+		goto find_another_data;
             }
 
             /* Make sure the new GPU element is clean and ready to be used */
@@ -1036,20 +1031,16 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* cuda_device,
                      * need to protect all accesses to gpu_mem_lru with the locked version */
                     assert(0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
                     parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
+		    if( gpu_mem_lru_cycling == lru_gpu_elem ) {
+		        PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
+					     "GPU[%s]: Cycle detected on allocating memory for %s",
+					     gpu_device->super.name, task_name);
+			goto release_temp_and_return;
+		    }
                     if( NULL == gpu_mem_lru_cycling ) {
                         gpu_mem_lru_cycling = lru_gpu_elem;
-                        goto find_another_data;
-                    } else {
-                        if( gpu_mem_lru_cycling == lru_gpu_elem ) {
-                            PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
-                                                 "GPU[%s]: Cycle detected on allocating memory for %s",
-                                                 gpu_device->super.name, task_name);
-                            parsec_atomic_unlock(&master->lock);
-                            return PARSEC_HOOK_RETURN_NEXT;
-                        } else {
-                            goto find_another_data;
-                        }
                     }
+		    goto find_another_data;
                 }
                 for( j = 0; j < i; j++ ) {
                     if( NULL == this_task->data[j].data_in ) continue;
@@ -1061,26 +1052,19 @@ parsec_gpu_data_reserve_device_space( parsec_device_cuda_module_t* cuda_device,
                         /* If we are the owner of this tile we need to make sure it remains available for
                          * other tasks or we run in deadlock situations.
                          */
-                        if( temp_loc[j] != lru_gpu_elem )
-                            temp_loc[j] = lru_gpu_elem;
-#if defined(PARSEC_DEBUG_NOISIER)
-                        /* Make sure the data copy is indeed referenced from the current task */
-                        for( j = 0; j < i; j++ ) {
-                            if( lru_gpu_elem == temp_loc[j] ) break;
-                        }
-                        assert( j < i );
-#endif  /* defined(PARSEC_DEBUG_NOISIER) */
+			assert( temp_loc[j] == lru_gpu_elem );  /* dont understand how this cannot be true */
                         parsec_atomic_unlock( &oldmaster->lock );
                         goto find_another_data;
                     }
                 }
                 if( lru_gpu_elem->readers != 0 ) {
-                    /* Damn, another thread started to use this data. */
+                    /* Damn, another thread started to use this data (as source for an NVLINK transfer). */
                     parsec_atomic_unlock( &oldmaster->lock );
                     goto find_another_data;
                 }
                 int do_unlock = oldmaster->super.obj_reference_count != 1;
                 parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
+		/* detach could have released the oldmaster if it only had a single refcount */
                 if( do_unlock )
                     parsec_atomic_unlock( &oldmaster->lock );
                 assert(lru_gpu_elem->readers == 0);
@@ -1189,30 +1173,29 @@ parsec_default_cuda_stage_in(parsec_gpu_task_t        *gtask,
                              parsec_gpu_exec_stream_t *gpu_stream)
 {
     cudaError_t ret;
-    parsec_data_copy_t * copy_in;
-    parsec_data_copy_t * copy_out;
-    parsec_device_module_t *in_elem_dev;
+    parsec_data_copy_t * source;
+    parsec_data_copy_t * dest;
+    parsec_device_module_t *source_dev;
     parsec_task_t *task = gtask->ec;
     size_t count;
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t *)gpu_stream;
-    int i;
-    for(i = 0; i < task->task_class->nb_flows; i++){
-        if(flow_mask & (1U << i)){
-            copy_in = task->data[i].data_in;
-            copy_out = task->data[i].data_out;
-            in_elem_dev = parsec_mca_device_get( copy_in->device_index);
-            count = (copy_in->original->nb_elts <= copy_out->original->nb_elts) ?
-                          copy_in->original->nb_elts : copy_out->original->nb_elts;
-            ret = (cudaError_t)cudaMemcpyAsync( copy_out->device_private,
-                                                copy_in->device_private,
-                                                count,
-                                                in_elem_dev->type != PARSEC_DEV_CUDA ?
-                                                       cudaMemcpyHostToDevice : cudaMemcpyDeviceToDevice,
-                                                cuda_stream->cuda_stream );
-            PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", ret, { return PARSEC_ERROR; } );
-        }
+
+    for(int i = 0; i < task->task_class->nb_flows; i++) {
+        if( !(flow_mask & (1U << i)) ) continue;
+        source = gtask->sources[i];
+        dest = task->data[i].data_out;
+        source_dev = parsec_mca_device_get(source->device_index);
+        count = (source->original->nb_elts <= dest->original->nb_elts) ?
+            source->original->nb_elts : dest->original->nb_elts;
+        ret = (cudaError_t)cudaMemcpyAsync( dest->device_private,
+                                            source->device_private,
+                                            count,
+                                            source_dev->type != PARSEC_DEV_CUDA ?
+                                            cudaMemcpyHostToDevice : cudaMemcpyDeviceToDevice,
+                                            cuda_stream->cuda_stream );
+        PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", ret, { return PARSEC_HOOK_RETURN_ERROR; } );
     }
-    return PARSEC_SUCCESS;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 /* Default stage_out function to transfer data from the GPU device.
@@ -1230,39 +1213,39 @@ parsec_default_cuda_stage_out(parsec_gpu_task_t        *gtask,
                               parsec_gpu_exec_stream_t *gpu_stream)
 {
     cudaError_t ret;
-    parsec_data_copy_t * copy_in;
-    parsec_data_copy_t * copy_out;
-    parsec_device_cuda_module_t *out_elem_dev;
+    parsec_data_copy_t * source;
+    parsec_data_copy_t * dest;
+    parsec_device_cuda_module_t *dest_dev;
     parsec_task_t *task = gtask->ec;
     size_t count;
     parsec_cuda_exec_stream_t *cuda_stream = (parsec_cuda_exec_stream_t*)gpu_stream;
     int i;
     for(i = 0; i < task->task_class->nb_flows; i++){
         if(flow_mask & (1U << i)){
-            copy_in = task->data[i].data_out;
-            copy_out = copy_in->original->device_copies[0];
-            out_elem_dev = (parsec_device_cuda_module_t*)parsec_mca_device_get( copy_out->device_index);
-            count = (copy_in->original->nb_elts <= copy_out->original->nb_elts) ? copy_in->original->nb_elts :
-                        copy_out->original->nb_elts;
-            ret = (cudaError_t)cudaMemcpyAsync( copy_out->device_private,
-                                                copy_in->device_private,
+            source = task->data[i].data_out;
+            dest = source->original->device_copies[0];
+            dest_dev = (parsec_device_cuda_module_t*)parsec_mca_device_get(dest->device_index);
+            count = (source->original->nb_elts <= dest->original->nb_elts) ? source->original->nb_elts :
+                        dest->original->nb_elts;
+            ret = (cudaError_t)cudaMemcpyAsync( dest->device_private,
+                                                source->device_private,
                                                 count,
-                                                out_elem_dev->super.super.type != PARSEC_DEV_CUDA ?
+                                                dest_dev->super.super.type != PARSEC_DEV_CUDA ?
                                                     cudaMemcpyDeviceToHost : cudaMemcpyDeviceToDevice,
                                                 cuda_stream->cuda_stream );
-            PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", ret, { return PARSEC_ERROR; } );
+            PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", ret, { return PARSEC_HOOK_RETURN_ERROR; } );
         }
     }
-    return PARSEC_SUCCESS;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 /**
  * If the most current version of the data is not yet available on the GPU memory
  * schedule a transfer.
- * Returns:
- *    0: The most recent version of the data is already available on the GPU
+ * Returns hook special retrun codes or a positive number:
+ *    HOOK_DONE: The most recent version of the data is already available on the GPU
  *    1: A copy has been scheduled on the corresponding stream
- *   -1: A copy cannot be issued due to CUDA.
+ *   HOOK_ERROR: A copy cannot be issued due to CUDA.
  */
 static inline int
 parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
@@ -1273,9 +1256,8 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
 {
     parsec_device_gpu_module_t *gpu_device = &cuda_device->super;
     int32_t type = flow->flow_flags;
-    parsec_data_copy_t* in_elem = task_data->data_in;
-    parsec_data_copy_t* release_after_data_in_is_attached = NULL;
-    parsec_data_t* original = in_elem->original;
+    parsec_data_copy_t *candidate = task_data->data_in;  /* best candidate for now */
+    parsec_data_t* original = candidate->original;
     parsec_gpu_data_copy_t* gpu_elem = task_data->data_out;
     uint32_t nb_elts = gpu_task->flow_nb_elts[flow->flow_index];
     int transfer_from = -1;
@@ -1289,6 +1271,7 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
 
     parsec_atomic_lock( &original->lock );
 
+    gpu_task->sources[flow->flow_index] = candidate;  /* default source for the transfer */
     /**
      * If the data will be accessed in write mode, remove it from any GPU data management
      * lists until the task is completed.
@@ -1300,8 +1283,6 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
                                "(possible anti-dependency,\n"
                                "or concurrent accesses), please prevent that with CTL dependencies\n",
                                gpu_device->super.name, gpu_elem, gpu_elem->super.super.obj_reference_count, gpu_elem->readers);
-                parsec_atomic_unlock( &original->lock );
-                return -1;
             }
         }
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
@@ -1314,11 +1295,11 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
 
     /* Detect if we can do a device to device copy.
      * Current limitations: only for read-only data used read-only on the hosting GPU. */
-    parsec_device_cuda_module_t *in_elem_dev = (parsec_device_cuda_module_t*)parsec_mca_device_get( in_elem->device_index );
+    parsec_device_cuda_module_t *candidate_dev = (parsec_device_cuda_module_t*)parsec_mca_device_get( candidate->device_index );
     if( (PARSEC_FLOW_ACCESS_READ & type) && !(PARSEC_FLOW_ACCESS_WRITE & type) ) {
         int potential_alt_src = 0;
-        if( PARSEC_DEV_CUDA == in_elem_dev->super.super.type ) {
-            if( gpu_device->peer_access_mask & (1 << in_elem_dev->cuda_index) ) {
+        if( PARSEC_DEV_CUDA == candidate_dev->super.super.type ) {
+            if( gpu_device->peer_access_mask & (1 << candidate_dev->cuda_index) ) {
                 /* We can directly do D2D, so let's skip the selection */
                 goto src_selected;
             }
@@ -1331,39 +1312,34 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
 
         for(int t = 1; t < (int)parsec_nb_devices; t++) {
             parsec_device_cuda_module_t *target = (parsec_device_cuda_module_t*)parsec_mca_device_get(t);
+            if( !(gpu_device->peer_access_mask & (1 << target->cuda_index)) ) continue;
             if( PARSEC_DEV_CUDA != target->super.super.type ) continue;
-            if(gpu_device->peer_access_mask & (1 << target->cuda_index)) {
-                parsec_data_copy_t *candidate = original->device_copies[t];
-                if( NULL != candidate && candidate->version == in_elem->version ) {
-                    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                         "GPU[%s]:\tData copy %p [ref_count %d] on CUDA device %d is a potential alternative source for in_elem %p on data %p",
-                                         gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->cuda_index, in_elem, original);
-                    if(PARSEC_DATA_COHERENCY_INVALID == candidate->coherency_state) {
-                        /* We're already pulling this data on candidate...
-                         * If there is another candidate that already has it, we'll use
-                         * that one; otherwise, we'll fall back on the CPU version. */
-                        potential_alt_src = 1;
-                        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                             "GPU[%s]:\tData copy %p [ref_count %d] on CUDA device %d is invalid, continuing to look for alternatives",
-                                             gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->cuda_index);
-                        continue;
-                    }
-                    /* candidate is the best candidate to do D2D. Let's register as a reader for this
-                     * data copy, and we can unlock and schedule the D2D. */
-                    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                         "GPU[%s]:\tData copy %p [ref_count %d] on CUDA device %d is the best candidate to to Device to Device copy, increasing its readers to %d",
-                                         gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->cuda_index, candidate->readers+1);
-                    parsec_atomic_fetch_inc_int32( &candidate->readers );
-                    undo_readers_inc_if_no_transfer = 1;
-                    /* We swap data_in with candidate, so we update the reference counters */
-                    PARSEC_OBJ_RETAIN(candidate);
-                    release_after_data_in_is_attached = task_data->data_in;
-                    task_data->data_in = candidate;
-                    in_elem = candidate;
-                    in_elem_dev = target;
-                    goto src_selected;
-                }
+
+            candidate = original->device_copies[t];
+            if( (NULL == candidate) || (candidate->version != task_data->data_in->version) ) continue;
+
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                 "GPU[%s]:\tData copy %p [ref_count %d] on CUDA device %d is a potential alternative source for data_in %p on data %p",
+                                 gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->cuda_index, task_data->data_in, original);
+            if(PARSEC_DATA_COHERENCY_INVALID == candidate->coherency_state) {
+                /* We're already pulling this data on candidate...
+                 * If there is another candidate that already has it, we'll use
+                 * that one; otherwise, we'll fall back on the CPU version. */
+                potential_alt_src = 1;
+                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                     "GPU[%s]:\tData copy %p [ref_count %d] on CUDA device %d is invalid, continuing to look for alternatives",
+                                     gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->cuda_index);
+                continue;
             }
+            /* candidate is the best candidate to do D2D. Let's register as a reader for this
+             * data copy, and we can unlock and schedule the D2D. */
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                 "GPU[%s]:\tData copy %p [ref_count %d] on CUDA device %d is the best candidate to do Device to Device copy, increasing its readers to %d",
+                                 gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->cuda_index, candidate->readers+1);
+            parsec_atomic_fetch_inc_int32( &candidate->readers );
+            undo_readers_inc_if_no_transfer = 1;
+            candidate_dev = target;
+            goto src_selected;
         }
         if( potential_alt_src ) {
             /* We found a potential alternative source, but it's not ready now,
@@ -1371,20 +1347,17 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
             /** TODO: when considering RW accesses, don't forget to chop gpu_elem
              *        from its queue... */
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "GPU[%s]:\tThere is a potential alternative source for in_elem %p [ref_count %d] in original %p to go in copy %p [ref_count %d], but it is not ready, falling back on CPU source",
-                                 gpu_device->super.name, in_elem, in_elem->super.super.obj_reference_count, original, gpu_elem, gpu_elem->super.super.obj_reference_count);
+                                 "GPU[%s]:\tThere is a potential alternative source for data_in %p [ref_count %d] in original %p to go in copy %p [ref_count %d], but it is not ready, falling back on CPU source",
+                                 gpu_device->super.name, task_data->data_in, task_data->data_in->super.super.obj_reference_count, original, gpu_elem, gpu_elem->super.super.obj_reference_count);
             //return PARSEC_HOOK_RETURN_NEXT;
         }
 
         /* We fall back on the CPU copy */
-        assert( original->device_copies[0] != NULL && in_elem->version == original->device_copies[0]->version );
-        in_elem = original->device_copies[0];
-        assert(task_data->data_in == in_elem);
-        assert(in_elem->device_index == 0);
-        in_elem_dev = (parsec_device_cuda_module_t*)parsec_mca_device_get(in_elem->device_index);
+        candidate = task_data->data_in;
     }
 
  src_selected:
+    /* This might be moved before finding a candidate */
     transfer_from = parsec_data_start_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
 
     if( PARSEC_FLOW_ACCESS_WRITE & type && gpu_task->task_type != PARSEC_GPU_TASK_TYPE_PREFETCH ) {
@@ -1398,142 +1371,136 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
 
     /* If data is from NEW (it doesn't have a source_repo_entry and is not a direct data collection reference), 
      * and nobody has touched it yet, then we don't need to pull it in, we have created it already, that's enough. */
-    if( NULL == task_data->source_repo_entry && NULL == task_data->data_in->original->dc && in_elem->version == 0 )
+    if( NULL == task_data->source_repo_entry && NULL == task_data->data_in->original->dc && candidate->version == 0 )
         transfer_from = -1;
 
     /* Update the transferred required_data_in size */
     gpu_device->super.required_data_in += original->nb_elts;
 
-    /* Do not need to be transferred */
-    if( -1 == transfer_from ) {
-        gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
-    } else {
+    if( -1 != transfer_from ) {
         /* If it is already under transfer, don't schedule the transfer again.
          * This happens if the task refers twice (or more) to the same input flow */
         if( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                                  "GPU[%s]:\t\tMove %s data copy %p [ref_count %d, key %x] of %d bytes\t(src dev: %d, v:%d, ptr:%p, copy:%p [ref_count %d] / dst dev: %d, v:%d, ptr:%p): data copy is already under transfer, ignoring double request",
                                  gpu_device->super.name,
-                                 in_elem_dev->super.super.type == PARSEC_DEV_CUDA ? "D2D": "H2D",
+                                 candidate_dev->super.super.type == PARSEC_DEV_CUDA ? "D2D": "H2D",
                                  gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, nb_elts,
-                                 in_elem_dev->super.super.device_index, in_elem->version, (void*)
-                                 in_elem->device_private, in_elem, in_elem->super.super.obj_reference_count,
+                                 candidate_dev->super.super.device_index, candidate->version,
+                                 (void*)candidate->device_private, candidate, candidate->super.super.obj_reference_count,
                                  gpu_device->super.device_index, gpu_elem->version, (void*)
                                  gpu_elem->device_private);
-        } else {
-            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "GPU[%s]:\t\tMove %s data copy %p [ref_count %d, key %x] of %d bytes\t(src dev: %d, v:%d, ptr:%p, copy:%p [ref_count %d] / dst dev: %d, v:%d, ptr:%p)",
-                                 gpu_device->super.name,
-                                 in_elem_dev->super.super.type == PARSEC_DEV_CUDA ? "D2D": "H2D",
-                                 gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, nb_elts,
-                                 in_elem_dev->super.super.device_index, in_elem->version, (void*)in_elem->device_private, in_elem, in_elem->super.super.obj_reference_count,
-                                 gpu_device->super.device_index, gpu_elem->version, (void*)gpu_elem->device_private);
+            assert(NULL != gpu_elem->push_task);
+            parsec_atomic_unlock( &original->lock );
+            return 1;  /* positive returns have special meaning and are used for optimizations */
+        }
+        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                             "GPU[%s]:\t\tMove %s data copy %p [ref_count %d, key %x] of %d bytes\t(src dev: %d, v:%d, ptr:%p, copy:%p [ref_count %d] / dst dev: %d, v:%d, ptr:%p)",
+                             gpu_device->super.name,
+                             candidate_dev->super.super.type == PARSEC_DEV_CUDA ? "D2D": "H2D",
+                             gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, nb_elts,
+                             candidate_dev->super.super.device_index, candidate->version, (void*)candidate->device_private, candidate, candidate->super.super.obj_reference_count,
+                             gpu_device->super.device_index, gpu_elem->version, (void*)gpu_elem->device_private);
 
-            assert((gpu_elem->version < in_elem->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
+        assert((gpu_elem->version < candidate->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
 
 #if defined(PARSEC_PROF_TRACE)
-            if( gpu_stream->prof_event_track_enable  ) {
-                parsec_profile_data_collection_info_t info;
+        if( gpu_stream->prof_event_track_enable  ) {
+            parsec_profile_data_collection_info_t info;
 
-                if( NULL != original->dc ) {
-                    info.desc    = original->dc;
-                    info.data_id = original->key;
-                } else {
-                    assert( PARSEC_GPU_TASK_TYPE_PREFETCH != gpu_task->task_type );
-                    info.desc    = (parsec_dc_t*)original;
-                    info.data_id = -1;
-                }
-                gpu_task->prof_key_end = -1;
-
-                if( PARSEC_GPU_TASK_TYPE_PREFETCH == gpu_task->task_type && (parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_PREFETCH) ) {
-                    gpu_task->prof_key_end = parsec_gpu_prefetch_key_end;
-                    gpu_task->prof_event_id = (int64_t)gpu_elem->device_private;
-                    gpu_task->prof_tp_id = cuda_device->cuda_index;
-                    PARSEC_PROFILING_TRACE(gpu_stream->profiling,
-                                           parsec_gpu_prefetch_key_start,
-                                           gpu_task->prof_event_id,
-                                           gpu_task->prof_tp_id,
-                                           &info);
-                }
-                if(PARSEC_GPU_TASK_TYPE_PREFETCH != gpu_task->task_type && (parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_DATA_IN) ) {
-                    PARSEC_PROFILING_TRACE(gpu_stream->profiling,
-                                           parsec_gpu_movein_key_start,
-                                           (int64_t)gpu_elem->device_private,
-                                           gpu_device->super.device_index,
-                                           &info);
-                }
-                if(parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) {
-                        parsec_device_gpu_memory_prof_info_t _info;
-                        _info.size = (uint64_t)nb_elts;
-                        _info.data_key = gpu_elem->original->key;
-                        _info.dc_id = (uint64_t)(gpu_elem->original->dc);
-                        parsec_profiling_trace_flags(gpu_stream->profiling,
-                                                     parsec_gpu_use_memory_key_start, (uint64_t)
-                                                     gpu_elem->device_private,
-                                                     gpu_device->super.device_index, &_info,
-                                                     PARSEC_PROFILING_EVENT_HAS_INFO);
-                }
+            if( NULL != original->dc ) {
+                info.desc    = original->dc;
+                info.data_id = original->key;
+            } else {
+                assert( PARSEC_GPU_TASK_TYPE_PREFETCH != gpu_task->task_type );
+                info.desc    = (parsec_dc_t*)original;
+                info.data_id = -1;
             }
-#endif
-            /* Push data into the GPU from the source device */
-            if(PARSEC_SUCCESS != (gpu_task->stage_in ? gpu_task->stage_in(gpu_task, (1U << flow->flow_index), gpu_stream): PARSEC_SUCCESS)) {
-                parsec_warning( "%s:%d %s", __FILE__, __LINE__,
-                                "gpu_task->stage_in");
-                if( in_elem_dev->super.super.type != PARSEC_DEV_CUDA ) {
-                    parsec_warning("<<%p>> -> <<%p on CUDA device %d>> [%d, H2D]",
-                                   in_elem->device_private, gpu_elem->device_private, cuda_device->cuda_index,
-                                   nb_elts);
-                } else {
-                    parsec_warning("<<%p on CUDA device %d>> -> <<%p on CUDA device %d>> [%d, D2D]",
-                                   in_elem->device_private, in_elem_dev->cuda_index,
-                                   gpu_elem->device_private, cuda_device->cuda_index,
-                                   nb_elts);
-                }
-                parsec_atomic_unlock( &original->lock );
-                if( NULL != release_after_data_in_is_attached )
-                    PARSEC_OBJ_RELEASE(release_after_data_in_is_attached);
-                assert(0);
-                return -1;
+            gpu_task->prof_key_end = -1;
+
+            if( PARSEC_GPU_TASK_TYPE_PREFETCH == gpu_task->task_type && (parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_PREFETCH) ) {
+                gpu_task->prof_key_end = parsec_gpu_prefetch_key_end;
+                gpu_task->prof_event_id = (int64_t)gpu_elem->device_private;
+                gpu_task->prof_tp_id = cuda_device->cuda_index;
+                PARSEC_PROFILING_TRACE(gpu_stream->profiling,
+                                       parsec_gpu_prefetch_key_start,
+                                       gpu_task->prof_event_id,
+                                       gpu_task->prof_tp_id,
+                                       &info);
             }
-            assert(in_elem_dev->super.super.device_index < gpu_device->super.data_in_array_size);
-            gpu_device->super.data_in_from_device[in_elem_dev->super.super.device_index] += nb_elts;
-            if( PARSEC_GPU_TASK_TYPE_KERNEL == gpu_task->task_type )
-                gpu_device->super.nb_data_faults += nb_elts;
-
-            /* update the data version in GPU immediately, and mark the data under transfer */
-            assert((gpu_elem->version != in_elem->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
-            gpu_elem->version = in_elem->version;
-            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "GPU[%s]: GPU copy %p [ref_count %d] gets the same version %d as copy %p [ref_count %d] at %s:%d",
-                                 gpu_device->super.name,
-                                 gpu_elem, gpu_elem->super.super.obj_reference_count, gpu_elem->version, in_elem, in_elem->super.super.obj_reference_count,
-                                 __FILE__, __LINE__);
-
-            gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
+            if(PARSEC_GPU_TASK_TYPE_PREFETCH != gpu_task->task_type && (parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_DATA_IN) ) {
+                PARSEC_PROFILING_TRACE(gpu_stream->profiling,
+                                       parsec_gpu_movein_key_start,
+                                       (int64_t)gpu_elem->device_private,
+                                       gpu_device->super.device_index,
+                                       &info);
+            }
+            if(parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) {
+                parsec_device_gpu_memory_prof_info_t _info;
+                _info.size = (uint64_t)nb_elts;
+                _info.data_key = gpu_elem->original->key;
+                _info.dc_id = (uint64_t)(gpu_elem->original->dc);
+                parsec_profiling_trace_flags(gpu_stream->profiling,
+                                             parsec_gpu_use_memory_key_start, (uint64_t)
+                                             gpu_elem->device_private,
+                                             gpu_device->super.device_index, &_info,
+                                             PARSEC_PROFILING_EVENT_HAS_INFO);
+            }
         }
+#endif
+        gpu_task->sources[flow->flow_index] = candidate;  /* save the candidate for release on transfer completion */
+        /* Push data into the GPU from the source device */
+        if(PARSEC_SUCCESS != (gpu_task->stage_in ? gpu_task->stage_in(gpu_task, (1U << flow->flow_index), gpu_stream): PARSEC_SUCCESS)) {
+            parsec_warning( "%s:%d %s", __FILE__, __LINE__, "gpu_task->stage_in");
+            if( candidate_dev->super.super.type != PARSEC_DEV_CUDA ) {
+                parsec_warning("<<%p>> -> <<%p on CUDA device %d>> [%d, H2D]",
+                               candidate->device_private, gpu_elem->device_private, cuda_device->cuda_index,
+                               nb_elts);
+            } else {
+                parsec_warning("<<%p on CUDA device %d>> -> <<%p on CUDA device %d>> [%d, D2D]",
+                               candidate->device_private, candidate_dev->cuda_index,
+                               gpu_elem->device_private, cuda_device->cuda_index,
+                               nb_elts);
+            }
+            parsec_atomic_unlock( &original->lock );
+            assert(0);
+            return PARSEC_HOOK_RETURN_ERROR;
+        }
+        assert(candidate_dev->super.super.device_index < gpu_device->super.data_in_array_size);
+        gpu_device->super.data_in_from_device[candidate_dev->super.super.device_index] += nb_elts;
+        if( PARSEC_GPU_TASK_TYPE_KERNEL == gpu_task->task_type )
+            gpu_device->super.nb_data_faults += nb_elts;
+
+        /* update the data version in GPU immediately, and mark the data under transfer */
+        assert((gpu_elem->version != candidate->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
+        gpu_elem->version = candidate->version;
+        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                             "GPU[%s]: GPU copy %p [ref_count %d] gets the same version %d as copy %p [ref_count %d] at %s:%d",
+                             gpu_device->super.name,
+                             gpu_elem, gpu_elem->super.super.obj_reference_count, gpu_elem->version, candidate, candidate->super.super.obj_reference_count,
+                             __FILE__, __LINE__);
+
+        gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
         gpu_elem->push_task = gpu_task->ec;  /* only the task who does the transfer can modify the data status later. */
+
         parsec_atomic_unlock( &original->lock );
-        if( NULL != release_after_data_in_is_attached )
-            PARSEC_OBJ_RELEASE(release_after_data_in_is_attached);
-        return 1;
+        return 1;  /* positive returns have special meaning and are used for optimizations */
     }
+    /* Do not need to be transferred */
+    gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
     if( undo_readers_inc_if_no_transfer )
-        parsec_atomic_fetch_dec_int32( &in_elem->readers );
+        parsec_atomic_fetch_dec_int32( &candidate->readers );
     assert( transfer_from == -1 || gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_COMPLETE_TRANSFER );
 
     parsec_data_end_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
 
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                         "GPU[%s]:\t\tNO Move %s for data copy %p [ref_count %d, key %x] of %d bytes (host v:%d / device v:%d)",
+                         "GPU[%s]:\t\tNO Move for data copy %p [ref_count %d, key %x]",
                          gpu_device->super.name,
-                         (NULL == in_elem_dev) ? "h2d" : (in_elem_dev->super.super.type == PARSEC_DEV_CUDA ? "D2D": "H2D"),
-                         gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, nb_elts,
-                         in_elem->version, gpu_elem->version);
+                         gpu_elem, gpu_elem->super.super.obj_reference_count, original->key);
     parsec_atomic_unlock( &original->lock );
-    if( NULL != release_after_data_in_is_attached )
-        PARSEC_OBJ_RELEASE(release_after_data_in_is_attached);
     /* TODO: data keeps the same coherence flags as before */
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 
@@ -1576,25 +1543,21 @@ static parsec_task_class_t parsec_cuda_data_prefetch_tc = {
 };
 
 static int
-parsec_cuda_destroy_task(parsec_device_gpu_module_t* gpu_device,
-                         parsec_gpu_task_t** out_task)
+parsec_cuda_release_resources_prefetch_task(parsec_device_gpu_module_t* gpu_device,
+					    parsec_gpu_task_t** out_task)
 {
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
     parsec_gpu_task_t *gpu_task = *out_task;
     (void)gpu_device;
-    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]: Destroying task %s (%p with ec %p)",
+    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]: Releasing resources for task %s (%p with ec %p)",
                          gpu_device->super.name, parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
                          gpu_task, gpu_task->ec);
-    assert( PARSEC_GPU_TASK_TYPE_PREFETCH == gpu_task->task_type || PARSEC_GPU_TASK_TYPE_D2D_COMPLETE == gpu_task->task_type );
-    if( PARSEC_GPU_TASK_TYPE_PREFETCH == gpu_task->task_type) PARSEC_DATA_COPY_RELEASE( gpu_task->ec->data[0].data_in);
-    PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream, "GPU[%s]: gpu_task %p freed at %s:%d\n",
-                         gpu_device->super.name, gpu_task, __FILE__, __LINE__);
+    assert( PARSEC_GPU_TASK_TYPE_PREFETCH == gpu_task->task_type );
+    PARSEC_DATA_COPY_RELEASE( gpu_task->ec->data[0].data_in);
     free( gpu_task->ec );
     gpu_task->ec = NULL;
-    free( *out_task );
-    *out_task = NULL;
     return 0;
 }
 
@@ -1807,7 +1770,8 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
         assert( flow );
         assert( flow->flow_index == i );
         if(PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & flow->flow_flags)) continue;
-        if(task->data[i].data_out->push_task == task ) {   /* only the task who did this PUSH can modify the status */
+        if(PARSEC_DATA_STATUS_UNDER_TRANSFER == task->data[i].data_out->data_transfer_status ) {
+            assert(task->data[i].data_out->push_task == task );  /* only the task who did this PUSH can modify the status */
             parsec_atomic_lock(&task->data[i].data_out->original->lock);
             task->data[i].data_out->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
             parsec_data_end_transfer_ownership_to_copy(task->data[i].data_out->original,
@@ -1824,8 +1788,9 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
 #endif
             task->data[i].data_out->push_task = NULL;
             parsec_atomic_unlock(&task->data[i].data_out->original->lock);
+            parsec_data_copy_t* source = gtask->sources[i];
             parsec_device_gpu_module_t *src_device =
-                    (parsec_device_gpu_module_t*)parsec_mca_device_get( task->data[i].data_in->device_index );
+                    (parsec_device_gpu_module_t*)parsec_mca_device_get( source->device_index );
             if( PARSEC_DEV_CUDA == src_device->super.type ) {
                 int om;
                 while(1) {
@@ -1861,26 +1826,26 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                     int rc;
                     /* Nobody is at the door to handle that event on the source of that data...
                      * we do the command directly */
-                    parsec_atomic_lock( &task->data[i].data_in->original->lock );
-                    task->data[i].data_in->readers--;
+                    parsec_atomic_lock( &source->original->lock );
+                    source->readers--;
                     PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                          "GPU[%s]:\tExecuting D2D transfer complete for copy %p [ref_count %d] for "
                                          "device %s -- readers now %d",
-                                         gpu_device->super.name, task->data[i].data_in,
-                                         task->data[i].data_in->super.super.obj_reference_count, src_device->super.name,
-                                         task->data[i].data_in->readers);
-                    assert(task->data[i].data_in->readers >= 0);
-                    if(0 == task->data[i].data_in->readers) {
+                                         gpu_device->super.name, source,
+                                         source->super.super.obj_reference_count, src_device->super.name,
+                                         source->readers);
+                    assert(source->readers >= 0);
+                    if(0 == source->readers) {
                         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                              "GPU[%s]:\tMake read-only copy %p [ref_count %d] available",
-                                             gpu_device->super.name, task->data[i].data_in,
-                                             task->data[i].data_in->super.super.obj_reference_count);
-                        parsec_list_item_ring_chop((parsec_list_item_t*)task->data[i].data_in);
-                        PARSEC_LIST_ITEM_SINGLETON(task->data[i].data_in);
-                        parsec_list_push_back(&src_device->gpu_mem_lru, (parsec_list_item_t*)task->data[i].data_in);
+                                             gpu_device->super.name, source,
+                                             source->super.super.obj_reference_count);
+                        parsec_list_item_ring_chop((parsec_list_item_t*)source);
+                        PARSEC_LIST_ITEM_SINGLETON(source);
+                        parsec_list_push_back(&src_device->gpu_mem_lru, (parsec_list_item_t*)source);
                         src_device->data_avail_epoch++;
                     }
-                    parsec_atomic_unlock( &task->data[i].data_in->original->lock );
+                    parsec_atomic_unlock( &source->original->lock );
                     /* Notify any waiting thread that we're done messing with that device structure */
                     rc = parsec_atomic_cas_int32(&src_device->mutex, -1, 0); (void)rc;
                     assert(rc);
@@ -1888,9 +1853,9 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                     PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                          "GPU[%s]:\tSending D2D transfer complete command to %s for copy %p "
                                          "[ref_count %d] -- readers is still %d",
-                                         gpu_device->super.name, src_device->super.name, task->data[i].data_in,
-                                         task->data[i].data_in->super.super.obj_reference_count, task->data[i].data_in->readers);
-                    parsec_gpu_send_transfercomplete_cmd_to_device(task->data[i].data_in,
+                                         gpu_device->super.name, src_device->super.name, source,
+                                         source->super.super.obj_reference_count, source->readers);
+                    parsec_gpu_send_transfercomplete_cmd_to_device(source,
                                                                    (parsec_device_module_t*)gpu_device,
                                                                    (parsec_device_module_t*)src_device);
                 }
@@ -1906,13 +1871,12 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                              "all is good" : "Assertion",
                              task->data[i].data_out->data_transfer_status);
         assert(task->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
-        if( task->data[i].data_out->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {  /* data is not
- * ready */
+        if( task->data[i].data_out->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {  /* data is not ready */
             /**
              * As long as we have only one stream to push the data on the GPU we should never
              * end up in this case. Remove previous assert if changed.
              */
-            return -1;
+            return PARSEC_HOOK_RETURN_ERROR;
         }
     }
     gtask->complete_stage = NULL;
@@ -1942,10 +1906,11 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                                  gpu_device->super.name, gpu_copy, gpu_copy->super.super.obj_reference_count, gtask, gtask->ec);
             parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
         }
-        return parsec_cuda_destroy_task(gpu_device, gpu_task);
+        (void)parsec_cuda_release_resources_prefetch_task(gpu_device, gpu_task);
+        return PARSEC_HOOK_RETURN_ASYNC;
     }
 
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 /**
@@ -2014,17 +1979,7 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
                 *out_task = NULL;
                 goto schedule_task;
             }
-            if( PARSEC_HOOK_RETURN_ASYNC == task->last_status ) {
-                /* the corresponding CPU task will be rescheduled at a later date by external means,
-                 * meanwhile we can release the GPU task.
-                 */
-                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                     "GPU[%s]: GPU task %p[%p] has been removed by the progress function",
-                                     gpu_device->super.name, (void*)task, (void*)task->ec);
-                *out_task = task;
-                /* Go back in the GPU scheduler to release the task and do the accounting */
-                return PARSEC_HOOK_RETURN_ASYNC;
-            }
+            assert( PARSEC_HOOK_RETURN_ASYNC != task->last_status );
             rc = PARSEC_HOOK_RETURN_DONE;
             if (task->complete_stage)
                 rc = task->complete_stage(gpu_device, out_task, stream);
@@ -2051,9 +2006,8 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
   schedule_task:
     rc = progress_fct( gpu_device, task, stream );
     if( 0 > rc ) {
-        if( PARSEC_HOOK_RETURN_AGAIN != rc &&
-            PARSEC_HOOK_RETURN_ASYNC != rc ) {
-            *out_task = task;
+        if( PARSEC_HOOK_RETURN_AGAIN != rc ) {
+           *out_task = task;
             return rc;
         }
 
@@ -2069,6 +2023,7 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
                              "trigger the task will be handled accordingly",
                              gpu_device->super.name, (void*)task);
     }
+    task->last_status = rc;
     /**
      * Do not skip the cuda event generation. The problem is that some of the inputs
      * might be in the pipe of being transferred to the GPU. If we activate this task
@@ -2077,7 +2032,7 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
      */
     rc = cudaEventRecord( cuda_stream->events[stream->start], cuda_stream->cuda_stream );
     assert(cudaSuccess == rc);
-    stream->tasks[stream->start]    = task;
+    stream->tasks[stream->start] = task;
     stream->start = (stream->start + 1) % stream->max_events;
     PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                          "GPU[%s]: Submitted %s(task %p) priority %d on stream %s{%p}",
@@ -2111,10 +2066,9 @@ parsec_cuda_kernel_push( parsec_device_gpu_module_t      *gpu_device,
     char tmp[MAX_TASK_STRLEN];
 #endif
 
-#if 0
+    /* if not changes were made to the available memory dont waste time */
     if( gpu_task->last_data_check_epoch == gpu_device->data_avail_epoch )
         return PARSEC_HOOK_RETURN_AGAIN;
-#endif
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                          "GPU[%s]: Try to Push %s",
                          gpu_device->super.name,
@@ -2127,7 +2081,7 @@ parsec_cuda_kernel_push( parsec_device_gpu_module_t      *gpu_device,
                                  "GPU[%s]: %s has been released already, destroying prefetch request",
                                  gpu_device->super.name,
                                  parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task));
-            parsec_cuda_destroy_task(gpu_device, &gpu_task);
+            parsec_cuda_release_resources_prefetch_task(gpu_device, &gpu_task);
             return PARSEC_HOOK_RETURN_ASYNC;
         }
         if( NULL != gpu_task->ec->data[0].data_in->original->device_copies[gpu_device->super.device_index] &&
@@ -2139,7 +2093,7 @@ parsec_cuda_kernel_push( parsec_device_gpu_module_t      *gpu_device,
                                  parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
                                  gpu_device->super.device_index,
                                  gpu_task->ec->data[0].data_in->original->device_copies[gpu_device->super.device_index]);
-            parsec_cuda_destroy_task(gpu_device, &gpu_task);
+            parsec_cuda_release_resources_prefetch_task(gpu_device, &gpu_task);
             return PARSEC_HOOK_RETURN_ASYNC;
         }
     }
@@ -2238,17 +2192,15 @@ parsec_cuda_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
     }
 #endif /* defined(PARSEC_DEBUG_PARANOID) */
 
-    int rc = progress_fct( gpu_device, gpu_task, gpu_stream );
-    gpu_task->last_status = rc;  /* save the status of the task */
     (void)this_task;
-    return rc;
+    return progress_fct( gpu_device, gpu_task, gpu_stream );
 }
 
 /**
  *  This function schedule the move of all the modified data for a
  *  specific task from the GPU memory into the main memory.
  *
- *  Returns: negative number if any error occurred.
+ *  Returns: HOOK_ERROR if any error occurred.
  *           positive: the number of data to be moved.
  */
 static int
@@ -2277,11 +2229,11 @@ parsec_cuda_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                                 "gpu_task->stage_out from device ");
                 parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->task_class->out[i]->name,
                                 gpu_copy->device_private, original->device_copies[0]->device_private);
-                return_code = -2;
+                return_code = PARSEC_HOOK_RETURN_DISABLE;
                 goto release_and_return_error;
             }
         }
-        return return_code;
+        return PARSEC_HOOK_RETURN_DONE;
     }
 
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
@@ -2311,18 +2263,24 @@ parsec_cuda_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
         if( !(flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
             /* Do not propagate GPU copies to successors (temporary solution) */
             this_task->data[i].data_out = original->device_copies[0];
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                 "GPU[%s]: pop %s swap %d GPU read-only data_out %p [ref_count %d] with the corresponding CPU copy %p [ref_count %d] original %p",
+                                     gpu_device->super.name,
+                                     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task), i,
+                                     gpu_copy, gpu_copy->super.super.obj_reference_count,
+                                     this_task->data[i].data_out, this_task->data[i].data_out->super.super.obj_reference_count,
+                                     original);
         }
         parsec_atomic_lock(&original->lock);
         if( flow->flow_flags & PARSEC_FLOW_ACCESS_READ ) {
             gpu_copy->readers--;
             if( gpu_copy->readers < 0 ) {
                 PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                     "GPU[%s]: While trying to Pop %s, gpu_copy %p [ref_count %d] on flow %d with original %p had already 0 readers",
+                                     "GPU[%s]: While trying to Pop %s, gpu_copy %p [ref_count %d] on flow %d with original %p had a negative number of readers (%d)",
                                      gpu_device->super.name,
                                      parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task),
                                      gpu_copy, gpu_copy->super.super.obj_reference_count,
-                                     i, original);
-
+                                     i, original, gpu_copy->readers);
             }
             assert(gpu_copy->readers >= 0);
             if( (0 == gpu_copy->readers) &&
@@ -2391,7 +2349,7 @@ parsec_cuda_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                                     "gpu_task->stage_out from device ");
                     parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->task_class->out[i]->name,
                                    gpu_copy->device_private, original->device_copies[0]->device_private);
-                    return_code = -2;
+                    return_code = PARSEC_HOOK_RETURN_DISABLE;
                     parsec_atomic_unlock(&original->lock);
                     goto release_and_return_error;
                 }
@@ -2673,16 +2631,20 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
                           parsec_cuda_kernel_push,
                           gpu_task, &progress_task );
     if( rc < 0 ) {  /* In case of error progress_task is the task that raised it */
-        if( -1 == rc )
+        if( PARSEC_HOOK_RETURN_ERROR == rc )
             goto disable_gpu;
         /* We are in the early stages, and if there no room on the GPU for a task we need to
          * delay all retries for the same task for a little while. Meanwhile, put the task back
          * trigger a device flush, and keep executing tasks that have their data on the device.
          */
-        if( NULL != progress_task ) {
-            PARSEC_PUSH_TASK(gpu_device->exec_stream[0]->fifo_pending, (parsec_list_item_t*)progress_task);
+        if( PARSEC_HOOK_RETURN_ASYNC == rc ) {
+            gpu_task = progress_task;
             progress_task = NULL;
+            goto remove_gpu_task;
         }
+        assert(NULL == progress_task);
+
+        /* TODO: check this */
         /* If we can extract data go for it, otherwise try to drain the pending tasks */
         gpu_task = parsec_gpu_create_w2r_task(gpu_device, es);
         if( NULL != gpu_task )
@@ -2702,12 +2664,13 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
                           parsec_cuda_kernel_exec,
                           gpu_task, &progress_task );
     if( rc < 0 ) {
-        if( PARSEC_HOOK_RETURN_DISABLE == rc )
+        if( (PARSEC_HOOK_RETURN_DISABLE == rc) || (PARSEC_HOOK_RETURN_ERROR == rc) )
             goto disable_gpu;
         if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
             /* Reschedule the task. As the chore_id has been modified,
                another incarnation of the task will be executed. */
             if( NULL != progress_task ) {
+	        assert(PARSEC_HOOK_RETURN_NEXT == rc);
                 parsec_cuda_kernel_cleanout(gpu_device, progress_task);
                 __parsec_reschedule(es, progress_task->ec);
                 gpu_task = progress_task;
@@ -2736,7 +2699,7 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
                           parsec_cuda_kernel_pop,
                           gpu_task, &progress_task );
     if( rc < 0 ) {
-        if( -1 == rc )
+        if( (PARSEC_HOOK_RETURN_ERROR == rc) || (PARSEC_HOOK_RETURN_DISABLE == rc) )
             goto disable_gpu;
     }
     if( NULL != progress_task ) {
@@ -2809,7 +2772,7 @@ parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
 #endif  /* defined(PARSEC_PROF_TRACE) */
         PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,"GPU[%s]: Leaving GPU management at %s:%d", 
                              gpu_device->super.name, __FILE__, __LINE__);
-
+	/* inform the upper layer not to use the task argument, it has been long gone */
         return PARSEC_HOOK_RETURN_ASYNC;
     }
     gpu_task = progress_task;
