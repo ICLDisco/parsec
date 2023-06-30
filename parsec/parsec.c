@@ -1215,6 +1215,11 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_mempool_stats(context);
 #endif  /* PARSEC_PROF_TRACE */
 
+    /* PAPI SDE needs to process the shutdown before resources exposed to it are freed.
+     * This includes scheduling resources, so SDE needs to be finalized before the 
+     * computation threads leave */
+    PARSEC_PAPI_SDE_FINI();
+
     (void) parsec_termdet_fini();
 
     (void)parsec_comm_engine_fini(&parsec_ce);
@@ -1250,8 +1255,6 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_hwloc_fini();
 #endif  /* PARSEC_HAVE_HWLOC_BITMAP */
-
-    PARSEC_PAPI_SDE_FINI();
 
     if (parsec_app_name != NULL ) {
         free(parsec_app_name);
