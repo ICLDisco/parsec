@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     int nb_gpus = 0;
     int info = 0;
 
-    while ((ch = getopt(argc, argv, "m:N:t:s:S:P:c:g:h:")) != -1) {
+    while ((ch = getopt(argc, argv, "m:N:t:s:S:P:c:g:h")) != -1) {
         switch (ch) {
             case 'm': m = atoi(optarg); break;
             case 'N': N = atoi(optarg); break;
@@ -75,6 +75,7 @@ int main(int argc, char *argv[])
                         "-P : rows (P) in the PxQ process grid (default: 1)\n"
                         "-c : number of cores used (default: -1)\n"
                         "-g : number of GPUs used (default: 0)\n"
+                        "-h : print this help message\n"
                         "\n");
                  exit(1);
         }
