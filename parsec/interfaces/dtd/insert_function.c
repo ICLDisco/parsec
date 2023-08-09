@@ -40,6 +40,10 @@
 
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/mca/device/cuda/device_cuda.h"
+#include "parsec/sys/tls.h"
+
+extern PARSEC_TLS_DECLARE(co_manager_tls);
+
 #endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 
 #include "parsec/mca/mca_repository.h"
@@ -224,8 +228,8 @@ static int parsec_dtd_taskpool_leave_wait(parsec_taskpool_t* tp, void*_)
     parsec_termdet_open_module(tp, "local");
     tp->tdm.module->monitor_taskpool(tp, parsec_taskpool_termination_detected);
     tp->tdm.module->taskpool_set_nb_tasks(tp, 0);
-    tp->tdm.module->taskpool_set_runtime_actions(tp, 0); 
-    
+    tp->tdm.module->taskpool_set_runtime_actions(tp, 0);
+
     /* We are re-attached to the context */
     parsec_atomic_fetch_inc_int32(&tp->context->active_taskpools);
     return PARSEC_SUCCESS;
@@ -721,7 +725,7 @@ parsec_dtd_add_profiling_info(parsec_taskpool_t *tp,
 }
 
 void
-parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp, 
+parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp,
                                       const char *name,
                                       int *keyin, int *keyout)
 {
@@ -1002,7 +1006,7 @@ parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
     } else {
         char *fc = fill_color(tc->super.task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
         parsec_profiling_add_dictionary_keyword(tc->super.name, fc,
-                                                sizeof(parsec_task_prof_info_t)+info_size, 
+                                                sizeof(parsec_task_prof_info_t)+info_size,
                                                 info_str,
                                                 (int *)&PARSEC_PROF_FUNC_KEY_START(&tp->super, tc->super.task_class_id),
                                                 (int *)&PARSEC_PROF_FUNC_KEY_END(&tp->super, tc->super.task_class_id));
@@ -1789,9 +1793,63 @@ parsec_dtd_release_deps(parsec_execution_stream_t *es,
 
     /* Scheduling tasks */
     if( action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS ) {
-        __parsec_schedule_vp(es, arg.ready_lists, 0);
-    }
+        int nb_task_rings = es->virtual_process->parsec_context->nb_vp;
 
+        /* Iterating through the task rings */
+        for(int vp = 0; vp < nb_task_rings; vp++ ){
+            const parsec_vp_t** vps = (const parsec_vp_t**)es->virtual_process->parsec_context->virtual_processes;
+            parsec_execution_stream_t* target_es = vps[vp]->execution_streams[0];
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+            parsec_device_module_t** co_manager_tls_val = PARSEC_TLS_GET_SPECIFIC(co_manager_tls);
+
+            if( co_manager_tls_val != NULL ) {
+            /* I am the co-manager */
+
+                parsec_task_t* task_ring = arg.ready_lists[vp];
+                parsec_task_t* current_task = task_ring;
+#if defined(PARSEC_DEBUG_NOISIER)
+                char tmp[MAX_TASK_STRLEN];
+#endif
+                /* iterate through the single tasks */
+                while ( task_ring != NULL )
+                {
+                    task_ring = (parsec_task_t*)parsec_list_item_ring_chop( &current_task->super );
+                    parsec_list_item_singleton( (parsec_list_item_t*)current_task );
+
+                    if (PARSEC_DTD_FLUSH_TC_ID == current_task->task_class->task_class_id)
+                    {
+                        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,"GPU[%s]: Thread %d scheduling task %s at %s:%d",
+                                            ((parsec_device_module_t*)*co_manager_tls_val)->name, es->th_id,
+                                            parsec_task_snprintf(tmp, MAX_TASK_STRLEN, current_task), __FILE__, __LINE__);
+                        __parsec_schedule(target_es, current_task, 0);
+                    }
+                    else
+                    {
+                        /* try to skip the scheduler */
+                        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,"GPU[%s]: Thread %d try executing task %s %p at %s:%d",
+                                                ((parsec_device_module_t*)*co_manager_tls_val)->name, es->th_id,
+                                                parsec_task_snprintf(tmp, MAX_TASK_STRLEN, current_task), current_task, __FILE__, __LINE__);
+                        int rc = __parsec_execute(target_es, current_task);
+                        if( rc != PARSEC_HOOK_RETURN_ASYNC ){
+                            /* failed to shortcut, scheduling normally */
+                            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,"GPU[%s]: Thread %d resort to scheduling task %s %p at %s:%d",
+                                                    ((parsec_device_module_t*)*co_manager_tls_val)->name, es->th_id,
+                                                    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, current_task), current_task, __FILE__, __LINE__);
+                            __parsec_schedule(target_es, current_task, 0);
+                        }
+
+                    }
+                    current_task = task_ring;
+                }
+                arg.ready_lists[vp] = NULL;
+            }
+#endif /* PARSEC_HAVE_DEV_CUDA_SUPPORT */
+            if(arg.ready_lists[vp] != NULL ) {
+                __parsec_schedule(target_es, arg.ready_lists[vp], 0);
+                arg.ready_lists[vp] = NULL;
+            }
+        }
+    }
     PARSEC_PINS(es, RELEASE_DEPS_END, this_task);
     return 0;
 }
@@ -2127,7 +2185,7 @@ parsec_dtd_create_task_classv(const char *name,
             (flow_count * sizeof(parsec_dtd_descendant_info_t)) +
             (flow_count * sizeof(parsec_dtd_flow_info_t)) +
             (nb_params * sizeof(parsec_dtd_task_param_t)) +
-            total_size_of_param); 
+            total_size_of_param);
 
     parsec_mempool_construct(&dtd_tc->context_mempool,
                              PARSEC_OBJ_CLASS(parsec_dtd_task_t), total_size,

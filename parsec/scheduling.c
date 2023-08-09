@@ -363,7 +363,7 @@ __parsec_schedule(parsec_execution_stream_t* es,
  * If the provided execution stream is NULL, all tasks are delivered to their
  * respective vp.
  *
- * Beware, as the manipulation of next_task is not protected, an exeuction
+ * Beware, as the manipulation of next_task is not protected, an execution
  * stream should never be used concurrently in two call to this function (or
  * a thread should never `borrow` an execution stream for this call).
  */
