@@ -63,14 +63,14 @@ else(FLEX_FOUND AND BISON_FOUND)
     OUTPUT ${FLEX_keyval_flex_OUTPUTS}
     DEPENDS ${PARSEC_PERGEN_FLEX_BISON_ARCHIVE} utils/keyval_lex.l # force reexecution if .l file changed (to check status)
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    COMMAND cmake -Dsrcdir=${CMAKE_CURRENT_SOURCE_DIR} -Dsource=utils/keyval_lex.l -Dmissing=FLEX_FOUND -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake
-    COMMAND cmake -E tar x ${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -- parsec/utils/keyval_lex.l.c)
+    COMMAND ${CMAKE_COMMAND} -Dsrcdir=${CMAKE_CURRENT_SOURCE_DIR} -Dsource=utils/keyval_lex.l -Dmissing=FLEX_FOUND -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake
+    COMMAND ${CMAKE_COMMAND} -E tar x ${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -- parsec/utils/keyval_lex.l.c)
   add_custom_command(
     OUTPUT ${FLEX_show_help_flex_OUTPUTS}
     DEPENDS ${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} utils/show_help_lex.l # force reexecution if .l file changed (to check status)
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    COMMAND cmake -Dsrcdir=${CMAKE_CURRENT_SOURCE_DIR} -Dsource=utils/show_help_lex.l -Dmissing=FLEX_FOUND -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake
-    COMMAND cmake -E tar x ${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -- parsec/utils/show_help_lex.l.c)
+    COMMAND ${CMAKE_COMMAND} -Dsrcdir=${CMAKE_CURRENT_SOURCE_DIR} -Dsource=utils/show_help_lex.l -Dmissing=FLEX_FOUND -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake
+    COMMAND ${CMAKE_COMMAND} -E tar x ${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -- parsec/utils/show_help_lex.l.c)
 endif(FLEX_FOUND AND BISON_FOUND)
 
 list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS} ${FLEX_show_help_flex_OUTPUTS})
