@@ -24,14 +24,14 @@ if(NOT CMAKE_CROSSCOMPILING)
       OUTPUT ${BISON_parsec_yacc_OUTPUTS}
       DEPENDS ${PARSEC_PERGEN_FLEX_BISON_ARCHIVE} parsec.y # force reexecution if .y file changed (to check status)
       WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-      COMMAND cmake -Dsrcdir=${CMAKE_CURRENT_SOURCE_DIR} -Dsource=parsec.y -Dmissing=BISON_FOUND -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake
-      COMMAND cmake -E tar x ${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -- parsec/interfaces/ptg/ptg-compiler/parsec.y.c parsec/interfaces/ptg/ptg-compiler/parsec.y.h)
+      COMMAND ${CMAKE_COMMAND} -Dsrcdir=${CMAKE_CURRENT_SOURCE_DIR} -Dsource=parsec.y -Dmissing=BISON_FOUND -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake
+      COMMAND ${CMAKE_COMMAND} -E tar x ${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -- parsec/interfaces/ptg/ptg-compiler/parsec.y.c parsec/interfaces/ptg/ptg-compiler/parsec.y.h)
     add_custom_command(
       OUTPUT ${FLEX_parsec_flex_OUTPUTS}
       DEPENDS ${PARSEC_PERGEN_FLEX_BISON_ARCHIVE} parsec.l # force reexecution if .l file changed (to check status)
       WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-      COMMAND cmake -Dsrcdir=${CMAKE_CURRENT_SOURCE_DIR} -Dsource=parsec.l -Dmissing=FLEX_FOUND -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake
-      COMMAND cmake -E tar x ${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -- parsec/interfaces/ptg/ptg-compiler/parsec.l.c)
+      COMMAND ${CMAKE_COMMAND} -Dsrcdir=${CMAKE_CURRENT_SOURCE_DIR} -Dsource=parsec.l -Dmissing=FLEX_FOUND -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake
+      COMMAND ${CMAKE_COMMAND} -E tar x ${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -- parsec/interfaces/ptg/ptg-compiler/parsec.l.c)
   endif(FLEX_FOUND AND BISON_FOUND)
 
   if(PARSEC_FLEX_GENERATED_OPTIONS)

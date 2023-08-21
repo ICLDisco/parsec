@@ -294,7 +294,7 @@ if(FLEX_FOUND AND BISON_FOUND)
   set(PARSEC_PREGEN_FLEX_BISON_DIR ${PROJECT_BINARY_DIR}/contrib/pregen_flex_bison CACHE PATH "Where to stage the pre-generated .l.c and .y.[ch] files")
   add_custom_target(parsec_pregen_flex_bison
     WORKING_DIRECTORY ${PARSEC_PREGEN_FLEX_BISON_DIR}
-    COMMAND cmake -Dsrcdir=${PROJECT_SOURCE_DIR} -Dbuilddir=${PROJECT_BINARY_DIR} -Darchive=${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake)
+    COMMAND ${CMAKE_COMMAND} -Dsrcdir=${PROJECT_SOURCE_DIR} -Dbuilddir=${PROJECT_BINARY_DIR} -Darchive=${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake)
 endif()
 
 # check for the CPU we build for
