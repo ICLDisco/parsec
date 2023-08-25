@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2021 The University of Tennessee and The University
+ * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -21,6 +21,20 @@ static parsec_key_fn_t ud_hash_struct = {
     .key_print = ud_key_print,
     .key_hash  = parsec_hash_table_generic_64bits_key_hash
 };
+
+static inline parsec_hook_return_t
+always_here(const parsec_task_t* task)
+{
+    (void)task;
+    return PARSEC_HOOK_RETURN_DONE;
+}
+
+static inline parsec_hook_return_t
+never_here(const parsec_task_t* task)
+{
+    (void)task;
+    return PARSEC_HOOK_RETURN_NEXT;
+}
 
 %}
 
@@ -65,7 +79,7 @@ UD_STARTUP1(m, n) [ startup_fn = ud_startup1 ]
 
 READ X <- A(m, n)
 
-BODY
+BODY [evaluate = %{ return PARSEC_HOOK_RETURN_DONE; %}]
 {
     /* Nothing */
 }
@@ -79,14 +93,32 @@ UD_HASH_STRUCT(m, n) [ hash_struct = ud_hash_struct ]
 
 READ X <- A(m, n)
 
-BODY
+BODY [ evaluate = never_here
+       type = CUDA]
 {
-    /* Nothing */
+    fprintf(stderr, "We should never execute the CUDA incarnation for task UD_HASH_STRUCT(%d, %d)\n",
+            m, n);
+}
+END
+
+BODY [ evaluate = never_here
+       type = RECURSIVE]
+{
+    fprintf(stderr, "We should never execute the RECURSIVE incarnation for task UD_HASH_STRUCT(%d, %d)\n",
+            m, n);
+}
+END
+
+BODY [ type = CPU
+       evaluate = always_here ]
+{
+    fprintf(stderr, "We should always execute the CPU incarnation for task UD_HASH_STRUCT(%d, %d)\n",
+            m, n);
 }
 END
 
 UD_STARTUP2(m, n) [ make_key_fn = ud_make_key
-                   startup_fn = ud_startup2 ]
+                    startup_fn = ud_startup2 ]
   m = 0 .. A->super.mt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_MAKEKEY_STARTUP); %}
   n = 0 .. A->super.nt-1 .. %{ return logger(1, UDF_TT_NBLOCAL_MAKEKEY_STARTUP); %}
 

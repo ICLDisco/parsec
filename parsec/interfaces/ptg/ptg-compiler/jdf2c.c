@@ -79,7 +79,7 @@ static inline int nblines(const char *p)
 
 /**
  * This function is not thread-safe, not reentrant, and not pure. As such it
- * cannot be used twice on the same call to any oter function (including
+ * cannot be used twice on the same call to any other function (including
  * printf's and friends). However, as a side effect, when it is called with
  * the same value for n, it is safe to be used in any of the previously
  * mentioned scenarios.
@@ -152,7 +152,7 @@ static void houtput(const char *format, ...)
     va_end(ap);
 
     if( len == -1 ) {
-        fprintf(stderr, "Unable to ouptut a string: %s\n", strerror(errno));
+        fprintf(stderr, "Unable to output a string (%s) into a header file\n", strerror(errno));
     } else if( 0 < len ) {
 #if (defined(__WINDOWS__) || defined(__CYGWIN__)) && !defined(__MINGW64__)
         char *start = res, *end;
@@ -175,8 +175,17 @@ static void houtput(const char *format, ...)
     }
 }
 
+/**
+ * @brief Generate the C code from a variable name or from an inlined function.
+ * 
+ * @param expr 
+ */
 static void var_to_c_code(jdf_expr_t* expr)
 {
+    if( expr->op == JDF_C_CODE ) {
+        /* the inlined function and it's internal name will be generated shortly */
+        return;
+    }
     assert(JDF_VAR == expr->op);
     char *fname = expr->jdf_var;
 
@@ -1506,7 +1515,7 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
 /**
  * Dump a minimalistic code including all the includes and all the defines that
  * can be used in the prologue. Keep this small so that we don't generate code
- * for structures that are not yet defind, such as those where the corresponding
+ * for structures that are not yet defined, such as those where the corresponding
  * header will only be included in the prologue.
  */
 static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
@@ -3927,16 +3936,19 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
     jdf_body_t* body = f->bodies;
     jdf_def_list_t* type_property;
     jdf_def_list_t* dyld_property;
+    jdf_def_list_t* evaluate_property = NULL;
 
     (void)jdf;
     string_arena_add_string(sa, "static const __parsec_chore_t __%s_chores[] ={\n", base_name);
     do {
         jdf_find_property(body->properties, "type", &type_property);
         jdf_find_property(body->properties, "dyld", &dyld_property);
+        jdf_find_property(body->properties, JDF_BODY_PROP_EVALUATE, &evaluate_property);
         if( NULL == type_property) {
             string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_CPU_SUPPORT)\n");
             string_arena_add_string(sa, "    { .type     = PARSEC_DEV_CPU,\n");
-            string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
+            string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)%s,\n",
+                                    (NULL == evaluate_property) ? "NULL" : evaluate_property->expr->jdf_c_code.fname);
             string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s },\n", base_name);
             string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_CPU_SUPPORT) */\n");
         } else {
@@ -3957,7 +3969,8 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
                 }
                 string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
             }
-            string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
+            string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)%s,\n",
+                                    (NULL == evaluate_property) ? "NULL" : evaluate_property->expr->jdf_c_code.fname);
             string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_upper);
             string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_%s_SUPPORT) */\n", dev_upper);
             free(dev_upper);
@@ -8079,7 +8092,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
                       ++inline_c_functions, expr->jdf_c_code.lineno);
         assert(rc != -1);
 
-        if(expr->jdf_type == PARSEC_RETURN_TYPE_ARENA_DATATYPE_T){
+        if(expr->jdf_type == PARSEC_RETURN_TYPE_ARENA_DATATYPE_T) {
             coutput("static inline %s %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *assignments, const __parsec_%s_%s_task_t *this_task)\n"
                     "{\n"
                     "  (void)__parsec_tp;\n",
@@ -8087,6 +8100,14 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
                     expr->jdf_c_code.fname, jdf_basename,
                     parsec_get_name(NULL, expr->jdf_c_code.function_context, "parsec_assignment_t"),
                     jdf_basename, expr->jdf_c_code.function_context->fname);
+        } else if(expr->jdf_type == PARSEC_INLINE_WITH_TASK) {
+            coutput("static inline %s %s(const __parsec_%s_%s_task_t *this_task)\n"
+                    "{\n"
+                    "  const %s *assignments = &this_task->locals;\n",
+                    "parsec_hook_return_t",
+                    expr->jdf_c_code.fname,
+                    jdf_basename, expr->jdf_c_code.function_context->fname,
+                    parsec_get_name(NULL, expr->jdf_c_code.function_context, "parsec_assignment_t"));
         } else {
             coutput("static inline %s %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *assignments)\n"
                     "{\n"
@@ -8132,14 +8153,22 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
         rc = asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
                       jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
         assert(rc != -1);
-        coutput("static inline int %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const parsec_assignment_t *assignments)\n"
-                "{\n"
-                "  /* This inline C function was declared in the global context: no variables */\n"
-                "  (void)assignments;\n"
-                "  (void)__parsec_tp;\n",
-                expr->jdf_c_code.fname, jdf_basename);
+        if(expr->jdf_type == PARSEC_INLINE_WITH_TASK) {
+            coutput("static inline %s %s(const __parsec_%s_%s_task_t *this_task)\n"
+                    "{\n"
+                    "  (void)__parsec_tp;\n",
+                    "int32_t",
+                    expr->jdf_c_code.fname,
+                    jdf_basename, expr->jdf_c_code.function_context->fname);
+        } else {
+            coutput("static inline int %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const parsec_assignment_t *assignments)\n"
+                    "{\n"
+                    "  /* This inline C function was declared in the global context: no variables */\n"
+                    "  (void)assignments;\n"
+                    "  (void)__parsec_tp;\n",
+                    expr->jdf_c_code.fname, jdf_basename);
+        }
     }
-
     
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -8147,8 +8176,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     coutput("%s\n", expr->jdf_c_code.code);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline )
         coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
-    coutput("}\n"
-            "\n");
+    coutput("}\n\n");
     if( NULL != expr->protected_by ) {
         coutput("#endif  /* defined(%s) */\n", expr->protected_by);
     }
@@ -8292,6 +8320,21 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
                 assert(0);
             }
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS;
+        }
+        /* Go over all the bodies for this function and handle their own properties */
+        for(jdf_body_t* body = f->bodies; NULL != body; body = body->next) {
+            if( NULL != (expr = jdf_find_property(body->properties, JDF_BODY_PROP_EVALUATE, &property)) ) {
+                if(expr->op == JDF_C_CODE) {
+                    expr->jdf_type = PARSEC_INLINE_WITH_TASK;
+                }
+                var_to_c_code(expr);
+            }
+            if( NULL != (expr = jdf_find_property(body->properties, JDF_BODY_PROP_HOOK, &property)) ) {
+                if(expr->op == JDF_C_CODE) {
+                    expr->jdf_type = PARSEC_INLINE_WITH_TASK;
+                }
+                var_to_c_code(expr);
+            }
         }
     }
 }

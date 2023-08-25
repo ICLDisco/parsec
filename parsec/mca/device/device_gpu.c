@@ -1354,7 +1354,6 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                              "GPU[%s]:\t\tMove data copy %p [ref_count %d, key %x] of %zu bytes: data copy is already under transfer, ignoring double request",
                              gpu_device->super.name,
                              gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, nb_elts);
-        assert(NULL != gpu_elem->push_task);
         parsec_atomic_unlock( &original->lock );
         return 1;  /* positive returns have special meaning and are used for optimizations */
     }
@@ -1519,7 +1518,6 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                          __FILE__, __LINE__);
 
     gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
-    gpu_elem->push_task = gpu_task->ec;  /* only the task who does the transfer can modify the data status later. */
 
     parsec_atomic_unlock( &original->lock );
     return 1;  /* positive returns have special meaning and are used for optimizations */

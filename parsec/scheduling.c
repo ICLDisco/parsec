@@ -151,7 +151,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
     }
 
     PARSEC_PINS(es, EXEC_BEGIN, task);
-    /* Try all the incarnations until one agree to execute. */
+    /* Try all the incarnations until one accepts to execute. */
     do {
         if( NULL != (eval = tc->incarnations[chore_id].evaluate) ) {
             rc = eval(task);
@@ -163,7 +163,6 @@ int __parsec_execute( parsec_execution_stream_t* es,
                                          tmp, tc->incarnations[chore_id].type,
                                          chore_id);
 #endif
-                    break;
                 }
                 goto next_chore;
             }
@@ -185,13 +184,9 @@ int __parsec_execute( parsec_execution_stream_t* es,
             if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
                 /* Let's assume everything goes just fine */
                 task->status = PARSEC_TASK_STATUS_COMPLETE;
-                parsec_device_module_t *dev = NULL;
-                if(PARSEC_DEV_CPU == tc->incarnations[chore_id].type) {
-                    dev = parsec_mca_device_get(0);
-                    parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
-                }
-                else if(PARSEC_DEV_RECURSIVE == tc->incarnations[chore_id].type) {
-                    dev = parsec_mca_device_get(1);
+                if(PARSEC_DEV_RECURSIVE >= tc->incarnations[chore_id].type) {
+                    /* accelerators count their own executed tasks */
+                    parsec_device_module_t *dev = parsec_mca_device_get(chore_id);
                     parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
                 }
             }
@@ -207,7 +202,6 @@ int __parsec_execute( parsec_execution_stream_t* es,
             if( 0 != (task->chore_mask & (1<<chore_id)) )
                 break;
     } while(NULL != tc->incarnations[chore_id].hook);
-    assert(task->status == PARSEC_TASK_STATUS_HOOK);
     /* Record EXEC_END event to ensure the EXEC_BEGIN is completed
      * return code was stored in task_return_code */
     PARSEC_PINS(es, EXEC_END, task);
@@ -488,7 +482,7 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
 
     /* Release the execution context */
     (void)task->task_class->release_task( es, task );
-    
+
     PARSEC_PINS(es, COMPLETE_EXEC_END, task);
 
     return rc;
