@@ -69,7 +69,6 @@ struct parsec_data_copy_s {
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
     parsec_data_status_t      data_transfer_status;  /** three status */
-    struct parsec_task_s     *push_task;             /** the task who actually do the PUSH */
     parsec_datatype_t         dtt;                   /**< the appropriate type for the network engine to send an element */
 };
 

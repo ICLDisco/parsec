@@ -890,9 +890,10 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                  flow->name, i, gpu_elem,
                                  gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ? " [in transfer]" : "");
             if ( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {
-          	    /* We might want to do something special if the data is under transfer, but in the current
-                 * version we don't need to because an event is always generated for the push_in of each
-                 * task on the unique push_in stream.
+              /* The data is indeed under transfer, but as we always force an event at the end of this
+                 * step, we do not need to have a special case for this, because the forced event will
+                 * ensure the data will be available on the GPU by the time this task will move to the
+                 * next step.
                  */
             }
             parsec_atomic_unlock(&master->lock);
@@ -1358,7 +1359,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
         return 1;  /* positive returns have special meaning and are used for optimizations */
     }
 
-    /* Try to find an alternate source, to avoid always tranfering from the host to the device.
+    /* Try to find an alternate source, to avoid always transferring from the host to the device.
      * Current limitations: only for read-only data used read-only on the hosting GPU. */
     parsec_device_gpu_module_t *candidate_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get( candidate->device_index );
     if( (PARSEC_FLOW_ACCESS_READ & type) && !(PARSEC_FLOW_ACCESS_WRITE & type) ) {
@@ -1620,7 +1621,6 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
     int32_t i;
 #if defined(PARSEC_DEBUG_NOISIER)
     char task_str[MAX_TASK_STRLEN];
-    char task_str2[MAX_TASK_STRLEN];
 #endif
     const parsec_flow_t        *flow;
     /**
@@ -1647,7 +1647,7 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
         assert( flow->flow_index == i );
         if(PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & flow->flow_flags)) continue;
         if(PARSEC_DATA_STATUS_UNDER_TRANSFER == task->data[i].data_out->data_transfer_status ) {
-            assert(task->data[i].data_out->push_task == task );  /* only the task who did this PUSH can modify the status */
+            /* only the task who did the PUSH can modify the status */
             parsec_atomic_lock(&task->data[i].data_out->original->lock);
             task->data[i].data_out->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
             parsec_data_end_transfer_ownership_to_copy(task->data[i].data_out->original,
@@ -1662,7 +1662,6 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                                        NULL);
             }
 #endif
-            task->data[i].data_out->push_task = NULL;
             parsec_atomic_unlock(&task->data[i].data_out->original->lock);
             parsec_data_copy_t* source = gtask->sources[i];
             parsec_device_gpu_module_t *src_device =
@@ -1739,14 +1738,11 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
             continue;
         }
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                             "GPU[%s]:\tparsec_device_callback_complete_push, PUSH of %s: task->data[%d].data_out = %p [ref_count = %d], and push_task is %s, %s because transfer_status is %d",
+                             "GPU[%s]:\tparsec_device_callback_complete_push, PUSH of %s: task->data[%d].data_out = %p [ref_count = %d], and %s because transfer_status is %d",
                              gpu_device->super.name, parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task),
                              i, task->data[i].data_out, task->data[i].data_out->super.super.obj_reference_count,
-                             (NULL != task->data[i].data_out->push_task) ? parsec_task_snprintf(task_str2, MAX_TASK_STRLEN, task->data[i].data_out->push_task) : "(null)",
-                             (task->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER) ?
-                             "all is good" : "Assertion",
+                             (task->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER) ? "all is good" : "Assertion",
                              task->data[i].data_out->data_transfer_status);
-        assert(task->data[i].data_out->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
         if( task->data[i].data_out->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {  /* data is not ready */
             /**
              * As long as we have only one stream to push the data on the GPU we should never
@@ -1812,7 +1808,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
                                parsec_gpu_task_t* task,
                                parsec_gpu_task_t** out_task )
 {
-    int saved_rc = PARSEC_HOOK_RETURN_DONE, rc;
+    int rc;
 #if defined(PARSEC_DEBUG_NOISIER)
     char task_str[MAX_TASK_STRLEN];
 #endif
@@ -1871,7 +1867,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
         task = (parsec_gpu_task_t*)parsec_list_pop_front(stream->fifo_pending);  /* get the best task */
     }
     if( NULL == task ) {  /* No tasks, we're done */
-        return saved_rc;
+        return PARSEC_HOOK_RETURN_DONE;
     }
     PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t*)task);
 
@@ -1884,8 +1880,6 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
            *out_task = task;
             return rc;
         }
-
-        saved_rc = rc;
 
         *out_task = NULL;
         /**
@@ -2006,6 +2000,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
         ret = parsec_device_data_stage_in( gpu_device, flow,
                                            &(this_task->data[i]), gpu_task, gpu_stream );
         if( ret < 0 ) {
+            gpu_task->last_status = ret;
             return ret;
         }
     }
@@ -2018,7 +2013,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
 #if defined(PARSEC_PROF_TRACE)
     gpu_task->prof_key_end = -1; /* We do not log that event as the completion of this task */
 #endif
-    return ret;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 /**
@@ -2221,7 +2216,7 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                 }
 #endif
                 /* Move the data back into main memory */
-                if( PARSEC_SUCCESS != gpu_task->stage_out? gpu_task->stage_out(gpu_task, (1U << flow->flow_index), gpu_stream): PARSEC_SUCCESS){
+                if( PARSEC_SUCCESS != gpu_task->stage_out? gpu_task->stage_out(gpu_task, (1U << flow->flow_index), gpu_stream): PARSEC_SUCCESS) {
                     parsec_warning( "%s:%d %s", __FILE__, __LINE__,
                                     "gpu_task->stage_out from device ");
                     parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->task_class->out[i]->name,
@@ -2322,7 +2317,7 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
 
         /**
          * Let's lie to the engine by reporting that working version of this
-         * data (aka. the one that GEMM worked on) is now on the CPU.
+         * data is now on the CPU.
          */
         this_task->data[i].data_out = cpu_copy;
 
