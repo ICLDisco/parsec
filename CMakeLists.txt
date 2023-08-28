@@ -168,18 +168,14 @@ set   (PARSEC_DIST_SHORT_LIMIT 1 CACHE STRING
   "Use the short protocol (no flow control) for messages smaller than the limit in KB. Performs better if smaller than the MTU")
 
 ### GPU engine parameters
+option(PARSEC_GPU_ALLOC_PER_TILE
+  "Tile based allocation engine for GPU memory (instead of internal management
+  of a complete allocation)" OFF)
+mark_as_advanced(PARSEC_GPU_ALLOC_PER_TILE)
 option(PARSEC_GPU_WITH_CUDA
   "Enable GPU support using CUDA kernels" ON)
-option(PARSEC_GPU_CUDA_ALLOC_PER_TILE
-  "Tile based allocation engine for GPU memory (instead of internal management
-  of a complete allocation)" OFF)
-mark_as_advanced(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
 option(PARSEC_GPU_WITH_HIP
     "Enable GPU support using HIP kernels" ON)
-option(PARSEC_GPU_HIP_ALLOC_PER_TILE
-  "Tile based allocation engine for GPU memory (instead of internal management
-  of a complete allocation)" OFF)
-mark_as_advanced(PARSEC_GPU_HIP_ALLOC_PER_TILE)
 option(PARSEC_GPU_WITH_OPENCL
   "Enable GPU support using OpenCL kernels" OFF)
 mark_as_advanced(PARSEC_GPU_WITH_OPENCL) # Hide this as it is not supported yet

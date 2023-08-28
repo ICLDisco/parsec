@@ -35,7 +35,7 @@ static int device_cuda_component_register(void);
 
 /* mca params */
 int parsec_device_cuda_enabled_index, parsec_device_cuda_enabled;
-int parsec_cuda_sort_pending = 0, parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
+int parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
 int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_memory_number_of_blocks;
 char* parsec_cuda_lib_path = NULL;
 
@@ -141,7 +141,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
                 PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cuCtxEnablePeerAccess ", cudastatus,
                                          {continue;} );
                 source_gpu->super.peer_access_mask = (int16_t)(source_gpu->super.peer_access_mask | (int16_t)(1 <<
-                        target_gpu->cuda_index));
+                        target_gpu->super.super.device_index));
             }
         }
     }
@@ -188,9 +188,9 @@ static int device_cuda_component_register(void)
     (void)parsec_mca_param_reg_int_name("device_cuda", "max_streams",
                                         "Maximum number of Streams to use for the GPU engine; 2 streams are used for communication between host and device, so the minimum is 3",
                                         false, false, PARSEC_GPU_MAX_STREAMS, &parsec_cuda_max_streams);
-    (void)parsec_mca_param_reg_int_name("device_cuda", "sort_pending_tasks",
+    (void)parsec_mca_param_reg_int_name("device_gpu", "sort_pending_tasks",
                                         "Boolean to let the GPU engine sort the first pending tasks stored in the list",
-                                        false, false, 0, &parsec_cuda_sort_pending);
+                                        false, false, 0, &parsec_gpu_sort_pending);
 #if defined(PARSEC_PROF_TRACE)
     (void)parsec_mca_param_reg_int_name("device_cuda", "one_profiling_stream_per_cuda_stream",
                                         "Boolean to separate the profiling of each cuda stream into a single profiling stream",

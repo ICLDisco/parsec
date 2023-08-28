@@ -6773,13 +6773,13 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     jdf_find_property(body->properties, "stage_out", &stage_out_property);
 
     if(stage_in_property == NULL) {
-        coutput("  gpu_task->stage_in  = parsec_default_%s_stage_in;\n", dev_lower);
+        coutput("  gpu_task->stage_in  = parsec_default_gpu_stage_in;\n");
     }else{
         coutput("  gpu_task->stage_in  = %s;\n", dump_expr((void**)stage_in_property->expr, &info));
     }
 
     if(stage_out_property == NULL) {
-        coutput("  gpu_task->stage_out = parsec_default_%s_stage_out;\n", dev_lower);
+        coutput("  gpu_task->stage_out = parsec_default_gpu_stage_out;\n");
     }else{
         coutput("  gpu_task->stage_out = %s;\n", dump_expr((void**)stage_out_property->expr, &info));
     }
@@ -6888,9 +6888,8 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     string_arena_free(info.sa);
 
     coutput("\n"
-            "  return parsec_%s_kernel_scheduler( es, gpu_task, dev_index );\n"
-            "}\n\n",
-            dev_lower);
+            "  return parsec_gpu_kernel_scheduler( es, gpu_task, dev_index );\n"
+            "}\n\n");
 
     free(dev_lower);
     free(dev_upper);

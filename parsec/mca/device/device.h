@@ -71,6 +71,9 @@ typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t
 #define PARSEC_DEV_ALL        ((uint8_t)    0x3f)
 #define PARSEC_DEV_MAX_NB_TYPE                (7)
 
+#define PARSEC_DEV_GPU_MASK   (PARSEC_DEV_CUDA|PARSEC_DEV_HIP)
+#define PARSEC_DEV_IS_GPU(t)  (0 != ((t) & PARSEC_DEV_GPU_MASK))
+
 #define PARSEC_DEV_DATA_ADVICE_PREFETCH              ((int) 0x01)
 #define PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE      ((int) 0x02)
 #define PARSEC_DEV_DATA_ADVICE_WARMUP                ((int) 0x03)

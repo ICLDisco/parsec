@@ -77,11 +77,10 @@
 #define PARSEC_DIST_SHORT_LIMIT @PARSEC_DIST_SHORT_LIMIT@
 
 /* GPU Support */
+#cmakedefine PARSEC_GPU_ALLOC_PER_TILE
 #cmakedefine PARSEC_GPU_WITH_CUDA
-#cmakedefine PARSEC_GPU_CUDA_ALLOC_PER_TILE
 #cmakedefine PARSEC_HAVE_CU_COMPILER
 #cmakedefine PARSEC_GPU_WITH_HIP
-#cmakedefine PARSEC_GPU_HIP_ALLOC_PER_TILE
 #cmakedefine PARSEC_GPU_WITH_OPENCL
 
 /* debug */
