@@ -14,6 +14,7 @@
 #include "parsec/execution_stream.h"
 #include "parsec/utils/argv.h"
 #include "parsec/parsec_internal.h"
+#include "parsec/scheduling.h"
 
 #if defined(PARSEC_PROF_TRACE)
 /* Accepted values are: PARSEC_PROFILE_GPU_TRACK_DATA_IN | PARSEC_PROFILE_GPU_TRACK_DATA_OUT |
@@ -308,12 +309,10 @@ void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream)
 void dump_GPU_state(parsec_device_gpu_module_t* gpu_device)
 {
     int i;
-    uint64_t data_in, data_in_host, data_in_dev = 0;
+    uint64_t data_in_host, data_in_dev = 0;
 
-    data_in = gpu_device->super.data_in_from_device[0];
     data_in_host = gpu_device->super.data_in_from_device[0];
     for(int i = 1; i < gpu_device->super.data_in_array_size; i++) {
-        data_in += gpu_device->super.data_in_from_device[i];
         data_in_dev += gpu_device->super.data_in_from_device[i];
     }
 
@@ -1781,7 +1780,6 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
 #if defined(PARSEC_DEBUG_NOISIER)
     char task_str[MAX_TASK_STRLEN];
 #endif
-    parsec_gpu_exec_stream_t *gpu_stream = (parsec_gpu_exec_stream_t *)stream;
 
     /* We always handle the tasks in order. Thus if we got a new task, add it to the
      * local list (possibly by reordering the list). Also, as we can return a single
