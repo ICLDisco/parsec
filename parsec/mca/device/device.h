@@ -215,7 +215,12 @@ PARSEC_DECLSPEC int parsec_mca_device_add(parsec_context_t*, parsec_device_modul
 /**
  * Retrieve a pointer to the registered device using the provided index.
  */
-PARSEC_DECLSPEC parsec_device_module_t* parsec_mca_device_get(uint32_t);
+PARSEC_DECLSPEC parsec_device_module_t* parsec_mca_device_get(uint32_t devindex);
+
+/**
+ * True if the device pointed by the index is a valid GPU device
+ */
+PARSEC_DECLSPEC int parsec_mca_device_is_gpu(uint32_t devindex);
 
 /**
  * Remove the device from the list of enabled devices. All data residing on the

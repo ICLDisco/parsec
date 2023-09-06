@@ -6748,14 +6748,14 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
                 "  } else if (dev_index == -1) {\n"
                 "    dev_index = parsec_get_best_device((parsec_task_t*)this_task, &__load);\n"
                 "  } else {\n"
-                "    dev_index = (dev_index %% (parsec_mca_device_enabled()-2)) + 2;\n"
+                "    dev_index = (dev_index %% (parsec_mca_device_enabled()-2)) + 2;\n" //TODO: -2+2 not correct when recursive compiled out
                 "  }\n",
                 device);
     } else {
         coutput("  dev_index = parsec_get_best_device((parsec_task_t*)this_task, &__load);\n");
     }
     coutput("  assert(dev_index >= 0);\n"
-            "  if( dev_index < 2 ) {\n"
+            "  if( !parsec_mca_device_is_gpu(dev_index) ) {\n"
             "    return PARSEC_HOOK_RETURN_NEXT;  /* Fall back */\n"
             "  }\n"
             "\n"

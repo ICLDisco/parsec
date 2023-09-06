@@ -88,6 +88,7 @@ int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
     int i, dev_index = -1, data_index, prefer_index = -1;
     parsec_taskpool_t* tp = this_task->taskpool;
     parsec_device_module_t *dev;
+    int8_t data_prefer_dev = -1, data_owner_dev = -1;
 
     /* Select the location of the first data that is used in READ/WRITE or pick the
      * location of one of the READ data. For now use the last one.
@@ -103,14 +104,17 @@ int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
             (this_task->task_class->out[i]->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
 
             data_index = this_task->task_class->out[i]->flow_index;
+            data_prefer_dev = this_task->data[data_index].data_in->original->preferred_device;
+            data_owner_dev = this_task->data[data_index].data_in->original->owner_device;
+            assert(data_prefer_dev < parsec_mca_device_enabled() && data_owner_dev < parsec_mca_device_enabled());
             /* If the data has a preferred device, try to obey it. */
-            if( this_task->data[data_index].data_in->original->preferred_device > 1 ) {  /* no CPU or recursive */
-                dev_index = this_task->data[data_index].data_in->original->preferred_device;
+            if( data_prefer_dev > 0 && parsec_mca_device_is_gpu(data_prefer_dev) ) {  /* no CPU or recursive */
+                dev_index = data_prefer_dev;
                 break;
             }
             /* Data is located on a device */
-            if( this_task->data[data_index].data_in->original->owner_device > 1 ) {  /* no CPU or recursive */
-                dev_index = this_task->data[data_index].data_in->original->owner_device;
+            if( data_owner_dev > 0 && parsec_mca_device_is_gpu(data_owner_dev) ) {  /* no CPU or recursive */
+                dev_index = data_owner_dev;
                 break;
             }
         }
@@ -118,17 +122,21 @@ int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
          * constraints, so let's pick the data for a READ flow.
          */
         data_index = this_task->task_class->in[i]->flow_index;
-        if( this_task->data[data_index].data_in->original->preferred_device > 1 ) {
-            prefer_index = this_task->data[data_index].data_in->original->preferred_device;
-        } else if( this_task->data[data_index].data_in->original->owner_device > 1 ) {
-            prefer_index  = this_task->data[data_index].data_in->original->owner_device;
+        data_prefer_dev = this_task->data[data_index].data_in->original->preferred_device;
+        data_owner_dev = this_task->data[data_index].data_in->original->owner_device;
+        assert(data_prefer_dev < parsec_mca_device_enabled() && data_owner_dev < parsec_mca_device_enabled());
+        if( data_prefer_dev > 0 && parsec_mca_device_is_gpu(data_prefer_dev) ) { /* no CPU or recursive */
+            prefer_index = data_prefer_dev;
+        } else if( data_owner_dev > 0 && parsec_mca_device_is_gpu(data_owner_dev) ) { /* no CPU or recursive */
+            prefer_index = data_owner_dev;
         }
     }
 
+    assert(dev_index < parsec_mca_device_enabled());
+    dev = parsec_mca_device_get(dev_index >= 0? dev_index: 0);
     /* 0 is CPU, and 1 is recursive device */
-    if( dev_index <= 1 ) {  /* This is the first time we see this data for a GPU, let's decide which GPU will work on it. */
+    if( !parsec_mca_device_is_gpu(dev->device_index) ) {  /* This is the first time we see this data for a GPU, let's decide which GPU will work on it. */
         int best_index;
-        parsec_device_module_t *dev = parsec_mca_device_get(0);
         int64_t eta, best_eta = INT64_MAX; /* dev->device_load + time_estimate(this_task, dev); this commented out because we don't count cpu loads */
 
         /* Warn if there is no valid device for this task */
@@ -165,38 +173,43 @@ int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
 
         /* Consider how adding the current task would change load balancing
          * between devices */
-        /* Start at 2, to skip the recursive body */
-        for( dev_index = 2; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
+        for( dev_index = 0; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
+            dev = parsec_mca_device_get(dev_index);
+            /* Skip cores/recursive devices */
+            if(!parsec_mca_device_is_gpu(dev_index)) continue;
             /* Skip the device if it is not configured */
             if(!(tp->devices_index_mask & (1 << dev_index))) continue;
-            dev = parsec_mca_device_get(dev_index);
             eta = dev->device_load + time_estimate(this_task, dev);
+            PARSEC_DEBUG_VERBOSE(80, parsec_device_output, "+++ get_best_device considering %d (%s) with prior load %"PRIu64", new task eta would be %"PRIu64, dev_index, dev->name, dev->device_load, eta);
             if( best_eta > eta ) {
                 best_index = dev_index;
                 best_eta = eta;
             }
         }
-        assert( best_index != 1 );
+        assert( parsec_mca_device_get(best_index)->type != PARSEC_DEV_RECURSIVE );
         dev_index = best_index;
+        dev = parsec_mca_device_get(dev_index);
     }
-    dev = parsec_mca_device_get(dev_index);
     *task_load = time_estimate(this_task, dev);
+    PARSEC_DEBUG_VERBOSE(20, parsec_device_output, "get_best_device selected %d (%s) with prior load %"PRIu64", new task load would add %"PRIu64, dev_index, dev->name, dev->device_load, *task_load);
 
+#if defined(PARSEC_DEBUG_PARANOID)
     /* Sanity check: if at least one of the data copies is not parsec
      * managed, check that all the non-parsec-managed data copies
      * exist on the same device */
-     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
-         /* Make sure data_in is not NULL */
-         if (NULL == this_task->data[i].data_in) continue;
-         if ((this_task->data[i].data_in->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) == 0 &&
-              this_task->data[i].data_in->device_index != dev_index) {
-             char task_str[MAX_TASK_STRLEN];
-             parsec_fatal("*** User-Managed Copy Error: Task %s is selected to run on device %d,\n"
-                          "*** but flow %d is represented by a data copy not managed by PaRSEC,\n"
-                          "*** and does not have a copy on that device\n",
-                          parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task), dev_index, i);
-         }
-     }
+    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+        /* Make sure data_in is not NULL */
+        if (NULL == this_task->data[i].data_in) continue;
+        if ((this_task->data[i].data_in->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) == 0 &&
+            this_task->data[i].data_in->device_index != dev_index) {
+            char task_str[MAX_TASK_STRLEN];
+            parsec_fatal("*** User-Managed Copy Error: Task %s is selected to run on device %d,\n"
+                         "*** but flow %d is represented by a data copy not managed by PaRSEC,\n"
+                         "*** and does not have a copy on that device\n",
+                         parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task), dev_index, i);
+        }
+    }
+#endif
     return dev_index;
 }
 
@@ -240,7 +253,7 @@ int parsec_mca_device_init(void)
     device_components = mca_components_open_bytype("device");
     for(i = 0; NULL != device_components[i]; i++); /* nothing just counting */
     if( 0 == i ) {  /* no devices */
-        parsec_debug_verbose(10, parsec_debug_output, "No devices found on %s\n", parsec_hostname);
+        parsec_debug_verbose(10, parsec_device_output, "No devices found on %s\n", parsec_hostname);
         return PARSEC_ERR_NOT_FOUND;
     }
     modules_activated = (parsec_device_module_t**)malloc(sizeof(parsec_device_module_t*) * i);
@@ -251,16 +264,16 @@ int parsec_mca_device_init(void)
             if (device_components[i]->mca_query_component != NULL) {
                 rc = device_components[i]->mca_query_component((mca_base_module_t**)&modules, &priority);
                 if( MCA_SUCCESS != rc ) {
-                    parsec_debug_verbose(10, parsec_debug_output, "query function for component %s return no module",
+                    parsec_debug_verbose(10, parsec_device_output, "query function for component %s return no module",
                                          device_components[i]->mca_component_name);
                     device_components[i]->mca_close_component();
                     device_components[i] = NULL;
                     continue;
                 }
-                parsec_debug_verbose(10, parsec_debug_output, "query function for component %s[%d] returns priority %d",
+                parsec_debug_verbose(10, parsec_device_output, "query function for component %s[%d] returns priority %d",
                                      device_components[i]->mca_component_name, i, priority);
                 if( (NULL == modules) || (NULL == modules[0]) ) {
-                    parsec_debug_verbose(10, parsec_debug_output, "query function for component %s returns no modules. Remove.",
+                    parsec_debug_verbose(10, parsec_device_output, "query function for component %s returns no modules. Remove.",
                                          device_components[i]->mca_component_name);
                     device_components[i]->mca_close_component();
                     device_components[i] = NULL;
@@ -281,7 +294,7 @@ int parsec_mca_device_init(void)
         }
     }
     mca_components_free_user_list(parsec_device_list);
-    parsec_debug_verbose(5, parsec_debug_output, "Found %d components, activated %d", i, num_modules_activated);
+    parsec_debug_verbose(5, parsec_device_output, "Found %d components, activated %d", i, num_modules_activated);
 
 #if defined(PARSEC_PROF_TRACE)
     /* replace trailing comma with \0 */
@@ -885,19 +898,19 @@ int parsec_mca_device_attach(parsec_context_t* context)
     for( int i = 0; NULL != (component = (parsec_device_base_component_t*)device_components[i]); i++ ) {
         for( int j = 0; NULL != (module = component->modules[j]); j++ ) {
             if (NULL == module->attach) {
-                parsec_debug_verbose(10, parsec_debug_output, "A device module MUST contain an attach function. Disqualifying %s:%s module",
+                parsec_debug_verbose(10, parsec_device_output, "A device module MUST contain an attach function. Disqualifying %s:%s module",
                                      component->base_version.mca_component_name, module->name);
                 continue;
             }
             rc = module->attach(module, context);
             if( 0 > rc ) {
-                parsec_debug_verbose(10, parsec_debug_output, "Attach failed for device %s:%s on context %p.",
+                parsec_debug_verbose(10, parsec_device_output, "Attach failed for device %s:%s on context %p.",
                                      component->base_version.mca_component_name, module->name, context);
                 continue;
             }
             module->data_in_array_size = 0;
             module->data_in_from_device = NULL;
-            parsec_debug_verbose(5, parsec_debug_output, "Activated DEVICE module %s:%s on context %p.",
+            parsec_debug_verbose(5, parsec_device_output, "Activated DEVICE module %s:%s on context %p.",
                                  component->base_version.mca_component_name, module->name, context);
         }
     }
@@ -944,6 +957,12 @@ parsec_device_module_t* parsec_mca_device_get(uint32_t device_index)
     if( device_index >= parsec_nb_devices )
         return NULL;
     return parsec_devices[device_index];
+}
+
+int parsec_mca_device_is_gpu(uint32_t devindex) {
+    parsec_device_module_t *dev = parsec_mca_device_get(devindex);
+    if(NULL == dev) return false;
+    return PARSEC_DEV_RECURSIVE < dev->type;
 }
 
 int parsec_mca_device_remove(parsec_device_module_t* device)

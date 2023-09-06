@@ -224,8 +224,8 @@ static int parsec_dtd_taskpool_leave_wait(parsec_taskpool_t* tp, void*_)
     parsec_termdet_open_module(tp, "local");
     tp->tdm.module->monitor_taskpool(tp, parsec_taskpool_termination_detected);
     tp->tdm.module->taskpool_set_nb_tasks(tp, 0);
-    tp->tdm.module->taskpool_set_runtime_actions(tp, 0); 
-    
+    tp->tdm.module->taskpool_set_runtime_actions(tp, 0);
+
     /* We are re-attached to the context */
     parsec_atomic_fetch_inc_int32(&tp->context->active_taskpools);
     return PARSEC_SUCCESS;
@@ -721,7 +721,7 @@ parsec_dtd_add_profiling_info(parsec_taskpool_t *tp,
 }
 
 void
-parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp, 
+parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp,
                                       const char *name,
                                       int *keyin, int *keyout)
 {
@@ -1002,7 +1002,7 @@ parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
     } else {
         char *fc = fill_color(tc->super.task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
         parsec_profiling_add_dictionary_keyword(tc->super.name, fc,
-                                                sizeof(parsec_task_prof_info_t)+info_size, 
+                                                sizeof(parsec_task_prof_info_t)+info_size,
                                                 info_str,
                                                 (int *)&PARSEC_PROF_FUNC_KEY_START(&tp->super, tc->super.task_class_id),
                                                 (int *)&PARSEC_PROF_FUNC_KEY_END(&tp->super, tc->super.task_class_id));
@@ -2127,7 +2127,7 @@ parsec_dtd_create_task_classv(const char *name,
             (flow_count * sizeof(parsec_dtd_descendant_info_t)) +
             (flow_count * sizeof(parsec_dtd_flow_info_t)) +
             (nb_params * sizeof(parsec_dtd_task_param_t)) +
-            total_size_of_param); 
+            total_size_of_param);
 
     parsec_mempool_construct(&dtd_tc->context_mempool,
                              PARSEC_OBJ_CLASS(parsec_dtd_task_t), total_size,
@@ -2303,8 +2303,8 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)this_task->task_class;
 
     dev_index = parsec_get_best_device(this_task, &load);
-    assert(dev_index >= 0);
-    if (dev_index < 2) {
+    assert(dev_index >= 0 && dev_index < parsec_mca_device_enabled());
+    if (!parsec_mca_device_is_gpu(dev_index)) {
         return PARSEC_HOOK_RETURN_NEXT; /* Fall back */
     }
 
@@ -2350,14 +2350,16 @@ static parsec_hook_return_t parsec_dtd_cpu_task_submit(parsec_execution_stream_t
         parsec_dtd_flow_info_t *flow = FLOW_OF(dtd_task, i);
         if(  PARSEC_INOUT == (flow->op_type & PARSEC_GET_OP_TYPE) ||
              PARSEC_OUTPUT == (flow->op_type & PARSEC_GET_OP_TYPE)) {
-            if( this_task->data[i].data_in->original->owner_device != 0 ) {
+            int8_t data_owner_dev = this_task->data[i].data_in->original->owner_device;
+            assert(data_owner_dev < parsec_mca_device_enabled());
+            if( data_owner_dev >= 0 && parsec_mca_device_is_gpu(data_owner_dev) ) {
                 uint8_t access = 0;
                 if( PARSEC_INOUT == (flow->op_type & PARSEC_GET_OP_TYPE) )
                     access = PARSEC_FLOW_ACCESS_RW;
                 else
                     access = PARSEC_FLOW_ACCESS_WRITE;
                 this_task->data[i].data_in->version++;
-                parsec_data_transfer_ownership_to_copy(this_task->data[i].data_in->original,0, access);
+                parsec_data_transfer_ownership_to_copy(this_task->data[i].data_in->original, 0, access);
                 // We need to remove ourselves as reader on this data, as transfer_ownership always counts an additional reader
                 this_task->data[i].data_in->readers--;
             }
