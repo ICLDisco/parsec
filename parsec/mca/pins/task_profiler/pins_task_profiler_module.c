@@ -498,11 +498,14 @@ task_profiler_exec_count_begin(struct parsec_execution_stream_s*   es,
                                struct parsec_pins_next_callback_s* cb_data)
 {
     if (NULL != task->taskpool->profiling_array &&
-        task->task_class->task_class_id < task->taskpool->nb_task_classes)
+        (task->task_class->task_class_id < task->taskpool->nb_task_classes) &&
+        (-1 != task->taskpool->profiling_array[START_KEY(task->task_class->task_class_id)])) {
+
         PARSEC_TASK_PROF_TRACE_FLAGS(es->es_profile,
                                task->taskpool->profiling_array[START_KEY(task->task_class->task_class_id)],
                                task,
                                PARSEC_PROFILING_EVENT_TIME_AT_END, 0);
+    }
     (void)cb_data;
 }
 
@@ -512,11 +515,13 @@ task_profiler_exec_count_end(struct parsec_execution_stream_s*   es,
                              struct parsec_pins_next_callback_s* cb_data)
 {
     if (NULL != task->taskpool->profiling_array &&
-        task->task_class->task_class_id < task->taskpool->nb_task_classes)
+        (task->task_class->task_class_id < task->taskpool->nb_task_classes) &&
+        (-1 != task->taskpool->profiling_array[END_KEY(task->task_class->task_class_id)])) {
         PARSEC_TASK_PROF_TRACE_FLAGS(es->es_profile,
                                task->taskpool->profiling_array[END_KEY(task->task_class->task_class_id)],
                                task,
                                PARSEC_PROFILING_EVENT_TIME_AT_START, 1);
+    }
     (void)cb_data;
 }
 
