@@ -83,7 +83,6 @@
 #cmakedefine PARSEC_GPU_WITH_HIP
 #cmakedefine PARSEC_GPU_HIP_ALLOC_PER_TILE
 #cmakedefine PARSEC_GPU_WITH_OPENCL
-#cmakedefine PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS
 
 /* debug */
 #cmakedefine PARSEC_DEBUG

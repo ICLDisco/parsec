@@ -696,18 +696,10 @@ int main(int argc, char *argv[]) {
         message(STATUS "Using PGI internal CUDA SDK in ${CUDAToolkit_ROOT}")
       endif(_path_pgcuda)
     endif (_match_pgi)
-    find_package(CUDAToolkit)
+    find_package(CUDAToolkit 4)
     set(PARSEC_HAVE_CUDA ${CUDAToolkit_FOUND} CACHE BOOL "True if PaRSEC provide support for CUDA")
     if (CUDAToolkit_FOUND)
       message(STATUS "Found CUDA ${CUDAToolkit_VERSION} in ${CUDAToolkit_LIBRARY_DIR}")
-      cmake_push_check_state()
-      list(APPEND CMAKE_REQUIRED_LIBRARIES CUDA::cudart)
-      if(CUDAToolkit_VERSION VERSION_LESS "4.0")
-          set(PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS 0)
-      else()
-          check_function_exists(cudaDeviceCanAccessPeer PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS)
-      endif()
-      cmake_pop_check_state()
       get_target_property(extra_cuda_libs CUDA::cudart INTERFACE_LINK_LIBRARIES)
       if(extra_cuda_libs)
           list(APPEND EXTRA_LIBS ${extra_cuda_libs})
@@ -725,7 +717,7 @@ int main(int argc, char *argv[]) {
     # This is kinda ugly but the PATH and HINTS don't get transmitted to sub-dependents
     set(CMAKE_SYSTEM_PREFIX_PATH_save ${CMAKE_SYSTEM_PREFIX_PATH})
     list(APPEND CMAKE_SYSTEM_PREFIX_PATH /opt/rocm)
-    find_package(HIP QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
+    find_package(HIP 1.9 QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
     set(CMAKE_SYSTEM_PREFIX_PATH ${CMAKE_SYSTEM_PREFIX_PATH_save})
     if(HIP_FOUND AND PARSEC_HAVE_CUDA)
       # the underlying reason is that the generated ptg code cannot include at the same time
