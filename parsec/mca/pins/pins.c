@@ -38,11 +38,13 @@ void parsec_pins_instrument(struct parsec_execution_stream_s* es,
      * profiling array only generated if at least one task requires profiling,
      * so must check it.
      */
+#ifdef PARSEC_PROF_TRACE
     if((NULL != task) && 
        (NULL != task->taskpool->profiling_array) &&
        (-1 == task->taskpool->profiling_array[START_KEY(task->task_class->task_class_id)])) {
         return;
     }
+#endif
 
 
     parsec_pins_next_callback_t* cb_event = &es->pins_events_cb[method_flag];
