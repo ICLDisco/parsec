@@ -385,7 +385,7 @@ void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_contex
         required_out[device->device_index]    += device->required_data_out;
         d2dtmp = 0;
         for(unsigned int j = 1; j < device->data_in_array_size; j++) {
-            d2dtmp                            += device->data_in_from_device[i];
+            d2dtmp                            += device->data_in_from_device[j];
         }
         d2d[device->device_index]             += d2dtmp;
         /* Update the context-level statistics */
