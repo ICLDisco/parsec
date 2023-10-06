@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.18)
+cmake_minimum_required (VERSION 3.19)
 project (PARSEC C)
 
 include(CMakeDependentOption)
@@ -78,7 +78,7 @@ include(CTest)
 ## Check for the support of additional languages and capabilities
 option(SUPPORT_FORTRAN
        "Enable support for Fortran bindings (default ON)" ON)
-# In CMake 3.12, enable_language OPTIONAL has no effect and will still 
+# In CMake 3.12, enable_language OPTIONAL has no effect and will still
 # enable the language for a compiler that does not work/is not present
 # causing all sort of problems downstream. For now use CheckLanguage before.
 include(CheckLanguage)
@@ -717,7 +717,7 @@ int main(int argc, char *argv[]) {
     # This is kinda ugly but the PATH and HINTS don't get transmitted to sub-dependents
     set(CMAKE_SYSTEM_PREFIX_PATH_save ${CMAKE_SYSTEM_PREFIX_PATH})
     list(APPEND CMAKE_SYSTEM_PREFIX_PATH /opt/rocm)
-    find_package(HIP 1.9 QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
+    find_package(HIP 5 QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
     set(CMAKE_SYSTEM_PREFIX_PATH ${CMAKE_SYSTEM_PREFIX_PATH_save})
     if(HIP_FOUND AND PARSEC_HAVE_CUDA)
       # the underlying reason is that the generated ptg code cannot include at the same time
