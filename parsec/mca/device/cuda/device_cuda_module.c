@@ -408,8 +408,8 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
         for( k = 0; k < exec_stream->max_events; k++ ) {
             cuda_stream->events[k]   = NULL;
             exec_stream->tasks[k]    = NULL;
-            cudastatus = cudaEventCreate(&(cuda_stream->events[k]));
-            PARSEC_CUDA_CHECK_ERROR( "(INIT) cudaEventCreate ", (cudaError_t)cudastatus,
+            cudastatus = cudaEventCreateWithFlags(&(cuda_stream->events[k]), cudaEventDisableTiming);
+            PARSEC_CUDA_CHECK_ERROR( "(INIT) cudaEventCreateWithFlags ", (cudaError_t)cudastatus,
                                      {goto release_device;} );
         }
         if(j == 0) {
