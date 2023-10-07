@@ -790,10 +790,10 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
           parsec_inform("CPU Device: %s\n"
                         "\tParsec Streams     : %d\n"
                         "\tFrequency (GHz)    : %2.2f\n"
-                        "\tpeak Gflops        : double %2.4f, single %2.4f",
+                        "\tPeak Tflop/s       : %2.4f fp64,\t%2.4f fp32",
                         cpu_model,
                         nstreams,
-                        freq, nstreams*freq*dp_ipc, nstreams*freq*fp_ipc);
+                        freq, nstreams*freq*dp_ipc*1e-3, nstreams*freq*fp_ipc*1e-3);
        }
     }
  notfound:

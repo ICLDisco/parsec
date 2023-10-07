@@ -35,7 +35,7 @@ static int parsec_cuda_data_advise(parsec_device_module_t *dev, parsec_data_t *d
  * https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#virtual-architecture-feature-list
  * we should limit the list of supported architectures to more recent setups.
  */
-static int cuda_legal_compute_capabilities[] = {35, 37, 50, 52, 53, 60, 61, 62, 70, 72, 75, 80};
+static int cuda_legal_compute_capabilities[] = {35, 37, 50, 52, 53, 60, 61, 62, 70, 72, 75, 80, 90};
 
 static int
 parsec_cuda_memory_reserve( parsec_device_cuda_module_t* gpu_device,
@@ -71,7 +71,7 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
         *drate = 4;
     } else if (major == 5 && minor == 3) {
         *hrate = 256;
-        *trate = *srate = 128;
+        *srate = 128;
         *drate = 4;
     } else if (major == 6 && minor == 0) {
         *hrate = 128;
@@ -100,16 +100,23 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
         *trate = 512;
         *srate = 64;
         *drate = 32;
-    } else {  /* Unknown device */
-        if( major >= 8 ) {  /* If more recent than 8.0 let's assume the performance will not decrease */
-            *hrate = 256;
-            *trate = 512;
-            *srate = 64;
-            *drate = 32;
-            parsec_warning("Unknown GPU capabilities %d, %d, assuming 8, 0 capability.", major, minor);
-        } else {
-            parsec_warning("Unknown GPU capabilities %d, %d, assuming basic capability.", major, minor);
-        }
+    } else if (major == 8 && minor == 6) {
+        *hrate = 256;
+        *trate = 512;
+        *srate = 128;
+        *drate = 2;
+    } else if (major == 8 && minor == 9) {
+        *hrate = 256;
+        *trate = 512;
+        *srate = 128;
+        *drate = 2;
+    } else if (major == 9 && minor == 0) {
+        *hrate = 3712;
+        *trate = 1856;
+        *srate = 128;
+        *drate = 64;
+    } else { /* Unknown device */
+        return PARSEC_ERR_NOT_IMPLEMENTED;
     }
     return PARSEC_SUCCESS;
 }
@@ -458,16 +465,16 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     device->data_advise         = parsec_cuda_data_advise;
     device->memory_release      = parsec_cuda_flush_lru;
 
-    if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERROR ) {
+    if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERR_NOT_IMPLEMENTED ) {
         parsec_warning( "Device %s with capabilities %d.%d is unknown. Gflops rate is a random guess."
                         "Load balancing and performance might be negatively impacted. Please contact"
                         "the PaRSEC runtime developers", gpu_device->super.name, major, minor );
     }
     /* We compute gflops based on FMA rate */
-    device->gflops_fp16 = fp16 = 2.f * hrate * streaming_multiprocessor * freqHz * 1e-9f;
-    device->gflops_tf32 = tf32 = 2.f * trate * streaming_multiprocessor * freqHz * 1e-9f;
-    device->gflops_fp32 = fp32 = 2.f * srate * streaming_multiprocessor * freqHz * 1e-9f;
-    device->gflops_fp64 = fp64 = 2.f * drate * streaming_multiprocessor * freqHz * 1e-9f;
+    device->gflops_fp16 = fp16 = 2.f * hrate * streaming_multiprocessor * freqHz * 1e-12f;
+    device->gflops_tf32 = tf32 = 2.f * trate * streaming_multiprocessor * freqHz * 1e-12f;
+    device->gflops_fp32 = fp32 = 2.f * srate * streaming_multiprocessor * freqHz * 1e-12f;
+    device->gflops_fp64 = fp64 = 2.f * drate * streaming_multiprocessor * freqHz * 1e-12f;
     /* don't assert fp16, tf32, maybe they actually do not exist on the architecture */
     assert(device->gflops_fp32 > 0);
     assert(device->gflops_fp64 > 0);
@@ -493,7 +500,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                       "\tLocation (PCI Bus/Device/Domain): %x:%x.%x\n"
                       "\tSM                 : %d\n"
                       "\tFrequency (GHz)    : %f\n"
-                      "\tpeak Gflops        : double %2.1f, single %2.1f, tensor, %2.1f, half %2.1f\n"
+                      "\tpeak Tflop/s       : %4.2f fp64,\t%4.2f fp32,\t%4.2f tf32,\t%4.2f fp16\n"
                       "\tPeak Mem Bw (GB/s) : %.2f [Clock Rate (Ghz) %.2f | Bus Width (bits) %d]\n"
                       "\tconcurrency        : %s\n"
                       "\tcomputeMode        : %d\n",
