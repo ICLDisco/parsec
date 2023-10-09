@@ -49,7 +49,6 @@ static int parsec_cuda_flush_lru( parsec_device_module_t *device );
  * precision.
  * The following table provides updated values for future archs
  * http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#arithmetic-instructions
- *
  */
 static int parsec_cuda_device_lookup_cudamp_floprate(const char* name, int major, int minor, int *drate, int *srate, int *trate, int *hrate)
 {
@@ -58,7 +57,11 @@ static int parsec_cuda_device_lookup_cudamp_floprate(const char* name, int major
     *drate = 1;
     *hrate = *trate = 0;  /* not supported */
 
-#if !defined(PARSEC_HAVE_DEV_HIP_SUPPORT) /* AMD devices all report the same major/minor so we need something else */
+#if !defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+    /* AMD devices all report the same major/minor so we need something else
+     * AMD does not provide a handy list of FMA/cycle like NVIDIA does, so we
+     * have to use wikipedia... https://en.wikipedia.org/wiki/AMD_Instinct
+     */
     (void)name;
     if ((major == 3 && minor == 0) ||
         (major == 3 && minor == 2)) {
