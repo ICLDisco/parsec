@@ -50,13 +50,15 @@ static int parsec_cuda_flush_lru( parsec_device_module_t *device );
  * The following table provides updated values for future archs
  * http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#arithmetic-instructions
  */
-static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *drate, int *srate, int *trate, int *hrate)
+static int parsec_cuda_device_lookup_cudamp_floprate(const char* name, int major, int minor, int *drate, int *srate, int *trate, int *hrate)
 {
     /* Some sane defaults for unknown architectures */
     *srate = 8;
     *drate = 1;
     *hrate = *trate = 0;  /* not supported */
 
+#if !defined(PARSEC_HAVE_DEV_HIP_SUPPORT) /* AMD devices all report the same major/minor so we need something else */
+    (void)name;
     if ((major == 3 && minor == 0) ||
         (major == 3 && minor == 2)) {
         *srate = 192;
@@ -118,6 +120,36 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
     } else { /* Unknown device */
         return PARSEC_ERR_NOT_IMPLEMENTED;
     }
+#else
+    (void)major; (void)minor;
+    if(0 == strcasecmp("AMD Instinct MI250X", name)) {
+        *hrate = 512;
+        *srate = 64;
+        *drate = 64;
+    } else if(0 == strcasecmp("AMD Instinct MI250", name)) {
+        *hrate = 512;
+        *srate = 64;
+        *drate = 64;
+    } else if(0 == strcasecmp("AMD Instinct MI210", name)) {
+        *hrate = 512;
+        *srate = 64;
+        *drate = 64;
+    } else if(0 == strcasecmp("AMD Instinct MI100", name)) {
+        *hrate = 512;
+        *srate = 64;
+        *drate = 32;
+    } else if(0 == strcasecmp("AMD Instinct MI60", name)) {
+        *hrate = 128;
+        *srate = 64;
+        *drate = 32;
+    } else if(0 == strcasecmp("AMD Instinct MI50", name)) {
+        *hrate = 128;
+        *srate = 64;
+        *drate = 32;
+    } else { /* unknown device */
+        return PARSEC_ERR_NOT_IMPLEMENTED;
+    }
+#endif
     return PARSEC_SUCCESS;
 }
 
@@ -465,16 +497,16 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     device->data_advise         = parsec_cuda_data_advise;
     device->memory_release      = parsec_cuda_flush_lru;
 
-    if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERR_NOT_IMPLEMENTED ) {
+    if (parsec_cuda_device_lookup_cudamp_floprate(szName, major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERR_NOT_IMPLEMENTED ) {
         parsec_warning( "Device %s with capabilities %d.%d is unknown. Gflops rate is a random guess."
                         "Load balancing and performance might be negatively impacted. Please contact"
                         "the PaRSEC runtime developers", gpu_device->super.name, major, minor );
     }
     /* We compute gflops based on FMA rate */
-    device->gflops_fp16 = fp16 = 2.f * hrate * streaming_multiprocessor * freqHz * 1e-12f;
-    device->gflops_tf32 = tf32 = 2.f * trate * streaming_multiprocessor * freqHz * 1e-12f;
-    device->gflops_fp32 = fp32 = 2.f * srate * streaming_multiprocessor * freqHz * 1e-12f;
-    device->gflops_fp64 = fp64 = 2.f * drate * streaming_multiprocessor * freqHz * 1e-12f;
+    device->gflops_fp16 = fp16 = 2.f * hrate * streaming_multiprocessor * freqHz * 1e-9f;
+    device->gflops_tf32 = tf32 = 2.f * trate * streaming_multiprocessor * freqHz * 1e-9f;
+    device->gflops_fp32 = fp32 = 2.f * srate * streaming_multiprocessor * freqHz * 1e-9f;
+    device->gflops_fp64 = fp64 = 2.f * drate * streaming_multiprocessor * freqHz * 1e-9f;
     /* don't assert fp16, tf32, maybe they actually do not exist on the architecture */
     assert(device->gflops_fp32 > 0);
     assert(device->gflops_fp64 > 0);
