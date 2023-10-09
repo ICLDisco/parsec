@@ -49,6 +49,7 @@ static int parsec_cuda_flush_lru( parsec_device_module_t *device );
  * precision.
  * The following table provides updated values for future archs
  * http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#arithmetic-instructions
+ *
  */
 static int parsec_cuda_device_lookup_cudamp_floprate(const char* name, int major, int minor, int *drate, int *srate, int *trate, int *hrate)
 {
@@ -498,9 +499,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     device->memory_release      = parsec_cuda_flush_lru;
 
     if (parsec_cuda_device_lookup_cudamp_floprate(szName, major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERR_NOT_IMPLEMENTED ) {
-        parsec_warning( "Device %s with capabilities %d.%d is unknown. Gflops rate is a random guess."
-                        "Load balancing and performance might be negatively impacted. Please contact"
-                        "the PaRSEC runtime developers", gpu_device->super.name, major, minor );
+        parsec_debug_verbose(0, parsec_gpu_output_stream, "Unknown device %s (%s) [capabilities %d.%d]: Gflops rate is a random guess and load balancing (performance) may be reduced.",
+                        szName, gpu_device->super.name, major, minor );
+        device->gflops_guess = true;
     }
     /* We compute gflops based on FMA rate */
     device->gflops_fp16 = fp16 = 2.f * hrate * streaming_multiprocessor * freqHz * 1e-9f;
@@ -528,7 +529,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     }
 
     if( show_caps ) {
-        parsec_inform("GPU Device %-8s: %s (capability %d.%d)\n"
+        parsec_inform("GPU Device %-8s: %s [capability %d.%d] %s\n"
                       "\tLocation (PCI Bus/Device/Domain): %x:%x.%x\n"
                       "\tSM                 : %d\n"
                       "\tFrequency (GHz)    : %f\n"
@@ -537,6 +538,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                       "\tconcurrency        : %s\n"
                       "\tcomputeMode        : %d\n",
                       device->name, szName, cuda_device->major, cuda_device->minor,
+                      device->gflops_guess? "(GUESSED Peak Tflop/s; load imbalance may RECUDE PERFORMANCE)": "",
                       prop.pciBusID, prop.pciDeviceID, prop.pciDomainID,
                       streaming_multiprocessor,
                       freqHz*1e-9f,

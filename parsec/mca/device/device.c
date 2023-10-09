@@ -667,8 +667,8 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
         if( NULL == device ) continue;
         if( PARSEC_DEV_RECURSIVE == device->type ) continue;
         device->time_estimate_default = total_gflops_fp64/(double)device->gflops_fp64;
-        parsec_debug_verbose(6, parsec_device_output, "  Dev[%d] default-time-estimate %-4"PRId64" <- double %-8"PRId64" single %-8"PRId64" tensor %-8"PRId64" half %-8"PRId64,
-                             i, device->time_estimate_default, device->gflops_fp64, device->gflops_fp32, device->gflops_tf32, device->gflops_fp16);
+        parsec_debug_verbose(6, parsec_device_output, "  Dev[%d] default-time-estimate %-4"PRId64" <- double %-8"PRId64" single %-8"PRId64" tensor %-8"PRId64" half %-8"PRId64" %s",
+                             i, device->time_estimate_default, device->gflops_fp64, device->gflops_fp32, device->gflops_tf32, device->gflops_fp16, device->gflops_guess? "GUESSED": "");
     }
 
     parsec_mca_device_are_freezed = 1;
