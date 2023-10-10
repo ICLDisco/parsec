@@ -143,15 +143,15 @@ struct parsec_device_module_s {
     int64_t   gflops_fp32;  /**< Number of single precision operations per nanosecond (or gflops/s) */
     int64_t   gflops_fp64;  /**< Number of double precision operations per nanosecond (or gflops/s) */
     int64_t   gflops_tf32;  /**< Number of tensor operations per nanosecond (or gflops/s) */
-    uint8_t   gflops_guess; /**< True if the device is not 'known' which entails that the 'gflops' rates have been populated with fallback (arbitrary) values. */
     int64_t   time_estimate_default; /**< An estimate of the time to execute on that device a task that would take 1ns using the aggregate power of all devices. This is the default time_estimate if none is user-set. */
     int64_t   device_load;     /**< Number of nanoseconds of work submitted to the device, and not completed now. This variable is adjusted by the runtime using the time_estimate loads from the tasks. */
-#if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_stream_t *profiling;
-#endif  /* defined(PROFILING) */
+    uint8_t gflops_guess; /**< True if the device is not 'known' which entails that the 'gflops' rates have been populated with fallback (arbitrary) values. */
     uint8_t data_in_array_size; /**< Current size of the data_in_from_device array. Used for safety checking */
     uint8_t device_index;
     uint8_t type;
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_stream_t *profiling;
+#endif  /* defined(PROFILING) */
 };
 
 PARSEC_OBJ_CLASS_DECLARATION(parsec_device_module_t);
