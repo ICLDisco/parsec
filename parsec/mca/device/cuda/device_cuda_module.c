@@ -50,7 +50,7 @@ static int parsec_cuda_flush_lru( parsec_device_module_t *device );
  * The following table provides updated values for future archs
  * http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#arithmetic-instructions
  */
-static int parsec_cuda_device_lookup_cudamp_floprate(const char* name, int major, int minor, int *drate, int *srate, int *trate, int *hrate)
+static int parsec_cuda_device_lookup_cudamp_floprate(const struct cudaDeviceProp* prop, int *drate, int *srate, int *trate, int *hrate)
 {
     /* Some sane defaults for unknown architectures */
     *srate = 8;
@@ -58,11 +58,8 @@ static int parsec_cuda_device_lookup_cudamp_floprate(const char* name, int major
     *hrate = *trate = 0;  /* not supported */
 
 #if !defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
-    /* AMD devices all report the same major/minor so we need something else
-     * AMD does not provide a handy list of FMA/cycle like NVIDIA does, so we
-     * have to use wikipedia... https://en.wikipedia.org/wiki/AMD_Instinct
-     */
-    (void)name;
+    int major = prop->major;
+    int minor = prop->minor;
     if ((major == 3 && minor == 0) ||
         (major == 3 && minor == 2)) {
         *srate = 192;
@@ -125,28 +122,23 @@ static int parsec_cuda_device_lookup_cudamp_floprate(const char* name, int major
         return PARSEC_ERR_NOT_IMPLEMENTED;
     }
 #else
-    (void)major; (void)minor;
-    if(0 == strcasecmp("AMD Instinct MI250X", name)) {
+    /* AMD devices all report the same major/minor so we need to use the arch number
+     * https://rocm.docs.amd.com/en/latest/release/gpu_os_support.html
+     *
+     * https://docs.amd.com/en/latest/understand/gpu_arch contains the FMA/cycle for
+     * recent architectures. This list will assume MFMA if available for the type.
+     * divide by 2 the numbers because they already double count FMAs in that source.
+     */
+    const char *name = prop->gcnArchName;
+    if(0 == strncasecmp("gfx90a", name, 6)) {
         *hrate = 512;
-        *srate = 64;
-        *drate = 64;
-    } else if(0 == strcasecmp("AMD Instinct MI250", name)) {
+        *srate = 128;
+        *drate = 128;
+    } else if(0 == strncasecmp("gfx908", name, 6)) {
         *hrate = 512;
-        *srate = 64;
-        *drate = 64;
-    } else if(0 == strcasecmp("AMD Instinct MI210", name)) {
-        *hrate = 512;
-        *srate = 64;
-        *drate = 64;
-    } else if(0 == strcasecmp("AMD Instinct MI100", name)) {
-        *hrate = 512;
-        *srate = 64;
+        *srate = 128;
         *drate = 32;
-    } else if(0 == strcasecmp("AMD Instinct MI60", name)) {
-        *hrate = 128;
-        *srate = 64;
-        *drate = 32;
-    } else if(0 == strcasecmp("AMD Instinct MI50", name)) {
+    } else if(0 == strncasecmp("gfx906", name, 6)) {
         *hrate = 128;
         *srate = 64;
         *drate = 32;
@@ -501,7 +493,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     device->data_advise         = parsec_cuda_data_advise;
     device->memory_release      = parsec_cuda_flush_lru;
 
-    if (parsec_cuda_device_lookup_cudamp_floprate(szName, major, minor, &drate, &srate, &trate, &hrate) == PARSEC_ERR_NOT_IMPLEMENTED ) {
+    if (parsec_cuda_device_lookup_cudamp_floprate(&prop, &drate, &srate, &trate, &hrate) == PARSEC_ERR_NOT_IMPLEMENTED ) {
         parsec_debug_verbose(0, parsec_gpu_output_stream, "Unknown device %s (%s) [capabilities %d.%d]: Gflops rate is a random guess and load balancing (performance) may be reduced.",
                         szName, gpu_device->super.name, major, minor );
         device->gflops_guess = true;
