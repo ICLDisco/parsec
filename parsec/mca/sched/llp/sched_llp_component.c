@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021      The University of Tennessee and The University
+ * Copyright (c) 2021-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
