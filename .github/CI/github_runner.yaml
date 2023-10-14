@@ -25,3 +25,10 @@ spack:
   specs:
     - matrix:
       - [$pkgs]
+  packages:
+     binutils:
+       buildable: false
+       externals:
+       - spec: binutils@2.38
+         prefix: /usr
+
