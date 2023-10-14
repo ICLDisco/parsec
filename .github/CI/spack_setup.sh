@@ -15,6 +15,14 @@ slocation () {
   spack location -i /$HASH
 }
 
+get_fresh_copy_of_spack() {
+  echo "git clone spack branch ${RUNNER_SPACK_BRANCH} @ ${SPACK_DIR}"
+  git clone -b ${RUNNER_SPACK_BRANCH} https://github.com/spack/spack $SPACK_DIR || true
+  # We do a git pull to create the .git/FETCH_HEAD for the check
+  # next time the script is executed.
+  cd $SPACK_DIR && git pull && git status
+}
+
 # Only do the heavy lifting once per github_action invocation
 if [ ${GITHUB_ACTION} != "setup" ]; then
   echo "::group::Loading spack ${RUNNER_ENV} env"
@@ -29,14 +37,24 @@ save_dir=`pwd`
 # Only update the spack clone once a day
 #
 echo "::group::Spack environment setup"
-if [ -r ${SPACK_DIR}/.git/FETCH_HEAD ]; then
+if [ "x${RUNNER_SPACK_BRANCH}" == "x" ]; then
+  RUNNER_SPACK_BRANCH="e4s-23.08"  # fall back to something stable
+fi
+
+if [ -r ${SPACK_DIR}/.git/HEAD ]; then
   # We should never allow spack to update it's packages, it increases the
   # opportunity for mishandling of the runner environment. Instead, when
   # there is a need for update, the entire runner should be flushed, such
   # that a fresh spack install is created.
-  last_update=`stat -c %Y ${SPACK_DIR}/.git/FETCH_HEAD`
+  last_update=`stat -c %Y ${SPACK_DIR}/.git/HEAD`
   current=`date -d now "+%s"`
   echo "spack is $(((current - last_update) / 86400)) days old"
+  HEAD=`head -n1 ${SPACK_DIR}/.git/HEAD`
+  if [ "$HEAD" != "ref: refs/heads/${RUNNER_SPACK_BRANCH}" ]; then
+    echo "Remove current spack install ($HEAD) and install ${RUNNER_SPACK_BRANCH} "
+    rm -rf $SPACK_DIR
+    get_fresh_copy_of_spack
+  fi
   # if [ $(((current - last_update) / 86400)) -gt 1 ]; then
   #   echo "Last update ${last_update}, current ${current}: Do git pull spack"
   #   cd $SPACK_DIR && git pull
@@ -44,11 +62,7 @@ if [ -r ${SPACK_DIR}/.git/FETCH_HEAD ]; then
   #   echo "git pull was less than one day ago"
   # fi
 else
-  echo "git clone spack"
-  git clone https://github.com/spack/spack $SPACK_DIR || true
-  # We do a git pull to create the .git/FETCH_HEAD for the check
-  # next time the script is executed.
-  cd $SPACK_DIR && git pull && git status
+  get_fresh_copy_of_spack
 fi
 
 rm -rf ${HOME}/.spack
