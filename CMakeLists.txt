@@ -242,6 +242,28 @@ option(PARSEC_PROFILING_USE_HELPER_THREAD
   "Use a Helper Thread to create the profile files" ON)
 mark_as_advanced(PARSEC_PROFILING_USE_HELPER_THREAD)
 
+# A set of constants defining the capabilities of the underlying runtime
+if(MAX_DEP_IN_COUNT)
+    add_compile_definitions(MAX_DEP_IN_COUNT=${MAX_DEP_IN_COUNT})
+else()
+    add_compile_definitions(MAX_DEP_IN_COUNT=10)
+endif()
+if(MAX_DEP_OUT_COUNT)
+    add_compile_definitions(MAX_DEP_OUT_COUNT=${MAX_DEP_OUT_COUNT})
+else()
+    add_compile_definitions(MAX_DEP_OUT_COUNT=10)
+endif()
+if(MAX_LOCAL_COUNT)
+    add_compile_definitions(MAX_LOCAL_COUNT=${MAX_LOCAL_COUNT})
+else()
+    add_compile_definitions(MAX_LOCAL_COUNT=20)
+endif()
+if(MAX_PARAM_COUNT)
+    add_compile_definitions(MAX_PARAM_COUNT=${MAX_PARAM_COUNT})
+else()
+    add_compile_definitions(MAX_PARAM_COUNT=20)
+endif()
+
 ### Instrumentation Options
 option(PARSEC_PROF_PINS
   "Enable the use of the PaRSEC callback instrumentation system (requires PARSEC_PROF_TRACE)" ON)
