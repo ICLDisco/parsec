@@ -120,7 +120,6 @@ mark_as_advanced(BUILD_TOOLS)
 option(BUILD_PARSEC
        "Compile the PaRSEC framework" ON)
 mark_as_advanced(BUILD_PARSEC)
-
 ### Misc options
 option(BUILD_SHARED_LIBS
     "Build shared libraries" ON)
@@ -131,6 +130,9 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 option(PARSEC_WANT_HOME_CONFIG_FILES
        "Should the runtime check for the parameter configuration file in the user home (\$HOME/.parsec/mca-params.conf)" ON)
+option(MPI_HWLOC_COMPAT_CHECK
+       "Run the MPI + HWLOC compatibility check. If OFF assume the check succeeds (default ON)." ON)
+mark_as_advanced(MPI_HWLOC_COMPAT_CHECK)
 
 ### PaRSEC PP options
 set(PARSEC_PTGPP_FLAGS "--noline" CACHE STRING "Additional parsec-ptgpp precompiling flags (separate flags with ';')" )
@@ -631,7 +633,7 @@ if( BUILD_PARSEC )
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     list(APPEND EXTRA_INCLUDES ${HWLOC_INCLUDE_DIRS})
     set (PARSEC_PKG_REQUIRE "hwloc")
-    if(MPI_C_FOUND AND NOT CMAKE_CROSSCOMPILING)
+    if(MPI_C_FOUND AND MPI_HWLOC_COMPAT_CHECK AND NOT CMAKE_CROSSCOMPILING)
         include(CheckCSourceRuns)
         cmake_push_check_state()
         # Some MPI libraries link with an external version of hwloc, and
@@ -679,7 +681,10 @@ int main(int argc, char *argv[]) {
             message(FATAL_ERROR "The hwloc CMake found and the one used by MPI are incompatible!\n  Make sure you use the same hwloc used to compile your MPI library\n  The test failed with the following outputs:\n${RUN_OUTPUT}")
         endif(NOT MPI_AND_HWLOC_COMPATIBLE)
         cmake_pop_check_state()
-    endif(MPI_C_FOUND AND NOT CMAKE_CROSSCOMPILING)
+    else(MPI_C_FOUND AND MPI_HWLOC_COMPAT_CHECK AND NOT CMAKE_CROSSCOMPILING)
+      message(STATUS "MPI and HWLOC assumed compatible (check explicitly disabled)")
+      set(MPI_AND_HWLOC_COMPATIBLE 1 CACHE BOOL "MPI and HWLOC assumed compatible (check explicitly disabled)")
+    endif(MPI_C_FOUND AND MPI_HWLOC_COMPAT_CHECK AND NOT CMAKE_CROSSCOMPILING)
   endif( HWLOC_FOUND )
 
   if( PARSEC_GPU_WITH_CUDA )
