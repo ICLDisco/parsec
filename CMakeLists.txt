@@ -134,6 +134,12 @@ option(MPI_HWLOC_COMPAT_CHECK
        "Run the MPI + HWLOC compatibility check. If OFF assume the check succeeds (default ON)." ON)
 mark_as_advanced(MPI_HWLOC_COMPAT_CHECK)
 
+### PaRSEC runtime configuration parameters
+set(PARSEC_MAX_LOCAL_COUNT 20 CACHE STRING "Number of local variables for tasks (default 20)")
+set(PARSEC_MAX_PARAM_COUNT 20 CACHE STRING "Number of parameters for tasks (default 20)")
+set(PARSEC_MAX_DEP_IN_COUNT 10 CACHE STRING "Number of input flows for each task (default 10)")
+set(PARSEC_MAX_DEP_OUT_COUNT 10 CACHE STRING "Number of output flows for each task (default 10)")
+
 ### PaRSEC PP options
 set(PARSEC_PTGPP_FLAGS "--noline" CACHE STRING "Additional parsec-ptgpp precompiling flags (separate flags with ';')" )
 mark_as_advanced(PARSEC_PTGPP_FLAGS)
@@ -141,10 +147,9 @@ mark_as_advanced(PARSEC_PTGPP_FLAGS)
 option(PARSEC_WITH_DEVEL_HEADERS "Install additional headers in include/parsec allowing external compilation." ON)
 
 ## Multicore scheduler parameters
-
-mark_as_advanced(PARSEC_SCHED_DEPS_MASK)
 option(PARSEC_SCHED_DEPS_MASK
   "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" ON)
+mark_as_advanced(PARSEC_SCHED_DEPS_MASK)
 
 ### Distributed engine parameters
 mark_as_advanced(PARSEC_DIST_THREAD PARSEC_DIST_PRIORITIES)

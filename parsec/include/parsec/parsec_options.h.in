@@ -2,7 +2,7 @@
 #define PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
 
 /* This file contains the OS dependent capabilities, and should be generic for
- * all compilers o a particular architecture. It is used during the PaRSEC build to
+ * all compilers on a particular architecture. It is used during the PaRSEC build to
  * import all OS dependent features, but once PaRSEC installed this file will
  * become the parsec_config.h and will hide all compiler dependent features used
  * during PaRSEC compilation.
@@ -119,11 +119,6 @@
 #define CMAKE_PARSEC_C_FLAGS      "@CMAKE_C_FLAGS@"
 #define CMAKE_PARSEC_C_INCLUDES   "@PARSEC_C_INCLUDES@"
 
-/**
- * The following 3 defines are deprecated. Instead users should
- * rely on the corresponding PARSEC_HAVE_DEV_XXX_SUPPORT
- */
-
 #cmakedefine PARSEC_HAVE_HWLOC
 #cmakedefine PARSEC_HAVE_PAPI
 #cmakedefine PARSEC_HAVE_MPI
@@ -145,6 +140,15 @@
 #define PARSEC_LIB_LEVEL_ZERO_PREFIX "."
 
 #define PARSEC_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@
+
+/* The max number of local variables for each task */
+#define MAX_LOCAL_COUNT   @PARSEC_MAX_LOCAL_COUNT@
+/* The max number of parameter variables for each task */
+#define MAX_PARAM_COUNT   @PARSEC_MAX_PARAM_COUNT@
+/* The max number of input dependencies (not flows) for each task */
+#define MAX_DEP_IN_COUNT  @PARSEC_MAX_DEP_IN_COUNT@
+/* The max number of output dependencies (not flows) for each task */
+#define MAX_DEP_OUT_COUNT @PARSEC_MAX_DEP_OUT_COUNT@
 
 #include "parsec/parsec_config_bottom.h"
 
