@@ -13,13 +13,27 @@ if( NOT Python_Development_FOUND )
   return()
 endif( NOT Python_Development_FOUND )
 
-# Python support for profiling (requires Cython 0.21.2)
+# Python support for profiling requires
+# - Cython 0.21.2
+# - pandas
+# the latter can be installed AFTER building parsec tools, but since PaRSEC Python module is not usable without it,
+# do not build it without pandas
 find_package(Cython 0.21.2)
 if( NOT CYTHON_EXECUTABLE )
   message(WARNING "Cython > 0.21.2 not found. Disabling the profiling tools")
   set(PARSEC_PYTHON_TOOLS OFF CACHE BOOL "True iff Python tools are enabled in PaRSEC")
   return()
 endif( NOT CYTHON_EXECUTABLE )
+execute_process(
+        COMMAND ${Python_EXECUTABLE} -c "import pandas"
+        RESULT_VARIABLE PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO
+        OUTPUT_QUIET
+)
+if ( NOT PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO STREQUAL 0 )
+  message(WARNING "Prerequisite Python modules (pandas) not found. Disabling the profiling tools")
+  set(PARSEC_PYTHON_TOOLS OFF CACHE BOOL "True iff Python tools are enabled in PaRSEC")
+  return()
+endif ( NOT PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO STREQUAL 0 )
 
 set(SRC_PYTHON_SUPPORT ${CMAKE_CURRENT_SOURCE_DIR}/common_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_SOURCE_DIR}/ptt_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/profile2h5.py ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd)
 set(SETUP_PY setup.py)
