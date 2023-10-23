@@ -1020,7 +1020,7 @@ parsec_gpu_data_reserve_device_space( parsec_device_gpu_module_t* gpu_device,
                         /* If we are the owner of this tile we need to make sure it remains available for
                          * other tasks or we run in deadlock situations.
                          */
-=                        parsec_atomic_unlock( &oldmaster->lock );
+                        parsec_atomic_unlock( &oldmaster->lock );
                         goto find_another_data;
                     }
                 }
@@ -1398,15 +1398,15 @@ parsec_gpu_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                  */
                 if( (candidate->original == original) && (candidate->version == task_data->data_in->version) ) {
                     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                         "GPU[%s]:\tData copy %p [ref_count %d] on CUDA device %d is the best candidate to do Device to Device copy, increasing its readers to %d",
-                                         gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->cuda_index, candidate->readers+1);
+                                         "GPU[%s]:\tData copy %p [ref_count %d] on PaRSEC device %s is the best candidate to do Device to Device copy, increasing its readers to %d",
+                                         gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->super.name, candidate->readers+1);
                     candidate_dev = target;
                     goto src_selected;
                 }
             }
             PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                                 "GPU[%s]:\tCandidate %p [ref_count %d] on CUDA device %d is being repurposed by owner device. Looking for another candidate",
-                                 gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->cuda_index);
+                                 "GPU[%s]:\tCandidate %p [ref_count %d] on PaRSEC device %s is being repurposed by owner device. Looking for another candidate",
+                                 gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, target->super.name);
             /* We are trying to use a candidate that is repurposed by the owner device. Let's find another one */
             parsec_atomic_fetch_add_int32(&candidate->readers, -1);
         }
@@ -2036,7 +2036,7 @@ parsec_gpu_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
 #if defined(PARSEC_PROF_TRACE)
     if (gpu_stream->prof_event_track_enable &&
         (0 == gpu_task->prof_key_end)) {
-        parsec_task_class_t* tc = this_task->task_class;
+        parsec_task_class_t* tc = (parsec_task_class_t*)this_task->task_class;
         PARSEC_TASK_PROF_TRACE(gpu_stream->profiling,
                                PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,
                                                           tc->task_class_id),
