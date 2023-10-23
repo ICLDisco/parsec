@@ -454,10 +454,7 @@ parsec_gpu_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int adv
     switch(advice) {
     case PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE:
         data->preferred_device = dev->device_index;
-        /* We continue on to the next case, as we want to also
-         * prefetch the data on the target device, if it is the
-         * preferred device */
-        break; //__attribute__ ((fallthrough));
+        break;
     case PARSEC_DEV_DATA_ADVICE_PREFETCH:
         {
             if( parsec_type_contiguous(data->device_copies[ data->owner_device ]->dtt) != PARSEC_SUCCESS){

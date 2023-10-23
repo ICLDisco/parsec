@@ -14,38 +14,8 @@
 
 BEGIN_C_DECLS
 
-#if defined(PARSEC_PROF_TRACE)
-#define PARSEC_PROFILE_LEVEL_ZERO_TRACK_DATA_IN  0x0001
-#define PARSEC_PROFILE_LEVEL_ZERO_TRACK_DATA_OUT 0x0002
-#define PARSEC_PROFILE_LEVEL_ZERO_TRACK_OWN      0x0004
-#define PARSEC_PROFILE_LEVEL_ZERO_TRACK_EXEC     0x0008
-#define PARSEC_PROFILE_LEVEL_ZERO_TRACK_MEM_USE  0x0010
-#define PARSEC_PROFILE_LEVEL_ZERO_TRACK_PREFETCH 0x0020
-
-extern int parsec_level_zero_trackable_events;
-extern int parsec_level_zero_movein_key_start;
-extern int parsec_level_zero_movein_key_end;
-extern int parsec_level_zero_moveout_key_start;
-extern int parsec_level_zero_moveout_key_end;
-extern int parsec_level_zero_own_GPU_key_start;
-extern int parsec_level_zero_own_GPU_key_end;
-extern int parsec_level_zero_allocate_memory_key;
-extern int parsec_level_zero_free_memory_key;
-extern int parsec_level_zero_use_memory_key_start;
-extern int parsec_level_zero_use_memory_key_end;
-extern int parsec_level_zero_prefetch_key_start;
-extern int parsec_level_zero_prefetch_key_end;
-extern int parsec_device_level_zero_one_profiling_stream_per_level_zero_stream;
-#endif  /* defined(PARSEC_PROF_TRACE) */
-
-#define GPU_TASK_TYPE_KERNEL       0x0000
-#define GPU_TASK_TYPE_D2HTRANSFER  0x1000
-#define GPU_TASK_TYPE_PREFETCH     0x2000
-#define GPU_TASK_TYPE_WARMUP       0x4000
-#define GPU_TASK_TYPE_D2D_COMPLETE 0x8000
-
 /* From MCA parameters */
-extern int parsec_device_level_zero_enabled_index, parsec_device_level_zero_enabled;
+extern int parsec_device_level_zero_enabled;
 extern int parsec_level_zero_max_streams;
 extern int parsec_level_zero_memory_block_size, parsec_level_zero_memory_percentage, parsec_level_zero_memory_number_of_blocks;
 extern char* parsec_level_zero_lib_path;

@@ -39,7 +39,7 @@ static void* parsec_level_zero_find_incarnation(parsec_device_gpu_module_t* gpu_
      * In any case this list might be a list of ; separated possible targets,
      * where each target can be either a directory or a specific file.
      */
-    env = getenv("PARSEC_CUCORES_LIB");
+    env = getenv("PARSEC_LZCORES_LIB");
     if( NULL != env ) {
         argv = parsec_argv_split(env, ';');
     } else if( NULL != parsec_level_zero_lib_path ) {
