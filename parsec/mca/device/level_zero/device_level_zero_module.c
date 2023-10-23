@@ -389,7 +389,8 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     device->data_advise         = parsec_gpu_data_advise;
     device->memory_release      = parsec_gpu_flush_lru;
 
-    /* We compute gflops based on FMA rate */
+    /* Un-implemented compute gflops based on FMA rate */
+    device->gflops_guess = true;
     device->gflops_fp16 = 2.f * 4.0 * streaming_multiprocessor * clockRate;
     device->gflops_tf32 = 2.f * 8.0 * streaming_multiprocessor * clockRate;
     device->gflops_fp32 = 2.f * 2.0 * streaming_multiprocessor * clockRate;
