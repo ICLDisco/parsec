@@ -114,6 +114,12 @@ typedef int   (*parsec_device_memory_release_f)(parsec_device_module_t*);
 typedef int   (*parsec_device_data_advise_f)(parsec_device_module_t*, parsec_data_t*, int);
 typedef void* (*parsec_device_find_function_f)(parsec_device_module_t*, char*);
 
+/**
+ * Reorders the list of pending tasks on the current device based on the
+ *   current heuristic implemented by the device
+ */
+typedef int  (*parsec_device_sort_pending_list_function_f)(parsec_device_module_t*);
+
 struct parsec_device_module_s {
     parsec_object_t                        super;
     const parsec_device_base_component_t  *component;
@@ -127,6 +133,7 @@ struct parsec_device_module_s {
     parsec_device_memory_release_f         memory_release;
     parsec_device_data_advise_f            data_advise;
     parsec_device_find_function_f          find_function;
+    parsec_device_sort_pending_list_function_f sort_pending_list;
 
     parsec_info_object_array_t             infos; /**< Per-device info objects are stored here */
     struct parsec_context_s* context;  /**< The PaRSEC context this device belongs too */

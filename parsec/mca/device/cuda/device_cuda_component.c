@@ -40,6 +40,7 @@ int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_me
 char* parsec_cuda_lib_path = NULL;
 
 static int cuda_mask, cuda_nvlink_mask;
+static int parsec_cuda_sort_pending;
 
 
 /*
@@ -109,6 +110,9 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
         if( PARSEC_SUCCESS != rc ) {
             assert( NULL == parsec_device_cuda_component.modules[j] );
             continue;
+        }
+        if(parsec_cuda_sort_pending) {
+            parsec_device_cuda_component.modules[j]->sort_pending_list = parsec_device_sort_pending_list;
         }
         parsec_device_cuda_component.modules[j]->component = &parsec_device_cuda_component;
         j++;  /* next available spot */
@@ -188,9 +192,9 @@ static int device_cuda_component_register(void)
     (void)parsec_mca_param_reg_int_name("device_cuda", "max_streams",
                                         "Maximum number of Streams to use for the GPU engine; 2 streams are used for communication between host and device, so the minimum is 3",
                                         false, false, PARSEC_GPU_MAX_STREAMS, &parsec_cuda_max_streams);
-    (void)parsec_mca_param_reg_int_name("device_gpu", "sort_pending_tasks",
+    (void)parsec_mca_param_reg_int_name("device_cuda", "sort_pending_tasks",
                                         "Boolean to let the GPU engine sort the first pending tasks stored in the list",
-                                        false, false, 0, &parsec_gpu_sort_pending);
+                                        false, false, 0, &parsec_cuda_sort_pending);
 #if defined(PARSEC_PROF_TRACE)
     (void)parsec_mca_param_reg_int_name("device_cuda", "one_profiling_stream_per_cuda_stream",
                                         "Boolean to separate the profiling of each cuda stream into a single profiling stream",

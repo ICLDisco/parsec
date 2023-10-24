@@ -16,7 +16,9 @@
 #include "parsec/parsec_internal.h"
 #include "parsec/scheduling.h"
 
-#define PARSEC_CUDA_DATA_COPY_ATOMIC_SENTINEL 1024
+#include <limits.h>
+
+#define PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL 1024
 
 #if defined(PARSEC_PROF_TRACE)
 /* Accepted values are: PARSEC_PROFILE_GPU_TRACK_DATA_IN | PARSEC_PROFILE_GPU_TRACK_DATA_OUT |
@@ -43,7 +45,6 @@ static int parsec_gpu_profiling_initiated = 0;
 #endif  /* defined(PROFILING) */
 int parsec_gpu_output_stream = -1;
 int parsec_gpu_verbosity;
-int parsec_gpu_sort_pending = 0;
 
 static inline int
 parsec_gpu_check_space_needed(parsec_device_gpu_module_t *gpu_device,
@@ -118,8 +119,12 @@ void parsec_gpu_enable_debug(void)
     }
 }
 
-int parsec_gpu_sort_pending_list(parsec_device_gpu_module_t *gpu_device)
+int parsec_device_sort_pending_list(parsec_device_module_t *device)
 {
+    if( !PARSEC_DEV_IS_GPU(device->type) )
+        return 0;
+
+    parsec_device_gpu_module_t *gpu_device = (parsec_device_gpu_module_t *)device;
     parsec_list_t *sort_list = gpu_device->exec_stream[0]->fifo_pending;
 
     if (parsec_list_is_empty(sort_list) ) { /* list is empty */
@@ -1029,20 +1034,20 @@ parsec_gpu_data_reserve_device_space( parsec_device_gpu_module_t* gpu_device,
                  * avoid altering the copy while they are using it, by protecting the access to the readers
                  * with a cas.
                  */
-                if( !parsec_atomic_cas_int32(&lru_gpu_elem->readers, 0, -PARSEC_CUDA_DATA_COPY_ATOMIC_SENTINEL) ) {
+                if( !parsec_atomic_cas_int32(&lru_gpu_elem->readers, 0, -PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL) ) {
                     assert(lru_gpu_elem->readers > 0);
                     /* we can't use this copy, push it back */
                     parsec_list_push_back(&gpu_device->gpu_mem_lru, &lru_gpu_elem->super);
                     gpu_mem_lru_cycling = (NULL == gpu_mem_lru_cycling) ? lru_gpu_elem : gpu_mem_lru_cycling;  /* update the cycle detector */
                     PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                                         "GPU[%s]:%s: Push back LRU-retrieved CUDA copy %p [readers %d, ref_count %d] original %p : Concurrent accesses",
+                                         "GPU[%s]:%s: Push back LRU-retrieved GPU copy %p [readers %d, ref_count %d] original %p : Concurrent accesses",
                                          gpu_device->super.name, task_name,
                                          lru_gpu_elem, lru_gpu_elem->readers, lru_gpu_elem->super.super.obj_reference_count,
                                          lru_gpu_elem->original);
                     parsec_atomic_unlock( &oldmaster->lock );
                     goto find_another_data;
                 }
-                copy_readers_update = PARSEC_CUDA_DATA_COPY_ATOMIC_SENTINEL;
+                copy_readers_update = PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL;
                 /* Check if this copy is the last dangling reference to the oldmaster. This is safe to do as we own one of the data refcounts. */
                 int do_unlock = oldmaster->super.obj_reference_count != 1;
                 parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
@@ -2581,8 +2586,8 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
 
  fetch_task_from_shared_queue:
     assert( NULL == gpu_task );
-    if (1 == parsec_gpu_sort_pending && out_task_submit == NULL && out_task_pop == NULL) {
-        parsec_gpu_sort_pending_list(gpu_device);
+    if (NULL != gpu_device->super.sort_pending_list && out_task_submit == NULL && out_task_pop == NULL) {
+        gpu_device->super.sort_pending_list(&gpu_device->super);
     }
     gpu_task = (parsec_gpu_task_t*)parsec_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != gpu_task ) {

@@ -294,7 +294,7 @@ void* parsec_gpu_pop_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gp
 int parsec_gpu_free_workspace(parsec_device_gpu_module_t * gpu_device);
 
 /* sort pending task list by number of spaces needed */
-int parsec_gpu_sort_pending_list(parsec_device_gpu_module_t *gpu_device);
+int parsec_device_sort_pending_list(parsec_device_module_t *gpu_device);
 parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es);
 int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
 
@@ -343,11 +343,6 @@ typedef struct {
 #define PARSEC_DEVICE_GPU_MEMORY_PROF_INFO_CONVERTER "size{int64_t};data_key{uint64_t};dc_id{uint64_t}"
 
 #endif  /* defined(PROFILING) */
-
-extern int parsec_gpu_sort_pending;
-
-void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream);
-void dump_GPU_state(parsec_device_gpu_module_t* gpu_device);
 
 int parsec_device_gpu_memory_reserve( parsec_device_gpu_module_t* gpu_device,
                                       int           memory_percentage,
