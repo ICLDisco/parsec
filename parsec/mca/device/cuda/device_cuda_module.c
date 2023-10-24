@@ -207,7 +207,7 @@ static void* parsec_cuda_find_incarnation(parsec_device_gpu_module_t* gpu_device
     void *fn = NULL;
     char** argv = NULL;
 
-    rc = gpu_device->gpu_set_device(gpu_device);
+    rc = gpu_device->set_device(gpu_device);
     if( PARSEC_SUCCESS != rc )
         return NULL;
 
@@ -276,7 +276,7 @@ static int parsec_cuda_set_device(parsec_device_gpu_module_t *gpu)
 }
 
 static int parsec_cuda_memcpy_async(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream,
-                                        void *dest, void *source, size_t bytes, parsec_device_gpu_transfer_direction_t direction)
+                                        void *dest, void *source, size_t bytes, parsec_device_transfer_direction_t direction)
 {
     cudaError_t cudaStatus;
     enum cudaMemcpyKind kind;
@@ -295,7 +295,7 @@ static int parsec_cuda_memcpy_async(struct parsec_device_gpu_module_s *gpu, stru
         kind = cudaMemcpyHostToDevice;
         break;
     default:
-        PARSEC_CUDA_CHECK_ERROR( "Translate parsec_device_gpu_transfer_direction_t to cudaMemcpyKind ", cudaErrorInvalidValue, {return PARSEC_ERROR;} );
+        PARSEC_CUDA_CHECK_ERROR( "Translate parsec_device_transfer_direction_t to cudaMemcpyKind ", cudaErrorInvalidValue, {return PARSEC_ERROR;} );
     }
 
     cudaStatus =  cudaMemcpyAsync( dest, source, bytes, kind, cuda_stream->cuda_stream );
@@ -517,14 +517,14 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
 
     device->memory_register          = parsec_cuda_memory_register;
     device->memory_unregister        = parsec_cuda_memory_unregister;
-    gpu_device->gpu_set_device       = parsec_cuda_set_device;
-    gpu_device->gpu_memcpy_async     = parsec_cuda_memcpy_async;
-    gpu_device->gpu_event_record     = parsec_cuda_event_record;
-    gpu_device->gpu_event_query      = parsec_cuda_event_query;
-    gpu_device->gpu_memory_info      = parsec_cuda_memory_info;
-    gpu_device->gpu_memory_allocate  = parsec_cuda_memory_allocate;
-    gpu_device->gpu_memory_free      = parsec_cuda_memory_free;
-    gpu_device->gpu_find_incarnation = parsec_cuda_find_incarnation;
+    gpu_device->set_device       = parsec_cuda_set_device;
+    gpu_device->memcpy_async     = parsec_cuda_memcpy_async;
+    gpu_device->event_record     = parsec_cuda_event_record;
+    gpu_device->event_query      = parsec_cuda_event_query;
+    gpu_device->memory_info      = parsec_cuda_memory_info;
+    gpu_device->memory_allocate  = parsec_cuda_memory_allocate;
+    gpu_device->memory_free      = parsec_cuda_memory_free;
+    gpu_device->find_incarnation = parsec_cuda_find_incarnation;
 
     if( PARSEC_SUCCESS != parsec_device_memory_reserve(gpu_device,
                                                            parsec_cuda_memory_percentage,

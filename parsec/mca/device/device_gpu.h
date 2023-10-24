@@ -120,11 +120,11 @@ struct parsec_gpu_task_s {
     };
 };
 
-typedef enum parsec_device_gpu_transfer_direction_e {
+typedef enum parsec_device_transfer_direction_e {
     parsec_device_gpu_transfer_direction_h2d,
     parsec_device_gpu_transfer_direction_d2h,
     parsec_device_gpu_transfer_direction_d2d
-} parsec_device_gpu_transfer_direction_t;
+} parsec_device_transfer_direction_t;
 
 /**
  * @brief Set the device for the calling thread.
@@ -133,7 +133,7 @@ typedef enum parsec_device_gpu_transfer_direction_e {
  * 
  * @return PARSEC_SUCCESS or a PARSEC error
  */
-typedef int (*parsec_device_gpu_set_device_fn_t)(struct parsec_device_gpu_module_s *gpu);
+typedef int (*parsec_device_set_device_fn_t)(struct parsec_device_gpu_module_s *gpu);
 
 /**
  * @brief Schedules the asynchronous copy of @p bytes bytes from @p source onto @p dest
@@ -144,8 +144,8 @@ typedef int (*parsec_device_gpu_set_device_fn_t)(struct parsec_device_gpu_module
  * 
  * @return PARSEC_SUCCESS or a PARSEC error
  */
-typedef int (*parsec_device_gpu_memcpy_async_fn_t)(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream,
-                                                   void *dest, void *source, size_t bytes, parsec_device_gpu_transfer_direction_t direction);
+typedef int (*parsec_device_memcpy_async_fn_t)(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream,
+                                                   void *dest, void *source, size_t bytes, parsec_device_transfer_direction_t direction);
 
 /**
  * @brief Record an event on the GPU @p gpu_stream of GPU @p gpu, with index @p idx.
@@ -155,7 +155,7 @@ typedef int (*parsec_device_gpu_memcpy_async_fn_t)(struct parsec_device_gpu_modu
  * 
  * @return PARSEC_SUCCESS or a PARSEC error
  */
-typedef int (*parsec_device_gpu_event_record_fn_t)(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream, int32_t event_idx);
+typedef int (*parsec_device_event_record_fn_t)(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream, int32_t event_idx);
 
 /**
  * @brief Record an event on the GPU @p gpu_stream of GPU @p gpu, with index @p idx.
@@ -167,7 +167,7 @@ typedef int (*parsec_device_gpu_event_record_fn_t)(struct parsec_device_gpu_modu
  *         1 if the event recorded at @p event_idx in @p gpu_stream is ready/completed
  *         a negative value which is a PARSEC error otherwise
  */
-typedef int (*parsec_device_gpu_event_query_fn_t)(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream, int32_t event_idx);
+typedef int (*parsec_device_event_query_fn_t)(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream, int32_t event_idx);
 
 /**
  * @brief Computes how much memory is available on the GPU. Returns two values:
@@ -178,7 +178,7 @@ typedef int (*parsec_device_gpu_event_query_fn_t)(struct parsec_device_gpu_modul
  * 
  * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise (in which case the parameters are undefined)
  */
-typedef int (*parsec_device_gpu_memory_info_fn_t)(struct parsec_device_gpu_module_s *gpu, size_t *free_mem, size_t *total_mem);
+typedef int (*parsec_device_memory_info_fn_t)(struct parsec_device_gpu_module_s *gpu, size_t *free_mem, size_t *total_mem);
 
 /**
  * @brief Allocates @p bytes bytes on GPU @p gpu, and returns the address of the allocated memory in @p addr.
@@ -187,16 +187,16 @@ typedef int (*parsec_device_gpu_memory_info_fn_t)(struct parsec_device_gpu_modul
  * 
  * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise (in which case @p addr is undefined)
  */
-typedef int (*parsec_device_gpu_memory_allocate_fn_t)(struct parsec_device_gpu_module_s *gpu, size_t bytes, void **addr);
+typedef int (*parsec_device_memory_allocate_fn_t)(struct parsec_device_gpu_module_s *gpu, size_t bytes, void **addr);
 
 /**
- * @brief Frees memory @p addr allocated by @fn parsec_device_gpu_memory_allocate_fn_t on the same GPU @p gpu.
+ * @brief Frees memory @p addr allocated by @fn parsec_device_memory_allocate_fn_t on the same GPU @p gpu.
  * 
  * @details typically maps to cudaFree or equivalent. 
  * 
  * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise
  */
-typedef int (*parsec_device_gpu_memory_free_fn_t)(struct parsec_device_gpu_module_s *gpu, void *addr);
+typedef int (*parsec_device_memory_free_fn_t)(struct parsec_device_gpu_module_s *gpu, void *addr);
 
 /**
  * @brief Find a function incarnation for the given function name
@@ -205,20 +205,20 @@ typedef int (*parsec_device_gpu_memory_free_fn_t)(struct parsec_device_gpu_modul
  * @param fname the function name to look for
  * @return address of the symbol that implements this function
  */
-typedef void* (*parsec_device_gpu_find_incarnation_fn_t)(parsec_device_gpu_module_t* gpu_device, const char* fname);
+typedef void* (*parsec_device_find_incarnation_fn_t)(parsec_device_gpu_module_t* gpu_device, const char* fname);
 
 struct parsec_device_gpu_module_s {
     parsec_device_module_t     super;
 
     /* This set of base functions is used by the GPU devices to implement their Device Management Functions */
-    parsec_device_gpu_set_device_fn_t       gpu_set_device;
-    parsec_device_gpu_memcpy_async_fn_t     gpu_memcpy_async;
-    parsec_device_gpu_event_query_fn_t      gpu_event_query;
-    parsec_device_gpu_event_record_fn_t     gpu_event_record;
-    parsec_device_gpu_memory_info_fn_t      gpu_memory_info;
-    parsec_device_gpu_memory_allocate_fn_t  gpu_memory_allocate;
-    parsec_device_gpu_memory_free_fn_t      gpu_memory_free;
-    parsec_device_gpu_find_incarnation_fn_t gpu_find_incarnation;
+    parsec_device_set_device_fn_t       set_device;
+    parsec_device_memcpy_async_fn_t     memcpy_async;
+    parsec_device_event_query_fn_t      event_query;
+    parsec_device_event_record_fn_t     event_record;
+    parsec_device_memory_info_fn_t      memory_info;
+    parsec_device_memory_allocate_fn_t  memory_allocate;
+    parsec_device_memory_free_fn_t      memory_free;
+    parsec_device_find_incarnation_fn_t find_incarnation;
 
     uint8_t                    max_exec_streams;
     uint8_t                    num_exec_streams;

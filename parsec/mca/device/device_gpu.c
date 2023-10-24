@@ -539,7 +539,7 @@ parsec_device_taskpool_register(parsec_device_module_t* device,
                 chores[j].dyld_fn = NULL;  /* No dynamic support required for this kernel */
                 rc = PARSEC_SUCCESS;
             } else {
-                void* devf = gpu_device->gpu_find_incarnation(gpu_device, chores[j].dyld);
+                void* devf = gpu_device->find_incarnation(gpu_device, chores[j].dyld);
                 if( NULL != devf ) {
                     chores[j].dyld_fn = devf;
                     rc = PARSEC_SUCCESS;
@@ -603,12 +603,12 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
     size_t total_mem, initial_free_mem;
     uint32_t mem_elem_per_gpu = 0;
 
-    rc = gpu_device->gpu_set_device(gpu_device);
+    rc = gpu_device->set_device(gpu_device);
     if(PARSEC_SUCCESS != rc)
         return rc;
 
     /* Determine how much memory we can allocate */
-    rc = gpu_device->gpu_memory_info( gpu_device, &initial_free_mem, &total_mem );
+    rc = gpu_device->memory_info( gpu_device, &initial_free_mem, &total_mem );
     if(PARSEC_SUCCESS != rc)
         return rc;
 
@@ -653,10 +653,10 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
         parsec_gpu_data_copy_t* gpu_elem;
         void *device_ptr;
 
-        rc = gpu_device->gpu_memory_allocate(gpu_device, eltsize, &device_ptr);
+        rc = gpu_device->memory_allocate(gpu_device, eltsize, &device_ptr);
         if(PARSEC_SUCCESS != rc) {
             size_t _free_mem, _total_mem;
-            gpu_device->gpu_memory_info(gpu_device, &_free_mem, &_total_mem );
+            gpu_device->memory_info(gpu_device, &_free_mem, &_total_mem );
             parsec_inform("GPU[%s] Per context: free mem %zu total mem %zu (allocated tiles %u)",
                             gpu_device->super.name,_free_mem, _total_mem, mem_elem_per_gpu);
             break;
@@ -674,7 +674,7 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
                             "GPU[%s] Retain and insert GPU copy %p [ref_count %d] in LRU",
                              gpu_device->super.name, gpu_elem, gpu_elem->super.obj_reference_count);
         parsec_list_push_back( &gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_elem );
-        gpu_device->gpu_memory_info( gpu_device, &free_mem, &total_mem );
+        gpu_device->memory_info( gpu_device, &free_mem, &total_mem );
     }
     if( 0 == mem_elem_per_gpu && parsec_list_is_empty( &gpu_device->gpu_mem_lru ) ) {
         parsec_warning("GPU[%s] Cannot allocate memory on GPU %s. Skip it!", gpu_device->super.name, gpu_device->super.name);
@@ -701,7 +701,7 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
             total_size = (size_t)((int)(.9*initial_free_mem / eltsize)) * eltsize;
             mem_elem_per_gpu = total_size / eltsize;
         }
-        rc = gpu_device->gpu_memory_allocate(gpu_device, total_size, &base_ptr);
+        rc = gpu_device->memory_allocate(gpu_device, total_size, &base_ptr);
         if(PARSEC_SUCCESS != rc) { 
             parsec_warning("GPU[%s] Allocating %zu bytes of memory on the GPU device failed",
                            gpu_device->super.name, total_size);
@@ -749,7 +749,7 @@ static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_de
         assert(0 != (gpu_copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
 
 #if defined(PARSEC_GPU_ALLOC_PER_TILE)
-        gpu_device->gpu_memory_free( gpu_copy->device_private );
+        gpu_device->memory_free( gpu_copy->device_private );
 #else
 
 #if defined(PARSEC_PROF_TRACE)
@@ -813,7 +813,7 @@ parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device )
 {
     int rc;
 
-    rc = gpu_device->gpu_set_device(gpu_device);
+    rc = gpu_device->set_device(gpu_device);
     if(PARSEC_SUCCESS != rc)
         return rc;
 
@@ -822,7 +822,7 @@ parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device )
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
     assert( NULL != gpu_device->memory );
     void* ptr = zone_malloc_fini(&gpu_device->memory);
-    rc = gpu_device->gpu_memory_free(gpu_device, ptr);
+    rc = gpu_device->memory_free(gpu_device, ptr);
     if(PARSEC_SUCCESS != rc) {
         parsec_warning("Failed to free the GPU backend memory."); 
         return rc;
@@ -1175,7 +1175,7 @@ parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
     parsec_device_gpu_module_t *dst_dev;
     parsec_task_t *task = gtask->ec;
     size_t count;
-    parsec_device_gpu_transfer_direction_t dir;
+    parsec_device_transfer_direction_t dir;
 
     for(int i = 0; i < task->task_class->nb_flows; i++) {
         if( !(flow_mask & (1U << i)) ) continue;
@@ -1193,7 +1193,7 @@ parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
 
         count = (source->original->nb_elts <= dest->original->nb_elts) ?
             source->original->nb_elts : dest->original->nb_elts;
-        ret = src_dev->gpu_memcpy_async(src_dev, gpu_stream, 
+        ret = src_dev->memcpy_async(src_dev, gpu_stream, 
                                         dest->device_private,
                                         source->device_private,
                                         count,
@@ -1224,7 +1224,7 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
     parsec_device_gpu_module_t *dst_dev, *src_dev;
     parsec_task_t *task = gtask->ec;
     size_t count;
-    parsec_device_gpu_transfer_direction_t dir;
+    parsec_device_transfer_direction_t dir;
     int i;
     for(i = 0; i < task->task_class->nb_flows; i++){
         if(flow_mask & (1U << i)){
@@ -1241,7 +1241,7 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
             } else {
                 dir = parsec_device_gpu_transfer_direction_d2h;
             }
-            ret = dst_dev->gpu_memcpy_async(dst_dev, gpu_stream, 
+            ret = dst_dev->memcpy_async(dst_dev, gpu_stream, 
                                             dest->device_private,
                                             source->device_private,
                                             count,
@@ -1825,7 +1825,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
     *out_task = NULL;
 
     if( NULL != stream->tasks[stream->end] ) {
-        rc = gpu_device->gpu_event_query(gpu_device, stream, stream->end);
+        rc = gpu_device->event_query(gpu_device, stream, stream->end);
         if( 1 == rc ) {
             /* Save the task for the next step */
             task = *out_task = stream->tasks[stream->end];
@@ -1902,7 +1902,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
      * too early, it might get executed before the data is available on the GPU.
      * Obviously, this lead to incorrect results.
      */
-    rc = gpu_device->gpu_event_query(gpu_device, stream, stream->start);
+    rc = gpu_device->event_query(gpu_device, stream, stream->start);
     assert(PARSEC_SUCCESS == rc);
     stream->tasks[stream->start] = task;
     stream->start = (stream->start + 1) % stream->max_events;
@@ -2484,7 +2484,7 @@ parsec_device_kernel_scheduler( parsec_execution_stream_t *es,
                                 (unsigned long)es, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PARSEC_PROF_TRACE) */
 
-    rc = gpu_device->gpu_set_device(gpu_device);
+    rc = gpu_device->set_device(gpu_device);
     if(PARSEC_SUCCESS != rc)
         return PARSEC_HOOK_RETURN_DISABLE;
 

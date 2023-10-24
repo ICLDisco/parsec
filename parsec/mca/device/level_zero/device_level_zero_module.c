@@ -65,7 +65,7 @@ static int parsec_level_zero_set_device(parsec_device_gpu_module_t *gpu)
 }
 
 static int parsec_level_zero_memcpy_async(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream,
-                                          void *dest, void *source, size_t bytes, parsec_device_gpu_transfer_direction_t direction)
+                                          void *dest, void *source, size_t bytes, parsec_device_transfer_direction_t direction)
 {
     ze_result_t ret;
     parsec_level_zero_exec_stream_t *level_zero_stream = (parsec_level_zero_exec_stream_t *)gpu_stream;
@@ -410,14 +410,14 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
 
     device->memory_register          = NULL; // TODO there seem to be no memory pinning in level_zero?
     device->memory_unregister        = NULL; // TODO there seem to be no memory pinning in level_zero?
-    gpu_device->gpu_set_device       = parsec_level_zero_set_device;
-    gpu_device->gpu_memcpy_async     = parsec_level_zero_memcpy_async;
-    gpu_device->gpu_event_record     = parsec_level_zero_event_record;
-    gpu_device->gpu_event_query      = parsec_level_zero_event_query;
-    gpu_device->gpu_memory_info      = parsec_level_zero_memory_info;
-    gpu_device->gpu_memory_allocate  = parsec_level_zero_memory_allocate;
-    gpu_device->gpu_memory_free      = parsec_level_zero_memory_free;
-    gpu_device->gpu_find_incarnation = parsec_level_zero_find_incarnation;
+    gpu_device->set_device       = parsec_level_zero_set_device;
+    gpu_device->memcpy_async     = parsec_level_zero_memcpy_async;
+    gpu_device->event_record     = parsec_level_zero_event_record;
+    gpu_device->event_query      = parsec_level_zero_event_query;
+    gpu_device->memory_info      = parsec_level_zero_memory_info;
+    gpu_device->memory_allocate  = parsec_level_zero_memory_allocate;
+    gpu_device->memory_free      = parsec_level_zero_memory_free;
+    gpu_device->find_incarnation = parsec_level_zero_find_incarnation;
 
     if( PARSEC_SUCCESS != parsec_device_memory_reserve(gpu_device,
                                                            parsec_level_zero_memory_percentage,
