@@ -39,6 +39,7 @@ int parsec_level_zero_memory_block_size, parsec_level_zero_memory_percentage, pa
 char* parsec_level_zero_lib_path = NULL;
 
 static int level_zero_mask, level_zero_nvlink_mask;
+static int parsec_level_zero_sort_pending;
 
 
 /*
@@ -96,7 +97,7 @@ static int device_level_zero_component_query(mca_base_module_t **module, int *pr
         return MCA_SUCCESS;
     }
 #if defined(PARSEC_PROF_TRACE)
-    parsec_gpu_init_profiling();
+    parsec_device_init_profiling();
 #endif  /* defined(PROFILING) */
 
     if( parsec_device_level_zero_enabled >= 1) {
@@ -162,6 +163,9 @@ static int device_level_zero_component_query(mca_base_module_t **module, int *pr
                     }
                     driver->ref_count++;
                     parsec_device_level_zero_component.modules[j]->component = &parsec_device_level_zero_component;
+                    if(parsec_device_level_zero_sort_pending) {
+                        parsec_device_level_zero_component.modules[j]->sort_pending_list = parsec_device_sort_pending_list;
+                    }
                     j++;  /* next available spot */
                     parsec_device_level_zero_component.modules[j] = NULL;
                     i++;
@@ -228,7 +232,7 @@ static int device_level_zero_component_query(mca_base_module_t **module, int *pr
         }
     }
 
-    parsec_gpu_enable_debug();
+    parsec_device_enable_debug();
 
     /* module type should be: const mca_base_module_t ** */
     void *ptr = parsec_device_level_zero_component.modules;
@@ -264,12 +268,12 @@ static int device_level_zero_component_register(void)
     (void)parsec_mca_param_reg_int_name("device_level_zero", "max_number_of_ejected_data",
                                         "Sets up the maximum number of blocks that can be ejected from GPU memory",
                                         false, false, MAX_PARAM_COUNT, &parsec_gpu_d2h_max_flows);
-    (void)parsec_mca_param_reg_int_name("device_cuda", "max_streams",
+    (void)parsec_mca_param_reg_int_name("device_level_zero", "max_streams",
                                         "Maximum number of Streams to use for the GPU engine; 2 streams are used for communication between host and device, so the minimum is 3",
                                         false, false, PARSEC_GPU_MAX_STREAMS, &parsec_level_zero_max_streams);
-    (void)parsec_mca_param_reg_int_name("device_gpu", "sort_pending_tasks",
+    (void)parsec_mca_param_reg_int_name("device_level_zero", "sort_pending_tasks",
                                         "Boolean to let the GPU engine sort the first pending tasks stored in the list",
-                                        false, false, 0, &parsec_gpu_sort_pending);
+                                        false, false, 0, &parsec_level_zero_sort_pending);
 #if defined(PARSEC_PROF_TRACE)
     (void)parsec_mca_param_reg_int_name("device_level_zero", "one_profiling_stream_per_level_zero_stream",
                                         "Boolean to separate the profiling of each level_zero stream into a single profiling stream",

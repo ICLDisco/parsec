@@ -485,12 +485,12 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     device->required_data_in     = 0;
     device->required_data_out    = 0;
 
-    device->attach              = parsec_gpu_attach;
-    device->detach              = parsec_gpu_detach;
-    device->taskpool_register   = parsec_gpu_taskpool_register;
-    device->taskpool_unregister = parsec_gpu_taskpool_unregister;
-    device->data_advise         = parsec_gpu_data_advise;
-    device->memory_release      = parsec_gpu_flush_lru;
+    device->attach              = parsec_device_attach;
+    device->detach              = parsec_device_detach;
+    device->taskpool_register   = parsec_device_taskpool_register;
+    device->taskpool_unregister = parsec_device_taskpool_unregister;
+    device->data_advise         = parsec_device_data_advise;
+    device->memory_release      = parsec_device_flush_lru;
 
     if (parsec_cuda_device_lookup_cudamp_floprate(&prop, &drate, &srate, &trate, &hrate) == PARSEC_ERR_NOT_IMPLEMENTED ) {
         parsec_debug_verbose(0, parsec_gpu_output_stream, "Unknown device %s (%s) [capabilities %d.%d]: Gflops rate is a random guess and load balancing (performance) may be reduced.",
@@ -526,7 +526,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     gpu_device->gpu_memory_free      = parsec_cuda_memory_free;
     gpu_device->gpu_find_incarnation = parsec_cuda_find_incarnation;
 
-    if( PARSEC_SUCCESS != parsec_device_gpu_memory_reserve(gpu_device,
+    if( PARSEC_SUCCESS != parsec_device_memory_reserve(gpu_device,
                                                            parsec_cuda_memory_percentage,
                                                            parsec_cuda_memory_number_of_blocks,
                                                            parsec_cuda_memory_block_size) ) {
@@ -611,7 +611,7 @@ parsec_cuda_module_fini(parsec_device_module_t* device)
                             {continue;} );
 
     /* Release the registered memory */
-    parsec_gpu_memory_release(gpu_device);
+    parsec_device_memory_release(gpu_device);
 
     /* Release pending queue */
     PARSEC_OBJ_DESTRUCT(&gpu_device->pending);

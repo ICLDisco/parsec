@@ -93,7 +93,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
         return MCA_SUCCESS;
     }
 #if defined(PARSEC_PROF_TRACE)
-    parsec_gpu_init_profiling();
+    parsec_device_init_profiling();
 #endif  /* defined(PROFILING) */
 
     if( parsec_device_cuda_enabled >= 1)
@@ -150,7 +150,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
         }
     }
 
-    parsec_gpu_enable_debug();
+    parsec_device_enable_debug();
 
     /* module type should be: const mca_base_module_t ** */
     void *ptr = parsec_device_cuda_component.modules;

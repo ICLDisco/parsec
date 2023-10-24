@@ -274,8 +274,8 @@ PARSEC_DECLSPEC extern int32_t parsec_gpu_d2h_max_flows;
 /**
  * Debugging functions.
  */
-void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream);
-void dump_GPU_state(parsec_device_gpu_module_t* gpu_device);
+void parsec_device_dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream);
+void parsec_device_dump_gpu_state(parsec_device_gpu_module_t* gpu_device);
 
 /****************************************************
  ** GPU-DATA Specific Starts Here **
@@ -289,19 +289,19 @@ typedef parsec_data_copy_t parsec_gpu_data_copy_t;
 #include "parsec/data_distribution.h"
 
 /* GPU workspace  ONLY works when PARSEC_ALLOC_GPU_PER_TILE is OFF */
-int parsec_gpu_push_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream);
-void* parsec_gpu_pop_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream, size_t size);
-int parsec_gpu_free_workspace(parsec_device_gpu_module_t * gpu_device);
+int parsec_device_push_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream);
+void* parsec_device_pop_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream, size_t size);
+int parsec_device_free_workspace(parsec_device_gpu_module_t * gpu_device);
 
 /* sort pending task list by number of spaces needed */
 int parsec_device_sort_pending_list(parsec_device_module_t *gpu_device);
 parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es);
 int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
 
-void parsec_gpu_enable_debug(void);
+void parsec_device_enable_debug(void);
 
 #if defined(PARSEC_DEBUG_VERBOSE)
-char *parsec_gpu_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task );
+char *parsec_device_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task );
 #endif
 
 #define PARSEC_GPU_TASK_TYPE_KERNEL       0x0000
@@ -333,7 +333,7 @@ extern int parsec_gpu_prefetch_key_start;
 extern int parsec_gpu_prefetch_key_end;
 extern int parsec_device_gpu_one_profiling_stream_per_gpu_stream;
 
-void parsec_gpu_init_profiling(void);
+void parsec_device_init_profiling(void);
 
 typedef struct {
     uint64_t size;
@@ -344,17 +344,17 @@ typedef struct {
 
 #endif  /* defined(PROFILING) */
 
-int parsec_device_gpu_memory_reserve( parsec_device_gpu_module_t* gpu_device,
+int parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
                                       int           memory_percentage,
                                       int           number_blocks,
                                       size_t        eltsize );
-int parsec_gpu_attach( parsec_device_module_t* device, parsec_context_t* context );
-int parsec_gpu_detach( parsec_device_module_t* device, parsec_context_t* context );
-int parsec_gpu_taskpool_register(parsec_device_module_t* device, parsec_taskpool_t* tp);
-int parsec_gpu_taskpool_unregister(parsec_device_module_t* device, parsec_taskpool_t* tp);
-int parsec_gpu_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice);
-int parsec_gpu_flush_lru( parsec_device_module_t *device );
-int parsec_gpu_memory_release( parsec_device_gpu_module_t* gpu_device );
+int parsec_device_attach( parsec_device_module_t* device, parsec_context_t* context );
+int parsec_device_detach( parsec_device_module_t* device, parsec_context_t* context );
+int parsec_device_taskpool_register(parsec_device_module_t* device, parsec_taskpool_t* tp);
+int parsec_device_taskpool_unregister(parsec_device_module_t* device, parsec_taskpool_t* tp);
+int parsec_device_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice);
+int parsec_device_flush_lru( parsec_device_module_t *device );
+int parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device );
 
 /**
  * This version is based on 4 streams: one for transfers from the memory to
@@ -365,7 +365,7 @@ int parsec_gpu_memory_release( parsec_device_gpu_module_t* gpu_device );
  * where tasks ready to jump to the respective step are waiting.
  */
 parsec_hook_return_t
-parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
+parsec_device_kernel_scheduler( parsec_execution_stream_t *es,
                              parsec_gpu_task_t    *gpu_task,
                              int which_gpu );
 

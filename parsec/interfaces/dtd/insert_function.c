@@ -2332,7 +2332,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     case PARSEC_DEV_CUDA:
         gpu_task->stage_in  = parsec_default_gpu_stage_in;
         gpu_task->stage_out = parsec_default_gpu_stage_out;
-        return parsec_gpu_kernel_scheduler(es, gpu_task, dev_index);
+        return parsec_device_kernel_scheduler(es, gpu_task, dev_index);
 #endif  /* PARSEC_HAVE_DEV_CUDA_SUPPORT */
     default:
         parsec_fatal("DTD scheduling on device type %d: this is not a valid GPU device type in this build", device->type);

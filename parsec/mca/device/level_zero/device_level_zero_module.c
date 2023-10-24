@@ -382,12 +382,12 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     device->required_data_in     = 0;
     device->required_data_out    = 0;
 
-    device->attach              = parsec_gpu_attach;
-    device->detach              = parsec_gpu_detach;
-    device->taskpool_register   = parsec_gpu_taskpool_register;
-    device->taskpool_unregister = parsec_gpu_taskpool_unregister;
-    device->data_advise         = parsec_gpu_data_advise;
-    device->memory_release      = parsec_gpu_flush_lru;
+    device->attach              = parsec_device_attach;
+    device->detach              = parsec_device_detach;
+    device->taskpool_register   = parsec_device_taskpool_register;
+    device->taskpool_unregister = parsec_device_taskpool_unregister;
+    device->data_advise         = parsec_device_data_advise;
+    device->memory_release      = parsec_device_flush_lru;
 
     /* Un-implemented compute gflops based on FMA rate */
     device->gflops_guess = true;
@@ -419,7 +419,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     gpu_device->gpu_memory_free      = parsec_level_zero_memory_free;
     gpu_device->gpu_find_incarnation = parsec_level_zero_find_incarnation;
 
-    if( PARSEC_SUCCESS != parsec_device_gpu_memory_reserve(gpu_device,
+    if( PARSEC_SUCCESS != parsec_device_memory_reserve(gpu_device,
                                                            parsec_level_zero_memory_percentage,
                                                            parsec_level_zero_memory_number_of_blocks,
                                                            parsec_level_zero_memory_block_size) ) {
@@ -499,7 +499,7 @@ parsec_level_zero_module_fini(parsec_device_module_t* device)
     int j, k;
 
     /* Release the registered memory */
-    parsec_gpu_memory_release(gpu_device);
+    parsec_device_memory_release(gpu_device);
 
     /* Release pending queue */
     PARSEC_OBJ_DESTRUCT(&gpu_device->pending);

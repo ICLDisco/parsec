@@ -47,8 +47,8 @@ int parsec_gpu_output_stream = -1;
 int parsec_gpu_verbosity;
 
 static inline int
-parsec_gpu_check_space_needed(parsec_device_gpu_module_t *gpu_device,
-                              parsec_gpu_task_t *gpu_task)
+parsec_device_check_space_needed(parsec_device_gpu_module_t *gpu_device,
+                                 parsec_gpu_task_t *gpu_task)
 {
     int i;
     int space_needed = 0;
@@ -78,7 +78,7 @@ parsec_gpu_check_space_needed(parsec_device_gpu_module_t *gpu_device,
 }
 
 #if defined(PARSEC_PROF_TRACE)
-void parsec_gpu_init_profiling(void)
+void parsec_device_init_profiling(void)
 {
     if(parsec_gpu_profiling_initiated == 0) {
         parsec_profiling_add_dictionary_keyword("gpu", "fill:#66ff66",
@@ -108,7 +108,7 @@ void parsec_gpu_init_profiling(void)
 }
 #endif
 
-void parsec_gpu_enable_debug(void)
+void parsec_device_enable_debug(void)
 {
     if(parsec_gpu_output_stream == -1) {
         parsec_gpu_output_stream = parsec_device_output;
@@ -146,12 +146,12 @@ int parsec_device_sort_pending_list(parsec_device_module_t *device)
         }
         min_p = p; /* assume the minimum one is the first one p */
         q = (parsec_list_item_t*)min_p->list_next;
-        space_min = parsec_gpu_check_space_needed(gpu_device, (parsec_gpu_task_t*)min_p);
+        space_min = parsec_device_check_space_needed(gpu_device, (parsec_gpu_task_t*)min_p);
         for (j = i+1; j < NB_SORT; j++) {
             if ( q == &(sort_list->ghost_element) ) {
                 break;
             }
-            space_q = parsec_gpu_check_space_needed(gpu_device, (parsec_gpu_task_t*)q);
+            space_q = parsec_device_check_space_needed(gpu_device, (parsec_gpu_task_t*)q);
             if ( space_min > space_q ) {
                 min_p = q;
                 space_min = space_q;
@@ -174,8 +174,8 @@ int parsec_device_sort_pending_list(parsec_device_module_t *device)
     return 0;
 }
 
-void* parsec_gpu_pop_workspace(parsec_device_gpu_module_t* gpu_device,
-                               parsec_gpu_exec_stream_t* gpu_stream, size_t size)
+void* parsec_device_pop_workspace(parsec_device_gpu_module_t* gpu_device,
+                                  parsec_gpu_exec_stream_t* gpu_stream, size_t size)
 {
     (void)gpu_device; (void)gpu_stream; (void)size;
     void *work = NULL;
@@ -205,7 +205,7 @@ void* parsec_gpu_pop_workspace(parsec_device_gpu_module_t* gpu_device,
         }
     }
     if (gpu_stream->workspace->stack_head < 0) {
-        parsec_fatal("parsec_gpu_pop_workspace: user requested more than %d GPU workspaces which is the current hard-coded limit per GPU stream\n", PARSEC_GPU_MAX_WORKSPACE);
+        parsec_fatal("parsec_device_pop_workspace: user requested more than %d GPU workspaces which is the current hard-coded limit per GPU stream\n", PARSEC_GPU_MAX_WORKSPACE);
         return NULL;
     }
     work = gpu_stream->workspace->workspace[gpu_stream->workspace->stack_head];
@@ -214,7 +214,7 @@ void* parsec_gpu_pop_workspace(parsec_device_gpu_module_t* gpu_device,
     return work;
 }
 
-int parsec_gpu_push_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream)
+int parsec_device_push_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream)
 {
     (void)gpu_device; (void)gpu_stream;
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
@@ -224,7 +224,7 @@ int parsec_gpu_push_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu
     return 0;
 }
 
-int parsec_gpu_free_workspace(parsec_device_gpu_module_t * gpu_device)
+int parsec_device_free_workspace(parsec_device_gpu_module_t * gpu_device)
 {
     (void)gpu_device;
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
@@ -258,7 +258,7 @@ int parsec_gpu_free_workspace(parsec_device_gpu_module_t * gpu_device)
 }
 
 #if defined(PARSEC_DEBUG_NOISIER)
-char *parsec_gpu_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task )
+char *parsec_device_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task )
 {
     char buffer[64];
     parsec_data_t *data;
@@ -296,7 +296,7 @@ char *parsec_gpu_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gp
 }
 #endif
 
-void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream)
+void parsec_device_dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream)
 {
     char task_str[128];
     int i;
@@ -313,7 +313,7 @@ void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream)
     /* Don't yet dump the fifo_pending queue */
 }
 
-void dump_GPU_state(parsec_device_gpu_module_t* gpu_device)
+void parsec_device_dump_gpu_state(parsec_device_gpu_module_t* gpu_device)
 {
     int i;
     uint64_t data_in_host, data_in_dev = 0;
@@ -333,7 +333,7 @@ void dump_GPU_state(parsec_device_gpu_module_t* gpu_device)
                   (unsigned long long)gpu_device->super.data_out_to_host,
                   (unsigned long long)gpu_device->super.required_data_in, (unsigned long long)gpu_device->super.required_data_out);
     for( i = 0; i < gpu_device->num_exec_streams; i++ ) {
-        dump_exec_stream(gpu_device->exec_stream[i]);
+        parsec_device_dump_exec_stream(gpu_device->exec_stream[i]);
     }
     if( !parsec_list_is_empty(&gpu_device->gpu_mem_lru) ) {
         parsec_output(parsec_gpu_output_stream, "#\n# LRU list\n#\n");
@@ -363,14 +363,14 @@ void dump_GPU_state(parsec_device_gpu_module_t* gpu_device)
 }
 
 
-static parsec_flow_t parsec_gpu_data_prefetch_flow = {
-    .name = "FLOW",
+static parsec_flow_t parsec_device_data_prefetch_flow = {
+    .name = "PREFETCH FLOW",
     .flow_flags = PARSEC_FLOW_ACCESS_READ,
     .flow_index = 0,
 };
 
-static parsec_task_class_t parsec_gpu_data_prefetch_tc = {
-    .name = "GPU PREFETCH",
+static parsec_task_class_t parsec_device_data_prefetch_tc = {
+    .name = "DEVICE PREFETCH",
     .flags = 0,
     .task_class_id = 0,
     .nb_flows = 1,
@@ -378,7 +378,7 @@ static parsec_task_class_t parsec_gpu_data_prefetch_tc = {
     .nb_locals = 0,
     .dependencies_goal = 0,
     .params = { NULL, },
-    .in = { &parsec_gpu_data_prefetch_flow, NULL },
+    .in = { &parsec_device_data_prefetch_flow, NULL },
     .out = { NULL, },
     .priority = NULL,
     .properties = NULL,
@@ -402,7 +402,7 @@ static parsec_task_class_t parsec_gpu_data_prefetch_tc = {
 };
 
 static int
-parsec_gpu_release_resources_prefetch_task(parsec_device_gpu_module_t* gpu_device,
+parsec_device_release_resources_prefetch_task(parsec_device_gpu_module_t* gpu_device,
 					    parsec_gpu_task_t** out_task)
 {
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -411,7 +411,7 @@ parsec_gpu_release_resources_prefetch_task(parsec_device_gpu_module_t* gpu_devic
     parsec_gpu_task_t *gpu_task = *out_task;
     (void)gpu_device;
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]: Releasing resources for task %s (%p with ec %p)",
-                         gpu_device->super.name, parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
+                         gpu_device->super.name, parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
                          gpu_task, gpu_task->ec);
     assert( PARSEC_GPU_TASK_TYPE_PREFETCH == gpu_task->task_type );
     PARSEC_DATA_COPY_RELEASE( gpu_task->ec->data[0].data_in);
@@ -421,7 +421,7 @@ parsec_gpu_release_resources_prefetch_task(parsec_device_gpu_module_t* gpu_devic
 }
 
 #if defined(PARSEC_DEBUG_NOISIER)
-static char *parsec_gpu_debug_advice_to_string(int advice)
+static char *parsec_device_debug_advice_to_string(int advice)
 {
     switch(advice) {
     case PARSEC_DEV_DATA_ADVICE_PREFETCH:
@@ -438,7 +438,7 @@ static char *parsec_gpu_debug_advice_to_string(int advice)
 #endif
 
 int
-parsec_gpu_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice)
+parsec_device_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice)
 {
     parsec_device_gpu_module_t* gpu_device = (parsec_device_gpu_module_t*)dev;
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -452,7 +452,7 @@ parsec_gpu_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int adv
 
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]: User provides advice %s of %s (%p)",
                          gpu_device->super.name,
-                         parsec_gpu_debug_advice_to_string(advice),
+                         parsec_device_debug_advice_to_string(advice),
                          buffer,
                          data);
 
@@ -472,8 +472,8 @@ parsec_gpu_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int adv
             gpu_task->task_type = PARSEC_GPU_TASK_TYPE_PREFETCH;
             gpu_task->ec = calloc(1, sizeof(parsec_task_t));
             PARSEC_OBJ_CONSTRUCT(gpu_task->ec, parsec_task_t);
-            gpu_task->ec->task_class = &parsec_gpu_data_prefetch_tc;
-            gpu_task->flow[0] = &parsec_gpu_data_prefetch_flow;
+            gpu_task->ec->task_class = &parsec_device_data_prefetch_tc;
+            gpu_task->flow[0] = &parsec_device_data_prefetch_flow;
             gpu_task->flow_nb_elts[0] = data->device_copies[ data->owner_device ]->original->nb_elts;
             gpu_task->stage_in  = parsec_default_gpu_stage_in;
             gpu_task->stage_out = parsec_default_gpu_stage_out;
@@ -511,8 +511,8 @@ parsec_gpu_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int adv
  * the same capabilities.
  */
 int
-parsec_gpu_taskpool_register(parsec_device_module_t* device,
-                             parsec_taskpool_t* tp)
+parsec_device_taskpool_register(parsec_device_module_t* device,
+                                parsec_taskpool_t* tp)
 {
     parsec_device_gpu_module_t* gpu_device = (parsec_device_gpu_module_t*)device;
     int32_t rc = PARSEC_ERR_NOT_FOUND;
@@ -556,7 +556,7 @@ parsec_gpu_taskpool_register(parsec_device_module_t* device,
 }
 
 int
-parsec_gpu_taskpool_unregister(parsec_device_module_t* device, parsec_taskpool_t* tp)
+parsec_device_taskpool_unregister(parsec_device_module_t* device, parsec_taskpool_t* tp)
 {
     (void)device; (void)tp;
     return PARSEC_SUCCESS;
@@ -567,7 +567,7 @@ parsec_gpu_taskpool_unregister(parsec_device_module_t* device, parsec_taskpool_t
  * a single context at the time.
  */
 int
-parsec_gpu_attach( parsec_device_module_t* device, parsec_context_t* context )
+parsec_device_attach( parsec_device_module_t* device, parsec_context_t* context )
 {
     return parsec_mca_device_add(context, device);
 }
@@ -579,7 +579,7 @@ parsec_gpu_attach( parsec_device_module_t* device, parsec_context_t* context )
  * context has been removed from the device.
  */
 int
-parsec_gpu_detach( parsec_device_module_t* device, parsec_context_t* context )
+parsec_device_detach( parsec_device_module_t* device, parsec_context_t* context )
 {
     (void)context;
     return parsec_mca_device_remove(device);
@@ -591,10 +591,10 @@ parsec_gpu_detach( parsec_device_module_t* device, parsec_context_t* context )
  * can be reserved in a single allocation.
  */
 int
-parsec_device_gpu_memory_reserve( parsec_device_gpu_module_t* gpu_device,
-                                  int           memory_percentage,
-                                  int           number_blocks,
-                                  size_t        eltsize )
+parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
+                              int           memory_percentage,
+                              int           number_blocks,
+                              size_t        eltsize )
 {
     int rc;
     (void)eltsize;
@@ -727,8 +727,8 @@ parsec_device_gpu_memory_reserve( parsec_device_gpu_module_t* gpu_device,
     return PARSEC_SUCCESS;
 }
 
-static void parsec_gpu_memory_release_list(parsec_device_gpu_module_t* gpu_device,
-                                           parsec_list_t* list)
+static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_device,
+                                              parsec_list_t* list)
 {
     parsec_list_item_t* item;
 
@@ -782,14 +782,14 @@ static void parsec_gpu_memory_release_list(parsec_device_gpu_module_t* gpu_devic
  * This function only flushes the data copies pending in LRU, and checks
  * (in debug mode) that the entire allocated memory is free to use */
 int
-parsec_gpu_flush_lru( parsec_device_module_t *device )
+parsec_device_flush_lru( parsec_device_module_t *device )
 {
     size_t in_use;
     parsec_device_gpu_module_t *gpu_device = (parsec_device_gpu_module_t*)device;
     /* Free all memory on GPU */
-    parsec_gpu_memory_release_list(gpu_device, &gpu_device->gpu_mem_lru);
-    parsec_gpu_memory_release_list(gpu_device, &gpu_device->gpu_mem_owned_lru);
-    parsec_gpu_free_workspace(gpu_device);
+    parsec_device_memory_release_list(gpu_device, &gpu_device->gpu_mem_lru);
+    parsec_device_memory_release_list(gpu_device, &gpu_device->gpu_mem_owned_lru);
+    parsec_device_free_workspace(gpu_device);
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE) && !defined(_NDEBUG)
     if( (in_use = zone_in_use(gpu_device->memory)) != 0 ) {
         parsec_warning("GPU[%s] memory leak detected: %lu bytes still allocated on GPU",
@@ -809,7 +809,7 @@ parsec_gpu_flush_lru( parsec_device_module_t *device )
  * should be enough to enforce a clean release.
  */
 int
-parsec_gpu_memory_release( parsec_device_gpu_module_t* gpu_device )
+parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device )
 {
     int rc;
 
@@ -817,7 +817,7 @@ parsec_gpu_memory_release( parsec_device_gpu_module_t* gpu_device )
     if(PARSEC_SUCCESS != rc)
         return rc;
 
-    parsec_gpu_flush_lru(&gpu_device->super);
+    parsec_device_flush_lru(&gpu_device->super);
 
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
     assert( NULL != gpu_device->memory );
@@ -844,8 +844,8 @@ parsec_gpu_memory_release( parsec_device_gpu_module_t* gpu_device )
  *   PARSEC_HOOK_RETURN_NEXT:  The task needs to rescheduled
  */
 static inline int
-parsec_gpu_data_reserve_device_space( parsec_device_gpu_module_t* gpu_device,
-                                      parsec_gpu_task_t *gpu_task )
+parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
+                                  parsec_gpu_task_t *gpu_task )
 {
     parsec_task_t *this_task = gpu_task->ec;
     parsec_gpu_data_copy_t* temp_loc[MAX_PARAM_COUNT], *gpu_elem, *lru_gpu_elem;
@@ -963,7 +963,7 @@ parsec_gpu_data_reserve_device_space( parsec_device_gpu_module_t* gpu_device,
             }
 
             /* If there are pending readers, let the gpu_elem loose. This is a weak coordination
-             * protocol between here and the parsec_gpu_data_stage_in, where the readers don't necessarily
+             * protocol between here and the parsec_device_data_stage_in, where the readers don't necessarily
              * always remove the data from the LRU.
              */
             if( 0 != lru_gpu_elem->readers ) {
@@ -1263,11 +1263,11 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
  *   HOOK_ERROR: A copy cannot be issued due to GPU.
  */
 static inline int
-parsec_gpu_data_stage_in( parsec_device_gpu_module_t* gpu_device,
-                          const parsec_flow_t *flow,
-                          parsec_data_pair_t* task_data,
-                          parsec_gpu_task_t *gpu_task,
-                          parsec_gpu_exec_stream_t *gpu_stream )
+parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
+                             const parsec_flow_t *flow,
+                             parsec_data_pair_t* task_data,
+                             parsec_gpu_task_t *gpu_task,
+                             parsec_gpu_exec_stream_t *gpu_stream )
 {
     int32_t type = flow->flow_flags;
     parsec_data_copy_t *candidate = task_data->data_in;  /* best candidate for now */
@@ -1524,24 +1524,24 @@ parsec_gpu_data_stage_in( parsec_device_gpu_module_t* gpu_device,
 
 #if PARSEC_GPU_USE_PRIORITIES
 
-static inline parsec_list_item_t* parsec_push_task_ordered( parsec_list_t* list,
-                                                          parsec_list_item_t* elem )
+static inline parsec_list_item_t* parsec_device_push_task_ordered( parsec_list_t* list,
+                                                                   parsec_list_item_t* elem )
 {
     parsec_list_push_sorted(list, elem, parsec_execution_context_priority_comparator);
     return elem;
 }
-#define PARSEC_PUSH_TASK parsec_push_task_ordered
+#define PARSEC_PUSH_TASK parsec_device_push_task_ordered
 #else
 #define PARSEC_PUSH_TASK parsec_list_push_back
 #endif
 
-static parsec_flow_t parsec_gpu_d2d_complete_flow = {
-    .name = "FLOW",
+static parsec_flow_t parsec_device_d2d_complete_flow = {
+    .name = "D2D FLOW",
     .flow_flags = PARSEC_FLOW_ACCESS_READ,
     .flow_index = 0,
 };
 
-static parsec_task_class_t parsec_gpu_d2d_complete_tc = {
+static parsec_task_class_t parsec_device_d2d_complete_tc = {
     .name = "D2D TRANSFER COMPLETE",
     .flags = 0,
     .task_class_id = 0,
@@ -1550,7 +1550,7 @@ static parsec_task_class_t parsec_gpu_d2d_complete_tc = {
     .nb_locals = 0,
     .dependencies_goal = 0,
     .params = { NULL, },
-    .in = { &parsec_gpu_d2d_complete_flow, NULL },
+    .in = { &parsec_device_d2d_complete_flow, NULL },
     .out = { NULL, },
     .priority = NULL,
     .properties = NULL,
@@ -1574,17 +1574,17 @@ static parsec_task_class_t parsec_gpu_d2d_complete_tc = {
 };
 
 static void
-parsec_gpu_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
-                                               parsec_device_module_t *current_dev,
-                                               parsec_device_module_t *dst_dev)
+parsec_device_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
+                                                  parsec_device_module_t *current_dev,
+                                                  parsec_device_module_t *dst_dev)
 {
     parsec_gpu_task_t* gpu_task = NULL;
     gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));
     gpu_task->task_type = PARSEC_GPU_TASK_TYPE_D2D_COMPLETE;
     gpu_task->ec = calloc(1, sizeof(parsec_task_t));
     PARSEC_OBJ_CONSTRUCT(gpu_task->ec, parsec_task_t);
-    gpu_task->ec->task_class = &parsec_gpu_d2d_complete_tc;
-    gpu_task->flow[0] = &parsec_gpu_d2d_complete_flow;
+    gpu_task->ec->task_class = &parsec_device_d2d_complete_tc;
+    gpu_task->flow[0] = &parsec_device_d2d_complete_flow;
     gpu_task->flow_nb_elts[0] = copy->original->nb_elts;
     gpu_task->stage_in  = parsec_default_gpu_stage_in;
     gpu_task->stage_out = parsec_default_gpu_stage_out;
@@ -1607,9 +1607,9 @@ parsec_gpu_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
 }
 
 static int
-parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
-                                  parsec_gpu_task_t           **gpu_task,
-                                  parsec_gpu_exec_stream_t     *gpu_stream)
+parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
+                                     parsec_gpu_task_t           **gpu_task,
+                                     parsec_gpu_exec_stream_t     *gpu_stream)
 {
     (void)gpu_stream;
 
@@ -1630,7 +1630,7 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
     assert(gpu_stream == gpu_device->exec_stream[0]);
     task = gtask->ec;
     PARSEC_DEBUG_VERBOSE(19, parsec_gpu_output_stream,
-                         "GPU[%s]: parsec_gpu_callback_complete_push, PUSH of %s",
+                         "GPU[%s]: parsec_device_callback_complete_push, PUSH of %s",
                          gpu_device->super.name, parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task));
 
     for( i = 0; i < task->task_class->nb_flows; i++ ) {
@@ -1729,15 +1729,15 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                                          "[ref_count %d] -- readers is still %d",
                                          gpu_device->super.name, src_device->super.name, source,
                                          source->super.super.obj_reference_count, source->readers);
-                    parsec_gpu_send_transfercomplete_cmd_to_device(source,
-                                                                   (parsec_device_module_t*)gpu_device,
-                                                                   (parsec_device_module_t*)src_device);
+                    parsec_device_send_transfercomplete_cmd_to_device(source,
+                                                                      (parsec_device_module_t*)gpu_device,
+                                                                      (parsec_device_module_t*)src_device);
                 }
             }
             continue;
         }
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                             "GPU[%s]:\tparsec_gpu_callback_complete_push, PUSH of %s: task->data[%d].data_out = %p [ref_count = %d], and push_task is %s, %s because transfer_status is %d",
+                             "GPU[%s]:\tparsec_device_callback_complete_push, PUSH of %s: task->data[%d].data_out = %p [ref_count = %d], and push_task is %s, %s because transfer_status is %d",
                              gpu_device->super.name, parsec_task_snprintf(task_str, MAX_TASK_STRLEN, task),
                              i, task->data[i].data_out, task->data[i].data_out->super.super.obj_reference_count,
                              (NULL != task->data[i].data_out->push_task) ? parsec_task_snprintf(task_str2, MAX_TASK_STRLEN, task->data[i].data_out->push_task) : "(null)",
@@ -1780,7 +1780,7 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                                  gpu_device->super.name, gpu_copy, gpu_copy->super.super.obj_reference_count, gtask, gtask->ec);
             parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
         }
-        (void)parsec_gpu_release_resources_prefetch_task(gpu_device, gpu_task);
+        (void)parsec_device_release_resources_prefetch_task(gpu_device, gpu_task);
         return PARSEC_HOOK_RETURN_ASYNC;
     }
 
@@ -1804,11 +1804,11 @@ parsec_gpu_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
  * enum.
  */
 static inline int
-progress_stream( parsec_device_gpu_module_t* gpu_device,
-                 parsec_gpu_exec_stream_t* stream,
-                 parsec_advance_task_function_t progress_fct,
-                 parsec_gpu_task_t* task,
-                 parsec_gpu_task_t** out_task )
+parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
+                               parsec_gpu_exec_stream_t* stream,
+                               parsec_advance_task_function_t progress_fct,
+                               parsec_gpu_task_t* task,
+                               parsec_gpu_task_t** out_task )
 {
     int saved_rc = 0, rc;
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -1929,9 +1929,9 @@ progress_stream( parsec_device_gpu_module_t* gpu_device,
  *     -2: No more room on the GPU to move this data.
  */
 static int
-parsec_gpu_kernel_push( parsec_device_gpu_module_t      *gpu_device,
-                         parsec_gpu_task_t               *gpu_task,
-                         parsec_gpu_exec_stream_t        *gpu_stream)
+parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
+                           parsec_gpu_task_t               *gpu_task,
+                           parsec_gpu_exec_stream_t        *gpu_stream)
 {
     parsec_task_t *this_task = gpu_task->ec;
     const parsec_flow_t *flow;
@@ -1946,7 +1946,7 @@ parsec_gpu_kernel_push( parsec_device_gpu_module_t      *gpu_device,
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                          "GPU[%s]: Try to Push %s",
                          gpu_device->super.name,
-                         parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task) );
+                         parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task) );
 
     if( PARSEC_GPU_TASK_TYPE_PREFETCH == gpu_task->task_type ) {
         if( NULL == gpu_task->ec->data[0].data_in->original ) {
@@ -1954,8 +1954,8 @@ parsec_gpu_kernel_push( parsec_device_gpu_module_t      *gpu_device,
             PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,
                                  "GPU[%s]: %s has been released already, destroying prefetch request",
                                  gpu_device->super.name,
-                                 parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task));
-            parsec_gpu_release_resources_prefetch_task(gpu_device, &gpu_task);
+                                 parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task));
+            parsec_device_release_resources_prefetch_task(gpu_device, &gpu_task);
             return PARSEC_HOOK_RETURN_ASYNC;
         }
         if( NULL != gpu_task->ec->data[0].data_in->original->device_copies[gpu_device->super.device_index] &&
@@ -1964,16 +1964,16 @@ parsec_gpu_kernel_push( parsec_device_gpu_module_t      *gpu_device,
             PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,
                                  "GPU[%s]: %s data_copy at index %d is %p, destroying prefetch request",
                                  gpu_device->super.name,
-                                 parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
+                                 parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
                                  gpu_device->super.device_index,
                                  gpu_task->ec->data[0].data_in->original->device_copies[gpu_device->super.device_index]);
-            parsec_gpu_release_resources_prefetch_task(gpu_device, &gpu_task);
+            parsec_device_release_resources_prefetch_task(gpu_device, &gpu_task);
             return PARSEC_HOOK_RETURN_ASYNC;
         }
     }
 
     /* Do we have enough available memory on the GPU to hold the input and output data ? */
-    ret = parsec_gpu_data_reserve_device_space( gpu_device, gpu_task );
+    ret = parsec_device_data_reserve_space( gpu_device, gpu_task );
     if( ret < 0 ) {
         gpu_task->last_data_check_epoch = gpu_device->data_avail_epoch;
         return ret;
@@ -1999,8 +1999,8 @@ parsec_gpu_kernel_push( parsec_device_gpu_module_t      *gpu_device,
                              "GPU[%s]:\t\tIN  Data of %s <%x> on GPU",
                              gpu_device->super.name, flow->name,
                              this_task->data[i].data_out->original->key);
-        ret = parsec_gpu_data_stage_in( gpu_device, flow,
-                                        &(this_task->data[i]), gpu_task, gpu_stream );
+        ret = parsec_device_data_stage_in( gpu_device, flow,
+                                           &(this_task->data[i]), gpu_task, gpu_stream );
         if( ret < 0 ) {
             return ret;
         }
@@ -2010,7 +2010,7 @@ parsec_gpu_kernel_push( parsec_device_gpu_module_t      *gpu_device,
                          "GPU[%s]: Push task %s DONE",
                          gpu_device->super.name,
                          parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
-    gpu_task->complete_stage = parsec_gpu_callback_complete_push;
+    gpu_task->complete_stage = parsec_device_callback_complete_push;
 #if defined(PARSEC_PROF_TRACE)
     gpu_task->prof_key_end = -1; /* We do not log that event as the completion of this task */
 #endif
@@ -2025,9 +2025,9 @@ parsec_gpu_kernel_push( parsec_device_gpu_module_t      *gpu_device,
  * @returns An error if anything unexpected came out of the task submission body, otherwise 
  */
 static int
-parsec_gpu_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
-                         parsec_gpu_task_t               *gpu_task,
-                         parsec_gpu_exec_stream_t        *gpu_stream)
+parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
+                           parsec_gpu_task_t               *gpu_task,
+                           parsec_gpu_exec_stream_t        *gpu_stream)
 {
     parsec_advance_task_function_t progress_fct = gpu_task->submit;
     parsec_task_t* this_task = gpu_task->ec;
@@ -2078,9 +2078,9 @@ parsec_gpu_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
  *           positive: the number of data to be moved.
  */
 static int
-parsec_gpu_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
-                        parsec_gpu_task_t            *gpu_task,
-                        parsec_gpu_exec_stream_t     *gpu_stream)
+parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
+                          parsec_gpu_task_t            *gpu_task,
+                          parsec_gpu_exec_stream_t     *gpu_stream)
 {
     parsec_task_t *this_task = gpu_task->ec;
     parsec_gpu_data_copy_t     *gpu_copy;
@@ -2251,8 +2251,8 @@ parsec_gpu_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
  * Make sure all data on the device is correctly put back into the queues.
  */
 static int
-parsec_gpu_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
-                           parsec_gpu_task_t          *gpu_task )
+parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
+                             parsec_gpu_task_t          *gpu_task )
 {
     parsec_task_t *this_task = gpu_task->ec;
     parsec_gpu_data_copy_t     *gpu_copy, *cpu_copy;
@@ -2359,8 +2359,8 @@ parsec_gpu_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
  * @return Currently only success.
  */
 static int
-parsec_gpu_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
-                             parsec_gpu_task_t          *gpu_task )
+parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
+                               parsec_gpu_task_t          *gpu_task )
 {
     parsec_task_t *this_task = gpu_task->ec;
     parsec_gpu_data_copy_t     *gpu_copy, *cpu_copy;
@@ -2423,9 +2423,9 @@ parsec_gpu_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
  * where tasks ready to jump to the respective step are waiting.
  */
 parsec_hook_return_t
-parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
-                              parsec_gpu_task_t         *gpu_task,
-                              int which_gpu )
+parsec_device_kernel_scheduler( parsec_execution_stream_t *es,
+                                parsec_gpu_task_t         *gpu_task,
+                                int which_gpu )
 {
     parsec_device_gpu_module_t* gpu_device;
     int rc, exec_stream = 0;
@@ -2493,13 +2493,13 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                              "GPU[%s]:\tUpload data (if any) for %s priority %d",
                              gpu_device->super.name,
-                             parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
+                             parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
                              gpu_task->ec->priority );
     }
-    rc = progress_stream( gpu_device,
-                          gpu_device->exec_stream[0],
-                          parsec_gpu_kernel_push,
-                          gpu_task, &progress_task );
+    rc = parsec_device_progress_stream( gpu_device,
+                                        gpu_device->exec_stream[0],
+                                        parsec_device_kernel_push,
+                                        gpu_task, &progress_task );
     if( rc < 0 ) {  /* In case of error progress_task is the task that raised it */
         if( PARSEC_HOOK_RETURN_ERROR == rc )
             goto disable_gpu;
@@ -2529,10 +2529,10 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                              gpu_task->ec->priority );
     }
-    rc = progress_stream( gpu_device,
-                          gpu_device->exec_stream[2+exec_stream],
-                          parsec_gpu_kernel_exec,
-                          gpu_task, &progress_task );
+    rc = parsec_device_progress_stream( gpu_device,
+                                        gpu_device->exec_stream[2+exec_stream],
+                                        parsec_device_kernel_exec,
+                                        gpu_task, &progress_task );
     if( rc < 0 ) {
         if( (PARSEC_HOOK_RETURN_DISABLE == rc) || (PARSEC_HOOK_RETURN_ERROR == rc) )
             goto disable_gpu;
@@ -2541,7 +2541,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
                another incarnation of the task will be executed. */
             if( NULL != progress_task ) {
                 assert(PARSEC_HOOK_RETURN_NEXT == rc);
-                parsec_gpu_kernel_cleanout(gpu_device, progress_task);
+                parsec_device_kernel_cleanout(gpu_device, progress_task);
                 __parsec_reschedule(es, progress_task->ec);
                 gpu_task = progress_task;
                 progress_task = NULL;
@@ -2564,10 +2564,10 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
                             gpu_task->ec->priority );
     }
     /* Task is ready to move the data back to main memory */
-    rc = progress_stream( gpu_device,
-                          gpu_device->exec_stream[1],
-                          parsec_gpu_kernel_pop,
-                          gpu_task, &progress_task );
+    rc = parsec_device_progress_stream( gpu_device,
+                                        gpu_device->exec_stream[1],
+                                        parsec_device_kernel_pop,
+                                        gpu_task, &progress_task );
     if( rc < 0 ) {
         if( (PARSEC_HOOK_RETURN_ERROR == rc) || (PARSEC_HOOK_RETURN_DISABLE == rc) )
             goto disable_gpu;
@@ -2594,7 +2594,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
         pop_null = 0;
         gpu_task->last_data_check_epoch = gpu_device->data_avail_epoch - 1;  /* force at least one tour */
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,  "GPU[%s]:\tGet from shared queue %s priority %d", gpu_device->super.name,
-                             parsec_gpu_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
+                             parsec_device_describe_gpu_task(tmp, MAX_TASK_STRLEN, gpu_task),
                              gpu_task->ec->priority);
         if( PARSEC_GPU_TASK_TYPE_D2D_COMPLETE == gpu_task->task_type ) {
             goto get_data_out_of_device;
@@ -2625,7 +2625,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
         gpu_task->ec = NULL;
         goto remove_gpu_task;
     }
-    parsec_gpu_kernel_epilog( gpu_device, gpu_task );
+    parsec_device_kernel_epilog( gpu_device, gpu_task );
     __parsec_complete_execution( es, gpu_task->ec );
     gpu_device->super.executed_tasks++;
  remove_gpu_task:
