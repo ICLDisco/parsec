@@ -6724,6 +6724,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             "{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
             "  parsec_gpu_task_t *gpu_task;\n"
+            "  parsec_device_module_t *dev;\n"
             "  int64_t __load;\n"
             "  int dev_index;\n"
             "  %s\n"
@@ -6759,6 +6760,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             "    return PARSEC_HOOK_RETURN_NEXT;  /* Fall back */\n"
             "  }\n"
             "\n"
+            "  dev = parsec_mca_device_get(dev_index);\n"
             "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
             "  PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
@@ -6888,7 +6890,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     string_arena_free(info.sa);
 
     coutput("\n"
-            "  return parsec_device_kernel_scheduler( es, gpu_task, dev_index );\n"
+            "  return dev->kernel_scheduler(dev, es, gpu_task);\n"
             "}\n\n");
 
     free(dev_lower);

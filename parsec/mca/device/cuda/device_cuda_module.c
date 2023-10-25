@@ -491,6 +491,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     device->taskpool_unregister = parsec_device_taskpool_unregister;
     device->data_advise         = parsec_device_data_advise;
     device->memory_release      = parsec_device_flush_lru;
+    device->kernel_scheduler    = parsec_device_kernel_scheduler;
 
     if (parsec_cuda_device_lookup_cudamp_floprate(&prop, &drate, &srate, &trate, &hrate) == PARSEC_ERR_NOT_IMPLEMENTED ) {
         parsec_debug_verbose(0, parsec_gpu_output_stream, "Unknown device %s (%s) [capabilities %d.%d]: Gflops rate is a random guess and load balancing (performance) may be reduced.",

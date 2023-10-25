@@ -365,9 +365,9 @@ int parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device );
  * where tasks ready to jump to the respective step are waiting.
  */
 parsec_hook_return_t
-parsec_device_kernel_scheduler( parsec_execution_stream_t *es,
-                             parsec_gpu_task_t    *gpu_task,
-                             int which_gpu );
+parsec_device_kernel_scheduler( parsec_device_module_t *module,
+                                parsec_execution_stream_t *es,
+                                void *gpu_task );
 
 /* Default stage_in function to transfer data to the GPU device.
  * Transfer transfer the <count> contiguous bytes from

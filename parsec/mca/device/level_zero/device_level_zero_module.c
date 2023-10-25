@@ -388,6 +388,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     device->taskpool_unregister = parsec_device_taskpool_unregister;
     device->data_advise         = parsec_device_data_advise;
     device->memory_release      = parsec_device_flush_lru;
+    device->kernel_scheduler    = parsec_device_kernel_scheduler;
 
     /* Un-implemented compute gflops based on FMA rate */
     device->gflops_guess = true;

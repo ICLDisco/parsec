@@ -2423,19 +2423,18 @@ parsec_device_kernel_cleanout( parsec_device_gpu_module_t *gpu_device,
  * where tasks ready to jump to the respective step are waiting.
  */
 parsec_hook_return_t
-parsec_device_kernel_scheduler( parsec_execution_stream_t *es,
-                                parsec_gpu_task_t         *gpu_task,
-                                int which_gpu )
+parsec_device_kernel_scheduler( parsec_device_module_t *module,
+                                parsec_execution_stream_t *es,
+                                void *_gpu_task )
 {
-    parsec_device_gpu_module_t* gpu_device;
+    parsec_device_gpu_module_t* gpu_device = (parsec_device_gpu_module_t *)module;
     int rc, exec_stream = 0;
     parsec_gpu_task_t *progress_task, *out_task_submit = NULL, *out_task_pop = NULL;
+    parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t*)_gpu_task;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
     int pop_null = 0;
-
-    gpu_device = (parsec_device_gpu_module_t*)parsec_mca_device_get(which_gpu);
 
     parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, gpu_task->load);
 
