@@ -2302,7 +2302,7 @@ parsec_find_core_by_idx(parsec_context_t* context, int idx)
     do {
         pos = hwloc_bitmap_next(context->cpuset_allowed_mask, pos);
         if(pos >= 0 ) {
-            if( 0 == idx ) 
+            if( 0 == idx )
                 return pos;
             idx--;
         }
@@ -2517,61 +2517,38 @@ int parsec_check_overlapping_binding(parsec_context_t *context)
 {
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI) && defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
     if( context->nb_nodes <= parsec_report_binding_issues ) {
-        MPI_Comm comml = MPI_COMM_NULL; int i, nl = 0, rl = MPI_PROC_NULL;
-        MPI_Comm commw = (MPI_Comm)context->comm_ctx;
+        MPI_Comm comml = MPI_COMM_NULL, commw = (MPI_Comm)context->comm_ctx;
+        int nl;
         assert(-1 != context->comm_ctx);
         MPI_Comm_split_type(commw, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
         MPI_Comm_size(comml, &nl);
         if( 1 < nl ) {
-            /* Hu-ho, double check that our binding is not conflicting with other
-             * local procs */
-            MPI_Comm_rank(comml, &rl);
-            char *myset = NULL, *allsets = NULL;
+            /* double check that our binding is not conflicting with other local procs */
+            hwloc_cpuset_t proc_global_mask = parsec_hwloc_cpuset_convert_to_system(context->cpuset_used_mask);
+            int idx, length = hwloc_bitmap_last(proc_global_mask);  /* find the highest PU for this process */
+            MPI_Allreduce(MPI_IN_PLACE, &length, 1, MPI_INT, MPI_MAX, comml);  /* find the highest PU for this node */
+            uint8_t *proc_mask = alloca(length);
+            memset(proc_mask, 0, length);
 
-            if( 0 != hwloc_bitmap_list_asprintf(&myset, context->cpuset_allowed_mask) ) {
-            }
-            int setlen = strlen(myset);
-            int *setlens = NULL;
-            if( 0 == rl ) {
-                setlens = calloc(nl, sizeof(int));
-            }
-            MPI_Gather(&setlen, 1, MPI_INT, setlens, 1, MPI_INT, 0, comml);
+            hwloc_bitmap_foreach_begin(idx, proc_global_mask)
+                proc_mask[idx]++;
+            hwloc_bitmap_foreach_end();
 
-            int *displs = NULL;
-            if( 0 == rl ) {
-                displs = calloc(nl, sizeof(int));
-                displs[0] = 0;
-                for( i = 1; i < nl; i++ ) {
-                    displs[i] = displs[i-1]+setlens[i-1];
-                }
-                allsets = calloc(displs[nl-1]+setlens[nl-1], sizeof(char));
-            }
-            MPI_Gatherv(myset, setlen, MPI_CHAR, allsets, setlens, displs, MPI_CHAR, 0, comml);
-            free(myset);
-
-            if( 0 == rl ) {
-                int notgood = false;
-                for( i = 1; i < nl; i++ ) {
-                    hwloc_bitmap_t other = hwloc_bitmap_alloc();
-                    hwloc_bitmap_list_sscanf(other, &allsets[displs[i]]);
-                    if(hwloc_bitmap_intersects(context->cpuset_allowed_mask, other)) {
-                        notgood = true;
-                    }
-                    hwloc_bitmap_free(other);
-                }
-                if( notgood ) {
+            MPI_Allreduce(MPI_IN_PLACE, proc_mask, length, MPI_BYTE, MPI_SUM, comml);
+            for( int i = 0; i < length; i++ ) {
+                if( 1 < proc_mask[i] ) {
                     parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
                                    "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
                                     "\tThis is often unintentional, and will perform poorly.\n"
                                    "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
                                    "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
                                    "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
+                    break;
                 }
-                free(setlens);
-                free(allsets);
-                free(displs);
             }
+            hwloc_bitmap_free(proc_global_mask);
         }
+        MPI_Comm_free(&comml);
     }
     return PARSEC_SUCCESS;
 #else

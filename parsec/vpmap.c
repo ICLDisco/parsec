@@ -309,8 +309,8 @@ int parsec_vpmap_init_from_file(const char *filename)
     fclose(f);
 
     if( 0 == parsec_nbvp ) {
-        /* If no description is available for the process, create a single monothread VP */
-        parsec_inform("No VP parameter for the process %i: create a single VP (single thread, unbound)", rank);
+        /* If no description is available for the process, create one single-thread VP */
+        parsec_inform("No VP parameter for the process %i: create one VP (single thread, unbound)", rank);
         return parsec_vpmap_init_from_flat(-1);
     }
     /* We have some VP descriptions */
@@ -434,7 +434,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
 
     int nb_real_cores = parsec_hwloc_nb_real_cores();
 
-    /* Parse  hexadecimal mask, range expression of core list expression */
+    /* Parse hexadecimal mask, range expression of core list expression */
     if( NULL != (position = strchr(option, 'x')) ) {
         /* The parameter is a hexadecimal mask */
 

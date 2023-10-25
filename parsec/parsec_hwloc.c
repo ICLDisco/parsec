@@ -51,8 +51,6 @@ hwloc_cpuset_t parsec_cpuset_original;
  */
 hwloc_cpuset_t parsec_cpuset_restricted;
 
-static hwloc_cpuset_t parsec_hwloc_cpuset_convert_to_system(hwloc_cpuset_t cpuset);
-
 char* parsec_hwloc_convert_cpuset(int convert_to_system, hwloc_cpuset_t cpuset)
 {
     char *str = NULL;
@@ -482,7 +480,7 @@ int parsec_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 #endif  /* !defined(PARSEC_HAVE_HWLOC) */
 }
 
-static hwloc_cpuset_t parsec_hwloc_cpuset_convert_to_system(hwloc_cpuset_t cpuset)
+hwloc_cpuset_t parsec_hwloc_cpuset_convert_to_system(hwloc_cpuset_t cpuset)
 {
     unsigned cpu_index;
     hwloc_obj_t obj;

@@ -177,6 +177,11 @@ char* parsec_hwloc_get_binding(hwloc_cpuset_t* cpuset, int flag);
 int parsec_hwloc_get_ht(void);
 
 /**
+ * Generate a new cpuset using the system notation instead of a logical notation.
+ */
+hwloc_cpuset_t parsec_hwloc_cpuset_convert_to_system(hwloc_cpuset_t cpuset);
+
+/**
  * Generate a readable representation of the cpuset. If convert_to_system is true
  * the cpuset is converted to the system naming instead of the logical naming
  * of the cpuset.
