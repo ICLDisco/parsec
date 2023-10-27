@@ -88,7 +88,7 @@ static void check_translate_outoforder(parsec_lifo_t *l1,
     for(e = 0; e < NBELT; e++) {
         elt = (elt_t *)parsec_lifo_pop( l1 );
         if( NULL == elt )
-            fatal(" ! Error: there are only %u elements in %s -- expecting %u\n", e+1, lifo1name, NBELT);
+            fatal(" ! Error: there are only %u elements in %s -- expecting %u\n", e, lifo1name, NBELT);
         check_elt( elt );
         parsec_lifo_push( l2, (parsec_list_item_t *)elt );
         if( elt->base >= NBELT )

@@ -53,10 +53,8 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
     #include <stdint.h>
     #include <stdatomic.h>
     int main(void) {
-        int32_t where = 0, expected = 0;
-        if( !atomic_compare_exchange_strong( (_Atomic int32_t*)&where, &expected, 1 ) )
-            return -1;
-        return 0;
+        int32_t where = 0;
+        return (atomic_is_lock_free(&where) ? 0 : 1);
     }
     " PARSEC_ATOMIC_USE_C11_32)
   if(PARSEC_ATOMIC_USE_C11_32)
@@ -64,10 +62,8 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
         #include <stdint.h>
         #include <stdatomic.h>
         int main(void) {
-            int64_t where = 0, expected = 0;
-            if( !atomic_compare_exchange_strong( (_Atomic int64_t*)&where, &expected, 1 ) )
-                return -1;
-            return 0;
+            int64_t where = 0;
+            return (atomic_is_lock_free(&where) ? 0 : 1);
         }
         " PARSEC_ATOMIC_USE_C11_64)
   endif(PARSEC_ATOMIC_USE_C11_32)
@@ -78,27 +74,24 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
   #
   unset( PARSEC_ATOMIC_USE_C11_128 CACHE )
   if( PARSEC_HAVE_INT128 AND PARSEC_ATOMIC_USE_C11_32 AND PARSEC_ATOMIC_USE_C11_64 )
-    CHECK_C_SOURCE_COMPILES("
+    include(CheckCSourceRuns)
+    check_c_source_runs("
         #include <stdatomic.h>
         int main(void) {
-             __int128_t where = 0, expected = 0;
-             if( !atomic_compare_exchange_strong( (_Atomic __int128_t*)&where, &expected, 1 ) )
-                 return -1;
-             return 0;
-         }
-         " PARSEC_ATOMIC_USE_C11_128)
+          __int128_t where = 0;
+          return (atomic_is_lock_free(&where) ? 0 : 1);
+        }
+        " PARSEC_ATOMIC_USE_C11_128)
     if( NOT PARSEC_ATOMIC_USE_C11_128 ) # try again with -mcx16
       include(CMakePushCheckState)
       cmake_push_check_state()
       set( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
       unset( PARSEC_ATOMIC_USE_C11_128 CACHE )
-      CHECK_C_SOURCE_COMPILES("
+      check_c_source_runs("
           #include <stdatomic.h>
           int main(void) {
-              __int128_t where = 0, expected;
-              if( !atomic_compare_exchange_strong( (_Atomic __int128_t*)&where, &expected, 1 ) )
-                  return -1;
-              return 0;
+            __int128_t where = 0;
+            return (atomic_is_lock_free(&where) ? 0 : 1);
           }
           " PARSEC_ATOMIC_USE_C11_128)
       cmake_pop_check_state()
@@ -111,13 +104,11 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
       cmake_push_check_state()
       list(APPEND CMAKE_REQUIRED_LIBRARIES atomic)
       unset( PARSEC_ATOMIC_USE_C11_128 CACHE )
-      CHECK_C_SOURCE_COMPILES("
+      check_c_source_runs("
           #include <stdatomic.h>
           int main(void) {
-              __int128_t where = 0, expected = 0;
-              if( !atomic_compare_exchange_strong( (_Atomic __int128_t*)&where, &expected, 1 ) )
-                  return -1;
-              return 0;
+            __int128_t where = 0;
+            return (atomic_is_lock_free(&where) ? 0 : 1);
           }
           " PARSEC_ATOMIC_USE_C11_128)
       cmake_pop_check_state()
@@ -142,6 +133,14 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
 
   # Gcc style atomics?
   CHECK_C_SOURCE_COMPILES("
+      #if defined __has_builtin
+      #  if !__has_builtin (__sync_bool_compare_and_swap_4)
+      #    error Missing builtin for __sync_bool_compare_and_swap_4
+      #  endif
+      #else
+      #  warning Cannot be used for testing
+      #endif
+  
       #include <stdint.h>
       int main(void) {
          int32_t where = 0;
@@ -154,6 +153,14 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
   # libatomic extension either, so we do not recheck with -latomic as above
   if( PARSEC_ATOMIC_USE_GCC_32_BUILTINS )
     CHECK_C_SOURCE_COMPILES("
+        #if defined __has_builtin
+        #  if !__has_builtin (__sync_bool_compare_and_swap_8)
+        #    error Missing builtin for __sync_bool_compare_and_swap_8
+        #  endif
+        #else
+        #  warning Cannot be used for testing
+        #endif
+  
         #include <stdint.h>
         int main(void) {
            int64_t where = 0;
@@ -166,6 +173,14 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
   if( PARSEC_ATOMIC_USE_GCC_64_BUILTINS )
     if(PARSEC_HAVE_INT128)
       CHECK_C_SOURCE_COMPILES("
+        #if defined __has_builtin
+        #  if !__has_builtin (__sync_bool_compare_and_swap_16)
+        #    error Missing builtin for __sync_bool_compare_and_swap_16
+        #  endif
+        #else
+        #  warning Cannot be used for testing
+        #endif
+  
         #include <stdint.h>
         int main(void) {
             __int128_t where = 0;
@@ -180,6 +195,14 @@ if(NOT PARSEC_ATOMIC_USE_C11_32 OR NOT PARSEC_ATOMIC_USE_C11_64 OR NOT PARSEC_AT
         set( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
         unset( PARSEC_ATOMIC_USE_GCC_128_BUILTINS CACHE )
         CHECK_C_SOURCE_COMPILES("
+            #if defined __has_builtin
+            #  if !__has_builtin (__sync_bool_compare_and_swap_16)
+            #    error Missing builtin for __sync_bool_compare_and_swap_16
+            #  endif
+            #else
+            #  warning Cannot be used for testing
+            #endif
+  
             #include <stdint.h>
             int main(void) {
                 __int128_t where = 0;
