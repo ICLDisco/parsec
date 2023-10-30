@@ -41,6 +41,9 @@ char* parsec_level_zero_lib_path = NULL;
 static int level_zero_mask, level_zero_nvlink_mask;
 static int parsec_level_zero_sort_pending;
 
+#if defined(PARSEC_PROF_TRACE)
+int parsec_device_level_zero_one_profiling_stream_per_gpu_stream = 0;
+#endif /* PARSEC_PROF_TRACE */
 
 /*
  * Instantiate the public struct with all of our public information
@@ -277,7 +280,7 @@ static int device_level_zero_component_register(void)
 #if defined(PARSEC_PROF_TRACE)
     (void)parsec_mca_param_reg_int_name("device_level_zero", "one_profiling_stream_per_level_zero_stream",
                                         "Boolean to separate the profiling of each level_zero stream into a single profiling stream",
-                                        false, false, 0, &parsec_device_gpu_one_profiling_stream_per_gpu_stream);
+                                        false, false, 0, &parsec_device_level_zero_one_profiling_stream_per_gpu_stream);
 #endif
     /* If LEVEL_ZERO was not requested avoid initializing the devices */
     return (0 == parsec_device_level_zero_enabled ? MCA_ERROR : MCA_SUCCESS);

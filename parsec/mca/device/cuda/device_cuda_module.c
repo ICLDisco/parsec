@@ -463,16 +463,19 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
          * what happens where, and separating them consumes memory and increases the number of 
          * events that needs to be matched between streams because we cannot differentiate some
          * ends between IN or OUT, so they are all logged on the same stream. */
-        if(j == 0 || (parsec_device_gpu_one_profiling_stream_per_gpu_stream == 1 && j != 1))
+        gpu_device->trackable_events = PARSEC_PROFILE_GPU_TRACK_EXEC | PARSEC_PROFILE_GPU_TRACK_DATA_OUT
+                                    | PARSEC_PROFILE_GPU_TRACK_DATA_IN | PARSEC_PROFILE_GPU_TRACK_OWN | PARSEC_PROFILE_GPU_TRACK_MEM_USE
+                                    | PARSEC_PROFILE_GPU_TRACK_PREFETCH;
+        if(j == 0 || (parsec_device_cuda_one_profiling_stream_per_gpu_stream == 1 && j != 1))
             exec_stream->profiling = parsec_profiling_stream_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, dev_id, j );
         else
             exec_stream->profiling = gpu_device->exec_stream[0]->profiling;
         if(j == 0) {
-            exec_stream->prof_event_track_enable = parsec_gpu_trackable_events & ( PARSEC_PROFILE_GPU_TRACK_DATA_IN | PARSEC_PROFILE_GPU_TRACK_MEM_USE );
+            exec_stream->prof_event_track_enable = gpu_device->trackable_events & ( PARSEC_PROFILE_GPU_TRACK_DATA_IN | PARSEC_PROFILE_GPU_TRACK_MEM_USE );
         } else if(j == 1) {
-            exec_stream->prof_event_track_enable = parsec_gpu_trackable_events & ( PARSEC_PROFILE_GPU_TRACK_DATA_OUT | PARSEC_PROFILE_GPU_TRACK_MEM_USE );
+            exec_stream->prof_event_track_enable = gpu_device->trackable_events & ( PARSEC_PROFILE_GPU_TRACK_DATA_OUT | PARSEC_PROFILE_GPU_TRACK_MEM_USE );
         } else {
-            exec_stream->prof_event_track_enable = parsec_gpu_trackable_events & ( PARSEC_PROFILE_GPU_TRACK_EXEC | PARSEC_PROFILE_GPU_TRACK_MEM_USE );
+            exec_stream->prof_event_track_enable = gpu_device->trackable_events & ( PARSEC_PROFILE_GPU_TRACK_EXEC | PARSEC_PROFILE_GPU_TRACK_MEM_USE );
         }
 #endif  /* defined(PARSEC_PROF_TRACE) */
     }

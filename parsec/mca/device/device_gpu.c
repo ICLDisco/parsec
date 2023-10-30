@@ -21,26 +21,18 @@
 #define PARSEC_DEVICE_DATA_COPY_ATOMIC_SENTINEL 1024
 
 #if defined(PARSEC_PROF_TRACE)
-/* Accepted values are: PARSEC_PROFILE_GPU_TRACK_DATA_IN | PARSEC_PROFILE_GPU_TRACK_DATA_OUT |
- *                      PARSEC_PROFILE_GPU_TRACK_OWN | PARSEC_PROFILE_GPU_TRACK_EXEC |
- *                      PARSEC_PROFILE_GPU_TRACK_MEM_USE | PARSEC_PROFILE_GPU_TRACK_PREFETCH
- */
-int parsec_gpu_trackable_events = PARSEC_PROFILE_GPU_TRACK_EXEC | PARSEC_PROFILE_GPU_TRACK_DATA_OUT
-                                  | PARSEC_PROFILE_GPU_TRACK_DATA_IN | PARSEC_PROFILE_GPU_TRACK_OWN | PARSEC_PROFILE_GPU_TRACK_MEM_USE
-                                  | PARSEC_PROFILE_GPU_TRACK_PREFETCH;
-int parsec_gpu_movein_key_start;
-int parsec_gpu_movein_key_end;
-int parsec_gpu_moveout_key_start;
-int parsec_gpu_moveout_key_end;
-int parsec_gpu_own_GPU_key_start;
-int parsec_gpu_own_GPU_key_end;
-int parsec_gpu_allocate_memory_key;
-int parsec_gpu_free_memory_key;
-int parsec_gpu_use_memory_key_start;
-int parsec_gpu_use_memory_key_end;
-int parsec_gpu_prefetch_key_start;
-int parsec_gpu_prefetch_key_end;
-int parsec_device_gpu_one_profiling_stream_per_gpu_stream = 0;
+static int parsec_gpu_movein_key_start;
+static int parsec_gpu_movein_key_end;
+static int parsec_gpu_moveout_key_start;
+static int parsec_gpu_moveout_key_end;
+static int parsec_gpu_own_GPU_key_start;
+static int parsec_gpu_own_GPU_key_end;
+static int parsec_gpu_allocate_memory_key;
+static int parsec_gpu_free_memory_key;
+static int parsec_gpu_use_memory_key_start;
+static int parsec_gpu_use_memory_key_end;
+static int parsec_gpu_prefetch_key_start;
+static int parsec_gpu_prefetch_key_end;
 static int parsec_gpu_profiling_initiated = 0;
 #endif  /* defined(PROFILING) */
 int parsec_gpu_output_stream = -1;
@@ -193,7 +185,7 @@ void* parsec_device_pop_workspace(parsec_device_gpu_module_t* gpu_device,
                                  gpu_device->super.name,
                                  i, gpu_stream->workspace->workspace[i]);
 #if defined(PARSEC_PROF_TRACE)
-            if((parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
+            if((gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
                (gpu_device->exec_stream[0]->prof_event_track_enable ||
                 gpu_device->exec_stream[1]->prof_event_track_enable)) {
                 parsec_profiling_trace_flags(gpu_stream->profiling,
@@ -234,7 +226,7 @@ int parsec_device_free_workspace(parsec_device_gpu_module_t * gpu_device)
         if (gpu_stream->workspace != NULL) {
             for (j = 0; j < gpu_stream->workspace->total_workspace; j++) {
 #if defined(PARSEC_PROF_TRACE)
-                if((parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
+                if((gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
                    (gpu_device->exec_stream[0]->prof_event_track_enable ||
                     gpu_device->exec_stream[1]->prof_event_track_enable)) {
                     parsec_profiling_trace_flags(gpu_stream->profiling,
@@ -753,7 +745,7 @@ static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_de
 #else
 
 #if defined(PARSEC_PROF_TRACE)
-        if((parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
+        if((gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
            (gpu_device->exec_stream[0]->prof_event_track_enable ||
             gpu_device->exec_stream[1]->prof_event_track_enable)) {
             parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
@@ -1077,7 +1069,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                  lru_gpu_elem, lru_gpu_elem->device_private, lru_gpu_elem->super.super.obj_reference_count,
                                  oldmaster);
 #if defined(PARSEC_PROF_TRACE)
-            if((parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
+            if((gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
                (gpu_device->exec_stream[0]->prof_event_track_enable ||
                 gpu_device->exec_stream[1]->prof_event_track_enable)) {
                 parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
@@ -1107,7 +1099,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                              gpu_device->super.name,
                              gpu_elem, gpu_elem->device_private, gpu_elem->super.super.obj_reference_count, master);
 #if defined(PARSEC_PROF_TRACE)
-        if((parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
+        if((gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
                         (gpu_device->exec_stream[0]->prof_event_track_enable ||
                          gpu_device->exec_stream[1]->prof_event_track_enable)) {
             parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
@@ -1453,7 +1445,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
         }
         gpu_task->prof_key_end = -1;
 
-        if( PARSEC_GPU_TASK_TYPE_PREFETCH == gpu_task->task_type && (parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_PREFETCH) ) {
+        if( PARSEC_GPU_TASK_TYPE_PREFETCH == gpu_task->task_type && (gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_PREFETCH) ) {
             gpu_task->prof_key_end = parsec_gpu_prefetch_key_end;
             gpu_task->prof_event_id = (int64_t)gpu_elem->device_private;
             gpu_task->prof_tp_id = gpu_device->super.device_index;
@@ -1463,14 +1455,14 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                                    gpu_task->prof_tp_id,
                                    &info);
         }
-        if(PARSEC_GPU_TASK_TYPE_PREFETCH != gpu_task->task_type && (parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_DATA_IN) ) {
+        if(PARSEC_GPU_TASK_TYPE_PREFETCH != gpu_task->task_type && (gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_DATA_IN) ) {
             PARSEC_PROFILING_TRACE(gpu_stream->profiling,
                                    parsec_gpu_movein_key_start,
                                    (int64_t)gpu_elem->device_private,
                                    gpu_device->super.device_index,
                                    &info);
         }
-        if(parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) {
+        if(gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) {
             parsec_device_gpu_memory_prof_info_t _info;
             _info.size = (uint64_t)nb_elts;
             _info.data_key = gpu_elem->original->key;
@@ -1652,7 +1644,7 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
                                                        gpu_device->super.device_index,
                                                        flow->flow_flags);
 #if defined(PARSEC_PROF_TRACE)
-            if(parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_DATA_IN) {
+            if(gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_DATA_IN) {
                 PARSEC_PROFILING_TRACE(gpu_stream->profiling,
                                        parsec_gpu_movein_key_end,
                                        (int64_t)(int64_t)task->data[i].data_out->device_private,
@@ -2194,7 +2186,7 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                                      (void*)gpu_copy->device_private, original->device_copies[0]->device_private);
 #if defined(PARSEC_PROF_TRACE)
                 if( gpu_stream->prof_event_track_enable ) {
-                    if(parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_DATA_OUT) {
+                    if(gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_DATA_OUT) {
                         parsec_profile_data_collection_info_t info;
                         if( NULL != original->dc ) {
                             info.desc    = original->dc;
@@ -2478,7 +2470,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
                          gpu_device->super.name, __FILE__, __LINE__);
 
 #if defined(PARSEC_PROF_TRACE)
-    if( parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_OWN )
+    if( gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_OWN )
         PARSEC_PROFILING_TRACE( es->es_profile, parsec_gpu_own_GPU_key_start,
                                 (unsigned long)es, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PARSEC_PROF_TRACE) */
@@ -2635,7 +2627,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
     if( 1 == rc ) {  /* I was the last one */
 #if defined(PARSEC_PROF_TRACE)
-        if( parsec_gpu_trackable_events & PARSEC_PROFILE_GPU_TRACK_OWN )
+        if( gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_OWN )
             PARSEC_PROFILING_TRACE( es->es_profile, parsec_gpu_own_GPU_key_end,
                                     (unsigned long)es, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PARSEC_PROF_TRACE) */

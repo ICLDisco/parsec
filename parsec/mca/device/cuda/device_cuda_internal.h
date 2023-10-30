@@ -24,6 +24,10 @@ PARSEC_DECLSPEC extern const parsec_device_module_t parsec_device_cuda_module;
 int parsec_cuda_module_init( int device, parsec_device_module_t** module );
 int parsec_cuda_module_fini(parsec_device_module_t* device);
 
+#if defined(PARSEC_PROF_TRACE)
+extern int parsec_device_cuda_one_profiling_stream_per_gpu_stream;
+#endif
+
 END_C_DECLS
 
 #endif /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */

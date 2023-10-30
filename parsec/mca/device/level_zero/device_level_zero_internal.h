@@ -39,6 +39,7 @@ typedef struct {
     uint64_t dc_id;
 } parsec_device_level_zero_memory_prof_info_t;
 #define PARSEC_DEVICE_LEVEL_ZERO_MEMORY_PROF_INFO_CONVERTER "size{int64_t};data_key{uint64_t};dc_id{uint64_t}"
+int parsec_device_level_zero_one_profiling_stream_per_gpu_stream;
 #endif /* PARSEC_PROF_TRACE */
 
 #endif /* defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT) */

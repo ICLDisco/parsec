@@ -42,7 +42,9 @@ char* parsec_cuda_lib_path = NULL;
 static int cuda_mask, cuda_nvlink_mask;
 static int parsec_cuda_sort_pending;
 
-
+#if defined(PARSEC_PROF_TRACE)
+int parsec_device_cuda_one_profiling_stream_per_gpu_stream = 0;
+#endif
 /*
  * Instantiate the public struct with all of our public information
  * and pointers to our public functions in it
@@ -198,7 +200,7 @@ static int device_cuda_component_register(void)
 #if defined(PARSEC_PROF_TRACE)
     (void)parsec_mca_param_reg_int_name("device_cuda", "one_profiling_stream_per_cuda_stream",
                                         "Boolean to separate the profiling of each cuda stream into a single profiling stream",
-                                        false, false, 0, &parsec_device_gpu_one_profiling_stream_per_gpu_stream);
+                                        false, false, 0, &parsec_device_cuda_one_profiling_stream_per_gpu_stream);
 #endif
 
     /* If CUDA was not requested avoid initializing the devices */

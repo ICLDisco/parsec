@@ -354,22 +354,25 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
                 exec_stream->name = "level_zero";
         }
 #if defined(PARSEC_PROF_TRACE)
+        gpu_device->trackable_events = PARSEC_PROFILE_GPU_TRACK_EXEC | PARSEC_PROFILE_GPU_TRACK_DATA_OUT
+                                    | PARSEC_PROFILE_GPU_TRACK_DATA_IN | PARSEC_PROFILE_GPU_TRACK_OWN | PARSEC_PROFILE_GPU_TRACK_MEM_USE
+                                    | PARSEC_PROFILE_GPU_TRACK_PREFETCH;
         /* Each 'exec' stream gets its own profiling stream, except IN and OUT stream that share it.
          * It's good to separate the exec streams to know what was submitted to what stream
          * We don't have this issue for the IN and OUT streams because types of event discriminate
          * what happens where, and separating them consumes memory and increases the number of 
          * events that needs to be matched between streams because we cannot differentiate some
          * ends between IN or OUT, so they are all logged on the same stream. */
-        if(j == 0 || (parsec_device_gpu_one_profiling_stream_per_gpu_stream == 1 && j != 1))
+        if(j == 0 || (parsec_device_level_zero_one_profiling_stream_per_gpu_stream == 1 && j != 1))
             exec_stream->profiling = parsec_profiling_stream_init( 2*1024*1024, PARSEC_PROFILE_STREAM_STR, dev_id, j );
         else
             exec_stream->profiling = gpu_device->exec_stream[0]->profiling;
         if(j == 0) {
-            exec_stream->prof_event_track_enable = parsec_gpu_trackable_events & ( PARSEC_PROFILE_LEVEL_ZERO_TRACK_DATA_IN | PARSEC_PROFILE_LEVEL_ZERO_TRACK_MEM_USE );
+            exec_stream->prof_event_track_enable = gpu_device->trackable_events & ( PARSEC_PROFILE_LEVEL_ZERO_TRACK_DATA_IN | PARSEC_PROFILE_LEVEL_ZERO_TRACK_MEM_USE );
         } else if(j == 1) {
-            exec_stream->prof_event_track_enable = parsec_gpu_trackable_events & ( PARSEC_PROFILE_LEVEL_ZERO_TRACK_DATA_OUT | PARSEC_PROFILE_LEVEL_ZERO_TRACK_MEM_USE );
+            exec_stream->prof_event_track_enable = gpu_device->trackable_events & ( PARSEC_PROFILE_LEVEL_ZERO_TRACK_DATA_OUT | PARSEC_PROFILE_LEVEL_ZERO_TRACK_MEM_USE );
         } else {
-            exec_stream->prof_event_track_enable = parsec_gpu_trackable_events & ( PARSEC_PROFILE_LEVEL_ZERO_TRACK_EXEC | PARSEC_PROFILE_LEVEL_ZERO_TRACK_MEM_USE );
+            exec_stream->prof_event_track_enable = gpu_device->trackable_events & ( PARSEC_PROFILE_LEVEL_ZERO_TRACK_EXEC | PARSEC_PROFILE_LEVEL_ZERO_TRACK_MEM_USE );
         }
 #endif  /* defined(PARSEC_PROF_TRACE) */
     }
@@ -478,7 +481,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
                 /* No function to clean the profiling stream. If one is introduced
                  * some day, remember that exec streams 0 and 1 always share the same 
                  * ->profiling stream, and that all of them share the same
-                 * ->profiling stream if parsec_device_gpu_one_profiling_stream_per_gpu_stream == 0 */
+                 * ->profiling stream if parsec_device_level_zero_one_profiling_stream_per_gpu_stream == 0 */
             }
 #endif  /* defined(PARSEC_PROF_TRACE) */
         }

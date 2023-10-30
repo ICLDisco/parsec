@@ -239,6 +239,9 @@ struct parsec_device_gpu_module_s {
     parsec_gpu_exec_stream_t **exec_stream;
     size_t                     mem_block_size;
     int64_t                    mem_nb_blocks;
+#if defined(PARSEC_PROF_TRACE)
+    int                        trackable_events;
+#endif /* PARSEC_PROF_TRACE */
 };
 
 struct parsec_gpu_exec_stream_s {
@@ -318,19 +321,6 @@ char *parsec_device_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t 
 #define PARSEC_PROFILE_GPU_TRACK_MEM_USE  0x0010
 #define PARSEC_PROFILE_GPU_TRACK_PREFETCH 0x0020
 
-extern int parsec_gpu_trackable_events;
-extern int parsec_gpu_movein_key_start;
-extern int parsec_gpu_movein_key_end;
-extern int parsec_gpu_moveout_key_start;
-extern int parsec_gpu_moveout_key_end;
-extern int parsec_gpu_own_GPU_key_start;
-extern int parsec_gpu_own_GPU_key_end;
-extern int parsec_gpu_allocate_memory_key;
-extern int parsec_gpu_free_memory_key;
-extern int parsec_gpu_use_memory_key_start;
-extern int parsec_gpu_use_memory_key_end;
-extern int parsec_gpu_prefetch_key_start;
-extern int parsec_gpu_prefetch_key_end;
 extern int parsec_device_gpu_one_profiling_stream_per_gpu_stream;
 
 void parsec_device_init_profiling(void);
