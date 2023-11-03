@@ -1550,12 +1550,16 @@ parsec_gpu_data_stage_in( parsec_device_cuda_module_t* cuda_device,
 
     /* update the data version in GPU immediately, and mark the data under transfer */
     assert((gpu_elem->version != candidate->version) || (gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_NOT_TRANSFER));
-    gpu_elem->version = candidate->version;
+	gpu_elem->version = candidate->version;
+	if ((type & PARSEC_FLOW_ACCESS_WRITE)) {
+		/* increment the version because the copy will be modified */
+        gpu_elem->version += 1;
+	}
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                         "GPU[%s]: GPU copy %p [ref_count %d] gets the same version %d as copy %p [ref_count %d] at %s:%d",
+                         "GPU[%s]: GPU copy %p [ref_count %d] will have version %d from copy %p version %d [ref_count %d]",
                          gpu_device->super.name,
-                         gpu_elem, gpu_elem->super.super.obj_reference_count, gpu_elem->version, candidate, candidate->super.super.obj_reference_count,
-                         __FILE__, __LINE__);
+                         gpu_elem, gpu_elem->super.super.obj_reference_count, gpu_elem->version, candidate, candidate->version,
+						 candidate->super.super.obj_reference_count);
 
     gpu_elem->data_transfer_status = PARSEC_DATA_STATUS_UNDER_TRANSFER;
     gpu_elem->push_task = gpu_task->ec;  /* only the task who does the transfer can modify the data status later. */
