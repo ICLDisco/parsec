@@ -63,13 +63,15 @@ typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t
 #define PARSEC_DEV_CPU        ((uint8_t)(1 << 0))
 #define PARSEC_DEV_RECURSIVE  ((uint8_t)(1 << 1))
 #define PARSEC_DEV_CUDA       ((uint8_t)(1 << 2))
-#define PARSEC_DEV_INTEL_PHI  ((uint8_t)(1 << 3))
-#define PARSEC_DEV_OPENCL     ((uint8_t)(1 << 4))
-#define PARSEC_DEV_TEMPLATE   ((uint8_t)(1 << 5))
-#define PARSEC_DEV_HIP        ((uint8_t)(1 << 6))
+#define PARSEC_DEV_HIP        ((uint8_t)(1 << 3))
+#define PARSEC_DEV_LEVEL_ZERO ((uint8_t)(1 << 4))
+#define PARSEC_DEV_TEMPLATE   ((uint8_t)(1 << 7))
 #define PARSEC_DEV_ANY_TYPE   ((uint8_t)    0x3f)
 #define PARSEC_DEV_ALL        ((uint8_t)    0x3f)
 #define PARSEC_DEV_MAX_NB_TYPE                (7)
+
+#define PARSEC_DEV_GPU_MASK   (PARSEC_DEV_CUDA|PARSEC_DEV_HIP|PARSEC_DEV_LEVEL_ZERO)
+#define PARSEC_DEV_IS_GPU(t)  (0 != ((t) & PARSEC_DEV_GPU_MASK))
 
 #define PARSEC_DEV_DATA_ADVICE_PREFETCH              ((int) 0x01)
 #define PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE      ((int) 0x02)
@@ -112,6 +114,21 @@ typedef int   (*parsec_device_memory_release_f)(parsec_device_module_t*);
 typedef int   (*parsec_device_data_advise_f)(parsec_device_module_t*, parsec_data_t*, int);
 typedef void* (*parsec_device_find_function_f)(parsec_device_module_t*, char*);
 
+/**
+ * Reorders the list of pending tasks on the current device based on the
+ *   current heuristic implemented by the device
+ */
+typedef int  (*parsec_device_sort_pending_list_function_f)(parsec_device_module_t*);
+
+/**
+ * Schedules some kernel represented by @p task on the device @p module,
+ * from the execution stream @p es.
+ * 
+ * @note: @p task is a void *parameter, because its actual type depends
+ *   on the device type.
+ */
+typedef parsec_hook_return_t (*parsec_device_kernel_scheduler_function_t)( parsec_device_module_t *module, parsec_execution_stream_t *es, void *task);
+
 struct parsec_device_module_s {
     parsec_object_t                        super;
     const parsec_device_base_component_t  *component;
@@ -125,6 +142,8 @@ struct parsec_device_module_s {
     parsec_device_memory_release_f         memory_release;
     parsec_device_data_advise_f            data_advise;
     parsec_device_find_function_f          find_function;
+    parsec_device_sort_pending_list_function_f sort_pending_list;
+    parsec_device_kernel_scheduler_function_t  kernel_scheduler;
 
     parsec_info_object_array_t             infos; /**< Per-device info objects are stored here */
     struct parsec_context_s* context;  /**< The PaRSEC context this device belongs too */

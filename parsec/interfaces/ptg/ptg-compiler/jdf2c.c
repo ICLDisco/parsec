@@ -6724,6 +6724,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             "{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
             "  parsec_gpu_task_t *gpu_task;\n"
+            "  parsec_device_module_t *dev;\n"
             "  int64_t __load;\n"
             "  int dev_index;\n"
             "  %s\n"
@@ -6759,6 +6760,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             "    return PARSEC_HOOK_RETURN_NEXT;  /* Fall back */\n"
             "  }\n"
             "\n"
+            "  dev = parsec_mca_device_get(dev_index);\n"
             "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
             "  PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
@@ -6773,13 +6775,13 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     jdf_find_property(body->properties, "stage_out", &stage_out_property);
 
     if(stage_in_property == NULL) {
-        coutput("  gpu_task->stage_in  = parsec_default_%s_stage_in;\n", dev_lower);
+        coutput("  gpu_task->stage_in  = parsec_default_gpu_stage_in;\n");
     }else{
         coutput("  gpu_task->stage_in  = %s;\n", dump_expr((void**)stage_in_property->expr, &info));
     }
 
     if(stage_out_property == NULL) {
-        coutput("  gpu_task->stage_out = parsec_default_%s_stage_out;\n", dev_lower);
+        coutput("  gpu_task->stage_out = parsec_default_gpu_stage_out;\n");
     }else{
         coutput("  gpu_task->stage_out = %s;\n", dump_expr((void**)stage_out_property->expr, &info));
     }
@@ -6888,9 +6890,8 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     string_arena_free(info.sa);
 
     coutput("\n"
-            "  return parsec_%s_kernel_scheduler( es, gpu_task, dev_index );\n"
-            "}\n\n",
-            dev_lower);
+            "  return dev->kernel_scheduler(dev, es, gpu_task);\n"
+            "}\n\n");
 
     free(dev_lower);
     free(dev_upper);

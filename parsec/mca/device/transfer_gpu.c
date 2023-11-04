@@ -18,9 +18,9 @@
 #include "parsec/utils/output.h"
 #include "parsec/scheduling.h"
 
-#if !defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && !defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
-#error This file should not be included in a non-CUDA/HIP build
-#endif  /* !defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && !defined(PARSEC_HAVE_DEV_HIP_SUPPORT) */
+#if !defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && !defined(PARSEC_HAVE_DEV_HIP_SUPPORT) && !defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
+#error This file should not be included in a non-CUDA/HIP/Level Zero build
+#endif  /* !defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && !defined(PARSEC_HAVE_DEV_HIP_SUPPORT) && !defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT) */
 
 /**
  * Entirely local tasks that should only be used to move data between a device and the main memory. Such

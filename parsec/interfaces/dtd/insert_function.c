@@ -2307,7 +2307,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     if (!parsec_mca_device_is_gpu(dev_index)) {
         return PARSEC_HOOK_RETURN_NEXT; /* Fall back */
     }
-
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
     gpu_task = (parsec_gpu_task_t *) calloc(1, sizeof(parsec_gpu_task_t));
     PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);
 
@@ -2327,17 +2327,14 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
 
     parsec_device_module_t *device = parsec_mca_device_get(dev_index);
     assert(NULL != device);
-    switch(device->type) {
-#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
-    case PARSEC_DEV_CUDA:
-        gpu_task->stage_in  = parsec_default_cuda_stage_in;
-        gpu_task->stage_out = parsec_default_cuda_stage_out;
-        return parsec_cuda_kernel_scheduler(es, gpu_task, dev_index);
-#endif  /* PARSEC_HAVE_DEV_CUDA_SUPPORT */
-    default:
-        parsec_fatal("DTD scheduling on device type %d: this is not a valid GPU device type in this build", device->type);
-    }
-    return PARSEC_HOOK_RETURN_ERROR;
+    /* We already know the device is a GPU device from the test above */
+    gpu_task->stage_in  = parsec_default_gpu_stage_in;
+    gpu_task->stage_out = parsec_default_gpu_stage_out;
+    return device->kernel_scheduler(device, es, gpu_task);
+#else
+    parsec_warning("DTD: Selected best device is a GPU, but no GPU is supported at compile time. Falling back to CPU");
+    return PARSEC_HOOK_RETURN_NEXT;
+#endif
 }
 
 static parsec_hook_return_t parsec_dtd_cpu_task_submit(parsec_execution_stream_t *es, parsec_task_t *this_task)

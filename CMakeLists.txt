@@ -168,18 +168,16 @@ set   (PARSEC_DIST_SHORT_LIMIT 1 CACHE STRING
   "Use the short protocol (no flow control) for messages smaller than the limit in KB. Performs better if smaller than the MTU")
 
 ### GPU engine parameters
+option(PARSEC_GPU_ALLOC_PER_TILE
+  "Tile based allocation engine for GPU memory (instead of internal management
+  of a complete allocation)" OFF)
+mark_as_advanced(PARSEC_GPU_ALLOC_PER_TILE)
 option(PARSEC_GPU_WITH_CUDA
   "Enable GPU support using CUDA kernels" ON)
-option(PARSEC_GPU_CUDA_ALLOC_PER_TILE
-  "Tile based allocation engine for GPU memory (instead of internal management
-  of a complete allocation)" OFF)
-mark_as_advanced(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
 option(PARSEC_GPU_WITH_HIP
     "Enable GPU support using HIP kernels" ON)
-option(PARSEC_GPU_HIP_ALLOC_PER_TILE
-  "Tile based allocation engine for GPU memory (instead of internal management
-  of a complete allocation)" OFF)
-mark_as_advanced(PARSEC_GPU_HIP_ALLOC_PER_TILE)
+option(PARSEC_GPU_WITH_LEVEL_ZERO
+    "Enable GPU support using LEVEL_ZERO kernels" ON)
 option(PARSEC_GPU_WITH_OPENCL
   "Enable GPU support using OpenCL kernels" OFF)
 mark_as_advanced(PARSEC_GPU_WITH_OPENCL) # Hide this as it is not supported yet
@@ -746,6 +744,20 @@ int main(int argc, char *argv[]) {
     set(PARSEC_HAVE_HIP ${HIP_NOT_CUDA_FOUND} CACHE BOOL "True if PaRSEC provide support for HIP")
   endif( PARSEC_GPU_WITH_HIP )
 
+  if( PARSEC_GPU_WITH_LEVEL_ZERO )
+    find_package(level-zero)
+    find_package(DPCPP)
+    set(PARSEC_HAVE_LEVEL_ZERO ${LEVEL_ZERO_FOUND} CACHE BOOL "True if PaRSEC provide support for Intel level-zero")
+    if (LEVEL_ZERO_FOUND AND PARSEC_HAVE_DPCPP)
+      include_directories("${LEVEL_ZERO_INCLUDE_DIR}/level_zero/")
+      set(PARSEC_HAVE_LEVEL_ZERO ${LEVEL_ZERO_FOUND} CACHE BOOL "True if PaRSEC provide support for Intel Level Zero")
+      message(STATUS "Found Intel level-zero ${LEVEL_ZERO_VERSION} in -I${LEVEL_ZERO_INCLUDE_DIR} / -L${LEVEL_ZERO_LIBRARY_DIR}")
+      message(STATUS "Found dpcpp in ${DPCPP_EXECUTABLE}")
+    else(LEVEL_ZERO_FOUND AND PARSEC_HAVE_DPCPP)
+      message(STATUS "Could not find both level-zero and DPCPP: level-zero says ${LEVEL_ZERO_FOUND}, DPCPP says ${DPCPP_EXECUTABLE}")
+    endif (LEVEL_ZERO_FOUND AND PARSEC_HAVE_DPCPP)
+  endif( PARSEC_GPU_WITH_LEVEL_ZERO )
+
   find_package(AYUDAME QUIET)
   set(PARSEC_HAVE_AYUDAME ${AYUDAME_FOUND})
 #
@@ -922,6 +934,13 @@ set(PARSEC_PTGPP_EXECUTABLE ${PARSEC_PTGPP_EXECUTABLE} CACHE STRING "Point to th
 include(AddDocumentedFiles)
 
 add_subdirectory(parsec)
+
+#
+# Add dependency to Level-Zero if it is enabled
+#
+if(PARSEC_HAVE_LEVEL_ZERO)
+    target_link_libraries(parsec PRIVATE level_zero::ze_loader)
+endif(PARSEC_HAVE_LEVEL_ZERO)
 
 #
 # Now continue with compiling the tests.
@@ -1246,6 +1265,8 @@ install(FILES
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindOTF2.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/ParsecCompilePTG.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/Findlevel-zero.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/FindDPCPP.cmake
   DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
 
 # Prepare exports for submodule inclusion

@@ -35,13 +35,16 @@ static int device_cuda_component_register(void);
 
 /* mca params */
 int parsec_device_cuda_enabled_index, parsec_device_cuda_enabled;
-int parsec_cuda_sort_pending = 0, parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
+int parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
 int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_memory_number_of_blocks;
 char* parsec_cuda_lib_path = NULL;
 
 static int cuda_mask, cuda_nvlink_mask;
+static int parsec_cuda_sort_pending;
 
-
+#if defined(PARSEC_PROF_TRACE)
+int parsec_device_cuda_one_profiling_stream_per_gpu_stream = 0;
+#endif
 /*
  * Instantiate the public struct with all of our public information
  * and pointers to our public functions in it
@@ -92,7 +95,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
         return MCA_SUCCESS;
     }
 #if defined(PARSEC_PROF_TRACE)
-    parsec_gpu_init_profiling();
+    parsec_device_init_profiling();
 #endif  /* defined(PROFILING) */
 
     if( parsec_device_cuda_enabled >= 1)
@@ -109,6 +112,9 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
         if( PARSEC_SUCCESS != rc ) {
             assert( NULL == parsec_device_cuda_component.modules[j] );
             continue;
+        }
+        if(parsec_cuda_sort_pending) {
+            parsec_device_cuda_component.modules[j]->sort_pending_list = parsec_device_sort_pending_list;
         }
         parsec_device_cuda_component.modules[j]->component = &parsec_device_cuda_component;
         j++;  /* next available spot */
@@ -141,12 +147,12 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
                 PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cuCtxEnablePeerAccess ", cudastatus,
                                          {continue;} );
                 source_gpu->super.peer_access_mask = (int16_t)(source_gpu->super.peer_access_mask | (int16_t)(1 <<
-                        target_gpu->cuda_index));
+                        target_gpu->super.super.device_index));
             }
         }
     }
 
-    parsec_gpu_enable_debug();
+    parsec_device_enable_debug();
 
     /* module type should be: const mca_base_module_t ** */
     void *ptr = parsec_device_cuda_component.modules;
@@ -194,7 +200,7 @@ static int device_cuda_component_register(void)
 #if defined(PARSEC_PROF_TRACE)
     (void)parsec_mca_param_reg_int_name("device_cuda", "one_profiling_stream_per_cuda_stream",
                                         "Boolean to separate the profiling of each cuda stream into a single profiling stream",
-                                        false, false, 0, &parsec_device_gpu_one_profiling_stream_per_gpu_stream);
+                                        false, false, 0, &parsec_device_cuda_one_profiling_stream_per_gpu_stream);
 #endif
 
     /* If CUDA was not requested avoid initializing the devices */
