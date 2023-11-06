@@ -1569,8 +1569,7 @@ dtd_release_dep_fct(parsec_execution_stream_t *es,
             if( parsec_dtd_not_sent_to_rank((parsec_dtd_task_t *)oldcontext,
                                             dep->belongs_to->flow_index, dst_rank)) {
                 struct remote_dep_output_param_s *output;
-                int _array_pos, _array_bit;
-                uint32_t _array_mask;
+                uint32_t _array_pos, _array_bit, _array_mask;
 
 #if !defined(PARSEC_DIST_COLLECTIVES)
                 assert(src_rank == es->virtual_process->parsec_context->my_rank);
@@ -2299,9 +2298,6 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     (void) es;
     int dev_index;
     int64_t load;
-    parsec_gpu_task_t *gpu_task;
-    parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t *)this_task;
-    parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)this_task->task_class;
 
     dev_index = parsec_get_best_device(this_task, &load);
     assert(dev_index >= 0 && dev_index < parsec_mca_device_enabled());
@@ -2309,7 +2305,9 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
         return PARSEC_HOOK_RETURN_NEXT; /* Fall back */
     }
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
-    gpu_task = (parsec_gpu_task_t *) calloc(1, sizeof(parsec_gpu_task_t));
+    parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t *)this_task;
+    parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)this_task->task_class;
+    parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t *) calloc(1, sizeof(parsec_gpu_task_t));
     PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);
 
     gpu_task->ec = (parsec_task_t *) this_task;

@@ -1811,8 +1811,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 
         if( arg->action_mask & PARSEC_ACTION_SEND_INIT_REMOTE_DEPS ){
             struct remote_dep_output_param_s* output;
-            int _array_pos, _array_bit;
-            uint32_t _array_mask;
+            uint32_t _array_pos, _array_bit, _array_mask;
 
 #if !defined(PARSEC_DIST_COLLECTIVES)
             assert(src_rank == es->virtual_process->parsec_context->my_rank);

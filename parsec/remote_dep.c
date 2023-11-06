@@ -65,7 +65,7 @@ remote_dep_mark_forwarded(parsec_execution_stream_t* es,
                           parsec_remote_deps_t* rdeps,
                           int rank)
 {
-    int boffset, bit;
+    uint32_t boffset, bit;
 
     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "fw mark\tREMOTE rank %d", rank);
     remote_dep_rank_to_bit(rank, &boffset, &bit, rdeps->root);
@@ -80,8 +80,7 @@ remote_dep_is_forwarded(parsec_execution_stream_t* es,
                         parsec_remote_deps_t* rdeps,
                         int rank)
 {
-    int boffset, bit;
-    uint32_t mask;
+    uint32_t boffset, bit, mask;
 
     remote_dep_rank_to_bit(rank, &boffset, &bit, rdeps->root);
     mask = ((uint32_t)1) << bit;
@@ -376,8 +375,7 @@ parsec_gather_collective_pattern(parsec_execution_stream_t *es,
                                  data_repo_t *successor_repo, parsec_key_t successor_repo_key,
                                  void *param)
 {
-    int _array_pos, _array_bit;
-    uint32_t _array_mask;
+    uint32_t _array_pos, _array_bit, _array_mask;
     (void)successor_repo; (void) successor_repo_key;
     parsec_remote_deps_t* deps = (parsec_remote_deps_t*)param;
     struct remote_dep_output_param_s* output = &deps->output[dep->dep_datatype_index];

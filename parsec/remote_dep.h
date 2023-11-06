@@ -427,19 +427,19 @@ extern int parsec_comm_puts_max;
 extern int parsec_comm_puts;
 
 static inline void
-remote_dep_rank_to_bit(int rank, int *bank, int *bit, int root)
+remote_dep_rank_to_bit(int rank, uint32_t *bank, uint32_t *bit, int root)
 {
-    int nb_nodes = parsec_remote_dep_context.max_nodes_number;
-    int _rank = (rank + nb_nodes - root) % nb_nodes;
+    uint32_t nb_nodes = parsec_remote_dep_context.max_nodes_number;
+    uint32_t _rank = (rank + nb_nodes - root) % nb_nodes;
     *bank = _rank / (8 * sizeof(uint32_t));
     *bit =  _rank % (8 * sizeof(uint32_t));
 }
 
 static inline void
-remote_dep_bit_to_rank(int *rank, int bank, int bit, int root)
+remote_dep_bit_to_rank(int *rank, uint32_t bank, uint32_t bit, int root)
 {
     int nb_nodes = parsec_remote_dep_context.max_nodes_number;
-    int _rank = bank * (8 * sizeof(uint32_t)) + bit;
+    uint32_t _rank = bank * (8 * sizeof(uint32_t)) + bit;
     *rank = (_rank + root) % nb_nodes;
 }
 
