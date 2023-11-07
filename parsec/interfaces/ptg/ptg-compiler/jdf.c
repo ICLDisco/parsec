@@ -298,15 +298,6 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
     char *vc, *dot;
     int rc = 0;
 
-    if(NULL != e->local_variables) {
-        /* Use the opportunity to update the number of local definitions
-         * that we may need to define this expression */
-        int nb = 0;
-        for(nr = e->local_variables; nr != NULL; nr = nr->next)
-            if(NULL != nr->alias)
-                nb++;
-    }
-    
     switch( e->op ) {
     case JDF_VAR:
         vc = strdup(e->jdf_var);
@@ -386,16 +377,7 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
     jdf_expr_t *nr;
     char *vc, *dot;
     int rc = 0;
-    
-    if(NULL != e->local_variables) {
-        /* Use the opportunity to update the number of local definitions
-         * that we may need to define this expression */
-        int nb = 0;
-        for(nr = e->local_variables; nr != NULL; nr = nr->next)
-            if(NULL != nr->alias)
-                nb++;
-    }
-    
+
     switch( e->op ) {
     case JDF_VAR:
         vc = strdup(e->jdf_var);
@@ -835,12 +817,9 @@ static int jdf_sanity_check_dataflow_unexisting_data(void)
     jdf_dataflow_t *flow1;
     jdf_dep_t *dep;
     jdf_call_t* call;
-    int i, j;
 
     for(f1 = current_jdf.functions; f1 != NULL; f1 = f1->next) {
-        i = 1;
         for(flow1 = f1->dataflow; flow1 != NULL; flow1 = flow1->next) {
-            j = 1;
             matched = 0;
             for( dep = flow1->deps; dep != NULL; dep = dep->next ) {
 
@@ -861,10 +840,8 @@ static int jdf_sanity_check_dataflow_unexisting_data(void)
                     if( matched )
                         break;
                 }
-                j++;
             }
             if( matched ) return -1;
-            i++;
         }
     }
 
@@ -1361,7 +1338,6 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
         dep = dep_array[i];
         if(dep == NULL) continue;
         APPEND(dep);
-        int count = 0;
         for( j = i+1; j < dep_count; j++ ) {
             sdep = dep_array[j];
             if(sdep == NULL) continue;
@@ -1369,7 +1345,6 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
             if( jdf_compare_datatype(&dep->datatype_local, &sdep->datatype_local) ) continue;
             APPEND(sdep);
             dep_array[j] = NULL;
-            count++;
         }
     }
 

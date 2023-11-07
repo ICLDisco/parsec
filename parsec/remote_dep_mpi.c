@@ -1253,8 +1253,7 @@ static int remote_dep_mpi_pack_dep(int peer,
     parsec_remote_deps_t *deps = (parsec_remote_deps_t*)item->cmd.activate.task.source_deps;
     remote_dep_wire_activate_t* msg = &deps->msg;
     int k, dsize, saved_position = *position;
-    int peer_bank, peer_bit;
-    uint32_t peer_mask, expected = 0;
+    uint32_t peer_bank, peer_bit, peer_mask, expected = 0;
 #if defined(PARSEC_DEBUG) || defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, 128);

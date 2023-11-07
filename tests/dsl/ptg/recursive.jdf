@@ -30,6 +30,7 @@ static void parsec_recursive_callback(parsec_taskpool_t* _tp, const parsec_recur
     parsec_recursive_taskpool_t* tp = (parsec_recursive_taskpool_t*)_tp;
     __parsec_recursive_DO_SOMETHING_task_t* task = (__parsec_recursive_DO_SOMETHING_task_t*)data->task;
 
+    (void)tp; (void)task;  /* fake these variables being used */
     /*parsec_taskpool_free(tp);*/
     PARSEC_OBJ_RELEASE(_tp);
  }
@@ -64,11 +65,11 @@ BODY  [type=RECURSIVE]
     parsec_taskpool_t *recursive_tp;
     subtile_desc_t *small_descT;
 
-    small_descT = subtile_desc_create( descA, level-1, 1, 5, 5, 0, 0, 1, 1 );
+    small_descT = subtile_desc_create( (parsec_tiled_matrix_t*)descA, level-1, 1, 5, 5, 0, 0, 1, 1 );
 
     small_descT->mat = A;
 
-    recursive_tp = parsec_recursive_new((parsec_tiled_matrix_t *)small_descT, level-1, NI );
+    recursive_tp = (parsec_taskpool_t*)parsec_recursive_new((parsec_matrix_block_cyclic_t*)small_descT, level-1, NI );
 
     parsec_recursivecall((parsec_task_t*)this_task,
                          recursive_tp, parsec_recursive_callback,
@@ -89,6 +90,8 @@ extern "C" %{
 #define NN    3
 #define TYPE  PARSEC_MATRIX_FLOAT
 
+int verbose = 0;
+
 int main( int argc, char** argv )
 {
     parsec_recursive_taskpool_t* tp;
@@ -96,8 +99,7 @@ int main( int argc, char** argv )
     parsec_arena_datatype_t adt;
     parsec_datatype_t dt;
     parsec_context_t *parsec;
-    int ni = NN, level = 3, verbose = 0, i = 1, rc;
-    long time_elapsed;
+    int ni = NN, level = 3, i = 1, rc;
 
 #ifdef PARSEC_HAVE_MPI
     {
@@ -152,7 +154,7 @@ int main( int argc, char** argv )
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     /* Heat up the engine: small tasks no priority */
-    tp = parsec_recursive_new( &descA, level, ni );
+    tp = parsec_recursive_new( (parsec_matrix_block_cyclic_t*)&descA, level, ni );
     assert( NULL != tp );
     tp->arenas_datatypes[PARSEC_recursive_DEFAULT_ADT_IDX] = adt;
     PARSEC_OBJ_RETAIN(adt.arena);
