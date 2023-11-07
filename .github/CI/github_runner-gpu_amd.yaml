@@ -1,13 +1,11 @@
 spack:
   definitions:
   - pkgs:
-    - gcc@11.3.0
+    - gcc@12.1.0
     - git
-    - hip
     - patch
     - flex
     - bison
-    - libxml2
     - hwloc
     - unzip
     - python@3
@@ -22,8 +20,16 @@ spack:
     - ninja
     - otf2@2.3
     - openmpi
+    - hip
 
   view: true
   specs:
     - matrix:
       - [$pkgs]
+  packages:
+     binutils:
+       buildable: false
+       externals:
+       - spec: binutils@2.38
+         prefix: /usr
+

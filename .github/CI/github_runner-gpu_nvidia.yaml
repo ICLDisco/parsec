@@ -1,9 +1,8 @@
 spack:
   definitions:
   - pkgs:
-    - gcc@11.3.0
+    - gcc@12.1.0
     - git
-    - cuda@12
     - patch
     - flex
     - bison
@@ -21,6 +20,7 @@ spack:
     - ninja
     - otf2@2.3
     - openmpi
+    - cuda@12
 
   view: true
   specs:
