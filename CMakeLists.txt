@@ -59,6 +59,9 @@ if(POLICY CMP0098)
   # CMP0098: New in version 3.17, FindFLEX runs flex in directory CMAKE_CURRENT_BINARY_DIR when executing.
   cmake_policy(SET CMP0098 NEW)
 endif(POLICY CMP0098)
+if(POLICY CMP0104 AND NOT CUDA_ARCHITECTURES)
+  set(CUDA_ARCHITECTURES OFF)
+endif()
 
 set(CMAKE_NO_SYSTEM_FROM_IMPORTED True)
 # On OSX only find the Apple frameworks is nothing else is available.
@@ -74,6 +77,11 @@ include(CTest)
 #####
 # ccmake tunable parameters
 #####
+
+# CTest related options
+set(PARSEC_REQUIRE_DEVICE_TEST "NONE" CACHE STRING "Make tests fail if specified device support is disabled (default NONE, valid values are HIP or amd, CUDA or nvidia, or NONE or cpu). The intended use is to ensure that device tests are passed in CI, and avoid failing silently if there is no GPU on the target system.")
+set_property(CACHE PARSEC_REQUIRE_DEVICE_TEST PROPERTY STRINGS "NONE" "HIP" "CUDA" "cpu" "gpu_amd" "gpu_nvidia")
+mark_as_advanced(PARSEC_REQUIRE_DEVICE_TEST)
 
 ## Check for the support of additional languages and capabilities
 option(SUPPORT_FORTRAN
@@ -123,6 +131,9 @@ mark_as_advanced(BUILD_PARSEC)
 ### Misc options
 option(BUILD_SHARED_LIBS
     "Build shared libraries" ON)
+if(BUILD_SHARED_LIBS)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif(BUILD_SHARED_LIBS)
 option(BUILD_64bits
   "Build 64 bits mode" ON)
 if(NOT CMAKE_BUILD_TYPE)
@@ -717,6 +728,7 @@ int main(int argc, char *argv[]) {
       if(CMAKE_CUDA_COMPILER)
         enable_language(CUDA)
       endif(CMAKE_CUDA_COMPILER)
+      cmake_pop_check_state()
     endif (CUDAToolkit_FOUND)
     set(PARSEC_HAVE_CU_COMPILER ${CMAKE_CUDA_COMPILER} CACHE BOOL "True if PaRSEC provide support for compiling .cu files")
   endif( PARSEC_GPU_WITH_CUDA )
@@ -724,9 +736,8 @@ int main(int argc, char *argv[]) {
   if( PARSEC_GPU_WITH_HIP )
     # This is kinda ugly but the PATH and HINTS don't get transmitted to sub-dependents
     set(CMAKE_SYSTEM_PREFIX_PATH_save ${CMAKE_SYSTEM_PREFIX_PATH})
-    list(APPEND CMAKE_SYSTEM_PREFIX_PATH /opt/rocm)
-    find_package(HIP 5 QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
-    set(CMAKE_SYSTEM_PREFIX_PATH ${CMAKE_SYSTEM_PREFIX_PATH_save})
+    list(APPEND CMAKE_SYSTEM_PREFIX_PATH $ENV{ROCM_PATH}/lib/cmake)
+    find_package(HIP QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
     if(HIP_FOUND AND PARSEC_HAVE_CUDA)
       # the underlying reason is that the generated ptg code cannot include at the same time
       # cuda_runtime.h and hip_runtime.h, so we need to modify the dev_cuda.h to not expose any
@@ -738,6 +749,8 @@ int main(int argc, char *argv[]) {
       get_target_property(extra_hip_libs hip::host INTERFACE_LINK_LIBRARIES)
       list(APPEND EXTRA_LIBS ${extra_hip_libs})
       set(HIP_NOT_CUDA_FOUND TRUE)
+      enable_language(HIP)
+      set(CMAKE_SYSTEM_PREFIX_PATH ${CMAKE_SYSTEM_PREFIX_PATH_save})
     else()
       set(HIP_NOT_CUDA_FOUND FALSE)
     endif()
@@ -747,8 +760,8 @@ int main(int argc, char *argv[]) {
   if( PARSEC_GPU_WITH_LEVEL_ZERO )
     find_package(level-zero)
     find_package(DPCPP)
-    set(PARSEC_HAVE_LEVEL_ZERO ${LEVEL_ZERO_FOUND} CACHE BOOL "True if PaRSEC provide support for Intel level-zero")
     if (LEVEL_ZERO_FOUND AND PARSEC_HAVE_DPCPP)
+      set(PARSEC_HAVE_LEVEL_ZERO ${LEVEL_ZERO_FOUND} CACHE BOOL "True if PaRSEC provide support for Intel level-zero")
       include_directories("${LEVEL_ZERO_INCLUDE_DIR}/level_zero/")
       set(PARSEC_HAVE_LEVEL_ZERO ${LEVEL_ZERO_FOUND} CACHE BOOL "True if PaRSEC provide support for Intel Level Zero")
       message(STATUS "Found Intel level-zero ${LEVEL_ZERO_VERSION} in -I${LEVEL_ZERO_INCLUDE_DIR} / -L${LEVEL_ZERO_LIBRARY_DIR}")
@@ -939,6 +952,7 @@ add_subdirectory(parsec)
 # Add dependency to Level-Zero if it is enabled
 #
 if(PARSEC_HAVE_LEVEL_ZERO)
+    message(STATUS "parsec depends on ze_loader")
     target_link_libraries(parsec PRIVATE level_zero::ze_loader)
 endif(PARSEC_HAVE_LEVEL_ZERO)
 

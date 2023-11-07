@@ -41,6 +41,9 @@
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/mca/device/cuda/device_cuda.h"
 #endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)
+#include "parsec/mca/device/hip/device_hip.h"
+#endif  /* defined(PARSEC_HAVE_DEV_HIP_SUPPORT) */
 
 #include "parsec/mca/mca_repository.h"
 #include "parsec/constants.h"
@@ -1491,9 +1494,8 @@ parsec_dtd_startup(parsec_context_t *context,
         parsec_device_module_t *device = parsec_mca_device_get(_i);
         if( NULL == device ) continue;
         if( !(tp->devices_index_mask & (1 << device->device_index))) continue;  /* not supported */
-        // If CUDA is enabled, let the CUDA device activated for this
-        // taskpool.
-        if( PARSEC_DEV_CUDA == device->type ) continue;
+        // If a GPU is enabled, let the device be activated for this taskpool.
+        if( PARSEC_DEV_IS_GPU(device->type) ) continue;
         if( NULL != device->taskpool_register )
             if( PARSEC_SUCCESS !=
                 device->taskpool_register(device, (parsec_taskpool_t *)tp)) {
@@ -2325,7 +2327,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     }
 
     parsec_device_module_t *device = parsec_mca_device_get(dev_index);
-    assert(NULL != device);
+     assert(NULL != device);
     /* We already know the device is a GPU device from the test above */
     gpu_task->stage_in  = parsec_default_gpu_stage_in;
     gpu_task->stage_out = parsec_default_gpu_stage_out;
@@ -2398,7 +2400,7 @@ int parsec_dtd_task_class_add_chore(parsec_taskpool_t *tp,
     }
 
     incarnations[i].type = device_type;
-    if(PARSEC_DEV_CUDA == device_type) {
+    if(PARSEC_DEV_IS_GPU(device_type)) {
         incarnations[i].hook = parsec_dtd_gpu_task_submit;
         dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)function;
     }
@@ -2996,11 +2998,11 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                         FLOW_OF(last_user.task, last_user.flow_index)->flags &= ~RELEASE_OWNERSHIP_SPECIAL;
 
                         if( this_task->super.data[flow_index].data_in != NULL) {
-/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) */
 /*                            parsec_atomic_lock(&this_task->super.data[flow_index].data_in->original->lock); */
 /* #endif */
                             (void)parsec_atomic_fetch_dec_int32(&this_task->super.data[flow_index].data_in->readers);
-/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) */
 /*                            parsec_atomic_unlock(&this_task->super.data[flow_index].data_in->original->lock); */
 /* #endif */
                         }
@@ -3285,8 +3287,8 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
 
             __parsec_chore_t **incarnations = (__parsec_chore_t **)&tc->incarnations;
             (*incarnations)[0].type = device_type;
-            if( device_type == PARSEC_DEV_CUDA ) {
-                /* Special case for CUDA: we need an intermediate */
+            if( PARSEC_DEV_IS_GPU(device_type) ) {
+                /* Special case for GPUs: we need an intermediate */
                 (*incarnations)[0].hook = parsec_dtd_gpu_task_submit;
                 dtd_tc->gpu_func_ptr = (parsec_advance_task_function_t)fpointer;
             }

@@ -1,0 +1,35 @@
+spack:
+  definitions:
+  - pkgs:
+    - gcc@12.1.0
+    - git
+    - patch
+    - flex
+    - bison
+    - hwloc
+    - unzip
+    - python@3
+    - py-pip
+    - py-pandas
+    - py-matplotlib
+    - py-tables
+    - py-networkx
+    - py-cython
+    - py-wheel
+    - cmake
+    - ninja
+    - otf2@2.3
+    - openmpi
+    - cuda@12
+
+  view: true
+  specs:
+    - matrix:
+      - [$pkgs]
+  packages:
+     binutils:
+       buildable: false
+       externals:
+       - spec: binutils@2.38
+         prefix: /usr
+
