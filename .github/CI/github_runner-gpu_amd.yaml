@@ -20,6 +20,7 @@ spack:
     - ninja
     - otf2@2.3
     - openmpi
+    - binutils@2.38+headers
     - hip
 
   view: true
