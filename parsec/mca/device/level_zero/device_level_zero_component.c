@@ -166,7 +166,7 @@ static int device_level_zero_component_query(mca_base_module_t **module, int *pr
                     }
                     driver->ref_count++;
                     parsec_device_level_zero_component.modules[j]->component = &parsec_device_level_zero_component;
-                    if(parsec_device_level_zero_sort_pending) {
+                    if(parsec_level_zero_sort_pending) {
                         parsec_device_level_zero_component.modules[j]->sort_pending_list = parsec_device_sort_pending_list;
                     }
                     j++;  /* next available spot */
