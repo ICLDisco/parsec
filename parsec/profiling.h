@@ -533,7 +533,7 @@ void parsec_profiling_disable(void);
  * @brief Convenience macro to trace events with flags only if profiling is enabled
  */
 #define PARSEC_PROFILING_TRACE_FLAGS_INFO_FN(context, key, event_id, object_id, info_fn, info_data, flags ) \
-    if( parsec_profile_enabled ) {                                       \
+    if( parsec_profile_enabled && (-1 != (key))) {                                       \
         parsec_profiling_trace_flags_info_fn((context), (key), (event_id), (object_id), (info_fn), (info_data), (flags) ); \
     }
 

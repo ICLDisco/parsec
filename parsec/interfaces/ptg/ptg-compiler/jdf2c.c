@@ -861,11 +861,22 @@ static char *dump_profiling_init(void **elem, void *arg)
     int nb_locals;
     string_arena_t *profiling_convertor_params;
 
-    if( !profile_enabled(f->properties) ) {
-        return NULL;
-    }
-
     string_arena_init(info->sa);
+
+    if( !profile_enabled(f->properties) ) {
+        string_arena_add_string(info->sa,
+                                "#if defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
+                                "  *(int*)&__parsec_tp->super.super.profiling_array[START_KEY(%s_%s.task_class_id  + PARSEC_%s_NB_TASK_CLASSES)/* %s (internal init) start key */] = -1;\n"
+                                "  *(int*)&__parsec_tp->super.super.profiling_array[END_KEY(%s_%s.task_class_id  + PARSEC_%s_NB_TASK_CLASSES)/* %s (internal init) end key */] = -1;\n"
+                                "#endif /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n"
+                                "*(int*)&__parsec_tp->super.super.profiling_array[START_KEY(%s_%s.task_class_id)] = -1;\n"
+                                "*(int*)&__parsec_tp->super.super.profiling_array[END_KEY(%s_%s.task_class_id)] = -1;\n",
+                                jdf_basename, fname, jdf_basename, fname,
+                                jdf_basename, fname, jdf_basename, fname,
+                                jdf_basename, fname,
+                                jdf_basename, fname);
+        return string_arena_get_string(info->sa);
+    }
 
     get_unique_rgb_color((float)info->idx / (float)info->maxidx, &R, &G, &B);
     info->idx++;
@@ -1584,9 +1595,9 @@ static void jdf_generate_structure(jdf_t *jdf)
     if( need_profile )
         coutput("#if defined(PARSEC_PROF_TRACE)\n"
                 "#  if defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
-                "static int %s_profiling_array[4*PARSEC_%s_NB_TASK_CLASSES] = {-1}; /* 2 pairs (begin, end) per task, times two because each task class has an internal_init task */\n"
+                "static int %s_profiling_array[4*PARSEC_%s_NB_TASK_CLASSES] = {-2}; /* 2 pairs (begin, end) per task, times two because each task class has an internal_init task */\n"
                 "#  else /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n"
-                "static int %s_profiling_array[2*PARSEC_%s_NB_TASK_CLASSES] = {-1}; /* 2 pairs (begin, end) per task */\n"
+                "static int %s_profiling_array[2*PARSEC_%s_NB_TASK_CLASSES] = {-2}; /* 2 pairs (begin, end) per task */\n"
                 "#  endif /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n"
                 "#endif  /* defined(PARSEC_PROF_TRACE) */\n",
                 jdf_basename, jdf_basename,
@@ -4605,7 +4616,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 {
     string_arena_t *sa1, *sa2;
     profiling_init_info_t pi;
-    int idx = 0;
+    int idx = 0, need_profile = 0;
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -4676,6 +4687,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             coutput("  ((__parsec_chore_t*)&tc->incarnations[0])->hook = (parsec_hook_t *)%s;\n",
                     jdf_property_get_function(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, NULL));
         }
+        need_profile |= profile_enabled(f->properties);
     }
 
     {
@@ -4712,29 +4724,27 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         coutput("  memset(&__parsec_tp->super.arenas_datatypes[0], 0, __parsec_tp->super.arenas_datatypes_size*sizeof(parsec_arena_datatype_t));\n");
     }
 
-    string_arena_init(sa2);
-    pi.sa = sa2;
-    pi.idx = 0;
-    JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
-    {
+    coutput("  /* If profiling is enabled, the keys for profiling */\n"
+            "#  if defined(PARSEC_PROF_TRACE)\n");
+
+    if( need_profile ) {
+        string_arena_init(sa2);
+        pi.sa = sa2;
+        pi.idx = 0;
+        JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
         char* prof = UTIL_DUMP_LIST(sa1, jdf->functions, next,
                                     dump_profiling_init, &pi, "", "    ", "\n", "\n");
-        coutput("  /* If profiling is enabled, the keys for profiling */\n"
-                "#  if defined(PARSEC_PROF_TRACE)\n");
-
-        if( strcmp(prof, "\n") ) {
-            coutput("  __parsec_tp->super.super.profiling_array = %s_profiling_array;\n"
-                    "  if( -1 == %s_profiling_array[0] ) {\n"
-                    "%s"
-                    "  }\n",
-                    jdf_basename,
-                    jdf_basename,
-                    prof);
-        } else {
-            coutput("  __parsec_tp->super.super.profiling_array = NULL;\n");
-        }
-        coutput("#  endif /* defined(PARSEC_PROF_TRACE) */\n");
+        coutput("  __parsec_tp->super.super.profiling_array = %s_profiling_array;\n"
+                "  if( -2 == %s_profiling_array[0] ) {\n"
+                "%s"
+                "  }\n",
+                jdf_basename,
+                jdf_basename,
+                prof);
+    } else {
+        coutput("  __parsec_tp->super.super.profiling_array = NULL;\n");
     }
+    coutput("#  endif /* defined(PARSEC_PROF_TRACE) */\n");
 
     coutput("  __parsec_tp->super.super.repo_array = %s;\n",
             (NULL != jdf->functions) ? "__parsec_tp->repositories" : "NULL");
