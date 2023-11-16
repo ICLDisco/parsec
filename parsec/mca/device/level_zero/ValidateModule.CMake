@@ -3,6 +3,7 @@
 
 if( PARSEC_HAVE_LEVEL_ZERO AND PARSEC_HAVE_DPCPP )
   SET(MCA_${COMPONENT}_${MODULE} ON)
+  FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/parsec/mca/device/level_zero)
   FILE(GLOB MCA_${COMPONENT}_${MODULE}_SOURCES ${MCA_BASE_DIR}/${COMPONENT}/${MODULE}/[^\\.]*.c)
   ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/parsec/mca/device/level_zero/device_level_zero_dpcpp_interface.o
           MAIN_DEPENDENCY ${PROJECT_SOURCE_DIR}/parsec/mca/device/level_zero/device_level_zero_dpcpp_interface.cpp
