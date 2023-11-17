@@ -1185,11 +1185,11 @@ parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
 
         count = (source->original->nb_elts <= dest->original->nb_elts) ?
             source->original->nb_elts : dest->original->nb_elts;
-        ret = src_dev->memcpy_async(src_dev, gpu_stream, 
-                                        dest->device_private,
-                                        source->device_private,
-                                        count,
-                                        dir );
+        ret = dst_dev->memcpy_async( dst_dev, gpu_stream,
+                                     dest->device_private,
+                                     source->device_private,
+                                     count,
+                                     dir );
         if(PARSEC_SUCCESS != ret)
             return PARSEC_HOOK_RETURN_ERROR;
     }
@@ -1233,11 +1233,11 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
             } else {
                 dir = parsec_device_gpu_transfer_direction_d2h;
             }
-            ret = dst_dev->memcpy_async(dst_dev, gpu_stream, 
-                                            dest->device_private,
-                                            source->device_private,
-                                            count,
-                                            dir);
+            ret = src_dev->memcpy_async( src_dev, gpu_stream,
+                                         dest->device_private,
+                                         source->device_private,
+                                         count,
+                                         dir );
             if(PARSEC_SUCCESS != ret) { 
                 return PARSEC_HOOK_RETURN_ERROR;
             }
@@ -1894,7 +1894,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
      * too early, it might get executed before the data is available on the GPU.
      * Obviously, this lead to incorrect results.
      */
-    rc = gpu_device->event_query(gpu_device, stream, stream->start);
+    rc = gpu_device->event_record(gpu_device, stream, stream->start);
     assert(PARSEC_SUCCESS == rc);
     stream->tasks[stream->start] = task;
     stream->start = (stream->start + 1) % stream->max_events;
