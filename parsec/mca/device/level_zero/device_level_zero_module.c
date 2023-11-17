@@ -104,10 +104,12 @@ static int parsec_level_zero_event_query(struct parsec_device_gpu_module_s *gpu,
 {
     ze_result_t ze_rc;
     parsec_level_zero_exec_stream_t *level_zero_stream = (parsec_level_zero_exec_stream_t *)gpu_stream;
-    
+
     (void)gpu;
     ze_rc = zeFenceQueryStatus(level_zero_stream->fences[event_idx]);
     if(ZE_RESULT_SUCCESS == ze_rc) {
+        ze_rc = zeCommandListReset(level_zero_stream->command_lists[event_idx]);
+        PARSEC_LEVEL_ZERO_CHECK_ERROR("zeCommandListReset", ze_rc, { return PARSEC_ERROR; } );
         return 1;
     }
     if(ZE_RESULT_NOT_READY == ze_rc) {
