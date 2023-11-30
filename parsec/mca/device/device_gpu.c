@@ -851,6 +851,8 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
     parsec_task_snprintf(task_name, MAX_TASK_STRLEN, this_task);
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 
+    (void)copy_readers_update; // potentially unused
+
     /**
      * Parse all the input and output flows of data and ensure all have
      * corresponding data on the GPU available.
@@ -899,13 +901,13 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                              gpu_elem, gpu_task->flow_nb_elts[i], gpu_elem->super.super.obj_reference_count, master);
         gpu_elem->flags = PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED;
     malloc_data:
+        copy_readers_update = 0;
         assert(0 != (gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
         gpu_elem->device_private = zone_malloc(gpu_device->memory, gpu_task->flow_nb_elts[i]);
         if( NULL == gpu_elem->device_private ) {
 #endif
 
         find_another_data:
-            copy_readers_update = 1;
             temp_loc[i] = NULL;
             /* Look for a data_copy to free */
             lru_gpu_elem = (parsec_gpu_data_copy_t*)parsec_list_pop_front(&gpu_device->gpu_mem_lru);
@@ -1110,6 +1112,12 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
 #endif
 #else
         gpu_elem = lru_gpu_elem;
+        /* The readers must be manipulated via atomic operations to avoid race conditions
+         * with threads that would use them as candidate for updating their own copies.
+         */
+        if (copy_readers_update != 0) {
+            parsec_atomic_fetch_add_int32(&gpu_elem->readers, copy_readers_update);
+        }
 #endif
 
         /* Do not push it back into the LRU for now to prevent others from discovering
@@ -1119,10 +1127,6 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
          */
         gpu_elem->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
         gpu_elem->version = UINT_MAX;  /* scrap value for now */
-        /* The readers must be manipulated via atomic operations to avoid race conditions
-         * with threads that would use them as candidate for updating their own copies.
-         */
-        parsec_atomic_fetch_add_int32(&gpu_elem->readers, copy_readers_update);
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                              "GPU[%s]: GPU copy %p [ref_count %d] gets created with version 0 at %s:%d",
                              gpu_device->super.name,
