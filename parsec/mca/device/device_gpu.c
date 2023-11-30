@@ -1806,7 +1806,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
                                parsec_gpu_task_t* task,
                                parsec_gpu_task_t** out_task )
 {
-    int saved_rc = 0, rc;
+    int saved_rc = PARSEC_HOOK_RETURN_DONE, rc;
 #if defined(PARSEC_DEBUG_NOISIER)
     char task_str[MAX_TASK_STRLEN];
 #endif
@@ -1878,6 +1878,8 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
            *out_task = task;
             return rc;
         }
+
+        saved_rc = rc;
 
         *out_task = NULL;
         /**
