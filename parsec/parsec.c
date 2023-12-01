@@ -1906,6 +1906,10 @@ parsec_task_snprintf( char* str, size_t size,
     const parsec_task_class_t* tc = task->task_class;
     unsigned int i, ip, index = 0, is_param;
 
+    if(NULL != tc->task_snprintf && parsec_task_snprintf != tc->task_snprintf) {
+        return tc->task_snprintf(str, size, task);
+    }
+
     index += snprintf( str + index, size - index, "%s(", tc->name );
     if( index >= size ) return str;
     for( ip = 0; ip < tc->nb_parameters; ip++ ) {
