@@ -89,7 +89,13 @@ void parsec_device_init_profiling(void)
                                                 PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
                                                 &parsec_gpu_prefetch_key_start, &parsec_gpu_prefetch_key_end);
         parsec_profiling_add_dictionary_keyword("gpu_mem_alloc", "fill:#FF66FF",
-                                                sizeof(int64_t), "size{uint64_t}",
+#if (PARSEC_SIZEOF_SIZE_T == 4)
+                                                sizeof(uint32_t), "size{uint32_t}",
+#elif (PARSEC_SIZEOF_SIZE_T == 8)
+                                                sizeof(uint64_t), "size{uint64_t}",
+#else
+#error "Unsupported case: sizeof(size_t) is neither 8 nor 4"
+#endif // PARSEC_SIZEOF_SIZE_T
                                                 &parsec_gpu_allocate_memory_key, &parsec_gpu_free_memory_key);
         parsec_profiling_add_dictionary_keyword("gpu_mem_use", "fill:#FF66FF",
                                                 sizeof(parsec_device_gpu_memory_prof_info_t),

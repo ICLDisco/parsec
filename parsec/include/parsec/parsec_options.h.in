@@ -141,6 +141,7 @@
 #define PARSEC_LIB_LEVEL_ZERO_PREFIX "."
 
 #define PARSEC_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@
+#define PARSEC_SIZEOF_SIZE_T @PARSEC_SIZEOF_SIZE_T@
 
 /* The max number of local variables for each task */
 #define MAX_LOCAL_COUNT   @PARSEC_MAX_LOCAL_COUNT@
