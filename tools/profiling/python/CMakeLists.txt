@@ -4,8 +4,7 @@ if( NOT BUILD_SHARED_LIBS )
   return()
 endif( NOT BUILD_SHARED_LIBS )
 
-FIND_PACKAGE(Python COMPONENTS Interpreter Development
-             QUIET)
+FIND_PACKAGE(Python COMPONENTS Interpreter Development)
 
 if( NOT Python_Development_FOUND )
   message(WARNING "Python Development not found. Disabling the profiling tools")
@@ -80,9 +79,9 @@ install( FILES ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.sh ${PYTHON_TOOLS_BI
          DESTINATION ${PARSEC_INSTALL_BINDIR}
          PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
-file(GLOB pyfiles RELATIVE ${PYTHON_TOOLS_BIN_DIR} "examples/*.py" "profile2h5.py")
+file(GLOB pyfiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "examples/*.py" "profile2h5.py")
 foreach(file ${pyfiles})
-  install( FILES ${PYTHON_TOOLS_BIN_DIR}/${file}
+  install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/${file}
            DESTINATION ${PARSEC_INSTALL_LIBEXECDIR}/parsec
            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
   get_filename_component(filenoext "${file}" NAME_WE)
