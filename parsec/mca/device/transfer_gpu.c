@@ -277,7 +277,7 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
     w2r_task->task_type        = PARSEC_GPU_TASK_TYPE_D2HTRANSFER;
     w2r_task->last_data_check_epoch = gpu_device->data_avail_epoch - 1;
     w2r_task->stage_in         = NULL;
-    w2r_task->stage_out        = NULL;
+    w2r_task->stage_out        = &parsec_default_gpu_stage_out;
     w2r_task->complete_stage   = NULL;
 
     (void)es;
