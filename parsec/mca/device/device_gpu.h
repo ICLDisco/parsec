@@ -99,7 +99,7 @@ struct parsec_gpu_task_s {
             const parsec_flow_t      *flow[MAX_PARAM_COUNT];  /* There is no consistent way to access the flows from the task_class,
                                                                * so the DSL need to provide these flows here.
                                                                */
-            uint32_t                  flow_nb_elts[MAX_PARAM_COUNT]; /* for each flow, size of the data to be allocated
+            size_t                    flow_nb_elts[MAX_PARAM_COUNT]; /* for each flow, size of the data to be allocated
                                                                       * on the GPU.
                                                                       */
             parsec_data_collection_t *flow_dc[MAX_PARAM_COUNT];     /* for each flow, data collection from which the data
