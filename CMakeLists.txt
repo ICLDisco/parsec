@@ -574,6 +574,8 @@ int main() {
   return 0;
   }" PARSEC_HAVE_ENUM_ATTRIBUTE_DEPRECATED)
 
+check_type_size("size_t" PARSEC_SIZEOF_SIZE_T)
+
 set(EXTRA_INCLUDES "")
 #
 # Find optional packages

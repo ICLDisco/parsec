@@ -89,7 +89,13 @@ void parsec_device_init_profiling(void)
                                                 PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
                                                 &parsec_gpu_prefetch_key_start, &parsec_gpu_prefetch_key_end);
         parsec_profiling_add_dictionary_keyword("gpu_mem_alloc", "fill:#FF66FF",
-                                                sizeof(int64_t), "size{int64_t}",
+#if (PARSEC_SIZEOF_SIZE_T == 4)
+                                                sizeof(uint32_t), "size{uint32_t}",
+#elif (PARSEC_SIZEOF_SIZE_T == 8)
+                                                sizeof(uint64_t), "size{uint64_t}",
+#else
+#error "Unsupported case: sizeof(size_t) is neither 8 nor 4"
+#endif // PARSEC_SIZEOF_SIZE_T
                                                 &parsec_gpu_allocate_memory_key, &parsec_gpu_free_memory_key);
         parsec_profiling_add_dictionary_keyword("gpu_mem_use", "fill:#FF66FF",
                                                 sizeof(parsec_device_gpu_memory_prof_info_t),
@@ -896,7 +902,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
         gpu_elem = PARSEC_OBJ_NEW(parsec_data_copy_t);
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                             "GPU[%s]:%s: Allocate GPU copy %p sz %d [ref_count %d] for data %p",
+                             "GPU[%s]:%s: Allocate GPU copy %p sz %zu [ref_count %d] for data %p",
                              gpu_device->super.name, task_name,
                              gpu_elem, gpu_task->flow_nb_elts[i], gpu_elem->super.super.obj_reference_count, master);
         gpu_elem->flags = PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED;
@@ -1269,7 +1275,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     parsec_data_copy_t *candidate = task_data->data_in;  /* best candidate for now */
     parsec_data_t* original = candidate->original;
     parsec_gpu_data_copy_t* gpu_elem = task_data->data_out;
-    uint32_t nb_elts = gpu_task->flow_nb_elts[flow->flow_index];
+    size_t nb_elts = gpu_task->flow_nb_elts[flow->flow_index];
     int transfer_from = -1;
 
     if( gpu_task->task_type == PARSEC_GPU_TASK_TYPE_PREFETCH ) {
@@ -1344,7 +1350,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
      * This happens if the task refers twice (or more) to the same input flow */
     if( gpu_elem->data_transfer_status == PARSEC_DATA_STATUS_UNDER_TRANSFER ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                             "GPU[%s]:\t\tMove data copy %p [ref_count %d, key %x] of %d bytes: data copy is already under transfer, ignoring double request",
+                             "GPU[%s]:\t\tMove data copy %p [ref_count %d, key %x] of %zu bytes: data copy is already under transfer, ignoring double request",
                              gpu_device->super.name,
                              gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, nb_elts);
         assert(NULL != gpu_elem->push_task);
@@ -1428,7 +1434,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
 
  src_selected:
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                         "GPU[%s]:\t\tMove %s data copy %p [ref_count %d, key %x] of %d bytes\t(src dev: %d, v:%d, ptr:%p, copy:%p [ref_count %d] / dst dev: %d, v:%d, ptr:%p)",
+                         "GPU[%s]:\t\tMove %s data copy %p [ref_count %d, key %x] of %zu bytes\t(src dev: %d, v:%d, ptr:%p, copy:%p [ref_count %d] / dst dev: %d, v:%d, ptr:%p)",
                          gpu_device->super.name,
                          PARSEC_DEV_IS_GPU(candidate_dev->super.type) ? "D2D": "H2D",
                          gpu_elem, gpu_elem->super.super.obj_reference_count, original->key, nb_elts,
@@ -1484,11 +1490,11 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
     if(PARSEC_SUCCESS != (gpu_task->stage_in ? gpu_task->stage_in(gpu_task, (1U << flow->flow_index), gpu_stream): PARSEC_SUCCESS)) {
         parsec_warning( "%s:%d %s", __FILE__, __LINE__, "gpu_task->stage_in");
         if( candidate_dev->super.type != gpu_device->super.type ) {
-            parsec_warning("<<%p>> -> <<%p on GPU device %d>> [%d, H2D]",
+            parsec_warning("<<%p>> -> <<%p on GPU device %d>> [%zu, H2D]",
                            candidate->device_private, gpu_elem->device_private, gpu_device->super.device_index,
                            nb_elts);
         } else {
-            parsec_warning("<<%p on GPU device %d>> -> <<%p on GPU device %d>> [%d, D2D]",
+            parsec_warning("<<%p on GPU device %d>> -> <<%p on GPU device %d>> [%zu, D2D]",
                            candidate->device_private, candidate_dev->super.device_index,
                            gpu_elem->device_private, gpu_device->super.device_index,
                            nb_elts);
@@ -2083,7 +2089,7 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
     parsec_task_t *this_task = gpu_task->ec;
     parsec_gpu_data_copy_t     *gpu_copy;
     parsec_data_t              *original;
-    uint32_t                    nb_elts;
+    size_t                      nb_elts;
     const parsec_flow_t        *flow;
     int return_code = 0, how_many = 0, i, update_data_epoch = 0;
 #if defined(PARSEC_DEBUG_NOISIER)
