@@ -763,10 +763,11 @@ void *parsec_dtd_task_profile_info(void *dst, const void *task_, size_t size)
 static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const parsec_task_t *task)
 {
     const parsec_task_class_t *tc = (const parsec_task_class_t*)task->task_class;
+    const parsec_dtd_task_class_t *dtd_tc = (const parsec_dtd_task_class_t*)tc;
     const parsec_dtd_task_t* dtd_task = (const parsec_dtd_task_t *)task;
 
     char *b = buffer;
-    int ret, remaining = buffer_size;
+    int ret, remaining = buffer_size, pi;
 
     ret = snprintf(b, remaining, "%s(", tc->name);
     if(ret < 0) {
@@ -778,10 +779,11 @@ static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const pa
     remaining -= ret;
     b += ret;
 
-    parsec_dtd_task_param_t *current_param = GET_HEAD_OF_PARAM_LIST(dtd_task);
+    parsec_dtd_task_param_t *param_head = GET_HEAD_OF_PARAM_LIST(dtd_task);
     bool first = true;
 
-    while( current_param != NULL) {
+    for(pi = 0; pi < dtd_tc->count_of_params; pi++) {
+        parsec_dtd_task_param_t *current_param = param_head + pi;
         if(((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE) &&
             (current_param->arg_size == sizeof(int))) {
             ret = snprintf(b, remaining, "%s%d", first ? "" : ", ", *(int*)current_param->pointer_to_tile);
@@ -797,7 +799,6 @@ static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const pa
             return buffer;
         remaining -= ret;
         b += ret;
-        current_param = current_param->next;
     }
     ret = snprintf(b, remaining, ")");
     if(ret < 0) {
