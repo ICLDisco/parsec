@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -67,12 +68,13 @@ void parsec_cleanup_reshape_promise(parsec_base_future_t *future)
  * @return 1 if the tracked data matches the requested shape.
  */
 int
-parsec_reshape_check_match_datatypes(parsec_base_future_t* f,
-                                     void *t1, void *t2)
+parsec_reshape_check_match_datatypes(parsec_base_future_t* future, ...)
 {
-    (void)f;
-    parsec_datatype_t *tracked_data_match = (parsec_datatype_t *)t1;
-    parsec_dep_data_description_t *target = (parsec_dep_data_description_t *)t2;
+    va_list ap;
+    va_start(ap, future);
+    parsec_datatype_t *tracked_data_match = va_arg(ap, parsec_datatype_t*);
+    parsec_dep_data_description_t *target = va_arg(ap, parsec_dep_data_description_t *);
+    va_end(ap);
 
     return ( (( parsec_type_match(tracked_data_match[0], target->local.src_datatype) == PARSEC_SUCCESS ) /*Same reshaping*/
                && ( parsec_type_match(tracked_data_match[1], target->local.dst_datatype) == PARSEC_SUCCESS ))
@@ -132,7 +134,7 @@ parsec_new_reshape_promise(parsec_dep_data_description_t* data,
 #endif
     future_in_data->remote_recv_guard            = 0;
 
-    parsec_future_init(data_future, parsec_local_reshape, future_in_data,
+    parsec_future_init(data_future, parsec_local_reshape_cb, future_in_data,
                        parsec_reshape_check_match_datatypes, match_data,
                        parsec_cleanup_reshape_promise);
     /* We have to retain the data to count the first successor who is
@@ -154,11 +156,14 @@ parsec_new_reshape_promise(parsec_dep_data_description_t* data,
  * @param[in]    cb_data_in pointer to the data parsec_dep_data_description_t that
  * used to get_or_trigger the future. Contains the specifications of the reshaping.
  */
-void parsec_setup_nested_future(parsec_datacopy_future_t** future,
-                                parsec_datacopy_future_t*  parent_future,
-                                void * cb_data_in)
+void parsec_setup_nested_future(parsec_datacopy_future_t** future, ...)
 {
-    parsec_dep_data_description_t *data = (parsec_dep_data_description_t *)cb_data_in;
+    va_list ap;
+    va_start(ap, future);
+    parsec_datacopy_future_t* parent_future = va_arg(ap, parsec_datacopy_future_t*);
+    parsec_dep_data_description_t *data = va_arg(ap, parsec_dep_data_description_t *);
+    va_end(ap);
+
     parsec_reshape_promise_description_t *old_cb_data_in = (parsec_reshape_promise_description_t *)parent_future->cb_fulfill_data_in;
     parsec_data_copy_t *data_src = old_cb_data_in->data;// = (parsec_data_copy_t *)parent_future->super.tracked_data;
     parsec_data_copy_t *tmp = data->data;
