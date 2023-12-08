@@ -82,4 +82,4 @@ void parsec_matrix_sym_block_cyclic_init( parsec_matrix_sym_block_cyclic_t * dc,
 
 END_C_DECLS
 
-#endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/
+#endif /* __SYM_TWO_DIM_RECTANGLE_CYCLIC_H__ */

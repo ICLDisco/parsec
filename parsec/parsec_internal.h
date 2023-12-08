@@ -287,9 +287,13 @@ typedef int64_t (parsec_time_estimate_fct_t)(const parsec_task_t *this_task, par
  */
 typedef char* (parsec_printtask_fn_t)(char *buffer, size_t buffer_size, const parsec_task_t *task);
 /**
- *
+ * Evaluate the opportunity for executing the task on the associated device.
+ * 
+ * @return PARSEC_HOOK_RETURN_DONE is this chore can be used, PARSEC_HOOK_RETURN_NEXT
+ *         for this chore to be skipped. Any other value will result in a warning
+ *         and the chore being skipped.
  */
-typedef float (parsec_evaluate_function_t)(const parsec_task_t* task);
+typedef parsec_hook_return_t (parsec_evaluate_function_t)(const parsec_task_t* task);
 
 /**
  * Retrieve the datatype for each flow (for input) or dependency (for output)
