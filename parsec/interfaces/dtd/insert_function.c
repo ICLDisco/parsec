@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA Corporation.  All rights reserved.
  */
 
 /* **************************************************************************** */
@@ -633,14 +634,15 @@ void
 parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
 {
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
+    parsec_dtd_task_class_t* tc = (parsec_dtd_task_class_t*)current_task->super.task_class;
     parsec_dtd_task_param_t *current_param = GET_HEAD_OF_PARAM_LIST(current_task);
-    int i = 0;
+    int i, data_idx = 0;
     void *tmp_val;
     void **tmp_ref;
     va_list arguments;
 
     va_start(arguments, this_task);
-    while( current_param != NULL) {
+    for( i = 0; i < tc->count_of_params; i++ ) {
         if((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE ) {
             tmp_val = va_arg(arguments, void*);
             memcpy(tmp_val, current_param->pointer_to_tile, current_param->arg_size);
@@ -652,13 +654,13 @@ parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
                   (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
                   (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ) {
             tmp_ref = va_arg(arguments, void**);
-            *tmp_ref = PARSEC_DATA_COPY_GET_PTR(this_task->data[i].data_in);
-            i++;
+            *tmp_ref = PARSEC_DATA_COPY_GET_PTR(this_task->data[data_idx].data_in);
+            data_idx++;
         } else {
             parsec_warning("/!\\ Flag is not recognized in parsec_dtd_unpack_args /!\\.\n");
             assert(0);
         }
-        current_param = current_param->next;
+        current_param = current_param + 1;
     }
     va_end(arguments);
 }
@@ -737,21 +739,22 @@ parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp,
 void *parsec_dtd_task_profile_info(void *dst, const void *task_, size_t size)
 {
     void *ptr;
-    const parsec_dtd_task_t *task = (const parsec_dtd_task_t *)task_;
-    parsec_dtd_task_param_t *param = GET_HEAD_OF_PARAM_LIST(task);
+    const parsec_dtd_task_t *dtd_task = (const parsec_dtd_task_t *)task_;
+    const parsec_dtd_task_class_t *tc = (const parsec_dtd_task_class_t*)dtd_task->super.task_class;
+    parsec_dtd_task_param_t *param = GET_HEAD_OF_PARAM_LIST(dtd_task);
 
-    assert( task->super.task_class->task_class_type == PARSEC_TASK_CLASS_TYPE_DTD );
+    assert( dtd_task->super.task_class->task_class_type == PARSEC_TASK_CLASS_TYPE_DTD );
 
-    memcpy(dst, &task->super.prof_info, sizeof(parsec_task_prof_info_t));
+    memcpy(dst, &dtd_task->super.prof_info, sizeof(parsec_task_prof_info_t));
     ptr = dst + sizeof(parsec_task_prof_info_t);
 
-    while( param != NULL) {
+    for( int i = 0; i < tc->count_of_params; i++ ) {
         if(param->op_type & PARSEC_PROFILE_INFO) {
             assert( ptr-dst < (intptr_t)size ); (void)size;
             memcpy(ptr, param->pointer_to_tile, param->arg_size);
             ptr += param->arg_size;
         }
-        param = param->next;
+        param = param + 1;
     }
 
     return dst;
@@ -762,13 +765,13 @@ void *parsec_dtd_task_profile_info(void *dst, const void *task_, size_t size)
 
 static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const parsec_task_t *task)
 {
-    const parsec_task_class_t *tc = (const parsec_task_class_t*)task->task_class;
     const parsec_dtd_task_t* dtd_task = (const parsec_dtd_task_t *)task;
+    const parsec_dtd_task_class_t *tc = (const parsec_dtd_task_class_t*)dtd_task->super.task_class;
 
     char *b = buffer;
     int ret, remaining = buffer_size;
 
-    ret = snprintf(b, remaining, "%s(", tc->name);
+    ret = snprintf(b, remaining, "%s(", tc->super.name);
     if(ret < 0) {
         *b = '\0';
         return buffer;
@@ -781,7 +784,7 @@ static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const pa
     parsec_dtd_task_param_t *current_param = GET_HEAD_OF_PARAM_LIST(dtd_task);
     bool first = true;
 
-    while( current_param != NULL) {
+    for( int i = 0; i < tc->count_of_params; i++ ) {
         if(((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE) &&
             (current_param->arg_size == sizeof(int))) {
             ret = snprintf(b, remaining, "%s%d", first ? "" : ", ", *(int*)current_param->pointer_to_tile);
@@ -797,7 +800,7 @@ static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const pa
             return buffer;
         remaining -= ret;
         b += ret;
-        current_param = current_param->next;
+        current_param = current_param + 1;
     }
     ret = snprintf(b, remaining, ")");
     if(ret < 0) {
@@ -3329,18 +3332,14 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
          * it has and one to indicate when we have executed the task */
         (void)parsec_atomic_fetch_add_int32(&object->obj_reference_count, write_flow_count);
 
-        parsec_dtd_task_param_t *tmp_param = NULL;
         parsec_dtd_task_param_t *head_of_param_list = GET_HEAD_OF_PARAM_LIST(this_task);
         parsec_dtd_task_param_t *current_param = head_of_param_list;
         /* Getting the pointer to allocated memory by mempool */
-        void *value_block =
+        void *current_val =
                 GET_VALUE_BLOCK(head_of_param_list, ((parsec_dtd_task_class_t *)tc)->count_of_params);
-        void *current_val = value_block;
 
         nb_params = 0;
         while( PARSEC_DTD_ARG_END != (first_arg = va_arg(args, int))) {
-            if(NULL != tmp_param)
-                tmp_param->next = current_param;
             tile = va_arg(args, void *);
             if(NULL != fpointer) {
                 tile_op_type = va_arg(args, int);
@@ -3356,8 +3355,6 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
 
             current_param->arg_size = arg_size;
             current_param->op_type = (parsec_dtd_op_t)tile_op_type;
-            tmp_param = current_param;
-            current_param->next = NULL;
             current_param = current_param + 1;
 
             nb_params++;

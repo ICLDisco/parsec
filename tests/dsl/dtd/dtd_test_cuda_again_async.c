@@ -38,7 +38,7 @@ void parsec_dtd_pack_args( parsec_task_t *this_task, ... )
             parsec_warning("/!\\ Flag is not recognized in parsec_dtd_unpack_args /!\\.\n");
             assert(0);
         }
-        current_param = current_param->next;
+        current_param = current_param + 1;
     }
     va_end(arguments);
 }
