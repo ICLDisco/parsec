@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA Corporation.  All rights reserved.
  */
 /**
  *
@@ -85,7 +86,6 @@ struct parsec_dtd_task_param_s {
     int                      arg_size;
     parsec_dtd_op_t          op_type;
     void                    *pointer_to_tile;
-    parsec_dtd_task_param_t *next;
 };
 
 typedef void (parsec_taskpool_wait_t)( parsec_taskpool_t *tp );
@@ -262,22 +262,6 @@ struct parsec_dtd_task_class_s {
 };
 
 typedef int (parsec_dtd_arg_cb)(int first_arg, void *second_arg, int third_arg, void *cb_data);
-
-typedef struct parsec_dtd_common_args_s {
-    int rank;
-    int write_flow_count;
-    int flow_count_of_template;
-    int count_of_params_sent_by_user;
-    int flow_index;
-    long unsigned int        size_of_params;
-    void                    *value_block;
-    void                    *current_val;
-    parsec_dtd_taskpool_t   *dtd_tp;
-    parsec_dtd_task_t       *task;
-    parsec_dtd_task_param_t *head_of_param_list;
-    parsec_dtd_task_param_t *current_param;
-    parsec_dtd_task_param_t *tmp_param;
-} parsec_dtd_common_args_t;
 
 /* Function prototypes */
 int
