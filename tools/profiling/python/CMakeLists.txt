@@ -36,10 +36,8 @@ if ( NOT PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO STREQUAL 0 
 endif ( NOT PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO STREQUAL 0 )
 
 set(SRC_PYTHON_SUPPORT ${CMAKE_CURRENT_SOURCE_DIR}/common_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_SOURCE_DIR}/ptt_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/profile2h5.py ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd)
-set(SETUP_PY setup.py)
 
-set(PYTHON_TOOLS_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR})
-set(OUTPUT ${PYTHON_TOOLS_BIN_DIR}/build/pbt2ptt.timestamp)
+set(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build/pbt2ptt.timestamp)
 
 if(Python_VERSION_MAJOR EQUAL 2)
   # We do not support python 2 anymore. If you really need it you can go back
@@ -49,8 +47,8 @@ endif(Python_VERSION_MAJOR EQUAL 2)
 
 # Always generate the setup.py first, to include it in the 2to3 conversion
 # if necessary
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${SETUP_PY}.in
-               ${PYTHON_TOOLS_BIN_DIR}/${SETUP_PY} @ONLY )
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
+               ${CMAKE_CURRENT_BINARY_DIR}/setup.py @ONLY )
 
 # Move the files into the build directory (to prevent the pollution of the source directory
 # due to cython compilation) and compile the python module
@@ -68,21 +66,21 @@ add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
 # (aka. according to the OS demands). Prepare to reconfigure the shell
 # helper scripts to point to the right location
 install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install --quiet --prefix=\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX} .
-        WORKING_DIRECTORY ${PYTHON_TOOLS_BIN_DIR})")
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
 
 # Create bash environment PaRSEC python support
 configure_file(utilities/bash.env.in
-               ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.sh @ONLY )
+               ${CMAKE_CURRENT_BINARY_DIR}/utilities/parsec.env.sh @ONLY )
 # Create csh and friends environment PaRSEC python support
 configure_file(utilities/csh.env.in
-               ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.csh @ONLY )
-install( FILES ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.sh ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.csh
+               ${CMAKE_CURRENT_BINARY_DIR}/utilities/parsec.env.csh @ONLY )
+install( FILES ${CMAKE_CURRENT_BINARY_DIR}/utilities/parsec.env.sh ${CMAKE_CURRENT_BINARY_DIR}/utilities/parsec.env.csh
          DESTINATION ${PARSEC_INSTALL_BINDIR}
          PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
-file(GLOB pyfiles RELATIVE ${PYTHON_TOOLS_BIN_DIR} "examples/*.py" "profile2h5.py")
+file(GLOB pyfiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "examples/*.py" "profile2h5.py")
 foreach(file ${pyfiles})
-  install( FILES ${PYTHON_TOOLS_BIN_DIR}/${file}
+  install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/${file}
            DESTINATION ${PARSEC_INSTALL_LIBEXECDIR}/parsec
            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
   get_filename_component(filenoext "${file}" NAME_WE)
