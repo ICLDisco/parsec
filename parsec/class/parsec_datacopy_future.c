@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
  */
 #include "parsec/parsec_config.h"
 #include "parsec/class/parsec_future.h"
@@ -14,19 +15,11 @@ static void parsec_datacopy_future_cleanup_nested(parsec_base_future_t* future);
 static void parsec_datacopy_future_destruct(parsec_base_future_t* future);
 
 static void  parsec_datacopy_future_init(parsec_base_future_t* future,
-                                        parsec_future_cb_fulfill cb,
-                                        void * cb_fulfill_data_in,
-                                        parsec_future_cb_match cb_match,
-                                        void * cb_match_data_in,
-                                        parsec_future_cb_cleanup cb_cleanup);
+                                        parsec_future_cb_fulfill cb, ...);
 static void* parsec_datacopy_future_get_or_trigger_internal(parsec_base_future_t* future,
                                                             void* es,
                                                             void* task);
-static void* parsec_datacopy_future_get_or_trigger(parsec_base_future_t* future,
-                                                   parsec_future_cb_nested cb_setup_nested,
-                                                   void* cb_data_in,
-                                                   void* es,
-                                                   void* task);
+static void* parsec_datacopy_future_get_or_trigger(parsec_base_future_t* future, ...);
 static void parsec_datacopy_future_set(parsec_base_future_t* future, void*data);
 
 
@@ -46,12 +39,16 @@ static void parsec_datacopy_future_set(parsec_base_future_t* future, void*data);
  * @param[in] cb_cleanup callback routine to clean up the future.
  */
 static void parsec_datacopy_future_init(parsec_base_future_t* future,
-                                        parsec_future_cb_fulfill cb,
-                                        void * cb_fulfill_data_in,
-                                        parsec_future_cb_match cb_match,
-                                        void * cb_match_data_in,
-                                        parsec_future_cb_cleanup cb_cleanup)
+                                        parsec_future_cb_fulfill cb, ...)
 {
+    va_list ap;
+    va_start(ap, cb);
+    void * cb_fulfill_data_in = va_arg(ap, void*);
+    parsec_future_cb_match cb_match = va_arg(ap, parsec_future_cb_match);
+    void * cb_match_data_in = va_arg(ap, void*);
+    parsec_future_cb_cleanup cb_cleanup = va_arg(ap, parsec_future_cb_cleanup);
+    va_end(ap);
+
     parsec_datacopy_future_t* d_fut = (parsec_datacopy_future_t*)future;
     d_fut->super.status = PARSEC_DATA_FUTURE_STATUS_INIT;
     d_fut->super.cb_fulfill = cb;
@@ -113,12 +110,16 @@ static void* parsec_datacopy_future_get_or_trigger_internal(parsec_base_future_t
  * @return data tracked by the future matching the specification; NULL in
  * case the future is not fulfilled yet.
  */
-static void* parsec_datacopy_future_get_or_trigger(parsec_base_future_t* future,
-                                                   parsec_future_cb_nested cb_setup_nested,
-                                                   void* cb_data_in,
-                                                   void* es,
-                                                   void* task)
+static void* parsec_datacopy_future_get_or_trigger(parsec_base_future_t* future, ...)
 {
+    va_list ap;
+    va_start(ap, future);
+    parsec_future_cb_nested cb_setup_nested = va_arg(ap, parsec_future_cb_nested);
+    void* cb_data_in = va_arg(ap, void*);
+    void* es = va_arg(ap, void*);
+    void* task = va_arg(ap, void*);
+    va_end(ap);
+
     parsec_datacopy_future_t* d_fut = (parsec_datacopy_future_t*)future;
     void *data = NULL;
     if( NULL == cb_data_in ){ /* No request for checking if target data matches */
@@ -222,11 +223,11 @@ static void* parsec_datacopy_future_get(parsec_base_future_t* future)
 /* Set up datacopy_future routines.
  */
 static parsec_future_fn_t parsec_datacopy_future_functions = {
-    .is_ready         = parsec_datacopy_future_is_ready,
-    .get              = parsec_datacopy_future_get,
-    .get_or_trigger   = (parsec_future_get_or_trigger_t)parsec_datacopy_future_get_or_trigger,
-    .set              = parsec_datacopy_future_set,
-    .future_init      = (parsec_future_init_t)parsec_datacopy_future_init
+    .is_ready       = parsec_datacopy_future_is_ready,
+    .get            = parsec_datacopy_future_get,
+    .get_or_trigger = parsec_datacopy_future_get_or_trigger,
+    .set            = parsec_datacopy_future_set,
+    .future_init    = parsec_datacopy_future_init
 };
 
 /**

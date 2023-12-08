@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
  */
 #include "parsec/parsec_config.h"
 #include "parsec/class/parsec_future.h"
@@ -14,10 +15,10 @@ static void parsec_countable_future_construct(parsec_base_future_t* future);
 static int   parsec_base_future_is_ready(parsec_base_future_t* future);
 static void  parsec_base_future_set(parsec_base_future_t* future, void* data);
 static void* parsec_base_future_get(parsec_base_future_t* future);
-static void  parsec_base_future_init(parsec_base_future_t* future, parsec_future_cb_fulfill cb);
+static void  parsec_base_future_init(parsec_base_future_t* future, parsec_future_cb_fulfill cb, ...);
 
 static void  parsec_countable_future_set(parsec_base_future_t* future, void* data);
-static void  parsec_countable_future_init(parsec_base_future_t* future, parsec_future_cb_fulfill cb, int count, ...);
+static void  parsec_countable_future_init(parsec_base_future_t* future, parsec_future_cb_fulfill cb, ...);
 
 /*Function implementation */
 
@@ -59,7 +60,7 @@ static void* parsec_base_future_get(parsec_base_future_t* future)
     return NULL;
 }
 
-static void parsec_base_future_init(parsec_base_future_t* future, parsec_future_cb_fulfill cb)
+static void parsec_base_future_init(parsec_base_future_t* future, parsec_future_cb_fulfill cb, ...)
 {
     future->status = PARSEC_DATA_FUTURE_STATUS_INIT;
     future->cb_fulfill = cb;
@@ -89,8 +90,13 @@ static void parsec_countable_future_set(parsec_base_future_t* future, void* data
     }
 }
 
-static void parsec_countable_future_init(parsec_base_future_t* future, parsec_future_cb_fulfill cb, int count, ...)
+static void parsec_countable_future_init(parsec_base_future_t* future, parsec_future_cb_fulfill cb, ...)
 {
+    va_list ap;
+    va_start(ap, cb);
+    int count = va_arg(ap, int);
+    va_end(ap);
+
     parsec_countable_future_t* c_fut = (parsec_countable_future_t*)future;
     c_fut->super.status = PARSEC_DATA_FUTURE_STATUS_INIT;
     c_fut->super.cb_fulfill = cb;
@@ -102,14 +108,14 @@ static parsec_future_fn_t parsec_base_future_functions = {
     .is_ready         = parsec_base_future_is_ready,
     .set              = parsec_base_future_set,
     .get              = parsec_base_future_get,
-    .future_init      = (parsec_future_init_t)parsec_base_future_init
+    .future_init      = parsec_base_future_init
 };
 
 static parsec_future_fn_t parsec_countable_future_functions = {
     .is_ready         = parsec_base_future_is_ready,
     .set              = parsec_countable_future_set,
     .get              = parsec_base_future_get,
-    .future_init      = (parsec_future_init_t)parsec_countable_future_init
+    .future_init      = parsec_countable_future_init
 };
 
 static void parsec_base_future_construct(parsec_base_future_t* future)

@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -606,10 +607,18 @@ reshape_copy_allocate(parsec_dep_type_description_t* data)
  * @param[in] tp parsec_taskpool_t.
  * @param[in] task parsec_task_t.
  */
-void parsec_local_reshape(parsec_base_future_t *future,
-                          void **in_data,
-                          parsec_execution_stream_t *es,
-                          parsec_task_t *task){
+void parsec_local_reshape_cb(parsec_base_future_t *future, ... )
+{
+    void **in_data;
+    parsec_execution_stream_t *es;
+    parsec_task_t *task;
+
+    va_list ap;
+    va_start(ap, future);
+    in_data = va_arg(ap, void**);
+    es = va_arg(ap, parsec_execution_stream_t*);
+    task = va_arg(ap, parsec_task_t*);
+    va_end(ap);
 
     parsec_reshape_promise_description_t *dt = (parsec_reshape_promise_description_t*)*in_data;
     parsec_taskpool_t* tp = (task != NULL) ? task->taskpool: NULL;

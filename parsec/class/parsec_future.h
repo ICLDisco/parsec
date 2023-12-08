@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
  */
 
 
@@ -48,7 +49,7 @@ typedef int   (*parsec_future_is_ready_t)       (parsec_base_future_t*);
 typedef void* (*parsec_future_get_or_trigger_t) (parsec_base_future_t*, ...);
 typedef void  (*parsec_future_set_t)            (parsec_base_future_t*, void*);
 typedef void* (*parsec_future_get_t)            (parsec_base_future_t*);
-typedef void  (*parsec_future_init_t)           (parsec_base_future_t*, ...);
+typedef void  (*parsec_future_init_t)           (parsec_base_future_t*, parsec_future_cb_fulfill, ...);
 
 #define PARSEC_DATA_FUTURE_STATUS_INIT      ((uint8_t)0x01) /* Future has been initialized. */
 #define PARSEC_DATA_FUTURE_STATUS_TRIGGERED ((uint8_t)0x02) /* Future has been triggered. */

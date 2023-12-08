@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
  */
 #ifndef __USE_PARSEC_REMOTE_DEP_H__
 #define __USE_PARSEC_REMOTE_DEP_H__
@@ -109,12 +110,8 @@ struct parsec_reshape_promise_description_s {
 };
 
 /* Callback to do a local reshaping of a datacopy */
-void parsec_local_reshape(parsec_base_future_t *future,
-                          void **in_data,
-                          parsec_execution_stream_t *es,
-                          parsec_task_t *task);
-
-
+void parsec_local_reshape_cb(parsec_base_future_t *future, ... );
+/* assumed: void **in_data, parsec_execution_stream_t *es, parsec_task_t *task */
 
 struct remote_dep_output_param_s {
     /** Never change this structure without understanding the
