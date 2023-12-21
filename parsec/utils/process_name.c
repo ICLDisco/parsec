@@ -4,6 +4,10 @@
 #include <limits.h>
 #include <stdio.h>
 
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+
 char *parsec_process_name(void) {
     char name[PATH_MAX];
     char *sname = NULL;
