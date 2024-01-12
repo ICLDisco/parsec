@@ -53,7 +53,9 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
     #include <stdint.h>
     #include <stdatomic.h>
     int main(void) {
-        int32_t where = 0;
+        int32_t where = 0, expected = 0;
+        if( !atomic_compare_exchange_strong( (_Atomic __int32_t*)&where, &expected, 1 ) )
+            return -1;
         return (atomic_is_lock_free(&where) ? 0 : 1);
     }
     " PARSEC_ATOMIC_USE_C11_32)
@@ -62,7 +64,9 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
         #include <stdint.h>
         #include <stdatomic.h>
         int main(void) {
-            int64_t where = 0;
+            int64_t where = 0, expected = 0;
+            if( !atomic_compare_exchange_strong( (_Atomic __int64_t*)&where, &expected, 1 ) )
+                return -1;
             return (atomic_is_lock_free(&where) ? 0 : 1);
         }
         " PARSEC_ATOMIC_USE_C11_64)
@@ -78,7 +82,9 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
     check_c_source_runs("
         #include <stdatomic.h>
         int main(void) {
-          __int128_t where = 0;
+          __int128_t where = 0, expected = 0;
+          if( !atomic_compare_exchange_strong( (_Atomic __int128_t*)&where, &expected, 1 ) )
+              return -1;
           return (atomic_is_lock_free(&where) ? 0 : 1);
         }
         " PARSEC_ATOMIC_USE_C11_128)
@@ -90,7 +96,9 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
       check_c_source_runs("
           #include <stdatomic.h>
           int main(void) {
-            __int128_t where = 0;
+            __int128_t where = 0, expected = 0;
+            if( !atomic_compare_exchange_strong( (_Atomic __int128_t*)&where, &expected, 1 ) )
+                return -1;
             return (atomic_is_lock_free(&where) ? 0 : 1);
           }
           " PARSEC_ATOMIC_USE_C11_128)
@@ -107,7 +115,9 @@ if( SUPPORT_C11 AND PARSEC_ATOMIC_USE_C11_ATOMICS )
       check_c_source_runs("
           #include <stdatomic.h>
           int main(void) {
-            __int128_t where = 0;
+            __int128_t where = 0, expected = 0;
+            if( !atomic_compare_exchange_strong( (_Atomic __int128_t*)&where, &expected, 1 ) )
+                return -1;
             return (atomic_is_lock_free(&where) ? 0 : 1);
           }
           " PARSEC_ATOMIC_USE_C11_128)
