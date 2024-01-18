@@ -343,11 +343,11 @@ static int device_level_zero_component_open(void)
 
 
     if( ndevices > parsec_device_level_zero_enabled ) {
-        if( 0 < parsec_device_level_zero_index ) {
+        if( 0 < parsec_device_level_zero_enabled ) {
             ndevices = parsec_device_level_zero_enabled;
         }
     } else if (ndevices < parsec_device_level_zero_enabled ) {
-        if( 0 < parsec_device_level_zero_index ) {
+        if( 0 < parsec_device_level_zero_enabled ) {
             parsec_warning("User requested %d LEVEL_ZERO devices, but only %d are available on %s\n."
                            " PaRSEC will enable all %d of them.",
                            parsec_device_level_zero_enabled, ndevices, parsec_hostname, ndevices);
