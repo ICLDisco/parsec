@@ -239,11 +239,11 @@ static int device_cuda_component_open(void)
     }
 
     if( ndevices > parsec_device_cuda_enabled ) {
-        if( 0 < parsec_device_cuda_enabled_index ) {
+        if( 0 < parsec_device_cuda_enabled ) {
             ndevices = parsec_device_cuda_enabled;
         }
     } else if (ndevices < parsec_device_cuda_enabled ) {
-        if( 0 < parsec_device_cuda_enabled_index ) {
+        if( 0 < parsec_device_cuda_enabled ) {
             if( 0 == ndevices ) {
                 parsec_warning("User requested %d CUDA devices, but none are available on %s."
                                " CUDA support will be therefore disabled.",
