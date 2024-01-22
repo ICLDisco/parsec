@@ -530,12 +530,10 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     gpu_device->memory_free      = parsec_cuda_memory_free;
     gpu_device->find_incarnation = parsec_cuda_find_incarnation;
 
-    if( PARSEC_SUCCESS != parsec_device_memory_reserve(gpu_device,
-                                                           parsec_cuda_memory_percentage,
-                                                           parsec_cuda_memory_number_of_blocks,
-                                                           parsec_cuda_memory_block_size) ) {
-        goto release_device;
-    }
+    /* Device memory initialization is delayed until first device use */
+    gpu_device->memory_percentage = parsec_cuda_memory_percentage;
+    gpu_device->number_blocks     = parsec_cuda_memory_number_of_blocks;
+    gpu_device->eltsize           = parsec_cuda_memory_block_size;
 
     if( show_caps ) {
         parsec_inform("GPU Device %-8s: %s [capability %d.%d] %s\n"

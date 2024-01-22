@@ -425,12 +425,10 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     gpu_device->memory_free      = parsec_level_zero_memory_free;
     gpu_device->find_incarnation = parsec_level_zero_find_incarnation;
 
-    if( PARSEC_SUCCESS != parsec_device_memory_reserve(gpu_device,
-                                                           parsec_level_zero_memory_percentage,
-                                                           parsec_level_zero_memory_number_of_blocks,
-                                                           parsec_level_zero_memory_block_size) ) {
-        goto release_device;
-    }
+    /* Device memory initialization is delayed until first device use */
+    gpu_device->memory_percentage = parsec_level_zero_memory_percentage;
+    gpu_device->number_blocks     = parsec_level_zero_memory_number_of_blocks;
+    gpu_device->eltsize           = parsec_level_zero_memory_block_size;
 
     if( show_caps ) {
         parsec_inform("LEVEL ZERO GPU Device %d: %s\n"

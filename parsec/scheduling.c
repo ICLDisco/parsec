@@ -186,8 +186,11 @@ int __parsec_execute( parsec_execution_stream_t* es,
                 task->status = PARSEC_TASK_STATUS_COMPLETE;
                 if(PARSEC_DEV_RECURSIVE >= tc->incarnations[chore_id].type) {
                     /* accelerators count their own executed tasks */
+#if 0
+                    /* This is wrong: chore_id is the index in incarnations, but it's not the device id */
                     parsec_device_module_t *dev = parsec_mca_device_get(chore_id);
                     parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
+#endif
                 }
             }
             /* Record EXEC_END event only for incarnation that succeeds */
