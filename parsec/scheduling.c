@@ -168,16 +168,15 @@ int __parsec_execute( parsec_execution_stream_t* es,
             }
         }
 
-        parsec_hook_t *hook = tc->incarnations[chore_id].hook;
-        if( NULL == hook ) goto next_chore;
 #if defined(PARSEC_DEBUG)
         parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
                              es->th_id, es->virtual_process->vp_id,
                              tmp, tc->incarnations[chore_id].type,
                              chore_id);
 #endif
+        parsec_hook_t *hook = tc->incarnations[chore_id].hook;
+        assert( NULL != hook );
         rc = hook( es, task );
-
 #if defined(PARSEC_PROF_TRACE)
         task->prof_info.task_return_code = rc;
 #endif
