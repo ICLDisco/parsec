@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif /* DISTRIBUTED */
-    
+
     parsec = parsec_init(-1, &argc, &argv);
 
     tp = testing_stress_New(parsec, 4000, 1024);
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
         parsec_context_wait(parsec);
         parsec_taskpool_free(tp);
     }
-    
+
     parsec_fini(&parsec);
 #if defined(DISTRIBUTED)
     MPI_Finalize();
