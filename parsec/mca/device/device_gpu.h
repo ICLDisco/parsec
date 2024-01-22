@@ -231,6 +231,11 @@ struct parsec_device_gpu_module_s {
                                                    *   is increased every time a new data is made available, so
                                                    *   that we know which tasks can be evaluated for submission.
                                                    */
+
+    int                         memory_percentage; /**< What % of the memory available on the device we want to use*/
+    int                         number_blocks;     /**< In case memory_percentage is not set, how many blocks we want to allocate on the device */
+    size_t                      eltsize;           /**< And what size in byte are these blocks */ 
+
     parsec_list_t              gpu_mem_lru;   /* Read-only blocks, and fresh blocks */
     parsec_list_t              gpu_mem_owned_lru;  /* Dirty blocks */
     parsec_fifo_t              pending;
@@ -334,10 +339,7 @@ typedef struct {
 
 #endif  /* defined(PROFILING) */
 
-int parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
-                                      int           memory_percentage,
-                                      int           number_blocks,
-                                      size_t        eltsize );
+int parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device );
 int parsec_device_attach( parsec_device_module_t* device, parsec_context_t* context );
 int parsec_device_detach( parsec_device_module_t* device, parsec_context_t* context );
 int parsec_device_taskpool_register(parsec_device_module_t* device, parsec_taskpool_t* tp);
