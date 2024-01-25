@@ -175,7 +175,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
                              chore_id);
 #endif
         parsec_hook_t *hook = tc->incarnations[chore_id].hook;
-
+        assert( NULL != hook );
         rc = hook( es, task );
 #if defined(PARSEC_PROF_TRACE)
         task->prof_info.task_return_code = rc;
@@ -185,8 +185,9 @@ int __parsec_execute( parsec_execution_stream_t* es,
                 /* Let's assume everything goes just fine */
                 task->status = PARSEC_TASK_STATUS_COMPLETE;
                 if(PARSEC_DEV_RECURSIVE >= tc->incarnations[chore_id].type) {
-                    /* accelerators count their own executed tasks */
-                    parsec_device_module_t *dev = parsec_mca_device_get(chore_id);
+                    /* accelerators count their own executed tasks so this is a
+                     * type DEV_RECURSIVE or DEV_CPU, they must be dev 0 and 1 */
+                    parsec_device_module_t *dev = parsec_mca_device_get(tc->incarnations[chore_id].type - PARSEC_DEV_CPU);
                     parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
                 }
             }
@@ -526,7 +527,10 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
         case PARSEC_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
         case PARSEC_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
         case PARSEC_HOOK_RETURN_ERROR:   /* Some other major error happened */
-            assert( 0 ); /* Internal error: invalid return value */
+            parsec_fatal("Executing task of class %s failed with parsec_hook_return_t error %d", task->task_class->name, rc);
+            /* we should not call fatal here, but the caller code
+             * is not ready to handle error cases yet */
+            return rc;
         }
         break;
     }
