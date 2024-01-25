@@ -251,14 +251,33 @@ PARSEC_DECLSPEC int parsec_mca_device_is_gpu(uint32_t devindex);
 PARSEC_DECLSPEC int parsec_mca_device_remove(parsec_device_module_t* device);
 
 /**
- * Reset the current device statistics.
+ * Reset the current devices statistics.
  */
 PARSEC_DECLSPEC void parsec_mca_device_reset_statistics(parsec_context_t* parsec_context);
 
 /**
- * Dump and reset the current device statistics.
+ * Dump and reset the current devices statistics.
  */
 PARSEC_DECLSPEC void parsec_mca_device_dump_and_reset_statistics(parsec_context_t* parsec_context);
+
+/**
+ * Save the current devices statistics in a (newly allocated in *pstats is
+ * NULL) array of stats. If *pstat is not NULL, the same array is reused and
+ * its values are overwritten.
+ */
+PARSEC_DECLSPEC void parsec_devices_save_statistics(uint64_t **pstats);
+
+/**
+ * Free a statistic array allocated by a prior call to
+ * parsec_devices_save_statistics()
+ */
+PARSEC_DECLSPEC void parsec_devices_free_statistics(uint64_t **pstats);
+
+/**
+ * Print the current devices statistics; if start_stats is not NULL, the
+ * procedure will substract start_stats before printing.
+ */
+PARSEC_DECLSPEC void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t *start_stats);
 
 /**
  * Returns the number of devices currently registered with the runtime. This
