@@ -287,6 +287,34 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
 int parsec_context_remove_taskpool( parsec_taskpool_t* tp );
 
 /**
+ * Query PaRSEC context capabilities.
+ */
+
+typedef enum parsec_context_query_cmd_e {
+    PARSEC_CONTEXT_QUERY_NODES,
+    PARSEC_CONTEXT_QUERY_RANK,
+    PARSEC_CONTEXT_QUERY_DEVICES,
+    PARSEC_CONTEXT_QUERY_CORES,
+    PARSEC_CONTEXT_QUERY_ACTIVE_TASKPOOLS
+} parsec_context_query_cmd_t;
+
+/**
+ * @brief Query PaRSEC context's properties.
+ *
+ * @details
+ * Query properties of the runtime, such as number of devices of a certain type
+ * or number of cores available to the context.
+ *
+ * @param[in] context the PaRSEC context
+ * @param[in] device_type the type of device the query is about
+ * @return PARSEC_ERR_NOT_SUPPORTED if the command is not supported, PARSEC_ERR_NOT_FOUND
+ *         if the correct answer cannot yet be returned (such as when the PaRSEC context
+ *         has not yet properly been initialized), or the answer to the query (always
+ *         a positive number).
+ */
+int parsec_context_query(parsec_context_t* context, parsec_context_query_cmd_t cmd, ... );
+
+/**
  * @brief Start taskpool that were enqueued into the PaRSEC context
  *
  * @details
