@@ -190,6 +190,71 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
 
 int remote_dep_ce_reconfigure(parsec_context_t* context);
 
+#ifdef PARSEC_PROF_TRACE
+static int MPI_Activate_sk, MPI_Activate_ek;
+static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
+static int MPI_Data_plds_sk, MPI_Data_plds_ek;
+static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
+
+/**
+ * The structure describe the MPI events saves into the profiling stream. The following
+ * string represent it's description so that an external package can decrypt the
+ * binary format of the stream.
+ */
+
+static const char *parsec_profile_remote_dep_mpi_info_to_string = "src{int32_t};"
+                                                                  "dst{int32_t};"
+                                                                  "tid{uint64_t};"
+                                                                  "tpid{uint32_t};"
+                                                                  "tcid{uint32_t};"
+                                                                  "msg_size{int32_t};"
+                                                                  "dep{int32_t}";
+
+static void remote_dep_mpi_profiling_init(void)
+{
+    parsec_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#FF0000",
+                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
+                                            parsec_profile_remote_dep_mpi_info_to_string,
+                                            &MPI_Activate_sk, &MPI_Activate_ek);
+    parsec_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#000077",
+                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
+                                            parsec_profile_remote_dep_mpi_info_to_string,
+                                            &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
+    parsec_profiling_add_dictionary_keyword( "MPI_DATA_PLD_SND", "fill:#B08080",
+                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
+                                            parsec_profile_remote_dep_mpi_info_to_string,
+                                            &MPI_Data_plds_sk, &MPI_Data_plds_ek);
+    parsec_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#80B080",
+                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
+                                            parsec_profile_remote_dep_mpi_info_to_string,
+                                            &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
+
+    parsec_comm_es.es_profile = parsec_profiling_stream_init( 2*1024*1024, "Comm thread");
+    parsec_profiling_set_default_thread(parsec_comm_es.es_profile);
+}
+
+static void remote_dep_mpi_profiling_fini(void)
+{
+    /* Nothing to do, the thread_profiling structures will be automatically
+     * released when the master profiling system is shut down.
+     */
+}
+
+static inline uint64_t remote_dep_mpi_profiling_event_id(void)
+{
+    static uint64_t event_id = 0;
+    /* we only need distinct event ids for events triggered by the comm thread,
+     * so I think this doesn't need to be atomic
+     * return parsec_atomic_fetch_inc_int64(&event_id); */
+    return event_id++;
+}
+#else
+
+#define remote_dep_mpi_profiling_init() do {} while(0)
+#define remote_dep_mpi_profiling_fini() do {} while(0)
+#define remote_dep_mpi_profiling_event_id() (0UL)
+
+#endif  /* PARSEC_PROF_TRACE */
 
 static void remote_dep_mpi_params(parsec_context_t* context) {
     (void)context;
@@ -421,6 +486,7 @@ void* remote_dep_dequeue_main(parsec_context_t* context)
 
     remote_dep_bind_thread(context);
     PARSEC_PAPI_SDE_THREAD_INIT();
+    remote_dep_mpi_profiling_init();
 
     /* Now synchronize with the main thread */
     pthread_mutex_lock(&mpi_thread_mutex);
@@ -1174,74 +1240,6 @@ remote_dep_dequeue_nothread_progress(parsec_execution_stream_t* es,
 
     goto check_pending_queues;
 }
-
-
-#ifdef PARSEC_PROF_TRACE
-static int MPI_Activate_sk, MPI_Activate_ek;
-static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
-static int MPI_Data_plds_sk, MPI_Data_plds_ek;
-static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
-
-/**
- * The structure describe the MPI events saves into the profiling stream. The following
- * string represent it's description so that an external package can decrypt the
- * binary format of the stream.
- */
-
-static const char *parsec_profile_remote_dep_mpi_info_to_string = "src{int32_t};"
-                                                                  "dst{int32_t};"
-                                                                  "tid{uint64_t};"
-                                                                  "tpid{uint32_t};"
-                                                                  "tcid{uint32_t};"
-                                                                  "msg_size{int32_t};"
-                                                                  "dep{int32_t}";
-
-static void remote_dep_mpi_profiling_init(void)
-{
-    parsec_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#FF0000",
-                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
-                                            parsec_profile_remote_dep_mpi_info_to_string,
-                                            &MPI_Activate_sk, &MPI_Activate_ek);
-    parsec_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#000077",
-                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
-                                            parsec_profile_remote_dep_mpi_info_to_string,
-                                            &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
-    parsec_profiling_add_dictionary_keyword( "MPI_DATA_PLD_SND", "fill:#B08080",
-                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
-                                            parsec_profile_remote_dep_mpi_info_to_string,
-                                            &MPI_Data_plds_sk, &MPI_Data_plds_ek);
-    parsec_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#80B080",
-                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
-                                            parsec_profile_remote_dep_mpi_info_to_string,
-                                            &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
-
-    parsec_comm_es.es_profile = parsec_profiling_stream_init( 2*1024*1024, "Comm thread");
-    parsec_profiling_set_default_thread(parsec_comm_es.es_profile);
-}
-
-static void remote_dep_mpi_profiling_fini(void)
-{
-    /* Nothing to do, the thread_profiling structures will be automatically
-     * released when the master profiling system is shut down.
-     */
-}
-
-static inline uint64_t remote_dep_mpi_profiling_event_id(void)
-{
-    static uint64_t event_id = 0;
-    /* we only need distinct event ids for events triggered by the comm thread,
-     * so I think this doesn't need to be atomic
-     * return parsec_atomic_fetch_inc_int64(&event_id); */
-    return event_id++;
-}
-#else
-
-#define remote_dep_mpi_profiling_init() do {} while(0)
-#define remote_dep_mpi_profiling_fini() do {} while(0)
-#define remote_dep_mpi_profiling_event_id() (0UL)
-
-#endif  /* PARSEC_PROF_TRACE */
-
 
 /**
  * Given a remote_dep_wire_activate message it packs as much as possible
@@ -2156,7 +2154,6 @@ remote_dep_ce_init(parsec_context_t* context)
                              1);
     /* Lazy or delayed initializations */
     remote_dep_mpi_initialize_execution_stream(context);
-    remote_dep_mpi_profiling_init();
     return PARSEC_SUCCESS;
 }
 
