@@ -34,7 +34,47 @@ def h5_to_ctf(ptt_filename, ctf_filename, **kwargs):
 
     ctf_data = {"traceEvents": []}
 
+    print(f"  Reading {ptt_filename}...", end='', flush=True)
     trace = ptt.from_hdf(ptt_filename)
+    print(f" Done")
+
+    print(f"  Building dictionary of events...", end='', flush=True)
+    for tid, t in trace.streams.iterrows():
+        mt_event = {}
+        mt_event['name'] = 'thread_name'
+        mt_event['ph'] = 'M'
+        mt_event['pid'] = t.node_id
+        mt_event['tid'] = t.stream_id
+
+        tokens = t.description.split()
+        if tokens[0] == 'PaRSEC' and tokens[1] == 'Thread' and tokens[3] == 'of' and tokens[4] == 'VP' and tokens[6] == 'Bound' and tokens[7] == 'on':
+            mt_event['args'] = { 'name': f"PaRSEC Thread {tokens[2]}" }
+        else:
+            mt_event['args'] = { 'name': t.description }
+        ctf_data["traceEvents"].append(mt_event)
+
+        mt_event = {}
+        mt_event['name'] = 'thread_sort_index'
+        mt_event['ph'] = 'M'
+        mt_event['pid'] = t.node_id
+        mt_event['tid'] = t.stream_id
+        mt_event['args'] = {'sort_index': t.th_id }
+        ctf_data["traceEvents"].append(mt_event)
+
+    for nid, n in trace.nodes.iterrows():
+        mt_event = {}
+        mt_event['name'] = 'process_name'
+        mt_event['ph'] = 'M'
+        mt_event['pid'] = nid
+        mt_event['args'] = { 'name': n.hostname }
+        ctf_data["traceEvents"].append(mt_event)
+
+        mt_event = {}
+        mt_event['name'] = 'process_sort_index'
+        mt_event['ph'] = 'M'
+        mt_event['pid'] = nid
+        mt_event['args'] = { 'sort_index': nid }
+        ctf_data["traceEvents"].append(mt_event)
 
     for e in trace.events.itertuples():
         if(skip_parsec_events == True and trace.event_names[e.type].startswith("PARSEC")):
@@ -60,13 +100,16 @@ def h5_to_ctf(ptt_filename, ctf_filename, **kwargs):
             ctf_event["name"] = category
 
         ctf_event["pid"] = e.node_id
-        tid = trace.streams.th_id[e.stream_id]
+        tid = e.stream_id
         ctf_event["tid"] = 111111 if math.isnan(tid) else int(tid)
 
         ctf_data["traceEvents"].append(ctf_event)
+    print(f" Done")
 
+    print(f"  Generating {ctf_filename}...", end='', flush=True)
     with open(ctf_filename, "w") as chrome_trace:
         json.dump(ctf_data, chrome_trace)
+    print(f" Done")
 
 if __name__ == "__main__":
 
