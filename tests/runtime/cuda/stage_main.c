@@ -14,7 +14,6 @@ int main(int argc, char *argv[])
 {
     parsec_context_t *parsec = NULL;
     parsec_taskpool_t *tp;
-    int i;
     int size = 1;
     int rank = 0;
     int M;

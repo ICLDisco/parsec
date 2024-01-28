@@ -3152,6 +3152,12 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     coutput("%s  if( NULL != ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of ) {\n"
             "%s    vpid = ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
+            "%s    if( vpid >= context->nb_vp ) {\n"
+            "%s       char tmp[128];\n"
+            "%s       parsec_output(parsec_debug_output, \"VPID %%d for task %%s is too large (> %%d the number of VP in the context)\",\n"
+            "%s                     vpid, parsec_task_snprintf(tmp, 128, (parsec_task_t *)this_task), context->nb_vp);\n"
+            "%s       vpid = vpid %% context->nb_vp;\n"
+            "%s    }\n"
             "%s    assert(context->nb_vp >= vpid);\n"
             "%s  } else {\n"
             "%s    vpid = (vpid + 1) %% context->nb_vp;  /* spread the initial joy */\n"
@@ -3163,6 +3169,12 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             UTIL_DUMP_LIST(sa2, f->predicate->parameters, next,
                            dump_expr, (void*)&info1,
                            "", "", ", ", ""),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
+            indent(nesting),
             indent(nesting),
             indent(nesting),
             indent(nesting),
@@ -4817,7 +4829,7 @@ static void jdf_generate_new_function( const jdf_t* jdf )
     if( jdf_uses_dynamic_termdet(jdf) ) {
         coutput("  __parsec_tp->initial_number_tasks = 0;\n");
     }
-    
+
     string_arena_init(sa1);
     string_arena_init(sa2);
     coutput("/* Prevent warnings related to not used hidden global variables */\n"
@@ -4855,7 +4867,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
             string_arena_init(sa_range_multiplier);
             for(vl = f->locals; vl != NULL; vl = vl->next) {
                 if( local_is_parameter(f, vl) != NULL ) {
-                    coutput("  __parsec_id += (assignment->%s.value - __parsec_tp->%s_%s_min)%s;\n", vl->name, f->fname, vl->name, 
+                    coutput("  __parsec_id += ((uint64_t)assignment->%s.value - __parsec_tp->%s_%s_min)%s;\n", vl->name, f->fname, vl->name, 
                             string_arena_get_string(sa_range_multiplier));
                     string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, vl->name);
                 }
@@ -7189,21 +7201,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "{\n"
             "  PARSEC_PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *)this_task);"
             "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
-            "  parsec_release_dep_fct_arg_t arg;\n"
-            "  int __vp_id;\n"
             "  int consume_local_repo = 0;\n"
-            "  arg.action_mask = action_mask;\n"
-            "  arg.output_entry = NULL;\n"
-            "  arg.output_repo = NULL;\n"
-            "#if defined(DISTRIBUTED)\n"
-            "  arg.remote_deps = deps;\n"
-            "#endif  /* defined(DISTRIBUTED) */\n"
             "  assert(NULL != es);\n"
-            "  if( action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS )"
-            "    arg.ready_lists = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);\n"
-            "  else\n"
-            "    arg.ready_lists = NULL;\n"
-            "  for( __vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
             "  (void)__parsec_tp; (void)deps;\n",
             name, parsec_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename);
@@ -7214,9 +7213,22 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
 
-        coutput("  arg.output_repo = %s_repo;\n", f->fname);
-        coutput("  arg.output_entry = this_task->repo_entry;\n");
-        coutput("  arg.output_usage = 0;\n");
+        coutput("  parsec_release_dep_fct_arg_t arg;\n"
+                "  arg.action_mask = action_mask;\n"
+                "  arg.output_entry = NULL;\n"
+                "  arg.output_repo = NULL;\n"
+                "#if defined(DISTRIBUTED)\n"
+                "  arg.remote_deps = deps;\n"
+                "#endif  /* defined(DISTRIBUTED) */\n"
+                "  arg.ready_lists = NULL;\n"
+                "  if( action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS ) {\n"
+                "    arg.ready_lists = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);\n"
+                "    for( int __vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
+                "  }\n"
+                "  arg.output_repo = %s_repo;\n"
+                "  arg.output_entry = this_task->repo_entry;\n"
+                "  arg.output_usage = 0;\n",
+                f->fname);
 
         coutput("  if( action_mask & (PARSEC_ACTION_RELEASE_LOCAL_DEPS | PARSEC_ACTION_GET_REPO_ENTRY) ) {\n"
                 "    arg.output_entry = data_repo_lookup_entry_and_create( es, arg.output_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals));\n"

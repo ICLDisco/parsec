@@ -384,10 +384,10 @@ static void *create_cublas_handle(void *obj, void *p)
 
 static void destroy_one_on_device(void *_h, void *_n)
 {
+    (void)_h;
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     cudaFree(_h);
 #endif
-    (void)_h;
     (void)_n;
 }
 
