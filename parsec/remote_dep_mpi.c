@@ -190,6 +190,12 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
 
 int remote_dep_ce_reconfigure(parsec_context_t* context);
 
+#ifdef PARSEC_PROF_TRACE
+static void remote_dep_mpi_profiling_init(void);
+#else
+#define remote_dep_mpi_profiling_init() do {} while(0)
+#endif // PARSEC_PROF_TRACE
+
 
 static void remote_dep_mpi_params(parsec_context_t* context) {
     (void)context;
@@ -270,6 +276,8 @@ remote_dep_dequeue_init(parsec_context_t* context)
 
     pthread_attr_init(&thread_attr);
     pthread_attr_setscope(&thread_attr, PTHREAD_SCOPE_SYSTEM);
+
+    remote_dep_mpi_profiling_init();
 
     /* From now on the communication capabilities are enabled */
     parsec_communication_engine_up = 1;
@@ -425,6 +433,11 @@ void* remote_dep_dequeue_main(parsec_context_t* context)
     /* Now synchronize with the main thread */
     pthread_mutex_lock(&mpi_thread_mutex);
     pthread_cond_signal(&mpi_thread_condition);
+
+#ifdef PARSEC_PROF_TRACE
+    parsec_comm_es.es_profile = parsec_profiling_stream_init( 2*1024*1024, "Comm thread");
+    parsec_profiling_set_default_thread(parsec_comm_es.es_profile);
+#endif // PARSEC_PROF_TRACE
 
     /* This is the main loop. Wait until being woken up by the main thread, do
      * the MPI stuff until we get the OFF or FINI commands. Then react the them.
@@ -1214,9 +1227,6 @@ static void remote_dep_mpi_profiling_init(void)
                                             sizeof(parsec_profile_remote_dep_mpi_info_t),
                                             parsec_profile_remote_dep_mpi_info_to_string,
                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
-
-    parsec_comm_es.es_profile = parsec_profiling_stream_init( 2*1024*1024, "Comm thread");
-    parsec_profiling_set_default_thread(parsec_comm_es.es_profile);
 }
 
 static void remote_dep_mpi_profiling_fini(void)
@@ -1236,7 +1246,6 @@ static inline uint64_t remote_dep_mpi_profiling_event_id(void)
 }
 #else
 
-#define remote_dep_mpi_profiling_init() do {} while(0)
 #define remote_dep_mpi_profiling_fini() do {} while(0)
 #define remote_dep_mpi_profiling_event_id() (0UL)
 
@@ -2156,7 +2165,6 @@ remote_dep_ce_init(parsec_context_t* context)
                              1);
     /* Lazy or delayed initializations */
     remote_dep_mpi_initialize_execution_stream(context);
-    remote_dep_mpi_profiling_init();
     return PARSEC_SUCCESS;
 }
 
