@@ -94,6 +94,8 @@ jobs:
       # run: ctest -C $BUILD_TYPE
       run: |
         source ${{github.workspace}}/.github/CI/spack_setup.sh
+        PARSEC_MCA_device_cuda_memory_use=10
+        PARSEC_MCA_device_hip_memory_use=10
         ctest --output-on-failure
 
     - name: Save Artifact
@@ -196,6 +198,8 @@ jobs:
       # run: ctest -C $BUILD_TYPE
       run: |
         source ${{github.workspace}}/.github/CI/spack_setup.sh
+        PARSEC_MCA_device_cuda_memory_use=10
+        PARSEC_MCA_device_hip_memory_use=10
         ctest --output-on-failure
 
     - name: Save Testing Artifact
