@@ -552,7 +552,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
                       prop.pciBusID, prop.pciDeviceID, prop.pciDomainID,
                       streaming_multiprocessor,
                       freqHz*1e-9f,
-                      fp64, fp32, tf32, fp16,
+                      fp64*1e-3, fp32*1e-3, tf32*1e-3, fp16*1e-3,
                       2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6, prop.memoryClockRate*1e-6, prop.memoryBusWidth,
                       (concurrency == 1)? "yes": "no",
                       computemode);
