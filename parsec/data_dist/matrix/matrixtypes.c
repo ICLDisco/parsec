@@ -257,7 +257,9 @@ int parsec_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
     if( PARSEC_SUCCESS != rc ) {
         return rc;
     }
-
+    adt->ht_item.next_item = NULL;  /* keep Coverity happy */
+    adt->ht_item.hash64    = 0;  /* keep Coverity happy */
+    adt->ht_item.key       = 0;  /* keep Coverity happy */
     return PARSEC_SUCCESS;
 }
 
