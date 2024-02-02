@@ -2,6 +2,7 @@
  * Copyright (c) 2010-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -132,7 +133,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
             continue; /* The user disabled NVLINK for that GPU */
 
         cudastatus = cudaSetDevice( source_gpu->cuda_index );
-        PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaSetDevice ", cudastatus,
+        PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaSetDevice", cudastatus,
                                  {continue;} );
 
         for( j = 0; NULL != (target_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[j]); j++ ) {
@@ -140,11 +141,11 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
 
             /* Communication mask */
             cudastatus = cudaDeviceCanAccessPeer( &canAccessPeer, source_gpu->cuda_index, target_gpu->cuda_index );
-            PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaDeviceCanAccessPeer ", cudastatus,
+            PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaDeviceCanAccessPeer", cudastatus,
                                      {continue;} );
             if( 1 == canAccessPeer ) {
                 cudastatus = cudaDeviceEnablePeerAccess( target_gpu->cuda_index, 0 );
-                PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cuCtxEnablePeerAccess ", cudastatus,
+                PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cuCtxEnablePeerAccess", cudastatus,
                                          {continue;} );
                 source_gpu->super.peer_access_mask = (int16_t)(source_gpu->super.peer_access_mask | (int16_t)(1 <<
                         target_gpu->super.super.device_index));
@@ -231,7 +232,7 @@ static int device_cuda_component_open(void)
          */
     }
     else {
-        PARSEC_CUDA_CHECK_ERROR( "cudaGetDeviceCount ", cudastatus,
+        PARSEC_CUDA_CHECK_ERROR( "cudaGetDeviceCount", cudastatus,
                              {
                                 parsec_mca_param_set_int(parsec_device_cuda_enabled_index, 0);
                                 return MCA_ERROR;

@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -57,14 +58,14 @@ stage_stride_in(parsec_gpu_task_t *gtask,
                                                        width, height,
                                                        cudaMemcpyHostToDevice,
                                                        cuda_stream->cuda_stream );
-                PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", ret, { return PARSEC_ERROR; } );
+                PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", ret, { return PARSEC_ERROR; } );
             }else{
                 ret = (cudaError_t)cudaMemcpyAsync( copy_out->device_private,
                                                     copy_in->device_private,
                                                     copy_in->original->nb_elts,
                                                     cudaMemcpyDeviceToDevice,
                                                     cuda_stream->cuda_stream );
-                PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", ret, { return PARSEC_ERROR; } );
+                PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", ret, { return PARSEC_ERROR; } );
             }
 
         }
@@ -102,7 +103,7 @@ stage_stride_out(parsec_gpu_task_t *gtask,
                                                    width, height,
                                                    cudaMemcpyDeviceToHost,
                                                    cuda_stream->cuda_stream );
-           PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync ", ret, { return PARSEC_ERROR; } );
+           PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync", ret, { return PARSEC_ERROR; } );
         }
     }
     return PARSEC_SUCCESS;
@@ -160,7 +161,7 @@ BODY [type=CUDA
                                  (double*)A, ldam,
                          lbeta,  (double*)A, ldam );
     status = cublasGetError();
-    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm ", status,
+    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm", status,
                             {return -1;} );
 }
 END
@@ -201,7 +202,7 @@ BODY [type=CUDA
                                  (double*)B, ldbm,
                          lbeta,  (double*)B, ldbm );
     status = cublasGetError();
-    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm ", status,
+    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm", status,
                             {return -1;} );
 
 }
