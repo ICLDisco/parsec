@@ -700,7 +700,7 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
             mem_elem_per_gpu = total_size / eltsize;
         }
         rc = gpu_device->memory_allocate(gpu_device, total_size, &base_ptr);
-        if(PARSEC_SUCCESS != rc) { 
+        if(PARSEC_SUCCESS != rc) {
             parsec_warning("GPU[%s] Allocating %zu bytes of memory on the GPU device failed",
                            gpu_device->super.name, total_size);
             gpu_device->memory = NULL;

@@ -69,7 +69,7 @@ typedef parsec_data_copy_t parsec_gpu_data_copy_t;
     do {                                                                \
         cudaError_t __cuda_error = (cudaError_t) (ERROR);               \
         if( cudaSuccess != __cuda_error ) {                             \
-            parsec_warning( "%s:%d %s%s", __FILE__, __LINE__,           \
+            parsec_warning( "%s:%d %s %s", __FILE__, __LINE__,          \
                             (STR), cudaGetErrorString(__cuda_error) );  \
             CODE;                                                       \
         }                                                               \
