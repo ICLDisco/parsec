@@ -96,7 +96,7 @@ int task_memory_alloc_key, task_memory_free_key;
 parsec_info_t parsec_per_device_infos;
 parsec_info_t parsec_per_stream_infos;
 
-static int slow_bind_warning = 128;
+int parsec_slow_bind_warning = 128;
 
 int parsec_want_rusage = 0;
 #if defined(PARSEC_HAVE_GETRUSAGE) && !defined(__bgp__)
@@ -145,7 +145,7 @@ static void parsec_rusage(bool print)
 #define parsec_rusage(b) do {} while(0)
 #endif /* defined(PARSEC_HAVE_GETRUSAGE) */
 
-static char *parsec_enable_dot = NULL;
+static char *parsec_dot_file = NULL;
 static char *parsec_app_name = NULL;
 
 static int parsec_runtime_max_number_of_cores = -1;
@@ -194,11 +194,11 @@ static void __parsec_taskpool_constructor(parsec_taskpool_t* tp)
 
 static void __parsec_taskpool_destructor(parsec_taskpool_t* tp)
 {
-    if( NULL != tp->taskpool_name ) {
-        free(tp->taskpool_name);
-    }
     if( NULL != tp->context ) {
         parsec_context_remove_taskpool(tp);
+    }
+    if( NULL != tp->taskpool_name ) {
+        free(tp->taskpool_name);
     }
 }
 
@@ -226,7 +226,7 @@ typedef struct __parsec_temporary_thread_initialization_t {
 
 static int parsec_parse_binding_parameter(const char* option, parsec_context_t* context,
                                          __parsec_temporary_thread_initialization_t* startup);
-static int parsec_parse_comm_binding_parameter(const char* option, parsec_context_t* context);
+static int parsec_parse_comm_binding_parameter(int core, parsec_context_t* context);
 
 static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* startup )
 {
@@ -367,28 +367,10 @@ static void parsec_vp_init( parsec_vp_t *vp,
     }
 }
 
-#define GET_INT_ARGV(CMD, ARGV, VALUE) \
-do { \
-    int __nb_elems = parsec_cmd_line_get_ninsts((CMD), (ARGV)); \
-    if( 0 != __nb_elems ) { \
-        char* __value = parsec_cmd_line_get_param((CMD), (ARGV), 0, 0); \
-        if( NULL != __value ) \
-            (VALUE) = (int)strtol(__value, NULL, 10); \
-    } \
-} while (0)
-
-#define GET_STR_ARGV(CMD, ARGV, VALUE) \
-do { \
-    int __nb_elems = parsec_cmd_line_get_ninsts((CMD), (ARGV)); \
-    if( 0 != __nb_elems ) { \
-        (VALUE) = parsec_cmd_line_get_param((CMD), (ARGV), 0, 0); \
-    } \
-} while (0)
-
 parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 {
     int ret, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
-    char *comm_binding_parameter = NULL;
+    int comm_binding_parameter = -1;
     char *binding_parameter = NULL;
     __parsec_temporary_thread_initialization_t *startup;
     parsec_context_t* context;
@@ -418,25 +400,15 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         return NULL;
     }
 
-    /* Declare the command line for the .dot generation */
-    parsec_cmd_line_make_opt3(cmd_line, 'h', "help", "help", 0,
+    int show_help = false;
+    parsec_mca_param_reg_int_name("show", "help", "Show the usage text (same as --parsec-help)", false, false, show_help, &show_help);
+    parsec_cmd_line_make_opt3(cmd_line, '\0', NULL, "parsec-version", 0,
+                             "Show the version text.");
+    int show_version = false;
+    parsec_mca_param_reg_int_name("show", "version", "Show the version text (same as --parsec-version)", false, false, show_version, &show_version);
+    parsec_cmd_line_make_opt3(cmd_line, '\0', NULL, "parsec-help", 0,
                              "Show the usage text.");
-    parsec_cmd_line_make_opt3(cmd_line, '.', "dot", "parsec_dot", 1,
-                             "Filename for the .dot file");
-    parsec_cmd_line_make_opt3(cmd_line, 'b', NULL, "parsec_bind", 1,
-                             "Execution thread binding");
-    parsec_cmd_line_make_opt3(cmd_line, 'C', NULL, "parsec_bind_comm", 1,
-                             "Communication thread binding");
-    parsec_cmd_line_make_opt3(cmd_line, 'c', "cores", "cores", 1,
-                             "Number of cores to used");
-    parsec_cmd_line_make_opt3(cmd_line, 'g', "gpus", "gpus", 1,
-                             "Number of GPU to used (deprecated use MCA instead)");
-    parsec_cmd_line_make_opt3(cmd_line, 'V', "vpmap", "vpmap", 1,
-                             "Virtual process map");
-    parsec_cmd_line_make_opt3(cmd_line, 'H', "ht", "ht", 1,
-                             "Enable hyperthreading");
     parsec_mca_cmd_line_setup(cmd_line);
-
 
     if( (NULL != pargc) && (0 != *pargc) ) {
         ret = parsec_cmd_line_parse(cmd_line, true, *pargc, *pargv);
@@ -444,7 +416,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             fprintf(stderr, "%s: command line error (%d)\n", parsec_app_name, ret);
         }
     }
-
     ret = parsec_mca_cmd_line_process_args(cmd_line, &ctx_environ, &environ);
     if( ctx_environ != NULL ) {
         for(env_variable = ctx_environ;
@@ -463,6 +434,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         free(ctx_environ);
     }
 
+    /* direct command line overrides */
+    if( parsec_cmd_line_is_taken(cmd_line, "parsec-help") ) show_help = true;
+    if( parsec_cmd_line_is_taken(cmd_line, "parsec-version") ) show_version = true;
+
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
     int mpi_is_up;
     MPI_Initialized(&mpi_is_up);
@@ -477,49 +452,78 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_debug_init();
     mca_components_repository_init();
 
-    parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Warn when the runtime detects poorly performing binding configuration, check distributed binding iff the number of nodes is lower than the parameter (0 to silence all warnings)", false, false, slow_bind_warning, &slow_bind_warning);
+    parsec_mca_param_reg_int_name("runtime", "warn_slow_binding", "Warn when the runtime detects poorly performing binding "
+                                  "configuration, check distributed binding iff the number of nodes is lower than the parameter "
+                                  "(0 to silence all warnings)", false, false, parsec_slow_bind_warning, &parsec_slow_bind_warning);
 
 #if defined(PARSEC_HAVE_HWLOC)
     parsec_hwloc_init();
 #endif  /* defined(HWLOC) */
 
-    if( parsec_cmd_line_is_taken(cmd_line, "ht") ) {
-#if defined(PARSEC_HAVE_HWLOC)
-        int hyperth = 0;
-        GET_INT_ARGV(cmd_line, "ht", hyperth);
-        parsec_hwloc_allow_ht(hyperth);
-#else
-        if( 0 == parsec_debug_rank )
-            parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                           "Option ht (hyper-threading) is only supported when HWLOC is enabled at compile time.\n");
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
-    }
-
     /* Set a default the number of cores if not defined by parameters
      * - with hwloc if available
      * - with sysconf otherwise (hyperthreaded core number)
      */
-    parsec_mca_param_reg_int_name("runtime", "num_cores", "The total number of cores to be used by the runtime (-1 for all available)",
+    parsec_mca_param_reg_int_name("runtime", "num_cores", "The total number of cores to be used by the runtime (-1 for all available PU)",
                                  false, false, parsec_runtime_max_number_of_cores, &parsec_runtime_max_number_of_cores);
     if( nb_cores <= 0 ) {
         if( -1 == parsec_runtime_max_number_of_cores )
             nb_cores = parsec_hwloc_nb_real_cores();
-        else {
+        else
             nb_cores = parsec_runtime_max_number_of_cores;
-            if( parsec_runtime_max_number_of_cores > parsec_hwloc_nb_real_cores() ) {
-                if( slow_bind_warning )
-                    parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                                   "Requested binding %d threads, which is more than the physical number of cores %d.\n"
-                                   "\tOversubscribing cores is often slow. You should change the value of the `runtime_num_cores` parameter.\n",
-                                   parsec_runtime_max_number_of_cores, parsec_hwloc_nb_real_cores());
-            }
-        }
     }
-    parsec_mca_param_reg_int_name("runtime", "bind_main_thread", "Force the binding of the thread calling parsec_init",
-                                 false, false, parsec_runtime_bind_main_thread, &parsec_runtime_bind_main_thread);
+    if( nb_cores > parsec_hwloc_nb_real_cores() ) {
+        if( parsec_slow_bind_warning )
+            parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                           "Requested binding %d threads, which is more than the physical number of cores %d.\n"
+                           "\tOversubscribing cores is often slow. You should change the value of the `runtime_num_cores` parameter.\n",
+                           nb_cores, parsec_hwloc_nb_real_cores());
+    }
+    /* hyperthreads per core */
+    int hyperth = 1;
+    parsec_mca_param_reg_int_name("runtime", "hyperthread_per_core", "Allow up to <int> hyperthreads per physical core", false, false, hyperth, &hyperth);
+#if !defined(PARSEC_HAVE_HWLOC)
+    if( 0 == parsec_debug_rank )
+        parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
+                       "Option runtime_hyperthreads is not supported without HWLOC.\n");
+#endif  /* defined(PARSEC_HAVE_HWLOC) */
+    parsec_hwloc_allow_ht(hyperth);
+    /* Virtual Processes (vpmap) */
+    char *vpmap_parameter = NULL;
+    parsec_mca_param_reg_string_name("runtime", "vpmap",
+        "Select the virtual process map (default: flat map)\n"
+        "flat  -- Flat Map: all cores defined with -c are under the same virtual process\n"
+        "hwloc -- Hardware Locality based: threads up to -c are created and threads\n"
+        "         bound on cores that are under the same socket are also under the same\n"
+        "         virtual process\n"
+        "rr:n:p:c -- create n virtual processes per real process, each virtual process with p threads\n"
+        "            bound in a round-robin fashion on the number of cores c (overloads the -c flag)\n"
+        "file:filename -- uses filename to load the virtual process map. Each entry details a virtual\n"
+        "                 process mapping using the semantic  [mpi_rank]:nb_thread:binding  with:\n"
+        "                 - mpi_rank : the mpi process rank (in MPI_COMM_WORLD; empty if not relevant)\n"
+        "                 - nb_thread : the number of threads under the virtual process\n"
+        "                               (overloads the -c flag)\n"
+        "                 - binding : a set of cores for the thread binding. Accepted values are:\n"
+        "                   -- a core list          (exp: 1,3,5-6)\n"
+        "                   -- a hexadecimal mask   (exp: 0xff012)\n"
+        "                   -- a binding range expression: [start];[end];[step] \n"
+        "                      which defines a round-robin one thread per core distribution from start\n"
+        "                      (default 0) to end (default physical core number) by step (default 1)",
+        false, false, vpmap_parameter, &vpmap_parameter);
 
-    parsec_mca_param_reg_int_name("runtime", "bind_threads", "Bind main and worker threads", false, false,
+    /* thread binding */
+    parsec_mca_param_reg_int_name("bind", "main_thread", "Force the binding of the thread calling parsec_init",
+                                 false, false, parsec_runtime_bind_main_thread, &parsec_runtime_bind_main_thread);
+    parsec_mca_param_reg_int_name("bind", "threads", "Bind main and worker threads", false, false,
                                   parsec_runtime_bind_threads, &parsec_runtime_bind_threads);
+    parsec_mca_param_reg_int_name("bind", "comm", "Bind the communication thread to physical core <int>."
+                                                   "-1: do not bind."
+                                                   "Warning: binding relies on HWLOC, be careful when using with cgroups",
+                                     false, false, comm_binding_parameter, &comm_binding_parameter);
+    parsec_mca_param_reg_string_name("bind", "map", "Provide a map description of the binding.",
+                                     false, false, binding_parameter, &binding_parameter);
+
+
     /* MCA param for retaining the highest priority task to be executed on the
      * same core as the one that made the task active (aka at least one of the
      * data is expected to be in the cache).
@@ -527,84 +531,57 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_mca_param_reg_int_name("runtime", "keep_highest_priority_task", "Allow a compute thread to retain the highest priority task to be executed locally. This change makes the scheduling decision non-deterministic because some tasks will never be handled to the scheduler.", false, false,
                                   parsec_runtime_keep_highest_priority_task, &parsec_runtime_keep_highest_priority_task);
 
-    if( parsec_cmd_line_is_taken(cmd_line, "gpus") ) {
-        parsec_warning("Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.");
-    }
-
-    /* Allow the parsec_init arguments to overwrite all the previous behaviors */
-    GET_INT_ARGV(cmd_line, "cores", nb_cores);
-    GET_STR_ARGV(cmd_line, "parsec_bind_comm", comm_binding_parameter);
-    GET_STR_ARGV(cmd_line, "parsec_bind", binding_parameter);
-
     /*
      * Initialize the VPMAP, the discrete domains hosting
      * execution flows but where work stealing is prevented.
      */
-    {
+    if( NULL != vpmap_parameter ) {
         /* Change the vpmap choice: first cancel the previous one if any */
         vpmap_fini();
 
-        if( parsec_cmd_line_is_taken(cmd_line, "vpmap") ) {
-            char* optarg = NULL;
-            GET_STR_ARGV(cmd_line, "vpmap", optarg);
-            if(NULL == optarg) {
-                parsec_warning("VPMAP choice (-V argument): expected argument. Falling back to default!");
+        /* We accept a vpmap that starts with "display" as a mean to show the mapping */
+        if( !strncmp(vpmap_parameter, "display", 7 )) {
+            display_vpmap = 1;
+            if( ':' != vpmap_parameter[strlen("display")] ) {
+                parsec_warning("Display thread mapping requested but vpmap argument incorrect "
+                        "(must start with display: to print the mapping)");
             } else {
-                /* We accept a vpmap that starts with "display" as a mean to show the mapping */
-                if( !strncmp(optarg, "display", 7 )) {
-                    display_vpmap = 1;
-                    if( ':' != optarg[strlen("display")] ) {
-                        parsec_warning("Display thread mapping requested but vpmap argument incorrect "
-                                       "(must start with display: to print the mapping)");
-                    } else {
-                        optarg += strlen("display:");
-                    }
-                }
-                if( !strncmp(optarg, "flat", 4) ) {
-                    /* default case (handled in parsec_init) */
-                } else if( !strncmp(optarg, "hwloc", 5) ) {
-                    vpmap_init_from_hardware_affinity(nb_cores);
-                } else if( !strncmp(optarg, "file:", 5) ) {
-                    vpmap_init_from_file(optarg + 5);
-                } else if( !strncmp(optarg, "rr:", 3) ) {
-                    int n, p, co;
-                    if( sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co) == 3 ) {
-                        vpmap_init_from_parameters(n, p, co);
-                    } else {
-                        parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
-                    }
-                } else {
-                    parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
-                }
+                vpmap_parameter += strlen("display:");
             }
         }
-        nb_vp = vpmap_get_nb_vp();
-        if( -1 == nb_vp ) {
-            vpmap_init_from_flat(nb_cores);
-            nb_vp = vpmap_get_nb_vp();
+        if( !strncmp(vpmap_parameter, "flat", 4) ) {
+            /* default case (handled in parsec_init) */
+        } else if( !strncmp(vpmap_parameter, "hwloc", 5) ) {
+            vpmap_init_from_hardware_affinity(nb_cores);
+        } else if( !strncmp(vpmap_parameter, "file:", 5) ) {
+            vpmap_init_from_file(vpmap_parameter + 5);
+        } else if( !strncmp(vpmap_parameter, "rr:", 3) ) {
+            int n, p, co;
+            if( sscanf(vpmap_parameter, "rr:%d:%d:%d", &n, &p, &co) == 3 ) {
+                vpmap_init_from_parameters(n, p, co);
+            } else {
+                parsec_warning("VPMAP choice (--mca runtime_vpmap): %s is invalid. Falling back to default!", vpmap_parameter);
+            }
+        } else {
+            parsec_warning("VPMAP choice (--mca runtime_vpmap): %s is invalid. Falling back to default!", vpmap_parameter);
         }
     }
+    nb_vp = vpmap_get_nb_vp();
+    if( -1 == nb_vp ) {
+        vpmap_init_from_flat(nb_cores);
+        nb_vp = vpmap_get_nb_vp();
+    }
+    assert(nb_vp > 0);
+    /* end of vpmap init */
 
     parsec_hash_tables_init();
 
 #if defined(PARSEC_PROF_GRAPHER)
-    char *parsec_mca_enable_dot = parsec_enable_dot;
-    parsec_mca_param_reg_string_name("parsec", "dot", "Create a DOT file from the DAGs executed by parsec (one file per rank)",
-                                     false, false, parsec_mca_enable_dot, &parsec_mca_enable_dot);
-    if( NULL != parsec_mca_enable_dot ) {
-        asprintf(&parsec_enable_dot, "%s-%d.dot", parsec_mca_enable_dot, parsec_debug_rank);
-    }
-    if( parsec_cmd_line_is_taken(cmd_line, "dot") ) {
-        // command-line has priority over MCA parameter
-        char* optarg = NULL;
-        GET_STR_ARGV(cmd_line, "dot", optarg);
-
-        if( parsec_enable_dot ) free( parsec_enable_dot );
-        if( NULL == optarg ) {
-            asprintf(&parsec_enable_dot, "%s-%d.dot", parsec_app_name, parsec_debug_rank);
-        } else {
-            asprintf(&parsec_enable_dot, "%s-%d.dot", optarg, parsec_debug_rank);
-        }
+    char *dot_param = NULL;
+    parsec_mca_param_reg_string_name("profile", "dot", "Prefix for the DOT file name containing the DAGs executed by parsec (one file per rank)",
+                                     false, false, dot_param, &dot_param);
+    if( NULL != dot_param ) {
+        asprintf(&parsec_dot_file, "%s-%d.dot", dot_param, parsec_debug_rank);
     }
 #endif
 
@@ -639,7 +616,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     if( nb_cores != nb_total_comp_threads ) {
-        if( slow_bind_warning )
+        if( parsec_slow_bind_warning )
             parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
                            "Your vpmap uses %d threads when %d cores where available\n",
                            nb_total_comp_threads, nb_cores);
@@ -674,7 +651,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_mca_param_reg_sizet_name("arena", "max_used", "The maximum amount of memory each arena can"
                                    " allocate (default unlimited)",
                                    false, false, parsec_arena_max_allocated_memory, &parsec_arena_max_allocated_memory);
-    parsec_mca_param_reg_sizet_name("arena", "max_cached", "The maxmimum amount of memory each arena can"
+    parsec_mca_param_reg_sizet_name("arena", "max_cached", "The maximum amount of memory each arena can"
                                    " cache in a freelist (0=no caching)",
                                    false, false, parsec_arena_max_cached_memory, &parsec_arena_max_cached_memory);
 
@@ -781,8 +758,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     free(parsec_enable_profiling);
 
     /* Extract the expected thread placement */
-    if( NULL != comm_binding_parameter )
-        parsec_parse_comm_binding_parameter(comm_binding_parameter, context);
+    parsec_parse_comm_binding_parameter(comm_binding_parameter, context);
     parsec_parse_binding_parameter(binding_parameter, context, startup);
 
     /* Introduce communication engine */
@@ -798,8 +774,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
 #if defined(PARSEC_PROF_GRAPHER)
-    if(parsec_enable_dot) {
-        parsec_prof_grapher_init(context, parsec_enable_dot);
+    if(parsec_dot_file) {
+        parsec_prof_grapher_init(context, parsec_dot_file);
         slow_option_used = 1;
     }
 #endif  /* defined(PARSEC_PROF_GRAPHER) */
@@ -812,7 +788,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_debug_verbose(4, parsec_debug_output, "--- compiled with DEBUG_NOISIER, DEBUG_PARANOID, or DOT generation requested.");
     }
 
-    if(0 == parsec_debug_rank && parsec_debug_verbose >= 3) {
+    if(0 == parsec_debug_rank && (parsec_debug_verbose >= 3 || show_version)) {
         char version_info[4096];
         parsec_version_ex(4096, version_info);
         parsec_inform("== PaRSEC Runtime Compilation Configurations ===============================");
@@ -891,7 +867,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     if( display_vpmap )
         vpmap_display_map();
 
-    parsec_mca_param_reg_int_name("profile", "rusage", "Report 'getrusage' satistics.\n"
+    parsec_mca_param_reg_int_name("profile", "rusage", "Report 'getrusage' statistics.\n"
             "0: no report, 1: per process report, 2: per thread report (if available).\n",
             false, false, parsec_want_rusage, &parsec_want_rusage);
     parsec_rusage(false);
@@ -900,8 +876,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     parsec_termdet_init();
 
-    if( parsec_cmd_line_is_taken(cmd_line, "help") ||
-        parsec_cmd_line_is_taken(cmd_line, "h")) {
+    if( show_help ) {
         if( 0 == context->my_rank ) {
             char* help_msg = parsec_cmd_line_get_usage_msg(cmd_line);
             parsec_list_t* l = NULL;
@@ -919,7 +894,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     if( NULL != cmd_line )
         PARSEC_OBJ_RELEASE(cmd_line);
-
+#if defined(PARSEC_PROF_TRACE)
+    parsec_profiling_start();
+#endif
     return context;
 }
 
@@ -1165,7 +1142,6 @@ int parsec_fini( parsec_context_t** pcontext )
     if( __parsec_dtd_is_initialized ) {
         parsec_dtd_fini();
     }
-    //TODO: check that the list is empty in debug mode
     PARSEC_OBJ_RELEASE(context->taskpool_list);
     context->taskpool_list = NULL;
     nb_items = 0;
@@ -1239,11 +1215,16 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_mempool_stats(context);
 #endif  /* PARSEC_PROF_TRACE */
 
+    /* PAPI SDE needs to process the shutdown before resources exposed to it are freed.
+     * This includes scheduling resources, so SDE needs to be finalized before the 
+     * computation threads leave */
+    PARSEC_PAPI_SDE_FINI();
+
     (void) parsec_termdet_fini();
 
-    (void) parsec_remote_dep_fini(context);
+    (void)parsec_comm_engine_fini(&parsec_ce);
 
-    parsec_remove_scheduler( context );
+    parsec_remove_scheduler(context);
 
     parsec_data_fini(context);
 
@@ -1257,12 +1238,12 @@ int parsec_fini( parsec_context_t** pcontext )
         context->virtual_processes[p] = NULL;
     }
 
-    if(parsec_enable_dot) {
+    if(parsec_dot_file) {
 #if defined(PARSEC_PROF_GRAPHER)
         parsec_prof_grapher_fini();
 #endif  /* defined(PARSEC_PROF_GRAPHER) */
-        free(parsec_enable_dot);
-        parsec_enable_dot = NULL;
+        free(parsec_dot_file);
+        parsec_dot_file = NULL;
     }
     /* Destroy all resources allocated for the barrier */
     parsec_barrier_destroy( &(context->barrier) );
@@ -1274,8 +1255,6 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_hwloc_fini();
 #endif  /* PARSEC_HAVE_HWLOC_BITMAP */
-
-    PARSEC_PAPI_SDE_FINI();
 
     if (parsec_app_name != NULL ) {
         free(parsec_app_name);
@@ -1832,13 +1811,13 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 
         if( arg->action_mask & PARSEC_ACTION_SEND_INIT_REMOTE_DEPS ){
             struct remote_dep_output_param_s* output;
-            int _array_pos, _array_mask;
+            uint32_t _array_pos, _array_bit, _array_mask;
 
 #if !defined(PARSEC_DIST_COLLECTIVES)
             assert(src_rank == es->virtual_process->parsec_context->my_rank);
 #endif
-            _array_pos = dst_rank / (8 * sizeof(uint32_t));
-            _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
+            remote_dep_rank_to_bit(dst_rank, &_array_pos, &_array_bit, src_rank);
+            _array_mask = 1 << _array_bit;
             PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
             output = &arg->remote_deps->output[dep->dep_datatype_index];
             assert( (-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank) );
@@ -1926,6 +1905,10 @@ parsec_task_snprintf( char* str, size_t size,
 {
     const parsec_task_class_t* tc = task->task_class;
     unsigned int i, ip, index = 0, is_param;
+
+    if(NULL != tc->task_snprintf && parsec_task_snprintf != tc->task_snprintf) {
+        return tc->task_snprintf(str, size, task);
+    }
 
     index += snprintf( str + index, size - index, "%s(", tc->name );
     if( index >= size ) return str;
@@ -2227,47 +2210,8 @@ void parsec_usage(void)
 {
     parsec_output(0,"\n"
             "A PaRSEC argument sequence prefixed by \"--\" can end the command line\n\n"
-            "     --parsec_bind_comm   : define the core the communication thread will be bound on\n"
-            "\n"
-            "     Warning:: The binding options rely on HWLOC. The core numbering is defined between 0 and the number of cores.\n"
-            "     Be careful when used with cgroups.\n"
-            "\n"
-            "    --help         : this message\n"
-            "\n"
-            " -c --cores        : number of concurrent threads (default: number of physical hyper-threads)\n"
-            " -g --gpus         : number of GPU (default: 0)\n"
-            " -o --scheduler    : select the scheduler (default: LFQ)\n"
-            "                     Accepted values:\n"
-            "                       LFQ -- Local Flat Queues\n"
-            "                       GD  -- Global Dequeue\n"
-            "                       LHQ -- Local Hierarchical Queues\n"
-            "                       AP  -- Absolute Priorities\n"
-            "                       PBQ -- Priority Based Local Flat Queues\n"
-            "                       LTQ -- Local Tree Queues\n"
-            "\n"
-            "    --dot[=file]   : create a dot output file (default: don't)\n"
-            "\n"
-            "    --ht nbth      : enable a SMT/HyperThreadind binding using nbth hyper-thread per core.\n"
-            "                     This parameter must be declared before the virtual process distribution parameter\n"
-            " -V --vpmap        : select the virtual process map (default: flat map)\n"
-            "                     Accepted values:\n"
-            "                       flat  -- Flat Map: all cores defined with -c are under the same virtual process\n"
-            "                       hwloc -- Hardware Locality based: threads up to -c are created and threads\n"
-            "                                bound on cores that are under the same socket are also under the same\n"
-            "                                virtual process\n"
-            "                       rr:n:p:c -- create n virtual processes per real process, each virtual process with p threads\n"
-            "                                   bound in a round-robin fashion on the number of cores c (overloads the -c flag)\n"
-            "                       file:filename -- uses filename to load the virtual process map. Each entry details a virtual\n"
-            "                                        process mapping using the semantic  [mpi_rank]:nb_thread:binding  with:\n"
-            "                                        - mpi_rank : the mpi process rank (in MPI_COMM_WORLD; empty if not relevant)\n"
-            "                                        - nb_thread : the number of threads under the virtual process\n"
-            "                                                      (overloads the -c flag)\n"
-            "                                        - binding : a set of cores for the thread binding. Accepted values are:\n"
-            "                                          -- a core list          (exp: 1,3,5-6)\n"
-            "                                          -- a hexadecimal mask   (exp: 0xff012)\n"
-            "                                          -- a binding range expression: [start];[end];[step] \n"
-            "                                             which defines a round-robin one thread per core distribution from start\n"
-            "                                             (default 0) to end (default physical core number) by step (default 1)\n"
+            "    --parsec-help         : this message\n"
+            "    --parsec-version      : version details\n"
             "\n"
             );
 }
@@ -2275,7 +2219,7 @@ void parsec_usage(void)
 
 
 
-/* Parse --parsec_bind parameter (define a set of cores for the thread binding)
+/* Parse --mca bind_map parameter (define a set of cores for the thread binding)
  * The parameter can be
  * - a file containing the parameters (list, mask or expression) for each processes
  * - or a comma separated list of
@@ -2501,104 +2445,32 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
     (void)startup;
     if( 0 == parsec_debug_rank )
         parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                       "The binding defined by --parsec_bind has been ignored!\n"
+                       "The binding defined by --mca bind_map has been ignored!\n"
                        "\tThis option requires a build with HWLOC with bitmap support.");
     return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif /* PARSEC_HAVE_HWLOC && PARSEC_HAVE_HWLOC_BITMAP */
 }
 
-/**
- * @brief Check that the binding is correct. However, this operation is extremely expensive
- *        and highly unscalable so we should only do this operation when really necessary.
- * 
- * @param context 
- * @return int SUCCESS if the global bindings are OK, error otherwise.
- */
-int parsec_check_overlapping_binding(parsec_context_t *context)
+static int parsec_parse_comm_binding_parameter(int core, parsec_context_t* context)
 {
-#if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI) && defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
-    if( context->nb_nodes <= slow_bind_warning ) {
-        MPI_Comm comml = MPI_COMM_NULL; int i, nl = 0, rl = MPI_PROC_NULL;
-        MPI_Comm commw = (MPI_Comm)context->comm_ctx;
-        assert(-1 != context->comm_ctx);
-        MPI_Comm_split_type(commw, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &comml);
-        MPI_Comm_size(comml, &nl);
-        if( 1 < nl ) {
-            /* Hu-ho, double check that our binding is not conflicting with other
-             * local procs */
-            MPI_Comm_rank(comml, &rl);
-            char *myset = NULL, *allsets = NULL;
-
-            if( 0 != hwloc_bitmap_list_asprintf(&myset, context->cpuset_allowed_mask) ) {
-            }
-            int setlen = strlen(myset);
-            int *setlens = NULL;
-            if( 0 == rl ) {
-                setlens = calloc(nl, sizeof(int));
-            }
-            MPI_Gather(&setlen, 1, MPI_INT, setlens, 1, MPI_INT, 0, comml);
-
-            int *displs = NULL;
-            if( 0 == rl ) {
-                displs = calloc(nl, sizeof(int));
-                displs[0] = 0;
-                for( i = 1; i < nl; i++ ) {
-                    displs[i] = displs[i-1]+setlens[i-1];
-                }
-                allsets = calloc(displs[nl-1]+setlens[nl-1], sizeof(char));
-            }
-            MPI_Gatherv(myset, setlen, MPI_CHAR, allsets, setlens, displs, MPI_CHAR, 0, comml);
-            free(myset);
-
-            if( 0 == rl ) {
-                int notgood = false;
-                for( i = 1; i < nl; i++ ) {
-                    hwloc_bitmap_t other = hwloc_bitmap_alloc();
-                    hwloc_bitmap_list_sscanf(other, &allsets[displs[i]]);
-                    if(hwloc_bitmap_intersects(context->cpuset_allowed_mask, other)) {
-                        notgood = true;
-                    }
-                    hwloc_bitmap_free(other);
-                }
-                if( notgood ) {
-                    parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                                   "Multiple PaRSEC processes on the same node may share the same physical core(s);\n"
-                                    "\tThis is often unintentional, and will perform poorly.\n"
-                                   "\tNote that in managed environments (e.g., ALPS, jsrun), the launcher may set `cgroups`\n"
-                                   "\tand hide the real binding from PaRSEC; if you verified that the binding is correct,\n"
-                                   "\tthis message can be silenced using the MCA argument `runtime_warn_slow_binding`.\n");
-                }
-                free(setlens);
-                free(allsets);
-                free(displs);
-            }
-        }
+    if( core < 0 ) {
+        parsec_debug_verbose(20, parsec_debug_output, "default binding for the communication thread");
+        return PARSEC_SUCCESS;
     }
-    return PARSEC_SUCCESS;
-#else
-    (void)context;
-    return PARSEC_ERR_NOT_IMPLEMENTED;
-#endif
-}
-
-static int parsec_parse_comm_binding_parameter(const char* option, parsec_context_t* context)
-{
 #if defined(PARSEC_HAVE_HWLOC)
-    if( option[0]!='\0' ) {
-        int core = atoi(option);
-        if( (core > -1) && (core < parsec_hwloc_nb_real_cores()) )
-            context->comm_th_core = core;
-        else
-            parsec_warning("the binding defined by --parsec_bind_comm has been ignored (illegal core number)");
-    } else {
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "default binding for the communication thread");
+    if( core < parsec_hwloc_nb_real_cores()) {
+        parsec_debug_verbose(20, parsec_debug_output, "binding for the communication thread core %d", core);
+        context->comm_th_core = core;
+    }
+    else {
+        parsec_warning("the binding defined by --mca bind_comm has been ignored (illegal core number %d)", core);
     }
     return PARSEC_SUCCESS;
 #else
-    (void)option; (void)context;
+    (void)core; (void)context;
     if( 0 == parsec_debug_rank )
         parsec_warning("/!\\ PERFORMANCE MIGHT BE REDUCED /!\\: "
-                       "The binding defined by --parsec_bind_comm has been ignored!\n"
+                       "The binding defined by --mca bind_comm has been ignored!\n"
                        "\tThis option requires a build with HWLOC with bitmap support.");
     return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif  /* PARSEC_HAVE_HWLOC */
@@ -2887,3 +2759,50 @@ void parsec_set_my_execution_stream(parsec_execution_stream_t *es)
 {
     PARSEC_TLS_SET_SPECIFIC(parsec_tls_execution_stream, es);
 }
+
+
+/**
+ * Query the number of devices of the requested type available in the
+ * PaRSEC context.
+ */
+int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t cmd, ...)
+{
+    parsec_device_module_t* dev;
+    va_list args;
+    va_start(args, cmd);
+
+    switch(cmd) {
+        case PARSEC_CONTEXT_QUERY_NODES:
+            switch (parsec_communication_engine_up) {
+                case 0: return 0;  /* context not ready for distributed runs, and lacking datatype chandling capabilities */
+                case 1: return 1;  /* single node runs, but the context has datatype management capabilties */
+                case 2: return PARSEC_ERR_NOT_FOUND; /* we are in a distributed run, but the MPI engine is not yet ready, so the nb_nodes might not be accurate */
+                case 3: return context->nb_nodes;
+            }
+            return PARSEC_ERROR;
+
+        case PARSEC_CONTEXT_QUERY_RANK:
+            return context->my_rank;
+
+        case PARSEC_CONTEXT_QUERY_DEVICES:
+            int device_type = va_arg(args, int), count = 0;
+            for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
+                dev = parsec_mca_device_get(i);
+                if( dev->type & device_type ) count++;
+            }
+            return count;
+
+        case PARSEC_CONTEXT_QUERY_CORES:
+            int nb_total_comp_threads = 0;
+            for (int idx = 0; idx < context->nb_vp; idx++) {
+                nb_total_comp_threads += context->virtual_processes[idx]->nb_cores;
+            }
+            return nb_total_comp_threads;
+
+        case PARSEC_CONTEXT_QUERY_ACTIVE_TASKPOOLS:
+            return context->active_taskpools;
+        /* no default */
+    }
+    return PARSEC_ERR_NOT_SUPPORTED;  /* unknown command */
+}
+

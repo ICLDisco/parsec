@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2018-2020 The University of Tennessee and The University
+# Copyright (c) 2018-2023 The University of Tennessee and The University
 #                         of Tennessee Research Foundation.  All rights
 #                         reserved.
 
@@ -323,13 +323,16 @@ done
 }
 
 function set_python_venv {
+    echo -n "Creating Python venv..."
     if ${PYTHON_EXECUTABLE:-python3} -m venv -h >/dev/null; then
-        ${PYTHON_EXECUTABLE:-python3} -m venv venv
+      mkdir -p venv
+      ${PYTHON_EXECUTABLE:-python3} -m venv venv --upgrade-deps 2>&1 >venv/config.log || (cat >&2 venv/config.log && exit 3)
         source venv/bin/activate
-        pip install Cython pandas matplotlib tables
+        python -m pip install --require-virtualenv Cython pandas matplotlib tables networkx wheel 2>&1 >>venv/config.log || (cat >&2 venv/config.log && exit 3)
     else
         echo >&2 "Could not prepare a Python venv because \`-m venv\` is not supported by the selected python..." && exit 3
     fi
+    echo " done"
 }
 
 #

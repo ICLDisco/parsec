@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
  */
 
 
@@ -39,16 +40,16 @@ typedef struct  parsec_base_future_t             parsec_base_future_t;
 typedef struct  parsec_future_fn_t               parsec_future_fn_t;
 
 /* Callback routines types */
-typedef void  (*parsec_future_cb_fulfill)       ();
-typedef void  (*parsec_future_cb_nested)        ();
-typedef int   (*parsec_future_cb_match)         ();
-typedef void  (*parsec_future_cb_cleanup)       ();
+typedef void  (*parsec_future_cb_fulfill)       (parsec_base_future_t*, ...);
+typedef void  (*parsec_future_cb_nested)        (parsec_base_future_t**, ...);
+typedef int   (*parsec_future_cb_match)         (parsec_base_future_t*, ...);
+typedef void  (*parsec_future_cb_cleanup)       (parsec_base_future_t*, ...);
 
-typedef int   (*parsec_future_is_ready_t)       (parsec_base_future_t *);
-typedef void* (*parsec_future_get_or_trigger_t) ();
-typedef void  (*parsec_future_set_t)            (parsec_base_future_t *, void*);
-typedef void* (*parsec_future_get_t)            (parsec_base_future_t *);
-typedef void  (*parsec_future_init_t)           ();
+typedef int   (*parsec_future_is_ready_t)       (parsec_base_future_t*);
+typedef void* (*parsec_future_get_or_trigger_t) (parsec_base_future_t*, ...);
+typedef void  (*parsec_future_set_t)            (parsec_base_future_t*, void*);
+typedef void* (*parsec_future_get_t)            (parsec_base_future_t*);
+typedef void  (*parsec_future_init_t)           (parsec_base_future_t*, parsec_future_cb_fulfill, ...);
 
 #define PARSEC_DATA_FUTURE_STATUS_INIT      ((uint8_t)0x01) /* Future has been initialized. */
 #define PARSEC_DATA_FUTURE_STATUS_TRIGGERED ((uint8_t)0x02) /* Future has been triggered. */
@@ -95,7 +96,7 @@ typedef struct parsec_datacopy_future_t {
     void                             *cb_fulfill_data_in;  /**< a pointer to hold the data the callback function may need */
     parsec_future_cb_match            cb_match;            /**< callback function to check if target data matches */
     void                             *cb_match_data_in;    /**< callback arguments to pass to the callback to check
-                                                                if the target daata of this future matches */
+                                                                if the target data of this future matches */
     parsec_future_cb_cleanup          cb_cleanup;          /**< callback function for cleanup */
     parsec_list_t                    *nested_futures;      /**< a pointer to the list of nested futures this future tracks */
     int                               nested_enable;       /**< flag to indicate whether or not this future can have nested futures */

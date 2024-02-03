@@ -1,16 +1,10 @@
-/**
- * Copyright (c) 2019-2020 The University of Tennessee and The University
- *                         of Tennessee Research Foundation.  All rights
- *                         reserved.
- */
-
 #include "parsec.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data_dist/matrix/matrix.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-#include "nvlink.h"
-#include "nvlink_wrapper.h"
+#include "stress.h"
+#include "stress_wrapper.h"
 
 #if defined(DISTRIBUTED)
 #include <mpi.h>
@@ -31,10 +25,10 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif /* DISTRIBUTED */
-    
+
     parsec = parsec_init(-1, &argc, &argv);
 
-    tp = testing_nvlink_New(parsec, 10, 512);
+    tp = testing_stress_New(parsec, 4000, 1024);
     if( NULL != tp ) {
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);

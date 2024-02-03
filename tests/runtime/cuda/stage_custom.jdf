@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2021 The University of Tennessee and The University
+ * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,10 +16,10 @@ extern "C" %{
 #include <stdarg.h>
 #include <sys/time.h>
 #include <mpi.h>
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/mca/device/cuda/device_cuda_internal.h"
 #include <cublas.h>
-#endif  /* defined(PARSEC_HAVE_CUDA) */
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 
 #include "stage_custom.h"
 
@@ -113,6 +113,9 @@ typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                  double *d_B, int ldb,
                                  double beta,  double *d_C, int ldc );
 
+/* Pre-declare function used as a property of some parameterized task */
+static int64_t gemm_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev);
+
 %}
 
 %option no_taskpool_instance = true  /* can be anything */
@@ -129,7 +132,7 @@ OUT    [type = "int*"]
 /**************************************************
  *                       TASK_GPU                 *
  **************************************************/
-TASK_GPU(m, k)
+TASK_GPU(m, k) [ time_estimate = gemm_time_estimate ]
 
 
 m = 0 .. descA->mt-1
@@ -165,7 +168,7 @@ END
 /**************************************************
  *                TASK_GPU_CUSTOM_STAGE                 *
  **************************************************/
-TASK_GPU_CUSTOM_STAGE(m, k)
+TASK_GPU_CUSTOM_STAGE(m, k) [ time_estimate = gemm_time_estimate ]
 
 
 m = 0 .. descB->mt-1
@@ -237,6 +240,14 @@ END
 
 
 extern "C" %{
+
+static int64_t gemm_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev)
+{
+  const parsec_stage_custom_taskpool_t *tp = (parsec_stage_custom_taskpool_t *)task->taskpool;
+  int64_t mb = ((parsec_tiled_matrix_t*)tp->_g_descA)->mb;
+  int64_t flops = 2 * mb * mb * mb;
+  return flops / dev->gflops_fp64;
+}
 
 parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N, int MB, int NB, int P, int *ret)
 {

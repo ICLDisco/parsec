@@ -13,93 +13,74 @@ if( NOT Python_Development_FOUND )
   return()
 endif( NOT Python_Development_FOUND )
 
-# Python support for profiling (requires Cython 0.21.2)
+# Python support for profiling requires
+# - Cython 0.21.2
+# - pandas
+# the latter can be installed AFTER building parsec tools, but since PaRSEC Python module is not usable without it,
+# do not build it without pandas
 find_package(Cython 0.21.2)
 if( NOT CYTHON_EXECUTABLE )
   message(WARNING "Cython > 0.21.2 not found. Disabling the profiling tools")
   set(PARSEC_PYTHON_TOOLS OFF CACHE BOOL "True iff Python tools are enabled in PaRSEC")
   return()
 endif( NOT CYTHON_EXECUTABLE )
+execute_process(
+        COMMAND ${Python_EXECUTABLE} -c "import pandas"
+        RESULT_VARIABLE PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO
+        OUTPUT_QUIET
+)
+if ( NOT PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO STREQUAL 0 )
+  message(WARNING "Prerequisite Python modules (pandas) not found. Disabling the profiling tools")
+  set(PARSEC_PYTHON_TOOLS OFF CACHE BOOL "True iff Python tools are enabled in PaRSEC")
+  return()
+endif ( NOT PARSEC_PYTHON_CAN_LOAD_PREREQUISITE_MODULES_IF_THIS_IS_ZERO STREQUAL 0 )
 
-set(SRC_PYTHON_SUPPORT ${CMAKE_CURRENT_SOURCE_DIR}/common_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_SOURCE_DIR}/ptt_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/profile2h5.py)
-set(SETUP_PY setup.py)
+set(SRC_PYTHON_SUPPORT ${CMAKE_CURRENT_SOURCE_DIR}/common_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/parsec_trace_tables.py ${CMAKE_CURRENT_SOURCE_DIR}/ptt_utils.py ${CMAKE_CURRENT_SOURCE_DIR}/profile2h5.py ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd)
 
-set(PYTHON_TOOLS_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR})
-set(OUTPUT ${PYTHON_TOOLS_BIN_DIR}/build/timestamp)
+set(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build/pbt2ptt.timestamp)
 
-if(Python_VERSION_MAJOR GREATER 2)
-  # If we are using python 3.x we need to convert our scripts from
-  # python 2 to python 3. Look for the 2to3 helper script
-  get_filename_component(PYTHON_EXE_DIR ${Python_EXECUTABLE} PATH)
-  find_program(PYTHON_2TO3_EXECUTABLE
-               NAMES 2to3 2to3-${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}
-               HINTS ${PYTHON_EXE_DIR})
-
-  if(NOT PYTHON_2TO3_EXECUTABLE)
-    message(WARNING "2to3 python utility not found. The profiling scripts will not be converted for use with selected Python version ${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}")
-  else()
-    # We need to be careful not to overwrite the upstream files if we are building in place.
-    # create copies of all needed files into a temporary directory.
-    if( PARSEC_BUILD_INPLACE )
-      set(PYTHON_TOOLS_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/2to3)
-      set(OUTPUT ${PYTHON_TOOLS_BIN_DIR}/build/timestamp)
-    endif( PARSEC_BUILD_INPLACE )
-    add_custom_command(OUTPUT ${OUTPUT}
-                       COMMAND ${PYTHON_2TO3_EXECUTABLE} --no-diffs -W -n ${CMAKE_CURRENT_SOURCE_DIR}/examples -o ${PYTHON_TOOLS_BIN_DIR}/examples
-                       WORKING_DIRECTORY ${PYTHON_TOOLS_BIN_DIR})
-    # Convert the python module supporting files of necessary
-    add_custom_command(OUTPUT ${OUTPUT}
-                       COMMAND ${PYTHON_2TO3_EXECUTABLE} --no-diffs -W -n ${SRC_PYTHON_SUPPORT} -o ${PYTHON_TOOLS_BIN_DIR}
-                       DEPENDS ${SRC_PYTHON_SUPPORT}
-                       APPEND)
-  endif(NOT PYTHON_2TO3_EXECUTABLE)
-else(Python_VERSION_MAJOR GREATER 2)
-    # Copy the python module supporting files
-    add_custom_command(OUTPUT ${OUTPUT}
-                       COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC_PYTHON_SUPPORT} ${PYTHON_TOOLS_BIN_DIR}
-                       DEPENDS ${SRC_PYTHON_SUPPORT})
-endif(Python_VERSION_MAJOR GREATER 2)
+if(Python_VERSION_MAJOR EQUAL 2)
+  # We do not support python 2 anymore. If you really need it you can go back
+  # to an older version of parsec
+  message(WARNING "The profiling scripts will not be installed for use with selected Python version ${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}. Update to python3.")
+endif(Python_VERSION_MAJOR EQUAL 2)
 
 # Always generate the setup.py first, to include it in the 2to3 conversion
 # if necessary
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${SETUP_PY}.in
-               ${PYTHON_TOOLS_BIN_DIR}/${SETUP_PY} @ONLY )
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in
+               ${CMAKE_CURRENT_BINARY_DIR}/setup.py @ONLY )
 
-# Start preparing the python building target
+# Move the files into the build directory (to prevent the pollution of the source directory
+# due to cython compilation) and compile the python module
+# Also fake a local installation of the python module to be able to use it
+# for testing purposes. With this we can simply set the PYTHONPATH to the correct
+# location and import the pbt2ptt module.
 add_custom_command(OUTPUT ${OUTPUT}
-                   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd ${PYTHON_TOOLS_BIN_DIR}
-                   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx ${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd
-                   APPEND)
-
-# and compile the python module
-add_custom_command(OUTPUT ${OUTPUT}
-                   COMMAND ${Python_EXECUTABLE} ${SETUP_PY} build --quiet
+                   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SRC_PYTHON_SUPPORT} ${CMAKE_CURRENT_BINARY_DIR}
+                   COMMAND ${Python_EXECUTABLE} -m pip install --quiet --upgrade --target=${CMAKE_CURRENT_BINARY_DIR}/python.test .
                    COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
-                   DEPENDS parsec-base
-                   APPEND)
+                   DEPENDS parsec-base ${SRC_PYTHON_SUPPORT})
 add_custom_target(pbt2ptt ALL DEPENDS ${OUTPUT})
 
 # Call python distutils to install all python support in the right location
 # (aka. according to the OS demands). Prepare to reconfigure the shell
 # helper scripts to point to the right location
-install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} ${SETUP_PY} install --skip-build --prefix=\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}
-        WORKING_DIRECTORY ${PYTHON_TOOLS_BIN_DIR})")
+install(CODE "execute_process(COMMAND ${Python_EXECUTABLE} -m pip install --quiet --prefix=\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX} .
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
 
 # Create bash environment PaRSEC python support
 configure_file(utilities/bash.env.in
-               ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.sh @ONLY )
+               ${CMAKE_CURRENT_BINARY_DIR}/utilities/parsec.env.sh @ONLY )
 # Create csh and friends environment PaRSEC python support
 configure_file(utilities/csh.env.in
-               ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.csh @ONLY )
-install( FILES ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.sh ${PYTHON_TOOLS_BIN_DIR}/utilities/parsec.env.csh
+               ${CMAKE_CURRENT_BINARY_DIR}/utilities/parsec.env.csh @ONLY )
+install( FILES ${CMAKE_CURRENT_BINARY_DIR}/utilities/parsec.env.sh ${CMAKE_CURRENT_BINARY_DIR}/utilities/parsec.env.csh
          DESTINATION ${PARSEC_INSTALL_BINDIR}
          PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
-# Install the files from the binary directory after being translated
-# by the 2to3 tool.
-file(GLOB pyfiles RELATIVE ${PYTHON_TOOLS_BIN_DIR} "examples/*.py" "profile2h5.py")
+file(GLOB pyfiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "examples/*.py" "profile2h5.py")
 foreach(file ${pyfiles})
-  install( FILES ${PYTHON_TOOLS_BIN_DIR}/${file}
+  install( FILES ${CMAKE_CURRENT_SOURCE_DIR}/${file}
            DESTINATION ${PARSEC_INSTALL_LIBEXECDIR}/parsec
            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
   get_filename_component(filenoext "${file}" NAME_WE)

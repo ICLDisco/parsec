@@ -1,17 +1,29 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 /* PaRSEC Performance Instrumentation Callback System */
 #include "parsec/parsec_config.h"
+#include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 #include "parsec/mca/pins/pins.h"
 #include "parsec/constants.h"
 #include "parsec/utils/debug.h"
 #include "parsec/execution_stream.h"
+
+/**
+ * Mask for PINS events that are enabled by default.
+ * Note that we only use BEGIN events here,
+ * END events map to the same mask element.
+ * We do not enable BEGIN and END events separately.
+ */
+uint64_t parsec_pins_enable_mask = PARSEC_PINS_FLAG_MASK(RELEASE_DEPS_BEGIN)
+                                 | PARSEC_PINS_FLAG_MASK(EXEC_BEGIN);
+
+const char *parsec_pins_enable_default_names = "release_deps,exec_begin";
 
 static int registration_disabled;
 
@@ -96,4 +108,32 @@ int parsec_pins_unregister_callback(struct parsec_execution_stream_s* es,
     *cb_data = cb_event->cb_data;
     *cb_event = **cb_data;
     return PARSEC_SUCCESS;
+}
+
+PARSEC_PINS_FLAG parsec_pins_name_to_begin_flag(const char *name)
+{
+    PARSEC_PINS_FLAG val = PARSEC_PINS_FLAG_COUNT;
+    if (0 == strncasecmp(name, "select", 6)) {
+        val = SELECT_BEGIN;
+    } else if (0 == strncasecmp(name, "prepare_input", 13)) {
+        val = PREPARE_INPUT_BEGIN;
+    } else if (0 == strncasecmp(name, "release_deps", 12)) {
+        val = RELEASE_DEPS_BEGIN;
+    } else if (0 == strncasecmp(name, "activate_cb", 11)) {
+        val = ACTIVATE_CB_BEGIN;
+    } else if (0 == strncasecmp(name, "data_flush", 10)) {
+        val = DATA_FLUSH_BEGIN;
+    } else if (0 == strncasecmp(name, "exec", 4)) {
+        val = EXEC_BEGIN;
+    } else if (0 == strncasecmp(name, "complete_exec", 13)) {
+        val = COMPLETE_EXEC_BEGIN;
+    } else if (0 == strncasecmp(name, "schedule", 8)) {
+        val = SCHEDULE_BEGIN;
+    }
+
+    if (val == PARSEC_PINS_FLAG_COUNT) {
+        parsec_warning("Unknown PINS task profiler event: %s\n", name);
+    }
+
+    return val;
 }

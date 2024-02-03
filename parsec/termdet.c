@@ -26,7 +26,7 @@ static int string_key_equal(parsec_key_t a, parsec_key_t b, void *user_data)
     char *stra = (char*)a;
     char *strb = (char*)b;
     (void)user_data;
-    return strcmp(stra, strb);
+    return !strcmp(stra, strb);
 }
 
 static char *string_key_print(char *buffer, size_t buffer_size, parsec_key_t k, void *user_data)
@@ -85,8 +85,8 @@ int parsec_termdet_open_module(parsec_taskpool_t *tp, char *name)
         omod->module = mca_component_query(omod->component);
         if(NULL == omod->module) {
             free(omod->name);
-            free(omod);
             mca_component_close(omod->component);
+            free(omod);
             parsec_fatal("Component of name '%s' of type termdet exists, but could not load (query failed)",
                          name);
             parsec_hash_table_unlock_bucket(&parsec_termdet_opened_modules, (parsec_key_t)name);

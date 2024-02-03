@@ -11,7 +11,7 @@
 #include "parsec/class/parsec_object.h"
 #include "parsec/mca/device/device.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/class/list_item.h"
 #include "parsec/class/list.h"
 #include "parsec/class/fifo.h"
@@ -51,7 +51,7 @@ PARSEC_OBJ_CLASS_DECLARATION(parsec_device_cuda_module_t);
 
 struct parsec_cuda_exec_stream_s {
     parsec_gpu_exec_stream_t super;
-    /* There is exactly one task per active event (max_events being the uppoer bound).
+    /* There is exactly one task per active event (max_events being the upper bound).
      * Upon event completion the complete_stage function associated with the task is
      * called, and this will decide what is going on next with the task. If the task
      * remains in the system the function is supposed to update it.
@@ -65,8 +65,6 @@ struct parsec_cuda_exec_stream_s {
  */
 typedef parsec_data_copy_t parsec_gpu_data_copy_t;
 
-END_C_DECLS
-
 #define PARSEC_CUDA_CHECK_ERROR( STR, ERROR, CODE )                     \
     do {                                                                \
         cudaError_t __cuda_error = (cudaError_t) (ERROR);               \
@@ -77,50 +75,8 @@ END_C_DECLS
         }                                                               \
     } while(0)
 
-/**
-* Progress
-*/
-/**
- * This version is based on 4 streams: one for transfers from the memory to
- * the GPU, 2 for kernel executions and one for transfers from the GPU into
- * the main memory. The synchronization on each stream is based on GPU events,
- * such an event indicate that a specific epoch of the lifetime of a task has
- * been completed. Each type of stream (in, exec and out) has a pending FIFO,
- * where tasks ready to jump to the respective step are waiting.
- */
-parsec_hook_return_t
-parsec_cuda_kernel_scheduler( parsec_execution_stream_t *es,
-                              parsec_gpu_task_t    *gpu_task,
-                              int which_gpu );
+END_C_DECLS
 
-/* Default stage_in function to transfer data to the GPU device.
- * Transfer transfer the <count> contiguous bytes from
- * task->data[i].data_in to task->data[i].data_out.
- *
- * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
- * @param[in] flow_mask indicating task flows for which to transfer.
- * @param[in] gpu_stream parsec_gpu_exec_stream_t used for the transfer.
- *
- */
-int
-parsec_default_cuda_stage_in(parsec_gpu_task_t        *gtask,
-                             uint32_t                  flow_mask,
-                             parsec_gpu_exec_stream_t *gpu_stream);
-
-/* Default stage_out function to transfer data from the GPU device.
- * Transfer transfer the <count> contiguous bytes from
- * task->data[i].data_in to task->data[i].data_out.
- *
- * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
- * @param[in] flow_mask indicating task flows for which to transfer.
- * @param[in] gpu_stream parsec_gpu_exec_stream_t used for the transfer.
- *
- */
-int
-parsec_default_cuda_stage_out(parsec_gpu_task_t        *gtask,
-                              uint32_t                  flow_mask,
-                              parsec_gpu_exec_stream_t *gpu_stream);
-
-#endif /* defined(PARSEC_HAVE_CUDA) */
+#endif /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 
 #endif  /* PARSEC_DEVICE_CUDA_H_HAS_BEEN_INCLUDED */

@@ -21,7 +21,7 @@ typedef enum {
  * To avoid runtime conflicts, the AM tags must be manually reserved
  * in the section below.
  */
-#define PARSEC_MAX_REGISTERED_TAGS  32
+#define PARSEC_MAX_REGISTERED_TAGS  12
 
 /* Internal TAG for GET and PUT activation message,
  * for two sides to agree on a "TAG" to post Irecv and Isend on
@@ -34,6 +34,8 @@ typedef enum {
     PARSEC_CE_REMOTE_DEP_PUT_END_TAG,
     PARSEC_TERMDET_FOURCOUNTER_MSG_TAG,
     PARSEC_TERMDET_USER_TRIGGER_MSG_TAG,
+    PARSEC_DSL_TTG_TAG,
+    PARSEC_DSL_TTG_RMA_TAG,
     PARSEC_CE_REMOTE_DEP_MAX_CTRL_TAG
 } parsec_remote_dep_tag_t;
 
@@ -120,6 +122,19 @@ typedef int (*parsec_ce_progress_fn_t)(parsec_comm_engine_t *comm_engine);
 typedef int (*parsec_ce_enable_fn_t)(parsec_comm_engine_t *comm_engine);
 typedef int (*parsec_ce_disable_fn_t)(parsec_comm_engine_t *comm_engine);
 
+/**
+ * @brief Change the underlying group of processes for the communication engine. For
+ * MPI this means changing the underlying communicator, and thus the number of nodes
+ * and the rank of each process into the new group. 
+ */
+typedef int (*parsec_ce_set_ctx_fn_t)(parsec_comm_engine_t *comm_engine, intptr_t ctx);
+/**
+ * @brief Release all the resources associated with this communication engine. Once this
+ * function returns the communication engine is completely reinitialized, and has
+ * released all its internal resources.
+ */
+typedef int (*parsec_ce_fini_fn_t)(parsec_comm_engine_t *comm_engine);
+
 typedef int (*parsec_ce_pack_fn_t)(parsec_comm_engine_t *ce,
                                    void *inbuf, int incount, parsec_datatype_t type,
                                    void *outbuf, int outsize,
@@ -161,6 +176,10 @@ struct parsec_comm_engine_capabilites_s {
 struct parsec_comm_engine_s {
     parsec_context_t                      *parsec_context;
     parsec_comm_engine_capabilites_t       capabilites;
+    parsec_ce_enable_fn_t                  enable;
+    parsec_ce_disable_fn_t                 disable;
+    parsec_ce_set_ctx_fn_t                 set_ctx;
+    parsec_ce_fini_fn_t                    fini;
     parsec_ce_tag_register_fn_t            tag_register;
     parsec_ce_tag_unregister_fn_t          tag_unregister;
     parsec_ce_mem_register_fn_t            mem_register;
@@ -170,8 +189,6 @@ struct parsec_comm_engine_s {
     parsec_ce_put_fn_t                     put;
     parsec_ce_get_fn_t                     get;
     parsec_ce_progress_fn_t                progress;
-    parsec_ce_enable_fn_t                  enable;
-    parsec_ce_disable_fn_t                 disable;
     parsec_ce_pack_fn_t                    pack;
     parsec_ce_pack_size_fn_t               pack_size;
     parsec_ce_unpack_fn_t                  unpack;

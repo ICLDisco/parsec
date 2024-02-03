@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021      The University of Tennessee and The University
+ * Copyright (c) 2021-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -77,34 +77,42 @@ typedef int (parsec_stage_out_function_t)(parsec_gpu_task_t        *gtask,
                                           parsec_gpu_exec_stream_t *gpu_stream);
 
 struct parsec_gpu_task_s {
-    parsec_list_item_t               list_item;
-    int                              task_type;
-    int32_t                          pushout;
-    parsec_advance_task_function_t   submit;
-    parsec_complete_stage_function_t complete_stage;
-    parsec_stage_in_function_t      *stage_in;
-    parsec_stage_out_function_t     *stage_out;
+    parsec_list_item_t                list_item;
+    uint16_t                          task_type;
+    uint16_t                          pushout;
+    int32_t                           last_status;
+    parsec_advance_task_function_t    submit;
+    parsec_complete_stage_function_t  complete_stage;
+    parsec_stage_in_function_t       *stage_in;
+    parsec_stage_out_function_t      *stage_out;
 #if defined(PARSEC_PROF_TRACE)
-    int                              prof_key_end;
-    uint64_t                         prof_event_id;
-    uint32_t                         prof_tp_id;
+    int                               prof_key_end;
+    uint64_t                          prof_event_id;
+    uint32_t                          prof_tp_id;
 #endif
     union {
         struct {
-            parsec_task_t           *ec;
-            uint64_t                 last_data_check_epoch;
-            double                   load;  /* computational load imposed on the device */
-            const parsec_flow_t     *flow[MAX_PARAM_COUNT];
-            uint32_t                 flow_nb_elts[MAX_PARAM_COUNT]; /* for each flow, size of the data to be allocated
-                                                                     * on the GPU.
-                                                                     */
+            parsec_task_t            *ec;
+            uint64_t                  last_data_check_epoch;
+            uint64_t                  load;  /* computational load imposed on the device */
+            /* These should be set by the DSL */
+            const parsec_flow_t      *flow[MAX_PARAM_COUNT];  /* There is no consistent way to access the flows from the task_class,
+                                                               * so the DSL need to provide these flows here.
+                                                               */
+            size_t                    flow_nb_elts[MAX_PARAM_COUNT]; /* for each flow, size of the data to be allocated
+                                                                      * on the GPU.
+                                                                      */
             parsec_data_collection_t *flow_dc[MAX_PARAM_COUNT];     /* for each flow, data collection from which the data
-                                                                     * to be transfered logically belongs to.
+                                                                     * to be transferred logically belongs to.
                                                                      * This gives the user the chance to indicate on the JDF
                                                                      * a data collection to inspect during GPU transfer.
                                                                      * User may want info from the DC (e.g. mtype),
                                                                      * & otherwise remote copies don't have any info.
                                                                      */
+            /* These are private and should not be used outside the device driver */
+            parsec_data_copy_t       *sources[MAX_PARAM_COUNT];  /* If the driver decides to acquire the data from a different
+                                                                  * source, it will temporary store the best candidate here.
+                                                                  */
         };
         struct {
             parsec_data_copy_t        *copy;
@@ -112,8 +120,106 @@ struct parsec_gpu_task_s {
     };
 };
 
+typedef enum parsec_device_transfer_direction_e {
+    parsec_device_gpu_transfer_direction_h2d,
+    parsec_device_gpu_transfer_direction_d2h,
+    parsec_device_gpu_transfer_direction_d2d
+} parsec_device_transfer_direction_t;
+
+/**
+ * @brief Set the device for the calling thread.
+ * 
+ * @details typically maps to cudaSetDevice or equivalent
+ * 
+ * @return PARSEC_SUCCESS or a PARSEC error
+ */
+typedef int (*parsec_device_set_device_fn_t)(struct parsec_device_gpu_module_s *gpu);
+
+/**
+ * @brief Schedules the asynchronous copy of @p bytes bytes from @p source onto @p dest
+ *    on the GPU stream of @p gpu_stream. @p direction must reflect the memory space of 
+ *    @p source and @p dest.
+ * 
+ * @details typically maps to cudaMemcpyAsync or equivalent
+ * 
+ * @return PARSEC_SUCCESS or a PARSEC error
+ */
+typedef int (*parsec_device_memcpy_async_fn_t)(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream,
+                                                   void *dest, void *source, size_t bytes, parsec_device_transfer_direction_t direction);
+
+/**
+ * @brief Record an event on the GPU @p gpu_stream of GPU @p gpu, with index @p idx.
+ * 
+ * @details typically maps to cudaRecordEvent or equivalent. The GPU device must have allocated
+ *    @p gpu_stream->super.max_events previously (@p 0 <= event_idx < gpu_stream->super.max_events). 
+ * 
+ * @return PARSEC_SUCCESS or a PARSEC error
+ */
+typedef int (*parsec_device_event_record_fn_t)(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream, int32_t event_idx);
+
+/**
+ * @brief Record an event on the GPU @p gpu_stream of GPU @p gpu, with index @p idx.
+ * 
+ * @details typically maps to cudaRecordEvent or equivalent. The GPU device must have allocated
+ *    @p gpu_stream->super.max_events previously (@p 0 <= event_idx < gpu_stream->super.max_events). 
+ * 
+ * @return 0 if the event recorded at @p event_idx in @p gpu_stream is not ready yet
+ *         1 if the event recorded at @p event_idx in @p gpu_stream is ready/completed
+ *         a negative value which is a PARSEC error otherwise
+ */
+typedef int (*parsec_device_event_query_fn_t)(struct parsec_device_gpu_module_s *gpu, struct parsec_gpu_exec_stream_s *gpu_stream, int32_t event_idx);
+
+/**
+ * @brief Computes how much memory is available on the GPU. Returns two values:
+ *   @p free_mem is the amount of memory available for this process
+ *   @p total_mem is the amount of memory on the device (including memory allocated by other processes)
+ * 
+ * @details typically maps to cudaMemGetInfo or equivalent. 
+ * 
+ * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise (in which case the parameters are undefined)
+ */
+typedef int (*parsec_device_memory_info_fn_t)(struct parsec_device_gpu_module_s *gpu, size_t *free_mem, size_t *total_mem);
+
+/**
+ * @brief Allocates @p bytes bytes on GPU @p gpu, and returns the address of the allocated memory in @p addr.
+ * 
+ * @details typically maps to cudaMalloc or equivalent. 
+ * 
+ * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise (in which case @p addr is undefined)
+ */
+typedef int (*parsec_device_memory_allocate_fn_t)(struct parsec_device_gpu_module_s *gpu, size_t bytes, void **addr);
+
+/**
+ * @brief Frees memory @p addr allocated by @fn parsec_device_memory_allocate_fn_t on the same GPU @p gpu.
+ * 
+ * @details typically maps to cudaFree or equivalent. 
+ * 
+ * @return PARSEC_SUCCESS if succesfull, a PARSEC error otherwise
+ */
+typedef int (*parsec_device_memory_free_fn_t)(struct parsec_device_gpu_module_s *gpu, void *addr);
+
+/**
+ * @brief Find a function incarnation for the given function name
+ * 
+ * @param gpu_device the target GPU
+ * @param fname the function name to look for
+ * @return address of the symbol that implements this function
+ */
+typedef void* (*parsec_device_find_incarnation_fn_t)(parsec_device_gpu_module_t* gpu_device, const char* fname);
+
 struct parsec_device_gpu_module_s {
     parsec_device_module_t     super;
+
+    /* This set of base functions is used by the GPU devices to implement their Device Management Functions */
+    parsec_device_set_device_fn_t       set_device;
+    parsec_device_memcpy_async_fn_t     memcpy_async;
+    parsec_device_event_query_fn_t      event_query;
+    parsec_device_event_record_fn_t     event_record;
+    parsec_device_memory_info_fn_t      memory_info;
+    parsec_device_memory_allocate_fn_t  memory_allocate;
+    parsec_device_memory_free_fn_t      memory_free;
+    parsec_device_find_incarnation_fn_t find_incarnation;
+
     uint8_t                    max_exec_streams;
     uint8_t                    num_exec_streams;
     int16_t                    peer_access_mask;  /**< A bit set to 1 represent the capability of
@@ -121,7 +227,7 @@ struct parsec_device_gpu_module_s {
                                                    *   the index of the set bit device.
                                                    */
     volatile int32_t           mutex;
-    uint64_t                   data_avail_epoch;  /**< Identifies the epoch of the data status on the devide. It
+    uint64_t                   data_avail_epoch;  /**< Identifies the epoch of the data status on the device. It
                                                    *   is increased every time a new data is made available, so
                                                    *   that we know which tasks can be evaluated for submission.
                                                    */
@@ -133,6 +239,9 @@ struct parsec_device_gpu_module_s {
     parsec_gpu_exec_stream_t **exec_stream;
     size_t                     mem_block_size;
     int64_t                    mem_nb_blocks;
+#if defined(PARSEC_PROF_TRACE)
+    int                        trackable_events;
+#endif /* PARSEC_PROF_TRACE */
 };
 
 struct parsec_gpu_exec_stream_s {
@@ -168,8 +277,8 @@ PARSEC_DECLSPEC extern int32_t parsec_gpu_d2h_max_flows;
 /**
  * Debugging functions.
  */
-void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream);
-void dump_GPU_state(parsec_device_gpu_module_t* gpu_device);
+void parsec_device_dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream);
+void parsec_device_dump_gpu_state(parsec_device_gpu_module_t* gpu_device);
 
 /****************************************************
  ** GPU-DATA Specific Starts Here **
@@ -183,19 +292,19 @@ typedef parsec_data_copy_t parsec_gpu_data_copy_t;
 #include "parsec/data_distribution.h"
 
 /* GPU workspace  ONLY works when PARSEC_ALLOC_GPU_PER_TILE is OFF */
-int parsec_gpu_push_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream);
-void* parsec_gpu_pop_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream, size_t size);
-int parsec_gpu_free_workspace(parsec_device_gpu_module_t * gpu_device);
+int parsec_device_push_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream);
+void* parsec_device_pop_workspace(parsec_device_gpu_module_t* gpu_device, parsec_gpu_exec_stream_t* gpu_stream, size_t size);
+int parsec_device_free_workspace(parsec_device_gpu_module_t * gpu_device);
 
 /* sort pending task list by number of spaces needed */
-int parsec_gpu_sort_pending_list(parsec_device_gpu_module_t *gpu_device);
+int parsec_device_sort_pending_list(parsec_device_module_t *gpu_device);
 parsec_gpu_task_t* parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_execution_stream_t *es);
 int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device, parsec_gpu_task_t *w2r_task, parsec_execution_stream_t *es);
 
-void parsec_gpu_enable_debug(void);
+void parsec_device_enable_debug(void);
 
 #if defined(PARSEC_DEBUG_VERBOSE)
-char *parsec_gpu_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task );
+char *parsec_device_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gpu_task );
 #endif
 
 #define PARSEC_GPU_TASK_TYPE_KERNEL       0x0000
@@ -212,22 +321,9 @@ char *parsec_gpu_describe_gpu_task( char *tmp, size_t len, parsec_gpu_task_t *gp
 #define PARSEC_PROFILE_GPU_TRACK_MEM_USE  0x0010
 #define PARSEC_PROFILE_GPU_TRACK_PREFETCH 0x0020
 
-extern int parsec_gpu_trackable_events;
-extern int parsec_gpu_movein_key_start;
-extern int parsec_gpu_movein_key_end;
-extern int parsec_gpu_moveout_key_start;
-extern int parsec_gpu_moveout_key_end;
-extern int parsec_gpu_own_GPU_key_start;
-extern int parsec_gpu_own_GPU_key_end;
-extern int parsec_gpu_allocate_memory_key;
-extern int parsec_gpu_free_memory_key;
-extern int parsec_gpu_use_memory_key_start;
-extern int parsec_gpu_use_memory_key_end;
-extern int parsec_gpu_prefetch_key_start;
-extern int parsec_gpu_prefetch_key_end;
 extern int parsec_device_gpu_one_profiling_stream_per_gpu_stream;
 
-void parsec_gpu_init_profiling(void);
+void parsec_device_init_profiling(void);
 
 typedef struct {
     uint64_t size;
@@ -238,8 +334,58 @@ typedef struct {
 
 #endif  /* defined(PROFILING) */
 
-void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream);
-void dump_GPU_state(parsec_device_gpu_module_t* gpu_device);
+int parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
+                                      int           memory_percentage,
+                                      int           number_blocks,
+                                      size_t        eltsize );
+int parsec_device_attach( parsec_device_module_t* device, parsec_context_t* context );
+int parsec_device_detach( parsec_device_module_t* device, parsec_context_t* context );
+int parsec_device_taskpool_register(parsec_device_module_t* device, parsec_taskpool_t* tp);
+int parsec_device_taskpool_unregister(parsec_device_module_t* device, parsec_taskpool_t* tp);
+int parsec_device_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int advice);
+int parsec_device_flush_lru( parsec_device_module_t *device );
+int parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device );
+
+/**
+ * This version is based on 4 streams: one for transfers from the memory to
+ * the GPU, 2 for kernel executions and one for transfers from the GPU into
+ * the main memory. The synchronization on each stream is based on GPU events,
+ * such an event indicate that a specific epoch of the lifetime of a task has
+ * been completed. Each type of stream (in, exec and out) has a pending FIFO,
+ * where tasks ready to jump to the respective step are waiting.
+ */
+parsec_hook_return_t
+parsec_device_kernel_scheduler( parsec_device_module_t *module,
+                                parsec_execution_stream_t *es,
+                                void *gpu_task );
+
+/* Default stage_in function to transfer data to the GPU device.
+ * Transfer transfer the <count> contiguous bytes from
+ * task->data[i].data_in to task->data[i].data_out.
+ *
+ * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
+ * @param[in] flow_mask indicating task flows for which to transfer.
+ * @param[in] gpu_stream parsec_gpu_exec_stream_t used for the transfer.
+ *
+ */
+int
+parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
+                            uint32_t                  flow_mask,
+                            parsec_gpu_exec_stream_t *gpu_stream);
+
+/* Default stage_out function to transfer data from the GPU device.
+ * Transfer transfer the <count> contiguous bytes from
+ * task->data[i].data_in to task->data[i].data_out.
+ *
+ * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
+ * @param[in] flow_mask indicating task flows for which to transfer.
+ * @param[in] gpu_stream parsec_gpu_exec_stream_t used for the transfer.
+ *
+ */
+int
+parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
+                             uint32_t                  flow_mask,
+                             parsec_gpu_exec_stream_t *gpu_stream);
 
 END_C_DECLS
 

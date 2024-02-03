@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019      The University of Tennessee and The University
+ * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -168,10 +168,10 @@ parsec_device_template_module_init( int deviceid, parsec_device_module_t** modul
     device->super.taskpool_register   = parsec_template_taskpool_register;
     device->super.taskpool_unregister = parsec_template_taskpool_unregister;
 
-    device->super.device_hweight = 0;  /* no computational capacity */
-    device->super.device_tweight = 0;
-    device->super.device_sweight = 0;
-    device->super.device_dweight = 0;
+    device->super.gflops_fp16 = 0;  /* no computational capacity */
+    device->super.gflops_tf32 = 0;
+    device->super.gflops_fp32 = 0;
+    device->super.gflops_fp64 = 0;
 
     if( show_caps ) {
         parsec_inform("TEMPLATE Device %d enabled\n", device->super.device_index);

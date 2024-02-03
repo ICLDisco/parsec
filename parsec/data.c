@@ -32,7 +32,6 @@ static void parsec_data_copy_construct(parsec_data_copy_t* obj)
     obj->device_private       = NULL;
     obj->arena_chunk          = NULL;
     obj->data_transfer_status = PARSEC_DATA_STATUS_NOT_TRANSFER;
-    obj->push_task            = NULL;
     obj->dtt                  = PARSEC_DATATYPE_NULL;
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Allocate data copy %p", obj);
 }
@@ -75,7 +74,7 @@ static void parsec_data_construct(parsec_data_t* obj )
 
 static void parsec_data_destruct(parsec_data_t* obj )
 {
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Release data %p", obj);
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Destruct data %p", obj);
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_data_copy_t *copy = NULL;
         parsec_device_module_t *device = parsec_mca_device_get(i);
@@ -329,11 +328,11 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
 
     copy = data->device_copies[device];
     assert( NULL != copy );
-    
+
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
                          "DEV[%d]: start transfer ownership of data %p to copy %p in mode %d",
                          device, data, copy, access_mode);
-    
+
     switch( copy->coherency_state ) {
     case PARSEC_DATA_COHERENCY_INVALID:
         transfer_required = 1;
@@ -414,8 +413,6 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
             data->device_copies[i]->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
         }
     }
-
-    assert( (!transfer_required) || (data->device_copies[valid_copy]->version >= copy->version) );
 
     if( PARSEC_FLOW_ACCESS_READ & access_mode ) {
         copy->readers++;

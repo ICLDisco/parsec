@@ -35,13 +35,16 @@ static int device_cuda_component_register(void);
 
 /* mca params */
 int parsec_device_cuda_enabled_index, parsec_device_cuda_enabled;
-int parsec_cuda_sort_pending = 0, parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
+int parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
 int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_memory_number_of_blocks;
 char* parsec_cuda_lib_path = NULL;
 
 static int cuda_mask, cuda_nvlink_mask;
+static int parsec_cuda_sort_pending;
 
-
+#if defined(PARSEC_PROF_TRACE)
+int parsec_device_cuda_one_profiling_stream_per_gpu_stream = 0;
+#endif
 /*
  * Instantiate the public struct with all of our public information
  * and pointers to our public functions in it
@@ -56,9 +59,7 @@ parsec_device_base_component_t parsec_device_cuda_component = {
         /* Component name and version */
         "cuda",
         /* Component options */
-#if defined(PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS)
         "+peer_access"
-#endif
         "",
         PARSEC_VERSION_MAJOR,
         PARSEC_VERSION_MINOR,
@@ -78,12 +79,12 @@ parsec_device_base_component_t parsec_device_cuda_component = {
     },
     NULL
 };
- 
+
 mca_base_component_t * device_cuda_static_component(void)
 {
     return (mca_base_component_t *)&parsec_device_cuda_component;
 }
- 
+
 static int device_cuda_component_query(mca_base_module_t **module, int *priority)
 {
     int i, j, rc;
@@ -94,7 +95,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
         return MCA_SUCCESS;
     }
 #if defined(PARSEC_PROF_TRACE)
-    parsec_gpu_init_profiling();
+    parsec_device_init_profiling();
 #endif  /* defined(PROFILING) */
 
     if( parsec_device_cuda_enabled >= 1)
@@ -112,12 +113,14 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
             assert( NULL == parsec_device_cuda_component.modules[j] );
             continue;
         }
+        if(parsec_cuda_sort_pending) {
+            parsec_device_cuda_component.modules[j]->sort_pending_list = parsec_device_sort_pending_list;
+        }
         parsec_device_cuda_component.modules[j]->component = &parsec_device_cuda_component;
         j++;  /* next available spot */
         parsec_device_cuda_component.modules[j] = NULL;
     }
 
-#if defined(PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS)
     parsec_device_cuda_module_t *source_gpu, *target_gpu;
     cudaError_t cudastatus;
 
@@ -127,7 +130,7 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
 
         if( ! ( (1<<i) & cuda_nvlink_mask ) )
             continue; /* The user disabled NVLINK for that GPU */
-        
+
         cudastatus = cudaSetDevice( source_gpu->cuda_index );
         PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaSetDevice ", cudastatus,
                                  {continue;} );
@@ -144,19 +147,18 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
                 PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cuCtxEnablePeerAccess ", cudastatus,
                                          {continue;} );
                 source_gpu->super.peer_access_mask = (int16_t)(source_gpu->super.peer_access_mask | (int16_t)(1 <<
-                        target_gpu->cuda_index));
+                        target_gpu->super.super.device_index));
             }
         }
     }
-#endif
 
-    parsec_gpu_enable_debug();
+    parsec_device_enable_debug();
 
     /* module type should be: const mca_base_module_t ** */
     void *ptr = parsec_device_cuda_component.modules;
     *priority = 10;
     *module = (mca_base_module_t *)ptr;
-    
+
     return MCA_SUCCESS;
 }
 
@@ -198,7 +200,7 @@ static int device_cuda_component_register(void)
 #if defined(PARSEC_PROF_TRACE)
     (void)parsec_mca_param_reg_int_name("device_cuda", "one_profiling_stream_per_cuda_stream",
                                         "Boolean to separate the profiling of each cuda stream into a single profiling stream",
-                                        false, false, 0, &parsec_device_gpu_one_profiling_stream_per_gpu_stream);
+                                        false, false, 0, &parsec_device_cuda_one_profiling_stream_per_gpu_stream);
 #endif
 
     /* If CUDA was not requested avoid initializing the devices */
@@ -237,11 +239,11 @@ static int device_cuda_component_open(void)
     }
 
     if( ndevices > parsec_device_cuda_enabled ) {
-        if( 0 < parsec_device_cuda_enabled_index ) {
+        if( 0 < parsec_device_cuda_enabled ) {
             ndevices = parsec_device_cuda_enabled;
         }
     } else if (ndevices < parsec_device_cuda_enabled ) {
-        if( 0 < parsec_device_cuda_enabled_index ) {
+        if( 0 < parsec_device_cuda_enabled ) {
             if( 0 == ndevices ) {
                 parsec_warning("User requested %d CUDA devices, but none are available on %s."
                                " CUDA support will be therefore disabled.",
@@ -285,7 +287,7 @@ static int device_cuda_component_close(void)
         rc = parsec_cuda_module_fini((parsec_device_module_t*)cdev);
         if( PARSEC_SUCCESS != rc ) {
             PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
-                                 "GPU[%d] Failed to release resources on CUDA device\n", 
+                                 "GPU[%d] Failed to release resources on CUDA device\n",
                                  cdev->cuda_index);
         }
 
@@ -293,7 +295,7 @@ static int device_cuda_component_close(void)
         rc = parsec_mca_device_remove((parsec_device_module_t*)cdev);
         if( PARSEC_SUCCESS != rc ) {
             PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
-                                 "GPU[%d] Failed to unregister CUDA device %d\n", 
+                                 "GPU[%d] Failed to unregister CUDA device %d\n",
                                  cdev->cuda_index, cdev->cuda_index);
         }
 
@@ -308,7 +310,7 @@ static int device_cuda_component_close(void)
 
         PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
                              "GPU[%d] CUDA device still registered with PaRSEC at the end of CUDA finalize.\n"
-                             " Please contact the developers or fill an issue.\n", 
+                             " Please contact the developers or fill an issue.\n",
                              cdev->cuda_index);
     }
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */

@@ -1,16 +1,21 @@
 #!python
-from __future__ import print_function
-import pandas as pd
-import sys
 
-t = pd.HDFStore(sys.argv[1])
+import pandas as pd
+import os, sys
+
+filename = sys.argv[1]
+assert os.path.isfile(filename)
+t = pd.HDFStore(filename)
 
 try:
     FULL_ASYNC = t.event_types['FULL_ASYNC']
     FULL_RESCHED = t.event_types['FULL_RESCHED']
-    ASYNC = t.event_types['ASYNC']
-    RESCHED = t.event_types['RESCHED']
-    STARTUP = t.event_types['STARTUP']
+    ASYNC = t.event_types['async::ASYNC']
+    RESCHED = t.event_types['async::RESCHED']
+    STARTUP = t.event_types['async::STARTUP']
+except AttributeError:
+        print("HDF5 file {} does not contains the event_types attribute. The file might be empty, corrupted or it was incorrectly generated".format(filename), file=sys.stderr)
+        sys.exit(2)
 except KeyError:
     print("One of keys FULL_ASYNC, FULL_RESCHED, ASYNC, RESCHED, or STARTUP is not defined in the trace",
           file=sys.stderr)
@@ -25,44 +30,53 @@ except KeyError:
 
 error = 0
 
-if len(t.events[t.events.type == STARTUP]) != 1:
-    print("Error: there should be exactly one STARTUP task.",
-          file=sys.stderr)
-    error += 1
-else:
-    startup = t.events[t.events.type == STARTUP].iloc[0]
-    print("There is one STARTUP task.")
+try:
+    if len(t.events[t.events.type == STARTUP]) != 1:
+        print("Error: there should be exactly one STARTUP task.",
+              file=sys.stderr)
+        error += 1
+    else:
+        startup = t.events[t.events.type == STARTUP].iloc[0]
+        print("There is one STARTUP task.")
 
-if len(t.events[t.events.type == FULL_RESCHED]) != 1:
-    print("Error: there should be exactly one FULL_RESCHED event.",
-          file=sys.stderr)
-    error += 1
-else:
-    print("There is one FULL_RESCHED event")
-    full_resched = t.events[t.events.type == FULL_RESCHED].iloc[0]
+    if len(t.events[t.events.type == FULL_RESCHED]) != 1:
+        print("Error: there should be exactly one FULL_RESCHED event.",
+              file=sys.stderr)
+        error += 1
+    else:
+        print("There is one FULL_RESCHED event")
+        full_resched = t.events[t.events.type == FULL_RESCHED].iloc[0]
 
-if len(t.events[t.events.type == FULL_ASYNC]) != NB:
-    print("Error: there should be exactly {} FULL_ASYNC events, there are {}"
-          .format(NB, t.events[t.events.type == FULL_ASYNC]),
-          file=sys.stderr)
-    error += 1
-else:
-    print("There are exactly {} FULL_ASYNC events".format(NB))
+    if len(t.events[t.events.type == FULL_ASYNC]) != NB:
+        print("Error: there should be exactly {} FULL_ASYNC events, there are {}"
+              .format(NB, t.events[t.events.type == FULL_ASYNC]),
+              file=sys.stderr)
+        error += 1
+    else:
+        print("There are exactly {} FULL_ASYNC events".format(NB))
 
-if len(t.events[t.events.type == ASYNC]) != 2*NB:
-    print("Error: there should be exactly {} ASYNC events, there are {}"
-          .format(2*NB, len(t.events[t.events.type == ASYNC])),
-          file=sys.stderr)
-    error += 1
-else:
-    print("There are exactly {} ASYNC events".format(2*NB))
+    if len(t.events[t.events.type == ASYNC]) != 2*NB:
+        print("Error: there should be exactly {} ASYNC events, there are {}"
+              .format(2*NB, len(t.events[t.events.type == ASYNC])),
+              file=sys.stderr)
+        error += 1
+    else:
+        print("There are exactly {} ASYNC events".format(2*NB))
 
-if error > 0:
-    print("Errors when counting tasks... Cannot continue",
-          file=sys.stderr)
-    print("Trace file fails the tests",
+    if error > 0:
+        print("Errors when counting tasks... Cannot continue",
+              file=sys.stderr)
+        print("Trace file fails the tests",
+              file=sys.stderr)
+        sys.exit(1)
+except AttributeError:
+        print("HDF5 file {} does not contains the events attribute. The file might be empty, corrupted or it was incorrectly generated".format(filename), file=sys.stderr)
+        sys.exit(2)
+except KeyError:
+    print("One of keys FULL_ASYNC, FULL_RESCHED, ASYNC, RESCHED, or STARTUP is not defined in the trace",
           file=sys.stderr)
     sys.exit(1)
+
 
 nb_begin_before = 0
 nb_end_after = 0

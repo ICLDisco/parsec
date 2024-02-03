@@ -302,6 +302,7 @@ void *parsec_info_get(parsec_info_object_array_t *oa, parsec_info_id_t iid)
     void *ret, *nio;
     parsec_info_entry_t *ie;
 
+    if(iid < 0) return NULL;
     parsec_ioa_resize_and_rdlock(oa, iid);
     ret = oa->info_objects[iid];
     parsec_atomic_rwlock_rdunlock(&oa->rw_lock);

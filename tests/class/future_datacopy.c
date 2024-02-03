@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
  */
 
 #include <pthread.h>
@@ -31,20 +32,23 @@ int cores = 4;
 int ncopy = 10;
 
 
-void cb_fulfill(parsec_base_future_t * future){
+void cb_fulfill(parsec_base_future_t * future, ...)
+{
     parsec_datacopy_future_t* d_fut = (parsec_datacopy_future_t*)future;
     int * data_in = ((int*)d_fut->cb_fulfill_data_in);
     int * data = (int*)malloc(sizeof(int));
     *data = *data_in;
     parsec_future_set(future, data);
-}   
+}
 
-int cb_match(parsec_base_future_t * future, void * t1, void * t2){
+int cb_match(parsec_base_future_t * future, void * t1, void * t2)
+{
     (void)future;
     return (((int*)t1) == ((int*)t2));
 }
 
-void cb_cleanup(parsec_base_future_t * future){
+void cb_cleanup(parsec_base_future_t * future)
+{
     parsec_datacopy_future_t* d_fut = (parsec_datacopy_future_t*)future;
     int * data = (int*)d_fut->super.tracked_data;
     int * specs = (int*)d_fut->cb_match_data_in;
@@ -52,11 +56,15 @@ void cb_cleanup(parsec_base_future_t * future){
     free(specs);
 }
 
-void cb_nested(parsec_base_future_t ** future, void * tracked_data, void * data_in){
+void cb_nested(parsec_base_future_t ** future, ...)
+{
     parsec_datacopy_future_t** d_fut = (parsec_datacopy_future_t**)future;
-    int * data = (int*)tracked_data;
-    int * specs = (int*)data_in;
-    *specs += *data; 
+    va_list ap;
+    va_start(ap, future);
+    int* data = va_arg(ap, int*);
+    int* specs = va_arg(ap, int*);
+    va_end(ap);
+    *specs += *data;
     *d_fut = PARSEC_OBJ_NEW(parsec_datacopy_future_t);
     parsec_future_init( *d_fut, 
                         cb_fulfill, 

@@ -130,112 +130,31 @@ void parsec_hash_table_init(parsec_hash_table_t *ht, int64_t offset, int nb_bits
 }
 
 static uint64_t parsec_hash_table_universal_rehash(parsec_key_t key, int nb_bits) {
-    uint64_t k = (uint64_t)(uintptr_t)key;
-
-    /* The goal is to use all bits to create the hash value.
-     * Ideally, if keys a and b have the same hash on s bits,
-     * they should have different hashes on s+1 bits, so simple
-     * modulo is avoided to take into account the case of keys
-     * being different on the high bits as well as keys being
-     * different on the low bits.
+    /* Scramble the bits using a universal hash function, implementing
+     * the universal hash function described in
+     * https://en.wikipedia.org/wiki/Universal_hashing#Avoiding_modular_arithmetic.
+     * The 64bit key is mapped into 32bit, expanded back into 64bit using two random
+     * 64bit integers, and then contracted into nb_bits bits, i.e.,
+     * h(x) = ((a*x+b) mod 2^(w+M)) div 2^w), with w being the word size (32 in our case)
+     * and M being the number of bits for the hash (nb_bits).
+     * This scheme requires arithmetic in 2w bits, which is why we first fold k into 32bit.
+     * Thus, we can remain in 2w = 64bit, instead of using non-standardized 128bit integer
+     * arithmetic.
+     * The div and mod operations use powers-of-2 so compilers are able to optimize them.
      */
 
-    switch( nb_bits ) {
-    /* We unrolled all cases fully to have minimal number of instructions.
-     * For very small values (1 or 2 bits), just take the low bits of k
-     * For small values (3 - 12 bits), fold first on 32 bits or 16 bits, then fold and shift the words of nb_bits
-     * For big values (13-32 bits), fold and shift the words of nb_bits
-     * For values that are too large, fold on 32 bits and take all the bits we can */
-    case 0:
-        assert(nb_bits > 0);
-        return ~0ULL;
-    case 1:
-        return k & 0x1; /* It does not make sense for small values of nb_bits to mix the bits of k */
-    case 2:
-        return k & 0x3; /* It does not make sense for small values of nb_bits to mix the bits of k */
-    case 3:
-        k ^= (k >> 32);
-        k ^= (k >> 16);
-        return ((k >> 13) ^ (k >> 10) ^ (k >> 7) ^ (k >> 4) ^ (k >>1)  ) & 0x7;
-    case 4:
-        k ^= (k >> 32);
-        k ^= (k >> 16);
-        return ((k >> 12) ^ (k >> 8) ^ (k >> 4) ^ (k)) & 0xF;
-    case 5:
-        k ^= (k >> 32);
-        k ^= (k >> 16);
-        return ((k >> 11) ^ (k >> 6) ^ (k >> 1)) & 0x1F;
-    case 6:
-        k ^= (k >> 32);
-        return ((k >> 26) ^ (k >> 20) ^ (k >> 14) ^ (k >> 2) ^ k) & 0x3F;
-    case 7:
-        k ^= (k >> 32);
-        k ^= (k >> 24);
-        return ((k >> 25) ^ (k >> 18) ^ (k >> 11) ^ (k >> 4) ^ k) & 0x7F;
-    case 8:
-        k ^= (k >> 32);
-        return ((k >> 24) ^ (k >> 16) ^ (k >> 8) ^ k) & 0xFF;
-    case 9:
-        k ^= (k >> 32);
-        return ((k >> 23) ^ (k >> 14) ^ (k >> 5) ^ k) & 0x1FF;
-    case 10:
-        k ^= (k >> 32);
-        return ((k >> 22) ^ (k >> 12) ^ (k >> 2) ^ k) & 0x3FF;
-    case 11:
-        k ^= (k >> 32);
-        return ((k >> 21) ^ (k >> 10) ^ k) & 0x7FF;
-    case 12:
-        k ^= (k >> 32);
-        return ((k >> 20) ^ (k >> 8) ^ k) & 0xFFF;
-    case 13:
-        return ((k >> 51) ^ (k >> 38) ^ (k >> 25) ^ (k >>12) ^ k) & 0x1FFF;
-    case 14:
-        return ((k >> 50) ^ (k >> 36) ^ (k >> 22) ^ (k >> 8) ^ k) & 0x3FFF;
-    case 15:
-        return ((k >> 49) ^ (k >> 34) ^ (k >> 19) ^ (k >> 4) ^ k) & 0x7FFF;
-    case 16:
-        return ((k >> 48) ^ (k >> 32) ^ (k >> 16) ^ k) & 0xFFFF;
-    case 17:
-        return ((k >> 47) ^ (k >> 30) ^ (k >> 13) ^ k) & 0x1FFFF;
-    case 18:
-        return ((k >> 46) ^ (k >> 28) ^ (k >> 10) ^ k) & 0x3FFFF;
-    case 19:
-        return ((k >> 45) ^ (k >> 26) ^ (k >> 7) ^ k) & 0x7FFFF;
-    case 20:
-        return ((k >> 44) ^ (k >> 24) ^ (k >> 4) ^ k) & 0xFFFFF;
-    case 21:
-        return ((k >> 43) ^ (k >> 22) ^ (k >> 1) ^ k) & 0x1FFFFF;
-    case 22:
-        return ((k >> 42) ^ (k >> 20) ^ k) & 0x3FFFFF;
-    case 23:
-        return ((k >> 41) ^ (k >> 18) ^ k) & 0x7FFFFF;
-    case 24:
-        return ((k >> 40) ^ (k >> 16) ^ k) & 0xFFFFFF;
-    case 25:
-        return ((k >> 39) ^ (k >> 14) ^ k) & 0x1FFFFF;
-    case 26:
-        return ((k >> 38) ^ (k >> 12) ^ k) & 0x3FFFFF;
-    case 27:
-        return ((k >> 37) ^ (k >> 10) ^ k) & 0x7FFFFF;
-    case 28:
-        return ((k >> 36) ^ (k >> 8) ^ k) & 0xFFFFFF;
-    case 29:
-        return ((k >> 35) ^ (k >> 6) ^ k) & 0x1FFFFFF;
-    case 30:
-        return ((k >> 34) ^ (k >> 4) ^ k) & 0x3FFFFFF;
-    case 31:
-        return ((k >> 33) ^ (k >> 2) ^ k) & 0x7FFFFFF;
-    case 32:
-        return ((k >> 32) ^ k) & 0xFFFFFFFF;
-    default:
-        /* It is unlikely that we reach this level, so we can pay the cost of
-         * argument checking */
-        if( (nb_bits <= 0) || (nb_bits > 64) ) {
-            assert(nb_bits > 0 && nb_bits <= 64);
-            return ~0ULL;
-        }
-        return ((k >> 32) ^ k) & (~0ULL >> (64-nb_bits));
-    }
+    const uint64_t k = (uint64_t)(uintptr_t)key;
+    /* randomly chosen integers (max 48 bits) */
+    const uint64_t a = 0xaa88564915aULL;
+    const uint64_t b = 0x165e44f1fc94ULL;
+    /* 2^(w+M) */
+    const uint64_t wm2 = ((uint64_t)1)<<(32+nb_bits);
+    /* 2^(w) */
+    const uint64_t w2 = ((uint64_t)1)<<32;
+    /* fold k into lower 32bit but leave upper bits intact, they may flow out anyway */
+    const uint64_t k32 = (k>>32) ^ k;
+    /* (a*x+b) mod 2^(w+M)) div 2^w */
+    return (((a*k32)+b)%wm2)/w2;
 }
 
 void parsec_hash_table_lock_bucket(parsec_hash_table_t *ht, parsec_key_t key )
@@ -479,7 +398,7 @@ static void *parsec_hash_table_nolock_find_in_old_tables(parsec_hash_table_t *ht
         hash = parsec_hash_table_universal_rehash(hash64, head->nb_bits);
         // We need the lock on the old tables, as some other thread might
         // be removing elements in this bucket, through remove_from_old_tables
-        // and that thread relies on the lowlevel table locks
+        // and that thread relies on the low-level table locks
         parsec_atomic_lock( &head->buckets[hash].lock );
         for(current_item = head->buckets[hash].first_item;
             NULL != current_item;
@@ -491,7 +410,7 @@ static void *parsec_hash_table_nolock_find_in_old_tables(parsec_hash_table_t *ht
                                      BASEADDROF(current_item, ht), ht->key_functions.key_print(estr, 64, key, ht->hash_data), ht, head, hash);
 #endif
                 // We already have the lock on the toplevel table bucket,
-                // and we have the lock on the lowlevel table bucket... So
+                // and we have the lock on the low-level table bucket... So
                 // use the opportunity to move the element in the toplevel
                 if(NULL == prev_item) {
                     head->buckets[hash].first_item = current_item->next_item;

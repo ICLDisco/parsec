@@ -42,7 +42,7 @@ not_predefined_types = list(trace.event_types)
 for t in predefined_tasks:
     try:
         not_predefined_types.remove( trace.event_types[t] )
-    except IndexError:
+    except KeyError:
         pass
 
 # To increase efficiency, we gather only the user-task events in a
@@ -77,7 +77,7 @@ print("It generated a payload receive event on node {} from {} (s) to {} (s)"
       .format(network_event.node_id, network_event.begin/1e9, network_event.end/1e9))
 
 # Let's iterate over the successors
-for n in slist.keys():
+for n in list(slist.keys()):
     # Lookup the successor in the DAG to have access to its fields
     s = dag.node_from_name(n)
     # Lookup that task in the set of traced events. We use the indexing

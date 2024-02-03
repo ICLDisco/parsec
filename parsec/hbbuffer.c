@@ -72,6 +72,7 @@ parsec_hbbuffer_push_all(parsec_hbbuffer_t *b,
 
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tpushed %d elements. %s",
                          nbelt, NULL != elt ? "More to push, go to father" : "Everything pushed - done");
+    (void)nbelt;
 
     if( NULL == elt ) return;
 

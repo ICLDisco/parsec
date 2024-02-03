@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2022 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,6 +7,7 @@
 #include "parsec/runtime.h"
 #include "parsec/mca/mca_repository.h"
 #include "parsec/mca/sched/sched.h"
+#include "parsec/mca/device/device.h"
 #include "parsec/profiling.h"
 #include "datarepo.h"
 #include "parsec/execution_stream.h"
@@ -97,7 +98,7 @@ int __parsec_context_wait_task( parsec_execution_stream_t* es,
     case PARSEC_TASK_STATUS_NONE:
 #if defined(PARSEC_DEBUG)
         char tmp[MAX_TASK_STRLEN];
-        parsec_degug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
+        parsec_debug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task));
 #endif
         return -1;
@@ -150,7 +151,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
     }
 
     PARSEC_PINS(es, EXEC_BEGIN, task);
-    /* Try all the incarnations until one agree to execute. */
+    /* Try all the incarnations until one accepts to execute. */
     do {
         if( NULL != (eval = tc->incarnations[chore_id].evaluate) ) {
             rc = eval(task);
@@ -162,7 +163,6 @@ int __parsec_execute( parsec_execution_stream_t* es,
                                          tmp, tc->incarnations[chore_id].type,
                                          chore_id);
 #endif
-                    break;
                 }
                 goto next_chore;
             }
@@ -175,7 +175,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
                              chore_id);
 #endif
         parsec_hook_t *hook = tc->incarnations[chore_id].hook;
-
+        assert( NULL != hook );
         rc = hook( es, task );
 #if defined(PARSEC_PROF_TRACE)
         task->prof_info.task_return_code = rc;
@@ -184,6 +184,12 @@ int __parsec_execute( parsec_execution_stream_t* es,
             if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
                 /* Let's assume everything goes just fine */
                 task->status = PARSEC_TASK_STATUS_COMPLETE;
+                if(PARSEC_DEV_RECURSIVE >= tc->incarnations[chore_id].type) {
+                    /* accelerators count their own executed tasks so this is a
+                     * type DEV_RECURSIVE or DEV_CPU, they must be dev 0 and 1 */
+                    parsec_device_module_t *dev = parsec_mca_device_get(tc->incarnations[chore_id].type - PARSEC_DEV_CPU);
+                    parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
+                }
             }
             /* Record EXEC_END event only for incarnation that succeeds */
             PARSEC_PINS(es, EXEC_END, task);
@@ -197,7 +203,6 @@ int __parsec_execute( parsec_execution_stream_t* es,
             if( 0 != (task->chore_mask & (1<<chore_id)) )
                 break;
     } while(NULL != tc->incarnations[chore_id].hook);
-    assert(task->status == PARSEC_TASK_STATUS_HOOK);
     /* Record EXEC_END event to ensure the EXEC_BEGIN is completed
      * return code was stored in task_return_code */
     PARSEC_PINS(es, EXEC_END, task);
@@ -289,6 +294,15 @@ __parsec_schedule(parsec_execution_stream_t* es,
                   int32_t distance)
 {
     int ret;
+#ifdef PARSEC_PROF_PINS
+    parsec_execution_stream_t* local_es = parsec_my_execution_stream();
+#endif  /* PARSEC_PROF_PINS */
+
+    /* We should be careful which es we put the PINS event into, as the profiling streams
+     * are not thread-safe. Here we really want the profiling to be generated into the
+     * local stream and not into the stream where we try to enqueue the task into (operation
+     * which is thread safe)*/
+    PARSEC_PINS(local_es, SCHEDULE_BEGIN, tasks_ring);
 
 #if defined(PARSEC_DEBUG_PARANOID) || defined(PARSEC_DEBUG_NOISIER)
     {
@@ -329,6 +343,8 @@ __parsec_schedule(parsec_execution_stream_t* es,
 
     ret = parsec_current_scheduler->module.schedule(es, tasks_ring, distance);
 
+    PARSEC_PINS(local_es, SCHEDULE_END, tasks_ring);
+
     return ret;
 }
 
@@ -360,7 +376,7 @@ int __parsec_schedule_vp(parsec_execution_stream_t* es,
     assert( (NULL == es) || (parsec_my_execution_stream() == es) );
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
-    if( NULL == es || !parsec_runtime_keep_highest_priority_task ) {
+    if( NULL == es || !parsec_runtime_keep_highest_priority_task || NULL == es->scheduler_object) {
         for(int vp = 0; vp < es->virtual_process->parsec_context->nb_vp; vp++ ) {
             parsec_task_t* ring = task_rings[vp];
             if( NULL == ring ) continue;
@@ -402,17 +418,17 @@ int __parsec_schedule_vp(parsec_execution_stream_t* es,
 }
 
 /**
- * @brief Reschedule a task on the most appropriate resource.
+ * @brief Reschedule a task on some resource.
  *
  * @details The function reschedules a task, by trying to locate it as closer
- *          as possible to the current execution unit. If not available
+ *          as possible to the current execution unit. If no available
  *          execution unit was found, the task is rescheduled on the same
  *          execution unit. To find the most appropriate execution unit
  *          we start from the next execution unit after the current one, and
  *          iterate over all existing execution units (in the current VP,
  *          then on the next VP and so on).
  *
- * @param [IN] es, the start execution_stream (normall it is the current one).
+ * @param [IN] es, the start execution_stream (normal it is the current one).
  * @param [IN] task, the task to be rescheduled.
  *
  * @return parsec scheduling return code
@@ -422,12 +438,11 @@ int __parsec_reschedule(parsec_execution_stream_t* es, parsec_task_t* task)
     parsec_context_t* context = es->virtual_process->parsec_context;
     parsec_vp_t* vp_context = es->virtual_process;
 
-    int vp, start_vp = vp_context->vp_id, next_vp;
+    int vp, start_vp = vp_context->vp_id;
     int start_eu = (es->th_id + 1) % context->virtual_processes[start_vp]->nb_cores;
 
-    for( vp = start_vp, next_vp = (start_vp + 1) % context->nb_vp;
-         next_vp != vp_context->vp_id;
-         ++vp) {
+    vp = start_vp;
+    do {
         if( 1 != context->virtual_processes[vp]->nb_cores ) {
             return __parsec_schedule(context->virtual_processes[vp]->execution_streams[start_eu], task, 0);
         }
@@ -436,7 +451,8 @@ int __parsec_reschedule(parsec_execution_stream_t* es, parsec_task_t* task)
             return __parsec_schedule(context->virtual_processes[vp]->execution_streams[0], task, 0);
         }
         start_eu = 0;  /* with the exception of the first es, we always iterate from 0 */
-    }
+        vp = (vp + 1) % context->nb_vp;
+    } while( vp != start_vp );
     /* no luck so far, let's reschedule the task on the same execution unit */
     return __parsec_schedule(es, task, 0);
 }
@@ -458,17 +474,18 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
         rc = task->task_class->complete_execution( es, task );
 
     PARSEC_PAPI_SDE_COUNTER_ADD(PARSEC_PAPI_SDE_TASKS_RETIRED, 1);
-    PARSEC_PINS(es, COMPLETE_EXEC_END, task);
     PARSEC_AYU_TASK_COMPLETE(task);
 
-    /* Succesfull execution. The context is ready to be released, all
+    /* Successful execution. The context is ready to be released, all
      * dependencies have been marked as completed.
      */
     DEBUG_MARK_EXE( es->th_id, es->virtual_process->vp_id, task );
 
     /* Release the execution context */
     (void)task->task_class->release_task( es, task );
-    
+
+    PARSEC_PINS(es, COMPLETE_EXEC_END, task);
+
     return rc;
 }
 
@@ -477,8 +494,6 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
                             int distance)
 {
     int rc = PARSEC_HOOK_RETURN_DONE;
-
-    PARSEC_PINS(es, SELECT_END, task);
 
     if(task->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
         PARSEC_PINS(es, PREPARE_INPUT_BEGIN, task);
@@ -512,7 +527,10 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
         case PARSEC_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
         case PARSEC_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
         case PARSEC_HOOK_RETURN_ERROR:   /* Some other major error happened */
-            assert( 0 ); /* Internal error: invalid return value */
+            parsec_fatal("Executing task of class %s failed with parsec_hook_return_t error %d", task->task_class->name, rc);
+            /* we should not call fatal here, but the caller code
+             * is not ready to handle error cases yet */
+            return rc;
         }
         break;
     }
@@ -532,8 +550,6 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
         assert( 0 ); /* Internal error: invalid return value for data_lookup function */
     }
 
-    // subsequent select begins
-    PARSEC_PINS(es, SELECT_BEGIN, NULL);
     return rc;
 }
 
@@ -623,7 +639,7 @@ static int __parsec_taskpool_wait( parsec_taskpool_t* tp, parsec_execution_strea
         /* If there is a single process run and the main thread is in charge of
          * progressing the communications we need to make sure the comm engine
          * is ready for primetime. */
-        remote_dep_mpi_on(tp->context);
+        parsec_ce.enable(&parsec_ce);
     }
 #endif /* defined(DISTRIBUTED) */
 
@@ -691,6 +707,8 @@ static void parsec_context_leave_wait(parsec_context_t *parsec)
     parsec_list_unlock(parsec->taskpool_list);
 }
 
+int remote_dep_ce_reconfigure(parsec_context_t* context);
+
 int __parsec_context_wait( parsec_execution_stream_t* es )
 {
     uint64_t misses_in_a_row;
@@ -715,7 +733,9 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
             /* If there is a single process run and the main thread is in charge of
              * progressing the communications we need to make sure the comm engine
              * is ready for primetime. */
-            remote_dep_mpi_on(parsec_context);
+            parsec_ce.enable(&parsec_ce);
+            remote_dep_ce_reconfigure(parsec_context);
+            parsec_remote_dep_reconfigure(parsec_context);
         }
 #endif /* defined(DISTRIBUTED) */
         parsec_context_enter_wait(parsec_context);
@@ -773,7 +793,9 @@ int __parsec_context_wait( parsec_execution_stream_t* es )
         if( NULL != task ) {
             misses_in_a_row = 0;  /* reset the misses counter */
 
+            PARSEC_PINS(es, SELECT_END, task);
             rc = __parsec_task_progress(es, task, distance);
+            PARSEC_PINS(es, SELECT_BEGIN, task);
             (void)rc;  /* for now ignore the return value */
 
             nbiterations++;
@@ -845,7 +867,7 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
         tp->tdm.module->monitor_taskpool(tp, parsec_taskpool_termination_detected);
         tp->tdm.module->taskpool_ready(tp);
     }
-    
+
     /* Update the number of pending taskpools */
     (void)parsec_atomic_fetch_inc_int32( &context->active_taskpools );
 
@@ -858,6 +880,10 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     parsec_list_lock(context->taskpool_list);
     parsec_list_nolock_push_back(context->taskpool_list, &tp->super);
     if( context->flags & PARSEC_CONTEXT_FLAG_WAITING ) {
+        /* TODO: Why is this called here ? According to the callback name
+         * it should be called upon entry in the taskpool_wait, which is
+         * which is clearly not what is happening here.
+         */
         if(NULL != tp->on_enter_wait)
             tp->on_enter_wait(tp, tp->on_enter_wait_data);
     }

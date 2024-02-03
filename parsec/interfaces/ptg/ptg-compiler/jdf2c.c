@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2022 The University of Tennessee and The University
+ * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -40,6 +40,7 @@ static const char *jdf_cfilename;
 /* Optional declarations of local functions */
 static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *expr);
 static void jdf_generate_code_hooks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
+static void jdf_generate_code_time_estimate(const jdf_t *jdf, const jdf_function_entry_t *f, char *name);
 static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf, const jdf_function_entry_t *f,
@@ -78,7 +79,7 @@ static inline int nblines(const char *p)
 
 /**
  * This function is not thread-safe, not reentrant, and not pure. As such it
- * cannot be used twice on the same call to any oter function (including
+ * cannot be used twice on the same call to any other function (including
  * printf's and friends). However, as a side effect, when it is called with
  * the same value for n, it is safe to be used in any of the previously
  * mentioned scenarios.
@@ -151,7 +152,7 @@ static void houtput(const char *format, ...)
     va_end(ap);
 
     if( len == -1 ) {
-        fprintf(stderr, "Unable to ouptut a string: %s\n", strerror(errno));
+        fprintf(stderr, "Unable to output a string (%s) into a header file\n", strerror(errno));
     } else if( 0 < len ) {
 #if (defined(__WINDOWS__) || defined(__CYGWIN__)) && !defined(__MINGW64__)
         char *start = res, *end;
@@ -174,8 +175,17 @@ static void houtput(const char *format, ...)
     }
 }
 
+/**
+ * @brief Generate the C code from a variable name or from an inlined function.
+ * 
+ * @param expr 
+ */
 static void var_to_c_code(jdf_expr_t* expr)
 {
+    if( expr->op == JDF_C_CODE ) {
+        /* the inlined function and it's internal name will be generated shortly */
+        return;
+    }
     assert(JDF_VAR == expr->op);
     char *fname = expr->jdf_var;
 
@@ -860,11 +870,22 @@ static char *dump_profiling_init(void **elem, void *arg)
     int nb_locals;
     string_arena_t *profiling_convertor_params;
 
-    if( !profile_enabled(f->properties) ) {
-        return NULL;
-    }
-
     string_arena_init(info->sa);
+
+    if( !profile_enabled(f->properties) ) {
+        string_arena_add_string(info->sa,
+                                "#if defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
+                                "  *(int*)&__parsec_tp->super.super.profiling_array[START_KEY(%s_%s.task_class_id  + PARSEC_%s_NB_TASK_CLASSES)/* %s (internal init) start key */] = -1;\n"
+                                "  *(int*)&__parsec_tp->super.super.profiling_array[END_KEY(%s_%s.task_class_id  + PARSEC_%s_NB_TASK_CLASSES)/* %s (internal init) end key */] = -1;\n"
+                                "#endif /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n"
+                                "*(int*)&__parsec_tp->super.super.profiling_array[START_KEY(%s_%s.task_class_id)] = -1;\n"
+                                "*(int*)&__parsec_tp->super.super.profiling_array[END_KEY(%s_%s.task_class_id)] = -1;\n",
+                                jdf_basename, fname, jdf_basename, fname,
+                                jdf_basename, fname, jdf_basename, fname,
+                                jdf_basename, fname,
+                                jdf_basename, fname);
+        return string_arena_get_string(info->sa);
+    }
 
     get_unique_rgb_color((float)info->idx / (float)info->maxidx, &R, &G, &B);
     info->idx++;
@@ -1131,7 +1152,7 @@ static int jdf_expr_depends_on_symbol(const char *name, const jdf_expr_t *e)
 }
 
 /**
- * Helpers to manipulate object properties (i.e. typed attributed assciated with
+ * Helpers to manipulate object properties (i.e. typed attributed associated with
  * different concepts such as tasks, flows, dependencies and functions). The
  * existence of some of these properties will change the way the code is
  * generated, and allows for increased flexibility on driving the code
@@ -1494,7 +1515,7 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
 /**
  * Dump a minimalistic code including all the includes and all the defines that
  * can be used in the prologue. Keep this small so that we don't generate code
- * for structures that are not yet defind, such as those where the corresponding
+ * for structures that are not yet defined, such as those where the corresponding
  * header will only be included in the prologue.
  */
 static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
@@ -1508,12 +1529,12 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
             "#include \"parsec/execution_stream.h\"\n"
             "#include \"parsec/parsec_binary_profile.h\"\n"
             "#include \"parsec/mca/device/device_gpu.h\"\n"
-            "#if defined(PARSEC_HAVE_CUDA)\n"
+            "#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)\n"
             "#include \"parsec/mca/device/cuda/device_cuda.h\"\n"
-            "#endif  /* defined(PARSEC_HAVE_CUDA) */\n"
-            "#if defined(PARSEC_HAVE_HIP)\n"
+            "#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */\n"
+            "#if defined(PARSEC_HAVE_DEV_HIP_SUPPORT)\n"
             "#include \"parsec/mca/device/hip/device_hip.h\"\n"
-            "#endif  /* defined(PARSEC_HAVE_HIP) */\n"
+            "#endif  /* defined(PARSEC_HAVE_DEV_HIP_SUPPORT) */\n"
             "#if defined(_MSC_VER) || defined(__MINGW32__)\n"
             "#  include <malloc.h>\n"
             "#else\n"
@@ -1554,6 +1575,7 @@ static void jdf_generate_structure(jdf_t *jdf)
     for(f = jdf->functions; f != NULL; f = f->next) {
         if( 0 == (f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY) ) {
             for(pl = f->parameters; pl != NULL; pl = pl->next) {
+                coutput("  int %s_%s_min;\n", f->fname, pl->name);
                 coutput("  int %s_%s_range;\n", f->fname, pl->name);
             }
         } else {
@@ -1582,9 +1604,9 @@ static void jdf_generate_structure(jdf_t *jdf)
     if( need_profile )
         coutput("#if defined(PARSEC_PROF_TRACE)\n"
                 "#  if defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
-                "static int %s_profiling_array[4*PARSEC_%s_NB_TASK_CLASSES] = {-1}; /* 2 pairs (begin, end) per task, times two because each task class has an internal_init task */\n"
+                "static int %s_profiling_array[4*PARSEC_%s_NB_TASK_CLASSES] = {-2}; /* 2 pairs (begin, end) per task, times two because each task class has an internal_init task */\n"
                 "#  else /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n"
-                "static int %s_profiling_array[2*PARSEC_%s_NB_TASK_CLASSES] = {-1}; /* 2 pairs (begin, end) per task */\n"
+                "static int %s_profiling_array[2*PARSEC_%s_NB_TASK_CLASSES] = {-2}; /* 2 pairs (begin, end) per task */\n"
                 "#  endif /* defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) */\n"
                 "#endif  /* defined(PARSEC_PROF_TRACE) */\n",
                 jdf_basename, jdf_basename,
@@ -2876,9 +2898,12 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
                 /* We cannot be a control flow, or has_ready_input_dependency would have returned false */
                 assert( 0 == (JDF_FLOW_TYPE_CTL & flow->flow_flags) );
                 /* We are necessarily depending on a direct memory, for the same reason */
-                assert( NULL == dep->guard->calltrue->var );
-                coutput("  /* Flow for %s is always a memory reference */\n", flow->varname);
-                skip_continue = 1;  /* no need to complete the flow with a continue */
+                if( NULL == dep->guard->calltrue->var ) {
+                    coutput("  /* Flow for %s is always a memory reference */\n", flow->varname);
+                    skip_continue = 1;  /* no need to complete the flow with a continue */
+                } else {
+                    coutput("  /* Flow for %s is a task dependency and cannot be taken in account for startup tasks */\n", flow->varname);
+                }
                 break; /* No need to go check other cases, no need to print the flow label, or the continue */
             } else if( dep->guard->guard_type == JDF_GUARD_BINARY ) {
                 if(NULL != dep->guard->calltrue->var) {
@@ -2903,32 +2928,42 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
                     if( NULL == dep->guard->calltrue->var ) {
                         assert( NULL != dep->guard->callfalse->var );
                         goto_if_true = 1;
-                    } else {
-                        assert( NULL == dep->guard->callfalse->var );
+                    } else if( NULL == dep->guard->callfalse->var ) {
                         goto_if_false = 1;
+                    } else {
+                        /* We found a tertiary where both sides describe dependencies from tasks.
+                         * There is no way we can reach any other dependency after this one.
+                         */
+                        coutput("  /* Flow for %s dep line %d has a tertiary where both sides depend on predecessor tasks. This is the end of all possible cases where this task could have been a startup task */\n", flow->varname, JDF_OBJECT_LINENO(dep));
+                        assert( NULL != dep->guard->callfalse->var );
+                        goto force_continue_generation;
                     }
                 }
             }
 
             assert( continue_if_true || goto_if_false || goto_if_true );
             jdf_expr_t *ld;
+            int inside_lv_loop = 0;
             if( NULL != dep->guard->guard->local_variables ) {
+                coutput("  {\n"
+                        "    int __active_dep_found = 0;\n");
+                inside_lv_loop = 1;
                 for(ld = jdf_expr_lv_first(dep->guard->guard->local_variables);
                     ld != NULL; ld = jdf_expr_lv_next(dep->guard->guard->local_variables, ld)) {
                     assert(NULL != ld->alias);
                     assert(-1 != ld->ldef_index);
-                    coutput("  int %s;\n", ld->alias);
+                    coutput("    int %s;\n", ld->alias);
                     if(JDF_RANGE == ld->op) {
-                        coutput("  for( %s = %s;",
+                        coutput("    for( %s = %s;",
                                 ld->alias, dump_expr((void**)ld->jdf_ta1, &info));
-                        coutput("%s <= %s; %s+=",
+                        coutput("(!__active_dep_found) && (%s <= %s); %s+=",
                                 ld->alias, dump_expr((void**)ld->jdf_ta2, &info), ld->alias);
                         coutput("%s) {\n"
-                                "     "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s;\n",
+                                "       "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s;\n",
                                 dump_expr((void**)ld->jdf_ta3, &info),
                                 ld->ldef_index, ld->alias);
                     } else {
-                        coutput("  "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s = %s;\n",
+                        coutput("    "JDF2C_NAMESPACE"_tmp_locals.ldef[%d].value = %s = %s;\n",
                                 ld->ldef_index, ld->alias, dump_expr((void**)ld, &info));
                     }
                 }
@@ -2943,22 +2978,32 @@ static void jdf_generate_direct_input_conditions(const jdf_t *jdf, const jdf_fun
                         nextname);
                 write_next_label = 1;
             } if( continue_if_true) {
-                coutput("  if( %s ) continue; /* %s %s() is not a memory reference for flow %s */\n",
-                        dump_expr((void**)dep->guard->guard, &info),
-                        dep->guard->calltrue->var, dep->guard->calltrue->func_or_mem,
-                        flow->varname);
+                if(inside_lv_loop) {
+                    coutput("  if( %s ) { __active_dep_found = 1; break; /* %s %s() is not a memory reference for flow %s */ }\n",
+                            dump_expr((void**)dep->guard->guard, &info),
+                            dep->guard->calltrue->var, dep->guard->calltrue->func_or_mem,
+                            flow->varname);
+                } else {
+                    coutput("  if( %s ) continue; /* %s %s() is not a memory reference for flow %s */\n",
+                            dump_expr((void**)dep->guard->guard, &info),
+                            dep->guard->calltrue->var, dep->guard->calltrue->func_or_mem,
+                            flow->varname);
+                }
             }
-            if( NULL != dep->guard->guard->local_variables ) {
+            if( inside_lv_loop ) {
                 for(ld = jdf_expr_lv_first(dep->guard->guard->local_variables);
                     ld != NULL; ld = jdf_expr_lv_next(dep->guard->guard->local_variables, ld)) {
                     if(JDF_RANGE == ld->op) {
                         coutput("  }\n");
                     }
                 }
+                coutput("    if(__active_dep_found) continue;\n"
+                        "  }\n");
             }
         }
 
         if(write_next_label && !skip_continue) {
+force_continue_generation:
             coutput("  continue; /* All other cases are not startup tasks */\n");
         }
     }
@@ -3344,30 +3389,8 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
         
         for(vl = f->locals; vl != NULL; vl = vl->next) {
             if( local_is_parameter(f, vl) != NULL ) {
-                int have_min = 0;
-                if( vl->expr->op == JDF_RANGE ) {
-                    coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr->jdf_ta1, &info));
-                    have_min = 1;
-                } else {
-                    if( vl->expr->local_variables != NULL ) {
-                        char *vname;
-                        if( asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, vl->name) <= 0 ) {
-                            fprintf(stderr, "Cannot allocate internal memory for the PTG compiler\n");
-                            exit(-1);
-                        }
-                        coutput("  int %s;\n", vname);
-                        jdf_generate_range_min_without_fn(jdf, vl->expr, vname, "(&"JDF2C_NAMESPACE"_assignments)");
-                        free(vname);
-                        have_min = 1;
-                    }
-                }
-                if(have_min) {
-                    coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range + %s%s_min;\n",
-                            vl->name, f->fname, vl->name, JDF2C_NAMESPACE, vl->name);
-                } else {
-                    coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range;\n",
-                            vl->name, f->fname, vl->name);
-                }
+                coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range + __parsec_tp->%s_%s_min;\n",
+                            vl->name, f->fname, vl->name, f->fname, vl->name);
                 string_arena_add_string(sa_format, "%s%%d", first_param?"":", ");
                 string_arena_add_string(sa_params, "%s%s", first_param?"":", ", vl->name);
                 first_param = 0;
@@ -3728,9 +3751,11 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 vl = l2p_item->vl;
                 if( NULL == (pl = l2p_item->pl) ) continue;
                 if(vl->expr->op == JDF_RANGE || NULL != vl->expr->local_variables) {
+                    coutput("  __parsec_tp->%s_%s_min   = %s%s_min;\n", f->fname, pl->name, JDF2C_NAMESPACE, pl->name);
                     coutput("  __parsec_tp->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
                             f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
                 } else {
+                    coutput("  __parsec_tp->%s_%s_min   = 0;\n", f->fname, pl->name);
                     coutput("  __parsec_tp->%s_%s_range = 1;  /* single value, not a range */\n", f->fname, pl->name);
                 }
             }
@@ -3911,21 +3936,25 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
     jdf_body_t* body = f->bodies;
     jdf_def_list_t* type_property;
     jdf_def_list_t* dyld_property;
+    jdf_def_list_t* evaluate_property = NULL;
 
     (void)jdf;
     string_arena_add_string(sa, "static const __parsec_chore_t __%s_chores[] ={\n", base_name);
     do {
         jdf_find_property(body->properties, "type", &type_property);
         jdf_find_property(body->properties, "dyld", &dyld_property);
+        jdf_find_property(body->properties, JDF_BODY_PROP_EVALUATE, &evaluate_property);
         if( NULL == type_property) {
+            string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_CPU_SUPPORT)\n");
             string_arena_add_string(sa, "    { .type     = PARSEC_DEV_CPU,\n");
-            string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
+            string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)%s,\n",
+                                    (NULL == evaluate_property) ? "NULL" : evaluate_property->expr->jdf_c_code.fname);
             string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s },\n", base_name);
+            string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_CPU_SUPPORT) */\n");
         } else {
             char* dev_upper = strdup_upper(type_property->expr->jdf_var);
-            char* dev_lower = strdup_lower(type_property->expr->jdf_var);
 
-            string_arena_add_string(sa, "#if defined(PARSEC_HAVE_%s)\n", dev_upper);
+            string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_%s_SUPPORT)\n", dev_upper);
             string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s,\n", dev_upper);
             if( NULL == dyld_property ) {
                 string_arena_add_string(sa, "      .dyld     = NULL,\n");
@@ -3940,10 +3969,11 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
                 }
                 string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
             }
-            string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
-            string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_lower);
-            string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_%s) */\n", dev_upper);
-            free(dev_upper); free(dev_lower);
+            string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)%s,\n",
+                                    (NULL == evaluate_property) ? "NULL" : evaluate_property->expr->jdf_c_code.fname);
+            string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_upper);
+            string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_%s_SUPPORT) */\n", dev_upper);
+            free(dev_upper);
         }
         body = body->next;
     } while (NULL != body);
@@ -4294,6 +4324,9 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     jdf_generate_code_data_lookup(jdf, f, prefix);
     string_arena_add_string(sa, "  .prepare_output = (parsec_hook_t*)%s,\n", "NULL");
     string_arena_add_string(sa, "  .prepare_input = (parsec_hook_t*)%s,\n", prefix);
+    sprintf(prefix, "time_estimate_of_%s_%s", jdf_basename, f->fname);
+    jdf_generate_code_time_estimate(jdf, f, prefix);
+    string_arena_add_string(sa, "  .time_estimate = %s,\n", prefix);
     sprintf(prefix, "datatype_lookup_of_%s_%s", jdf_basename, f->fname);
     jdf_generate_code_datatype_lookup(jdf, f, prefix);
     string_arena_add_string(sa, "  .get_datatype = %s,\n", prefix);
@@ -4596,7 +4629,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 {
     string_arena_t *sa1, *sa2;
     profiling_init_info_t pi;
-    int idx = 0;
+    int idx = 0, need_profile = 0;
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -4667,6 +4700,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             coutput("  ((__parsec_chore_t*)&tc->incarnations[0])->hook = (parsec_hook_t *)%s;\n",
                     jdf_property_get_function(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, NULL));
         }
+        need_profile |= profile_enabled(f->properties);
     }
 
     {
@@ -4703,29 +4737,27 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         coutput("  memset(&__parsec_tp->super.arenas_datatypes[0], 0, __parsec_tp->super.arenas_datatypes_size*sizeof(parsec_arena_datatype_t));\n");
     }
 
-    string_arena_init(sa2);
-    pi.sa = sa2;
-    pi.idx = 0;
-    JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
-    {
+    coutput("  /* If profiling is enabled, the keys for profiling */\n"
+            "#  if defined(PARSEC_PROF_TRACE)\n");
+
+    if( need_profile ) {
+        string_arena_init(sa2);
+        pi.sa = sa2;
+        pi.idx = 0;
+        JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, pi.maxidx);
         char* prof = UTIL_DUMP_LIST(sa1, jdf->functions, next,
                                     dump_profiling_init, &pi, "", "    ", "\n", "\n");
-        coutput("  /* If profiling is enabled, the keys for profiling */\n"
-                "#  if defined(PARSEC_PROF_TRACE)\n");
-
-        if( strcmp(prof, "\n") ) {
-            coutput("  __parsec_tp->super.super.profiling_array = %s_profiling_array;\n"
-                    "  if( -1 == %s_profiling_array[0] ) {\n"
-                    "%s"
-                    "  }\n",
-                    jdf_basename,
-                    jdf_basename,
-                    prof);
-        } else {
-            coutput("  __parsec_tp->super.super.profiling_array = NULL;\n");
-        }
-        coutput("#  endif /* defined(PARSEC_PROF_TRACE) */\n");
+        coutput("  __parsec_tp->super.super.profiling_array = %s_profiling_array;\n"
+                "  if( -2 == %s_profiling_array[0] ) {\n"
+                "%s"
+                "  }\n",
+                jdf_basename,
+                jdf_basename,
+                prof);
+    } else {
+        coutput("  __parsec_tp->super.super.profiling_array = NULL;\n");
     }
+    coutput("#  endif /* defined(PARSEC_PROF_TRACE) */\n");
 
     coutput("  __parsec_tp->super.super.repo_array = %s;\n",
             (NULL != jdf->functions) ? "__parsec_tp->repositories" : "NULL");
@@ -4804,75 +4836,32 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
 {
     string_arena_t *sa_range_multiplier = string_arena_new(64);
     jdf_variable_list_t *vl;
-    expr_info_t info = EMPTY_EXPR_INFO;
-    int idx;
 
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY) ) {
         coutput("static inline parsec_key_t %s(const parsec_taskpool_t *tp, const parsec_assignment_t *as)\n"
                 "{\n",
                 jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
         if( f->parameters == NULL ) {
-            coutput("  return (parsec_key_t)0;\n"
+            coutput("  (void)tp; (void)assignment;\n"
+                    "  return (parsec_key_t)0;\n"
                     "}\n");
         } else {
-            coutput( "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)tp;\n"
-                     "  %s ascopy, *assignment = &ascopy;\n"
-                     "  uintptr_t __parsec_id = 0;\n"
-                     "  memcpy(assignment, as, sizeof(%s));\n",
-                     jdf_basename, jdf_basename,
-                     parsec_get_name(jdf, f, "parsec_assignment_t"),
-                     parsec_get_name(jdf, f, "parsec_assignment_t"));
-            
-            info.prefix = "";
-            info.suffix = "";
-            info.sa = sa_range_multiplier;
-            info.assignments = "assignment";
-
-            idx = 0;
-            for(vl = f->locals; vl != NULL; vl = vl->next) {
-                string_arena_init(sa_range_multiplier);
-                
-                coutput("  const int %s = assignment->%s.value;\n",
-                        vl->name, vl->name);
-                
-                if( local_is_parameter(f, vl) != NULL ) {
-                    if( vl->expr->op == JDF_RANGE ) {
-                        coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr->jdf_ta1, &info));
-                    } else {
-                        if( vl->expr->local_variables != NULL ) {
-                            char *vname;
-                            if( asprintf(&vname, "%s%s_min", JDF2C_NAMESPACE, vl->name) <= 0 ) {
-                                fprintf(stderr, "Cannot allocate internal memory for the PTG compiler\n");
-                                exit(-1);
-                            }
-                            coutput("  int %s;\n", vname);
-                            jdf_generate_range_min_without_fn(jdf, vl->expr, vname, "assignment");
-                            free(vname);
-                        } else {
-                            coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, vl->name, dump_expr((void**)vl->expr, &info));
-                        }
-                    }
-                } else {
-                    /* IDs should depend only on the parameters of the
-                     * function. However, we might need the other definitions because
-                     * the min expression of the parameters might depend on them. If
-                     * this is not the case, a quick "(void)" removes the warning.
-                     */
-                    coutput("  (void)%s;\n", vl->name);
-                }
-                idx++;
-            }
-
+            coutput("  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)tp;\n"
+                    "  const %s *assignment = (const %s*)as;\n"
+                    "  uint64_t __parsec_id = 0;\n", 
+                    jdf_basename, jdf_basename,
+                    parsec_get_name(jdf, f, "parsec_assignment_t"),
+                    parsec_get_name(jdf, f, "parsec_assignment_t"));
             string_arena_init(sa_range_multiplier);
             for(vl = f->locals; vl != NULL; vl = vl->next) {
                 if( local_is_parameter(f, vl) != NULL ) {
-                    coutput("  __parsec_id += (%s - %s%s_min)%s;\n", vl->name, JDF2C_NAMESPACE, vl->name, string_arena_get_string(sa_range_multiplier));
+                    coutput("  __parsec_id += (assignment->%s.value - __parsec_tp->%s_%s_min)%s;\n", vl->name, f->fname, vl->name, 
+                            string_arena_get_string(sa_range_multiplier));
                     string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, vl->name);
                 }
             }
 
-            coutput("  (void)__parsec_tp;\n"
-                    "  return (parsec_key_t)__parsec_id;\n"
+            coutput("  return (parsec_key_t)__parsec_id;\n"
                     "}\n");
         }
     }
@@ -6429,6 +6418,24 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
 }
 
 static void
+jdf_generate_code_time_estimate(const jdf_t *jdf,
+                                const jdf_function_entry_t *f,
+                                char *name)
+{
+    jdf_def_list_t *prop = NULL;
+
+    (void)jdf;
+
+    jdf_find_property(f->properties, "time_estimate", &prop);
+    if(NULL != prop) {
+        sprintf(name, "%s", prop->expr->jdf_var);
+        return;
+    }
+
+    sprintf(name, "NULL");
+}
+
+static void
 jdf_generate_code_data_lookup(const jdf_t *jdf,
                               const jdf_function_entry_t *f,
                               const char *name)
@@ -6564,12 +6571,11 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     jdf_def_list_t *stage_out_property;
     jdf_def_list_t *size_property;
     jdf_def_list_t *desc_property;
-    jdf_def_list_t *weight_property;
     jdf_def_list_t *device_property;
+    jdf_def_list_t *prop;
     const char *dyld;
     const char *dyldtype;
     const char *device;
-    const char *weight;
     string_arena_t *sa, *sa2, *sa3;
     assignment_info_t ai;
     init_from_data_info_t ai2;
@@ -6584,6 +6590,15 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     jdf_find_property(body->properties, "type", &type_property);
     char* dev_upper = strdup_upper(type_property->expr->jdf_var);
     char* dev_lower = strdup_lower(type_property->expr->jdf_var);
+
+    jdf_find_property(body->properties, "weight", &prop);
+    if(NULL != prop) {
+        jdf_warn(JDF_OBJECT_LINENO(body),
+                "Parameterized Task '%s' defines the obsolete property 'weight' in its %s body to guide the selection of devices.\n"
+                "This has been superseded by the more flexible property 'time_estimate'. Please fix your JDF file.\n"
+                "-- Property 'weight' ignored.",
+                f->fname, dev_upper);
+    }
 
     /* Get the dynamic function properties */
     dyld = jdf_property_get_string(body->properties, "dyld", NULL);
@@ -6729,12 +6744,13 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             "{\n"
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
             "  parsec_gpu_task_t *gpu_task;\n"
-            "  double ratio;\n"
+            "  parsec_device_module_t *dev;\n"
+            "  int64_t __load;\n"
             "  int dev_index;\n"
             "  %s\n"
             "  (void)es; (void)__parsec_tp;\n"
             "\n",
-            name, dev_lower, parsec_get_name(jdf, f, "task_t"),
+            name, dev_upper, parsec_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename,
             string_arena_get_string( sa3 ));
 
@@ -6743,16 +6759,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     info.suffix = "";
     info.assignments = "&this_task->locals";
 
-    /* Get the ratio to  apply on the weight for this task */
-    jdf_find_property( body->properties, "weight", &weight_property );
-    if ( NULL != weight_property ) {
-        weight = dump_expr((void**)weight_property->expr, &info);
-    } else {
-        weight = "1.";
-    }
-    coutput("  ratio = %s;\n", weight);
-
-    /* Get the hint for statix and/or external gpu scheduling */
+    /* Get the hint for static and/or external gpu scheduling */
     jdf_find_property( body->properties, "device", &device_property );
     if ( NULL != device_property ) {
         device = dump_expr((void**)device_property->expr, &info);
@@ -6760,25 +6767,26 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
                 "  if (dev_index < -1) {\n"
                 "    return PARSEC_HOOK_RETURN_NEXT;\n"
                 "  } else if (dev_index == -1) {\n"
-                "    dev_index = parsec_get_best_device((parsec_task_t*)this_task, ratio);\n"
+                "    dev_index = parsec_get_best_device((parsec_task_t*)this_task, &__load);\n"
                 "  } else {\n"
-                "    dev_index = (dev_index %% (parsec_mca_device_enabled()-2)) + 2;\n"
+                "    dev_index = (dev_index %% (parsec_mca_device_enabled()-2)) + 2;\n" //TODO: -2+2 not correct when recursive compiled out
                 "  }\n",
                 device);
     } else {
-        coutput("  dev_index = parsec_get_best_device((parsec_task_t*)this_task, ratio);\n");
+        coutput("  dev_index = parsec_get_best_device((parsec_task_t*)this_task, &__load);\n");
     }
     coutput("  assert(dev_index >= 0);\n"
-            "  if( dev_index < 2 ) {\n"
+            "  if( !parsec_mca_device_is_gpu(dev_index) ) {\n"
             "    return PARSEC_HOOK_RETURN_NEXT;  /* Fall back */\n"
             "  }\n"
             "\n"
+            "  dev = parsec_mca_device_get(dev_index);\n"
             "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
             "  PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
             "  gpu_task->submit = &%s_kernel_submit_%s_%s;\n"
             "  gpu_task->task_type = 0;\n"
-            "  gpu_task->load = ratio * parsec_device_sweight[dev_index];\n"
+            "  gpu_task->load = __load;\n"
             "  gpu_task->last_data_check_epoch = -1;  /* force at least one validation for the task */\n",
             dev_lower, jdf_basename, f->fname);
 
@@ -6787,13 +6795,13 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     jdf_find_property(body->properties, "stage_out", &stage_out_property);
 
     if(stage_in_property == NULL) {
-        coutput("  gpu_task->stage_in  = parsec_default_%s_stage_in;\n", dev_lower);
+        coutput("  gpu_task->stage_in  = parsec_default_gpu_stage_in;\n");
     }else{
         coutput("  gpu_task->stage_in  = %s;\n", dump_expr((void**)stage_in_property->expr, &info));
     }
 
     if(stage_out_property == NULL) {
-        coutput("  gpu_task->stage_out = parsec_default_%s_stage_out;\n", dev_lower);
+        coutput("  gpu_task->stage_out = parsec_default_gpu_stage_out;\n");
     }else{
         coutput("  gpu_task->stage_out = %s;\n", dump_expr((void**)stage_out_property->expr, &info));
     }
@@ -6824,6 +6832,8 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             }
             coutput("  gpu_task->flow_nb_elts[%d] = 0;\n", di);
         }else{
+            coutput("  // A shortcut to check if the flow exists\n");
+            coutput("  if (gpu_task->ec->data[%d].data_in != NULL) {\n", di);
             if(size_property == NULL){
                 coutput("  gpu_task->flow_nb_elts[%d] = gpu_task->ec->data[%d].data_in->original->nb_elts;\n", di, di);
             }else{
@@ -6835,6 +6845,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
                 }
 
             }
+            coutput("}\n");
         }
 
         if (fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
@@ -6898,11 +6909,9 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     }
     string_arena_free(info.sa);
 
-    coutput("  parsec_device_load[dev_index] += gpu_task->load;\n"
-            "\n"
-            "  return parsec_%s_kernel_scheduler( es, gpu_task, dev_index );\n"
-            "}\n\n",
-            dev_lower);
+    coutput("\n"
+            "  return dev->kernel_scheduler(dev, es, gpu_task);\n"
+            "}\n\n");
 
     free(dev_lower);
     free(dev_upper);
@@ -6944,9 +6953,9 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
             exit(1);
         }
     }
+    type_upper = strdup_upper(NULL == type_property ? "CPU" : type_property->expr->jdf_var);
+    coutput("#if defined(PARSEC_HAVE_DEV_%s_SUPPORT)\n", type_upper);
     if( NULL != type_property) {
-        type_upper = strdup_upper(type_property->expr->jdf_var);
-        coutput("#if defined(PARSEC_HAVE_%s)\n", type_upper);
 
         if (!strcasecmp(type_property->expr->jdf_var, "cuda")
          || !strcasecmp(type_property->expr->jdf_var, "hip")) {
@@ -7017,7 +7026,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     if ((NULL == type_property) ||
         (!strcmp(type_property->expr->jdf_var, "RECURSIVE"))) {
         coutput("  /** Transfer the ownership to the CPU */\n"
-                "#if defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP)\n");
+                "#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT)\n");
 
         for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
             /* Update the ownership of read/write data */
@@ -7035,7 +7044,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                          ((fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? "PARSEC_FLOW_ACCESS_RW" : "PARSEC_FLOW_ACCESS_READ") : "PARSEC_FLOW_ACCESS_WRITE")));
             }
         }
-        coutput("#endif  /* defined(PARSEC_HAVE_CUDA) || defined(PARSEC_HAVE_HIP) */\n");
+        coutput("#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) */\n");
     }
     jdf_generate_code_cache_awareness_update(jdf, f);
 
@@ -7055,10 +7064,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     string_arena_free(sa2);
 
   hook_end_block:
-    if( NULL != type_property) {
-        coutput("#endif  /*  defined(PARSEC_HAVE_%s) */\n", type_upper);
-        free(type_upper);
-    }
+    coutput("#endif  /*  defined(PARSEC_HAVE_DEV_%s_SUPPORT) */\n", type_upper);
+    free(type_upper);
 }
 
 static void
@@ -7177,8 +7184,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 {
     coutput("static int %s(parsec_execution_stream_t *es, %s *this_task, uint32_t action_mask, parsec_remote_deps_t *deps)\n"
             "{\n"
-            "PARSEC_PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *)this_task);"
-            "{\n"
+            "  PARSEC_PINS(es, RELEASE_DEPS_BEGIN, (parsec_task_t *)this_task);"
             "  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
             "  parsec_release_dep_fct_arg_t arg;\n"
             "  int __vp_id;\n"
@@ -7190,7 +7196,10 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  arg.remote_deps = deps;\n"
             "#endif  /* defined(DISTRIBUTED) */\n"
             "  assert(NULL != es);\n"
-            "  arg.ready_lists = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);\n"
+            "  if( action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS )"
+            "    arg.ready_lists = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);\n"
+            "  else\n"
+            "    arg.ready_lists = NULL;\n"
             "  for( __vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
             "  (void)__parsec_tp; (void)deps;\n",
             name, parsec_get_name(jdf, f, "task_t"),
@@ -7207,20 +7216,20 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
         coutput("  arg.output_usage = 0;\n");
 
         coutput("  if( action_mask & (PARSEC_ACTION_RELEASE_LOCAL_DEPS | PARSEC_ACTION_GET_REPO_ENTRY) ) {\n"
-                 "    arg.output_entry = data_repo_lookup_entry_and_create( es, arg.output_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals));\n"
-                 "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
-                 "#if defined(PARSEC_SIM)\n"
-                 "    assert(arg.output_entry->sim_exec_date == 0);\n"
-                 "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
-                 "#endif\n"
-                 "  }\n",
-                 jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
+                "    arg.output_entry = data_repo_lookup_entry_and_create( es, arg.output_repo, %s((const parsec_taskpool_t*)__parsec_tp, (const parsec_assignment_t*)&this_task->locals));\n"
+                "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
+                "#if defined(PARSEC_SIM)\n"
+                "    assert(arg.output_entry->sim_exec_date == 0);\n"
+                "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
+                "#endif\n"
+                "  }\n",
+                jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL));
 
         /* We need 2 iterate_successors calls so that all reshapping info is
          * setup before it is consumed by any local successor.
          */
         coutput("  if(action_mask & ( PARSEC_ACTION_RESHAPE_ON_RELEASE | PARSEC_ACTION_RESHAPE_REMOTE_ON_RELEASE ) ){\n");
-        coutput("    /* Generate the reshape promise for thet outputs that need it */\n");
+        coutput("    /* Generate the reshape promise for the outputs that need it */\n");
         coutput("    iterate_successors_of_%s_%s(es, this_task, action_mask, parsec_set_up_reshape_promise, &arg);\n"
                 "   }\n",
                 jdf_basename, f->fname);
@@ -7275,8 +7284,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     jdf_generate_code_free_hash_table_entry(jdf, f, 0/*consume_repo*/, 1/*release_inputs*/);
 
     coutput(
-        "PARSEC_PINS(es, RELEASE_DEPS_END, (parsec_task_t *)this_task);"
-        "}\n"
+        "  PARSEC_PINS(es, RELEASE_DEPS_END, (parsec_task_t *)this_task);"
         "  return 0;\n"
         "}\n"
         "\n");
@@ -7655,7 +7663,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
     string_arena_t *sa_tmp_type_r = string_arena_new(256);
     string_arena_t *sa_temp_r       = string_arena_new(1024);
 
-    int depnb, last_datatype_idx;
+    int last_datatype_idx;
     assignment_info_t ai;
     expr_info_t info = EMPTY_EXPR_INFO;
     int nb_open_ldef;
@@ -7705,7 +7713,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
         flowempty = 1;
         flowtomem = 0;
-        depnb = 0;
         last_datatype_idx = -1;
         string_arena_init(sa_coutput);
         string_arena_init(sa_deps);
@@ -7920,7 +7927,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                                             jdf_dump_context_assignment(sa1, jdf, f, fl, string_arena_get_string(sa_ontask),
                                                                         dl->guard->calltrue, dl, JDF_OBJECT_LINENO(dl),
                                                                         "      ", "nc"));
-                    depnb++;
 
                     string_arena_init(sa_ontask);
                     string_arena_add_string(sa_ontask,
@@ -7942,7 +7948,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                                                 "\n");
                     }
                 } else {
-                    depnb++;
                     string_arena_init(sa_ontask);
                     string_arena_add_string(sa_ontask,
                                             "if( PARSEC_ITERATE_STOP == ontask(es, &nc, (const parsec_task_t *)this_task, &%s, &data, rank_src, rank_dst, vpid_dst,"
@@ -7973,7 +7978,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                 }
                 break;
             }
-            depnb++;
             /* Dump the previous dependencies */
             OUTPUT_PREV_DEPS((1U << dl->dep_index), sa_datatype, sa_deps);
 
@@ -8049,7 +8053,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
                       ++inline_c_functions, expr->jdf_c_code.lineno);
         assert(rc != -1);
 
-        if(expr->jdf_type == PARSEC_RETURN_TYPE_ARENA_DATATYPE_T){
+        if(expr->jdf_type == PARSEC_RETURN_TYPE_ARENA_DATATYPE_T) {
             coutput("static inline %s %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *assignments, const __parsec_%s_%s_task_t *this_task)\n"
                     "{\n"
                     "  (void)__parsec_tp;\n",
@@ -8057,6 +8061,14 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
                     expr->jdf_c_code.fname, jdf_basename,
                     parsec_get_name(NULL, expr->jdf_c_code.function_context, "parsec_assignment_t"),
                     jdf_basename, expr->jdf_c_code.function_context->fname);
+        } else if(expr->jdf_type == PARSEC_INLINE_WITH_TASK) {
+            coutput("static inline %s %s(const __parsec_%s_%s_task_t *this_task)\n"
+                    "{\n"
+                    "  const %s *assignments = &this_task->locals;\n",
+                    "parsec_hook_return_t",
+                    expr->jdf_c_code.fname,
+                    jdf_basename, expr->jdf_c_code.function_context->fname,
+                    parsec_get_name(NULL, expr->jdf_c_code.function_context, "parsec_assignment_t"));
         } else {
             coutput("static inline %s %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const %s *assignments)\n"
                     "{\n"
@@ -8102,14 +8114,22 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
         rc = asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
                       jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
         assert(rc != -1);
-        coutput("static inline int %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const parsec_assignment_t *assignments)\n"
-                "{\n"
-                "  /* This inline C function was declared in the global context: no variables */\n"
-                "  (void)assignments;\n"
-                "  (void)__parsec_tp;\n",
-                expr->jdf_c_code.fname, jdf_basename);
+        if(expr->jdf_type == PARSEC_INLINE_WITH_TASK) {
+            coutput("static inline %s %s(const __parsec_%s_%s_task_t *this_task)\n"
+                    "{\n"
+                    "  (void)__parsec_tp;\n",
+                    "int32_t",
+                    expr->jdf_c_code.fname,
+                    jdf_basename, expr->jdf_c_code.function_context->fname);
+        } else {
+            coutput("static inline int %s(const __parsec_%s_internal_taskpool_t *__parsec_tp, const parsec_assignment_t *assignments)\n"
+                    "{\n"
+                    "  /* This inline C function was declared in the global context: no variables */\n"
+                    "  (void)assignments;\n"
+                    "  (void)__parsec_tp;\n",
+                    expr->jdf_c_code.fname, jdf_basename);
+        }
     }
-
     
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -8117,8 +8137,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     coutput("%s\n", expr->jdf_c_code.code);
     if( !JDF_COMPILER_GLOBAL_ARGS.noline )
         coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
-    coutput("}\n"
-            "\n");
+    coutput("}\n\n");
     if( NULL != expr->protected_by ) {
         coutput("#endif  /* defined(%s) */\n", expr->protected_by);
     }
@@ -8262,6 +8281,21 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
                 assert(0);
             }
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS;
+        }
+        /* Go over all the bodies for this function and handle their own properties */
+        for(jdf_body_t* body = f->bodies; NULL != body; body = body->next) {
+            if( NULL != (expr = jdf_find_property(body->properties, JDF_BODY_PROP_EVALUATE, &property)) ) {
+                if(expr->op == JDF_C_CODE) {
+                    expr->jdf_type = PARSEC_INLINE_WITH_TASK;
+                }
+                var_to_c_code(expr);
+            }
+            if( NULL != (expr = jdf_find_property(body->properties, JDF_BODY_PROP_HOOK, &property)) ) {
+                if(expr->op == JDF_C_CODE) {
+                    expr->jdf_type = PARSEC_INLINE_WITH_TASK;
+                }
+                var_to_c_code(expr);
+            }
         }
     }
 }
@@ -8512,12 +8546,10 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
 
     /* Dump references to arenas_datatypes array */
     struct jdf_name_list* g;
-    int datatype_index = 0;
     for( g = jdf->datatypes; NULL != g; g = g->next ) {
         coutput("#define PARSEC_%s_%s_ADT    (&__parsec_tp->super.arenas_datatypes[PARSEC_%s_%s_ADT_IDX])\n",
                 jdf_basename, g->name,
                 jdf_basename, g->name);
-        datatype_index++;
     }
 
     jdf_generate_structure(jdf);

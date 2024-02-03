@@ -31,9 +31,10 @@ even = [ i = 0 .. 4 ] 2*i
 READ A <- descA((odd/2) % descA->super.mt, (even/2) % descA->super.nt)
        -> [ i = 0 .. odd ] odd < 4 ? [ j = 0 .. %{ return even; %} .. 2 ] A tA(odd, even, %{ return i; %}, j/2) : [ j = 0 .. even .. 2 ] A tB(odd, even, i, j/2)
 
-CTL  X <- [ i = 0 .. odd ] i == -1 ? X STARTUP(0, 0)
-       -> [ i = 0 .. odd ] i == -1 ? X STARTUP(0, 0)
+CTL  X <- [ i = 0 .. odd ] i == -1 ? X STARTUP(0, 0)  // Non-existent control dependency -- only to check conditions are followed
+       -> [ i = 0 .. odd ] i == -1 ? X STARTUP(0, 0)  // Non-existent control dependency -- only to check conditions are followed
        -> Y tG(0)
+       -> Z tG(0)
 
 BODY
 {
@@ -49,9 +50,11 @@ zero = 0 .. 0
 : descA(0, 0)
 
 CTL Y <- [ i = 0 .. 4, j = 0 .. 4 ] i >= 0 ? X STARTUP(2*i+1, 2*j)
+CTL Z <- [ i = 0 .. 4, j = 0 .. 4 ] i >= 0 ? X STARTUP(2*i+1, 2*j)  // Completely redundant dependency, just to check that generated code uses proper scope for local variable declaration
 
 BODY
 {
+   assert(nb_tasks_array[0] == 25); // tG(0) can only execute after all STARTUP tasks have executed
    /* nothing */
 }
 END
@@ -212,6 +215,8 @@ int main( int argc, char** argv )
             ret++;
         }
     }
+
+    parsec_taskpool_free(&tp->super);
 
     free(descA.mat);
     parsec_del2arena( & adt );

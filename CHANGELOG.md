@@ -36,6 +36,9 @@ Unreleased (master)
 
 ### Changed
  
+ - Single letter command line options have been replaced with --mca parameters.
+   --help is now --parsec-help.
+
  - Renamed symbols related to data distribution to properly prefix them with
    the `parsec_` prefix. The old symbols have been deprecated.
  
@@ -62,6 +65,9 @@ Unreleased (master)
 
  - Removed obsolete dbp2paje tool; h5totrace is the replacement tool
    to use. This removes the optional dependency on GTG.
+
+ - Removed all command line options not prefixed by --mca, except for --parsec-help
+   and --parsec-version.
 
 ### Fixed
 

@@ -112,7 +112,7 @@ class ParsecTraceTables(object):
         for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
             store.put(name, self.__dict__[name], encoding='ascii')
         store.put('events', self.events, format=table_format, append=append)
-        for event_type, event_info in self.event_infos.items():
+        for event_type, event_info in list(self.event_infos.items()):
             # store each event info into events::{event_type}
             key = 'event_infos_{}'.format(event_type)
             store.put(key, event_info, format=table_format, append=append)
@@ -183,7 +183,7 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
     if not skeleton_only:
         events = store['events']
         event_infos = dict()
-        for key in store.keys():
+        for key in list(store.keys()):
             if key.startswith(base_eventkey):
                 event_type = int(key[len(base_eventkey):])
                 event_infos[event_type] = store[key]
@@ -191,7 +191,7 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
     else:
         events = pd.DataFrame()
         event_infos = dict()
-        for key in store.keys():
+        for key in list(store.keys()):
             if key.startswith(base_eventkey):
                 event_type = int(key[len(base_eventkey):])
                 event_infos[event_type] = pd.DataFrame()
@@ -233,14 +233,14 @@ def alias_info_on_load(trace):
     info =  trace.information
     info['__original_keys__'] = list()
 
-    for key in info[:].keys():
+    for key in list(info[:].keys()):
         if key.startswith('PARAM_'):
             short_key = key.replace('PARAM_', '')
-            if short_key not in info.keys():
+            if short_key not in list(info.keys()):
                 info[short_key] = info[key]
         elif re.match('[A-Z_0-9]+', key):
             lower_key = key.lower()
-            if lower_key not in info.keys():
+            if lower_key not in list(info.keys()):
                 info[lower_key] = info[key]
         info['__original_keys__'].append(key)
 

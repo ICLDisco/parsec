@@ -371,30 +371,6 @@ int parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int
 
 /**
  * @brief Trace one event on the implicit thread context.
- * @details This uses a TLS variable to lookup the last context created on the calling
- * thread. If the calling thread did not create a a profiling context, this
- * will generate an error. This function is significantly more costly than
- * parsec_profiling_trace_flags, as it includes the cost of TLS lookup.
- *
- * @param[in] key     the key (as returned by add_dictionary_keyword) of the event to log
- * @param[in] event_id a (possibly unique) event identifier. Events are coupled together: start/end.
- *                      a couple (start, end) has
- *                        - the same key
- *                        - end is the next "end" event with the same key and the same non-null event_id and
- *                          non OBJECT_ID_NULL taskpool_id as start in the event buffer of the thread context
- *                        - if no matching end is found, this is an error
- * @param[in] taskpool_id unique object/handle identifier (use PROFILE_OBJECT_ID_NULL if N/A)
- * @param[in] info    a pointer to an area of size info_length for this key (see
- *                        parsec_profiling_add_dictionary_keyword)
- * @param[in] flags   flags related to the event
- * @return 0 if success, negative otherwise.
- * @remark thread safe
- */
-int a(int key, uint64_t event_id, uint32_t taskpool_id,
-                                    const void *info, uint16_t flags );
-
-/**
- * @brief Trace one event on the implicit thread context.
  *
  * @details Event is added to the series of events related to the context passed as argument.
  *
@@ -557,7 +533,7 @@ void parsec_profiling_disable(void);
  * @brief Convenience macro to trace events with flags only if profiling is enabled
  */
 #define PARSEC_PROFILING_TRACE_FLAGS_INFO_FN(context, key, event_id, object_id, info_fn, info_data, flags ) \
-    if( parsec_profile_enabled ) {                                       \
+    if( parsec_profile_enabled && (-1 != (key))) {                                       \
         parsec_profiling_trace_flags_info_fn((context), (key), (event_id), (object_id), (info_fn), (info_data), (flags) ); \
     }
 

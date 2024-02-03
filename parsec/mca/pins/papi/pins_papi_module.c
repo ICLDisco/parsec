@@ -10,6 +10,7 @@
 #include "parsec/mca/pins/pins_papi_utils.h"
 #include "parsec/utils/output.h"
 #include "parsec/utils/mca_param.h"
+#include <string.h>
 #include <stdio.h>
 #include <papi.h>
 #include "parsec/execution_stream.h"

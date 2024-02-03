@@ -252,6 +252,25 @@ LIFO_STATIC_INLINE void parsec_lifo_push( parsec_lifo_t* lifo,
     PARSEC_ITEM_ATTACH(lifo, item);
 
     do {
+#if 0
+        /* This is a very conservative implementation of the LIFO push,
+         * where we atomically update the entire 128 bytes of the head
+         * instead of just the pointer. This code is here for the sake
+         * of completness, but it should not be used as ABA problems
+         * cannot arise on push.
+         */
+        parsec_counted_pointer_t old_head;
+        old_head.data = lifo->lifo_head.data;
+        parsec_atomic_rmb ();
+
+        item->list_next = lifo->lifo_head.data.item;
+
+        if (parsec_update_counted_pointer(&lifo->lifo_head, old_head,
+                                          (parsec_list_item_t *)item)) {
+            parsec_atomic_wmb ();
+            return;
+        }
+#else
         parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
 
         item->list_next = next;
@@ -261,6 +280,7 @@ LIFO_STATIC_INLINE void parsec_lifo_push( parsec_lifo_t* lifo,
         if (parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, item)) {
             return;
         }
+#endif
         /* DO some kind of pause to release the bus */
     } while (1);
 }
@@ -362,7 +382,7 @@ LIFO_STATIC_INLINE void parsec_lifo_push(parsec_lifo_t *lifo,
 
     do {
         if( ++attempt == 5 ) {
-            /* deliberatly suspend this thread to allow other threads to run. this should
+            /* deliberately suspend this thread to allow other threads to run. this should
              * only occur during periods of contention on the lifo. */
             _parsec_lifo_release_cpu ();
             attempt = 0;
@@ -386,7 +406,7 @@ LIFO_STATIC_INLINE void parsec_lifo_chain( parsec_lifo_t* lifo,
 
     do {
         if( ++attempt == 5 ) {
-            /* deliberatly suspend this thread to allow other threads to run. this should
+            /* deliberately suspend this thread to allow other threads to run. this should
              * only occur during periods of contention on the lifo. */
             _parsec_lifo_release_cpu ();
             attempt = 0;
@@ -407,7 +427,7 @@ LIFO_STATIC_INLINE parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
 
     do {
         if (++attempt == 5) {
-            /* deliberatly suspend this thread to allow other threads to run. this should
+            /* deliberately suspend this thread to allow other threads to run. this should
              * only occur during periods of contention on the lifo. */
             _parsec_lifo_release_cpu ();
             attempt = 0;

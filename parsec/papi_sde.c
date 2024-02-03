@@ -15,8 +15,6 @@
 #include "parsec/class/list.h"
 #include "parsec/class/parsec_rwlock.h"
 
-#define PAPI_SDE_IMPLEMENTATION
-#include "parsec/sde_lib.h"
 #include "parsec/papi_sde.h"
 
 #include "parsec/utils/mca_param.h"
@@ -99,17 +97,18 @@ papi_handle_t papi_sde_hook_list_events(papi_sde_fptr_struct_t *fptr_struct){
     parsec_papi_sde_hl_counters_t cnt;
 
     parsec_papi_sde_handle = fptr_struct->init("PARSEC");
-    for(cnt = PARSEC_PAPI_SDE_FIRST_BASIC_COUNTER; cnt <= PARSEC_PAPI_SDE_LAST_BASIC_COUNTER; cnt++) {
-        if( hl_counters[cnt].basic ) {
-            if( hl_counters[cnt].instant ) {
-                fptr_struct->register_fp_counter(parsec_papi_sde_handle, hl_counters[cnt].name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
-                                                 PAPI_SDE_int, (papi_sde_fptr_t)parsec_papi_sde_base_counter_cb, (void*)cnt);
-            } else {
-                fptr_struct->register_fp_counter(parsec_papi_sde_handle, hl_counters[cnt].name, PAPI_SDE_RO,
-                                                 PAPI_SDE_int, (papi_sde_fptr_t)parsec_papi_sde_base_counter_cb, (void*)cnt);
-            }
-            fptr_struct->describe_counter(parsec_papi_sde_handle, hl_counters[cnt].name, hl_counters[cnt].description);
+    for(cnt = PARSEC_PAPI_SDE_FIRST_BASIC_COUNTER; cnt < PARSEC_PAPI_SDE_NB_HL_COUNTERS; cnt++) {
+        /* It's fine to pass the wrong callback when registering in hook_list_events, because 
+         * these callbacks will not be called by papi_native_avail. In order to expose all events,
+         * we use parsec_papi_sde_base_counter_cb everywhere. */
+        if( hl_counters[cnt].instant ) {
+            fptr_struct->register_fp_counter(parsec_papi_sde_handle, hl_counters[cnt].name, PAPI_SDE_RO|PAPI_SDE_INSTANT,
+                                                PAPI_SDE_int, (papi_sde_fptr_t)parsec_papi_sde_base_counter_cb, (void*)cnt);
+        } else {
+            fptr_struct->register_fp_counter(parsec_papi_sde_handle, hl_counters[cnt].name, PAPI_SDE_RO,
+                                                PAPI_SDE_int, (papi_sde_fptr_t)parsec_papi_sde_base_counter_cb, (void*)cnt);
         }
+        fptr_struct->describe_counter(parsec_papi_sde_handle, hl_counters[cnt].name, hl_counters[cnt].description);
     }
     parsec_papi_sde_fptr = fptr_struct;
     parsec_mca_param_init();
@@ -134,17 +133,18 @@ void parsec_papi_sde_fini(void)
     parsec_list_item_t *it;
     parsec_papi_sde_hl_counters_t cnt;
 
-    for(cnt = PARSEC_PAPI_SDE_FIRST_BASIC_COUNTER; cnt <= PARSEC_PAPI_SDE_LAST_BASIC_COUNTER; cnt++) {
+    for(cnt = PARSEC_PAPI_SDE_FIRST_BASIC_COUNTER; cnt < PARSEC_PAPI_SDE_NB_HL_COUNTERS; cnt++) {
         papi_sde_unregister_counter(parsec_papi_sde_handle, hl_counters[cnt].name);
     }
+
+    papi_sde_shutdown(parsec_papi_sde_handle);
     
     parsec_atomic_rwlock_wrlock( &sde_threads_lock );
     while(NULL != (it = parsec_list_nolock_pop_front(&sde_threads)) ) {
         PARSEC_OBJ_RELEASE(it);
     }
-
     PARSEC_OBJ_DESTRUCT(&sde_threads);
-    parsec_papi_sde_handle = NULL;    
+    parsec_papi_sde_handle = NULL;
 }
 
 void parsec_papi_sde_thread_init(void)

@@ -249,6 +249,8 @@ int main( int argc, char** argv )
     free(descA.mat);
     parsec_del2arena( & adt );
 
+    parsec_taskpool_free( (parsec_taskpool_t*)tp );
+
     parsec_fini( &parsec);
 
 #ifdef PARSEC_HAVE_MPI
