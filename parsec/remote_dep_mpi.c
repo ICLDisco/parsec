@@ -857,6 +857,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
                     char* packed_buffer;
                     /* Copy the short data to some temp storage */
                     packed_buffer = malloc(origin->msg.length);
+                    /* the caller already added the *position input to eager_msg */
                     memcpy(packed_buffer, origin->eager_msg, origin->msg.length);
                     *position += origin->msg.length;  /* move to the next order */
                     origin->taskpool = (parsec_taskpool_t*)packed_buffer;  /* temporary storage */
@@ -869,7 +870,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
             if(return_defer) {
                 return -2;
             }
-            PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
+            PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", (1U<<k));
             origin->msg.task_class_id = dtd_task->super.task_class->task_class_id;
             origin->output[k].data.remote.src_datatype = origin->output[k].data.remote.dst_datatype = PARSEC_DATATYPE_NULL;
             dtd_task->super.task_class->iterate_successors(es, (parsec_task_t *)dtd_task,
@@ -881,7 +882,6 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
         parsec_task_t task;
         task.taskpool   = origin->taskpool;
         int idx, *data_sizes = (int*)origin->eager_msg;
-        /* Do not set the task.task_class here, because it might trigger a race condition in DTD */
 
         task.priority = 0;  /* unknown yet */
         task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
@@ -1261,8 +1261,8 @@ static inline uint64_t remote_dep_mpi_profiling_event_id(void)
 static int remote_dep_mpi_pack_dep(int peer,
                                    dep_cmd_item_t* item,
                                    char* packed_buffer,
-                                   uint32_t length,
-                                   int32_t* position)
+                                   int length,
+                                   int* position)
 {
     parsec_remote_deps_t *deps = (parsec_remote_deps_t*)item->cmd.activate.task.source_deps;
     remote_dep_wire_activate_t* msg = &deps->msg;
@@ -1286,9 +1286,9 @@ static int remote_dep_mpi_pack_dep(int peer,
         if( !(deps->output[k].rank_bits[peer_bank] & peer_mask) ) continue;
         data_idx++;
     }
-    if( (length - (*position)) < (dsize + (data_idx + 1) * (uint32_t)sizeof(uint32_t)) ) {  /* no room. bail out */
+    if( (length - (*position)) < (dsize + (data_idx + 1) * (int)sizeof(uint32_t)) ) {  /* no room. bail out */
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "Can't pack at %d/%d. Bail out!", *position, length);
-        if( length < (dsize + (data_idx + 1) * (uint32_t)sizeof(uint32_t)) ) {
+        if( length < (dsize + (data_idx + 1) * (int)sizeof(uint32_t)) ) {
             parsec_fatal("The header plus data cannot be sent on a single message "
                          "(need %zd but have %zd)\n",
                          length, dsize + data_idx * sizeof(uint32_t));
@@ -1836,7 +1836,7 @@ static void remote_dep_mpi_recv_activate(parsec_execution_stream_t* es,
             }
 
             /* Check if the data is short-embedded in the activate */
-            if((length - (*position)) >= data_sizes[ds_idx]) {
+            if((length - (*position)) >= (int)data_sizes[ds_idx]) {
                 assert(NULL == data_desc->data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
                 if(NULL == data_desc->data) {
                     data_desc->data = remote_dep_copy_allocate(type_desc);

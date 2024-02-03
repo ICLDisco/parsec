@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 
     /*******************
      * No local reshape
-     * When only type_remote is used on the dependencies, the pointer to the origianal
+     * When only type_remote is used on the dependencies, the pointer to the original
      * matrix tiles is passed to the successors tasks. Thus, the full original tiles are
      * set to 0.
      *******************/

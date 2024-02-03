@@ -7663,7 +7663,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
     string_arena_t *sa_tmp_type_r = string_arena_new(256);
     string_arena_t *sa_temp_r       = string_arena_new(1024);
 
-    int last_datatype_idx;
     assignment_info_t ai;
     expr_info_t info = EMPTY_EXPR_INFO;
     int nb_open_ldef;
@@ -7713,7 +7712,6 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
         flowempty = 1;
         flowtomem = 0;
-        last_datatype_idx = -1;
         string_arena_init(sa_coutput);
         string_arena_init(sa_deps);
         string_arena_init(sa_datatype);
