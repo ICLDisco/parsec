@@ -209,7 +209,7 @@ int gemm_kernel_cuda(parsec_device_gpu_module_t *gpu_device,
                 this_task->taskpool->context->my_rank,
                 gpu_stream->name, delta);
 
-    PARSEC_CUDA_CHECK_ERROR("cublasDgemm_v2 ", status,
+    PARSEC_CUDA_CHECK_ERROR("cublasDgemm_v2", status,
                             { return PARSEC_HOOK_RETURN_ERROR; });
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -401,11 +401,11 @@ static void *allocate_one_on_device(void *obj, void *p)
      cudaError_t cr;
 
      cr = cudaMallocManaged(&one_device, sizeof(double), cudaMemAttachGlobal);
-     PARSEC_CUDA_CHECK_ERROR("cudaMalloc ", cr,
+     PARSEC_CUDA_CHECK_ERROR("cudaMalloc", cr,
                             { return NULL; });
 
      cr = cudaMemcpy(one_device, &one_host, sizeof(double), cudaMemcpyHostToDevice);
-     PARSEC_CUDA_CHECK_ERROR("cudaMemcpy ", cr,
+     PARSEC_CUDA_CHECK_ERROR("cudaMemcpy", cr,
                             { return NULL; });
 
      return one_device;
