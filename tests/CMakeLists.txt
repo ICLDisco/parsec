@@ -66,6 +66,10 @@ function(parsec_addtest_cmd target)
   endif()
   add_test(${ARGV})
   set_tests_properties(${target} PROPERTIES DEPENDS parsec_build_tests_test)
+  # Disable GPU accelerators by default for all tests
+  set_property(TEST ${target} PROPERTY ENVIRONMENT "PARSEC_MCA_device_cuda_enabled=0")
+  set_property(TEST ${target} PROPERTY ENVIRONMENT "PARSEC_MCA_device_hip_enabled=0")
+  set_property(TEST ${target} PROPERTY ENVIRONMENT "PARSEC_MCA_device_level_zero_enabled=0")
 endfunction(parsec_addtest_cmd)
 
 check_function_exists(erand48 PARSEC_HAVE_ERAND48)
