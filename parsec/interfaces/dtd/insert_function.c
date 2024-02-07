@@ -3495,6 +3495,8 @@ parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx,
     if(NULL == new_adt)
         return NULL;
     new_adt->ht_item.key = my_id;
+    new_adt->ht_item.next_item = NULL;  /* keep Coverity happy */
+    new_adt->ht_item.hash64    = 0;  /* keep Coverity happy */
     parsec_hash_table_nolock_insert(&ctx->dtd_arena_datatypes_hash_table, &new_adt->ht_item);
     *id = my_id;
     return new_adt;
