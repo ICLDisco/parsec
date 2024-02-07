@@ -26,6 +26,7 @@
 #if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(PARSEC_HAVE_STRING_H) */
+#include <math.h>
 #if defined(__WINDOWS__)
 #include <windows.h>
 #endif  /* defined(__WINDOWS__) */
@@ -375,7 +376,6 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     float best_required_in, best_required_out;
     char *data_in_unit, *data_out_unit, *d2d_unit;
     char *required_in_unit, *required_out_unit;
-    char percent1[64], percent2[64], percent3[64];
     parsec_device_module_t *device;
     uint32_t i;
 
@@ -407,9 +407,8 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     }
 
     /* Print statistics */
-    if( 0 == total_data_in )  total_data_in  = 1;
-    if( 0 == total_data_out ) total_data_out = 1;
     gtotal = (float)total_tasks;
+    double percent_in, percent_out, percent_d2d;
 
     printf("+----------------------------------------------------------------------------------------------------------------------------+\n");
     printf("|         |                    |                       Data In                              |         Data Out               |\n");
@@ -425,14 +424,16 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
         parsec_compute_best_unit( transferred_out[i], &best_data_out,     &data_out_unit     );
         parsec_compute_best_unit( transferred_d2d[i], &best_d2d,          &d2d_unit          );
 
+        percent_in  = (0 == required_in[i])? nan(""): (((double)transferred_in[i])  / (double)required_in[i] ) * 100.0;
+        percent_d2d = (0 == required_in[i])? nan(""): (((double)transferred_d2d[i])  / (double)required_in[i] ) * 100.0;
+        percent_out = (0 == required_out[i])? nan(""): (((double)transferred_out[i])  / (double)required_out[i] ) * 100.0;
+
         printf("|  Dev %2d |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%5.2f)   |   %8.2f%2s(%5.2f)   | %8.2f%2s | %8.2f%2s(%5.2f) | %s\n",
                device->device_index, executed_tasks[i], (executed_tasks[i]/gtotal)*100.00,
-               best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
-               (((double)transferred_in[i])  / (double)required_in[i] ) * 100.0,
-               best_d2d, d2d_unit,
-               (((double)transferred_d2d[i])/ (double)required_in[i]) * 100.0,
-               best_required_out, required_out_unit, best_data_out, data_out_unit,
-               (((double)transferred_out[i]) / (double)required_out[i]) * 100.0, device->name );
+               best_required_in,  required_in_unit,  best_data_in,  data_in_unit, percent_in,
+               best_d2d, d2d_unit, percent_d2d,
+               best_required_out, required_out_unit, best_data_out, data_out_unit, percent_out,
+               device->name );
     }
 
     printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|-------------------|\n");
@@ -443,25 +444,16 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     parsec_compute_best_unit( total_data_out,     &best_data_out,     &data_out_unit     );
     parsec_compute_best_unit( total_d2d,          &best_d2d,          &d2d_unit          );
 
-    if( 0 == total_required_in ) {
-        snprintf(percent1, 64, "nan");
-        snprintf(percent2, 64, "nan");
-    } else {
-        snprintf(percent1, 64, "%5.2f",  ((double)total_data_in  / (double)total_required_in ) * 100.0);
-        snprintf(percent2, 64, "%5.2f", ((double)total_d2d / (double)total_required_in) * 100.0);
-    }
-    if( 0 == total_required_out ) {
-        snprintf(percent3, 64, "nan");
-    } else {
-        snprintf(percent3, 64, "%5.2f", ((double)total_data_out / (double)total_required_out) * 100.0);
-    }
-    printf("|All Devs |%10"PRIu64" | %5.2f | %8.2f%2s |   %8.2f%2s(%s)   |   %8.2f%2s(%s)   | %8.2f%2s | %8.2f%2s(%s) |\n",
-           total_tasks, (total_tasks/gtotal)*100.00,
-           best_required_in,  required_in_unit,  best_data_in,  data_in_unit, percent1,
-           best_d2d, d2d_unit, percent2,
-           best_required_out, required_out_unit, best_data_out, data_out_unit, percent3);
-    printf("+----------------------------------------------------------------------------------------------------------------------------+\n");
+    percent_in  = (0 == total_required_in)? nan(""): (((double)total_data_in)  / (double)total_required_in) * 100.0;
+    percent_d2d = (0 == total_required_in)? nan(""): (((double)total_d2d)  / (double)total_required_in) * 100.0;
+    percent_out = (0 == total_required_out)? nan(""): (((double)total_data_out)  / (double)total_required_out) * 100.0;
 
+    printf("|All Devs |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%5.2f)   |   %8.2f%2s(%5.2f)   | %8.2f%2s | %8.2f%2s(%5.2f) |\n",
+           total_tasks, (total_tasks/gtotal)*100.00,
+           best_required_in,  required_in_unit,  best_data_in,  data_in_unit, percent_in,
+           best_d2d, d2d_unit, percent_d2d,
+           best_required_out, required_out_unit, best_data_out, data_out_unit, percent_out);
+    printf("+----------------------------------------------------------------------------------------------------------------------------+\n");
 
     parsec_devices_free_statistics(&end_stats);
 }
