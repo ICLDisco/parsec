@@ -2,6 +2,7 @@ PROGRAM TOUCH_EXF
 
   use, INTRINSIC :: ISO_C_BINDING, only : c_int
   use parsec_f08_interfaces
+  use mpi
 
 interface
   function touch_initialize_f08(block, n) BIND(C, name="touch_initialize")
@@ -19,13 +20,13 @@ interface
   end function touch_finalize_f08
 end interface
 
-  integer BLOCK, N, ret
+  integer BLOCK, N, mpith, ret
   parameter (BLOCK=10, N=100)
 
   type(parsec_context_t) :: context
   type(parsec_taskpool_t)  :: tp
 
-  call MPI_INIT(ret)
+  call MPI_Init_thread(MPI_THREAD_MULTIPLE, mpith, ret)
 
   call parsec_init(1, context)
 
@@ -43,7 +44,7 @@ end interface
 
   ret = touch_finalize_f08()
 
-  call MPI_FINALIZE(ret)
+  call MPI_Finalize(ret)
 
   call exit(ret)
 END
