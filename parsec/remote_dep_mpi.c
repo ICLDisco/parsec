@@ -87,7 +87,7 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
 #define dep_dtt parsec_datatype_int8_t
 #define dep_count sizeof(remote_dep_wire_activate_t)
 #define dep_extent dep_count
-#define DEP_SHORT_BUFFER_SIZE (dep_extent+RDEP_MSG_SHORT_LIMIT)
+#define DEP_SHORT_BUFFER_SIZE (dep_extent+RDEP_MSG_SHORT_LIMIT+(1+MAX_DEP_IN_COUNT)*sizeof(uint32_t))
 #if PARSEC_SIZEOF_VOID_P == 4
 #define datakey_dtt parsec_datatype_int32_t
 #else
@@ -1270,8 +1270,8 @@ static inline uint64_t remote_dep_mpi_profiling_event_id(void)
 static int remote_dep_mpi_pack_dep(int peer,
                                    dep_cmd_item_t* item,
                                    char* packed_buffer,
-                                   uint32_t length,
-                                   int32_t* position)
+                                   int length,
+                                   int* position)
 {
     parsec_remote_deps_t *deps = (parsec_remote_deps_t*)item->cmd.activate.task.source_deps;
     remote_dep_wire_activate_t* msg = &deps->msg;
@@ -1295,9 +1295,9 @@ static int remote_dep_mpi_pack_dep(int peer,
         if( !(deps->output[k].rank_bits[peer_bank] & peer_mask) ) continue;
         data_idx++;
     }
-    if( (length - (*position)) < (dsize + (data_idx + 1) * (uint32_t)sizeof(uint32_t)) ) {  /* no room. bail out */
+    if( (length - (*position)) < (dsize + (data_idx + 1) * (int)sizeof(uint32_t)) ) {  /* no room. bail out */
         PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream, "Can't pack at %d/%d. Bail out!", *position, length);
-        if( length < (dsize + (data_idx + 1) * (uint32_t)sizeof(uint32_t)) ) {
+        if( length < (dsize + (data_idx + 1) * (int)sizeof(uint32_t)) ) {
             parsec_fatal("The header plus data cannot be sent on a single message "
                          "(need %zd but have %zd)\n",
                          length, dsize + data_idx * sizeof(uint32_t));
