@@ -10,33 +10,33 @@ extern "C" %{
 const int sizeof_datatype = sizeof(DTYPE);
 
 /**
- * @brief stencil_1D copy data to ghost region 
+ * @brief stencil_1D copy data to ghost region
  *
- * @param [out] A0: output data 
- * @param [in] AL: left input data 
- * @param [in] AR: right input data 
- * @param [in] MB: row tile size 
- * @param [in] NB: column tile size 
- * @param [in] myrank: my rank 
- * @param [in] rank_L: rank of left neighbor 
- * @param [in] rank_R: rank of right neighbor 
- * @param [in] R: radius of ghost region 
- * @param [in] n: column index 
- * @param [in] n_max: max column index 
+ * @param [out] A0: output data
+ * @param [in] AL: left input data
+ * @param [in] AR: right input data
+ * @param [in] MB: row tile size
+ * @param [in] NB: column tile size
+ * @param [in] myrank: my rank
+ * @param [in] rank_L: rank of left neighbor
+ * @param [in] rank_R: rank of right neighbor
+ * @param [in] R: radius of ghost region
+ * @param [in] n: column index
+ * @param [in] n_max: max column index
  */
 static void CORE_copydata_stencil_1D(DTYPE *A0, DTYPE *AL, DTYPE *AR, int MB,
                                   int NB, int myrank, int rank_L, int rank_R,
                                   int R, int n, int n_max) {
     int disp_AL, disp_AR, disp_A0;
 
-    /* Displacement of AL */ 
+    /* Displacement of AL */
     if( myrank == rank_L ) {
         disp_AL = MB * (NB - 2 * R);
     } else {
-        disp_AL = 0; 
+        disp_AL = 0;
     }
 
-    /* Copy AL to left ghost region of A0 */ 
+    /* Copy AL to left ghost region of A0 */
     if( n > 0 ) {
         memcpy((void *)A0, (void *)(AL+disp_AL), MB*R*sizeof(DTYPE));
     }
@@ -71,7 +71,7 @@ R           [ type = "int" ]
 task(t, n)
 
 t = 0 .. iter
-m = t % descA->lmt 
+m = t % descA->lmt
 n = 0 .. descA->lnt-1
 
 myrank = descA->super.myrank
@@ -104,7 +104,7 @@ END
 extern "C" %{
 
 /**
- * @brief Stencil 1D, no-blocking 
+ * @brief Stencil 1D, no-blocking
  *
  * @param [inout] dcA: the data, already distributed and allocated
  * @param [in] iter: iterations
@@ -132,14 +132,14 @@ parsec_stencil_1D_New(parsec_tiled_matrix_t *dcA, int iter, int R)
     exit(1);
   }
 
-  taskpool = parsec_stencil_1D_new(dcA, iter, R); 
+  taskpool = parsec_stencil_1D_new(dcA, iter, R);
   stencil_1D_taskpool = (parsec_taskpool_t*)taskpool;
 
   parsec_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX],
                            MY_TYPE, PARSEC_MATRIX_FULL,
                            1, dcA->mb, dcA->nb, dcA->mb,
                            PARSEC_ARENA_ALIGNMENT_SSE, -1 );
-  
+
   parsec_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX],
                            MY_TYPE, PARSEC_MATRIX_FULL,
                            1, dcA->mb, R, dcA->mb,
@@ -160,11 +160,11 @@ void parsec_stencil_1D_Destruct(parsec_taskpool_t *taskpool)
 }
 
 /**
- * @brief Stencil 1D 
- * 
+ * @brief Stencil 1D
+ *
  * @param [inout] dcA: the data, already distributed and allocated
- * @param [in] iter: iterations 
- * @param [in] R: radius 
+ * @param [in] iter: iterations
+ * @param [in] R: radius
  */
 int parsec_stencil_1D(parsec_context_t *parsec,
                       parsec_tiled_matrix_t *A,
@@ -172,7 +172,7 @@ int parsec_stencil_1D(parsec_context_t *parsec,
 {
   parsec_taskpool_t *parsec_stencil_1D = NULL;
 
-  parsec_stencil_1D = parsec_stencil_1D_New(A, iter, R); 
+  parsec_stencil_1D = parsec_stencil_1D_New(A, iter, R);
 
   if( parsec_stencil_1D != NULL ){
       parsec_enqueue(parsec, parsec_stencil_1D);

@@ -108,7 +108,7 @@ datatype_lookup_of_gpu_d2h_task( parsec_execution_stream_t * es,
                                  uint32_t * flow_mask,
                                  parsec_dep_data_description_t * data)
 {
-    (void)es; (void)this_task; (void)flow_mask; (void)data;
+    (void)es; (void)this_task; (void)parent_task; (void)flow_mask; (void)data;
     return PARSEC_SUCCESS;
 }
 
