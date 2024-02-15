@@ -357,25 +357,36 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 {
     uint32_t i;
 
-    parsec_dtd_data_collection_fini(&tp->new_tile_dc);
-    parsec_data_collection_destroy(&tp->new_tile_dc);
+    if(NULL != tp->super.context) { /* Initialized only if taskpool startup hook ran */
+        /* The taskpool is just out of a wait and is ready to receive new tasks at this time, so it has a termination detector */
+        assert(NULL != tp->super.tdm.module);
+        /* The taskpool is NOT READY, because every time we leave wait(), we reinitialize the termination detector. */
+        assert( tp->super.tdm.module->taskpool_state(&tp->super) == PARSEC_TERM_TP_NOT_READY );
+        /* But there should be 0 event on this taskpool at this time */
+        assert( tp->super.nb_pending_actions == 0 && tp->super.nb_tasks == 0);
+        /* So, we can terminate this termination detector by stating we are ready */
+        tp->super.tdm.module->taskpool_ready(&tp->super);
 
-#if defined(PARSEC_PROF_TRACE)
-    free((void *)tp->super.profiling_array);
-#endif /* defined(PARSEC_PROF_TRACE) */
+        parsec_dtd_data_collection_fini(&tp->new_tile_dc);
+        parsec_data_collection_destroy(&tp->new_tile_dc);
 
-    parsec_context_remove_taskpool(&tp->super);
+        parsec_context_remove_taskpool(&tp->super);
 
-    /* The taskpool is just out of a wait and is ready to receive new tasks at this time, so it has a termination detector */
-    assert(NULL != tp->super.tdm.module);
-    /* The taskpool is NOT READY, because every time we leave wait(), we reinitialize the termination detector. */
-    assert( tp->super.tdm.module->taskpool_state(&tp->super) == PARSEC_TERM_TP_NOT_READY );
-    /* But there should be 0 event on this taskpool at this time */
-    assert( tp->super.nb_pending_actions == 0 && tp->super.nb_tasks == 0);
-    /* So, we can terminate this termination detector by stating we are ready */
-    tp->super.tdm.module->taskpool_ready(&tp->super);
-    /* taskpool_unregister will unmonitor this taskpool */
-    parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
+        /* Unregister the taskpool from the devices */
+        for( i = 0; i < parsec_nb_devices; i++ ) {
+            parsec_device_module_t *device = parsec_mca_device_get(i);
+            if( !(tp->super.devices_index_mask & (1 << device->device_index)))
+                continue;
+            tp->super.devices_index_mask &= ~(1 << device->device_index);
+            if((NULL == device) || (NULL == device->taskpool_unregister))
+                continue;
+            (void)device->taskpool_unregister(device, &tp->super);
+        }
+        assert(0 == tp->super.devices_index_mask);
+
+       /* taskpool_unregister will unmonitor this taskpool */
+        parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
+    }
 
     /* Destroy the data repositories for this object */
     for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
@@ -394,26 +405,18 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
         tp->super.dependencies_array[i] = NULL;
     }
 
-    free(tp->super.dependencies_array);
-    free(tp->super.taskpool_name);
-    tp->super.dependencies_array = NULL;
-
-    /* Unregister the taskpool from the devices */
-    for( i = 0; i < parsec_nb_devices; i++ ) {
-        parsec_device_module_t *device = parsec_mca_device_get(i);
-        if( !(tp->super.devices_index_mask & (1 << device->device_index)))
-            continue;
-        tp->super.devices_index_mask &= ~(1 << device->device_index);
-        if((NULL == device) || (NULL == device->taskpool_unregister))
-            continue;
-        (void)device->taskpool_unregister(device, &tp->super);
-    }
-    assert(0 == tp->super.devices_index_mask);
-    free(tp->super.task_classes_array);
-
     /* dtd_taskpool specific */
     parsec_mempool_destruct(tp->hash_table_bucket_mempool);
     free(tp->hash_table_bucket_mempool);
+
+#if defined(PARSEC_PROF_TRACE)
+        free((void *)tp->super.profiling_array);
+#endif /* defined(PARSEC_PROF_TRACE) */
+ 
+    free(tp->super.taskpool_name);
+    free(tp->super.dependencies_array);
+    tp->super.dependencies_array = NULL;
+    free(tp->super.task_classes_array);
 
     parsec_hash_table_fini(tp->task_hash_table);
     PARSEC_OBJ_RELEASE(tp->task_hash_table);
@@ -1251,8 +1254,10 @@ parsec_dtd_data_collection_init(parsec_data_collection_t *dc)
 void
 parsec_dtd_data_collection_fini(parsec_data_collection_t *dc)
 {
-    parsec_hash_table_fini(dc->tile_h_table);
-    PARSEC_OBJ_RELEASE(dc->tile_h_table);
+    if(NULL != dc->tile_h_table) { /* not initialized before taskpool_start */
+        parsec_hash_table_fini(dc->tile_h_table);
+        PARSEC_OBJ_RELEASE(dc->tile_h_table);
+    }
     parsec_dc_unregister_id(dc->dc_id);
 }
 

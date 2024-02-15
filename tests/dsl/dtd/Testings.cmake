@@ -2,6 +2,7 @@
 #
 # Shared Memory Testings
 #
+parsec_addtest_cmd(dsl/dtd/empty ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_empty)
 parsec_addtest_cmd(dsl/dtd/task_generation ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_task_generation)
 parsec_addtest_cmd(dsl/dtd/task_inserting_task ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_task_inserting_task)
 parsec_addtest_cmd(dsl/dtd/task_insertion ${SHM_TEST_CMD_LIST} dsl/dtd/dtd_test_task_insertion)
@@ -15,6 +16,7 @@ endif(PARSEC_HAVE_CUDA AND CMAKE_CUDA_COMPILER)
 # Distributed Memory Testings
 #
 if( MPI_C_FOUND )
+  parsec_addtest_cmd(dsl/dtd/empty:mp ${MPI_TEST_CMD_LIST} 2 dsl/dtd/dtd_test_empty)
   parsec_addtest_cmd(dsl/dtd/pingpong:mp ${MPI_TEST_CMD_LIST} 2 dsl/dtd/dtd_test_pingpong)
   parsec_addtest_cmd(dsl/dtd/task_inserting_task:mp ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_task_inserting_task)
   parsec_addtest_cmd(dsl/dtd/task_insertion:mp ${MPI_TEST_CMD_LIST} 4 dsl/dtd/dtd_test_task_insertion)
