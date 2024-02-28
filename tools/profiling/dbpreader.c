@@ -792,7 +792,7 @@ int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
 void dbp_reader_close_files(dbp_multifile_reader_t *dbp)
 {
     for(int i = 0; i < dbp->nb_files; i++) {
-        dbp_reader_close_file(dbp->files[i]);
+        dbp_reader_close_file(&dbp->files[i]);
         free(dbp->files[i].hr_id);
         free(dbp->files[i].filename);
         for(int ld = 0 ; ld < dbp->files[i].nb_dico_map; ld++) {

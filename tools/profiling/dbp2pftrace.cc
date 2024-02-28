@@ -20,29 +20,13 @@
 #include "parsec/parsec_binary_profile.h"
 #include "dbpreader.h"
 
-namespace perfetto {
-    namespace internal {
-        constexpr ::perfetto::Category kCategories[] = {
-                perfetto::Category("executing").SetDescription("executing tasks")
-        };
-        constexpr size_t kCategoryCount = sizeof(kCategories) / sizeof(kCategories[0]);
-        extern std::atomic<uint8_t> g_category_state_storage[kCategoryCount];
-        constexpr ::perfetto::internal::TrackEventCategoryRegistry kConstExprCategoryRegistry(kCategoryCount, &kCategories[0], nullptr);
-        extern const ::perfetto::internal::TrackEventCategoryRegistry kCategoryRegistry;
-        static_assert(kConstExprCategoryRegistry.ValidateCategories(), "Invalid category names found");
-    }
-    struct TrackEvent : public ::perfetto::internal::TrackEventDataSource<TrackEvent, &internal::kCategoryRegistry> {
-    };
-}
-template<> perfetto::internal::DataSourceStaticState perfetto::DataSource<perfetto::TrackEvent, perfetto::internal::TrackEventDataSourceTraits>::static_state_;
+PERFETTO_DEFINE_CATEGORIES(
+    perfetto::Category("executing")
+        .SetDescription("executing tasks"));
 
-namespace perfetto {
-    namespace internal {
-        std::atomic<uint8_t> g_category_state_storage[kCategoryCount];
-        const ::perfetto::internal::TrackEventCategoryRegistry kCategoryRegistry(kCategoryCount, &kCategories[0], &g_category_state_storage[0]);
-    }
-}
-template<> perfetto::internal::DataSourceStaticState perfetto::DataSource<perfetto::TrackEvent, perfetto::internal::TrackEventDataSourceTraits>::static_state_ {};
+PERFETTO_TRACK_EVENT_STATIC_STORAGE();
+
+static std::unique_ptr<perfetto::TracingSession> tracing_session;
 
 void InitializePerfetto()
 {
@@ -56,7 +40,7 @@ void InitializePerfetto()
     perfetto::TrackEvent::Register();
 }
 
-std::unique_ptr<perfetto::TracingSession> StartTracing(int fd)
+void StartTracing(const char *filename)
 {
     // The trace config defines which types of data sources are enabled for
     // recording. In this example we just need the "track_event" data source,
@@ -65,32 +49,27 @@ std::unique_ptr<perfetto::TracingSession> StartTracing(int fd)
     cfg.add_buffers()->set_size_kb(1024);
     auto *ds_cfg = cfg.add_data_sources()->mutable_config();
     ds_cfg->set_name("track_event");
+    cfg.set_write_into_file(true);
+    cfg.set_output_path(filename);
+    cfg.set_file_write_period_ms(1);
 
-    auto tracing_session = perfetto::Tracing::NewTrace();
-    tracing_session->Setup(cfg, fd);
+    tracing_session = perfetto::Tracing::NewTrace();
+    tracing_session->Setup(cfg);
     tracing_session->StartBlocking();
-    return tracing_session;
 }
 
-void StopTracing(std::unique_ptr<perfetto::TracingSession> tracing_session, int fd)
+void FlushTracing()
+{
+    tracing_session->FlushBlocking();
+}
+
+void StopTracing()
 {
     // Make sure the last event is closed for this example.
-    perfetto::TrackEvent::Flush();
+    tracing_session->FlushBlocking();
 
     // Stop tracing and read the trace data.
     tracing_session->StopBlocking();
-    std::vector<char> trace_data(tracing_session->ReadTraceBlocking());
-
-    // Write the result into a file.
-    // Note: To save memory with longer traces, you can tell Perfetto to write
-    // directly into a file by passing a file descriptor into Setup() above.
-    /*
-    std::ofstream output;
-    output.open(filename, std::ios::out | std::ios::binary);
-    output.write(&trace_data[0], trace_data.size());
-    output.close();
-    */
-    close(fd);
 }
 
 static void convert_infos(const dbp_event_t *e, const dbp_dictionary_t *d, perfetto::EventContext &ctx)
@@ -117,7 +96,7 @@ static void convert_infos(const dbp_event_t *e, const dbp_dictionary_t *d, perfe
         names.push_back(fn);
         memcpy(fn, &conv[fn_start], fn_end-fn_start);
         fn[fn_end-fn_start] = '\0';
-        
+
         pos++;
         ft_start = pos;
         while( conv[pos] != '\0' && conv[pos] != '}' ) pos++;
@@ -139,7 +118,7 @@ static void convert_infos(const dbp_event_t *e, const dbp_dictionary_t *d, perfe
         } else if(strcmp(ft, "uint32_t") == 0) {
             int32_t v = *(uint32_t*)info;
             info += sizeof(uint32_t);
-            ctx.AddDebugAnnotation(fn, v);                                
+            ctx.AddDebugAnnotation(fn, v);
         } else if(strcmp(ft, "int64_t") == 0) {
             int64_t v = *(int64_t*)info;
             info += sizeof(int64_t);
@@ -147,7 +126,7 @@ static void convert_infos(const dbp_event_t *e, const dbp_dictionary_t *d, perfe
         } else if(strcmp(ft, "uint64_t") == 0) {
             int64_t v = *(uint64_t*)info;
             info += sizeof(uint64_t);
-            ctx.AddDebugAnnotation(fn, v);                                
+            ctx.AddDebugAnnotation(fn, v);
         } else {
             std::cerr << "Ignored: value of type " << ft << " for field " << fn << " in event of type " << dbp_dictionary_name(d) << std::endl; 
             goto syntax_error;
@@ -174,6 +153,7 @@ static void convert_one_thread(const dbp_thread_t *th, int thid, const dbp_file_
     perfetto::protos::gen::TrackDescriptor desc = t_track.Serialize();
     desc.mutable_thread()->set_thread_name(ss.str());
     perfetto::TrackEvent::SetTrackDescriptor(t_track, desc);
+    std::size_t nb_traced = 0;
 
     TRACE_EVENT_BEGIN("executing", nullptr, [&](perfetto::EventContext ctx) {
         ctx.event()->set_timestamp_absolute_us(1);
@@ -190,7 +170,7 @@ static void convert_one_thread(const dbp_thread_t *th, int thid, const dbp_file_
     const dbp_event_t *e, *g;
     while( (e = dbp_iterator_current(it)) != NULL ) {
         if( KEY_IS_START(dbp_event_get_key(e)) ) {
-            m = dbp_iterator_find_matching_event_all_threads(it, 0);
+            m = dbp_iterator_find_matching_event_all_threads(it);
             if(NULL == m ) {
                 std::cerr << "Event of class " << dbp_dictionary_name(dbp_file_get_dictionary(file, BASE_KEY(dbp_event_get_key(e))))
                         << " id " <<  dbp_event_get_taskpool_id(e) << ":" << dbp_event_get_event_id(e) << " at " << dbp_event_get_timestamp(e)
@@ -220,6 +200,11 @@ static void convert_one_thread(const dbp_thread_t *th, int thid, const dbp_file_
                         convert_infos(g, d, ctx);
                     }
                 });
+                nb_traced += 2;
+                if(nb_traced > 1024) {
+                    FlushTracing();
+                    nb_traced = 0;
+                }
             }
             dbp_iterator_delete(m);
         }
@@ -246,7 +231,6 @@ static void convert_one_file(const dbp_file_t *file)
 
 int main(int argc, char *argv[])
 {
-    int fd;
     int c;
     char *output = nullptr;
     std::vector<char *>inputs;
@@ -311,12 +295,16 @@ int main(int argc, char *argv[])
     inputs.clear();
 
     InitializePerfetto();
-    fd = open(output, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-    if( -1 == fd ) {
-        std::cerr << "Unable to create or overwrite '" << output << "': " << strerror(errno) << std::endl;
-        return EXIT_FAILURE;
+
+    struct stat st;
+    if( stat(output, &st) == 0 ) {
+        std::cerr << "Overwriting " << output << std::endl;
+        if(unlink(output) != 0) {
+            std::cerr << "Unable to delete " << output << " : " << strerror(errno) << std::endl;
+            exit(EXIT_FAILURE);
+        }
     }
-    auto tracing_session = StartTracing(fd);
+    StartTracing(output);
 
     for(int ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
         auto file = dbp_reader_get_file(dbp, ifd);
@@ -324,7 +312,7 @@ int main(int argc, char *argv[])
     }
     dbp_reader_close_files(dbp);
 
-    StopTracing(std::move(tracing_session), fd);
+    StopTracing();
 
     return EXIT_SUCCESS;
 }

@@ -44,20 +44,16 @@ endif(Graphviz_FOUND)
 if(CMAKE_CXX_COMPILER)
   include(FetchContent)
   FetchContent_Declare(perfetto_source
-                       URL https://android.googlesource.com/platform/external/perfetto/+archive/refs/heads/releases/v23.x/sdk.tar.gz
-                       CONFIGURE_COMMAND ""
-                       UPDATE_COMMAND ""
-                       BUILD_COMMAND ""
-                       INSTALL_COMMAND ""
-                       BUILD_BYPRODUCTS perfetto.h perfetto.cc)
+                       GIT_REPOSITORY https://android.googlesource.com/platform/external/perfetto
+                       GIT_TAG v41.0)
   FetchContent_MakeAvailable(perfetto_source)
   FetchContent_GetProperties(perfetto_source SOURCE_DIR PERFETTO_SOURCE_DIR)
 
-  if( EXISTS ${PERFETTO_SOURCE_DIR}/perfetto.h AND EXISTS ${PERFETTO_SOURCE_DIR}/perfetto.cc )
+  if( EXISTS ${PERFETTO_SOURCE_DIR}/sdk/perfetto.h AND EXISTS ${PERFETTO_SOURCE_DIR}/sdk/perfetto.cc )
     message(STATUS "Found Perfetto library sources in ${PERFETTO_SOURCE_DIR}")
 
-    add_executable(dbp2pftrace dbp2pftrace.cc "${PERFETTO_SOURCE_DIR}/perfetto.cc" "${PROJECT_SOURCE_DIR}/tools/profiling/dbpreader.c")
-    target_include_directories(dbp2pftrace PRIVATE ${PERFETTO_SOURCE_DIR})
+    add_executable(dbp2pftrace dbp2pftrace.cc "${PERFETTO_SOURCE_DIR}/sdk/perfetto.cc" "${PROJECT_SOURCE_DIR}/tools/profiling/dbpreader.c")
+    target_include_directories(dbp2pftrace PRIVATE ${PERFETTO_SOURCE_DIR}/sdk)
     target_link_libraries(dbp2pftrace parsec-base)
 
     if (WIN32)
