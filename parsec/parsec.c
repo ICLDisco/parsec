@@ -369,8 +369,8 @@ static void parsec_vp_init( parsec_vp_t *vp,
 
 parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 {
-    int ret, nb_vp, p, t, nb_total_comp_threads, display_vpmap = 0;
-    int comm_binding_parameter = -1;
+    int ret, nb_vp, p, t, nb_total_comp_threads;
+    char *comm_binding_parameter = NULL;
     char *binding_parameter = NULL;
     __parsec_temporary_thread_initialization_t *startup;
     parsec_context_t* context;
@@ -2447,7 +2447,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
 static int parsec_parse_comm_binding_parameter(const char *option, parsec_context_t* context)
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    if( option[0] != '\0' ) {
+    if( NULL != option && option[0] != '\0' ) {
         int core = atoi(option);
         /* negative core allowed to force an absolute core selection */
         if( core < parsec_hwloc_nb_real_cores() )
