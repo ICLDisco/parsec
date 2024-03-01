@@ -6,9 +6,9 @@ FortranCInterface_HEADER(f2c_mangle.h
 set(sources
     parsecf.F90 parsecf.c)
 
-IF (PARSEC_PROF_TRACE)
+if (PARSEC_PROF_TRACE)
   list(APPEND sources parsec_profilef.F90 parsec_profilef.c)
-ENDIF (PARSEC_PROF_TRACE)
+endif (PARSEC_PROF_TRACE)
 
 target_sources(parsec PRIVATE ${sources})
 

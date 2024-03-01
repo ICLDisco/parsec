@@ -117,11 +117,11 @@ int parsec_vpmap_init(char* optarg, int nb_cores )
         if( sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co) == 3 ) {
             parsec_vpmap_init_from_parameters(n, p, co);
         } else {
-            parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
+            parsec_warning("VPMAP choice (--mca runtime_vpmap): %s is invalid. Falling back to default!", optarg);
         }
     } else {
         if( '\0' != optarg[0] ) {
-            parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
+            parsec_warning("VPMAP choice (--mca runtime_vpmap): %s is invalid. Falling back to default!", optarg);
         }
     }
     if( -1 == parsec_vpmap_get_nb_vp() ) {

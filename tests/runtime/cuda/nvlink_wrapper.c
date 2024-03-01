@@ -3,6 +3,7 @@
  * Copyright (c) 2019-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
@@ -13,13 +14,13 @@
 #include "parsec/execution_stream.h"
 #include "parsec/class/info.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include <cublas_v2.h>
 #endif
 
 #include "nvlink.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 static void destruct_cublas_handle(void *p)
 {
     cublasHandle_t handle = (cublasHandle_t)p;
@@ -49,7 +50,7 @@ static void *create_cublas_handle(void *obj, void *p)
 
 static void destroy_cublas_handle(void *_h, void *_n)
 {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     cublasHandle_t cublas_handle = (cublasHandle_t)_h;
     cublasDestroy_v2(cublas_handle);
 #endif
@@ -76,9 +77,9 @@ __parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
             parsec_data_t *dta = ((parsec_dc_t*)userM)->data_of((parsec_dc_t*)userM, g, userM->super.super.myrank);
             parsec_data_copy_t *gpu_copy = parsec_data_get_copy(dta, cuda_device->super.super.device_index);
             cudaError_t status = cudaSetDevice( cuda_device->cuda_index );
-            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaSetDevice ", status, {} );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaSetDevice", status, {} );
             status = (cudaError_t)cudaFree( gpu_copy->device_private );
-            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaFree ", status, {} );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaFree", status, {} );
             gpu_copy->device_private = NULL;
             parsec_data_copy_detach(dta, gpu_copy, cuda_device->super.super.device_index);
             PARSEC_OBJ_RELEASE(gpu_copy);
@@ -86,7 +87,7 @@ __parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
         }
     }
     parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)nvlink_taskpool->_g_userM );
-    
+
     free(dcA);
     free(userM);
 }
@@ -125,7 +126,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
         }
     }
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     parsec_info_id_t CuHI = parsec_info_register(&parsec_per_stream_infos, "CUBLAS::HANDLE",
                                                  destroy_cublas_handle, NULL,
                                                  create_cublas_handle, NULL,
@@ -189,10 +190,10 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
             parsec_data_copy_t *gpu_copy = PARSEC_OBJ_NEW(parsec_data_copy_t);
             /* We chose the GPU */
             cudaError_t status = cudaSetDevice( cuda_device->cuda_index );
-            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaSetDevice ", status, {return NULL;} );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaSetDevice", status, {return NULL;} );
             /* Allocate memory on it, for one tile */
             status = (cudaError_t)cudaMalloc( &gpu_copy->device_private, mb*mb*parsec_datadist_getsizeoftype(PARSEC_MATRIX_DOUBLE) );
-            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMalloc ", status, {return NULL;} );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMalloc", status, {return NULL;} );
             /* Attach this copy to the data, on the corresponding device */
             parsec_data_copy_attach(dta, gpu_copy, cuda_device->super.super.device_index);
             /* We also need to tell PaRSEC that the owner of this data is the GPU, or the
@@ -203,7 +204,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
                                               cpu_copy->device_private,
                                               dta->nb_elts,
                                               cudaMemcpyHostToDevice );
-            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMemcpy ", status, {return NULL;} );
+            PARSEC_CUDA_CHECK_ERROR( "(nvlink_wrapper) cudaMemcpy", status, {return NULL;} );
             g++;
         }
     }

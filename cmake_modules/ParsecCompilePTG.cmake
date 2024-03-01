@@ -141,7 +141,7 @@ endfunction(target_ptg_source_ex)
 #
 function(target_ptg_sources target mode)
   if( NOT TARGET PaRSEC::parsec-ptgpp )
-    MESSAGE(FATAL_ERROR "parsec-ptgpp target was not built but it is required for target ${target}")
+    message(FATAL_ERROR "parsec-ptgpp target was not built but it is required for target ${target}")
     return()
   endif( NOT TARGET PaRSEC::parsec-ptgpp )
   foreach(infile ${ARGN})

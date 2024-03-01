@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2022 The University of Tennessee and The University
+ * Copyright (c) 2016-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,7 +13,7 @@
  * with the exception of parsec_atomic_lock operations, which use proper
  * acquire/release semantics, and the memory barriers.
  *
- * Change this define to memory_order_seq_cst to restore senquential
+ * Change this define to memory_order_seq_cst to restore sequential
  * consistency of atomic operations.
  *
  * NOTE: semantically, we should use memory_order_consume to ensure that

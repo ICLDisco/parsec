@@ -10,16 +10,16 @@
 #   parsec target.
 
 # if the component will be built or not
-SET(MCA_${COMPONENT}_${MODULE} ON)
+set(MCA_${COMPONENT}_${MODULE} ON)
 
 # create a cmake variable with all the sources to be included. This variable will
 # be automatically included in the parsec target sources
-FILE(GLOB MCA_${COMPONENT}_${MODULE}_SOURCES ${MCA_BASE_DIR}/${COMPONENT}/${MODULE}/[^\\.]*.c)
+file(GLOB MCA_${COMPONENT}_${MODULE}_SOURCES ${MCA_BASE_DIR}/${COMPONENT}/${MODULE}/[^\\.]*.c)
 
 # define the name of the static compoenent that behave as a constructor for the object
 # when linked statically. It points to a visible base_compomponent_t exposing the
 # open, close, and query functions.
-SET(MCA_${COMPONENT}_${MODULE}_CONSTRUCTOR "${COMPONENT}_${MODULE}_static_component")
+set(MCA_${COMPONENT}_${MODULE}_CONSTRUCTOR "${COMPONENT}_${MODULE}_static_component")
 
 # add the list of files to be installed. This step can be conditional, and must
 # take in account the WITH_DEVEL_HEADER request.

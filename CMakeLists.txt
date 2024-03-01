@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.18)
+cmake_minimum_required (VERSION 3.19)
 project (PARSEC C)
 
 include(CMakeDependentOption)
@@ -45,7 +45,7 @@ if(POLICY CMP0074)
   # CMP0074: Starting with CMake 3.12, all FIND_<something> use <something>_ROOT in the search path
   #          in addition to the specified paths
   cmake_policy(SET CMP0074 NEW)
-ENDIF(POLICY CMP0074)
+endif(POLICY CMP0074)
 if(POLICY CMP0088)
   # CMP0088: New in version 3.14: FindBISON runs bison in CMAKE_CURRENT_BINARY_DIR when executing.
   cmake_policy(SET CMP0088 NEW)
@@ -54,7 +54,7 @@ if(POLICY CMP0094)
   # CMP0094: Starting with CMake 3.16, all FIND_Python will use the first matching version instead of
   #          of searching for the largest available version number (which defeats our selection logic)
   cmake_policy(SET CMP0094 NEW)
-ENDIF(POLICY CMP0094)
+endif(POLICY CMP0094)
 if(POLICY CMP0098)
   # CMP0098: New in version 3.17, FindFLEX runs flex in directory CMAKE_CURRENT_BINARY_DIR when executing.
   cmake_policy(SET CMP0098 NEW)
@@ -67,7 +67,7 @@ set(CMAKE_NO_SYSTEM_FROM_IMPORTED True)
 set(CMAKE_FIND_FRAMEWORK LAST)
 
 # CTest system
-SET(DART_TESTING_TIMEOUT 120)
+set(DART_TESTING_TIMEOUT 120)
 enable_testing()
 include(CTest)
 
@@ -78,7 +78,7 @@ include(CTest)
 ## Check for the support of additional languages and capabilities
 option(SUPPORT_FORTRAN
        "Enable support for Fortran bindings (default ON)" ON)
-# In CMake 3.12, enable_language OPTIONAL has no effect and will still 
+# In CMake 3.12, enable_language OPTIONAL has no effect and will still
 # enable the language for a compiler that does not work/is not present
 # causing all sort of problems downstream. For now use CheckLanguage before.
 include(CheckLanguage)
@@ -98,7 +98,7 @@ if( SUPPORT_CXX )
 endif( SUPPORT_CXX )
 option(SUPPORT_C11
        "Enable support for C11 capabilities. Might not work with OpenMP support due to an OpenMP compilers restriction (default ON)." ON)
-IF(SUPPORT_C11)
+if(SUPPORT_C11)
   set(SUPPORT_C11 OFF)  # disable until we conirm the compiler supports it
   foreach( item IN LISTS CMAKE_C_COMPILE_FEATURES )
     if( item STREQUAL "c_std_11")
@@ -108,9 +108,9 @@ IF(SUPPORT_C11)
       break()
     endif()
   endforeach()
-ELSE(SUPPORT_C11)
+else(SUPPORT_C11)
   set(CMAKE_C_STANDARD 99)
-ENDIF(SUPPORT_C11)
+endif(SUPPORT_C11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 ## Selectively compile only parts of the framework
@@ -120,7 +120,6 @@ mark_as_advanced(BUILD_TOOLS)
 option(BUILD_PARSEC
        "Compile the PaRSEC framework" ON)
 mark_as_advanced(BUILD_PARSEC)
-
 ### Misc options
 option(BUILD_SHARED_LIBS
     "Build shared libraries" ON)
@@ -131,6 +130,15 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 option(PARSEC_WANT_HOME_CONFIG_FILES
        "Should the runtime check for the parameter configuration file in the user home (\$HOME/.parsec/mca-params.conf)" ON)
+option(MPI_HWLOC_COMPAT_CHECK
+       "Run the MPI + HWLOC compatibility check. If OFF assume the check succeeds (default ON)." ON)
+mark_as_advanced(MPI_HWLOC_COMPAT_CHECK)
+
+### PaRSEC runtime configuration parameters
+set(PARSEC_MAX_LOCAL_COUNT 20 CACHE STRING "Number of local variables for tasks (default 20)")
+set(PARSEC_MAX_PARAM_COUNT 20 CACHE STRING "Number of parameters for tasks (default 20)")
+set(PARSEC_MAX_DEP_IN_COUNT 10 CACHE STRING "Number of input flows for each task (default 10)")
+set(PARSEC_MAX_DEP_OUT_COUNT 10 CACHE STRING "Number of output flows for each task (default 10)")
 
 ### PaRSEC PP options
 set(PARSEC_PTGPP_FLAGS "--noline" CACHE STRING "Additional parsec-ptgpp precompiling flags (separate flags with ';')" )
@@ -139,10 +147,9 @@ mark_as_advanced(PARSEC_PTGPP_FLAGS)
 option(PARSEC_WITH_DEVEL_HEADERS "Install additional headers in include/parsec allowing external compilation." ON)
 
 ## Multicore scheduler parameters
-
-mark_as_advanced(PARSEC_SCHED_DEPS_MASK)
 option(PARSEC_SCHED_DEPS_MASK
   "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" ON)
+mark_as_advanced(PARSEC_SCHED_DEPS_MASK)
 
 ### Distributed engine parameters
 mark_as_advanced(PARSEC_DIST_THREAD PARSEC_DIST_PRIORITIES)
@@ -161,18 +168,16 @@ set   (PARSEC_DIST_SHORT_LIMIT 1 CACHE STRING
   "Use the short protocol (no flow control) for messages smaller than the limit in KB. Performs better if smaller than the MTU")
 
 ### GPU engine parameters
+option(PARSEC_GPU_ALLOC_PER_TILE
+  "Tile based allocation engine for GPU memory (instead of internal management
+  of a complete allocation)" OFF)
+mark_as_advanced(PARSEC_GPU_ALLOC_PER_TILE)
 option(PARSEC_GPU_WITH_CUDA
   "Enable GPU support using CUDA kernels" ON)
-option(PARSEC_GPU_CUDA_ALLOC_PER_TILE
-  "Tile based allocation engine for GPU memory (instead of internal management
-  of a complete allocation)" OFF)
-mark_as_advanced(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
 option(PARSEC_GPU_WITH_HIP
     "Enable GPU support using HIP kernels" ON)
-option(PARSEC_GPU_HIP_ALLOC_PER_TILE
-  "Tile based allocation engine for GPU memory (instead of internal management
-  of a complete allocation)" OFF)
-mark_as_advanced(PARSEC_GPU_HIP_ALLOC_PER_TILE)
+option(PARSEC_GPU_WITH_LEVEL_ZERO
+    "Enable GPU support using LEVEL_ZERO kernels" ON)
 option(PARSEC_GPU_WITH_OPENCL
   "Enable GPU support using OpenCL kernels" OFF)
 mark_as_advanced(PARSEC_GPU_WITH_OPENCL) # Hide this as it is not supported yet
@@ -210,25 +215,12 @@ endif()
 option(PARSEC_PROF_TRACE
   "Enable the generation of the profiling information during
   execution" OFF)
-set(PARSEC_PROF_TRACE_SYSTEM "Auto" CACHE STRING "Select the profiling system,
- if PARSEC_PROF_TRACE is ON")
-#This enforces that only the 3 values are available in ccmake or cmake-gui
-set_property(CACHE PARSEC_PROF_TRACE_SYSTEM PROPERTY STRINGS "Auto" "OTF2" "PaRSEC Binary Tracing Format")
+  set(PARSEC_PROF_TRACE_SYSTEM "PaRSEC Binary Tracing Format" CACHE STRING "Select the profiling system, if PARSEC_PROF_TRACE is ON")
+#This enforces that only valid values are available in ccmake or cmake-gui
+set_property(CACHE PARSEC_PROF_TRACE_SYSTEM PROPERTY STRINGS "OTF2" "PaRSEC Binary Tracing Format")
 option(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT
   "Generate Profiling traces for the internal_init tasks in the PTG interface (expert mode only)" OFF)
 mark_as_advanced(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT) #This is available in export mode only
-if( PARSEC_PROF_TRACE )
-  if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR
-     CMAKE_SYSTEM_NAME MATCHES "MSYS" OR
-     CMAKE_SYSTEM_NAME MATCHES "MINGW64")
-    SET(PARSEC_PAPI_SDE OFF)
-  else()
-    SET(PARSEC_PAPI_SDE ON)
-  endif()
-else( PARSEC_PROF_TRACE )
-  UNSET(PARSEC_PAPI_SDE)
-  UNSET(PARSEC_PAPI_SDE CACHE)
-endif( PARSEC_PROF_TRACE )
 
 option(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET
   "Enable the profiling of active arena set to track memory usage of parsec handles" OFF)
@@ -278,6 +270,25 @@ include (CheckCXXCompilerFlag)
 # check the capabilities of the system we are building for
 #
 
+# Check for PAPI::SDE
+if( PARSEC_PROF_TRACE )
+  if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR
+     CMAKE_SYSTEM_NAME MATCHES "MSYS" OR
+     CMAKE_SYSTEM_NAME MATCHES "MINGW64")
+    set(PARSEC_PAPI_SDE OFF)
+  else()
+    find_package(SDE)
+    if( TARGET PAPI::SDE )
+      set(PARSEC_PAPI_SDE ON)
+    else( TARGET PAPI::SDE )
+      set(PARSEC_PAPI_SDE OFF)
+    endif( TARGET PAPI::SDE )
+  endif()
+else( PARSEC_PROF_TRACE )
+  unset(PARSEC_PAPI_SDE)
+  unset(PARSEC_PAPI_SDE CACHE)
+endif( PARSEC_PROF_TRACE )
+
 # Check for compiler tools
 find_package(BISON 3)
 find_package(FLEX 2.6)
@@ -288,28 +299,28 @@ if(FLEX_FOUND AND BISON_FOUND)
   set(PARSEC_PREGEN_FLEX_BISON_DIR ${PROJECT_BINARY_DIR}/contrib/pregen_flex_bison CACHE PATH "Where to stage the pre-generated .l.c and .y.[ch] files")
   add_custom_target(parsec_pregen_flex_bison
     WORKING_DIRECTORY ${PARSEC_PREGEN_FLEX_BISON_DIR}
-    COMMAND cmake -Dsrcdir=${PROJECT_SOURCE_DIR} -Dbuilddir=${PROJECT_BINARY_DIR} -Darchive=${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake)
+    COMMAND ${CMAKE_COMMAND} -Dsrcdir=${PROJECT_SOURCE_DIR} -Dbuilddir=${PROJECT_BINARY_DIR} -Darchive=${PARSEC_PREGEN_FLEX_BISON_ARCHIVE} -P ${PROJECT_SOURCE_DIR}/cmake_modules/pregen_flex_bison.cmake)
 endif()
 
 # check for the CPU we build for
-MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
-STRING(REGEX MATCH "(i.86-*)|(athlon-*)|(pentium-*)" _mach_x86 ${CMAKE_SYSTEM_PROCESSOR})
-IF (_mach_x86)
-    MESSAGE(STATUS "Found target for X86")
-    SET(PARSEC_ARCH_X86 1)
-ENDIF (_mach_x86)
+message(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
+string(REGEX MATCH "(i.86-*)|(athlon-*)|(pentium-*)" _mach_x86 ${CMAKE_SYSTEM_PROCESSOR})
+if (_mach_x86)
+    message(STATUS "Found target for X86")
+    set(PARSEC_ARCH_X86 1)
+endif (_mach_x86)
 
-STRING(REGEX MATCH "(x86_64-*)|(X86_64-*)|(AMD64-*)|(amd64-*)" _mach_x86_64 ${CMAKE_SYSTEM_PROCESSOR})
-IF (_mach_x86_64)
-    MESSAGE(STATUS "Found target X86_64")
-    SET(PARSEC_ARCH_X86_64 1)
-ENDIF (_mach_x86_64)
+string(REGEX MATCH "(x86_64-*)|(X86_64-*)|(AMD64-*)|(amd64-*)" _mach_x86_64 ${CMAKE_SYSTEM_PROCESSOR})
+if (_mach_x86_64)
+    message(STATUS "Found target X86_64")
+    set(PARSEC_ARCH_X86_64 1)
+endif (_mach_x86_64)
 
-STRING(REGEX MATCH "(ppc-*)|(powerpc-*)" _mach_ppc ${CMAKE_SYSTEM_PROCESSOR})
-IF (_mach_ppc)
-    MESSAGE(STATUS "Found target for PPC")
-    SET(PARSEC_ARCH_PPC 1)
-ENDIF (_mach_ppc)
+string(REGEX MATCH "(ppc-*)|(powerpc-*)" _mach_ppc ${CMAKE_SYSTEM_PROCESSOR})
+if (_mach_ppc)
+    message(STATUS "Found target for PPC")
+    set(PARSEC_ARCH_PPC 1)
+endif (_mach_ppc)
 
 include (ParsecCompilerFlags)
 
@@ -365,18 +376,18 @@ set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 if(Threads_FOUND)
   set(PARSEC_HAVE_PTHREAD true)
-  CMAKE_PUSH_CHECK_STATE()
-  LIST(APPEND CMAKE_REQUIRED_LIBRARIES "${CMAKE_THREAD_LIBS_INIT}")
+  cmake_push_check_state()
+  list(APPEND CMAKE_REQUIRED_LIBRARIES "${CMAKE_THREAD_LIBS_INIT}")
   check_symbol_exists(pthread_getspecific "pthread.h" PARSEC_HAVE_PTHREAD_GETSPECIFIC)
   check_symbol_exists(pthread_barrier_init "pthread.h" PARSEC_HAVE_PTHREAD_BARRIER)
   if(NOT PARSEC_HAVE_PTHREAD_BARRIER)
     check_symbol_exists(pthread_barrier_init "pthread-barrier.h" PARSEC_HAVE_PTHREAD_BARRIER_H)
     if(PARSEC_HAVE_PTHREAD_BARRIER_H)
-      SET(CMAKE_REQUIRED_LIBRARIES "libuv.a")
+      set(CMAKE_REQUIRED_LIBRARIES "libuv.a")
       check_function_exists(pthread_barrier_init PARSEC_HAVE_PTHREAD_BARRIER)
     endif(PARSEC_HAVE_PTHREAD_BARRIER_H)
   endif(NOT PARSEC_HAVE_PTHREAD_BARRIER)
-  CMAKE_POP_CHECK_STATE()
+  cmake_pop_check_state()
 endif(Threads_FOUND)
 
 check_function_exists(sched_setaffinity PARSEC_HAVE_SCHED_SETAFFINITY)
@@ -392,10 +403,10 @@ endif(NOT PARSEC_HAVE_SCHED_SETAFFINITY)
 include(CheckStructHasMember)
 check_struct_has_member("struct timespec" tv_nsec time.h PARSEC_HAVE_TIMESPEC_TV_NSEC)
 if( NOT PARSEC_HAVE_TIMESPEC_TV_NSEC )
-  CMAKE_PUSH_CHECK_STATE()
+  cmake_push_check_state()
   list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE")
   check_struct_has_member("struct timespec" tv_nsec time.h PARSEC_HAVE_TIMESPEC_TV_NSEC_GNU)
-  CMAKE_POP_CHECK_STATE()
+  cmake_pop_check_state()
   if( PARSEC_HAVE_TIMESPEC_TV_NSEC_GNU )
     add_definitions(-D_GNU_SOURCE)
     set(PARSEC_HAVE_TIMESPEC_TV_NSEC true)
@@ -502,10 +513,10 @@ int main(int argc, char* argv[]) {
 check_function_exists(getrusage PARSEC_HAVE_GETRUSAGE)
 check_symbol_exists(RUSAGE_THREAD sys/resource.h PARSEC_HAVE_RUSAGE_THREAD)
 if( NOT PARSEC_HAVE_RUSAGE_THREAD )
-  CMAKE_PUSH_CHECK_STATE()
+  cmake_push_check_state()
   list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE")
   check_symbol_exists(RUSAGE_THREAD sys/resource.h PARSEC_HAVE_RUSAGE_THREAD_GNU)
-  CMAKE_POP_CHECK_STATE()
+  cmake_pop_check_state()
   if( PARSEC_HAVE_RUSAGE_THREAD_GNU )
     add_definitions(-D_GNU_SOURCE)
     set(PARSEC_HAVE_RUSAGE_THREAD true)
@@ -563,18 +574,20 @@ int main() {
   return 0;
   }" PARSEC_HAVE_ENUM_ATTRIBUTE_DEPRECATED)
 
+check_type_size("size_t" PARSEC_SIZEOF_SIZE_T)
+
 set(EXTRA_INCLUDES "")
 #
 # Find optional packages
 #
-IF( BUILD_PARSEC )
+if( BUILD_PARSEC )
   if (PARSEC_DIST_WITH_MPI)
     # Otherwise try to find MPI in the normal way
     find_package(MPI)
     set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
     if (NOT MPI_C_FOUND)
       # Force MPI: if no compiler, do not proceed further
-      MESSAGE(FATAL_ERROR "MPI is required but was not found. Please provide an MPI compiler")
+      message(FATAL_ERROR "MPI is required but was not found. Please provide an MPI compiler")
     endif (NOT MPI_C_FOUND)
     list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES})
   endif (PARSEC_DIST_WITH_MPI)
@@ -584,7 +597,7 @@ IF( BUILD_PARSEC )
   #     known bugged version of mpi_assert_no_ordering
   #
   if (MPI_C_FOUND)
-    CMAKE_PUSH_CHECK_STATE()
+    cmake_push_check_state()
     list(APPEND CMAKE_REQUIRED_INCLUDES  "${MPI_C_INCLUDE_PATH}")
     list(APPEND CMAKE_REQUIRED_LIBRARIES "${MPI_C_LIBRARIES}")
     check_function_exists(MPI_Type_create_resized PARSEC_HAVE_MPI_20)
@@ -602,7 +615,7 @@ IF( BUILD_PARSEC )
                                PARSEC_HAVE_MPI_OVERTAKE
                                FAIL_REGEX "malfunctionning mpi_assert_enable_overtaking")
     endif(PARSEC_HAVE_MPI_30)
-    CMAKE_POP_CHECK_STATE()
+    cmake_pop_check_state()
   endif (MPI_C_FOUND)
 
   # If MPI enabled and the user did not requested a specific HWLOC
@@ -625,7 +638,7 @@ IF( BUILD_PARSEC )
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     list(APPEND EXTRA_INCLUDES ${HWLOC_INCLUDE_DIRS})
     set (PARSEC_PKG_REQUIRE "hwloc")
-    if(MPI_C_FOUND AND NOT CMAKE_CROSSCOMPILING)
+    if(MPI_C_FOUND AND MPI_HWLOC_COMPAT_CHECK AND NOT CMAKE_CROSSCOMPILING)
         include(CheckCSourceRuns)
         cmake_push_check_state()
         # Some MPI libraries link with an external version of hwloc, and
@@ -673,35 +686,30 @@ int main(int argc, char *argv[]) {
             message(FATAL_ERROR "The hwloc CMake found and the one used by MPI are incompatible!\n  Make sure you use the same hwloc used to compile your MPI library\n  The test failed with the following outputs:\n${RUN_OUTPUT}")
         endif(NOT MPI_AND_HWLOC_COMPATIBLE)
         cmake_pop_check_state()
-    endif(MPI_C_FOUND AND NOT CMAKE_CROSSCOMPILING)
+    else(MPI_C_FOUND AND MPI_HWLOC_COMPAT_CHECK AND NOT CMAKE_CROSSCOMPILING)
+      message(STATUS "MPI and HWLOC assumed compatible (check explicitly disabled)")
+      set(MPI_AND_HWLOC_COMPATIBLE 1 CACHE BOOL "MPI and HWLOC assumed compatible (check explicitly disabled)")
+    endif(MPI_C_FOUND AND MPI_HWLOC_COMPAT_CHECK AND NOT CMAKE_CROSSCOMPILING)
   endif( HWLOC_FOUND )
 
   if( PARSEC_GPU_WITH_CUDA )
-    STRING(REGEX MATCH "PGI$" _match_pgi ${CMAKE_C_COMPILER_ID})
-    IF (_match_pgi)
-      GET_FILENAME_COMPONENT(_pgcc ${CMAKE_C_COMPILER} ABSOLUTE)
-      STRING(REGEX REPLACE "/bin/.*" "" _path_pgi ${_pgcc})
+    string(REGEX MATCH "PGI$" _match_pgi ${CMAKE_C_COMPILER_ID})
+    if (_match_pgi)
+      get_filename_component(_pgcc ${CMAKE_C_COMPILER} ABSOLUTE)
+      string(REGEX REPLACE "/bin/.*" "" _path_pgi ${_pgcc})
       file(GLOB_RECURSE _pgnvcc FOLLOW_SYMLINKS ${_path_pgi}/cuda/*/nvcc)
       list(SORT _pgnvcc)
       list(GET _pgnvcc -1 _pgnvcc)
-      STRING(REGEX REPLACE "/bin/.*" "" _path_pgcuda "${_pgnvcc}")
+      string(REGEX REPLACE "/bin/.*" "" _path_pgcuda "${_pgnvcc}")
       if(_path_pgcuda)
         set(CUDAToolkit_ROOT ${_path_pgcuda})
-        MESSAGE(STATUS "Using PGI internal CUDA SDK in ${CUDAToolkit_ROOT}")
+        message(STATUS "Using PGI internal CUDA SDK in ${CUDAToolkit_ROOT}")
       endif(_path_pgcuda)
-    ENDIF (_match_pgi)
-    find_package(CUDAToolkit)
+    endif (_match_pgi)
+    find_package(CUDAToolkit 4)
     set(PARSEC_HAVE_CUDA ${CUDAToolkit_FOUND} CACHE BOOL "True if PaRSEC provide support for CUDA")
     if (CUDAToolkit_FOUND)
       message(STATUS "Found CUDA ${CUDAToolkit_VERSION} in ${CUDAToolkit_LIBRARY_DIR}")
-      CMAKE_PUSH_CHECK_STATE()
-      list(APPEND CMAKE_REQUIRED_LIBRARIES CUDA::cudart)
-      if(CUDAToolkit_VERSION VERSION_LESS "4.0")
-          set(PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS 0)
-      else()
-          check_function_exists(cudaDeviceCanAccessPeer PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS)
-      endif()
-      CMAKE_POP_CHECK_STATE()
       get_target_property(extra_cuda_libs CUDA::cudart INTERFACE_LINK_LIBRARIES)
       if(extra_cuda_libs)
           list(APPEND EXTRA_LIBS ${extra_cuda_libs})
@@ -719,7 +727,7 @@ int main(int argc, char *argv[]) {
     # This is kinda ugly but the PATH and HINTS don't get transmitted to sub-dependents
     set(CMAKE_SYSTEM_PREFIX_PATH_save ${CMAKE_SYSTEM_PREFIX_PATH})
     list(APPEND CMAKE_SYSTEM_PREFIX_PATH /opt/rocm)
-    find_package(HIP QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
+    find_package(HIP 5 QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
     set(CMAKE_SYSTEM_PREFIX_PATH ${CMAKE_SYSTEM_PREFIX_PATH_save})
     if(HIP_FOUND AND PARSEC_HAVE_CUDA)
       # the underlying reason is that the generated ptg code cannot include at the same time
@@ -737,6 +745,22 @@ int main(int argc, char *argv[]) {
     endif()
     set(PARSEC_HAVE_HIP ${HIP_NOT_CUDA_FOUND} CACHE BOOL "True if PaRSEC provide support for HIP")
   endif( PARSEC_GPU_WITH_HIP )
+
+  if( PARSEC_GPU_WITH_LEVEL_ZERO )
+    find_package(level-zero)
+    set(PARSEC_HAVE_LEVEL_ZERO ${LEVEL_ZERO_FOUND} CACHE BOOL "True if PaRSEC provide support for Intel Level Zero")
+    if(PARSEC_HAVE_LEVEL_ZERO)
+      include_directories("${LEVEL_ZERO_INCLUDE_DIR}/level_zero/")
+      find_package(DPCPP)
+      if(DPCPP_EXECUTABLE)
+        set(PARSEC_HAVE_DPCPP TRUE CACHE BOOL "True if PaRSEC knows how to compile DPCPP code")
+        message(STATUS "Found Intel level-zero ${LEVEL_ZERO_VERSION} in -I${LEVEL_ZERO_INCLUDE_DIR} / -L${LEVEL_ZERO_LIBRARY_DIR}")
+        message(STATUS "Found dpcpp in ${DPCPP_EXECUTABLE}")
+      else(DPCPP_EXECUTABLE)
+        set(PARSEC_HAVE_DPCPP FALSE CACHE BOOL "True if PaRSEC knows how to compile DPCPP code")
+      endif(DPCPP_EXECUTABLE)
+    endif(PARSEC_HAVE_LEVEL_ZERO)
+  endif( PARSEC_GPU_WITH_LEVEL_ZERO )
 
   find_package(AYUDAME QUIET)
   set(PARSEC_HAVE_AYUDAME ${AYUDAME_FOUND})
@@ -762,7 +786,7 @@ int main(int argc, char *argv[]) {
     set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/parsec/include/fortran)
     install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION ${PARSEC_INSTALL_INCLUDEDIR})
   endif(CMAKE_Fortran_COMPILER_WORKS)
-ENDIF( BUILD_PARSEC )
+endif( BUILD_PARSEC )
 
 # Find how to link shm_open
 check_function_exists(shm_open PARSEC_HAVE_SHM_OPEN)
@@ -785,28 +809,28 @@ endif(NOT PARSEC_HAVE_SHM_OPEN)
 #
 set(CMAKE_MACOSX_RPATH 1)
 # use, i.e. don't skip the full RPATH for the build tree
-SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+set(CMAKE_SKIP_BUILD_RPATH  FALSE)
 
 # when building, don't use the install RPATH already
 # (but later on when installing)
-SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
 # add the automatically determined parts of the RPATH
 # which point to directories outside the build tree to the install RPATH
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # the RPATH to be used when installing, but only if it's not a system directory
-LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}" isSystemDir)
-#MESSAGE(STATUS "LINK_DIRECTORIES = ${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
-#MESSAGE(STATUS "INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}")
-IF(isSystemDir STREQUAL "-1")
-  SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}")
-ENDIF(isSystemDir STREQUAL "-1")
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}" isSystemDir)
+#message(STATUS "LINK_DIRECTORIES = ${CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES}")
+#message(STATUS "INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}")
+if(isSystemDir STREQUAL "-1")
+  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${PARSEC_INSTALL_LIBDIR}")
+endif(isSystemDir STREQUAL "-1")
 
 # Prepare the list of include directories. From the source directory we need 2 the source
 # itself and then the specialized headers from parsec/include. If we compile with VPATH
 # we need to add the same thing for the BINARY_DIR.
-STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} PARSEC_BUILD_INPLACE)
+string(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} PARSEC_BUILD_INPLACE)
 if(NOT PARSEC_BUILD_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include")
@@ -819,14 +843,14 @@ include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
 # Check if indent is available on the system.
 #
 set(PARSEC_HAVE_INDENT 0)
-FIND_PROGRAM(INDENT_EXECUTABLE indent DOC "path to the indent executable")
-MARK_AS_ADVANCED(INDENT_EXECUTABLE)
+find_program(INDENT_EXECUTABLE indent DOC "path to the indent executable")
+mark_as_advanced(INDENT_EXECUTABLE)
 # K&R (not supported on Mac), so we settle for less
 # -nbad -bap -bbo -nbc -br -brs -c33 -cd33 -ncdb -ce -ci4 -cli0
 # -cp33 -cs -d0 -di1 -nfc1 -nfca -hnl -i4 -ip0 -l75 -lp -npcs
 # -nprs -npsl -saf -sai -saw -nsc -nsob -nss
-SET(INDENT_OPTIONS "-nbad -bap -nbc -br -brs -ncdb -ce -cli0 -d0 -di1 -nfc1 -i4 -ip0 -lp -npcs -npsl -nsc -nsob -l120")
-MARK_AS_ADVANCED(INDENT_OPTIONS)
+set(INDENT_OPTIONS "-nbad -bap -nbc -br -brs -ncdb -ce -cli0 -d0 -di1 -nfc1 -i4 -ip0 -lp -npcs -npsl -nsc -nsob -l120")
+mark_as_advanced(INDENT_OPTIONS)
 if(INDENT_EXECUTABLE)
   set(PARSEC_HAVE_INDENT 1)
 endif(INDENT_EXECUTABLE)
@@ -835,8 +859,8 @@ endif(INDENT_EXECUTABLE)
 # Check if awk is available on the system.
 #
 set(PARSEC_HAVE_AWK 0)
-FIND_PROGRAM(AWK_EXECUTABLE awk DOC "path to the awk executable")
-MARK_AS_ADVANCED(AWK_EXECUTABLE)
+find_program(AWK_EXECUTABLE awk DOC "path to the awk executable")
+mark_as_advanced(AWK_EXECUTABLE)
 if(AWK_EXECUTABLE)
   set(PARSEC_HAVE_AWK 1)
 endif(AWK_EXECUTABLE)
@@ -852,7 +876,7 @@ if(PARSEC_PROF_TRACE AND PARSEC_DIST_WITH_MPI)
       set(PARSEC_PROF_TRACE_SYSTEM "OTF2")
     else(OTF2_FOUND AND MPI_C_FOUND)
       if(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
-        MESSAGE(FATAL_ERROR "Requested OTF2 tracing system is not available because OTF2 was not found or MPI was not found")
+        message(FATAL_ERROR "Requested OTF2 tracing system is not available because OTF2 was not found or MPI was not found")
       endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2")
     endif(OTF2_FOUND AND MPI_C_FOUND)
   endif(PARSEC_PROF_TRACE_SYSTEM STREQUAL "OTF2" OR PARSEC_PROF_TRACE_SYSTEM STREQUAL "Auto")
@@ -862,13 +886,13 @@ endif(PARSEC_PROF_TRACE AND PARSEC_DIST_WITH_MPI)
 # First go for the tools.
 #
 add_subdirectory(tools)
-IF(CMAKE_CROSSCOMPILING)
+if(CMAKE_CROSSCOMPILING)
   #
   # Import the EXPORT file from external native ptgpp.
   #
-  SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
-  MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
-  INCLUDE(${IMPORT_EXECUTABLES})
+  set(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
+  message(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
+  include(${IMPORT_EXECUTABLES})
   set_target_properties(parsec-ptgpp PROPERTIES IMPORTED_GLOBAL ON)
   get_target_property(PARSEC_PTGPP_EXECUTABLE parsec-ptgpp LOCATION)
   # Build it, now
@@ -907,13 +931,20 @@ IF(CMAKE_CROSSCOMPILING)
   add_test(NAME native-test COMMAND ${CMAKE_COMMAND} --build ${PROJECT_BINARY_DIR} --target native-test)
 else()
   set(PARSEC_PTGPP_EXECUTABLE parsec-ptgpp)
-ENDIF(CMAKE_CROSSCOMPILING)
+endif(CMAKE_CROSSCOMPILING)
 set(PARSEC_PTGPP_EXECUTABLE ${PARSEC_PTGPP_EXECUTABLE} CACHE STRING "Point to the parsec-ptgpp executable")
 
 # List of files that will go through documentation generation
 include(AddDocumentedFiles)
 
 add_subdirectory(parsec)
+
+#
+# Add dependency to Level-Zero if it is enabled
+#
+if(PARSEC_HAVE_LEVEL_ZERO)
+    target_link_libraries(parsec PRIVATE level_zero::ze_loader)
+endif(PARSEC_HAVE_LEVEL_ZERO)
 
 #
 # Now continue with compiling the tests.
@@ -926,7 +957,7 @@ set(CTEST_MPI_LAUNCHER
     "${MPIEXEC} ${MPIEXEC_PREFLAGS} ${MPIEXEC_NUMPROC_FLAG}" CACHE STRING
       "A command to run distributed memory testings")
 if( CTEST_MPI_LAUNCHER STREQUAL "" )
-    MESSAGE(WARNING "MPI tests will most likely not work: 'CTEST_MPI_LAUNCHER' is not set")
+    message(WARNING "MPI tests will most likely not work: 'CTEST_MPI_LAUNCHER' is not set")
 endif()
 string(REPLACE " " ";" MPI_TEST_CMD_LIST "${CTEST_MPI_LAUNCHER}")
 set(CTEST_CUDA_LAUNCHER_OPTIONS
@@ -938,7 +969,7 @@ set(CTEST_HIP_LAUNCHER_OPTIONS
 
 if( BUILD_TESTING )
   find_program(HOSTNAME_EXE hostname)
-  MARK_AS_ADVANCED(HOSTNAME_EXE)
+  mark_as_advanced(HOSTNAME_EXE)
   # Test that the launchers work
   add_test(launcher:shm   ${SHM_TEST_CMD_LIST} ${HOSTNAME_EXE})
   if(PARSEC_HAVE_MPI)
@@ -1167,28 +1198,28 @@ endforeach()
 # Force a coherent EXTRA_LIBS_EXPANDED that can be used for the generation of the
 # pkg-config files: leave all options starting with - as they are, and for
 # everything else add "-l" if they are not an abolute path.
-SET(EXTRA_LIBS_EXPANDED)
-FOREACH(LIB IN ITEMS ${EXTRA_LIBS})
+set(EXTRA_LIBS_EXPANDED)
+foreach(LIB IN ITEMS ${EXTRA_LIBS})
   if( NOT LIB MATCHES "(^|;)-.*" )
     if( NOT IS_ABSOLUTE ${LIB} )
-      SET(LIB "-l${LIB}")
+      set(LIB "-l${LIB}")
     endif( NOT IS_ABSOLUTE ${LIB} )
   endif( NOT LIB MATCHES "(^|;)-.*" )
-  LIST(APPEND EXTRA_LIBS_EXPANDED "${LIB}")
-ENDFOREACH(LIB)
+  list(APPEND EXTRA_LIBS_EXPANDED "${LIB}")
+endforeach(LIB)
 
 if(EXTRA_LIBS)
   # For printing only: we need the duplicates in EXPANDED for static builds
   list(REMOVE_DUPLICATES EXTRA_LIBS)
 endif()
 
-MESSAGE("\n\nPkgConfig Configuration Flags:")
-MESSAGE("  EXTRA_CFLAGS   = ${EXTRA_CFLAGS}")
-MESSAGE("  EXTRA_LDFLAGS  = ${EXTRA_LDFLAGS}")
-MESSAGE("  EXTRA_INCLUDES = ${EXTRA_INCLUDES}")
-MESSAGE("  EXTRA_LIBS     = ${EXTRA_LIBS}")
-MESSAGE("  FEATURES       = ${MCA_ENABLED_FEATURES}")
-MESSAGE("\n\n")
+message("\n\nPkgConfig Configuration Flags:")
+message("  EXTRA_CFLAGS   = ${EXTRA_CFLAGS}")
+message("  EXTRA_LDFLAGS  = ${EXTRA_LDFLAGS}")
+message("  EXTRA_INCLUDES = ${EXTRA_INCLUDES}")
+message("  EXTRA_LIBS     = ${EXTRA_LIBS}")
+message("  FEATURES       = ${MCA_ENABLED_FEATURES}")
+message("\n\n")
 # Generate configure files to help other software detect and integrate with
 # PaRSEC. This generates the pkg-config files to slurp in all needed dependencies
 # but also generates the CMake package files.
@@ -1198,12 +1229,12 @@ string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
 
 set(EXTRA_INCLUDES_EXPANDED "")
 if (EXTRA_INCLUDES)
-  FOREACH(ITEM IN ITEMS ${EXTRA_INCLUDES})
+  foreach(ITEM IN ITEMS ${EXTRA_INCLUDES})
     if( NOT IS_ABSOLUTE ${ITEM} )
-      MESSAGE(STATUS "Item ${ITEM} in EXTRA_INCLUDES might be malformed")
+      message(STATUS "Item ${ITEM} in EXTRA_INCLUDES might be malformed")
     endif( NOT IS_ABSOLUTE ${ITEM} )
     set(EXTRA_INCLUDES_EXPANDED "${EXTRA_INCLUDES_EXPANDED} -I${ITEM}")
-  ENDFOREACH(ITEM IN ITEMS ${EXTRA_INCLUDES})
+  endforeach(ITEM IN ITEMS ${EXTRA_INCLUDES})
 endif (EXTRA_INCLUDES)
 
 configure_file (
@@ -1238,6 +1269,8 @@ install(FILES
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindOTF2.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/FindHWLOC.cmake
   ${PROJECT_SOURCE_DIR}/cmake_modules/ParsecCompilePTG.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/Findlevel-zero.cmake
+  ${PROJECT_SOURCE_DIR}/cmake_modules/FindDPCPP.cmake
   DESTINATION ${PARSEC_INSTALL_CMAKEDIR})
 
 # Prepare exports for submodule inclusion

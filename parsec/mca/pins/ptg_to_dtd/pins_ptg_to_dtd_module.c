@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA Corporation.  All rights reserved.
  */
 
 /**
@@ -29,12 +30,13 @@
 
 extern parsec_mempool_t *parsec_dtd_tile_mempool;
 
-/* Structure used to pack arguments of insert_task() */
+/* Structure used to pre-pack arguments of insert_task(). These gets populated during the
+ * conversion from PTG to DTD task, and released once the DTD task is properly created.
+ */
 typedef struct parsec_dtd_task_param_ptg_to_dtd_s parsec_dtd_task_param_ptg_to_dtd_t;
 struct parsec_dtd_task_param_ptg_to_dtd_s {
-    parsec_dtd_task_param_t  super;
-    int             operation_type;
-    int             tile_type_index;
+    parsec_dtd_task_param_t             super;
+    parsec_dtd_task_param_ptg_to_dtd_t* next;
 };
 
 /* list to push tasks in */
@@ -238,7 +240,7 @@ tile_manage_for_testing(parsec_data_t *data, parsec_data_key_t key, int arena_in
         tile->rank                  = 0;
         tile->flushed               = NOT_FLUSHED;
         tile->data_copy             = data->device_copies[0];
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
         tile->data_copy->readers    = 0;
 #endif
         tile->arena_index           = arena_index;
@@ -273,14 +275,13 @@ data_lookup_ptg_to_dtd_task(parsec_execution_stream_t *es,
 static void
 parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
                               parsec_dtd_funcptr_t *fpointer, parsec_task_t *orig_task,
-                              char *name_of_kernel, parsec_dtd_task_param_t *packed_parameters_head, int count_of_params )
+                              char *name_of_kernel, parsec_dtd_task_param_ptg_to_dtd_t *current_paramm, int count_of_params )
 {
     parsec_taskpool_t *parsec_tp = (parsec_taskpool_t *)dtd_tp;
     if( 0 == dtd_tp->enqueue_flag ) {
         parsec_context_add_taskpool( parsec_tp->context, parsec_tp );
     }
 
-    parsec_dtd_task_param_t *current_paramm;
     int tile_op_type, flow_index = 0;
     void *tile;
 
@@ -333,7 +334,7 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
     this_task->orig_task = orig_task;
 
     /* Iterating through the parameters of the task */
-    parsec_dtd_task_param_t *head_of_param_list, *current_param, *tmp_param = NULL;
+    parsec_dtd_task_param_t *head_of_param_list, *current_param;
     void *value_block, *current_val;
 
     /* Getting the pointer to allocated memory by mempool */
@@ -342,12 +343,10 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
     value_block        = GET_VALUE_BLOCK(head_of_param_list, ((parsec_dtd_task_class_t*)tc)->count_of_params);
     current_val        = value_block;
 
-    current_paramm = packed_parameters_head;
-
     int write_flow_count = 1;
-    while(current_paramm != NULL) {
-        tile         = current_paramm->pointer_to_tile;
-        tile_op_type = ((parsec_dtd_task_param_ptg_to_dtd_t *)current_paramm)->operation_type;
+    while(NULL != current_paramm ) {
+        tile         = current_paramm->super.pointer_to_tile;
+        tile_op_type = ((parsec_dtd_task_param_ptg_to_dtd_t *)current_paramm)->super.op_type;
 
         if( PARSEC_INOUT == (tile_op_type & PARSEC_GET_OP_TYPE) || PARSEC_OUTPUT == (tile_op_type & PARSEC_GET_OP_TYPE) ) {
             write_flow_count++;
@@ -357,9 +356,7 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
                                        &flow_index, &current_val,
                                        current_param, PASSED_BY_REF );
 
-        tmp_param = current_param;
         current_param = current_param + 1;
-        tmp_param->next = current_param;
 
         current_paramm = current_paramm->next;
     }
@@ -372,11 +369,7 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
          */
         object = (parsec_object_t *)this_task;
         (void)parsec_atomic_fetch_add_int32( &object->obj_reference_count, write_flow_count );
-
     }
-
-    if( tmp_param != NULL )
-        tmp_param->next = NULL;
 
     parsec_insert_dtd_task( (parsec_task_t *)this_task );
 }
@@ -416,7 +409,7 @@ fake_hook_for_testing(parsec_execution_stream_t *es,
         int i, tmp_op_type;
         int count_of_params = 0;
         parsec_dtd_taskpool_t *dtd_tp= __dtd_taskpool;
-        parsec_dtd_task_param_ptg_to_dtd_t *head_param = NULL, *current_param = NULL, *tmp_param = NULL;
+        parsec_dtd_task_param_ptg_to_dtd_t *dtd_head_param = NULL, *dtd_current_param = NULL, *dtd_tmp_param = NULL;
         parsec_data_t *data;
         parsec_data_key_t key;
 
@@ -442,19 +435,18 @@ fake_hook_for_testing(parsec_execution_stream_t *es,
                 tile = tile_manage_for_testing(data, key, 0);
             }
 
-            tmp_param = (parsec_dtd_task_param_ptg_to_dtd_t *) malloc(sizeof(parsec_dtd_task_param_ptg_to_dtd_t));
-            tmp_param->super.pointer_to_tile = (void *)tile;
-            tmp_param->operation_type = op_type;
-            tmp_param->tile_type_index = 0;
-            tmp_param->super.next = NULL;
+            dtd_tmp_param = (parsec_dtd_task_param_ptg_to_dtd_t *) malloc(sizeof(parsec_dtd_task_param_ptg_to_dtd_t));
+            dtd_tmp_param->super.pointer_to_tile = (void *)tile;
+            dtd_tmp_param->super.op_type = op_type;
+            dtd_tmp_param->next = NULL;
 
-            if(head_param == NULL) {
-                head_param = tmp_param;
+            if(dtd_head_param == NULL) {
+                dtd_head_param = dtd_tmp_param;
             } else {
-                current_param->super.next = (parsec_dtd_task_param_t *)tmp_param;
+                dtd_current_param->next = dtd_tmp_param;
             }
             count_of_params++;
-            current_param = tmp_param;
+            dtd_current_param = dtd_tmp_param;
         }
 
         for( i = 0; NULL != this_task->task_class->out[i]; i++) {
@@ -473,30 +465,28 @@ fake_hook_for_testing(parsec_execution_stream_t *es,
                 continue;
             }
 
-            tmp_param = (parsec_dtd_task_param_ptg_to_dtd_t *) malloc(sizeof(parsec_dtd_task_param_ptg_to_dtd_t));
-            tmp_param->super.pointer_to_tile = (void *)tile;
-            tmp_param->operation_type = op_type;
-            tmp_param->tile_type_index = 0;
-            tmp_param->super.next = NULL;
+            dtd_tmp_param = (parsec_dtd_task_param_ptg_to_dtd_t *) malloc(sizeof(parsec_dtd_task_param_ptg_to_dtd_t));
+            dtd_tmp_param->super.pointer_to_tile = (void *)tile;
+            dtd_tmp_param->super.op_type = op_type;
+            dtd_tmp_param->next = NULL;
 
-            if(head_param == NULL) {
-                head_param = tmp_param;
+            if(NULL == dtd_head_param) {
+                dtd_head_param = dtd_tmp_param;
             } else {
-                current_param->super.next = (parsec_dtd_task_param_t *)tmp_param;
+                dtd_current_param->next = dtd_tmp_param;
             }
             count_of_params++;
-            current_param = tmp_param;
+            dtd_current_param = dtd_tmp_param;
         }
 
         parsec_dtd_taskpool_insert_task_ptg_to_dtd( dtd_tp, __dtd_taskpool->actual_hook[this_task->task_class->task_class_id].hook,
-                                       this_task, (char *)this_task->task_class->name, (parsec_dtd_task_param_t *)head_param, count_of_params );
+                                       this_task, (char *)this_task->task_class->name, dtd_head_param, count_of_params );
 
         /* Cleaning the params */
-        current_param = head_param;
-        while( current_param != NULL ) {
-            tmp_param = current_param;
-            current_param = (parsec_dtd_task_param_ptg_to_dtd_t *)current_param->super.next;
-            free(tmp_param);
+        while( NULL != dtd_head_param ) {
+            dtd_tmp_param = dtd_head_param;
+            dtd_head_param = dtd_head_param->next;
+            free(dtd_tmp_param);
         }
     }
     goto redo;

@@ -11,7 +11,7 @@
 #include "parsec/execution_stream.h"
 #include "parsec/utils/mca_param.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/mca/device/cuda/device_cuda.h"
 #endif
 

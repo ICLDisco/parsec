@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2022 The University of Tennessee and The University
+ * Copyright (c) 2012-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -276,14 +276,24 @@ typedef parsec_key_t (parsec_functionkey_fn_t)(const parsec_taskpool_t *tp,
                                                const parsec_assignment_t *assignments);
 
 /**
+ * @brief Estimates the number of nanoseconds the task might run on the given device
+ *
+ */
+typedef int64_t (parsec_time_estimate_fct_t)(const parsec_task_t *this_task, parsec_device_module_t *dev);
+
+/**
  * Provide a character string representation of the task.
  * Write max buffer_size characters into buffer and return buffer.
  */
 typedef char* (parsec_printtask_fn_t)(char *buffer, size_t buffer_size, const parsec_task_t *task);
 /**
- *
+ * Evaluate the opportunity for executing the task on the associated device.
+ * 
+ * @return PARSEC_HOOK_RETURN_DONE is this chore can be used, PARSEC_HOOK_RETURN_NEXT
+ *         for this chore to be skipped. Any other value will result in a warning
+ *         and the chore being skipped.
  */
-typedef float (parsec_evaluate_function_t)(const parsec_task_t* task);
+typedef parsec_hook_return_t (parsec_evaluate_function_t)(const parsec_task_t* task);
 
 /**
  * Retrieve the datatype for each flow (for input) or dependency (for output)
@@ -427,6 +437,7 @@ struct parsec_task_class_s {
 #if defined(PARSEC_SIM)
     parsec_sim_cost_fct_t       *sim_cost_fct;
 #endif
+    parsec_time_estimate_fct_t  *time_estimate;
     parsec_datatype_lookup_t    *get_datatype;
     parsec_hook_t               *prepare_input;
     const __parsec_chore_t      *incarnations;
@@ -464,14 +475,29 @@ PARSEC_DECLSPEC extern size_t parsec_task_startup_iter;
 PARSEC_DECLSPEC extern size_t parsec_task_startup_chunk;
 
 /**
- * Global configuration variable controlling the getrusage report.
+ * @brief Global configuration variable controlling the getrusage report.
  */
 PARSEC_DECLSPEC extern int parsec_want_rusage;
+/**
+ * @brief Binding will override launcher (e.g., mpiexec) enforced binding.
+ */
 PARSEC_DECLSPEC extern int parsec_runtime_ignore_bindings;
+/**
+ * @brief Binding will use hyperthreads.
+ */
 PARSEC_DECLSPEC extern int parsec_runtime_allow_ht;
-/* Control the display of the thread bindings */
+/**
+ * @brief Report the binding to the console.
+ */
 PARSEC_DECLSPEC extern int parsec_report_bindings;
+/**
+ * @brief Report issues with the bindings (such as overlapping bindings on
+ *        processes located on the same physical node)
+ */
 PARSEC_DECLSPEC extern int parsec_report_binding_issues;
+/**
+ * @brief Force threads to be bound on a single physical resource.
+ */
 PARSEC_DECLSPEC extern int parsec_runtime_singlify_bindings;
 
 /**
@@ -592,7 +618,7 @@ extern int device_delegate_begin, device_delegate_end;
                            key_hash((TASK)->task_class->make_key(           \
                               (TASK)->taskpool, (TASK)->locals ), NULL),    \
                            (TASK)->taskpool->taskpool_id,                   \
-                           (TASK)->task_class->profile_info,                \
+                           (TRACE_INFO) ? (TASK)->task_class->profile_info : NULL, \
                            (TRACE_INFO) ? (void*)(TASK) : NULL,             \
                            (FLAGS)); 
 #else
@@ -697,12 +723,6 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
 
 /* Set internal TLS variable parsec_tls_execution_stream */
 void parsec_set_my_execution_stream(parsec_execution_stream_t *es);
-
-/* Validate the process binding when multiple processes are running
- * on the same node.
- */
-int parsec_check_overlapping_binding(parsec_context_t *context);
-int remote_dep_mpi_on(parsec_context_t* context);
 
 #define parsec_execution_context_priority_comparator offsetof(parsec_task_t, priority)
 

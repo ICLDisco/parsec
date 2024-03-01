@@ -184,7 +184,7 @@ typedef int (*parsec_termdet_outgoing_message_pack_fn_t)(parsec_taskpool_t *tp,
  *   of the task that generates that message. The function can signal
  *   the runtime engine that the message must be delayed, it is then
  *   the responsibility of the termination detection algorithm to
- *   keep a pointer to remote_deps and call remote_dep_send(rank, remote_deps)
+ *   keep a pointer to remote_deps and call remote_dep_dequeue_send(rank, remote_deps)
  *   on the message when it can go.
  *  @param[INOUT] tp a taskpool
  *  @param[IN] rank the destination rank
@@ -218,7 +218,7 @@ typedef int (*parsec_termdet_outgoing_message_start_fn_t)(parsec_taskpool_t *tp,
  *                     byte in packed_buffer
  *       @param[IN] buffer_size the amount of bytes available after packed_buffer
  *       @param[IN] msg the message descriptor
- *                  
+ *
  *       @return PARSEC_SUCCESS except if a fatal error occurs.
  */
 typedef int (*parsec_termdet_incoming_message_start_fn_t)(parsec_taskpool_t *tp,

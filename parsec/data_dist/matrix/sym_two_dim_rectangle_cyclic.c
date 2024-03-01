@@ -144,7 +144,7 @@ static parsec_data_t* sym_twoDBC_data_of(parsec_data_collection_t *desc, ...)
     assert( n < dc->super.nt );
 
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
+    assert(desc->myrank == desc->rank_of(desc, m, n));
 #endif
     assert( dc->super.storage == PARSEC_MATRIX_TILE );
     assert( (dc->uplo == PARSEC_MATRIX_LOWER && m>=n) ||
@@ -200,7 +200,7 @@ static int32_t sym_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
     assert( n < dc->super.nt );
 
 #if defined(DISTRIBUTED)
-    assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
+    assert(desc->myrank == desc->rank_of(desc, m, n));
 #endif
     assert( (dc->uplo == PARSEC_MATRIX_LOWER && m>=n) ||
             (dc->uplo == PARSEC_MATRIX_UPPER && n>=m) );

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2020 The University of Tennessee and The University
+ * Copyright (c) 2010-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -164,12 +164,6 @@ typedef int32_t parsec_dependency_t;
  * A set of constants defining the capabilities of the underlying
  * runtime.
  */
-#define MAX_LOCAL_COUNT  20
-#define MAX_PARAM_COUNT  20
-
-#define MAX_DEP_IN_COUNT  10
-#define MAX_DEP_OUT_COUNT 10
-
 #define MAX_TASK_STRLEN 128
 
 #define PARSEC_MAX_DEVICE_NAME_LEN 64

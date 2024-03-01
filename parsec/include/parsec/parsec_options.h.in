@@ -2,7 +2,7 @@
 #define PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
 
 /* This file contains the OS dependent capabilities, and should be generic for
- * all compilers o a particular architecture. It is used during the PaRSEC build to
+ * all compilers on a particular architecture. It is used during the PaRSEC build to
  * import all OS dependent features, but once PaRSEC installed this file will
  * become the parsec_config.h and will hide all compiler dependent features used
  * during PaRSEC compilation.
@@ -77,13 +77,12 @@
 #define PARSEC_DIST_SHORT_LIMIT @PARSEC_DIST_SHORT_LIMIT@
 
 /* GPU Support */
+#cmakedefine PARSEC_GPU_ALLOC_PER_TILE
 #cmakedefine PARSEC_GPU_WITH_CUDA
-#cmakedefine PARSEC_GPU_CUDA_ALLOC_PER_TILE
 #cmakedefine PARSEC_HAVE_CU_COMPILER
 #cmakedefine PARSEC_GPU_WITH_HIP
-#cmakedefine PARSEC_GPU_HIP_ALLOC_PER_TILE
+#cmakedefine PARSEC_GPU_WITH_LEVEL_ZERO
 #cmakedefine PARSEC_GPU_WITH_OPENCL
-#cmakedefine PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS
 
 /* debug */
 #cmakedefine PARSEC_DEBUG
@@ -122,14 +121,18 @@
 
 #cmakedefine PARSEC_HAVE_HWLOC
 #cmakedefine PARSEC_HAVE_PAPI
-#cmakedefine PARSEC_HAVE_CUDA
-#cmakedefine PARSEC_HAVE_HIP
-#cmakedefine PARSEC_HAVE_OPENCL
 #cmakedefine PARSEC_HAVE_MPI
 #cmakedefine PARSEC_HAVE_MPI_20
 #cmakedefine PARSEC_HAVE_MPI_30
 #cmakedefine PARSEC_HAVE_MPI_OVERTAKE
 #cmakedefine PARSEC_HAVE_AYUDAME
+
+#cmakedefine PARSEC_HAVE_DEV_CPU_SUPPORT
+#cmakedefine PARSEC_HAVE_DEV_RECURSIVE_SUPPORT
+#cmakedefine PARSEC_HAVE_DEV_CUDA_SUPPORT
+#cmakedefine PARSEC_HAVE_DEV_HIP_SUPPORT
+#cmakedefine PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT
+#cmakedefine PARSEC_HAVE_DEV_OPENCL_SUPPORT
 
 #define PARSEC_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 /* Default PATH to look for the CUDA .so files */
@@ -138,6 +141,16 @@
 #define PARSEC_LIB_LEVEL_ZERO_PREFIX "."
 
 #define PARSEC_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@
+#define PARSEC_SIZEOF_SIZE_T @PARSEC_SIZEOF_SIZE_T@
+
+/* The max number of local variables for each task */
+#define MAX_LOCAL_COUNT   @PARSEC_MAX_LOCAL_COUNT@
+/* The max number of parameter variables for each task */
+#define MAX_PARAM_COUNT   @PARSEC_MAX_PARAM_COUNT@
+/* The max number of input dependencies (not flows) for each task */
+#define MAX_DEP_IN_COUNT  @PARSEC_MAX_DEP_IN_COUNT@
+/* The max number of output dependencies (not flows) for each task */
+#define MAX_DEP_OUT_COUNT @PARSEC_MAX_DEP_OUT_COUNT@
 
 #include "parsec/parsec_config_bottom.h"
 

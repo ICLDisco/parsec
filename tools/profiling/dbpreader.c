@@ -364,7 +364,7 @@ dbp_iterator_set_offset(dbp_event_iterator_t *it, off_t offset)
     it->current_events_buffer = refer_events_buffer( it->thread->file, offset );
     it->current_buffer_position = offset;
 
-    assert( it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
+    assert( offset == (off_t)-1 || it->current_events_buffer->buffer_type == PROFILING_BUFFER_TYPE_EVENTS );
     return dbp_iterator_move_to_event(it, 0, 0);
 }
 
@@ -447,18 +447,51 @@ static inline int dbp_events_match(const dbp_event_t *s, const dbp_event_t *e)
 
 /* minimum allocation count for cache */
 #define EVENT_CACHE_MIN_ALLOC 64
+static void add_cache_entry(dbp_thread_t *thr, int key, dbp_event_iterator_t *it, const dbp_event_t *ev)
+{
+    event_cache_key_t  *cache_key;
+    event_cache_item_t *cache_item;
+    size_t              cache_index;
+    off_t               offset;
+
+    cache_key = &thr->cache.keys[BASE_KEY(key)];
+
+    cache_index = cache_key->len++;
+    /* if index == size, we need to grow the array */
+    if( cache_index == cache_key->size ) {
+        /* if size == 0, this is the first mismatched event with this key */
+        cache_key->size = cache_key->size ? cache_key->size * 2 :
+                                            EVENT_CACHE_MIN_ALLOC;
+        cache_key->items = realloc(cache_key->items, sizeof(event_cache_item_t[cache_key->size]));
+    }
+
+    /* cache timestamp and buffer offset for this event
+     * note that we don't store the exact index of the event,
+     * so a consumer should make sure to search through the buffer */
+    cache_item = &cache_key->items[cache_index];
+
+    /* event pos it always less than event_avail_space
+     * and buffer offset is always a multiple of event_buffer_size
+     * so these can be combined together and recovered */
+    assert( it->current_event_position >= 0 );
+    assert( it->current_event_position < event_avail_space );
+    assert( (it->current_buffer_position % event_buffer_size) == 0 );
+
+    offset = it->current_buffer_position + it->current_event_position;
+    cache_item->timestamp = dbp_event_get_timestamp(ev);
+    cache_item->offset    = offset;
+    cache_item->event_idx = it->current_event_index;
+
+    assert( (offset % event_buffer_size) == it->current_event_position);
+}
+
 /* build a "cache" of events where the end event
  * does not immediately follow the start event */
 static void build_unmatched_events_in_thread(dbp_thread_t *thr)
 {
     const dbp_event_t      *e1,  *e2;
     dbp_event_iterator_t   *i1,  *i2;
-    int key2;
-
-    event_cache_key_t  *cache_key;
-    event_cache_item_t *cache_item;
-    size_t              cache_index;
-    off_t               offset;
+    int                     key1, key2;
 
     /* lock cache; we're modifying volatile state! */
     pthread_mutex_lock(&thr->cache.mtx);
@@ -471,6 +504,12 @@ static void build_unmatched_events_in_thread(dbp_thread_t *thr)
     i1 = dbp_iterator_new_from_thread( thr );
     e1 = dbp_iterator_current( i1 );
 
+    /* if e1 is already an end, it doesn't match the non-preceding event */
+    key1 = dbp_event_get_key(e1);
+    if(KEY_IS_END(key1)) {
+            add_cache_entry(thr, key1, i1, e1);
+    }
+
     /* iterator 2 points to next event */
     i2 = dbp_iterator_new_from_thread( thr );
     e2 = dbp_iterator_next( i2 );
@@ -481,35 +520,7 @@ static void build_unmatched_events_in_thread(dbp_thread_t *thr)
         /* if e2 is end event, but e1 doesn't match, e2 not in expected order
          * store e2 position in cache to lookup later for potential match */
         if( KEY_IS_END(key2) && !dbp_events_match(e1, e2) ) {
-            cache_key = &thr->cache.keys[BASE_KEY(key2)];
-
-            cache_index = cache_key->len++;
-            /* if index == size, we need to grow the array */
-            if( cache_index == cache_key->size ) {
-                /* if size == 0, this is the first mismatched event with this key */
-                cache_key->size = cache_key->size ? cache_key->size * 2 :
-                                                    EVENT_CACHE_MIN_ALLOC;
-                cache_key->items = realloc(cache_key->items, sizeof(event_cache_item_t[cache_key->size]));
-            }
-
-            /* cache timestamp and buffer offset for this event
-             * note that we don't store the exact index of the event,
-             * so a consumer should make sure to search through the buffer */
-            cache_item = &cache_key->items[cache_index];
-
-            /* event pos it always less than event_avail_space
-             * and buffer offset is always a multiple of event_buffer_size
-             * so these can be combined together and recovered */
-            assert( i2->current_event_position >= 0 );
-            assert( i2->current_event_position < event_avail_space );
-            assert( (i2->current_buffer_position % event_buffer_size) == 0 );
-
-            offset = i2->current_buffer_position + i2->current_event_position;
-            cache_item->timestamp = dbp_event_get_timestamp(e2);
-            cache_item->offset    = offset;
-            cache_item->event_idx = i2->current_event_index;
-
-            assert( (offset % event_buffer_size) == i2->current_event_position);
+            add_cache_entry(thr, key2, i2, e2);
         }
 
         /* advance both iterators */

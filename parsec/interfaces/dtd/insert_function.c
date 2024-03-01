@@ -1,7 +1,8 @@
 /**
- * Copyright (c) 2013-2022 The University of Tennessee and The University
+ * Copyright (c) 2013-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2023      NVIDIA Corporation.  All rights reserved.
  */
 
 /* **************************************************************************** */
@@ -38,9 +39,9 @@
 #include "parsec/runtime.h"
 #include "parsec/mca/device/device.h"
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/mca/device/cuda/device_cuda.h"
-#endif  /* defined(PARSEC_HAVE_CUDA) */
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 
 #include "parsec/mca/mca_repository.h"
 #include "parsec/constants.h"
@@ -224,8 +225,8 @@ static int parsec_dtd_taskpool_leave_wait(parsec_taskpool_t* tp, void*_)
     parsec_termdet_open_module(tp, "local");
     tp->tdm.module->monitor_taskpool(tp, parsec_taskpool_termination_detected);
     tp->tdm.module->taskpool_set_nb_tasks(tp, 0);
-    tp->tdm.module->taskpool_set_runtime_actions(tp, 0); 
-    
+    tp->tdm.module->taskpool_set_runtime_actions(tp, 0);
+
     /* We are re-attached to the context */
     parsec_atomic_fetch_inc_int32(&tp->context->active_taskpools);
     return PARSEC_SUCCESS;
@@ -625,7 +626,7 @@ parsec_execute_and_come_back(parsec_taskpool_t *tp,
  * @param[in]   this_task
  *                  The task we are trying to unpack the parameters for
  * @param[out]  ...
- *                  The variables where the paramters will be unpacked
+ *                  The variables where the parameters will be unpacked
  *
  * @ingroup DTD_INTERFACE
  */
@@ -633,14 +634,15 @@ void
 parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
 {
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
+    parsec_dtd_task_class_t* tc = (parsec_dtd_task_class_t*)current_task->super.task_class;
     parsec_dtd_task_param_t *current_param = GET_HEAD_OF_PARAM_LIST(current_task);
-    int i = 0;
+    int i, data_idx = 0;
     void *tmp_val;
     void **tmp_ref;
     va_list arguments;
 
     va_start(arguments, this_task);
-    while( current_param != NULL) {
+    for( i = 0; i < tc->count_of_params; i++ ) {
         if((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE ) {
             tmp_val = va_arg(arguments, void*);
             memcpy(tmp_val, current_param->pointer_to_tile, current_param->arg_size);
@@ -652,13 +654,13 @@ parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
                   (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_INOUT ||
                   (current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_OUTPUT ) {
             tmp_ref = va_arg(arguments, void**);
-            *tmp_ref = PARSEC_DATA_COPY_GET_PTR(this_task->data[i].data_in);
-            i++;
+            *tmp_ref = PARSEC_DATA_COPY_GET_PTR(this_task->data[data_idx].data_in);
+            data_idx++;
         } else {
             parsec_warning("/!\\ Flag is not recognized in parsec_dtd_unpack_args /!\\.\n");
             assert(0);
         }
-        current_param = current_param->next;
+        current_param = current_param + 1;
     }
     va_end(arguments);
 }
@@ -721,7 +723,7 @@ parsec_dtd_add_profiling_info(parsec_taskpool_t *tp,
 }
 
 void
-parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp, 
+parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp,
                                       const char *name,
                                       int *keyin, int *keyout)
 {
@@ -737,21 +739,22 @@ parsec_dtd_add_profiling_info_generic(parsec_taskpool_t *tp,
 void *parsec_dtd_task_profile_info(void *dst, const void *task_, size_t size)
 {
     void *ptr;
-    const parsec_dtd_task_t *task = (const parsec_dtd_task_t *)task_;
-    parsec_dtd_task_param_t *param = GET_HEAD_OF_PARAM_LIST(task);
+    const parsec_dtd_task_t *dtd_task = (const parsec_dtd_task_t *)task_;
+    const parsec_dtd_task_class_t *tc = (const parsec_dtd_task_class_t*)dtd_task->super.task_class;
+    parsec_dtd_task_param_t *param = GET_HEAD_OF_PARAM_LIST(dtd_task);
 
-    assert( task->super.task_class->task_class_type == PARSEC_TASK_CLASS_TYPE_DTD );
-    
-    memcpy(dst, &task->super.prof_info, sizeof(parsec_task_prof_info_t));
+    assert( dtd_task->super.task_class->task_class_type == PARSEC_TASK_CLASS_TYPE_DTD );
+
+    memcpy(dst, &dtd_task->super.prof_info, sizeof(parsec_task_prof_info_t));
     ptr = dst + sizeof(parsec_task_prof_info_t);
 
-    while( param != NULL) {
+    for( int i = 0; i < tc->count_of_params; i++ ) {
         if(param->op_type & PARSEC_PROFILE_INFO) {
             assert( ptr-dst < (intptr_t)size ); (void)size;
             memcpy(ptr, param->pointer_to_tile, param->arg_size);
             ptr += param->arg_size;
-        } 
-        param = param->next;
+        }
+        param = param + 1;
     }
 
     return dst;
@@ -762,13 +765,13 @@ void *parsec_dtd_task_profile_info(void *dst, const void *task_, size_t size)
 
 static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const parsec_task_t *task)
 {
-    const parsec_task_class_t *tc = (const parsec_task_class_t*)task->task_class;
     const parsec_dtd_task_t* dtd_task = (const parsec_dtd_task_t *)task;
+    const parsec_dtd_task_class_t *tc = (const parsec_dtd_task_class_t*)dtd_task->super.task_class;
 
     char *b = buffer;
     int ret, remaining = buffer_size;
-    
-    ret = snprintf(b, remaining, "%s(", tc->name);
+
+    ret = snprintf(b, remaining, "%s(", tc->super.name);
     if(ret < 0) {
         *b = '\0';
         return buffer;
@@ -781,7 +784,7 @@ static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const pa
     parsec_dtd_task_param_t *current_param = GET_HEAD_OF_PARAM_LIST(dtd_task);
     bool first = true;
 
-    while( current_param != NULL) {
+    for( int i = 0; i < tc->count_of_params; i++ ) {
         if(((current_param->op_type & PARSEC_GET_OP_TYPE) == PARSEC_VALUE) &&
             (current_param->arg_size == sizeof(int))) {
             ret = snprintf(b, remaining, "%s%d", first ? "" : ", ", *(int*)current_param->pointer_to_tile);
@@ -797,7 +800,7 @@ static char* parsec_dtd_task_snprintf(char *buffer, size_t buffer_size, const pa
             return buffer;
         remaining -= ret;
         b += ret;
-        current_param = current_param->next;
+        current_param = current_param + 1;
     }
     ret = snprintf(b, remaining, ")");
     if(ret < 0) {
@@ -939,7 +942,7 @@ parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
     char *info_str = NULL;
     int info_size = 0;
 #endif
-    
+
     if(tc->super.task_class_id != UINT8_MAX) {
         parsec_warning("Task class %s (%p) has invalid or already defined task_class_id",
                         (void*)tc, tc->super.name);
@@ -995,14 +998,14 @@ parsec_dtd_insert_task_class(parsec_dtd_taskpool_t *tp,
             }
         }
     }
- 
+
     if(NULL == info_str) {
         tc->super.profile_info = parsec_task_profile_info;
         parsec_dtd_add_profiling_info(&tp->super, tc->super.task_class_id, tc->super.name);
     } else {
         char *fc = fill_color(tc->super.task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
         parsec_profiling_add_dictionary_keyword(tc->super.name, fc,
-                                                sizeof(parsec_task_prof_info_t)+info_size, 
+                                                sizeof(parsec_task_prof_info_t)+info_size,
                                                 info_str,
                                                 (int *)&PARSEC_PROF_FUNC_KEY_START(&tp->super, tc->super.task_class_id),
                                                 (int *)&PARSEC_PROF_FUNC_KEY_END(&tp->super, tc->super.task_class_id));
@@ -1569,13 +1572,13 @@ dtd_release_dep_fct(parsec_execution_stream_t *es,
             if( parsec_dtd_not_sent_to_rank((parsec_dtd_task_t *)oldcontext,
                                             dep->belongs_to->flow_index, dst_rank)) {
                 struct remote_dep_output_param_s *output;
-                int _array_pos, _array_mask;
+                uint32_t _array_pos, _array_bit, _array_mask;
 
 #if !defined(PARSEC_DIST_COLLECTIVES)
                 assert(src_rank == es->virtual_process->parsec_context->my_rank);
 #endif
-                _array_pos = dst_rank / (int)(8 * sizeof(uint32_t));
-                _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
+                remote_dep_rank_to_bit(dst_rank, &_array_pos, &_array_bit, src_rank);
+                _array_mask = 1 << _array_bit;
                 PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(arg->remote_deps, oldcontext, MAX_PARAM_COUNT);
                 output = &arg->remote_deps->output[dep->dep_datatype_index];
                 assert((-1 == arg->remote_deps->root) || (arg->remote_deps->root == src_rank));
@@ -2127,7 +2130,7 @@ parsec_dtd_create_task_classv(const char *name,
             (flow_count * sizeof(parsec_dtd_descendant_info_t)) +
             (flow_count * sizeof(parsec_dtd_flow_info_t)) +
             (nb_params * sizeof(parsec_dtd_task_param_t)) +
-            total_size_of_param); 
+            total_size_of_param);
 
     parsec_mempool_construct(&dtd_tc->context_mempool,
                              PARSEC_OBJ_CLASS(parsec_dtd_task_t), total_size,
@@ -2297,24 +2300,23 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
 {
     (void) es;
     int dev_index;
-    double ratio = 1.0;
-    parsec_gpu_task_t *gpu_task;
-    parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t *)this_task;
-    parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)this_task->task_class;
+    int64_t load;
 
-    dev_index = parsec_get_best_device(this_task, ratio);
-    assert(dev_index >= 0);
-    if (dev_index < 2) {
+    dev_index = parsec_get_best_device(this_task, &load);
+    assert(dev_index >= 0 && dev_index < parsec_mca_device_enabled());
+    if (!parsec_mca_device_is_gpu(dev_index)) {
         return PARSEC_HOOK_RETURN_NEXT; /* Fall back */
     }
-
-    gpu_task = (parsec_gpu_task_t *) calloc(1, sizeof(parsec_gpu_task_t));
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
+    parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t *)this_task;
+    parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)this_task->task_class;
+    parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t *) calloc(1, sizeof(parsec_gpu_task_t));
     PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);
 
     gpu_task->ec = (parsec_task_t *) this_task;
     gpu_task->submit = dtd_tc->gpu_func_ptr;
     gpu_task->task_type = 0;
-    gpu_task->load = ratio * parsec_device_sweight[dev_index];
+    gpu_task->load = load;
     gpu_task->last_data_check_epoch = -1;       /* force at least one validation for the task */
     gpu_task->pushout = 0;
     for(int i = 0; i < dtd_tc->super.nb_flows; i++) {
@@ -2324,21 +2326,17 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
         gpu_task->flow[i] = dtd_tc->super.in[i];
         gpu_task->flow_nb_elts[i] = this_task->data[i].data_in->original->nb_elts;
     }
-    parsec_device_load[dev_index] += (float)gpu_task->load;
 
     parsec_device_module_t *device = parsec_mca_device_get(dev_index);
     assert(NULL != device);
-    switch(device->type) {
-#if defined(PARSEC_HAVE_CUDA)
-    case PARSEC_DEV_CUDA:
-        gpu_task->stage_in  = parsec_default_cuda_stage_in;
-        gpu_task->stage_out = parsec_default_cuda_stage_out;
-        return parsec_cuda_kernel_scheduler(es, gpu_task, dev_index);
+    /* We already know the device is a GPU device from the test above */
+    gpu_task->stage_in  = parsec_default_gpu_stage_in;
+    gpu_task->stage_out = parsec_default_gpu_stage_out;
+    return device->kernel_scheduler(device, es, gpu_task);
+#else
+    parsec_warning("DTD: Selected best device is a GPU, but no GPU is supported at compile time. Falling back to CPU");
+    return PARSEC_HOOK_RETURN_NEXT;
 #endif
-    default:
-        parsec_fatal("DTD scheduling on device type %d: this is not a valid GPU device type in this build", device->type);
-    }
-    return PARSEC_HOOK_RETURN_ERROR;
 }
 
 static parsec_hook_return_t parsec_dtd_cpu_task_submit(parsec_execution_stream_t *es, parsec_task_t *this_task)
@@ -2351,14 +2349,16 @@ static parsec_hook_return_t parsec_dtd_cpu_task_submit(parsec_execution_stream_t
         parsec_dtd_flow_info_t *flow = FLOW_OF(dtd_task, i);
         if(  PARSEC_INOUT == (flow->op_type & PARSEC_GET_OP_TYPE) ||
              PARSEC_OUTPUT == (flow->op_type & PARSEC_GET_OP_TYPE)) {
-            if( this_task->data[i].data_in->original->owner_device != 0 ) {
+            int8_t data_owner_dev = this_task->data[i].data_in->original->owner_device;
+            assert(data_owner_dev < parsec_mca_device_enabled());
+            if( data_owner_dev >= 0 && parsec_mca_device_is_gpu(data_owner_dev) ) {
                 uint8_t access = 0;
                 if( PARSEC_INOUT == (flow->op_type & PARSEC_GET_OP_TYPE) )
                     access = PARSEC_FLOW_ACCESS_RW;
                 else
                     access = PARSEC_FLOW_ACCESS_WRITE;
                 this_task->data[i].data_in->version++;
-                parsec_data_transfer_ownership_to_copy(this_task->data[i].data_in->original,0, access);
+                parsec_data_transfer_ownership_to_copy(this_task->data[i].data_in->original, 0, access);
                 // We need to remove ourselves as reader on this data, as transfer_ownership always counts an additional reader
                 this_task->data[i].data_in->readers--;
             }
@@ -2999,11 +2999,11 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                         FLOW_OF(last_user.task, last_user.flow_index)->flags &= ~RELEASE_OWNERSHIP_SPECIAL;
 
                         if( this_task->super.data[flow_index].data_in != NULL) {
-/* #if defined(PARSEC_HAVE_CUDA) */
+/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 /*                            parsec_atomic_lock(&this_task->super.data[flow_index].data_in->original->lock); */
 /* #endif */
                             (void)parsec_atomic_fetch_dec_int32(&this_task->super.data[flow_index].data_in->readers);
-/* #if defined(PARSEC_HAVE_CUDA) */
+/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 /*                            parsec_atomic_unlock(&this_task->super.data[flow_index].data_in->original->lock); */
 /* #endif */
                         }
@@ -3042,12 +3042,12 @@ parsec_insert_dtd_task(parsec_task_t *__this_task)
                 if( last_user.task == this_task ) {
                     if((last_user.op_type & PARSEC_GET_OP_TYPE) == PARSEC_INPUT ) {
                         if( this_task->super.data[last_user.flow_index].data_in != NULL) {
-/* #if defined(PARSEC_HAVE_CUDA) */
+/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 /*                            parsec_atomic_lock(&this_task->super.data[last_user.flow_index].data_in->original->lock); */
 /* #endif */
                             (void)parsec_atomic_fetch_dec_int32(
                                     &this_task->super.data[last_user.flow_index].data_in->readers);
-/* #if defined(PARSEC_HAVE_CUDA) */
+/* #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
 /*                            parsec_atomic_unlock(&this_task->super.data[last_user.flow_index].data_in->original->lock); */
 /* #endif */
                         }
@@ -3261,12 +3261,12 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
     /* Safeguard: check that the rank has been set by affinity if it is needed */
     if( tp->context->nb_nodes > 1 ) {
         if((-1 == rank) && (write_flow_count > 1)) {
-            parsec_fatal("You inserted a task without indicating where the task should be executed(using\n"
+            parsec_fatal("You inserted a task without indicating where the task should be executed (using\n"
                          "PARSEC_AFFINITY flag). This will result in executing this task on all nodes and the outcome\n"
                          "might be not be what you want. So we are exiting for now. Please see the usage of\n"
                          "PARSEC_AFFINITY flag.\n");
         } else if( rank == -1 && write_flow_count == 1 ) {
-            /* we have tasks with no real data as parameter so we are safe to execute it in each mpi process */
+            /* we have tasks with no real data as parameter so we are safe to execute it in each process */
             rank = tp->context->my_rank;
         }
     } else {
@@ -3332,18 +3332,14 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
          * it has and one to indicate when we have executed the task */
         (void)parsec_atomic_fetch_add_int32(&object->obj_reference_count, write_flow_count);
 
-        parsec_dtd_task_param_t *tmp_param = NULL;
         parsec_dtd_task_param_t *head_of_param_list = GET_HEAD_OF_PARAM_LIST(this_task);
         parsec_dtd_task_param_t *current_param = head_of_param_list;
         /* Getting the pointer to allocated memory by mempool */
-        void *value_block =
+        void *current_val =
                 GET_VALUE_BLOCK(head_of_param_list, ((parsec_dtd_task_class_t *)tc)->count_of_params);
-        void *current_val = value_block;
 
         nb_params = 0;
         while( PARSEC_DTD_ARG_END != (first_arg = va_arg(args, int))) {
-            if(NULL != tmp_param)
-                tmp_param->next = current_param;
             tile = va_arg(args, void *);
             if(NULL != fpointer) {
                 tile_op_type = va_arg(args, int);
@@ -3359,8 +3355,6 @@ __parsec_dtd_taskpool_create_task(parsec_taskpool_t *tp,
 
             current_param->arg_size = arg_size;
             current_param->op_type = (parsec_dtd_op_t)tile_op_type;
-            tmp_param = current_param;
-            current_param->next = NULL;
             current_param = current_param + 1;
 
             nb_params++;

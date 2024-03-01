@@ -6,7 +6,7 @@ The preferred nomenclature for the Python Binary Trace is "PBT",
 REQUIREMENTS:
 # Cython 0.19+ required.
 # pandas 0.13+ (and numpy, etc.) required.
-# Python 2.7.3 recommended.
+# Python 3.5+  recommended.
 
 BUILD NOTES:
 # Be SURE to build this against the same version of Python as you have built Cython itself.
@@ -254,7 +254,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
 
     if isinstance(builder.events, pd.DataFrame):
         events = builder.events
-        event_infos = dict()
+        event_infos = builder.infos
     else:
         if len(builder.events) > 0:
             cond_print('Then we concatenate the event DataFrames....', report_progress)
@@ -519,6 +519,7 @@ cpdef construct_dataframe_v1(builder):
             event.setdefault(k, None)
     # Build a DataFrame with dtype object
     builder.events = pd.DataFrame(builder.events, dtype=object)
+    builder.infos = dict()
 
 
 cpdef construct_dataframe_v2(builder):
@@ -868,7 +869,8 @@ cdef class ExtendedEvent:
                 if m is None:
                     logger.warning('Unknown format %s', ev_type)
                 else:
-                    self.fmt += <bytes>(b"%ss"%(m.group(1)))
+                    t = f"{m.group(1)}s"
+                    self.fmt += t.encode()
         logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, self.fmt)
         self.ev_struct = struct.Struct(self.fmt)
         if self.ev_struct is None:

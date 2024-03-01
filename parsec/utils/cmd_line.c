@@ -393,7 +393,7 @@ int parsec_cmd_line_parse(parsec_cmd_line_t *cmd, bool ignore_unknown,
                                 cmd->lcl_argv[orig],
                                 option->clo_num_params);
                         if (have_help_option) {
-                            fprintf(stderr, "Type '%s --help' for usage.\n",
+                            fprintf(stderr, "Type '%s --parsec-help' for usage.\n",
                                     cmd->lcl_argv[0]);
                         }
                         PARSEC_OBJ_RELEASE(param);
@@ -408,7 +408,7 @@ int parsec_cmd_line_parse(parsec_cmd_line_t *cmd, bool ignore_unknown,
                                     cmd->lcl_argv[orig],
                                     option->clo_num_params);
                             if (have_help_option) {
-                                fprintf(stderr, "Type '%s --help' for usage.\n",
+                                fprintf(stderr, "Type '%s --parsec-help' for usage.\n",
                                         cmd->lcl_argv[0]);
                             }
                             if (NULL != param->clp_argv) {
@@ -472,7 +472,7 @@ int parsec_cmd_line_parse(parsec_cmd_line_t *cmd, bool ignore_unknown,
                         cmd->lcl_argv[0], cmd->lcl_argv[i]);
                 printed_error = true;
                 if (have_help_option) {
-                    fprintf(stderr, "Type '%s --help' for usage.\n",
+                    fprintf(stderr, "Type '%s --parsec-help' for usage.\n",
                             cmd->lcl_argv[0]);
                 }
             }

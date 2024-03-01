@@ -1,8 +1,9 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2021 The University of Tennessee and The University
+ * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -18,7 +19,7 @@ extern "C" %{
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
 #include "parsec/mca/device/device.h"
 #include <cublas_v2.h>
 
@@ -34,7 +35,10 @@ typedef cublasStatus_t (*cublas_dgemm_v2_t) ( cublasHandle_t handle,
                                               const double *B, int ldb,
                                               const double *beta,
                                               double       *C, int ldc);
-#endif  /* defined(PARSEC_HAVE_CUDA) */
+#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) */
+
+/* Pre-declare function used as a property of some parameterized task */
+static int64_t gemm_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev);
 
 %}
 
@@ -112,7 +116,7 @@ END
 /**************************************************
  *                       GEMMs                    *
  **************************************************/
-GEMM1(m, g, r)
+GEMM1(m, g, r) [ time_estimate = gemm_time_estimate ]
 
 // Execution space
 m = 0 .. descA->super.mt-1
@@ -130,8 +134,7 @@ RW   C <- (m == 0) ? C MAKE_C(g, r) : C GEMM1(m-1, g, r)
                                     : C DISCARD_C(g, r)
 
 BODY [type=CUDA
-      dyld=cublasDgemm_v2 dyldtype=cublas_dgemm_v2_t
-      weight=(1)]
+      dyld=cublasDgemm_v2 dyldtype=cublas_dgemm_v2_t]
 {
     cublasStatus_t status;
     cublasHandle_t handle;
@@ -145,7 +148,7 @@ BODY [type=CUDA
                                   &alpha, (double*)A, descA->super.mb,
                                   (double*)A, descA->super.mb,
                                   &beta, (double*)C, descA->super.mb );
-    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm_v2 ", status,
+    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm_v2", status,
                             {return -1;} );
 }
 END
@@ -158,7 +161,7 @@ BODY
 END
 
 
-GEMM2(m, g, r)
+GEMM2(m, g, r) [ time_estimate = gemm_time_estimate ]
 
 // Execution space
 m = 0 .. descA->super.mt-1
@@ -175,8 +178,7 @@ RW   C <- (m == 0) ? userM(g, r)    : C GEMM2(m-1, g, r)
        -> ((m + 1) < (descA->super.mt)) ? C GEMM2(m+1, g, r)
 
 BODY [type=CUDA
-      dyld=cublasDgemm_v2 dyldtype=cublas_dgemm_v2_t
-      weight=(1)]
+      dyld=cublasDgemm_v2 dyldtype=cublas_dgemm_v2_t]
 {
     cublasStatus_t status;
     cublasHandle_t handle;
@@ -190,7 +192,7 @@ BODY [type=CUDA
                                   &alpha, (double*)A, descA->super.mb,
                                   (double*)A, descA->super.mb,
                                   &beta, (double*)C, descA->super.mb );
-    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm_v2 ", status,
+    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm_v2", status,
                             {return -1;} );
 }
 END
@@ -203,3 +205,13 @@ BODY
 END
 
 
+extern "C" %{
+
+static int64_t gemm_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev)
+{
+  const parsec_nvlink_taskpool_t *tp = (parsec_nvlink_taskpool_t *)task->taskpool;
+  int64_t flops = (int64_t)2 * tp->_g_descA->super.mb * tp->_g_descA->super.nb * tp->_g_descA->super.mb;
+  return flops / dev->gflops_fp64;
+}
+
+%}

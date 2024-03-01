@@ -2,8 +2,8 @@
 # necessary dependencies on CUDA have been correctly setup
 
 if( PARSEC_HAVE_HIP )
-  SET(MCA_${COMPONENT}_${MODULE} ON)
-  FILE(GLOB cuda_sources ${MCA_BASE_DIR}/${COMPONENT}/cuda/[^\\.]*.[ch])
+  set(MCA_${COMPONENT}_${MODULE} ON)
+  file(GLOB cuda_sources ${MCA_BASE_DIR}/${COMPONENT}/cuda/[^\\.]*.[ch])
   find_package(Perl REQUIRED)
   find_program(HIPIFY_PERL_COMMAND NAMES hipify-perl HINTS ${HIP_BIN_INSTALL_DIR} REQUIRED)
   set(module_dir "mca/${COMPONENT}/${MODULE}")
@@ -20,12 +20,12 @@ if( PARSEC_HAVE_HIP )
       list(APPEND MCA_${COMPONENT}_${MODULE}_SOURCES ${${MODULE}_file})
     endif()
   endforeach()
-  SET(MCA_${COMPONENT}_${MODULE}_CONSTRUCTOR "${COMPONENT}_${MODULE}_static_component")
+  set(MCA_${COMPONENT}_${MODULE}_CONSTRUCTOR "${COMPONENT}_${MODULE}_static_component")
   install(FILES
           ${CMAKE_CURRENT_BINARY_DIR}/${module_dir}/${COMPONENT}_${MODULE}.h
           ${CMAKE_CURRENT_BINARY_DIR}/${module_dir}/${COMPONENT}_${MODULE}_internal.h
           DESTINATION include/parsec/mca/${COMPONENT}/${MODULE} )
 else (PARSEC_HAVE_HIP)
-  MESSAGE(STATUS "Module ${MODULE} not selectable: does not have HIP")
-  SET(MCA_${COMPONENT}_${MODULE} OFF)
+  message(STATUS "Module ${MODULE} not selectable: does not have HIP")
+  set(MCA_${COMPONENT}_${MODULE} OFF)
 endif(PARSEC_HAVE_HIP)

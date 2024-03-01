@@ -8,7 +8,7 @@ endif(NOT LIBXML2_FOUND)
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows" OR
    CMAKE_SYSTEM_NAME MATCHES "MSYS")
-  MESSAGE(STATUS "Aggregator cannot be built on Windows.")
+  message(STATUS "Aggregator cannot be built on Windows.")
   return()
 endif()
 

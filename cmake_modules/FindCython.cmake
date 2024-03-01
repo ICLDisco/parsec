@@ -48,15 +48,15 @@ if( CYTHON_EXECUTABLE )
                     ERROR_STRIP_TRAILING_WHITESPACE)
     string(REPLACE "Cython version " "" CYTHON_VERSION "${CYTHON_OUTPUT}")
     if( CYTHON_VERSION VERSION_LESS "0.19.1" )
-        MESSAGE(STATUS "Cython version ${CYTHON_VERSION} found -- too old for current code")
+        message(STATUS "Cython version ${CYTHON_VERSION} found -- too old for current code")
         unset(CYTHON_EXECUTABLE CACHE)
     else()
-        MESSAGE(STATUS "Cython version ${CYTHON_VERSION} found")
+        message(STATUS "Cython version ${CYTHON_VERSION} found")
     endif()
 endif()
 
 include( FindPackageHandleStandardArgs )
-FIND_PACKAGE_HANDLE_STANDARD_ARGS( Cython REQUIRED_VARS CYTHON_EXECUTABLE )
+find_package_handle_standard_args( Cython REQUIRED_VARS CYTHON_EXECUTABLE )
 
 mark_as_advanced( CYTHON_EXECUTABLE )
 

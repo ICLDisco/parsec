@@ -12,8 +12,6 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
 
 int main(int argc, char *argv[])
 {
-    int pargc = 0;
-    char **pargv = NULL;
     parsec_context_t *parsec = NULL;
     parsec_taskpool_t *tp;
     int i;
@@ -35,15 +33,8 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif /* DISTRIBUTED */
 
-    for(i = 1; i < argc; i++) {
-        if( strcmp(argv[i], "--") == 0 ) {
-            pargc = argc - i;
-            pargv = argv + i;
-            break;
-        }
-    }
     /* Initialize PaRSEC */
-    parsec = parsec_init(-1, &pargc, &pargv);
+    parsec = parsec_init(-1, &argc, &argv);
     if( NULL == parsec ) {
         /* Failed to correctly initialize. In a correct scenario report*/
          /* upstream, but in this particular case bail out.*/
@@ -63,6 +54,7 @@ int main(int argc, char *argv[])
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
+        parsec_taskpool_free(tp);
     }
 
     MB = NB = 1;
@@ -72,6 +64,7 @@ int main(int argc, char *argv[])
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
+        parsec_taskpool_free(tp);
     }
 
     MB = NB = 4;
@@ -81,6 +74,7 @@ int main(int argc, char *argv[])
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
+        parsec_taskpool_free(tp);
     }
 
     MB = NB = 40;
@@ -90,6 +84,7 @@ int main(int argc, char *argv[])
         parsec_context_add_taskpool(parsec, tp);
         parsec_context_start(parsec);
         parsec_context_wait(parsec);
+        parsec_taskpool_free(tp);
     }
 
     if(ret!= 0){

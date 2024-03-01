@@ -1,4 +1,5 @@
 add_subdirectory(scheduling)
+add_Subdirectory(cuda)
 
 if( MPI_C_FOUND )
   parsec_addtest_executable(C multichain)

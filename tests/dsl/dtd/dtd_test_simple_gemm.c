@@ -209,7 +209,7 @@ int gemm_kernel_cuda(parsec_device_gpu_module_t *gpu_device,
                 this_task->taskpool->context->my_rank,
                 gpu_stream->name, delta);
 
-    PARSEC_CUDA_CHECK_ERROR("cublasDgemm_v2 ", status,
+    PARSEC_CUDA_CHECK_ERROR("cublasDgemm_v2", status,
                             { return PARSEC_HOOK_RETURN_ERROR; });
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -353,7 +353,7 @@ int *get_gpu_device_index()
 
 static void destroy_cublas_handle(void *_h, void *_n)
 {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     cublasHandle_t cublas_handle = (cublasHandle_t)_h;
     cublasDestroy_v2(cublas_handle);
 #endif
@@ -363,7 +363,7 @@ static void destroy_cublas_handle(void *_h, void *_n)
 
 static void *create_cublas_handle(void *obj, void *p)
 {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     cublasHandle_t handle;
     cublasStatus_t status;
     parsec_cuda_exec_stream_t *stream = (parsec_cuda_exec_stream_t *)obj;
@@ -384,7 +384,7 @@ static void *create_cublas_handle(void *obj, void *p)
 
 static void destroy_one_on_device(void *_h, void *_n)
 {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     cudaFree(_h);
 #endif
     (void)_h;
@@ -395,17 +395,17 @@ static void *allocate_one_on_device(void *obj, void *p)
 {
      (void)obj;
      (void)p;
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
      void *one_device;
      double one_host = 1.0;
      cudaError_t cr;
 
      cr = cudaMallocManaged(&one_device, sizeof(double), cudaMemAttachGlobal);
-     PARSEC_CUDA_CHECK_ERROR("cudaMalloc ", cr,
+     PARSEC_CUDA_CHECK_ERROR("cudaMalloc", cr,
                             { return NULL; });
 
      cr = cudaMemcpy(one_device, &one_host, sizeof(double), cudaMemcpyHostToDevice);
-     PARSEC_CUDA_CHECK_ERROR("cudaMemcpy ", cr,
+     PARSEC_CUDA_CHECK_ERROR("cudaMemcpy", cr,
                             { return NULL; });
 
      return one_device;
@@ -552,35 +552,38 @@ int main(int argc, char **argv)
                 break;
             case 'h':
             case '?':
-                fprintf(stderr,
-                        "Usage %s [flags] [-- <parsec options>]\n"
-                        " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
-                        "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
-                        "\n"
-                        " Compute pdgemm on a process grid of PxQ, using all available GPUs on each\n"
-                        " node (modulo parsec options), using DTD. Compute C += AxB, where A is MxK\n"
-                        " tiled in mb x kb, B is KxN tiled in kb x nb, and C is MxN tiled in mb x nb\n"
-                        " Executes nruns iterations of the GEMM operation.\n"
-                        " flags:\n"
-                        "   --M|-M  / --K|-K  / --N|-N:   set M, K and N (resp.)\n"
-                        "   --mb|-m / --kb/-k / --nb|-n:  set mb, kb and nb (resp.)\n"
-                        "   --nruns|-t:                   set the number of runs to do\n"
-                        "   --device|-d:                  which device to use (CPU or GPU)\n"
-                        "   --verbose|-v:                 display which GEMM runs on which GPU\n"
-                        "                                 as execution is unfolding\n"
-                        "   --help|-h|-?:                 display this help\n"
-                        "   --debug|-D:                   blocks the process passed as parameter and\n"
-                        "                                 waits for gdb to connect to it\n"
-                        "   --Alarm|-A:                   sets the expected minimum performance for a\n"
-                        "                                 single GPU (kills the process if it takes longer\n"
-                        "                                 than the time corresponding to the expected\n"
-                        "                                 performance to complete the product)\n"
-                        "\n"
-                        " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
-                        "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
-                        "\n",
-                        argv[0]);
-                break;
+                if( 0 == rank ) {
+                    fprintf(stderr,
+                            "Usage %s [flags] [-- <parsec options>]\n"
+                            " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
+                            "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
+                            "\n"
+                            " Compute pdgemm on a process grid of PxQ, using all available GPUs on each\n"
+                            " node (modulo parsec options), using DTD. Compute C += AxB, where A is MxK\n"
+                            " tiled in mb x kb, B is KxN tiled in kb x nb, and C is MxN tiled in mb x nb\n"
+                            " Executes nruns iterations of the GEMM operation.\n"
+                            " flags:\n"
+                            "   --M|-M  / --K|-K  / --N|-N:   set M, K and N (resp.)\n"
+                            "   --mb|-m / --kb/-k / --nb|-n:  set mb, kb and nb (resp.)\n"
+                            "   --nruns|-t:                   set the number of runs to do\n"
+                            "   --device|-d:                  which device to use (CPU or GPU)\n"
+                            "   --verbose|-v:                 display which GEMM runs on which GPU\n"
+                            "                                 as execution is unfolding\n"
+                            "   --help|-h|-?:                 display this help\n"
+                            "   --debug|-D:                   blocks the process passed as parameter and\n"
+                            "                                 waits for gdb to connect to it\n"
+                            "   --Alarm|-A:                   sets the expected minimum performance for a\n"
+                            "                                 single GPU (kills the process if it takes longer\n"
+                            "                                 than the time corresponding to the expected\n"
+                            "                                 performance to complete the product)\n"
+                            "\n"
+                            " Nota Bene: this test should not be used to evaluate performance of GEMM!\n"
+                            "    Use DPLASMA or other linear algebra libraries written on top of PaRSEC to evaluate this.\n"
+                            "\n",
+                            argv[0]);
+                }
+                MPI_Finalize();
+                exit(0);
         }
     }
     int pargc = argc - optind;

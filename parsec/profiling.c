@@ -43,7 +43,7 @@
 
 int parsec_profile_enabled = 0;
 static int __profile_initialized = 0;  /* not initialized */
-
+static int parsec_prof_warning_issued = 0; /* no warning was issued */
 /**
  * A freelist of buffers links buffers one after the other.
  *
@@ -999,9 +999,17 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
         return PARSEC_ERR_NOT_SUPPORTED;
     }
 
-    assert( key >= 2 );
+    if( key < 2 || key >= 2*parsec_prof_keys_count ) {
+        if( !parsec_prof_warning_issued ) {
+            fprintf(stderr, 
+                    "*** PaRSEC Profiling Warning *** Logging an event with key %d which is either reserved (0 and 1) or larger than the highest registered key (%d). Profiling might be corrupted.\n",
+                    key, 2*parsec_prof_keys_count);
+            parsec_prof_warning_issued = 1;
+        }
+        assert(0); /* In DEBUG mode, we provide a catch point here to find what task issued this profiling */
+    }
 
-    this_event_length = EVENT_LENGTH( key, (NULL != info_data) );
+    this_event_length = EVENT_LENGTH( key, ((NULL != info_fn) && (NULL != info_data)) );
     assert( this_event_length < event_avail_space );
     if( context->next_event_position + this_event_length > event_avail_space ) {
         int rc = switch_event_buffer(context);
@@ -1021,7 +1029,7 @@ parsec_profiling_trace_flags_info_fn(parsec_profiling_stream_t* context, int key
     this_event->event.taskpool_id = taskpool_id;
     this_event->event.flags = 0;
 
-    if( NULL != info_data ) {
+    if( (NULL != info_fn) && (NULL != info_data) ) {
         info_fn(this_event->info, info_data, parsec_prof_keys[ BASE_KEY(key) ].info_length);
         this_event->event.flags = PARSEC_PROFILING_EVENT_HAS_INFO;
     }

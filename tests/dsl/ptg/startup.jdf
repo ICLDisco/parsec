@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2020 The Universiy of Tennessee and The Universiy
+ * Copyright (c) 2019-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  */
@@ -13,7 +13,7 @@ extern "C" %{
 
 /**
  * This test stress the startup mechanism by generating NI*NJ*NK independent
- * tasks from the begining. A sequential startup will incur a high overhead,
+ * tasks from the beginning. A sequential startup will incur a high overhead,
  * while a more parallel startup will mitigate this overhead.
  *
  * The behavior of the test is altered by the defined priority, -1 and 1 is

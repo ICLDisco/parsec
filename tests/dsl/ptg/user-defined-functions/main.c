@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
         {0,                       0, 0,   0}
     };
     int option_index = 0, c;
-    int P = -1, MB = -1, NB = -1, M = -1, N = -1;
+    int P = -1, MB = -1, NB = 1, M = -1, N = 1;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -82,9 +82,9 @@ int main(int argc, char *argv[])
                         "Usage: %s [-M <M>] [-N <N>] [-m <MB>] [-n <NB>] [-P <P>]\n"
                         " Display how many times a probe function is called to build a basic PTG\n"
                         "  M:  number of rows in the matrix (default N)\n"
-                        "  N:  number of columns in the matrix (required)\n"
+                        "  N:  number of columns in the matrix\n"
                         "  MB: number of rows in a tile (default NB)\n"
-                        "  NB: number of columns in a tile (required)\n"
+                        "  NB: number of columns in a tile\n"
                         "  P:  number of rows of processes in the 2D grid (default np, must divide np)\n"
                         "  c:  number of computing threads to create per rank (default one per core)\n"
                         "\n", argv[0]);

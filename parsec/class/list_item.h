@@ -281,20 +281,6 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
  * @cond FALSE
  */
 #if defined(PARSEC_DEBUG_PARANOID)
-#define PARSEC_ITEMS_VALIDATE(ITEMS)                                    \
-    do {                                                                \
-        parsec_list_item_t *__end = (ITEMS);                            \
-        int _number; parsec_list_item_t *__item;                        \
-        for(_number=0, __item = (parsec_list_item_t*)__end->list_next;  \
-            __item != __end;                                            \
-            __item = (parsec_list_item_t*)__item->list_next ) {         \
-            assert( (__item->refcount == 0) || (__item->refcount == 1) ); \
-            assert( __end->refcount == __item->refcount );              \
-            if( __item->refcount == 1 )                                 \
-                assert(__item->belong_to == __end->belong_to);          \
-            if( ++_number > 1000 ) assert(0);                           \
-        }                                                               \
-    } while(0)
 
 #define PARSEC_ITEM_ATTACH(LIST, ITEM)                                  \
     do {                                                                \
@@ -328,10 +314,6 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
     } while (0)
 #else
 /** @endcond */
-/**
- * @brief Check that an item is well formed (it does belong to the structure it is supposed to)
- */
-#define PARSEC_ITEMS_VALIDATE_ELEMS(ITEMS) do { (void)(ITEMS); } while(0)
 /**
  * @brief Attach an item to a higher level structure
  */

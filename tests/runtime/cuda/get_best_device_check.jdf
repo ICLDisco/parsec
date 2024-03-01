@@ -1,10 +1,12 @@
 extern "C" %{
 /*
- * Copyright (c) 2021 The Universiy of Tennessee and The Universiy
- *                    of Tennessee Research Foundation. All rights
- *                    reserved.
+ * Copyright (c) 2021-2023 The Universiy of Tennessee and The Universiy
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
  */
 #include "cuda_test_internal.h"
+
+static int64_t task_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev);
 
 %}
 
@@ -33,9 +35,9 @@ READ A <- descA(m, n)
 
 BODY
 {
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     if( nb_cuda_devices > 0 ) {
-        int g = (n * descA->nt + m) % nb_cuda_devices; 
+        int g = (n * descA->nt + m) % nb_cuda_devices;
         parsec_advise_data_on_device( _f_A->original,
                                     cuda_device_index[g],
                                     PARSEC_DEV_DATA_ADVICE_PREFERRED_DEVICE );
@@ -47,7 +49,7 @@ END
 /**************************************************
  *                    task                        *
  **************************************************/
-task(m, n)
+task(m, n) [ time_estimate = task_time_estimate ]
 
 // Execution space
 m = 0 .. descA->nt-1
@@ -61,10 +63,10 @@ READ A <- A gpu_bind_A(m, n)
 WRITE B <- NEW
         -> B fake_task(m, n)
 
-BODY [type=CUDA weight=m+n+1]
-{   
-#if defined(PARSEC_HAVE_CUDA)
-    if( nb_cuda_devices > 0 ) { 
+BODY [type=CUDA]
+{
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    if( nb_cuda_devices > 0 ) {
         int g = (n * descA->nt + m) % nb_cuda_devices;
         int my_device =  cuda_device->cuda_index;
         if( g != my_device )
@@ -76,7 +78,7 @@ BODY [type=CUDA weight=m+n+1]
         }
         else
             /* Set value for B of each byte */
-            cudaMemset( B, 1, descA->mb * descA->nb * sizeof(double) ); 
+            cudaMemset( B, 1, descA->mb * descA->nb * sizeof(double) );
     }
 #endif
 }
@@ -121,6 +123,14 @@ END
 
 extern "C" %{
 
+static int64_t task_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev)
+{
+    /* There is no actual computation in the task kernel... But it will take at least 1 flop / initialization in the memset */
+    parsec_get_best_device_check_taskpool_t *tp = (parsec_get_best_device_check_taskpool_t *)task->taskpool;
+    int64_t flops = (int64_t)tp->_g_descA->mb * tp->_g_descA->nb;
+    return flops / dev->gflops_fp64;
+}
+
 /**
  * @param [inout] dcA: the data, already distributed and allocated
  */
@@ -130,10 +140,10 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
     parsec_taskpool_t* get_best_device_check_taskpool;
     parsec_get_best_device_check_taskpool_t* taskpool = NULL;
 
-    taskpool = parsec_get_best_device_check_new(dcA, info); 
+    taskpool = parsec_get_best_device_check_new(dcA, info);
     get_best_device_check_taskpool = (parsec_taskpool_t*)taskpool;
 
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     /** Find all CUDA devices */
     int nb = 0;
     for(int i = 0; i < (int)parsec_nb_devices; i++) {
@@ -174,7 +184,7 @@ static void
 __parsec_taskpool_get_best_device_check_destructor(parsec_get_best_device_check_taskpool_t *get_best_device_check_taskpool)
 {
     parsec_del2arena(&get_best_device_check_taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX]);
-#if defined(PARSEC_HAVE_CUDA)
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     if( NULL != get_best_device_check_taskpool->_g_cuda_device_index )
         free(get_best_device_check_taskpool->_g_cuda_device_index);
 #endif
@@ -196,7 +206,7 @@ int parsec_get_best_device_check(parsec_context_t *parsec,
     int info = 0;
 
     parsec_taskpool_t *parsec_get_best_device_check = NULL;
-    parsec_get_best_device_check = parsec_get_best_device_check_New(A, info_tmp); 
+    parsec_get_best_device_check = parsec_get_best_device_check_New(A, info_tmp);
 
     if( parsec_get_best_device_check != NULL ){
         parsec_enqueue(parsec, parsec_get_best_device_check);

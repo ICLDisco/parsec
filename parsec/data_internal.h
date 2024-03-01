@@ -36,7 +36,7 @@ struct parsec_data_s {
                                                   * which device this data should be modified RW when there
                                                   * are multiple choices. -1 means no preference. */
     struct parsec_data_collection_s*     dc;
-    uint32_t                   nb_elts;          /* size in bytes of the memory layout */
+    size_t                     nb_elts;          /* size in bytes of the memory layout */
     struct parsec_data_copy_s *device_copies[];  /* this array allocated according to the number of devices
                                                   * (parsec_nb_devices). It points to the most recent
                                                   * version of the data.
@@ -69,7 +69,6 @@ struct parsec_data_copy_s {
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
     parsec_data_status_t      data_transfer_status;  /** three status */
-    struct parsec_task_s     *push_task;             /** the task who actually do the PUSH */
     parsec_datatype_t         dtt;                   /**< the appropriate type for the network engine to send an element */
 };
 
