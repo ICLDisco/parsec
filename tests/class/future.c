@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 The University of Tennessee and The University
+ * Copyright (c) 2018-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
@@ -13,7 +13,6 @@
 #include <signal.h>
 #include <stdarg.h>
 #include "parsec/parsec_config.h"
-#include "parsec/bindthread.h"
 #include "parsec/parsec_hwloc.h"
 #include "parsec/os-spec-timing.h"
 #include "parsec/utils/mca_param.h"
