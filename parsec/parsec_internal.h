@@ -314,6 +314,7 @@ typedef parsec_hook_return_t (parsec_evaluate_function_t)(const parsec_task_t* t
  */
 typedef int (parsec_datatype_lookup_t)(struct parsec_execution_stream_s* es,
                                       const parsec_task_t * this_task,
+                                      const parsec_task_t * parent_task,
                                       uint32_t * flow_mask,
                                       parsec_dep_data_description_t * data);
 

@@ -146,7 +146,7 @@ extern void (*parsec_weaksym_exit)(int status);
         "d@%05d " FMT " @%.20s:%-5d", parsec_debug_rank,             \
         ##__VA_ARGS__, __func__, __LINE__);                          \
 } while(0)
-#else
+#else  /* defined(PARSEC_DEBUG_HISTORY) */
 #define PARSEC_DEBUG_VERBOSE(LVL, OUT, FMT, ...) do {                \
     parsec_output_verbose(LVL, OUT,                                  \
         "%.*sd@%05d%.*s " FMT " %.*s@%.64s:%-5d%.*s",                \
@@ -155,8 +155,10 @@ extern void (*parsec_weaksym_exit)(int status);
         parsec_debug_colorize, "\x1B[36m", __func__, __LINE__,       \
         parsec_debug_colorize, "\033[0m");                           \
 } while(0)
-#endif
-#else
+#endif  /* defined(PARSEC_DEBUG_HISTORY) */
+
+#else  /* defined(PARSEC_DEBUG_NOISIER) */
+
 #define PARSEC_DEBUG_VERBOSE(...) do{} while(0)
 #endif /* defined(PARSEC_DEBUG_VERBOSE) */
 

@@ -88,7 +88,7 @@ k = 0 .. descM->nt-1
 
 
 RW A <- A READ_A(m)        [type_remote=UPPER_TILE]
-     -> descM(m, k)        [type=DEFAULT type_data=DEFAULT] //Write back full tile, otherwises remote has UPPER_TILE
+     -> descM(m, k)        [type=DEFAULT type_data=DEFAULT] //Write back full tile, otherwise remote has UPPER_TILE
 
 READ B  <- A READ_A(m)     [type_remote=LOWER_TILE]
 

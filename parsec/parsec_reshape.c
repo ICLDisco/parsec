@@ -361,7 +361,7 @@ parsec_create_reshape_promise(parsec_execution_stream_t *es,
  * Setting up reshape promises shared among local or remote successors.
  * Two scenarios:
  * - No reshaping needed: fulfilled promise set up on predecessor repo.
- * - Reshaping needed: unfullfilled promise set up on the predecessor if
+ * - Reshaping needed: unfulfilled promise set up on the predecessor if
  * the repo is free, otherwise on the successors repo.
  *
  * * (data->local.*_count == 0) corresponds to CTL flow.
@@ -369,7 +369,7 @@ parsec_create_reshape_promise(parsec_execution_stream_t *es,
  *
  * During release_deps_of a fake remote predecessor (from which this node has
  * received data) this routine detects PARSEC_DATATYPE_PACKED and generates
- * the appropriate reshape promises for the successsors reception datatypes.
+ * the appropriate reshape promises for the successors reception datatypes.
  *
  * NOTE: flow dependencies are ordered by type & type_remote and
  * type=UNDEFINED (no reshape, fulfilled promise) are placed as the first
@@ -446,7 +446,7 @@ parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
             int dsize;
             parsec_dep_data_description_t aux_data;
 
-            if ( PARSEC_HOOK_RETURN_DONE == fct->get_datatype(es, newcontext, &flow_mask, &aux_data)){
+            if ( PARSEC_HOOK_RETURN_DONE == fct->get_datatype(es, newcontext, oldcontext, &flow_mask, &aux_data)){
                 parsec_fatal("Unable to find unpacking datatype.");
             }
             data->local = aux_data.remote;
@@ -456,7 +456,7 @@ parsec_set_up_reshape_promise(parsec_execution_stream_t *es,
 
             /* Check if the previous future set up on iterate successor is tracking the same
              * data with the same reshaping. This can not be the case when after a reception,
-             * as we may generate different reshapings from PACKED to successors remote_type.
+             * as we may generate different reshaping from PACKED to successors remote_type.
              * (data->data_future is only clean up during iterate_successors when the predecessor
              * remote type changes, there's no info about the successor remote type).
              */

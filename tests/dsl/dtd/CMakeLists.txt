@@ -1,5 +1,6 @@
 link_libraries(tests_common)
 
+parsec_addtest_executable(C dtd_test_empty SOURCES dtd_test_empty.c)
 parsec_addtest_executable(C dtd_test_pingpong SOURCES dtd_test_pingpong.c)
 parsec_addtest_executable(C dtd_test_task_generation SOURCES dtd_test_task_generation.c)
 parsec_addtest_executable(C dtd_test_war SOURCES dtd_test_war.c)

@@ -606,7 +606,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
                 break;
             offset += sprintf(tmp + offset, "%i ", core_tab[t]);
             if( offset > (sizeof(tmp)-4)){
-                sprintf(tmp+offset, "...");
+                sprintf(tmp+sizeof(tmp)-4, "...");
                 break;
             }
          }

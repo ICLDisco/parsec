@@ -2840,6 +2840,7 @@ int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t c
             }
             return nb_total_comp_threads;
         }
+
         case PARSEC_CONTEXT_QUERY_ACTIVE_TASKPOOLS:
             return context->active_taskpools;
         /* no default */
