@@ -390,17 +390,14 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 
     /* Destroy the data repositories for this object */
     for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
-        const parsec_task_class_t *tc = tp->super.task_classes_array[i];
+        parsec_task_class_t *tc = (parsec_task_class_t *) tp->super.task_classes_array[i];
         /* Have we reached the end of known functions for this taskpool? */
         if( NULL == tc ) {
             continue;
         }
-        parsec_dtd_task_class_t   *dtd_tc = (parsec_dtd_task_class_t *)tc;
 
-        uint64_t fkey = (uint64_t)(uintptr_t)dtd_tc->cpu_func_ptr + tc->nb_flows;
-        parsec_dtd_release_task_class( tp, fkey );
+        parsec_dtd_task_class_release( (parsec_taskpool_t*)tp, tc );
 
-        parsec_dtd_template_release(tc);
         parsec_destruct_dependencies(tp->super.dependencies_array[i]);
         tp->super.dependencies_array[i] = NULL;
     }
@@ -413,7 +410,10 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
         free((void *)tp->super.profiling_array);
 #endif /* defined(PARSEC_PROF_TRACE) */
  
-    free(tp->super.taskpool_name);
+    if( tp->super.taskpool_name != NULL ) {
+        free(tp->super.taskpool_name);
+        tp->super.taskpool_name = NULL;
+    }
     free(tp->super.dependencies_array);
     tp->super.dependencies_array = NULL;
     free(tp->super.task_classes_array);
@@ -1439,7 +1439,7 @@ parsec_dtd_taskpool_new(void)
     __tp->new_tile_keys = 0;
 
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)__tp);
-    if( 0 < asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d",
+    if( 0 > asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d",
                      __tp->super.taskpool_id)) {
         __tp->super.taskpool_name = NULL;
     }
