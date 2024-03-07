@@ -45,6 +45,7 @@ static int parsec_nbvp = -1;
 static int parsec_nbht = 1;
 static int parsec_nb_total_threads = 0;
 static int parse_binding_parameter(int vp, int nbth, char * binding);
+static int parsec_display_vpmap = 0;
 
 /* PARSEC_VPMAP_INIT_*
  *  Different ways of initializing the vpmap.
@@ -56,6 +57,9 @@ static int parse_binding_parameter(int vp, int nbth, char * binding);
  * parsec.c consumes these masks during runtime initialization and selects the
  * actual single resource used by parsec_bindthread().
  */
+//TODO: the cpuset computed by the vpmaps are not used to do the binding and
+//are essentially ignored. This needs to be consolidated with the actual
+//binding code in parsec.c.
 
 /**
  * Initialize the vpmap based on the HWLOC hardware locality information. Do not
@@ -108,7 +112,7 @@ int parsec_vpmap_init(char* optarg, int nb_cores )
         goto build_flat_topology;
     /* We accept a vpmap that starts with "display:" as a mean to show the mapping */
     if( !strncmp(optarg, "display", 7 )) {
-        parsec_report_binding_issues = 1;
+        parsec_display_vpmap = 1;
         if( ':' != optarg[strlen("display")] ) {
             parsec_warning("Display thread mapping requested but vpmap argument incorrect "
                            "(must start with display: to print the mapping)");
@@ -345,12 +349,12 @@ int parsec_vpmap_init_from_file(const char *filename)
             nbth = (int) strtod(th_arg, NULL);
             if( nbth <= 0 )
                 nbth=1;
-            
+
             parsec_nb_total_threads += nbth;
-            
+
             parsec_vpmap[v].nbthreads = nbth;
             parsec_vpmap[v].threads = (vpmap_thread_t*)calloc(nbth, sizeof(vpmap_thread_t));
-            
+
             /* skip the colon and treat the binding argument */
             if( NULL != (binding = strchr(th_arg, ':'))) {
                 binding++;
@@ -408,10 +412,10 @@ int parsec_vpmap_init_from_flat(int nbthreads)
     return PARSEC_SUCCESS;
 }
 
-void parsec_vpmap_display_map(void)
-{
+void parsec_vpmap_display_map(void) {
     char *str = NULL, *pstr = NULL;
 
+    if(!parsec_display_vpmap) return;
     parsec_inform( "Virtual Process Map with %d VPs...", parsec_nbvp);
     if( -1 == parsec_nbvp ) {
         parsec_inform("   Map undefined");
@@ -436,9 +440,8 @@ void parsec_vpmap_display_map(void)
 }
 
 
-int parse_binding_parameter(int vp, int nbth, char * binding)
-{
- #if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
+static int parse_binding_parameter(int vp, int nbth, char * binding) {
+#if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
     char* option = binding;
     char* position;
     int t, ht, nbht = parsec_hwloc_get_ht();
