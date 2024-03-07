@@ -373,10 +373,6 @@ parsec_hook_return_t
 parsec_dtd_release_local_task( parsec_dtd_task_t *this_task );
 
 void
-parsec_dtd_release_task_class( parsec_dtd_taskpool_t  *tp,
-                               uint64_t key );
-
-void
 parsec_dtd_template_retain( const parsec_task_class_t *tc );
 
 void

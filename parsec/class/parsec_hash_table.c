@@ -255,7 +255,7 @@ void parsec_hash_table_unlock_bucket_handle_impl(parsec_hash_table_t *ht,
              * Good enough hint that it's our role to do so */
             parsec_hash_table_resize(ht);
         }
-        /* Otherwise, let's asssume somebody resized already */
+        /* Otherwise, let's assume somebody resized already */
         parsec_atomic_rwlock_wrunlock(&ht->rw_lock);
     }
 }
