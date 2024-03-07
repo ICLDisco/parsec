@@ -51,6 +51,9 @@ static int parse_binding_parameter(int vp, int nbth, char * binding);
  * Forall XXX, YYY,
  *     vpmap_init_XXX cannot be called after a succesful call to vpmap_init_YYY
  */
+//TODO: the cpuset computed by the vpmaps are not used to do the binding and
+//are essentially ignored. This needs to be consolidated with the actual
+//binding code in parsec.c.
 
 /**
  * Initialize the vpmap based on the HWLOC hardware locality information. Do not
@@ -332,12 +335,12 @@ int parsec_vpmap_init_from_file(const char *filename)
             nbth = (int) strtod(th_arg, NULL);
             if( nbth <= 0 )
                 nbth=1;
-            
+
             parsec_nb_total_threads += nbth;
-            
+
             parsec_vpmap[v].nbthreads = nbth;
             parsec_vpmap[v].threads = (vpmap_thread_t*)calloc(nbth, sizeof(vpmap_thread_t));
-            
+
             /* skip the colon and treat the binding argument */
             if( NULL != (binding = strchr(th_arg, ':'))) {
                 binding++;
@@ -395,8 +398,7 @@ int parsec_vpmap_init_from_flat(int nbthreads)
     return PARSEC_SUCCESS;
 }
 
-void parsec_vpmap_display_map(void)
-{
+void parsec_vpmap_display_map(void) {
     char *str = NULL, *pstr = NULL;
 
     parsec_inform( "Virtual Process Map with %d VPs...", parsec_nbvp);
@@ -423,9 +425,8 @@ void parsec_vpmap_display_map(void)
 }
 
 
-int parse_binding_parameter(int vp, int nbth, char * binding)
-{
- #if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
+static int parse_binding_parameter(int vp, int nbth, char * binding) {
+#if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
     char* option = binding;
     char* position;
     int t, ht, nbht = parsec_hwloc_get_ht();

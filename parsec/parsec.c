@@ -229,7 +229,7 @@ typedef struct __parsec_temporary_thread_initialization_t {
 } __parsec_temporary_thread_initialization_t;
 
 static int parsec_parse_binding_parameter(const char* option, parsec_context_t* context,
-                                         __parsec_temporary_thread_initialization_t* startup);
+                                          __parsec_temporary_thread_initialization_t* startup);
 static int parsec_parse_comm_binding_parameter(const char *option, parsec_context_t* context);
 static int parsec_check_overlapping_binding(parsec_context_t *context);
 
@@ -241,15 +241,32 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
 
     /* don't use PARSEC_THREAD_IS_MASTER, it is too early and we cannot yet allocate the es struct */
     if( parsec_runtime_bind_threads &&
-        ((0 != startup->virtual_process->vp_id) || (0 != startup->th_id) || parsec_runtime_bind_main_thread) ) {
+        ((parsec_runtime_bind_main_thread || 0 != startup->virtual_process->vp_id) || (0 != startup->th_id)) ) {
         /* Bind to the specified CORE */
         parsec_bindthread(startup->bindto, startup->bindto_ht);
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Bind thread %i.%i on core %i [HT %i]",
-                            startup->virtual_process->vp_id, startup->th_id,
-                            startup->bindto, startup->bindto_ht);
+        if(parsec_report_bindings) {
+            parsec_inform(
+                "Bind vp%it%i on core %i [HT %i]",
+                startup->virtual_process->vp_id, startup->th_id,
+                startup->bindto, startup->bindto_ht);
+        }
+        else {
+            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
+                "Bind vp%it%i on core %i [HT %i]",
+                startup->virtual_process->vp_id, startup->th_id,
+                startup->bindto, startup->bindto_ht);
+        }
     } else {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Binding disabled for thread %i.%i",
-                            startup->virtual_process->vp_id, startup->th_id);
+        if(parsec_report_bindings) {
+            parsec_inform(
+                "Binding disabled for thread vp%it%i",
+                startup->virtual_process->vp_id, startup->th_id);
+        }
+        else {
+            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
+                "Binding disabled for thread vp%it%i",
+                startup->virtual_process->vp_id, startup->th_id);
+        }
     }
 
     PARSEC_PAPI_SDE_THREAD_INIT();
@@ -576,6 +593,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(PARSEC_SIM)
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */
+
 #if defined(PARSEC_HAVE_HWLOC)
     context->cpuset_allowed_mask = hwloc_bitmap_alloc();
     hwloc_bitmap_copy(context->cpuset_allowed_mask, parsec_cpuset_restricted);
@@ -734,21 +752,21 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_parse_comm_binding_parameter(comm_binding_parameter, context);
     parsec_parse_binding_parameter(binding_parameter, context, startup);
 
+    /* Introduce communication engine */
+    (void)parsec_remote_dep_init(context);
+
     if( parsec_report_bindings) {
         char *str;
         hwloc_bitmap_asprintf(&str, context->cpuset_allowed_mask);
-        printf("Process binding [rank %d]: cpuset [ALLOWED  ]: %s\n", context->my_rank, str);
+        parsec_inform("Process binding [rank %d]: cpuset [ALLOWED  ]: %s\n", context->my_rank, str);
         free(str);
         hwloc_bitmap_asprintf(&str, context->cpuset_used_mask);
-        printf("Process binding [rank %d]: cpuset [USED     ]: %s\n", context->my_rank, str);
+        parsec_inform("Process binding [rank %d]: cpuset [USED     ]: %s\n", context->my_rank, str);
         free(str);
         hwloc_bitmap_asprintf(&str, context->cpuset_free_mask);
-        printf("Process binding [rank %d]: cpuset [FREE     ]: %s\n", context->my_rank, str);
+        parsec_inform("Process binding [rank %d]: cpuset [FREE     ]: %s\n", context->my_rank, str);
         free(str);
     }
-
-    /* Introduce communication engine */
-    (void)parsec_remote_dep_init(context);
 
     /* print a warning if multiple ranks share the same PU/cores
      * note we do it only once during init, we don't recheck during
@@ -840,6 +858,13 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_barrier_wait( &(context->barrier) );
     context->__parsec_internal_finalization_counter++;
 
+    /* this prints the cpusets computed by vpmap, which are not actually used
+     * to do the real binding.
+#if 0
+    if( parsec_report_bindings )
+        parsec_vpmap_display_map(startup);
+#endif
+
     /* Release the temporary array used for starting up the threads */
     {
         parsec_barrier_t* barrier = startup[0].barrier;
@@ -854,9 +879,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
     }
     free(startup);
-
-    if( parsec_report_bindings )
-        parsec_vpmap_display_map();
 
     parsec_mca_param_reg_int_name("profile", "rusage", "Report 'getrusage' statistics.\n"
             "0: no report, 1: per process report, 2: per thread report (if available).\n",
