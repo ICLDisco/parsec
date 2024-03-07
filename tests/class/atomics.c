@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2018-2024 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2023-2024 NVIDIA CORPORATION. All rights reserved.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -7,6 +14,7 @@
 #include "parsec/sys/atomic.h"
 #include "parsec/bindthread.h"
 #include "parsec/class/barrier.h"
+#include "parsec/parsec_hwloc.h"
 
 typedef struct {
     int32_t      mo32;
@@ -283,6 +291,9 @@ int main(int argc, char *argv[])
         values[i].ma128 = 0; values[i].ma128 = ~values[i].ma128;
 #endif
     }
+
+    /* Make sure the HWLOC subsystem is ready for binding */
+    parsec_hwloc_init();
 
     for(i = 0; i < nb_threads; i++) {
         params[i].nb_tests = nb_tests;
