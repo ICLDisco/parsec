@@ -45,6 +45,7 @@ static int parsec_nbvp = -1;
 static int parsec_nbht = 1;
 static int parsec_nb_total_threads = 0;
 static int parse_binding_parameter(int vp, int nbth, char * binding);
+static int parsec_display_vpmap = 0;
 
 /* PARSEC_VPMAP_INIT_*
  *  Different ways of initializing the vpmap.
@@ -101,7 +102,7 @@ int parsec_vpmap_init(char* optarg, int nb_cores )
         goto build_flat_topology;
     /* We accept a vpmap that starts with "display:" as a mean to show the mapping */
     if( !strncmp(optarg, "display", 7 )) {
-        parsec_report_binding_issues = 1;
+        parsec_display_vpmap = 1;
         if( ':' != optarg[strlen("display")] ) {
             parsec_warning("Display thread mapping requested but vpmap argument incorrect "
                            "(must start with display: to print the mapping)");
@@ -401,6 +402,7 @@ int parsec_vpmap_init_from_flat(int nbthreads)
 void parsec_vpmap_display_map(void) {
     char *str = NULL, *pstr = NULL;
 
+    if(!parsec_display_vpmap) return;
     parsec_inform( "Virtual Process Map with %d VPs...", parsec_nbvp);
     if( -1 == parsec_nbvp ) {
         parsec_inform("   Map undefined");

@@ -858,13 +858,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     parsec_barrier_wait( &(context->barrier) );
     context->__parsec_internal_finalization_counter++;
 
-    /* this prints the cpusets computed by vpmap, which are not actually used
-     * to do the real binding.
-#if 0
-    if( parsec_report_bindings )
-        parsec_vpmap_display_map(startup);
-#endif
-
     /* Release the temporary array used for starting up the threads */
     {
         parsec_barrier_t* barrier = startup[0].barrier;
@@ -879,6 +872,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         }
     }
     free(startup);
+
+    parsec_vpmap_display_map();
 
     parsec_mca_param_reg_int_name("profile", "rusage", "Report 'getrusage' statistics.\n"
             "0: no report, 1: per process report, 2: per thread report (if available).\n",
