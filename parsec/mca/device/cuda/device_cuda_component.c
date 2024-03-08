@@ -35,12 +35,12 @@ static int device_cuda_component_query(mca_base_module_2_0_0_t **module, int *pr
 static int device_cuda_component_register(void);
 
 /* mca params */
-int parsec_device_cuda_enabled_index, parsec_device_cuda_enabled;
+int parsec_device_cuda_enabled_index, parsec_device_cuda_enabled, parsec_cuda_nvlink_mask;
 int parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
 int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_memory_number_of_blocks;
 char* parsec_cuda_lib_path = NULL;
 
-static int cuda_mask, cuda_nvlink_mask;
+static int cuda_mask;
 static int parsec_cuda_sort_pending;
 
 #if defined(PARSEC_PROF_TRACE)
@@ -122,37 +122,6 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
         parsec_device_cuda_component.modules[j] = NULL;
     }
 
-    parsec_device_cuda_module_t *source_gpu, *target_gpu;
-    cudaError_t cudastatus;
-
-    for( i = 0; i < parsec_device_cuda_enabled && NULL != (source_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[i]); i++ ) {
-        int canAccessPeer;
-        source_gpu->super.peer_access_mask = 0;
-
-        if( ! ( (1<<i) & cuda_nvlink_mask ) )
-            continue; /* The user disabled NVLINK for that GPU */
-
-        cudastatus = cudaSetDevice( source_gpu->cuda_index );
-        PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaSetDevice", cudastatus,
-                                 {continue;} );
-
-        for( j = 0; NULL != (target_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[j]); j++ ) {
-            if( i == j ) continue;
-
-            /* Communication mask */
-            cudastatus = cudaDeviceCanAccessPeer( &canAccessPeer, source_gpu->cuda_index, target_gpu->cuda_index );
-            PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaDeviceCanAccessPeer", cudastatus,
-                                     {continue;} );
-            if( 1 == canAccessPeer ) {
-                cudastatus = cudaDeviceEnablePeerAccess( target_gpu->cuda_index, 0 );
-                PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cuCtxEnablePeerAccess", cudastatus,
-                                         {continue;} );
-                source_gpu->super.peer_access_mask = (int16_t)(source_gpu->super.peer_access_mask | (int16_t)(1 <<
-                        target_gpu->super.super.device_index));
-            }
-        }
-    }
-
     parsec_device_enable_debug();
 
     /* module type should be: const mca_base_module_t ** */
@@ -173,7 +142,7 @@ static int device_cuda_component_register(void)
                                         false, false, 0xffffffff, &cuda_mask);
      (void)parsec_mca_param_reg_int_name("device_cuda", "nvlink_mask",
                                         "What devices are allowed to use NVLINK if available (default all)",
-                                        false, false, 0xffffffff, &cuda_nvlink_mask);
+                                        false, false, 0xffffffff, &parsec_cuda_nvlink_mask);
     (void)parsec_mca_param_reg_int_name("device_cuda", "verbose",
                                         "Set the verbosity level of the CUDA device (negative value: use debug verbosity), higher is less verbose)\n",
                                         false, false, -1, &parsec_gpu_verbosity);
