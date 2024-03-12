@@ -175,7 +175,9 @@ int __parsec_execute( parsec_execution_stream_t* es,
                              chore_id);
 #endif
         parsec_hook_t *hook = tc->incarnations[chore_id].hook;
-        assert( NULL != hook );
+        if( NULL == hook ) {
+            goto next_chore; /* Gracefuly manage the case when NO chores are available for this task */
+        }
         rc = hook( es, task );
 #if defined(PARSEC_PROF_TRACE)
         task->prof_info.task_return_code = rc;
