@@ -660,6 +660,7 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
 
     if(parsec_mca_device_are_freezed)
         return PARSEC_ERR_NOT_SUPPORTED;
+    parsec_mca_device_are_freezed = 1;
 
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_device_module_t* device = parsec_devices[i];
@@ -688,9 +689,11 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
         device->time_estimate_default = total_gflops_fp64/(double)device->gflops_fp64;
         parsec_debug_verbose(6, parsec_device_output, "  Dev[%d] default-time-estimate %-4"PRId64" <- double %-8"PRId64" single %-8"PRId64" tensor %-8"PRId64" half %-8"PRId64" %s",
                              i, device->time_estimate_default, device->gflops_fp64, device->gflops_fp32, device->gflops_tf32, device->gflops_fp16, device->gflops_guess? "GUESSED": "");
+        if(NULL != device->all_devices_attached) {
+            device->all_devices_attached(device);
+        }
     }
 
-    parsec_mca_device_are_freezed = 1;
     return PARSEC_SUCCESS;
 }
 

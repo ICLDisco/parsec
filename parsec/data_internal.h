@@ -68,7 +68,14 @@ struct parsec_data_copy_s {
     void                     *device_private;        /**< The pointer to the device-specific data.
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
-    parsec_data_status_t      data_transfer_status;  /** three status */
+    parsec_data_status_t      data_transfer_status;  /**< Have we scheduled a communication to update this data yet?
+                                                      *   Possible values are NOT_TRANSFER, UNDER_TRANSFER, TRANSFER_COMPLETE.
+                                                      *   NB: this closely follows, but is not equivalent, to
+                                                      *   the coherency_flag INVALID. A data copy that is 'under transfer'
+                                                      *   is always INVALID. However, a data copy that is INVALID could be
+                                                      *   so for many reasons, not necessarily because a transfer is ongoing.
+                                                      *   We use this transfer_status to guard scheduling multiple transfers
+                                                      *   on the same data. */
     parsec_datatype_t         dtt;                   /**< the appropriate type for the network engine to send an element */
 };
 

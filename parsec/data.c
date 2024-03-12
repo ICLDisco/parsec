@@ -307,6 +307,7 @@ void parsec_data_end_transfer_ownership_to_copy(parsec_data_t* data,
                          "DEV[%d]: end transfer ownership of data %p to copy %p in mode %d",
                          device, data, copy, access_mode);
     assert( NULL != copy );
+    assert(copy->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER /* this must be set by the caller */);
     if( PARSEC_FLOW_ACCESS_READ & access_mode ) {
         copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
     }
@@ -400,6 +401,7 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
                  data->owner_device = -1;
             }
             if( PARSEC_DATA_COHERENCY_EXCLUSIVE == data->device_copies[i]->coherency_state ) {
+                assert(data->device_copies[i]->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
                 data->device_copies[i]->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
             }
         }
@@ -410,6 +412,7 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
         for( i = 0; i < parsec_nb_devices; i++ ) {
             if( NULL == data->device_copies[i] ) continue;
             if( PARSEC_DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state ) continue;
+            assert(data->device_copies[i]->data_transfer_status != PARSEC_DATA_STATUS_UNDER_TRANSFER);
             data->device_copies[i]->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
         }
     }
@@ -426,6 +429,9 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
     }
 
     assert( -1 != valid_copy );
+    /* transfer is required, mark the destination copy invalid until
+     * end_transfer_ownership removes the UNDER_TRANSFER flag. */
+    copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
     return valid_copy;
 }
 
