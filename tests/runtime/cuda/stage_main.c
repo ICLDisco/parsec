@@ -23,6 +23,7 @@ int main(int argc, char *argv[])
     int NB;
     int P = 1;
     int ret = 0;
+    int nb_gpus = 0;
 
 #if defined(DISTRIBUTED)
     {
@@ -39,6 +40,19 @@ int main(int argc, char *argv[])
         /* Failed to correctly initialize. In a correct scenario report*/
          /* upstream, but in this particular case bail out.*/
         exit(-1);
+    }
+
+    for(int id = 0; id < (int)parsec_nb_devices; id++) {
+        parsec_device_module_t *device = parsec_mca_device_get(id);
+        if( PARSEC_DEV_IS_GPU(device->type) ) {
+            nb_gpus++;
+        }
+    }
+    if(nb_gpus == 0) {
+        fprintf(stderr, "This test can only run if at least one GPU device is present\n");
+        parsec_fini(&parsec);
+        MPI_Finalize();
+        return EXIT_FAILURE;
     }
 
     assert(size == 1);
