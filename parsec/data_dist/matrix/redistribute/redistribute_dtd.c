@@ -424,10 +424,12 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
 
     /* Cleaning data arrays we allocated for communication */
     adt = parsec_dtd_get_arena_datatype(parsec, SOURCE);
+    assert(NULL != adt);
     parsec_type_free(&adt->opaque_dtt);
     PARSEC_OBJ_RELEASE(adt->arena);
     parsec_dtd_destroy_arena_datatype(parsec, SOURCE);
     adt = parsec_dtd_get_arena_datatype(parsec, TARGET);
+    assert(NULL != adt);
     parsec_type_free(&adt->opaque_dtt);
     PARSEC_OBJ_RELEASE(adt->arena);
     parsec_dtd_destroy_arena_datatype(parsec, TARGET);

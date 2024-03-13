@@ -568,6 +568,8 @@ static int do_open(int output_id, parsec_output_stream_t * lds)
             parsec_atomic_unlock(&mutex);
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
+        info[i].ldi_used = true;
+        parsec_atomic_unlock(&mutex);
     }
 
     /* Otherwise, we're reopening, so we need to free all previous
@@ -575,6 +577,7 @@ static int do_open(int output_id, parsec_output_stream_t * lds)
 
     else {
         free_descriptor(output_id);
+        info[output_id].ldi_used = true;
         i = output_id;
     }
 
@@ -587,10 +590,6 @@ static int do_open(int output_id, parsec_output_stream_t * lds)
 
     /* Got a stream -- now initialize it and open relevant outputs */
 
-    info[i].ldi_used = true;
-    if (-1 == output_id) {
-        parsec_atomic_unlock(&mutex);
-    }
     info[i].ldi_enabled = lds->lds_is_debugging ?
 #if defined(PARSEC_DEBUG)
     true : true;
@@ -702,17 +701,10 @@ static int open_file(int i)
         if (NULL == filename) {
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
-        strncpy(filename, output_dir, MAXPATHLEN);
-        strcat(filename, "/");
-        if (NULL != output_prefix) {
-            strcat(filename, output_prefix);
-        }
-        if (info[i].ldi_file_suffix != NULL) {
-            strcat(filename, info[i].ldi_file_suffix);
-        } else {
-            info[i].ldi_file_suffix = NULL;
-            strcat(filename, "output.txt");
-        }
+        snprintf(filename, MAXPATHLEN, "%s/%s%s",
+                 output_dir,
+                 (NULL != output_prefix) ? output_prefix : "",
+                 (NULL != info[i].ldi_file_suffix) ? info[i].ldi_file_suffix : "output.txt");
         flags = O_CREAT | O_RDWR;
         if (!info[i].ldi_file_want_append) {
             flags |= O_TRUNC;
@@ -737,7 +729,6 @@ static int open_file(int i)
            return PARSEC_ERROR;
         }
 #endif
-
     }
 
     /* Return successfully even if the session dir did not exist yet;

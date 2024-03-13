@@ -257,7 +257,6 @@ int parsec_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
     if( PARSEC_SUCCESS != rc ) {
         return rc;
     }
-
     return PARSEC_SUCCESS;
 }
 

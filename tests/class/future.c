@@ -78,8 +78,8 @@ static void usage(const char *name, const char *msg)
             "Usage: \n"
             "   %s [-c cores|-n ncopy|-h]\n"
             " where\n"
-            "   -c cores:   cores (integer >0) defines the number of cores to test, even number (default %d) \n"
-            "   -n ncopy:   ncopy (integer >0) defines the number of copies of test (default %u)\n",
+            "   -c cores:   cores (integer > 0) defines the number of cores to test, even number (default %d) \n"
+            "   -n ncopy:   ncopy (integer > 0) defines the number of copies of test (default %u)\n",
             name,
             cores,
             ncopy);
