@@ -139,16 +139,8 @@ int __parsec_execute( parsec_execution_stream_t* es,
     for(chore_id = 0; NULL != tc->incarnations[chore_id].hook; chore_id++)
         if( 0 != (task->chore_mask & (1<<chore_id)) )
             break;
-
-    if (chore_id == sizeof(task->chore_mask)*8) {
-#if !defined(PARSEC_DEBUG)
-        char tmp[MAX_TASK_STRLEN];
-        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
-#endif
-        parsec_warning("Task %s ran out of valid incarnations. Consider it complete",
-                       tmp);
-        return PARSEC_HOOK_RETURN_ERROR;
-    }
+    if (chore_id == sizeof(task->chore_mask)*8)
+        goto no_valid_chore;
 
     PARSEC_PINS(es, EXEC_BEGIN, task);
     /* Try all the incarnations until one accepts to execute. */
@@ -168,16 +160,26 @@ int __parsec_execute( parsec_execution_stream_t* es,
             }
         }
 
+        parsec_hook_t *hook = tc->incarnations[chore_id].hook;
+        if( NULL == hook ) {
+            if( NULL != tc->incarnations[chore_id].dyld ) {
+                /* Gracefuly manage the case when NO chores are available for this task,
+                 * this can happen when a DYLD function didn't load because the
+                 * device type has not been found on the machine. */
+                goto next_chore;
+            }
+            /* other cases are erroneous. */
+            assert(NULL != hook); // stop here for debug
+            goto no_valid_chore;
+        }
+
 #if defined(PARSEC_DEBUG)
         parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
                              es->th_id, es->virtual_process->vp_id,
                              tmp, tc->incarnations[chore_id].type,
                              chore_id);
 #endif
-        parsec_hook_t *hook = tc->incarnations[chore_id].hook;
-        if( NULL == hook ) {
-            goto next_chore; /* Gracefuly manage the case when NO chores are available for this task */
-        }
+
         rc = hook( es, task );
 #if defined(PARSEC_PROF_TRACE)
         task->prof_info.task_return_code = rc;
@@ -205,10 +207,17 @@ int __parsec_execute( parsec_execution_stream_t* es,
             if( 0 != (task->chore_mask & (1<<chore_id)) )
                 break;
     } while(NULL != tc->incarnations[chore_id].hook);
+
+no_valid_chore:
     /* Record EXEC_END event to ensure the EXEC_BEGIN is completed
      * return code was stored in task_return_code */
     PARSEC_PINS(es, EXEC_END, task);
-    /* We're out of luck, no more chores */
+#if !defined(PARSEC_DEBUG)
+    char tmp[MAX_TASK_STRLEN];
+    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
+#endif
+    parsec_warning("Task %s did not execute: incarnations were not valid!",
+                   tmp);
     return PARSEC_HOOK_RETURN_ERROR;
 }
 
@@ -860,7 +869,7 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     PARSEC_PINS_TASKPOOL_INIT(tp);  /* PINS taskpool initialization */
 
     /* If the DSL did not install a termination detection module,
-     * assume that the old behavior (local detection when local 
+     * assume that the old behavior (local detection when local
      * number of tasks is 0) is expected: install the local termination
      * detection module, and declare the taskpool as ready */
     if( tp->tdm.module == NULL ) {
