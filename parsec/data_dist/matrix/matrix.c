@@ -21,6 +21,7 @@
 #include <mpi.h>
 #endif
 #include <string.h>
+#include <limits.h>
 
 static parsec_data_key_t tiled_matrix_data_key(struct parsec_data_collection_s *desc, ...);
 
@@ -35,7 +36,7 @@ parsec_tiled_matrix_create_data(parsec_tiled_matrix_t* matrix,
     assert( pos <= matrix->nb_local_tiles );
     return parsec_data_create( matrix->data_map + pos,
                               &(matrix->super), key, ptr,
-                              matrix->bsiz * parsec_datadist_getsizeoftype(matrix->mtype),
+                              (size_t)matrix->bsiz * parsec_datadist_getsizeoftype(matrix->mtype),
                               PARSEC_DATA_FLAG_PARSEC_MANAGED);
 }
 
@@ -95,6 +96,7 @@ void parsec_tiled_matrix_init( parsec_tiled_matrix_t *tdesc,
     tdesc->mb       = mb;
     tdesc->nb       = nb;
     tdesc->bsiz     = mb * nb;
+    assert((size_t)mb * nb <= INT_MAX);
 
     /* Large matrix parameters */
     tdesc->lm = lm;
