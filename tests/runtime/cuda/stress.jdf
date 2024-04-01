@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2019-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -140,7 +141,7 @@ BODY [type=CUDA
                          (double*)B, descA->super.mb,
                          1.0, (double*)C, descA->super.mb );
     status = cublasGetError();
-    PARSEC_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+    PARSEC_CUDA_CHECK_ERROR( "cublasZgemm", status,
                             {return -1;} );
 }
 END

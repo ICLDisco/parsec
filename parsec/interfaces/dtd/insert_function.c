@@ -357,63 +357,66 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
 {
     uint32_t i;
 
-    parsec_dtd_data_collection_fini(&tp->new_tile_dc);
-    parsec_data_collection_destroy(&tp->new_tile_dc);
+    if(NULL != tp->super.context) { /* Initialized only if taskpool startup hook ran */
+        /* The taskpool is just out of a wait and is ready to receive new tasks at this time, so it has a termination detector */
+        assert(NULL != tp->super.tdm.module);
+        /* The taskpool is NOT READY, because every time we leave wait(), we reinitialize the termination detector. */
+        assert( tp->super.tdm.module->taskpool_state(&tp->super) == PARSEC_TERM_TP_NOT_READY );
+        /* But there should be 0 event on this taskpool at this time */
+        assert( tp->super.nb_pending_actions == 0 && tp->super.nb_tasks == 0);
+        /* So, we can terminate this termination detector by stating we are ready */
+        tp->super.tdm.module->taskpool_ready(&tp->super);
 
-#if defined(PARSEC_PROF_TRACE)
-    free((void *)tp->super.profiling_array);
-#endif /* defined(PARSEC_PROF_TRACE) */
+        parsec_dtd_data_collection_fini(&tp->new_tile_dc);
+        parsec_data_collection_destroy(&tp->new_tile_dc);
 
-    parsec_context_remove_taskpool(&tp->super);
+        parsec_context_remove_taskpool(&tp->super);
 
-    /* The taskpool is just out of a wait and is ready to receive new tasks at this time, so it has a termination detector */
-    assert(NULL != tp->super.tdm.module);
-    /* The taskpool is NOT READY, because every time we leave wait(), we reinitialize the termination detector. */
-    assert( tp->super.tdm.module->taskpool_state(&tp->super) == PARSEC_TERM_TP_NOT_READY );
-    /* But there should be 0 event on this taskpool at this time */
-    assert( tp->super.nb_pending_actions == 0 && tp->super.nb_tasks == 0);
-    /* So, we can terminate this termination detector by stating we are ready */
-    tp->super.tdm.module->taskpool_ready(&tp->super);
-    /* taskpool_unregister will unmonitor this taskpool */
-    parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
+        /* Unregister the taskpool from the devices */
+        for( i = 0; i < parsec_nb_devices; i++ ) {
+            parsec_device_module_t *device = parsec_mca_device_get(i);
+            if( !(tp->super.devices_index_mask & (1 << device->device_index)))
+                continue;
+            tp->super.devices_index_mask &= ~(1 << device->device_index);
+            if((NULL == device) || (NULL == device->taskpool_unregister))
+                continue;
+            (void)device->taskpool_unregister(device, &tp->super);
+        }
+        assert(0 == tp->super.devices_index_mask);
+
+       /* taskpool_unregister will unmonitor this taskpool */
+        parsec_taskpool_unregister( (parsec_taskpool_t*)tp );
+    }
 
     /* Destroy the data repositories for this object */
     for (i = 0; i < PARSEC_DTD_NB_TASK_CLASSES; i++) {
-        const parsec_task_class_t *tc = tp->super.task_classes_array[i];
+        parsec_task_class_t *tc = (parsec_task_class_t *) tp->super.task_classes_array[i];
         /* Have we reached the end of known functions for this taskpool? */
         if( NULL == tc ) {
             continue;
         }
-        parsec_dtd_task_class_t   *dtd_tc = (parsec_dtd_task_class_t *)tc;
 
-        uint64_t fkey = (uint64_t)(uintptr_t)dtd_tc->cpu_func_ptr + tc->nb_flows;
-        parsec_dtd_release_task_class( tp, fkey );
+        parsec_dtd_task_class_release( (parsec_taskpool_t*)tp, tc );
 
-        parsec_dtd_template_release(tc);
         parsec_destruct_dependencies(tp->super.dependencies_array[i]);
         tp->super.dependencies_array[i] = NULL;
     }
 
-    free(tp->super.dependencies_array);
-    free(tp->super.taskpool_name);
-    tp->super.dependencies_array = NULL;
-
-    /* Unregister the taskpool from the devices */
-    for( i = 0; i < parsec_nb_devices; i++ ) {
-        parsec_device_module_t *device = parsec_mca_device_get(i);
-        if( !(tp->super.devices_index_mask & (1 << device->device_index)))
-            continue;
-        tp->super.devices_index_mask &= ~(1 << device->device_index);
-        if((NULL == device) || (NULL == device->taskpool_unregister))
-            continue;
-        (void)device->taskpool_unregister(device, &tp->super);
-    }
-    assert(0 == tp->super.devices_index_mask);
-    free(tp->super.task_classes_array);
-
     /* dtd_taskpool specific */
     parsec_mempool_destruct(tp->hash_table_bucket_mempool);
     free(tp->hash_table_bucket_mempool);
+
+#if defined(PARSEC_PROF_TRACE)
+        free((void *)tp->super.profiling_array);
+#endif /* defined(PARSEC_PROF_TRACE) */
+ 
+    if( tp->super.taskpool_name != NULL ) {
+        free(tp->super.taskpool_name);
+        tp->super.taskpool_name = NULL;
+    }
+    free(tp->super.dependencies_array);
+    tp->super.dependencies_array = NULL;
+    free(tp->super.task_classes_array);
 
     parsec_hash_table_fini(tp->task_hash_table);
     PARSEC_OBJ_RELEASE(tp->task_hash_table);
@@ -1112,7 +1115,7 @@ parsec_dtd_find_task_class(parsec_dtd_taskpool_t *tp,
  * @param[in]       dc
  *                      Pointer to the dc the tile belongs to
  *
- * @ingroup         DTD_ITERFACE_INTERNAL
+ * @ingroup         DTD_INTERFACE_INTERNAL
  */
 void
 parsec_dtd_tile_insert(uint64_t key,
@@ -1138,7 +1141,7 @@ parsec_dtd_tile_insert(uint64_t key,
  * @param[in]       dc
  *                      Pointer to the dc the tile belongs to
  *
- * @ingroup         DTD_ITERFACE_INTERNAL
+ * @ingroup         DTD_INTERFACE_INTERNAL
  */
 void
 parsec_dtd_tile_remove(parsec_data_collection_t *dc, uint64_t key)
@@ -1160,7 +1163,7 @@ parsec_dtd_tile_remove(parsec_data_collection_t *dc, uint64_t key)
  * @param[in]       dc
  *                      Pointer to the dc the tile belongs to
  *
- * @ingroup         DTD_ITERFACE_INTERNAL
+ * @ingroup         DTD_INTERFACE_INTERNAL
  */
 parsec_dtd_tile_t *
 parsec_dtd_tile_find(parsec_data_collection_t *dc, uint64_t key)
@@ -1210,29 +1213,6 @@ parsec_dtd_tile_retain(parsec_dtd_tile_t *tile)
     PARSEC_OBJ_RETAIN(tile);
 }
 
-/* **************************************************************************** */
-/**
- * This function releases the master-structure and pushes them back in mempool
- *
- * @param[in,out]   tp
- *                      Pointer to DTD taskpool, the tile hash table
- *                      is attached to this taskpool
- * @param[in]       key
- *                      The function pointer to the body of the task class
- *
- * @ingroup         DTD_INTERFACE_INTERNAL
- */
-void
-parsec_dtd_release_task_class(parsec_dtd_taskpool_t *tp,
-                              uint64_t key)
-{
-    dtd_hash_table_pointer_item_t *item = parsec_dtd_find_task_class_internal(tp, key);
-    if (NULL == item)
-        return;
-    parsec_dtd_remove_task_class(tp, key);
-    parsec_mempool_free(tp->hash_table_bucket_mempool, item);
-}
-
 void
 parsec_dtd_data_collection_init(parsec_data_collection_t *dc)
 {
@@ -1251,8 +1231,10 @@ parsec_dtd_data_collection_init(parsec_data_collection_t *dc)
 void
 parsec_dtd_data_collection_fini(parsec_data_collection_t *dc)
 {
-    parsec_hash_table_fini(dc->tile_h_table);
-    PARSEC_OBJ_RELEASE(dc->tile_h_table);
+    if(NULL != dc->tile_h_table) { /* not initialized before taskpool_start */
+        parsec_hash_table_fini(dc->tile_h_table);
+        PARSEC_OBJ_RELEASE(dc->tile_h_table);
+    }
     parsec_dc_unregister_id(dc->dc_id);
 }
 
@@ -1295,8 +1277,7 @@ parsec_dtd_tile_of(parsec_data_collection_t *dc, parsec_data_key_t key)
         }
 
         SET_LAST_ACCESSOR(tile);
-        parsec_dtd_tile_insert(tile->key,
-                               tile, dc);
+        parsec_dtd_tile_insert(tile->key, tile, dc);
     }
     assert(tile->flushed == NOT_FLUSHED);
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -1434,7 +1415,7 @@ parsec_dtd_taskpool_new(void)
     __tp->new_tile_keys = 0;
 
     (void)parsec_taskpool_reserve_id((parsec_taskpool_t *)__tp);
-    if( 0 < asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d",
+    if( 0 > asprintf(&__tp->super.taskpool_name, "DTD Taskpool %d",
                      __tp->super.taskpool_id)) {
         __tp->super.taskpool_name = NULL;
     }
@@ -1668,7 +1649,7 @@ dtd_release_dep_fct(parsec_execution_stream_t *es,
  *
  * @param   es,this_task,action_mask,ontask,ontask_arg
  *
- * @ingroup DTD_ITERFACE_INTERNAL
+ * @ingroup DTD_INTERFACE_INTERNAL
  */
 static void
 parsec_dtd_iterate_successors(parsec_execution_stream_t *es,
@@ -2018,10 +1999,11 @@ output_data_of_dtd_task(parsec_execution_stream_t *es,
 
 static int datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
                                        const parsec_task_t *this_task,
+                                       const parsec_task_t *parent_task,
                                        uint32_t *flow_mask, parsec_dep_data_description_t *data)
 {
     parsec_arena_datatype_t *adt;
-    (void)es;
+    (void)es; (void)parent_task;
     data->remote.src_count = data->remote.dst_count = 1;
     data->remote.src_displ = data->remote.dst_displ = 0;
     data->data_future = NULL;
@@ -2184,7 +2166,7 @@ parsec_dtd_create_task_classv(const char *name,
     tc->release_deps = parsec_dtd_release_deps;
     tc->prepare_input = data_lookup_of_dtd_task;
     tc->prepare_output = output_data_of_dtd_task;
-    tc->get_datatype = (parsec_datatype_lookup_t *)datatype_lookup_of_dtd_task;
+    tc->get_datatype = datatype_lookup_of_dtd_task;
     tc->complete_execution = complete_hook_of_dtd;
     tc->release_task = parsec_release_dtd_task_to_mempool;
 
@@ -2428,7 +2410,11 @@ parsec_dtd_destroy_task_class(parsec_dtd_taskpool_t *dtd_tp, parsec_task_class_t
 
     /* We only register CPU hooks in the functions hash table */
     uint64_t fkey = (uint64_t)dtd_tc->cpu_func_ptr + tc->nb_flows;
-    parsec_dtd_release_task_class(dtd_tp, fkey);
+    dtd_hash_table_pointer_item_t *item = parsec_dtd_find_task_class_internal(dtd_tp, fkey);
+    if (NULL != item) {
+        parsec_dtd_remove_task_class(dtd_tp, fkey);
+        parsec_mempool_free(dtd_tp->hash_table_bucket_mempool, item);
+    }
     free((void*)tc->incarnations);
 
     /* As we fill the flows and then deps in sequential order, we can bail out at the first NULL */

@@ -2761,3 +2761,54 @@ void parsec_set_my_execution_stream(parsec_execution_stream_t *es)
 {
     PARSEC_TLS_SET_SPECIFIC(parsec_tls_execution_stream, es);
 }
+
+
+/**
+ * Query the number of devices of the requested type available in the
+ * PaRSEC context.
+ */
+int parsec_context_query(parsec_context_t *context, parsec_context_query_cmd_t cmd, ...)
+{
+    parsec_device_module_t* dev;
+    va_list args;
+    va_start(args, cmd);
+
+    switch(cmd) {
+        case PARSEC_CONTEXT_QUERY_NODES:
+            switch (parsec_communication_engine_up) {
+                case 0: return 0;  /* context not ready for distributed runs, and lacking datatype chandling capabilities */
+                case 1: return 1;  /* single node runs, but the context has datatype management capabilties */
+                case 2: return PARSEC_ERR_NOT_FOUND; /* we are in a distributed run, but the MPI engine is not yet ready, so the nb_nodes might not be accurate */
+                case 3: return context->nb_nodes;
+            }
+            return PARSEC_ERROR;
+
+        case PARSEC_CONTEXT_QUERY_RANK:
+            return context->my_rank;
+
+        case PARSEC_CONTEXT_QUERY_DEVICES:
+            {
+                int device_type = va_arg(args, int), count = 0;
+                for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
+                    dev = parsec_mca_device_get(i);
+                    if( dev->type & device_type ) count++;
+                }
+                return count;
+            }
+
+        case PARSEC_CONTEXT_QUERY_CORES:
+            {
+                int nb_total_comp_threads = 0;
+                for (int idx = 0; idx < context->nb_vp; idx++) {
+                    nb_total_comp_threads += context->virtual_processes[idx]->nb_cores;
+                }
+                return nb_total_comp_threads;
+            }
+
+        case PARSEC_CONTEXT_QUERY_ACTIVE_TASKPOOLS:
+            return context->active_taskpools;
+        /* no default */
+    }
+    return PARSEC_ERR_NOT_SUPPORTED;  /* unknown command */
+}
+

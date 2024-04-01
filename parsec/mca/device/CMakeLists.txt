@@ -10,7 +10,7 @@ set_property(TARGET parsec
                                     mca/device/device_gpu.h)
 
 set(PARSEC_HAVE_DEV_CPU_SUPPORT 1 CACHE BOOL "PaRSEC has support for CPU kernels")
-set(PARSEC_HAVE_DEV_RECURSIVE_SUPPORT 0 CACHE BOOL  "PaRSEC has support for CPU kernels")
+set(PARSEC_HAVE_DEV_RECURSIVE_SUPPORT 0 CACHE BOOL  "PaRSEC has support for Recursive CPU kernels")
 if(PARSEC_HAVE_CUDA)
   set(PARSEC_HAVE_DEV_CUDA_SUPPORT 1 CACHE BOOL "PaRSEC support for CUDA")
 endif(PARSEC_HAVE_CUDA)

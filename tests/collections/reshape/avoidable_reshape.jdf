@@ -9,8 +9,8 @@ extern "C" %{
 
     /*******************
      * No local reshape
-     * When only type_remote is used on the dependencies, the pointer to the origianl
-     * matrix tiles is passed to the succesors tasks. Thus, the full original tiles are
+     * When only type_remote is used on the dependencies, the pointer to the original
+     * matrix tiles is passed to the successors tasks. Thus, the full original tiles are
      * set to 0.
      *******************/
 

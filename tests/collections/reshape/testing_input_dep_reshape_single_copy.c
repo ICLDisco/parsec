@@ -16,7 +16,7 @@
 #include "input_dep_single_copy_reshape.h"
 
 /* Program to test the different reshaping functionalities
- * Each different test is comented on the main program.
+ * Each different test is commented on the main program.
  */
 
 int main(int argc, char *argv[])
