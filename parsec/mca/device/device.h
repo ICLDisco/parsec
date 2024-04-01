@@ -129,6 +129,16 @@ typedef int  (*parsec_device_sort_pending_list_function_f)(parsec_device_module_
  */
 typedef parsec_hook_return_t (*parsec_device_kernel_scheduler_function_t)( parsec_device_module_t *module, parsec_execution_stream_t *es, void *task);
 
+/**
+ * @brief Callback to complete initialization of a device after all
+ *   other devices have done their initialization/attachment
+ *   Typically used to compute the interconnect matrix between devices
+ *
+ * @param [INOUT]module: the module to complete the initialization
+ * @return PARSEC_SUCCESS or an error code
+ */
+typedef int (*parsec_device_all_devices_attached_f)(parsec_device_module_t *module);
+
 struct parsec_device_module_s {
     parsec_object_t                        super;
     const parsec_device_base_component_t  *component;
@@ -144,6 +154,7 @@ struct parsec_device_module_s {
     parsec_device_find_function_f          find_function;
     parsec_device_sort_pending_list_function_f sort_pending_list;
     parsec_device_kernel_scheduler_function_t  kernel_scheduler;
+    parsec_device_all_devices_attached_f   all_devices_attached;
 
     parsec_info_object_array_t             infos; /**< Per-device info objects are stored here */
     struct parsec_context_s* context;  /**< The PaRSEC context this device belongs too */

@@ -141,6 +141,41 @@ static int parsec_cuda_device_lookup_cudamp_floprate(const struct cudaDeviceProp
     return PARSEC_SUCCESS;
 }
 
+static int parsec_cuda_all_devices_attached(parsec_device_module_t *device)
+{
+    parsec_device_cuda_module_t *source_gpu, *target_gpu;
+    cudaError_t cudastatus;
+
+    source_gpu = (parsec_device_cuda_module_t*)device;
+    int i = device->device_index;
+    int canAccessPeer;
+    source_gpu->super.peer_access_mask = 0;
+
+    if( ! ( (1<<i) & parsec_cuda_nvlink_mask ) )
+        return PARSEC_SUCCESS; /* The user disabled NVLINK for that GPU */
+
+    cudastatus = cudaSetDevice( source_gpu->cuda_index );
+    PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaSetDevice", cudastatus,
+                            {return PARSEC_ERR_DEVICE;} );
+
+    for( int j = 0; NULL != (target_gpu = (parsec_device_cuda_module_t*)parsec_device_cuda_component.modules[j]); j++ ) {
+        if( target_gpu == source_gpu ) continue;
+
+        /* Communication mask */
+        cudastatus = cudaDeviceCanAccessPeer( &canAccessPeer, source_gpu->cuda_index, target_gpu->cuda_index );
+        PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cudaDeviceCanAccessPeer", cudastatus,
+                                 {continue;} );
+        if( 1 == canAccessPeer ) {
+            cudastatus = cudaDeviceEnablePeerAccess( target_gpu->cuda_index, 0 );
+            PARSEC_CUDA_CHECK_ERROR( "(parsec_device_cuda_component_query) cuCtxEnablePeerAccess", cudastatus,
+                                     {continue;} );
+            source_gpu->super.peer_access_mask = (int16_t)(source_gpu->super.peer_access_mask | 
+                (int16_t)(1 << target_gpu->super.super.device_index));
+        }
+    }
+    return PARSEC_SUCCESS;
+}
+
 static int
 parsec_cuda_memory_register(parsec_device_module_t* device, parsec_data_collection_t* desc,
                             void* ptr, size_t length)
@@ -522,6 +557,7 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
 
     device->memory_register          = parsec_cuda_memory_register;
     device->memory_unregister        = parsec_cuda_memory_unregister;
+    device->all_devices_attached     = parsec_cuda_all_devices_attached;
     gpu_device->set_device       = parsec_cuda_set_device;
     gpu_device->memcpy_async     = parsec_cuda_memcpy_async;
     gpu_device->event_record     = parsec_cuda_event_record;
