@@ -126,88 +126,44 @@ int __parsec_execute( parsec_execution_stream_t* es,
                       parsec_task_t* task )
 {
     const parsec_task_class_t* tc = task->task_class;
-    parsec_evaluate_function_t* eval;
     int rc;
 #if defined(PARSEC_DEBUG)
     char tmp[MAX_TASK_STRLEN];
     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
     PARSEC_AYU_TASK_RUN(es->th_id, task);
-    unsigned int chore_id;
 
-    /* Find first bit in chore_mask that is not 0 */
-    for(chore_id = 0; NULL != tc->incarnations[chore_id].hook; chore_id++)
-        if( 0 != (task->chore_mask & (1<<chore_id)) )
-            break;
+    rc = parsec_select_best_device(task);
+    if( PARSEC_ERROR == rc ) return PARSEC_HOOK_RETURN_ERROR;
 
-    if (chore_id == sizeof(task->chore_mask)*8) {
-#if !defined(PARSEC_DEBUG)
-        char tmp[MAX_TASK_STRLEN];
-        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
-#endif
-        parsec_warning("Task %s ran out of valid incarnations. Consider it complete",
-                       tmp);
-        return PARSEC_HOOK_RETURN_ERROR;
-    }
+    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
+                         es->th_id, es->virtual_process->vp_id,
+                         tmp, tc->incarnations[task->selected_chore].type,
+                         task->selected_chore);
 
+    parsec_hook_t *hook = tc->incarnations[task->selected_chore].hook;
+    assert( NULL != hook );
     PARSEC_PINS(es, EXEC_BEGIN, task);
-    /* Try all the incarnations until one accepts to execute. */
-    do {
-        if( NULL != (eval = tc->incarnations[chore_id].evaluate) ) {
-            rc = eval(task);
-            if( PARSEC_HOOK_RETURN_DONE != rc ) {
-                if( PARSEC_HOOK_RETURN_NEXT != rc ) {
-#if defined(PARSEC_DEBUG)
-                    parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Failed to evaluate %s[%d] chore %d",
-                                         es->th_id, es->virtual_process->vp_id,
-                                         tmp, tc->incarnations[chore_id].type,
-                                         chore_id);
-#endif
-                }
-                goto next_chore;
-            }
-        }
-
-#if defined(PARSEC_DEBUG)
-        parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
-                             es->th_id, es->virtual_process->vp_id,
-                             tmp, tc->incarnations[chore_id].type,
-                             chore_id);
-#endif
-        parsec_hook_t *hook = tc->incarnations[chore_id].hook;
-        assert( NULL != hook );
-        rc = hook( es, task );
+    rc = hook( es, task );
 #if defined(PARSEC_PROF_TRACE)
-        task->prof_info.task_return_code = rc;
+    task->prof_info.task_return_code = rc;
 #endif
-        if( PARSEC_HOOK_RETURN_NEXT != rc ) {
-            if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
-                /* Let's assume everything goes just fine */
-                task->status = PARSEC_TASK_STATUS_COMPLETE;
-                if(PARSEC_DEV_RECURSIVE >= tc->incarnations[chore_id].type) {
-                    /* accelerators count their own executed tasks so this is a
-                     * type DEV_RECURSIVE or DEV_CPU, they must be dev 0 and 1 */
-                    parsec_device_module_t *dev = parsec_mca_device_get(tc->incarnations[chore_id].type - PARSEC_DEV_CPU);
-                    parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
-                }
-            }
-            /* Record EXEC_END event only for incarnation that succeeds */
-            PARSEC_PINS(es, EXEC_END, task);
-            return rc;
-        }
-    next_chore:
-        /* Mark this chore as tested */
-        task->chore_mask &= ~( 1<<chore_id );
-        /* Find next chore to try */
-        for(chore_id = chore_id+1; NULL != tc->incarnations[chore_id].hook; chore_id++)
-            if( 0 != (task->chore_mask & (1<<chore_id)) )
-                break;
-    } while(NULL != tc->incarnations[chore_id].hook);
     /* Record EXEC_END event to ensure the EXEC_BEGIN is completed
      * return code was stored in task_return_code */
     PARSEC_PINS(es, EXEC_END, task);
-    /* We're out of luck, no more chores */
-    return PARSEC_HOOK_RETURN_ERROR;
+
+    assert( PARSEC_HOOK_RETURN_NEXT != rc );
+    if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
+        /* Let's assume everything goes just fine */
+        task->status = PARSEC_TASK_STATUS_COMPLETE;
+        parsec_device_module_t *dev = task->selected_device;
+        if(!PARSEC_DEV_IS_GPU(dev->type)) {
+            /* accelerators count their own executed tasks */
+            parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
+        }
+    }
+
+    return rc;
 }
 
 /* Update the number of runtime associated activities. When this counter

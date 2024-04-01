@@ -2465,7 +2465,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
 #endif
     int pop_null = 0;
 
-    parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, gpu_task->load);
+    parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, gpu_task->ec->load);
 
 #if defined(PARSEC_PROF_TRACE)
     PARSEC_PROFILING_TRACE_FLAGS( es->es_profile,
@@ -2654,10 +2654,10 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         goto remove_gpu_task;
     }
     parsec_device_kernel_epilog( gpu_device, gpu_task );
+    parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, -gpu_task->ec->load);
     __parsec_complete_execution( es, gpu_task->ec );
     gpu_device->super.executed_tasks++;
  remove_gpu_task:
-    parsec_atomic_fetch_add_int64(&gpu_device->super.device_load, -gpu_task->load);
     PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,"GPU[%s]: gpu_task %p freed at %s:%d", gpu_device->super.name, 
                         gpu_task, __FILE__, __LINE__);
     free( gpu_task );

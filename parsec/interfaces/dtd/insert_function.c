@@ -2281,14 +2281,7 @@ parsec_dtd_template_release( const parsec_task_class_t *tc )
 static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
     (void) es;
-    int dev_index;
-    int64_t load;
 
-    dev_index = parsec_get_best_device(this_task, &load);
-    assert(dev_index >= 0 && dev_index < parsec_mca_device_enabled());
-    if (!parsec_mca_device_is_gpu(dev_index)) {
-        return PARSEC_HOOK_RETURN_NEXT; /* Fall back */
-    }
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
     parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t *)this_task;
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)this_task->task_class;
@@ -2298,7 +2291,6 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     gpu_task->ec = (parsec_task_t *) this_task;
     gpu_task->submit = dtd_tc->gpu_func_ptr;
     gpu_task->task_type = 0;
-    gpu_task->load = load;
     gpu_task->last_data_check_epoch = -1;       /* force at least one validation for the task */
     gpu_task->pushout = 0;
     for(int i = 0; i < dtd_tc->super.nb_flows; i++) {
@@ -2309,7 +2301,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
         gpu_task->flow_nb_elts[i] = this_task->data[i].data_in->original->nb_elts;
     }
 
-    parsec_device_module_t *device = parsec_mca_device_get(dev_index);
+    parsec_device_module_t *device = this_task->selected_device;
     assert(NULL != device);
     /* We already know the device is a GPU device from the test above */
     gpu_task->stage_in  = parsec_default_gpu_stage_in;
@@ -2662,6 +2654,7 @@ parsec_dtd_create_and_initialize_task(parsec_dtd_taskpool_t *dtd_tp,
     this_task->rank = rank;
     this_task->super.priority = 0;
     this_task->super.chore_mask = PARSEC_DEV_ANY_TYPE;
+    this_task->super.selected_device = NULL; this_task->super.selected_chore = -1; this_task->super.load = 0;
     this_task->super.status = PARSEC_TASK_STATUS_NONE;
 
     int j;

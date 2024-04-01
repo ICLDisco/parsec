@@ -177,8 +177,8 @@ static void houtput(const char *format, ...)
 
 /**
  * @brief Generate the C code from a variable name or from an inlined function.
- * 
- * @param expr 
+ *
+ * @param expr
  */
 static void var_to_c_code(jdf_expr_t* expr)
 {
@@ -1356,7 +1356,7 @@ static inline char* jdf_generate_task_typedef(void **elt, void* arg)
                   f->fname, nb_locals, f->nb_max_local_def, MAX_LOCAL_COUNT);
         exit(1);
     }
-    
+
     JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nb_flows);
     UTIL_DUMP_LIST_FIELD(sa_data, f->dataflow, next, varname, dump_string, NULL,
                          "", "  parsec_data_pair_t _f_", ";\n", ";\n");
@@ -1796,7 +1796,7 @@ static void jdf_generate_range_min_without_fn(const jdf_t *jdf, const jdf_expr_t
         coutput("  %s = %s;\n", ret_name, dump_expr((void**)expr->jdf_ta1, &info));
     else
         coutput("  %s = %s;\n", ret_name, dump_expr((void**)expr, &info));
-    
+
     for(ld = jdf_expr_lv_first(expr->local_variables); NULL != ld; ld = jdf_expr_lv_next(expr->local_variables, ld)) {
         coutput("  }\n");
     }
@@ -1864,7 +1864,7 @@ static void jdf_generate_range_max(const jdf_t *jdf, const jdf_function_entry_t 
     coutput("%s\n",
             UTIL_DUMP_LIST(sa2, f->locals, next, dump_local_assignments, &ai,
                            "", "  ", "\n", "\n"));
-    
+
     for(ld = jdf_expr_lv_first(expr->local_variables); NULL != ld; ld = jdf_expr_lv_next(expr->local_variables, ld)) {
         assert(ld->ldef_index != -1);
         if( JDF_RANGE == ld->op )
@@ -1930,18 +1930,18 @@ static void jdf_generate_range_increment(const jdf_t *jdf, const jdf_function_en
     coutput("%s\n",
             UTIL_DUMP_LIST(sa2, f->locals, next, dump_local_assignments, &ai,
                            "", "  ", "\n", "\n"));
-    
+
     for(ld = jdf_expr_lv_first(expr->local_variables); NULL != ld; ld = jdf_expr_lv_next(expr->local_variables, ld)) {
         assert(-1 != ld->ldef_index);
         coutput("  { /* New scope for local index '%s' */ \n"
                 "    int %s = locals->ldef[%d].value;\n",
                 ld->alias,
                 ld->alias, ld->ldef_index);
-        if( JDF_RANGE == ld->op ) 
+        if( JDF_RANGE == ld->op )
             coutput("    %s += %s;\n"
                     "    locals->ldef[%d].value = %s;\n",
                     ld->alias, dump_expr((void**)ld->jdf_ta3, &info),
-                    ld->ldef_index, ld->alias);            
+                    ld->ldef_index, ld->alias);
     }
     coutput("  __parsec_ret = %s;\n", dump_expr((void**)expr, &info));
     for(ld = jdf_expr_lv_first(expr->local_variables); NULL != ld; ld = jdf_expr_lv_next(expr->local_variables, ld)) {
@@ -2413,7 +2413,7 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function
                     indent(nbopen), ld->alias, ld->ldef_index, dump_expr( (void**)ld, &info1 ));
             nbopen+=1;
         }
-        
+
     }
     for(pl = targetf->parameters, le = params; NULL != le; pl = pl->next, le = le->next) {
         if( le->op == JDF_RANGE ) {
@@ -2433,7 +2433,7 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function
                     "%s  (void)%s_%s;\n",
                     indent(nbopen), targetf->fname, pl->name, dump_expr( (void**)le, &info1 ),
                     indent(nbopen), targetf->fname, pl->name);
-        }                    
+        }
     }
     coutput("%s  __nb_found++;\n", indent(nbopen));
     nbopen--;
@@ -3157,6 +3157,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s    vpid = (vpid + 1) %% context->nb_vp;  /* spread the initial joy */\n"
             "%s  }\n"
             "%s  new_task = (%s*)parsec_thread_mempool_allocate( context->virtual_processes[vpid]->execution_streams[0]->context_mempool );\n"
+            "%s  new_task->selected_device = NULL; new_task->selected_chore = -1; new_task->load = 0;\n"
             "%s  new_task->status = PARSEC_TASK_STATUS_NONE;\n",
             indent(nesting), f->predicate->func_or_mem,
             indent(nesting), f->predicate->func_or_mem, f->predicate->func_or_mem,
@@ -3168,6 +3169,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting),
             indent(nesting),
             indent(nesting), parsec_get_name(jdf, f, "task_t"),
+            indent(nesting),
             indent(nesting));
 
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_variable_list_t, next, nb_locals);
@@ -3339,7 +3341,7 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
     jdf_variable_list_t *vl;
 
     (void)jdf;
-    
+
     if( f->parameters == NULL || (0 != (f->user_defines & JDF_FUNCTION_HAS_UD_MAKE_KEY)) ) {
         /* There are no parameters for this task class, or we don't know how to inverse the key.
          * If the user knows how to print properly, she can define the hash struct entirely;
@@ -3361,7 +3363,7 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
         expr_info_t info;
         int first_param = 1;
         int need_assignment = 0;
-        
+
         info.sa = sa_info;
         info.prefix = "";
         info.suffix = "";
@@ -3373,7 +3375,7 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
                 break;
             }
         }
-        
+
         coutput("static char *%s_key_print(char *buffer, size_t buffer_size, parsec_key_t __parsec_key_, void *user_data)\n"
                 "{\n"
                 "  uint64_t __parsec_key = (uint64_t)(uintptr_t)__parsec_key_;\n"
@@ -3386,7 +3388,7 @@ static  void jdf_generate_deps_key_functions(const jdf_t *jdf, const jdf_functio
                 UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
                                      "  ", ".", ".value = 0, ", ".value = 0 "));
         string_arena_free(sa1);
-        
+
         for(vl = f->locals; vl != NULL; vl = vl->next) {
             if( local_is_parameter(f, vl) != NULL ) {
                 coutput("  int %s = (__parsec_key) %% __parsec_tp->%s_%s_range + __parsec_tp->%s_%s_min;\n",
@@ -3598,7 +3600,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                                 indent(nesting), ld->alias,
                                 indent(nesting), ld->alias, ld->ldef_index, dump_expr((void**)ld, &info));
                         nesting++;
-                    } 
+                    }
                 }
                 coutput("%s    %s = %s;\n", indent(nesting), vl->name, dump_expr((void**)vl->expr, &info));
             } else {
@@ -3614,7 +3616,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             nesting++;
             inner_vl = vl; /* remember what is the last local seen */
         }
-        
+
         if( need_min_max ) {
             for(vl = f->locals; vl != NULL; vl = vl->next) {
                 if ( NULL != vl->expr->local_variables) {
@@ -3625,7 +3627,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 }
             }
         }
-        
+
         string_arena_init(sa1);
         string_arena_init(sa2);
         coutput("%s  if( !%s_pred(%s) ) continue;\n",
@@ -3736,7 +3738,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 }
             }
         }
-        
+
         if(need_to_count_tasks) {
             coutput("%s   if( 0 != nb_tasks ) {\n"
                     "%s     (void)parsec_atomic_fetch_add_int32(&__parsec_tp->initial_number_tasks, nb_tasks);\n"
@@ -3860,7 +3862,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("    parsec_mfence();  /* write memory barrier to guarantee that the scheduler gets the correct number of tasks */\n"
             "    parsec_taskpool_enable((parsec_taskpool_t*)__parsec_tp, &__parsec_tp->startup_queue,\n"
             "                           (parsec_task_t*)this_task, es, __parsec_tp->super.super.nb_pending_actions);\n"
-	    "    __parsec_tp->super.super.tdm.module->taskpool_ready(&__parsec_tp->super.super);\n");
+            "    __parsec_tp->super.super.tdm.module->taskpool_ready(&__parsec_tp->super.super);\n");
     if( profile_enabled(f->properties) ) {
         coutput("#if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_PTG_INTERNAL_INIT)\n"
                 "    PARSEC_PROFILING_TRACE(es->es_profile,\n"
@@ -4299,7 +4301,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     } else {
         string_arena_add_string(sa, "  .update_deps = parsec_update_deps_with_counter,\n");
     }
-    
+
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
         jdf_generate_code_iterate_successors_or_predecessors(jdf, f, prefix, JDF_DEP_FLOW_OUT);
@@ -4496,6 +4498,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    parsec_task_t* task = (parsec_task_t*)parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);\n"
             "    task->taskpool = (parsec_taskpool_t *)__parsec_tp;\n"
             "    task->chore_mask = PARSEC_DEV_CPU;\n"
+            "    task->selected_device = NULL; task->selected_chore = -1; task->load = 0;\n"
             "    task->status = PARSEC_TASK_STATUS_NONE;\n"
             "    memset(&task->locals, 0, sizeof(parsec_assignment_t) * MAX_LOCAL_COUNT);\n"
             "    PARSEC_LIST_ITEM_SINGLETON(task);\n"
@@ -4569,7 +4572,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
                 coutput("  parsec_hash_table_fini( (parsec_hash_table_t*)__parsec_tp->super.super.dependencies_array[%d] );\n"
                         "  PARSEC_OBJ_RELEASE(__parsec_tp->super.super.dependencies_array[%d]);\n",
                         f->task_class_id, f->task_class_id);
-            } 
+            }
         } else {
             coutput("  %s(__parsec_tp, __parsec_tp->super.super.dependencies_array[%d]);\n",
                     jdf_property_get_function(f->properties, JDF_PROP_UD_FREE_DEPS_FN_NAME, NULL),
@@ -4819,7 +4822,7 @@ static void jdf_generate_new_function( const jdf_t* jdf )
     if( jdf_uses_dynamic_termdet(jdf) ) {
         coutput("  __parsec_tp->initial_number_tasks = 0;\n");
     }
-    
+
     string_arena_init(sa1);
     string_arena_init(sa2);
     coutput("/* Prevent warnings related to not used hidden global variables */\n"
@@ -4850,14 +4853,14 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
         } else {
             coutput("  const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t *)tp;\n"
                     "  const %s *assignment = (const %s*)as;\n"
-                    "  uint64_t __parsec_id = 0;\n", 
+                    "  uint64_t __parsec_id = 0;\n",
                     jdf_basename, jdf_basename,
                     parsec_get_name(jdf, f, "parsec_assignment_t"),
                     parsec_get_name(jdf, f, "parsec_assignment_t"));
             string_arena_init(sa_range_multiplier);
             for(vl = f->locals; vl != NULL; vl = vl->next) {
                 if( local_is_parameter(f, vl) != NULL ) {
-                    coutput("  __parsec_id += (assignment->%s.value - __parsec_tp->%s_%s_min)%s;\n", vl->name, f->fname, vl->name, 
+                    coutput("  __parsec_id += (assignment->%s.value - __parsec_tp->%s_%s_min)%s;\n", vl->name, f->fname, vl->name,
                             string_arena_get_string(sa_range_multiplier));
                     string_arena_add_string(sa_range_multiplier, " * __parsec_tp->%s_%s_range", f->fname, vl->name);
                 }
@@ -5760,7 +5763,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             "  consumed_entry_key = 0;\n"
             "  consumed_entry = NULL;\n"
             "  chunk = NULL;\n");
-    
+
     for(dl = flow->deps; dl != NULL; dl = dl->next) {
         if ( dl->dep_flags & JDF_DEP_FLOW_OUT ) {
             has_output_deps = 1;
@@ -5772,7 +5775,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     } else {
         coutput("\n    this_task->data._f_%s.data_out = NULL;  /* By default, if nothing matches */\n", flow->varname);
     }
-    
+
     sa  = string_arena_new(64);
 
     info.sa = sa;
@@ -5881,7 +5884,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             "}\n\n",
             flow->varname);/*    coutput("if(! this_task->data._f_%s.fulfill ){\n", flow->varname);*/
 
-    
+
     string_arena_free(sa);
     if( NULL != sa2 )
         string_arena_free(sa2);
@@ -6747,8 +6750,6 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
             "  parsec_gpu_task_t *gpu_task;\n"
             "  parsec_device_module_t *dev;\n"
-            "  int64_t __load;\n"
-            "  int dev_index;\n"
             "  %s\n"
             "  (void)es; (void)__parsec_tp;\n"
             "\n",
@@ -6764,31 +6765,21 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     /* Get the hint for static and/or external gpu scheduling */
     jdf_find_property( body->properties, "device", &device_property );
     if ( NULL != device_property ) {
-        device = dump_expr((void**)device_property->expr, &info);
-        coutput("  dev_index = %s;\n"
-                "  if (dev_index < -1) {\n"
-                "    return PARSEC_HOOK_RETURN_NEXT;\n"
-                "  } else if (dev_index == -1) {\n"
-                "    dev_index = parsec_get_best_device((parsec_task_t*)this_task, &__load);\n"
-                "  } else {\n"
-                "    dev_index = (dev_index %% (parsec_mca_device_enabled()-2)) + 2;\n" //TODO: -2+2 not correct when recursive compiled out
-                "  }\n",
-                device);
-    } else {
-        coutput("  dev_index = parsec_get_best_device((parsec_task_t*)this_task, &__load);\n");
+#if 0
+        device = dump_expr((void**)device_property->expr, &info); // see TODO
+                                                                  // below
+#endif
+        coutput("#warning \"TODO device selection needs to go in custom task_class evaluate function\"\n");
     }
-    coutput("  assert(dev_index >= 0);\n"
-            "  if( !parsec_mca_device_is_gpu(dev_index) ) {\n"
-            "    return PARSEC_HOOK_RETURN_NEXT;  /* Fall back */\n"
-            "  }\n"
+    coutput("  dev = this_task->selected_device;\n"
+            "  assert(NULL != dev);\n"
+            "  assert(PARSEC_DEV_IS_GPU(dev->type));\n"
             "\n"
-            "  dev = parsec_mca_device_get(dev_index);\n"
             "  gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));\n"
             "  PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);\n"
             "  gpu_task->ec = (parsec_task_t*)this_task;\n"
             "  gpu_task->submit = &%s_kernel_submit_%s_%s;\n"
             "  gpu_task->task_type = 0;\n"
-            "  gpu_task->load = __load;\n"
             "  gpu_task->last_data_check_epoch = -1;  /* force at least one validation for the task */\n",
             dev_lower, jdf_basename, f->fname);
 
@@ -7312,7 +7303,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     jdf_expr_t *el;
 
     (void)sourcef;
-    
+
     string_arena_init(sa_open);
 
     /* Find the target function */
@@ -7397,7 +7388,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
             }
         }
     }
-    
+
     for(vl = targetf->locals, i = 0; vl != NULL; vl = vl->next, i++) {
 
         for(el  = call->parameters, nl = targetf->parameters;
@@ -7474,7 +7465,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                     }
                 }
             }
-            
+
             if( JDF_RANGE == el->op ) {
                 string_arena_add_string(sa_open,
                                         "%s%s  int %s_%s;\n",
@@ -7652,7 +7643,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
     string_arena_t *sa_coutput    = string_arena_new(1024);
     string_arena_t *sa_deps       = string_arena_new(1024);
     string_arena_t *sa_datatype   = string_arena_new(1024);
-    
+
     string_arena_t *sa_tmp_arena  = string_arena_new(256);
     string_arena_t *sa_tmp_count  = string_arena_new(256);
     string_arena_t *sa_tmp_displ  = string_arena_new(256);
@@ -7700,7 +7691,8 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
             UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
-    coutput("  nc.taskpool  = this_task->taskpool;\n"
+    coutput("  PARSEC_OBJ_CONSTRUCT(&nc, parsec_task_t);\n"
+            "  nc.taskpool  = this_task->taskpool;\n"
             "  nc.priority  = this_task->priority;\n"
             "  nc.chore_mask  = PARSEC_DEV_ALL;\n");
     coutput("#if defined(DISTRIBUTED)\n"
@@ -7872,7 +7864,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                     }
                 }
             }
-            
+
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
                 if( NULL != dl->guard->calltrue->var) {
@@ -8130,7 +8122,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
                     expr->jdf_c_code.fname, jdf_basename);
         }
     }
-    
+
     string_arena_free(sa1);
     string_arena_free(sa2);
 
@@ -8207,7 +8199,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
          * xor off, as nb_local_tasks must be define globally for the taskpool in order
          * to enable the undetermined number of tasks feature. */
         f->user_defines |= global_user_defines;
-        
+
         if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_STRUCT_NAME, NULL) ) {
             rc = asprintf(&tmp, JDF2C_NAMESPACE"key_fns_%s", f->fname);
             if (rc == -1) {
@@ -8221,7 +8213,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
         } else {
             f->user_defines |= JDF_FUNCTION_HAS_UD_HASH_STRUCT;
         }
-        
+
         if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_MAKE_KEY_FN_NAME, NULL) ) {
             rc = asprintf(&tmp, JDF2C_NAMESPACE"make_key_%s", f->fname);
             if (rc == -1) {
@@ -8235,7 +8227,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
         } else {
             f->user_defines |= JDF_FUNCTION_HAS_UD_MAKE_KEY;
         }
-        
+
         if( NULL == (expr = jdf_find_property(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, &property)) ) {
             if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
                 rc = asprintf(&tmp, JDF2C_NAMESPACE"startup_%s", f->fname);
@@ -8391,10 +8383,10 @@ int jdf_force_termdet_dynamic(jdf_t* jdf)
     termdet_expr = jdf_find_property(jdf->global_properties, JDF_PROP_TERMDET_NAME, &property);
     if( NULL != termdet_expr && strcmp(termdet_expr->jdf_var, JDF_PROP_TERMDET_USER_TRIGGERED) == 0 ) {
         return rc; // We don't override a user-trigger termination detection selection
-    } 
+    }
     if( NULL != termdet_expr && strcmp(termdet_expr->jdf_var, JDF_PROP_TERMDET_DYNAMIC) == 0 ) {
         return rc; // The PTG developer already asked for dynamic termination detection
-    } 
+    }
     if(NULL != termdet_expr) {
         if(strcmp(termdet_expr->jdf_var, JDF_PROP_TERMDET_LOCAL) != 0) {
             jdf_warn(termdet_expr->super.lineno, "'%s' is not a recognized value for option '%s' -- option overwritten to '%s' because --termdet-dynamic is requested\n",
@@ -8437,15 +8429,15 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     hfile = NULL;
 
 #if defined(PARSEC_HAVE_INDENT) && !(defined(__WINDOWS__) || defined(__MING64__) || defined(__CYGWIN__))
-    /* When we apply indent/awk to the output of jdf2c, we need to make 
-     * sure that the resultant file is flushed onto the filesystem before 
+    /* When we apply indent/awk to the output of jdf2c, we need to make
+     * sure that the resultant file is flushed onto the filesystem before
      * the rest of the compilation chain can takeover. An original version
      * was using rename(2) and temporary files to apply the indent/awk, but
-     * it turns out to be very difficult to portably ensure visibility of 
+     * it turns out to be very difficult to portably ensure visibility of
      * the rename in subsequent operations (see PR#32 for the discussion).
      * As an alternative, we use pipes between jdf2c and the system spawned
-     * indent/awk commands, so that we can spare the rename and rely on a 
-     * classic fsync on the output to ensure visibilitiy. 
+     * indent/awk commands, so that we can spare the rename and rely on a
+     * classic fsync on the output to ensure visibilitiy.
      */
     int child = -1;
     int cpipefd[2] = {-1,-1};
@@ -8571,7 +8563,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
             jdf_basename,
             jdf_basename, jdf_basename,
             jdf_basename, jdf_basename);
-    
+
     jdf_generate_new_function(jdf);
 
     free_name_placeholders();

@@ -208,10 +208,16 @@ static void __parsec_taskpool_destructor(parsec_taskpool_t* tp)
 PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
                           __parsec_taskpool_constructor, __parsec_taskpool_destructor);
 
+static void __parsec_task_constructor(parsec_task_t* task) {
+    task->selected_device = NULL;
+    task->selected_chore = -1;
+    task->load = 0;
+}
+
 /*
  * Taskpool based task definition (no specialized constructor and destructor) */
 PARSEC_OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
-                   NULL, NULL);
+                   __parsec_task_constructor, NULL);
 
 static void parsec_taskpool_release_resources(void);
 
