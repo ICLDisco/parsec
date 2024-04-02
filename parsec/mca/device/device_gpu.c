@@ -401,7 +401,7 @@ static parsec_task_class_t parsec_device_data_prefetch_tc = {
 
 static int
 parsec_device_release_resources_prefetch_task(parsec_device_gpu_module_t* gpu_device,
-					    parsec_gpu_task_t** out_task)
+                        parsec_gpu_task_t** out_task)
 {
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
@@ -823,7 +823,7 @@ parsec_device_memory_release( parsec_device_gpu_module_t* gpu_device )
     void* ptr = zone_malloc_fini(&gpu_device->memory);
     rc = gpu_device->memory_free(gpu_device, ptr);
     if(PARSEC_SUCCESS != rc) {
-        parsec_warning("Failed to free the GPU backend memory."); 
+        parsec_warning("Failed to free the GPU backend memory.");
         return rc;
     }
 #endif
@@ -923,7 +923,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                 /* We can't find enough room on the GPU. Insert the tiles in the begining of
                  * the LRU (in order to be reused asap) and return with error.
                  */
-	        release_temp_and_return:
+            release_temp_and_return:
 #if defined(PARSEC_DEBUG_NOISIER)
                 PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,
                                      "GPU[%s]:%s:\tRequest space on GPU failed for flow %s index %d/%d for task %s",
@@ -1250,7 +1250,7 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
                                          source->device_private,
                                          count,
                                          dir );
-            if(PARSEC_SUCCESS != ret) { 
+            if(PARSEC_SUCCESS != ret) {
                 return PARSEC_HOOK_RETURN_ERROR;
             }
         }
@@ -1312,7 +1312,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
 
     transfer_from = parsec_data_start_transfer_ownership_to_copy(original, gpu_device->super.device_index, (uint8_t)type);
 
-    /* If data is from NEW (it doesn't have a source_repo_entry and is not a direct data collection reference), 
+    /* If data is from NEW (it doesn't have a source_repo_entry and is not a direct data collection reference),
      * and nobody has touched it yet, then we don't need to pull it in, we have created it already, that's enough. */
     /*
      * TODO: this test is not correct for anything but PTG
@@ -1612,7 +1612,7 @@ parsec_device_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
     gpu_task->stage_in  = parsec_default_gpu_stage_in;
     gpu_task->stage_out = parsec_default_gpu_stage_out;
     gpu_task->ec->data[0].data_in = copy;  /* We need to set not-null in data_in, so that the fake flow is
-                                            * not ignored when poping the data from the fake task */ 
+                                            * not ignored when poping the data from the fake task */
     gpu_task->ec->data[0].data_out = copy; /* We "free" data[i].data_out if its readers reaches 0 */
     gpu_task->ec->data[0].source_repo_entry = NULL;
     gpu_task->ec->data[0].source_repo = NULL;
@@ -2041,7 +2041,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
  * setup the profiling information and then calls directly into the task submission body. Upon
  * return from the body handle the state machine of the task, taking care of the special cases
  * such as AGAIN and ASYNC.
- * @returns An error if anything unexpected came out of the task submission body, otherwise 
+ * @returns An error if anything unexpected came out of the task submission body, otherwise
  */
 static int
 parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
@@ -2330,20 +2330,6 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
                              gpu_device->super.name,
                              cpu_copy, cpu_copy->super.super.obj_reference_count, cpu_copy->version, gpu_copy, gpu_copy->super.super.obj_reference_count,
                              __FILE__, __LINE__);
-        /**
-         *  We already incremented the gpu_copy during the data_stage_in if needed, but we
-         *  need to bump it a second time because the cpu_copy will be incremented in
-         *  task completion, and thus would end-up with version+1 w.r.t. this gpu_copy.
-         *  We could set the cpu_copy->version to gpu_copy->version-1 but we
-         *  thought that double incrementing versions on gpu_copy is less dangerous than
-         *  setting an older version on the cpu_copy while a prior copy may
-         *  already have the same version-1 for real.
-         */
-        gpu_copy->version++;
-        PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
-                             "GPU[%s]: GPU copy %p [ref_count %d] gets version %d because CPU copy %p will be updated during complete_execution",
-                             gpu_device->super.name,
-                             gpu_copy, gpu_copy->super.super.obj_reference_count, gpu_copy->version, cpu_copy);
 
         /**
          * Let's lie to the engine by reporting that working version of this
@@ -2658,7 +2644,7 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     __parsec_complete_execution( es, gpu_task->ec );
     gpu_device->super.executed_tasks++;
  remove_gpu_task:
-    PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,"GPU[%s]: gpu_task %p freed at %s:%d", gpu_device->super.name, 
+    PARSEC_DEBUG_VERBOSE(3, parsec_gpu_output_stream,"GPU[%s]: gpu_task %p freed at %s:%d", gpu_device->super.name,
                         gpu_task, __FILE__, __LINE__);
     free( gpu_task );
     rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
@@ -2668,9 +2654,9 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
             PARSEC_PROFILING_TRACE( es->es_profile, parsec_gpu_own_GPU_key_end,
                                     (unsigned long)es, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PARSEC_PROF_TRACE) */
-        PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,"GPU[%s]: Leaving GPU management at %s:%d", 
+        PARSEC_DEBUG_VERBOSE(2, parsec_gpu_output_stream,"GPU[%s]: Leaving GPU management at %s:%d",
                              gpu_device->super.name, __FILE__, __LINE__);
-	/* inform the upper layer not to use the task argument, it has been long gone */
+        /* inform the upper layer not to use the task argument, it has been long gone */
         return PARSEC_HOOK_RETURN_ASYNC;
     }
     gpu_task = progress_task;

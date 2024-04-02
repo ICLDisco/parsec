@@ -7018,26 +7018,32 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
 
     if ((NULL == type_property) ||
         (!strcmp(type_property->expr->jdf_var, "RECURSIVE"))) {
-        coutput("  /** Transfer the ownership to the CPU */\n"
-                "#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT)\n");
 
         for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
-            /* Update the ownership of read/write data */
-            /* Applied only on the Write data, since the number of readers is not atomically increased yet */
-            if ((fl->flow_flags & JDF_FLOW_TYPE_READ) &&
-                (fl->flow_flags & JDF_FLOW_TYPE_WRITE) ) {
-               coutput("    if ( NULL != _f_%s ) {\n"
-                       "      parsec_data_transfer_ownership_to_copy( _f_%s->original, 0 /* device */,\n"
-                       "                                           %s);\n"
-                       "    }\n",
-                       fl->varname,
-                       fl->varname,
-                       ((fl->flow_flags & JDF_FLOW_TYPE_CTL) ? "PARSEC_FLOW_ACCESS_NONE" :
-                        ((fl->flow_flags & JDF_FLOW_TYPE_READ) ?
-                         ((fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? "PARSEC_FLOW_ACCESS_RW" : "PARSEC_FLOW_ACCESS_READ") : "PARSEC_FLOW_ACCESS_WRITE")));
+            if (fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
+                coutput("    if ( NULL != _f_%s ) {\n"
+                        "#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT)\n"
+                        "      parsec_data_transfer_ownership_to_copy( _f_%s->original, 0 /* device */,\n"
+                        "                                           %s);\n"
+                        "#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) */\n"
+                        "      _f_%s->version++;  /* %s */\n"
+                        "#if defined(PARSEC_DEBUG_NOISIER)\n"
+                        "      char tmp[128];\n"
+                        "      PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,\n"
+                        "                           \"Body of %%s: change Data copy %%p to version %%d\",\n"
+                        "                           parsec_task_snprintf(tmp, 128, (parsec_task_t*)(this_task)),\n"
+                        "                           _f_%s, _f_%s->version);\n"
+                        "#endif /* defined(PARSEC_DEBUG_NOISIER) */\n"
+                        "    }\n",
+                        fl->varname,
+                        fl->varname,
+                        ((fl->flow_flags & JDF_FLOW_TYPE_CTL) ? "PARSEC_FLOW_ACCESS_NONE" :
+                         ((fl->flow_flags & JDF_FLOW_TYPE_READ) ?
+                          ((fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? "PARSEC_FLOW_ACCESS_RW" : "PARSEC_FLOW_ACCESS_READ") : "PARSEC_FLOW_ACCESS_WRITE")),
+                        fl->varname, fl->varname,
+                        fl->varname, fl->varname );
             }
         }
-        coutput("#endif  /* defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) */\n");
     }
     jdf_generate_code_cache_awareness_update(jdf, f);
 
@@ -7067,7 +7073,6 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
                                 const char *name)
 {
     string_arena_t *sa, *sa2;
-    int di;
     jdf_dataflow_t *fl;
     assignment_info_t ai;
 
@@ -7089,28 +7094,6 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
 
     coutput("parsec_data_t* data_t_desc = NULL; (void)data_t_desc;\n");
-
-    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
-        if(JDF_FLOW_TYPE_CTL & fl->flow_flags) continue;
-        if(fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
-            /**
-             * The data_out might be NULL if we don't forward anything.
-             */
-            coutput("  if ( NULL != this_task->data._f_%s.data_out ) {\n"
-                    "#if defined(PARSEC_DEBUG_NOISIER)\n"
-                    "     char tmp[128];\n"
-                    "#endif\n"
-                    "     this_task->data._f_%s.data_out->version++;  /* %s */\n"
-                    "     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,\n"
-                    "                          \"Complete hook of %%s: change Data copy %%p to version %%d at %%s:%%d\",\n"
-                    "                          parsec_task_snprintf(tmp, 128, (parsec_task_t*)(this_task)),\n"
-                    "                          this_task->data._f_%s.data_out, this_task->data._f_%s.data_out->version, __FILE__, __LINE__);\n"
-                    "  }\n",
-                    fl->varname,
-                    fl->varname, fl->varname,
-                    fl->varname, fl->varname );
-        }
-    }
 
     /* TODO: The data could be on the GPU */
     coutput("#if defined(DISTRIBUTED)\n"
