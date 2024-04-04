@@ -3937,6 +3937,7 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
     jdf_def_list_t* type_property;
     jdf_def_list_t* dyld_property;
     jdf_def_list_t* evaluate_property = NULL;
+    jdf_def_list_t* device_property = NULL;
 
     (void)jdf;
     string_arena_add_string(sa, "static const __parsec_chore_t __%s_chores[] ={\n", base_name);
@@ -3969,8 +3970,17 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
                 }
                 string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
             }
-            string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)%s,\n",
-                                    (NULL == evaluate_property) ? "NULL" : evaluate_property->expr->jdf_c_code.fname);
+            jdf_find_property(body->properties, "device", &device_property);
+            if( evaluate_property && device_property ) {
+                fprintf(stdout, "Warning: Property %s defined at line %d is overruled by %s defined at line %d.\n", device_property->name, JDF_OBJECT_LINENO(device_property), evaluate_property->name, JDF_OBJECT_LINENO(evaluate_property));
+                device_property = NULL;
+            }
+            if( NULL != device_property )
+                string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)eval_hook_of_%s_%s_select_device,\n",
+                                        base_name, dev_upper);
+            else
+                string_arena_add_string(sa, "      .evaluate = (parsec_evaluate_function_t*)%s,\n",
+                                        (NULL == evaluate_property) ? "NULL" : evaluate_property->expr->jdf_c_code.fname);
             string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_upper);
             string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_%s_SUPPORT) */\n", dev_upper);
             free(dev_upper);
@@ -6577,7 +6587,7 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     jdf_def_list_t *prop;
     const char *dyld;
     const char *dyldtype;
-    const char *device;
+    const char *device_expr;
     string_arena_t *sa, *sa2, *sa3;
     assignment_info_t ai;
     init_from_data_info_t ai2;
@@ -6741,6 +6751,47 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     coutput("  return PARSEC_HOOK_RETURN_DONE;\n"
             "}\n\n");
 
+    info.sa = string_arena_new(64);
+    info.prefix = "";
+    info.suffix = "";
+    info.assignments = "&this_task->locals";
+    /* Generate the evaluate if a device type is set */
+    /* Get the hint for static and/or external gpu scheduling */
+    jdf_find_property( body->properties, "device", &device_property );
+    if ( NULL != device_property ) {
+        device_expr = dump_expr((void**)device_property->expr, &info);
+        coutput("static int eval_%s_%s_select_device(%s *this_task)\n"
+                "{\n"
+                "  __parsec_%s_internal_taskpool_t *__parsec_tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool; (void)__parsec_tp;\n"
+                "  int dev_prop = %s;\n"
+                "  int nb_devs_of_type, dev_index;\n"
+                "  if( NULL != this_task->selected_device ) {\n"
+                "    char tmp[MAX_TASK_STRLEN];\n"
+                "    parsec_warning(\"Task %%s property device (value %%d) has been ignored \"\n"
+                "                   \"because the task already has a selected device %%d %%s\",\n"
+                "       parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t *)this_task), dev_prop,\n"
+                "       this_task->selected_device->device_index, this_task->selected_device->name);\n"
+                "    return PARSEC_HOOK_RETURN_DONE;\n"
+                "  }\n"
+                "  for( dev_index = nb_devs_of_type = 0; dev_index < parsec_mca_device_enabled(); dev_index++ )\n"
+                "    if( __parsec_tp->super.super.devices_index_mask & (1 << dev_index)\n"
+                "     && parsec_mca_device_get(dev_index)->type & PARSEC_DEV_%s )\n"
+                "      nb_devs_of_type++;\n"
+                "  if( 0 == nb_devs_of_type ) return PARSEC_HOOK_RETURN_NEXT;\n"
+                "  for( int skip = dev_prop %% nb_devs_of_type, dev_index = 0; skip > 0; dev_index++)\n"
+                "    if( __parsec_tp->super.super.devices_index_mask & (1 << dev_index)\n"
+                "     && parsec_mca_device_get(dev_index)->type & PARSEC_DEV_%s )\n"
+                "      skip--;\n"
+                "  this_task->selected_device = parsec_mca_device_get(dev_index);\n"
+                "  return PARSEC_HOOK_RETURN_DONE;\n"
+                "}\n\n",
+                name, dev_upper, parsec_get_name(jdf, f, "task_t"),
+                jdf_basename, jdf_basename,
+                device_expr,
+                dev_upper,
+                dev_upper);
+    }
+
     /* Generate the hook device */
     coutput("static int %s_%s(parsec_execution_stream_t *es, %s *this_task)\n"
             "{\n"
@@ -6754,20 +6805,6 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
             jdf_basename, jdf_basename,
             string_arena_get_string( sa3 ));
 
-    info.sa = string_arena_new(64);
-    info.prefix = "";
-    info.suffix = "";
-    info.assignments = "&this_task->locals";
-
-    /* Get the hint for static and/or external gpu scheduling */
-    jdf_find_property( body->properties, "device", &device_property );
-    if ( NULL != device_property ) {
-#if 0
-        device = dump_expr((void**)device_property->expr, &info); // see TODO
-                                                                  // below
-#endif
-        coutput("#warning \"TODO device selection needs to go in custom task_class evaluate function\"\n");
-    }
     coutput("  dev = this_task->selected_device;\n"
             "  assert(NULL != dev);\n"
             "  assert(PARSEC_DEV_IS_GPU(dev->type));\n"
