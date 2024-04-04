@@ -135,6 +135,11 @@ int __parsec_execute( parsec_execution_stream_t* es,
 
     rc = parsec_select_best_device(task);
     if( PARSEC_ERROR == rc ) return PARSEC_HOOK_RETURN_ERROR;
+    if( PARSEC_DEV_IS_GPU(task->selected_device->type) ) {
+        /* counting load on CPU is useless because it would move from 0->1->0 during the span of execute
+         * TODO: select_best_device during __parsec_schedule and adjust loads at that time to enable cpu/gpu load balancing. */
+        parsec_atomic_fetch_add_int64(&task->selected_device->device_load, task->load);
+    }
 
     PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
                          es->th_id, es->virtual_process->vp_id,
@@ -423,6 +428,12 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
      */
     PARSEC_PINS(es, COMPLETE_EXEC_BEGIN, task);
 
+    if( task->selected_device /* not set for startup tasks */
+     && PARSEC_DEV_IS_GPU(task->selected_device->type) /* load not counted on CPU devices, see the task_load add comment */ ) {
+        parsec_atomic_fetch_add_int64(&task->selected_device->device_load, -task->load);
+        assert(task->selected_device->device_load >= 0);
+    }
+
     if( NULL != task->task_class->prepare_output ) {
         task->task_class->prepare_output( es, task );
     }
@@ -464,7 +475,6 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
         /* We're good to go ... */
         switch(rc) {
         case PARSEC_HOOK_RETURN_DONE:    /* This execution succeeded */
-            task->status = PARSEC_TASK_STATUS_COMPLETE;
             __parsec_complete_execution( es, task );
             break;
         case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
@@ -483,6 +493,7 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
         case PARSEC_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
         case PARSEC_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
         case PARSEC_HOOK_RETURN_ERROR:   /* Some other major error happened */
+        default:
             parsec_fatal("Executing task of class %s failed with parsec_hook_return_t error %d", task->task_class->name, rc);
             /* we should not call fatal here, but the caller code
              * is not ready to handle error cases yet */

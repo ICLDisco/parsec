@@ -209,9 +209,12 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_taskpool_t, parsec_list_item_t,
                           __parsec_taskpool_constructor, __parsec_taskpool_destructor);
 
 static void __parsec_task_constructor(parsec_task_t* task) {
+    /* no allocation here, only initalizations: the task_t will be constructed
+     * multiple times when push-poped from the mempool */
     task->selected_device = NULL;
     task->selected_chore = -1;
     task->load = 0;
+    task->status = PARSEC_TASK_STATUS_NONE;
 }
 
 /*
@@ -1710,7 +1713,6 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
             parsec_task_t *new_context = (parsec_task_t *) parsec_thread_mempool_allocate(es->context_mempool);
 
             PARSEC_COPY_EXECUTION_CONTEXT(new_context, task);
-            new_context->status = PARSEC_TASK_STATUS_NONE;
             PARSEC_AYU_ADD_TASK(new_context);
 
             PARSEC_DEBUG_VERBOSE(6, parsec_debug_output,
@@ -2572,7 +2574,6 @@ parsec_debug_taskpool_count_local_tasks( parsec_taskpool_t *tp,
     task.taskpool = tp;
     task.task_class = tc;
     task.priority = -1;
-    task.status = PARSEC_TASK_STATUS_NONE;
     memset( task.data, 0, MAX_PARAM_COUNT * sizeof(parsec_data_pair_t) );
 
     *nlocal = 0;

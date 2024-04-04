@@ -248,6 +248,7 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
                     parsec_atomic_unlock( &gpu_copy->original->lock );
                     return NULL;
                 }
+                PARSEC_OBJ_CONSTRUCT(d2h_task, parsec_task_t);
             }
             parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
             PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
@@ -269,7 +270,6 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
 
     d2h_task->priority        = INT32_MAX;
     d2h_task->task_class      = &parsec_gpu_d2h_task_class;
-    d2h_task->status          = PARSEC_TASK_STATUS_NONE;
     d2h_task->taskpool        = NULL;
     d2h_task->locals[0].value = nb_cleaned;
 

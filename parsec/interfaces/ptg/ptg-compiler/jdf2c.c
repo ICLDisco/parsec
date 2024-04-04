@@ -3157,8 +3157,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s    vpid = (vpid + 1) %% context->nb_vp;  /* spread the initial joy */\n"
             "%s  }\n"
             "%s  new_task = (%s*)parsec_thread_mempool_allocate( context->virtual_processes[vpid]->execution_streams[0]->context_mempool );\n"
-            "%s  new_task->selected_device = NULL; new_task->selected_chore = -1; new_task->load = 0;\n"
-            "%s  new_task->status = PARSEC_TASK_STATUS_NONE;\n",
+            "%s  PARSEC_OBJ_CONSTRUCT(new_task, parsec_task_t); /* construct called only when new, force-construct it again */\n",
             indent(nesting), f->predicate->func_or_mem,
             indent(nesting), f->predicate->func_or_mem, f->predicate->func_or_mem,
             UTIL_DUMP_LIST(sa2, f->predicate->parameters, next,
@@ -3169,7 +3168,6 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting),
             indent(nesting),
             indent(nesting), parsec_get_name(jdf, f, "task_t"),
-            indent(nesting),
             indent(nesting));
 
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_variable_list_t, next, nb_locals);
@@ -4483,7 +4481,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    parsec_task_class_t* tc = (parsec_task_class_t*)__parsec_tp->super.super.task_classes_array[i];\n"
             "    __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;\n"
             "    uint32_t idx = 0, j;\n"
-            "    for( j = 0; NULL != chores[j].hook; j++ ) {\n"
+            "    for( j = 0; PARSEC_DEV_NONE != chores[j].type; j++ ) {\n"
             "      if( !(supported_dev & chores[j].type) ) continue;\n"
             "      if( j != idx ) {\n"
             "        chores[idx] = chores[j];\n"
@@ -4496,10 +4494,9 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    chores[idx].hook     = NULL;\n"
             "    /* Create the initialization tasks for each taskclass */\n"
             "    parsec_task_t* task = (parsec_task_t*)parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);\n"
+            "    PARSEC_OBJ_CONSTRUCT(task, parsec_task_t); /* construct called only when new, force-construct it again */\n"
             "    task->taskpool = (parsec_taskpool_t *)__parsec_tp;\n"
             "    task->chore_mask = PARSEC_DEV_CPU;\n"
-            "    task->selected_device = NULL; task->selected_chore = -1; task->load = 0;\n"
-            "    task->status = PARSEC_TASK_STATUS_NONE;\n"
             "    memset(&task->locals, 0, sizeof(parsec_assignment_t) * MAX_LOCAL_COUNT);\n"
             "    PARSEC_LIST_ITEM_SINGLETON(task);\n"
             "    task->priority = -1;\n"
@@ -4673,7 +4670,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     coutput("  for( i = 0; i < __parsec_tp->super.super.nb_task_classes; i++ ) {\n"
             "    __parsec_tp->super.super.task_classes_array[i] = tc = malloc(sizeof(parsec_task_class_t));\n"
             "    memcpy(tc, %s_task_classes[i], sizeof(parsec_task_class_t));\n"
-            "    for( j = 0; NULL != tc->incarnations[j].hook; j++);  /* compute the number of incarnations */\n"
+            "    for( j = 0; PARSEC_DEV_NONE != tc->incarnations[j].type; j++);  /* compute the number of incarnations */\n"
             "    tc->incarnations = (__parsec_chore_t*)malloc((j+1) * sizeof(__parsec_chore_t));\n    "
             "    memcpy((__parsec_chore_t*)tc->incarnations, %s_task_classes[i]->incarnations, (j+1) * sizeof(__parsec_chore_t));\n\n"
             "    /* Add a placeholder for initialization and startup task */\n"

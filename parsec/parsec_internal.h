@@ -565,6 +565,7 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_task_t);
                 sizeof(struct parsec_minimal_execution_context_s) - sizeof(parsec_list_item_t) ); \
         (dest)->mempool_owner = _mpool;                                 \
         (dest)->repo_entry = NULL;                                      \
+        PARSEC_OBJ_CONSTRUCT(dest, parsec_task_t); /* reset defaults */ \
     } while (0)
 
 /**

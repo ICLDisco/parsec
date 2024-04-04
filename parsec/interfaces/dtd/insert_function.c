@@ -2631,6 +2631,7 @@ parsec_dtd_create_and_initialize_task(parsec_dtd_taskpool_t *dtd_tp,
 
     assert(this_task->super.super.super.obj_reference_count == 1);
 
+    PARSEC_OBJ_CONSTRUCT(&this_task->super, parsec_task_t);
     this_task->orig_task = NULL;
     this_task->super.taskpool = (parsec_taskpool_t *)dtd_tp;
     this_task->ht_item.key = (parsec_key_t)(uintptr_t)(dtd_tp->task_id++);
@@ -2648,8 +2649,6 @@ parsec_dtd_create_and_initialize_task(parsec_dtd_taskpool_t *dtd_tp,
     this_task->rank = rank;
     this_task->super.priority = 0;
     this_task->super.chore_mask = PARSEC_DEV_ANY_TYPE;
-    this_task->super.selected_device = NULL; this_task->super.selected_chore = -1; this_task->super.load = 0;
-    this_task->super.status = PARSEC_TASK_STATUS_NONE;
 
     int j;
     parsec_dtd_flow_info_t *flow;
