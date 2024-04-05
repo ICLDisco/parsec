@@ -1716,12 +1716,11 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
             PARSEC_AYU_ADD_TASK(new_context);
 
             PARSEC_DEBUG_VERBOSE(6, parsec_debug_output,
-                   "%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d",
+                   "%s becomes ready from %s on thread %d:%d, with mask 0x%04x",
                    tmp1,
                    parsec_task_snprintf(tmp2, MAX_TASK_STRLEN, origin),
                    es->th_id, es->virtual_process->vp_id,
-                   *deps,
-                   task->priority);
+                   *deps);
 
             assert( dest_flow->flow_index <= new_context->task_class->nb_flows);
             memset( new_context->data, 0, sizeof(parsec_data_pair_t) * new_context->task_class->nb_flows);

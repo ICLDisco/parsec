@@ -87,12 +87,12 @@ static int64_t time_estimate(const parsec_task_t *this_task, parsec_device_modul
 int parsec_select_best_device( parsec_task_t* this_task ) {
     parsec_data_copy_t* data_copy = NULL;
     parsec_taskpool_t* tp = this_task->taskpool;
-    parsec_device_module_t *dev = NULL, *prefer_dev = NULL;
+    parsec_device_module_t *dev = NULL, *rdata_dev = NULL;
 
     const parsec_task_class_t* tc = this_task->task_class;
     parsec_evaluate_function_t* eval;
     int rc;
-#if defined(PARSEC_DEBUG)
+#if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task);
 #endif
@@ -100,6 +100,8 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
 
     /* we did it before (this is a PARSEC_RETURN_AGAIN/ASYNC?) */
     if( this_task->selected_device ) {
+        PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s a-priori selected_device %d:%s",
+                             __func__, tmp, this_task->selected_device->device_index, this_task->selected_device->name);
         goto device_selected;
     }
 
@@ -113,7 +115,7 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
             rc = eval(this_task);
             if( PARSEC_HOOK_RETURN_DONE != rc ) {
                 if( PARSEC_HOOK_RETURN_NEXT != rc ) {
-                    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Failed to evaluate %s[%d] chore %d",
+                    PARSEC_DEBUG_VERBOSE(5, parsec_device_output, "Failed to evaluate %s[%d] chore %d",
                                          tmp, tc->incarnations[chore_id].type,
                                          chore_id);
                 }
@@ -125,11 +127,11 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
         valid_types |= tc->incarnations[chore_id].type; /* the eval accepted the type, but no device specified yet */
         /* Evaluate may have picked a device, abide by it */
         if( NULL != this_task->selected_device ) {
-#if defined(PARSEC_DEBUG)
+#if defined(PARSEC_DEBUG_NOISIER)
             dev = this_task->selected_device;
             assert( dev->type & valid_types );
-            PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Task %s evaluate selected device %s",
-                             tmp, dev->name);
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s evaluate set selected_device %d:%s",
+                                 __func__, tmp, dev->device_index, dev->name);
 #endif
             goto device_selected;
         }
@@ -154,12 +156,16 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
         /* If the WRITE data has a preferred device, select it. */
         dev = parsec_mca_device_get(data_copy->original->preferred_device);
         if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index))) {
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because preferred by data %p AWRITE flow out[%d]",
+                                 __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
             this_task->selected_device = dev;
             goto device_selected;
         }
         /* WRITE data is already located on a GPU device, select it */
         dev = parsec_mca_device_get(data_copy->original->owner_device);
         if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) && PARSEC_DEV_IS_GPU(dev->type) ) {
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because owner of data %p flow AWRITE flow out[%d]",
+                                 __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
             this_task->selected_device = dev;
             goto device_selected;
         }
@@ -174,13 +180,17 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
         /* If the READ data has a preferred device, prefer it. */
         dev = parsec_mca_device_get(data_copy->original->preferred_device);
         if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) ) {
-            prefer_dev = dev;
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s favors device %d:%s because preferred by data %p flow AREAD in[%d]",
+                                 __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
+            rdata_dev = dev;
             break;
         }
         /* READ data is already located on a GPU device, prefer it */
         dev = parsec_mca_device_get(data_copy->original->owner_device);
         if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) && PARSEC_DEV_IS_GPU(dev->type) /* no CPU or recursive, always true test would disable GPU execution */ ) {
-            prefer_dev = dev;
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s favors device %d:%s because owner of data %p flow AREAD in[%d]",
+                                 __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
+            rdata_dev = dev;
             break;
         }
     }
@@ -192,9 +202,9 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
 
         /* If we have a preferred device (from READ flows), start with it, but still consider
          * other options to have some load balance */
-        if( NULL != prefer_dev ) {
-            best_index = prefer_dev->device_index;
-            best_eta = prefer_dev->device_load + time_estimate(this_task, prefer_dev);
+        if( NULL != rdata_dev ) {
+            best_index = rdata_dev->device_index;
+            best_eta = rdata_dev->device_load + time_estimate(this_task, rdata_dev);
             /* we still prefer this device, until it is load_balance_skew as loaded as the
              * real best eta device, lets scale the best_eta accordingly. */
             best_eta *= load_balance_skew;
@@ -212,8 +222,13 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
             if(dev->type == PARSEC_DEV_RECURSIVE) continue;
 
             eta = dev->device_load + time_estimate(this_task, dev);
-            PARSEC_DEBUG_VERBOSE(80, parsec_device_output, "+++ select_best_device considering %d (%s) with prior load %"PRIi64", new task eta would be %"PRIi64, dev_index, dev->name, dev->device_load, eta);
             if( best_eta > eta ) {
+                if(best_index == -1)
+                    PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s has eta %"PRIi64" on %d:%s (first pick)",
+                                         __func__, tmp, eta, dev_index, dev->name);
+                else
+                    PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s has eta %"PRIi64" on %d:%s (better than eta %"PRIi64" on device index %d)",
+                                         __func__, tmp, eta, dev_index, dev->name, best_eta, best_index);
                 best_index = dev_index;
                 best_eta = eta;
             }
@@ -234,7 +249,8 @@ device_selected:
     this_task->selected_chore = chore_id;
     this_task->load = time_estimate(this_task, dev);
 
-    PARSEC_DEBUG_VERBOSE(20, parsec_device_output, "select_best_device selected %d (%s) with prior load %"PRIi64", new task %s load %"PRIi64" has eta %"PRIi64, dev->device_index, dev->name, dev->device_load, parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task), this_task->load, dev->device_load+this_task->load);
+    PARSEC_DEBUG_VERBOSE(20, parsec_device_output, "%s: Task %s set selected_device %d:%s (eta %"PRIi64")",
+                         __func__, tmp, dev->device_index, dev->name, dev->device_load+this_task->load);
 
 #if defined(PARSEC_DEBUG_PARANOID)
     /* Sanity check: if at least one of the data copies is not parsec
@@ -246,17 +262,17 @@ device_selected:
         if ((this_task->data[i].data_in->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) == 0 &&
             this_task->data[i].data_in->device_index != dev->device_index) {
             char task_str[MAX_TASK_STRLEN];
-            parsec_fatal("*** User-Managed Copy Error: Task %s is selected to run on device %s,\n"
+            parsec_fatal("*** User-Managed Copy Error: Task %s is selected to run on device %d:%s,\n"
                          "*** but flow %d is represented by a data copy not managed by PaRSEC,\n"
                          "*** and does not have a copy on that device\n",
-                         parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task), dev->name, i);
+                         parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task), dev->device_index, dev->name, i);
         }
     }
 #endif
     return PARSEC_SUCCESS;
 
 no_valid_device:
-#if !defined(PARSEC_DEBUG)
+#if !defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task);
 #endif
@@ -629,7 +645,7 @@ parsec_device_find_function(const char* function_name,
     for( target = paths; (NULL != target) && (NULL != *target); target++ ) {
         struct stat status;
         if( 0 != stat(*target, &status) ) {
-            parsec_debug_verbose(10, parsec_device_output,
+            parsec_debug_verbose(80, parsec_device_output,
                                  "Could not stat the %s path (%s)", *target, strerror(errno));
             continue;
         }
@@ -646,7 +662,7 @@ parsec_device_find_function(const char* function_name,
                             wlibrary_name, FILENAME_MAX);
         HMODULE dlh = LoadLibraryW(wlibrary_name);
         if(NULL == dlh) {
-            parsec_debug_verbose(10, parsec_device_output,
+            parsec_debug_verbose(80, parsec_device_output,
                                  "Could not find %s dynamic library (%s)", library_name, GetLastError());
             continue;
         }
@@ -655,7 +671,7 @@ parsec_device_find_function(const char* function_name,
 #elif defined(PARSEC_HAVE_DLFCN_H)
         void* dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
         if(NULL == dlh) {
-            parsec_debug_verbose(10, parsec_device_output,
+            parsec_debug_verbose(80, parsec_device_output,
                                  "Could not find %s dynamic library (%s)", library_name, dlerror());
             continue;
         }
@@ -673,7 +689,7 @@ parsec_device_find_function(const char* function_name,
     }
     /* Couldn't load from named dynamic libs, try linked/static */
     if(NULL == fn) {
-        parsec_output_verbose(10, parsec_device_output,
+        parsec_output_verbose(80, parsec_device_output,
                               "No dynamic function %s found, trying from compile time linked in\n",
                               function_name);
 #if defined(__WINDOWS__)
@@ -921,7 +937,7 @@ device_taskpool_register_static(parsec_device_module_t* device, parsec_taskpool_
     if( PARSEC_SUCCESS != rc ) {
         tp->devices_index_mask &= ~(1 << device->device_index);  /* discard this type */
         parsec_debug_verbose(10, parsec_device_output,
-                             "Device %d (%s) disabled for taskpool %p", device->device_index, device->name, tp);
+                             "Device %d:%s disabled for taskpool %s (%p)", device->device_index, device->name, tp->taskpool_name, tp);
     }
 
     return rc;
@@ -971,19 +987,19 @@ int parsec_mca_device_attach(parsec_context_t* context)
     for( int i = 0; NULL != (component = (parsec_device_base_component_t*)device_components[i]); i++ ) {
         for( int j = 0; NULL != (module = component->modules[j]); j++ ) {
             if (NULL == module->attach) {
-                parsec_debug_verbose(10, parsec_device_output, "A device module MUST contain an attach function. Disqualifying %s:%s module",
+                parsec_debug_verbose(10, parsec_device_output, "A device module MUST contain an attach function. Disqualifying component module %s/%s",
                                      component->base_version.mca_component_name, module->name);
                 continue;
             }
             rc = module->attach(module, context);
             if( 0 > rc ) {
-                parsec_debug_verbose(10, parsec_device_output, "Attach failed for device %s:%s on context %p.",
+                parsec_debug_verbose(10, parsec_device_output, "Attach failed for device component module %s/%s on context %p.",
                                      component->base_version.mca_component_name, module->name, context);
                 continue;
             }
             module->data_in_array_size = 0;
             module->data_in_from_device = NULL;
-            parsec_debug_verbose(5, parsec_device_output, "Activated DEVICE module %s:%s on context %p.",
+            parsec_debug_verbose(5, parsec_device_output, "Activated device component module %s/%s on context %p.",
                                  component->base_version.mca_component_name, module->name, context);
         }
     }

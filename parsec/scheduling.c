@@ -141,10 +141,10 @@ int __parsec_execute( parsec_execution_stream_t* es,
         parsec_atomic_fetch_add_int64(&task->selected_device->device_load, task->load);
     }
 
-    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
+    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Thread %d of VP %d Execute %s chore %d device %d:%s",
                          es->th_id, es->virtual_process->vp_id,
-                         tmp, tc->incarnations[task->selected_chore].type,
-                         task->selected_chore);
+                         tmp, task->selected_chore,
+                         task->selected_device->device_index, task->selected_device->name);
 
     parsec_hook_t *hook = tc->incarnations[task->selected_chore].hook;
     assert( NULL != hook );
@@ -825,7 +825,7 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     PARSEC_PINS_TASKPOOL_INIT(tp);  /* PINS taskpool initialization */
 
     /* If the DSL did not install a termination detection module,
-     * assume that the old behavior (local detection when local 
+     * assume that the old behavior (local detection when local
      * number of tasks is 0) is expected: install the local termination
      * detection module, and declare the taskpool as ready */
     if( tp->tdm.module == NULL ) {

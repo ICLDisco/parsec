@@ -6703,9 +6703,8 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
     coutput("#if defined(PARSEC_DEBUG_NOISIER)\n"
             "  {\n"
             "    char tmp[MAX_TASK_STRLEN];\n"
-            "    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream, \"GPU[%%s]:\\tEnqueue on device %%s priority %%d\", gpu_device->super.name, \n"
-            "           parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t *)this_task),\n"
-            "           this_task->priority );\n"
+            "    PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream, \"GPU[%%d:%%s]:\\tEnqueue on device %%s\", gpu_device->super.device_index, gpu_device->super.name, \n"
+            "           parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t *)this_task));\n"
             "  }\n"
             "#endif /* defined(PARSEC_DEBUG_NOISIER) */\n");
 
