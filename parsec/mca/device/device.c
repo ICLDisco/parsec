@@ -180,10 +180,10 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
         /* If the READ data has a preferred device, prefer it. */
         dev = parsec_mca_device_get(data_copy->original->preferred_device);
         if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) ) {
-            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s favors device %d:%s because preferred by data %p flow AREAD in[%d]",
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because preferred by data %p flow AREAD in[%d]",
                                  __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
-            rdata_dev = dev;
-            break;
+            this_task->selected_device = dev;
+            goto device_selected;
         }
         /* READ data is already located on a GPU device, prefer it */
         dev = parsec_mca_device_get(data_copy->original->owner_device);
