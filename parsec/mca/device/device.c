@@ -127,18 +127,25 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
         valid_types |= tc->incarnations[chore_id].type; /* the eval accepted the type, but no device specified yet */
         /* Evaluate may have picked a device, abide by it */
         if( NULL != this_task->selected_device ) {
-#if defined(PARSEC_DEBUG_NOISIER)
-            dev = this_task->selected_device;
-            assert( dev->type & valid_types );
+            assert( this_task->selected_device->type & valid_types );
             PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s evaluate set selected_device %d:%s",
-                                 __func__, tmp, dev->device_index, dev->name);
-#endif
+                                 __func__, tmp, this_task->selected_device->device_index, this_task->selected_device->name);
             goto device_selected;
         }
     }
 
     if (!valid_types)
         goto no_valid_device;
+
+    if (PARSEC_DEV_CPU == valid_types) { /* shortcut for CPU only tasks */
+        this_task->selected_device = dev = parsec_mca_device_get(0);
+        this_task->load = 0;
+        for(chore_id = 0; tc->incarnations[chore_id].type != PARSEC_DEV_CPU; chore_id++);
+        this_task->selected_chore = chore_id;
+        PARSEC_DEBUG_VERBOSE(80, parsec_device_output, "%s: Task %s cpu-only task set selected_device %d:%s",
+                             __func__, tmp, dev->device_index, dev->name);
+        return PARSEC_SUCCESS;
+    }
 
     /* For all devices with matching incarnation type for the chore_id, which one is the best?
      * We try to minimize the data movements, so favor devices that already
