@@ -96,7 +96,7 @@ int __parsec_context_wait_task( parsec_execution_stream_t* es,
     (void)es;
     switch(task->status) {
     case PARSEC_TASK_STATUS_NONE:
-#if defined(PARSEC_DEBUG)
+#if defined(PARSEC_DEBUG_NOISIER)
         char tmp[MAX_TASK_STRLEN];
         parsec_debug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task));
@@ -127,7 +127,7 @@ int __parsec_execute( parsec_execution_stream_t* es,
 {
     const parsec_task_class_t* tc = task->task_class;
     int rc;
-#if defined(PARSEC_DEBUG)
+#if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
