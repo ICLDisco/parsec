@@ -188,7 +188,6 @@ add_task_to_list(parsec_execution_stream_t *es,
     parsec_task_t* new_context = (parsec_task_t*)parsec_thread_mempool_allocate( es->context_mempool );
 
     PARSEC_COPY_EXECUTION_CONTEXT(new_context, newcontext);
-    new_context->status = PARSEC_TASK_STATUS_NONE;
     pready_list[vpid_dst] = (parsec_task_t*)parsec_list_item_ring_push_sorted( (parsec_list_item_t*)(pready_list[vpid_dst]),
                                                                                (parsec_list_item_t*)new_context,
                                                                                parsec_execution_context_priority_comparator );
@@ -430,6 +429,7 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     parsec_execution_stream_t* es;
 
     *startup_list = NULL;
+    PARSEC_OBJ_CONSTRUCT(&fake_context, parsec_task_t);
     fake_context.task_class = &parsec_map_operator;
     fake_context.taskpool = tp;
     fake_context.priority = 0;

@@ -94,8 +94,6 @@ struct parsec_gpu_task_s {
         struct {
             parsec_task_t            *ec;
             uint64_t                  last_data_check_epoch;
-            uint64_t                  load;  /* computational load imposed on the device */
-            /* These should be set by the DSL */
             const parsec_flow_t      *flow[MAX_PARAM_COUNT];  /* There is no consistent way to access the flows from the task_class,
                                                                * so the DSL need to provide these flows here.
                                                                */

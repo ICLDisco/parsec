@@ -74,99 +74,144 @@ static int64_t time_estimate(const parsec_task_t *this_task, parsec_device_modul
 }
 
 /**
- * Try to find the best device to execute the kernel based on the compute
+ * Find the best device to execute the kernel based on the compute
  * capability of the device.
  *
  * Returns:
- *  > 1    - if the kernel should be executed by the a GPU
- *  0 or 1 - if the kernel should be executed by some other meaning (in this case the
- *         execution context is not released).
- * -1      - if the kernel is scheduled to be executed on a GPU.
+ * PARSEC_SUCCESS - kernel must be executed by the device set in
+ *                  this_task->selected_device (for convenience
+ *                  this_task->selected_chore is also set)
+ *                  this_task->load is set based on the selected device
+ * PARSEC_ERROR   - no device could be selected
  */
-
-int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
-{
-    int i, dev_index = -1, data_index, prefer_index = -1;
+int parsec_select_best_device( parsec_task_t* this_task ) {
+    parsec_data_copy_t* data_copy = NULL;
     parsec_taskpool_t* tp = this_task->taskpool;
-    parsec_device_module_t *dev;
-    int8_t data_prefer_dev = -1, data_owner_dev = -1;
+    parsec_device_module_t *dev = NULL, *rdata_dev = NULL;
 
-    /* Select the location of the first data that is used in READ/WRITE or pick the
-     * location of one of the READ data. For now use the last one.
-     */
-    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
-        /* Make sure data_in is not NULL */
-        if( NULL == this_task->data[i].data_in ) continue;
-        /* And that we have a data (aka it is not NEW) */
-        if( NULL == this_task->data[i].source_repo_entry ) continue;
+    const parsec_task_class_t* tc = this_task->task_class;
+    parsec_evaluate_function_t* eval;
+    int rc;
+#if defined(PARSEC_DEBUG_NOISIER)
+    char tmp[MAX_TASK_STRLEN];
+    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task);
+#endif
+    unsigned int chore_id = 0, valid_types = 0;
 
-        /* Data is updated by the task, and we try to minimize the data movements */
-        if( (NULL != this_task->task_class->out[i]) &&
-            (this_task->task_class->out[i]->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
+    /* we did it before (this is a PARSEC_RETURN_AGAIN/ASYNC?) */
+    if( this_task->selected_device ) {
+        PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s a-priori selected_device %d:%s",
+                             __func__, tmp, this_task->selected_device->device_index, this_task->selected_device->name);
+        goto device_selected;
+    }
 
-            data_index = this_task->task_class->out[i]->flow_index;
-            data_prefer_dev = this_task->data[data_index].data_in->original->preferred_device;
-            data_owner_dev = this_task->data[data_index].data_in->original->owner_device;
-            assert(data_prefer_dev < parsec_mca_device_enabled() && data_owner_dev < parsec_mca_device_enabled());
-            /* If the data has a preferred device, try to obey it. */
-            if( data_prefer_dev > 0 && parsec_mca_device_is_gpu(data_prefer_dev) ) {  /* no CPU or recursive */
-                dev_index = data_prefer_dev;
-                break;
-            }
-            /* Data is located on a device */
-            if( data_owner_dev > 0 && parsec_mca_device_is_gpu(data_owner_dev) ) {  /* no CPU or recursive */
-                dev_index = data_owner_dev;
-                break;
+    /* Run the evaluates for the incarnation types to determine if they can
+     * execute this task */
+    for(chore_id = 0; PARSEC_DEV_NONE != tc->incarnations[chore_id].type; chore_id++) {
+        if( 0 == (this_task->chore_mask & (1<<chore_id)) ) continue;
+        if( NULL == tc->incarnations[chore_id].hook ) continue; /* dyld hook not found during initialization */
+
+        if( NULL != (eval = tc->incarnations[chore_id].evaluate) ) {
+            rc = eval(this_task);
+            if( PARSEC_HOOK_RETURN_DONE != rc ) {
+                if( PARSEC_HOOK_RETURN_NEXT != rc ) {
+                    PARSEC_DEBUG_VERBOSE(5, parsec_device_output, "Failed to evaluate %s[%d] chore %d",
+                                         tmp, tc->incarnations[chore_id].type,
+                                         chore_id);
+                }
+                /* Mark this chore as tested */
+                this_task->chore_mask &= ~( 1<<chore_id );
+                continue;
             }
         }
-        /* If we reach here, we cannot yet decide which device to run on based on the WRITE
-         * constraints, so let's pick the data for a READ flow.
-         */
-        data_index = this_task->task_class->in[i]->flow_index;
-        data_prefer_dev = this_task->data[data_index].data_in->original->preferred_device;
-        data_owner_dev = this_task->data[data_index].data_in->original->owner_device;
-        assert(data_prefer_dev < parsec_mca_device_enabled() && data_owner_dev < parsec_mca_device_enabled());
-        if( data_prefer_dev > 0 && parsec_mca_device_is_gpu(data_prefer_dev) ) { /* no CPU or recursive */
-            prefer_index = data_prefer_dev;
-        } else if( data_owner_dev > 0 && parsec_mca_device_is_gpu(data_owner_dev) ) { /* no CPU or recursive */
-            prefer_index = data_owner_dev;
+        valid_types |= tc->incarnations[chore_id].type; /* the eval accepted the type, but no device specified yet */
+        /* Evaluate may have picked a device, abide by it */
+        if( NULL != this_task->selected_device ) {
+            assert( this_task->selected_device->type & valid_types );
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s evaluate set selected_device %d:%s",
+                                 __func__, tmp, this_task->selected_device->device_index, this_task->selected_device->name);
+            goto device_selected;
         }
     }
 
-    assert(dev_index < parsec_mca_device_enabled());
-    dev = parsec_mca_device_get(dev_index >= 0? dev_index: 0);
-    /* 0 is CPU, and 1 is recursive device */
-    if( !parsec_mca_device_is_gpu(dev->device_index) ) {  /* This is the first time we see this data for a GPU, let's decide which GPU will work on it. */
-        int best_index;
+    if (!valid_types)
+        goto no_valid_device;
+
+    if (PARSEC_DEV_CPU == valid_types) { /* shortcut for CPU only tasks */
+        this_task->selected_device = dev = parsec_mca_device_get(0);
+        this_task->load = 0;
+        for(chore_id = 0; tc->incarnations[chore_id].type != PARSEC_DEV_CPU; chore_id++);
+        this_task->selected_chore = chore_id;
+        PARSEC_DEBUG_VERBOSE(80, parsec_device_output, "%s: Task %s cpu-only task set selected_device %d:%s",
+                             __func__, tmp, dev->device_index, dev->name);
+        return PARSEC_SUCCESS;
+    }
+
+    /* For all devices with matching incarnation type for the chore_id, which one is the best?
+     * We try to minimize the data movements, so favor devices that already
+     * hold the data:
+     *   Select the location of the first data that is used with ACCESS_WRITE (first loop)
+     *   or prefer the location of one of the READ data (second loop).
+     */
+    for( int i = 0; i < this_task->task_class->nb_flows; i++ ) { /* look for an ACCESS_WRITE data */
+        if( NULL == this_task->task_class->out[i]
+         || !(PARSEC_FLOW_ACCESS_WRITE & this_task->task_class->out[i]->flow_flags) ) continue; /* not ACCESS_WRITE, skip */
+
+        data_copy = this_task->data[this_task->task_class->out[i]->flow_index].data_in;
+        if( NULL == data_copy ) continue; /* possible for NULL flows */
+
+        /* If the WRITE data has a preferred device, select it. */
+        dev = parsec_mca_device_get(data_copy->original->preferred_device);
+        if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index))) {
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because preferred by data %p AWRITE flow out[%d]",
+                                 __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
+            this_task->selected_device = dev;
+            goto device_selected;
+        }
+        /* WRITE data is already located on a GPU device, select it */
+        dev = parsec_mca_device_get(data_copy->original->owner_device);
+        if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) && PARSEC_DEV_IS_GPU(dev->type) ) {
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because owner of data %p flow AWRITE flow out[%d]",
+                                 __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
+            this_task->selected_device = dev;
+            goto device_selected;
+        }
+    }
+    /* If we reach here, we cannot yet decide which device to run on based on the task outputs */
+    for( int i = 0; i < this_task->task_class->nb_flows; i++ ) { /* look for an ACCESS_READ data */
+        if( NULL == this_task->task_class->in[i] ) continue; /* possible for WRITE (write-only) flows */
+
+        data_copy = this_task->data[this_task->task_class->in[i]->flow_index].data_in;
+        if( NULL == data_copy ) continue; /* possible for NULL flows */
+
+        /* If the READ data has a preferred device, prefer it. */
+        dev = parsec_mca_device_get(data_copy->original->preferred_device);
+        if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) ) {
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s set selected_device %d:%s because preferred by data %p flow AREAD in[%d]",
+                                 __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
+            this_task->selected_device = dev;
+            goto device_selected;
+        }
+        /* READ data is already located on a GPU device, prefer it */
+        dev = parsec_mca_device_get(data_copy->original->owner_device);
+        if( NULL != dev && (dev->type & valid_types) && (tp->devices_index_mask & (1<<dev->device_index)) && PARSEC_DEV_IS_GPU(dev->type) /* no CPU or recursive, always true test would disable GPU execution */ ) {
+            PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s favors device %d:%s because owner of data %p flow AREAD in[%d]",
+                                 __func__, tmp, dev->device_index, dev->name, data_copy->original, i);
+            rdata_dev = dev;
+            break;
+        }
+    }
+
+    assert( NULL == this_task->selected_device );
+    { /* lets consider the time_estimates to select the best device */
+        int best_index = -1;
         int64_t eta, best_eta = INT64_MAX; /* dev->device_load + time_estimate(this_task, dev); this commented out because we don't count cpu loads */
 
-        /* Warn if there is no valid device for this task */
-        for(best_index = 0; best_index < parsec_mca_device_enabled(); best_index++) {
-            dev = parsec_mca_device_get(best_index);
-
-            /* Skip the device if it is not configured */
-            if(!(tp->devices_index_mask & (1 << best_index))) continue;
-            /* Stop on this device if there is an incarnation for it */
-            for(i = 0; NULL != this_task->task_class->incarnations[i].hook; i++)
-                if( (this_task->task_class->incarnations[i].type == dev->type) && (this_task->chore_mask & (1<<i)) )
-                    break;
-            if((NULL != this_task->task_class->incarnations[i].hook) && (this_task->chore_mask & (1 << i)))
-                break;
-        }
-        if(parsec_mca_device_enabled() == best_index) {
-            /* We tried all possible devices, and none of them have an implementation
-             * for this task! */
-            parsec_warning("*** Task class '%s' has no valid implementation for the available devices",
-                           this_task->task_class->name);
-            return -1;
-        }
-
-        /* If we have a preferred device, start with it, but still consider
+        /* If we have a preferred device (from READ flows), start with it, but still consider
          * other options to have some load balance */
-        if( -1 != prefer_index ) {
-            dev = parsec_mca_device_get(prefer_index);
-            best_index = prefer_index;
-            best_eta = dev->device_load + time_estimate(this_task, dev);
+        if( NULL != rdata_dev ) {
+            best_index = rdata_dev->device_index;
+            best_eta = rdata_dev->device_load + time_estimate(this_task, rdata_dev);
             /* we still prefer this device, until it is load_balance_skew as loaded as the
              * real best eta device, lets scale the best_eta accordingly. */
             best_eta *= load_balance_skew;
@@ -174,44 +219,73 @@ int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load )
 
         /* Consider how adding the current task would change load balancing
          * between devices */
-        for( dev_index = 0; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
-            dev = parsec_mca_device_get(dev_index);
-            /* Skip cores/recursive devices */
-            if(!parsec_mca_device_is_gpu(dev_index)) continue;
-            /* Skip the device if it is not configured */
+        for( int dev_index = 0; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
+            /* Skip the device if it is disabled for the taskpool */
             if(!(tp->devices_index_mask & (1 << dev_index))) continue;
+            dev = parsec_mca_device_get(dev_index);
+            /* Skip the device if no incarnations for its type */
+            if(!(dev->type & valid_types)) continue;
+            /* Skip recursive devices: time estimates are computed on the associated CPU device */
+            if(dev->type == PARSEC_DEV_RECURSIVE) continue;
+
             eta = dev->device_load + time_estimate(this_task, dev);
-            PARSEC_DEBUG_VERBOSE(80, parsec_device_output, "+++ get_best_device considering %d (%s) with prior load %"PRIu64", new task eta would be %"PRIu64, dev_index, dev->name, dev->device_load, eta);
             if( best_eta > eta ) {
+                if(best_index == -1)
+                    PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s has eta %"PRIi64" on %d:%s (first pick)",
+                                         __func__, tmp, eta, dev_index, dev->name);
+                else
+                    PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s has eta %"PRIi64" on %d:%s (better than eta %"PRIi64" on device index %d)",
+                                         __func__, tmp, eta, dev_index, dev->name, best_eta, best_index);
                 best_index = dev_index;
                 best_eta = eta;
             }
         }
-        assert( parsec_mca_device_get(best_index)->type != PARSEC_DEV_RECURSIVE );
-        dev_index = best_index;
-        dev = parsec_mca_device_get(dev_index);
+        if( -1 == best_index ) /* taskpool disabled all valid_types devices */
+            goto no_valid_device;
+
+        this_task->selected_device = parsec_mca_device_get(best_index);
+        assert( this_task->selected_device->type != PARSEC_DEV_RECURSIVE );
     }
-    *task_load = time_estimate(this_task, dev);
-    PARSEC_DEBUG_VERBOSE(20, parsec_device_output, "get_best_device selected %d (%s) with prior load %"PRIu64", new task load would add %"PRIu64, dev_index, dev->name, dev->device_load, *task_load);
+
+device_selected:
+    dev = this_task->selected_device;
+    assert( NULL != dev );
+    assert( tp->devices_index_mask & (1 << dev->device_index) );
+    for(chore_id = 0; tc->incarnations[chore_id].type != dev->type; chore_id++)
+        assert(PARSEC_DEV_NONE != tc->incarnations[chore_id].type /* we have selected this device, so there *must* be an incarnation that matches */);
+    this_task->selected_chore = chore_id;
+    this_task->load = time_estimate(this_task, dev);
+
+    PARSEC_DEBUG_VERBOSE(20, parsec_device_output, "%s: Task %s set selected_device %d:%s (eta %"PRIi64")",
+                         __func__, tmp, dev->device_index, dev->name, dev->device_load+this_task->load);
 
 #if defined(PARSEC_DEBUG_PARANOID)
     /* Sanity check: if at least one of the data copies is not parsec
      * managed, check that all the non-parsec-managed data copies
      * exist on the same device */
-    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+    for( int i = 0; i < this_task->task_class->nb_flows; i++ ) {
         /* Make sure data_in is not NULL */
         if (NULL == this_task->data[i].data_in) continue;
         if ((this_task->data[i].data_in->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) == 0 &&
-            this_task->data[i].data_in->device_index != dev_index) {
+            this_task->data[i].data_in->device_index != dev->device_index) {
             char task_str[MAX_TASK_STRLEN];
-            parsec_fatal("*** User-Managed Copy Error: Task %s is selected to run on device %d,\n"
+            parsec_fatal("*** User-Managed Copy Error: Task %s is selected to run on device %d:%s,\n"
                          "*** but flow %d is represented by a data copy not managed by PaRSEC,\n"
                          "*** and does not have a copy on that device\n",
-                         parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task), dev_index, i);
+                         parsec_task_snprintf(task_str, MAX_TASK_STRLEN, this_task), dev->device_index, dev->name, i);
         }
     }
 #endif
-    return dev_index;
+    return PARSEC_SUCCESS;
+
+no_valid_device:
+#if !defined(PARSEC_DEBUG_NOISIER)
+    char tmp[MAX_TASK_STRLEN];
+    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task);
+#endif
+    parsec_warning("Task %s ran out of valid incarnations. No device selected.",
+                   tmp);
+    return PARSEC_ERROR;
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_device_module_t, parsec_object_t,
@@ -578,7 +652,7 @@ parsec_device_find_function(const char* function_name,
     for( target = paths; (NULL != target) && (NULL != *target); target++ ) {
         struct stat status;
         if( 0 != stat(*target, &status) ) {
-            parsec_debug_verbose(10, parsec_device_output,
+            parsec_debug_verbose(80, parsec_device_output,
                                  "Could not stat the %s path (%s)", *target, strerror(errno));
             continue;
         }
@@ -595,7 +669,7 @@ parsec_device_find_function(const char* function_name,
                             wlibrary_name, FILENAME_MAX);
         HMODULE dlh = LoadLibraryW(wlibrary_name);
         if(NULL == dlh) {
-            parsec_debug_verbose(10, parsec_device_output,
+            parsec_debug_verbose(80, parsec_device_output,
                                  "Could not find %s dynamic library (%s)", library_name, GetLastError());
             continue;
         }
@@ -604,7 +678,7 @@ parsec_device_find_function(const char* function_name,
 #elif defined(PARSEC_HAVE_DLFCN_H)
         void* dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
         if(NULL == dlh) {
-            parsec_debug_verbose(10, parsec_device_output,
+            parsec_debug_verbose(80, parsec_device_output,
                                  "Could not find %s dynamic library (%s)", library_name, dlerror());
             continue;
         }
@@ -622,7 +696,7 @@ parsec_device_find_function(const char* function_name,
     }
     /* Couldn't load from named dynamic libs, try linked/static */
     if(NULL == fn) {
-        parsec_output_verbose(10, parsec_device_output,
+        parsec_output_verbose(80, parsec_device_output,
                               "No dynamic function %s found, trying from compile time linked in\n",
                               function_name);
 #if defined(__WINDOWS__)
@@ -870,7 +944,7 @@ device_taskpool_register_static(parsec_device_module_t* device, parsec_taskpool_
     if( PARSEC_SUCCESS != rc ) {
         tp->devices_index_mask &= ~(1 << device->device_index);  /* discard this type */
         parsec_debug_verbose(10, parsec_device_output,
-                             "Device %d (%s) disabled for taskpool %p", device->device_index, device->name, tp);
+                             "Device %d:%s disabled for taskpool %s (%p)", device->device_index, device->name, tp->taskpool_name, tp);
     }
 
     return rc;
@@ -920,19 +994,19 @@ int parsec_mca_device_attach(parsec_context_t* context)
     for( int i = 0; NULL != (component = (parsec_device_base_component_t*)device_components[i]); i++ ) {
         for( int j = 0; NULL != (module = component->modules[j]); j++ ) {
             if (NULL == module->attach) {
-                parsec_debug_verbose(10, parsec_device_output, "A device module MUST contain an attach function. Disqualifying %s:%s module",
+                parsec_debug_verbose(10, parsec_device_output, "A device module MUST contain an attach function. Disqualifying component module %s/%s",
                                      component->base_version.mca_component_name, module->name);
                 continue;
             }
             rc = module->attach(module, context);
             if( 0 > rc ) {
-                parsec_debug_verbose(10, parsec_device_output, "Attach failed for device %s:%s on context %p.",
+                parsec_debug_verbose(10, parsec_device_output, "Attach failed for device component module %s/%s on context %p.",
                                      component->base_version.mca_component_name, module->name, context);
                 continue;
             }
             module->data_in_array_size = 0;
             module->data_in_from_device = NULL;
-            parsec_debug_verbose(5, parsec_device_output, "Activated DEVICE module %s:%s on context %p.",
+            parsec_debug_verbose(5, parsec_device_output, "Activated device component module %s/%s on context %p.",
                                  component->base_version.mca_component_name, module->name, context);
         }
     }

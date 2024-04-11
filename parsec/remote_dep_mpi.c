@@ -24,7 +24,7 @@
 
 #include "parsec/parsec_internal.h"
 
-#if defined(PARSEC_DEBUG)
+#if defined(PARSEC_DEBUG_NOISIER)
 static int64_t count_reshaping = 0;
 #endif
 
@@ -681,7 +681,7 @@ void parsec_local_reshape_cb(parsec_base_future_t *future, ... )
 
         parsec_future_set(future, reshape_data);
 
-#if defined(PARSEC_DEBUG)
+#if defined(PARSEC_DEBUG_NOISIER)
         parsec_atomic_fetch_add_int64(&count_reshaping,1);
 #endif
         return;
@@ -1446,7 +1446,7 @@ static int local_dep_nothread_reshape(parsec_execution_stream_t* es,
     /*Not working if rescheduled by commthread, thus future trigger routines return ASYNC */
     /*__parsec_schedule(es, item->cmd.memcpy_reshape.task, 0);*/
 
-#if defined(PARSEC_DEBUG)
+#if defined(PARSEC_DEBUG_NOISIER)
     parsec_atomic_fetch_add_int64(&count_reshaping,1);
 #endif
 
