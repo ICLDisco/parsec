@@ -519,7 +519,9 @@ PARSEC_DECLSPEC extern int parsec_runtime_keep_highest_priority_task;
     int32_t                        priority;         \
     uint8_t                        status;           \
     uint8_t                        chore_mask;       \
-    uint8_t                        unused[2];        \
+    int16_t                        selected_chore;   \
+    parsec_device_module_t        *selected_device;  \
+    uint64_t                       load;             \
     struct data_repo_entry_s      *repo_entry; /* The task contains its own data repo entry;
                                                 * It is created during datalookup if it hasn't
                                                 * been already created by a predecessor
@@ -563,6 +565,7 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_task_t);
                 sizeof(struct parsec_minimal_execution_context_s) - sizeof(parsec_list_item_t) ); \
         (dest)->mempool_owner = _mpool;                                 \
         (dest)->repo_entry = NULL;                                      \
+        PARSEC_OBJ_CONSTRUCT(dest, parsec_task_t); /* reset defaults */ \
     } while (0)
 
 /**

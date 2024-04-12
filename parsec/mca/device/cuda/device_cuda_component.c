@@ -257,16 +257,16 @@ static int device_cuda_component_close(void)
         rc = parsec_cuda_module_fini((parsec_device_module_t*)cdev);
         if( PARSEC_SUCCESS != rc ) {
             PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
-                                 "GPU[%d] Failed to release resources on CUDA device\n",
-                                 cdev->cuda_index);
+                                 "GPU[%d:%s] Failed to release resources on CUDA device %d\n",
+                                 cdev->super.super.device_index, cdev->super.super.name, cdev->cuda_index);
         }
 
         /* unregister the device from PaRSEC */
         rc = parsec_mca_device_remove((parsec_device_module_t*)cdev);
         if( PARSEC_SUCCESS != rc ) {
             PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
-                                 "GPU[%d] Failed to unregister CUDA device %d\n",
-                                 cdev->cuda_index, cdev->cuda_index);
+                                 "GPU[%d:%s] Failed to unregister CUDA device %d\n",
+                                 cdev->super.super.device_index, cdev->super.super.name, cdev->cuda_index);
         }
 
         free(cdev);
@@ -279,9 +279,9 @@ static int device_cuda_component_close(void)
         if(PARSEC_DEV_CUDA != cdev->super.super.type) continue;
 
         PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
-                             "GPU[%d] CUDA device still registered with PaRSEC at the end of CUDA finalize.\n"
+                             "GPU[%d:%s] CUDA device %d still registered with PaRSEC at the end of CUDA finalize.\n"
                              " Please contact the developers or fill an issue.\n",
-                             cdev->cuda_index);
+                             cdev->super.super.device_index, cdev->super.super.name, cdev->cuda_index);
     }
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
 

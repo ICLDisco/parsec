@@ -96,7 +96,7 @@ int __parsec_context_wait_task( parsec_execution_stream_t* es,
     (void)es;
     switch(task->status) {
     case PARSEC_TASK_STATUS_NONE:
-#if defined(PARSEC_DEBUG)
+#if defined(PARSEC_DEBUG_NOISIER)
         char tmp[MAX_TASK_STRLEN];
         parsec_debug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
                              parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task));
@@ -126,88 +126,49 @@ int __parsec_execute( parsec_execution_stream_t* es,
                       parsec_task_t* task )
 {
     const parsec_task_class_t* tc = task->task_class;
-    parsec_evaluate_function_t* eval;
     int rc;
-#if defined(PARSEC_DEBUG)
+#if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
     PARSEC_AYU_TASK_RUN(es->th_id, task);
-    unsigned int chore_id;
 
-    /* Find first bit in chore_mask that is not 0 */
-    for(chore_id = 0; NULL != tc->incarnations[chore_id].hook; chore_id++)
-        if( 0 != (task->chore_mask & (1<<chore_id)) )
-            break;
-
-    if (chore_id == sizeof(task->chore_mask)*8) {
-#if !defined(PARSEC_DEBUG)
-        char tmp[MAX_TASK_STRLEN];
-        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
-#endif
-        parsec_warning("Task %s ran out of valid incarnations. Consider it complete",
-                       tmp);
-        return PARSEC_HOOK_RETURN_ERROR;
+    rc = parsec_select_best_device(task);
+    if( PARSEC_ERROR == rc ) return PARSEC_HOOK_RETURN_ERROR;
+    if( PARSEC_DEV_IS_GPU(task->selected_device->type) ) {
+        /* counting load on CPU is useless because it would move from 0->1->0 during the span of execute
+         * TODO: select_best_device during __parsec_schedule and adjust loads at that time to enable cpu/gpu load balancing. */
+        parsec_atomic_fetch_add_int64(&task->selected_device->device_load, task->load);
     }
 
-    PARSEC_PINS(es, EXEC_BEGIN, task);
-    /* Try all the incarnations until one accepts to execute. */
-    do {
-        if( NULL != (eval = tc->incarnations[chore_id].evaluate) ) {
-            rc = eval(task);
-            if( PARSEC_HOOK_RETURN_DONE != rc ) {
-                if( PARSEC_HOOK_RETURN_NEXT != rc ) {
-#if defined(PARSEC_DEBUG)
-                    parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Failed to evaluate %s[%d] chore %d",
-                                         es->th_id, es->virtual_process->vp_id,
-                                         tmp, tc->incarnations[chore_id].type,
-                                         chore_id);
-#endif
-                }
-                goto next_chore;
-            }
-        }
+    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Thread %d of VP %d Execute %s chore %d device %d:%s",
+                         es->th_id, es->virtual_process->vp_id,
+                         tmp, task->selected_chore,
+                         task->selected_device->device_index, task->selected_device->name);
 
-#if defined(PARSEC_DEBUG)
-        parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
-                             es->th_id, es->virtual_process->vp_id,
-                             tmp, tc->incarnations[chore_id].type,
-                             chore_id);
-#endif
-        parsec_hook_t *hook = tc->incarnations[chore_id].hook;
-        assert( NULL != hook );
-        rc = hook( es, task );
+    parsec_hook_t *hook = tc->incarnations[task->selected_chore].hook;
+    assert( NULL != hook );
+    PARSEC_PINS(es, EXEC_BEGIN, task);
+    rc = hook( es, task );
 #if defined(PARSEC_PROF_TRACE)
-        task->prof_info.task_return_code = rc;
+    task->prof_info.task_return_code = rc;
 #endif
-        if( PARSEC_HOOK_RETURN_NEXT != rc ) {
-            if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
-                /* Let's assume everything goes just fine */
-                task->status = PARSEC_TASK_STATUS_COMPLETE;
-                if(PARSEC_DEV_RECURSIVE >= tc->incarnations[chore_id].type) {
-                    /* accelerators count their own executed tasks so this is a
-                     * type DEV_RECURSIVE or DEV_CPU, they must be dev 0 and 1 */
-                    parsec_device_module_t *dev = parsec_mca_device_get(tc->incarnations[chore_id].type - PARSEC_DEV_CPU);
-                    parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
-                }
-            }
-            /* Record EXEC_END event only for incarnation that succeeds */
-            PARSEC_PINS(es, EXEC_END, task);
-            return rc;
-        }
-    next_chore:
-        /* Mark this chore as tested */
-        task->chore_mask &= ~( 1<<chore_id );
-        /* Find next chore to try */
-        for(chore_id = chore_id+1; NULL != tc->incarnations[chore_id].hook; chore_id++)
-            if( 0 != (task->chore_mask & (1<<chore_id)) )
-                break;
-    } while(NULL != tc->incarnations[chore_id].hook);
     /* Record EXEC_END event to ensure the EXEC_BEGIN is completed
      * return code was stored in task_return_code */
     PARSEC_PINS(es, EXEC_END, task);
-    /* We're out of luck, no more chores */
-    return PARSEC_HOOK_RETURN_ERROR;
+
+    assert( PARSEC_HOOK_RETURN_NEXT != rc );
+    if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
+        /* Let's assume everything goes just fine */
+        task->status = PARSEC_TASK_STATUS_COMPLETE;
+        parsec_device_module_t *dev = task->selected_device;
+        if(!PARSEC_DEV_IS_GPU(dev->type)) {
+            /* accelerators count their own executed tasks */
+            parsec_atomic_fetch_inc_int64((int64_t*)&dev->executed_tasks);
+        }
+    }
+
+    return rc;
 }
 
 /* Update the number of runtime associated activities. When this counter
@@ -467,6 +428,12 @@ int __parsec_complete_execution( parsec_execution_stream_t *es,
      */
     PARSEC_PINS(es, COMPLETE_EXEC_BEGIN, task);
 
+    if( task->selected_device /* not set for startup tasks */
+     && PARSEC_DEV_IS_GPU(task->selected_device->type) /* load not counted on CPU devices, see the task_load add comment */ ) {
+        parsec_atomic_fetch_add_int64(&task->selected_device->device_load, -task->load);
+        assert(task->selected_device->device_load >= 0);
+    }
+
     if( NULL != task->task_class->prepare_output ) {
         task->task_class->prepare_output( es, task );
     }
@@ -508,7 +475,6 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
         /* We're good to go ... */
         switch(rc) {
         case PARSEC_HOOK_RETURN_DONE:    /* This execution succeeded */
-            task->status = PARSEC_TASK_STATUS_COMPLETE;
             __parsec_complete_execution( es, task );
             break;
         case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
@@ -527,6 +493,7 @@ int __parsec_task_progress( parsec_execution_stream_t* es,
         case PARSEC_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
         case PARSEC_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
         case PARSEC_HOOK_RETURN_ERROR:   /* Some other major error happened */
+        default:
             parsec_fatal("Executing task of class %s failed with parsec_hook_return_t error %d", task->task_class->name, rc);
             /* we should not call fatal here, but the caller code
              * is not ready to handle error cases yet */
@@ -858,7 +825,7 @@ int parsec_context_add_taskpool( parsec_context_t* context, parsec_taskpool_t* t
     PARSEC_PINS_TASKPOOL_INIT(tp);  /* PINS taskpool initialization */
 
     /* If the DSL did not install a termination detection module,
-     * assume that the old behavior (local detection when local 
+     * assume that the old behavior (local detection when local
      * number of tasks is 0) is expected: install the local termination
      * detection module, and declare the taskpool as ready */
     if( tp->tdm.module == NULL ) {

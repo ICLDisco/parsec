@@ -191,12 +191,19 @@ extern int parsec_device_output;
 extern parsec_atomic_lock_t parsec_devices_mutex;
 
 /**
- * @brief Returns the parsec device index selected to run @p this_task,
- *    using this_task->task_class->time_estimate function to compute
- *    the task load (estimate of number of ns @p this_task will take on this
- *    device). Also returns the load on the selected device in @p task_load.
+ * @brief Find the best device to execute the kernel based on the compute
+ * capability of the device.
+ *
+ * Returns:
+ * PARSEC_SUCCESS - kernel must be executed by the device set in
+ *                  this_task->selected_device (for convenience
+ *                  this_task->selected_chore is also set)
+ *                  this_task->load is set based on the selected device and
+ *                  this_task->task_class->time_estimate function to compute
+ *                  the load.
+ * PARSEC_ERROR   - no device could be selected
  */
-PARSEC_DECLSPEC extern int parsec_get_best_device( parsec_task_t* this_task, int64_t *task_load );
+PARSEC_DECLSPEC extern int parsec_select_best_device( parsec_task_t* this_task);
 
 /**
  * Initialize the internal structures for managing external devices such as
