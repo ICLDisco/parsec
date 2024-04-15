@@ -3463,12 +3463,12 @@ parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx,
     if(NULL != new_adt)
         return NULL;
 #endif
-    new_adt = calloc(sizeof(parsec_arena_datatype_t), 1);
+    new_adt = calloc(1, sizeof(parsec_arena_datatype_t));
     if(NULL == new_adt)
         return NULL;
+    /* all other fields are zeroed at that point, no need to initialize, will
+     * complete initialization during parsec_add2arena */
     new_adt->ht_item.key = my_id;
-    new_adt->ht_item.next_item = NULL;  /* keep Coverity happy */
-    new_adt->ht_item.hash64    = 0;  /* keep Coverity happy */
     parsec_hash_table_nolock_insert(&ctx->dtd_arena_datatypes_hash_table, &new_adt->ht_item);
     *id = my_id;
     return new_adt;

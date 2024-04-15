@@ -27,7 +27,10 @@ int parsec_arena_datatype_construct(parsec_arena_datatype_t *adt,
     adt->arena = PARSEC_OBJ_NEW(parsec_arena_t);
     parsec_arena_construct(adt->arena, elem_size,
                            alignment);
-    adt->opaque_dtt = opaque_dtt;
+    adt->ht_item.next_item  = NULL; /* keep Coverity happy */
+    adt->ht_item.hash64     = 0;    /* keep Coverity happy */
+    adt->ht_item.key        = 0;    /* keep Coverity happy */
+    adt->opaque_dtt         = opaque_dtt;
     return PARSEC_SUCCESS;
 }
 
