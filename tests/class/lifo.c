@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2019 The University of Tennessee and The University
+ * Copyright (c) 2009-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,7 +20,6 @@
 
 #include "parsec/class/lifo.h"
 #include "parsec/os-spec-timing.h"
-#include "parsec/bindthread.h"
 
 static unsigned int NBELT = 8192;
 static unsigned int NBTIMES = 1000000;
