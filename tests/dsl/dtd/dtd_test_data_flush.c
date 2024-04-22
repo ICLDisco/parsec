@@ -214,10 +214,10 @@ int main(int argc, char ** argv)
 
         dtd_tp = parsec_dtd_taskpool_new();
 
-        adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-        parsec_add2arena_rect( adt,
-                                      parsec_datatype_int32_t,
-                                      nb, 1, nb );
+        adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+        parsec_matrix_adt_construct_rect(adt,
+                parsec_datatype_int32_t, nb, 1, nb);
+        parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 
         parsec_data_copy_t *gdata;
         parsec_data_t *data;
@@ -340,9 +340,7 @@ int main(int argc, char ** argv)
         parsec_dtd_data_collection_fini(A);
         free_data(dcA);
 
-        parsec_del2arena(adt);
-        PARSEC_OBJ_RELEASE(adt->arena);
-        parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
+        parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     } else if (world == 3) {
         /* We send data from rank 0 to 2 and flush it back
          * rank 1 does nothing.
@@ -359,10 +357,11 @@ int main(int argc, char ** argv)
 
         dtd_tp = parsec_dtd_taskpool_new();
 
-        adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-        parsec_add2arena_rect( adt,
-                                      parsec_datatype_int32_t,
-                                      nb, 1, nb);
+        adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+        parsec_matrix_adt_construct_rect(adt,
+                parsec_datatype_int32_t, nb, 1, nb);
+        parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
+
         parsec_data_copy_t *gdata;
         parsec_data_t *data;
         int *real_data, key;
@@ -414,9 +413,7 @@ int main(int argc, char ** argv)
         parsec_dtd_data_collection_fini(A);
         free_data(dcA);
 
-        parsec_del2arena(adt);
-        PARSEC_OBJ_RELEASE(adt->arena);
-        parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
+        parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     }
 
     parsec_fini(&parsec);

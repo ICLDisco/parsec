@@ -203,7 +203,6 @@ int main( int argc, char** argv )
     }
 
     free(descA.mat);
-    PARSEC_OBJ_RELEASE(adt.arena);
     parsec_del2arena( & adt );
 
     parsec_fini( &parsec);

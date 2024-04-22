@@ -4562,12 +4562,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  }\n"
             "  free(__parsec_tp->super.super.task_classes_array); __parsec_tp->super.super.task_classes_array = NULL;\n"
             "  __parsec_tp->super.super.nb_task_classes = 0;\n"
-            "\n"
-            "  for(i = 0; i < (uint32_t)__parsec_tp->super.arenas_datatypes_size; i++) {\n"
-            "    if( NULL != __parsec_tp->super.arenas_datatypes[i].arena ) {\n"
-            "      PARSEC_OBJ_RELEASE(__parsec_tp->super.arenas_datatypes[i].arena);\n"
-            "    }\n"
-            "  }\n");
+            "\n");
 
     coutput("  /* Destroy the data repositories for this object */\n");
     for( f = jdf->functions; NULL != f; f = f->next ) {
@@ -4758,7 +4753,15 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         } else {
             coutput("  __parsec_tp->super.arenas_datatypes_size = %d;\n", datatype_index);
         }
-        coutput("  memset(&__parsec_tp->super.arenas_datatypes[0], 0, __parsec_tp->super.arenas_datatypes_size*sizeof(parsec_arena_datatype_t));\n");
+        /* we CONSTRUCT the adts, but we don't DESTRUCT them (in the
+         * generated destructor) because the adt CONSTRUCT is done in two
+         * stages, one in the generated code runs the generic constructor, then
+         * the user code calls the parameterized constructor (that attaches the
+         * datatype). Thus, for symmetry the user code is also responsible for calling
+         * the destructor. */
+        coutput("  for(i = 0; i < (uint32_t)__parsec_tp->super.arenas_datatypes_size; i++) {\n"
+                "    PARSEC_OBJ_CONSTRUCT(&__parsec_tp->super.arenas_datatypes[i], parsec_arena_datatype_t);\n"
+                "  }\n");
     }
 
     coutput("  /* If profiling is enabled, the keys for profiling */\n"

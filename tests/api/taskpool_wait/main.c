@@ -37,8 +37,9 @@ int main(int argc, char *argv[]) {
     parsec_data_collection_set_key(&A.super.super, "A");
     parsec_dtd_data_collection_init(&A.super.super);
 
-    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_add2arena(adt, parsec_datatype_int32_t, PARSEC_MATRIX_FULL, 0, nb, 1, nb, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+    adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_construct_rect(adt, parsec_datatype_int32_t, 0, nb, 1);
+    parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 
     printf("Single PTG taskpool, waited with parsec_context_wait\n");
     ptg_tp1 = (parsec_taskpool_t*)parsec_ptg_tp_new(&A, deltamin, deltamax);
@@ -95,9 +96,7 @@ int main(int argc, char *argv[]) {
 
     printf("All tests done, cleaning up data\n");
 
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini(&A.super.super);
 
     parsec_fini(&parsec);

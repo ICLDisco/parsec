@@ -3451,42 +3451,36 @@ parsec_dtd_get_taskpool(parsec_task_t *this_task)
     return this_task->taskpool;
 }
 
-parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx, int *id)
-{
-    parsec_arena_datatype_t *new_adt;
+int parsec_dtd_attach_arena_datatype(parsec_context_t *ctx, parsec_arena_datatype_t *adt, int *id) {
     int my_id = parsec_atomic_fetch_inc_int32(&ctx->dtd_arena_datatypes_next_id);
     if( (my_id & PARSEC_GET_REGION_INFO) != my_id) {
-        return NULL;
+        return PARSEC_ERR_OUT_OF_RESOURCE;
     }
 #if defined(PARSEC_DEBUG_PARANOID)
-    new_adt = parsec_hash_table_nolock_find(&ctx->dtd_arena_datatypes_hash_table, my_id);
-    if(NULL != new_adt)
-        return NULL;
+    assert(NULL == parsec_hash_table_nolock_find(&ctx->dtd_arena_datatypes_hash_table, my_id));
 #endif
-    new_adt = calloc(1, sizeof(parsec_arena_datatype_t));
-    if(NULL == new_adt)
-        return NULL;
-    /* all other fields are zeroed at that point, no need to initialize, will
-     * complete initialization during parsec_add2arena */
-    new_adt->ht_item.key = my_id;
-    parsec_hash_table_nolock_insert(&ctx->dtd_arena_datatypes_hash_table, &new_adt->ht_item);
-    *id = my_id;
-    return new_adt;
+    adt->ht_item.key = *id = my_id;
+    parsec_hash_table_nolock_insert(&ctx->dtd_arena_datatypes_hash_table, &adt->ht_item);
+    return PARSEC_SUCCESS;
 }
 
-parsec_arena_datatype_t *parsec_dtd_get_arena_datatype(parsec_context_t *ctx, int id)
-{
+parsec_arena_datatype_t *parsec_dtd_detach_arena_datatype(parsec_context_t *ctx, int id) {
+    return parsec_hash_table_nolock_remove(&ctx->dtd_arena_datatypes_hash_table, id);
+}
+
+parsec_arena_datatype_t *parsec_dtd_get_arena_datatype(parsec_context_t *ctx, int id) {
     return parsec_hash_table_nolock_find(&ctx->dtd_arena_datatypes_hash_table, id);
 }
 
-int parsec_dtd_destroy_arena_datatype(parsec_context_t *ctx, int id)
-{
-    parsec_arena_datatype_t *adt = parsec_hash_table_nolock_remove(&ctx->dtd_arena_datatypes_hash_table, id);
-    if(NULL == adt)
-        return PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
-    free(adt);
+int parsec_dtd_free_arena_datatype(parsec_context_t *ctx, int id) {
+    parsec_arena_datatype_t *adt = parsec_dtd_detach_arena_datatype(ctx, id);
+    if(NULL == adt) return PARSEC_ERR_VALUE_OUT_OF_BOUNDS;
+
+    if(PARSEC_DATATYPE_NULL != adt->opaque_dtt) parsec_type_free(&adt->opaque_dtt);
+    PARSEC_OBJ_RELEASE(adt);
     return PARSEC_SUCCESS;
 }
+
 
 /**
  * Return pointer on the device pointer associated with the i-th flow

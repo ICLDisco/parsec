@@ -168,9 +168,10 @@ int test_cuda_memset(int world, int myrank, parsec_context_t *parsec_context, in
     // Create new DTD taskpool
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
-    parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-    // unless `parsec_dtd_taskpool_new()` is called first.
-    parsec_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_construct_rect(adt,
+            parsec_datatype_int32_t, nb, 1, nb);
+    parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
     parsec_tiled_matrix_t *dcA;
     dcA = create_and_distribute_data(myrank, world, nb, nt*mt);
@@ -271,9 +272,7 @@ int test_cuda_memset(int world, int myrank, parsec_context_t *parsec_context, in
                mode_to_string(mode), data_ptr, data_ptr[0], data_ptr[nb - 1]);
 
     // Cleanup data and parsec data structures
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec_context, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec_context, TILE_FULL);
     parsec_dtd_data_collection_fini(A);
     free_data(dcA);
 
@@ -331,8 +330,10 @@ int test_cuda_memset_and_read(int world, int myrank, parsec_context_t *parsec_co
     // Create new DTD taskpool
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
-    parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-    parsec_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_construct_rect(adt,
+            parsec_datatype_int32_t, nb, 1, nb);
+    parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
     parsec_tiled_matrix_t *dcA;
     dcA = create_and_distribute_data(myrank, world, nb, nt*mt);
@@ -413,9 +414,7 @@ int test_cuda_memset_and_read(int world, int myrank, parsec_context_t *parsec_co
            data_ptr, data_ptr[0], data_ptr[1]);
 
     // Cleanup data and parsec data structures
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec_context, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec_context, TILE_FULL);
     parsec_dtd_data_collection_fini(A);
     free_data(dcA);
 
@@ -494,8 +493,10 @@ int test_cuda_memset_write_read(int world, int myrank, parsec_context_t *parsec_
     // Create new DTD taskpool
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
-    parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-    parsec_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_construct_rect(adt,
+            parsec_datatype_int32_t, nb, 1, nb);
+    parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
     parsec_tiled_matrix_t *dcA;
     dcA = create_and_distribute_data(myrank, nb, mt, nt);
@@ -605,9 +606,7 @@ int test_cuda_memset_write_read(int world, int myrank, parsec_context_t *parsec_
     parsec_dtd_task_class_release(tp, cudaread_tc);
 
     // Cleanup data and parsec data structures
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec_context, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec_context, TILE_FULL);
     parsec_dtd_data_collection_fini(A);
     free_data(dcA);
 
@@ -703,8 +702,10 @@ int test_cuda_multiple_devices(int world, int myrank, parsec_context_t *parsec_c
 
     parsec_task_class_t *cudaread_tc, *cudacpy_tc;
 
-    parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-    parsec_add2arena_rect(adt, parsec_datatype_int32_t, nb, 1, nb);
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_construct_rect(adt,
+            parsec_datatype_int32_t, nb, 1, nb);
+    parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
     parsec_tiled_matrix_t *dcA;
     dcA = create_and_distribute_data(myrank, world, nb, 3*nt*mt);
@@ -836,9 +837,7 @@ int test_cuda_multiple_devices(int world, int myrank, parsec_context_t *parsec_c
     parsec_dtd_task_class_release(tp, cudacpy_tc);
 
     // Cleanup data and parsec data structures
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec_context, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec_context, TILE_FULL);
     parsec_dtd_data_collection_fini(A);
     free_data(dcA);
 

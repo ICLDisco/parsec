@@ -635,8 +635,9 @@ int main(int argc, char **argv)
     }
 
     // Create datatypes
-    parsec_arena_datatype_t *adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-    parsec_add2arena_rect(adt, parsec_datatype_double_t, mb, nb, mb);
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_construct_rect(adt, parsec_datatype_double_t, mb, nb, mb);
+    parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
     // Create and initialize the data
     parsec_matrix_block_cyclic_t *dcA = create_initialize_matrix(parsec_context, rank, 1789, "A", mb, kb, M, K,
@@ -677,9 +678,7 @@ int main(int argc, char **argv)
         parsec_info_unregister(&parsec_per_device_infos, Cu1, NULL);
     }
 
-    parsec_type_free(&adt->opaque_dtt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec_context, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec_context, TILE_FULL);
 
     destroy_matrix(dcA);
     destroy_matrix(dcB);

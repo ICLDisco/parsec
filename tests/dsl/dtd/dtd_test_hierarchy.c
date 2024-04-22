@@ -131,10 +131,10 @@ int main(int argc, char ** argv)
     dcA = create_and_distribute_empty_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_add2arena_rect( adt,
-                                  parsec_datatype_int32_t,
-                                  nb, 1, nb );
+    adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_construct_rect(adt,
+            parsec_datatype_int32_t, nb, 1, nb);
+    parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 
     parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
     parsec_dtd_data_collection_init(A);
@@ -164,9 +164,7 @@ int main(int argc, char ** argv)
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
 

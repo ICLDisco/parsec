@@ -144,6 +144,19 @@ parsec_data_create_with_type( parsec_data_collection_t *desc,
 PARSEC_DECLSPEC void
 parsec_data_destroy( parsec_data_t *holder );
 
+/**
+ * Construct an arena datatype. Because the parameters cannot be known
+ * when OBJ_NEW is called, the construct must be called explicitely
+ * by the user.
+ */
+PARSEC_DECLSPEC int
+parsec_arena_datatype_construct( parsec_arena_datatype_t *adt,
+                                 size_t elem_size,
+                                 size_t alignment,
+                                 parsec_datatype_t opaque_dtt);
+
+PARSEC_OBJ_CLASS_DECLARATION(parsec_arena_datatype_t);
+
 END_C_DECLS
 
 /** @} */

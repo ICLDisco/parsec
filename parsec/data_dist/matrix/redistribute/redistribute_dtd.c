@@ -373,17 +373,15 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
     /* Allocating data arrays to be used by comm engine */
-    adt = parsec_dtd_create_arena_datatype(parsec, &TARGET);
-    parsec_add2arena(adt,
-                     MY_TYPE, PARSEC_MATRIX_FULL,
-                     1, dcT->mb, dcT->nb, dcT->mb,
-                     PARSEC_ARENA_ALIGNMENT_SSE, -1);
+    adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_construct_rect(adt,
+                     MY_TYPE, dcT->mb, dcT->nb, dcT->mb);
+    parsec_dtd_attach_arena_datatype(parsec, adt, &TARGET);
 
-    adt = parsec_dtd_create_arena_datatype(parsec, &SOURCE);
-    parsec_add2arena(adt,
-                     MY_TYPE, PARSEC_MATRIX_FULL,
-                     1, dcY->mb, dcY->nb, dcY->mb,
-                     PARSEC_ARENA_ALIGNMENT_SSE, -1);
+    adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_construct_rect(adt,
+                     MY_TYPE, dcY->mb, dcY->nb, dcY->mb);
+    parsec_dtd_attach_arena_datatype(parsec, adt, &SOURCE);
 
     /* Registering the handle with parsec context */
     parsec_context_add_taskpool(parsec, dtd_tp);
@@ -423,16 +421,10 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     parsec_taskpool_free( dtd_tp );
 
     /* Cleaning data arrays we allocated for communication */
-    adt = parsec_dtd_get_arena_datatype(parsec, SOURCE);
-    assert(NULL != adt);
-    parsec_type_free(&adt->opaque_dtt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec, SOURCE);
-    adt = parsec_dtd_get_arena_datatype(parsec, TARGET);
-    assert(NULL != adt);
-    parsec_type_free(&adt->opaque_dtt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec, TARGET);
+    rc = parsec_dtd_free_arena_datatype(parsec, SOURCE);
+    assert(PARSEC_SUCCESS == rc);
+    rc = parsec_dtd_free_arena_datatype(parsec, TARGET);
+    assert(PARSEC_SUCCESS == rc);
 
     parsec_dtd_data_collection_fini( (parsec_data_collection_t *)dcY );
     parsec_dtd_data_collection_fini( (parsec_data_collection_t *)dcT );

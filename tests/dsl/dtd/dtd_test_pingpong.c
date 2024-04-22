@@ -112,10 +112,11 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_add2arena_rect( adt,
+    adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_construct_rect( adt,
                                   parsec_datatype_int32_t,
                                   nb, 1, nb );
+    parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 
     /* Correctness checking */
     dcA = create_and_distribute_data(rank, world, nb, nt);
@@ -173,8 +174,7 @@ int main(int argc, char **argv)
         assert( *real_data == 1);
     }
 
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
+    parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
 
     parsec_dtd_data_collection_fini( A );
     free_data(dcA);
@@ -211,9 +211,11 @@ int main(int argc, char **argv)
         nb = sizes[i];
         nt = 2;
 
-        parsec_add2arena_rect( adt,
-                                      parsec_datatype_int32_t,
-                                      nb, 1, nb);
+        adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+        parsec_matrix_adt_construct_rect( adt,
+                                  parsec_datatype_int32_t,
+                                  nb, 1, nb );
+        parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 
         dcA = create_and_distribute_data(rank, world, nb, nt);
         parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
@@ -240,15 +242,13 @@ int main(int argc, char **argv)
         PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
         SYNC_TIME_PRINT(rank, ("\tSize of message : %zu bytes\tTime for each pingpong : %12.5f\n", sizes[i]*sizeof(int), sync_time_elapsed/repeat_pingpong));
 
-        parsec_del2arena(adt);
-        PARSEC_OBJ_RELEASE(adt->arena);
+        parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
         parsec_dtd_data_collection_fini( A );
         free_data(dcA);
 
         parsec_taskpool_free(dtd_tp);
     }
 
-    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
     parsec_fini(&parsec);
 
 #ifdef PARSEC_HAVE_MPI

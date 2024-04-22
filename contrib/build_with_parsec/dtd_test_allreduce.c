@@ -148,13 +148,13 @@ int main(int argc, char **argv)
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 #if PARSEC_VERSION_MAJOR < 4
     parsec_add2arena_rect(&parsec_dtd_arenas_datatypes[TILE_FULL],
+                          parsec_datatype_int32_t, nb, 1, nb);
 #else
-    parsec_arena_datatype_t *adt;
-    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
-    parsec_add2arena_rect( adt,
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype);
+    parsec_matrix_adt_construct_rect(adt,
+                                     parsec_datatype_int32_t, nb, 1, nb);
+    parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 #endif
-                                 parsec_datatype_int32_t,
-                                 nb, 1, nb);
 
     parsec_matrix_block_cyclic_t *m = (parsec_matrix_block_cyclic_t*)malloc(sizeof(parsec_matrix_block_cyclic_t));
     parsec_matrix_block_cyclic_init(m, PARSEC_MATRIX_COMPLEX_DOUBLE, PARSEC_MATRIX_TILE,
@@ -235,9 +235,7 @@ int main(int argc, char **argv)
 #if PARSEC_VERSION_MAJOR < 4
     PARSEC_OBJ_RELEASE(parsec_dtd_arenas_datatypes[0].arena);
 #else
-    parsec_del2arena(adt);
-    PARSEC_OBJ_RELEASE(adt->arena);
-    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
+    parsec_dtd_free_arena_datatype(parsec, TILE_FULL);
 #endif
     parsec_dtd_data_collection_fini( A );
     parsec_tiled_matrix_destroy_data(dcA);

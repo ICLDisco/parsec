@@ -560,3 +560,41 @@ parsec_data_destroy( parsec_data_t *data )
 #endif
     PARSEC_OBJ_RELEASE(data);
 }
+
+
+/**
+ * Arena-datatype management.
+ */
+
+/* adt constructor is split in two stages: when the adt is constructed
+ * with OBJ_CONSTRUCT (or allocated with OBJ_NEW), we initialize the
+ * adt object. The user code must then call the parameterized constructor
+ * (below) that attaches the datatype and creates the associated arena.
+ *
+ * When the adt object is destructed (or released), the implicit destructor
+ * releases all resources created by both split constructor stages.
+ *
+ * Freeing the type is not part of the implicit destructor.
+ */
+int parsec_arena_datatype_construct(parsec_arena_datatype_t *adt,
+                                    size_t elem_size,
+                                    size_t alignment,
+                                    parsec_datatype_t opaque_dtt) {
+    adt->arena = PARSEC_OBJ_NEW(parsec_arena_t);
+    parsec_arena_construct(adt->arena, elem_size,
+                           alignment);
+    adt->ht_item.next_item  = NULL; /* keep Coverity happy */
+    adt->ht_item.hash64     = 0;    /* keep Coverity happy */
+    adt->ht_item.key        = 0;    /* keep Coverity happy */
+    adt->opaque_dtt         = opaque_dtt;
+    return PARSEC_SUCCESS;
+}
+
+static void parsec_arena_datatype_destruct(parsec_object_t *obj) {
+    parsec_arena_datatype_t *adt = (parsec_arena_datatype_t *)obj;
+    if(NULL != adt->arena) PARSEC_OBJ_RELEASE(adt->arena);
+}
+
+PARSEC_OBJ_CLASS_INSTANCE(parsec_arena_datatype_t, parsec_object_t,
+                          NULL,
+                          parsec_arena_datatype_destruct);

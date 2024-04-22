@@ -39,15 +39,11 @@ BEGIN_C_DECLS
  * Arena-datatype management.
  */
 struct parsec_arena_datatype_s {
+    parsec_object_t           super;
     parsec_arena_t           *arena;       /**< allocator for this datatype */
     parsec_datatype_t         opaque_dtt;  /**< datatype */
     parsec_hash_table_item_t  ht_item;     /**< sometimes, arena datatype are stored in hash tables */
 };
-
-int parsec_arena_datatype_construct(parsec_arena_datatype_t *adt,
-                                   size_t elem_size,
-                                   size_t alignment,
-                                   parsec_datatype_t opaque_dtt);
 
 /* NULL terminated local hostname of the current PaRSEC process */
 PARSEC_DECLSPEC extern const char* parsec_hostname;

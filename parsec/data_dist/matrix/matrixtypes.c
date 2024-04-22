@@ -15,25 +15,6 @@
 #include <mpi.h>
 #endif
 
-/**
- * Arena-datatype management.
- */
-
-int parsec_arena_datatype_construct(parsec_arena_datatype_t *adt,
-                                   size_t elem_size,
-                                   size_t alignment,
-                                   parsec_datatype_t opaque_dtt)
-{
-    adt->arena = PARSEC_OBJ_NEW(parsec_arena_t);
-    parsec_arena_construct(adt->arena, elem_size,
-                           alignment);
-    adt->ht_item.next_item  = NULL; /* keep Coverity happy */
-    adt->ht_item.hash64     = 0;    /* keep Coverity happy */
-    adt->ht_item.key        = 0;    /* keep Coverity happy */
-    adt->opaque_dtt         = opaque_dtt;
-    return PARSEC_SUCCESS;
-}
-
 int parsec_matrix_define_contiguous( parsec_datatype_t oldtype,
                                      unsigned int nb_elem,
                                      int resized,
@@ -241,29 +222,30 @@ int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t 
     return PARSEC_SUCCESS;
 }
 
-int parsec_add2arena(parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
-                     parsec_matrix_uplo_t uplo, int diag,
-                     unsigned int m, unsigned int n, unsigned int ld,
-                     size_t alignment, int resized )
-{
+/**
+ * Arena-datatype management.
+ */
+int parsec_matrix_arena_datatype_construct_alloc_type(parsec_arena_datatype_t *adt,
+                                                      parsec_datatype_t oldtype,
+                                                      parsec_matrix_uplo_t uplo, int diag,
+                                                      unsigned int m, unsigned int n, unsigned int ld,
+                                                      size_t alignment, int resized) {
     ptrdiff_t extent = 0;
     int rc;
+    parsec_datatype_t newtype;
 
-    rc = parsec_matrix_define_datatype(&adt->opaque_dtt, oldtype, uplo, diag,
+    rc = parsec_matrix_define_datatype(&newtype, oldtype, uplo, diag,
                                        m, n, ld, resized, &extent);
-    if( PARSEC_SUCCESS != rc ) {
-        return rc;
-    }
+    if( PARSEC_SUCCESS != rc ) return rc;
 
-    adt->arena = PARSEC_OBJ_NEW(parsec_arena_t);
-    rc = parsec_arena_construct(adt->arena, extent, alignment);
-    if( PARSEC_SUCCESS != rc ) {
-        return rc;
-    }
+    parsec_arena_datatype_construct(adt, extent, alignment, newtype);
+    if( PARSEC_SUCCESS != rc ) return rc;
+
     return PARSEC_SUCCESS;
 }
 
-int parsec_del2arena( parsec_arena_datatype_t *adt )
-{
-    return parsec_type_free( &adt->opaque_dtt );
+int parsec_matrix_arena_datatype_destruct_free_type(parsec_arena_datatype_t *adt) {
+    parsec_type_free( &adt->opaque_dtt );
+    PARSEC_OBJ_DESTRUCT(adt);
+    return PARSEC_SUCCESS;
 }
