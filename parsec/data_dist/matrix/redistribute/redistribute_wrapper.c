@@ -97,10 +97,8 @@ parsec_redistribute_New(parsec_tiled_matrix_t *dcY,
         int n_T_END = (size_col+disj_T-1) / dcT->nb;
         taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
 
-        parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX],
-                         MY_TYPE, PARSEC_MATRIX_FULL,
-                         1, dcY->mb, dcY->nb, dcY->mb,
-                         PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        parsec_matrix_adt_construct_rect(&taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX],
+                         MY_TYPE, dcY->mb, dcY->nb, dcY->mb);
         /* General version */
     } else {
         parsec_redistribute_taskpool_t* taskpool = NULL;
@@ -118,23 +116,17 @@ parsec_redistribute_New(parsec_tiled_matrix_t *dcY,
         int n_T_END = (size_col+disj_T-1) / (dcT->nb-2*R);
         taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
 
-        parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX],
-                         MY_TYPE, PARSEC_MATRIX_FULL,
-                         1, 1, 1, 1,
-                         PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        parsec_matrix_adt_construct_tile(&taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX],
+                         MY_TYPE, 1);
 
         int Y_LDA = dcY->storage == PARSEC_MATRIX_LAPACK ? dcY->llm : dcY->mb;
         int T_LDA = dcT->storage == PARSEC_MATRIX_LAPACK ? dcT->llm : dcT->mb;
 
-        parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ADT_IDX],
-                         MY_TYPE, PARSEC_MATRIX_FULL,
-                         1, dcT->mb, dcT->nb, T_LDA,
-                         PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        parsec_matrix_adt_construct_rect(&taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ADT_IDX],
+                         MY_TYPE, dcT->mb, dcT->nb, T_LDA);
 
-        parsec_add2arena(&taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX],
-                         MY_TYPE, PARSEC_MATRIX_FULL,
-                         1, dcY->mb-2*R, dcY->nb-2*R, Y_LDA,
-                         PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+        parsec_matrix_adt_construct_rect(&taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX],
+                         MY_TYPE, dcY->mb-2*R, dcY->nb-2*R, Y_LDA);
     }
 
     return redistribute_taskpool;
@@ -156,12 +148,12 @@ __parsec_redistribute_destructor(parsec_redistribute_taskpool_t *redistribute_ta
         && (redistribute_taskpool->_g_disj_T % redistribute_taskpool->_g_descT->nb == 0) )
     {
         parsec_redistribute_reshuffle_taskpool_t *redistribute_reshuffle_taskpool = (parsec_redistribute_reshuffle_taskpool_t *)redistribute_taskpool;
-        parsec_del2arena(&redistribute_reshuffle_taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX]);
+        parsec_matrix_arena_datatype_destruct_free_type(&redistribute_reshuffle_taskpool->arenas_datatypes[PARSEC_redistribute_reshuffle_DEFAULT_ADT_IDX]);
     } else {
-        parsec_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX]);
-        parsec_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ADT_IDX]);
-        // parsec_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ADT_IDX]);
-        parsec_del2arena(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX]);
+        parsec_matrix_arena_datatype_destruct_free_type(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_DEFAULT_ADT_IDX]);
+        parsec_matrix_arena_datatype_destruct_free_type(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_TARGET_ADT_IDX]);
+        // parsec_matrix_arena_datatype_destruct_free_type(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_SOURCE_ADT_IDX]);
+        parsec_matrix_arena_datatype_destruct_free_type(&redistribute_taskpool->arenas_datatypes[PARSEC_redistribute_INNER_ADT_IDX]);
     }
 }
 
