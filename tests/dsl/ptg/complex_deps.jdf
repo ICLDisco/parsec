@@ -111,7 +111,7 @@ int main( int argc, char** argv )
 {
     parsec_complex_deps_taskpool_t* tp;
     parsec_matrix_block_cyclic_t descA;
-    parsec_arena_datatype_t adt;
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
     parsec_datatype_t otype;
     parsec_context_t *parsec;
     int ni = NN, nk = NN, verbose = 0, i = 1, rc;
@@ -167,15 +167,14 @@ int main( int argc, char** argv )
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
     parsec_translate_matrix_type(TYPE, &otype);
-    parsec_matrix_adt_construct_rect(&adt, otype,
+    parsec_matrix_adt_construct_rect(adt, otype,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
 
     /* Heat up the engine: small tasks */
     tp = parsec_complex_deps_new( &descA, ni, nk );
     assert( NULL != tp );
-    tp->arenas_datatypes[PARSEC_complex_deps_DEFAULT_ADT_IDX] = adt;
-    PARSEC_OBJ_RETAIN(adt.arena);
+    tp->arenas_datatypes[PARSEC_complex_deps_DEFAULT_ADT_IDX] = *adt;
 
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
@@ -191,7 +190,7 @@ int main( int argc, char** argv )
     tp = parsec_complex_deps_new( &descA, ni, nk );
     assert( NULL != tp );
     TIMER_START(time_elapsed);
-    tp->arenas_datatypes[PARSEC_complex_deps_DEFAULT_ADT_IDX] = adt;
+    tp->arenas_datatypes[PARSEC_complex_deps_DEFAULT_ADT_IDX] = *adt;
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     TIMER_STOP(time_elapsed);
@@ -213,7 +212,7 @@ int main( int argc, char** argv )
     TIMER_STOP(time_elapsed);
     printf("DAG execution in %ld micro-sec\n", time_elapsed);
 
-    parsec_matrix_arena_datatype_destruct_free_type( & adt );
+    parsec_matrix_adt_free( & adt );
 
     free(descA.mat);
 

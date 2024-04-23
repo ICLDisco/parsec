@@ -131,6 +131,9 @@ int reshape_print(parsec_execution_stream_t *es,
     parsec_arena_datatype_t adt_default;                                  \
     parsec_arena_datatype_t adt_lower;                                    \
     parsec_arena_datatype_t adt_upper;                                    \
+    PARSEC_OBJ_CONSTRUCT(&adt_default, parsec_arena_datatype_t);          \
+    PARSEC_OBJ_CONSTRUCT(&adt_lower, parsec_arena_datatype_t);            \
+    PARSEC_OBJ_CONSTRUCT(&adt_upper, parsec_arena_datatype_t);            \
     parsec_matrix_adt_construct_rect( &adt_default,                       \
                             parsec_datatype_int_t, MB, NB, MB );          \
     parsec_matrix_adt_construct_lower( &adt_lower,                        \
