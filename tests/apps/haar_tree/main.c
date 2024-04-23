@@ -216,10 +216,8 @@ int main(int argc, char *argv[])
                               0, 0, world, world,
                               1, world, 1, 1, 0, 0);
 
-    parsec_add2arena( &adt, parsec_datatype_float_t,
-                             PARSEC_MATRIX_FULL, 0,
-                             2, 1, 2,
-                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+    parsec_matrix_adt_construct_rect( &adt,
+             parsec_datatype_float_t, 2, 1, 2);
 
 #if defined(HAVE_MPI)
     MPI_Barrier(MPI_COMM_WORLD);
@@ -234,7 +232,7 @@ int main(int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-        
+
     project->arenas_datatypes[PARSEC_project_DEFAULT_ADT_IDX].arena = NULL;
     parsec_taskpool_free(&project->super);
     ret = 0;
@@ -293,7 +291,7 @@ int main(int argc, char *argv[])
         }
     }
 #endif  /* defined(HAVE_MPI) */
-    parsec_del2arena( & adt );
+    parsec_matrix_arena_datatype_destruct_free_type( & adt );
 
     walker->arenas_datatypes[PARSEC_walk_DEFAULT_ADT_IDX].arena = NULL;
     parsec_taskpool_free(&walker->super);
