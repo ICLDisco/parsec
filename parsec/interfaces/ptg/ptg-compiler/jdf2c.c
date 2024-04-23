@@ -4758,7 +4758,10 @@ static void jdf_generate_constructor( const jdf_t* jdf )
          * stages, one in the generated code runs the generic constructor, then
          * the user code calls the parameterized constructor (that attaches the
          * datatype). Thus, for symmetry the user code is also responsible for calling
-         * the destructor. */
+         * the destructor.
+         * The statically constructed arena_datatype_t can be overwritten by
+         * the user without leaking memory.
+         */
         coutput("  for(i = 0; i < (uint32_t)__parsec_tp->super.arenas_datatypes_size; i++) {\n"
                 "    PARSEC_OBJ_CONSTRUCT(&__parsec_tp->super.arenas_datatypes[i], parsec_arena_datatype_t);\n"
                 "  }\n");

@@ -153,7 +153,7 @@ int main( int argc, char** argv )
 {
     parsec_async_taskpool_t* tp;
     parsec_matrix_block_cyclic_t descA;
-    parsec_arena_datatype_t adt;
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
     parsec_datatype_t dt;
     parsec_context_t *parsec;
     int ws, mr, rc;
@@ -230,7 +230,7 @@ int main( int argc, char** argv )
     parsec_data_collection_set_key(&descA.super.super, "A");
 
     parsec_translate_matrix_type(PARSEC_MATRIX_DOUBLE, &dt);
-    parsec_matrix_adt_construct_rect(&adt, dt,
+    parsec_matrix_adt_construct_rect(adt, dt,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
     /* Start the PaRSEC engine */
@@ -239,7 +239,7 @@ int main( int argc, char** argv )
 
     tp = parsec_async_new( &descA, verbose, taskqueue, NB );
     assert( NULL != tp );
-    tp->arenas_datatypes[PARSEC_async_DEFAULT_ADT_IDX] = adt;
+    tp->arenas_datatypes[PARSEC_async_DEFAULT_ADT_IDX] = *adt;
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
 
@@ -247,7 +247,7 @@ int main( int argc, char** argv )
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     free(descA.mat);
-    parsec_matrix_arena_datatype_destruct_free_type( & adt );
+    parsec_matrix_adt_free( & adt );
 
     parsec_taskpool_free( (parsec_taskpool_t*)tp );
 

@@ -366,9 +366,10 @@ int parsec_matrix_arena_datatype_destruct_free_type(parsec_arena_datatype_t *adt
      parsec_matrix_arena_datatype_construct_alloc_type( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 ), \
      (_adt_))
 
-#define parsec_matrix_adt_free(_adt_) do {\
-    parsec_matrix_arena_datatype_destruct_free_type(_adt_); \
-    free(_adt_); \
+#define parsec_matrix_adt_free(_padt_) do {\
+    parsec_matrix_arena_datatype_destruct_free_type(*(_padt_)); \
+    free(*(_padt_)); \
+    (*_padt_) = NULL; \
 } while(0)
 
 
