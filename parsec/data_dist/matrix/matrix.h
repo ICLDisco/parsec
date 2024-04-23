@@ -331,6 +331,13 @@ int parsec_matrix_arena_datatype_construct_alloc_type(parsec_arena_datatype_t *a
                                                      size_t alignment, int resized);
 int parsec_matrix_arena_datatype_destruct_free_type(parsec_arena_datatype_t *adt);
 
+#define parsec_matrix_adt_construct( _adt_ , _oldtype_, _uplo_, _diag_, _m_, _n_, _ld_, _align_, _resize_ ) \
+    parsec_matrix_arena_datatype_construct_alloc_type( (_adt_), (_oldtype_), (_uplo_), (_diag_), (_m_), (_n_), (_ld_), (_align_), (_resize_) )
+#define parsec_matrix_adt_new( _adt_ , _oldtype_, _uplo_, _diag_, _m_, _n_, _ld_, _align_, _resize_ ) \
+    ((_adt_) = PARSEC_OBJ_NEW(parsec_arena_datatype_t), \
+    parsec_matrix_arena_datatype_construct_alloc_type( (_adt_), (_oldtype_), (_uplo_), (_diag_), (_m_), (_n_), (_ld_), (_align_), (_resize_) ) \
+     (_adt_))
+
 #define parsec_matrix_adt_construct_tile( _adt_ , _oldtype_, _m_ ) \
     parsec_matrix_arena_datatype_construct_alloc_type( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 #define parsec_matrix_adt_new_tile( _adt_ , _oldtype_, _m_ ) \
@@ -338,16 +345,16 @@ int parsec_matrix_arena_datatype_destruct_free_type(parsec_arena_datatype_t *adt
      parsec_matrix_arena_datatype_construct_alloc_type( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 ), \
      (_adt_))
 
-#define parsec_matrix_adt_construct_upper( _adt_ , _oldtype_, diag, _n_ ) \
+#define parsec_matrix_adt_construct_upper( _adt_ , _oldtype_, _diag_, _n_ ) \
     parsec_matrix_arena_datatype_construct_alloc_type( (_adt_), (_oldtype_), PARSEC_MATRIX_UPPER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
-#define parsec_matrix_adt_new_upper( _adt_ , _oldtype_, diag, _n_ ) \
+#define parsec_matrix_adt_new_upper( _adt_ , _oldtype_, _diag_, _n_ ) \
     ((_adt_) = PARSEC_OBJ_NEW(parsec_arena_datatype_t), \
      parsec_matrix_arena_datatype_construct_alloc_type( (_adt_), (_oldtype_), PARSEC_MATRIX_UPPER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 ), \
      (_adt_))
 
-#define parsec_matrix_adt_construct_lower( _adt_ , _oldtype_, diag, _n_ ) \
+#define parsec_matrix_adt_construct_lower( _adt_ , _oldtype_, _diag_, _n_ ) \
     parsec_matrix_arena_datatype_construct_alloc_type( (_adt_), (_oldtype_), PARSEC_MATRIX_LOWER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
-#define parsec_matrix_adt_new_lower( _adt_ , _oldtype_, diag, _n_ ) \
+#define parsec_matrix_adt_new_lower( _adt_ , _oldtype_, _diag_, _n_ ) \
     ((_adt_) = PARSEC_OBJ_NEW(parsec_arena_datatype_t), \
      parsec_matrix_arena_datatype_construct_alloc_type( (_adt_), (_oldtype_), PARSEC_MATRIX_LOWER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 ), \
      (_adt_))

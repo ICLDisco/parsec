@@ -106,7 +106,7 @@ static parsec_data_t* sym_twoDBC_band_data_of_key(parsec_data_collection_t *desc
 }
 
 /*
- * sysm_two_dim_block_cyclic_band_t structure init
+ * parsec_matrix_block_cyclic_band_t structure init
  * It inherits from off-band, so should be called after initialization of off_band
  */
 void parsec_matrix_sym_block_cyclic_band_init( parsec_matrix_sym_block_cyclic_band_t *desc,

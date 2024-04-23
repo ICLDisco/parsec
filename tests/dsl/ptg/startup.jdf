@@ -145,7 +145,7 @@ int main( int argc, char** argv )
                                      parsec_datadist_getsizeoftype(TYPE) );
 
     parsec_translate_matrix_type(TYPE, &dt);
-    parsec_add2arena_rect(&adt, dt,
+    parsec_matrix_adt_construct_rect(&adt, dt,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
     srandom((int)getpid());  /* Start the random generator */
@@ -203,7 +203,7 @@ int main( int argc, char** argv )
     }
 
     free(descA.mat);
-    parsec_del2arena( & adt );
+    parsec_matrix_arena_datatype_destruct_free_type( & adt );
 
     parsec_fini( &parsec);
 

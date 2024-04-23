@@ -215,7 +215,7 @@ parsec_taskpool_t* kcyclic_taskpool(parsec_matrix_block_cyclic_t* A,
     assert( NULL != tp );
 
     parsec_translate_matrix_type(TYPE, &dt);
-    parsec_add2arena_rect( &tp->arenas_datatypes[PARSEC_kcyclic_DEFAULT_ADT_IDX],
+    parsec_matrix_adt_construct_rect( &tp->arenas_datatypes[PARSEC_kcyclic_DEFAULT_ADT_IDX],
                                   dt, A->super.mb, A->super.nb, A->super.mb);
 
     return &tp->super;
