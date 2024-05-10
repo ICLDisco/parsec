@@ -94,7 +94,7 @@ void parsec_tiled_matrix_init( parsec_tiled_matrix_t *tdesc,
     tdesc->tileld   = (storage == PARSEC_MATRIX_TILE) ? mb : lm;
     tdesc->mb       = mb;
     tdesc->nb       = nb;
-    tdesc->bsiz     = mb * nb;
+    tdesc->bsiz     = (size_t)mb * nb;
 
     /* Large matrix parameters */
     tdesc->lm = lm;
@@ -304,7 +304,8 @@ int parsec_tiled_matrix_data_read(parsec_tiled_matrix_t *tdesc, char *filename)
     parsec_data_t* data;
     FILE *tmpf;
     char *buf;
-    int i, j, k, ret;
+    int i, j, k;
+    size_t ret;
     uint32_t myrank = tdesc->super.myrank;
     int eltsize =  parsec_datadist_getsizeoftype( tdesc->mtype );
 
@@ -322,7 +323,7 @@ int parsec_tiled_matrix_data_read(parsec_tiled_matrix_t *tdesc, char *filename)
                     buf = parsec_data_get_ptr(data, 0);
                     ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
                     if ( ret !=  tdesc->bsiz ) {
-                        parsec_warning("The read on tile(%d, %d) read %d elements instead of %d",
+                        parsec_warning("The read on tile(%d, %d) read %zu elements instead of %zu",
                                 i, j, ret, tdesc->bsiz);
                         fclose(tmpf);
                         return PARSEC_ERR_TRUNCATE;
@@ -337,8 +338,8 @@ int parsec_tiled_matrix_data_read(parsec_tiled_matrix_t *tdesc, char *filename)
                     buf = parsec_data_get_ptr(data, 0);
                     for (k=0; k < tdesc->nb; k++) {
                         ret = fread(buf, eltsize, tdesc->mb, tmpf );
-                        if ( ret !=  tdesc->mb ) {
-                            parsec_warning("The read on tile(%d, %d) read %d elements instead of %d",
+                        if ( ret !=  (size_t)tdesc->mb ) {
+                            parsec_warning("The read on tile(%d, %d) read %zu elements instead of %d",
                                     i, j, ret, tdesc->mb);
                             fclose(tmpf);
                             return PARSEC_ERR_TRUNCATE;

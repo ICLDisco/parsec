@@ -104,7 +104,7 @@ typedef struct parsec_tiled_matrix_s {
     int tileld;         /**< leading dimension of each tile (Should be a function depending on the row) */
     int mb;             /**< number of rows in a tile */
     int nb;             /**< number of columns in a tile */
-    int bsiz;           /**< size in elements including padding of a tile - derived parameter */
+    size_t bsiz;        /**< size in elements including padding of a tile - derived parameter */
     int lm;             /**< number of rows of the entire matrix */
     int ln;             /**< number of columns of the entire matrix */
     int lmt;            /**< number of tile rows of the entire matrix - derived parameter */
