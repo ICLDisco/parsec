@@ -278,7 +278,7 @@ device_selected:
 #endif
     return PARSEC_SUCCESS;
 
-no_valid_device:
+no_valid_device: {
 #if !defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task);
@@ -286,6 +286,7 @@ no_valid_device:
     parsec_warning("Task %s ran out of valid incarnations. No device selected.",
                    tmp);
     return PARSEC_ERROR;
+  }
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_device_module_t, parsec_object_t,
@@ -885,8 +886,8 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
       if( show_caps ) {
           parsec_inform("CPU Device: %s\n"
                         "\tParsec Streams     : %d\n"
-                        "\tFrequency (GHz)    : %2.2f\n"
-                        "\tPeak Tflop/s       : %2.4f fp64,\t%2.4f fp32",
+                        "\tFrequency (GHz)    : %.2f\n"
+                        "\tPeak Tflop/s       : fp64: %-8.3f fp32: %-8.3f",
                         cpu_model,
                         nstreams,
                         freq, nstreams*freq*dp_ipc*1e-3, nstreams*freq*fp_ipc*1e-3);
