@@ -575,23 +575,15 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     }
 
     if( show_caps ) {
-        parsec_inform("GPU Device %-8s: %s [capability %d.%d] %s\n"
-                      "\tLocation (PCI Bus/Device/Domain): %x:%x.%x\n"
-                      "\tSM                 : %d\n"
-                      "\tFrequency (GHz)    : %f\n"
-                      "\tpeak Tflop/s       : %4.2f fp64,\t%4.2f fp32,\t%4.2f tf32,\t%4.2f fp16\n"
-                      "\tPeak Mem Bw (GB/s) : %.2f [Clock Rate (Ghz) %.2f | Bus Width (bits) %d]\n"
-                      "\tconcurrency        : %s\n"
-                      "\tcomputeMode        : %d\n",
-                      device->name, szName, cuda_device->major, cuda_device->minor,
-                      device->gflops_guess? "(GUESSED Peak Tflop/s; load imbalance may RECUDE PERFORMANCE)": "",
-                      prop.pciBusID, prop.pciDeviceID, prop.pciDomainID,
-                      streaming_multiprocessor,
-                      freqHz*1e-9f,
-                      fp64*1e-3, fp32*1e-3, tf32*1e-3, fp16*1e-3,
-                      2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6, prop.memoryClockRate*1e-6, prop.memoryBusWidth,
-                      (concurrency == 1)? "yes": "no",
-                      computemode);
+        parsec_inform("GPU Device %-8s: %s %.0fGB [pci %x:%x.%x]\n"
+                      "\tFrequency (GHz)    : %.2f\t[SM: %d | Capabilities: %d.%d | Concurency %s | ComputeMode %d]\n"
+                      "\tPeak Tflop/s %-5s : fp64: %-8.3f fp32: %-8.3f fp16: %-8.3f tf32: %-8.3f\n"
+                      "\tPeak Mem Bw (GB/s) : %.2f\t[Clock Rate (Ghz) %.2f | Bus Width (bits) %d]\tReserved Pool (GB): %.1f\n",
+                      device->name, szName, prop.totalGlobalMem/1024.f/1024.f/1024.f, prop.pciBusID, prop.pciDeviceID, prop.pciDomainID,
+                      freqHz*1e-9f, streaming_multiprocessor, cuda_device->major, cuda_device->minor,
+                      (concurrency == 1)? "yes": "no", computemode,
+                      device->gflops_guess? "GUESS": "", fp64*1e-3, fp32*1e-3, fp16*1e-3, tf32*1e-3,
+                      2.0*prop.memoryClockRate*(prop.memoryBusWidth/8)/1.0e6, prop.memoryClockRate*1e-6, prop.memoryBusWidth, gpu_device->mem_block_size*gpu_device->mem_nb_blocks/1024.f/1024.f/1024.f);
     }
 
     *module = device;

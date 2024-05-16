@@ -597,9 +597,9 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
     int rc;
     (void)eltsize;
 
-    size_t how_much_we_allocate;
+    size_t alloc_size;
     size_t total_mem, initial_free_mem;
-    uint32_t mem_elem_per_gpu = 0;
+    size_t mem_elem_per_gpu = 0;
 
     rc = gpu_device->set_device(gpu_device);
     if(PARSEC_SUCCESS != rc)
@@ -616,25 +616,27 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
                            gpu_device->super.device_index, gpu_device->super.name);
             return PARSEC_ERROR;
         } else {
-            how_much_we_allocate = number_blocks * eltsize;
+            alloc_size = number_blocks * eltsize;
         }
     } else {
-        /** number_blocks == -1 means memory_percentage is used */
-        how_much_we_allocate = (memory_percentage * initial_free_mem) / 100;
+        /* number_blocks == -1 means memory_percentage is used */
+        alloc_size = (memory_percentage * initial_free_mem) / 100;
+        /* round-up in eltsize */
+        alloc_size = eltsize * ((alloc_size + eltsize - 1 ) / eltsize);
     }
-    if( how_much_we_allocate > initial_free_mem ) {
-        /** Handle the case of jokers who require more than 100% of memory,
-         *  and eleventh case of computer scientists who don't know how
-         *  to divide a number by another
-         */
-        parsec_warning("GPU[%d:%s] Requested %zd bytes on GPU device, but only %zd bytes are available -- reducing allocation to max available",
-                       gpu_device->super.device_index, gpu_device->super.name, how_much_we_allocate, initial_free_mem);
-        how_much_we_allocate = initial_free_mem;
+    if( alloc_size >= initial_free_mem ) {
+        /* Mapping more than 100% of GPU memory is obviously wrong
+         * Mapping exactly 100% of the GPU memory ends up producing errors about __global__ function call is not configured
+         * Mapping 95% works with low-end GPUs like 1060, how much to let available for gpu runtime, I don't know how to calculate */
+        parsec_warning("GPU[%d:%s] Requested %zd bytes on GPU device, but only %zd bytes are available -- reducing allocation to 95%% of max available",
+                       gpu_device->super.device_index, gpu_device->super.name, alloc_size, initial_free_mem);
+        alloc_size = (95 * initial_free_mem) / 100;
+        /* round-up in eltsize */
+        alloc_size = eltsize * ((alloc_size + eltsize - 1 ) / eltsize);
     }
-    if( how_much_we_allocate < eltsize ) {
-        /** Handle another kind of jokers entirely, and cases of
-         *  not enough memory on the device
-         */
+    if( alloc_size < eltsize ) {
+        /* Handle another kind of jokers entirely, and cases of
+         * not enough memory on the device */
         parsec_warning("GPU[%d:%s] Cannot allocate at least one element",
                        gpu_device->super.device_index, gpu_device->super.name);
         return PARSEC_ERROR;
@@ -647,7 +649,7 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
      * during the computations
      */
     while( (free_mem > eltsize )
-           && ((total_mem - free_mem) < how_much_we_allocate) ) {
+           && ((total_mem - free_mem) < alloc_size) ) {
         parsec_gpu_data_copy_t* gpu_elem;
         void *device_ptr;
 
@@ -655,7 +657,7 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
         if(PARSEC_SUCCESS != rc) {
             size_t _free_mem, _total_mem;
             gpu_device->memory_info(gpu_device, &_free_mem, &_total_mem );
-            parsec_inform("GPU[%d:%s] Per context: free mem %zu total mem %zu (allocated tiles %u)",
+            parsec_inform("GPU[%d:%s] Per context: free mem %zu total mem %zu (allocated tiles %zu)",
                           gpu_device->super.device_index, gpu_device->super.name,_free_mem, _total_mem, mem_elem_per_gpu);
             break;
         }
@@ -679,43 +681,34 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
     }
     else {
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                             "GPU[%d:%s] Allocate %u tiles on the GPU memory",
+                             "GPU[%d:%s] Allocate %zu tiles on the GPU memory",
                              gpu_device->super.device_index, gpu_device->super.name, mem_elem_per_gpu );
     }
     PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                         "GPU[%d:%s] Allocate %u tiles on the GPU memory", gpu_device->super.device_index, gpu_device->super.name, mem_elem_per_gpu);
+                         "GPU[%d:%s] Allocate %zu tiles on the GPU memory", gpu_device->super.device_index, gpu_device->super.name, mem_elem_per_gpu);
 #else
     if( NULL == gpu_device->memory ) {
         void* base_ptr;
-        /* We allocate all the memory on the GPU and we use our memory management. */
-        /* This computation leads to allocating more than available if we asked for more than GPU memory */
-        mem_elem_per_gpu = (how_much_we_allocate + eltsize - 1 ) / eltsize;
-        size_t total_size = (size_t)mem_elem_per_gpu * eltsize;
 
-        if (total_size > initial_free_mem) {
-            /* Mapping more than 100% of GPU memory is obviously wrong */
-            /* Mapping exactly 100% of the GPU memory ends up producing errors about __global__ function call is not configured */
-            /* Mapping 95% works with low-end GPUs like 1060, how much to let available for gpu runtime, I don't know how to calculate */
-            total_size = (size_t)((int)(.9*initial_free_mem / eltsize)) * eltsize;
-            mem_elem_per_gpu = total_size / eltsize;
-        }
-        rc = gpu_device->memory_allocate(gpu_device, total_size, &base_ptr);
+        rc = gpu_device->memory_allocate(gpu_device, alloc_size, &base_ptr);
         if(PARSEC_SUCCESS != rc) {
             parsec_warning("GPU[%d:%s] Allocating %zu bytes of memory on the GPU device failed",
-                           gpu_device->super.device_index, gpu_device->super.name, total_size);
+                           gpu_device->super.device_index, gpu_device->super.name, alloc_size);
             gpu_device->memory = NULL;
             return PARSEC_ERROR;
         }
 
+        assert(alloc_size % eltsize == 0); /* we rounded up earlier... */
+        mem_elem_per_gpu = alloc_size / eltsize;
         gpu_device->memory = zone_malloc_init( base_ptr, mem_elem_per_gpu, eltsize );
-
         if( gpu_device->memory == NULL ) {
             parsec_warning("GPU[%d:%s] Cannot allocate memory on GPU %s. Skip it!",
                            gpu_device->super.device_index, gpu_device->super.name, gpu_device->super.name);
             return PARSEC_ERROR;
         }
+
         PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                            "GPU[%d:%s] Allocate %u segments of size %d on the GPU memory",
+                            "GPU[%d:%s] Allocate %zu segments of size %zu on the GPU memory",
                             gpu_device->super.device_index, gpu_device->super.name, mem_elem_per_gpu, eltsize );
     }
 #endif
