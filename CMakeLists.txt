@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.19)
+cmake_minimum_required (VERSION 3.21)
 project (PARSEC C)
 
 include(CMakeDependentOption)
@@ -59,12 +59,19 @@ if(POLICY CMP0098)
   # CMP0098: New in version 3.17, FindFLEX runs flex in directory CMAKE_CURRENT_BINARY_DIR when executing.
   cmake_policy(SET CMP0098 NEW)
 endif(POLICY CMP0098)
+if(POLICY CMP0144)
+  # CMP0144: find_package uses upper-case <PACKAGENAME>_ROOT variables in addition to <PackageName>_ROOT
+  cmake_policy(SET CMP0144 NEW)
+endif(POLICY CMP0144)
 
 set(CMAKE_NO_SYSTEM_FROM_IMPORTED True)
 # On OSX only find the Apple frameworks is nothing else is available.
 # Without this option the default is to provide the XCode installed version
 # completely disregarding the versions installed by Mac Ports or Brew.
 set(CMAKE_FIND_FRAMEWORK LAST)
+# Find the latest version first if multiple are available
+SET(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
+SET(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 
 # CTest system
 set(DART_TESTING_TIMEOUT 120)
@@ -727,7 +734,10 @@ int main(int argc, char *argv[]) {
     # This is kinda ugly but the PATH and HINTS don't get transmitted to sub-dependents
     set(CMAKE_SYSTEM_PREFIX_PATH_save ${CMAKE_SYSTEM_PREFIX_PATH})
     list(APPEND CMAKE_SYSTEM_PREFIX_PATH /opt/rocm)
-    find_package(HIP 5 QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
+    find_package(HIP QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
+    if(HIP_VERSION VERSION_LESS 5) # find_package(HIP 5...6) does not work for some reason
+        message(FATAL_ERROR "Found HIP version ${HIP_VERSION} in ${HIP_LIB_INSTALL_DIR} is too old, use HIP_ROOT to select another version")
+    endif()
     set(CMAKE_SYSTEM_PREFIX_PATH ${CMAKE_SYSTEM_PREFIX_PATH_save})
     if(HIP_FOUND AND PARSEC_HAVE_CUDA)
       # the underlying reason is that the generated ptg code cannot include at the same time
