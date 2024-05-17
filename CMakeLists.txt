@@ -735,7 +735,7 @@ int main(int argc, char *argv[]) {
     set(CMAKE_SYSTEM_PREFIX_PATH_save ${CMAKE_SYSTEM_PREFIX_PATH})
     list(APPEND CMAKE_SYSTEM_PREFIX_PATH /opt/rocm)
     find_package(HIP QUIET) #quiet because hip-config.cmake is not part of core-cmake and will spam a loud warning when hip/rocm is not installed
-    if(HIP_VERSION VERSION_LESS 5) # find_package(HIP 5...6) does not work for some reason
+    if(HIP_FOUND AND HIP_VERSION VERSION_LESS 5) # find_package(HIP 5...6) does not work for some reason
         message(FATAL_ERROR "Found HIP version ${HIP_VERSION} in ${HIP_LIB_INSTALL_DIR} is too old, use HIP_ROOT to select another version")
     endif()
     set(CMAKE_SYSTEM_PREFIX_PATH ${CMAKE_SYSTEM_PREFIX_PATH_save})
