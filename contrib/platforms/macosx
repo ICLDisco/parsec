@@ -19,17 +19,25 @@ if [ "x$enable_fortran" != xno -a ! -x "$(command -v "$CC")" ]; then
 fi
 
 # OS-X 12.2 provides Bison 2.3, we need Bison 3 or better
-# Try to get the 'brew' Bison if installed
-if [ -d /usr/local/opt/bison ]; then
-  ENVVARS+=" BISON_ROOT=${BISON_ROOT:-/usr/local/opt/bison}"
-fi
-# Try to get the 'MacPort' Bison if installed
-if [ -x /opt/local/bin/bison ]; then
-  ENVVARS+=" BISON_ROOT=${BISON_ROOT:-/opt/local}"
-fi
-# Try to get the 'Fink' Bison if installed
-if [ -x /sw/bin/bison ]; then
-  ENVVARS+=" BISON_ROOT=${BISON_ROOT:-/sw}"
+local bison_version=$(expr "$(bison --version)" : "bison.*\([0-9]\)\.[0-9]")
+# do not override valid version in PATH or user choice
+if [ "$bison_version" -lt 3 -a -z "$BISON_ROOT" ]; then
+  # Try to find Bison if installed with brew, ports, fink
+  if [ -d /opt/homebrew/opt/bison ]; then # brew (arm)
+    bison_dir=/opt/homebrew/opt/bison
+  elif [ -d /usr/local/opt/bison ]; then # brew (intel)
+    bison_dir=/usr/local/opt/bison
+  elif [ -x /opt/local/bin/bison ]; then # macports
+    bison_dir=/opt/local
+  elif [ -x /opt/sw/bin/bison ]; then # fink (10.15..)
+    bison_dir=/opt/sw
+  elif [ -x /sw/bin/bison ]; then # fink (..10.14)
+    bison_dir=/sw
+  fi
+  if [ -n "${bison_dir}" ]; then
+    echo "Default Bison is too old, will search in ${bison_dir}; override by setting BISON_ROOT"
+    ENVVARS+=" BISON_ROOT=${bison_dir}"
+  fi
 fi
 # If Bison still not found, please set BISON_ROOT by hand
 
