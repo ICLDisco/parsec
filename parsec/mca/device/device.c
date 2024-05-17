@@ -227,6 +227,8 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
             if(!(dev->type & valid_types)) continue;
             /* Skip recursive devices: time estimates are computed on the associated CPU device */
             if(dev->type == PARSEC_DEV_RECURSIVE) continue;
+            /* Skip CPU devices: we do not compute loads on CPUs correctly anyway */
+            if(dev->type == PARSEC_DEV_CPU) continue;
 
             eta = dev->device_load + time_estimate(this_task, dev);
             if( best_eta > eta ) {
