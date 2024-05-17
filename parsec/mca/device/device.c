@@ -842,24 +842,18 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
 #if defined(__x86_64__) || defined(__i386__)
 #if defined(PARSEC_HAVE_BUILTIN_CPU)
     __builtin_cpu_init();
-#if defined(__AVX__)
     if(__builtin_cpu_supports("avx")) {
         fp_ipc = 16;
         dp_ipc = 8;
     }
-#endif  /* defined(__AVX__) */
-#if defined(__AVX2__)
     if(__builtin_cpu_supports("avx2")) {
         fp_ipc = 32;
         dp_ipc = 16;
     }
-#endif  /* defined(__AVX2__) */
-#if defined(__AVX512F__)
     if(__builtin_cpu_supports("avx512f")) {
         fp_ipc = 64;
         dp_ipc = 32;
     }
-#endif  /* defined(__AVX512F__) */
 #else
     if( strstr(cpu_flags, " avx512f") ) {
         fp_ipc = 64;
