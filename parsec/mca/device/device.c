@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2023 The University of Tennessee and The University
+ * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
@@ -792,15 +792,13 @@ int parsec_mca_device_registration_completed(parsec_context_t* context)
 
 static int cpu_weights(parsec_device_module_t* device, int nstreams)
 {
-    /* This is default value when it cannot be computed */
-    /* Crude estimate that holds for Nehalem era Xeon processors */
-    float freq = 2.5f;
-    float fp_ipc = 8.f;
-    float dp_ipc = 4.f;
+    float freq = 0.f;
+    float fp_ipc = 0.f;
+    float dp_ipc = 0.f;
     char cpu_model[256]="Unkown";
-    char *cpu_flags = NULL;
 
 #if defined(__linux__)
+    char *cpu_flags = NULL;
     FILE* procinfo = fopen("/proc/cpuinfo", "r");
     if( NULL == procinfo ) {
         parsec_warning("CPU Features cannot be autodetected on this machine: %s", strerror(errno));
@@ -809,66 +807,28 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
     cpu_flags = calloc(4096, sizeof(char));
     char str[4096];
     while( NULL != fgets(str, 4096, procinfo) ) {
+#if defined(__x86_64__) || defined(__i386__)
         /* Intel/AMD */
         sscanf(str, "model name : %255[^\n]%*c", cpu_model);
         if( 0 != sscanf(str, "cpu MHz : %f", &freq) )
             freq *= 1e-3;
         if( 0 != sscanf(str, "flags : %4095[^\n]%*c", cpu_flags) )
             break; /* done reading for an x86 type CPU */
+#elif defined(__PPC64__)
         /* IBM: Power */
         sscanf(str, "cpu : %255[^\n]%*c", cpu_model);
         if( 0 != sscanf(str, "clock : %fMHz", &freq) ) {
             freq *= 1e-3;
             break; /* done reading for a Power type CPU */
         }
+#endif
     }
     fclose(procinfo);
-#elif defined(__APPLE__)
-    size_t len = sizeof(cpu_model);
-    int rc = sysctlbyname("machdep.cpu.brand_string", cpu_model, &len, NULL, 0);
-    if( rc ) {
-        parsec_warning("CPU Features cannot be autodetected on this machine (Detected OSX): %s", strerror(errno));
-        goto notfound;
-    }
-    len = 0;
-    rc = sysctlbyname("machdep.cpu.features", NULL, &len, NULL, 0);
-    cpu_flags = malloc(len);
-    rc = sysctlbyname("machdep.cpu.features", cpu_flags, &len, NULL, 0);
-    if( rc ) {
-        parsec_warning("CPU Features cannot be autodetected on this machine (Detected OSX): %s", strerror(errno));
-        goto notfound;
-    }
-#else
-    goto notfound;
-#endif
-    /* prefer base frequency from model name when available (avoids power
-     * saving modes and dynamic frequency scaling issues) */
+    /* prefer base frequency from model name when available (e.g., Intel)
+     * this avoids reading dynamic frequency during power saving or boost modes */
     sscanf(cpu_model, "%*[^@] @ %fGHz", &freq);
 
-    fp_ipc = 8;
-    dp_ipc = 4;
 #if defined(__x86_64__) || defined(__i386__)
-#if defined(PARSEC_HAVE_BUILTIN_CPU)
-    __builtin_cpu_init();
-#if defined(__AVX__)
-    if(__builtin_cpu_supports("avx")) {
-        fp_ipc = 16;
-        dp_ipc = 8;
-    }
-#endif  /* defined(__AVX__) */
-#if defined(__AVX2__)
-    if(__builtin_cpu_supports("avx2")) {
-        fp_ipc = 32;
-        dp_ipc = 16;
-    }
-#endif  /* defined(__AVX2__) */
-#if defined(__AVX512F__)
-    if(__builtin_cpu_supports("avx512f")) {
-        fp_ipc = 64;
-        dp_ipc = 32;
-    }
-#endif  /* defined(__AVX512F__) */
-#else
     if( strstr(cpu_flags, " avx512f") ) {
         fp_ipc = 64;
         dp_ipc = 32;
@@ -881,16 +841,68 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
         fp_ipc = 16;
         dp_ipc = 8;
     }
-#endif
-#endif  /* defined(__x86_64__) || defined(__i386__) */
+    else {
+        fp_ipc = 8;
+        dp_ipc = 4;
+    }
+#elif defined(__PPC64__)
+    fp_ipc = 16;
+    dp_ipc = 8;
+#endif  /* defined(__x86_64__) || defined(__i386__) || defined(__PPC64__) */
     free(cpu_flags);
 
+#elif defined(__APPLE__)
+    size_t len = sizeof(cpu_model);
+    size_t val = 0;
+    int rc = sysctlbyname("machdep.cpu.brand_string", cpu_model, &len, NULL, 0);
+    if( rc ) {
+        parsec_warning("CPU Name cannot be autodetected on this machine (OSX): %s", strerror(errno));
+        goto notfound;
+    }
+    /* is it an arm64 mac? */
+    rc = sysctlbyname("hw.optional.arm64", &val, &len, NULL, 0);
+    if( 0 == rc && val ) {
+        /* vector length */
+        fp_ipc = 16;
+        dp_ipc = 8;
+        // TODO: figure out a way to obtain cpu freq on arm64 macos
+        freq = 0.0;
+    }
+    else { /* intel mac */
+        /* vector length */
+        int i;
+        char *keys[4] = {
+          "hw.optional.avx512f",
+          "hw.optional.avx2_0",
+          "hw.optional.avx1_0",
+          NULL
+        };
+        for(i = 0; keys[i] != NULL; i++) {
+            rc = sysctlbyname(keys[i], &val, &len, NULL, 0);
+            if( 0 == rc && val )
+                break;
+        }
+        fp_ipc = 8*(8>>i);
+        dp_ipc = 4*(8>>i);
+        /* frequency */
+        len = sizeof(size_t);
+        rc = sysctlbyname("hw.cpufrequency", &val, &len, NULL, 0);
+        if( rc ) {
+            parsec_warning("CPU Frequency cannot be autodetected on this machine (OSX): %s", strerror(errno));
+            goto notfound;
+        }
+        freq = val * 1e-9f;
+    }
+#endif
+
+notfound:
     {
       int show_caps = 0;
       int show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities");
       if(0 < show_caps_index) {
           parsec_mca_param_lookup_int(show_caps_index, &show_caps);
       }
+      /* this may show unknown/0.0 if the cpu capabilities couldn't be determined */
       if( show_caps ) {
           parsec_inform("CPU Device: %s\n"
                         "\tParsec Streams     : %d\n"
@@ -901,16 +913,21 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
                         freq, nstreams*freq*dp_ipc*1e-3, nstreams*freq*fp_ipc*1e-3);
        }
     }
- notfound:
 
     /* compute capacity is per-core, not per-device, so as to account for the
      * prevalent model where we use sequential, single threaded tasks on CPU devices.
      * Advanced users can use the time_estimate property to override if using
      * multi-core parallel tasks. */
-    device->gflops_fp16 = fp_ipc * freq; /* No processor have half precision for now */
-    device->gflops_tf32 = fp_ipc * freq; /* No processor support tensor operations for now */
     device->gflops_fp32 = fp_ipc * freq;
     device->gflops_fp64 = dp_ipc * freq;
+    /* If unset, set to 1 to avoid dividing by 0 when computing the time Estimates
+     * and mark that the time_estimates are guesses */
+    if(device->gflops_fp32 == 0)
+      device->gflops_fp32 = device->gflops_guess = 1;
+    if(device->gflops_fp64 == 0)
+      device->gflops_fp64 = device->gflops_guess = 1;
+    /* CPUs emulate these using normal fp */
+    device->gflops_fp16 = device->gflops_tf32 = device->gflops_fp32;
 
     return PARSEC_SUCCESS;
 }
