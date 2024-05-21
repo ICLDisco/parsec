@@ -15,6 +15,7 @@ static void __parsec_stress_destructor( parsec_taskpool_t *tp )
     dcA = stress_taskpool->_g_descA;
     parsec_tiled_matrix_destroy( (parsec_tiled_matrix_t*)stress_taskpool->_g_descA );
     free(dcA);
+    free(stress_taskpool->_g_cuda_device_index);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_stress_taskpool_t, parsec_taskpool_t,
