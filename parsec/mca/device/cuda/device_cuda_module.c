@@ -373,6 +373,11 @@ static int parsec_cuda_memory_info(struct parsec_device_gpu_module_s *gpu, size_
     (void)gpu;
     cudaStatus = cudaMemGetInfo(free_mem, total_mem);
     PARSEC_CUDA_CHECK_ERROR( "cudaMemGetInfo", cudaStatus, {return PARSEC_ERROR;});
+    /* sanity check: no more free memory than total memory
+     * some hip devices on Frontier may report more free memory than is available */
+    if (*free_mem > *total_mem) {
+        *free_mem = *total_mem;
+    }
     return PARSEC_SUCCESS;
 }
 
