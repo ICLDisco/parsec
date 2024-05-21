@@ -94,11 +94,12 @@ int main(int argc, char ** argv)
 #endif
 
     int m, n;
-    int no_of_tasks = 500000;
+    int no_of_tasks = 50000;
     int amount_of_work[3] = {100, 1000, 10000};
     parsec_taskpool_t *dtd_tp;
 
     parsec = parsec_init( cores, &argc, &argv );
+    cores = parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_CORES);
 
     dtd_tp = parsec_dtd_taskpool_new();
 
