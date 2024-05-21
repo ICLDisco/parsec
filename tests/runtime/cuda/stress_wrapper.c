@@ -28,19 +28,16 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
     parsec_matrix_block_cyclic_t *dcA;
 
     /** Find all CUDA devices */
-    nb = 0;
-    for(dev = 0; dev < (int)parsec_nb_devices; dev++) {
-        parsec_device_module_t *device = parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == device->type ) {
-            nb++;
-        }
+    nb = parsec_context_query(ctx, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA);
+    if(nb < 0) {
+        parsec_fatal("parsec_context_query returned %d", nb);
     }
-    if(nb == 0) {
+    else if(nb == 0) {
         /* We just simulate a run on CPUs, with an arbitrary number of pseudo-GPUs */
         nb = 8;
         dev_index = (int*)malloc(nb * sizeof(int));
         memset(dev_index, -1, nb*sizeof(int));
-        fprintf(stderr, "Simulating %d GPUs for sanity checking in stress test\n", nb);
+        parsec_warning("Simulating %d GPUs for sanity checking in stress test\n", nb);
     } else {
         dev_index = (int*)malloc(nb * sizeof(int));
         nb = 0;

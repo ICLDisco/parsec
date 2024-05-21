@@ -103,18 +103,9 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     parsec_matrix_block_cyclic_t *userM;
 
     /** Find all CUDA devices */
-    nb = 0;
-    for(dev = 0; dev < (int)parsec_nb_devices; dev++) {
-        parsec_device_module_t *device = parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == device->type ) {
-            nb++;
-        }
-    }
-    if(nb == 0) {
-        char hostname[256];
-        gethostname(hostname, 256);
-        fprintf(stderr, "This test requires at least one CUDA device per node -- no CUDA device found on rank %d on %s\n",
-                ctx->my_rank, hostname);
+    nb = parsec_context_query(ctx, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA);
+    if(nb <= 0) {
+        parsec_warning("ABORTED: This test requires at least one CUDA device per node (query returned %d)\n", nb);
         return NULL;
     }
     dev_index = (int*)malloc(nb * sizeof(int));
