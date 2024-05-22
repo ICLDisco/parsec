@@ -203,7 +203,7 @@ parsec_two_dim_band_New(parsec_tiled_matrix_t *Y, int uplo)
     taskpool = parsec_two_dim_band_new(Y, uplo);
     two_dim_band_taskpool = (parsec_taskpool_t*)taskpool;
 
-    parsec_matrix_adt_construct_rect( &taskpool->arenas_datatypes[PARSEC_two_dim_band_DEFAULT_ADT_IDX],
+    parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_two_dim_band_DEFAULT_ADT_IDX],
                              parsec_datatype_double_t, Y->mb, Y->nb, Y->mb);
     return two_dim_band_taskpool;
 }

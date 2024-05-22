@@ -224,7 +224,7 @@ int main(int argc, char* argv[])
         parsec_type_create_contiguous(descA.super.mb * descA.super.nb,
                                       baseType, &newtype);
         PARSEC_OBJ_CONSTRUCT(&adt, parsec_arena_datatype_t);
-        parsec_arena_datatype_construct( &adt,
+        parsec_arena_datatype_set_type( &adt,
                                          descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
                                          PARSEC_ARENA_ALIGNMENT_SSE, newtype);
 

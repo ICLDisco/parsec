@@ -69,24 +69,24 @@ parsec_apply_New( parsec_matrix_uplo_t uplo,
 
     switch( A->mtype ) {
     case PARSEC_MATRIX_COMPLEX_DOUBLE    :
-        parsec_matrix_adt_construct_tile( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+        parsec_matrix_adt_define_square( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
                           parsec_datatype_double_complex_t, A->mb);
         break;
     case PARSEC_MATRIX_COMPLEX_FLOAT     :
-        parsec_matrix_adt_construct_tile( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+        parsec_matrix_adt_define_square( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
                           parsec_datatype_complex_t, A->mb);
         break;
     case PARSEC_MATRIX_DOUBLE       :
-        parsec_matrix_adt_construct_tile( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+        parsec_matrix_adt_define_square( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
                           parsec_datatype_double_t, A->mb);
         break;
     case PARSEC_MATRIX_FLOAT        :
-        parsec_matrix_adt_construct_tile( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+        parsec_matrix_adt_define_square( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
                           parsec_datatype_float_t, A->mb);
         break;
     case PARSEC_MATRIX_INTEGER          :
     default:
-        parsec_matrix_adt_construct_tile( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
+        parsec_matrix_adt_define_square( &parsec_app->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX],
                           parsec_datatype_int_t, A->mb);
     }
     return (parsec_taskpool_t*)parsec_app;

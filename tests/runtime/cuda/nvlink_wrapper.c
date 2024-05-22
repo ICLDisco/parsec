@@ -211,7 +211,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
 
     testing_handle = parsec_nvlink_new(dcA, userM, ctx->nb_nodes, CuHI, nb, dev_index);
 
-    parsec_matrix_adt_construct_tile( &testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX],
+    parsec_matrix_adt_define_square( &testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX],
                              parsec_datatype_double_complex_t, mb );
 
     return &testing_handle->super;

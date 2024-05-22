@@ -135,10 +135,10 @@ parsec_stencil_1D_New(parsec_tiled_matrix_t *dcA, int iter, int R)
   taskpool = parsec_stencil_1D_new(dcA, iter, R);
   stencil_1D_taskpool = (parsec_taskpool_t*)taskpool;
 
-  parsec_matrix_adt_construct_rect( &taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX],
+  parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX],
                            MY_TYPE, dcA->mb, dcA->nb, dcA->mb);
 
-  parsec_matrix_adt_construct_rect( &taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX],
+  parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX],
                            MY_TYPE, dcA->mb, R, dcA->mb);
 
   return stencil_1D_taskpool;

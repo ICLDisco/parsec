@@ -635,8 +635,8 @@ int main(int argc, char **argv)
     }
 
     // Create datatypes
-    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    parsec_matrix_adt_construct_rect(adt, parsec_datatype_double_t, mb, nb, mb);
+    parsec_arena_datatype_t *adt = parsec_matrix_adt_new_rect(parsec_datatype_double_t, mb, nb, mb);
+
     parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
     // Create and initialize the data

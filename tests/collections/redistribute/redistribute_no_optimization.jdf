@@ -428,10 +428,10 @@ parsec_redistribute_no_optimization_New(parsec_tiled_matrix_t *dcY,
     int n_T_END = (size_col+disj_T-1) / dcT->nb;
     taskpool->_g_NT = (n_T_END-n_T_START)/taskpool->_g_num_col;
 
-    parsec_matrix_adt_construct_rect(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ADT_IDX],
+    parsec_matrix_adt_define_rect(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_TARGET_ADT_IDX],
                                 MY_TYPE, dcT->mb, dcT->nb, dcT->mb);
 
-    parsec_matrix_adt_construct_rect(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ADT_IDX],
+    parsec_matrix_adt_define_rect(&taskpool->arenas_datatypes[PARSEC_redistribute_no_optimization_SOURCE_ADT_IDX],
                                 MY_TYPE, dcY->mb, dcY->nb, dcY->mb);
 
     return redistribute_no_optimization_taskpool;

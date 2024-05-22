@@ -107,8 +107,7 @@ int main(int argc, char **argv)
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-    adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    parsec_matrix_adt_construct_rect(adt,
+    adt = parsec_matrix_adt_new_rect(
             parsec_datatype_int32_t, nb, 1, nb);
     parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 

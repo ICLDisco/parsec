@@ -225,11 +225,13 @@ int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t 
 /**
  * Arena-datatype management.
  */
-int parsec_matrix_arena_datatype_construct_alloc_type(parsec_arena_datatype_t *adt,
-                                                      parsec_datatype_t oldtype,
-                                                      parsec_matrix_uplo_t uplo, int diag,
-                                                      unsigned int m, unsigned int n, unsigned int ld,
-                                                      size_t alignment, int resized) {
+/* high level interfaces */
+int parsec_matrix_arena_datatype_define_type(parsec_arena_datatype_t *adt,
+                                             parsec_datatype_t oldtype,
+                                             parsec_matrix_uplo_t uplo, int diag,
+                                             unsigned int m, unsigned int n, unsigned int ld,
+                                             size_t alignment, int resized)
+{
     ptrdiff_t extent = 0;
     int rc;
     parsec_datatype_t newtype;
@@ -238,14 +240,85 @@ int parsec_matrix_arena_datatype_construct_alloc_type(parsec_arena_datatype_t *a
                                        m, n, ld, resized, &extent);
     if( PARSEC_SUCCESS != rc ) return rc;
 
-    parsec_arena_datatype_construct(adt, extent, alignment, newtype);
+    parsec_arena_datatype_set_type(adt, extent, alignment, newtype);
     if( PARSEC_SUCCESS != rc ) return rc;
 
     return PARSEC_SUCCESS;
 }
 
-int parsec_matrix_arena_datatype_destruct_free_type(parsec_arena_datatype_t *adt) {
+int parsec_matrix_arena_datatype_destruct_free_type(parsec_arena_datatype_t *adt)
+{
     parsec_type_free( &adt->opaque_dtt );
     PARSEC_OBJ_DESTRUCT(adt);
     return PARSEC_SUCCESS;
 }
+
+/* shorthands of the above for the common types */
+int parsec_matrix_adt_define_rect(parsec_arena_datatype_t *adt,
+                                parsec_datatype_t oldtype,
+                                unsigned int m, unsigned int n, unsigned int ld)
+{
+    return parsec_matrix_arena_datatype_define_type(adt, oldtype, PARSEC_MATRIX_FULL, 0, m, n, ld, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+}
+
+int parsec_matrix_adt_define_upper(parsec_arena_datatype_t *adt,
+                                 parsec_datatype_t oldtype,
+                                 int diag, unsigned int m)
+{
+    return parsec_matrix_arena_datatype_define_type(adt, oldtype, PARSEC_MATRIX_UPPER, diag, m, m, m, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+}
+
+int parsec_matrix_adt_define_lower(parsec_arena_datatype_t *adt,
+                                 parsec_datatype_t oldtype,
+                                 int diag, unsigned int m)
+{
+    return parsec_matrix_arena_datatype_define_type(adt, oldtype, PARSEC_MATRIX_LOWER, diag, m, m, m, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+}
+
+int parsec_matrix_adt_define_square(parsec_arena_datatype_t *adt,
+                                  parsec_datatype_t oldtype,
+                                  unsigned int m)
+{
+    return parsec_matrix_arena_datatype_define_type(adt, oldtype, PARSEC_MATRIX_FULL, 0, m, m, m, PARSEC_ARENA_ALIGNMENT_SSE, -1);
+}
+
+parsec_arena_datatype_t *parsec_matrix_adt_new_rect(parsec_datatype_t oldtype,
+                                unsigned int m, unsigned int n, unsigned int ld)
+{
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_define_rect(adt, oldtype, m, n, ld);
+    return adt;
+}
+
+parsec_arena_datatype_t *parsec_matrix_adt_new_upper(parsec_datatype_t oldtype,
+                                 int diag, unsigned int m)
+{
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_define_upper(adt, oldtype, diag, m);
+    return adt;
+}
+
+parsec_arena_datatype_t *parsec_matrix_adt_new_lower(parsec_datatype_t oldtype,
+                                 int diag, unsigned int m)
+{
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_define_lower(adt, oldtype, diag, m);
+    return adt;
+}
+
+parsec_arena_datatype_t *parsec_matrix_adt_new_square(parsec_datatype_t oldtype,
+                                  unsigned int m)
+{
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
+    parsec_matrix_adt_define_square(adt, oldtype, m);
+    return adt;
+}
+
+int parsec_matrix_adt_free(parsec_arena_datatype_t **padt)
+{
+    parsec_matrix_arena_datatype_destruct_free_type(*padt);
+    free(*padt); /* OBJ_DESTRUCT done above */
+    *padt = NULL;
+    return PARSEC_SUCCESS;
+}
+

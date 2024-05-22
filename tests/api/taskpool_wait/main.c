@@ -37,8 +37,7 @@ int main(int argc, char *argv[]) {
     parsec_data_collection_set_key(&A.super.super, "A");
     parsec_dtd_data_collection_init(&A.super.super);
 
-    adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    parsec_matrix_adt_construct_rect(adt, parsec_datatype_int32_t, 0, nb, 1);
+    adt = parsec_matrix_adt_new_rect(parsec_datatype_int32_t, nb, 1, nb);
     parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 
     printf("Single PTG taskpool, waited with parsec_context_wait\n");

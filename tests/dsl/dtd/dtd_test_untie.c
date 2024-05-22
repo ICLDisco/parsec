@@ -136,8 +136,7 @@ int main(int argc, char ** argv)
     dcA = create_and_distribute_data(rank, world, nb, nt);
     parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    parsec_matrix_adt_construct_rect(adt,
+    adt = parsec_matrix_adt_new_rect(
             parsec_datatype_int32_t, nb, 1, nb);
     parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 

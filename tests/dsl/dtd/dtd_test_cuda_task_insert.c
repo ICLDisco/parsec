@@ -168,8 +168,7 @@ int test_cuda_memset(int world, int myrank, parsec_context_t *parsec_context, in
     // Create new DTD taskpool
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
-    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    parsec_matrix_adt_construct_rect(adt,
+    parsec_arena_datatype_t *adt = parsec_matrix_adt_new_rect(
             parsec_datatype_int32_t, nb, 1, nb);
     parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
@@ -330,8 +329,7 @@ int test_cuda_memset_and_read(int world, int myrank, parsec_context_t *parsec_co
     // Create new DTD taskpool
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
-    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    parsec_matrix_adt_construct_rect(adt,
+    parsec_arena_datatype_t *adt = parsec_matrix_adt_new_rect(
             parsec_datatype_int32_t, nb, 1, nb);
     parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
@@ -493,8 +491,7 @@ int test_cuda_memset_write_read(int world, int myrank, parsec_context_t *parsec_
     // Create new DTD taskpool
     parsec_taskpool_t *tp = parsec_dtd_taskpool_new();
 
-    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    parsec_matrix_adt_construct_rect(adt,
+    parsec_arena_datatype_t *adt = parsec_matrix_adt_new_rect(
             parsec_datatype_int32_t, nb, 1, nb);
     parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
@@ -702,8 +699,7 @@ int test_cuda_multiple_devices(int world, int myrank, parsec_context_t *parsec_c
 
     parsec_task_class_t *cudaread_tc, *cudacpy_tc;
 
-    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    parsec_matrix_adt_construct_rect(adt,
+    parsec_arena_datatype_t *adt = parsec_matrix_adt_new_rect(
             parsec_datatype_int32_t, nb, 1, nb);
     parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 

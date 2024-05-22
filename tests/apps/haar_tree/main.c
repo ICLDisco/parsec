@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
                               0, 0, world, world,
                               1, world, 1, 1, 0, 0);
 
-    parsec_matrix_adt_construct_rect( adt,
+    parsec_matrix_adt_define_rect( adt,
              parsec_datatype_float_t, 2, 1, 2);
 
 #if defined(HAVE_MPI)

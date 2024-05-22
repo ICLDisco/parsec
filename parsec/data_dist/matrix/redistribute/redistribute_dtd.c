@@ -373,14 +373,10 @@ parsec_redistribute_New_dtd(parsec_context_t *parsec,
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
     /* Allocating data arrays to be used by comm engine */
-    adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    parsec_matrix_adt_construct_rect(adt,
-                     MY_TYPE, dcT->mb, dcT->nb, dcT->mb);
+    adt = parsec_matrix_adt_new_rect(MY_TYPE, dcT->mb, dcT->nb, dcT->mb);
     parsec_dtd_attach_arena_datatype(parsec, adt, &TARGET);
 
-    adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
-    parsec_matrix_adt_construct_rect(adt,
-                     MY_TYPE, dcY->mb, dcY->nb, dcY->mb);
+    adt = parsec_matrix_adt_new_rect(MY_TYPE, dcY->mb, dcY->nb, dcY->mb);
     parsec_dtd_attach_arena_datatype(parsec, adt, &SOURCE);
 
     /* Registering the handle with parsec context */

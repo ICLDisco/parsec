@@ -98,7 +98,7 @@ parsec_bandwidth_New(parsec_tiled_matrix_t *dcA,
   taskpool = parsec_bandwidth_new(dcA, Disk, loops, frags, ws); 
   bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-  parsec_matrix_adt_construct_rect( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
+  parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
                            parsec_datatype_double_t, 1, size, 1);
 
   return bandwidth_taskpool;
@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
 
         bandwidth_taskpool = (parsec_taskpool_t*)taskpool;
 
-        parsec_matrix_adt_construct_rect( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
+        parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_bandwidth_DEFAULT_ADT_IDX],
                                  parsec_datatype_double_t, 1, size, 1);
 
         /* Time start */
