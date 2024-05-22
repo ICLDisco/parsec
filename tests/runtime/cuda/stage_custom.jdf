@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2019-2023 The University of Tennessee and The University
+ * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
@@ -162,7 +162,7 @@ BODY [type=CUDA
                          lbeta,  (double*)A, ldam );
     status = cublasGetError();
     PARSEC_CUDA_CHECK_ERROR( "cublasDgemm", status,
-                            {return -1;} );
+                            {return PARSEC_HOOK_RETURN_ERROR;} );
 }
 END
 
@@ -203,7 +203,7 @@ BODY [type=CUDA
                          lbeta,  (double*)B, ldbm );
     status = cublasGetError();
     PARSEC_CUDA_CHECK_ERROR( "cublasDgemm", status,
-                            {return -1;} );
+                            {return PARSEC_HOOK_RETURN_ERROR;} );
 
 }
 END
@@ -255,12 +255,6 @@ parsec_taskpool_t* testing_stage_custom_New( parsec_context_t *ctx, int M, int N
     parsec_stage_custom_taskpool_t* testing_handle = NULL;
     int KP = 1;
     int KQ = 1;
-
-    int nb_gpus = parsec_context_query(ctx, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA);
-    if(nb_gpus <= 0) {
-        parsec_warning("ABORTED: This test can only run if at least one GPU device is present (query returned %d)\n", nb_gpus);
-        return NULL;
-    }
 
     parsec_matrix_block_cyclic_t *descA;
     descA = (parsec_matrix_block_cyclic_t*)calloc(1, sizeof(parsec_matrix_block_cyclic_t));

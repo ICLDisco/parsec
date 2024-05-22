@@ -29,10 +29,8 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
 
     /** Find all CUDA devices */
     nb = parsec_context_query(ctx, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA);
-    if(nb < 0) {
-        parsec_fatal("parsec_context_query returned %d", nb);
-    }
-    else if(nb == 0) {
+    assert(nb >= 0);
+    if(nb == 0) {
         /* We just simulate a run on CPUs, with an arbitrary number of pseudo-GPUs */
         nb = 8;
         dev_index = (int*)malloc(nb * sizeof(int));

@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
 
     /* Check result */
     if( 0 == rank && info != 0 ) {
-        fprintf(stderr, "Result is Wrong !!!\n");
+        fprintf(stderr, "Result is Wrong (info %d) !!!\n", info);
     }
 
     parsec_data_free(dcA.mat);
@@ -172,5 +172,5 @@ int main(int argc, char *argv[])
     MPI_Finalize();
 #endif
 
-    return info;
+    return (0 == info)? EXIT_SUCCESS: EXIT_FAILURE;
 }

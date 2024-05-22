@@ -1,6 +1,5 @@
-
 /**
- * Copyright (c) 2019-2021 The University of Tennessee and The University
+ * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
@@ -104,10 +103,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
 
     /** Find all CUDA devices */
     nb = parsec_context_query(ctx, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA);
-    if(nb <= 0) {
-        parsec_warning("ABORTED: This test requires at least one CUDA device per node (query returned %d)\n", nb);
-        return NULL;
-    }
+    assert(nb >= 0);
     dev_index = (int*)malloc(nb * sizeof(int));
     nb = 0;
     for(dev = 0; dev < (int)parsec_nb_devices; dev++) {
@@ -147,7 +143,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
 
     /* GEMM1 tasks will create one data copy per GPU, and work on those.
      * see nvlink.jdf:MAKE_C tasks */
-    
+
     /* userM is a user-managed matrix: the user creates the data copies
      * only on the GPU they want the GEMM2 to run. To simplify the code,
      * we use parsec_matrix_block_cyclic that requires to also have a CPU data
@@ -199,14 +195,14 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
             g++;
         }
     }
-    
+
     testing_handle = parsec_nvlink_new(dcA, userM, ctx->nb_nodes, CuHI, nb, dev_index);
 
     parsec_add2arena( &testing_handle->arenas_datatypes[PARSEC_nvlink_DEFAULT_ADT_IDX],
                              parsec_datatype_double_complex_t,
                              PARSEC_MATRIX_FULL, 1, mb, mb, mb,
                              PARSEC_ARENA_ALIGNMENT_SSE, -1 );
-    
+
     return &testing_handle->super;
 }
 

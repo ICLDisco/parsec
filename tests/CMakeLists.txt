@@ -70,6 +70,8 @@ function(parsec_addtest_cmd target)
   # restrict memory use for oversubscribed runners
   set_tests_properties(${target} PROPERTIES ENVIRONMENT
     "PARSEC_MCA_device_cuda_enabled=0;PARSEC_MCA_device_hip_enabled=0;PARSEC_MCA_device_level_zero_enabled=0;PARSEC_MCA_device_cuda_memory_use=10;PARSEC_MCA_device_hip_memory_use=10;PARSEC_MCA_device_level_zero_memory_use=10")
+  # skip tests that fail because the device is not available */
+  set_tests_properties(${target} PROPERTIES SKIP_RETURN_CODE 10) # 10 is -PARSEC_ERR_DEVICE, positive 7bit return codes are more portable
 endfunction(parsec_addtest_cmd)
 
 check_function_exists(erand48 PARSEC_HAVE_ERAND48)
