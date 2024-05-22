@@ -116,9 +116,6 @@ int main(int argc, char *argv[])
       ctp->arenas_datatypes[PARSEC_remote_multiple_outs_same_pred_flow_DEFAULT_ADT_IDX]    = adt_default;
       ctp->arenas_datatypes[PARSEC_remote_multiple_outs_same_pred_flow_LOWER_TILE_ADT_IDX] = adt_lower;
       ctp->arenas_datatypes[PARSEC_remote_multiple_outs_same_pred_flow_UPPER_TILE_ADT_IDX] = adt_upper;
-      PARSEC_OBJ_RETAIN(adt_default.arena);
-      PARSEC_OBJ_RETAIN(adt_lower.arena);
-      PARSEC_OBJ_RETAIN(adt_upper.arena);
 
       DO_RUN(ctp);
       DO_CHECK(remote_multiple_outs_same_pred_flow, dcA, dcA_check);

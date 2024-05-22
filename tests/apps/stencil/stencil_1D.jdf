@@ -135,15 +135,11 @@ parsec_stencil_1D_New(parsec_tiled_matrix_t *dcA, int iter, int R)
   taskpool = parsec_stencil_1D_new(dcA, iter, R);
   stencil_1D_taskpool = (parsec_taskpool_t*)taskpool;
 
-  parsec_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX],
-                           MY_TYPE, PARSEC_MATRIX_FULL,
-                           1, dcA->mb, dcA->nb, dcA->mb,
-                           PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+  parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX],
+                           MY_TYPE, dcA->mb, dcA->nb, dcA->mb);
 
-  parsec_add2arena( &taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX],
-                           MY_TYPE, PARSEC_MATRIX_FULL,
-                           1, dcA->mb, R, dcA->mb,
-                           PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+  parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX],
+                           MY_TYPE, dcA->mb, R, dcA->mb);
 
   return stencil_1D_taskpool;
 }
@@ -154,8 +150,8 @@ parsec_stencil_1D_New(parsec_tiled_matrix_t *dcA, int iter, int R)
 void parsec_stencil_1D_Destruct(parsec_taskpool_t *taskpool)
 {
   parsec_stencil_1D_taskpool_t *stencil_1D_taskpool = (parsec_stencil_1D_taskpool_t *)taskpool;
-  parsec_del2arena(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX]);
-  parsec_del2arena(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX]);
+  parsec_matrix_arena_datatype_destruct_free_type(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_FULL_ADT_IDX]);
+  parsec_matrix_arena_datatype_destruct_free_type(&stencil_1D_taskpool->arenas_datatypes[PARSEC_stencil_1D_LR_ADT_IDX]);
   parsec_taskpool_free(taskpool);
 }
 

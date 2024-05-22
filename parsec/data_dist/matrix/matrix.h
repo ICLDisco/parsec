@@ -23,10 +23,10 @@ struct parsec_execution_stream_s;
 struct parsec_taskpool_s;
 
 typedef enum parsec_matrix_type_e {
-    PARSEC_MATRIX_BYTE          = 0, /**< unsigned char  */
-    PARSEC_MATRIX_INTEGER       = 1, /**< signed int     */
-    PARSEC_MATRIX_FLOAT     = 2, /**< float          */
-    PARSEC_MATRIX_DOUBLE    = 3, /**< double         */
+    PARSEC_MATRIX_BYTE           = 0, /**< unsigned char  */
+    PARSEC_MATRIX_INTEGER        = 1, /**< signed int     */
+    PARSEC_MATRIX_FLOAT          = 2, /**< float          */
+    PARSEC_MATRIX_DOUBLE         = 3, /**< double         */
     PARSEC_MATRIX_COMPLEX_FLOAT  = 4, /**< complex float  */
     PARSEC_MATRIX_COMPLEX_DOUBLE = 5  /**< complex double */
 } parsec_matrix_type_t;
@@ -53,10 +53,10 @@ static inline int parsec_datadist_getsizeoftype(parsec_matrix_type_t type)
 {
     int size = -1;
     switch( type ) {
-    case PARSEC_MATRIX_BYTE          : parsec_type_size(parsec_datatype_int8_t, &size); break;
-    case PARSEC_MATRIX_INTEGER       : parsec_type_size(parsec_datatype_int32_t, &size); break;
-    case PARSEC_MATRIX_FLOAT     : parsec_type_size(parsec_datatype_float_t, &size); break;
-    case PARSEC_MATRIX_DOUBLE    : parsec_type_size(parsec_datatype_double_t, &size); break;
+    case PARSEC_MATRIX_BYTE           : parsec_type_size(parsec_datatype_int8_t, &size); break;
+    case PARSEC_MATRIX_INTEGER        : parsec_type_size(parsec_datatype_int32_t, &size); break;
+    case PARSEC_MATRIX_FLOAT          : parsec_type_size(parsec_datatype_float_t, &size); break;
+    case PARSEC_MATRIX_DOUBLE         : parsec_type_size(parsec_datatype_double_t, &size); break;
     case PARSEC_MATRIX_COMPLEX_FLOAT  : parsec_type_size(parsec_datatype_complex_t, &size); break;
     case PARSEC_MATRIX_COMPLEX_DOUBLE : parsec_type_size(parsec_datatype_double_complex_t, &size); break;
     /* If you want to add more types, note that size=extent is true only for predefined datatypes.
@@ -324,24 +324,43 @@ int parsec_matrix_define_datatype(parsec_datatype_t *newtype, parsec_datatype_t 
  * is created using the datatype extent. The alignment indicates the restrictions related
  * to the alignment of the allocated data by the arena.
  */
-int parsec_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
-                             parsec_matrix_uplo_t uplo, int diag,
-                             unsigned int m, unsigned int n, unsigned int ld,
-                             size_t alignment, int resized );
+int parsec_matrix_arena_datatype_define_type(parsec_arena_datatype_t *adt,
+                                             parsec_datatype_t oldtype,
+                                             parsec_matrix_uplo_t uplo, int diag,
+                                             unsigned int m, unsigned int n, unsigned int ld,
+                                             size_t alignment, int resized);
+int parsec_matrix_arena_datatype_destruct_free_type(parsec_arena_datatype_t *adt);
 
-int parsec_del2arena( parsec_arena_datatype_t *adt );
+/* these defines simplify the script for conversion of deprecated add2arena/del2arena */
+#define parsec_matrix_adt_define_type( _adt_, _oldtype_, _uplo_, _diag_, _m_, _n_, _ld_, _align_, _resize_ ) \
+    parsec_matrix_arena_datatype_define_type( (_adt_), (_oldtype_), (_uplo_), (_diag_), (_m_), (_n_), (_ld_), (_align_), (_resize_) )
+#define parsec_matrix_adt_destruct_free_type( _adt_ ) \
+    parsec_matrix_arena_datatype_destruct_free_type( (_adt_) )
 
-#define parsec_add2arena_tile( _adt_ , _oldtype_, _m_ ) \
-    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+/* shorthands of the above for the common types */
+int parsec_matrix_adt_define_rect(parsec_arena_datatype_t *adt,
+                                  parsec_datatype_t oldtype,
+                                  unsigned int m, unsigned int n, unsigned int ld);
+parsec_arena_datatype_t *parsec_matrix_adt_new_rect(parsec_datatype_t oldtype,
+                                  unsigned int m, unsigned int n, unsigned int ld);
 
-#define parsec_add2arena_upper( _adt_ , _oldtype_, diag, _n_ ) \
-    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_UPPER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+int parsec_matrix_adt_define_upper(parsec_arena_datatype_t *adt,
+                                   parsec_datatype_t oldtype,
+                                   int diag, unsigned int m);
+parsec_arena_datatype_t *parsec_matrix_adt_new_upper(parsec_datatype_t oldtype,
+                                   int diag, unsigned int m);
+int parsec_matrix_adt_define_lower(parsec_arena_datatype_t *adt,
+                                   parsec_datatype_t oldtype,
+                                   int diag, unsigned int m);
+parsec_arena_datatype_t *parsec_matrix_adt_new_lower(parsec_datatype_t oldtype,
+                                   int diag, unsigned int m);
+int parsec_matrix_adt_define_square(parsec_arena_datatype_t *adt,
+                                    parsec_datatype_t oldtype,
+                                    unsigned int m);
+parsec_arena_datatype_t *parsec_matrix_adt_new_square(parsec_datatype_t oldtype,
+                                    unsigned int m);
 
-#define parsec_add2arena_lower( _adt_ , _oldtype_, diag, _n_ ) \
-    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_LOWER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
-
-#define parsec_add2arena_rect( _adt_ , _oldtype_, _m_, _n_, _ld_ ) \
-    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+int parsec_matrix_adt_free(parsec_arena_datatype_t **padt);
 
 /* include deprecated symbols */
 #include "parsec/data_dist/matrix/deprecated/matrix.h"

@@ -160,35 +160,34 @@ int main(int argc, char* argv[])
                 break;
         }
     }
-    
+
     printf("running with %d cores and %d copies\n", cores, ncopy);
     threads = calloc(sizeof(pthread_t), cores);
 
     fut_array = malloc(ncopy*sizeof(parsec_datacopy_future_t*));
     data = malloc(cores*ncopy*sizeof(int));
     int *ids = malloc(cores*sizeof(int));
-    
 
     data_check_out = malloc(ncopy*sizeof(int**));
     for(i=0; i< ncopy; i++){
         data_check_out[i] = malloc(cores*sizeof(int*));
         data[i] = i;
-        data_in = malloc(cores*sizeof(int*));
+        data_in = malloc(cores*sizeof(int));
         *data_in = data[i];
         fut_array[i] = PARSEC_OBJ_NEW(parsec_datacopy_future_t);
-        parsec_future_init( fut_array[i], 
-                            cb_fulfill, 
+        parsec_future_init( fut_array[i],
+                            cb_fulfill,
                             data_in,
                             cb_match,
                             data_in,
-                            cb_cleanup); 
+                            cb_cleanup);
     }
 
     for(i=0; i< cores; i++){
         ids[i] = i;
         pthread_create(&threads[i], NULL, do_test_no_nested, &ids[i]);
     }
- 
+
     for(i=0; i< cores; i++){
         flag += pthread_join(threads[i], &retval);
     }
@@ -197,7 +196,7 @@ int main(int argc, char* argv[])
     for(i=0; i< ncopy; i++){
         for(j=1; j< cores; j++){
             if( data_check_out[i][j-1] != data_check_out[i][j] ){
-                flag = 1; 
+                flag = 1;
                 break;
             }
         }
@@ -210,22 +209,22 @@ int main(int argc, char* argv[])
 
     for(i=0; i< ncopy; i++){
         data[i] = i;
-        data_in = malloc(cores*sizeof(int*));
+        data_in = malloc(cores*sizeof(int));
         *data_in = data[i];
         fut_array[i] = PARSEC_OBJ_NEW(parsec_datacopy_future_t);
-        parsec_future_init( fut_array[i], 
-                            cb_fulfill, 
+        parsec_future_init( fut_array[i],
+                            cb_fulfill,
                             data_in,
                             cb_match,
                             data_in,
-                            cb_cleanup); 
+                            cb_cleanup);
     }
 
     for(i=0; i< cores; i++){
         ids[i] = i;
         pthread_create(&threads[i], NULL, do_test_nested, &ids[i]);
     }
- 
+
     for(i=0; i< cores; i++){
         flag += pthread_join(threads[i], &retval);
     }

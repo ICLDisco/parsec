@@ -92,7 +92,6 @@ int main(int argc, char *argv[])
       parsec_datatype_t tmp = adt_default.opaque_dtt;
       ctp->arenas_datatypes[PARSEC_avoidable_reshape_DEFAULT_ADT_IDX].opaque_dtt = dcA.super.super.default_dtt;
 #endif
-      PARSEC_OBJ_RETAIN(adt_default.arena);
 
       DO_RUN(ctp);
       DO_CHECK(avoidable_reshape, dcA, dcA_check);

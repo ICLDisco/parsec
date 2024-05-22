@@ -25,11 +25,11 @@ int recv_data_kernel(
    (void)es;
    int *data_in;
    int rank;
-   
+
    parsec_dtd_unpack_args(this_task, &data_in, &rank);
 
    printf("[recv_data_kernel] rank = %d, data_in = %d\n", rank, *data_in);
-    
+
    return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -141,10 +141,9 @@ int main(int argc, char **argv) {
 
    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
 
-   adt = parsec_dtd_create_arena_datatype(parsec_context, &TILE_FULL);
-   parsec_add2arena_rect( adt,
-         parsec_datatype_int32_t,
-         nb, 1, nb);
+    adt = parsec_matrix_adt_new_rect(
+            parsec_datatype_int32_t, nb, 1, nb);
+    parsec_dtd_attach_arena_datatype(parsec_context, adt, &TILE_FULL);
 
    if( 0 == rank ) {
       parsec_data_copy_t *parsec_data_copy;
@@ -156,7 +155,7 @@ int main(int argc, char **argv) {
       parsec_data = A->data_of_key(A, key);
       parsec_data_copy = parsec_data_get_copy(parsec_data, 0);
       data_ptr = (int*)parsec_data_copy_get_ptr(parsec_data_copy);
-      *data_ptr = 1; 
+      *data_ptr = 1;
       parsec_output( 0, "Initial data, node: %d A At key[%d]: %d\n", rank, key, *data_ptr );
    }
 
@@ -168,8 +167,8 @@ int main(int argc, char **argv) {
       // The following sleep statememt ensure that rank `0` has enough
       // time to send data to other processes before adding the taskpool.
       sleep(1);
-   }   
-      
+   }
+
    // Registering the dtd_handle with PARSEC context
    ret = parsec_context_add_taskpool( parsec_context, dtd_tp );
    PARSEC_CHECK_ERROR(ret, "parsec_context_add_taskpool");
@@ -214,9 +213,7 @@ int main(int argc, char **argv) {
    PARSEC_CHECK_ERROR(ret, "parsec_context_wait");
 
     // Cleanup data and parsec data structures
-   parsec_del2arena(adt);
-   PARSEC_OBJ_RELEASE(adt->arena);
-   parsec_dtd_destroy_arena_datatype(parsec_context, TILE_FULL);
+   parsec_dtd_free_arena_datatype(parsec_context, TILE_FULL);
    parsec_dtd_data_collection_fini( A );
    free_data(dcA);
 

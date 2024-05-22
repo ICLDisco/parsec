@@ -234,7 +234,7 @@ static int jdf_call_unparse(const jdf_call_t *call, FILE *out)
 static int jdf_datatransfer_type_unparse(jdf_datatransfer_type_t dt, FILE *out)
 {
     int err = 0;
-    char start[1] = "[";
+    char start[2] = "[";
 
     if( (JDF_STRING == dt.type->op) || (JDF_VAR == dt.type->op) ) {
         if( strcmp(dt.type->jdf_var, "DEFAULT") ) {

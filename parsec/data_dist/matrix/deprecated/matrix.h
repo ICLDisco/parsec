@@ -139,28 +139,25 @@ int parsec_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t old
                              parsec_matrix_uplo_t uplo, int diag,
                              unsigned int m, unsigned int n, unsigned int ld,
                              size_t alignment, int resized )
-    __parsec_attribute_deprecated__("Use parsec_add2arena");
-
+    __parsec_attribute_deprecated__("Use parsec_matrix_arena_datatype_define_type");
 static inline
 int parsec_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
                              parsec_matrix_uplo_t uplo, int diag,
                              unsigned int m, unsigned int n, unsigned int ld,
-                             size_t alignment, int resized )
-{
-    return parsec_add2arena(adt, oldtype, uplo, diag, m, n, ld, alignment, resized);
+                             size_t alignment, int resized ) {
+    PARSEC_OBJ_CONSTRUCT(adt, parsec_arena_datatype_t);
+    return parsec_matrix_arena_datatype_define_type(adt, oldtype, uplo, diag, m, n, ld, alignment, resized);
 }
 
 static inline
 int parsec_matrix_del2arena( parsec_arena_datatype_t *adt )
-    __parsec_attribute_deprecated__("Use parsec_del2arena");
-
+    __parsec_attribute_deprecated__("Use parsec_matrix_adt_destruct_free_type(adt)");
 static inline
-int parsec_matrix_del2arena( parsec_arena_datatype_t *adt )
-{
-    return parsec_del2arena(adt);
+int parsec_matrix_del2arena( parsec_arena_datatype_t *adt ) {
+    return parsec_matrix_arena_datatype_destruct_free_type(adt);
 }
 
-/* deprecated */
+/* deprecated macros */
 #define parsec_matrix_add2arena_tile( _adt_ , _oldtype_, _m_ ) \
     parsec_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
 
@@ -172,3 +169,40 @@ int parsec_matrix_del2arena( parsec_arena_datatype_t *adt )
 
 #define parsec_matrix_add2arena_rect( _adt_ , _oldtype_, _m_, _n_, _ld_ ) \
     parsec_matrix_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+
+/* shorthand version parsec_add2arena also deprecated */
+static inline
+int parsec_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
+                      parsec_matrix_uplo_t uplo, int diag,
+                      unsigned int m, unsigned int n, unsigned int ld,
+                      size_t alignment, int resized )
+    __parsec_attribute_deprecated__("Use parsec_matrix_arena_datatype_define_type");
+static inline
+int parsec_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
+                      parsec_matrix_uplo_t uplo, int diag,
+                      unsigned int m, unsigned int n, unsigned int ld,
+                      size_t alignment, int resized ) {
+    PARSEC_OBJ_CONSTRUCT(adt, parsec_arena_datatype_t);
+    return parsec_matrix_arena_datatype_define_type(adt, oldtype, uplo, diag, m, n, ld, alignment, resized);
+}
+
+static inline
+int parsec_del2arena( parsec_arena_datatype_t *adt )
+    __parsec_attribute_deprecated__("Use parsec_matrix_adt_destruct_free_type(adt)");
+static inline
+int parsec_del2arena( parsec_arena_datatype_t *adt) {
+    return parsec_matrix_arena_datatype_destruct_free_type(adt);
+}
+
+/* deprecated macros */
+#define parsec_add2arena_tile( _adt_ , _oldtype_, _m_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_m_), (_m_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+
+#define parsec_add2arena_upper( _adt_ , _oldtype_, diag, _n_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_UPPER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+
+#define parsec_add2arena_lower( _adt_ , _oldtype_, diag, _n_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_LOWER, (_diag_), (_n_), (_n_), (_n_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )
+
+#define parsec_add2arena_rect( _adt_ , _oldtype_, _m_, _n_, _ld_ ) \
+    parsec_add2arena( (_adt_), (_oldtype_), PARSEC_MATRIX_FULL, 0, (_m_), (_n_), (_ld_), PARSEC_ARENA_ALIGNMENT_SSE, -1 )

@@ -82,27 +82,42 @@ typedef struct {
 typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;
 
 /**
- * @brief Create a new Arena Datatype for DTD
+ * @brief Attach an Arena Datatype for DTD
  * @details Create a new unique Arena Datatype identifier,
- *    @id, and a new Arena Datatype; Associates the new Arena
+ *    @id, and a sets it in the pre-allocated Datatype; Associates the new Arena
  *    Datatype with the context @p ctx and the unique id @p id.
  *    This function is thread-safe per context, but not
  *    thread-safe if called in parallel on the same context.
  *
  * @param ctx the context in which the arena datatype exists.
+ * @param adt the Arena Datatype to attach, the adt must already be constructed
  * @param id Ignored as input. As output: the unique ID assigned
- *    to this new Arena Datatype.
- * @return the new Arena Datatype, or NULL if there was an error
- *    (e.g. no more memory or too many arena datatypes created
- *    within this context.) id is untouched if NULL is returned.
+ *    to this Arena Datatype.
+ * @return PARSEC_SUCCESS, or PARSEC_ERR_OUT_OF_RESOUCE if the adt was
+ * not attached (e.g. no more memory or too many arena datatypes created
+ *    within this context.) id and adt are untouched if an error is returned.
  */
-parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx, int *id);
+int parsec_dtd_attach_arena_datatype(parsec_context_t *ctx, parsec_arena_datatype_t *adt, int *id);
+
+/**
+ * @brief detach the Arena Datatype from its association to the
+ *    unique identifier
+ * @details This function is only valid if @p id is the unique
+ *    identifier associated to an Arena Datatype in @p ctx. This
+ *    function detaches the Arena Datatype from its association with the
+ *    identifier. The Arena Datatype is not freed.
+ * @param ctx the context in which the Arena Datatype exists
+ * @param id the unique identifier of the Arena Datatype to release
+ * @return The detached Arena Datatype in case of success, or NULL if
+ * there was an error.
+ */
+parsec_arena_datatype_t *parsec_dtd_detach_arena_datatype(parsec_context_t *ctx, int id);
 
 /**
  * @brief returns the Arena Datatype associated with this identifier
  *    in this context
  * @details This function is thread-safe as long as the Arena Datatype
- *    associated with this @p id in this @p ctx is not removed in parallel.
+ *    associated with this @p id in this @p ctx is not detached in parallel.
  * @param ctx the context in which the Arena Datatype exists
  * @param id the unique identifier of the Arena Datatype
  * @return the existing Arena Datatype, or NULL if there was an
@@ -111,18 +126,20 @@ parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx,
 parsec_arena_datatype_t *parsec_dtd_get_arena_datatype(parsec_context_t *ctx, int id);
 
 /**
- * @brief release the Arena Datatype and its association to the
- *    unique identifier
- * @details This function is only valid if @p id is the unique
- *    identifier associated to an Arena Datatype in @p ctx. This
- *    function releases the Arena Datatype and its association with the
- *    identifier.
+ * @brief detach and free the Arena Datatype associated with this identified,
+ * and the free the type assigned to the Arena Datatype
+ * @details This is a convenience function that detach and free the Arena
+ *   Datatype, and free its internal members (i.e., the arena, the opaque_dtt).
+ *   In some circumstances (e.g., persistent datatypes) calling this function
+ *   is not appropriate as it also free the datatype. In this case users should
+ *   call parsec_dtd_detach_arena_datatype and parsec_arena_datatype_destruct
+ *   themselves instead.
  * @param ctx the context in which the Arena Datatype exists
- * @param id the unique identifier of the Arena Datatype to release
- * @return PARSEC_SUCCESS in case of success, or an error code
- *    otherwise.
+ * @param id the unique identifier of the Arena Datatype
+ * @return PARSEC_SUCCESS or PARSEC_ERR_VALUE_OUT_OF_BOUNDS if the id is
+ *   invalid.
  */
-int parsec_dtd_destroy_arena_datatype(parsec_context_t *ctx, int id);
+int parsec_dtd_free_arena_datatype(parsec_context_t *ctx, int id);
 
 /**
  * Users can use this two variables to control the sliding window of task insertion.

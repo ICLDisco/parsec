@@ -774,6 +774,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     (void)parsec_remote_dep_init(context);
 
     PARSEC_PINS_INIT(context);
+#if defined(PARSEC_PROF_TRACE)
     if(profiling_enabled && (0 == parsec_pins_nb_modules_enabled())) {
         if(parsec_debug_rank == 0)
             parsec_warning("*** PaRSEC Profiling warning: creating profile file as requested,\n"
@@ -781,6 +782,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
                            "*** Activate the MCA PINS Module task_profiler to get the previous behavior\n"
                            "***   ( --mca mca_pins task_profiler )\n");
     }
+#endif  /* defined(PARSEC_PROF_TRACE) */
 
 #if defined(PARSEC_PROF_GRAPHER)
     if(parsec_dot_file) {

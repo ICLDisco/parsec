@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
     parsec_matrix_block_cyclic_t fakeDesc;
     parsec_project_taskpool_t *project;
     parsec_walk_taskpool_t *walker;
-    parsec_arena_datatype_t adt;
+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype_t);
     int do_checks = 0, be_verbose = 0;
     int pargc = 0, i;
     char **pargv;
@@ -216,26 +216,22 @@ int main(int argc, char *argv[])
                               0, 0, world, world,
                               1, world, 1, 1, 0, 0);
 
-    parsec_add2arena( &adt, parsec_datatype_float_t,
-                             PARSEC_MATRIX_FULL, 0,
-                             2, 1, 2,
-                             PARSEC_ARENA_ALIGNMENT_SSE, -1 );
+    parsec_matrix_adt_define_rect( adt,
+             parsec_datatype_float_t, 2, 1, 2);
 
 #if defined(HAVE_MPI)
     MPI_Barrier(MPI_COMM_WORLD);
 #endif
 
     project = parsec_project_new(treeA, world, (parsec_data_collection_t*)&fakeDesc, 1e-3, be_verbose, 1.0);
-    project->arenas_datatypes[PARSEC_project_DEFAULT_ADT_IDX] = adt;
-    PARSEC_OBJ_RETAIN(adt.arena);
+    project->arenas_datatypes[PARSEC_project_DEFAULT_ADT_IDX] = *adt;
     rc = parsec_context_add_taskpool(parsec, &project->super);
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-        
-    project->arenas_datatypes[PARSEC_project_DEFAULT_ADT_IDX].arena = NULL;
+
     parsec_taskpool_free(&project->super);
     ret = 0;
 
@@ -249,7 +245,7 @@ int main(int argc, char *argv[])
                                 rs, print_node_fn, print_link_fn,
                                 be_verbose);
     }
-    walker->arenas_datatypes[PARSEC_walk_DEFAULT_ADT_IDX] = adt;
+    walker->arenas_datatypes[PARSEC_walk_DEFAULT_ADT_IDX] = *adt;
     rc = parsec_context_add_taskpool(parsec, &walker->super);
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_start(parsec);
@@ -293,9 +289,8 @@ int main(int argc, char *argv[])
         }
     }
 #endif  /* defined(HAVE_MPI) */
-    parsec_del2arena( & adt );
+    parsec_matrix_adt_free( &adt );
 
-    walker->arenas_datatypes[PARSEC_walk_DEFAULT_ADT_IDX].arena = NULL;
     parsec_taskpool_free(&walker->super);
 
     tree_dist_free(treeA);

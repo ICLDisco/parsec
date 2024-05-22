@@ -48,7 +48,7 @@ parsec_taskpool_t *choice_new(parsec_data_collection_t *A, int size, int *decisi
     tp = parsec_choice_new(A, nb, world, decision);
 
     parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &newType);
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_choice_DEFAULT_ADT_IDX],
+    parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_choice_DEFAULT_ADT_IDX],
                                      size * sizeof(char), size * sizeof(char), newType );
 
 

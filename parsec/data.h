@@ -144,6 +144,28 @@ parsec_data_create_with_type( parsec_data_collection_t *desc,
 PARSEC_DECLSPEC void
 parsec_data_destroy( parsec_data_t *holder );
 
+/**
+ * Set the type of an arena datatype. Because the parameters cannot
+ * be known when OBJ_NEW/CONSTRUCT is called, the set_type must be
+ * called explicitely by the user.
+ * The opaque_dtt is not freed by the arena datatype destructor.
+ * The destructor will take care of cleanup for other internal members
+ * and work whether set_type was called or not.
+ */
+PARSEC_DECLSPEC int
+parsec_arena_datatype_set_type( parsec_arena_datatype_t *adt,
+                                size_t elem_size,
+                                size_t alignment,
+                                parsec_datatype_t opaque_dtt );
+
+PARSEC_DECLSPEC parsec_arena_datatype_t*
+parsec_arena_datatype_new(void);
+
+PARSEC_DECLSPEC void
+parsec_arena_datatype_release(parsec_arena_datatype_t **adt);
+
+PARSEC_OBJ_CLASS_DECLARATION(parsec_arena_datatype_t);
+
 END_C_DECLS
 
 /** @} */
