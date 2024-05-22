@@ -595,7 +595,6 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
                               size_t        eltsize )
 {
     int rc;
-    (void)eltsize;
 
     size_t alloc_size;
     size_t total_mem, initial_free_mem;
@@ -692,8 +691,8 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
 
         rc = gpu_device->memory_allocate(gpu_device, alloc_size, &base_ptr);
         if(PARSEC_SUCCESS != rc) {
-            parsec_warning("GPU[%d:%s] Allocating %zu bytes of memory on the GPU device failed",
-                           gpu_device->super.device_index, gpu_device->super.name, alloc_size);
+            parsec_warning("GPU[%d:%s] Allocating %zu bytes of memory on the GPU device failed (initial_free_mem was %zu)",
+                           gpu_device->super.device_index, gpu_device->super.name, alloc_size, initial_free_mem);
             gpu_device->memory = NULL;
             return PARSEC_ERROR;
         }
@@ -702,8 +701,8 @@ parsec_device_memory_reserve( parsec_device_gpu_module_t* gpu_device,
         mem_elem_per_gpu = alloc_size / eltsize;
         gpu_device->memory = zone_malloc_init( base_ptr, mem_elem_per_gpu, eltsize );
         if( gpu_device->memory == NULL ) {
-            parsec_warning("GPU[%d:%s] Cannot allocate memory on GPU %s. Skip it!",
-                           gpu_device->super.device_index, gpu_device->super.name, gpu_device->super.name);
+            parsec_warning("GPU[%d:%s] Failed trying to allocate %zu bytes. We tried to do so based on an initial_free_mem of %zu bytes and elt_size of %zu bytes",
+                           gpu_device->super.device_index, gpu_device->super.name, alloc_size, initial_free_mem, eltsize);
             return PARSEC_ERROR;
         }
 
