@@ -45,7 +45,7 @@ parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_t *A, int nb, int nt)
     parsec_type_create_contiguous(nb, parsec_datatype_int32_t, &block);
     parsec_type_extent(block, &lb, &extent);
 
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_BT_reduction_DEFAULT_ADT_IDX],
+    parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_BT_reduction_DEFAULT_ADT_IDX],
                                      extent, PARSEC_ARENA_ALIGNMENT_SSE,
                                      block);
 

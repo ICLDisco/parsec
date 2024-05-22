@@ -150,9 +150,7 @@ int main(int argc, char **argv)
     parsec_add2arena_rect(&parsec_dtd_arenas_datatypes[TILE_FULL],
                           parsec_datatype_int32_t, nb, 1, nb);
 #else
-    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype);
-    parsec_matrix_adt_construct_rect(adt,
-                                     parsec_datatype_int32_t, nb, 1, nb);
+    parsec_arena_datatype_t *adt = parsec_matrix_adt_new_rect(parsec_datatype_int32_t, nb, 1, nb);
     parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 #endif
 

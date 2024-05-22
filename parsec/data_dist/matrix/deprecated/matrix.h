@@ -139,14 +139,14 @@ int parsec_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t old
                              parsec_matrix_uplo_t uplo, int diag,
                              unsigned int m, unsigned int n, unsigned int ld,
                              size_t alignment, int resized )
-    __parsec_attribute_deprecated__("Use parsec_matrix_arena_datatype_construct_alloc_type");
+    __parsec_attribute_deprecated__("Use parsec_matrix_arena_datatype_define_type");
 static inline
 int parsec_matrix_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
                              parsec_matrix_uplo_t uplo, int diag,
                              unsigned int m, unsigned int n, unsigned int ld,
                              size_t alignment, int resized ) {
     PARSEC_OBJ_CONSTRUCT(adt, parsec_arena_datatype_t);
-    return parsec_matrix_arena_datatype_construct_alloc_type(adt, oldtype, uplo, diag, m, n, ld, alignment, resized);
+    return parsec_matrix_arena_datatype_define_type(adt, oldtype, uplo, diag, m, n, ld, alignment, resized);
 }
 
 static inline
@@ -176,14 +176,14 @@ int parsec_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
                       parsec_matrix_uplo_t uplo, int diag,
                       unsigned int m, unsigned int n, unsigned int ld,
                       size_t alignment, int resized )
-    __parsec_attribute_deprecated__("Use parsec_matrix_arena_datatype_construct_alloc_type");
+    __parsec_attribute_deprecated__("Use parsec_matrix_arena_datatype_define_type");
 static inline
 int parsec_add2arena( parsec_arena_datatype_t *adt, parsec_datatype_t oldtype,
                       parsec_matrix_uplo_t uplo, int diag,
                       unsigned int m, unsigned int n, unsigned int ld,
                       size_t alignment, int resized ) {
     PARSEC_OBJ_CONSTRUCT(adt, parsec_arena_datatype_t);
-    return parsec_matrix_arena_datatype_construct_alloc_type(adt, oldtype, uplo, diag, m, n, ld, alignment, resized);
+    return parsec_matrix_arena_datatype_define_type(adt, oldtype, uplo, diag, m, n, ld, alignment, resized);
 }
 
 static inline

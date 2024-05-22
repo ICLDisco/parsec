@@ -147,7 +147,7 @@ int main( int argc, char** argv )
 
     parsec_translate_matrix_type(TYPE, &dt);
 
-    parsec_matrix_adt_construct_rect(adt, dt,
+    parsec_matrix_adt_define_rect(adt, dt,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
     /* Start the PaRSEC engine */

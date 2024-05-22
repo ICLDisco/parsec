@@ -5,7 +5,7 @@ extern "C" %{
  * circulate from one task to another
  *    private variables
  *    guarded calls, RW
- *    parsec_arena_datatype_construct()
+ *    parsec_arena_datatype_set_type()
  *
  * @version 4.0
  * @email parsec-users@icl.utk.edu
@@ -113,9 +113,9 @@ int main(int argc, char *argv[])
      * datatype of the DEFAULT type, so it can allocate the required memory
      * space.
      */
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_Ex02_Chain_DEFAULT_ADT_IDX],
-                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                                     parsec_datatype_int_t );
+    parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_Ex02_Chain_DEFAULT_ADT_IDX],
+                                    sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                    parsec_datatype_int_t );
 
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");

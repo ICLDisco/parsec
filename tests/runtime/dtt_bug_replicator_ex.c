@@ -64,18 +64,18 @@ int main( int argc, char** argv )
         dump_double_array("Original ", (double*)dcA.mat, 0, 0, NB, NB, NB);
     }
     parsec_type_create_contiguous(NB*NB, parsec_datatype_double_t, &tile_dtt);
-    parsec_arena_datatype_construct( &dtt_tp->arenas_datatypes[PARSEC_dtt_bug_replicator_DTT1_ADT_IDX],
+    parsec_arena_datatype_set_type( &dtt_tp->arenas_datatypes[PARSEC_dtt_bug_replicator_DTT1_ADT_IDX],
                                      NB*NB*sizeof(double),
                                      PARSEC_ARENA_ALIGNMENT_SSE, tile_dtt );
 
-    parsec_arena_datatype_construct( &dtt_tp->arenas_datatypes[PARSEC_dtt_bug_replicator_DEFAULT_ADT_IDX],
+    parsec_arena_datatype_set_type( &dtt_tp->arenas_datatypes[PARSEC_dtt_bug_replicator_DEFAULT_ADT_IDX],
                                      NB*NB*sizeof(double),
                                      PARSEC_ARENA_ALIGNMENT_SSE, tile_dtt );
 
     parsec_type_create_vector(NB, 1, NB, parsec_datatype_double_t, &vdtt1);
     parsec_type_create_resized(vdtt1, 0, sizeof(parsec_datatype_double_t), &vdtt2);
     parsec_type_create_contiguous(NB, vdtt2, &vdtt);
-    parsec_arena_datatype_construct( &dtt_tp->arenas_datatypes[PARSEC_dtt_bug_replicator_DTT2_ADT_IDX],
+    parsec_arena_datatype_set_type( &dtt_tp->arenas_datatypes[PARSEC_dtt_bug_replicator_DTT2_ADT_IDX],
                                      NB*NB*sizeof(double),
                                      PARSEC_ARENA_ALIGNMENT_SSE, vdtt );
 

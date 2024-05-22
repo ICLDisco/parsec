@@ -169,7 +169,7 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
     taskpool->_g_cuda_device_index = dev_index;
 #endif
 
-    parsec_matrix_adt_construct_rect( &taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX],
+    parsec_matrix_adt_define_rect( &taskpool->arenas_datatypes[PARSEC_get_best_device_check_DEFAULT_ADT_IDX],
             parsec_datatype_double_t, dcA->mb, dcA->nb, dcA->mb);
 
     return get_best_device_check_taskpool;

@@ -51,8 +51,8 @@ two_dim_td_table_clone_table_structure -> parsec_matrix_tabular_clone_table_stru
 # symbols in matrix.h
 tiled_matrix_submatrix -> parsec_tiled_matrix_submatrix
 parsec_matrix_create_data -> parsec_tiled_matrix_create_data
-parsec_matrix_add2arena -> parsec_matrix_adt_construct
-parsec_add2arena -> parsec_matrix_adt_construct
+parsec_matrix_add2arena -> parsec_matrix_adt_define
+parsec_add2arena -> parsec_matrix_adt_define
 parsec_matrix_del2arena -> parsec_matrix_arena_datatype_destruct_free_type
 parsec_del2arena -> parsec_matrix_arena_datatype_destruct_free_type
 parsec_matrix_data_* -> parsec_tiled_matrix_data_*
@@ -86,8 +86,7 @@ This snippet extracted from `contrib/build_with_parsec/dtd_text_allreduce.c` sho
     parsec_add2arena_rect(&parsec_dtd_arenas_datatypes[TILE_FULL],
         parsec_datatype_int32_t, nb, 1, nb);
 #else
-    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype);
-    parsec_matrix_adt_construct_rect(adt,
+    parsec_arena_datatype_t *adt = parsec_matrix_adt_new_rect(
         parsec_datatype_int32_t, nb, 1, nb);
     parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 #endif
@@ -100,8 +99,7 @@ If you had updated to pre-release v4.x, you may have to do the following change:
 -    adt = parsec_dtd_create_arena_datatype(parsec, &TILE_FULL);
 -    parsec_add2arena_rect( adt,
 -       parsec_datatype_int32_t, nb, 1, nb);
-+    parsec_arena_datatype_t *adt = PARSEC_OBJ_NEW(parsec_arena_datatype);
-+    parsec_matrix_adt_construct_rect(adt,
++    parsec_arena_datatype_t *adt = parsec_matrix_adt_new_rect(
 +       parsec_datatype_int32_t, nb, 1, nb);
 +    parsec_dtd_attach_arena_datatype(parsec, adt, &TILE_FULL);
 ```
@@ -116,8 +114,7 @@ The cleanup of DTD allocated arena datatypes can be significantly simplified:
 -    parsec_dtd_destroy_arena_datatype(parsec, TILE_FULL);
 +    adt = parsec_dtd_detach_arena_datatype(parsec, TILE_FULL);
 +    assert(NULL != adt);
-+    parsec_type_free(&adt->opaque_dtt);
-+    PARSEC_OBJ_RELEASE(adt);
++    parsec_matrix_adt_free(&adt);
 ```
 
 This snippet repeated itself often enough that we have a shorthand for detaching the adt,

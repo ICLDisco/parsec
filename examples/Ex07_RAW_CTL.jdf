@@ -156,9 +156,9 @@ int main(int argc, char *argv[])
     mydata.data_key = data_key;
     mydata.data_of = data_of;
 
-    parsec_arena_datatype_construct( &adt,
-                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                                     parsec_datatype_int_t );
+    parsec_arena_datatype_set_type( &adt,
+                                    sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                    parsec_datatype_int_t );
 
     mycounter = 300 + rank;
     ddata_mycounter = parsec_data_create(
@@ -168,8 +168,8 @@ int main(int argc, char *argv[])
 
     tp = parsec_Ex07_RAW_CTL_new(&mydata, world, rank);
 
-    tp->arenas_datatypes[PARSEC_Ex07_RAW_CTL_DEFAULT_ADT_IDX] = adt; 
-    
+    tp->arenas_datatypes[PARSEC_Ex07_RAW_CTL_DEFAULT_ADT_IDX] = adt;
+
     rc = parsec_context_add_taskpool( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_context_add_taskpool");
     rc = parsec_context_start(parsec);

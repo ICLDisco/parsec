@@ -134,9 +134,9 @@ int main(int argc, char *argv[])
     mydata.vpid_of = vpid_of;
     mydata.data_key = data_key;
 
-    parsec_arena_datatype_construct( &adt,
-                                     sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                                     parsec_datatype_int_t );
+    parsec_arena_datatype_set_type( &adt,
+                                    sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                    parsec_datatype_int_t );
 
     ddata_mycounter = parsec_data_create( &ddata_mycounter, /* The parsec_data_t taskpool value   */
                                          &mydata,          /* The descriptor associated to it */

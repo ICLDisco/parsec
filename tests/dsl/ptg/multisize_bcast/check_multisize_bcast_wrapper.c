@@ -32,7 +32,7 @@ parsec_taskpool_t* check_multisize_bcast_new(parsec_matrix_block_cyclic_t *A, in
     /* As the datatype is parsec_datatype_int32_t all communications to/from
      * this arena should use the count property or they will exchange a
      * single integer. */
-    parsec_arena_datatype_construct(&tp->arenas_datatypes[PARSEC_check_multisize_bcast_DEFAULT_ADT_IDX],
+    parsec_arena_datatype_set_type(&tp->arenas_datatypes[PARSEC_check_multisize_bcast_DEFAULT_ADT_IDX],
                            nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_int32_t);
 

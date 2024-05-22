@@ -167,7 +167,7 @@ int main( int argc, char** argv )
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
     parsec_translate_matrix_type(TYPE, &otype);
-    parsec_matrix_adt_construct_rect(adt, otype,
+    parsec_matrix_adt_define_rect(adt, otype,
                                  descA.super.mb, descA.super.nb, descA.super.mb);
 
 

@@ -55,7 +55,7 @@ parsec_taskpool_t *ctlgat_new(parsec_data_collection_t *A, int size, int nb)
     tp = parsec_ctlgat_new(A, nb, worldsize);
 
     parsec_type_create_contiguous(size, parsec_datatype_uint8_t, &block);
-    parsec_arena_datatype_construct( &tp->arenas_datatypes[PARSEC_ctlgat_DEFAULT_ADT_IDX],
+    parsec_arena_datatype_set_type( &tp->arenas_datatypes[PARSEC_ctlgat_DEFAULT_ADT_IDX],
                                      size * sizeof(uint8_t), PARSEC_ARENA_ALIGNMENT_SSE,
                                      block );
 
