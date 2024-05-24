@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2019-2020 The University of Tennessee and The University
+ * Copyright (c) 2019-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -33,6 +33,14 @@ int main(int argc, char *argv[])
 #endif /* DISTRIBUTED */
 
     parsec = parsec_init(-1, &argc, &argv);
+
+    /* can the test run? */
+    int nb_gpus = parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA);
+    assert(nb_gpus >= 0);
+    if(nb_gpus == 0) {
+        parsec_warning("This test can only run if at least one GPU device is present");
+        exit(-PARSEC_ERR_DEVICE);
+    }
 
     tp = testing_nvlink_New(parsec, 10, 512);
     if( NULL != tp ) {

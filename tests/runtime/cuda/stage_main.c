@@ -14,7 +14,6 @@ int main(int argc, char *argv[])
 {
     parsec_context_t *parsec = NULL;
     parsec_taskpool_t *tp;
-    int i;
     int size = 1;
     int rank = 0;
     int M;
@@ -41,7 +40,15 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
+    /* can the test run? */
     assert(size == 1);
+    int nb_gpus = parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA);
+    assert(nb_gpus >= 0);
+    if(nb_gpus == 0) {
+        parsec_warning("This test can only run if at least one GPU device is present");
+        printf("TEST SKIPPED\n");
+        exit(-PARSEC_ERR_DEVICE);
+    }
 
     /* Test: comparing results when:
         - tile matrix transfered to GPU with default stage_in/stage_out
@@ -87,9 +94,9 @@ int main(int argc, char *argv[])
         parsec_taskpool_free(tp);
     }
 
-    if(ret!= 0){
-        printf("TEST FAILED\n");
-    }else{
+    if( ret != 0) {
+        printf("TEST FAILED (%d errors)\n", ret);
+    } else {
         printf("TEST PASSED\n");
     }
 
@@ -98,5 +105,5 @@ int main(int argc, char *argv[])
     MPI_Finalize();
 #endif /* DISTRIBUTED */
 
-    return ret;
+    return (0 == ret)? EXIT_SUCCESS: EXIT_FAILURE;
 }

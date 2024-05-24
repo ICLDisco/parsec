@@ -125,7 +125,7 @@ r = 0 .. NP-1
 // Parameters
 READ A <- (g == 0) ? A READ_A(m, r) : A GEMM(m, g-1, r)
        -> ((g + 1) < NGPUs)         ? A GEMM(m, g+1, r)
-READ B <- A READ_A( (m+g) % descA->super.mt, r)
+READ B <- A READ_A(m, r)
 RW   C <- (m == 0) ? C MAKE_C(g, r) : C GEMM(m-1, g, r)
        -> ((m + 1) < (descA->super.mt)) ? C GEMM(m+1, g, r)
                                     : C DISCARD_C(g, r)
