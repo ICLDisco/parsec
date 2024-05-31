@@ -196,7 +196,7 @@ static int32_t vector_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
     dc = (parsec_vector_two_dim_cyclic_t *)desc;
 
     /* If 1 VP, always return 0 */
-    pq = vpmap_get_nb_vp();
+    pq = parsec_vpmap_get_nb_vp();
     if ( pq == 1 )
         return 0;
 
@@ -225,7 +225,7 @@ static int32_t vector_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
 
     vpid = local_m * q + local_n;
 
-    assert( vpid < vpmap_get_nb_vp() );
+    assert( vpid < parsec_vpmap_get_nb_vp() );
     return vpid;
 }
 
