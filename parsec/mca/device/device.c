@@ -53,6 +53,11 @@ static mca_base_component_t **device_components = NULL;
  */
 static int parsec_device_load_balance_skew = 20;
 static float load_balance_skew;
+/**
+ * load balance allow scheduling tasks with GPU incarnations to CPU cores
+ * 0 means that tasks execute on CPU **only if they cannot execute on GPUs**
+ */
+static int parsec_device_load_balance_allow_cpu = 0;
 
 /**
  * @brief Estimates how many nanoseconds this_task will run on devid
@@ -223,6 +228,8 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
             /* Skip the device if it is disabled for the taskpool */
             if(!(tp->devices_index_mask & (1 << dev_index))) continue;
             dev = parsec_mca_device_get(dev_index);
+            /* Is automatic CPU / GPU load balancing enabled? */
+            if(dev->type == PARSEC_DEV_CPU && !parsec_device_load_balance_allow_cpu) continue;
             /* Skip the device if no incarnations for its type */
             if(!(dev->type & valid_types)) continue;
             /* Skip recursive devices: time estimates are computed on the associated CPU device */
@@ -313,10 +320,16 @@ int parsec_mca_device_init(void)
     (void)parsec_mca_param_reg_int_name("device", "load_balance_skew",
                                         "Allow load balancing to skew by x%% to favor data reuse",
                                         false, false, parsec_device_load_balance_skew, NULL);
+    (void)parsec_mca_param_reg_int_name("device", "load_balance_allow_cpu",
+                                        "Allow load balancing tasks with GPU incarnations to CPU cores",
+                                        false, false, parsec_device_load_balance_allow_cpu, NULL);
     if( 0 < (rc = parsec_mca_param_find("device", NULL, "load_balance_skew")) ) {
         parsec_mca_param_lookup_int(rc, &parsec_device_load_balance_skew);
     }
     load_balance_skew = 1.f/(parsec_device_load_balance_skew/100.f+1.f);
+    if( 0 < (rc = parsec_mca_param_find("device", NULL, "load_balance_allow_cpu")) ) {
+        parsec_mca_param_lookup_int(rc, &parsec_device_load_balance_allow_cpu);
+    }
     if( 0 < (rc = parsec_mca_param_find("device", NULL, "verbose")) ) {
         parsec_mca_param_lookup_int(rc, &parsec_device_verbose);
     }
