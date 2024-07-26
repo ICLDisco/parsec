@@ -72,7 +72,7 @@ __parsec_nvlink_destructor( parsec_nvlink_taskpool_t* nvlink_taskpool)
     userM = nvlink_taskpool->_g_userM;
     for(g = 0, dev = 0; dev < (int)parsec_nb_devices; dev++) {
         parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == cuda_device->super.super.type ) {
+        if( PARSEC_DEV_CUDA & cuda_device->super.super.type ) {
             parsec_data_t *dta = ((parsec_dc_t*)userM)->data_of((parsec_dc_t*)userM, g, userM->super.super.myrank);
             parsec_data_copy_t *gpu_copy = parsec_data_get_copy(dta, cuda_device->super.super.device_index);
             cudaError_t status = cudaSetDevice( cuda_device->cuda_index );
@@ -108,7 +108,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
     nb = 0;
     for(dev = 0; dev < (int)parsec_nb_devices; dev++) {
         parsec_device_module_t *device = parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             dev_index[nb++] = device->device_index;
         }
     }
@@ -168,7 +168,7 @@ parsec_taskpool_t* testing_nvlink_New( parsec_context_t *ctx, int depth, int mb 
      * in the JDF, this also pins the task on the GPU that we chose to host the tile */
     for(int g = 0, dev = 0; dev < (int)parsec_nb_devices; dev++) {
         parsec_device_cuda_module_t *cuda_device = (parsec_device_cuda_module_t*)parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == cuda_device->super.super.type ) {
+        if( PARSEC_DEV_CUDA & cuda_device->super.super.type ) {
             /* We get the data from the data collection */
             parsec_data_t *dta = ((parsec_dc_t*)userM)->data_of((parsec_dc_t*)userM, g, ctx->my_rank);
             /* The corresponding data copy on CPU RAM */

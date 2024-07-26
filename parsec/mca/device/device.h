@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 /** @addtogroup parsec_device
@@ -65,10 +66,13 @@ typedef struct parsec_device_base_component_2_0_0 parsec_device_base_component_t
 #define PARSEC_DEV_CUDA       ((uint8_t)(1 << 2))
 #define PARSEC_DEV_HIP        ((uint8_t)(1 << 3))
 #define PARSEC_DEV_LEVEL_ZERO ((uint8_t)(1 << 4))
+#define PARSEC_DEV_CUDA_BATCH ((uint8_t)(1 << 5))
 #define PARSEC_DEV_TEMPLATE   ((uint8_t)(1 << 7))
 #define PARSEC_DEV_ANY_TYPE   ((uint8_t)    0x3f)
 #define PARSEC_DEV_ALL        ((uint8_t)    0x3f)
 #define PARSEC_DEV_MAX_NB_TYPE                (7)
+/* The following flags are extensions to the device type */
+#define PARSEC_DEV_CHORE_ALLOW_BATCH  ((uint32_t)0x00000100)
 
 #define PARSEC_DEV_GPU_MASK   (PARSEC_DEV_CUDA|PARSEC_DEV_HIP|PARSEC_DEV_LEVEL_ZERO)
 #define PARSEC_DEV_IS_GPU(t)  (0 != ((t) & PARSEC_DEV_GPU_MASK))

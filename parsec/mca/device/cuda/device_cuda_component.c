@@ -276,7 +276,7 @@ static int device_cuda_component_close(void)
     /* Check that no CUDA devices are still registered with PaRSEC */
     for(i = 0; i < parsec_mca_device_enabled(); i++) {
         if( NULL == (cdev = (parsec_device_cuda_module_t*)parsec_mca_device_get(i)) ) continue;
-        if(PARSEC_DEV_CUDA != cdev->super.super.type) continue;
+        if(PARSEC_DEV_CUDA & cdev->super.super.type) continue;
 
         PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
                              "GPU[%d:%s] CUDA device %d still registered with PaRSEC at the end of CUDA finalize.\n"

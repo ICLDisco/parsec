@@ -1,8 +1,8 @@
 /*
- *
  * Copyright (c) 2021-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -526,7 +526,7 @@ parsec_device_taskpool_register(parsec_device_module_t* device,
         const parsec_task_class_t* tc = tp->task_classes_array[i];
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( j = 0; NULL != chores[j].hook; j++ ) {
-            if( chores[j].type != device->type )
+            if( !(chores[j].type & device->type) )
                 continue;
             if( NULL != chores[j].dyld_fn ) {
                 /* the function has been set for another device of the same type */
@@ -1181,7 +1181,7 @@ parsec_default_gpu_stage_in(parsec_gpu_task_t        *gtask,
         src_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(source->device_index);
         dst_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(dest->device_index);
 
-        if(src_dev->super.type == dst_dev->super.type) {
+        if((src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE)) {
             assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
             dir = parsec_device_gpu_transfer_direction_d2d;
         } else {
@@ -1232,7 +1232,7 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
 
             count = (source->original->nb_elts <= dest->original->nb_elts) ? source->original->nb_elts :
                         dest->original->nb_elts;
-            if( src_dev->super.type == dst_dev->super.type ) {
+            if( (src_dev->super.type & PARSEC_DEV_ANY_TYPE) == (dst_dev->super.type & PARSEC_DEV_ANY_TYPE) ) {
                 assert( src_dev->peer_access_mask & (1 << dst_dev->super.device_index) );
                 dir = parsec_device_gpu_transfer_direction_d2d;
             } else {
@@ -1353,7 +1353,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
         PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
                              "GPU[%d:%s]:\tSelecting candidate data copy %p [ref_count %d] on data %p",
                              gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, task_data->data_in->super.super.obj_reference_count, original);
-        if( gpu_device->super.type == candidate_dev->super.type ) {
+        if( (gpu_device->super.type & PARSEC_DEV_ANY_TYPE) == (candidate_dev->super.type & PARSEC_DEV_ANY_TYPE) ) {
             if( gpu_device->peer_access_mask & (1 << candidate_dev->super.device_index) ) {
                 /* We can directly do D2D, so let's skip the selection */
                 PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
@@ -1503,7 +1503,8 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                         gpu_device->super.device_index, gpu_device->super.name, rc, __func__, __LINE__,
                         candidate->device_private, candidate_dev->super.device_index, candidate_dev->super.name,
                         gpu_elem->device_private, gpu_device->super.device_index, gpu_device->super.name,
-                        nb_elts, (candidate_dev->super.type != gpu_device->super.type)? "H2D": "D2D");
+                        nb_elts,
+                        (candidate_dev->super.type & gpu_device->super.type & PARSEC_DEV_ANY_TYPE)? "D2D": "H2D");
         parsec_atomic_unlock( &original->lock );
         assert(0);
         return PARSEC_HOOK_RETURN_ERROR;
@@ -1869,15 +1870,26 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
         }
     }
 
- grab_a_task:
+  grab_a_task:
     if( NULL == stream->tasks[stream->start] ) {  /* there is room on the stream */
         task = (parsec_gpu_task_t*)parsec_list_pop_front(stream->fifo_pending);  /* get the best task */
     }
     if( NULL == task ) {  /* No tasks, we're done */
         return PARSEC_HOOK_RETURN_DONE;
     }
-    PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t*)task);
+    /* Should we allow the tasks to be batched */
+    if (PARSEC_GPU_TASK_TYPE_KERNEL == task->task_type ) {
+        if( PARSEC_DEV_CHORE_ALLOW_BATCH & task->ec->task_class->incarnations[0].type ) {
+            /* Don't singleton the task, allowing the kernel to extract the tasks it wants 
+             * from the task ring, and singleton it or replace it with the aggregated tasks
+             * as necessary.
+             */
+            goto move_forward_with_this_task;
+        }
+    }
+    PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t *)task);
 
+  move_forward_with_this_task:
     assert( NULL == stream->tasks[stream->start] );
 
   schedule_task:

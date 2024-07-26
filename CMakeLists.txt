@@ -181,6 +181,8 @@ option(PARSEC_GPU_ALLOC_PER_TILE
 mark_as_advanced(PARSEC_GPU_ALLOC_PER_TILE)
 option(PARSEC_GPU_WITH_CUDA
   "Enable GPU support using CUDA kernels" ON)
+option(PARSEC_GPU_WITH_CUDA_BATCH
+  "Enable the runtime support for batched kernels" ON)
 option(PARSEC_GPU_WITH_HIP
     "Enable GPU support using HIP kernels" ON)
 option(PARSEC_GPU_WITH_LEVEL_ZERO
@@ -729,6 +731,12 @@ int main(int argc, char *argv[]) {
     endif (CUDAToolkit_FOUND)
     set(PARSEC_HAVE_CU_COMPILER ${CMAKE_CUDA_COMPILER} CACHE BOOL "True if PaRSEC provide support for compiling .cu files")
   endif( PARSEC_GPU_WITH_CUDA )
+  if( PARSEC_GPU_WITH_CUDA_BATCH )
+    if( NOT PARSEC_HAVE_CUDA)
+      message(FATAL_ERROR "PARSEC_GPU_WITH_CUDA_BATCH requires PARSEC_GPU_WITH_CUDA. Enable both or none")
+    endif( NOT PARSEC_HAVE_CUDA)
+    set(PARSEC_HAVE_CUDA_BATCH True CACHE BOOL "True if support for batched CUDA has been enabled")
+  endif( PARSEC_GPU_WITH_CUDA_BATCH )
 
   if( PARSEC_GPU_WITH_HIP )
     # This is kinda ugly but the PATH and HINTS don't get transmitted to sub-dependents

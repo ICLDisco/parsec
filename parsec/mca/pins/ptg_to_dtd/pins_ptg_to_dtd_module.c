@@ -2,7 +2,7 @@
  * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2023      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2023-2024 NVIDIA Corporation.  All rights reserved.
  */
 
 /**
@@ -86,7 +86,7 @@ copy_chores(parsec_taskpool_t *tp, parsec_dtd_taskpool_t *dtd_tp)
             parsec_hook_t **hook_not_const = (parsec_hook_t **)&(tp->task_classes_array[i]->incarnations[j].hook);
 
             /* saving the CPU hook only */
-            if (tp->task_classes_array[i]->incarnations[j].type == PARSEC_DEV_CPU) {
+            if (tp->task_classes_array[i]->incarnations[j].type & PARSEC_DEV_CPU) {
                 dtd_tp->actual_hook[i].hook = tp->task_classes_array[i]->incarnations[j].hook;
             }
             /* copying the fake hook in all the hooks (CPU, GPU etc) */
@@ -312,8 +312,8 @@ parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
         free(params);
 
         __parsec_chore_t *incarnations = (__parsec_chore_t *)tc->incarnations;
-        for(int i = 0; PARSEC_DEV_NONE != incarnations[i].type; i++ ) {
-            if( PARSEC_DEV_CPU == incarnations[i].type ) {
+        for(int i = 0; PARSEC_DEV_NONE != (incarnations[i].type & PARSEC_DEV_ANY_TYPE); i++ ) {
+            if( PARSEC_DEV_CPU & incarnations[i].type ) {
                 incarnations[i] = dtd_chore_for_testing;
             }
         }
