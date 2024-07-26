@@ -2,7 +2,7 @@
  * Copyright (c) 2021-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2026      NVIDIA Corporation.  All rights reserved.
+ * Copyright (c) 2024-2026 NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
@@ -347,7 +347,7 @@ int get_nb_gpu_devices()
 
     for( int dev = 0; dev < (int)parsec_nb_devices; dev++ ) {
         parsec_device_module_t *device = parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             nb++;
         }
     }
@@ -363,7 +363,7 @@ int *get_gpu_device_index()
     int i = 0;
     for( int dev = 0; dev < (int)parsec_nb_devices; dev++ ) {
         parsec_device_module_t *device = parsec_mca_device_get(dev);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             dev_index[i++] = device->device_index;
         }
     }

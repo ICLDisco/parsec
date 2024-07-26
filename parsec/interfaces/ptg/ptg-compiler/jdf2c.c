@@ -3951,21 +3951,29 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
     jdf_def_list_t* dyld_property;
     jdf_def_list_t* evaluate_property = NULL;
     jdf_def_list_t* device_property = NULL;
-     char* dev_upper;
+    jdf_def_list_t* batch_property = NULL;
 
     (void)jdf;
     string_arena_add_string(sa, "static const __parsec_chore_t __%s_chores[] ={\n", base_name);
     do {
+        char* dev_upper;
         jdf_find_property(body->properties, "type", &type_property);
         jdf_find_property(body->properties, "dyld", &dyld_property);
         jdf_find_property(body->properties, JDF_BODY_PROP_EVALUATE, &evaluate_property);
+        jdf_find_property(body->properties, "batch", &batch_property);
         if( NULL == type_property) {
             dev_upper = strdup_upper("CPU");
         } else {
             dev_upper = strdup_upper(type_property->expr->jdf_var);
         }
         string_arena_add_string(sa, "#if defined(PARSEC_HAVE_DEV_%s_SUPPORT)\n", dev_upper);
-        string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s,\n", dev_upper);
+        string_arena_add_string(sa, "    { .type     = PARSEC_DEV_%s", dev_upper);
+        if( NULL != batch_property) {
+#if defined(PARSEC_HAVE_DEV_CAPABILITY_BATCH)
+            string_arena_add_string(sa, " | PARSEC_DEV_CHORE_ALLOW_BATCH");
+#endif
+        }
+        string_arena_add_string(sa, ",\n");
         if( NULL == dyld_property ) {
             string_arena_add_string(sa, "      .dyld     = NULL,\n");
         } else {
@@ -3974,7 +3982,7 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
             if ( NULL == dyld_proptotype_property ) {
                 fprintf(stderr,
                         "Internal Error: function prototype (dyldtype) of dyld function (%s) is not defined in %s body of task %s at line %d\n",
-                        dyld_property->expr->jdf_var, type_property->expr->jdf_var, f->fname, JDF_OBJECT_LINENO( body ) );
+                        dyld_property->expr->jdf_var, dev_upper, f->fname, JDF_OBJECT_LINENO( body ) );
                 assert( NULL != dyld_proptotype_property );
             }
             string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
@@ -3993,7 +4001,6 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
         string_arena_add_string(sa, "      .hook     = (parsec_hook_t*)hook_of_%s_%s },\n", base_name, dev_upper);
         string_arena_add_string(sa, "#endif  /* defined(PARSEC_HAVE_DEV_%s_SUPPORT) */\n", dev_upper);
         free(dev_upper);
-
         body = body->next;
     } while (NULL != body);
     string_arena_add_string(sa,
@@ -4500,7 +4507,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    parsec_task_class_t* tc = (parsec_task_class_t*)__parsec_tp->super.super.task_classes_array[i];\n"
             "    __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;\n"
             "    uint32_t idx = 0, j;\n"
-            "    for( j = 0; PARSEC_DEV_NONE != chores[j].type; j++ ) {\n"
+            "    for( j = 0; PARSEC_DEV_NONE != (chores[j].type & PARSEC_DEV_ANY_TYPE); j++ ) {\n"
             "      if( !(supported_dev & chores[j].type) ) continue;\n"
             "      if( j != idx ) {\n"
             "        chores[idx] = chores[j];\n"
@@ -4684,7 +4691,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     coutput("  for( i = 0; i < __parsec_tp->super.super.nb_task_classes; i++ ) {\n"
             "    __parsec_tp->super.super.task_classes_array[i] = tc = malloc(sizeof(parsec_task_class_t));\n"
             "    memcpy(tc, %s_task_classes[i], sizeof(parsec_task_class_t));\n"
-            "    for( j = 0; PARSEC_DEV_NONE != tc->incarnations[j].type; j++);  /* compute the number of incarnations */\n"
+            "    for( j = 0; PARSEC_DEV_NONE != (tc->incarnations[j].type & PARSEC_DEV_ANY_TYPE); j++);  /* compute the number of incarnations */\n"
             "    tc->incarnations = (__parsec_chore_t*)malloc((j+1) * sizeof(__parsec_chore_t));\n    "
             "    memcpy((__parsec_chore_t*)tc->incarnations, %s_task_classes[i]->incarnations, (j+1) * sizeof(__parsec_chore_t));\n\n"
             "    /* Add a placeholder for initialization and startup task */\n"
@@ -6747,8 +6754,8 @@ static void jdf_generate_code_hook_gpu(const jdf_t *jdf,
         coutput("  /* Pointer to dynamic gpu function */\n"
                 "  {\n"
                 "    int chore_idx = 0;\n"
-                "    for ( ; PARSEC_DEV_NONE != this_task->task_class->incarnations[chore_idx].type; ++chore_idx) {\n"
-                "      if (this_task->task_class->incarnations[chore_idx].type == PARSEC_DEV_%s) break;\n"
+                "    for ( ; PARSEC_DEV_NONE != (this_task->task_class->incarnations[chore_idx].type & PARSEC_DEV_ANY_TYPE); ++chore_idx) {\n"
+                "      if (this_task->task_class->incarnations[chore_idx].type & PARSEC_DEV_%s) break;\n"
                 "    }\n"
                 "    /* The void* cast prevents the compiler from complaining about the type change */\n"
                 "    parsec_body.dyld_fn = (%s)(void*)this_task->task_class->incarnations[chore_idx].dyld_fn;\n"
@@ -7000,7 +7007,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     coutput("#if defined(PARSEC_HAVE_DEV_%s_SUPPORT)\n", type_upper);
     if( NULL != type_property) {
 
-        if (!strcasecmp(type_property->expr->jdf_var, "cuda")
+        if (!strncasecmp(type_property->expr->jdf_var, "cuda", 4)  /* for batched */
          || !strcasecmp(type_property->expr->jdf_var, "hip")) {
             jdf_generate_code_hook_gpu(jdf, f, body, name);
             goto hook_end_block;
