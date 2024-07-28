@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -68,7 +69,7 @@ int main(int argc, char *argv[])
     dcA = create_and_distribute_data(rank, world, size);
     parsec_data_collection_set_key(dcA, "A");
 
-    decision = (int*)calloc(sizeof(int), nb+1);
+    decision = (int*)calloc(nb+1, sizeof(int));
 
     choice = choice_new(dcA, size, decision, nb, world);
     rc = parsec_context_add_taskpool(parsec, choice);

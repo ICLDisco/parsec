@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
     }
     
     printf("running with %d cores and %d copies\n", cores, ncopy);
-    threads = calloc(sizeof(pthread_t), cores);
+    threads = calloc(cores, sizeof(pthread_t));
 
     fut_array = malloc(ncopy*sizeof(parsec_datacopy_future_t*));
     data = malloc(cores*ncopy*sizeof(int));

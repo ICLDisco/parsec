@@ -2,6 +2,7 @@
  * Copyright (c) 2017-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "common.h"
@@ -158,7 +159,7 @@ int reshape_set_matrix_value_position_swap(parsec_execution_stream_t *es,
 
 int check_matrix_equal(parsec_matrix_block_cyclic_t dcA, parsec_matrix_block_cyclic_t dcA_check){
     int ret = 0;
-    for(int i=0; i < dcA_check.super.nb_local_tiles * dcA_check.super.bsiz; i++){
+    for(size_t i = 0; i < (dcA_check.super.nb_local_tiles * dcA_check.super.bsiz); i++) {
         if( ((int*)dcA.mat)[i] != ((int*)dcA_check.mat)[i]){
             ret = 1;
             break;

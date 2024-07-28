@@ -211,7 +211,7 @@ int main( int argc, char** argv )
     profiling_save_iinfo("NB", NB);
 #endif
 
-    taskqueue = (parsec_task_t**)calloc(sizeof(parsec_task_t*), (NB+1));
+    taskqueue = (parsec_task_t**)calloc(NB+1, sizeof(parsec_task_t*));
     /**
      * Build the data and the arena to hold it up.
      */

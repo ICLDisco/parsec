@@ -2,6 +2,7 @@
  * Copyright (c) 2011-2021 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/runtime.h"
@@ -106,7 +107,7 @@ static const parsec_symbol_t symb_column = {
     .flags = PARSEC_SYMBOL_IS_STANDALONE
 };
 
-static inline int affinity_of_map_operator(parsec_task_t *this_task,
+static inline int affinity_of_map_operator(const parsec_task_t *this_task,
                                            parsec_data_ref_t *ref)
 {
     const parsec_map_operator_taskpool_t *__tp = (const parsec_map_operator_taskpool_t*)this_task->taskpool;
@@ -117,7 +118,7 @@ static inline int affinity_of_map_operator(parsec_task_t *this_task,
     return 1;
 }
 
-static inline int initial_data_of_map_operator(parsec_task_t *this_task,
+static inline int initial_data_of_map_operator(const parsec_task_t *this_task,
                                                parsec_data_ref_t *refs)
 {
     int __flow_nb = 0;
@@ -134,7 +135,7 @@ static inline int initial_data_of_map_operator(parsec_task_t *this_task,
     return __flow_nb;
 }
 
-static inline int final_data_of_map_operator(parsec_task_t *this_task,
+static inline int final_data_of_map_operator(const parsec_task_t *this_task,
                                              parsec_data_ref_t *data_refs)
 {
     int __flow_nb = 0;
