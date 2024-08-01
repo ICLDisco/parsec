@@ -417,16 +417,16 @@ void
 parsec_dtd_fini();
 
 static inline void
-parsec_dtd_retain_data_copy( parsec_data_copy_t *data )
+parsec_dtd_retain_data_copy( parsec_data_copy_t *copy )
 {
-    assert( data->super.super.obj_reference_count >= 1 );
-    PARSEC_OBJ_RETAIN(data);
+    assert( copy->super.super.obj_reference_count >= 1 );
+    PARSEC_DATA_COPY_RETAIN(copy);
 }
 
 static inline void
-parsec_dtd_release_data_copy( parsec_data_copy_t *data )
+parsec_dtd_release_data_copy(parsec_data_copy_t *copy)
 {
-    PARSEC_OBJ_RELEASE(data);
+    PARSEC_DATA_COPY_RELEASE(copy);
 }
 
 

@@ -201,6 +201,9 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_taskpool_t);
 #define PARSEC_DEPENDENCIES_STARTUP_TASK   ((parsec_dependency_t)(1<<29))
 #define PARSEC_DEPENDENCIES_BITMASK        (~(PARSEC_DEPENDENCIES_TASK_DONE|PARSEC_DEPENDENCIES_IN_DONE|PARSEC_DEPENDENCIES_STARTUP_TASK))
 
+#define PARSEC_RUNTIME_SEND_FROM_GPU_MEMORY 0x00000002
+#define PARSEC_RUNTIME_RECV_FROM_GPU_MEMORY 0x00000001
+
 /**
  * This structure is used internally by the parsec_dependencies_t structures
  */
@@ -492,6 +495,12 @@ PARSEC_DECLSPEC extern int parsec_slow_bind_warning;
  * the scheduler, but can provide a better cache reuse.
  */
 PARSEC_DECLSPEC extern int parsec_runtime_keep_highest_priority_task;
+/**
+ * Global configuration mask allowing or not for the data to be sent or received,
+ * from or to, GPU memory. It can be an OR between PARSEC_RUNTIME_SEND_FROM_GPU_MEMORY
+ * and PARSEC_RUNTIME_RECV_FROM_GPU_MEMORY.
+ */
+PARSEC_DECLSPEC extern int parsec_mpi_allow_gpu_memory_communications;
 
 /**
  * Description of the state of the task. It indicates what will be the next

@@ -60,40 +60,15 @@ __parsec_rtt_destructor(parsec_rtt_taskpool_t *rtt_tp)
 PARSEC_OBJ_CLASS_INSTANCE(parsec_rtt_taskpool_t, parsec_taskpool_t,
                           NULL, __parsec_rtt_destructor);
 
-parsec_taskpool_t *rtt_New(parsec_context_t *ctx, size_t size, int roundtrips)
+parsec_taskpool_t *rtt_New(parsec_context_t *ctx, parsec_matrix_block_cyclic_t *dcA,
+                           parsec_datatype_t block, int roundtrips)
 {
     parsec_rtt_taskpool_t *tp = NULL;
-    parsec_datatype_t block;
-    size_t mb = sqrt(size), nb = size / mb;
-
-    if (mb <= 0) {
-        fprintf(stderr, "To work, RTT must do at least one round time trip of at least one byte\n");
-        return (parsec_taskpool_t *)tp;
-    }
-
-    parsec_matrix_block_cyclic_t* dcA = (parsec_matrix_block_cyclic_t *)calloc(1, sizeof(parsec_matrix_block_cyclic_t));
-    parsec_matrix_block_cyclic_init(dcA, PARSEC_MATRIX_BYTE, PARSEC_MATRIX_TILE,
-                                    ctx->my_rank,
-                                    mb, nb,
-                                    mb, ctx->nb_nodes * nb,
-                                    0, 0,
-                                    mb, ctx->nb_nodes * nb,
-                                    1, ctx->nb_nodes, 1, 1,
-                                    0, 0);
-    dcA->mat = parsec_data_allocate((size_t)dcA->super.nb_local_tiles *
-                                    (size_t)dcA->super.bsiz *
-                                    (size_t)parsec_datadist_getsizeoftype(dcA->super.mtype));
-    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
-
-    /* Initialize and place the dcA */
-    parsec_apply(ctx, PARSEC_MATRIX_FULL,
-                 (parsec_tiled_matrix_t *)dcA,
-                 (parsec_tiled_matrix_unary_op_t)matrix_init_ops, NULL);
 
     tp = parsec_rtt_new((parsec_data_collection_t*)dcA, roundtrips, ctx->nb_nodes);
+    tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX].opaque_dtt = block;
 
     ptrdiff_t lb, extent;
-    parsec_type_create_contiguous(mb*nb, parsec_datatype_uint8_t, &block);
     parsec_type_extent(block, &lb, &extent);
 
     parsec_arena_datatype_construct(&tp->arenas_datatypes[PARSEC_rtt_DEFAULT_ADT_IDX],
@@ -144,26 +119,33 @@ int main(int argc, char *argv[])
     }
     argv[argc] = NULL;
 #if defined(DISTRIBUTED)
-#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
-    extern char **environ;
-    char *value;
-    asprintf(&value, "%d", nb_gpus);
-    parsec_setenv_mca_param("device_cuda_enabled", value, &environ);
-    free(value);
-    value = NULL;
-    if (0xFF != gpu_mask) {
-        asprintf(&value, "%d", gpu_mask);
-        parsec_setenv_mca_param("device_cuda_mask", value, &environ);
-        free(value);
-        value = NULL;
-    }
-#endif
     {
         int provided;
         MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
     }
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
+    if (0xFF == gpu_mask) {
+        extern char **environ;
+        MPI_Comm local_comm;
+        int local_rank, local_size;
+        MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0,
+                            MPI_INFO_NULL, &local_comm);
+        MPI_Comm_rank(local_comm, &local_rank);
+        MPI_Comm_size(local_comm, &local_size);
+        MPI_Comm_free(&local_comm);
+        int gpu_mask = 0;
+        for (int i = 0; i < nb_gpus; i++) {
+            gpu_mask |= ((1 << local_rank) << i);
+        }
+        char *value;
+        asprintf(&value, "%d", gpu_mask);
+        parsec_setenv_mca_param("device_cuda_mask", value, &environ);
+        free(value);
+        value = NULL;
+    }
+#endif
 #endif /* DISTRIBUTED */
     if( 0 == rank ) {
         printf("Running %d tests of %d steps RTT with a data of size %zu\n",
@@ -178,9 +160,6 @@ int main(int argc, char *argv[])
         parsec_warning("This test can only run if at least one GPU device is present");
         exit(-PARSEC_ERR_DEVICE);
     }
-    if( do_sleep ) {
-        sleep(do_sleep);
-    }
     cuda_device_index = (int *)malloc(parsec_nb_devices * sizeof(int));
     cuda_device_index_len = 0;
     for (int dev = 0; dev < (int)parsec_nb_devices; dev++) {
@@ -190,12 +169,44 @@ int main(int argc, char *argv[])
         }
     }
 
+    parsec_datatype_t block;
+    size_t mb = sqrt(msg_size), nb = msg_size / mb;
+    if (mb <= 0) {
+        fprintf(stderr, "To work, RTT must do at least one round time trip of at least one byte\n");
+        exit(-1);
+    }
+
+    parsec_matrix_block_cyclic_t* dcA = (parsec_matrix_block_cyclic_t *)calloc(1, sizeof(parsec_matrix_block_cyclic_t));
+    parsec_matrix_block_cyclic_init(dcA, PARSEC_MATRIX_BYTE, PARSEC_MATRIX_TILE,
+                                    parsec->my_rank,
+                                    mb, nb,
+                                    mb, parsec->nb_nodes * nb,
+                                    0, 0,
+                                    mb, parsec->nb_nodes * nb,
+                                    1, parsec->nb_nodes, 1, 1,
+                                    0, 0);
+    dcA->mat = parsec_data_allocate((size_t)dcA->super.nb_local_tiles *
+                                    (size_t)dcA->super.bsiz *
+                                    (size_t)parsec_datadist_getsizeoftype(dcA->super.mtype));
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
+
+    parsec_type_create_contiguous(mb * nb, parsec_datatype_uint8_t, &block);
+
+    /* Initialize and place the dcA */
+    parsec_apply(parsec, PARSEC_MATRIX_FULL,
+                 (parsec_tiled_matrix_t *)dcA,
+                 (parsec_tiled_matrix_unary_op_t)matrix_init_ops, NULL);
+
+
+    if( do_sleep ) {
+        sleep(do_sleep);
+    }
 #if defined(PARSEC_HAVE_MPI)
         MPI_Barrier(MPI_COMM_WORLD);
 #endif  /* defined(PARSEC_HAVE_MPI) */
     gettimeofday(&tstart, NULL);
     for( int test_id = 0; test_id < nb_runs; test_id++ ) {
-        tp = rtt_New(parsec, msg_size, loops);
+        tp = rtt_New(parsec, dcA, block, loops);
         if( NULL != tp ) {
             parsec_context_add_taskpool(parsec, tp);
             parsec_context_start(parsec);

@@ -492,7 +492,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
             /* This assert is not correct anymore, we don't need an arena to send to a remote
              * assert(NULL != output->data.remote.arena);*/
             assert( !parsec_is_CTL_dep(&output->data) );
-            PARSEC_OBJ_RETAIN(output->data.data);
+            PARSEC_DATA_COPY_RETAIN(output->data.data);
         }
 
         for( array_index = count = 0; count < remote_deps->output[i].count_bits; array_index++ ) {

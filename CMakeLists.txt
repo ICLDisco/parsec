@@ -165,6 +165,9 @@ option(PARSEC_DIST_WITH_MPI
 if(PARSEC_DIST_WITH_MPI AND 0)
   message(FATAL_ERROR "PARSEC_DIST_WITH_MPI and PARSEC_DIST_WITH_OTHER are mutually exclusive, please select only one")
 endif()
+option(PARSEC_MPI_IS_GPU_AWARE
+       "Build PaRSEC assuming the MPI library is GPU-aware, aka. can move data directly to and from GPU memory.\
+       As of today (mid 2024) while most MPI support such an option, they require a single process per GPU" ON)
 option(PARSEC_DIST_THREAD
   "Use an extra thread to progress the data movements" ON)
 option(PARSEC_DIST_PRIORITIES

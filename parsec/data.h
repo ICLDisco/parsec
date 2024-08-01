@@ -31,9 +31,9 @@ typedef uint8_t parsec_data_coherency_t;
 #define    PARSEC_DATA_COHERENCY_SHARED    ((parsec_data_coherency_t)0x4)
 
 typedef uint8_t parsec_data_status_t;
-#define    PARSEC_DATA_STATUS_NOT_TRANSFER          ((parsec_data_coherency_t)0x0)
-#define    PARSEC_DATA_STATUS_UNDER_TRANSFER        ((parsec_data_coherency_t)0x1)
-#define    PARSEC_DATA_STATUS_COMPLETE_TRANSFER     ((parsec_data_coherency_t)0x2)
+#define    PARSEC_DATA_STATUS_NOT_TRANSFER          ((parsec_data_status_t)0x0)
+#define    PARSEC_DATA_STATUS_UNDER_TRANSFER        ((parsec_data_status_t)0x1)
+#define    PARSEC_DATA_STATUS_COMPLETE_TRANSFER     ((parsec_data_status_t)0x2)
 /**
  * Data copies have three levels of 'ownership':
  * - a data copy can be owned and managed by PaRSEC.
@@ -124,8 +124,8 @@ PARSEC_DECLSPEC void
 parsec_data_end_transfer_ownership_to_copy(parsec_data_t* data,
                                                 uint8_t device,
                                                 uint8_t access_mode);
-PARSEC_DECLSPEC void parsec_dump_data_copy(parsec_data_copy_t* copy);
-PARSEC_DECLSPEC void parsec_dump_data(parsec_data_t* copy);
+PARSEC_DECLSPEC void parsec_data_copy_dump(parsec_data_copy_t *copy);
+PARSEC_DECLSPEC void parsec_data_dump(parsec_data_t* copy);
 
 PARSEC_DECLSPEC parsec_data_t *
 parsec_data_create( parsec_data_t **holder,
