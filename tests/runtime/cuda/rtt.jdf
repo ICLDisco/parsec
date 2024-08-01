@@ -13,7 +13,7 @@ k = 0 .. NT-1
 : A(0, k % WS)
 
 RW T <- (k == 0) ? A(0, k % WS) : T PING(k-1)
-     -> (k < NT) ? T PING(k+1) : A(0, k % WS)
+     -> (k < NT) ? T PING(k+1)
 
 ; 0
 

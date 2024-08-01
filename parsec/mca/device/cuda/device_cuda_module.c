@@ -574,9 +574,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     gpu_device->find_incarnation = parsec_cuda_find_incarnation;
 
     if( PARSEC_SUCCESS != parsec_device_memory_reserve(gpu_device,
-                                                           parsec_cuda_memory_percentage,
-                                                           parsec_cuda_memory_number_of_blocks,
-                                                           parsec_cuda_memory_block_size) ) {
+                                                       parsec_cuda_memory_percentage,
+                                                       parsec_cuda_memory_number_of_blocks,
+                                                       parsec_cuda_memory_block_size) ) {
         goto release_device;
     }
 
