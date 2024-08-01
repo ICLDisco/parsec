@@ -248,6 +248,7 @@ if( BUILD_PARSEC )
     $<$<BOOL:${PARSEC_HAVE_OTF2}>:OTF2::OTF2>
     $<$<BOOL:${MPI_C_FOUND}>:MPI::MPI_C>
     $<$<BOOL:${PARSEC_HAVE_CUDA}>:CUDA::cudart>
+    $<$<BOOL:${PARSEC_HAVE_CUDA}>:CUDA::cuda_driver>
     $<$<BOOL:${PARSEC_HAVE_HIP}>:hip::host>
     ${EXTRA_LIBS}
     INTERFACE

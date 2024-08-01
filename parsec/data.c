@@ -16,6 +16,7 @@
 #include "parsec/sys/atomic.h"
 #include "parsec/remote_dep.h"
 #include "parsec/parsec_internal.h"
+#include "parsec/utils/zone_malloc.h"
 
 static parsec_lifo_t parsec_data_lifo;
 static parsec_lifo_t parsec_data_copies_lifo;
@@ -70,7 +71,8 @@ static void parsec_data_construct(parsec_data_t* obj )
     obj->owner_device     = -1;
     obj->preferred_device = -1;
     obj->key              = 0;
-    obj->span          = 0;
+    obj->span             = 0;
+    obj->nb_copies        = 0;
     for( uint32_t i = 0; i < parsec_nb_devices;
          obj->device_copies[i] = NULL, i++ );
     obj->dc               = NULL;
@@ -105,11 +107,12 @@ static void parsec_data_destruct(parsec_data_t* obj )
                  * GPU copies are normally stored in LRU lists, and must be
                  * destroyed by the release list to free the memory on the device
                  */
-                PARSEC_OBJ_RELEASE( copy );
+                PARSEC_DATA_COPY_RELEASE(copy);
             }
         }
         assert(NULL == obj->device_copies[i]);
     }
+    assert(0 == obj->nb_copies);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_data_t, parsec_object_t,
@@ -182,6 +185,7 @@ parsec_data_copy_attach(parsec_data_t* data,
         copy->original = NULL;  /* reset the original if the CAS fails */
         return PARSEC_ERROR;
     }
+    parsec_atomic_fetch_add_int32(&data->nb_copies, 1);
     PARSEC_OBJ_RETAIN(data);
     return PARSEC_SUCCESS;
 }
@@ -199,6 +203,7 @@ int parsec_data_copy_detach(parsec_data_t* data,
         return PARSEC_ERR_NOT_FOUND;
     }
     data->device_copies[device] = copy->older;
+    parsec_atomic_fetch_add_int32(&data->nb_copies, -1);
 
     copy->original     = NULL;
     copy->older        = NULL;
@@ -228,7 +233,7 @@ parsec_data_copy_t* parsec_data_copy_new(parsec_data_t* data, uint8_t device,
     }
     copy->flags = flags;
     if( PARSEC_SUCCESS != parsec_data_copy_attach(data, copy, device) ) {
-        PARSEC_OBJ_RELEASE(copy);
+        PARSEC_DATA_COPY_RELEASE(copy);
         return NULL;
     }
     copy->dtt = dtt;
@@ -337,6 +342,12 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
     copy = data->device_copies[device];
     assert( NULL != copy );
 
+    if( valid_copy == device ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
+                             "DEV[%d]: already has ownership of data %p to copy %p in mode %d",
+                             device, data, copy, access_mode);
+        goto bookkeeping;
+    }
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,
                          "DEV[%d]: start transfer ownership of data %p to copy %p in mode %d",
                          device, data, copy, access_mode);
@@ -424,6 +435,7 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
         }
     }
 
+  bookkeeping:
     if( PARSEC_FLOW_ACCESS_READ & access_mode ) {
         (void)parsec_atomic_fetch_inc_int32(&copy->readers);
     }
@@ -442,40 +454,52 @@ int parsec_data_start_transfer_ownership_to_copy(parsec_data_t* data,
     return valid_copy;
 }
 
-static char dump_coherency_codex(parsec_data_coherency_t state)
+void parsec_data_copy_dump(parsec_data_copy_t* copy)
 {
-    if( PARSEC_DATA_COHERENCY_INVALID   == state ) return 'I';
-    if( PARSEC_DATA_COHERENCY_OWNED     == state ) return 'O';
-    if( PARSEC_DATA_COHERENCY_EXCLUSIVE == state ) return 'E';
-    if( PARSEC_DATA_COHERENCY_SHARED    == state ) return 'S';
-    return 'X';
+    char *tranfer = "---", flags[] = "----", *coherency = "undef";
+    switch(copy->data_transfer_status) {
+        case PARSEC_DATA_STATUS_NOT_TRANSFER: tranfer = "no"; break;
+        case PARSEC_DATA_STATUS_UNDER_TRANSFER: tranfer = "yes"; break;
+        case PARSEC_DATA_STATUS_COMPLETE_TRANSFER: tranfer = "no"; break;
+    }
+    if (copy->flags & PARSEC_DATA_FLAG_ARENA) flags[0] = 'A';
+    if (copy->flags & PARSEC_DATA_FLAG_TRANSIT) flags[1] = 'T';
+    if (copy->flags & PARSEC_DATA_FLAG_PARSEC_MANAGED) flags[2] = 'M';
+    if (copy->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) flags[3] = 'O';
+
+    if( PARSEC_DATA_COHERENCY_INVALID   == copy->coherency_state ) coherency = "invalid";
+    if( PARSEC_DATA_COHERENCY_OWNED     == copy->coherency_state ) coherency = "owned";
+    if( PARSEC_DATA_COHERENCY_EXCLUSIVE == copy->coherency_state ) coherency = "exclusive";
+    if( PARSEC_DATA_COHERENCY_SHARED    == copy->coherency_state ) coherency = "shared";
+
+    parsec_debug_verbose(0, 0, "%s  [%d]: copy %p [ref %d] coherency %s readers %d version %u transit %s flags %s\n"
+                               "          older %p orig %p arena %p dev_priv %p\n",
+                         ((NULL != copy->original) && (copy->original->owner_device == copy->device_index)) ? "*" : " ",
+                         (int)copy->device_index, copy, copy->super.super.obj_reference_count, coherency, copy->readers, copy->version, tranfer, flags,
+                         (void *)copy->older, (void *)copy->original, (void *)copy->arena_chunk, copy->device_private);
 }
 
-void parsec_dump_data_copy(parsec_data_copy_t* copy)
+void parsec_data_dump(parsec_data_t* data)
 {
-    parsec_debug_verbose(0, 0, "-  [%d]: copy %p state %c readers %d version %u\n",
-           (int)copy->device_index, copy, dump_coherency_codex(copy->coherency_state), copy->readers, copy->version);
-}
-
-void parsec_dump_data(parsec_data_t* data)
-{
-    parsec_debug_verbose(0, 0, "data %p key %lu owner %d\n", data, data->key, data->owner_device);
+    parsec_debug_verbose(0, 0, "data %p [ref %d] key %lu owner dev %d pref dev %d copies %d dc %p [span %zu]\n",
+                         data, data->super.obj_reference_count, data->key, data->owner_device, data->preferred_device, data->nb_copies,
+                         (void*)data->dc, data->span);
 
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         if( NULL != data->device_copies[i])
-            parsec_dump_data_copy(data->device_copies[i]);
+            parsec_data_copy_dump(data->device_copies[i]);
     }
 }
 
 parsec_data_copy_t*
 parsec_data_get_copy(parsec_data_t* data, uint32_t device)
 {
-    return PARSEC_DATA_GET_COPY(data, device);
+   return PARSEC_DATA_GET_COPY(data, device);
 }
 
 void parsec_data_copy_release(parsec_data_copy_t* copy)
 {
-    /* TODO: Move the copy back to the CPU before destroying it */
+   /* TODO: Move the copy back to the CPU before destroying it */
     PARSEC_DATA_COPY_RELEASE(copy);
 }
 
@@ -516,7 +540,7 @@ parsec_data_create( parsec_data_t **holder,
 
         if( !parsec_atomic_cas_ptr(holder, NULL, data) ) {
             parsec_data_copy_detach(data, data_copy, 0);
-            PARSEC_OBJ_RELEASE(data_copy);
+            PARSEC_DATA_COPY_RELEASE(data_copy);
             data = *holder;
         }
     } else {
@@ -567,7 +591,6 @@ parsec_data_destroy( parsec_data_t *data )
 #endif
     PARSEC_OBJ_RELEASE(data);
 }
-
 
 /**
  * Arena-datatype management.
@@ -626,4 +649,40 @@ parsec_arena_datatype_t *parsec_arena_datatype_new(void)
 
 void parsec_arena_datatype_release(parsec_arena_datatype_t **adt) {
     PARSEC_OBJ_RELEASE(*adt);
+}
+
+int parsec_data_release_self_contained_data(parsec_data_t *data)
+{
+    if (data->super.obj_reference_count != data->nb_copies) return 0;
+    parsec_data_copy_t *copy;
+    PARSEC_DEBUG_VERBOSE(1, parsec_debug_output, "Examine the status of data %p with %d copies and refcounts at %s:%d\n",
+                         data, data->nb_copies, __FILE__, __LINE__);
+    /* this data is only referenced by it's own copies. If these copies are also only referenced by
+     * data, then we can release them all.
+     */
+    for( uint32_t i = 0; i < parsec_nb_devices; i++) {
+        if (NULL == (copy = data->device_copies[i])) continue;
+        if( copy->super.super.obj_reference_count > 1 )
+            return 0;
+    }
+    PARSEC_DEBUG_VERBOSE(1, parsec_debug_output, "Force the release of data %p at %s:%d",
+		         copy, __FILE__, __LINE__);
+    for( uint32_t i = 0; i < parsec_nb_devices; i++) {
+        if (NULL == (copy = data->device_copies[i])) continue;
+        assert(1 == copy->super.super.obj_reference_count);
+        if( 0 == copy->device_index ) {
+            PARSEC_OBJ_RELEASE(copy);
+            assert(NULL == copy);
+        } else {
+            /* Do not release data copies that do not belong to the CPU or really bad things will happen.
+             * Only the device manager can release these copies, the best we can do here is to detach them
+             * from the data and eventually release their memory.
+             */
+            parsec_data_copy_detach(data, copy, copy->device_index);
+            zone_free((zone_malloc_t *)copy->arena_chunk, copy->device_private);
+            copy->device_private = NULL;
+            copy->arena_chunk = NULL;
+        }
+    }
+    return 1;
 }

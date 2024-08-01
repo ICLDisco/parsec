@@ -1877,20 +1877,20 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 #ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
                     /* Now everything is a reshaping entry */
                     /* Check if we need to reshape before sending */
-                    if(parsec_is_CTL_dep(output->data)){ /* CTL DEP */
+                    if(parsec_is_CTL_dep(output->data)) { /* CTL DEP */
                         output->data.data_future = NULL;
                         output->data.repo = NULL;
                         output->data.repo_key = -1;
-                    }else{
+                    } else {
                         /* Get reshape from whatever repo it has been set up into */
                         output->data.data_future = (parsec_datacopy_future_t*)target_dc;
                         output->data.repo = target_repo;
                         output->data.repo_key = target_repo_entry->ht_item.key;
                         PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                                         "th%d RESHAPE_PROMISE SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
-                                         es->th_id, output->data.data, (output->data.data)->dtt,
-                                         (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
-                                         output->data.data_future);
+                                             "th%d RESHAPE_PROMISE SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
+                                             es->th_id, output->data.data, (output->data.data)->dtt,
+                                             (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
+                                             output->data.data_future);
                     }
 #endif
                 } else {
