@@ -65,7 +65,7 @@ typedef int (parsec_stage_in_function_t)(parsec_gpu_task_t        *gtask,
 
 /* Function type to transfer data from the GPU device.
  * Transfer transfer the <count> contiguous bytes from
- * task->data[i].data_in to task->data[i].data_out.
+ * task->data[i].data_out to the copy on device 0.
  *
  * @param[in] task parsec_task_t containing task->data[i].data_in, task->data[i].data_out.
  * @param[in] flow_mask indicating task flows for which to transfer.

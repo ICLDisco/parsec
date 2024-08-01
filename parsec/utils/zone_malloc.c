@@ -38,7 +38,7 @@ zone_malloc_t* zone_malloc_init(void* base_ptr, int _max_segment, size_t _unit_s
     gdata->base               = base_ptr;
     gdata->unit_size          = _unit_size;
     gdata->max_segment        = _max_segment;
-
+    gdata->lock               = PARSEC_ATOMIC_UNLOCKED;
     gdata->next_tid = 0;
     gdata->segments = (segment_t *)malloc(sizeof(segment_t) * _max_segment);
 #if defined(PARSEC_DEBUG)
@@ -74,6 +74,7 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
     int next_tid, current_tid, new_tid;
     int cycled_through = 0, nb_units;
 
+    parsec_atomic_lock(&gdata->lock);
     /* Let's start with the last remembered free slot */
     current_tid = gdata->next_tid;
     nb_units = (size + gdata->unit_size - 1) / gdata->unit_size;
@@ -87,6 +88,7 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
                 cycled_through = 1;
                 current_segment = SEGMENT_AT_TID(gdata, current_tid);
             } else {
+                parsec_atomic_unlock(&gdata->lock);
                 return NULL;
             }
         }
@@ -111,12 +113,14 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
 
                 current_segment->nb_units = nb_units;
             }
-            return (void*)(gdata->base + (current_tid * gdata->unit_size));
+            parsec_atomic_unlock(&gdata->lock);
+            return (void *)(gdata->base + (current_tid * gdata->unit_size));
         }
 
         current_tid += current_segment->nb_units;
     } while( current_tid != gdata->next_tid );
 
+    parsec_atomic_unlock(&gdata->lock);
     return NULL;
 }
 
