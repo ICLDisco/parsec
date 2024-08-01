@@ -1,0 +1,26 @@
+extern "C" %{
+   /* This simple example does not need to include anything */
+%}
+
+%option no_taskpool_instance = true  /* can be anything */
+
+NT
+WS
+
+PING(k)
+
+k = 0 .. NT-1
+: A(0, k % WS)
+
+RW T <- (k == 0) ? A(0, k % WS) : T PING(k-1)
+     -> (k < NT) ? T PING(k+1) : A(0, k % WS)
+
+; 0
+
+BODY [type = CUDA]
+	printf("ping(%d)\n", k);
+	/* 
+	int r; MPI_Comm_rank(MPI_COMM_WORLD, &r);
+	printf("%d: PING(%d)\n", r, k);
+ 	*/
+END
