@@ -4552,11 +4552,14 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  free(__parsec_tp->super.super.task_classes_array); __parsec_tp->super.super.task_classes_array = NULL;\n"
             "  __parsec_tp->super.super.nb_task_classes = 0;\n"
             "\n"
+            "#if PARSEC_%s_ADT_IDX_MAX > 0\n"
             "  for(i = 0; i < (uint32_t)__parsec_tp->super.arenas_datatypes_size; i++) {\n"
             "    if( NULL != __parsec_tp->super.arenas_datatypes[i].arena ) {\n"
             "      PARSEC_OBJ_RELEASE(__parsec_tp->super.arenas_datatypes[i].arena);\n"
             "    }\n"
-            "  }\n");
+            "  }\n"
+            "#endif  /* PARSEC_%s_ADT_IDX_MAX > 0 */",
+            jdf_basename, jdf_basename);
 
     coutput("  /* Destroy the data repositories for this object */\n");
     for( f = jdf->functions; NULL != f; f = f->next ) {
