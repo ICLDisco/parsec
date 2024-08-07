@@ -150,7 +150,7 @@ parsec_info_id_t parsec_info_register(parsec_info_t *nfo, const char *name,
                                       parsec_info_destructor_t destructor, void *des_data,
                                       parsec_info_constructor_t constructor, void *cons_data,
                                       void *cb_data);
-    
+
 /**
  * @brief unregisters an info key using its ID.
  *
@@ -234,6 +234,19 @@ void *parsec_info_test_and_set(parsec_info_object_array_t *oa, parsec_info_id_t 
  *    info with this iid
  */
 void *parsec_info_get(parsec_info_object_array_t *oa, parsec_info_id_t info_id);
+
+/**
+ * @brief (pre)set the info object for all registered stream/device/...
+ * 
+ * @details
+ *   @param[IN] nfo: the info collection that needs to be pre-set
+ *   @param[IN] iid: the index of the info to set
+ * This will call @fn parsec_info_get on each stream or device registered
+ * with @p nfo for the index @p iid, potentially calling the @p constructor
+ * callback for the objects that do not have an entry in the object array
+ * already.
+ */
+void parsec_info_set_all(parsec_info_t *nfo, parsec_info_id_t iid);
 
 
 END_C_DECLS

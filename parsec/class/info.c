@@ -318,3 +318,18 @@ void *parsec_info_get(parsec_info_object_array_t *oa, parsec_info_id_t iid)
     }
     return ret;
 }
+
+void parsec_info_set_all(parsec_info_t *nfo, parsec_info_id_t iid)
+{
+    parsec_list_item_t *li;
+    parsec_info_object_array_t *oa;
+
+    parsec_list_lock(&nfo->ioa_list);
+    for(li =  PARSEC_LIST_ITERATOR_FIRST(&nfo->ioa_list);
+        li != PARSEC_LIST_ITERATOR_END(&nfo->ioa_list);
+        li =  PARSEC_LIST_ITERATOR_NEXT(li)) {
+            oa = (parsec_info_object_array_t*)li;
+            parsec_info_get(oa, iid);
+    }
+    parsec_list_unlock(&nfo->ioa_list);
+}
