@@ -14,6 +14,7 @@
 #include "parsec/execution_stream.h"
 #include "parsec/utils/argv.h"
 #include "parsec/parsec_internal.h"
+#include "parsec/mca/device/device_gpu.h"
 
 #include <stdlib.h>
 #if defined(PARSEC_HAVE_ERRNO_H)
@@ -1022,6 +1023,17 @@ int parsec_mca_device_attach(parsec_context_t* context)
     return PARSEC_SUCCESS;
 }
 
+static int parsec_device_set_ctx(void *_device)
+{
+    parsec_device_module_t *device = (parsec_device_module_t*)_device;
+    if(PARSEC_DEV_IS_GPU(device->type)) {
+        parsec_device_gpu_module_t *gpu_device = (parsec_device_gpu_module_t *)device;
+        gpu_device->set_device(gpu_device);
+    }
+    /* Nothing to do for non-GPU devices */
+    return PARSEC_SUCCESS;
+}
+
 int parsec_mca_device_add(parsec_context_t* context, parsec_device_module_t* device)
 {
     if( parsec_mca_device_are_freezed ) {
@@ -1045,7 +1057,7 @@ int parsec_mca_device_add(parsec_context_t* context, parsec_device_module_t* dev
     device->context = context;
     parsec_atomic_unlock(&parsec_devices_mutex);  /* CRITICAL SECTION: END */
     PARSEC_OBJ_CONSTRUCT(&device->infos, parsec_info_object_array_t);
-    parsec_info_object_array_init(&device->infos, &parsec_per_device_infos, device);
+    parsec_info_object_array_init(&device->infos, &parsec_per_device_infos, device, parsec_device_set_ctx, device);
     return device->device_index;
 }
 

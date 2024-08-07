@@ -83,6 +83,20 @@ typedef void (*parsec_info_destructor_t)(void *elt, void *cb_data);
 typedef void *(*parsec_info_constructor_t)(void *obj, void *cb_data);
 
 /**
+ * @brief Prototype of a context setter function
+ *
+ * @details
+ *   A function with this prototype will be called each time a
+ *   user callback is called, before it is called, to set the
+ *   context in which the user callback is supposed to execute
+ *   (this is dependent on the level of software that defines
+ *   the info)
+ *
+ *   @param[inout] cb_data: opaque pointer provided by the user
+ */
+typedef int (*parsec_info_set_ctx_fn)(void *cb_data);
+
+/**
  * @brief The descriptor of a single info
  */
 struct parsec_info_entry_s {
@@ -100,7 +114,7 @@ struct parsec_info_entry_s {
 
 /**
  * @brief An array of info objects
- * 
+ *
  * @details This structure holds the info objects
  *   in an array indexed by the iid
  */
@@ -113,6 +127,8 @@ struct parsec_info_object_array_s {
     void                 **info_objects; /**< Info objects are stored in this array indexed by
                                           *   info_entry->iid */
     void                  *cons_obj;     /**< obj pointer for the constructor */
+    parsec_info_set_ctx_fn ctx_set;      /**< Callback to set the context of the ioa */
+    void                  *ctx_set_obj;  /**< Parameter passed to ctx_set */
 };
 
 PARSEC_OBJ_CLASS_DECLARATION(parsec_info_object_array_t);
@@ -183,6 +199,8 @@ parsec_info_id_t parsec_info_lookup(parsec_info_t *nfo, const char *name, void *
  *   @param[IN]      nfo: the info collection that defines its keys
  *   @param[IN] cons_obj: pointer to the object holding the object array (passed as
  *                        first argument to constructor calls)
+ *   @param[IN] ctx_set:  how to set the context for this ioa
+ *   @param[IN] ctx_set_param: what parameter to pass to ctx_set
  *
  * @remark when constructing an object array with PARSE_OBJ_CONSTRUCT or PARSEC_OBJ_NEW,
  *   the parsec_info_t cannot be associated to the object array automatically as the constructor
@@ -190,7 +208,8 @@ parsec_info_id_t parsec_info_lookup(parsec_info_t *nfo, const char *name, void *
  *   after it is constructed.
  */
 void parsec_info_object_array_init(parsec_info_object_array_t *oa, parsec_info_t *nfo,
-                                   void *cons_obj);
+                                   void *cons_obj, parsec_info_set_ctx_fn ctx_set,
+                                   void *ctx_set_obj);
 
 /**
  * @brief Set an info in an array of objects
