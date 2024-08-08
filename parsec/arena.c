@@ -238,6 +238,10 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
 #include "parsec/utils/zone_malloc.h"
 #include "mca/device/device_gpu.h"
 
+#if defined(PARSEC_DEBUG)
+static int64_t parsec_countable_incoming_message = 0xF000000000000000;
+#endif  /* defined(PARSEC_DEBUG) */
+
 static inline parsec_data_copy_t *
 parsec_arena_internal_copy_new(parsec_arena_t *arena,
                                parsec_data_t *data,
@@ -251,6 +255,11 @@ parsec_arena_internal_copy_new(parsec_arena_t *arena,
         if( NULL == ldata ) {
             return NULL;
         }
+#if defined(PARSEC_DEBUG)
+        /* Name the data with a default key to facilitate debuging */
+        ldata->key = (uint64_t)parsec_atomic_fetch_inc_int64(&parsec_countable_incoming_message);
+        ldata->key |= ((uint64_t)device) << 56;
+#endif  /* defined(PARSEC_DEBUG) */
     }
     if( 0 == device ) {
         copy = parsec_data_copy_new(ldata, device, dtt,
