@@ -83,14 +83,10 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
         current_segment = SEGMENT_AT_TID(gdata, current_tid);
         if( NULL == current_segment ) {
             /* Maybe there is a free slot in the beginning. Let's cycle at least once before we bail out */
-            if( cycled_through == 0 ) {
-                current_tid = 0;
-                cycled_through = 1;
-                current_segment = SEGMENT_AT_TID(gdata, current_tid);
-            } else {
-                parsec_atomic_unlock(&gdata->lock);
-                return NULL;
-            }
+            if( 0 != cycled_through ) break;
+            current_tid = 0;
+            cycled_through = 1;
+            current_segment = SEGMENT_AT_TID(gdata, current_tid);
         }
 
         if( current_segment->status == SEGMENT_EMPTY && current_segment->nb_units >= nb_units ) {

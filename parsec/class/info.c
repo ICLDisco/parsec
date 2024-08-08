@@ -313,6 +313,8 @@ void *parsec_info_get(parsec_info_object_array_t *oa, parsec_info_id_t iid)
     if(NULL == ie->constructor)
         return ret;
     nio = ie->constructor(oa->cons_obj, ie->cons_data);
+    if( NULL == nio )
+        return ret;
     ret = parsec_info_test_and_set(oa, iid, nio, NULL);
     if(ret != nio && NULL != ie->destructor) {
         ie->destructor(nio, ie->des_data);
