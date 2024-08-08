@@ -300,7 +300,7 @@ void parsec_device_dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream)
     int i;
 
     parsec_debug_verbose(0, parsec_gpu_output_stream,
-                         "Dev: GPU stream %d{%p} [events = %d, start = %d, end = %d, executed = %d]",
+                         "Dev: GPU stream %s{%p} [events = %d, start = %d, end = %d, executed = %d]",
                          exec_stream->name, exec_stream, exec_stream->max_events, exec_stream->start, exec_stream->end,
                          exec_stream->executed);
     for( i = 0; i < exec_stream->max_events; i++ ) {
@@ -321,12 +321,12 @@ void parsec_device_dump_gpu_state(parsec_device_gpu_module_t* gpu_device)
         data_in_dev += gpu_device->super.data_in_from_device[i];
     }
 
-    parsec_output(parsec_gpu_output_stream, "\n\n");
-    parsec_output(parsec_gpu_output_stream, "Device %d:%d (%p) epoch\n", gpu_device->super.device_index,
-                  gpu_device->super.device_index, gpu_device, gpu_device->data_avail_epoch);
-    parsec_output(parsec_gpu_output_stream, "\tpeer mask %x executed tasks with %llu streams %d\n",
-                  gpu_device->peer_access_mask, (unsigned long long)gpu_device->super.executed_tasks, gpu_device->num_exec_streams);
-    parsec_output(parsec_gpu_output_stream, "\tstats transferred [in: %llu from host %llu from other device out: %llu] required [in: %llu out: %llu]\n",
+    parsec_output(parsec_gpu_output_stream,
+                  "\n\nDevice %s:%d (%p) epoch %zu\n"
+                  "\tpeer mask %x executed tasks %llu streams %d\n"
+                  "\tstats transferred [in: %llu from host %llu from other device out: %llu] required [in: %llu out: %llu]\n",
+                  gpu_device->super.name, gpu_device->super.device_index, gpu_device, gpu_device->data_avail_epoch,
+                  gpu_device->peer_access_mask, (unsigned long long)gpu_device->super.executed_tasks, gpu_device->num_exec_streams,
                   (unsigned long long)data_in_host, (unsigned long long)data_in_dev,
                   (unsigned long long)gpu_device->super.data_out_to_host,
                   (unsigned long long)gpu_device->super.required_data_in, (unsigned long long)gpu_device->super.required_data_out);
@@ -1030,7 +1030,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                 for( j = 0; j <= i; j++ ) {
                     /* This flow could be a control flow */
                     if( NULL == temp_loc[j] ) continue;
-                    this_task->data[j].data_out = gpu_elem;  /* reset the data out */
+                    this_task->data[j].data_out = NULL;  /* reset the data out */
                     /* This flow could be non-parsec-owned, in which case we can't reclaim it */
                     if( 0 == (temp_loc[j]->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) ) continue;
                     PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
@@ -1044,6 +1044,9 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                 PARSEC_DATA_COPY_RELEASE(gpu_elem);
 #endif
                 parsec_atomic_unlock(&master->lock);
+                if( data_avail_epoch ) {  /* update the memory epoch */
+                    gpu_device->data_avail_epoch++;
+                }
                 return PARSEC_HOOK_RETURN_AGAIN;
             }
 
@@ -1382,7 +1385,7 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                              "GPU[%d:%s]: Prefetch task %p is staging in",
                              gpu_device->super.device_index, gpu_device->super.name, gpu_task);
     }
-    if( NULL == gpu_elem ) {
+    if( gpu_elem == candidate ) {  /* data already located in the right place */
         if( candidate->device_index == gpu_device->super.device_index ) {
             /* the candidate is already located on the GPU, no transfer should be necessary but let's do the bookkeeping */
             if( (PARSEC_FLOW_ACCESS_WRITE & type) && (gpu_task->task_type != PARSEC_GPU_TASK_TYPE_PREFETCH) ) {
@@ -2105,7 +2108,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
         gpu_task->last_data_check_epoch = gpu_device->data_avail_epoch;
         return ret;
     }
-
+    gpu_task->last_status = 0;  /* mark the task as clean */
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
 
         flow = gpu_task->flow[i];
@@ -2133,11 +2136,10 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
             return ret;
         }
     }
-
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                          "GPU[%d:%s]: Push task %s DONE",
                          gpu_device->super.device_index, gpu_device->super.name,
-                         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
+                         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task));
     gpu_task->complete_stage = parsec_device_callback_complete_push;
 #if defined(PARSEC_PROF_TRACE)
     gpu_task->prof_key_end = -1; /* We do not log that event as the completion of this task */

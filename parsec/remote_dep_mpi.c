@@ -80,6 +80,7 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     if( NULL == task.task_class ) return snprintf(str, len, "UNKNOWN_of_TASKCLASS_%d", origin->task_class_id), str;
     memcpy(&task.locals, origin->locals, sizeof(parsec_assignment_t) * task.task_class->nb_locals);
     task.priority     = 0xFFFFFFFF;
+    for(int i = 0; i < task.task_class->nb_flows; task.data[i++].data_in = NULL);
     return parsec_task_snprintf(str, len, &task);
 }
 
