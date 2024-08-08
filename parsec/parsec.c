@@ -1942,10 +1942,20 @@ parsec_task_snprintf( char* str, size_t size,
                            task->locals[i].value );
         if( index >= size ) return str;
     }
-    index += snprintf(str + index, size - index, "]<%d>", task->priority );
+    index += snprintf(str + index, size - index, "]<%d> keys = {", task->priority );
+    if( index >= size ) return str;
+    for( i = 0; i < tc->nb_flows; i++ ) {
+        char *prefix = (i == 0) ? "" : ", ";
+        if ((NULL == task->data[i].data_in) || (NULL == task->data[i].data_in->original))
+            index += snprintf(str + index, size - index, "%s*", prefix);
+        else
+            index += snprintf(str + index, size - index, "%s%lx", prefix, task->data[i].data_in->original->key);
+        if( index >= size ) return str;
+    }
+    index += snprintf(str + index, size - index, "}" );
     if( index >= size ) return str;
     if( NULL != task->taskpool ) {
-        index += snprintf(str + index, size - index, "{%u}", task->taskpool->taskpool_id );
+        index += snprintf(str + index, size - index, " {tp: %u}", task->taskpool->taskpool_id );
         if( index >= size ) return str;
     }
     return str;

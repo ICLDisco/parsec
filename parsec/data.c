@@ -465,10 +465,11 @@ void parsec_data_copy_dump(parsec_data_copy_t* copy)
     if( PARSEC_DATA_COHERENCY_SHARED    == copy->coherency_state ) coherency = "shared";
 
     parsec_debug_verbose(0, 0, "%s  [%d]: copy %p [ref %d] coherency %s readers %d version %u transit %s flags %s\n"
-                               "          older %p orig %p arena %p dev_priv %p\n",
+                               "          older %p orig %p [%llx] arena %p dev_priv %p\n",
                          ((NULL != copy->original) && (copy->original->owner_device == copy->device_index)) ? "*" : " ",
                          (int)copy->device_index, copy, copy->super.super.obj_reference_count, coherency, copy->readers, copy->version, tranfer, flags,
-                         (void *)copy->older, (void *)copy->original, (void *)copy->arena_chunk, copy->device_private);
+                         (void *)copy->older, (void *)copy->original,
+                         (NULL != copy->original) ? (unsigned long)copy->original->key : (unsigned long)-1, (void *)copy->arena_chunk, copy->device_private);
 }
 
 void parsec_data_dump(parsec_data_t* data)

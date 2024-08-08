@@ -160,7 +160,7 @@ extern void (*parsec_weaksym_exit)(int status);
 #else  /* defined(PARSEC_DEBUG_NOISIER) */
 
 #define PARSEC_DEBUG_VERBOSE(...) do{} while(0)
-#endif /* defined(PARSEC_DEBUG_VERBOSE) */
+#endif /* defined(PARSEC_DEBUG_NOISIER) */
 
 /** $brief To check if any parsec function returned error.
  */
