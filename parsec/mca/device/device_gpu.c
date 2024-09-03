@@ -38,6 +38,13 @@ static int parsec_gpu_profiling_initiated = 0;
 int parsec_gpu_output_stream = -1;
 int parsec_gpu_verbosity;
 
+/* The return value of these functions is either a parsec_hook_return_t for <= 0 values,
+ * or a positive number which represents that something has been scheduled on the gpu_stream
+ */
+typedef int(*parsec_gpu_step_function_t)(parsec_device_gpu_module_t  *gpu_device,
+                                         parsec_gpu_task_t           *gpu_task,
+                                         parsec_gpu_exec_stream_t    *gpu_stream);
+
 static inline int
 parsec_device_check_space_needed(parsec_device_gpu_module_t *gpu_device,
                                  parsec_gpu_task_t *gpu_task)
@@ -1811,7 +1818,7 @@ parsec_device_callback_complete_push(parsec_device_gpu_module_t   *gpu_device,
 static inline int
 parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
                                parsec_gpu_exec_stream_t* stream,
-                               parsec_advance_task_function_t progress_fct,
+                               parsec_gpu_step_function_t progress_fct,
                                parsec_gpu_task_t* task,
                                parsec_gpu_task_t** out_task )
 {
@@ -1870,6 +1877,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
     }
 
  grab_a_task:
+    assert(NULL == task);
     if( NULL == stream->tasks[stream->start] ) {  /* there is room on the stream */
         task = (parsec_gpu_task_t*)parsec_list_pop_front(stream->fifo_pending);  /* get the best task */
     }
@@ -1882,6 +1890,11 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
 
   schedule_task:
     rc = progress_fct( gpu_device, task, stream );
+    if(0 == rc) {
+        /* If progress_fct added nothing on that stream, we skip scheduling a record on the GPU stream */
+        *out_task = task;
+        return rc;
+    }
     if( 0 > rc ) {
         if( PARSEC_HOOK_RETURN_AGAIN != rc ) {
            *out_task = task;
@@ -1900,7 +1913,6 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
                              "trigger the task will be handled accordingly",
                              gpu_device->super.device_index, gpu_device->super.name, (void*)task);
     }
-    task->last_status = rc;
     /**
      * Do not skip the gpu event generation. The problem is that some of the inputs
      * might be in the pipe of being transferred to the GPU. If we activate this task
@@ -1940,7 +1952,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
 {
     parsec_task_t *this_task = gpu_task->ec;
     const parsec_flow_t *flow;
-    int i, ret = 0;
+    int i, ret = 0, how_many = 0;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -2010,6 +2022,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
             gpu_task->last_status = ret;
             return ret;
         }
+        how_many++;
     }
 
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
@@ -2020,7 +2033,7 @@ parsec_device_kernel_push( parsec_device_gpu_module_t      *gpu_device,
 #if defined(PARSEC_PROF_TRACE)
     gpu_task->prof_key_end = -1; /* We do not log that event as the completion of this task */
 #endif
-    return PARSEC_HOOK_RETURN_DONE;
+    return how_many;
 }
 
 /**
@@ -2037,6 +2050,7 @@ parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
 {
     parsec_advance_task_function_t progress_fct = gpu_task->submit;
     parsec_task_t* this_task = gpu_task->ec;
+    int rc;
 
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
@@ -2073,7 +2087,9 @@ parsec_device_kernel_exec( parsec_device_gpu_module_t      *gpu_device,
 #endif /* defined(PARSEC_DEBUG_PARANOID) */
 
     (void)this_task;
-    return progress_fct( gpu_device, gpu_task, gpu_stream );
+    rc = progress_fct( gpu_device, gpu_task, gpu_stream );
+    gpu_task->last_status = rc;
+    return 1;
 }
 
 /**
@@ -2114,8 +2130,9 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
                 return_code = PARSEC_HOOK_RETURN_DISABLE;
                 goto release_and_return_error;
             }
+            how_many++;
         }
-        return PARSEC_HOOK_RETURN_DONE;
+        return how_many;
     }
 
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
