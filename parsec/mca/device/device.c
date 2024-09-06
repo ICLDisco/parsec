@@ -803,6 +803,8 @@ int parsec_mca_device_registration_completed(parsec_context_t* context)
 #include <sys/sysctl.h>
 #endif
 
+#include "parsec/parsec_hwloc.h"
+
 static int cpu_weights(parsec_device_module_t* device, int nstreams)
 {
     float freq = 0.f;
@@ -917,13 +919,14 @@ notfound:
       }
       /* this may show unknown/0.0 if the cpu capabilities couldn't be determined */
       if( show_caps ) {
+          int ncores = parsec_hwloc_nb_real_cores();
           parsec_inform("CPU Device: %s\n"
-                        "\tParsec Streams     : %d\n"
+                        "\tParsec EUs / Cores : %d / %d\n"
                         "\tFrequency (GHz)    : %.2f\n"
                         "\tPeak Tflop/s       : fp64: %-8.3f fp32: %-8.3f",
                         cpu_model,
-                        nstreams,
-                        freq, nstreams*freq*dp_ipc*1e-3, nstreams*freq*fp_ipc*1e-3);
+                        nstreams, ncores,
+                        freq, (nstreams > ncores? ncores: nstreams)*freq*dp_ipc*1e-3, (nstreams > ncores? ncores: nstreams)*freq*fp_ipc*1e-3);
        }
     }
 
@@ -999,7 +1002,7 @@ int parsec_mca_device_attach(parsec_context_t* context)
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
     }
 
- #if defined(PARSEC_HAVE_DEV_CPU_SUPPORT)
+#if defined(PARSEC_HAVE_DEV_CPU_SUPPORT)
     /* Add the predefined devices: one device for the CPUs */
     {
         parsec_device_cpus = (parsec_device_module_t*)calloc(1, sizeof(parsec_device_module_t));
@@ -1011,7 +1014,7 @@ int parsec_mca_device_attach(parsec_context_t* context)
         parsec_device_cpus->taskpool_register = device_taskpool_register_static;
         parsec_mca_device_add(context, parsec_device_cpus);
     }
- #endif  /* defined(PARSEC_HAVE_DEV_CPU_SUPPORT) */
+#endif  /* defined(PARSEC_HAVE_DEV_CPU_SUPPORT) */
 
 #if defined(PARSEC_HAVE_DEV_RECURSIVE_SUPPORT)
     /* and one for the recursive kernels */
