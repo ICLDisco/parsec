@@ -160,6 +160,7 @@ parsec_device_template_module_init( int deviceid, parsec_device_module_t** modul
     device->super.transferred_data_out = 0;
     device->super.required_data_in     = 0;
     device->super.required_data_out    = 0;
+    device->super.nb_evictions         = 0;
 
     device->super.attach              = (parsec_device_attach_f)parsec_device_template_attach;
     device->super.detach              = (parsec_device_detach_f)parsec_device_template_detach;

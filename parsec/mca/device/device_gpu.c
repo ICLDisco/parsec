@@ -1064,6 +1064,7 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
                                      gpu_device->super.device_index, gpu_device->super.name, task_name, this_task->task_class->name, i, lru_gpu_elem);
                 oldmaster = NULL;
             }
+            gpu_device->super.nb_evictions++;
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
             /* Let's free this space, and try again to malloc some space */
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
