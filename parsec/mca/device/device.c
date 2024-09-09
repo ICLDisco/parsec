@@ -492,7 +492,7 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
 
     printf("+-----------------------------------------------------------------------------------------------------------------------------------------------+\n");
     printf("|         |                    |                       Data In                              |         Data Out               |                  |\n");
-    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transfered H2D(%%)   |   Transfered D2D(%%)   |  Required  |   Transfered(%%)   |   nb evictions   |\n",
+    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transfered H2D(%%)   |   Transfered D2D(%%)   |  Required  |   Transfered(%%)   |   Evictions   |\n",
            (NULL == parsec_context ? parsec_debug_rank : parsec_context->my_rank));
     printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|-------------------|------------------|\n");
     for( i = 0; i < parsec_nb_devices; i++ ) {
