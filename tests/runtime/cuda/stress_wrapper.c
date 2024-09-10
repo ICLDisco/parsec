@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2019-2024 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ */
+
 #include "parsec.h"
 #include "parsec/execution_stream.h"
 #include "parsec/data_distribution.h"
@@ -41,7 +48,7 @@ parsec_taskpool_t* testing_stress_New( parsec_context_t *ctx, int depth, int mb 
         nb = 0;
         for(dev = 0; dev < (int)parsec_nb_devices; dev++) {
             parsec_device_module_t *device = parsec_mca_device_get(dev);
-            if( PARSEC_DEV_CUDA == device->type ) {
+            if( PARSEC_DEV_CUDA & device->type ) {
                 dev_index[nb++] = device->device_index;
             }
         }

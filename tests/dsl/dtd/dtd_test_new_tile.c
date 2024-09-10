@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2013-2024 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
+ */
+
 /* parsec things */
 #include "parsec/runtime.h"
 
@@ -277,7 +284,7 @@ int main(int argc, char **argv)
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) && defined(PARSEC_HAVE_CU_COMPILER)
     for(unsigned int i = 0; i < parsec_nb_devices; i++) {
         parsec_device_module_t *dev = parsec_mca_device_get(i);
-        if( dev->type == PARSEC_DEV_CUDA )
+        if( dev->type & PARSEC_DEV_CUDA )
             nb_gpus++;
     }
     if(nb_gpus > 0) {
@@ -286,7 +293,7 @@ int main(int argc, char **argv)
         nb_gpus = 0;
         for(unsigned int i = 0; i < parsec_nb_devices; i++) {
             parsec_device_module_t *dev = parsec_mca_device_get(i);
-            if( dev->type == PARSEC_DEV_CUDA) {
+            if( dev->type & PARSEC_DEV_CUDA) {
                 cudaError_t status;
                 parsec_device_cuda_module_t *gpu_device = (parsec_device_cuda_module_t *)dev;
                 status = cudaSetDevice( gpu_device->cuda_index );

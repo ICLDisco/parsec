@@ -3,6 +3,7 @@ extern "C" %{
  * Copyright (c) 2021-2023 The Universiy of Tennessee and The Universiy
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 #include "cuda_test_internal.h"
 
@@ -148,7 +149,7 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
     int nb = 0;
     for(int i = 0; i < (int)parsec_nb_devices; i++) {
         parsec_device_module_t *device = parsec_mca_device_get(i);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             nb++;
         }
     }
@@ -160,7 +161,7 @@ parsec_get_best_device_check_New(parsec_tiled_matrix_t *dcA, int *info)
     nb = 0;
     for(int i = 0; i < (int)parsec_nb_devices; i++) {
         parsec_device_module_t *device = parsec_mca_device_get(i);
-        if( PARSEC_DEV_CUDA == device->type ) {
+        if( PARSEC_DEV_CUDA & device->type ) {
             dev_index[nb++] = device->device_index;
         }
     }

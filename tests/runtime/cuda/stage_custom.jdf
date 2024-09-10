@@ -45,7 +45,7 @@ stage_stride_in(parsec_gpu_task_t *gtask,
             dc = (parsec_tiled_matrix_t*)gtask->flow_dc[i];
             elem_sz = parsec_datadist_getsizeoftype(dc->mtype);
             in_elem_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get( copy_in->device_index);
-            if(in_elem_dev->super.type != PARSEC_DEV_CUDA ){
+            if( !(in_elem_dev->super.type & PARSEC_DEV_CUDA) ) {
                 /* copy width bytes heigth times, skipping pitch - width bytes every time */
                 size_t dpitch = dc->mb * elem_sz;
                 size_t spitch = dc->llm * elem_sz;
@@ -117,6 +117,28 @@ typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
 /* Pre-declare function used as a property of some parameterized task */
 static int64_t gemm_time_estimate(const parsec_task_t *task, parsec_device_module_t *dev);
 
+typedef struct deallocation_helper_s {
+    parsec_assignment_t m;
+    parsec_assignment_t k;
+    void** my_storage[3];
+  } free_helper_t;
+
+static int 
+complete_batched_callback(parsec_device_gpu_module_t *dev,
+                          parsec_gpu_task_t ** gpu_task,
+                          parsec_gpu_exec_stream_t *gpu_stream)
+{
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "complete_batched_callback for batched task %p on stream %s{%p}\n",
+                          gpu_task, gpu_stream->name, (void*)gpu_stream);
+    (void)dev; (void) gpu_task; (void)gpu_stream;
+    parsec_list_item_t* output_stream_ghost = &dev->exec_stream[1]->fifo_pending->ghost_element;
+    parsec_list_item_ring_merge(output_stream_ghost, &(*gpu_task)->list_item);
+    free_helper_t* helper = (free_helper_t*)(((*gpu_task)->ec)->locals); (void)helper;
+    //printf(" release %p and %p and %p\n", helper->my_storage[0], helper->my_storage[1], helper->my_storage[2]);
+    (*gpu_task)->complete_stage = NULL;
+    *gpu_task = NULL;
+    return PARSEC_HOOK_RETURN_DONE;
+}
 %}
 
 %option no_taskpool_instance = true  /* can be anything */
@@ -146,8 +168,48 @@ RW A <- descA(m, k)
      -> A TASK_CHECK(m,k)
 
 BODY [type=CUDA
+      batch = true
       dyld=cublasDgemm dyldtype=cublas_dgemm_t]
 {
+    parsec_list_item_singleton(&gpu_task->list_item);
+    parsec_list_item_t* store_back = NULL;
+    if( !parsec_list_nolock_is_empty(gpu_stream->fifo_pending) ) {  /* more than one gpu_task in the ring */
+        int how_many = 1;  /* we start with the current gpu_task */
+        do {
+            parsec_list_item_t* item = parsec_list_pop_front(gpu_stream->fifo_pending);
+            parsec_list_item_singleton(item);
+            parsec_gpu_task_t* task = (parsec_gpu_task_t*)item;
+
+            if( gpu_task->ec->task_class == task->ec->task_class ) {
+                /* same task class as the current one, possible to batch */
+                (void)parsec_list_item_ring_push(&gpu_task->list_item, (parsec_list_item_t*)task);
+                how_many++;  /* one more into the batch */
+                PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Add task %p to the %p batch on stream %s{%p}\n",
+                                      task, gpu_task, gpu_stream->name, (void*)gpu_stream);
+                if( 5 == how_many ) {
+                    /* let's stop here for now */
+                    break;
+                }
+            } else {
+                if( NULL == store_back ) {
+                    store_back = item;
+                } else {
+                    parsec_list_item_ring_push(store_back, item);  /* build the list of un-batcheable tasks */
+                }
+            }
+        } while( !parsec_list_nolock_is_empty(gpu_stream->fifo_pending) );
+        /* we now have two separated task rings: the gpu_task with all the tasks that will be batched
+         * and the ring that has all the remaining items in the list (including the list's ghost_elem).
+         * The remaining list is already stored in the gpu_stream->fifo_pending.
+         */
+        if( how_many > 1 )
+            gpu_task->complete_stage = complete_batched_callback;
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "submit multiple tasks into one %p on stream %s{%p}\n",
+                              gpu_task, gpu_stream->name, (void*)gpu_stream);
+        if( NULL != store_back ) {
+            parsec_list_item_ring_merge(&gpu_stream->fifo_pending->ghost_element, store_back);
+        }
+    }
     double lalpha = 1.0;
     double lbeta  = 2.0;
     int tempmm = descA->mb;
@@ -155,14 +217,26 @@ BODY [type=CUDA
 
     cublasStatus_t status;
     cublasSetKernelStream( parsec_body.stream );
-    parsec_body.dyld_fn(  'N', 'N',
-                         tempmm, tempmm, tempmm,
-                         lalpha, (double*)A, ldam,
-                                 (double*)A, ldam,
-                         lbeta,  (double*)A, ldam );
-    status = cublasGetError();
-    PARSEC_CUDA_CHECK_ERROR( "cublasDgemm", status,
-                            {return PARSEC_HOOK_RETURN_ERROR;} );
+
+    parsec_gpu_task_t* current_gpu_task = gpu_task;
+    free_helper_t* helper = (free_helper_t*)((gpu_task->ec)->locals);
+    helper->my_storage[0] = (void*)(uintptr_t)0xdeadbeef;
+    helper->my_storage[1] = (void*)(uintptr_t)0xabcdabcd;
+    helper->my_storage[2] = (void*)(uintptr_t)0xcdefcdef;
+    do {
+        __parsec_stage_custom_TASK_GPU_task_t *task = (__parsec_stage_custom_TASK_GPU_task_t*)current_gpu_task->ec;
+        _f_A = task->data._f_A.data_out;
+        A = PARSEC_DATA_COPY_GET_PTR(_f_A);
+        parsec_body.dyld_fn(  'N', 'N',
+                            tempmm, tempmm, tempmm,
+                            lalpha, (double*)A, ldam,
+                                    (double*)A, ldam,
+                            lbeta,  (double*)A, ldam );
+        status = cublasGetError();
+        PARSEC_CUDA_CHECK_ERROR( "cublasDgemm", status,
+                                {return PARSEC_HOOK_RETURN_ERROR;} );
+        current_gpu_task = (parsec_gpu_task_t*)current_gpu_task->list_item.list_next;
+    } while( current_gpu_task != gpu_task );
 }
 END
 

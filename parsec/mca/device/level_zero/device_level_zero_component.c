@@ -2,6 +2,7 @@
  * Copyright (c) 2023      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec.h"
@@ -410,7 +411,7 @@ static int device_level_zero_component_close(void)
     /* Check that no LEVEL_ZERO devices are still registered with PaRSEC */
     for(i = 0; i < parsec_mca_device_enabled(); i++) {
         if( NULL == (cdev = (parsec_device_level_zero_module_t*)parsec_mca_device_get(i)) ) continue;
-        if(PARSEC_DEV_LEVEL_ZERO != cdev->super.super.type) continue;
+        if( !(PARSEC_DEV_LEVEL_ZERO & cdev->super.super.type) ) continue;
 
         PARSEC_DEBUG_VERBOSE(0, parsec_gpu_output_stream,
                              "GPU[%d] LEVEL_ZERO device still registered with PaRSEC at the end of LEVEL_ZERO finalize.\n"
