@@ -130,9 +130,9 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
             }
         }
         valid_types |= tc->incarnations[chore_id].type; /* the eval accepted the type, but no device specified yet */
-        /* Evaluate may have picked a device, abide by it */
-        if( NULL != this_task->selected_device ) {
-            assert( this_task->selected_device->type & valid_types );
+        if( NULL != this_task->selected_device ) { /* When Evaluate picked a device, abide by it */
+            assert( (1<<this_task->selected_device->device_index) & tp->devices_index_mask /* only valid devices! */ );
+            assert( this_task->selected_device->type & valid_types /* only valid device types! */ );
             PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s evaluate set selected_device %d:%s",
                                  __func__, tmp, this_task->selected_device->device_index, this_task->selected_device->name);
             goto device_selected;
@@ -210,7 +210,7 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
     assert( NULL == this_task->selected_device );
     { /* lets consider the time_estimates to select the best device */
         int best_index = -1;
-        int64_t eta, best_eta = INT64_MAX; /* dev->device_load + time_estimate(this_task, dev); this commented out because we don't count cpu loads */
+        int64_t eta, best_eta = INT64_MAX;
 
         /* If we have a preferred device (from READ flows), start with it, but still consider
          * other options to have some load balance */
@@ -224,16 +224,15 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
 
         /* Consider how adding the current task would change load balancing
          * between devices */
+        if(!parsec_device_load_balance_allow_cpu)
+            valid_types &= ~PARSEC_DEV_CPU; /* automatic CPU / GPU load balancing disabled, remove the CPU type */
+        valid_types &= ~PARSEC_DEV_RECURSIVE; /* Recursive device time estimates are computed on the associated CPU device */
         for( int dev_index = 0; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
             /* Skip the device if it is disabled for the taskpool */
             if(!(tp->devices_index_mask & (1 << dev_index))) continue;
             dev = parsec_mca_device_get(dev_index);
-            /* Is automatic CPU / GPU load balancing enabled? */
-            if(dev->type == PARSEC_DEV_CPU && !parsec_device_load_balance_allow_cpu) continue;
             /* Skip the device if no incarnations for its type */
             if(!(dev->type & valid_types)) continue;
-            /* Skip recursive devices: time estimates are computed on the associated CPU device */
-            if(dev->type == PARSEC_DEV_RECURSIVE) continue;
 
             eta = dev->device_load + time_estimate(this_task, dev);
             if( best_eta > eta ) {
