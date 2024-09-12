@@ -2,6 +2,7 @@
  * Copyright (c) 2009-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -2044,7 +2045,7 @@ static void jdf_generate_affinity( const jdf_t *jdf, const jdf_function_entry_t 
         assert( NULL == data_affinity->var );
     }
 
-    coutput("static inline int %s(%s *this_task,\n"
+    coutput("static inline int %s(const %s *this_task,\n"
             "                     parsec_data_ref_t *ref)\n"
             "{\n"
             "    const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t*)this_task->taskpool;\n",
@@ -8413,14 +8414,14 @@ int jdf_force_termdet_dynamic(jdf_t* jdf)
         return rc;
     }
 
-    termdet_expr = (jdf_expr_t *)calloc(sizeof(jdf_expr_t), 1);
+    termdet_expr = (jdf_expr_t *)calloc(1, sizeof(jdf_expr_t));
     termdet_expr->op = JDF_STRING;
     termdet_expr->local_variables = NULL;
     termdet_expr->scope = -1;
     termdet_expr->alias = NULL;
     termdet_expr->jdf_var = strdup(JDF_PROP_TERMDET_DYNAMIC);
 
-    property = (jdf_def_list_t*)calloc(sizeof(jdf_def_list_t), 1);
+    property = (jdf_def_list_t*)calloc(1, sizeof(jdf_def_list_t));
     property->expr = termdet_expr;
     property->name = strdup(JDF_PROP_TERMDET_NAME);
     property->next = jdf->global_properties;

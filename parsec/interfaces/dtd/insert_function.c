@@ -410,7 +410,7 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
         free((void *)tp->super.profiling_array);
 #endif /* defined(PARSEC_PROF_TRACE) */
  
-    if( tp->super.taskpool_name != NULL ) {
+    if( NULL != tp->super.taskpool_name) {
         free(tp->super.taskpool_name);
         tp->super.taskpool_name = NULL;
     }
@@ -2303,6 +2303,7 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
     return device->kernel_scheduler(device, es, gpu_task);
 #else
     parsec_warning("DTD: Selected best device is a GPU, but no GPU is supported at compile time. Falling back to CPU");
+    (void)this_task;
     return PARSEC_HOOK_RETURN_NEXT;
 #endif
 }
@@ -3463,7 +3464,7 @@ parsec_arena_datatype_t *parsec_dtd_create_arena_datatype(parsec_context_t *ctx,
     if(NULL != new_adt)
         return NULL;
 #endif
-    new_adt = calloc(sizeof(parsec_arena_datatype_t), 1);
+    new_adt = calloc(1, sizeof(parsec_arena_datatype_t));
     if(NULL == new_adt)
         return NULL;
     new_adt->ht_item.key = my_id;

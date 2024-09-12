@@ -1,8 +1,8 @@
 /*
- *
  * Copyright (c) 2013-2023 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -408,7 +408,7 @@ void parsec_compute_best_unit( uint64_t length, float* updated_value, char** bes
 
 void parsec_devices_save_statistics(uint64_t **pstats) {
     if(NULL == *pstats) {
-        *pstats = (uint64_t*)calloc(sizeof(uint64_t), parsec_nb_devices * 7 /* see below for the number of arrays */);
+        *pstats = (uint64_t*)calloc(parsec_nb_devices * 7 /* see below for the number of arrays */, sizeof(uint64_t));
     }
     else {
         memset(*pstats, 0, parsec_nb_devices * sizeof(uint64_t) * 7);

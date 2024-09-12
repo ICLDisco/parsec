@@ -2,6 +2,7 @@
  * Copyright (c) 2020-     The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -217,7 +218,7 @@ void parsec_info_object_array_init(parsec_info_object_array_t *oa, parsec_info_t
     if(oa->known_infos == 0)
         oa->info_objects = NULL;
     else
-        oa->info_objects = calloc(sizeof(void*), oa->known_infos);
+        oa->info_objects = calloc(oa->known_infos, sizeof(void*));
     oa->infos = nfo;
     oa->cons_obj = cons_obj;
 }
@@ -265,7 +266,7 @@ static void parsec_ioa_resize_and_rdlock(parsec_info_object_array_t *oa, parsec_
                 oa->info_objects = realloc(oa->info_objects, sizeof(void *) * ns);
                 memset(&oa->info_objects[oa->known_infos - 1], 0, ns - oa->known_infos);
             } else {
-                oa->info_objects = calloc(sizeof(void*), ns);
+                oa->info_objects = calloc(ns, sizeof(void*));
             }
             oa->known_infos = ns;
         }

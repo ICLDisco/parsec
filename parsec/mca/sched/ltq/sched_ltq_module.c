@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -63,7 +64,7 @@ static int flow_ltq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     uint32_t queue_size;
     parsec_vp_t * vp = es->virtual_process;
 
-    sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)calloc(sizeof(parsec_mca_sched_local_queues_scheduler_object_t), 1);
+    sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)calloc(1, sizeof(parsec_mca_sched_local_queues_scheduler_object_t));
     es->scheduler_object = sched_obj;
 
     if( es->th_id == 0 ) {

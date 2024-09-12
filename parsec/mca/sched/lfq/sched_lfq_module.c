@@ -2,6 +2,7 @@
  * Copyright (c) 2013-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -64,7 +65,7 @@ static int flow_lfq_init(parsec_execution_stream_t* es, struct parsec_barrier_t*
     vp = es->virtual_process;
 
     /* Every flow creates its own local object */
-    sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)calloc(sizeof(parsec_mca_sched_local_queues_scheduler_object_t), 1);
+    sched_obj = (parsec_mca_sched_local_queues_scheduler_object_t*)calloc(1, sizeof(parsec_mca_sched_local_queues_scheduler_object_t));
     es->scheduler_object = sched_obj;
     if( 0 == es->th_id ) {  /* And flow 0 creates the system_queue */
         sched_obj->system_queue = PARSEC_OBJ_NEW(parsec_dequeue_t);

@@ -242,9 +242,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    threads = calloc(sizeof(pthread_t), nb_tests);
-    params = calloc(sizeof(param_t), nb_tests);
-    values = calloc(sizeof(values_t), nb_tests+2);
+    threads = calloc(nb_tests, sizeof(pthread_t));
+    params = calloc(nb_tests, sizeof(param_t));
+    values = calloc(nb_tests+2, sizeof(values_t));
 
     gettimeofday(&now, NULL);
     srand48(now.tv_usec ^ getpid());

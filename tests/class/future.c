@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
     c_fut = PARSEC_OBJ_NEW(parsec_countable_future_t);
     parsec_future_init(c_fut, NULL, cores);
     printf("running with %d cores and %d copies\n", cores, ncopy);
-    threads = calloc(sizeof(pthread_t), cores);
+    threads = calloc(cores, sizeof(pthread_t));
 
     fut_array = malloc(cores*ncopy*sizeof(parsec_base_future_t*));
     data = malloc(cores*ncopy*sizeof(int));
