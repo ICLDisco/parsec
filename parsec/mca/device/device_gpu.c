@@ -2139,7 +2139,6 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
         original = gpu_copy->original;
         nb_elts = gpu_task->flow_nb_elts[i];
 
-        assert( this_task->data[i].data_in == NULL || original == this_task->data[i].data_in->original );
 
         if( (gpu_task->task_type != PARSEC_GPU_TASK_TYPE_D2D_COMPLETE) && !(flow->flow_flags & PARSEC_FLOW_ACCESS_WRITE) ) {
             /* Do not propagate GPU copies to successors (temporary solution) */
