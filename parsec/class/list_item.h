@@ -2,6 +2,7 @@
  * Copyright (c) 2010-2019 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #ifndef PARSEC_LIST_ITEM_H_HAS_BEEN_INCLUDED
@@ -109,7 +110,7 @@ parsec_list_item_ring( parsec_list_item_t* first, parsec_list_item_t* last )
         parsec_list_item_t* item = first;
         do {
             assert( item->belong_to == first->belong_to );
-            item->refcount--;
+            item->refcount = item->refcount - 1;
             assert( 0 == item->refcount );
             item = (parsec_list_item_t*)item->list_next;
         } while(item != first);
