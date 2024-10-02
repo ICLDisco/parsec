@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023      The University of Tennessee and The University
+ * Copyright (c) 2023-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -69,7 +69,7 @@ static int parsec_level_zero_memcpy_async(struct parsec_device_gpu_module_s *gpu
 {
     ze_result_t ret;
     parsec_level_zero_exec_stream_t *level_zero_stream = (parsec_level_zero_exec_stream_t *)gpu_stream;
-    
+
     (void)gpu;
     (void)direction; /* level_zero does not need to specify if source or destination is host or device */
 
@@ -88,12 +88,12 @@ static int parsec_level_zero_event_record(struct parsec_device_gpu_module_s *gpu
 {
     ze_result_t ze_rc;
     parsec_level_zero_exec_stream_t *level_zero_stream = (parsec_level_zero_exec_stream_t *)gpu_stream;
-    
+
     (void)gpu;
 
     ze_rc = zeCommandListClose(level_zero_stream->command_lists[event_idx]);
     PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandListClose ", ze_rc, { return PARSEC_ERROR; } );
-    ze_rc = zeCommandQueueExecuteCommandLists(level_zero_stream->level_zero_cq, 1, 
+    ze_rc = zeCommandQueueExecuteCommandLists(level_zero_stream->level_zero_cq, 1,
                                               &level_zero_stream->command_lists[event_idx],
                                               level_zero_stream->fences[event_idx]);
     PARSEC_LEVEL_ZERO_CHECK_ERROR( "zeCommandQueueExecuteCommandLists ", ze_rc, { return PARSEC_ERROR; } );
@@ -205,16 +205,16 @@ static int parsec_level_zero_memory_free(struct parsec_device_gpu_module_s *gpu,
 int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t *driver, ze_device_handle_t ze_device,
                                    ze_device_properties_t *prop, parsec_device_module_t** module )
 {
-    int streaming_multiprocessor, len;
+    int sm, len;
     parsec_device_level_zero_module_t* level_zero_device;
     parsec_device_gpu_module_t* gpu_device;
     parsec_device_module_t* device;
     ze_result_t ze_rc;
     int show_caps_index, show_caps = 0, j, k;
     char *szName;
-    float clockRate;
+    float freqGHz;
 
-    show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities"); 
+    show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities");
     if(0 < show_caps_index) {
         parsec_mca_param_lookup_int(show_caps_index, &show_caps);
     }
@@ -222,8 +222,8 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     *module = NULL;
 
     szName    = prop->name;
-    clockRate = prop->coreClockRate/1e3f;
-    streaming_multiprocessor = prop->numThreadsPerEU;
+    freqGHz   = prop->coreClockRate/1e3f;
+    sm        = prop->numThreadsPerEU;
 
     level_zero_device = (parsec_device_level_zero_module_t*)calloc(1, sizeof(parsec_device_level_zero_module_t));
     gpu_device = &level_zero_device->super;
@@ -234,7 +234,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     level_zero_device->ze_device = ze_device;
     level_zero_device->memory_index = -1; /* Will be initialized during call to mem_info */
 
-    len = asprintf(&gpu_device->super.name, "%s ZE(%d)", szName, dev_id);
+    len = asprintf(&gpu_device->super.name, "ze(%d)", dev_id);
     if(-1 == len) {
         gpu_device->super.name = NULL;
         goto release_device;
@@ -300,7 +300,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
                 ZE_COMMAND_QUEUE_MODE_DEFAULT,
                 ZE_COMMAND_QUEUE_PRIORITY_NORMAL
         };
-        /* CommandListImmediate would seem better for I/O, but mixing CLImmediate and CL+CQ 
+        /* CommandListImmediate would seem better for I/O, but mixing CLImmediate and CL+CQ
          * seems to create some synchronization issues. */
         commandQueueDesc.ordinal = computeQueueGroupOrdinal;
         ze_rc = zeCommandQueueCreate(level_zero_device->driver->ze_context, level_zero_device->ze_device,
@@ -362,7 +362,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
         /* Each 'exec' stream gets its own profiling stream, except IN and OUT stream that share it.
          * It's good to separate the exec streams to know what was submitted to what stream
          * We don't have this issue for the IN and OUT streams because types of event discriminate
-         * what happens where, and separating them consumes memory and increases the number of 
+         * what happens where, and separating them consumes memory and increases the number of
          * events that needs to be matched between streams because we cannot differentiate some
          * ends between IN or OUT, so they are all logged on the same stream. */
         if(j == 0 || (parsec_device_level_zero_one_profiling_stream_per_gpu_stream == 1 && j != 1))
@@ -396,15 +396,18 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     device->memory_release      = parsec_device_flush_lru;
     device->kernel_scheduler    = parsec_device_kernel_scheduler;
 
-    /* Un-implemented compute gflops based on FMA rate */
+    /*TODO NOT IMPLEMENTED: We compute gflops based on FMA rate on Ponte
+     * Vecchio (e.g., Aurora) */
     device->gflops_guess = true;
-    device->gflops_fp16 = 2.f * 4.0 * streaming_multiprocessor * clockRate;
-    device->gflops_tf32 = 2.f * 8.0 * streaming_multiprocessor * clockRate;
-    device->gflops_fp32 = 2.f * 2.0 * streaming_multiprocessor * clockRate;
-    device->gflops_fp64 = 2.f * 1.0 * streaming_multiprocessor * clockRate;
-    /* don't assert fp16, tf32, maybe they actually do not exist on the architecture */
+    double fp16, fp32, fp64, tf32;
+    device->gflops_fp16 = fp16 = 2.f * 4096.0 * sm * freqGHz;
+    device->gflops_tf32 = tf32 = 2.f * 2048.0 * sm * freqGHz;
+    device->gflops_fp32 = fp32 = 2.f * 256.0 * sm * freqGHz;
+    device->gflops_fp64 = fp64 = 2.f * 256.0 * sm * freqGHz;
     assert(device->gflops_fp32 > 0);
     assert(device->gflops_fp64 > 0);
+    if(device->gflops_guess)
+        fp16 = tf32 = fp32 = fp64 = 0; /* don't report anything if we don't know */
     device->device_load = 0;
 
     /* Initialize internal lists */
@@ -427,31 +430,21 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
     gpu_device->find_incarnation = parsec_level_zero_find_incarnation;
 
     if( PARSEC_SUCCESS != parsec_device_memory_reserve(gpu_device,
-                                                           parsec_level_zero_memory_percentage,
-                                                           parsec_level_zero_memory_number_of_blocks,
-                                                           parsec_level_zero_memory_block_size) ) {
+                                                       parsec_level_zero_memory_percentage,
+                                                       parsec_level_zero_memory_number_of_blocks,
+                                                       parsec_level_zero_memory_block_size) ) {
         goto release_device;
     }
 
     if( show_caps ) {
-        parsec_inform("LEVEL ZERO GPU Device %d: %s\n"
-                      "\tLocation (PCI Bus:Device.Domain): %x:%x.%x\n"
-                      "\tnumThreadsPerEU     : %u\n"
-                      "\tphysicalEUSimdWidth : %u\n"
-                      "\tnumEUsPerSubslice   : %u\n"
-                      "\tnumSubslicesPerSlice: %u\n"
-                      "\tnumSlices:            %u\n"
-                      "\tcoreClockRate (GHz): %2.2f\n",
-                      level_zero_device->level_zero_index, device->name,
-                      prop->deviceId, prop->subdeviceId, prop->vendorId,
-                      streaming_multiprocessor,
-                      prop->physicalEUSimdWidth,
-                      prop->numEUsPerSubslice,
-                      prop->numSubslicesPerSlice,
-                      prop->numSlices,
-                      clockRate*1e-3);
+        parsec_inform("Dev GPU %10s : %s [pci %x:%x.%x]\n"
+                      "\tFrequency (GHz)    : %.2f\t[Threads: %d | Slices: %u.%u.%u | SimdWidth: %u | MaxMemAlloc: %.1f GB]\n"
+                      "\tPeak Tflop/s %-5s : fp64: %-8.3f fp32: %-8.3f fp16: %-8.3f tf32: %-8.3f\n",
+                      device->name, szName, prop->deviceId, prop->subdeviceId, prop->vendorId,
+                      freqGHz, sm, prop->numSlices, prop->numSubslicesPerSlice, prop->numEUsPerSubslice, prop->physicalEUSimdWidth, prop->maxMemAllocSize/1024.f/1024.f/1024.f,
+                      device->gflops_guess? "GUESS": "", fp64*1e-3, fp32*1e-3, fp16*1e-3, tf32*1e-3);
+        //TODO: show memory capacity and reserved allocation
     }
-
     *module = device;
     return PARSEC_SUCCESS;
 
@@ -482,7 +475,7 @@ int parsec_level_zero_module_init( int dev_id, parsec_device_level_zero_driver_t
 #if defined(PARSEC_PROF_TRACE)
             if( NULL != exec_stream->profiling ) {
                 /* No function to clean the profiling stream. If one is introduced
-                 * some day, remember that exec streams 0 and 1 always share the same 
+                 * some day, remember that exec streams 0 and 1 always share the same
                  * ->profiling stream, and that all of them share the same
                  * ->profiling stream if parsec_device_level_zero_one_profiling_stream_per_gpu_stream == 0 */
             }
