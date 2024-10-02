@@ -502,11 +502,11 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     gtotal = (float)total_tasks;
     double percent_in, percent_out, percent_d2d;
 
-    printf("+-----------------------------------------------------------------------------------------------------------------------------------------------+\n");
-    printf("|         |                    |                       Data In                              |         Data Out               |                  |\n");
-    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |   Transfered H2D(%%)   |   Transfered D2D(%%)   |  Required  |   Transfered(%%)   |   Evictions   |\n",
+    printf("+---------------------------------------------------------------------------------------------------------------------------------------------+\n");
+    printf("|         |                    |                       Data In                              |                    Data Out                     |\n");
+    printf("|Rank %3d |  # KERNEL |    %%   |  Required  |    Transfered H2D(%%)  |    Transfered D2D(%%)  |  Required  |      Transfered(%%)  |   Evictions  |\n",
            (NULL == parsec_context ? parsec_debug_rank : parsec_context->my_rank));
-    printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|-------------------|------------------|\n");
+    printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|---------------------|--------------|\n");
     for( i = 0; i < parsec_nb_devices; i++ ) {
         if( NULL == (device = parsec_devices[i]) ) continue;
 
@@ -520,7 +520,7 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
         percent_d2d = (0 == required_in[i])? nan(""): (((double)transferred_d2d[i])  / (double)required_in[i] ) * 100.0;
         percent_out = (0 == required_out[i])? nan(""): (((double)transferred_out[i])  / (double)required_out[i] ) * 100.0;
 
-        printf("|  Dev %2d |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%5.2f)   |   %8.2f%2s(%5.2f)   | %8.2f%2s | %8.2f%2s(%5.2f) |  %10"PRIu64"      | %s\n",
+        printf("|  Dev %2d |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%6.2f)  |   %8.2f%2s(%6.2f)  | %8.2f%2s | %8.2f%2s(%6.2f)  |  %10"PRIu64"  | %s\n",
                device->device_index, executed_tasks[i], (executed_tasks[i]/gtotal)*100.00,
                best_required_in,  required_in_unit,  best_data_in,  data_in_unit, percent_in,
                best_d2d, d2d_unit, percent_d2d,
@@ -529,7 +529,7 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
                device->name );
     }
 
-    printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|-------------------|------------------|\n");
+    printf("|---------|-----------|--------|------------|-----------------------|-----------------------|------------|---------------------|--------------|\n");
 
     parsec_compute_best_unit( total_required_in,  &best_required_in,  &required_in_unit  );
     parsec_compute_best_unit( total_required_out, &best_required_out, &required_out_unit );
@@ -541,13 +541,13 @@ void parsec_devices_print_statistics(parsec_context_t *parsec_context, uint64_t 
     percent_d2d = (0 == total_required_in)? nan(""): (((double)total_d2d)  / (double)total_required_in) * 100.0;
     percent_out = (0 == total_required_out)? nan(""): (((double)total_data_out)  / (double)total_required_out) * 100.0;
 
-    printf("|All Devs |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%5.2f)   |   %8.2f%2s(%5.2f)   | %8.2f%2s | %8.2f%2s(%5.2f) |  %10"PRIu64"      |\n",
+    printf("|All Devs |%10"PRIu64" | %6.2f | %8.2f%2s |   %8.2f%2s(%6.2f)  |   %8.2f%2s(%6.2f)  | %8.2f%2s | %8.2f%2s(%6.2f)  |  %10"PRIu64"  |\n",
            total_tasks, (total_tasks/gtotal)*100.00,
            best_required_in,  required_in_unit,  best_data_in,  data_in_unit, percent_in,
            best_d2d, d2d_unit, percent_d2d,
            best_required_out, required_out_unit, best_data_out, data_out_unit, percent_out,
            total_evicted);
-    printf("+-----------------------------------------------------------------------------------------------------------------------------------------------+\n");
+    printf("+---------------------------------------------------------------------------------------------------------------------------------------------+\n");
 
     parsec_devices_free_statistics(&end_stats);
 }
@@ -761,6 +761,8 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
         parsec_device_module_t* device = parsec_devices[i];
         if( NULL == device ) continue;
         if( PARSEC_DEV_RECURSIVE == device->type ) continue;
+        if(NULL != device->all_devices_attached)
+            device->all_devices_attached(device);
         if( PARSEC_DEV_CPU == device->type ) {
             c = 0;
             for(int p = 0; p < context->nb_vp; p++)
@@ -784,9 +786,6 @@ int parsec_mca_device_registration_complete(parsec_context_t* context)
         device->time_estimate_default = total_gflops_fp64/(double)device->gflops_fp64;
         parsec_debug_verbose(6, parsec_device_output, "  Dev[%d] default-time-estimate %-4"PRId64" <- double %-8"PRId64" single %-8"PRId64" tensor %-8"PRId64" half %-8"PRId64" %s",
                              i, device->time_estimate_default, device->gflops_fp64, device->gflops_fp32, device->gflops_tf32, device->gflops_fp16, device->gflops_guess? "GUESSED": "");
-        if(NULL != device->all_devices_attached) {
-            device->all_devices_attached(device);
-        }
     }
 
     return PARSEC_SUCCESS;
@@ -810,6 +809,7 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
     float fp_ipc = 0.f;
     float dp_ipc = 0.f;
     char cpu_model[256]="Unkown";
+    char *simd = NULL;
 
 #if defined(__linux__)
     char *cpu_flags = NULL;
@@ -846,22 +846,27 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
     if( strstr(cpu_flags, " avx512f") ) {
         fp_ipc = 64;
         dp_ipc = 32;
+        simd = "avx512f";
     }
     else if( strstr(cpu_flags, " avx2") ) {
         fp_ipc = 32;
         dp_ipc = 16;
+        simd = "avx2";
     }
     else if( strstr(cpu_flags, " avx") ) {
         fp_ipc = 16;
         dp_ipc = 8;
+        simd = "avx";
     }
     else {
         fp_ipc = 8;
         dp_ipc = 4;
+        simd = "sse";
     }
 #elif defined(__PPC64__)
     fp_ipc = 16;
     dp_ipc = 8;
+    simd = "altivec";
 #endif  /* defined(__x86_64__) || defined(__i386__) || defined(__PPC64__) */
     free(cpu_flags);
 
@@ -879,6 +884,7 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
         /* vector length */
         fp_ipc = 16;
         dp_ipc = 8;
+        simd = "sve";
         // TODO: figure out a way to obtain cpu freq on arm64 macos
         freq = 0.0;
     }
@@ -898,6 +904,7 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
         }
         fp_ipc = 8*(8>>i);
         dp_ipc = 4*(8>>i);
+        simd = (NULL == keys[i])? "sse": strstr(keys[i], "avx");
         /* frequency */
         len = sizeof(size_t);
         rc = sysctlbyname("hw.cpufrequency", &val, &len, NULL, 0);
@@ -910,25 +917,6 @@ static int cpu_weights(parsec_device_module_t* device, int nstreams)
 #endif
 
 notfound:
-    {
-      int show_caps = 0;
-      int show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities");
-      if(0 < show_caps_index) {
-          parsec_mca_param_lookup_int(show_caps_index, &show_caps);
-      }
-      /* this may show unknown/0.0 if the cpu capabilities couldn't be determined */
-      if( show_caps ) {
-          int ncores = parsec_hwloc_nb_real_cores();
-          parsec_inform("CPU Device: %s\n"
-                        "\tParsec EUs / Cores : %d / %d\n"
-                        "\tFrequency (GHz)    : %.2f\n"
-                        "\tPeak Tflop/s       : fp64: %-8.3f fp32: %-8.3f",
-                        cpu_model,
-                        nstreams, ncores,
-                        freq, (nstreams > ncores? ncores: nstreams)*freq*dp_ipc*1e-3, (nstreams > ncores? ncores: nstreams)*freq*fp_ipc*1e-3);
-       }
-    }
-
     /* compute capacity is per-core, not per-device, so as to account for the
      * prevalent model where we use sequential, single threaded tasks on CPU devices.
      * Advanced users can use the time_estimate property to override if using
@@ -943,6 +931,24 @@ notfound:
       device->gflops_fp64 = device->gflops_guess = 1;
     /* CPUs emulate these using normal fp */
     device->gflops_fp16 = device->gflops_tf32 = device->gflops_fp32;
+
+    {
+      int show_caps = 0;
+      int show_caps_index = parsec_mca_param_find("device", NULL, "show_capabilities");
+      if(0 < show_caps_index) {
+          parsec_mca_param_lookup_int(show_caps_index, &show_caps);
+      }
+      /* this may show unknown/0.0 if the cpu capabilities couldn't be determined */
+      if( show_caps ) {
+          int ncores = parsec_hwloc_nb_real_cores();
+          parsec_inform("Dev %-2d %11s : %s\n"
+                        "\tFrequency (GHz)    : %.2f\t[Cores: %d | SIMD: %s]\tPaRSEC EU: %d threads\n"
+                        "\tPeak Tflop/s %-5s : fp64: %-8.3f fp32: %-8.3f",
+                        device->device_index, device->name, cpu_model,
+                        freq, ncores, simd, nstreams,
+                        device->gflops_guess? "GUESS": "", (nstreams > ncores? ncores: nstreams)*freq*dp_ipc*1e-3, (nstreams > ncores? ncores: nstreams)*freq*fp_ipc*1e-3);
+       }
+    }
 
     return PARSEC_SUCCESS;
 }
@@ -1013,7 +1019,6 @@ int parsec_mca_device_attach(parsec_context_t* context)
         parsec_device_cpus->taskpool_register = device_taskpool_register_static;
         parsec_mca_device_add(context, parsec_device_cpus);
     }
-#endif  /* defined(PARSEC_HAVE_DEV_CPU_SUPPORT) */
 
 #if defined(PARSEC_HAVE_DEV_RECURSIVE_SUPPORT)
     /* and one for the recursive kernels */
@@ -1031,6 +1036,7 @@ int parsec_mca_device_attach(parsec_context_t* context)
         parsec_mca_device_add(context, parsec_device_recursive);
     }
 #endif  /* defined(PARSEC_HAVE_DEV_RECURSIVE_SUPPORT) */
+#endif  /* defined(PARSEC_HAVE_DEV_CPU_SUPPORT) */
 
     for( int i = 0; NULL != (component = (parsec_device_base_component_t*)device_components[i]); i++ ) {
         for( int j = 0; NULL != (module = component->modules[j]); j++ ) {
