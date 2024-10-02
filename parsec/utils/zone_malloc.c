@@ -33,12 +33,13 @@ zone_malloc_t* zone_malloc_init(void* base_ptr, int _max_segment, size_t _unit_s
         zone_malloc_error("Cannot manage an empty memory region\n");
         return NULL;
     }
+    parsec_atomic_lock_t temp_unlock = PARSEC_ATOMIC_UNLOCKED;
 
     gdata = (zone_malloc_t*)malloc( sizeof(zone_malloc_t) );
     gdata->base               = base_ptr;
     gdata->unit_size          = _unit_size;
     gdata->max_segment        = _max_segment;
-    gdata->lock               = PARSEC_ATOMIC_UNLOCKED;
+    gdata->lock               = temp_unlock;
     gdata->next_tid = 0;
     gdata->segments = (segment_t *)malloc(sizeof(segment_t) * _max_segment);
 #if defined(PARSEC_DEBUG)
