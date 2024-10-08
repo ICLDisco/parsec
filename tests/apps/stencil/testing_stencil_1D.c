@@ -162,6 +162,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)stencil_1D_init_ops, op_args);
+    free(op_args);
 
     /* initialize weight_1D */
     weight_1D = (DTYPE *)malloc(sizeof(DTYPE) * (2*R+1));

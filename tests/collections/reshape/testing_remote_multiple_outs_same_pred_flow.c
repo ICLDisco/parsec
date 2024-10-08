@@ -99,6 +99,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    free(op_args);
 
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcV,
@@ -133,6 +134,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    free(op_args);
 
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcV,

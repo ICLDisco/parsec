@@ -74,12 +74,10 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count, op_args);
-
-    op_args = (int *)malloc(sizeof(int));
-    op_args[0] = 0;
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA_check,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count, op_args);
+    free(op_args);
 
     {
       parsec_avoidable_reshape_taskpool_t *ctp = NULL;

@@ -144,6 +144,7 @@ int main(int argc, char *argv[])
         parsec_apply( parsec, PARSEC_MATRIX_FULL,
                       (parsec_tiled_matrix_t *)&dcY,
                       (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+        free(op_args);
 
         /* Timer start */
         SYNC_TIME_START();
@@ -195,6 +196,7 @@ int main(int argc, char *argv[])
             parsec_apply( parsec, PARSEC_MATRIX_FULL,
                           (parsec_tiled_matrix_t *)&dcY,
                           (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+            free(op_args);
 
             /* Redistribute back from dcT to dcY */
             parsec_redistribute(parsec, (parsec_tiled_matrix_t *)&dcT,
@@ -217,6 +219,7 @@ int main(int argc, char *argv[])
         parsec_apply( parsec, PARSEC_MATRIX_FULL,
                       (parsec_tiled_matrix_t *)&dcT,
                       (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args_dtd);
+        free(op_args_dtd);
 
         /* Timer start */
         SYNC_TIME_START();
@@ -262,6 +265,7 @@ int main(int argc, char *argv[])
             parsec_apply( parsec, PARSEC_MATRIX_FULL,
                           (parsec_tiled_matrix_t *)&dcY,
                           (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+            free(op_args);
 
             /* Redistribute back from dcT to dcY */
             parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_t *)&dcT,
