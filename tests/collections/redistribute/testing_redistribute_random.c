@@ -137,11 +137,10 @@ int main(int argc, char *argv[])
          * Init dcY not including ghost region; if initvalue is 0,
          * init to 0; otherwise init to numbers based on index 
          */ 
-        int *op_args = (int *)malloc(sizeof(int));
-	    *op_args = 1;
+        int op_args = 1; 
 	    parsec_apply( parsec, PARSEC_MATRIX_FULL,
                      (parsec_tiled_matrix_t *)&dcY,
-                     (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+                     (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args);
 
         /* Timer start */ 
         SYNC_TIME_START();
@@ -189,11 +188,10 @@ int main(int argc, char *argv[])
 #else 
 
             /* Init dcY to 0 */
-            int *op_args = (int *)malloc(sizeof(int));
-            *op_args = 0;
+            int op_args = 0; 
             parsec_apply( parsec, PARSEC_MATRIX_FULL,
                           (parsec_tiled_matrix_t *)&dcY,
-                          (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+                          (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args);
 
             /* Redistribute back from dcT to dcY */
             parsec_redistribute(parsec, (parsec_tiled_matrix_t *)&dcT,
@@ -212,11 +210,10 @@ int main(int argc, char *argv[])
         /* 
          * Init dcT to 0.0 for DTD 
          */
-        int *op_args_dtd = (int *)malloc(sizeof(int));
-        *op_args_dtd = 0;
+        int op_args_dtd = 0; 
         parsec_apply( parsec, PARSEC_MATRIX_FULL,
                       (parsec_tiled_matrix_t *)&dcT,
-                      (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args_dtd);
+                      (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args_dtd);
 
         /* Timer start */
         SYNC_TIME_START();
@@ -257,11 +254,10 @@ int main(int argc, char *argv[])
                                       disi_T, disj_T);
 #else
             /* Init dcY to 0 */
-            int *op_args = (int *)malloc(sizeof(int));
-            *op_args = 0;
+            int op_args = 0; 
             parsec_apply( parsec, PARSEC_MATRIX_FULL,
                           (parsec_tiled_matrix_t *)&dcY,
-                          (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, op_args);
+                          (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args);
 
             /* Redistribute back from dcT to dcY */
             parsec_redistribute_dtd(parsec, (parsec_tiled_matrix_t *)&dcT,

@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     parsec_context_t* parsec;
     int rank, nodes, ch;
     int ret = 0, cret;
-    int *op_args;
+    int op_args = 0; 
     parsec_matrix_block_cyclic_t dcA;
     parsec_matrix_block_cyclic_t dcA_check;
     parsec_matrix_block_cyclic_t dcV;
@@ -94,11 +94,9 @@ int main(int argc, char *argv[])
      * Multiple outs by flow & multiple deps
      *************************/
 
-    op_args = (int *)malloc(sizeof(int));
-    op_args[0] = 0;
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
-                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, &op_args);
 
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcV,
@@ -128,11 +126,9 @@ int main(int argc, char *argv[])
      * Multiple outs by flow & multiple deps
      *************************/
 
-    op_args = (int *)malloc(sizeof(int));
-    op_args[0] = 0;
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
-                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+                  (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, &op_args);
 
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcV,
