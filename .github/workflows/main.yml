@@ -1,0 +1,55 @@
+name: CI Build
+
+# Triggers on push and branches on the master
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  all:
+    runs-on: [self-hosted, Linux]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type : [ Debug, Release ]
+        shared_type : [ OFF, ON ]
+        profiling : [ OFF, ON ]
+        exclude:
+          - build_type: Debug
+            profiling: OFF
+          - build_type: Release
+            shared_type: OFF
+    name: "${{matrix.build_type}} Shared=${{matrix.shared_type}} Profile=${{matrix.profiling}}"
+    env:
+      BUILD_TYPE:  ${{matrix.build_type}}
+      SHARED_TYPE: ${{matrix.shared_type}}
+      PROFILING:   ${{matrix.profiling}}
+      BUILD_DIRECTORY: build
+      INSTALL_DIRECTORY: install
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Build Environment ${{ runner.os }}
+      run: .github/CI/setup.sh
+
+    - name: Configure CMake
+      run: .github/CI/configure.sh
+
+    - name: Build
+      run: .github/CI/build.sh
+
+    - name: Install
+      run: .github/CI/install.sh
+
+    - name: Test
+      run: .github/CI/test.sh
+
+    - name: Save Artifact
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: CMake-error-log
+        path: CMakeFiles/CMakeError.log
