@@ -79,12 +79,14 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    free(op_args);
 
     op_args = (int *)malloc(sizeof(int));
     op_args[0] = 0;
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA_check,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    free(op_args);
 
     {
       parsec_local_no_reshape_taskpool_t *ctp = NULL;
@@ -110,6 +112,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    free(op_args);
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 1;
@@ -117,6 +120,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA_check,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+    free(op_args);
 
     {
       parsec_local_read_reshape_taskpool_t *ctp = NULL;
@@ -142,6 +146,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    free(op_args);
 
 
     op_args = (int *)malloc(sizeof(int)*2);
@@ -150,6 +155,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA_check,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+    free(op_args);
 
     {
       parsec_local_output_reshape_taskpool_t *ctp = NULL;
@@ -176,6 +182,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    free(op_args);
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 1;
@@ -183,6 +190,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA_check,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+    free(op_args);
 
     {
       parsec_local_input_reshape_taskpool_t *ctp = NULL;
@@ -208,6 +216,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    free(op_args);
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 1;
@@ -215,6 +224,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA_check,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+    free(op_args);
 
     {
       parsec_remote_read_reshape_taskpool_t *ctp = NULL;
@@ -238,6 +248,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value, op_args);
+    free(op_args);
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 1;
@@ -245,6 +256,7 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA_check,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_lower_tile, op_args);
+    free(op_args);
 
     {
       parsec_remote_no_re_reshape_taskpool_t *ctp = NULL;
@@ -271,12 +283,14 @@ int main(int argc, char *argv[])
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count, op_args);
+    free(op_args);
 
     op_args = (int *)malloc(sizeof(int)*2);
     op_args[0] = 0;
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA_check,
                   (parsec_tiled_matrix_unary_op_t)reshape_set_matrix_value_count_lower2upper_matrix, op_args);
+    free(op_args);
     {
       parsec_local_input_LU_LL_taskpool_t *ctp = NULL;
       ctp = parsec_local_input_LU_LL_new((parsec_tiled_matrix_t *)&dcA);

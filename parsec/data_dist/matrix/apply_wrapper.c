@@ -112,10 +112,6 @@ parsec_apply_Destruct( parsec_taskpool_t *tp )
 {
     parsec_apply_taskpool_t *omap = (parsec_apply_taskpool_t *)tp;
 
-    if ( omap->_g_op_args ) {
-        free( omap->_g_op_args );
-    }
-
     parsec_del2arena( &omap->arenas_datatypes[PARSEC_apply_DEFAULT_ADT_IDX] );
 
     parsec_taskpool_free(tp);
