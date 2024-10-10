@@ -1798,7 +1798,7 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
      * Check that we don't forward a NULL data to someone else. This
      * can be done only on the src node, since the dst node can
      * check for datatypes without knowing the data yet.
-     * By checking now, we allow for the data to be created any time bfore we
+     * By checking now, we allow for the data to be created any time before we
      * actually try to transfer it.
      */
     if( PARSEC_UNLIKELY((data->data == NULL) &&
@@ -1839,20 +1839,20 @@ parsec_release_dep_fct(parsec_execution_stream_t *es,
 #ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
                     /* Now everything is a reshaping entry */
                     /* Check if we need to reshape before sending */
-                    if(parsec_is_CTL_dep(output->data)){ /* CTL DEP */
+                    if(parsec_is_CTL_dep(output->data)) { /* CTL DEP */
                         output->data.data_future = NULL;
                         output->data.repo = NULL;
                         output->data.repo_key = -1;
-                    }else{
+                    } else {
                         /* Get reshape from whatever repo it has been set up into */
                         output->data.data_future = (parsec_datacopy_future_t*)target_dc;
                         output->data.repo = target_repo;
                         output->data.repo_key = target_repo_entry->ht_item.key;
                         PARSEC_DEBUG_VERBOSE(4, parsec_debug_output,
-                                         "th%d RESHAPE_PROMISE SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
-                                         es->th_id, output->data.data, (output->data.data)->dtt,
-                                         (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
-                                         output->data.data_future);
+                                             "th%d RESHAPE_PROMISE SETUP FOR REMOTE DEPS [%p:%p] for INLINE REMOTE %s fut %p",
+                                             es->th_id, output->data.data, (output->data.data)->dtt,
+                                             (target_repo == successor_repo? "UNFULFILLED" : "FULFILLED"),
+                                             output->data.data_future);
                     }
 #endif
                 } else {
@@ -1942,10 +1942,20 @@ parsec_task_snprintf( char* str, size_t size,
                            task->locals[i].value );
         if( index >= size ) return str;
     }
-    index += snprintf(str + index, size - index, "]<%d>", task->priority );
+    index += snprintf(str + index, size - index, "]<%d> keys = {", task->priority );
+    if( index >= size ) return str;
+    for( i = 0; i < tc->nb_flows; i++ ) {
+        char *prefix = (i == 0) ? "" : ", ";
+        if ((NULL == task->data[i].data_in) || (NULL == task->data[i].data_in->original))
+            index += snprintf(str + index, size - index, "%s*", prefix);
+        else
+            index += snprintf(str + index, size - index, "%s%lx", prefix, task->data[i].data_in->original->key);
+        if( index >= size ) return str;
+    }
+    index += snprintf(str + index, size - index, "}" );
     if( index >= size ) return str;
     if( NULL != task->taskpool ) {
-        index += snprintf(str + index, size - index, "{%u}", task->taskpool->taskpool_id );
+        index += snprintf(str + index, size - index, " {tp: %u}", task->taskpool->taskpool_id );
         if( index >= size ) return str;
     }
     return str;

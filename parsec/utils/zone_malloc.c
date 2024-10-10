@@ -33,12 +33,13 @@ zone_malloc_t* zone_malloc_init(void* base_ptr, int _max_segment, size_t _unit_s
         zone_malloc_error("Cannot manage an empty memory region\n");
         return NULL;
     }
+    parsec_atomic_lock_t temp_unlock = PARSEC_ATOMIC_UNLOCKED;
 
     gdata = (zone_malloc_t*)malloc( sizeof(zone_malloc_t) );
     gdata->base               = base_ptr;
     gdata->unit_size          = _unit_size;
     gdata->max_segment        = _max_segment;
-
+    gdata->lock               = temp_unlock;
     gdata->next_tid = 0;
     gdata->segments = (segment_t *)malloc(sizeof(segment_t) * _max_segment);
 #if defined(PARSEC_DEBUG)
@@ -74,6 +75,7 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
     int next_tid, current_tid, new_tid;
     int cycled_through = 0, nb_units;
 
+    parsec_atomic_lock(&gdata->lock);
     /* Let's start with the last remembered free slot */
     current_tid = gdata->next_tid;
     nb_units = (size + gdata->unit_size - 1) / gdata->unit_size;
@@ -82,13 +84,10 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
         current_segment = SEGMENT_AT_TID(gdata, current_tid);
         if( NULL == current_segment ) {
             /* Maybe there is a free slot in the beginning. Let's cycle at least once before we bail out */
-            if( cycled_through == 0 ) {
-                current_tid = 0;
-                cycled_through = 1;
-                current_segment = SEGMENT_AT_TID(gdata, current_tid);
-            } else {
-                return NULL;
-            }
+            if( 0 != cycled_through ) break;
+            current_tid = 0;
+            cycled_through = 1;
+            current_segment = SEGMENT_AT_TID(gdata, current_tid);
         }
 
         if( current_segment->status == SEGMENT_EMPTY && current_segment->nb_units >= nb_units ) {
@@ -111,12 +110,14 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size)
 
                 current_segment->nb_units = nb_units;
             }
-            return (void*)(gdata->base + (current_tid * gdata->unit_size));
+            parsec_atomic_unlock(&gdata->lock);
+            return (void *)(gdata->base + (current_tid * gdata->unit_size));
         }
 
         current_tid += current_segment->nb_units;
     } while( current_tid != gdata->next_tid );
 
+    parsec_atomic_unlock(&gdata->lock);
     return NULL;
 }
 
