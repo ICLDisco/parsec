@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2023 The University of Tennessee and The University
+ * Copyright (c) 2010-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
@@ -551,6 +551,8 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     /* don't assert fp16, tf32, maybe they actually do not exist on the architecture */
     assert(device->gflops_fp32 > 0);
     assert(device->gflops_fp64 > 0);
+    if(device->gflops_guess)
+        fp16 = tf32 = fp32 = fp64 = 0; /* don't report anything if we don't know */
     device->device_load = 0;
 
     /* Initialize internal lists */
@@ -561,9 +563,9 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     gpu_device->sort_starting_p = NULL;
     gpu_device->peer_access_mask = 0;  /* No GPU to GPU direct transfer by default */
 
-    device->memory_register          = parsec_cuda_memory_register;
-    device->memory_unregister        = parsec_cuda_memory_unregister;
-    device->all_devices_attached     = parsec_cuda_all_devices_attached;
+    device->memory_register      = parsec_cuda_memory_register;
+    device->memory_unregister    = parsec_cuda_memory_unregister;
+    device->all_devices_attached = parsec_cuda_all_devices_attached;
     gpu_device->set_device       = parsec_cuda_set_device;
     gpu_device->memcpy_async     = parsec_cuda_memcpy_async;
     gpu_device->event_record     = parsec_cuda_event_record;
@@ -574,14 +576,14 @@ parsec_cuda_module_init( int dev_id, parsec_device_module_t** module )
     gpu_device->find_incarnation = parsec_cuda_find_incarnation;
 
     if( PARSEC_SUCCESS != parsec_device_memory_reserve(gpu_device,
-                                                           parsec_cuda_memory_percentage,
-                                                           parsec_cuda_memory_number_of_blocks,
-                                                           parsec_cuda_memory_block_size) ) {
+                                                       parsec_cuda_memory_percentage,
+                                                       parsec_cuda_memory_number_of_blocks,
+                                                       parsec_cuda_memory_block_size) ) {
         goto release_device;
     }
 
     if( show_caps ) {
-        parsec_inform("GPU Device %-8s: %s %.0fGB [pci %x:%x.%x]\n"
+        parsec_inform("Dev GPU %10s : %s %.0fGB [pci %x:%x.%x]\n"
                       "\tFrequency (GHz)    : %.2f\t[SM: %d | Capabilities: %d.%d | Concurency %s | ComputeMode %d]\n"
                       "\tPeak Tflop/s %-5s : fp64: %-8.3f fp32: %-8.3f fp16: %-8.3f tf32: %-8.3f\n"
                       "\tPeak Mem Bw (GB/s) : %.2f\t[Clock Rate (Ghz) %.2f | Bus Width (bits) %d]\tReserved Pool (GB): %.1f\n",
