@@ -2378,7 +2378,7 @@ parsec_device_kernel_pop( parsec_device_gpu_module_t   *gpu_device,
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
                          "GPU[%d:%s]: Pop %s DONE (return %d data epoch %"PRIu64")",
                          gpu_device->super.device_index, gpu_device->super.name,
-                         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task), return_code, gpu_device->data_avail_epoch );
+                         parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task), return_code < 0 ? return_code: how_many, gpu_device->data_avail_epoch );
 
     return (return_code < 0 ? return_code : how_many);
 }

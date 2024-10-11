@@ -140,11 +140,41 @@ int __parsec_execute( parsec_execution_stream_t* es,
          * If we run get_best_device, the caller core is available to run a task, so directly using time_estimate with a 0 base is accurate. */
         parsec_atomic_fetch_add_int64(&task->selected_device->device_load, task->load);
     }
+    else {
+        /* for every flow, check if we received a GPU copy, and revert to the
+         * CPU copy since this is a CPU hook. Note: at this point copy versions
+         * should be synchronized already from a pushout. */
+        for( int i = 0; i < task->task_class->nb_flows; i++ ) {
+            /* Make sure data_in is not NULL */
+            if( NULL == task->data[i].data_in ) continue;
+            if( PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & task->task_class->in[i]->flow_flags) )  continue;  /* control flow */
 
-    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Thread %d of VP %d Execute %s chore %d device %d:%s",
-                         es->th_id, es->virtual_process->vp_id,
-                         tmp, task->selected_chore,
-                         task->selected_device->device_index, task->selected_device->name);
+            parsec_data_copy_t* copy = task->data[i].data_in;
+            if(parsec_mca_device_is_gpu(copy->device_index)) {
+                assert(copy->coherency_state == PARSEC_DATA_COHERENCY_SHARED);
+                assert(NULL != copy->original && NULL != copy->original->device_copies[0]);
+                assert(copy->version == copy->original->device_copies[0]->version);
+                task->data[i].data_in = copy->original->device_copies[0];
+                PARSEC_DATA_COPY_RETAIN(task->data[i].data_in);
+                PARSEC_DATA_COPY_RELEASE(copy);
+            }
+        }
+    }
+
+#if defined(PARSEC_DEBUG_NOISIER)
+    char tmp2[4096]; int len = 0;
+    len += snprintf(&tmp2[len], 4096-len, "Thread %2d:%d\tExecute %s\tchore[%d] dev %d:%s",
+                    es->th_id, es->virtual_process->vp_id,
+                    tmp, task->selected_chore,
+                    task->selected_device->device_index, task->selected_device->name);
+    for( int i = 0; parsec_debug_verbose > 5 && i < task->task_class->nb_flows; i++ ) {
+        parsec_data_copy_t* copy = task->data[i].data_in;
+        if( NULL == copy ) continue; /* Make sure data_in is not NULL */
+        if( PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & task->task_class->in[i]->flow_flags) )  continue;  /* control flow */
+        len += snprintf(&tmp2[len], 4096-len, "\n\t  Data[%d] key %lx\ton dev:%d version:%d readers:%d ptr:%p", i, copy->original->key, copy->device_index, copy->version, copy->readers, copy->device_private);
+    }
+    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "%s", tmp2);
+#endif
 
     parsec_hook_t *hook = tc->incarnations[task->selected_chore].hook;
     assert( NULL != hook );
