@@ -157,11 +157,9 @@ int main(int argc, char *argv[])
      * Init dcA (not including ghost region) to i*1.0+j*1.0
      * Init ghost region to 0.0
      */
-    int *op_args = (int *)malloc(sizeof(int));
-    *op_args = R;
     parsec_apply( parsec, PARSEC_MATRIX_FULL,
                   (parsec_tiled_matrix_t *)&dcA,
-                  (parsec_tiled_matrix_unary_op_t)stencil_1D_init_ops, op_args);
+                  (parsec_tiled_matrix_unary_op_t)stencil_1D_init_ops, &R);
 
     /* initialize weight_1D */
     weight_1D = (DTYPE *)malloc(sizeof(DTYPE) * (2*R+1));
