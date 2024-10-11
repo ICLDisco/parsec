@@ -827,9 +827,11 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_stream_t *eu,
     if (NULL != fct->data_affinity ) {
         parsec_data_ref_t dref;
         fct->data_affinity(newcontext, &dref);
-        parsec_data_t* data = dref.dc->data_of_key(dref.dc, dref.key);
-        output->data.preferred_device = (-1 != data->preferred_device) ?
-                                        data->preferred_device : data->owner_device; 
+        if(NULL != dref.dc->data_of_key) {
+            parsec_data_t* data = dref.dc->data_of_key(dref.dc, dref.key);
+            output->data.preferred_device = (-1 != data->preferred_device) ?
+                                            data->preferred_device : data->owner_device;
+        }
     }
     return PARSEC_ITERATE_CONTINUE;
 }
