@@ -215,6 +215,10 @@ static void __parsec_task_constructor(parsec_task_t* task) {
     task->selected_chore = -1;
     task->load = 0;
     task->status = PARSEC_TASK_STATUS_NONE;
+#if defined(PARSEC_DEBUG_NOISIER)
+    /* used during task_snprintf for non-fully initialized task_t */
+    memset(&task->data, 0, MAX_PARAM_COUNT * sizeof(parsec_data_pair_t));
+#endif
 }
 
 /*
@@ -1225,7 +1229,7 @@ int parsec_fini( parsec_context_t** pcontext )
 #endif  /* PARSEC_PROF_TRACE */
 
     /* PAPI SDE needs to process the shutdown before resources exposed to it are freed.
-     * This includes scheduling resources, so SDE needs to be finalized before the 
+     * This includes scheduling resources, so SDE needs to be finalized before the
      * computation threads leave */
     PARSEC_PAPI_SDE_FINI();
 
@@ -1552,7 +1556,7 @@ parsec_update_deps_with_counter(parsec_taskpool_t *tp,
     (void)origin;
     (void)origin_flow;
     (void)dest_flow;
-    
+
     if( 0 == *deps ) {
         dep_new_value = parsec_check_IN_dependencies_with_counter(tp, task) - 1;
         if( parsec_atomic_cas_int32( deps, 0, dep_new_value ) == 1 )
@@ -1715,7 +1719,7 @@ parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
             PARSEC_COPY_EXECUTION_CONTEXT(new_context, task);
             PARSEC_AYU_ADD_TASK(new_context);
 
-            PARSEC_DEBUG_VERBOSE(6, parsec_debug_output,
+            PARSEC_DEBUG_VERBOSE(7, parsec_debug_output,
                    "%s becomes ready from %s on thread %d:%d, with mask 0x%04x",
                    tmp1,
                    parsec_task_snprintf(tmp2, MAX_TASK_STRLEN, origin),
@@ -2094,6 +2098,7 @@ int parsec_taskpool_reserve_id( parsec_taskpool_t* tp )
     tp->taskpool_id = idx;
     assert( NOTASKPOOL == taskpool_array[idx] );
     parsec_atomic_unlock( &taskpool_array_lock );
+    PARSEC_DEBUG_VERBOSE(5, parsec_debug_output, "Taskpool %s received id %d", tp->taskpool_name, tp->taskpool_id);
     return idx;
 }
 
@@ -2216,7 +2221,7 @@ int parsec_taskpool_enable(parsec_taskpool_t* tp,
     }
 
     if( 0 != distributed ) {
-        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %p: %d with the comm engine", tp, tp->taskpool_id);
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Register a new taskpool %s: %d with the comm engine", tp->taskpool_name, tp->taskpool_id);
         (void)parsec_remote_dep_new_taskpool(tp);
     }
     return PARSEC_HOOK_RETURN_DONE;
