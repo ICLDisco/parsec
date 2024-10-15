@@ -1815,6 +1815,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
                                parsec_gpu_task_t** out_task )
 {
     int rc;
+    int ret = PARSEC_HOOK_RETURN_DONE;
 #if defined(PARSEC_DEBUG_NOISIER)
     char task_str[MAX_TASK_STRLEN];
 #endif
@@ -1864,6 +1865,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
             return rc;
         }
         if( 0 != rc ) {
+            /* TODO: why do we return AGAIN on error? */
             return PARSEC_HOOK_RETURN_AGAIN;
         }
     }
@@ -1873,7 +1875,7 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
         task = (parsec_gpu_task_t*)parsec_list_pop_front(stream->fifo_pending);  /* get the best task */
     }
     if( NULL == task ) {  /* No tasks, we're done */
-        return PARSEC_HOOK_RETURN_DONE;
+        return ret;
     }
     PARSEC_LIST_ITEM_SINGLETON((parsec_list_item_t*)task);
 
@@ -1899,6 +1901,8 @@ parsec_device_progress_stream( parsec_device_gpu_module_t* gpu_device,
                              "trigger the task will be handled accordingly",
                              gpu_device->super.device_index, gpu_device->super.name, (void*)task);
     }
+
+    ret = (ret != PARSEC_HOOK_RETURN_DONE) ? ret : rc;
     task->last_status = rc;
     /**
      * Do not skip the gpu event generation. The problem is that some of the inputs
