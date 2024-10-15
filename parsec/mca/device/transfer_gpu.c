@@ -262,6 +262,8 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
             nb_cleaned++;
             if (MAX_PARAM_COUNT == nb_cleaned)
                 break;
+        } else {
+            parsec_atomic_lock( &gpu_copy->original->lock );
         }
     }
 
