@@ -126,6 +126,7 @@ parsec_info_id_t parsec_info_unregister(parsec_info_t *nfo, parsec_info_id_t iid
                     item2 = PARSEC_LIST_ITERATOR_NEXT(item2)) {
                     ioa = (parsec_info_object_array_t*)item2;
                     if(iid < ioa->known_infos && NULL != ioa->info_objects[iid]) {
+                        if(NULL != ioa->ctx_set) ioa->ctx_set(ioa->ctx_set_obj);
                         ie->destructor(ioa->info_objects[iid], ie->des_data);
                         ioa->info_objects[iid] = NULL;
                     }
@@ -211,7 +212,7 @@ static void parsec_info_object_array_constructor(parsec_object_t *obj)
 /* The constructor cannot set the info, as it does not take additional
  * parameters. Thus, it is needed to call init after constructing the
  * info_object_array. */
-void parsec_info_object_array_init(parsec_info_object_array_t *oa, parsec_info_t *nfo, void *cons_obj)
+void parsec_info_object_array_init(parsec_info_object_array_t *oa, parsec_info_t *nfo, void *cons_obj, parsec_info_set_ctx_fn ctx_set, void *ctx_set_param)
 {
     oa->known_infos = nfo->max_id+1;
     parsec_list_push_front(&nfo->ioa_list, &oa->list_item);
@@ -221,6 +222,8 @@ void parsec_info_object_array_init(parsec_info_object_array_t *oa, parsec_info_t
         oa->info_objects = calloc(oa->known_infos, sizeof(void*));
     oa->infos = nfo;
     oa->cons_obj = cons_obj;
+    oa->ctx_set = ctx_set;
+    oa->ctx_set_obj = ctx_set_param;
 }
 
 static void parsec_info_object_array_destructor(parsec_object_t *obj)
@@ -312,10 +315,26 @@ void *parsec_info_get(parsec_info_object_array_t *oa, parsec_info_id_t iid)
     ie = parsec_info_lookup_by_iid(oa->infos, iid);
     if(NULL == ie->constructor)
         return ret;
+    if(NULL != oa->ctx_set) oa->ctx_set(oa->ctx_set_obj);
     nio = ie->constructor(oa->cons_obj, ie->cons_data);
     ret = parsec_info_test_and_set(oa, iid, nio, NULL);
     if(ret != nio && NULL != ie->destructor) {
         ie->destructor(nio, ie->des_data);
     }
     return ret;
+}
+
+void parsec_info_set_all(parsec_info_t *nfo, parsec_info_id_t iid)
+{
+    parsec_list_item_t *li;
+    parsec_info_object_array_t *oa;
+
+    parsec_list_lock(&nfo->ioa_list);
+    for(li =  PARSEC_LIST_ITERATOR_FIRST(&nfo->ioa_list);
+        li != PARSEC_LIST_ITERATOR_END(&nfo->ioa_list);
+        li =  PARSEC_LIST_ITERATOR_NEXT(li)) {
+            oa = (parsec_info_object_array_t*)li;
+            parsec_info_get(oa, iid);
+    }
+    parsec_list_unlock(&nfo->ioa_list);
 }
