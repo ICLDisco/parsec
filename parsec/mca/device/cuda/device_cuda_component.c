@@ -40,7 +40,8 @@ int parsec_cuda_max_streams = PARSEC_GPU_MAX_STREAMS;
 int parsec_cuda_memory_block_size, parsec_cuda_memory_percentage, parsec_cuda_memory_number_of_blocks;
 char* parsec_cuda_lib_path = NULL;
 
-static int cuda_mask;
+static int parsec_device_cuda_mask = 0xFF;
+static int parsec_device_cuda_avail = 0;
 static int parsec_cuda_sort_pending;
 
 #if defined(PARSEC_PROF_TRACE)
@@ -104,10 +105,10 @@ static int device_cuda_component_query(mca_base_module_t **module, int *priority
     else
         parsec_device_cuda_component.modules = NULL;
 
-    for( i = j = 0; i < parsec_device_cuda_enabled; i++ ) {
+    for( i = j = 0; (i < parsec_device_cuda_avail) && (j < parsec_device_cuda_enabled); i++ ) {
 
         /* Allow fine grain selection of the GPU's */
-        if( !((1 << i) & cuda_mask) ) continue;
+        if( !((1 << i) & parsec_device_cuda_mask) ) continue;
 
         rc = parsec_cuda_module_init(i, &parsec_device_cuda_component.modules[j]);
         if( PARSEC_SUCCESS != rc ) {
@@ -138,11 +139,24 @@ static int device_cuda_component_register(void)
                                                    "The number of CUDA device to enable for the next PaRSEC context (-1 for all available)",
                                                    false, false, -1, &parsec_device_cuda_enabled);
     (void)parsec_mca_param_reg_int_name("device_cuda", "mask",
-                                        "The bitwise mask of CUDA devices to be enabled (default all)",
-                                        false, false, 0xffffffff, &cuda_mask);
-     (void)parsec_mca_param_reg_int_name("device_cuda", "nvlink_mask",
+                                        "The bitwise mask of CUDA devices to be enabled (default all). Leave it untouched to be superseeded by CUDA_VISIBLE_DEVICES.",
+                                        false, false, 0xffffffff, &parsec_device_cuda_mask);
+    (void)parsec_mca_param_reg_int_name("device_cuda", "nvlink_mask",
                                         "What devices are allowed to use NVLINK if available (default all)",
                                         false, false, 0xffffffff, &parsec_cuda_nvlink_mask);
+    if( 0xffffffff == parsec_cuda_nvlink_mask ) {
+        char* visible_devs = getenv("CUDA_VISIBLE_DEVICES");
+        if( NULL != visible_devs ) {
+            parsec_cuda_nvlink_mask = 0;
+            while( NULL != visible_devs ) {
+                int idx = atoi(visible_devs);
+                parsec_cuda_nvlink_mask |= (1 << idx);
+                visible_devs = strchr(visible_devs, ",");
+                if( NULL != visible_devs ) visible_devs++;  /* skip the delimiter */
+            }
+        }
+    }
+
     (void)parsec_mca_param_reg_int_name("device_cuda", "verbose",
                                         "Set the verbosity level of the CUDA device (negative value: use debug verbosity), higher is less verbose)\n",
                                         false, false, -1, &parsec_gpu_verbosity);
@@ -185,15 +199,14 @@ static int device_cuda_component_register(void)
 static int device_cuda_component_open(void)
 {
     cudaError_t cudastatus;
-    int ndevices;
 
     if( 0 == parsec_device_cuda_enabled ) {
         return MCA_ERROR;  /* Nothing to do around here */
     }
 
-    cudastatus = cudaGetDeviceCount( &ndevices );
+    cudastatus = cudaGetDeviceCount(&parsec_device_cuda_avail);
     if( cudaErrorNoDevice == (cudaError_t) cudastatus ) {
-        ndevices = 0;
+        parsec_device_cuda_avail = 0;
         /* This is normal on machines with no GPUs, let it flow
          * to do the normal checks vis-a-vis the number of requested
          * devices and issue a warning only when not fulfilling
@@ -208,31 +221,22 @@ static int device_cuda_component_open(void)
                              } );
     }
 
-    if( ndevices > parsec_device_cuda_enabled ) {
+    /* Update the number of GPU for the upper layer */
+    if (parsec_device_cuda_avail < parsec_device_cuda_enabled ) {
         if( 0 < parsec_device_cuda_enabled ) {
-            ndevices = parsec_device_cuda_enabled;
-        }
-    } else if (ndevices < parsec_device_cuda_enabled ) {
-        if( 0 < parsec_device_cuda_enabled ) {
-            if( 0 == ndevices ) {
+            if( 0 == parsec_device_cuda_avail ) {
                 parsec_warning("User requested %d CUDA devices, but none are available on %s."
                                " CUDA support will be therefore disabled.",
                                parsec_device_cuda_enabled, parsec_hostname);
             } else {
                 parsec_warning("User requested %d CUDA devices, but only %d are available on %s.",
-                               parsec_device_cuda_enabled, ndevices, parsec_hostname);
+                               parsec_device_cuda_enabled, parsec_device_cuda_avail, parsec_hostname);
             }
-            parsec_mca_param_set_int(parsec_device_cuda_enabled_index, ndevices);
         }
+        parsec_mca_param_set_int(parsec_device_cuda_enabled_index, parsec_device_cuda_avail);
     }
 
-    /* Update the number of GPU for the upper layer */
-    parsec_device_cuda_enabled = ndevices;
-    if( 0 == ndevices ) {
-        return MCA_ERROR;
-    }
-
-    return MCA_SUCCESS;
+    return (0 == parsec_device_cuda_avail) ? MCA_ERROR : MCA_SUCCESS;
 }
 
 /**
