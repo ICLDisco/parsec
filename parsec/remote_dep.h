@@ -87,6 +87,11 @@ struct parsec_dep_data_description_s {
      */
     parsec_datacopy_future_t      *data_future;
 
+    /* If we can extract a preferred location for the incoming data set it
+     * here, otherwise the memory for the incoming data will be allocated
+     * on the main memory (device 0).
+     */
+    int32_t preferred_device;
 #ifdef PARSEC_RESHAPE_BEFORE_SEND_TO_REMOTE
     /* Keeping current repo & key to be able to consume when
      * the "remote" successors (aka the communication engine)

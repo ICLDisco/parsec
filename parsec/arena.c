@@ -235,43 +235,118 @@ int  parsec_arena_allocate_device_private(parsec_data_copy_t *copy,
     return PARSEC_SUCCESS;
 }
 
-parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena,
-                                          size_t count, int device,
-                                          parsec_datatype_t dtt)
+#include "parsec/utils/zone_malloc.h"
+#include "mca/device/device_gpu.h"
+
+#if defined(PARSEC_DEBUG)
+static int64_t parsec_countable_incoming_message = 0xF000000000000000;
+#endif  /* defined(PARSEC_DEBUG) */
+
+static inline parsec_data_copy_t *
+parsec_arena_internal_copy_new(parsec_arena_t *arena,
+                               parsec_data_t *data,
+                               size_t count, int device,
+                               parsec_datatype_t dtt)
 {
-    parsec_data_t *data;
-    parsec_data_copy_t *copy;
-    int rc;
-
-    
-    data = parsec_data_new();
+    parsec_data_copy_t *copy = NULL;
+    parsec_data_t* ldata = data;
     if( NULL == data ) {
+        ldata = parsec_data_new();
+        if( NULL == ldata ) {
+            return NULL;
+        }
+#if defined(PARSEC_DEBUG)
+        /* Name the data with a default key to facilitate debuging */
+        ldata->key = (uint64_t)parsec_atomic_fetch_inc_int64(&parsec_countable_incoming_message);
+        ldata->key |= ((uint64_t)device) << 56;
+#endif  /* defined(PARSEC_DEBUG) */
+    }
+    if( 0 == device ) {
+        copy = parsec_data_copy_new(ldata, device, dtt,
+                                    PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED | PARSEC_DATA_FLAG_ARENA);
+        if (NULL == copy) {
+            goto free_and_return;
+        }
+        int rc = parsec_arena_allocate_device_private(copy, arena, count, device, dtt);
+        if (PARSEC_SUCCESS != rc) {
+            goto free_and_return;
+        }
+        return copy;
+    }
+    /**
+     * This part is not really nice, it breaks the separation between devices, and how their memory is
+     * managed. But, it should give nice perfromance improvements if the communication layer is
+     * capable of sending or receiving data directly to and from the accelerator memory. The only drawback
+     * is that once the GPU memory is full, this will fail, so the soeftware will fall back to the
+     * prior behavior, going through the CPU memory.
+     *
+     * The zone deallocation is not symmetric, it will happen in the GPU management, when the data copies
+     * are released from the different LRU lists.
+     */
+    parsec_device_gpu_module_t *gpu_device = (parsec_device_gpu_module_t *)parsec_mca_device_get(device);
+    if (NULL == gpu_device) {
         return NULL;
     }
+    size_t size = count * arena->elem_size;
+    void* device_private = zone_malloc(gpu_device->memory, size);
+    if( NULL == device_private ) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p failed (out of memory)\n",
+                             device, size, (void *)copy->arena_chunk);
+        goto free_and_return;
+    }
+    copy = parsec_data_copy_new(ldata, device, dtt,
+                                PARSEC_DATA_FLAG_PARSEC_OWNED | PARSEC_DATA_FLAG_PARSEC_MANAGED);
+    if (NULL == copy) {
+        PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p failed to allocate copy (out of memory)\n",
+                             device, size, (void *)copy->arena_chunk);
+        zone_free(gpu_device->memory, device_private);
+        goto free_and_return;
+    }
+    copy->dtt = dtt;
+    copy->device_private = device_private;
+    copy->arena_chunk = (parsec_arena_chunk_t*)gpu_device->memory;
+    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Arena:\tallocate data copy on device %d of size %zu from zone %p, "
+                                                  "data ptr %p",
+                         device, size, (void*)copy->arena_chunk, (void*)copy->device_private);
+    copy->version = 0;
+    copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
+    copy->original->owner_device = device;
+    copy->original->preferred_device = device;
+    return copy;
+  free_and_return:
+    if( NULL != copy )
+        PARSEC_OBJ_RELEASE(copy);
+    if( NULL == data)
+        PARSEC_OBJ_RELEASE(ldata); /* release the locally allocated data */
+    return NULL;
+}
 
-    copy = parsec_data_copy_new( data, device, dtt,
-                                 PARSEC_DATA_FLAG_ARENA |
-                                 PARSEC_DATA_FLAG_PARSEC_OWNED |
-                                 PARSEC_DATA_FLAG_PARSEC_MANAGED);
+parsec_data_copy_t *
+parsec_arena_get_new_copy(parsec_arena_t *arena,
+                          size_t count, int device,
+                          parsec_datatype_t dtt)
+{
+    parsec_data_copy_t *dev0_copy, *copy;
 
-    if(NULL == copy) {
-        PARSEC_OBJ_RELEASE(data);
+    dev0_copy = parsec_arena_internal_copy_new(arena, NULL, count, 0 /* first allocate the copy on the device 0 */, dtt);
+    if( NULL == dev0_copy ) {
         return NULL;
     }
+    dev0_copy->coherency_state = PARSEC_DATA_COHERENCY_INVALID;
+    dev0_copy->version = 0;  /* start from somewhere */
+    if( 0 == device ) {
+        return dev0_copy;
+    }
 
-    rc = parsec_arena_allocate_device_private(copy, arena, count, device, dtt);
-
+    copy = parsec_arena_internal_copy_new(arena, dev0_copy->original, count, device, dtt);
+    if( NULL == copy ) {
+        copy = dev0_copy;  /* return the main memory data copy */
+    }
     /* This data is going to be released once all copies are released
      * It does not exist without at least a copy, and we don't give the
      * pointer to the user, so we must remove our retain from it
      */
-    PARSEC_OBJ_RELEASE(data);
-
-    if( PARSEC_SUCCESS != rc ) {
-        PARSEC_OBJ_RELEASE(copy);
-        return NULL;
-    }
-
+    PARSEC_OBJ_RELEASE(dev0_copy->original);
     return copy;
 }
 
