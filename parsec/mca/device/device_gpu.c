@@ -1479,10 +1479,13 @@ parsec_device_data_stage_in( parsec_device_gpu_module_t* gpu_device,
                              gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, task_data->data_in->super.super.obj_reference_count, original);
         if( gpu_device->super.type == candidate_dev->super.type ) {
             if( gpu_device->peer_access_mask & (1 << candidate_dev->super.device_index) ) {
-                /* We can directly do D2D, so let's skip the selection */
-                PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
-                                     "GPU[%d:%s]:\tskipping candidate lookup: data_in copy %p on %s has PEER ACCESS",
-                                     gpu_device->super.device_index, gpu_device->super.name, task_data->data_in, candidate_dev->super.name);
+                /* We have a candidate for the d2d transfer. */
+                int readers = parsec_atomic_fetch_inc_int32(&candidate->readers);
+                /* the data-in should not be in the lru so we can skip the coordination protocol with the owner of the candidate being repurposed. */
+                assert( readers >= 0 /* repurposed! */); (void)readers;
+                PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                     "GPU[%d:%s]:\tData copy %p [ref_count %d] on PaRSEC device %s is the data_in candidate and has PEER ACCESS; increasing its readers to %d",
+                                     gpu_device->super.device_index, gpu_device->super.name, candidate, candidate->super.super.obj_reference_count, candidate_dev->super.name, candidate->readers+1);
                 goto src_selected;
             }
         }
