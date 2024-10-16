@@ -201,8 +201,11 @@ PARSEC_DECLSPEC PARSEC_OBJ_CLASS_DECLARATION(parsec_taskpool_t);
 #define PARSEC_DEPENDENCIES_STARTUP_TASK   ((parsec_dependency_t)(1<<29))
 #define PARSEC_DEPENDENCIES_BITMASK        (~(PARSEC_DEPENDENCIES_TASK_DONE|PARSEC_DEPENDENCIES_IN_DONE|PARSEC_DEPENDENCIES_STARTUP_TASK))
 
-#define PARSEC_RUNTIME_SEND_FROM_GPU_MEMORY 0x00000002
-#define PARSEC_RUNTIME_RECV_FROM_GPU_MEMORY 0x00000001
+/* Mask denoting if we can send and receive communication (e.g., MPI) directly into
+ * GPU buffers.
+ */
+#define PARSEC_RUNTIME_SEND_GPU_MEMORY 0x00000002
+#define PARSEC_RUNTIME_RECV_GPU_MEMORY 0x00000001
 
 /**
  * This structure is used internally by the parsec_dependencies_t structures

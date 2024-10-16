@@ -591,8 +591,6 @@ int parsec_data_release_self_contained_data(parsec_data_t *data)
 {
     if (data->super.obj_reference_count != data->nb_copies) return 0;
     parsec_data_copy_t *copy;
-    PARSEC_DEBUG_VERBOSE(1, parsec_debug_output, "Examine the status of data %p with %d copies and refcounts at %s:%d\n",
-                         data, data->nb_copies, __FILE__, __LINE__);
     /* this data is only referenced by it's own copies. If these copies are also only referenced by
      * data, then we can release them all.
      */
@@ -601,8 +599,7 @@ int parsec_data_release_self_contained_data(parsec_data_t *data)
         if( copy->super.super.obj_reference_count > 1 )
             return 0;
     }
-    PARSEC_DEBUG_VERBOSE(1, parsec_debug_output, "Force the release of data %p at %s:%d",
-		         copy, __FILE__, __LINE__);
+    PARSEC_DEBUG_VERBOSE(90, parsec_debug_output, "Release copy %p from self-contained data %p", copy, data);
     for( uint32_t i = 0; i < parsec_nb_devices; i++) {
         if (NULL == (copy = data->device_copies[i])) continue;
         assert(1 == copy->super.super.obj_reference_count);
