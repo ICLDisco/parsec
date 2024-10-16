@@ -2469,7 +2469,7 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
             gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
             assert(PARSEC_DATA_STATUS_UNDER_TRANSFER == cpu_copy->data_transfer_status);
             cpu_copy->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
-            if( 0 == (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_FROM_GPU_MEMORY) ) {
+            if( 0 == (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_SEND_GPU_MEMORY) ) {
                 /* Report the CPU copy as the output of the task. */
                 this_task->data[i].data_out = cpu_copy;
             }

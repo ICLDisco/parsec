@@ -2112,7 +2112,7 @@ static void remote_dep_mpi_get_start(parsec_execution_stream_t* es,
         /* prepare the local receiving data */
         assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
         if(NULL == deps->output[k].data.data) {
-            int best_device = (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_RECV_FROM_GPU_MEMORY) ? deps->output[k].data.preferred_device : 0;
+            int best_device = (parsec_mpi_allow_gpu_memory_communications & PARSEC_RUNTIME_RECV_GPU_MEMORY) ? deps->output[k].data.preferred_device : 0;
             deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data.remote, best_device);
         }
         /* Mark the data under tranfer */
