@@ -1227,6 +1227,7 @@ parsec_default_gpu_stage_out(parsec_gpu_task_t        *gtask,
         if(flow_mask & (1U << i)){
             source = task->data[i].data_out;
             dest = source->original->device_copies[0];
+            assert(NULL != dest);
             dst_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(dest->device_index);
             src_dev = (parsec_device_gpu_module_t*)parsec_mca_device_get(source->device_index);
 

@@ -241,6 +241,10 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
         parsec_atomic_lock( &gpu_copy->original->lock );
         /* get the next item before altering the next pointer */
         item = (parsec_list_item_t*)item->list_next;  /* conversion needed for volatile */
+        if (gpu_copy->original->device_copies[0] == NULL) {
+            parsec_atomic_unlock( &gpu_copy->original->lock );
+            continue;
+        }
         if( 0 == gpu_copy->readers ) {
             if( PARSEC_UNLIKELY(NULL == d2h_task) ) {  /* allocate on-demand */
                 d2h_task = (parsec_gpu_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
@@ -313,6 +317,8 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
         original = gpu_copy->original;
 
         cpu_copy = original->device_copies[0];
+
+        assert(NULL != cpu_copy);
 
         if( cpu_copy->version < gpu_copy->version ) {
             /* the GPU version has been acquired by a new task that is waiting for submission */
