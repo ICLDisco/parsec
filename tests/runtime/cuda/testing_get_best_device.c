@@ -45,17 +45,10 @@ int main(int argc, char *argv[])
     char **pargv;
 
     /* Default */
-    int m = 0;
-    int N = 8;
-    int NB = 4;
-    int P = 1;
-    int KP = 1;
-    int KQ = 1;
-    int cores = -1;
-    int nb_gpus = 0;
-    int info = 0;
+    int m = 0, N = 8, NB = 4, P = 1, KP = 1, KQ = 1;
+    int cores = -1, nb_gpus = 0, nb_avail_gpu = 0, info = 0, gpu_mask = 0xFF;
 
-    while ((ch = getopt(argc, argv, "m:N:t:s:S:P:c:g:h")) != -1) {
+    while ((ch = getopt(argc, argv, "m:N:t:s:S:P:c:g:G:h")) != -1) {
         switch (ch) {
             case 'm': m = atoi(optarg); break;
             case 'N': N = atoi(optarg); break;
@@ -65,6 +58,7 @@ int main(int argc, char *argv[])
             case 'P': P = atoi(optarg); break;
             case 'c': cores = atoi(optarg); break;
             case 'g': nb_gpus = atoi(optarg); break;
+            case 'G': gpu_mask = atoi(optarg); break;
             case '?': case 'h': default:
                 fprintf(stderr,
                         "-m : initialize MPI_THREAD_MULTIPLE (default: 0/no)\n"
@@ -75,6 +69,7 @@ int main(int argc, char *argv[])
                         "-P : rows (P) in the PxQ process grid (default: 1)\n"
                         "-c : number of cores used (default: -1)\n"
                         "-g : number of GPUs used (default: 0)\n"
+                        "-G : mask of the GPUs to be used (default: 0xff)"
                         "-h : print this help message\n"
                         "\n");
                  exit(1);
@@ -102,16 +97,20 @@ int main(int argc, char *argv[])
             break;
         }
     }
-
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT)
     extern char **environ;
     char *value;
     if( nb_gpus < 1 && 0 == rank ) {
-        fprintf(stderr, "Warning: if run on GPUs, please set --gpus=value bigger than 0\n");
+        fprintf(stderr, "Warning: if run on GPUs, please set -g value bigger than 0\n");
     }
     asprintf(&value, "%d", nb_gpus);
     parsec_setenv_mca_param( "device_cuda_enabled", value, &environ );
-    free(value);
+    free(value); value = NULL;
+    if( 0xFF != gpu_mask ) {
+        asprintf(&value, "%d", gpu_mask);
+        parsec_setenv_mca_param("device_cuda_mask", value, &environ);
+        free(value); value = NULL;
+    }
 #endif
 
     /* Initialize PaRSEC */
@@ -134,7 +133,7 @@ int main(int argc, char *argv[])
         }
         cores = nb_total_comp_threads;
     }
-
+    nb_avail_gpu = parsec_context_query(parsec, PARSEC_CONTEXT_QUERY_DEVICES, PARSEC_DEV_CUDA);
     /* initializing matrix structure */
     parsec_matrix_block_cyclic_t dcA;
     parsec_matrix_block_cyclic_init(&dcA, PARSEC_MATRIX_DOUBLE, PARSEC_MATRIX_TILE,
@@ -153,9 +152,9 @@ int main(int argc, char *argv[])
     /* Main routines */
     SYNC_TIME_START(); 
     info = parsec_get_best_device_check(parsec, (parsec_tiled_matrix_t *)&dcA);
-    SYNC_TIME_PRINT(rank, ("Get_best_device" "\tN= %d NB= %d "
+    SYNC_TIME_PRINT(rank, ("Get_best_device\tN= %d NB= %d "
                            "PxQ= %d %d KPxKQ= %d %d cores= %d nb_gpus= %d\n",
-                           N, NB, P, nodes/P, KP, KQ, cores, parsec_nb_devices-2)); 
+                           N, NB, P, nodes / P, KP, KQ, cores, nb_avail_gpu));
 
     /* Check result */
     if( 0 == rank && info != 0 ) {
