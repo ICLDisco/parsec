@@ -241,6 +241,25 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
         parsec_atomic_lock( &gpu_copy->original->lock );
         /* get the next item before altering the next pointer */
         item = (parsec_list_item_t*)item->list_next;  /* conversion needed for volatile */
+
+        if (gpu_copy->original->device_copies[0] == NULL) {
+            /* no host-side copy available, release immediately if no readers */
+            if (gpu_copy->readers == 0) {
+              PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                   "D2H[%d:%s] CPU data copy discarded, GPU data copy %p [%p] now available",
+                                   gpu_device->super.device_index, gpu_device->super.name, gpu_copy, gpu_copy->original);
+
+              parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
+              PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
+              gpu_copy->coherency_state = PARSEC_DATA_COHERENCY_SHARED;
+              gpu_copy->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
+              parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+              gpu_device->data_avail_epoch++;
+            }
+            parsec_atomic_unlock( &gpu_copy->original->lock );
+            continue;
+        }
+
         if( 0 == gpu_copy->readers ) {
             if( PARSEC_UNLIKELY(NULL == d2h_task) ) {  /* allocate on-demand */
                 d2h_task = (parsec_gpu_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
@@ -313,6 +332,8 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
         original = gpu_copy->original;
 
         cpu_copy = original->device_copies[0];
+
+        assert(NULL != cpu_copy);
 
         if( cpu_copy->version < gpu_copy->version ) {
             /* the GPU version has been acquired by a new task that is waiting for submission */
