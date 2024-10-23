@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020 The University of Tennessee and The University
+ * Copyright (c) 2018-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2023      NVIDIA CORPORATION. All rights reserved.
@@ -125,20 +125,18 @@ static void parsec_base_future_construct(parsec_base_future_t* future)
     future->status = 0;
     future->cb_fulfill = NULL;
     future->tracked_data = NULL;
-    parsec_atomic_lock_t temp = PARSEC_ATOMIC_UNLOCKED;
-    future->future_lock = temp;
+    parsec_atomic_lock_init(&future->future_lock);
 }
 
 static void parsec_countable_future_construct(parsec_base_future_t* future)
 {
-    parsec_atomic_lock_t temp = PARSEC_ATOMIC_UNLOCKED;
-    future->future_lock = temp;
     parsec_countable_future_t* c_fut = (parsec_countable_future_t*)future;
     c_fut->super.future_class = &parsec_countable_future_functions;
     c_fut->super.status = 0;
     c_fut->super.cb_fulfill = NULL;
     c_fut->super.tracked_data = NULL;
     c_fut->count = 1;
+    parsec_atomic_lock_init(&future->future_lock);
 }
 
 PARSEC_OBJ_CLASS_INSTANCE(parsec_base_future_t, parsec_list_item_t,/*parsec_object_t,*/

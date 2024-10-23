@@ -35,7 +35,7 @@ static int parsec_device_verbose = 0;
 uint32_t parsec_nb_devices = 0;
 static uint32_t parsec_nb_max_devices = 0;
 static uint32_t parsec_mca_device_are_freezed = 0;
-parsec_atomic_lock_t parsec_devices_mutex = PARSEC_ATOMIC_UNLOCKED;
+static parsec_atomic_lock_t parsec_devices_mutex = PARSEC_ATOMIC_UNLOCKED;
 static parsec_device_module_t** parsec_devices = NULL;
 
 static parsec_device_module_t* parsec_device_cpus = NULL;
