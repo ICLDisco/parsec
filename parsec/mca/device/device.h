@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2023 The University of Tennessee and The University
+ * Copyright (c) 2013-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -189,7 +189,6 @@ PARSEC_OBJ_CLASS_DECLARATION(parsec_device_module_t);
 
 extern uint32_t parsec_nb_devices;
 extern int parsec_device_output;
-extern parsec_atomic_lock_t parsec_devices_mutex;
 
 /**
  * @brief Find the best device to execute the kernel based on the compute

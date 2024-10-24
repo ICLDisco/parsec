@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2023 The University of Tennessee and The University
+ * Copyright (c) 2016-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -183,14 +183,19 @@ __int128_t parsec_atomic_fetch_add_int128(volatile __int128_t* l, __int128_t v)
 #endif
 
 /* Locks */
-
-typedef volatile atomic_flag parsec_atomic_lock_t;
+typedef union {
+    atomic_flag flag;
+    int atomic_external_aligner;
+} parsec_atomic_lock_t;
+static_assert(sizeof(volatile int) >= sizeof(volatile atomic_flag),
+    "The type size for atomic_flag is larger than expected. Please report this error to PaRSEC developpers."
+    "You may compile without C11 atomic support (-DSUPPORT_C11=OFF in cmake) to fallback on other atomic types.");
 
 #  define PARSEC_ATOMIC_HAS_ATOMIC_INIT
 ATOMIC_STATIC_INLINE
 void parsec_atomic_lock_init( parsec_atomic_lock_t* atomic_lock )
 {
-    atomic_flag_clear_explicit(atomic_lock, memory_order_relaxed);
+    atomic_flag_clear_explicit(&atomic_lock->flag, memory_order_relaxed);
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_LOCK
@@ -198,7 +203,7 @@ ATOMIC_STATIC_INLINE
 void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )
 {
     struct timespec ts = { .tv_sec = 0, .tv_nsec = 100 };
-    while( atomic_flag_test_and_set_explicit(atomic_lock, memory_order_acquire) )
+    while( atomic_flag_test_and_set_explicit(&atomic_lock->flag, memory_order_acquire) )
         nanosleep( &ts, NULL ); /* less bandwidth consuming */
 }
 
@@ -206,14 +211,14 @@ void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock )
 ATOMIC_STATIC_INLINE
 void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock )
 {
-    atomic_flag_clear_explicit(atomic_lock, memory_order_release);
+    atomic_flag_clear_explicit(&atomic_lock->flag, memory_order_release);
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_TRYLOCK
 ATOMIC_STATIC_INLINE
 int parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 {
-    return !atomic_flag_test_and_set_explicit(atomic_lock, memory_order_acquire);
+    return !atomic_flag_test_and_set_explicit(&atomic_lock->flag, memory_order_acquire);
 }
 
 #define PARSEC_ATOMIC_UNLOCKED ATOMIC_FLAG_INIT

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2019 The University of Tennessee and The University
+ * Copyright (c) 2012-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -60,7 +60,6 @@ PARSEC_OBJ_CLASS_INSTANCE(parsec_data_copy_t, parsec_list_item_t,
 
 static void parsec_data_construct(parsec_data_t* obj )
 {
-    parsec_atomic_lock_t unlocked = PARSEC_ATOMIC_UNLOCKED;
     obj->owner_device     = -1;
     obj->preferred_device = -1;
     obj->key              = 0;
@@ -68,7 +67,7 @@ static void parsec_data_construct(parsec_data_t* obj )
     for( uint32_t i = 0; i < parsec_nb_devices;
          obj->device_copies[i] = NULL, i++ );
     obj->dc               = NULL;
-    obj->lock             = unlocked; /* Can't directly assign to PARSEC_ATOMIC_UNLOCKED because of C syntax */
+    parsec_atomic_lock_init(&obj->lock);
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Allocate data %p", obj);
 }
 
