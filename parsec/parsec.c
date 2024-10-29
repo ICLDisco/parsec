@@ -618,6 +618,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->comm_th_core        = -1;
 #endif  /* defined(PARSEC_HAVE_HWLOC) */
 
+    PARSEC_OBJ_CONSTRUCT(&context->activities, parsec_lifo_t);
+
     /* TODO: nb_cores should depend on the vp_id */
     nb_total_comp_threads = 0;
     for(p = 0; p < nb_vp; p++) {
@@ -1225,7 +1227,7 @@ int parsec_fini( parsec_context_t** pcontext )
 #endif  /* PARSEC_PROF_TRACE */
 
     /* PAPI SDE needs to process the shutdown before resources exposed to it are freed.
-     * This includes scheduling resources, so SDE needs to be finalized before the 
+     * This includes scheduling resources, so SDE needs to be finalized before the
      * computation threads leave */
     PARSEC_PAPI_SDE_FINI();
 
@@ -1264,6 +1266,11 @@ int parsec_fini( parsec_context_t** pcontext )
 
     parsec_hwloc_fini();
 #endif  /* PARSEC_HAVE_HWLOC_BITMAP */
+
+    if (!parsec_lifo_is_empty(&context->activities)) {
+        parsec_warning("/!\\ Warning: not all activities were executing before shutdown!\n");
+    }
+    PARSEC_OBJ_DESTRUCT(&context->activities);
 
     if (parsec_app_name != NULL ) {
         free(parsec_app_name);
