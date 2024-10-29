@@ -303,6 +303,8 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
     w2r_task->stage_out        = &parsec_default_gpu_stage_out;
     w2r_task->complete_stage   = NULL;
 
+    parsec_atomic_fetch_inc_int32( &(gpu_device->mutex) );
+
     (void)es;
     return w2r_task;
 }
@@ -359,5 +361,6 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
     parsec_thread_mempool_free(es->context_mempool, task);
     free(gpu_task);
     gpu_device->data_avail_epoch++;
+    parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
     return 0;
 }
