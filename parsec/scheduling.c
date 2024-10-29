@@ -418,6 +418,11 @@ int __parsec_reschedule(parsec_execution_stream_t* es, parsec_task_t* task)
     return __parsec_schedule(es, task, 0);
 }
 
+int __parsec_schedule_activity(parsec_execution_stream_t *es, parsec_task_t *task) {
+    parsec_lifo_push(&es->virtual_process->parsec_context->activities, &task->super);
+    return PARSEC_SUCCESS;
+}
+
 int __parsec_complete_execution( parsec_execution_stream_t *es,
                                  parsec_task_t *task )
 {
@@ -531,6 +536,13 @@ __parsec_get_next_task( parsec_execution_stream_t *es,
                         int* distance )
 {
     parsec_task_t* task;
+
+    if (!parsec_list_nolock_is_empty(&es->virtual_process->parsec_context->activities)) {
+        task = (parsec_task_t*)parsec_lifo_pop(&es->virtual_process->parsec_context->activities);
+        if (NULL != task) {
+            return task;
+        }
+    }
 
     if( NULL == (task = es->next_task) ) {
         task = parsec_current_scheduler->module.select(es, distance);

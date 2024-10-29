@@ -68,6 +68,9 @@ int __parsec_schedule_vp( parsec_execution_stream_t*,
                           parsec_task_t**,
                           int32_t distance);
 
+int __parsec_schedule_activity( parsec_execution_stream_t *es,
+                                parsec_task_t *task);
+
 /**
  * @brief Reschedule a task on the most appropriate resource.
  *

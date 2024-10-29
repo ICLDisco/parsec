@@ -2623,14 +2623,20 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
         gpu_task->ec = NULL;
         goto remove_gpu_task;
     }
+
     parsec_device_kernel_epilog( gpu_device, gpu_task );
-    __parsec_complete_execution( es, gpu_task->ec );
+    __parsec_schedule_activity( es, gpu_task->ec );
     gpu_device->super.executed_tasks++;
+
  remove_gpu_task:
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream, "GPU[%d:%s]: gpu_task %p freed",
                          gpu_device->super.device_index, gpu_device->super.name,
                          gpu_task);
+
+    // TODO: this should only be done for internal gpu tasks
+    //       and the DSL should be responsible for freeing the memory it allocated
     free( gpu_task );
+
     rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
     if( 1 == rc ) {  /* I was the last one */
 #if defined(PARSEC_PROF_TRACE)
