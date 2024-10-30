@@ -141,10 +141,12 @@ int __parsec_execute( parsec_execution_stream_t* es,
         parsec_atomic_fetch_add_int64(&task->selected_device->device_load, task->load);
     }
     else {
-        /* for every flow, check if we received a GPU copy, and revert to the
+        /* For every input flow, check if we received a GPU copy, and revert to the
          * CPU copy since this is a CPU hook. Note: at this point copy versions
          * should be synchronized already from a pushout. */
         for( int i = 0; i < task->task_class->nb_flows; i++ ) {
+            /* Ignore output-only flows */
+            if( NULL == task->task_class->in[i] ) continue;
             /* Make sure data_in is not NULL */
             if( NULL == task->data[i].data_in ) continue;
             if( PARSEC_FLOW_ACCESS_NONE == (PARSEC_FLOW_ACCESS_MASK & task->task_class->in[i]->flow_flags) )  continue;  /* control flow */
