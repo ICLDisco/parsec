@@ -8,7 +8,7 @@
 #define _ZONE_MALLOC_H_
 
 #include "parsec/parsec_config.h"
-
+#include "parsec/include/parsec/sys/atomic.h"
 #include <stdlib.h>
 #include <assert.h>
 
@@ -30,6 +30,7 @@ typedef struct zone_malloc_s {
     size_t     unit_size;            /* Basic Unit                */
     int        max_segment;          /* Maximum number of segment */
     int        next_tid;             /* Next TID to look at for a malloc */
+    parsec_atomic_lock_t lock;
 } zone_malloc_t;
 
 

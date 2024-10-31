@@ -191,7 +191,7 @@ static_assert(sizeof(volatile int) >= sizeof(volatile atomic_flag),
     "The type size for atomic_flag is larger than expected. Please report this error to PaRSEC developpers."
     "You may compile without C11 atomic support (-DSUPPORT_C11=OFF in cmake) to fallback on other atomic types.");
 
-#  define PARSEC_ATOMIC_HAS_ATOMIC_INIT
+#define PARSEC_ATOMIC_HAS_ATOMIC_INIT
 ATOMIC_STATIC_INLINE
 void parsec_atomic_lock_init( parsec_atomic_lock_t* atomic_lock )
 {
