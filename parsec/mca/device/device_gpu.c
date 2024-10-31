@@ -3,6 +3,7 @@
  * Copyright (c) 2021-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -468,6 +469,7 @@ parsec_device_data_advise(parsec_device_module_t *dev, parsec_data_t *data, int 
             parsec_gpu_task_t* gpu_task = NULL;
             gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));
             gpu_task->task_type = PARSEC_GPU_TASK_TYPE_PREFETCH;
+            gpu_task->release_device_task = free;  /* by default free the device task */
             gpu_task->ec = calloc(1, sizeof(parsec_task_t));
             PARSEC_OBJ_CONSTRUCT(gpu_task->ec, parsec_task_t);
             gpu_task->ec->task_class = &parsec_device_data_prefetch_tc;
@@ -1591,6 +1593,7 @@ parsec_device_send_transfercomplete_cmd_to_device(parsec_data_copy_t *copy,
     parsec_gpu_task_t* gpu_task = NULL;
     gpu_task = (parsec_gpu_task_t*)calloc(1, sizeof(parsec_gpu_task_t));
     gpu_task->task_type = PARSEC_GPU_TASK_TYPE_D2D_COMPLETE;
+    gpu_task->release_device_task = free;  /* by default free the device task */
     gpu_task->ec = calloc(1, sizeof(parsec_task_t));
     PARSEC_OBJ_CONSTRUCT(gpu_task->ec, parsec_task_t);
     gpu_task->ec->task_class = &parsec_device_d2d_complete_tc;
@@ -2630,7 +2633,9 @@ parsec_device_kernel_scheduler( parsec_device_module_t *module,
     PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream, "GPU[%d:%s]: gpu_task %p freed",
                          gpu_device->super.device_index, gpu_device->super.name,
                          gpu_task);
-    free( gpu_task );
+    if (NULL != gpu_task->release_device_task) {
+        gpu_task->release_device_task(gpu_task);
+    }
     rc = parsec_atomic_fetch_dec_int32( &(gpu_device->mutex) );
     if( 1 == rc ) {  /* I was the last one */
 #if defined(PARSEC_PROF_TRACE)

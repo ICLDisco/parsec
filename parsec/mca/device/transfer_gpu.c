@@ -2,6 +2,7 @@
  * Copyright (c) 2016-2020 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
  */
 
 #include "parsec/parsec_config.h"
@@ -277,12 +278,13 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
 
     w2r_task = (parsec_gpu_task_t *)malloc(sizeof(parsec_gpu_task_t));
     PARSEC_OBJ_CONSTRUCT(w2r_task, parsec_list_item_t);
-    w2r_task->ec               = (parsec_task_t*)d2h_task;
-    w2r_task->task_type        = PARSEC_GPU_TASK_TYPE_D2HTRANSFER;
+    w2r_task->release_device_task   = free;  /* by default free the device task */
+    w2r_task->ec                    = (parsec_task_t*)d2h_task;
+    w2r_task->task_type             = PARSEC_GPU_TASK_TYPE_D2HTRANSFER;
     w2r_task->last_data_check_epoch = gpu_device->data_avail_epoch - 1;
-    w2r_task->stage_in         = NULL;
-    w2r_task->stage_out        = &parsec_default_gpu_stage_out;
-    w2r_task->complete_stage   = NULL;
+    w2r_task->stage_in              = NULL;
+    w2r_task->stage_out             = &parsec_default_gpu_stage_out;
+    w2r_task->complete_stage        = NULL;
 
     (void)es;
     return w2r_task;
