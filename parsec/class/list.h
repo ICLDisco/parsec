@@ -145,6 +145,26 @@ static inline int parsec_list_nolock_contains( parsec_list_t *list, parsec_list_
 #define PARSEC_LIST_NOLOCK_ITERATOR(LIST, ITEM_NAME, CODE_BLOCK) _OPAQUE_LIST_NOLOCK_ITERATOR_DEFINITION(LIST,ITEM_NAME,CODE_BLOCK)
 
 /**
+ * @brief Reverse list iterator macro without taking the lock on the list
+ *
+ * @details Paste code to iterate on all items in the LIST (front to back)
+ *    the CODE_BLOCK code is applied to each item, which can be refered
+ *    to as ITEM_NAME in CODE_BLOCK
+ *    the entire loop iteration takes the list mutex, hence
+ *      CODE_BLOCK must not jump outside the block; although, break
+ *      and continue are legitimate in CODE_BLOCK
+ *
+ * @param[inout] LIST the list on which to iterate
+ * @param[inout] ITEM_NAME the variable to use as item name in CODE_BLOCK
+ * @param[in] CODE_BLOCK a block of code to execute with each item (break
+ *    and continue are allowed)
+ * @return the last considered item
+ *
+ * @remark this is not thread safe
+ */
+#define PARSEC_LIST_NOLOCK_REV_ITERATOR(LIST, ITEM_NAME, CODE_BLOCK) _OPAQUE_LIST_NOLOCK_REV_ITERATOR_DEFINITION(LIST,ITEM_NAME,CODE_BLOCK)
+
+/**
  * @brief iterator convenience macro: get the first element of a list
  *
  * @details if item == PARSEC_LIST_ITERATOR_END(list), then item is not an item in the
@@ -748,6 +768,17 @@ parsec_list_is_empty( parsec_list_t* list )
     ITEM;                                                               \
 })
 
+#define _OPAQUE_LIST_NOLOCK_REV_ITERATOR_DEFINITION(list,ITEM,CODE) ({   \
+    parsec_list_item_t* ITEM;                                            \
+    for(ITEM = (parsec_list_item_t*)(list)->ghost_element.list_prev;     \
+        ITEM != &((list)->ghost_element);                                \
+        ITEM = (parsec_list_item_t*)ITEM->list_prev)                     \
+    {                                                                    \
+        CODE;                                                            \
+    }                                                                    \
+    ITEM;                                                                \
+})
+
 static inline int
 parsec_list_nolock_contains( parsec_list_t *list, parsec_list_item_t *item )
 {
@@ -833,12 +864,30 @@ parsec_list_nolock_push_sorted( parsec_list_t* list,
                                parsec_list_item_t* newel,
                                size_t off )
 {
-    parsec_list_item_t* position = PARSEC_LIST_NOLOCK_ITERATOR(list, pos,
-    {
-        if( A_HIGHER_PRIORITY_THAN_B(newel, pos, off) )
-            break;
-    });
-    parsec_list_nolock_add_before(list, position, newel);
+    if (_HEAD(list) == _GHOST(list)) {
+        parsec_list_nolock_push_front(list, newel);
+    } else {
+        /* take the range of priorities and decide whether to iterate forward or backward */
+        int tail_val = COMPARISON_VAL(_TAIL(list), off);
+        int head_val = COMPARISON_VAL(_HEAD(list), off);
+        if (COMPARISON_VAL(newel, off) > ((head_val + tail_val) / 2)) {
+            /* new element is in upper half of priority range */
+            parsec_list_item_t* position = PARSEC_LIST_NOLOCK_ITERATOR(list, pos,
+            {
+                if( A_HIGHER_PRIORITY_THAN_B(newel, pos, off) )
+                    break;
+            });
+            parsec_list_nolock_add_before(list, position, newel);
+        } else {
+            /* new element is in lower half of priority range */
+            parsec_list_item_t* position = PARSEC_LIST_NOLOCK_REV_ITERATOR(list, pos,
+            {
+                if( !A_HIGHER_PRIORITY_THAN_B(newel, pos, off) )
+                    break;
+            });
+            parsec_list_nolock_add_after(list, position, newel);
+        }
+    }
 }
 
 static inline void
