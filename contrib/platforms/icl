@@ -1,0 +1,14 @@
+# vim: set filetype=sh :
+### Defaults for ICL machines
+# Main goal is to have `salloc -wxyz ctest` work as intended
+# Typical use cases: 
+#   `SLURM_TIMELIMIT=1 salloc -N1 --ntasks-per-node=8  -wleconte ctest`
+#   `SLURM_TIMELIMIT=1 salloc -N4 --ntasks-per-node=8 -Cgpu_radeonvii ctest -Rdplasma_s`
+#   `ctest #will srun in individual allocations on random nodes, which is slower`
+
+# Do not set the compiler flags (CC, CXX, FC) and the MPI flags (MPI_DIR)
+# CUDA (detected via nvcc), PAPI (detected via papi_avail), HWLOC (detected
+# via hwloc-ls) nor the PYTHON_EXECUTABLE
+
+CMAKE_DEFINES+="-DCTEST_MPI_LAUNCHER=\"srun -n\" -DCTEST_SHM_LAUNCHER=\"srun -n1\" -DCTEST_CUDA_LAUNCHER_OPTIONS=-Cgpu_nvidia -DCTEST_HIP_LAUNCHER_OPTIONS=-Cgpu_amd"
+

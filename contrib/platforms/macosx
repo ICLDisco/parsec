@@ -1,4 +1,4 @@
-#!/bin/bash
+# vim: set filetype=sh :
 
 # if icc/CLang is not set, detect the matching gcc/gfortran pair
 # OS X has no fortran by default, and flavor varies between fink, port, self installed, etc
