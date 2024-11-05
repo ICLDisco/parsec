@@ -1,0 +1,39 @@
+extern "C" %{
+  /* This simple example does not need to include anything */
+%}
+
+NT
+DEPTH
+A    [type="parsec_data_collection_t*"]
+
+INIT(k)
+ k = 0..0
+
+:A(0)
+
+CTL S -> (DEPTH >= 1) ? S TASK(1..NT, 1)
+
+BODY
+    /* Nothing to do in the INIT task.
+     * It is here to prevent all tasks to be created at
+     * the DAG creation time
+     * It has a default priority, so should be able to run on any thread */
+END
+
+TASK(i, l)
+ i = 1..NT
+ l = 1..DEPTH
+ p = %{ return (i << 24) + i; %}
+
+:A(i-1)
+
+CTL S <- (l == 1)    ? S INIT(0)
+                     : S TASK(i, l-1)
+      -> (l < DEPTH) ? S TASK(i, l+1)
+
+;p
+
+BODY
+  printf("TASK(%3d, %3d) with priority %08x on thread %2d of process %2d\n", 
+         i, l, this_task->priority, es->th_id, es->virtual_process->parsec_context->my_rank);
+END
