@@ -50,7 +50,7 @@ get_or_create_data(my_datatype_t* dat, uint32_t pos)
 
         data->owner_device = 0;
         data->key = pos;
-        data->nb_elts = 1;
+        data->span = 1;
         data->device_copies[0] = data_copy;
 
         if( !parsec_atomic_cas_ptr(&dat->data_map[pos], NULL, data) ) {
