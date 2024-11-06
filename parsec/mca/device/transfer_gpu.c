@@ -276,9 +276,7 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
     d2h_task->taskpool        = NULL;
     d2h_task->locals[0].value = nb_cleaned;
 
-    w2r_task = (parsec_gpu_task_t *)malloc(sizeof(parsec_gpu_task_t));
-    PARSEC_OBJ_CONSTRUCT(w2r_task, parsec_list_item_t);
-    w2r_task->release_device_task   = free;  /* by default free the device task */
+    w2r_task = (parsec_gpu_task_t *)PARSEC_OBJ_NEW(parsec_gpu_dsl_task_t);
     w2r_task->ec                    = (parsec_task_t*)d2h_task;
     w2r_task->task_type             = PARSEC_GPU_TASK_TYPE_D2HTRANSFER;
     w2r_task->last_data_check_epoch = gpu_device->data_avail_epoch - 1;
@@ -309,7 +307,7 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
         parsec_atomic_lock(&gpu_copy->original->lock);
         gpu_copy->readers--;
         gpu_copy->data_transfer_status = PARSEC_DATA_STATUS_COMPLETE_TRANSFER;
-        gpu_device->super.data_out_to_host += gpu_copy->original->nb_elts; /* TODO: not hardcoded, use datatype size */
+        gpu_device->super.data_out_to_host += gpu_copy->original->span; /* TODO: not hardcoded, use datatype size */
         assert(gpu_copy->readers >= 0);
 
         original = gpu_copy->original;
@@ -338,7 +336,7 @@ int parsec_gpu_complete_w2r_task(parsec_device_gpu_module_t *gpu_device,
         parsec_atomic_unlock(&gpu_copy->original->lock);
     }
     parsec_thread_mempool_free(es->context_mempool, task);
-    free(gpu_task);
+    PARSEC_OBJ_RELEASE(gpu_task); /* no need to call release_device_task, just release the task */
     gpu_device->data_avail_epoch++;
     return 0;
 }

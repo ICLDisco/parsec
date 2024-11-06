@@ -2279,20 +2279,19 @@ static parsec_hook_return_t parsec_dtd_gpu_task_submit(parsec_execution_stream_t
 #if defined(PARSEC_HAVE_DEV_CUDA_SUPPORT) || defined(PARSEC_HAVE_DEV_HIP_SUPPORT) || defined(PARSEC_HAVE_DEV_LEVEL_ZERO_SUPPORT)
     parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t *)this_task;
     parsec_dtd_task_class_t *dtd_tc = (parsec_dtd_task_class_t*)this_task->task_class;
-    parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t *) calloc(1, sizeof(parsec_gpu_task_t));
-    PARSEC_OBJ_CONSTRUCT(gpu_task, parsec_list_item_t);
-    gpu_task->release_device_task = free;  /* by default free the device task */
+    parsec_gpu_task_t *gpu_task = (parsec_gpu_task_t*)PARSEC_OBJ_NEW(parsec_gpu_dsl_task_t);
     gpu_task->ec = (parsec_task_t *) this_task;
     gpu_task->submit = dtd_tc->gpu_func_ptr;
     gpu_task->task_type = 0;
     gpu_task->last_data_check_epoch = -1;       /* force at least one validation for the task */
     gpu_task->pushout = 0;
+    gpu_task->nb_flows = dtd_tc->super.nb_flows;  /* inherit the flows from the task class */
     for(int i = 0; i < dtd_tc->super.nb_flows; i++) {
         parsec_dtd_flow_info_t *flow = FLOW_OF(dtd_task, i);
         if(flow->op_type & PARSEC_PUSHOUT)
             gpu_task->pushout |= 1<<i;
-        gpu_task->flow[i] = dtd_tc->super.in[i];
-        gpu_task->flow_nb_elts[i] = this_task->data[i].data_in->original->nb_elts;
+        gpu_task->flow_info[i].flow = dtd_tc->super.in[i];
+        gpu_task->flow_info[i].flow_span = this_task->data[i].data_in->original->span;
     }
 
     parsec_device_module_t *device = this_task->selected_device;
