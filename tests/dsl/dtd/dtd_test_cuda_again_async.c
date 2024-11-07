@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2023      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "parsec.h"
 #include "parsec/arena.h"
 #include "parsec/data_dist/matrix/matrix.h"

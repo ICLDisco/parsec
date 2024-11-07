@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2016-2021 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 /**
  * This test check that the compiler fails when the output false case is set to NULL
  */

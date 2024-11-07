@@ -1,5 +1,10 @@
 #ifndef PAPI_SDE_H_INCLUDED
 #define PAPI_SDE_H_INCLUDED
+/*
+ * Copyright (c) 2018-2023 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 
 #include "parsec/parsec_config.h"
 
@@ -9,7 +14,7 @@
 
 typedef enum parsec_papi_sde_hl_counters_e {
     PARSEC_PAPI_SDE_MEM_ALLOC,               /**< How much memory is currently allocated by arenas */
-    PARSEC_PAPI_SDE_MEM_USED,                /**< Out of MEM_ALLOC, how much memory is currently 
+    PARSEC_PAPI_SDE_MEM_USED,                /**< Out of MEM_ALLOC, how much memory is currently
                                               *   used by 'active' data allocated in arenas */
     PARSEC_PAPI_SDE_TASKS_ENABLED,           /**< How many tasks have become ready at this time */
     PARSEC_PAPI_SDE_TASKS_RETIRED,           /**< How many tasks are done at this time */
@@ -61,7 +66,7 @@ void parsec_papi_sde_thread_fini(void);
  * Set the value of the base counter for the calling thread
  *
  *  @param[IN] cnt the counter to change
- *  @param[IN] value the new value 
+ *  @param[IN] value the new value
  */
 void parsec_papi_sde_counter_set(parsec_papi_sde_hl_counters_t cnt, long long int value);
 
@@ -87,25 +92,25 @@ void parsec_papi_sde_unregister_counter(const char *format, ...);
 
 /**
  * @brief Register new PAPI SDE counter via parsec-provided function call
- * 
+ *
  */
 void parsec_papi_sde_register_fp_counter(const char *event_name, int flags, int type, papi_sde_fptr_t fn, void *data);
 
 /**
  * @brief Register new PAPI SDE counter with direct memory access
- * 
+ *
  */
 void parsec_papi_sde_register_counter(const char *event_name, int flags, int type, long long int *ptr);
 
 /**
  * @brief Establish hierarchy between PAPI SDE counters, and define aggregator counters
- * 
+ *
  */
 void parsec_papi_sde_add_counter_to_group(const char *event_name, const char *group_name, int operand);
 
 /**
  * @brief Provide a description for a given PAPI SDE counter
- * 
+ *
  */
 void parsec_papi_sde_describe_counter(const char *event_name, const char *description);
 

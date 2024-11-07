@@ -6,29 +6,29 @@ use POSIX;
 my %nodes = ();
 
 sub getNodes {
-    
+
     my ($filename) = @_;
-    
+
     open FILE, $filename or die $!;
-    
+
     while (<FILE>) {
         my $line = $_;
         chop $line;
-        
+
         my $nodename = $line;
         $nodename =~ s/(.*) (.*)/$1/;
         my $nodeprop = $2;
-        
+
         #print $nodename."\n";
         #print $nodeprop."\n";
-        
+
         $nodes{ $nodename } = {  'offname' => 0,
                                  'offprop' => 0,
                                  'nbsucc' => 0,
                                  'prop' => $nodeprop,
                                  'succ' => [] };
     }
-    
+
     close FILE;
 }
 
@@ -46,7 +46,7 @@ sub addDependencies {
     while (<FILE>) {
         my $line = $_;
         chop $line;
-        
+
         if ( $line =~ /(.*) -> (.*)/ ) {
             my $node1 = $1;
             my $node2 = $2;
@@ -70,7 +70,7 @@ sub addDependencies {
 }
 
 sub printNodes {
-    # Write filenode_header_t 
+    # Write filenode_header_t
     foreach my $key (keys %nodes) {
         print "$key: $nodes{$key}\n";
     }
@@ -79,7 +79,7 @@ sub printNodes {
 sub getNodeIndex {
     my ($key) =  @_;
     my $i = 0;
-    
+
     foreach my $key2 (keys %nodes)
     {
         if ( $key eq $key2 ) {
@@ -92,7 +92,7 @@ sub getNodeIndex {
 }
 
 sub writeNodes {
-    
+
     my ($filename) = @_;
     my $filenode_header_size = 104;
     my $filenode_size = 32;
@@ -122,7 +122,7 @@ sub writeNodes {
     for(my $i = 0; (($i + $offset) % $pagesize) != 0; $i++) {
         print FILE pack('c', 0);
     }
-    
+
     close FILE;
 }
 

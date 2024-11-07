@@ -1,3 +1,8 @@
+#
+# Copyright (c) 2010-2024 The University of Tennessee and The University
+#                         of Tennessee Research Foundation.  All rights
+#                         reserved.
+#
 cmake_minimum_required (VERSION 3.21)
 project (PARSEC C)
 

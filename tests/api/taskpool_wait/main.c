@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023-2023 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "parsec.h"
 #include "parsec/data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "ptg_tp.h"

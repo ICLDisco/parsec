@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2024      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "parsec.h"
 #include <mpi.h>
 
