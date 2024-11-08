@@ -224,10 +224,10 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
 
         /* Consider how adding the current task would change load balancing
          * between devices */
-        if(!parsec_device_load_balance_allow_cpu)
-            valid_types &= ~PARSEC_DEV_CPU; /* automatic CPU / GPU load balancing disabled, remove the CPU type */
         valid_types &= ~PARSEC_DEV_RECURSIVE; /* Recursive device time estimates are computed on the associated CPU device */
-        for( int dev_index = 0; dev_index < parsec_mca_device_enabled(); dev_index++ ) {
+        /* consider GPU devices first, and CPU device last, we will use the CPU only when, during last loop iteration,
+         * no GPU device is valid/tp-enabled (dev_index == 0 and best_device == -1), or when load_balance_allow_cpu */
+        for( int dev_index = parsec_mca_device_enabled() - 1; dev_index >= 0; dev_index-- ) {
             /* Skip the device if it is disabled for the taskpool */
             if(!(tp->devices_index_mask & (1 << dev_index))) continue;
             dev = parsec_mca_device_get(dev_index);
@@ -236,12 +236,15 @@ int parsec_select_best_device( parsec_task_t* this_task ) {
 
             eta = dev->device_load + time_estimate(this_task, dev);
             if( best_eta > eta ) {
-                if(best_index == -1)
+                if(best_index == -1) {
                     PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s has eta %"PRIi64" on %d:%s (first pick)",
                                          __func__, tmp, eta, dev_index, dev->name);
-                else
+                }
+                else {
+                    if(!PARSEC_DEV_IS_GPU(dev->type) && !parsec_device_load_balance_allow_cpu) continue; /* cpu load balancing not allowed */
                     PARSEC_DEBUG_VERBOSE(30, parsec_device_output, "%s: Task %s has eta %"PRIi64" on %d:%s (better than eta %"PRIi64" on device index %d)",
                                          __func__, tmp, eta, dev_index, dev->name, best_eta, best_index);
+                }
                 best_index = dev_index;
                 best_eta = eta;
             }
