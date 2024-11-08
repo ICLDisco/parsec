@@ -400,6 +400,35 @@ static parsec_task_class_t parsec_device_data_prefetch_tc = {
     .fini = NULL
 };
 
+/**
+ * Release a gpu copy to the zone allocator.
+ */
+static void
+parsec_device_release_gpu_copy(parsec_device_gpu_module_t* gpu_device, parsec_data_copy_t *gpu_elem)
+{
+#if !defined(PARSEC_GPU_ALLOC_PER_TILE)
+#if defined(PARSEC_PROF_TRACE)
+    if((gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
+        (gpu_device->exec_stream[0]->prof_event_track_enable ||
+        gpu_device->exec_stream[1]->prof_event_track_enable)) {
+        parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
+                                     parsec_gpu_free_memory_key, (int64_t)gpu_elem->device_private,
+                                     gpu_device->super.device_index,
+                                     NULL, PARSEC_PROFILING_EVENT_COUNTER);
+        parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
+                                     parsec_gpu_use_memory_key_end,
+                                     (uint64_t)gpu_elem->device_private,
+                                     gpu_device->super.device_index, NULL, 0);
+    }
+#endif // PARSEC_PROF_TRACE
+    assert( 0 != (gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
+    zone_free( gpu_device->memory, (void*)(gpu_elem->device_private) );
+    gpu_elem->device_private = NULL;
+    PARSEC_OBJ_RELEASE(gpu_elem);
+    assert( NULL == gpu_elem );
+#endif // PARSEC_GPU_ALLOC_PER_TILE
+}
+
 static int
 parsec_device_release_resources_prefetch_task(parsec_device_gpu_module_t* gpu_device,
                         parsec_gpu_task_t** out_task)
@@ -742,24 +771,6 @@ static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_de
 
 #if defined(PARSEC_GPU_ALLOC_PER_TILE)
         gpu_device->memory_free( gpu_copy->device_private );
-#else
-
-#if defined(PARSEC_PROF_TRACE)
-        if((gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
-           (gpu_device->exec_stream[0]->prof_event_track_enable ||
-            gpu_device->exec_stream[1]->prof_event_track_enable)) {
-            parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
-                                         parsec_gpu_free_memory_key, (int64_t)gpu_copy->device_private,
-                                         gpu_device->super.device_index,
-                                         NULL, PARSEC_PROFILING_EVENT_COUNTER);
-            parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
-                                         parsec_gpu_use_memory_key_end,
-                                         (uint64_t)gpu_copy->device_private,
-                                         gpu_device->super.device_index, NULL, 0);
-        }
-#endif
-        zone_free( gpu_device->memory, (void*)gpu_copy->device_private );
-#endif
         gpu_copy->device_private = NULL;
 
         /* At this point the data copies should have no attachment to a data_t. Thus,
@@ -767,6 +778,9 @@ static void parsec_device_memory_release_list(parsec_device_gpu_module_t* gpu_de
          * collection must have been called, releasing all the copies.
          */
         PARSEC_OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
+#else
+        parsec_device_release_gpu_copy(gpu_device, gpu_copy);
+#endif
     }
 }
 
@@ -1069,34 +1083,12 @@ parsec_device_data_reserve_space( parsec_device_gpu_module_t* gpu_device,
 #if !defined(PARSEC_GPU_ALLOC_PER_TILE)
             /* Let's free this space, and try again to malloc some space */
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
-                                 "GPU[%d:%s] Release GPU copy %p (device_ptr %p) [ref_count %d: must be 1], attached to %p",
-                                 gpu_device->super.device_index, gpu_device->super.name,
+                                 "GPU[%d:%s]:%s Release GPU copy %p (device_ptr %p) [ref_count %d: must be 1], attached to %p",
+                                 gpu_device->super.device_index, gpu_device->super.name, task_name,
                                  lru_gpu_elem, lru_gpu_elem->device_private, lru_gpu_elem->super.super.obj_reference_count,
                                  oldmaster);
-#if defined(PARSEC_PROF_TRACE)
-            if((gpu_device->trackable_events & PARSEC_PROFILE_GPU_TRACK_MEM_USE) &&
-               (gpu_device->exec_stream[0]->prof_event_track_enable ||
-                gpu_device->exec_stream[1]->prof_event_track_enable)) {
-                parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
-                                             parsec_gpu_free_memory_key, (int64_t)lru_gpu_elem->device_private,
-                                             gpu_device->super.device_index,
-                                             NULL, PARSEC_PROFILING_EVENT_COUNTER);
-                parsec_profiling_trace_flags(gpu_device->exec_stream[0]->profiling,
-                                             parsec_gpu_use_memory_key_end,
-                                             (uint64_t)lru_gpu_elem->device_private,
-                                             gpu_device->super.device_index, NULL, 0);
-            }
-#endif
-            assert( 0 != (lru_gpu_elem->flags & PARSEC_DATA_FLAG_PARSEC_OWNED) );
-            zone_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
-            lru_gpu_elem->device_private = NULL;
+            parsec_device_release_gpu_copy(gpu_device, lru_gpu_elem);
             data_avail_epoch++;
-            PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
-                                 "GPU[%d:%s]:%s: Release LRU-retrieved GPU copy %p [ref_count %d: must be 1]",
-                                 gpu_device->super.device_index, gpu_device->super.name, task_name,
-                                 lru_gpu_elem, lru_gpu_elem->super.super.obj_reference_count);
-            PARSEC_OBJ_RELEASE(lru_gpu_elem);
-            assert( NULL == lru_gpu_elem );
             goto malloc_data;
         }
         PARSEC_DEBUG_VERBOSE(30, parsec_gpu_output_stream,
@@ -2342,7 +2334,17 @@ parsec_device_kernel_epilog( parsec_device_gpu_module_t *gpu_device,
 
         assert( 0 <= gpu_copy->readers );
 
-        if( gpu_task->pushout & (1 << i) ) {
+        if (cpu_copy->flags & PARSEC_DATA_FLAG_DISCARDED) {
+            PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
+                                 "GPU[%d:%s] Release GPU copy %p (device_ptr %p) [ref_count %d: must be 1], attached to %p",
+                                 gpu_device->super.device_index, gpu_device->super.name,
+                                 gpu_copy, gpu_copy->device_private, gpu_copy->super.super.obj_reference_count,
+                                 original);
+            parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
+            PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
+            /* release the original and */
+            parsec_device_release_gpu_copy(gpu_device, gpu_copy);
+        } else if( gpu_task->pushout & (1 << i)) {
             PARSEC_DEBUG_VERBOSE(20, parsec_gpu_output_stream,
                                  "GPU copy %p [ref_count %d] moved to the read LRU in %s",
                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);

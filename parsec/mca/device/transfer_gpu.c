@@ -227,7 +227,7 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
 {
     parsec_gpu_task_t *w2r_task = NULL;
     parsec_gpu_d2h_task_t *d2h_task = NULL;
-    parsec_gpu_data_copy_t *gpu_copy;
+    parsec_gpu_data_copy_t *gpu_copy, *cpu_copy;
     parsec_list_item_t* item = (parsec_list_item_t*)gpu_device->gpu_mem_owned_lru.ghost_element.list_next;
     int nb_cleaned = 0;
 
@@ -239,10 +239,19 @@ parsec_gpu_create_w2r_task(parsec_device_gpu_module_t *gpu_device,
             break;
         }
         gpu_copy = (parsec_gpu_data_copy_t*)item;
+        cpu_copy = gpu_copy->original->device_copies[0];
         parsec_atomic_lock( &gpu_copy->original->lock );
         /* get the next item before altering the next pointer */
         item = (parsec_list_item_t*)item->list_next;  /* conversion needed for volatile */
-        if( 0 == gpu_copy->readers ) {
+        if (cpu_copy->flags & PARSEC_DATA_FLAG_DISCARDED) {
+            parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
+            PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
+            PARSEC_DEBUG_VERBOSE(10, parsec_gpu_output_stream,
+                                 "D2H[%d:%s] GPU data copy %p of discarded data %p now available",
+                                 gpu_device->super.device_index, gpu_device->super.name, gpu_copy, gpu_copy->original);
+            parsec_atomic_unlock( &gpu_copy->original->lock );
+            parsec_list_push_back(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+        } else if( 0 == gpu_copy->readers ) {
             if( PARSEC_UNLIKELY(NULL == d2h_task) ) {  /* allocate on-demand */
                 d2h_task = (parsec_gpu_d2h_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
                 if( PARSEC_UNLIKELY(NULL == d2h_task) ) { /* we're running out of memory. Bail out. */

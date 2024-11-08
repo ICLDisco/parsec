@@ -55,6 +55,7 @@ typedef uint8_t parsec_data_status_t;
 typedef uint8_t parsec_data_flag_t;
 #define PARSEC_DATA_FLAG_ARENA          ((parsec_data_flag_t)1<<0)
 #define PARSEC_DATA_FLAG_TRANSIT        ((parsec_data_flag_t)1<<1)
+#define PARSEC_DATA_FLAG_DISCARDED      ((parsec_data_flag_t)1<<2)
 #define PARSEC_DATA_FLAG_PARSEC_MANAGED ((parsec_data_flag_t)1<<6)
 #define PARSEC_DATA_FLAG_PARSEC_OWNED   ((parsec_data_flag_t)1<<7)
 
@@ -143,6 +144,15 @@ parsec_data_create_with_type( parsec_data_collection_t *desc,
  */
 PARSEC_DECLSPEC void
 parsec_data_destroy( parsec_data_t *holder );
+
+/**
+ * Discard the parsec_data_t. Any host-side copies will remain
+ * allocated as long as there are potential device copies referencing it.
+ * Once it is safe, all copies are dereferenced and eventually destroyed.
+ * The parsec_data_t must not be used after this call.
+ */
+PARSEC_DECLSPEC void
+parsec_data_discard( parsec_data_t *data );
 
 END_C_DECLS
 
