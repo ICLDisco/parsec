@@ -1,5 +1,10 @@
 #ifndef _mca_param_cmd_line_h_
 #define _mca_param_cmd_line_h_
+/*
+ * Copyright (c) 2014-2017 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 
 #include "parsec/utils/cmd_line.h"
 

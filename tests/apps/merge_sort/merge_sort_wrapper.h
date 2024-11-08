@@ -1,5 +1,10 @@
 #if !defined(_MISSING_MERGE_SORT_WRAPPER_H_)
 #define _MISSING_MERGE_SORT_WRAPPER_H_
+/*
+ * Copyright (c) 2014-2022 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 
 #include "parsec/runtime.h"
 #include "parsec/data_distribution.h"

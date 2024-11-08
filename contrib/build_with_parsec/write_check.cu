@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2022      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 __global__ void kernel_task1_cuda(int n, int *A1, int *A2, int *A3) {
   int index = blockIdx.x * blockDim.x + threadIdx.x;
   int stride = blockDim.x * gridDim.x;

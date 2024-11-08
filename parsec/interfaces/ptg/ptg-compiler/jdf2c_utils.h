@@ -1,6 +1,10 @@
 #ifndef _jdf2c_utils_h
 #define _jdf2c_utils_h
-
+/*
+ * Copyright (c) 2017-2020 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "string_arena.h"
 
 typedef char *(*dumper_function_t)(void **elt, void *arg);

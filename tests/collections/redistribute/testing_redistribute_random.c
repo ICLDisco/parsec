@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021 The University of Tennessee and The University
+ * Copyright (c) 2017-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,15 +10,15 @@
  * @brief Test example of redistribute: random distribution
  *
  * @detail
- * parsec_redistribute: PTG, redistribute from ANY distribution 
+ * parsec_redistribute: PTG, redistribute from ANY distribution
  * to ANY distribution, with ANY displacement
  *
- * parsec_redistribute_dtd: DTD, redistribute from ANY distribution 
+ * parsec_redistribute_dtd: DTD, redistribute from ANY distribution
  * to ANY distribution, with ANY displacement
  *
  * parsec_redistribute_check: check the result correctness of
- * two submatrix, if correct, print "Redistribute Result is CORRECT"; 
- * otherwise print the first detected location and values where values 
+ * two submatrix, if correct, print "Redistribute Result is CORRECT";
+ * otherwise print the first detected location and values where values
  * are different.
  *
  * parsec_redistribute_init: init dcY to 0 or numbers based on index
@@ -61,21 +61,21 @@ int main(int argc, char *argv[])
     /* Initialize PaRSEC */
     parsec = setup_parsec(argc, argv, iparam, dparam);
 
-    int rank  = iparam[IPARAM_RANK];       
-    int nodes = iparam[IPARAM_NNODES];     
-    int cores = iparam[IPARAM_NCORES]; 
+    int rank  = iparam[IPARAM_RANK];
+    int nodes = iparam[IPARAM_NNODES];
+    int cores = iparam[IPARAM_NCORES];
 
     /* Source */
-    int P       = iparam[IPARAM_P];          
+    int P       = iparam[IPARAM_P];
     int Q       = iparam[IPARAM_Q];
-    int M       = iparam[IPARAM_M];          
-    int N       = iparam[IPARAM_N];          
-    int MB      = iparam[IPARAM_MB];         
-    int NB      = iparam[IPARAM_NB];         
-    int SMB     = iparam[IPARAM_SMB];         
-    int SNB     = iparam[IPARAM_SNB];         
-    int disi_Y  = iparam[IPARAM_DISI];         
-    int disj_Y  = iparam[IPARAM_DISJ];         
+    int M       = iparam[IPARAM_M];
+    int N       = iparam[IPARAM_N];
+    int MB      = iparam[IPARAM_MB];
+    int NB      = iparam[IPARAM_NB];
+    int SMB     = iparam[IPARAM_SMB];
+    int SNB     = iparam[IPARAM_SNB];
+    int disi_Y  = iparam[IPARAM_DISI];
+    int disj_Y  = iparam[IPARAM_DISJ];
 
     /* Target/redistribute */
     int PR       = iparam[IPARAM_P_R];
@@ -133,16 +133,16 @@ int main(int argc, char *argv[])
 
     for(int i = 0; i < num_runs; i++) {
 #if RUN_PTG
-        /* 
+        /*
          * Init dcY not including ghost region; if initvalue is 0,
-         * init to 0; otherwise init to numbers based on index 
-         */ 
-        int op_args = 1; 
-	    parsec_apply( parsec, PARSEC_MATRIX_FULL,
+         * init to 0; otherwise init to numbers based on index
+         */
+        int op_args = 1;
+        parsec_apply( parsec, PARSEC_MATRIX_FULL,
                      (parsec_tiled_matrix_t *)&dcY,
                      (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args);
 
-        /* Timer start */ 
+        /* Timer start */
         SYNC_TIME_START();
 
         /* Main part, call parsec_redistribute; double is default, which could be
@@ -185,10 +185,10 @@ int main(int argc, char *argv[])
                                       (parsec_tiled_matrix_t *)&dcT,
                                       size_row, size_col, disi_Y, disj_Y,
                                       disi_T, disj_T);
-#else 
+#else
 
             /* Init dcY to 0 */
-            int op_args = 0; 
+            int op_args = 0;
             parsec_apply( parsec, PARSEC_MATRIX_FULL,
                           (parsec_tiled_matrix_t *)&dcY,
                           (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args);
@@ -207,10 +207,10 @@ int main(int argc, char *argv[])
 #endif /* RUN_PTG */
 
 #if RUN_DTD
-        /* 
-         * Init dcT to 0.0 for DTD 
+        /*
+         * Init dcT to 0.0 for DTD
          */
-        int op_args_dtd = 0; 
+        int op_args_dtd = 0;
         parsec_apply( parsec, PARSEC_MATRIX_FULL,
                       (parsec_tiled_matrix_t *)&dcT,
                       (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args_dtd);
@@ -254,7 +254,7 @@ int main(int argc, char *argv[])
                                       disi_T, disj_T);
 #else
             /* Init dcY to 0 */
-            int op_args = 0; 
+            int op_args = 0;
             parsec_apply( parsec, PARSEC_MATRIX_FULL,
                           (parsec_tiled_matrix_t *)&dcY,
                           (parsec_tiled_matrix_unary_op_t)redistribute_init_ops, &op_args);
@@ -314,12 +314,12 @@ int main(int argc, char *argv[])
                    "'Output_network_bandwidth_dtd_bidir_Gbits', 'Output_memcpy_bandwidth_dtd_Gbits' "
                    "\n\n");
 #endif
-            printf("OUTPUT %lf %lf %d %d %d %d %d %d %d %d %d %d %d %d " 
+            printf("OUTPUT %lf %lf %d %d %d %d %d %d %d %d %d %d %d %d "
                    "%d %d %d %d %d %d %d %d %d %d %d %d %.2lf %d %d "
                    "%.10e %.10e %.10e %.10e %.2lf %.2lf %.10e %.10e "
                    "%.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf %.2lf\n",
                    time_ptg, time_dtd, size_row, size_col, P, Q, M, N, MB, NB, disi_Y, disj_Y, SMB, SNB,
-                   PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores, nodes, ratio_remote, 
+                   PR, QR, MR, NR, MBR, NBR, disi_T, disj_T, SMBR, SNBR, cores, nodes, ratio_remote,
                    thread_type, no_optimization_version,
                    results[0], results[1], results[2], results[3], results[4], results[5], results[6], results[7],
                    network_bandwidth / 1.0e9, memcpy_bandwidth / 1.0e9,

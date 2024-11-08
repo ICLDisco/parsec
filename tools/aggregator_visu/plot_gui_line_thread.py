@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2015-2018 The University of Tennessee and The University
+Copyright (c) 2015-2020 The University of Tennessee and The University
                         of Tennessee Research Foundation.  All rights
                         reserved."
 

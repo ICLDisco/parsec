@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023-2023 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "parsec/parsec_config.h"
 #include "parsec/interfaces/dtd/insert_function.h"
 #include "parsec/runtime.h"

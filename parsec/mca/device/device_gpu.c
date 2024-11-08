@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2021-2022 The University of Tennessee and The University
+ * Copyright (c) 2021-2024 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2024      NVIDIA Corporation.  All rights reserved.
