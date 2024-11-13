@@ -90,7 +90,6 @@ static void parsec_data_destruct(parsec_data_t* obj )
                               copy, copy->original, i);
             }
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
-            assert(obj->super.obj_reference_count > 1);
             parsec_data_copy_detach( obj, copy, i );
             if ( !(device->type & PARSEC_DEV_CUDA)
               && !(device->type & PARSEC_DEV_HIP) ) {
