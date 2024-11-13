@@ -2628,7 +2628,7 @@ parsec_dtd_create_and_initialize_task(parsec_dtd_taskpool_t *dtd_tp,
         dtd_task_mempool = &((parsec_dtd_task_class_t *)tc)->remote_task_mempool;
     }
     this_task = (parsec_dtd_task_t *)parsec_thread_mempool_allocate(
-            dtd_task_mempool->thread_mempools + parsec_my_execution_stream()->core_id);
+            dtd_task_mempool->thread_mempools + parsec_my_execution_stream()->th_id);
 
     assert(this_task->super.super.super.obj_reference_count == 1);
 

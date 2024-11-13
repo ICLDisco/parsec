@@ -480,10 +480,27 @@ PARSEC_DECLSPEC extern size_t parsec_task_startup_chunk;
  */
 PARSEC_DECLSPEC extern int parsec_want_rusage;
 /**
+ * @brief Binding will override launcher (e.g., mpiexec) enforced binding.
+ */
+PARSEC_DECLSPEC extern int parsec_runtime_ignore_bindings;
+/**
+ * @brief Binding will use hyperthreads.
+ */
+PARSEC_DECLSPEC extern int parsec_runtime_allow_ht;
+/**
+ * @brief Report the binding to the console.
+ */
+PARSEC_DECLSPEC extern int parsec_report_bindings;
+/**
  * @brief Report issues with the bindings (such as overlapping bindings on
  *        processes located on the same physical node)
  */
-PARSEC_DECLSPEC extern int parsec_slow_bind_warning;
+PARSEC_DECLSPEC extern int parsec_report_binding_issues;
+/**
+ * @brief Force threads to be bound on a single physical resource.
+ */
+PARSEC_DECLSPEC extern int parsec_runtime_singlify_bindings;
+
 /**
  * Global configuration variable controlling what tasks are given to the
  * scheduler. If this is enabled (the default) then the highest priority task

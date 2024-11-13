@@ -235,7 +235,7 @@ void parsec_matrix_tabular_set_random_table(parsec_matrix_tabular_t *dc,
                                                 + (nbtiles-1)*sizeof(parsec_two_dim_td_table_elem_t) );
     table->nbelem = nbtiles;
 
-    nbvp = vpmap_get_nb_vp();
+    nbvp = parsec_vpmap_get_nb_vp();
 #if defined(__WINDOWS__)
     rand_s(&rankseed);
     rand_s(&vpseed);

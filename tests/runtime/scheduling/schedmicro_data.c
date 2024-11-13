@@ -51,7 +51,7 @@ static int32_t vpid_of(parsec_data_collection_t *desc, ...)
 
     assert( k < dat->size && k >= 0 );
     (void)k; (void)dat;
-    return (k / desc->nodes) % vpmap_get_nb_vp();
+    return (k / desc->nodes) % parsec_vpmap_get_nb_vp();
 }
 
 static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)

@@ -16,6 +16,7 @@
 
 #include "parsec/parsec_hwloc.h"
 #include "parsec/vpmap.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/utils/debug.h"
 #include "parsec/utils/output.h"
 #include "parsec/constants.h"
@@ -23,181 +24,224 @@
 /* If HWLOC is not available support up to 64 cores */
 #define DEFAULT_NB_CORE 64
 /**
- * These structures are used by the from_hardware and from_file
- * to store the whole vp map
+ * Structures defining the virtual process (VP) maps. If HWLOC is not
+ * available we only support a single VP, flat across all the available
+ * cores.
  */
 typedef struct {
     int nbcores;
-    int cores[1];
-    int ht[1];
+    int ht;
+    hwloc_cpuset_t cpuset;
 } vpmap_thread_t;
 
 typedef struct {
     int nbthreads;
-    vpmap_thread_t **threads;
+    vpmap_thread_t* threads;
+    hwloc_cpuset_t cpuset;
 } vpmap_t;
 
-static int vpmap_nb_total_threads = -1; /**< maintains the total number of threads */
-
-static vpmap_t *map = NULL;     /**< used by the from_file and from_affinity only */
-static int nbvp = -1;
-static int nbht = 1;
-static int nbthreadspervp = -1; /**< used by the from_parameters only */
-static int nbcores = -1;        /**< used by the from_parameters only */
-
-static int vpmap_get_nb_threads_in_vp_parameters(int vp);
-static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread);
-static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, int *ht);
-
+static vpmap_t *parsec_vpmap = NULL;     /**< used by the from_file and from_affinity only */
+static int parsec_nbvp = -1;
+static int parsec_nbht = 1;
+static int parsec_nb_total_threads = 0;
 static int parse_binding_parameter(int vp, int nbth, char * binding);
+static int parsec_display_vpmap = 0;
 
-int vpmap_get_nb_total_threads(void)
-{
-    return vpmap_nb_total_threads;
-}
-
-/* The parameters variant is used while no init has been called,
- * as they return -1 in this case for any call
+/* PARSEC_VPMAP_INIT_*
+ *  Different ways of initializing the vpmap.
+ * Forall XXX, YYY,
+ *     vpmap_init_XXX cannot be called after a succesful call to vpmap_init_YYY
  */
-vpmap_get_nb_threads_in_vp_t vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_parameters;
-vpmap_get_nb_cores_affinity_t vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;
-vpmap_get_core_affinity_t vpmap_get_core_affinity = vpmap_get_core_affinity_parameters;
+//TODO: the cpuset computed by the vpmaps are not used to do the binding and
+//are essentially ignored. This needs to be consolidated with the actual
+//binding code in parsec.c.
 
+/**
+ * Initialize the vpmap based on the HWLOC hardware locality information. Do not
+ * initialize more than the expected number of cores.
+ *   Create one thread per core
+ *   Create one vp per socket
+ *   Bind threads of the same vp on the different cores of the
+ *     corresponding socket
+ *   Uses hwloc
+ * @return PARSEC_SUCCESS if success; -1 if the initialization was not possible.
+ */
+static int parsec_vpmap_init_from_hardware_affinity(int nbcores);
 
-int vpmap_get_nb_vp(void)
+/**
+ * initialize the vpmap using a simple nbvp x nbthreadspervp
+ *   approach; and a round-robin distribution of threads among cores.
+ */
+static int parsec_vpmap_init_from_parameters(int nbvp, int nbthreadspervp, int nbcores);
+
+/**
+ * initialize the vpmap using a very simple flat x nbcores approach
+ */
+static int parsec_vpmap_init_from_flat(int nbcores);
+
+/**
+ * initialize the vpmap using a virtual process rank file
+ *  Format of the rankfile:
+ *  list of integers: cores of thread 0 of vp 0
+ *  list of integers: cores of thread 1 of vp 0
+ *  ...
+ *  blank line: change the vp number
+ *  list of integers: cores of thread 0 of vp 1
+ *  ...
+ */
+static int parsec_vpmap_init_from_file(const char *filename);
+
+int parsec_vpmap_get_nb_vp(void)
 {
-    return nbvp;
+    return parsec_nbvp;
 }
 
-static int vpmap_get_nb_threads_in_vp_parameters(int vp)
+int parsec_vpmap_init(char* optarg, int nb_cores )
 {
-    if( (vp < 0) ||
-        (vp >= nbvp) ||
-        (nbcores == -1) )
-        return PARSEC_ERR_BAD_PARAM;
-    return nbthreadspervp;
-}
-
-static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread)
-{
-    if( (vp < 0) ||
-        (vp >= nbvp) ||
-        (thread < 0) ||
-        (thread >= nbthreadspervp )||
-        (nbcores == -1) )
-        return PARSEC_ERR_BAD_PARAM;
-    return 1;
-}
-
-static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, int *ht)
-{
-    if( (vp < 0) ||
-        (vp >= nbvp) ||
-        (thread < 0) ||
-        (thread >= nbthreadspervp )||
-        (nbcores == -1) )
-        return;
-#if defined(PARSEC_HAVE_HWLOC)
-    //nb_real_cores = parsec_hwloc_nb_real_cores();
-    nbht = parsec_hwloc_get_ht();
-#endif /* PARSEC_HAVE_HWLOC */
-    *cores = (vp * nbcores * nbht) + thread;
-    if (nbht > 1 ) {
-        *ht = (*cores) % nbht;
-    } else {
-        *ht = -1;
+    if( NULL == optarg )  /* build a flat topology */
+        goto build_flat_topology;
+    /* We accept a vpmap that starts with "display:" as a mean to show the mapping */
+    if( !strncmp(optarg, "display", 7 )) {
+        parsec_display_vpmap = 1;
+        if( ':' != optarg[strlen("display")] ) {
+            parsec_warning("Display thread mapping requested but vpmap argument incorrect "
+                           "(must start with display: to print the mapping)");
+        } else {
+            optarg += strlen("display:");
+        }
     }
+    if( !strncmp(optarg, "flat", 4) ) {
+        /* default case (handled in parsec_init) */
+    } else if( !strncmp(optarg, "hwloc", 5) ) {
+        parsec_vpmap_init_from_hardware_affinity(nb_cores);
+    } else if( !strncmp(optarg, "file:", 5) ) {
+        parsec_vpmap_init_from_file(optarg + 5);
+    } else if( !strncmp(optarg, "rr:", 3) ) {
+        int n, p, co;
+        if( sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co) == 3 ) {
+            parsec_vpmap_init_from_parameters(n, p, co);
+        } else {
+            parsec_warning("VPMAP choice (--mca runtime_vpmap): %s is invalid. Falling back to default!", optarg);
+        }
+    } else {
+        if( '\0' != optarg[0] ) {
+            parsec_warning("VPMAP choice (--mca runtime_vpmap): %s is invalid. Falling back to default!", optarg);
+        }
+    }
+    if( -1 == parsec_vpmap_get_nb_vp() ) {
+build_flat_topology:
+        parsec_vpmap_init_from_flat(nb_cores);
+    }
+    /* Consolidate the VP cpuset (hwloc_bitmap_intersects) */
+    for( int i = 0; i < parsec_nbvp; i++ ) {
+        parsec_vpmap[i].cpuset = HWLOC_ALLOC();
+        for( int j = 0; j < parsec_vpmap[i].nbthreads; j++ ) {
+            if( parsec_runtime_singlify_bindings > 0 )  /* late singlify */
+                hwloc_bitmap_singlify(parsec_vpmap[i].threads[j].cpuset);
+            if( HWLOC_INTERSECTS(parsec_vpmap[i].cpuset, parsec_vpmap[i].threads[j].cpuset) ) {
+                /* overlap detected, show it to the user */
+                if(parsec_report_binding_issues) {
+                    parsec_warning("VP[%d] cpuset intersects with thread %d\n, a compute resource is over-committed\n",
+                                   i, j);
+                    parsec_report_bindings = 1;  /* report binding issues to keep the user informed */
+                }
+            }
+            HWLOC_OR(parsec_vpmap[i].cpuset, parsec_vpmap[i].cpuset, parsec_vpmap[i].threads[j].cpuset);
+        }
+    }
+    return 0;
 }
 
-void vpmap_fini(void)
+void parsec_vpmap_fini(void)
 {
     int v, t;
-    if( NULL != map ) {
-        for(v = 0; v < nbvp; v++) {
-            for(t = 0; t < map[v].nbthreads; t++) {
-                free(map[v].threads[t]);
-                map[v].threads[t] = NULL;
+    if( NULL != parsec_vpmap ) {
+        for(v = 0; v < parsec_nbvp; v++) {
+            for(t = 0; t < parsec_vpmap[v].nbthreads; t++) {
+                HWLOC_FREE(parsec_vpmap[v].threads[t].cpuset);
             }
+            free(parsec_vpmap[v].threads);
+            HWLOC_FREE(parsec_vpmap[v].cpuset);
         }
-        free(map);
-        map = NULL;
+        free(parsec_vpmap);
+        parsec_vpmap = NULL;
     }
-    nbvp = -1;
-    nbthreadspervp = -1;
-    nbcores = -1;
+    parsec_nbvp = -1;
 }
 
-static int vpmap_get_nb_threads_in_vp_datamap(int vp)
+int parsec_vpmap_get_vp_threads(int vp)
 {
     if( (vp < 0) ||
-        (vp >= nbvp) ||
-        (NULL == map) )
+        (vp >= parsec_nbvp) ||
+        (NULL == parsec_vpmap) )
         return PARSEC_ERR_BAD_PARAM;
-    return map[vp].nbthreads;
+    return parsec_vpmap[vp].nbthreads;
 }
 
-static int vpmap_get_nb_cores_affinity_datamap(int vp, int thread)
+int parsec_vpmap_get_vp_thread_cores(int vp, int thread)
 {
     if( (vp < 0) ||
-        (vp >= nbvp) ||
-        (map == NULL) ||
+        (vp >= parsec_nbvp) ||
+        (parsec_vpmap == NULL) ||
         (thread < 0) ||
-        (thread >= map[vp].nbthreads ) )
+        (thread >= parsec_vpmap[vp].nbthreads ) ) {
         return PARSEC_ERR_BAD_PARAM;
-    return map[vp].threads[thread]->nbcores;
+    }
+    return parsec_vpmap[vp].threads[thread].nbcores;
 }
 
-static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores, int *ht)
+hwloc_cpuset_t parsec_vpmap_get_vp_thread_affinity(int vp, int thread, int *ht)
 {
     if( (vp < 0) ||
-        (vp >= nbvp) ||
-        (map == NULL) ||
+        (vp >= parsec_nbvp) ||
+        (parsec_vpmap == NULL) ||
         (thread < 0) ||
-        (thread >= map[vp].nbthreads ) )
-        return;
-    memcpy(cores, map[vp].threads[thread]->cores, map[vp].threads[thread]->nbcores * sizeof(int));
-    memcpy(ht, map[vp].threads[thread]->ht, map[vp].threads[thread]->nbcores * sizeof(int));
+        (thread >= parsec_vpmap[vp].nbthreads ) )
+        return NULL;
+    *ht = parsec_vpmap[vp].threads[thread].ht;
+    return parsec_vpmap[vp].threads[thread].cpuset;
 }
 
-int vpmap_init_from_hardware_affinity(int nbcores)
+int parsec_vpmap_init_from_hardware_affinity(int nbthreads)
 {
 #if defined(PARSEC_HAVE_HWLOC)
-    int vp_id, th_id, core_id, ht_id;
+    int vp_id, th_id, core_id, ht_id, nbthreadspervp;
 
     /* Compute the number of VP according to the number of objects at the
      * lowest level between sockets and NUMA nodes */
     int level = parsec_hwloc_core_first_hrwd_ancestor_depth();
-    nbvp = parsec_hwloc_get_nb_objects(level);
-    nbht = parsec_hwloc_get_ht();
+    parsec_nbvp = parsec_hwloc_get_nb_objects(level);
+    parsec_nbht = parsec_hwloc_get_ht();
 
-    if (nbvp <= 0 ) {
-        return vpmap_init_from_flat(nbcores);
+    if ( parsec_nbvp <= 0 ) {
+        return parsec_vpmap_init_from_flat(nbthreads);
     }
 
-    map = (vpmap_t*)calloc(nbvp, sizeof(vpmap_t));
+    parsec_vpmap = (vpmap_t*)calloc(parsec_nbvp, sizeof(vpmap_t));
     /* Define the VP map:
      * threads are distributed in order on the cores (hwloc numbering, ensure locality)
      */
     core_id = 0;
-    vpmap_nb_total_threads = 0;
+    parsec_nb_total_threads = 0;
 
-    for( vp_id = 0; vp_id < nbvp; vp_id++ ) {
-        nbthreadspervp = parsec_hwloc_nb_cores_per_obj(level, vp_id) * nbht;
-        if( PARSEC_SUCCESS > nbthreadspervp ) parsec_fatal("could not determine the number of threads for the VP map");
-        vpmap_nb_total_threads += nbthreadspervp;
+    for( vp_id = 0; vp_id < parsec_nbvp; vp_id++ ) {
+        nbthreadspervp = parsec_hwloc_nb_cores_per_obj(level, vp_id) * parsec_nbht;
+        if( PARSEC_SUCCESS > nbthreadspervp )
+            parsec_fatal("could not determine the number of threads for the VP map");
+        parsec_nb_total_threads += nbthreadspervp;
 
-        map[vp_id].nbthreads = nbthreadspervp;
-        map[vp_id].threads   = (vpmap_thread_t**)calloc(nbthreadspervp, sizeof(vpmap_thread_t*));
+        parsec_vpmap[vp_id].cpuset = parsec_hwloc_cpuset_per_obj(level, vp_id);
+        parsec_vpmap[vp_id].nbthreads = nbthreadspervp;
+        parsec_vpmap[vp_id].threads   = (vpmap_thread_t*)calloc(nbthreadspervp, sizeof(vpmap_thread_t));
 
-        for( th_id = 0; th_id < nbthreadspervp; th_id += nbht ) {
-            for( ht_id = 0; ht_id < nbht ; ht_id++ ) {
-                map[vp_id].threads[th_id + ht_id] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-                map[vp_id].threads[th_id + ht_id]->nbcores = 1;
-                map[vp_id].threads[th_id + ht_id]->cores[0] = core_id;
-                map[vp_id].threads[th_id + ht_id]->ht[0] = ht_id;
-                if( 0 == --nbcores ) {
-                    map[vp_id].nbthreads = th_id + ht_id + 1;
-                    nbvp = vp_id + 1;  /* Update the number of valid VP */
+        for( th_id = 0; th_id < nbthreadspervp; th_id += parsec_nbht ) {
+            for( ht_id = 0; ht_id < parsec_nbht ; ht_id++ ) {
+                parsec_vpmap[vp_id].threads[th_id + ht_id].nbcores = 1;
+                parsec_vpmap[vp_id].threads[th_id + ht_id].cpuset = parsec_hwloc_cpuset_per_obj(level+1, core_id);
+                parsec_vpmap[vp_id].threads[th_id + ht_id].ht = ht_id;
+                if( 0 == --nbthreads ) {
+                    parsec_vpmap[vp_id].nbthreads = th_id + ht_id + 1;
+                    parsec_nbvp = vp_id + 1;  /* Update the number of valid VP */
                     goto complete_and_return;
                 }
             }
@@ -205,33 +249,23 @@ int vpmap_init_from_hardware_affinity(int nbcores)
         }
     }
   complete_and_return:
-    vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_datamap;
-    vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_datamap;
-    vpmap_get_core_affinity = vpmap_get_core_affinity_datamap;
-
     return PARSEC_SUCCESS;
 #else
-    (void)nbcores;
+    (void)nbthreads;
     return PARSEC_ERR_NOT_IMPLEMENTED;
 #endif
 }
 
-int vpmap_init_from_file(const char *filename)
+int parsec_vpmap_init_from_file(const char *filename)
 {
     FILE *f;
     char *line = NULL;
     size_t nline = 0;
-    int rank = 0;
-    int nbth = 1, nbcores, c, v;
+    int rank = 0, nbth = 1;
 
-    if( nbvp != -1 ) {
-        vpmap_nb_total_threads = -1;
+    if( parsec_nbvp != -1 ) {  /* cannot overload an existing vpmap */
         return PARSEC_ERR_NOT_SUPPORTED;
     }
-
-#if defined(PARSEC_HAVE_HWLOC)
-    nbht = parsec_hwloc_get_ht();
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
 
     f = fopen(filename, "r");
     if( NULL == f ) {
@@ -239,10 +273,11 @@ int vpmap_init_from_file(const char *filename)
         return PARSEC_ERR_NOT_FOUND;
     }
 
-    nbvp = 0;
+    parsec_nbvp = 0;
 
     char * th_arg = NULL;
     char * binding = NULL;
+    char *local_vpmap = NULL, *next_string, *rest_of_line;
     long int tgt_rank = -1;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -252,206 +287,157 @@ int vpmap_init_from_file(const char *filename)
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     }
 #endif
-    /* Count the number of line describing a VP for the process rank */
+    /* Count the number of lines describing a VP for the process rank */
     while( getline(&line, &nline, f) != -1 ) {
         if( NULL != strchr(line, ':') && (line[0] != ':')) {
-            tgt_rank = strtol(line, NULL,0);
-            if ( tgt_rank == rank ){
-                nbvp++;
+            tgt_rank = strtol(line, &rest_of_line, 0);
+            if ( tgt_rank != rank ) {
+                continue;
             }
-        } else if( line[0] == ':' ){
+        } else if( line[0] == ':' ) {
             /* no target proc specified, applies to all. */
-            nbvp++;
         } else {
             parsec_warning("malformed line %s in vpmap description %s.", line, filename);
+            continue;
         }
+        /* Add the current vpmap description to the local_vpmap */
+        parsec_nbvp++;
+        if( NULL == local_vpmap ) {
+            asprintf(&next_string, "%s\n%s", local_vpmap, rest_of_line);
+            free(local_vpmap);
+        } else {
+            next_string = strdup(rest_of_line);
+        }
+        local_vpmap = next_string;
     }
-
-
-    if( 0 == nbvp ) {
-        /* If no description is available for the process, create a single monothread VP */
-        parsec_inform("No VP parameter for the process %i: create a single VP (single thread, unbound)", rank);
-        nbvp = 1;
-        map = (vpmap_t*)malloc(sizeof(vpmap_t));
-        map[0].nbthreads = 1;
-        map[0].threads = (vpmap_thread_t**)malloc(sizeof(vpmap_thread_t*));
-
-#if defined(PARSEC_HAVE_HWLOC)
-        nbcores = parsec_hwloc_nb_real_cores();
-#else
-        nbcores = DEFAULT_NB_CORE;
-#endif
-        map[0].threads[0] = (vpmap_thread_t*)malloc((nbcores-1) * sizeof(int) + sizeof(vpmap_thread_t));
-        map[0].threads[0]->nbcores = nbcores;
-        for(c = 0; c < nbcores; c++) {
-            map[0].threads[0]->cores[c] = c;
-        }
-
-        vpmap_nb_total_threads = nbcores;
-    } else {
-        /* We have some VP descriptions */
-        map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));
-
-        rewind(f);
-        v = 0;
-        vpmap_nb_total_threads  = 0;
-        while( getline(&line, &nline, f) != -1 ) {
-            if( NULL != strchr(line, ':') ) {
-                if (line[0] == ':')
-                    tgt_rank=0;
-                else
-                    tgt_rank = strtod(line, NULL);
-
-                if ( tgt_rank == rank ){
-                    nbth=0;
-                    if( NULL != (th_arg = strchr(line, ':'))) {
-                        /* skip the colon and treat the thread number argument */
-                        th_arg++;
-                        nbth = (int) strtod(th_arg, NULL);
-                        if( nbth <= 0 )
-                            nbth=1;
-
-                        vpmap_nb_total_threads += nbth;
-
-                        map[v].nbthreads = nbth;
-                        map[v].threads = (vpmap_thread_t**)calloc(nbth, sizeof(vpmap_thread_t*));
-
-                        /* skip the colon and treat the binding argument */
-                        if( NULL != (binding = strchr(th_arg, ':'))) {
-                            binding++;
-                            parse_binding_parameter(v, nbth, binding);
-
-                        } else {
-                            printf("[%i] No binding specified for threads of the VP %i \n", rank, v);
-                        }
-                    }
-                    v++;
-                }
-            }
-        }
-    }
-
     fclose(f);
 
-    vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_datamap;
-    vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_datamap;
-    vpmap_get_core_affinity = vpmap_get_core_affinity_datamap;
+    if( 0 == parsec_nbvp ) {
+        /* If no description is available for the process, create one single-thread VP */
+        parsec_inform("No VP parameter for the process %i: create one VP (single thread, unbound)", rank);
+        return parsec_vpmap_init_from_flat(-1);
+    }
+    /* We have some VP descriptions */
+    parsec_vpmap = (vpmap_t*)malloc(parsec_nbvp * sizeof(vpmap_t));
 
+    line = local_vpmap;
+    parsec_nb_total_threads  = 0;
+    int v = 0;
+    while( NULL != line ) {
+        next_string = strchr(line, '\n');
+        if( NULL != next_string ) {
+            *next_string = '\0';  /* add an end of string */
+            next_string++;        /* and move to the next element */
+        }
+        nbth = 0;
+        if( NULL != (th_arg = strchr(line, ':'))) {
+            /* skip the colon and treat the thread number argument */
+            th_arg++;
+            nbth = (int) strtod(th_arg, NULL);
+            if( nbth <= 0 )
+                nbth=1;
+
+            parsec_nb_total_threads += nbth;
+
+            parsec_vpmap[v].nbthreads = nbth;
+            parsec_vpmap[v].threads = (vpmap_thread_t*)calloc(nbth, sizeof(vpmap_thread_t));
+
+            /* skip the colon and treat the binding argument */
+            if( NULL != (binding = strchr(th_arg, ':'))) {
+                binding++;
+                parse_binding_parameter(v, nbth, binding);
+            } else {
+                printf("[%i] No binding specified for threads of the VP %i \n", rank, v);
+            }
+        }
+        v++;
+        line = next_string;
+    }
+    free(local_vpmap);
     return PARSEC_SUCCESS;
 }
 
-int vpmap_init_from_parameters(int _nbvp, int _nbthreadspervp, int _nbcores)
+int parsec_vpmap_init_from_parameters(int _nbvp, int _nbthreadspervp, int _nbcores)
 {
-    if( nbvp != -1 ||
-        nbthreadspervp != -1 ||
-        nbcores != -1 ) {
-        vpmap_nb_total_threads = -1;
+    if( parsec_nbvp != -1 ) {  /* do not overload an existing topology */
         return PARSEC_ERR_BAD_PARAM;
     }
 
-#if defined(PARSEC_HAVE_HWLOC)
-    nbht = parsec_hwloc_get_ht();
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
-
-    nbcores = _nbcores;
-    nbthreadspervp = _nbthreadspervp;
-    nbvp = _nbvp;
-
-    vpmap_nb_total_threads = nbvp * nbthreadspervp;
-
-    vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_parameters;
-    vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;
-    vpmap_get_core_affinity = vpmap_get_core_affinity_parameters;
+    parsec_nbvp = _nbvp;
+    assert(0);  /* TODO: finish this */
+    parsec_nb_total_threads = _nbvp * _nbthreadspervp;
+    (void)_nbcores;
     return PARSEC_SUCCESS;
 }
 
-int vpmap_init_from_flat(int _nbcores)
+int parsec_vpmap_init_from_flat(int nbthreads)
 {
-    if( nbvp != -1 ||
-        nbthreadspervp != -1 ||
-        nbcores != -1 ) {
-        vpmap_nb_total_threads = -1;
+    if( parsec_nbvp != -1 ) {  /* do not overload an existing vpmap */
         return PARSEC_ERR_BAD_PARAM;
     }
 
+    int nbcores = DEFAULT_NB_CORE;
 #if defined(PARSEC_HAVE_HWLOC)
-    nbht = parsec_hwloc_get_ht();
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
+    nbcores = parsec_hwloc_nb_real_cores();
+#endif
+    if( -1 == nbthreads ) nbthreads = nbcores;
+    parsec_nbvp = 1;
+    parsec_vpmap = (vpmap_t*)malloc(sizeof(vpmap_t));
+    parsec_vpmap[0].nbthreads = nbthreads;
+    parsec_vpmap[0].threads = (vpmap_thread_t*)calloc(parsec_vpmap[0].nbthreads, sizeof(vpmap_thread_t));
 
-    nbvp = 1;
-    nbcores = _nbcores/nbht;
-    nbthreadspervp = _nbcores;
-
-    vpmap_nb_total_threads = nbvp * nbthreadspervp;
-
-    vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_parameters;
-    vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;
-    vpmap_get_core_affinity = vpmap_get_core_affinity_parameters;
+    int step = nbcores / nbthreads;
+    if( -1 == parsec_runtime_singlify_bindings )  /* early singlify */
+        step = 1;
+    for( int id = 0; id < parsec_vpmap[0].nbthreads; id++ ) {
+        parsec_vpmap[0].threads[id].nbcores = step;
+        parsec_vpmap[0].threads[id].cpuset = HWLOC_ALLOC();
+        parsec_vpmap[0].threads[id].ht = 0;
+        hwloc_bitmap_set_range(parsec_vpmap[0].threads[id].cpuset, id * step, (id+1) * step - 1);
+    }
+    parsec_nb_total_threads = nbthreads;
     return PARSEC_SUCCESS;
 }
 
-void vpmap_display_map(void) {
-    int v, t, c;
-    char *cores = NULL, *ht = NULL, *tmp;
-    int *dcores, *dht;
-    int rc;
+void parsec_vpmap_display_map(void) {
+    char *str = NULL, *pstr = NULL;
 
-    parsec_inform( "Virtual Process Map ...");
-    if( -1 == nbvp ) {
+    if(!parsec_display_vpmap) return;
+    parsec_inform( "Virtual Process Map with %d VPs...", parsec_nbvp);
+    if( -1 == parsec_nbvp ) {
         parsec_inform("   Map undefined");
         return;
     }
 
-#if defined(PARSEC_HAVE_HWLOC)
-    nbht = parsec_hwloc_get_ht();
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
-
-    parsec_inform("Map with %d Virtual Processes", nbvp);
-    for(v = 0; v < nbvp; v++) {
-        parsec_inform("   Virtual Process of index %d has %d threads",
-                     v, vpmap_get_nb_threads_in_vp(v) );
-        for(t = 0; t < vpmap_get_nb_threads_in_vp(v); t++) {
-            dcores = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
-            dht = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
-            vpmap_get_core_affinity(v, t, dcores, dht);
-            rc = asprintf(&cores, "%d", dcores[0]);
-            assert(rc!=-1); (void)rc;
-
-            if(nbht > 1)
-                rc = asprintf(&ht, " (ht %d)", dht[0]);
-            else
-                rc = asprintf(&ht, " ");
-            assert(rc != -1);
-            for( c = 1; c < vpmap_get_nb_cores_affinity(v, t); c++) {
-                tmp=cores;
-                rc = asprintf(&cores, "%s, %d", tmp, dcores[c]);
-                assert(rc!=-1); (void)rc;
-                free(tmp);
-            }
-            free(dcores);
-            free(dht);
-
-            parsec_inform("    Thread %d of VP %d can be bound on cores %s %s",
-                         t, v, cores, ht);
-            free(cores);
-            free(ht);
+    for(int v = 0; v < parsec_nbvp; v++) {
+        str = parsec_hwloc_convert_cpuset(0, parsec_vpmap[v].cpuset);
+        pstr = parsec_hwloc_convert_cpuset(1, parsec_vpmap[v].cpuset);
+        parsec_inform("   Virtual Process of index %d has %d threads and logical cpuset %s\n"
+                      "           physical cpuset %s\n",
+                      v, parsec_vpmap[v].nbthreads, str, pstr );
+        free(str);free(pstr);
+        for(int t = 0; t < parsec_vpmap[v].nbthreads; t++) {
+            str = parsec_hwloc_convert_cpuset(0, parsec_vpmap[v].threads[t].cpuset);
+            pstr = parsec_hwloc_convert_cpuset(1, parsec_vpmap[v].threads[t].cpuset);
+            parsec_inform("    Thread %d of VP %d can be bound on logical cores %s (physical cores %s)\n",
+                          t, v, str, pstr);
+            free(str); free(pstr);
         }
     }
 }
 
 
-int parse_binding_parameter(int vp, int nbth, char * binding)
-{
- #if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
+static int parse_binding_parameter(int vp, int nbth, char * binding) {
+#if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
     char* option = binding;
     char* position;
-    int t, ht;
+    int t, ht, nbht = parsec_hwloc_get_ht();
 
     assert(NULL != option);
 
     int nb_real_cores = parsec_hwloc_nb_real_cores();
 
-    /* Parse  hexadecimal mask, range expression of core list expression */
+    /* Parse hexadecimal mask, range expression of core list expression */
     if( NULL != (position = strchr(option, 'x')) ) {
         /* The parameter is a hexadecimal mask */
 
@@ -474,12 +460,9 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
 #endif /* defined(PARSEC_DEBUG_NOISIER) */
 
         int core=-1, prev=-1;
-#if defined(PARSEC_HAVE_HWLOC)
-        nbht = parsec_hwloc_get_ht();
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
 
-        /* extract a single core per thread (round-robin) */
-        for( t=0; t<nbth; t+=nbht ) {
+        /* provide a single core per thread (round-robin) */
+        for( t = 0; t < nbth; t += nbht ) {
             core = hwloc_bitmap_next(binding_mask, prev);
             if( core == -1 || core > nb_real_cores ) {
                 prev = -1;
@@ -488,16 +471,13 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             }
             assert(core != -1);
 
-            for (ht=0; ht < nbht ; ht++){
-                map[vp].threads[t+ht] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-                map[vp].threads[t+ht]->nbcores = 1;
-                map[vp].threads[t+ht]->cores[0] = core;
-                if (nbht > 1)
-                    map[vp].threads[t+ht]->ht[0] = ht;
-                else
-                    map[vp].threads[t+ht]->ht[0] = -1;
+            for (ht=0; ht < nbht ; ht++) {
+                parsec_vpmap[vp].threads[t+ht].nbcores = 1;
+                parsec_vpmap[vp].threads[t+ht].cpuset = HWLOC_ALLOC();
+                hwloc_bitmap_set(parsec_vpmap[vp].threads[t+ht].cpuset, core);
+                parsec_vpmap[vp].threads[t+ht].ht = (nbht > 1 ? ht : -1);
             }
-            prev=core;
+            prev = core;
         }
         hwloc_bitmap_free(binding_mask);
     } else if( NULL != (position = strchr(option, ';'))) {
@@ -546,15 +526,12 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
         {
             int where = start, skip = 1;
 
-            for( t = 0; t < nbth; t+=nbht ) {
+            for( t = 0; t < nbth; t += nbht ) {
                 for (ht=0; ht < nbht ; ht++){
-                    map[vp].threads[t+ht] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-                    map[vp].threads[t+ht]->nbcores = 1;
-                    map[vp].threads[t+ht]->cores[0] = where;
-                    if (nbht > 1)
-                        map[vp].threads[t+ht]->ht[0] = ht;
-                    else
-                        map[vp].threads[t+ht]->ht[0] = -1;
+                    parsec_vpmap[vp].threads[t+ht].nbcores = 1;
+                    parsec_vpmap[vp].threads[t+ht].cpuset = HWLOC_ALLOC();
+                    HWLOC_SET(parsec_vpmap[vp].threads[t+ht].cpuset, where);
+                    parsec_vpmap[vp].threads[t+ht].ht = (nbht > 1 ? ht : -1);
                 }
 
                 where += step;
@@ -568,11 +545,10 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
                         parsec_warning("No more available core to bind according to the range. The remaining %d threads are not bound", nbth-(t*nbht));
                         int th;
                         for( th = t+nbht; th < nbth;  th++) {
-                            map[vp].threads[th] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-                            map[vp].threads[th]->nbcores = 1;
-                            map[vp].threads[th]->cores[0] = -1;
-                            map[vp].threads[th]->ht[0] = -1;
-
+                            parsec_vpmap[vp].threads[th].nbcores = 1;
+                            parsec_vpmap[vp].threads[t+ht].cpuset = HWLOC_ALLOC();
+                            /* nothing set */
+                            parsec_vpmap[vp].threads[t+ht].ht = (nbht > 1 ? ht : -1);
                         }
                         break;
                     }
@@ -643,13 +619,10 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
         int c=0;
         for( t = 0; t < nbth; t+=nbht ) {
             for (ht=0; ht < nbht ; ht++){
-                map[vp].threads[t+ht] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-                map[vp].threads[t+ht]->nbcores = 1;
-                map[vp].threads[t+ht]->cores[0] = core_tab[c];
-                if (nbht > 1 && core_tab[c] > -1 )
-                    map[vp].threads[t+ht]->ht[0] = ht;
-                else
-                    map[vp].threads[t+ht]->ht[0] = -1;
+                parsec_vpmap[vp].threads[t+ht].nbcores = 1;
+                parsec_vpmap[vp].threads[t+ht].cpuset = HWLOC_ALLOC();
+                HWLOC_SET(parsec_vpmap[vp].threads[t+ht].cpuset, core_tab[c]);
+                parsec_vpmap[vp].threads[t+ht].ht = (nbht > 1 && core_tab[c] > -1) ? ht : -1;
             }
             c++;
         }
