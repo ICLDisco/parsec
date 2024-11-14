@@ -24,13 +24,14 @@ below. From 1 to 2 (included) they are mandatory. Everything else is
 optional, they provide nice features not critical to the normal usage
 of this software package.
 
-1. cmake version 3.18 or above. cmake can be found in the debian
+1. cmake version 3.21 or above. cmake can be found in the debian
    package cmake, or as sources at the CMake_ download page
 2. Any MPI library Open MPI, MPICH2, MVAPICH or any vendor blessed
    implementation.
 3. hwloc_ for processor and memory locality features
-4. For using PINS (instrumentation based on PAPI) PAPI_ is required
-5. For the profiling tools you need several libraries.
+4. AMD and NVIDIA device support require HIP_>=5 and CUDA_>=4 respectively
+5. For using PINS (instrumentation based on PAPI) PAPI_ is required
+6. For the profiling tools you need several libraries.
 
    - Vite_ a visualization environment (only required for visualization)
    - GD_ usually available on most of the Linux distribution via GraphViz
@@ -39,6 +40,8 @@ of this software package.
 .. _CMake: http://www.cmake.org/
 .. _hwloc: http://www.open-mpi.org/projects/hwloc/
 .. _PAPI: http://icl.cs.utk.edu/papi/
+.. _HIP: https://rocm.docs.amd.com/projects/HIP/en/latest/index.html
+.. _CUDA: https://developer.nvidia.com/cuda-toolkit
 .. _Vite: https://gforge.inria.fr/projects/vite/
 .. _GD: http://www.graphviz.org/
 
