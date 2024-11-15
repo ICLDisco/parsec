@@ -364,8 +364,9 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
         assert( tp->super.tdm.module->taskpool_state(&tp->super) == PARSEC_TERM_TP_NOT_READY );
         /* But there should be 0 event on this taskpool at this time */
         assert( tp->super.nb_pending_actions == 0 && tp->super.nb_tasks == 0);
-        /* So, we can terminate this termination detector by stating we are ready */
-        tp->super.tdm.module->taskpool_ready(&tp->super);
+        /* So, we can safely stop monitoring this taskpool, and trigger taskpool termination detection */
+        tp->super.tdm.module->unmonitor_taskpool(&tp->super);
+        parsec_taskpool_termination_detected(&tp->super);
 
         parsec_dtd_data_collection_fini(&tp->new_tile_dc);
         parsec_data_collection_destroy(&tp->new_tile_dc);
